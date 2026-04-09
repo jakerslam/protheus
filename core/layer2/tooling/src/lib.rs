@@ -11,7 +11,8 @@ pub mod verifier;
 pub use client_adapter::{ClientAdapterRequest, ClientDelegationResult, ThinClientDelegator};
 pub use evidence_extractor::EvidenceExtractor;
 pub use evidence_store::{
-    EvidenceInvalidationRecord, EvidenceRecord, EvidenceStore, InvalidationRelationType,
+    EvidenceInvalidationRecord, EvidenceLedgerEvent, EvidenceRecord, EvidenceStore,
+    InvalidationRelationType,
 };
 pub use schemas::{
     published_schema_contract_v1, Claim, ClaimBundle, ClaimStatus, ConfidenceVector, EvidenceCard,

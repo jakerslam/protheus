@@ -1,22 +1,29 @@
 // SPDX-License-Identifier: Apache-2.0
 use super::*;
 
+fn evaluate_budget_gate(dry_run: &Value, guard: &Value) -> RouterGlobalBudgetGateResult {
+    let execution_intent = json!(true);
+    let autopause = json!({"active": false});
+    let oracle = json!({"available": false});
+    evaluate_router_global_budget_gate(RouterGlobalBudgetGateInput {
+        request_tokens_est: Some(1300.0),
+        dry_run: Some(dry_run),
+        execution_intent: Some(&execution_intent),
+        enforce_execution_only: true,
+        nonexec_max_tokens: 900,
+        autopause: Some(&autopause),
+        oracle: Some(&oracle),
+        guard: Some(guard),
+    })
+}
+
 #[test]
 fn evaluate_router_global_budget_gate_matches_hard_stop_dry_run_and_enforced_paths() {
     let hard_guard = json!({
         "hard_stop": true,
         "hard_stop_reasons": ["daily_usd_cap_exceeded"]
     });
-    let dry_run = evaluate_router_global_budget_gate(RouterGlobalBudgetGateInput {
-        request_tokens_est: Some(1300.0),
-        dry_run: Some(&json!("1")),
-        execution_intent: Some(&json!(true)),
-        enforce_execution_only: true,
-        nonexec_max_tokens: 900,
-        autopause: Some(&json!({"active": false})),
-        oracle: Some(&json!({"available": false})),
-        guard: Some(&hard_guard),
-    });
+    let dry_run = evaluate_budget_gate(&json!("1"), &hard_guard);
     assert!(dry_run.enabled);
     assert!(!dry_run.blocked);
     assert!(dry_run.deferred);
@@ -26,16 +33,7 @@ fn evaluate_router_global_budget_gate_matches_hard_stop_dry_run_and_enforced_pat
     );
     assert!(!dry_run.autopause_active);
 
-    let enforced = evaluate_router_global_budget_gate(RouterGlobalBudgetGateInput {
-        request_tokens_est: Some(1300.0),
-        dry_run: Some(&json!(false)),
-        execution_intent: Some(&json!(true)),
-        enforce_execution_only: true,
-        nonexec_max_tokens: 900,
-        autopause: Some(&json!({"active": false})),
-        oracle: Some(&json!({"available": false})),
-        guard: Some(&hard_guard),
-    });
+    let enforced = evaluate_budget_gate(&json!(false), &hard_guard);
     assert!(enforced.enabled);
     assert!(enforced.blocked);
     assert!(!enforced.deferred);

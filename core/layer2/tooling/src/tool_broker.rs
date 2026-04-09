@@ -3,8 +3,8 @@ use crate::{deterministic_hash, now_ms};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use std::collections::{HashMap, HashSet};
-use std::fs::{create_dir_all, OpenOptions};
-use std::io::Write;
+use std::fs::{create_dir_all, File, OpenOptions};
+use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -38,7 +38,9 @@ pub struct ToolBrokerExecution {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ToolExecutionLedgerEvent {
     pub event_id: String,
+    pub event_sequence: u64,
     pub result_id: String,
+    pub result_content_id: String,
     pub trace_id: String,
     pub task_id: String,
     pub caller: BrokerCaller,
@@ -99,26 +101,24 @@ impl Default for ToolBroker {
         allowed_tools.insert(BrokerCaller::Client, default_tools.clone());
         allowed_tools.insert(BrokerCaller::Worker, default_tools.clone());
         allowed_tools.insert(BrokerCaller::System, default_tools);
-        let default_ledger_path = std::env::temp_dir()
-            .join("infring")
-            .join(format!("tool_broker_events_{}.jsonl", std::process::id()));
-        let ledger_path = std::env::var("INFRING_TOOL_BROKER_LEDGER_PATH")
-            .ok()
-            .map(|v| PathBuf::from(clean_text(&v, 400)))
-            .filter(|v| !v.as_os_str().is_empty())
-            .unwrap_or(default_ledger_path);
-        Self {
+        let mut out = Self {
             allowed_tools,
             dedupe_lookup: HashMap::new(),
             raw_payloads: HashMap::new(),
             event_sequence: 0,
             ledger_events: Vec::new(),
-            ledger_path,
-        }
+            ledger_path: default_ledger_path(),
+        };
+        let _ = out.recover_from_ledger();
+        out
     }
 }
 
 impl ToolBroker {
+    fn ledger_error<E: std::fmt::Display>(&self, context: &str, err: E) -> BrokerError {
+        BrokerError::LedgerWriteFailed(format!("{context}:{}:{err}", self.ledger_path.display()))
+    }
+
     pub fn allow_tool_for(&mut self, caller: BrokerCaller, tool_name: &str) {
         self.allowed_tools
             .entry(caller)
@@ -202,27 +202,28 @@ impl ToolBroker {
             "policy_revision": policy_revision,
             "tool_version": tool_version
         }));
-        let dedupe_allowed =
-            matches!(status, NormalizedToolStatus::Ok) && !request.force_no_dedupe;
+        let result_content_id = content_fingerprint.clone();
+        let dedupe_allowed = matches!(status, NormalizedToolStatus::Ok) && !request.force_no_dedupe;
         let existing_result = if dedupe_allowed {
             self.dedupe_lookup.get(&dedupe_hash).cloned()
         } else {
             None
         };
-        let result_id = existing_result.unwrap_or_else(|| content_fingerprint.clone());
+        let result_id = existing_result.unwrap_or_else(|| result_content_id.clone());
         if dedupe_allowed {
             self.dedupe_lookup
                 .entry(dedupe_hash.clone())
                 .or_insert_with(|| result_id.clone());
         }
         self.event_sequence = self.event_sequence.saturating_add(1);
+        let event_sequence = self.event_sequence;
         let event_id = deterministic_hash(&json!({
             "kind": "tool_execution_event",
             "trace_id": request.trace_id,
             "task_id": request.task_id,
             "caller": format!("{:?}", request.caller),
             "event_ts": event_ts,
-            "event_sequence": self.event_sequence
+            "event_sequence": event_sequence
         }));
         let raw_ref = format!("raw://{result_id}/{event_id}");
         self.raw_payloads
@@ -243,6 +244,8 @@ impl ToolBroker {
         lineage.push(format!("broker_event:{event_id}"));
         let normalized_result = NormalizedToolResult {
             result_id,
+            result_content_id,
+            result_event_id: event_id.clone(),
             trace_id: clean_text(&request.trace_id, 160),
             task_id: clean_text(&request.task_id, 160),
             tool_name,
@@ -257,7 +260,9 @@ impl ToolBroker {
         };
         let ledger_event = ToolExecutionLedgerEvent {
             event_id,
+            event_sequence,
             result_id: normalized_result.result_id.clone(),
+            result_content_id: normalized_result.result_content_id.clone(),
             trace_id: normalized_result.trace_id.clone(),
             task_id: normalized_result.task_id.clone(),
             caller: request.caller,
@@ -291,25 +296,47 @@ impl ToolBroker {
         &self.ledger_path
     }
 
+    pub fn recover_from_ledger(&mut self) -> Result<usize, BrokerError> {
+        if !self.ledger_path.exists() {
+            return Ok(0);
+        }
+        let file = File::open(&self.ledger_path)
+            .map_err(|err| self.ledger_error("open_for_recovery", err))?;
+        self.dedupe_lookup.clear();
+        self.ledger_events.clear();
+        self.event_sequence = 0;
+        let mut recovered = 0usize;
+        for line in BufReader::new(file).lines() {
+            let row = line.map_err(|err| self.ledger_error("read_recovery_line", err))?;
+            let trimmed = row.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            let event = serde_json::from_str::<ToolExecutionLedgerEvent>(trimmed)
+                .map_err(|err| self.ledger_error("decode_recovery_line", err))?;
+            self.event_sequence = self.event_sequence.max(event.event_sequence);
+            self.dedupe_lookup
+                .entry(event.dedupe_hash.clone())
+                .or_insert_with(|| event.result_id.clone());
+            self.ledger_events.push(event);
+            recovered = recovered.saturating_add(1);
+        }
+        Ok(recovered)
+    }
+
     fn persist_ledger_event(&self, event: &ToolExecutionLedgerEvent) -> Result<(), BrokerError> {
         if let Some(parent) = self.ledger_path.parent() {
-            create_dir_all(parent).map_err(|err| {
-                BrokerError::LedgerWriteFailed(format!("create_dir:{}:{err}", parent.display()))
-            })?;
+            create_dir_all(parent).map_err(|err| self.ledger_error("create_dir", err))?;
         }
         let mut file = OpenOptions::new()
             .create(true)
             .append(true)
             .open(&self.ledger_path)
-            .map_err(|err| {
-                BrokerError::LedgerWriteFailed(format!("open:{}:{err}", self.ledger_path.display()))
-            })?;
+            .map_err(|err| self.ledger_error("open", err))?;
         let row = serde_json::to_string(event)
             .map_err(|err| BrokerError::LedgerWriteFailed(format!("encode_event:{err}")))?;
         file.write_all(format!("{row}\n").as_bytes())
-            .map_err(|err| {
-                BrokerError::LedgerWriteFailed(format!("append:{}:{err}", self.ledger_path.display()))
-            })?;
+            .map_err(|err| self.ledger_error("append", err))?;
         Ok(())
     }
 }
@@ -337,6 +364,49 @@ fn sanitize_lineage(lineage: &[String]) -> Vec<String> {
         rows.push("tool_broker_v1".to_string());
     }
     rows
+}
+
+#[cfg(test)]
+fn default_ledger_path() -> PathBuf {
+    if let Some(path) = std::env::var("INFRING_TOOL_BROKER_LEDGER_PATH")
+        .ok()
+        .map(|v| PathBuf::from(clean_text(&v, 400)))
+        .filter(|v| !v.as_os_str().is_empty())
+    {
+        return path;
+    }
+    std::env::temp_dir().join(format!(
+        "infring_tool_broker_test_{}_{}.jsonl",
+        std::process::id(),
+        now_ms()
+    ))
+}
+
+#[cfg(not(test))]
+fn default_ledger_path() -> PathBuf {
+    if let Some(path) = std::env::var("INFRING_TOOL_BROKER_LEDGER_PATH")
+        .ok()
+        .map(|v| PathBuf::from(clean_text(&v, 400)))
+        .filter(|v| !v.as_os_str().is_empty())
+    {
+        return path;
+    }
+    if let Some(root) = std::env::var("INFRING_ROOT")
+        .ok()
+        .or_else(|| std::env::var("PROTHEUS_ROOT").ok())
+        .map(|v| PathBuf::from(clean_text(&v, 400)))
+        .filter(|v| !v.as_os_str().is_empty())
+    {
+        return root
+            .join("core")
+            .join("local")
+            .join("state")
+            .join("tooling")
+            .join("tool_broker_events.jsonl");
+    }
+    std::env::temp_dir()
+        .join("infring")
+        .join("tool_broker_events.jsonl")
 }
 
 fn canonicalize_value(value: &Value) -> Value {
@@ -511,7 +581,10 @@ mod tests {
             first.normalized_result.dedupe_hash,
             second.normalized_result.dedupe_hash
         );
-        assert_eq!(first.normalized_result.result_id, second.normalized_result.result_id);
+        assert_eq!(
+            first.normalized_result.result_id,
+            second.normalized_result.result_id
+        );
     }
 
     #[test]
@@ -603,6 +676,60 @@ mod tests {
         assert_eq!(last.trace_id, "trace-ledger");
         assert_eq!(last.task_id, "task-ledger");
         assert_eq!(last.result_id, execution.normalized_result.result_id);
+        assert_eq!(
+            last.result_content_id,
+            execution.normalized_result.result_content_id
+        );
+        assert_eq!(last.event_id, execution.normalized_result.result_event_id);
         assert!(broker.ledger_path().exists());
+    }
+
+    #[test]
+    fn broker_can_recover_dedupe_state_from_ledger() {
+        let ledger_path =
+            std::env::temp_dir().join(format!("infring_tool_broker_recover_{}.jsonl", now_ms()));
+        let mut writer = ToolBroker::default();
+        writer.ledger_path = ledger_path.clone();
+        let first = writer
+            .execute_and_normalize(
+                ToolCallRequest {
+                    trace_id: "trace-recover-1".to_string(),
+                    task_id: "task-recover-1".to_string(),
+                    tool_name: "web_search".to_string(),
+                    args: json!({"query":"recoverable dedupe"}),
+                    lineage: vec!["recover-test".to_string()],
+                    caller: BrokerCaller::Worker,
+                    policy_revision: Some("policy.recover.v1".to_string()),
+                    tool_version: Some("web_search.v1".to_string()),
+                    freshness_window_ms: Some(60_000),
+                    force_no_dedupe: false,
+                },
+                |_| Ok(json!({"results":[{"summary":"ok"}]})),
+            )
+            .expect("first");
+        let first_result_id = first.normalized_result.result_id;
+        let mut recovered = ToolBroker::default();
+        recovered.ledger_path = ledger_path.clone();
+        let recovered_count = recovered.recover_from_ledger().expect("recover");
+        assert!(recovered_count >= 1);
+        let second = recovered
+            .execute_and_normalize(
+                ToolCallRequest {
+                    trace_id: "trace-recover-2".to_string(),
+                    task_id: "task-recover-2".to_string(),
+                    tool_name: "web_search".to_string(),
+                    args: json!({"query":"recoverable dedupe"}),
+                    lineage: vec!["recover-test".to_string()],
+                    caller: BrokerCaller::Worker,
+                    policy_revision: Some("policy.recover.v1".to_string()),
+                    tool_version: Some("web_search.v1".to_string()),
+                    freshness_window_ms: Some(60_000),
+                    force_no_dedupe: false,
+                },
+                |_| Ok(json!({"results":[{"summary":"ok"}]})),
+            )
+            .expect("second");
+        assert_eq!(second.normalized_result.result_id, first_result_id);
+        let _ = std::fs::remove_file(&ledger_path);
     }
 }

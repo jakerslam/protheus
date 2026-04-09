@@ -2,6 +2,12 @@
 use super::*;
 use std::path::Path;
 
+fn assert_role_matrix(rows: &[(&str, &str, &str)]) {
+    for (input, context, expected) in rows {
+        assert_eq!(infer_role(input, context), *expected);
+    }
+}
+
 #[test]
 fn local_ollama_model_detection_is_strict() {
     assert!(is_local_ollama_model("ollama/llama3"));
@@ -29,18 +35,14 @@ fn tier_inference_matches_risk_complexity_contract() {
 
 #[test]
 fn role_inference_preserves_persona_lens_priority() {
-    assert_eq!(
-        infer_role("fix compile issue", "patch node script"),
-        "coding"
-    );
-    assert_eq!(infer_role("integrate with api", "cli automation"), "tools");
-    assert_eq!(
-        infer_role("plan next sprint", "roadmap prioritization"),
-        "planning"
-    );
-    assert_eq!(infer_role("derive proof", "logic constraints"), "logic");
-    assert_eq!(infer_role("write summary", "explain status"), "chat");
-    assert_eq!(infer_role("random", "unclassified"), "general");
+    assert_role_matrix(&[
+        ("fix compile issue", "patch node script", "coding"),
+        ("integrate with api", "cli automation", "tools"),
+        ("plan next sprint", "roadmap prioritization", "planning"),
+        ("derive proof", "logic constraints", "logic"),
+        ("write summary", "explain status", "chat"),
+        ("random", "unclassified", "general"),
+    ]);
 }
 
 #[test]

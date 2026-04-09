@@ -181,9 +181,10 @@ fn build_runtime_sync(root: &Path, flags: &Flags) -> Value {
             80,
         ))
     });
+    let trend_start = trend_rows.len().saturating_sub(24);
     let trend = trend_rows
         .into_iter()
-        .take(24)
+        .skip(trend_start)
         .map(|row| {
             json!({
                 "ts": clean_text(row.get("ts").and_then(Value::as_str).unwrap_or(""), 80),
@@ -476,7 +477,10 @@ fn build_runtime_sync(root: &Path, flags: &Flags) -> Value {
             "conduit_channels_total": conduit_channels_total,
             "target_conduit_signals": target_conduit_signals,
             "conduit_scale_required": conduit_scale_required,
-            "attention_batch_count": critical_visible_count + standard_count + background_count,
+            "attention_batch_count": critical_visible_count
+                + telemetry_count
+                + standard_count
+                + background_count,
             "critical_attention_total": critical_total_count,
             "conduit_signals_raw": conduit_channels_total,
             "sync_mode": sync_mode,

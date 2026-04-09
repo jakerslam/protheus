@@ -18,9 +18,9 @@ fn decode_numeric_hint(raw: &str) -> Option<f64> {
     }
 }
 
-fn queue_depth_from_message(message: &NexusMessage) -> Option<f64> {
-    for key in ["Q", "QUEUE_DEPTH", "QD"] {
-        if let Some(raw) = message.kv.get(key) {
+fn numeric_hint_from_message(message: &NexusMessage, keys: &[&str]) -> Option<f64> {
+    for key in keys {
+        if let Some(raw) = message.kv.get(*key) {
             if let Some(parsed) = decode_numeric_hint(raw) {
                 return Some(parsed);
             }
@@ -29,15 +29,12 @@ fn queue_depth_from_message(message: &NexusMessage) -> Option<f64> {
     None
 }
 
+fn queue_depth_from_message(message: &NexusMessage) -> Option<f64> {
+    numeric_hint_from_message(message, &["Q", "QUEUE_DEPTH", "QD"])
+}
+
 fn latency_ms_from_message(message: &NexusMessage) -> Option<f64> {
-    for key in ["LAT", "LATENCY_MS"] {
-        if let Some(raw) = message.kv.get(key) {
-            if let Some(parsed) = decode_numeric_hint(raw) {
-                return Some(parsed);
-            }
-        }
-    }
-    None
+    numeric_hint_from_message(message, &["LAT", "LATENCY_MS"])
 }
 
 fn read_latency_samples(latest: &Value) -> Vec<u64> {

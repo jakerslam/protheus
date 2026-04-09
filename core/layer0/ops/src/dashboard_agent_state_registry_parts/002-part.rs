@@ -1,3 +1,45 @@
+fn ensure_contract_runtime_defaults(contract: &mut Value) {
+    if contract.get("expiry_seconds").is_none() {
+        contract["expiry_seconds"] = Value::from(DEFAULT_EXPIRY_SECONDS);
+    }
+    if contract.get("idle_timeout_seconds").is_none() {
+        contract["idle_timeout_seconds"] = Value::from(DEFAULT_IDLE_TIMEOUT_SECONDS);
+    }
+    if contract.get("idle_terminate_allowed").is_none() {
+        contract["idle_terminate_allowed"] = Value::Bool(true);
+    }
+}
+
+fn apply_lifecycle_contract_rules(
+    contract: &mut Value,
+    explicit_indefinite: bool,
+    termination_condition: &str,
+) {
+    if explicit_indefinite {
+        contract["termination_condition"] = Value::String("manual".to_string());
+        contract["auto_terminate_allowed"] = Value::Bool(false);
+        contract["idle_terminate_allowed"] = Value::Bool(false);
+        contract["expires_at"] = Value::String(String::new());
+        contract["indefinite"] = Value::Bool(true);
+        contract["lifespan"] = Value::String("permanent".to_string());
+        return;
+    }
+    if termination_condition.starts_with("manual") || termination_condition == "task_complete" {
+        contract["auto_terminate_allowed"] = Value::Bool(false);
+        contract["idle_terminate_allowed"] = Value::Bool(false);
+        if termination_condition == "task_complete" {
+            contract["lifespan"] = Value::String("task".to_string());
+        } else if contract
+            .get("lifespan")
+            .and_then(Value::as_str)
+            .map(|v| v.trim().is_empty())
+            .unwrap_or(true)
+        {
+            contract["lifespan"] = Value::String("permanent".to_string());
+        }
+    }
+}
+
 pub fn upsert_contract(root: &Path, agent_id: &str, patch: &Value) -> Value {
     let id = normalize_agent_id(agent_id);
     if id.is_empty() {
@@ -97,33 +139,21 @@ pub fn upsert_contract(root: &Path, agent_id: &str, patch: &Value) -> Value {
             obj.remove("termination_reason");
         }
     }
-    if contract.get("expiry_seconds").is_none() { contract["expiry_seconds"] = Value::from(DEFAULT_EXPIRY_SECONDS); }
-    if contract.get("idle_timeout_seconds").is_none() { contract["idle_timeout_seconds"] = Value::from(DEFAULT_IDLE_TIMEOUT_SECONDS); }
-    if contract.get("idle_terminate_allowed").is_none() { contract["idle_terminate_allowed"] = Value::Bool(true); }
-    let termination_condition = clean_text(contract.get("termination_condition").and_then(Value::as_str).unwrap_or("task_or_timeout"), 80).to_ascii_lowercase();
-    if explicit_indefinite {
-        contract["termination_condition"] = Value::String("manual".to_string());
-        contract["auto_terminate_allowed"] = Value::Bool(false);
-        contract["idle_terminate_allowed"] = Value::Bool(false);
-        contract["expires_at"] = Value::String(String::new());
-        contract["indefinite"] = Value::Bool(true);
-        contract["lifespan"] = Value::String("permanent".to_string());
-    } else if termination_condition.starts_with("manual") || termination_condition == "task_complete" {
-        contract["auto_terminate_allowed"] = Value::Bool(false);
-        contract["idle_terminate_allowed"] = Value::Bool(false);
-        if termination_condition == "task_complete" {
-            contract["lifespan"] = Value::String("task".to_string());
-        } else if contract
-            .get("lifespan")
+    ensure_contract_runtime_defaults(&mut contract);
+    let termination_condition = clean_text(
+        contract
+            .get("termination_condition")
             .and_then(Value::as_str)
-            .map(|v| v.trim().is_empty())
-            .unwrap_or(true)
-        {
-            contract["lifespan"] = Value::String("permanent".to_string());
-        }
-    }
+            .unwrap_or("task_or_timeout"),
+        80,
+    )
+    .to_ascii_lowercase();
+    apply_lifecycle_contract_rules(&mut contract, explicit_indefinite, &termination_condition);
     let normalized_status = clean_text(
-        contract.get("status").and_then(Value::as_str).unwrap_or("active"),
+        contract
+            .get("status")
+            .and_then(Value::as_str)
+            .unwrap_or("active"),
         40,
     )
     .to_ascii_lowercase();
@@ -178,9 +208,19 @@ pub fn enforce_expired_contracts(root: &Path) -> Value {
                 .get("idle_terminate_allowed")
                 .and_then(Value::as_bool)
                 .unwrap_or(true);
-            let termination_condition = clean_text(contract.get("termination_condition").and_then(Value::as_str).unwrap_or("task_or_timeout"), 80).to_ascii_lowercase();
+            let termination_condition = clean_text(
+                contract
+                    .get("termination_condition")
+                    .and_then(Value::as_str)
+                    .unwrap_or("task_or_timeout"),
+                80,
+            )
+            .to_ascii_lowercase();
             let lifespan = clean_text(
-                contract.get("lifespan").and_then(Value::as_str).unwrap_or(""),
+                contract
+                    .get("lifespan")
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
                 40,
             )
             .to_ascii_lowercase();
@@ -213,7 +253,8 @@ pub fn enforce_expired_contracts(root: &Path) -> Value {
             };
             let last_activity_ts = session_last_activity_ts(root, agent_id).unwrap_or(created_ts);
             let idle_deadline = last_activity_ts + chrono::Duration::seconds(idle_timeout_seconds);
-            let termination_reason = if !non_expiring && auto_terminate_allowed && now >= expiry_ts {
+            let termination_reason = if !non_expiring && auto_terminate_allowed && now >= expiry_ts
+            {
                 Some("contract_expired")
             } else if !non_expiring && idle_terminate_allowed && now >= idle_deadline {
                 Some("idle_timeout")
@@ -377,8 +418,11 @@ pub fn terminated_entries(root: &Path) -> Value {
         .unwrap_or_default();
     let mut archived_candidates = archived.keys().cloned().collect::<Vec<_>>();
     for (agent_id, profile) in &profiles {
-        let state = clean_text(profile.get("state").and_then(Value::as_str).unwrap_or(""), 40)
-            .to_ascii_lowercase();
+        let state = clean_text(
+            profile.get("state").and_then(Value::as_str).unwrap_or(""),
+            40,
+        )
+        .to_ascii_lowercase();
         if state == "archived" {
             archived_candidates.push(agent_id.clone());
         }

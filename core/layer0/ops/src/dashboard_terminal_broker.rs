@@ -59,18 +59,18 @@ fn as_object_mut<'a>(root: &'a mut Value, key: &str) -> &'a mut Map<String, Valu
     if !root.get(key).map(Value::is_object).unwrap_or(false) {
         root[key] = json!({});
     }
-    root.get_mut(key)
-        .and_then(Value::as_object_mut)
-        .expect("object shape")
+    root[key]
+        .as_object_mut()
+        .unwrap_or_else(|| unreachable!("object shape"))
 }
 
 fn as_array_mut<'a>(root: &'a mut Value, key: &str) -> &'a mut Vec<Value> {
     if !root.get(key).map(Value::is_array).unwrap_or(false) {
         root[key] = Value::Array(Vec::new());
     }
-    root.get_mut(key)
-        .and_then(Value::as_array_mut)
-        .expect("array shape")
+    root[key]
+        .as_array_mut()
+        .unwrap_or_else(|| unreachable!("array shape"))
 }
 
 fn state_path(root: &Path) -> PathBuf {

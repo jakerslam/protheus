@@ -126,6 +126,32 @@ function sleepMs(ms) {
     const timeout = Math.max(1, Math.floor(Number(ms) || 0));
     Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, timeout);
 }
+function pruneIpcQueueFiles(queueDir, maxAgeMs) {
+    const threshold = Date.now() - Math.max(1000, Math.floor(Number(maxAgeMs) || 0));
+    const targets = [path.join(queueDir, 'requests'), path.join(queueDir, 'responses')];
+    for (const target of targets) {
+        let entries = [];
+        try {
+            entries = fs.readdirSync(target);
+        }
+        catch {
+            continue;
+        }
+        for (const entry of entries) {
+            if (!entry.endsWith('.json')) {
+                continue;
+            }
+            const abs = path.join(target, entry);
+            try {
+                const stat = fs.statSync(abs);
+                if ((stat.mtimeMs || 0) < threshold) {
+                    fs.rmSync(abs, { force: true });
+                }
+            }
+            catch { }
+        }
+    }
+}
 function ipcBridgeEnabled() {
     return envBool(['INFRING_OPS_IPC_DAEMON', 'PROTHEUS_OPS_IPC_DAEMON'], true);
 }
@@ -137,19 +163,171 @@ function queueRootForRepo(root) {
     return path.join(root, 'local', 'state', 'tools', 'ops_bridge_ipc', hash);
 }
 const ipcDaemonRegistry = new Map();
-function ensureOpsIpcDaemon(root) {
+function daemonHeartbeatFile(queueDir) {
+    return path.join(queueDir, 'daemon.heartbeat.json');
+}
+function daemonPidFile(queueDir) {
+    return path.join(queueDir, 'daemon.pid.json');
+}
+function heartbeatFresh(queueDir, ttlMs) {
+    try {
+        const stat = fs.statSync(daemonHeartbeatFile(queueDir));
+        const ageMs = Date.now() - Number(stat.mtimeMs || 0);
+        return ageMs >= 0 && ageMs <= Math.max(500, Math.floor(Number(ttlMs) || 0));
+    }
+    catch {
+        return false;
+    }
+}
+function heartbeatRequiredHealth(queueDir, ttlMs) {
+    const heartbeatPath = daemonHeartbeatFile(queueDir);
+    if (!fs.existsSync(heartbeatPath)) {
+        return true;
+    }
+    return heartbeatFresh(queueDir, ttlMs);
+}
+function waitForHeartbeat(queueDir, maxWaitMs, ttlMs) {
+    const deadline = Date.now() + Math.max(100, Math.floor(Number(maxWaitMs) || 0));
+    while (Date.now() <= deadline) {
+        if (heartbeatFresh(queueDir, ttlMs)) {
+            return true;
+        }
+        sleepMs(25);
+    }
+    return false;
+}
+function pidAlive(pid) {
+    const target = Number(pid || 0);
+    if (!Number.isFinite(target) || target <= 0) {
+        return false;
+    }
+    try {
+        process.kill(target, 0);
+        return true;
+    }
+    catch {
+        return false;
+    }
+}
+function readDaemonPidState(queueDir) {
+    const pidPath = daemonPidFile(queueDir);
+    try {
+        const raw = fs.readFileSync(pidPath, 'utf8');
+        const parsed = JSON.parse(String(raw || '{}'));
+        const pid = Number(parsed && parsed.pid);
+        if (!pidAlive(pid)) {
+            return null;
+        }
+        return {
+            pid,
+            started_at_ms: Number(parsed.started_at_ms || 0),
+            rust_command: String(parsed.rust_command || ''),
+            rust_args: Array.isArray(parsed.rust_args) ? parsed.rust_args.map((row) => String(row || '')) : []
+        };
+    }
+    catch {
+        return null;
+    }
+}
+function writeDaemonPidState(queueDir, state) {
+    const payload = {
+        pid: Number(state && state.pid ? state.pid : 0),
+        started_at_ms: Date.now(),
+        rust_command: String(state && state.rust_command ? state.rust_command : ''),
+        rust_args: Array.isArray(state && state.rust_args) ? state.rust_args : []
+    };
+    try {
+        fs.writeFileSync(daemonPidFile(queueDir), `${JSON.stringify(payload)}\n`, 'utf8');
+    }
+    catch { }
+}
+function removeDaemonPidState(queueDir) {
+    try {
+        fs.rmSync(daemonPidFile(queueDir), { force: true });
+    }
+    catch { }
+    try {
+        fs.rmSync(daemonHeartbeatFile(queueDir), { force: true });
+    }
+    catch { }
+}
+function makeDaemonState(resolved, queueDir, pollMs, pid) {
+    return {
+        queueDir,
+        requestsDir: path.join(queueDir, 'requests'),
+        responsesDir: path.join(queueDir, 'responses'),
+        pollMs,
+        pid: Number(pid || 0),
+        rust_command: resolved.command,
+        rust_args: [resolved.command].concat(resolved.args.concat([
+            'ipc-daemon',
+            `--queue-dir=${queueDir}`,
+            `--poll-ms=${pollMs}`
+        ]))
+    };
+}
+function stopDaemonPid(pid) {
+    const target = Number(pid || 0);
+    if (!Number.isFinite(target) || target <= 0) {
+        return;
+    }
+    try {
+        process.kill(target, 'SIGTERM');
+    }
+    catch { }
+}
+function clearOpsIpcDaemon(root, terminate = false) {
     const key = String(root || '');
-    const cached = ipcDaemonRegistry.get(key);
-    if (cached && cached.queueDir) {
-        return cached;
+    const state = ipcDaemonRegistry.get(key);
+    if (state && terminate) {
+        stopDaemonPid(state.pid);
+        removeDaemonPidState(state.queueDir);
+    }
+    if (!state && terminate) {
+        const queueDir = queueRootForRepo(root);
+        const pidState = readDaemonPidState(queueDir);
+        if (pidState) {
+            stopDaemonPid(pidState.pid);
+        }
+        removeDaemonPidState(queueDir);
+    }
+    ipcDaemonRegistry.delete(key);
+}
+function ensureOpsIpcDaemon(root, options = {}) {
+    const forceRestart = options && options.forceRestart === true;
+    const key = String(root || '');
+    if (forceRestart) {
+        clearOpsIpcDaemon(root, true);
     }
     const resolved = resolveProtheusOpsCommand(root, 'ops-domain-conduit-runner-kernel');
     const pollMs = parseTimeoutMs('INFRING_OPS_IPC_POLL_MS', 20, 5, 1000);
+    const heartbeatTtlMs = parseTimeoutMs('INFRING_OPS_IPC_HEARTBEAT_TTL_MS', 5000, 500, 60000);
     const queueDir = queueRootForRepo(root);
     const requestsDir = path.join(queueDir, 'requests');
     const responsesDir = path.join(queueDir, 'responses');
     fs.mkdirSync(requestsDir, { recursive: true });
     fs.mkdirSync(responsesDir, { recursive: true });
+    const staleMs = parseTimeoutMs('INFRING_OPS_IPC_STALE_MS', 600000, 1000, 86400000);
+    pruneIpcQueueFiles(queueDir, staleMs);
+    const cached = ipcDaemonRegistry.get(key);
+    if (cached
+        && cached.queueDir
+        && cached.requestsDir
+        && cached.responsesDir
+        && pidAlive(cached.pid)
+        && heartbeatRequiredHealth(cached.queueDir, heartbeatTtlMs)) {
+        return cached;
+    }
+    if (cached && !pidAlive(cached.pid)) {
+        ipcDaemonRegistry.delete(key);
+    }
+    const pidState = readDaemonPidState(queueDir);
+    if (pidState && pidAlive(pidState.pid) && heartbeatRequiredHealth(queueDir, heartbeatTtlMs)) {
+        const state = makeDaemonState(resolved, queueDir, pollMs, pidState.pid);
+        ipcDaemonRegistry.set(key, state);
+        return state;
+    }
+    removeDaemonPidState(queueDir);
     const daemonArgs = resolved.args.concat([
         'ipc-daemon',
         `--queue-dir=${queueDir}`,
@@ -162,25 +340,32 @@ function ensureOpsIpcDaemon(root) {
         detached: true
     });
     child.unref();
-    const state = {
-        queueDir,
-        requestsDir,
-        responsesDir,
-        pollMs,
-        pid: child.pid || 0,
-        rust_command: resolved.command,
-        rust_args: [resolved.command].concat(daemonArgs)
-    };
+    waitForHeartbeat(queueDir, parseTimeoutMs('INFRING_OPS_IPC_BOOT_WAIT_MS', 1200, 100, 10000), heartbeatTtlMs);
+    const state = makeDaemonState(resolved, queueDir, pollMs, child.pid || 0);
+    writeDaemonPidState(queueDir, state);
     ipcDaemonRegistry.set(key, state);
     return state;
 }
-function runLocalOpsDomainViaIpc(root, domain, passArgs, cliMode, inheritStdio) {
+function shouldRetryIpc(result) {
+    if (!result) {
+        return true;
+    }
+    if (result.ok || result.status === 0) {
+        return false;
+    }
+    const type = String(result.payload && result.payload.type ? result.payload.type : '').toLowerCase();
+    return type === 'ops_domain_ipc_timeout'
+        || type === 'ops_domain_ipc_daemon_unavailable'
+        || type === 'ops_domain_ipc_request_write_failed'
+        || type === 'ops_domain_ipc_response_read_failed';
+}
+function runLocalOpsDomainViaIpcOnce(root, domain, passArgs, cliMode, inheritStdio, forceRestart = false) {
     if (cliMode && inheritStdio) {
         return null;
     }
     let daemon;
     try {
-        daemon = ensureOpsIpcDaemon(root);
+        daemon = ensureOpsIpcDaemon(root, { forceRestart });
     }
     catch (err) {
         return {
@@ -290,7 +475,7 @@ function runLocalOpsDomainViaIpc(root, domain, passArgs, cliMode, inheritStdio) 
                 routed_via: 'ipc_daemon'
             };
         }
-        sleepMs(5);
+        sleepMs(Math.max(5, Math.min(100, Number(daemon.pollMs || 5))));
     }
     try {
         fs.rmSync(requestPath, { force: true });
@@ -314,6 +499,17 @@ function runLocalOpsDomainViaIpc(root, domain, passArgs, cliMode, inheritStdio) 
         timeout_ms: timeoutMs,
         routed_via: 'ipc_daemon'
     };
+}
+function runLocalOpsDomainViaIpc(root, domain, passArgs, cliMode, inheritStdio) {
+    const initial = runLocalOpsDomainViaIpcOnce(root, domain, passArgs, cliMode, inheritStdio, false);
+    if (!initial || !shouldRetryIpc(initial)) {
+        return initial;
+    }
+    const retry = runLocalOpsDomainViaIpcOnce(root, domain, passArgs, cliMode, inheritStdio, true);
+    if (retry && !retry.ok && retry.payload && typeof retry.payload === 'object') {
+        retry.payload.retry_after_restart = true;
+    }
+    return retry || initial;
 }
 function resolveProtheusOpsCommand(root, domain) {
     const preferCargo = envBool(['INFRING_OPS_PREFER_CARGO', 'PROTHEUS_OPS_PREFER_CARGO'], false);

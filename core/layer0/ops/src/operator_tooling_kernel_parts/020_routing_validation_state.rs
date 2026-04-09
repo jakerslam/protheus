@@ -32,15 +32,15 @@ fn run_escalate_model(policy: &Value, payload: &Value, policy_path: &Path) -> Va
     );
     let route = route_model_with_policy(policy, &tags, &default_model);
     let base_model = clean_text(
-        route.get("model").and_then(Value::as_str).unwrap_or(DEFAULT_MODEL),
+        route
+            .get("model")
+            .and_then(Value::as_str)
+            .unwrap_or(DEFAULT_MODEL),
         240,
     );
     let base_tier = tier_for_model(policy, &base_model).unwrap_or_else(|| {
         clean_text(
-            route
-                .get("tier")
-                .and_then(Value::as_str)
-                .unwrap_or("tier2"),
+            route.get("tier").and_then(Value::as_str).unwrap_or("tier2"),
             40,
         )
     });
@@ -84,7 +84,10 @@ fn run_escalate_model(policy: &Value, payload: &Value, policy_path: &Path) -> Va
 }
 
 fn run_plan_auto(payload: &Value) -> Result<Value, String> {
-    let task = clean_text(payload.get("task").and_then(Value::as_str).unwrap_or(""), 240);
+    let task = clean_text(
+        payload.get("task").and_then(Value::as_str).unwrap_or(""),
+        240,
+    );
     if task.is_empty() {
         return Err("task_required".to_string());
     }
@@ -197,7 +200,9 @@ fn run_plan_validate(payload: &Value) -> Result<Value, String> {
         .iter()
         .filter(|step| {
             let lowered = step.to_ascii_lowercase();
-            weak_prefixes.iter().any(|prefix| lowered.starts_with(prefix))
+            weak_prefixes
+                .iter()
+                .any(|prefix| lowered.starts_with(prefix))
         })
         .cloned()
         .collect::<Vec<_>>();
@@ -276,14 +281,21 @@ fn run_postflight_validate(payload: &Value) -> Result<Value, String> {
 
 fn run_output_validate(payload: &Value) -> Result<Value, String> {
     let mode = clean_text(
-        payload.get("mode").and_then(Value::as_str).unwrap_or("query"),
+        payload
+            .get("mode")
+            .and_then(Value::as_str)
+            .unwrap_or("query"),
         40,
     )
     .to_ascii_lowercase();
-    let text = clean_text(payload.get("text").and_then(Value::as_str).unwrap_or(""), 100_000);
+    let text = clean_text(
+        payload.get("text").and_then(Value::as_str).unwrap_or(""),
+        100_000,
+    );
     if text.is_empty() {
         return Err("text_required".to_string());
     }
+    let lowered = text.to_ascii_lowercase();
     let tags = norm_tags(payload.get("tags"));
     let mut warnings = Vec::<String>::new();
 
@@ -313,23 +325,26 @@ fn run_output_validate(payload: &Value) -> Result<Value, String> {
         ));
     }
     for marker in must_all {
-        if !text.contains(marker) {
+        if !lowered.contains(&marker.to_ascii_lowercase()) {
             warnings.push(format!("missing_required_marker:{marker}"));
         }
     }
-    if !must_any.iter().any(|marker| text.contains(marker)) {
+    if !must_any
+        .iter()
+        .any(|marker| lowered.contains(&marker.to_ascii_lowercase()))
+    {
         warnings.push(format!("missing_one_of:{}", must_any.join("|")));
     }
     if tags
         .iter()
         .any(|tag| high_risk_tags().contains(tag.as_str()))
     {
-        if !text.contains("Next:") {
+        if !lowered.contains("next:") {
             warnings.push("high_risk_missing_next_marker".to_string());
         }
         let has_safety_marker = ["Risks:", "Assumptions:", "Rollback:", "Controls:"]
             .iter()
-            .any(|marker| text.contains(marker));
+            .any(|marker| lowered.contains(&marker.to_ascii_lowercase()));
         if !has_safety_marker {
             warnings.push("high_risk_missing_safety_markers".to_string());
         }
@@ -484,4 +499,3 @@ fn append_decision_markdown(
     file.write_all(entry.as_bytes())
         .map_err(|err| format!("decision_log_write_failed:{err}"))
 }
-

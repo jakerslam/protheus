@@ -39,52 +39,60 @@ fn payload_json(argv: &[String]) -> Result<Value, String> {
     lane_utils::payload_json(argv, "metagpt_bridge")
 }
 
-fn state_path(root: &Path, argv: &[String], payload: &Map<String, Value>) -> PathBuf {
-    lane_utils::parse_flag(argv, "state-path", false)
+fn bridge_path_flag(
+    root: &Path,
+    argv: &[String],
+    payload: &Map<String, Value>,
+    flag: &str,
+    payload_key: &str,
+    default_rel: &str,
+) -> PathBuf {
+    lane_utils::parse_flag(argv, flag, false)
         .or_else(|| {
             payload
-                .get("state_path")
+                .get(payload_key)
                 .and_then(Value::as_str)
                 .map(ToString::to_string)
         })
         .map(|raw| repo_path(root, &raw))
-        .unwrap_or_else(|| root.join(DEFAULT_STATE_REL))
+        .unwrap_or_else(|| root.join(default_rel))
+}
+
+fn state_path(root: &Path, argv: &[String], payload: &Map<String, Value>) -> PathBuf {
+    bridge_path_flag(root, argv, payload, "state-path", "state_path", DEFAULT_STATE_REL)
 }
 
 fn history_path(root: &Path, argv: &[String], payload: &Map<String, Value>) -> PathBuf {
-    lane_utils::parse_flag(argv, "history-path", false)
-        .or_else(|| {
-            payload
-                .get("history_path")
-                .and_then(Value::as_str)
-                .map(ToString::to_string)
-        })
-        .map(|raw| repo_path(root, &raw))
-        .unwrap_or_else(|| root.join(DEFAULT_HISTORY_REL))
+    bridge_path_flag(
+        root,
+        argv,
+        payload,
+        "history-path",
+        "history_path",
+        DEFAULT_HISTORY_REL,
+    )
 }
 
 fn approval_queue_path(root: &Path, argv: &[String], payload: &Map<String, Value>) -> PathBuf {
-    lane_utils::parse_flag(argv, "approval-queue-path", false)
-        .or_else(|| {
-            payload
-                .get("approval_queue_path")
-                .and_then(Value::as_str)
-                .map(ToString::to_string)
-        })
-        .map(|raw| repo_path(root, &raw))
-        .unwrap_or_else(|| root.join(DEFAULT_APPROVAL_QUEUE_REL))
+    bridge_path_flag(
+        root,
+        argv,
+        payload,
+        "approval-queue-path",
+        "approval_queue_path",
+        DEFAULT_APPROVAL_QUEUE_REL,
+    )
 }
 
 fn trace_path(root: &Path, argv: &[String], payload: &Map<String, Value>) -> PathBuf {
-    lane_utils::parse_flag(argv, "trace-path", false)
-        .or_else(|| {
-            payload
-                .get("trace_path")
-                .and_then(Value::as_str)
-                .map(ToString::to_string)
-        })
-        .map(|raw| repo_path(root, &raw))
-        .unwrap_or_else(|| root.join(DEFAULT_TRACE_REL))
+    bridge_path_flag(
+        root,
+        argv,
+        payload,
+        "trace-path",
+        "trace_path",
+        DEFAULT_TRACE_REL,
+    )
 }
 
 fn default_state() -> Value {

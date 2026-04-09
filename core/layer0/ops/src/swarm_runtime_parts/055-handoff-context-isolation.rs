@@ -28,7 +28,13 @@ fn isolate_handoff_context(context: Value, reason: &str, importance: f64) -> (Va
     } else {
         normalized
     };
-    let mut rows = normalize_context_map(compacted_value);
+    let rows = normalize_context_map(compacted_value);
+    let mut ordered_rows = rows.into_iter().collect::<Vec<_>>();
+    ordered_rows.sort_by(|(left, _), (right, _)| left.cmp(right));
+    let mut rows = Map::<String, Value>::new();
+    for (key, value) in ordered_rows {
+        rows.insert(key, value);
+    }
     let mut dropped_keys = Vec::<String>::new();
     if rows.len() > HANDOFF_CONTEXT_MAX_KEYS {
         let mut limited = Map::<String, Value>::new();

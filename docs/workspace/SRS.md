@@ -56,6 +56,81 @@ ID normalization:
 | --- | --- | --- | --- | --- | --- | --- |
 | V6-MEMORY-042 | queued | Unified Memory Heap core primitive (logical unity + physical specialization + orthogonal controls + append-only lineage + context materialization + Task Fabric lease/CAS graph) | Memory authority and continuity were spread across independent flows, making long-horizon continuity, trust-state promotion, and cross-scope governance brittle and hard to audit end-to-end. | Added new Rust-authoritative crate [`core/layer2/memory/src/lib.rs`](/Users/jay/.openclaw/workspace/core/layer2/memory/src/lib.rs) with required substrate modules: heap interface [`core/layer2/memory/src/heap_interface.rs`](/Users/jay/.openclaw/workspace/core/layer2/memory/src/heap_interface.rs), record store [`core/layer2/memory/src/record_store.rs`](/Users/jay/.openclaw/workspace/core/layer2/memory/src/record_store.rs), version ledger [`core/layer2/memory/src/version_ledger.rs`](/Users/jay/.openclaw/workspace/core/layer2/memory/src/version_ledger.rs), single graph subsystem + Task Fabric lease/CAS [`core/layer2/memory/src/graph_subsystem.rs`](/Users/jay/.openclaw/workspace/core/layer2/memory/src/graph_subsystem.rs), vector index [`core/layer2/memory/src/vector_index.rs`](/Users/jay/.openclaw/workspace/core/layer2/memory/src/vector_index.rs), blob store [`core/layer2/memory/src/blob_store.rs`](/Users/jay/.openclaw/workspace/core/layer2/memory/src/blob_store.rs), context materializer (`Context Stacks` as derived views only) [`core/layer2/memory/src/context_materializer.rs`](/Users/jay/.openclaw/workspace/core/layer2/memory/src/context_materializer.rs), explicit schemas/matrices [`core/layer2/memory/src/schemas.rs`](/Users/jay/.openclaw/workspace/core/layer2/memory/src/schemas.rs), Verity policy gate [`core/layer2/memory/src/policy.rs`](/Users/jay/.openclaw/workspace/core/layer2/memory/src/policy.rs), and promotion/rollback helpers [`core/layer2/memory/src/promotion.rs`](/Users/jay/.openclaw/workspace/core/layer2/memory/src/promotion.rs). Regression proof: `cargo test --manifest-path core/layer2/memory/Cargo.toml` (scope isolation, cross-scope promotion lineage, context redaction enforcement, append-only rollback, Task Fabric lease/CAS, owner export policy, explainable Verity decisions). | 10 | 0/1/2 |
 
+## Ephemeral Memory Scope Intake (2026-04-09)
+
+ID normalization:
+- Existing `V6-MEMORY-008.*` rows are already reserved for one-command local RAG contracts.
+- This intake is normalized to `V6-MEMORY-043.*` while preserving requested `V6-MEMORY-008` scope and acceptance criteria semantics.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V6-MEMORY-043 | queued | Ephemeral scope for short-term working memory (write/promotion/cleanup/boot-sweep/lease-CAS conflict resolution) | Durable heap quality degrades when transient reasoning/tool scratch state lives indefinitely in canonical memory paths. | Added Layer-1 memory primitive crate [`core/layer1/memory/mod.rs`](/Users/jay/.openclaw/workspace/core/layer1/memory/mod.rs) with explicit modules [`core/layer1/memory/ephemeral_scope.rs`](/Users/jay/.openclaw/workspace/core/layer1/memory/ephemeral_scope.rs), [`core/layer1/memory/promotion.rs`](/Users/jay/.openclaw/workspace/core/layer1/memory/promotion.rs), and [`core/layer1/memory/cleanup.rs`](/Users/jay/.openclaw/workspace/core/layer1/memory/cleanup.rs). `ephemeral` writes remain governed by classification/trust/capability controls; promotions are copy-forward only and require Verity approval; dream-cycle/boot sweep cleanup is deterministic and receipt/lineage backed; cleanup-vs-promotion conflicts resolve via deterministic lease/CAS with single terminal outcome and conflict receipts. Unified heap schema now recognizes `MemoryScope::Ephemeral` and context materialization excludes ephemeral by default unless explicitly requested. Regression proof: `cargo test -p infring-layer1-memory` and `cargo test -p protheus-memory-core-v1`. | 10 | 0/1/2 |
+
+### V6-MEMORY-008 (normalized as V6-MEMORY-043) — Normative Clarifications
+
+- `ephemeral` is a first-class unified heap scope; it is not a parallel memory subsystem.
+- `ephemeral` changes retention/visibility defaults only; classification, trust_state, capability, and clearance gates still apply.
+- Promotion from `ephemeral` must be copy-forward into target permanent scope (`agent|swarm|core|owner`) and must not mutate source scope in place.
+- Cleanup performs deterministic logical deletion with receipt/lineage logging; physical payload reclamation may happen later.
+- On restart, stale non-promoted prior-runtime `ephemeral` payload must be swept before agent resume.
+- `ephemeral` entries are non-canonical by default and excluded from default context materialization and owner export unless explicitly authorized.
+- Promotion/cleanup conflicts resolve under deterministic Verity lease/CAS; exactly one terminal outcome survives (`promoted` or `cleaned`), and losing attempts are conflict-receipted.
+
+### V6-MEMORY-008.1 — Ephemeral Scope
+
+Acceptance criteria:
+- `scope=ephemeral` objects are tracked as temporary working-memory records.
+- Non-promoted active records are dream-cycle cleanup eligible.
+- Existing classification/trust/capability policy gates remain enforced.
+
+### V6-MEMORY-008.2 — Automatic Cleanup on Dream Cycle
+
+Acceptance criteria:
+- Cleanup is deterministic and receipt-backed.
+- Cleanup logs logical deletion in provenance/lineage.
+- Cleanup supports no-manual-action sweep behavior.
+- Boot/restart performs stale non-promoted sweep before resume.
+
+### V6-MEMORY-008.3 — Promotion Mechanism
+
+Acceptance criteria:
+- Promotion requires Verity approval.
+- Promotion creates a new target object in permanent scope.
+- Promotion preserves lineage edge from source ephemeral object to target object.
+- Promotion emits explicit promotion receipt.
+
+### V6-MEMORY-008.4 — Auditability
+
+Acceptance criteria:
+- Ephemeral writes emit receipts.
+- Promotions emit receipts with source/target lineage.
+- Cleanup emits receipts even when payload may later be physically reclaimed.
+- Audit lineage remains queryable after payload cleanup.
+
+### V6-MEMORY-008.5 — Security and Resource Control
+
+Acceptance criteria:
+- Verity enforces per-agent write-rate and byte-budget limits.
+- Verity can revoke/throttle ephemeral write access for rogue agents.
+- Verity can deny promotion on policy/clearance/trust failure.
+- Ephemeral entries are excluded from owner export/default context stacks unless explicit authorized debug path is used.
+
+### V6-MEMORY-008.6 — Conflict Resolution
+
+Acceptance criteria:
+- Promotion and cleanup use deterministic lease/CAS arbitration.
+- Exactly one terminal outcome is recorded.
+- Losing attempts emit conflict receipts and remain auditable.
+
+### V6-MEMORY-008 — Required Receipt Shapes
+
+- `EphemeralWriteReceipt`:
+  - `receipt_id`, `object_id`, `writer_agent_id`, `trace_id`, `scope`, `content_hash`, `bytes`, `written_at`
+- `EphemeralPromotionReceipt`:
+  - `receipt_id`, `source_object_id`, `target_object_id`, `target_scope`, `approved_by`, `promoted_at`
+- `EphemeralCleanupReceipt`:
+  - `receipt_id`, `object_id`, `cleanup_cycle_id`, `cleanup_reason`, `bytes_reclaimed`, `cleaned_at`
+
 ## Cline Capability Assimilation Intake (2026-04-05)
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
@@ -238,6 +313,530 @@ ID normalization:
 | V6-MEMORY-040.2 | queued | Adaptive firing thresholds driven by spike utility + load feedback | Fixed thresholds underfit quiet periods and overfire during bursty workloads. | Threshold controller adjusts spike trigger levels using moving-window success/load signals and proves lower idle CPU without missing required wake-ups in regression fixtures. | 9 | 0/1/2 |
 | V6-MEMORY-040.3 | queued | Event-stream backpressure lane for spike bursts | Spike storms can saturate consumers and destabilize swarm/runtime scheduling. | Bounded queue with producer backpressure is active; overload tests show no unbounded growth, no dropped critical spikes, and deterministic degradation receipts. | 9 | 0/1/2 |
 | V6-MEMORY-040.4 | queued | Episodic→semantic compaction pass in Dream Sequencer | Raw event logs accumulate noise and reduce long-horizon recall quality. | Sequencer emits distilled semantic memory artifacts from episodic runs on schedule/burst triggers with provenance links and recall-quality parity checks. | 8 | 1/2 |
+
+## Task Fabric Primitive Intake (2026-04-09)
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V6-TOOL-004 | in_progress | Persistent Task Fabric as governed system-wide task graph and planner primitive | The system needs durable, shared task continuity for Stomach assimilation and swarm coordination without reloading full context each turn. | Layer 2 Task Fabric primitive stores and mutates governed task graphs with receipt-tracked lifecycle, dependency/blocker readiness, lease/CAS/idempotency controls, low-token named queries, and Stomach template integration while keeping v1 non-goals explicit. Evidence path: `core/layer2/tools/task_fabric/**`. | 10 | 0/1/2 |
+
+### V6-TOOL-004.1 — Task Graph Model
+
+- Requirements:
+  - Tasks contain: `id`, `title`, `lifecycle_status`, parent/child relationships, dependency edges, typed blockers, priority, owner, assignee, optional progress percent, tags, linked receipts, metadata, `scope_id`, `created_at`, `updated_at`, `started_at`, `completed_at`, `last_heartbeat_at`, `lease_expires_at`, `revision_id`, and related links.
+  - Hierarchy is tree/forest; dependency edges are acyclic; related links may cycle.
+  - Blockers are typed and may reference task or non-task external constraints.
+- Acceptance criteria:
+  - Parent-cycle and dependency-cycle validation fail closed.
+  - Typed blockers persist in graph and are returned in query responses.
+
+### V6-TOOL-004.2 — Lifecycle and Readiness States
+
+- Requirements:
+  - Stored lifecycle states: `pending`, `in_progress`, `review`, `completed`, `failed`, `cancelled`.
+  - Derived readiness: `runnable`, `blocked`, `leased`, `stale`.
+  - Stomach phase semantics remain a template layer, not primitive semantic core.
+- Acceptance criteria:
+  - State transitions are policy-aware and receipt-tracked.
+  - Readiness derives from dependencies, blockers, leases, and heartbeat timestamps.
+
+### V6-TOOL-004.3 — Stomach Integration
+
+- Requirements:
+  - Stomach auto-creates and tracks assimilation workflow tasks via template:
+    `ingested -> analyzed -> proposed -> verified -> assimilated -> burned`.
+- Acceptance criteria:
+  - Template creation yields rooted phase tasks and ordered dependency chain in Task Fabric.
+  - Assimilation progress is queryable from Task Fabric without external status mirrors.
+
+### V6-TOOL-004.4 — Swarm Director and Agent Coordination
+
+- Requirements:
+  - Provide low-token named operations:
+    - `next_runnable(scope, assignee)`
+    - `subtree(task_id, depth)`
+    - `blocked_by(task_id)`
+    - `claimable_tasks(scope, assignee)`
+    - `stale_tasks(scope, age)`
+    - `summary(scope)`
+  - Support claim/lease, heartbeat, stale-task detection, and handoff.
+- Acceptance criteria:
+  - Named queries return deterministic minimal payloads suitable for multi-agent continuity.
+
+### V6-TOOL-004.5 — Concurrency and Idempotency
+
+- Requirements:
+  - Per-task revision IDs with compare-and-swap mutation protection.
+  - Lease expiry and heartbeat refresh semantics.
+  - Idempotency keys and append-only event stream.
+  - Receipt ledger remains canonical mutation stream.
+- Acceptance criteria:
+  - Conflicting revision updates fail with explicit CAS mismatch.
+  - Repeated idempotency key returns prior event/result without duplicate mutation.
+
+### V6-TOOL-004.6 — Governance and Audit
+
+- Requirements:
+  - Every mutation emits receipt with DNA lineage.
+  - High-risk mutations (destructive, cross-scope, autonomy-escalating) require synchronous Verity approval.
+  - Routine status/metadata changes are policy-allowed with async audit semantics.
+- Acceptance criteria:
+  - High-risk mutation path fails closed on Verity deny.
+  - Routine paths proceed with policy reason codes and auditable receipts.
+
+### V6-TOOL-004.7 — Query and Update API
+
+- Requirements:
+  - Task Fabric interactions are exposed as named operations routed through hierarchical Nexus/Conduit contract.
+- Acceptance criteria:
+  - Named dispatch contract exists and routes query operations without whole-graph context replay.
+
+### V6-TOOL-004.8 — V1 Non-goals
+
+- Explicitly out of scope for V1:
+  - ETA prediction.
+  - Notification engine.
+  - Calendar/scheduling semantics.
+  - PM-board/UI semantics.
+- Acceptance criteria:
+  - No V1 implementation path introduces these concerns into core semantics.
+
+### V6-TOOL-004 Regression Evidence
+
+- Implementation:
+  - `core/layer2/tools/task_fabric/src/lib.rs`
+  - `core/layer2/tools/task_fabric/src/task_graph.rs`
+  - `core/layer2/tools/task_fabric/src/status_machine.rs`
+  - `core/layer2/tools/task_fabric/src/query_api.rs`
+  - `core/layer2/tools/task_fabric/src/policy.rs`
+  - `core/layer2/tools/task_fabric/src/stomach_integration.rs`
+  - `core/layer2/tools/task_fabric/src/concurrency.rs`
+- Tests:
+  - `core/layer2/tools/task_fabric/tests/task_fabric.rs`
+  - `cargo test -p infring-task-fabric-core-v1`
+
+## Software Assimilation Capability Intake (2026-04-09)
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V6-ASSIM-001 | in_progress | Sovereign vertical assimilation stack with explicit cross-plane contracts | Legacy binaries and old software surfaces require deterministic, receipt-first lift into modern governed forms without domain lock-in. | Assimilation runs through explicit IR0 → IR1 → IR2 stages, admission protocol, uncertainty/receipt machinery, capability-gap reporting, and thin domain wrappers while preserving plane ownership boundaries. Evidence path: `core/layer2/assimilation/**`. | 10 | 0/1/2 |
+
+### V6-ASSIM-001.1 — IR0: Byte-Exact Artifact/Image Graph
+
+- Requirements:
+  - IR0 represents raw artifacts as byte-exact regions with offset-stable provenance anchors and decode hypotheses.
+  - No hard assumption of code/data separation.
+  - Supports interleaved code/data, overlapping decode windows, jump tables, embedded blobs, packed regions, and partial/self-modifying behavior markers.
+- Acceptance criteria:
+  - IR0 validation allows overlapping decode hypotheses and interleaved region flags.
+  - Region offsets remain stable and provenance anchors are mandatory.
+
+### V6-ASSIM-001.2 — IR1: Committed Low-Level Execution Structure
+
+- Requirements:
+  - IR1 records committed control flow, register/memory model, and execution blocks derived from IR0.
+  - IR1 must preserve reversible references to IR0 where possible.
+  - Supports symbolic execution frontier handoff.
+- Acceptance criteria:
+  - IR1 validation fails closed when execution blocks reference offsets outside IR0 provenance.
+  - IR1 stores reversible links back to originating IR0 regions.
+
+### V6-ASSIM-001.3 — IR2: Semantic Lift with Proof-Linked Ontology
+
+- Requirements:
+  - IR2 semantic lift is composed from immutable Fact Ledger, scored Hypothesis Ledger, and admitted Canonical Ontology.
+  - Hypothesis scoring and ontology admission are explicit state transitions.
+- Acceptance criteria:
+  - IR2 construction requires all three ledgers.
+  - Canonical ontology only accepts admitted hypotheses with explicit confidence/proof metadata.
+
+### V6-ASSIM-001.4 — State Exploration + Frontier Manager
+
+- Requirements:
+  - Frontier manager supports symbolic path exploration, pruning heuristics, information-gain scoring, and bailout criteria.
+  - Environment assumptions are typed/classed.
+- Acceptance criteria:
+  - Frontier ranking is deterministic for identical inputs.
+  - Bailout triggers emit explicit reason codes and receipt hooks.
+
+### V6-ASSIM-001.5 — Hierarchical Abstraction and Refinement
+
+- Requirements:
+  - Abstraction operators encode controlled information loss, back-references, refinement hooks, and uncertainty metadata.
+  - Reversibility is explicit per step.
+- Acceptance criteria:
+  - Every abstraction step carries uncertainty metadata.
+  - Steps marked as requiring reversibility fail validation when reverse link requirements are not met.
+
+### V6-ASSIM-001.6 — Identity and Alias Resolver
+
+- Requirements:
+  - Resolver handles function clones, inlined fragments, thunk chains, calling-convention normalization, overlayed memory, reused buffers, data/code aliasing, and symbol rebasing.
+  - Canonical identity mapping prevents graph fragmentation and duplicate concept admission.
+- Acceptance criteria:
+  - Alias resolution produces one canonical identity for equivalent fragments.
+  - Duplicate admissions are rejected when canonical identity already exists.
+
+### V6-ASSIM-001.7 — Cross-Plane Admission Protocol
+
+- Requirements:
+  - Cognition proposes candidates/frontier ranking.
+  - Safety admits or vetoes.
+  - Assimilation executes admitted state transitions.
+  - Canonical flow: `Proposal -> AdmissionCheck -> Receipt -> StateTransition -> Cache/Resume update`.
+- Acceptance criteria:
+  - Cognition cannot directly mutate canonical assimilation state.
+  - Mutation, proof-status upgrades, and equivalence finalization require admitted transitions with receipts.
+
+### V6-ASSIM-001.8 — Receipt and Uncertainty Machinery
+
+- Requirements:
+  - Every transformation emits receipt fields:
+    `receipt_id`, `parent_receipt_ids`, `artifact_hash`, `plane`, `stage`, `action`, `policy_version`,
+    `toolchain_fingerprint`, `assumption_set_hash`, `equivalence_scope`, `proof_type`, `confidence`,
+    `coverage`, `uncertainty_vector`, `capability_gaps[]`, `degraded`.
+  - Shared services include `UncertaintyEngine`, `DependencyGraph`, `InvalidationPlanner`, `ResumeIndex`.
+- Acceptance criteria:
+  - Receipts are complete, auditable, and lineage-linked.
+  - Uncertainty propagation and invalidation planning are explicit and replayable.
+
+### V6-ASSIM-001.9 — Capability-Gap and Degradation Receipts
+
+- Requirements:
+  - Source/target mapping always emits capability descriptor, gap report, degradation receipt, fallback policy, and uncertainty delta.
+  - Timing-sensitive, MMIO-heavy, and fixed-point contexts cannot degrade silently.
+- Acceptance criteria:
+  - High-risk capability classes produce explicit degraded/gap artifacts when full equivalence is unavailable.
+  - Silent approximation paths are prohibited by validation gates.
+
+### V6-ASSIM-001.10 — Domain Wrapper Separation
+
+- Requirements:
+  - Domain wrappers (for example game remastering) remain thin query/adaptation layers.
+  - Core code-behavior lifting remains in assimilation primitives; asset/transcoding/scene/material specifics are wrapper concerns.
+- Acceptance criteria:
+  - Domain wrappers consume declared assimilation APIs only.
+  - Wrapper code paths do not introduce undeclared architecture or canonical-state mutation authority.
+
+### V6-ASSIM-001 Regression Evidence
+
+- Implementation:
+  - `core/layer2/assimilation/src/lib.rs`
+  - `core/layer2/assimilation/src/ir0.rs`
+  - `core/layer2/assimilation/src/ir1.rs`
+  - `core/layer2/assimilation/src/ir2.rs`
+  - `core/layer2/assimilation/src/frontier.rs`
+  - `core/layer2/assimilation/src/abstraction.rs`
+  - `core/layer2/assimilation/src/identity.rs`
+  - `core/layer2/assimilation/src/admission.rs`
+  - `core/layer2/assimilation/src/receipts.rs`
+  - `core/layer2/assimilation/src/capability_gap.rs`
+  - `core/layer2/assimilation/src/domain_wrapper.rs`
+- Tests:
+  - `core/layer2/assimilation/tests/assimilation_stack.rs`
+  - `cargo test -p infring-assimilation-core-v1`
+
+## Directed Assimilation Protocol Intake (2026-04-09)
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V6-ASSIM-002 | in_progress | Directed Assimilation Protocol (sniper-laser vector) as child protocol under v3.2 charter | Operator-directed precision assimilation requires strict receipt-first control without bypassing plane authority. | Assimilation Vector compiles to IntentSpec with VectorCompilationReceipt; canonical chain emits ProtocolStepReceipt/specializations across BindingPlan, AdmissionVerdict, AdmittedAssimilationPlan, and AssimilationOutcomeReceipt with hard-selector narrowing that cannot bypass closure/gap/admission/receipt stages. Evidence path: `core/layer0/ops/src/directed_assimilation_protocol.rs`, `core/layer0/ops/tests/v6_assim_002_directed_protocol.rs`. | 10 | 0/1/2 |
+
+### V6-ASSIM-002.1 — Assimilation Vector DSL
+
+- Requirements:
+  - User-facing DSL convenience that compiles to `IntentSpec`.
+  - Hard selectors support `constrain`, `exclude`, `require`.
+  - Soft selectors are rank/suggest only.
+- Acceptance criteria:
+  - Every vector emits `VectorCompilationReceipt` containing original text, normalized `IntentSpec` hash, parser version, policy version, and ambiguity flags.
+  - Hard selectors narrow candidate discovery/ranking inputs only and do not bypass mandatory protocol stages.
+
+### V6-ASSIM-002.2 — Canonical Protocol Chain
+
+- Requirements:
+  - Chain is fixed:
+    `AssimilationVector (DSL) -> VectorCompilationReceipt -> IntentSpec -> ReconIndex -> CandidateSet -> CandidateClosure -> BindingPlan -> ProvisionalGapReport -> AdmissionVerdict -> AdmittedAssimilationPlan -> AssimilationOutcomeReceipt`.
+- Acceptance criteria:
+  - Every stage emits `ProtocolStepReceipt` (or specialization).
+  - Hard selectors may narrow `ReconIndex`/`CandidateSet`, but cannot bypass `CandidateClosure`, `ProvisionalGapReport`, `AdmissionVerdict`, or receipt emission.
+
+### V6-ASSIM-002.3 — BindingPlan
+
+- Requirements:
+  - Binding between intent and candidate artifact surfaces.
+- Acceptance criteria:
+  - `BindingPlan` contains:
+    `binding_id`, `intent_id`, `candidate_refs[]`, `closure_summary`, `capability_bindings[]`, `consumer_demands[]`, `target_descriptor_ref?`, `transfer_class`, `output_contract`, `omission_risks[]`, `legal_posture`, `assumption_set`.
+
+### V6-ASSIM-002.4 — AdmissionVerdict
+
+- Requirements:
+  - Verdict enum is frozen:
+    `accepted`, `accepted_with_degradation`, `downgraded_to_analysis_only`, `rejected`, `needs_operator_override`.
+- Acceptance criteria:
+  - Each verdict includes:
+    `reason_codes[]`, `policy_refs[]`, `required_receipts[]`, `assumption_deltas[]`, `rationale`.
+
+### V6-ASSIM-002.5 — AssimilationOutcomeReceipt
+
+- Requirements:
+  - Final outcome artifact is always emitted when chain execution reaches outcome stage.
+- Acceptance criteria:
+  - `AssimilationOutcomeReceipt` contains:
+    `outcome_kind` (`observation | extraction | transplant | emulation | retarget`),
+    optional transfer, provenance lineage, `capability_gaps[]`, final license state,
+    contamination class, degradation/fallback details, uncertainty delta, final trust state.
+
+### V6-ASSIM-002.6 — DegradationReceipt and OverrideRequest
+
+- Requirements:
+  - First-class artifacts for degradation and override pathways.
+- Acceptance criteria:
+  - `accepted_with_degradation` emits `DegradationReceipt`.
+  - `needs_operator_override` emits `OverrideRequest`.
+  - Both artifacts include:
+    `reason_codes[]`, `blast_radius`, `capability_gaps[]`, `operator_ack_required`, `fallback_mode`, `assumption_deltas[]`.
+
+### V6-ASSIM-002.7 — Artifact Surfaces
+
+- Requirements:
+  - Protocol targets broad artifact surfaces:
+    code, configs, traces, protocols, assets, and related descriptors.
+- Acceptance criteria:
+  - Default noun in protocol semantics is `artifact surfaces`.
+
+### V6-ASSIM-002.8 — Frozen Enums
+
+- Requirements:
+  - `TransferClass` is frozen:
+    `analysis_only | clean_room_spec | behavioral_clone | emitter_retarget | direct_lift`.
+  - `OutputContract` is frozen:
+    `observation_bundle | capability_spec | behavior_model | ir_capsule | test_harness | patchset | emitter_package`.
+- Acceptance criteria:
+  - Enum values are stable, serialized in snake_case, and covered by chain tests.
+
+### Integration Into Current Architecture (Plane-First)
+
+- `Safety Plane`:
+  - Enforces Verity gates, license policy, contamination checks, and `AdmissionVerdict`.
+- `Cognition Plane`:
+  - Proposes rankings and bindings only.
+- `Substrate Plane`:
+  - Supplies descriptors, adapters, and execution surfaces.
+- `Assimilation stack`:
+  - Orchestrates/drives `AdmittedAssimilationPlan` against substrate surfaces.
+
+### Appendix: Current Implementation Mapping (Non-Constitutional)
+
+- Authoritative protocol logic lives in `core/layer0/ops`.
+- Client CLI wrapper remains thin-only.
+- Internal note:
+  - `assimilate` remains internal/experimental while public docs and planes summaries catch up.
+
+### Schema Appendix (Explicit Field Lists)
+
+- `IntentSpec`:
+  - `intent_id`
+  - `goal`
+  - `hard_selectors[]`
+  - `soft_selectors[]`
+  - `destination?`
+  - `equivalence_target`
+  - `proof_min`
+  - `uncertainty_budget`
+  - `halo_policy`
+  - `degradation_policy`
+  - `budget`
+  - `transfer_class`
+  - `output_contract`
+  - `license_policy`
+  - `forbidden_license_classes[]`
+  - `allowed_transfer_classes[]`
+- `ReconIndex`:
+  - `recon_id`
+  - `source_artifact_hash`
+  - `extractor_fingerprint`
+  - `schema_version`
+  - `target_descriptor_ref?`
+  - `feature_refs[]`
+  - `region_refs[]`
+  - `created_at`
+- `CandidateSet`:
+  - `candidate_ids[]`
+  - `source_refs[]`
+  - `selector_hits[]`
+  - `scores[]`
+- `CandidateClosure`:
+  - `candidate_id`
+  - `closure_class`
+  - `dependencies[]`
+  - `omissions[]`
+  - `omitted_dependency_risk`
+  - `closure_confidence`
+- `ProvisionalGapReport`:
+  - `report_id`
+  - `binding_id`
+  - `observed_license_state`
+  - `capability_gaps[]`
+  - `adaptation_cost`
+  - `environment_coupling`
+  - `degradation_likelihood`
+  - `required_emulation_shims[]`
+  - `contamination_risk`
+  - `fallback_options[]`
+- `AdmittedAssimilationPlan`:
+  - `plan_id`
+  - `verdict_ref`
+  - `approved_steps[]`
+  - `required_receipts[]`
+  - `degraded`
+  - `operator_override_ref?`
+  - `execution_budget`
+  - `target_descriptor_ref?`
+- `ProtocolStepReceipt` (base):
+  - `receipt_id`
+  - `parent_receipt_ids[]`
+  - `step_kind`
+  - `artifact_hash`
+  - `policy_version`
+  - `lineage_chain`
+  - `uncertainty_delta`
+  - `emitted_at`
+
+### V6-ASSIM-002 Regression Evidence
+
+- Implementation:
+  - `core/layer0/ops/src/directed_assimilation_protocol.rs`
+- Tests:
+  - `core/layer0/ops/tests/v6_assim_002_directed_protocol.rs`
+  - `cargo test -p protheus-ops-core --test v6_assim_002_directed_protocol`
+
+## Unified Low-Level Provenance Primitive Bundle Intake (2026-04-09)
+
+ID normalization note:
+- Legacy `V6-PRIM-001..005` rows previously referred to a separate primitive-upgrade track.
+- This frozen provenance bundle supersedes those IDs for low-level provenance primitive scope in this revision.
+
+Bundle-level rules:
+- Blake3 deterministic hashing, lowercase hex output.
+- Canonicalization is recursive and sorts all object/map keys before serialization.
+- Receipts-first mutation contract: every mutating operation in Queue List, Circle Queue, and Hash Index emits receipts through `V6-PRIM-001`.
+- Ledger append is terminal and never recursively emits another receipt.
+- v1 scope is in-memory only (no persistence, no disk I/O, no external backends).
+- Plane-first ownership: Safety Plane owns receipt emission and ledger anchoring; other layers consume via explicit contracts.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V6-PRIM-001 | in_progress | Receipt Emitter (atomic provenance primitive) | Mutations need deterministic, synchronous, tamper-evident provenance records before ledger anchoring. | `Receipt`, `ReceiptDraft`, `ReceiptSink::append(&Receipt)`, and `ReceiptEmitter::emit(...)` enforce confidence validation, recursive canonicalization, deterministic Blake3 payload hashing, sink append by reference, and owned receipt return. | 10 | 0/1 |
+| V6-PRIM-002 | in_progress | Append-only provenance ledger (terminal hash-chained store) | Provenance needs one verifiable terminal anchor separated from receipt production. | `LedgerEntry { receipt, prev_hash, entry_hash }`, strict append chaining, ledger-enforced hash recomputation, inclusive checkpoint replay, verification from selected start, and explicit `UnknownCheckpoint` semantics. | 10 | 0/1 |
+| V6-PRIM-003 | in_progress | Queue List (ordered work queue with status management) | Work claiming must be deterministic/auditable without ambiguous remove-vs-status drift. | Priority-then-FIFO pending selection, receipt-backed enqueue/dequeue/status/reprioritize mutations, explicit transition rules, idempotent no-op behavior without receipt emission when no mutation occurs. | 9 | 1 |
+| V6-PRIM-004 | in_progress | Circle Queue (fixed-size rolling buffer) | Bounded short-term traces require explicit overwrite semantics and mutation auditability. | Capacity>0 enforcement, bounded VecDeque behavior, deterministic overwrite/drop-oldest on full push with receipt emission, read-only peek/iter paths without receipt emission. | 8 | 1 |
+| V6-PRIM-005 | in_progress | Hash Index (content-addressed lookup index) | Deterministic content-addressed lookup needs typed references and auditable mapping mutation semantics. | Lowercase 64-char Blake3Hash validation, deduped per-key references, deterministic get/get_many ordering, mutation receipts only on real mapping change, idempotent missing remove behavior. | 8 | 1 |
+
+### V6-PRIM-001 — Receipt Emitter
+
+- Data model:
+  - `Receipt` includes:
+    - `id`, `parent_id`, `op_type`, `subject`, `payload_hash`, `actor`, `timestamp`, `confidence`.
+  - `ReceiptDraft<'a, T: Serialize>` includes:
+    - `parent_id`, `op_type`, `subject`, borrowed `payload`, `actor`, `confidence`.
+  - `ReceiptSink` contract:
+    - `fn append(&mut self, receipt: &Receipt) -> Result<(), ProvenanceError>;`
+- Acceptance criteria:
+  - `subject` and `confidence` may be `None`.
+  - `confidence` must be finite and in `0.0..=1.0`.
+  - `payload_hash` is deterministic across identical canonical payloads.
+  - Sink contract uses `&Receipt` and does not require clone semantics.
+  - Emitter remains synchronous and small.
+- Tamper evidence:
+  - Emitter creates tamper-evident records; full tamper evidence is established only after ledger append.
+
+### V6-PRIM-002 — Append-Only Provenance Ledger
+
+- Data model:
+  - `LedgerEntry` includes:
+    - `receipt`, `prev_hash`, `entry_hash`.
+  - `ReplayStart` enum:
+    - `Genesis`, `Checkpoint(String)`.
+- Acceptance criteria:
+  - Genesis append requires `prev_hash = None`.
+  - Non-genesis append requires `prev_hash == tail_hash`.
+  - Ledger recomputes and overwrites `entry_hash` from canonical serialized `(receipt, prev_hash)` bytes.
+  - `replay_from(Checkpoint(hash))` is inclusive.
+  - Unknown checkpoint returns `LedgerError::UnknownCheckpoint`.
+  - Ledger append is terminal and never emits receipts recursively.
+
+### V6-PRIM-003 — Queue List
+
+- Data model:
+  - `QueueStatus`:
+    - `Pending | InProgress | Completed | Failed`.
+  - `QueueItem`:
+    - `id`, `payload`, `priority`, `status`, `created_at`, `last_receipt_id`.
+- Ordering/selection:
+  - Higher numeric priority first.
+  - Ties by FIFO insertion order.
+  - Only `Pending` participates in `peek`/`dequeue`.
+- Mutation semantics:
+  - `enqueue`: create `Pending`, emit `queue_enqueue`.
+  - `dequeue`: mark selected `Pending -> InProgress`, emit `queue_dequeue`, do not remove item.
+  - `mark_status`: emit `queue_mark_status` only on real state change.
+  - `reprioritize`: only for `Pending`, emit `queue_reprioritize` only on real change.
+- Transition criteria:
+  - Allowed:
+    - `Pending -> InProgress | Completed | Failed`
+    - `InProgress -> Completed | Failed`
+  - Idempotent no-op:
+    - same-status updates with no mutation and no receipt.
+  - Rejected:
+    - any backward transition to `Pending`;
+    - terminal-to-different-state transitions;
+    - reprioritize on non-`Pending`.
+
+### V6-PRIM-004 — Circle Queue
+
+- Data model:
+  - `CircleQueue<T> { cap, buf: VecDeque<T> }`
+  - `IterOrder`:
+    - `OldestToNewest | NewestToOldest`.
+- Acceptance criteria:
+  - Capacity must be > 0.
+  - `push` appends newest.
+  - Full `push` drops oldest first and emits `circle_overwrite`; otherwise emits `circle_push`.
+  - `pop_oldest` removes oldest and emits `circle_pop_oldest`.
+  - `clear` emits `circle_clear` only when non-empty.
+  - Read-only paths emit no receipts.
+
+### V6-PRIM-005 — Hash Index
+
+- Data model:
+  - `Blake3Hash(pub String)`:
+    - validated lowercase hex, length 64.
+  - `Reference`:
+    - `Task(Uuid) | Receipt(Uuid) | Object(Uuid) | FilePath(String)`.
+- Acceptance criteria:
+  - Keys are precomputed by caller.
+  - Key maps to zero or more references with deduped identical references per key.
+  - `insert` emits `hash_index_insert` only on actual mapping change.
+  - `remove` emits `hash_index_remove` only on actual mapping change.
+  - Missing remove is idempotent no-op.
+  - `get` and `get_many` return deterministic order.
+  - `get_many` includes all requested keys with empty vectors for absent mappings.
+
+### V6-PRIM-001..005 Regression Evidence
+
+- Implementation:
+  - `core/layer1/provenance/mod.rs`
+  - `core/layer1/provenance/receipt.rs`
+  - `core/layer1/provenance/ledger.rs`
+  - `core/layer1/primitives/mod.rs`
+  - `core/layer1/primitives/queue_list.rs`
+  - `core/layer1/primitives/circle_queue.rs`
+  - `core/layer1/primitives/hash_index.rs`
+- Validation:
+  - `cargo test -p infring-layer1-provenance`
+  - `cargo test -p infring-layer1-primitives`
 | V6-MEMORY-040.5 | queued | Hybrid memory retrieval (vector similarity + explicit graph edges) | Similarity-only recall misses relational context and can surface weakly connected noise. | Retrieval path combines vector match score with explicit edge confidence; tests show improved top-k relevance on relationship-heavy fixtures without budget regressions. | 8 | 1/2 |
 
 ## Context Stacks for Cacheable Memory Groups Intake (2026-04-05)
@@ -14530,3 +15129,73 @@ Source summary:
   - `cargo test -p protheus-ops-core --lib tool_completion_contract_rewrites_unverified_execution_claim_when_no_tools_exist -- --nocapture`
   - `cargo test -p protheus-ops-core --lib response_ack_detector_flags_batch_execution_scaffold_copy -- --nocapture`
   - `cargo test -p protheus-ops-core --lib pre_gate_respects_confirm_for_ask_verdicts -- --nocapture`
+
+### V11-STOMACH-001 — Stomach Assimilation File Scoring Gate (Authority/Migration/Concept)
+
+- Status:
+  - `queued` (incomplete)
+- Intent:
+  - Make file-by-file stomach assimilation deterministic by requiring every candidate file to be scored before implementation starts.
+- Acceptance criteria:
+  - Every stomach run begins with a scored ledger row per candidate file.
+  - Each row includes:
+    - `authority_risk_score` (0-5)
+    - `migration_potential_score` (0-5)
+    - `concept_opportunity_score` (0-5)
+    - derived `priority_score`
+  - Execution order is descending by `priority_score`, with tie-breakers favoring highest authority risk.
+  - Rows move through explicit states: `queued -> in_progress -> done` (or `skipped_with_reason`).
+  - Each completed row links one concrete evidence pointer (test/receipt/path) and a short concept extraction note.
+  - Stomach policy docs and runtime notes call this scoring gate mandatory, not optional.
+- Regression evidence pointers (target implementation):
+  - `docs/workspace/TODO.md` (`V11-STOMACH-001` lifecycle tracking)
+  - `local/workspace/reports/CODEX_FILE_LEDGER_2026-04-08.md` (scored ledger)
+  - `core/layer0/ops/src/stomach_kernel.rs` (policy integration target)
+  - `core/layer0/ops/src/assimilate_kernel_support.rs` (intake coupling target)
+
+### V11-TOOLING-005 — Durable Evidence Ledger Recovery + Stable Broker Ledger Path
+
+- Intent:
+  - Promote tooling receipts from process-local memory semantics to recoverable append-only ledgers with deterministic startup recovery.
+- Acceptance criteria:
+  - `EvidenceStore` persists append-only ledger events and can rebuild in-memory state via ledger replay.
+  - Default tooling call paths recover both Tool Broker and Evidence Store from ledger state before execution.
+  - Tool Broker default ledger path is stable across process restarts (or explicitly configured), while tests remain isolated.
+- Regression evidence pointers:
+  - `core/layer2/tooling/src/evidence_store.rs`
+  - `core/layer2/tooling/src/tool_broker.rs`
+  - `core/layer2/tooling/src/client_adapter.rs`
+  - `core/layer0/ops/src/framework_adapter_contract.rs`
+  - `core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/010-part.rs`
+  - `cargo test -p protheus-tooling-core-v1 --lib`
+
+### V11-BENCH-002 — Benchmark Metric Family Separation and Audit Enforcement
+
+- Intent:
+  - Make public benchmark semantics explicit by separating kernel/shared throughput, rich end-to-end command-path throughput, and status-path readiness into audited metric families.
+- Acceptance criteria:
+  - Canonical benchmark artifact includes metric-family metadata for rich/pure/tiny rows with explicit measurement scope.
+  - Public audit enforces README wording for status-path readiness and dual throughput rows.
+  - README snapshot is generated from the canonical artifact and strict audit passes without drift.
+- Regression evidence pointers:
+  - `tests/tooling/scripts/ci/benchmark_matrix_refresh.ts`
+  - `tests/tooling/scripts/ci/benchmark_public_surface.ts`
+  - `tests/tooling/scripts/ci/benchmark_public_audit.ts`
+  - `docs/client/reports/benchmark_matrix_run_latest.json`
+  - `README.md`
+  - `npm run -s ops:benchmark:refresh -- --retries=1 --refresh-runtime=0 --preflight-max-load-per-core=100 --preflight-max-noise-cv-pct=1000 --preflight-noise-rounds=1`
+  - `npm run -s ops:benchmark:sanity`
+  - `npm run -s ops:benchmark:public-audit -- --strict`
+
+### V11-ASSIM-004 — Recon/Closure Dependency Graphing for Canonical Assimilation Plan
+
+- Intent:
+  - Deepen canonical assimilation planning from hint-only closure to explicit dependency graphing over manifests and surfaced API/test/license signals.
+- Acceptance criteria:
+  - Recon inventory includes per-manifest package identity where derivable.
+  - Candidate closure dependencies include relation-aware edges (`internal_manifest_dependency` vs `external_dependency_hint`) and graph summary stats.
+  - Candidate inference incorporates API/structure signals (for example OpenAPI/GraphQL/Proto and stack language hints) in addition to dependency text markers.
+  - Canonical plan emits graph stats in closure metadata and remains admission-safe for missing mandatory path surfaces.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/assimilate_kernel_support.rs`
+  - `cargo test -p protheus-ops-core canonical_plan_ -- --nocapture`

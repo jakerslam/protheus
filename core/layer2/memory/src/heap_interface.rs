@@ -506,14 +506,7 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
             self.config.owner_settings.export_redaction_policy.clone(),
             visible.as_slice(),
         );
-        let decision = MemoryPolicyDecision {
-            allow: true,
-            decision_id: format!(
-                "policy_{}",
-                &deterministic_hash(&(principal_id.to_string(), "materialize_context"))[..24]
-            ),
-            reason: "policy_allow".to_string(),
-        };
+        let decision = self.policy_allow_decision(json!([principal_id, "materialize_context"]));
         self.push_receipt(
             route,
             "context_materialization",
@@ -606,18 +599,7 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
         self.push_receipt(
             route,
             "task_fabric_create_node",
-            MemoryPolicyDecision {
-                allow: true,
-                decision_id: format!(
-                    "policy_{}",
-                    &deterministic_hash(&(
-                        principal_id.to_string(),
-                        node_id.to_string(),
-                        "task_create"
-                    ))[..24]
-                ),
-                reason: "policy_allow".to_string(),
-            },
+            self.policy_allow_decision(json!([principal_id, node_id, "task_create"])),
             vec![node.node_id.clone()],
             json!({ "node_id": node.node_id }),
         );
@@ -640,18 +622,7 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
         self.push_receipt(
             route,
             "task_fabric_issue_lease",
-            MemoryPolicyDecision {
-                allow: true,
-                decision_id: format!(
-                    "policy_{}",
-                    &deterministic_hash(&(
-                        principal_id.to_string(),
-                        lease.lease_id.clone(),
-                        "task_lease"
-                    ))[..24]
-                ),
-                reason: "policy_allow".to_string(),
-            },
+            self.policy_allow_decision(json!([principal_id, lease.lease_id, "task_lease"])),
             vec![lease.lease_id.clone()],
             json!({ "node_id": node_id, "lease_id": lease.lease_id }),
         );
@@ -680,18 +651,7 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
         self.push_receipt(
             route,
             "task_fabric_mutate_node",
-            MemoryPolicyDecision {
-                allow: true,
-                decision_id: format!(
-                    "policy_{}",
-                    &deterministic_hash(&(
-                        principal_id.to_string(),
-                        node_id.to_string(),
-                        expected_cas
-                    ))[..24]
-                ),
-                reason: "policy_allow".to_string(),
-            },
+            self.policy_allow_decision(json!([principal_id, node_id, expected_cas])),
             vec![node.node_id.clone()],
             json!({ "node_id": node_id, "lease_id": lease_id, "cas": node.cas_version }),
         );
@@ -722,14 +682,7 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
         self.push_receipt(
             route,
             "task_fabric_add_edge",
-            MemoryPolicyDecision {
-                allow: true,
-                decision_id: format!(
-                    "policy_{}",
-                    &deterministic_hash(&(principal_id.to_string(), edge.edge_id.clone()))[..24]
-                ),
-                reason: "policy_allow".to_string(),
-            },
+            self.policy_allow_decision(json!([principal_id, edge.edge_id])),
             vec![edge.edge_id.clone()],
             json!({
                 "source_node_id": source_node_id,
@@ -764,6 +717,14 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
 
     fn evaluate_policy(&self, request: MemoryPolicyRequest) -> MemoryPolicyDecision {
         self.policy.evaluate(&request)
+    }
+
+    fn policy_allow_decision(&self, seed: Value) -> MemoryPolicyDecision {
+        MemoryPolicyDecision {
+            allow: true,
+            decision_id: format!("policy_{}", &deterministic_hash(&seed)[..24]),
+            reason: "policy_allow".to_string(),
+        }
     }
 
     fn ensure_routed(&self, route: &NexusRouteContext) -> Result<(), String> {

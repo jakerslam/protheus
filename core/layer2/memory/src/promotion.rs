@@ -38,6 +38,7 @@ pub fn rollback_head_from_version(
         ),
         object_id: object_id.to_string(),
         scope: match &source_version.scope {
+            MemoryScope::Ephemeral => MemoryScope::Ephemeral,
             MemoryScope::Public => MemoryScope::Public,
             MemoryScope::Agent(id) => MemoryScope::Agent(id.clone()),
             MemoryScope::Swarm(id) => MemoryScope::Swarm(id.clone()),

@@ -26,6 +26,47 @@ struct IngressRouteDescriptor {
     trust_class: TrustClass,
 }
 
+fn route_descriptor(
+    target: &'static str,
+    schema_id: &'static str,
+    verb: &'static str,
+    required_verity: VerityClass,
+    trust_class: TrustClass,
+) -> IngressRouteDescriptor {
+    IngressRouteDescriptor {
+        target,
+        schema_id,
+        verb,
+        required_verity,
+        trust_class,
+    }
+}
+
+fn sub_nexus_contract(sub_nexus_id: &str) -> (ModuleKind, TrustClass, VerityClass) {
+    match sub_nexus_id {
+        "stomach" => (
+            ModuleKind::Stomach,
+            TrustClass::InterModuleData,
+            VerityClass::High,
+        ),
+        "context_stacks" => (
+            ModuleKind::ContextStacks,
+            TrustClass::InterModuleData,
+            VerityClass::High,
+        ),
+        CLIENT_INGRESS_SUB_NEXUS => (
+            ModuleKind::ClientIngress,
+            TrustClass::ClientIngressBoundary,
+            VerityClass::Standard,
+        ),
+        _ => (
+            ModuleKind::Other,
+            TrustClass::ClientIngressBoundary,
+            VerityClass::Standard,
+        ),
+    }
+}
+
 fn clean_text(raw: &str, max_len: usize) -> String {
     raw.chars()
         .take(max_len)
@@ -112,40 +153,40 @@ fn ingress_route_for_tool(tool_name: &str) -> IngressRouteDescriptor {
             | "file_read"
             | "file_read_many"
     ) {
-        return IngressRouteDescriptor {
-            target: "context_stacks",
-            schema_id: "client_ingress.tool.retrieval",
-            verb: "invoke",
-            required_verity: VerityClass::High,
-            trust_class: TrustClass::InterModuleData,
-        };
+        return route_descriptor(
+            "context_stacks",
+            "client_ingress.tool.retrieval",
+            "invoke",
+            VerityClass::High,
+            TrustClass::InterModuleData,
+        );
     }
     if normalized.starts_with("stomach_") {
-        return IngressRouteDescriptor {
-            target: "stomach",
-            schema_id: "client_ingress.tool.stomach",
-            verb: "invoke",
-            required_verity: VerityClass::High,
-            trust_class: TrustClass::InterModuleData,
-        };
+        return route_descriptor(
+            "stomach",
+            "client_ingress.tool.stomach",
+            "invoke",
+            VerityClass::High,
+            TrustClass::InterModuleData,
+        );
     }
-    IngressRouteDescriptor {
-        target: CLIENT_INGRESS_BRIDGE_SUB_NEXUS,
-        schema_id: "client_ingress.tool.execute",
-        verb: "invoke",
-        required_verity: VerityClass::Standard,
-        trust_class: TrustClass::ClientIngressBoundary,
-    }
+    route_descriptor(
+        CLIENT_INGRESS_BRIDGE_SUB_NEXUS,
+        "client_ingress.tool.execute",
+        "invoke",
+        VerityClass::Standard,
+        TrustClass::ClientIngressBoundary,
+    )
 }
 
 fn terminal_ingress_route() -> IngressRouteDescriptor {
-    IngressRouteDescriptor {
-        target: CLIENT_INGRESS_BRIDGE_SUB_NEXUS,
-        schema_id: "client_ingress.terminal.exec",
-        verb: "execute",
-        required_verity: VerityClass::Standard,
-        trust_class: TrustClass::ClientIngressBoundary,
-    }
+    route_descriptor(
+        CLIENT_INGRESS_BRIDGE_SUB_NEXUS,
+        "client_ingress.terminal.exec",
+        "execute",
+        VerityClass::Standard,
+        TrustClass::ClientIngressBoundary,
+    )
 }
 
 fn ensure_sub_nexus_registered(
@@ -155,28 +196,7 @@ fn ensure_sub_nexus_registered(
     if nexus.registry().contains(sub_nexus_id) {
         return Ok(());
     }
-    let (module_kind, trust_class, verity_class) = match sub_nexus_id {
-        "stomach" => (
-            ModuleKind::Stomach,
-            TrustClass::InterModuleData,
-            VerityClass::High,
-        ),
-        "context_stacks" => (
-            ModuleKind::ContextStacks,
-            TrustClass::InterModuleData,
-            VerityClass::High,
-        ),
-        CLIENT_INGRESS_SUB_NEXUS => (
-            ModuleKind::ClientIngress,
-            TrustClass::ClientIngressBoundary,
-            VerityClass::Standard,
-        ),
-        _ => (
-            ModuleKind::Other,
-            TrustClass::ClientIngressBoundary,
-            VerityClass::Standard,
-        ),
-    };
+    let (module_kind, trust_class, verity_class) = sub_nexus_contract(sub_nexus_id);
     let registration =
         SubNexusRegistration::new(sub_nexus_id, module_kind, trust_class, verity_class);
     let _ = nexus.register_sub_nexus(NEXUS_INGRESS_ISSUER, registration)?;

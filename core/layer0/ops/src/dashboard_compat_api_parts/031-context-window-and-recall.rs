@@ -70,6 +70,25 @@ fn context_role_label(row: &Value) -> String {
     .to_ascii_lowercase()
 }
 
+fn prompt_role_label(row: &Value) -> Option<&'static str> {
+    let role = context_role_label(row);
+    if role == "system" {
+        None
+    } else if role.contains("user") {
+        Some("User")
+    } else {
+        Some("Agent")
+    }
+}
+
+fn role_snippet_key(role: &str, snippet: &str) -> String {
+    format!(
+        "{}|{}",
+        role.to_ascii_lowercase(),
+        snippet.to_ascii_lowercase()
+    )
+}
+
 fn looks_like_image_heavy_tool_context(row: &Value) -> bool {
     let text = clean_text(&message_text(row), 16_000);
     if text.len() < 256 {
@@ -244,27 +263,14 @@ fn historical_context_keyframes_prompt_context(
     }
     let mut candidates = Vec::<(String, String)>::new();
     for row in history_messages.iter().take(dropped) {
-        let role = clean_text(
-            row.get("role")
-                .or_else(|| row.get("type"))
-                .and_then(Value::as_str)
-                .unwrap_or("assistant"),
-            24,
-        )
-        .to_ascii_lowercase();
-        if role == "system" {
+        let Some(role_label) = prompt_role_label(row) else {
             continue;
-        }
+        };
         let snippet = first_sentence(&message_text(row), 220);
         if snippet.is_empty() {
             continue;
         }
-        let role_label = if role.contains("user") {
-            "User".to_string()
-        } else {
-            "Agent".to_string()
-        };
-        candidates.push((role_label, snippet));
+        candidates.push((role_label.to_string(), snippet));
     }
     if candidates.is_empty() {
         return String::new();
@@ -289,11 +295,7 @@ fn historical_context_keyframes_prompt_context(
     let mut dedup = HashSet::<String>::new();
     let mut lines = Vec::<String>::new();
     for (role, snippet) in selected {
-        let key = format!(
-            "{}|{}",
-            role.to_ascii_lowercase(),
-            snippet.to_ascii_lowercase()
-        );
+        let key = role_snippet_key(&role, &snippet);
         if !dedup.insert(key) {
             continue;
         }
@@ -335,26 +337,14 @@ fn historical_relevant_recall_prompt_context(
     }
     let mut scored = Vec::<(i64, String, String)>::new();
     for (idx, row) in history_messages.iter().take(dropped).enumerate() {
-        let role = clean_text(
-            row.get("role")
-                .or_else(|| row.get("type"))
-                .and_then(Value::as_str)
-                .unwrap_or("assistant"),
-            24,
-        )
-        .to_ascii_lowercase();
-        if role == "system" {
+        let Some(role_label) = prompt_role_label(row) else {
             continue;
-        }
+        };
         let snippet = clean_text(&message_text(row), 360);
         if snippet.is_empty() {
             continue;
         }
-        let role_label = if role.contains("user") {
-            "User".to_string()
-        } else {
-            "Agent".to_string()
-        };
+        let role_label = role_label.to_string();
         let snippet_terms = important_memory_terms(&snippet, 24)
             .into_iter()
             .collect::<HashSet<_>>();
@@ -380,11 +370,7 @@ fn historical_relevant_recall_prompt_context(
         if snippet.is_empty() {
             continue;
         }
-        let key = format!(
-            "{}|{}",
-            role.to_ascii_lowercase(),
-            snippet.to_ascii_lowercase()
-        );
+        let key = role_snippet_key(&role, &snippet);
         if !dedup.insert(key) {
             continue;
         }

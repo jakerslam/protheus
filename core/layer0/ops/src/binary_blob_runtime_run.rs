@@ -185,6 +185,24 @@ fn enforce_vault_integrity_gate(
     }
 }
 
+fn emit_gate_denied(root: &Path, response_type: &str, gate_action: &str, extras: Value) -> i32 {
+    let gate_evaluation = directive_kernel::evaluate_action(root, gate_action);
+    let mut payload = json!({
+        "ok": false,
+        "type": response_type,
+        "lane": "core/layer0/ops",
+        "error": "directive_gate_denied",
+        "gate_action": gate_action,
+        "gate_evaluation": gate_evaluation
+    });
+    if let (Some(dst), Some(src)) = (payload.as_object_mut(), extras.as_object()) {
+        for (key, value) in src {
+            dst.insert(key.clone(), value.clone());
+        }
+    }
+    emit(root, payload)
+}
+
 pub(super) fn run(root: &Path, argv: &[String]) -> i32 {
     let parsed = parse_args(argv);
     let command = parsed
@@ -213,18 +231,7 @@ pub(super) fn run(root: &Path, argv: &[String]) -> i32 {
     if command == "status" || command == "dashboard" {
         let gate_action = "blob:status";
         if !directive_kernel::action_allowed(root, gate_action) {
-            let gate_evaluation = directive_kernel::evaluate_action(root, gate_action);
-            return emit(
-                root,
-                json!({
-                    "ok": false,
-                    "type": "binary_blob_runtime_status",
-                    "lane": "core/layer0/ops",
-                    "error": "directive_gate_denied",
-                    "gate_action": gate_action,
-                    "gate_evaluation": gate_evaluation
-                }),
-            );
+            return emit_gate_denied(root, "binary_blob_runtime_status", gate_action, json!({}));
         }
         let active = load_active_map(root);
         let modules = active.keys().cloned().collect::<Vec<_>>();
@@ -285,17 +292,11 @@ pub(super) fn run(root: &Path, argv: &[String]) -> i32 {
     if command == "vault-status" {
         let gate_action = "blob:vault-status";
         if !directive_kernel::action_allowed(root, gate_action) {
-            let gate_evaluation = directive_kernel::evaluate_action(root, gate_action);
-            return emit(
+            return emit_gate_denied(
                 root,
-                json!({
-                    "ok": false,
-                    "type": "binary_blob_runtime_vault_status",
-                    "lane": "core/layer0/ops",
-                    "error": "directive_gate_denied",
-                    "gate_action": gate_action,
-                    "gate_evaluation": gate_evaluation
-                }),
+                "binary_blob_runtime_vault_status",
+                gate_action,
+                json!({}),
             );
         }
         let vault = load_prime_blob_vault(root);
@@ -318,17 +319,11 @@ pub(super) fn run(root: &Path, argv: &[String]) -> i32 {
     if command == "vault-repair" {
         let gate_action = "blob:vault-repair";
         if !directive_kernel::action_allowed(root, gate_action) {
-            let gate_evaluation = directive_kernel::evaluate_action(root, gate_action);
-            return emit(
+            return emit_gate_denied(
                 root,
-                json!({
-                    "ok": false,
-                    "type": "binary_blob_runtime_vault_repair",
-                    "lane": "core/layer0/ops",
-                    "error": "directive_gate_denied",
-                    "gate_action": gate_action,
-                    "gate_evaluation": gate_evaluation
-                }),
+                "binary_blob_runtime_vault_repair",
+                gate_action,
+                json!({}),
             );
         }
         let apply = parse_bool(parsed.flags.get("apply"), false);
@@ -406,18 +401,7 @@ pub(super) fn run(root: &Path, argv: &[String]) -> i32 {
     if command == "migrate" {
         let gate_action = "blob:migrate";
         if !directive_kernel::action_allowed(root, gate_action) {
-            let gate_evaluation = directive_kernel::evaluate_action(root, gate_action);
-            return emit(
-                root,
-                json!({
-                    "ok": false,
-                    "type": "binary_blob_runtime_migrate",
-                    "lane": "core/layer0/ops",
-                    "error": "directive_gate_denied",
-                    "gate_action": gate_action,
-                    "gate_evaluation": gate_evaluation
-                }),
-            );
+            return emit_gate_denied(root, "binary_blob_runtime_migrate", gate_action, json!({}));
         }
         let modules = parse_module_list(&parsed.flags);
         let mut settled = Vec::new();
@@ -699,17 +683,11 @@ pub(super) fn run(root: &Path, argv: &[String]) -> i32 {
     } else if command == "substrate-probe" {
         let gate_action = "blob:substrate-probe";
         if !directive_kernel::action_allowed(root, gate_action) {
-            let gate_evaluation = directive_kernel::evaluate_action(root, gate_action);
-            return emit(
+            return emit_gate_denied(
                 root,
-                json!({
-                    "ok": false,
-                    "type": "binary_blob_runtime_substrate_probe",
-                    "lane": "core/layer0/ops",
-                    "error": "directive_gate_denied",
-                    "gate_action": gate_action,
-                    "gate_evaluation": gate_evaluation
-                }),
+                "binary_blob_runtime_substrate_probe",
+                gate_action,
+                json!({}),
             );
         }
         let prefer = clean(

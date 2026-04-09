@@ -63,36 +63,41 @@ fn json_f64(payload: &Map<String, Value>, key: &str, fallback: f64, lo: f64, hi:
         .clamp(lo, hi)
 }
 
+fn code_matches_any(code: &str, allowed: &[&str]) -> bool {
+    let normalized = code.trim().to_ascii_lowercase();
+    allowed.iter().any(|candidate| normalized == *candidate)
+}
+
 fn is_retryable_code(code: &str) -> bool {
-    matches!(
-        code.trim().to_ascii_lowercase().as_str(),
-        "env_blocked"
-            | "dns_unreachable"
-            | "connection_refused"
-            | "connection_reset"
-            | "timeout"
-            | "http_5xx"
-            | "rate_limited"
-            | "http_error"
-            | "collector_error"
-    )
+    const RETRYABLE: [&str; 9] = [
+        "env_blocked",
+        "dns_unreachable",
+        "connection_refused",
+        "connection_reset",
+        "timeout",
+        "http_5xx",
+        "rate_limited",
+        "http_error",
+        "collector_error",
+    ];
+    code_matches_any(code, &RETRYABLE)
 }
 
 fn is_transport_failure_code(code: &str) -> bool {
-    matches!(
-        code.trim().to_ascii_lowercase().as_str(),
-        "env_blocked"
-            | "dns_unreachable"
-            | "connection_refused"
-            | "connection_reset"
-            | "timeout"
-            | "tls_error"
-            | "http_4xx"
-            | "http_404"
-            | "http_5xx"
-            | "rate_limited"
-            | "http_error"
-    )
+    const TRANSPORT_FAILURES: [&str; 11] = [
+        "env_blocked",
+        "dns_unreachable",
+        "connection_refused",
+        "connection_reset",
+        "timeout",
+        "tls_error",
+        "http_4xx",
+        "http_404",
+        "http_5xx",
+        "rate_limited",
+        "http_error",
+    ];
+    code_matches_any(code, &TRANSPORT_FAILURES)
 }
 
 fn http_status_to_code(status: u64) -> &'static str {

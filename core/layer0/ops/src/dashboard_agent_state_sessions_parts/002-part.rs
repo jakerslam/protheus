@@ -1,98 +1,4 @@
-fn extract_thread_keywords(thread: &[(String, String)], limit: usize) -> Vec<String> {
-    let stop = [
-        "this",
-        "that",
-        "yes",
-        "yep",
-        "yeah",
-        "ok",
-        "okay",
-        "sure",
-        "confirm",
-        "confirmed",
-        "confirmation",
-        "current",
-        "execute",
-        "status",
-        "blocker",
-        "blockers",
-        "with",
-        "from",
-        "your",
-        "have",
-        "will",
-        "into",
-        "about",
-        "after",
-        "before",
-        "where",
-        "when",
-        "which",
-        "what",
-        "please",
-        "could",
-        "would",
-        "should",
-        "there",
-        "their",
-        "them",
-        "just",
-        "also",
-        "same",
-        "extra",
-        "thread",
-        "message",
-        "messages",
-        "agent",
-        "assistant",
-        "system",
-        "chat",
-        "next",
-        "step",
-        "report",
-        "runtime",
-        "update",
-        "other",
-        "others",
-        "some",
-        "think",
-        "weve",
-        "ive",
-        "youve",
-        "thing",
-        "things",
-        "stuff",
-        "issue",
-        "issues",
-        "problem",
-        "problems",
-        "work",
-        "works",
-        "working",
-    ];
-    let stop_set = stop.into_iter().collect::<HashSet<_>>();
-    let mut counts = HashMap::<String, usize>::new();
-    for (role, text) in thread {
-        if role != "user" {
-            continue;
-        }
-        let lowered = clean_text(text, 320).to_ascii_lowercase();
-        for token in
-            lowered.split(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '_' || ch == '-'))
-        {
-            let word = token.trim();
-            if word.len() < 4 || stop_set.contains(word) {
-                continue;
-            }
-            *counts.entry(word.to_string()).or_insert(0) += 1;
-        }
-    }
-    let mut ranked = counts.into_iter().collect::<Vec<_>>();
-    ranked.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
-    ranked.truncate(limit.max(1));
-    ranked.into_iter().map(|(word, _)| word).collect()
-}
-
+#[cfg(test)]
 fn is_low_signal_focus_token(word: &str) -> bool {
     matches!(
         word,
@@ -123,6 +29,7 @@ fn is_low_signal_focus_token(word: &str) -> bool {
     )
 }
 
+#[cfg(test)]
 fn is_action_focus_token(word: &str) -> bool {
     matches!(
         word,
@@ -160,6 +67,7 @@ fn is_action_focus_token(word: &str) -> bool {
     )
 }
 
+#[cfg(test)]
 fn is_topic_fragment_noise_token(word: &str) -> bool {
     if is_low_signal_focus_token(word) || is_action_focus_token(word) {
         return true;
@@ -202,95 +110,6 @@ fn is_topic_fragment_noise_token(word: &str) -> bool {
             | "yep"
             | "yes"
     )
-}
-
-fn compose_topic_phrase(recent_thread: &[(String, String)], keywords: &[String]) -> String {
-    let mut recent_tokens = Vec::<String>::new();
-    if let Some(last_user) = recent_thread
-        .iter()
-        .rev()
-        .find(|(role, _)| role == "user")
-        .map(|(_, text)| text)
-    {
-        let candidate = extract_focus_tokens(last_user, 4)
-            .into_iter()
-            .filter(|token| !is_topic_fragment_noise_token(token))
-            .collect::<Vec<_>>();
-        if !candidate.is_empty() {
-            recent_tokens = candidate;
-        }
-    }
-    if recent_tokens.len() < 2 {
-        for (role, text) in recent_thread.iter().rev() {
-            if role != "user" {
-                continue;
-            }
-            let candidate = extract_focus_tokens(text, 4)
-                .into_iter()
-                .filter(|token| !is_topic_fragment_noise_token(token))
-                .collect::<Vec<_>>();
-            if candidate.is_empty() {
-                continue;
-            }
-            for token in candidate {
-                if recent_tokens.iter().any(|existing| existing == &token) {
-                    continue;
-                }
-                recent_tokens.push(token);
-                if recent_tokens.len() >= 4 {
-                    break;
-                }
-            }
-            if recent_tokens.len() >= 2 {
-                break;
-            }
-        }
-    }
-
-    // Favor recurring thread keywords first so suggestions stay anchored to
-    // stable conversation context rather than a single fragmented turn.
-    let mut tokens = Vec::<String>::new();
-    for keyword in keywords {
-        if is_topic_fragment_noise_token(keyword) {
-            continue;
-        }
-        if tokens.iter().any(|existing| existing == keyword) {
-            continue;
-        }
-        tokens.push(keyword.clone());
-        if tokens.len() >= 2 {
-            break;
-        }
-    }
-    for token in recent_tokens {
-        if tokens.iter().any(|existing| existing == &token) {
-            continue;
-        }
-        tokens.push(token);
-        if tokens.len() >= 4 {
-            break;
-        }
-    }
-
-    if tokens.is_empty() {
-        let compact = compact_topic_phrase(recent_thread, keywords);
-        let filtered = extract_focus_tokens(&compact, 4)
-            .into_iter()
-            .filter(|token| !is_topic_fragment_noise_token(token))
-            .collect::<Vec<_>>();
-        if !filtered.is_empty() {
-            return filtered.join(" ");
-        }
-        let relaxed = extract_focus_tokens(&compact, 3);
-        if !relaxed.is_empty() {
-            return relaxed.join(" ");
-        }
-        if let Some(keyword) = keywords.first() {
-            return keyword.clone();
-        }
-        return String::new();
-    }
-    tokens.join(" ")
 }
 
 fn model_id_is_placeholder(model_id: &str) -> bool {

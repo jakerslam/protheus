@@ -1,7 +1,15 @@
+fn governance_temp_root() -> tempfile::TempDir {
+    tempfile::tempdir().expect("tempdir")
+}
+
+fn governance_ok_snapshot() -> Value {
+    json!({"ok": true})
+}
+
 #[test]
 fn terminal_tools_run_without_signoff_and_still_enforce_command_policy() {
-    let root = tempfile::tempdir().expect("tempdir");
-    let snapshot = json!({"ok": true});
+    let root = governance_temp_root();
+    let snapshot = governance_ok_snapshot();
     let allowed = execute_tool_call_by_name(
         root.path(),
         &snapshot,
@@ -36,8 +44,8 @@ fn terminal_tools_run_without_signoff_and_still_enforce_command_policy() {
 
 #[test]
 fn workspace_analyze_alias_routes_into_terminal_exec_surface() {
-    let root = tempfile::tempdir().expect("tempdir");
-    let snapshot = json!({"ok": true});
+    let root = governance_temp_root();
+    let snapshot = governance_ok_snapshot();
     let routed = execute_tool_call_by_name(
         root.path(),
         &snapshot,
@@ -58,8 +66,8 @@ fn workspace_analyze_alias_routes_into_terminal_exec_surface() {
 
 #[test]
 fn spawn_tools_run_without_confirmation_gate() {
-    let root = tempfile::tempdir().expect("tempdir");
-    let snapshot = json!({"ok": true});
+    let root = governance_temp_root();
+    let snapshot = governance_ok_snapshot();
     let out = execute_tool_call_by_name(
         root.path(),
         &snapshot,
@@ -79,8 +87,8 @@ fn spawn_tools_run_without_confirmation_gate() {
 
 #[test]
 fn parent_can_archive_descendant_without_signoff_and_reason_is_persisted() {
-    let root = tempfile::tempdir().expect("tempdir");
-    let snapshot = json!({"ok": true});
+    let root = governance_temp_root();
+    let snapshot = governance_ok_snapshot();
 
     let parent_create = handle(
         root.path(),
@@ -170,8 +178,8 @@ fn parent_can_archive_descendant_without_signoff_and_reason_is_persisted() {
 
 #[test]
 fn semantic_memory_query_route_returns_matches() {
-    let root = tempfile::tempdir().expect("tempdir");
-    let snapshot = json!({"ok": true});
+    let root = governance_temp_root();
+    let snapshot = governance_ok_snapshot();
     let _ = crate::dashboard_agent_state::memory_kv_set(
         root.path(),
         "agent-memory",
@@ -207,8 +215,8 @@ fn semantic_memory_query_route_returns_matches() {
 
 #[test]
 fn spawn_tool_applies_budget_circuit_breaker_and_merge_strategy() {
-    let root = tempfile::tempdir().expect("tempdir");
-    let snapshot = json!({"ok": true});
+    let root = governance_temp_root();
+    let snapshot = governance_ok_snapshot();
     let out = execute_tool_call_by_name(
         root.path(),
         &snapshot,
@@ -243,7 +251,7 @@ fn spawn_tool_applies_budget_circuit_breaker_and_merge_strategy() {
 
 #[test]
 fn web_tool_fallback_can_use_semantic_memory_matches() {
-    let root = tempfile::tempdir().expect("tempdir");
+    let root = governance_temp_root();
     let _ = crate::dashboard_agent_state::memory_kv_set(
         root.path(),
         "agent-fallback",
@@ -412,8 +420,8 @@ fn inline_tool_policy_requires_explicit_tooling_request() {
 
 #[test]
 fn inline_spawn_tool_calls_autoconfirm_without_user_swarm_phrase() {
-    let root = tempfile::tempdir().expect("tempdir");
-    let snapshot = json!({"ok": true});
+    let root = governance_temp_root();
+    let snapshot = governance_ok_snapshot();
     let response =
         "<function=spawn_subagents>{\"count\":3,\"objective\":\"parallelize analysis\"}</function>";
     let (text, cards, pending_confirmation, suppressed) = execute_inline_tool_calls(
@@ -440,8 +448,8 @@ fn inline_spawn_tool_calls_autoconfirm_without_user_swarm_phrase() {
 
 #[test]
 fn inline_tool_execution_is_suppressed_for_plain_conversation_turns() {
-    let root = tempfile::tempdir().expect("tempdir");
-    let snapshot = json!({"ok": true});
+    let root = governance_temp_root();
+    let snapshot = governance_ok_snapshot();
     let response = "<function=web_search>{\"query\":\"latest technology news\"}</function>";
     let (text, cards, pending_confirmation, suppressed) = execute_inline_tool_calls(
         root.path(),
@@ -460,8 +468,8 @@ fn inline_tool_execution_is_suppressed_for_plain_conversation_turns() {
 
 #[test]
 fn inline_tool_execution_replaces_low_signal_cleaned_text_with_tool_fallback_lines() {
-    let root = tempfile::tempdir().expect("tempdir");
-    let snapshot = json!({"ok": true});
+    let root = governance_temp_root();
+    let snapshot = governance_ok_snapshot();
     let response = "<function=spawn_subagents>{\"count\":2,\"objective\":\"parallelize analysis\"}</function>\nFrom web retrieval: bing.com: compare [A with B] vs compare A [with B]";
     let (text, cards, pending_confirmation, suppressed) = execute_inline_tool_calls(
         root.path(),
@@ -483,8 +491,8 @@ fn inline_tool_execution_replaces_low_signal_cleaned_text_with_tool_fallback_lin
 
 #[test]
 fn pending_confirmation_yes_replays_manage_agent_action() {
-    let root = tempfile::tempdir().expect("tempdir");
-    let snapshot = json!({"ok": true});
+    let root = governance_temp_root();
+    let snapshot = governance_ok_snapshot();
     let parent = handle(
         root.path(),
         "POST",
@@ -597,7 +605,7 @@ fn unrelated_dump_detector_flags_peer_review_template_leaks() {
 
 #[test]
 fn append_turn_message_captures_explicit_remember_fact_for_long_term_memory() {
-    let root = tempfile::tempdir().expect("tempdir");
+    let root = governance_temp_root();
     let captured =
         parse_memory_capture_text("remember this: the fallback phrase is cobalt sunrise")
             .expect("memory capture text");
@@ -1230,7 +1238,7 @@ fn relevant_recall_uses_full_history_even_when_pool_drops_older_facts() {
 
 #[test]
 fn execute_tool_recovery_applies_turn_loop_tracking_metadata() {
-    let root = tempfile::tempdir().expect("tempdir");
+    let root = governance_temp_root();
     let mut out = json!({
         "ok": true,
         "summary": "Web search completed."
@@ -1253,8 +1261,8 @@ fn execute_tool_recovery_applies_turn_loop_tracking_metadata() {
 
 #[test]
 fn execute_tool_recovery_blocks_when_pre_gate_requires_confirmation() {
-    let root = tempfile::tempdir().expect("tempdir");
-    let snapshot = json!({"ok": true});
+    let root = governance_temp_root();
+    let snapshot = governance_ok_snapshot();
     let policy_path = root
         .path()
         .join("client/runtime/config/terminal_command_permission_policy.json");
@@ -1286,8 +1294,8 @@ fn execute_tool_recovery_blocks_when_pre_gate_requires_confirmation() {
 
 #[test]
 fn execute_tool_recovery_emits_nexus_connection_metadata() {
-    let root = tempfile::tempdir().expect("tempdir");
-    let snapshot = json!({"ok": true});
+    let root = governance_temp_root();
+    let snapshot = governance_ok_snapshot();
     let out = execute_tool_call_with_recovery(
         root.path(),
         &snapshot,

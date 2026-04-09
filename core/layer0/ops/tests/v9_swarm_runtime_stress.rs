@@ -32,6 +32,81 @@ fn session_id_by_task(state: &Value, task: &str) -> String {
         .expect("session id by task")
 }
 
+fn run_hierarchy_scenario(
+    root: &std::path::Path,
+    state_path: &std::path::Path,
+    agents: u64,
+    fanout: u64,
+    task_prefix: &str,
+) -> Value {
+    let args = vec![
+        "test".to_string(),
+        "hierarchy".to_string(),
+        format!("--agents={agents}"),
+        format!("--fanout={fanout}"),
+        "--metrics=detailed".to_string(),
+        format!("--task-prefix={task_prefix}"),
+        format!("--state-path={}", state_path.display()),
+    ];
+    assert_eq!(run_swarm(root, &args), 0);
+    read_state(state_path)
+}
+
+fn assert_hierarchy_invariants(state: &Value, task_prefix: &str, fanout_limit: usize) {
+    let sessions = sessions_map(state);
+    let root_task = format!("{task_prefix}-root");
+    let root_session_id = sessions
+        .iter()
+        .find_map(|(session_id, row)| {
+            (row.get("parent_id").is_some() && row.get("parent_id") == Some(&Value::Null))
+                .then(|| session_id.clone())
+        })
+        .or_else(|| {
+            sessions.iter().find_map(|(session_id, row)| {
+                (row.get("task").and_then(Value::as_str) == Some(root_task.as_str()))
+                    .then(|| session_id.clone())
+            })
+        })
+        .expect("hierarchy root session id");
+
+    let mut child_counts = std::collections::BTreeMap::new();
+    let mut orphan_count = 0usize;
+    let mut missing_parent_count = 0usize;
+    for (session_id, row) in sessions {
+        if session_id == &root_session_id {
+            continue;
+        }
+        let parent_id = row.get("parent_id").and_then(Value::as_str);
+        match parent_id {
+            Some(parent) => {
+                if !sessions.contains_key(parent) {
+                    missing_parent_count += 1;
+                } else {
+                    *child_counts.entry(parent.to_string()).or_insert(0usize) += 1;
+                }
+            }
+            None => orphan_count += 1,
+        }
+    }
+
+    assert_eq!(
+        orphan_count, 0,
+        "hierarchy should not contain orphan children"
+    );
+    assert_eq!(
+        missing_parent_count, 0,
+        "hierarchy should not contain missing-parent links"
+    );
+    let fanout_violations = child_counts
+        .values()
+        .filter(|count| **count > fanout_limit)
+        .count();
+    assert_eq!(
+        fanout_violations, 0,
+        "hierarchy should respect configured fanout"
+    );
+}
+
 #[test]
 fn stress_concurrency_48_agents_preserves_session_invariants() {
     let root = tempfile::tempdir().expect("tempdir");
@@ -355,147 +430,34 @@ fn stress_role_fanout_round_robin_prevents_single_mailbox_hotspot() {
 fn stress_hierarchy_256_agents_preserves_parent_lineage_and_fanout_bounds() {
     let root = tempfile::tempdir().expect("tempdir");
     let state_path = root.path().join("state/swarm/latest.json");
-
-    let args = vec![
-        "test".to_string(),
-        "hierarchy".to_string(),
-        "--agents=256".to_string(),
-        "--fanout=8".to_string(),
-        "--metrics=detailed".to_string(),
-        "--task-prefix=hierarchy-regression".to_string(),
-        format!("--state-path={}", state_path.display()),
-    ];
-    assert_eq!(run_swarm(root.path(), &args), 0);
-
-    let state = read_state(&state_path);
+    let state = run_hierarchy_scenario(root.path(), &state_path, 256, 8, "hierarchy-regression");
     let sessions = sessions_map(&state);
     assert!(
         sessions.len() >= 256,
         "expected at least 256 sessions, got {}",
         sessions.len()
     );
-
-    let root_session_id = sessions
-        .iter()
-        .find_map(|(session_id, row)| {
-            (row.get("parent_id").is_some() && row.get("parent_id") == Some(&Value::Null))
-                .then(|| session_id.clone())
-        })
-        .or_else(|| {
-            sessions.iter().find_map(|(session_id, row)| {
-                (row.get("task").and_then(Value::as_str) == Some("hierarchy-regression-root"))
-                    .then(|| session_id.clone())
-            })
-        })
-        .expect("hierarchy root session id");
-
-    let mut child_counts = std::collections::BTreeMap::new();
-    let mut orphan_count = 0usize;
-    let mut missing_parent_count = 0usize;
-    for (session_id, row) in sessions {
-        if session_id == &root_session_id {
-            continue;
-        }
-        let parent_id = row.get("parent_id").and_then(Value::as_str);
-        match parent_id {
-            Some(parent) => {
-                if !sessions.contains_key(parent) {
-                    missing_parent_count += 1;
-                } else {
-                    *child_counts.entry(parent.to_string()).or_insert(0usize) += 1;
-                }
-            }
-            None => orphan_count += 1,
-        }
-    }
-
-    assert_eq!(
-        orphan_count, 0,
-        "hierarchy should not contain orphan children"
-    );
-    assert_eq!(
-        missing_parent_count, 0,
-        "hierarchy should not contain missing-parent links"
-    );
-    let fanout_violations = child_counts.values().filter(|count| **count > 8).count();
-    assert_eq!(
-        fanout_violations, 0,
-        "hierarchy should respect configured fanout"
-    );
+    assert_hierarchy_invariants(&state, "hierarchy-regression", 8);
 }
 
 #[test]
 fn stress_hierarchy_4096_agents_preserves_parent_lineage_and_fanout_bounds() {
     let root = tempfile::tempdir().expect("tempdir");
     let state_path = root.path().join("state/swarm/latest.json");
-
-    let args = vec![
-        "test".to_string(),
-        "hierarchy".to_string(),
-        "--agents=4096".to_string(),
-        "--fanout=16".to_string(),
-        "--metrics=detailed".to_string(),
-        "--task-prefix=hierarchy-brutal-regression".to_string(),
-        format!("--state-path={}", state_path.display()),
-    ];
-    assert_eq!(run_swarm(root.path(), &args), 0);
-
-    let state = read_state(&state_path);
+    let state = run_hierarchy_scenario(
+        root.path(),
+        &state_path,
+        4096,
+        16,
+        "hierarchy-brutal-regression",
+    );
     let sessions = sessions_map(&state);
     assert!(
         sessions.len() >= 4096,
         "expected at least 4096 sessions, got {}",
         sessions.len()
     );
-
-    let root_session_id = sessions
-        .iter()
-        .find_map(|(session_id, row)| {
-            (row.get("parent_id").is_some() && row.get("parent_id") == Some(&Value::Null))
-                .then(|| session_id.clone())
-        })
-        .or_else(|| {
-            sessions.iter().find_map(|(session_id, row)| {
-                (row.get("task").and_then(Value::as_str)
-                    == Some("hierarchy-brutal-regression-root"))
-                .then(|| session_id.clone())
-            })
-        })
-        .expect("hierarchy root session id");
-
-    let mut child_counts = std::collections::BTreeMap::new();
-    let mut orphan_count = 0usize;
-    let mut missing_parent_count = 0usize;
-    for (session_id, row) in sessions {
-        if session_id == &root_session_id {
-            continue;
-        }
-        let parent_id = row.get("parent_id").and_then(Value::as_str);
-        match parent_id {
-            Some(parent) => {
-                if !sessions.contains_key(parent) {
-                    missing_parent_count += 1;
-                } else {
-                    *child_counts.entry(parent.to_string()).or_insert(0usize) += 1;
-                }
-            }
-            None => orphan_count += 1,
-        }
-    }
-
-    assert_eq!(
-        orphan_count, 0,
-        "hierarchy should not contain orphan children"
-    );
-    assert_eq!(
-        missing_parent_count, 0,
-        "hierarchy should not contain missing-parent links"
-    );
-    let fanout_violations = child_counts.values().filter(|count| **count > 16).count();
-    assert_eq!(
-        fanout_violations, 0,
-        "hierarchy should respect configured fanout under brutal load"
-    );
+    assert_hierarchy_invariants(&state, "hierarchy-brutal-regression", 16);
 }
 
 #[test]

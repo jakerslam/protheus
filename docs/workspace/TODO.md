@@ -611,6 +611,7 @@ Rewired (40):
 - [ ] `V11-MASS-UX-005` — queued — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
 - [ ] `V11-UI-001` — queued — 10/10 Completion Intake (2026-04-03)
 - [ ] `V11-UX-003` — queued — 10/10 Completion Intake (2026-04-03)
+- [ ] `V11-STOMACH-001` — queued — Stomach Assimilation Scoring Gate Rollout (Authority/Migration/Concept)
 - [ ] `V6-AUTONOMY-006` — queued — Claude Leak Assimilation Intake #2 (Tiered Compaction / PROACTIVE_DAEMON / Speculation, 2026-04-02)
 - [ ] `V6-LLM-006.2` — queued — Context Stacks for Cacheable Memory Groups Intake (2026-04-05)
 - [ ] `V6-LLM-006.3` — queued — Context Stacks for Cacheable Memory Groups Intake (2026-04-05)

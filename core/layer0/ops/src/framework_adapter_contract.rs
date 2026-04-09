@@ -61,8 +61,10 @@ pub fn execute_governed_workflow(
     let tool_args = normalized_tool_args(payload, tool_name.as_str());
 
     let mut broker = ToolBroker::default();
+    let _ = broker.recover_from_ledger();
     let extractor = EvidenceExtractor;
     let mut store = EvidenceStore::default();
+    let _ = store.recover_from_ledger();
     let verifier = StructuredVerifier;
     let request = ToolCallRequest {
         trace_id: trace_id.clone(),

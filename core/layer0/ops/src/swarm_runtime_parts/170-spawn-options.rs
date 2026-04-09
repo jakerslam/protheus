@@ -26,6 +26,28 @@ mod tests {
         }
     }
 
+    fn calc_result(
+        result_id: &str,
+        session_id: &str,
+        agent_label: &str,
+        value: f64,
+        timestamp_ms: u64,
+    ) -> AgentResult {
+        AgentResult {
+            result_id: result_id.to_string(),
+            session_id: session_id.to_string(),
+            agent_label: agent_label.to_string(),
+            agent_role: "worker".to_string(),
+            task_id: "task-1".to_string(),
+            payload: ResultPayload::Calculation { value },
+            data: json!({"value": value}),
+            confidence: 0.9,
+            verification_status: "verified".to_string(),
+            timestamp_ms,
+            created_at: "2026-01-01T00:00:00Z".to_string(),
+        }
+    }
+
     #[test]
     fn recursive_spawn_tracks_parent_and_children() {
         let mut state = SwarmState::default();
@@ -126,45 +148,9 @@ mod tests {
     #[test]
     fn numeric_outlier_analysis_emits_robust_stats() {
         let results = vec![
-            AgentResult {
-                result_id: "r1".to_string(),
-                session_id: "s1".to_string(),
-                agent_label: "a1".to_string(),
-                agent_role: "worker".to_string(),
-                task_id: "task-1".to_string(),
-                payload: ResultPayload::Calculation { value: 10.0 },
-                data: json!({"value": 10.0}),
-                confidence: 0.9,
-                verification_status: "verified".to_string(),
-                timestamp_ms: 1,
-                created_at: "2026-01-01T00:00:00Z".to_string(),
-            },
-            AgentResult {
-                result_id: "r2".to_string(),
-                session_id: "s2".to_string(),
-                agent_label: "a2".to_string(),
-                agent_role: "worker".to_string(),
-                task_id: "task-1".to_string(),
-                payload: ResultPayload::Calculation { value: 10.1 },
-                data: json!({"value": 10.1}),
-                confidence: 0.9,
-                verification_status: "verified".to_string(),
-                timestamp_ms: 2,
-                created_at: "2026-01-01T00:00:00Z".to_string(),
-            },
-            AgentResult {
-                result_id: "r3".to_string(),
-                session_id: "s3".to_string(),
-                agent_label: "a3".to_string(),
-                agent_role: "worker".to_string(),
-                task_id: "task-1".to_string(),
-                payload: ResultPayload::Calculation { value: 42.0 },
-                data: json!({"value": 42.0}),
-                confidence: 0.9,
-                verification_status: "verified".to_string(),
-                timestamp_ms: 3,
-                created_at: "2026-01-01T00:00:00Z".to_string(),
-            },
+            calc_result("r1", "s1", "a1", 10.0, 1),
+            calc_result("r2", "s2", "a2", 10.1, 2),
+            calc_result("r3", "s3", "a3", 42.0, 3),
         ];
         let outliers = analyze_result_outliers(&results, "value");
         assert_eq!(

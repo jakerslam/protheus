@@ -40,10 +40,14 @@ pub struct ThinClientDelegator {
 
 impl Default for ThinClientDelegator {
     fn default() -> Self {
+        let mut broker = ToolBroker::default();
+        let _ = broker.recover_from_ledger();
+        let mut evidence_store = EvidenceStore::default();
+        let _ = evidence_store.recover_from_ledger();
         Self {
-            broker: ToolBroker::default(),
+            broker,
             extractor: EvidenceExtractor,
-            evidence_store: EvidenceStore::default(),
+            evidence_store,
             verifier: StructuredVerifier,
         }
     }

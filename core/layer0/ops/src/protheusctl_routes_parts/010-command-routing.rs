@@ -46,30 +46,47 @@ fn normalize_dashboard_flag(token: &str) -> String {
     trimmed.to_string()
 }
 
+fn parse_daemon_control_subcommand(
+    first: Option<&str>,
+    allow_dashboard_aliases: bool,
+) -> Option<(String, usize)> {
+    let mut normalized = first?;
+    if normalized == "boot" || (allow_dashboard_aliases && normalized == "serve") {
+        normalized = "start";
+    }
+    if matches!(
+        normalized,
+        "start"
+            | "stop"
+            | "restart"
+            | "status"
+            | "heal"
+            | "attach"
+            | "subscribe"
+            | "tick"
+            | "diagnostics"
+    ) {
+        Some((normalized.to_string(), 1usize))
+    } else {
+        None
+    }
+}
+
 fn route_dashboard_compat(rest: &[String], from_dashboard_ui: bool) -> Route {
     let first = rest.first().map(|value| value.trim().to_ascii_lowercase());
     let (subcommand, passthrough_start_idx) = match first.as_deref() {
-        Some(
-            "start" | "serve" | "boot" | "stop" | "restart" | "status" | "heal" | "attach"
-            | "subscribe" | "tick" | "diagnostics",
-        ) => (
-            match first.as_deref() {
-                Some("serve" | "boot") => "start".to_string(),
-                _ => first.unwrap_or_else(|| "start".to_string()),
-            },
-            1usize,
-        ),
         Some("help" | "--help" | "-h") => ("status".to_string(), 0usize),
-        _ => ("start".to_string(), 0usize),
+        other => parse_daemon_control_subcommand(other, true)
+            .unwrap_or_else(|| ("start".to_string(), 0usize)),
     };
 
-    let mut args = Vec::<String>::new();
-    args.push(subcommand.clone());
-    args.extend(
-        rest.iter()
-            .skip(passthrough_start_idx)
-            .map(|token| normalize_dashboard_flag(token)),
-    );
+    let mut args = std::iter::once(subcommand.clone())
+        .chain(
+            rest.iter()
+                .skip(passthrough_start_idx)
+                .map(|token| normalize_dashboard_flag(token)),
+        )
+        .collect::<Vec<_>>();
     if subcommand == "start" {
         let has_open_flag = args.iter().any(|arg| {
             let token = arg.trim();
@@ -78,11 +95,10 @@ fn route_dashboard_compat(rest: &[String], from_dashboard_ui: bool) -> Route {
                 || token.starts_with("--dashboard-open=")
         });
         if !has_open_flag {
-            if from_dashboard_ui {
-                args.push("--dashboard-open=0".to_string());
-            } else {
-                args.push("--dashboard-open=1".to_string());
-            }
+            args.push(format!(
+                "--dashboard-open={}",
+                if from_dashboard_ui { 0 } else { 1 }
+            ));
         }
     }
     Route {
@@ -107,19 +123,8 @@ pub(super) fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route
         "gateway" => {
             let first = rest.first().map(|value| value.trim().to_ascii_lowercase());
             let (subcommand, passthrough_start_idx) = match first.as_deref() {
-                Some(
-                    "start"
-                        | "stop"
-                        | "restart"
-                        | "status"
-                        | "heal"
-                        | "attach"
-                        | "subscribe"
-                        | "tick"
-                        | "diagnostics",
-                ) => (first.unwrap_or_else(|| "start".to_string()), 1usize),
-                Some("boot") => ("start".to_string(), 1usize),
-                _ => ("start".to_string(), 0usize),
+                other => parse_daemon_control_subcommand(other, false)
+                    .unwrap_or_else(|| ("start".to_string(), 0usize)),
             };
             Some(Route {
                 script_rel: "core://daemon-control".to_string(),
@@ -2213,7 +2218,11 @@ pub(super) fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route
                 .unwrap_or_else(|| "status".to_string());
             let provider = rest
                 .iter()
-                .find_map(|v| v.trim().split_once("--provider=").map(|(_, p)| p.to_string()))
+                .find_map(|v| {
+                    v.trim()
+                        .split_once("--provider=")
+                        .map(|(_, p)| p.to_string())
+                })
                 .or_else(|| {
                     if matches!(sub.as_str(), "switch" | "set") {
                         rest.get(1).map(|v| v.trim().to_string())
@@ -2247,7 +2256,11 @@ pub(super) fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route
                 }
                 rows
             } else {
-                vec!["app-plane".to_string(), "status".to_string(), "--app=chat-ui".to_string()]
+                vec![
+                    "app-plane".to_string(),
+                    "status".to_string(),
+                    "--app=chat-ui".to_string(),
+                ]
             };
             Some(Route {
                 script_rel: "core://ops-main".to_string(),

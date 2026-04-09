@@ -610,6 +610,29 @@ fn domain_allowed_for_scope(
         .any(|filter| domain_matches_filter(&domain, filter, exclude_subdomains))
 }
 
+fn render_search_row(title: &str, snippet: &str, link: &str) -> String {
+    let title = clean_text(title, 220);
+    let snippet = clean_text(snippet, 420);
+    let link = clean_text(link, 2_200);
+    if title.is_empty() && snippet.is_empty() {
+        return clean_text(&link, 1_200);
+    }
+    if snippet.is_empty() {
+        return clean_text(format!("{title} — {link}").as_str(), 1_200);
+    }
+    if title.is_empty() {
+        return clean_text(format!("{link} — {snippet}").as_str(), 1_200);
+    }
+    clean_text(format!("{title} — {link} — {snippet}").as_str(), 1_200)
+}
+
+fn push_unique_link_domain(domains: &mut Vec<String>, link: &str) {
+    let domain = extract_domain(link);
+    if !domain.is_empty() && !domains.iter().any(|existing| existing == &domain) {
+        domains.push(domain);
+    }
+}
+
 fn render_serper_payload(
     body: &str,
     allowed_domains: &[String],
@@ -647,29 +670,17 @@ fn render_serper_payload(
         {
             continue;
         }
-        let title = clean_text(row.get("title").and_then(Value::as_str).unwrap_or(""), 220);
-        let snippet = clean_text(
+        let rendered = render_search_row(
+            row.get("title").and_then(Value::as_str).unwrap_or(""),
             row.get("snippet").and_then(Value::as_str).unwrap_or(""),
-            420,
+            &link,
         );
-        let rendered = if title.is_empty() && snippet.is_empty() {
-            clean_text(&link, 1200)
-        } else if snippet.is_empty() {
-            clean_text(format!("{title} — {link}").as_str(), 1200)
-        } else if title.is_empty() {
-            clean_text(format!("{link} — {snippet}").as_str(), 1200)
-        } else {
-            clean_text(format!("{title} — {link} — {snippet}").as_str(), 1200)
-        };
         if rendered.is_empty() {
             continue;
         }
         lines.push(rendered);
         links.push(link.clone());
-        let domain = extract_domain(&link);
-        if !domain.is_empty() && !domains.iter().any(|existing| existing == &domain) {
-            domains.push(domain);
-        }
+        push_unique_link_domain(&mut domains, &link);
         if lines.len() >= top_k.max(1) {
             break;
         }
@@ -742,26 +753,17 @@ fn render_bing_rss_payload(
         {
             continue;
         }
-        let title = clean_text(&extract_xml_tag_value(item, "title"), 220);
-        let snippet = clean_text(&extract_xml_tag_value(item, "description"), 420);
-        let rendered = if title.is_empty() && snippet.is_empty() {
-            clean_text(&link, 1_200)
-        } else if snippet.is_empty() {
-            clean_text(format!("{title} — {link}").as_str(), 1_200)
-        } else if title.is_empty() {
-            clean_text(format!("{link} — {snippet}").as_str(), 1_200)
-        } else {
-            clean_text(format!("{title} — {link} — {snippet}").as_str(), 1_200)
-        };
+        let rendered = render_search_row(
+            &extract_xml_tag_value(item, "title"),
+            &extract_xml_tag_value(item, "description"),
+            &link,
+        );
         if rendered.is_empty() {
             continue;
         }
         lines.push(rendered);
         links.push(link.clone());
-        let domain = extract_domain(&link);
-        if !domain.is_empty() && !domains.iter().any(|existing| existing == &domain) {
-            domains.push(domain);
-        }
+        push_unique_link_domain(&mut domains, &link);
         if lines.len() >= top_k.max(1) {
             break;
         }
@@ -1982,6 +1984,36 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
     } else {
         "no_results"
     };
+    let search_url = match selected_provider.as_str() {
+        "duckduckgo_lite" => lite_url.clone(),
+        "bing_rss" => web_search_bing_rss_url(&scoped_query),
+        _ => primary_url.clone(),
+    };
+    let response_hash = out
+        .get("content")
+        .and_then(Value::as_str)
+        .filter(|text| !text.trim().is_empty())
+        .map(sha256_hex);
+    let error = out
+        .get("error")
+        .and_then(Value::as_str)
+        .filter(|value| !value.trim().is_empty());
+    let receipt = build_receipt(
+        &search_url,
+        if out.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+            "allow"
+        } else {
+            "deny"
+        },
+        response_hash.as_deref(),
+        out.get("status_code").and_then(Value::as_i64).unwrap_or(0),
+        "search_provider_chain",
+        error,
+    );
+    let _ = append_jsonl(&receipts_path(root), &receipt);
+    if let Some(obj) = out.as_object_mut() {
+        obj.insert("receipt".to_string(), receipt);
+    }
     store_search_cache(root, &cache_key, &out, cache_status);
     out
 }

@@ -7,12 +7,53 @@ use regex::{Captures, Regex};
 use serde_json::{json, Map, Value};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
 use crate::contract_lane_utils as lane_utils;
 use crate::{deterministic_receipt_hash, now_iso, parse_args};
 
 const COMPACTION_THRESHOLD_CHARS: usize = 1200;
 const COMPACTION_THRESHOLD_LINES: usize = 40;
+
+fn moltbook_token_re() -> &'static Regex {
+    static REGEX: OnceLock<Regex> = OnceLock::new();
+    REGEX.get_or_init(|| Regex::new(r"moltbook_sk_[a-zA-Z0-9]{32,}").expect("valid moltbook regex"))
+}
+
+fn bearer_redaction_re() -> &'static Regex {
+    static REGEX: OnceLock<Regex> = OnceLock::new();
+    REGEX.get_or_init(|| {
+        Regex::new(r#"(?i)Authorization:\s*Bearer\s+[^\s"']+"#).expect("valid bearer regex")
+    })
+}
+
+fn header_secret_re() -> &'static Regex {
+    static REGEX: OnceLock<Regex> = OnceLock::new();
+    REGEX.get_or_init(|| {
+        Regex::new(
+            r#"(?i)(x-api-key|api-key|auth-token|authorization)\s*[:=]\s*["']?[a-z0-9._~+\-/]{12,}["']?"#,
+        )
+        .expect("valid header regex")
+    })
+}
+
+fn json_secret_re() -> &'static Regex {
+    static REGEX: OnceLock<Regex> = OnceLock::new();
+    REGEX.get_or_init(|| {
+        Regex::new(
+            r#"(?i)("(?:auth_token|access_token|refresh_token|api_key|secret|password)"\s*:\s*)"(.*?)""#,
+        )
+        .expect("valid json secret regex")
+    })
+}
+
+fn query_secret_re() -> &'static Regex {
+    static REGEX: OnceLock<Regex> = OnceLock::new();
+    REGEX.get_or_init(|| {
+        Regex::new(r"(?i)([?&](?:token|access_token|api_key|auth|ct0|bearer)=)[^&\s]+")
+            .expect("valid query regex")
+    })
+}
 
 fn usage() {
     println!("tool-response-compactor-kernel commands:");
@@ -108,8 +149,7 @@ fn render_input(value: &Value) -> String {
 
 fn redact_secrets(content: &str) -> String {
     let mut out = content.to_string();
-    let moltbook_re = Regex::new(r"moltbook_sk_[a-zA-Z0-9]{32,}").expect("valid moltbook regex");
-    out = moltbook_re
+    out = moltbook_token_re()
         .replace_all(&out, |caps: &Captures| {
             let token = caps.get(0).map(|m| m.as_str()).unwrap_or_default();
             let suffix = token
@@ -124,34 +164,24 @@ fn redact_secrets(content: &str) -> String {
         })
         .to_string();
 
-    let bearer_re =
-        Regex::new(r#"(?i)Authorization:\s*Bearer\s+[^\s"']+"#).expect("valid bearer regex");
-    out = bearer_re
+    out = bearer_redaction_re()
         .replace_all(&out, "Authorization: Bearer [REDACTED]")
         .to_string();
 
-    let header_re = Regex::new(
-        r#"(?i)(x-api-key|api-key|auth-token|authorization)\s*[:=]\s*["']?[a-z0-9._~+\-/]{12,}["']?"#,
-    )
-    .expect("valid header regex");
-    out = header_re
+    out = header_secret_re()
         .replace_all(&out, |caps: &Captures| {
             let key = caps.get(1).map(|m| m.as_str()).unwrap_or("authorization");
             format!("{key}: [REDACTED]")
         })
         .to_string();
 
-    let json_secret_re = Regex::new(
-        r#"(?i)("(?:auth_token|access_token|refresh_token|api_key|secret|password)"\s*:\s*)"(.*?)""#,
-    )
-    .expect("valid json secret regex");
-    out = json_secret_re
+    out = json_secret_re()
         .replace_all(&out, "$1\"[REDACTED]\"")
         .to_string();
 
-    let query_re = Regex::new(r"(?i)([?&](?:token|access_token|api_key|auth|ct0|bearer)=)[^&\s]+")
-        .expect("valid query regex");
-    out = query_re.replace_all(&out, "$1[REDACTED]").to_string();
+    out = query_secret_re()
+        .replace_all(&out, "$1[REDACTED]")
+        .to_string();
     out
 }
 

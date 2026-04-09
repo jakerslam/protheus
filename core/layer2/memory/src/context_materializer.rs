@@ -30,10 +30,16 @@ pub fn materialize_context(
 ) -> ContextMaterialization {
     let mut entries = Vec::<MaterializedMemoryEntry>::new();
     let mut manifest_entries = Vec::<ContextManifestEntryRef>::new();
+    let explicit_ephemeral = requested_scopes
+        .iter()
+        .any(|scope| matches!(scope, MemoryScope::Ephemeral));
 
     for version in source_versions {
         if !requested_scopes.is_empty() && !requested_scopes.iter().any(|row| row == &version.scope)
         {
+            continue;
+        }
+        if matches!(version.scope, MemoryScope::Ephemeral) && !explicit_ephemeral {
             continue;
         }
         let (payload, redacted) =
@@ -104,4 +110,65 @@ fn summarize_payload(payload: &Value) -> String {
         .take(24)
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::schemas::TrustState;
+    use serde_json::json;
+
+    fn sample_version(scope: MemoryScope, object_id: &str, version_id: &str) -> MemoryVersion {
+        MemoryVersion {
+            version_id: version_id.to_string(),
+            object_id: object_id.to_string(),
+            scope,
+            parent_version_id: None,
+            lineage_refs: vec!["lineage:test".to_string()],
+            receipt_id: "receipt_test".to_string(),
+            trust_state: TrustState::Validated,
+            payload: json!({"value":"ok"}),
+            payload_hash: "hash".to_string(),
+            timestamp_ms: 1,
+            proposed_by: "agent:test".to_string(),
+        }
+    }
+
+    #[test]
+    fn default_materialization_excludes_ephemeral_scope() {
+        let versions = vec![
+            sample_version(MemoryScope::Ephemeral, "obj_e", "v1"),
+            sample_version(MemoryScope::Agent("alpha".to_string()), "obj_a", "v2"),
+        ];
+        let materialized = materialize_context(
+            "agent:alpha",
+            &[],
+            OwnerExportRedactionPolicy::AllowFull,
+            versions.as_slice(),
+        );
+        assert_eq!(materialized.entries.len(), 1);
+        assert_eq!(materialized.entries[0].object_id, "obj_a");
+    }
+
+    #[test]
+    fn explicit_ephemeral_scope_request_includes_ephemeral() {
+        let versions = vec![
+            sample_version(MemoryScope::Ephemeral, "obj_e", "v1"),
+            sample_version(MemoryScope::Agent("alpha".to_string()), "obj_a", "v2"),
+        ];
+        let materialized = materialize_context(
+            "agent:alpha",
+            &[
+                MemoryScope::Ephemeral,
+                MemoryScope::Agent("alpha".to_string()),
+            ],
+            OwnerExportRedactionPolicy::AllowFull,
+            versions.as_slice(),
+        );
+        assert_eq!(materialized.entries.len(), 2);
+        assert!(materialized
+            .entries
+            .iter()
+            .any(|entry| entry.scope == MemoryScope::Ephemeral));
+    }
 }

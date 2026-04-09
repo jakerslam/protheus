@@ -14,7 +14,7 @@ impl StructuredVerifier {
         let mut claims = Vec::<Claim>::new();
         let mut conflicts = Vec::<String>::new();
         let mut unresolved_questions = Vec::<String>::new();
-        for card in evidence_cards {
+        for (claim_index, card) in evidence_cards.iter().enumerate() {
             let status = support_status(&card.confidence_vector, &card.summary);
             if status == ClaimStatus::Unsupported {
                 unresolved_questions.push(format!(
@@ -22,13 +22,23 @@ impl StructuredVerifier {
                     card.source_ref
                 ));
             }
+            let claim_content_id = deterministic_hash(&serde_json::json!({
+                "kind":"claim_content",
+                "task_id": task_id,
+                "evidence_content_id": card.evidence_content_id,
+                "text": card.summary,
+            }));
+            let claim_event_id = deterministic_hash(&serde_json::json!({
+                "kind":"claim_event",
+                "task_id": task_id,
+                "claim_content_id": claim_content_id,
+                "evidence_event_id": card.evidence_event_id,
+                "claim_index": claim_index,
+            }));
             let claim = Claim {
-                claim_id: deterministic_hash(&serde_json::json!({
-                    "kind":"claim_content",
-                    "task_id": task_id,
-                    "evidence_id": card.evidence_id,
-                    "text": card.summary,
-                })),
+                claim_id: claim_content_id.clone(),
+                claim_content_id,
+                claim_event_id,
                 text: card.summary.clone(),
                 evidence_ids: vec![card.evidence_id.clone()],
                 status,
@@ -84,12 +94,21 @@ impl StructuredVerifier {
             .iter()
             .map(|claim| claim.claim_id.clone())
             .collect::<Vec<_>>();
+        let claim_bundle_content_id = deterministic_hash(&serde_json::json!({
+            "kind":"claim_bundle_content",
+            "task_id": task_id,
+            "claim_ids": claim_ids
+        }));
+        let claim_bundle_event_id = deterministic_hash(&serde_json::json!({
+            "kind":"claim_bundle_event",
+            "task_id": task_id,
+            "claim_bundle_content_id": claim_bundle_content_id,
+            "evidence_count": evidence_cards.len(),
+        }));
         ClaimBundle {
-            claim_bundle_id: deterministic_hash(&serde_json::json!({
-                "kind":"claim_bundle_content",
-                "task_id": task_id,
-                "claim_ids": claim_ids
-            })),
+            claim_bundle_id: claim_bundle_content_id.clone(),
+            claim_bundle_content_id,
+            claim_bundle_event_id,
             task_id: task_id.to_string(),
             claims,
             unresolved_questions,
@@ -153,6 +172,8 @@ mod tests {
     fn card(id: &str, text: &str, reliability: f64) -> EvidenceCard {
         EvidenceCard {
             evidence_id: id.to_string(),
+            evidence_content_id: format!("content-{id}"),
+            evidence_event_id: format!("event-{id}"),
             trace_id: "trace-1".to_string(),
             task_id: "task-1".to_string(),
             derived_from_result_id: "r1".to_string(),

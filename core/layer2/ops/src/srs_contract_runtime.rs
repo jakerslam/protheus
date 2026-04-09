@@ -23,24 +23,27 @@ fn history_path(root: &Path) -> PathBuf {
     root.join(STATE_ROOT).join(HISTORY_FILE)
 }
 
+fn ensure_parent_dir(path: &Path) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| format!("mkdir_failed:{e}"))?;
+    }
+    Ok(())
+}
+
 fn read_json(path: &Path) -> Result<Value, String> {
     let raw = fs::read_to_string(path).map_err(|e| format!("read_failed:{e}"))?;
     serde_json::from_str::<Value>(&raw).map_err(|e| format!("parse_failed:{e}"))
 }
 
 fn write_json(path: &Path, value: &Value) -> Result<(), String> {
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| format!("mkdir_failed:{e}"))?;
-    }
+    ensure_parent_dir(path)?;
     let mut body = serde_json::to_string_pretty(value).map_err(|e| format!("encode_failed:{e}"))?;
     body.push('\n');
     fs::write(path, body).map_err(|e| format!("write_failed:{e}"))
 }
 
 fn append_jsonl(path: &Path, value: &Value) -> Result<(), String> {
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| format!("mkdir_failed:{e}"))?;
-    }
+    ensure_parent_dir(path)?;
     let line = serde_json::to_string(value).map_err(|e| format!("encode_failed:{e}"))?;
     let mut file = fs::OpenOptions::new()
         .create(true)

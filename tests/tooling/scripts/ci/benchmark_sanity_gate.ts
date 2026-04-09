@@ -6,6 +6,8 @@ import { dirname, resolve } from 'node:path';
 const DEFAULT_POLICY_PATH = 'client/runtime/config/benchmark_sanity_policy.json';
 const OUT_JSON = 'core/local/artifacts/benchmark_sanity_gate_current.json';
 const OUT_MD = 'local/workspace/reports/BENCHMARK_SANITY_GATE_CURRENT.md';
+const CANONICAL_THROUGHPUT_METRIC = 'kernel_shared_workload_ops_per_sec';
+const LEGACY_THROUGHPUT_METRIC = 'tasks_per_sec';
 
 function parseArgs(argv) {
   const out = { strict: false, policyPath: DEFAULT_POLICY_PATH };
@@ -255,7 +257,10 @@ function checkStepChanges(
   for (const row of rows) {
     if (row.value == null) continue;
     if (exemptions.has(`${row.project}::${row.metric}`)) continue;
-    if (row.metric === 'tasks_per_sec' && throughputSourceChanged(runtimeReport, previous)) {
+    if (
+      (row.metric === CANONICAL_THROUGHPUT_METRIC || row.metric === LEGACY_THROUGHPUT_METRIC) &&
+      throughputSourceChanged(runtimeReport, previous)
+    ) {
       continue;
     }
     const prev = asFiniteNumber(projectMap?.[row.project]?.[row.metric]);

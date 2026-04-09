@@ -314,6 +314,12 @@ fn allow(root: &Path, directive: &str) {
     assert_eq!(exit, 0);
 }
 
+fn clear_env(keys: &[&str]) {
+    for key in keys {
+        std::env::remove_var(key);
+    }
+}
+
 #[test]
 fn directive_and_blob_policy_hash_binding_is_runtime_enforced() {
     let _guard = env_guard();
@@ -349,8 +355,10 @@ fn directive_and_blob_policy_hash_binding_is_runtime_enforced() {
         binary_blob_runtime::run(&root, &["load".to_string(), "--module=demo".to_string()]),
         2
     );
-    std::env::remove_var("DIRECTIVE_KERNEL_SIGNING_KEY");
-    std::env::remove_var("BINARY_BLOB_VAULT_SIGNING_KEY");
+    clear_env(&[
+        "DIRECTIVE_KERNEL_SIGNING_KEY",
+        "BINARY_BLOB_VAULT_SIGNING_KEY",
+    ]);
     let _ = fs::remove_dir_all(root);
 }
 
@@ -406,7 +414,7 @@ fn network_protocol_emits_state_roots_and_enforces_strict_zk_verification() {
         ),
         2
     );
-    std::env::remove_var("DIRECTIVE_KERNEL_SIGNING_KEY");
+    clear_env(&["DIRECTIVE_KERNEL_SIGNING_KEY"]);
     let _ = fs::remove_dir_all(root);
 }
 
@@ -492,10 +500,12 @@ fn intelligence_nexus_buy_credits_debits_nexus_balance() {
         .unwrap_or(0.0);
     assert!((balance - 425.0).abs() < f64::EPSILON);
 
-    std::env::remove_var("TEST_PROVIDER_KEY");
-    std::env::remove_var("INTELLIGENCE_NEXUS_VAULT_KEY");
-    std::env::remove_var("DIRECTIVE_KERNEL_SIGNING_KEY");
-    std::env::remove_var("BINARY_BLOB_VAULT_SIGNING_KEY");
+    clear_env(&[
+        "TEST_PROVIDER_KEY",
+        "INTELLIGENCE_NEXUS_VAULT_KEY",
+        "DIRECTIVE_KERNEL_SIGNING_KEY",
+        "BINARY_BLOB_VAULT_SIGNING_KEY",
+    ]);
     let _ = fs::remove_dir_all(root);
 }
 
@@ -719,7 +729,9 @@ fn rsi_and_organism_mutation_paths_execute_with_runtime_state_changes() {
             >= 1
     );
 
-    std::env::remove_var("DIRECTIVE_KERNEL_SIGNING_KEY");
-    std::env::remove_var("BINARY_BLOB_VAULT_SIGNING_KEY");
+    clear_env(&[
+        "DIRECTIVE_KERNEL_SIGNING_KEY",
+        "BINARY_BLOB_VAULT_SIGNING_KEY",
+    ]);
     let _ = fs::remove_dir_all(root);
 }

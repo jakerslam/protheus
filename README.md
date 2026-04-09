@@ -236,21 +236,23 @@ Latest benchmark source:
 
 - [`docs/client/reports/benchmark_matrix_run_latest.json`](docs/client/reports/benchmark_matrix_run_latest.json)
 
-Canonical throughput metric: `tasks_per_sec`
+Canonical throughput metric (kernel/shared workload): `kernel_shared_workload_ops_per_sec`
+Rich end-to-end command-path throughput metric: `rich_end_to_end_command_path_ops_per_sec`
 
 Current measured rows in that artifact:
 
 | Metric | Rich | Pure (`InfRing (pure)`) | Tiny-Max (`InfRing (tiny-max)`) |
 |---|---:|---:|---:|
-| Cold start (user-visible) | 0.004 ms | 1.519 ms | 1.507 ms |
+| Readiness latency (status-path; not zero-boot) | 0.004 ms | 1.422 ms | 1.412 ms |
 | Cold start (engine init micro) | 0.004 ms | n/a | n/a |
 | Cold start (orchestration component) | 0.000 ms | n/a | n/a |
 | Kernel ready | 0.004 ms | n/a | n/a |
 | Gateway ready | 0.004 ms | n/a | n/a |
 | Dashboard interactive | 0.004 ms | n/a | n/a |
-| Idle memory | 8.375 MB | 1.516 MB | 1.516 MB |
-| Install artifact size | 28.116 MB | 3.837 MB | 0.631 MB |
-| Throughput (tasks_per_sec) | 354,925.38 ops/sec | 354,925.38 ops/sec | 354,925.38 ops/sec |
+| Idle memory | 8.344 MB | 1.516 MB | 1.516 MB |
+| Install artifact size | 28.116 MB | 3.853 MB | 0.631 MB |
+| Throughput (kernel/shared workload) | 360,584.55 ops/sec | 360,584.55 ops/sec | 360,584.55 ops/sec |
+| Throughput (rich end-to-end command path) | 5.56 ops/sec | n/a | n/a |
 | Security systems | 83 | 83 | 83 |
 | Channel adapters | 6 | 0 | 0 |
 | LLM providers | 3 | 0 | 0 |
@@ -261,13 +263,16 @@ Preflight metadata in the same artifact:
 
 - `benchmark_preflight.enabled = true`
 - `benchmark_validation.ok = true`
-- `sample_cv_pct = 0.45` (tolerance `150`)
-- Artifact timestamp: `2026-04-09T00:26:44.126Z`
+- `sample_cv_pct = 0.34` (tolerance `150`)
+- Artifact timestamp: `2026-04-09T08:53:05.675Z`
 
 Current nuance:
 
 - Public benchmark summaries are generated from the canonical artifact during refresh and verified by `ops:benchmark:public-audit`.
 - Reproducibility commands are listed below; claims should match the linked JSON artifact exactly.
+- `kernel_shared_workload_ops_per_sec` is a shared kernel workload metric; treat it separately from end-to-end runtime throughput.
+- `rich_end_to_end_command_path_ops_per_sec` is the rich command-path throughput metric measured through the governed command bridge.
+- `cold_start_ms` in this matrix is a status-path readiness metric, not a full stopped-from-zero dashboard boot benchmark.
 
 ### Competitor Comparison (Latest Matrix)
 
@@ -275,11 +280,11 @@ Source: [`docs/client/reports/benchmark_matrix_run_latest.json`](docs/client/rep
 
 | Project | Cold Start (ms) | Idle Memory (MB) | Install Size (MB) | Throughput (ops/sec) |
 |---|---:|---:|---:|---:|
-| Infring | 0.004 | 8.375 | 28.116 | 354,925.38 |
-| AutoGen | 4000.000 | 250.000 | 200.000 | n/a |
-| CrewAI | 3000.000 | 200.000 | 100.000 | n/a |
-| OpenHands | 1300.000 | 150.000 | 95.500 | n/a |
-| Workflow Graph | 2500.000 | 180.000 | 150.000 | n/a |
+| Infring | 0.004 | 8.344 | 28.116 | 360,584.55 |
+| AutoGen | 4000.000 | 250.000 | 200.000 | 0.00 |
+| CrewAI | 3000.000 | 200.000 | 100.000 | 0.00 |
+| OpenHands | 1300.000 | 150.000 | 95.500 | 0.00 |
+| Workflow Graph | 2500.000 | 180.000 | 150.000 | 0.00 |
 
 Refresh commands:
 
@@ -290,6 +295,10 @@ npm run -s ops:benchmark:public-audit
 npm run -s ops:benchmark:repro
 ```
 <!-- END: benchmark-snapshot -->
+
+
+
+
 
 
 

@@ -1,13 +1,21 @@
+fn agent_create_temp_root() -> tempfile::TempDir {
+    tempfile::tempdir().expect("tempdir")
+}
+
+fn agent_create_ok_snapshot() -> Value {
+    json!({"ok": true})
+}
+
 #[test]
 fn agent_create_without_name_returns_non_generic_identity_name() {
-    let root = tempfile::tempdir().expect("tempdir");
+    let root = agent_create_temp_root();
     init_git_repo(root.path());
     let created = handle(
         root.path(),
         "POST",
         "/api/agents",
         br#"{"role":"analyst"}"#,
-        &json!({"ok": true}),
+        &agent_create_ok_snapshot(),
     )
     .expect("create agent");
     assert_eq!(created.status, 200);
@@ -31,7 +39,7 @@ fn agent_create_without_name_returns_non_generic_identity_name() {
     assert!(!name.is_empty());
     assert_eq!(name, agent_id);
     let listed =
-        handle(root.path(), "GET", "/api/agents", &[], &json!({"ok": true})).expect("list agents");
+        handle(root.path(), "GET", "/api/agents", &[], &agent_create_ok_snapshot()).expect("list agents");
     let rows = listed.payload.as_array().cloned().unwrap_or_default();
     assert!(rows.iter().any(|row| {
         clean_text(row.get("name").and_then(Value::as_str).unwrap_or(""), 120) == name
@@ -40,7 +48,7 @@ fn agent_create_without_name_returns_non_generic_identity_name() {
 
 #[test]
 fn large_param_models_preserve_default_name_during_post_init_seed() {
-    let root = tempfile::tempdir().expect("tempdir");
+    let root = agent_create_temp_root();
     init_git_repo(root.path());
     let registry_path = root.path().join(
         "client/runtime/local/state/ui/infring_dashboard/provider_registry.json",
@@ -79,7 +87,7 @@ fn large_param_models_preserve_default_name_during_post_init_seed() {
         "POST",
         "/api/agents",
         br#"{"role":"analyst","provider":"ollama","model":"selfname-120b"}"#,
-        &json!({"ok": true}),
+        &agent_create_ok_snapshot(),
     )
     .expect("create agent");
     assert_eq!(created.status, 200);
@@ -98,7 +106,7 @@ fn large_param_models_preserve_default_name_during_post_init_seed() {
         "PATCH",
         &format!("/api/agents/{agent_id}/config"),
         br#"{"system_prompt":"seed intro message"}"#,
-        &json!({"ok": true}),
+        &agent_create_ok_snapshot(),
     )
     .expect("config patch");
     assert_eq!(configured.status, 200);
@@ -123,14 +131,14 @@ fn large_param_models_preserve_default_name_during_post_init_seed() {
 
 #[test]
 fn agents_config_blank_name_and_partial_identity_are_auto_normalized() {
-    let root = tempfile::tempdir().expect("tempdir");
+    let root = agent_create_temp_root();
     init_git_repo(root.path());
     let created = handle(
         root.path(),
         "POST",
         "/api/agents",
         br#"{"name":"Starter","role":"analyst"}"#,
-        &json!({"ok": true}),
+        &agent_create_ok_snapshot(),
     )
     .expect("create agent");
     assert_eq!(created.status, 200);
@@ -149,7 +157,7 @@ fn agents_config_blank_name_and_partial_identity_are_auto_normalized() {
         "PATCH",
         &format!("/api/agents/{agent_id}/config"),
         br#"{"name":"","identity":{"vibe":"calm"}}"#,
-        &json!({"ok": true}),
+        &agent_create_ok_snapshot(),
     )
     .expect("config");
     assert_eq!(configured.status, 200);
@@ -199,14 +207,14 @@ fn agents_config_blank_name_and_partial_identity_are_auto_normalized() {
 
 #[test]
 fn agent_create_cua_rejects_unsupported_execution_features() {
-    let root = tempfile::tempdir().expect("tempdir");
+    let root = agent_create_temp_root();
     init_git_repo(root.path());
     let created = handle(
         root.path(),
         "POST",
         "/api/agents",
         br#"{"mode":"cua","stream":true,"messages":[{"role":"user","content":"hi"}],"excludeTools":["web_search"],"output":{"type":"json"},"variables":{"city":"SF"}}"#,
-        &json!({"ok": true}),
+        &agent_create_ok_snapshot(),
     )
     .expect("create cua agent");
     assert_eq!(created.status, 400);
@@ -232,14 +240,14 @@ fn agent_create_cua_rejects_unsupported_execution_features() {
 
 #[test]
 fn agent_create_cua_accepts_minimal_payload() {
-    let root = tempfile::tempdir().expect("tempdir");
+    let root = agent_create_temp_root();
     init_git_repo(root.path());
     let created = handle(
         root.path(),
         "POST",
         "/api/agents",
         br#"{"mode":"cua","role":"analyst"}"#,
-        &json!({"ok": true}),
+        &agent_create_ok_snapshot(),
     )
     .expect("create cua agent");
     assert_eq!(created.status, 200);
@@ -248,7 +256,7 @@ fn agent_create_cua_accepts_minimal_payload() {
 
 #[test]
 fn repeated_default_agent_creation_avoids_double_agent_prefix() {
-    let root = tempfile::tempdir().expect("tempdir");
+    let root = agent_create_temp_root();
     init_git_repo(root.path());
 
     let first = handle(
@@ -256,7 +264,7 @@ fn repeated_default_agent_creation_avoids_double_agent_prefix() {
         "POST",
         "/api/agents",
         br#"{"role":"analyst"}"#,
-        &json!({"ok": true}),
+        &agent_create_ok_snapshot(),
     )
     .expect("create first agent");
     assert_eq!(first.status, 200);
@@ -266,7 +274,7 @@ fn repeated_default_agent_creation_avoids_double_agent_prefix() {
         "POST",
         "/api/agents",
         br#"{"role":"analyst"}"#,
-        &json!({"ok": true}),
+        &agent_create_ok_snapshot(),
     )
     .expect("create second agent");
     assert_eq!(second.status, 200);
@@ -304,14 +312,14 @@ fn repeated_default_agent_creation_avoids_double_agent_prefix() {
 
 #[test]
 fn permanent_lifespan_agents_do_not_auto_expire() {
-    let root = tempfile::tempdir().expect("tempdir");
+    let root = agent_create_temp_root();
     init_git_repo(root.path());
     let created = handle(
         root.path(),
         "POST",
         "/api/agents",
         br#"{"name":"Permanent","role":"analyst","contract":{"lifespan":"permanent"}}"#,
-        &json!({"ok": true}),
+        &agent_create_ok_snapshot(),
     )
     .expect("create permanent agent");
     assert_eq!(created.status, 200);
@@ -330,7 +338,7 @@ fn permanent_lifespan_agents_do_not_auto_expire() {
         "GET",
         &format!("/api/agents/{agent_id}"),
         &[],
-        &json!({"ok": true}),
+        &agent_create_ok_snapshot(),
     )
     .expect("agent details");
     assert_eq!(
@@ -400,14 +408,14 @@ fn identity_hydration_prompt_uses_agent_metadata() {
 
 #[test]
 fn agents_routes_create_message_config_and_git_tree_round_trip() {
-    let root = tempfile::tempdir().expect("tempdir");
+    let root = agent_create_temp_root();
     init_git_repo(root.path());
     let created = handle(
         root.path(),
         "POST",
         "/api/agents",
         br#"{"name":"Jarvis","role":"director","provider":"ollama","model":"qwen:4b"}"#,
-        &json!({"ok": true}),
+        &agent_create_ok_snapshot(),
     )
     .expect("create agent");
     assert_eq!(created.status, 200);
@@ -426,7 +434,7 @@ fn agents_routes_create_message_config_and_git_tree_round_trip() {
     assert!(!agent_id.is_empty());
 
     let listed =
-        handle(root.path(), "GET", "/api/agents", &[], &json!({"ok": true})).expect("list agents");
+        handle(root.path(), "GET", "/api/agents", &[], &agent_create_ok_snapshot()).expect("list agents");
     let rows = listed.payload.as_array().cloned().unwrap_or_default();
     assert!(rows.iter().any(|row| {
         clean_text(row.get("id").and_then(Value::as_str).unwrap_or(""), 180) == agent_id
@@ -437,7 +445,7 @@ fn agents_routes_create_message_config_and_git_tree_round_trip() {
         "GET",
         &format!("/api/agents/{agent_id}"),
         &[],
-        &json!({"ok": true}),
+        &agent_create_ok_snapshot(),
     )
     .expect("agent details");
     assert_eq!(details.status, 200);
@@ -451,7 +459,7 @@ fn agents_routes_create_message_config_and_git_tree_round_trip() {
         "POST",
         &format!("/api/agents/{agent_id}/message"),
         br#"{"message":"hello there"}"#,
-        &json!({"ok": true}),
+        &agent_create_ok_snapshot(),
     )
     .expect("agent message");
     assert_eq!(message.status, 200);
@@ -474,7 +482,7 @@ fn agents_routes_create_message_config_and_git_tree_round_trip() {
         "POST",
         &format!("/api/agents/{agent_id}/sessions"),
         br#"{"label":"Ops"}"#,
-        &json!({"ok": true}),
+        &agent_create_ok_snapshot(),
     )
     .expect("create session");
     let sid = clean_text(
@@ -491,7 +499,7 @@ fn agents_routes_create_message_config_and_git_tree_round_trip() {
         "POST",
         &format!("/api/agents/{agent_id}/sessions/{sid}/switch"),
         &[],
-        &json!({"ok": true}),
+        &agent_create_ok_snapshot(),
     )
     .expect("switch session");
     assert_eq!(
@@ -510,7 +518,7 @@ fn agents_routes_create_message_config_and_git_tree_round_trip() {
         "POST",
         &format!("/api/agents/{agent_id}/message"),
         br#"{"message":"What did I say earlier?"}"#,
-        &json!({"ok": true}),
+        &agent_create_ok_snapshot(),
     )
     .expect("cross session message");
     assert_eq!(cross_session.status, 200);
@@ -557,7 +565,7 @@ fn agents_routes_create_message_config_and_git_tree_round_trip() {
               "git_branch":"feature/jarvis",
               "identity":{"emoji":"robot","color":"00ff00","archetype":"director","vibe":"direct"}
             }"#,
-        &json!({"ok": true}),
+        &agent_create_ok_snapshot(),
     )
     .expect("config");
     assert_eq!(
@@ -570,7 +578,7 @@ fn agents_routes_create_message_config_and_git_tree_round_trip() {
         "PUT",
         &format!("/api/agents/{agent_id}/model"),
         br#"{"model":"openai/gpt-5"}"#,
-        &json!({"ok": true}),
+        &agent_create_ok_snapshot(),
     )
     .expect("set model");
     assert_eq!(
@@ -587,7 +595,7 @@ fn agents_routes_create_message_config_and_git_tree_round_trip() {
         "GET",
         &format!("/api/agents/{agent_id}"),
         &[],
-        &json!({"ok": true}),
+        &agent_create_ok_snapshot(),
     )
     .expect("agent after model");
     assert_eq!(
@@ -617,7 +625,7 @@ fn agents_routes_create_message_config_and_git_tree_round_trip() {
         "GET",
         &format!("/api/agents/{agent_id}/git-trees"),
         &[],
-        &json!({"ok": true}),
+        &agent_create_ok_snapshot(),
     )
     .expect("git trees");
     let options = trees
@@ -637,7 +645,7 @@ fn agents_routes_create_message_config_and_git_tree_round_trip() {
         "POST",
         &format!("/api/agents/{agent_id}/git-tree/switch"),
         br#"{"branch":"feature/jarvis"}"#,
-        &json!({"ok": true}),
+        &agent_create_ok_snapshot(),
     )
     .expect("git tree switch");
     assert_eq!(
@@ -651,14 +659,14 @@ fn agents_routes_create_message_config_and_git_tree_round_trip() {
 
 #[test]
 fn agent_init_config_seeds_role_tailored_intro_message() {
-    let root = tempfile::tempdir().expect("tempdir");
+    let root = agent_create_temp_root();
     init_git_repo(root.path());
     let created = handle(
         root.path(),
         "POST",
         "/api/agents",
         br#"{"role":"engineer"}"#,
-        &json!({"ok": true}),
+        &agent_create_ok_snapshot(),
     )
     .expect("create agent");
     assert_eq!(created.status, 200);
@@ -683,7 +691,7 @@ fn agent_init_config_seeds_role_tailored_intro_message() {
             "profile":"builder",
             "contract":{"mission":"Build features","termination_condition":"task_or_timeout","expiry_seconds":3600}
         }"#,
-        &json!({"ok": true}),
+        &agent_create_ok_snapshot(),
     )
     .expect("config");
     assert_eq!(configured.status, 200);
@@ -718,7 +726,7 @@ fn agent_init_config_seeds_role_tailored_intro_message() {
         "GET",
         &format!("/api/agents/{agent_id}/session"),
         &[],
-        &json!({"ok": true}),
+        &agent_create_ok_snapshot(),
     )
     .expect("session");
     assert_eq!(session.status, 200);
@@ -741,14 +749,14 @@ fn agent_init_config_seeds_role_tailored_intro_message() {
 
 #[test]
 fn agent_init_config_infers_role_from_template_when_role_omitted() {
-    let root = tempfile::tempdir().expect("tempdir");
+    let root = agent_create_temp_root();
     init_git_repo(root.path());
     let created = handle(
         root.path(),
         "POST",
         "/api/agents",
         br#"{"role":"analyst"}"#,
-        &json!({"ok": true}),
+        &agent_create_ok_snapshot(),
     )
     .expect("create agent");
     let agent_id = clean_text(
@@ -771,7 +779,7 @@ fn agent_init_config_infers_role_from_template_when_role_omitted() {
             "profile":"coding",
             "contract":{"mission":"Build features","termination_condition":"task_or_timeout","expiry_seconds":3600}
         }"#,
-        &json!({"ok": true}),
+        &agent_create_ok_snapshot(),
     )
     .expect("config");
     assert_eq!(configured.status, 200);
@@ -785,7 +793,7 @@ fn agent_init_config_infers_role_from_template_when_role_omitted() {
         "GET",
         &format!("/api/agents/{agent_id}"),
         &[],
-        &json!({"ok": true}),
+        &agent_create_ok_snapshot(),
     )
     .expect("agent row");
     assert_eq!(
@@ -799,7 +807,7 @@ fn agent_init_config_infers_role_from_template_when_role_omitted() {
         "GET",
         &format!("/api/agents/{agent_id}/session"),
         &[],
-        &json!({"ok": true}),
+        &agent_create_ok_snapshot(),
     )
     .expect("session");
     let messages = session
@@ -822,14 +830,14 @@ fn agent_init_config_infers_role_from_template_when_role_omitted() {
 
 #[test]
 fn agent_init_config_treats_default_name_as_blank_for_auto_name_and_analyst_intro() {
-    let root = tempfile::tempdir().expect("tempdir");
+    let root = agent_create_temp_root();
     init_git_repo(root.path());
     let created = handle(
         root.path(),
         "POST",
         "/api/agents",
         br#"{"role":"analyst"}"#,
-        &json!({"ok": true}),
+        &agent_create_ok_snapshot(),
     )
     .expect("create agent");
     let agent_id = clean_text(
@@ -851,7 +859,7 @@ fn agent_init_config_treats_default_name_as_blank_for_auto_name_and_analyst_intr
             agent_id
         )
         .as_bytes(),
-        &json!({"ok": true}),
+        &agent_create_ok_snapshot(),
     )
     .expect("config");
     assert_eq!(configured.status, 200);
@@ -869,7 +877,7 @@ fn agent_init_config_treats_default_name_as_blank_for_auto_name_and_analyst_intr
         "GET",
         &format!("/api/agents/{agent_id}"),
         &[],
-        &json!({"ok": true}),
+        &agent_create_ok_snapshot(),
     )
     .expect("agent row");
     let resolved_name = clean_text(
@@ -888,7 +896,7 @@ fn agent_init_config_treats_default_name_as_blank_for_auto_name_and_analyst_intr
         "GET",
         &format!("/api/agents/{agent_id}/session"),
         &[],
-        &json!({"ok": true}),
+        &agent_create_ok_snapshot(),
     )
     .expect("session");
     let messages = session
@@ -911,14 +919,14 @@ fn agent_init_config_treats_default_name_as_blank_for_auto_name_and_analyst_intr
 
 #[test]
 fn agent_message_runtime_probe_uses_authoritative_runtime_summary() {
-    let root = tempfile::tempdir().expect("tempdir");
+    let root = agent_create_temp_root();
     init_git_repo(root.path());
     let created = handle(
         root.path(),
         "POST",
         "/api/agents",
         br#"{"name":"Runtime Probe","role":"analyst"}"#,
-        &json!({"ok": true}),
+        &agent_create_ok_snapshot(),
     )
     .expect("create agent");
     let agent_id = clean_text(
@@ -936,7 +944,7 @@ fn agent_message_runtime_probe_uses_authoritative_runtime_summary() {
             "POST",
             &format!("/api/agents/{agent_id}/message"),
             br#"{"message":"Report runtime sync now. What changed in queue depth, cockpit blocks, conduit signals, and memory context?"}"#,
-            &json!({"ok": true}),
+            &agent_create_ok_snapshot(),
         )
         .expect("agent runtime probe");
     assert_eq!(message.status, 200);
@@ -960,14 +968,14 @@ fn agent_message_runtime_probe_uses_authoritative_runtime_summary() {
 
 #[test]
 fn memory_denial_variant_is_remediated_to_persistent_summary() {
-    let root = tempfile::tempdir().expect("tempdir");
+    let root = agent_create_temp_root();
     init_git_repo(root.path());
     let created = handle(
         root.path(),
         "POST",
         "/api/agents",
         br#"{"name":"Memory Probe","role":"analyst"}"#,
-        &json!({"ok": true}),
+        &agent_create_ok_snapshot(),
     )
     .expect("create agent");
     let agent_id = clean_text(
@@ -985,7 +993,7 @@ fn memory_denial_variant_is_remediated_to_persistent_summary() {
             "POST",
             &format!("/api/agents/{agent_id}/message"),
             br#"{"message":"Remember this exactly: favorite animal is octopus and codename aurora-7."}"#,
-            &json!({"ok": true}),
+            &agent_create_ok_snapshot(),
         )
         .expect("seed memory");
     assert_eq!(seeded.status, 200);
@@ -995,7 +1003,7 @@ fn memory_denial_variant_is_remediated_to_persistent_summary() {
         "POST",
         &format!("/api/agents/{agent_id}/sessions"),
         br#"{"label":"Session 2"}"#,
-        &json!({"ok": true}),
+        &agent_create_ok_snapshot(),
     )
     .expect("create second session");
     let sid = clean_text(
@@ -1012,7 +1020,7 @@ fn memory_denial_variant_is_remediated_to_persistent_summary() {
         "POST",
         &format!("/api/agents/{agent_id}/sessions/{sid}/switch"),
         &[],
-        &json!({"ok": true}),
+        &agent_create_ok_snapshot(),
     )
     .expect("switch second session");
     assert_eq!(switched.status, 200);
@@ -1022,7 +1030,7 @@ fn memory_denial_variant_is_remediated_to_persistent_summary() {
             "POST",
             &format!("/api/agents/{agent_id}/message"),
             br#"{"message":"I still do not see any stored memory context from earlier in this session. I do not retain information between exchanges unless you explicitly use a memory conduit, and I can only work with what is in the current message."}"#,
-            &json!({"ok": true}),
+            &agent_create_ok_snapshot(),
         )
         .expect("denial variant message");
     assert_eq!(denial_variant.status, 200);
@@ -1047,14 +1055,14 @@ fn memory_denial_variant_is_remediated_to_persistent_summary() {
 
 #[test]
 fn internal_recalled_context_metadata_is_not_echoed_to_user() {
-    let root = tempfile::tempdir().expect("tempdir");
+    let root = agent_create_temp_root();
     init_git_repo(root.path());
     let created = handle(
         root.path(),
         "POST",
         "/api/agents",
         br#"{"name":"Context Leak Guard","role":"analyst"}"#,
-        &json!({"ok": true}),
+        &agent_create_ok_snapshot(),
     )
     .expect("create agent");
     let agent_id = clean_text(
@@ -1072,7 +1080,7 @@ fn internal_recalled_context_metadata_is_not_echoed_to_user() {
         "POST",
         &format!("/api/agents/{agent_id}/message"),
         br#"{"message":"Persistent memory is enabled for this agent across 1 session(s) with 12 stored messages. Recalled context: alpha | beta | gamma"}"#,
-        &json!({"ok": true}),
+        &agent_create_ok_snapshot(),
     )
     .expect("metadata dump probe");
     assert_eq!(message.status, 200);

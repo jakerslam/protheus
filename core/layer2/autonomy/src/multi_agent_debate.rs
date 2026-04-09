@@ -49,6 +49,10 @@ struct Agent {
     role: String,
 }
 
+fn debate_state_path(root: &Path, rel: &str) -> PathBuf {
+    resolve_runtime_path(root, Some(rel), rel)
+}
+
 fn default_policy(root: &Path) -> DebatePolicy {
     let mut roles = HashMap::new();
     roles.insert(
@@ -87,21 +91,9 @@ fn default_policy(root: &Path) -> DebatePolicy {
         runoff_consensus_threshold: 0.57,
         require_distinct_roles_for_quorum: true,
         roles,
-        latest_path: resolve_runtime_path(
-            root,
-            Some("local/state/autonomy/multi_agent_debate/latest.json"),
-            "local/state/autonomy/multi_agent_debate/latest.json",
-        ),
-        history_path: resolve_runtime_path(
-            root,
-            Some("local/state/autonomy/multi_agent_debate/history.jsonl"),
-            "local/state/autonomy/multi_agent_debate/history.jsonl",
-        ),
-        receipts_path: resolve_runtime_path(
-            root,
-            Some("local/state/autonomy/multi_agent_debate/receipts.jsonl"),
-            "local/state/autonomy/multi_agent_debate/receipts.jsonl",
-        ),
+        latest_path: debate_state_path(root, "local/state/autonomy/multi_agent_debate/latest.json"),
+        history_path: debate_state_path(root, "local/state/autonomy/multi_agent_debate/history.jsonl"),
+        receipts_path: debate_state_path(root, "local/state/autonomy/multi_agent_debate/receipts.jsonl"),
     }
 }
 

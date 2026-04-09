@@ -20,13 +20,17 @@ fn invoke_tool_context(
         .cloned()
         .unwrap_or_default();
     let dependency_keys = parse_string_list(payload.get("dependency_keys"));
+    let dependency_key_set = dependency_keys
+        .iter()
+        .cloned()
+        .collect::<std::collections::BTreeSet<_>>();
     let missing_args = parse_string_list(tool.get("required_args"))
         .into_iter()
         .filter(|key| !args_obj.contains_key(key))
         .collect::<Vec<_>>();
     let missing_dependencies = parse_string_list(tool.get("required_dependencies"))
         .into_iter()
-        .filter(|key| !dependency_keys.contains(key))
+        .filter(|key| !dependency_key_set.contains(key))
         .collect::<Vec<_>>();
     if !missing_args.is_empty() || !missing_dependencies.is_empty() {
         return Ok(json!({
@@ -35,6 +39,7 @@ fn invoke_tool_context(
             "reason_code": "tool_context_validation_failed",
             "missing_args": missing_args,
             "missing_dependencies": missing_dependencies,
+            "dependency_keys": dependency_keys,
             "claim_evidence": default_claim_evidence("V6-WORKFLOW-015.3", pydantic_claim("V6-WORKFLOW-015.3")),
         }));
     }

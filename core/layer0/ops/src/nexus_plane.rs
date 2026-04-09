@@ -42,6 +42,29 @@ fn emit(root: &Path, _command: &str, strict: bool, payload: Value, conduit: Opti
     emit_attached_plane_receipt(root, ENV_KEY, LANE_ID, strict, payload, conduit)
 }
 
+fn parse_op(parsed: &crate::ParsedArgs) -> String {
+    clean(
+        parsed
+            .flags
+            .get("op")
+            .map(String::as_str)
+            .unwrap_or("status"),
+        16,
+    )
+    .to_ascii_lowercase()
+}
+
+fn command_error_payload(command: &str, error: &str) -> Value {
+    json!({
+        "ok": false,
+        "type": "nexus_plane",
+        "lane": LANE_ID,
+        "ts": now_iso(),
+        "command": command,
+        "error": error
+    })
+}
+
 fn package_domain_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Value, String> {
     let domain = clean(
         parsed
@@ -139,15 +162,7 @@ fn bridge_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Value, Stri
 }
 
 fn insurance_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Value, String> {
-    let op = clean(
-        parsed
-            .flags
-            .get("op")
-            .map(String::as_str)
-            .unwrap_or("status"),
-        16,
-    )
-    .to_ascii_lowercase();
+    let op = parse_op(parsed);
     if op == "status" {
         let rows = read_jsonl(&lane_file(root, "insurance_quotes.jsonl"));
         return Ok(json!({
@@ -204,15 +219,7 @@ fn insurance_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Value, S
 }
 
 fn human_boundary_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Value, String> {
-    let op = clean(
-        parsed
-            .flags
-            .get("op")
-            .map(String::as_str)
-            .unwrap_or("status"),
-        16,
-    )
-    .to_ascii_lowercase();
+    let op = parse_op(parsed);
     if op == "status" {
         let rows = read_jsonl(&lane_file(root, "human_authorizations.jsonl"));
         return Ok(json!({
@@ -281,15 +288,7 @@ fn human_boundary_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Val
 }
 
 fn receipt_v2_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Value, String> {
-    let op = clean(
-        parsed
-            .flags
-            .get("op")
-            .map(String::as_str)
-            .unwrap_or("status"),
-        16,
-    )
-    .to_ascii_lowercase();
+    let op = parse_op(parsed);
     if op == "status" {
         return Ok(json!({
             "ok": true,
@@ -345,15 +344,7 @@ fn receipt_v2_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Value, 
 }
 
 fn merkle_forest_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Value, String> {
-    let op = clean(
-        parsed
-            .flags
-            .get("op")
-            .map(String::as_str)
-            .unwrap_or("status"),
-        16,
-    )
-    .to_ascii_lowercase();
+    let op = parse_op(parsed);
     if op == "status" {
         return Ok(json!({
             "ok": true,
@@ -420,15 +411,7 @@ fn merkle_forest_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Valu
 }
 
 fn compliance_ledger_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Value, String> {
-    let op = clean(
-        parsed
-            .flags
-            .get("op")
-            .map(String::as_str)
-            .unwrap_or("status"),
-        16,
-    )
-    .to_ascii_lowercase();
+    let op = parse_op(parsed);
     if op == "status" {
         let rows = read_jsonl(&lane_file(root, "compliance_ledger.jsonl"));
         return Ok(json!({
@@ -540,14 +523,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         })],
     );
     if strict && !conduit.get("ok").and_then(Value::as_bool).unwrap_or(false) {
-        let payload = json!({
-            "ok": false,
-            "type": "nexus_plane",
-            "lane": LANE_ID,
-            "ts": now_iso(),
-            "command": command,
-            "error": "conduit_bypass_rejected"
-        });
+        let payload = command_error_payload(&command, "conduit_bypass_rejected");
         return emit(root, &command, strict, payload, Some(&conduit));
     }
     let result = match command.as_str() {
@@ -575,14 +551,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             root,
             &command,
             strict,
-            json!({
-                "ok": false,
-                "type": "nexus_plane",
-                "lane": LANE_ID,
-                "ts": now_iso(),
-                "command": command,
-                "error": error
-            }),
+            command_error_payload(&command, &error),
             Some(&conduit),
         ),
     }

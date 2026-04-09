@@ -49,15 +49,26 @@ impl EvidenceExtractor {
             "summary": summary
         }));
         let extracted_at = now_ms();
-        let evidence_id = deterministic_hash(&serde_json::json!({
+        let evidence_content_id = deterministic_hash(&serde_json::json!({
             "kind": "evidence_card_content",
             "derived_from_result_id": result.result_id,
             "source_ref": source_ref,
             "source_location": source_location,
             "dedupe_hash": dedupe_hash,
         }));
+        let evidence_event_id = deterministic_hash(&serde_json::json!({
+            "kind": "evidence_card_event",
+            "trace_id": result.trace_id,
+            "task_id": result.task_id,
+            "result_event_id": result.result_event_id,
+            "evidence_content_id": evidence_content_id,
+            "source_location": source_location
+        }));
+        let evidence_id = evidence_content_id.clone();
         Some(EvidenceCard {
             evidence_id,
+            evidence_content_id,
+            evidence_event_id,
             trace_id: result.trace_id.clone(),
             task_id: result.task_id.clone(),
             derived_from_result_id: result.result_id.clone(),
@@ -170,6 +181,8 @@ mod tests {
     fn sample_result() -> NormalizedToolResult {
         NormalizedToolResult {
             result_id: "r1".to_string(),
+            result_content_id: "r1".to_string(),
+            result_event_id: "evt-r1".to_string(),
             trace_id: "t1".to_string(),
             task_id: "task".to_string(),
             tool_name: "web_search".to_string(),

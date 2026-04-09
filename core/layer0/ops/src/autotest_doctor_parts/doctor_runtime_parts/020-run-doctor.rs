@@ -1,3 +1,24 @@
+fn ensure_runtime_paths_ready(paths: &RuntimePaths) {
+    let _ = ensure_dir(&paths.state_dir);
+    let _ = ensure_dir(&paths.runs_dir);
+    for path in [&paths.latest_path, &paths.history_path, &paths.events_path] {
+        if let Some(parent) = path.parent() {
+            let _ = ensure_dir(parent);
+        }
+    }
+}
+
+fn resolve_doctor_run_date(date_arg: &str) -> String {
+    if date_arg.eq_ignore_ascii_case("latest") {
+        return now_iso()[..10].to_string();
+    }
+    let clean = clean_text(date_arg, 16);
+    if clean.len() == 10 {
+        clean
+    } else {
+        now_iso()[..10].to_string()
+    }
+}
 
 fn run_doctor(root: &Path, date_arg: &str, cli: &CliArgs) -> Value {
     let policy_path = cli
@@ -17,29 +38,10 @@ fn run_doctor(root: &Path, date_arg: &str, cli: &CliArgs) -> Value {
     let policy = load_policy(&policy_path);
     let paths = runtime_paths(root, &policy_path);
 
-    let _ = ensure_dir(&paths.state_dir);
-    let _ = ensure_dir(&paths.runs_dir);
-    if let Some(parent) = paths.latest_path.parent() {
-        let _ = ensure_dir(parent);
-    }
-    if let Some(parent) = paths.history_path.parent() {
-        let _ = ensure_dir(parent);
-    }
-    if let Some(parent) = paths.events_path.parent() {
-        let _ = ensure_dir(parent);
-    }
+    ensure_runtime_paths_ready(&paths);
 
     let started = std::time::Instant::now();
-    let date = if date_arg.eq_ignore_ascii_case("latest") {
-        now_iso()[..10].to_string()
-    } else {
-        let clean = clean_text(date_arg, 16);
-        if clean.len() == 10 {
-            clean
-        } else {
-            now_iso()[..10].to_string()
-        }
-    };
+    let date = resolve_doctor_run_date(date_arg);
 
     let mut state = load_doctor_state(&paths);
     maybe_auto_release_kill_switch(&mut state, &policy);

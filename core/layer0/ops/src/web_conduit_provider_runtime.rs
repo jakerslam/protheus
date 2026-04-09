@@ -31,6 +31,25 @@ fn clean_text(raw: &str, max_len: usize) -> String {
         .collect::<String>()
 }
 
+fn runtime_state_path(root: &Path, rel: &str) -> PathBuf {
+    root.join(rel)
+}
+
+fn default_provider_chain_vec() -> Vec<String> {
+    DEFAULT_PROVIDER_CHAIN
+        .iter()
+        .map(|row| row.to_string())
+        .collect::<Vec<_>>()
+}
+
+fn default_provider_health_state() -> Value {
+    json!({"version": 1, "providers": {}})
+}
+
+fn default_search_cache_state() -> Value {
+    json!({"version": 1, "entries": {}})
+}
+
 fn read_json_or(path: &Path, fallback: Value) -> Value {
     match fs::read_to_string(path) {
         Ok(raw) => serde_json::from_str::<Value>(&raw).unwrap_or(fallback),
@@ -155,10 +174,7 @@ where
         request_chain
     };
     let configured = if configured.is_empty() {
-        DEFAULT_PROVIDER_CHAIN
-            .iter()
-            .map(|row| row.to_string())
-            .collect::<Vec<_>>()
+        default_provider_chain_vec()
     } else {
         configured
     };
@@ -178,12 +194,7 @@ where
     }
     let mut merged = prefix;
     merged.extend(configured);
-    merged.extend(
-        DEFAULT_PROVIDER_CHAIN
-            .iter()
-            .map(|row| row.to_string())
-            .collect::<Vec<_>>(),
-    );
+    merged.extend(default_provider_chain_vec());
     let deduped = dedupe_preserve(merged);
     let hint_explicit = matches!(
         hint.as_str(),
@@ -243,14 +254,11 @@ pub(crate) fn circuit_policy(policy: &Value) -> CircuitPolicy {
 }
 
 fn provider_health_path(root: &Path) -> PathBuf {
-    root.join(PROVIDER_HEALTH_REL)
+    runtime_state_path(root, PROVIDER_HEALTH_REL)
 }
 
 fn load_provider_health(root: &Path) -> Value {
-    read_json_or(
-        &provider_health_path(root),
-        json!({"version": 1, "providers": {}}),
-    )
+    read_json_or(&provider_health_path(root), default_provider_health_state())
 }
 
 fn write_provider_health(root: &Path, state: &Value) {
@@ -373,7 +381,7 @@ pub(crate) fn provider_health_snapshot(root: &Path, providers: &[String]) -> Val
 }
 
 fn search_cache_path(root: &Path) -> PathBuf {
-    root.join(SEARCH_CACHE_REL)
+    runtime_state_path(root, SEARCH_CACHE_REL)
 }
 
 fn cache_ttl_for_status(status: &str) -> i64 {
@@ -407,7 +415,7 @@ pub(crate) fn search_cache_key(
 
 pub(crate) fn load_search_cache(root: &Path, key: &str) -> Option<Value> {
     let path = search_cache_path(root);
-    let mut cache = read_json_or(&path, json!({"version": 1, "entries": {}}));
+    let mut cache = read_json_or(&path, default_search_cache_state());
     let now_ts = Utc::now().timestamp();
     let mut mutated = false;
     let mut hit = None::<Value>;
@@ -445,7 +453,7 @@ pub(crate) fn load_search_cache(root: &Path, key: &str) -> Option<Value> {
 
 pub(crate) fn store_search_cache(root: &Path, key: &str, response: &Value, status: &str) {
     let path = search_cache_path(root);
-    let mut cache = read_json_or(&path, json!({"version": 1, "entries": {}}));
+    let mut cache = read_json_or(&path, default_search_cache_state());
     let now_ts = Utc::now().timestamp();
     let mut entries = cache
         .get("entries")

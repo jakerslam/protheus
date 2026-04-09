@@ -441,6 +441,7 @@ fn edge_prompt_helpers_normalize_and_cap_tokens() {
         "a b c".to_string()
     );
     assert_eq!(summarize_for_edge_backend("a b", 3), "a b".to_string());
+    assert_eq!(summarize_for_edge_backend("a b c", 0), "".to_string());
 }
 
 #[test]

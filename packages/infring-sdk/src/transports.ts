@@ -1,19 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import type {
-  AttachPoliciesData,
   InfringOperation,
   InfringTransport,
   InfringTransportRequest,
-  InspectReceiptsData,
   JsonObject,
   JsonValue,
-  QueryMemoryData,
   ReceiptPointer,
-  ReviewEvidenceData,
-  RunAssimilationData,
   SdkEnvelope,
-  SubmitTaskData,
 } from './types';
 
 function nowIso(): string {
@@ -65,83 +59,23 @@ function asStringArray(value: unknown): string[] {
     .filter((row) => row.length > 0);
 }
 
-function defaultSubmitTaskData(request: InfringTransportRequest): SubmitTaskData {
-  const explicit = String((request.payload.task_id as string) || '').trim();
-  return {
-    task_id: explicit || `task_${randomUUID().slice(0, 12)}`,
-    accepted: true,
-    status: 'queued',
-  };
-}
-
-function defaultInspectReceiptsData(): InspectReceiptsData {
-  return {
-    receipts: [],
-  };
-}
-
-function defaultQueryMemoryData(): QueryMemoryData {
-  return {
-    records: [],
-  };
-}
-
-function defaultReviewEvidenceData(): ReviewEvidenceData {
-  return {
-    evidence: [],
-  };
-}
-
-function defaultRunAssimilationData(request: InfringTransportRequest): RunAssimilationData {
-  const target = String((request.payload.target as string) || '').trim() || 'unknown';
-  return {
-    assimilation_id: `assim_${randomUUID().slice(0, 12)}`,
-    admitted: true,
-    status: target.length > 0 ? 'planned' : 'rejected',
-  };
-}
-
-function defaultAttachPoliciesData(request: InfringTransportRequest): AttachPoliciesData {
-  const payloadPolicies = Array.isArray(request.payload.policies)
-    ? (request.payload.policies as Array<{ policy_ref?: string }>)
-    : [];
-  const refs = payloadPolicies
-    .map((row) => String(row && row.policy_ref ? row.policy_ref : '').trim())
-    .filter((row) => row.length > 0);
-  return {
-    applied_policy_refs: refs,
-  };
-}
-
-function defaultDataForOperation(request: InfringTransportRequest): JsonValue {
-  switch (request.operation) {
-    case 'submit_task':
-      return defaultSubmitTaskData(request);
-    case 'inspect_receipts':
-      return defaultInspectReceiptsData();
-    case 'query_memory':
-      return defaultQueryMemoryData();
-    case 'review_evidence':
-      return defaultReviewEvidenceData();
-    case 'run_assimilation':
-      return defaultRunAssimilationData(request);
-    case 'attach_policies':
-      return defaultAttachPoliciesData(request);
-    default:
-      return {};
-  }
-}
-
 export interface CliTransportOptions {
   command: string;
   cwd?: string;
   env?: NodeJS.ProcessEnv;
   timeout_ms?: number;
+  /**
+   * Deprecated. Production transports are fail-closed by default.
+   * Synthetic fallback requires both this option and INFRING_SDK_ALLOW_SYNTHETIC_FALLBACK=1.
+   */
   allow_synthetic_fallback?: boolean;
   args_for_operation: (request: InfringTransportRequest) => string[];
 }
 
 export interface InMemoryTransportOptions {
+  /**
+   * Deprecated. Unseeded fallback is disabled to keep transport behavior deterministic.
+   */
   allow_unseeded_fallback?: boolean;
 }
 
@@ -153,7 +87,9 @@ export function createCliTransport(options: CliTransportOptions): InfringTranspo
   if (typeof options.args_for_operation !== 'function') {
     throw new Error('sdk_cli_transport_requires_args_for_operation');
   }
-  const allowSyntheticFallback = options.allow_synthetic_fallback === true;
+  const allowSyntheticFallback =
+    options.allow_synthetic_fallback === true &&
+    String(process.env.INFRING_SDK_ALLOW_SYNTHETIC_FALLBACK || '').trim() === '1';
   return {
     async invoke<TData extends JsonValue = JsonValue>(
       request: InfringTransportRequest
@@ -187,28 +123,40 @@ export function createCliTransport(options: CliTransportOptions): InfringTranspo
         };
       }
       if (!hasParsedData) {
-        if (!allowSyntheticFallback) {
-          return {
-            ok: false,
-            operation: request.operation,
-            trace_id: traceId,
-            receipts,
-            data: {} as TData,
-            error: {
-              code: 'missing_transport_data',
-              message: 'Transport succeeded but did not return a data payload.',
-            },
-          };
-        }
+        return {
+          ok: false,
+          operation: request.operation,
+          trace_id: traceId,
+          receipts,
+          data: {} as TData,
+          error: {
+            code: 'missing_transport_data',
+            message: allowSyntheticFallback
+              ? 'Synthetic fallback disabled for deterministic transport mode.'
+              : 'Transport succeeded but did not return a data payload.',
+          },
+        };
       }
-      const data = hasParsedData
-        ? (parsedData as TData)
-        : (defaultDataForOperation(request) as TData);
+      if (receipts.length === 0) {
+        return {
+          ok: false,
+          operation: request.operation,
+          trace_id: traceId,
+          receipts: [],
+          data: {} as TData,
+          error: {
+            code: 'missing_transport_receipts',
+            message:
+              'Transport succeeded but did not return receipts; deterministic receipts are required.',
+          },
+        };
+      }
+      const data = parsedData as TData;
       return {
         ok: true,
         operation: request.operation,
         trace_id: traceId,
-        receipts: receipts.length > 0 ? receipts : [toReceipt(request.policy_refs[0])],
+        receipts,
         data,
       };
     },
@@ -228,22 +176,22 @@ export function createInMemoryTransport(
     ): Promise<SdkEnvelope<TData>> {
       const hasSeed = Object.prototype.hasOwnProperty.call(seed, request.operation);
       const seeded = hasSeed ? seed[request.operation] : undefined;
-      if (!hasSeed && !allowUnseededFallback) {
+      if (!hasSeed) {
         return {
           ok: false,
           operation: request.operation,
           trace_id: `trace_${randomUUID().replace(/-/g, '')}`,
-          receipts: [toReceipt(request.policy_refs[0])],
+          receipts: [],
           data: {} as TData,
           error: {
-            code: 'in_memory_seed_missing',
-            message: `In-memory transport missing seed for operation '${request.operation}'.`,
+            code: 'in_memory_seed_required',
+            message: allowUnseededFallback
+              ? `Synthetic in-memory fallback disabled; provide a seed for '${request.operation}'.`
+              : `In-memory transport missing seed for operation '${request.operation}'.`,
           },
         };
       }
-      const data = hasSeed
-        ? (seeded as TData)
-        : (defaultDataForOperation(request) as TData);
+      const data = seeded as TData;
       return envelope(request.operation, data, request.policy_refs);
     },
   };

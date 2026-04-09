@@ -36,6 +36,19 @@ fn run_swarm(root: &std::path::Path, args: &[String]) -> i32 {
     swarm_runtime::run(root, args)
 }
 
+fn state_path_arg(state_path: &std::path::Path) -> String {
+    format!("--state-path={}", state_path.display())
+}
+
+fn spawn_args(task: &str, role: &str, state_path: &std::path::Path) -> Vec<String> {
+    vec![
+        "spawn".to_string(),
+        format!("--task={task}"),
+        format!("--role={role}"),
+        state_path_arg(state_path),
+    ]
+}
+
 fn read_state(path: &std::path::Path) -> Value {
     serde_json::from_str(&fs::read_to_string(path).expect("read state")).expect("parse state")
 }
@@ -114,18 +127,8 @@ fn sessions_send_receive_and_ack_support_sibling_chain() {
     let root = tempfile::tempdir().expect("tempdir");
     let state_path = root.path().join("state/swarm/latest.json");
 
-    let s1 = vec![
-        "spawn".to_string(),
-        "--task=comm-agent-1".to_string(),
-        "--role=generator".to_string(),
-        format!("--state-path={}", state_path.display()),
-    ];
-    let s2 = vec![
-        "spawn".to_string(),
-        "--task=comm-agent-2".to_string(),
-        "--role=filter".to_string(),
-        format!("--state-path={}", state_path.display()),
-    ];
+    let s1 = spawn_args("comm-agent-1", "generator", &state_path);
+    let s2 = spawn_args("comm-agent-2", "filter", &state_path);
     assert_eq!(run_swarm(root.path(), &s1), 0);
     assert_eq!(run_swarm(root.path(), &s2), 0);
 
@@ -150,7 +153,7 @@ fn sessions_send_receive_and_ack_support_sibling_chain() {
         "--message=hello-from-agent-1".to_string(),
         "--delivery=at_least_once".to_string(),
         "--simulate-first-attempt-fail=1".to_string(),
-        format!("--state-path={}", state_path.display()),
+        state_path_arg(&state_path),
     ];
     assert_eq!(run_swarm(root.path(), &send_args), 0);
 
@@ -160,7 +163,7 @@ fn sessions_send_receive_and_ack_support_sibling_chain() {
         format!("--session-id={recipient}"),
         "--limit=5".to_string(),
         "--mark-read=0".to_string(),
-        format!("--state-path={}", state_path.display()),
+        state_path_arg(&state_path),
     ];
     assert_eq!(run_swarm(root.path(), &receive_args), 0);
 
@@ -181,7 +184,7 @@ fn sessions_send_receive_and_ack_support_sibling_chain() {
         "ack".to_string(),
         format!("--session-id={recipient}"),
         format!("--message-id={msg_id}"),
-        format!("--state-path={}", state_path.display()),
+        state_path_arg(&state_path),
     ];
     assert_eq!(run_swarm(root.path(), &ack_args), 0);
 
@@ -203,18 +206,8 @@ fn service_discovery_and_send_role_route_messages() {
     let root = tempfile::tempdir().expect("tempdir");
     let state_path = root.path().join("state/swarm/latest.json");
 
-    let s1 = vec![
-        "spawn".to_string(),
-        "--task=role-agent-1".to_string(),
-        "--role=generator".to_string(),
-        format!("--state-path={}", state_path.display()),
-    ];
-    let s2 = vec![
-        "spawn".to_string(),
-        "--task=role-agent-2".to_string(),
-        "--role=filter".to_string(),
-        format!("--state-path={}", state_path.display()),
-    ];
+    let s1 = spawn_args("role-agent-1", "generator", &state_path);
+    let s2 = spawn_args("role-agent-2", "filter", &state_path);
     assert_eq!(run_swarm(root.path(), &s1), 0);
     assert_eq!(run_swarm(root.path(), &s2), 0);
 
@@ -222,7 +215,7 @@ fn service_discovery_and_send_role_route_messages() {
         "sessions".to_string(),
         "discover".to_string(),
         "--role=filter".to_string(),
-        format!("--state-path={}", state_path.display()),
+        state_path_arg(&state_path),
     ];
     assert_eq!(run_swarm(root.path(), &discover_args), 0);
 
@@ -233,7 +226,7 @@ fn service_discovery_and_send_role_route_messages() {
         "--role=filter".to_string(),
         "--message=role-routed-message".to_string(),
         "--delivery=exactly_once".to_string(),
-        format!("--state-path={}", state_path.display()),
+        state_path_arg(&state_path),
     ];
     assert_eq!(run_swarm(root.path(), &send_role_args), 0);
 
@@ -265,7 +258,7 @@ fn state_cache_reload_detects_external_state_mutation() {
     let enable_args = vec![
         "byzantine-test".to_string(),
         "enable".to_string(),
-        format!("--state-path={}", state_path.display()),
+        state_path_arg(&state_path),
     ];
     assert_eq!(run_swarm(root.path(), &enable_args), 0);
 
@@ -274,10 +267,7 @@ fn state_cache_reload_detects_external_state_mutation() {
     let encoded = serde_json::to_string_pretty(&externally_edited).expect("encode edited state");
     fs::write(&state_path, encoded).expect("write edited state");
 
-    let status_args = vec![
-        "status".to_string(),
-        format!("--state-path={}", state_path.display()),
-    ];
+    let status_args = vec!["status".to_string(), state_path_arg(&state_path)];
     assert_eq!(run_swarm(root.path(), &status_args), 0);
 
     let state_after = read_state(&state_path);
@@ -297,19 +287,13 @@ fn high_volume_mailboxes_use_compact_state_encoding() {
     let state_path = root.path().join("state/swarm/latest.json");
 
     for task in ["compact-encoder-sender", "compact-encoder-receiver"] {
-        let spawn_args = vec![
-            "spawn".to_string(),
-            format!("--task={task}"),
-            "--role=filter".to_string(),
-            format!("--state-path={}", state_path.display()),
-        ];
-        assert_eq!(run_swarm(root.path(), &spawn_args), 0);
+        let args = spawn_args(task, "filter", &state_path);
+        assert_eq!(run_swarm(root.path(), &args), 0);
     }
 
     let state = read_state(&state_path);
     let sender = find_session_id_by_task(&state, "compact-encoder-sender").expect("sender");
-    let receiver =
-        find_session_id_by_task(&state, "compact-encoder-receiver").expect("receiver");
+    let receiver = find_session_id_by_task(&state, "compact-encoder-receiver").expect("receiver");
 
     for idx in 0..110 {
         let send_args = vec![
@@ -319,7 +303,7 @@ fn high_volume_mailboxes_use_compact_state_encoding() {
             format!("--session-id={receiver}"),
             format!("--message=compact-encoding-test-{idx}"),
             "--delivery=at_least_once".to_string(),
-            format!("--state-path={}", state_path.display()),
+            state_path_arg(&state_path),
         ];
         assert_eq!(run_swarm(root.path(), &send_args), 0);
     }
@@ -349,12 +333,7 @@ fn channels_create_publish_poll_and_communication_test_pass() {
 
     let mut sessions = Vec::new();
     for role in ["generator", "filter", "summarizer", "validator"] {
-        let args = vec![
-            "spawn".to_string(),
-            format!("--task=channel-{role}"),
-            format!("--role={role}"),
-            format!("--state-path={}", state_path.display()),
-        ];
+        let args = spawn_args(&format!("channel-{role}"), role, &state_path);
         assert_eq!(run_swarm(root.path(), &args), 0);
     }
     let state = read_state(&state_path);
@@ -377,7 +356,7 @@ fn channels_create_publish_poll_and_communication_test_pass() {
         "create".to_string(),
         "--name=swarm-test-6".to_string(),
         format!("--participants={participants}"),
-        format!("--state-path={}", state_path.display()),
+        state_path_arg(&state_path),
     ];
     assert_eq!(run_swarm(root.path(), &create_args), 0);
 
@@ -395,7 +374,7 @@ fn channels_create_publish_poll_and_communication_test_pass() {
         format!("--sender-id={sender}"),
         "--message=channel-broadcast".to_string(),
         "--delivery=at_most_once".to_string(),
-        format!("--state-path={}", state_path.display()),
+        state_path_arg(&state_path),
     ];
     assert_eq!(run_swarm(root.path(), &publish_args), 0);
 
@@ -404,7 +383,7 @@ fn channels_create_publish_poll_and_communication_test_pass() {
         "poll".to_string(),
         format!("--channel-id={channel_id}"),
         format!("--session-id={pollee}"),
-        format!("--state-path={}", state_path.display()),
+        state_path_arg(&state_path),
     ];
     assert_eq!(run_swarm(root.path(), &poll_args), 0);
 
@@ -413,7 +392,7 @@ fn channels_create_publish_poll_and_communication_test_pass() {
         "communication".to_string(),
         "--delivery=at_least_once".to_string(),
         "--simulate-first-attempt-fail=1".to_string(),
-        format!("--state-path={}", state_path.display()),
+        state_path_arg(&state_path),
     ];
     assert_eq!(run_swarm(root.path(), &chain_test_args), 0);
 
@@ -438,7 +417,7 @@ fn heterogeneous_results_registry_supports_query_wait_consensus_and_outliers() {
         "--auto-publish-results=1".to_string(),
         "--agent-label=swarm-test-7-het-agent-fast".to_string(),
         "--result-value=5050".to_string(),
-        format!("--state-path={}", state_path.display()),
+        state_path_arg(&state_path),
     ];
     let thorough = vec![
         "spawn".to_string(),
@@ -448,7 +427,7 @@ fn heterogeneous_results_registry_supports_query_wait_consensus_and_outliers() {
         "--agent-label=swarm-test-7-het-agent-thorough".to_string(),
         "--result-value=5050".to_string(),
         "--verification-status=verified".to_string(),
-        format!("--state-path={}", state_path.display()),
+        state_path_arg(&state_path),
     ];
     assert_eq!(run_swarm(root.path(), &fast), 0);
     assert_eq!(run_swarm(root.path(), &thorough), 0);
@@ -459,7 +438,7 @@ fn heterogeneous_results_registry_supports_query_wait_consensus_and_outliers() {
         "--label-pattern=swarm-test-7-het-agent-*".to_string(),
         "--min-count=2".to_string(),
         "--timeout-sec=2".to_string(),
-        format!("--state-path={}", state_path.display()),
+        state_path_arg(&state_path),
     ];
     assert_eq!(run_swarm(root.path(), &wait_args), 0);
 
@@ -467,7 +446,7 @@ fn heterogeneous_results_registry_supports_query_wait_consensus_and_outliers() {
         "results".to_string(),
         "query".to_string(),
         "--role=calculator".to_string(),
-        format!("--state-path={}", state_path.display()),
+        state_path_arg(&state_path),
     ];
     assert_eq!(run_swarm(root.path(), &query_args), 0);
 
@@ -476,7 +455,7 @@ fn heterogeneous_results_registry_supports_query_wait_consensus_and_outliers() {
         "consensus".to_string(),
         "--label-pattern=swarm-test-7-het-agent-*".to_string(),
         "--field=value".to_string(),
-        format!("--state-path={}", state_path.display()),
+        state_path_arg(&state_path),
     ];
     assert_eq!(run_swarm(root.path(), &consensus_args), 0);
 
@@ -485,7 +464,7 @@ fn heterogeneous_results_registry_supports_query_wait_consensus_and_outliers() {
         "outliers".to_string(),
         "--label-pattern=swarm-test-7-het-agent-*".to_string(),
         "--field=value".to_string(),
-        format!("--state-path={}", state_path.display()),
+        state_path_arg(&state_path),
     ];
     assert_eq!(run_swarm(root.path(), &outlier_args), 0);
 
@@ -519,7 +498,7 @@ fn results_wait_times_out_when_min_count_not_met() {
         "--label-pattern=non-existent-*".to_string(),
         "--min-count=1".to_string(),
         "--timeout-sec=0.1".to_string(),
-        format!("--state-path={}", state_path.display()),
+        state_path_arg(&state_path),
     ];
     assert_eq!(run_swarm(root.path(), &wait_args), 2);
 

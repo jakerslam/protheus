@@ -53,7 +53,7 @@ fn decompose_task_receipt(root: &Path, args: &[String]) -> Value {
         .or_else(|| non_flag_positional(args, 1))
         .unwrap_or_else(|| "general task".to_string());
     let mut fragments = task
-        .split(['.', ';', ','])
+        .split(['.', ';', ',', '\n'])
         .map(|v| v.trim())
         .filter(|v| !v.is_empty())
         .map(|v| v.to_string())
@@ -418,4 +418,3 @@ fn bitnet_telemetry_receipt(root: &Path, args: &[String]) -> Value {
     append_jsonl(&history_path, &out);
     out
 }
-

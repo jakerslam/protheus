@@ -127,6 +127,97 @@ function parseJsonStdout(stdout: string): any {
   }
 }
 
+function asFiniteNumber(value: unknown): number | null {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+type E2EThroughputMeasurement = {
+  value: number | null;
+  source: string;
+  samples: number;
+  sampleTotalMs: number;
+};
+
+function measureRichEndToEndCommandPathOpsPerSec(): E2EThroughputMeasurement {
+  const samples = parseNumber(process.env.INFRING_BENCH_E2E_SAMPLES, 5, 2, 30);
+  const command = process.execPath || 'node';
+  const args = [
+    'client/runtime/lib/ts_entrypoint.ts',
+    'client/runtime/systems/ops/security_layer_inventory_gate.ts',
+    'status',
+    '--strict=1',
+    '--json=1',
+  ];
+  const env = {
+    ...process.env,
+    INFRING_ROOT: ROOT,
+    PROTHEUS_ROOT: ROOT,
+    INFRING_OPS_IPC_DAEMON: '1',
+    INFRING_OPS_IPC_STRICT: '1',
+    INFRING_OPS_USE_PREBUILT: '1',
+    PROTHEUS_OPS_USE_PREBUILT: '1',
+    INFRING_OPS_LOCAL_TIMEOUT_MS: '60000',
+  };
+  const warm = spawnSync(command, args, {
+    cwd: ROOT,
+    encoding: 'utf8',
+    stdio: 'pipe',
+    env,
+    timeout: 120_000,
+  });
+  if ((warm.status ?? 1) !== 0) {
+    return {
+      value: null,
+      source: 'measurement_failed:warmup_failed',
+      samples,
+      sampleTotalMs: 0,
+    };
+  }
+  const started = process.hrtime.bigint();
+  for (let idx = 0; idx < samples; idx += 1) {
+    const proc = spawnSync(command, args, {
+      cwd: ROOT,
+      encoding: 'utf8',
+      stdio: 'pipe',
+      env,
+      timeout: 120_000,
+    });
+    if ((proc.status ?? 1) !== 0) {
+      return {
+        value: null,
+        source: 'measurement_failed:sample_failed',
+        samples,
+        sampleTotalMs: Number(process.hrtime.bigint() - started) / 1_000_000,
+      };
+    }
+  }
+  const elapsedMs = Number(process.hrtime.bigint() - started) / 1_000_000;
+  if (!Number.isFinite(elapsedMs) || elapsedMs <= 0) {
+    return {
+      value: null,
+      source: 'measurement_failed:elapsed_invalid',
+      samples,
+      sampleTotalMs: 0,
+    };
+  }
+  const opsPerSec = Number(((samples * 1000) / elapsedMs).toFixed(2));
+  return {
+    value: Number.isFinite(opsPerSec) ? opsPerSec : null,
+    source: 'measured:security_layer_inventory_gate_status_bridge',
+    samples,
+    sampleTotalMs: elapsedMs,
+  };
+}
+
+function assignKernelSharedThroughputMetric(project: any): void {
+  if (!project || typeof project !== 'object') return;
+  const legacy = asFiniteNumber((project as any).tasks_per_sec);
+  if (legacy != null) {
+    (project as any).kernel_shared_workload_ops_per_sec = legacy;
+  }
+}
+
 function assertRunOk(label: string, cmd: string, args: string[]): void {
   const proc = run(cmd, args);
   if ((proc.status ?? 1) !== 0) {
@@ -318,6 +409,63 @@ function main(): void {
       )}`
     );
   }
+  assignKernelSharedThroughputMetric(rich);
+  assignKernelSharedThroughputMetric(pure);
+  assignKernelSharedThroughputMetric(tiny);
+  const sharedFamily = {
+    metric: CANONICAL_THROUGHPUT_METRIC,
+    measurement_scope: 'shared_kernel_workload_baseline',
+    end_to_end: false,
+  };
+  const readinessFamily = {
+    metric: 'cold_start_ms',
+    measurement_scope: 'status_path_readiness',
+    end_to_end: false,
+    source: 'benchmark_matrix_status_mode',
+  };
+  const e2eMeasurement = measureRichEndToEndCommandPathOpsPerSec();
+  const richEndToEndOpsPerSec = e2eMeasurement.value;
+  if (richEndToEndOpsPerSec != null) {
+    (rich as any).rich_end_to_end_command_path_ops_per_sec = richEndToEndOpsPerSec;
+  } else {
+    (rich as any).rich_end_to_end_command_path_ops_per_sec = null;
+  }
+  (rich as any).rich_end_to_end_command_path_source = e2eMeasurement.source;
+  (rich as any).rich_end_to_end_command_path_samples = e2eMeasurement.samples;
+  (rich as any).rich_end_to_end_command_path_sample_total_ms = Number(
+    e2eMeasurement.sampleTotalMs.toFixed(3)
+  );
+  (rich as any).benchmark_metric_families = {
+    kernel_shared_workload: { ...sharedFamily, source: String((rich as any).throughput_source || '').trim() || null },
+    rich_end_to_end_command_path: {
+      metric: 'rich_end_to_end_command_path_ops_per_sec',
+      measurement_scope: 'command_path_status_bridge',
+      end_to_end: true,
+      source: e2eMeasurement.source,
+      samples: e2eMeasurement.samples,
+    },
+    rich_status_path_readiness: readinessFamily,
+  };
+  (pure as any).benchmark_metric_families = {
+    kernel_shared_workload: { ...sharedFamily, source: String((pure as any).throughput_source || '').trim() || null },
+    rich_status_path_readiness: readinessFamily,
+  };
+  (tiny as any).benchmark_metric_families = {
+    kernel_shared_workload: { ...sharedFamily, source: String((tiny as any).throughput_source || '').trim() || null },
+    rich_status_path_readiness: readinessFamily,
+  };
+  if (
+    sanitizedReport.infring_measured &&
+    typeof sanitizedReport.infring_measured === 'object'
+  ) {
+    assignKernelSharedThroughputMetric(sanitizedReport.infring_measured);
+    (sanitizedReport.infring_measured as any).rich_end_to_end_command_path_ops_per_sec =
+      (rich as any).rich_end_to_end_command_path_ops_per_sec ?? null;
+    (sanitizedReport.infring_measured as any).rich_end_to_end_command_path_source =
+      (rich as any).rich_end_to_end_command_path_source ?? null;
+    (sanitizedReport.infring_measured as any).benchmark_metric_families =
+      (rich as any).benchmark_metric_families ?? null;
+  }
 
   writeJson(options.reportPath, sanitizedReport);
   if (options.mirrorLegacy) {
@@ -359,6 +507,10 @@ function main(): void {
         rich_kernel_ready_ms: richKernelReadyMs,
         rich_gateway_ready_ms: richGatewayReadyMs,
         rich_dashboard_interactive_ms: richDashboardInteractiveMs,
+        rich_end_to_end_command_path_ops_per_sec:
+          (rich as any).rich_end_to_end_command_path_ops_per_sec ?? null,
+        rich_end_to_end_command_path_source:
+          (rich as any).rich_end_to_end_command_path_source ?? null,
         pure: pure ? true : false,
         tiny_max: tiny ? true : false
       },

@@ -1,8 +1,16 @@
 static WEB_ENDPOINT_ENV_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
+fn terminated_temp_root() -> tempfile::TempDir {
+    tempfile::tempdir().expect("tempdir")
+}
+
+fn terminated_ok_snapshot() -> Value {
+    json!({"ok": true})
+}
+
 #[test]
 fn terminated_agent_endpoints_round_trip() {
-    let root = tempfile::tempdir().expect("tempdir");
+    let root = terminated_temp_root();
     let _ = crate::dashboard_agent_state::upsert_contract(
         root.path(),
         "agent-a",
@@ -19,7 +27,7 @@ fn terminated_agent_endpoints_round_trip() {
         "GET",
         "/api/agents/terminated",
         &[],
-        &json!({"ok": true}),
+        &terminated_ok_snapshot(),
     )
     .expect("terminated list");
     let rows = listed
@@ -35,7 +43,7 @@ fn terminated_agent_endpoints_round_trip() {
         "POST",
         "/api/agents/agent-a/revive",
         br#"{"role":"analyst"}"#,
-        &json!({"ok": true}),
+        &terminated_ok_snapshot(),
     )
     .expect("revive");
     assert_eq!(
@@ -48,7 +56,7 @@ fn terminated_agent_endpoints_round_trip() {
         "GET",
         "/api/agents/terminated",
         &[],
-        &json!({"ok": true}),
+        &terminated_ok_snapshot(),
     )
     .expect("terminated list after revive");
     let rows_after = after_revive
@@ -74,7 +82,7 @@ fn terminated_agent_endpoints_round_trip() {
         "DELETE",
         "/api/agents/terminated/agent-a",
         &[],
-        &json!({"ok": true}),
+        &terminated_ok_snapshot(),
     )
     .expect("delete terminated");
     assert!(
@@ -89,13 +97,13 @@ fn terminated_agent_endpoints_round_trip() {
 
 #[test]
 fn archive_all_agents_endpoint_archives_visible_roster() {
-    let root = tempfile::tempdir().expect("tempdir");
+    let root = terminated_temp_root();
     let created_a = handle(
         root.path(),
         "POST",
         "/api/agents",
         br#"{"name":"Alpha","role":"operator"}"#,
-        &json!({"ok": true}),
+        &terminated_ok_snapshot(),
     )
     .expect("create alpha");
     let created_b = handle(
@@ -103,7 +111,7 @@ fn archive_all_agents_endpoint_archives_visible_roster() {
         "POST",
         "/api/agents",
         br#"{"name":"Beta","role":"analyst"}"#,
-        &json!({"ok": true}),
+        &terminated_ok_snapshot(),
     )
     .expect("create beta");
     let alpha_id = clean_text(
@@ -130,7 +138,7 @@ fn archive_all_agents_endpoint_archives_visible_roster() {
         "POST",
         "/api/agents/archive-all",
         br#"{"reason":"test_archive_all"}"#,
-        &json!({"ok": true}),
+        &terminated_ok_snapshot(),
     )
     .expect("archive all");
     assert_eq!(archived.status, 200);
@@ -153,7 +161,7 @@ fn archive_all_agents_endpoint_archives_visible_roster() {
     assert!(archived_labels.contains(&beta_id));
 
     let listed =
-        handle(root.path(), "GET", "/api/agents", &[], &json!({"ok": true})).expect("list active");
+        handle(root.path(), "GET", "/api/agents", &[], &terminated_ok_snapshot()).expect("list active");
     let rows = listed.payload.as_array().cloned().unwrap_or_default();
     assert!(rows
         .iter()
@@ -169,13 +177,13 @@ fn archive_all_agents_endpoint_archives_visible_roster() {
 
 #[test]
 fn archive_all_agents_endpoint_rejects_actor_scoped_requests() {
-    let root = tempfile::tempdir().expect("tempdir");
+    let root = terminated_temp_root();
     let created = handle(
         root.path(),
         "POST",
         "/api/agents",
         br#"{"name":"Parent","role":"operator"}"#,
-        &json!({"ok": true}),
+        &terminated_ok_snapshot(),
     )
     .expect("create parent");
     let actor_id = clean_text(
@@ -194,7 +202,7 @@ fn archive_all_agents_endpoint_rejects_actor_scoped_requests() {
         "/api/agents/archive-all",
         br#"{}"#,
         &[("X-Actor-Agent-Id", actor_id.as_str())],
-        &json!({"ok": true}),
+        &terminated_ok_snapshot(),
     )
     .expect("archive-all denied");
     assert_eq!(denied.status, 403);
@@ -206,7 +214,7 @@ fn archive_all_agents_endpoint_rejects_actor_scoped_requests() {
 
 #[test]
 fn roster_excludes_zombies_and_archived_profiles_surface_in_terminated() {
-    let root = tempfile::tempdir().expect("tempdir");
+    let root = terminated_temp_root();
     let _ = crate::dashboard_agent_state::upsert_profile(
         root.path(),
         "agent-live",
@@ -316,13 +324,13 @@ fn roster_excludes_zombies_and_archived_profiles_surface_in_terminated() {
 
 #[test]
 fn terminal_endpoints_round_trip() {
-    let root = tempfile::tempdir().expect("tempdir");
+    let root = terminated_temp_root();
     let created = handle(
         root.path(),
         "POST",
         "/api/terminal/sessions",
         br#"{"id":"term-a"}"#,
-        &json!({"ok": true}),
+        &terminated_ok_snapshot(),
     )
     .expect("create");
     assert_eq!(
@@ -334,7 +342,7 @@ fn terminal_endpoints_round_trip() {
         "GET",
         "/api/terminal/sessions",
         &[],
-        &json!({"ok": true}),
+        &terminated_ok_snapshot(),
     )
     .expect("list");
     assert_eq!(
@@ -350,7 +358,7 @@ fn terminal_endpoints_round_trip() {
         "POST",
         "/api/terminal/queue",
         br#"{"session_id":"term-a","command":"printf 'ok'"}"#,
-        &json!({"ok": true}),
+        &terminated_ok_snapshot(),
     )
     .expect("exec");
     assert_eq!(
@@ -383,13 +391,13 @@ fn terminal_endpoints_round_trip() {
 
 #[test]
 fn agent_terminal_routes_through_command_router() {
-    let root = tempfile::tempdir().expect("tempdir");
+    let root = terminated_temp_root();
     let created = handle(
         root.path(),
         "POST",
         "/api/agents",
         br#"{"name":"Ops","role":"operator"}"#,
-        &json!({"ok": true}),
+        &terminated_ok_snapshot(),
     )
     .expect("create agent");
     let agent_id = clean_text(
@@ -407,7 +415,7 @@ fn agent_terminal_routes_through_command_router() {
         "POST",
         &format!("/api/agents/{agent_id}/terminal"),
         br#"{"command":"printf 'ok'"}"#,
-        &json!({"ok": true}),
+        &terminated_ok_snapshot(),
     )
     .expect("terminal");
     assert_eq!(terminal.status, 200);
@@ -439,7 +447,7 @@ fn agent_terminal_routes_through_command_router() {
         "POST",
         &format!("/api/agents/{agent_id}/terminal"),
         br#"{"command":"infring daemon ping"}"#,
-        &json!({"ok": true}),
+        &terminated_ok_snapshot(),
     )
     .expect("translated");
     assert_eq!(translated.status, 200);
@@ -472,13 +480,13 @@ fn agent_terminal_routes_through_command_router() {
 
 #[test]
 fn agent_terminal_blocks_policy_denied_command_with_structured_summary() {
-    let root = tempfile::tempdir().expect("tempdir");
+    let root = terminated_temp_root();
     let created = handle(
         root.path(),
         "POST",
         "/api/agents",
         br#"{"name":"Ops","role":"operator"}"#,
-        &json!({"ok": true}),
+        &terminated_ok_snapshot(),
     )
     .expect("create agent");
     let agent_id = clean_text(
@@ -496,7 +504,7 @@ fn agent_terminal_blocks_policy_denied_command_with_structured_summary() {
         "POST",
         &format!("/api/agents/{agent_id}/terminal"),
         br#"{"command":"git reset --hard HEAD"}"#,
-        &json!({"ok": true}),
+        &terminated_ok_snapshot(),
     )
     .expect("blocked");
     assert_eq!(blocked.status, 200);
@@ -532,13 +540,13 @@ fn agent_terminal_blocks_policy_denied_command_with_structured_summary() {
 
 #[test]
 fn agent_command_endpoint_routes_runtime_queries_in_core() {
-    let root = tempfile::tempdir().expect("tempdir");
+    let root = terminated_temp_root();
     let created = handle(
         root.path(),
         "POST",
         "/api/agents",
         br#"{"name":"Ops","role":"operator"}"#,
-        &json!({"ok": true}),
+        &terminated_ok_snapshot(),
     )
     .expect("create agent");
     let agent_id = clean_text(
@@ -556,7 +564,7 @@ fn agent_command_endpoint_routes_runtime_queries_in_core() {
         "POST",
         &format!("/api/agents/{agent_id}/command"),
         br#"{"command":"context","silent":true}"#,
-        &json!({"ok": true}),
+        &terminated_ok_snapshot(),
     )
     .expect("context command");
     assert_eq!(context.status, 200);
@@ -608,7 +616,7 @@ fn agent_command_endpoint_routes_runtime_queries_in_core() {
 
 #[test]
 fn session_backed_agents_drive_roster_sessions_and_usage() {
-    let root = tempfile::tempdir().expect("tempdir");
+    let root = terminated_temp_root();
     let _ = crate::dashboard_agent_state::append_turn(
         root.path(),
         "chat-ui-default-agent",
@@ -617,7 +625,7 @@ fn session_backed_agents_drive_roster_sessions_and_usage() {
     );
 
     let listed =
-        handle(root.path(), "GET", "/api/agents", &[], &json!({"ok": true})).expect("list agents");
+        handle(root.path(), "GET", "/api/agents", &[], &terminated_ok_snapshot()).expect("list agents");
     let rows = listed.payload.as_array().cloned().unwrap_or_default();
     assert!(rows.iter().any(|row| {
         row.get("id")
@@ -631,7 +639,7 @@ fn session_backed_agents_drive_roster_sessions_and_usage() {
         "GET",
         "/api/agents/chat-ui-default-agent/session",
         &[],
-        &json!({"ok": true}),
+        &terminated_ok_snapshot(),
     )
     .expect("session");
     assert_eq!(
@@ -652,7 +660,7 @@ fn session_backed_agents_drive_roster_sessions_and_usage() {
         "GET",
         "/api/sessions",
         &[],
-        &json!({"ok": true}),
+        &terminated_ok_snapshot(),
     )
     .expect("session summaries");
     assert!(summaries
@@ -669,7 +677,7 @@ fn session_backed_agents_drive_roster_sessions_and_usage() {
         })
         .unwrap_or(false));
 
-    let usage = handle(root.path(), "GET", "/api/usage", &[], &json!({"ok": true})).expect("usage");
+    let usage = handle(root.path(), "GET", "/api/usage", &[], &terminated_ok_snapshot()).expect("usage");
     assert!(usage
         .payload
         .get("agents")
@@ -690,7 +698,7 @@ fn session_backed_agents_drive_roster_sessions_and_usage() {
         "GET",
         "/api/usage/summary",
         &[],
-        &json!({"ok": true}),
+        &terminated_ok_snapshot(),
     )
     .expect("usage summary");
     assert_eq!(
@@ -701,7 +709,7 @@ fn session_backed_agents_drive_roster_sessions_and_usage() {
 
 #[test]
 fn active_collab_agent_is_not_hidden_by_stale_terminated_contract() {
-    let root = tempfile::tempdir().expect("tempdir");
+    let root = terminated_temp_root();
     let _ = crate::dashboard_agent_state::upsert_profile(
         root.path(),
         "agent-live",
@@ -749,7 +757,7 @@ fn active_collab_agent_is_not_hidden_by_stale_terminated_contract() {
 
 #[test]
 fn actor_agent_management_is_scoped_to_descendants() {
-    let root = tempfile::tempdir().expect("tempdir");
+    let root = terminated_temp_root();
     init_git_repo(root.path());
 
     let parent = handle(
@@ -757,7 +765,7 @@ fn actor_agent_management_is_scoped_to_descendants() {
         "POST",
         "/api/agents",
         br#"{"name":"Parent","role":"director"}"#,
-        &json!({"ok": true}),
+        &terminated_ok_snapshot(),
     )
     .expect("create parent");
     let parent_id = clean_text(
@@ -779,7 +787,7 @@ fn actor_agent_management_is_scoped_to_descendants() {
             parent_id
         )
         .as_bytes(),
-        &json!({"ok": true}),
+        &terminated_ok_snapshot(),
     )
     .expect("create child");
     let child_id = clean_text(
@@ -797,7 +805,7 @@ fn actor_agent_management_is_scoped_to_descendants() {
         "POST",
         "/api/agents",
         br#"{"name":"Sibling","role":"analyst"}"#,
-        &json!({"ok": true}),
+        &terminated_ok_snapshot(),
     )
     .expect("create sibling");
     let sibling_id = clean_text(
@@ -816,7 +824,7 @@ fn actor_agent_management_is_scoped_to_descendants() {
         &format!("/api/agents/{child_id}/stop"),
         br#"{}"#,
         &[("X-Actor-Agent-Id", parent_id.as_str())],
-        &json!({"ok": true}),
+        &terminated_ok_snapshot(),
     )
     .expect("parent manages child");
     assert_eq!(allowed.status, 200);
@@ -831,7 +839,7 @@ fn actor_agent_management_is_scoped_to_descendants() {
         &format!("/api/agents/{child_id}/start"),
         br#"{}"#,
         &[("X-Actor-Agent-Id", sibling_id.as_str())],
-        &json!({"ok": true}),
+        &terminated_ok_snapshot(),
     )
     .expect("sibling denied");
     assert_eq!(denied.status, 403);
@@ -843,7 +851,7 @@ fn actor_agent_management_is_scoped_to_descendants() {
 
 #[test]
 fn direct_slash_tool_routes_through_agent_message() {
-    let root = tempfile::tempdir().expect("tempdir");
+    let root = terminated_temp_root();
     init_git_repo(root.path());
     let _ = fs::create_dir_all(root.path().join("notes"));
     let _ = fs::write(root.path().join("notes/plan.txt"), "ship it");
@@ -853,7 +861,7 @@ fn direct_slash_tool_routes_through_agent_message() {
         "POST",
         "/api/agents",
         br#"{"name":"Tool Agent","role":"operator"}"#,
-        &json!({"ok": true}),
+        &terminated_ok_snapshot(),
     )
     .expect("create");
     let agent_id = clean_text(
@@ -871,7 +879,7 @@ fn direct_slash_tool_routes_through_agent_message() {
         "POST",
         &format!("/api/agents/{agent_id}/message"),
         br#"{"message":"/file notes/plan.txt"}"#,
-        &json!({"ok": true}),
+        &terminated_ok_snapshot(),
     )
     .expect("slash tool");
     assert_eq!(out.status, 200);
@@ -899,7 +907,7 @@ fn direct_slash_tool_routes_through_agent_message() {
 
 #[test]
 fn direct_file_read_endpoint_emits_nexus_connection_metadata() {
-    let root = tempfile::tempdir().expect("tempdir");
+    let root = terminated_temp_root();
     init_git_repo(root.path());
     let _ = fs::create_dir_all(root.path().join("notes"));
     let _ = fs::write(root.path().join("notes/plan.txt"), "ship it");
@@ -909,7 +917,7 @@ fn direct_file_read_endpoint_emits_nexus_connection_metadata() {
         "POST",
         "/api/agents",
         br#"{"name":"File Agent","role":"operator"}"#,
-        &json!({"ok": true}),
+        &terminated_ok_snapshot(),
     )
     .expect("create");
     let agent_id = clean_text(
@@ -927,7 +935,7 @@ fn direct_file_read_endpoint_emits_nexus_connection_metadata() {
         "POST",
         &format!("/api/agents/{agent_id}/file/read"),
         br#"{"path":"notes/plan.txt"}"#,
-        &json!({"ok": true}),
+        &terminated_ok_snapshot(),
     )
     .expect("file read");
     assert_eq!(out.status, 200);
@@ -962,7 +970,7 @@ fn direct_file_read_endpoint_emits_nexus_connection_metadata() {
 
 #[test]
 fn direct_file_read_many_endpoint_emits_nexus_connection_metadata() {
-    let root = tempfile::tempdir().expect("tempdir");
+    let root = terminated_temp_root();
     init_git_repo(root.path());
     let _ = fs::create_dir_all(root.path().join("notes"));
     let _ = fs::write(root.path().join("notes/plan-a.txt"), "a");
@@ -973,7 +981,7 @@ fn direct_file_read_many_endpoint_emits_nexus_connection_metadata() {
         "POST",
         "/api/agents",
         br#"{"name":"File Agent 2","role":"operator"}"#,
-        &json!({"ok": true}),
+        &terminated_ok_snapshot(),
     )
     .expect("create");
     let agent_id = clean_text(
@@ -991,7 +999,7 @@ fn direct_file_read_many_endpoint_emits_nexus_connection_metadata() {
         "POST",
         &format!("/api/agents/{agent_id}/file/read-many"),
         br#"{"paths":["notes/plan-a.txt","notes/plan-b.txt"]}"#,
-        &json!({"ok": true}),
+        &terminated_ok_snapshot(),
     )
     .expect("file read many");
     assert_eq!(out.status, 200);
@@ -1022,7 +1030,7 @@ fn direct_file_read_many_endpoint_emits_nexus_connection_metadata() {
 
 #[test]
 fn direct_search_slash_routes_through_web_search_tool() {
-    let root = tempfile::tempdir().expect("tempdir");
+    let root = terminated_temp_root();
     init_git_repo(root.path());
 
     let created = handle(
@@ -1030,7 +1038,7 @@ fn direct_search_slash_routes_through_web_search_tool() {
         "POST",
         "/api/agents",
         br#"{"name":"Search Agent","role":"researcher"}"#,
-        &json!({"ok": true}),
+        &terminated_ok_snapshot(),
     )
     .expect("create");
     let agent_id = clean_text(
@@ -1048,7 +1056,7 @@ fn direct_search_slash_routes_through_web_search_tool() {
         "POST",
         &format!("/api/agents/{agent_id}/message"),
         br#"{"message":"/search infringing runtime architecture"}"#,
-        &json!({"ok": true}),
+        &terminated_ok_snapshot(),
     )
     .expect("search slash tool");
     assert!(matches!(out.status, 200 | 400));
@@ -1071,7 +1079,7 @@ fn direct_search_slash_routes_through_web_search_tool() {
 fn direct_web_search_get_endpoint_emits_nexus_connection_metadata() {
     let _guard = WEB_ENDPOINT_ENV_MUTEX.lock().expect("lock");
     std::env::remove_var("PROTHEUS_HIERARCHICAL_NEXUS_BLOCK_CLIENT_INGRESS_ROUTE");
-    let root = tempfile::tempdir().expect("tempdir");
+    let root = terminated_temp_root();
     init_git_repo(root.path());
 
     let out = handle(
@@ -1079,7 +1087,7 @@ fn direct_web_search_get_endpoint_emits_nexus_connection_metadata() {
         "GET",
         "/api/web/search?q=runtime",
         &[],
-        &json!({"ok": true}),
+        &terminated_ok_snapshot(),
     )
     .expect("web search get");
     assert_eq!(out.status, 200);
@@ -1105,7 +1113,7 @@ fn direct_web_search_get_endpoint_emits_nexus_connection_metadata() {
 fn direct_web_search_post_endpoint_emits_nexus_connection_metadata() {
     let _guard = WEB_ENDPOINT_ENV_MUTEX.lock().expect("lock");
     std::env::remove_var("PROTHEUS_HIERARCHICAL_NEXUS_BLOCK_CLIENT_INGRESS_ROUTE");
-    let root = tempfile::tempdir().expect("tempdir");
+    let root = terminated_temp_root();
     init_git_repo(root.path());
 
     let out = handle(
@@ -1113,7 +1121,7 @@ fn direct_web_search_post_endpoint_emits_nexus_connection_metadata() {
         "POST",
         "/api/web/search",
         br#"{"query":""}"#,
-        &json!({"ok": true}),
+        &terminated_ok_snapshot(),
     )
     .expect("web search post");
     assert_eq!(out.status, 400);
@@ -1133,7 +1141,7 @@ fn direct_web_search_post_endpoint_emits_nexus_connection_metadata() {
 fn direct_web_fetch_post_endpoint_emits_nexus_connection_metadata() {
     let _guard = WEB_ENDPOINT_ENV_MUTEX.lock().expect("lock");
     std::env::remove_var("PROTHEUS_HIERARCHICAL_NEXUS_BLOCK_CLIENT_INGRESS_ROUTE");
-    let root = tempfile::tempdir().expect("tempdir");
+    let root = terminated_temp_root();
     init_git_repo(root.path());
 
     let out = handle(
@@ -1141,7 +1149,7 @@ fn direct_web_fetch_post_endpoint_emits_nexus_connection_metadata() {
         "POST",
         "/api/web/fetch",
         br#"{"url":""}"#,
-        &json!({"ok": true}),
+        &terminated_ok_snapshot(),
     )
     .expect("web fetch post");
     assert_eq!(out.status, 400);
@@ -1161,7 +1169,7 @@ fn direct_web_fetch_post_endpoint_emits_nexus_connection_metadata() {
 fn direct_web_search_endpoint_fails_closed_when_ingress_route_pair_blocked() {
     let _guard = WEB_ENDPOINT_ENV_MUTEX.lock().expect("lock");
     std::env::set_var("PROTHEUS_HIERARCHICAL_NEXUS_BLOCK_CLIENT_INGRESS_ROUTE", "1");
-    let root = tempfile::tempdir().expect("tempdir");
+    let root = terminated_temp_root();
     init_git_repo(root.path());
 
     let out = handle(
@@ -1169,7 +1177,7 @@ fn direct_web_search_endpoint_fails_closed_when_ingress_route_pair_blocked() {
         "POST",
         "/api/web/search",
         br#"{"query":"nexus deny check"}"#,
-        &json!({"ok": true}),
+        &terminated_ok_snapshot(),
     )
     .expect("web search denied");
     std::env::remove_var("PROTHEUS_HIERARCHICAL_NEXUS_BLOCK_CLIENT_INGRESS_ROUTE");
@@ -1182,7 +1190,7 @@ fn direct_web_search_endpoint_fails_closed_when_ingress_route_pair_blocked() {
 
 #[test]
 fn natural_language_web_search_intent_routes_without_slash() {
-    let root = tempfile::tempdir().expect("tempdir");
+    let root = terminated_temp_root();
     init_git_repo(root.path());
 
     let created = handle(
@@ -1190,7 +1198,7 @@ fn natural_language_web_search_intent_routes_without_slash() {
         "POST",
         "/api/agents",
         br#"{"name":"Search Agent 2","role":"researcher"}"#,
-        &json!({"ok": true}),
+        &terminated_ok_snapshot(),
     )
     .expect("create");
     let agent_id = clean_text(
@@ -1208,7 +1216,7 @@ fn natural_language_web_search_intent_routes_without_slash() {
         "POST",
         &format!("/api/agents/{agent_id}/message"),
         br#"{"message":"search the web for robust websocket reconnect patterns"}"#,
-        &json!({"ok": true}),
+        &terminated_ok_snapshot(),
     )
     .expect("natural search tool");
     assert!(matches!(out.status, 200 | 400));
@@ -1237,7 +1245,7 @@ fn natural_language_web_search_intent_routes_without_slash() {
 
 #[test]
 fn message_turns_capture_memory_and_attention_receipt() {
-    let root = tempfile::tempdir().expect("tempdir");
+    let root = terminated_temp_root();
     init_git_repo(root.path());
 
     let created = handle(
@@ -1245,7 +1253,7 @@ fn message_turns_capture_memory_and_attention_receipt() {
         "POST",
         "/api/agents",
         br#"{"name":"Memory Agent","role":"analyst"}"#,
-        &json!({"ok": true}),
+        &terminated_ok_snapshot(),
     )
     .expect("create");
     let agent_id = clean_text(
@@ -1263,7 +1271,7 @@ fn message_turns_capture_memory_and_attention_receipt() {
         "POST",
         &format!("/api/agents/{agent_id}/message"),
         br#"{"message":"Remember this exactly: launch codename is aurora-7"}"#,
-        &json!({"ok": true}),
+        &terminated_ok_snapshot(),
     )
     .expect("message");
     assert_eq!(out.status, 200);

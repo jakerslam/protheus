@@ -44,12 +44,16 @@ fn lane_root(root: &Path) -> PathBuf {
     scoped_state_root(root, ENV_KEY, LANE_ID)
 }
 
+fn lane_file(root: &Path, file: &str) -> PathBuf {
+    lane_root(root).join(file)
+}
+
 fn attestation_path(root: &Path) -> PathBuf {
-    lane_root(root).join("attestation_latest.json")
+    lane_file(root, "attestation_latest.json")
 }
 
 fn clearances_path(root: &Path) -> PathBuf {
-    lane_root(root).join("classification_clearances.json")
+    lane_file(root, "classification_clearances.json")
 }
 
 fn classification_root(root: &Path) -> PathBuf {
@@ -57,19 +61,19 @@ fn classification_root(root: &Path) -> PathBuf {
 }
 
 fn diode_history_path(root: &Path) -> PathBuf {
-    lane_root(root).join("diode_transfers.jsonl")
+    lane_file(root, "diode_transfers.jsonl")
 }
 
 fn soc_state_path(root: &Path) -> PathBuf {
-    lane_root(root).join("soc_state.json")
+    lane_file(root, "soc_state.json")
 }
 
 fn coop_state_path(root: &Path) -> PathBuf {
-    lane_root(root).join("coop_sites.json")
+    lane_file(root, "coop_sites.json")
 }
 
 fn legal_log_path(root: &Path) -> PathBuf {
-    lane_root(root).join("legal_nonrepudiation.jsonl")
+    lane_file(root, "legal_nonrepudiation.jsonl")
 }
 
 fn clearances(root: &Path) -> Map<String, Value> {

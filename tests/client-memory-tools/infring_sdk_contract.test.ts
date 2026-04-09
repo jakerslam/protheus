@@ -11,7 +11,16 @@ import {
 
 async function run(): Promise<void> {
   const sdk = new InfringSdkClient({
-    transport: createInMemoryTransport({}, { allow_unseeded_fallback: true }),
+    transport: createInMemoryTransport({
+      submit_task: {
+        task_id: 'task_seeded_submit',
+        accepted: true,
+        status: 'queued',
+      },
+      attach_policies: {
+        applied_policy_refs: ['policy.alpha', 'policy.beta'],
+      },
+    }),
   });
 
   const submit = await sdk.submitTask({
@@ -19,7 +28,7 @@ async function run(): Promise<void> {
   });
   assert.equal(submit.ok, true, 'submitTask should return ok envelope');
   assert.equal(submit.operation, 'submit_task', 'submitTask should map to submit_task');
-  assert.equal(submit.data.status, 'queued', 'default in-memory submit status should be queued');
+  assert.equal(submit.data.status, 'queued', 'seeded in-memory submit status should be queued');
 
   const attach = await sdk.attachPolicies({
     mode: 'replace',

@@ -213,11 +213,31 @@ fn is_trailing_query_filler(word: &str) -> bool {
     )
 }
 
+fn is_question_mark_like(ch: char) -> bool {
+    matches!(ch, '?' | '？' | '﹖' | '⸮' | '؟' | '՞')
+}
+
 fn strip_trailing_suggestion_question_marks(value: &str) -> String {
-    clean_text(value, 220)
-        .trim_end_matches(|ch: char| matches!(ch, '?' | '？' | '﹖' | '⸮' | '؟' | '՞'))
-        .trim()
-        .to_string()
+    let mut out = clean_text(value, 220).trim().to_string();
+    if out.is_empty() {
+        return out;
+    }
+    loop {
+        let without_wrappers = out
+            .trim_end_matches(|ch: char| {
+                ch.is_whitespace() || matches!(ch, '"' | '\'' | '`' | ')' | ']' | '}')
+            })
+            .trim_end()
+            .to_string();
+        let stripped = without_wrappers
+            .trim_end_matches(is_question_mark_like)
+            .trim_end()
+            .to_string();
+        if stripped.len() == out.len() {
+            return without_wrappers;
+        }
+        out = stripped;
+    }
 }
 
 fn normalize_suggestion_voice(value: &str) -> String {

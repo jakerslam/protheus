@@ -29,32 +29,33 @@ fn usage() {
     );
 }
 
+fn with_receipt_hash(mut value: Value) -> Value {
+    value["receipt_hash"] = Value::String(deterministic_receipt_hash(&value));
+    value
+}
+
 fn cli_receipt(kind: &str, payload: Value) -> Value {
     let ts = now_iso();
     let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(true);
-    let mut out = json!({
+    with_receipt_hash(json!({
         "ok": ok,
         "type": kind,
         "ts": ts,
         "date": ts[..10].to_string(),
         "payload": payload
-    });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
-    out
+    }))
 }
 
 fn cli_error(kind: &str, error: &str) -> Value {
     let ts = now_iso();
-    let mut out = json!({
+    with_receipt_hash(json!({
         "ok": false,
         "type": kind,
         "ts": ts,
         "date": ts[..10].to_string(),
         "error": error,
         "fail_closed": true
-    });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
-    out
+    }))
 }
 
 fn print_json_line(value: &Value) {

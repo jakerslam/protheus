@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import {
   CANONICAL_THROUGHPUT_METRIC,
+  RICH_E2E_THROUGHPUT_METRIC,
   collectBenchmarkAliasLeaks,
   collectBenchmarkPathLeaks,
   extractBenchmarkSnapshotBlock,
@@ -113,6 +114,11 @@ function asFinite(value: unknown): number | null {
   return num;
 }
 
+function hasOwn(payload: unknown, key: string): boolean {
+  if (!payload || typeof payload !== 'object') return false;
+  return Object.prototype.hasOwnProperty.call(payload, key);
+}
+
 function toMarkdown(payload: AuditPayload): string {
   const lines: string[] = [];
   lines.push('# Benchmark Public Audit (Current)');
@@ -201,6 +207,15 @@ function main(): void {
   if (!hasReproCommand(readme)) {
     violations.push(`readme_missing_repro_command:${REQUIRED_REPRO_COMMAND}`);
   }
+  if (!readme.includes('Readiness latency (status-path; not zero-boot)')) {
+    violations.push('readme_missing_status_path_readiness_disclaimer');
+  }
+  if (!readme.includes('Throughput (kernel/shared workload)')) {
+    violations.push('readme_missing_kernel_throughput_row');
+  }
+  if (!readme.includes('Throughput (rich end-to-end command path)')) {
+    violations.push('readme_missing_rich_e2e_throughput_row');
+  }
   if (readme.includes('<github-owner>')) {
     violations.push('readme_contains_owner_placeholder:<github-owner>');
   }
@@ -278,7 +293,12 @@ function main(): void {
       if (!pure) violations.push('canonical_report_missing_project:InfRing (pure)');
       if (!tiny) violations.push('canonical_report_missing_project:InfRing (tiny-max)');
 
-      const requiredRichMetrics = ['cold_start_ms', 'idle_memory_mb', 'install_size_mb', 'tasks_per_sec'];
+      const requiredRichMetrics = [
+        'cold_start_ms',
+        'idle_memory_mb',
+        'install_size_mb',
+        CANONICAL_THROUGHPUT_METRIC
+      ];
       for (const metric of requiredRichMetrics) {
         const val =
           rich && typeof rich === 'object'
@@ -286,6 +306,39 @@ function main(): void {
             : null;
         if (val == null) {
           violations.push(`canonical_report_missing_metric:InfRing (rich):${metric}`);
+        }
+      }
+      if (!hasOwn(rich, RICH_E2E_THROUGHPUT_METRIC)) {
+        violations.push(
+          `canonical_report_missing_metric:InfRing (rich):${RICH_E2E_THROUGHPUT_METRIC}`
+        );
+      }
+      const familyObject =
+        rich && typeof rich === 'object'
+          ? (rich as Record<string, any>).benchmark_metric_families
+          : null;
+      if (!familyObject || typeof familyObject !== 'object') {
+        violations.push('canonical_report_missing_metric_families:InfRing (rich)');
+      } else {
+        const kernelFamily = familyObject.kernel_shared_workload;
+        const e2eFamily = familyObject.rich_end_to_end_command_path;
+        const readinessFamily = familyObject.rich_status_path_readiness;
+        if (!kernelFamily || kernelFamily.metric !== CANONICAL_THROUGHPUT_METRIC) {
+          violations.push('canonical_report_invalid_metric_family:kernel_shared_workload');
+        }
+        if (
+          !e2eFamily ||
+          e2eFamily.metric !== RICH_E2E_THROUGHPUT_METRIC ||
+          e2eFamily.end_to_end !== true
+        ) {
+          violations.push('canonical_report_invalid_metric_family:rich_end_to_end_command_path');
+        }
+        if (
+          !readinessFamily ||
+          readinessFamily.metric !== 'cold_start_ms' ||
+          readinessFamily.measurement_scope !== 'status_path_readiness'
+        ) {
+          violations.push('canonical_report_invalid_metric_family:rich_status_path_readiness');
         }
       }
       const benchmarkValidationOk = report?.benchmark_validation?.ok;

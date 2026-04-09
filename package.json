@@ -118,6 +118,7 @@
     "ops:execution-reliability": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/execution_reliability_slo.ts run",
     "ops:execution-reliability:status": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/execution_reliability_slo.ts status",
     "ops:reliability:gauntlet": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/reliability_turn_loop_gauntlet.ts",
+    "ops:ipc-bridge:soak": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/ops_ipc_bridge_stability_soak.ts",
     "ops:ci-baseline:guard": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/ci_baseline_guard.ts run",
     "ops:rm-progress:dashboard": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/rm_progress_dashboard.ts run",
     "dashboard:serve": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ui/infring_dashboard.ts serve",

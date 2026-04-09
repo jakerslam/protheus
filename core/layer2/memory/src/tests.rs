@@ -36,6 +36,22 @@ fn token(
     }
 }
 
+fn agent_token(agent_id: &str, actions: Vec<CapabilityAction>) -> CapabilityToken {
+    token(
+        &format!("agent:{agent_id}"),
+        vec![MemoryScope::Agent(agent_id.to_string())],
+        actions,
+    )
+}
+
+fn core_token(agent_id: &str, actions: Vec<CapabilityAction>) -> CapabilityToken {
+    token(
+        "core:memory",
+        vec![MemoryScope::Agent(agent_id.to_string()), MemoryScope::Core],
+        actions,
+    )
+}
+
 fn object(object_id: &str, scope: MemoryScope, payload: serde_json::Value) -> MemoryObject {
     MemoryObject {
         object_id: object_id.to_string(),
@@ -55,16 +71,11 @@ fn scope_isolation_blocks_cross_agent_read() {
     let policy = DefaultVerityMemoryPolicy;
     let mut heap = UnifiedMemoryHeap::new(policy);
     let route = route();
-    let agent_a = token(
-        "agent:alpha",
-        vec![MemoryScope::Agent("alpha".to_string())],
+    let agent_a = agent_token(
+        "alpha",
         vec![CapabilityAction::Read, CapabilityAction::Write],
     );
-    let agent_b = token(
-        "agent:beta",
-        vec![MemoryScope::Agent("beta".to_string())],
-        vec![CapabilityAction::Read],
-    );
+    let agent_b = agent_token("beta", vec![CapabilityAction::Read]);
     heap.write_memory_object(
         &route,
         "agent:alpha",
@@ -91,9 +102,8 @@ fn cross_scope_promotion_creates_new_version_with_lineage() {
     let mut heap = UnifiedMemoryHeap::new(policy);
     let route = route();
 
-    let agent_token = token(
-        "agent:alpha",
-        vec![MemoryScope::Agent("alpha".to_string())],
+    let agent_token = agent_token(
+        "alpha",
         vec![
             CapabilityAction::Read,
             CapabilityAction::Write,
@@ -101,9 +111,8 @@ fn cross_scope_promotion_creates_new_version_with_lineage() {
             CapabilityAction::Canonicalize,
         ],
     );
-    let core_token = token(
-        "core:memory",
-        vec![MemoryScope::Agent("alpha".to_string()), MemoryScope::Core],
+    let core_token = core_token(
+        "alpha",
         vec![
             CapabilityAction::Read,
             CapabilityAction::Write,
@@ -248,9 +257,8 @@ fn append_only_and_rollback_create_new_head_version() {
     let policy = DefaultVerityMemoryPolicy;
     let mut heap = UnifiedMemoryHeap::new(policy);
     let route = route();
-    let cap = token(
-        "agent:alpha",
-        vec![MemoryScope::Agent("alpha".to_string())],
+    let cap = agent_token(
+        "alpha",
         vec![
             CapabilityAction::Read,
             CapabilityAction::Write,

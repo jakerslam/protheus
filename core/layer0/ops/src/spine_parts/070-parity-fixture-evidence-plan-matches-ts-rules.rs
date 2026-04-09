@@ -1,8 +1,19 @@
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    fn set_env_pairs(pairs: &[(&str, &str)]) {
+        for (key, value) in pairs {
+            std::env::set_var(key, value);
+        }
+    }
+
+    fn clear_env(keys: &[&str]) {
+        for key in keys {
+            std::env::remove_var(key);
+        }
+    }
 
     #[test]
     fn parity_fixture_evidence_plan_matches_ts_rules() {
@@ -324,10 +335,12 @@ mod tests {
         fs::write(archive_dir.join("receipt.json"), "{}").expect("archive write");
         fs::write(&target_file, "stale").expect("target write");
 
-        std::env::set_var("SPINE_SLEEP_CLEANUP_ARCHIVE_KEEP_LATEST", "0");
-        std::env::set_var("SPINE_SLEEP_CLEANUP_ARCHIVE_MAX_AGE_HOURS", "0");
-        std::env::set_var("SPINE_SLEEP_CLEANUP_TARGET_MAX_AGE_HOURS", "0");
-        std::env::set_var("SPINE_SLEEP_CLEANUP_MIN_INTERVAL_MINUTES", "0");
+        set_env_pairs(&[
+            ("SPINE_SLEEP_CLEANUP_ARCHIVE_KEEP_LATEST", "0"),
+            ("SPINE_SLEEP_CLEANUP_ARCHIVE_MAX_AGE_HOURS", "0"),
+            ("SPINE_SLEEP_CLEANUP_TARGET_MAX_AGE_HOURS", "0"),
+            ("SPINE_SLEEP_CLEANUP_MIN_INTERVAL_MINUTES", "0"),
+        ]);
 
         let (code, out) = execute_sleep_cleanup(root.path(), true, true, "test");
         assert_eq!(code, 0);
@@ -340,10 +353,12 @@ mod tests {
             .join("client/runtime/local/state/ops/sleep_cleanup/latest.json")
             .exists());
 
-        std::env::remove_var("SPINE_SLEEP_CLEANUP_ARCHIVE_KEEP_LATEST");
-        std::env::remove_var("SPINE_SLEEP_CLEANUP_ARCHIVE_MAX_AGE_HOURS");
-        std::env::remove_var("SPINE_SLEEP_CLEANUP_TARGET_MAX_AGE_HOURS");
-        std::env::remove_var("SPINE_SLEEP_CLEANUP_MIN_INTERVAL_MINUTES");
+        clear_env(&[
+            "SPINE_SLEEP_CLEANUP_ARCHIVE_KEEP_LATEST",
+            "SPINE_SLEEP_CLEANUP_ARCHIVE_MAX_AGE_HOURS",
+            "SPINE_SLEEP_CLEANUP_TARGET_MAX_AGE_HOURS",
+            "SPINE_SLEEP_CLEANUP_MIN_INTERVAL_MINUTES",
+        ]);
     }
 
     #[test]
@@ -356,11 +371,13 @@ mod tests {
         let payload = "x".repeat(16_000);
         fs::write(&state_history, payload).expect("state write");
 
-        std::env::set_var("SPINE_SLEEP_CLEANUP_MIN_INTERVAL_MINUTES", "0");
-        std::env::set_var("SPINE_SLEEP_CLEANUP_FREE_SPACE_FLOOR_PERCENT", "100");
-        std::env::set_var("SPINE_SLEEP_CLEANUP_PRESSURE_TARGET_FREE_PERCENT", "100");
-        std::env::set_var("SPINE_SLEEP_CLEANUP_PRESSURE_JSONL_CAP_BYTES", "1024");
-        std::env::set_var("SPINE_SLEEP_CLEANUP_PRESSURE_MIN_AGE_HOURS", "0");
+        set_env_pairs(&[
+            ("SPINE_SLEEP_CLEANUP_MIN_INTERVAL_MINUTES", "0"),
+            ("SPINE_SLEEP_CLEANUP_FREE_SPACE_FLOOR_PERCENT", "100"),
+            ("SPINE_SLEEP_CLEANUP_PRESSURE_TARGET_FREE_PERCENT", "100"),
+            ("SPINE_SLEEP_CLEANUP_PRESSURE_JSONL_CAP_BYTES", "1024"),
+            ("SPINE_SLEEP_CLEANUP_PRESSURE_MIN_AGE_HOURS", "0"),
+        ]);
 
         let (code, out) = execute_sleep_cleanup(root.path(), true, true, "pressure_test");
         assert_eq!(code, 0);
@@ -379,11 +396,13 @@ mod tests {
         let capped_size = fs::metadata(&state_history).expect("metadata").len();
         assert!(capped_size <= 1024);
 
-        std::env::remove_var("SPINE_SLEEP_CLEANUP_MIN_INTERVAL_MINUTES");
-        std::env::remove_var("SPINE_SLEEP_CLEANUP_FREE_SPACE_FLOOR_PERCENT");
-        std::env::remove_var("SPINE_SLEEP_CLEANUP_PRESSURE_TARGET_FREE_PERCENT");
-        std::env::remove_var("SPINE_SLEEP_CLEANUP_PRESSURE_JSONL_CAP_BYTES");
-        std::env::remove_var("SPINE_SLEEP_CLEANUP_PRESSURE_MIN_AGE_HOURS");
+        clear_env(&[
+            "SPINE_SLEEP_CLEANUP_MIN_INTERVAL_MINUTES",
+            "SPINE_SLEEP_CLEANUP_FREE_SPACE_FLOOR_PERCENT",
+            "SPINE_SLEEP_CLEANUP_PRESSURE_TARGET_FREE_PERCENT",
+            "SPINE_SLEEP_CLEANUP_PRESSURE_JSONL_CAP_BYTES",
+            "SPINE_SLEEP_CLEANUP_PRESSURE_MIN_AGE_HOURS",
+        ]);
     }
 
     #[test]

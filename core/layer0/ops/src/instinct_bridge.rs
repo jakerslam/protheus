@@ -27,8 +27,19 @@ fn payload_json(argv: &[String]) -> Result<Value, String> {
     lane_utils::payload_json(argv, "instinct_bridge")
 }
 
+fn bridge_path(
+    root: &Path,
+    argv: &[String],
+    payload: &Map<String, Value>,
+    flag: &str,
+    payload_key: &str,
+    fallback_rel: &str,
+) -> PathBuf {
+    path_flag(root, argv, payload, flag, payload_key, fallback_rel)
+}
+
 fn state_path(root: &Path, argv: &[String], payload: &Map<String, Value>) -> PathBuf {
-    path_flag(
+    bridge_path(
         root,
         argv,
         payload,
@@ -39,7 +50,7 @@ fn state_path(root: &Path, argv: &[String], payload: &Map<String, Value>) -> Pat
 }
 
 fn history_path(root: &Path, argv: &[String], payload: &Map<String, Value>) -> PathBuf {
-    path_flag(
+    bridge_path(
         root,
         argv,
         payload,
@@ -50,7 +61,7 @@ fn history_path(root: &Path, argv: &[String], payload: &Map<String, Value>) -> P
 }
 
 fn lineage_path(root: &Path, argv: &[String], payload: &Map<String, Value>) -> PathBuf {
-    path_flag(
+    bridge_path(
         root,
         argv,
         payload,

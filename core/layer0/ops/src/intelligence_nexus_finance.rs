@@ -21,6 +21,19 @@ fn render_bar(percent: f64) -> String {
     )
 }
 
+fn emit_finance_error(root: &Path, kind: &str, provider: &str, error: &str) -> i32 {
+    emit(
+        root,
+        json!({
+            "ok": false,
+            "type": kind,
+            "lane": "core/layer0/ops",
+            "provider": provider,
+            "error": clean(error.to_string(), 220)
+        }),
+    )
+}
+
 pub(super) fn command_credits_status(root: &Path, parsed: &ParsedArgs) -> i32 {
     let provider = provider_name(parsed.flags.get("provider"));
     let gate_action = format!("credits:status:{provider}");
@@ -42,16 +55,7 @@ pub(super) fn command_credits_status(root: &Path, parsed: &ParsedArgs) -> i32 {
     let probe = match run_provider_probe(root, parsed, &provider, key.as_deref()) {
         Ok(v) => v,
         Err(err) => {
-            return emit(
-                root,
-                json!({
-                    "ok": false,
-                    "type": "intelligence_nexus_credits_status",
-                    "lane": "core/layer0/ops",
-                    "provider": provider,
-                    "error": clean(err, 220)
-                }),
-            )
+            return emit_finance_error(root, "intelligence_nexus_credits_status", &provider, &err)
         }
     };
 
@@ -81,16 +85,7 @@ pub(super) fn command_credits_status(root: &Path, parsed: &ParsedArgs) -> i32 {
         );
     }
     if let Err(err) = store_ledger(root, &ledger) {
-        return emit(
-            root,
-            json!({
-                "ok": false,
-                "type": "intelligence_nexus_credits_status",
-                "lane": "core/layer0/ops",
-                "provider": provider,
-                "error": clean(err, 220)
-            }),
-        );
+        return emit_finance_error(root, "intelligence_nexus_credits_status", &provider, &err);
     }
 
     emit(
@@ -340,16 +335,7 @@ pub(super) fn command_buy_credits(root: &Path, parsed: &ParsedArgs) -> i32 {
     );
 
     if let Err(err) = store_ledger(root, &ledger) {
-        return emit(
-            root,
-            json!({
-                "ok": false,
-                "type": "intelligence_nexus_buy_credits",
-                "lane": "core/layer0/ops",
-                "provider": provider,
-                "error": clean(err, 220)
-            }),
-        );
+        return emit_finance_error(root, "intelligence_nexus_buy_credits", &provider, &err);
     }
 
     emit(
@@ -459,16 +445,7 @@ pub(super) fn command_autobuy(root: &Path, parsed: &ParsedArgs) -> i32 {
     }
 
     if let Err(err) = store_ledger(root, &ledger) {
-        return emit(
-            root,
-            json!({
-                "ok": false,
-                "type": "intelligence_nexus_autobuy_evaluate",
-                "lane": "core/layer0/ops",
-                "provider": provider,
-                "error": clean(err, 220)
-            }),
-        );
+        return emit_finance_error(root, "intelligence_nexus_autobuy_evaluate", &provider, &err);
     }
 
     emit(

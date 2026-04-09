@@ -52,30 +52,28 @@ fn usage() {
     );
 }
 
-fn cli_receipt(kind: &str, payload: Value) -> Value {
+fn receipt_envelope(kind: &str, ok: bool) -> Value {
     let ts = now_iso();
-    let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(true);
-    let mut out = json!({
+    json!({
         "ok": ok,
         "type": kind,
         "ts": ts,
         "date": ts[..10].to_string(),
-        "payload": payload,
-    });
+    })
+}
+
+fn cli_receipt(kind: &str, payload: Value) -> Value {
+    let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(true);
+    let mut out = receipt_envelope(kind, ok);
+    out["payload"] = payload;
     out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
     out
 }
 
 fn cli_error(kind: &str, error: &str) -> Value {
-    let ts = now_iso();
-    let mut out = json!({
-        "ok": false,
-        "type": kind,
-        "ts": ts,
-        "date": ts[..10].to_string(),
-        "error": error,
-        "fail_closed": true,
-    });
+    let mut out = receipt_envelope(kind, false);
+    out["error"] = Value::String(error.to_string());
+    out["fail_closed"] = Value::Bool(true);
     out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
     out
 }

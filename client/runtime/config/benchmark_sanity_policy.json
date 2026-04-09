@@ -12,7 +12,7 @@
     "cold_start_ms",
     "idle_memory_mb",
     "install_size_mb",
-    "tasks_per_sec"
+    "kernel_shared_workload_ops_per_sec"
   ],
   "bounds": {
     "cold_start_ms": {
@@ -27,16 +27,16 @@
       "min": 0.1,
       "max": 1500
     },
-    "tasks_per_sec": {
+    "kernel_shared_workload_ops_per_sec": {
       "min": 100,
-      "max": 300000
+      "max": 1000000
     }
   },
   "max_step_multiplier": {
     "cold_start_ms": 5.0,
     "idle_memory_mb": 5.0,
     "install_size_mb": 5.0,
-    "tasks_per_sec": 3.0
+    "kernel_shared_workload_ops_per_sec": 3.0
   },
   "step_change_exemptions": [
     {

@@ -9,6 +9,15 @@ const ASSIMILATION_DISTILLER_PHASES: &[&str] = &["distillation", "generic"];
 const ASSIMILATION_FRESHNESS_PHASES: &[&str] = &["freshness", "generic"];
 const ASSIMILATION_GENERIC_PHASES: &[&str] = &["generic"];
 
+#[derive(Clone, Copy)]
+struct AssimilationComponentProfile {
+    default_phase: &'static str,
+    allowed_ops: &'static [&'static str],
+    allowed_phases: &'static [&'static str],
+    surface_id: &'static str,
+    substrate_surface: &'static str,
+}
+
 fn is_assimilation_system_id(system_id: &str) -> bool {
     system_id
         .trim()
@@ -29,31 +38,49 @@ fn assimilation_component(system_id: &str) -> &'static str {
     }
 }
 
-fn assimilation_default_phase(component: &str) -> &'static str {
+fn assimilation_component_profile(component: &str) -> AssimilationComponentProfile {
     match component {
-        "source_attestation_extension" => "attestation",
-        "trajectory_skill_distiller" => "distillation",
-        "world_model_freshness" => "freshness",
-        _ => "generic",
+        "source_attestation_extension" => AssimilationComponentProfile {
+            default_phase: "attestation",
+            allowed_ops: ASSIMILATION_ATTESTATION_OPS,
+            allowed_phases: ASSIMILATION_ATTESTATION_PHASES,
+            surface_id: "substrate://runtime-systems/source_attestation_extension",
+            substrate_surface: "source_attestation_surface",
+        },
+        "trajectory_skill_distiller" => AssimilationComponentProfile {
+            default_phase: "distillation",
+            allowed_ops: ASSIMILATION_DISTILLER_OPS,
+            allowed_phases: ASSIMILATION_DISTILLER_PHASES,
+            surface_id: "substrate://runtime-systems/trajectory_skill_distiller",
+            substrate_surface: "trajectory_distillation_surface",
+        },
+        "world_model_freshness" => AssimilationComponentProfile {
+            default_phase: "freshness",
+            allowed_ops: ASSIMILATION_FRESHNESS_OPS,
+            allowed_phases: ASSIMILATION_FRESHNESS_PHASES,
+            surface_id: "substrate://runtime-systems/world_model_freshness",
+            substrate_surface: "world_model_freshness_surface",
+        },
+        _ => AssimilationComponentProfile {
+            default_phase: "generic",
+            allowed_ops: ASSIMILATION_GENERIC_OPS,
+            allowed_phases: ASSIMILATION_GENERIC_PHASES,
+            surface_id: "substrate://runtime-systems/assimilation_generic",
+            substrate_surface: "assimilation_generic_surface",
+        },
     }
+}
+
+fn assimilation_default_phase(component: &str) -> &'static str {
+    assimilation_component_profile(component).default_phase
 }
 
 fn assimilation_allowed_ops(component: &str) -> &'static [&'static str] {
-    match component {
-        "source_attestation_extension" => ASSIMILATION_ATTESTATION_OPS,
-        "trajectory_skill_distiller" => ASSIMILATION_DISTILLER_OPS,
-        "world_model_freshness" => ASSIMILATION_FRESHNESS_OPS,
-        _ => ASSIMILATION_GENERIC_OPS,
-    }
+    assimilation_component_profile(component).allowed_ops
 }
 
 fn assimilation_allowed_phases(component: &str) -> &'static [&'static str] {
-    match component {
-        "source_attestation_extension" => ASSIMILATION_ATTESTATION_PHASES,
-        "trajectory_skill_distiller" => ASSIMILATION_DISTILLER_PHASES,
-        "world_model_freshness" => ASSIMILATION_FRESHNESS_PHASES,
-        _ => ASSIMILATION_GENERIC_PHASES,
-    }
+    assimilation_component_profile(component).allowed_phases
 }
 
 fn normalize_assimilation_operation(command: &str, args: &[String]) -> String {
@@ -192,33 +219,16 @@ fn contains_string(values: &[String], candidate: &str) -> bool {
 }
 
 fn assimilation_recon_surfaces(component: &str, system_id: &str) -> Vec<Value> {
-    let (surface_id, substrate_surface) = match component {
-        "source_attestation_extension" => (
-            "substrate://runtime-systems/source_attestation_extension",
-            "source_attestation_surface",
-        ),
-        "trajectory_skill_distiller" => (
-            "substrate://runtime-systems/trajectory_skill_distiller",
-            "trajectory_distillation_surface",
-        ),
-        "world_model_freshness" => (
-            "substrate://runtime-systems/world_model_freshness",
-            "world_model_freshness_surface",
-        ),
-        _ => (
-            "substrate://runtime-systems/assimilation_generic",
-            "assimilation_generic_surface",
-        ),
-    };
+    let profile = assimilation_component_profile(component);
     vec![json!({
-        "surface_id": surface_id,
+        "surface_id": profile.surface_id,
         "provider": "substrate_runtime_systems",
         "domain": "runtime-systems",
         "component": component,
         "binding_system_id": system_id,
-        "substrate_surface": substrate_surface,
-        "supported_operations": assimilation_allowed_ops(component),
-        "supported_phases": assimilation_allowed_phases(component)
+        "substrate_surface": profile.substrate_surface,
+        "supported_operations": profile.allowed_ops,
+        "supported_phases": profile.allowed_phases
     })]
 }
 
@@ -336,12 +346,8 @@ fn execute_assimilation_protocol_for_system(
         "surfaces": recon_surfaces
     });
 
-    let op_allowed = allowed_ops
-        .iter()
-        .any(|candidate| *candidate == operation);
-    let phase_allowed = allowed_phases
-        .iter()
-        .any(|candidate| *candidate == phase);
+    let op_allowed = allowed_ops.iter().any(|candidate| *candidate == operation);
+    let phase_allowed = allowed_phases.iter().any(|candidate| *candidate == phase);
 
     let candidate_set_rows = recon_index
         .get("surfaces")
@@ -385,7 +391,11 @@ fn execute_assimilation_protocol_for_system(
         .collect::<Vec<_>>();
     let admissible_rows = candidate_set_rows
         .iter()
-        .filter(|row| row.get("admissible").and_then(Value::as_bool).unwrap_or(false))
+        .filter(|row| {
+            row.get("admissible")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+        })
         .cloned()
         .collect::<Vec<_>>();
     let candidate_set = json!({
@@ -639,7 +649,11 @@ fn execute_assimilation_protocol_for_system(
     });
 
     let artifacts = if apply {
-        vec![state_rel.clone(), history_rel.clone(), step_receipts_rel.clone()]
+        vec![
+            state_rel.clone(),
+            history_rel.clone(),
+            step_receipts_rel.clone(),
+        ]
     } else {
         Vec::new()
     };

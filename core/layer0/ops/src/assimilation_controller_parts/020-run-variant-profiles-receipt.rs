@@ -1,4 +1,3 @@
-
 fn run_variant_profiles_receipt(root: &Path, strict: bool) -> Value {
     let required = ["medical", "robotics", "ai_isolation", "riscv_sovereign"];
     let mut profile_rows = Vec::new();
@@ -313,6 +312,26 @@ fn read_capability_ledger_events(path: &Path) -> Vec<Value> {
         .collect::<Vec<_>>()
 }
 
+fn canonical_capability_event_body(row: &Value) -> Value {
+    json!({
+        "seq": row.get("seq").cloned().unwrap_or(Value::Null),
+        "ts": row.get("ts").cloned().unwrap_or(Value::Null),
+        "op": row.get("op").cloned().unwrap_or(Value::Null),
+        "capability": row.get("capability").cloned().unwrap_or(Value::Null),
+        "subject": row.get("subject").cloned().unwrap_or(Value::Null),
+        "reason": row.get("reason").cloned().unwrap_or(Value::Null)
+    })
+}
+
+fn capability_event_hash(previous_hash: &str, event_body: &Value) -> String {
+    let merged = serde_json::to_string(event_body).unwrap_or_default();
+    receipt_hash(&json!({
+        "previous_hash": previous_hash,
+        "event": event_body,
+        "merged": merged
+    }))
+}
+
 fn capability_ledger_verify(events: &[Value]) -> (Vec<String>, String) {
     let mut verify_errors = Vec::<String>::new();
     let mut expected_prev = "GENESIS".to_string();
@@ -328,18 +347,8 @@ fn capability_ledger_verify(events: &[Value]) -> (Vec<String>, String) {
         if previous != expected_prev {
             verify_errors.push(format!("previous_hash_mismatch_at:{idx}"));
         }
-        let event_body = json!({
-            "seq": seq,
-            "ts": row.get("ts").cloned().unwrap_or(Value::Null),
-            "op": row.get("op").cloned().unwrap_or(Value::Null),
-            "capability": row.get("capability").cloned().unwrap_or(Value::Null),
-            "subject": row.get("subject").cloned().unwrap_or(Value::Null),
-            "reason": row.get("reason").cloned().unwrap_or(Value::Null)
-        });
-        let merged = serde_json::to_string(&event_body).unwrap_or_default();
-        let recomputed = receipt_hash(
-            &json!({"previous_hash": previous, "event": event_body, "merged": merged}),
-        );
+        let event_body = canonical_capability_event_body(row);
+        let recomputed = capability_event_hash(previous, &event_body);
         let observed = row
             .get("event_hash")
             .and_then(Value::as_str)
@@ -387,10 +396,7 @@ pub fn append_capability_hash_chain_event(
         "subject": subject.trim().to_ascii_lowercase(),
         "reason": reason.trim()
     });
-    let merged = serde_json::to_string(&event_body).unwrap_or_default();
-    let event_hash = receipt_hash(
-        &json!({"previous_hash": previous_hash, "event": event_body, "merged": merged}),
-    );
+    let event_hash = capability_event_hash(&previous_hash, &event_body);
     let event = json!({
         "seq": seq,
         "ts": event_ts,

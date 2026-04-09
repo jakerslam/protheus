@@ -102,6 +102,7 @@
   "runtime_exceptions": [
     "scripts/",
     "examples/",
+    "setup/",
     "benchmarks/",
     "docs/",
     "local/",
@@ -129,7 +130,6 @@
     "vitest.config.ts"
   ],
   "forbidden_path_prefixes": [
-    "client/cli/apps/",
-    "examples/apps/"
+    "client/cli/apps/"
   ]
 }

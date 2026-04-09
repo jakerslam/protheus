@@ -170,10 +170,22 @@ fn compute_toll_from_signal(policy: &Value, state: &Value, signal: &Value) -> Va
         0.0,
         1.0,
     );
-    let trigger_negative = clamp_f64(as_f64_or(policy.get("toll_trigger_negative_threshold"), -0.2), -1.0, 1.0);
+    let trigger_negative = clamp_f64(
+        as_f64_or(policy.get("toll_trigger_negative_threshold"), -0.2),
+        -1.0,
+        1.0,
+    );
     let debt_step = clamp_f64(as_f64_or(policy.get("toll_debt_step"), 0.2), 0.0001, 10.0);
-    let recovery_step = clamp_f64(as_f64_or(policy.get("toll_recovery_step"), 0.08), 0.0001, 10.0);
-    let hard_block_threshold = clamp_f64(as_f64_or(policy.get("toll_hard_block_threshold"), 1.0), 0.1, 100.0);
+    let recovery_step = clamp_f64(
+        as_f64_or(policy.get("toll_recovery_step"), 0.08),
+        0.0001,
+        10.0,
+    );
+    let hard_block_threshold = clamp_f64(
+        as_f64_or(policy.get("toll_hard_block_threshold"), 1.0),
+        0.1,
+        100.0,
+    );
 
     let mut debt_after = debt_before;
     if toll_enabled {
@@ -238,7 +250,8 @@ fn duality_memory_tags_for_content(policy: &Value, signal: &Value) -> Value {
         0.0,
         1.0,
     );
-    let high_recall_priority = tagging_enabled && score_trit == TRIT_OK && harmony >= high_recall_threshold;
+    let high_recall_priority =
+        tagging_enabled && score_trit == TRIT_OK && harmony >= high_recall_threshold;
     let inversion_review_flag = tagging_enabled
         && (score_trit == TRIT_PAIN
             || harmony <= inversion_flag_threshold
@@ -429,22 +442,19 @@ fn op_dispatch(root: &Path, op: &str, args: Option<&Value>) -> Result<Value, Str
                 .get("context")
                 .cloned()
                 .unwrap_or_else(|| json!({}));
-            let signal = args_obj
-                .get("signal")
-                .cloned()
-                .unwrap_or_else(|| {
-                    evaluate_signal(
-                        &policy,
-                        &load_codex(&policy),
-                        &state,
-                        &context,
-                        &json!({
-                            "lane": "weaver_arbitration",
-                            "source": "duality_toll",
-                            "run_id": as_str(context.get("run_id"))
-                        }),
-                    )
-                });
+            let signal = args_obj.get("signal").cloned().unwrap_or_else(|| {
+                evaluate_signal(
+                    &policy,
+                    &load_codex(&policy),
+                    &state,
+                    &context,
+                    &json!({
+                        "lane": "weaver_arbitration",
+                        "source": "duality_toll",
+                        "run_id": as_str(context.get("run_id"))
+                    }),
+                )
+            });
             let toll = compute_toll_from_signal(&policy, &state, &signal);
             let debt_after = clamp_f64(as_f64_or(toll.get("debt_after"), 0.0), 0.0, 100.0);
             let mut next = state.as_object().cloned().unwrap_or_default();
@@ -668,14 +678,10 @@ fn op_dispatch(root: &Path, op: &str, args: Option<&Value>) -> Result<Value, Str
                 .unwrap_or_default();
             if window.len() >= max_window {
                 let keep = max_window.saturating_sub(1);
-                window = window
-                    .into_iter()
-                    .rev()
-                    .take(keep)
-                    .collect::<Vec<_>>()
-                    .into_iter()
-                    .rev()
-                    .collect();
+                let trim = window.len().saturating_sub(keep);
+                if trim > 0 {
+                    window.drain(0..trim);
+                }
             }
             window.push(observation.clone());
 
@@ -979,7 +985,10 @@ mod duality_v4_tests {
             })),
         )
         .expect("dual voice");
-        assert_eq!(out.get("type").and_then(Value::as_str), Some("duality_dual_voice_evaluation"));
+        assert_eq!(
+            out.get("type").and_then(Value::as_str),
+            Some("duality_dual_voice_evaluation")
+        );
         assert!(out.get("harmony").and_then(Value::as_f64).is_some());
         assert!(out.get("left_voice").is_some());
         assert!(out.get("right_voice").is_some());

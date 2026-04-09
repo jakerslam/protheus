@@ -167,6 +167,25 @@ fn load_policy(root: &Path) -> ContinuityPolicy {
     policy
 }
 
+fn policy_snapshot(policy: &ContinuityPolicy) -> Value {
+    json!({
+        "max_state_bytes": policy.max_state_bytes,
+        "allow_degraded_restore": policy.allow_degraded_restore,
+        "allow_sessionless_resurrection": policy.allow_sessionless_resurrection,
+        "require_vault_encryption": policy.require_vault_encryption,
+        "vault_key_env": policy.vault_key_env
+    })
+}
+
+fn resolve_root_relative_path(root: &Path, raw: &str) -> PathBuf {
+    let candidate = PathBuf::from(raw.trim());
+    if candidate.is_absolute() {
+        candidate
+    } else {
+        root.join(candidate)
+    }
+}
+
 fn normalized_state(state: Value) -> Value {
     let mut map = state.as_object().cloned().unwrap_or_default();
     map.entry("attention_queue".to_string())
@@ -293,11 +312,7 @@ fn checkpoint_payload(
         "state_bytes": state_encoded.len(),
         "state_sha256": state_sha,
         "checkpoint_path": rel_path(root, &checkpoint_path),
-        "policy": {
-            "max_state_bytes": policy.max_state_bytes,
-            "allow_degraded_restore": policy.allow_degraded_restore,
-            "allow_sessionless_resurrection": policy.allow_sessionless_resurrection
-        },
+        "policy": policy_snapshot(policy),
         "claim_evidence": [
             {
                 "id": "checkpoint_with_deterministic_receipt",
@@ -327,12 +342,7 @@ fn restore_payload(
     let apply = parse_bool(parse_flag(argv, "apply").as_deref(), true);
 
     let checkpoint_path = if let Some(raw) = parse_flag(argv, "checkpoint-path") {
-        let p = PathBuf::from(raw.trim());
-        if p.is_absolute() {
-            p
-        } else {
-            root.join(p)
-        }
+        resolve_root_relative_path(root, &raw)
     } else {
         let index = checkpoint_index(root);
         match index.get(&session_id) {
@@ -425,13 +435,7 @@ fn continuity_status_payload(root: &Path, policy: &ContinuityPolicy) -> Value {
         "checkpoint_sessions": index.len(),
         "checkpoint_index": index,
         "latest_restore": latest_restore,
-        "policy": {
-            "max_state_bytes": policy.max_state_bytes,
-            "allow_degraded_restore": policy.allow_degraded_restore,
-            "allow_sessionless_resurrection": policy.allow_sessionless_resurrection,
-            "require_vault_encryption": policy.require_vault_encryption,
-            "vault_key_env": policy.vault_key_env
-        }
+        "policy": policy_snapshot(policy)
     });
     out["receipt_hash"] = Value::String(receipt_hash(&out));
     out

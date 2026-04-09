@@ -1,4 +1,3 @@
-
 fn write_action_receipt(root: &Path, action: &str, payload: &Value, lane: &LaneResult) -> Value {
     let mut row = json!({
         "ok": lane.ok,
@@ -157,6 +156,16 @@ fn write_response(
         .map_err(|err| format!("response_flush_failed:{err}"))
 }
 
+fn write_json_response(stream: &TcpStream, status: u16, payload: &Value) -> Result<(), String> {
+    let body = serde_json::to_string_pretty(payload).unwrap_or_else(|_| "{}".to_string());
+    write_response(
+        stream,
+        status,
+        "application/json; charset=utf-8",
+        body.as_bytes(),
+    )
+}
+
 fn now_unix_ms() -> i64 {
     Utc::now().timestamp_millis()
 }
@@ -209,13 +218,7 @@ fn handle_request(
             "ui_entrypoint": "client/runtime/systems/ui/infring_dashboard.ts",
             "path": path_only
         });
-        let body = serde_json::to_string_pretty(&out).unwrap_or_else(|_| "{}".to_string());
-        return write_response(
-            stream,
-            404,
-            "application/json; charset=utf-8",
-            body.as_bytes(),
-        );
+        return write_json_response(stream, 404, &out);
     }
 
     if req.method == "GET" && path_only == "/api/dashboard/snapshot" {
@@ -264,21 +267,9 @@ fn handle_request(
                 },
                 "receipt_hash": snapshot.get("receipt_hash").cloned().unwrap_or(Value::Null)
             });
-            let body = serde_json::to_string_pretty(&delta).unwrap_or_else(|_| "{}".to_string());
-            return write_response(
-                stream,
-                200,
-                "application/json; charset=utf-8",
-                body.as_bytes(),
-            );
+            return write_json_response(stream, 200, &delta);
         }
-        let body = serde_json::to_string_pretty(&snapshot).unwrap_or_else(|_| "{}".to_string());
-        return write_response(
-            stream,
-            200,
-            "application/json; charset=utf-8",
-            body.as_bytes(),
-        );
+        return write_json_response(stream, 200, &snapshot);
     }
 
     if req.method == "POST" && path_only == "/api/dashboard/action" {
@@ -307,18 +298,12 @@ fn handle_request(
             "lane": lane.payload.unwrap_or(Value::Null),
             "snapshot": snapshot
         });
-        let body = serde_json::to_string_pretty(&out).unwrap_or_else(|_| "{}".to_string());
         let status = if out.get("ok").and_then(Value::as_bool).unwrap_or(false) {
             200
         } else {
             400
         };
-        return write_response(
-            stream,
-            status,
-            "application/json; charset=utf-8",
-            body.as_bytes(),
-        );
+        return write_json_response(stream, status, &out);
     }
 
     if req.method == "GET" && path_only == "/healthz" {
@@ -334,13 +319,7 @@ fn handle_request(
             "ts": now_iso(),
             "receipt_hash": hash
         });
-        let body = serde_json::to_string_pretty(&out).unwrap_or_else(|_| "{}".to_string());
-        return write_response(
-            stream,
-            200,
-            "application/json; charset=utf-8",
-            body.as_bytes(),
-        );
+        return write_json_response(stream, 200, &out);
     }
 
     if path_only.starts_with("/api/") {
@@ -363,14 +342,7 @@ fn handle_request(
             &header_refs,
             &snapshot,
         ) {
-            let body = serde_json::to_string_pretty(&response.payload)
-                .unwrap_or_else(|_| "{}".to_string());
-            return write_response(
-                stream,
-                response.status,
-                "application/json; charset=utf-8",
-                body.as_bytes(),
-            );
+            return write_json_response(stream, response.status, &response.payload);
         }
     }
 
@@ -379,13 +351,7 @@ fn handle_request(
         "type": "infring_dashboard_not_found",
         "path": path_only
     });
-    let body = serde_json::to_string_pretty(&out).unwrap_or_else(|_| "{}".to_string());
-    write_response(
-        stream,
-        404,
-        "application/json; charset=utf-8",
-        body.as_bytes(),
-    )
+    write_json_response(stream, 404, &out)
 }
 
 fn run_serve(root: &Path, flags: &Flags) -> i32 {
@@ -458,14 +424,7 @@ fn run_serve(root: &Path, flags: &Flags) -> i32 {
                     "ts": now_iso(),
                     "error": clean_text(&err, 240)
                 });
-                let body = serde_json::to_string_pretty(&out)
-                    .unwrap_or_else(|_| "{\"ok\":false}".to_string());
-                let _ = write_response(
-                    &stream,
-                    500,
-                    "application/json; charset=utf-8",
-                    body.as_bytes(),
-                );
+                let _ = write_json_response(&stream, 500, &out);
             }
         });
     }

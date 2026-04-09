@@ -9,6 +9,32 @@ fn clean_chat_text_preserve_layout(value: &str, max_len: usize) -> String {
         .collect::<String>()
 }
 
+fn assistant_runtime_access_denied(assistant_lower: &str) -> bool {
+    const DENIED_SIGNATURES: [&str; 7] = [
+        "don't have access",
+        "do not have access",
+        "cannot access",
+        "without system monitoring",
+        "text-based ai assistant",
+        "cannot directly interface",
+        "no access to",
+    ];
+    DENIED_SIGNATURES
+        .iter()
+        .any(|signature| assistant_lower.contains(signature))
+}
+
+fn runtime_sync_requested(input_lower: &str) -> bool {
+    input_lower.contains("report runtime sync now")
+        || ((input_lower.contains("queue depth")
+            || input_lower.contains("cockpit blocks")
+            || input_lower.contains("conduit signals"))
+            && (input_lower.contains("runtime")
+                || input_lower.contains("sync")
+                || input_lower.contains("status")
+                || input_lower.contains("what changed")))
+}
+
 fn run_action(root: &Path, action: &str, payload: &Value) -> LaneResult {
     let normalized = clean_text(action, 80);
     match normalized.as_str() {
@@ -148,22 +174,8 @@ fn run_action(root: &Path, action: &str, payload: &Value) -> LaneResult {
             let input_lower = input.to_ascii_lowercase();
             let raw_input_lower = raw_input.to_ascii_lowercase();
             let assistant_lower = assistant_text.to_ascii_lowercase();
-            let runtime_access_denied = assistant_lower.contains("don't have access")
-                || assistant_lower.contains("do not have access")
-                || assistant_lower.contains("cannot access")
-                || assistant_lower.contains("without system monitoring")
-                || assistant_lower.contains("text-based ai assistant")
-                || assistant_lower.contains("cannot directly interface")
-                || assistant_lower.contains("no access to");
-            if input_lower.contains("report runtime sync now")
-                || ((input_lower.contains("queue depth")
-                    || input_lower.contains("cockpit blocks")
-                    || input_lower.contains("conduit signals"))
-                    && (input_lower.contains("runtime")
-                        || input_lower.contains("sync")
-                        || input_lower.contains("status")
-                        || input_lower.contains("what changed")))
-                || runtime_access_denied
+            if runtime_sync_requested(&input_lower)
+                || assistant_runtime_access_denied(&assistant_lower)
             {
                 let queue_depth = i64_from_value(runtime_sync.get("queue_depth"), 0);
                 let cockpit_blocks = i64_from_value(runtime_sync.get("cockpit_blocks"), 0);

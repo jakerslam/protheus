@@ -445,6 +445,28 @@ fn normalize_module_name(raw: &str) -> String {
         .to_string()
 }
 
+fn known_modules() -> BTreeSet<&'static str> {
+    module_catalog().into_iter().collect::<BTreeSet<_>>()
+}
+
+fn module_limit_error(got: usize) -> String {
+    format!("module_limit_exceeded:max={MAX_MODULES_PER_AGENT}:got={got}")
+}
+
+fn validated_module_token(
+    raw_module: &str,
+    known: &BTreeSet<&'static str>,
+) -> Result<Option<String>, String> {
+    let module = normalize_module_name(raw_module);
+    if module.is_empty() {
+        return Ok(None);
+    }
+    if !known.contains(module.as_str()) {
+        return Err(format!("unknown_module:{module}"));
+    }
+    Ok(Some(module))
+}
+
 fn parse_modules(argv: &[String]) -> Result<Vec<String>, String> {
     let raw = parse_flag(argv, "modules")
         .or_else(|| parse_flag(argv, "module"))
@@ -452,26 +474,18 @@ fn parse_modules(argv: &[String]) -> Result<Vec<String>, String> {
     if raw.trim().is_empty() {
         return Ok(Vec::new());
     }
-    let known = module_catalog().into_iter().collect::<BTreeSet<_>>();
+    let known = known_modules();
     let mut modules = Vec::<String>::new();
     let mut seen = BTreeSet::<String>::new();
     for raw_item in raw.split(',') {
-        let module = normalize_module_name(raw_item);
-        if module.is_empty() {
-            continue;
-        }
-        if !known.contains(module.as_str()) {
-            return Err(format!("unknown_module:{module}"));
-        }
-        if seen.insert(module.clone()) {
-            modules.push(module);
+        if let Some(module) = validated_module_token(raw_item, &known)? {
+            if seen.insert(module.clone()) {
+                modules.push(module);
+            }
         }
     }
     if modules.len() > MAX_MODULES_PER_AGENT {
-        return Err(format!(
-            "module_limit_exceeded:max={MAX_MODULES_PER_AGENT}:got={}",
-            modules.len()
-        ));
+        return Err(module_limit_error(modules.len()));
     }
     Ok(modules)
 }
@@ -542,25 +556,18 @@ fn resolve_modules_for_context(
     extra_text: Option<&str>,
 ) -> Result<Vec<String>, String> {
     let mut modules = parse_modules(argv)?;
-    let known = module_catalog().into_iter().collect::<BTreeSet<_>>();
+    let known = known_modules();
     let mut seen = modules.iter().cloned().collect::<BTreeSet<_>>();
 
     for raw_seed in seeded_modules {
-        let seeded = normalize_module_name(raw_seed);
-        if seeded.is_empty() {
+        let Some(seeded) = validated_module_token(raw_seed, &known)? else {
             continue;
-        }
-        if !known.contains(seeded.as_str()) {
-            return Err(format!("unknown_module:{seeded}"));
-        }
+        };
         if seen.contains(&seeded) {
             continue;
         }
         if modules.len() >= MAX_MODULES_PER_AGENT {
-            return Err(format!(
-                "module_limit_exceeded:max={MAX_MODULES_PER_AGENT}:got={}",
-                modules.len() + 1
-            ));
+            return Err(module_limit_error(modules.len() + 1));
         }
         seen.insert(seeded.clone());
         modules.push(seeded);

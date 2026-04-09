@@ -9,8 +9,12 @@ fn compact_context_value(value: &Value) -> Value {
         ),
         Value::Object(map) => {
             let mut out = Map::new();
-            for (key, value) in map.iter().take(12) {
-                out.insert(clean_text(key, 64), compact_context_value(value));
+            let mut keys = map.keys().cloned().collect::<Vec<_>>();
+            keys.sort();
+            for key in keys.into_iter().take(12) {
+                if let Some(value) = map.get(&key) {
+                    out.insert(clean_text(&key, 64), compact_context_value(value));
+                }
             }
             Value::Object(out)
         }
@@ -93,7 +97,8 @@ fn load_cached_state(path: &Path, modified_ms: u128, byte_len: u64) -> Option<Sw
     let key = path.to_string_lossy().to_string();
     let guard = state_cache().lock().ok()?;
     guard.get(&key).and_then(|entry| {
-        (entry.modified_ms == modified_ms && entry.byte_len == byte_len).then(|| entry.state.clone())
+        (entry.modified_ms == modified_ms && entry.byte_len == byte_len)
+            .then(|| entry.state.clone())
     })
 }
 
@@ -148,8 +153,8 @@ fn load_state(path: &Path) -> Result<SwarmState, String> {
         }
         return Ok(SwarmState::default());
     }
-    let parsed =
-        serde_json::from_str::<SwarmState>(&raw).map_err(|err| format!("state_parse_failed:{err}"))?;
+    let parsed = serde_json::from_str::<SwarmState>(&raw)
+        .map_err(|err| format!("state_parse_failed:{err}"))?;
     if let Some((modified_ms, byte_len)) = state_file_fingerprint(path) {
         store_cached_state(path, modified_ms, byte_len, &parsed);
     }

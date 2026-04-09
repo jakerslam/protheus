@@ -141,24 +141,39 @@ fn append_jsonl_row(path: &Path, row: &Value) {
     }
 }
 
-fn append_provider_inference_receipt(root: &Path, mut row: Value) {
+fn append_provider_receipt(path: &Path, receipt_type: &str, mut row: Value) {
     if !row.is_object() {
         row = json!({});
     }
-    row["type"] = json!("infring_provider_inference_receipt");
+    row["type"] = json!(receipt_type);
     row["ts"] = json!(crate::now_iso());
     row["receipt_hash"] = json!(crate::deterministic_receipt_hash(&row));
-    append_jsonl_row(&provider_inference_receipts_path(root), &row);
+    append_jsonl_row(path, &row);
 }
 
-fn append_provider_outbound_guard_receipt(root: &Path, mut row: Value) {
-    if !row.is_object() {
-        row = json!({});
-    }
-    row["type"] = json!("infring_provider_outbound_guard_receipt");
-    row["ts"] = json!(crate::now_iso());
-    row["receipt_hash"] = json!(crate::deterministic_receipt_hash(&row));
-    append_jsonl_row(&provider_outbound_guard_receipts_path(root), &row);
+fn append_provider_inference_receipt(root: &Path, row: Value) {
+    append_provider_receipt(
+        &provider_inference_receipts_path(root),
+        "infring_provider_inference_receipt",
+        row,
+    );
+}
+
+fn append_provider_outbound_guard_receipt(root: &Path, row: Value) {
+    append_provider_receipt(
+        &provider_outbound_guard_receipts_path(root),
+        "infring_provider_outbound_guard_receipt",
+        row,
+    );
+}
+
+fn provider_key_or_error(root: &Path, provider: &str) -> Result<String, String> {
+    provider_key(root, provider)
+        .ok_or_else(|| "couldn't reach a chat model backend: provider key missing".to_string())
+}
+
+fn model_backend_unavailable(value: &Value) -> String {
+    format!("model backend unavailable: {}", error_text_from_value(value))
 }
 
 fn url_host(raw: &str) -> String {
@@ -379,10 +394,7 @@ impl LlmProviderAdapter for OllamaAdapter {
             180,
         )?;
         if !(200..300).contains(&status) {
-            return Err(format!(
-                "model backend unavailable: {}",
-                error_text_from_value(&value)
-            ));
+            return Err(model_backend_unavailable(&value));
         }
         let text = clean_chat_text(
             value
@@ -413,9 +425,7 @@ impl LlmProviderAdapter for FrontierProviderAdapter {
         provider == "frontier_provider"
     }
     fn invoke(&self, input: &ProviderInvokeInput<'_>) -> Result<Value, String> {
-        let Some(key) = provider_key(input.root, input.provider) else {
-            return Err("couldn't reach a chat model backend: provider key missing".to_string());
-        };
+        let key = provider_key_or_error(input.root, input.provider)?;
         let payload = json!({
             "model": input.model,
             "system": input.system,
@@ -440,10 +450,7 @@ impl LlmProviderAdapter for FrontierProviderAdapter {
             180,
         )?;
         if !(200..300).contains(&status) {
-            return Err(format!(
-                "model backend unavailable: {}",
-                error_text_from_value(&value)
-            ));
+            return Err(model_backend_unavailable(&value));
         }
         let text = extract_frontier_provider_text(&value);
         Ok(provider_response_row(
@@ -468,9 +475,7 @@ impl LlmProviderAdapter for GoogleAdapter {
         provider == "google"
     }
     fn invoke(&self, input: &ProviderInvokeInput<'_>) -> Result<Value, String> {
-        let Some(key) = provider_key(input.root, input.provider) else {
-            return Err("couldn't reach a chat model backend: provider key missing".to_string());
-        };
+        let key = provider_key_or_error(input.root, input.provider)?;
         let payload = json!({
             "system_instruction": if input.system.is_empty() { Value::Null } else { json!({"parts":[{"text": input.system}]}) },
             "contents": input.messages.iter().map(|(role, text)| {
@@ -493,10 +498,7 @@ impl LlmProviderAdapter for GoogleAdapter {
             180,
         )?;
         if !(200..300).contains(&status) {
-            return Err(format!(
-                "model backend unavailable: {}",
-                error_text_from_value(&value)
-            ));
+            return Err(model_backend_unavailable(&value));
         }
         let text = extract_google_text(&value);
         Ok(provider_response_row(
@@ -521,9 +523,7 @@ impl LlmProviderAdapter for OpenAiCompatAdapter {
         true
     }
     fn invoke(&self, input: &ProviderInvokeInput<'_>) -> Result<Value, String> {
-        let Some(key) = provider_key(input.root, input.provider) else {
-            return Err("couldn't reach a chat model backend: provider key missing".to_string());
-        };
+        let key = provider_key_or_error(input.root, input.provider)?;
         let payload = json!({
             "model": input.model,
             "stream": false,
@@ -541,10 +541,7 @@ impl LlmProviderAdapter for OpenAiCompatAdapter {
             180,
         )?;
         if !(200..300).contains(&status) {
-            return Err(format!(
-                "model backend unavailable: {}",
-                error_text_from_value(&value)
-            ));
+            return Err(model_backend_unavailable(&value));
         }
         let text = extract_openai_text(&value);
         Ok(provider_response_row(

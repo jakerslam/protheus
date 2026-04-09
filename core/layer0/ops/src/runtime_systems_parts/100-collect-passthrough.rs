@@ -30,6 +30,34 @@ fn payload_object(raw: Option<&str>) -> Result<Value, String> {
         Err("payload_must_be_json_object".to_string())
     }
 }
+
+fn merge_object_values(mut base: Value, extra: Value) -> Value {
+    if let (Some(base_obj), Some(extra_obj)) = (base.as_object_mut(), extra.as_object()) {
+        for (key, value) in extra_obj {
+            base_obj.insert(key.clone(), value.clone());
+        }
+    }
+    base
+}
+
+fn infring_assimilation_defaults() -> Value {
+    json!({
+        "provider_agnostic_driver_enabled": true,
+        "context_budget_compaction_enabled": true,
+        "llm_driver_registry_count": 4,
+        "http_api_endpoints_count": 76,
+        "websocket_streaming_enabled": true,
+        "channel_adapters": ["slack", "matrix", "email", "whatsapp"],
+        "taint_tracking_enabled": true,
+        "merkle_audit_chain_enabled": true,
+        "manifest_signing_enabled": true,
+        "ssrf_deny_paths_enabled": true,
+        "hands_registry_enabled": true,
+        "skills_promotion_pipeline_enabled": true,
+        "hands_fail_closed_enabled": true
+    })
+}
+
 fn contract_defaults(profile: RuntimeSystemContractProfile) -> Value {
     match profile.family {
         "audit_self_healing_stack" => json!({
@@ -507,22 +535,8 @@ fn contract_defaults(profile: RuntimeSystemContractProfile) -> Value {
             "enterprise_observability_enabled": true,
             "cold_start_guard_ms": 3000
         }),
-        "infring_assimilation_stack" => json!({
-            "provider_agnostic_driver_enabled": true,
-            "context_budget_compaction_enabled": true,
-            "llm_driver_registry_count": 4,
-            "http_api_endpoints_count": 76,
-            "websocket_streaming_enabled": true,
-            "channel_adapters": ["slack", "matrix", "email", "whatsapp"],
-            "taint_tracking_enabled": true,
-            "merkle_audit_chain_enabled": true,
-            "manifest_signing_enabled": true,
-            "ssrf_deny_paths_enabled": true,
-            "hands_registry_enabled": true,
-            "skills_promotion_pipeline_enabled": true,
-            "hands_fail_closed_enabled": true
-        }),
-        "infring_detachment_stack" => json!({
+        "infring_assimilation_stack" => infring_assimilation_defaults(),
+        "infring_detachment_stack" => merge_object_values(infring_assimilation_defaults(), json!({
             "source_assimilation_enabled": true,
             "nursery_migration_enabled": true,
             "external_dependency_detached": true,
@@ -530,24 +544,11 @@ fn contract_defaults(profile: RuntimeSystemContractProfile) -> Value {
             "local_runtime_paths_enforced": true,
             "source_controlled_mirror_enabled": true,
             "llm_runtime_registry_enabled": true,
-            "provider_agnostic_driver_enabled": true,
-            "context_budget_compaction_enabled": true,
-            "llm_driver_registry_count": 4,
-            "http_api_endpoints_count": 76,
-            "websocket_streaming_enabled": true,
-            "channel_adapters": ["slack", "matrix", "email", "whatsapp"],
-            "taint_tracking_enabled": true,
-            "merkle_audit_chain_enabled": true,
-            "manifest_signing_enabled": true,
-            "ssrf_deny_paths_enabled": true,
-            "hands_registry_enabled": true,
-            "skills_promotion_pipeline_enabled": true,
-            "hands_fail_closed_enabled": true,
             "source_files_required_min": 1,
             "llm_registry_models_min": 1,
             "max_assimilation_copy_mb": 1024,
             "source_root": ".."
-        }),
+        })),
         _ => json!({}),
     }
 }

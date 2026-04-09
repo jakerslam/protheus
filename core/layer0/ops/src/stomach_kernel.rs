@@ -145,29 +145,27 @@ fn print_json_line(value: &Value) {
     );
 }
 
-fn json_error(kind: &str, error: &str) -> Value {
+fn receipt_envelope(kind: &str, ok: bool) -> Value {
     let ts = now_iso();
-    let mut out = json!({
-        "ok": false,
+    json!({
+        "ok": ok,
         "type": kind,
         "ts": ts,
-        "date": ts[..10].to_string(),
-        "error": error,
-        "fail_closed": true
-    });
+        "date": ts[..10].to_string()
+    })
+}
+
+fn json_error(kind: &str, error: &str) -> Value {
+    let mut out = receipt_envelope(kind, false);
+    out["error"] = Value::String(error.to_string());
+    out["fail_closed"] = Value::Bool(true);
     out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
     out
 }
 
 fn json_receipt(kind: &str, payload: Value) -> Value {
-    let ts = now_iso();
-    let mut out = json!({
-        "ok": true,
-        "type": kind,
-        "ts": ts,
-        "date": ts[..10].to_string(),
-        "payload": payload
-    });
+    let mut out = receipt_envelope(kind, true);
+    out["payload"] = payload;
     out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
     out
 }

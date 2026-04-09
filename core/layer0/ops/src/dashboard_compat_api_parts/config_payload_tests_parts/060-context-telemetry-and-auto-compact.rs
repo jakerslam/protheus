@@ -19,6 +19,42 @@ fn create_context_test_agent(root: &std::path::Path) -> String {
     agent_id
 }
 
+fn synthetic_session_messages(
+    count: usize,
+    prefix: &str,
+    repeated_token: &str,
+    repeat_count: usize,
+) -> Vec<Value> {
+    (0..count)
+        .map(|idx| {
+            json!({
+                "id": idx + 1,
+                "role": if idx % 2 == 0 { "user" } else { "agent" },
+                "text": format!("{prefix}-{idx} {}", format!("{repeated_token} ").repeat(repeat_count)),
+                "ts": crate::now_iso()
+            })
+        })
+        .collect::<Vec<_>>()
+}
+
+fn write_agent_session_messages(root: &std::path::Path, agent_id: &str, messages: Vec<Value>) {
+    let session_path = state_path(root, AGENT_SESSIONS_DIR_REL).join(format!("{agent_id}.json"));
+    write_json(
+        &session_path,
+        &json!({
+            "agent_id": agent_id,
+            "active_session_id": "default",
+            "sessions": [
+                {
+                    "session_id": "default",
+                    "updated_at": crate::now_iso(),
+                    "messages": messages
+                }
+            ]
+        }),
+    );
+}
+
 #[test]
 fn context_command_reports_isolated_usage_for_fresh_agent() {
     let root = tempfile::tempdir().expect("tempdir");
@@ -74,31 +110,10 @@ fn context_command_reports_isolated_usage_for_fresh_agent() {
 fn context_command_does_not_mutate_session_history_by_default() {
     let root = tempfile::tempdir().expect("tempdir");
     let agent_id = create_context_test_agent(root.path());
-    let session_path =
-        state_path(root.path(), AGENT_SESSIONS_DIR_REL).join(format!("{agent_id}.json"));
-    let dense_messages = (0..220)
-        .map(|idx| {
-            json!({
-                "id": idx + 1,
-                "role": if idx % 2 == 0 { "user" } else { "agent" },
-                "text": format!("history-preserve-{idx} {}", "token ".repeat(800)),
-                "ts": crate::now_iso()
-            })
-        })
-        .collect::<Vec<_>>();
-    write_json(
-        &session_path,
-        &json!({
-            "agent_id": agent_id,
-            "active_session_id": "default",
-            "sessions": [
-                {
-                    "session_id": "default",
-                    "updated_at": crate::now_iso(),
-                    "messages": dense_messages
-                }
-            ]
-        }),
+    write_agent_session_messages(
+        root.path(),
+        &agent_id,
+        synthetic_session_messages(220, "history-preserve", "token", 800),
     );
 
     let before_state = load_session_state(root.path(), &agent_id);
@@ -129,31 +144,10 @@ fn message_auto_compacts_when_context_usage_reaches_threshold() {
         &agent_id,
         &json!({"context_window": 512, "context_window_tokens": 512}),
     );
-    let session_path =
-        state_path(root.path(), AGENT_SESSIONS_DIR_REL).join(format!("{agent_id}.json"));
-    let noisy_messages = (0..80)
-        .map(|idx| {
-            json!({
-                "id": idx + 1,
-                "role": if idx % 2 == 0 { "user" } else { "agent" },
-                "text": format!("context-bloat-{idx} {}", "alpha ".repeat(40)),
-                "ts": crate::now_iso()
-            })
-        })
-        .collect::<Vec<_>>();
-    write_json(
-        &session_path,
-        &json!({
-            "agent_id": agent_id,
-            "active_session_id": "default",
-            "sessions": [
-                {
-                    "session_id": "default",
-                    "updated_at": crate::now_iso(),
-                    "messages": noisy_messages
-                }
-            ]
-        }),
+    write_agent_session_messages(
+        root.path(),
+        &agent_id,
+        synthetic_session_messages(80, "context-bloat", "alpha", 40),
     );
 
     let response = handle(
@@ -216,31 +210,10 @@ fn message_auto_compacts_when_context_usage_reaches_threshold() {
 fn context_command_prunes_pool_when_limit_exceeded() {
     let root = tempfile::tempdir().expect("tempdir");
     let agent_id = create_context_test_agent(root.path());
-    let session_path =
-        state_path(root.path(), AGENT_SESSIONS_DIR_REL).join(format!("{agent_id}.json"));
-    let dense_messages = (0..260)
-        .map(|idx| {
-            json!({
-                "id": idx + 1,
-                "role": if idx % 2 == 0 { "user" } else { "agent" },
-                "text": format!("pool-prune-{idx} {}", "token ".repeat(220)),
-                "ts": crate::now_iso()
-            })
-        })
-        .collect::<Vec<_>>();
-    write_json(
-        &session_path,
-        &json!({
-            "agent_id": agent_id,
-            "active_session_id": "default",
-            "sessions": [
-                {
-                    "session_id": "default",
-                    "updated_at": crate::now_iso(),
-                    "messages": dense_messages
-                }
-            ]
-        }),
+    write_agent_session_messages(
+        root.path(),
+        &agent_id,
+        synthetic_session_messages(260, "pool-prune", "token", 220),
     );
 
     let context = handle(
@@ -345,31 +318,10 @@ fn context_command_emergency_compacts_before_saturation() {
         &agent_id,
         &json!({"context_window": 512, "context_window_tokens": 512}),
     );
-    let session_path =
-        state_path(root.path(), AGENT_SESSIONS_DIR_REL).join(format!("{agent_id}.json"));
-    let noisy_messages = (0..120)
-        .map(|idx| {
-            json!({
-                "id": idx + 1,
-                "role": if idx % 2 == 0 { "user" } else { "agent" },
-                "text": format!("context-pressure-{idx} {}", "alpha ".repeat(80)),
-                "ts": crate::now_iso()
-            })
-        })
-        .collect::<Vec<_>>();
-    write_json(
-        &session_path,
-        &json!({
-            "agent_id": agent_id,
-            "active_session_id": "default",
-            "sessions": [
-                {
-                    "session_id": "default",
-                    "updated_at": crate::now_iso(),
-                    "messages": noisy_messages
-                }
-            ]
-        }),
+    write_agent_session_messages(
+        root.path(),
+        &agent_id,
+        synthetic_session_messages(120, "context-pressure", "alpha", 80),
     );
 
     let context = handle(

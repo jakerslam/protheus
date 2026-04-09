@@ -67,24 +67,28 @@ fn write_json_pretty(path: &Path, value: &Value) {
     }
 }
 
+fn provider_state_path(root: &Path, rel: &str) -> PathBuf {
+    root.join(rel)
+}
+
 fn registry_path(root: &Path) -> PathBuf {
-    root.join(PROVIDER_REGISTRY_REL)
+    provider_state_path(root, PROVIDER_REGISTRY_REL)
 }
 
 fn secrets_path(root: &Path) -> PathBuf {
-    root.join(PROVIDER_SECRETS_REL)
+    provider_state_path(root, PROVIDER_SECRETS_REL)
 }
 
 fn routing_policy_path(root: &Path) -> PathBuf {
-    root.join(PROVIDER_ROUTING_POLICY_REL)
+    provider_state_path(root, PROVIDER_ROUTING_POLICY_REL)
 }
 
 fn virtual_keys_path(root: &Path) -> PathBuf {
-    root.join(PROVIDER_VIRTUAL_KEYS_REL)
+    provider_state_path(root, PROVIDER_VIRTUAL_KEYS_REL)
 }
 
 fn routing_events_path(root: &Path) -> PathBuf {
-    root.join(PROVIDER_ROUTING_EVENTS_REL)
+    provider_state_path(root, PROVIDER_ROUTING_EVENTS_REL)
 }
 
 fn load_registry(root: &Path) -> Value {

@@ -92,6 +92,11 @@ impl DefaultVerityMemoryPolicy {
 
     fn canonicalize_authority_allows(&self, principal_id: &str, scope: &MemoryScope) -> bool {
         match scope {
+            MemoryScope::Ephemeral => {
+                principal_id == "verity"
+                    || principal_id.starts_with("agent:")
+                    || principal_id.starts_with("core:")
+            }
             MemoryScope::Public => true,
             MemoryScope::Agent(agent_id) => {
                 principal_id == agent_id || principal_id == format!("agent:{agent_id}")

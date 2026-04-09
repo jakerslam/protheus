@@ -258,17 +258,23 @@ fn parse_probe_output(raw: &str) -> Option<Value> {
     None
 }
 
-fn provider_probe_env_key(provider: &str) -> String {
-    format!(
-        "INTELLIGENCE_NEXUS_PROVIDER_PROBE_{}",
-        provider
-            .chars()
-            .map(|c| if c.is_ascii_alphanumeric() {
+fn provider_env_suffix(provider: &str) -> String {
+    provider
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() {
                 c.to_ascii_uppercase()
             } else {
                 '_'
-            })
-            .collect::<String>()
+            }
+        })
+        .collect::<String>()
+}
+
+fn provider_probe_env_key(provider: &str) -> String {
+    format!(
+        "INTELLIGENCE_NEXUS_PROVIDER_PROBE_{}",
+        provider_env_suffix(provider)
     )
 }
 
@@ -336,17 +342,7 @@ fn run_provider_probe(
         }));
     }
 
-    let env_credits_key = format!(
-        "NEXUS_CREDITS_{}",
-        provider
-            .chars()
-            .map(|c| if c.is_ascii_alphanumeric() {
-                c.to_ascii_uppercase()
-            } else {
-                '_'
-            })
-            .collect::<String>()
-    );
+    let env_credits_key = format!("NEXUS_CREDITS_{}", provider_env_suffix(provider));
     if let Ok(raw) = env::var(&env_credits_key) {
         if let Ok(credits) = raw.trim().parse::<f64>() {
             let burn_rate = env::var(format!("NEXUS_BURN_RATE_{}", provider.to_ascii_uppercase()))
@@ -381,59 +377,50 @@ fn append_purchase_event(
     rail: &str,
     reason: &str,
 ) -> Value {
-    let obj = ledger_obj_mut(ledger);
-    let prev_hash = obj
-        .get("event_head")
-        .and_then(Value::as_str)
-        .unwrap_or("genesis")
-        .to_string();
+    let ts = now_iso();
     let event_base = json!({
-        "id": format!("buy_{}", &sha256_hex_str(&format!("{}:{}:{}:{}", now_iso(), provider, amount, actor))[..16]),
+        "id": format!("buy_{}", &sha256_hex_str(&format!("{}:{}:{}:{}", ts, provider, amount, actor))[..16]),
         "provider": provider,
         "actor": actor,
         "amount": amount,
         "rail": rail,
         "reason": reason,
-        "ts": now_iso()
+        "ts": ts
     });
-    let event_hash = next_chain_hash(Some(&prev_hash), &event_base);
-    let event = json!({
-        "event_hash": event_hash,
-        "prev_event_hash": prev_hash,
-        "event": event_base
-    });
-    array_mut(obj, "purchase_history").push(event.clone());
-    obj.insert(
-        "event_head".to_string(),
-        event
-            .get("event_hash")
-            .cloned()
-            .unwrap_or(Value::String("genesis".to_string())),
-    );
-    event
+    append_chain_event(ledger, "purchase_history", event_base)
 }
 
 fn append_key_event(ledger: &mut Value, provider: &str, action: &str, detail: Value) -> Value {
+    let prev_hash = ledger
+        .get("event_head")
+        .and_then(Value::as_str)
+        .unwrap_or("genesis")
+        .to_string();
+    let ts = now_iso();
+    let event_base = json!({
+        "id": format!("key_{}", &sha256_hex_str(&format!("{}:{}:{}:{}", ts, provider, action, prev_hash))[..16]),
+        "provider": provider,
+        "action": action,
+        "detail": detail,
+        "ts": ts
+    });
+    append_chain_event(ledger, "key_events", event_base)
+}
+
+fn append_chain_event(ledger: &mut Value, lane: &str, event_base: Value) -> Value {
     let obj = ledger_obj_mut(ledger);
     let prev_hash = obj
         .get("event_head")
         .and_then(Value::as_str)
         .unwrap_or("genesis")
         .to_string();
-    let event_base = json!({
-        "id": format!("key_{}", &sha256_hex_str(&format!("{}:{}:{}:{}", now_iso(), provider, action, prev_hash))[..16]),
-        "provider": provider,
-        "action": action,
-        "detail": detail,
-        "ts": now_iso()
-    });
     let event_hash = next_chain_hash(Some(&prev_hash), &event_base);
     let event = json!({
         "event_hash": event_hash,
         "prev_event_hash": prev_hash,
         "event": event_base
     });
-    array_mut(obj, "key_events").push(event.clone());
+    array_mut(obj, lane).push(event.clone());
     obj.insert(
         "event_head".to_string(),
         event

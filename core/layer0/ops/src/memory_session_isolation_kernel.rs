@@ -138,6 +138,14 @@ fn resolve_path(root: &Path, raw: Option<&Value>, fallback_rel: &str) -> PathBuf
     }
 }
 
+fn state_path_from_map(root: &Path, map: &Map<String, Value>) -> PathBuf {
+    resolve_path(
+        root,
+        map.get("statePath").or_else(|| map.get("state_path")),
+        DEFAULT_STATE_REL,
+    )
+}
+
 fn default_state_value() -> Value {
     json!({
         "schema_version": "1.0",
@@ -325,13 +333,7 @@ fn validate_value(root: &Path, payload: &Map<String, Value>) -> Value {
         });
     }
 
-    let state_path = resolve_path(
-        root,
-        options
-            .get("statePath")
-            .or_else(|| options.get("state_path")),
-        DEFAULT_STATE_REL,
-    );
+    let state_path = state_path_from_map(root, &options);
     let mut state = load_state_value(&state_path)
         .as_object()
         .cloned()
@@ -375,7 +377,16 @@ fn validate_value(root: &Path, payload: &Map<String, Value>) -> Value {
             );
         }
         state.insert("resources".to_string(), Value::Object(resources));
-        let _ = save_state_value(&state_path, &Value::Object(state));
+        if let Err(err) = save_state_value(&state_path, &Value::Object(state)) {
+            return json!({
+                "ok": false,
+                "type": "memory_session_isolation",
+                "reason_code": "state_persist_failed",
+                "command": command,
+                "session_id": session_id,
+                "error": err
+            });
+        }
     }
 
     json!({
@@ -429,26 +440,14 @@ fn failure_result_value(payload: &Map<String, Value>) -> Value {
 fn run_command(root: &Path, command: &str, payload: &Map<String, Value>) -> Result<Value, String> {
     match command {
         "load-state" => {
-            let state_path = resolve_path(
-                root,
-                payload
-                    .get("statePath")
-                    .or_else(|| payload.get("state_path")),
-                DEFAULT_STATE_REL,
-            );
+            let state_path = state_path_from_map(root, payload);
             Ok(json!({
                 "ok": true,
                 "state": load_state_value(&state_path)
             }))
         }
         "save-state" => {
-            let state_path = resolve_path(
-                root,
-                payload
-                    .get("statePath")
-                    .or_else(|| payload.get("state_path")),
-                DEFAULT_STATE_REL,
-            );
+            let state_path = state_path_from_map(root, payload);
             let state = payload
                 .get("state")
                 .cloned()
@@ -538,5 +537,24 @@ mod tests {
             Some("cross_session_leak_blocked")
         );
         let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn validate_fails_closed_when_state_persist_write_fails() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let state_dir = root.path().join("state-dir");
+        fs::create_dir_all(&state_dir).expect("create state dir");
+        let result = validate_value(
+            root.path(),
+            payload_obj(&json!({
+                "args": ["query-index", "--session-id=session-a", "--resource-id=node-1"],
+                "options": { "statePath": state_dir.to_string_lossy().to_string() }
+            })),
+        );
+        assert_eq!(result.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            result.get("reason_code").and_then(Value::as_str),
+            Some("state_persist_failed")
+        );
     }
 }

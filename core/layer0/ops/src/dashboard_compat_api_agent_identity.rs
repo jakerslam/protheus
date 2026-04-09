@@ -80,10 +80,12 @@ fn normalized_name_key(raw: &str) -> String {
 
 fn normalized_emoji_key(raw: &str) -> String {
     clean_text(raw, 24)
+        .replace('\u{FE0F}', "")
+        .replace('\u{FE0E}', "")
 }
 
 fn is_reserved_system_emoji_key(raw: &str) -> bool {
-    let normalized = normalized_emoji_key(raw).replace('\u{FE0F}', "");
+    let normalized = normalized_emoji_key(raw);
     normalized == "⚙"
 }
 

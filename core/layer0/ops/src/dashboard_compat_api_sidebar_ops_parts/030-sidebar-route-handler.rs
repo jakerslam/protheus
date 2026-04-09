@@ -1,3 +1,7 @@
+fn record_id(row: &Value) -> String {
+    clean_id(row.get("id").and_then(Value::as_str).unwrap_or(""), 120)
+}
+
 pub fn handle(
     root: &Path,
     method: &str,
@@ -24,10 +28,7 @@ pub fn handle(
             if method == "GET" && segments.len() == 1 {
                 if let Some(found) = workflows
                     .iter()
-                    .find(|row| {
-                        clean_id(row.get("id").and_then(Value::as_str).unwrap_or(""), 120)
-                            == workflow_id
-                    })
+                    .find(|row| record_id(row) == workflow_id)
                     .cloned()
                 {
                     return Some(CompatApiResponse {
@@ -54,10 +55,7 @@ pub fn handle(
             if method == "GET" && segments.len() == 2 && segments[1] == "validate" {
                 if let Some(found) = workflows
                     .iter()
-                    .find(|row| {
-                        clean_id(row.get("id").and_then(Value::as_str).unwrap_or(""), 120)
-                            == workflow_id
-                    })
+                    .find(|row| record_id(row) == workflow_id)
                     .cloned()
                 {
                     let validation = validate_workflow_graph(&found);
@@ -76,10 +74,10 @@ pub fn handle(
                 });
             }
             if method == "POST" && segments.len() == 2 && segments[1] == "run" {
-                if let Some(idx) = workflows.iter().position(|row| {
-                    clean_id(row.get("id").and_then(Value::as_str).unwrap_or(""), 120)
-                        == workflow_id
-                }) {
+                if let Some(idx) = workflows
+                    .iter()
+                    .position(|row| record_id(row) == workflow_id)
+                {
                     let validation = validate_workflow_graph(&workflows[idx]);
                     if !validation
                         .get("valid")
@@ -147,10 +145,10 @@ pub fn handle(
                 });
             }
             if method == "PUT" && segments.len() == 1 {
-                if let Some(idx) = workflows.iter().position(|row| {
-                    clean_id(row.get("id").and_then(Value::as_str).unwrap_or(""), 120)
-                        == workflow_id
-                }) {
+                if let Some(idx) = workflows
+                    .iter()
+                    .position(|row| record_id(row) == workflow_id)
+                {
                     let request = parse_json(body);
                     let mut merged = workflows[idx].clone();
                     if request.get("name").and_then(Value::as_str).is_some() {
@@ -214,10 +212,7 @@ pub fn handle(
             }
             if method == "DELETE" && segments.len() == 1 {
                 let before = workflows.len();
-                workflows.retain(|row| {
-                    clean_id(row.get("id").and_then(Value::as_str).unwrap_or(""), 120)
-                        != workflow_id
-                });
+                workflows.retain(|row| record_id(row) != workflow_id);
                 if workflows.len() == before {
                     return Some(CompatApiResponse {
                         status: 404,
@@ -334,9 +329,7 @@ pub fn handle(
             let mut jobs = load_jobs(root);
             if method == "PUT" && segments.len() == 2 && segments[1] == "enable" {
                 let request = parse_json(body);
-                if let Some(idx) = jobs.iter().position(|row| {
-                    clean_id(row.get("id").and_then(Value::as_str).unwrap_or(""), 120) == job_id
-                }) {
+                if let Some(idx) = jobs.iter().position(|row| record_id(row) == job_id) {
                     let enabled = as_bool(request.get("enabled"), true);
                     jobs[idx]["enabled"] = Value::Bool(enabled);
                     jobs[idx]["updated_at"] = Value::String(crate::now_iso());
@@ -358,9 +351,7 @@ pub fn handle(
             }
             if method == "DELETE" && segments.len() == 1 {
                 let before = jobs.len();
-                jobs.retain(|row| {
-                    clean_id(row.get("id").and_then(Value::as_str).unwrap_or(""), 120) != job_id
-                });
+                jobs.retain(|row| record_id(row) != job_id);
                 if before == jobs.len() {
                     return Some(CompatApiResponse {
                         status: 404,
@@ -395,9 +386,7 @@ pub fn handle(
             });
         }
         let mut jobs = load_jobs(root);
-        if let Some(idx) = jobs.iter().position(|row| {
-            clean_id(row.get("id").and_then(Value::as_str).unwrap_or(""), 120) == job_id
-        }) {
+        if let Some(idx) = jobs.iter().position(|row| record_id(row) == job_id) {
             let ran_at = crate::now_iso();
             jobs[idx]["last_run"] = Value::String(ran_at.clone());
             jobs[idx]["updated_at"] = Value::String(ran_at.clone());
@@ -459,9 +448,7 @@ pub fn handle(
         let mut triggers = load_triggers(root);
         if method == "PUT" {
             let request = parse_json(body);
-            if let Some(idx) = triggers.iter().position(|row| {
-                clean_id(row.get("id").and_then(Value::as_str).unwrap_or(""), 120) == trigger_id
-            }) {
+            if let Some(idx) = triggers.iter().position(|row| record_id(row) == trigger_id) {
                 if request.get("enabled").is_some() {
                     triggers[idx]["enabled"] = Value::Bool(as_bool(request.get("enabled"), true));
                 }
@@ -479,9 +466,7 @@ pub fn handle(
         }
         if method == "DELETE" {
             let before = triggers.len();
-            triggers.retain(|row| {
-                clean_id(row.get("id").and_then(Value::as_str).unwrap_or(""), 120) != trigger_id
-            });
+            triggers.retain(|row| record_id(row) != trigger_id);
             if before == triggers.len() {
                 return Some(CompatApiResponse {
                     status: 404,
@@ -525,10 +510,10 @@ pub fn handle(
             let action = clean_id(&segments[1], 40);
             if action == "approve" || action == "reject" {
                 let mut approvals = load_approvals(root);
-                if let Some(idx) = approvals.iter().position(|row| {
-                    clean_id(row.get("id").and_then(Value::as_str).unwrap_or(""), 120)
-                        == approval_id
-                }) {
+                if let Some(idx) = approvals
+                    .iter()
+                    .position(|row| record_id(row) == approval_id)
+                {
                     approvals[idx]["status"] = Value::String(if action == "approve" {
                         "approved".to_string()
                     } else {

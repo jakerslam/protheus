@@ -3,9 +3,13 @@ mod tests {
     use super::*;
     use crate::runtime_system_contracts::actionable_ids;
 
+    fn runtime_temp_root() -> tempfile::TempDir {
+        tempfile::tempdir().expect("tempdir")
+    }
+
     #[test]
     fn run_writes_latest_and_status_reads_it() {
-        let root = tempfile::tempdir().expect("tempdir");
+        let root = runtime_temp_root();
         let exit = run(
             root.path(),
             &[
@@ -34,7 +38,7 @@ mod tests {
 
     #[test]
     fn verify_is_read_only_and_does_not_write_state() {
-        let root = tempfile::tempdir().expect("tempdir");
+        let root = runtime_temp_root();
         let exit = run(
             root.path(),
             &[
@@ -49,7 +53,7 @@ mod tests {
 
     #[test]
     fn assimilation_lane_emits_protocol_summary_and_artifacts() {
-        let root = tempfile::tempdir().expect("tempdir");
+        let root = runtime_temp_root();
         let out = run_payload(
             root.path(),
             "SYSTEMS-ASSIMILATION-SOURCE_ATTESTATION_EXTENSION",
@@ -107,7 +111,7 @@ mod tests {
 
     #[test]
     fn assimilation_lane_hard_selector_cannot_bypass_closure() {
-        let root = tempfile::tempdir().expect("tempdir");
+        let root = runtime_temp_root();
         let err = run_payload(
             root.path(),
             "SYSTEMS-ASSIMILATION-WORLD_MODEL_FRESHNESS",
@@ -127,7 +131,7 @@ mod tests {
 
     #[test]
     fn assimilation_lane_selector_bypass_rejected_under_strict_mode() {
-        let root = tempfile::tempdir().expect("tempdir");
+        let root = runtime_temp_root();
         let err = run_payload(
             root.path(),
             "SYSTEMS-ASSIMILATION-SOURCE_ATTESTATION_EXTENSION",
@@ -147,7 +151,7 @@ mod tests {
 
     #[test]
     fn assimilation_lane_strict_rejects_unknown_operation() {
-        let root = tempfile::tempdir().expect("tempdir");
+        let root = runtime_temp_root();
         let err = run_payload(
             root.path(),
             "SYSTEMS-ASSIMILATION-TRAJECTORY_SKILL_DISTILLER",
@@ -163,7 +167,7 @@ mod tests {
 
     #[test]
     fn strict_mode_rejects_unknown_contract_ids() {
-        let root = tempfile::tempdir().expect("tempdir");
+        let root = runtime_temp_root();
         let err = run_payload(
             root.path(),
             "V8-UNKNOWN-404.1",
@@ -192,7 +196,7 @@ mod tests {
 
     #[test]
     fn actionable_contract_ids_emit_profile_and_receipts() {
-        let root = tempfile::tempdir().expect("tempdir");
+        let root = runtime_temp_root();
         for &id in actionable_ids() {
             let out = run_payload(
                 root.path(),
@@ -223,7 +227,7 @@ mod tests {
 
     #[test]
     fn v5_contract_families_persist_stateful_artifacts() {
-        let root = tempfile::tempdir().expect("tempdir");
+        let root = runtime_temp_root();
         for id in ["V5-HOLD-001", "V5-RUST-HYB-001", "V5-RUST-PROD-001"] {
             let out = run_payload(
                 root.path(),
@@ -252,7 +256,7 @@ mod tests {
 
     #[test]
     fn v9_audit_contract_family_persists_state_and_claims() {
-        let root = tempfile::tempdir().expect("tempdir");
+        let root = runtime_temp_root();
         let out = run_payload(
             root.path(),
             "V9-AUDIT-026.1",
@@ -280,7 +284,7 @@ mod tests {
 
     #[test]
     fn v9_audit_contract_family_fails_closed_on_threshold_violation() {
-        let root = tempfile::tempdir().expect("tempdir");
+        let root = runtime_temp_root();
         let err = run_payload(
             root.path(),
             "V9-AUDIT-026.4",
@@ -300,7 +304,7 @@ mod tests {
 
     #[test]
     fn v9_audit_self_healing_requires_all_actions() {
-        let root = tempfile::tempdir().expect("tempdir");
+        let root = runtime_temp_root();
         let err = run_payload(
             root.path(),
             "V9-AUDIT-026.2",
@@ -319,7 +323,7 @@ mod tests {
 
     #[test]
     fn v9_audit_cross_agent_requires_strict_consensus_mode() {
-        let root = tempfile::tempdir().expect("tempdir");
+        let root = runtime_temp_root();
         let err = run_payload(
             root.path(),
             "V9-AUDIT-026.4",
@@ -338,7 +342,7 @@ mod tests {
 
     #[test]
     fn v6_dashboard_runtime_pressure_contract_emits_rust_authority_decision() {
-        let root = tempfile::tempdir().expect("tempdir");
+        let root = runtime_temp_root();
         let out = run_payload(
             root.path(),
             "V6-DASHBOARD-007.1",
@@ -451,7 +455,7 @@ mod tests {
 
     #[test]
     fn v6_dashboard_auto_route_contract_emits_rust_route_selection() {
-        let root = tempfile::tempdir().expect("tempdir");
+        let root = runtime_temp_root();
         let out = run_payload(
             root.path(),
             "V6-DASHBOARD-008.1",
@@ -485,7 +489,7 @@ mod tests {
 
     #[test]
     fn v6_dashboard_contract_guard_flags_violation() {
-        let root = tempfile::tempdir().expect("tempdir");
+        let root = runtime_temp_root();
         let out = run_payload(
             root.path(),
             "V6-DASHBOARD-007.3",
@@ -516,7 +520,7 @@ mod tests {
 
     #[test]
     fn v6_dashboard_contract_enforcement_respects_auto_terminate_allowed() {
-        let root = tempfile::tempdir().expect("tempdir");
+        let root = runtime_temp_root();
         let out = run_payload(
             root.path(),
             "V6-DASHBOARD-007.2",
@@ -580,7 +584,7 @@ mod tests {
 
     #[test]
     fn new_v6_contract_families_execute_and_emit_artifacts() {
-        let root = tempfile::tempdir().expect("tempdir");
+        let root = runtime_temp_root();
         for id in [
             "V6-EXECUTION-002.1",
             "V6-EXECUTION-003.1",
@@ -614,7 +618,7 @@ mod tests {
 
     #[test]
     fn execution_worktree_merge_requires_human_veto_in_strict_mode() {
-        let root = tempfile::tempdir().expect("tempdir");
+        let root = runtime_temp_root();
         let err = run_payload(
             root.path(),
             "V6-EXECUTION-003.2",
@@ -633,7 +637,7 @@ mod tests {
 
     #[test]
     fn inference_failover_contract_fails_when_sequence_never_succeeds() {
-        let root = tempfile::tempdir().expect("tempdir");
+        let root = runtime_temp_root();
         let err = run_payload(
             root.path(),
             "V6-INFERENCE-005.3",
@@ -649,7 +653,7 @@ mod tests {
 
     #[test]
     fn runtime_cleanup_removes_stale_files_and_tracks_freed_bytes() {
-        let root = tempfile::tempdir().expect("tempdir");
+        let root = runtime_temp_root();
         let cleanup_dir = root
             .path()
             .join("client")
@@ -680,7 +684,7 @@ mod tests {
 
     #[test]
     fn roi_sweep_defaults_to_400_and_orders_by_roi_score() {
-        let root = tempfile::tempdir().expect("tempdir");
+        let root = runtime_temp_root();
         let out = roi_sweep_payload(root.path(), &[]).expect("roi sweep should run");
         assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
         assert_eq!(
@@ -704,7 +708,7 @@ mod tests {
 
     #[test]
     fn roi_sweep_respects_limit_and_read_only_apply_flag() {
-        let root = tempfile::tempdir().expect("tempdir");
+        let root = runtime_temp_root();
         let out = roi_sweep_payload(
             root.path(),
             &[
@@ -721,7 +725,7 @@ mod tests {
 
     #[test]
     fn infring_detach_bootstrap_assimilates_nursery_and_rewrites_policy_root() {
-        let root = tempfile::tempdir().expect("tempdir");
+        let root = runtime_temp_root();
         let source = root.path().join("legacy_infring_home");
         fs::create_dir_all(source.join("nursery/containment")).expect("mkdir containment");
         fs::create_dir_all(source.join("nursery/manifests")).expect("mkdir manifests");
@@ -872,7 +876,7 @@ mod tests {
 
     #[test]
     fn infring_detach_specialist_training_materializes_plan() {
-        let root = tempfile::tempdir().expect("tempdir");
+        let root = runtime_temp_root();
         let source = root.path().join("legacy_infring_home");
         fs::create_dir_all(source.join("nursery/containment")).expect("mkdir containment");
         fs::create_dir_all(source.join("nursery/manifests")).expect("mkdir manifests");
@@ -924,7 +928,7 @@ mod tests {
 
     #[test]
     fn infring_detach_source_control_mirror_contract_writes_expected_files() {
-        let root = tempfile::tempdir().expect("tempdir");
+        let root = runtime_temp_root();
         let source = root.path().join("legacy_infring_home");
         fs::create_dir_all(source.join("nursery/containment")).expect("mkdir containment");
         fs::create_dir_all(source.join("nursery/manifests")).expect("mkdir manifests");
@@ -997,7 +1001,7 @@ mod tests {
 
     #[test]
     fn infring_detach_llm_registry_materializes_ranked_models() {
-        let root = tempfile::tempdir().expect("tempdir");
+        let root = runtime_temp_root();
         let source = root.path().join("legacy_infring_home");
         fs::create_dir_all(source.join("nursery/manifests")).expect("mkdir manifests");
         fs::write(

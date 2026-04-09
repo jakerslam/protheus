@@ -105,11 +105,10 @@ fn evaluate_consensus(reports: &[AgentReport], fields: &[String], threshold: f64
     })
 }
 
-fn run_test_recursive(state: &mut SwarmState, argv: &[String]) -> Result<Value, String> {
-    let levels = parse_u8_flag(argv, "levels", 5);
-    let options = SpawnOptions {
+fn default_swarm_test_spawn_options() -> SpawnOptions {
+    SpawnOptions {
         verify: true,
-        timeout_ms: parse_u64_flag(argv, "timeout-ms", 1_000),
+        timeout_ms: 1_000,
         metrics_detailed: true,
         simulate_unreachable: false,
         byzantine: false,
@@ -127,7 +126,13 @@ fn run_test_recursive(state: &mut SwarmState, argv: &[String]) -> Result<Value, 
         result_text: None,
         result_confidence: 1.0,
         verification_status: "not_verified".to_string(),
-    };
+    }
+}
+
+fn run_test_recursive(state: &mut SwarmState, argv: &[String]) -> Result<Value, String> {
+    let levels = parse_u8_flag(argv, "levels", 5);
+    let mut options = default_swarm_test_spawn_options();
+    options.timeout_ms = parse_u64_flag(argv, "timeout-ms", 1_000);
 
     let result = recursive_spawn_with_tracking(
         state,
@@ -218,27 +223,8 @@ fn run_test_concurrency(state: &mut SwarmState, argv: &[String]) -> Result<Value
         .map(|value| value.eq_ignore_ascii_case("detailed"))
         .unwrap_or(true);
 
-    let options = SpawnOptions {
-        verify: true,
-        timeout_ms: 1_000,
-        metrics_detailed,
-        simulate_unreachable: false,
-        byzantine: false,
-        corruption_type: "data_falsification".to_string(),
-        token_budget: None,
-        token_warning_threshold: 0.8,
-        budget_exhaustion_action: BudgetAction::FailHard,
-        adaptive_complexity: false,
-        execution_mode: ExecutionMode::TaskOriented,
-        role: None,
-        capabilities: Vec::new(),
-        auto_publish_results: false,
-        agent_label: None,
-        result_value: None,
-        result_text: None,
-        result_confidence: 1.0,
-        verification_status: "not_verified".to_string(),
-    };
+    let mut options = default_swarm_test_spawn_options();
+    options.metrics_detailed = metrics_detailed;
 
     let mut report_total = 0u64;
 
@@ -285,27 +271,10 @@ fn run_test_hierarchy(state: &mut SwarmState, argv: &[String]) -> Result<Value, 
     let task_prefix =
         parse_flag(argv, "task-prefix").unwrap_or_else(|| "hierarchy-test".to_string());
 
-    let options = SpawnOptions {
-        verify: true,
-        timeout_ms,
-        metrics_detailed,
-        simulate_unreachable: false,
-        byzantine: false,
-        corruption_type: "data_falsification".to_string(),
-        token_budget: None,
-        token_warning_threshold: 0.8,
-        budget_exhaustion_action: BudgetAction::FailHard,
-        adaptive_complexity: false,
-        execution_mode: ExecutionMode::TaskOriented,
-        role: Some("manager".to_string()),
-        capabilities: Vec::new(),
-        auto_publish_results: false,
-        agent_label: None,
-        result_value: None,
-        result_text: None,
-        result_confidence: 1.0,
-        verification_status: "not_verified".to_string(),
-    };
+    let mut options = default_swarm_test_spawn_options();
+    options.timeout_ms = timeout_ms;
+    options.metrics_detailed = metrics_detailed;
+    options.role = Some("manager".to_string());
 
     let root_payload = spawn_single(
         state,
@@ -462,27 +431,11 @@ fn run_test_budget(state: &mut SwarmState, argv: &[String]) -> Result<Value, Str
         }
     }
 
-    let options = SpawnOptions {
-        verify: true,
-        timeout_ms: 1_000,
-        metrics_detailed: true,
-        simulate_unreachable: false,
-        byzantine: false,
-        corruption_type: "data_falsification".to_string(),
-        token_budget: Some(budget),
-        token_warning_threshold: warning_at,
-        budget_exhaustion_action: exhaustion_action.clone(),
-        adaptive_complexity,
-        execution_mode: ExecutionMode::TaskOriented,
-        role: None,
-        capabilities: Vec::new(),
-        auto_publish_results: false,
-        agent_label: None,
-        result_value: None,
-        result_text: None,
-        result_confidence: 1.0,
-        verification_status: "not_verified".to_string(),
-    };
+    let mut options = default_swarm_test_spawn_options();
+    options.token_budget = Some(budget);
+    options.token_warning_threshold = warning_at;
+    options.budget_exhaustion_action = exhaustion_action.clone();
+    options.adaptive_complexity = adaptive_complexity;
 
     let result = spawn_single(state, None, &task, 8, &options);
     if expect_fail {

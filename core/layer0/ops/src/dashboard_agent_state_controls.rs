@@ -219,6 +219,15 @@ fn save_session_state(root: &Path, agent_id: &str, state: &Value) {
     write_json(&session_path(root, &id), state);
 }
 
+fn memory_duality_tags(state: &Value, key: &str) -> Value {
+    state
+        .get("memory_kv_meta")
+        .and_then(Value::as_object)
+        .and_then(|meta| meta.get(key))
+        .cloned()
+        .unwrap_or_else(|| json!({}))
+}
+
 pub fn create_session(root: &Path, agent_id: &str, label: &str) -> Value {
     let id = normalize_agent_id(agent_id);
     if id.is_empty() {
@@ -374,12 +383,7 @@ pub fn memory_kv_pairs(root: &Path, agent_id: &str) -> Value {
         .map(|rows| {
             rows.iter()
                 .map(|(key, value)| {
-                    let duality_tags = state
-                        .get("memory_kv_meta")
-                        .and_then(Value::as_object)
-                        .and_then(|meta| meta.get(key))
-                        .cloned()
-                        .unwrap_or_else(|| json!({}));
+                    let duality_tags = memory_duality_tags(&state, key);
                     json!({
                         "key": key,
                         "value": value,
@@ -412,12 +416,7 @@ pub fn memory_kv_get(root: &Path, agent_id: &str, key: &str) -> Value {
         .and_then(|rows| rows.get(&k))
         .cloned()
         .unwrap_or(Value::Null);
-    let duality_tags = state
-        .get("memory_kv_meta")
-        .and_then(Value::as_object)
-        .and_then(|rows| rows.get(&k))
-        .cloned()
-        .unwrap_or_else(|| json!({}));
+    let duality_tags = memory_duality_tags(&state, &k);
     json!({
         "ok": true,
         "type": "dashboard_agent_memory_kv_get",
@@ -462,12 +461,7 @@ pub fn memory_kv_semantic_query(root: &Path, agent_id: &str, query: &str, limit:
                     if score <= 0 {
                         return None;
                     }
-                    let duality_tags = state
-                        .get("memory_kv_meta")
-                        .and_then(Value::as_object)
-                        .and_then(|meta| meta.get(key))
-                        .cloned()
-                        .unwrap_or_else(|| json!({}));
+                    let duality_tags = memory_duality_tags(&state, key);
                     Some(json!({
                         "key": clean_text(key, 200),
                         "value": value,

@@ -330,6 +330,25 @@ fn generate_missing_continuity(
     Ok((generated, missing_templates))
 }
 
+fn attach_migration_summary(
+    payload: &mut Value,
+    root_migration: &RootContinuityMigration,
+    memory_migration: &MemoryMigrationState,
+) {
+    payload["migrated_root_files"] = json!(root_migration.migrated);
+    payload["promoted_root_files"] = json!(root_migration.promoted);
+    payload["archived_root_files"] = json!(root_migration.archived);
+    payload["archived_assistant_template_files"] =
+        json!(root_migration.archived_assistant_template_files);
+    payload["archive_dir"] = json!(root_migration.archive_dir);
+    payload["migrated_memory_files"] = json!(memory_migration.migrated);
+    payload["archived_memory_files"] = json!(memory_migration.archived);
+    payload["conflicted_memory_files"] = json!(memory_migration.conflicts);
+    payload["duplicate_memory_files"] = json!(memory_migration.duplicates);
+    payload["memory_archive_dir"] = json!(memory_migration.archive_dir);
+    payload["removed_root_memory_dir"] = json!(memory_migration.removed_root_memory_dir);
+}
+
 fn continuity_status_value(workspace_root: &Path) -> Value {
     let paths = workspace_paths(workspace_root);
     let assistant_files = CONTINUITY_FILES
@@ -362,26 +381,17 @@ fn init_local_runtime_value(workspace_root: &Path) -> Result<Value, String> {
     let migrated = archive_deprecated_root_continuity(&paths, true)?;
     let memory_migration = migrate_legacy_memory(&paths)?;
     let (generated, missing_templates) = generate_missing_continuity(&paths)?;
-    Ok(json!({
+    let mut payload = json!({
         "ok": missing_templates.is_empty(),
         "type": "local_runtime_partitioner",
         "command": "init",
         "workspace_root": workspace_root,
         "assistant_dir": paths.assistant_dir,
         "generated_files": generated,
-        "migrated_root_files": migrated.migrated,
-        "promoted_root_files": migrated.promoted,
-        "archived_root_files": migrated.archived,
-        "archived_assistant_template_files": migrated.archived_assistant_template_files,
-        "archive_dir": migrated.archive_dir,
-        "migrated_memory_files": memory_migration.migrated,
-        "archived_memory_files": memory_migration.archived,
-        "conflicted_memory_files": memory_migration.conflicts,
-        "duplicate_memory_files": memory_migration.duplicates,
-        "memory_archive_dir": memory_migration.archive_dir,
-        "removed_root_memory_dir": memory_migration.removed_root_memory_dir,
         "missing_templates": missing_templates,
-    }))
+    });
+    attach_migration_summary(&mut payload, &migrated, &memory_migration);
+    Ok(payload)
 }
 
 fn reset_local_runtime_value(workspace_root: &Path, confirm: &str) -> Result<Value, String> {
@@ -412,7 +422,7 @@ fn reset_local_runtime_value(workspace_root: &Path, confirm: &str) -> Result<Val
     let migrated = archive_deprecated_root_continuity(&paths, false)?;
     let memory_migration = migrate_legacy_memory(&paths)?;
     let (generated, missing_templates) = generate_missing_continuity(&paths)?;
-    Ok(json!({
+    let mut payload = json!({
         "ok": missing_templates.is_empty(),
         "type": "local_runtime_partitioner",
         "command": "reset",
@@ -421,19 +431,10 @@ fn reset_local_runtime_value(workspace_root: &Path, confirm: &str) -> Result<Val
         "assistant_archive_dir": reset_archive,
         "archived_assistant_files": archived_assistant_files,
         "generated_files": generated,
-        "migrated_root_files": migrated.migrated,
-        "promoted_root_files": migrated.promoted,
-        "archived_root_files": migrated.archived,
-        "archived_assistant_template_files": migrated.archived_assistant_template_files,
-        "archive_dir": migrated.archive_dir,
-        "migrated_memory_files": memory_migration.migrated,
-        "archived_memory_files": memory_migration.archived,
-        "conflicted_memory_files": memory_migration.conflicts,
-        "duplicate_memory_files": memory_migration.duplicates,
-        "memory_archive_dir": memory_migration.archive_dir,
-        "removed_root_memory_dir": memory_migration.removed_root_memory_dir,
         "missing_templates": missing_templates,
-    }))
+    });
+    attach_migration_summary(&mut payload, &migrated, &memory_migration);
+    Ok(payload)
 }
 
 pub fn run(cwd: &Path, argv: &[String]) -> i32 {

@@ -4,6 +4,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         .map(|v| v.to_ascii_lowercase())
         .unwrap_or_else(|| "status".to_string());
     let rest = if argv.is_empty() { &[][..] } else { &argv[1..] };
+    let strict = parse_bool(parse_flag(rest, "strict"), true);
 
     let (payload, code) = match cmd.as_str() {
         "guard" => infring_layer1_security::run_guard(root, rest),
@@ -63,29 +64,23 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "abac-policy-plane" | "abac_policy_plane" => {
             infring_layer1_security::run_abac_policy_plane(root, rest)
         }
-        "scan" => run_scan_command(root, rest, parse_bool(parse_flag(rest, "strict"), true)),
+        "scan" => run_scan_command(root, rest, strict),
         "remediate" | "auto-remediate" | "auto_remediate" => {
-            run_remediation_command(root, rest, parse_bool(parse_flag(rest, "strict"), true))
+            run_remediation_command(root, rest, strict)
         }
-        "verify-proofs" | "verify_proofs" => {
-            run_verify_proofs_command(root, rest, parse_bool(parse_flag(rest, "strict"), true))
-        }
-        "audit-logs" | "audit_logs" => {
-            run_audit_logs_command(root, rest, parse_bool(parse_flag(rest, "strict"), true))
-        }
-        "threat-model" | "threat_model" => {
-            run_threat_model_command(root, rest, parse_bool(parse_flag(rest, "strict"), true))
-        }
+        "verify-proofs" | "verify_proofs" => run_verify_proofs_command(root, rest, strict),
+        "audit-logs" | "audit_logs" => run_audit_logs_command(root, rest, strict),
+        "threat-model" | "threat_model" => run_threat_model_command(root, rest, strict),
         "blast-radius-sentinel" | "blast_radius_sentinel" => {
-            run_blast_radius_command(root, rest, parse_bool(parse_flag(rest, "strict"), true))
+            run_blast_radius_command(root, rest, strict)
         }
         "secrets-federation" | "secrets_federation" => {
-            run_secrets_federation_command(root, rest, parse_bool(parse_flag(rest, "strict"), true))
+            run_secrets_federation_command(root, rest, strict)
         }
         "copy-hardening-pack" | "copy_hardening_pack" => run_security_contract_command(
             root,
             rest,
-            parse_bool(parse_flag(rest, "strict"), true),
+            strict,
             "copy-hardening-pack",
             "V6-SEC-014",
             &[("pack-uri", None), ("version", None)],
@@ -93,7 +88,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "governance-hardening-pack" | "governance_hardening_pack" => run_security_contract_command(
             root,
             rest,
-            parse_bool(parse_flag(rest, "strict"), true),
+            strict,
             "governance-hardening-pack",
             "V6-SEC-GOVERNANCE-PACK-001",
             &[("pack-id", None), ("window-days", None)],
@@ -101,7 +96,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "repository-access-auditor" | "repository_access_auditor" => run_security_contract_command(
             root,
             rest,
-            parse_bool(parse_flag(rest, "strict"), true),
+            strict,
             "repository-access-auditor",
             "V6-SEC-004",
             &[("report-path", None)],
@@ -109,7 +104,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "operator-terms-ack" | "operator_terms_ack" => run_security_contract_command(
             root,
             rest,
-            parse_bool(parse_flag(rest, "strict"), true),
+            strict,
             "operator-terms-ack",
             "V6-SEC-OPERATOR-TERMS-001",
             &[("operator-id", None), ("terms-version", None)],
@@ -117,46 +112,33 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "governance-hardening-lane" | "governance_hardening_lane" => run_security_contract_command(
             root,
             rest,
-            parse_bool(parse_flag(rest, "strict"), true),
+            strict,
             "governance-hardening-lane",
             "V6-SEC-013",
             &[("scoreboard-path", None), ("window-days", None)],
         ),
         "skill-install-path-enforcer" | "skill_install_path_enforcer" => {
-            run_skill_install_path_enforcer(
-                root,
-                rest,
-                parse_bool(parse_flag(rest, "strict"), true),
-            )
+            run_skill_install_path_enforcer(root, rest, strict)
         }
-        "skill-quarantine" | "skill_quarantine" => {
-            run_skill_quarantine_command(root, rest, parse_bool(parse_flag(rest, "strict"), true))
-        }
+        "skill-quarantine" | "skill_quarantine" => run_skill_quarantine_command(root, rest, strict),
         "autonomous-skill-necessity-audit" | "autonomous_skill_necessity_audit" => {
-            run_autonomous_skill_necessity_audit(
-                root,
-                rest,
-                parse_bool(parse_flag(rest, "strict"), true),
-            )
+            run_autonomous_skill_necessity_audit(root, rest, strict)
         }
         "formal-invariant-engine" | "formal_invariant_engine" => run_security_contract_command(
             root,
             rest,
-            parse_bool(parse_flag(rest, "strict"), true),
+            strict,
             "formal-invariant-engine",
             "V6-SEC-005",
             &[("proof-pack", None)],
         ),
-        "repo-hygiene-guard" | "repo_hygiene_guard" => run_repo_hygiene_guard(
-            root,
-            rest,
-            parse_bool(parse_flag(rest, "strict"), true),
-            "repo-hygiene-guard",
-        ),
+        "repo-hygiene-guard" | "repo_hygiene_guard" => {
+            run_repo_hygiene_guard(root, rest, strict, "repo-hygiene-guard")
+        }
         "capability-envelope-guard" | "capability_envelope_guard" => run_security_contract_command(
             root,
             rest,
-            parse_bool(parse_flag(rest, "strict"), true),
+            strict,
             "capability-envelope-guard",
             "V6-SEC-ENVELOPE-001",
             &[("capability", None), ("boundary", Some("conduit_only"))],
@@ -164,21 +146,18 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "ip-posture-review" | "ip_posture_review" => run_security_contract_command(
             root,
             rest,
-            parse_bool(parse_flag(rest, "strict"), true),
+            strict,
             "ip-posture-review",
             "V6-SEC-002",
             &[("public-url", None)],
         ),
-        "habit-hygiene-guard" | "habit_hygiene_guard" => run_repo_hygiene_guard(
-            root,
-            rest,
-            parse_bool(parse_flag(rest, "strict"), true),
-            "habit-hygiene-guard",
-        ),
+        "habit-hygiene-guard" | "habit_hygiene_guard" => {
+            run_repo_hygiene_guard(root, rest, strict, "habit-hygiene-guard")
+        }
         "enterprise-access-gate" | "enterprise_access_gate" => run_security_contract_command(
             root,
             rest,
-            parse_bool(parse_flag(rest, "strict"), true),
+            strict,
             "enterprise-access-gate",
             "V6-SEC-009",
             &[("profile", None)],
@@ -186,18 +165,15 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "model-vaccine-sandbox" | "model_vaccine_sandbox" => run_security_contract_command(
             root,
             rest,
-            parse_bool(parse_flag(rest, "strict"), true),
+            strict,
             "model-vaccine-sandbox",
             "V6-SEC-008",
             &[("suite", None)],
         ),
-        "skill-install-enforcer" | "skill_install_enforcer" => run_skill_install_path_enforcer(
-            root,
-            rest,
-            parse_bool(parse_flag(rest, "strict"), true),
-        ),
+        "skill-install-enforcer" | "skill_install_enforcer" => {
+            run_skill_install_path_enforcer(root, rest, strict)
+        }
         "execution-sandbox-envelope" | "execution_sandbox_envelope" => {
-            let strict = parse_bool(parse_flag(rest, "strict"), true);
             let mut alias_args = Vec::<String>::new();
             if rest.iter().all(|token| token.starts_with("--")) {
                 alias_args.push("enforce".to_string());
@@ -206,33 +182,29 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             run_openshell_runtime_command(root, &alias_args, strict)
         }
         "openshell" | "openshell-runtime" | "openshell_runtime" | "oshell" => {
-            run_openshell_runtime_command(root, rest, parse_bool(parse_flag(rest, "strict"), true))
+            run_openshell_runtime_command(root, rest, strict)
         }
         "workspace-dump-guard" | "workspace_dump_guard" => {
-            run_workspace_dump_guard(root, rest, parse_bool(parse_flag(rest, "strict"), true))
+            run_workspace_dump_guard(root, rest, strict)
         }
         "external-security-cycle" | "external_security_cycle" => run_security_contract_command(
             root,
             rest,
-            parse_bool(parse_flag(rest, "strict"), true),
+            strict,
             "external-security-cycle",
             "V6-SEC-007",
             &[("deployment-id", None)],
         ),
         "log-redaction-guard" | "log_redaction_guard" => {
-            run_log_redaction_guard(root, rest, parse_bool(parse_flag(rest, "strict"), true))
+            run_log_redaction_guard(root, rest, strict)
         }
         "rsi-git-patch-self-mod-gate" | "rsi_git_patch_self_mod_gate" => {
-            run_rsi_git_patch_self_mod_gate(
-                root,
-                rest,
-                parse_bool(parse_flag(rest, "strict"), true),
-            )
+            run_rsi_git_patch_self_mod_gate(root, rest, strict)
         }
         "request-ingress" | "request_ingress" => run_security_contract_command(
             root,
             rest,
-            parse_bool(parse_flag(rest, "strict"), true),
+            strict,
             "request-ingress",
             "V6-SEC-006",
             &[("policy-version", None), ("contact", None)],

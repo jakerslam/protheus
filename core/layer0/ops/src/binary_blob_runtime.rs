@@ -24,24 +24,28 @@ fn state_root(root: &Path) -> PathBuf {
     scoped_state_root(root, STATE_ENV, STATE_SCOPE)
 }
 
+fn state_file(root: &Path, rel: &str) -> PathBuf {
+    state_root(root).join(rel)
+}
+
 fn active_path(root: &Path) -> PathBuf {
-    state_root(root).join("active_blobs.json")
+    state_file(root, "active_blobs.json")
 }
 
 fn blobs_dir(root: &Path) -> PathBuf {
-    state_root(root).join("blobs")
+    state_file(root, "blobs")
 }
 
 fn snapshots_dir(root: &Path) -> PathBuf {
-    state_root(root).join("snapshots")
+    state_file(root, "snapshots")
 }
 
 fn mutation_history_path(root: &Path) -> PathBuf {
-    state_root(root).join("mutation_history.jsonl")
+    state_file(root, "mutation_history.jsonl")
 }
 
 fn prime_blob_vault_path(root: &Path) -> PathBuf {
-    state_root(root).join("prime_blob_vault.json")
+    state_file(root, "prime_blob_vault.json")
 }
 
 fn default_prime_blob_vault() -> Value {

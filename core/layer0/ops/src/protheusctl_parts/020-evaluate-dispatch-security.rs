@@ -3,7 +3,11 @@ pub fn evaluate_dispatch_security(
     script_rel: &str,
     args: &[String],
 ) -> DispatchSecurity {
-    if bool_env("PROTHEUS_CTL_SECURITY_GATE_DISABLED", false) {
+    if bool_env_with_infring_alias(
+        "INFRING_CTL_SECURITY_GATE_DISABLED",
+        "PROTHEUS_CTL_SECURITY_GATE_DISABLED",
+        false,
+    ) {
         return DispatchSecurity {
             ok: true,
             reason: "protheusctl_dispatch_gate_disabled".to_string(),
@@ -79,6 +83,10 @@ pub fn evaluate_dispatch_security(
     }
 }
 
+fn bool_env_with_infring_alias(infring: &str, protheus: &str, fallback: bool) -> bool {
+    bool_env(infring, bool_env(protheus, fallback))
+}
+
 fn dispatch_security_gate_exempt(script_rel: &str, _args: &[String]) -> bool {
     if matches!(
         script_rel,
@@ -107,10 +115,16 @@ fn evaluate_security_decision_payload(
     match evaluate_security_decision_embedded(req) {
         Ok(payload) => Ok(payload),
         Err(embedded_error) => {
-            let cargo_fallback_disabled =
-                bool_env("PROTHEUS_CTL_SECURITY_DISABLE_CARGO_FALLBACK", false);
-            let cargo_fallback_enabled =
-                bool_env("PROTHEUS_CTL_SECURITY_ENABLE_CARGO_FALLBACK", false);
+            let cargo_fallback_disabled = bool_env_with_infring_alias(
+                "INFRING_CTL_SECURITY_DISABLE_CARGO_FALLBACK",
+                "PROTHEUS_CTL_SECURITY_DISABLE_CARGO_FALLBACK",
+                false,
+            );
+            let cargo_fallback_enabled = bool_env_with_infring_alias(
+                "INFRING_CTL_SECURITY_ENABLE_CARGO_FALLBACK",
+                "PROTHEUS_CTL_SECURITY_ENABLE_CARGO_FALLBACK",
+                false,
+            );
             if cargo_fallback_disabled || !cargo_fallback_enabled {
                 return Err(format!(
                     "embedded_checker_failed:{embedded_error}; cargo_fallback_disabled"
@@ -174,7 +188,8 @@ fn evaluate_security_decision_via_cargo(
 fn run_node_script(root: &Path, script_rel: &str, args: &[String], forward_stdin: bool) -> i32 {
     let workspace_root = effective_workspace_root(root);
     let runtime_mode = resolved_runtime_mode(&workspace_root);
-    if let Some((domain, mapped_args)) = maybe_redirect_ts_wrapper_to_core_domain(script_rel, args) {
+    if let Some((domain, mapped_args)) = maybe_redirect_ts_wrapper_to_core_domain(script_rel, args)
+    {
         return run_core_domain(&workspace_root, &domain, &mapped_args, forward_stdin);
     }
     if let Some(domain) = script_rel.strip_prefix("core://") {
@@ -328,9 +343,7 @@ fn run_setup_wizard_missing_script_fallback(root: &Path, args: &[String]) -> i32
     if let Ok(raw) = serde_json::to_string_pretty(&payload) {
         let _ = std::fs::write(state_path, raw);
     }
-    let json_mode = args
-        .iter()
-        .any(|arg| arg == "--json" || arg == "--json=1");
+    let json_mode = args.iter().any(|arg| arg == "--json" || arg == "--json=1");
     if json_mode {
         println!(
             "{}",
@@ -349,8 +362,7 @@ fn run_setup_wizard_missing_script_fallback(root: &Path, args: &[String]) -> i32
 }
 
 fn has_json_flag(args: &[String]) -> bool {
-    args.iter()
-        .any(|arg| arg == "--json" || arg == "--json=1")
+    args.iter().any(|arg| arg == "--json" || arg == "--json=1")
 }
 
 fn first_positional_command(args: &[String]) -> String {
@@ -464,8 +476,7 @@ fn node_module_resolvable(root: &Path, module_name: &str) -> bool {
     if !has_node_runtime() {
         return false;
     }
-    let module_literal =
-        serde_json::to_string(module_name).unwrap_or_else(|_| "\"\"".to_string());
+    let module_literal = serde_json::to_string(module_name).unwrap_or_else(|_| "\"\"".to_string());
     let probe = format!(
         "try{{require.resolve({module_literal});process.exit(0);}}catch(_e){{process.exit(1);}}"
     );
@@ -570,8 +581,11 @@ fn run_install_doctor_domain(root: &Path, args: &[String]) -> i32 {
         .as_object()
         .map(|map| map.values().all(|v| v.as_bool().unwrap_or(false)))
         .unwrap_or(false);
-    let dashboard_route_ok =
-        route_integrity_ok("dashboard", &["status".to_string()], "core://daemon-control");
+    let dashboard_route_ok = route_integrity_ok(
+        "dashboard",
+        &["status".to_string()],
+        "core://daemon-control",
+    );
     let dashboard_ui_route_ok = route_integrity_ok(
         "dashboard-ui",
         &["status".to_string()],
@@ -580,15 +594,16 @@ fn run_install_doctor_domain(root: &Path, args: &[String]) -> i32 {
     let verify_route_ok = route_integrity_ok("verify-install", &[], "core://install-doctor");
     let gateway_status_route_ok =
         route_integrity_ok("gateway", &["status".to_string()], "core://daemon-control");
-    let dashboard_host = parse_flag_value(args, "dashboard-host")
-        .unwrap_or_else(|| "127.0.0.1".to_string());
+    let dashboard_host =
+        parse_flag_value(args, "dashboard-host").unwrap_or_else(|| "127.0.0.1".to_string());
     let dashboard_port_raw =
         parse_flag_value(args, "dashboard-port").unwrap_or_else(|| "4173".to_string());
     let dashboard_port = dashboard_port_raw.parse::<u16>().ok();
     let dashboard_pid_file = dashboard_pid_file(&dashboard_host, &dashboard_port_raw);
     let dashboard_pid = read_pid_file(&dashboard_pid_file);
     let dashboard_pid_running = dashboard_pid.map(process_running).unwrap_or(false);
-    let dashboard_watchdog_pid_file = dashboard_watchdog_pid_file(&dashboard_host, &dashboard_port_raw);
+    let dashboard_watchdog_pid_file =
+        dashboard_watchdog_pid_file(&dashboard_host, &dashboard_port_raw);
     let dashboard_watchdog_pid = read_pid_file(&dashboard_watchdog_pid_file);
     let dashboard_watchdog_pid_running =
         dashboard_watchdog_pid.map(process_running).unwrap_or(false);
@@ -730,7 +745,10 @@ fn run_install_doctor_domain(root: &Path, args: &[String]) -> i32 {
     }
     if env::consts::OS == "macos"
         && !launchd_loaded
-        && matches!(dashboard_execution_mode, "not_running" | "watchdog_starting")
+        && matches!(
+            dashboard_execution_mode,
+            "not_running" | "watchdog_starting"
+        )
     {
         warnings.push("launchd_not_loaded".to_string());
     }
@@ -754,7 +772,10 @@ fn run_install_doctor_domain(root: &Path, args: &[String]) -> i32 {
         );
     } else {
         println!("[infring doctor] mode: {normalized_mode}");
-        println!("[infring doctor] node runtime: {}", if node_detected { "detected" } else { "missing" });
+        println!(
+            "[infring doctor] node runtime: {}",
+            if node_detected { "detected" } else { "missing" }
+        );
         println!(
             "[infring doctor] toolchains: cargo-detected={} cargo-runnable={} rustup-detected={} rustup-default={}",
             cargo_detected,
@@ -764,9 +785,18 @@ fn run_install_doctor_domain(root: &Path, args: &[String]) -> i32 {
         );
         println!(
             "[infring doctor] wrappers: infring={}, infringctl={}, infringd={}",
-            wrappers.get("infring").and_then(Value::as_bool).unwrap_or(false),
-            wrappers.get("infringctl").and_then(Value::as_bool).unwrap_or(false),
-            wrappers.get("infringd").and_then(Value::as_bool).unwrap_or(false)
+            wrappers
+                .get("infring")
+                .and_then(Value::as_bool)
+                .unwrap_or(false),
+            wrappers
+                .get("infringctl")
+                .and_then(Value::as_bool)
+                .unwrap_or(false),
+            wrappers
+                .get("infringd")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
         );
         println!(
             "[infring doctor] runtime assets missing: {}",
@@ -811,7 +841,10 @@ fn run_install_doctor_domain(root: &Path, args: &[String]) -> i32 {
             println!("[infring doctor] warnings: {}", warnings.join(", "));
         }
         if !root_cause_codes.is_empty() {
-            println!("[infring doctor] root-cause-codes: {}", root_cause_codes.join(", "));
+            println!(
+                "[infring doctor] root-cause-codes: {}",
+                root_cause_codes.join(", ")
+            );
         }
         if ok {
             println!("[infring doctor] verdict: ok");
@@ -849,26 +882,27 @@ fn run_core_domain(root: &Path, domain: &str, args: &[String], forward_stdin: bo
         return run_release_semver_contract_domain(root, args);
     }
     let nexus_tool = core_domain_nexus_tool_label(domain, args);
-    let nexus_connection = match crate::dashboard_tool_turn_loop::authorize_ingress_tool_call_with_nexus(
-        nexus_tool.as_str(),
-    ) {
-        Ok(meta) => meta,
-        Err(err) => {
-            eprintln!(
-                "{}",
-                json!({
-                    "ok": false,
-                    "type": "protheusctl_dispatch",
-                    "error": "core_domain_nexus_denied",
-                    "domain": clean(domain, 120),
-                    "route_label": clean(&nexus_tool, 200),
-                    "reason": clean(&err, 240),
-                    "fail_closed": true
-                })
-            );
-            return 1;
-        }
-    };
+    let nexus_connection =
+        match crate::dashboard_tool_turn_loop::authorize_ingress_tool_call_with_nexus(
+            nexus_tool.as_str(),
+        ) {
+            Ok(meta) => meta,
+            Err(err) => {
+                eprintln!(
+                    "{}",
+                    json!({
+                        "ok": false,
+                        "type": "protheusctl_dispatch",
+                        "error": "core_domain_nexus_denied",
+                        "domain": clean(domain, 120),
+                        "route_label": clean(&nexus_tool, 200),
+                        "reason": clean(&err, 240),
+                        "fail_closed": true
+                    })
+                );
+                return 1;
+            }
+        };
 
     let exe = match env::current_exe() {
         Ok(path) => path,

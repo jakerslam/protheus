@@ -1,3 +1,11 @@
+fn tool_target_session_id<'a>(args_obj: &'a Map<String, Value>) -> Option<&'a str> {
+    args_obj
+        .get("target_session_id")
+        .or_else(|| args_obj.get("session_id"))
+        .or_else(|| args_obj.get("target"))
+        .and_then(Value::as_str)
+}
+
 fn invoke_registered_tool(
     state: &mut SwarmState,
     session_id: &str,
@@ -32,10 +40,7 @@ fn invoke_registered_tool(
     };
     let result = match entrypoint {
         "sessions_send" => {
-            let target = args_obj
-                .get("target_session_id")
-                .or_else(|| args_obj.get("session_id"))
-                .and_then(Value::as_str)
+            let target = tool_target_session_id(&args_obj)
                 .ok_or_else(|| "tool_target_session_id_required".to_string())?;
             let message = args_obj
                 .get("message")
@@ -52,18 +57,11 @@ fn invoke_registered_tool(
             )?
         }
         "sessions_state" => {
-            let target = args_obj
-                .get("target_session_id")
-                .or_else(|| args_obj.get("session_id"))
-                .and_then(Value::as_str)
-                .unwrap_or(session_id);
+            let target = tool_target_session_id(&args_obj).unwrap_or(session_id);
             sessions_state(state, target, false, 16)?
         }
         "sessions_handoff" => {
-            let target = args_obj
-                .get("target_session_id")
-                .or_else(|| args_obj.get("session_id"))
-                .and_then(Value::as_str)
+            let target = tool_target_session_id(&args_obj)
                 .ok_or_else(|| "tool_target_session_id_required".to_string())?;
             let reason = args_obj
                 .get("reason")

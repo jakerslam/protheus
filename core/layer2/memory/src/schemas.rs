@@ -4,6 +4,7 @@ use serde_json::Value;
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
 pub enum MemoryScope {
+    Ephemeral,
     Public,
     Agent(String),
     Swarm(String),
@@ -14,6 +15,7 @@ pub enum MemoryScope {
 impl MemoryScope {
     pub fn label(&self) -> String {
         match self {
+            Self::Ephemeral => "ephemeral".to_string(),
             Self::Public => "public".to_string(),
             Self::Agent(id) => format!("agent:{id}"),
             Self::Swarm(id) => format!("swarm:{id}"),
@@ -276,6 +278,11 @@ pub struct TaskFabricLeaseCasRule {
 
 pub fn memory_scope_authority_matrix() -> &'static [MemoryScopeAuthorityRule] {
     &[
+        MemoryScopeAuthorityRule {
+            scope: "ephemeral",
+            canonicalize_authority: "verity lease holder + explicit promotion",
+            cross_scope_promotion_rule: "copy-forward only + verity approval + receipt",
+        },
         MemoryScopeAuthorityRule {
             scope: "public",
             canonicalize_authority: "any authorized principal",

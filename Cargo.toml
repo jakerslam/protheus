@@ -6,6 +6,7 @@ members = [
   "core/layer0/*",
   "core/layer1/*",
   "core/layer2/*",
+  "core/layer2/tools/task_fabric",
   "core/layer3/*"
 ]
 exclude = [

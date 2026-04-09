@@ -14,6 +14,32 @@ mod tests {
         }
     }
 
+    fn strict_ready_state() -> ReadinessState {
+        ReadinessState {
+            strict_ready: true,
+            canary_relaxed: false,
+            ready_for_canary: true,
+            ready_for_execute: true,
+            effective_ready: true,
+            failed_checks: vec![],
+        }
+    }
+
+    fn quality_lock_ready_canary(active: bool) -> CanaryState {
+        CanaryState {
+            preview_ready_for_canary: true,
+            ready_for_execute: true,
+            quality_lock_active: active,
+        }
+    }
+
+    fn streak(escalate_ready_streak: u32, demote_not_ready_streak: u32) -> StreakState {
+        StreakState {
+            escalate_ready_streak,
+            demote_not_ready_streak,
+        }
+    }
+
     #[test]
     fn readiness_state_relaxes_only_for_allowed_checks() {
         let allow = HashSet::from(["success_criteria_pass_rate".to_string()]);
@@ -58,23 +84,9 @@ mod tests {
     #[test]
     fn transition_promotes_score_only_to_canary_when_evidence_passes() {
         let policy = base_policy();
-        let readiness = ReadinessState {
-            strict_ready: true,
-            canary_relaxed: false,
-            ready_for_canary: true,
-            ready_for_execute: true,
-            effective_ready: true,
-            failed_checks: vec![],
-        };
-        let canary = CanaryState {
-            preview_ready_for_canary: true,
-            ready_for_execute: true,
-            quality_lock_active: true,
-        };
-        let streak = StreakState {
-            escalate_ready_streak: 2,
-            demote_not_ready_streak: 0,
-        };
+        let readiness = strict_ready_state();
+        let canary = quality_lock_ready_canary(true);
+        let streak = streak(2, 0);
 
         let tr = decide_transition(
             "score_only",
@@ -95,23 +107,9 @@ mod tests {
     #[test]
     fn transition_demotes_execute_when_quality_lock_drops() {
         let policy = base_policy();
-        let readiness = ReadinessState {
-            strict_ready: true,
-            canary_relaxed: false,
-            ready_for_canary: true,
-            ready_for_execute: true,
-            effective_ready: true,
-            failed_checks: vec![],
-        };
-        let canary = CanaryState {
-            preview_ready_for_canary: true,
-            ready_for_execute: true,
-            quality_lock_active: false,
-        };
-        let streak = StreakState {
-            escalate_ready_streak: 0,
-            demote_not_ready_streak: 1,
-        };
+        let readiness = strict_ready_state();
+        let canary = quality_lock_ready_canary(false);
+        let streak = streak(0, 1);
 
         let tr = decide_transition(
             "execute", &readiness, &canary, &policy, true, false, &streak,
@@ -126,23 +124,9 @@ mod tests {
     #[test]
     fn transition_requires_escalate_streak_threshold() {
         let policy = base_policy();
-        let readiness = ReadinessState {
-            strict_ready: true,
-            canary_relaxed: false,
-            ready_for_canary: true,
-            ready_for_execute: true,
-            effective_ready: true,
-            failed_checks: vec![],
-        };
-        let canary = CanaryState {
-            preview_ready_for_canary: true,
-            ready_for_execute: true,
-            quality_lock_active: true,
-        };
-        let streak = StreakState {
-            escalate_ready_streak: 1,
-            demote_not_ready_streak: 0,
-        };
+        let readiness = strict_ready_state();
+        let canary = quality_lock_ready_canary(true);
+        let streak = streak(1, 0);
 
         let tr = decide_transition(
             "score_only",
@@ -160,23 +144,9 @@ mod tests {
     #[test]
     fn transition_blocks_promotion_when_spc_holds_escalation() {
         let policy = base_policy();
-        let readiness = ReadinessState {
-            strict_ready: true,
-            canary_relaxed: false,
-            ready_for_canary: true,
-            ready_for_execute: true,
-            effective_ready: true,
-            failed_checks: vec![],
-        };
-        let canary = CanaryState {
-            preview_ready_for_canary: true,
-            ready_for_execute: true,
-            quality_lock_active: true,
-        };
-        let streak = StreakState {
-            escalate_ready_streak: 5,
-            demote_not_ready_streak: 0,
-        };
+        let readiness = strict_ready_state();
+        let canary = quality_lock_ready_canary(true);
+        let streak = streak(5, 0);
 
         let tr = decide_transition(
             "score_only",

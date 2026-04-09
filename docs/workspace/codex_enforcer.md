@@ -111,7 +111,8 @@ Completion requires all of the following:
 - Line caps apply to **tracked source files**:
   - `client/runtime/systems/ui/**` `*.ts|*.tsx|*.js|*.jsx|*.css|*.html`: hard cap **500** lines.
   - other `*.ts|*.tsx|*.js|*.jsx`: hard cap **1200** lines.
-  - `*.rs`: hard cap **1000** lines.
+  - `core/**` `*.rs`: hard cap **500** lines.
+  - other `*.rs`: hard cap **1000** lines.
 - New source files must start at or below **500** lines.
 - Legacy files already above cap are allowed only as migration debt:
   - no net line growth is allowed without an exception.

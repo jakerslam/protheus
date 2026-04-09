@@ -66,38 +66,28 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 .get(1)
                 .map(|value| value.trim().to_ascii_lowercase())
                 .unwrap_or_else(|| "status".to_string());
+            let scale_args = || {
+                let target_agents = parse_u64_flag(
+                    argv,
+                    "agents",
+                    state.scale_policy.target_ready_agents as u64,
+                )
+                .max(1) as usize;
+                let default_fanout = recommended_manager_fanout_for_target(target_agents)
+                    .min(state.scale_policy.max_children_per_parent.max(2));
+                let fanout = parse_u64_flag(argv, "fanout", default_fanout as u64).max(2) as usize;
+                (target_agents, fanout)
+            };
             match sub.as_str() {
-                "status" => {
-                    let target_agents = parse_u64_flag(
-                        argv,
-                        "agents",
-                        state.scale_policy.target_ready_agents as u64,
-                    )
-                    .max(1) as usize;
-                    let default_fanout = recommended_manager_fanout_for_target(target_agents)
-                        .min(state.scale_policy.max_children_per_parent.max(2));
-                    let fanout = parse_u64_flag(argv, "fanout", default_fanout as u64).max(2)
-                        as usize;
+                "status" | "plan" => {
+                    let (target_agents, fanout) = scale_args();
                     Ok(json!({
                         "ok": true,
-                        "type": "swarm_runtime_scale_status",
-                        "scale": evaluate_scale_policy_readiness(&state, target_agents, fanout),
-                    }))
-                }
-                "plan" => {
-                    let target_agents = parse_u64_flag(
-                        argv,
-                        "agents",
-                        state.scale_policy.target_ready_agents as u64,
-                    )
-                    .max(1) as usize;
-                    let default_fanout = recommended_manager_fanout_for_target(target_agents)
-                        .min(state.scale_policy.max_children_per_parent.max(2));
-                    let fanout = parse_u64_flag(argv, "fanout", default_fanout as u64).max(2)
-                        as usize;
-                    Ok(json!({
-                        "ok": true,
-                        "type": "swarm_runtime_scale_plan",
+                        "type": if sub == "status" {
+                            "swarm_runtime_scale_status"
+                        } else {
+                            "swarm_runtime_scale_plan"
+                        },
                         "scale": evaluate_scale_policy_readiness(&state, target_agents, fanout),
                     }))
                 }

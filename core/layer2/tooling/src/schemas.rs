@@ -25,6 +25,8 @@ pub struct ConfidenceVector {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct NormalizedToolResult {
     pub result_id: String,
+    pub result_content_id: String,
+    pub result_event_id: String,
     pub trace_id: String,
     pub task_id: String,
     pub tool_name: String,
@@ -41,6 +43,8 @@ pub struct NormalizedToolResult {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct EvidenceCard {
     pub evidence_id: String,
+    pub evidence_content_id: String,
+    pub evidence_event_id: String,
     pub trace_id: String,
     pub task_id: String,
     pub derived_from_result_id: String,
@@ -94,6 +98,8 @@ pub enum ClaimStatus {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Claim {
     pub claim_id: String,
+    pub claim_content_id: String,
+    pub claim_event_id: String,
     pub text: String,
     pub evidence_ids: Vec<String>,
     pub status: ClaimStatus,
@@ -104,6 +110,8 @@ pub struct Claim {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ClaimBundle {
     pub claim_bundle_id: String,
+    pub claim_bundle_content_id: String,
+    pub claim_bundle_event_id: String,
     pub task_id: String,
     pub claims: Vec<Claim>,
     pub unresolved_questions: Vec<String>,
@@ -113,6 +121,8 @@ pub struct ClaimBundle {
 
 pub const NORMALIZED_TOOL_RESULT_FIELDS: &[&str] = &[
     "result_id",
+    "result_content_id",
+    "result_event_id",
     "trace_id",
     "task_id",
     "tool_name",
@@ -128,6 +138,8 @@ pub const NORMALIZED_TOOL_RESULT_FIELDS: &[&str] = &[
 
 pub const EVIDENCE_CARD_FIELDS: &[&str] = &[
     "evidence_id",
+    "evidence_content_id",
+    "evidence_event_id",
     "trace_id",
     "task_id",
     "derived_from_result_id",
@@ -153,6 +165,8 @@ pub const WORKER_OUTPUT_FIELDS: &[&str] = &[
 
 pub const CLAIM_FIELDS: &[&str] = &[
     "claim_id",
+    "claim_content_id",
+    "claim_event_id",
     "text",
     "evidence_ids",
     "status",
@@ -162,6 +176,8 @@ pub const CLAIM_FIELDS: &[&str] = &[
 
 pub const CLAIM_BUNDLE_FIELDS: &[&str] = &[
     "claim_bundle_id",
+    "claim_bundle_content_id",
+    "claim_bundle_event_id",
     "task_id",
     "claims",
     "unresolved_questions",
@@ -171,7 +187,7 @@ pub const CLAIM_BUNDLE_FIELDS: &[&str] = &[
 
 pub fn published_schema_contract_v1() -> Value {
     json!({
-        "version": "tooling_schema_v1",
+        "version": "tooling_schema_v2",
         "normalized_tool_result": NORMALIZED_TOOL_RESULT_FIELDS,
         "evidence_card": EVIDENCE_CARD_FIELDS,
         "worker_output": WORKER_OUTPUT_FIELDS,
@@ -190,7 +206,7 @@ mod tests {
         let contract = published_schema_contract_v1();
         assert_eq!(
             contract.get("version").and_then(Value::as_str),
-            Some("tooling_schema_v1")
+            Some("tooling_schema_v2")
         );
         assert_eq!(
             contract
@@ -212,6 +228,8 @@ mod tests {
     fn evidence_card_schema_includes_trace_and_task_ids() {
         let card = EvidenceCard {
             evidence_id: "e1".to_string(),
+            evidence_content_id: "e1".to_string(),
+            evidence_event_id: "ev1".to_string(),
             trace_id: "trace-1".to_string(),
             task_id: "task-1".to_string(),
             derived_from_result_id: "r1".to_string(),
@@ -242,6 +260,8 @@ mod tests {
     fn claim_schema_requires_evidence_refs() {
         let claim = Claim {
             claim_id: "c1".to_string(),
+            claim_content_id: "c1".to_string(),
+            claim_event_id: "ce1".to_string(),
             text: "Claim".to_string(),
             evidence_ids: vec!["e1".to_string()],
             status: ClaimStatus::Supported,

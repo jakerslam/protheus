@@ -72,6 +72,21 @@ fn run_git(root: &Path, args: &[&str]) -> Result<std::process::Output, String> {
         .map_err(|err| format!("git_spawn_failed:{err}"))
 }
 
+fn run_git_in_workspace(
+    root: &Path,
+    workspace: &Path,
+    args: &[&str],
+) -> Result<std::process::Output, String> {
+    Command::new("git")
+        .arg("-C")
+        .arg(workspace)
+        .args(args)
+        .current_dir(root)
+        .stdin(Stdio::null())
+        .output()
+        .map_err(|err| format!("git_spawn_failed:{err}"))
+}
+
 pub fn git_current_branch(root: &Path, fallback: &str) -> String {
     if let Ok(output) = run_git(root, &["rev-parse", "--abbrev-ref", "HEAD"]) {
         if output.status.success() {
@@ -123,19 +138,8 @@ pub fn git_workspace_ready(root: &Path, workspace: &Path) -> bool {
     if !workspace.exists() || !workspace.is_dir() {
         return false;
     }
-    Command::new("git")
-        .args([
-            "-C",
-            &workspace.to_string_lossy(),
-            "rev-parse",
-            "--is-inside-work-tree",
-        ])
-        .current_dir(root)
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()
-        .map(|status| status.success())
+    run_git_in_workspace(root, workspace, &["rev-parse", "--is-inside-work-tree"])
+        .map(|output| output.status.success())
         .unwrap_or(false)
 }
 
@@ -189,18 +193,8 @@ fn git_workspace_branch(root: &Path, workspace: &Path) -> Option<String> {
     if !git_workspace_ready(root, workspace) {
         return None;
     }
-    let output = Command::new("git")
-        .args([
-            "-C",
-            &workspace.to_string_lossy(),
-            "rev-parse",
-            "--abbrev-ref",
-            "HEAD",
-        ])
-        .current_dir(root)
-        .stdin(Stdio::null())
-        .output()
-        .ok()?;
+    let output =
+        run_git_in_workspace(root, workspace, &["rev-parse", "--abbrev-ref", "HEAD"]).ok()?;
     if !output.status.success() {
         return None;
     }
@@ -225,6 +219,25 @@ fn git_error_detail(output: std::process::Output, fallback: &str) -> String {
         fallback.to_string()
     } else {
         detail
+    }
+}
+
+fn git_optional_error_detail(output: Option<std::process::Output>, fallback: &str) -> String {
+    output
+        .map(|row| git_error_detail(row, fallback))
+        .unwrap_or_else(|| fallback.to_string())
+}
+
+fn remove_workspace_dir_fallback(
+    workspace: &Path,
+    workspace_str: &str,
+    removed_workspace_dirs: &mut Vec<String>,
+) -> bool {
+    if fs::remove_dir_all(workspace).is_ok() {
+        removed_workspace_dirs.push(workspace_str.to_string());
+        true
+    } else {
+        false
     }
 }
 
@@ -274,9 +287,11 @@ pub fn cleanup_agent_git_artifacts(
                 removed_worktrees.push(workspace_str.clone());
             }
             Ok(output) => {
-                let fs_removed = fs::remove_dir_all(workspace).is_ok();
-                if fs_removed {
-                    removed_workspace_dirs.push(workspace_str.clone());
+                if remove_workspace_dir_fallback(
+                    workspace,
+                    &workspace_str,
+                    &mut removed_workspace_dirs,
+                ) {
                 } else {
                     errors.push(json!({
                         "stage": "worktree_remove",
@@ -286,9 +301,11 @@ pub fn cleanup_agent_git_artifacts(
                 }
             }
             Err(err) => {
-                let fs_removed = fs::remove_dir_all(workspace).is_ok();
-                if fs_removed {
-                    removed_workspace_dirs.push(workspace_str.clone());
+                if remove_workspace_dir_fallback(
+                    workspace,
+                    &workspace_str,
+                    &mut removed_workspace_dirs,
+                ) {
                 } else {
                     errors.push(json!({
                         "stage": "worktree_remove",
@@ -453,20 +470,7 @@ pub fn switch_agent_worktree(
         .unwrap_or(true)
         || !git_workspace_ready(root, &workspace)
     {
-        let detail = output
-            .ok()
-            .map(|out| {
-                clean_text(
-                    &format!(
-                        "{} {}",
-                        String::from_utf8_lossy(&out.stdout),
-                        String::from_utf8_lossy(&out.stderr)
-                    ),
-                    280,
-                )
-            })
-            .filter(|row| !row.is_empty())
-            .unwrap_or_else(|| "git_worktree_add_failed".to_string());
+        let detail = git_optional_error_detail(output.ok(), "git_worktree_add_failed");
         return json!({
             "ok": false,
             "error": detail,

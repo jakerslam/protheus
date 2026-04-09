@@ -76,6 +76,26 @@ fn test_script_value(
     }
 }
 
+fn row_scripts_and_route(
+    id: &str,
+    lane_script: &str,
+    test_script: &str,
+    test_exists: bool,
+    use_core_contract_lane: bool,
+    use_dynamic_lane: bool,
+) -> (Value, Value, &'static str) {
+    (
+        lane_script_value(id, lane_script, use_core_contract_lane, use_dynamic_lane),
+        test_script_value(
+            test_exists,
+            use_dynamic_lane,
+            use_core_contract_lane,
+            test_script,
+        ),
+        lane_route(use_core_contract_lane, use_dynamic_lane),
+    )
+}
+
 fn parse_srs_rows(path: &Path) -> Vec<(String, String)> {
     let Ok(raw) = fs::read_to_string(path) else {
         return Vec::new();
@@ -483,11 +503,18 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
         if dry_run {
             skipped += 1;
-            let route = lane_route(use_core_contract_lane, use_dynamic_lane);
+            let (lane_script_row, test_script_row, route) = row_scripts_and_route(
+                id,
+                &lane_script,
+                &test_script,
+                test_exists,
+                use_core_contract_lane,
+                use_dynamic_lane,
+            );
             rows.push(json!({
                 "id": id,
-                "lane_script": lane_script_value(id, &lane_script, use_core_contract_lane, use_dynamic_lane),
-                "test_script": test_script_value(test_exists, use_dynamic_lane, use_core_contract_lane, &test_script),
+                "lane_script": lane_script_row,
+                "test_script": test_script_row,
                 "status": "planned",
                 "lane_route": route,
                 "test_skip_reason": test_skip_reason
@@ -518,11 +545,18 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
         if lane_ok && test_ok {
             executed += 1;
-            let route = lane_route(use_core_contract_lane, use_dynamic_lane);
+            let (lane_script_row, test_script_row, route) = row_scripts_and_route(
+                id,
+                &lane_script,
+                &test_script,
+                test_exists,
+                use_core_contract_lane,
+                use_dynamic_lane,
+            );
             rows.push(json!({
                 "id": id,
-                "lane_script": lane_script_value(id, &lane_script, use_core_contract_lane, use_dynamic_lane),
-                "test_script": test_script_value(test_exists, use_dynamic_lane, use_core_contract_lane, &test_script),
+                "lane_script": lane_script_row,
+                "test_script": test_script_row,
                 "status": "executed",
                 "lane_route": route,
                 "test_skip_reason": test_skip_reason,
@@ -531,11 +565,18 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             }));
         } else {
             failed += 1;
-            let route = lane_route(use_core_contract_lane, use_dynamic_lane);
+            let (lane_script_row, test_script_row, route) = row_scripts_and_route(
+                id,
+                &lane_script,
+                &test_script,
+                test_exists,
+                use_core_contract_lane,
+                use_dynamic_lane,
+            );
             rows.push(json!({
                 "id": id,
-                "lane_script": lane_script_value(id, &lane_script, use_core_contract_lane, use_dynamic_lane),
-                "test_script": test_script_value(test_exists, use_dynamic_lane, use_core_contract_lane, &test_script),
+                "lane_script": lane_script_row,
+                "test_script": test_script_row,
                 "status": "failed",
                 "lane_route": route,
                 "test_skip_reason": test_skip_reason,

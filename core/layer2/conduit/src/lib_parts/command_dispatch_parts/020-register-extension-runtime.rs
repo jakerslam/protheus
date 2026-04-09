@@ -356,6 +356,7 @@ fn edge_backend_label() -> &'static str {
     "edge_feature_disabled"
 }
 
+#[cfg(any(feature = "edge", test))]
 fn normalize_edge_prompt(prompt: &str) -> String {
     let normalized = prompt.split_whitespace().collect::<Vec<_>>().join(" ");
     if normalized.is_empty() {
@@ -365,6 +366,7 @@ fn normalize_edge_prompt(prompt: &str) -> String {
     }
 }
 
+#[cfg(any(feature = "edge", test))]
 fn summarize_for_edge_backend(prompt: &str, token_cap: usize) -> String {
     let tokens = prompt.split_whitespace().collect::<Vec<_>>();
     if tokens.len() <= token_cap {

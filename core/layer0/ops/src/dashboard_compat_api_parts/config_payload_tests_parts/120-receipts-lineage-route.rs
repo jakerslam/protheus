@@ -54,11 +54,33 @@ fn receipts_lineage_http_route_reconstructs_chain() {
             }
         }
     });
+    let tool_row_other_trace = json!({
+        "type": "dashboard_tool_result",
+        "receipt_hash": "r-tool-other-trace",
+        "payload": {
+            "tool_pipeline": {
+                "normalized_result": {
+                    "result_id": "res-2",
+                    "task_id": "task-lineage-other",
+                    "trace_id": "trace-lineage-other",
+                    "tool_name": "web_search"
+                },
+                "evidence_cards": [{
+                    "evidence_id": "ev-2",
+                    "task_id": "task-lineage-other",
+                    "trace_id": "trace-lineage-other",
+                    "summary": "should be filtered by trace_id"
+                }]
+            }
+        }
+    });
     let tool_raw = serde_json::to_string(&tool_row).expect("encode tool row");
+    let tool_other_raw =
+        serde_json::to_string(&tool_row_other_trace).expect("encode tool row other trace");
     if let Some(parent) = actions_history.parent() {
         let _ = std::fs::create_dir_all(parent);
     }
-    let _ = std::fs::write(&actions_history, format!("{tool_raw}\n"));
+    let _ = std::fs::write(&actions_history, format!("{tool_raw}\n{tool_other_raw}\n"));
 
     let memory_history = root.path().join("local/state/ops/memory/history.jsonl");
     let memory_row = json!({
@@ -101,7 +123,10 @@ fn receipts_lineage_http_route_reconstructs_chain() {
     )
     .expect("lineage response");
     assert_eq!(response.status, 200);
-    assert_eq!(response.payload.get("ok").and_then(Value::as_bool), Some(true));
+    assert_eq!(
+        response.payload.get("ok").and_then(Value::as_bool),
+        Some(true)
+    );
     assert_eq!(
         response
             .payload
@@ -117,6 +142,13 @@ fn receipts_lineage_http_route_reconstructs_chain() {
             .and_then(Value::as_array)
             .map(|rows| rows.len()),
         Some(1)
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/lineage/tool_call/0/trace_id")
+            .and_then(Value::as_str),
+        Some(trace_id)
     );
     assert_eq!(
         response

@@ -58,6 +58,11 @@ fn queue_metrics_prometheus(state: &SwarmState, snapshot: &Value) -> String {
         .and_then(|row| row.get("persistent"))
         .and_then(Value::as_u64)
         .unwrap_or(0);
+    let scheduled_active = state
+        .scheduled_tasks
+        .values()
+        .filter(|row| row.active)
+        .count();
 
     vec![
         "# HELP swarm_runtime_queue_samples_total Number of sessions with spawn metrics."
@@ -102,6 +107,10 @@ fn queue_metrics_prometheus(state: &SwarmState, snapshot: &Value) -> String {
         "# HELP swarm_runtime_sessions_total Total sessions recorded in state.".to_string(),
         "# TYPE swarm_runtime_sessions_total gauge".to_string(),
         format!("swarm_runtime_sessions_total {}", state.sessions.len()),
+        "# HELP swarm_runtime_scheduled_active_tasks Total active scheduled background tasks."
+            .to_string(),
+        "# TYPE swarm_runtime_scheduled_active_tasks gauge".to_string(),
+        format!("swarm_runtime_scheduled_active_tasks {scheduled_active}"),
     ]
     .join("\n")
 }

@@ -35,8 +35,19 @@ fn payload_json(argv: &[String]) -> Result<Value, String> {
     lane_utils::payload_json(argv, "dify_bridge")
 }
 
+fn bridge_path_flag(
+    root: &Path,
+    argv: &[String],
+    payload: &Map<String, Value>,
+    flag_name: &str,
+    payload_key: &str,
+    default_rel: &str,
+) -> PathBuf {
+    path_flag(root, argv, payload, flag_name, payload_key, default_rel)
+}
+
 fn state_path(root: &Path, argv: &[String], payload: &Map<String, Value>) -> PathBuf {
-    path_flag(
+    bridge_path_flag(
         root,
         argv,
         payload,
@@ -47,7 +58,7 @@ fn state_path(root: &Path, argv: &[String], payload: &Map<String, Value>) -> Pat
 }
 
 fn history_path(root: &Path, argv: &[String], payload: &Map<String, Value>) -> PathBuf {
-    path_flag(
+    bridge_path_flag(
         root,
         argv,
         payload,
@@ -58,7 +69,7 @@ fn history_path(root: &Path, argv: &[String], payload: &Map<String, Value>) -> P
 }
 
 fn swarm_state_path(root: &Path, argv: &[String], payload: &Map<String, Value>) -> PathBuf {
-    path_flag(
+    bridge_path_flag(
         root,
         argv,
         payload,
@@ -69,7 +80,7 @@ fn swarm_state_path(root: &Path, argv: &[String], payload: &Map<String, Value>) 
 }
 
 fn trace_path(root: &Path, argv: &[String], payload: &Map<String, Value>) -> PathBuf {
-    path_flag(
+    bridge_path_flag(
         root,
         argv,
         payload,
@@ -80,7 +91,7 @@ fn trace_path(root: &Path, argv: &[String], payload: &Map<String, Value>) -> Pat
 }
 
 fn dashboard_dir(root: &Path, argv: &[String], payload: &Map<String, Value>) -> PathBuf {
-    path_flag(
+    bridge_path_flag(
         root,
         argv,
         payload,

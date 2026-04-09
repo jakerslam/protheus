@@ -24,6 +24,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Policy Baseline Contract
+        run: |
+          npm run -s ops:repo-surface:audit
+          npm run -s ops:file-size:gate
+          npm run -s ops:dod:gate
+          npm run -s ops:churn:guard
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
@@ -51,6 +58,20 @@ jobs:
             artifacts/reliability_turn_loop_gauntlet_report_*.json
             artifacts/reliability_turn_loop_gauntlet_report_latest.json
             local/state/ops/reliability_turn_loop_gauntlet/latest.json
+          if-no-files-found: warn
+
+      - name: IPC Bridge Stability Soak
+        run: npm run -s ops:ipc-bridge:soak
+
+      - name: Upload IPC Bridge Soak Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ops-ipc-bridge-soak-artifacts
+          path: |
+            artifacts/ops_ipc_bridge_stability_soak_report_*.json
+            artifacts/ops_ipc_bridge_stability_soak_report_latest.json
+            local/state/ops/ops_ipc_bridge_stability_soak/latest.json
           if-no-files-found: warn
 
       - name: Release Contract Gate

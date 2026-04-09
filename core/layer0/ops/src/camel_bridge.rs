@@ -52,12 +52,23 @@ fn repo_path(root: &Path, rel: &str) -> PathBuf {
     lane_utils::repo_path(root, rel)
 }
 
+fn bridge_path_flag(
+    root: &Path,
+    argv: &[String],
+    payload: &Map<String, Value>,
+    flag_name: &str,
+    payload_key: &str,
+    default_rel: &str,
+) -> PathBuf {
+    lane_utils::path_flag(root, argv, payload, flag_name, payload_key, default_rel)
+}
+
 fn rel(root: &Path, path: &Path) -> String {
     lane_utils::rel_path(root, path)
 }
 
 fn state_path(root: &Path, argv: &[String], payload: &Map<String, Value>) -> PathBuf {
-    lane_utils::path_flag(
+    bridge_path_flag(
         root,
         argv,
         payload,
@@ -68,7 +79,7 @@ fn state_path(root: &Path, argv: &[String], payload: &Map<String, Value>) -> Pat
 }
 
 fn history_path(root: &Path, argv: &[String], payload: &Map<String, Value>) -> PathBuf {
-    lane_utils::path_flag(
+    bridge_path_flag(
         root,
         argv,
         payload,
@@ -79,7 +90,7 @@ fn history_path(root: &Path, argv: &[String], payload: &Map<String, Value>) -> P
 }
 
 fn swarm_state_path(root: &Path, argv: &[String], payload: &Map<String, Value>) -> PathBuf {
-    lane_utils::path_flag(
+    bridge_path_flag(
         root,
         argv,
         payload,
@@ -231,6 +242,14 @@ fn claim(id: &str, detail: &str) -> Value {
     }])
 }
 
+fn ok_with_claim(field: &str, value: Value, claim_id: &str, claim_detail: &str) -> Value {
+    let mut row = Map::new();
+    row.insert("ok".to_string(), Value::Bool(true));
+    row.insert(field.to_string(), value);
+    row.insert("claim_evidence".to_string(), claim(claim_id, claim_detail));
+    Value::Object(row)
+}
+
 fn store_receipt(
     state_path: &Path,
     history_path: &Path,
@@ -321,11 +340,12 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     });
                     as_object_mut(&mut state, "societies")
                         .insert(society_id.clone(), society.clone());
-                    Ok(json!({
-                        "ok": true,
-                        "society": society,
-                        "claim_evidence": claim("V6-WORKFLOW-013.1", "role_playing_society_registry"),
-                    }))
+                    Ok(ok_with_claim(
+                        "society",
+                        society,
+                        "V6-WORKFLOW-013.1",
+                        "role_playing_society_registry",
+                    ))
                 }
             }
         }
@@ -447,11 +467,12 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 });
                 as_object_mut(&mut state, "world_simulations")
                     .insert(world_id.clone(), simulation.clone());
-                Ok(json!({
-                    "ok": true,
-                    "simulation": simulation,
-                    "claim_evidence": claim("V6-WORKFLOW-013.3", "oasis_world_simulation_bridge"),
-                }))
+                Ok(ok_with_claim(
+                    "simulation",
+                    simulation,
+                    "V6-WORKFLOW-013.3",
+                    "oasis_world_simulation_bridge",
+                ))
             }
         }
         "import-dataset" => {
@@ -497,11 +518,12 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                         });
                         as_object_mut(&mut state, "datasets")
                             .insert(dataset_id.clone(), dataset.clone());
-                        Ok(json!({
-                            "ok": true,
-                            "dataset": dataset,
-                            "claim_evidence": claim("V6-WORKFLOW-013.4", "synthetic_dataset_ingestion"),
-                        }))
+                        Ok(ok_with_claim(
+                            "dataset",
+                            dataset,
+                            "V6-WORKFLOW-013.4",
+                            "synthetic_dataset_ingestion",
+                        ))
                     }
                 }
             }
@@ -607,11 +629,12 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 });
                 as_object_mut(&mut state, "benchmarks")
                     .insert(benchmark_id.clone(), benchmark.clone());
-                Ok(json!({
-                    "ok": true,
-                    "benchmark": benchmark,
-                    "claim_evidence": claim("V6-WORKFLOW-013.6", "crab_benchmark_and_evaluation_bridge"),
-                }))
+                Ok(ok_with_claim(
+                    "benchmark",
+                    benchmark,
+                    "V6-WORKFLOW-013.6",
+                    "crab_benchmark_and_evaluation_bridge",
+                ))
             }
         }
         "register-tool-gateway" => {
@@ -646,11 +669,12 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     });
                     as_object_mut(&mut state, "tool_gateways")
                         .insert(gateway_id.clone(), gateway.clone());
-                    Ok(json!({
-                        "ok": true,
-                        "tool_gateway": gateway,
-                        "claim_evidence": claim("V6-WORKFLOW-013.7", "tool_ecosystem_and_real_world_integration_gateway"),
-                    }))
+                    Ok(ok_with_claim(
+                        "tool_gateway",
+                        gateway,
+                        "V6-WORKFLOW-013.7",
+                        "tool_ecosystem_and_real_world_integration_gateway",
+                    ))
                 }
             }
         }

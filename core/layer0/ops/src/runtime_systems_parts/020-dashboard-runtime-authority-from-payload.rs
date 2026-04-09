@@ -1,22 +1,34 @@
+fn capped_signal_u64(payload: &Value, key: &str, fallback: u64) -> u64 {
+    payload_u64(payload, key, fallback).min(2_000_000)
+}
+
+fn clamped_u64(payload: &Value, key: &str, fallback: u64, min: u64, max: u64) -> u64 {
+    payload_u64(payload, key, fallback).clamp(min, max)
+}
+
+fn optional_metric(known: bool, value: f64) -> Value {
+    if known {
+        json!(value)
+    } else {
+        Value::Null
+    }
+}
+
 fn dashboard_runtime_authority_from_payload(payload: &Value) -> Value {
-    let queue_depth = payload_u64(payload, "queue_depth", 0).min(2_000_000);
-    let critical_attention_total =
-        payload_u64(payload, "critical_attention_total", 0).min(2_000_000);
-    let cockpit_blocks = payload_u64(payload, "cockpit_blocks", 0).min(2_000_000);
-    let conduit_signals = payload_u64(payload, "conduit_signals", 0).min(2_000_000);
-    let stale_blocks = payload_u64(payload, "cockpit_stale_blocks", 0).min(2_000_000);
-    let stale_blocks_raw =
-        payload_u64(payload, "cockpit_stale_blocks_raw", stale_blocks).min(2_000_000);
-    let stale_blocks_dormant =
-        payload_u64(payload, "cockpit_stale_blocks_dormant", 0).min(2_000_000);
+    let queue_depth = capped_signal_u64(payload, "queue_depth", 0);
+    let critical_attention_total = capped_signal_u64(payload, "critical_attention_total", 0);
+    let cockpit_blocks = capped_signal_u64(payload, "cockpit_blocks", 0);
+    let conduit_signals = capped_signal_u64(payload, "conduit_signals", 0);
+    let stale_blocks = capped_signal_u64(payload, "cockpit_stale_blocks", 0);
+    let stale_blocks_raw = capped_signal_u64(payload, "cockpit_stale_blocks_raw", stale_blocks);
+    let stale_blocks_dormant = capped_signal_u64(payload, "cockpit_stale_blocks_dormant", 0);
     let stale_ratio = payload_f64(payload, "cockpit_stale_ratio", 0.0).clamp(0.0, 1.0);
-    let health_coverage_gap_count =
-        payload_u64(payload, "health_coverage_gap_count", 0).min(2_000_000);
-    let attention_unacked_depth = payload_u64(payload, "attention_unacked_depth", 0).min(2_000_000);
-    let attention_cursor_offset = payload_u64(payload, "attention_cursor_offset", 0).min(2_000_000);
+    let health_coverage_gap_count = capped_signal_u64(payload, "health_coverage_gap_count", 0);
+    let attention_unacked_depth = capped_signal_u64(payload, "attention_unacked_depth", 0);
+    let attention_cursor_offset = capped_signal_u64(payload, "attention_cursor_offset", 0);
     let memory_ingest_paused = payload_bool(payload, "memory_ingest_paused", false);
-    let collab_handoff_count = payload_u64(payload, "collab_handoff_count", 0).min(2_000_000);
-    let active_swarm_agents = payload_u64(payload, "active_swarm_agents", 0).min(2_000_000);
+    let collab_handoff_count = capped_signal_u64(payload, "collab_handoff_count", 0);
+    let active_swarm_agents = capped_signal_u64(payload, "active_swarm_agents", 0);
     let spine_success_rate = payload_f64(payload, "spine_success_rate", 1.0).clamp(0.0, 1.0);
     let human_escalation_open_rate =
         payload_f64(payload, "human_escalation_open_rate", 0.0).clamp(0.0, 1.0);
@@ -26,25 +38,39 @@ fn dashboard_runtime_authority_from_payload(payload: &Value) -> Value {
     let receipt_latency_metrics_stale =
         payload_bool(payload, "receipt_latency_metrics_stale", false);
     let spine_metrics_latest_age_seconds =
-        payload_u64(payload, "spine_metrics_latest_age_seconds", 0).min(2_000_000);
-    let spine_metrics_fresh_window_seconds =
-        payload_u64(payload, "spine_metrics_fresh_window_seconds", 900).clamp(1, 2_000_000);
+        capped_signal_u64(payload, "spine_metrics_latest_age_seconds", 0);
+    let spine_metrics_fresh_window_seconds = clamped_u64(
+        payload,
+        "spine_metrics_fresh_window_seconds",
+        900,
+        1,
+        2_000_000,
+    );
     let benchmark_sanity_age_seconds =
-        payload_u64(payload, "benchmark_sanity_age_seconds", 0).min(2_000_000);
-    let benchmark_refresh_max_age_seconds =
-        payload_u64(payload, "benchmark_refresh_max_age_seconds", 1200).clamp(1, 2_000_000);
+        capped_signal_u64(payload, "benchmark_sanity_age_seconds", 0);
+    let benchmark_refresh_max_age_seconds = clamped_u64(
+        payload,
+        "benchmark_refresh_max_age_seconds",
+        1200,
+        1,
+        2_000_000,
+    );
     let benchmark_cockpit_status =
         payload_string(payload, "benchmark_sanity_cockpit_status", "unknown");
     let benchmark_mirror_status = payload_string(payload, "benchmark_sanity_status", "unknown");
-    let stable_agent_cap_base =
-        payload_u64(payload, "stable_agent_cap_base", 512).clamp(16, 2_000_000);
+    let stable_agent_cap_base = clamped_u64(payload, "stable_agent_cap_base", 512, 16, 2_000_000);
     let min_doubled_cap = stable_agent_cap_base.saturating_mul(2);
-    let stable_agent_cap =
-        payload_u64(payload, "stable_agent_cap", min_doubled_cap).clamp(min_doubled_cap, 2_000_000);
-    let max_agents_per_cell = payload_u64(payload, "max_agents_per_cell", 32).clamp(4, 1_000);
-    let director_fanout_cells = payload_u64(payload, "director_fanout_cells", 16).clamp(1, 1_000);
-    let max_directors = payload_u64(payload, "max_directors", 256).clamp(1, 10_000);
-    let decentralized_floor = payload_u64(payload, "decentralized_floor", 24).clamp(1, 1_000_000);
+    let stable_agent_cap = clamped_u64(
+        payload,
+        "stable_agent_cap",
+        min_doubled_cap,
+        min_doubled_cap,
+        2_000_000,
+    );
+    let max_agents_per_cell = clamped_u64(payload, "max_agents_per_cell", 32, 4, 1_000);
+    let director_fanout_cells = clamped_u64(payload, "director_fanout_cells", 16, 1, 1_000);
+    let max_directors = clamped_u64(payload, "max_directors", 256, 1, 10_000);
+    let decentralized_floor = clamped_u64(payload, "decentralized_floor", 24, 1, 1_000_000);
 
     let dampen_depth = payload_u64(payload, "ingress_dampen_depth", 40).clamp(1, 10_000);
     let shed_depth = payload_u64(payload, "ingress_shed_depth", 80).clamp(dampen_depth, 10_000);
@@ -305,11 +331,7 @@ fn dashboard_runtime_authority_from_payload(payload: &Value) -> Value {
         &mut check_rows,
         "spine_success_rate",
         spine_status,
-        json!(if spine_metrics_stale {
-            Value::Null
-        } else {
-            json!(spine_success_rate)
-        }),
+        optional_metric(!spine_metrics_stale, spine_success_rate),
         json!(spine_success_target),
         ">=",
         !spine_metrics_stale,
@@ -327,11 +349,7 @@ fn dashboard_runtime_authority_from_payload(payload: &Value) -> Value {
         &mut check_rows,
         "receipt_latency_p95_ms",
         p95_status,
-        json!(if receipt_latency_metrics_stale {
-            Value::Null
-        } else {
-            json!(receipt_latency_p95_ms)
-        }),
+        optional_metric(!receipt_latency_metrics_stale, receipt_latency_p95_ms),
         json!(slo_latency_p95_max_ms),
         "<=",
         !receipt_latency_metrics_stale,
@@ -348,11 +366,7 @@ fn dashboard_runtime_authority_from_payload(payload: &Value) -> Value {
         &mut check_rows,
         "receipt_latency_p99_ms",
         p99_status,
-        json!(if receipt_latency_metrics_stale {
-            Value::Null
-        } else {
-            json!(receipt_latency_p99_ms)
-        }),
+        optional_metric(!receipt_latency_metrics_stale, receipt_latency_p99_ms),
         json!(slo_latency_p99_max_ms),
         "<=",
         !receipt_latency_metrics_stale,

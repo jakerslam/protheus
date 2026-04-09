@@ -104,8 +104,10 @@ where
     F: FnOnce(&Value) -> Result<Value, String>,
 {
     let mut broker = protheus_tooling_core_v1::ToolBroker::default();
+    let _ = broker.recover_from_ledger();
     let extractor = protheus_tooling_core_v1::EvidenceExtractor;
     let mut store = protheus_tooling_core_v1::EvidenceStore::default();
+    let _ = store.recover_from_ledger();
     let verifier = protheus_tooling_core_v1::StructuredVerifier;
     let request = protheus_tooling_core_v1::ToolCallRequest {
         trace_id: clean_text(trace_id, 160),
@@ -495,4 +497,3 @@ fn default_session_state(agent_id: &str) -> Value {
         "memory_kv": {}
     })
 }
-

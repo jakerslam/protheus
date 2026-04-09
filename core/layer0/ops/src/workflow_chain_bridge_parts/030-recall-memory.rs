@@ -1,3 +1,9 @@
+fn value_array_has_text(rows: &[Value], wanted: &str) -> bool {
+    rows.iter()
+        .filter_map(Value::as_str)
+        .any(|row| row == wanted)
+}
+
 fn recall_memory(state: &mut Value, payload: &Map<String, Value>) -> Result<Value, String> {
     let store_id = clean_token(
         payload
@@ -26,11 +32,7 @@ fn recall_memory(state: &mut Value, payload: &Map<String, Value>) -> Result<Valu
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
-    if !supported_profiles
-        .iter()
-        .filter_map(Value::as_str)
-        .any(|row| row == profile)
-    {
+    if !value_array_has_text(&supported_profiles, &profile) {
         return Err(format!(
             "workflow_chain_memory_bridge_profile_unsupported:{profile}"
         ));
@@ -152,11 +154,7 @@ fn route_prompt(state: &mut Value, payload: &Map<String, Value>) -> Result<Value
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_else(|| vec![json!("openai-compatible"), json!("local")]);
-    if !supported_providers
-        .iter()
-        .filter_map(Value::as_str)
-        .any(|row| row == provider)
-    {
+    if !value_array_has_text(&supported_providers, &provider) {
         return Err(format!("workflow_chain_provider_unsupported:{provider}"));
     }
     let local_capable = matches!(provider.as_str(), "local" | "openai-compatible");
@@ -490,7 +488,8 @@ fn assimilate_intake(
         }
     });
     let pipeline_source = "export const workflow_chainChain = { runnables: [\n  { id: 'retrieve', runnable_type: 'retriever', input_type: 'query', output_type: 'documents' },\n  { id: 'route', runnable_type: 'prompt', input_type: 'documents', output_type: 'prompt' },\n  { id: 'answer', runnable_type: 'llm', input_type: 'prompt', output_type: 'answer', spawn: true }\n] };\n";
-    let readme = "# Workflow Chain Shell\n\nThin generated shell over `core://workflow_chain-bridge`.\n";
+    let readme =
+        "# Workflow Chain Shell\n\nThin generated shell over `core://workflow_chain-bridge`.\n";
     let prompt_template = "Answer the question: {{question}}\nUse only the supplied context.\n";
     fs::write(
         full.join("package.json"),

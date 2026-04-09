@@ -38,6 +38,16 @@ fn record_gauntlet_task(
     results.push((task.to_string(), pass, detail.into()));
 }
 
+fn response_status(response: Option<&CompatApiResponse>) -> u16 {
+    response.map(|row| row.status).unwrap_or(0)
+}
+
+fn response_payload(response: Option<&CompatApiResponse>) -> Value {
+    response
+        .map(|row| row.payload.clone())
+        .unwrap_or_else(|| json!({}))
+}
+
 #[test]
 fn agent_capability_gauntlet_20_difficult_tasks() {
     let root = tempfile::tempdir().expect("tempdir");
@@ -79,7 +89,7 @@ fn agent_capability_gauntlet_20_difficult_tasks() {
         br#"{"name":"Gauntlet Parent","role":"director"}"#,
         &snapshot,
     );
-    let parent_status = parent_create.as_ref().map(|row| row.status).unwrap_or(0);
+    let parent_status = response_status(parent_create.as_ref());
     let parent_id = parent_create
         .as_ref()
         .and_then(|row| row.payload.get("agent_id").and_then(Value::as_str))
@@ -100,11 +110,8 @@ fn agent_capability_gauntlet_20_difficult_tasks() {
         br#"{"message":"/file notes/plan.txt"}"#,
         &snapshot,
     );
-    let file_status = file_read.as_ref().map(|row| row.status).unwrap_or(0);
-    let file_payload = file_read
-        .as_ref()
-        .map(|row| row.payload.clone())
-        .unwrap_or_else(|| json!({}));
+    let file_status = response_status(file_read.as_ref());
+    let file_payload = response_payload(file_read.as_ref());
     let file_response = clean_text(
         file_payload
             .get("response")
@@ -119,14 +126,8 @@ fn agent_capability_gauntlet_20_difficult_tasks() {
         br#"{"message":"read file notes/plan.txt and show me full contents"}"#,
         &snapshot,
     );
-    let file_natural_status = file_read_natural
-        .as_ref()
-        .map(|row| row.status)
-        .unwrap_or(0);
-    let file_natural_payload = file_read_natural
-        .as_ref()
-        .map(|row| row.payload.clone())
-        .unwrap_or_else(|| json!({}));
+    let file_natural_status = response_status(file_read_natural.as_ref());
+    let file_natural_payload = response_payload(file_read_natural.as_ref());
     let file_natural_response = clean_text(
         file_natural_payload
             .get("response")
@@ -156,11 +157,8 @@ fn agent_capability_gauntlet_20_difficult_tasks() {
         br#"{"message":"/folder notes"}"#,
         &snapshot,
     );
-    let folder_status = folder_export.as_ref().map(|row| row.status).unwrap_or(0);
-    let folder_payload = folder_export
-        .as_ref()
-        .map(|row| row.payload.clone())
-        .unwrap_or_else(|| json!({}));
+    let folder_status = response_status(folder_export.as_ref());
+    let folder_payload = response_payload(folder_export.as_ref());
     record_gauntlet_task(
         &mut results,
         "03_folder_export_slash_route",
@@ -176,11 +174,8 @@ fn agent_capability_gauntlet_20_difficult_tasks() {
         br#"{"message":"/browse https://example.com"}"#,
         &snapshot,
     );
-    let browse_status = browse.as_ref().map(|row| row.status).unwrap_or(0);
-    let browse_payload = browse
-        .as_ref()
-        .map(|row| row.payload.clone())
-        .unwrap_or_else(|| json!({}));
+    let browse_status = response_status(browse.as_ref());
+    let browse_payload = response_payload(browse.as_ref());
     record_gauntlet_task(
         &mut results,
         "04_web_fetch_routing",
@@ -196,11 +191,8 @@ fn agent_capability_gauntlet_20_difficult_tasks() {
         br#"{"message":"search the web for websocket reconnect jitter handling"}"#,
         &snapshot,
     );
-    let web_search_status = web_search.as_ref().map(|row| row.status).unwrap_or(0);
-    let web_search_payload = web_search
-        .as_ref()
-        .map(|row| row.payload.clone())
-        .unwrap_or_else(|| json!({}));
+    let web_search_status = response_status(web_search.as_ref());
+    let web_search_payload = response_payload(web_search.as_ref());
     let search_routed = tool_used(&web_search_payload, "web_search")
         || tool_used(&web_search_payload, "batch_query");
     let search_tools = tool_names(&web_search_payload).join(",");
@@ -219,11 +211,8 @@ fn agent_capability_gauntlet_20_difficult_tasks() {
         br#"{"message":"/memory set fact.launch_code \"aurora-7\""}"#,
         &snapshot,
     );
-    let memory_set_status = memory_set.as_ref().map(|row| row.status).unwrap_or(0);
-    let memory_set_payload = memory_set
-        .as_ref()
-        .map(|row| row.payload.clone())
-        .unwrap_or_else(|| json!({}));
+    let memory_set_status = response_status(memory_set.as_ref());
+    let memory_set_payload = response_payload(memory_set.as_ref());
     record_gauntlet_task(
         &mut results,
         "06_memory_set",
@@ -239,11 +228,8 @@ fn agent_capability_gauntlet_20_difficult_tasks() {
         br#"{"message":"what did we decide about launch code aurora?"}"#,
         &snapshot,
     );
-    let memory_query_status = memory_query.as_ref().map(|row| row.status).unwrap_or(0);
-    let memory_query_payload = memory_query
-        .as_ref()
-        .map(|row| row.payload.clone())
-        .unwrap_or_else(|| json!({}));
+    let memory_query_status = response_status(memory_query.as_ref());
+    let memory_query_payload = response_payload(memory_query.as_ref());
     let memory_query_response = clean_text(
         memory_query_payload
             .get("response")
@@ -270,11 +256,8 @@ fn agent_capability_gauntlet_20_difficult_tasks() {
         br#"{"command":"context","silent":true}"#,
         &snapshot,
     );
-    let context_status = context.as_ref().map(|row| row.status).unwrap_or(0);
-    let context_payload = context
-        .as_ref()
-        .map(|row| row.payload.clone())
-        .unwrap_or_else(|| json!({}));
+    let context_status = response_status(context.as_ref());
+    let context_payload = response_payload(context.as_ref());
     record_gauntlet_task(
         &mut results,
         "08_context_command_surface",
@@ -326,11 +309,8 @@ fn agent_capability_gauntlet_20_difficult_tasks() {
         br#"{"message":"run context compaction","active_context_target_tokens":512,"active_context_min_recent_messages":4,"auto_compact_threshold_ratio":0.95,"auto_compact_target_ratio":0.45}"#,
         &snapshot,
     );
-    let compact_status = compact_message.as_ref().map(|row| row.status).unwrap_or(0);
-    let compact_payload = compact_message
-        .as_ref()
-        .map(|row| row.payload.clone())
-        .unwrap_or_else(|| json!({}));
+    let compact_status = response_status(compact_message.as_ref());
+    let compact_payload = response_payload(compact_message.as_ref());
     record_gauntlet_task(
         &mut results,
         "09_emergency_context_compaction",
@@ -395,7 +375,7 @@ fn agent_capability_gauntlet_20_difficult_tasks() {
         .as_bytes(),
         &snapshot,
     );
-    let child_status = child_create.as_ref().map(|row| row.status).unwrap_or(0);
+    let child_status = response_status(child_create.as_ref());
     let child_id = child_create
         .as_ref()
         .and_then(|row| row.payload.get("agent_id").and_then(Value::as_str))
@@ -417,7 +397,7 @@ fn agent_capability_gauntlet_20_difficult_tasks() {
         &[("X-Actor-Agent-Id", parent_id.as_str())],
         &snapshot,
     );
-    let allowed_status = allowed_manage.as_ref().map(|row| row.status).unwrap_or(0);
+    let allowed_status = response_status(allowed_manage.as_ref());
     let allowed_ok = allowed_manage
         .as_ref()
         .and_then(|row| row.payload.get("ok").and_then(Value::as_bool))
@@ -450,7 +430,7 @@ fn agent_capability_gauntlet_20_difficult_tasks() {
         &[("X-Actor-Agent-Id", sibling_id.as_str())],
         &snapshot,
     );
-    let denied_status = denied_manage.as_ref().map(|row| row.status).unwrap_or(0);
+    let denied_status = response_status(denied_manage.as_ref());
     let denied_error = denied_manage
         .as_ref()
         .and_then(|row| row.payload.get("error").and_then(Value::as_str))
@@ -471,11 +451,8 @@ fn agent_capability_gauntlet_20_difficult_tasks() {
         br#"{"command":"cron","args":"schedule 10m follow up on workflow completion"}"#,
         &snapshot,
     );
-    let cron_schedule_status = cron_schedule.as_ref().map(|row| row.status).unwrap_or(0);
-    let cron_schedule_payload = cron_schedule
-        .as_ref()
-        .map(|row| row.payload.clone())
-        .unwrap_or_else(|| json!({}));
+    let cron_schedule_status = response_status(cron_schedule.as_ref());
+    let cron_schedule_payload = response_payload(cron_schedule.as_ref());
     let cron_job_id = clean_text(
         cron_schedule_payload
             .pointer("/result/job/id")
@@ -500,11 +477,8 @@ fn agent_capability_gauntlet_20_difficult_tasks() {
         br#"{"command":"cron","args":"list"}"#,
         &snapshot,
     );
-    let cron_list_status = cron_list.as_ref().map(|row| row.status).unwrap_or(0);
-    let cron_list_payload = cron_list
-        .as_ref()
-        .map(|row| row.payload.clone())
-        .unwrap_or_else(|| json!({}));
+    let cron_list_status = response_status(cron_list.as_ref());
+    let cron_list_payload = response_payload(cron_list.as_ref());
     let cron_rows = cron_list_payload
         .pointer("/result/jobs")
         .and_then(Value::as_array)
@@ -564,11 +538,8 @@ fn agent_capability_gauntlet_20_difficult_tasks() {
         &[],
         &snapshot,
     );
-    let archived_status = archived_search.as_ref().map(|row| row.status).unwrap_or(0);
-    let archived_payload = archived_search
-        .as_ref()
-        .map(|row| row.payload.clone())
-        .unwrap_or_else(|| json!({}));
+    let archived_status = response_status(archived_search.as_ref());
+    let archived_payload = response_payload(archived_search.as_ref());
     let archived_found = archived_payload
         .get("results")
         .and_then(Value::as_array)

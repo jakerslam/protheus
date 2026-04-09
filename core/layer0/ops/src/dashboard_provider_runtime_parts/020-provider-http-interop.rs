@@ -105,9 +105,9 @@ fn extract_openai_text(value: &Value) -> String {
         .unwrap_or_default()
 }
 
-fn extract_frontier_provider_text(value: &Value) -> String {
+fn extract_text_rows(value: &Value, pointer: &str, max_len: usize) -> String {
     value
-        .get("content")
+        .pointer(pointer)
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default()
@@ -115,28 +115,19 @@ fn extract_frontier_provider_text(value: &Value) -> String {
         .filter_map(|row| {
             row.get("text")
                 .and_then(Value::as_str)
-                .map(|v| clean_chat_text(v, 12_000))
+                .map(|v| clean_chat_text(v, max_len))
         })
         .filter(|text| !text.is_empty())
         .collect::<Vec<_>>()
         .join("\n")
 }
 
+fn extract_frontier_provider_text(value: &Value) -> String {
+    extract_text_rows(value, "/content", 12_000)
+}
+
 fn extract_google_text(value: &Value) -> String {
-    value
-        .pointer("/candidates/0/content/parts")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default()
-        .into_iter()
-        .filter_map(|row| {
-            row.get("text")
-                .and_then(Value::as_str)
-                .map(|v| clean_chat_text(v, 12_000))
-        })
-        .filter(|text| !text.is_empty())
-        .collect::<Vec<_>>()
-        .join("\n")
+    extract_text_rows(value, "/candidates/0/content/parts", 12_000)
 }
 
 fn model_context_window(root: &Path, provider_id: &str, model_name: &str) -> i64 {

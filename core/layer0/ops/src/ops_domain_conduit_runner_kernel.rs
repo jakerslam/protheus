@@ -9,7 +9,7 @@ use std::io::Write;
 use std::path::Path;
 use std::process::Command;
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use crate::contract_lane_utils as lane_utils;
 use crate::{deterministic_receipt_hash, now_iso};
@@ -30,30 +30,28 @@ fn usage() {
     );
 }
 
-fn cli_receipt(kind: &str, payload: Value) -> Value {
+fn receipt_envelope(kind: &str, ok: bool) -> Value {
     let ts = now_iso();
-    let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(true);
-    let mut out = json!({
+    json!({
         "ok": ok,
         "type": kind,
         "ts": ts,
         "date": ts[..10].to_string(),
-        "payload": payload,
-    });
+    })
+}
+
+fn cli_receipt(kind: &str, payload: Value) -> Value {
+    let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(true);
+    let mut out = receipt_envelope(kind, ok);
+    out["payload"] = payload;
     out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
     out
 }
 
 fn cli_error(kind: &str, error: &str) -> Value {
-    let ts = now_iso();
-    let mut out = json!({
-        "ok": false,
-        "type": kind,
-        "ts": ts,
-        "date": ts[..10].to_string(),
-        "error": error,
-        "fail_closed": true,
-    });
+    let mut out = receipt_envelope(kind, false);
+    out["error"] = Value::String(error.to_string());
+    out["fail_closed"] = Value::Bool(true);
     out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
     out
 }
@@ -497,17 +495,45 @@ fn write_json_atomic(path: &Path, payload: &Value) -> Result<(), String> {
     Ok(())
 }
 
+fn now_ms() -> i64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as i64
+}
+
+fn write_ipc_heartbeat(path: &Path, poll_ms: u64) -> Result<(), String> {
+    write_json_atomic(
+        path,
+        &json!({
+            "ok": true,
+            "type": "ops_domain_ipc_daemon_heartbeat",
+            "pid": std::process::id(),
+            "ts_ms": now_ms(),
+            "poll_ms": poll_ms
+        }),
+    )
+}
+
 fn run_ipc_daemon(root: &Path, argv: &[String]) -> Result<(), String> {
     let queue_dir = queue_dir_from_argv(root, argv);
     let poll_ms = poll_ms_from_argv(argv);
     let requests_dir = queue_dir.join("requests");
     let responses_dir = queue_dir.join("responses");
+    let heartbeat_path = queue_dir.join("daemon.heartbeat.json");
     fs::create_dir_all(&requests_dir)
         .map_err(|err| format!("ops_domain_conduit_runner_kernel_requests_dir_failed:{err}"))?;
     fs::create_dir_all(&responses_dir)
         .map_err(|err| format!("ops_domain_conduit_runner_kernel_responses_dir_failed:{err}"))?;
+    let _ = write_ipc_heartbeat(&heartbeat_path, poll_ms);
+    let heartbeat_ticks = ((250 + poll_ms.saturating_sub(1)) / poll_ms.max(1)).max(1);
+    let mut tick: u64 = 0;
 
     loop {
+        if tick % heartbeat_ticks == 0 {
+            let _ = write_ipc_heartbeat(&heartbeat_path, poll_ms);
+        }
+        tick = tick.wrapping_add(1);
         let mut request_files = fs::read_dir(&requests_dir)
             .map_err(|err| format!("ops_domain_conduit_runner_kernel_read_dir_failed:{err}"))?
             .filter_map(|entry| entry.ok().map(|row| row.path()))
@@ -604,7 +630,9 @@ pub fn run(root: &std::path::Path, argv: &[String]) -> i32 {
         "prepare-run" => Ok(run_prepare_run(payload)),
         "run" => Ok(run_execute(root, payload)),
         "ipc-daemon" => match run_ipc_daemon(root, argv) {
-            Ok(()) => Ok(json!({"ok": true, "type": "ops_domain_conduit_runner_kernel_ipc_daemon"})),
+            Ok(()) => {
+                Ok(json!({"ok": true, "type": "ops_domain_conduit_runner_kernel_ipc_daemon"}))
+            }
             Err(err) => Err(err),
         },
         "help" | "--help" | "-h" => {

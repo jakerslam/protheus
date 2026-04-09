@@ -4,7 +4,9 @@ import { basename, relative, resolve } from 'node:path';
 
 export const README_BENCHMARK_START = '<!-- BEGIN: benchmark-snapshot -->';
 export const README_BENCHMARK_END = '<!-- END: benchmark-snapshot -->';
-export const CANONICAL_THROUGHPUT_METRIC = 'tasks_per_sec';
+export const CANONICAL_THROUGHPUT_METRIC = 'kernel_shared_workload_ops_per_sec';
+export const LEGACY_THROUGHPUT_METRIC = 'tasks_per_sec';
+export const RICH_E2E_THROUGHPUT_METRIC = 'rich_end_to_end_command_path_ops_per_sec';
 
 const ABSOLUTE_PATH_PATTERNS: RegExp[] = [
   /^\/(Users|home|var|tmp|private|opt)\//i,
@@ -69,6 +71,11 @@ function formatThroughput(value: unknown): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+}
+
+function resolveKernelThroughput(payload: any): unknown {
+  if (!payload || typeof payload !== 'object') return null;
+  return payload?.[CANONICAL_THROUGHPUT_METRIC] ?? payload?.[LEGACY_THROUGHPUT_METRIC] ?? null;
 }
 
 function normalizeProjects(report: any): Record<string, any> {
@@ -172,7 +179,7 @@ function renderMetricRows(report: any): string[] {
   return [
     '| Metric | Rich | Pure (`InfRing (pure)`) | Tiny-Max (`InfRing (tiny-max)`) |',
     '|---|---:|---:|---:|',
-    `| Cold start (user-visible) | ${formatFixed(rich.payload?.cold_start_ms, 3)} ms | ${formatFixed(pure?.cold_start_ms, 3)} ms | ${formatFixed(tiny?.cold_start_ms, 3)} ms |`,
+    `| Readiness latency (status-path; not zero-boot) | ${formatFixed(rich.payload?.cold_start_ms, 3)} ms | ${formatFixed(pure?.cold_start_ms, 3)} ms | ${formatFixed(tiny?.cold_start_ms, 3)} ms |`,
     `| Cold start (engine init micro) | ${formatFixed(richEngineMs, 3)} ms | n/a | n/a |`,
     `| Cold start (orchestration component) | ${formatFixed(richOrchestrationMs, 3)} ms | n/a | n/a |`,
     `| Kernel ready | ${formatFixed(richKernelReadyMs, 3)} ms | n/a | n/a |`,
@@ -180,7 +187,8 @@ function renderMetricRows(report: any): string[] {
     `| Dashboard interactive | ${formatFixed(richDashboardInteractiveMs, 3)} ms | n/a | n/a |`,
     `| Idle memory | ${formatFixed(rich.payload?.idle_memory_mb, 3)} MB | ${formatFixed(pure?.idle_memory_mb, 3)} MB | ${formatFixed(tiny?.idle_memory_mb, 3)} MB |`,
     `| Install artifact size | ${formatFixed(rich.payload?.install_size_mb, 3)} MB | ${formatFixed(pure?.install_size_mb, 3)} MB | ${formatFixed(tiny?.install_size_mb, 3)} MB |`,
-    `| Throughput (${CANONICAL_THROUGHPUT_METRIC}) | ${formatThroughput(rich.payload?.[CANONICAL_THROUGHPUT_METRIC])} ops/sec | ${formatThroughput(pure?.[CANONICAL_THROUGHPUT_METRIC])} ops/sec | ${formatThroughput(tiny?.[CANONICAL_THROUGHPUT_METRIC])} ops/sec |`,
+    `| Throughput (kernel/shared workload) | ${formatThroughput(resolveKernelThroughput(rich.payload))} ops/sec | ${formatThroughput(resolveKernelThroughput(pure))} ops/sec | ${formatThroughput(resolveKernelThroughput(tiny))} ops/sec |`,
+    `| Throughput (rich end-to-end command path) | ${formatThroughput(rich.payload?.[RICH_E2E_THROUGHPUT_METRIC])} ops/sec | n/a | n/a |`,
     `| Security systems | ${formatCount(rich.payload?.security_systems)} | ${formatCount(pure?.security_systems, true)} | ${formatCount(tiny?.security_systems, true)} |`,
     `| Channel adapters | ${formatCount(rich.payload?.channel_adapters)} | ${formatCount(pure?.channel_adapters, true)} | ${formatCount(tiny?.channel_adapters, true)} |`,
     `| LLM providers | ${formatCount(rich.payload?.llm_providers)} | ${formatCount(pure?.llm_providers, true)} | ${formatCount(tiny?.llm_providers, true)} |`,
@@ -194,7 +202,7 @@ function renderCompetitorRows(report: any): string[] {
   const output = ['| Project | Cold Start (ms) | Idle Memory (MB) | Install Size (MB) | Throughput (ops/sec) |', '|---|---:|---:|---:|---:|'];
   for (const row of rows) {
     output.push(
-      `| ${row.label} | ${formatFixed(row.payload?.cold_start_ms, 3)} | ${formatFixed(row.payload?.idle_memory_mb, 3)} | ${formatFixed(row.payload?.install_size_mb, 3)} | ${formatThroughput(row.payload?.[CANONICAL_THROUGHPUT_METRIC])} |`,
+      `| ${row.label} | ${formatFixed(row.payload?.cold_start_ms, 3)} | ${formatFixed(row.payload?.idle_memory_mb, 3)} | ${formatFixed(row.payload?.install_size_mb, 3)} | ${formatThroughput(resolveKernelThroughput(row.payload))} |`,
     );
   }
   return output;
@@ -216,7 +224,8 @@ export function renderBenchmarkSnapshotMarkdown(report: any): string {
   lines.push('');
   lines.push('- [`docs/client/reports/benchmark_matrix_run_latest.json`](docs/client/reports/benchmark_matrix_run_latest.json)');
   lines.push('');
-  lines.push(`Canonical throughput metric: \`${CANONICAL_THROUGHPUT_METRIC}\``);
+  lines.push(`Canonical throughput metric (kernel/shared workload): \`${CANONICAL_THROUGHPUT_METRIC}\``);
+  lines.push(`Rich end-to-end command-path throughput metric: \`${RICH_E2E_THROUGHPUT_METRIC}\``);
   lines.push('');
   lines.push('Current measured rows in that artifact:');
   lines.push('');
@@ -233,6 +242,9 @@ export function renderBenchmarkSnapshotMarkdown(report: any): string {
   lines.push('');
   lines.push('- Public benchmark summaries are generated from the canonical artifact during refresh and verified by `ops:benchmark:public-audit`.');
   lines.push('- Reproducibility commands are listed below; claims should match the linked JSON artifact exactly.');
+  lines.push('- `kernel_shared_workload_ops_per_sec` is a shared kernel workload metric; treat it separately from end-to-end runtime throughput.');
+  lines.push('- `rich_end_to_end_command_path_ops_per_sec` is the rich command-path throughput metric measured through the governed command bridge.');
+  lines.push('- `cold_start_ms` in this matrix is a status-path readiness metric, not a full stopped-from-zero dashboard boot benchmark.');
   lines.push('');
   lines.push('### Competitor Comparison (Latest Matrix)');
   lines.push('');

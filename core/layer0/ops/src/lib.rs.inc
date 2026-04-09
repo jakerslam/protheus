@@ -97,6 +97,7 @@ pub mod dashboard_terminal_broker;
 pub mod dashboard_tool_turn_loop;
 pub mod dashboard_ui;
 pub mod dify_bridge;
+pub mod directed_assimilation_protocol;
 pub mod directive_kernel;
 pub mod dopamine_ambient;
 pub mod dspy_bridge;

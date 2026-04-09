@@ -2,6 +2,17 @@ include!("035-model-metadata-research.rs");
 include!("022-provider-adapters.rs");
 include!("025-prompt-optimization.rs");
 
+fn split_model_ref(model_ref: &str) -> (String, String) {
+    let cleaned = clean_text(model_ref, 240);
+    if let Some((prefix, tail)) = cleaned.split_once('/') {
+        return (
+            normalize_provider_id(prefix),
+            clean_text(tail, 200).trim().to_string(),
+        );
+    }
+    (String::new(), cleaned)
+}
+
 pub fn discover_models(root: &Path, input: &str) -> Value {
     let cleaned = clean_text(input, 4096);
     let auto_refresh = matches!(
@@ -132,13 +143,9 @@ pub fn add_custom_model(
 ) -> Value {
     let provider = normalize_provider_id(provider_id);
     let mut model = clean_text(model_id, 240);
-    if model.contains('/') && provider != "openrouter" {
-        let mut parts = model.splitn(2, '/');
-        let maybe_provider = normalize_provider_id(parts.next().unwrap_or(""));
-        let maybe_model = clean_text(parts.next().unwrap_or(""), 200);
-        if !maybe_provider.is_empty() && !maybe_model.is_empty() {
-            model = maybe_model;
-        }
+    let (maybe_provider, maybe_model) = split_model_ref(&model);
+    if provider != "openrouter" && !maybe_provider.is_empty() && !maybe_model.is_empty() {
+        model = maybe_model;
     }
     if provider.is_empty() || model.is_empty() {
         return json!({"ok": false, "error": "custom_model_invalid"});
@@ -229,10 +236,8 @@ pub fn download_model(root: &Path, provider_id: &str, model_ref: &str) -> Value 
     if model.is_empty() || model_id_is_placeholder(&model) {
         return json!({"ok": false, "error": "model_download_path_missing"});
     }
-    if model.contains('/') {
-        let mut parts = model.splitn(2, '/');
-        let maybe_provider = normalize_provider_id(parts.next().unwrap_or(""));
-        let maybe_model = clean_text(parts.next().unwrap_or(""), 200);
+    let (maybe_provider, maybe_model) = split_model_ref(&model);
+    if !maybe_provider.is_empty() {
         if maybe_provider == "ollama" {
             return download_model(root, "ollama", &maybe_model);
         }

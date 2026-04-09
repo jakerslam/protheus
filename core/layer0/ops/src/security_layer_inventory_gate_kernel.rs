@@ -20,7 +20,6 @@ use security_layer_inventory_gate_types::{
 
 const INVENTORY_CONFIG_REL: &str = "client/runtime/config/security_layer_inventory.json";
 const GUARD_REGISTRY_REL: &str = "client/runtime/config/guard_check_registry.json";
-const STATE_DIR_REL: &str = "client/runtime/local/state/ops/security_layer_inventory_gate";
 const LATEST_REL: &str = "client/runtime/local/state/ops/security_layer_inventory_gate/latest.json";
 const HISTORY_REL: &str =
     "client/runtime/local/state/ops/security_layer_inventory_gate/history.jsonl";
@@ -291,7 +290,6 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     let history_path = root.join(HISTORY_REL);
     let doc_path = root.join(DOC_REL);
     let report_path = root.join(REPORT_REL);
-    let _state_dir = root.join(STATE_DIR_REL);
 
     if mode == "status" {
         let status_payload = lane_utils::read_json(&latest_path).unwrap_or_else(|| {
