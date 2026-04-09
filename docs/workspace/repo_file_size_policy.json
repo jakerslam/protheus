@@ -687,12 +687,6 @@
       "expires": "2026-04-23"
     },
     {
-      "path": "core/layer0/ops/src/operator_tooling_kernel_parts/020_routing_validation_state.rs",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-04-23"
-    },
-    {
       "path": "core/layer0/ops/src/ops_domain_conduit_runner_kernel.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
@@ -964,12 +958,6 @@
     },
     {
       "path": "core/layer0/ops/src/vbrowser_plane_parts/040-run.rs",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-04-23"
-    },
-    {
-      "path": "core/layer0/ops/src/web_conduit_provider_runtime.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
       "expires": "2026-04-23"
