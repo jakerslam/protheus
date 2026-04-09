@@ -73,6 +73,12 @@ function main() {
   const clientUniversalOutreachWrapper = read('client/runtime/systems/workflow/universal_outreach_primitive.ts');
   const clientPaymentSkillsWrapper = read('client/runtime/systems/workflow/payment_skills_bridge.ts');
   const clientGatedAccountCreationWrapper = read('client/runtime/systems/workflow/gated_account_creation_organ.ts');
+  const clientGatedSelfImprovementWrapper = read('client/runtime/systems/autonomy/gated_self_improvement_loop.ts');
+  const clientHoldRemediationWrapper = read('client/runtime/systems/autonomy/hold_remediation_engine.ts');
+  const clientLeverExperimentWrapper = read('client/runtime/systems/autonomy/lever_experiment_gate.ts');
+  const clientModelCatalogWrapper = read('client/runtime/systems/autonomy/model_catalog_loop.ts');
+  const clientProactiveT1Wrapper = read('client/runtime/systems/autonomy/proactive_t1_initiative_engine.ts');
+  const clientZeroPermissionWrapper = read('client/runtime/systems/autonomy/zero_permission_conversational_layer.ts');
   const surfaceRouteTaskRuntime = read('surface/orchestration/scripts/route_task.ts');
   const surfaceRouteExecuteRuntime = read('surface/orchestration/scripts/route_execute.ts');
   const surfaceProviderOnboardingRuntime = read('surface/orchestration/scripts/provider_onboarding_manifest.ts');
@@ -85,6 +91,12 @@ function main() {
   const surfaceUniversalOutreachRuntime = read('surface/orchestration/scripts/universal_outreach_primitive.ts');
   const surfacePaymentSkillsRuntime = read('surface/orchestration/scripts/payment_skills_bridge.ts');
   const surfaceGatedAccountCreationRuntime = read('surface/orchestration/scripts/gated_account_creation_organ.ts');
+  const surfaceGatedSelfImprovementRuntime = read('surface/orchestration/scripts/gated_self_improvement_loop.ts');
+  const surfaceHoldRemediationRuntime = read('surface/orchestration/scripts/hold_remediation_engine.ts');
+  const surfaceLeverExperimentRuntime = read('surface/orchestration/scripts/lever_experiment_gate.ts');
+  const surfaceModelCatalogRuntime = read('surface/orchestration/scripts/model_catalog_loop.ts');
+  const surfaceProactiveT1Runtime = read('surface/orchestration/scripts/proactive_t1_initiative_engine.ts');
+  const surfaceZeroPermissionRuntime = read('surface/orchestration/scripts/zero_permission_conversational_layer.ts');
   const clientPersonaWrapper = read('client/runtime/systems/personas/orchestration.ts');
   const surfacePersonaRuntime = read('surface/orchestration/scripts/personas_orchestration.ts');
 
@@ -296,6 +308,78 @@ function main() {
       ok: surfaceGatedAccountCreationRuntime.includes('SYSTEMS-WORKFLOW-GATED_ACCOUNT_CREATION_ORGAN') &&
         surfaceGatedAccountCreationRuntime.includes('createOpsLaneBridge'),
       detail: 'gated_account_creation_organ coordination implementation is hosted in surface/orchestration',
+    },
+    {
+      id: 'client_gated_self_improvement_is_wrapper_only',
+      ok: clientGatedSelfImprovementWrapper.includes('TypeScript compatibility shim only.') &&
+        clientGatedSelfImprovementWrapper.includes('surface/orchestration/scripts/gated_self_improvement_loop.ts'),
+      detail: 'client gated_self_improvement_loop entrypoint remains thin and delegates to surface/orchestration',
+    },
+    {
+      id: 'gated_self_improvement_runtime_lives_under_surface',
+      ok: surfaceGatedSelfImprovementRuntime.includes('SYSTEMS-AUTONOMY-GATED_SELF_IMPROVEMENT_LOOP') &&
+        surfaceGatedSelfImprovementRuntime.includes('createOpsLaneBridge'),
+      detail: 'gated_self_improvement_loop coordination implementation is hosted in surface/orchestration',
+    },
+    {
+      id: 'client_hold_remediation_is_wrapper_only',
+      ok: clientHoldRemediationWrapper.includes('TypeScript compatibility shim only.') &&
+        clientHoldRemediationWrapper.includes('surface/orchestration/scripts/hold_remediation_engine.ts'),
+      detail: 'client hold_remediation_engine entrypoint remains thin and delegates to surface/orchestration',
+    },
+    {
+      id: 'hold_remediation_runtime_lives_under_surface',
+      ok: surfaceHoldRemediationRuntime.includes('SYSTEMS-AUTONOMY-HOLD_REMEDIATION_ENGINE') &&
+        surfaceHoldRemediationRuntime.includes('createOpsLaneBridge'),
+      detail: 'hold_remediation_engine coordination implementation is hosted in surface/orchestration',
+    },
+    {
+      id: 'client_lever_experiment_is_wrapper_only',
+      ok: clientLeverExperimentWrapper.includes('TypeScript compatibility shim only.') &&
+        clientLeverExperimentWrapper.includes('surface/orchestration/scripts/lever_experiment_gate.ts'),
+      detail: 'client lever_experiment_gate entrypoint remains thin and delegates to surface/orchestration',
+    },
+    {
+      id: 'lever_experiment_runtime_lives_under_surface',
+      ok: surfaceLeverExperimentRuntime.includes('SYSTEMS-AUTONOMY-LEVER_EXPERIMENT_GATE') &&
+        surfaceLeverExperimentRuntime.includes('createOpsLaneBridge'),
+      detail: 'lever_experiment_gate coordination implementation is hosted in surface/orchestration',
+    },
+    {
+      id: 'client_model_catalog_is_wrapper_only',
+      ok: clientModelCatalogWrapper.includes('TypeScript compatibility shim only.') &&
+        clientModelCatalogWrapper.includes('surface/orchestration/scripts/model_catalog_loop.ts'),
+      detail: 'client model_catalog_loop entrypoint remains thin and delegates to surface/orchestration',
+    },
+    {
+      id: 'model_catalog_runtime_lives_under_surface',
+      ok: surfaceModelCatalogRuntime.includes('SYSTEMS-AUTONOMY-MODEL_CATALOG_LOOP') &&
+        surfaceModelCatalogRuntime.includes('createOpsLaneBridge'),
+      detail: 'model_catalog_loop coordination implementation is hosted in surface/orchestration',
+    },
+    {
+      id: 'client_proactive_t1_is_wrapper_only',
+      ok: clientProactiveT1Wrapper.includes('TypeScript compatibility shim only.') &&
+        clientProactiveT1Wrapper.includes('surface/orchestration/scripts/proactive_t1_initiative_engine.ts'),
+      detail: 'client proactive_t1_initiative_engine entrypoint remains thin and delegates to surface/orchestration',
+    },
+    {
+      id: 'proactive_t1_runtime_lives_under_surface',
+      ok: surfaceProactiveT1Runtime.includes('SYSTEMS-AUTONOMY-PROACTIVE_T1_INITIATIVE_ENGINE') &&
+        surfaceProactiveT1Runtime.includes('createOpsLaneBridge'),
+      detail: 'proactive_t1_initiative_engine coordination implementation is hosted in surface/orchestration',
+    },
+    {
+      id: 'client_zero_permission_is_wrapper_only',
+      ok: clientZeroPermissionWrapper.includes('TypeScript compatibility shim only.') &&
+        clientZeroPermissionWrapper.includes('surface/orchestration/scripts/zero_permission_conversational_layer.ts'),
+      detail: 'client zero_permission_conversational_layer entrypoint remains thin and delegates to surface/orchestration',
+    },
+    {
+      id: 'zero_permission_runtime_lives_under_surface',
+      ok: surfaceZeroPermissionRuntime.includes('SYSTEMS-AUTONOMY-ZERO_PERMISSION_CONVERSATIONAL_LAYER') &&
+        surfaceZeroPermissionRuntime.includes('createOpsLaneBridge'),
+      detail: 'zero_permission_conversational_layer coordination implementation is hosted in surface/orchestration',
     },
     {
       id: 'client_persona_orchestration_is_wrapper_only',
