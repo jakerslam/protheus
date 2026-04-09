@@ -67,12 +67,24 @@ function main() {
   const clientGatewayFailureClassifierWrapper = read('client/runtime/systems/routing/llm_gateway_failure_classifier.ts');
   const clientMorphPlannerWrapper = read('client/runtime/systems/fractal/morph_planner.ts');
   const clientValueOfInformationPlannerWrapper = read('client/runtime/systems/sensory/value_of_information_collection_planner.ts');
+  const clientTaskDecompositionWrapper = read('client/runtime/systems/execution/task_decomposition_primitive.ts');
+  const clientLearningConduitWrapper = read('client/runtime/systems/workflow/learning_conduit.ts');
+  const clientRelationshipManagerWrapper = read('client/runtime/systems/workflow/client_relationship_manager.ts');
+  const clientUniversalOutreachWrapper = read('client/runtime/systems/workflow/universal_outreach_primitive.ts');
+  const clientPaymentSkillsWrapper = read('client/runtime/systems/workflow/payment_skills_bridge.ts');
+  const clientGatedAccountCreationWrapper = read('client/runtime/systems/workflow/gated_account_creation_organ.ts');
   const surfaceRouteTaskRuntime = read('surface/orchestration/scripts/route_task.ts');
   const surfaceRouteExecuteRuntime = read('surface/orchestration/scripts/route_execute.ts');
   const surfaceProviderOnboardingRuntime = read('surface/orchestration/scripts/provider_onboarding_manifest.ts');
   const surfaceGatewayFailureClassifierRuntime = read('surface/orchestration/scripts/llm_gateway_failure_classifier.ts');
   const surfaceMorphPlannerRuntime = read('surface/orchestration/scripts/morph_planner.ts');
   const surfaceValueOfInformationPlannerRuntime = read('surface/orchestration/scripts/value_of_information_collection_planner.ts');
+  const surfaceTaskDecompositionRuntime = read('surface/orchestration/scripts/task_decomposition_primitive.ts');
+  const surfaceLearningConduitRuntime = read('surface/orchestration/scripts/learning_conduit.ts');
+  const surfaceRelationshipManagerRuntime = read('surface/orchestration/scripts/client_relationship_manager.ts');
+  const surfaceUniversalOutreachRuntime = read('surface/orchestration/scripts/universal_outreach_primitive.ts');
+  const surfacePaymentSkillsRuntime = read('surface/orchestration/scripts/payment_skills_bridge.ts');
+  const surfaceGatedAccountCreationRuntime = read('surface/orchestration/scripts/gated_account_creation_organ.ts');
   const clientPersonaWrapper = read('client/runtime/systems/personas/orchestration.ts');
   const surfacePersonaRuntime = read('surface/orchestration/scripts/personas_orchestration.ts');
 
@@ -212,6 +224,78 @@ function main() {
       ok: surfaceValueOfInformationPlannerRuntime.includes('SYSTEMS-SENSORY-VALUE_OF_INFORMATION_COLLECTION_PLANNER') &&
         surfaceValueOfInformationPlannerRuntime.includes('createOpsLaneBridge'),
       detail: 'value_of_information_collection_planner coordination implementation is hosted in surface/orchestration',
+    },
+    {
+      id: 'client_task_decomposition_is_wrapper_only',
+      ok: clientTaskDecompositionWrapper.includes('TypeScript compatibility shim only.') &&
+        clientTaskDecompositionWrapper.includes('surface/orchestration/scripts/task_decomposition_primitive.ts'),
+      detail: 'client task_decomposition_primitive entrypoint remains thin and delegates to surface/orchestration',
+    },
+    {
+      id: 'task_decomposition_runtime_lives_under_surface',
+      ok: surfaceTaskDecompositionRuntime.includes('SYSTEMS-EXECUTION-TASK_DECOMPOSITION_PRIMITIVE') &&
+        surfaceTaskDecompositionRuntime.includes('createOpsLaneBridge'),
+      detail: 'task_decomposition_primitive coordination implementation is hosted in surface/orchestration',
+    },
+    {
+      id: 'client_learning_conduit_is_wrapper_only',
+      ok: clientLearningConduitWrapper.includes('TypeScript compatibility shim only.') &&
+        clientLearningConduitWrapper.includes('surface/orchestration/scripts/learning_conduit.ts'),
+      detail: 'client learning_conduit entrypoint remains thin and delegates to surface/orchestration',
+    },
+    {
+      id: 'learning_conduit_runtime_lives_under_surface',
+      ok: surfaceLearningConduitRuntime.includes('SYSTEMS-WORKFLOW-LEARNING_CONDUIT') &&
+        surfaceLearningConduitRuntime.includes('createOpsLaneBridge'),
+      detail: 'learning_conduit coordination implementation is hosted in surface/orchestration',
+    },
+    {
+      id: 'client_relationship_manager_is_wrapper_only',
+      ok: clientRelationshipManagerWrapper.includes('TypeScript compatibility shim only.') &&
+        clientRelationshipManagerWrapper.includes('surface/orchestration/scripts/client_relationship_manager.ts'),
+      detail: 'client client_relationship_manager entrypoint remains thin and delegates to surface/orchestration',
+    },
+    {
+      id: 'relationship_manager_runtime_lives_under_surface',
+      ok: surfaceRelationshipManagerRuntime.includes('SYSTEMS-WORKFLOW-CLIENT_RELATIONSHIP_MANAGER') &&
+        surfaceRelationshipManagerRuntime.includes('createOpsLaneBridge'),
+      detail: 'client_relationship_manager coordination implementation is hosted in surface/orchestration',
+    },
+    {
+      id: 'client_universal_outreach_is_wrapper_only',
+      ok: clientUniversalOutreachWrapper.includes('TypeScript compatibility shim only.') &&
+        clientUniversalOutreachWrapper.includes('surface/orchestration/scripts/universal_outreach_primitive.ts'),
+      detail: 'client universal_outreach_primitive entrypoint remains thin and delegates to surface/orchestration',
+    },
+    {
+      id: 'universal_outreach_runtime_lives_under_surface',
+      ok: surfaceUniversalOutreachRuntime.includes('SYSTEMS-WORKFLOW-UNIVERSAL_OUTREACH_PRIMITIVE') &&
+        surfaceUniversalOutreachRuntime.includes('createOpsLaneBridge'),
+      detail: 'universal_outreach_primitive coordination implementation is hosted in surface/orchestration',
+    },
+    {
+      id: 'client_payment_skills_is_wrapper_only',
+      ok: clientPaymentSkillsWrapper.includes('TypeScript compatibility shim only.') &&
+        clientPaymentSkillsWrapper.includes('surface/orchestration/scripts/payment_skills_bridge.ts'),
+      detail: 'client payment_skills_bridge entrypoint remains thin and delegates to surface/orchestration',
+    },
+    {
+      id: 'payment_skills_runtime_lives_under_surface',
+      ok: surfacePaymentSkillsRuntime.includes('SYSTEMS-WORKFLOW-PAYMENT_SKILLS_BRIDGE') &&
+        surfacePaymentSkillsRuntime.includes('createOpsLaneBridge'),
+      detail: 'payment_skills_bridge coordination implementation is hosted in surface/orchestration',
+    },
+    {
+      id: 'client_gated_account_creation_is_wrapper_only',
+      ok: clientGatedAccountCreationWrapper.includes('TypeScript compatibility shim only.') &&
+        clientGatedAccountCreationWrapper.includes('surface/orchestration/scripts/gated_account_creation_organ.ts'),
+      detail: 'client gated_account_creation_organ entrypoint remains thin and delegates to surface/orchestration',
+    },
+    {
+      id: 'gated_account_creation_runtime_lives_under_surface',
+      ok: surfaceGatedAccountCreationRuntime.includes('SYSTEMS-WORKFLOW-GATED_ACCOUNT_CREATION_ORGAN') &&
+        surfaceGatedAccountCreationRuntime.includes('createOpsLaneBridge'),
+      detail: 'gated_account_creation_organ coordination implementation is hosted in surface/orchestration',
     },
     {
       id: 'client_persona_orchestration_is_wrapper_only',
