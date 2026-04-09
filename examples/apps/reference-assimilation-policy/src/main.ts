@@ -2,7 +2,7 @@ import { InfringSdkClient, createInMemoryTransport } from '@infring/sdk';
 
 async function main(): Promise<void> {
   const sdk = new InfringSdkClient({
-    transport: createInMemoryTransport(),
+    transport: createInMemoryTransport({}, { allow_unseeded_fallback: true }),
   });
 
   const attached = await sdk.attachPolicies({

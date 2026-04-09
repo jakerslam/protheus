@@ -28,6 +28,10 @@ export interface SdkEnvelope<TData extends JsonValue = JsonValue> {
   trace_id: string;
   receipts: ReceiptPointer[];
   data: TData;
+  error?: {
+    code: string;
+    message: string;
+  };
 }
 
 export interface SubmitTaskRequest {

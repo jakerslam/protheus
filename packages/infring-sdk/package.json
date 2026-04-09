@@ -1,7 +1,7 @@
 {
   "name": "@infring/sdk",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
   "description": "Stable TypeScript SDK contract for tasks, receipts, memory, evidence, assimilation, and policy attachment.",
   "license": "Apache-2.0",
   "types": "src/index.ts",

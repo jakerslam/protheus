@@ -30,4 +30,4 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Strict Backlog Consistency Check
-        run: cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin protheus-ops -- backlog-registry check --strict=1
+        run: cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops -- backlog-registry check --strict=1

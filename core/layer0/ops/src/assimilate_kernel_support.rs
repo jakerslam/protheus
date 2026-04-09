@@ -68,6 +68,10 @@ pub struct Options {
     pub scaffold_payload: bool,
     pub json: bool,
     pub prewarm: bool,
+    pub allow_local_simulation: bool,
+    pub plan_only: bool,
+    pub hard_selector: String,
+    pub selector_bypass: bool,
     pub core_domain: String,
     pub core_args_base64: String,
     pub help: bool,
@@ -147,9 +151,9 @@ impl Default for PrewarmState {
 }
 
 pub fn usage() {
-    println!("Usage: infring assimilate <target> [--payload-base64=...] [--strict=1] [--showcase=1] [--duration-ms=<n>] [--json=1] [--scaffold-payload=1]");
+    println!("Usage: infring assimilate <target> [--payload-base64=...] [--strict=1] [--showcase=1] [--duration-ms=<n>] [--json=1] [--scaffold-payload=1] [--allow-local-simulation=1] [--plan-only=1] [--hard-selector=<selector>] [--selector-bypass=1]");
     println!();
-    println!("Known targets route to governed core bridge lanes. Unknown targets run local simulation mode.");
+    println!("Known targets route to governed core bridge lanes. Unknown targets fail as unadmitted unless --allow-local-simulation=1 is set.");
 }
 
 fn parse_bool_flag(raw: Option<&str>, fallback: bool) -> bool {
@@ -174,6 +178,14 @@ pub fn parse_args(argv: &[String]) -> Options {
     let mut out = Options {
         json: parse_bool_flag(std::env::var("PROTHEUS_GLOBAL_JSON").ok().as_deref(), false),
         prewarm: true,
+        allow_local_simulation: parse_bool_flag(
+            std::env::var("INFRING_ALLOW_LOCAL_SIMULATION")
+                .ok()
+                .or_else(|| std::env::var("PROTHEUS_ALLOW_LOCAL_SIMULATION").ok())
+                .as_deref(),
+            false,
+        ),
+        plan_only: false,
         ..Options::default()
     };
     for token in argv {
@@ -204,6 +216,34 @@ pub fn parse_args(argv: &[String]) -> Options {
         }
         if let Some(raw) = trimmed.strip_prefix("--prewarm=") {
             out.prewarm = parse_bool_flag(Some(raw), true);
+            continue;
+        }
+        if let Some(raw) = trimmed.strip_prefix("--allow-local-simulation=") {
+            out.allow_local_simulation = parse_bool_flag(Some(raw), out.allow_local_simulation);
+            continue;
+        }
+        if trimmed == "--allow-local-simulation" {
+            out.allow_local_simulation = true;
+            continue;
+        }
+        if let Some(raw) = trimmed.strip_prefix("--plan-only=") {
+            out.plan_only = parse_bool_flag(Some(raw), out.plan_only);
+            continue;
+        }
+        if trimmed == "--plan-only" {
+            out.plan_only = true;
+            continue;
+        }
+        if let Some(raw) = trimmed.strip_prefix("--hard-selector=") {
+            out.hard_selector = raw.trim().to_string();
+            continue;
+        }
+        if let Some(raw) = trimmed.strip_prefix("--selector-bypass=") {
+            out.selector_bypass = parse_bool_flag(Some(raw), out.selector_bypass);
+            continue;
+        }
+        if trimmed == "--selector-bypass" {
+            out.selector_bypass = true;
             continue;
         }
         if let Some(raw) = trimmed.strip_prefix("--duration-ms=") {
@@ -303,6 +343,141 @@ pub fn payload_scaffold_for(target: &str) -> Value {
             "hint": "No specialized scaffold exists for this target. Use --payload-base64 with target-specific JSON."
         }),
     }
+}
+
+pub fn canonical_assimilation_plan(
+    target: &str,
+    route: Option<&Route>,
+    ts_iso: &str,
+    requested_admission_verdict: &str,
+    hard_selector: &str,
+    selector_bypass: bool,
+) -> Value {
+    let normalized_target = normalize_target(target);
+    let normalized_selector = normalize_target(hard_selector);
+    let hard_selector_present = !normalized_selector.is_empty();
+    let target_class = if normalized_target.starts_with("http://")
+        || normalized_target.starts_with("https://")
+    {
+        "url"
+    } else if normalized_target.contains('/') || normalized_target.contains('\\') {
+        "path"
+    } else {
+        "named_target"
+    };
+    let route_domain = route
+        .map(|v| normalize_target(&v.domain))
+        .unwrap_or_default();
+    let selector_matches_target = !hard_selector_present
+        || normalized_selector == normalized_target
+        || (!route_domain.is_empty() && normalized_selector == route_domain);
+    let closure_complete = route.is_some() && selector_matches_target && !selector_bypass;
+    let admitted = requested_admission_verdict == "admitted" && closure_complete;
+    let route_obj = route.map(|v| {
+        json!({
+            "domain": v.domain,
+            "args": v.args
+        })
+    });
+    let intent_spec = json!({
+        "intent_id": build_receipt_hash(&format!("intent:{normalized_target}"), ts_iso),
+        "target": normalized_target,
+        "target_class": target_class,
+        "requested_at": ts_iso
+    });
+    let recon_index = json!({
+        "recon_id": build_receipt_hash(&format!("recon:{normalized_target}"), ts_iso),
+        "route": route_obj,
+        "probe_set": ["shape_scan", "dependency_scan", "integration_scan"]
+    });
+    let candidate_set = json!({
+        "candidate_set_id": build_receipt_hash(&format!("cset:{normalized_target}"), ts_iso),
+        "targets": [normalized_target],
+        "selector_mode": if hard_selector_present { "hard" } else { "auto" },
+        "hard_selector": if hard_selector_present {
+            Value::String(normalized_selector.clone())
+        } else {
+            Value::Null
+        },
+        "admissible_count": if closure_complete { 1 } else { 0 }
+    });
+    let candidate_closure = json!({
+        "closure_id": build_receipt_hash(&format!("closure:{normalized_target}"), ts_iso),
+        "resolved_targets": [normalized_target],
+        "dependencies": [],
+        "closure_complete": closure_complete,
+        "selected_candidate": if closure_complete {
+            json!({
+                "target": normalized_target,
+                "route_domain": route_domain,
+            })
+        } else {
+            Value::Null
+        }
+    });
+    let mut gaps = Vec::<Value>::new();
+    if selector_bypass {
+        gaps.push(json!({
+            "gap_id": "assimilation_selector_bypass_rejected",
+            "severity": "blocker",
+            "detail": "selector bypass is prohibited in the canonical assimilation protocol"
+        }));
+    }
+    if hard_selector_present && !selector_matches_target {
+        gaps.push(json!({
+            "gap_id": "assimilation_hard_selector_closure_reject",
+            "severity": "blocker",
+            "detail": format!("hard selector `{}` did not resolve to the target or routed domain", normalized_selector)
+        }));
+    }
+    if !closure_complete {
+        gaps.push(json!({
+            "gap_id": "assimilation_candidate_closure_incomplete",
+            "severity": "blocker",
+            "detail": "candidate closure is incomplete; no admissible closure candidate is available"
+        }));
+    }
+    let provisional_gap_report = json!({
+        "gap_report_id": build_receipt_hash(&format!("gap:{normalized_target}"), ts_iso),
+        "gaps": gaps,
+        "risk_level": if admitted { "normal" } else { "elevated" }
+    });
+    let admission = json!({
+        "admission_id": build_receipt_hash(&format!("admission:{normalized_target}"), ts_iso),
+        "verdict": if admitted { "admitted" } else { "unadmitted" },
+        "policy_gate": "assimilate_admission_v2",
+        "requested_verdict": requested_admission_verdict
+    });
+    let admitted_plan = json!({
+        "plan_id": build_receipt_hash(&format!("plan:{normalized_target}"), ts_iso),
+        "steps": [
+            "recon",
+            "candidate_closure",
+            "gap_analysis",
+            "bridge_execution",
+            "receipt_commit"
+        ],
+        "rollback": {
+            "strategy": "append_only_receipt_reversal",
+            "enabled": true
+        },
+        "status": if admitted { "ready" } else { "blocked" }
+    });
+    let protocol_step_receipt = json!({
+        "receipt_id": build_receipt_hash(&format!("protocol:{normalized_target}"), ts_iso),
+        "status": if admitted { "ready" } else { "blocked" },
+        "ts": ts_iso
+    });
+    json!({
+        "intent_spec": intent_spec,
+        "recon_index": recon_index,
+        "candidate_set": candidate_set,
+        "candidate_closure": candidate_closure,
+        "provisional_gap_report": provisional_gap_report,
+        "admission_verdict": admission,
+        "admitted_assimilation_plan": admitted_plan,
+        "protocol_step_receipt": protocol_step_receipt
+    })
 }
 
 fn parse_last_json_object(raw: &str) -> Option<Value> {
@@ -450,4 +625,94 @@ pub fn render_bar(percent: u32) -> String {
             .to_string()
             .repeat(BAR_WIDTH.saturating_sub(filled))
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn canonical_plan_blocks_when_hard_selector_does_not_match_route_or_target() {
+        let route = Route {
+            domain: "runtime-systems".to_string(),
+            args: vec!["run".to_string()],
+        };
+        let plan = canonical_assimilation_plan(
+            "workflow://langgraph",
+            Some(&route),
+            "2026-04-08T00:00:00Z",
+            "admitted",
+            "workflow://other-target",
+            false,
+        );
+        let admitted = plan
+            .get("admission_verdict")
+            .and_then(|row| row.get("verdict"))
+            .and_then(Value::as_str);
+        assert_eq!(admitted, Some("unadmitted"));
+        let closure_complete = plan
+            .get("candidate_closure")
+            .and_then(|row| row.get("closure_complete"))
+            .and_then(Value::as_bool);
+        assert_eq!(closure_complete, Some(false));
+    }
+
+    #[test]
+    fn canonical_plan_blocks_when_selector_bypass_requested() {
+        let route = Route {
+            domain: "runtime-systems".to_string(),
+            args: vec!["run".to_string()],
+        };
+        let plan = canonical_assimilation_plan(
+            "workflow://langgraph",
+            Some(&route),
+            "2026-04-08T00:00:00Z",
+            "admitted",
+            "",
+            true,
+        );
+        let admitted = plan
+            .get("admission_verdict")
+            .and_then(|row| row.get("verdict"))
+            .and_then(Value::as_str);
+        assert_eq!(admitted, Some("unadmitted"));
+    }
+
+    #[test]
+    fn canonical_plan_admits_when_route_present_and_controls_satisfied() {
+        let route = Route {
+            domain: "runtime-systems".to_string(),
+            args: vec!["run".to_string()],
+        };
+        let plan = canonical_assimilation_plan(
+            "workflow://langgraph",
+            Some(&route),
+            "2026-04-08T00:00:00Z",
+            "admitted",
+            "runtime-systems",
+            false,
+        );
+        let admitted = plan
+            .get("admission_verdict")
+            .and_then(|row| row.get("verdict"))
+            .and_then(Value::as_str);
+        assert_eq!(admitted, Some("admitted"));
+        let closure_complete = plan
+            .get("candidate_closure")
+            .and_then(|row| row.get("closure_complete"))
+            .and_then(Value::as_bool);
+        assert_eq!(closure_complete, Some(true));
+    }
+
+    #[test]
+    fn parse_args_accepts_selector_controls() {
+        let parsed = parse_args(&[
+            "workflow://langgraph".to_string(),
+            "--hard-selector=runtime-systems".to_string(),
+            "--selector-bypass=1".to_string(),
+        ]);
+        assert_eq!(parsed.target, "workflow://langgraph");
+        assert_eq!(parsed.hard_selector, "runtime-systems");
+        assert!(parsed.selector_bypass);
+    }
 }

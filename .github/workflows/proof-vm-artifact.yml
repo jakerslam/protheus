@@ -26,15 +26,15 @@ jobs:
 
       - name: Build reproducible proof VM image
         run: |
-          docker build -f proofs/layer0/ProofVM.Dockerfile -t protheus-proof-vm:${GITHUB_SHA} .
+          docker build -f proofs/layer0/ProofVM.Dockerfile -t infring-proof-vm:${GITHUB_SHA} .
           mkdir -p artifacts/proof_vm
-          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' protheus-proof-vm:${GITHUB_SHA} || true)
+          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' infring-proof-vm:${GITHUB_SHA} || true)
           cat > artifacts/proof_vm/proof_vm_image_manifest.json <<JSON
           {
             "ok": true,
             "type": "proof_vm_image_manifest",
             "sha": "${GITHUB_SHA}",
-            "image": "protheus-proof-vm:${GITHUB_SHA}",
+            "image": "infring-proof-vm:${GITHUB_SHA}",
             "digest": "${DIGEST}",
             "dockerfile": "proofs/layer0/ProofVM.Dockerfile"
           }

@@ -167,7 +167,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p core/local/artifacts
-          if cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin protheus-ops -- \
+          if cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops -- \
             release-gate-canary-rollback-enforcer gate --strict=1 > /tmp/release-canary.json; then
             cp /tmp/release-canary.json core/local/artifacts/release_canary_gate_current.json
             cat /tmp/release-canary.json
@@ -206,47 +206,47 @@ jobs:
         if: steps.semver.outputs.release_ready == '1'
         run: |
           set -euo pipefail
-          cargo build --release --manifest-path core/layer0/ops/Cargo.toml --bin protheus-ops
-          cargo build --release --target x86_64-unknown-linux-musl --manifest-path core/layer0/ops/Cargo.toml --bin protheusd
+          cargo build --release --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops
+          cargo build --release --target x86_64-unknown-linux-musl --manifest-path core/layer0/ops/Cargo.toml --bin infringd
           cargo build --release -p conduit --bin conduit_daemon
-          strip target/x86_64-unknown-linux-musl/release/protheusd || true
+          strip target/x86_64-unknown-linux-musl/release/infringd || true
           nix --extra-experimental-features "nix-command flakes" shell nixpkgs#coreutils --command \
             dist --version
           mkdir -p client/runtime/local/state/release/artifacts
-          cp target/release/protheus-ops \
-            client/runtime/local/state/release/artifacts/protheus-ops-x86_64-unknown-linux-gnu
+          cp target/release/infring-ops \
+            client/runtime/local/state/release/artifacts/infring-ops-x86_64-unknown-linux-gnu
           cp target/release/conduit_daemon \
             client/runtime/local/state/release/artifacts/conduit_daemon-x86_64-unknown-linux-gnu
-          cp target/x86_64-unknown-linux-musl/release/protheusd \
-            client/runtime/local/state/release/artifacts/protheusd-x86_64-unknown-linux-musl
+          cp target/x86_64-unknown-linux-musl/release/infringd \
+            client/runtime/local/state/release/artifacts/infringd-x86_64-unknown-linux-musl
           npm pack --silent
 
-      - name: Enforce static protheusd size gate (35 MB)
+      - name: Enforce static infringd size gate (35 MB)
         if: steps.semver.outputs.release_ready == '1'
         id: size_gate
         run: |
           set -euo pipefail
-          BIN="client/runtime/local/state/release/artifacts/protheusd-x86_64-unknown-linux-musl"
+          BIN="client/runtime/local/state/release/artifacts/infringd-x86_64-unknown-linux-musl"
           SIZE_BYTES="$(wc -c < "$BIN" | tr -d ' ')"
           SIZE_MB="$(awk -v b="$SIZE_BYTES" 'BEGIN { printf "%.2f", b/(1024*1024) }')"
           MAX_BYTES=$((35 * 1024 * 1024))
-          echo "protheusd_static_size_bytes=${SIZE_BYTES}" >> "$GITHUB_OUTPUT"
-          echo "protheusd_static_size_mb=${SIZE_MB}" >> "$GITHUB_OUTPUT"
+          echo "infringd_static_size_bytes=${SIZE_BYTES}" >> "$GITHUB_OUTPUT"
+          echo "infringd_static_size_mb=${SIZE_MB}" >> "$GITHUB_OUTPUT"
           if [ "$SIZE_BYTES" -gt "$MAX_BYTES" ]; then
-            echo "::error::protheusd static musl binary is ${SIZE_MB} MB, exceeds the 35 MB CI gate."
+            echo "::error::infringd static musl binary is ${SIZE_MB} MB, exceeds the 35 MB CI gate."
             exit 1
           fi
-          cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin protheus-ops -- \
+          cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops -- \
             top1-assurance size-gate --strict=1 \
-            --binary-path=client/runtime/local/state/release/artifacts/protheusd-x86_64-unknown-linux-musl \
+            --binary-path=client/runtime/local/state/release/artifacts/infringd-x86_64-unknown-linux-musl \
             --max-mb=35
-          echo "protheusd static binary: ${SIZE_MB} MB (musl)"
+          echo "infringd static binary: ${SIZE_MB} MB (musl)"
 
       - name: Append static binary size to release notes
         if: steps.semver.outputs.release_ready == '1'
         run: |
-          printf '\nprotheusd static binary: %s MB (musl)\n' \
-            "${{ steps.size_gate.outputs.protheusd_static_size_mb }}" \
+          printf '\ninfringd static binary: %s MB (musl)\n' \
+            "${{ steps.size_gate.outputs.infringd_static_size_mb }}" \
             >> client/runtime/local/state/release/CHANGELOG.auto.md
 
       - name: Install Syft
@@ -260,10 +260,10 @@ jobs:
         run: |
           mkdir -p client/runtime/local/state/release/sbom
           PKG=$(ls -1 *.tgz | head -n 1)
-          syft file:client/runtime/local/state/release/artifacts/protheus-ops-x86_64-unknown-linux-gnu -o spdx-json=client/runtime/local/state/release/sbom/protheus-ops.spdx.json
-          syft file:client/runtime/local/state/release/artifacts/protheusd-x86_64-unknown-linux-musl -o spdx-json=client/runtime/local/state/release/sbom/protheusd.spdx.json
+          syft file:client/runtime/local/state/release/artifacts/infring-ops-x86_64-unknown-linux-gnu -o spdx-json=client/runtime/local/state/release/sbom/infring-ops.spdx.json
+          syft file:client/runtime/local/state/release/artifacts/infringd-x86_64-unknown-linux-musl -o spdx-json=client/runtime/local/state/release/sbom/infringd.spdx.json
           syft file:client/runtime/local/state/release/artifacts/conduit_daemon-x86_64-unknown-linux-gnu -o spdx-json=client/runtime/local/state/release/sbom/conduit_daemon.spdx.json
-          syft file:${PKG} -o spdx-json=client/runtime/local/state/release/sbom/protheus-npm.spdx.json
+          syft file:${PKG} -o spdx-json=client/runtime/local/state/release/sbom/infring-npm.spdx.json
 
       - name: Sign release artifacts
         if: steps.semver.outputs.release_ready == '1'
@@ -278,7 +278,7 @@ jobs:
             openssl genrsa -out /tmp/release_private.pem 4096
           fi
           openssl rsa -in /tmp/release_private.pem -pubout -out client/runtime/local/state/release/signatures/release_public.pem
-          for f in client/runtime/local/state/release/artifacts/protheus-ops-x86_64-unknown-linux-gnu client/runtime/local/state/release/artifacts/protheusd-x86_64-unknown-linux-musl client/runtime/local/state/release/artifacts/conduit_daemon-x86_64-unknown-linux-gnu client/runtime/local/state/release/sbom/protheus-ops.spdx.json client/runtime/local/state/release/sbom/protheusd.spdx.json client/runtime/local/state/release/sbom/conduit_daemon.spdx.json client/runtime/local/state/release/sbom/protheus-npm.spdx.json; do
+          for f in client/runtime/local/state/release/artifacts/infring-ops-x86_64-unknown-linux-gnu client/runtime/local/state/release/artifacts/infringd-x86_64-unknown-linux-musl client/runtime/local/state/release/artifacts/conduit_daemon-x86_64-unknown-linux-gnu client/runtime/local/state/release/sbom/infring-ops.spdx.json client/runtime/local/state/release/sbom/infringd.spdx.json client/runtime/local/state/release/sbom/conduit_daemon.spdx.json client/runtime/local/state/release/sbom/infring-npm.spdx.json; do
             base=$(basename "$f")
             openssl dgst -sha256 -sign /tmp/release_private.pem -out "client/runtime/local/state/release/signatures/${base}.sig" "$f"
           done
@@ -302,21 +302,21 @@ jobs:
           OUT="client/runtime/local/state/release/artifacts/SHA256SUMS"
           : > "$OUT"
           for f in \
-            client/runtime/local/state/release/artifacts/protheus-ops-x86_64-unknown-linux-gnu \
-            client/runtime/local/state/release/artifacts/protheusd-x86_64-unknown-linux-musl \
+            client/runtime/local/state/release/artifacts/infring-ops-x86_64-unknown-linux-gnu \
+            client/runtime/local/state/release/artifacts/infringd-x86_64-unknown-linux-musl \
             client/runtime/local/state/release/artifacts/conduit_daemon-x86_64-unknown-linux-gnu \
             *.tgz \
-            client/runtime/local/state/release/sbom/protheus-ops.spdx.json \
-            client/runtime/local/state/release/sbom/protheusd.spdx.json \
+            client/runtime/local/state/release/sbom/infring-ops.spdx.json \
+            client/runtime/local/state/release/sbom/infringd.spdx.json \
             client/runtime/local/state/release/sbom/conduit_daemon.spdx.json \
-            client/runtime/local/state/release/sbom/protheus-npm.spdx.json \
-            client/runtime/local/state/release/signatures/protheus-ops-x86_64-unknown-linux-gnu.sig \
-            client/runtime/local/state/release/signatures/protheusd-x86_64-unknown-linux-musl.sig \
+            client/runtime/local/state/release/sbom/infring-npm.spdx.json \
+            client/runtime/local/state/release/signatures/infring-ops-x86_64-unknown-linux-gnu.sig \
+            client/runtime/local/state/release/signatures/infringd-x86_64-unknown-linux-musl.sig \
             client/runtime/local/state/release/signatures/conduit_daemon-x86_64-unknown-linux-gnu.sig \
-            client/runtime/local/state/release/signatures/protheus-ops.spdx.json.sig \
-            client/runtime/local/state/release/signatures/protheusd.spdx.json.sig \
+            client/runtime/local/state/release/signatures/infring-ops.spdx.json.sig \
+            client/runtime/local/state/release/signatures/infringd.spdx.json.sig \
             client/runtime/local/state/release/signatures/conduit_daemon.spdx.json.sig \
-            client/runtime/local/state/release/signatures/protheus-npm.spdx.json.sig \
+            client/runtime/local/state/release/signatures/infring-npm.spdx.json.sig \
             client/runtime/local/state/release/signatures/release_public.pem \
             client/runtime/local/state/release/licensing/release_licensing_manifest.json \
             client/runtime/local/state/release/scorecard/release_scorecard.json; do
@@ -362,21 +362,21 @@ jobs:
           generate_release_notes: true
           body_path: client/runtime/local/state/release/CHANGELOG.auto.md
           files: |
-            client/runtime/local/state/release/artifacts/protheus-ops-x86_64-unknown-linux-gnu
-            client/runtime/local/state/release/artifacts/protheusd-x86_64-unknown-linux-musl
+            client/runtime/local/state/release/artifacts/infring-ops-x86_64-unknown-linux-gnu
+            client/runtime/local/state/release/artifacts/infringd-x86_64-unknown-linux-musl
             client/runtime/local/state/release/artifacts/conduit_daemon-x86_64-unknown-linux-gnu
             *.tgz
-            client/runtime/local/state/release/sbom/protheus-ops.spdx.json
-            client/runtime/local/state/release/sbom/protheusd.spdx.json
+            client/runtime/local/state/release/sbom/infring-ops.spdx.json
+            client/runtime/local/state/release/sbom/infringd.spdx.json
             client/runtime/local/state/release/sbom/conduit_daemon.spdx.json
-            client/runtime/local/state/release/sbom/protheus-npm.spdx.json
-            client/runtime/local/state/release/signatures/protheus-ops-x86_64-unknown-linux-gnu.sig
-            client/runtime/local/state/release/signatures/protheusd-x86_64-unknown-linux-musl.sig
+            client/runtime/local/state/release/sbom/infring-npm.spdx.json
+            client/runtime/local/state/release/signatures/infring-ops-x86_64-unknown-linux-gnu.sig
+            client/runtime/local/state/release/signatures/infringd-x86_64-unknown-linux-musl.sig
             client/runtime/local/state/release/signatures/conduit_daemon-x86_64-unknown-linux-gnu.sig
-            client/runtime/local/state/release/signatures/protheus-ops.spdx.json.sig
-            client/runtime/local/state/release/signatures/protheusd.spdx.json.sig
+            client/runtime/local/state/release/signatures/infring-ops.spdx.json.sig
+            client/runtime/local/state/release/signatures/infringd.spdx.json.sig
             client/runtime/local/state/release/signatures/conduit_daemon.spdx.json.sig
-            client/runtime/local/state/release/signatures/protheus-npm.spdx.json.sig
+            client/runtime/local/state/release/signatures/infring-npm.spdx.json.sig
             client/runtime/local/state/release/signatures/release_public.pem
             client/runtime/local/state/release/licensing/release_licensing_manifest.json
             client/runtime/local/state/release/artifacts/SHA256SUMS

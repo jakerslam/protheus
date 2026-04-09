@@ -1,7 +1,8 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
-const { spawnSync } = require('child_process');
+const crypto = require('crypto');
+const { spawn, spawnSync } = require('child_process');
 function repoRoot(scriptDir) {
     let dir = path.resolve(scriptDir || process.cwd());
     while (true) {
@@ -109,27 +110,245 @@ function defaultEnv() {
         PROTHEUS_NODE_BINARY: process.execPath || 'node'
     };
 }
+function envBool(names, fallback = false) {
+    for (const name of names) {
+        const raw = String(process.env[name] || '').trim().toLowerCase();
+        if (!raw)
+            continue;
+        if (raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on')
+            return true;
+        if (raw === '0' || raw === 'false' || raw === 'no' || raw === 'off')
+            return false;
+    }
+    return fallback;
+}
+function sleepMs(ms) {
+    const timeout = Math.max(1, Math.floor(Number(ms) || 0));
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, timeout);
+}
+function ipcBridgeEnabled() {
+    return envBool(['INFRING_OPS_IPC_DAEMON', 'PROTHEUS_OPS_IPC_DAEMON'], true);
+}
+function ipcStrictModeEnabled() {
+    return envBool(['INFRING_OPS_IPC_STRICT', 'PROTHEUS_OPS_IPC_STRICT'], false);
+}
+function queueRootForRepo(root) {
+    const hash = crypto.createHash('sha256').update(String(root || '')).digest('hex').slice(0, 16);
+    return path.join(root, 'local', 'state', 'tools', 'ops_bridge_ipc', hash);
+}
+const ipcDaemonRegistry = new Map();
+function ensureOpsIpcDaemon(root) {
+    const key = String(root || '');
+    const cached = ipcDaemonRegistry.get(key);
+    if (cached && cached.queueDir) {
+        return cached;
+    }
+    const resolved = resolveProtheusOpsCommand(root, 'ops-domain-conduit-runner-kernel');
+    const pollMs = parseTimeoutMs('INFRING_OPS_IPC_POLL_MS', 20, 5, 1000);
+    const queueDir = queueRootForRepo(root);
+    const requestsDir = path.join(queueDir, 'requests');
+    const responsesDir = path.join(queueDir, 'responses');
+    fs.mkdirSync(requestsDir, { recursive: true });
+    fs.mkdirSync(responsesDir, { recursive: true });
+    const daemonArgs = resolved.args.concat([
+        'ipc-daemon',
+        `--queue-dir=${queueDir}`,
+        `--poll-ms=${pollMs}`
+    ]);
+    const child = spawn(resolved.command, daemonArgs, {
+        cwd: root,
+        env: defaultEnv(),
+        stdio: 'ignore',
+        detached: true
+    });
+    child.unref();
+    const state = {
+        queueDir,
+        requestsDir,
+        responsesDir,
+        pollMs,
+        pid: child.pid || 0,
+        rust_command: resolved.command,
+        rust_args: [resolved.command].concat(daemonArgs)
+    };
+    ipcDaemonRegistry.set(key, state);
+    return state;
+}
+function runLocalOpsDomainViaIpc(root, domain, passArgs, cliMode, inheritStdio) {
+    if (cliMode && inheritStdio) {
+        return null;
+    }
+    let daemon;
+    try {
+        daemon = ensureOpsIpcDaemon(root);
+    }
+    catch (err) {
+        return {
+            ok: false,
+            status: 1,
+            stdout: '',
+            stderr: String(err && err.message ? err.message : err),
+            payload: {
+                ok: false,
+                type: 'ops_domain_ipc_daemon_unavailable',
+                reason: String(err && err.message ? err.message : err),
+                domain
+            },
+            error: err,
+            rust_command: null,
+            rust_args: [],
+            timeout_ms: parseTimeoutMs('PROTHEUS_OPS_LOCAL_TIMEOUT_MS', 45000),
+            routed_via: 'ipc_daemon'
+        };
+    }
+    const timeoutMs = parseTimeoutMs('PROTHEUS_OPS_LOCAL_TIMEOUT_MS', 45000);
+    const requestId = `req_${Date.now()}_${process.pid}_${Math.floor(Math.random() * 1_000_000_000)}`;
+    const requestPath = path.join(daemon.requestsDir, `${requestId}.json`);
+    const responsePath = path.join(daemon.responsesDir, `${requestId}.json`);
+    const request = {
+        id: requestId,
+        domain: String(domain || ''),
+        args: Array.isArray(passArgs) ? passArgs.slice(0) : []
+    };
+    try {
+        fs.writeFileSync(requestPath, `${JSON.stringify(request)}\n`, 'utf8');
+    }
+    catch (err) {
+        return {
+            ok: false,
+            status: 1,
+            stdout: '',
+            stderr: String(err && err.message ? err.message : err),
+            payload: {
+                ok: false,
+                type: 'ops_domain_ipc_request_write_failed',
+                reason: String(err && err.message ? err.message : err),
+                domain
+            },
+            error: err,
+            rust_command: daemon.rust_command,
+            rust_args: daemon.rust_args,
+            timeout_ms: timeoutMs,
+            routed_via: 'ipc_daemon'
+        };
+    }
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() <= deadline) {
+        if (fs.existsSync(responsePath)) {
+            let raw = '';
+            try {
+                raw = String(fs.readFileSync(responsePath, 'utf8') || '');
+            }
+            catch (err) {
+                return {
+                    ok: false,
+                    status: 1,
+                    stdout: '',
+                    stderr: String(err && err.message ? err.message : err),
+                    payload: {
+                        ok: false,
+                        type: 'ops_domain_ipc_response_read_failed',
+                        reason: String(err && err.message ? err.message : err),
+                        domain
+                    },
+                    error: err,
+                    rust_command: daemon.rust_command,
+                    rust_args: daemon.rust_args,
+                    timeout_ms: timeoutMs,
+                    routed_via: 'ipc_daemon'
+                };
+            }
+            finally {
+                try {
+                    fs.rmSync(responsePath, { force: true });
+                }
+                catch { }
+            }
+            const parsed = parseJsonPayload(raw) || {};
+            const response = parsed.response && typeof parsed.response === 'object'
+                ? parsed.response
+                : parsed;
+            const status = normalizeStatus(response.status);
+            const payload = response.payload && typeof response.payload === 'object'
+                ? response.payload
+                : {
+                    ok: status === 0,
+                    type: status === 0 ? 'ops_domain_ipc_result' : 'ops_domain_ipc_error',
+                    reason: status === 0 ? 'ok' : 'missing_payload',
+                    domain
+                };
+            return {
+                ok: status === 0 && payload.ok !== false,
+                status,
+                stdout: `${JSON.stringify(payload)}\n`,
+                stderr: '',
+                payload,
+                error: null,
+                rust_command: daemon.rust_command,
+                rust_args: daemon.rust_args,
+                timeout_ms: timeoutMs,
+                routed_via: 'ipc_daemon'
+            };
+        }
+        sleepMs(5);
+    }
+    try {
+        fs.rmSync(requestPath, { force: true });
+    }
+    catch { }
+    return {
+        ok: false,
+        status: 1,
+        stdout: '',
+        stderr: 'ops_domain_ipc_timeout',
+        payload: {
+            ok: false,
+            type: 'ops_domain_ipc_timeout',
+            reason: `timed out waiting for daemon response after ${timeoutMs}ms`,
+            domain,
+            timeout_ms: timeoutMs
+        },
+        error: null,
+        rust_command: daemon.rust_command,
+        rust_args: daemon.rust_args,
+        timeout_ms: timeoutMs,
+        routed_via: 'ipc_daemon'
+    };
+}
 function resolveProtheusOpsCommand(root, domain) {
-    const preferCargo = String(process.env.PROTHEUS_OPS_PREFER_CARGO || '0').trim() === '1';
-    const usePrebuiltOnly = String(process.env.PROTHEUS_OPS_USE_PREBUILT || '0').trim() === '1';
-    const explicit = String(process.env.PROTHEUS_OPS_BIN || '').trim();
+    const preferCargo = envBool(['INFRING_OPS_PREFER_CARGO', 'PROTHEUS_OPS_PREFER_CARGO'], false);
+    const usePrebuiltOnly = envBool(['INFRING_OPS_USE_PREBUILT', 'PROTHEUS_OPS_USE_PREBUILT'], false);
+    const allowCargoFallback = envBool(['INFRING_OPS_ALLOW_CARGO_FALLBACK', 'PROTHEUS_OPS_ALLOW_CARGO_FALLBACK'], true);
+    const explicit = String(process.env.INFRING_OPS_BIN || process.env.PROTHEUS_OPS_BIN || '').trim();
     if (explicit) {
         return {
             command: explicit,
             args: [domain]
         };
     }
-    const release = path.join(root, 'target', 'release', 'protheus-ops');
-    if (!preferCargo && fs.existsSync(release) && (usePrebuiltOnly || binaryFreshEnough(root, release))) {
-        return {
-            command: release,
-            args: [domain]
-        };
+    const prebuiltCandidates = [
+        path.join(root, 'target', 'release-speed', 'infring-ops'),
+        path.join(root, 'target', 'release', 'infring-ops'),
+        path.join(root, 'target', 'release-speed', 'protheus-ops'),
+        path.join(root, 'target', 'release', 'protheus-ops'),
+        path.join(root, 'target', 'debug', 'infring-ops'),
+        path.join(root, 'target', 'debug', 'protheus-ops')
+    ];
+    if (!preferCargo) {
+        for (const candidate of prebuiltCandidates) {
+            if (!fs.existsSync(candidate))
+                continue;
+            if (usePrebuiltOnly || binaryFreshEnough(root, candidate)) {
+                return {
+                    command: candidate,
+                    args: [domain]
+                };
+            }
+        }
     }
-    const debug = path.join(root, 'target', 'debug', 'protheus-ops');
-    if (!preferCargo && fs.existsSync(debug) && (usePrebuiltOnly || binaryFreshEnough(root, debug))) {
+    if (!allowCargoFallback) {
         return {
-            command: debug,
+            command: path.join(root, 'target', 'release', 'infring-ops'),
             args: [domain]
         };
     }
@@ -141,7 +360,7 @@ function resolveProtheusOpsCommand(root, domain) {
             '--manifest-path',
             'core/layer0/ops/Cargo.toml',
             '--bin',
-            'protheus-ops',
+            'infring-ops',
             '--',
             domain
         ]
@@ -233,6 +452,12 @@ function shouldRetryWithCargo(result) {
     return reason.includes('unknown_domain') || reason.includes('unknown_command');
 }
 function runLocalOpsDomain(root, domain, passArgs, cliMode, inheritStdio) {
+    if (ipcBridgeEnabled()) {
+        const viaIpc = runLocalOpsDomainViaIpc(root, domain, passArgs, cliMode, inheritStdio);
+        if (viaIpc && (viaIpc.ok || viaIpc.status === 0 || ipcStrictModeEnabled())) {
+            return viaIpc;
+        }
+    }
     const resolved = resolveProtheusOpsCommand(root, domain);
     const initial = runLocalOpsDomainOnce(root, domain, passArgs, cliMode, inheritStdio, resolved);
     if (resolved.command === 'cargo' || !shouldRetryWithCargo(initial)) {
@@ -246,7 +471,7 @@ function runLocalOpsDomain(root, domain, passArgs, cliMode, inheritStdio) {
             '--manifest-path',
             'core/layer0/ops/Cargo.toml',
             '--bin',
-            'protheus-ops',
+            'infring-ops',
             '--',
             domain
         ]

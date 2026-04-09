@@ -146,8 +146,8 @@ const COMMANDS: &[CommandItem] = &[
         unsafe_surface: false,
     },
     CommandItem {
-        synopsis: "assimilate <target> [--payload-base64=...] [--strict=1] [--showcase=1] [--duration-ms=<n>] [--json=1]",
-        desc: "Experimental runtime assimilation lane. Requires Node.js 22+ full surface; known targets route to governed core bridges, unknown targets remain local simulation mode.",
+        synopsis: "assimilate <target> [--payload-base64=...] [--strict=1] [--showcase=1] [--duration-ms=<n>] [--json=1] [--allow-local-simulation=1] [--plan-only=1] [--hard-selector=<selector>] [--selector-bypass=1]",
+        desc: "Experimental runtime assimilation lane. Requires Node.js 22+ full surface; known targets route to governed core bridges, unknown targets fail as unadmitted unless local simulation is explicitly enabled.",
         tier: CommandTier::Experimental,
         handler: CommandHandlerKind::RuntimeScript,
         script_rel: "client/runtime/systems/tools/assimilate.ts",
@@ -639,7 +639,7 @@ mod tests {
         let rows = out.as_array().cloned().unwrap_or_default();
         let assimilate = rows.iter().find(|row| {
             row.get("synopsis").and_then(Value::as_str) == Some(
-                "assimilate <target> [--payload-base64=...] [--strict=1] [--showcase=1] [--duration-ms=<n>] [--json=1]",
+                "assimilate <target> [--payload-base64=...] [--strict=1] [--showcase=1] [--duration-ms=<n>] [--json=1] [--allow-local-simulation=1] [--plan-only=1] [--hard-selector=<selector>] [--selector-bypass=1]",
             )
         });
         let row = assimilate

@@ -11,7 +11,7 @@ import {
 
 async function run(): Promise<void> {
   const sdk = new InfringSdkClient({
-    transport: createInMemoryTransport(),
+    transport: createInMemoryTransport({}, { allow_unseeded_fallback: true }),
   });
 
   const submit = await sdk.submitTask({

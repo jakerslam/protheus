@@ -1,5 +1,5 @@
 use crate::schemas::{Claim, ClaimBundle, ClaimStatus, ConfidenceVector, EvidenceCard};
-use crate::{deterministic_hash, now_ms};
+use crate::deterministic_hash;
 use std::collections::{HashMap, HashSet};
 
 #[derive(Default)]
@@ -24,9 +24,10 @@ impl StructuredVerifier {
             }
             let claim = Claim {
                 claim_id: deterministic_hash(&serde_json::json!({
-                    "kind":"claim",
+                    "kind":"claim_content",
+                    "task_id": task_id,
                     "evidence_id": card.evidence_id,
-                    "ts": now_ms()
+                    "text": card.summary,
                 })),
                 text: card.summary.clone(),
                 evidence_ids: vec![card.evidence_id.clone()],
@@ -79,11 +80,15 @@ impl StructuredVerifier {
         } else {
             supported_or_partial as f64 / claims.len() as f64
         };
+        let claim_ids = claims
+            .iter()
+            .map(|claim| claim.claim_id.clone())
+            .collect::<Vec<_>>();
         ClaimBundle {
             claim_bundle_id: deterministic_hash(&serde_json::json!({
-                "kind":"claim_bundle",
+                "kind":"claim_bundle_content",
                 "task_id": task_id,
-                "ts": now_ms()
+                "claim_ids": claim_ids
             })),
             task_id: task_id.to_string(),
             claims,

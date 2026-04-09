@@ -74,6 +74,10 @@ pub fn execute_governed_workflow(
             format!("framework:{framework_id}"),
         ],
         caller: BrokerCaller::Worker,
+        policy_revision: Some("policy.tooling.framework_adapter.v1".to_string()),
+        tool_version: Some(format!("{tool_name}.v1")),
+        freshness_window_ms: None,
+        force_no_dedupe: false,
     };
     let raw_seed = payload
         .get("raw_result")

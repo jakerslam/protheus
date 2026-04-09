@@ -35,7 +35,7 @@ jobs:
 
       - name: Enforce SDLC change-control gate
         run: |
-          cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin protheus-ops -- \
+          cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops -- \
             sdlc-change-control run --strict=1 \
             --policy=client/runtime/config/sdlc_change_control_policy.json \
             --pr-body-path=state/ops/sdlc_change_control/pr_body.md \

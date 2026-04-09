@@ -397,6 +397,10 @@ fn local_full_install_probe_mb(root: &Path) -> Option<f64> {
     ];
 
     for rel in [
+        "target/release-speed/infringd",
+        "target/x86_64-unknown-linux-musl/release/infringd",
+        "target/release/infringd",
+        "target/debug/infringd",
         "target/x86_64-unknown-linux-musl/release/protheusd",
         "target/release/protheusd",
         "target/debug/protheusd",

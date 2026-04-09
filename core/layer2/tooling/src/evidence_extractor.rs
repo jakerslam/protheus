@@ -48,10 +48,13 @@ impl EvidenceExtractor {
             "excerpt": excerpt,
             "summary": summary
         }));
+        let extracted_at = now_ms();
         let evidence_id = deterministic_hash(&serde_json::json!({
-            "kind": "evidence_card",
+            "kind": "evidence_card_content",
+            "derived_from_result_id": result.result_id,
+            "source_ref": source_ref,
+            "source_location": source_location,
             "dedupe_hash": dedupe_hash,
-            "timestamp": now_ms()
         }));
         Some(EvidenceCard {
             evidence_id,
@@ -65,7 +68,7 @@ impl EvidenceExtractor {
             confidence_vector,
             dedupe_hash,
             lineage: result.lineage.clone(),
-            timestamp: now_ms(),
+            timestamp: extracted_at,
         })
     }
 }

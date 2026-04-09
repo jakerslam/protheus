@@ -25,4 +25,4 @@ export type {
   SubmitTaskData,
   SubmitTaskRequest,
 } from './types';
-export type { CliTransportOptions, InMemorySeed } from './transports';
+export type { CliTransportOptions, InMemorySeed, InMemoryTransportOptions } from './transports';

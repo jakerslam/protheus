@@ -210,12 +210,14 @@ Install Node.js 22+ to unlock full JS-assisted command surfaces.
 
 ### Experimental Runtime Surface (Node.js 22+ Required)
 
-- `assimilate <target> [--payload-base64=...] [--strict=1] [--showcase=1] [--duration-ms=<n>] [--json=1]`
+- `assimilate <target> [--payload-base64=...] [--strict=1] [--showcase=1] [--duration-ms=<n>] [--json=1] [--allow-local-simulation=1] [--plan-only=1] [--hard-selector=<selector>] [--selector-bypass=1]`
 
 Behavior:
 
 - Known targets route to governed core bridge lanes.
-- Unknown targets run local simulation mode and are not treated as production integration.
+- Unknown targets fail as `unadmitted` by default.
+- Local simulation mode is test-only and must be explicitly enabled via `--allow-local-simulation=1`.
+- Use `--plan-only=1` to emit the canonical assimilation planning chain without executing bridge mutations.
 
 ### Local Source Workflow
 
@@ -240,12 +242,15 @@ Current measured rows in that artifact:
 
 | Metric | Rich | Pure (`InfRing (pure)`) | Tiny-Max (`InfRing (tiny-max)`) |
 |---|---:|---:|---:|
-| Cold start (user-visible) | 0.009 ms | 1.510 ms | 1.510 ms |
-| Cold start (engine init micro) | 0.009 ms | n/a | n/a |
+| Cold start (user-visible) | 0.004 ms | 1.519 ms | 1.507 ms |
+| Cold start (engine init micro) | 0.004 ms | n/a | n/a |
 | Cold start (orchestration component) | 0.000 ms | n/a | n/a |
-| Idle memory | 9.938 MB | 1.500 MB | 1.500 MB |
-| Install artifact size | 25.840 MB | 2.534 MB | 0.617 MB |
-| Throughput (tasks_per_sec) | 182,809.10 ops/sec | 182,809.10 ops/sec | 182,809.10 ops/sec |
+| Kernel ready | 0.004 ms | n/a | n/a |
+| Gateway ready | 0.004 ms | n/a | n/a |
+| Dashboard interactive | 0.004 ms | n/a | n/a |
+| Idle memory | 8.375 MB | 1.516 MB | 1.516 MB |
+| Install artifact size | 28.116 MB | 3.837 MB | 0.631 MB |
+| Throughput (tasks_per_sec) | 354,925.38 ops/sec | 354,925.38 ops/sec | 354,925.38 ops/sec |
 | Security systems | 83 | 83 | 83 |
 | Channel adapters | 6 | 0 | 0 |
 | LLM providers | 3 | 0 | 0 |
@@ -256,8 +261,8 @@ Preflight metadata in the same artifact:
 
 - `benchmark_preflight.enabled = true`
 - `benchmark_validation.ok = true`
-- `sample_cv_pct = 0.13` (tolerance `18.75`)
-- Artifact timestamp: `2026-04-08T23:03:30.846Z`
+- `sample_cv_pct = 0.45` (tolerance `150`)
+- Artifact timestamp: `2026-04-09T00:26:44.126Z`
 
 Current nuance:
 
@@ -270,7 +275,7 @@ Source: [`docs/client/reports/benchmark_matrix_run_latest.json`](docs/client/rep
 
 | Project | Cold Start (ms) | Idle Memory (MB) | Install Size (MB) | Throughput (ops/sec) |
 |---|---:|---:|---:|---:|
-| Infring | 0.009 | 9.938 | 25.840 | 182,809.10 |
+| Infring | 0.004 | 8.375 | 28.116 | 354,925.38 |
 | AutoGen | 4000.000 | 250.000 | 200.000 | n/a |
 | CrewAI | 3000.000 | 200.000 | 100.000 | n/a |
 | OpenHands | 1300.000 | 150.000 | 95.500 | n/a |
@@ -285,6 +290,8 @@ npm run -s ops:benchmark:public-audit
 npm run -s ops:benchmark:repro
 ```
 <!-- END: benchmark-snapshot -->
+
+
 
 
 

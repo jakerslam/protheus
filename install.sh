@@ -3439,7 +3439,7 @@ __INFRING_UPDATE_HELP__
 }
 
 infring_update_run() {
-  update_url="${INFRING_INSTALLER_URL:-https://raw.githubusercontent.com/infring/InfRing/main/install.sh}"
+  update_url="${INFRING_INSTALLER_URL:-https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh}"
   update_mode="full"
   update_repair=0
   update_version=""

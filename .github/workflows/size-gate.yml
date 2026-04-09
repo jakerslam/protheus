@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  protheusd-size-gate:
+  infringd-size-gate:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -34,20 +34,20 @@ jobs:
       - name: Install JS deps (full install sizing)
         run: npm ci
 
-      - name: Build static protheusd
+      - name: Build static infringd
         run: |
-          cargo build --release --target x86_64-unknown-linux-musl --manifest-path core/layer0/ops/Cargo.toml --bin protheusd --features embedded-minimal-core,mimalloc,no-client-bloat
-          strip target/x86_64-unknown-linux-musl/release/protheusd || true
+          cargo build --release --target x86_64-unknown-linux-musl --manifest-path core/layer0/ops/Cargo.toml --bin infringd --features embedded-minimal-core,mimalloc,no-client-bloat
+          strip target/x86_64-unknown-linux-musl/release/infringd || true
 
       - name: Enforce daemon size gate (0.5 MB - 2.4 MB)
         run: |
-          BIN="target/x86_64-unknown-linux-musl/release/protheusd"
+          BIN="target/x86_64-unknown-linux-musl/release/infringd"
           BYTES="$(stat --format=%s "$BIN")"
           MIN=$((512 * 1024))
           MAX=$((2516582))
-          echo "protheusd_bytes=$BYTES"
+          echo "infringd_bytes=$BYTES"
           if [ "$BYTES" -lt "$MIN" ] || [ "$BYTES" -gt "$MAX" ]; then
-            echo "::error::protheusd outside 0.5 MB - 2.4 MB gate ($BYTES bytes)"
+            echo "::error::infringd outside 0.5 MB - 2.4 MB gate ($BYTES bytes)"
             exit 1
           fi
 
@@ -59,7 +59,7 @@ jobs:
               pathlib.Path("node_modules"),
               pathlib.Path("client/runtime"),
               pathlib.Path("core/layer0/ops"),
-              pathlib.Path("target/x86_64-unknown-linux-musl/release/protheusd"),
+              pathlib.Path("target/x86_64-unknown-linux-musl/release/infringd"),
           ]
           total_bytes = 0
           for root in roots:
@@ -93,6 +93,6 @@ jobs:
           }
           pathlib.Path("/tmp/top1_ci_seed.json").write_text(json.dumps(seed))
           PY
-          cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin protheus-ops -- \
+          cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops -- \
             top1-assurance benchmark-thresholds --strict=1 --benchmark-path=/tmp/top1_ci_seed.json \
             --tasks-per-sec-min=11000 --sample-ms=800 --refresh=1

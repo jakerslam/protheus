@@ -14,7 +14,7 @@ pub(super) fn print_usage() {
     println!("  infring-ops bird-x-collector-kernel <preflight|prepare-run|map-results|finalize-run|collect> --payload-base64=<base64_json>");
     println!("  infring-ops upwork-gigs-collector-kernel <run|prepare-run|build-fetch-plan|finalize-run|parse-rss|map-gigs|fallback-gigs|collect> --payload-base64=<base64_json>");
     println!("  infring-ops github-repo-collector-kernel <run|resolve-run-params|resolve-auth|prepare-repo-activity|build-repo-activity-fetch-plan|finalize-repo-activity|collect-repo-activity|build-pr-review-fetch-plan|build-pr-review|collect-pr-review|file-risk-flags> --payload-base64=<base64_json>");
-    println!("  infring-ops assimilate-kernel <target> [--json=1] [--showcase=1] [--duration-ms=<n>] [--scaffold-payload=1] [--target=<name>] [--core-domain=<domain>] [--core-args-base64=<base64_json_array>]");
+    println!("  infring-ops assimilate-kernel <target> [--json=1] [--showcase=1] [--duration-ms=<n>] [--scaffold-payload=1] [--allow-local-simulation=1] [--plan-only=1] [--hard-selector=<selector>] [--selector-bypass=1] [--target=<name>] [--core-domain=<domain>] [--core-args-base64=<base64_json_array>]");
     println!("  infring-ops security-layer-inventory-gate-kernel <run|status> [--strict=1|0] [--write=1|0]");
     println!(
         "  infring-ops rust-hotpath-inventory-kernel <run|status|inventory> [--policy=<path>]"

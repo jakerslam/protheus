@@ -21,14 +21,14 @@ jobs:
           version: v3.16.2
 
       - name: Helm lint
-        run: helm lint ./client/runtime/deploy/helm/protheus
+        run: helm lint ./client/runtime/deploy/helm/infring
 
       - name: Helm conformance render
         run: |
-          helm template protheus ./client/runtime/deploy/helm/protheus > /tmp/protheus-manifest.yaml
-          test -s /tmp/protheus-manifest.yaml
-          grep -q "kind: Deployment" /tmp/protheus-manifest.yaml
-          grep -Eq "helm\\.sh/hook\"?: test" /tmp/protheus-manifest.yaml
-          grep -q "PROTHEUS_SSO_ENABLED" /tmp/protheus-manifest.yaml
-          grep -q "PROTHEUS_SECRETS_VAULT_ENABLED" /tmp/protheus-manifest.yaml
-          grep -q "PROTHEUS_NVIDIA_ENABLED" /tmp/protheus-manifest.yaml
+          helm template infring ./client/runtime/deploy/helm/infring > /tmp/infring-manifest.yaml
+          test -s /tmp/infring-manifest.yaml
+          grep -q "kind: Deployment" /tmp/infring-manifest.yaml
+          grep -Eq "helm\\.sh/hook\"?: test" /tmp/infring-manifest.yaml
+          grep -q "INFRING_SSO_ENABLED" /tmp/infring-manifest.yaml
+          grep -q "INFRING_SECRETS_VAULT_ENABLED" /tmp/infring-manifest.yaml
+          grep -q "INFRING_NVIDIA_ENABLED" /tmp/infring-manifest.yaml

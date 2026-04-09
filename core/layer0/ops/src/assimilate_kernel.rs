@@ -10,8 +10,9 @@ use std::path::Path;
 use std::thread;
 use std::time::Duration;
 use support::{
-    build_receipt_hash, decode_injected_route, maybe_prewarm, parse_args, payload_scaffold_for,
-    render_bar, run_core_assimilation, update_metrics, usage, Route, RunResult, TargetMetrics,
+    build_receipt_hash, canonical_assimilation_plan, decode_injected_route, maybe_prewarm,
+    parse_args, payload_scaffold_for, render_bar, run_core_assimilation, update_metrics, usage,
+    Route, RunResult, TargetMetrics,
     DEFAULT_REALTIME_DURATION_MS, DEFAULT_SHOWCASE_DURATION_MS, STAGES,
 };
 
@@ -155,6 +156,70 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     });
 
     if route.is_none() {
+        let plan = canonical_assimilation_plan(
+            &target,
+            None,
+            &ts_iso,
+            "unadmitted",
+            &options.hard_selector,
+            options.selector_bypass,
+        );
+        if !options.allow_local_simulation {
+            let out = json!({
+                "ok": false,
+                "type": "assimilate_unadmitted_target",
+                "target": target,
+                "reason": "unknown_target_requires_admission",
+                "admission_verdict": "unadmitted",
+                "next_steps": [
+                    "Use a known governed target or provide a routed core lane payload.",
+                    "If you need local simulation for testing, rerun with --allow-local-simulation=1."
+                ],
+                "canonical_plan": plan,
+                "ts": ts_iso
+            });
+            if options.json {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&out).unwrap_or_else(|_| "{}".to_string())
+                );
+            } else {
+                eprintln!(
+                    "{}",
+                    serde_json::to_string_pretty(&out).unwrap_or_else(|_| "{}".to_string())
+                );
+            }
+            return 1;
+        }
+        if options.plan_only {
+            let out = json!({
+                "ok": true,
+                "type": "assimilate_plan",
+                "mode": "simulation",
+                "target": target,
+                "canonical_plan": canonical_assimilation_plan(
+                    &target,
+                    None,
+                    &ts_iso,
+                    "simulated",
+                    &options.hard_selector,
+                    options.selector_bypass,
+                ),
+                "ts": ts_iso
+            });
+            if options.json {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&out).unwrap_or_else(|_| "{}".to_string())
+                );
+            } else {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&out).unwrap_or_else(|_| "{}".to_string())
+                );
+            }
+            return 0;
+        }
         let receipt = build_receipt_hash(&target, &ts_iso);
         if !options.json {
             if display_ms > 0 {
@@ -171,6 +236,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     "ok": true,
                     "type": "assimilate_progress",
                     "mode": "simulation",
+                    "admission_verdict": "simulated",
                     "target": target,
                     "receipt": receipt,
                     "latency_ms": metrics.last_latency_ms,
@@ -187,6 +253,30 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     }
 
     let route = route_or_fallback(route);
+    let plan = canonical_assimilation_plan(
+        &target,
+        Some(&route),
+        &ts_iso,
+        "admitted",
+        &options.hard_selector,
+        options.selector_bypass,
+    );
+    if options.plan_only {
+        let out = json!({
+            "ok": true,
+            "type": "assimilate_plan",
+            "mode": "runtime",
+            "target": target,
+            "route": route,
+            "canonical_plan": plan,
+            "ts": ts_iso
+        });
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&out).unwrap_or_else(|_| "{}".to_string())
+        );
+        return 0;
+    }
     let run_result = if display_ms > 0 && !options.json {
         let root_clone = root.to_path_buf();
         let domain = route.domain.clone();
@@ -217,6 +307,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "latency_ms": run_result.latency_ms,
                 "receipt": receipt,
                 "metrics": metrics,
+                "canonical_plan": plan,
                 "payload": run_result.payload,
                 "stderr": if run_result.status == 0 { "" } else { run_result.stderr.trim() },
                 "ts": ts_iso
@@ -233,4 +324,47 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     }
     print_final_success(&target, &receipt, &metrics, run_result.latency_ms);
     0
+}
+
+#[cfg(test)]
+mod tests {
+    use super::run;
+    use std::fs;
+    use std::path::PathBuf;
+
+    fn temp_root() -> PathBuf {
+        let root = std::env::temp_dir().join(format!(
+            "infring_assimilate_kernel_test_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|v| v.as_nanos())
+                .unwrap_or(0)
+        ));
+        let _ = fs::create_dir_all(&root);
+        root
+    }
+
+    #[test]
+    fn unknown_target_is_unadmitted_by_default() {
+        let root = temp_root();
+        let code = run(
+            &root,
+            &["workflow://definitely-unknown".to_string(), "--json=1".to_string()],
+        );
+        assert_eq!(code, 1);
+    }
+
+    #[test]
+    fn unknown_target_can_opt_in_local_simulation() {
+        let root = temp_root();
+        let code = run(
+            &root,
+            &[
+                "workflow://definitely-unknown".to_string(),
+                "--json=1".to_string(),
+                "--allow-local-simulation=1".to_string(),
+            ],
+        );
+        assert_eq!(code, 0);
+    }
 }

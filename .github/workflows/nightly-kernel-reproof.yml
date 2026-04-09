@@ -29,7 +29,7 @@ jobs:
         run: |
           cargo test --manifest-path core/layer0/ops/Cargo.toml --test v8_runtime_proof
           bash proofs/layer0/verify.sh
-          cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin protheus-ops -- \
+          cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops -- \
             top1-assurance proof-coverage --strict=1 --check-toolchains=0 --execute-proofs=1
 
       - name: Upload nightly proof artifacts

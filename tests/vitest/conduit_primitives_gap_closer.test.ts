@@ -81,6 +81,13 @@ describe('conduit primitive wrapper contract', () => {
     );
   });
 
+  test('rust lane bridge prefers resident ipc daemon path before sync spawn fallback', () => {
+    const source = fs.readFileSync(path.join(ROOT, 'client/runtime/lib/rust_lane_bridge.ts'), 'utf8');
+    expect(source.includes('INFRING_OPS_IPC_DAEMON')).toBe(true);
+    expect(source.includes('ipc-daemon')).toBe(true);
+    expect(source.includes('runLocalOpsDomainViaIpc')).toBe(true);
+  });
+
   test('install.sh enforces runtime entrypoint integrity contract', () => {
     const source = fs.readFileSync(path.join(ROOT, 'install.sh'), 'utf8');
     expect(source.includes('verify_workspace_runtime_contract')).toBe(true);

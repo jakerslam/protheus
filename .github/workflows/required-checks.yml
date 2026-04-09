@@ -250,7 +250,7 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
       - name: enterprise_hardening_gate
-        run: cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin protheus-ops -- enterprise-hardening run --strict=1
+        run: cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops -- enterprise-hardening run --strict=1
 
   ci_suite:
     runs-on: ubuntu-latest

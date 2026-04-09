@@ -1,0 +1,97 @@
+{{- if .Values.cron.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "protheus.fullname" . }}-daily
+  labels:
+    app.kubernetes.io/name: {{ include "protheus.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  schedule: {{ .Values.cron.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: {{ .Values.cron.successfulJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ .Values.cron.failedJobsHistoryLimit }}
+  jobTemplate:
+    spec:
+      backoffLimit: {{ .Values.cron.backoffLimit }}
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: {{ include "protheus.name" . }}
+            app.kubernetes.io/instance: {{ .Release.Name }}
+            app.kubernetes.io/component: daily-orchestrator
+        spec:
+          serviceAccountName: {{ include "protheus.serviceAccountName" . }}
+{{- if .Values.image.pullSecrets }}
+          imagePullSecrets:
+{{ toYaml .Values.image.pullSecrets | indent 12 }}
+{{- end }}
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: spine-daily
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              command:
+{{- range .Values.cron.command }}
+                - {{ . | quote }}
+{{- end }}
+              envFrom:
+                - configMapRef:
+                    name: {{ include "protheus.fullname" . }}-runtime
+{{- if or .Values.secrets.create .Values.secrets.existingSecretName }}
+                - secretRef:
+                    name: {{ include "protheus.secretName" . }}
+                    optional: {{ .Values.secrets.optional }}
+{{- end }}
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
+              resources:
+{{ toYaml .Values.resources | indent 16 }}
+              volumeMounts:
+                - name: state
+                  mountPath: /app/state
+                - name: logs
+                  mountPath: /app/logs
+                - name: tmp
+                  mountPath: /tmp
+                - name: app-tmp
+                  mountPath: /app/tmp
+          volumes:
+            - name: state
+              emptyDir:
+                sizeLimit: {{ .Values.persistence.state.sizeLimit | quote }}
+            - name: logs
+              emptyDir:
+                sizeLimit: {{ .Values.persistence.logs.sizeLimit | quote }}
+            - name: tmp
+              emptyDir:
+                sizeLimit: {{ .Values.persistence.tmp.sizeLimit | quote }}
+            - name: app-tmp
+              emptyDir:
+                sizeLimit: {{ .Values.persistence.tmp.sizeLimit | quote }}
+{{- if .Values.nvidia.enabled }}
+{{- if .Values.nvidia.runtimeClassName }}
+          runtimeClassName: {{ .Values.nvidia.runtimeClassName | quote }}
+{{- end }}
+{{- end }}
+{{- with .Values.scheduling.nodeSelector }}
+          nodeSelector:
+{{ toYaml . | indent 12 }}
+{{- end }}
+{{- with .Values.scheduling.tolerations }}
+          tolerations:
+{{ toYaml . | indent 12 }}
+{{- end }}
+{{- with .Values.scheduling.affinity }}
+          affinity:
+{{ toYaml . | indent 12 }}
+{{- end }}
+{{- end }}

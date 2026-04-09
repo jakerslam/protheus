@@ -38,5 +38,5 @@ jobs:
             core/local/state/ops/top1_assurance/latest.json
             core/local/state/ops/top1_assurance/history.jsonl
             core/local/state/ops/top1_assurance/benchmark_latest.json
-            docs/comparison/protheus_vs_x.md
+            docs/comparison/infring_vs_x.md
           if-no-files-found: warn

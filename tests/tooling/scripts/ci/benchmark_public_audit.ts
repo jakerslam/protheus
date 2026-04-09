@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import {
   CANONICAL_THROUGHPUT_METRIC,
+  collectBenchmarkAliasLeaks,
   collectBenchmarkPathLeaks,
   extractBenchmarkSnapshotBlock,
   renderBenchmarkSnapshotBlock,
@@ -259,6 +260,10 @@ function main(): void {
       const leakedPaths = collectBenchmarkPathLeaks(report);
       for (const leak of leakedPaths) {
         violations.push(`canonical_report_contains_absolute_path:${leak}`);
+      }
+      const leakedAliases = collectBenchmarkAliasLeaks(report);
+      for (const leak of leakedAliases) {
+        violations.push(`canonical_report_contains_legacy_alias:${leak}`);
       }
 
       const reportType = String(report?.type || '').trim();

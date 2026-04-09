@@ -5,7 +5,7 @@ on:
   pull_request:
     paths:
       - "core/layer0/ops/src/alpha_readiness.rs"
-      - "core/layer0/ops/src/protheusctl*.rs"
+      - "core/layer0/ops/src/infringctl*.rs"
       - "core/layer0/ops/src/main.rs"
       - "core/layer0/ops/src/ops_main_usage.rs"
       - "install.sh"
@@ -33,7 +33,7 @@ jobs:
         run: npm ci
 
       - name: Build core operator
-        run: cargo build --manifest-path core/layer0/ops/Cargo.toml --bin protheus-ops
+        run: cargo build --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops
 
       - name: Alpha readiness strict check
-        run: cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin protheus-ops -- alpha-readiness run --strict=1 --run-gates=1
+        run: cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops -- alpha-readiness run --strict=1 --run-gates=1

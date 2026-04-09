@@ -6,4 +6,4 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - run: cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin protheus-ops -- rust50-migration-program run --id=V6-RUST50-007 --apply=1 --strict=1
+      - run: cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops -- rust50-migration-program run --id=V6-RUST50-007 --apply=1 --strict=1

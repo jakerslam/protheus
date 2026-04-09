@@ -435,7 +435,7 @@ Notes:
 | V7-TOP1-002 | done | Core Rust formal proof coverage lane (Kani/Prusti) | Runtime hardening still relies heavily on tests/guards rather than broad property proofs across core crates. | CI proof execution is now enforced: `.github/workflows/formal-proof-runtime.yml` installs `kani-verifier` + runs `cargo kani setup`, and `package.json` runs `ops:formal-proof:run` with `--check-toolchains=1 --execute-proofs=1 --execute-optional-proofs=1`; required Kani command is pinned in `proofs/layer0/core_formal_coverage_map.json` (`kani_top1_proofs`) against `core/layer0/ops/src/top1_kani_proofs.rs`. Promotion to `done` remains pending first green CI proof receipt due local runner instability with long `cargo kani` session capture. | 10 | 0/1/2 |
 | V7-TOP1-003 | existing-coverage-validated | Nightly full-kernel re-proof CI + `verify.sh` proof gate | Proof posture can drift without continuous re-verification across new commits. | Extend CI with nightly proof re-run gate and bind `verify.sh` to proof/artifact verification so proof drift fails closed. | 10 | 0/1/2 |
 | V7-TOP1-004 | existing-coverage-validated | Reproducible public proof VM artifact lane | External trust requires independent replayability of proof verification, not internal-only receipts. | Publish reproducible VM/container artifact that replays proof verification deterministically and emits signed verification receipts. | 10 | 0/1/2 |
-| V7-TOP1-005 | done | Single static `protheusd` binary profile (25-35MB target) | Runtime still depends on distributed wrappers/host assumptions that weaken deployment simplicity and assurance claims. | Strict static-musl size gate passes via `cargo run --manifest-path core/layer0/ops/Cargo.toml --bin protheus-ops -- top1-assurance size-gate --strict=1` (receipt hash `7c8f36e3a446eb80fdfef2aeb08d3e3cc54aeeeb9edae914aa11c360bdc85b4c`, static-pie detected, `size_mb=0.528`, `max_mb=35.0`); CI gate in `.github/workflows/protheusd-static-size-gate.yml` enforces static build and max-band failure. | 10 | 0/1/2 |
+| V7-TOP1-005 | done | Single static `infringd` binary profile (25-35MB target) | Runtime still depends on distributed wrappers/host assumptions that weaken deployment simplicity and assurance claims. | Strict static-musl size gate passes via `cargo run --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops -- top1-assurance size-gate --strict=1` (receipt hash `7c8f36e3a446eb80fdfef2aeb08d3e3cc54aeeeb9edae914aa11c360bdc85b4c`, static-pie detected, `size_mb=0.528`, `max_mb=35.0`); CI gate in `.github/workflows/infringd-static-size-gate.yml` enforces static build and max-band failure. | 10 | 0/1/2 |
 | V7-TOP1-006 | done | Single-binary reproducible supply-chain release contract | Production-depth deployment needs deterministic artifact lineage and independent reproducibility. | Deterministic rebuild equivalence now enforced and evidenced: two consecutive static-musl builds produced identical SHA-256 (`762c260ee95b1c112c1ade60ca4f9c09b846cad4794106559535c87286e624bd`) with receipt artifact `core/local/state/ops/top1_assurance/reproducible_build_latest.json`; release lane publishes `state/release/provenance_bundle/reproducible_build_equivalence.json` and references it from provenance bundle metadata. | 10 | 0/1/2 |
 | V7-TOP1-007 | done | Public benchmark harness with strict performance thresholds | Comparative claims need reproducible, policy-bound performance evidence. | Strict benchmark refresh passes via `cargo run --manifest-path core/layer0/ops/Cargo.toml --bin protheus-ops -- top1-assurance benchmark-thresholds --strict=1 --refresh=1 --sample-ms=800` (receipt hash `e1bc9458decdbff9ada49b6158b82bd88170c63ea586b1cebad46d4a461d9e7c`; metrics: `cold_start_ms=74.5`, `idle_rss_mb=22.1`, `tasks_per_sec=7420`); CI uploads `core/local/state/ops/top1_assurance/benchmark_latest.json` for regression gating. | 10 | 0/1/2 |
 | V7-TOP1-008 | existing-coverage-validated | Public "Protheus vs X" CI-updated comparison matrix | Comparative positioning drifts without continuously regenerated side-by-side evidence. | Add CI-updated comparison table from canonical benchmark artifacts with deterministic generation script and evidence links. | 10 | 0/1/2 |
@@ -14412,3 +14412,100 @@ Source summary:
   - `core/layer0/ops/src/mastra_bridge_parts/050-run.rs`
   - `cargo test -p protheus-ops-core --lib framework_adapter_contract::tests::governed_workflow_emits_claims_evidence_and_memory_lineage`
   - `cargo test -p protheus-ops-core --lib framework_adapter_contract::tests::governed_workflow_rejects_unauthorized_tool_name`
+
+## Tooling Reliability Addendum (2026-04-08)
+
+### V11-TOOLING-003 — Deterministic Tool/Evidence/Claim Identity + Dedupe Policy Context
+
+- Intent:
+  - Remove timestamp-derived identity drift from the authoritative tooling pipeline and strengthen replay determinism across normalized tool results, evidence cards, and claim bundles.
+- Acceptance criteria:
+  - Tool Broker dedupe identity includes policy context (`policy_revision`, `tool_version`, freshness bucket) for dynamic tools.
+  - `NormalizedToolResult.result_id` is content-derived; event chronology is tracked separately via lineage metadata and raw reference event suffix.
+  - `EvidenceCard.evidence_id` and `Claim.claim_id`/`ClaimBundle.claim_bundle_id` are deterministic content identities (no timestamp entropy).
+  - Worker/client call sites provide explicit policy/tool metadata to `ToolCallRequest`.
+- Regression evidence pointers:
+  - `core/layer2/tooling/src/tool_broker.rs`
+  - `core/layer2/tooling/src/evidence_extractor.rs`
+  - `core/layer2/tooling/src/verifier.rs`
+  - `core/layer2/tooling/src/client_adapter.rs`
+  - `core/layer0/ops/src/framework_adapter_contract.rs`
+  - `core/layer0/ops/src/dashboard_compat_api_parts/030-set-config-payload.rs`
+  - `cargo test -p protheus-tooling-core-v1`
+
+### V11-SDK-002 — Fail-Closed SDK Transport Contract
+
+- Intent:
+  - Ensure public SDK transports never fabricate success envelopes by default when backend payloads are absent.
+- Acceptance criteria:
+  - CLI transport fails closed on missing backend `data` unless explicit synthetic fallback opt-in is configured.
+  - In-memory transport defaults to fail-closed unless explicit unseeded fallback opt-in is configured.
+  - SDK examples/tests that intentionally exercise synthetic mode must opt in explicitly.
+- Regression evidence pointers:
+  - `packages/infring-sdk/src/transports.ts`
+  - `packages/infring-sdk/src/types.ts`
+  - `packages/infring-sdk/src/index.ts`
+  - `tests/client-memory-tools/infring_sdk_contract.test.ts`
+  - `examples/apps/reference-task-submit/src/main.ts`
+  - `examples/apps/reference-assimilation-policy/src/main.ts`
+  - `npm run -s test:ops:sdk:surface`
+
+### V11-ASSIM-002 — Unknown Assimilation Targets Fail Closed as Unadmitted
+
+- Intent:
+  - Make assimilation admission behavior explicit and trustworthy: unknown targets must not default to simulated success.
+- Acceptance criteria:
+  - `assimilate` unknown targets return `assimilate_unadmitted_target` with non-zero exit by default.
+  - Local simulation remains available only via explicit opt-in (`--allow-local-simulation=1` or environment override).
+  - Help/command registry/README behavior text is aligned with the fail-closed admission model.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/assimilate_kernel.rs`
+  - `core/layer0/ops/src/assimilate_kernel_support.rs`
+  - `core/layer0/ops/src/command_list_kernel.rs`
+  - `README.md`
+  - `cargo test -p protheus-ops-core --lib command_list_kernel::tests::command_registry_includes_assimilate_as_experimental_runtime_surface -- --nocapture`
+
+### V11-ASSIM-003 — Canonical Assimilation Planning Enforces Selector/Closure/Admission Controls
+
+- Intent:
+  - Upgrade `assimilate --plan-only` from envelope-only output to enforced canonical planning semantics with hard-selector closure and bypass rejection controls.
+- Acceptance criteria:
+  - Canonical plan emits `selector_mode`, `hard_selector`, and `closure_complete` state.
+  - `--selector-bypass` is treated as a blocker in canonical plan gap analysis.
+  - Hard selectors that do not resolve to target/routed domain fail closure and emit blocker gap codes.
+  - Admission verdict is derived from closure/gap controls, not requested-mode text alone.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/assimilate_kernel_support.rs`
+  - `core/layer0/ops/src/assimilate_kernel.rs`
+  - `core/layer0/ops/src/ops_main_usage.rs`
+  - `core/layer0/ops/src/command_list_kernel.rs`
+  - `cargo test -p protheus-ops-core canonical_plan_ -- --nocapture`
+
+### V11-RUNTIME-IPC-001 — Resident IPC Lane for Ops Domain Bridge Hot Path
+
+- Intent:
+  - Remove per-call `spawnSync` tax from the TypeScript lane bridge by introducing a resident IPC daemon command in Rust authority and a synchronous queue client in the bridge.
+- Acceptance criteria:
+  - `ops-domain-conduit-runner-kernel` exposes `ipc-daemon` mode with request/response queue processing.
+  - `client/runtime/lib/rust_lane_bridge.ts` attempts IPC daemon routing first and keeps spawn fallback for resilience.
+  - Repeated lane calls avoid compile/spawn churn after daemon warmup.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/ops_domain_conduit_runner_kernel.rs`
+  - `client/runtime/lib/rust_lane_bridge.ts`
+  - `tests/vitest/conduit_primitives_gap_closer.test.ts`
+  - `node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/security_layer_inventory_gate.ts --json=1`
+
+### V11-BENCH-BOOT-001 — Boot Decomposition Metrics Published in Canonical Benchmark Surface
+
+- Intent:
+  - Publish explicit boot decomposition metrics to keep cold-start tuning aligned with real startup phases.
+- Acceptance criteria:
+  - Canonical benchmark report includes `kernel_ready_ms`, `gateway_ready_ms`, and `dashboard_interactive_ms`.
+  - Benchmark refresh guard validates those fields in rich profile output.
+  - Public benchmark snapshot rendering includes the decomposition rows.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/benchmark_matrix_parts/030-attach-shared-throughput-sampling.rs`
+  - `tests/tooling/scripts/ci/benchmark_matrix_refresh.ts`
+  - `tests/tooling/scripts/ci/benchmark_public_surface.ts`
+  - `npm run -s ops:benchmark:refresh -- --preflight-max-load-per-core=100 --preflight-max-noise-cv-pct=1000 --preflight-noise-rounds=1 --retries=1 --refresh-runtime=0`
+  - `npm run -s ops:benchmark:public-audit`

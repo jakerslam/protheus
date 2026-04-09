@@ -137,7 +137,12 @@ export interface CliTransportOptions {
   cwd?: string;
   env?: NodeJS.ProcessEnv;
   timeout_ms?: number;
+  allow_synthetic_fallback?: boolean;
   args_for_operation: (request: InfringTransportRequest) => string[];
+}
+
+export interface InMemoryTransportOptions {
+  allow_unseeded_fallback?: boolean;
 }
 
 export function createCliTransport(options: CliTransportOptions): InfringTransport {
@@ -148,6 +153,7 @@ export function createCliTransport(options: CliTransportOptions): InfringTranspo
   if (typeof options.args_for_operation !== 'function') {
     throw new Error('sdk_cli_transport_requires_args_for_operation');
   }
+  const allowSyntheticFallback = options.allow_synthetic_fallback === true;
   return {
     async invoke<TData extends JsonValue = JsonValue>(
       request: InfringTransportRequest
@@ -160,24 +166,48 @@ export function createCliTransport(options: CliTransportOptions): InfringTranspo
         timeout: Math.max(1000, Number(options.timeout_ms || 120000)),
       });
       const parsed = parseJsonLine(String(proc.stdout || '')) || {};
+      const traceId = String(parsed.trace_id || `trace_${randomUUID().replace(/-/g, '')}`);
       const receipts = asStringArray(parsed.receipts).map((receiptId) => ({
         receipt_id: receiptId,
         issued_at: nowIso(),
       }));
-      const data = (parsed.data as TData) || (defaultDataForOperation(request) as TData);
+      const hasParsedData = Object.prototype.hasOwnProperty.call(parsed, 'data');
+      const parsedData = hasParsedData ? (parsed.data as TData) : undefined;
       if (Number(proc.status || 0) !== 0) {
         return {
           ok: false,
           operation: request.operation,
-          trace_id: String(parsed.trace_id || `trace_${randomUUID().replace(/-/g, '')}`),
+          trace_id: traceId,
           receipts,
-          data,
+          data: (parsedData || ({} as TData)),
+          error: {
+            code: 'transport_exit_nonzero',
+            message: `Transport command exited with status ${String(proc.status ?? 1)}`,
+          },
         };
       }
+      if (!hasParsedData) {
+        if (!allowSyntheticFallback) {
+          return {
+            ok: false,
+            operation: request.operation,
+            trace_id: traceId,
+            receipts,
+            data: {} as TData,
+            error: {
+              code: 'missing_transport_data',
+              message: 'Transport succeeded but did not return a data payload.',
+            },
+          };
+        }
+      }
+      const data = hasParsedData
+        ? (parsedData as TData)
+        : (defaultDataForOperation(request) as TData);
       return {
         ok: true,
         operation: request.operation,
-        trace_id: String(parsed.trace_id || `trace_${randomUUID().replace(/-/g, '')}`),
+        trace_id: traceId,
         receipts: receipts.length > 0 ? receipts : [toReceipt(request.policy_refs[0])],
         data,
       };
@@ -187,13 +217,33 @@ export function createCliTransport(options: CliTransportOptions): InfringTranspo
 
 export type InMemorySeed = Partial<Record<InfringOperation, JsonValue>>;
 
-export function createInMemoryTransport(seed: InMemorySeed = {}): InfringTransport {
+export function createInMemoryTransport(
+  seed: InMemorySeed = {},
+  options: InMemoryTransportOptions = {}
+): InfringTransport {
+  const allowUnseededFallback = options.allow_unseeded_fallback === true;
   return {
     async invoke<TData extends JsonValue = JsonValue>(
       request: InfringTransportRequest
     ): Promise<SdkEnvelope<TData>> {
-      const seeded = seed[request.operation];
-      const data = (seeded as TData) || (defaultDataForOperation(request) as TData);
+      const hasSeed = Object.prototype.hasOwnProperty.call(seed, request.operation);
+      const seeded = hasSeed ? seed[request.operation] : undefined;
+      if (!hasSeed && !allowUnseededFallback) {
+        return {
+          ok: false,
+          operation: request.operation,
+          trace_id: `trace_${randomUUID().replace(/-/g, '')}`,
+          receipts: [toReceipt(request.policy_refs[0])],
+          data: {} as TData,
+          error: {
+            code: 'in_memory_seed_missing',
+            message: `In-memory transport missing seed for operation '${request.operation}'.`,
+          },
+        };
+      }
+      const data = hasSeed
+        ? (seeded as TData)
+        : (defaultDataForOperation(request) as TData);
       return envelope(request.operation, data, request.policy_refs);
     },
   };

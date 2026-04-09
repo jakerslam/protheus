@@ -7,20 +7,6 @@ InfRing runs with a Rust core and a thin TypeScript surface routed through condu
 ### macOS / Linux
 
 ```bash
-curl -fsSL https://get.protheus.ai/install | sh
-infring --help
-```
-
-Direct script path:
-
-```bash
-curl -fsSL https://get.protheus.ai/install.sh | sh
-infring --help
-```
-
-Canonical source mirror:
-
-```bash
 curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh && . "$HOME/.infring/env.sh" && infring gateway
 ```
 
@@ -41,7 +27,7 @@ Get-Command infring -ErrorAction SilentlyContinue
 infring gateway
 ```
 
-If PATH has not refreshed in the same shell, run directly: `$HOME\.protheus\bin\infring.cmd gateway`.
+If PATH has not refreshed in the same shell, run directly: `$HOME\.infring\bin\infring.cmd gateway`.
 
 If a release has no Windows prebuilt binary for your architecture, the installer falls back to building from source. Install prerequisites first on fresh machines:
 
@@ -55,7 +41,7 @@ winget install --id Microsoft.VisualStudio.2022.BuildTools -e
 ### Optional: Python Wrapper (`pipx`)
 
 ```bash
-pipx install protheus-cli-wrapper
+pipx install infring-cli-wrapper
 infring --help
 ```
 
@@ -67,10 +53,7 @@ infringctl --help
 infringd --help
 ```
 
-Legacy aliases remain available with deprecation notices:
-- `protheus` -> `infring`
-- `protheusctl` -> `infringctl`
-- `protheusd` -> `infringd`
+Legacy aliases are compatibility-only and should not be used in new automation.
 
 ## 3) Start core surfaces
 
@@ -83,7 +66,7 @@ infring contract-check
 ## 4) Run mandatory gates
 
 ```bash
-cargo run --manifest-path core/layer0/ops/Cargo.toml --bin protheus-ops -- contract-check
+cargo run --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops -- contract-check
 NODE_PATH=$PWD/node_modules npm run -s formal:invariants:run
 ```
 

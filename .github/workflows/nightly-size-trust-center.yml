@@ -22,7 +22,7 @@ jobs:
 
       - name: Build latest size-trust payload
         run: |
-          cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin protheus-ops -- \
+          cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops -- \
             canyon-plane size-trust --strict=0
 
       - name: Stage trust-center site

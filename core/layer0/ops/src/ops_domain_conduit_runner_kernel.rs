@@ -4,9 +4,12 @@
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::Engine;
 use serde_json::{json, Map, Value};
+use std::fs;
 use std::io::Write;
 use std::path::Path;
 use std::process::Command;
+use std::thread;
+use std::time::Duration;
 
 use crate::contract_lane_utils as lane_utils;
 use crate::{deterministic_receipt_hash, now_iso};
@@ -22,6 +25,9 @@ fn usage() {
         "  protheus-ops ops-domain-conduit-runner-kernel prepare-run [--payload-base64=<json>]"
     );
     println!("  protheus-ops ops-domain-conduit-runner-kernel run --payload-base64=<json>");
+    println!(
+        "  protheus-ops ops-domain-conduit-runner-kernel ipc-daemon [--queue-dir=<path>] [--poll-ms=<n>]"
+    );
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {
@@ -456,6 +462,125 @@ fn run_execute(root: &Path, payload: &Map<String, Value>) -> Value {
     }
 }
 
+fn queue_dir_from_argv(root: &Path, argv: &[String]) -> std::path::PathBuf {
+    let raw = lane_utils::parse_flag(argv, "queue-dir", false)
+        .unwrap_or_else(|| "local/state/tools/ops_bridge_ipc".to_string());
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return root.join("local/state/tools/ops_bridge_ipc");
+    }
+    let candidate = std::path::PathBuf::from(trimmed);
+    if candidate.is_absolute() {
+        candidate
+    } else {
+        root.join(candidate)
+    }
+}
+
+fn poll_ms_from_argv(argv: &[String]) -> u64 {
+    let raw = lane_utils::parse_flag(argv, "poll-ms", false).unwrap_or_else(|| "20".to_string());
+    parse_i64_text(raw.as_str(), 20).clamp(5, 1000) as u64
+}
+
+fn write_json_atomic(path: &Path, payload: &Value) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|err| format!("ops_domain_conduit_runner_kernel_queue_mkdir_failed:{err}"))?;
+    }
+    let tmp = path.with_extension("json.tmp");
+    let body = serde_json::to_string(payload)
+        .map_err(|err| format!("ops_domain_conduit_runner_kernel_queue_encode_failed:{err}"))?;
+    fs::write(&tmp, format!("{body}\n"))
+        .map_err(|err| format!("ops_domain_conduit_runner_kernel_queue_write_failed:{err}"))?;
+    fs::rename(&tmp, path)
+        .map_err(|err| format!("ops_domain_conduit_runner_kernel_queue_rename_failed:{err}"))?;
+    Ok(())
+}
+
+fn run_ipc_daemon(root: &Path, argv: &[String]) -> Result<(), String> {
+    let queue_dir = queue_dir_from_argv(root, argv);
+    let poll_ms = poll_ms_from_argv(argv);
+    let requests_dir = queue_dir.join("requests");
+    let responses_dir = queue_dir.join("responses");
+    fs::create_dir_all(&requests_dir)
+        .map_err(|err| format!("ops_domain_conduit_runner_kernel_requests_dir_failed:{err}"))?;
+    fs::create_dir_all(&responses_dir)
+        .map_err(|err| format!("ops_domain_conduit_runner_kernel_responses_dir_failed:{err}"))?;
+
+    loop {
+        let mut request_files = fs::read_dir(&requests_dir)
+            .map_err(|err| format!("ops_domain_conduit_runner_kernel_read_dir_failed:{err}"))?
+            .filter_map(|entry| entry.ok().map(|row| row.path()))
+            .filter(|path| path.extension().and_then(|ext| ext.to_str()) == Some("json"))
+            .collect::<Vec<_>>();
+        request_files.sort();
+
+        for request_path in request_files {
+            let raw = fs::read_to_string(&request_path).unwrap_or_default();
+            let request = serde_json::from_str::<Value>(&raw).unwrap_or_else(|_| json!({}));
+            let request_id = clean_text(request.get("id"), 120);
+            let domain = clean_text(request.get("domain"), 120);
+            let args = request
+                .get("args")
+                .and_then(Value::as_array)
+                .map(|rows| rows.iter().map(|row| as_str(Some(row))).collect::<Vec<_>>())
+                .unwrap_or_default();
+
+            let response = if request_id.is_empty() {
+                json!({
+                    "ok": false,
+                    "status": 2,
+                    "payload": {
+                        "ok": false,
+                        "type": "ops_domain_ipc_request_invalid",
+                        "reason": "missing_request_id"
+                    }
+                })
+            } else if domain.is_empty() {
+                json!({
+                    "ok": false,
+                    "status": 2,
+                    "payload": {
+                        "ok": false,
+                        "type": "ops_domain_ipc_request_invalid",
+                        "reason": "missing_domain"
+                    }
+                })
+            } else {
+                match run_domain_once(root, &domain, &args) {
+                    Ok((status, payload)) => json!({
+                        "ok": status == 0 && payload.get("ok").and_then(Value::as_bool).unwrap_or(true),
+                        "status": status,
+                        "payload": payload
+                    }),
+                    Err(err) => json!({
+                        "ok": false,
+                        "status": 1,
+                        "payload": {
+                            "ok": false,
+                            "type": "ops_domain_conduit_bridge_error",
+                            "reason": err
+                        }
+                    }),
+                }
+            };
+
+            if !request_id.is_empty() {
+                let response_path = responses_dir.join(format!("{request_id}.json"));
+                let envelope = json!({
+                    "ok": response.get("ok").and_then(Value::as_bool).unwrap_or(false),
+                    "request_id": request_id,
+                    "response": response
+                });
+                let _ = write_json_atomic(&response_path, &envelope);
+            }
+            let _ = fs::remove_file(&request_path);
+        }
+
+        thread::sleep(Duration::from_millis(poll_ms));
+    }
+}
+
 pub fn run(root: &std::path::Path, argv: &[String]) -> i32 {
     let command = argv
         .first()
@@ -478,6 +603,10 @@ pub fn run(root: &std::path::Path, argv: &[String]) -> i32 {
         "build-run-options" => Ok(run_build_run_options(payload)),
         "prepare-run" => Ok(run_prepare_run(payload)),
         "run" => Ok(run_execute(root, payload)),
+        "ipc-daemon" => match run_ipc_daemon(root, argv) {
+            Ok(()) => Ok(json!({"ok": true, "type": "ops_domain_conduit_runner_kernel_ipc_daemon"})),
+            Err(err) => Err(err),
+        },
         "help" | "--help" | "-h" => {
             usage();
             return 0;

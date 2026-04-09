@@ -5,6 +5,7 @@ import { dirname, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import {
   CANONICAL_THROUGHPUT_METRIC,
+  collectBenchmarkAliasLeaks,
   collectBenchmarkPathLeaks,
   renderBenchmarkSnapshotBlock,
   sanitizePublicBenchmarkReport,
@@ -21,7 +22,7 @@ type Options = {
   retryDelayMs: number;
   reportPath: string;
   mirrorLegacy: boolean;
-  release: boolean;
+  cargoProfile: 'debug' | 'release' | 'release-speed';
   throughputUncached: boolean;
   refreshRuntime: boolean;
   preflightMaxLoadPerCore: number;
@@ -29,6 +30,16 @@ type Options = {
   preflightNoiseSampleMs: number;
   preflightNoiseRounds: number;
 };
+
+function parseCargoProfile(raw: string | null | undefined): 'debug' | 'release' | 'release-speed' {
+  const normalized = String(raw || '')
+    .trim()
+    .toLowerCase();
+  if (normalized === 'debug') return 'debug';
+  if (normalized === 'release') return 'release';
+  if (normalized === 'release-speed') return 'release-speed';
+  return 'release-speed';
+}
 
 function parseBool(raw: string | null | undefined, fallback: boolean): boolean {
   if (raw == null) return fallback;
@@ -51,7 +62,7 @@ function parseArgs(argv: string[]): Options {
     retryDelayMs: 15_000,
     reportPath: DEFAULT_REPORT_PATH,
     mirrorLegacy: true,
-    release: true,
+    cargoProfile: parseCargoProfile(process.env.INFRING_BENCH_CARGO_PROFILE),
     throughputUncached: false,
     refreshRuntime: true,
     preflightMaxLoadPerCore: 0.9,
@@ -67,7 +78,12 @@ function parseArgs(argv: string[]): Options {
     if (key === 'retry-delay-ms') opts.retryDelayMs = parseNumber(value, opts.retryDelayMs, 1000, 180_000);
     if (key === 'report-path') opts.reportPath = value.trim() || opts.reportPath;
     if (key === 'mirror-legacy') opts.mirrorLegacy = parseBool(value, opts.mirrorLegacy);
-    if (key === 'release') opts.release = parseBool(value, opts.release);
+    if (key === 'release') {
+      opts.cargoProfile = parseBool(value, true) ? 'release' : 'debug';
+    }
+    if (key === 'cargo-profile') {
+      opts.cargoProfile = parseCargoProfile(value);
+    }
     if (key === 'throughput-uncached') opts.throughputUncached = parseBool(value, opts.throughputUncached);
     if (key === 'refresh-runtime') opts.refreshRuntime = parseBool(value, opts.refreshRuntime);
     if (key === 'preflight-max-load-per-core') {
@@ -122,9 +138,17 @@ function assertRunOk(label: string, cmd: string, args: string[]): void {
   }
 }
 
-function buildArgs(manifestPath: string, bin: string, release: boolean): string[] {
+function buildArgs(
+  manifestPath: string,
+  bin: string,
+  cargoProfile: 'debug' | 'release' | 'release-speed'
+): string[] {
   const args = ['build', '--quiet', '--manifest-path', manifestPath, '--bin', bin];
-  if (release) args.splice(2, 0, '--release');
+  if (cargoProfile === 'release') {
+    args.splice(2, 0, '--release');
+  } else if (cargoProfile !== 'debug') {
+    args.splice(2, 0, '--profile', cargoProfile);
+  }
   return args;
 }
 
@@ -162,40 +186,42 @@ function writeJson(path: string, payload: any): void {
 
 function main(): void {
   const options = parseArgs(process.argv.slice(2));
-  const profileDir = options.release ? 'release' : 'debug';
+  const profileDir = options.cargoProfile;
   const infringOpsBin = `target/${profileDir}/infring-ops`;
 
   assertRunOk(
-    options.release ? 'build_infring_ops_release' : 'build_infring_ops_debug',
+    `build_infring_ops_${options.cargoProfile}`,
     'cargo',
-    buildArgs('core/layer0/ops/Cargo.toml', 'infring-ops', options.release)
+    buildArgs('core/layer0/ops/Cargo.toml', 'infring-ops', options.cargoProfile)
   );
   assertRunOk(
-    options.release ? 'build_protheus_ops_compat_release' : 'build_protheus_ops_compat_debug',
+    `build_protheus_ops_compat_${options.cargoProfile}`,
     'cargo',
-    buildArgs('core/layer0/ops/Cargo.toml', 'protheus-ops', options.release)
+    buildArgs('core/layer0/ops/Cargo.toml', 'protheus-ops', options.cargoProfile)
   );
   assertRunOk(
-    options.release ? 'build_infringd_release' : 'build_infringd_debug',
+    `build_infringd_${options.cargoProfile}`,
     'cargo',
-    buildArgs('core/layer0/ops/Cargo.toml', 'infringd', options.release)
+    buildArgs('core/layer0/ops/Cargo.toml', 'infringd', options.cargoProfile)
   );
   assertRunOk(
-    options.release ? 'build_protheusd_compat_release' : 'build_protheusd_compat_debug',
+    `build_protheusd_compat_${options.cargoProfile}`,
     'cargo',
-    buildArgs('core/layer0/ops/Cargo.toml', 'protheusd', options.release)
+    buildArgs('core/layer0/ops/Cargo.toml', 'protheusd', options.cargoProfile)
   );
   assertRunOk(
-    options.release ? 'build_pure_workspace_release' : 'build_pure_workspace_debug',
+    `build_pure_workspace_${options.cargoProfile}`,
     'cargo',
-    buildArgs('client/pure-workspace/Cargo.toml', 'infring-pure-workspace', options.release)
+    buildArgs('client/pure-workspace/Cargo.toml', 'infring-pure-workspace', options.cargoProfile)
   );
   assertRunOk(
-    options.release
-      ? 'build_protheus_pure_workspace_compat_release'
-      : 'build_protheus_pure_workspace_compat_debug',
+    `build_protheus_pure_workspace_compat_${options.cargoProfile}`,
     'cargo',
-    buildArgs('client/pure-workspace/Cargo.toml', 'protheus-pure-workspace', options.release)
+    buildArgs(
+      'client/pure-workspace/Cargo.toml',
+      'protheus-pure-workspace',
+      options.cargoProfile
+    )
   );
 
   const attempts: Array<{ attempt: number; ok: boolean; blockers: string[] }> = [];
@@ -238,6 +264,12 @@ function main(): void {
   if (unsanitizedPaths.length > 0) {
     throw new Error(`benchmark_public_report_contains_absolute_paths:${JSON.stringify(unsanitizedPaths)}`);
   }
+  const legacyAliasLeaks = collectBenchmarkAliasLeaks(sanitizedReport);
+  if (legacyAliasLeaks.length > 0) {
+    throw new Error(
+      `benchmark_public_report_contains_legacy_aliases:${JSON.stringify(legacyAliasLeaks)}`
+    );
+  }
 
   sanitizedReport.benchmark_refresh_context = {
     build_profile: profileDir,
@@ -262,12 +294,27 @@ function main(): void {
   const richGatewaySupervisorOrchestrationMs = Number(
     (rich as any).gateway_supervisor_orchestration_ms
   );
-  if (!Number.isFinite(richEngineStartMs) || !Number.isFinite(richGatewaySupervisorOrchestrationMs)) {
+  const richKernelReadyMs = Number((rich as any).kernel_ready_ms);
+  const richGatewayReadyMs = Number((rich as any).gateway_ready_ms);
+  const richDashboardInteractiveMs = Number((rich as any).dashboard_interactive_ms);
+  if (
+    !Number.isFinite(richEngineStartMs) ||
+    !Number.isFinite(richGatewaySupervisorOrchestrationMs) ||
+    !Number.isFinite(richKernelReadyMs) ||
+    !Number.isFinite(richGatewayReadyMs) ||
+    !Number.isFinite(richDashboardInteractiveMs)
+  ) {
     throw new Error(
       `benchmark_matrix_rich_startup_breakdown_missing:engine_start_ms=${String(
         (rich as any).engine_start_ms
       )},gateway_supervisor_orchestration_ms=${String(
         (rich as any).gateway_supervisor_orchestration_ms
+      )},kernel_ready_ms=${String(
+        (rich as any).kernel_ready_ms
+      )},gateway_ready_ms=${String(
+        (rich as any).gateway_ready_ms
+      )},dashboard_interactive_ms=${String(
+        (rich as any).dashboard_interactive_ms
       )}`
     );
   }
@@ -309,6 +356,9 @@ function main(): void {
         rich: rich ? true : false,
         rich_engine_start_ms: richEngineStartMs,
         rich_gateway_supervisor_orchestration_ms: richGatewaySupervisorOrchestrationMs,
+        rich_kernel_ready_ms: richKernelReadyMs,
+        rich_gateway_ready_ms: richGatewayReadyMs,
+        rich_dashboard_interactive_ms: richDashboardInteractiveMs,
         pure: pure ? true : false,
         tiny_max: tiny ? true : false
       },

@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  protheusd-size-gate:
+  infringd-size-gate:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -35,29 +35,29 @@ jobs:
       - name: Install JS deps (full install sizing)
         run: npm ci
 
-      - name: Build static protheusd
+      - name: Build static infringd
         run: |
           set -euo pipefail
-          cargo build --release --target x86_64-unknown-linux-musl --manifest-path core/layer0/ops/Cargo.toml --bin protheusd --features embedded-minimal-core,mimalloc,no-client-bloat
-          strip target/x86_64-unknown-linux-musl/release/protheusd || true
-          ls -lh target/x86_64-unknown-linux-musl/release/protheusd
-          file target/x86_64-unknown-linux-musl/release/protheusd
+          cargo build --release --target x86_64-unknown-linux-musl --manifest-path core/layer0/ops/Cargo.toml --bin infringd --features embedded-minimal-core,mimalloc,no-client-bloat
+          strip target/x86_64-unknown-linux-musl/release/infringd || true
+          ls -lh target/x86_64-unknown-linux-musl/release/infringd
+          file target/x86_64-unknown-linux-musl/release/infringd
 
       - name: Enforce static size gate (0.5 MB - 2.4 MB)
         run: |
           set -euo pipefail
-          BIN="target/x86_64-unknown-linux-musl/release/protheusd"
+          BIN="target/x86_64-unknown-linux-musl/release/infringd"
           SIZE_BYTES="$(wc -c < "$BIN" | tr -d ' ')"
           SIZE_MB="$(awk -v b="$SIZE_BYTES" 'BEGIN { printf "%.2f", b/(1024*1024) }')"
           MIN_BYTES=$((512 * 1024))
           MAX_BYTES=$((2516582))
           if [ "$SIZE_BYTES" -lt "$MIN_BYTES" ] || [ "$SIZE_BYTES" -gt "$MAX_BYTES" ]; then
-            echo "::error::protheusd static musl binary is ${SIZE_MB} MB, outside the 0.5 MB - 2.4 MB CI gate."
+            echo "::error::infringd static musl binary is ${SIZE_MB} MB, outside the 0.5 MB - 2.4 MB CI gate."
             exit 1
           fi
-          cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin protheus-ops -- \
+          cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops -- \
             top1-assurance size-gate --strict=1
-          echo "protheusd static binary: ${SIZE_MB} MB (musl)"
+          echo "infringd static binary: ${SIZE_MB} MB (musl)"
 
       - name: Enforce full install size gate (80 MB - 95 MB)
         run: |
@@ -68,7 +68,7 @@ jobs:
               pathlib.Path("node_modules"),
               pathlib.Path("client/runtime"),
               pathlib.Path("core/layer0/ops"),
-              pathlib.Path("target/x86_64-unknown-linux-musl/release/protheusd"),
+              pathlib.Path("target/x86_64-unknown-linux-musl/release/infringd"),
           ]
           total_bytes = 0
           for root in roots:
@@ -103,22 +103,22 @@ jobs:
           }
           pathlib.Path("/tmp/top1_ci_seed.json").write_text(json.dumps(seed))
           PY
-          cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin protheus-ops -- \
+          cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops -- \
             top1-assurance benchmark-thresholds --strict=1 --benchmark-path=/tmp/top1_ci_seed.json \
             --tasks-per-sec-min=11000 --sample-ms=800 --refresh=1
 
       - name: Verify reproducible static rebuild
         run: |
           set -euo pipefail
-          BIN="target/x86_64-unknown-linux-musl/release/protheusd"
+          BIN="target/x86_64-unknown-linux-musl/release/infringd"
           mkdir -p core/local/state/ops/top1_assurance
-          cp "$BIN" /tmp/protheusd.repro.1
-          SHA1="$(sha256sum /tmp/protheusd.repro.1 | awk '{print $1}')"
-          cargo clean -p protheus-ops-core || true
-          cargo build --release --target x86_64-unknown-linux-musl --manifest-path core/layer0/ops/Cargo.toml --bin protheusd --features embedded-minimal-core,mimalloc,no-client-bloat
+          cp "$BIN" /tmp/infringd.repro.1
+          SHA1="$(sha256sum /tmp/infringd.repro.1 | awk '{print $1}')"
+          cargo clean -p infring-ops-core || true
+          cargo build --release --target x86_64-unknown-linux-musl --manifest-path core/layer0/ops/Cargo.toml --bin infringd --features embedded-minimal-core,mimalloc,no-client-bloat
           strip "$BIN" || true
-          cp "$BIN" /tmp/protheusd.repro.2
-          SHA2="$(sha256sum /tmp/protheusd.repro.2 | awk '{print $1}')"
+          cp "$BIN" /tmp/infringd.repro.2
+          SHA2="$(sha256sum /tmp/infringd.repro.2 | awk '{print $1}')"
           if [ "$SHA1" != "$SHA2" ]; then
             echo "::error::reproducible build check failed (sha mismatch)"
             echo "build_1_sha=$SHA1"
@@ -130,7 +130,7 @@ jobs:
             "schema_id": "top1_reproducible_static_build",
             "schema_version": "1.0",
             "target": "x86_64-unknown-linux-musl",
-            "binary_path": "target/x86_64-unknown-linux-musl/release/protheusd",
+            "binary_path": "target/x86_64-unknown-linux-musl/release/infringd",
             "build_1_sha256": "$SHA1",
             "build_2_sha256": "$SHA2",
             "reproducible_match": true
@@ -140,16 +140,16 @@ jobs:
       - name: Run strict TOP1 benchmark harness
         run: |
           set -euo pipefail
-          cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin protheus-ops -- \
+          cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops -- \
             top1-assurance benchmark-thresholds --strict=1 --refresh=1 --sample-ms=800
 
       - name: Upload size-gate artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: protheusd-size-gate-artifacts
+          name: infringd-size-gate-artifacts
           path: |
-            target/x86_64-unknown-linux-musl/release/protheusd
+            target/x86_64-unknown-linux-musl/release/infringd
             core/local/state/ops/top1_assurance/latest.json
             core/local/state/ops/top1_assurance/history.jsonl
             core/local/state/ops/top1_assurance/reproducible_build_latest.json

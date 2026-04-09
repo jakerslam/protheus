@@ -70,6 +70,10 @@ impl ThinClientDelegator {
                     args,
                     lineage: vec!["thin_client_delegator".to_string()],
                     caller: BrokerCaller::Client,
+                    policy_revision: Some("policy.tooling.v1".to_string()),
+                    tool_version: Some(format!("{tool_name}.v1")),
+                    freshness_window_ms: None,
+                    force_no_dedupe: false,
                 },
                 |normalized_args| match tool_name {
                     "web_search" => bridge.web_search(normalized_args),

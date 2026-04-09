@@ -163,6 +163,9 @@ fn measure_infring(
                 .or_else(|| get_f64(metrics, "gateway_supervisor_orchestration_p95_ms"))
         })
         .unwrap_or((rich_cold_start_total_ms - engine_start_ms).max(0.0));
+    let kernel_ready_ms = engine_start_ms;
+    let gateway_ready_ms = (engine_start_ms + gateway_supervisor_orchestration_ms).max(0.0);
+    let dashboard_interactive_ms = rich_cold_start_total_ms;
     // Canonical user-visible cold start remains cold_start_ms.
     let cold_start_user_visible_ms = rich_cold_start_total_ms;
     // Micro cold start captures engine-only initialization.
@@ -189,6 +192,12 @@ fn measure_infring(
     measured.insert(
         "cold_start_orchestration_ms".to_string(),
         json!(gateway_supervisor_orchestration_ms),
+    );
+    measured.insert("kernel_ready_ms".to_string(), json!(kernel_ready_ms));
+    measured.insert("gateway_ready_ms".to_string(), json!(gateway_ready_ms));
+    measured.insert(
+        "dashboard_interactive_ms".to_string(),
+        json!(dashboard_interactive_ms),
     );
     measured.insert("engine_start_ms".to_string(), json!(engine_start_ms));
     measured.insert(
@@ -285,7 +294,10 @@ fn measure_infring(
             json!({
                 "engine_start_ms": engine_start_ms,
                 "gateway_supervisor_orchestration_ms": gateway_supervisor_orchestration_ms,
-                "rich_cold_start_total_ms": rich_cold_start_total_ms
+                "rich_cold_start_total_ms": rich_cold_start_total_ms,
+                "kernel_ready_ms": kernel_ready_ms,
+                "gateway_ready_ms": gateway_ready_ms,
+                "dashboard_interactive_ms": dashboard_interactive_ms
             }),
         );
     }

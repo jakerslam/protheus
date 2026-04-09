@@ -3,6 +3,9 @@ use crate::{deterministic_hash, now_ms};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use std::collections::{HashMap, HashSet};
+use std::fs::{create_dir_all, OpenOptions};
+use std::io::Write;
+use std::path::PathBuf;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -20,6 +23,10 @@ pub struct ToolCallRequest {
     pub args: Value,
     pub lineage: Vec<String>,
     pub caller: BrokerCaller,
+    pub policy_revision: Option<String>,
+    pub tool_version: Option<String>,
+    pub freshness_window_ms: Option<u64>,
+    pub force_no_dedupe: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -28,12 +35,31 @@ pub struct ToolBrokerExecution {
     pub raw_payload: Value,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ToolExecutionLedgerEvent {
+    pub event_id: String,
+    pub result_id: String,
+    pub trace_id: String,
+    pub task_id: String,
+    pub caller: BrokerCaller,
+    pub tool_name: String,
+    pub status: NormalizedToolStatus,
+    pub dedupe_hash: String,
+    pub policy_revision: String,
+    pub tool_version: String,
+    pub freshness_window_ms: u64,
+    pub freshness_bucket: u64,
+    pub raw_ref: String,
+    pub timestamp: u64,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum BrokerError {
     UnauthorizedToolRequest(String),
     InvalidArgs(String),
     ExecutionError(String),
     DirectToolBypassDenied(String),
+    LedgerWriteFailed(String),
 }
 
 impl BrokerError {
@@ -43,6 +69,7 @@ impl BrokerError {
             Self::InvalidArgs(v) => format!("invalid_args:{v}"),
             Self::ExecutionError(v) => format!("execution_error:{v}"),
             Self::DirectToolBypassDenied(v) => format!("direct_tool_bypass_denied:{v}"),
+            Self::LedgerWriteFailed(v) => format!("ledger_write_failed:{v}"),
         }
     }
 }
@@ -51,6 +78,9 @@ pub struct ToolBroker {
     allowed_tools: HashMap<BrokerCaller, HashSet<String>>,
     dedupe_lookup: HashMap<String, String>,
     raw_payloads: HashMap<String, Value>,
+    event_sequence: u64,
+    ledger_events: Vec<ToolExecutionLedgerEvent>,
+    ledger_path: PathBuf,
 }
 
 impl Default for ToolBroker {
@@ -69,10 +99,21 @@ impl Default for ToolBroker {
         allowed_tools.insert(BrokerCaller::Client, default_tools.clone());
         allowed_tools.insert(BrokerCaller::Worker, default_tools.clone());
         allowed_tools.insert(BrokerCaller::System, default_tools);
+        let default_ledger_path = std::env::temp_dir()
+            .join("infring")
+            .join(format!("tool_broker_events_{}.jsonl", std::process::id()));
+        let ledger_path = std::env::var("INFRING_TOOL_BROKER_LEDGER_PATH")
+            .ok()
+            .map(|v| PathBuf::from(clean_text(&v, 400)))
+            .filter(|v| !v.as_os_str().is_empty())
+            .unwrap_or(default_ledger_path);
         Self {
             allowed_tools,
             dedupe_lookup: HashMap::new(),
             raw_payloads: HashMap::new(),
+            event_sequence: 0,
+            ledger_events: Vec::new(),
+            ledger_path,
         }
     }
 }
@@ -113,12 +154,29 @@ impl ToolBroker {
         if !allowed {
             return Err(BrokerError::UnauthorizedToolRequest(tool_name));
         }
+        let event_ts = now_ms();
         let normalized_args = repair_and_validate_args(&tool_name, &request.args)?;
+        let policy_revision = clean_text(
+            request.policy_revision.as_deref().unwrap_or("policy_v1"),
+            120,
+        );
+        let tool_version = clean_text(request.tool_version.as_deref().unwrap_or("tool_v1"), 120);
+        let freshness_window_ms =
+            dedupe_freshness_window_ms(&tool_name, request.freshness_window_ms);
+        let freshness_bucket = if freshness_window_ms == 0 {
+            0
+        } else {
+            event_ts / freshness_window_ms
+        };
         let dedupe_hash = deterministic_hash(&json!({
             "tool_name": tool_name,
-            "normalized_args": normalized_args
+            "normalized_args": normalized_args,
+            "policy_revision": policy_revision,
+            "tool_version": tool_version,
+            "freshness_window_ms": freshness_window_ms,
+            "freshness_bucket": freshness_bucket,
         }));
-        let started = now_ms();
+        let started = event_ts;
         let execution = executor(&normalized_args);
         let duration_ms = now_ms().saturating_sub(started);
         let (status, raw_payload, errors) = match execution {
@@ -134,20 +192,39 @@ impl ToolBroker {
             NormalizedToolStatus::Error => "error",
             NormalizedToolStatus::Blocked => "blocked",
         };
-        let existing_result = self.dedupe_lookup.get(&dedupe_hash).cloned();
-        let result_id = existing_result.unwrap_or_else(|| {
-            deterministic_hash(&json!({
-                "trace_id": request.trace_id,
-                "task_id": request.task_id,
-                "tool_name": tool_name,
-                "status": status_tag,
-                "ts": now_ms()
-            }))
-        });
-        self.dedupe_lookup
-            .entry(dedupe_hash.clone())
-            .or_insert_with(|| result_id.clone());
-        let raw_ref = format!("raw://{result_id}");
+        let content_fingerprint = deterministic_hash(&json!({
+            "kind": "normalized_tool_result_content",
+            "tool_name": tool_name,
+            "normalized_args": normalized_args,
+            "status": status_tag,
+            "raw_payload": raw_payload,
+            "errors": errors,
+            "policy_revision": policy_revision,
+            "tool_version": tool_version
+        }));
+        let dedupe_allowed =
+            matches!(status, NormalizedToolStatus::Ok) && !request.force_no_dedupe;
+        let existing_result = if dedupe_allowed {
+            self.dedupe_lookup.get(&dedupe_hash).cloned()
+        } else {
+            None
+        };
+        let result_id = existing_result.unwrap_or_else(|| content_fingerprint.clone());
+        if dedupe_allowed {
+            self.dedupe_lookup
+                .entry(dedupe_hash.clone())
+                .or_insert_with(|| result_id.clone());
+        }
+        self.event_sequence = self.event_sequence.saturating_add(1);
+        let event_id = deterministic_hash(&json!({
+            "kind": "tool_execution_event",
+            "trace_id": request.trace_id,
+            "task_id": request.task_id,
+            "caller": format!("{:?}", request.caller),
+            "event_ts": event_ts,
+            "event_sequence": self.event_sequence
+        }));
+        let raw_ref = format!("raw://{result_id}/{event_id}");
         self.raw_payloads
             .insert(raw_ref.clone(), raw_payload.clone());
         let metrics = NormalizedToolMetrics {
@@ -156,6 +233,14 @@ impl ToolBroker {
                 .map(|v| v.len())
                 .unwrap_or(0),
         };
+        let mut lineage = sanitize_lineage(&request.lineage);
+        lineage.push(format!("policy_revision:{policy_revision}"));
+        lineage.push(format!("tool_version:{tool_version}"));
+        if freshness_window_ms > 0 {
+            lineage.push(format!("freshness_window_ms:{freshness_window_ms}"));
+            lineage.push(format!("freshness_bucket:{freshness_bucket}"));
+        }
+        lineage.push(format!("broker_event:{event_id}"));
         let normalized_result = NormalizedToolResult {
             result_id,
             trace_id: clean_text(&request.trace_id, 160),
@@ -164,12 +249,30 @@ impl ToolBroker {
             status,
             normalized_args,
             dedupe_hash,
-            lineage: sanitize_lineage(&request.lineage),
-            timestamp: now_ms(),
+            lineage,
+            timestamp: event_ts,
             metrics,
             raw_ref,
             errors,
         };
+        let ledger_event = ToolExecutionLedgerEvent {
+            event_id,
+            result_id: normalized_result.result_id.clone(),
+            trace_id: normalized_result.trace_id.clone(),
+            task_id: normalized_result.task_id.clone(),
+            caller: request.caller,
+            tool_name: normalized_result.tool_name.clone(),
+            status: normalized_result.status.clone(),
+            dedupe_hash: normalized_result.dedupe_hash.clone(),
+            policy_revision,
+            tool_version,
+            freshness_window_ms,
+            freshness_bucket,
+            raw_ref: normalized_result.raw_ref.clone(),
+            timestamp: normalized_result.timestamp,
+        };
+        self.persist_ledger_event(&ledger_event)?;
+        self.ledger_events.push(ledger_event);
         Ok(ToolBrokerExecution {
             normalized_result,
             raw_payload,
@@ -179,10 +282,49 @@ impl ToolBroker {
     pub fn raw_payload(&self, raw_ref: &str) -> Option<&Value> {
         self.raw_payloads.get(raw_ref)
     }
+
+    pub fn ledger_events(&self) -> &[ToolExecutionLedgerEvent] {
+        self.ledger_events.as_slice()
+    }
+
+    pub fn ledger_path(&self) -> &PathBuf {
+        &self.ledger_path
+    }
+
+    fn persist_ledger_event(&self, event: &ToolExecutionLedgerEvent) -> Result<(), BrokerError> {
+        if let Some(parent) = self.ledger_path.parent() {
+            create_dir_all(parent).map_err(|err| {
+                BrokerError::LedgerWriteFailed(format!("create_dir:{}:{err}", parent.display()))
+            })?;
+        }
+        let mut file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&self.ledger_path)
+            .map_err(|err| {
+                BrokerError::LedgerWriteFailed(format!("open:{}:{err}", self.ledger_path.display()))
+            })?;
+        let row = serde_json::to_string(event)
+            .map_err(|err| BrokerError::LedgerWriteFailed(format!("encode_event:{err}")))?;
+        file.write_all(format!("{row}\n").as_bytes())
+            .map_err(|err| {
+                BrokerError::LedgerWriteFailed(format!("append:{}:{err}", self.ledger_path.display()))
+            })?;
+        Ok(())
+    }
 }
 
 fn clean_text(raw: &str, max_len: usize) -> String {
     raw.trim().chars().take(max_len).collect::<String>()
+}
+
+fn dedupe_freshness_window_ms(tool_name: &str, requested: Option<u64>) -> u64 {
+    let default = if matches!(tool_name, "web_search" | "web_fetch" | "batch_query") {
+        30_000
+    } else {
+        0
+    };
+    requested.unwrap_or(default).min(86_400_000)
 }
 
 fn sanitize_lineage(lineage: &[String]) -> Vec<String> {
@@ -310,6 +452,10 @@ mod tests {
                 args: json!({"command":"echo hi"}),
                 lineage: vec![],
                 caller: BrokerCaller::Client,
+                policy_revision: None,
+                tool_version: None,
+                freshness_window_ms: None,
+                force_no_dedupe: false,
             },
             |_| Ok(json!({"ok": true})),
         );
@@ -328,6 +474,10 @@ mod tests {
                     args: json!({"q":"  latency benchmarks  "}),
                     lineage: vec!["worker-1".to_string()],
                     caller: BrokerCaller::Worker,
+                    policy_revision: None,
+                    tool_version: None,
+                    freshness_window_ms: None,
+                    force_no_dedupe: false,
                 },
                 |_| Ok(json!({"results":[{"summary":"ok"}]})),
             )
@@ -341,6 +491,10 @@ mod tests {
                     args: json!({"query":"latency benchmarks"}),
                     lineage: vec![],
                     caller: BrokerCaller::Worker,
+                    policy_revision: None,
+                    tool_version: None,
+                    freshness_window_ms: None,
+                    force_no_dedupe: false,
                 },
                 |_| Ok(json!({"results":[{"summary":"ok"}]})),
             )
@@ -356,6 +510,54 @@ mod tests {
         assert_eq!(
             first.normalized_result.dedupe_hash,
             second.normalized_result.dedupe_hash
+        );
+        assert_eq!(first.normalized_result.result_id, second.normalized_result.result_id);
+    }
+
+    #[test]
+    fn broker_dedupe_hash_changes_when_policy_revision_changes() {
+        let mut broker = ToolBroker::default();
+        let first = broker
+            .execute_and_normalize(
+                ToolCallRequest {
+                    trace_id: "trace".to_string(),
+                    task_id: "task".to_string(),
+                    tool_name: "web_search".to_string(),
+                    args: json!({"query":"latency benchmarks"}),
+                    lineage: vec![],
+                    caller: BrokerCaller::Worker,
+                    policy_revision: Some("policy.v1".to_string()),
+                    tool_version: Some("web_search.v1".to_string()),
+                    freshness_window_ms: Some(60_000),
+                    force_no_dedupe: false,
+                },
+                |_| Ok(json!({"results":[{"summary":"ok"}]})),
+            )
+            .expect("first");
+        let second = broker
+            .execute_and_normalize(
+                ToolCallRequest {
+                    trace_id: "trace".to_string(),
+                    task_id: "task".to_string(),
+                    tool_name: "web_search".to_string(),
+                    args: json!({"query":"latency benchmarks"}),
+                    lineage: vec![],
+                    caller: BrokerCaller::Worker,
+                    policy_revision: Some("policy.v2".to_string()),
+                    tool_version: Some("web_search.v1".to_string()),
+                    freshness_window_ms: Some(60_000),
+                    force_no_dedupe: false,
+                },
+                |_| Ok(json!({"results":[{"summary":"ok"}]})),
+            )
+            .expect("second");
+        assert_ne!(
+            first.normalized_result.dedupe_hash,
+            second.normalized_result.dedupe_hash
+        );
+        assert_ne!(
+            first.normalized_result.result_id,
+            second.normalized_result.result_id
         );
     }
 
@@ -374,5 +576,33 @@ mod tests {
             broker.direct_tool_bypass_attempt(BrokerCaller::System),
             Err(BrokerError::DirectToolBypassDenied(_))
         ));
+    }
+
+    #[test]
+    fn broker_writes_append_only_ledger_events() {
+        let mut broker = ToolBroker::default();
+        let execution = broker
+            .execute_and_normalize(
+                ToolCallRequest {
+                    trace_id: "trace-ledger".to_string(),
+                    task_id: "task-ledger".to_string(),
+                    tool_name: "web_search".to_string(),
+                    args: json!({"query":"ledger event"}),
+                    lineage: vec!["test".to_string()],
+                    caller: BrokerCaller::Worker,
+                    policy_revision: Some("policy.ledger.v1".to_string()),
+                    tool_version: Some("web_search.v1".to_string()),
+                    freshness_window_ms: Some(60_000),
+                    force_no_dedupe: false,
+                },
+                |_| Ok(json!({"results":[{"summary":"ok"}]})),
+            )
+            .expect("execute");
+        assert!(!broker.ledger_events().is_empty());
+        let last = broker.ledger_events().last().expect("last event");
+        assert_eq!(last.trace_id, "trace-ledger");
+        assert_eq!(last.task_id, "task-ledger");
+        assert_eq!(last.result_id, execution.normalized_result.result_id);
+        assert!(broker.ledger_path().exists());
     }
 }

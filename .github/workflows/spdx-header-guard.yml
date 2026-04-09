@@ -29,5 +29,5 @@ jobs:
 
       - name: Run SPDX header guard lane
         run: |
-          cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin protheus-ops -- \
+          cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops -- \
             f100-readiness-program run --lane=V6-F100-035 --strict=1 --apply=0

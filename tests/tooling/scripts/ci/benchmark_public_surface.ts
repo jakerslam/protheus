@@ -12,8 +12,37 @@ const ABSOLUTE_PATH_PATTERNS: RegExp[] = [
   /^\\\\/,
 ];
 
+const LEGACY_ALIAS_PATTERNS: RegExp[] = [
+  /\bprotheus-pure-workspace\b/gi,
+  /\bprotheus-ops\b/gi,
+  /\bprotheusd\b/gi,
+  /\bprotheusctl\b/gi,
+  /\bprotheus\b/gi,
+];
+
+const LEGACY_ALIAS_REPLACEMENTS: Array<{ pattern: RegExp; replacement: string }> = [
+  { pattern: /\bprotheus-pure-workspace\b/gi, replacement: 'infring-pure-workspace' },
+  { pattern: /\bprotheus-ops\b/gi, replacement: 'infring-ops' },
+  { pattern: /\bprotheusd\b/gi, replacement: 'infringd' },
+  { pattern: /\bprotheusctl\b/gi, replacement: 'infringctl' },
+  { pattern: /\bprotheus\b/gi, replacement: 'infring' },
+];
+
 function normalizePathString(raw: string): string {
   return String(raw || '').trim().replace(/\\/g, '/');
+}
+
+function containsLegacyAlias(raw: string): boolean {
+  const value = String(raw || '');
+  return LEGACY_ALIAS_PATTERNS.some((pattern) => pattern.test(value));
+}
+
+function normalizeLegacyAliases(raw: string): string {
+  let value = String(raw || '');
+  for (const row of LEGACY_ALIAS_REPLACEMENTS) {
+    value = value.replace(row.pattern, row.replacement);
+  }
+  return value;
 }
 
 function asFiniteNumber(value: unknown): number | null {
@@ -126,12 +155,29 @@ function renderMetricRows(report: any): string[] {
     rich.payload?.cold_start_orchestration_ms ??
     rich.payload?.gateway_supervisor_orchestration_ms ??
     null;
+  const richKernelReadyMs =
+    rich.payload?.kernel_ready_ms ??
+    rich.payload?.engine_start_ms ??
+    null;
+  const richGatewayReadyMs =
+    rich.payload?.gateway_ready_ms ??
+    (Number.isFinite(Number(richKernelReadyMs)) && Number.isFinite(Number(richOrchestrationMs))
+      ? Number(richKernelReadyMs) + Number(richOrchestrationMs)
+      : null);
+  const richDashboardInteractiveMs =
+    rich.payload?.dashboard_interactive_ms ??
+    rich.payload?.rich_cold_start_total_ms ??
+    rich.payload?.cold_start_ms ??
+    null;
   return [
     '| Metric | Rich | Pure (`InfRing (pure)`) | Tiny-Max (`InfRing (tiny-max)`) |',
     '|---|---:|---:|---:|',
     `| Cold start (user-visible) | ${formatFixed(rich.payload?.cold_start_ms, 3)} ms | ${formatFixed(pure?.cold_start_ms, 3)} ms | ${formatFixed(tiny?.cold_start_ms, 3)} ms |`,
     `| Cold start (engine init micro) | ${formatFixed(richEngineMs, 3)} ms | n/a | n/a |`,
     `| Cold start (orchestration component) | ${formatFixed(richOrchestrationMs, 3)} ms | n/a | n/a |`,
+    `| Kernel ready | ${formatFixed(richKernelReadyMs, 3)} ms | n/a | n/a |`,
+    `| Gateway ready | ${formatFixed(richGatewayReadyMs, 3)} ms | n/a | n/a |`,
+    `| Dashboard interactive | ${formatFixed(richDashboardInteractiveMs, 3)} ms | n/a | n/a |`,
     `| Idle memory | ${formatFixed(rich.payload?.idle_memory_mb, 3)} MB | ${formatFixed(pure?.idle_memory_mb, 3)} MB | ${formatFixed(tiny?.idle_memory_mb, 3)} MB |`,
     `| Install artifact size | ${formatFixed(rich.payload?.install_size_mb, 3)} MB | ${formatFixed(pure?.install_size_mb, 3)} MB | ${formatFixed(tiny?.install_size_mb, 3)} MB |`,
     `| Throughput (${CANONICAL_THROUGHPUT_METRIC}) | ${formatThroughput(rich.payload?.[CANONICAL_THROUGHPUT_METRIC])} ops/sec | ${formatThroughput(pure?.[CANONICAL_THROUGHPUT_METRIC])} ops/sec | ${formatThroughput(tiny?.[CANONICAL_THROUGHPUT_METRIC])} ops/sec |`,
@@ -239,20 +285,20 @@ function looksLikeAbsolutePath(value: string): boolean {
 
 function sanitizePathValue(value: string, root: string): string {
   const normalized = normalizePathString(value);
-  if (!looksLikeAbsolutePath(normalized)) return normalized;
+  if (!looksLikeAbsolutePath(normalized)) return normalizeLegacyAliases(normalized);
   const absRoot = normalizePathString(resolve(root));
   if (normalized.startsWith(`${absRoot}/`)) {
-    return relative(absRoot, normalized).replace(/\\/g, '/');
+    return normalizeLegacyAliases(relative(absRoot, normalized).replace(/\\/g, '/'));
   }
   const targetIdx = normalized.indexOf('/target/');
   if (targetIdx >= 0) {
-    return normalized.slice(targetIdx + 1);
+    return normalizeLegacyAliases(normalized.slice(targetIdx + 1));
   }
   const localIdx = normalized.indexOf('/local/');
   if (localIdx >= 0) {
-    return normalized.slice(localIdx + 1);
+    return normalizeLegacyAliases(normalized.slice(localIdx + 1));
   }
-  return `<redacted>/${basename(normalized)}`;
+  return normalizeLegacyAliases(`<redacted>/${basename(normalized)}`);
 }
 
 function deepSanitize(value: any, root: string): any {
@@ -267,7 +313,7 @@ function deepSanitize(value: any, root: string): any {
     return out;
   }
   if (typeof value === 'string') {
-    return sanitizePathValue(value, root);
+    return normalizeLegacyAliases(sanitizePathValue(value, root));
   }
   return value;
 }
@@ -291,6 +337,28 @@ export function collectBenchmarkPathLeaks(payload: any): string[] {
       return;
     }
     if (typeof value === 'string' && looksLikeAbsolutePath(value)) {
+      leaks.push(path);
+    }
+  }
+  walk(payload, '');
+  return leaks;
+}
+
+export function collectBenchmarkAliasLeaks(payload: any): string[] {
+  const leaks: string[] = [];
+  function walk(value: any, path: string): void {
+    if (Array.isArray(value)) {
+      value.forEach((item, index) => walk(item, `${path}[${index}]`));
+      return;
+    }
+    if (value && typeof value === 'object') {
+      for (const [key, nested] of Object.entries(value)) {
+        const nextPath = path ? `${path}.${key}` : key;
+        walk(nested, nextPath);
+      }
+      return;
+    }
+    if (typeof value === 'string' && containsLegacyAlias(value)) {
       leaks.push(path);
     }
   }

@@ -115,6 +115,10 @@ where
         args: tool_args.clone(),
         lineage: vec!["dashboard_compat_api".to_string()],
         caller: protheus_tooling_core_v1::BrokerCaller::Client,
+        policy_revision: Some("policy.tooling.dashboard_compat_api.v1".to_string()),
+        tool_version: Some(format!("{}.v1", clean_text(tool_name, 80))),
+        freshness_window_ms: None,
+        force_no_dedupe: false,
     };
     let execution = match broker.execute_and_normalize(request, executor) {
         Ok(out) => out,

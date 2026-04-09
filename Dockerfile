@@ -1,7 +1,18 @@
-FROM node:22-alpine AS deps
+FROM node:22-alpine AS deps-dev
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --include=dev && npm cache clean --force
+
+FROM node:22-alpine AS deps-prod
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+
+FROM node:22-alpine AS dist-builder
+WORKDIR /app
+COPY --from=deps-dev /app/node_modules ./node_modules
+COPY . .
+RUN npm run -s runtime:dist:dashboard:build
 
 FROM rust:1.89-alpine AS rust-builder
 WORKDIR /app
@@ -12,10 +23,12 @@ RUN cargo build --release --manifest-path core/layer0/ops/Cargo.toml --bin infri
 FROM node:22-alpine AS runtime
 WORKDIR /app
 
-COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps-prod /app/node_modules ./node_modules
 COPY . .
 COPY --from=rust-builder /app/target/release/infring-ops /app/target/release/infring-ops
 COPY --from=rust-builder /app/target/release/infringd /app/target/release/infringd
+COPY --from=dist-builder /app/dist/client/runtime/systems/ui/infring_dashboard.js /app/dist/client/runtime/systems/ui/infring_dashboard.js
+COPY --from=dist-builder /app/dist/client/runtime/systems/ui/infring_static /app/dist/client/runtime/systems/ui/infring_static
 
 ARG INFRING_FIPS_MODE=0
 ARG VCS_REF=unknown
@@ -31,6 +44,7 @@ ENV CLEARANCE=3
 ENV TZ=UTC
 ENV INFRING_FIPS_MODE=${INFRING_FIPS_MODE}
 ENV INFRING_NPM_BINARY=/app/target/release/infring-ops
+ENV PROTHEUS_RUNTIME_MODE=dist
 # Legacy compatibility alias for older wrappers still reading PROTHEUS_NPM_BINARY.
 ENV PROTHEUS_NPM_BINARY=${INFRING_NPM_BINARY}
 
@@ -49,4 +63,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
 
 EXPOSE 4173
 
-CMD ["node", "client/runtime/lib/ts_entrypoint.ts", "client/runtime/systems/ui/infring_dashboard.ts", "serve", "--host=0.0.0.0", "--port=4173", "--team=ops", "--refresh-ms=2000"]
+CMD ["node", "dist/client/runtime/systems/ui/infring_dashboard.js", "serve", "--host=0.0.0.0", "--port=4173", "--team=ops", "--refresh-ms=2000"]

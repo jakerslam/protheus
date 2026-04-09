@@ -120,6 +120,10 @@ fn measure_pure_workspace(
     let pure_probe_bin = locate_binary(
         root,
         &[
+            "target/release-speed/infring-pure-workspace",
+            "target/release/infring-pure-workspace",
+            "target/debug/infring-pure-workspace",
+            "target/x86_64-unknown-linux-musl/release/infring-pure-workspace",
             "target/release/protheus-pure-workspace",
             "target/debug/protheus-pure-workspace",
             "target/x86_64-unknown-linux-musl/release/protheus-pure-workspace",
@@ -131,6 +135,10 @@ fn measure_pure_workspace(
     let pure_size_bin = locate_binary(
         root,
         &[
+            "target/release-speed/infring-pure-workspace",
+            "target/x86_64-unknown-linux-musl/release/infring-pure-workspace",
+            "target/release/infring-pure-workspace",
+            "target/debug/infring-pure-workspace",
             "target/x86_64-unknown-linux-musl/release/protheus-pure-workspace",
             "target/release/protheus-pure-workspace",
             "target/debug/protheus-pure-workspace",
@@ -140,6 +148,10 @@ fn measure_pure_workspace(
     let daemon_bin_default = locate_binary(
         root,
         &[
+            "target/release-speed/infringd",
+            "target/x86_64-unknown-linux-musl/release/infringd",
+            "target/release/infringd",
+            "target/debug/infringd",
             "target/x86_64-unknown-linux-musl/release/protheusd",
             "target/release/protheusd",
             "target/debug/protheusd",
@@ -173,6 +185,12 @@ fn measure_pure_workspace(
     let daemon_bin_tiny_max = locate_binary(
         root,
         &[
+            "target/release-speed/infringd_tiny_max",
+            "target/release-speed/infringd-tiny-max",
+            "target/x86_64-unknown-linux-musl/release/infringd_tiny_max",
+            "target/x86_64-unknown-linux-musl/release/infringd-tiny-max",
+            "target/release/infringd_tiny_max",
+            "target/release/infringd-tiny-max",
             "target/x86_64-unknown-linux-musl/release/protheusd_tiny_max",
             "target/x86_64-unknown-linux-musl/release/protheusd-tiny-max",
             "target/release/protheusd_tiny_max",
