@@ -275,6 +275,19 @@ pub(super) fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route
                 forward_stdin: false,
             })
         }
+        "batch" | "batch-query" | "batch_query" => {
+            let mut args = Vec::<String>::new();
+            if rest.is_empty() {
+                args.push("status".to_string());
+            } else {
+                args.extend(rest.iter().cloned());
+            }
+            Some(Route {
+                script_rel: "core://batch-query".to_string(),
+                args,
+                forward_stdin: false,
+            })
+        }
         "stack" | "context-stacks" => {
             let mut args = Vec::<String>::new();
             if rest.is_empty() {

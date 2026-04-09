@@ -221,4 +221,17 @@ mod tests {
             Some(1)
         );
     }
+
+    #[test]
+    fn classify_explicit_batch_query_tool_alias_as_supported() {
+        let classified = classify_command("tool::batch_query latest runtime benchmarks");
+        assert!(matches!(
+            classified,
+            Classification::Supported {
+                command_key,
+                canonical,
+                ..
+            } if command_key == "batch-query" && canonical == "infring batch-query"
+        ));
+    }
 }
