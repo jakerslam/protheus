@@ -126,14 +126,9 @@
           var toolEndAgentId = String(data && data.agent_id ? data.agent_id : (this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '')).trim(); if (toolEndAgentId) this.setAgentLiveActivity(toolEndAgentId, 'working');
           var lastMsg2 = this.messages.length ? this.messages[this.messages.length - 1] : null;
           if (lastMsg2) {
-            var endedTool = this.ensureStreamingToolCard(lastMsg2, data.tool, data.input || '', {
-              running: false,
-              no_create: true
-            });
+            var endedTool = this.ensureStreamingToolCard(lastMsg2, data.tool, data.input || '', { running: false, no_create: true });
             if (endedTool) endedTool.running = false;
-            var activeToolLabel = typeof this.currentToolDialogLabel === 'function'
-              ? String(this.currentToolDialogLabel(lastMsg2) || '').trim()
-              : '';
+            var activeToolLabel = typeof this.currentToolDialogLabel === 'function' ? String(this.currentToolDialogLabel(lastMsg2) || '').trim() : '';
             if (activeToolLabel && lastMsg2.thinking_status !== activeToolLabel) {
               lastMsg2.thinking_status = activeToolLabel;
             } else if (!activeToolLabel) {
@@ -172,9 +167,7 @@
             }
             lastMsg3._stream_updated_at = Date.now();
             if (!Number.isFinite(Number(lastMsg3._stream_started_at))) lastMsg3._stream_started_at = Date.now();
-            var nextActiveToolLabel = typeof this.currentToolDialogLabel === 'function'
-              ? String(this.currentToolDialogLabel(lastMsg3) || '').trim()
-              : '';
+            var nextActiveToolLabel = typeof this.currentToolDialogLabel === 'function' ? String(this.currentToolDialogLabel(lastMsg3) || '').trim() : '';
             if (nextActiveToolLabel && lastMsg3.thinking_status !== nextActiveToolLabel) {
               lastMsg3.thinking_status = nextActiveToolLabel;
             } else if (!nextActiveToolLabel) {
@@ -211,9 +204,7 @@
           if (hasAgentTerminalTranscript) responseTools = responseTools.filter(function(t) { var n = String((t && t.name) || '').toLowerCase(); return !(n === 'terminal_exec' || n === 'run_terminal' || n === 'terminal' || n === 'shell_exec'); });
           if ((!Array.isArray(streamedTools) || !streamedTools.length) && responseTools.length) streamedTools = responseTools;
           if (!streamedThought && responseTools.length) {
-            var thoughtTool = responseTools.find(function(rtool) {
-              return !!(rtool && String(rtool.name || '').toLowerCase() === 'thought_process');
-            });
+            var thoughtTool = responseTools.find(function(rtool) { return !!(rtool && String(rtool.name || '').toLowerCase() === 'thought_process'); });
             if (thoughtTool) streamedThought = String(thoughtTool.input || thoughtTool.result || '').trim();
           }
           streamedTools.forEach(function(t) {
