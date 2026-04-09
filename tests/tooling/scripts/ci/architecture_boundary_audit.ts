@@ -59,6 +59,8 @@ function main() {
   const repoSurfacePolicy = JSON.parse(read('client/runtime/config/repo_surface_policy.json'));
   const clientSwarmWrapper = read('client/runtime/systems/autonomy/swarm_orchestration_runtime.ts');
   const surfaceSwarmRuntime = read('surface/orchestration/scripts/swarm_orchestration_runtime.ts');
+  const clientPersonaWrapper = read('client/runtime/systems/personas/orchestration.ts');
+  const surfacePersonaRuntime = read('surface/orchestration/scripts/personas_orchestration.ts');
 
   const checks: CheckResult[] = [
     {
@@ -112,6 +114,18 @@ function main() {
       id: 'orchestration_runtime_lives_under_surface',
       ok: surfaceSwarmRuntime.includes('runSpawn') && surfaceSwarmRuntime.includes('swarm-runtime'),
       detail: 'swarm orchestration coordination implementation is hosted in surface/orchestration',
+    },
+    {
+      id: 'client_persona_orchestration_is_wrapper_only',
+      ok: clientPersonaWrapper.includes('TypeScript compatibility shim only.') &&
+        clientPersonaWrapper.includes('surface/orchestration/scripts/personas_orchestration.ts'),
+      detail: 'client persona orchestration entrypoint remains thin and delegates to surface/orchestration',
+    },
+    {
+      id: 'persona_orchestration_runtime_lives_under_surface',
+      ok: surfacePersonaRuntime.includes('SYSTEMS-PERSONAS-ORCHESTRATION') &&
+        surfacePersonaRuntime.includes('createOpsLaneBridge'),
+      detail: 'persona orchestration coordination implementation is hosted in surface/orchestration',
     },
   ];
 
