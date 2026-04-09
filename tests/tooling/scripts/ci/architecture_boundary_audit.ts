@@ -65,10 +65,14 @@ function main() {
   const clientRouteExecuteWrapper = read('client/runtime/systems/routing/route_execute.ts');
   const clientProviderOnboardingWrapper = read('client/runtime/systems/routing/provider_onboarding_manifest.ts');
   const clientGatewayFailureClassifierWrapper = read('client/runtime/systems/routing/llm_gateway_failure_classifier.ts');
+  const clientMorphPlannerWrapper = read('client/runtime/systems/fractal/morph_planner.ts');
+  const clientValueOfInformationPlannerWrapper = read('client/runtime/systems/sensory/value_of_information_collection_planner.ts');
   const surfaceRouteTaskRuntime = read('surface/orchestration/scripts/route_task.ts');
   const surfaceRouteExecuteRuntime = read('surface/orchestration/scripts/route_execute.ts');
   const surfaceProviderOnboardingRuntime = read('surface/orchestration/scripts/provider_onboarding_manifest.ts');
   const surfaceGatewayFailureClassifierRuntime = read('surface/orchestration/scripts/llm_gateway_failure_classifier.ts');
+  const surfaceMorphPlannerRuntime = read('surface/orchestration/scripts/morph_planner.ts');
+  const surfaceValueOfInformationPlannerRuntime = read('surface/orchestration/scripts/value_of_information_collection_planner.ts');
   const clientPersonaWrapper = read('client/runtime/systems/personas/orchestration.ts');
   const surfacePersonaRuntime = read('surface/orchestration/scripts/personas_orchestration.ts');
 
@@ -184,6 +188,30 @@ function main() {
       ok: surfaceGatewayFailureClassifierRuntime.includes('SYSTEMS-ROUTING-LLM_GATEWAY_FAILURE_CLASSIFIER') &&
         surfaceGatewayFailureClassifierRuntime.includes('createOpsLaneBridge'),
       detail: 'llm_gateway_failure_classifier orchestration coordination implementation is hosted in surface/orchestration',
+    },
+    {
+      id: 'client_morph_planner_is_wrapper_only',
+      ok: clientMorphPlannerWrapper.includes('TypeScript compatibility shim only.') &&
+        clientMorphPlannerWrapper.includes('surface/orchestration/scripts/morph_planner.ts'),
+      detail: 'client morph_planner entrypoint remains thin and delegates to surface/orchestration',
+    },
+    {
+      id: 'morph_planner_runtime_lives_under_surface',
+      ok: surfaceMorphPlannerRuntime.includes('SYSTEMS-FRACTAL-MORPH_PLANNER') &&
+        surfaceMorphPlannerRuntime.includes('createOpsLaneBridge'),
+      detail: 'morph_planner coordination implementation is hosted in surface/orchestration',
+    },
+    {
+      id: 'client_value_of_information_planner_is_wrapper_only',
+      ok: clientValueOfInformationPlannerWrapper.includes('TypeScript compatibility shim only.') &&
+        clientValueOfInformationPlannerWrapper.includes('surface/orchestration/scripts/value_of_information_collection_planner.ts'),
+      detail: 'client value_of_information_collection_planner entrypoint remains thin and delegates to surface/orchestration',
+    },
+    {
+      id: 'value_of_information_planner_runtime_lives_under_surface',
+      ok: surfaceValueOfInformationPlannerRuntime.includes('SYSTEMS-SENSORY-VALUE_OF_INFORMATION_COLLECTION_PLANNER') &&
+        surfaceValueOfInformationPlannerRuntime.includes('createOpsLaneBridge'),
+      detail: 'value_of_information_collection_planner coordination implementation is hosted in surface/orchestration',
     },
     {
       id: 'client_persona_orchestration_is_wrapper_only',
