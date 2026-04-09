@@ -276,7 +276,7 @@ fn execute_inline_tool_calls(
     let response = if cleaned_trimmed.is_empty() || cleaned_is_low_signal {
         let joined = fallback_lines.join("\n\n");
         if joined.trim().is_empty() {
-            "I attempted the requested tool calls, but this turn produced no usable findings yet. Ask me to retry with a narrower query or a specific source."
+            "I executed the requested tool calls, but this turn produced no verified findings. No source-backed evidence was recorded. Run `tool::capabilities` to confirm available command surfaces, then retry with a narrower query or a specific source."
                 .to_string()
         } else {
             trim_text(&joined, 32_000)
@@ -479,7 +479,7 @@ fn levenshtein_distance(left: &str, right: &str) -> usize {
     costs[right_chars.len()]
 }
 
-const EXPLICIT_SUPPORTED_TOOL_COMMANDS: &[&str] = &["web_search", "web_fetch", "spawn_subagents", "manage_agent", "batch_query", "memory_store", "memory_retrieve", "workspace_analyze"];
+const EXPLICIT_SUPPORTED_TOOL_COMMANDS: &[&str] = &["capabilities", "web_search", "web_fetch", "spawn_subagents", "manage_agent", "batch_query", "memory_store", "memory_retrieve", "workspace_analyze"];
 
 fn closest_supported_tool_command(command: &str) -> Option<&'static str> {
     let mut best = None::<(&'static str, usize)>;
@@ -496,4 +496,3 @@ fn closest_supported_tool_command(command: &str) -> Option<&'static str> {
         None
     }
 }
-

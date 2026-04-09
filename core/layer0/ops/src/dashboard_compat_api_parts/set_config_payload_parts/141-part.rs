@@ -84,3 +84,59 @@ fn summarize_unknown_tool_payload(normalized: &str, payload: &Value) -> String {
         1_000,
     )
 }
+
+fn summarize_tool_capability_payload(
+    normalized: &str,
+    tool_name: &str,
+    payload: &Value,
+) -> Option<String> {
+    if normalized != "tool_capabilities"
+        && normalized != "capabilities"
+        && normalized != "capability_status"
+        && normalized != "tools_status"
+    {
+        return None;
+    }
+    if !payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+        return Some(user_facing_tool_failure_summary(tool_name, payload).unwrap_or_else(
+            || "I couldn't inspect tool capabilities right now.".to_string(),
+        ));
+    }
+    let mut lines = vec!["Tool capability status (governed router):".to_string()];
+    if let Some(rows) = payload.get("tools").and_then(Value::as_array) {
+        for row in rows.iter().take(8) {
+            let name = clean_text(row.get("tool").and_then(Value::as_str).unwrap_or(""), 80);
+            let tier = clean_text(row.get("tier").and_then(Value::as_str).unwrap_or(""), 40);
+            if name.is_empty() {
+                continue;
+            }
+            if tier.is_empty() {
+                lines.push(format!("- {name}"));
+            } else {
+                lines.push(format!("- {name}: {tier}"));
+            }
+        }
+    }
+    let read_defaults = payload
+        .get("read_surfaces")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|row| {
+            let name = clean_text(row.get("name").and_then(Value::as_str).unwrap_or(""), 80);
+            if name.is_empty() {
+                None
+            } else {
+                Some(name)
+            }
+        })
+        .collect::<Vec<_>>();
+    if !read_defaults.is_empty() {
+        lines.push(format!(
+            "Default read surfaces: {}.",
+            clean_text(&read_defaults.join(", "), 240)
+        ));
+    }
+    Some(trim_text(&lines.join("\n"), 24_000))
+}
