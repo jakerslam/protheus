@@ -252,7 +252,7 @@ fn main() {
             let exit = protheus_ops_core::web_conduit::run(&cwd, &rest);
             std::process::exit(exit);
         }
-        "batch-query" => {
+        "batch-query" | "batch_query" | "tool::batch_query" | "tool::batch-query" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::batch_query_primitive::run(&cwd, &rest);
             std::process::exit(exit);

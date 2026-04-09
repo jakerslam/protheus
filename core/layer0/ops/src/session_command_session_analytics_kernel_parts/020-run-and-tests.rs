@@ -165,6 +165,20 @@ mod tests {
     }
 
     #[test]
+    fn follow_up_suggestions_do_not_flag_tool_batch_query_as_unsupported() {
+        let suggestions = follow_up_suggestions_for_kernel(
+            &json!({
+              "session_id":"s1",
+              "commands":["tool::batch_query runtime route mapping"]
+            }),
+            3,
+        );
+        let joined = suggestions.join(" ").to_ascii_lowercase();
+        assert!(!joined.contains("supported rust route"));
+        assert!(!joined.contains("unsupported commands"));
+    }
+
+    #[test]
     fn normalize_follow_up_suggestion_strips_question_style_prefixes() {
         let normalized =
             normalize_follow_up_suggestion("Should I map tool::web_search into a supported route?");

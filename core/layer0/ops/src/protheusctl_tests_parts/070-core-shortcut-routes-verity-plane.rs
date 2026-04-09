@@ -162,6 +162,31 @@ fn core_shortcut_routes_workspace_files_passthrough_subcommand() {
 }
 
 #[test]
+fn core_shortcut_routes_batch_query_default_to_status() {
+    let route = resolve_core_shortcuts("batch-query", &[]).expect("route");
+    assert_eq!(route.script_rel, "core://batch-query");
+    assert_eq!(route.args, vec!["status"]);
+}
+
+#[test]
+fn core_shortcut_routes_batch_alias_passthrough_to_batch_query_domain() {
+    let route = resolve_core_shortcuts(
+        "batch",
+        &[
+            "query".to_string(),
+            "--source=web".to_string(),
+            "--query=tool hit rate".to_string(),
+        ],
+    )
+    .expect("route");
+    assert_eq!(route.script_rel, "core://batch-query");
+    assert_eq!(
+        route.args,
+        vec!["query", "--source=web", "--query=tool hit rate"]
+    );
+}
+
+#[test]
 fn tier1_route_contracts_resolve_to_expected_core_targets() {
     for row in crate::command_list_kernel::tier1_route_contracts() {
         let rest = row

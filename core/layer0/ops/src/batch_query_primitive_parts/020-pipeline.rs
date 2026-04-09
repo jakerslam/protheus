@@ -566,6 +566,34 @@ fn minimum_synthesis_score(benchmark_intent: bool) -> f64 {
     }
 }
 
+fn retrieve_web_candidates_for_query_with_timeout(
+    root: &Path,
+    query: &str,
+    timeout: Duration,
+) -> Result<Vec<Candidate>, String> {
+    let (tx, rx) = std::sync::mpsc::channel::<Result<Vec<Candidate>, String>>();
+    let root_buf = root.to_path_buf();
+    let query_buf = query.to_string();
+    let spawned = thread::Builder::new()
+        .name("batch-query-retrieve".to_string())
+        .spawn(move || {
+            let out = retrieve_web_candidates_for_query(&root_buf, &query_buf);
+            let _ = tx.send(out);
+        });
+    if spawned.is_err() {
+        return Err("query_worker_spawn_failed".to_string());
+    }
+    match rx.recv_timeout(timeout) {
+        Ok(out) => out,
+        Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+            Err(format!("query_timeout_ms_{}", timeout.as_millis()))
+        }
+        Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+            Err("query_worker_disconnected".to_string())
+        }
+    }
+}
+
 fn is_benign_partial_failure(detail: &str) -> bool {
     let lowered = clean_text(detail, 320).to_ascii_lowercase();
     if lowered.contains("anti_bot_challenge") {
@@ -580,6 +608,8 @@ fn is_benign_partial_failure(detail: &str) -> bool {
 pub fn api_batch_query(root: &Path, request: &Value) -> Value {
     let started = Instant::now();
     let policy = load_policy(root);
+    let parallel_window = max_parallel_subqueries(&policy).max(1);
+    let query_timeout = query_timeout(&policy);
     let source = normalize_source(
         request
             .get("source")
@@ -689,6 +719,8 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             "source": source,
             "query": query,
             "aperture": aperture,
+            "query_timeout_ms": query_timeout.as_millis() as u64,
+            "parallel_window": parallel_window,
             "rewrite_set": rewrite_set,
             "query_plan": [query.clone()],
             "adapter_version": "web_conduit_v1",
@@ -719,6 +751,8 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             "evidence_refs": evidence_refs,
             "receipt_id": receipt_id,
             "parallel_retrieval_used": parallel_retrieval_used,
+            "query_timeout_ms": query_timeout.as_millis() as u64,
+            "parallel_window": parallel_window,
             "rewrite_set": rewrite_set,
             "cache_status": "hit"
         });
@@ -733,26 +767,51 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
     let mut candidates = Vec::<Candidate>::new();
     let mut partial_failures = Vec::<String>::new();
     if parallel_allowed {
-        let limit = max_parallel_subqueries(&policy).max(1);
+        let limit = parallel_window;
         let mut offset = 0usize;
         while offset < queries.len() {
             let end = (offset + limit).min(queries.len());
-            let handles = queries[offset..end]
-                .iter()
-                .map(|q| {
-                    let query_item = q.clone();
-                    let root_buf = root.to_path_buf();
-                    thread::spawn(move || {
-                        (
-                            query_item.clone(),
-                            retrieve_web_candidates_for_query(&root_buf, &query_item),
-                        )
-                    })
-                })
-                .collect::<Vec<_>>();
-            for handle in handles {
-                if let Ok((q, out)) = handle.join() {
-                    match out {
+            let expected = end.saturating_sub(offset);
+            let (tx, rx) =
+                std::sync::mpsc::channel::<(usize, String, Result<Vec<Candidate>, String>)>();
+            let mut chunk_rows = std::iter::repeat_with(|| None)
+                .take(expected)
+                .collect::<Vec<Option<(String, Result<Vec<Candidate>, String>)>>>();
+            for (local_idx, q) in queries[offset..end].iter().enumerate() {
+                let tx_clone = tx.clone();
+                let query_item = q.clone();
+                let root_buf = root.to_path_buf();
+                let spawned = thread::Builder::new()
+                    .name(format!("batch-query-{local_idx}"))
+                    .spawn(move || {
+                        let out = retrieve_web_candidates_for_query(&root_buf, &query_item);
+                        let _ = tx_clone.send((local_idx, query_item, out));
+                    });
+                if spawned.is_err() {
+                    chunk_rows[local_idx] = Some((
+                        q.clone(),
+                        Err("query_worker_spawn_failed".to_string()),
+                    ));
+                }
+            }
+            drop(tx);
+            let mut received = chunk_rows.iter().filter(|row| row.is_some()).count();
+            while received < expected {
+                match rx.recv_timeout(query_timeout) {
+                    Ok((local_idx, q, out)) => {
+                        if local_idx < expected && chunk_rows[local_idx].is_none() {
+                            chunk_rows[local_idx] = Some((q, out));
+                            received += 1;
+                        }
+                    }
+                    Err(std::sync::mpsc::RecvTimeoutError::Timeout) => break,
+                    Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
+                }
+            }
+            for local_idx in 0..expected {
+                let fallback_query = clean_text(&queries[offset + local_idx], 120);
+                match chunk_rows[local_idx].take() {
+                    Some((q, out)) => match out {
                         Ok(mut rows) => {
                             if rows.is_empty() {
                                 partial_failures
@@ -762,16 +821,19 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                             }
                         }
                         Err(err) => partial_failures.push(format!("{}:{err}", clean_text(&q, 120))),
-                    }
-                } else {
-                    partial_failures.push("thread_join_failed".to_string());
+                    },
+                    None => partial_failures.push(format!(
+                        "{}:query_timeout_ms_{}",
+                        fallback_query,
+                        query_timeout.as_millis()
+                    )),
                 }
             }
             offset = end;
         }
     } else {
         for q in &queries {
-            match retrieve_web_candidates_for_query(root, q) {
+            match retrieve_web_candidates_for_query_with_timeout(root, q, query_timeout) {
                 Ok(mut rows) => {
                     if rows.is_empty() {
                         partial_failures.push(format!("{}:no_usable_summary", clean_text(q, 120)));
@@ -963,6 +1025,8 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         "source": source,
         "query": query,
         "aperture": aperture,
+        "query_timeout_ms": query_timeout.as_millis() as u64,
+        "parallel_window": parallel_window,
         "rewrite_set": rewrite_set,
         "query_plan": queries,
         "adapter_version": "web_conduit_v1",
@@ -994,6 +1058,8 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         "evidence_refs": evidence_refs.clone(),
         "receipt_id": receipt_id,
         "parallel_retrieval_used": parallel_allowed,
+        "query_timeout_ms": query_timeout.as_millis() as u64,
+        "parallel_window": parallel_window,
         "rewrite_set": rewrite_set.clone(),
         "cache_status": "miss"
     });
