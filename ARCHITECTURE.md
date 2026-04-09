@@ -1,6 +1,9 @@
 # InfRing Architecture
 
-InfRing is built as a Rust-first deterministic core with a narrow conduit to cognition surfaces.
+InfRing is built as a Rust-first deterministic core with an explicit split between:
+- Authoritative Core (`core/**`)
+- Orchestration Surface (`surface/orchestration/**`)
+- Presentation Client (`client/**`)
 
 Canonical architecture contract:
 - `docs/SYSTEM-ARCHITECTURE-SPECS.md` (InfRing Layering Specification v1.0)
@@ -23,7 +26,9 @@ InfRing is explicitly modeled as a substrate-independent metakernel with three p
    - `core/layer1/` - Policy Engine + deterministic receipts
    - `core/layer2/` - Scheduling + execution orchestration
    - `core/layer3/` - OS Personality Template (traditional OS growth layer)
-2. Cognition plane (`planes/cognition`, implemented in `client/`): probabilistic model orchestration, retrieval, planning, persona overlays, and user-facing cognition surfaces.
+2. Cognition plane (`planes/cognition`, implemented across `surface/orchestration/` and `client/`):
+   - Orchestration Surface: request shaping, sequencing, clarification, recovery, and result packaging (non-canonical coordination only).
+   - Presentation Client: rendering, input, UX shells, and presentation-local state.
 3. Substrate plane (`planes/substrate`): runtime/backend descriptors for CPU/MCU/GPU/NPU/QPU/neural channels with explicit degradation contracts and fallback declarations.
 
 Hard boundary:
@@ -50,8 +55,9 @@ The deterministic core stack is now explicitly layered and growth-safe:
 Driver analogy:
 
 - `core/` is the drivetrain, brakes, and stability control.
+- `surface/orchestration/` is the driving controller (trip planning + pacing + recovery).
 - `client/` is the steering wheel, dashboard, and infotainment.
-- Conduit is the harness between them.
+- Conduit is the harness between orchestration and core boundaries.
 
 REQ-27 authority implementation:
 
@@ -77,12 +83,12 @@ Migration note:
 | Plane | Contract Location | Implementation Location | Mutable Runtime Location |
 |---|---|---|---|
 | Safety | `planes/safety/` | `core/layer_minus_one/`, `core/layer0/`, `core/layer1/`, `core/layer2/`, `core/layer3/` | `core/local/` |
-| Cognition | `planes/cognition/` | `client/` (`systems`, `lib`, `config`, `packages`, `tools`, `tests`, `observability`, `apps`, `developer`) | `client/runtime/local/` |
+| Cognition | `planes/cognition/` | `surface/orchestration/` (coordination) + `client/` (`systems`, `lib`, `config`, `packages`, `tools`, `tests`, `observability`, `apps`, `developer`) | `client/runtime/local/` + `core/local/` (receipted orchestration artifacts) |
 | Substrate | `planes/substrate/` | Template adapters in `core/layer_minus_one/` + capability descriptors under `planes/substrate/` | `core/local/` + `client/runtime/local/` |
 
 Additional split rules:
 
-- Source of truth code: `core/` and `client/` only.
+- Source of truth code: `core/`, `surface/orchestration/`, and `client/`.
 - Runtime/user/device/instance data: `client/runtime/local/` and `core/local/` only.
 - Legacy compatibility links are disabled by default. Canonical runtime roots are direct:
   - `client/runtime/local/*` for client runtime data
@@ -153,7 +159,7 @@ Client cognition exposes a compact reflex set for frequent operations under stri
 
 Repository root is intentionally reduced to:
 
-- source roots (`core/`, `client/`, `planes/`)
+- source roots (`core/`, `surface/`, `client/`, `planes/`)
 - governance and product docs (`README.md`, `ARCHITECTURE.md`, `docs/workspace/SRS.md`, `docs/workspace/TODO.md`)
 - build/deploy metadata (`Cargo.toml`, `package.json`, lockfiles, CI/deploy manifests)
 
@@ -176,7 +182,8 @@ flowchart TB
     L2["Layer 2: Scheduling + Execution"]
     L3["Layer 3: OS Personality Template"]
     CONDUIT["Conduit + Scrambler"]
-    UI["Cognition Plane (Client Surface)"]
+    ORCH["Cognition Plane (Orchestration Surface)"]
+    UI["Presentation Client Surface"]
     CLI["Operator Surface (infring/infringctl/infringd)"]
     RECEIPTS["Deterministic Receipts + State Artifacts"]
 
@@ -186,7 +193,8 @@ flowchart TB
     L1 --> L2
     L2 --> L3
     L3 --> CONDUIT
-    UI --> CONDUIT
+    ORCH --> CONDUIT
+    UI --> ORCH
     CLI --> CONDUIT
     L0 --> RECEIPTS
     L1 --> RECEIPTS
@@ -201,13 +209,14 @@ Runtime subsystem ownership, interfaces, failure modes, and lane links are track
 
 ## Runtime Flow
 
-1. A command enters from CLI or a cognition surface.
-2. Conduit normalizes the command into a typed envelope.
-3. Layer 3 maps envelope into deterministic execution intents.
-4. Layer 2 schedules execution; Layer 1 enforces policy/receipts.
-5. Layer 0 evaluates constitution/safety gates and binds receipts to safety state.
-6. Layer -1 executes through the active substrate template with declared fallback behavior.
-7. Crossing + validation receipts are emitted for auditability.
+1. A command enters from CLI or Presentation Client.
+2. Orchestration Surface normalizes and sequences the request through explicit contracts.
+3. Conduit normalizes the core-bound request into a typed envelope.
+4. Layer 3 maps envelope into deterministic execution intents.
+5. Layer 2 schedules execution; Layer 1 enforces policy/receipts.
+6. Layer 0 evaluates constitution/safety gates and binds receipts to safety state.
+7. Layer -1 executes through the active substrate template with declared fallback behavior.
+8. Crossing + validation receipts are emitted for auditability.
 
 ## Portability Contract
 

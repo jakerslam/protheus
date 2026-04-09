@@ -16,7 +16,7 @@ Prevent false completion claims and keep execution ledgers truthful.
 
 An item may be marked `done` only if all checks are true:
 
-1. Authority change exists in the correct layer (core by default; client only thin UX/wrapper).
+1. Authority change exists in the correct layer (core for canonical truth; `surface/orchestration/**` for non-canonical orchestration coordination; client only thin UX/wrapper).
 2. Evidence points to non-backlog files (code/tests/scripts/artifacts), not only TODO/SRS text.
 3. Evidence paths resolve:
    - concrete file path exists, or
