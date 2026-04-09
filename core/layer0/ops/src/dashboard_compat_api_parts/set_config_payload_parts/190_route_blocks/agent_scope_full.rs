@@ -1,0 +1,10 @@
+include!("agent_scope_full_parts/030-message-routing-and-context.rs");
+include!("agent_scope_full_parts/050-message-finalization-and-payload.rs");
+include!("agent_scope_full_parts/040-message-chat-response-pass.rs");
+include!("agent_scope_full_parts/020-message-direct-tool.rs");
+include!("agent_scope_full_parts/070-config-b-model-git.rs");
+include!("agent_scope_full_parts/060-suggestions-command-config-a.rs");
+include!("agent_scope_full_parts/080-file-read-routes.rs");
+include!("agent_scope_full_parts/090-folder-terminal-upload-routes.rs");
+include!("agent_scope_full_parts/100-files-tools-clone-avatar.rs");
+include!("agent_scope_full_parts/010-prelude-and-session.rs");
