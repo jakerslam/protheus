@@ -48,7 +48,6 @@ pub struct NexusConduitRequest {
 #[derive(Debug, Clone)]
 pub struct TaskFabric {
     pub graph: TaskGraph,
-    pub events: Vec<TaskEvent>,
     pub receipts: Vec<FabricReceipt>,
     pub concurrency: ConcurrencyState,
     pub stale_after_ms: u64,
@@ -58,7 +57,6 @@ impl TaskFabric {
     pub fn new(scope_id: impl Into<String>) -> Self {
         Self {
             graph: TaskGraph::new(scope_id),
-            events: Vec::new(),
             receipts: Vec::new(),
             concurrency: ConcurrencyState::default(),
             stale_after_ms: 30 * 60 * 1000,
@@ -389,6 +387,10 @@ impl TaskFabric {
         )
     }
 
+    pub fn receipt_ledger(&self) -> &[FabricReceipt] {
+        self.receipts.as_slice()
+    }
+
     fn bump_task_revision(&mut self, task_id: &str, now_ms: u64) -> Result<u64, String> {
         let task = self
             .graph
@@ -458,7 +460,6 @@ impl TaskFabric {
             dna_lineage,
             policy_reason: policy.reason_code,
         };
-        self.events.push(event.clone());
         self.receipts.push(receipt);
         self.concurrency.record_event(event.clone());
         Ok(event)

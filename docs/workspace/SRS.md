@@ -56,6 +56,59 @@ ID normalization:
 | --- | --- | --- | --- | --- | --- | --- |
 | V6-MEMORY-042 | queued | Unified Memory Heap core primitive (logical unity + physical specialization + orthogonal controls + append-only lineage + context materialization + Task Fabric lease/CAS graph) | Memory authority and continuity were spread across independent flows, making long-horizon continuity, trust-state promotion, and cross-scope governance brittle and hard to audit end-to-end. | Added new Rust-authoritative crate [`core/layer2/memory/src/lib.rs`](/Users/jay/.openclaw/workspace/core/layer2/memory/src/lib.rs) with required substrate modules: heap interface [`core/layer2/memory/src/heap_interface.rs`](/Users/jay/.openclaw/workspace/core/layer2/memory/src/heap_interface.rs), record store [`core/layer2/memory/src/record_store.rs`](/Users/jay/.openclaw/workspace/core/layer2/memory/src/record_store.rs), version ledger [`core/layer2/memory/src/version_ledger.rs`](/Users/jay/.openclaw/workspace/core/layer2/memory/src/version_ledger.rs), single graph subsystem + Task Fabric lease/CAS [`core/layer2/memory/src/graph_subsystem.rs`](/Users/jay/.openclaw/workspace/core/layer2/memory/src/graph_subsystem.rs), vector index [`core/layer2/memory/src/vector_index.rs`](/Users/jay/.openclaw/workspace/core/layer2/memory/src/vector_index.rs), blob store [`core/layer2/memory/src/blob_store.rs`](/Users/jay/.openclaw/workspace/core/layer2/memory/src/blob_store.rs), context materializer (`Context Stacks` as derived views only) [`core/layer2/memory/src/context_materializer.rs`](/Users/jay/.openclaw/workspace/core/layer2/memory/src/context_materializer.rs), explicit schemas/matrices [`core/layer2/memory/src/schemas.rs`](/Users/jay/.openclaw/workspace/core/layer2/memory/src/schemas.rs), Verity policy gate [`core/layer2/memory/src/policy.rs`](/Users/jay/.openclaw/workspace/core/layer2/memory/src/policy.rs), and promotion/rollback helpers [`core/layer2/memory/src/promotion.rs`](/Users/jay/.openclaw/workspace/core/layer2/memory/src/promotion.rs). Regression proof: `cargo test --manifest-path core/layer2/memory/Cargo.toml` (scope isolation, cross-scope promotion lineage, context redaction enforcement, append-only rollback, Task Fabric lease/CAS, owner export policy, explainable Verity decisions). | 10 | 0/1/2 |
 
+### V6-MEMORY-006/042 — Normative Governance Tables
+
+#### Trust-State Transition Matrix
+
+| From | Allowed To | Forbidden |
+| --- | --- | --- |
+| `proposed` | `corroborated`, `contested`, `quarantined`, `revoked` | direct `canonical` |
+| `corroborated` | `validated`, `contested`, `quarantined`, `revoked` | direct `canonical` |
+| `validated` | `canonical`, `contested`, `quarantined`, `revoked` | none |
+| `canonical` | `contested`, `quarantined`, `revoked` (with receipt + policy reason) | silent demotion |
+| `contested` | `corroborated`, `validated`, `quarantined`, `revoked` | direct `canonical` without re-validation |
+| `quarantined` | `contested`, `revoked` | direct promotion |
+| `revoked` | none (terminal) | all |
+
+#### Scope Authority Matrix
+
+| Scope | Write Authority | Promotion Targets | Default Materialization |
+| --- | --- | --- | --- |
+| `public` | core policy-gated writers | `agent`, `swarm`, `core`, `owner` | included |
+| `agent` | owning agent + core | `swarm`, `core`, `owner` | included |
+| `swarm` | assigned swarm + core | `core`, `owner` | included |
+| `core` | core only | `owner` (policy-gated export) | included |
+| `owner` | owner + core | n/a | included |
+| `ephemeral` | policy-gated transient writers | `agent`, `swarm`, `core`, `owner` (copy-forward only) | excluded by default |
+
+#### Owner Export / Redaction Matrix
+
+| Classification | Default Owner Export | Redaction Rule |
+| --- | --- | --- |
+| `public` | allowed | none |
+| `internal` | allowed | metadata redaction allowed by policy |
+| `sensitive` | policy-gated | mandatory field-level redaction |
+| `restricted` | deny by default | explicit Verity override receipt required |
+| `ephemeral` (any classification) | excluded by default | include only explicit authorized debug/audit path |
+
+#### Retention + Purge Semantics
+
+| Record Kind | Retention Default | Purge Rule |
+| --- | --- | --- |
+| canonical durable records | indefinite | policy-governed purge with lineage-preserving tombstone |
+| non-canonical durable records | policy TTL | purge allowed with receipt + lineage |
+| ephemeral records | next dream/compaction cycle | deterministic logical cleanup first; physical reclaim may lag |
+| stale prior-runtime ephemeral | sweep before resume | mandatory boot sweep before agent resume |
+
+#### CAS / Lease Rules
+
+| Operation | Required Guards |
+| --- | --- |
+| mutable update | expected revision (CAS) + policy approval |
+| promotion from ephemeral | active lease holder + expected revision + Verity approver |
+| cleanup of ephemeral | deterministic CAS conflict handling + conflict receipt on contention |
+| lease heartbeat/extend | lease holder identity + non-expired lease |
+
 ## Ephemeral Memory Scope Intake (2026-04-09)
 
 ID normalization:
@@ -369,7 +422,7 @@ ID normalization:
   - Per-task revision IDs with compare-and-swap mutation protection.
   - Lease expiry and heartbeat refresh semantics.
   - Idempotency keys and append-only event stream.
-  - Receipt ledger remains canonical mutation stream.
+  - Single mutation ledger path: append-only task events and receipts share one canonical receipt-backed write path.
 - Acceptance criteria:
   - Conflicting revision updates fail with explicit CAS mismatch.
   - Repeated idempotency key returns prior event/result without duplicate mutation.
@@ -414,6 +467,111 @@ ID normalization:
 - Tests:
   - `core/layer2/tools/task_fabric/tests/task_fabric.rs`
   - `cargo test -p infring-task-fabric-core-v1`
+
+## Governed Self-Maintenance Supervisor Intake (2026-04-09)
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V6-AUTO-001 | in_progress | Governed self-maintenance supervisor (observe/propose/apply-safe) routed through core authority primitives | Existing audits, health checks, and remediation fragments are split across disconnected paths, increasing drift risk and allowing hidden state/authority leakage. | Added orchestration supervisor modules in `surface/orchestration/src/self_maintenance/**` that convert observations to evidence, evidence to claims/claim bundles, claim bundles to Task Fabric work, and apply only bounded safe remediation through explicit Tool Broker → Evidence Store → Verifier → Memory contract flow with escalation for high-risk actions. | 10 | 0/1/2 |
+
+### V6-AUTO-001.1 — Inputs (Observation Layer)
+
+- Requirements:
+  - Supervisor consumes architecture audits, dependency violations, Task Fabric stale/blocked signals, CI reports, health metrics, memory pressure signals, and orphan/unused object signals.
+  - All inputs must normalize to evidence cards.
+- Acceptance criteria:
+  - Observation adapters emit typed evidence records with deterministic IDs and source metadata.
+
+### V6-AUTO-001.2 — Analysis Layer
+
+- Requirements:
+  - Pipeline is explicit: `Evidence -> Claim -> ClaimBundle`.
+  - Verifier remains authoritative for claim classification.
+- Acceptance criteria:
+  - Claim status is derived from evidence-backed analysis, not ad hoc direct execution heuristics.
+
+### V6-AUTO-001.3 — Task Generation
+
+- Requirements:
+  - Each claim bundle becomes Task Fabric entries.
+  - Generated tasks use `lifecycle_status=pending`, derived readiness semantics, owner `system`, and typed blockers.
+- Acceptance criteria:
+  - No private non-Task-Fabric durable task store exists for supervisor output.
+
+### V6-AUTO-001.4 — Execution Modes
+
+- Required modes:
+  - `observe_only` (detect/log only)
+  - `propose_only` (generate tasks only)
+  - `apply_safe` (execute low-risk remediation only)
+- Acceptance criteria:
+  - Mode behavior is deterministic and auditable through receipts.
+
+### V6-AUTO-001.5 — Safe Auto-Apply Scope
+
+- Allowed:
+  - docs drift fixes
+  - path corrections
+  - cleanup tasks
+  - backlog hygiene
+- Forbidden:
+  - architectural rewrites
+  - schema/policy changes
+  - memory structure changes
+- Acceptance criteria:
+  - Out-of-scope apply attempts fail closed to escalation.
+
+### V6-AUTO-001.6 — High-Risk Escalation
+
+- Requirements:
+  - Non-safe actions require Verity approval with claim bundle, proposed diff summary, impact analysis, and rollback plan.
+- Acceptance criteria:
+  - High-risk actions do not auto-apply.
+
+### V6-AUTO-001.7 — Execution Path Enforcement
+
+- Requirements:
+  - Required route: `Supervisor -> Task Fabric -> Tool Broker -> Evidence Store -> Verifier -> Unified Memory/Receipts`.
+- Acceptance criteria:
+  - No shortcut path bypasses Tool Broker, Verifier, or receipt lineage.
+
+### V6-AUTO-001.8 — Ephemeral Usage
+
+- Requirements:
+  - Supervisor working sets and intermediate execution context use Ephemeral Memory.
+  - Durable promotion from ephemeral is explicit and Verity-gated.
+- Acceptance criteria:
+  - Transient supervisor state is sweepable and non-canonical by default.
+
+### V6-AUTO-001.9 — Receipts and Audit
+
+- Requirements:
+  - Observation, claim, task creation, execution, and outcome steps all emit receipts with lineage.
+- Acceptance criteria:
+  - Full supervisor cycle is reconstructable from receipt/lineage outputs.
+
+### V6-AUTO-001 — Required Schemas
+
+- `WorkerOutput`:
+  - `task_id`, `status`, `produced_evidence_ids`, `open_questions`, `recommended_next_actions`, `blockers`, `budget_used`
+- `Claim`:
+  - `claim_id`, `text`, `evidence_ids`, `status`, `confidence_vector`, `conflict_refs`
+- `ClaimBundle`:
+  - `claim_bundle_id`, `task_id`, `claims`, `unresolved_questions`, `conflicts`, `coverage_score`
+
+### V6-AUTO-001 Regression Evidence
+
+- Implementation:
+  - `surface/orchestration/src/self_maintenance/contracts.rs`
+  - `surface/orchestration/src/self_maintenance/observer.rs`
+  - `surface/orchestration/src/self_maintenance/analyzer.rs`
+  - `surface/orchestration/src/self_maintenance/task_generator.rs`
+  - `surface/orchestration/src/self_maintenance/executor.rs`
+  - `surface/orchestration/src/self_maintenance/escalation.rs`
+  - `surface/orchestration/src/self_maintenance/mod.rs`
+- Tests:
+  - `surface/orchestration/tests/self_maintenance.rs`
+  - `cargo test -p infring-orchestration-surface-v1 --test self_maintenance`
 
 ## Software Assimilation Capability Intake (2026-04-09)
 
