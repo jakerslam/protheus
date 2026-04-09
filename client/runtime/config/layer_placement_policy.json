@@ -16,6 +16,7 @@
     "core/layer0/**/*.rs",
     "core/layer1/**/*.rs",
     "core/layer2/**/*.rs",
+    "surface/orchestration/**/*.ts",
     "client/runtime/systems/**/*.ts",
     "client/runtime/systems/**/*.js",
     "apps/**/*.ts",
