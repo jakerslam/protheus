@@ -2,6 +2,7 @@
   "version": "2026-03-10",
   "code_roots": [
     "core",
+    "surface",
     "client",
     "packages",
     "apps",
@@ -20,6 +21,15 @@
         "sh"
       ],
       "notes": "Rust-first. C/C++ only for low-level or hardware-adjacent modules. Shell allowed only for tightly-scoped build/install/packaging helpers."
+    },
+    "surface": {
+      "allowed_extensions": [
+        "rs",
+        "ts",
+        "tsx",
+        "sh"
+      ],
+      "notes": "Orchestration Surface (non-canonical coordination). Rust-first contracts with thin TS ingress/wrapper utilities only; no canonical authority state."
     },
     "client": {
       "target_extensions": [

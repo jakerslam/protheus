@@ -18,8 +18,9 @@ InfRing is structured as a substrate-independent metakernel with three explicit 
 ## Current Mapping
 
 - Safety plane implementation stack: `core/layer_minus_one`, `core/layer0`, `core/layer1`, `core/layer2`, `core/layer3`.
-- Cognition plane implementation: `client/runtime/systems/*` user-facing and model orchestration surfaces.
+- Cognition plane implementation: `surface/orchestration/*` (Orchestration Surface coordination) and `client/runtime/systems/*` (Presentation Client surfaces).
 - Substrate plane implementation: template adapters in `core/layer_minus_one/*` and capability descriptors under this directory.
+- Layered Nexus federation: `core/layer0/nexus/*` (Core, Orchestration Surface, and Client central-domain routing with lease-bound inter-domain delivery).
 
 Layer flow contract:
 
