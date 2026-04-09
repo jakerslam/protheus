@@ -69,12 +69,6 @@
       "expires": "2026-04-23"
     },
     {
-      "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/150-ws-stream-handlers.ts",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-04-23"
-    },
-    {
       "path": "client/runtime/systems/ui/infring_static/vendor/highlight.min.ts",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
