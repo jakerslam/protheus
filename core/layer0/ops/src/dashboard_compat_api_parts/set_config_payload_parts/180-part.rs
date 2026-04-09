@@ -11,6 +11,12 @@ fn direct_tool_intent_from_user_message(message: &str) -> Option<(String, Value)
             return None;
         }
         let lowered = clean_text(trimmed, 2200).to_ascii_lowercase();
+        if capability_probe_intent_from_message(trimmed, &lowered) {
+            return Some((
+                "tool_capabilities".to_string(),
+                json!({"scope": "agent", "reason": "natural_language_capability_probe"}),
+            ));
+        }
         let asks_file_read = lowered.contains("read file")
             || lowered.contains("open file")
             || lowered.contains("show file")
@@ -61,6 +67,9 @@ fn direct_tool_intent_from_user_message(message: &str) -> Option<(String, Value)
                     ));
                 }
             }
+        }
+        if let Some(route) = workspace_analyze_intent_from_message(trimmed, &lowered) {
+            return Some(route);
         }
         if let Some(route) = natural_web_intent_from_user_message(trimmed) {
             return Some(route);
@@ -152,6 +161,12 @@ fn direct_tool_intent_from_user_message(message: &str) -> Option<(String, Value)
                 ))
             }
         }
+        "/capabilities" | "/tools" => {
+            Some((
+                "tool_capabilities".to_string(),
+                json!({"scope": "agent", "reason": "slash_capabilities"}),
+            ))
+        }
         "/swarm" | "/spawn" | "/subagents" => {
             let mut count = 3usize;
             let mut objective = arg;
@@ -233,6 +248,69 @@ fn direct_tool_intent_from_user_message(message: &str) -> Option<(String, Value)
     }
 }
 
+fn capability_probe_intent_from_message(trimmed: &str, lowered: &str) -> bool {
+    if trimmed.is_empty() || lowered.is_empty() {
+        return false;
+    }
+    let asks_capability_matrix = lowered.contains("capabilities")
+        || lowered.contains("supported commands")
+        || lowered.contains("available tools")
+        || lowered.contains("tool access")
+        || lowered.contains("what tools can");
+    let asks_file_access = lowered.contains("can you read files")
+        || lowered.contains("can you access files")
+        || lowered.contains("do you have file access")
+        || lowered.contains("can you run ls");
+    let asks_tool_truth = lowered.contains("did you actually run")
+        || lowered.contains("did that actually happen")
+        || lowered.contains("are tools available")
+        || lowered.contains("which tools work")
+        || lowered.contains("verify tooling");
+    asks_capability_matrix || asks_file_access || asks_tool_truth
+}
+
+fn workspace_analyze_intent_from_message(
+    trimmed: &str,
+    lowered: &str,
+) -> Option<(String, Value)> {
+    if lowered.is_empty() {
+        return None;
+    }
+    let asks_ls = lowered == "ls"
+        || lowered.starts_with("ls ")
+        || lowered.contains(" run ls")
+        || lowered.contains("list files")
+        || lowered.contains("show files")
+        || lowered.contains("directory listing")
+        || lowered.contains("folder listing");
+    let mentions_workspace = lowered.contains("workspace")
+        || lowered.contains("repo")
+        || lowered.contains("repository")
+        || lowered.contains("project directory")
+        || lowered.contains("project folder")
+        || lowered.contains("this directory");
+    let asks_file_surface = lowered.contains("files")
+        || lowered.contains("logs")
+        || lowered.contains("directories")
+        || lowered.contains("folders")
+        || lowered.contains("tree");
+    let asks_analysis = lowered.contains("analy")
+        || lowered.contains("analyse")
+        || lowered.contains("parse")
+        || lowered.contains("inspect")
+        || lowered.contains("scan")
+        || lowered.contains("summarize")
+        || lowered.contains("tell me about");
+    if !(asks_ls || (mentions_workspace && (asks_file_surface || asks_analysis))) {
+        return None;
+    }
+    let query = clean_text(trimmed, 600);
+    if query.is_empty() {
+        return None;
+    }
+    Some(("workspace_analyze".to_string(), json!({ "query": query })))
+}
+
 fn message_explicitly_disallows_tool_calls(message: &str) -> bool {
     let lowered = clean_text(message, 400).to_ascii_lowercase();
     if lowered.is_empty() {
@@ -272,4 +350,3 @@ fn inline_tool_calls_allowed_for_user_message(message: &str) -> bool {
         || lowered.contains("do a tool call")
         || lowered.contains("run a tool call")
 }
-
