@@ -99,12 +99,6 @@
       "expires": "2026-04-23"
     },
     {
-      "path": "core/layer0/memory_runtime/src/main_parts/040-query-index-payload.rs",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-04-23"
-    },
-    {
       "path": "core/layer0/memory_runtime/src/transition_lane.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
@@ -669,12 +663,6 @@
       "expires": "2026-04-23"
     },
     {
-      "path": "core/layer0/ops/src/organism_layer_phase1.rs",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-04-23"
-    },
-    {
       "path": "core/layer0/ops/src/outcome_fitness_kernel.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
@@ -1006,12 +994,6 @@
     },
     {
       "path": "core/layer2/execution/src/decompose_parts/070-decompose-generates-micro-tasks.rs",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-04-23"
-    },
-    {
-      "path": "core/layer2/execution/src/importers.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
       "expires": "2026-04-23"
