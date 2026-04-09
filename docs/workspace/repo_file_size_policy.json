@@ -555,12 +555,6 @@
       "expires": "2026-04-23"
     },
     {
-      "path": "core/layer0/ops/src/habit_store_kernel.rs",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-04-23"
-    },
-    {
       "path": "core/layer0/ops/src/healthcare_plane.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
@@ -760,12 +754,6 @@
     },
     {
       "path": "core/layer0/ops/src/rag_cli.rs",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-04-23"
-    },
-    {
-      "path": "core/layer0/ops/src/reflex_store_kernel.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
       "expires": "2026-04-23"
