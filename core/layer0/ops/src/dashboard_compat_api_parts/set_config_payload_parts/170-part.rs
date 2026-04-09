@@ -74,6 +74,22 @@ fn parse_explicit_tool_command_from_message(message: &str) -> Option<Result<(Str
     let mut out_input = json!({});
 
     match mapped {
+        "capabilities" => {
+            out_tool = "tool_capabilities".to_string();
+            out_input = if let Some(obj) = parsed_object {
+                Value::Object(obj.clone())
+            } else {
+                json!({"scope": "agent"})
+            };
+            if out_input
+                .get("scope")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .is_empty()
+            {
+                out_input["scope"] = json!("agent");
+            }
+        }
         "web_search" | "batch_query" => {
             let query = clean_text(
                 parsed_object
@@ -295,4 +311,3 @@ fn parse_explicit_tool_command_from_message(message: &str) -> Option<Result<(Str
     }
     Some(Ok((out_tool, out_input)))
 }
-
