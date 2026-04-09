@@ -237,12 +237,6 @@
       "expires": "2026-04-23"
     },
     {
-      "path": "core/layer0/ops/src/bird_x_collector_kernel_support.rs",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-04-23"
-    },
-    {
       "path": "core/layer0/ops/src/bird_x_collector_kernel.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
