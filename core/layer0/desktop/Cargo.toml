@@ -17,4 +17,4 @@ serde_json = "1.0"
 protheus-ops-core = { path = "../ops" }
 
 [dev-dependencies]
-tempfile = "3.13"
+tempfile = "3.27"
