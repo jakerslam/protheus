@@ -1,0 +1,459 @@
+fn workspace_hint_tokens(message: &str, limit: usize) -> Vec<String> {
+    let mut tokens = Vec::<String>::new();
+    let mut seen = HashSet::<String>::new();
+    for raw in clean_text(message, 600)
+        .to_ascii_lowercase()
+        .split(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '_' || ch == '-'))
+    {
+        let token = raw.trim();
+        if token.len() < 3 {
+            continue;
+        }
+        if matches!(
+            token,
+            "the"
+                | "and"
+                | "for"
+                | "with"
+                | "that"
+                | "this"
+                | "from"
+                | "have"
+                | "your"
+                | "you"
+                | "are"
+                | "was"
+                | "were"
+                | "will"
+                | "into"
+                | "about"
+                | "what"
+                | "when"
+                | "then"
+                | "than"
+                | "just"
+                | "they"
+                | "them"
+                | "able"
+                | "make"
+                | "made"
+                | "need"
+                | "want"
+                | "does"
+                | "did"
+                | "done"
+                | "not"
+                | "too"
+                | "very"
+                | "also"
+                | "like"
+                | "been"
+                | "being"
+                | "each"
+                | "more"
+                | "most"
+                | "over"
+                | "under"
+                | "after"
+                | "before"
+                | "because"
+                | "while"
+                | "where"
+                | "which"
+                | "would"
+                | "could"
+                | "should"
+        ) {
+            continue;
+        }
+        if seen.insert(token.to_string()) {
+            tokens.push(token.to_string());
+            if tokens.len() >= limit.max(1) {
+                break;
+            }
+        }
+    }
+    tokens
+}
+
+fn should_infer_workspace_hints(message: &str) -> bool {
+    let lowered = clean_text(message, 600).to_ascii_lowercase();
+    [
+        "file",
+        "files",
+        "module",
+        "code",
+        "api",
+        "function",
+        "class",
+        "refactor",
+        "patch",
+        "update",
+        "fix",
+        "test",
+        "workspace",
+        "repo",
+        "project",
+        "notes",
+        "docs",
+        "meeting",
+    ]
+    .iter()
+    .any(|token| lowered.contains(token))
+}
+
+fn should_skip_workspace_hint_entry(entry: &walkdir::DirEntry) -> bool {
+    let name = entry.file_name().to_string_lossy().to_ascii_lowercase();
+    let ignored = [
+        ".git",
+        "node_modules",
+        "target",
+        "dist",
+        "build",
+        ".next",
+        ".cache",
+        "artifacts",
+        "backups",
+        "tmp",
+    ];
+    ignored.iter().any(|value| *value == name)
+}
+
+fn workspace_file_hints_for_message(
+    root: &Path,
+    row: Option<&Value>,
+    message: &str,
+    limit: usize,
+) -> Vec<Value> {
+    if !should_infer_workspace_hints(message) {
+        return Vec::new();
+    }
+    let tokens = workspace_hint_tokens(message, 8);
+    if tokens.is_empty() {
+        return Vec::new();
+    }
+    let workspace_base = workspace_base_for_agent(root, row);
+    if !workspace_base.exists() {
+        return Vec::new();
+    }
+    let lowered_message = clean_text(message, 600).to_ascii_lowercase();
+    let code_focus = lowered_message.contains("code")
+        || lowered_message.contains("api")
+        || lowered_message.contains("function")
+        || lowered_message.contains("test")
+        || lowered_message.contains("module")
+        || lowered_message.contains("refactor");
+    let mut scored = Vec::<(i64, String, Vec<String>)>::new();
+    let mut scanned = 0usize;
+    let max_scan = 2200usize;
+    for entry in WalkDir::new(&workspace_base)
+        .follow_links(false)
+        .into_iter()
+        .filter_entry(|entry| !should_skip_workspace_hint_entry(entry))
+        .flatten()
+    {
+        if !entry.file_type().is_file() {
+            continue;
+        }
+        scanned += 1;
+        if scanned > max_scan {
+            break;
+        }
+        let path = entry.path();
+        let rel = path.strip_prefix(&workspace_base).unwrap_or(path);
+        let rel_text = rel.to_string_lossy().replace('\\', "/");
+        let rel_lc = rel_text.to_ascii_lowercase();
+        let mut score = 0i64;
+        let mut matches = Vec::<String>::new();
+        for token in &tokens {
+            if rel_lc.contains(token) {
+                score += 5;
+                matches.push(token.clone());
+            } else if rel_lc
+                .rsplit('/')
+                .next()
+                .map(|tail| tail.starts_with(token))
+                .unwrap_or(false)
+            {
+                score += 3;
+                matches.push(token.clone());
+            }
+        }
+        if score <= 0 {
+            continue;
+        }
+        if code_focus {
+            let ext = path
+                .extension()
+                .and_then(|value| value.to_str())
+                .unwrap_or("")
+                .to_ascii_lowercase();
+            if matches!(
+                ext.as_str(),
+                "rs" | "ts" | "tsx" | "py" | "go" | "java" | "kt" | "cpp" | "c" | "h"
+            ) {
+                score += 2;
+            }
+        }
+        scored.push((score, rel_text, matches));
+    }
+
+    scored.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.len().cmp(&b.1.len())));
+    scored
+        .into_iter()
+        .take(limit.clamp(1, 8))
+        .map(|(score, path, matches)| {
+            let match_count = matches.len();
+            json!({
+                "path": path,
+                "score": score,
+                "matches": matches,
+                "reason": format!("matched {} workspace keywords", match_count)
+            })
+        })
+        .collect::<Vec<_>>()
+}
+
+fn latent_tool_candidates_for_message(message: &str, workspace_hints: &[Value]) -> Vec<Value> {
+    let lowered = clean_text(message, 1400).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return Vec::new();
+    }
+    let mut out = Vec::<Value>::new();
+    let mut seen = HashSet::<String>::new();
+    let mut push_candidate = |tool: &str, label: &str, reason: &str, proposed_input: Value| {
+        let normalized = normalize_tool_name(tool);
+        if normalized.is_empty() || seen.contains(&normalized) {
+            return;
+        }
+        seen.insert(normalized.clone());
+        let receipt = crate::deterministic_receipt_hash(&json!({
+            "tool": normalized,
+            "label": label,
+            "reason": reason,
+            "message": lowered.as_str(),
+            "input": proposed_input.clone()
+        }));
+        out.push(json!({
+            "tool": normalized,
+            "label": clean_text(label, 80),
+            "reason": clean_text(reason, 240),
+            "requires_confirmation": true,
+            "proposed_input": proposed_input,
+            "discovery_receipt": receipt
+        }));
+    };
+
+    let security_request = (lowered.contains("security")
+        || lowered.contains("vulnerability")
+        || lowered.contains("exploit")
+        || lowered.contains("audit"))
+        && (lowered.contains("code")
+            || lowered.contains("api")
+            || lowered.contains("module")
+            || lowered.contains("file"));
+    if security_request {
+        push_candidate(
+            "terminal_exec",
+            "run security checks",
+            "Security concern detected for code-path request.",
+            json!({"command": "cargo test --workspace --tests"}),
+        );
+    }
+
+    if let Some(path) = workspace_hints
+        .first()
+        .and_then(|row| row.get("path").and_then(Value::as_str))
+    {
+        if lowered.contains("file")
+            || lowered.contains("module")
+            || lowered.contains("api")
+            || lowered.contains("update")
+            || lowered.contains("change")
+            || lowered.contains("patch")
+            || lowered.contains("refactor")
+        {
+            push_candidate(
+                "file_read",
+                "open likely file",
+                "Workspace file inference found a likely target.",
+                json!({"path": path, "full": true}),
+            );
+        }
+    }
+
+    if lowered.contains("search")
+        || lowered.contains("latest")
+        || lowered.contains("news")
+        || lowered.contains("internet")
+        || lowered.contains("online")
+        || lowered.contains("look up")
+    {
+        push_candidate(
+            "web_search",
+            "search web",
+            "Message implies live web research intent.",
+            json!({"query": clean_text(message, 600), "summary_only": false}),
+        );
+    }
+
+    if lowered.contains("what did we decide")
+        || lowered.contains("remember")
+        || lowered.contains("recall")
+        || lowered.contains("last month")
+        || lowered.contains("previously")
+    {
+        push_candidate(
+            "memory_semantic_query",
+            "query semantic memory",
+            "Message implies historical decision recall intent.",
+            json!({"query": clean_text(message, 600), "limit": 8}),
+        );
+    }
+
+    if lowered.contains("schedule")
+        || lowered.contains("remind")
+        || lowered.contains("every ")
+        || lowered.contains("daily")
+        || lowered.contains("cron")
+    {
+        push_candidate(
+            "cron_schedule",
+            "schedule follow-up",
+            "Message implies recurring follow-up intent.",
+            json!({"interval_minutes": 60, "message": clean_text(message, 400)}),
+        );
+    }
+
+    if lowered.contains("swarm")
+        || lowered.contains("parallel")
+        || lowered.contains("subagent")
+        || lowered.contains("multi-agent")
+    {
+        push_candidate(
+            "spawn_subagents",
+            "parallel subagents",
+            "Message implies parallel execution intent.",
+            json!({"count": infer_subagent_count_from_message(message), "objective": clean_text(message, 600)}),
+        );
+    }
+
+    out.truncate(3);
+    out
+}
+
+fn truncate_utf8_lossy(bytes: &[u8], max_bytes: usize) -> (String, bool) {
+    if bytes.len() <= max_bytes {
+        return (String::from_utf8_lossy(bytes).to_string(), false);
+    }
+    let mut end = max_bytes;
+    while end > 0 && !std::str::from_utf8(&bytes[..end]).is_ok() {
+        end -= 1;
+    }
+    let slice = if end == 0 {
+        &bytes[..max_bytes]
+    } else {
+        &bytes[..end]
+    };
+    (String::from_utf8_lossy(slice).to_string(), true)
+}
+
+fn bytes_look_binary(bytes: &[u8]) -> bool {
+    if bytes.is_empty() {
+        return false;
+    }
+    let probe_len = bytes.len().min(4096);
+    let sample = &bytes[..probe_len];
+    if sample.iter().any(|byte| *byte == 0) {
+        return true;
+    }
+    let control_count = sample
+        .iter()
+        .filter(|byte| {
+            let b = **byte;
+            b < 9 || (b > 13 && b < 32)
+        })
+        .count();
+    let control_ratio = control_count as f64 / probe_len as f64;
+    if control_ratio > 0.12 {
+        return true;
+    }
+    std::str::from_utf8(sample).is_err() && control_ratio > 0.04
+}
+
+fn guess_mime_type_for_file(path: &Path, bytes: &[u8]) -> String {
+    let ext = path
+        .extension()
+        .and_then(|row| row.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    let known = match ext.as_str() {
+        "md" => "text/markdown; charset=utf-8",
+        "txt" | "log" | "toml" | "yaml" | "yml" | "json" | "jsonl" | "csv" | "tsv" => {
+            "text/plain; charset=utf-8"
+        }
+        "rs" | "ts" | "tsx" | "py" | "sh" | "zsh" | "bash" | "js" | "cjs" | "mjs" | "c" | "h"
+        | "cpp" | "hpp" | "go" | "java" | "kt" | "swift" | "sql" | "css" | "html" | "xml" => {
+            "text/plain; charset=utf-8"
+        }
+        "pdf" => "application/pdf",
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "gif" => "image/gif",
+        "webp" => "image/webp",
+        "mp3" => "audio/mpeg",
+        "wav" => "audio/wav",
+        "mp4" => "video/mp4",
+        "zip" => "application/zip",
+        "gz" => "application/gzip",
+        "tar" => "application/x-tar",
+        _ => "",
+    };
+    if !known.is_empty() {
+        return known.to_string();
+    }
+    if bytes_look_binary(bytes) {
+        "application/octet-stream".to_string()
+    } else {
+        "text/plain; charset=utf-8".to_string()
+    }
+}
+
+fn attention_policy_path(root: &Path) -> PathBuf {
+    let from_env = std::env::var("MECH_SUIT_MODE_POLICY_PATH")
+        .ok()
+        .map(PathBuf::from);
+    if let Some(path) = from_env {
+        if path.is_absolute() {
+            return path;
+        }
+        return root.join(path);
+    }
+    let default_root = root.join("config").join("mech_suit_mode_policy.json");
+    if default_root.exists() {
+        return default_root;
+    }
+    root.join("client/runtime/config/mech_suit_mode_policy.json")
+}
+
+fn attention_queue_path_for_dashboard(root: &Path) -> PathBuf {
+    let fallback = root.join("client/runtime/local/state/attention/queue.jsonl");
+    let policy = read_json_loose(&attention_policy_path(root)).unwrap_or_else(|| json!({}));
+    let from_policy = clean_text(
+        policy
+            .pointer("/eyes/attention_queue_path")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        4000,
+    );
+    if from_policy.is_empty() {
+        return fallback;
+    }
+    let raw = PathBuf::from(from_policy);
+    if raw.is_absolute() {
+        raw
+    } else {
+        root.join(raw)
+    }
+}
+

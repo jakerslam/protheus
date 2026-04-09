@@ -1,0 +1,494 @@
+fn passive_attention_context_for_message(
+    root: &Path,
+    agent_id: &str,
+    message: &str,
+    max_items: usize,
+) -> String {
+    let path = attention_queue_path_for_dashboard(root);
+    if !path.exists() {
+        return String::new();
+    }
+    let message_terms = important_memory_terms(message, 20)
+        .into_iter()
+        .collect::<HashSet<_>>();
+    let mut related = Vec::<String>::new();
+    for row in read_jsonl_loose(&path, 1200) {
+        let source = clean_text(row.get("source").and_then(Value::as_str).unwrap_or(""), 180);
+        if source != format!("agent:{agent_id}") {
+            continue;
+        }
+        let source_type = clean_text(
+            row.get("source_type").and_then(Value::as_str).unwrap_or(""),
+            120,
+        )
+        .to_ascii_lowercase();
+        if source_type != "passive_memory_turn" {
+            continue;
+        }
+        let summary = clean_text(
+            row.get("summary").and_then(Value::as_str).unwrap_or(""),
+            240,
+        );
+        if summary.is_empty() {
+            continue;
+        }
+        if internal_context_metadata_phrase(&summary)
+            || persistent_memory_denied_phrase(&summary)
+            || runtime_access_denied_phrase(&summary)
+        {
+            continue;
+        }
+        let terms = row
+            .pointer("/raw_event/terms")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default()
+            .into_iter()
+            .filter_map(|value| {
+                value
+                    .as_str()
+                    .map(|raw| clean_text(raw, 120).to_ascii_lowercase())
+            })
+            .filter(|term| !term.is_empty())
+            .collect::<HashSet<_>>();
+        let effective_terms = if terms.is_empty() {
+            important_memory_terms(&summary, 16)
+                .into_iter()
+                .collect::<HashSet<_>>()
+        } else {
+            terms
+        };
+        if !message_terms.is_empty() {
+            if effective_terms.is_empty() || message_terms.is_disjoint(&effective_terms) {
+                continue;
+            }
+        }
+        if !related.iter().any(|item| item == &summary) {
+            related.push(summary);
+        }
+        if related.len() >= max_items.max(1) {
+            break;
+        }
+    }
+    if related.is_empty() {
+        String::new()
+    } else {
+        format!(
+            "Relevant passive memory cues:\n{}",
+            related
+                .iter()
+                .map(|row| format!("- {row}"))
+                .collect::<Vec<_>>()
+                .join("\n")
+        )
+    }
+}
+
+fn response_contains_project_dump_sections(text: &str) -> bool {
+    let lowered = text.to_ascii_lowercase();
+    let markers = [
+        "project overview",
+        "data source",
+        "tools used",
+        "key features",
+        "sql queries",
+        "future work",
+        "how to use",
+    ];
+    let hits = markers
+        .iter()
+        .filter(|marker| lowered.contains(**marker))
+        .count();
+    hits >= 2
+}
+
+fn response_contains_tool_telemetry_dump(text: &str) -> bool {
+    let lowered = text.to_ascii_lowercase();
+    let noisy_markers = [
+        "at duckduckgo all regions",
+        "duckduckgo all regions",
+        "all regions argentina",
+        "all regions australia",
+        "spawn_subagents failed:",
+        "tool_explicit_signoff_required",
+        "tool_confirmation_required",
+        "\"decision_audit_receipt\"",
+        "\"turn_loop_tracking\"",
+        "\"turn_transaction\"",
+        "\"response_finalization\"",
+        "\"latent_tool_candidates\"",
+        "\"workspace_hints\"",
+        "\"nexus_connection\"",
+    ];
+    let hits = noisy_markers
+        .iter()
+        .filter(|marker| lowered.contains(**marker))
+        .count();
+    hits >= 2
+}
+
+fn parse_json_payload_dump(text: &str) -> Option<Value> {
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    let mut candidate = trimmed.to_string();
+    if candidate.starts_with("```") && candidate.ends_with("```") {
+        candidate = candidate
+            .trim_start_matches("```json")
+            .trim_start_matches("```JSON")
+            .trim_start_matches("```")
+            .trim_end_matches("```")
+            .trim()
+            .to_string();
+    }
+    if let Ok(parsed) = serde_json::from_str::<Value>(&candidate) {
+        return Some(parsed);
+    }
+    let start = candidate.find('{')?;
+    let end = candidate.rfind('}')?;
+    if end <= start {
+        return None;
+    }
+    serde_json::from_str::<Value>(&candidate[start..=end]).ok()
+}
+
+fn looks_like_internal_agent_payload_dump(payload: &Value) -> bool {
+    let Value::Object(map) = payload else {
+        return false;
+    };
+    let marker_keys = [
+        "agent_id",
+        "decision_audit_receipt",
+        "response_finalization",
+        "turn_loop_tracking",
+        "turn_transaction",
+        "tools",
+        "nexus_connection",
+        "latent_tool_candidates",
+        "workspace_hints",
+        "input_tokens",
+        "output_tokens",
+        "runtime_model",
+        "provider",
+    ];
+    let hits = marker_keys
+        .iter()
+        .filter(|key| map.contains_key(**key))
+        .count();
+    hits >= 3 || (map.contains_key("tools") && map.contains_key("turn_transaction"))
+}
+
+fn normalize_raw_response_payload_dump(text: &str) -> Option<String> {
+    let payload = parse_json_payload_dump(text)?;
+    if !looks_like_internal_agent_payload_dump(&payload) {
+        return None;
+    }
+    let synthesized = clean_text(
+        payload
+            .get("response")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        32_000,
+    );
+    if !synthesized.is_empty() {
+        return Some(synthesized);
+    }
+    Some(
+        "I completed the tool call, but no synthesized response was available yet. Check the tool details below.".to_string(),
+    )
+}
+
+fn with_payload_normalization_outcome(outcome: &str, payload_normalized: bool) -> String {
+    let cleaned = clean_text(outcome, 200);
+    if !payload_normalized {
+        return if cleaned.is_empty() {
+            "unchanged".to_string()
+        } else {
+            cleaned
+        };
+    }
+    if cleaned.is_empty() || cleaned == "unchanged" {
+        return "normalized_raw_payload_json".to_string();
+    }
+    format!("normalized_raw_payload_json+{cleaned}")
+}
+
+fn response_contains_peer_review_template_dump(text: &str) -> bool {
+    let lowered = text.to_ascii_lowercase();
+    let markers = [
+        "aiffel campus online",
+        "peerreviewtemplate",
+        "prt(peerreviewtemplate)",
+        "코더",
+        "리뷰어",
+        "각 항목을 스스로 확인",
+        "코드가 정상적으로 동작",
+        "chatbotdata.csv",
+        "tensorflow.keras",
+    ];
+    let hits = markers
+        .iter()
+        .filter(|marker| lowered.contains(**marker))
+        .count();
+    hits >= 2
+}
+
+fn response_contains_large_code_dump_with_low_overlap(
+    user_message: &str,
+    response_text: &str,
+) -> bool {
+    if response_text.len() < 1_400 {
+        return false;
+    }
+    let import_like_lines = response_text
+        .lines()
+        .filter(|line| {
+            let lowered = line.trim_start().to_ascii_lowercase();
+            lowered.starts_with("import ")
+                || lowered.starts_with("from ")
+                || lowered.starts_with("def ")
+                || lowered.starts_with("class ")
+        })
+        .count();
+    if import_like_lines < 5 {
+        return false;
+    }
+    let user_terms = important_memory_terms(user_message, 20)
+        .into_iter()
+        .collect::<HashSet<_>>();
+    let response_terms = important_memory_terms(response_text, 48)
+        .into_iter()
+        .collect::<HashSet<_>>();
+    if user_terms.is_empty() || response_terms.is_empty() {
+        return false;
+    }
+    user_terms.is_disjoint(&response_terms)
+}
+
+fn response_is_unrelated_context_dump(user_message: &str, response_text: &str) -> bool {
+    if response_text.contains("<function=") {
+        return false;
+    }
+    if response_contains_tool_telemetry_dump(response_text) {
+        return true;
+    }
+    if response_contains_peer_review_template_dump(response_text) {
+        return true;
+    }
+    if response_contains_large_code_dump_with_low_overlap(user_message, response_text) {
+        return true;
+    }
+    if response_text.len() < 220 {
+        return false;
+    }
+    if response_contains_project_dump_sections(response_text) {
+        let user_terms = important_memory_terms(user_message, 20)
+            .into_iter()
+            .collect::<HashSet<_>>();
+        let response_terms = important_memory_terms(response_text, 48)
+            .into_iter()
+            .collect::<HashSet<_>>();
+        if user_terms.is_empty() || response_terms.is_empty() {
+            return false;
+        }
+        return user_terms.is_disjoint(&response_terms);
+    }
+    false
+}
+
+fn response_looks_like_tool_ack_without_findings(text: &str) -> bool {
+    let cleaned = clean_text(text, 1200);
+    let lowered = cleaned.to_ascii_lowercase();
+    let potential_source_mentions = lowered.matches("potential sources:").count();
+    if lowered.is_empty() {
+        return true;
+    }
+    if response_is_no_findings_placeholder(&cleaned) {
+        return false;
+    }
+    if response_looks_like_unsynthesized_web_snippet_dump(&cleaned)
+        || response_looks_like_raw_web_artifact_dump(&cleaned)
+        || response_contains_tool_telemetry_dump(&cleaned)
+    {
+        return true;
+    }
+    if parse_json_payload_dump(&cleaned)
+        .map(|payload| looks_like_internal_agent_payload_dump(&payload))
+        .unwrap_or(false)
+    {
+        return true;
+    }
+    if lowered.contains("key findings for") && potential_source_mentions >= 1 {
+        return true;
+    }
+    if potential_source_mentions >= 1
+        && !lowered.contains("http://")
+        && !lowered.contains("https://")
+    {
+        return true;
+    }
+    if lowered.starts_with("web search for")
+        && lowered.contains("found sources:")
+        && !lowered.contains("http://")
+        && !lowered.contains("https://")
+    {
+        return true;
+    }
+    if crate::tool_output_match_filter::matches_ack_placeholder(&cleaned) {
+        return true;
+    }
+    let token_count = lowered.split_whitespace().count();
+    let mentions_tooling = lowered.contains("search")
+        || lowered.contains("web")
+        || lowered.contains("tool")
+        || lowered.contains("looked up")
+        || lowered.contains("called")
+        || lowered.contains("executed")
+        || lowered.contains("reading files")
+        || lowered.contains("searching the internet")
+        || lowered.contains("running terminal commands");
+    let mainly_ack_language = lowered.contains("i searched")
+        || lowered.contains("searched the internet")
+        || lowered.contains("i looked up")
+        || lowered.contains("i called")
+        || lowered.contains("i executed")
+        || lowered.contains("web search completed")
+        || lowered.contains("tool completed")
+        || lowered.contains("batch execution initiated")
+        || lowered.contains("concurrent searches running")
+        || lowered.contains("will execute all searches in parallel")
+        || lowered.contains("would execute concurrently")
+        || lowered.contains("this demonstrates the full pipeline");
+    if !mentions_tooling {
+        return false;
+    }
+    let has_rich_findings = lowered.contains("http://")
+        || lowered.contains("https://")
+        || lowered.contains("1.")
+        || lowered.contains("2.")
+        || lowered.contains("according to");
+    mentions_tooling && !has_rich_findings && (token_count <= 80 || mainly_ack_language)
+}
+
+fn no_findings_user_facing_response() -> String {
+    crate::tool_output_match_filter::no_findings_user_copy().to_string()
+}
+
+fn response_is_no_findings_placeholder(text: &str) -> bool {
+    let lowered = clean_text(text, 600).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return true;
+    }
+    lowered.contains("no relevant results found for that request yet")
+        || lowered.contains("couldn't produce source-backed findings in this turn")
+        || lowered.contains("don't have usable tool findings from this turn yet")
+        || lowered.contains("couldn't extract usable findings")
+        || lowered.contains("could not extract usable findings")
+        || lowered.contains("couldn't extract reliable findings")
+        || lowered.contains("could not extract reliable findings")
+        || lowered.contains("no usable findings yet")
+}
+
+fn sanitize_findings_for_final_response(findings: Option<String>) -> Option<String> {
+    let raw = findings.unwrap_or_default();
+    let cleaned = clean_text(raw.trim(), 24_000);
+    if cleaned.is_empty() {
+        return None;
+    }
+    if response_looks_like_tool_ack_without_findings(&cleaned) {
+        return None;
+    }
+    Some(cleaned)
+}
+
+fn finalize_user_facing_response_with_outcome(
+    output: String,
+    findings: Option<String>,
+) -> (String, String, bool) {
+    let mut cleaned = clean_text(output.trim(), 32_000);
+    let mut payload_normalized = false;
+    if let Some(unwrapped) = normalize_raw_response_payload_dump(&cleaned) {
+        cleaned = clean_text(unwrapped.trim(), 32_000);
+        payload_normalized = true;
+    }
+    if let Some((rewritten, rule_id)) =
+        crate::tool_output_match_filter::rewrite_failure_placeholder(&cleaned)
+    {
+        return (
+            rewritten,
+            with_payload_normalization_outcome(
+                &format!("rewrote_failure_placeholder:{rule_id}"),
+                payload_normalized,
+            ),
+            false,
+        );
+    }
+    if response_looks_like_raw_web_artifact_dump(&cleaned) {
+        return (
+            "I only have raw web output (placeholder or page/search chrome), not synthesized findings yet. I can rerun with `batch_query` or a narrower query and return a concise answer with sources.".to_string(),
+            with_payload_normalization_outcome("rewrote_raw_web_artifact_dump", payload_normalized),
+            false,
+        );
+    }
+    if response_looks_like_unsynthesized_web_snippet_dump(&cleaned) {
+        return (
+            "I only have low-signal web snippets in this turn, not synthesized findings yet. I can rerun with `batch_query` and return a concise, source-backed summary.".to_string(),
+            with_payload_normalization_outcome(
+                "rewrote_unsynthesized_web_snippet_dump",
+                payload_normalized,
+            ),
+            false,
+        );
+    }
+    let input_ack_only = response_looks_like_tool_ack_without_findings(&cleaned);
+    let findings_cleaned = sanitize_findings_for_final_response(findings);
+    if cleaned.is_empty() {
+        if let Some(text) = findings_cleaned {
+            return (
+                text,
+                with_payload_normalization_outcome(
+                    "replaced_empty_with_findings",
+                    payload_normalized,
+                ),
+                false,
+            );
+        }
+        return (
+            no_findings_user_facing_response(),
+            with_payload_normalization_outcome(
+                "replaced_empty_with_no_findings",
+                payload_normalized,
+            ),
+            false,
+        );
+    }
+    if input_ack_only {
+        if let Some(text) = findings_cleaned {
+            return (
+                text,
+                with_payload_normalization_outcome(
+                    "replaced_ack_with_findings",
+                    payload_normalized,
+                ),
+                true,
+            );
+        }
+        return (
+            no_findings_user_facing_response(),
+            with_payload_normalization_outcome("replaced_ack_with_no_findings", payload_normalized),
+            true,
+        );
+    }
+    (
+        cleaned,
+        with_payload_normalization_outcome("unchanged", payload_normalized),
+        false,
+    )
+}
+
+#[allow(dead_code)]
+fn finalize_user_facing_response(output: String, findings: Option<String>) -> String {
+    finalize_user_facing_response_with_outcome(output, findings).0
+}
+
