@@ -2,8 +2,9 @@
 # FILE_SIZE_EXCEPTION: reason=Single-file curl installer distribution requires contiguous standalone script; owner=jay; expires=2026-04-12
 set -eu
 
-REPO_OWNER="infring"
-REPO_NAME="InfRing"
+DEFAULT_REPO_OWNER="protheuslabs"
+REPO_OWNER="${INFRING_REPO_OWNER:-$DEFAULT_REPO_OWNER}"
+REPO_NAME="${INFRING_REPO_NAME:-InfRing}"
 DEFAULT_API="https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest"
 DEFAULT_LATEST_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/latest"
 DEFAULT_BASE="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download"
@@ -1054,6 +1055,9 @@ run_install_preflight() {
     echo "[infring install] preflight node: ${node_ver:-detected} (ok)"
   else
     echo "[infring install] preflight node: missing or <22 (optional for full surfaces)"
+    if is_truthy "$INSTALL_FULL" && is_truthy "$INSTALL_NODE_AUTO"; then
+      echo "[infring install] note: full mode will attempt automatic portable Node bootstrap later in install flow."
+    fi
     if command -v uname >/dev/null 2>&1; then
       echo "[infring install] fix: $(detect_node_install_command)"
     else
@@ -1068,6 +1072,7 @@ run_install_preflight() {
     echo "[infring install] fix: rustup default stable"
   else
     echo "[infring install] preflight cargo: missing (only needed for source fallback build path)"
+    echo "[infring install] note: installer can bootstrap rustup automatically if source fallback is required."
     echo "[infring install] fix: curl --proto '=https' --tlsv1.2 -sSf $RUSTUP_INIT_URL | sh -s -- -y --profile minimal --default-toolchain stable"
   fi
 
@@ -1745,6 +1750,38 @@ latest_version_from_redirect() {
   esac
 }
 
+latest_version_from_git_tags() {
+  if ! command -v git >/dev/null 2>&1; then
+    return 1
+  fi
+  repo_url="https://github.com/${REPO_OWNER}/${REPO_NAME}.git"
+  git ls-remote --tags --refs "$repo_url" 2>/dev/null | awk '
+    function semver_key(tag,   body, core, pre, split_dash, n, parts, major, minor, patch, stable) {
+      body = tag
+      sub(/^v/, "", body)
+      split(body, split_dash, "-")
+      core = split_dash[1]
+      pre = ""
+      if (length(body) > length(core)) {
+        pre = substr(body, length(core) + 2)
+      }
+      n = split(core, parts, ".")
+      major = (n >= 1 && parts[1] ~ /^[0-9]+$/) ? parts[1] + 0 : 0
+      minor = (n >= 2 && parts[2] ~ /^[0-9]+$/) ? parts[2] + 0 : 0
+      patch = (n >= 3 && parts[3] ~ /^[0-9]+$/) ? parts[3] + 0 : 0
+      stable = (pre == "") ? 1 : 0
+      return sprintf("%09d.%09d.%09d.%01d.%s", major, minor, patch, stable, pre)
+    }
+    {
+      tag = $2
+      sub(/^refs\/tags\//, "", tag)
+      if (tag ~ /^v[0-9]+(\.[0-9]+){0,2}([-.][0-9A-Za-z][0-9A-Za-z._-]*)?$/) {
+        printf "%s\t%s\n", semver_key(tag), tag
+      }
+    }
+  ' | sort | tail -n 1 | awk -F '\t' '{print $2}'
+}
+
 normalize_version() {
   raw="$1"
   case "$raw" in
@@ -1772,6 +1809,12 @@ resolve_version() {
     fi
   fi
   if [ -z "$version" ]; then
+    version="$(latest_version_from_git_tags || true)"
+    if [ -n "$version" ]; then
+      echo "[infring install] release API/redirect unavailable; resolved latest tag via git tags: $version" >&2
+    fi
+  fi
+  if [ -z "$version" ]; then
     fallback="${INFRING_FALLBACK_VERSION:-}"
     if [ -n "$fallback" ]; then
       version="$(normalize_version "$fallback")"
@@ -1779,7 +1822,7 @@ resolve_version() {
     fi
   fi
   if [ -z "$version" ]; then
-    echo "[infring install] failed to resolve latest release tag (GitHub API + releases/latest redirect)." >&2
+    echo "[infring install] failed to resolve latest release tag (GitHub API + releases/latest redirect + git tags)." >&2
     echo "[infring install] set INFRING_VERSION=vX.Y.Z and rerun installer." >&2
     exit 1
   fi
@@ -1846,13 +1889,24 @@ download_bootstrap_asset() {
   return 1
 }
 
-source_fallback_bin_name() {
+source_fallback_bin_candidates() {
   stem_name="$1"
   case "$stem_name" in
-    infring-ops) echo "infring-ops" ;;
-    infringd|infringd-tiny-max) echo "infringd" ;;
-    conduit_daemon) echo "conduit_daemon" ;;
-    infring-pure-workspace|infring-pure-workspace-tiny-max) echo "infring-pure-workspace" ;;
+    infring-ops)
+      printf '%s\n' "infring-ops"
+      printf '%s\n' "protheus-ops"
+      ;;
+    infringd|infringd-tiny-max)
+      printf '%s\n' "infringd"
+      printf '%s\n' "protheusd"
+      ;;
+    conduit_daemon)
+      printf '%s\n' "conduit_daemon"
+      ;;
+    infring-pure-workspace|infring-pure-workspace-tiny-max)
+      printf '%s\n' "infring-pure-workspace"
+      printf '%s\n' "protheus-pure-workspace"
+      ;;
     *) return 1 ;;
   esac
 }
@@ -1967,8 +2021,8 @@ install_binary_from_source_fallback() {
   stem_name="$2"
   binary_out="$3"
 
-  bin_name="$(source_fallback_bin_name "$stem_name" || true)"
-  [ -n "$bin_name" ] || return 1
+  bin_candidates="$(source_fallback_bin_candidates "$stem_name" || true)"
+  [ -n "$bin_candidates" ] || return 1
 
   prepare_source_fallback_repo "$version_tag" || return 1
   repo_dir="$SOURCE_FALLBACK_DIR"
@@ -1976,15 +2030,30 @@ install_binary_from_source_fallback() {
   ensure_source_build_prereqs || return 1
 
   manifest="$repo_dir/core/layer0/ops/Cargo.toml"
-  if ! cargo build --release --manifest-path "$manifest" --bin "$bin_name"; then
+  selected_bin=""
+  old_ifs="$IFS"
+  IFS='
+'
+  for candidate_bin in $bin_candidates; do
+    [ -n "$candidate_bin" ] || continue
+    if cargo build --release --manifest-path "$manifest" --bin "$candidate_bin" >/dev/null 2>&1; then
+      selected_bin="$candidate_bin"
+      break
+    fi
+  done
+  IFS="$old_ifs"
+
+  if [ -z "$selected_bin" ]; then
+    echo "[infring install] source fallback build failed: no compatible bin target for ${stem_name}" >&2
+    echo "[infring install] tried source bin targets: $(printf '%s' "$bin_candidates" | tr '\n' ' ')" >&2
     return 1
   fi
-  built="$repo_dir/target/release/$bin_name"
+  built="$repo_dir/target/release/$selected_bin"
   [ -f "$built" ] || return 1
 
   cp "$built" "$binary_out"
   finalize_installed_binary "$binary_out"
-  echo "[infring install] built $bin_name from source fallback"
+  echo "[infring install] built $selected_bin from source fallback"
   return 0
 }
 
@@ -3946,11 +4015,20 @@ exec \"$pure_bin\" \"\$@\""
     write_wrapper "infringctl" "${gateway_shim}
 exec \"$pure_bin\" conduit \"\$@\""
   else
+    ops_domain_dispatch="ops_domain=\"\${INFRING_OPS_DOMAIN:-}\"
+if [ -z \"\$ops_domain\" ]; then
+  if \"$ops_bin\" infringctl --help >/dev/null 2>&1; then
+    ops_domain=\"infringctl\"
+  else
+    ops_domain=\"protheusctl\"
+  fi
+fi
+exec \"$ops_bin\" \"\$ops_domain\" \"\$@\""
     write_wrapper "infring" "${infring_help_shim}
 ${gateway_shim}
-exec \"$ops_bin\" infringctl \"\$@\""
+${ops_domain_dispatch}"
     write_wrapper "infringctl" "${gateway_shim}
-exec \"$ops_bin\" infringctl \"\$@\""
+${ops_domain_dispatch}"
   fi
 
   if [ -n "$daemon_wrapper_body" ]; then
