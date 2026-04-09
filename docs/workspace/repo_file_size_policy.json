@@ -123,12 +123,6 @@
       "expires": "2026-04-23"
     },
     {
-      "path": "core/layer0/ops/src/ab_lane_eval.rs",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-04-23"
-    },
-    {
       "path": "core/layer0/ops/src/action_envelope_kernel.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
@@ -274,12 +268,6 @@
     },
     {
       "path": "core/layer0/ops/src/continuity_runtime.rs",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-04-23"
-    },
-    {
-      "path": "core/layer0/ops/src/contract_lane_utils.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
       "expires": "2026-04-23"
@@ -759,12 +747,6 @@
       "expires": "2026-04-23"
     },
     {
-      "path": "core/layer0/ops/src/request_envelope_kernel.rs",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-04-23"
-    },
-    {
       "path": "core/layer0/ops/src/rsi_ignition.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
@@ -910,12 +892,6 @@
     },
     {
       "path": "core/layer0/ops/src/tool_response_compactor_kernel.rs",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-04-23"
-    },
-    {
-      "path": "core/layer0/ops/src/top50_roi_sweep_kernel.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
       "expires": "2026-04-23"
