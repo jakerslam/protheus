@@ -1694,6 +1694,7 @@ fn search_payload_usable(payload: &Value) -> bool {
     let lowered = summary.to_ascii_lowercase();
     !lowered.contains("no relevant results found for that request yet")
         && !lowered.contains("couldn't produce source-backed findings in this turn")
+        && !lowered.contains("don't have usable tool findings from this turn yet")
 }
 
 fn search_payload_error(payload: &Value) -> String {

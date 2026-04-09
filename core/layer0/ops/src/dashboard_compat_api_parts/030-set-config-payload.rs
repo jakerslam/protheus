@@ -3434,6 +3434,9 @@ fn response_looks_like_tool_ack_without_findings(text: &str) -> bool {
     if lowered.is_empty() {
         return true;
     }
+    if response_is_no_findings_placeholder(&cleaned) {
+        return false;
+    }
     if response_looks_like_unsynthesized_web_snippet_dump(&cleaned)
         || response_looks_like_raw_web_artifact_dump(&cleaned)
         || response_contains_tool_telemetry_dump(&cleaned)
@@ -3481,7 +3484,12 @@ fn response_looks_like_tool_ack_without_findings(text: &str) -> bool {
         || lowered.contains("i called")
         || lowered.contains("i executed")
         || lowered.contains("web search completed")
-        || lowered.contains("tool completed");
+        || lowered.contains("tool completed")
+        || lowered.contains("batch execution initiated")
+        || lowered.contains("concurrent searches running")
+        || lowered.contains("will execute all searches in parallel")
+        || lowered.contains("would execute concurrently")
+        || lowered.contains("this demonstrates the full pipeline");
     if !mentions_tooling {
         return false;
     }
@@ -3504,6 +3512,7 @@ fn response_is_no_findings_placeholder(text: &str) -> bool {
     }
     lowered.contains("no relevant results found for that request yet")
         || lowered.contains("couldn't produce source-backed findings in this turn")
+        || lowered.contains("don't have usable tool findings from this turn yet")
         || lowered.contains("couldn't extract usable findings")
         || lowered.contains("could not extract usable findings")
         || lowered.contains("couldn't extract reliable findings")
@@ -7503,7 +7512,7 @@ fn execute_inline_tool_calls(
     let response = if cleaned_trimmed.is_empty() || cleaned_is_low_signal {
         let joined = fallback_lines.join("\n\n");
         if joined.trim().is_empty() {
-            "I ran the requested tool calls, but they returned no usable findings yet. Ask me to retry with a narrower query or a specific source."
+            "I attempted the requested tool calls, but this turn produced no usable findings yet. Ask me to retry with a narrower query or a specific source."
                 .to_string()
         } else {
             trim_text(&joined, 32_000)

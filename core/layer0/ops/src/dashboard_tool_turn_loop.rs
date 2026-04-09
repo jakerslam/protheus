@@ -619,7 +619,7 @@ mod tests {
             .and_then(Value::as_str)
             .unwrap_or("")
             .to_ascii_lowercase();
-        assert!(lowered.contains("no relevant results"));
+        assert!(lowered.contains("usable tool findings"));
         assert!(!lowered.contains("web search completed"));
     }
 

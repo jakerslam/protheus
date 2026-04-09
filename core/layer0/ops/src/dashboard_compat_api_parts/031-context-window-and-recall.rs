@@ -477,6 +477,25 @@ fn enforce_tool_completion_contract(
         finalize_user_facing_response_with_outcome(response_text, findings.clone());
     let mut applied = outcome != "unchanged";
 
+    if tools_present == 0 {
+        let finalized_cleaned = clean_text(&finalized, 32_000);
+        if response_is_no_findings_placeholder(&finalized_cleaned)
+            && finalized_cleaned != no_findings_user_facing_response()
+        {
+            finalized = no_findings_user_facing_response();
+            outcome =
+                append_tool_completion_outcome(&outcome, "no_tools_normalized_no_findings_copy");
+            applied = true;
+        } else if response_looks_like_tool_ack_without_findings(&finalized_cleaned) {
+            finalized = no_findings_user_facing_response();
+            outcome = append_tool_completion_outcome(
+                &outcome,
+                "no_tools_rewrote_unverified_tool_execution_claim",
+            );
+            applied = true;
+        }
+    }
+
     if tools_present > 0 {
         let finalized_cleaned = clean_text(&finalized, 32_000);
         let actionable_reason =

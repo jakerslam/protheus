@@ -720,7 +720,7 @@ fn finalize_user_facing_response_replaces_ack_without_findings() {
     let finalized = finalize_user_facing_response("Web search completed.".to_string(), None);
     let lowered = finalized.to_ascii_lowercase();
     assert!(!lowered.contains("web search completed"));
-    assert!(lowered.contains("no relevant results"));
+    assert!(lowered.contains("usable tool findings"));
     assert!(!response_looks_like_tool_ack_without_findings(&finalized));
 }
 
@@ -987,7 +987,10 @@ fn finalize_user_facing_response_blocks_internal_payload_json_without_response()
     .to_string();
     let finalized = finalize_user_facing_response(raw, None);
     let lowered = finalized.to_ascii_lowercase();
-    assert!(lowered.contains("no synthesized response") || lowered.contains("couldn't produce source-backed findings in this turn"));
+    assert!(
+        lowered.contains("no synthesized response")
+            || lowered.contains("usable tool findings from this turn yet")
+    );
     assert!(!lowered.contains("agent_id"));
     assert!(!finalized.starts_with('{'));
 }
@@ -1028,7 +1031,10 @@ fn enforce_user_facing_finalization_contract_unwraps_internal_payload_dump() {
     let lowered = finalized.to_ascii_lowercase();
     assert!(!finalized.trim_start().starts_with('{'));
     assert!(!lowered.contains("agent_id"));
-    assert!(lowered.contains("benchmark summary") || lowered.contains("couldn't produce source-backed findings in this turn"));
+    assert!(
+        lowered.contains("benchmark summary")
+            || lowered.contains("usable tool findings from this turn yet")
+    );
     assert_eq!(
         report.get("completion_state").and_then(Value::as_str),
         Some("reported_no_findings")
@@ -1050,7 +1056,7 @@ fn tool_completion_contract_rewrites_ack_to_findings_from_tool_cards() {
     let lowered = finalized.to_ascii_lowercase();
     assert!(lowered.contains("here's what i found"));
     assert!(!lowered.contains("web search completed"));
-    assert!(!lowered.contains("couldn't produce source-backed findings in this turn"));
+    assert!(!lowered.contains("source-backed findings in this turn"));
     assert_eq!(
         report.get("completion_state").and_then(Value::as_str),
         Some("reported_findings")
@@ -1079,6 +1085,29 @@ fn tool_completion_contract_rewrites_ack_to_explicit_no_findings_when_results_ar
         report.get("final_no_findings").and_then(Value::as_bool),
         Some(true)
     );
+}
+
+#[test]
+fn tool_completion_contract_rewrites_unverified_execution_claim_when_no_tools_exist() {
+    let (finalized, report) = enforce_tool_completion_contract(
+        "Batch execution initiated - 5 concurrent searches running. This demonstrates the full pipeline."
+            .to_string(),
+        &[],
+    );
+    let lowered = finalized.to_ascii_lowercase();
+    assert!(lowered.contains("usable tool findings from this turn yet"));
+    assert!(!lowered.contains("batch execution initiated"));
+    assert_eq!(
+        report.get("completion_state").and_then(Value::as_str),
+        Some("not_applicable")
+    );
+}
+
+#[test]
+fn response_ack_detector_flags_batch_execution_scaffold_copy() {
+    assert!(response_looks_like_tool_ack_without_findings(
+        "Batch execution initiated - 5 concurrent searches running with concurrency limiting. This demonstrates the full pipeline from command parsing to response formatting."
+    ));
 }
 
 #[test]
@@ -1217,7 +1246,7 @@ fn execute_tool_recovery_applies_turn_loop_tracking_metadata() {
         .and_then(Value::as_str)
         .unwrap_or("")
         .to_ascii_lowercase();
-    assert!(lowered.contains("no relevant results"));
+    assert!(lowered.contains("usable tool findings"));
     assert!(out.get("turn_loop_post_filter").is_some());
     assert!(out.get("turn_loop_tracking").is_some());
 }

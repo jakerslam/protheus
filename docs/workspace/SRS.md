@@ -14509,3 +14509,24 @@ Source summary:
   - `tests/tooling/scripts/ci/benchmark_public_surface.ts`
   - `npm run -s ops:benchmark:refresh -- --preflight-max-load-per-core=100 --preflight-max-noise-cv-pct=1000 --preflight-noise-rounds=1 --retries=1 --refresh-runtime=0`
   - `npm run -s ops:benchmark:public-audit`
+
+### V11-TOOLING-004 — Optional Tool Calls Must Never Be Faked in User-Facing Responses
+
+- Intent:
+  - Prevent agent replies from implying successful tool execution when no tool call actually produced usable findings.
+- Acceptance criteria:
+  - Canonical no-findings copy uses explicit truth wording (`usable tool findings from this turn`) and old placeholder copy is normalized away.
+  - Ack/scaffold outputs such as `Batch execution initiated`, `concurrent searches running`, and similar pipeline-only status text are classified as low-signal tool-ack responses unless real findings are present.
+  - When `response_tools` is empty, tool-completion finalization rewrites unverified execution claims to canonical no-findings copy.
+  - Inline tool fallback wording uses `attempted` instead of `ran` for no-findings outcomes.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/tool_output_match_filter.rs`
+  - `core/layer0/ops/src/dashboard_compat_api_parts/030-set-config-payload.rs`
+  - `core/layer0/ops/src/dashboard_compat_api_parts/031-context-window-and-recall.rs`
+  - `core/layer0/ops/src/dashboard_tool_turn_loop.rs`
+  - `core/layer0/ops/src/web_conduit.rs`
+  - `core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.rs`
+  - `cargo test -p protheus-ops-core --lib finalize_user_facing_response_replaces_ack_without_findings -- --nocapture`
+  - `cargo test -p protheus-ops-core --lib tool_completion_contract_rewrites_unverified_execution_claim_when_no_tools_exist -- --nocapture`
+  - `cargo test -p protheus-ops-core --lib response_ack_detector_flags_batch_execution_scaffold_copy -- --nocapture`
+  - `cargo test -p protheus-ops-core --lib pre_gate_respects_confirm_for_ask_verdicts -- --nocapture`

@@ -44,7 +44,7 @@ const RAW_PAYLOAD_KEY_MARKERS: &[&str] = &[
 ];
 
 const NO_FINDINGS_USER_COPY: &str =
-    "I couldn't produce source-backed findings in this turn. Ask me to retry with a narrower query or a specific source URL.";
+    "I don't have usable tool findings from this turn yet. Ask me to retry with a narrower query or a specific source URL.";
 
 const UNSYNTHESIZED_WEB_MARKERS: &[&str] = &[
     "from web retrieval:",
@@ -67,6 +67,7 @@ const UNSYNTHESIZED_WEB_MARKERS: &[&str] = &[
     "the search response came from",
     "no relevant results found for that request yet",
     "couldn't produce source-backed findings in this turn",
+    "don't have usable tool findings from this turn yet",
 ];
 
 const ANALYSIS_MARKERS: &[&str] = &[
@@ -109,6 +110,18 @@ fn ack_rules() -> &'static Vec<(MatchRule, Regex, Option<Regex>)> {
             MatchRule {
                 pattern: r"(?is)^\s*tool call finished\.?\s*$",
                 unless: None,
+            },
+            MatchRule {
+                pattern: r"(?is)^\s*batch execution initiated(?:\b.*)?$",
+                unless: Some(r"(?is)https?://|according to|source"),
+            },
+            MatchRule {
+                pattern: r"(?is)^\s*this demonstrates the full pipeline(?:\b.*)?$",
+                unless: Some(r"(?is)https?://|according to|source"),
+            },
+            MatchRule {
+                pattern: r"(?is)^\s*the system will:\s*(?:\b.*)$",
+                unless: Some(r"(?is)https?://|according to|source"),
             },
             MatchRule {
                 pattern: r"(?is)^\s*(?:i\s+)?could(?:n't| not)\s+extract\s+(?:usable|reliable)\s+findings(?:\b.*)?$",
