@@ -19,4 +19,7 @@ include!("set_config_payload_parts/160-part.rs");
 include!("set_config_payload_parts/170-part.rs");
 include!("set_config_payload_parts/180-part.rs");
 include!("set_config_payload_parts/190-part.rs");
+include!("set_config_payload_parts/191-part.rs");
+include!("set_config_payload_parts/192-part.rs");
+include!("set_config_payload_parts/193-part.rs");
 include!("set_config_payload_parts/200-part.rs");
