@@ -59,6 +59,8 @@ function main() {
   const repoSurfacePolicy = JSON.parse(read('client/runtime/config/repo_surface_policy.json'));
   const clientSwarmWrapper = read('client/runtime/systems/autonomy/swarm_orchestration_runtime.ts');
   const surfaceSwarmRuntime = read('surface/orchestration/scripts/swarm_orchestration_runtime.ts');
+  const clientSelfImproveWrapper = read('client/runtime/systems/autonomy/self_improvement_cadence_orchestrator.ts');
+  const surfaceSelfImproveRuntime = read('surface/orchestration/scripts/self_improvement_cadence_orchestrator.ts');
   const clientPersonaWrapper = read('client/runtime/systems/personas/orchestration.ts');
   const surfacePersonaRuntime = read('surface/orchestration/scripts/personas_orchestration.ts');
 
@@ -114,6 +116,18 @@ function main() {
       id: 'orchestration_runtime_lives_under_surface',
       ok: surfaceSwarmRuntime.includes('runSpawn') && surfaceSwarmRuntime.includes('swarm-runtime'),
       detail: 'swarm orchestration coordination implementation is hosted in surface/orchestration',
+    },
+    {
+      id: 'client_self_improvement_orchestration_is_wrapper_only',
+      ok: clientSelfImproveWrapper.includes('TypeScript compatibility shim only.') &&
+        clientSelfImproveWrapper.includes('surface/orchestration/scripts/self_improvement_cadence_orchestrator.ts'),
+      detail: 'client self-improvement orchestration entrypoint remains thin and delegates to surface/orchestration',
+    },
+    {
+      id: 'self_improvement_orchestration_runtime_lives_under_surface',
+      ok: surfaceSelfImproveRuntime.includes('SYSTEMS-AUTONOMY-SELF_IMPROVEMENT_CADENCE_ORCHESTRATOR') &&
+        surfaceSelfImproveRuntime.includes('createOpsLaneBridge'),
+      detail: 'self-improvement cadence orchestration coordination implementation is hosted in surface/orchestration',
     },
     {
       id: 'client_persona_orchestration_is_wrapper_only',
