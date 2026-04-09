@@ -33,12 +33,6 @@
       "expires": "2026-04-23"
     },
     {
-      "path": "client/runtime/systems/ui/infring_static/index_body.html.parts/0017-body-part.html",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-04-23"
-    },
-    {
       "path": "client/runtime/systems/ui/infring_static/js/app.ts.parts/020-nav-and-layout.part02.ts",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
@@ -52,12 +46,6 @@
     },
     {
       "path": "client/runtime/systems/ui/infring_static/js/app.ts.parts/030-agent-list-runtime.part02.ts",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-04-23"
-    },
-    {
-      "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/030-init-selection-helpers.ts",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
       "expires": "2026-04-23"
