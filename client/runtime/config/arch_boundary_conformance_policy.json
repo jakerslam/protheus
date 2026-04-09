@@ -1,0 +1,85 @@
+{
+  "version": "2026-04-09",
+  "allowed_violations": [
+    {
+      "file": "client/runtime/systems/adaptive/core/layer_store.ts",
+      "reason": "client_imports_core_forbidden",
+      "detail_contains": "core/layer1/memory_runtime/adaptive/layer_store.ts"
+    },
+    {
+      "file": "client/runtime/systems/adaptive/habits/habit_store.ts",
+      "reason": "client_imports_core_forbidden",
+      "detail_contains": "core/layer1/memory_runtime/adaptive/habit_store.ts"
+    },
+    {
+      "file": "client/runtime/systems/adaptive/reflex/reflex_store.ts",
+      "reason": "client_imports_core_forbidden",
+      "detail_contains": "core/layer1/memory_runtime/adaptive/reflex_store.ts"
+    },
+    {
+      "file": "client/runtime/systems/adaptive/sensory/eyes/catalog_store.ts",
+      "reason": "client_imports_core_forbidden",
+      "detail_contains": "core/layer1/memory_runtime/adaptive/catalog_store.ts"
+    },
+    {
+      "file": "client/runtime/systems/adaptive/sensory/eyes/focus_trigger_store.ts",
+      "reason": "client_imports_core_forbidden",
+      "detail_contains": "core/layer1/memory_runtime/adaptive/focus_trigger_store.ts"
+    },
+    {
+      "file": "client/runtime/systems/adaptive/strategy/strategy_store.ts",
+      "reason": "client_imports_core_forbidden",
+      "detail_contains": "core/layer1/memory_runtime/adaptive/strategy_store.ts"
+    },
+    {
+      "file": "client/runtime/systems/finance/economic_entity_manager.ts",
+      "reason": "client_imports_orchestration_internals_forbidden",
+      "detail_contains": "surface/orchestration/scripts/economic_entity_manager.ts"
+    },
+    {
+      "file": "client/runtime/systems/redteam/adaptive_defense_expansion.ts",
+      "reason": "client_imports_orchestration_internals_forbidden",
+      "detail_contains": "surface/orchestration/scripts/adaptive_defense_expansion.ts"
+    },
+    {
+      "file": "client/runtime/systems/redteam/quantum_security_primitive_synthesis.ts",
+      "reason": "client_imports_orchestration_internals_forbidden",
+      "detail_contains": "surface/orchestration/scripts/quantum_security_primitive_synthesis.ts"
+    },
+    {
+      "file": "client/runtime/systems/redteam/self_improving_redteam_trainer.ts",
+      "reason": "client_imports_orchestration_internals_forbidden",
+      "detail_contains": "surface/orchestration/scripts/self_improving_redteam_trainer.ts"
+    },
+    {
+      "file": "client/runtime/systems/research/research_organ.ts",
+      "reason": "client_imports_orchestration_internals_forbidden",
+      "detail_contains": "surface/orchestration/scripts/research_organ.ts"
+    },
+    {
+      "file": "client/runtime/systems/science/experiment_scheduler.ts",
+      "reason": "client_imports_orchestration_internals_forbidden",
+      "detail_contains": "surface/orchestration/scripts/experiment_scheduler.ts"
+    },
+    {
+      "file": "client/runtime/systems/science/meta_science_active_learning_loop.ts",
+      "reason": "client_imports_orchestration_internals_forbidden",
+      "detail_contains": "surface/orchestration/scripts/meta_science_active_learning_loop.ts"
+    },
+    {
+      "file": "client/runtime/systems/science/scientific_method_loop.ts",
+      "reason": "client_imports_orchestration_internals_forbidden",
+      "detail_contains": "surface/orchestration/scripts/scientific_method_loop.ts"
+    },
+    {
+      "file": "client/runtime/systems/science/scientific_mode_v4.ts",
+      "reason": "client_imports_orchestration_internals_forbidden",
+      "detail_contains": "surface/orchestration/scripts/scientific_mode_v4.ts"
+    },
+    {
+      "file": "client/runtime/systems/strategy/strategy_learner.ts",
+      "reason": "client_imports_orchestration_internals_forbidden",
+      "detail_contains": "surface/orchestration/scripts/strategy_learner.ts"
+    }
+  ]
+}

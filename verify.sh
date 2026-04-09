@@ -136,6 +136,7 @@ run_protheus_ops_defer() {
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:dependency-boundary:check
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:formal-spec:check
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/client_layer_boundary_audit.ts --strict=1 --out="$CLIENT_LAYER_AUDIT_OUT"
+  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:arch:conformance
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/module_cohesion_policy_audit.ts --strict=1 --out-json="$MODULE_COHESION_OUT_JSON" --out-markdown="$MODULE_COHESION_OUT_MD"
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:legacy-alias:guard
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:simplicity:audit

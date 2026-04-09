@@ -7,7 +7,8 @@ members = [
   "core/layer1/*",
   "core/layer2/*",
   "core/layer2/tools/task_fabric",
-  "core/layer3/*"
+  "core/layer3/*",
+  "surface/*"
 ]
 exclude = [
   "core/layer0/legacy_rust_sources"
