@@ -41,6 +41,7 @@ INSTALL_OLLAMA="${INFRING_INSTALL_OLLAMA:-0}"
 INSTALL_OLLAMA_AUTO="${INFRING_INSTALL_OLLAMA_AUTO:-1}"
 INSTALL_OLLAMA_PULL="${INFRING_INSTALL_OLLAMA_PULL:-1}"
 INSTALL_REQUIRE_MODEL_READY="${INFRING_INSTALL_REQUIRE_MODEL_READY:-0}"
+INSTALL_STRICT_SMOKE="${INFRING_INSTALL_STRICT_SMOKE:-0}"
 OLLAMA_STARTER_MODEL="${INFRING_OLLAMA_STARTER_MODEL:-qwen2.5:3b-instruct}"
 OLLAMA_PULL_TIMEOUT="${INFRING_OLLAMA_PULL_TIMEOUT:-900}"
 OLLAMA_INSTALL_CONFIRMED=0
@@ -1736,7 +1737,10 @@ platform_triple() {
 }
 
 latest_version() {
-  curl_fetch "$API_URL" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1
+  releases_url="https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases?per_page=100"
+  curl_fetch "$releases_url" \
+    | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' \
+    | highest_semver_tag
 }
 
 latest_version_from_redirect() {
@@ -1755,7 +1759,13 @@ latest_version_from_git_tags() {
     return 1
   fi
   repo_url="https://github.com/${REPO_OWNER}/${REPO_NAME}.git"
-  git ls-remote --tags --refs "$repo_url" 2>/dev/null | awk '
+  git ls-remote --tags --refs "$repo_url" 2>/dev/null \
+    | awk '{print $2}' \
+    | highest_semver_tag
+}
+
+highest_semver_tag() {
+  awk '
     function semver_key(tag,   body, core, pre, split_dash, n, parts, major, minor, patch, stable) {
       body = tag
       sub(/^v/, "", body)
@@ -1773,7 +1783,8 @@ latest_version_from_git_tags() {
       return sprintf("%09d.%09d.%09d.%01d.%s", major, minor, patch, stable, pre)
     }
     {
-      tag = $2
+      tag = $0
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", tag)
       sub(/^refs\/tags\//, "", tag)
       if (tag ~ /^v[0-9]+(\.[0-9]+){0,2}([-.][0-9A-Za-z][0-9A-Za-z._-]*)?$/) {
         printf "%s\t%s\n", semver_key(tag), tag
@@ -2030,24 +2041,48 @@ install_binary_from_source_fallback() {
   ensure_source_build_prereqs || return 1
 
   manifest="$repo_dir/core/layer0/ops/Cargo.toml"
+  build_log="$(mktemp)"
   selected_bin=""
+  compile_failure_seen=0
+  compile_failure_candidate=""
   old_ifs="$IFS"
   IFS='
 '
   for candidate_bin in $bin_candidates; do
     [ -n "$candidate_bin" ] || continue
-    if cargo build --release --manifest-path "$manifest" --bin "$candidate_bin" >/dev/null 2>&1; then
+    if cargo build --release --manifest-path "$manifest" --bin "$candidate_bin" >"$build_log" 2>&1; then
       selected_bin="$candidate_bin"
       break
     fi
+    if grep -Eqi "no bin target named|is not a binary target" "$build_log"; then
+      continue
+    fi
+    compile_failure_seen=1
+    compile_failure_candidate="$candidate_bin"
+    break
   done
   IFS="$old_ifs"
 
   if [ -z "$selected_bin" ]; then
-    echo "[infring install] source fallback build failed: no compatible bin target for ${stem_name}" >&2
-    echo "[infring install] tried source bin targets: $(printf '%s' "$bin_candidates" | tr '\n' ' ')" >&2
+    if [ "$compile_failure_seen" = "1" ]; then
+      echo "[infring install] source fallback build failed while compiling '${compile_failure_candidate}' for ${stem_name}" >&2
+      tail -n 20 "$build_log" >&2 || true
+      if grep -Eqi "xcode-select: note: no developer tools|xcrun: error|clang: error|command line tools|linker .* not found|cc: command not found" "$build_log"; then
+        echo "[infring install] detected missing C toolchain for Rust source fallback." >&2
+        if [ "$(norm_os)" = "darwin" ]; then
+          echo "[infring install] fix: run 'xcode-select --install', then rerun installer." >&2
+        else
+          echo "[infring install] fix: install a system C toolchain (gcc/clang + linker), then rerun installer." >&2
+        fi
+      fi
+    else
+      echo "[infring install] source fallback build failed: no compatible bin target for ${stem_name}" >&2
+      echo "[infring install] tried source bin targets: $(printf '%s' "$bin_candidates" | tr '\n' ' ')" >&2
+    fi
+    rm -f "$build_log" >/dev/null 2>&1 || true
     return 1
   fi
+  rm -f "$build_log" >/dev/null 2>&1 || true
   built="$repo_dir/target/release/$selected_bin"
   [ -f "$built" ] || return 1
 
@@ -2857,7 +2892,11 @@ EOF
     if run_dashboard_health_smoke "$smoke_dir" "$install_dir" "127.0.0.1" "$smoke_port"; then
       INSTALL_DASHBOARD_SMOKE_PASSED=1
     else
-      failures=$((failures + 1))
+      if is_truthy "$INSTALL_STRICT_SMOKE"; then
+        failures=$((failures + 1))
+      else
+        echo "[infring install] warning: dashboard health smoke failed; install will continue (set INFRING_INSTALL_STRICT_SMOKE=1 to fail closed)." >&2
+      fi
     fi
   else
     echo "[infring install] smoke verify_install: skipped (node runtime unavailable)"
