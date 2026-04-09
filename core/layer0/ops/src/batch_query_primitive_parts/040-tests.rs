@@ -141,6 +141,24 @@ mod tests {
                 .unwrap_or(0),
             1
         );
+        assert_eq!(
+            out.get("query_timeout_ms").and_then(Value::as_u64),
+            Some(5000)
+        );
+        assert_eq!(out.get("parallel_window").and_then(Value::as_u64), Some(4));
+    }
+
+    #[test]
+    fn query_timeout_policy_defaults_and_clamps() {
+        assert_eq!(query_timeout(&json!({})).as_millis() as u64, 5000);
+        assert_eq!(
+            query_timeout(&json!({"batch_query":{"query_timeout_ms":100}})).as_millis() as u64,
+            500
+        );
+        assert_eq!(
+            query_timeout(&json!({"batch_query":{"query_timeout_ms":999999}})).as_millis() as u64,
+            20_000
+        );
     }
 
     #[test]

@@ -7,7 +7,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use std::thread;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use crate::parse_args;
 
@@ -91,7 +91,8 @@ fn default_policy() -> Value {
         "batch_query": {
             "enabled_sources": ["web"],
             "allow_large": false,
-            "max_parallel_subqueries": 4
+            "max_parallel_subqueries": 4,
+            "query_timeout_ms": 5000
         }
     })
 }
@@ -175,6 +176,15 @@ fn max_parallel_subqueries(policy: &Value) -> usize {
         .and_then(Value::as_u64)
         .unwrap_or(4)
         .clamp(1, 16) as usize
+}
+
+fn query_timeout(policy: &Value) -> Duration {
+    let timeout_ms = policy
+        .pointer("/batch_query/query_timeout_ms")
+        .and_then(Value::as_u64)
+        .unwrap_or(5000)
+        .clamp(500, 20_000);
+    Duration::from_millis(timeout_ms)
 }
 
 fn exact_match_regexes() -> &'static [Regex] {

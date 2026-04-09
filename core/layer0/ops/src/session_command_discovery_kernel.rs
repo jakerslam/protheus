@@ -497,6 +497,40 @@ fn extract_base_command(cmd: &str) -> String {
     first
 }
 
+fn normalize_explicit_tool_alias(token: &str) -> Option<&'static str> {
+    let lower = token.trim().to_ascii_lowercase();
+    let tool_name = lower
+        .strip_prefix("tool::")
+        .or_else(|| lower.strip_prefix("tool:"))?;
+    match tool_name {
+        "batch_query" | "batch-query" => Some("batch-query"),
+        "web_search" | "search_web" | "web_query" | "web-query" => Some("web-search"),
+        _ => None,
+    }
+}
+
+fn classify_explicit_tool_alias(cmd: &str) -> Option<Classification> {
+    let (first, _) = parse_first_token_with_rest(cmd)?;
+    let alias = normalize_explicit_tool_alias(&first)?;
+    match alias {
+        "batch-query" => Some(Classification::Supported {
+            command_key: "batch-query".to_string(),
+            canonical: "infring batch-query",
+            category: "Tooling",
+            savings_pct: 92.0,
+            status: SupportStatus::Existing,
+        }),
+        "web-search" => Some(Classification::Supported {
+            command_key: "web-search".to_string(),
+            canonical: "infring web search",
+            category: "Network",
+            savings_pct: 88.0,
+            status: SupportStatus::Existing,
+        }),
+        _ => None,
+    }
+}
+
 fn classify_command(raw: &str) -> Classification {
     let trimmed = raw.trim();
     if trimmed.is_empty() || IGNORED_EXACT.iter().any(|row| *row == trimmed) {
@@ -523,6 +557,9 @@ fn classify_command(raw: &str) -> Classification {
         return Classification::Unsupported {
             base_command: cmd.split_whitespace().next().unwrap_or("cat").to_string(),
         };
+    }
+    if let Some(classified) = classify_explicit_tool_alias(cmd) {
+        return classified;
     }
 
     let matches = regex_set().matches(cmd).into_iter().collect::<Vec<_>>();
