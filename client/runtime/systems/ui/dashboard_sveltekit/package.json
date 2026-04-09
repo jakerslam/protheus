@@ -1,0 +1,21 @@
+{
+  "name": "@infring/dashboard-sveltekit",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev --host 127.0.0.1 --port 4174",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1 --port 4174",
+    "check": "svelte-check --tsconfig ./tsconfig.json"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-static": "^3.0.2",
+    "@sveltejs/kit": "^2.26.3",
+    "@sveltejs/vite-plugin-svelte": "^4.0.4",
+    "svelte": "^5.28.2",
+    "svelte-check": "^4.3.1",
+    "typescript": "^5.8.3",
+    "vite": "^5.4.18"
+  }
+}

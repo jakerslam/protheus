@@ -1,0 +1,13 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "inputs": {
+    "queue_log_path": "local/state/sensory/queue_log.jsonl",
+    "actuation_receipts_path": "local/state/actuation/receipts/today.jsonl",
+    "score_path": "local/state/ops/pipeline_handoff_score/latest.json"
+  },
+  "outputs": {
+    "latest_path": "local/state/ops/full_pipeline_e2e_hardening_pack/latest.json",
+    "history_path": "local/state/ops/full_pipeline_e2e_hardening_pack/history.jsonl"
+  }
+}

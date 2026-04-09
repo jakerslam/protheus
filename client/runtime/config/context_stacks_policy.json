@@ -1,0 +1,8 @@
+{
+  "allow_multi_breakpoint": true,
+  "allow_provider_batch_lane": true,
+  "cache_threshold_tokens": 256,
+  "lookback_window_tokens": 4096,
+  "seed_then_fanout_min_cohort": 2,
+  "version": "v1"
+}

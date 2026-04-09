@@ -1,0 +1,9 @@
+{
+  "schema_id": "nursery_policy_gates",
+  "ts": "2026-03-04T20:33:28.298Z",
+  "version": "1.0",
+  "fs_scope": "nursery_root_only",
+  "network_access": "restricted",
+  "execution_mode": "sandboxed",
+  "requires_human_promotion": true
+}

@@ -1,0 +1,39 @@
+{
+  "id": "V6-WORKFLOW-006.8",
+  "upgrade": "YAML/Config and Extensibility Bridge Contract",
+  "section": "MetaGPT Software Company Simulation Assimilation Source Coverage Intake (Doc `1ZTJWRdQpXzsKnXXJ9nvJqA0Dr_Q1kGgexNa6o2_G9y4`, 2026-03-17)",
+  "impact": 8,
+  "layer_map": "0/1/2/adapter/client",
+  "conduit_only_boundary": false,
+  "todo_bucket": "repair_lane",
+  "execution_contract": {
+    "runtime": "core/layer2/ops:srs_contract_runtime",
+    "deterministic_receipt_required": true,
+    "mutable_state_path": "local/state/ops/srs_contract_runtime/V6-WORKFLOW-006.8/latest.json",
+    "history_path": "local/state/ops/srs_contract_runtime/history.jsonl"
+  },
+  "deliverables": [
+    {
+      "type": "contract",
+      "path": "planes/contracts/srs/V6-WORKFLOW-006.8.json"
+    },
+    {
+      "type": "state_receipt",
+      "path": "local/state/ops/srs_contract_runtime/V6-WORKFLOW-006.8/latest.json"
+    },
+    {
+      "type": "execution_history",
+      "path": "local/state/ops/srs_contract_runtime/history.jsonl"
+    }
+  ],
+  "validation": {
+    "lane_command": "protheus-ops srs-contract-runtime run --id=V6-WORKFLOW-006.8",
+    "status_command": "protheus-ops srs-contract-runtime status --id=V6-WORKFLOW-006.8",
+    "fail_closed_on_missing_contract": true
+  },
+  "generated_from": {
+    "source": "manual_impl",
+    "generated_at": "2026-03-18T09:18:35.861Z",
+    "notes": "Support `infring assimilate metagpt` ingestion of YAML/config assets through content-skill and adapter-owned bridges so config-driven execution emits deterministic receipts and unsupported config paths fail closed with explicit reasons."
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "version": "1.1",
+  "enabled": true,
+  "strict_default": true,
+  "notes": "Fail closed when migrated wrappers re-introduce authority logic in rust-authoritative paths.",
+  "checks": [
+    {
+      "id": "memory_recall_wrapper_no_token_authority_logic",
+      "path": "systems/memory/memory_recall.js",
+      "deny_regex": "estimateTokens|appendFileSync|MEMORY_RECALL_TOKEN_TELEMETRY_PATH|tokenTelemetry",
+      "description": "token burn accounting must remain in Rust memory_ambient lane, not in JS wrapper."
+    },
+    {
+      "id": "spine_wrapper_must_use_conduit_bridge",
+      "path": "systems/spine/spine.js",
+      "deny_regex": "spawnSync\\(|execSync\\(",
+      "description": "spine wrapper cannot reintroduce local shell authority logic."
+    },
+    {
+      "id": "daemon_wrapper_must_use_ops_bridge",
+      "path": "systems/ops/protheusd.js",
+      "deny_regex": "spawnSync\\(|execSync\\(",
+      "description": "daemon wrapper cannot reintroduce direct shell authority logic."
+    },
+    {
+      "id": "workflow_wrapper_must_use_ops_bridge",
+      "path": "systems/workflow/workflow_controller.js",
+      "deny_regex": "spawnSync\\(|execSync\\(",
+      "description": "workflow wrapper cannot reintroduce local shell authority logic."
+    },
+    {
+      "id": "autonomy_wrapper_must_use_ops_bridge",
+      "path": "systems/autonomy/autonomy_controller.js",
+      "deny_regex": "spawnSync\\(|execSync\\(",
+      "description": "autonomy wrapper cannot reintroduce local shell authority logic."
+    }
+  ]
+}

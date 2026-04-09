@@ -1,0 +1,76 @@
+name: Release Promote
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_tag:
+        description: Source release tag (for example v1.2.3-alpha)
+        required: true
+        type: string
+      target_channel:
+        description: Target channel
+        required: true
+        default: stable
+        type: choice
+        options:
+          - beta
+          - stable
+
+permissions:
+  contents: write
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Resolve promoted tag
+        id: promote
+        run: |
+          node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/release_channel_promote.ts \
+            --source-tag=${{ github.event.inputs.source_tag }} \
+            --target-channel=${{ github.event.inputs.target_channel }} \
+            --strict=1 > /tmp/release-promote.json
+          cat /tmp/release-promote.json
+          TARGET_TAG="$(node -e 'const fs=require("fs");const p=JSON.parse(fs.readFileSync("/tmp/release-promote.json","utf8"));process.stdout.write(String(p.promoted_tag||""));')"
+          echo "target_tag=${TARGET_TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Create promoted tag
+        run: |
+          set -euo pipefail
+          SOURCE_TAG="${{ github.event.inputs.source_tag }}"
+          TARGET_TAG="${{ steps.promote.outputs.target_tag }}"
+          COMMIT_SHA="$(git rev-list -n 1 "$SOURCE_TAG")"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git rev-parse "$TARGET_TAG" >/dev/null 2>&1; then
+            echo "Tag $TARGET_TAG already exists."
+          else
+            git tag -a "$TARGET_TAG" "$COMMIT_SHA" -m "Promote $SOURCE_TAG to $TARGET_TAG"
+            git push origin "$TARGET_TAG"
+          fi
+
+      - name: Publish promoted release marker
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.promote.outputs.target_tag }}
+          name: Infring ${{ steps.promote.outputs.target_tag }}
+          draft: false
+          prerelease: ${{ github.event.inputs.target_channel != 'stable' }}
+          body: |
+            Promotion release.
+            - Source: `${{ github.event.inputs.source_tag }}`
+            - Target channel: `${{ github.event.inputs.target_channel }}`

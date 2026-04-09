@@ -1,0 +1,30 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "shadow_only": true,
+  "token_budget": {
+    "min_thinking_tokens": 256,
+    "max_thinking_tokens": 4096,
+    "low_complexity_threshold": 0.35,
+    "high_complexity_threshold": 0.72
+  },
+  "structured_thinking": {
+    "enabled": true,
+    "max_steps": 12,
+    "include_risk_checks": true
+  },
+  "test_time_scaling": {
+    "enabled": true,
+    "self_critique_enabled": true,
+    "max_revision_loops": 3,
+    "confidence_floor": 0.72,
+    "confidence_ceiling": 0.98,
+    "deep_mode_threshold": 0.55,
+    "debate_mode_threshold": 0.8
+  },
+  "state": {
+    "latest_path": "local/state/primitives/long_horizon_planning/latest.json",
+    "history_path": "local/state/primitives/long_horizon_planning/history.jsonl",
+    "receipts_path": "local/state/primitives/long_horizon_planning/receipts.jsonl"
+  }
+}

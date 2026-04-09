@@ -1,0 +1,56 @@
+{
+  "schema_version": "1.0",
+  "report_path": "docs/client/reports/benchmark_matrix_run_latest.json",
+  "runtime_source_report_path": "docs/client/reports/benchmark_matrix_run_latest.json",
+  "state_path": "core/local/state/ops/benchmark_sanity/latest.json",
+  "required_projects": [
+    "InfRing (rich)",
+    "InfRing (pure)",
+    "InfRing (tiny-max)"
+  ],
+  "required_metrics": [
+    "cold_start_ms",
+    "idle_memory_mb",
+    "install_size_mb",
+    "kernel_shared_workload_ops_per_sec"
+  ],
+  "bounds": {
+    "cold_start_ms": {
+      "min": 0.001,
+      "max": 5000
+    },
+    "idle_memory_mb": {
+      "min": 0.1,
+      "max": 500
+    },
+    "install_size_mb": {
+      "min": 0.1,
+      "max": 1500
+    },
+    "kernel_shared_workload_ops_per_sec": {
+      "min": 100,
+      "max": 1000000
+    }
+  },
+  "max_step_multiplier": {
+    "cold_start_ms": 5.0,
+    "idle_memory_mb": 5.0,
+    "install_size_mb": 5.0,
+    "kernel_shared_workload_ops_per_sec": 3.0
+  },
+  "step_change_exemptions": [
+    {
+      "project": "InfRing (tiny-max)",
+      "metric": "cold_start_ms"
+    },
+    {
+      "project": "InfRing (rich)",
+      "metric": "install_size_mb"
+    }
+  ],
+  "infring_required_runtime_source_keys": [
+    "mode",
+    "tasks_source",
+    "tasks_sample_ms"
+  ]
+}

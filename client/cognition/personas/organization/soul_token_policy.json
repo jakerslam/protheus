@@ -1,0 +1,13 @@
+{
+  "version": "1.0.0",
+  "high_risk": {
+    "required": true,
+    "actor": "jay_haslam",
+    "token_path": "personas/jay_haslam/soul_token.md"
+  },
+  "overrides": {
+    "required": true,
+    "actor": "jay_haslam",
+    "token_path": "personas/jay_haslam/soul_token.md"
+  }
+}

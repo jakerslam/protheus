@@ -1,0 +1,347 @@
+name: Release Security Artifacts
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  attestations: write
+  id-token: write
+
+jobs:
+  release-security:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-musl
+
+      - name: Install musl toolchain
+        run: |
+          rustup target add x86_64-unknown-linux-musl
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+
+      - name: Build Rust release binaries
+        run: |
+          set -euo pipefail
+          BIN="target/x86_64-unknown-linux-musl/release/infringd"
+          cargo build --release --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops
+          cargo build --release --target x86_64-unknown-linux-musl --manifest-path core/layer0/ops/Cargo.toml --bin infringd
+          cargo build --release -p conduit --bin conduit_daemon
+          strip "$BIN" || true
+          mkdir -p state/release/provenance/artifacts state/release/provenance_bundle
+          cp "$BIN" \
+            state/release/provenance/artifacts/infringd-x86_64-unknown-linux-musl
+          SIZE_BYTES="$(wc -c < state/release/provenance/artifacts/infringd-x86_64-unknown-linux-musl | tr -d ' ')"
+          SIZE_MB="$(awk -v b="$SIZE_BYTES" 'BEGIN { printf "%.2f", b/(1024*1024) }')"
+          MAX_BYTES=$((35 * 1024 * 1024))
+          if [ "$SIZE_BYTES" -gt "$MAX_BYTES" ]; then
+            echo "::error::infringd static musl binary is ${SIZE_MB} MB, exceeds the 35 MB release gate."
+            exit 1
+          fi
+          SHA1="$(sha256sum "$BIN" | awk '{print $1}')"
+          cargo clean -p infring-ops-core || true
+          cargo build --release --target x86_64-unknown-linux-musl --manifest-path core/layer0/ops/Cargo.toml --bin infringd
+          strip "$BIN" || true
+          SHA2="$(sha256sum "$BIN" | awk '{print $1}')"
+          if [ "$SHA1" != "$SHA2" ]; then
+            echo "::error::reproducible build check failed for static infringd (sha mismatch)."
+            echo "build_1_sha=$SHA1"
+            echo "build_2_sha=$SHA2"
+            exit 1
+          fi
+          cat > state/release/provenance_bundle/reproducible_build_equivalence.json <<JSON
+          {
+            "schema_id": "top1_reproducible_static_build",
+            "schema_version": "1.0",
+            "target": "x86_64-unknown-linux-musl",
+            "binary_path": "target/x86_64-unknown-linux-musl/release/infringd",
+            "build_1_sha256": "$SHA1",
+            "build_2_sha256": "$SHA2",
+            "reproducible_match": true
+          }
+          JSON
+          printf '%s\n' "$SIZE_MB" > state/release/provenance_bundle/infringd_static_size_mb.txt
+
+      - name: Install Syft + cargo-audit
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+          syft version
+          cargo install cargo-audit --locked
+
+      - name: Generate per-artifact SBOMs
+        run: |
+          mkdir -p state/release/provenance/sbom state/release/provenance/signatures state/release/provenance/signing state/release/provenance_bundle
+          syft file:target/release/infring-ops -o cyclonedx-json=state/release/provenance/sbom/infring-ops.cdx.json
+          syft file:state/release/provenance/artifacts/infringd-x86_64-unknown-linux-musl -o cyclonedx-json=state/release/provenance/sbom/infringd.cdx.json
+          syft file:target/release/conduit_daemon -o cyclonedx-json=state/release/provenance/sbom/conduit_daemon.cdx.json
+
+          sha256sum state/release/provenance/sbom/infring-ops.cdx.json > state/release/provenance/sbom/infring-ops.cdx.sha256
+          sha256sum state/release/provenance/sbom/infringd.cdx.json > state/release/provenance/sbom/infringd.cdx.sha256
+          sha256sum state/release/provenance/sbom/conduit_daemon.cdx.json > state/release/provenance/sbom/conduit_daemon.cdx.sha256
+
+      - name: Sign release artifacts and verify signatures
+        env:
+          RELEASE_SIGNING_PRIVATE_KEY: ${{ secrets.RELEASE_SIGNING_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p state/release/provenance/signing state/release/provenance/signatures
+
+          if [ -n "${RELEASE_SIGNING_PRIVATE_KEY:-}" ]; then
+            printf '%s\n' "$RELEASE_SIGNING_PRIVATE_KEY" > state/release/provenance/signing/release_private.pem
+          else
+            openssl genrsa -out state/release/provenance/signing/release_private.pem 4096
+          fi
+
+          openssl rsa -in state/release/provenance/signing/release_private.pem -pubout -out state/release/provenance/signing/release_public.pem
+
+          openssl dgst -sha256 -sign state/release/provenance/signing/release_private.pem \
+            -out state/release/provenance/signatures/infring-ops.sig target/release/infring-ops
+          openssl dgst -sha256 -verify state/release/provenance/signing/release_public.pem \
+            -signature state/release/provenance/signatures/infring-ops.sig target/release/infring-ops
+
+          openssl dgst -sha256 -sign state/release/provenance/signing/release_private.pem \
+            -out state/release/provenance/signatures/infringd.sig state/release/provenance/artifacts/infringd-x86_64-unknown-linux-musl
+          openssl dgst -sha256 -verify state/release/provenance/signing/release_public.pem \
+            -signature state/release/provenance/signatures/infringd.sig state/release/provenance/artifacts/infringd-x86_64-unknown-linux-musl
+
+          openssl dgst -sha256 -sign state/release/provenance/signing/release_private.pem \
+            -out state/release/provenance/signatures/conduit_daemon.sig target/release/conduit_daemon
+          openssl dgst -sha256 -verify state/release/provenance/signing/release_public.pem \
+            -signature state/release/provenance/signatures/conduit_daemon.sig target/release/conduit_daemon
+
+      - name: Build dependency vulnerability summary
+        run: |
+          set -euo pipefail
+          cargo audit --json > state/release/provenance_bundle/cargo_audit.json || true
+          npm audit --package-lock-only --json > state/release/provenance_bundle/npm_audit.json || true
+
+          node <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+
+          const outPath = 'state/release/provenance_bundle/dependency_vulnerability_summary.json';
+
+          function readJson(p) {
+            try {
+              return JSON.parse(fs.readFileSync(p, 'utf8'));
+            } catch {
+              return {};
+            }
+          }
+
+          const cargo = readJson('state/release/provenance_bundle/cargo_audit.json');
+          const npm = readJson('state/release/provenance_bundle/npm_audit.json');
+
+          const cargoList = Array.isArray(cargo?.vulnerabilities?.list) ? cargo.vulnerabilities.list : [];
+          const cargoCounts = cargoList.reduce((acc, row) => {
+            const sev = String(row?.advisory?.severity || '').toLowerCase();
+            if (sev === 'critical') acc.critical += 1;
+            else if (sev === 'high') acc.high += 1;
+            else if (sev === 'medium') acc.medium += 1;
+            return acc;
+          }, { critical: 0, high: 0, medium: 0 });
+
+          const npmCounts = {
+            critical: Number(npm?.metadata?.vulnerabilities?.critical || 0),
+            high: Number(npm?.metadata?.vulnerabilities?.high || 0),
+            medium: Number(npm?.metadata?.vulnerabilities?.moderate || 0),
+          };
+
+          const summary = {
+            schema_id: 'dependency_vulnerability_summary',
+            schema_version: '1.0',
+            generated_at: new Date().toISOString(),
+            cargo: cargoCounts,
+            npm: npmCounts,
+            counts: {
+              critical: cargoCounts.critical + npmCounts.critical,
+              high: cargoCounts.high + npmCounts.high,
+              medium: cargoCounts.medium + npmCounts.medium,
+            },
+          };
+
+          fs.mkdirSync(path.dirname(outPath), { recursive: true });
+          fs.writeFileSync(outPath, JSON.stringify(summary, null, 2) + '\n');
+          NODE
+
+      - name: Generate release licensing manifest
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const crypto = require('crypto');
+
+          const matrixPath = 'LICENSE_MATRIX.json';
+          const outPath = 'state/release/provenance_bundle/release_licensing_manifest.json';
+          const matrix = JSON.parse(fs.readFileSync(matrixPath, 'utf8'));
+          const expression = String(matrix?.release_metadata?.release_bundle_spdx || '').trim();
+          if (!expression) {
+            throw new Error('release_bundle_spdx missing in LICENSE_MATRIX.json');
+          }
+          const payload = {
+            schema_id: 'infring_release_licensing_manifest',
+            schema_version: '1.0',
+            generated_at: new Date().toISOString(),
+            source_matrix_path: matrixPath,
+            source_matrix_sha256: crypto.createHash('sha256').update(fs.readFileSync(matrixPath)).digest('hex'),
+            license_expression: expression,
+            default_spdx: String(matrix?.default_spdx || '').trim(),
+            precedence: Array.isArray(matrix?.precedence) ? matrix.precedence : [],
+          };
+          fs.mkdirSync('state/release/provenance_bundle', { recursive: true });
+          fs.writeFileSync(outPath, JSON.stringify(payload, null, 2) + '\n');
+          NODE
+
+      - name: Generate release provenance bundle
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const crypto = require('crypto');
+
+          function sha256File(path) {
+            const bytes = fs.readFileSync(path);
+            return crypto.createHash('sha256').update(bytes).digest('hex');
+          }
+
+          const tag = process.env.GITHUB_REF_NAME;
+          const generatedAt = new Date().toISOString();
+
+          const artifacts = [
+            {
+              id: 'infring-ops',
+              artifact_path: 'target/release/infring-ops',
+              sbom_path: 'state/release/provenance/sbom/infring-ops.cdx.json',
+              signature_path: 'state/release/provenance/signatures/infring-ops.sig',
+            },
+            {
+              id: 'infringd',
+              artifact_path: 'state/release/provenance/artifacts/infringd-x86_64-unknown-linux-musl',
+              sbom_path: 'state/release/provenance/sbom/infringd.cdx.json',
+              signature_path: 'state/release/provenance/signatures/infringd.sig',
+            },
+            {
+              id: 'conduit-daemon',
+              artifact_path: 'target/release/conduit_daemon',
+              sbom_path: 'state/release/provenance/sbom/conduit_daemon.cdx.json',
+              signature_path: 'state/release/provenance/signatures/conduit_daemon.sig',
+            },
+          ].map((row) => ({
+            ...row,
+            artifact_sha256: sha256File(row.artifact_path),
+            sbom_sha256: sha256File(row.sbom_path),
+            signature_sha256: sha256File(row.signature_path),
+            signature_verified: true,
+          }));
+
+          const bundle = {
+            schema_id: 'release_provenance_bundle',
+            schema_version: '2.0',
+            tag,
+            generated_at: generatedAt,
+            artifacts,
+            vulnerability_summary_path: 'state/release/provenance_bundle/dependency_vulnerability_summary.json',
+            licensing_manifest_path: 'state/release/provenance_bundle/release_licensing_manifest.json',
+            reproducibility_path: 'state/release/provenance_bundle/reproducible_build_equivalence.json',
+            rollback: {
+              last_known_good_tag: process.env.LAST_KNOWN_GOOD_TAG || 'v0.0.0',
+              policy_path: 'client/runtime/config/release_rollback_policy.json',
+            },
+          };
+
+          fs.mkdirSync('state/release/provenance_bundle', { recursive: true });
+          fs.writeFileSync('state/release/provenance_bundle/latest.json', JSON.stringify(bundle, null, 2) + '\n');
+          NODE
+
+      - name: Generate release SHA256SUMS
+        run: |
+          set -euo pipefail
+          OUT="state/release/provenance/artifacts/SHA256SUMS"
+          : > "$OUT"
+          for f in \
+            state/release/provenance/artifacts/infringd-x86_64-unknown-linux-musl \
+            state/release/provenance/sbom/infring-ops.cdx.json \
+            state/release/provenance/sbom/infring-ops.cdx.sha256 \
+            state/release/provenance/sbom/infringd.cdx.json \
+            state/release/provenance/sbom/infringd.cdx.sha256 \
+            state/release/provenance/sbom/conduit_daemon.cdx.json \
+            state/release/provenance/sbom/conduit_daemon.cdx.sha256 \
+            state/release/provenance/signatures/infring-ops.sig \
+            state/release/provenance/signatures/infringd.sig \
+            state/release/provenance/signatures/conduit_daemon.sig \
+            state/release/provenance/signing/release_public.pem \
+            state/release/provenance_bundle/dependency_vulnerability_summary.json \
+            state/release/provenance_bundle/release_licensing_manifest.json \
+            state/release/provenance_bundle/latest.json \
+            state/release/provenance_bundle/reproducible_build_equivalence.json \
+            release-notes-${GITHUB_REF_NAME}.md; do
+            [ -f "$f" ] || continue
+            sha256sum "$f" >> "$OUT"
+          done
+
+      - name: Generate SLSA provenance attestations
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            target/release/infring-ops
+            state/release/provenance/artifacts/infringd-x86_64-unknown-linux-musl
+            target/release/conduit_daemon
+
+      - name: Enforce supply-chain provenance v2 gate
+        run: |
+          cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops -- \
+            supply-chain-provenance-v2 run --strict=1 \
+            --policy=client/runtime/config/supply_chain_provenance_v2_policy.json \
+            --bundle-path=state/release/provenance_bundle/latest.json \
+            --vuln-summary-path=state/release/provenance_bundle/dependency_vulnerability_summary.json
+
+      - name: Render release notes
+        run: |
+          STATIC_MB="$(cat state/release/provenance_bundle/infringd_static_size_mb.txt)"
+          cat > release-notes-${GITHUB_REF_NAME}.md <<'EOF'
+          # Protheus ${GITHUB_REF_NAME}
+
+          This release ships with:
+          - Per-artifact CycloneDX SBOMs (`state/release/provenance/sbom/*.cdx.json`)
+          - Detached artifact signatures (`state/release/provenance/signatures/*.sig`)
+          - GitHub SLSA build provenance attestations (attached to release subjects)
+          - Dependency vulnerability SLA summary (`state/release/provenance_bundle/dependency_vulnerability_summary.json`)
+          - Provenance bundle (`state/release/provenance_bundle/latest.json`)
+
+          See `docs/client/requirements/REQ-06-f100-operational-excellence.md` and
+          `docs/client/requirements/REQ-07-security-credibility-verification.md`.
+          EOF
+          printf '\ninfringd static binary: %s MB (musl)\n' "$STATIC_MB" >> release-notes-${GITHUB_REF_NAME}.md
+
+      - name: Upload release artifacts
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            state/release/provenance/artifacts/infringd-x86_64-unknown-linux-musl
+            state/release/provenance/sbom/infring-ops.cdx.json
+            state/release/provenance/sbom/infring-ops.cdx.sha256
+            state/release/provenance/sbom/infringd.cdx.json
+            state/release/provenance/sbom/infringd.cdx.sha256
+            state/release/provenance/sbom/conduit_daemon.cdx.json
+            state/release/provenance/sbom/conduit_daemon.cdx.sha256
+            state/release/provenance/signatures/infring-ops.sig
+            state/release/provenance/signatures/infringd.sig
+            state/release/provenance/signatures/conduit_daemon.sig
+            state/release/provenance/signing/release_public.pem
+            state/release/provenance_bundle/dependency_vulnerability_summary.json
+            state/release/provenance_bundle/release_licensing_manifest.json
+            state/release/provenance_bundle/latest.json
+            state/release/provenance_bundle/reproducible_build_equivalence.json
+            release-notes-${{ github.ref_name }}.md
+            state/release/provenance/artifacts/SHA256SUMS

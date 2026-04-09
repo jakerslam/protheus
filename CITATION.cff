@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use InfRing/Protheus, please cite it as below."
+authors:
+  - family-names: "Haslam"
+    given-names: "Jacob"
+    orcid: "https://orcid.org/0009-0002-0617-7360"
+title: "InfRing / Protheus — Agentic Operating System + RSI Seed"
+version: "0.2.1-alpha"
+date-released: "2026-03-14"
+url: "https://github.com/protheuslabs/InfRing"
+repository-code: "https://github.com/protheuslabs/InfRing"
+license: "Apache-2.0"
+keywords:
+  - agentic-os
+  - rsi
+  - autonomous-systems
+  - rust-kernel

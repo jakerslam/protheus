@@ -1,0 +1,13 @@
+#!/usr/bin/env node
+/**
+ * dop - Zero-friction CLI wrapper for Dopamine Reward Center
+ * Usage: dop <command> [args]
+ */
+
+const { spawnSync } = require('child_process');
+const path = require('path');
+
+const engine = path.join(__dirname, 'dopamine_engine.js');
+const args = process.argv.slice(2);
+
+spawnSync('node', [engine, ...args], { stdio: 'inherit' });

@@ -1,0 +1,17 @@
+{
+  "bridge_wrappers_excluded": 253,
+  "current_rust_percent": 68.48,
+  "extension_surfaces_excluded": 92,
+  "lanes": [],
+  "ok": true,
+  "queue": [],
+  "queue_size": 0,
+  "rust_percent": 68.48,
+  "stale_reference_repair": true,
+  "target_already_met": true,
+  "target_rust_percent": 60,
+  "top": [],
+  "top_candidates": [],
+  "ts": "2026-03-31T08:57:38.222Z",
+  "type": "roi_top_queue"
+}

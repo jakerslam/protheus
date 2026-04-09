@@ -1,0 +1,173 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  quality-gates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      INFRING_OPS_LOCAL_TIMEOUT_MS: "180000"
+      INFRING_OPS_DOMAIN_BRIDGE_TIMEOUT_MS: "60000"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Policy Baseline Contract
+        run: |
+          npm run -s ops:repo-surface:audit
+          npm run -s ops:file-size:gate
+          npm run -s ops:dod:gate
+          npm run -s ops:churn:guard
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Format Guard
+        run: node tests/client-memory-tools/org_code_format_guard.test.ts
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Persona Docs Validation
+        run: node tests/client-memory-tools/personas_orchestration_policies.test.ts
+
+      - name: Test
+        run: npm run test
+
+      - name: Reliability Turn Loop Gauntlet
+        run: npm run -s ops:reliability:gauntlet
+
+      - name: Upload Reliability Gauntlet Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reliability-turn-loop-gauntlet-artifacts
+          path: |
+            artifacts/reliability_turn_loop_gauntlet_report_*.json
+            artifacts/reliability_turn_loop_gauntlet_report_latest.json
+            local/state/ops/reliability_turn_loop_gauntlet/latest.json
+          if-no-files-found: warn
+
+      - name: IPC Bridge Stability Soak
+        run: npm run -s ops:ipc-bridge:soak
+
+      - name: Upload IPC Bridge Soak Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ops-ipc-bridge-soak-artifacts
+          path: |
+            artifacts/ops_ipc_bridge_stability_soak_report_*.json
+            artifacts/ops_ipc_bridge_stability_soak_report_latest.json
+            local/state/ops/ops_ipc_bridge_stability_soak/latest.json
+          if-no-files-found: warn
+
+      - name: Release Contract Gate
+        run: npm run -s ops:release-contract:gate
+
+      - name: SRS Full Regression Gate (Strict)
+        run: npm run -s ops:srs:full:gate
+
+      - name: Source Runtime Classifier
+        run: npm run ops:source-runtime:check
+
+      - name: Simplicity Drift Audit
+        run: npm run -s ops:simplicity:audit
+
+      - name: Benchmark Sanity Gate
+        run: npm run -s ops:benchmark:sanity
+
+      - name: Benchmark Public Audit Gate
+        run: npm run -s ops:benchmark:public-audit
+
+      - name: Flaky Quarantine Audit
+        run: npm run -s ops:flaky:quarantine:audit
+
+      - name: Test Priority Manifest Audit
+        run: npm run -s ops:test-priority:audit
+
+      - name: Strategic Contract Registry Audit
+        run: npm run -s ops:strategic-contracts:audit
+
+      - name: Queue Hardening Contracts
+        run: npm run ops:race-queue:hardening
+
+      - name: Mobile Benchmark Matrix (Smoke)
+        run: node tests/client-memory-tools/mobile_competitive_benchmark_matrix.test.ts
+
+  container-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build container image
+        run: |
+          docker build \
+            --build-arg INFRING_FIPS_MODE=1 \
+            --build-arg VCS_REF="${GITHUB_SHA}" \
+            --build-arg BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            -t infring:ci .
+
+      - name: Start container
+        run: |
+          docker run -d --rm --name infring-smoke -p 4173:4173 infring:ci
+
+      - name: Wait for health and verify dashboard endpoints
+        run: |
+          for i in $(seq 1 90); do
+            if curl -fsS "http://127.0.0.1:4173/healthz" >/dev/null; then
+              break
+            fi
+            sleep 2
+          done
+          curl -fsS "http://127.0.0.1:4173/healthz" | tee /tmp/infring-healthz.json
+          curl -fsS "http://127.0.0.1:4173/dashboard" >/dev/null
+
+      - name: Dump container logs on failure
+        if: failure()
+        run: docker logs infring-smoke || true
+
+      - name: Stop container
+        if: always()
+        run: docker rm -f infring-smoke || true
+
+  windows-installer-smoke:
+    runs-on: windows-latest
+    timeout-minutes: 55
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run install.ps1 full repair smoke
+        shell: pwsh
+        env:
+          INFRING_INSTALL_DIR: ${{ runner.temp }}\\infring\\bin
+          INFRING_TMP_DIR: ${{ runner.temp }}\\infring-tmp
+        run: |
+          $ErrorActionPreference = "Stop"
+          Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+          New-Item -ItemType Directory -Force -Path $env:INFRING_INSTALL_DIR | Out-Null
+          New-Item -ItemType Directory -Force -Path $env:INFRING_TMP_DIR | Out-Null
+
+          & "$PWD\\install.ps1" -Repair -Full -InstallDir $env:INFRING_INSTALL_DIR -TmpDir $env:INFRING_TMP_DIR
+
+          $runtimeConfig = Join-Path $env:INFRING_INSTALL_DIR "infring-client\\client\\runtime\\config"
+          if (-not (Test-Path $runtimeConfig)) {
+            throw "Windows full install smoke failed: runtime bundle missing ($runtimeConfig)"
+          }
+
+          & (Join-Path $env:INFRING_INSTALL_DIR "infring.cmd") gateway status --auto-heal=0 --dashboard-open=0 | Out-Null

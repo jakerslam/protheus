@@ -1,0 +1,46 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "strict_default": false,
+  "source_registry_path": "client/runtime/config/backlog_registry.json",
+  "outputs": {
+    "review_registry_path": "client/runtime/config/backlog_review_registry.json",
+    "reviewed_view_path": "docs/client/backlog_views/reviewed.md",
+    "latest_path": "local/state/ops/backlog_implementation_review/latest.json",
+    "history_path": "local/state/ops/backlog_implementation_review/history.jsonl"
+  },
+  "review": {
+    "done_statuses": [
+      "done"
+    ],
+    "blocked_statuses": [
+      "blocked"
+    ],
+    "wrapper_max_bytes": 240,
+    "min_substantive_lines": 20,
+    "max_scan_bytes": 1048576
+  },
+  "search": {
+    "roots": [
+      "client/runtime/systems",
+      "client/runtime/lib",
+      "core",
+      "packages",
+      "client/runtime/platform",
+      "client/runtime/config",
+      "docs/client",
+      "tests/client-memory-tools",
+      "tests"
+    ],
+    "exclude_paths": [
+      "docs/workspace/SRS.md",
+      "docs/workspace/UPGRADE_BACKLOG.md",
+      "docs/client/backlog_views/active.md",
+      "docs/client/backlog_views/archive.md",
+      "docs/client/backlog_views/reviewed.md",
+      "client/runtime/config/backlog_registry.json",
+      "client/runtime/config/backlog_review_registry.json",
+      "node_modules/"
+    ]
+  }
+}

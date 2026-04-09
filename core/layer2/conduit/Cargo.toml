@@ -1,0 +1,21 @@
+[package]
+name = "conduit"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+
+[features]
+default = []
+edge = []
+no_std_probe = []
+
+[dependencies]
+conduit-security = { path = "../conduit-security" }
+hex = "0.4"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2 = "0.10"
+wait-timeout = "0.2"
+
+[dev-dependencies]
+tempfile = "3.13"

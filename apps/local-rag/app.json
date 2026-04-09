@@ -1,0 +1,7 @@
+{
+  "id": "local-rag",
+  "srs": "V6-MEMORY-008,V6-MEMORY-009",
+  "layer": "app",
+  "entrypoint": "protheus app run local-rag",
+  "authority": "core"
+}

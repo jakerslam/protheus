@@ -1,0 +1,11 @@
+include!("security_wave1_parts/010-now-iso.rs");
+include!("security_wave1_parts/020-run-capability-switchboard.rs");
+include!("security_wave1_parts/030-black-box-paths.rs");
+include!("security_wave1_parts/040-append-black-box-entry.rs");
+include!("security_wave1_parts/050-run-black-box-ledger.rs");
+include!("security_wave1_parts/060-parse-blocked-pattern-match.rs");
+include!("security_wave1_parts/070-dream-warden-load-policy.rs");
+include!("security_wave1_parts/080-directive-hierarchy-paths.rs");
+include!("security_wave1_parts/090-default.rs");
+include!("security_wave1_parts/100-run-truth-seeking-gate.rs");
+include!("security_wave1_parts/110-abac-denies-when-no-rule-matches.rs");

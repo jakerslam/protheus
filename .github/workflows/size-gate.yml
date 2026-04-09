@@ -1,0 +1,98 @@
+name: Size Gate
+
+on:
+  pull_request:
+    branches: [main, rust50]
+  push:
+    branches: [main, rust50]
+  workflow_dispatch:
+
+jobs:
+  infringd-size-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust (musl)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-musl
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install musl linker
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+
+      - name: Install JS deps (full install sizing)
+        run: npm ci
+
+      - name: Build static infringd
+        run: |
+          cargo build --release --target x86_64-unknown-linux-musl --manifest-path core/layer0/ops/Cargo.toml --bin infringd --features embedded-minimal-core,mimalloc,no-client-bloat
+          strip target/x86_64-unknown-linux-musl/release/infringd || true
+
+      - name: Enforce daemon size gate (0.5 MB - 2.4 MB)
+        run: |
+          BIN="target/x86_64-unknown-linux-musl/release/infringd"
+          BYTES="$(stat --format=%s "$BIN")"
+          MIN=$((512 * 1024))
+          MAX=$((2516582))
+          echo "infringd_bytes=$BYTES"
+          if [ "$BYTES" -lt "$MIN" ] || [ "$BYTES" -gt "$MAX" ]; then
+            echo "::error::infringd outside 0.5 MB - 2.4 MB gate ($BYTES bytes)"
+            exit 1
+          fi
+
+      - name: Enforce full install size gate (80 MB - 95 MB)
+        run: |
+          python3 - <<'PY'
+          import pathlib, sys
+          roots = [
+              pathlib.Path("node_modules"),
+              pathlib.Path("client/runtime"),
+              pathlib.Path("core/layer0/ops"),
+              pathlib.Path("target/x86_64-unknown-linux-musl/release/infringd"),
+          ]
+          total_bytes = 0
+          for root in roots:
+              if not root.exists():
+                  continue
+              if root.is_file():
+                  total_bytes += root.stat().st_size
+                  continue
+              for p in root.rglob("*"):
+                  if p.is_file():
+                      total_bytes += p.stat().st_size
+          total_mb = total_bytes / (1024 * 1024)
+          print(f"full_install_total_mb={total_mb:.3f}")
+          if total_mb < 80 or total_mb > 95:
+              print(f"::error::full install size {total_mb:.3f} MB outside 80-95 MB gate")
+              sys.exit(1)
+          PY
+
+      - name: Enforce throughput gate (>= 11000 tasks/sec)
+        run: |
+          python3 - <<'PY'
+          import json, pathlib
+          snapshot = json.loads(pathlib.Path("docs/client/reports/runtime_snapshots/ops/proof_pack/top1_benchmark_snapshot.json").read_text())
+          metrics = snapshot.get("metrics", {})
+          seed = {
+              "metrics": {
+                  "cold_start_ms": metrics.get("cold_start_ms", 75.0),
+                  "idle_rss_mb": metrics.get("idle_rss_mb", 23.0),
+                  "install_size_mb": metrics.get("install_size_mb", 90.0)
+              }
+          }
+          pathlib.Path("/tmp/top1_ci_seed.json").write_text(json.dumps(seed))
+          PY
+          cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops -- \
+            top1-assurance benchmark-thresholds --strict=1 --benchmark-path=/tmp/top1_ci_seed.json \
+            --tasks-per-sec-min=11000 --sample-ms=800 --refresh=1

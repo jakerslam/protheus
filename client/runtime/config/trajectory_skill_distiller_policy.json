@@ -1,0 +1,9 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "shadow_only": true,
+  "distill_min_steps": 3,
+  "output_root": "local/state/assimilation/distilled_skill_profiles",
+  "receipts_path": "local/state/assimilation/trajectory_skill_distiller/receipts.jsonl",
+  "latest_path": "local/state/assimilation/trajectory_skill_distiller/latest.json"
+}

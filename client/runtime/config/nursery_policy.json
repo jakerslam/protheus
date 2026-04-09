@@ -1,0 +1,59 @@
+{
+  "auto_run_on_spine_init": true,
+  "containment": {
+    "permissions": {
+      "allow_external_network_for_downloads": true,
+      "cpu_only": true,
+      "max_ram_mb": 2048,
+      "max_train_minutes": 30,
+      "schema_id": "nursery_permissions",
+      "ts": "2026-03-04T20:33:28.300Z",
+      "version": "1.0"
+    },
+    "policy_gates": {
+      "execution_mode": "sandboxed",
+      "fs_scope": "nursery_root_only",
+      "network_access": "restricted",
+      "requires_human_promotion": true,
+      "schema_id": "nursery_policy_gates",
+      "ts": "2026-03-04T20:33:28.298Z",
+      "version": "1.0"
+    }
+  },
+  "directories": {
+    "containment": "containment",
+    "logs": "logs",
+    "manifests": "manifests",
+    "promotion": "promotion",
+    "promotion_apprentice_mode": "promotion/apprentice-mode",
+    "promotion_full_integration": "promotion/full-integration",
+    "promotion_shadow_mode": "promotion/shadow-mode",
+    "quarantine": "quarantine",
+    "quarantine_checkpoints": "quarantine/checkpoints",
+    "quarantine_evaluation_results": "quarantine/evaluation-results",
+    "quarantine_training_data": "quarantine/training-data",
+    "seeds": "seeds"
+  },
+  "enabled": true,
+  "fallback_repo_root_dir": "local/state/nursery/containment",
+  "model_artifacts": [
+    {
+      "auto_pull": false,
+      "id": "tinyllama_seed",
+      "model": "tinyllama:1.1b-chat-v1-q4_K_M",
+      "provider": "ollama",
+      "required": true
+    },
+    {
+      "auto_pull": false,
+      "id": "red_team_seed",
+      "model": "qwen2.5:3b-instruct-q4_K_M",
+      "provider": "ollama",
+      "required": false
+    }
+  ],
+  "pull_timeout_ms": 60000,
+  "root_dir": "local/state/nursery",
+  "strict_missing_required_models": false,
+  "version": "1.0"
+}

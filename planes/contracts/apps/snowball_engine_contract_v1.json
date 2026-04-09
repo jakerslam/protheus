@@ -1,0 +1,48 @@
+{
+  "version": "v1",
+  "kind": "snowball_engine_contract",
+  "entrypoint": "protheus snowball start",
+  "allowed_actions": [
+    "start",
+    "melt-refine",
+    "compact",
+    "backlog-pack",
+    "status",
+    "control"
+  ],
+  "orchestration": {
+    "default_parallel_limit": 3,
+    "max_parallel_limit": 8,
+    "risk_gate_high_requires_allow_flag": true
+  },
+  "melt_refine": {
+    "regression_gate_required": true,
+    "rollback_on_failure": true
+  },
+  "compaction": {
+    "snapshot_profile": "sphere-of-ice",
+    "restore_pointer_required": true,
+    "benchmark_report_default_path": "docs/client/reports/benchmark_matrix_run_2026-03-06.json",
+    "discarded_idea_blob_archive_required": true,
+    "prime_directive_compacted_state_required": true
+  },
+  "assimilation": {
+    "four_gate_evaluation_required": true,
+    "required_gates": [
+      "metrics",
+      "pure_tiny",
+      "rsi_organism",
+      "tiny_hardware"
+    ],
+    "discarded_ideas_must_be_blob_archived": true
+  },
+  "backlog_pack": {
+    "dependency_ordering_required": true
+  },
+  "operator_controls": [
+    "pause",
+    "resume",
+    "abort",
+    "compact"
+  ]
+}

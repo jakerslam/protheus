@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0",
+  "enabled": true,
+  "startup_token_budget": 180,
+  "per_file_max_chars": 220,
+  "base_files": [
+    "local/workspace/assistant/SOUL.md",
+    "local/workspace/assistant/USER.md"
+  ],
+  "lazy_pages": [
+    "local/workspace/reports/MEMORY_INDEX.md",
+    "local/workspace/reports/TAGS_INDEX.md",
+    "local/workspace/assistant/MEMORY.md",
+    "client/runtime/local/state/memory/conversation_eye/nodes.jsonl",
+    "client/runtime/local/state/attention/latest.json"
+  ]
+}

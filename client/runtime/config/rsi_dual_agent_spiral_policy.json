@@ -1,0 +1,30 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "strict_default": true,
+  "event_stream": {
+    "enabled": true,
+    "publish": true,
+    "stream": "adaptive.rsi.dual_agent_spiral"
+  },
+  "cycles_default": 3,
+  "difficulty_start": 1,
+  "difficulty_step": 1,
+  "difficulty_max": 6,
+  "system3_script": "client/cognition/adaptive/executive/system3_executive_layer.ts",
+  "rsi_script": "client/cognition/adaptive/rsi/rsi_bootstrap.ts",
+  "rsi_policy_path": "client/runtime/config/rsi_bootstrap_policy.json",
+  "target_paths": [
+    "client/runtime/systems/strategy/strategy_learner.ts",
+    "client/runtime/systems/autonomy/model_catalog_loop.ts",
+    "client/cognition/adaptive/executive/system3_executive_layer.ts"
+  ],
+  "paths": {
+    "memory_dir": "client/memory/client/cognition/adaptive/rsi_dual_agent_spiral",
+    "adaptive_index_path": "client/cognition/adaptive/rsi/dual_agent_spiral/index.json",
+    "events_path": "local/state/client/cognition/adaptive/rsi_dual_agent_spiral/events.jsonl",
+    "latest_path": "local/state/client/cognition/adaptive/rsi_dual_agent_spiral/latest.json",
+    "receipts_path": "local/state/client/cognition/adaptive/rsi_dual_agent_spiral/receipts.jsonl",
+    "spiral_state_path": "local/state/client/cognition/adaptive/rsi_dual_agent_spiral/state.json"
+  }
+}
