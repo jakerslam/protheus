@@ -975,12 +975,6 @@
       "expires": "2026-04-23"
     },
     {
-      "path": "core/layer0/ops/src/web_conduit.rs",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-04-23"
-    },
-    {
       "path": "core/layer0/ops/src/workflow_chain_bridge_parts/030-recall-memory.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
