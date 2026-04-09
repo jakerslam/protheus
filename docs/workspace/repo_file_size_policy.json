@@ -279,12 +279,6 @@
       "expires": "2026-04-23"
     },
     {
-      "path": "core/layer0/ops/src/dashboard_agent_state_sessions_parts/001-part.rs",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-04-23"
-    },
-    {
       "path": "core/layer0/ops/src/dashboard_agent_state_sessions_parts/002-part.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
@@ -465,12 +459,6 @@
       "expires": "2026-04-23"
     },
     {
-      "path": "core/layer0/ops/src/duality_seed_parts/010-print-json-line.rs",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-04-23"
-    },
-    {
       "path": "core/layer0/ops/src/duality_seed_parts/040-op-dispatch.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
@@ -537,12 +525,6 @@
       "expires": "2026-04-23"
     },
     {
-      "path": "core/layer0/ops/src/intelligence_nexus.rs",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-04-23"
-    },
-    {
       "path": "core/layer0/ops/src/llm_economy_organ_parts/020-run.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
@@ -598,12 +580,6 @@
     },
     {
       "path": "core/layer0/ops/src/model_router_tests_part1.rs",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-04-23"
-    },
-    {
-      "path": "core/layer0/ops/src/model_router_tests_part2.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
       "expires": "2026-04-23"
@@ -856,12 +832,6 @@
     },
     {
       "path": "core/layer0/ops/src/ternary_belief_kernel.rs",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-04-23"
-    },
-    {
-      "path": "core/layer0/ops/src/tool_response_compactor_kernel.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
       "expires": "2026-04-23"

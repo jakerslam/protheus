@@ -1,7 +1,6 @@
 fn now_iso() -> String {
     crate::now_iso()
 }
-
 fn clean_text(value: &str, max_len: usize) -> String {
     value
         .split_whitespace()
@@ -12,7 +11,6 @@ fn clean_text(value: &str, max_len: usize) -> String {
         .take(max_len)
         .collect::<String>()
 }
-
 fn clean_chat_text(value: &str, max_len: usize) -> String {
     value
         .replace("\r\n", "\n")
@@ -22,11 +20,9 @@ fn clean_chat_text(value: &str, max_len: usize) -> String {
         .take(max_len)
         .collect::<String>()
 }
-
 fn has_non_whitespace(value: &str) -> bool {
     value.chars().any(|ch| !ch.is_whitespace())
 }
-
 fn normalize_agent_id(raw: &str) -> String {
     let mut out = String::new();
     for ch in clean_text(raw, 140).chars() {
@@ -36,7 +32,6 @@ fn normalize_agent_id(raw: &str) -> String {
     }
     out
 }
-
 fn parse_json_loose(text: &str) -> Option<Value> {
     if text.trim().is_empty() {
         return None;
@@ -55,16 +50,13 @@ fn parse_json_loose(text: &str) -> Option<Value> {
     }
     None
 }
-
 fn read_json_file(path: &Path) -> Option<Value> {
     let body = fs::read_to_string(path).ok()?;
     parse_json_loose(&body)
 }
-
 fn ensure_dir(path: &Path) {
     let _ = fs::create_dir_all(path);
 }
-
 fn write_json(path: &Path, value: &Value) {
     if let Some(parent) = path.parent() {
         ensure_dir(parent);
@@ -73,7 +65,6 @@ fn write_json(path: &Path, value: &Value) {
         let _ = fs::write(path, format!("{body}\n"));
     }
 }
-
 fn as_array_mut<'a>(root: &'a mut Value, key: &str) -> &'a mut Vec<Value> {
     if !root.get(key).map(Value::is_array).unwrap_or(false) {
         root[key] = Value::Array(Vec::new());
@@ -82,7 +73,6 @@ fn as_array_mut<'a>(root: &'a mut Value, key: &str) -> &'a mut Vec<Value> {
         .and_then(Value::as_array_mut)
         .expect("array shape")
 }
-
 fn as_object_mut<'a>(root: &'a mut Value, key: &str) -> &'a mut Map<String, Value> {
     if !root.get(key).map(Value::is_object).unwrap_or(false) {
         root[key] = json!({});
@@ -91,15 +81,12 @@ fn as_object_mut<'a>(root: &'a mut Value, key: &str) -> &'a mut Map<String, Valu
         .and_then(Value::as_object_mut)
         .expect("object shape")
 }
-
 fn sessions_dir(root: &Path) -> PathBuf {
     root.join(AGENT_SESSIONS_DIR_REL)
 }
-
 fn session_path(root: &Path, agent_id: &str) -> PathBuf {
     sessions_dir(root).join(format!("{}.json", normalize_agent_id(agent_id)))
 }
-
 fn default_session_state(agent_id: &str) -> Value {
     let now = now_iso();
     json!({
@@ -118,7 +105,6 @@ fn default_session_state(agent_id: &str) -> Value {
         "memory_kv": {}
     })
 }
-
 fn load_session_state(root: &Path, agent_id: &str) -> Value {
     let id = normalize_agent_id(agent_id);
     let mut state =
@@ -148,13 +134,11 @@ fn load_session_state(root: &Path, agent_id: &str) -> Value {
     let _ = as_object_mut(&mut state, "memory_kv");
     state
 }
-
 fn save_session_state(root: &Path, agent_id: &str, state: &Value) {
     let id = normalize_agent_id(agent_id);
     ensure_dir(&sessions_dir(root));
     write_json(&session_path(root, &id), state);
 }
-
 fn text_from_message(row: &Value) -> String {
     if let Some(text) = row.get("text").and_then(Value::as_str) {
         return clean_text(text, 400);
@@ -167,7 +151,6 @@ fn text_from_message(row: &Value) -> String {
     }
     String::new()
 }
-
 fn token_set(value: &str) -> HashSet<String> {
     clean_text(value, 300)
         .to_ascii_lowercase()
@@ -176,7 +159,6 @@ fn token_set(value: &str) -> HashSet<String> {
         .map(ToString::to_string)
         .collect::<HashSet<_>>()
 }
-
 fn is_too_similar(left: &str, right: &str) -> bool {
     let a = token_set(left);
     let b = token_set(right);
@@ -190,7 +172,6 @@ fn is_too_similar(left: &str, right: &str) -> bool {
     }
     (overlap / union) >= 0.8
 }
-
 fn is_trailing_query_filler(word: &str) -> bool {
     matches!(
         word,
@@ -212,11 +193,9 @@ fn is_trailing_query_filler(word: &str) -> bool {
             | "with"
     )
 }
-
 fn is_question_mark_like(ch: char) -> bool {
     matches!(ch, '?' | '？' | '﹖' | '⸮' | '؟' | '՞')
 }
-
 fn strip_trailing_suggestion_question_marks(value: &str) -> String {
     let mut out = clean_text(value, 220).trim().to_string();
     if out.is_empty() {
@@ -239,7 +218,6 @@ fn strip_trailing_suggestion_question_marks(value: &str) -> String {
         out = stripped;
     }
 }
-
 fn normalize_suggestion_voice(value: &str) -> String {
     let mut normalized = strip_trailing_suggestion_question_marks(value);
     if normalized.is_empty() {
@@ -284,7 +262,6 @@ fn normalize_suggestion_voice(value: &str) -> String {
     }
     clean_text(&normalized, 220)
 }
-
 fn sanitize_suggestion(value: &str) -> String {
     let cleaned = normalize_suggestion_voice(value)
         .replace('"', "")
@@ -316,7 +293,6 @@ fn sanitize_suggestion(value: &str) -> String {
     }
     strip_trailing_suggestion_question_marks(&words.join(" "))
 }
-
 fn is_focus_stop_word(word: &str) -> bool {
     matches!(
         word,
@@ -372,7 +348,6 @@ fn is_focus_stop_word(word: &str) -> bool {
             | "your"
     )
 }
-
 fn extract_focus_tokens(value: &str, max_tokens: usize) -> Vec<String> {
     let cap = max_tokens.clamp(1, PROMPT_SUGGESTION_MAX_WORDS);
     let mut out = Vec::<String>::new();
@@ -391,7 +366,6 @@ fn extract_focus_tokens(value: &str, max_tokens: usize) -> Vec<String> {
     }
     out
 }
-
 fn compact_topic_phrase(thread: &[(String, String)], keywords: &[String]) -> String {
     for (role, text) in thread.iter().rev() {
         if role != "user" {
@@ -418,7 +392,6 @@ fn compact_topic_phrase(thread: &[(String, String)], keywords: &[String]) -> Str
     }
     String::new()
 }
-
 fn normalize_message_role(row: &Value) -> String {
     let raw = clean_text(
         row.get("role")
@@ -439,7 +412,6 @@ fn normalize_message_role(row: &Value) -> String {
     }
     "assistant".to_string()
 }
-
 fn is_suggestion_noise(text: &str) -> bool {
     let lowered = clean_text(text, 320).to_ascii_lowercase();
     lowered.is_empty()
@@ -449,7 +421,6 @@ fn is_suggestion_noise(text: &str) -> bool {
             .contains("task accepted. report findings in this thread with receipt-backed evidence")
         || lowered.contains("the user wants exactly 3 actionable next user prompts")
 }
-
 fn collect_recent_thread_context(messages: &[Value], limit: usize) -> Vec<(String, String)> {
     let mut out = Vec::<(String, String)>::new();
     for row in messages.iter().rev() {
@@ -469,14 +440,12 @@ fn collect_recent_thread_context(messages: &[Value], limit: usize) -> Vec<(Strin
     out.reverse();
     out
 }
-
 #[derive(Default)]
 struct SuggestionStyle {
     prefer_can_you: bool,
     prefer_question_mark: bool,
     prefer_lowercase: bool,
 }
-
 fn derive_suggestion_style(thread: &[(String, String)]) -> SuggestionStyle {
     let mut user_rows = Vec::<String>::new();
     for (role, text) in thread.iter().rev() {

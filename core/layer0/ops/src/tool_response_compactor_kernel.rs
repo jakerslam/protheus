@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
 // Layer ownership: core/layer0/ops (authoritative)
-
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::Engine;
 use regex::{Captures, Regex};
@@ -8,25 +7,20 @@ use serde_json::{json, Map, Value};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
-
 use crate::contract_lane_utils as lane_utils;
 use crate::{deterministic_receipt_hash, now_iso, parse_args};
-
 const COMPACTION_THRESHOLD_CHARS: usize = 1200;
 const COMPACTION_THRESHOLD_LINES: usize = 40;
-
 fn moltbook_token_re() -> &'static Regex {
     static REGEX: OnceLock<Regex> = OnceLock::new();
     REGEX.get_or_init(|| Regex::new(r"moltbook_sk_[a-zA-Z0-9]{32,}").expect("valid moltbook regex"))
 }
-
 fn bearer_redaction_re() -> &'static Regex {
     static REGEX: OnceLock<Regex> = OnceLock::new();
     REGEX.get_or_init(|| {
         Regex::new(r#"(?i)Authorization:\s*Bearer\s+[^\s"']+"#).expect("valid bearer regex")
     })
 }
-
 fn header_secret_re() -> &'static Regex {
     static REGEX: OnceLock<Regex> = OnceLock::new();
     REGEX.get_or_init(|| {
@@ -36,7 +30,6 @@ fn header_secret_re() -> &'static Regex {
         .expect("valid header regex")
     })
 }
-
 fn json_secret_re() -> &'static Regex {
     static REGEX: OnceLock<Regex> = OnceLock::new();
     REGEX.get_or_init(|| {
@@ -46,7 +39,6 @@ fn json_secret_re() -> &'static Regex {
         .expect("valid json secret regex")
     })
 }
-
 fn query_secret_re() -> &'static Regex {
     static REGEX: OnceLock<Regex> = OnceLock::new();
     REGEX.get_or_init(|| {
@@ -54,7 +46,6 @@ fn query_secret_re() -> &'static Regex {
             .expect("valid query regex")
     })
 }
-
 fn usage() {
     println!("tool-response-compactor-kernel commands:");
     println!("  protheus-ops tool-response-compactor-kernel compact --payload-base64=<json>");
@@ -63,7 +54,6 @@ fn usage() {
         "  protheus-ops tool-response-compactor-kernel extract-summary --payload-base64=<json>"
     );
 }
-
 fn cli_receipt(kind: &str, payload: Value) -> Value {
     let ts = now_iso();
     let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(true);
@@ -77,7 +67,6 @@ fn cli_receipt(kind: &str, payload: Value) -> Value {
     out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
     out
 }
-
 fn cli_error(kind: &str, error: &str) -> Value {
     let ts = now_iso();
     let mut out = json!({
@@ -91,7 +80,6 @@ fn cli_error(kind: &str, error: &str) -> Value {
     out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
     out
 }
-
 fn print_json_line(value: &Value) {
     println!(
         "{}",
@@ -99,7 +87,6 @@ fn print_json_line(value: &Value) {
             .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
     );
 }
-
 fn payload_json(argv: &[String]) -> Result<Value, String> {
     if let Some(raw) = lane_utils::parse_flag(argv, "payload", false) {
         return serde_json::from_str::<Value>(&raw)
@@ -117,7 +104,6 @@ fn payload_json(argv: &[String]) -> Result<Value, String> {
     }
     Ok(json!({}))
 }
-
 fn root_dir_from_payload(repo_root: &Path, payload: &Map<String, Value>) -> PathBuf {
     let raw = payload
         .get("root_dir")
@@ -135,18 +121,15 @@ fn root_dir_from_payload(repo_root: &Path, payload: &Map<String, Value>) -> Path
         repo_root.join(raw)
     }
 }
-
 fn tool_raw_dir(root_dir: &Path) -> PathBuf {
     root_dir.join("local").join("logs").join("tool_raw")
 }
-
 fn render_input(value: &Value) -> String {
     match value {
         Value::String(v) => v.clone(),
         _ => serde_json::to_string_pretty(value).unwrap_or_else(|_| value.to_string()),
     }
 }
-
 fn redact_secrets(content: &str) -> String {
     let mut out = content.to_string();
     out = moltbook_token_re()
@@ -163,28 +146,23 @@ fn redact_secrets(content: &str) -> String {
             format!("moltbook_sk_****{suffix}")
         })
         .to_string();
-
     out = bearer_redaction_re()
         .replace_all(&out, "Authorization: Bearer [REDACTED]")
         .to_string();
-
     out = header_secret_re()
         .replace_all(&out, |caps: &Captures| {
             let key = caps.get(1).map(|m| m.as_str()).unwrap_or("authorization");
             format!("{key}: [REDACTED]")
         })
         .to_string();
-
     out = json_secret_re()
         .replace_all(&out, "$1\"[REDACTED]\"")
         .to_string();
-
     out = query_secret_re()
         .replace_all(&out, "$1[REDACTED]")
         .to_string();
     out
 }
-
 fn collect_ids_and_urls(value: &Value, ids: &mut Vec<String>, urls: &mut Vec<String>) {
     match value {
         Value::Object(obj) => {
@@ -221,7 +199,6 @@ fn collect_ids_and_urls(value: &Value, ids: &mut Vec<String>, urls: &mut Vec<Str
         _ => {}
     }
 }
-
 fn dedupe_limit(rows: Vec<String>, max: usize) -> Vec<String> {
     let mut seen = std::collections::BTreeSet::new();
     let mut out = Vec::new();
@@ -236,7 +213,6 @@ fn dedupe_limit(rows: Vec<String>, max: usize) -> Vec<String> {
     }
     out
 }
-
 fn extract_summary_rows(data: &Value, tool_name: &str) -> Vec<String> {
     let rendered = render_input(data);
     let mut bullets = Vec::<String>::new();
@@ -245,12 +221,10 @@ fn extract_summary_rows(data: &Value, tool_name: &str) -> Vec<String> {
     } else {
         Some(data.clone())
     };
-
     if let Some(parsed) = parsed {
         if let Some(rows) = parsed.as_array() {
             bullets.push(format!("• Count: {} items", rows.len()));
         }
-
         let mut ids = Vec::new();
         let mut urls = Vec::new();
         collect_ids_and_urls(&parsed, &mut ids, &mut urls);
@@ -262,7 +236,6 @@ fn extract_summary_rows(data: &Value, tool_name: &str) -> Vec<String> {
         if !urls.is_empty() {
             bullets.push(format!("• URLs: {}", urls.join(", ")));
         }
-
         if let Some(obj) = parsed.as_object() {
             let mut metrics = Vec::new();
             for (key, row) in obj {
@@ -304,7 +277,6 @@ fn extract_summary_rows(data: &Value, tool_name: &str) -> Vec<String> {
             bullets.push(format!("• {} lines of text output", line_count));
         }
     }
-
     while bullets.len() < 5 && bullets.len() < 10 {
         if !bullets.iter().any(|row| row.contains("Type:")) {
             bullets.push(format!(
@@ -321,11 +293,9 @@ fn extract_summary_rows(data: &Value, tool_name: &str) -> Vec<String> {
             break;
         }
     }
-
     bullets.truncate(10);
     bullets
 }
-
 fn safe_tool_name(raw: &str) -> String {
     let mut out = String::new();
     for ch in raw.chars() {
@@ -341,7 +311,6 @@ fn safe_tool_name(raw: &str) -> String {
         out
     }
 }
-
 fn compact_tool_response(repo_root: &Path, payload: &Map<String, Value>) -> Result<Value, String> {
     let root_dir = root_dir_from_payload(repo_root, payload);
     let tool_name = payload
@@ -353,7 +322,6 @@ fn compact_tool_response(repo_root: &Path, payload: &Map<String, Value>) -> Resu
     let char_count = raw_content.len();
     let line_count = raw_content.lines().count();
     let redacted = redact_secrets(&raw_content);
-
     if char_count <= COMPACTION_THRESHOLD_CHARS && line_count <= COMPACTION_THRESHOLD_LINES {
         return Ok(json!({
             "compacted": false,
@@ -364,7 +332,6 @@ fn compact_tool_response(repo_root: &Path, payload: &Map<String, Value>) -> Resu
             }
         }));
     }
-
     let dir = tool_raw_dir(&root_dir);
     fs::create_dir_all(&dir)
         .map_err(|err| format!("tool_response_compactor_kernel_mkdir_failed:{err}"))?;
@@ -373,7 +340,6 @@ fn compact_tool_response(repo_root: &Path, payload: &Map<String, Value>) -> Resu
     let raw_path = dir.join(&file_name);
     fs::write(&raw_path, redacted.as_bytes())
         .map_err(|err| format!("tool_response_compactor_kernel_write_failed:{err}"))?;
-
     let summary = extract_summary_rows(payload.get("data").unwrap_or(&Value::Null), &tool_name);
     let compact_output = [
         "📦 [TOOL OUTPUT COMPACTED]".to_string(),
@@ -388,7 +354,6 @@ fn compact_tool_response(repo_root: &Path, payload: &Map<String, Value>) -> Resu
         ),
     ]
     .join("\n");
-
     let compacted_chars = compact_output.len();
     let savings_percent = if char_count == 0 {
         0
@@ -396,7 +361,6 @@ fn compact_tool_response(repo_root: &Path, payload: &Map<String, Value>) -> Resu
         (((char_count.saturating_sub(compacted_chars)) as f64 / char_count as f64) * 100.0).round()
             as i64
     };
-
     Ok(json!({
         "compacted": true,
         "content": compact_output,
@@ -409,7 +373,6 @@ fn compact_tool_response(repo_root: &Path, payload: &Map<String, Value>) -> Resu
         }
     }))
 }
-
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     let parsed = parse_args(argv);
     let cmd = parsed
@@ -417,7 +380,6 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         .first()
         .map(|v| v.to_ascii_lowercase())
         .unwrap_or_else(|| "help".to_string());
-
     match cmd.as_str() {
         "help" | "--help" | "-h" => {
             usage();
@@ -491,11 +453,9 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         }
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
     #[test]
     fn redact_hides_tokens_and_bearer_headers() {
         let out = redact_secrets(
@@ -504,7 +464,6 @@ mod tests {
         assert!(out.contains("Authorization: Bearer [REDACTED]"));
         assert!(out.contains("moltbook_sk_****7890"));
     }
-
     #[test]
     fn extract_summary_reports_ids_and_urls() {
         let payload = json!({
