@@ -1,29 +1,19 @@
 #!/usr/bin/env node
 'use strict';
-const { createOpsLaneBridge } = require('../../lib/rust_lane_bridge.ts');
+// TypeScript compatibility shim only.
+// Layer ownership: surface/orchestration (redteam coordination); this file is a thin CLI bridge.
 
-const SYSTEM_ID = 'SYSTEMS-REDTEAM-SELF_IMPROVING_REDTEAM_TRAINER';
-const bridge = createOpsLaneBridge(__dirname, 'self_improving_redteam_trainer', 'runtime-systems', {
-  inheritStdio: true
-});
+const impl = require('../../../../surface/orchestration/scripts/self_improving_redteam_trainer.ts');
 
 function run(args = process.argv.slice(2)) {
-  const out = bridge.run([`--system-id=${SYSTEM_ID}`].concat(Array.isArray(args) ? args : []));
-  if (out && out.stdout) process.stdout.write(out.stdout);
-  if (out && out.stderr) process.stderr.write(out.stderr);
-  if (out && out.payload && !out.stdout) {
-    process.stdout.write(`${JSON.stringify(out.payload)}\n`);
-  }
-  return out;
+  return impl.run(args);
 }
 
 if (require.main === module) {
-  const out = run(process.argv.slice(2));
-  process.exit(Number.isFinite(Number(out && out.status)) ? Number(out.status) : 1);
+  process.exit(run(process.argv.slice(2)));
 }
 
 module.exports = {
-  lane: bridge.lane,
-  systemId: SYSTEM_ID,
+  ...impl,
   run
 };
