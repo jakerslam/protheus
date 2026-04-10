@@ -5,8 +5,6 @@
 // - source: local/workspace/vendor/rtk/src/core/tracking.rs
 // - concept: persisted command telemetry (SQLite) with savings and adoption summaries.
 
-use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
-use base64::Engine;
 use rusqlite::{params, Connection};
 use serde_json::{json, Map, Value};
 use std::collections::HashMap;
@@ -17,7 +15,7 @@ use crate::contract_lane_utils as lane_utils;
 use crate::session_command_discovery_kernel::{
     classify_command_detail_for_kernel, split_command_chain_for_kernel,
 };
-use crate::{deterministic_receipt_hash, now_iso};
+use crate::now_iso;
 
 fn usage() {
     println!("session-command-tracking-kernel commands:");
@@ -32,66 +30,6 @@ fn clean_text(raw: &str, max_len: usize) -> String {
         .collect::<String>()
         .trim()
         .to_string()
-}
-
-fn print_json_line(value: &Value) {
-    println!(
-        "{}",
-        serde_json::to_string(value)
-            .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
-    );
-}
-
-fn cli_receipt(kind: &str, payload: Value) -> Value {
-    let ts = now_iso();
-    let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(true);
-    let mut out = json!({
-        "ok": ok,
-        "type": kind,
-        "ts": ts,
-        "date": ts[..10].to_string(),
-        "payload": payload
-    });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
-    out
-}
-
-fn cli_error(kind: &str, error: &str) -> Value {
-    let ts = now_iso();
-    let mut out = json!({
-        "ok": false,
-        "type": kind,
-        "ts": ts,
-        "date": ts[..10].to_string(),
-        "error": error,
-        "fail_closed": true
-    });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
-    out
-}
-
-fn payload_json(argv: &[String]) -> Result<Value, String> {
-    if let Some(raw) = lane_utils::parse_flag(argv, "payload", false) {
-        return serde_json::from_str::<Value>(&raw)
-            .map_err(|err| format!("session_command_tracking_payload_decode_failed:{err}"));
-    }
-    if let Some(raw_b64) = lane_utils::parse_flag(argv, "payload-base64", false) {
-        let bytes = BASE64_STANDARD.decode(raw_b64.as_bytes()).map_err(|err| {
-            format!("session_command_tracking_payload_base64_decode_failed:{err}")
-        })?;
-        let text = String::from_utf8(bytes)
-            .map_err(|err| format!("session_command_tracking_payload_utf8_decode_failed:{err}"))?;
-        return serde_json::from_str::<Value>(&text)
-            .map_err(|err| format!("session_command_tracking_payload_decode_failed:{err}"));
-    }
-    Ok(json!({}))
-}
-
-fn payload_obj<'a>(value: &'a Value) -> &'a Map<String, Value> {
-    value.as_object().unwrap_or_else(|| {
-        static EMPTY: std::sync::OnceLock<Map<String, Value>> = std::sync::OnceLock::new();
-        EMPTY.get_or_init(Map::new)
-    })
 }
 
 fn db_path(root: &Path, payload: &Map<String, Value>) -> PathBuf {
@@ -399,11 +337,11 @@ fn summary(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> {
 }
 
 pub(crate) fn record_batch_for_kernel(root: &Path, payload: &Value) -> Result<Value, String> {
-    record_batch(root, payload_obj(payload))
+    record_batch(root, lane_utils::payload_obj(payload))
 }
 
 pub(crate) fn summary_for_kernel(root: &Path, payload: &Value) -> Result<Value, String> {
-    summary(root, payload_obj(payload))
+    summary(root, lane_utils::payload_obj(payload))
 }
 
 pub fn run(root: &Path, argv: &[String]) -> i32 {
@@ -415,14 +353,14 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         usage();
         return 0;
     }
-    let payload = match payload_json(&argv[1..]) {
+    let payload = match lane_utils::payload_json(&argv[1..], "session_command_tracking") {
         Ok(payload) => payload,
         Err(err) => {
-            print_json_line(&cli_error("session_command_tracking_kernel_error", &err));
+            lane_utils::print_json_line(&lane_utils::cli_error("session_command_tracking_kernel_error", &err));
             return 1;
         }
     };
-    let input = payload_obj(&payload);
+    let input = lane_utils::payload_obj(&payload);
     let result = match command.as_str() {
         "record" => record_batch(root, input),
         "summary" | "status" => summary(root, input),
@@ -430,7 +368,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     };
     match result {
         Ok(payload) => {
-            print_json_line(&cli_receipt(
+            lane_utils::print_json_line(&lane_utils::cli_receipt(
                 &format!(
                     "session_command_tracking_kernel_{}",
                     command.replace('-', "_")
@@ -440,7 +378,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             0
         }
         Err(err) => {
-            print_json_line(&cli_error("session_command_tracking_kernel_error", &err));
+            lane_utils::print_json_line(&lane_utils::cli_error("session_command_tracking_kernel_error", &err));
             1
         }
     }
@@ -460,12 +398,12 @@ mod tests {
           "commands":["git status","echo hello","rtk cargo test"],
           "output_tokens":200
         });
-        let recorded = record_batch(tmp.path(), payload_obj(&payload)).expect("record");
+        let recorded = record_batch(tmp.path(), lane_utils::payload_obj(&payload)).expect("record");
         assert_eq!(recorded.get("inserted").and_then(Value::as_u64), Some(3));
 
         let status = summary(
             tmp.path(),
-            payload_obj(&json!({"db_path":"tracking.sqlite"})),
+            lane_utils::payload_obj(&json!({"db_path":"tracking.sqlite"})),
         )
         .expect("summary");
         assert_eq!(status.get("tracked_rows").and_then(Value::as_u64), Some(3));

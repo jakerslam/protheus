@@ -62,6 +62,21 @@ fn native_model_output(
     }
 }
 
+fn native_fallback_provider_output(
+    role: &str,
+    model: &str,
+    prompt: &str,
+    context: &ContextBundle,
+    resource_mode: &str,
+) -> Value {
+    json!({
+        "provider": "native-fallback",
+        "model": model,
+        "role": role,
+        "output": native_model_output(role, model, prompt, context, resource_mode)
+    })
+}
+
 fn run_local_model(
     _policy: &AdaptivePolicy,
     role: &str,
@@ -71,7 +86,7 @@ fn run_local_model(
     resource_mode: &str,
 ) -> Value {
     let bin = std::env::var(LOCAL_AI_BIN_ENV).unwrap_or_else(|_| "ollama".to_string());
-    let provider = if is_local_model(model) && command_exists(&bin) {
+    if is_local_model(model) && command_exists(&bin) {
         let mut command = Command::new(&bin);
         command.arg("run").arg(ollama_model_name(model)).arg(prompt);
         match command.output() {
@@ -88,22 +103,11 @@ fn run_local_model(
                     }
                 })
             }
-            _ => json!({
-                "provider": "native-fallback",
-                "model": model,
-                "role": role,
-                "output": native_model_output(role, model, prompt, context, resource_mode)
-            }),
+            _ => native_fallback_provider_output(role, model, prompt, context, resource_mode),
         }
     } else {
-        json!({
-            "provider": "native-fallback",
-            "model": model,
-            "role": role,
-            "output": native_model_output(role, model, prompt, context, resource_mode)
-        })
-    };
-    provider
+        native_fallback_provider_output(role, model, prompt, context, resource_mode)
+    }
 }
 
 fn extract_candidates(text: &str, prefix: &str) -> Vec<String> {
@@ -448,4 +452,3 @@ fn run_propose(
         "conduit": conduit
     })
 }
-
