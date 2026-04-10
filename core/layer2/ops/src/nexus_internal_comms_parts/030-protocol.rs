@@ -7,6 +7,25 @@ struct NexusMessage {
     kv: BTreeMap<String, String>,
 }
 
+fn parse_kv_token(token: &str) -> Result<(String, String), String> {
+    let (k, v) = token
+        .split_once('=')
+        .ok_or_else(|| format!("invalid_kv:{token}"))?;
+    let key = normalize_token(k);
+    let value = normalize_token(v);
+    if key.is_empty() || value.is_empty() {
+        return Err(format!("invalid_kv:{token}"));
+    }
+    Ok((key, value))
+}
+
+fn lexicon_expand(lexicon: &BTreeMap<String, String>, token: &str) -> String {
+    lexicon
+        .get(token)
+        .cloned()
+        .unwrap_or_else(|| token.to_ascii_lowercase())
+}
+
 fn parse_nexus_message(raw: &str) -> Result<NexusMessage, String> {
     let trimmed = raw.trim();
     if trimmed.contains('\n') || trimmed.contains('\r') {
@@ -50,14 +69,7 @@ fn parse_nexus_message(raw: &str) -> Result<NexusMessage, String> {
     }
     let mut kv = BTreeMap::<String, String>::new();
     for token in parts {
-        let (k, v) = token
-            .split_once('=')
-            .ok_or_else(|| format!("invalid_kv:{token}"))?;
-        let key = normalize_token(k);
-        let value = normalize_token(v);
-        if key.is_empty() || value.is_empty() {
-            return Err(format!("invalid_kv:{token}"));
-        }
+        let (key, value) = parse_kv_token(token)?;
         kv.insert(key, value);
     }
     Ok(NexusMessage {
@@ -99,16 +111,10 @@ fn validate_module_rules(message: &NexusMessage, modules: &[String]) -> Result<(
 }
 
 fn decompress_message(message: &NexusMessage, lexicon: &BTreeMap<String, String>) -> Value {
-    let cmd_expanded = lexicon
-        .get(&message.cmd)
-        .cloned()
-        .unwrap_or_else(|| message.cmd.to_ascii_lowercase());
+    let cmd_expanded = lexicon_expand(lexicon, &message.cmd);
     let mut kv = Map::<String, Value>::new();
     for (k, v) in &message.kv {
-        let expanded = lexicon
-            .get(v)
-            .cloned()
-            .unwrap_or_else(|| v.to_ascii_lowercase());
+        let expanded = lexicon_expand(lexicon, v);
         kv.insert(k.to_ascii_lowercase(), Value::String(expanded));
     }
     json!({

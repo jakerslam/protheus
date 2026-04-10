@@ -164,22 +164,7 @@ impl EvidenceStore {
         self.event_sequence = self.event_sequence.saturating_add(1);
         let event_sequence = self.event_sequence;
         let timestamp = now_ms();
-        let event_id = match &record {
-            EvidenceRecord::Evidence(card) => deterministic_hash(&serde_json::json!({
-                "kind": "evidence_store_event",
-                "event_sequence": event_sequence,
-                "timestamp": timestamp,
-                "record_type": "evidence",
-                "evidence_id": card.evidence_id
-            })),
-            EvidenceRecord::Invalidation(row) => deterministic_hash(&serde_json::json!({
-                "kind": "evidence_store_event",
-                "event_sequence": event_sequence,
-                "timestamp": timestamp,
-                "record_type": "invalidation",
-                "target_evidence_id": row.target_evidence_id
-            })),
-        };
+        let event_id = deterministic_hash(&event_identity_seed(&record, event_sequence, timestamp));
         let event = EvidenceLedgerEvent {
             event_id,
             event_sequence,
@@ -248,6 +233,25 @@ fn deterministic_hash<T: Serialize>(value: &T) -> String {
     let mut hasher = sha2::Sha256::new();
     hasher.update(&payload);
     format!("{:x}", hasher.finalize())
+}
+
+fn event_identity_seed(record: &EvidenceRecord, event_sequence: u64, timestamp: u64) -> serde_json::Value {
+    let mut seed = serde_json::json!({
+        "kind": "evidence_store_event",
+        "event_sequence": event_sequence,
+        "timestamp": timestamp,
+    });
+    match record {
+        EvidenceRecord::Evidence(card) => {
+            seed["record_type"] = serde_json::Value::String("evidence".to_string());
+            seed["record_ref"] = serde_json::Value::String(card.evidence_id.clone());
+        }
+        EvidenceRecord::Invalidation(row) => {
+            seed["record_type"] = serde_json::Value::String("invalidation".to_string());
+            seed["record_ref"] = serde_json::Value::String(row.target_evidence_id.clone());
+        }
+    }
+    seed
 }
 
 fn default_ledger_path() -> PathBuf {

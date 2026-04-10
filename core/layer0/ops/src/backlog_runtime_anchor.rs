@@ -15,6 +15,11 @@ fn receipt_hash(v: &Value) -> String {
     deterministic_receipt_hash(v)
 }
 
+fn with_receipt_hash(mut value: Value) -> Value {
+    value["receipt_hash"] = Value::String(receipt_hash(&value));
+    value
+}
+
 fn print_json_line(value: &Value) {
     println!(
         "{}",
@@ -69,16 +74,14 @@ fn build_anchor_with_ts(lane_id: &str, ts: &str) -> Value {
 }
 
 fn cli_error_receipt(argv: &[String], err: &str, code: i32) -> Value {
-    let mut out = json!({
+    with_receipt_hash(json!({
         "ok": false,
         "type": "backlog_runtime_anchor_cli_error",
         "ts": now_iso(),
         "argv": argv,
         "error": err,
         "exit_code": code
-    });
-    out["receipt_hash"] = Value::String(receipt_hash(&out));
-    out
+    }))
 }
 
 fn run_verify(lane_id: &str) -> Value {
@@ -89,14 +92,12 @@ fn run_verify(lane_id: &str) -> Value {
             .and_then(Value::as_str)
             .map(|v| v == lane_id)
             .unwrap_or(false);
-    let mut out = json!({
+    with_receipt_hash(json!({
         "ok": ok,
         "type": "backlog_runtime_anchor_verify",
         "lane_id": lane_id,
         "anchor": row
-    });
-    out["receipt_hash"] = Value::String(receipt_hash(&out));
-    out
+    }))
 }
 
 pub fn run(_root: &Path, argv: &[String]) -> i32 {
@@ -123,11 +124,7 @@ pub fn run(_root: &Path, argv: &[String]) -> i32 {
     }
 
     let out = match cmd.as_str() {
-        "build" | "run" => {
-            let mut row = build_anchor_with_ts(&lane_id, &now_iso());
-            row["receipt_hash"] = Value::String(receipt_hash(&row));
-            row
-        }
+        "build" | "run" => with_receipt_hash(build_anchor_with_ts(&lane_id, &now_iso())),
         "verify" | "status" => run_verify(&lane_id),
         _ => {
             print_json_line(&cli_error_receipt(argv, "unknown_command", 2));

@@ -1,33 +1,56 @@
 
+fn first_session_id(state: &Value) -> String {
+    state
+        .get("sessions")
+        .and_then(Value::as_object)
+        .and_then(|rows| rows.keys().next())
+        .cloned()
+        .expect("session id")
+}
+
+fn spawn_session(
+    root: &std::path::Path,
+    state_path: &std::path::Path,
+    task: &str,
+    parent_session: Option<&str>,
+    extra_flags: &[&str],
+) {
+    let mut args = vec![
+        "spawn".to_string(),
+        format!("--task={task}"),
+        format!("--state-path={}", state_path.display()),
+    ];
+    if let Some(parent) = parent_session {
+        args.push(format!("--session-id={parent}"));
+    }
+    for flag in extra_flags {
+        args.push((*flag).to_string());
+    }
+    assert_eq!(run_swarm(root, &args), 0);
+}
+
 #[test]
 fn child_budget_reservation_settles_into_parent_budget() {
     let root = tempfile::tempdir().expect("tempdir");
     let state_path = root.path().join("state/swarm/latest.json");
 
-    let parent_args = vec![
-        "spawn".to_string(),
-        "--task=parent-budget".to_string(),
-        "--token-budget=500".to_string(),
-        format!("--state-path={}", state_path.display()),
-    ];
-    assert_eq!(run_swarm(root.path(), &parent_args), 0);
+    spawn_session(
+        root.path(),
+        &state_path,
+        "parent-budget",
+        None,
+        &["--token-budget=500"],
+    );
 
     let state = read_state(&state_path);
-    let parent_id = state
-        .get("sessions")
-        .and_then(Value::as_object)
-        .and_then(|rows| rows.keys().next())
-        .cloned()
-        .expect("parent id");
-
-    let child_args = vec![
-        "spawn".to_string(),
-        "--task=child-budget".to_string(),
-        format!("--session-id={parent_id}"),
-        "--token-budget=200".to_string(),
-        format!("--state-path={}", state_path.display()),
-    ];
-    assert_eq!(run_swarm(root.path(), &child_args), 0);
+    let parent_id = first_session_id(&state);
+    spawn_session(
+        root.path(),
+        &state_path,
+        "child-budget",
+        Some(&parent_id),
+        &["--token-budget=200"],
+    );
 
     let state = read_state(&state_path);
     let parent_budget = state
@@ -51,28 +74,12 @@ fn dead_letter_messages_can_be_retried() {
     let root = tempfile::tempdir().expect("tempdir");
     let state_path = root.path().join("state/swarm/latest.json");
 
-    let parent_args = vec![
-        "spawn".to_string(),
-        "--task=dlq-parent".to_string(),
-        format!("--state-path={}", state_path.display()),
-    ];
-    assert_eq!(run_swarm(root.path(), &parent_args), 0);
+    spawn_session(root.path(), &state_path, "dlq-parent", None, &[]);
     let state = read_state(&state_path);
-    let parent_id = state
-        .get("sessions")
-        .and_then(Value::as_object)
-        .and_then(|rows| rows.keys().next())
-        .cloned()
-        .expect("parent id");
+    let parent_id = first_session_id(&state);
 
     for task in ["dlq-sender", "dlq-receiver"] {
-        let args = vec![
-            "spawn".to_string(),
-            format!("--task={task}"),
-            format!("--session-id={parent_id}"),
-            format!("--state-path={}", state_path.display()),
-        ];
-        assert_eq!(run_swarm(root.path(), &args), 0);
+        spawn_session(root.path(), &state_path, task, Some(&parent_id), &[]);
     }
 
     let state = read_state(&state_path);
@@ -130,23 +137,20 @@ fn persistent_session_resume_restores_running_status() {
     let root = tempfile::tempdir().expect("tempdir");
     let state_path = root.path().join("state/swarm/latest.json");
 
-    let spawn_args = vec![
-        "spawn".to_string(),
-        "--task=resume-persistent".to_string(),
-        "--execution-mode=persistent".to_string(),
-        "--lifespan-sec=60".to_string(),
-        "--check-in-interval-sec=5".to_string(),
-        format!("--state-path={}", state_path.display()),
-    ];
-    assert_eq!(run_swarm(root.path(), &spawn_args), 0);
+    spawn_session(
+        root.path(),
+        &state_path,
+        "resume-persistent",
+        None,
+        &[
+            "--execution-mode=persistent",
+            "--lifespan-sec=60",
+            "--check-in-interval-sec=5",
+        ],
+    );
 
     let state = read_state(&state_path);
-    let session_id = state
-        .get("sessions")
-        .and_then(Value::as_object)
-        .and_then(|rows| rows.keys().next())
-        .cloned()
-        .expect("session id");
+    let session_id = first_session_id(&state);
 
     let resume_args = vec![
         "sessions".to_string(),
@@ -166,5 +170,4 @@ fn persistent_session_resume_restores_running_status() {
         Some("persistent_running")
     );
 }
-
 

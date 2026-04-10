@@ -83,13 +83,24 @@ fn contract_state_path(root: &Path, family: &str) -> PathBuf {
         .join("state.json")
 }
 
-fn payload_f64(payload: &Value, key: &str, fallback: f64) -> f64 {
+fn payload_number(payload: &Value, key: &str) -> Option<f64> {
     payload
         .get(key)
         .and_then(Value::as_f64)
         .or_else(|| payload.get(key).and_then(Value::as_i64).map(|v| v as f64))
         .or_else(|| payload.get(key).and_then(Value::as_u64).map(|v| v as f64))
-        .unwrap_or(fallback)
+}
+
+fn payload_non_empty_string(payload: &Value, key: &str) -> Option<String> {
+    payload
+        .get(key)
+        .and_then(Value::as_str)
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+}
+
+fn payload_f64(payload: &Value, key: &str, fallback: f64) -> f64 {
+    payload_number(payload, key).unwrap_or(fallback)
 }
 
 fn payload_bool(payload: &Value, key: &str, fallback: bool) -> bool {
@@ -100,11 +111,7 @@ fn payload_bool(payload: &Value, key: &str, fallback: bool) -> bool {
 }
 
 fn payload_string(payload: &Value, key: &str, fallback: &str) -> String {
-    payload
-        .get(key)
-        .and_then(Value::as_str)
-        .map(|v| v.trim().to_string())
-        .filter(|v| !v.is_empty())
+    payload_non_empty_string(payload, key)
         .unwrap_or_else(|| fallback.to_string())
 }
 

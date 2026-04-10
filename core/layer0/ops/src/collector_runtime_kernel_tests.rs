@@ -1,6 +1,15 @@
 use super::*;
 use tempfile::tempdir;
 
+fn mark_failure_with_code(root: &std::path::Path, collector_id: &str, code: &str) -> Value {
+    let payload = json!({
+        "collector_id": collector_id,
+        "rate_state_path": root.join("collector_rate_state.json").display().to_string(),
+        "code": code
+    });
+    handle_mark_failure(root, payload_obj(&payload)).expect("mark-failure")
+}
+
 #[test]
 fn prepare_attempt_and_circuit_flow() {
     let tmp = tempdir().expect("tempdir");
@@ -106,21 +115,10 @@ fn finalize_run_uses_cache_on_error() {
 fn mark_failure_derives_retryable_from_code() {
     let tmp = tempdir().expect("tempdir");
     let root = tmp.path();
-    let payload = json!({
-        "collector_id": "feed_gamma",
-        "rate_state_path": root.join("collector_rate_state.json").display().to_string(),
-        "code": "http_4xx"
-    });
-    let out = handle_mark_failure(root, payload_obj(&payload)).expect("mark-failure");
+    let out = mark_failure_with_code(root, "feed_gamma", "http_4xx");
     assert_eq!(out.get("retryable").and_then(Value::as_bool), Some(false));
 
-    let payload_retry = json!({
-        "collector_id": "feed_gamma",
-        "rate_state_path": root.join("collector_rate_state.json").display().to_string(),
-        "code": "timeout"
-    });
-    let out_retry =
-        handle_mark_failure(root, payload_obj(&payload_retry)).expect("mark-failure-timeout");
+    let out_retry = mark_failure_with_code(root, "feed_gamma", "timeout");
     assert_eq!(
         out_retry.get("retryable").and_then(Value::as_bool),
         Some(true)

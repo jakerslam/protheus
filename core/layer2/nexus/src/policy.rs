@@ -48,24 +48,22 @@ pub struct PolicyDecisionRef {
 }
 
 impl PolicyDecisionRef {
-    pub fn allow(reason: impl Into<String>, context: &PolicyEvaluationContext) -> Self {
+    fn build(reason: impl Into<String>, allow: bool, context: &PolicyEvaluationContext) -> Self {
         let reason = reason.into();
-        let decision_id = format!("policy_{}", deterministic_hash(&(context, &reason, true)));
+        let decision_id = format!("policy_{}", deterministic_hash(&(context, &reason, allow)));
         Self {
             decision_id,
-            allow: true,
+            allow,
             reason,
         }
     }
 
+    pub fn allow(reason: impl Into<String>, context: &PolicyEvaluationContext) -> Self {
+        Self::build(reason, true, context)
+    }
+
     pub fn deny(reason: impl Into<String>, context: &PolicyEvaluationContext) -> Self {
-        let reason = reason.into();
-        let decision_id = format!("policy_{}", deterministic_hash(&(context, &reason, false)));
-        Self {
-            decision_id,
-            allow: false,
-            reason,
-        }
+        Self::build(reason, false, context)
     }
 }
 

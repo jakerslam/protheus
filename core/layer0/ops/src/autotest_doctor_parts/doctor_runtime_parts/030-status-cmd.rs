@@ -21,27 +21,36 @@ fn status_cmd(root: &Path, date_arg: &str, cli: &CliArgs) -> Value {
 
     let mut state = load_doctor_state(&paths);
     prune_history(&mut state, 24, 200_000);
+    let count_24h = |kind: &str| count_history(&state, kind, None);
+    let latest_path_rel = rel_path(root, &paths.latest_path);
+    let state_path_rel = rel_path(root, &paths.state_path);
+    let recent_repair_attempts_24h = count_24h("repair_attempt");
+    let recent_rollbacks_24h = count_24h("repair_rollback");
+    let recent_unknown_signatures_24h = count_24h("unknown_signature");
+    let recent_suspicious_signatures_24h = count_24h("suspicious_signature");
+    let kill_switch = serde_json::to_value(&state.kill_switch).unwrap_or(Value::Null);
+    let kill_switch_engaged = state.kill_switch.engaged;
 
     if !payload.is_object() {
         let mut out = json!({
             "ok": false,
             "type": "autotest_doctor_status",
             "error": "autotest_doctor_snapshot_missing",
-            "kill_switch": serde_json::to_value(&state.kill_switch).unwrap_or(Value::Null),
-            "state_path": rel_path(root, &paths.state_path),
+            "kill_switch": kill_switch,
+            "state_path": state_path_rel,
             "claim_evidence": [
                 {
                     "id": "status_snapshot_missing",
                     "claim": "doctor_status_fails_closed_when_snapshot_missing",
                     "evidence": {
                         "date_arg": key,
-                        "latest_path": rel_path(root, &paths.latest_path)
+                        "latest_path": latest_path_rel
                     }
                 }
             ],
             "persona_lenses": {
                 "auditor": {
-                    "kill_switch": state.kill_switch.engaged
+                    "kill_switch": kill_switch_engaged
                 }
             }
         });
@@ -69,27 +78,27 @@ fn status_cmd(root: &Path, date_arg: &str, cli: &CliArgs) -> Value {
         "destructive_repair_blocks": payload.get("destructive_repair_blocks").and_then(Value::as_u64).unwrap_or(0),
         "broken_pieces_stored": payload.get("broken_pieces_stored").and_then(Value::as_u64).unwrap_or(0),
         "research_items_stored": payload.get("research_items_stored").and_then(Value::as_u64).unwrap_or(0),
-        "kill_switch": serde_json::to_value(&state.kill_switch).unwrap_or(Value::Null),
-        "recent_repair_attempts_24h": count_history(&state, "repair_attempt", None),
-        "recent_rollbacks_24h": count_history(&state, "repair_rollback", None),
-        "recent_unknown_signatures_24h": count_history(&state, "unknown_signature", None),
-        "recent_suspicious_signatures_24h": count_history(&state, "suspicious_signature", None),
+        "kill_switch": kill_switch,
+        "recent_repair_attempts_24h": recent_repair_attempts_24h,
+        "recent_rollbacks_24h": recent_rollbacks_24h,
+        "recent_unknown_signatures_24h": recent_unknown_signatures_24h,
+        "recent_suspicious_signatures_24h": recent_suspicious_signatures_24h,
         "run_path": payload.get("run_path").cloned().unwrap_or(Value::Null),
-        "latest_path": rel_path(root, &paths.latest_path),
-        "state_path": rel_path(root, &paths.state_path),
+        "latest_path": latest_path_rel,
+        "state_path": state_path_rel,
         "claim_evidence": [
             {
                 "id": "status_snapshot",
                 "claim": "doctor_status_reflects_latest_state",
                 "evidence": {
-                    "recent_repair_attempts_24h": count_history(&state, "repair_attempt", None),
-                    "kill_switch_engaged": state.kill_switch.engaged
+                    "recent_repair_attempts_24h": recent_repair_attempts_24h,
+                    "kill_switch_engaged": kill_switch_engaged
                 }
             }
         ],
         "persona_lenses": {
             "auditor": {
-                "kill_switch": state.kill_switch.engaged
+                "kill_switch": kill_switch_engaged
             }
         }
     });

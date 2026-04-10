@@ -21,21 +21,23 @@ impl MainNexusControlPlane {
             .metrics
             .local_resolution_count
             .saturating_add(self.metrics.cross_module_resolution_count);
+        let now = now_ms();
+        let mut active_lease_count = 0usize;
+        let mut revoked_lease_count = 0usize;
+        for lease in self.leases.values() {
+            if lease.is_revoked() {
+                revoked_lease_count = revoked_lease_count.saturating_add(1);
+            } else if !lease.is_expired(now) {
+                active_lease_count = active_lease_count.saturating_add(1);
+            }
+        }
         self.metrics.local_resolution_ratio = if total == 0 {
             1.0
         } else {
             self.metrics.local_resolution_count as f64 / total as f64
         };
-        self.metrics.active_lease_count = self
-            .leases
-            .values()
-            .filter(|lease| !lease.is_revoked() && !lease.is_expired(now_ms()))
-            .count();
-        self.metrics.revoked_lease_count = self
-            .leases
-            .values()
-            .filter(|lease| lease.is_revoked())
-            .count();
+        self.metrics.active_lease_count = active_lease_count;
+        self.metrics.revoked_lease_count = revoked_lease_count;
         self.metrics.active_conduit_count = self.conduit_manager.list().len();
     }
 

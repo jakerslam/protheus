@@ -47,6 +47,36 @@ fn run_governed_workflow(state: &mut Value, payload: &Map<String, Value>) -> Res
     }))
 }
 
+fn state_bucket_len(state: &mut Value, key: &str) -> usize {
+    as_object_mut(state, key).len()
+}
+
+fn status_payload(root: &Path, state_path: &Path, history_path: &Path, state: &mut Value) -> Value {
+    let mut out = json!({
+        "ok": true,
+        "state_path": rel(root, state_path),
+        "history_path": rel(root, history_path),
+        "last_receipt": state.get("last_receipt").cloned().unwrap_or(Value::Null),
+    });
+    for (field, bucket) in [
+        ("graphs", "graphs"),
+        ("graph_runs", "graph_runs"),
+        ("agent_loops", "agent_loops"),
+        ("memory_recalls", "memory_recalls"),
+        ("suspended_runs", "suspended_runs"),
+        ("mcp_bridges", "mcp_bridges"),
+        ("run_snapshots", "run_snapshots"),
+        ("eval_traces", "eval_traces"),
+        ("deployments", "deployments"),
+        ("runtime_bridges", "runtime_bridges"),
+        ("intakes", "intakes"),
+        ("governed_workflows", "governed_workflows"),
+    ] {
+        out[field] = json!(state_bucket_len(state, bucket));
+    }
+    out
+}
+
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     if argv.is_empty() || matches!(argv[0].as_str(), "help" | "--help" | "-h") {
         usage();
@@ -66,24 +96,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     let mut state = load_state(&state_path);
 
     let result = match command {
-        "status" => Ok(json!({
-            "ok": true,
-            "state_path": rel(root, &state_path),
-            "history_path": rel(root, &history_path),
-            "graphs": as_object_mut(&mut state, "graphs").len(),
-            "graph_runs": as_object_mut(&mut state, "graph_runs").len(),
-            "agent_loops": as_object_mut(&mut state, "agent_loops").len(),
-            "memory_recalls": as_object_mut(&mut state, "memory_recalls").len(),
-            "suspended_runs": as_object_mut(&mut state, "suspended_runs").len(),
-            "mcp_bridges": as_object_mut(&mut state, "mcp_bridges").len(),
-            "run_snapshots": as_object_mut(&mut state, "run_snapshots").len(),
-            "eval_traces": as_object_mut(&mut state, "eval_traces").len(),
-            "deployments": as_object_mut(&mut state, "deployments").len(),
-            "runtime_bridges": as_object_mut(&mut state, "runtime_bridges").len(),
-            "intakes": as_object_mut(&mut state, "intakes").len(),
-            "governed_workflows": as_object_mut(&mut state, "governed_workflows").len(),
-            "last_receipt": state.get("last_receipt").cloned().unwrap_or(Value::Null),
-        })),
+        "status" => Ok(status_payload(root, &state_path, &history_path, &mut state)),
         "register-graph" => register_graph(&mut state, input),
         "execute-graph" => execute_graph(root, argv, &mut state, input),
         "run-agent-loop" => run_agent_loop(root, argv, &mut state, input),
