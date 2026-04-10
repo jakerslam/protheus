@@ -1,3 +1,10 @@
+fn text_field(value: &Value, key: &str, max_len: usize) -> String {
+    clean_text(
+        value.get(key).and_then(Value::as_str).unwrap_or(""),
+        max_len.max(1),
+    )
+}
+
 fn usage_from_state(root: &Path, snapshot: &Value) -> Value {
     let (provider, model) = extract_app_settings(root, snapshot);
     let roster = build_agent_roster(root, snapshot, false);
@@ -76,16 +83,15 @@ fn usage_from_state(root: &Path, snapshot: &Value) -> Value {
         let tool_calls = 0_i64;
         let cost_usd = 0.0_f64;
         let total_tokens = input_tokens + output_tokens;
-        let model_provider = clean_text(
-            row.get("model_provider")
-                .and_then(Value::as_str)
-                .unwrap_or("auto"),
-            80,
-        );
-        let model_name = clean_text(
-            row.get("model_name").and_then(Value::as_str).unwrap_or(""),
-            120,
-        );
+        let model_provider = {
+            let value = text_field(&row, "model_provider", 80);
+            if value.is_empty() {
+                "auto".to_string()
+            } else {
+                value
+            }
+        };
+        let model_name = text_field(&row, "model_name", 120);
         let model_key = if model_name.is_empty() {
             format!("{model_provider}/auto")
         } else {
@@ -132,12 +138,7 @@ fn usage_from_state(root: &Path, snapshot: &Value) -> Value {
         }));
     }
 
-    agent_rows.sort_by_key(|row| {
-        std::cmp::Reverse(clean_text(
-            row.get("updated_at").and_then(Value::as_str).unwrap_or(""),
-            80,
-        ))
-    });
+    agent_rows.sort_by_key(|row| std::cmp::Reverse(text_field(row, "updated_at", 80)));
 
     let mut model_rows = by_model
         .into_iter()
@@ -157,12 +158,7 @@ fn usage_from_state(root: &Path, snapshot: &Value) -> Value {
             },
         )
         .collect::<Vec<_>>();
-    model_rows.sort_by(|a, b| {
-        clean_text(b.get("model").and_then(Value::as_str).unwrap_or(""), 160).cmp(&clean_text(
-            a.get("model").and_then(Value::as_str).unwrap_or(""),
-            160,
-        ))
-    });
+    model_rows.sort_by(|a, b| text_field(b, "model", 160).cmp(&text_field(a, "model", 160)));
 
     let today = crate::now_iso().chars().take(10).collect::<String>();
     let mut daily_rows = daily
@@ -191,15 +187,10 @@ fn usage_from_state(root: &Path, snapshot: &Value) -> Value {
             earliest_event_date = today.clone();
         }
     }
-    daily_rows.sort_by(|a, b| {
-        clean_text(a.get("date").and_then(Value::as_str).unwrap_or(""), 20).cmp(&clean_text(
-            b.get("date").and_then(Value::as_str).unwrap_or(""),
-            20,
-        ))
-    });
+    daily_rows.sort_by(|a, b| text_field(a, "date", 20).cmp(&text_field(b, "date", 20)));
     let today_cost_usd = daily_rows
         .iter()
-        .find(|row| clean_text(row.get("date").and_then(Value::as_str).unwrap_or(""), 20) == today)
+        .find(|row| text_field(row, "date", 20) == today)
         .and_then(|row| row.get("cost_usd").and_then(Value::as_f64))
         .unwrap_or(0.0);
 
