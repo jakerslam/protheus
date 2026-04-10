@@ -255,5 +255,5 @@ body.topbar-drag-active * {
 }
 
 .bottom-dock {
-  overflow: hidden;
+  overflow: visible;
 }

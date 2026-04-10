@@ -79,7 +79,7 @@
   gap: 0;
   border: none;
   border-radius: 999px;
-  background: transparent;
+  background: color-mix(in srgb, var(--surface) 8%, transparent);
   box-shadow: none;
   overflow: hidden;
 }
@@ -258,7 +258,7 @@
   width: max-content;
   max-width: min(88vw, 24ch);
   padding: var(--dashboard-preview-padding);
-  border-radius: 9px;
+  border-radius: 999px;
   border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
   background: color-mix(in srgb, var(--surface) 70%, transparent);
   color: var(--text);
@@ -291,6 +291,77 @@
 .bottom-dock .dashboard-preview-trigger:hover::after {
   opacity: 1;
   transform: var(--dashboard-preview-transform-shown);
+}
+
+.bottom-dock .dashboard-preview-trigger::after {
+  content: none !important;
+  display: none !important;
+}
+
+.bottom-dock-preview-bubble {
+  position: fixed;
+  left: 0;
+  top: 0;
+  transform: translateX(-50%) translateY(calc(-100% + 6px));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: max-content;
+  max-width: min(88vw, 24ch);
+  min-height: 28px;
+  padding: 7px 12px;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+  background: color-mix(in srgb, var(--surface) 8%, transparent);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  font-family: var(--font-sans);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 19110;
+  box-shadow: none;
+  backdrop-filter: blur(6px) saturate(1.05);
+  -webkit-backdrop-filter: blur(6px) saturate(1.05);
+  isolation: isolate;
+  transition: opacity 0.14s var(--ease-smooth);
+}
+
+.bottom-dock-preview-bubble::before {
+  content: none;
+  display: none;
+}
+
+.bottom-dock-preview-bubble-label {
+  position: static;
+  display: inline-block;
+  font: inherit;
+  letter-spacing: inherit;
+  line-height: inherit;
+  color: inherit;
+  opacity: 0;
+  filter: blur(7px);
+  transform: translateY(1px);
+  transition:
+    opacity 0.22s var(--ease-smooth),
+    filter 0.22s var(--ease-smooth),
+    transform 0.22s var(--ease-smooth);
+}
+
+.bottom-dock-preview-bubble.is-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(-100%);
+}
+
+.bottom-dock-preview-bubble.is-visible .bottom-dock-preview-bubble-label {
+  opacity: 1;
+  filter: blur(0);
+  transform: translateY(0);
 }
 
 .dashboard-preview-trigger:not([data-tooltip])::after,

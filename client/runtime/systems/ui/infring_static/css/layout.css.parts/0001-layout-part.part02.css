@@ -277,9 +277,9 @@
 }
 
 .bottom-dock {
-  --bottom-dock-bg-alpha: 0.28;
-  --bottom-dock-glass-alpha: 0.24;
-  --bottom-dock-expanded-bg-alpha: 0.5;
+  --bottom-dock-bg-alpha: 0;
+  --bottom-dock-glass-alpha: 0;
+  --bottom-dock-expanded-bg-alpha: 0;
   --bottom-dock-expanded-glass-alpha: 0;
   position: fixed;
   left: 0;
@@ -298,12 +298,12 @@
   border-bottom-left-radius: 16px;
   border-bottom-right-radius: 16px;
   border: 1px solid color-mix(in srgb, #fff 24%, transparent);
-  background: rgba(255, 255, 255, var(--bottom-dock-bg-alpha));
+  background: transparent;
   box-shadow:
     0 16px 42px rgba(17, 24, 39, 0.24),
     0 6px 18px rgba(17, 24, 39, 0.14);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
+  backdrop-filter: blur(1.5px) saturate(1.03);
+  -webkit-backdrop-filter: blur(1.5px) saturate(1.03);
   overflow: visible;
   opacity: 0.6;
   transform-origin: center bottom;
@@ -315,30 +315,35 @@
 }
 
 body[data-theme='dark'] .bottom-dock {
-  background: rgba(20, 24, 32, var(--bottom-dock-bg-alpha));
+  background: transparent;
 }
 
 .bottom-dock::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  clip-path: inset(0 round 16px);
-  pointer-events: none;
-  z-index: 0;
-  background: rgba(255, 255, 255, var(--bottom-dock-glass-alpha));
-  backdrop-filter: blur(40px) saturate(1.15);
-  -webkit-backdrop-filter: blur(40px) saturate(1.15);
-  transition: background 0.24s var(--ease-smooth);
+  content: none;
+  display: none;
 }
 
 body[data-theme='dark'] .bottom-dock::before {
-  background: rgba(38, 48, 64, var(--bottom-dock-glass-alpha));
+  content: none;
+  display: none;
 }
 
 .bottom-dock > * {
   position: relative;
   z-index: 1;
+}
+
+.bottom-dock-track {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+}
+
+.dock-tile-slot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
 }
 
 .bottom-dock:hover,
@@ -412,13 +417,14 @@ body[data-theme='dark'] .bottom-dock::before {
     color var(--transition-fast),
     background var(--transition-fast),
     transform 0.2s var(--ease-smooth),
-    box-shadow 0.24s var(--ease-smooth),
+    box-shadow 0s linear,
     opacity var(--transition-fast);
   will-change: transform, box-shadow;
   user-select: none;
   -webkit-user-select: none;
   -webkit-user-drag: none;
   touch-action: none;
+  margin: 0;
 }
 
 .dock-tile svg {
@@ -442,10 +448,11 @@ body[data-theme='dark'] .bottom-dock::before {
   cursor: pointer;
 }
 
+.dock-tile-slot.active .dock-tile,
 .dock-tile.active {
   color: var(--dock-tile-fg-active);
   background: linear-gradient(to bottom right, #424242 0%, #000 100%);
-  box-shadow: var(--dock-tile-shadow-active);
+  box-shadow: var(--bottom-dock-icon-shadow-base);
 }
 
 .dock-tile svg,
@@ -489,36 +496,19 @@ body[data-theme='dark'] .bottom-dock::before {
   animation: dock-tile-rotate-cw-once var(--dock-click-duration, 980ms) cubic-bezier(0.2, 0.7, 0.2, 1) 1;
 }
 
-.dock-tile.hovered {
-  transform: scale(calc(1 + var(--bottom-dock-icon-emphasis-main)));
-  box-shadow:
-    0 calc(60px * var(--bottom-dock-icon-emphasis-main))
-      calc(140px * var(--bottom-dock-icon-emphasis-main))
-      color-mix(in srgb, #000 52%, transparent),
-    0 calc(20px * var(--bottom-dock-icon-emphasis-main))
-      calc(40px * var(--bottom-dock-icon-emphasis-main))
-      color-mix(in srgb, #000 34%, transparent);
+.dock-tile-slot {
+  --bottom-dock-hover-weight: 0;
 }
 
-.dock-tile.neighbor-hover {
-  transform: scale(calc(1 + var(--bottom-dock-icon-emphasis-neighbor)));
+.dock-tile-slot .dock-tile {
+  transform: scale(calc(1 + (var(--bottom-dock-icon-emphasis-main) * var(--bottom-dock-hover-weight))));
   box-shadow:
-    0 calc(60px * var(--bottom-dock-icon-emphasis-neighbor))
-      calc(140px * var(--bottom-dock-icon-emphasis-neighbor))
+    var(--bottom-dock-icon-shadow-base),
+    0 calc(60px * var(--bottom-dock-icon-emphasis-main) * var(--bottom-dock-hover-weight))
+      calc(140px * var(--bottom-dock-icon-emphasis-main) * var(--bottom-dock-hover-weight))
       color-mix(in srgb, #000 52%, transparent),
-    0 calc(20px * var(--bottom-dock-icon-emphasis-neighbor))
-      calc(40px * var(--bottom-dock-icon-emphasis-neighbor))
-      color-mix(in srgb, #000 34%, transparent);
-}
-
-.dock-tile.second-neighbor-hover {
-  transform: scale(calc(1 + var(--bottom-dock-icon-emphasis-second-neighbor)));
-  box-shadow:
-    0 calc(60px * var(--bottom-dock-icon-emphasis-second-neighbor))
-      calc(140px * var(--bottom-dock-icon-emphasis-second-neighbor))
-      color-mix(in srgb, #000 52%, transparent),
-    0 calc(20px * var(--bottom-dock-icon-emphasis-second-neighbor))
-      calc(40px * var(--bottom-dock-icon-emphasis-second-neighbor))
+    0 calc(20px * var(--bottom-dock-icon-emphasis-main) * var(--bottom-dock-hover-weight))
+      calc(40px * var(--bottom-dock-icon-emphasis-main) * var(--bottom-dock-hover-weight))
       color-mix(in srgb, #000 34%, transparent);
 }
 
@@ -592,6 +582,7 @@ body[data-theme='dark'] .bottom-dock::before {
   pointer-events: none;
 }
 
+.dock-tile-slot.active .dock-tile::before,
 .dock-tile.active::before {
   content: '';
   position: absolute;

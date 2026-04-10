@@ -162,6 +162,15 @@
     bottomDockDragStartOrder: [],
     bottomDockDragCommitted: false,
     bottomDockHoverId: '',
+    bottomDockHoverWeightById: {},
+    bottomDockPointerX: 0,
+    bottomDockPreviewText: '',
+    bottomDockPreviewX: 0,
+    bottomDockPreviewY: 0,
+    bottomDockPreviewVisible: false,
+    _bottomDockPreviewHideTimer: 0,
+    _bottomDockPreviewReflowRaf: 0,
+    _bottomDockPreviewReflowFrames: 0,
     bottomDockClickAnimId: '',
     _bottomDockDragGhostEl: null,
     _bottomDockClickAnimTimer: 0,
@@ -784,15 +793,42 @@
             document.body &&
             typeof ev.dataTransfer.setDragImage === 'function'
           ) {
-            var ghost = document.createElement('span');
+            var ghost = target && typeof target.cloneNode === 'function'
+              ? target.cloneNode(true)
+              : document.createElement('span');
             ghost.style.position = 'fixed';
             ghost.style.left = '-9999px';
             ghost.style.top = '-9999px';
-            ghost.style.width = '1px';
-            ghost.style.height = '1px';
-            ghost.style.opacity = '0';
+            ghost.style.margin = '0';
+            ghost.style.pointerEvents = 'none';
+            ghost.style.transform = 'none';
+            ghost.style.opacity = '1';
+            if (ghost.classList && ghost.classList.contains('dragging')) {
+              ghost.classList.remove('dragging');
+            }
+            var rect = target && typeof target.getBoundingClientRect === 'function'
+              ? target.getBoundingClientRect()
+              : null;
+            var offsetX = 0;
+            var offsetY = 0;
+            if (rect) {
+              var width = Math.max(1, Math.round(Number(rect.width || 0)));
+              var height = Math.max(1, Math.round(Number(rect.height || 0)));
+              ghost.style.width = width + 'px';
+              ghost.style.height = height + 'px';
+              ghost.style.boxSizing = 'border-box';
+              if (typeof ev.clientX === 'number') {
+                offsetX = Math.round(Math.max(0, Math.min(width, ev.clientX - rect.left)));
+              }
+              if (typeof ev.clientY === 'number') {
+                offsetY = Math.round(Math.max(0, Math.min(height, ev.clientY - rect.top)));
+              }
+            } else {
+              ghost.style.width = '1px';
+              ghost.style.height = '1px';
+            }
             document.body.appendChild(ghost);
-            ev.dataTransfer.setDragImage(ghost, 0, 0);
+            ev.dataTransfer.setDragImage(ghost, offsetX, offsetY);
             window.setTimeout(function() {
               if (ghost.parentNode) ghost.parentNode.removeChild(ghost);
             }, 0);
@@ -920,12 +956,20 @@
       return String(Math.round(durationMs));
     },
 
+    bottomDockSlotStyle(id) {
+      var key = String(id || '').trim();
+      var order = key ? this.bottomDockOrderIndex(key) : 999;
+      var weight = this.bottomDockHoverWeight(key);
+      if (!Number.isFinite(weight) || weight < 0) weight = 0;
+      if (weight > 1) weight = 1;
+      return 'order:' + order + ';--bottom-dock-hover-weight:' + weight.toFixed(4);
+    },
+
     bottomDockTileStyle(id) {
       var key = String(id || '').trim();
-      var base = 'order:' + (key ? this.bottomDockOrderIndex(key) : 999);
       var tile = this.bottomDockTileConfigById(key);
       var style = tile && typeof tile.style === 'string' ? String(tile.style || '').trim() : '';
-      return style ? (base + ';' + style) : base;
+      return style || '';
     },
 
     normalizeBottomDockOrder(rawOrder) {
@@ -1028,18 +1072,216 @@
 
     setBottomDockHover(id) {
       if (String(this.bottomDockDragId || '').trim()) return;
-      this.bottomDockHoverId = String(id || '').trim();
+      var key = String(id || '').trim();
+      this.bottomDockHoverId = key;
+      if (this._bottomDockPreviewHideTimer) {
+        try { clearTimeout(this._bottomDockPreviewHideTimer); } catch(_) {}
+        this._bottomDockPreviewHideTimer = 0;
+      }
+      if (!Number.isFinite(this.bottomDockPointerX) || this.bottomDockPointerX <= 0) {
+        try {
+          var slot = document.querySelector('.bottom-dock .dock-tile-slot[data-dock-slot-id="' + key + '"]');
+          if (slot && typeof slot.getBoundingClientRect === 'function') {
+            var slotRect = slot.getBoundingClientRect();
+            this.bottomDockPointerX = Number(slotRect.left || 0) + (Number(slotRect.width || 0) / 2);
+          }
+        } catch(_) {}
+      }
+      this.refreshBottomDockHoverWeights();
+      this.syncBottomDockPreview();
+      this.scheduleBottomDockPreviewReflow();
     },
 
     clearBottomDockHover(id) {
-      if (!id) {
-        this.bottomDockHoverId = '';
+      if (id) return;
+      this.bottomDockHoverId = '';
+      if (!this.bottomDockHoverId) {
+        this.bottomDockHoverWeightById = {};
+        this.bottomDockPointerX = 0;
+        this.cancelBottomDockPreviewReflow();
+        var self = this;
+        if (this._bottomDockPreviewHideTimer) {
+          try { clearTimeout(this._bottomDockPreviewHideTimer); } catch(_) {}
+        }
+        this._bottomDockPreviewHideTimer = window.setTimeout(function() {
+          self._bottomDockPreviewHideTimer = 0;
+          if (!String(self.bottomDockHoverId || '').trim()) {
+            self.bottomDockPreviewVisible = false;
+            self.bottomDockPreviewText = '';
+          }
+        }, 40);
         return;
       }
-      var key = String(id || '').trim();
-      if (!this.bottomDockHoverId || key === this.bottomDockHoverId) {
-        this.bottomDockHoverId = '';
+      this.syncBottomDockPreview();
+    },
+
+    readBottomDockSlotCenters() {
+      var out = [];
+      if (typeof document === 'undefined') return out;
+      var root = document.querySelector('.bottom-dock');
+      if (!root || typeof root.querySelectorAll !== 'function') return out;
+      var nodes = root.querySelectorAll('.dock-tile-slot[data-dock-slot-id]');
+      for (var i = 0; i < nodes.length; i += 1) {
+        var node = nodes[i];
+        if (!node || typeof node.getAttribute !== 'function' || typeof node.getBoundingClientRect !== 'function') continue;
+        var id = String(node.getAttribute('data-dock-slot-id') || '').trim();
+        if (!id) continue;
+        var rect = node.getBoundingClientRect();
+        var centerX = Number(rect.left || 0) + (Number(rect.width || 0) / 2);
+        if (!Number.isFinite(centerX)) continue;
+        out.push({ id: id, centerX: centerX });
       }
+      return out;
+    },
+
+    bottomDockWeightForDistance(distancePx) {
+      var d = Math.abs(Number(distancePx || 0));
+      if (!Number.isFinite(d)) return 0;
+      var sigma = 52;
+      var exponent = -((d * d) / (2 * sigma * sigma));
+      var weight = Math.exp(exponent);
+      if (!Number.isFinite(weight) || weight < 0.008) return 0;
+      if (weight > 1) return 1;
+      return weight;
+    },
+
+    refreshBottomDockHoverWeights() {
+      var pointerX = Number(this.bottomDockPointerX || 0);
+      if (!Number.isFinite(pointerX) || pointerX <= 0) {
+        this.bottomDockHoverWeightById = {};
+        return;
+      }
+      var centers = this.readBottomDockSlotCenters();
+      if (!centers.length) {
+        this.bottomDockHoverWeightById = {};
+        return;
+      }
+      var nearestId = '';
+      var nearestDistance = Number.POSITIVE_INFINITY;
+      var weights = {};
+      for (var i = 0; i < centers.length; i += 1) {
+        var item = centers[i];
+        if (!item || !item.id) continue;
+        var dist = Math.abs(pointerX - Number(item.centerX || 0));
+        if (!Number.isFinite(dist)) continue;
+        if (dist < nearestDistance) {
+          nearestDistance = dist;
+          nearestId = item.id;
+        }
+        weights[item.id] = this.bottomDockWeightForDistance(dist);
+      }
+      this.bottomDockHoverWeightById = weights;
+      if (nearestId) this.bottomDockHoverId = nearestId;
+    },
+
+    updateBottomDockPointer(ev) {
+      if (!ev) return;
+      if (String(this.bottomDockDragId || '').trim()) return;
+      var x = Number(ev.clientX || 0);
+      if (!Number.isFinite(x) || x <= 0) return;
+      this.bottomDockPointerX = x;
+      this.refreshBottomDockHoverWeights();
+      this.syncBottomDockPreview();
+    },
+
+    reviveBottomDockHoverFromPoint(clientX, clientY) {
+      if (String(this.bottomDockDragId || '').trim()) return;
+      var x = Number(clientX || 0);
+      var y = Number(clientY || 0);
+      if (!Number.isFinite(x) || !Number.isFinite(y) || x <= 0 || y <= 0) return;
+      var root = document.querySelector('.bottom-dock');
+      if (!root || typeof root.getBoundingClientRect !== 'function') return;
+      var rect = root.getBoundingClientRect();
+      var withinX = x >= (Number(rect.left || 0) - 16) && x <= (Number(rect.right || 0) + 16);
+      var withinY = y >= (Number(rect.top || 0) - 18) && y <= (Number(rect.bottom || 0) + 18);
+      if (!withinX || !withinY) return;
+      this.bottomDockPointerX = x;
+      this.refreshBottomDockHoverWeights();
+      this.syncBottomDockPreview();
+      this.scheduleBottomDockPreviewReflow();
+    },
+
+    scheduleBottomDockPreviewReflow() {
+      this.cancelBottomDockPreviewReflow();
+      var self = this;
+      this._bottomDockPreviewReflowFrames = 10;
+      var step = function() {
+        if (!String(self.bottomDockHoverId || '').trim()) {
+          self._bottomDockPreviewReflowRaf = 0;
+          self._bottomDockPreviewReflowFrames = 0;
+          return;
+        }
+        self.syncBottomDockPreview();
+        self._bottomDockPreviewReflowFrames = Math.max(0, Number(self._bottomDockPreviewReflowFrames || 0) - 1);
+        if (self._bottomDockPreviewReflowFrames <= 0) {
+          self._bottomDockPreviewReflowRaf = 0;
+          return;
+        }
+        self._bottomDockPreviewReflowRaf = requestAnimationFrame(step);
+      };
+      this._bottomDockPreviewReflowRaf = requestAnimationFrame(step);
+    },
+
+    cancelBottomDockPreviewReflow() {
+      if (this._bottomDockPreviewReflowRaf && typeof cancelAnimationFrame === 'function') {
+        try { cancelAnimationFrame(this._bottomDockPreviewReflowRaf); } catch(_) {}
+      }
+      this._bottomDockPreviewReflowRaf = 0;
+      this._bottomDockPreviewReflowFrames = 0;
+    },
+
+    syncBottomDockPreview() {
+      var key = String(this.bottomDockHoverId || '').trim();
+      if (!key) {
+        this.bottomDockPreviewVisible = false;
+        this.bottomDockPreviewText = '';
+        return;
+      }
+      var text = this.bottomDockTileData(key, 'tooltip', '');
+      var label = String(text || '').trim();
+      if (!label) {
+        this.bottomDockPreviewVisible = false;
+        this.bottomDockPreviewText = '';
+        return;
+      }
+      var root = document.querySelector('.bottom-dock');
+      var slot = document.querySelector('.bottom-dock .dock-tile-slot[data-dock-slot-id="' + key + '"]');
+      if (!root || !slot) {
+        this.bottomDockPreviewVisible = false;
+        this.bottomDockPreviewText = '';
+        return;
+      }
+      var centerX = 0;
+      var anchorY = 0;
+      var dockRect = (typeof root.getBoundingClientRect === 'function')
+        ? root.getBoundingClientRect()
+        : null;
+      if (typeof slot.getBoundingClientRect === 'function' && dockRect) {
+        var slotRect = slot.getBoundingClientRect();
+        centerX = Number(slotRect.left || 0) + (Number(slotRect.width || 0) / 2);
+        anchorY = Number(dockRect.top || 0) - 8;
+      } else if (slot.offsetParent === root) {
+        var rootRect = root.getBoundingClientRect();
+        centerX = Number(rootRect.left || 0) + Number(slot.offsetLeft || 0) + (Number(slot.offsetWidth || 0) / 2);
+        anchorY = Number(rootRect.top || 0) - 8;
+      }
+      var pointerX = Number(this.bottomDockPointerX || 0);
+      if (Number.isFinite(pointerX) && pointerX > 0) {
+        if (dockRect) {
+          var minX = Number(dockRect.left || 0);
+          var maxX = Number(dockRect.right || 0);
+          if (Number.isFinite(minX) && Number.isFinite(maxX) && maxX > minX) {
+            pointerX = Math.max(minX, Math.min(maxX, pointerX));
+          }
+        }
+        centerX = pointerX;
+      }
+      if (!Number.isFinite(centerX)) centerX = 0;
+      if (!Number.isFinite(anchorY)) anchorY = 0;
+      this.bottomDockPreviewX = centerX;
+      this.bottomDockPreviewY = anchorY;
+      this.bottomDockPreviewText = label;
+      this.bottomDockPreviewVisible = true;
     },
 
     bindBottomDockPointerListeners() {
@@ -1131,6 +1373,11 @@
       if (!dragId) return;
       this._bottomDockPointerMoved = true;
       this.bottomDockHoverId = '';
+      this.bottomDockHoverWeightById = {};
+      this.bottomDockPointerX = 0;
+      this.bottomDockPreviewVisible = false;
+      this.bottomDockPreviewText = '';
+      this.cancelBottomDockPreviewReflow();
       this._bottomDockRevealTargetDuringSettle = false;
       this.bottomDockDragId = dragId;
       this.bottomDockDragCommitted = false;
@@ -1263,6 +1510,8 @@
         if (dockEl && dockEl.style && typeof dockEl.style.removeProperty === 'function') {
           dockEl.style.removeProperty('--bottom-dock-drag-scale');
         }
+        var dropX = Number(self._bottomDockPointerLastX || 0);
+        var dropY = Number(self._bottomDockPointerLastY || 0);
         self.bottomDockDragId = '';
         self.bottomDockHoverId = '';
         self.bottomDockDragStartOrder = [];
@@ -1271,11 +1520,12 @@
         self._bottomDockDragGhostWidth = 32;
         self._bottomDockDragGhostHeight = 32;
         self._bottomDockPointerCandidateId = '';
-        self._bottomDockPointerLastX = 0;
-        self._bottomDockPointerLastY = 0;
         self._bottomDockPointerMoved = false;
         self._bottomDockDragBoundaries = [];
         self._bottomDockLastInsertionIndex = -1;
+        self.reviveBottomDockHoverFromPoint(dropX, dropY);
+        self._bottomDockPointerLastX = 0;
+        self._bottomDockPointerLastY = 0;
       };
       this.settleBottomDockDragGhost(dragId, finalizeDrag);
     },
@@ -1382,11 +1632,32 @@
       return Math.abs(this.bottomDockOrderIndex(hoverId) - this.bottomDockOrderIndex(key)) === 2;
     },
 
+    bottomDockHoverWeight(id) {
+      var key = String(id || '').trim();
+      if (!key) return 0;
+      var weights = this.bottomDockHoverWeightById && typeof this.bottomDockHoverWeightById === 'object'
+        ? this.bottomDockHoverWeightById
+        : null;
+      if (weights && Object.prototype.hasOwnProperty.call(weights, key)) {
+        var exact = Number(weights[key] || 0);
+        if (Number.isFinite(exact)) return Math.max(0, Math.min(1, exact));
+      }
+      if (key === String(this.bottomDockHoverId || '').trim()) return 1;
+      if (this.bottomDockIsNeighbor(key)) return 0.33;
+      if (this.bottomDockIsSecondNeighbor(key)) return 0.11;
+      return 0;
+    },
+
     startBottomDockDrag(id, ev) {
       var key = String(id || '').trim();
       if (!key) return;
       this.cleanupBottomDockDragGhost();
       this.bottomDockHoverId = '';
+      this.bottomDockHoverWeightById = {};
+      this.bottomDockPointerX = 0;
+      this.bottomDockPreviewVisible = false;
+      this.bottomDockPreviewText = '';
+      this.cancelBottomDockPreviewReflow();
       this.bottomDockDragId = key;
       this.bottomDockDragCommitted = false;
       this.bottomDockDragStartOrder = this.normalizeBottomDockOrder(this.bottomDockOrder);
@@ -1645,6 +1916,10 @@
       this.bottomDockDragStartOrder = [];
       this._bottomDockSuppressClickUntil = Date.now() + 220;
       this.cleanupBottomDockDragGhost();
+      this.reviveBottomDockHoverFromPoint(
+        Number(ev && ev.clientX || 0),
+        Number(ev && ev.clientY || 0)
+      );
       if (ev && typeof ev.preventDefault === 'function') ev.preventDefault();
     },
 
@@ -1688,6 +1963,10 @@
         this.bottomDockDragId = '';
         this.bottomDockDragStartOrder = [];
         this.bottomDockDragCommitted = false;
+        this.reviveBottomDockHoverFromPoint(
+          Number(ev && ev.clientX || 0),
+          Number(ev && ev.clientY || 0)
+        );
         return;
       }
       if (targetId === dragId) {
@@ -1702,6 +1981,10 @@
         this.bottomDockDragStartOrder = [];
         this._bottomDockSuppressClickUntil = Date.now() + 220;
         this.cleanupBottomDockDragGhost();
+        this.reviveBottomDockHoverFromPoint(
+          Number(ev && ev.clientX || 0),
+          Number(ev && ev.clientY || 0)
+        );
         if (ev && typeof ev.preventDefault === 'function') ev.preventDefault();
         return;
       }
@@ -1713,6 +1996,10 @@
         this.bottomDockDragId = '';
         this.bottomDockDragStartOrder = [];
         this.bottomDockDragCommitted = false;
+        this.reviveBottomDockHoverFromPoint(
+          Number(ev && ev.clientX || 0),
+          Number(ev && ev.clientY || 0)
+        );
         return;
       }
       next.splice(fromIndex, 1);
@@ -1728,6 +2015,10 @@
       this.bottomDockDragStartOrder = [];
       this._bottomDockSuppressClickUntil = Date.now() + 220;
       this.cleanupBottomDockDragGhost();
+      this.reviveBottomDockHoverFromPoint(
+        Number(ev && ev.clientX || 0),
+        Number(ev && ev.clientY || 0)
+      );
       if (ev && typeof ev.preventDefault === 'function') ev.preventDefault();
     },
 
