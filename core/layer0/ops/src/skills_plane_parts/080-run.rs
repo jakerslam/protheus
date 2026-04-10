@@ -118,6 +118,59 @@ mod tests {
         .expect("write compat contract");
     }
 
+    fn write_skill_yaml(skill_dir: &Path, skill_name: &str, version: &str) {
+        fs::create_dir_all(skill_dir).expect("mkdir skill");
+        fs::write(
+            skill_dir.join("skill.yaml"),
+            format!("name: {skill_name}\nversion: {version}\nentrypoint: scripts/run.sh\n"),
+        )
+        .expect("write yaml");
+    }
+
+    fn run_install_for(root: &Path, skill_dir: &Path, extra_flags: &[&str]) -> Value {
+        let mut args = vec![
+            "install".to_string(),
+            format!("--skill-path={}", skill_dir.display()),
+            "--strict=1".to_string(),
+        ];
+        args.extend(extra_flags.iter().map(|flag| (*flag).to_string()));
+        run_install(root, &crate::parse_args(&args), true)
+    }
+
+    fn assert_error_contains(payload: &Value, expected: &str) {
+        assert!(
+            payload
+                .get("errors")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default()
+                .iter()
+                .any(|row| row.as_str() == Some(expected)),
+            "expected errors to contain: {expected}"
+        );
+    }
+
+    fn write_installed_registry(root: &Path, skill: &str, version: &str) {
+        let registry_path = state_root(root).join("registry.json");
+        fs::create_dir_all(registry_path.parent().unwrap_or_else(|| Path::new(".")))
+            .expect("mkdir registry");
+        let mut installed = serde_json::Map::new();
+        installed.insert(
+            skill.to_string(),
+            json!({
+                "path": format!("skills/{skill}"),
+                "version": version
+            }),
+        );
+        write_json(
+            &registry_path,
+            &json!({
+                "installed": Value::Object(installed)
+            }),
+        )
+        .expect("write registry");
+    }
+
     #[test]
     fn create_requires_name() {
         let root = tempfile::tempdir().expect("tempdir");
@@ -198,40 +251,17 @@ mod tests {
     fn install_rejects_major_upgrade_without_force_migration_when_strict() {
         let root = tempfile::tempdir().expect("tempdir");
         let skill_dir = root.path().join("skills").join("compat-skill");
-        fs::create_dir_all(&skill_dir).expect("mkdir skill");
-        fs::write(
-            skill_dir.join("skill.yaml"),
-            "name: compat-skill\nversion: 1.0.0\nentrypoint: scripts/run.sh\n",
-        )
-        .expect("write yaml");
-
-        let first = crate::parse_args(&[
-            "install".to_string(),
-            format!("--skill-path={}", skill_dir.display()),
-            "--strict=1".to_string(),
-        ]);
-        let first_out = run_install(root.path(), &first, true);
+        write_skill_yaml(&skill_dir, "compat-skill", "1.0.0");
+        let first_out = run_install_for(root.path(), &skill_dir, &[]);
         assert_eq!(first_out.get("ok").and_then(Value::as_bool), Some(true));
 
-        fs::write(
-            skill_dir.join("skill.yaml"),
-            "name: compat-skill\nversion: 2.0.0\nentrypoint: scripts/run.sh\n",
-        )
-        .expect("rewrite yaml");
-        let second = crate::parse_args(&[
-            "install".to_string(),
-            format!("--skill-path={}", skill_dir.display()),
-            "--strict=1".to_string(),
-        ]);
-        let second_out = run_install(root.path(), &second, true);
+        write_skill_yaml(&skill_dir, "compat-skill", "2.0.0");
+        let second_out = run_install_for(root.path(), &skill_dir, &[]);
         assert_eq!(second_out.get("ok").and_then(Value::as_bool), Some(false));
-        assert!(second_out
-            .get("errors")
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default()
-            .iter()
-            .any(|row| row.as_str() == Some("backward_compat_break_requires_force_migration")));
+        assert_error_contains(
+            &second_out,
+            "backward_compat_break_requires_force_migration",
+        );
     }
 
     #[test]
@@ -240,61 +270,29 @@ mod tests {
         write_backward_compat_contract(root.path(), "v2", "skill_forced_migration", true);
 
         let skill_dir = root.path().join("skills").join("compat-min-version");
-        fs::create_dir_all(&skill_dir).expect("mkdir skill");
-        fs::write(
-            skill_dir.join("skill.yaml"),
-            "name: compat-min-version\nversion: 1.0.0\nentrypoint: scripts/run.sh\n",
-        )
-        .expect("write yaml");
-
-        let parsed = crate::parse_args(&[
-            "install".to_string(),
-            format!("--skill-path={}", skill_dir.display()),
-            "--strict=1".to_string(),
-        ]);
-        let out = run_install(root.path(), &parsed, true);
+        write_skill_yaml(&skill_dir, "compat-min-version", "1.0.0");
+        let out = run_install_for(root.path(), &skill_dir, &[]);
         assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
-        assert!(out
-            .get("errors")
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default()
-            .iter()
-            .any(|row| row.as_str() == Some("requested_skill_version_below_minimum")));
+        assert_error_contains(&out, "requested_skill_version_below_minimum");
     }
 
     #[test]
     fn install_forced_migration_emits_v8_skill_002_receipt() {
         let root = tempfile::tempdir().expect("tempdir");
         let skill_dir = root.path().join("skills").join("compat-skill");
-        fs::create_dir_all(&skill_dir).expect("mkdir skill");
-        fs::write(
-            skill_dir.join("skill.yaml"),
-            "name: compat-skill\nversion: 1.0.0\nentrypoint: scripts/run.sh\n",
-        )
-        .expect("write yaml");
-
-        let baseline = crate::parse_args(&[
-            "install".to_string(),
-            format!("--skill-path={}", skill_dir.display()),
-            "--strict=1".to_string(),
-        ]);
-        let baseline_out = run_install(root.path(), &baseline, true);
+        write_skill_yaml(&skill_dir, "compat-skill", "1.0.0");
+        let baseline_out = run_install_for(root.path(), &skill_dir, &[]);
         assert_eq!(baseline_out.get("ok").and_then(Value::as_bool), Some(true));
 
-        fs::write(
-            skill_dir.join("skill.yaml"),
-            "name: compat-skill\nversion: 2.0.0\nentrypoint: scripts/run.sh\n",
-        )
-        .expect("rewrite yaml");
-        let forced = crate::parse_args(&[
-            "install".to_string(),
-            format!("--skill-path={}", skill_dir.display()),
-            "--strict=1".to_string(),
-            "--force-migration=1".to_string(),
-            "--migration-reason=major_api_refresh".to_string(),
-        ]);
-        let forced_out = run_install(root.path(), &forced, true);
+        write_skill_yaml(&skill_dir, "compat-skill", "2.0.0");
+        let forced_out = run_install_for(
+            root.path(),
+            &skill_dir,
+            &[
+                "--force-migration=1",
+                "--migration-reason=major_api_refresh",
+            ],
+        );
         assert_eq!(forced_out.get("ok").and_then(Value::as_bool), Some(true));
         assert!(has_claim(&forced_out, "V8-SKILL-002"));
         assert_eq!(
@@ -321,36 +319,19 @@ mod tests {
     fn install_forced_migration_writes_rollback_checkpoint() {
         let root = tempfile::tempdir().expect("tempdir");
         let skill_dir = root.path().join("skills").join("compat-checkpoint");
-        fs::create_dir_all(&skill_dir).expect("mkdir skill");
-        fs::write(
-            skill_dir.join("skill.yaml"),
-            "name: compat-checkpoint\nversion: 1.0.0\nentrypoint: scripts/run.sh\n",
-        )
-        .expect("write yaml");
-        let baseline = crate::parse_args(&[
-            "install".to_string(),
-            format!("--skill-path={}", skill_dir.display()),
-            "--strict=1".to_string(),
-        ]);
+        write_skill_yaml(&skill_dir, "compat-checkpoint", "1.0.0");
         assert_eq!(
-            run_install(root.path(), &baseline, true)
+            run_install_for(root.path(), &skill_dir, &[])
                 .get("ok")
                 .and_then(Value::as_bool),
             Some(true)
         );
-        fs::write(
-            skill_dir.join("skill.yaml"),
-            "name: compat-checkpoint\nversion: 2.0.0\nentrypoint: scripts/run.sh\n",
-        )
-        .expect("rewrite yaml");
-        let forced = crate::parse_args(&[
-            "install".to_string(),
-            format!("--skill-path={}", skill_dir.display()),
-            "--strict=1".to_string(),
-            "--force-migration=1".to_string(),
-            "--migration-reason=breakfix".to_string(),
-        ]);
-        let out = run_install(root.path(), &forced, true);
+        write_skill_yaml(&skill_dir, "compat-checkpoint", "2.0.0");
+        let out = run_install_for(
+            root.path(),
+            &skill_dir,
+            &["--force-migration=1", "--migration-reason=breakfix"],
+        );
         assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
         assert_eq!(
             out.pointer("/compatibility/rollback_checkpoint_written")
@@ -368,40 +349,23 @@ mod tests {
     fn rollback_restores_previous_version_from_checkpoint() {
         let root = tempfile::tempdir().expect("tempdir");
         let skill_dir = root.path().join("skills").join("compat-rollback");
-        fs::create_dir_all(&skill_dir).expect("mkdir skill");
-        fs::write(
-            skill_dir.join("skill.yaml"),
-            "name: compat-rollback\nversion: 1.0.0\nentrypoint: scripts/run.sh\n",
-        )
-        .expect("write yaml");
-        let baseline = crate::parse_args(&[
-            "install".to_string(),
-            format!("--skill-path={}", skill_dir.display()),
-            "--strict=1".to_string(),
-        ]);
+        write_skill_yaml(&skill_dir, "compat-rollback", "1.0.0");
         assert_eq!(
-            run_install(root.path(), &baseline, true)
+            run_install_for(root.path(), &skill_dir, &[])
                 .get("ok")
                 .and_then(Value::as_bool),
             Some(true)
         );
 
-        fs::write(
-            skill_dir.join("skill.yaml"),
-            "name: compat-rollback\nversion: 2.0.0\nentrypoint: scripts/run.sh\n",
-        )
-        .expect("rewrite yaml");
-        let forced = crate::parse_args(&[
-            "install".to_string(),
-            format!("--skill-path={}", skill_dir.display()),
-            "--strict=1".to_string(),
-            "--force-migration=1".to_string(),
-            "--migration-reason=major_break".to_string(),
-        ]);
+        write_skill_yaml(&skill_dir, "compat-rollback", "2.0.0");
         assert_eq!(
-            run_install(root.path(), &forced, true)
-                .get("ok")
-                .and_then(Value::as_bool),
+            run_install_for(
+                root.path(),
+                &skill_dir,
+                &["--force-migration=1", "--migration-reason=major_break"],
+            )
+            .get("ok")
+            .and_then(Value::as_bool),
             Some(true)
         );
 
@@ -429,34 +393,19 @@ mod tests {
         let root = tempfile::tempdir().expect("tempdir");
         write_backward_compat_contract(root.path(), "v1", "custom_lane_policy", true);
         let skill_dir = root.path().join("skills").join("compat-lane");
-        fs::create_dir_all(&skill_dir).expect("mkdir skill");
-        fs::write(
-            skill_dir.join("skill.yaml"),
-            "name: compat-lane\nversion: 1.2.0\nentrypoint: scripts/run.sh\n",
-        )
-        .expect("write yaml");
-
-        let baseline = crate::parse_args(&[
-            "install".to_string(),
-            format!("--skill-path={}", skill_dir.display()),
-            "--strict=1".to_string(),
-        ]);
-        let baseline_out = run_install(root.path(), &baseline, true);
+        write_skill_yaml(&skill_dir, "compat-lane", "1.2.0");
+        let baseline_out = run_install_for(root.path(), &skill_dir, &[]);
         assert_eq!(baseline_out.get("ok").and_then(Value::as_bool), Some(true));
 
-        fs::write(
-            skill_dir.join("skill.yaml"),
-            "name: compat-lane\nversion: 2.0.0\nentrypoint: scripts/run.sh\n",
-        )
-        .expect("rewrite yaml");
-        let forced = crate::parse_args(&[
-            "install".to_string(),
-            format!("--skill-path={}", skill_dir.display()),
-            "--strict=1".to_string(),
-            "--force-migration=1".to_string(),
-            "--migration-reason=api_contract_rollup".to_string(),
-        ]);
-        let forced_out = run_install(root.path(), &forced, true);
+        write_skill_yaml(&skill_dir, "compat-lane", "2.0.0");
+        let forced_out = run_install_for(
+            root.path(),
+            &skill_dir,
+            &[
+                "--force-migration=1",
+                "--migration-reason=api_contract_rollup",
+            ],
+        );
         assert_eq!(forced_out.get("ok").and_then(Value::as_bool), Some(true));
         assert_eq!(
             forced_out
@@ -485,57 +434,39 @@ mod tests {
     fn install_enforced_deprecation_policy_requires_ticket() {
         let root = tempfile::tempdir().expect("tempdir");
         let skill_dir = root.path().join("skills").join("compat-policy");
-        fs::create_dir_all(&skill_dir).expect("mkdir skill");
-        fs::write(
-            skill_dir.join("skill.yaml"),
-            "name: compat-policy\nversion: 1.0.0\nentrypoint: scripts/run.sh\n",
-        )
-        .expect("write yaml");
-
-        let baseline = crate::parse_args(&[
-            "install".to_string(),
-            format!("--skill-path={}", skill_dir.display()),
-            "--strict=1".to_string(),
-        ]);
-        let baseline_out = run_install(root.path(), &baseline, true);
+        write_skill_yaml(&skill_dir, "compat-policy", "1.0.0");
+        let baseline_out = run_install_for(root.path(), &skill_dir, &[]);
         assert_eq!(baseline_out.get("ok").and_then(Value::as_bool), Some(true));
 
-        fs::write(
-            skill_dir.join("skill.yaml"),
-            "name: compat-policy\nversion: 2.0.0\nentrypoint: scripts/run.sh\n",
-        )
-        .expect("rewrite yaml");
-        let no_ticket = crate::parse_args(&[
-            "install".to_string(),
-            format!("--skill-path={}", skill_dir.display()),
-            "--strict=1".to_string(),
-            "--force-migration=1".to_string(),
-            "--migration-reason=major_break".to_string(),
-            "--deprecation-policy=enforce".to_string(),
-        ]);
-        let no_ticket_out = run_install(root.path(), &no_ticket, true);
+        write_skill_yaml(&skill_dir, "compat-policy", "2.0.0");
+        let no_ticket_out = run_install_for(
+            root.path(),
+            &skill_dir,
+            &[
+                "--force-migration=1",
+                "--migration-reason=major_break",
+                "--deprecation-policy=enforce",
+            ],
+        );
         assert_eq!(
             no_ticket_out.get("ok").and_then(Value::as_bool),
             Some(false)
         );
-        assert!(no_ticket_out
-            .get("errors")
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default()
-            .iter()
-            .any(|row| row.as_str() == Some("deprecation_ticket_required_for_enforced_migration")));
+        assert_error_contains(
+            &no_ticket_out,
+            "deprecation_ticket_required_for_enforced_migration",
+        );
 
-        let with_ticket = crate::parse_args(&[
-            "install".to_string(),
-            format!("--skill-path={}", skill_dir.display()),
-            "--strict=1".to_string(),
-            "--force-migration=1".to_string(),
-            "--migration-reason=major_break".to_string(),
-            "--deprecation-policy=enforce".to_string(),
-            "--deprecation-ticket=CHG-2026-0319".to_string(),
-        ]);
-        let with_ticket_out = run_install(root.path(), &with_ticket, true);
+        let with_ticket_out = run_install_for(
+            root.path(),
+            &skill_dir,
+            &[
+                "--force-migration=1",
+                "--migration-reason=major_break",
+                "--deprecation-policy=enforce",
+                "--deprecation-ticket=CHG-2026-0319",
+            ],
+        );
         assert_eq!(
             with_ticket_out.get("ok").and_then(Value::as_bool),
             Some(true)
@@ -573,21 +504,7 @@ mod tests {
     #[test]
     fn run_strict_allows_installed_skill_with_supported_version() {
         let root = tempfile::tempdir().expect("tempdir");
-        let registry_path = state_root(root.path()).join("registry.json");
-        fs::create_dir_all(registry_path.parent().unwrap_or_else(|| Path::new(".")))
-            .expect("mkdir registry");
-        write_json(
-            &registry_path,
-            &json!({
-                "installed": {
-                    "compat_skill": {
-                        "path": "skills/compat_skill",
-                        "version": "1.2.0"
-                    }
-                }
-            }),
-        )
-        .expect("write registry");
+        write_installed_registry(root.path(), "compat_skill", "1.2.0");
         let parsed = crate::parse_args(&[
             "run".to_string(),
             "--skill=compat_skill".to_string(),
@@ -619,21 +536,7 @@ mod tests {
     #[test]
     fn run_non_strict_allows_installed_skill_with_supported_version() {
         let root = tempfile::tempdir().expect("tempdir");
-        let registry_path = state_root(root.path()).join("registry.json");
-        fs::create_dir_all(registry_path.parent().unwrap_or_else(|| Path::new(".")))
-            .expect("mkdir registry");
-        write_json(
-            &registry_path,
-            &json!({
-                "installed": {
-                    "compat_skill": {
-                        "path": "skills/compat_skill",
-                        "version": "1.2.0"
-                    }
-                }
-            }),
-        )
-        .expect("write registry");
+        write_installed_registry(root.path(), "compat_skill", "1.2.0");
         let parsed = crate::parse_args(&["run".to_string(), "--skill=compat_skill".to_string()]);
         let out = run_skill(root.path(), &parsed, false);
         assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
