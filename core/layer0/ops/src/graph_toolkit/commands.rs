@@ -48,6 +48,27 @@ fn node_index(nodes: &[String], name: &str) -> Option<usize> {
     nodes.iter().position(|node| node == name)
 }
 
+fn normalized_flag(parsed: &ParsedArgs, key: &str, max_len: usize, default: &str) -> String {
+    parsed
+        .flags
+        .get(key)
+        .map(|value| clean(value, max_len).to_ascii_lowercase())
+        .unwrap_or_else(|| default.to_string())
+}
+
+fn emit_unsupported_mode(root: &Path, kind: &str, error: &str, key: &str, value: String) -> i32 {
+    emit(
+        root,
+        json!({
+            "ok": false,
+            "type": kind,
+            "lane": "core/layer0/ops",
+            "error": error,
+            key: value
+        }),
+    )
+}
+
 pub fn run_pagerank(root: &Path, parsed: &ParsedArgs, graph: &GraphData) -> i32 {
     let damping = parse_f64(parsed.flags.get("damping"), 0.85).clamp(0.0, 1.0);
     let iterations = parse_u64(parsed.flags.get("iterations"), 24).clamp(1, 512) as usize;
@@ -271,47 +292,33 @@ pub fn run_link_prediction(root: &Path, parsed: &ParsedArgs, graph: &GraphData) 
 }
 
 pub fn run_centrality(root: &Path, parsed: &ParsedArgs, graph: &GraphData) -> i32 {
-    let metric = parsed
-        .flags
-        .get("metric")
-        .map(|v| clean(v, 60).to_ascii_lowercase())
-        .unwrap_or_else(|| "pagerank".to_string());
+    let metric = normalized_flag(parsed, "metric", 60, "pagerank");
     match metric.as_str() {
         "pagerank" => run_pagerank(root, parsed, graph),
         "betweenness" => run_betweenness(root, parsed, graph),
-        _ => emit(
+        _ => emit_unsupported_mode(
             root,
-            json!({
-                "ok": false,
-                "type": "graph_toolkit_centrality",
-                "lane": "core/layer0/ops",
-                "error": "unsupported_metric",
-                "metric": metric
-            }),
+            "graph_toolkit_centrality",
+            "unsupported_metric",
+            "metric",
+            metric,
         ),
     }
 }
 
 pub fn run_communities(root: &Path, parsed: &ParsedArgs, graph: &GraphData) -> i32 {
-    let algo = parsed
-        .flags
-        .get("algo")
-        .map(|v| clean(v, 80).to_ascii_lowercase())
-        .unwrap_or_else(|| "louvain".to_string());
+    let algo = normalized_flag(parsed, "algo", 80, "louvain");
     match algo.as_str() {
         "louvain" => run_louvain(root, parsed, graph),
         "label-propagation" | "label_propagation" | "label" => {
             run_label_propagation(root, parsed, graph)
         }
-        _ => emit(
+        _ => emit_unsupported_mode(
             root,
-            json!({
-                "ok": false,
-                "type": "graph_toolkit_communities",
-                "lane": "core/layer0/ops",
-                "error": "unsupported_algo",
-                "algo": algo
-            }),
+            "graph_toolkit_communities",
+            "unsupported_algo",
+            "algo",
+            algo,
         ),
     }
 }

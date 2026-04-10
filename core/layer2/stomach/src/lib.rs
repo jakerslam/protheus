@@ -97,6 +97,14 @@ pub enum AutonomyStage {
     BroaderAutonomy,
 }
 
+fn acceptance_rate(metrics: &ReviewWindowMetrics) -> f64 {
+    metrics.accepted_proposals as f64 / metrics.reviewed_proposals.max(1) as f64
+}
+
+fn is_stable_review_window(metrics: &ReviewWindowMetrics) -> bool {
+    metrics.regressions == 0 && metrics.policy_escapes == 0
+}
+
 pub fn evaluate_autonomy_stage(
     config: &AutonomyLadder,
     metrics: &ReviewWindowMetrics,
@@ -111,10 +119,9 @@ pub fn evaluate_autonomy_stage(
     if config.require_fixed_policy_analyzer_versions && !versions_match {
         return AutonomyStage::Shadow;
     }
-    let denom = metrics.reviewed_proposals.max(1) as f64;
-    let acceptance = metrics.accepted_proposals as f64 / denom;
-    if metrics.regressions == 0
-        && metrics.policy_escapes == 0
+    let acceptance = acceptance_rate(metrics);
+    let stable_window = is_stable_review_window(metrics);
+    if stable_window
         && metrics.reviewed_proposals >= config.broader_autonomy_min_reviews
         && metrics.rollback_success_rate >= config.broader_autonomy_rollback_success_floor
         && metrics.benchmark_coverage_rate >= config.broader_autonomy_benchmark_coverage_floor
@@ -122,15 +129,13 @@ pub fn evaluate_autonomy_stage(
     {
         return AutonomyStage::BroaderAutonomy;
     }
-    if metrics.regressions == 0
-        && metrics.policy_escapes == 0
+    if stable_window
         && metrics.reviewed_proposals >= config.bounded_auto_merge_min_reviews
         && acceptance >= config.bounded_auto_merge_acceptance_floor
     {
         return AutonomyStage::BoundedAutoMerge;
     }
-    if metrics.regressions == 0
-        && metrics.policy_escapes == 0
+    if stable_window
         && metrics.reviewed_proposals >= config.shadow_min_reviews
         && acceptance >= config.staged_acceptance_floor
     {

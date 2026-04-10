@@ -58,13 +58,6 @@ impl BatchLane {
             _ => BatchLane::LiveMicrobatch,
         }
     }
-
-    fn as_str(self) -> &'static str {
-        match self {
-            BatchLane::LiveMicrobatch => "live_microbatch",
-            BatchLane::ProviderBatch => "provider_batch",
-        }
-    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
