@@ -18,6 +18,24 @@ fn decode_base64_json(raw: Option<&String>, field: &str) -> Result<Value, String
     serde_json::from_str(&text).map_err(|err| format!("json_decode_failed:{field}:{err}"))
 }
 
+fn decode_payload_or_emit(
+    root: &Path,
+    payload_base64: Option<&String>,
+    receipt_type: &str,
+) -> Result<Value, i32> {
+    decode_base64_json(payload_base64, "payload_base64").map_err(|err| {
+        emit_receipt(
+            root,
+            json!({
+                "ok": false,
+                "type": receipt_type,
+                "lane": "core/layer0/ops",
+                "error": err
+            }),
+        )
+    })
+}
+
 pub(super) fn emit_receipt(root: &Path, payload: Value) -> i32 {
     match write_receipt(root, STATE_ENV, STATE_SCOPE, payload) {
         Ok(out) => {
@@ -677,20 +695,13 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     }
 
     if command == "merge-constraints" {
-        let payload = match decode_base64_json(parsed.flags.get("payload-base64"), "payload_base64")
-        {
+        let payload = match decode_payload_or_emit(
+            root,
+            parsed.flags.get("payload-base64"),
+            "directive_kernel_merge_constraints",
+        ) {
             Ok(value) => value,
-            Err(err) => {
-                return emit_receipt(
-                    root,
-                    json!({
-                        "ok": false,
-                        "type": "directive_kernel_merge_constraints",
-                        "lane": "core/layer0/ops",
-                        "error": err
-                    }),
-                );
-            }
+            Err(code) => return code,
         };
         let directives = payload
             .get("directives")
@@ -710,20 +721,13 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     }
 
     if command == "validate-action-envelope" {
-        let payload = match decode_base64_json(parsed.flags.get("payload-base64"), "payload_base64")
-        {
+        let payload = match decode_payload_or_emit(
+            root,
+            parsed.flags.get("payload-base64"),
+            "directive_kernel_validate_action_envelope",
+        ) {
             Ok(value) => value,
-            Err(err) => {
-                return emit_receipt(
-                    root,
-                    json!({
-                        "ok": false,
-                        "type": "directive_kernel_validate_action_envelope",
-                        "lane": "core/layer0/ops",
-                        "error": err
-                    }),
-                );
-            }
+            Err(code) => return code,
         };
         let envelope = payload
             .get("action_envelope")
@@ -763,20 +767,13 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     }
 
     if command == "tier-conflict" {
-        let payload = match decode_base64_json(parsed.flags.get("payload-base64"), "payload_base64")
-        {
+        let payload = match decode_payload_or_emit(
+            root,
+            parsed.flags.get("payload-base64"),
+            "directive_kernel_tier_conflict",
+        ) {
             Ok(value) => value,
-            Err(err) => {
-                return emit_receipt(
-                    root,
-                    json!({
-                        "ok": false,
-                        "type": "directive_kernel_tier_conflict",
-                        "lane": "core/layer0/ops",
-                        "error": err
-                    }),
-                );
-            }
+            Err(code) => return code,
         };
         let lower = payload
             .get("lower_tier_action")

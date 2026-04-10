@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // Layer ownership: core/layer0/ops (authoritative)
 
-use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
-use base64::Engine;
 use serde_json::{json, Map, Value};
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::contract_lane_utils as lane_utils;
-use crate::{deterministic_receipt_hash, now_iso};
+use crate::now_iso;
 
 fn usage() {
     println!("strategy-campaign-scheduler-kernel commands:");
@@ -16,60 +14,8 @@ fn usage() {
     println!("  protheus-ops strategy-campaign-scheduler-kernel build-decomposition-plans --payload-base64=<json>");
 }
 
-fn cli_receipt(kind: &str, payload: Value) -> Value {
-    let ts = now_iso();
-    let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(true);
-    let mut out = json!({
-        "ok": ok,
-        "type": kind,
-        "ts": ts,
-        "date": ts[..10].to_string(),
-        "payload": payload,
-    });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
-    out
-}
-
-fn cli_error(kind: &str, error: &str) -> Value {
-    let ts = now_iso();
-    let mut out = json!({
-        "ok": false,
-        "type": kind,
-        "ts": ts,
-        "date": ts[..10].to_string(),
-        "error": error,
-        "fail_closed": true,
-    });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
-    out
-}
-
-fn print_json_line(value: &Value) {
-    println!(
-        "{}",
-        serde_json::to_string(value)
-            .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
-    );
-}
-
 fn payload_json(argv: &[String]) -> Result<Value, String> {
-    if let Some(raw) = lane_utils::parse_flag(argv, "payload", false) {
-        return serde_json::from_str::<Value>(&raw).map_err(|err| {
-            format!("strategy_campaign_scheduler_kernel_payload_decode_failed:{err}")
-        });
-    }
-    if let Some(raw_b64) = lane_utils::parse_flag(argv, "payload-base64", false) {
-        let bytes = BASE64_STANDARD.decode(raw_b64.as_bytes()).map_err(|err| {
-            format!("strategy_campaign_scheduler_kernel_payload_base64_decode_failed:{err}")
-        })?;
-        let text = String::from_utf8(bytes).map_err(|err| {
-            format!("strategy_campaign_scheduler_kernel_payload_utf8_decode_failed:{err}")
-        })?;
-        return serde_json::from_str::<Value>(&text).map_err(|err| {
-            format!("strategy_campaign_scheduler_kernel_payload_decode_failed:{err}")
-        });
-    }
-    Ok(json!({}))
+    lane_utils::payload_json(argv, "strategy_campaign_scheduler_kernel")
 }
 
 fn payload_obj<'a>(value: &'a Value) -> &'a Map<String, Value> {
@@ -816,18 +762,27 @@ pub fn run(_root: &std::path::Path, argv: &[String]) -> i32 {
     let payload = match payload_json(argv) {
         Ok(value) => value,
         Err(err) => {
-            print_json_line(&cli_error("strategy_campaign_scheduler_kernel", &err));
+            lane_utils::print_json_line(&lane_utils::cli_error(
+                "strategy_campaign_scheduler_kernel",
+                &err,
+            ));
             return 1;
         }
     };
     let payload = payload_obj(&payload).clone();
     match run_command(command, &payload) {
         Ok(out) => {
-            print_json_line(&cli_receipt("strategy_campaign_scheduler_kernel", out));
+            lane_utils::print_json_line(&lane_utils::cli_receipt(
+                "strategy_campaign_scheduler_kernel",
+                out,
+            ));
             0
         }
         Err(err) => {
-            print_json_line(&cli_error("strategy_campaign_scheduler_kernel", &err));
+            lane_utils::print_json_line(&lane_utils::cli_error(
+                "strategy_campaign_scheduler_kernel",
+                &err,
+            ));
             1
         }
     }
