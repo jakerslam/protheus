@@ -41,6 +41,29 @@ fn usage() {
     println!("  protheus-ops workspace-file-search status");
 }
 
+fn positional_query(parsed: &crate::ParsedArgs) -> String {
+    parsed
+        .positional
+        .iter()
+        .skip(1)
+        .map(|row| crate::clean(row, 200))
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn print_payload_and_exit(payload: &Value) -> i32 {
+    println!(
+        "{}",
+        serde_json::to_string_pretty(payload)
+            .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
+    );
+    if payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+        0
+    } else {
+        1
+    }
+}
+
 fn truthy(value: Option<&String>) -> bool {
     value
         .map(|row| crate::clean(row, 32).to_ascii_lowercase())
@@ -539,41 +562,13 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "ripgrep_install_hint": ripgrep_install_hint()
         }),
         "list" => run_search(root, &parsed, ""),
-        "search" => {
-            let default_query = parsed
-                .positional
-                .iter()
-                .skip(1)
-                .map(|row| crate::clean(row, 200))
-                .collect::<Vec<_>>()
-                .join(" ");
-            run_search(root, &parsed, &default_query)
-        }
-        "mention" => {
-            let default_query = parsed
-                .positional
-                .iter()
-                .skip(1)
-                .map(|row| crate::clean(row, 200))
-                .collect::<Vec<_>>()
-                .join(" ");
-            run_mention(root, &parsed, &default_query)
-        }
+        "search" => run_search(root, &parsed, &positional_query(&parsed)),
+        "mention" => run_mention(root, &parsed, &positional_query(&parsed)),
         _ => {
             json!({"ok": false, "status": "blocked", "error": "workspace_file_search_unknown_command", "command": command})
         }
     };
-
-    println!(
-        "{}",
-        serde_json::to_string_pretty(&payload)
-            .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
-    );
-    if payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
-        0
-    } else {
-        1
-    }
+    print_payload_and_exit(&payload)
 }
 
 #[cfg(test)]
@@ -584,6 +579,32 @@ mod tests {
     fn test_env_lock() -> &'static Mutex<()> {
         static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
         LOCK.get_or_init(|| Mutex::new(()))
+    }
+
+    fn supports_rg() -> bool {
+        Command::new("rg").arg("--version").output().is_ok()
+    }
+
+    fn reset_dir(path: &Path) {
+        let _ = fs::remove_dir_all(path);
+        fs::create_dir_all(path).expect("root dir");
+    }
+
+    fn temp_case_root(label: &str) -> PathBuf {
+        std::env::temp_dir().join(format!(
+            "workspace_file_search_{}_{}_{}",
+            label,
+            std::process::id(),
+            chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default()
+        ))
+    }
+
+    fn search_args_for(root: &Path, query: &str) -> crate::ParsedArgs {
+        crate::parse_args(&[
+            format!("--workspace={}", root.display()),
+            format!("--q={query}"),
+            "--limit=5".to_string(),
+        ])
     }
 
     #[test]
@@ -618,20 +639,13 @@ mod tests {
         let _guard = test_env_lock()
             .lock()
             .expect("workspace_file_search test lock");
-        if Command::new("rg").arg("--version").output().is_err() {
+        if !supports_rg() {
             return;
         }
-        let root =
-            std::env::temp_dir().join(format!("workspace_file_search_run_{}", std::process::id()));
-        let _ = fs::remove_dir_all(&root);
-        fs::create_dir_all(&root).expect("root dir");
+        let root = temp_case_root("run");
+        reset_dir(&root);
         fs::write(root.join("context-stacks-proof.txt"), "proof").expect("fixture");
-        let parsed = crate::parse_args(&[
-            format!("--workspace={}", root.display()),
-            "--q=context".to_string(),
-            "--limit=5".to_string(),
-        ]);
-        let payload = run_search(&root, &parsed, "");
+        let payload = run_search(&root, &search_args_for(&root, "context"), "");
         assert_eq!(payload.get("ok").and_then(Value::as_bool), Some(true));
         let results = payload
             .get("results")
@@ -647,24 +661,15 @@ mod tests {
         let _guard = test_env_lock()
             .lock()
             .expect("workspace_file_search test lock");
-        let root = std::env::temp_dir().join(format!(
-            "workspace_file_search_missing_rg_{}",
-            std::process::id()
-        ));
-        let _ = fs::remove_dir_all(&root);
-        fs::create_dir_all(&root).expect("root dir");
+        let root = temp_case_root("missing-rg");
+        reset_dir(&root);
         fs::write(root.join("file.txt"), "fixture").expect("fixture");
         let previous_rg = std::env::var("PROTHEUS_RG_BINARY").ok();
         std::env::set_var(
             "PROTHEUS_RG_BINARY",
             "__missing_rg_binary_for_workspace_file_search__",
         );
-        let parsed = crate::parse_args(&[
-            format!("--workspace={}", root.display()),
-            "--q=file".to_string(),
-            "--limit=5".to_string(),
-        ]);
-        let payload = run_search(&root, &parsed, "");
+        let payload = run_search(&root, &search_args_for(&root, "file"), "");
         let warnings = payload
             .get("warnings")
             .and_then(Value::as_array)
@@ -689,22 +694,13 @@ mod tests {
         let _guard = test_env_lock()
             .lock()
             .expect("workspace_file_search test lock");
-        if Command::new("rg").arg("--version").output().is_err() {
+        if !supports_rg() {
             return;
         }
-        let root = std::env::temp_dir().join(format!(
-            "workspace_file_search_mention_{}",
-            std::process::id()
-        ));
-        let _ = fs::remove_dir_all(&root);
-        fs::create_dir_all(root.join("src")).expect("src dir");
+        let root = temp_case_root("mention");
+        reset_dir(&root.join("src"));
         fs::write(root.join("src").join("main.rs"), "fn main() {}").expect("fixture");
-        let parsed = crate::parse_args(&[
-            format!("--workspace={}", root.display()),
-            "--q=main".to_string(),
-            "--limit=5".to_string(),
-        ]);
-        let payload = run_mention(&root, &parsed, "");
+        let payload = run_mention(&root, &search_args_for(&root, "main"), "");
         assert_eq!(payload.get("ok").and_then(Value::as_bool), Some(true));
         assert_eq!(payload.get("status").and_then(Value::as_str), Some("ok"));
         let mention = payload
@@ -722,22 +718,13 @@ mod tests {
         let _guard = test_env_lock()
             .lock()
             .expect("workspace_file_search test lock");
-        if Command::new("rg").arg("--version").output().is_err() {
+        if !supports_rg() {
             return;
         }
-        let root = std::env::temp_dir().join(format!(
-            "workspace_file_search_mention_no_results_{}",
-            std::process::id()
-        ));
-        let _ = fs::remove_dir_all(&root);
-        fs::create_dir_all(&root).expect("root dir");
+        let root = temp_case_root("mention-no-results");
+        reset_dir(&root);
         fs::write(root.join("alpha.txt"), "fixture").expect("fixture");
-        let parsed = crate::parse_args(&[
-            format!("--workspace={}", root.display()),
-            "--q=zzzzzz".to_string(),
-            "--limit=5".to_string(),
-        ]);
-        let payload = run_mention(&root, &parsed, "");
+        let payload = run_mention(&root, &search_args_for(&root, "zzzzzz"), "");
         assert_eq!(payload.get("ok").and_then(Value::as_bool), Some(true));
         assert_eq!(
             payload.get("status").and_then(Value::as_str),
