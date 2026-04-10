@@ -1,3 +1,11 @@
+const ASSIMILATE_SCRIPT: &str = "client/runtime/systems/tools/assimilate.ts";
+const SETUP_WIZARD_SCRIPT: &str = "client/runtime/systems/ops/protheus_setup_wizard.ts";
+const DEMO_SCRIPT: &str = "client/runtime/systems/ops/protheus_demo.js";
+const EXAMPLES_SCRIPT: &str = "client/runtime/systems/ops/protheus_examples.js";
+const DIAGRAM_SCRIPT: &str = "client/runtime/systems/ops/protheus_diagram.js";
+const VERSION_SCRIPT_JS: &str = "client/runtime/systems/ops/protheus_version_cli.js";
+const COMPLETION_SCRIPT_JS: &str = "client/runtime/systems/ops/protheus_completion.js";
+
 fn resolve_assimilate_route(rest: &[String]) -> Route {
     let default_args = if rest.is_empty() {
         vec!["--help".to_string()]
@@ -6,7 +14,7 @@ fn resolve_assimilate_route(rest: &[String]) -> Route {
     };
     if rest.is_empty() {
         return Route {
-            script_rel: "client/runtime/systems/tools/assimilate.ts".to_string(),
+            script_rel: ASSIMILATE_SCRIPT.to_string(),
             args: default_args,
             forward_stdin: false,
         };
@@ -15,7 +23,7 @@ fn resolve_assimilate_route(rest: &[String]) -> Route {
     let (target, mut core_passthrough, wrapper_flags) = split_assimilate_tokens(rest);
     let Some(target_value) = target else {
         return Route {
-            script_rel: "client/runtime/systems/tools/assimilate.ts".to_string(),
+            script_rel: ASSIMILATE_SCRIPT.to_string(),
             args: default_args,
             forward_stdin: false,
         };
@@ -25,7 +33,7 @@ fn resolve_assimilate_route(rest: &[String]) -> Route {
 
     let Some(core_route) = resolve_core_shortcuts("assimilate", &core_rest) else {
         return Route {
-            script_rel: "client/runtime/systems/tools/assimilate.ts".to_string(),
+            script_rel: ASSIMILATE_SCRIPT.to_string(),
             args: default_args,
             forward_stdin: false,
         };
@@ -44,7 +52,7 @@ fn resolve_assimilate_route(rest: &[String]) -> Route {
     ];
     args.extend(wrapper_flags);
     Route {
-        script_rel: "client/runtime/systems/tools/assimilate.ts".to_string(),
+        script_rel: ASSIMILATE_SCRIPT.to_string(),
         args,
         forward_stdin: false,
     }
@@ -104,8 +112,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             if !repl_disabled && (force_repl || std::io::stdin().is_terminal()) {
                 if should_offer_setup(root, skip_setup_flag) {
                     let setup_route = Route {
-                        script_rel: "client/runtime/systems/ops/protheus_setup_wizard.ts"
-                            .to_string(),
+                        script_rel: SETUP_WIZARD_SCRIPT.to_string(),
                         args: vec!["run".to_string()],
                         forward_stdin: true,
                     };
@@ -197,7 +204,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 forward_stdin: true,
             },
             "setup" => Route {
-                script_rel: "client/runtime/systems/ops/protheus_setup_wizard.ts".to_string(),
+                script_rel: SETUP_WIZARD_SCRIPT.to_string(),
                 args: if rest.is_empty() {
                     vec!["run".to_string()]
                 } else {
@@ -206,12 +213,12 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 forward_stdin: true,
             },
             "demo" => Route {
-                script_rel: "client/runtime/systems/ops/protheus_demo.js".to_string(),
+                script_rel: DEMO_SCRIPT.to_string(),
                 args: rest,
                 forward_stdin: false,
             },
             "examples" => Route {
-                script_rel: "client/runtime/systems/ops/protheus_examples.js".to_string(),
+                script_rel: EXAMPLES_SCRIPT.to_string(),
                 args: rest,
                 forward_stdin: false,
             },
@@ -235,7 +242,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 forward_stdin: false,
             },
             "diagram" => Route {
-                script_rel: "client/runtime/systems/ops/protheus_diagram.js".to_string(),
+                script_rel: DIAGRAM_SCRIPT.to_string(),
                 args: rest,
                 forward_stdin: false,
             },
@@ -326,9 +333,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             },
             "job-submit" => Route {
                 script_rel: "core://protheus-control-plane".to_string(),
-                args: std::iter::once("run".to_string())
-                    .chain(rest)
-                    .collect(),
+                args: std::iter::once("run".to_string()).chain(rest).collect(),
                 forward_stdin: false,
             },
             "protheusctl" => Route {
@@ -627,7 +632,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 }
             }
             "assimilate" => Route {
-                script_rel: "client/runtime/systems/tools/assimilate.ts".to_string(),
+                script_rel: ASSIMILATE_SCRIPT.to_string(),
                 args: if rest.is_empty() {
                     vec!["--help".to_string()]
                 } else {
@@ -793,18 +798,20 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             | "core://release-semver-contract"
             | "client/runtime/systems/ops/protheus_command_list.ts"
             | "client/runtime/systems/ops/protheus_command_list.js"
-            | "client/runtime/systems/ops/protheus_setup_wizard.ts"
             | "client/runtime/systems/ops/protheus_setup_wizard.js"
-            | "client/runtime/systems/ops/protheus_demo.js"
-            | "client/runtime/systems/ops/protheus_examples.js"
-            | "client/runtime/systems/ops/protheus_version_cli.js"
-            | "client/runtime/systems/ops/protheus_diagram.js"
-            | "client/runtime/systems/ops/protheus_completion.js"
             | "client/runtime/systems/ops/protheus_status_dashboard.ts"
             | "client/runtime/systems/ops/protheus_debug_diagnostics.ts"
             | "client/runtime/systems/personas/shadow_cli.ts"
             | "client/runtime/systems/tools/cli_suggestion_engine.ts"
-    );
+    ) || [
+        SETUP_WIZARD_SCRIPT,
+        DEMO_SCRIPT,
+        EXAMPLES_SCRIPT,
+        VERSION_SCRIPT_JS,
+        DIAGRAM_SCRIPT,
+        COMPLETION_SCRIPT_JS,
+    ]
+    .contains(&route.script_rel.as_str());
     if global_json
         && supports_json_flag
         && !route
@@ -826,12 +833,9 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
     let supports_quiet_flag = matches!(
         route.script_rel.as_str(),
-            "client/runtime/systems/ops/protheus_demo.js"
-            | "client/runtime/systems/ops/protheus_examples.js"
-            | "core://version-cli"
-            | "core://release-semver-contract"
-            | "client/runtime/systems/ops/protheus_version_cli.js"
-    );
+        "core://version-cli" | "core://release-semver-contract"
+    ) || [DEMO_SCRIPT, EXAMPLES_SCRIPT, VERSION_SCRIPT_JS]
+        .contains(&route.script_rel.as_str());
     if global_quiet
         && supports_quiet_flag
         && !route

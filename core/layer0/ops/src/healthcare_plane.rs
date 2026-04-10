@@ -51,44 +51,48 @@ fn lane_root(root: &Path) -> PathBuf {
     scoped_state_root(root, ENV_KEY, LANE_ID)
 }
 
+fn lane_file(root: &Path, file_name: &str) -> PathBuf {
+    lane_root(root).join(file_name)
+}
+
 fn patients_path(root: &Path) -> PathBuf {
-    lane_root(root).join("patients.json")
+    lane_file(root, "patients.json")
 }
 
 fn phi_log_path(root: &Path) -> PathBuf {
-    lane_root(root).join("phi_access_log.jsonl")
+    lane_file(root, "phi_access_log.jsonl")
 }
 
 fn cds_path(root: &Path) -> PathBuf {
-    lane_root(root).join("cds_state.json")
+    lane_file(root, "cds_state.json")
 }
 
 fn devices_path(root: &Path) -> PathBuf {
-    lane_root(root).join("device_events.jsonl")
+    lane_file(root, "device_events.jsonl")
 }
 
 fn docs_path(root: &Path) -> PathBuf {
-    lane_root(root).join("clinical_docs.jsonl")
+    lane_file(root, "clinical_docs.jsonl")
 }
 
 fn alerts_path(root: &Path) -> PathBuf {
-    lane_root(root).join("alerts.json")
+    lane_file(root, "alerts.json")
 }
 
 fn coordination_path(root: &Path) -> PathBuf {
-    lane_root(root).join("coordination.jsonl")
+    lane_file(root, "coordination.jsonl")
 }
 
 fn trials_path(root: &Path) -> PathBuf {
-    lane_root(root).join("trials.json")
+    lane_file(root, "trials.json")
 }
 
 fn imaging_path(root: &Path) -> PathBuf {
-    lane_root(root).join("imaging.jsonl")
+    lane_file(root, "imaging.jsonl")
 }
 
 fn emergency_path(root: &Path) -> PathBuf {
-    lane_root(root).join("emergency.jsonl")
+    lane_file(root, "emergency.jsonl")
 }
 
 fn read_object(path: &Path) -> Map<String, Value> {
