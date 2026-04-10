@@ -143,23 +143,6 @@ fn store_cached_response(root: &Path, key: &str, response: &Value, status: &str)
     let _ = write_json_atomic(&path, &cache);
 }
 
-fn is_search_engine_domain(domain: &str) -> bool {
-    let normalized = clean_text(domain, 120).to_ascii_lowercase();
-    matches!(
-        normalized.as_str(),
-        "duckduckgo.com"
-            | "lite.duckduckgo.com"
-            | "bing.com"
-            | "www.bing.com"
-            | "google.com"
-            | "www.google.com"
-            | "search.yahoo.com"
-            | "yahoo.com"
-            | "search.brave.com"
-            | "brave.com"
-    )
-}
-
 fn fixture_payload_for_stage_url(stage: &str, url: &str) -> Option<Value> {
     let fixtures = fixture_payload_map()?;
     let stage_key = format!("{stage}::{url}");
@@ -176,32 +159,57 @@ fn fixture_mode_enabled() -> bool {
         .unwrap_or(false)
 }
 
-fn payload_links_for_fallback(payload: &Value, max_links: usize) -> Vec<String> {
-    let mut out = Vec::<String>::new();
-    let mut seen = HashSet::<String>::new();
-    for row in payload
-        .get("links")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default()
-    {
-        let link = clean_text(row.as_str().unwrap_or(""), 2_200);
-        if link.is_empty() || !seen.insert(link.clone()) {
-            continue;
+fn fixture_missing_payload() -> Value {
+    json!({
+        "ok": false,
+        "error": "fixture_missing"
+    })
+}
+
+fn stage_search_payload(
+    root: &Path,
+    stage: Option<&str>,
+    query: &str,
+    provider: Option<&str>,
+) -> Value {
+    if let Some(stage_name) = stage {
+        if let Some(payload) = fixture_payload_for_stage_query(stage_name, query) {
+            return payload;
         }
-        let domain = extract_domains_from_text(&link, 1)
-            .into_iter()
-            .next()
-            .unwrap_or_default();
-        if domain.is_empty() || is_search_engine_domain(&domain) {
-            continue;
-        }
-        out.push(link);
-        if out.len() >= max_links.max(1) {
-            break;
-        }
+    } else if let Some(payload) = fixture_payload_for_query(query) {
+        return payload;
     }
-    out
+    if fixture_mode_enabled() {
+        return fixture_missing_payload();
+    }
+    let mut request = json!({
+        "query": query,
+        "summary_only": false
+    });
+    if let Some(provider_name) = provider {
+        request["provider"] = Value::String(provider_name.to_string());
+    }
+    crate::web_conduit::api_search(root, &request)
+}
+
+fn stage_fetch_payload(root: &Path, stage: &str, url: &str) -> Value {
+    if let Some(payload) = fixture_payload_for_stage_url(stage, url) {
+        return payload;
+    }
+    if fixture_mode_enabled() {
+        return fixture_missing_payload();
+    }
+    crate::web_conduit::api_fetch(
+        root,
+        &json!({
+            "url": url,
+            "summary_only": false
+        }),
+    )
+}
+
+fn payload_links_for_fallback(payload: &Value, max_links: usize) -> Vec<String> {
+    non_search_engine_links(payload, max_links)
 }
 
 fn query_overlap_terms(query: &str, candidate: &Candidate) -> usize {
@@ -338,22 +346,7 @@ fn collect_candidates_from_stage_payload(
             if !fetched_links.insert(link.clone()) {
                 continue;
             }
-            let fetch_payload = fixture_payload_for_stage_url(stage, &link).unwrap_or_else(|| {
-                if fixture_mode_enabled() {
-                    json!({
-                        "ok": false,
-                        "error": "fixture_missing"
-                    })
-                } else {
-                    crate::web_conduit::api_fetch(
-                        root,
-                        &json!({
-                            "url": link.clone(),
-                            "summary_only": false
-                        }),
-                    )
-                }
-            });
+            let fetch_payload = stage_fetch_payload(root, stage, &link);
             if !fetch_payload
                 .get("ok")
                 .and_then(Value::as_bool)
@@ -391,16 +384,7 @@ fn retrieve_web_candidates_for_query(root: &Path, query: &str) -> Result<Vec<Can
     let mut issues = Vec::<String>::new();
     let mut fetched_links = HashSet::<String>::new();
 
-    let primary_payload = fixture_payload_for_query(query).unwrap_or_else(|| {
-        if fixture_mode_enabled() {
-            json!({
-                "ok": false,
-                "error": "fixture_missing"
-            })
-        } else {
-            crate::web_conduit::api_search(root, &json!({"query": query, "summary_only": false}))
-        }
-    });
+    let primary_payload = stage_search_payload(root, None, query, None);
     let (primary_candidates, primary_issues) = collect_candidates_from_stage_payload(
         root,
         "primary",
@@ -421,24 +405,7 @@ fn retrieve_web_candidates_for_query(root: &Path, query: &str) -> Result<Vec<Can
     }
 
     if candidates.is_empty() {
-        let bing_payload =
-            fixture_payload_for_stage_query("bing_rss", query).unwrap_or_else(|| {
-                if fixture_mode_enabled() {
-                    json!({
-                        "ok": false,
-                        "error": "fixture_missing"
-                    })
-                } else {
-                    crate::web_conduit::api_search(
-                        root,
-                        &json!({
-                            "query": query,
-                            "provider": "bing",
-                            "summary_only": false
-                        }),
-                    )
-                }
-            });
+        let bing_payload = stage_search_payload(root, Some("bing_rss"), query, Some("bing"));
         let (bing_candidates, bing_issues) = collect_candidates_from_stage_payload(
             root,
             "bing_rss",
@@ -453,23 +420,14 @@ fn retrieve_web_candidates_for_query(root: &Path, query: &str) -> Result<Vec<Can
 
     if candidates.is_empty() {
         let fallback_url = duckduckgo_instant_answer_url(query);
-        let fallback_payload = fixture_payload_for_stage_query("duckduckgo_instant", query)
-            .unwrap_or_else(|| {
-                if fixture_mode_enabled() {
-                    json!({
-                        "ok": false,
-                        "error": "fixture_missing"
-                    })
-                } else {
-                    crate::web_conduit::api_fetch(
-                        root,
-                        &json!({
-                            "url": fallback_url.clone(),
-                            "summary_only": false
-                        }),
-                    )
-                }
-            });
+        let fallback_payload =
+            if let Some(payload) = fixture_payload_for_stage_query("duckduckgo_instant", query) {
+                payload
+            } else if fixture_mode_enabled() {
+                fixture_missing_payload()
+            } else {
+                stage_fetch_payload(root, "duckduckgo_instant", &fallback_url)
+            };
         match candidate_from_duckduckgo_instant_payload(query, &fallback_url, &fallback_payload) {
             Ok(candidate) => {
                 if candidate_is_synthesis_eligible(query, &candidate, benchmark_intent) {
@@ -788,10 +746,8 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                         let _ = tx_clone.send((local_idx, query_item, out));
                     });
                 if spawned.is_err() {
-                    chunk_rows[local_idx] = Some((
-                        q.clone(),
-                        Err("query_worker_spawn_failed".to_string()),
-                    ));
+                    chunk_rows[local_idx] =
+                        Some((q.clone(), Err("query_worker_spawn_failed".to_string())));
                 }
             }
             drop(tx);
