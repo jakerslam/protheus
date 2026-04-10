@@ -151,7 +151,37 @@
                                 <div class="model-switcher-item" :class="{'active': isSwitcherModelActive(m), 'hovered': filteredSwitcherModels.indexOf(m) === modelSwitcherIdx}" @click="switchModel(m)" @mouseenter="modelSwitcherIdx = filteredSwitcherModels.indexOf(m)">
                                   <div class="model-switcher-main">
                                     <div class="model-switcher-title-row">
+                                      <span
+                                        class="model-switcher-logo-slot model-switcher-logo-model"
+                                        :title="modelLogoTooltip(m)"
+                                      >
+                                        <img
+                                          class="model-switcher-logo-image"
+                                          x-show="!!modelLogoUrl(m)"
+                                          :src="modelLogoUrl(m)"
+                                          :alt="modelLogoTooltip(m)"
+                                          loading="lazy"
+                                          referrerpolicy="no-referrer"
+                                          @load="onModelLogoLoad($event)"
+                                          @error="onModelLogoError('model', m, $event)"
+                                        >
+                                      </span>
                                       <span class="model-switcher-item-name" x-text="modelSwitcherItemName(m)"></span>
+                                      <span
+                                        class="model-switcher-logo-slot model-switcher-logo-source"
+                                        :title="modelSourceLogoTooltip(m)"
+                                      >
+                                        <img
+                                          class="model-switcher-logo-image"
+                                          x-show="!!modelSourceLogoUrl(m)"
+                                          :src="modelSourceLogoUrl(m)"
+                                          :alt="modelSourceLogoTooltip(m)"
+                                          loading="lazy"
+                                          referrerpolicy="no-referrer"
+                                          @load="onModelLogoLoad($event)"
+                                          @error="onModelLogoError('source', m, $event)"
+                                        >
+                                      </span>
                                       <span
                                         x-show="m.available === false"
                                         style="font-size:10px;padding:1px 6px;border-radius:999px;border:1px solid var(--border);color:var(--text-dim);background:var(--surface2)"

@@ -620,6 +620,10 @@ fn enrich_single_model_profile(
     profile: &Value,
     force_local: bool,
 ) -> Value {
+    let provider = normalize_provider_id(provider_id);
+    let model = clean_text(model_id, 240).to_ascii_lowercase();
+    let enforce_context_floor =
+        provider == "moonshot" || model.contains("moonshot") || model.contains("kimi");
     let inferred = inferred_model_profile(provider_id, model_id, force_local);
     let Some(mut merged) = profile.as_object().cloned() else {
         return inferred;
@@ -694,7 +698,9 @@ fn enrich_single_model_profile(
     if current_param == 0 && inferred_param > 0 {
         merged.insert("param_count_billion".to_string(), json!(inferred_param));
     }
-    if current_context == 0 && inferred_context > 0 {
+    if inferred_context > 0
+        && (current_context == 0 || (enforce_context_floor && current_context < inferred_context))
+    {
         merged.insert("context_window".to_string(), json!(inferred_context));
     }
     if (current_specialty.is_empty() || current_specialty == "general")

@@ -3,18 +3,31 @@
           candidates.push(modelId.split('/').slice(-1)[0]);
         }
       }
+      var bestFromMap = 0;
+      var bestInferred = 0;
+      var needsFloor = false;
       for (var i = 0; i < candidates.length; i++) {
-        var fromMap = Number(map[candidates[i]] || 0);
-        if (Number.isFinite(fromMap) && fromMap > 0) {
-          return Math.round(fromMap);
+        var candidate = String(candidates[i] || '').trim();
+        if (!candidate) continue;
+        if (typeof this.contextWindowNeedsFloor === 'function' && this.contextWindowNeedsFloor(candidate)) {
+          needsFloor = true;
+        }
+        var fromMap = Number(map[candidate] || 0);
+        if (Number.isFinite(fromMap) && fromMap > bestFromMap) {
+          bestFromMap = Math.round(fromMap);
+        }
+        var inferred = this.inferContextWindowFromModelId(
+          candidate.indexOf('/') >= 0 ? candidate.split('/').slice(-1)[0] : candidate
+        );
+        if (Number.isFinite(inferred) && inferred > bestInferred) {
+          bestInferred = Math.round(inferred);
         }
       }
-      var inferred = this.inferContextWindowFromModelId(
-        modelId.indexOf('/') >= 0 ? modelId.split('/').slice(-1)[0] : modelId
-      );
-      if (Number.isFinite(inferred) && inferred > 0) {
-        return Math.round(inferred);
+      if (needsFloor && bestInferred > 0) {
+        return Math.max(bestFromMap, bestInferred);
       }
+      if (bestFromMap > 0) return bestFromMap;
+      if (bestInferred > 0) return bestInferred;
       return 0;
     },
 

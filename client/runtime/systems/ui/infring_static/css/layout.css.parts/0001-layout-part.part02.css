@@ -519,7 +519,9 @@ body[data-theme='dark'] .bottom-dock::before {
 }
 
 .dock-tile[data-dock-icon='apps'] .apps-icon-quad,
-.dock-tile[data-dock-icon='apps'] .apps-icon-quad * {
+.dock-tile[data-dock-icon='apps'] .apps-icon-quad *,
+.dock-tile[data-dock-icon='apps'] .apps-icon-grid,
+.dock-tile[data-dock-icon='apps'] .apps-icon-grid * {
   stroke: none !important;
 }
 
@@ -549,12 +551,13 @@ body[data-theme='dark'] .bottom-dock::before {
 
 .bottom-dock-drag-ghost {
   --dock-ghost-scale: 1;
+  --dock-tile-fg: #d9dee6;
   width: 32px;
   height: 32px;
   box-sizing: border-box;
   border-radius: 11px;
   background: linear-gradient(to bottom right, #3e3e3e 0%, #000 100%);
-  color: #d9dee6;
+  color: var(--dock-tile-fg);
   box-shadow:
     0 10px 22px color-mix(in srgb, #000 58%, transparent),
     0 3px 8px color-mix(in srgb, #000 45%, transparent);
