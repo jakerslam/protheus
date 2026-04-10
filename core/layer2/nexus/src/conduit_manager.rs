@@ -43,6 +43,31 @@ impl ConduitManager {
         format!("{source}->{target}")
     }
 
+    fn link_mut(&mut self, source: &str, target: &str) -> Option<&mut ConduitBackedLink> {
+        self.links.get_mut(&Self::link_key(source, target))
+    }
+
+    fn create_link(
+        source: &str,
+        target: &str,
+        trust_class: TrustClass,
+        ts: u64,
+    ) -> ConduitBackedLink {
+        let link_id = format!(
+            "conduit_{}",
+            deterministic_hash(&(source, target, trust_class, ts))
+        );
+        ConduitBackedLink {
+            link_id,
+            source: source.to_string(),
+            target: target.to_string(),
+            trust_class,
+            created_at_ms: ts,
+            last_used_ms: ts,
+            policy: ConduitPolicy::default(),
+        }
+    }
+
     pub fn has_link(&self, source: &str, target: &str) -> bool {
         self.links.contains_key(&Self::link_key(source, target))
     }
@@ -54,30 +79,18 @@ impl ConduitManager {
         trust_class: TrustClass,
     ) -> (ConduitBackedLink, bool) {
         let key = Self::link_key(source, target);
+        let ts = now_ms();
         if let Some(existing) = self.links.get_mut(&key) {
-            existing.last_used_ms = now_ms();
+            existing.last_used_ms = ts;
             return (existing.clone(), false);
         }
-        let ts = now_ms();
-        let link_id = format!(
-            "conduit_{}",
-            deterministic_hash(&(source, target, trust_class, ts))
-        );
-        let link = ConduitBackedLink {
-            link_id,
-            source: source.to_string(),
-            target: target.to_string(),
-            trust_class,
-            created_at_ms: ts,
-            last_used_ms: ts,
-            policy: ConduitPolicy::default(),
-        };
+        let link = Self::create_link(source, target, trust_class, ts);
         self.links.insert(key, link.clone());
         (link, true)
     }
 
     pub fn mark_used(&mut self, source: &str, target: &str, at_ms: u64) {
-        if let Some(link) = self.links.get_mut(&Self::link_key(source, target)) {
+        if let Some(link) = self.link_mut(source, target) {
             link.last_used_ms = at_ms;
         }
     }
