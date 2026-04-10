@@ -13,6 +13,18 @@ pub(super) const HOTPATH_MD_REL: &str = "docs/client/generated/RUST60_TS_HOTPATH
 pub(super) const QUEUE_JSON_REL: &str = "docs/client/generated/RUST60_EXECUTION_QUEUE_261.json";
 pub(super) const QUEUE_MD_REL: &str = "docs/client/generated/RUST60_EXECUTION_QUEUE_261.md";
 
+fn row_u64(row: &Value, key: &str) -> u64 {
+    row.get(key).and_then(Value::as_u64).unwrap_or(0)
+}
+
+fn row_f64(row: &Value, key: &str) -> f64 {
+    row.get(key).and_then(Value::as_f64).unwrap_or(0.0)
+}
+
+fn row_str<'a>(row: &'a Value, key: &str) -> &'a str {
+    row.get(key).and_then(Value::as_str).unwrap_or("")
+}
+
 pub(super) fn render_csv(rows: &[Value]) -> String {
     let mut lines = vec![
         "rank,path,loc,weight,impact_score,cumulative_migrated_ts_lines,projected_rust_percent_after_lane".to_string(),
@@ -20,19 +32,13 @@ pub(super) fn render_csv(rows: &[Value]) -> String {
     for row in rows {
         lines.push(format!(
             "{},{},{},{},{},{},{}",
-            row.get("rank").and_then(Value::as_u64).unwrap_or(0),
-            row.get("path").and_then(Value::as_str).unwrap_or(""),
-            row.get("loc").and_then(Value::as_u64).unwrap_or(0),
-            row.get("weight").and_then(Value::as_f64).unwrap_or(0.0),
-            row.get("impact_score")
-                .and_then(Value::as_f64)
-                .unwrap_or(0.0),
-            row.get("cumulative_migrated_ts_lines")
-                .and_then(Value::as_u64)
-                .unwrap_or(0),
-            row.get("projected_rust_percent_after_lane")
-                .and_then(Value::as_f64)
-                .unwrap_or(0.0)
+            row_u64(row, "rank"),
+            row_str(row, "path"),
+            row_u64(row, "loc"),
+            row_f64(row, "weight"),
+            row_f64(row, "impact_score"),
+            row_u64(row, "cumulative_migrated_ts_lines"),
+            row_f64(row, "projected_rust_percent_after_lane")
         ));
     }
     format!("{}\n", lines.join("\n"))
@@ -50,18 +56,12 @@ pub(super) fn render_md(title: &str, rows: &[Value]) -> String {
     for row in rows {
         out.push(format!(
             "| {} | {} | {} | {} | {} | {} |",
-            row.get("rank").and_then(Value::as_u64).unwrap_or(0),
-            row.get("path").and_then(Value::as_str).unwrap_or(""),
-            row.get("loc").and_then(Value::as_u64).unwrap_or(0),
-            row.get("impact_score")
-                .and_then(Value::as_f64)
-                .unwrap_or(0.0),
-            row.get("cumulative_migrated_ts_lines")
-                .and_then(Value::as_u64)
-                .unwrap_or(0),
-            row.get("projected_rust_percent_after_lane")
-                .and_then(Value::as_f64)
-                .unwrap_or(0.0)
+            row_u64(row, "rank"),
+            row_str(row, "path"),
+            row_u64(row, "loc"),
+            row_f64(row, "impact_score"),
+            row_u64(row, "cumulative_migrated_ts_lines"),
+            row_f64(row, "projected_rust_percent_after_lane")
         ));
     }
     out.push(String::new());
@@ -78,12 +78,12 @@ pub(super) fn write_outputs(root: &Path, queue: &Value) -> Result<(), String> {
         .iter()
         .map(|lane| {
             json!({
-                "rank": lane.get("rank").and_then(Value::as_u64).unwrap_or(0),
-                "path": lane.get("path").and_then(Value::as_str).unwrap_or(""),
-                "loc": lane.get("loc").and_then(Value::as_u64).unwrap_or(0),
-                "impact_score": lane.get("impact_score").and_then(Value::as_f64).unwrap_or(0.0),
-                "cumulative_migrated_ts_lines": lane.get("cumulative_migrated_ts_lines").and_then(Value::as_u64).unwrap_or(0),
-                "projected_rust_percent_after_lane": lane.get("projected_rust_percent_after_lane").and_then(Value::as_f64).unwrap_or(0.0),
+                "rank": row_u64(lane, "rank"),
+                "path": row_str(lane, "path"),
+                "loc": row_u64(lane, "loc"),
+                "impact_score": row_f64(lane, "impact_score"),
+                "cumulative_migrated_ts_lines": row_u64(lane, "cumulative_migrated_ts_lines"),
+                "projected_rust_percent_after_lane": row_f64(lane, "projected_rust_percent_after_lane"),
             })
         })
         .collect::<Vec<_>>();
