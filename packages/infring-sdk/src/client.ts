@@ -37,6 +37,11 @@ function normalizePayload(input: JsonObject): JsonObject {
   return JSON.parse(JSON.stringify(input)) as JsonObject;
 }
 
+function toPolicyRefs(rows: unknown): string[] {
+  if (!Array.isArray(rows)) return [];
+  return rows.map((row) => String(row || '').trim()).filter((row) => row.length > 0);
+}
+
 export interface InfringSdkClientOptions {
   transport: InfringTransport;
   default_policy_refs?: string[];
@@ -93,9 +98,7 @@ export class InfringSdkClient {
   public async attachPolicies(
     request: AttachPoliciesRequest
   ): Promise<SdkEnvelope<AttachPoliciesData>> {
-    const refs = (request.policies || [])
-      .map((row) => String(row.policy_ref || '').trim())
-      .filter((row) => row.length > 0);
+    const refs = toPolicyRefs((request.policies || []).map((row) => row.policy_ref));
     if (String(request.mode || 'merge').toLowerCase() === 'replace') {
       this.attachedPolicyRefs = dedupePolicyRefs(refs);
     } else {
@@ -115,9 +118,7 @@ export class InfringSdkClient {
     operation: InfringOperation,
     payload: JsonObject
   ): Promise<SdkEnvelope<TData>> {
-    const payloadPolicyRefs = Array.isArray(payload.policy_refs)
-      ? payload.policy_refs.map((row) => String(row || '').trim()).filter((row) => row.length > 0)
-      : [];
+    const payloadPolicyRefs = toPolicyRefs(payload.policy_refs);
     const effectivePolicyRefs = dedupePolicyRefs([...this.attachedPolicyRefs, ...payloadPolicyRefs]);
     const request: InfringTransportRequest = {
       operation,
