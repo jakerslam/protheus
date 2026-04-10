@@ -69,6 +69,16 @@ fn command_ok(payload: &Value) -> bool {
     payload.get("ok").and_then(Value::as_bool).unwrap_or(false)
 }
 
+#[cfg(target_os = "macos")]
+fn launchctl(args: &[String]) -> Value {
+    run_command("launchctl", args, None)
+}
+
+#[cfg(target_os = "linux")]
+fn systemctl_user(args: &[String]) -> Value {
+    run_command("systemctl", args, None)
+}
+
 fn home_dir() -> Option<PathBuf> {
     env::var("HOME")
         .ok()
@@ -315,7 +325,7 @@ fn launchctl_state(stdout: &str) -> Option<String> {
 #[cfg(target_os = "macos")]
 fn launchctl_status(uid: &str, label: &str, plist_path: &Path) -> GatewaySupervisorResult {
     let target = format!("gui/{uid}/{label}");
-    let print = run_command("launchctl", &[String::from("print"), target.clone()], None);
+    let print = launchctl(&[String::from("print"), target.clone()]);
     let stdout = print
         .get("stdout")
         .and_then(Value::as_str)
@@ -377,40 +387,24 @@ fn launchd_enable(
     let target = format!("gui/{uid}/{label}");
     let domain = format!("gui/{uid}");
     let plist_str = plist_path.to_string_lossy().to_string();
-    let bootout_target = run_command(
-        "launchctl",
-        &[String::from("bootout"), target.clone()],
-        None,
-    );
-    let bootout_path = run_command(
-        "launchctl",
-        &[String::from("bootout"), domain.clone(), plist_str.clone()],
-        None,
-    );
-    let bootstrap = run_command(
-        "launchctl",
-        &[String::from("bootstrap"), domain.clone(), plist_str.clone()],
-        None,
-    );
+    let bootout_target = launchctl(&[String::from("bootout"), target.clone()]);
+    let bootout_path = launchctl(&[String::from("bootout"), domain.clone(), plist_str.clone()]);
+    let bootstrap = launchctl(&[String::from("bootstrap"), domain.clone(), plist_str.clone()]);
     let fallback_load = if !command_ok(&bootstrap) {
-        Some(run_command(
-            "launchctl",
-            &[String::from("load"), String::from("-w"), plist_str.clone()],
-            None,
-        ))
+        Some(launchctl(&[
+            String::from("load"),
+            String::from("-w"),
+            plist_str.clone(),
+        ]))
     } else {
         None
     };
-    let enable = run_command("launchctl", &[String::from("enable"), target.clone()], None);
-    let kickstart = run_command(
-        "launchctl",
-        &[
-            String::from("kickstart"),
-            String::from("-k"),
-            target.clone(),
-        ],
-        None,
-    );
+    let enable = launchctl(&[String::from("enable"), target.clone()]);
+    let kickstart = launchctl(&[
+        String::from("kickstart"),
+        String::from("-k"),
+        target.clone(),
+    ]);
 
     let mut status = launchctl_status(uid.as_str(), label.as_str(), &plist_path);
     let enabled = status.active;
@@ -439,25 +433,13 @@ fn launchd_disable(_root: &Path) -> GatewaySupervisorResult {
     let target = format!("gui/{uid}/{label}");
     let domain = format!("gui/{uid}");
     let plist_str = plist_path.to_string_lossy().to_string();
-    let bootout_target = run_command(
-        "launchctl",
-        &[String::from("bootout"), target.clone()],
-        None,
-    );
-    let bootout_path = run_command(
-        "launchctl",
-        &[String::from("bootout"), domain.clone(), plist_str.clone()],
-        None,
-    );
-    let unload = run_command(
-        "launchctl",
-        &[
-            String::from("unload"),
-            String::from("-w"),
-            plist_str.clone(),
-        ],
-        None,
-    );
+    let bootout_target = launchctl(&[String::from("bootout"), target.clone()]);
+    let bootout_path = launchctl(&[String::from("bootout"), domain.clone(), plist_str.clone()]);
+    let unload = launchctl(&[
+        String::from("unload"),
+        String::from("-w"),
+        plist_str.clone(),
+    ]);
     let removed = fs::remove_file(&plist_path).is_ok();
     GatewaySupervisorResult {
         active: false,
@@ -538,24 +520,16 @@ fn systemd_status(root: &Path) -> GatewaySupervisorResult {
     let Some((unit, service_path)) = systemd_paths() else {
         return unsupported_payload("status", "systemd_identity_unavailable");
     };
-    let active_cmd = run_command(
-        "systemctl",
-        &[
-            String::from("--user"),
-            String::from("is-active"),
-            unit.clone(),
-        ],
-        None,
-    );
-    let enabled_cmd = run_command(
-        "systemctl",
-        &[
-            String::from("--user"),
-            String::from("is-enabled"),
-            unit.clone(),
-        ],
-        None,
-    );
+    let active_cmd = systemctl_user(&[
+        String::from("--user"),
+        String::from("is-active"),
+        unit.clone(),
+    ]);
+    let enabled_cmd = systemctl_user(&[
+        String::from("--user"),
+        String::from("is-enabled"),
+        unit.clone(),
+    ]);
     let active = command_ok(&active_cmd)
         && active_cmd
             .get("stdout")
@@ -606,30 +580,18 @@ fn systemd_enable(
         };
     }
 
-    let daemon_reload = run_command(
-        "systemctl",
-        &[String::from("--user"), String::from("daemon-reload")],
-        None,
-    );
-    let enable_now = run_command(
-        "systemctl",
-        &[
-            String::from("--user"),
-            String::from("enable"),
-            String::from("--now"),
-            unit.clone(),
-        ],
-        None,
-    );
-    let restart = run_command(
-        "systemctl",
-        &[
-            String::from("--user"),
-            String::from("restart"),
-            unit.clone(),
-        ],
-        None,
-    );
+    let daemon_reload = systemctl_user(&[String::from("--user"), String::from("daemon-reload")]);
+    let enable_now = systemctl_user(&[
+        String::from("--user"),
+        String::from("enable"),
+        String::from("--now"),
+        unit.clone(),
+    ]);
+    let restart = systemctl_user(&[
+        String::from("--user"),
+        String::from("restart"),
+        unit.clone(),
+    ]);
 
     let mut status = systemd_status(root);
     if let Some(obj) = status.payload.as_object_mut() {
@@ -646,22 +608,14 @@ fn systemd_disable(root: &Path) -> GatewaySupervisorResult {
     let Some((unit, service_path)) = systemd_paths() else {
         return unsupported_payload("disable", "systemd_identity_unavailable");
     };
-    let disable_now = run_command(
-        "systemctl",
-        &[
-            String::from("--user"),
-            String::from("disable"),
-            String::from("--now"),
-            unit.clone(),
-        ],
-        None,
-    );
+    let disable_now = systemctl_user(&[
+        String::from("--user"),
+        String::from("disable"),
+        String::from("--now"),
+        unit.clone(),
+    ]);
     let removed = fs::remove_file(&service_path).is_ok();
-    let daemon_reload = run_command(
-        "systemctl",
-        &[String::from("--user"), String::from("daemon-reload")],
-        None,
-    );
+    let daemon_reload = systemctl_user(&[String::from("--user"), String::from("daemon-reload")]);
     GatewaySupervisorResult {
         active: false,
         payload: json!({
