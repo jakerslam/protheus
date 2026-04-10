@@ -1,6 +1,6 @@
 // Layer ownership: core/layer1/storage via core/layer2/ops CLI (authoritative)
 // SPDX-License-Identifier: Apache-2.0
-use crate::deterministic_receipt_hash;
+use crate::{deterministic_receipt_hash, parse_cli_flag, print_json_line};
 use serde_json::{json, Value};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -8,28 +8,8 @@ use std::path::{Path, PathBuf};
 const DEFAULT_MAX_AGE_HOURS: f64 = 12.0;
 const DEFAULT_CACHE_REL: &str = "local/state/sensory/eyes/cache";
 
-fn print_json(value: &Value) {
-    println!(
-        "{}",
-        serde_json::to_string(value)
-            .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
-    );
-}
 fn parse_flag(argv: &[String], key: &str) -> Option<String> {
-    let pref = format!("--{key}=");
-    let long = format!("--{key}");
-    let mut idx = 0usize;
-    while idx < argv.len() {
-        let token = argv[idx].trim();
-        if let Some(value) = token.strip_prefix(&pref) {
-            return Some(value.to_string());
-        }
-        if token == long && idx + 1 < argv.len() {
-            return Some(argv[idx + 1].clone());
-        }
-        idx += 1;
-    }
-    None
+    parse_cli_flag(argv, key)
 }
 fn now_iso() -> String {
     chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
@@ -153,11 +133,11 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             } else {
                 1
             };
-            print_json(&payload);
+            print_json_line(&payload);
             exit
         }
         Err(err) => {
-            print_json(&json!({"ok":false,"error":err}));
+            print_json_line(&json!({"ok":false,"error":err}));
             1
         }
     }

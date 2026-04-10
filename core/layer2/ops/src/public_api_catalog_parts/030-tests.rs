@@ -7,6 +7,21 @@ mod tests {
         result.payload.get("payload").unwrap_or(&result.payload)
     }
 
+    fn json_flag(name: &str, value: &Value) -> String {
+        format!("--{name}={}", serde_json::to_string(value).unwrap())
+    }
+
+    fn sync_catalog(root: &Path, catalog: &Value) -> CommandResult {
+        run_command(
+            root,
+            &[
+                "sync".to_string(),
+                json_flag("catalog-json", catalog),
+                "--strict=1".to_string(),
+            ],
+        )
+    }
+
     #[test]
     fn sync_search_integrate_roundtrip() {
         let tmp = tempdir().expect("tempdir");
@@ -24,17 +39,7 @@ mod tests {
                 }
             ]
         });
-        let sync = run_command(
-            root,
-            &[
-                "sync".to_string(),
-                format!(
-                    "--catalog-json={}",
-                    serde_json::to_string(&catalog).unwrap()
-                ),
-                "--strict=1".to_string(),
-            ],
-        );
+        let sync = sync_catalog(root, &catalog);
         assert_eq!(sync.exit_code, 0);
 
         let search = run_command(
@@ -143,17 +148,7 @@ mod tests {
                 }
             ]
         });
-        let sync = run_command(
-            root,
-            &[
-                "sync".to_string(),
-                format!(
-                    "--catalog-json={}",
-                    serde_json::to_string(&catalog).unwrap()
-                ),
-                "--strict=1".to_string(),
-            ],
-        );
+        let sync = sync_catalog(root, &catalog);
         assert_eq!(sync.exit_code, 0);
 
         let integrate = run_command(
