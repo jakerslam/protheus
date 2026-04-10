@@ -37,6 +37,34 @@ fn allowed_integration_kind(kind: &str) -> bool {
     matches!(kind, "retriever" | "tool" | "adapter" | "classifier")
 }
 
+fn upsert_state_record(
+    state: &mut Value,
+    bucket: &str,
+    id_field: &str,
+    record: &Value,
+) -> Result<String, String> {
+    let record_id = record
+        .get(id_field)
+        .and_then(Value::as_str)
+        .ok_or_else(|| format!("dspy_record_id_missing:{id_field}"))?
+        .to_string();
+    as_object_mut(state, bucket).insert(record_id.clone(), record.clone());
+    Ok(record_id)
+}
+
+fn require_compiled_program(state: &Value, program_id: &str) -> Result<(), String> {
+    let exists = state
+        .get("compiled_programs")
+        .and_then(Value::as_object)
+        .map(|rows| rows.contains_key(program_id))
+        .unwrap_or(false);
+    if exists {
+        Ok(())
+    } else {
+        Err(format!("dspy_program_missing:{program_id}"))
+    }
+}
+
 fn register_signature(state: &mut Value, payload: &Map<String, Value>) -> Result<Value, String> {
     let name = clean_token(
         payload.get("name").and_then(Value::as_str),
@@ -61,12 +89,7 @@ fn register_signature(state: &mut Value, payload: &Map<String, Value>) -> Result
         "supported_profiles": payload.get("supported_profiles").cloned().unwrap_or_else(|| json!(["rich", "pure"])),
         "registered_at": now_iso(),
     });
-    let signature_id = record
-        .get("signature_id")
-        .and_then(Value::as_str)
-        .unwrap()
-        .to_string();
-    as_object_mut(state, "signatures").insert(signature_id, record.clone());
+    upsert_state_record(state, "signatures", "signature_id", &record)?;
     Ok(json!({
         "ok": true,
         "signature": record,
@@ -117,12 +140,7 @@ fn compile_program(state: &mut Value, payload: &Map<String, Value>) -> Result<Va
         "compiled_at": now_iso(),
         "deterministic": true,
     });
-    let program_id = record
-        .get("program_id")
-        .and_then(Value::as_str)
-        .unwrap()
-        .to_string();
-    as_object_mut(state, "compiled_programs").insert(program_id, record.clone());
+    upsert_state_record(state, "compiled_programs", "program_id", &record)?;
     Ok(json!({
         "ok": true,
         "program": record,
@@ -136,14 +154,7 @@ fn optimize_program(
     payload: &Map<String, Value>,
 ) -> Result<Value, String> {
     let program_id = clean_token(payload.get("program_id").and_then(Value::as_str), "");
-    if !state
-        .get("compiled_programs")
-        .and_then(Value::as_object)
-        .map(|rows| rows.contains_key(&program_id))
-        .unwrap_or(false)
-    {
-        return Err(format!("dspy_program_missing:{program_id}"));
-    }
+    require_compiled_program(state, &program_id)?;
     let optimizer_kind = clean_token(
         payload.get("optimizer_kind").and_then(Value::as_str),
         "teleprompter",
@@ -171,12 +182,8 @@ fn optimize_program(
         "improved_score": improved_score,
         "optimized_at": now_iso(),
     });
-    let optimization_id = record
-        .get("optimization_id")
-        .and_then(Value::as_str)
-        .unwrap()
-        .to_string();
-    as_object_mut(state, "optimization_runs").insert(optimization_id.clone(), record.clone());
+    let optimization_id =
+        upsert_state_record(state, "optimization_runs", "optimization_id", &record)?;
     emit_native_trace(
         root,
         &optimization_id,
@@ -197,14 +204,7 @@ fn optimize_program(
 
 fn assert_program(state: &mut Value, payload: &Map<String, Value>) -> Result<Value, String> {
     let program_id = clean_token(payload.get("program_id").and_then(Value::as_str), "");
-    if !state
-        .get("compiled_programs")
-        .and_then(Value::as_object)
-        .map(|rows| rows.contains_key(&program_id))
-        .unwrap_or(false)
-    {
-        return Err(format!("dspy_program_missing:{program_id}"));
-    }
+    require_compiled_program(state, &program_id)?;
     let assertions = payload
         .get("assertions")
         .and_then(Value::as_array)
@@ -257,12 +257,7 @@ fn assert_program(state: &mut Value, payload: &Map<String, Value>) -> Result<Val
         "status": status,
         "asserted_at": now_iso(),
     });
-    let assertion_id = record
-        .get("assertion_id")
-        .and_then(Value::as_str)
-        .unwrap()
-        .to_string();
-    as_object_mut(state, "assertion_runs").insert(assertion_id, record.clone());
+    upsert_state_record(state, "assertion_runs", "assertion_id", &record)?;
     Ok(json!({
         "ok": status != "reject",
         "assertion": record,
@@ -301,16 +296,10 @@ fn import_integration(
         "registered_at": now_iso(),
         "fail_closed": true,
     });
-    let integration_id = record
-        .get("integration_id")
-        .and_then(Value::as_str)
-        .unwrap()
-        .to_string();
-    as_object_mut(state, "integrations").insert(integration_id, record.clone());
+    upsert_state_record(state, "integrations", "integration_id", &record)?;
     Ok(json!({
         "ok": true,
         "integration": record,
         "claim_evidence": default_claim_evidence("V6-WORKFLOW-017.7", dspy_claim("V6-WORKFLOW-017.7")),
     }))
 }
-
