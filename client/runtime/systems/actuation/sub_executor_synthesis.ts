@@ -7,10 +7,19 @@ const bridge = createOpsLaneBridge(__dirname, 'sub_executor_synthesis', 'runtime
   inheritStdio: true
 });
 
+function writeStream(stream, chunk) {
+  if (chunk) stream.write(chunk);
+}
+
+function statusCode(out) {
+  const parsed = Number(out && out.status);
+  return Number.isFinite(parsed) ? parsed : 1;
+}
+
 function run(args = process.argv.slice(2)) {
   const out = bridge.run([`--system-id=${SYSTEM_ID}`].concat(Array.isArray(args) ? args : []));
-  if (out && out.stdout) process.stdout.write(out.stdout);
-  if (out && out.stderr) process.stderr.write(out.stderr);
+  writeStream(process.stdout, out && out.stdout);
+  writeStream(process.stderr, out && out.stderr);
   if (out && out.payload && !out.stdout) {
     process.stdout.write(`${JSON.stringify(out.payload)}\n`);
   }
@@ -19,7 +28,7 @@ function run(args = process.argv.slice(2)) {
 
 if (require.main === module) {
   const out = run(process.argv.slice(2));
-  process.exit(Number.isFinite(Number(out && out.status)) ? Number(out.status) : 1);
+  process.exit(statusCode(out));
 }
 
 module.exports = {
