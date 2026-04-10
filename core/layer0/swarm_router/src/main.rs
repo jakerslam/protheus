@@ -6,6 +6,7 @@ use protheus_swarm_router::{
 use serde_json::{json, Value};
 use std::env;
 use std::path::PathBuf;
+use std::str::FromStr;
 
 fn parse_flag(args: &[String], name: &str, default: Option<&str>) -> String {
     let prefix = format!("--{}=", name);
@@ -15,22 +16,25 @@ fn parse_flag(args: &[String], name: &str, default: Option<&str>) -> String {
         .unwrap_or_default()
 }
 
-fn parse_u8(args: &[String], name: &str, default: u8) -> u8 {
+fn parse_with_default<T>(args: &[String], name: &str, default: T) -> T
+where
+    T: FromStr + ToString + Copy,
+{
     parse_flag(args, name, Some(&default.to_string()))
-        .parse::<u8>()
+        .parse::<T>()
         .unwrap_or(default)
+}
+
+fn parse_u8(args: &[String], name: &str, default: u8) -> u8 {
+    parse_with_default(args, name, default)
 }
 
 fn parse_u32(args: &[String], name: &str, default: u32) -> u32 {
-    parse_flag(args, name, Some(&default.to_string()))
-        .parse::<u32>()
-        .unwrap_or(default)
+    parse_with_default(args, name, default)
 }
 
 fn parse_usize(args: &[String], name: &str, default: usize) -> usize {
-    parse_flag(args, name, Some(&default.to_string()))
-        .parse::<usize>()
-        .unwrap_or(default)
+    parse_with_default(args, name, default)
 }
 
 fn parse_bool(args: &[String], name: &str, default: bool) -> bool {
@@ -44,6 +48,13 @@ fn queue_path(args: &[String]) -> PathBuf {
         Some("client/runtime/local/state/swarm/queue.json"),
     );
     PathBuf::from(raw)
+}
+
+fn upgrade_policy_from_args(args: &[String]) -> UpgradePolicy {
+    UpgradePolicy {
+        allow_upgrade: parse_bool(args, "allow-upgrade", true),
+        allow_rollback: parse_bool(args, "allow-rollback", true),
+    }
 }
 
 fn emit(payload: Value, ok: bool) {
@@ -131,10 +142,7 @@ fn main() {
             );
         }
         "upgrade" => {
-            let policy = UpgradePolicy {
-                allow_upgrade: parse_bool(&args, "allow-upgrade", true),
-                allow_rollback: parse_bool(&args, "allow-rollback", true),
-            };
+            let policy = upgrade_policy_from_args(&args);
             let receipt = apply_upgrade(
                 &parse_flag(&args, "from", Some("1.0.0")),
                 &parse_flag(&args, "to", Some("1.1.0")),
@@ -146,10 +154,7 @@ fn main() {
             );
         }
         "rollback" => {
-            let policy = UpgradePolicy {
-                allow_upgrade: parse_bool(&args, "allow-upgrade", true),
-                allow_rollback: parse_bool(&args, "allow-rollback", true),
-            };
+            let policy = upgrade_policy_from_args(&args);
             let receipt = apply_rollback(
                 &parse_flag(&args, "from", Some("1.1.0")),
                 &parse_flag(&args, "to", Some("1.0.0")),

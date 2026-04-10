@@ -386,23 +386,41 @@ pub struct UpgradeReceipt {
     pub ts_unix_ms: u64,
 }
 
+fn version_transition_receipt(
+    allowed: bool,
+    success_action: &str,
+    denied_action: &str,
+    from_version: &str,
+    to_version: &str,
+    rollback_available: bool,
+) -> UpgradeReceipt {
+    UpgradeReceipt {
+        ok: allowed,
+        action: if allowed {
+            success_action.to_string()
+        } else {
+            denied_action.to_string()
+        },
+        from_version: from_version.to_string(),
+        to_version: to_version.to_string(),
+        rollback_available,
+        ts_unix_ms: now_unix_ms(),
+    }
+}
+
 pub fn apply_upgrade(
     from_version: &str,
     to_version: &str,
     policy: &UpgradePolicy,
 ) -> UpgradeReceipt {
-    UpgradeReceipt {
-        ok: policy.allow_upgrade,
-        action: if policy.allow_upgrade {
-            "upgrade_applied".to_string()
-        } else {
-            "upgrade_denied".to_string()
-        },
-        from_version: from_version.to_string(),
-        to_version: to_version.to_string(),
-        rollback_available: policy.allow_upgrade && policy.allow_rollback,
-        ts_unix_ms: now_unix_ms(),
-    }
+    version_transition_receipt(
+        policy.allow_upgrade,
+        "upgrade_applied",
+        "upgrade_denied",
+        from_version,
+        to_version,
+        policy.allow_upgrade && policy.allow_rollback,
+    )
 }
 
 pub fn apply_rollback(
@@ -410,18 +428,14 @@ pub fn apply_rollback(
     to_version: &str,
     policy: &UpgradePolicy,
 ) -> UpgradeReceipt {
-    UpgradeReceipt {
-        ok: policy.allow_rollback,
-        action: if policy.allow_rollback {
-            "rollback_applied".to_string()
-        } else {
-            "rollback_denied".to_string()
-        },
-        from_version: from_version.to_string(),
-        to_version: to_version.to_string(),
-        rollback_available: false,
-        ts_unix_ms: now_unix_ms(),
-    }
+    version_transition_receipt(
+        policy.allow_rollback,
+        "rollback_applied",
+        "rollback_denied",
+        from_version,
+        to_version,
+        false,
+    )
 }
 
 pub fn status_payload(
