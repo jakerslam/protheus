@@ -1,20 +1,24 @@
 use std::fs;
 use std::io::Write;
 
+fn context_stacks_path(root: &Path, rel: &str) -> PathBuf {
+    root.join(rel)
+}
+
 fn context_stacks_policy_path(root: &Path) -> PathBuf {
-    root.join(CONTEXT_STACKS_POLICY_REL)
+    context_stacks_path(root, CONTEXT_STACKS_POLICY_REL)
 }
 
 fn context_stacks_state_path(root: &Path) -> PathBuf {
-    root.join(CONTEXT_STACKS_STATE_REL)
+    context_stacks_path(root, CONTEXT_STACKS_STATE_REL)
 }
 
 fn context_stacks_receipts_path(root: &Path) -> PathBuf {
-    root.join(CONTEXT_STACKS_RECEIPTS_REL)
+    context_stacks_path(root, CONTEXT_STACKS_RECEIPTS_REL)
 }
 
 fn context_stacks_digestion_log_path(root: &Path) -> PathBuf {
-    root.join(CONTEXT_STACKS_DIGESTION_LOG_REL)
+    context_stacks_path(root, CONTEXT_STACKS_DIGESTION_LOG_REL)
 }
 
 fn default_context_stacks_policy() -> ContextStacksPolicy {
@@ -95,34 +99,28 @@ fn append_text(path: &Path, line: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn load_context_stacks_policy(root: &Path) -> ContextStacksPolicy {
-    let path = context_stacks_policy_path(root);
+fn load_or_init_json<T>(path: &Path, default: T) -> T
+where
+    T: serde::Serialize + serde::de::DeserializeOwned + Clone,
+{
     if !path.exists() {
-        let default = default_context_stacks_policy();
         let encoded = serde_json::to_value(&default).unwrap_or_else(|_| serde_json::json!({}));
-        let _ = write_json_atomic(&path, &encoded);
+        let _ = write_json_atomic(path, &encoded);
         return default;
     }
-    serde_json::from_value(read_json_value_or(
-        &path,
-        serde_json::to_value(default_context_stacks_policy()).unwrap_or_else(|_| serde_json::json!({})),
-    ))
-    .unwrap_or_else(|_| default_context_stacks_policy())
+    let fallback = serde_json::to_value(&default).unwrap_or_else(|_| serde_json::json!({}));
+    serde_json::from_value(read_json_value_or(path, fallback)).unwrap_or(default)
+}
+
+fn load_context_stacks_policy(root: &Path) -> ContextStacksPolicy {
+    load_or_init_json(
+        &context_stacks_policy_path(root),
+        default_context_stacks_policy(),
+    )
 }
 
 fn load_context_stacks_state(root: &Path) -> ContextStacksState {
-    let path = context_stacks_state_path(root);
-    if !path.exists() {
-        let default = default_context_stacks_state();
-        let encoded = serde_json::to_value(&default).unwrap_or_else(|_| serde_json::json!({}));
-        let _ = write_json_atomic(&path, &encoded);
-        return default;
-    }
-    serde_json::from_value(read_json_value_or(
-        &path,
-        serde_json::to_value(default_context_stacks_state()).unwrap_or_else(|_| serde_json::json!({})),
-    ))
-    .unwrap_or_else(|_| default_context_stacks_state())
+    load_or_init_json(&context_stacks_state_path(root), default_context_stacks_state())
 }
 
 fn persist_context_stacks_state(root: &Path, state: &ContextStacksState) -> Result<(), String> {
