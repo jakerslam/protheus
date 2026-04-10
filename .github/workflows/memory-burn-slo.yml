@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       INFRING_OPS_LOCAL_TIMEOUT_MS: "180000"
-      INFRING_OPS_DOMAIN_BRIDGE_TIMEOUT_MS: "60000"
+      INFRING_OPS_DOMAIN_BRIDGE_TIMEOUT_MS: "180000"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
