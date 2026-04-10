@@ -337,6 +337,18 @@
     width var(--bottom-dock-preview-size-transition) var(--ease-smooth);
 }
 
+.bottom-dock-preview-bubble.is-side-top {
+  transform: translateX(-50%) translateY(-6px);
+}
+
+.bottom-dock-preview-bubble.is-side-left {
+  transform: translateX(6px) translateY(-50%);
+}
+
+.bottom-dock-preview-bubble.is-side-right {
+  transform: translateX(calc(-100% - 6px)) translateY(-50%);
+}
+
 .bottom-dock-preview-bubble::before {
   content: none;
   display: none;
@@ -388,6 +400,18 @@
 .bottom-dock-preview-bubble.is-visible {
   opacity: 1;
   transform: translateX(-50%) translateY(-100%);
+}
+
+.bottom-dock-preview-bubble.is-visible.is-side-top {
+  transform: translateX(-50%) translateY(0);
+}
+
+.bottom-dock-preview-bubble.is-visible.is-side-left {
+  transform: translateX(0) translateY(-50%);
+}
+
+.bottom-dock-preview-bubble.is-visible.is-side-right {
+  transform: translateX(-100%) translateY(-50%);
 }
 
 .bottom-dock-preview-bubble.is-visible .bottom-dock-preview-bubble-label-stack.label-fx-ready .bottom-dock-preview-bubble-label--new {

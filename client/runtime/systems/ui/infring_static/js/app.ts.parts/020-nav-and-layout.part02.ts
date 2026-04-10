@@ -164,6 +164,7 @@
     bottomDockHoverId: '',
     bottomDockHoverWeightById: {},
     bottomDockPointerX: 0,
+    bottomDockPointerY: 0,
     bottomDockPreviewText: '',
     bottomDockPreviewMorphFromText: '',
     bottomDockPreviewHoverKey: '',
@@ -206,6 +207,7 @@
     _bottomDockGhostCleanupTimer: 0,
     _bottomDockMoveDurationMs: 360,
     _bottomDockExpandedScale: 1.54,
+    bottomDockRotationDeg: Number.NaN,
     _bottomDockRevealTargetDuringSettle: false,
     _bottomDockDragBoundaries: [],
     _bottomDockLastInsertionIndex: -1,
@@ -213,14 +215,35 @@
     bottomDockPlacementId: (() => {
       try {
         var raw = String(localStorage.getItem('infring-bottom-dock-placement') || '').trim().toLowerCase();
-        if (raw === 'left' || raw === 'center' || raw === 'right') return raw;
+        var allowed = {
+          left: true,
+          center: true,
+          right: true,
+          'top-left': true,
+          'top-center': true,
+          'top-right': true,
+          'left-top': true,
+          'left-bottom': true,
+          'right-top': true,
+          'right-bottom': true
+        };
+        if (allowed[raw]) return raw;
+        if (raw === 'left-center') return 'left-top';
+        if (raw === 'right-center') return 'right-top';
       } catch(_) {}
       return 'center';
     })(),
     bottomDockSnapPoints: [
-      { id: 'left', x: 0.16, y: 0.995 },
-      { id: 'center', x: 0.50, y: 0.995 },
-      { id: 'right', x: 0.84, y: 0.995 }
+      { id: 'left', x: 0.16, y: 0.995, side: 'bottom' },
+      { id: 'center', x: 0.50, y: 0.995, side: 'bottom' },
+      { id: 'right', x: 0.84, y: 0.995, side: 'bottom' },
+      { id: 'top-left', x: 0.16, y: 0.005, side: 'top' },
+      { id: 'top-center', x: 0.50, y: 0.005, side: 'top' },
+      { id: 'top-right', x: 0.84, y: 0.005, side: 'top' },
+      { id: 'left-top', x: 0.005, y: (1 / 3), side: 'left' },
+      { id: 'left-bottom', x: 0.005, y: (2 / 3), side: 'left' },
+      { id: 'right-top', x: 0.995, y: (1 / 3), side: 'right' },
+      { id: 'right-bottom', x: 0.995, y: (2 / 3), side: 'right' }
     ],
     bottomDockContainerDragActive: false,
     bottomDockContainerSettling: false,
@@ -441,6 +464,143 @@
       return { width: width, height: height };
     },
 
+    bottomDockNormalizeSide(side) {
+      var key = String(side || '').trim().toLowerCase();
+      if (key === 'top' || key === 'left' || key === 'right') return key;
+      return 'bottom';
+    },
+
+    bottomDockIsVerticalSide(side) {
+      var key = this.bottomDockNormalizeSide(side);
+      return key === 'left' || key === 'right';
+    },
+
+    bottomDockRotationDegForSide(side) {
+      var key = this.bottomDockNormalizeSide(side);
+      if (key === 'left') return -90;
+      if (key === 'right') return 90;
+      return 0;
+    },
+
+    bottomDockIconRotationDegForSide(side) {
+      var key = this.bottomDockNormalizeSide(side);
+      if (key === 'left') return 90;
+      if (key === 'right') return -90;
+      return 0;
+    },
+
+    bottomDockCanonicalRotationCandidatesForSide(side) {
+      var key = this.bottomDockNormalizeSide(side);
+      if (key === 'left' || key === 'right') return [90, -90];
+      return [0];
+    },
+
+    bottomDockNormalizeRotationDeg(value) {
+      var raw = Number(value);
+      var canonical = [-90, 0, 90];
+      if (!Number.isFinite(raw)) return 0;
+      var best = canonical[0];
+      var bestDist = Number.POSITIVE_INFINITY;
+      for (var i = 0; i < canonical.length; i += 1) {
+        var candidate = canonical[i];
+        var dist = Math.abs(raw - candidate);
+        if (dist < bestDist) {
+          bestDist = dist;
+          best = candidate;
+        }
+      }
+      return best;
+    },
+
+    bottomDockResolveShortestRotationDeg(currentDeg, targetDeg) {
+      var current = Number(currentDeg);
+      var target = Number(targetDeg);
+      if (!Number.isFinite(target)) target = 0;
+      if (!Number.isFinite(current)) return target;
+      var best = target;
+      var bestDelta = Number.POSITIVE_INFINITY;
+      for (var k = -2; k <= 2; k += 1) {
+        var candidate = target + (k * 360);
+        var delta = Math.abs(candidate - current);
+        if (delta < bestDelta) {
+          bestDelta = delta;
+          best = candidate;
+        }
+      }
+      return best;
+    },
+
+    bottomDockPreferredRotationDirectionForAnchor(anchorX, anchorY) {
+      var view = this.bottomDockReadViewportSize();
+      var x = Number(anchorX);
+      var y = Number(anchorY);
+      if (!Number.isFinite(x)) x = Number(view.width || 0) * 0.5;
+      if (!Number.isFinite(y)) y = Number(view.height || 0) * 0.5;
+      var left = x < (Number(view.width || 0) * 0.5);
+      var top = y < (Number(view.height || 0) * 0.5);
+      // TL + BR => counterclockwise. TR + BL => clockwise.
+      return (left === top) ? 'ccw' : 'cw';
+    },
+
+    bottomDockResolveDirectionalRotationDeg(currentDeg, targetDeg, direction) {
+      var current = Number(currentDeg);
+      var target = Number(targetDeg);
+      var dir = String(direction || '').trim().toLowerCase();
+      if (!Number.isFinite(target)) target = 0;
+      if (!Number.isFinite(current)) return target;
+      if (dir !== 'cw' && dir !== 'ccw') {
+        return this.bottomDockResolveShortestRotationDeg(current, target);
+      }
+      var best = null;
+      var bestAbs = Number.POSITIVE_INFINITY;
+      for (var k = -2; k <= 2; k += 1) {
+        var candidate = target + (k * 360);
+        var delta = candidate - current;
+        if (dir === 'cw' && delta < 0) continue;
+        if (dir === 'ccw' && delta > 0) continue;
+        var absDelta = Math.abs(delta);
+        if (absDelta < bestAbs) {
+          bestAbs = absDelta;
+          best = candidate;
+        }
+      }
+      if (best === null) {
+        return this.bottomDockResolveShortestRotationDeg(current, target);
+      }
+      return best;
+    },
+
+    bottomDockResolveRotationForSide(side, anchorX, anchorY) {
+      var current = this.bottomDockNormalizeRotationDeg(this.bottomDockRotationDeg);
+      var dir = this.bottomDockPreferredRotationDirectionForAnchor(anchorX, anchorY);
+      var candidates = this.bottomDockCanonicalRotationCandidatesForSide(side);
+      if (!Array.isArray(candidates) || !candidates.length) return current;
+      var best = Number(candidates[0] || 0);
+      var bestScore = Number.POSITIVE_INFINITY;
+      var bestDeltaAbs = Number.POSITIVE_INFINITY;
+      for (var i = 0; i < candidates.length; i += 1) {
+        var target = Number(candidates[i] || 0);
+        var delta = target - current;
+        var deltaAbs = Math.abs(delta);
+        var directionPenalty = 0;
+        if (dir === 'cw' && delta < 0) directionPenalty = 0.35;
+        if (dir === 'ccw' && delta > 0) directionPenalty = 0.35;
+        var score = deltaAbs + directionPenalty;
+        if (score < bestScore || (score === bestScore && deltaAbs < bestDeltaAbs)) {
+          best = target;
+          bestScore = score;
+          bestDeltaAbs = deltaAbs;
+        }
+      }
+      var chosenDelta = best - current;
+      if (Math.abs(chosenDelta) > 90) {
+        if (dir === 'cw') return current + 90;
+        if (dir === 'ccw') return current - 90;
+        return current + (chosenDelta > 0 ? 90 : -90);
+      }
+      return best;
+    },
+
     bottomDockSnapDefinitions() {
       var source = Array.isArray(this.bottomDockSnapPoints) ? this.bottomDockSnapPoints : [];
       var out = [];
@@ -452,15 +612,16 @@
         if (!id || seen[id]) continue;
         var nx = Number(row.x);
         var ny = Number(row.y);
+        var side = this.bottomDockNormalizeSide(row.side);
         if (!Number.isFinite(nx)) nx = 0.5;
         if (!Number.isFinite(ny)) ny = 0.995;
         nx = Math.max(0, Math.min(1, nx));
         ny = Math.max(0, Math.min(1, ny));
         seen[id] = true;
-        out.push({ id: id, x: nx, y: ny });
+        out.push({ id: id, x: nx, y: ny, side: side });
       }
       if (!out.length) {
-        out.push({ id: 'center', x: 0.5, y: 0.995 });
+        out.push({ id: 'center', x: 0.5, y: 0.995, side: 'bottom' });
       }
       return out;
     },
@@ -478,18 +639,79 @@
       return defs[0] || null;
     },
 
-    bottomDockClampAnchor(anchorX, anchorY) {
+    bottomDockSideForSnapId(id) {
+      var snap = this.bottomDockSnapDefinitionById(id);
+      return this.bottomDockNormalizeSide(snap && snap.side || 'bottom');
+    },
+
+    bottomDockActiveSnapId() {
+      if (this.bottomDockContainerDragActive) {
+        var anchor = this.bottomDockClampDragAnchor(this.bottomDockContainerDragX, this.bottomDockContainerDragY);
+        return this.bottomDockNearestSnapId(anchor.x, anchor.y);
+      }
+      var snap = this.bottomDockSnapDefinitionById(this.bottomDockPlacementId);
+      return String(snap && snap.id || 'center');
+    },
+
+    bottomDockActiveSide() {
+      return this.bottomDockSideForSnapId(this.bottomDockActiveSnapId());
+    },
+
+    bottomDockClampDragAnchor(anchorX, anchorY) {
+      var view = this.bottomDockReadViewportSize();
+      var margin = 8;
+      var minX = margin;
+      var maxX = Number(view.width || 0) - margin;
+      var minY = margin;
+      var maxY = Number(view.height || 0) - margin;
+      var x = Number(anchorX);
+      var y = Number(anchorY);
+      if (!Number.isFinite(x)) x = Number(view.width || 0) * 0.5;
+      if (!Number.isFinite(y)) y = Number(view.height || 0) * 0.5;
+      x = Math.max(minX, Math.min(maxX, x));
+      y = Math.max(minY, Math.min(maxY, y));
+      return { x: x, y: y };
+    },
+
+    bottomDockClampAnchor(anchorX, anchorY, sideOverride) {
       var view = this.bottomDockReadViewportSize();
       var dock = this.bottomDockReadBaseSize();
+      var side = this.bottomDockNormalizeSide(sideOverride);
       var hoverScale = this.bottomDockExpandedScale();
       if (!Number.isFinite(hoverScale) || hoverScale < 1) hoverScale = 1;
+      if (side === 'left' || side === 'right') hoverScale = 1;
       var margin = 8;
-      var halfWidth = Math.max(20, (Number(dock.width || 0) * hoverScale) / 2);
-      var fullHeight = Math.max(20, Number(dock.height || 0) * hoverScale);
-      var minX = halfWidth + margin;
-      var maxX = Number(view.width || 0) - halfWidth - margin;
-      var minY = fullHeight + margin;
+      var baseWidth = Math.max(20, Number(dock.width || 0) * hoverScale);
+      var baseHeight = Math.max(20, Number(dock.height || 0) * hoverScale);
+      var visualWidth = this.bottomDockIsVerticalSide(side) ? baseHeight : baseWidth;
+      var visualHeight = this.bottomDockIsVerticalSide(side) ? baseWidth : baseHeight;
+      var halfWidth = visualWidth / 2;
+      var halfHeight = visualHeight / 2;
+      var minX = margin;
+      var maxX = Number(view.width || 0) - margin;
+      var minY = margin;
       var maxY = Number(view.height || 0) - margin;
+      if (side === 'bottom') {
+        minX = halfWidth + margin;
+        maxX = Number(view.width || 0) - halfWidth - margin;
+        minY = visualHeight + margin;
+        maxY = Number(view.height || 0) - margin;
+      } else if (side === 'top') {
+        minX = halfWidth + margin;
+        maxX = Number(view.width || 0) - halfWidth - margin;
+        minY = margin;
+        maxY = Number(view.height || 0) - visualHeight - margin;
+      } else if (side === 'left') {
+        minX = halfWidth + margin;
+        maxX = Number(view.width || 0) - halfWidth - margin;
+        minY = halfHeight + margin;
+        maxY = Number(view.height || 0) - halfHeight - margin;
+      } else if (side === 'right') {
+        minX = halfWidth + margin;
+        maxX = Number(view.width || 0) - halfWidth - margin;
+        minY = halfHeight + margin;
+        maxY = Number(view.height || 0) - halfHeight - margin;
+      }
       if (!Number.isFinite(minX) || !Number.isFinite(maxX) || maxX <= minX) {
         minX = margin;
         maxX = Number(view.width || 0) - margin;
@@ -500,8 +722,16 @@
       }
       var x = Number(anchorX);
       var y = Number(anchorY);
-      if (!Number.isFinite(x)) x = Number(view.width || 0) * 0.5;
-      if (!Number.isFinite(y)) y = Number(view.height || 0) - margin;
+      if (!Number.isFinite(x)) {
+        if (side === 'left') x = minX;
+        else if (side === 'right') x = maxX;
+        else x = Number(view.width || 0) * 0.5;
+      }
+      if (!Number.isFinite(y)) {
+        if (side === 'top') y = margin;
+        else if (side === 'left' || side === 'right') y = Number(view.height || 0) * 0.5;
+        else y = Number(view.height || 0) - margin;
+      }
       x = Math.max(minX, Math.min(maxX, x));
       y = Math.max(minY, Math.min(maxY, y));
       return { x: x, y: y };
@@ -512,13 +742,14 @@
       var view = this.bottomDockReadViewportSize();
       var x = Number(view.width || 0) * Number(snap && snap.x || 0.5);
       var y = Number(view.height || 0) * Number(snap && snap.y || 0.995);
-      return this.bottomDockClampAnchor(x, y);
+      var side = this.bottomDockNormalizeSide(snap && snap.side || 'bottom');
+      return this.bottomDockClampAnchor(x, y, side);
     },
 
     bottomDockNearestSnapId(anchorX, anchorY) {
       var defs = this.bottomDockSnapDefinitions();
       if (!defs.length) return 'center';
-      var anchor = this.bottomDockClampAnchor(anchorX, anchorY);
+      var anchor = this.bottomDockClampDragAnchor(anchorX, anchorY);
       var bestId = defs[0].id;
       var bestDist = Number.POSITIVE_INFINITY;
       for (var i = 0; i < defs.length; i += 1) {
@@ -546,14 +777,28 @@
     },
 
     bottomDockContainerStyle() {
+      var activeSnapId = this.bottomDockContainerDragActive
+        ? this.bottomDockNearestSnapId(this.bottomDockContainerDragX, this.bottomDockContainerDragY)
+        : this.bottomDockPlacementId;
+      var side = this.bottomDockSideForSnapId(activeSnapId);
       var anchor = this.bottomDockContainerDragActive
-        ? this.bottomDockClampAnchor(this.bottomDockContainerDragX, this.bottomDockContainerDragY)
+        ? this.bottomDockClampAnchor(this.bottomDockContainerDragX, this.bottomDockContainerDragY, side)
         : this.bottomDockAnchorForSnapId(this.bottomDockPlacementId);
+      var rotationDeg = Number(this.bottomDockRotationDeg);
+      if (!Number.isFinite(rotationDeg)) {
+        rotationDeg = this.bottomDockResolveRotationForSide(side, anchor.x, anchor.y);
+        this.bottomDockRotationDeg = rotationDeg;
+      }
+      var tileRotationDeg = -Number(rotationDeg || 0);
+      var iconRotationDeg = 0;
       var durationMs = this.bottomDockContainerDragActive ? 0 : this.bottomDockMoveDurationMs();
       return (
         '--bottom-dock-anchor-x:' + Math.round(Number(anchor.x || 0)) + 'px;' +
         '--bottom-dock-anchor-y:' + Math.round(Number(anchor.y || 0)) + 'px;' +
-        '--bottom-dock-position-transition:' + Math.max(0, Math.round(Number(durationMs || 0))) + 'ms;'
+        '--bottom-dock-position-transition:' + Math.max(0, Math.round(Number(durationMs || 0))) + 'ms;' +
+        '--bottom-dock-rotation-deg:' + Math.round(Number(rotationDeg || 0)) + 'deg;' +
+        '--bottom-dock-tile-rotation-deg:' + Math.round(Number(tileRotationDeg || 0)) + 'deg;' +
+        '--bottom-dock-icon-rotation-deg:' + Math.round(Number(iconRotationDeg || 0)) + 'deg;'
       );
     },
 
@@ -631,6 +876,7 @@
         this.bottomDockHoverId = '';
         this.bottomDockHoverWeightById = {};
         this.bottomDockPointerX = 0;
+        this.bottomDockPointerY = 0;
         this.bottomDockPreviewVisible = false;
         this.bottomDockPreviewText = '';
         this.bottomDockPreviewMorphFromText = '';
@@ -640,9 +886,12 @@
       }
       var candidateX = Number(this._bottomDockContainerOriginX || 0) + (nextX - Number(this._bottomDockContainerPointerStartX || 0));
       var candidateY = Number(this._bottomDockContainerOriginY || 0) + (nextY - Number(this._bottomDockContainerPointerStartY || 0));
-      var anchor = this.bottomDockClampAnchor(candidateX, candidateY);
+      var anchor = this.bottomDockClampDragAnchor(candidateX, candidateY);
       this.bottomDockContainerDragX = Number(anchor.x || 0);
       this.bottomDockContainerDragY = Number(anchor.y || 0);
+      var nearestId = this.bottomDockNearestSnapId(anchor.x, anchor.y);
+      var side = this.bottomDockSideForSnapId(nearestId);
+      this.bottomDockRotationDeg = this.bottomDockResolveRotationForSide(side, anchor.x, anchor.y);
       if (ev.cancelable && typeof ev.preventDefault === 'function') ev.preventDefault();
     },
 
@@ -655,9 +904,10 @@
         this._bottomDockContainerPointerMoved = false;
         return;
       }
-      var anchor = this.bottomDockClampAnchor(this.bottomDockContainerDragX, this.bottomDockContainerDragY);
+      var anchor = this.bottomDockClampDragAnchor(this.bottomDockContainerDragX, this.bottomDockContainerDragY);
       var nearestId = this.bottomDockNearestSnapId(anchor.x, anchor.y);
       this.bottomDockPlacementId = nearestId;
+      this.bottomDockRotationDeg = this.bottomDockResolveRotationForSide(this.bottomDockSideForSnapId(nearestId), anchor.x, anchor.y);
       this.persistBottomDockPlacement();
       this.bottomDockContainerDragActive = false;
       this.bottomDockContainerSettling = true;
@@ -1401,6 +1651,7 @@
           if (slot && typeof slot.getBoundingClientRect === 'function') {
             var slotRect = slot.getBoundingClientRect();
             this.bottomDockPointerX = Number(slotRect.left || 0) + (Number(slotRect.width || 0) / 2);
+            this.bottomDockPointerY = Number(slotRect.top || 0) + (Number(slotRect.height || 0) / 2);
           }
         } catch(_) {}
       }
@@ -1415,6 +1666,7 @@
       if (!this.bottomDockHoverId) {
         this.bottomDockHoverWeightById = {};
         this.bottomDockPointerX = 0;
+        this.bottomDockPointerY = 0;
         this.cancelBottomDockPreviewReflow();
         var self = this;
         if (this._bottomDockPreviewHideTimer) {
@@ -1448,8 +1700,9 @@
         if (!id) continue;
         var rect = node.getBoundingClientRect();
         var centerX = Number(rect.left || 0) + (Number(rect.width || 0) / 2);
-        if (!Number.isFinite(centerX)) continue;
-        out.push({ id: id, centerX: centerX });
+        var centerY = Number(rect.top || 0) + (Number(rect.height || 0) / 2);
+        if (!Number.isFinite(centerX) || !Number.isFinite(centerY)) continue;
+        out.push({ id: id, centerX: centerX, centerY: centerY });
       }
       return out;
     },
@@ -1466,8 +1719,12 @@
     },
 
     refreshBottomDockHoverWeights() {
-      var pointerX = Number(this.bottomDockPointerX || 0);
-      if (!Number.isFinite(pointerX) || pointerX <= 0) {
+      var side = this.bottomDockActiveSide();
+      var vertical = this.bottomDockIsVerticalSide(side);
+      var primaryPointer = vertical
+        ? Number(this.bottomDockPointerY || 0)
+        : Number(this.bottomDockPointerX || 0);
+      if (!Number.isFinite(primaryPointer) || primaryPointer <= 0) {
         this.bottomDockHoverWeightById = {};
         return;
       }
@@ -1482,7 +1739,8 @@
       for (var i = 0; i < centers.length; i += 1) {
         var item = centers[i];
         if (!item || !item.id) continue;
-        var dist = Math.abs(pointerX - Number(item.centerX || 0));
+        var anchor = vertical ? Number(item.centerY || 0) : Number(item.centerX || 0);
+        var dist = Math.abs(primaryPointer - anchor);
         if (!Number.isFinite(dist)) continue;
         if (dist < nearestDistance) {
           nearestDistance = dist;
@@ -1499,8 +1757,10 @@
       if (String(this.bottomDockDragId || '').trim()) return;
       if (this.bottomDockContainerDragActive || this._bottomDockContainerPointerActive) return;
       var x = Number(ev.clientX || 0);
+      var y = Number(ev.clientY || 0);
       if (!Number.isFinite(x) || x <= 0) return;
       this.bottomDockPointerX = x;
+      if (Number.isFinite(y) && y > 0) this.bottomDockPointerY = y;
       this.refreshBottomDockHoverWeights();
       this.syncBottomDockPreview();
     },
@@ -1518,6 +1778,7 @@
       var withinY = y >= (Number(rect.top || 0) - 18) && y <= (Number(rect.bottom || 0) + 18);
       if (!withinX || !withinY) return;
       this.bottomDockPointerX = x;
+      this.bottomDockPointerY = y;
       this.refreshBottomDockHoverWeights();
       this.syncBottomDockPreview();
       this.scheduleBottomDockPreviewReflow();
@@ -1690,21 +1951,44 @@
       var previousHoverKey = String(this.bottomDockPreviewHoverKey || '');
       var previousLabel = String(this.bottomDockPreviewText || '');
       var centerX = 0;
+      var centerY = 0;
       var anchorY = 0;
+      var anchorX = 0;
+      var side = this.bottomDockActiveSide();
+      var vertical = this.bottomDockIsVerticalSide(side);
       var dockRect = (typeof root.getBoundingClientRect === 'function')
         ? root.getBoundingClientRect()
         : null;
       if (typeof slot.getBoundingClientRect === 'function' && dockRect) {
         var slotRect = slot.getBoundingClientRect();
         centerX = Number(slotRect.left || 0) + (Number(slotRect.width || 0) / 2);
-        anchorY = Number(dockRect.top || 0) - 8;
+        centerY = Number(slotRect.top || 0) + (Number(slotRect.height || 0) / 2);
+        if (side === 'top') {
+          anchorY = Number(dockRect.bottom || 0) + 8;
+        } else if (side === 'left') {
+          anchorX = Number(dockRect.right || 0) + 8;
+        } else if (side === 'right') {
+          anchorX = Number(dockRect.left || 0) - 8;
+        } else {
+          anchorY = Number(dockRect.top || 0) - 8;
+        }
       } else if (slot.offsetParent === root) {
         var rootRect = root.getBoundingClientRect();
         centerX = Number(rootRect.left || 0) + Number(slot.offsetLeft || 0) + (Number(slot.offsetWidth || 0) / 2);
-        anchorY = Number(rootRect.top || 0) - 8;
+        centerY = Number(rootRect.top || 0) + Number(slot.offsetTop || 0) + (Number(slot.offsetHeight || 0) / 2);
+        if (side === 'top') {
+          anchorY = Number(rootRect.bottom || 0) + 8;
+        } else if (side === 'left') {
+          anchorX = Number(rootRect.right || 0) + 8;
+        } else if (side === 'right') {
+          anchorX = Number(rootRect.left || 0) - 8;
+        } else {
+          anchorY = Number(rootRect.top || 0) - 8;
+        }
       }
       var pointerX = Number(this.bottomDockPointerX || 0);
-      if (Number.isFinite(pointerX) && pointerX > 0) {
+      var pointerY = Number(this.bottomDockPointerY || 0);
+      if (!vertical && Number.isFinite(pointerX) && pointerX > 0) {
         if (dockRect) {
           var minX = Number(dockRect.left || 0);
           var maxX = Number(dockRect.right || 0);
@@ -1714,10 +1998,22 @@
         }
         centerX = pointerX;
       }
+      if (vertical && Number.isFinite(pointerY) && pointerY > 0) {
+        if (dockRect) {
+          var minY = Number(dockRect.top || 0);
+          var maxY = Number(dockRect.bottom || 0);
+          if (Number.isFinite(minY) && Number.isFinite(maxY) && maxY > minY) {
+            pointerY = Math.max(minY, Math.min(maxY, pointerY));
+          }
+        }
+        centerY = pointerY;
+      }
       if (!Number.isFinite(centerX)) centerX = 0;
+      if (!Number.isFinite(centerY)) centerY = 0;
+      if (!Number.isFinite(anchorX)) anchorX = 0;
       if (!Number.isFinite(anchorY)) anchorY = 0;
-      this.bottomDockPreviewX = centerX;
-      this.bottomDockPreviewY = anchorY;
+      this.bottomDockPreviewX = vertical ? anchorX : centerX;
+      this.bottomDockPreviewY = vertical ? centerY : anchorY;
       this.bottomDockPreviewHoverKey = key;
       this.bottomDockPreviewVisible = true;
       if (wasVisible && (key !== previousHoverKey || label !== previousLabel)) {
@@ -1826,6 +2122,7 @@
       this.bottomDockHoverId = '';
       this.bottomDockHoverWeightById = {};
       this.bottomDockPointerX = 0;
+      this.bottomDockPointerY = 0;
       this.bottomDockPreviewVisible = false;
       this.bottomDockPreviewText = '';
       this.bottomDockPreviewMorphFromText = '';
@@ -2109,6 +2406,7 @@
       this.bottomDockHoverId = '';
       this.bottomDockHoverWeightById = {};
       this.bottomDockPointerX = 0;
+      this.bottomDockPointerY = 0;
       this.bottomDockPreviewVisible = false;
       this.bottomDockPreviewText = '';
       this.bottomDockPreviewMorphFromText = '';
@@ -2163,7 +2461,8 @@
       if (!key) return false;
       if (!ev) return false;
       var clientX = Number(ev.clientX || 0);
-      if (!Number.isFinite(clientX)) return false;
+      var clientY = Number(ev.clientY || 0);
+      if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) return false;
       var node = targetEl || null;
       if (!node && typeof document !== 'undefined') {
         try {
@@ -2175,9 +2474,15 @@
       if (!node || typeof node.getBoundingClientRect !== 'function') return false;
       var rect = node.getBoundingClientRect();
       var width = Number(rect.width || 0);
+      var height = Number(rect.height || 0);
       if (!Number.isFinite(width) || width <= 0) return false;
-      var offset = clientX - Number(rect.left || 0);
-      var ratio = offset / width;
+      if (!Number.isFinite(height) || height <= 0) return false;
+      var vertical = this.bottomDockIsVerticalSide(this.bottomDockActiveSide());
+      var offset = vertical
+        ? (clientY - Number(rect.top || 0))
+        : (clientX - Number(rect.left || 0));
+      var extent = vertical ? height : width;
+      var ratio = offset / extent;
       return ratio >= 0.5;
     },
 
@@ -2200,6 +2505,7 @@
         return [];
       }
       var centers = [];
+      var vertical = this.bottomDockIsVerticalSide(this.bottomDockActiveSide());
       try {
         var nodes = dock.querySelectorAll('.bottom-dock-btn[data-dock-id]');
         for (var i = 0; i < nodes.length; i += 1) {
@@ -2209,8 +2515,13 @@
           if (!id || id === key || typeof node.getBoundingClientRect !== 'function') continue;
           var rect = node.getBoundingClientRect();
           var width = Number(rect.width || 0);
+          var height = Number(rect.height || 0);
           if (!Number.isFinite(width) || width <= 0) continue;
-          centers.push(Number(rect.left || 0) + (width / 2));
+          if (!Number.isFinite(height) || height <= 0) continue;
+          var center = vertical
+            ? (Number(rect.top || 0) + (height / 2))
+            : (Number(rect.left || 0) + (width / 2));
+          centers.push(center);
         }
       } catch(_) {}
       centers.sort(function(a, b) { return a - b; });
@@ -2253,6 +2564,14 @@
       var height = Number(rect.height || 0);
       if (!Number.isFinite(width) || width <= 0) return false;
       if (!Number.isFinite(height) || height <= 0) return false;
+      var vertical = this.bottomDockIsVerticalSide(this.bottomDockActiveSide());
+      if (vertical) {
+        var xMin = Number(rect.left || 0) - (width * 0.75);
+        var xMax = Number(rect.right || 0) + (width * 0.75);
+        if (clientX < xMin || clientX > xMax) return false;
+        var thresholdY = Number(rect.bottom || 0) - Math.min(18, height * 0.35);
+        return clientY >= thresholdY;
+      }
       var yMin = Number(rect.top || 0) - (height * 0.75);
       var yMax = Number(rect.bottom || 0) + (height * 0.75);
       if (clientY < yMin || clientY > yMax) return false;
@@ -2274,9 +2593,16 @@
       }
       if (!dock || typeof dock.getBoundingClientRect !== 'function') return null;
       var dockRect = dock.getBoundingClientRect();
-      var yMin = Number(dockRect.top || 0) - 24;
-      var yMax = Number(dockRect.bottom || 0) + 24;
-      if (clientY < yMin || clientY > yMax) return null;
+      var vertical = this.bottomDockIsVerticalSide(this.bottomDockActiveSide());
+      if (vertical) {
+        var xMin = Number(dockRect.left || 0) - 24;
+        var xMax = Number(dockRect.right || 0) + 24;
+        if (clientX < xMin || clientX > xMax) return null;
+      } else {
+        var yMin = Number(dockRect.top || 0) - 24;
+        var yMax = Number(dockRect.bottom || 0) + 24;
+        if (clientY < yMin || clientY > yMax) return null;
+      }
       var centers = Array.isArray(this._bottomDockDragBoundaries)
         ? this._bottomDockDragBoundaries.slice()
         : [];
@@ -2286,7 +2612,8 @@
       if (centers.length === 0) return null;
       var insertionIndex = 0;
       for (var c = 0; c < centers.length; c += 1) {
-        if (clientX >= centers[c]) insertionIndex += 1;
+        var pointerPrimary = vertical ? clientY : clientX;
+        if (pointerPrimary >= centers[c]) insertionIndex += 1;
       }
       insertionIndex = Math.max(0, Math.min(centers.length, insertionIndex));
       return insertionIndex;
