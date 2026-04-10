@@ -28,6 +28,7 @@ An item may be marked `done` only if all checks are true:
 8. Touched source files comply with the language allowlist in `docs/workspace/codex_enforcer.md` (no authored JavaScript).
 9. Any new authority introduced by the change is implemented in `core/**` (client stays thin wrapper/UX only).
 10. Any net-new functionality in the revision has a matching SRS row/update in `docs/workspace/SRS.md` with acceptance criteria and regression evidence pointers.
+11. For Codex ledger assimilation updates, rows are completed in a 4-8 file disjoint wave with strict preflight (clean status + churn guard + queued-row verification) and targeted tests logged before `done` mutation.
 
 ## Prohibited
 
