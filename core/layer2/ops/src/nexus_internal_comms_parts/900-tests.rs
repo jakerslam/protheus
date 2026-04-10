@@ -2,6 +2,21 @@
 mod tests {
     use super::*;
 
+    fn loaded_modules(payload: &Value) -> Vec<String> {
+        payload
+            .get("modules_loaded")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default()
+            .into_iter()
+            .filter_map(|value| value.as_str().map(ToString::to_string))
+            .collect::<Vec<_>>()
+    }
+
+    fn manifest_has_module(rows: &[Value], module: &str) -> bool {
+        rows.iter().any(|row| row.get("name").and_then(Value::as_str) == Some(module))
+    }
+
     #[test]
     fn parses_valid_nexus_message() {
         let parsed = parse_nexus_message("[AG1>COORD|swarm] ROUT Q=H BP=M").expect("parse");
@@ -131,15 +146,9 @@ mod tests {
     fn module_catalog_manifest_has_expected_core_modules() {
         let manifest = module_catalog_manifest();
         let rows = manifest.as_array().cloned().unwrap_or_default();
-        assert!(rows
-            .iter()
-            .any(|row| row.get("name").and_then(Value::as_str) == Some("memory")));
-        assert!(rows
-            .iter()
-            .any(|row| { row.get("name").and_then(Value::as_str) == Some("incident_response") }));
-        assert!(rows
-            .iter()
-            .any(|row| { row.get("name").and_then(Value::as_str) == Some("physical_security") }));
+        assert!(manifest_has_module(&rows, "memory"));
+        assert!(manifest_has_module(&rows, "incident_response"));
+        assert!(manifest_has_module(&rows, "physical_security"));
     }
 
     #[test]
@@ -152,12 +161,8 @@ mod tests {
         ];
         let (payload, code) = validate_command(root, &argv);
         assert_eq!(code, 0);
-        let modules = payload
-            .get("modules_loaded")
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default();
-        assert!(modules.iter().any(|value| value.as_str() == Some("swarm")));
+        let modules = loaded_modules(&payload);
+        assert!(modules.iter().any(|value| value == "swarm"));
     }
 
     #[test]
@@ -170,16 +175,7 @@ mod tests {
         ];
         let (payload, code) = resolve_modules_command(root, &argv);
         assert_eq!(code, 0);
-        let modules = payload
-            .get("modules_loaded")
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default();
-        let loaded = modules
-            .iter()
-            .filter_map(Value::as_str)
-            .map(str::to_string)
-            .collect::<Vec<_>>();
+        let loaded = loaded_modules(&payload);
         assert!(loaded.iter().any(|value| value == "security"));
         assert!(
             loaded.iter().any(|value| value == "incident_response")
@@ -199,17 +195,13 @@ mod tests {
         ];
         let (payload, code) = agent_prompt_command(root, &argv);
         assert_eq!(code, 0);
-        let modules = payload
-            .get("modules_loaded")
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default();
+        let modules = loaded_modules(&payload);
         assert!(!modules.is_empty());
         assert!(
             modules
                 .iter()
-                .any(|value| value.as_str() == Some("scheduler"))
-                || modules.iter().any(|value| value.as_str() == Some("swarm"))
+                .any(|value| value == "scheduler")
+                || modules.iter().any(|value| value == "swarm")
         );
     }
 }

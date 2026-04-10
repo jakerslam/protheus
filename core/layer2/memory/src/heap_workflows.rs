@@ -9,6 +9,25 @@ use crate::{deterministic_hash, now_ms};
 use std::collections::BTreeMap;
 
 impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
+    fn scoped_policy_request(
+        &self,
+        principal_id: &str,
+        action: PolicyAction,
+        scope: MemoryScope,
+        trust_state: crate::schemas::TrustState,
+        capability: &CapabilityToken,
+    ) -> MemoryPolicyRequest {
+        MemoryPolicyRequest {
+            principal_id: principal_id.to_string(),
+            action,
+            source_scope: scope,
+            target_scope: None,
+            trust_state: Some(trust_state),
+            capability: Some(capability.clone()),
+            owner_settings: self.config.owner_settings.clone(),
+        }
+    }
+
     pub fn apply_retention_policy_and_purge(
         &mut self,
         route: &NexusRouteContext,
@@ -76,15 +95,13 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
                 if self.version_ledger.is_purged(row.version_id.as_str()) {
                     continue;
                 }
-                let decision = self.evaluate_policy(MemoryPolicyRequest {
-                    principal_id: principal_id.to_string(),
-                    action: PolicyAction::Write,
-                    source_scope: object.scope.clone(),
-                    target_scope: None,
-                    trust_state: Some(row.trust_state.clone()),
-                    capability: Some(capability.clone()),
-                    owner_settings: self.config.owner_settings.clone(),
-                });
+                let decision = self.evaluate_policy(self.scoped_policy_request(
+                    principal_id,
+                    PolicyAction::Write,
+                    object.scope.clone(),
+                    row.trust_state.clone(),
+                    capability,
+                ));
                 if !decision.allow {
                     report.skipped_due_to_policy = report.skipped_due_to_policy.saturating_add(1);
                     continue;
@@ -177,15 +194,13 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
             {
                 continue;
             }
-            let decision = self.policy.evaluate(&MemoryPolicyRequest {
-                principal_id: principal_id.to_string(),
-                action: PolicyAction::Read,
-                source_scope: row.scope.clone(),
-                target_scope: None,
-                trust_state: Some(row.trust_state.clone()),
-                capability: Some(capability.clone()),
-                owner_settings: self.config.owner_settings.clone(),
-            });
+            let decision = self.policy.evaluate(&self.scoped_policy_request(
+                principal_id,
+                PolicyAction::Read,
+                row.scope.clone(),
+                row.trust_state.clone(),
+                capability,
+            ));
             if !decision.allow {
                 continue;
             }

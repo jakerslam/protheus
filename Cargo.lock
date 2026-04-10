@@ -1038,15 +1038,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "infring-layered-nexus-federation-v1"
-version = "0.1.0"
-dependencies = [
- "protheus-nexus-core-v1",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "infring-orchestration-surface-v1"
 version = "0.1.0"
 dependencies = [

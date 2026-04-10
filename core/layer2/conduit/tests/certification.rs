@@ -38,15 +38,19 @@ fn policy_fixture() -> (ConduitPolicy, tempfile::TempDir) {
     (policy, temp)
 }
 
-fn signed_envelope(policy: &ConduitPolicy) -> CommandEnvelope {
-    let security =
-        ConduitSecurityContext::from_policy(policy, "msg-k1", "msg-secret", "tok-k1", "tok-secret");
-    let request_id = "cert-req";
-    let ts_ms = now_ts_ms();
-    let command = TsCommand::GetSystemStatus;
-    let security_metadata =
-        security.mint_security_metadata("client-cert", request_id, ts_ms, &command, 120_000);
+fn test_security(policy: &ConduitPolicy) -> ConduitSecurityContext {
+    ConduitSecurityContext::from_policy(policy, "msg-k1", "msg-secret", "tok-k1", "tok-secret")
+}
 
+fn status_envelope(
+    security: &ConduitSecurityContext,
+    client_id: &str,
+    request_id: &str,
+    ts_ms: u64,
+    ttl_ms: u64,
+) -> CommandEnvelope {
+    let command = TsCommand::GetSystemStatus;
+    let security_metadata = security.mint_security_metadata(client_id, request_id, ts_ms, &command, ttl_ms);
     CommandEnvelope {
         schema_id: conduit::CONDUIT_SCHEMA_ID.to_string(),
         schema_version: conduit::CONDUIT_SCHEMA_VERSION.to_string(),
@@ -55,6 +59,13 @@ fn signed_envelope(policy: &ConduitPolicy) -> CommandEnvelope {
         command,
         security: security_metadata,
     }
+}
+
+fn signed_envelope(policy: &ConduitPolicy) -> CommandEnvelope {
+    let security = test_security(policy);
+    let request_id = "cert-req";
+    let ts_ms = now_ts_ms();
+    status_envelope(&security, "client-cert", request_id, ts_ms, 120_000)
 }
 
 fn now_ts_ms() -> u64 {
@@ -71,13 +82,7 @@ fn with_and_without_stdio_produce_equivalent_decisions() {
 
     let envelope = signed_envelope(&policy);
     let mut handler_core = EchoCommandHandler;
-    let mut security_core = ConduitSecurityContext::from_policy(
-        &policy,
-        "msg-k1",
-        "msg-secret",
-        "tok-k1",
-        "tok-secret",
-    );
+    let mut security_core = test_security(&policy);
     let direct = process_command(&envelope, &gate, &mut security_core, &mut handler_core);
 
     let mut payload = serde_json::to_string(&envelope).expect("serialize");
@@ -85,13 +90,7 @@ fn with_and_without_stdio_produce_equivalent_decisions() {
     let reader = BufReader::new(Cursor::new(payload.into_bytes()));
     let mut writer = Vec::new();
     let mut handler_stdio = EchoCommandHandler;
-    let mut security_stdio = ConduitSecurityContext::from_policy(
-        &policy,
-        "msg-k1",
-        "msg-secret",
-        "tok-k1",
-        "tok-secret",
-    );
+    let mut security_stdio = test_security(&policy);
 
     let _ = run_stdio_once(
         reader,
@@ -118,26 +117,10 @@ fn hosted_roundtrip_budget_under_5ms() {
     let runs = 30u32;
     let mut total_ms = 0u128;
     for i in 0..runs {
-        let mut security = ConduitSecurityContext::from_policy(
-            &policy,
-            "msg-k1",
-            "msg-secret",
-            "tok-k1",
-            "tok-secret",
-        );
+        let mut security = test_security(&policy);
         let request_id = format!("latency-{i}");
         let ts_ms = now_ts_ms().saturating_add(u64::from(i));
-        let command = TsCommand::GetSystemStatus;
-        let security_metadata =
-            security.mint_security_metadata("client-latency", &request_id, ts_ms, &command, 60_000);
-        let envelope = CommandEnvelope {
-            schema_id: conduit::CONDUIT_SCHEMA_ID.to_string(),
-            schema_version: conduit::CONDUIT_SCHEMA_VERSION.to_string(),
-            request_id,
-            ts_ms,
-            command,
-            security: security_metadata,
-        };
+        let envelope = status_envelope(&security, "client-latency", &request_id, ts_ms, 60_000);
         let mut handler = EchoCommandHandler;
         let start = Instant::now();
         let response = process_command(&envelope, &gate, &mut security, &mut handler);
@@ -159,37 +142,15 @@ fn embedded_stdio_budget_under_20ms() {
 
     let request_id = "embedded-latency";
     let ts_ms = now_ts_ms();
-    let command = TsCommand::GetSystemStatus;
-    let security = ConduitSecurityContext::from_policy(
-        &policy,
-        "msg-k1",
-        "msg-secret",
-        "tok-k1",
-        "tok-secret",
-    );
-    let security_metadata =
-        security.mint_security_metadata("client-embedded", request_id, ts_ms, &command, 60_000);
-    let envelope = CommandEnvelope {
-        schema_id: conduit::CONDUIT_SCHEMA_ID.to_string(),
-        schema_version: conduit::CONDUIT_SCHEMA_VERSION.to_string(),
-        request_id: request_id.to_string(),
-        ts_ms,
-        command,
-        security: security_metadata,
-    };
+    let security = test_security(&policy);
+    let envelope = status_envelope(&security, "client-embedded", request_id, ts_ms, 60_000);
 
     let mut payload = serde_json::to_string(&envelope).expect("serialize");
     payload.push('\n');
     let reader = BufReader::new(Cursor::new(payload.into_bytes()));
     let mut writer = Vec::new();
     let mut handler = EchoCommandHandler;
-    let mut security_runtime = ConduitSecurityContext::from_policy(
-        &policy,
-        "msg-k1",
-        "msg-secret",
-        "tok-k1",
-        "tok-secret",
-    );
+    let mut security_runtime = test_security(&policy);
 
     let start = Instant::now();
     let _ = run_stdio_once(

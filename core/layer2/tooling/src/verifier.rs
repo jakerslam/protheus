@@ -5,6 +5,18 @@ use std::collections::{HashMap, HashSet};
 #[derive(Default)]
 pub struct StructuredVerifier;
 
+fn has_negative_cue(text: &str) -> bool {
+    const NEGATIVE_CUES: &[&str] = &["not", "no", "failed", "fails", "denied", "missing"];
+    let tokens = text
+        .split(|ch: char| !ch.is_ascii_alphanumeric())
+        .filter(|row| !row.is_empty())
+        .map(|row| row.to_ascii_lowercase())
+        .collect::<Vec<_>>();
+    tokens
+        .iter()
+        .any(|token| NEGATIVE_CUES.iter().any(|cue| token == cue))
+}
+
 impl StructuredVerifier {
     pub fn derive_claim_bundle(
         &self,
@@ -59,11 +71,7 @@ impl StructuredVerifier {
             let mut has_negative = false;
             let mut has_positive = false;
             for idx in indexes {
-                let claim_text = claims[*idx].text.to_ascii_lowercase();
-                if claim_text.contains(" not ")
-                    || claim_text.contains("no ")
-                    || claim_text.contains("failed")
-                {
+                if has_negative_cue(&claims[*idx].text) {
                     has_negative = true;
                 } else {
                     has_positive = true;

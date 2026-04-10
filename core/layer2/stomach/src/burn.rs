@@ -60,6 +60,24 @@ fn now_epoch_secs() -> u64 {
         .unwrap_or(0)
 }
 
+fn ensure_state(
+    record: &RetentionRecord,
+    expected: RetentionState,
+    error_code: &str,
+) -> Result<(), String> {
+    if record.state != expected {
+        Err(error_code.to_string())
+    } else {
+        Ok(())
+    }
+}
+
+fn has_external_references(record: &RetentionRecord) -> bool {
+    !record.referenced_by_receipts.is_empty()
+        || !record.referenced_by_benchmarks.is_empty()
+        || !record.referenced_by_proposals.is_empty()
+}
+
 pub fn transition_retention(
     record: &mut RetentionRecord,
     event: RetentionEvent,
@@ -71,9 +89,11 @@ pub fn transition_retention(
             Ok(())
         }
         RetentionEvent::ReleaseHold => {
-            if record.state != RetentionState::OnHold {
-                return Err("retention_release_hold_invalid_state".to_string());
-            }
+            ensure_state(
+                record,
+                RetentionState::OnHold,
+                "retention_release_hold_invalid_state",
+            )?;
             record.state = RetentionState::Retained;
             record.hold_reason = None;
             Ok(())
@@ -103,9 +123,11 @@ pub fn transition_retention(
             Ok(())
         }
         RetentionEvent::PurgeRequested => {
-            if record.state != RetentionState::EligibleForPurge {
-                return Err("retention_purge_requires_eligible_state".to_string());
-            }
+            ensure_state(
+                record,
+                RetentionState::EligibleForPurge,
+                "retention_purge_requires_eligible_state",
+            )?;
             Ok(())
         }
     }
@@ -127,9 +149,7 @@ pub fn can_physically_purge(record: &RetentionRecord, now_epoch_secs: u64) -> bo
         && record.hold_reason.is_none()
         && record.explicit_purge_approval_receipt.is_some()
         && retention_ttl_elapsed(record, now_epoch_secs)
-        && record.referenced_by_receipts.is_empty()
-        && record.referenced_by_benchmarks.is_empty()
-        && record.referenced_by_proposals.is_empty()
+        && !has_external_references(record)
 }
 
 pub fn purge_artifact_path(

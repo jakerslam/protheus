@@ -1,4 +1,33 @@
 impl MainNexusControlPlane {
+    fn emit_conduit_materialized_if_created(
+        &mut self,
+        issuer: &str,
+        source: &str,
+        target: &str,
+        trust_class: TrustClass,
+        policy_decision: Option<PolicyDecisionRef>,
+        metadata: Value,
+    ) {
+        let (_, created) = self
+            .conduit_manager
+            .ensure_link(source, target, trust_class);
+        if created {
+            let _ = self.emit_receipt(
+                NexusReceiptKind::PlasticityEvent,
+                issuer,
+                Some(source.to_string()),
+                Some(target.to_string()),
+                vec!["nexus.plasticity".to_string()],
+                None,
+                None,
+                None,
+                policy_decision,
+                None,
+                metadata,
+            );
+        }
+    }
+
     pub fn new(feature_flags: NexusFeatureFlags, policy: DefaultNexusPolicy) -> Self {
         Self {
             feature_flags,
@@ -68,26 +97,14 @@ impl MainNexusControlPlane {
             registration.sub_nexus_id.clone(),
             SubNexus::from_registration(&registration),
         );
-        let (_, created) = self.conduit_manager.ensure_link(
+        self.emit_conduit_materialized_if_created(
+            issuer,
             registration.sub_nexus_id.as_str(),
             MAIN_NEXUS_ID,
             TrustClass::InternalControl,
+            Some(policy_decision.clone()),
+            json!({"event":"conduit_materialized","local_first":true}),
         );
-        if created {
-            let _ = self.emit_receipt(
-                NexusReceiptKind::PlasticityEvent,
-                issuer,
-                Some(registration.sub_nexus_id.clone()),
-                Some(MAIN_NEXUS_ID.to_string()),
-                vec!["nexus.plasticity".to_string()],
-                None,
-                None,
-                None,
-                Some(policy_decision.clone()),
-                None,
-                json!({"event":"conduit_materialized","local_first":true}),
-            );
-        }
         let receipt = self.emit_receipt(
             NexusReceiptKind::Registration,
             issuer,
@@ -348,26 +365,14 @@ impl MainNexusControlPlane {
         lease.receipt_id = receipt.receipt_id.clone();
         self.leases.insert(lease.lease_id.clone(), lease.clone());
 
-        let (_, created) = self.conduit_manager.ensure_link(
+        self.emit_conduit_materialized_if_created(
+            issuer,
             request.source.as_str(),
             request.target.as_str(),
             request.trust_class,
+            None,
+            json!({"event":"conduit_materialized","strategy":"lazy"}),
         );
-        if created {
-            let _ = self.emit_receipt(
-                NexusReceiptKind::PlasticityEvent,
-                issuer,
-                Some(request.source),
-                Some(request.target),
-                vec!["nexus.plasticity".to_string()],
-                None,
-                None,
-                None,
-                None,
-                None,
-                json!({"event":"conduit_materialized","strategy":"lazy"}),
-            );
-        }
         self.refresh_metrics();
         Ok(lease)
     }

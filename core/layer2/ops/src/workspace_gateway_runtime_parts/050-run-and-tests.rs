@@ -4,6 +4,26 @@ fn print_task_usage() {
     }
 }
 
+fn strip_head(parsed: &ParsedCli) -> ParsedCli {
+    ParsedCli {
+        positional: parsed.positional.iter().skip(1).cloned().collect(),
+        flags: parsed.flags.clone(),
+    }
+}
+
+fn task_command_error(command: &str) -> i32 {
+    eprintln!(
+        "{}",
+        json!({
+            "ok": false,
+            "type": "task_command_error",
+            "error": "unknown_task_command",
+            "command": command
+        })
+    );
+    1
+}
+
 fn run_task_command(root: &Path, argv: &[String]) -> i32 {
     let parsed = parse_cli(argv);
     let Some(command_raw) = parsed.positional.first().cloned() else {
@@ -11,10 +31,7 @@ fn run_task_command(root: &Path, argv: &[String]) -> i32 {
         return 0;
     };
     let command = command_raw.trim().to_ascii_lowercase();
-    let tail = ParsedCli {
-        positional: parsed.positional.iter().skip(1).cloned().collect(),
-        flags: parsed.flags.clone(),
-    };
+    let tail = strip_head(&parsed);
     match command.as_str() {
         "submit" | "enqueue" => submit_task(root, &tail),
         "status" => status_task(root, &tail),
@@ -26,18 +43,7 @@ fn run_task_command(root: &Path, argv: &[String]) -> i32 {
             print_task_usage();
             0
         }
-        _ => {
-            eprintln!(
-                "{}",
-                json!({
-                    "ok": false,
-                    "type": "task_command_error",
-                    "error": "unknown_task_command",
-                    "command": command
-                })
-            );
-            1
-        }
+        _ => task_command_error(&command),
     }
 }
 

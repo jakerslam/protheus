@@ -1,4 +1,18 @@
 impl MainNexusControlPlane {
+    fn deny_delivery(
+        &self,
+        reason: impl Into<String>,
+        lease_id: Option<String>,
+    ) -> DirectDeliveryAuthorization {
+        DirectDeliveryAuthorization {
+            allowed: false,
+            reason: reason.into(),
+            local_resolution: false,
+            lease_id,
+            conduit_link_id: None,
+        }
+    }
+
     pub fn authorize_direct_delivery(
         &mut self,
         issuer: &str,
@@ -22,23 +36,11 @@ impl MainNexusControlPlane {
         }
 
         let Some(lease_id) = input.lease_id.clone() else {
-            return DirectDeliveryAuthorization {
-                allowed: false,
-                reason: "cross_module_delivery_requires_lease".to_string(),
-                local_resolution: false,
-                lease_id: None,
-                conduit_link_id: None,
-            };
+            return self.deny_delivery("cross_module_delivery_requires_lease", None);
         };
 
         let Some(lease_snapshot) = self.leases.get(&lease_id).cloned() else {
-            return DirectDeliveryAuthorization {
-                allowed: false,
-                reason: "lease_missing".to_string(),
-                local_resolution: false,
-                lease_id: Some(lease_id),
-                conduit_link_id: None,
-            };
+            return self.deny_delivery("lease_missing", Some(lease_id));
         };
 
         if lease_snapshot.is_expired(ts) {
@@ -48,22 +50,10 @@ impl MainNexusControlPlane {
                 issuer,
                 ts,
             );
-            return DirectDeliveryAuthorization {
-                allowed: false,
-                reason: "lease_expired".to_string(),
-                local_resolution: false,
-                lease_id: Some(lease_snapshot.lease_id),
-                conduit_link_id: None,
-            };
+            return self.deny_delivery("lease_expired", Some(lease_snapshot.lease_id));
         }
         if lease_snapshot.is_revoked() {
-            return DirectDeliveryAuthorization {
-                allowed: false,
-                reason: "lease_revoked".to_string(),
-                local_resolution: false,
-                lease_id: Some(lease_snapshot.lease_id),
-                conduit_link_id: None,
-            };
+            return self.deny_delivery("lease_revoked", Some(lease_snapshot.lease_id));
         }
         if self.registry.get(&input.source).is_none() || self.registry.get(&input.target).is_none()
         {
@@ -73,13 +63,7 @@ impl MainNexusControlPlane {
                 issuer,
                 ts,
             );
-            return DirectDeliveryAuthorization {
-                allowed: false,
-                reason: "registration_lost".to_string(),
-                local_resolution: false,
-                lease_id: Some(lease_snapshot.lease_id),
-                conduit_link_id: None,
-            };
+            return self.deny_delivery("registration_lost", Some(lease_snapshot.lease_id));
         }
 
         let source_lifecycle = self
@@ -95,13 +79,10 @@ impl MainNexusControlPlane {
         if !source_lifecycle.accepts_payload_delivery(ts)
             || !target_lifecycle.accepts_payload_delivery(ts)
         {
-            return DirectDeliveryAuthorization {
-                allowed: false,
-                reason: "module_lifecycle_blocks_payload_delivery".to_string(),
-                local_resolution: false,
-                lease_id: Some(lease_snapshot.lease_id),
-                conduit_link_id: None,
-            };
+            return self.deny_delivery(
+                "module_lifecycle_blocks_payload_delivery",
+                Some(lease_snapshot.lease_id),
+            );
         }
 
         let auth_input = LeaseAuthorizationInput {
@@ -113,13 +94,7 @@ impl MainNexusControlPlane {
             now_ms: ts,
         };
         if let Err(reason) = lease_snapshot.authorizes(&auth_input) {
-            return DirectDeliveryAuthorization {
-                allowed: false,
-                reason,
-                local_resolution: false,
-                lease_id: Some(lease_snapshot.lease_id),
-                conduit_link_id: None,
-            };
+            return self.deny_delivery(reason, Some(lease_snapshot.lease_id));
         }
 
         let (link, created) = self.conduit_manager.ensure_link(
