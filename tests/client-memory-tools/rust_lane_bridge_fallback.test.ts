@@ -48,6 +48,7 @@ function main() {
   try {
     process.env.PROTHEUS_OPS_USE_PREBUILT = '1';
     process.env.PROTHEUS_OPS_PREFER_CARGO = '0';
+    process.env.PROTHEUS_OPS_ALLOW_PROCESS_FALLBACK = '1';
     clearTarget();
     const bridgeModule = require(TARGET);
     const bridge = bridgeModule.createOpsLaneBridge(
@@ -69,6 +70,7 @@ function main() {
     clearTarget();
     delete process.env.PROTHEUS_OPS_USE_PREBUILT;
     delete process.env.PROTHEUS_OPS_PREFER_CARGO;
+    delete process.env.PROTHEUS_OPS_ALLOW_PROCESS_FALLBACK;
   }
 
   console.log(JSON.stringify({ ok: true, type: 'rust_lane_bridge_fallback_test' }));

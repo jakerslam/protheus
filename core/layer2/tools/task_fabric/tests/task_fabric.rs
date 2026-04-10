@@ -37,6 +37,7 @@ fn envelope(kind: MutationKind, key: &str) -> MutationEnvelope {
         actor: "tester".to_string(),
         trace_id: format!("trace-{key}"),
         idempotency_key: key.to_string(),
+        proof_refs: vec![format!("proof:{key}")],
         expected_revision: None,
         now_ms: now_ms(),
         mutation_kind: kind,
@@ -325,4 +326,20 @@ fn blockers_are_typed_and_survive_query() {
             .map(|rows| rows.len()),
         Some(1)
     );
+}
+
+#[test]
+fn mutation_requires_proof_refs() {
+    let mut fabric = TaskFabric::new("scope-a");
+    let gate = AllowAllVerityGate;
+    let out = fabric.submit_task(
+        sample_task("scope-a", "p-task", "Proof required"),
+        MutationEnvelope {
+            proof_refs: Vec::new(),
+            ..envelope(MutationKind::CreateTask, "proof-required")
+        },
+        &gate,
+    );
+    assert!(out.is_err());
+    assert_eq!(out.err().unwrap_or_default(), "proof_refs_required");
 }

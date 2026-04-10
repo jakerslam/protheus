@@ -156,7 +156,10 @@ function ipcBridgeEnabled() {
     return envBool(['INFRING_OPS_IPC_DAEMON', 'PROTHEUS_OPS_IPC_DAEMON'], true);
 }
 function ipcStrictModeEnabled() {
-    return envBool(['INFRING_OPS_IPC_STRICT', 'PROTHEUS_OPS_IPC_STRICT'], false);
+    return envBool(['INFRING_OPS_IPC_STRICT', 'PROTHEUS_OPS_IPC_STRICT'], true);
+}
+function processFallbackEnabled() {
+    return envBool(['INFRING_OPS_ALLOW_PROCESS_FALLBACK', 'PROTHEUS_OPS_ALLOW_PROCESS_FALLBACK'], false);
 }
 function queueRootForRepo(root) {
     const hash = crypto.createHash('sha256').update(String(root || '')).digest('hex').slice(0, 16);
@@ -648,11 +651,67 @@ function shouldRetryWithCargo(result) {
     return reason.includes('unknown_domain') || reason.includes('unknown_command');
 }
 function runLocalOpsDomain(root, domain, passArgs, cliMode, inheritStdio) {
+    const fallbackAllowed = processFallbackEnabled();
     if (ipcBridgeEnabled()) {
         const viaIpc = runLocalOpsDomainViaIpc(root, domain, passArgs, cliMode, inheritStdio);
-        if (viaIpc && (viaIpc.ok || viaIpc.status === 0 || ipcStrictModeEnabled())) {
+        if (viaIpc && (viaIpc.ok || viaIpc.status === 0 || (ipcStrictModeEnabled() && !fallbackAllowed))) {
             return viaIpc;
         }
+        if (!fallbackAllowed) {
+            if (viaIpc) {
+                viaIpc.payload = viaIpc.payload && typeof viaIpc.payload === 'object'
+                    ? {
+                        ...viaIpc.payload,
+                        fallback_blocked: true,
+                        reason: 'process_fallback_disabled'
+                    }
+                    : {
+                        ok: false,
+                        type: 'ipc_transport_failed',
+                        reason: 'process_fallback_disabled',
+                        fallback_blocked: true
+                    };
+                viaIpc.stderr = `${String(viaIpc.stderr || '')}\nprocess_fallback_disabled`;
+                viaIpc.routed_via = viaIpc.routed_via || 'ipc_only';
+                return viaIpc;
+            }
+            const payload = {
+                ok: false,
+                type: 'ipc_transport_unavailable',
+                reason: 'process_fallback_disabled',
+                domain,
+                routed_via: 'ipc_only'
+            };
+            return {
+                ok: false,
+                status: 1,
+                stdout: cliMode && inheritStdio ? '' : `${JSON.stringify(payload)}\n`,
+                stderr: 'ipc_transport_unavailable_process_fallback_disabled',
+                payload,
+                rust_command: null,
+                rust_args: [],
+                routed_via: 'ipc_only'
+            };
+        }
+    }
+    else if (!fallbackAllowed) {
+        const payload = {
+            ok: false,
+            type: 'ipc_transport_disabled',
+            reason: 'process_fallback_disabled',
+            domain,
+            routed_via: 'ipc_only'
+        };
+        return {
+            ok: false,
+            status: 1,
+            stdout: cliMode && inheritStdio ? '' : `${JSON.stringify(payload)}\n`,
+            stderr: 'ipc_transport_disabled_process_fallback_disabled',
+            payload,
+            rust_command: null,
+            rust_args: [],
+            routed_via: 'ipc_only'
+        };
     }
     const resolved = resolveProtheusOpsCommand(root, domain);
     const initial = runLocalOpsDomainOnce(root, domain, passArgs, cliMode, inheritStdio, resolved);
