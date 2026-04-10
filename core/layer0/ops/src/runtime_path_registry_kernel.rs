@@ -31,18 +31,33 @@ fn usage() {
     );
 }
 
+fn receipt_date(ts: &str) -> String {
+    ts.get(..10).unwrap_or("").to_string()
+}
+
+fn base_receipt(kind: &str, ok: bool, ts: &str) -> Value {
+    json!({
+        "ok": ok,
+        "type": kind,
+        "ts": ts,
+        "date": receipt_date(ts)
+    })
+}
+
 fn cli_receipt(kind: &str, payload: Value) -> Value {
     let ts = now_iso();
     let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(true);
-    let mut out =
-        json!({"ok": ok, "type": kind, "ts": ts, "date": ts[..10].to_string(), "payload": payload});
+    let mut out = base_receipt(kind, ok, &ts);
+    out["payload"] = payload;
     out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
     out
 }
 
 fn cli_error(kind: &str, error: &str) -> Value {
     let ts = now_iso();
-    let mut out = json!({"ok": false, "type": kind, "ts": ts, "date": ts[..10].to_string(), "error": error, "fail_closed": true});
+    let mut out = base_receipt(kind, false, &ts);
+    out["error"] = Value::String(error.to_string());
+    out["fail_closed"] = Value::Bool(true);
     out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
     out
 }

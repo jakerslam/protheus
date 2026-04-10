@@ -1,4 +1,3 @@
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FallbackRouteClassification {
     pub enabled: bool,
@@ -114,6 +113,15 @@ fn js_number_with_or_zero(value: Option<&Value>) -> f64 {
     finite_number(value).unwrap_or(f64::NAN)
 }
 
+fn positive_multiplier(value: Option<&Value>) -> Option<f64> {
+    let multiplier = finite_number(value).unwrap_or(f64::NAN);
+    if multiplier.is_finite() && multiplier > 0.0 {
+        Some(multiplier)
+    } else {
+        None
+    }
+}
+
 pub fn resolve_model_token_multiplier(
     model_id: &str,
     profile_class: &str,
@@ -130,8 +138,7 @@ pub fn resolve_model_token_multiplier(
             if normalize_key(model) != key {
                 continue;
             }
-            let multiplier = finite_number(Some(raw_multiplier)).unwrap_or(f64::NAN);
-            if multiplier.is_finite() && multiplier > 0.0 {
+            if let Some(multiplier) = positive_multiplier(Some(raw_multiplier)) {
                 return ModelTokenMultiplier {
                     multiplier,
                     source: "model",
@@ -157,8 +164,7 @@ pub fn resolve_model_token_multiplier(
             map.get("default"),
         ])
     });
-    let class_value = finite_number(selected).unwrap_or(1.0);
-    if class_value.is_finite() && class_value > 0.0 {
+    if let Some(class_value) = positive_multiplier(selected) {
         return ModelTokenMultiplier {
             multiplier: class_value,
             source: "class",
@@ -375,5 +381,3 @@ pub fn communication_fast_path_policy(cfg: &Value) -> CommunicationFastPathPolic
         skip_outcome_scan: to_bool_like_value(src.and_then(|v| v.get("skip_outcome_scan")), true),
     }
 }
-
-

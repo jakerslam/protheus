@@ -1,3 +1,37 @@
+fn contract_string(contract: &Value, key: &str, fallback: &str) -> String {
+    contract
+        .get(key)
+        .and_then(Value::as_str)
+        .unwrap_or(fallback)
+        .to_string()
+}
+
+fn contract_bool(contract: &Value, key: &str, fallback: bool) -> bool {
+    contract
+        .get(key)
+        .and_then(Value::as_bool)
+        .unwrap_or(fallback)
+}
+
+fn resolve_templates_root(root: &Path, parsed: &ParsedArgs) -> PathBuf {
+    parsed
+        .flags
+        .get("templates-root")
+        .map(|v| {
+            if Path::new(v).is_absolute() {
+                PathBuf::from(v)
+            } else {
+                root.join(v)
+            }
+        })
+        .unwrap_or_else(|| {
+            root.join("planes")
+                .join("contracts")
+                .join("research")
+                .join("templates")
+        })
+}
+
 pub fn run_template_governance(root: &Path, parsed: &ParsedArgs, strict: bool) -> Value {
     let conduit = conduit_enforcement(root, parsed, strict, "template_governance");
     if strict && !conduit.get("ok").and_then(Value::as_bool).unwrap_or(false) {
@@ -27,22 +61,7 @@ pub fn run_template_governance(root: &Path, parsed: &ParsedArgs, strict: bool) -
         .cloned()
         .unwrap_or_else(|| TEMPLATE_MANIFEST_PATH.to_string());
     let manifest = read_json_or(root, &manifest_rel, Value::Null);
-    let templates_root = parsed
-        .flags
-        .get("templates-root")
-        .map(|v| {
-            if Path::new(v).is_absolute() {
-                PathBuf::from(v)
-            } else {
-                root.join(v)
-            }
-        })
-        .unwrap_or_else(|| {
-            root.join("planes")
-                .join("contracts")
-                .join("research")
-                .join("templates")
-        });
+    let templates_root = resolve_templates_root(root, parsed);
 
     let mut errors = Vec::<String>::new();
     if contract
@@ -64,24 +83,10 @@ pub fn run_template_governance(root: &Path, parsed: &ParsedArgs, strict: bool) -
     if manifest.is_null() {
         errors.push("template_manifest_missing".to_string());
     }
-    let required_reviewer = contract
-        .get("required_reviewer")
-        .and_then(Value::as_str)
-        .unwrap_or("operator")
-        .to_string();
-    let required_human_review = contract
-        .get("required_human_review")
-        .and_then(Value::as_bool)
-        .unwrap_or(true);
-    let signature_env = contract
-        .get("signature_env")
-        .and_then(Value::as_str)
-        .unwrap_or("RESEARCH_TEMPLATE_SIGNING_KEY")
-        .to_string();
-    let signature_required = contract
-        .get("signature_required")
-        .and_then(Value::as_bool)
-        .unwrap_or(true);
+    let required_reviewer = contract_string(&contract, "required_reviewer", "operator");
+    let required_human_review = contract_bool(&contract, "required_human_review", true);
+    let signature_env = contract_string(&contract, "signature_env", "RESEARCH_TEMPLATE_SIGNING_KEY");
+    let signature_required = contract_bool(&contract, "signature_required", true);
     let signing_key = std::env::var(&signature_env).unwrap_or_default();
 
     let templates = manifest
@@ -188,4 +193,3 @@ pub fn run_template_governance(root: &Path, parsed: &ParsedArgs, strict: bool) -
 #[cfg(test)]
 #[path = "research_batch6_tests.rs"]
 mod tests;
-

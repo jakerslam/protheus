@@ -1876,9 +1876,8 @@ mod tests {
             .and_then(|row| row.get("targets"))
             .and_then(Value::as_array)
             .map(|rows| {
-                rows.iter().any(|row| {
-                    row.as_str() == Some("workflow://openapi-service")
-                })
+                rows.iter()
+                    .any(|row| row.as_str() == Some("workflow://openapi-service"))
             })
             .unwrap_or(false);
         assert!(has_openapi_candidate);

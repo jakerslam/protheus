@@ -1,3 +1,8 @@
+fn emit_secret_broker_error(error: &str) -> i32 {
+    print_json_line(&cli_error("secret_broker_kernel", error));
+    2
+}
+
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     let command = argv
         .first()
@@ -9,12 +14,10 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     }
     let payload_value = match payload_json(argv) {
         Ok(value) => value,
-        Err(err) => {
-            print_json_line(&cli_error("secret_broker_kernel", &err));
-            return 2;
-        }
+        Err(err) => return emit_secret_broker_error(&err),
     };
     let payload = payload_obj(&payload_value);
+    let with_audit = bool_value(payload.get("with_audit"), true);
     let policy = load_policy(root, payload);
     let state_path = resolve_path(
         root,
@@ -40,7 +43,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             payload,
             &policy,
             &audit_path,
-            bool_value(payload.get("with_audit"), true),
+            with_audit,
         ))
         .unwrap_or_else(|_| json!({ "ok": false, "error": "secret_value_missing" })),
         "rotation-health" => serde_json::to_value(rotation_health_report(
@@ -48,16 +51,13 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             payload,
             &policy,
             &audit_path,
-            bool_value(payload.get("with_audit"), true),
+            with_audit,
         ))
         .unwrap_or_else(|_| json!({ "ok": false, "error": "rotation_health_failed" })),
         "status" => secret_broker_status(root, payload, &policy, &state_path, &audit_path),
         "issue-handle" => issue_handle(root, payload, &policy, &state_path, &audit_path),
         "resolve-handle" => resolve_handle(root, payload, &policy, &state_path, &audit_path),
-        _ => {
-            print_json_line(&cli_error("secret_broker_kernel", "unknown_command"));
-            return 2;
-        }
+        _ => return emit_secret_broker_error("unknown_command"),
     };
     let ok = result.get("ok").and_then(Value::as_bool).unwrap_or(false);
     print_json_line(&cli_receipt("secret_broker_kernel", result));
@@ -181,4 +181,3 @@ mod tests {
         assert_eq!(loaded.value, "json-secret");
     }
 }
-

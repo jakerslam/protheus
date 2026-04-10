@@ -29,50 +29,53 @@ fn has_claim(receipt: &Value, claim_id: &str) -> bool {
         .any(|row| row.get("id").and_then(Value::as_str) == Some(claim_id))
 }
 
+fn run_cmd(root: &Path, args: &[&str]) -> i32 {
+    let argv = args.iter().map(|row| row.to_string()).collect::<Vec<_>>();
+    autonomy_controller::run(root, &argv)
+}
+
+fn assert_latest_type(root: &Path, expected: &str) -> Value {
+    let latest = read_json(&latest_path(root));
+    assert_eq!(latest.get("type").and_then(Value::as_str), Some(expected));
+    latest
+}
+
 #[test]
 fn v6_autonomy_and_v8_agent_era_lanes_execute_with_behavior_proof() {
     let root = tempfile::tempdir().expect("tempdir");
 
     assert_eq!(
-        autonomy_controller::run(
+        run_cmd(
             root.path(),
             &[
-                "hand-new".to_string(),
-                "--strict=1".to_string(),
-                "--hand-id=alpha".to_string(),
-                "--template=researcher".to_string(),
-                "--schedule=*/15 * * * *".to_string(),
-                "--provider=bitnet".to_string(),
-                "--fallback=local-moe".to_string(),
+                "hand-new",
+                "--strict=1",
+                "--hand-id=alpha",
+                "--template=researcher",
+                "--schedule=*/15 * * * *",
+                "--provider=bitnet",
+                "--fallback=local-moe",
             ],
         ),
         0
     );
-    let mut latest = read_json(&latest_path(root.path()));
-    assert_eq!(
-        latest.get("type").and_then(Value::as_str),
-        Some("autonomy_hand_new")
-    );
+    let mut latest = assert_latest_type(root.path(), "autonomy_hand_new");
     assert!(has_claim(&latest, "V6-AUTONOMY-001.1"));
 
     assert_eq!(
-        autonomy_controller::run(
+        run_cmd(
             root.path(),
             &[
-                "hand-cycle".to_string(),
-                "--strict=1".to_string(),
-                "--hand-id=alpha".to_string(),
-                "--goal=triage backlog".to_string(),
-                "--provider=bitnet".to_string(),
+                "hand-cycle",
+                "--strict=1",
+                "--hand-id=alpha",
+                "--goal=triage backlog",
+                "--provider=bitnet",
             ],
         ),
         0
     );
-    latest = read_json(&latest_path(root.path()));
-    assert_eq!(
-        latest.get("type").and_then(Value::as_str),
-        Some("autonomy_hand_cycle")
-    );
+    latest = assert_latest_type(root.path(), "autonomy_hand_cycle");
     assert!(has_claim(&latest, "V6-AUTONOMY-001.2"));
     assert!(has_claim(&latest, "V6-AUTONOMY-001.3"));
     assert!(latest
@@ -82,24 +85,20 @@ fn v6_autonomy_and_v8_agent_era_lanes_execute_with_behavior_proof() {
         .unwrap_or(false));
 
     assert_eq!(
-        autonomy_controller::run(
+        run_cmd(
             root.path(),
             &[
-                "hand-memory-page".to_string(),
-                "--strict=1".to_string(),
-                "--hand-id=alpha".to_string(),
-                "--op=page-in".to_string(),
-                "--tier=archival".to_string(),
-                "--key=q1-plan".to_string(),
+                "hand-memory-page",
+                "--strict=1",
+                "--hand-id=alpha",
+                "--op=page-in",
+                "--tier=archival",
+                "--key=q1-plan",
             ],
         ),
         0
     );
-    latest = read_json(&latest_path(root.path()));
-    assert_eq!(
-        latest.get("type").and_then(Value::as_str),
-        Some("autonomy_hand_memory_page")
-    );
+    latest = assert_latest_type(root.path(), "autonomy_hand_memory_page");
     assert!(has_claim(&latest, "V6-AUTONOMY-001.4"));
     assert!(latest
         .pointer("/memory/archival")
@@ -108,24 +107,20 @@ fn v6_autonomy_and_v8_agent_era_lanes_execute_with_behavior_proof() {
         .unwrap_or(false));
 
     assert_eq!(
-        autonomy_controller::run(
+        run_cmd(
             root.path(),
             &[
-                "hand-wasm-task".to_string(),
-                "--strict=1".to_string(),
-                "--hand-id=alpha".to_string(),
-                "--task=render".to_string(),
-                "--fuel=120000".to_string(),
-                "--epoch-ms=1200".to_string(),
+                "hand-wasm-task",
+                "--strict=1",
+                "--hand-id=alpha",
+                "--task=render",
+                "--fuel=120000",
+                "--epoch-ms=1200",
             ],
         ),
         0
     );
-    latest = read_json(&latest_path(root.path()));
-    assert_eq!(
-        latest.get("type").and_then(Value::as_str),
-        Some("autonomy_hand_wasm_task")
-    );
+    latest = assert_latest_type(root.path(), "autonomy_hand_wasm_task");
     assert!(has_claim(&latest, "V6-AUTONOMY-001.5"));
     assert!(latest
         .pointer("/result/work_units")
@@ -134,23 +129,19 @@ fn v6_autonomy_and_v8_agent_era_lanes_execute_with_behavior_proof() {
         .unwrap_or(false));
 
     assert_eq!(
-        autonomy_controller::run(
+        run_cmd(
             root.path(),
             &[
-                "ephemeral-run".to_string(),
-                "--strict=1".to_string(),
-                "--goal=summarize ticket risks".to_string(),
-                "--domain=research".to_string(),
-                "--ui-leaf=1".to_string(),
+                "ephemeral-run",
+                "--strict=1",
+                "--goal=summarize ticket risks",
+                "--domain=research",
+                "--ui-leaf=1",
             ],
         ),
         0
     );
-    latest = read_json(&latest_path(root.path()));
-    assert_eq!(
-        latest.get("type").and_then(Value::as_str),
-        Some("autonomy_ephemeral_run")
-    );
+    latest = assert_latest_type(root.path(), "autonomy_ephemeral_run");
     assert!(has_claim(&latest, "V8-AGENT-ERA-001.1"));
     assert!(has_claim(&latest, "V8-AGENT-ERA-001.2"));
     assert!(has_claim(&latest, "V8-AGENT-ERA-001.3"));
@@ -161,18 +152,8 @@ fn v6_autonomy_and_v8_agent_era_lanes_execute_with_behavior_proof() {
         Some(&Value::Bool(true))
     );
 
-    assert_eq!(
-        autonomy_controller::run(
-            root.path(),
-            &["trunk-status".to_string(), "--strict=1".to_string()]
-        ),
-        0
-    );
-    latest = read_json(&latest_path(root.path()));
-    assert_eq!(
-        latest.get("type").and_then(Value::as_str),
-        Some("autonomy_trunk_status")
-    );
+    assert_eq!(run_cmd(root.path(), &["trunk-status", "--strict=1"]), 0);
+    latest = assert_latest_type(root.path(), "autonomy_trunk_status");
     assert!(has_claim(&latest, "V8-AGENT-ERA-001.2"));
     assert!(has_claim(&latest, "V8-AGENT-ERA-001.5"));
     assert!(latest
@@ -186,43 +167,18 @@ fn v6_autonomy_and_v8_agent_era_lanes_execute_with_behavior_proof() {
 fn v6_autonomy_and_v8_agent_era_fail_closed_paths_are_enforced() {
     let root = tempfile::tempdir().expect("tempdir");
 
-    assert_eq!(
-        autonomy_controller::run(
-            root.path(),
-            &[
-                "hand-new".to_string(),
-                "--strict=1".to_string(),
-                "--bypass=1".to_string(),
-            ],
-        ),
-        1
-    );
-    let mut latest = read_json(&latest_path(root.path()));
-    assert_eq!(
-        latest.get("type").and_then(Value::as_str),
-        Some("autonomy_controller_conduit_gate")
-    );
+    assert_eq!(run_cmd(root.path(), &["hand-new", "--strict=1", "--bypass=1"]), 1);
+    let mut latest = assert_latest_type(root.path(), "autonomy_controller_conduit_gate");
     assert_eq!(
         latest.get("error").and_then(Value::as_str),
         Some("conduit_bypass_rejected")
     );
 
     assert_eq!(
-        autonomy_controller::run(
-            root.path(),
-            &[
-                "ephemeral-run".to_string(),
-                "--strict=1".to_string(),
-                "--domain=forbidden".to_string(),
-            ],
-        ),
+        run_cmd(root.path(), &["ephemeral-run", "--strict=1", "--domain=forbidden"]),
         1
     );
-    latest = read_json(&latest_path(root.path()));
-    assert_eq!(
-        latest.get("type").and_then(Value::as_str),
-        Some("autonomy_ephemeral_run")
-    );
+    latest = assert_latest_type(root.path(), "autonomy_ephemeral_run");
     assert_eq!(
         latest.get("error").and_then(Value::as_str),
         Some("domain_constraint_denied")

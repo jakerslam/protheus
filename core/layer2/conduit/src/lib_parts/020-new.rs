@@ -1,4 +1,3 @@
-
 #[derive(Debug, Deserialize)]
 struct GuardRegistryCheck {
     id: Option<String>,
@@ -294,15 +293,21 @@ impl CommandHandler for KernelLaneCommandHandler {
                         };
                     }
                 }
-                let mut fallback = EchoCommandHandler;
-                fallback.handle(command)
+                fallback_command_handle(command)
             }
-            _ => {
-                let mut fallback = EchoCommandHandler;
-                fallback.handle(command)
-            }
+            _ => fallback_command_handle(command),
         }
     }
+}
+
+fn fallback_command_handle(command: &TsCommand) -> RustEvent {
+    let mut fallback = EchoCommandHandler;
+    fallback.handle(command)
+}
+
+fn with_receipt_hash(mut payload: Value) -> Value {
+    payload["receipt_hash"] = Value::String(deterministic_receipt_hash(&payload));
+    payload
 }
 
 fn build_legacy_lane_receipt(raw_lane_id: &str) -> Value {
@@ -320,7 +325,7 @@ fn build_legacy_lane_receipt(raw_lane_id: &str) -> Value {
     let lane_hash_full = deterministic_receipt_hash(&lane_hash_seed);
     let lane_hash = lane_hash_full.chars().take(32).collect::<String>();
 
-    let mut out = serde_json::json!({
+    with_receipt_hash(serde_json::json!({
         "ok": true,
         "type": "legacy_retired_lane",
         "lane_id": lane_id,
@@ -332,21 +337,17 @@ fn build_legacy_lane_receipt(raw_lane_id: &str) -> Value {
             "receipt_ready": true,
             "migrated_to_rust": true
         }
-    });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
-    out
+    }))
 }
 
 fn build_legacy_lane_error(raw_lane_id: &str, reason: &str) -> Value {
-    let mut out = serde_json::json!({
+    with_receipt_hash(serde_json::json!({
         "ok": false,
         "type": "legacy_retired_lane_cli_error",
         "lane_id": clean_lane_id(raw_lane_id),
         "error": reason,
         "ts_ms": now_ts_ms(),
-    });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
-    out
+    }))
 }
 
 fn decode_edge_bridge_message(agent_id: &str) -> Result<Option<EdgeBridgeMessage>, String> {

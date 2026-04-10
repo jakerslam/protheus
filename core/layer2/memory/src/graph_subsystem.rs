@@ -41,6 +41,25 @@ pub struct GraphSubsystem {
     leases: BTreeMap<String, TaskFabricLease>,
 }
 
+fn lease_id(node_id: &str, holder_principal: &str, now: u64, ttl_ms: u64) -> String {
+    format!(
+        "lease_{}",
+        &deterministic_hash(&(node_id.to_string(), holder_principal.to_string(), now, ttl_ms))[..24]
+    )
+}
+
+fn edge_id(source_node_id: &str, target_node_id: &str, edge_type: &str, now: u64) -> String {
+    format!(
+        "edge_{}",
+        &deterministic_hash(&(
+            source_node_id.to_string(),
+            target_node_id.to_string(),
+            edge_type.to_string(),
+            now
+        ))[..24]
+    )
+}
+
 impl GraphSubsystem {
     pub fn create_task_node(&mut self, node_id: impl Into<String>, payload: Value) -> GraphNode {
         let now = now_ms();
@@ -72,15 +91,7 @@ impl GraphSubsystem {
             .ok_or_else(|| "task_node_not_found".to_string())?;
         let now = now_ms();
         let lease = TaskFabricLease {
-            lease_id: format!(
-                "lease_{}",
-                &deterministic_hash(&(
-                    node_id.to_string(),
-                    holder_principal.to_string(),
-                    now,
-                    ttl_ms
-                ))[..24]
-            ),
+            lease_id: lease_id(node_id, holder_principal, now, ttl_ms),
             node_id: node_id.to_string(),
             holder_principal: holder_principal.to_string(),
             issued_at_ms: now,
@@ -136,15 +147,7 @@ impl GraphSubsystem {
         }
         let now = now_ms();
         let edge = GraphEdge {
-            edge_id: format!(
-                "edge_{}",
-                &deterministic_hash(&(
-                    source_node_id.to_string(),
-                    target_node_id.to_string(),
-                    edge_type.to_string(),
-                    now
-                ))[..24]
-            ),
+            edge_id: edge_id(source_node_id, target_node_id, edge_type, now),
             source_node_id: source_node_id.to_string(),
             target_node_id: target_node_id.to_string(),
             edge_type: edge_type.to_string(),

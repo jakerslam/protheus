@@ -1,47 +1,70 @@
 
+fn assert_core_route(cmd: &str, rest: &[&str], expected_script: &str, expected_args: &[&str]) {
+    let rest = rest.iter().map(|token| (*token).to_string()).collect::<Vec<_>>();
+    let route = resolve_core_shortcuts(cmd, &rest).expect("route");
+    assert_eq!(route.script_rel, expected_script);
+    assert_eq!(
+        route.args,
+        expected_args
+            .iter()
+            .map(|token| (*token).to_string())
+            .collect::<Vec<_>>()
+    );
+}
+
 #[test]
 fn core_shortcut_routes_verity_default_to_status_on_verity_plane() {
-    let route = resolve_core_shortcuts("verity", &[]).expect("route");
-    assert_eq!(route.script_rel, "core://verity-plane");
-    assert_eq!(route.args, vec!["status"]);
+    assert_core_route("verity", &[], "core://verity-plane", &["status"]);
 }
 
 #[test]
 fn core_shortcut_routes_verity_drift_to_verity_plane_drift_status() {
-    let route = resolve_core_shortcuts("verity", &["drift".to_string(), "--limit=5".to_string()])
-        .expect("route");
-    assert_eq!(route.script_rel, "core://verity-plane");
-    assert_eq!(route.args, vec!["drift-status", "--limit=5"]);
+    assert_core_route(
+        "verity",
+        &["drift", "--limit=5"],
+        "core://verity-plane",
+        &["drift-status", "--limit=5"],
+    );
 }
 
 #[test]
 fn core_shortcut_routes_top_level_dream_to_autonomy_controller() {
-    let route = resolve_core_shortcuts("dream", &["--hand-id=agent-1".to_string()]).expect("route");
-    assert_eq!(route.script_rel, "core://autonomy-controller");
-    assert_eq!(route.args, vec!["dream", "--hand-id=agent-1"]);
+    assert_core_route(
+        "dream",
+        &["--hand-id=agent-1"],
+        "core://autonomy-controller",
+        &["dream", "--hand-id=agent-1"],
+    );
 }
 
 #[test]
 fn core_shortcut_routes_top_level_compact_to_autonomy_controller() {
-    let route = resolve_core_shortcuts("compact", &["reactive".to_string(), "--strict=1".to_string()])
-        .expect("route");
-    assert_eq!(route.script_rel, "core://autonomy-controller");
-    assert_eq!(route.args, vec!["compact", "reactive", "--strict=1"]);
+    assert_core_route(
+        "compact",
+        &["reactive", "--strict=1"],
+        "core://autonomy-controller",
+        &["compact", "reactive", "--strict=1"],
+    );
 }
 
 #[test]
 fn core_shortcut_routes_top_level_proactive_daemon_to_autonomy_controller() {
-    let route = resolve_core_shortcuts("proactive_daemon", &["cycle".to_string(), "--auto=1".to_string()])
-        .expect("route");
-    assert_eq!(route.script_rel, "core://autonomy-controller");
-    assert_eq!(route.args, vec!["proactive_daemon", "cycle", "--auto=1"]);
+    assert_core_route(
+        "proactive_daemon",
+        &["cycle", "--auto=1"],
+        "core://autonomy-controller",
+        &["proactive_daemon", "cycle", "--auto=1"],
+    );
 }
 
 #[test]
 fn core_shortcut_routes_top_level_speculate_to_autonomy_controller() {
-    let route = resolve_core_shortcuts("speculate", &["status".to_string()]).expect("route");
-    assert_eq!(route.script_rel, "core://autonomy-controller");
-    assert_eq!(route.args, vec!["speculate", "status"]);
+    assert_core_route(
+        "speculate",
+        &["status"],
+        "core://autonomy-controller",
+        &["speculate", "status"],
+    );
 }
 
 #[test]

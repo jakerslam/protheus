@@ -94,14 +94,18 @@ fn clean_text(raw: &str, max_len: usize) -> String {
         .collect::<String>()
 }
 
+fn first_string<'a>(source: &'a Value, keys: &[&str]) -> Option<&'a str> {
+    for key in keys {
+        if let Some(value) = source.get(*key).and_then(Value::as_str) {
+            return Some(value);
+        }
+    }
+    None
+}
+
 fn pick_source_ref(source: &Value, result: &NormalizedToolResult) -> String {
     clean_text(
-        source
-            .get("source_ref")
-            .or_else(|| source.get("url"))
-            .or_else(|| source.get("path"))
-            .and_then(Value::as_str)
-            .unwrap_or(result.raw_ref.as_str()),
+        first_string(source, &["source_ref", "url", "path"]).unwrap_or(result.raw_ref.as_str()),
         2000,
     )
 }
@@ -120,13 +124,7 @@ fn pick_source_location(source: &Value, idx: Option<usize>) -> String {
 }
 
 fn pick_excerpt(source: &Value) -> String {
-    if let Some(text) = source
-        .get("excerpt")
-        .or_else(|| source.get("snippet"))
-        .or_else(|| source.get("content"))
-        .or_else(|| source.get("text"))
-        .and_then(Value::as_str)
-    {
+    if let Some(text) = first_string(source, &["excerpt", "snippet", "content", "text"]) {
         return clean_text(text, 1200);
     }
     if let Some(text) = source.as_str() {

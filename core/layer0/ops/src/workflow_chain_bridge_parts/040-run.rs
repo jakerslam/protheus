@@ -1,3 +1,18 @@
+fn emit_workflow_chain_bridge_error(err: &str) -> i32 {
+    print_json_line(&cli_error("workflow_chain_bridge_error", err));
+    1
+}
+
+fn persist_workflow_chain_receipt(
+    state_path: &Path,
+    history_path: &Path,
+    state: &Value,
+    receipt: &Value,
+) -> Result<(), String> {
+    save_state(state_path, state)?;
+    append_history(history_path, receipt)
+}
+
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     if argv.is_empty() || matches!(argv[0].as_str(), "help" | "--help" | "-h") {
         usage();
@@ -6,10 +21,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     let command = argv[0].as_str();
     let payload = match payload_json(&argv[1..]) {
         Ok(payload) => payload,
-        Err(err) => {
-            print_json_line(&cli_error("workflow_chain_bridge_error", &err));
-            return 1;
-        }
+        Err(err) => return emit_workflow_chain_bridge_error(&err),
     };
     let input = payload_obj(&payload);
     let state_path = state_path(root, argv, input);
@@ -57,19 +69,15 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 payload,
             );
             state["last_receipt"] = receipt.clone();
-            if let Err(err) = save_state(&state_path, &state)
-                .and_then(|_| append_history(&history_path, &receipt))
+            if let Err(err) =
+                persist_workflow_chain_receipt(&state_path, &history_path, &state, &receipt)
             {
-                print_json_line(&cli_error("workflow_chain_bridge_error", &err));
-                return 1;
+                return emit_workflow_chain_bridge_error(&err);
             }
             print_json_line(&receipt);
             0
         }
-        Err(err) => {
-            print_json_line(&cli_error("workflow_chain_bridge_error", &err));
-            1
-        }
+        Err(err) => emit_workflow_chain_bridge_error(&err),
     }
 }
 

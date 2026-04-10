@@ -69,6 +69,21 @@ fn invoke_dotnet_bridge(state: &mut Value, payload: &Map<String, Value>) -> Resu
     }))
 }
 
+fn emit_semantic_kernel_error(err: &str) -> i32 {
+    print_json_line(&cli_error("semantic_kernel_bridge_error", err));
+    1
+}
+
+fn persist_semantic_kernel_receipt(
+    state_path: &Path,
+    history_path: &Path,
+    state: &Value,
+    receipt: &Value,
+) -> Result<(), String> {
+    save_state(state_path, state)?;
+    append_history(history_path, receipt)
+}
+
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     let command = argv
         .first()
@@ -81,10 +96,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
     let payload = match payload_json(&argv[1..]) {
         Ok(payload) => payload,
-        Err(err) => {
-            print_json_line(&cli_error("semantic_kernel_bridge_error", &err));
-            return 1;
-        }
+        Err(err) => return emit_semantic_kernel_error(&err),
     };
     let input = payload_obj(&payload);
     let state_path = state_path(root, argv, input);
@@ -130,22 +142,15 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 payload_out,
             );
             state["last_receipt"] = receipt.clone();
-            if let Err(err) = save_state(&state_path, &state) {
-                print_json_line(&cli_error("semantic_kernel_bridge_error", &err));
-                return 1;
-            }
-            if let Err(err) = append_history(&history_path, &receipt) {
-                print_json_line(&cli_error("semantic_kernel_bridge_error", &err));
-                return 1;
+            if let Err(err) =
+                persist_semantic_kernel_receipt(&state_path, &history_path, &state, &receipt)
+            {
+                return emit_semantic_kernel_error(&err);
             }
             print_json_line(&receipt);
             0
         }
-        Err(err) => {
-            let receipt = cli_error("semantic_kernel_bridge_error", &err);
-            print_json_line(&receipt);
-            1
-        }
+        Err(err) => emit_semantic_kernel_error(&err),
     }
 }
 
@@ -210,4 +215,3 @@ mod tests {
         );
     }
 }
-

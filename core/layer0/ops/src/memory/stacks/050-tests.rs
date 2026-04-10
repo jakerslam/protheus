@@ -12,6 +12,10 @@ mod tests {
         out
     }
 
+    fn assert_true_key(payload: &Value, key: &str) {
+        assert_eq!(payload.get(key).and_then(Value::as_bool), Some(true));
+    }
+
     #[test]
     fn semantic_snapshot_id_ignores_volatile_metadata() {
         let head = StableHead {
@@ -142,7 +146,7 @@ mod tests {
                 ],
             ),
         );
-        assert_eq!(create.get("ok").and_then(Value::as_bool), Some(true));
+        assert_true_key(&create, "ok");
         let before = create
             .pointer("/stack/semantic_snapshot_id")
             .and_then(Value::as_str)
@@ -159,12 +163,12 @@ mod tests {
                 ],
             ),
         );
-        assert_eq!(merge.get("ok").and_then(Value::as_bool), Some(true));
+        assert_true_key(&merge, "ok");
         let promote = promote_context_stack_tail(
             tmp.path(),
             &parsed(&["tail-promote"], &[("stack-id", "demo")]),
         );
-        assert_eq!(promote.get("ok").and_then(Value::as_bool), Some(true));
+        assert_true_key(&promote, "ok");
         let after = promote
             .get("semantic_snapshot_id")
             .and_then(Value::as_str)
@@ -184,7 +188,7 @@ mod tests {
     fn nexus_authorization_succeeds_for_context_stacks_route() {
         let out = authorize_context_stacks_command_with_nexus_inner("list", false)
             .expect("nexus auth");
-        assert_eq!(out.get("enabled").and_then(Value::as_bool), Some(true));
+        assert_true_key(&out, "enabled");
         assert!(out
             .get("lease_id")
             .and_then(Value::as_str)

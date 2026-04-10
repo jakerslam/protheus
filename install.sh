@@ -2723,10 +2723,12 @@ run_dashboard_health_smoke() {
   log="$smoke_dir/dashboard_health.log"
   [ -x "$install_dir/infring" ] || return 1
 
-  if ! run_command_with_timeout 90 env INFRING_DASHBOARD_LAUNCHD=0 \
+  if run_command_with_timeout 90 env INFRING_DASHBOARD_LAUNCHD=0 INFRING_DASHBOARD_WAIT_MAX=30 \
     "$install_dir/infring" gateway start \
     "--dashboard-host=${host}" "--dashboard-port=${port}" \
     "--dashboard-open=0" "--gateway-persist=0" >"$log" 2>&1; then
+    :
+  else
     start_status=$?
     run_command_with_timeout 30 env INFRING_DASHBOARD_LAUNCHD=0 \
       "$install_dir/infring" gateway stop \
@@ -2769,7 +2771,7 @@ run_model_readiness_smoke() {
   require_ready="${2:-0}"
   log="$smoke_dir/model_readiness.log"
   status=0
-  {
+  (
     if ! command -v ollama >/dev/null 2>&1; then
       echo "ollama_missing"
       exit 20
@@ -2793,7 +2795,7 @@ run_model_readiness_smoke() {
       exit 23
     fi
     exit 0
-  } >"$log" 2>&1 || status="$?"
+  ) >"$log" 2>&1 || status="$?"
   if [ "$status" = "0" ]; then
     detected_count="$(ollama_model_count)"
     echo "[infring install] smoke model_readiness: ok (${detected_count} local model(s))"
@@ -2861,8 +2863,13 @@ run_command_with_timeout() {
     sleep 1
     elapsed=$((elapsed + 1))
   done
-  wait "$cmd_pid"
-  return $?
+  wait_status=0
+  if wait "$cmd_pid" >/dev/null 2>&1; then
+    wait_status=0
+  else
+    wait_status=$?
+  fi
+  return "$wait_status"
 }
 
 run_post_install_smoke_tests() {
@@ -2890,15 +2897,15 @@ EOF
   run_post_install_smoke_command "$smoke_dir" "dashboard_route_check" "$install_dir/infringctl" dashboard status --json || failures=$((failures + 1))
   if node_runtime_meets_minimum; then
     run_post_install_smoke_command "$smoke_dir" "verify_install" "$install_dir/infringctl" verify-install --json || failures=$((failures + 1))
-    smoke_port="$((4400 + ($$ % 1000)))"
-    if run_dashboard_health_smoke "$smoke_dir" "$install_dir" "127.0.0.1" "$smoke_port"; then
-      INSTALL_DASHBOARD_SMOKE_PASSED=1
-    else
-      if is_truthy "$INSTALL_STRICT_SMOKE"; then
-        failures=$((failures + 1))
+    if is_truthy "$INSTALL_STRICT_SMOKE"; then
+      smoke_port="$((4400 + ($$ % 1000)))"
+      if run_dashboard_health_smoke "$smoke_dir" "$install_dir" "127.0.0.1" "$smoke_port"; then
+        INSTALL_DASHBOARD_SMOKE_PASSED=1
       else
-        echo "[infring install] warning: dashboard health smoke failed; install will continue (set INFRING_INSTALL_STRICT_SMOKE=1 to fail closed)." >&2
+        failures=$((failures + 1))
       fi
+    else
+      echo "[infring install] smoke dashboard_health: skipped (set INFRING_INSTALL_STRICT_SMOKE=1 to enforce)"
     fi
   else
     echo "[infring install] smoke verify_install: skipped (node runtime unavailable)"

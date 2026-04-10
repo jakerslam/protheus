@@ -1,3 +1,15 @@
+fn out_or_default(out: &Value, key: &str, default: Value) -> Value {
+    out.get(key).cloned().unwrap_or(default)
+}
+
+fn event_or_default(event: &Value, key: &str, default: Value) -> Value {
+    event.get(key).cloned().unwrap_or(default)
+}
+
+fn zero_number_value() -> Value {
+    Value::Number(serde_json::Number::from_f64(0.0).unwrap_or(0.into()))
+}
+
 fn compact(root: &Path, flags: &BTreeMap<String, String>) -> i32 {
     let contract = load_contract(root);
     let run_context = flags
@@ -99,13 +111,13 @@ fn compact(root: &Path, flags: &BTreeMap<String, String>) -> i32 {
         &json!({
             "ts": now_iso(),
             "type": "attention_queue_compact",
-            "run_context": out.get("run_context").cloned().unwrap_or(Value::String("compact".to_string())),
-            "retain": out.get("retain").cloned().unwrap_or(Value::Number(0.into())),
-            "min_acked": out.get("min_acked").cloned().unwrap_or(Value::Number(0.into())),
-            "compacted_count": out.get("compacted_count").cloned().unwrap_or(Value::Number(0.into())),
-            "queue_depth_before": out.get("queue_depth_before").cloned().unwrap_or(Value::Number(0.into())),
-            "queue_depth_after": out.get("queue_depth_after").cloned().unwrap_or(Value::Number(0.into())),
-            "receipt_hash": out.get("receipt_hash").cloned().unwrap_or(Value::String("".to_string())),
+            "run_context": out_or_default(&out, "run_context", Value::String("compact".to_string())),
+            "retain": out_or_default(&out, "retain", Value::Number(0.into())),
+            "min_acked": out_or_default(&out, "min_acked", Value::Number(0.into())),
+            "compacted_count": out_or_default(&out, "compacted_count", Value::Number(0.into())),
+            "queue_depth_before": out_or_default(&out, "queue_depth_before", Value::Number(0.into())),
+            "queue_depth_after": out_or_default(&out, "queue_depth_after", Value::Number(0.into())),
+            "receipt_hash": out_or_default(&out, "receipt_hash", Value::String("".to_string())),
         }),
     );
     emit(&out);
@@ -242,17 +254,17 @@ fn enqueue(root: &Path, flags: &BTreeMap<String, String>) -> i32 {
         "expired_pruned": expired_pruned,
         "attention_contract": contract_snapshot(&contract),
         "event": {
-            "source": event.get("source").cloned().unwrap_or(Value::String("unknown_source".to_string())),
-            "source_type": event.get("source_type").cloned().unwrap_or(Value::String("unknown_type".to_string())),
-            "severity": event.get("severity").cloned().unwrap_or(Value::String("info".to_string())),
-            "priority": event.get("priority").cloned().unwrap_or(Value::Number(20.into())),
-            "score": event.get("score").cloned().unwrap_or(Value::Number(serde_json::Number::from_f64(0.0).unwrap_or(0.into()))),
-            "band": event.get("band").cloned().unwrap_or(Value::String("p4".to_string())),
-            "queue_lane": event.get("queue_lane").cloned().unwrap_or(Value::String("standard".to_string())),
-            "summary": event.get("summary").cloned().unwrap_or(Value::String("attention_event".to_string())),
-            "attention_key": event.get("attention_key").cloned().unwrap_or(Value::String("".to_string())),
-            "escalate_required": event.get("escalate_required").cloned().unwrap_or(Value::Bool(false)),
-            "initiative_action": event.get("initiative_action").cloned().unwrap_or(Value::String("silent".to_string()))
+            "source": event_or_default(&event, "source", Value::String("unknown_source".to_string())),
+            "source_type": event_or_default(&event, "source_type", Value::String("unknown_type".to_string())),
+            "severity": event_or_default(&event, "severity", Value::String("info".to_string())),
+            "priority": event_or_default(&event, "priority", Value::Number(20.into())),
+            "score": event_or_default(&event, "score", zero_number_value()),
+            "band": event_or_default(&event, "band", Value::String("p4".to_string())),
+            "queue_lane": event_or_default(&event, "queue_lane", Value::String("standard".to_string())),
+            "summary": event_or_default(&event, "summary", Value::String("attention_event".to_string())),
+            "attention_key": event_or_default(&event, "attention_key", Value::String("".to_string())),
+            "escalate_required": event_or_default(&event, "escalate_required", Value::Bool(false)),
+            "initiative_action": event_or_default(&event, "initiative_action", Value::String("silent".to_string()))
         },
         "latest": latest
     });
@@ -271,16 +283,16 @@ fn enqueue(root: &Path, flags: &BTreeMap<String, String>) -> i32 {
             "queue_depth_before": queue_depth_before,
             "queue_depth_after": queue_depth_after,
             "expired_pruned": expired_pruned,
-            "severity": event.get("severity").cloned().unwrap_or(Value::String("info".to_string())),
-            "priority": event.get("priority").cloned().unwrap_or(Value::Number(20.into())),
-            "score": event.get("score").cloned().unwrap_or(Value::Number(serde_json::Number::from_f64(0.0).unwrap_or(0.into()))),
-            "band": event.get("band").cloned().unwrap_or(Value::String("p4".to_string())),
-            "queue_lane": event.get("queue_lane").cloned().unwrap_or(Value::String("standard".to_string())),
-            "attention_key": event.get("attention_key").cloned().unwrap_or(Value::String("".to_string())),
-            "escalate_required": event.get("escalate_required").cloned().unwrap_or(Value::Bool(false)),
-            "initiative_action": event.get("initiative_action").cloned().unwrap_or(Value::String("silent".to_string())),
+            "severity": event_or_default(&event, "severity", Value::String("info".to_string())),
+            "priority": event_or_default(&event, "priority", Value::Number(20.into())),
+            "score": event_or_default(&event, "score", zero_number_value()),
+            "band": event_or_default(&event, "band", Value::String("p4".to_string())),
+            "queue_lane": event_or_default(&event, "queue_lane", Value::String("standard".to_string())),
+            "attention_key": event_or_default(&event, "attention_key", Value::String("".to_string())),
+            "escalate_required": event_or_default(&event, "escalate_required", Value::Bool(false)),
+            "initiative_action": event_or_default(&event, "initiative_action", Value::String("silent".to_string())),
             "run_context": run_context,
-            "receipt_hash": receipt.get("receipt_hash").cloned().unwrap_or(Value::String("".to_string()))
+            "receipt_hash": out_or_default(&receipt, "receipt_hash", Value::String("".to_string()))
         }),
     );
 
@@ -355,4 +367,3 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         }
     }
 }
-

@@ -25,6 +25,19 @@ fn load_federation_state(root: &Path) -> Value {
     })
 }
 
+fn federation_entry_count(state: &Value) -> usize {
+    state
+        .get("entries")
+        .and_then(Value::as_object)
+        .map(|map| map.len())
+        .unwrap_or(0)
+}
+
+fn with_receipt_hash(mut payload: Value) -> Value {
+    payload["receipt_hash"] = Value::String(receipt_hash(&payload));
+    payload
+}
+
 fn parse_entries(argv: &[String]) -> Result<Vec<Value>, String> {
     let raw = parse_flag(argv, "entries-json").ok_or_else(|| "entries_json_missing".to_string())?;
     let parsed = parse_json(Some(raw.as_str()))?;
@@ -133,7 +146,7 @@ pub(super) fn federation_sync_payload(
         )?;
     }
 
-    let mut out = json!({
+    Ok(with_receipt_hash(json!({
         "ok": true,
         "type": "memory_federation_plane_sync",
         "lane": LANE_ID,
@@ -142,7 +155,7 @@ pub(super) fn federation_sync_payload(
         "accepted": accepted,
         "replaced": replaced,
         "conflicted": conflicted,
-        "entry_count": state.get("entries").and_then(Value::as_object).map(|m| m.len()).unwrap_or(0),
+        "entry_count": federation_entry_count(&state),
         "state_path": rel_path(root, &federation_state_path(root)),
         "claim_evidence": [{
             "id": "cross_device_conflict_resolution",
@@ -153,9 +166,7 @@ pub(super) fn federation_sync_payload(
                 "conflicted": conflicted
             }
         }]
-    });
-    out["receipt_hash"] = Value::String(receipt_hash(&out));
-    Ok(out)
+    })))
 }
 
 pub(super) fn federation_pull_payload(root: &Path, argv: &[String]) -> Value {
@@ -173,29 +184,25 @@ pub(super) fn federation_pull_payload(root: &Path, argv: &[String]) -> Value {
     for (key, value) in rows.into_iter().take(limit) {
         entries.push(json!({ "key": key, "entry": value }));
     }
-    let mut out = json!({
+    with_receipt_hash(json!({
         "ok": true,
         "type": "memory_federation_plane_pull",
         "lane": LANE_ID,
         "state_path": rel_path(root, &federation_state_path(root)),
         "entry_count": entries.len(),
         "entries": entries
-    });
-    out["receipt_hash"] = Value::String(receipt_hash(&out));
-    out
+    }))
 }
 
 pub(super) fn federation_status_payload(root: &Path) -> Value {
     let state = load_federation_state(root);
-    let mut out = json!({
+    with_receipt_hash(json!({
         "ok": true,
         "type": "memory_federation_plane_status",
         "lane": LANE_ID,
         "state_path": rel_path(root, &federation_state_path(root)),
         "history_path": rel_path(root, &federation_history_path(root)),
-        "entry_count": state.get("entries").and_then(Value::as_object).map(|m| m.len()).unwrap_or(0),
+        "entry_count": federation_entry_count(&state),
         "updated_at": state.get("updated_at").cloned().unwrap_or(Value::Null)
-    });
-    out["receipt_hash"] = Value::String(receipt_hash(&out));
-    out
+    }))
 }

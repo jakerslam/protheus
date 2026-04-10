@@ -22,8 +22,17 @@ fn env_guard() -> std::sync::MutexGuard<'static, ()> {
     crate::test_env_guard()
 }
 
-fn allow_graph(root: &Path, pattern: &str) {
+fn set_signing_key() {
     std::env::set_var("DIRECTIVE_KERNEL_SIGNING_KEY", "graph-test-signing");
+}
+
+fn cleanup(root: PathBuf) {
+    std::env::remove_var("DIRECTIVE_KERNEL_SIGNING_KEY");
+    let _ = std::fs::remove_dir_all(root);
+}
+
+fn allow_graph(root: &Path, pattern: &str) {
+    set_signing_key();
     let exit = directive_kernel::run(
         root,
         &[
@@ -79,8 +88,7 @@ fn pagerank_materializes_and_caches() {
     assert_eq!(run(&root, &args), 0);
     let second = latest(&root);
     assert_eq!(second.get("cached").and_then(Value::as_bool), Some(true));
-    std::env::remove_var("DIRECTIVE_KERNEL_SIGNING_KEY");
-    let _ = std::fs::remove_dir_all(root);
+    cleanup(root);
 }
 
 #[test]
@@ -130,8 +138,7 @@ fn louvain_and_label_propagation_build_communities() {
         .cloned()
         .unwrap_or_default();
     assert!(!groups.is_empty());
-    std::env::remove_var("DIRECTIVE_KERNEL_SIGNING_KEY");
-    let _ = std::fs::remove_dir_all(root);
+    cleanup(root);
 }
 
 #[test]
@@ -199,8 +206,7 @@ fn jaccard_betweenness_and_link_prediction_emit_expected_shapes() {
         .and_then(Value::as_array)
         .map(|rows| !rows.is_empty())
         .unwrap_or(false));
-    std::env::remove_var("DIRECTIVE_KERNEL_SIGNING_KEY");
-    let _ = std::fs::remove_dir_all(root);
+    cleanup(root);
 }
 
 #[test]
@@ -222,5 +228,5 @@ fn command_fails_closed_without_directive() {
         receipt.get("error").and_then(Value::as_str),
         Some("directive_gate_denied")
     );
-    let _ = std::fs::remove_dir_all(root);
+    cleanup(root);
 }

@@ -34,32 +34,35 @@ fn usage() {
     println!("  protheus-ops readiness-bridge-pack-kernel status [--policy=<path>]");
 }
 
-fn cli_receipt(kind: &str, payload: Value) -> Value {
+fn with_receipt_hash(mut payload: Value) -> Value {
+    payload["receipt_hash"] = Value::String(deterministic_receipt_hash(&payload));
+    payload
+}
+
+fn dated_payload(ok: bool, kind: &str) -> Value {
     let ts = now_iso();
-    let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(true);
-    let mut out = json!({
+    json!({
         "ok": ok,
         "type": kind,
         "ts": ts,
         "date": ts[..10].to_string(),
-        "payload": payload,
-    });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
-    out
+    })
+}
+
+fn cli_receipt(kind: &str, payload: Value) -> Value {
+    let mut out = dated_payload(
+        payload.get("ok").and_then(Value::as_bool).unwrap_or(true),
+        kind,
+    );
+    out["payload"] = payload;
+    with_receipt_hash(out)
 }
 
 fn cli_error(kind: &str, error: &str) -> Value {
-    let ts = now_iso();
-    let mut out = json!({
-        "ok": false,
-        "type": kind,
-        "ts": ts,
-        "date": ts[..10].to_string(),
-        "error": error,
-        "fail_closed": true,
-    });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
-    out
+    let mut out = dated_payload(false, kind);
+    out["error"] = Value::String(error.to_string());
+    out["fail_closed"] = Value::Bool(true);
+    with_receipt_hash(out)
 }
 
 fn print_json_line(value: &Value) {

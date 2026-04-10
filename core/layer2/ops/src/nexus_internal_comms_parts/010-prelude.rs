@@ -96,12 +96,16 @@ fn parse_limit(raw: Option<String>) -> usize {
         .clamp(1, 500)
 }
 
-fn normalize_id(raw: &str) -> String {
+fn normalize_ascii_token(raw: &str, max_len: usize, uppercase: bool) -> String {
     raw.trim()
         .chars()
         .map(|c| {
             if c.is_ascii_alphanumeric() || c == '_' || c == '-' {
-                c.to_ascii_uppercase()
+                if uppercase {
+                    c.to_ascii_uppercase()
+                } else {
+                    c.to_ascii_lowercase()
+                }
             } else {
                 '_'
             }
@@ -109,41 +113,20 @@ fn normalize_id(raw: &str) -> String {
         .collect::<String>()
         .trim_matches('_')
         .chars()
-        .take(64)
+        .take(max_len)
         .collect::<String>()
+}
+
+fn normalize_id(raw: &str) -> String {
+    normalize_ascii_token(raw, 64, true)
 }
 
 fn normalize_token(raw: &str) -> String {
-    raw.trim()
-        .chars()
-        .map(|c| {
-            if c.is_ascii_alphanumeric() || c == '_' || c == '-' {
-                c.to_ascii_uppercase()
-            } else {
-                '_'
-            }
-        })
-        .collect::<String>()
-        .trim_matches('_')
-        .chars()
-        .take(96)
-        .collect::<String>()
+    normalize_ascii_token(raw, 96, true)
 }
 
 fn normalize_text_atom(raw: &str) -> String {
-    raw.chars()
-        .map(|c| {
-            if c.is_ascii_alphanumeric() || c == '_' || c == '-' {
-                c.to_ascii_lowercase()
-            } else {
-                '_'
-            }
-        })
-        .collect::<String>()
-        .trim_matches('_')
-        .chars()
-        .take(128)
-        .collect::<String>()
+    normalize_ascii_token(raw, 128, false)
 }
 
 fn estimate_tokens(raw: &str) -> usize {

@@ -1,10 +1,20 @@
+fn terminated_row_agent_id(row: &Value) -> String {
+    normalize_agent_id(row.get("agent_id").and_then(Value::as_str).unwrap_or(""))
+}
+
+fn copy_clamped_i64(target: &mut Value, key: &str, source: &Value, min: i64) {
+    if let Some(value) = source.get(key).and_then(Value::as_i64) {
+        target[key] = json!(value.max(min));
+    }
+}
+
 pub fn delete_all_terminated(root: &Path) -> Value {
     let mut state = load_contracts_state(root);
     let mut ids = HashSet::<String>::new();
     {
         let history = as_array_mut(&mut state, "terminated_history");
         for row in history.iter() {
-            let id = normalize_agent_id(row.get("agent_id").and_then(Value::as_str).unwrap_or(""));
+            let id = terminated_row_agent_id(row);
             if !id.is_empty() {
                 ids.insert(id);
             }
@@ -104,9 +114,7 @@ pub fn revive_agent(root: &Path, agent_id: &str, role: &str) -> Value {
         let history = as_array_mut(&mut state, "terminated_history");
         if revived_from_contract_id.is_empty() {
             for row in history.iter().rev() {
-                if normalize_agent_id(row.get("agent_id").and_then(Value::as_str).unwrap_or(""))
-                    == id
-                {
+                if terminated_row_agent_id(row) == id {
                     revived_from_contract_id = clean_text(
                         row.get("contract_id").and_then(Value::as_str).unwrap_or(""),
                         120,
@@ -117,9 +125,7 @@ pub fn revive_agent(root: &Path, agent_id: &str, role: &str) -> Value {
                 }
             }
         }
-        history.retain(|row| {
-            normalize_agent_id(row.get("agent_id").and_then(Value::as_str).unwrap_or("")) != id
-        });
+        history.retain(|row| terminated_row_agent_id(row) != id);
     }
     save_contracts_state(root, state);
 
@@ -165,28 +171,17 @@ pub fn revive_agent(root: &Path, agent_id: &str, role: &str) -> Value {
         contract_patch["auto_terminate_allowed"] = json!(false);
         contract_patch["idle_terminate_allowed"] = json!(false);
         contract_patch["expires_at"] = json!("");
-        if let Some(expiry) = previous_contract.get("expiry_seconds").and_then(Value::as_i64) {
-            contract_patch["expiry_seconds"] = json!(expiry.max(60));
-        }
+        copy_clamped_i64(&mut contract_patch, "expiry_seconds", &previous_contract, 60);
     } else if previous_task_bound {
         contract_patch["termination_condition"] = json!("task_complete");
         contract_patch["lifespan"] = json!("task");
         contract_patch["auto_terminate_allowed"] = json!(false);
         contract_patch["idle_terminate_allowed"] = json!(false);
         contract_patch["expires_at"] = json!("");
-        if let Some(expiry) = previous_contract.get("expiry_seconds").and_then(Value::as_i64) {
-            contract_patch["expiry_seconds"] = json!(expiry.max(60));
-        }
+        copy_clamped_i64(&mut contract_patch, "expiry_seconds", &previous_contract, 60);
     } else {
-        if let Some(expiry) = previous_contract.get("expiry_seconds").and_then(Value::as_i64) {
-            contract_patch["expiry_seconds"] = json!(expiry.max(60));
-        }
-        if let Some(idle) = previous_contract
-            .get("idle_timeout_seconds")
-            .and_then(Value::as_i64)
-        {
-            contract_patch["idle_timeout_seconds"] = json!(idle.max(30));
-        }
+        copy_clamped_i64(&mut contract_patch, "expiry_seconds", &previous_contract, 60);
+        copy_clamped_i64(&mut contract_patch, "idle_timeout_seconds", &previous_contract, 30);
     }
     let contract = upsert_contract(root, &id, &contract_patch);
     json!({

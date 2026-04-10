@@ -68,6 +68,27 @@ fn run_child(
     Ok((exit_code, stdout, stderr, elapsed_ms, timeout_hit))
 }
 
+fn write_run_outcome(
+    run_row: &mut Value,
+    exit_code: i32,
+    stdout: String,
+    stderr: String,
+    elapsed_ms: u64,
+    timeout_hit: bool,
+) {
+    run_row["exit_code"] = Value::Number(exit_code.into());
+    run_row["elapsed_ms"] = Value::Number(elapsed_ms.into());
+    run_row["timeout_hit"] = Value::Bool(timeout_hit);
+    run_row["stdout"] = Value::String(stdout);
+    run_row["stderr"] = Value::String(stderr);
+    run_row["ok"] = Value::Bool(exit_code == 0 && !timeout_hit);
+}
+
+fn with_receipt_hash(mut payload: Value) -> Value {
+    payload["receipt_hash"] = Value::String(receipt_hash(&payload));
+    payload
+}
+
 pub(super) fn spawn_payload(
     root: &Path,
     policy: &RuntimePolicy,
@@ -89,6 +110,8 @@ pub(super) fn spawn_payload(
         .get(&organ_id)
         .map(|v| budget_from_plan_value(v, policy));
     let budget = plan_budget.unwrap_or(inline_budget);
+    let command_for_exec = command.clone();
+    let args_for_exec = args.clone();
 
     if !budget.allow_commands.iter().any(|c| c == &command) {
         return Err("command_blocked_by_budget_policy".to_string());
@@ -106,32 +129,12 @@ pub(super) fn spawn_payload(
     });
 
     if apply {
-        let (exit_code, stdout, stderr, elapsed_ms, timeout_hit) = run_child(
-            root,
-            run_row["command"].as_str().unwrap_or(""),
-            run_row["args"]
-                .as_array()
-                .unwrap_or(&Vec::new())
-                .iter()
-                .filter_map(Value::as_str)
-                .map(|v| v.to_string())
-                .collect::<Vec<_>>()
-                .as_slice(),
-            &budget,
-        )?;
-        run_row["exit_code"] = Value::Number(exit_code.into());
-        run_row["elapsed_ms"] = Value::Number(elapsed_ms.into());
-        run_row["timeout_hit"] = Value::Bool(timeout_hit);
-        run_row["stdout"] = Value::String(stdout);
-        run_row["stderr"] = Value::String(stderr);
-        run_row["ok"] = Value::Bool(exit_code == 0 && !timeout_hit);
+        let (exit_code, stdout, stderr, elapsed_ms, timeout_hit) =
+            run_child(root, &command_for_exec, &args_for_exec, &budget)?;
+        write_run_outcome(&mut run_row, exit_code, stdout, stderr, elapsed_ms, timeout_hit);
     } else {
+        write_run_outcome(&mut run_row, 0, String::new(), String::new(), 0, false);
         run_row["ok"] = Value::Bool(true);
-        run_row["exit_code"] = Value::Number(0.into());
-        run_row["elapsed_ms"] = Value::Number(0.into());
-        run_row["timeout_hit"] = Value::Bool(false);
-        run_row["stdout"] = Value::String(String::new());
-        run_row["stderr"] = Value::String(String::new());
     }
 
     let run_name = format!(
@@ -162,7 +165,7 @@ pub(super) fn spawn_payload(
         )?;
     }
 
-    let mut out = json!({
+    Ok(with_receipt_hash(json!({
         "ok": run_row.get("ok").and_then(Value::as_bool).unwrap_or(false),
         "type": "child_organ_runtime_spawn",
         "lane": LANE_ID,
@@ -184,7 +187,5 @@ pub(super) fn spawn_payload(
                 "max_output_bytes": budget.max_output_bytes
             }
         }]
-    });
-    out["receipt_hash"] = Value::String(receipt_hash(&out));
-    Ok(out)
+    })))
 }

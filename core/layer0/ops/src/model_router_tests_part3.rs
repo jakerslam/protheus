@@ -1,6 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 use super::*;
 
+fn temp_root() -> tempfile::TempDir {
+    tempfile::tempdir().expect("tempdir")
+}
+
+fn assert_claim_evidence_id(out: &Value, id: &str) {
+    let has_id = out
+        .get("claim_evidence")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .iter()
+        .any(|row| row.get("id").and_then(Value::as_str) == Some(id));
+    assert!(has_id, "missing claim evidence id: {id}");
+}
+
 #[test]
 fn handoff_packet_tier_three_truthy_guardrails_match_js_for_mixed_types() {
     let payload = json!({
@@ -127,7 +142,7 @@ fn handoff_packet_tier_three_keeps_truthy_numeric_post_task_return_model() {
 
 #[test]
 fn optimize_receipt_emits_cost_savings_plan() {
-    let root = tempfile::tempdir().expect("tempdir");
+    let root = temp_root();
     let out = optimize_cheapest_receipt(
         root.path(),
         &[
@@ -148,18 +163,12 @@ fn optimize_receipt_emits_cost_savings_plan() {
             .unwrap_or_default()
             > 90.0
     );
-    assert!(out
-        .get("claim_evidence")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default()
-        .iter()
-        .any(|row| row.get("id").and_then(Value::as_str) == Some("V6-MODEL-003.5")));
+    assert_claim_evidence_id(&out, "V6-MODEL-003.5");
 }
 
 #[test]
 fn reset_agent_receipt_preserves_identity_by_default() {
-    let root = tempfile::tempdir().expect("tempdir");
+    let root = temp_root();
     let out = reset_agent_receipt(root.path(), &["reset-agent".to_string()]);
     assert_eq!(
         out.get("type").and_then(Value::as_str),
@@ -169,18 +178,12 @@ fn reset_agent_receipt_preserves_identity_by_default() {
         out.get("preserve_identity").and_then(Value::as_bool),
         Some(true)
     );
-    assert!(out
-        .get("claim_evidence")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default()
-        .iter()
-        .any(|row| row.get("id").and_then(Value::as_str) == Some("V6-MODEL-003.4")));
+    assert_claim_evidence_id(&out, "V6-MODEL-003.4");
 }
 
 #[test]
 fn night_scheduler_receipt_contains_window_and_model() {
-    let root = tempfile::tempdir().expect("tempdir");
+    let root = temp_root();
     let out = night_scheduler_receipt(
         root.path(),
         &[
@@ -202,18 +205,12 @@ fn night_scheduler_receipt_contains_window_and_model() {
         out.pointer("/schedule/cheap_model").and_then(Value::as_str),
         Some("minimax/m2.5")
     );
-    assert!(out
-        .get("claim_evidence")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default()
-        .iter()
-        .any(|row| row.get("id").and_then(Value::as_str) == Some("V6-MODEL-003.6")));
+    assert_claim_evidence_id(&out, "V6-MODEL-003.6");
 }
 
 #[test]
 fn compact_context_receipt_contains_selected_lines() {
-    let root = tempfile::tempdir().expect("tempdir");
+    let root = temp_root();
     let out = compact_context_receipt(
         root.path(),
         &[
@@ -237,18 +234,12 @@ fn compact_context_receipt_contains_selected_lines() {
         .and_then(Value::as_str)
         .map(|v| !v.is_empty())
         .unwrap_or(false));
-    assert!(out
-        .get("claim_evidence")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default()
-        .iter()
-        .any(|row| row.get("id").and_then(Value::as_str) == Some("V6-MODEL-003.1")));
+    assert_claim_evidence_id(&out, "V6-MODEL-003.1");
 }
 
 #[test]
 fn decompose_task_receipt_emits_three_phases() {
-    let root = tempfile::tempdir().expect("tempdir");
+    let root = temp_root();
     let out = decompose_task_receipt(
         root.path(),
         &[
@@ -269,18 +260,12 @@ fn decompose_task_receipt_emits_three_phases() {
         .and_then(Value::as_array)
         .map(|rows| rows.len() >= 2)
         .unwrap_or(false));
-    assert!(out
-        .get("claim_evidence")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default()
-        .iter()
-        .any(|row| row.get("id").and_then(Value::as_str) == Some("V6-MODEL-003.2")));
+    assert_claim_evidence_id(&out, "V6-MODEL-003.2");
 }
 
 #[test]
 fn adapt_repo_receipt_contains_repo_and_strategy() {
-    let root = tempfile::tempdir().expect("tempdir");
+    let root = temp_root();
     let out = adapt_repo_receipt(
         root.path(),
         &[
@@ -302,13 +287,7 @@ fn adapt_repo_receipt_contains_repo_and_strategy() {
         .and_then(Value::as_str)
         .map(|v| !v.is_empty())
         .unwrap_or(false));
-    assert!(out
-        .get("claim_evidence")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default()
-        .iter()
-        .any(|row| row.get("id").and_then(Value::as_str) == Some("V6-MODEL-003.3")));
+    assert_claim_evidence_id(&out, "V6-MODEL-003.3");
 }
 
 #[test]
@@ -330,13 +309,7 @@ fn conduit_enforcement_rejects_bypass_for_strict_model_commands() {
             .and_then(Value::as_str),
         Some("conduit_bypass_rejected")
     );
-    assert!(out
-        .get("claim_evidence")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default()
-        .iter()
-        .any(|row| row.get("id").and_then(Value::as_str) == Some("V6-MODEL-003.5")));
+    assert_claim_evidence_id(&out, "V6-MODEL-003.5");
 }
 
 #[test]

@@ -37,8 +37,8 @@ fn score_language_fit(rs_count: usize, ts_count: usize, shell_count: usize) -> u
 }
 
 fn score_similarity(tokens: &[String]) -> u32 {
-    let mut score = 0u32;
-    for token in tokens {
+    fn score_token(token: &str) -> u32 {
+        let mut score = 0u32;
         if token.contains("policy") || token.contains("receipt") {
             score += 10;
         }
@@ -51,6 +51,12 @@ fn score_similarity(tokens: &[String]) -> u32 {
         if token.contains("adapter") {
             score += 6;
         }
+        score
+    }
+
+    let mut score = 0u32;
+    for token in tokens {
+        score += score_token(token);
     }
     score.min(100)
 }

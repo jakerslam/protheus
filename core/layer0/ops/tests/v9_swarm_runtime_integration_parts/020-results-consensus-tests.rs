@@ -1,8 +1,12 @@
+fn temp_swarm_state() -> (tempfile::TempDir, std::path::PathBuf) {
+    let root = tempfile::tempdir().expect("tempdir");
+    let state_path = root.path().join("state/swarm/latest.json");
+    (root, state_path)
+}
 
 #[test]
 fn results_consensus_emits_disagreement_event_for_conflicting_values() {
-    let root = tempfile::tempdir().expect("tempdir");
-    let state_path = root.path().join("state/swarm/latest.json");
+    let (root, state_path) = temp_swarm_state();
 
     for (label, value) in [
         ("swarm-test-7-het-agent-fast", "5050"),
@@ -48,8 +52,7 @@ fn results_consensus_emits_disagreement_event_for_conflicting_values() {
 
 #[test]
 fn results_publish_rejects_invalid_payload_json() {
-    let root = tempfile::tempdir().expect("tempdir");
-    let state_path = root.path().join("state/swarm/latest.json");
+    let (root, state_path) = temp_swarm_state();
 
     let spawn_args = vec![
         "spawn".to_string(),
@@ -87,8 +90,7 @@ fn results_publish_rejects_invalid_payload_json() {
 
 #[test]
 fn heterogeneous_test_suite_completes_with_consensus() {
-    let root = tempfile::tempdir().expect("tempdir");
-    let state_path = root.path().join("state/swarm/latest.json");
+    let (root, state_path) = temp_swarm_state();
 
     let args = vec![
         "test".to_string(),
@@ -126,8 +128,7 @@ fn heterogeneous_test_suite_completes_with_consensus() {
 
 #[test]
 fn recursive_test_reaches_five_levels_with_parent_child_chain() {
-    let root = tempfile::tempdir().expect("tempdir");
-    let state_path = root.path().join("state/swarm/latest.json");
+    let (root, state_path) = temp_swarm_state();
 
     let args = vec![
         "test".to_string(),
@@ -171,8 +172,7 @@ fn recursive_test_reaches_five_levels_with_parent_child_chain() {
 
 #[test]
 fn byzantine_test_mode_enables_corrupted_reports() {
-    let root = tempfile::tempdir().expect("tempdir");
-    let state_path = root.path().join("state/swarm/latest.json");
+    let (root, state_path) = temp_swarm_state();
 
     let enable_args = vec![
         "byzantine-test".to_string(),
@@ -226,8 +226,7 @@ fn byzantine_test_mode_enables_corrupted_reports() {
 
 #[test]
 fn concurrency_test_persists_detailed_spawn_metrics() {
-    let root = tempfile::tempdir().expect("tempdir");
-    let state_path = root.path().join("state/swarm/latest.json");
+    let (root, state_path) = temp_swarm_state();
 
     let args = vec![
         "test".to_string(),
@@ -266,8 +265,7 @@ fn concurrency_test_persists_detailed_spawn_metrics() {
 
 #[test]
 fn budget_enforcement_fail_hard_blocks_overrun() {
-    let root = tempfile::tempdir().expect("tempdir");
-    let state_path = root.path().join("state/swarm/latest.json");
+    let (root, state_path) = temp_swarm_state();
     let args = vec![
         "spawn".to_string(),
         "--task=Write detailed exhaustive analysis with many references and examples".to_string(),
@@ -378,4 +376,3 @@ fn budget_test_warn_action_requires_explicit_hard_enforcement_opt_out() {
         "warn action should fail unless --assert-hard-enforcement=0 is set"
     );
 }
-

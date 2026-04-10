@@ -1,3 +1,12 @@
+fn workflow_runtime_error_payload(strict: bool, errors: Vec<String>) -> Value {
+    json!({
+        "ok": false,
+        "strict": strict,
+        "type": "mcp_plane_workflow_runtime",
+        "errors": errors
+    })
+}
+
 fn run_workflow_runtime(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
     let contract = load_json_or(
         root,
@@ -65,12 +74,7 @@ fn run_workflow_runtime(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -
         200,
     );
     if !errors.is_empty() {
-        return json!({
-            "ok": false,
-            "strict": strict,
-            "type": "mcp_plane_workflow_runtime",
-            "errors": errors
-        });
+        return workflow_runtime_error_payload(strict, errors);
     }
 
     let state_path = state_root(root).join(checkpoint_relpath);
@@ -179,12 +183,7 @@ fn run_workflow_runtime(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -
     }
 
     if !errors.is_empty() {
-        return json!({
-            "ok": false,
-            "strict": strict,
-            "type": "mcp_plane_workflow_runtime",
-            "errors": errors
-        });
+        return workflow_runtime_error_payload(strict, errors);
     }
 
     let mut event = Value::Null;
@@ -379,4 +378,3 @@ fn run_expose(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
     out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
-
