@@ -34,7 +34,7 @@ fn usage() {
         "  protheus-ops observability-plane workflow --op=<upsert|list|run> [--workflow-id=<id>] [--trigger=<cron|event>] [--schedule=<expr>] [--steps-json=<json>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops observability-plane incident --op=<trigger|status|resolve> [--incident-id=<id>] [--runbook=<id>] [--action=<text>] [--strict=1|0]"
+        "  protheus-ops observability-plane incident --op=<trigger|status|resolve> [--incident-id=<id>] [--runbook=<id>] [--action=<text>] [--dispatch-external=0|1] [--dispatch-providers=<pagerduty+datadog>] [--external-dispatch-mode=<live|dry-run|off>] [--require-external-dispatch=0|1] [--strict=1|0]"
     );
     println!(
         "  protheus-ops observability-plane selfhost --op=<deploy|status> [--profile=<docker-local|k8s-local>] [--telemetry-opt-in=0|1] [--strict=1|0]"
@@ -340,4 +340,3 @@ fn intelligent_context(root: &Path) -> Value {
         "snapshot_at": crate::now_iso()
     })
 }
-
