@@ -1784,6 +1784,9 @@
     "socket.io": "^4.8.3",
     "xml2js": "^0.6.2"
   },
+  "overrides": {
+    "socket.io-parser": "^4.2.6"
+  },
   "name": "infring",
   "version": "0.2.1-alpha.1",
   "private": true,

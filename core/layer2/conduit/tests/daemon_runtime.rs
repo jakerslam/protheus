@@ -320,8 +320,12 @@ fn conduit_daemon_routes_edge_inference_prefix_to_backend_contract() {
             violation_reason,
             ..
         } => {
-            assert_eq!(status, "edge_backend_unavailable");
-            assert_eq!(violation_reason.as_deref(), Some("edge_feature_disabled"));
+            if cfg!(feature = "edge") {
+                assert_eq!(status, "edge_inference");
+            } else {
+                assert_eq!(status, "edge_backend_unavailable");
+                assert_eq!(violation_reason.as_deref(), Some("edge_feature_disabled"));
+            }
         }
         other => panic!("unexpected event: {other:?}"),
     }
