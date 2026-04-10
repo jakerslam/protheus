@@ -450,7 +450,6 @@ pub fn stable_id(prefix: &str, basis: &Value) -> String {
     let digest = deterministic_receipt_hash(basis);
     format!("{prefix}_{}_{}", to_base36(now_millis()), &digest[..12])
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
