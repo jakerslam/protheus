@@ -34,13 +34,8 @@ pub fn evaluate_heroic_gate(req: &HeroicGateRequest) -> HeroicGateResponse {
     }
 
     let purified = purified.expect("purified row must exist");
-    let row_classification = clean_text(
-        purified
-            .get("classification")
-            .and_then(|value| value.as_str())
-            .unwrap_or("unknown"),
-        80,
-    );
+    let row_classification =
+        clean_or_default(purified.get("classification").and_then(|value| value.as_str()), 80, "unknown");
     let classification = if local_destructive {
         "destructive_instruction".to_string()
     } else if row_classification.is_empty() {
@@ -48,13 +43,8 @@ pub fn evaluate_heroic_gate(req: &HeroicGateRequest) -> HeroicGateResponse {
     } else {
         row_classification
     };
-    let row_decision = clean_text(
-        purified
-            .get("decision")
-            .and_then(|value| value.as_str())
-            .unwrap_or("unknown"),
-        120,
-    );
+    let row_decision =
+        clean_or_default(purified.get("decision").and_then(|value| value.as_str()), 120, "unknown");
     let decision = if local_destructive {
         "blocked_destructive_local_pattern".to_string()
     } else if row_decision.is_empty() {
@@ -87,11 +77,9 @@ pub fn evaluate_heroic_gate(req: &HeroicGateRequest) -> HeroicGateResponse {
 }
 
 pub fn evaluate_heroic_gate_json(payload: &str) -> Result<String, String> {
-    let req = serde_json::from_str::<HeroicGateRequest>(payload)
-        .map_err(|err| format!("heroic_gate_payload_parse_failed:{}", err))?;
+    let req = parse_payload_json::<HeroicGateRequest>(payload, "heroic_gate")?;
     let resp = evaluate_heroic_gate(&req);
-    serde_json::to_string(&resp)
-        .map_err(|err| format!("heroic_gate_payload_serialize_failed:{}", err))
+    serialize_payload_json(&resp, "heroic_gate")
 }
 
 fn ensure_object(value: &mut Value) -> &mut serde_json::Map<String, Value> {
@@ -121,22 +109,8 @@ fn numeric_or_zero(value: Option<&Value>) -> f64 {
         .unwrap_or(0.0)
 }
 pub fn apply_governance(req: &GovernanceApplyRequest) -> Vec<Value> {
-    let storm_lane = {
-        let lane = normalize_token(req.policy.storm_lane.as_str(), 80);
-        if lane.is_empty() {
-            default_storm_lane()
-        } else {
-            lane
-        }
-    };
-    let default_lane = {
-        let lane = normalize_token(req.policy.default_lane.as_str(), 80);
-        if lane.is_empty() {
-            default_lane()
-        } else {
-            lane
-        }
-    };
+    let storm_lane = normalized_or_default(req.policy.storm_lane.as_str(), 80, &default_storm_lane());
+    let default_lane = normalized_or_default(req.policy.default_lane.as_str(), 80, &default_lane());
     let min_storm_share = req.policy.min_storm_share.clamp(0.0, 1.0);
     let mut tasks: Vec<Value> = Vec::new();
 
@@ -155,34 +129,10 @@ pub fn apply_governance(req: &GovernanceApplyRequest) -> Vec<Value> {
         }
 
         let heroic = row.get("heroic").cloned().unwrap_or_else(|| json!({}));
-        let heroic_classification = {
-            let value = clean_text(
-                heroic
-                    .get("classification")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("unknown"),
-                80,
-            );
-            if value.is_empty() {
-                "unknown".to_string()
-            } else {
-                value
-            }
-        };
-        let heroic_decision = {
-            let value = clean_text(
-                heroic
-                    .get("decision")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("unknown"),
-                80,
-            );
-            if value.is_empty() {
-                "unknown".to_string()
-            } else {
-                value
-            }
-        };
+        let heroic_classification =
+            clean_or_default(heroic.get("classification").and_then(|v| v.as_str()), 80, "unknown");
+        let heroic_decision =
+            clean_or_default(heroic.get("decision").and_then(|v| v.as_str()), 80, "unknown");
         let heroic_blocked = heroic
             .get("blocked")
             .and_then(|v| v.as_bool())
@@ -193,34 +143,10 @@ pub fn apply_governance(req: &GovernanceApplyRequest) -> Vec<Value> {
             .get("constitution")
             .cloned()
             .unwrap_or_else(|| json!({}));
-        let constitution_decision = {
-            let value = clean_text(
-                constitution
-                    .get("decision")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("ALLOW"),
-                40,
-            );
-            if value.is_empty() {
-                "ALLOW".to_string()
-            } else {
-                value
-            }
-        };
-        let constitution_risk = {
-            let value = clean_text(
-                constitution
-                    .get("risk")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("low"),
-                40,
-            );
-            if value.is_empty() {
-                "low".to_string()
-            } else {
-                value
-            }
-        };
+        let constitution_decision =
+            clean_or_default(constitution.get("decision").and_then(|v| v.as_str()), 40, "ALLOW");
+        let constitution_risk =
+            clean_or_default(constitution.get("risk").and_then(|v| v.as_str()), 40, "low");
         let constitution_reasons = collect_strings(constitution.get("reasons"), 8, 120);
 
         let suggested_lane = {
@@ -239,12 +165,7 @@ pub fn apply_governance(req: &GovernanceApplyRequest) -> Vec<Value> {
             } else {
                 row_lane
             };
-            let normalized = normalize_token(candidate, 80);
-            if normalized.is_empty() {
-                default_lane.clone()
-            } else {
-                normalized
-            }
+            normalized_or_default(candidate, 80, &default_lane)
         };
         let lane = if constitution_decision == "MANUAL" {
             storm_lane.clone()
@@ -262,20 +183,8 @@ pub fn apply_governance(req: &GovernanceApplyRequest) -> Vec<Value> {
             .filter(|value| value.is_object())
             .cloned()
             .unwrap_or_else(|| json!({ "subtle_hint": "duality_signal_absent" }));
-        let duality_score_label = {
-            let value = clean_text(
-                duality
-                    .get("score_label")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("unknown"),
-                40,
-            );
-            if value.is_empty() {
-                "unknown".to_string()
-            } else {
-                value
-            }
-        };
+        let duality_score_label =
+            clean_or_default(duality.get("score_label").and_then(|v| v.as_str()), 40, "unknown");
         let recommended_adjustment = {
             let value = clean_text(
                 duality
@@ -431,12 +340,10 @@ pub fn apply_governance(req: &GovernanceApplyRequest) -> Vec<Value> {
 }
 
 pub fn apply_governance_json(payload: &str) -> Result<String, String> {
-    let req = serde_json::from_str::<GovernanceApplyRequest>(payload)
-        .map_err(|err| format!("apply_governance_payload_parse_failed:{}", err))?;
+    let req = parse_payload_json::<GovernanceApplyRequest>(payload, "apply_governance")?;
     let resp = GovernanceApplyResponse {
         ok: true,
         tasks: apply_governance(&req),
     };
-    serde_json::to_string(&resp)
-        .map_err(|err| format!("apply_governance_payload_serialize_failed:{}", err))
+    serialize_payload_json(&resp, "apply_governance")
 }

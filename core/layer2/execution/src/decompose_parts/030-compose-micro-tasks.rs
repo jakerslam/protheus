@@ -8,14 +8,7 @@ pub fn compose_micro_tasks(req: &ComposeRequest) -> Vec<Value> {
         req.run_id.trim().to_string()
     };
     let max_groups = req.policy.max_groups.max(1);
-    let default_lane = {
-        let lane = normalize_token(req.policy.default_lane.as_str(), 80);
-        if lane.is_empty() {
-            "autonomous_micro_agent".to_string()
-        } else {
-            lane
-        }
-    };
+    let default_lane = normalized_or_default(req.policy.default_lane.as_str(), 80, &default_lane());
 
     req.tasks
         .iter()
@@ -49,14 +42,7 @@ pub fn compose_micro_tasks(req: &ComposeRequest) -> Vec<Value> {
                 }
             };
             let capability = normalize_capability(&base.capability);
-            let suggested_lane = {
-                let lane = normalize_token(base.suggested_lane.as_str(), 80);
-                if lane.is_empty() {
-                    default_lane.clone()
-                } else {
-                    lane
-                }
-            };
+            let suggested_lane = normalized_or_default(base.suggested_lane.as_str(), 80, &default_lane);
             let minutes = base
                 .estimated_minutes
                 .clamp(req.policy.min_minutes.max(1), req.policy.max_minutes.max(1));
@@ -74,14 +60,11 @@ pub fn compose_micro_tasks(req: &ComposeRequest) -> Vec<Value> {
             } else {
                 (1f64 / minutes.max(1) as f64 * 10_000f64).round() / 10_000f64
             };
-            let title = {
-                let normalized = clean_text(base.title.as_str(), 220);
-                if normalized.is_empty() {
-                    title_for_task(task_text.as_str())
-                } else {
-                    normalized
-                }
-            };
+            let title = clean_or_default(
+                Some(base.title.as_str()),
+                220,
+                &title_for_task(task_text.as_str()),
+            );
             let objective_id = req.objective_id.clone();
             let creator_id = req.creator_id.clone();
             Some(json!({
@@ -268,24 +251,21 @@ pub fn decompose_goal(req: &DecomposeRequest) -> Vec<BaseTask> {
 }
 
 pub fn decompose_goal_json(payload: &str) -> Result<String, String> {
-    let req = serde_json::from_str::<DecomposeRequest>(payload)
-        .map_err(|err| format!("decompose_payload_parse_failed:{}", err))?;
+    let req = parse_payload_json::<DecomposeRequest>(payload, "decompose")?;
     let resp = DecomposeResponse {
         ok: true,
         tasks: decompose_goal(&req),
     };
-    serde_json::to_string(&resp)
-        .map_err(|err| format!("decompose_payload_serialize_failed:{}", err))
+    serialize_payload_json(&resp, "decompose")
 }
 
 pub fn compose_micro_tasks_json(payload: &str) -> Result<String, String> {
-    let req = serde_json::from_str::<ComposeRequest>(payload)
-        .map_err(|err| format!("compose_payload_parse_failed:{}", err))?;
+    let req = parse_payload_json::<ComposeRequest>(payload, "compose")?;
     let resp = ComposeResponse {
         ok: true,
         tasks: compose_micro_tasks(&req),
     };
-    serde_json::to_string(&resp).map_err(|err| format!("compose_payload_serialize_failed:{}", err))
+    serialize_payload_json(&resp, "compose")
 }
 
 pub fn summarize_tasks(tasks: &[Value], shadow_only: bool, apply_executed: bool) -> Value {
@@ -345,14 +325,12 @@ pub fn summarize_tasks(tasks: &[Value], shadow_only: bool, apply_executed: bool)
 }
 
 pub fn summarize_tasks_json(payload: &str) -> Result<String, String> {
-    let req = serde_json::from_str::<TaskSummaryRequest>(payload)
-        .map_err(|err| format!("task_summary_payload_parse_failed:{}", err))?;
+    let req = parse_payload_json::<TaskSummaryRequest>(payload, "task_summary")?;
     let resp = TaskSummaryResponse {
         ok: true,
         summary: summarize_tasks(&req.tasks, req.shadow_only, req.apply_executed),
     };
-    serde_json::to_string(&resp)
-        .map_err(|err| format!("task_summary_payload_serialize_failed:{}", err))
+    serialize_payload_json(&resp, "task_summary")
 }
 
 pub fn summarize_dispatch(rows: &[Value], enabled: bool) -> Value {
@@ -386,14 +364,12 @@ pub fn summarize_dispatch(rows: &[Value], enabled: bool) -> Value {
 }
 
 pub fn summarize_dispatch_json(payload: &str) -> Result<String, String> {
-    let req = serde_json::from_str::<DispatchSummaryRequest>(payload)
-        .map_err(|err| format!("dispatch_summary_payload_parse_failed:{}", err))?;
+    let req = parse_payload_json::<DispatchSummaryRequest>(payload, "dispatch_summary")?;
     let resp = DispatchSummaryResponse {
         ok: true,
         summary: summarize_dispatch(&req.rows, req.enabled),
     };
-    serde_json::to_string(&resp)
-        .map_err(|err| format!("dispatch_summary_payload_serialize_failed:{}", err))
+    serialize_payload_json(&resp, "dispatch_summary")
 }
 
 fn duality_indicator_for_task(task: &Value) -> Value {
