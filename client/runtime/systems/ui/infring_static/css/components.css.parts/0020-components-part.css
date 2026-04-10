@@ -164,3 +164,96 @@
   cursor: default;
   pointer-events: none;
 }
+
+.topbar-reorder-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  flex: 0 0 auto;
+}
+
+.topbar-reorder-item {
+  display: inline-flex;
+  align-items: center;
+  transition: transform 220ms var(--ease-smooth), opacity 140ms var(--ease-smooth);
+  will-change: transform;
+}
+
+.topbar-reorder-item.dragging {
+  opacity: 0;
+  cursor: grab;
+}
+
+.topbar-reorder-box .topbar-reorder-item {
+  cursor: grab;
+}
+
+.topbar-reorder-box .topbar-reorder-item:active {
+  cursor: grab;
+}
+
+.topbar-reorder-box .topbar-reorder-item *,
+.topbar-reorder-item.dragging * {
+  cursor: grab;
+}
+
+.topbar-reorder-nav-cluster {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+}
+
+.topbar-nav-pill {
+  --pill-track-color: color-mix(in srgb, var(--text-muted) 76%, transparent);
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--pill-track-color) 28%, transparent);
+  overflow: hidden;
+}
+
+.topbar-nav-pill .topbar-nav-btn {
+  width: 24px;
+  height: 24px;
+  border: none !important;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.global-topbar .topbar-reorder-box,
+.global-topbar .topbar-reorder-box *,
+.global-topbar .topbar-icon-btn,
+.global-topbar .topbar-icon-btn *,
+.global-topbar .theme-switcher,
+.global-topbar .theme-switcher *,
+.global-topbar .health-indicator,
+.global-topbar .health-indicator *,
+.global-topbar .topbar-clock,
+.global-topbar .topbar-clock * {
+  cursor: default !important;
+}
+
+.global-topbar .topbar-reorder-item.dragging,
+.global-topbar .topbar-reorder-item.dragging * {
+  cursor: grab !important;
+}
+
+body:has(.global-topbar .topbar-reorder-item.dragging),
+body:has(.global-topbar .topbar-reorder-item.dragging) * {
+  cursor: grab !important;
+}
+
+body.topbar-drag-active,
+body.topbar-drag-active * {
+  cursor: grab !important;
+}
+
+.global-topbar .topbar-clock,
+.global-topbar .topbar-clock * {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.bottom-dock {
+  overflow: hidden;
+}

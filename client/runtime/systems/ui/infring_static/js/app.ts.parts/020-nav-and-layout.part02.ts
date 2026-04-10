@@ -58,6 +58,64 @@
     _bootProgressUpdatedAt: Date.now(),
     _topbarRefreshOverlayTimer: 0,
     _topbarRefreshReloadTimer: 0,
+    topbarReorderLeft: (() => {
+      var defaults = ['nav_cluster', 'refresh'];
+      try {
+        var raw = localStorage.getItem('infring-topbar-order-left');
+        var parsed = raw ? JSON.parse(raw) : [];
+        if (!Array.isArray(parsed)) return defaults.slice();
+        var seen = {};
+        var ordered = [];
+        for (var i = 0; i < parsed.length; i += 1) {
+          var id = String(parsed[i] || '').trim();
+          if (!id || seen[id] || defaults.indexOf(id) < 0) continue;
+          seen[id] = true;
+          ordered.push(id);
+        }
+        for (var j = 0; j < defaults.length; j += 1) {
+          var fallbackId = defaults[j];
+          if (seen[fallbackId]) continue;
+          seen[fallbackId] = true;
+          ordered.push(fallbackId);
+        }
+        return ordered;
+      } catch(_) {
+        return defaults.slice();
+      }
+    })(),
+    topbarReorderRight: (() => {
+      var defaults = ['connectivity', 'theme', 'notifications', 'search', 'auth'];
+      try {
+        var raw = localStorage.getItem('infring-topbar-order-right');
+        var parsed = raw ? JSON.parse(raw) : [];
+        if (!Array.isArray(parsed)) return defaults.slice();
+        var seen = {};
+        var ordered = [];
+        for (var i = 0; i < parsed.length; i += 1) {
+          var id = String(parsed[i] || '').trim();
+          if (!id || seen[id] || defaults.indexOf(id) < 0) continue;
+          seen[id] = true;
+          ordered.push(id);
+        }
+        for (var j = 0; j < defaults.length; j += 1) {
+          var fallbackId = defaults[j];
+          if (seen[fallbackId]) continue;
+          seen[fallbackId] = true;
+          ordered.push(fallbackId);
+        }
+        return ordered;
+      } catch(_) {
+        return defaults.slice();
+      }
+    })(),
+    topbarDragGroup: '',
+    topbarDragItem: '',
+    topbarDragStartOrder: [],
+    _topbarDragHoldTimer: 0,
+    _topbarDragHoldGroup: '',
+    _topbarDragHoldItem: '',
+    _topbarDragArmedGroup: '',
+    _topbarDragArmedItem: '',
     bottomDockOrder: (() => {
       var defaults = ['chat', 'overview', 'agents', 'scheduler', 'skills', 'runtime', 'settings'];
       try {
@@ -83,6 +141,15 @@
         return defaults.slice();
       }
     })(),
+    bottomDockTileConfig: {
+      chat: { icon: 'messages', tone: 'message', tooltip: 'Messages', label: 'Messages' },
+      overview: { icon: 'home', tone: 'bright', tooltip: 'Home', label: 'Home' },
+      agents: { icon: 'agents', tone: 'bright', tooltip: 'Agents', label: 'Agents' },
+      scheduler: { icon: 'automation', tone: 'muted', tooltip: 'Automation', label: 'Automation', animation: ['automation-gears', 1200] },
+      skills: { icon: 'apps', tone: 'default', tooltip: 'Apps', label: 'Apps' },
+      runtime: { icon: 'system', tone: 'bright', tooltip: 'System', label: 'System', animation: ['system-terminal', 2000] },
+      settings: { icon: 'settings', tone: 'muted', tooltip: 'Settings', label: 'Settings', animation: ['spin', 4000] }
+    },
     appsIconBottomRowColors: (() => {
       var palette = ['#14b8a6', '#06b6d4', '#38bdf8', '#22c55e', '#f59e0b', '#ef4444', '#a855f7', '#f43f5e', '#64748b'];
       var out = [];
@@ -481,8 +548,384 @@
       this.bootProgressEvent = event;
     },
 
+    topbarReorderDefaults(group) {
+      var key = String(group || '').trim().toLowerCase();
+      if (key === 'right') return ['connectivity', 'theme', 'notifications', 'search', 'auth'];
+      return ['nav_cluster', 'refresh'];
+    },
+
+    topbarReorderStorageKey(group) {
+      var key = String(group || '').trim().toLowerCase();
+      return key === 'right' ? 'infring-topbar-order-right' : 'infring-topbar-order-left';
+    },
+
+    topbarReorderOrderForGroup(group) {
+      var key = String(group || '').trim().toLowerCase();
+      return key === 'right' ? this.topbarReorderRight : this.topbarReorderLeft;
+    },
+
+    setTopbarReorderOrderForGroup(group, nextOrder) {
+      var key = String(group || '').trim().toLowerCase();
+      if (key === 'right') {
+        this.topbarReorderRight = nextOrder;
+        return;
+      }
+      this.topbarReorderLeft = nextOrder;
+    },
+
+    normalizeTopbarReorder(group, rawOrder) {
+      var defaults = this.topbarReorderDefaults(group);
+      var source = Array.isArray(rawOrder) ? rawOrder : [];
+      var seen = {};
+      var ordered = [];
+      for (var i = 0; i < source.length; i += 1) {
+        var id = String(source[i] || '').trim();
+        if (!id || seen[id] || defaults.indexOf(id) < 0) continue;
+        seen[id] = true;
+        ordered.push(id);
+      }
+      for (var j = 0; j < defaults.length; j += 1) {
+        var fallbackId = defaults[j];
+        if (seen[fallbackId]) continue;
+        seen[fallbackId] = true;
+        ordered.push(fallbackId);
+      }
+      return ordered;
+    },
+
+    persistTopbarReorder(group) {
+      var key = String(group || '').trim().toLowerCase();
+      if (key !== 'right') key = 'left';
+      var normalized = this.normalizeTopbarReorder(key, this.topbarReorderOrderForGroup(key));
+      this.setTopbarReorderOrderForGroup(key, normalized);
+      try {
+        localStorage.setItem(this.topbarReorderStorageKey(key), JSON.stringify(normalized));
+      } catch(_) {}
+    },
+
+    topbarReorderOrderIndex(group, item) {
+      var key = String(group || '').trim().toLowerCase();
+      if (key !== 'right') key = 'left';
+      var itemId = String(item || '').trim();
+      if (!itemId) return 999;
+      var order = this.normalizeTopbarReorder(key, this.topbarReorderOrderForGroup(key));
+      var idx = order.indexOf(itemId);
+      if (idx >= 0) return idx;
+      var fallback = this.topbarReorderDefaults(key).indexOf(itemId);
+      return fallback >= 0 ? fallback : 999;
+    },
+
+    topbarReorderItemStyle(group, item) {
+      return 'order:' + this.topbarReorderOrderIndex(group, item);
+    },
+
+    topbarReorderItemRects(group) {
+      if (typeof document === 'undefined') return {};
+      var key = String(group || '').trim().toLowerCase();
+      if (key !== 'right') key = 'left';
+      var out = {};
+      var box = null;
+      try {
+        box = document.querySelector('.topbar-reorder-box-' + key);
+      } catch(_) {
+        box = null;
+      }
+      if (!box || typeof box.querySelectorAll !== 'function') return out;
+      var nodes = box.querySelectorAll('.topbar-reorder-item[data-topbar-item]');
+      for (var i = 0; i < nodes.length; i += 1) {
+        var node = nodes[i];
+        if (!node || typeof node.getBoundingClientRect !== 'function') continue;
+        var id = String(node.getAttribute('data-topbar-item') || '').trim();
+        if (!id || Object.prototype.hasOwnProperty.call(out, id)) continue;
+        var rect = node.getBoundingClientRect();
+        out[id] = { left: Number(rect.left || 0), top: Number(rect.top || 0) };
+      }
+      return out;
+    },
+
+    animateTopbarReorderFromRects(group, beforeRects) {
+      if (!beforeRects || typeof beforeRects !== 'object') return;
+      if (typeof requestAnimationFrame !== 'function' || typeof document === 'undefined') return;
+      var key = String(group || '').trim().toLowerCase();
+      if (key !== 'right') key = 'left';
+      requestAnimationFrame(function() {
+        var box = null;
+        try {
+          box = document.querySelector('.topbar-reorder-box-' + key);
+        } catch(_) {
+          box = null;
+        }
+        if (!box || typeof box.querySelectorAll !== 'function') return;
+        var nodes = box.querySelectorAll('.topbar-reorder-item[data-topbar-item]');
+        for (var i = 0; i < nodes.length; i += 1) {
+          var node = nodes[i];
+          if (!node || node.classList.contains('dragging')) continue;
+          var id = String(node.getAttribute('data-topbar-item') || '').trim();
+          if (!id || !Object.prototype.hasOwnProperty.call(beforeRects, id)) continue;
+          var from = beforeRects[id] || {};
+          var rect = node.getBoundingClientRect();
+          var dx = Number(from.left || 0) - Number(rect.left || 0);
+          var dy = Number(from.top || 0) - Number(rect.top || 0);
+          if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) continue;
+          node.style.transition = 'none';
+          node.style.transform = 'translate(' + Math.round(dx) + 'px,' + Math.round(dy) + 'px)';
+          void node.offsetHeight;
+          node.style.transition = 'transform 220ms var(--ease-smooth)';
+          node.style.transform = 'translate(0px, 0px)';
+          (function(el) {
+            window.setTimeout(function() {
+              if (!el.classList.contains('dragging')) el.style.transform = '';
+              el.style.transition = '';
+            }, 250);
+          })(node);
+        }
+      });
+    },
+
+    applyTopbarReorder(group, dragItem, targetItem, preferAfter, animate) {
+      var key = String(group || '').trim().toLowerCase();
+      if (key !== 'right') key = 'left';
+      var dragId = String(dragItem || '').trim();
+      var targetId = String(targetItem || '').trim();
+      if (!dragId || !targetId || dragId === targetId) return false;
+      var current = this.normalizeTopbarReorder(key, this.topbarReorderOrderForGroup(key));
+      var fromIndex = current.indexOf(dragId);
+      var toIndex = current.indexOf(targetId);
+      if (fromIndex < 0 || toIndex < 0) return false;
+      var next = current.slice();
+      next.splice(fromIndex, 1);
+      if (fromIndex < toIndex) toIndex -= 1;
+      if (Boolean(preferAfter)) toIndex += 1;
+      if (toIndex < 0) toIndex = 0;
+      if (toIndex > next.length) toIndex = next.length;
+      next.splice(toIndex, 0, dragId);
+      if (JSON.stringify(next) === JSON.stringify(current)) return false;
+      var beforeRects = Boolean(animate) ? this.topbarReorderItemRects(key) : null;
+      this.setTopbarReorderOrderForGroup(key, next);
+      if (beforeRects) this.animateTopbarReorderFromRects(key, beforeRects);
+      return true;
+    },
+
+    handleTopbarReorderPointerDown(group, ev) {
+      if (String(this.topbarDragGroup || '').trim()) return;
+      if (!ev || Number(ev.button) !== 0) return;
+      var key = String(group || '').trim().toLowerCase();
+      if (key !== 'right') key = 'left';
+      var target = ev && ev.target && typeof ev.target.closest === 'function'
+        ? ev.target.closest('.topbar-reorder-item[data-topbar-item]')
+        : null;
+      var item = target ? String(target.getAttribute('data-topbar-item') || '').trim() : '';
+      if (!item) return;
+      this.cancelTopbarDragHold();
+      this._topbarDragHoldGroup = key;
+      this._topbarDragHoldItem = item;
+      var self = this;
+      if (typeof window !== 'undefined' && typeof window.setTimeout === 'function') {
+        this._topbarDragHoldTimer = window.setTimeout(function() {
+          self._topbarDragHoldTimer = 0;
+          self._topbarDragArmedGroup = key;
+          self._topbarDragArmedItem = item;
+        }, 180);
+      }
+    },
+
+    cancelTopbarDragHold() {
+      if (this._topbarDragHoldTimer) {
+        try { clearTimeout(this._topbarDragHoldTimer); } catch(_) {}
+      }
+      this._topbarDragHoldTimer = 0;
+      this._topbarDragHoldGroup = '';
+      this._topbarDragHoldItem = '';
+      if (!String(this.topbarDragGroup || '').trim()) {
+        this._topbarDragArmedGroup = '';
+        this._topbarDragArmedItem = '';
+      }
+    },
+
+    forceTopbarMoveDragEffect(ev) {
+      if (!ev || !ev.dataTransfer) return;
+      try { ev.dataTransfer.effectAllowed = 'move'; } catch(_) {}
+      try { ev.dataTransfer.dropEffect = 'move'; } catch(_) {}
+    },
+
+    setTopbarDragBodyActive(active) {
+      if (typeof document === 'undefined' || !document.body || !document.body.classList) return;
+      if (active) {
+        document.body.classList.add('topbar-drag-active');
+      } else {
+        document.body.classList.remove('topbar-drag-active');
+      }
+    },
+
+    handleTopbarReorderDragStart(group, ev) {
+      var key = String(group || '').trim().toLowerCase();
+      if (key !== 'right') key = 'left';
+      var target = ev && ev.target && typeof ev.target.closest === 'function'
+        ? ev.target.closest('.topbar-reorder-item[data-topbar-item]')
+        : null;
+      var item = target ? String(target.getAttribute('data-topbar-item') || '').trim() : '';
+      if (!item || this._topbarDragArmedGroup !== key || this._topbarDragArmedItem !== item) {
+        if (ev && typeof ev.preventDefault === 'function') ev.preventDefault();
+        return;
+      }
+      this.topbarDragGroup = key;
+      this.topbarDragItem = item;
+      this.topbarDragStartOrder = this.normalizeTopbarReorder(key, this.topbarReorderOrderForGroup(key));
+      this._topbarDragArmedGroup = '';
+      this._topbarDragArmedItem = '';
+      this.cancelTopbarDragHold();
+      if (ev && ev.dataTransfer) {
+        this.forceTopbarMoveDragEffect(ev);
+        try { ev.dataTransfer.setData('application/x-infring-topbar', key + ':' + item); } catch(_) {}
+        try { ev.dataTransfer.setData('text/plain', key + ':' + item); } catch(_) {}
+        try {
+          if (
+            typeof document !== 'undefined' &&
+            document.body &&
+            typeof ev.dataTransfer.setDragImage === 'function'
+          ) {
+            var ghost = document.createElement('span');
+            ghost.style.position = 'fixed';
+            ghost.style.left = '-9999px';
+            ghost.style.top = '-9999px';
+            ghost.style.width = '1px';
+            ghost.style.height = '1px';
+            ghost.style.opacity = '0';
+            document.body.appendChild(ghost);
+            ev.dataTransfer.setDragImage(ghost, 0, 0);
+            window.setTimeout(function() {
+              if (ghost.parentNode) ghost.parentNode.removeChild(ghost);
+            }, 0);
+          }
+        } catch(_) {}
+      }
+      if (target && target.classList) target.classList.add('dragging');
+      this.setTopbarDragBodyActive(true);
+    },
+
+    handleTopbarReorderDragMove(ev) {
+      this.forceTopbarMoveDragEffect(ev);
+    },
+
+    handleTopbarReorderDragEnter(group, ev) {
+      var key = String(group || '').trim().toLowerCase();
+      if (key !== 'right') key = 'left';
+      if (String(this.topbarDragGroup || '').trim() !== key) return;
+      if (ev && typeof ev.preventDefault === 'function') ev.preventDefault();
+      this.forceTopbarMoveDragEffect(ev);
+    },
+
+    handleTopbarReorderDragOver(group, ev) {
+      var key = String(group || '').trim().toLowerCase();
+      if (key !== 'right') key = 'left';
+      if (String(this.topbarDragGroup || '').trim() !== key) return;
+      if (ev && typeof ev.preventDefault === 'function') ev.preventDefault();
+      this.forceTopbarMoveDragEffect(ev);
+      var dragItem = String(this.topbarDragItem || '').trim();
+      if (!dragItem) return;
+      var target = ev && ev.target && typeof ev.target.closest === 'function'
+        ? ev.target.closest('.topbar-reorder-item[data-topbar-item]')
+        : null;
+      var targetItem = target ? String(target.getAttribute('data-topbar-item') || '').trim() : '';
+      if (!targetItem || targetItem === dragItem) return;
+      var preferAfter = false;
+      if (target && typeof target.getBoundingClientRect === 'function') {
+        var rect = target.getBoundingClientRect();
+        var midX = Number(rect.left || 0) + (Number(rect.width || 0) / 2);
+        preferAfter = Number(ev && ev.clientX || 0) >= midX;
+      }
+      this.applyTopbarReorder(key, dragItem, targetItem, preferAfter, true);
+    },
+
+    handleTopbarReorderDrop(group, ev) {
+      var key = String(group || '').trim().toLowerCase();
+      if (key !== 'right') key = 'left';
+      if (String(this.topbarDragGroup || '').trim() !== key) return;
+      if (ev && typeof ev.preventDefault === 'function') ev.preventDefault();
+      this.persistTopbarReorder(key);
+      this.topbarDragGroup = '';
+      this.topbarDragItem = '';
+      this.topbarDragStartOrder = [];
+      this.cancelTopbarDragHold();
+      this.setTopbarDragBodyActive(false);
+      if (typeof document !== 'undefined') {
+        try {
+          var draggingNodes = document.querySelectorAll('.topbar-reorder-item.dragging');
+          for (var i = 0; i < draggingNodes.length; i += 1) {
+            draggingNodes[i].classList.remove('dragging');
+          }
+        } catch(_) {}
+      }
+    },
+
+    handleTopbarDragEnd() {
+      var key = String(this.topbarDragGroup || '').trim();
+      if (key) this.persistTopbarReorder(key);
+      this.topbarDragGroup = '';
+      this.topbarDragItem = '';
+      this.topbarDragStartOrder = [];
+      this.cancelTopbarDragHold();
+      this.setTopbarDragBodyActive(false);
+      if (typeof document !== 'undefined') {
+        try {
+          var draggingNodes = document.querySelectorAll('.topbar-reorder-item.dragging');
+          for (var i = 0; i < draggingNodes.length; i += 1) {
+            draggingNodes[i].classList.remove('dragging');
+          }
+        } catch(_) {}
+      }
+    },
+
     bottomDockDefaultOrder() {
+      var registry = (this.bottomDockTileConfig && typeof this.bottomDockTileConfig === 'object')
+        ? this.bottomDockTileConfig
+        : null;
+      if (registry) {
+        var ids = Object.keys(registry);
+        if (ids.length) return ids;
+      }
       return ['chat', 'overview', 'agents', 'scheduler', 'skills', 'runtime', 'settings'];
+    },
+
+    bottomDockTileConfigById(id) {
+      var key = String(id || '').trim();
+      if (!key) return null;
+      var registry = (this.bottomDockTileConfig && typeof this.bottomDockTileConfig === 'object')
+        ? this.bottomDockTileConfig
+        : null;
+      var tile = registry && Object.prototype.hasOwnProperty.call(registry, key) ? registry[key] : null;
+      return tile && typeof tile === 'object' ? tile : null;
+    },
+
+    bottomDockTileData(id, field, fallback) {
+      var key = String(field || '').trim();
+      var tile = this.bottomDockTileConfigById(id);
+      var value = (key && tile && Object.prototype.hasOwnProperty.call(tile, key)) ? tile[key] : fallback;
+      return (value === undefined || value === null) ? String(fallback || '') : String(value);
+    },
+
+    bottomDockTileAnimationName(id) {
+      var tile = this.bottomDockTileConfigById(id);
+      var animation = tile && Array.isArray(tile.animation) ? tile.animation : null;
+      var name = animation ? String(animation[0] || '').trim() : '';
+      return name || 'none';
+    },
+
+    bottomDockTileAnimationDurationAttr(id) {
+      var tile = this.bottomDockTileConfigById(id);
+      var animation = tile && Array.isArray(tile.animation) ? tile.animation : null;
+      if (!animation) return null;
+      var durationMs = Number(animation[1]);
+      if (!Number.isFinite(durationMs) || durationMs < 120) return null;
+      return String(Math.round(durationMs));
+    },
+
+    bottomDockTileStyle(id) {
+      var key = String(id || '').trim();
+      var base = 'order:' + (key ? this.bottomDockOrderIndex(key) : 999);
+      var tile = this.bottomDockTileConfigById(key);
+      var style = tile && typeof tile.style === 'string' ? String(tile.style || '').trim() : '';
+      return style ? (base + ';' + style) : base;
     },
 
     normalizeBottomDockOrder(rawOrder) {

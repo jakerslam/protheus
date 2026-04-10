@@ -136,29 +136,58 @@ body:not([data-theme='dark']) .main-pointer-fx-layer .global-reflection-overlay 
   stroke-width: 2.05;
 }
 
-.dock-icon-rotor-settings {
-  transform-origin: center;
-  transform-box: fill-box;
+.dock-tile[data-dock-icon='system'] .dock-system-terminal-fx {
+  position: absolute;
+  inset: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  opacity: 0;
 }
 
-.dock-icon-split-top {
-  stroke: var(--dock-icon-split-top-color, #eef3f9);
+.dock-tile[data-dock-icon='system'] .dock-system-terminal-fx svg {
+  width: 42%;
+  height: 42%;
+  stroke: #72ff5c;
+  transform: translateY(-1px);
+  filter: drop-shadow(0 0 4px rgba(114, 255, 92, 0.52));
 }
 
-.dock-icon-split-bottom {
-  stroke: var(--dock-icon-split-bottom-color, #b8c3d4);
+.dock-tile[data-dock-icon='system'] .dock-system-terminal-fx svg * {
+  stroke: #72ff5c !important;
 }
 
-.dock-tile[data-dock-icon='settings'] {
-  --dock-icon-split-top-color: #ecf0f6;
-  --dock-icon-split-bottom-color: #9ba7ba;
+@keyframes dock-system-terminal-flicker {
+  0% { opacity: 0; }
+  6% { opacity: 0.18; }
+  10% { opacity: 0.86; }
+  14% { opacity: 0.35; }
+  18% { opacity: 1; }
+  48% { opacity: 0.92; }
+  56% { opacity: 0.6; }
+  62% { opacity: 0.95; }
+  70% { opacity: 0.44; }
+  78% { opacity: 0.88; }
+  86% { opacity: 0.22; }
+  92% { opacity: 0.64; }
+  100% { opacity: 0; }
+}
+
+.dock-tile.click-animating[data-dock-click-animation='system-terminal'][data-dock-icon='system'] .dock-system-terminal-fx {
+  animation: dock-system-terminal-flicker var(--dock-click-duration, 2000ms) steps(1, end) 1;
+}
+
+.dock-tile .dock-settings-mask-gear {
+  transform-origin: 50% 50%;
+  transform-box: view-box;
 }
 
 .dock-tile.click-animating[data-dock-click-animation='spin'][data-dock-icon='settings'] svg {
   animation: none !important;
 }
 
-.dock-tile.click-animating[data-dock-click-animation='spin'][data-dock-icon='settings'] .dock-icon-rotor-settings {
+.dock-tile.click-animating[data-dock-click-animation='spin'][data-dock-icon='settings'] .dock-settings-mask-gear {
   animation: dock-tile-rotate-cw-once var(--dock-click-duration, 980ms) cubic-bezier(0.2, 0.7, 0.2, 1) 1;
 }
 
