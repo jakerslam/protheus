@@ -21,12 +21,20 @@ fn execute_tool_call_by_name(
         return gate_payload;
     }
     let headers = vec![("X-Actor-Agent-Id", actor.as_str())];
+    let route_with_body = |method: &str, path: &str, body: &Value| -> Value {
+        let body_bytes = serde_json::to_vec(body).unwrap_or_default();
+        handle_with_headers(root, method, path, &body_bytes, &headers, snapshot)
+            .map(|response| response.payload)
+            .unwrap_or_else(|| json!({"ok": false, "error": "tool_route_not_found"}))
+    };
+    let route_without_body = |method: &str, path: &str| -> Value {
+        handle_with_headers(root, method, path, &[], &headers, snapshot)
+            .map(|response| response.payload)
+            .unwrap_or_else(|| json!({"ok": false, "error": "tool_route_not_found"}))
+    };
     match resolved.as_str() {
         "tool_capabilities" | "capabilities" | "capability_status" | "tools_status" => {
-            let mut payload =
-                handle_with_headers(root, "GET", "/api/capabilities/status", &[], &headers, snapshot)
-                    .map(|response| response.payload)
-                    .unwrap_or_else(|| json!({"ok": false, "error": "tool_route_not_found"}));
+            let mut payload = route_without_body("GET", "/api/capabilities/status");
             if let Some(obj) = payload.as_object_mut() {
                 let read_surfaces = vec![
                     json!({"name":"workspace_analyze","route":"terminal_exec(read-only alias)","default_enabled":true}),
@@ -56,10 +64,7 @@ fn execute_tool_call_by_name(
                 json!({"path": clean_text(input.as_str().unwrap_or(""), 4000)})
             };
             let path = format!("/api/agents/{actor}/file/read");
-            let body_bytes = serde_json::to_vec(&body).unwrap_or_default();
-            handle_with_headers(root, "POST", &path, &body_bytes, &headers, snapshot)
-                .map(|response| response.payload)
-                .unwrap_or_else(|| json!({"ok": false, "error": "tool_route_not_found"}))
+            route_with_body("POST", &path, &body)
         }
         "file_read_many" | "read_files" | "files_read" | "batch_file_read" => {
             let body = if input.is_object() {
@@ -77,10 +82,7 @@ fn execute_tool_call_by_name(
                 json!({"paths": paths})
             };
             let path = format!("/api/agents/{actor}/file/read-many");
-            let body_bytes = serde_json::to_vec(&body).unwrap_or_default();
-            handle_with_headers(root, "POST", &path, &body_bytes, &headers, snapshot)
-                .map(|response| response.payload)
-                .unwrap_or_else(|| json!({"ok": false, "error": "tool_route_not_found"}))
+            route_with_body("POST", &path, &body)
         }
         "folder_export" | "list_folder" | "folder_tree" | "folder" => {
             let body = if input.is_object() {
@@ -89,10 +91,7 @@ fn execute_tool_call_by_name(
                 json!({"path": clean_text(input.as_str().unwrap_or(""), 4000)})
             };
             let path = format!("/api/agents/{actor}/folder/export");
-            let body_bytes = serde_json::to_vec(&body).unwrap_or_default();
-            handle_with_headers(root, "POST", &path, &body_bytes, &headers, snapshot)
-                .map(|response| response.payload)
-                .unwrap_or_else(|| json!({"ok": false, "error": "tool_route_not_found"}))
+            route_with_body("POST", &path, &body)
         }
         "terminal_exec" | "run_terminal" | "terminal" | "shell_exec" => {
             let mut body = if input.is_object() {
@@ -130,10 +129,7 @@ fn execute_tool_call_by_name(
                 });
             }
             let path = format!("/api/agents/{actor}/terminal");
-            let body_bytes = serde_json::to_vec(&body).unwrap_or_default();
-            handle_with_headers(root, "POST", &path, &body_bytes, &headers, snapshot)
-                .map(|response| response.payload)
-                .unwrap_or_else(|| json!({"ok": false, "error": "tool_route_not_found"}))
+            route_with_body("POST", &path, &body)
         }
         "web_fetch" | "browse" | "web_conduit_fetch" => {
             let body = if input.is_object() {
@@ -141,17 +137,7 @@ fn execute_tool_call_by_name(
             } else {
                 json!({"url": clean_text(input.as_str().unwrap_or(""), 2200)})
             };
-            let body_bytes = serde_json::to_vec(&body).unwrap_or_default();
-            handle_with_headers(
-                root,
-                "POST",
-                "/api/web/fetch",
-                &body_bytes,
-                &headers,
-                snapshot,
-            )
-            .map(|response| response.payload)
-            .unwrap_or_else(|| json!({"ok": false, "error": "tool_route_not_found"}))
+            route_with_body("POST", "/api/web/fetch", &body)
         }
         "batch_query" | "batch-query" | "web_search" | "search_web" | "search" | "web_query" => {
             let mut body = if input.is_object() {
@@ -175,22 +161,10 @@ fn execute_tool_call_by_name(
             {
                 body["aperture"] = json!("medium");
             }
-            let body_bytes = serde_json::to_vec(&body).unwrap_or_default();
-            handle_with_headers(
-                root,
-                "POST",
-                "/api/batch-query",
-                &body_bytes,
-                &headers,
-                snapshot,
-            )
-            .map(|response| response.payload)
-            .unwrap_or_else(|| json!({"ok": false, "error": "tool_route_not_found"}))
+            route_with_body("POST", "/api/batch-query", &body)
         }
         "cron_list" | "schedule_list" | "cron_jobs" => {
-            handle_with_headers(root, "GET", "/api/cron/jobs", &[], &headers, snapshot)
-                .map(|response| response.payload)
-                .unwrap_or_else(|| json!({"ok": false, "error": "tool_route_not_found"}))
+            route_without_body("GET", "/api/cron/jobs")
         }
         "cron_schedule" | "schedule_task" | "cron_create" => {
             let interval_minutes =
@@ -232,17 +206,7 @@ fn execute_tool_call_by_name(
             if let Some(custom_schedule) = input.get("schedule").cloned() {
                 request_body["schedule"] = custom_schedule;
             }
-            let body_bytes = serde_json::to_vec(&request_body).unwrap_or_default();
-            handle_with_headers(
-                root,
-                "POST",
-                "/api/cron/jobs",
-                &body_bytes,
-                &headers,
-                snapshot,
-            )
-            .map(|response| response.payload)
-            .unwrap_or_else(|| json!({"ok": false, "error": "tool_route_not_found"}))
+            route_with_body("POST", "/api/cron/jobs", &request_body)
         }
         "cron_cancel" | "cron_delete" | "schedule_cancel" => {
             let job_id = clean_text(
@@ -257,9 +221,7 @@ fn execute_tool_call_by_name(
                 return json!({"ok": false, "error": "job_id_required"});
             }
             let path = format!("/api/cron/jobs/{job_id}");
-            handle_with_headers(root, "DELETE", &path, &[], &headers, snapshot)
-                .map(|response| response.payload)
-                .unwrap_or_else(|| json!({"ok": false, "error": "tool_route_not_found"}))
+            route_without_body("DELETE", &path)
         }
         "cron_run" | "schedule_run" | "cron_trigger" => {
             let job_id = clean_text(
@@ -274,9 +236,7 @@ fn execute_tool_call_by_name(
                 return json!({"ok": false, "error": "job_id_required"});
             }
             let path = format!("/api/schedules/{job_id}/run");
-            handle_with_headers(root, "POST", &path, &[], &headers, snapshot)
-                .map(|response| response.payload)
-                .unwrap_or_else(|| json!({"ok": false, "error": "tool_route_not_found"}))
+            route_without_body("POST", &path)
         }
         "spawn_subagents" | "spawn_swarm" | "agent_spawn" | "sessions_spawn" => {
             execute_spawn_subagents_tool(root, snapshot, &actor, input, &headers)
@@ -391,10 +351,7 @@ fn execute_tool_call_by_name(
                     })
                 }
             };
-            let body_bytes = serde_json::to_vec(&body).unwrap_or_default();
-            handle_with_headers(root, method, &path, &body_bytes, &headers, snapshot)
-                .map(|response| response.payload)
-                .unwrap_or_else(|| json!({"ok": false, "error": "tool_route_not_found"}))
+            route_with_body(method, &path, &body)
         }
         "tool_command_router" => {
             let mut out = if input.is_object() {

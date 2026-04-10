@@ -117,7 +117,7 @@ fn run_privacy_guard(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> V
             }
         ]
     });
-    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
+    stamp_receipt(&mut out);
     out
 }
 
@@ -186,7 +186,7 @@ fn run_snapshot(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value 
             }
         ]
     });
-    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
+    stamp_receipt(&mut out);
     out
 }
 
@@ -262,7 +262,7 @@ fn run_screenshot(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Valu
             }
         ]
     });
-    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
+    stamp_receipt(&mut out);
     out
 }
 
@@ -451,8 +451,7 @@ fn run_key_input(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value
         "recorded_at": crate::now_iso(),
         "replay_step": replay_step
     });
-    let artifact_path = state_root(root).join("automation").join("key_input_latest.json");
-    let _ = write_json(&artifact_path, &artifact);
+    let artifact_path = persist_automation_artifact(root, "key_input_latest.json", &artifact);
     let mut out = json!({
         "ok": true,
         "strict": strict,
@@ -476,7 +475,7 @@ fn run_key_input(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value
             }
         ]
     });
-    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
+    stamp_receipt(&mut out);
     out
 }
 
@@ -585,7 +584,7 @@ fn run_action_policy(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> V
             }
         ]
     });
-    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
+    stamp_receipt(&mut out);
     out
 }
 
@@ -678,6 +677,6 @@ fn run_auth_save(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value
             }
         ]
     });
-    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
+    stamp_receipt(&mut out);
     out
 }
