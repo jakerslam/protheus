@@ -6,6 +6,8 @@ use std::cmp::Ordering;
 use std::fs;
 use std::path::Path;
 
+use crate::contract_lane_utils as lane_utils;
+
 const SESSION_ANALYTICS_TUNING_REL: &str =
     "local/state/ops/session_command_tracking/nightly_tuning.json";
 
@@ -14,29 +16,15 @@ const PROVIDER_REGISTRY_REL: &str =
     "client/runtime/local/state/ui/infring_dashboard/provider_registry.json";
 
 fn clean_text(raw: &str, max_len: usize) -> String {
-    raw.split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
-        .trim()
-        .chars()
-        .take(max_len)
-        .collect::<String>()
+    lane_utils::clean_text(Some(raw), max_len.max(1))
 }
 
 fn bool_env(name: &str, fallback: bool) -> bool {
-    match std::env::var(name) {
-        Ok(raw) => matches!(
-            clean_text(&raw, 40).to_ascii_lowercase().as_str(),
-            "1" | "true" | "yes" | "on"
-        ),
-        Err(_) => fallback,
-    }
+    lane_utils::parse_bool(std::env::var(name).ok().as_deref(), fallback)
 }
 
 fn read_json(path: &Path) -> Option<Value> {
-    std::fs::read_to_string(path)
-        .ok()
-        .and_then(|raw| serde_json::from_str::<Value>(&raw).ok())
+    lane_utils::read_json(path)
 }
 
 fn load_session_analytics_tuning(root: &Path) -> Value {
