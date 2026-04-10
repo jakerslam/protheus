@@ -1,5 +1,24 @@
-use crate::schemas::{MemoryScope, MemoryVersion, TrustState};
+use crate::schemas::{MemoryVersion, TrustState};
 use crate::{deterministic_hash, now_ms};
+
+fn build_rollback_version_id(
+    object_id: &str,
+    source_version_id: &str,
+    current_head_version_id: Option<&str>,
+    receipt_id: &str,
+    ts: u64,
+) -> String {
+    format!(
+        "version_{}",
+        &deterministic_hash(&(
+            object_id.to_string(),
+            source_version_id.to_string(),
+            current_head_version_id.map(str::to_string),
+            receipt_id.to_string(),
+            ts
+        ))[..24]
+    )
+}
 
 pub fn is_valid_trust_transition(from: TrustState, to: TrustState) -> bool {
     matches!(
@@ -25,32 +44,21 @@ pub fn rollback_head_from_version(
     let ts = now_ms();
     let payload_hash =
         deterministic_hash(&(source_version.payload.clone(), source_version.scope.label()));
+    let version_id = build_rollback_version_id(
+        object_id,
+        source_version.version_id.as_str(),
+        current_head_version_id.as_deref(),
+        receipt_id,
+        ts,
+    );
+    let mut lineage_refs = source_version.lineage_refs.clone();
+    lineage_refs.push(source_version.version_id.clone());
     MemoryVersion {
-        version_id: format!(
-            "version_{}",
-            &deterministic_hash(&(
-                object_id.to_string(),
-                source_version.version_id.clone(),
-                current_head_version_id.clone(),
-                receipt_id.to_string(),
-                ts
-            ))[..24]
-        ),
+        version_id,
         object_id: object_id.to_string(),
-        scope: match &source_version.scope {
-            MemoryScope::Ephemeral => MemoryScope::Ephemeral,
-            MemoryScope::Public => MemoryScope::Public,
-            MemoryScope::Agent(id) => MemoryScope::Agent(id.clone()),
-            MemoryScope::Swarm(id) => MemoryScope::Swarm(id.clone()),
-            MemoryScope::Core => MemoryScope::Core,
-            MemoryScope::Owner => MemoryScope::Owner,
-        },
+        scope: source_version.scope.clone(),
         parent_version_id: current_head_version_id,
-        lineage_refs: {
-            let mut refs = source_version.lineage_refs.clone();
-            refs.push(source_version.version_id.clone());
-            refs
-        },
+        lineage_refs,
         receipt_id: receipt_id.to_string(),
         trust_state: source_version.trust_state.clone(),
         payload: source_version.payload.clone(),

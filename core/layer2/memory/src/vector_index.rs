@@ -6,6 +6,12 @@ pub struct VectorIndex {
 }
 
 impl VectorIndex {
+    fn rank_by_cosine<'a>(&'a self, query: &'a [f32]) -> impl Iterator<Item = (String, f32)> + 'a {
+        self.embeddings.iter().filter_map(|(key, row)| {
+            cosine_similarity(query, row).map(|score| (key.clone(), score))
+        })
+    }
+
     pub fn upsert(&mut self, key: impl Into<String>, embedding: Vec<f32>) {
         self.embeddings.insert(key.into(), embedding);
     }
@@ -15,13 +21,7 @@ impl VectorIndex {
     }
 
     pub fn query_cosine(&self, query: &[f32], top_k: usize) -> Vec<(String, f32)> {
-        let mut scored = self
-            .embeddings
-            .iter()
-            .filter_map(|(key, row)| {
-                cosine_similarity(query, row).map(|score| (key.clone(), score))
-            })
-            .collect::<Vec<_>>();
+        let mut scored = self.rank_by_cosine(query).collect::<Vec<_>>();
         scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
         scored.truncate(top_k.max(1));
         scored
