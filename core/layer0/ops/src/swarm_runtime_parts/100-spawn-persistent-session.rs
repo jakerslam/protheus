@@ -1,3 +1,30 @@
+fn runtime_mode_label(background_worker: bool) -> &'static str {
+    if background_worker {
+        "background"
+    } else {
+        "persistent"
+    }
+}
+
+fn runtime_status_label(background_worker: bool) -> &'static str {
+    if background_worker {
+        "background_running"
+    } else {
+        "persistent_running"
+    }
+}
+
+fn session_state_payload(state: &SwarmState, session_id: &str) -> Value {
+    let key = session_key(session_id);
+    let session = state.sessions.get(session_id).expect("session inserted");
+    json!({
+        "session_id": session_id,
+        "session_key": key,
+        "tool_access": default_session_tool_access(),
+        "tool_manifest": session_tool_manifest(state, session),
+    })
+}
+
 fn spawn_persistent_session(
     state: &mut SwarmState,
     parent_id: Option<&str>,
@@ -21,11 +48,7 @@ fn spawn_persistent_session(
         task.to_string()
     };
     let runtime = PersistentRuntime {
-        mode: if background_worker {
-            "background".to_string()
-        } else {
-            "persistent".to_string()
-        },
+        mode: runtime_mode_label(background_worker).to_string(),
         config: cfg.clone(),
         started_at_ms: now_ms,
         deadline_ms: now_ms.saturating_add(cfg.lifespan_sec.saturating_mul(1000)),
@@ -40,11 +63,7 @@ fn spawn_persistent_session(
         parent_id.map(ToString::to_string),
         depth,
         task.to_string(),
-        if background_worker {
-            "background_running".to_string()
-        } else {
-            "persistent_running".to_string()
-        },
+        runtime_status_label(background_worker).to_string(),
     );
     metadata.metrics = Some(SpawnMetrics {
         request_received_ms: now_ms,
@@ -109,16 +128,11 @@ fn spawn_persistent_session(
     Ok(json!({
         "session_id": session_id,
         "session_key": session_key(&session_id),
-        "mode": if background_worker { "background" } else { "persistent" },
+        "mode": runtime_mode_label(background_worker),
         "lifespan_sec": cfg.lifespan_sec,
         "check_in_interval_sec": cfg.check_in_interval_sec,
         "report_mode": cfg.report_mode.as_label(),
         "initial_check_in": initial,
-        "session_state": {
-            "session_id": session_id,
-            "session_key": session_key(&session_id),
-            "tool_access": default_session_tool_access(),
-            "tool_manifest": session_tool_manifest(state, state.sessions.get(&session_id).expect("session inserted")),
-        }
+        "session_state": session_state_payload(state, &session_id),
     }))
 }

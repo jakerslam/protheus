@@ -73,12 +73,25 @@ pub struct NexusRegistry {
 }
 
 impl NexusRegistry {
+    fn fail(reason: &str) -> Result<(), String> {
+        Err(reason.to_string())
+    }
+
+    fn registration_mut(
+        &mut self,
+        sub_nexus_id: &str,
+    ) -> Result<&mut SubNexusRegistration, String> {
+        self.registrations
+            .get_mut(sub_nexus_id)
+            .ok_or_else(|| "registration_missing".to_string())
+    }
+
     pub fn register(&mut self, registration: SubNexusRegistration) -> Result<(), String> {
         if registration.sub_nexus_id.trim().is_empty() {
-            return Err("registration_id_missing".to_string());
+            return Self::fail("registration_id_missing");
         }
         if self.registrations.contains_key(&registration.sub_nexus_id) {
-            return Err("registration_already_exists".to_string());
+            return Self::fail("registration_already_exists");
         }
         self.registrations
             .insert(registration.sub_nexus_id.clone(), registration);
@@ -94,9 +107,7 @@ impl NexusRegistry {
         sub_nexus_id: &str,
         lifecycle: ModuleLifecycleState,
     ) -> Result<(), String> {
-        let Some(entry) = self.registrations.get_mut(sub_nexus_id) else {
-            return Err("registration_missing".to_string());
-        };
+        let entry = self.registration_mut(sub_nexus_id)?;
         entry.lifecycle = lifecycle;
         entry.last_updated_ms = now_ms();
         Ok(())
