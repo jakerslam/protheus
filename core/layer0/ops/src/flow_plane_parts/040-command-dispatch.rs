@@ -1,11 +1,22 @@
-pub fn run(root: &Path, argv: &[String]) -> i32 {
-    let parsed = parse_args(argv);
-    let command = parsed
-        .positional
+fn normalized_command(positional: &[String]) -> String {
+    positional
         .first()
         .map(|v| v.trim().to_ascii_lowercase())
-        .unwrap_or_else(|| "status".to_string());
-    if matches!(command.as_str(), "help" | "--help" | "-h") {
+        .unwrap_or_else(|| "status".to_string())
+}
+
+fn is_help(command: &str) -> bool {
+    matches!(command, "help" | "--help" | "-h")
+}
+
+fn should_fail_strict_gate(strict: bool, conduit: Option<&Value>) -> bool {
+    strict && conduit.and_then(|v| v.get("ok")).and_then(Value::as_bool) == Some(false)
+}
+
+pub fn run(root: &Path, argv: &[String]) -> i32 {
+    let parsed = parse_args(argv);
+    let command = normalized_command(parsed.positional.as_slice());
+    if is_help(command.as_str()) {
         usage();
         return 0;
     }
@@ -16,13 +27,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     } else {
         None
     };
-    if strict
-        && conduit
-            .as_ref()
-            .and_then(|v| v.get("ok"))
-            .and_then(Value::as_bool)
-            == Some(false)
-    {
+    if should_fail_strict_gate(strict, conduit.as_ref()) {
         return emit(
             root,
             json!({
@@ -91,4 +96,3 @@ mod tests {
         assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
     }
 }
-

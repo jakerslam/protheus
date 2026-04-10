@@ -7,6 +7,8 @@ use crate::{clean, now_iso, parse_args};
 use serde_json::json;
 use std::path::{Path, PathBuf};
 
+const LANE_ID: &str = "core/layer0/ops";
+
 fn state_root(root: &Path) -> PathBuf {
     state_root_from_env_or(
         root,
@@ -23,20 +25,37 @@ fn history_path(root: &Path) -> PathBuf {
     state_root(root).join("narrow_agent_parity_harness_history.jsonl")
 }
 
+fn normalized_command(argv: &[String]) -> String {
+    argv.first()
+        .map(|v| v.trim().to_ascii_lowercase())
+        .unwrap_or_else(|| "status".to_string())
+}
+
+fn usage() {
+    println!("Usage:");
+    println!(
+        "  protheus-ops narrow-agent-parity-harness run [YYYY-MM-DD] [--days=N] [--strict=1|0]"
+    );
+    println!("  protheus-ops narrow-agent-parity-harness status [latest|YYYY-MM-DD]");
+}
+
+fn resolved_date(positional: &[String], date_flag: Option<&String>) -> String {
+    clean(
+        positional
+            .get(1)
+            .cloned()
+            .or_else(|| date_flag.cloned())
+            .unwrap_or_else(|| now_iso().chars().take(10).collect()),
+        32,
+    )
+}
+
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     let parsed = parse_args(argv);
-    let command = parsed
-        .positional
-        .first()
-        .map(|v| v.trim().to_ascii_lowercase())
-        .unwrap_or_else(|| "status".to_string());
+    let command = normalized_command(parsed.positional.as_slice());
 
     if matches!(command.as_str(), "help" | "--help" | "-h") {
-        println!("Usage:");
-        println!(
-            "  protheus-ops narrow-agent-parity-harness run [YYYY-MM-DD] [--days=N] [--strict=1|0]"
-        );
-        println!("  protheus-ops narrow-agent-parity-harness status [latest|YYYY-MM-DD]");
+        usage();
         return 0;
     }
 
@@ -47,7 +66,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         let out = json!({
             "ok": true,
             "type": "narrow_agent_parity_harness_status",
-            "lane": "core/layer0/ops",
+            "lane": LANE_ID,
             "ts": now_iso(),
             "latest": read_json(&latest)
         })
@@ -56,22 +75,14 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         return 0;
     }
 
-    let date = clean(
-        parsed
-            .positional
-            .get(1)
-            .cloned()
-            .or_else(|| parsed.flags.get("date").cloned())
-            .unwrap_or_else(|| now_iso().chars().take(10).collect()),
-        32,
-    );
+    let date = resolved_date(parsed.positional.as_slice(), parsed.flags.get("date"));
     let days = parse_i64_clamped(parsed.flags.get("days"), 180, 1, 365);
     let strict = parse_bool(parsed.flags.get("strict"), false);
 
     let out = json!({
         "ok": true,
         "type": "narrow_agent_parity_harness",
-        "lane": "core/layer0/ops",
+        "lane": LANE_ID,
         "ts": now_iso(),
         "date": date,
         "days": days,
