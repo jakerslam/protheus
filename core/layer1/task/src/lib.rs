@@ -21,21 +21,19 @@ pub enum ScheduleDecision {
 #[derive(Debug, Default)]
 pub struct Scheduler;
 
+fn claim_evidence_is_valid(entry: &ClaimEvidence) -> bool {
+    !(entry.claim.trim().is_empty() || entry.evidence.trim().is_empty())
+}
+
 impl Scheduler {
     pub fn evaluate(&self, task: &Task) -> ScheduleDecision {
         if task.claim_evidence.is_empty() {
             return ScheduleDecision::MissingClaimEvidence;
         }
-
-        let has_invalid_evidence = task
-            .claim_evidence
-            .iter()
-            .any(|entry| entry.claim.trim().is_empty() || entry.evidence.trim().is_empty());
-
-        if has_invalid_evidence {
-            ScheduleDecision::MissingClaimEvidence
-        } else {
+        if task.claim_evidence.iter().all(claim_evidence_is_valid) {
             ScheduleDecision::Ready
+        } else {
+            ScheduleDecision::MissingClaimEvidence
         }
     }
 }
