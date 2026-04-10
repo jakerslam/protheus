@@ -20,24 +20,48 @@ function encodeBase64(value) {
   return Buffer.from(String(value == null ? '' : value), 'utf8').toString('base64');
 }
 
+function payloadFromBridge(out) {
+  const receipt = out && out.payload && typeof out.payload === 'object' ? out.payload : null;
+  return receipt && typeof receipt.payload === 'object' ? receipt.payload : receipt;
+}
+
+function invokeFailure(command, out, payloadOut, suffix) {
+  const fallback = `tool_response_compactor_kernel_${command}_${suffix}`;
+  if (payloadOut && typeof payloadOut.error === 'string' && payloadOut.error.trim()) {
+    return payloadOut.error.trim();
+  }
+  const stderr = out && out.stderr ? String(out.stderr).trim() : '';
+  return stderr || fallback;
+}
+
+function normalizeCompactorResult(result, fallbackContent) {
+  const base = result && typeof result === 'object' ? result : {};
+  const normalizedContent = String(
+    base && typeof base.content === 'string' ? base.content : (fallbackContent == null ? '' : fallbackContent)
+  );
+  const metrics = base && typeof base.metrics === 'object' && base.metrics
+    ? base.metrics
+    : { chars: normalizedContent.length, lines: normalizedContent.split('\n').length };
+  return Object.assign({}, base, {
+    compacted: base && base.compacted === true,
+    content: normalizedContent,
+    metrics
+  });
+}
+
 function invoke(command, payload = {}, opts = {}) {
   const out = bridge.run([
     command,
     `--payload-base64=${encodeBase64(JSON.stringify(payload || {}))}`
   ]);
-  const receipt = out && out.payload && typeof out.payload === 'object' ? out.payload : null;
-  const payloadOut = receipt && typeof receipt.payload === 'object' ? receipt.payload : receipt;
+  const payloadOut = payloadFromBridge(out);
   if (out.status !== 0) {
-    const message = payloadOut && typeof payloadOut.error === 'string'
-      ? payloadOut.error
-      : (out && out.stderr ? String(out.stderr).trim() : `tool_response_compactor_kernel_${command}_failed`);
-    if (opts.throwOnError !== false) throw new Error(message || `tool_response_compactor_kernel_${command}_failed`);
-    return { ok: false, error: message || `tool_response_compactor_kernel_${command}_failed` };
+    const message = invokeFailure(command, out, payloadOut, 'failed');
+    if (opts.throwOnError !== false) throw new Error(message);
+    return { ok: false, error: message };
   }
   if (!payloadOut || typeof payloadOut !== 'object') {
-    const message = out && out.stderr
-      ? String(out.stderr).trim() || `tool_response_compactor_kernel_${command}_bridge_failed`
-      : `tool_response_compactor_kernel_${command}_bridge_failed`;
+    const message = invokeFailure(command, out, payloadOut, 'bridge_failed');
     if (opts.throwOnError !== false) throw new Error(message);
     return { ok: false, error: message };
   }
@@ -68,13 +92,11 @@ function compactToolResponse(data, options = {}) {
     data,
     tool_name: opts.toolName || 'unknown'
   });
-  return out && typeof out === 'object'
-    ? out
-    : {
-        compacted: false,
-        content: redactSecrets(typeof data === 'string' ? data : JSON.stringify(data)),
-        metrics: { chars: 0, lines: 0 }
-      };
+  if (out && typeof out === 'object') {
+    return normalizeCompactorResult(out, '');
+  }
+  const fallback = redactSecrets(typeof data === 'string' ? data : JSON.stringify(data));
+  return normalizeCompactorResult({ compacted: false, content: fallback }, fallback);
 }
 
 function redactSecretsOnly(content) {
@@ -86,6 +108,7 @@ module.exports = {
   COMPACTION_THRESHOLD_CHARS,
   COMPACTION_THRESHOLD_LINES,
   compactToolResponse,
+  normalizeCompactorResult,
   redactSecrets,
   redactSecretsOnly,
   extractSummary

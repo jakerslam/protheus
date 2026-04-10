@@ -5,7 +5,7 @@
  * before they enter working context.
  */
 
-const { compactToolResponse } = require('./tool_response_compactor.ts');
+const { compactToolResponse, normalizeCompactorResult } = require('./tool_response_compactor.ts');
 declare function execAsync(cmd: string): Promise<string>;
 
 /**
@@ -13,11 +13,17 @@ declare function execAsync(cmd: string): Promise<string>;
  * Use this for ALL exec, web_fetch, read tool results
  */
 function processToolOutput(toolName, rawOutput) {
-  const result = compactToolResponse(rawOutput, { toolName });
+  const normalizedToolName = String(toolName || 'unknown');
+  const result = normalizeCompactorResult(
+    compactToolResponse(rawOutput, { toolName: normalizedToolName }),
+    String(rawOutput || '')
+  );
   
   // Log metrics for tracking
   if (result.metrics && result.compacted) {
-    console.error(`[COMPACTOR] ${toolName}: ${result.metrics.originalChars} → ${result.metrics.compactedChars} chars (${result.metrics.savingsPercent}% saved)`);
+    console.error(
+      `[COMPACTOR] ${normalizedToolName}: ${result.metrics.originalChars} → ${result.metrics.compactedChars} chars (${result.metrics.savingsPercent}% saved)`
+    );
   }
   
   return result.content;
