@@ -274,6 +274,48 @@ describe('conduit primitive wrapper contract', () => {
     }
   });
 
+  test('production closure policy freezes canonical transport and surface contract', () => {
+    const policy = JSON.parse(
+      fs.readFileSync(
+        path.join(ROOT, 'client/runtime/config/production_readiness_closure_policy.json'),
+        'utf8',
+      ),
+    );
+    expect(policy.release_candidate_topology.transport_mode).toBe('resident_ipc_authoritative');
+    expect(policy.release_candidate_topology.forbid_process_transport_in_production).toBe(true);
+    expect(policy.production_surface_contract.canonical_surface).toBe('rich');
+    expect(Array.isArray(policy.production_surface_contract.constrained_profiles)).toBe(true);
+    expect(policy.production_surface_contract.command_tiers.experimental.includes('assimilate')).toBe(
+      true,
+    );
+  });
+
+  test('package scripts expose production closure gate and support bundle export', () => {
+    const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+    expect(typeof pkg.scripts['ops:production-closure:gate']).toBe('string');
+    expect(typeof pkg.scripts['ops:support-bundle:export']).toBe('string');
+  });
+
+  test('support bundle export writes a deterministic artifact envelope', () => {
+    const entrypoint = path.join(ROOT, 'client/runtime/lib/ts_entrypoint.ts');
+    const script = path.join(ROOT, 'client/runtime/systems/ops/support_bundle_export.ts');
+    const outPath = path.join(os.tmpdir(), `infring-support-bundle-${randomUUID()}.json`);
+    const proc = spawnSync(
+      process.execPath,
+      [entrypoint, script, 'run', `--out=${outPath}`, '--strict=0'],
+      {
+        cwd: ROOT,
+        encoding: 'utf8',
+      },
+    );
+    expect(proc.status).toBe(0);
+    expect(fs.existsSync(outPath)).toBe(true);
+    const payload = JSON.parse(fs.readFileSync(outPath, 'utf8'));
+    expect(payload.type).toBe('support_bundle');
+    expect(Array.isArray(payload.checks)).toBe(true);
+    fs.rmSync(outPath, { force: true });
+  });
+
   test('installer smoke checks canonical dashboard route', () => {
     const source = fs.readFileSync(path.join(ROOT, 'install.sh'), 'utf8');
     expect(source.includes('dashboard status --json')).toBe(true);
