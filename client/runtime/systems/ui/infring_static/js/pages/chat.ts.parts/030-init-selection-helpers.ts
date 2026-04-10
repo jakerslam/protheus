@@ -396,6 +396,235 @@
       var short = runtime.replace(/-\d{8}$/, '');
       return short ? ('Auto: ' + short) : 'Auto';
     },
+    modelLogoFamilyKey: function(model) {
+      var row = model && typeof model === 'object' ? model : {};
+      var combined = String(
+        row.id || row.display_name || row.model_name || row.name || ''
+      ).toLowerCase();
+      var provider = String(row.provider || row.model_provider || '').toLowerCase();
+      var haystack = (provider + ' ' + combined).trim();
+      if (!haystack) return 'unknown';
+      if (haystack.indexOf('openai') >= 0 || haystack.indexOf('chatgpt') >= 0 || haystack.indexOf('gpt') >= 0) return 'openai';
+      if (haystack.indexOf('anthropic') >= 0 || haystack.indexOf('claude') >= 0 || haystack.indexOf('frontier_provider') >= 0) return 'anthropic';
+      if (haystack.indexOf('gemini') >= 0 || haystack.indexOf('google') >= 0) return 'gemini';
+      if (haystack.indexOf('qwen') >= 0) return 'qwen';
+      if (haystack.indexOf('deepseek') >= 0) return 'deepseek';
+      if (haystack.indexOf('kimi') >= 0 || haystack.indexOf('moonshot') >= 0) return 'kimi';
+      if (haystack.indexOf('llama') >= 0 || haystack.indexOf('meta') >= 0) return 'llama';
+      if (haystack.indexOf('mistral') >= 0 || haystack.indexOf('mixtral') >= 0) return 'mistral';
+      if (haystack.indexOf('grok') >= 0 || haystack.indexOf('xai') >= 0) return 'xai';
+      return 'unknown';
+    },
+    modelLogoSimpleIconUrl: function(slug) {
+      var key = String(slug || '').trim().toLowerCase();
+      if (!key) return '';
+      return 'https://cdn.simpleicons.org/' + encodeURIComponent(key);
+    },
+    modelLogoClearbitUrl: function(domain) {
+      var value = String(domain || '').trim().toLowerCase();
+      if (!value) return '';
+      return 'https://logo.clearbit.com/' + encodeURIComponent(value) + '?size=64&format=png';
+    },
+    pushUniqueLogoCandidate: function(list, url) {
+      var value = String(url || '').trim();
+      if (!value) return;
+      if (list.indexOf(value) >= 0) return;
+      list.push(value);
+    },
+    modelLogoCandidates: function(model) {
+      var key = this.modelLogoFamilyKey(model);
+      var out = [];
+      if (key === 'openai') {
+        this.pushUniqueLogoCandidate(out, this.modelLogoSimpleIconUrl('openai'));
+        this.pushUniqueLogoCandidate(out, this.modelLogoClearbitUrl('openai.com'));
+      } else if (key === 'anthropic') {
+        this.pushUniqueLogoCandidate(out, this.modelLogoSimpleIconUrl('anthropic'));
+        this.pushUniqueLogoCandidate(out, this.modelLogoClearbitUrl('anthropic.com'));
+      } else if (key === 'gemini') {
+        this.pushUniqueLogoCandidate(out, this.modelLogoSimpleIconUrl('googlegemini'));
+        this.pushUniqueLogoCandidate(out, this.modelLogoSimpleIconUrl('google'));
+        this.pushUniqueLogoCandidate(out, this.modelLogoClearbitUrl('google.com'));
+      } else if (key === 'qwen') {
+        this.pushUniqueLogoCandidate(out, this.modelLogoSimpleIconUrl('qwen'));
+        this.pushUniqueLogoCandidate(out, this.modelLogoClearbitUrl('alibabacloud.com'));
+      } else if (key === 'deepseek') {
+        this.pushUniqueLogoCandidate(out, this.modelLogoSimpleIconUrl('deepseek'));
+        this.pushUniqueLogoCandidate(out, this.modelLogoClearbitUrl('deepseek.com'));
+      } else if (key === 'kimi') {
+        this.pushUniqueLogoCandidate(out, this.modelLogoClearbitUrl('moonshot.ai'));
+        this.pushUniqueLogoCandidate(out, this.modelLogoClearbitUrl('moonshot.cn'));
+      } else if (key === 'llama') {
+        this.pushUniqueLogoCandidate(out, this.modelLogoSimpleIconUrl('meta'));
+        this.pushUniqueLogoCandidate(out, this.modelLogoClearbitUrl('meta.com'));
+      } else if (key === 'mistral') {
+        this.pushUniqueLogoCandidate(out, this.modelLogoSimpleIconUrl('mistralai'));
+        this.pushUniqueLogoCandidate(out, this.modelLogoClearbitUrl('mistral.ai'));
+      } else if (key === 'xai') {
+        this.pushUniqueLogoCandidate(out, this.modelLogoSimpleIconUrl('x'));
+        this.pushUniqueLogoCandidate(out, this.modelLogoClearbitUrl('x.ai'));
+      }
+      return out;
+    },
+    modelLogoFailMap: function(kind) {
+      var scope = String(kind || '').trim().toLowerCase() === 'source' ? 'source' : 'model';
+      if (scope === 'source') {
+        if (!this._modelSourceLogoFailIndex || typeof this._modelSourceLogoFailIndex !== 'object') {
+          this._modelSourceLogoFailIndex = {};
+        }
+        return this._modelSourceLogoFailIndex;
+      }
+      if (!this._modelLogoFailIndex || typeof this._modelLogoFailIndex !== 'object') {
+        this._modelLogoFailIndex = {};
+      }
+      return this._modelLogoFailIndex;
+    },
+    modelLogoUrl: function(model) {
+      var key = this.modelLogoFamilyKey(model);
+      if (!key || key === 'unknown') return '';
+      var candidates = this.modelLogoCandidates(model);
+      if (!candidates.length) return '';
+      var map = this.modelLogoFailMap('model');
+      var index = Number(map[key] || 0);
+      if (!Number.isFinite(index) || index < 0) index = 0;
+      if (index >= candidates.length) return '';
+      return String(candidates[index] || '');
+    },
+    modelLogoTooltip: function(model) {
+      var key = this.modelLogoFamilyKey(model);
+      if (key === 'unknown') return 'Model family';
+      if (key === 'openai') return 'Model family: OpenAI';
+      if (key === 'anthropic') return 'Model family: Anthropic';
+      if (key === 'gemini') return 'Model family: Gemini';
+      if (key === 'qwen') return 'Model family: Qwen';
+      if (key === 'deepseek') return 'Model family: DeepSeek';
+      if (key === 'kimi') return 'Model family: Kimi';
+      if (key === 'llama') return 'Model family: Llama';
+      if (key === 'mistral') return 'Model family: Mistral';
+      if (key === 'xai') return 'Model family: xAI';
+      return 'Model family';
+    },
+    modelSourceLogoKey: function(model) {
+      var row = model && typeof model === 'object' ? model : {};
+      var provider = String(row.provider || row.model_provider || '').trim().toLowerCase();
+      if (!provider) {
+        var deployment = this.modelDeploymentKind(row);
+        if (deployment === 'local') return 'local';
+        if (deployment === 'cloud') return 'cloud';
+        if (deployment === 'api') return 'direct';
+        return 'unknown';
+      }
+      if (provider.indexOf('ollama') >= 0) return 'ollama';
+      if (provider.indexOf('huggingface') >= 0 || provider === 'hf') return 'huggingface';
+      if (provider.indexOf('openrouter') >= 0) return 'openrouter';
+      if (provider.indexOf('openai') >= 0) return 'openai';
+      if (provider.indexOf('frontier_provider') >= 0 || provider.indexOf('anthropic') >= 0) return 'anthropic';
+      if (provider.indexOf('google') >= 0 || provider.indexOf('gemini') >= 0) return 'google';
+      if (provider.indexOf('moonshot') >= 0 || provider.indexOf('kimi') >= 0) return 'moonshot';
+      if (provider.indexOf('deepseek') >= 0) return 'deepseek';
+      if (provider.indexOf('groq') >= 0) return 'groq';
+      if (provider.indexOf('xai') >= 0) return 'xai';
+      if (provider.indexOf('cloud') >= 0) return 'cloud';
+      return 'direct';
+    },
+    modelSourceLogoCandidates: function(model) {
+      var key = this.modelSourceLogoKey(model);
+      var out = [];
+      if (key === 'ollama') {
+        this.pushUniqueLogoCandidate(out, this.modelLogoSimpleIconUrl('ollama'));
+        this.pushUniqueLogoCandidate(out, this.modelLogoClearbitUrl('ollama.com'));
+      } else if (key === 'huggingface') {
+        this.pushUniqueLogoCandidate(out, this.modelLogoSimpleIconUrl('huggingface'));
+        this.pushUniqueLogoCandidate(out, this.modelLogoClearbitUrl('huggingface.co'));
+      } else if (key === 'openrouter') {
+        this.pushUniqueLogoCandidate(out, this.modelLogoSimpleIconUrl('openrouter'));
+        this.pushUniqueLogoCandidate(out, this.modelLogoClearbitUrl('openrouter.ai'));
+      } else if (key === 'openai') {
+        this.pushUniqueLogoCandidate(out, this.modelLogoSimpleIconUrl('openai'));
+        this.pushUniqueLogoCandidate(out, this.modelLogoClearbitUrl('openai.com'));
+      } else if (key === 'anthropic') {
+        this.pushUniqueLogoCandidate(out, this.modelLogoSimpleIconUrl('anthropic'));
+        this.pushUniqueLogoCandidate(out, this.modelLogoClearbitUrl('anthropic.com'));
+      } else if (key === 'google') {
+        this.pushUniqueLogoCandidate(out, this.modelLogoSimpleIconUrl('google'));
+        this.pushUniqueLogoCandidate(out, this.modelLogoClearbitUrl('google.com'));
+      } else if (key === 'moonshot') {
+        this.pushUniqueLogoCandidate(out, this.modelLogoClearbitUrl('moonshot.ai'));
+        this.pushUniqueLogoCandidate(out, this.modelLogoClearbitUrl('moonshot.cn'));
+      } else if (key === 'deepseek') {
+        this.pushUniqueLogoCandidate(out, this.modelLogoSimpleIconUrl('deepseek'));
+        this.pushUniqueLogoCandidate(out, this.modelLogoClearbitUrl('deepseek.com'));
+      } else if (key === 'groq') {
+        this.pushUniqueLogoCandidate(out, this.modelLogoSimpleIconUrl('groq'));
+        this.pushUniqueLogoCandidate(out, this.modelLogoClearbitUrl('groq.com'));
+      } else if (key === 'xai') {
+        this.pushUniqueLogoCandidate(out, this.modelLogoSimpleIconUrl('x'));
+        this.pushUniqueLogoCandidate(out, this.modelLogoClearbitUrl('x.ai'));
+      } else if (key === 'local') {
+        this.pushUniqueLogoCandidate(out, this.modelLogoSimpleIconUrl('docker'));
+      } else if (key === 'cloud') {
+        this.pushUniqueLogoCandidate(out, this.modelLogoSimpleIconUrl('icloud'));
+      } else if (key === 'direct') {
+        this.pushUniqueLogoCandidate(out, this.modelLogoSimpleIconUrl('chainlink'));
+      }
+      return out;
+    },
+    modelSourceLogoUrl: function(model) {
+      var key = this.modelSourceLogoKey(model);
+      if (!key || key === 'unknown') return '';
+      var candidates = this.modelSourceLogoCandidates(model);
+      if (!candidates.length) return '';
+      var map = this.modelLogoFailMap('source');
+      var index = Number(map[key] || 0);
+      if (!Number.isFinite(index) || index < 0) index = 0;
+      if (index >= candidates.length) return '';
+      return String(candidates[index] || '');
+    },
+    onModelLogoLoad: function(event) {
+      var target = event && event.target ? event.target : null;
+      if (!target || !target.style) return;
+      target.style.visibility = '';
+    },
+    onModelLogoError: function(kind, model, event) {
+      var scope = String(kind || '').trim().toLowerCase() === 'source' ? 'source' : 'model';
+      var key = scope === 'source' ? this.modelSourceLogoKey(model) : this.modelLogoFamilyKey(model);
+      var candidates = scope === 'source' ? this.modelSourceLogoCandidates(model) : this.modelLogoCandidates(model);
+      var target = event && event.target ? event.target : null;
+      if (!key || !candidates.length) {
+        if (target && target.style) target.style.visibility = 'hidden';
+        return;
+      }
+      var map = this.modelLogoFailMap(scope);
+      var current = Number(map[key] || 0);
+      if (!Number.isFinite(current) || current < 0) current = 0;
+      var next = current + 1;
+      map[key] = next;
+      var replacement = next < candidates.length ? String(candidates[next] || '') : '';
+      if (!target || !target.style) return;
+      if (replacement) {
+        target.style.visibility = '';
+        target.src = replacement;
+        return;
+      }
+      target.style.visibility = 'hidden';
+    },
+    modelSourceLogoTooltip: function(model) {
+      var key = this.modelSourceLogoKey(model);
+      if (key === 'unknown') return 'Model source';
+      if (key === 'ollama') return 'Source: Ollama';
+      if (key === 'huggingface') return 'Source: Hugging Face';
+      if (key === 'openrouter') return 'Source: OpenRouter';
+      if (key === 'openai') return 'Source: OpenAI direct';
+      if (key === 'anthropic') return 'Source: Anthropic direct';
+      if (key === 'google') return 'Source: Google direct';
+      if (key === 'moonshot') return 'Source: Moonshot direct';
+      if (key === 'deepseek') return 'Source: DeepSeek direct';
+      if (key === 'groq') return 'Source: Groq';
+      if (key === 'xai') return 'Source: xAI direct';
+      if (key === 'local') return 'Source: Local runtime';
+      if (key === 'cloud') return 'Source: Cloud runtime';
+      if (key === 'direct') return 'Source: Direct provider';
+      return 'Model source';
+    },
     modelDeploymentKind: function(model) {
       var row = model || {};
       var deployment = String(row.deployment || row.deployment_kind || '').trim().toLowerCase();

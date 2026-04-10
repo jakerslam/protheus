@@ -21,6 +21,9 @@
       this._sidebarScrollIndicatorRaf = requestAnimationFrame(function() {
         self._sidebarScrollIndicatorRaf = 0;
         self.updateSidebarScrollIndicators();
+        if (typeof self.maybeAnimateChatSidebarRows === 'function') {
+          self.maybeAnimateChatSidebarRows();
+        }
       });
     },
     getAppStore() {

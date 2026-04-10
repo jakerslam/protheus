@@ -261,6 +261,46 @@
       return 0;
     },
 
+    contextWindowNeedsFloor(modelId) {
+      var value = String(modelId || '').toLowerCase();
+      if (!value) return false;
+      return value.indexOf('kimi') >= 0 || value.indexOf('moonshot') >= 0;
+    },
+
+    collectContextWindowCandidatesFromAgent(agent) {
+      var row = agent && typeof agent === 'object' ? agent : {};
+      var provider = String(row.model_provider || row.provider || '').trim().toLowerCase();
+      var out = [];
+      var seen = {};
+      var push = function(value) {
+        var key = String(value || '').trim();
+        if (!key || seen[key]) return;
+        seen[key] = true;
+        out.push(key);
+      };
+      var modelName = String(row.model_name || '').trim();
+      var runtimeModel = String(row.runtime_model || '').trim();
+      push(modelName);
+      push(runtimeModel);
+      if (provider && modelName && modelName.indexOf('/') < 0) push(provider + '/' + modelName);
+      if (provider && runtimeModel && runtimeModel.indexOf('/') < 0) push(provider + '/' + runtimeModel);
+      if (modelName.indexOf('/') >= 0) push(modelName.split('/').slice(-1)[0]);
+      if (runtimeModel.indexOf('/') >= 0) push(runtimeModel.split('/').slice(-1)[0]);
+      return out;
+    },
+
+    resolveBestContextWindowFromMap(candidates) {
+      var keys = Array.isArray(candidates) ? candidates : [];
+      var map = this._contextWindowByModel || {};
+      var best = 0;
+      for (var i = 0; i < keys.length; i += 1) {
+        var fromMap = Number(map[keys[i]] || 0);
+        if (!Number.isFinite(fromMap) || fromMap <= 0) continue;
+        if (fromMap > best) best = fromMap;
+      }
+      return best;
+    },
+
     refreshContextWindowMap(models) {
       var next = {};
       var rows = Array.isArray(models) ? models : [];
@@ -268,12 +308,25 @@
         var row = rows[i] || {};
         var id = String(row.id || '').trim();
         if (!id) continue;
+        var provider = String(row.provider || row.model_provider || '').trim().toLowerCase();
         var windowSize = Number(row.context_window || row.context_window_tokens || 0);
         if (!Number.isFinite(windowSize) || windowSize <= 0) {
           windowSize = this.inferContextWindowFromModelId(id);
         }
         if (Number.isFinite(windowSize) && windowSize > 0) {
-          next[id] = Math.round(windowSize);
+          var normalized = Math.round(windowSize);
+          var keys = [id];
+          if (id.indexOf('/') >= 0) {
+            keys.push(id.split('/').slice(-1)[0]);
+          } else if (provider) {
+            keys.push(provider + '/' + id);
+          }
+          for (var k = 0; k < keys.length; k += 1) {
+            var key = String(keys[k] || '').trim();
+            if (!key) continue;
+            var prior = Number(next[key] || 0);
+            if (!Number.isFinite(prior) || normalized > prior) next[key] = normalized;
+          }
         }
       }
       this._contextWindowByModel = next;
@@ -282,26 +335,26 @@
     setContextWindowFromCurrentAgent() {
       var agent = this.currentAgent || {};
       var direct = Number(agent.context_window || agent.context_window_tokens || 0);
-      if (Number.isFinite(direct) && direct > 0) {
-        this.contextWindow = Math.round(direct);
-        this.refreshContextPressure();
-        return;
+      var candidates = this.collectContextWindowCandidatesFromAgent(agent);
+      var fromMap = this.resolveBestContextWindowFromMap(candidates);
+      var inferred = 0;
+      var needsFloor = false;
+      for (var i = 0; i < candidates.length; i += 1) {
+        var key = String(candidates[i] || '').trim();
+        if (!key) continue;
+        if (this.contextWindowNeedsFloor(key)) needsFloor = true;
+        var guess = Number(this.inferContextWindowFromModelId(key) || 0);
+        if (Number.isFinite(guess) && guess > inferred) inferred = guess;
       }
-      var modelName = String(agent.model_name || agent.runtime_model || '').trim();
-      var fromMap = Number((this._contextWindowByModel || {})[modelName] || 0);
-      if (Number.isFinite(fromMap) && fromMap > 0) {
-        this.contextWindow = Math.round(fromMap);
-        this.refreshContextPressure();
-        return;
-      }
-      var inferred = this.inferContextWindowFromModelId(modelName);
+      var best = 0;
+      if (Number.isFinite(direct) && direct > 0) best = direct;
+      if (Number.isFinite(fromMap) && fromMap > best) best = fromMap;
       if (Number.isFinite(inferred) && inferred > 0) {
-        this.contextWindow = Math.round(inferred);
-        this.refreshContextPressure();
-        return;
+        if (needsFloor) best = Math.max(best, inferred);
+        else if (best <= 0) best = inferred;
       }
-      // Avoid carrying stale tiny/invalid windows across agent switches.
-      this.contextWindow = 128000;
+      if (!Number.isFinite(best) || best <= 0) best = 128000;
+      this.contextWindow = Math.round(best);
       this.refreshContextPressure();
     },
 

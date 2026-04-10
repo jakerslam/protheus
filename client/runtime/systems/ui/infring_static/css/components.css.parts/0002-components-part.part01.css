@@ -74,7 +74,7 @@
   --chat-agent-grid-x: 16%;
   --chat-agent-grid-y: 84%;
   --chat-agent-grid-active: 0;
-  --chat-agent-orb-rgb: 255 255 255;
+  --chat-agent-orb-rgb: 8 8 10;
 }
 
 /* Anchor fades to fixed chat chrome instead of message scroll content. */
@@ -331,6 +331,16 @@ body[data-theme='dark'] .chat-grid-overlay {
   animation: chatPointerOrbPulse 1.15s ease-in-out infinite;
 }
 
+.chat-pointer-orb.chat-pointer-agent {
+  --chat-pointer-orb-size: 14px;
+  width: var(--chat-pointer-orb-size);
+  height: var(--chat-pointer-orb-size);
+  z-index: 2;
+  background: radial-gradient(circle, rgba(0, 0, 0, 0.98) 0%, rgba(0, 0, 0, 0.72) 45%, transparent 76%);
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5), 0 0 22px rgba(0, 0, 0, 0.22);
+  opacity: 0.96;
+}
+
 /* Agent trail is rendered as a single stream with one orb head and bounded tail nodes. */
 .chat-pointer-trail-dot.chat-pointer-agent {
   background: rgb(var(--chat-agent-orb-rgb));
@@ -362,6 +372,10 @@ body[data-theme='dark'] .chat-pointer-orb.chat-pointer-agent {
   background: radial-gradient(circle, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0.62) 42%, transparent 74%);
   box-shadow: 0 0 12px rgba(255, 255, 255, 0.92), 0 0 26px rgba(255, 255, 255, 0.56);
   opacity: 0.96;
+}
+
+body[data-theme='dark'] .messages {
+  --chat-agent-orb-rgb: 255 255 255;
 }
 
 body[data-theme='dark'] .chat-pointer-orb.chat-pointer-agent.agent-listening {
