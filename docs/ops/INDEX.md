@@ -17,6 +17,10 @@ Single-entry operator index for deployment, security, incident response, and mai
 - Service discovery troubleshooting: [RUNBOOK-009-service-discovery-troubleshooting.md](./RUNBOOK-009-service-discovery-troubleshooting.md)
 - System health checks: [RUNBOOK-006-system-health-checks.md](./RUNBOOK-006-system-health-checks.md)
 
+## Configuration + Deployment Prep
+
+- Environment configuration validation: [RUNBOOK-013-environment-configuration-validation.md](./RUNBOOK-013-environment-configuration-validation.md)
+
 ## Security + Governance
 
 - Security policy: [SECURITY.md](../../SECURITY.md)
