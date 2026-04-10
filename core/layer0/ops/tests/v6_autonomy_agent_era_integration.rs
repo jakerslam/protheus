@@ -167,7 +167,10 @@ fn v6_autonomy_and_v8_agent_era_lanes_execute_with_behavior_proof() {
 fn v6_autonomy_and_v8_agent_era_fail_closed_paths_are_enforced() {
     let root = tempfile::tempdir().expect("tempdir");
 
-    assert_eq!(run_cmd(root.path(), &["hand-new", "--strict=1", "--bypass=1"]), 1);
+    assert_eq!(
+        run_cmd(root.path(), &["hand-new", "--strict=1", "--bypass=1"]),
+        1
+    );
     let mut latest = assert_latest_type(root.path(), "autonomy_controller_conduit_gate");
     assert_eq!(
         latest.get("error").and_then(Value::as_str),
@@ -175,7 +178,10 @@ fn v6_autonomy_and_v8_agent_era_fail_closed_paths_are_enforced() {
     );
 
     assert_eq!(
-        run_cmd(root.path(), &["ephemeral-run", "--strict=1", "--domain=forbidden"]),
+        run_cmd(
+            root.path(),
+            &["ephemeral-run", "--strict=1", "--domain=forbidden"]
+        ),
         1
     );
     latest = assert_latest_type(root.path(), "autonomy_ephemeral_run");

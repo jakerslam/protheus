@@ -1,5 +1,5 @@
-use crate::schemas::{Claim, ClaimBundle, ClaimStatus, ConfidenceVector, EvidenceCard};
 use crate::deterministic_hash;
+use crate::schemas::{Claim, ClaimBundle, ClaimStatus, ConfidenceVector, EvidenceCard};
 use std::collections::{HashMap, HashSet};
 
 #[derive(Default)]

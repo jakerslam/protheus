@@ -44,7 +44,12 @@ pub struct GraphSubsystem {
 fn lease_id(node_id: &str, holder_principal: &str, now: u64, ttl_ms: u64) -> String {
     format!(
         "lease_{}",
-        &deterministic_hash(&(node_id.to_string(), holder_principal.to_string(), now, ttl_ms))[..24]
+        &deterministic_hash(&(
+            node_id.to_string(),
+            holder_principal.to_string(),
+            now,
+            ttl_ms
+        ))[..24]
     )
 }
 

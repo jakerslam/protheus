@@ -129,7 +129,12 @@ fn v7_gov_001_1_to_001_9_runtime_contracts_proven() {
 
     let soc_connect = run_cmd(
         root_path,
-        &["soc", "--op=connect", "--endpoint=splunk://soc", "--strict=1"],
+        &[
+            "soc",
+            "--op=connect",
+            "--endpoint=splunk://soc",
+            "--strict=1",
+        ],
     );
     assert_eq!(soc_connect, 0);
     let soc_emit = run_cmd(
@@ -198,6 +203,9 @@ fn v7_gov_001_1_to_001_9_runtime_contracts_proven() {
     let ato_latest = read_json(&latest_path(root_path));
     assert_claim(&ato_latest, "V7-GOV-001.9");
 
-    let bypass_exit = run_cmd(root_path, &["soc", "--op=status", "--strict=1", "--bypass=1"]);
+    let bypass_exit = run_cmd(
+        root_path,
+        &["soc", "--op=status", "--strict=1", "--bypass=1"],
+    );
     assert_eq!(bypass_exit, 1, "bypass must fail closed");
 }
