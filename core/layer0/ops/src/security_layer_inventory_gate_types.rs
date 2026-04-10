@@ -60,9 +60,21 @@ pub struct MissingPath {
     pub path: String,
 }
 
+impl MissingPath {
+    pub fn from_path(path: impl Into<String>) -> Self {
+        Self { path: path.into() }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Default)]
 pub struct MissingGuardCheck {
     pub id: String,
+}
+
+impl MissingGuardCheck {
+    pub fn from_id(id: impl Into<String>) -> Self {
+        Self { id: id.into() }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Default)]
@@ -97,4 +109,17 @@ pub struct InventorySummary {
     pub missing_paths: usize,
     pub missing_guard_checks: usize,
     pub runtime_check_failures: usize,
+}
+
+impl InventorySummary {
+    pub fn record_layer(&mut self, layer: &LayerResult) {
+        self.layers_checked = self.layers_checked.saturating_add(1);
+        self.missing_paths = self.missing_paths.saturating_add(layer.missing_paths.len());
+        self.missing_guard_checks = self
+            .missing_guard_checks
+            .saturating_add(layer.missing_guard_checks.len());
+        self.runtime_check_failures = self
+            .runtime_check_failures
+            .saturating_add(layer.runtime_checks.iter().filter(|row| !row.ok).count());
+    }
 }

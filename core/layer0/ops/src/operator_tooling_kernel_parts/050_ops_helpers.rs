@@ -1,21 +1,4 @@
-fn safe_apply_targets(control_runtime_root: &Path, payload: &Value) -> Vec<PathBuf> {
-    if let Some(rows) = payload.get("targets").and_then(Value::as_array) {
-        let selected = rows
-            .iter()
-            .filter_map(Value::as_str)
-            .map(PathBuf::from)
-            .map(|path| {
-                if path.is_absolute() {
-                    path
-                } else {
-                    control_runtime_root.join(path)
-                }
-            })
-            .collect::<Vec<_>>();
-        if !selected.is_empty() {
-            return selected;
-        }
-    }
+fn default_safe_apply_targets(control_runtime_root: &Path) -> Vec<PathBuf> {
     vec![
         control_runtime_root.join("control_runtime.json"),
         control_runtime_root.join("agents/main/agent/models.json"),
@@ -24,7 +7,34 @@ fn safe_apply_targets(control_runtime_root: &Path, payload: &Value) -> Vec<PathB
     ]
 }
 
-fn safe_apply_backup_path(control_runtime_root: &Path, backup_dir: &Path, target: &Path) -> PathBuf {
+fn resolve_safe_apply_target(control_runtime_root: &Path, path: PathBuf) -> PathBuf {
+    if path.is_absolute() {
+        path
+    } else {
+        control_runtime_root.join(path)
+    }
+}
+
+fn safe_apply_targets(control_runtime_root: &Path, payload: &Value) -> Vec<PathBuf> {
+    if let Some(rows) = payload.get("targets").and_then(Value::as_array) {
+        let selected = rows
+            .iter()
+            .filter_map(Value::as_str)
+            .map(PathBuf::from)
+            .map(|path| resolve_safe_apply_target(control_runtime_root, path))
+            .collect::<Vec<_>>();
+        if !selected.is_empty() {
+            return selected;
+        }
+    }
+    default_safe_apply_targets(control_runtime_root)
+}
+
+fn safe_apply_backup_path(
+    control_runtime_root: &Path,
+    backup_dir: &Path,
+    target: &Path,
+) -> PathBuf {
     if let Ok(rel) = target.strip_prefix(control_runtime_root) {
         return backup_dir.join(rel);
     }

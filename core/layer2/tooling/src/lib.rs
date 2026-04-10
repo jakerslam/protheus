@@ -29,11 +29,19 @@ use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-pub(crate) fn deterministic_hash<T: Serialize>(value: &T) -> String {
-    let payload = serde_json::to_vec(value).unwrap_or_else(|_| b"{}".to_vec());
+fn stable_json_bytes<T: Serialize>(value: &T) -> Vec<u8> {
+    serde_json::to_vec(value).unwrap_or_else(|_| b"{}".to_vec())
+}
+
+fn sha256_hex(payload: &[u8]) -> String {
     let mut hasher = Sha256::new();
-    hasher.update(&payload);
+    hasher.update(payload);
     format!("{:x}", hasher.finalize())
+}
+
+pub(crate) fn deterministic_hash<T: Serialize>(value: &T) -> String {
+    let payload = stable_json_bytes(value);
+    sha256_hex(payload.as_slice())
 }
 
 pub(crate) fn now_ms() -> u64 {
