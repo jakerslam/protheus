@@ -48,7 +48,22 @@ function createTestModule(scriptDir, scriptName, laneId) {
   );
 }
 
+function bindLegacyRetiredTest(
+  currentModule,
+  scriptDir,
+  scriptName,
+  laneId,
+  argv = process.argv.slice(2)
+) {
+  const mod = createTestModule(scriptDir, scriptName, laneId);
+  if (currentModule && require.main === currentModule) {
+    runtimeHelper.runAsMain(mod, argv);
+  }
+  return mod;
+}
+
 module.exports = {
+  bindLegacyRetiredTest,
   createTestModule,
   runAsMain: runtimeHelper.runAsMain,
   normalizeLaneId
