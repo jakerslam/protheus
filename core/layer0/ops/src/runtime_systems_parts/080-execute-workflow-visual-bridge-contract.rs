@@ -290,22 +290,30 @@ fn infring_seed_to_llm_models(seed_manifest: &Value) -> Vec<ModelMetadata> {
     models
 }
 
-fn llm_model_to_json(model: &ModelMetadata) -> Value {
-    let runtime_kind = match model.runtime_kind {
+fn runtime_kind_label(kind: ModelRuntimeKind) -> &'static str {
+    match kind {
         ModelRuntimeKind::CloudApi => "cloud_api",
         ModelRuntimeKind::LocalApi => "local_api",
         ModelRuntimeKind::LocalPath => "local_path",
-    };
+    }
+}
+
+fn specialty_label(specialty: &ModelSpecialty) -> &'static str {
+    match specialty {
+        ModelSpecialty::General => "general",
+        ModelSpecialty::Coding => "coding",
+        ModelSpecialty::Reasoning => "reasoning",
+        ModelSpecialty::LongContext => "long_context",
+        ModelSpecialty::FastResponse => "fast_response",
+    }
+}
+
+fn llm_model_to_json(model: &ModelMetadata) -> Value {
+    let runtime_kind = runtime_kind_label(model.runtime_kind);
     let specialties = model
         .specialties
         .iter()
-        .map(|item| match item {
-            ModelSpecialty::General => "general",
-            ModelSpecialty::Coding => "coding",
-            ModelSpecialty::Reasoning => "reasoning",
-            ModelSpecialty::LongContext => "long_context",
-            ModelSpecialty::FastResponse => "fast_response",
-        })
+        .map(specialty_label)
         .map(|v| Value::String(v.to_string()))
         .collect::<Vec<_>>();
     json!({
