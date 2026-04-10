@@ -605,6 +605,45 @@ pub fn usage() {
     println!("  node client/runtime/systems/ops/perception_polish_program.js status");
 }
 
+fn print_json_value(payload: &Value) {
+    println!(
+        "{}",
+        serde_json::to_string_pretty(payload).unwrap_or_else(|_| "{}".to_string())
+    );
+}
+
+fn print_and_exit(payload: Value) -> i32 {
+    let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(false);
+    print_json_value(&payload);
+    if ok {
+        0
+    } else {
+        1
+    }
+}
+
+fn print_result(result: Result<Value, String>) -> i32 {
+    match result {
+        Ok(payload) => print_and_exit(payload),
+        Err(err) => print_and_exit(json!({"ok": false, "error": err})),
+    }
+}
+
+fn resolve_policy_path(root: &Path, parsed: &crate::ParsedArgs) -> PathBuf {
+    let policy_arg = parsed
+        .flags
+        .get("policy")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            root.join("client/runtime/config/perception_polish_program_policy.json")
+        });
+    if policy_arg.is_absolute() {
+        policy_arg
+    } else {
+        root.join(policy_arg)
+    }
+}
+
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     let parsed = parse_args(argv);
     let cmd = clean(
@@ -622,77 +661,28 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         return 0;
     }
 
-    let policy_arg = parsed
-        .flags
-        .get("policy")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| {
-            root.join("client/runtime/config/perception_polish_program_policy.json")
-        });
-    let policy_path = if policy_arg.is_absolute() {
-        policy_arg
-    } else {
-        root.join(policy_arg)
-    };
-
+    let policy_path = resolve_policy_path(root, &parsed);
     let policy = load_policy(root, &policy_path);
     if !policy.enabled {
-        println!(
-            "{}",
-            json!({"ok": false, "error": "perception_polish_program_disabled"})
-        );
-        return 1;
+        return print_and_exit(json!({"ok": false, "error": "perception_polish_program_disabled"}));
     }
 
     match cmd.as_str() {
-        "list" => {
-            println!(
-                "{}",
-                serde_json::to_string_pretty(&list(&policy, root))
-                    .unwrap_or_else(|_| "{}".to_string())
-            );
-            0
-        }
-        "status" => {
-            println!(
-                "{}",
-                serde_json::to_string_pretty(&status(&policy, root))
-                    .unwrap_or_else(|_| "{}".to_string())
-            );
-            0
-        }
+        "list" => print_and_exit(list(&policy, root)),
+        "status" => print_and_exit(status(&policy, root)),
         "run" => {
             let id = normalize_id(parsed.flags.get("id").map(String::as_str).unwrap_or(""));
             if id.is_empty() {
-                println!(
-                    "{}",
-                    json!({"ok": false, "type": "perception_polish_program", "action": "run", "error": "id_required"})
+                return print_and_exit(
+                    json!({"ok": false, "type": "perception_polish_program", "action": "run", "error": "id_required"}),
                 );
-                return 1;
             }
             let strict = to_bool(
                 parsed.flags.get("strict").map(String::as_str),
                 policy.strict_default,
             );
             let apply = to_bool(parsed.flags.get("apply").map(String::as_str), true);
-            match run_one(&policy, &id, &parsed.flags, apply, strict, root) {
-                Ok(out) => {
-                    let ok = out.get("ok").and_then(Value::as_bool).unwrap_or(false);
-                    println!(
-                        "{}",
-                        serde_json::to_string_pretty(&out).unwrap_or_else(|_| "{}".to_string())
-                    );
-                    if ok {
-                        0
-                    } else {
-                        1
-                    }
-                }
-                Err(err) => {
-                    println!("{}", json!({"ok": false, "error": err}));
-                    1
-                }
-            }
+            print_result(run_one(&policy, &id, &parsed.flags, apply, strict, root))
         }
         "run-all" => {
             let strict = to_bool(
@@ -700,24 +690,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 policy.strict_default,
             );
             let apply = to_bool(parsed.flags.get("apply").map(String::as_str), true);
-            match run_all(&policy, &parsed.flags, apply, strict, root) {
-                Ok(out) => {
-                    let ok = out.get("ok").and_then(Value::as_bool).unwrap_or(false);
-                    println!(
-                        "{}",
-                        serde_json::to_string_pretty(&out).unwrap_or_else(|_| "{}".to_string())
-                    );
-                    if ok {
-                        0
-                    } else {
-                        1
-                    }
-                }
-                Err(err) => {
-                    println!("{}", json!({"ok": false, "error": err}));
-                    1
-                }
-            }
+            print_result(run_all(&policy, &parsed.flags, apply, strict, root))
         }
         _ => {
             usage();

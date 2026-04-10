@@ -1,3 +1,28 @@
+fn required_string_list(control: &serde_json::Map<String, Value>, key: &str) -> Vec<String> {
+    control
+        .get(key)
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter()
+                .filter_map(Value::as_str)
+                .map(|v| v.trim().to_string())
+                .filter(|v| !v.is_empty())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default()
+}
+
+fn control_error(id: &str, title: &str, kind: &str, rel_path: &str, reason: &str) -> Value {
+    json!({
+        "id": id,
+        "title": title,
+        "type": kind,
+        "ok": false,
+        "path": rel_path,
+        "reason": reason
+    })
+}
+
 fn run_control(root: &Path, control: &serde_json::Map<String, Value>) -> Value {
     let id = control
         .get("id")
@@ -43,26 +68,9 @@ fn run_control(root: &Path, control: &serde_json::Map<String, Value>) -> Value {
             })
         }
         "file_contains_all" => {
-            let required_tokens = control
-                .get("required_tokens")
-                .and_then(Value::as_array)
-                .map(|rows| {
-                    rows.iter()
-                        .filter_map(Value::as_str)
-                        .map(|v| v.trim().to_string())
-                        .filter(|v| !v.is_empty())
-                        .collect::<Vec<_>>()
-                })
-                .unwrap_or_default();
+            let required_tokens = required_string_list(control, "required_tokens");
             if required_tokens.is_empty() {
-                return json!({
-                    "id": id,
-                    "title": title,
-                    "type": kind,
-                    "ok": false,
-                    "path": rel_path,
-                    "reason": "required_tokens_missing"
-                });
+                return control_error(&id, &title, &kind, &rel_path, "required_tokens_missing");
             }
             match file_contains_all(&path, &required_tokens) {
                 Ok(missing) => json!({
@@ -74,37 +82,13 @@ fn run_control(root: &Path, control: &serde_json::Map<String, Value>) -> Value {
                     "required_tokens": required_tokens.len(),
                     "missing_tokens": missing
                 }),
-                Err(err) => json!({
-                    "id": id,
-                    "title": title,
-                    "type": kind,
-                    "ok": false,
-                    "path": rel_path,
-                    "reason": err
-                }),
+                Err(err) => control_error(&id, &title, &kind, &rel_path, &err),
             }
         }
         "json_fields" => {
-            let required_fields = control
-                .get("required_fields")
-                .and_then(Value::as_array)
-                .map(|rows| {
-                    rows.iter()
-                        .filter_map(Value::as_str)
-                        .map(|v| v.trim().to_string())
-                        .filter(|v| !v.is_empty())
-                        .collect::<Vec<_>>()
-                })
-                .unwrap_or_default();
+            let required_fields = required_string_list(control, "required_fields");
             if required_fields.is_empty() {
-                return json!({
-                    "id": id,
-                    "title": title,
-                    "type": kind,
-                    "ok": false,
-                    "path": rel_path,
-                    "reason": "required_fields_missing"
-                });
+                return control_error(&id, &title, &kind, &rel_path, "required_fields_missing");
             }
             match read_json(&path) {
                 Ok(payload) => {
@@ -123,14 +107,7 @@ fn run_control(root: &Path, control: &serde_json::Map<String, Value>) -> Value {
                         "missing_fields": missing_fields
                     })
                 }
-                Err(err) => json!({
-                    "id": id,
-                    "title": title,
-                    "type": kind,
-                    "ok": false,
-                    "path": rel_path,
-                    "reason": err
-                }),
+                Err(err) => control_error(&id, &title, &kind, &rel_path, &err),
             }
         }
         "cron_delivery_integrity" => match check_cron_delivery_integrity(root, &rel_path) {
@@ -142,23 +119,15 @@ fn run_control(root: &Path, control: &serde_json::Map<String, Value>) -> Value {
                 "path": rel_path,
                 "details": details
             }),
-            Err(err) => json!({
-                "id": id,
-                "title": title,
-                "type": kind,
-                "ok": false,
-                "path": rel_path,
-                "reason": err
-            }),
+            Err(err) => control_error(&id, &title, &kind, &rel_path, &err),
         },
-        _ => json!({
-            "id": id,
-            "title": title,
-            "type": kind,
-            "ok": false,
-            "path": rel_path,
-            "reason": format!("unknown_control_type:{kind}")
-        }),
+        _ => control_error(
+            &id,
+            &title,
+            &kind,
+            &rel_path,
+            &format!("unknown_control_type:{kind}"),
+        ),
     }
 }
 
@@ -620,9 +589,7 @@ fn run_regulated_readiness(
         .filter(|name| !bool_env_set(name))
         .cloned()
         .collect::<Vec<_>>();
-    let signed_receipts_ok = signed_algorithms
-        .iter()
-        .any(|algo| algo == "hmac_sha256")
+    let signed_receipts_ok = signed_algorithms.iter().any(|algo| algo == "hmac_sha256")
         && !required_envs.is_empty()
         && missing_envs.is_empty()
         && bool_at(
