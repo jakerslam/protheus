@@ -2,36 +2,6 @@
   "version": "2026-04-09",
   "allowed_violations": [
     {
-      "file": "client/runtime/systems/adaptive/core/layer_store.ts",
-      "reason": "client_imports_core_forbidden",
-      "detail_contains": "core/layer1/memory_runtime/adaptive/layer_store.ts"
-    },
-    {
-      "file": "client/runtime/systems/adaptive/habits/habit_store.ts",
-      "reason": "client_imports_core_forbidden",
-      "detail_contains": "core/layer1/memory_runtime/adaptive/habit_store.ts"
-    },
-    {
-      "file": "client/runtime/systems/adaptive/reflex/reflex_store.ts",
-      "reason": "client_imports_core_forbidden",
-      "detail_contains": "core/layer1/memory_runtime/adaptive/reflex_store.ts"
-    },
-    {
-      "file": "client/runtime/systems/adaptive/sensory/eyes/catalog_store.ts",
-      "reason": "client_imports_core_forbidden",
-      "detail_contains": "core/layer1/memory_runtime/adaptive/catalog_store.ts"
-    },
-    {
-      "file": "client/runtime/systems/adaptive/sensory/eyes/focus_trigger_store.ts",
-      "reason": "client_imports_core_forbidden",
-      "detail_contains": "core/layer1/memory_runtime/adaptive/focus_trigger_store.ts"
-    },
-    {
-      "file": "client/runtime/systems/adaptive/strategy/strategy_store.ts",
-      "reason": "client_imports_core_forbidden",
-      "detail_contains": "core/layer1/memory_runtime/adaptive/strategy_store.ts"
-    },
-    {
       "file": "client/runtime/systems/finance/economic_entity_manager.ts",
       "reason": "client_imports_orchestration_internals_forbidden",
       "detail_contains": "surface/orchestration/scripts/economic_entity_manager.ts"
