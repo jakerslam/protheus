@@ -1,6 +1,6 @@
 // Layer ownership: core/layer2/ops (authoritative)
 // SPDX-License-Identifier: Apache-2.0
-use crate::{deterministic_receipt_hash, now_epoch_ms};
+use crate::{deterministic_receipt_hash, now_epoch_ms, parse_cli_flag, print_json_line};
 use serde_json::{json, Value};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -14,23 +14,6 @@ const USAGE: &[&str] = &[
     "  protheus-ops p2p-gossip-seed idle-rss [--feed=<id>] [--note=<text>]",
     "  protheus-ops p2p-gossip-seed ranking-evolve [--metric=ndcg@10] [--delta=<0..1>]",
 ];
-
-fn parse_flag(argv: &[String], key: &str) -> Option<String> {
-    let pref = format!("--{key}=");
-    let key_long = format!("--{key}");
-    let mut i = 0usize;
-    while i < argv.len() {
-        let token = argv[i].trim();
-        if let Some(v) = token.strip_prefix(&pref) {
-            return Some(v.to_string());
-        }
-        if token == key_long && i + 1 < argv.len() {
-            return Some(argv[i + 1].clone());
-        }
-        i += 1;
-    }
-    None
-}
 
 fn parse_bool(raw: Option<String>, fallback: bool) -> bool {
     match raw.map(|v| v.trim().to_ascii_lowercase()) {
@@ -63,8 +46,8 @@ fn command_claim_ids(command: &str) -> &'static [&'static str] {
 }
 
 fn conduit_enforcement(argv: &[String], command: &str, strict: bool) -> Value {
-    let bypass_requested = parse_bool(parse_flag(argv, "bypass"), false)
-        || parse_bool(parse_flag(argv, "client-bypass"), false);
+    let bypass_requested = parse_bool(parse_cli_flag(argv, "bypass"), false)
+        || parse_bool(parse_cli_flag(argv, "client-bypass"), false);
     let ok = !bypass_requested;
     let claim_rows = command_claim_ids(command)
         .iter()
@@ -125,14 +108,6 @@ fn idle_feed_log_path(root: &Path) -> PathBuf {
 
 fn ranking_state_path(root: &Path) -> PathBuf {
     state_dir(root).join("ranking_metrics.json")
-}
-
-fn print_json_line(value: &Value) {
-    println!(
-        "{}",
-        serde_json::to_string(value)
-            .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
-    );
 }
 
 fn read_json(path: &Path) -> Option<Value> {
@@ -264,7 +239,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         .first()
         .map(|v| v.trim().to_ascii_lowercase())
         .unwrap_or_else(|| "status".to_string());
-    let strict = parse_bool(parse_flag(argv, "strict"), false);
+    let strict = parse_bool(parse_cli_flag(argv, "strict"), false);
 
     if matches!(command.as_str(), "help" | "--help" | "-h") {
         usage();
@@ -310,9 +285,9 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     }
 
     if matches!(command.as_str(), "discover" | "join") {
-        let profile = parse_flag(argv, "profile").unwrap_or_else(|| "hyperspace".to_string());
-        let node = parse_flag(argv, "node").unwrap_or_else(|| "local-node".to_string());
-        let apply = parse_bool(parse_flag(argv, "apply"), true);
+        let profile = parse_cli_flag(argv, "profile").unwrap_or_else(|| "hyperspace".to_string());
+        let node = parse_cli_flag(argv, "node").unwrap_or_else(|| "local-node".to_string());
+        let apply = parse_bool(parse_cli_flag(argv, "apply"), true);
         let mut rep = reputations(root);
         rep.entry(node.clone()).or_insert(Value::from(1.0));
         let bootstrap_reputation = rep.get(&node).and_then(Value::as_f64).unwrap_or(0.0);
@@ -352,10 +327,10 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     }
 
     if command == "compute-proof" {
-        let share = parse_bool(parse_flag(argv, "share"), true);
-        let node = parse_flag(argv, "node").unwrap_or_else(|| "local-node".to_string());
-        let matmul_size = parse_u64(parse_flag(argv, "matmul-size"), 512);
-        let credits = parse_f64(parse_flag(argv, "credits"), 1.0).max(0.0);
+        let share = parse_bool(parse_cli_flag(argv, "share"), true);
+        let node = parse_cli_flag(argv, "node").unwrap_or_else(|| "local-node".to_string());
+        let matmul_size = parse_u64(parse_cli_flag(argv, "matmul-size"), 512);
+        let credits = parse_f64(parse_cli_flag(argv, "credits"), 1.0).max(0.0);
         if strict && (matmul_size < 64 || !matmul_size.is_power_of_two()) {
             let mut out = json!({
                 "ok": false,
@@ -464,8 +439,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     }
 
     if command == "gossip" {
-        let topic = parse_flag(argv, "topic").unwrap_or_else(|| "ranking".to_string());
-        let breakthrough = parse_flag(argv, "breakthrough")
+        let topic = parse_cli_flag(argv, "topic").unwrap_or_else(|| "ranking".to_string());
+        let breakthrough = parse_cli_flag(argv, "breakthrough")
             .unwrap_or_else(|| "listnet_rediscovery_candidate".to_string());
         let rep = reputations(root);
         let peers = rep.keys().cloned().collect::<Vec<_>>();
@@ -510,8 +485,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     }
 
     if command == "idle-rss" {
-        let feed = parse_flag(argv, "feed").unwrap_or_else(|| "ai-news".to_string());
-        let note = parse_flag(argv, "note").unwrap_or_else(|| "interesting_update".to_string());
+        let feed = parse_cli_flag(argv, "feed").unwrap_or_else(|| "ai-news".to_string());
+        let note = parse_cli_flag(argv, "note").unwrap_or_else(|| "interesting_update".to_string());
         let feed_record = json!({
             "version": "v1",
             "ts_epoch_ms": now_epoch_ms(),
@@ -547,8 +522,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     }
 
     if command == "ranking-evolve" {
-        let metric = parse_flag(argv, "metric").unwrap_or_else(|| "ndcg@10".to_string());
-        let delta = parse_f64(parse_flag(argv, "delta"), 0.02).clamp(-1.0, 1.0);
+        let metric = parse_cli_flag(argv, "metric").unwrap_or_else(|| "ndcg@10".to_string());
+        let delta = parse_f64(parse_cli_flag(argv, "delta"), 0.02).clamp(-1.0, 1.0);
         let mut ranking = read_json(&ranking_state_path(root)).unwrap_or_else(|| {
             json!({
                 "version":"v1",

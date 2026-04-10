@@ -39,6 +39,31 @@ pub fn deterministic_receipt_hash(payload: &Value) -> String {
     hot_path_allocators::deterministic_hash(payload)
 }
 
+pub fn print_json_line(value: &Value) {
+    println!(
+        "{}",
+        serde_json::to_string(value)
+            .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
+    );
+}
+
+pub fn parse_cli_flag(argv: &[String], key: &str) -> Option<String> {
+    let key_pref = format!("--{key}=");
+    let key_exact = format!("--{key}");
+    let mut idx = 0usize;
+    while idx < argv.len() {
+        let token = argv[idx].trim();
+        if let Some(value) = token.strip_prefix(&key_pref) {
+            return Some(value.to_string());
+        }
+        if token == key_exact && idx + 1 < argv.len() {
+            return Some(argv[idx + 1].clone());
+        }
+        idx += 1;
+    }
+    None
+}
+
 pub fn now_epoch_ms() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)

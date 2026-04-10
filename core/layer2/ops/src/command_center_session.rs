@@ -1,6 +1,6 @@
 // Layer ownership: core/layer2/ops (authoritative)
 // SPDX-License-Identifier: Apache-2.0
-use crate::{deterministic_receipt_hash, now_epoch_ms};
+use crate::{deterministic_receipt_hash, now_epoch_ms, parse_cli_flag, print_json_line};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -73,31 +73,6 @@ struct SessionEvent {
     detail: Value,
 }
 
-fn print_json_line(value: &Value) {
-    println!(
-        "{}",
-        serde_json::to_string(value)
-            .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
-    );
-}
-
-fn parse_flag(argv: &[String], key: &str) -> Option<String> {
-    let key_pref = format!("--{key}=");
-    let key_exact = format!("--{key}");
-    let mut idx = 0usize;
-    while idx < argv.len() {
-        let token = argv[idx].trim();
-        if let Some(value) = token.strip_prefix(&key_pref) {
-            return Some(value.to_string());
-        }
-        if token == key_exact && idx + 1 < argv.len() {
-            return Some(argv[idx + 1].clone());
-        }
-        idx += 1;
-    }
-    None
-}
-
 fn first_free_positional(argv: &[String], skip: usize) -> Option<String> {
     argv.iter()
         .skip(skip)
@@ -106,14 +81,14 @@ fn first_free_positional(argv: &[String], skip: usize) -> Option<String> {
 }
 
 fn state_path(root: &Path, argv: &[String]) -> PathBuf {
-    parse_flag(argv, "state-path")
+    parse_cli_flag(argv, "state-path")
         .filter(|v| !v.trim().is_empty())
         .map(PathBuf::from)
         .unwrap_or_else(|| root.join(DEFAULT_STATE_PATH))
 }
 
 fn session_id_from_args(cmd: &str, argv: &[String]) -> Option<String> {
-    parse_flag(argv, "session-id")
+    parse_cli_flag(argv, "session-id")
         .or_else(|| first_free_positional(argv, 1))
         .filter(|v| !v.trim().is_empty())
         .map(|v| {
@@ -333,10 +308,10 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 ));
                 return 2;
             };
-            let lineage_id =
-                parse_flag(argv, "lineage-id").unwrap_or_else(|| lineage_seed(&session_id, now_ms));
-            let status = parse_flag(argv, "status").unwrap_or_else(|| "running".to_string());
-            let task = parse_flag(argv, "task");
+            let lineage_id = parse_cli_flag(argv, "lineage-id")
+                .unwrap_or_else(|| lineage_seed(&session_id, now_ms));
+            let status = parse_cli_flag(argv, "status").unwrap_or_else(|| "running".to_string());
+            let task = parse_cli_flag(argv, "task");
 
             let existing_started = registry
                 .sessions
@@ -496,8 +471,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 ));
                 return 2;
             };
-            let message = parse_flag(argv, "message")
-                .or_else(|| parse_flag(argv, "steer"))
+            let message = parse_cli_flag(argv, "message")
+                .or_else(|| parse_cli_flag(argv, "steer"))
                 .or_else(|| first_free_positional(argv, 2))
                 .unwrap_or_default();
             if message.trim().is_empty() {
@@ -511,10 +486,10 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 ));
                 return 2;
             }
-            let token_delta = parse_flag(argv, "token-delta")
+            let token_delta = parse_cli_flag(argv, "token-delta")
                 .and_then(|v| v.parse::<u64>().ok())
                 .unwrap_or(0);
-            let cost_delta = parse_flag(argv, "cost-delta")
+            let cost_delta = parse_cli_flag(argv, "cost-delta")
                 .and_then(|v| v.parse::<f64>().ok())
                 .unwrap_or(0.0)
                 .max(0.0);
@@ -667,7 +642,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 ));
                 return 2;
             };
-            let lines = parse_flag(argv, "lines")
+            let lines = parse_cli_flag(argv, "lines")
                 .and_then(|v| v.parse::<usize>().ok())
                 .unwrap_or(10)
                 .clamp(1, 100);
