@@ -25,6 +25,18 @@ fn derive_vault_key(secret: &str) -> [u8; 32] {
     key
 }
 
+fn has_vault_key(secret: &str) -> bool {
+    !secret.trim().is_empty()
+}
+
+fn vault_algo(encrypted: bool) -> &'static str {
+    if encrypted {
+        "aes-256-gcm"
+    } else {
+        "base64-plain"
+    }
+}
+
 fn encrypt_state(secret: &str, state: &[u8], aad: &[u8]) -> Result<(String, String), String> {
     let key_bytes = derive_vault_key(secret);
     let key = Key::<Aes256Gcm>::from_slice(&key_bytes);
@@ -90,15 +102,17 @@ pub(super) fn vault_put_payload(
 
     let key_env = parse_flag(argv, "vault-key-env").unwrap_or_else(|| policy.vault_key_env.clone());
     let vault_key = std::env::var(&key_env).unwrap_or_default();
-    if policy.require_vault_encryption && vault_key.trim().is_empty() {
+    let vault_key_trimmed = vault_key.trim();
+    if policy.require_vault_encryption && !has_vault_key(vault_key_trimmed) {
         return Err(format!("vault_key_missing_env:{key_env}"));
     }
+    let encrypted = has_vault_key(vault_key_trimmed);
 
     let aad = format!("{LANE_ID}:{session_id}");
-    let (nonce_b64, cipher_b64) = if vault_key.trim().is_empty() {
+    let (nonce_b64, cipher_b64) = if !encrypted {
         (String::new(), BASE64_STD.encode(encoded.as_slice()))
     } else {
-        encrypt_state(vault_key.trim(), &encoded, aad.as_bytes())?
+        encrypt_state(vault_key_trimmed, &encoded, aad.as_bytes())?
     };
 
     let apply = parse_bool(parse_flag(argv, "apply").as_deref(), true);
@@ -113,7 +127,7 @@ pub(super) fn vault_put_payload(
                 "updated_at": now_iso(),
                 "lane": LANE_ID,
                 "encryption": {
-                    "algo": if vault_key.trim().is_empty() { "base64-plain" } else { "aes-256-gcm" },
+                    "algo": vault_algo(encrypted),
                     "key_env": key_env,
                     "aad": aad,
                     "nonce_b64": nonce_b64
@@ -142,13 +156,13 @@ pub(super) fn vault_put_payload(
         "apply": apply,
         "vault_path": rel_path(root, &vault_path),
         "ciphertext_sha256": ciphertext_sha,
-        "encrypted": !vault_key.trim().is_empty(),
+        "encrypted": encrypted,
         "claim_evidence": [
             {
                 "id": "vault_encrypted_at_rest",
                 "claim": "session_state_is_stored_with_cryptographic_envelope",
                 "evidence": {
-                    "encrypted": !vault_key.trim().is_empty(),
+                    "encrypted": encrypted,
                     "vault_path": rel_path(root, &vault_path),
                     "key_env": key_env
                 }
@@ -199,7 +213,8 @@ pub(super) fn vault_get_payload(
         .ok_or_else(|| "vault_ciphertext_missing".to_string())?
         .to_string();
 
-    let decoded = if algo == "base64-plain" {
+    let encrypted = algo != "base64-plain";
+    let decoded = if !encrypted {
         BASE64_STD
             .decode(cipher_b64.as_bytes())
             .map_err(|err| format!("cipher_decode_failed:{err}"))?
@@ -220,7 +235,7 @@ pub(super) fn vault_get_payload(
         "lane": LANE_ID,
         "session_id": session_id,
         "vault_path": rel_path(root, &vault_path),
-        "encrypted": algo != "base64-plain",
+        "encrypted": encrypted,
         "state_sha256": hex::encode(Sha256::digest(&decoded)),
         "state_summary": {
             "attention_items": state.get("attention_queue").and_then(Value::as_array).map(|r| r.len()).unwrap_or(0),

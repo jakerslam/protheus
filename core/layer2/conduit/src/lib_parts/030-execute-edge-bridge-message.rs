@@ -1,3 +1,38 @@
+fn system_feedback_from_detail(
+    detail: Value,
+    success_fallback: &str,
+    error_fallback: &str,
+    failure_reason_fallback: &str,
+) -> RustEvent {
+    let status = if detail.get("exit_code").and_then(Value::as_i64).unwrap_or(1) == 0 {
+        detail
+            .get("type")
+            .and_then(Value::as_str)
+            .unwrap_or(success_fallback)
+            .to_string()
+    } else {
+        detail
+            .get("type")
+            .and_then(Value::as_str)
+            .unwrap_or(error_fallback)
+            .to_string()
+    };
+    let violation_reason = if detail.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+        None
+    } else {
+        detail
+            .get("reason")
+            .and_then(Value::as_str)
+            .map(|s| s.to_string())
+            .or_else(|| Some(failure_reason_fallback.to_string()))
+    };
+    RustEvent::SystemFeedback {
+        status,
+        detail,
+        violation_reason,
+    }
+}
+
 fn execute_edge_bridge_message(message: EdgeBridgeMessage) -> RustEvent {
     match message {
         EdgeBridgeMessage::EdgeStatus { probe } => {
@@ -18,6 +53,7 @@ fn execute_edge_bridge_message(message: EdgeBridgeMessage) -> RustEvent {
             }
         }
         EdgeBridgeMessage::EdgeInference { prompt, max_tokens } => {
+            let _ = (&prompt, max_tokens);
             #[cfg(not(feature = "edge"))]
             {
                 let detail = serde_json::json!({
@@ -65,153 +101,48 @@ fn execute_edge_bridge_message(message: EdgeBridgeMessage) -> RustEvent {
         }
         EdgeBridgeMessage::SpineCommand { args, run_context } => {
             let detail = execute_spine_bridge_command(&args, run_context.as_deref());
-            let status = if detail.get("exit_code").and_then(Value::as_i64).unwrap_or(1) == 0 {
-                detail
-                    .get("type")
-                    .and_then(Value::as_str)
-                    .unwrap_or("spine_bridge_ok")
-                    .to_string()
-            } else {
-                detail
-                    .get("type")
-                    .and_then(Value::as_str)
-                    .unwrap_or("spine_bridge_error")
-                    .to_string()
-            };
-            let violation_reason = if detail.get("ok").and_then(Value::as_bool).unwrap_or(false) {
-                None
-            } else {
-                detail
-                    .get("reason")
-                    .and_then(Value::as_str)
-                    .map(|s| s.to_string())
-                    .or_else(|| Some("spine_bridge_failed".to_string()))
-            };
-            RustEvent::SystemFeedback {
-                status,
+            system_feedback_from_detail(
                 detail,
-                violation_reason,
-            }
+                "spine_bridge_ok",
+                "spine_bridge_error",
+                "spine_bridge_failed",
+            )
         }
         EdgeBridgeMessage::AttentionCommand { args } => {
             let detail = execute_attention_bridge_command(&args);
-            let status = if detail.get("exit_code").and_then(Value::as_i64).unwrap_or(1) == 0 {
-                detail
-                    .get("type")
-                    .and_then(Value::as_str)
-                    .unwrap_or("attention_bridge_ok")
-                    .to_string()
-            } else {
-                detail
-                    .get("type")
-                    .and_then(Value::as_str)
-                    .unwrap_or("attention_bridge_error")
-                    .to_string()
-            };
-            let violation_reason = if detail.get("ok").and_then(Value::as_bool).unwrap_or(false) {
-                None
-            } else {
-                detail
-                    .get("reason")
-                    .and_then(Value::as_str)
-                    .map(|s| s.to_string())
-                    .or_else(|| Some("attention_bridge_failed".to_string()))
-            };
-            RustEvent::SystemFeedback {
-                status,
+            system_feedback_from_detail(
                 detail,
-                violation_reason,
-            }
+                "attention_bridge_ok",
+                "attention_bridge_error",
+                "attention_bridge_failed",
+            )
         }
         EdgeBridgeMessage::PersonaAmbientCommand { args } => {
             let detail = execute_persona_ambient_bridge_command(&args);
-            let status = if detail.get("exit_code").and_then(Value::as_i64).unwrap_or(1) == 0 {
-                detail
-                    .get("type")
-                    .and_then(Value::as_str)
-                    .unwrap_or("persona_ambient_bridge_ok")
-                    .to_string()
-            } else {
-                detail
-                    .get("type")
-                    .and_then(Value::as_str)
-                    .unwrap_or("persona_ambient_bridge_error")
-                    .to_string()
-            };
-            let violation_reason = if detail.get("ok").and_then(Value::as_bool).unwrap_or(false) {
-                None
-            } else {
-                detail
-                    .get("reason")
-                    .and_then(Value::as_str)
-                    .map(|s| s.to_string())
-                    .or_else(|| Some("persona_ambient_bridge_failed".to_string()))
-            };
-            RustEvent::SystemFeedback {
-                status,
+            system_feedback_from_detail(
                 detail,
-                violation_reason,
-            }
+                "persona_ambient_bridge_ok",
+                "persona_ambient_bridge_error",
+                "persona_ambient_bridge_failed",
+            )
         }
         EdgeBridgeMessage::DopamineAmbientCommand { args } => {
             let detail = execute_dopamine_ambient_bridge_command(&args);
-            let status = if detail.get("exit_code").and_then(Value::as_i64).unwrap_or(1) == 0 {
-                detail
-                    .get("type")
-                    .and_then(Value::as_str)
-                    .unwrap_or("dopamine_ambient_bridge_ok")
-                    .to_string()
-            } else {
-                detail
-                    .get("type")
-                    .and_then(Value::as_str)
-                    .unwrap_or("dopamine_ambient_bridge_error")
-                    .to_string()
-            };
-            let violation_reason = if detail.get("ok").and_then(Value::as_bool).unwrap_or(false) {
-                None
-            } else {
-                detail
-                    .get("reason")
-                    .and_then(Value::as_str)
-                    .map(|s| s.to_string())
-                    .or_else(|| Some("dopamine_ambient_bridge_failed".to_string()))
-            };
-            RustEvent::SystemFeedback {
-                status,
+            system_feedback_from_detail(
                 detail,
-                violation_reason,
-            }
+                "dopamine_ambient_bridge_ok",
+                "dopamine_ambient_bridge_error",
+                "dopamine_ambient_bridge_failed",
+            )
         }
         EdgeBridgeMessage::MemoryAmbientCommand { args } => {
             let detail = execute_memory_ambient_bridge_command(&args);
-            let status = if detail.get("exit_code").and_then(Value::as_i64).unwrap_or(1) == 0 {
-                detail
-                    .get("type")
-                    .and_then(Value::as_str)
-                    .unwrap_or("memory_ambient_bridge_ok")
-                    .to_string()
-            } else {
-                detail
-                    .get("type")
-                    .and_then(Value::as_str)
-                    .unwrap_or("memory_ambient_bridge_error")
-                    .to_string()
-            };
-            let violation_reason = if detail.get("ok").and_then(Value::as_bool).unwrap_or(false) {
-                None
-            } else {
-                detail
-                    .get("reason")
-                    .and_then(Value::as_str)
-                    .map(|s| s.to_string())
-                    .or_else(|| Some("memory_ambient_bridge_failed".to_string()))
-            };
-            RustEvent::SystemFeedback {
-                status,
+            system_feedback_from_detail(
                 detail,
-                violation_reason,
-            }
+                "memory_ambient_bridge_ok",
+                "memory_ambient_bridge_error",
+                "memory_ambient_bridge_failed",
+            )
         }
         EdgeBridgeMessage::OpsDomainCommand {
             domain,
@@ -235,33 +166,12 @@ fn execute_edge_bridge_message(message: EdgeBridgeMessage) -> RustEvent {
                 };
             }
             let detail = execute_ops_bridge_command(clean_domain, &args, run_context.as_deref());
-            let status = if detail.get("exit_code").and_then(Value::as_i64).unwrap_or(1) == 0 {
-                detail
-                    .get("type")
-                    .and_then(Value::as_str)
-                    .unwrap_or("ops_domain_bridge_ok")
-                    .to_string()
-            } else {
-                detail
-                    .get("type")
-                    .and_then(Value::as_str)
-                    .unwrap_or("ops_domain_bridge_error")
-                    .to_string()
-            };
-            let violation_reason = if detail.get("ok").and_then(Value::as_bool).unwrap_or(false) {
-                None
-            } else {
-                detail
-                    .get("reason")
-                    .and_then(Value::as_str)
-                    .map(|s| s.to_string())
-                    .or_else(|| Some("ops_domain_bridge_failed".to_string()))
-            };
-            RustEvent::SystemFeedback {
-                status,
+            system_feedback_from_detail(
                 detail,
-                violation_reason,
-            }
+                "ops_domain_bridge_ok",
+                "ops_domain_bridge_error",
+                "ops_domain_bridge_failed",
+            )
         }
     }
 }

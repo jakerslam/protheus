@@ -47,6 +47,37 @@ pub trait MemoryPolicyGate {
 pub struct DefaultVerityMemoryPolicy;
 
 impl DefaultVerityMemoryPolicy {
+    fn validate_request_capability(
+        &self,
+        request: &MemoryPolicyRequest,
+        action: CapabilityAction,
+        scope: &MemoryScope,
+    ) -> CapabilityValidationResult {
+        self.validate_capability(
+            request.capability.as_ref(),
+            request.principal_id.as_str(),
+            action,
+            scope,
+        )
+    }
+
+    fn decision_id_for(&self, request: &MemoryPolicyRequest, reason: &str) -> String {
+        format!(
+            "policy_{}",
+            &deterministic_hash(&(
+                request.principal_id.clone(),
+                format!("{:?}", request.action),
+                request.source_scope.label(),
+                request
+                    .target_scope
+                    .as_ref()
+                    .map(|row| row.label())
+                    .unwrap_or_default(),
+                reason.to_string()
+            ))[..24]
+        )
+    }
+
     fn validate_capability(
         &self,
         capability: Option<&CapabilityToken>,
@@ -116,45 +147,40 @@ impl MemoryPolicyGate for DefaultVerityMemoryPolicy {
     fn evaluate(&self, request: &MemoryPolicyRequest) -> MemoryPolicyDecision {
         let (allow, reason) = match request.action {
             PolicyAction::Read => {
-                let cap = self.validate_capability(
-                    request.capability.as_ref(),
-                    request.principal_id.as_str(),
+                let cap = self.validate_request_capability(
+                    request,
                     CapabilityAction::Read,
                     &request.source_scope,
                 );
                 (cap.valid, cap.reason)
             }
             PolicyAction::Write => {
-                let cap = self.validate_capability(
-                    request.capability.as_ref(),
-                    request.principal_id.as_str(),
+                let cap = self.validate_request_capability(
+                    request,
                     CapabilityAction::Write,
                     &request.source_scope,
                 );
                 (cap.valid, cap.reason)
             }
             PolicyAction::MaterializeContext => {
-                let cap = self.validate_capability(
-                    request.capability.as_ref(),
-                    request.principal_id.as_str(),
+                let cap = self.validate_request_capability(
+                    request,
                     CapabilityAction::MaterializeContext,
                     &request.source_scope,
                 );
                 (cap.valid, cap.reason)
             }
             PolicyAction::TaskFabricMutate => {
-                let cap = self.validate_capability(
-                    request.capability.as_ref(),
-                    request.principal_id.as_str(),
+                let cap = self.validate_request_capability(
+                    request,
                     CapabilityAction::TaskFabricMutate,
                     &request.source_scope,
                 );
                 (cap.valid, cap.reason)
             }
             PolicyAction::Canonicalize => {
-                let cap = self.validate_capability(
-                    request.capability.as_ref(),
-                    request.principal_id.as_str(),
+                let cap = self.validate_request_capability(
+                    request,
                     CapabilityAction::Canonicalize,
                     &request.source_scope,
                 );
@@ -172,18 +198,16 @@ impl MemoryPolicyGate for DefaultVerityMemoryPolicy {
                 }
             }
             PolicyAction::Promote => {
-                let cap = self.validate_capability(
-                    request.capability.as_ref(),
-                    request.principal_id.as_str(),
+                let cap = self.validate_request_capability(
+                    request,
                     CapabilityAction::Promote,
                     &request.source_scope,
                 );
                 if !cap.valid {
                     (false, cap.reason)
                 } else if let Some(target_scope) = request.target_scope.as_ref() {
-                    let can = self.validate_capability(
-                        request.capability.as_ref(),
-                        request.principal_id.as_str(),
+                    let can = self.validate_request_capability(
+                        request,
                         CapabilityAction::Canonicalize,
                         target_scope,
                     );
@@ -205,9 +229,8 @@ impl MemoryPolicyGate for DefaultVerityMemoryPolicy {
                 }
             }
             PolicyAction::ExportOwner => {
-                let cap = self.validate_capability(
-                    request.capability.as_ref(),
-                    request.principal_id.as_str(),
+                let cap = self.validate_request_capability(
+                    request,
                     CapabilityAction::ExportOwnerRaw,
                     &MemoryScope::Owner,
                 );
@@ -222,20 +245,7 @@ impl MemoryPolicyGate for DefaultVerityMemoryPolicy {
                 }
             }
         };
-        let decision_id = format!(
-            "policy_{}",
-            &deterministic_hash(&(
-                request.principal_id.clone(),
-                format!("{:?}", request.action),
-                request.source_scope.label(),
-                request
-                    .target_scope
-                    .as_ref()
-                    .map(|row| row.label())
-                    .unwrap_or_default(),
-                reason.clone()
-            ))[..24]
-        );
+        let decision_id = self.decision_id_for(request, &reason);
         MemoryPolicyDecision {
             allow,
             decision_id,

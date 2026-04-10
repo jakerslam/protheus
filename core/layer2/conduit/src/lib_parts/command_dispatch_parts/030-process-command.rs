@@ -1,16 +1,15 @@
-fn fail_closed_receipt(
-    reason: impl Into<String>,
-    policy_receipt_hash: impl Into<String>,
-    security_receipt_hash: impl Into<String>,
+fn validation_receipt(
+    ok: bool,
+    fail_closed: bool,
+    reason: String,
+    policy_receipt_hash: String,
+    security_receipt_hash: String,
     timestamp_drift_ms: i64,
     mode: &str,
 ) -> ValidationReceipt {
-    let reason = reason.into();
-    let policy_receipt_hash = policy_receipt_hash.into();
-    let security_receipt_hash = security_receipt_hash.into();
     let payload = serde_json::json!({
-        "ok": false,
-        "fail_closed": true,
+        "ok": ok,
+        "fail_closed": fail_closed,
         "reason": reason,
         "timestamp_drift_ms": timestamp_drift_ms,
         "mode": mode,
@@ -18,8 +17,8 @@ fn fail_closed_receipt(
         "security_receipt_hash": security_receipt_hash,
     });
     ValidationReceipt {
-        ok: false,
-        fail_closed: true,
+        ok,
+        fail_closed,
         reason,
         timestamp_drift_ms,
         mode: mode.to_string(),
@@ -29,34 +28,39 @@ fn fail_closed_receipt(
     }
 }
 
+fn fail_closed_receipt(
+    reason: impl Into<String>,
+    policy_receipt_hash: impl Into<String>,
+    security_receipt_hash: impl Into<String>,
+    timestamp_drift_ms: i64,
+    mode: &str,
+) -> ValidationReceipt {
+    validation_receipt(
+        false,
+        true,
+        reason.into(),
+        policy_receipt_hash.into(),
+        security_receipt_hash.into(),
+        timestamp_drift_ms,
+        mode,
+    )
+}
+
 fn success_receipt(
     policy_receipt_hash: impl Into<String>,
     security_receipt_hash: impl Into<String>,
     timestamp_drift_ms: i64,
     mode: &str,
 ) -> ValidationReceipt {
-    let policy_receipt_hash = policy_receipt_hash.into();
-    let security_receipt_hash = security_receipt_hash.into();
-    let payload = serde_json::json!({
-        "ok": true,
-        "fail_closed": false,
-        "reason": "validated",
-        "timestamp_drift_ms": timestamp_drift_ms,
-        "mode": mode,
-        "policy_receipt_hash": policy_receipt_hash,
-        "security_receipt_hash": security_receipt_hash,
-    });
-
-    ValidationReceipt {
-        ok: true,
-        fail_closed: false,
-        reason: "validated".to_string(),
+    validation_receipt(
+        true,
+        false,
+        "validated".to_string(),
+        policy_receipt_hash.into(),
+        security_receipt_hash.into(),
         timestamp_drift_ms,
-        mode: mode.to_string(),
-        policy_receipt_hash,
-        security_receipt_hash,
-        receipt_hash: deterministic_receipt_hash(&payload),
-    }
+        mode,
+    )
 }
 
 fn is_valid_sha256(raw: &str) -> bool {
