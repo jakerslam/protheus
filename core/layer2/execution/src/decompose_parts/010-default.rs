@@ -1,9 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 use regex::Regex;
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, HashSet};
+
+fn parse_payload_json<T: DeserializeOwned>(payload: &str, error_prefix: &str) -> Result<T, String> {
+    serde_json::from_str::<T>(payload).map_err(|err| format!("{error_prefix}_payload_parse_failed:{err}"))
+}
+
+fn serialize_payload_json<T: Serialize>(value: &T, error_prefix: &str) -> Result<String, String> {
+    serde_json::to_string(value)
+        .map_err(|err| format!("{error_prefix}_payload_serialize_failed:{err}"))
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DecomposePolicy {

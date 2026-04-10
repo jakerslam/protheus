@@ -161,6 +161,24 @@ fn normalize_token(raw: &str, max_len: usize) -> String {
     out.trim_matches('_').to_string()
 }
 
+fn clean_or_default(raw: Option<&str>, max_len: usize, fallback: &str) -> String {
+    let value = clean_text(raw.unwrap_or(""), max_len);
+    if value.is_empty() {
+        fallback.to_string()
+    } else {
+        value
+    }
+}
+
+fn normalized_or_default(raw: &str, max_len: usize, fallback: &str) -> String {
+    let value = normalize_token(raw, max_len);
+    if value.is_empty() {
+        fallback.to_string()
+    } else {
+        value
+    }
+}
+
 fn sha16(seed: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(seed.as_bytes());

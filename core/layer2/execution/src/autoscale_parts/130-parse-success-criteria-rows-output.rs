@@ -14,12 +14,15 @@ pub struct CollectOutcomeStatsBucketInput {
     pub reverted: f64,
 }
 
+type OutcomeStatsBucketMap = std::collections::BTreeMap<String, CollectOutcomeStatsBucketInput>;
+type OutcomeStatsBiasMap = std::collections::BTreeMap<String, CollectOutcomeStatsBiasOutput>;
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CollectOutcomeStatsInput {
     #[serde(default)]
-    pub by_eye: std::collections::BTreeMap<String, CollectOutcomeStatsBucketInput>,
+    pub by_eye: OutcomeStatsBucketMap,
     #[serde(default)]
-    pub by_topic: std::collections::BTreeMap<String, CollectOutcomeStatsBucketInput>,
+    pub by_topic: OutcomeStatsBucketMap,
     #[serde(default)]
     pub global: CollectOutcomeStatsBucketInput,
     #[serde(default)]
@@ -49,9 +52,9 @@ pub struct CollectOutcomeStatsBiasOutput {
 pub struct CollectOutcomeStatsOutput {
     pub global: CollectOutcomeStatsGlobalOutput,
     #[serde(default)]
-    pub eye_biases: std::collections::BTreeMap<String, CollectOutcomeStatsBiasOutput>,
+    pub eye_biases: OutcomeStatsBiasMap,
     #[serde(default)]
-    pub topic_biases: std::collections::BTreeMap<String, CollectOutcomeStatsBiasOutput>,
+    pub topic_biases: OutcomeStatsBiasMap,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
