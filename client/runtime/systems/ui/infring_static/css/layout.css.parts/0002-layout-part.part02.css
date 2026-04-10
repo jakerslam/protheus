@@ -145,6 +145,8 @@ body:not([data-theme='dark']) .main-pointer-fx-layer .global-reflection-overlay 
   justify-content: center;
   pointer-events: none;
   opacity: 0;
+  transform: rotate(var(--bottom-dock-icon-rotation-deg, 0deg));
+  transition: transform 0.2s var(--ease-smooth);
 }
 
 .dock-tile[data-dock-icon='system'] .dock-system-terminal-fx svg {

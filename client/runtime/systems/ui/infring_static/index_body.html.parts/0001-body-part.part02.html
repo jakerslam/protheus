@@ -259,7 +259,11 @@
         'is-dragging': !!bottomDockDragId,
         'is-settling': !!_bottomDockRevealTargetDuringSettle,
         'is-container-dragging': !!bottomDockContainerDragActive,
-        'is-container-settling': !!bottomDockContainerSettling
+        'is-container-settling': !!bottomDockContainerSettling,
+        'is-side-bottom': bottomDockActiveSide() === 'bottom',
+        'is-side-top': bottomDockActiveSide() === 'top',
+        'is-side-left': bottomDockActiveSide() === 'left',
+        'is-side-right': bottomDockActiveSide() === 'right'
       }"
       :style="bottomDockContainerStyle()"
       aria-label="Primary tabs"
@@ -483,7 +487,13 @@
     </nav>
     <div
       class="bottom-dock-preview-bubble bottom-dock-preview-overlay"
-      :class="{ 'is-visible': !!bottomDockPreviewVisible && !!bottomDockPreviewText }"
+      :class="{
+        'is-visible': !!bottomDockPreviewVisible && !!bottomDockPreviewText,
+        'is-side-bottom': bottomDockActiveSide() === 'bottom',
+        'is-side-top': bottomDockActiveSide() === 'top',
+        'is-side-left': bottomDockActiveSide() === 'left',
+        'is-side-right': bottomDockActiveSide() === 'right'
+      }"
       :style="'left:' + bottomDockPreviewX + 'px;top:' + bottomDockPreviewY + 'px;' + (bottomDockPreviewWidth > 0 ? ('width:' + bottomDockPreviewWidth + 'px;') : 'width:auto;')"
       aria-hidden="true"
     >
