@@ -23,7 +23,6 @@ struct Record {
     lines: usize,
     text: String,
 }
-
 fn usage() {
     println!("top50-roi-sweep-kernel commands:");
     println!(
@@ -33,7 +32,6 @@ fn usage() {
         "  protheus-ops top200-roi-sweep-kernel <run|queue|status> [--max=<n>] [--policy=<path>]"
     );
 }
-
 fn print_json_line(value: &Value) {
     println!(
         "{}",
@@ -41,7 +39,6 @@ fn print_json_line(value: &Value) {
             .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
     );
 }
-
 fn parse_usize_flag(value: Option<String>, fallback: usize) -> usize {
     value
         .as_deref()
@@ -49,7 +46,6 @@ fn parse_usize_flag(value: Option<String>, fallback: usize) -> usize {
         .map(|v| v.max(1))
         .unwrap_or(fallback)
 }
-
 fn parse_policy_path(root: &Path, argv: &[String]) -> PathBuf {
     if let Some(raw) = lane_utils::parse_flag(argv, "policy", false) {
         let trimmed = raw.trim();
@@ -63,7 +59,6 @@ fn parse_policy_path(root: &Path, argv: &[String]) -> PathBuf {
     }
     root.join(DEFAULT_POLICY_REL)
 }
-
 fn parse_scan_roots(root: &Path, policy_path: &Path) -> Vec<String> {
     let raw = fs::read_to_string(policy_path).unwrap_or_default();
     if raw.trim().is_empty() {
@@ -90,7 +85,6 @@ fn parse_scan_roots(root: &Path, policy_path: &Path) -> Vec<String> {
     let _ = root;
     roots
 }
-
 fn git_ls_files(root: &Path, patterns: &[&str]) -> Result<Vec<String>, String> {
     let mut cmd = Command::new("git");
     cmd.arg("ls-files");
@@ -116,7 +110,6 @@ fn git_ls_files(root: &Path, patterns: &[&str]) -> Result<Vec<String>, String> {
         .map(ToString::to_string)
         .collect::<Vec<_>>())
 }
-
 fn count_lines_like_js(text: &str) -> usize {
     if text.is_empty() {
         0
@@ -124,14 +117,12 @@ fn count_lines_like_js(text: &str) -> usize {
         text.split('\n').count()
     }
 }
-
 fn ext_of(path: &str) -> String {
     Path::new(path)
         .extension()
         .map(|ext| ext.to_string_lossy().to_ascii_lowercase())
         .unwrap_or_default()
 }
-
 fn read_records(root: &Path, files: &[String]) -> Vec<Record> {
     files
         .iter()
@@ -149,11 +140,9 @@ fn read_records(root: &Path, files: &[String]) -> Vec<Record> {
         })
         .collect::<Vec<_>>()
 }
-
 fn runtime_rel_path(rel_path: &str) -> &str {
     rel_path.strip_prefix("client/runtime/").unwrap_or(rel_path)
 }
-
 fn in_scan_roots(rel_path: &str, roots: &[String]) -> bool {
     let runtime = runtime_rel_path(rel_path);
     roots
@@ -162,12 +151,10 @@ fn in_scan_roots(rel_path: &str, roots: &[String]) -> bool {
         .filter(|row| !row.is_empty())
         .any(|root| runtime == root || runtime.starts_with(&format!("{root}/")))
 }
-
 fn has_authority_marker(record: &Record) -> bool {
     let normalized = record.text.as_str();
     normalized.contains("Layer ownership:") && normalized.contains("(authoritative)")
 }
-
 fn is_thin_bridge(record: &Record) -> bool {
     if ext_of(&record.path) != "ts" {
         return false;
@@ -192,7 +179,6 @@ fn is_thin_bridge(record: &Record) -> bool {
             && normalized.contains("require('./")
             && (normalized.contains(".ts") || normalized.contains(".js")))
 }
-
 fn is_extension_surface(record: &Record) -> bool {
     let rel = record.path.as_str();
     let text = record.text.as_str();
@@ -215,7 +201,6 @@ fn is_extension_surface(record: &Record) -> bool {
         || rel.ends_with(".config.ts")
         || rel == "vitest.config.ts"
 }
-
 fn is_cognition_orchestration_thin_surface(record: &Record) -> bool {
     if !record.path.starts_with("client/cognition/orchestration/") {
         return false;
@@ -228,7 +213,6 @@ fn is_cognition_orchestration_thin_surface(record: &Record) -> bool {
         || text.contains("invokeOrchestration(")
         || text.contains("runTaskGroupCli(")
 }
-
 fn route_weight(rel_path: &str) -> f64 {
     let weighted = [
         ("client/runtime/systems/autonomy/", 4.3),
@@ -252,7 +236,6 @@ fn route_weight(rel_path: &str) -> f64 {
     }
     1.5
 }
-
 fn should_exclude(record: &Record) -> bool {
     let rel = record.path.as_str();
     let base = Path::new(rel)
@@ -321,7 +304,6 @@ fn should_exclude(record: &Record) -> bool {
     }
     is_thin_bridge(record)
 }
-
 fn sort_candidates(a: &Value, b: &Value) -> Ordering {
     let a_impact = a.get("impact_score").and_then(Value::as_f64).unwrap_or(0.0);
     let b_impact = b.get("impact_score").and_then(Value::as_f64).unwrap_or(0.0);
@@ -339,11 +321,9 @@ fn sort_candidates(a: &Value, b: &Value) -> Ordering {
             a_path.cmp(b_path)
         })
 }
-
 fn format_impact(impact: f64) -> f64 {
     (impact * 10.0).round() / 10.0
 }
-
 fn build_queue(root: &Path, max: usize, policy_path: &Path) -> Result<Value, String> {
     let ts_files = git_ls_files(root, &["*.ts"])?;
     let records = read_records(root, &ts_files);
@@ -447,7 +427,6 @@ fn build_queue(root: &Path, max: usize, policy_path: &Path) -> Result<Value, Str
         "top": top,
     }))
 }
-
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     let cmd = argv
         .iter()

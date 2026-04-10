@@ -14,19 +14,16 @@ use crate::{deterministic_receipt_hash, now_iso, parse_args};
 
 const COMPACTION_THRESHOLD_CHARS: usize = 1200;
 const COMPACTION_THRESHOLD_LINES: usize = 40;
-
 fn moltbook_token_re() -> &'static Regex {
     static REGEX: OnceLock<Regex> = OnceLock::new();
     REGEX.get_or_init(|| Regex::new(r"moltbook_sk_[a-zA-Z0-9]{32,}").expect("valid moltbook regex"))
 }
-
 fn bearer_redaction_re() -> &'static Regex {
     static REGEX: OnceLock<Regex> = OnceLock::new();
     REGEX.get_or_init(|| {
         Regex::new(r#"(?i)Authorization:\s*Bearer\s+[^\s"']+"#).expect("valid bearer regex")
     })
 }
-
 fn header_secret_re() -> &'static Regex {
     static REGEX: OnceLock<Regex> = OnceLock::new();
     REGEX.get_or_init(|| {
@@ -36,7 +33,6 @@ fn header_secret_re() -> &'static Regex {
         .expect("valid header regex")
     })
 }
-
 fn json_secret_re() -> &'static Regex {
     static REGEX: OnceLock<Regex> = OnceLock::new();
     REGEX.get_or_init(|| {
@@ -46,7 +42,6 @@ fn json_secret_re() -> &'static Regex {
         .expect("valid json secret regex")
     })
 }
-
 fn query_secret_re() -> &'static Regex {
     static REGEX: OnceLock<Regex> = OnceLock::new();
     REGEX.get_or_init(|| {
@@ -54,7 +49,6 @@ fn query_secret_re() -> &'static Regex {
             .expect("valid query regex")
     })
 }
-
 fn usage() {
     println!("tool-response-compactor-kernel commands:");
     println!("  protheus-ops tool-response-compactor-kernel compact --payload-base64=<json>");
@@ -63,7 +57,6 @@ fn usage() {
         "  protheus-ops tool-response-compactor-kernel extract-summary --payload-base64=<json>"
     );
 }
-
 fn cli_receipt(kind: &str, payload: Value) -> Value {
     let ts = now_iso();
     let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(true);
@@ -77,7 +70,6 @@ fn cli_receipt(kind: &str, payload: Value) -> Value {
     out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
     out
 }
-
 fn cli_error(kind: &str, error: &str) -> Value {
     let ts = now_iso();
     let mut out = json!({
@@ -91,7 +83,6 @@ fn cli_error(kind: &str, error: &str) -> Value {
     out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
     out
 }
-
 fn print_json_line(value: &Value) {
     println!(
         "{}",
@@ -99,7 +90,6 @@ fn print_json_line(value: &Value) {
             .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
     );
 }
-
 fn payload_json(argv: &[String]) -> Result<Value, String> {
     if let Some(raw) = lane_utils::parse_flag(argv, "payload", false) {
         return serde_json::from_str::<Value>(&raw)
@@ -117,7 +107,6 @@ fn payload_json(argv: &[String]) -> Result<Value, String> {
     }
     Ok(json!({}))
 }
-
 fn root_dir_from_payload(repo_root: &Path, payload: &Map<String, Value>) -> PathBuf {
     let raw = payload
         .get("root_dir")
@@ -135,18 +124,15 @@ fn root_dir_from_payload(repo_root: &Path, payload: &Map<String, Value>) -> Path
         repo_root.join(raw)
     }
 }
-
 fn tool_raw_dir(root_dir: &Path) -> PathBuf {
     root_dir.join("local").join("logs").join("tool_raw")
 }
-
 fn render_input(value: &Value) -> String {
     match value {
         Value::String(v) => v.clone(),
         _ => serde_json::to_string_pretty(value).unwrap_or_else(|_| value.to_string()),
     }
 }
-
 fn redact_secrets(content: &str) -> String {
     let mut out = content.to_string();
     out = moltbook_token_re()
@@ -184,7 +170,6 @@ fn redact_secrets(content: &str) -> String {
         .to_string();
     out
 }
-
 fn collect_ids_and_urls(value: &Value, ids: &mut Vec<String>, urls: &mut Vec<String>) {
     match value {
         Value::Object(obj) => {
@@ -221,7 +206,6 @@ fn collect_ids_and_urls(value: &Value, ids: &mut Vec<String>, urls: &mut Vec<Str
         _ => {}
     }
 }
-
 fn dedupe_limit(rows: Vec<String>, max: usize) -> Vec<String> {
     let mut seen = std::collections::BTreeSet::new();
     let mut out = Vec::new();
@@ -236,7 +220,6 @@ fn dedupe_limit(rows: Vec<String>, max: usize) -> Vec<String> {
     }
     out
 }
-
 fn extract_summary_rows(data: &Value, tool_name: &str) -> Vec<String> {
     let rendered = render_input(data);
     let mut bullets = Vec::<String>::new();
@@ -325,7 +308,6 @@ fn extract_summary_rows(data: &Value, tool_name: &str) -> Vec<String> {
     bullets.truncate(10);
     bullets
 }
-
 fn safe_tool_name(raw: &str) -> String {
     let mut out = String::new();
     for ch in raw.chars() {
@@ -341,7 +323,6 @@ fn safe_tool_name(raw: &str) -> String {
         out
     }
 }
-
 fn compact_tool_response(repo_root: &Path, payload: &Map<String, Value>) -> Result<Value, String> {
     let root_dir = root_dir_from_payload(repo_root, payload);
     let tool_name = payload
@@ -409,7 +390,6 @@ fn compact_tool_response(repo_root: &Path, payload: &Map<String, Value>) -> Resu
         }
     }))
 }
-
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     let parsed = parse_args(argv);
     let cmd = parsed
@@ -491,31 +471,6 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         }
     }
 }
-
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn redact_hides_tokens_and_bearer_headers() {
-        let out = redact_secrets(
-            "Authorization: Bearer abcdefghijklmnopqrstuvwxyz123456\nmoltbook_sk_abcdefghijklmnopqrstuvwxyz1234567890",
-        );
-        assert!(out.contains("Authorization: Bearer [REDACTED]"));
-        assert!(out.contains("moltbook_sk_****7890"));
-    }
-
-    #[test]
-    fn extract_summary_reports_ids_and_urls() {
-        let payload = json!({
-            "id": "abcdef123456",
-            "total_count": 4,
-            "url": "https://example.com/long/path",
-            "status": "error"
-        });
-        let summary = extract_summary_rows(&payload, "tool");
-        assert!(summary.iter().any(|row| row.contains("IDs:")));
-        assert!(summary.iter().any(|row| row.contains("URLs:")));
-        assert!(summary.iter().any(|row| row.contains("Status: error")));
-    }
-}
+#[path = "tool_response_compactor_kernel_tests.rs"]
+mod tool_response_compactor_kernel_tests;

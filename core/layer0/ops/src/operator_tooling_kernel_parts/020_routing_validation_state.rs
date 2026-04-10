@@ -20,7 +20,6 @@ fn run_route_model(policy: &Value, payload: &Value, policy_path: &Path) -> Value
         "matched_default_rule": route.get("matched_default_rule").cloned().unwrap_or(Value::Null),
     }))
 }
-
 fn run_escalate_model(policy: &Value, payload: &Value, policy_path: &Path) -> Value {
     let tags = norm_tags(payload.get("tags"));
     let default_model = clean_text(
@@ -82,7 +81,6 @@ fn run_escalate_model(policy: &Value, payload: &Value, policy_path: &Path) -> Va
         "modelChain": chain,
     }))
 }
-
 fn run_plan_auto(payload: &Value) -> Result<Value, String> {
     let task = clean_text(
         payload.get("task").and_then(Value::as_str).unwrap_or(""),
@@ -150,7 +148,6 @@ fn run_plan_auto(payload: &Value) -> Result<Value, String> {
         }
     })))
 }
-
 fn list_from(plan: &Value, key: &str) -> Vec<String> {
     plan.get(key)
         .and_then(Value::as_array)
@@ -163,7 +160,6 @@ fn list_from(plan: &Value, key: &str) -> Vec<String> {
         })
         .unwrap_or_default()
 }
-
 fn run_plan_validate(payload: &Value) -> Result<Value, String> {
     let plan = if payload.get("goal").is_some() {
         payload
@@ -233,7 +229,6 @@ fn run_plan_validate(payload: &Value) -> Result<Value, String> {
         "requires_rollback": requires_rollback,
     })))
 }
-
 fn run_postflight_validate(payload: &Value) -> Result<Value, String> {
     if !payload.is_object() {
         return Err("postflight_object_required".to_string());
@@ -278,7 +273,6 @@ fn run_postflight_validate(payload: &Value) -> Result<Value, String> {
         "routing_tags_count": routing_tags_len
     })))
 }
-
 fn run_output_validate(payload: &Value) -> Result<Value, String> {
     let mode = clean_text(
         payload
@@ -358,7 +352,6 @@ fn run_output_validate(payload: &Value) -> Result<Value, String> {
         "warnings": warnings
     })))
 }
-
 fn get_by_dot_path<'a>(value: &'a Value, dot_path: &str) -> Option<&'a Value> {
     let mut current = value;
     for segment in dot_path.split('.') {
@@ -369,7 +362,6 @@ fn get_by_dot_path<'a>(value: &'a Value, dot_path: &str) -> Option<&'a Value> {
     }
     Some(current)
 }
-
 fn run_state_read(state: &Value, key_path: Option<&str>, path: &Path) -> Result<Value, String> {
     if let Some(key) = key_path {
         let key_clean = clean_text(key, 240);
@@ -391,7 +383,6 @@ fn run_state_read(state: &Value, key_path: Option<&str>, path: &Path) -> Result<
         "state": state
     })))
 }
-
 fn run_state_write(state: &mut Value, payload: &Value, path: &Path) -> Result<Value, String> {
     let now = crate::now_iso();
     let mut last_task = state
@@ -446,7 +437,6 @@ fn run_state_write(state: &mut Value, payload: &Value, path: &Path) -> Result<Va
         "decision_appended": decision_appended
     })))
 }
-
 fn append_decision_markdown(
     path: &Path,
     title: &str,
