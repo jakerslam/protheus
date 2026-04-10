@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 use serde_json::{json, Map, Value};
 use std::collections::BTreeMap;
-use std::fs;
 use std::path::{Path, PathBuf};
 
+use crate::contract_lane_utils as lane_utils;
 use crate::dashboard_compat_api::CompatApiResponse;
 
 const CORE_SKILLS_REGISTRY_REL: &str = "core/local/state/ops/skills_plane/registry.json";
@@ -12,13 +12,7 @@ const DASHBOARD_SKILLS_STATE_REL: &str =
     "client/runtime/local/state/ui/infring_dashboard/skills_registry.json";
 
 fn clean_text(raw: &str, max_len: usize) -> String {
-    raw.split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
-        .trim()
-        .chars()
-        .take(max_len)
-        .collect::<String>()
+    lane_utils::clean_text(Some(raw), max_len.max(1))
 }
 
 fn normalize_name(raw: &str) -> String {
@@ -42,18 +36,11 @@ fn state_path(root: &Path, rel: &str) -> PathBuf {
 }
 
 fn read_json(path: &Path) -> Option<Value> {
-    fs::read_to_string(path)
-        .ok()
-        .and_then(|raw| serde_json::from_str::<Value>(&raw).ok())
+    lane_utils::read_json(path)
 }
 
 fn write_json(path: &Path, value: &Value) {
-    if let Some(parent) = path.parent() {
-        let _ = fs::create_dir_all(parent);
-    }
-    if let Ok(raw) = serde_json::to_string_pretty(value) {
-        let _ = fs::write(path, raw);
-    }
+    let _ = lane_utils::write_json(path, value);
 }
 
 fn parse_json(raw: &[u8]) -> Value {
