@@ -31,13 +31,21 @@ impl Default for TransientContextStore {
 }
 
 impl TransientContextStore {
+    #[cfg(test)]
+    pub(crate) fn with_heap(heap: EphemeralMemoryHeap) -> Self {
+        Self {
+            entries: BTreeMap::new(),
+            heap,
+        }
+    }
+
     pub fn upsert(
         &mut self,
         session_id: &str,
         value: impl Into<String>,
         now_ms: u64,
         ttl_ms: u64,
-    ) -> TransientContextEntry {
+    ) -> Result<TransientContextEntry, String> {
         let expires_at_ms = now_ms.saturating_add(ttl_ms.max(1));
         let payload = serde_json::json!({
             "session_id": session_id,
@@ -57,7 +65,7 @@ impl TransientContextStore {
                 "cap:orchestration_transient_context",
             )
             .map(|(object, _)| object.object_id)
-            .unwrap_or_else(|_| format!("transient-fallback-{session_id}-{now_ms}"));
+            .map_err(|err| format!("transient_context_write_failed:{err}"))?;
         let value = payload
             .get("value")
             .and_then(serde_json::Value::as_str)
@@ -71,7 +79,7 @@ impl TransientContextStore {
             expires_at_ms,
         };
         self.entries.insert(session_id.to_string(), entry.clone());
-        entry
+        Ok(entry)
     }
 
     pub fn get(&self, session_id: &str) -> Option<&TransientContextEntry> {
@@ -110,5 +118,22 @@ impl TransientContextStore {
 
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn upsert_fails_closed_when_ephemeral_write_is_denied() {
+        let mut heap = EphemeralMemoryHeap::new(VerityEphemeralPolicy::default());
+        heap.set_agent_revoked("orchestration_surface", true);
+        let mut store = TransientContextStore::with_heap(heap);
+        let err = store
+            .upsert("session-1", "value", 10, 1_000)
+            .expect_err("write should fail for revoked actor");
+        assert!(err.starts_with("transient_context_write_failed:"));
+        assert!(store.is_empty());
     }
 }

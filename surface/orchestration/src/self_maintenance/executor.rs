@@ -9,10 +9,10 @@ use crate::self_maintenance::escalation::{
 use crate::self_maintenance::observer;
 use crate::self_maintenance::task_generator::{claim_bundle_to_task_graph, GeneratedTaskGraph};
 use infring_layer1_memory::{
-    Classification, EphemeralMemoryHeap, PermanentScope, TrustState, VerityEphemeralPolicy,
+    Classification, EphemeralMemoryHeap, TrustState, VerityEphemeralPolicy,
 };
 use infring_task_fabric_core_v1::{
-    now_ms as task_now_ms, AllowAllVerityGate, MutationEnvelope, MutationKind, TaskFabric,
+    now_ms as task_now_ms, MutationEnvelope, MutationKind, Task, TaskFabric, VerityGate,
 };
 use protheus_tooling_core_v1::{
     BrokerCaller, EvidenceExtractor, EvidenceStore, StructuredVerifier, ToolBroker, ToolCallRequest,
@@ -24,10 +24,9 @@ pub struct GovernedSelfMaintenanceSupervisor {
     mode: SupervisorMode,
     scope_id: String,
     actor_id: String,
-    verity_approver: String,
     receipts: Vec<SupervisorReceipt>,
     task_fabric: TaskFabric,
-    task_fabric_verity: AllowAllVerityGate,
+    task_fabric_verity: DenyHighRiskVerityGate,
     tool_broker: ToolBroker,
     evidence_extractor: EvidenceExtractor,
     evidence_store: EvidenceStore,
@@ -35,18 +34,32 @@ pub struct GovernedSelfMaintenanceSupervisor {
     ephemeral_heap: EphemeralMemoryHeap,
 }
 
+pub struct DenyHighRiskVerityGate;
+
+impl VerityGate for DenyHighRiskVerityGate {
+    fn approve(
+        &self,
+        _scope_id: &str,
+        _task: Option<&Task>,
+        _mutation_kind: MutationKind,
+        _payload: &serde_json::Value,
+    ) -> bool {
+        false
+    }
+}
+
 impl GovernedSelfMaintenanceSupervisor {
     pub fn new(mode: SupervisorMode, scope_id: impl Into<String>) -> Self {
         let mut heap = EphemeralMemoryHeap::new(VerityEphemeralPolicy::default());
         heap.grant_debug_principal("self_maintenance");
+        let scope_id = scope_id.into();
         Self {
             mode,
-            scope_id: scope_id.into(),
+            scope_id: scope_id.clone(),
             actor_id: "orchestration:self_maintenance".to_string(),
-            verity_approver: "verity".to_string(),
             receipts: Vec::new(),
-            task_fabric: TaskFabric::new("self_maintenance"),
-            task_fabric_verity: AllowAllVerityGate,
+            task_fabric: TaskFabric::new(scope_id),
+            task_fabric_verity: DenyHighRiskVerityGate,
             tool_broker: ToolBroker::default(),
             evidence_extractor: EvidenceExtractor::default(),
             evidence_store: EvidenceStore::default(),
@@ -271,7 +284,7 @@ impl GovernedSelfMaintenanceSupervisor {
             now_ms,
         );
 
-        let object_id = self.cache_ephemeral(
+        let _object_id = self.cache_ephemeral(
             "execution_context",
             json!({
                 "task_id": task_id,
@@ -287,20 +300,12 @@ impl GovernedSelfMaintenanceSupervisor {
             now_ms,
         );
         if verified.coverage_score >= 0.50 {
-            let expected_revision = self
-                .ephemeral_heap
-                .claim_lease(object_id.as_str(), self.actor_id.as_str(), 5_000)
-                .map_err(|err| format!("ephemeral_lease_failed:{err}"))?;
-            let _ = self
-                .ephemeral_heap
-                .promote_ephemeral(
-                    object_id.as_str(),
-                    PermanentScope::Core,
-                    self.verity_approver.as_str(),
-                    self.actor_id.as_str(),
-                    expected_revision,
-                )
-                .map_err(|err| format!("ephemeral_promotion_failed:{err}"))?;
+            self.push_receipt(
+                SupervisorReceiptStage::Execution,
+                "promotion_required_via_core_ingress_contract",
+                Some(task_id.clone()),
+                now_ms,
+            );
         }
 
         self.push_receipt(

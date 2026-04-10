@@ -85,6 +85,10 @@ fn safe_apply_executes_allowed_fixes() {
     let out = supervisor.run_cycle(inputs, 4_000).expect("run");
     assert!(!out.worker_outputs.is_empty());
     assert!(out.worker_outputs[0].produced_evidence_ids.len() >= 1);
+    assert!(out
+        .receipts
+        .iter()
+        .any(|row| row.detail == "promotion_required_via_core_ingress_contract"));
 }
 
 #[test]
@@ -170,4 +174,18 @@ fn ephemeral_state_is_used_and_cleaned() {
     assert!(supervisor.active_ephemeral_count() > 0);
     let cleaned = supervisor.sweep_ephemeral().expect("sweep");
     assert!(cleaned > 0);
+}
+
+#[test]
+fn custom_scope_id_submits_tasks_without_scope_mismatch() {
+    let mut inputs = base_inputs();
+    inputs.dependency_violations.push(DependencyViolationInput {
+        violation_id: "dep-scope".to_string(),
+        summary: "scope-aligned submit".to_string(),
+        source_ref: "tests/scope".to_string(),
+    });
+    let mut supervisor =
+        GovernedSelfMaintenanceSupervisor::new(SupervisorMode::ProposeOnly, "custom_scope");
+    let out = supervisor.run_cycle(inputs, 8_000).expect("run");
+    assert!(!out.generated_task_ids.is_empty());
 }

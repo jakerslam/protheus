@@ -3,7 +3,7 @@
 // Orchestration Surface coordination implementation (non-canonical).
 // Layer ownership: surface/orchestration.
 
-const { createOpsLaneBridge } = require('../../../client/runtime/lib/rust_lane_bridge.ts');
+const { createOpsLaneBridge } = require('../../../adapters/runtime/ops_lane_bridge.ts');
 
 const SYSTEM_ID = 'SYSTEMS-SCIENCE-META_SCIENCE_ACTIVE_LEARNING_LOOP';
 const bridge = createOpsLaneBridge(__dirname, 'meta_science_active_learning_loop', 'runtime-systems', {

@@ -29,12 +29,22 @@ impl OrchestrationSurfaceRuntime {
         now_ms: u64,
     ) -> OrchestrationResultPackage {
         let normalized = ingress::normalize_request(request);
-        self.transient.upsert(
+        if let Err(err) = self.transient.upsert(
             normalized.session_id.as_str(),
             normalized.intent.clone(),
             now_ms,
             30_000,
-        );
+        ) {
+            return OrchestrationResultPackage {
+                summary: format!("orchestration_degraded:{err}"),
+                progress_message:
+                    "Transient orchestration context unavailable; halted before core contract planning"
+                        .to_string(),
+                recovery_applied: true,
+                core_contract_calls: Vec::new(),
+                requires_core_promotion: false,
+            };
+        }
 
         let request_class = request_classification::classify_request(&normalized);
         let clarification_prompt =

@@ -3,7 +3,7 @@
 // Orchestration Surface coordination implementation (non-canonical).
 // Layer ownership: surface/orchestration.
 
-const { createOpsLaneBridge } = require('../../../client/runtime/lib/rust_lane_bridge.ts');
+const { createOpsLaneBridge } = require('../../../adapters/runtime/ops_lane_bridge.ts');
 
 const SYSTEM_ID = 'SYSTEMS-AUTONOMY-PROACTIVE_T1_INITIATIVE_ENGINE';
 const bridge = createOpsLaneBridge(__dirname, 'proactive_t1_initiative_engine', 'runtime-systems', {
