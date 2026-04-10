@@ -12,6 +12,23 @@ pub struct LaneSpec<'a> {
     pub passthrough_flags: &'a [&'a str],
 }
 
+pub const STANDARD_PASSTHROUGH_FLAGS: &[&str] = &["strict", "policy", "state-path"];
+
+pub fn standard_lane_spec<'a>(
+    lane_id: &'a str,
+    lane_type: &'a str,
+    replacement: &'a str,
+    usage: &'a [&'a str],
+) -> LaneSpec<'a> {
+    LaneSpec {
+        lane_id,
+        lane_type,
+        replacement,
+        usage,
+        passthrough_flags: STANDARD_PASSTHROUGH_FLAGS,
+    }
+}
+
 fn normalized_command(argv: &[String]) -> String {
     argv.first()
         .map(|v| v.trim().to_ascii_lowercase())
