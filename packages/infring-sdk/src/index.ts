@@ -21,6 +21,7 @@ export type {
   ReviewEvidenceRequest,
   RunAssimilationData,
   RunAssimilationRequest,
+  SdkError,
   SdkEnvelope,
   SubmitTaskData,
   SubmitTaskRequest,
