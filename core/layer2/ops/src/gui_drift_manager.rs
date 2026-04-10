@@ -1,6 +1,6 @@
 // Layer ownership: core/layer2/ops (authoritative)
 // SPDX-License-Identifier: Apache-2.0
-use crate::ops_lane_runtime::{run_lane, LaneSpec};
+use crate::ops_lane_runtime::{run_lane, standard_lane_spec};
 use std::path::Path;
 
 const USAGE: &[&str] = &[
@@ -12,12 +12,11 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     run_lane(
         root,
         argv,
-        &LaneSpec {
-            lane_id: "gui_drift_manager",
-            lane_type: "gui_drift_manager",
-            replacement: "protheus-ops gui-drift-manager",
-            usage: USAGE,
-            passthrough_flags: &["strict", "policy", "state-path"],
-        },
+        &standard_lane_spec(
+            "gui_drift_manager",
+            "gui_drift_manager",
+            "protheus-ops gui-drift-manager",
+            USAGE,
+        ),
     )
 }
