@@ -1,22 +1,26 @@
 // SPDX-License-Identifier: Apache-2.0
 use conduit::{
-    deterministic_receipt_hash, process_command, ConduitPolicy, ConduitSecurityContext,
-    EchoCommandHandler, RegistryPolicyGate, TsCommand,
+    deterministic_receipt_hash, process_command, CommandEnvelope, ConduitPolicy,
+    ConduitSecurityContext, EchoCommandHandler, RegistryPolicyGate, TsCommand,
 };
 use std::time::{SystemTime, UNIX_EPOCH};
 
-fn signed_envelope(policy: &ConduitPolicy, command: TsCommand) -> conduit::CommandEnvelope {
-    let security =
-        ConduitSecurityContext::from_policy(policy, "msg-k1", "msg-secret", "tok-k1", "tok-secret");
-    let request_id = "inv-req";
+const TEST_REQUEST_ID: &str = "inv-req";
+
+fn test_security(policy: &ConduitPolicy) -> ConduitSecurityContext {
+    ConduitSecurityContext::from_policy(policy, "msg-k1", "msg-secret", "tok-k1", "tok-secret")
+}
+
+fn signed_envelope(policy: &ConduitPolicy, command: TsCommand) -> CommandEnvelope {
+    let security = test_security(policy);
     let ts_ms = now_ts_ms();
     let security_metadata =
-        security.mint_security_metadata("client-a", request_id, ts_ms, &command, 120_000);
+        security.mint_security_metadata("client-a", TEST_REQUEST_ID, ts_ms, &command, 120_000);
 
-    conduit::CommandEnvelope {
+    CommandEnvelope {
         schema_id: conduit::CONDUIT_SCHEMA_ID.to_string(),
         schema_version: conduit::CONDUIT_SCHEMA_VERSION.to_string(),
-        request_id: request_id.to_string(),
+        request_id: TEST_REQUEST_ID.to_string(),
         ts_ms,
         command,
         security: security_metadata,
@@ -59,6 +63,18 @@ fn invariant_policy() -> (ConduitPolicy, tempfile::TempDir) {
     (policy, temp)
 }
 
+fn validation_summary(policy: &ConduitPolicy, envelope: &CommandEnvelope) -> (bool, bool, String) {
+    let gate = RegistryPolicyGate::new(policy.clone());
+    let mut security = test_security(policy);
+    let mut handler = EchoCommandHandler;
+    let response = process_command(envelope, &gate, &mut security, &mut handler);
+    (
+        response.validation.ok,
+        response.validation.fail_closed,
+        response.validation.reason,
+    )
+}
+
 #[test]
 fn deterministic_hashes_match_for_equal_envelopes() {
     let (policy, _tmp) = invariant_policy();
@@ -90,19 +106,10 @@ fn install_extension_validation_is_fail_closed_for_invalid_sha() {
         },
     );
 
-    let gate = RegistryPolicyGate::new(policy.clone());
-    let mut security = ConduitSecurityContext::from_policy(
-        &policy,
-        "msg-k1",
-        "msg-secret",
-        "tok-k1",
-        "tok-secret",
-    );
-    let mut handler = EchoCommandHandler;
-    let response = process_command(&envelope, &gate, &mut security, &mut handler);
-    assert!(!response.validation.ok);
-    assert!(response.validation.fail_closed);
-    assert_eq!(response.validation.reason, "extension_wasm_sha256_invalid");
+    let (ok, fail_closed, reason) = validation_summary(&policy, &envelope);
+    assert!(!ok);
+    assert!(fail_closed);
+    assert_eq!(reason, "extension_wasm_sha256_invalid");
 }
 
 #[test]
@@ -116,16 +123,7 @@ fn policy_safe_patch_passes_validation() {
         },
     );
 
-    let gate = RegistryPolicyGate::new(policy.clone());
-    let mut security = ConduitSecurityContext::from_policy(
-        &policy,
-        "msg-k1",
-        "msg-secret",
-        "tok-k1",
-        "tok-secret",
-    );
-    let mut handler = EchoCommandHandler;
-    let response = process_command(&envelope, &gate, &mut security, &mut handler);
-    assert!(response.validation.ok);
-    assert!(!response.validation.fail_closed);
+    let (ok, fail_closed, _reason) = validation_summary(&policy, &envelope);
+    assert!(ok);
+    assert!(!fail_closed);
 }

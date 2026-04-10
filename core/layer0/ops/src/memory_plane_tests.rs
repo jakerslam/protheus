@@ -2,6 +2,19 @@
 use super::*;
 use serde_json::{json, Value};
 
+fn args(rows: &[&str]) -> Vec<String> {
+    rows.iter().map(|row| row.to_string()).collect()
+}
+
+fn first_entry_value(entries: &[Value], key: &str) -> Option<i64> {
+    entries
+        .first()
+        .and_then(|row| row.get("entry"))
+        .and_then(|entry| entry.get("value"))
+        .and_then(|value| value.get(key))
+        .and_then(Value::as_i64)
+}
+
 #[test]
 fn causal_graph_record_and_blame_round_trip() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -9,24 +22,24 @@ fn causal_graph_record_and_blame_round_trip() {
     graph_record_payload(
         dir.path(),
         &policy,
-        &[
-            "--event-id=e1".to_string(),
-            "--summary=root".to_string(),
-            "--actor=planner".to_string(),
-            "--apply=1".to_string(),
-        ],
+        &args(&[
+            "--event-id=e1",
+            "--summary=root",
+            "--actor=planner",
+            "--apply=1",
+        ]),
     )
     .expect("record root");
     graph_record_payload(
         dir.path(),
         &policy,
-        &[
-            "--event-id=e2".to_string(),
-            "--summary=child".to_string(),
-            "--actor=executor".to_string(),
-            "--caused-by=e1".to_string(),
-            "--apply=1".to_string(),
-        ],
+        &args(&[
+            "--event-id=e2",
+            "--summary=child",
+            "--actor=executor",
+            "--caused-by=e1",
+            "--apply=1",
+        ]),
     )
     .expect("record child");
 
@@ -53,11 +66,11 @@ fn federation_sync_resolves_with_vector_counter() {
     let sync1 = federation_sync_payload(
         dir.path(),
         &policy,
-        &[
-            "--device-id=d1".to_string(),
-            "--entries-json=[{\"key\":\"k\",\"value\":{\"v\":1},\"counter\":1}]".to_string(),
-            "--apply=1".to_string(),
-        ],
+        &args(&[
+            "--device-id=d1",
+            "--entries-json=[{\"key\":\"k\",\"value\":{\"v\":1},\"counter\":1}]",
+            "--apply=1",
+        ]),
     )
     .expect("sync1");
     assert_eq!(sync1.get("accepted").and_then(Value::as_u64), Some(1));
@@ -65,11 +78,11 @@ fn federation_sync_resolves_with_vector_counter() {
     let sync2 = federation_sync_payload(
         dir.path(),
         &policy,
-        &[
-            "--device-id=d1".to_string(),
-            "--entries-json=[{\"key\":\"k\",\"value\":{\"v\":2},\"counter\":2}]".to_string(),
-            "--apply=1".to_string(),
-        ],
+        &args(&[
+            "--device-id=d1",
+            "--entries-json=[{\"key\":\"k\",\"value\":{\"v\":2},\"counter\":2}]",
+            "--apply=1",
+        ]),
     )
     .expect("sync2");
     assert_eq!(sync2.get("replaced").and_then(Value::as_u64), Some(1));
@@ -80,12 +93,7 @@ fn federation_sync_resolves_with_vector_counter() {
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
-    let value = entries
-        .first()
-        .and_then(|row| row.get("entry"))
-        .and_then(|v| v.get("value"))
-        .and_then(|v| v.get("v"))
-        .and_then(Value::as_i64);
+    let value = first_entry_value(&entries, "v");
     assert_eq!(value, Some(2));
 }
 
