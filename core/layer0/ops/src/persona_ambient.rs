@@ -388,6 +388,17 @@ fn emit(value: &Value) {
     );
 }
 
+fn stamp_receipt(value: &mut Value) {
+    value["receipt_hash"] = Value::String(deterministic_receipt_hash(value));
+}
+
+fn persist_and_emit(latest_path: &Path, receipts_path: &Path, value: &mut Value) {
+    stamp_receipt(value);
+    write_json(latest_path, value);
+    append_jsonl(receipts_path, value);
+    emit(value);
+}
+
 fn fail_receipt(
     policy: &PersonaAmbientPolicy,
     command: &str,
@@ -406,7 +417,7 @@ fn fail_receipt(
     if let Some(extra) = detail {
         out["detail"] = extra;
     }
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    stamp_receipt(&mut out);
     out
 }
 
@@ -657,11 +668,7 @@ fn apply(root: &Path, flags: &BTreeMap<String, String>) -> i32 {
         "attention_queue": queue_receipt,
         "policy": policy_snapshot(&policy)
     });
-    receipt["receipt_hash"] = Value::String(deterministic_receipt_hash(&receipt));
-
-    write_json(&policy.latest_path, &receipt);
-    append_jsonl(&policy.receipts_path, &receipt);
-    emit(&receipt);
+    persist_and_emit(&policy.latest_path, &policy.receipts_path, &mut receipt);
     0
 }
 
@@ -711,7 +718,7 @@ fn status(root: &Path, flags: &BTreeMap<String, String>) -> i32 {
         },
         "latest": latest
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    stamp_receipt(&mut out);
     emit(&out);
     0
 }
@@ -737,7 +744,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "command": command,
                 "policy": policy_snapshot(&policy)
             });
-            out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+            stamp_receipt(&mut out);
             emit(&out);
             2
         }

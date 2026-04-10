@@ -14,22 +14,24 @@ const DEFAULT_RECEIPT_BINARY_MAX_BYTES: u64 = 2 * 1024 * 1024;
 const RETENTION_MAX_BYTES_CAP: u64 = 1024 * 1024 * 1024;
 const RETENTION_TAIL_SLACK_BYTES: u64 = 8 * 1024;
 
+fn env_nonempty_path(env_key: &str) -> Option<PathBuf> {
+    std::env::var(env_key)
+        .ok()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .map(PathBuf::from)
+}
+
 pub fn scoped_state_root(root: &Path, env_key: &str, scope: &str) -> PathBuf {
-    if let Ok(v) = std::env::var(env_key) {
-        let trimmed = v.trim();
-        if !trimmed.is_empty() {
-            return PathBuf::from(trimmed);
-        }
+    if let Some(path) = env_nonempty_path(env_key) {
+        return path;
     }
     crate::core_state_root(root).join("ops").join(scope)
 }
 
 pub fn state_root_from_env_or(root: &Path, env_key: &str, default_rel: &[&str]) -> PathBuf {
-    if let Ok(v) = std::env::var(env_key) {
-        let trimmed = v.trim();
-        if !trimmed.is_empty() {
-            return PathBuf::from(trimmed);
-        }
+    if let Some(path) = env_nonempty_path(env_key) {
+        return path;
     }
     default_rel
         .iter()
