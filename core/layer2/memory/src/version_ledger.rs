@@ -10,15 +10,37 @@ pub struct VersionLedger {
 }
 
 impl VersionLedger {
+    fn version_ids_for_object<'a>(&'a self, object_id: &'a str) -> impl Iterator<Item = &'a str> {
+        self.object_index
+            .get(object_id)
+            .into_iter()
+            .flat_map(|rows| rows.iter().map(String::as_str))
+    }
+
+    fn replay_row(version: &MemoryVersion) -> MemoryMutationReplayRow {
+        MemoryMutationReplayRow {
+            object_id: version.object_id.clone(),
+            version_id: version.version_id.clone(),
+            parent_version_id: version.parent_version_id.clone(),
+            scope: version.scope.clone(),
+            trust_state: version.trust_state.clone(),
+            receipt_id: version.receipt_id.clone(),
+            timestamp_ms: version.timestamp_ms,
+            payload_hash: version.payload_hash.clone(),
+            lineage_refs: version.lineage_refs.clone(),
+        }
+    }
+
     pub fn append(&mut self, version: MemoryVersion) -> Result<(), String> {
-        if self.versions.contains_key(&version.version_id) {
+        let version_id = version.version_id.clone();
+        if self.versions.contains_key(version_id.as_str()) {
             return Err("version_already_exists".to_string());
         }
         self.object_index
             .entry(version.object_id.clone())
             .or_default()
-            .push(version.version_id.clone());
-        self.versions.insert(version.version_id.clone(), version);
+            .push(version_id.clone());
+        self.versions.insert(version_id, version);
         Ok(())
     }
 
@@ -27,19 +49,14 @@ impl VersionLedger {
     }
 
     pub fn versions_for_object(&self, object_id: &str) -> Vec<MemoryVersion> {
-        self.object_index
-            .get(object_id)
-            .cloned()
-            .unwrap_or_default()
-            .into_iter()
-            .filter_map(|version_id| self.versions.get(&version_id).cloned())
+        self.version_ids_for_object(object_id)
+            .filter_map(|version_id| self.versions.get(version_id).cloned())
             .collect::<Vec<_>>()
     }
 
     pub fn latest_for_object(&self, object_id: &str) -> Option<MemoryVersion> {
-        self.object_index
-            .get(object_id)
-            .and_then(|ids| ids.last())
+        self.version_ids_for_object(object_id)
+            .last()
             .and_then(|version_id| self.versions.get(version_id))
             .cloned()
     }
@@ -49,16 +66,11 @@ impl VersionLedger {
     }
 
     pub fn append_purge_record(&mut self, record: MemoryPurgeRecord) -> Result<(), String> {
-        if !self
-            .versions
-            .contains_key(record.target_version_id.as_str())
-        {
+        let target_version_id = record.target_version_id.as_str();
+        if !self.versions.contains_key(target_version_id) {
             return Err("purge_target_version_not_found".to_string());
         }
-        if self
-            .purged_versions
-            .contains_key(record.target_version_id.as_str())
-        {
+        if self.purged_versions.contains_key(target_version_id) {
             return Err("version_already_purged".to_string());
         }
         self.purged_versions
@@ -86,17 +98,7 @@ impl VersionLedger {
         let mut rows = self
             .versions
             .values()
-            .map(|row| MemoryMutationReplayRow {
-                object_id: row.object_id.clone(),
-                version_id: row.version_id.clone(),
-                parent_version_id: row.parent_version_id.clone(),
-                scope: row.scope.clone(),
-                trust_state: row.trust_state.clone(),
-                receipt_id: row.receipt_id.clone(),
-                timestamp_ms: row.timestamp_ms,
-                payload_hash: row.payload_hash.clone(),
-                lineage_refs: row.lineage_refs.clone(),
-            })
+            .map(Self::replay_row)
             .collect::<Vec<_>>();
         rows.sort_by(|a, b| {
             a.timestamp_ms

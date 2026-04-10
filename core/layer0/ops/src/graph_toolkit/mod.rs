@@ -13,12 +13,39 @@ use commands::{
 };
 use input::parse_graph_input;
 use receipts::{command_status, emit};
-use serde_json::json;
+use serde_json::{json, Value};
 use std::path::Path;
 
 const STATE_ENV: &str = "GRAPH_TOOLKIT_STATE_ROOT";
 const STATE_SCOPE: &str = "graph_toolkit";
 const ROUTE_TAG: &str = "conduit";
+const LANE: &str = "core/layer0/ops";
+
+fn normalized_command(argv: &[String]) -> String {
+    argv.first()
+        .map(|v| v.trim().to_ascii_lowercase())
+        .unwrap_or_else(|| "status".to_string())
+}
+
+fn is_help_command(command: &str) -> bool {
+    matches!(command, "help" | "--help" | "-h")
+}
+
+fn error_payload(error: &str, command: Option<&str>, exit_code: Option<i32>) -> Value {
+    let mut payload = json!({
+        "ok": false,
+        "type": "graph_toolkit_error",
+        "lane": LANE,
+        "error": error,
+    });
+    if let Some(command) = command {
+        payload["command"] = Value::String(command.to_string());
+    }
+    if let Some(exit_code) = exit_code {
+        payload["exit_code"] = Value::from(exit_code);
+    }
+    payload
+}
 
 fn usage() {
     println!("Usage:");
@@ -37,13 +64,9 @@ fn usage() {
 
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     let parsed = parse_args(argv);
-    let command = parsed
-        .positional
-        .first()
-        .map(|v| v.trim().to_ascii_lowercase())
-        .unwrap_or_else(|| "status".to_string());
+    let command = normalized_command(parsed.positional.as_slice());
 
-    if matches!(command.as_str(), "help" | "--help" | "-h") {
+    if is_help_command(command.as_str()) {
         usage();
         return 0;
     }
@@ -54,15 +77,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     let graph = match parse_graph_input(root, &parsed) {
         Ok(value) => value,
         Err(err) => {
-            return emit(
-                root,
-                json!({
-                    "ok": false,
-                    "type": "graph_toolkit_error",
-                    "lane": "core/layer0/ops",
-                    "error": err
-                }),
-            );
+            return emit(root, error_payload(err.as_str(), None, None));
         }
     };
 
@@ -81,14 +96,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "communities" => run_communities(root, &parsed, &graph),
         _ => emit(
             root,
-            json!({
-                "ok": false,
-                "type": "graph_toolkit_error",
-                "lane": "core/layer0/ops",
-                "error": "unknown_command",
-                "command": command,
-                "exit_code": 2
-            }),
+            error_payload("unknown_command", Some(command.as_str()), Some(2)),
         ),
     }
 }
