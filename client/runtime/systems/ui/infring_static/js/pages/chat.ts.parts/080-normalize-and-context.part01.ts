@@ -369,7 +369,14 @@
         this.dedupeAgentTrailFx(host);
         this._agentTrailSweepAt = now;
       }
-      if (this.pointerFxThemeMode() !== 'dark') { this.clearAgentTrailFx(host); return; }
+      var agentTrailDarkMode = this.pointerFxThemeMode() === 'dark';
+      if (!agentTrailDarkMode) {
+        var lightModeTrailNodes = host.querySelectorAll('.chat-pointer-trail-dot.chat-pointer-agent, .chat-pointer-trail-segment.chat-pointer-agent');
+        for (var ln = 0; ln < lightModeTrailNodes.length; ln++) {
+          this.clearPointerFxCleanupTimer(lightModeTrailNodes[ln]);
+          try { lightModeTrailNodes[ln].remove(); } catch(_) {}
+        }
+      }
       this.pruneAgentTrailFx(host);
       this.syncGridBackgroundOffset(host);
       var rect = host.getBoundingClientRect(), w = Number(rect.width || 0), h = Number(rect.height || 0);
@@ -414,6 +421,15 @@
       var fairyOwnerId = this.currentFairyOwnerId();
       this.ensureAgentTrailOrb(host, s.x, s.y);
       host.style.setProperty('--chat-agent-grid-active', '1'); host.style.setProperty('--chat-agent-grid-x', Math.round(s.x) + 'px'); host.style.setProperty('--chat-agent-grid-y', Math.round(s.y) + 'px');
+      if (!agentTrailDarkMode) {
+        this._agentTrailSeeded = false;
+        this._agentTrailLastDotAt = now;
+        if (s) {
+          s.trailX = s.x;
+          s.trailY = s.y;
+        }
+        return;
+      }
       var shouldSpawnTrail = (now - Number(this._agentTrailLastDotAt || 0)) >= 52;
       if (!this._agentTrailSeeded) {
         this.spawnPointerTrail(host, s.x, s.y, {

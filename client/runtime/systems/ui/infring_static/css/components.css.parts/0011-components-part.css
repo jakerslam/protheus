@@ -135,6 +135,8 @@ body[data-theme='dark'] .prompt-suggestion-chip {
   font-size: 12px;
   font-weight: 500;
   color: var(--text);
+  flex: 1 1 auto;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -150,6 +152,37 @@ body[data-theme='dark'] .prompt-suggestion-chip {
   align-items: center;
   gap: 6px;
   min-height: 18px;
+}
+
+.model-switcher-logo-slot {
+  flex: 0 0 auto;
+  width: 17px;
+  height: 17px;
+  border-radius: 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 1px solid transparent;
+  background: transparent;
+  user-select: none;
+}
+
+.model-switcher-logo-source {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  margin-left: 1px;
+}
+
+.model-switcher-logo-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
+  user-select: none;
 }
 
 .model-switcher-item-tools {

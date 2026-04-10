@@ -41,6 +41,9 @@
     chatSidebarHasOverflowAbove: false,
     chatSidebarHasOverflowBelow: false,
     _sidebarScrollIndicatorRaf: 0,
+    _chatSidebarFlipDurationMs: 240,
+    _chatSidebarFlipRaf: 0,
+    _chatSidebarLastSnapshot: null,
     _collapsedHoverSuppressedUntil: 0,
     _collapsedHoverNeedsPointerMove: false,
     _collapsedHoverPointerMovedAt: 0,
@@ -79,6 +82,14 @@
       } catch(_) {
         return defaults.slice();
       }
+    })(),
+    appsIconBottomRowColors: (() => {
+      var palette = ['#14b8a6', '#06b6d4', '#38bdf8', '#22c55e', '#f59e0b', '#ef4444', '#a855f7', '#f43f5e', '#64748b'];
+      var out = [];
+      for (var i = 0; i < 3; i += 1) {
+        out.push(palette[Math.floor(Math.random() * palette.length)]);
+      }
+      return out;
     })(),
     bottomDockDragId: '',
     bottomDockDragStartOrder: [],
@@ -119,6 +130,105 @@
     _navCurrentPage: '',
     _navHistoryAction: '',
     _navHistoryCap: 48,
+
+    appsIconBottomRowFill(index) {
+      var idx = Number(index);
+      if (!Number.isFinite(idx) || idx < 0) idx = 0;
+      idx = Math.floor(idx);
+      var colors = Array.isArray(this.appsIconBottomRowColors) ? this.appsIconBottomRowColors : [];
+      return String(colors[idx] || '#22c55e');
+    },
+
+    chatSidebarFlipDurationMs() {
+      var raw = Number(this._chatSidebarFlipDurationMs || 240);
+      if (!Number.isFinite(raw)) raw = 240;
+      return Math.max(120, Math.min(420, Math.round(raw)));
+    },
+
+    readChatSidebarSnapshot() {
+      var refs = this.$refs || {};
+      var nav = refs.sidebarNav;
+      if (!nav || typeof nav.querySelectorAll !== 'function') return null;
+      var nodes = nav.querySelectorAll('.nav-agent-row[data-agent-id]');
+      var rects = {};
+      var ids = [];
+      for (var i = 0; i < nodes.length; i += 1) {
+        var node = nodes[i];
+        if (!node) continue;
+        var id = String(node.getAttribute('data-agent-id') || '').trim();
+        if (!id || Object.prototype.hasOwnProperty.call(rects, id)) continue;
+        var rect = node.getBoundingClientRect();
+        rects[id] = {
+          left: Number(rect.left || 0),
+          top: Number(rect.top || 0)
+        };
+        ids.push(id);
+      }
+      return {
+        order: ids.join('|'),
+        scrollTop: Number(nav.scrollTop || 0),
+        rects: rects
+      };
+    },
+
+    animateChatSidebarFromSnapshot(snapshot) {
+      if (!snapshot || typeof snapshot !== 'object') return;
+      if (typeof requestAnimationFrame !== 'function') return;
+      var refs = this.$refs || {};
+      var nav = refs.sidebarNav;
+      if (!nav || typeof nav.querySelectorAll !== 'function') return;
+      var durationMs = this.chatSidebarFlipDurationMs();
+      requestAnimationFrame(function() {
+        var nodes = nav.querySelectorAll('.nav-agent-row[data-agent-id]');
+        for (var i = 0; i < nodes.length; i += 1) {
+          var node = nodes[i];
+          if (!node || (node.classList && node.classList.contains('dragging'))) continue;
+          var id = String(node.getAttribute('data-agent-id') || '').trim();
+          if (!id || !Object.prototype.hasOwnProperty.call(snapshot.rects || {}, id)) continue;
+          var from = snapshot.rects[id] || {};
+          var rect = node.getBoundingClientRect();
+          var dx = Number(from.left || 0) - Number(rect.left || 0);
+          var dy = Number(from.top || 0) - Number(rect.top || 0);
+          if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) continue;
+          node.style.transition = 'none';
+          node.style.transform = 'translate(' + Math.round(dx) + 'px,' + Math.round(dy) + 'px)';
+          void node.offsetHeight;
+          node.style.transition = 'transform ' + durationMs + 'ms var(--ease-smooth)';
+          node.style.transform = 'translate(0px, 0px)';
+          (function(el) {
+            window.setTimeout(function() {
+              if (!el.classList.contains('dragging')) {
+                el.style.transform = '';
+              }
+              el.style.transition = '';
+            }, durationMs + 24);
+          })(node);
+        }
+      });
+    },
+
+    maybeAnimateChatSidebarRows() {
+      if (String(this.chatSidebarDragAgentId || '').trim()) {
+        this._chatSidebarLastSnapshot = this.readChatSidebarSnapshot();
+        return;
+      }
+      if (this._chatSidebarFlipRaf) return;
+      var self = this;
+      this._chatSidebarFlipRaf = requestAnimationFrame(function() {
+        self._chatSidebarFlipRaf = 0;
+        var current = self.readChatSidebarSnapshot();
+        if (!current) {
+          self._chatSidebarLastSnapshot = null;
+          return;
+        }
+        var previous = self._chatSidebarLastSnapshot;
+        self._chatSidebarLastSnapshot = current;
+        if (!previous) return;
+        if (Math.abs(Number(current.scrollTop || 0) - Number(previous.scrollTop || 0)) > 1) return;
+        if (String(current.order || '') === String(previous.order || '')) return;
+        self.animateChatSidebarFromSnapshot(previous);
+      });
+    },
 
     cleanupBottomDockDragGhost() {
       if (this._bottomDockGhostRaf && typeof cancelAnimationFrame === 'function') {

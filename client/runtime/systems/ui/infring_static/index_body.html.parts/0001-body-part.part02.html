@@ -333,11 +333,16 @@
         aria-label="Apps"
         :aria-current="['channels','eyes','skills','hands'].indexOf(page) >= 0 ? 'page' : false"
       >
-        <svg class="apps-icon-quad" viewBox="0 0 24 24" aria-hidden="true">
-          <rect x="4" y="4" width="7" height="7" rx="1.6" fill="#f59e0b" stroke="none"></rect>
-          <rect x="13" y="4" width="7" height="7" rx="1.6" fill="#ec4899" stroke="none"></rect>
-          <rect x="4" y="13" width="7" height="7" rx="1.6" fill="#a855f7" stroke="none"></rect>
-          <rect x="13" y="13" width="7" height="7" rx="1.6" fill="#3b82f6" stroke="none"></rect>
+        <svg class="apps-icon-grid" viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="3" y="3" width="5" height="5" rx="1.1" fill="#f59e0b" stroke="none"></rect>
+          <rect x="10" y="3" width="5" height="5" rx="1.1" fill="#ec4899" stroke="none"></rect>
+          <rect x="17" y="3" width="5" height="5" rx="1.1" fill="#14b8a6" stroke="none"></rect>
+          <rect x="3" y="10" width="5" height="5" rx="1.1" fill="#a855f7" stroke="none"></rect>
+          <rect x="10" y="10" width="5" height="5" rx="1.1" fill="#3b82f6" stroke="none"></rect>
+          <rect x="17" y="10" width="5" height="5" rx="1.1" fill="#64748b" stroke="none"></rect>
+          <rect x="3" y="17" width="5" height="5" rx="1.1" :fill="appsIconBottomRowFill(0)" stroke="none"></rect>
+          <rect x="10" y="17" width="5" height="5" rx="1.1" :fill="appsIconBottomRowFill(1)" stroke="none"></rect>
+          <rect x="17" y="17" width="5" height="5" rx="1.1" :fill="appsIconBottomRowFill(2)" stroke="none"></rect>
         </svg>
       </button>
       <button
