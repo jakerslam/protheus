@@ -4,66 +4,6 @@ fn usage() {
     println!("  protheus-ops session-command-discovery-kernel classify-text [--payload=<json>|--payload-base64=<json>]");
 }
 
-fn print_json_line(value: &Value) {
-    println!(
-        "{}",
-        serde_json::to_string(value)
-            .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
-    );
-}
-
-fn cli_receipt(kind: &str, payload: Value) -> Value {
-    let ts = now_iso();
-    let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(true);
-    let mut out = json!({
-        "ok": ok,
-        "type": kind,
-        "ts": ts,
-        "date": ts[..10].to_string(),
-        "payload": payload
-    });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
-    out
-}
-
-fn cli_error(kind: &str, error: &str) -> Value {
-    let ts = now_iso();
-    let mut out = json!({
-        "ok": false,
-        "type": kind,
-        "ts": ts,
-        "date": ts[..10].to_string(),
-        "error": error,
-        "fail_closed": true
-    });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
-    out
-}
-
-fn payload_json(argv: &[String]) -> Result<Value, String> {
-    if let Some(raw) = lane_utils::parse_flag(argv, "payload", false) {
-        return serde_json::from_str::<Value>(&raw)
-            .map_err(|err| format!("session_command_discovery_payload_decode_failed:{err}"));
-    }
-    if let Some(raw_b64) = lane_utils::parse_flag(argv, "payload-base64", false) {
-        let bytes = BASE64_STANDARD.decode(raw_b64.as_bytes()).map_err(|err| {
-            format!("session_command_discovery_payload_base64_decode_failed:{err}")
-        })?;
-        let text = String::from_utf8(bytes)
-            .map_err(|err| format!("session_command_discovery_payload_utf8_decode_failed:{err}"))?;
-        return serde_json::from_str::<Value>(&text)
-            .map_err(|err| format!("session_command_discovery_payload_decode_failed:{err}"));
-    }
-    Ok(json!({}))
-}
-
-fn payload_obj<'a>(value: &'a Value) -> &'a Map<String, Value> {
-    value.as_object().unwrap_or_else(|| {
-        static EMPTY: OnceLock<Map<String, Value>> = OnceLock::new();
-        EMPTY.get_or_init(Map::new)
-    })
-}
-
 fn command_list_from_payload(payload: &Map<String, Value>) -> Vec<String> {
     let mut out = Vec::<String>::new();
     if let Some(commands) = payload.get("commands").and_then(Value::as_array) {
@@ -100,37 +40,37 @@ pub fn run(_root: &std::path::Path, argv: &[String]) -> i32 {
         usage();
         return 0;
     }
-    let payload = match payload_json(&argv[1..]) {
+    let payload = match lane_utils::payload_json(&argv[1..], "session_command_discovery") {
         Ok(payload) => payload,
         Err(err) => {
-            print_json_line(&cli_error("session_command_discovery_kernel_error", &err));
+            lane_utils::print_json_line(&lane_utils::cli_error("session_command_discovery_kernel_error", &err));
             return 1;
         }
     };
-    let input = payload_obj(&payload);
+    let input = lane_utils::payload_obj(&payload);
     let limit = input.get("limit").and_then(Value::as_u64).unwrap_or(12) as usize;
     let result = match command.as_str() {
         "classify" => {
             let commands = command_list_from_payload(input);
-            cli_receipt(
+            lane_utils::cli_receipt(
                 "session_command_discovery_kernel_classify",
                 classify_command_list(&commands, limit),
             )
         }
         "classify-text" => {
             let commands = command_list_from_text(input);
-            cli_receipt(
+            lane_utils::cli_receipt(
                 "session_command_discovery_kernel_classify_text",
                 classify_command_list(&commands, limit),
             )
         }
-        _ => cli_error(
+        _ => lane_utils::cli_error(
             "session_command_discovery_kernel_error",
             "session_command_discovery_kernel_unknown_command",
         ),
     };
     let ok = result.get("ok").and_then(Value::as_bool).unwrap_or(false);
-    print_json_line(&result);
+    lane_utils::print_json_line(&result);
     if ok {
         0
     } else {
