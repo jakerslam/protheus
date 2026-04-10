@@ -1,3 +1,23 @@
+fn invalid_payload(kind: &str, reason: &str) -> Value {
+    json!({
+        "ok": false,
+        "type": kind,
+        "reason": reason
+    })
+}
+
+fn parse_or_invalid(stdout: &str, kind: &str, reason: &str) -> Value {
+    parse_json_payload(stdout).unwrap_or_else(|| invalid_payload(kind, reason))
+}
+
+fn ensure_object_payload(payload: Value, kind: &str, reason: &str) -> Value {
+    if payload.is_object() {
+        payload
+    } else {
+        invalid_payload(kind, reason)
+    }
+}
+
 fn run_memory_command(
     root: &Path,
     memory_command: &str,
@@ -20,13 +40,11 @@ fn run_memory_command(
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
     let exit_code = output.status.code().unwrap_or(1);
 
-    let payload = parse_json_payload(&stdout).unwrap_or_else(|| {
-        json!({
-            "ok": false,
-            "type": "memory_cli_invalid_payload",
-            "reason": "memory_cli_invalid_json"
-        })
-    });
+    let payload = parse_or_invalid(
+        &stdout,
+        "memory_cli_invalid_payload",
+        "memory_cli_invalid_json",
+    );
 
     let command_info = json!({
         "binary": command,
@@ -160,21 +178,15 @@ fn enqueue_attention(
 
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-    let mut receipt = parse_json_payload(&stdout).unwrap_or_else(|| {
-        json!({
-            "ok": false,
-            "type": "attention_queue_enqueue_error",
-            "reason": "attention_queue_invalid_payload"
-        })
-    });
-
-    if !receipt.is_object() {
-        receipt = json!({
-            "ok": false,
-            "type": "attention_queue_enqueue_error",
-            "reason": "attention_queue_invalid_payload"
-        });
-    }
+    let mut receipt = ensure_object_payload(
+        parse_or_invalid(
+            &stdout,
+            "attention_queue_enqueue_error",
+            "attention_queue_invalid_payload",
+        ),
+        "attention_queue_enqueue_error",
+        "attention_queue_invalid_payload",
+    );
     receipt["bridge_exit_code"] = Value::Number((output.status.code().unwrap_or(1) as i64).into());
     if !stderr.trim().is_empty() {
         receipt["bridge_stderr"] = Value::String(clean_text(Some(&stderr), 280));
@@ -326,4 +338,3 @@ fn cryonics_compat_receipt(
     out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
     out
 }
-

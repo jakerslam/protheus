@@ -1,3 +1,28 @@
+fn spawn_test_session_id(
+    state: &mut SwarmState,
+    task: &str,
+    role: &str,
+    capabilities: &[&str],
+    options: &SpawnOptions,
+    missing_error: &str,
+) -> Result<String, String> {
+    spawn_single(
+        state,
+        None,
+        task,
+        8,
+        &SpawnOptions {
+            role: Some(role.to_string()),
+            capabilities: capabilities.iter().map(|row| (*row).to_string()).collect(),
+            ..options.clone()
+        },
+    )?
+    .get("session_id")
+    .and_then(Value::as_str)
+    .map(ToString::to_string)
+    .ok_or_else(|| missing_error.to_string())
+}
+
 fn run_test_communication(state: &mut SwarmState, argv: &[String]) -> Result<Value, String> {
     let delivery = DeliveryGuarantee::from_flag(parse_flag(argv, "delivery"));
     let options = SpawnOptions {
@@ -22,66 +47,38 @@ fn run_test_communication(state: &mut SwarmState, argv: &[String]) -> Result<Val
         verification_status: "not_verified".to_string(),
     };
 
-    let generator_id = spawn_single(
+    let generator_id = spawn_test_session_id(
         state,
-        None,
         "swarm-test-6-generator",
-        8,
-        &SpawnOptions {
-            role: Some("generator".to_string()),
-            capabilities: vec!["generate".to_string(), "relay".to_string()],
-            ..options.clone()
-        },
-    )?
-    .get("session_id")
-    .and_then(Value::as_str)
-    .ok_or_else(|| "generator_session_id_missing".to_string())?
-    .to_string();
-    let filter_id = spawn_single(
+        "generator",
+        &["generate", "relay"],
+        &options,
+        "generator_session_id_missing",
+    )?;
+    let filter_id = spawn_test_session_id(
         state,
-        None,
         "swarm-test-6-filter",
-        8,
-        &SpawnOptions {
-            role: Some("filter".to_string()),
-            capabilities: vec!["filter".to_string()],
-            ..options.clone()
-        },
-    )?
-    .get("session_id")
-    .and_then(Value::as_str)
-    .ok_or_else(|| "filter_session_id_missing".to_string())?
-    .to_string();
-    let summarizer_id = spawn_single(
+        "filter",
+        &["filter"],
+        &options,
+        "filter_session_id_missing",
+    )?;
+    let summarizer_id = spawn_test_session_id(
         state,
-        None,
         "swarm-test-6-summarizer",
-        8,
-        &SpawnOptions {
-            role: Some("summarizer".to_string()),
-            capabilities: vec!["summarize".to_string()],
-            ..options.clone()
-        },
-    )?
-    .get("session_id")
-    .and_then(Value::as_str)
-    .ok_or_else(|| "summarizer_session_id_missing".to_string())?
-    .to_string();
-    let validator_id = spawn_single(
+        "summarizer",
+        &["summarize"],
+        &options,
+        "summarizer_session_id_missing",
+    )?;
+    let validator_id = spawn_test_session_id(
         state,
-        None,
         "swarm-test-6-validator",
-        8,
-        &SpawnOptions {
-            role: Some("validator".to_string()),
-            capabilities: vec!["validate".to_string()],
-            ..options
-        },
-    )?
-    .get("session_id")
-    .and_then(Value::as_str)
-    .ok_or_else(|| "validator_session_id_missing".to_string())?
-    .to_string();
+        "validator",
+        &["validate"],
+        &options,
+        "validator_session_id_missing",
+    )?;
 
     let top_10 = vec![
         "Write clear, self-documenting code",
