@@ -56,9 +56,10 @@ fn normalize_lens(raw: Option<&str>) -> Option<String> {
 
 fn normalize_lens_list(valid_lenses: &[&str]) -> Vec<String> {
     let mut out = Vec::new();
+    let mut seen = std::collections::HashSet::new();
     for raw in valid_lenses {
         let norm = normalize_token(raw, 64);
-        if norm.is_empty() || out.contains(&norm) {
+        if norm.is_empty() || !seen.insert(norm.clone()) {
             continue;
         }
         out.push(norm);
@@ -90,29 +91,31 @@ fn make_decision(
     fallback_used: bool,
 ) -> PersonaDispatchGateDecision {
     let normalized_script = normalize_token(script_rel, 300);
-    let requested_lens_token = requested_lens.clone().unwrap_or_else(|| "none".to_string());
-    let selected_lens_token = selected_lens.clone().unwrap_or_else(|| "none".to_string());
+    let requested_lens_token = requested_lens.as_deref().unwrap_or("none");
+    let selected_lens_token = selected_lens.as_deref().unwrap_or("none");
     let deterministic_key = format!(
         "{CHECK_ID}|{}|{code}|{normalized_script}|{requested_lens_token}|{selected_lens_token}|{}",
         if ok { 1 } else { 0 },
         if fallback_used { 1 } else { 0 }
     );
 
+    let envelope = PersonaDispatchEnvelope {
+        schema_id: RECEIPT_SCHEMA_ID,
+        check_id: CHECK_ID,
+        ok,
+        code,
+        script_rel: normalized_script,
+        requested_lens: requested_lens.clone(),
+        selected_lens: selected_lens.clone(),
+        fallback_used,
+        deterministic_key,
+    };
+
     PersonaDispatchGateDecision {
         ok,
         code,
-        selected_lens: selected_lens.clone(),
-        envelope: PersonaDispatchEnvelope {
-            schema_id: RECEIPT_SCHEMA_ID,
-            check_id: CHECK_ID,
-            ok,
-            code,
-            script_rel: normalized_script,
-            requested_lens,
-            selected_lens,
-            fallback_used,
-            deterministic_key,
-        },
+        selected_lens,
+        envelope,
     }
 }
 

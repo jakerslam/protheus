@@ -1,3 +1,46 @@
+fn task_group_desired_agent_count(map: &Map<String, Value>) -> i64 {
+    map.get("agent_count")
+        .and_then(Value::as_i64)
+        .or_else(|| map.get("agent_count").and_then(Value::as_u64).map(|v| v as i64))
+        .unwrap_or(1)
+        .max(1)
+}
+
+fn normalize_task_group_shape(
+    map: &mut Map<String, Value>,
+    task_group_id: Option<&str>,
+) -> Result<(), String> {
+    map.insert(
+        "schema_version".to_string(),
+        Value::String(TASKGROUP_SCHEMA_VERSION.to_string()),
+    );
+    if let Some(id) = task_group_id {
+        map.insert(
+            "task_group_id".to_string(),
+            Value::String(id.trim().to_ascii_lowercase()),
+        );
+    }
+
+    let agents_source = map
+        .get("agents")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let agents = normalize_agents(&agents_source, task_group_desired_agent_count(map))?;
+    let normalized_agent_count = agents.len() as i64;
+    map.insert("agents".to_string(), Value::Array(agents));
+    map.insert(
+        "agent_count".to_string(),
+        Value::Number(serde_json::Number::from(normalized_agent_count)),
+    );
+    if !map.get("history").map(Value::is_array).unwrap_or(false) {
+        map.insert("history".to_string(), Value::Array(Vec::new()));
+    }
+    let status = derive_group_status(&Value::Object(map.clone()));
+    map.insert("status".to_string(), Value::String(status));
+    Ok(())
+}
+
 fn load_task_group(
     root: &Path,
     task_group_id: &str,
@@ -21,45 +64,7 @@ fn load_task_group(
     }
 
     if let Value::Object(map) = &mut parsed {
-        map.insert(
-            "schema_version".to_string(),
-            Value::String(TASKGROUP_SCHEMA_VERSION.to_string()),
-        );
-        map.insert(
-            "task_group_id".to_string(),
-            Value::String(task_group_id.trim().to_ascii_lowercase()),
-        );
-        let agents_source = map
-            .get("agents")
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default();
-        let agent_count = map
-            .get("agent_count")
-            .and_then(Value::as_i64)
-            .or_else(|| {
-                map.get("agent_count")
-                    .and_then(Value::as_u64)
-                    .map(|v| v as i64)
-            })
-            .unwrap_or(1)
-            .max(1);
-        let agents = normalize_agents(&agents_source, agent_count)?;
-        map.insert("agents".to_string(), Value::Array(agents));
-        let normalized_agent_count = map
-            .get("agents")
-            .and_then(Value::as_array)
-            .map(|rows| rows.len() as i64)
-            .unwrap_or(1);
-        map.insert(
-            "agent_count".to_string(),
-            Value::Number(serde_json::Number::from(normalized_agent_count)),
-        );
-        if !map.get("history").map(Value::is_array).unwrap_or(false) {
-            map.insert("history".to_string(), Value::Array(Vec::new()));
-        }
-        let status = derive_group_status(&Value::Object(map.clone()));
-        map.insert("status".to_string(), Value::String(status));
+        normalize_task_group_shape(map, Some(task_group_id))?;
     }
 
     Ok(LoadedTaskGroup {
@@ -92,54 +97,16 @@ fn save_task_group(root: &Path, task_group: &Value, root_dir: Option<&str>) -> V
 
     let mut next = task_group.clone();
     if let Value::Object(map) = &mut next {
-        map.insert(
-            "schema_version".to_string(),
-            Value::String(TASKGROUP_SCHEMA_VERSION.to_string()),
-        );
-
-        let agents_source = map
-            .get("agents")
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default();
-        let desired = map
-            .get("agent_count")
-            .and_then(Value::as_i64)
-            .or_else(|| {
-                map.get("agent_count")
-                    .and_then(Value::as_u64)
-                    .map(|v| v as i64)
-            })
-            .unwrap_or(1)
-            .max(1);
-        let agents = match normalize_agents(&agents_source, desired) {
-            Ok(rows) => rows,
-            Err(err) => {
-                return json!({
-                    "ok": false,
-                    "type": "orchestration_taskgroup_save",
-                    "reason_code": err
-                });
-            }
-        };
-        map.insert("agents".to_string(), Value::Array(agents));
-        let count = map
-            .get("agents")
-            .and_then(Value::as_array)
-            .map(|rows| rows.len() as i64)
-            .unwrap_or(1);
-        map.insert(
-            "agent_count".to_string(),
-            Value::Number(serde_json::Number::from(count)),
-        );
-        let status = derive_group_status(&Value::Object(map.clone()));
-        map.insert("status".to_string(), Value::String(status));
+        if let Err(err) = normalize_task_group_shape(map, None) {
+            return json!({
+                "ok": false,
+                "type": "orchestration_taskgroup_save",
+                "reason_code": err
+            });
+        }
         map.insert("updated_at".to_string(), Value::String(now_iso()));
         if to_clean_string(map.get("created_at")).is_empty() {
             map.insert("created_at".to_string(), Value::String(now_iso()));
-        }
-        if !map.get("history").map(Value::is_array).unwrap_or(false) {
-            map.insert("history".to_string(), Value::Array(Vec::new()));
         }
     }
 
@@ -454,4 +421,3 @@ fn should_checkpoint(state: &Value, metrics: &Value, options: &Value) -> bool {
     let time_delta = now_ms - last_now_ms;
     item_delta >= item_interval || time_delta >= time_interval_ms
 }
-
