@@ -43,8 +43,8 @@ fn importer_generic_json_empty_key_falls_back_to_record_prefix() {
 
 #[test]
 fn importer_generic_json_non_object_payload_is_empty() {
-    let out =
-        run_importer_generic_json_json("[]").expect("importer_generic_json_json should return output");
+    let out = run_importer_generic_json_json("[]")
+        .expect("importer_generic_json_json should return output");
     let parsed: Value = serde_json::from_str(&out).expect("valid json output");
     assert_eq!(parsed["ok"], true);
     assert_eq!(parsed["payload"]["source_item_count"], 0);
@@ -71,8 +71,9 @@ fn parse_simple_yaml_text_maps_scalar_values() {
 #[test]
 fn importer_generic_yaml_string_payload_routes_to_generic_json_mapping() {
     let payload = "enabled: true\nretries: 3\n";
-    let out = run_importer_generic_yaml_json(&serde_json::to_string(payload).expect("serialize payload"))
-        .expect("importer_generic_yaml_json should return output");
+    let out =
+        run_importer_generic_yaml_json(&serde_json::to_string(payload).expect("serialize payload"))
+            .expect("importer_generic_yaml_json should return output");
     let parsed: Value = serde_json::from_str(&out).expect("valid json output");
     assert_eq!(parsed["ok"], true);
     assert_eq!(parsed["payload"]["source_item_count"], 2);
@@ -108,8 +109,14 @@ fn importer_infring_maps_named_rows() {
     assert_eq!(parsed["payload"]["source_item_count"], 4);
     assert_eq!(parsed["payload"]["mapped_item_count"], 4);
     assert_eq!(parsed["payload"]["entities"]["agents"][0]["id"], "planner");
-    assert_eq!(parsed["payload"]["entities"]["tasks"][0]["id"], "task_alpha");
-    assert_eq!(parsed["payload"]["entities"]["workflows"][0]["id"], "primaryflow");
+    assert_eq!(
+        parsed["payload"]["entities"]["tasks"][0]["id"],
+        "task_alpha"
+    );
+    assert_eq!(
+        parsed["payload"]["entities"]["workflows"][0]["id"],
+        "primaryflow"
+    );
     assert_eq!(parsed["payload"]["entities"]["tools"][0]["id"], "search");
 }
 
@@ -135,7 +142,10 @@ fn importer_workflow_graph_maps_nodes_and_edges() {
     assert_eq!(parsed["payload"]["source_item_count"], 3);
     assert_eq!(parsed["payload"]["mapped_item_count"], 3);
     assert_eq!(parsed["payload"]["entities"]["workflows"][0]["id"], "a");
-    assert_eq!(parsed["payload"]["entities"]["workflows"][0]["edges_out"], 1);
+    assert_eq!(
+        parsed["payload"]["entities"]["workflows"][0]["edges_out"],
+        1
+    );
     assert_eq!(parsed["payload"]["entities"]["records"][0]["id"], "edge_1");
 }
 
