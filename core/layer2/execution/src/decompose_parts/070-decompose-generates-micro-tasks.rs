@@ -1,6 +1,23 @@
 #[cfg(test)]
 mod tests {
     use super::*;
+    const HABIT_ENTRYPOINT: &str = "/repo/client/cognition/habits/scripts/run_habit.js";
+
+    fn habit(id: &str) -> RouteMatchHabit {
+        RouteMatchHabit { id: id.to_string() }
+    }
+
+    fn reflex(id: &str, status: &str, tags: &[&str]) -> RouteReflexRoutine {
+        RouteReflexRoutine {
+            id: id.to_string(),
+            status: status.to_string(),
+            tags: tags.iter().map(|tag| (*tag).to_string()).collect(),
+        }
+    }
+
+    fn trusted_entrypoints() -> Vec<String> {
+        vec![HABIT_ENTRYPOINT.to_string()]
+    }
 
     #[test]
     fn decompose_generates_micro_tasks() {
@@ -184,14 +201,7 @@ mod tests {
         let req = RouteMatchRequest {
             intent_key: "security_scan".to_string(),
             skip_habit_id: String::new(),
-            habits: vec![
-                RouteMatchHabit {
-                    id: "daily_ops".to_string(),
-                },
-                RouteMatchHabit {
-                    id: "security_scan".to_string(),
-                },
-            ],
+            habits: vec![habit("daily_ops"), habit("security_scan")],
         };
         let out = evaluate_route_match(&req);
         assert_eq!(out.matched_habit_id, Some("security_scan".to_string()));
@@ -203,9 +213,7 @@ mod tests {
         let req = RouteMatchRequest {
             intent_key: "please_run_daily_ops_now".to_string(),
             skip_habit_id: String::new(),
-            habits: vec![RouteMatchHabit {
-                id: "daily_ops".to_string(),
-            }],
+            habits: vec![habit("daily_ops")],
         };
         let out = evaluate_route_match(&req);
         assert_eq!(out.matched_habit_id, Some("daily_ops".to_string()));
@@ -217,9 +225,7 @@ mod tests {
         let req = RouteMatchRequest {
             intent_key: "daily_ops".to_string(),
             skip_habit_id: "daily_ops".to_string(),
-            habits: vec![RouteMatchHabit {
-                id: "daily_ops".to_string(),
-            }],
+            habits: vec![habit("daily_ops")],
         };
         let out = evaluate_route_match(&req);
         assert_eq!(out.matched_habit_id, None);
@@ -232,16 +238,8 @@ mod tests {
             intent_key: "nightly_backup".to_string(),
             task_text: "backup database now".to_string(),
             routines: vec![
-                RouteReflexRoutine {
-                    id: "database_repair".to_string(),
-                    status: "enabled".to_string(),
-                    tags: vec!["repair".to_string()],
-                },
-                RouteReflexRoutine {
-                    id: "nightly_backup".to_string(),
-                    status: "enabled".to_string(),
-                    tags: vec!["backup".to_string()],
-                },
+                reflex("database_repair", "enabled", &["repair"]),
+                reflex("nightly_backup", "enabled", &["backup"]),
             ],
         };
         let out = evaluate_route_reflex_match(&req);
@@ -255,16 +253,8 @@ mod tests {
             intent_key: "unrelated_key".to_string(),
             task_text: "run emergency drift remediation playbook".to_string(),
             routines: vec![
-                RouteReflexRoutine {
-                    id: "drift_guard".to_string(),
-                    status: "enabled".to_string(),
-                    tags: vec!["drift".to_string(), "remediation".to_string()],
-                },
-                RouteReflexRoutine {
-                    id: "nightly_backup".to_string(),
-                    status: "disabled".to_string(),
-                    tags: vec!["backup".to_string()],
-                },
+                reflex("drift_guard", "enabled", &["drift", "remediation"]),
+                reflex("nightly_backup", "disabled", &["backup"]),
             ],
         };
         let out = evaluate_route_reflex_match(&req);
@@ -310,19 +300,8 @@ mod tests {
             repeats_14d: 3,
             errors_30d: 0,
             skip_habit_id: String::new(),
-            habits: vec![
-                RouteMatchHabit {
-                    id: "nightly_backup".to_string(),
-                },
-                RouteMatchHabit {
-                    id: "daily_ops".to_string(),
-                },
-            ],
-            reflex_routines: vec![RouteReflexRoutine {
-                id: "drift_guard".to_string(),
-                status: "enabled".to_string(),
-                tags: vec!["drift".to_string(), "remediation".to_string()],
-            }],
+            habits: vec![habit("nightly_backup"), habit("daily_ops")],
+            reflex_routines: vec![reflex("drift_guard", "enabled", &["drift", "remediation"])],
         };
         let out = evaluate_route(&req);
         assert!(out.ok);
@@ -405,10 +384,8 @@ mod tests {
     fn route_habit_readiness_reports_required_inputs() {
         let out = evaluate_route_habit_readiness(&RouteHabitReadinessRequest {
             habit_state: "active".to_string(),
-            entrypoint_resolved: "/repo/client/cognition/habits/scripts/run_habit.js".to_string(),
-            trusted_entrypoints: vec![
-                "/repo/client/cognition/habits/scripts/run_habit.js".to_string()
-            ],
+            entrypoint_resolved: HABIT_ENTRYPOINT.to_string(),
+            trusted_entrypoints: trusted_entrypoints(),
             required_inputs: vec!["user_id".to_string(), "scope".to_string()],
         });
         assert_eq!(out.state, "active");
@@ -422,9 +399,7 @@ mod tests {
         let out = evaluate_route_habit_readiness(&RouteHabitReadinessRequest {
             habit_state: "candidate".to_string(),
             entrypoint_resolved: "/repo/client/cognition/habits/scripts/untrusted.js".to_string(),
-            trusted_entrypoints: vec![
-                "/repo/client/cognition/habits/scripts/run_habit.js".to_string()
-            ],
+            trusted_entrypoints: trusted_entrypoints(),
             required_inputs: vec![],
         });
         assert_eq!(out.state, "candidate");
@@ -437,10 +412,8 @@ mod tests {
     fn route_habit_readiness_reports_runnable_active() {
         let out = evaluate_route_habit_readiness(&RouteHabitReadinessRequest {
             habit_state: "active".to_string(),
-            entrypoint_resolved: "/repo/client/cognition/habits/scripts/run_habit.js".to_string(),
-            trusted_entrypoints: vec![
-                "/repo/client/cognition/habits/scripts/run_habit.js".to_string()
-            ],
+            entrypoint_resolved: HABIT_ENTRYPOINT.to_string(),
+            trusted_entrypoints: trusted_entrypoints(),
             required_inputs: vec![],
         });
         assert_eq!(out.state, "active");
