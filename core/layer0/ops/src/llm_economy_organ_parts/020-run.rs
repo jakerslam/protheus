@@ -1,3 +1,15 @@
+fn emit_with_receipt(out: &mut Value) {
+    out["receipt_hash"] = Value::String(deterministic_receipt_hash(out));
+    print_receipt(out);
+}
+
+fn persist_and_emit_with_receipt(latest: &Path, history: &Path, out: &mut Value) {
+    out["receipt_hash"] = Value::String(deterministic_receipt_hash(out));
+    write_json(latest, out);
+    append_jsonl(history, out);
+    print_receipt(out);
+}
+
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     let parsed = parse_args(argv);
     let command = parsed
@@ -47,10 +59,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "errors": ["conduit_bypass_rejected"],
                 "conduit_enforcement": conduit
             });
-            out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
-            write_json(&latest, &out);
-            append_jsonl(&history, &out);
-            print_receipt(&out);
+            persist_and_emit_with_receipt(&latest, &history, &mut out);
             return 1;
         }
     }
@@ -67,8 +76,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "sha256": deterministic_receipt_hash(&contract)
             }
         });
-        out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
-        print_receipt(&out);
+        emit_with_receipt(&mut out);
         return 0;
     }
 
@@ -102,10 +110,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 }
             ]
         });
-        out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
-        write_json(&latest, &out);
-        append_jsonl(&history, &out);
-        print_receipt(&out);
+        persist_and_emit_with_receipt(&latest, &history, &mut out);
         return 0;
     }
 
@@ -236,10 +241,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 }
             ]
         });
-        out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
-        write_json(&latest, &out);
-        append_jsonl(&history, &out);
-        print_receipt(&out);
+        persist_and_emit_with_receipt(&latest, &history, &mut out);
         return 0;
     }
 
@@ -290,10 +292,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 }
             ]
         });
-        out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
-        write_json(&latest, &out);
-        append_jsonl(&history, &out);
-        print_receipt(&out);
+        persist_and_emit_with_receipt(&latest, &history, &mut out);
         return 0;
     }
 
@@ -904,9 +903,6 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "capital": clean(parsed.flags.get("capital").cloned().unwrap_or_default(), 120)
         }
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
-    write_json(&latest, &out);
-    append_jsonl(&history, &out);
-    print_receipt(&out);
+    persist_and_emit_with_receipt(&latest, &history, &mut out);
     0
 }
