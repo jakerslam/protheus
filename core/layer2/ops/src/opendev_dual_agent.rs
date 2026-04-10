@@ -1,6 +1,6 @@
 // Layer ownership: core/layer2/ops (authoritative)
 // SPDX-License-Identifier: Apache-2.0
-use crate::ops_lane_runtime::{run_lane, LaneSpec};
+use crate::ops_lane_runtime::{run_lane, standard_lane_spec};
 use std::path::Path;
 
 const USAGE: &[&str] = &[
@@ -12,12 +12,11 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     run_lane(
         root,
         argv,
-        &LaneSpec {
-            lane_id: "opendev_dual_agent",
-            lane_type: "opendev_dual_agent",
-            replacement: "protheus-ops opendev-dual-agent",
-            usage: USAGE,
-            passthrough_flags: &["strict", "policy", "state-path"],
-        },
+        &standard_lane_spec(
+            "opendev_dual_agent",
+            "opendev_dual_agent",
+            "protheus-ops opendev-dual-agent",
+            USAGE,
+        ),
     )
 }
