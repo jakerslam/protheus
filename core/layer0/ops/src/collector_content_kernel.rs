@@ -209,6 +209,45 @@ fn topics_from_payload(payload: &Map<String, Value>) -> Vec<Value> {
         .unwrap_or_default()
 }
 
+fn seen_ids_from_payload(payload: &Map<String, Value>) -> HashSet<String> {
+    payload
+        .get("seen_ids")
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter()
+                .filter_map(Value::as_str)
+                .map(|v| clean_text(Some(v), 120))
+                .filter(|s| !s.is_empty())
+                .collect::<HashSet<_>>()
+        })
+        .unwrap_or_default()
+}
+
+fn finalize_seen_ids(mut seen: HashSet<String>) -> Vec<String> {
+    let mut seen_ids = seen.drain().collect::<Vec<_>>();
+    seen_ids.sort();
+    if seen_ids.len() > 2000 {
+        let drop_count = seen_ids.len() - 2000;
+        seen_ids.drain(0..drop_count);
+    }
+    seen_ids
+}
+
+fn value_topics(raw: Option<&Value>, fallback: &[Value]) -> Vec<Value> {
+    raw.and_then(Value::as_array)
+        .map(|topics| {
+            topics
+                .iter()
+                .filter_map(Value::as_str)
+                .map(|topic| Value::String(clean_text(Some(topic), 80)))
+                .filter(|topic| topic.as_str().map(|v| !v.is_empty()).unwrap_or(false))
+                .take(8)
+                .collect::<Vec<_>>()
+        })
+        .filter(|topics| !topics.is_empty())
+        .unwrap_or_else(|| fallback.to_vec())
+}
+
 fn tags_for_row(row: &Map<String, Value>, collector_id: &str) -> Vec<Value> {
     let from_row = row
         .get("tags")
@@ -252,17 +291,7 @@ fn map_feed_items(payload: &Map<String, Value>) -> Value {
             }
         });
 
-    let mut seen: HashSet<String> = payload
-        .get("seen_ids")
-        .and_then(Value::as_array)
-        .map(|rows| {
-            rows.iter()
-                .filter_map(Value::as_str)
-                .map(|v| clean_text(Some(v), 120))
-                .filter(|s| !s.is_empty())
-                .collect::<HashSet<_>>()
-        })
-        .unwrap_or_default();
+    let mut seen = seen_ids_from_payload(payload);
 
     let mut items = Vec::<Value>::new();
     for entry in entries {
@@ -305,18 +334,11 @@ fn map_feed_items(payload: &Map<String, Value>) -> Value {
         }));
     }
 
-    let mut seen_ids = seen.into_iter().collect::<Vec<_>>();
-    seen_ids.sort();
-    if seen_ids.len() > 2000 {
-        let drop_count = seen_ids.len() - 2000;
-        seen_ids.drain(0..drop_count);
-    }
-
     json!({
         "ok": true,
         "collector_id": collector_id,
         "items": items,
-        "seen_ids": seen_ids,
+        "seen_ids": finalize_seen_ids(seen),
     })
 }
 
@@ -330,18 +352,7 @@ fn map_json_items(payload: &Map<String, Value>) -> Value {
     let max_items = clamp_u64(payload, "max_items", 20, 1, 200) as usize;
     let default_topics = topics_from_payload(payload);
 
-    let mut seen: HashSet<String> = payload
-        .get("seen_ids")
-        .and_then(Value::as_array)
-        .map(|items| {
-            items
-                .iter()
-                .filter_map(Value::as_str)
-                .map(|v| clean_text(Some(v), 120))
-                .filter(|v| !v.is_empty())
-                .collect::<HashSet<_>>()
-        })
-        .unwrap_or_default();
+    let mut seen = seen_ids_from_payload(payload);
 
     let mut out = Vec::<Value>::new();
     for row in rows {
@@ -365,20 +376,7 @@ fn map_json_items(payload: &Map<String, Value>) -> Value {
 
         let signal = obj.get("signal").and_then(Value::as_bool).unwrap_or(false);
         let signal_type = clean_text(obj.get("signal_type").and_then(Value::as_str), 80);
-        let topics = obj
-            .get("topics")
-            .and_then(Value::as_array)
-            .map(|topics| {
-                topics
-                    .iter()
-                    .filter_map(Value::as_str)
-                    .map(|topic| Value::String(clean_text(Some(topic), 80)))
-                    .filter(|topic| topic.as_str().map(|v| !v.is_empty()).unwrap_or(false))
-                    .take(8)
-                    .collect::<Vec<_>>()
-            })
-            .filter(|topics| !topics.is_empty())
-            .unwrap_or_else(|| default_topics.clone());
+        let topics = value_topics(obj.get("topics"), &default_topics);
 
         out.push(json!({
             "id": id,
@@ -400,18 +398,11 @@ fn map_json_items(payload: &Map<String, Value>) -> Value {
         }));
     }
 
-    let mut seen_ids = seen.into_iter().collect::<Vec<_>>();
-    seen_ids.sort();
-    if seen_ids.len() > 2000 {
-        let drop_count = seen_ids.len() - 2000;
-        seen_ids.drain(0..drop_count);
-    }
-
     json!({
         "ok": true,
         "collector_id": collector_id,
         "items": out,
-        "seen_ids": seen_ids
+        "seen_ids": finalize_seen_ids(seen)
     })
 }
 
@@ -516,6 +507,7 @@ fn extract_json_rows_ollama(payload_value: &Value, topics: &[Value]) -> Vec<Valu
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
+    let signal_re = Regex::new(r"(?i)(coder|reasoning|instruct|vision|multimodal|agent)").ok();
     models
         .into_iter()
         .filter_map(|row| {
@@ -544,8 +536,8 @@ fn extract_json_rows_ollama(payload_value: &Value, topics: &[Value]) -> Vec<Valu
                     modified.as_str()
                 }
             );
-            let signal = Regex::new(r"(?i)(coder|reasoning|instruct|vision|multimodal|agent)")
-                .ok()
+            let signal = signal_re
+                .as_ref()
                 .map(|re| re.is_match(&name))
                 .unwrap_or(false);
             Some(json!({
@@ -570,6 +562,8 @@ fn extract_json_rows_openreview(payload_value: &Value, topics: &[Value]) -> Vec<
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
+    let signal_re =
+        Regex::new(r"(?i)(agent|llm|reasoning|retrieval|safety|alignment|benchmark)").ok();
     notes
         .into_iter()
         .filter_map(|note| {
@@ -623,11 +617,10 @@ fn extract_json_rows_openreview(payload_value: &Value, topics: &[Value]) -> Vec<
                 })
                 .unwrap_or_default();
             let combined = format!("{title} {abstract_text}");
-            let signal =
-                Regex::new(r"(?i)(agent|llm|reasoning|retrieval|safety|alignment|benchmark)")
-                    .ok()
-                    .map(|re| re.is_match(&combined))
-                    .unwrap_or(false);
+            let signal = signal_re
+                .as_ref()
+                .map(|re| re.is_match(&combined))
+                .unwrap_or(false);
             let published_at = value_text(
                 note_obj
                     .get("pdate")
