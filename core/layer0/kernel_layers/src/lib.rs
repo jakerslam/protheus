@@ -93,6 +93,7 @@ pub mod layer3 {
 #[cfg(test)]
 mod tests {
     use super::{KernelLayer, LayerTopology};
+    use std::{string::ToString, vec};
 
     #[test]
     fn topology_is_monotonic() {
