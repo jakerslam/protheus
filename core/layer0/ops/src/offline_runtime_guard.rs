@@ -41,34 +41,49 @@ pub fn run(root: &Path, args: &[String]) -> i32 {
     }
 }
 
-fn evaluate(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
-    let policy_path = parsed
+fn resolve_policy_path(root: &Path, parsed: &crate::ParsedArgs) -> PathBuf {
+    parsed
         .flags
         .get("policy")
         .map(PathBuf::from)
-        .unwrap_or_else(|| root.join(POLICY_REL));
+        .unwrap_or_else(|| root.join(POLICY_REL))
+}
+
+fn load_policy_or_print_error(policy_path: &Path) -> Result<Policy, i32> {
+    match load_policy(policy_path) {
+        Ok(value) => Ok(value),
+        Err(err) => {
+            print_json(&error_receipt(&format!("policy_load_failed:{err}")));
+            Err(1)
+        }
+    }
+}
+
+fn parse_env_bool(var: &str, fallback: bool) -> bool {
+    std::env::var(var)
+        .ok()
+        .map(|value| parse_bool(Some(value.as_str()), fallback))
+        .unwrap_or(fallback)
+}
+
+fn evaluate(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
+    let policy_path = resolve_policy_path(root, parsed);
     let force_offline = parse_bool(parsed.flags.get("force-offline").map(String::as_str), false);
     let network_probe_ok = parse_bool(
         parsed.flags.get("network-probe-ok").map(String::as_str),
         true,
     );
 
-    let policy = match load_policy(&policy_path) {
-        Ok(value) => value,
-        Err(err) => {
-            print_json(&error_receipt(&format!("policy_load_failed:{err}")));
-            return 1;
-        }
+    let policy = match load_policy_or_print_error(&policy_path) {
+        Ok(policy) => policy,
+        Err(code) => return code,
     };
 
     let mut offline_reasons = Vec::new();
     if force_offline {
         offline_reasons.push("forced_by_flag".to_string());
     }
-    let env_offline = std::env::var("PROTHEUS_OFFLINE")
-        .ok()
-        .map(|value| parse_bool(Some(value.as_str()), false))
-        .unwrap_or(false);
+    let env_offline = parse_env_bool("PROTHEUS_OFFLINE", false);
     if env_offline {
         offline_reasons.push("forced_by_env".to_string());
     }
@@ -149,17 +164,10 @@ fn evaluate(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
 }
 
 fn status(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
-    let policy_path = parsed
-        .flags
-        .get("policy")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| root.join(POLICY_REL));
-    let policy = match load_policy(&policy_path) {
-        Ok(value) => value,
-        Err(err) => {
-            print_json(&error_receipt(&format!("policy_load_failed:{err}")));
-            return 1;
-        }
+    let policy_path = resolve_policy_path(root, parsed);
+    let policy = match load_policy_or_print_error(&policy_path) {
+        Ok(policy) => policy,
+        Err(code) => return code,
     };
     let state_path = root.join(clean(&policy.state_path, 240));
     if !state_path.exists() {
