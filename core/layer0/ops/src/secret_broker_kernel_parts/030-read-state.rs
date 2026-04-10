@@ -13,6 +13,21 @@ fn write_state(path: &Path, state: &SecretBrokerState) -> Result<(), String> {
     lane_utils::write_json(path, &payload)
 }
 
+fn provider_type_name(provider: &ProviderConfig) -> &'static str {
+    match provider {
+        ProviderConfig::Env { .. } => "env",
+        ProviderConfig::JsonFile { .. } => "json_file",
+        ProviderConfig::Command { .. } => "command",
+    }
+}
+
+fn command_provider_ref(command: &CommandSpec) -> String {
+    match command {
+        CommandSpec::Argv(argv) => argv.first().cloned().unwrap_or_default(),
+        CommandSpec::Shell(shell) => shell.clone(),
+    }
+}
+
 fn provider_env(provider: &ProviderConfig) -> Option<Value> {
     let ProviderConfig::Env {
         env,
@@ -141,10 +156,7 @@ fn provider_command(secret_id: &str, provider: &ProviderConfig) -> Option<Value>
             "value": stdout,
             "rotated_at": Value::Null,
             "provider_type": "command",
-            "provider_ref": match command {
-                CommandSpec::Argv(argv) => argv.first().cloned().unwrap_or_default(),
-                CommandSpec::Shell(shell) => shell.clone(),
-            },
+            "provider_ref": command_provider_ref(command),
             "external": true
         }));
     }
@@ -173,10 +185,7 @@ fn provider_command(secret_id: &str, provider: &ProviderConfig) -> Option<Value>
         "value": value,
         "rotated_at": rotated_at,
         "provider_type": "command",
-        "provider_ref": match command {
-            CommandSpec::Argv(argv) => argv.first().cloned().unwrap_or_default(),
-            CommandSpec::Shell(shell) => shell.clone(),
-        },
+        "provider_ref": command_provider_ref(command),
         "external": true
     }))
 }
@@ -258,22 +267,14 @@ fn load_secret_by_id(
         };
         let Some(result) = result else {
             provider_errors.push(json!({
-                "provider_type": match provider {
-                    ProviderConfig::Env { .. } => "env",
-                    ProviderConfig::JsonFile { .. } => "json_file",
-                    ProviderConfig::Command { .. } => "command",
-                },
+                "provider_type": provider_type_name(provider),
                 "reason": "provider_failed"
             }));
             continue;
         };
         if result.get("ok").and_then(Value::as_bool) != Some(true) {
             provider_errors.push(json!({
-                "provider_type": result.get("provider_type").and_then(Value::as_str).unwrap_or(match provider {
-                    ProviderConfig::Env { .. } => "env",
-                    ProviderConfig::JsonFile { .. } => "json_file",
-                    ProviderConfig::Command { .. } => "command",
-                }),
+                "provider_type": result.get("provider_type").and_then(Value::as_str).unwrap_or(provider_type_name(provider)),
                 "reason": result.get("reason").and_then(Value::as_str).unwrap_or("provider_failed"),
                 "code": result.get("code").cloned().unwrap_or(Value::Null),
                 "ref": result.get("provider_ref").cloned().unwrap_or(Value::Null)
@@ -346,4 +347,3 @@ fn load_secret_by_id(
         ..LoadedSecret::default()
     }
 }
-

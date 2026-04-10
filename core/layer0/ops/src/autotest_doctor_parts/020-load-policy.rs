@@ -5,111 +5,110 @@ fn load_policy(policy_path: &Path) -> Policy {
         return out;
     }
 
-    if let Some(v) = raw.get("version").and_then(Value::as_str) {
-        let clean = normalize_token(v, 24);
+    if let Some(clean) = json_token(&raw, "version", 24) {
         if !clean.is_empty() {
             out.version = clean;
         }
     }
-    out.enabled = raw
-        .get("enabled")
-        .and_then(Value::as_bool)
-        .unwrap_or(out.enabled);
-    out.shadow_mode = raw
-        .get("shadow_mode")
-        .and_then(Value::as_bool)
-        .unwrap_or(out.shadow_mode);
+    out.enabled = json_bool(&raw, "enabled", out.enabled);
+    out.shadow_mode = json_bool(&raw, "shadow_mode", out.shadow_mode);
 
     if let Some(sleep) = raw.get("sleep_window_local") {
-        out.sleep_window_local.enabled = sleep
-            .get("enabled")
-            .and_then(Value::as_bool)
-            .unwrap_or(out.sleep_window_local.enabled);
-        out.sleep_window_local.start_hour = sleep
-            .get("start_hour")
-            .and_then(Value::as_u64)
-            .map(|v| v as u32)
-            .unwrap_or(out.sleep_window_local.start_hour)
-            .clamp(0, 23);
-        out.sleep_window_local.end_hour = sleep
-            .get("end_hour")
-            .and_then(Value::as_u64)
-            .map(|v| v as u32)
-            .unwrap_or(out.sleep_window_local.end_hour)
-            .clamp(0, 23);
+        out.sleep_window_local.enabled =
+            json_bool(sleep, "enabled", out.sleep_window_local.enabled);
+        out.sleep_window_local.start_hour = json_u32_clamped(
+            sleep,
+            "start_hour",
+            out.sleep_window_local.start_hour,
+            0,
+            23,
+        );
+        out.sleep_window_local.end_hour =
+            json_u32_clamped(sleep, "end_hour", out.sleep_window_local.end_hour, 0, 23);
     }
 
     if let Some(gating) = raw.get("gating") {
-        out.gating.min_consecutive_failures = gating
-            .get("min_consecutive_failures")
-            .and_then(Value::as_u64)
-            .map(|v| v as u32)
-            .unwrap_or(out.gating.min_consecutive_failures)
-            .clamp(1, 20);
-        out.gating.max_actions_per_run = gating
-            .get("max_actions_per_run")
-            .and_then(Value::as_u64)
-            .map(|v| v as u32)
-            .unwrap_or(out.gating.max_actions_per_run)
-            .clamp(1, 100);
-        out.gating.cooldown_sec_per_signature = gating
-            .get("cooldown_sec_per_signature")
-            .and_then(Value::as_i64)
-            .unwrap_or(out.gating.cooldown_sec_per_signature)
-            .clamp(0, 7 * 24 * 60 * 60);
-        out.gating.max_repairs_per_signature_per_day = gating
-            .get("max_repairs_per_signature_per_day")
-            .and_then(Value::as_u64)
-            .map(|v| v as u32)
-            .unwrap_or(out.gating.max_repairs_per_signature_per_day)
-            .clamp(1, 20);
+        out.gating.min_consecutive_failures = json_u32_clamped(
+            gating,
+            "min_consecutive_failures",
+            out.gating.min_consecutive_failures,
+            1,
+            20,
+        );
+        out.gating.max_actions_per_run = json_u32_clamped(
+            gating,
+            "max_actions_per_run",
+            out.gating.max_actions_per_run,
+            1,
+            100,
+        );
+        out.gating.cooldown_sec_per_signature = json_i64_clamped(
+            gating,
+            "cooldown_sec_per_signature",
+            out.gating.cooldown_sec_per_signature,
+            0,
+            7 * 24 * 60 * 60,
+        );
+        out.gating.max_repairs_per_signature_per_day = json_u32_clamped(
+            gating,
+            "max_repairs_per_signature_per_day",
+            out.gating.max_repairs_per_signature_per_day,
+            1,
+            20,
+        );
     }
 
     if let Some(kill) = raw.get("kill_switch") {
-        out.kill_switch.enabled = kill
-            .get("enabled")
-            .and_then(Value::as_bool)
-            .unwrap_or(out.kill_switch.enabled);
-        out.kill_switch.window_hours = kill
-            .get("window_hours")
-            .and_then(Value::as_i64)
-            .unwrap_or(out.kill_switch.window_hours)
-            .clamp(1, 24 * 30);
-        out.kill_switch.max_unknown_signatures_per_window = kill
-            .get("max_unknown_signatures_per_window")
-            .and_then(Value::as_u64)
-            .map(|v| v as u32)
-            .unwrap_or(out.kill_switch.max_unknown_signatures_per_window)
-            .clamp(1, 1000);
-        out.kill_switch.max_suspicious_signatures_per_window = kill
-            .get("max_suspicious_signatures_per_window")
-            .and_then(Value::as_u64)
-            .map(|v| v as u32)
-            .unwrap_or(out.kill_switch.max_suspicious_signatures_per_window)
-            .clamp(1, 1000);
-        out.kill_switch.max_repairs_per_window = kill
-            .get("max_repairs_per_window")
-            .and_then(Value::as_u64)
-            .map(|v| v as u32)
-            .unwrap_or(out.kill_switch.max_repairs_per_window)
-            .clamp(1, 2000);
-        out.kill_switch.max_rollbacks_per_window = kill
-            .get("max_rollbacks_per_window")
-            .and_then(Value::as_u64)
-            .map(|v| v as u32)
-            .unwrap_or(out.kill_switch.max_rollbacks_per_window)
-            .clamp(1, 2000);
-        out.kill_switch.max_same_signature_repairs_per_window = kill
-            .get("max_same_signature_repairs_per_window")
-            .and_then(Value::as_u64)
-            .map(|v| v as u32)
-            .unwrap_or(out.kill_switch.max_same_signature_repairs_per_window)
-            .clamp(1, 2000);
-        out.kill_switch.auto_reset_hours = kill
-            .get("auto_reset_hours")
-            .and_then(Value::as_i64)
-            .unwrap_or(out.kill_switch.auto_reset_hours)
-            .clamp(1, 24 * 30);
+        out.kill_switch.enabled = json_bool(kill, "enabled", out.kill_switch.enabled);
+        out.kill_switch.window_hours = json_i64_clamped(
+            kill,
+            "window_hours",
+            out.kill_switch.window_hours,
+            1,
+            24 * 30,
+        );
+        out.kill_switch.max_unknown_signatures_per_window = json_u32_clamped(
+            kill,
+            "max_unknown_signatures_per_window",
+            out.kill_switch.max_unknown_signatures_per_window,
+            1,
+            1000,
+        );
+        out.kill_switch.max_suspicious_signatures_per_window = json_u32_clamped(
+            kill,
+            "max_suspicious_signatures_per_window",
+            out.kill_switch.max_suspicious_signatures_per_window,
+            1,
+            1000,
+        );
+        out.kill_switch.max_repairs_per_window = json_u32_clamped(
+            kill,
+            "max_repairs_per_window",
+            out.kill_switch.max_repairs_per_window,
+            1,
+            2000,
+        );
+        out.kill_switch.max_rollbacks_per_window = json_u32_clamped(
+            kill,
+            "max_rollbacks_per_window",
+            out.kill_switch.max_rollbacks_per_window,
+            1,
+            2000,
+        );
+        out.kill_switch.max_same_signature_repairs_per_window = json_u32_clamped(
+            kill,
+            "max_same_signature_repairs_per_window",
+            out.kill_switch.max_same_signature_repairs_per_window,
+            1,
+            2000,
+        );
+        out.kill_switch.auto_reset_hours = json_i64_clamped(
+            kill,
+            "auto_reset_hours",
+            out.kill_switch.auto_reset_hours,
+            1,
+            24 * 30,
+        );
     }
 
     if let Some(recipes) = raw.get("recipes").and_then(Value::as_array) {
@@ -146,6 +145,34 @@ fn load_policy(policy_path: &Path) -> Policy {
     }
 
     out
+}
+
+fn json_bool(value: &Value, key: &str, fallback: bool) -> bool {
+    value.get(key).and_then(Value::as_bool).unwrap_or(fallback)
+}
+
+fn json_u32_clamped(value: &Value, key: &str, fallback: u32, min: u32, max: u32) -> u32 {
+    value
+        .get(key)
+        .and_then(Value::as_u64)
+        .map(|v| v as u32)
+        .unwrap_or(fallback)
+        .clamp(min, max)
+}
+
+fn json_i64_clamped(value: &Value, key: &str, fallback: i64, min: i64, max: i64) -> i64 {
+    value
+        .get(key)
+        .and_then(Value::as_i64)
+        .unwrap_or(fallback)
+        .clamp(min, max)
+}
+
+fn json_token(value: &Value, key: &str, max_len: usize) -> Option<String> {
+    value
+        .get(key)
+        .and_then(Value::as_str)
+        .map(|raw| normalize_token(raw, max_len))
 }
 
 fn load_doctor_state(paths: &RuntimePaths) -> DoctorState {

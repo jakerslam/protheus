@@ -1,10 +1,18 @@
+fn run_observability_checked(root: &Path, args: &[String], error_code: &str) -> Result<(), String> {
+    let exit = crate::observability_plane::run(root, args);
+    if exit != 0 {
+        return Err(error_code.to_string());
+    }
+    Ok(())
+}
+
 fn emit_native_trace(
     root: &Path,
     trace_id: &str,
     intent: &str,
     message: &str,
 ) -> Result<(), String> {
-    let enable_exit = crate::observability_plane::run(
+    run_observability_checked(
         root,
         &[
             "acp-provenance".to_string(),
@@ -13,11 +21,9 @@ fn emit_native_trace(
             "--visibility-mode=meta".to_string(),
             "--strict=1".to_string(),
         ],
-    );
-    if enable_exit != 0 {
-        return Err("google_adk_observability_enable_failed".to_string());
-    }
-    let exit = crate::observability_plane::run(
+        "google_adk_observability_enable_failed",
+    )?;
+    run_observability_checked(
         root,
         &[
             "acp-provenance".to_string(),
@@ -30,9 +36,14 @@ fn emit_native_trace(
             "--visibility-mode=meta".to_string(),
             "--strict=1".to_string(),
         ],
-    );
+        "google_adk_observability_trace_failed",
+    )
+}
+
+fn run_swarm_checked(root: &Path, args: &[String], error_code: &str) -> Result<(), String> {
+    let exit = crate::swarm_runtime::run(root, args);
     if exit != 0 {
-        return Err("google_adk_observability_trace_failed".to_string());
+        return Err(error_code.to_string());
     }
     Ok(())
 }
@@ -106,10 +117,11 @@ fn ensure_session_for_task(
     if let Some(parent) = parent_session_id {
         args.push(format!("--session-id={parent}"));
     }
-    let exit = crate::swarm_runtime::run(root, &args);
-    if exit != 0 {
-        return Err(format!("google_adk_swarm_spawn_failed:{label}"));
-    }
+    run_swarm_checked(
+        root,
+        &args,
+        &format!("google_adk_swarm_spawn_failed:{label}"),
+    )?;
     let swarm_state = read_swarm_state(swarm_state_path);
     find_swarm_session_id_by_task(&swarm_state, task)
         .ok_or_else(|| format!("google_adk_swarm_session_missing:{label}"))
@@ -179,7 +191,7 @@ fn send_a2a_message(
             id
         }
     };
-    let send_exit = crate::swarm_runtime::run(
+    run_swarm_checked(
         root,
         &[
             "sessions".to_string(),
@@ -194,12 +206,10 @@ fn send_a2a_message(
             ),
             format!("--state-path={}", swarm_state_path.display()),
         ],
-    );
-    if send_exit != 0 {
-        return Err("google_adk_a2a_send_failed".to_string());
-    }
+        "google_adk_a2a_send_failed",
+    )?;
     let handoff_reason = clean_text(payload.get("handoff_reason").and_then(Value::as_str), 120);
-    let handoff_exit = crate::swarm_runtime::run(
+    run_swarm_checked(
         root,
         &[
             "sessions".to_string(),
@@ -220,10 +230,8 @@ fn send_a2a_message(
             ),
             format!("--state-path={}", swarm_state_path.display()),
         ],
-    );
-    if handoff_exit != 0 {
-        return Err("google_adk_a2a_handoff_failed".to_string());
-    }
+        "google_adk_a2a_handoff_failed",
+    )?;
     let receipt = json!({
         "message_id": stable_id("gadka2amsg", &json!({"agent_id": agent_id, "message": message})),
         "agent_id": agent_id,
@@ -354,4 +362,3 @@ fn route_model(state: &Value, payload: &Map<String, Value>) -> Result<Value, Str
 fn snapshot_record(state: &mut Value, session_id: &str, payload: Value) {
     as_object_mut(state, "session_snapshots").insert(session_id.to_string(), payload);
 }
-
