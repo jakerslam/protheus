@@ -14,6 +14,14 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
+function traceId(): string {
+  return `trace_${randomUUID().replace(/-/g, '')}`;
+}
+
+function emptyData<TData extends JsonValue>(): TData {
+  return {} as TData;
+}
+
 function toReceipt(policyRef?: string): ReceiptPointer {
   return {
     receipt_id: `receipt_${randomUUID().replace(/-/g, '')}`,
@@ -30,7 +38,7 @@ function envelope<TData extends JsonValue>(
   return {
     ok: true,
     operation,
-    trace_id: `trace_${randomUUID().replace(/-/g, '')}`,
+    trace_id: traceId(),
     receipts: [toReceipt(policyRefs[0])],
     data,
   };
@@ -166,6 +174,24 @@ function runSpawn(
   });
 }
 
+function failureEnvelope<TData extends JsonValue>(
+  request: InfringTransportRequest,
+  code: string,
+  message: string,
+  trace_id: string = traceId(),
+  receipts: ReceiptPointer[] = [],
+  data: TData = emptyData<TData>()
+): SdkEnvelope<TData> {
+  return {
+    ok: false,
+    operation: request.operation,
+    trace_id,
+    receipts,
+    data,
+    error: { code, message },
+  };
+}
+
 export function createCliTransport(options: CliTransportOptions): InfringTransport {
   const command = String(options.command || '').trim();
   if (!command) {
@@ -191,21 +217,13 @@ export function createCliTransport(options: CliTransportOptions): InfringTranspo
       request: InfringTransportRequest
     ): Promise<SdkEnvelope<TData>> {
       if (!allowProcessTransport) {
-        return {
-          ok: false,
-          operation: request.operation,
-          trace_id: `trace_${randomUUID().replace(/-/g, '')}`,
-          receipts: [],
-          data: {} as TData,
-          error: {
-            code: productionRelease
-              ? 'process_transport_forbidden_in_production'
-              : 'resident_transport_required',
-            message: productionRelease
-              ? `CLI process transport is forbidden for release channel '${activeReleaseChannel}'; route through resident IPC transport.`
-              : 'CLI process transport is disabled by default; route through resident IPC transport or set INFRING_SDK_ALLOW_PROCESS_TRANSPORT=1 for emergency fallback.',
-          },
-        };
+        const code = productionRelease
+          ? 'process_transport_forbidden_in_production'
+          : 'resident_transport_required';
+        const message = productionRelease
+          ? `CLI process transport is forbidden for release channel '${activeReleaseChannel}'; route through resident IPC transport.`
+          : 'CLI process transport is disabled by default; route through resident IPC transport or set INFRING_SDK_ALLOW_PROCESS_TRANSPORT=1 for emergency fallback.';
+        return failureEnvelope<TData>(request, code, message);
       }
       const args = options.args_for_operation(request);
       const proc = await runSpawn(
@@ -216,7 +234,7 @@ export function createCliTransport(options: CliTransportOptions): InfringTranspo
         Math.max(1000, Number(options.timeout_ms || 120000))
       );
       const parsed = parseJsonLine(String(proc.stdout || '')) || {};
-      const traceId = String(parsed.trace_id || `trace_${randomUUID().replace(/-/g, '')}`);
+      const resolvedTraceId = String(parsed.trace_id || traceId());
       const receipts = asStringArray(parsed.receipts).map((receiptId) => ({
         receipt_id: receiptId,
         issued_at: nowIso(),
@@ -224,54 +242,41 @@ export function createCliTransport(options: CliTransportOptions): InfringTranspo
       const hasParsedData = Object.prototype.hasOwnProperty.call(parsed, 'data');
       const parsedData = hasParsedData ? (parsed.data as TData) : undefined;
       if (Number(proc.status || 0) !== 0 || proc.error) {
-        return {
-          ok: false,
-          operation: request.operation,
-          trace_id: traceId,
+        return failureEnvelope<TData>(
+          request,
+          'transport_exit_nonzero',
+          `Transport command exited with status ${String(proc.status ?? 1)}${
+            proc.error ? ` (${String(proc.error.message || proc.error)})` : ''
+          }`,
+          resolvedTraceId,
           receipts,
-          data: (parsedData || ({} as TData)),
-          error: {
-            code: 'transport_exit_nonzero',
-            message: `Transport command exited with status ${String(proc.status ?? 1)}${
-              proc.error ? ` (${String(proc.error.message || proc.error)})` : ''
-            }`,
-          },
-        };
+          parsedData || emptyData<TData>()
+        );
       }
       if (!hasParsedData) {
-        return {
-          ok: false,
-          operation: request.operation,
-          trace_id: traceId,
-          receipts,
-          data: {} as TData,
-          error: {
-            code: 'missing_transport_data',
-            message: allowSyntheticFallback
-              ? 'Synthetic fallback disabled for deterministic transport mode.'
-              : 'Transport succeeded but did not return a data payload.',
-          },
-        };
+        return failureEnvelope<TData>(
+          request,
+          'missing_transport_data',
+          allowSyntheticFallback
+            ? 'Synthetic fallback disabled for deterministic transport mode.'
+            : 'Transport succeeded but did not return a data payload.',
+          resolvedTraceId,
+          receipts
+        );
       }
       if (receipts.length === 0) {
-        return {
-          ok: false,
-          operation: request.operation,
-          trace_id: traceId,
-          receipts: [],
-          data: {} as TData,
-          error: {
-            code: 'missing_transport_receipts',
-            message:
-              'Transport succeeded but did not return receipts; deterministic receipts are required.',
-          },
-        };
+        return failureEnvelope<TData>(
+          request,
+          'missing_transport_receipts',
+          'Transport succeeded but did not return receipts; deterministic receipts are required.',
+          resolvedTraceId
+        );
       }
       const data = parsedData as TData;
       return {
         ok: true,
         operation: request.operation,
-        trace_id: traceId,
+        trace_id: resolvedTraceId,
         receipts,
         data,
       };
@@ -293,19 +298,13 @@ export function createInMemoryTransport(
       const hasSeed = Object.prototype.hasOwnProperty.call(seed, request.operation);
       const seeded = hasSeed ? seed[request.operation] : undefined;
       if (!hasSeed) {
-        return {
-          ok: false,
-          operation: request.operation,
-          trace_id: `trace_${randomUUID().replace(/-/g, '')}`,
-          receipts: [],
-          data: {} as TData,
-          error: {
-            code: 'in_memory_seed_required',
-            message: allowUnseededFallback
-              ? `Synthetic in-memory fallback disabled; provide a seed for '${request.operation}'.`
-              : `In-memory transport missing seed for operation '${request.operation}'.`,
-          },
-        };
+        return failureEnvelope<TData>(
+          request,
+          'in_memory_seed_required',
+          allowUnseededFallback
+            ? `Synthetic in-memory fallback disabled; provide a seed for '${request.operation}'.`
+            : `In-memory transport missing seed for operation '${request.operation}'.`
+        );
       }
       const data = seeded as TData;
       return envelope(request.operation, data, request.policy_refs);

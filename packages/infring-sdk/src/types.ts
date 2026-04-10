@@ -22,16 +22,18 @@ export interface PolicyRef {
   mode?: 'advisory' | 'enforced';
 }
 
+export interface SdkError {
+  code: string;
+  message: string;
+}
+
 export interface SdkEnvelope<TData extends JsonValue = JsonValue> {
   ok: boolean;
   operation: InfringOperation;
   trace_id: string;
   receipts: ReceiptPointer[];
   data: TData;
-  error?: {
-    code: string;
-    message: string;
-  };
+  error?: SdkError;
 }
 
 export interface SubmitTaskRequest {
