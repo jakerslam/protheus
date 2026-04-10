@@ -40,18 +40,19 @@ pub struct HotAllocatorSnapshot {
 
 impl HotAllocatorSnapshot {
     fn arena_fallback_rate_pct(self) -> f64 {
-        if self.arena_allocations == 0 {
-            return 0.0;
-        }
-        ((self.arena_fallbacks as f64 / self.arena_allocations as f64) * 10000.0).round() / 100.0
+        rate_pct(self.arena_fallbacks, self.arena_allocations)
     }
 
     fn slab_hit_rate_pct(self) -> f64 {
-        if self.slab_checkouts == 0 {
-            return 0.0;
-        }
-        ((self.slab_reuses as f64 / self.slab_checkouts as f64) * 10000.0).round() / 100.0
+        rate_pct(self.slab_reuses, self.slab_checkouts)
     }
+}
+
+fn rate_pct(numerator: u64, denominator: u64) -> f64 {
+    if denominator == 0 {
+        return 0.0;
+    }
+    ((numerator as f64 / denominator as f64) * 10000.0).round() / 100.0
 }
 
 struct BumpArena {

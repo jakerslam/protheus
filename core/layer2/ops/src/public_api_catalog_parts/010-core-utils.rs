@@ -1,6 +1,6 @@
 // Layer ownership: core/layer2/ops (authoritative)
 // SPDX-License-Identifier: Apache-2.0
-use crate::{deterministic_receipt_hash, now_epoch_ms};
+use crate::{deterministic_receipt_hash, now_epoch_ms, parse_cli_flag};
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
@@ -49,28 +49,11 @@ fn usage() {
 }
 
 fn print_json_line(value: &Value) {
-    println!(
-        "{}",
-        serde_json::to_string(value)
-            .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
-    );
+    crate::print_json_line(value);
 }
 
 fn parse_flag(argv: &[String], key: &str) -> Option<String> {
-    let pref = format!("--{key}=");
-    let long = format!("--{key}");
-    let mut idx = 0usize;
-    while idx < argv.len() {
-        let token = argv[idx].trim();
-        if let Some(v) = token.strip_prefix(&pref) {
-            return Some(v.to_string());
-        }
-        if token == long && idx + 1 < argv.len() {
-            return Some(argv[idx + 1].clone());
-        }
-        idx += 1;
-    }
-    None
+    parse_cli_flag(argv, key)
 }
 
 fn first_positional(argv: &[String], skip: usize) -> Option<String> {
