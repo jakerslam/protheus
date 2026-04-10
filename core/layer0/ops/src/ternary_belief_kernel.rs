@@ -351,6 +351,16 @@ fn serialize_trit_vector(values: &[i64]) -> Value {
     })
 }
 
+fn belief_summary(trit: i64, score: f64, confidence: f64, weight: f64) -> Value {
+    json!({
+        "trit": trit,
+        "trit_label": trit_label(trit),
+        "score": round_to(score, 4),
+        "confidence": round_to(confidence, 4),
+        "weight": round_to(weight, 4)
+    })
+}
+
 fn classify_belief_trit(score: f64, positive_threshold: f64, negative_threshold: f64) -> i64 {
     if score >= positive_threshold {
         TRIT_OK
@@ -711,20 +721,8 @@ fn merge(payload: &Map<String, Value>) -> Value {
         "trit_label": trit_label(merged_trit),
         "score": round_to(merged_score, 4),
         "confidence": round_to(merged_confidence, 4),
-        "parent": {
-            "trit": parent_trit,
-            "trit_label": trit_label(parent_trit),
-            "score": round_to(parent_score, 4),
-            "confidence": round_to(parent_confidence, 4),
-            "weight": round_to(parent_weight, 4)
-        },
-        "child": {
-            "trit": child_trit,
-            "trit_label": trit_label(child_trit),
-            "score": round_to(child_score, 4),
-            "confidence": round_to(child_confidence, 4),
-            "weight": round_to(child_weight, 4)
-        }
+        "parent": belief_summary(parent_trit, parent_score, parent_confidence, parent_weight),
+        "child": belief_summary(child_trit, child_score, child_confidence, child_weight)
     })
 }
 

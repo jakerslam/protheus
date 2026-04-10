@@ -56,6 +56,10 @@ fn usage() {
     println!("  protheus-ops outcome-fitness-kernel proposal-type-threshold-offsets-for --payload-base64=<json>");
 }
 
+fn stamp_receipt(value: &mut Value) {
+    value["receipt_hash"] = Value::String(deterministic_receipt_hash(value));
+}
+
 fn cli_receipt(kind: &str, payload: Value) -> Value {
     let ts = now_iso();
     let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(true);
@@ -66,7 +70,7 @@ fn cli_receipt(kind: &str, payload: Value) -> Value {
         "date": ts[..10].to_string(),
         "payload": payload,
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    stamp_receipt(&mut out);
     out
 }
 
@@ -80,8 +84,28 @@ fn cli_error(kind: &str, error: &str) -> Value {
         "error": error,
         "fail_closed": true,
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    stamp_receipt(&mut out);
     out
+}
+
+fn emit_cli_receipt(kind: &str, payload: Value) -> i32 {
+    print_json_line(&cli_receipt(kind, payload));
+    0
+}
+
+fn emit_cli_error(kind: &str, error: &str) -> i32 {
+    print_json_line(&cli_error(kind, error));
+    1
+}
+
+fn run_payload_command<F>(argv: &[String], kind: &str, map: F) -> i32
+where
+    F: FnOnce(Value) -> Value,
+{
+    match payload_json(argv) {
+        Ok(payload) => emit_cli_receipt(kind, map(payload)),
+        Err(err) => emit_cli_error(kind, &err),
+    }
 }
 
 fn print_json_line(value: &Value) {
@@ -617,166 +641,83 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             usage();
             0
         }
-        "load-policy" => match payload_json(argv) {
-            Ok(payload) => {
-                let payload = load_outcome_fitness_policy(root, payload_obj(&payload));
-                print_json_line(&cli_receipt("outcome_fitness_kernel_load_policy", payload));
-                0
-            }
-            Err(err) => {
-                print_json_line(&cli_error("outcome_fitness_kernel_load_policy", &err));
-                1
-            }
-        },
-        "normalize-threshold-overrides" => match payload_json(argv) {
-            Ok(payload) => {
-                let result = Value::Object(normalize_threshold_overrides(Some(&payload)));
-                print_json_line(&cli_receipt(
-                    "outcome_fitness_kernel_normalize_threshold_overrides",
-                    json!({ "normalized": result }),
-                ));
-                0
-            }
-            Err(err) => {
-                print_json_line(&cli_error(
-                    "outcome_fitness_kernel_normalize_threshold_overrides",
-                    &err,
-                ));
-                1
-            }
-        },
-        "normalize-ranking-weights" => match payload_json(argv) {
-            Ok(payload) => {
-                let result = normalize_ranking_weights(Some(&payload))
-                    .map(Value::Object)
-                    .unwrap_or(Value::Null);
-                print_json_line(&cli_receipt(
-                    "outcome_fitness_kernel_normalize_ranking_weights",
-                    json!({ "normalized": result }),
-                ));
-                0
-            }
-            Err(err) => {
-                print_json_line(&cli_error(
-                    "outcome_fitness_kernel_normalize_ranking_weights",
-                    &err,
-                ));
-                1
-            }
-        },
-        "normalize-proposal-type-threshold-offsets" => match payload_json(argv) {
-            Ok(payload) => {
-                let result =
-                    Value::Object(normalize_proposal_type_threshold_offsets(Some(&payload)));
-                print_json_line(&cli_receipt(
-                    "outcome_fitness_kernel_normalize_proposal_type_threshold_offsets",
-                    json!({ "normalized": result }),
-                ));
-                0
-            }
-            Err(err) => {
-                print_json_line(&cli_error(
-                    "outcome_fitness_kernel_normalize_proposal_type_threshold_offsets",
-                    &err,
-                ));
-                1
-            }
-        },
-        "normalize-promotion-policy-overrides" => match payload_json(argv) {
-            Ok(payload) => {
-                let result = Value::Object(normalize_promotion_policy_overrides(Some(&payload)));
-                print_json_line(&cli_receipt(
-                    "outcome_fitness_kernel_normalize_promotion_policy_overrides",
-                    json!({ "normalized": result }),
-                ));
-                0
-            }
-            Err(err) => {
-                print_json_line(&cli_error(
-                    "outcome_fitness_kernel_normalize_promotion_policy_overrides",
-                    &err,
-                ));
-                1
-            }
-        },
-        "normalize-value-currency-policy-overrides" => match payload_json(argv) {
-            Ok(payload) => {
-                let result = normalize_value_currency_policy_overrides(Some(&payload));
-                print_json_line(&cli_receipt(
-                    "outcome_fitness_kernel_normalize_value_currency_policy_overrides",
-                    json!({ "normalized": result }),
-                ));
-                0
-            }
-            Err(err) => {
-                print_json_line(&cli_error(
-                    "outcome_fitness_kernel_normalize_value_currency_policy_overrides",
-                    &err,
-                ));
-                1
-            }
-        },
-        "normalize-proposal-type-key" => match payload_json(argv) {
-            Ok(payload) => {
-                let normalized =
-                    normalize_proposal_type_key(&as_text(payload_obj(&payload).get("value")));
-                print_json_line(&cli_receipt(
-                    "outcome_fitness_kernel_normalize_proposal_type_key",
-                    json!({ "normalized": normalized }),
-                ));
-                0
-            }
-            Err(err) => {
-                print_json_line(&cli_error(
-                    "outcome_fitness_kernel_normalize_proposal_type_key",
-                    &err,
-                ));
-                1
-            }
-        },
-        "normalize-value-currency-token" => match payload_json(argv) {
-            Ok(payload) => {
-                let normalized =
-                    normalize_value_currency_token(&as_text(payload_obj(&payload).get("value")));
-                print_json_line(&cli_receipt(
-                    "outcome_fitness_kernel_normalize_value_currency_token",
-                    json!({ "normalized": normalized }),
-                ));
-                0
-            }
-            Err(err) => {
-                print_json_line(&cli_error(
-                    "outcome_fitness_kernel_normalize_value_currency_token",
-                    &err,
-                ));
-                1
-            }
-        },
-        "proposal-type-threshold-offsets-for" => match payload_json(argv) {
-            Ok(payload) => {
+        "load-policy" => {
+            run_payload_command(argv, "outcome_fitness_kernel_load_policy", |payload| {
+                load_outcome_fitness_policy(root, payload_obj(&payload))
+            })
+        }
+        "normalize-threshold-overrides" => run_payload_command(
+            argv,
+            "outcome_fitness_kernel_normalize_threshold_overrides",
+            |payload| json!({ "normalized": Value::Object(normalize_threshold_overrides(Some(&payload))) }),
+        ),
+        "normalize-ranking-weights" => run_payload_command(
+            argv,
+            "outcome_fitness_kernel_normalize_ranking_weights",
+            |payload| {
+                json!({
+                    "normalized": normalize_ranking_weights(Some(&payload))
+                        .map(Value::Object)
+                        .unwrap_or(Value::Null)
+                })
+            },
+        ),
+        "normalize-proposal-type-threshold-offsets" => run_payload_command(
+            argv,
+            "outcome_fitness_kernel_normalize_proposal_type_threshold_offsets",
+            |payload| {
+                json!({
+                    "normalized": Value::Object(normalize_proposal_type_threshold_offsets(Some(&payload)))
+                })
+            },
+        ),
+        "normalize-promotion-policy-overrides" => run_payload_command(
+            argv,
+            "outcome_fitness_kernel_normalize_promotion_policy_overrides",
+            |payload| {
+                json!({
+                    "normalized": Value::Object(normalize_promotion_policy_overrides(Some(&payload)))
+                })
+            },
+        ),
+        "normalize-value-currency-policy-overrides" => run_payload_command(
+            argv,
+            "outcome_fitness_kernel_normalize_value_currency_policy_overrides",
+            |payload| json!({ "normalized": normalize_value_currency_policy_overrides(Some(&payload)) }),
+        ),
+        "normalize-proposal-type-key" => run_payload_command(
+            argv,
+            "outcome_fitness_kernel_normalize_proposal_type_key",
+            |payload| {
+                json!({
+                    "normalized": normalize_proposal_type_key(&as_text(payload_obj(&payload).get("value")))
+                })
+            },
+        ),
+        "normalize-value-currency-token" => run_payload_command(
+            argv,
+            "outcome_fitness_kernel_normalize_value_currency_token",
+            |payload| {
+                json!({
+                    "normalized": normalize_value_currency_token(&as_text(payload_obj(&payload).get("value")))
+                })
+            },
+        ),
+        "proposal-type-threshold-offsets-for" => run_payload_command(
+            argv,
+            "outcome_fitness_kernel_proposal_type_threshold_offsets_for",
+            |payload| {
                 let obj = payload_obj(&payload);
                 let empty = json!({});
                 let policy = obj.get("policy").unwrap_or(&empty);
                 let offsets =
                     proposal_type_threshold_offsets_for(policy, &as_text(obj.get("proposal_type")));
-                print_json_line(&cli_receipt(
-                    "outcome_fitness_kernel_proposal_type_threshold_offsets_for",
-                    json!({ "offsets": offsets }),
-                ));
-                0
-            }
-            Err(err) => {
-                print_json_line(&cli_error(
-                    "outcome_fitness_kernel_proposal_type_threshold_offsets_for",
-                    &err,
-                ));
-                1
-            }
-        },
+                json!({ "offsets": offsets })
+            },
+        ),
         _ => {
             usage();
-            print_json_line(&cli_error("outcome_fitness_kernel", "unknown_command"));
-            1
+            emit_cli_error("outcome_fitness_kernel", "unknown_command")
         }
     }
 }
