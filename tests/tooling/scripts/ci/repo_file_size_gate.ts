@@ -49,8 +49,27 @@ function readJson(path) {
   return JSON.parse(readFileSync(resolve(path), 'utf8'));
 }
 
-function listFiles() {
-  const commands = ['rg --files core client', 'find core client -type f'];
+function shellQuote(value) {
+  return `'${String(value).replace(/'/g, `'\\''`)}'`;
+}
+
+function scopeRoots(policy) {
+  const raw = Array.isArray(policy?.scope) ? policy.scope : [];
+  const normalized = raw
+    .map((row) => String(row || '').trim())
+    .filter(Boolean)
+    .map((row) => row.replace(/\/\*\*$/, '').replace(/\/\*$/, '').replace(/\/+$/, ''))
+    .filter(Boolean);
+  const unique = [...new Set(normalized)];
+  return unique.length > 0 ? unique : ['core', 'client'];
+}
+
+function listFiles(policy) {
+  const roots = scopeRoots(policy);
+  const commands = [
+    `rg --files ${roots.map(shellQuote).join(' ')}`,
+    `find ${roots.map(shellQuote).join(' ')} -type f`,
+  ];
   for (const command of commands) {
     try {
       const output = execSync(command, {
@@ -153,7 +172,7 @@ function main() {
   const args = parseArgs(process.argv.slice(2));
   const now = new Date();
   const policy = readJson(args.policyPath);
-  const files = listFiles();
+  const files = listFiles(policy);
   const exceptionRows = Array.isArray(policy?.exceptions) ? policy.exceptions : [];
   const exceptionMap = new Map();
   for (const row of exceptionRows) {

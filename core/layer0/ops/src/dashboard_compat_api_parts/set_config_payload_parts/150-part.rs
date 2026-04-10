@@ -351,6 +351,14 @@ fn user_facing_tool_failure_summary(tool_name: &str, payload: &Value) -> Option<
             return Some(message);
         }
     }
+    if lowered.contains("tool_route_not_found")
+        || lowered.contains("unsupported_tool")
+        || lowered.contains("unknown_tool")
+    {
+        return Some(format!(
+            "`{normalized}` is not currently available in this runtime route set. Run `tool::capabilities` to inspect active command surfaces and retry with a supported tool."
+        ));
+    }
     if lowered.is_empty() {
         if normalized == "system_diagnostic" {
             return Some(
@@ -462,4 +470,3 @@ fn transient_tool_failure(payload: &Value) -> bool {
         || lowered.contains("resource temporarily unavailable")
         || lowered.contains("os error 35")
 }
-

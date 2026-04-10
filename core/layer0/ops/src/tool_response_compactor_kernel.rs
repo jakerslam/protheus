@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
 // Layer ownership: core/layer0/ops (authoritative)
-
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::Engine;
 use regex::{Captures, Regex};
@@ -8,10 +7,8 @@ use serde_json::{json, Map, Value};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
-
 use crate::contract_lane_utils as lane_utils;
 use crate::{deterministic_receipt_hash, now_iso, parse_args};
-
 const COMPACTION_THRESHOLD_CHARS: usize = 1200;
 const COMPACTION_THRESHOLD_LINES: usize = 40;
 fn moltbook_token_re() -> &'static Regex {
@@ -149,22 +146,18 @@ fn redact_secrets(content: &str) -> String {
             format!("moltbook_sk_****{suffix}")
         })
         .to_string();
-
     out = bearer_redaction_re()
         .replace_all(&out, "Authorization: Bearer [REDACTED]")
         .to_string();
-
     out = header_secret_re()
         .replace_all(&out, |caps: &Captures| {
             let key = caps.get(1).map(|m| m.as_str()).unwrap_or("authorization");
             format!("{key}: [REDACTED]")
         })
         .to_string();
-
     out = json_secret_re()
         .replace_all(&out, "$1\"[REDACTED]\"")
         .to_string();
-
     out = query_secret_re()
         .replace_all(&out, "$1[REDACTED]")
         .to_string();
@@ -228,12 +221,10 @@ fn extract_summary_rows(data: &Value, tool_name: &str) -> Vec<String> {
     } else {
         Some(data.clone())
     };
-
     if let Some(parsed) = parsed {
         if let Some(rows) = parsed.as_array() {
             bullets.push(format!("• Count: {} items", rows.len()));
         }
-
         let mut ids = Vec::new();
         let mut urls = Vec::new();
         collect_ids_and_urls(&parsed, &mut ids, &mut urls);
@@ -245,7 +236,6 @@ fn extract_summary_rows(data: &Value, tool_name: &str) -> Vec<String> {
         if !urls.is_empty() {
             bullets.push(format!("• URLs: {}", urls.join(", ")));
         }
-
         if let Some(obj) = parsed.as_object() {
             let mut metrics = Vec::new();
             for (key, row) in obj {
@@ -287,7 +277,6 @@ fn extract_summary_rows(data: &Value, tool_name: &str) -> Vec<String> {
             bullets.push(format!("• {} lines of text output", line_count));
         }
     }
-
     while bullets.len() < 5 && bullets.len() < 10 {
         if !bullets.iter().any(|row| row.contains("Type:")) {
             bullets.push(format!(
@@ -304,7 +293,6 @@ fn extract_summary_rows(data: &Value, tool_name: &str) -> Vec<String> {
             break;
         }
     }
-
     bullets.truncate(10);
     bullets
 }
@@ -334,7 +322,6 @@ fn compact_tool_response(repo_root: &Path, payload: &Map<String, Value>) -> Resu
     let char_count = raw_content.len();
     let line_count = raw_content.lines().count();
     let redacted = redact_secrets(&raw_content);
-
     if char_count <= COMPACTION_THRESHOLD_CHARS && line_count <= COMPACTION_THRESHOLD_LINES {
         return Ok(json!({
             "compacted": false,
@@ -345,7 +332,6 @@ fn compact_tool_response(repo_root: &Path, payload: &Map<String, Value>) -> Resu
             }
         }));
     }
-
     let dir = tool_raw_dir(&root_dir);
     fs::create_dir_all(&dir)
         .map_err(|err| format!("tool_response_compactor_kernel_mkdir_failed:{err}"))?;
@@ -354,7 +340,6 @@ fn compact_tool_response(repo_root: &Path, payload: &Map<String, Value>) -> Resu
     let raw_path = dir.join(&file_name);
     fs::write(&raw_path, redacted.as_bytes())
         .map_err(|err| format!("tool_response_compactor_kernel_write_failed:{err}"))?;
-
     let summary = extract_summary_rows(payload.get("data").unwrap_or(&Value::Null), &tool_name);
     let compact_output = [
         "📦 [TOOL OUTPUT COMPACTED]".to_string(),
@@ -369,7 +354,6 @@ fn compact_tool_response(repo_root: &Path, payload: &Map<String, Value>) -> Resu
         ),
     ]
     .join("\n");
-
     let compacted_chars = compact_output.len();
     let savings_percent = if char_count == 0 {
         0
@@ -377,7 +361,6 @@ fn compact_tool_response(repo_root: &Path, payload: &Map<String, Value>) -> Resu
         (((char_count.saturating_sub(compacted_chars)) as f64 / char_count as f64) * 100.0).round()
             as i64
     };
-
     Ok(json!({
         "compacted": true,
         "content": compact_output,
@@ -397,7 +380,6 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         .first()
         .map(|v| v.to_ascii_lowercase())
         .unwrap_or_else(|| "help".to_string());
-
     match cmd.as_str() {
         "help" | "--help" | "-h" => {
             usage();
@@ -474,3 +456,27 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 #[cfg(test)]
 #[path = "tool_response_compactor_kernel_tests.rs"]
 mod tool_response_compactor_kernel_tests;
+mod tests {
+    use super::*;
+    #[test]
+    fn redact_hides_tokens_and_bearer_headers() {
+        let out = redact_secrets(
+            "Authorization: Bearer abcdefghijklmnopqrstuvwxyz123456\nmoltbook_sk_abcdefghijklmnopqrstuvwxyz1234567890",
+        );
+        assert!(out.contains("Authorization: Bearer [REDACTED]"));
+        assert!(out.contains("moltbook_sk_****7890"));
+    }
+    #[test]
+    fn extract_summary_reports_ids_and_urls() {
+        let payload = json!({
+            "id": "abcdef123456",
+            "total_count": 4,
+            "url": "https://example.com/long/path",
+            "status": "error"
+        });
+        let summary = extract_summary_rows(&payload, "tool");
+        assert!(summary.iter().any(|row| row.contains("IDs:")));
+        assert!(summary.iter().any(|row| row.contains("URLs:")));
+        assert!(summary.iter().any(|row| row.contains("Status: error")));
+    }
+}

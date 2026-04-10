@@ -50,6 +50,42 @@ fn direct_intent_parser_does_not_force_semantic_query_for_recall_prompts() {
 }
 
 #[test]
+fn direct_intent_parser_routes_capability_probe_prompts() {
+    let route = direct_tool_intent_from_user_message("can you read files at all in this workspace?")
+        .expect("capability probe route");
+    assert_eq!(route.0, "tool_capabilities");
+    assert_eq!(
+        route.1.get("scope").and_then(Value::as_str).unwrap_or(""),
+        "agent"
+    );
+}
+
+#[test]
+fn tool_capabilities_surface_reports_default_read_tools() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let payload = execute_tool_call_by_name(
+        root.path(),
+        &json!({"ok": true}),
+        "agent-capability-probe",
+        None,
+        "tool_capabilities",
+        &json!({}),
+    );
+    assert_eq!(payload.get("ok").and_then(Value::as_bool), Some(true));
+    let read_surfaces = payload
+        .get("read_surfaces")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    assert!(read_surfaces.iter().any(|row| {
+        row.get("name")
+            .and_then(Value::as_str)
+            .map(|value| value == "workspace_analyze")
+            .unwrap_or(false)
+    }));
+}
+
+#[test]
 fn rollback_tool_removes_recent_turn_and_writes_archive() {
     let root = tempfile::tempdir().expect("tempdir");
     let session_path = state_path(root.path(), AGENT_SESSIONS_DIR_REL).join("agent-rollback.json");

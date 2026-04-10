@@ -3,18 +3,15 @@
       }
       return rows.length ? rows[0] : null;
     },
-
     isFreshInitVibeSelected: function(card) {
       if (!card) return false;
       return String(card.id || '') === String(this.freshInitVibeId || '');
     },
-
     selectFreshInitVibe: function(card) {
       var id = String(card && card.id ? card.id : 'none').trim() || 'none';
       this.freshInitVibeId = id;
       this.scheduleFreshInitProgressAnchor();
     },
-
     scheduleFreshInitProgressAnchor: function(forcedAnchor) {
       var anchor = String(forcedAnchor || '').trim();
       if (!anchor) {
@@ -37,7 +34,6 @@
         scroller.scrollTo({ top: Math.max(0, scroller.scrollTop + delta), behavior: 'smooth' });
       });
     },
-
     selectedFreshInitVibe: function() {
       var cards = Array.isArray(this.freshInitVibeCards) ? this.freshInitVibeCards : [];
       var selectedId = String(this.freshInitVibeId || 'none');
@@ -46,7 +42,6 @@
       }
       return cards.length ? cards[0] : null;
     },
-
     modelSpecialtyTagsForScoring: function(model) {
       var tags = model && model.specialty_tags;
       if (!Array.isArray(tags)) return [];
@@ -60,7 +55,6 @@
       }
       return out;
     },
-
     scoreFreshInitModelForRole: function(model, roleKey) {
       var row = model || {};
       var role = String(roleKey || 'general').trim().toLowerCase() || 'general';
@@ -78,7 +72,6 @@
       var local = this.modelDeploymentKind(row) === 'local';
       var score = (power * 1.25) + ((6 - cost) * 0.7) + (contextScore * 0.45);
       if (local) score += 0.35;
-
       if (role === 'coding') {
         if (specialty === 'coding') score += 3.1;
         if (tags.indexOf('coding') >= 0) score += 1.6;
@@ -101,7 +94,6 @@
         score += power * 0.35;
         score += contextScore * 0.55;
       }
-
       if (Number.isFinite(paramsB) && paramsB > 0) {
         if (role === 'support' && paramsB > 80) score -= 1.0;
         if (role === 'coding' && paramsB > 100) score -= 0.6;
@@ -110,7 +102,6 @@
       score += usageBonus;
       return Number(score.toFixed(6));
     },
-
     refreshFreshInitModelSuggestions: async function(templateDef) {
       var template = templateDef || this.freshInitTemplateDef || null;
       if (!template) {
@@ -173,7 +164,6 @@
         this.freshInitModelSuggestLoading = false;
       }
     },
-
     get modelDisplayName() {
       var readModelField = function(agent, keys) {
         var row = agent && typeof agent === 'object' ? agent : null;
@@ -232,13 +222,11 @@
       if (providerFallback === 'auto' || !providerFallback) return 'Auto';
       return providerFallback.length > 24 ? providerFallback.substring(0, 22) + '\u2026' : providerFallback;
     },
-
     get switcherProviders() {
       var seen = {};
       (this._modelCache || []).forEach(function(m) { seen[m.provider] = true; });
       return Object.keys(seen).sort();
     },
-
     get filteredSwitcherModels() {
       var models = this._modelCache || [];
       var provFilter = this.modelSwitcherProviderFilter;
@@ -273,7 +261,6 @@
       });
       return filtered;
     },
-
     isPlaceholderModelRef: function(value) {
       var id = String(value || '').trim().toLowerCase();
       if (!id) return true;
@@ -285,7 +272,6 @@
       }
       return false;
     },
-
     compactModelLabel: function(value) {
       var raw = String(value || '').trim();
       if (!raw || this.isPlaceholderModelRef(raw)) return '';
@@ -300,7 +286,6 @@
       if (!compact || this.isPlaceholderModelRef(compact)) return '';
       return compact.replace(/-\d{8}$/, '');
     },
-
     sanitizeModelCatalogRows: function(rows) {
       var list = Array.isArray(rows) ? rows : [];
       var out = [];
@@ -323,7 +308,6 @@
       }
       return out;
     },
-
     activeModelCandidateIds: function() {
       var out = [];
       var seen = {};
@@ -344,13 +328,11 @@
       if (runtime && provider && provider !== 'ollama' && runtime.indexOf('/') < 0) add(provider + '/' + runtime);
       return out;
     },
-
     isSwitcherModelActive: function(model) {
       var id = String(model && model.id ? model.id : '').trim();
       if (!id) return false;
       return this.activeModelCandidateIds().indexOf(id) >= 0;
     },
-
     resolveActiveSwitcherModel: function(filtered) {
       var rows = Array.isArray(filtered) ? filtered : [];
       var activeIds = this.activeModelCandidateIds();
@@ -384,7 +366,6 @@
         download_available: false,
       };
     },
-
     get groupedSwitcherModels() {
       var filtered = this.filteredSwitcherModels;
       var groups = [];
@@ -402,7 +383,6 @@
       }
       return groups;
     },
-
     modelSwitcherItemName: function(m) {
       var model = m || {};
       var provider = String(model.provider || '').trim();
@@ -416,7 +396,6 @@
       var short = runtime.replace(/-\d{8}$/, '');
       return short ? ('Auto: ' + short) : 'Auto';
     },
-
     modelDeploymentKind: function(model) {
       var row = model || {};
       var deployment = String(row.deployment || row.deployment_kind || '').trim().toLowerCase();
@@ -427,14 +406,12 @@
       if (provider === 'cloud') return 'cloud';
       return 'api';
     },
-
     modelDeploymentLabel: function(model) {
       var kind = this.modelDeploymentKind(model);
       if (kind === 'local') return 'Local model';
       if (kind === 'api') return 'API model';
       return 'Cloud model';
     },
-
     normalizeModelRating: function(value, fallback) {
       var level = Number(value);
       var base = Number(fallback);
@@ -445,21 +422,17 @@
       if (level > 5) level = 5;
       return level;
     },
-
     modelPowerLevel: function(model) {
       return this.normalizeModelRating(model && model.power_rating, 3);
     },
-
     modelCostLevel: function(model) {
       return this.normalizeModelRating(model && model.cost_rating, 3);
     },
-
     modelContextWindowLabel: function(model) {
       var raw = Number(model && model.context_window != null ? model.context_window : 0);
       if (!Number.isFinite(raw) || raw <= 0) return '? ctx';
       return this.formatTokenK(raw) + ' ctx';
     },
-
     inferModelParamsFromId: function(model) {
       var id = String((model && (model.display_name || model.id)) || '').toLowerCase();
       if (!id) return 0;
@@ -481,13 +454,11 @@
       }
       return 0;
     },
-
     modelParamCountB: function(model) {
       var raw = Number(model && model.param_count_billion != null ? model.param_count_billion : 0);
       if (Number.isFinite(raw) && raw > 0) return raw;
       return this.inferModelParamsFromId(model);
     },
-
     modelParamLabel: function(model) {
       var params = this.modelParamCountB(model);
       if (!Number.isFinite(params) || params <= 0) return '? params';
@@ -496,7 +467,6 @@
       if (params >= 1) return (Math.round(params * 100) / 100).toFixed(2).replace(/0$/, '').replace(/\.$/, '') + 'B';
       return Math.max(1, Math.round(params * 1000)) + 'M';
     },
-
     modelSpecialtyLabel: function(model) {
       var raw = String(model && model.specialty ? model.specialty : '').trim().toLowerCase();
       if (!raw) return 'General';
@@ -506,7 +476,6 @@
       if (raw === 'speed') return 'Fast';
       return raw.charAt(0).toUpperCase() + raw.slice(1);
     },
-
     modelDownloadProgressValue: function(model) {
       var key = this.modelDownloadKey(model);
       if (!key || !this.modelDownloadProgress) return 0;
@@ -515,10 +484,8 @@
       if (raw >= 100) return 100;
       return Math.max(1, Math.min(99, Math.round(raw)));
     },
-
     modelDownloadProgressStyle: function(model) {
       return 'width:' + this.modelDownloadProgressValue(model) + '%';
     },
-
     setModelDownloadProgress: function(key, value) {
       if (!key) return;

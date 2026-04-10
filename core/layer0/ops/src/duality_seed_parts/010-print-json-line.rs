@@ -1,18 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
+// Layer ownership: core/layer2/autonomy (authoritative)
+// SRS coverage marker: V4-DUAL-PRI-001
 use serde_json::{json, Map, Value};
 use std::collections::{BTreeSet, HashSet};
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-
 use crate::contract_lane_utils as lane_utils;
 use crate::{clean, deterministic_receipt_hash, now_iso};
-
 const DEFAULT_POLICY_REL: &str = "client/runtime/config/duality_seed_policy.json";
 const DEFAULT_CODEX_REL: &str = "client/runtime/config/duality_codex.txt";
 const DEFAULT_LATEST_REL: &str = "local/state/autonomy/duality/latest.json";
 const DEFAULT_HISTORY_REL: &str = "local/state/autonomy/duality/history.jsonl";
-
 const TRIT_PAIN: i64 = -1;
 const TRIT_UNKNOWN: i64 = 0;
 const TRIT_OK: i64 = 1;
@@ -260,12 +259,10 @@ fn load_policy(root: &Path, policy_path_override: Option<&str>) -> Value {
                 .map(|v| resolve_path(root, v, DEFAULT_POLICY_REL))
         })
         .unwrap_or_else(|| root.join(DEFAULT_POLICY_REL));
-
     let base = default_policy(root);
     let src = read_json(&policy_path);
     let src_obj = src.as_object().cloned().unwrap_or_default();
     let base_obj = base.as_object().cloned().unwrap_or_default();
-
     let base_state = base_obj
         .get("state")
         .and_then(Value::as_object)
@@ -291,7 +288,6 @@ fn load_policy(root: &Path, policy_path_override: Option<&str>) -> Value {
         .and_then(Value::as_object)
         .cloned()
         .unwrap_or_default();
-
     let src_state = src_obj
         .get("state")
         .and_then(Value::as_object)
@@ -317,7 +313,6 @@ fn load_policy(root: &Path, policy_path_override: Option<&str>) -> Value {
         .and_then(Value::as_object)
         .cloned()
         .unwrap_or_default();
-
     let codex_path_raw = {
         let candidate = as_str(src_obj.get("codex_path"));
         if candidate.is_empty() {
@@ -326,7 +321,6 @@ fn load_policy(root: &Path, policy_path_override: Option<&str>) -> Value {
             candidate
         }
     };
-
     let latest_path_raw = {
         let candidate = as_str(src_state.get("latest_path"));
         if candidate.is_empty() {
@@ -335,7 +329,6 @@ fn load_policy(root: &Path, policy_path_override: Option<&str>) -> Value {
             candidate
         }
     };
-
     let history_path_raw = {
         let candidate = as_str(src_state.get("history_path"));
         if candidate.is_empty() {
@@ -344,7 +337,6 @@ fn load_policy(root: &Path, policy_path_override: Option<&str>) -> Value {
             candidate
         }
     };
-
     let version = {
         let candidate = as_str(src_obj.get("version"));
         if candidate.is_empty() {
@@ -353,7 +345,6 @@ fn load_policy(root: &Path, policy_path_override: Option<&str>) -> Value {
             candidate
         }
     };
-
     json!({
         "version": version,
         "enabled": as_bool(src_obj.get("enabled"), as_bool(base_obj.get("enabled"), true)),

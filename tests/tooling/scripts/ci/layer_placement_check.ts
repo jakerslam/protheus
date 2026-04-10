@@ -64,6 +64,7 @@ function isSourceFile(path) {
 function requiresOwnershipHeader(path) {
   if (!isSourceFile(path)) return false;
   if (path.startsWith('core/layer0/') || path.startsWith('core/layer1/') || path.startsWith('core/layer2/')) return true;
+  if (path.startsWith('surface/orchestration/')) return true;
   if (path.startsWith('client/runtime/systems/')) return true;
   if (path.startsWith('apps/')) return true;
   return false;

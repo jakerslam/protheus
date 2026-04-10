@@ -32,7 +32,7 @@ Layer 2: Scheduling + Execution
         ↓
 Layer 3: OS Personality Template
         ↓
-Cognition Plane (TS/Python client surfaces)
+Cognition Plane (Orchestration Surface + Presentation Client)
 ```
 
 ## 4. Layer Responsibilities
@@ -59,10 +59,11 @@ Cognition Plane (TS/Python client surfaces)
 - Growth layer for process model, VFS/filesystems, driver contracts, syscall surfaces, memory management, namespaces, networking stack, userland isolation, and windowing.
 - Must consume lower-layer contracts; never bypass them.
 
-### Cognition Plane (`client/`)
-- User-facing and probabilistic surfaces.
-- Can propose/assist; cannot become root-of-correctness.
-- Communicates with core only through conduit + scrambler.
+### Cognition Plane (`surface/orchestration/` + `client/`)
+- Orchestration Surface (`surface/orchestration/`) owns request shaping, sequencing, clarification, recovery, and result packaging.
+- Presentation Client (`client/`) owns rendering, input, shell UX, and presentation-local state.
+- Cognition can propose/assist; cannot become root-of-correctness.
+- Core boundary crossing remains contract-driven through conduit + scrambler.
 
 ## 5. Interface Contracts (Generation Targets)
 
