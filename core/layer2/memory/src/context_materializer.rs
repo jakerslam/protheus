@@ -22,6 +22,32 @@ pub struct ContextMaterialization {
     pub entries: Vec<MaterializedMemoryEntry>,
 }
 
+fn allows_scope(requested_scopes: &[MemoryScope], scope: &MemoryScope) -> bool {
+    requested_scopes.is_empty() || requested_scopes.iter().any(|row| row == scope)
+}
+
+fn should_materialize_version(
+    requested_scopes: &[MemoryScope],
+    include_ephemeral: bool,
+    version: &MemoryVersion,
+) -> bool {
+    if !allows_scope(requested_scopes, &version.scope) {
+        return false;
+    }
+    !matches!(version.scope, MemoryScope::Ephemeral) || include_ephemeral
+}
+
+fn context_manifest_id(
+    principal_id: &str,
+    manifest_entries: &[ContextManifestEntryRef],
+    timestamp_ms: u64,
+) -> String {
+    format!(
+        "context_{}",
+        &deterministic_hash(&(principal_id.to_string(), manifest_entries, timestamp_ms))[..24]
+    )
+}
+
 pub fn materialize_context(
     principal_id: &str,
     requested_scopes: &[MemoryScope],
@@ -33,13 +59,10 @@ pub fn materialize_context(
     let explicit_ephemeral = requested_scopes
         .iter()
         .any(|scope| matches!(scope, MemoryScope::Ephemeral));
+    let timestamp_ms = now_ms();
 
     for version in source_versions {
-        if !requested_scopes.is_empty() && !requested_scopes.iter().any(|row| row == &version.scope)
-        {
-            continue;
-        }
-        if matches!(version.scope, MemoryScope::Ephemeral) && !explicit_ephemeral {
+        if !should_materialize_version(requested_scopes, explicit_ephemeral, version) {
             continue;
         }
         let (payload, redacted) =
@@ -62,10 +85,7 @@ pub fn materialize_context(
     }
 
     let manifest = ContextManifest {
-        context_manifest_id: format!(
-            "context_{}",
-            &deterministic_hash(&(principal_id.to_string(), &manifest_entries, now_ms()))[..24]
-        ),
+        context_manifest_id: context_manifest_id(principal_id, &manifest_entries, timestamp_ms),
         principal_id: principal_id.to_string(),
         requested_scopes: requested_scopes.to_vec(),
         redaction_policy,
@@ -74,7 +94,7 @@ pub fn materialize_context(
             .iter()
             .flat_map(|row| row.lineage_refs.clone())
             .collect::<Vec<_>>(),
-        timestamp_ms: now_ms(),
+        timestamp_ms,
     };
     ContextMaterialization { manifest, entries }
 }
