@@ -1,5 +1,12 @@
 const toolResponseCompactor = require('./tool_response_compactor.ts');
-const { compactToolResponse } = toolResponseCompactor as { compactToolResponse: (data: string, options?: { toolName?: string }) => any };
+const { compactToolResponse, normalizeCompactorResult } = toolResponseCompactor as {
+  compactToolResponse: (data: string, options?: { toolName?: string }) => any;
+  normalizeCompactorResult: (result: any, fallbackContent: string) => {
+    compacted: boolean;
+    content: string;
+    metrics: unknown;
+  };
+};
 
 function extractRawPathFromContent(content: unknown): string | null {
   const txt = String(content || '');
@@ -13,10 +20,15 @@ function compactCommandOutput(rawText: unknown, toolName: unknown): {
   raw_path: string | null;
   metrics: unknown;
 } {
-  const result = compactToolResponse(String(rawText || ''), { toolName: String(toolName || 'command_output') });
+  const normalizedRawText = String(rawText || '');
+  const normalizedToolName = String(toolName || 'command_output');
+  const result = normalizeCompactorResult(
+    compactToolResponse(normalizedRawText, { toolName: normalizedToolName }),
+    normalizedRawText
+  );
   const rawPathFromContent = extractRawPathFromContent(result.content);
   return {
-    text: String(result.content || ''),
+    text: result.content,
     compacted: result.compacted === true,
     raw_path: rawPathFromContent || null,
     metrics: result.metrics || null

@@ -14,26 +14,35 @@ function encodeBase64(value) {
   return Buffer.from(String(value == null ? '' : value), 'utf8').toString('base64');
 }
 
+function bridgePayload(out) {
+  const receipt = out && out.payload && typeof out.payload === 'object' ? out.payload : null;
+  return receipt && receipt.payload && typeof receipt.payload === 'object'
+    ? receipt.payload
+    : receipt;
+}
+
+function invokeError(command, out, payloadOut, suffix) {
+  const fallback = `conversation_eye_synthesizer_kernel_${command}_${suffix}`;
+  if (payloadOut && typeof payloadOut.error === 'string' && payloadOut.error.trim()) {
+    return payloadOut.error.trim();
+  }
+  const stderr = out && out.stderr ? String(out.stderr).trim() : '';
+  return stderr || fallback;
+}
+
 function invoke(command, payload = {}, opts = {}) {
   const out = bridge.run([
     command,
     `--payload-base64=${encodeBase64(JSON.stringify(payload || {}))}`
   ]);
-  const receipt = out && out.payload && typeof out.payload === 'object' ? out.payload : null;
-  const payloadOut = receipt && receipt.payload && typeof receipt.payload === 'object'
-    ? receipt.payload
-    : receipt;
+  const payloadOut = bridgePayload(out);
   if (out.status !== 0) {
-    const message = payloadOut && typeof payloadOut.error === 'string'
-      ? payloadOut.error
-      : (out && out.stderr ? String(out.stderr).trim() : `conversation_eye_synthesizer_kernel_${command}_failed`);
-    if (opts.throwOnError !== false) throw new Error(message || `conversation_eye_synthesizer_kernel_${command}_failed`);
-    return { ok: false, error: message || `conversation_eye_synthesizer_kernel_${command}_failed` };
+    const message = invokeError(command, out, payloadOut, 'failed');
+    if (opts.throwOnError !== false) throw new Error(message);
+    return { ok: false, error: message };
   }
   if (!payloadOut || typeof payloadOut !== 'object') {
-    const message = out && out.stderr
-      ? String(out.stderr).trim() || `conversation_eye_synthesizer_kernel_${command}_bridge_failed`
-      : `conversation_eye_synthesizer_kernel_${command}_bridge_failed`;
+    const message = invokeError(command, out, payloadOut, 'bridge_failed');
     if (opts.throwOnError !== false) throw new Error(message);
     return { ok: false, error: message };
   }

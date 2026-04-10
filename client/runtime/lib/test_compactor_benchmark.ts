@@ -12,6 +12,28 @@ const CLIENT_ROOT = path.resolve(__dirname, '..');
 const LOCAL_TOOL_RAW_DIR = path.join(CLIENT_ROOT, 'local', 'logs', 'tool_raw');
 fs.mkdirSync(LOCAL_TOOL_RAW_DIR, { recursive: true });
 
+function runBenchmarkCase(name, payload, toolName) {
+  const rawJson = JSON.stringify(payload, null, 2);
+  const result = compactToolResponse(payload, { toolName });
+  return {
+    name,
+    beforeChars: rawJson.length,
+    beforeLines: rawJson.split('\n').length,
+    afterChars: result.content.length,
+    afterLines: result.content.split('\n').length,
+    result
+  };
+}
+
+function printBenchmarkCase(caseResult) {
+  console.log(`[TEST] ${caseResult.name}`);
+  console.log(`  Before: ${caseResult.beforeChars.toLocaleString()} chars (${caseResult.beforeLines} lines)`);
+  console.log(`  After:  ${caseResult.afterChars.toLocaleString()} chars (${caseResult.afterLines} lines)`);
+  console.log(`  Savings: ${caseResult.result.metrics.savingsPercent}%`);
+  console.log(`  Compacted: ${caseResult.result.compacted}`);
+  console.log();
+}
+
 // Simulated feed data based on earlier curl output
 const feedData = {
   "success": true,
@@ -87,31 +109,17 @@ const commentsData = {
 
 console.log('=== TOOL RESPONSE COMPACTOR BENCHMARK ===\n');
 
-// Test 1: Feed
-console.log('[TEST 1] Moltbook hot feed (5 posts)...');
-const feedJson = JSON.stringify(feedData, null, 2);
-const beforeFeed = feedJson.length;
-const resultFeed = compactToolResponse(feedData, { toolName: 'moltbook_feed' });
-const afterFeed = resultFeed.content.length;
+const feedCase = runBenchmarkCase('Moltbook hot feed (5 posts)...', feedData, 'moltbook_feed');
+printBenchmarkCase(feedCase);
+const commentsCase = runBenchmarkCase('Comments on post (3 comments)...', commentsData, 'moltbook_comments');
+printBenchmarkCase(commentsCase);
 
-console.log(`  Before: ${beforeFeed.toLocaleString()} chars (${feedJson.split('\n').length} lines)`);
-console.log(`  After:  ${afterFeed.toLocaleString()} chars (${resultFeed.content.split('\n').length} lines)`);
-console.log(`  Savings: ${resultFeed.metrics.savingsPercent}%`);
-console.log(`  Compacted: ${resultFeed.compacted}`);
-console.log();
-
-// Test 2: Comments
-console.log('[TEST 2] Comments on post (3 comments)...');
-const commentsJson = JSON.stringify(commentsData, null, 2);
-const beforeComment = commentsJson.length;
-const resultComment = compactToolResponse(commentsData, { toolName: 'moltbook_comments' });
-const afterComment = resultComment.content.length;
-
-console.log(`  Before: ${beforeComment.toLocaleString()} chars (${commentsJson.split('\n').length} lines)`);
-console.log(`  After:  ${afterComment.toLocaleString()} chars (${resultComment.content.split('\n').length} lines)`);
-console.log(`  Savings: ${resultComment.metrics.savingsPercent}%`);
-console.log(`  Compacted: ${resultComment.compacted}`);
-console.log();
+const beforeFeed = feedCase.beforeChars;
+const afterFeed = feedCase.afterChars;
+const resultFeed = feedCase.result;
+const beforeComment = commentsCase.beforeChars;
+const afterComment = commentsCase.afterChars;
+const resultComment = commentsCase.result;
 
 // Summary
 const totalBefore = beforeFeed + beforeComment;
