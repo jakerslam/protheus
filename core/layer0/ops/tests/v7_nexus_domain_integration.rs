@@ -30,95 +30,85 @@ fn assert_claim(payload: &Value, id: &str) {
     assert!(ok, "missing claim {id}");
 }
 
+fn run_nexus(root: &Path, args: Vec<String>) -> Value {
+    let exit = nexus_plane::run(root, &args);
+    assert_eq!(exit, 0);
+    read_json(&latest_path(root))
+}
+
+fn arg_set(rows: &[&str]) -> Vec<String> {
+    rows.iter().map(|row| row.to_string()).collect()
+}
+
 #[test]
 fn v7_nexus_001_1_to_001_7_runtime_contracts_proven() {
     let root = tempfile::tempdir().expect("tempdir");
     let root_path = root.path();
 
-    let package_exit = nexus_plane::run(
+    let package_latest = run_nexus(
         root_path,
-        &[
-            "package-domain".to_string(),
-            "--domain=finance".to_string(),
-            "--strict=1".to_string(),
-        ],
+        arg_set(&["package-domain", "--domain=finance", "--strict=1"]),
     );
-    assert_eq!(package_exit, 0);
-    let package_latest = read_json(&latest_path(root_path));
     assert_claim(&package_latest, "V7-NEXUS-001.1");
 
-    let bridge_exit = nexus_plane::run(
+    let bridge_latest = run_nexus(
         root_path,
-        &[
-            "bridge".to_string(),
-            "--from-domain=finance".to_string(),
-            "--to-domain=government".to_string(),
-            "--payload-json={\"event\":\"payment\"}".to_string(),
-            "--legal-contract-id=contract-77".to_string(),
-            "--sanitize=1".to_string(),
-            "--strict=1".to_string(),
-        ],
+        arg_set(&[
+            "bridge",
+            "--from-domain=finance",
+            "--to-domain=government",
+            "--payload-json={\"event\":\"payment\"}",
+            "--legal-contract-id=contract-77",
+            "--sanitize=1",
+            "--strict=1",
+        ]),
     );
-    assert_eq!(bridge_exit, 0);
-    let bridge_latest = read_json(&latest_path(root_path));
     assert_claim(&bridge_latest, "V7-NEXUS-001.2");
 
-    let insurance_exit = nexus_plane::run(
+    let insurance_latest = run_nexus(
         root_path,
-        &[
-            "insurance".to_string(),
-            "--op=quote".to_string(),
-            "--risk-json={\"risk_score\":0.3,\"compliance_score\":0.9}".to_string(),
-            "--strict=1".to_string(),
-        ],
+        arg_set(&[
+            "insurance",
+            "--op=quote",
+            "--risk-json={\"risk_score\":0.3,\"compliance_score\":0.9}",
+            "--strict=1",
+        ]),
     );
-    assert_eq!(insurance_exit, 0);
-    let insurance_latest = read_json(&latest_path(root_path));
     assert_claim(&insurance_latest, "V7-NEXUS-001.3");
 
-    let human_exit = nexus_plane::run(
+    let human_latest = run_nexus(
         root_path,
-        &[
-            "human-boundary".to_string(),
-            "--op=authorize".to_string(),
-            "--action=deploy_critical".to_string(),
-            "--human-a=SIG_A".to_string(),
-            "--human-b=SIG_B".to_string(),
-            "--strict=1".to_string(),
-        ],
+        arg_set(&[
+            "human-boundary",
+            "--op=authorize",
+            "--action=deploy_critical",
+            "--human-a=SIG_A",
+            "--human-b=SIG_B",
+            "--strict=1",
+        ]),
     );
-    assert_eq!(human_exit, 0);
-    let human_latest = read_json(&latest_path(root_path));
     assert_claim(&human_latest, "V7-NEXUS-001.4");
 
-    let receipt_v2_exit = nexus_plane::run(
+    let receipt_latest = run_nexus(
         root_path,
-        &[
-            "receipt-v2".to_string(),
-            "--op=validate".to_string(),
-            "--receipt-json={\"domain\":\"finance\",\"classifications\":[\"CUI\"],\"authorization\":{\"principal\":\"u\"},\"compliance\":{\"controls\":[\"x\"]},\"insurance\":{\"coverage\":\"approved\"}}".to_string(),
-            "--strict=1".to_string(),
-        ],
+        arg_set(&[
+            "receipt-v2",
+            "--op=validate",
+            "--receipt-json={\"domain\":\"finance\",\"classifications\":[\"CUI\"],\"authorization\":{\"principal\":\"u\"},\"compliance\":{\"controls\":[\"x\"]},\"insurance\":{\"coverage\":\"approved\"}}",
+            "--strict=1",
+        ]),
     );
-    assert_eq!(receipt_v2_exit, 0);
-    let receipt_latest = read_json(&latest_path(root_path));
     assert_claim(&receipt_latest, "V7-NEXUS-001.5");
 
-    let merkle_exit = nexus_plane::run(
+    let merkle_latest = run_nexus(
         root_path,
-        &[
-            "merkle-forest".to_string(),
-            "--op=build".to_string(),
-            "--strict=1".to_string(),
-        ],
+        arg_set(&["merkle-forest", "--op=build", "--strict=1"]),
     );
-    assert_eq!(merkle_exit, 0);
-    let merkle_latest = read_json(&latest_path(root_path));
     assert_claim(&merkle_latest, "V7-NEXUS-001.6");
 
-    let ledger_append = nexus_plane::run(
+    let ledger_latest = run_nexus(
         root_path,
-        &[
+        vec![
             "compliance-ledger".to_string(),
             "--op=append".to_string(),
             "--chain-id=chain-1".to_string(),
@@ -127,8 +117,6 @@ fn v7_nexus_001_1_to_001_7_runtime_contracts_proven() {
             "--strict=1".to_string(),
         ],
     );
-    assert_eq!(ledger_append, 0);
-    let ledger_latest = read_json(&latest_path(root_path));
     assert_claim(&ledger_latest, "V7-NEXUS-001.7");
 
     let bypass_exit = nexus_plane::run(

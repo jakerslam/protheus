@@ -35,14 +35,43 @@ pub struct DigestState {
     pub history: Vec<StateTransitionReceipt>,
 }
 
+fn stage_receipt_id(item_id: &str, stage: &str) -> String {
+    format!("receipt:{item_id}:{stage}")
+}
+
+fn normalized_reason(reason: &str) -> String {
+    reason.trim().to_string()
+}
+
+fn apply_transition(
+    state: &mut DigestState,
+    to: DigestStatus,
+    receipt_id: String,
+    reason: &str,
+) -> StateTransitionReceipt {
+    let row = StateTransitionReceipt {
+        item_id: state.item_id.clone(),
+        from: state.status.clone(),
+        to: to.clone(),
+        receipt_id: receipt_id.clone(),
+        reason: normalized_reason(reason),
+    };
+    state.status = to;
+    state.last_receipt_id = receipt_id.clone();
+    state.receipt_ids.push(receipt_id);
+    state.history.push(row.clone());
+    row
+}
+
 impl DigestState {
     pub fn new(item_id: &str) -> Self {
+        let ingested_receipt_id = stage_receipt_id(item_id, "ingested");
         Self {
             item_id: item_id.to_string(),
             status: DigestStatus::Ingested,
             retention: RetentionRecord::new(item_id),
-            last_receipt_id: format!("receipt:{item_id}:ingested"),
-            receipt_ids: vec![format!("receipt:{item_id}:ingested")],
+            last_receipt_id: ingested_receipt_id.clone(),
+            receipt_ids: vec![ingested_receipt_id],
             history: Vec::new(),
         }
     }
@@ -77,17 +106,7 @@ pub fn transition(
             state.status, to
         ));
     }
-    let row = StateTransitionReceipt {
-        item_id: state.item_id.clone(),
-        from: state.status.clone(),
-        to: to.clone(),
-        receipt_id: receipt_id.clone(),
-        reason: reason.trim().to_string(),
-    };
-    state.status = to;
-    state.last_receipt_id = receipt_id.clone();
-    state.receipt_ids.push(receipt_id);
-    state.history.push(row);
+    apply_transition(state, to, receipt_id, reason);
     Ok(())
 }
 
@@ -99,18 +118,13 @@ pub fn rollback_by_receipt(
     if !state.receipt_ids.iter().any(|row| row == receipt_id) {
         return Err("state_rollback_receipt_not_found".to_string());
     }
-    let row = StateTransitionReceipt {
-        item_id: state.item_id.clone(),
-        from: state.status.clone(),
-        to: DigestStatus::RolledBack,
-        receipt_id: format!("receipt:{}:rollback", state.item_id),
-        reason: reason.trim().to_string(),
-    };
-    state.status = DigestStatus::RolledBack;
-    state.last_receipt_id = row.receipt_id.clone();
-    state.receipt_ids.push(row.receipt_id.clone());
-    state.history.push(row.clone());
-    Ok(row)
+    let rollback_receipt_id = stage_receipt_id(&state.item_id, "rollback");
+    Ok(apply_transition(
+        state,
+        DigestStatus::RolledBack,
+        rollback_receipt_id,
+        reason,
+    ))
 }
 
 #[cfg(test)]

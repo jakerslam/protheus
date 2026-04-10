@@ -17,14 +17,10 @@ fn run() -> io::Result<()> {
     let policy = load_policy()?;
     validate_conduit_contract_budget(policy.bridge_message_budget_max)
         .map_err(|reason| io::Error::new(io::ErrorKind::InvalidData, reason))?;
-    let signing_key_id =
-        env::var("CONDUIT_SIGNING_KEY_ID").unwrap_or_else(|_| "conduit-msg-k1".to_string());
-    let signing_secret = env::var("CONDUIT_SIGNING_SECRET")
-        .unwrap_or_else(|_| "conduit-dev-signing-secret".to_string());
-    let token_key_id =
-        env::var("CONDUIT_TOKEN_KEY_ID").unwrap_or_else(|_| "conduit-token-k1".to_string());
-    let token_secret =
-        env::var("CONDUIT_TOKEN_SECRET").unwrap_or_else(|_| "conduit-dev-token-secret".to_string());
+    let signing_key_id = env_or_default("CONDUIT_SIGNING_KEY_ID", "conduit-msg-k1");
+    let signing_secret = env_or_default("CONDUIT_SIGNING_SECRET", "conduit-dev-signing-secret");
+    let token_key_id = env_or_default("CONDUIT_TOKEN_KEY_ID", "conduit-token-k1");
+    let token_secret = env_or_default("CONDUIT_TOKEN_SECRET", "conduit-dev-token-secret");
 
     let gate = RegistryPolicyGate::new(policy.clone());
     let mut security = ConduitSecurityContext::from_policy(
@@ -53,6 +49,10 @@ fn load_policy() -> io::Result<ConduitPolicy> {
     }
 }
 
+fn env_or_default(key: &str, default: &str) -> String {
+    env::var(key).unwrap_or_else(|_| default.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::{load_policy, run};
@@ -66,10 +66,14 @@ mod tests {
         LOCK.get_or_init(|| Mutex::new(()))
     }
 
+    fn clear_policy_path_env() {
+        env::remove_var("CONDUIT_POLICY_PATH");
+    }
+
     #[test]
     fn load_policy_uses_default_when_env_unset() {
         let _guard = env_lock().lock().expect("env lock");
-        env::remove_var("CONDUIT_POLICY_PATH");
+        clear_policy_path_env();
         let policy = load_policy().expect("default policy");
         assert_eq!(
             policy.bridge_message_budget_max,
@@ -92,7 +96,7 @@ mod tests {
         env::set_var("CONDUIT_POLICY_PATH", &policy_path);
         let policy = load_policy().expect("policy from file");
         assert_eq!(policy.bridge_message_budget_max, 10);
-        env::remove_var("CONDUIT_POLICY_PATH");
+        clear_policy_path_env();
     }
 
     #[test]
@@ -104,7 +108,7 @@ mod tests {
         );
         let err = load_policy().expect_err("missing path must fail");
         assert_eq!(err.kind(), std::io::ErrorKind::NotFound);
-        env::remove_var("CONDUIT_POLICY_PATH");
+        clear_policy_path_env();
     }
 
     #[test]
@@ -116,7 +120,7 @@ mod tests {
         env::set_var("CONDUIT_POLICY_PATH", &policy_path);
         let err = load_policy().expect_err("invalid json must fail");
         assert_eq!(err.kind(), std::io::ErrorKind::InvalidData);
-        env::remove_var("CONDUIT_POLICY_PATH");
+        clear_policy_path_env();
     }
 
     #[test]
@@ -134,6 +138,6 @@ mod tests {
         env::set_var("CONDUIT_POLICY_PATH", &policy_path);
         let err = run().expect_err("invalid budget must fail");
         assert_eq!(err.kind(), std::io::ErrorKind::InvalidData);
-        env::remove_var("CONDUIT_POLICY_PATH");
+        clear_policy_path_env();
     }
 }
