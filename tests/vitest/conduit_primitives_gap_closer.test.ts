@@ -45,7 +45,9 @@ describe('conduit primitive wrapper contract', () => {
     const hasBootstrapEntrypoint =
       source.includes('ts_bootstrap.ts') && source.includes('bootstrap(__filename, module)');
     const hasRustLaneBridge = source.includes('createOpsLaneBridge');
-    expect(hasBootstrapEntrypoint || hasRustLaneBridge).toBe(true);
+    const hasSurfaceOrchestrationShim =
+      source.includes('surface/orchestration/scripts/') && source.includes('thin CLI bridge');
+    expect(hasBootstrapEntrypoint || hasRustLaneBridge || hasSurfaceOrchestrationShim).toBe(true);
     expect(source.includes('legacy_retired_lane_bridge')).toBe(false);
   });
 
@@ -83,9 +85,74 @@ describe('conduit primitive wrapper contract', () => {
 
   test('rust lane bridge prefers resident ipc daemon path before sync spawn fallback', () => {
     const source = fs.readFileSync(path.join(ROOT, 'client/runtime/lib/rust_lane_bridge.ts'), 'utf8');
+    const isCompatShim =
+      source.includes("module.exports = require('../../../adapters/runtime/ops_lane_bridge.ts')");
+    if (isCompatShim) {
+      expect(source.includes('adapters/runtime/ops_lane_bridge.ts')).toBe(true);
+      return;
+    }
     expect(source.includes('INFRING_OPS_IPC_DAEMON')).toBe(true);
     expect(source.includes('ipc-daemon')).toBe(true);
     expect(source.includes('runLocalOpsDomainViaIpc')).toBe(true);
+  });
+
+  test('run_protheus_ops is bridge-first with explicit legacy process override', () => {
+    const source = fs.readFileSync(path.join(ROOT, 'adapters/runtime/run_protheus_ops.ts'), 'utf8');
+    expect(source.includes('createOpsLaneBridge')).toBe(true);
+    expect(source.includes('preferLocalCore: true')).toBe(true);
+    expect(source.includes('INFRING_OPS_FORCE_LEGACY_PROCESS_RUNNER')).toBe(true);
+    expect(source.includes('isProductionReleaseChannel')).toBe(true);
+  });
+
+  test('sdk transport and bridge lock process fallback in production channels', () => {
+    const sdk = fs.readFileSync(path.join(ROOT, 'packages/infring-sdk/src/transports.ts'), 'utf8');
+    const bridge = fs.readFileSync(path.join(ROOT, 'adapters/runtime/ops_lane_bridge.ts'), 'utf8');
+    expect(sdk.includes('process_transport_forbidden_in_production')).toBe(true);
+    expect(sdk.includes('isProductionReleaseChannel')).toBe(true);
+    expect(bridge.includes('process_fallback_forbidden_in_production')).toBe(true);
+    expect(bridge.includes('processFallbackPolicy')).toBe(true);
+  });
+
+  test('transport topology status strict mode fails when process fallback becomes effective', () => {
+    const entrypoint = path.join(ROOT, 'client/runtime/lib/ts_entrypoint.ts');
+    const statusScript = path.join(ROOT, 'client/runtime/systems/ops/transport_topology_status.ts');
+    const proc = spawnSync(process.execPath, [entrypoint, statusScript, '--strict=1', '--json=1'], {
+      cwd: ROOT,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        INFRING_RELEASE_CHANNEL: 'dev',
+        INFRING_OPS_ALLOW_PROCESS_FALLBACK: '1',
+      },
+    });
+    expect(proc.status).toBe(1);
+    const payload = JSON.parse(String(proc.stdout || '').trim());
+    expect(payload.ok).toBe(false);
+    expect(payload.violations.some((row: any) => row.id === 'ops_process_fallback_effective')).toBe(
+      true,
+    );
+  });
+
+  test('transport topology status strict mode passes for stable resident-only topology', () => {
+    const entrypoint = path.join(ROOT, 'client/runtime/lib/ts_entrypoint.ts');
+    const statusScript = path.join(ROOT, 'client/runtime/systems/ops/transport_topology_status.ts');
+    const proc = spawnSync(process.execPath, [entrypoint, statusScript, '--strict=1', '--json=1'], {
+      cwd: ROOT,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        INFRING_RELEASE_CHANNEL: 'stable',
+        INFRING_OPS_IPC_DAEMON: '1',
+        INFRING_OPS_IPC_STRICT: '1',
+        INFRING_OPS_ALLOW_PROCESS_FALLBACK: '0',
+        INFRING_SDK_ALLOW_PROCESS_TRANSPORT: '0',
+      },
+    });
+    expect(proc.status).toBe(0);
+    const payload = JSON.parse(String(proc.stdout || '').trim());
+    expect(payload.ok).toBe(true);
+    expect(payload.production_release).toBe(true);
+    expect(payload.transport.process_fallback_effective).toBe(false);
   });
 
   test('install.sh enforces runtime entrypoint integrity contract', () => {

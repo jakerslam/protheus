@@ -45,6 +45,7 @@ What is true in this repository today:
 - Gateway persistence is enabled by default (auto-restart + reboot supervision unless disabled).
 - Pure profiles (`--pure`, `--tiny-max`) are Rust-only and intentionally do not expose the rich `gateway` UI surface.
 - Full command surface still requires Node.js 22+; Node-free fallback remains available for core operations.
+- Production release channels are resident-IPC authoritative: process transport fallbacks are blocked (`process_transport_forbidden_in_production` / `process_fallback_forbidden_in_production`).
 
 ## Quick Start
 
