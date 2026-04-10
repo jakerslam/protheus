@@ -131,14 +131,14 @@ const V10_RUNTIME_REGRESSION_EVIDENCE: RowEvidence[] = [
     id: 'V10-DASH-004.4',
     paths: [
       'core/layer0/ops/src/dashboard_compat_api_parts/020-usage-from-state.rs',
-      'client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/070-init-sequences-and-pointer.ts',
+      'client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/070-init-sequences-and-pointer.part01.ts',
     ],
   },
   {
     id: 'V10-MEMORY-031.2',
     paths: [
       'core/layer0/ops/src/dashboard_compat_api_parts/020-usage-from-state.rs',
-      'client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/020-init-roles-and-vibes.ts',
+      'client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/020-init-roles-and-vibes.part01.ts',
     ],
   },
   {

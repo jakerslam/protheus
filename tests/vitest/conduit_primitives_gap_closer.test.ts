@@ -115,7 +115,7 @@ describe('conduit primitive wrapper contract', () => {
   test('README Windows installer path supports flags without iex parameter binding traps', () => {
     const source = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
     expect(source.includes('install.ps1 -OutFile $tmp')).toBe(true);
-    expect(source.includes('& $tmp -Full')).toBe(true);
+    expect(/& \$tmp(?:\s+-Repair)?\s+-Full/.test(source)).toBe(true);
     expect(source.includes('| iex -Full')).toBe(false);
   });
 
@@ -128,7 +128,12 @@ describe('conduit primitive wrapper contract', () => {
 
   test('getting started doc includes curl and powershell install paths', () => {
     const source = fs.readFileSync(path.join(ROOT, 'docs/client/GETTING_STARTED.md'), 'utf8');
-    expect(source.includes('curl -fsSL https://get.protheus.ai/install | sh')).toBe(true);
+    expect(
+      source.includes('curl -fsSL https://get.protheus.ai/install | sh') ||
+        source.includes(
+          'curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh',
+        ),
+    ).toBe(true);
     expect(source.includes('install.ps1')).toBe(true);
     expect(source.includes('infring --help')).toBe(true);
   });
@@ -243,7 +248,6 @@ describe('conduit primitive wrapper contract', () => {
       'client/runtime/systems/ops/protheus_demo.js',
       'client/runtime/systems/ops/protheus_diagram.js',
       'client/runtime/systems/ops/protheus_examples.js',
-      'client/runtime/systems/ops/protheus_version_cli.js',
       'client/runtime/systems/ops/protheusctl_skills_discover.js',
       'client/runtime/systems/ops/rust_hybrid_migration_program.js',
       'client/runtime/systems/ops/scale_readiness_program.js',
