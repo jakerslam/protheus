@@ -255,9 +255,16 @@
     </svg>
     <nav
       class="bottom-dock"
-      :class="{ 'is-dragging': !!bottomDockDragId, 'is-settling': !!_bottomDockRevealTargetDuringSettle }"
+      :class="{
+        'is-dragging': !!bottomDockDragId,
+        'is-settling': !!_bottomDockRevealTargetDuringSettle,
+        'is-container-dragging': !!bottomDockContainerDragActive,
+        'is-container-settling': !!bottomDockContainerSettling
+      }"
+      :style="bottomDockContainerStyle()"
       aria-label="Primary tabs"
       @dragstart.prevent
+      @pointerdown="startBottomDockContainerPointerDrag($event)"
       @mousemove="updateBottomDockPointer($event)"
       @mouseleave="clearBottomDockHover()"
     >
@@ -477,8 +484,20 @@
     <div
       class="bottom-dock-preview-bubble bottom-dock-preview-overlay"
       :class="{ 'is-visible': !!bottomDockPreviewVisible && !!bottomDockPreviewText }"
-      :style="'left:' + bottomDockPreviewX + 'px;top:' + bottomDockPreviewY + 'px'"
+      :style="'left:' + bottomDockPreviewX + 'px;top:' + bottomDockPreviewY + 'px;' + (bottomDockPreviewWidth > 0 ? ('width:' + bottomDockPreviewWidth + 'px;') : 'width:auto;')"
       aria-hidden="true"
     >
-      <span class="bottom-dock-preview-bubble-label" x-text="bottomDockPreviewText"></span>
+      <span
+        class="bottom-dock-preview-bubble-label-stack"
+        :class="{ 'label-fx-ready': !!bottomDockPreviewLabelFxReady, 'is-morphing': !!bottomDockPreviewLabelMorphing }"
+      >
+        <span
+          class="bottom-dock-preview-bubble-label bottom-dock-preview-bubble-label--old"
+          x-text="bottomDockPreviewMorphFromText"
+        ></span>
+        <span
+          class="bottom-dock-preview-bubble-label bottom-dock-preview-bubble-label--new"
+          x-text="bottomDockPreviewText"
+        ></span>
+      </span>
     </div>
