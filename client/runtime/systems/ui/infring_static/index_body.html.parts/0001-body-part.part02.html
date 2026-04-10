@@ -1,123 +1,147 @@
         <div class="global-topbar-page-slot"></div>
       </div>
       <div class="global-topbar-right">
-        <div class="global-topbar-controls">
-          <button
-            class="health-indicator topbar-agent-indicator"
-            type="button"
-            :class="runtimeFacadeClass()"
-            @click="location.hash='agents'"
-            :title="runtimeFacadeTitle()"
-            aria-label="Open agents"
-          >
-            <span class="topbar-agent-indicator-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                <circle cx="9" cy="7" r="4"/>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-              </svg>
-            </span>
-            <span class="topbar-agent-indicator-text" x-text="runtimeFacadeDisplayLabel()"></span>
-          </button>
-        </div>
-        <div class="theme-switcher icon-pill-toggle" :data-mode="themeMode" :data-resolved="theme">
-          <button class="theme-opt" :class="{ active: themeMode === 'light' }" @click="setTheme('light')" title="Light" aria-label="Light theme">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <circle cx="12" cy="12" r="4"></circle>
-              <path d="M12 2v2"></path>
-              <path d="M12 20v2"></path>
-              <path d="m4.93 4.93 1.41 1.41"></path>
-              <path d="m17.66 17.66 1.41 1.41"></path>
-              <path d="M2 12h2"></path>
-              <path d="M20 12h2"></path>
-              <path d="m6.34 17.66-1.41 1.41"></path>
-              <path d="m19.07 4.93-1.41 1.41"></path>
-            </svg>
-          </button>
-          <button class="theme-opt" :class="{ active: themeMode === 'system' }" @click="setTheme('system')" title="System" aria-label="System theme">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <rect x="2" y="3" width="20" height="14" rx="2"></rect>
-              <path d="M8 21h8"></path><path d="M12 17v4"></path>
-            </svg>
-          </button>
-          <button class="theme-opt" :class="{ active: themeMode === 'dark' }" @click="setTheme('dark')" title="Dark" aria-label="Dark theme">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M21 12.79A9 9 0 1 1 11.21 3c0 0 0 0 0 0A7 7 0 0 0 21 12.79z"></path>
-            </svg>
-          </button>
-        </div>
-        <div class="notif-wrap" @click.outside="$store.app.notificationsOpen = false">
-          <button class="btn btn-ghost btn-sm topbar-icon-btn notif-btn" :class="{ 'notif-btn-auto-ring': $store.app.notificationBellPulse }" @click="$store.app.toggleNotifications()" title="Notifications" aria-label="Notifications">
-            <svg class="notif-bell-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5"></path>
-              <path d="M9 17a3 3 0 0 0 6 0"></path>
-            </svg>
-            <span class="notif-badge" x-show="$store.app.unreadNotifications > 0" x-text="$store.app.unreadNotifications > 99 ? '99+' : $store.app.unreadNotifications"></span>
-          </button>
-          <div class="notif-dropdown" x-show="$store.app.notificationsOpen" x-transition:enter="transition ease-out duration-120" x-transition:enter-start="opacity-0 transform translate-y-1" x-transition:enter-end="opacity-100 transform translate-y-0">
-            <div class="notif-dropdown-head">
-              <span>Notifications</span>
-              <button class="notif-clear-btn" @click="$store.app.clearNotifications()">Clear</button>
+        <div
+          class="topbar-reorder-box topbar-reorder-box-right"
+          @pointerdown="handleTopbarReorderPointerDown('right', $event)"
+          @pointerup="cancelTopbarDragHold()"
+          @pointercancel="cancelTopbarDragHold()"
+          @pointerleave="cancelTopbarDragHold()"
+          @dragstart="handleTopbarReorderDragStart('right', $event)"
+          @drag="handleTopbarReorderDragMove($event)"
+          @dragenter="handleTopbarReorderDragEnter('right', $event)"
+          @dragover="handleTopbarReorderDragOver('right', $event)"
+          @drop="handleTopbarReorderDrop('right', $event)"
+          @dragend="handleTopbarDragEnd()"
+        >
+          <div class="topbar-reorder-item" data-topbar-item="connectivity" :style="topbarReorderItemStyle('right', 'connectivity')" draggable="true">
+            <div class="global-topbar-controls">
+              <button
+                class="health-indicator topbar-agent-indicator"
+                type="button"
+                :class="runtimeFacadeClass()"
+                @click="location.hash='agents'"
+                :title="runtimeFacadeTitle()"
+                aria-label="Open agents"
+              >
+                <span class="topbar-agent-indicator-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                  </svg>
+                </span>
+                <span class="topbar-agent-indicator-text" x-text="runtimeFacadeDisplayLabel()"></span>
+              </button>
             </div>
-            <template x-if="!$store.app.notifications.length">
-              <div class="notif-empty">No notifications yet</div>
-            </template>
-            <div class="notif-list" x-show="$store.app.notifications.length">
-              <template x-for="note in $store.app.notifications" :key="note.id">
-                <div class="notif-item" :class="{ unread: !note.read }">
-                  <button class="notif-item-open" @click="$store.app.reopenNotification(note)">
-                    <span class="notif-item-dot" :class="'type-' + note.type"></span>
-                    <span class="notif-item-msg" x-text="note.message"></span>
-                    <span class="notif-item-time" x-text="$store.app.formatNotificationTime(note.ts)"></span>
-                  </button>
-                  <button
-                    class="notif-item-dismiss"
-                    @click.stop="$store.app.dismissNotification(note.id)"
-                    title="Dismiss notification"
-                    aria-label="Dismiss notification"
-                  >&times;</button>
+          </div>
+          <div class="topbar-reorder-item" data-topbar-item="theme" :style="topbarReorderItemStyle('right', 'theme')" draggable="true">
+            <div class="theme-switcher icon-pill-toggle" :data-mode="themeMode" :data-resolved="theme">
+              <button class="theme-opt" :class="{ active: themeMode === 'light' }" @click="setTheme('light')" title="Light" aria-label="Light theme">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="4"></circle>
+                  <path d="M12 2v2"></path>
+                  <path d="M12 20v2"></path>
+                  <path d="m4.93 4.93 1.41 1.41"></path>
+                  <path d="m17.66 17.66 1.41 1.41"></path>
+                  <path d="M2 12h2"></path>
+                  <path d="M20 12h2"></path>
+                  <path d="m6.34 17.66-1.41 1.41"></path>
+                  <path d="m19.07 4.93-1.41 1.41"></path>
+                </svg>
+              </button>
+              <button class="theme-opt" :class="{ active: themeMode === 'system' }" @click="setTheme('system')" title="System" aria-label="System theme">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="2" y="3" width="20" height="14" rx="2"></rect>
+                  <path d="M8 21h8"></path><path d="M12 17v4"></path>
+                </svg>
+              </button>
+              <button class="theme-opt" :class="{ active: themeMode === 'dark' }" @click="setTheme('dark')" title="Dark" aria-label="Dark theme">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M21 12.79A9 9 0 1 1 11.21 3c0 0 0 0 0 0A7 7 0 0 0 21 12.79z"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="topbar-reorder-item" data-topbar-item="notifications" :style="topbarReorderItemStyle('right', 'notifications')" draggable="true">
+            <div class="notif-wrap" @click.outside="$store.app.notificationsOpen = false">
+              <button class="btn btn-ghost btn-sm topbar-icon-btn notif-btn" :class="{ 'notif-btn-auto-ring': $store.app.notificationBellPulse }" @click="$store.app.toggleNotifications()" title="Notifications" aria-label="Notifications">
+                <svg class="notif-bell-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5"></path>
+                  <path d="M9 17a3 3 0 0 0 6 0"></path>
+                </svg>
+                <span class="notif-badge" x-show="$store.app.unreadNotifications > 0" x-text="$store.app.unreadNotifications > 99 ? '99+' : $store.app.unreadNotifications"></span>
+              </button>
+              <div class="notif-dropdown" x-show="$store.app.notificationsOpen" x-transition:enter="transition ease-out duration-120" x-transition:enter-start="opacity-0 transform translate-y-1" x-transition:enter-end="opacity-100 transform translate-y-0">
+                <div class="notif-dropdown-head">
+                  <span>Notifications</span>
+                  <button class="notif-clear-btn" @click="$store.app.clearNotifications()">Clear</button>
                 </div>
-              </template>
+                <template x-if="!$store.app.notifications.length">
+                  <div class="notif-empty">No notifications yet</div>
+                </template>
+                <div class="notif-list" x-show="$store.app.notifications.length">
+                  <template x-for="note in $store.app.notifications" :key="note.id">
+                    <div class="notif-item" :class="{ unread: !note.read }">
+                      <button class="notif-item-open" @click="$store.app.reopenNotification(note)">
+                        <span class="notif-item-dot" :class="'type-' + note.type"></span>
+                        <span class="notif-item-msg" x-text="note.message"></span>
+                        <span class="notif-item-time" x-text="$store.app.formatNotificationTime(note.ts)"></span>
+                      </button>
+                      <button
+                        class="notif-item-dismiss"
+                        @click.stop="$store.app.dismissNotification(note.id)"
+                        title="Dismiss notification"
+                        aria-label="Dismiss notification"
+                      >&times;</button>
+                    </div>
+                  </template>
+                </div>
+              </div>
+              <div class="notif-bubble" x-show="$store.app.notificationBubble" x-transition:enter="transition ease-out duration-160" x-transition:enter-start="opacity-0 transform translate-y-2" x-transition:enter-end="opacity-100 transform translate-y-0" x-transition:leave="transition ease-in duration-120" x-transition:leave-start="opacity-100 transform translate-y-0" x-transition:leave-end="opacity-0 transform translate-y-2">
+                <div class="notif-bubble-head">
+                  <span class="notif-item-dot" :class="'type-' + (($store.app.notificationBubble && $store.app.notificationBubble.type) || 'info')"></span>
+                  <span class="notif-bubble-time" x-text="$store.app.notificationBubble ? $store.app.formatNotificationTime($store.app.notificationBubble.ts) : ''"></span>
+                  <button class="notif-bubble-close" @click.stop="$store.app.dismissNotificationBubble()" aria-label="Dismiss notification">&times;</button>
+                </div>
+                <div class="notif-bubble-msg" x-text="$store.app.notificationBubble ? $store.app.notificationBubble.message : ''"></div>
+              </div>
             </div>
           </div>
-          <div class="notif-bubble" x-show="$store.app.notificationBubble" x-transition:enter="transition ease-out duration-160" x-transition:enter-start="opacity-0 transform translate-y-2" x-transition:enter-end="opacity-100 transform translate-y-0" x-transition:leave="transition ease-in duration-120" x-transition:leave-start="opacity-100 transform translate-y-0" x-transition:leave-end="opacity-0 transform translate-y-2">
-            <div class="notif-bubble-head">
-              <span class="notif-item-dot" :class="'type-' + (($store.app.notificationBubble && $store.app.notificationBubble.type) || 'info')"></span>
-              <span class="notif-bubble-time" x-text="$store.app.notificationBubble ? $store.app.formatNotificationTime($store.app.notificationBubble.ts) : ''"></span>
-              <button class="notif-bubble-close" @click.stop="$store.app.dismissNotificationBubble()" aria-label="Dismiss notification">&times;</button>
-            </div>
-            <div class="notif-bubble-msg" x-text="$store.app.notificationBubble ? $store.app.notificationBubble.message : ''"></div>
+          <div class="topbar-reorder-item" data-topbar-item="search" :style="topbarReorderItemStyle('right', 'search')" draggable="true">
+            <button
+              class="btn btn-ghost btn-sm topbar-icon-btn topbar-search-btn dashboard-preview-trigger dashboard-preview-down-right"
+              type="button"
+              @click.prevent.stop
+              title="Search coming soon"
+              data-tooltip="Search coming soon"
+              aria-label="Search"
+              aria-disabled="true"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="11" cy="11" r="6"></circle>
+                <path d="m20 20-3.7-3.7"></path>
+              </svg>
+            </button>
+          </div>
+          <div class="topbar-reorder-item" data-topbar-item="auth" :style="topbarReorderItemStyle('right', 'auth')" draggable="true">
+            <button
+              class="btn btn-ghost btn-sm topbar-icon-btn auth-key-btn dashboard-preview-trigger dashboard-preview-down-right"
+              type="button"
+              @click.prevent
+              title="Authentication (coming soon)"
+              data-tooltip="Auth coming soon"
+              aria-label="Authentication"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="5" y="11" width="14" height="10" rx="2"></rect>
+                <path d="M8 11V8a4 4 0 0 1 8 0v3"></path>
+                <circle cx="12" cy="16" r="1"></circle>
+              </svg>
+            </button>
           </div>
         </div>
-        <button
-          class="btn btn-ghost btn-sm topbar-icon-btn topbar-search-btn dashboard-preview-trigger dashboard-preview-down-right"
-          type="button"
-          @click.prevent.stop
-          title="Search coming soon"
-          data-tooltip="Search coming soon"
-          aria-label="Search"
-          aria-disabled="true"
-        >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="11" cy="11" r="6"></circle>
-            <path d="m20 20-3.7-3.7"></path>
-          </svg>
-        </button>
-        <button
-          class="btn btn-ghost btn-sm topbar-icon-btn auth-key-btn dashboard-preview-trigger dashboard-preview-down-right"
-          type="button"
-          @click.prevent
-          title="Authentication (coming soon)"
-          data-tooltip="Auth coming soon"
-          aria-label="Authentication"
-        >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <rect x="5" y="11" width="14" height="10" rx="2"></rect>
-            <path d="M8 11V8a4 4 0 0 1 8 0v3"></path>
-            <circle cx="12" cy="16" r="1"></circle>
-          </svg>
-        </button>
         <div class="topbar-clock" :title="topbarClockLabel()" aria-label="System clock">
           <span class="topbar-clock-main" x-text="topbarClockMainLabel()"></span>
           <span class="topbar-clock-meridiem" x-text="topbarClockMeridiemLabel()"></span>
@@ -189,7 +213,7 @@
           <stop offset="0%" stop-color="#91a8cf"></stop>
           <stop offset="100%" stop-color="#f7fbff"></stop>
         </linearGradient>
-        <linearGradient id="dock-settings-icon-stroke-grad" x1="0" y1="1" x2="0" y2="0">
+        <linearGradient id="dock-settings-icon-stroke-grad" gradientUnits="userSpaceOnUse" x1="12" y1="22" x2="12" y2="2">
           <stop offset="0%" stop-color="#7f8ea5"></stop>
           <stop offset="100%" stop-color="#f0f4f9"></stop>
         </linearGradient>
@@ -197,12 +221,6 @@
           <stop offset="0%" stop-color="#000000" stop-opacity="0.16"></stop>
           <stop offset="100%" stop-color="#ffffff" stop-opacity="0.24"></stop>
         </linearGradient>
-        <clipPath id="dock-icon-clip-top" clipPathUnits="userSpaceOnUse">
-          <rect x="0" y="0" width="24" height="12"></rect>
-        </clipPath>
-        <clipPath id="dock-icon-clip-bottom" clipPathUnits="userSpaceOnUse">
-          <rect x="0" y="12" width="24" height="12"></rect>
-        </clipPath>
         <symbol id="dock-icon-gear" viewBox="0 0 24 24">
           <circle cx="12" cy="12" r="3"></circle>
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.33 1V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-.33-1 1.65 1.65 0 0 0-1-.6 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1-.33H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1-.33 1.65 1.65 0 0 0 .6-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 1 1 7.13 3.6l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .33-1V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 .33 1 1.65 1.65 0 0 0 1 .6 1.65 1.65 0 0 0 1.82-.33l.06-.06A2 2 0 1 1 20.4 7.13l-.06.06A1.65 1.65 0 0 0 19.4 9c0 .38.13.74.36 1.03.23.29.57.5.94.57H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1 .4c-.29.24-.5.57-.57.94z"></path>
@@ -250,14 +268,15 @@
         @pointerdown.prevent="startBottomDockPointerDrag('chat', $event)"
         @mouseenter="setBottomDockHover('chat')"
         @mouseleave="clearBottomDockHover('chat')"
-        :style="'order:' + bottomDockOrderIndex('chat')"
+        :style="bottomDockTileStyle('chat')"
         draggable="false"
         data-dock-id="chat"
-        data-dock-tone="message"
-        data-dock-icon="messages"
-        data-dock-click-animation="none"
-        data-tooltip="Messages"
-        aria-label="Messages"
+        :data-dock-tone="bottomDockTileData('chat', 'tone', 'default')"
+        :data-dock-icon="bottomDockTileData('chat', 'icon', '')"
+        :data-dock-click-animation="bottomDockTileAnimationName('chat')"
+        :data-dock-click-duration-ms="bottomDockTileAnimationDurationAttr('chat')"
+        :data-tooltip="bottomDockTileData('chat', 'tooltip', '')"
+        :aria-label="bottomDockTileData('chat', 'label', '')"
         :aria-current="page === 'chat' ? 'page' : false"
       >
         <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -278,14 +297,15 @@
         @pointerdown.prevent="startBottomDockPointerDrag('overview', $event)"
         @mouseenter="setBottomDockHover('overview')"
         @mouseleave="clearBottomDockHover('overview')"
-        :style="'order:' + bottomDockOrderIndex('overview')"
+        :style="bottomDockTileStyle('overview')"
         draggable="false"
         data-dock-id="overview"
-        data-dock-tone="bright"
-        data-dock-icon="home"
-        data-dock-click-animation="none"
-        data-tooltip="Home"
-        aria-label="Home"
+        :data-dock-tone="bottomDockTileData('overview', 'tone', 'default')"
+        :data-dock-icon="bottomDockTileData('overview', 'icon', '')"
+        :data-dock-click-animation="bottomDockTileAnimationName('overview')"
+        :data-dock-click-duration-ms="bottomDockTileAnimationDurationAttr('overview')"
+        :data-tooltip="bottomDockTileData('overview', 'tooltip', '')"
+        :aria-label="bottomDockTileData('overview', 'label', '')"
         :aria-current="(page === 'analytics' || page === 'overview') ? 'page' : false"
       >
         <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -302,14 +322,15 @@
         @pointerdown.prevent="startBottomDockPointerDrag('agents', $event)"
         @mouseenter="setBottomDockHover('agents')"
         @mouseleave="clearBottomDockHover('agents')"
-        :style="'order:' + bottomDockOrderIndex('agents')"
+        :style="bottomDockTileStyle('agents')"
         draggable="false"
         data-dock-id="agents"
-        data-dock-tone="bright"
-        data-dock-icon="agents"
-        data-dock-click-animation="none"
-        data-tooltip="Agents"
-        aria-label="Agents"
+        :data-dock-tone="bottomDockTileData('agents', 'tone', 'default')"
+        :data-dock-icon="bottomDockTileData('agents', 'icon', '')"
+        :data-dock-click-animation="bottomDockTileAnimationName('agents')"
+        :data-dock-click-duration-ms="bottomDockTileAnimationDurationAttr('agents')"
+        :data-tooltip="bottomDockTileData('agents', 'tooltip', '')"
+        :aria-label="bottomDockTileData('agents', 'label', '')"
         :aria-current="['agents','sessions','approvals'].indexOf(page) >= 0 ? 'page' : false"
       >
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -322,15 +343,15 @@
         @pointerdown.prevent="startBottomDockPointerDrag('scheduler', $event)"
         @mouseenter="setBottomDockHover('scheduler')"
         @mouseleave="clearBottomDockHover('scheduler')"
-        :style="'order:' + bottomDockOrderIndex('scheduler')"
+        :style="bottomDockTileStyle('scheduler')"
         draggable="false"
         data-dock-id="scheduler"
-        data-dock-tone="muted"
-        data-dock-icon="automation"
-        data-dock-click-animation="automation-gears"
-        data-dock-click-duration-ms="1200"
-        data-tooltip="Automation"
-        aria-label="Automation"
+        :data-dock-tone="bottomDockTileData('scheduler', 'tone', 'default')"
+        :data-dock-icon="bottomDockTileData('scheduler', 'icon', '')"
+        :data-dock-click-animation="bottomDockTileAnimationName('scheduler')"
+        :data-dock-click-duration-ms="bottomDockTileAnimationDurationAttr('scheduler')"
+        :data-tooltip="bottomDockTileData('scheduler', 'tooltip', '')"
+        :aria-label="bottomDockTileData('scheduler', 'label', '')"
         :aria-current="['scheduler','workflows'].indexOf(page) >= 0 ? 'page' : false"
       >
         <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -358,14 +379,15 @@
         @pointerdown.prevent="startBottomDockPointerDrag('skills', $event)"
         @mouseenter="setBottomDockHover('skills')"
         @mouseleave="clearBottomDockHover('skills')"
-        :style="'order:' + bottomDockOrderIndex('skills')"
+        :style="bottomDockTileStyle('skills')"
         draggable="false"
         data-dock-id="skills"
-        data-dock-tone="default"
-        data-dock-icon="apps"
-        data-dock-click-animation="none"
-        data-tooltip="Apps"
-        aria-label="Apps"
+        :data-dock-tone="bottomDockTileData('skills', 'tone', 'default')"
+        :data-dock-icon="bottomDockTileData('skills', 'icon', '')"
+        :data-dock-click-animation="bottomDockTileAnimationName('skills')"
+        :data-dock-click-duration-ms="bottomDockTileAnimationDurationAttr('skills')"
+        :data-tooltip="bottomDockTileData('skills', 'tooltip', '')"
+        :aria-label="bottomDockTileData('skills', 'label', '')"
         :aria-current="['channels','eyes','skills','hands'].indexOf(page) >= 0 ? 'page' : false"
       >
         <svg class="apps-icon-grid" viewBox="0 0 24 24" aria-hidden="true">
@@ -397,17 +419,24 @@
         @pointerdown.prevent="startBottomDockPointerDrag('runtime', $event)"
         @mouseenter="setBottomDockHover('runtime')"
         @mouseleave="clearBottomDockHover('runtime')"
-        :style="'order:' + bottomDockOrderIndex('runtime')"
+        :style="bottomDockTileStyle('runtime')"
         draggable="false"
         data-dock-id="runtime"
-        data-dock-tone="bright"
-        data-dock-icon="system"
-        data-dock-click-animation="none"
-        data-tooltip="System"
-        aria-label="System"
+        :data-dock-tone="bottomDockTileData('runtime', 'tone', 'default')"
+        :data-dock-icon="bottomDockTileData('runtime', 'icon', '')"
+        :data-dock-click-animation="bottomDockTileAnimationName('runtime')"
+        :data-dock-click-duration-ms="bottomDockTileAnimationDurationAttr('runtime')"
+        :data-tooltip="bottomDockTileData('runtime', 'tooltip', '')"
+        :aria-label="bottomDockTileData('runtime', 'label', '')"
         :aria-current="['runtime','analytics','logs'].indexOf(page) >= 0 ? 'page' : false"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"></rect><path d="M8 21h8"></path><path d="M12 17v4"></path></svg>
+        <span class="dock-system-terminal-fx" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 17 10 11 4 5"></path>
+            <path d="M12 19h8"></path>
+          </svg>
+        </span>
       </button>
       <button
         type="button"
@@ -417,28 +446,28 @@
         @pointerdown.prevent="startBottomDockPointerDrag('settings', $event)"
         @mouseenter="setBottomDockHover('settings')"
         @mouseleave="clearBottomDockHover('settings')"
-        :style="'order:' + bottomDockOrderIndex('settings')"
+        :style="bottomDockTileStyle('settings')"
         draggable="false"
         data-dock-id="settings"
-        data-dock-tone="muted"
-        data-dock-icon="settings"
-        data-dock-click-animation="spin"
-        data-dock-click-duration-ms="4000"
-        data-tooltip="Settings"
-        aria-label="Settings"
+        :data-dock-tone="bottomDockTileData('settings', 'tone', 'default')"
+        :data-dock-icon="bottomDockTileData('settings', 'icon', '')"
+        :data-dock-click-animation="bottomDockTileAnimationName('settings')"
+        :data-dock-click-duration-ms="bottomDockTileAnimationDurationAttr('settings')"
+        :data-tooltip="bottomDockTileData('settings', 'tooltip', '')"
+        :aria-label="bottomDockTileData('settings', 'label', '')"
         :aria-current="page === 'settings' ? 'page' : false"
       >
         <svg viewBox="0 0 24 24" aria-hidden="true">
-          <g class="dock-icon-split-top" clip-path="url(#dock-icon-clip-top)">
-            <g class="dock-icon-rotor-settings">
-              <use href="#dock-icon-settings"></use>
-            </g>
-          </g>
-          <g class="dock-icon-split-bottom" clip-path="url(#dock-icon-clip-bottom)">
-            <g class="dock-icon-rotor-settings">
-              <use href="#dock-icon-settings"></use>
-            </g>
-          </g>
+          <defs>
+            <mask id="dock-settings-cog-mask" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" mask-type="alpha" x="-1" y="-1" width="26" height="26">
+              <g fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <g class="dock-settings-mask-gear">
+                  <use href="#dock-icon-settings"></use>
+                </g>
+              </g>
+            </mask>
+          </defs>
+          <rect x="-1" y="-1" width="26" height="26" fill="url(#dock-settings-icon-stroke-grad)" mask="url(#dock-settings-cog-mask)"></rect>
         </svg>
       </button>
     </nav>
