@@ -113,6 +113,32 @@ fn now_plus(minutes: i64) -> String {
     (Utc::now() + Duration::minutes(minutes.max(1))).to_rfc3339()
 }
 
+fn workflow_target(value: Option<&Value>) -> String {
+    clean_id(value.and_then(Value::as_str).unwrap_or(""), 120)
+}
+
+fn workflow_targets(value: Option<&Value>) -> Vec<String> {
+    let mut out = Vec::<String>::new();
+    if let Some(rows) = value.and_then(Value::as_array) {
+        for row in rows {
+            let target = clean_id(row.as_str().unwrap_or(""), 120);
+            if !target.is_empty() && !out.iter().any(|existing| existing == &target) {
+                out.push(target);
+            }
+        }
+        return out;
+    }
+    if let Some(raw) = value.and_then(Value::as_str) {
+        for piece in raw.split(',') {
+            let target = clean_id(piece, 120);
+            if !target.is_empty() && !out.iter().any(|existing| existing == &target) {
+                out.push(target);
+            }
+        }
+    }
+    out
+}
+
 fn normalize_workflow_step(step: &Value, idx: usize) -> Value {
     let name = clean_text(
         step.get("name")
@@ -148,30 +174,6 @@ fn normalize_workflow_step(step: &Value, idx: usize) -> Value {
             .unwrap_or("{{input}}"),
         4000,
     );
-    let normalize_target = |value: Option<&Value>| -> String {
-        clean_id(value.and_then(Value::as_str).unwrap_or(""), 120)
-    };
-    let normalize_targets = |value: Option<&Value>| -> Vec<String> {
-        let mut out = Vec::<String>::new();
-        if let Some(rows) = value.and_then(Value::as_array) {
-            for row in rows {
-                let target = clean_id(row.as_str().unwrap_or(""), 120);
-                if !target.is_empty() && !out.iter().any(|existing| existing == &target) {
-                    out.push(target);
-                }
-            }
-            return out;
-        }
-        if let Some(raw) = value.and_then(Value::as_str) {
-            for piece in raw.split(',') {
-                let target = clean_id(piece, 120);
-                if !target.is_empty() && !out.iter().any(|existing| existing == &target) {
-                    out.push(target);
-                }
-            }
-        }
-        out
-    };
     json!({
         "id": clean_id(
             step.get("id")
@@ -185,10 +187,10 @@ fn normalize_workflow_step(step: &Value, idx: usize) -> Value {
         },
         "mode": mode,
         "prompt_template": if prompt_template.is_empty() { "{{input}}" } else { &prompt_template },
-        "next": normalize_target(step.get("next")),
-        "next_true": normalize_target(step.get("next_true")),
-        "next_false": normalize_target(step.get("next_false")),
-        "fan_targets": normalize_targets(step.get("fan_targets"))
+        "next": workflow_target(step.get("next")),
+        "next_true": workflow_target(step.get("next_true")),
+        "next_false": workflow_target(step.get("next_false")),
+        "fan_targets": workflow_targets(step.get("fan_targets"))
     })
 }
 
@@ -252,15 +254,53 @@ fn normalize_workflow(workflow: &Value) -> Value {
     })
 }
 
+fn workflow_step_id(step: &Value, idx: usize) -> String {
+    clean_id(
+        step.get("id")
+            .and_then(Value::as_str)
+            .unwrap_or(&format!("step-{}", idx + 1)),
+        120,
+    )
+}
+
+fn workflow_raw_targets(step: &Value, steps: &[Value], idx: usize, mode: &str) -> Vec<String> {
+    let mut targets = Vec::<String>::new();
+    match mode {
+        "conditional" => {
+            for key in ["next_true", "next_false"] {
+                let target = workflow_target(step.get(key));
+                if !target.is_empty() {
+                    targets.push(target);
+                }
+            }
+        }
+        "fan_out" => {
+            targets.extend(workflow_targets(step.get("fan_targets")));
+            let next = workflow_target(step.get("next"));
+            if !next.is_empty() {
+                targets.push(next);
+            }
+        }
+        _ => {
+            let next = workflow_target(step.get("next"));
+            if !next.is_empty() {
+                targets.push(next);
+            } else if let Some(next_step) = steps.get(idx + 1) {
+                let fallback = workflow_step_id(next_step, idx + 1);
+                if !fallback.is_empty() {
+                    targets.push(fallback);
+                }
+            }
+        }
+    }
+    targets.dedup();
+    targets
+}
+
 fn workflow_step_ids(steps: &[Value]) -> BTreeMap<String, usize> {
     let mut ids = BTreeMap::<String, usize>::new();
     for (idx, step) in steps.iter().enumerate() {
-        let step_id = clean_id(
-            step.get("id")
-                .and_then(Value::as_str)
-                .unwrap_or(&format!("step-{}", idx + 1)),
-            120,
-        );
+        let step_id = workflow_step_id(step, idx);
         if step_id.is_empty() {
             continue;
         }
@@ -272,12 +312,7 @@ fn workflow_step_ids(steps: &[Value]) -> BTreeMap<String, usize> {
 fn workflow_reference_index(steps: &[Value]) -> BTreeMap<String, String> {
     let mut refs = BTreeMap::<String, String>::new();
     for (idx, step) in steps.iter().enumerate() {
-        let step_id = clean_id(
-            step.get("id")
-                .and_then(Value::as_str)
-                .unwrap_or(&format!("step-{}", idx + 1)),
-            120,
-        );
+        let step_id = workflow_step_id(step, idx);
         if step_id.is_empty() {
             continue;
         }
@@ -292,10 +327,16 @@ fn workflow_reference_index(steps: &[Value]) -> BTreeMap<String, String> {
 
 fn resolve_workflow_target_id(raw_target: &str, refs: &BTreeMap<String, String>) -> Option<String> {
     let cleaned = clean_id(raw_target, 120);
-    if cleaned.is_empty() {
-        return None;
-    }
-    refs.get(&cleaned).cloned()
+    (!cleaned.is_empty())
+        .then(|| refs.get(&cleaned).cloned())
+        .flatten()
+}
+
+fn mode_or_sequential<'a>(modes: &'a BTreeMap<String, String>, step_id: &str) -> &'a str {
+    modes
+        .get(step_id)
+        .map(String::as_str)
+        .unwrap_or("sequential")
 }
 
 pub fn validate_workflow_graph(workflow: &Value) -> Value {
@@ -333,68 +374,21 @@ pub fn validate_workflow_graph(workflow: &Value) -> Value {
     let mut edges = Vec::<(String, String)>::new();
 
     for (idx, step) in steps.iter().enumerate() {
-        let step_id = clean_id(
-            step.get("id")
-                .and_then(Value::as_str)
-                .unwrap_or(&format!("step-{}", idx + 1)),
-            120,
-        );
+        let step_id = workflow_step_id(step, idx);
         if step_id.is_empty() {
             continue;
         }
         let mode = clean_text(
-            step.get("mode").and_then(Value::as_str).unwrap_or("sequential"),
+            step.get("mode")
+                .and_then(Value::as_str)
+                .unwrap_or("sequential"),
             40,
         )
         .to_ascii_lowercase();
         modes.insert(step_id.clone(), mode.clone());
         indegree.entry(step_id.clone()).or_insert(0);
 
-        let mut raw_targets = Vec::<String>::new();
-        match mode.as_str() {
-            "conditional" => {
-                let next_true = clean_id(
-                    step.get("next_true").and_then(Value::as_str).unwrap_or(""),
-                    120,
-                );
-                let next_false = clean_id(
-                    step.get("next_false").and_then(Value::as_str).unwrap_or(""),
-                    120,
-                );
-                if !next_true.is_empty() {
-                    raw_targets.push(next_true);
-                }
-                if !next_false.is_empty() {
-                    raw_targets.push(next_false);
-                }
-            }
-            "fan_out" => {
-                if let Some(rows) = step.get("fan_targets").and_then(Value::as_array) {
-                    for row in rows {
-                        let target = clean_id(row.as_str().unwrap_or(""), 120);
-                        if !target.is_empty() {
-                            raw_targets.push(target);
-                        }
-                    }
-                }
-                let next = clean_id(step.get("next").and_then(Value::as_str).unwrap_or(""), 120);
-                if !next.is_empty() {
-                    raw_targets.push(next);
-                }
-            }
-            _ => {
-                let next = clean_id(step.get("next").and_then(Value::as_str).unwrap_or(""), 120);
-                if !next.is_empty() {
-                    raw_targets.push(next);
-                } else if let Some(next_step) = steps.get(idx + 1) {
-                    let fallback = clean_id(next_step.get("id").and_then(Value::as_str).unwrap_or(""), 120);
-                    if !fallback.is_empty() {
-                        raw_targets.push(fallback);
-                    }
-                }
-            }
-        }
-        raw_targets.dedup();
+        let raw_targets = workflow_raw_targets(step, &steps, idx, mode.as_str());
         if raw_targets.is_empty() {
             terminals.push(step_id.clone());
             adjacency.insert(step_id.clone(), Vec::new());
@@ -428,15 +422,7 @@ pub fn validate_workflow_graph(workflow: &Value) -> Value {
         .filter_map(|(id, degree)| if *degree == 0 { Some(id.clone()) } else { None })
         .collect::<Vec<_>>();
     if roots.is_empty() {
-        roots.push(
-            clean_id(
-                steps[0]
-                    .get("id")
-                    .and_then(Value::as_str)
-                    .unwrap_or("step-1"),
-                120,
-            ),
-        );
+        roots.push(workflow_step_id(&steps[0], 0));
     }
 
     let mut visited = BTreeSet::<String>::new();
@@ -453,7 +439,8 @@ pub fn validate_workflow_graph(workflow: &Value) -> Value {
     }
     let mut unreachable = ids
         .keys()
-        .filter_map(|id| if visited.contains(id) { None } else { Some(id.clone()) })
+        .filter(|id| !visited.contains(*id))
+        .cloned()
         .collect::<Vec<_>>();
     unreachable.sort();
     if !unreachable.is_empty() {
@@ -489,13 +476,18 @@ pub fn validate_workflow_graph(workflow: &Value) -> Value {
     }
 
     for id in ids.keys() {
-        dfs_cycle(id, &adjacency, &mut visiting, &mut visited_cycle, &mut cycle_edges);
+        dfs_cycle(
+            id,
+            &adjacency,
+            &mut visiting,
+            &mut visited_cycle,
+            &mut cycle_edges,
+        );
     }
     cycle_edges.sort();
     cycle_edges.dedup();
     for (from, to) in &cycle_edges {
-        let from_mode = modes.get(from).cloned().unwrap_or_else(|| "sequential".to_string());
-        if from_mode != "loop" {
+        if mode_or_sequential(&modes, from) != "loop" {
             errors.push(format!("cycle_without_loop:{}->{}", from, to));
         } else {
             warnings.push(format!("loop_cycle:{}->{}", from, to));
@@ -504,8 +496,7 @@ pub fn validate_workflow_graph(workflow: &Value) -> Value {
 
     let mut topo_indegree = indegree.clone();
     for (from, to) in &cycle_edges {
-        let from_mode = modes.get(from).cloned().unwrap_or_else(|| "sequential".to_string());
-        if from_mode == "loop" {
+        if mode_or_sequential(&modes, from) == "loop" {
             if let Some(degree) = topo_indegree.get_mut(to) {
                 *degree = degree.saturating_sub(1);
             }
@@ -524,10 +515,7 @@ pub fn validate_workflow_graph(workflow: &Value) -> Value {
                 let is_loop_edge = cycle_edges
                     .iter()
                     .any(|(from, to)| from == &current && to == child)
-                    && modes
-                        .get(&current)
-                        .map(|mode| mode == "loop")
-                        .unwrap_or(false);
+                    && mode_or_sequential(&modes, &current) == "loop";
                 if is_loop_edge {
                     continue;
                 }
@@ -627,7 +615,12 @@ fn summarize_evicted_runs(evicted: &[Value]) -> Value {
     let mut duration_count = 0i64;
     let mut samples = Vec::<String>::new();
     for row in evicted {
-        let status = clean_text(row.get("status").and_then(Value::as_str).unwrap_or("unknown"), 40);
+        let status = clean_text(
+            row.get("status")
+                .and_then(Value::as_str)
+                .unwrap_or("unknown"),
+            40,
+        );
         *status_counts.entry(status).or_insert(0) += 1;
         if let Some(ms) = row.get("duration_ms").and_then(Value::as_i64) {
             if ms > 0 {

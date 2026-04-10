@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // Layer ownership: core/layer0/ops (authoritative)
 
-use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
-use base64::Engine;
 use chrono::TimeZone;
 use serde_json::{json, Map, Value};
 use std::collections::BTreeMap;
@@ -10,7 +8,6 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::contract_lane_utils as lane_utils;
-use crate::{deterministic_receipt_hash, now_iso};
 
 const DEFAULT_POLICY_REL: &str = "config/egress_gateway_policy.json";
 const DEFAULT_STATE_REL: &str = "local/state/security/egress_gateway/state.json";
@@ -44,66 +41,6 @@ fn usage() {
     println!("  protheus-ops egress-gateway-kernel load-policy [--payload-base64=<json>]");
     println!("  protheus-ops egress-gateway-kernel load-state [--payload-base64=<json>]");
     println!("  protheus-ops egress-gateway-kernel authorize --payload-base64=<json>");
-}
-
-fn cli_receipt(kind: &str, payload: Value) -> Value {
-    let ts = now_iso();
-    let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(true);
-    let mut out = json!({
-        "ok": ok,
-        "type": kind,
-        "ts": ts,
-        "date": ts[..10].to_string(),
-        "payload": payload,
-    });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
-    out
-}
-
-fn cli_error(kind: &str, error: &str) -> Value {
-    let ts = now_iso();
-    let mut out = json!({
-        "ok": false,
-        "type": kind,
-        "ts": ts,
-        "date": ts[..10].to_string(),
-        "error": error,
-        "fail_closed": true,
-    });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
-    out
-}
-
-fn print_json_line(value: &Value) {
-    println!(
-        "{}",
-        serde_json::to_string(value)
-            .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
-    );
-}
-
-fn payload_json(argv: &[String]) -> Result<Value, String> {
-    if let Some(raw) = lane_utils::parse_flag(argv, "payload", false) {
-        return serde_json::from_str::<Value>(&raw)
-            .map_err(|err| format!("egress_gateway_kernel_payload_decode_failed:{err}"));
-    }
-    if let Some(raw_b64) = lane_utils::parse_flag(argv, "payload-base64", false) {
-        let bytes = BASE64_STANDARD
-            .decode(raw_b64.as_bytes())
-            .map_err(|err| format!("egress_gateway_kernel_payload_base64_decode_failed:{err}"))?;
-        let text = String::from_utf8(bytes)
-            .map_err(|err| format!("egress_gateway_kernel_payload_utf8_decode_failed:{err}"))?;
-        return serde_json::from_str::<Value>(&text)
-            .map_err(|err| format!("egress_gateway_kernel_payload_decode_failed:{err}"));
-    }
-    Ok(json!({}))
-}
-
-fn payload_obj<'a>(value: &'a Value) -> &'a Map<String, Value> {
-    value.as_object().unwrap_or_else(|| {
-        static EMPTY: std::sync::OnceLock<Map<String, Value>> = std::sync::OnceLock::new();
-        EMPTY.get_or_init(Map::new)
-    })
 }
 
 fn as_str(value: Option<&Value>) -> String {
@@ -769,31 +706,34 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         .first()
         .map(|value| value.trim().to_ascii_lowercase())
         .unwrap_or_else(|| "authorize".to_string());
-    let payload = match payload_json(argv) {
+    let payload = match lane_utils::payload_json(argv, "egress_gateway_kernel") {
         Ok(value) => value,
         Err(err) => {
-            print_json_line(&cli_error("egress_gateway_kernel_error", err.as_str()));
+            lane_utils::print_json_line(&lane_utils::cli_error(
+                "egress_gateway_kernel_error",
+                err.as_str(),
+            ));
             return 1;
         }
     };
-    let payload = payload_obj(&payload);
+    let payload = lane_utils::payload_obj(&payload);
 
     let receipt = match command.as_str() {
-        "load-policy" => cli_receipt(
+        "load-policy" => lane_utils::cli_receipt(
             "egress_gateway_kernel_load_policy",
             load_policy_command(root, payload),
         ),
-        "load-state" => cli_receipt(
+        "load-state" => lane_utils::cli_receipt(
             "egress_gateway_kernel_load_state",
             load_state_command(root, payload),
         ),
         "authorize" => match authorize_command(root, payload) {
-            Ok(value) => cli_receipt("egress_gateway_kernel_authorize", value),
-            Err(err) => cli_error("egress_gateway_kernel_error", err.as_str()),
+            Ok(value) => lane_utils::cli_receipt("egress_gateway_kernel_authorize", value),
+            Err(err) => lane_utils::cli_error("egress_gateway_kernel_error", err.as_str()),
         },
         _ => {
             usage();
-            cli_error(
+            lane_utils::cli_error(
                 "egress_gateway_kernel_error",
                 "egress_gateway_kernel_unknown_command",
             )
@@ -805,6 +745,6 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     } else {
         1
     };
-    print_json_line(&receipt);
+    lane_utils::print_json_line(&receipt);
     exit_code
 }
