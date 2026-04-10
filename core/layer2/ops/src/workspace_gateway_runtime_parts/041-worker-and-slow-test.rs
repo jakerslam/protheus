@@ -1,10 +1,21 @@
+fn emit_task_worker_error(error: &str) {
+    eprintln!(
+        "{}",
+        json!({ "ok": false, "type": "task_worker_error", "error": error })
+    );
+}
+
+fn emit_task_worker_bus_error(error: &str, bus_mode: &str) {
+    eprintln!(
+        "{}",
+        json!({ "ok": false, "type": "task_worker_error", "error": error, "bus_mode": bus_mode })
+    );
+}
+
 fn run_worker(root: &Path, parsed: &ParsedCli) -> i32 {
     let paths = task_paths(root);
     if let Err(err) = ensure_task_state(&paths) {
-        eprintln!(
-            "{}",
-            json!({ "ok": false, "type": "task_worker_error", "error": err })
-        );
+        emit_task_worker_error(&err);
         return 1;
     }
     let max_tasks = parse_u64_flag(&parsed.flags, "max-tasks", 0) as usize;
@@ -34,10 +45,7 @@ fn run_worker(root: &Path, parsed: &ParsedCli) -> i32 {
         let synced = match apply_bus_cancellations(&paths, bus.as_ref(), cancel_wait_ms) {
             Ok(value) => value,
             Err(err) => {
-                eprintln!(
-                    "{}",
-                    json!({ "ok": false, "type": "task_worker_error", "error": err, "bus_mode": bus.mode() })
-                );
+                emit_task_worker_bus_error(&err, bus.mode());
                 return 1;
             }
         };
@@ -45,10 +53,7 @@ fn run_worker(root: &Path, parsed: &ParsedCli) -> i32 {
         let batch = match bus.dequeue(1, poll_wait_ms) {
             Ok(rows) => rows,
             Err(err) => {
-                eprintln!(
-                    "{}",
-                    json!({ "ok": false, "type": "task_worker_error", "error": err, "bus_mode": bus.mode() })
-                );
+                emit_task_worker_bus_error(&err, bus.mode());
                 return 1;
             }
         };

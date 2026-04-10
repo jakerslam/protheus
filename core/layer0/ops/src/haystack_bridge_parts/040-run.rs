@@ -1,3 +1,32 @@
+fn state_object_len(state: &mut Value, key: &str) -> usize {
+    as_object_mut(state, key).len()
+}
+
+fn state_array_len(state: &mut Value, key: &str) -> usize {
+    as_array_mut(state, key).len()
+}
+
+fn status_payload(root: &Path, state_path: &Path, history_path: &Path, state: &mut Value) -> Value {
+    json!({
+        "ok": true,
+        "state_path": rel(root, state_path),
+        "history_path": rel(root, history_path),
+        "pipelines": state_object_len(state, "pipelines"),
+        "pipeline_runs": state_object_len(state, "pipeline_runs"),
+        "agent_runs": state_object_len(state, "agent_runs"),
+        "templates": state_object_len(state, "templates"),
+        "template_renders": state_object_len(state, "template_renders"),
+        "document_stores": state_object_len(state, "document_stores"),
+        "retrieval_runs": state_object_len(state, "retrieval_runs"),
+        "routes": state_object_len(state, "routes"),
+        "evaluations": state_object_len(state, "evaluations"),
+        "traces": state_array_len(state, "traces"),
+        "connectors": state_object_len(state, "connectors"),
+        "intakes": state_object_len(state, "intakes"),
+        "last_receipt": state.get("last_receipt").cloned().unwrap_or(Value::Null),
+    })
+}
+
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     if argv.is_empty() || matches!(argv[0].as_str(), "help" | "--help" | "-h") {
         usage();
@@ -17,24 +46,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     let mut state = load_state(&state_path);
 
     let result = match command {
-        "status" => Ok(json!({
-            "ok": true,
-            "state_path": rel(root, &state_path),
-            "history_path": rel(root, &history_path),
-            "pipelines": as_object_mut(&mut state, "pipelines").len(),
-            "pipeline_runs": as_object_mut(&mut state, "pipeline_runs").len(),
-            "agent_runs": as_object_mut(&mut state, "agent_runs").len(),
-            "templates": as_object_mut(&mut state, "templates").len(),
-            "template_renders": as_object_mut(&mut state, "template_renders").len(),
-            "document_stores": as_object_mut(&mut state, "document_stores").len(),
-            "retrieval_runs": as_object_mut(&mut state, "retrieval_runs").len(),
-            "routes": as_object_mut(&mut state, "routes").len(),
-            "evaluations": as_object_mut(&mut state, "evaluations").len(),
-            "traces": as_array_mut(&mut state, "traces").len(),
-            "connectors": as_object_mut(&mut state, "connectors").len(),
-            "intakes": as_object_mut(&mut state, "intakes").len(),
-            "last_receipt": state.get("last_receipt").cloned().unwrap_or(Value::Null),
-        })),
+        "status" => Ok(status_payload(root, &state_path, &history_path, &mut state)),
         "register-pipeline" => register_pipeline(&mut state, input),
         "run-pipeline" => run_pipeline(root, argv, &mut state, input),
         "run-agent-toolset" => run_agent_toolset(root, argv, &mut state, input),
