@@ -1,6 +1,6 @@
 // Layer ownership: core/layer2/ops (authoritative)
 // SPDX-License-Identifier: Apache-2.0
-use crate::deterministic_receipt_hash;
+use crate::{deterministic_receipt_hash, parse_cli_flag, print_json_line};
 use serde_json::{json, Map, Value};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -57,35 +57,10 @@ fn now_epoch_ms() -> i64 {
         .unwrap_or(0)
 }
 
-fn print_json_line(value: &Value) {
-    println!(
-        "{}",
-        serde_json::to_string(value)
-            .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
-    );
-}
-
 fn usage() {
     for line in USAGE {
         println!("{line}");
     }
-}
-
-fn parse_flag(argv: &[String], key: &str) -> Option<String> {
-    let pref = format!("--{key}=");
-    let key_long = format!("--{key}");
-    let mut i = 0usize;
-    while i < argv.len() {
-        let token = argv[i].trim();
-        if let Some(v) = token.strip_prefix(&pref) {
-            return Some(v.to_string());
-        }
-        if token == key_long && i + 1 < argv.len() {
-            return Some(argv[i + 1].clone());
-        }
-        i += 1;
-    }
-    None
 }
 
 fn parse_bool(raw: Option<&str>, fallback: bool) -> bool {
@@ -192,7 +167,7 @@ fn stable_proposal_id(proposal: &Value) -> String {
 fn load_policy(root: &Path, argv: &[String]) -> Policy {
     let policy_path = resolve_path(
         root,
-        parse_flag(argv, "policy"),
+        parse_cli_flag(argv, "policy"),
         Path::new(DEFAULT_POLICY_PATH),
     );
     let raw = read_json(&policy_path).unwrap_or_else(|| json!({}));
@@ -214,7 +189,7 @@ fn load_policy(root: &Path, argv: &[String]) -> Policy {
 
     let state_path = resolve_path(
         root,
-        parse_flag(argv, "state-path").or_else(|| {
+        parse_cli_flag(argv, "state-path").or_else(|| {
             paths
                 .get("state_path")
                 .and_then(Value::as_str)
@@ -224,7 +199,7 @@ fn load_policy(root: &Path, argv: &[String]) -> Policy {
     );
     let latest_path = resolve_path(
         root,
-        parse_flag(argv, "latest-path").or_else(|| {
+        parse_cli_flag(argv, "latest-path").or_else(|| {
             paths
                 .get("latest_path")
                 .and_then(Value::as_str)
@@ -234,7 +209,7 @@ fn load_policy(root: &Path, argv: &[String]) -> Policy {
     );
     let receipts_path = resolve_path(
         root,
-        parse_flag(argv, "receipts-path").or_else(|| {
+        parse_cli_flag(argv, "receipts-path").or_else(|| {
             paths
                 .get("receipts_path")
                 .and_then(Value::as_str)
@@ -244,7 +219,7 @@ fn load_policy(root: &Path, argv: &[String]) -> Policy {
     );
     let regrets_path = resolve_path(
         root,
-        parse_flag(argv, "regrets-path").or_else(|| {
+        parse_cli_flag(argv, "regrets-path").or_else(|| {
             paths
                 .get("regrets_path")
                 .and_then(Value::as_str)
@@ -323,11 +298,11 @@ fn store_state(policy: &Policy, state: &Value) -> Result<(), String> {
 }
 
 fn parse_proposal(argv: &[String]) -> Result<Value, String> {
-    if let Some(raw) = parse_flag(argv, "proposal-json") {
+    if let Some(raw) = parse_cli_flag(argv, "proposal-json") {
         return serde_json::from_str::<Value>(&raw)
             .map_err(|e| format!("proposal_json_parse_failed:{e}"));
     }
-    if let Some(file) = parse_flag(argv, "proposal-file") {
+    if let Some(file) = parse_cli_flag(argv, "proposal-file") {
         let raw = fs::read_to_string(file).map_err(|e| format!("proposal_file_read_failed:{e}"))?;
         return serde_json::from_str::<Value>(&raw)
             .map_err(|e| format!("proposal_file_parse_failed:{e}"));
@@ -509,7 +484,7 @@ fn status_receipt(policy: &Policy) -> Result<Value, String> {
 fn evaluate_command(root: &Path, argv: &[String], policy: &Policy) -> Result<Value, String> {
     let proposal = parse_proposal(argv)?;
     let summary = proposal_summary(&proposal);
-    let apply = parse_bool(parse_flag(argv, "apply").as_deref(), false);
+    let apply = parse_bool(parse_cli_flag(argv, "apply").as_deref(), false);
     let (eligible, reasons) = evaluate_proposal(policy, &summary);
     let decision = if eligible {
         if apply {
@@ -628,10 +603,10 @@ fn rollback_from_state(
 
 fn monitor_command(argv: &[String], policy: &Policy) -> Result<Value, String> {
     let proposal_id =
-        parse_flag(argv, "proposal-id").ok_or_else(|| "missing_proposal_id".to_string())?;
-    let apply = parse_bool(parse_flag(argv, "apply").as_deref(), false);
-    let drift = parse_f64(parse_flag(argv, "drift").as_deref());
-    let yield_drop = parse_f64(parse_flag(argv, "yield-drop").as_deref());
+        parse_cli_flag(argv, "proposal-id").ok_or_else(|| "missing_proposal_id".to_string())?;
+    let apply = parse_bool(parse_cli_flag(argv, "apply").as_deref(), false);
+    let drift = parse_f64(parse_cli_flag(argv, "drift").as_deref());
+    let yield_drop = parse_f64(parse_cli_flag(argv, "yield-drop").as_deref());
     let now = now_epoch_ms();
     let mut state = load_state(&policy.state_path);
 
@@ -704,8 +679,8 @@ fn monitor_command(argv: &[String], policy: &Policy) -> Result<Value, String> {
 
 fn commit_command(argv: &[String], policy: &Policy) -> Result<Value, String> {
     let proposal_id =
-        parse_flag(argv, "proposal-id").ok_or_else(|| "missing_proposal_id".to_string())?;
-    let reason = parse_flag(argv, "reason").unwrap_or_else(|| "human_confirmed".to_string());
+        parse_cli_flag(argv, "proposal-id").ok_or_else(|| "missing_proposal_id".to_string())?;
+    let reason = parse_cli_flag(argv, "reason").unwrap_or_else(|| "human_confirmed".to_string());
     let mut state = load_state(&policy.state_path);
     let object = state
         .as_object_mut()
@@ -733,8 +708,8 @@ fn commit_command(argv: &[String], policy: &Policy) -> Result<Value, String> {
 
 fn rollback_command(argv: &[String], policy: &Policy) -> Result<Value, String> {
     let proposal_id =
-        parse_flag(argv, "proposal-id").ok_or_else(|| "missing_proposal_id".to_string())?;
-    let reason = parse_flag(argv, "reason").unwrap_or_else(|| "manual_rollback".to_string());
+        parse_cli_flag(argv, "proposal-id").ok_or_else(|| "missing_proposal_id".to_string())?;
+    let reason = parse_cli_flag(argv, "reason").unwrap_or_else(|| "manual_rollback".to_string());
     let mut state = load_state(&policy.state_path);
     let receipt = rollback_from_state(
         &mut state,
@@ -742,8 +717,8 @@ fn rollback_command(argv: &[String], policy: &Policy) -> Result<Value, String> {
         &proposal_id,
         "manual_rollback",
         &reason,
-        parse_f64(parse_flag(argv, "drift").as_deref()),
-        parse_f64(parse_flag(argv, "yield-drop").as_deref()),
+        parse_f64(parse_cli_flag(argv, "drift").as_deref()),
+        parse_f64(parse_cli_flag(argv, "yield-drop").as_deref()),
     )?;
     store_state(policy, &state)?;
     Ok(receipt)
