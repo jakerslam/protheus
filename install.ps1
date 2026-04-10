@@ -121,17 +121,17 @@ function Resolve-HostOsFlags {
   # PowerShell 6+ exposes $IsWindows/$IsLinux/$IsMacOS.
   # Windows PowerShell 5.1 does not, so runtime probing must remain the source of truth.
   $isWindows = if (Get-Variable -Name IsWindows -Scope Global -ErrorAction SilentlyContinue) {
-    [bool]$global:IsWindows
+    [bool](Get-Variable -Name IsWindows -Scope Global -ErrorAction SilentlyContinue).Value
   } else {
     $isWindowsRuntime
   }
   $isLinux = if (Get-Variable -Name IsLinux -Scope Global -ErrorAction SilentlyContinue) {
-    [bool]$global:IsLinux
+    [bool](Get-Variable -Name IsLinux -Scope Global -ErrorAction SilentlyContinue).Value
   } else {
     $isLinuxRuntime
   }
   $isMacOS = if (Get-Variable -Name IsMacOS -Scope Global -ErrorAction SilentlyContinue) {
-    [bool]$global:IsMacOS
+    [bool](Get-Variable -Name IsMacOS -Scope Global -ErrorAction SilentlyContinue).Value
   } else {
     $isMacRuntime
   }

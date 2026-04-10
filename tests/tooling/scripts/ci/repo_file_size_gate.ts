@@ -50,12 +50,27 @@ function readJson(path) {
 }
 
 function listFiles() {
-  const output = execSync('rg --files core client', { encoding: 'utf8' });
-  return output
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .sort((a, b) => a.localeCompare(b));
+  const commands = ['rg --files core client', 'find core client -type f'];
+  for (const command of commands) {
+    try {
+      const output = execSync(command, {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      const files = output
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((line) => (line.startsWith('./') ? line.slice(2) : line))
+        .sort((a, b) => a.localeCompare(b));
+      if (files.length > 0) {
+        return files;
+      }
+    } catch {
+      continue;
+    }
+  }
+  return [];
 }
 
 function isTestPath(path) {

@@ -6,6 +6,7 @@ import { execSync } from 'node:child_process';
 
 const STRICT = process.argv.includes('--strict=1');
 const ARTIFACTS_CANDIDATES = [resolve('core/local/artifacts'), resolve('artifacts')];
+let FILE_LIST_CACHE = null;
 
 function fail(msg) {
   console.error(msg);
@@ -39,6 +40,42 @@ function latestRoiArtifact() {
   return resolve(artifactsDir, files[files.length - 1]);
 }
 
+function listWorkspaceFiles() {
+  if (Array.isArray(FILE_LIST_CACHE)) {
+    return FILE_LIST_CACHE;
+  }
+  const commands = ['rg --files .', 'find . -type f'];
+  for (const command of commands) {
+    try {
+      const out = execSync(command, {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      const files = out
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((line) => (line.startsWith('./') ? line.slice(2) : line));
+      if (files.length > 0) {
+        FILE_LIST_CACHE = files;
+        return files;
+      }
+    } catch {
+      continue;
+    }
+  }
+  FILE_LIST_CACHE = [];
+  return FILE_LIST_CACHE;
+}
+
+function globToRegex(pattern) {
+  const escaped = pattern
+    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+    .replace(/\*/g, '.*')
+    .replace(/\?/g, '.');
+  return new RegExp(`^${escaped}$`);
+}
+
 function globHasMatch(pattern) {
   try {
     const out = execSync(`rg --files -g "${pattern}" . | head -n 1`, {
@@ -47,7 +84,10 @@ function globHasMatch(pattern) {
     }).trim();
     return out.length > 0;
   } catch {
-    return false;
+    const normalized = String(pattern || '').trim().replace(/^\.\//, '');
+    if (!normalized) return false;
+    const regex = globToRegex(normalized);
+    return listWorkspaceFiles().some((file) => regex.test(file));
   }
 }
 

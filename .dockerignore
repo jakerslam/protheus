@@ -7,6 +7,10 @@ logs
 dist
 agent-holo-viz
 state
-tests
+tests/*
+!tests/tooling/
+!tests/tooling/scripts/
+!tests/tooling/scripts/ci/
+!tests/tooling/scripts/ci/build_dashboard_dist.ts
 patches
 client/memory/_archive
