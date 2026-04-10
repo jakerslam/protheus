@@ -9,6 +9,10 @@ pub struct RecordStore {
 }
 
 impl RecordStore {
+    fn object_key(object_id: &str) -> String {
+        object_id.to_string()
+    }
+
     pub fn upsert_object(&mut self, object: MemoryObject) {
         self.objects.insert(object.object_id.clone(), object);
     }
@@ -28,7 +32,7 @@ impl RecordStore {
     pub fn register_version(&mut self, object_id: &str, version_id: &str) {
         let bucket = self
             .version_ids_by_object
-            .entry(object_id.to_string())
+            .entry(Self::object_key(object_id))
             .or_default();
         if !bucket.iter().any(|existing| existing == version_id) {
             bucket.push(version_id.to_string());
@@ -44,7 +48,7 @@ impl RecordStore {
 
     pub fn set_head_version(&mut self, object_id: &str, version_id: &str) {
         self.head_by_object
-            .insert(object_id.to_string(), version_id.to_string());
+            .insert(Self::object_key(object_id), version_id.to_string());
     }
 
     pub fn head_version_id(&self, object_id: &str) -> Option<String> {
