@@ -7,11 +7,18 @@ pub fn build_steps(
     request_class: RequestClass,
 ) -> Vec<OrchestrationPlanStep> {
     match request_class {
-        RequestClass::ToolCall => vec![OrchestrationPlanStep {
-            step_id: "step_tool_broker_request".to_string(),
-            operation: "route_tool_call".to_string(),
-            target_contract: CoreContractCall::ToolBrokerRequest,
-        }],
+        RequestClass::ToolCall => vec![
+            OrchestrationPlanStep {
+                step_id: "step_tool_capability_probe".to_string(),
+                operation: "probe_tool_capability".to_string(),
+                target_contract: CoreContractCall::ToolCapabilityProbe,
+            },
+            OrchestrationPlanStep {
+                step_id: "step_tool_broker_request".to_string(),
+                operation: "route_tool_call".to_string(),
+                target_contract: CoreContractCall::ToolBrokerRequest,
+            },
+        ],
         RequestClass::Assimilation => vec![
             OrchestrationPlanStep {
                 step_id: "step_assimilation_plan".to_string(),

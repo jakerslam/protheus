@@ -1,0 +1,161 @@
+{
+  "version": "orchestration_client_surface_wrapper_contract_v1",
+  "generated_at": "2026-04-10T00:00:00Z",
+  "bindings": [
+    {
+      "wrapper": "client/runtime/systems/autonomy/gated_self_improvement_loop.ts",
+      "script": "surface/orchestration/scripts/gated_self_improvement_loop.ts",
+      "ownership": "autonomy coordination"
+    },
+    {
+      "wrapper": "client/runtime/systems/autonomy/hold_remediation_engine.ts",
+      "script": "surface/orchestration/scripts/hold_remediation_engine.ts",
+      "ownership": "autonomy coordination"
+    },
+    {
+      "wrapper": "client/runtime/systems/autonomy/lever_experiment_gate.ts",
+      "script": "surface/orchestration/scripts/lever_experiment_gate.ts",
+      "ownership": "autonomy coordination"
+    },
+    {
+      "wrapper": "client/runtime/systems/autonomy/model_catalog_loop.ts",
+      "script": "surface/orchestration/scripts/model_catalog_loop.ts",
+      "ownership": "autonomy coordination"
+    },
+    {
+      "wrapper": "client/runtime/systems/autonomy/proactive_t1_initiative_engine.ts",
+      "script": "surface/orchestration/scripts/proactive_t1_initiative_engine.ts",
+      "ownership": "autonomy coordination"
+    },
+    {
+      "wrapper": "client/runtime/systems/autonomy/self_improvement_cadence_orchestrator.ts",
+      "script": "surface/orchestration/scripts/self_improvement_cadence_orchestrator.ts",
+      "ownership": "self-improvement cadence orchestration"
+    },
+    {
+      "wrapper": "client/runtime/systems/autonomy/swarm_orchestration_runtime.ts",
+      "script": "surface/orchestration/scripts/swarm_orchestration_runtime.ts",
+      "ownership": "swarm orchestration coordination"
+    },
+    {
+      "wrapper": "client/runtime/systems/autonomy/zero_permission_conversational_layer.ts",
+      "script": "surface/orchestration/scripts/zero_permission_conversational_layer.ts",
+      "ownership": "autonomy coordination"
+    },
+    {
+      "wrapper": "client/runtime/systems/execution/task_decomposition_primitive.ts",
+      "script": "surface/orchestration/scripts/task_decomposition_primitive.ts",
+      "ownership": "execution coordination"
+    },
+    {
+      "wrapper": "client/runtime/systems/finance/economic_entity_manager.ts",
+      "script": "surface/orchestration/scripts/economic_entity_manager.ts",
+      "ownership": "finance coordination"
+    },
+    {
+      "wrapper": "client/runtime/systems/fractal/morph_planner.ts",
+      "script": "surface/orchestration/scripts/morph_planner.ts",
+      "ownership": "planning coordination"
+    },
+    {
+      "wrapper": "client/runtime/systems/personas/orchestration.ts",
+      "script": "surface/orchestration/scripts/personas_orchestration.ts",
+      "ownership": "persona orchestration coordination"
+    },
+    {
+      "wrapper": "client/runtime/systems/redteam/adaptive_defense_expansion.ts",
+      "script": "surface/orchestration/scripts/adaptive_defense_expansion.ts",
+      "ownership": "redteam coordination"
+    },
+    {
+      "wrapper": "client/runtime/systems/redteam/quantum_security_primitive_synthesis.ts",
+      "script": "surface/orchestration/scripts/quantum_security_primitive_synthesis.ts",
+      "ownership": "redteam coordination"
+    },
+    {
+      "wrapper": "client/runtime/systems/redteam/self_improving_redteam_trainer.ts",
+      "script": "surface/orchestration/scripts/self_improving_redteam_trainer.ts",
+      "ownership": "redteam coordination"
+    },
+    {
+      "wrapper": "client/runtime/systems/research/research_organ.ts",
+      "script": "surface/orchestration/scripts/research_organ.ts",
+      "ownership": "research coordination"
+    },
+    {
+      "wrapper": "client/runtime/systems/routing/llm_gateway_failure_classifier.ts",
+      "script": "surface/orchestration/scripts/llm_gateway_failure_classifier.ts",
+      "ownership": "routing coordination"
+    },
+    {
+      "wrapper": "client/runtime/systems/routing/provider_onboarding_manifest.ts",
+      "script": "surface/orchestration/scripts/provider_onboarding_manifest.ts",
+      "ownership": "routing coordination"
+    },
+    {
+      "wrapper": "client/runtime/systems/routing/route_execute.ts",
+      "script": "surface/orchestration/scripts/route_execute.ts",
+      "ownership": "routing coordination"
+    },
+    {
+      "wrapper": "client/runtime/systems/routing/route_task.ts",
+      "script": "surface/orchestration/scripts/route_task.ts",
+      "ownership": "routing coordination"
+    },
+    {
+      "wrapper": "client/runtime/systems/science/experiment_scheduler.ts",
+      "script": "surface/orchestration/scripts/experiment_scheduler.ts",
+      "ownership": "science coordination"
+    },
+    {
+      "wrapper": "client/runtime/systems/science/meta_science_active_learning_loop.ts",
+      "script": "surface/orchestration/scripts/meta_science_active_learning_loop.ts",
+      "ownership": "science coordination"
+    },
+    {
+      "wrapper": "client/runtime/systems/science/scientific_method_loop.ts",
+      "script": "surface/orchestration/scripts/scientific_method_loop.ts",
+      "ownership": "science coordination"
+    },
+    {
+      "wrapper": "client/runtime/systems/science/scientific_mode_v4.ts",
+      "script": "surface/orchestration/scripts/scientific_mode_v4.ts",
+      "ownership": "science coordination"
+    },
+    {
+      "wrapper": "client/runtime/systems/sensory/value_of_information_collection_planner.ts",
+      "script": "surface/orchestration/scripts/value_of_information_collection_planner.ts",
+      "ownership": "planning coordination"
+    },
+    {
+      "wrapper": "client/runtime/systems/strategy/strategy_learner.ts",
+      "script": "surface/orchestration/scripts/strategy_learner.ts",
+      "ownership": "strategy coordination"
+    },
+    {
+      "wrapper": "client/runtime/systems/workflow/client_relationship_manager.ts",
+      "script": "surface/orchestration/scripts/client_relationship_manager.ts",
+      "ownership": "workflow coordination"
+    },
+    {
+      "wrapper": "client/runtime/systems/workflow/gated_account_creation_organ.ts",
+      "script": "surface/orchestration/scripts/gated_account_creation_organ.ts",
+      "ownership": "workflow coordination"
+    },
+    {
+      "wrapper": "client/runtime/systems/workflow/learning_conduit.ts",
+      "script": "surface/orchestration/scripts/learning_conduit.ts",
+      "ownership": "workflow coordination"
+    },
+    {
+      "wrapper": "client/runtime/systems/workflow/payment_skills_bridge.ts",
+      "script": "surface/orchestration/scripts/payment_skills_bridge.ts",
+      "ownership": "workflow coordination"
+    },
+    {
+      "wrapper": "client/runtime/systems/workflow/universal_outreach_primitive.ts",
+      "script": "surface/orchestration/scripts/universal_outreach_primitive.ts",
+      "ownership": "workflow coordination"
+    }
+  ]
+}

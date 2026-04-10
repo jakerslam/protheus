@@ -65,6 +65,14 @@ impl ThinClientDelegator {
         let mut blockers = Vec::<String>::new();
         let mut tool_calls = 0usize;
         for (tool_name, args) in plan_tools(request) {
+            let probe = self.broker.capability_probe(BrokerCaller::Client, tool_name);
+            if !probe.available {
+                blockers.push(format!(
+                    "tool_capability_unavailable:{}:{}",
+                    probe.tool_name, probe.reason
+                ));
+                continue;
+            }
             tool_calls += 1;
             let execution = self.broker.execute_and_normalize(
                 ToolCallRequest {

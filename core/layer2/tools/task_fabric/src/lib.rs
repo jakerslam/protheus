@@ -8,7 +8,9 @@ pub mod status_machine;
 pub mod stomach_integration;
 pub mod task_graph;
 
-pub use concurrency::{validate_expected_revision, ConcurrencyState, MutationEnvelope, TaskEvent};
+pub use concurrency::{
+    validate_expected_revision, validate_proof_refs, ConcurrencyState, MutationEnvelope, TaskEvent,
+};
 pub use policy::{
     enforce_mutation, AllowAllVerityGate, MutationKind, MutationRisk, PolicyDecision, VerityGate,
 };
@@ -36,6 +38,7 @@ pub struct FabricReceipt {
     pub timestamp_ms: u64,
     pub mutation_kind: MutationKind,
     pub dna_lineage: Vec<String>,
+    pub proof_refs: Vec<String>,
     pub policy_reason: String,
 }
 
@@ -409,6 +412,7 @@ impl TaskFabric {
         envelope: MutationEnvelope,
         policy: PolicyDecision,
     ) -> Result<TaskEvent, String> {
+        let proof_refs = validate_proof_refs(&envelope.proof_refs)?;
         let sequence = self.concurrency.allocate_event_sequence();
         let event_id = deterministic_hash(&json!({
             "scope_id": self.graph.scope_id,
@@ -422,7 +426,8 @@ impl TaskFabric {
             "kind": "task_fabric_receipt_v1",
             "event_id": event_id,
             "trace_id": envelope.trace_id,
-            "scope_id": self.graph.scope_id
+            "scope_id": self.graph.scope_id,
+            "proof_refs": proof_refs
         }));
         let mut dna_lineage = vec![format!("scope:{}", self.graph.scope_id)];
         if let Some(task) = task_id.as_ref() {
@@ -432,6 +437,9 @@ impl TaskFabric {
             "mutation:{}",
             format!("{:?}", envelope.mutation_kind).to_ascii_lowercase()
         ));
+        for proof in &proof_refs {
+            dna_lineage.push(format!("proof:{proof}"));
+        }
         let event = TaskEvent {
             event_id: event_id.clone(),
             event_sequence: sequence,
@@ -446,6 +454,7 @@ impl TaskFabric {
             timestamp_ms: envelope.now_ms,
             policy: policy.clone(),
             dna_lineage: dna_lineage.clone(),
+            proof_refs: proof_refs.clone(),
             receipt_id: receipt_id.clone(),
             payload: envelope.payload.clone(),
         };
@@ -458,6 +467,7 @@ impl TaskFabric {
             timestamp_ms: envelope.now_ms,
             mutation_kind: envelope.mutation_kind,
             dna_lineage,
+            proof_refs,
             policy_reason: policy.reason_code,
         };
         self.receipts.push(receipt);

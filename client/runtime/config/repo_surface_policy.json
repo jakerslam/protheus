@@ -1,5 +1,5 @@
 {
-  "version": "2026-03-10",
+  "version": "2026-04-10",
   "code_roots": [
     "core",
     "surface",
@@ -20,7 +20,7 @@
         "hpp",
         "sh"
       ],
-      "notes": "Rust-first. C/C++ only for low-level or hardware-adjacent modules. Shell allowed only for tightly-scoped build/install/packaging helpers."
+      "notes": "Rust-first authority substrate. C/C++ only for low-level and hardware-adjacent paths."
     },
     "surface": {
       "target_extensions": [
@@ -33,14 +33,13 @@
         "py",
         "sh"
       ],
-      "notes": "Surface is orchestration-only. Rust-first orchestration contracts are allowed here, but the surface remains non-authoritative and routes durable truth through core contracts."
       "allowed_extensions": [
         "rs",
         "ts",
         "tsx",
         "sh"
       ],
-      "notes": "Orchestration Surface (non-canonical coordination). Rust-first contracts with thin TS ingress/wrapper utilities only; no canonical authority state."
+      "notes": "Orchestration Surface is non-canonical coordination. Durable truth remains in core contracts."
     },
     "client": {
       "target_extensions": [
@@ -56,7 +55,7 @@
         "sh",
         "ps1"
       ],
-      "notes": "Client is developer-facing platform surface. JS/Python/Shell/PowerShell are tracked as explicit migration debt or packaging/installer glue."
+      "notes": "Presentation/runtime wrappers and UX only."
     },
     "packages": {
       "allowed_extensions": [
@@ -70,7 +69,7 @@
         "css",
         "scss"
       ],
-      "notes": "Packages are public SDK/package distribution surfaces. They may be polyglot, but must remain thin, developer-facing, and non-authoritative."
+      "notes": "Public SDK/package distribution surfaces; non-authoritative."
     },
     "apps": {
       "allowed_extensions": [
@@ -89,7 +88,7 @@
         "yaml",
         "yml"
       ],
-      "notes": "Apps are polyglot and product-oriented, but must not own core authority."
+      "notes": "Standalone app surfaces that remain deletable without changing system authority behavior."
     },
     "adapters": {
       "allowed_extensions": [
@@ -105,7 +104,7 @@
         "yaml",
         "yml"
       ],
-      "notes": "Adapters are polyglot integration shims for external systems."
+      "notes": "Polyglot integration shims for external systems."
     },
     "tests": {
       "allowed_extensions": [
@@ -117,7 +116,7 @@
         "rs",
         "sh"
       ],
-      "notes": "Top-level integration/regression/e2e verification surface."
+      "notes": "Integration, regression, and CI tooling verification surfaces."
     }
   },
   "runtime_exceptions": [

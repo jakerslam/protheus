@@ -8,6 +8,7 @@ pub struct MutationEnvelope {
     pub actor: String,
     pub trace_id: String,
     pub idempotency_key: String,
+    pub proof_refs: Vec<String>,
     pub expected_revision: Option<u64>,
     pub now_ms: u64,
     pub mutation_kind: MutationKind,
@@ -29,6 +30,7 @@ pub struct TaskEvent {
     pub timestamp_ms: u64,
     pub policy: PolicyDecision,
     pub dna_lineage: Vec<String>,
+    pub proof_refs: Vec<String>,
     pub receipt_id: String,
     pub payload: Value,
 }
@@ -62,4 +64,17 @@ pub fn validate_expected_revision(expected: Option<u64>, actual: u64) -> Result<
         }
     }
     Ok(())
+}
+
+pub fn validate_proof_refs(raw: &[String]) -> Result<Vec<String>, String> {
+    let refs = raw
+        .iter()
+        .map(|row| row.trim())
+        .filter(|row| !row.is_empty())
+        .map(|row| row.chars().take(240).collect::<String>())
+        .collect::<Vec<_>>();
+    if refs.is_empty() {
+        return Err("proof_refs_required".to_string());
+    }
+    Ok(refs)
 }

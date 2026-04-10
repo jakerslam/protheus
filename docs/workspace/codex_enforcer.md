@@ -25,6 +25,11 @@ For every incoming user prompt:
 - Authorized modification scope includes `core/`, `surface/`, `client/`, `apps/`, `adapters/`, `tests/`, and `docs/`.
 - You may add crates/packages, change schemas, and remove/replace placeholder flows when needed.
 - Enforce Rust-core authority and thin-client boundaries on every implementation.
+- Orchestration Surface is Rust-first by policy:
+  - New orchestration authority and coordination logic must land in `surface/orchestration/src/**` (`.rs`).
+  - TypeScript in `surface/orchestration/scripts/**` is adapter-only and must remain thin wrapper/bridge code.
+  - If orchestration logic requires TypeScript beyond adapter scope, stop with:
+    - `BLOCKED — orchestration authority must be Rust; TS allowed only for minimal adapters`
 - Any net-new functionality must be paired with a canonical SRS row update in `docs/workspace/SRS.md` before it can be considered complete (`done`), including acceptance criteria and regression-proof references.
 - No new authority may be introduced in `client/**`:
   - Client code is wrapper/UX/integration only.

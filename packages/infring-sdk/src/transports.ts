@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import type {
   InfringOperation,
   InfringTransport,
@@ -65,6 +65,11 @@ export interface CliTransportOptions {
   env?: NodeJS.ProcessEnv;
   timeout_ms?: number;
   /**
+   * Process transport is disabled by default.
+   * Set this to true (and/or INFRING_SDK_ALLOW_PROCESS_TRANSPORT=1) only for emergency fallback.
+   */
+  allow_process_transport?: boolean;
+  /**
    * Deprecated. Production transports are fail-closed by default.
    * Synthetic fallback requires both this option and INFRING_SDK_ALLOW_SYNTHETIC_FALLBACK=1.
    */
@@ -79,6 +84,71 @@ export interface InMemoryTransportOptions {
   allow_unseeded_fallback?: boolean;
 }
 
+type SpawnResult = {
+  status: number;
+  stdout: string;
+  stderr: string;
+  error: Error | null;
+};
+
+function runSpawn(
+  command: string,
+  args: string[],
+  cwd: string | undefined,
+  env: NodeJS.ProcessEnv,
+  timeoutMs: number
+): Promise<SpawnResult> {
+  return new Promise((resolve) => {
+    const child = spawn(command, args, {
+      cwd,
+      env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let stdout = '';
+    let stderr = '';
+    let settled = false;
+    const finish = (result: SpawnResult) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(result);
+    };
+    const timer = setTimeout(() => {
+      try {
+        child.kill('SIGKILL');
+      } catch {}
+      finish({
+        status: 1,
+        stdout,
+        stderr: `${stderr}\ntransport_timeout`,
+        error: new Error(`transport_timeout:${timeoutMs}`),
+      });
+    }, Math.max(1000, timeoutMs));
+    child.stdout?.on('data', (chunk) => {
+      stdout += String(chunk || '');
+    });
+    child.stderr?.on('data', (chunk) => {
+      stderr += String(chunk || '');
+    });
+    child.on('error', (error) => {
+      finish({
+        status: 1,
+        stdout,
+        stderr: `${stderr}\n${String(error && error.message ? error.message : error)}`,
+        error: error instanceof Error ? error : new Error(String(error)),
+      });
+    });
+    child.on('close', (code) => {
+      finish({
+        status: Number.isFinite(Number(code)) ? Number(code) : 1,
+        stdout,
+        stderr,
+        error: null,
+      });
+    });
+  });
+}
+
 export function createCliTransport(options: CliTransportOptions): InfringTransport {
   const command = String(options.command || '').trim();
   if (!command) {
@@ -90,17 +160,35 @@ export function createCliTransport(options: CliTransportOptions): InfringTranspo
   const allowSyntheticFallback =
     options.allow_synthetic_fallback === true &&
     String(process.env.INFRING_SDK_ALLOW_SYNTHETIC_FALLBACK || '').trim() === '1';
+  const allowProcessTransport =
+    options.allow_process_transport === true ||
+    String(process.env.INFRING_SDK_ALLOW_PROCESS_TRANSPORT || '').trim() === '1';
   return {
     async invoke<TData extends JsonValue = JsonValue>(
       request: InfringTransportRequest
     ): Promise<SdkEnvelope<TData>> {
+      if (!allowProcessTransport) {
+        return {
+          ok: false,
+          operation: request.operation,
+          trace_id: `trace_${randomUUID().replace(/-/g, '')}`,
+          receipts: [],
+          data: {} as TData,
+          error: {
+            code: 'resident_transport_required',
+            message:
+              'CLI process transport is disabled by default; route through resident IPC transport or set INFRING_SDK_ALLOW_PROCESS_TRANSPORT=1 for emergency fallback.',
+          },
+        };
+      }
       const args = options.args_for_operation(request);
-      const proc = spawnSync(command, args, {
-        cwd: options.cwd,
-        env: { ...process.env, ...(options.env || {}) },
-        encoding: 'utf8',
-        timeout: Math.max(1000, Number(options.timeout_ms || 120000)),
-      });
+      const proc = await runSpawn(
+        command,
+        args,
+        options.cwd,
+        { ...process.env, ...(options.env || {}) },
+        Math.max(1000, Number(options.timeout_ms || 120000))
+      );
       const parsed = parseJsonLine(String(proc.stdout || '')) || {};
       const traceId = String(parsed.trace_id || `trace_${randomUUID().replace(/-/g, '')}`);
       const receipts = asStringArray(parsed.receipts).map((receiptId) => ({
@@ -109,7 +197,7 @@ export function createCliTransport(options: CliTransportOptions): InfringTranspo
       }));
       const hasParsedData = Object.prototype.hasOwnProperty.call(parsed, 'data');
       const parsedData = hasParsedData ? (parsed.data as TData) : undefined;
-      if (Number(proc.status || 0) !== 0) {
+      if (Number(proc.status || 0) !== 0 || proc.error) {
         return {
           ok: false,
           operation: request.operation,
@@ -118,7 +206,9 @@ export function createCliTransport(options: CliTransportOptions): InfringTranspo
           data: (parsedData || ({} as TData)),
           error: {
             code: 'transport_exit_nonzero',
-            message: `Transport command exited with status ${String(proc.status ?? 1)}`,
+            message: `Transport command exited with status ${String(proc.status ?? 1)}${
+              proc.error ? ` (${String(proc.error.message || proc.error)})` : ''
+            }`,
           },
         };
       }
