@@ -30,38 +30,44 @@ fn state_root(root: &Path) -> PathBuf {
     scoped_state_root(root, STATE_ENV, STATE_SCOPE)
 }
 
+fn state_file(root: &Path, file_name: &str) -> PathBuf {
+    state_root(root).join(file_name)
+}
+
+fn state_subdir_file(root: &Path, dir: &str, file_name: &str) -> PathBuf {
+    state_root(root).join(dir).join(file_name)
+}
+
 fn latest_path(root: &Path) -> PathBuf {
-    state_root(root).join("latest.json")
+    state_file(root, "latest.json")
 }
 
 fn config_path(root: &Path) -> PathBuf {
-    state_root(root).join("config.json")
+    state_file(root, "config.json")
 }
 
 fn fixture_path(root: &Path) -> PathBuf {
-    state_root(root)
-        .join("fixtures")
-        .join("ground_truth_latest.json")
+    state_subdir_file(root, "fixtures", "ground_truth_latest.json")
 }
 
 fn loop_latest_path(root: &Path) -> PathBuf {
-    state_root(root).join("loops").join("latest.json")
+    state_subdir_file(root, "loops", "latest.json")
 }
 
 fn trace_history_path(root: &Path) -> PathBuf {
-    state_root(root).join("loops").join("trace_history.jsonl")
+    state_subdir_file(root, "loops", "trace_history.jsonl")
 }
 
 fn benchmark_latest_path(root: &Path) -> PathBuf {
-    state_root(root).join("benchmarks").join("latest.json")
+    state_subdir_file(root, "benchmarks", "latest.json")
 }
 
 fn rl_latest_path(root: &Path) -> PathBuf {
-    state_root(root).join("rl").join("infring_v2_latest.json")
+    state_subdir_file(root, "rl", "infring_v2_latest.json")
 }
 
 fn rl_history_path(root: &Path) -> PathBuf {
-    state_root(root).join("rl").join("infring_v2_history.jsonl")
+    state_subdir_file(root, "rl", "infring_v2_history.jsonl")
 }
 
 fn emit(root: &Path, payload: Value) -> i32 {
