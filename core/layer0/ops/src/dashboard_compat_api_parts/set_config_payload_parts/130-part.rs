@@ -22,6 +22,33 @@ fn execute_tool_call_by_name(
     }
     let headers = vec![("X-Actor-Agent-Id", actor.as_str())];
     match resolved.as_str() {
+        "tool_capabilities" | "capabilities" | "capability_status" | "tools_status" => {
+            let mut payload =
+                handle_with_headers(root, "GET", "/api/capabilities/status", &[], &headers, snapshot)
+                    .map(|response| response.payload)
+                    .unwrap_or_else(|| json!({"ok": false, "error": "tool_route_not_found"}));
+            if let Some(obj) = payload.as_object_mut() {
+                let read_surfaces = vec![
+                    json!({"name":"workspace_analyze","route":"terminal_exec(read-only alias)","default_enabled":true}),
+                    json!({"name":"file_read","route":"agent file read","default_enabled":true}),
+                    json!({"name":"file_read_many","route":"agent file read-many","default_enabled":true}),
+                    json!({"name":"folder_export","route":"agent folder export","default_enabled":true}),
+                    json!({"name":"terminal_exec","route":"agent terminal","default_enabled":true}),
+                ];
+                obj.insert("command_surface".to_string(), json!("governed_tool_router"));
+                obj.insert("read_surfaces".to_string(), Value::Array(read_surfaces));
+                obj.insert(
+                    "explicit_tool_commands".to_string(),
+                    Value::Array(
+                        EXPLICIT_SUPPORTED_TOOL_COMMANDS
+                            .iter()
+                            .map(|value| Value::String((*value).to_string()))
+                            .collect::<Vec<_>>(),
+                    ),
+                );
+            }
+            payload
+        }
         "file_read" | "read_file" | "file" => {
             let body = if input.is_object() {
                 input.clone()

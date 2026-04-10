@@ -26,10 +26,12 @@ jobs:
 
       - name: Policy Baseline Contract
         run: |
+          npm run -s ops:root-surface:audit
           npm run -s ops:repo-surface:audit
           npm run -s ops:file-size:gate
           npm run -s ops:dod:gate
           npm run -s ops:churn:guard
+          npm run -s ops:arch:governance
           npm run -s ops:arch:conformance
 
       - name: Setup Rust

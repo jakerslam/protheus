@@ -22,7 +22,7 @@ For every incoming user prompt:
 
 ## Standard Implementation Rules (Mandatory)
 - Implement all requested items as production code, not receipt scaffolds.
-- Authorized modification scope includes `core/`, `client/`, `apps/`, `adapters/`, `tests/`, and `docs/`.
+- Authorized modification scope includes `core/`, `surface/`, `client/`, `apps/`, `adapters/`, `tests/`, and `docs/`.
 - You may add crates/packages, change schemas, and remove/replace placeholder flows when needed.
 - Enforce Rust-core authority and thin-client boundaries on every implementation.
 - Any net-new functionality must be paired with a canonical SRS row update in `docs/workspace/SRS.md` before it can be considered complete (`done`), including acceptance criteria and regression-proof references.
@@ -92,6 +92,7 @@ Completion requires all of the following:
 - Canonical code locations are limited to: `core/`, `surface/`, `client/`, `tests/`, and `adapters/`.
 - `apps/` is app-only. It may contain only standalone apps that run on top of the client/runtime boundary.
 - Any path under `apps/` must be deletable without changing core/surface/client/adapters/tests behavior.
+- Any path under `apps/` must be deletable without changing core/client/adapters/tests behavior.
 - System code must not import from `apps/**`. If system code needs shared logic, move that logic into `core/`, `surface/`, `client/`, `tests/`, or `adapters/` first.
 - `apps/` is never a script/tool dump. Shared helpers, wrappers, and runtime bridges are prohibited in `apps/`.
 - Top-level `scripts/` is prohibited. Do not create or reintroduce it.
@@ -102,6 +103,8 @@ Completion requires all of the following:
   - system authority/runtime path => `core/`
   - orchestration coordination path (non-authoritative) => `surface/orchestration/**`
   - client runtime wrappers/UX path => `client/runtime/systems/**` (thin runtime/client surface only)
+  - system authority/runtime path => `core/` (or `client/runtime/systems/**` only as thin runtime/client surface)
+  - orchestration coordination path (non-canonical sequencing/clarification/progress/recovery) => `surface/orchestration/**`
   - developer/user operational scripts => `client/`
   - test/CI tooling => `tests/`
   - integration bridges for external software => `adapters/`

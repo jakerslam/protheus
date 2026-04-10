@@ -30,7 +30,6 @@ fn evaluate_router_global_budget_gate_matches_hard_stop_dry_run_and_enforced_pat
         Some("daily_usd_cap_exceeded_dry_run")
     );
     assert!(!dry_run.autopause_active);
-
     let enforced = evaluate_budget_gate(&json!(false), &hard_guard);
     assert!(enforced.enabled);
     assert!(enforced.blocked);
@@ -53,7 +52,6 @@ fn project_budget_state_matches_unavailable_and_projection_contracts() {
     assert_eq!(unavailable["projected_used_est"], Value::Null);
     assert_eq!(unavailable["projected_ratio"], Value::Null);
     assert_eq!(unavailable["projected_pressure"], "soft");
-
     let projected = project_budget_state(
         Some(&json!({
             "enabled": true,
@@ -69,7 +67,6 @@ fn project_budget_state_matches_unavailable_and_projection_contracts() {
     assert_eq!(projected["projected_used_est"], 950.0);
     assert_eq!(projected["projected_ratio"], 0.95);
     assert_eq!(projected["projected_pressure"], "hard");
-
     let invalid_cap = project_budget_state(
         Some(&json!({
             "enabled": true,
@@ -98,7 +95,6 @@ fn route_class_policy_matches_reflex_defaults_and_overrides() {
     assert_eq!(reflex.fallback_slot.as_deref(), Some("fallback"));
     assert!(reflex.disable_fast_path);
     assert_eq!(reflex.max_tokens_est, Some(420));
-
     let cfg = json!({
         "routing": {
             "route_classes": {
@@ -124,7 +120,6 @@ fn route_class_policy_matches_reflex_defaults_and_overrides() {
     );
     assert!(!reflex_override.disable_fast_path);
     assert_eq!(reflex_override.max_tokens_est, Some(777));
-
     let focus = route_class_policy(&cfg, "focus");
     assert_eq!(focus.id, "focus");
     assert_eq!(focus.force_risk.as_deref(), Some("high"));
@@ -175,7 +170,6 @@ fn mode_adjustments_match_config_and_fallback_contracts() {
         mapped.mode_policy_source,
         "client/runtime/config/model_adapters.json"
     );
-
     let deep = apply_mode_adjustments("deep-thinker", &base, &adapters);
     assert_eq!(deep.risk, "high");
     assert_eq!(deep.complexity, "high");
@@ -185,7 +179,6 @@ fn mode_adjustments_match_config_and_fallback_contracts() {
         deep.mode_reason.as_deref(),
         Some("deep_thinker_forces_high_logic")
     );
-
     let hyper = apply_mode_adjustments("hyper-creative", &base, &json!({}));
     assert_eq!(hyper.risk, "medium");
     assert_eq!(hyper.complexity, "medium");
@@ -194,7 +187,6 @@ fn mode_adjustments_match_config_and_fallback_contracts() {
         hyper.mode_reason.as_deref(),
         Some("hyper_creative_bias_planning")
     );
-
     let creative = apply_mode_adjustments("creative", &base, &json!({}));
     assert_eq!(creative.role, "chat");
     assert_eq!(creative.mode_reason.as_deref(), Some("creative_bias_chat"));
@@ -210,7 +202,6 @@ fn env_probe_blocked_text_and_normalization_match_contract() {
     assert!(!is_env_probe_blocked_text(
         "timeout while probing localhost"
     ));
-
     let raw = json!({
         "reason": "Permission denied on socket 11434",
         "stderr": "sandbox restrictions",
@@ -224,7 +215,6 @@ fn env_probe_blocked_text_and_normalization_match_contract() {
     assert_eq!(rec["probe_blocked"], true);
     assert_eq!(rec["reason"], "env_probe_blocked");
     assert_eq!(rec["available"], Value::Null);
-
     let passthrough = normalize_probe_blocked_record(Some(&json!({
         "reason": "timeout",
         "stderr": "no response",
@@ -249,7 +239,6 @@ fn suppression_active_matches_contract() {
 fn probe_health_stabilizer_applies_timeout_suppression_and_rehab_clearance() {
     let policy = ProbeHealthStabilizerPolicy::default();
     let now_ms = 1_000_000_i64;
-
     let suppressed = apply_probe_health_stabilizer(
         Some(&json!({"timeout_streak": 2, "rehab_success_streak": 5})),
         Some(&json!({"timeout": true, "available": true})),
@@ -266,7 +255,6 @@ fn probe_health_stabilizer_applies_timeout_suppression_and_rehab_clearance() {
     assert_eq!(suppressed["reason"], "probe_suppressed_timeout_rehab");
     assert_eq!(suppressed["available"], false);
     assert_eq!(suppressed["suppressed_at_ms"].as_f64(), Some(now_ms as f64));
-
     let cleared = apply_probe_health_stabilizer(
         Some(&json!({"suppressed_until_ms": 900, "rehab_success_streak": 1})),
         Some(&json!({
@@ -318,7 +306,6 @@ fn handoff_packet_tier_and_budget_behavior_matches_contract() {
         Some(3)
     );
     assert!(out2.get("guardrails").is_none());
-
     let tier3 = json!({
         "tier": 3,
         "role": "logic",
@@ -378,7 +365,6 @@ fn handoff_packet_budget_tokens_require_numeric_conversion() {
     });
     let out_falsey = build_handoff_packet(&falsey_tokens);
     assert_eq!(out_falsey["budget"]["request_tokens_est"], Value::Null);
-
     let truthy_non_numeric_tokens = json!({
         "tier": 2,
         "budget": {
@@ -395,7 +381,6 @@ fn handoff_packet_budget_tokens_require_numeric_conversion() {
         out_truthy_non_numeric["budget"]["projected_pressure"],
         "hard"
     );
-
     let bool_numeric_tokens = json!({
         "tier": 2,
         "budget": {
@@ -485,4 +470,21 @@ fn handoff_packet_post_task_return_model_requires_truthy_value() {
     assert_eq!(out["guardrails"]["deep_thinker"], true);
     assert_eq!(out["guardrails"]["verification_required"], true);
     assert!(out.get("post_task_return_model").is_none());
+}
+#[test]
+fn helper_fallbacks_cover_general_task_type_and_proposal_capability_family() {
+    assert_eq!(infer_role("prioritize candidate fixes", ""), "planning");
+    assert_eq!(capability_family_key("proposal"), "proposal");
+    assert_eq!(task_type_key_from_route("default", "", ""), "general");
+}
+#[test]
+fn normalize_capability_key_collapses_and_truncates_deterministically() {
+    assert_eq!(
+        normalize_capability_key("  __Proposal@@@Doctor:::Repair__  "),
+        "proposal_doctor:::repair"
+    );
+    let long_input = "A".repeat(120);
+    let normalized = normalize_capability_key(&long_input);
+    assert_eq!(normalized.len(), 72);
+    assert!(normalized.chars().all(|ch| ch == 'a'));
 }
