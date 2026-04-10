@@ -5,20 +5,16 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { requireFresh } = require('./_legacy_retired_test_wrapper.ts');
 
 const ROOT = path.resolve(__dirname, '../..');
-
-function resetModule(modulePath) {
-  delete require.cache[require.resolve(modulePath)];
-  return require(modulePath);
-}
 
 function main() {
   process.env.PROTHEUS_OPS_USE_PREBUILT = '0';
   process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = '120000';
   const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tool-response-compactor-'));
 
-  const mod = resetModule(path.join(ROOT, 'client/runtime/lib/tool_response_compactor.ts'));
+  const mod = requireFresh(path.join(ROOT, 'client/runtime/lib/tool_response_compactor.ts'));
 
   const redacted = mod.redactSecrets(
     'Authorization: Bearer token-12345\nmoltbook_sk_abcdefghijklmnopqrstuvwxyz1234567890'
