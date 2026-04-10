@@ -24,9 +24,12 @@ const EXEMPT_CODE_ROOTS = new Set([
   'packages',
   'planes',
   'proofs',
+  'scripts',
   'setup',
+  'surface',
   'tests',
-  'tools'
+  'tools',
+  'xtask'
 ]);
 
 function loadTrackedFiles() {
@@ -60,14 +63,14 @@ function main() {
     .filter((p) => p.includes('/'))
     .filter((p) => {
       const seg = firstSegment(p);
-      if (seg === 'core' || seg === 'client') return false;
+      if (seg === 'core' || seg === 'client' || seg === 'surface') return false;
       if (seg.startsWith('.')) return false;
       return !EXEMPT_CODE_ROOTS.has(seg);
     })
     .sort();
   if (badRoots.length > 0) {
     fail = true;
-    printViolation('source code paths outside /core or /client', badRoots);
+    printViolation('source code paths outside /core, /surface, or /client', badRoots);
   }
 
   const coreDisallowed = files
