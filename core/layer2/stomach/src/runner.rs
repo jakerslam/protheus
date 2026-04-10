@@ -4,6 +4,8 @@
 use crate::proposal::ProposalBundle;
 use serde::{Deserialize, Serialize};
 
+const EXECUTION_BOUNDARY: &str = "trusted_isolated_runner_after_proposal_generation";
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RunnerPolicy {
     pub trusted_isolated_runner: bool,
@@ -38,21 +40,36 @@ pub struct ExecutionReceipt {
     pub tests: Vec<String>,
 }
 
-pub fn verify_runner_policy(policy: &RunnerPolicy) -> Result<(), String> {
+fn runner_mode(policy: &RunnerPolicy) -> String {
+    if policy.allow_network {
+        "trusted_isolated_runner_network_approved".to_string()
+    } else {
+        "trusted_isolated_runner_network_disabled".to_string()
+    }
+}
+
+fn runner_policy_violation(policy: &RunnerPolicy) -> Option<&'static str> {
     if !policy.trusted_isolated_runner {
-        return Err("runner_policy_untrusted_environment".to_string());
+        return Some("runner_policy_untrusted_environment");
     }
     if policy.allow_repo_hooks {
-        return Err("runner_policy_repo_hooks_forbidden_in_v1".to_string());
+        return Some("runner_policy_repo_hooks_forbidden_in_v1");
     }
     if policy.allow_repo_generators {
-        return Err("runner_policy_repo_generators_forbidden_in_v1".to_string());
+        return Some("runner_policy_repo_generators_forbidden_in_v1");
     }
     if policy.allow_submodule_materialization {
-        return Err("runner_policy_submodule_materialization_forbidden_in_v1".to_string());
+        return Some("runner_policy_submodule_materialization_forbidden_in_v1");
     }
     if policy.allow_lfs_materialization {
-        return Err("runner_policy_lfs_materialization_forbidden_in_v1".to_string());
+        return Some("runner_policy_lfs_materialization_forbidden_in_v1");
+    }
+    None
+}
+
+pub fn verify_runner_policy(policy: &RunnerPolicy) -> Result<(), String> {
+    if let Some(reason) = runner_policy_violation(policy) {
+        return Err(reason.to_string());
     }
     Ok(())
 }
@@ -61,18 +78,14 @@ pub fn execute_proposal_in_trusted_runner(
     proposal: &ProposalBundle,
     policy: &RunnerPolicy,
 ) -> ExecutionReceipt {
+    let proposal_id = proposal.proposal_id.clone();
     match verify_runner_policy(policy) {
         Ok(()) => ExecutionReceipt {
-            proposal_id: proposal.proposal_id.clone(),
+            proposal_id,
             status: "executed".to_string(),
             executed: true,
-            runner_mode: if policy.allow_network {
-                "trusted_isolated_runner_network_approved"
-            } else {
-                "trusted_isolated_runner_network_disabled"
-            }
-            .to_string(),
-            execution_boundary: "trusted_isolated_runner_after_proposal_generation".to_string(),
+            runner_mode: runner_mode(policy),
+            execution_boundary: EXECUTION_BOUNDARY.to_string(),
             blocked_reason: None,
             tests: vec![
                 "policy_gate_pass".to_string(),
@@ -81,11 +94,11 @@ pub fn execute_proposal_in_trusted_runner(
             ],
         },
         Err(reason) => ExecutionReceipt {
-            proposal_id: proposal.proposal_id.clone(),
+            proposal_id,
             status: "blocked".to_string(),
             executed: false,
             runner_mode: "runner_rejected".to_string(),
-            execution_boundary: "trusted_isolated_runner_after_proposal_generation".to_string(),
+            execution_boundary: EXECUTION_BOUNDARY.to_string(),
             blocked_reason: Some(reason),
             tests: vec!["policy_gate_fail".to_string()],
         },
