@@ -25,7 +25,8 @@
   overflow: hidden;
   background: var(--bg);
   position: relative;
-  isolation: isolate;
+  /* Keep main-content from trapping fixed dock overlays under sidebar z-layers. */
+  isolation: auto;
   --chat-grid-x: 50%;
   --chat-grid-y: 50%;
   --chat-grid-active: 0;
