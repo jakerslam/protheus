@@ -59,6 +59,36 @@ fn compact_rows(rows: Vec<Value>, keep_ratio: f64, min_keep: usize) -> (Vec<Valu
     (kept, removed)
 }
 
+fn compaction_ratios(
+    mode: &str,
+    pressure_ratio: f64,
+    auto_compact_pct: Option<f64>,
+) -> (f64, f64, f64) {
+    let mut ratios = match mode {
+        "snip" => (0.30, 0.22, 0.18),
+        "micro" => (0.82, 0.70, 0.62),
+        "full" => (0.62, 0.48, 0.40),
+        _ => {
+            let p = pressure_ratio.clamp(0.0, 1.0);
+            if p >= 0.95 {
+                (0.48, 0.34, 0.28)
+            } else if p >= 0.85 {
+                (0.62, 0.46, 0.40)
+            } else if p >= 0.70 {
+                (0.74, 0.58, 0.52)
+            } else {
+                (0.84, 0.72, 0.64)
+            }
+        }
+    };
+
+    if let Some(pct) = auto_compact_pct {
+        let keep = (1.0 - (pct / 100.0)).clamp(0.05, 0.95);
+        ratios = (keep, keep, keep);
+    }
+    ratios
+}
+
 fn compact_hand_memory(
     root: &Path,
     hand_id: &str,
@@ -80,29 +110,8 @@ fn compact_hand_memory(
     let before_archival = memory_tier(&hand, "archival");
     let before_external = memory_tier(&hand, "external");
 
-    let (mut core_ratio, mut archival_ratio, mut external_ratio) = match mode {
-        "snip" => (0.30, 0.22, 0.18),
-        "micro" => (0.82, 0.70, 0.62),
-        "full" => (0.62, 0.48, 0.40),
-        _ => {
-            let p = pressure_ratio.clamp(0.0, 1.0);
-            if p >= 0.95 {
-                (0.48, 0.34, 0.28)
-            } else if p >= 0.85 {
-                (0.62, 0.46, 0.40)
-            } else if p >= 0.70 {
-                (0.74, 0.58, 0.52)
-            } else {
-                (0.84, 0.72, 0.64)
-            }
-        }
-    };
-    if let Some(pct) = auto_compact_pct {
-        let keep = (1.0 - (pct / 100.0)).clamp(0.05, 0.95);
-        core_ratio = keep;
-        archival_ratio = keep;
-        external_ratio = keep;
-    }
+    let (core_ratio, archival_ratio, external_ratio) =
+        compaction_ratios(mode, pressure_ratio, auto_compact_pct);
 
     let (core_next, core_removed) = compact_rows(before_core.clone(), core_ratio, 4);
     let (arch_next, arch_removed) = compact_rows(before_archival.clone(), archival_ratio, 8);
@@ -518,7 +527,11 @@ fn append_proactive_daemon_log(root: &Path, row: &Value, strict: bool) -> Result
     Ok(())
 }
 
-fn persist_proactive_daemon_state(root: &Path, state: &mut Value, strict: bool) -> Result<(), String> {
+fn persist_proactive_daemon_state(
+    root: &Path,
+    state: &mut Value,
+    strict: bool,
+) -> Result<(), String> {
     let path = proactive_daemon_state_path(root);
     state["write_discipline"]["state_write_confirmed"] = json!(false);
     state["write_discipline"]["last_state_write_at"] = json!(now_iso());
@@ -575,7 +588,8 @@ fn run_proactive_daemon_daemon(root: &Path, argv: &[String]) -> i32 {
     let brief_mode = parse_bool(parse_flag(argv, "brief").as_deref(), true);
     let now_ms = now_epoch_ms();
 
-    let mut state = read_json(&proactive_daemon_state_path(root)).unwrap_or_else(proactive_daemon_default_state);
+    let mut state = read_json(&proactive_daemon_state_path(root))
+        .unwrap_or_else(proactive_daemon_default_state);
     ensure_proactive_daemon_state_shape(&mut state);
     state["heartbeat"]["tick_ms"] = json!(tick_ms);
     state["heartbeat"]["jitter_ms"] = json!(jitter_ms);
@@ -675,15 +689,14 @@ fn run_proactive_daemon_daemon(root: &Path, argv: &[String]) -> i32 {
                     } else {
                         now_ms.saturating_sub(last_dream_at_ms)
                     };
-                    let dream_reason = if latest_hand_activity_ms > 0
-                        && inactivity_elapsed_ms >= dream_idle_ms
-                    {
-                        Some("inactivity")
-                    } else if since_last_dream_ms >= dream_max_without_ms {
-                        Some("stale_without_dream")
-                    } else {
-                        None
-                    };
+                    let dream_reason =
+                        if latest_hand_activity_ms > 0 && inactivity_elapsed_ms >= dream_idle_ms {
+                            Some("inactivity")
+                        } else if since_last_dream_ms >= dream_max_without_ms {
+                            Some("stale_without_dream")
+                        } else {
+                            None
+                        };
                     if let Some(reason) = dream_reason {
                         intents.push(json!({
                             "kind":"memory",
@@ -744,12 +757,13 @@ fn run_proactive_daemon_daemon(root: &Path, argv: &[String]) -> i32 {
                                     .unwrap_or("hand-default");
                                 match run_dream_consolidation_for_hand(root, hand_id) {
                                     Ok(event) => {
-                                        let (cleanup_code, cleanup_payload) = crate::spine::execute_sleep_cleanup(
-                                            root,
-                                            true,
-                                            false,
-                                            "autonomy_dream",
-                                        );
+                                        let (cleanup_code, cleanup_payload) =
+                                            crate::spine::execute_sleep_cleanup(
+                                                root,
+                                                true,
+                                                false,
+                                                "autonomy_dream",
+                                            );
                                         state["dream"]["last_dream_at_ms"] = json!(now_ms);
                                         state["dream"]["last_dream_reason"] =
                                             intent.get("reason").cloned().unwrap_or(Value::Null);
@@ -773,8 +787,9 @@ fn run_proactive_daemon_daemon(root: &Path, argv: &[String]) -> i32 {
                                         continue;
                                     }
                                     Err(_) => {
-                                        deferred
-                                            .push(json!({"intent": intent, "reason":"dream_failed"}));
+                                        deferred.push(
+                                            json!({"intent": intent, "reason":"dream_failed"}),
+                                        );
                                         continue;
                                     }
                                 }
@@ -841,7 +856,11 @@ fn run_proactive_daemon_daemon(root: &Path, argv: &[String]) -> i32 {
         }
     }
     if let Err(err) = persist_proactive_daemon_state(root, &mut state, strict) {
-        let mut out = cli_error_receipt(argv, &format!("proactive_daemon_state_persist_failed:{err}"), 2);
+        let mut out = cli_error_receipt(
+            argv,
+            &format!("proactive_daemon_state_persist_failed:{err}"),
+            2,
+        );
         out["type"] = json!("autonomy_proactive_daemon");
         return emit_receipt(root, &mut out);
     }

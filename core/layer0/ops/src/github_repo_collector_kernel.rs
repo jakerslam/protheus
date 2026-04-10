@@ -35,9 +35,21 @@ fn payload_obj<'a>(value: &'a Value) -> &'a Map<String, Value> {
     lane_utils::payload_obj(value)
 }
 
+fn owner_repo(payload: &Map<String, Value>) -> (String, String) {
+    (
+        support::clean_text(payload.get("owner").and_then(Value::as_str), 160),
+        support::clean_text(payload.get("repo").and_then(Value::as_str), 160),
+    )
+}
+
+fn owner_repo_pr(payload: &Map<String, Value>) -> (String, String, u64) {
+    let (owner, repo) = owner_repo(payload);
+    let pr_number = support::as_u64(payload.get("pr"), 0);
+    (owner, repo, pr_number)
+}
+
 fn handle_resolve_run_params(payload: &Map<String, Value>) -> Value {
-    let owner = support::clean_text(payload.get("owner").and_then(Value::as_str), 160);
-    let repo = support::clean_text(payload.get("repo").and_then(Value::as_str), 160);
+    let (owner, repo) = owner_repo(payload);
     let pr = support::as_u64(payload.get("pr"), 0);
     let max_items = support::as_u64(payload.get("max_items"), 10).clamp(1, 50);
     let min_hours = support::as_f64(payload.get("min_hours"), 4.0).clamp(0.0, 24.0 * 365.0);
@@ -74,8 +86,7 @@ fn handle_file_risk_flags(payload: &Map<String, Value>) -> Value {
 }
 
 fn handle_prepare_repo_activity(root: &Path, payload: &Map<String, Value>) -> Value {
-    let owner = support::clean_text(payload.get("owner").and_then(Value::as_str), 160);
-    let repo = support::clean_text(payload.get("repo").and_then(Value::as_str), 160);
+    let (owner, repo) = owner_repo(payload);
     if owner.is_empty() || repo.is_empty() {
         return json!({"ok": false, "error": "missing_owner_or_repo"});
     }
@@ -116,8 +127,7 @@ fn handle_prepare_repo_activity(root: &Path, payload: &Map<String, Value>) -> Va
 }
 
 fn handle_build_repo_activity_fetch_plan(payload: &Map<String, Value>) -> Value {
-    let owner = support::clean_text(payload.get("owner").and_then(Value::as_str), 160);
-    let repo = support::clean_text(payload.get("repo").and_then(Value::as_str), 160);
+    let (owner, repo) = owner_repo(payload);
     if owner.is_empty() || repo.is_empty() {
         return json!({"ok": false, "error": "missing_owner_or_repo"});
     }
@@ -155,8 +165,7 @@ fn handle_finalize_repo_activity(
     root: &Path,
     payload: &Map<String, Value>,
 ) -> Result<Value, String> {
-    let owner = support::clean_text(payload.get("owner").and_then(Value::as_str), 160);
-    let repo = support::clean_text(payload.get("repo").and_then(Value::as_str), 160);
+    let (owner, repo) = owner_repo(payload);
     if owner.is_empty() || repo.is_empty() {
         return Ok(json!({"ok": false, "error": "missing_owner_or_repo"}));
     }
@@ -243,9 +252,7 @@ fn handle_finalize_repo_activity(
 }
 
 fn handle_build_pr_review_fetch_plan(payload: &Map<String, Value>) -> Value {
-    let owner = support::clean_text(payload.get("owner").and_then(Value::as_str), 160);
-    let repo = support::clean_text(payload.get("repo").and_then(Value::as_str), 160);
-    let pr_number = support::as_u64(payload.get("pr"), 0);
+    let (owner, repo, pr_number) = owner_repo_pr(payload);
     if owner.is_empty() || repo.is_empty() || pr_number == 0 {
         return json!({"ok": false, "error": "missing_owner_repo_or_pr"});
     }
@@ -275,9 +282,7 @@ fn handle_build_pr_review_fetch_plan(payload: &Map<String, Value>) -> Value {
 }
 
 fn handle_build_pr_review(payload: &Map<String, Value>) -> Value {
-    let owner = support::clean_text(payload.get("owner").and_then(Value::as_str), 160);
-    let repo = support::clean_text(payload.get("repo").and_then(Value::as_str), 160);
-    let pr_number = support::as_u64(payload.get("pr"), 0);
+    let (owner, repo, pr_number) = owner_repo_pr(payload);
     if owner.is_empty() || repo.is_empty() || pr_number == 0 {
         return json!({"ok": false, "error": "missing_owner_repo_or_pr"});
     }
@@ -356,8 +361,7 @@ fn handle_collect_repo_activity(
     root: &Path,
     payload: &Map<String, Value>,
 ) -> Result<Value, String> {
-    let owner = support::clean_text(payload.get("owner").and_then(Value::as_str), 160);
-    let repo = support::clean_text(payload.get("repo").and_then(Value::as_str), 160);
+    let (owner, repo) = owner_repo(payload);
     if owner.is_empty() || repo.is_empty() {
         return Ok(json!({
             "ok": false,
@@ -409,9 +413,7 @@ fn handle_collect_repo_activity(
 }
 
 fn handle_collect_pr_review(payload: &Map<String, Value>) -> Value {
-    let owner = support::clean_text(payload.get("owner").and_then(Value::as_str), 160);
-    let repo = support::clean_text(payload.get("repo").and_then(Value::as_str), 160);
-    let pr_number = support::as_u64(payload.get("pr"), 0);
+    let (owner, repo, pr_number) = owner_repo_pr(payload);
     if owner.is_empty() || repo.is_empty() || pr_number == 0 {
         return json!({
             "ok": false,
