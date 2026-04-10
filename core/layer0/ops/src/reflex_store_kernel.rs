@@ -446,7 +446,6 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         }
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
