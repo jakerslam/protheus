@@ -5,15 +5,12 @@
 // - source: local/workspace/vendor/rtk/src/discover/{lexer.rs,registry.rs,rules.rs,report.rs}
 // - concept: rule-based shell command discovery and classification with deterministic report receipts.
 
-use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
-use base64::Engine;
 use regex::{Regex, RegexSet};
 use serde_json::{json, Map, Value};
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::OnceLock;
 
 use crate::contract_lane_utils as lane_utils;
-use crate::{deterministic_receipt_hash, now_iso};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum SupportStatus {
