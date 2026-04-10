@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
+use crate::contract_lane_utils as lane_utils;
 use crate::{deterministic_receipt_hash, now_iso, parse_args};
 use chrono::{DateTime, Duration, NaiveDate, Utc};
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
 use std::fs;
-use std::io::Write;
 use std::path::{Path, PathBuf};
 
 const LANE_ID: &str = "f100_reliability_certification";
@@ -48,19 +48,11 @@ fn usage() {
 }
 
 fn print_json_line(value: &Value) {
-    println!(
-        "{}",
-        serde_json::to_string(value)
-            .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
-    );
+    lane_utils::print_json_line(value);
 }
 
 fn bool_flag(raw: Option<&String>, fallback: bool) -> bool {
-    match raw.map(|v| v.trim().to_ascii_lowercase()) {
-        Some(v) if matches!(v.as_str(), "1" | "true" | "yes" | "on") => true,
-        Some(v) if matches!(v.as_str(), "0" | "false" | "no" | "off") => false,
-        _ => fallback,
-    }
+    lane_utils::parse_bool(raw.map(String::as_str), fallback)
 }
 
 fn read_json(path: &Path) -> Result<Value, String> {
@@ -461,15 +453,7 @@ fn write_text_atomic(path: &Path, text: &str) -> Result<(), String> {
 }
 
 fn append_jsonl(path: &Path, value: &Value) -> Result<(), String> {
-    ensure_parent(path);
-    let mut f = fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(path)
-        .map_err(|e| format!("open_jsonl_failed:{}:{e}", path.display()))?;
-    let line = serde_json::to_string(value).map_err(|e| format!("encode_jsonl_failed:{e}"))?;
-    f.write_all(line.as_bytes())
-        .and_then(|_| f.write_all(b"\n"))
+    lane_utils::append_jsonl(path, value)
         .map_err(|e| format!("append_jsonl_failed:{}:{e}", path.display()))
 }
 
