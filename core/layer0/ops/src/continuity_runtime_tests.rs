@@ -6,17 +6,28 @@ fn root() -> tempfile::TempDir {
     tempfile::tempdir().expect("tempdir")
 }
 
+fn args(rows: &[&str]) -> Vec<String> {
+    rows.iter().map(|row| row.to_string()).collect()
+}
+
+fn policy_with_vault_key(policy: &ContinuityPolicy, env_key: &str) -> ContinuityPolicy {
+    ContinuityPolicy {
+        vault_key_env: env_key.to_string(),
+        ..policy.clone()
+    }
+}
+
 #[test]
 fn checkpoint_and_restore_roundtrip() {
     let dir = root();
     let checkpoint = checkpoint_payload(
         dir.path(),
         &default_policy(),
-        &[
-            "--session-id=session-a".to_string(),
-            "--state-json={\"attention_queue\":[\"a\"],\"memory_graph\":{\"n1\":{}},\"active_personas\":[\"planner\"]}".to_string(),
-            "--apply=1".to_string(),
-        ],
+        &args(&[
+            "--session-id=session-a",
+            "--state-json={\"attention_queue\":[\"a\"],\"memory_graph\":{\"n1\":{}},\"active_personas\":[\"planner\"]}",
+            "--apply=1",
+        ]),
     )
     .expect("checkpoint");
     assert!(checkpoint
@@ -27,10 +38,7 @@ fn checkpoint_and_restore_roundtrip() {
     let restored = restore_payload(
         dir.path(),
         &default_policy(),
-        &[
-            "--session-id=session-a".to_string(),
-            "--apply=1".to_string(),
-        ],
+        &args(&["--session-id=session-a", "--apply=1"]),
     )
     .expect("restore");
     assert!(restored.get("ok").and_then(Value::as_bool).unwrap_or(false));
@@ -66,7 +74,7 @@ fn degraded_restore_is_blocked_without_override() {
     let err = restore_payload(
         dir.path(),
         &policy,
-        &["--session-id=s1".to_string(), "--apply=0".to_string()],
+        &args(&["--session-id=s1", "--apply=0"]),
     )
     .expect_err("blocked");
     assert!(err.contains("degraded_restore_blocked_by_policy"));
@@ -80,16 +88,12 @@ fn vault_encrypts_and_decrypts_state() {
 
     let put = vault_put_payload(
         dir.path(),
-        &ContinuityPolicy {
-            vault_key_env: "TEST_CONTINUITY_KEY".to_string(),
-            ..policy.clone()
-        },
-        &[
-            "--session-id=s2".to_string(),
-            "--state-json={\"attention_queue\":[\"a\"],\"memory_graph\":{},\"active_personas\":[]}"
-                .to_string(),
-            "--apply=1".to_string(),
-        ],
+        &policy_with_vault_key(&policy, "TEST_CONTINUITY_KEY"),
+        &args(&[
+            "--session-id=s2",
+            "--state-json={\"attention_queue\":[\"a\"],\"memory_graph\":{},\"active_personas\":[]}",
+            "--apply=1",
+        ]),
     )
     .expect("vault put");
     assert!(put
@@ -99,11 +103,8 @@ fn vault_encrypts_and_decrypts_state() {
 
     let get = vault_get_payload(
         dir.path(),
-        &ContinuityPolicy {
-            vault_key_env: "TEST_CONTINUITY_KEY".to_string(),
-            ..policy
-        },
-        &["--session-id=s2".to_string(), "--emit-state=1".to_string()],
+        &policy_with_vault_key(&policy, "TEST_CONTINUITY_KEY"),
+        &args(&["--session-id=s2", "--emit-state=1"]),
     )
     .expect("vault get");
 

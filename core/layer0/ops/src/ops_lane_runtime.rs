@@ -36,6 +36,24 @@ fn usage(lines: &[&str]) {
     }
 }
 
+fn lane_claim_evidence(spec: &LaneSpec<'_>, cmd: &str) -> Value {
+    json!([
+        {
+            "id": format!("native_{}_lane", spec.lane_id),
+            "claim": "lane_executes_natively_in_rust",
+            "evidence": {
+                "command": cmd
+            }
+        }
+    ])
+}
+
+fn normalized_cmd(argv: &[String]) -> String {
+    argv.first()
+        .map(|v| v.trim().to_ascii_lowercase())
+        .unwrap_or_else(|| "status".to_string())
+}
+
 fn lane_receipt(root: &Path, cmd: &str, argv: &[String], spec: &LaneSpec<'_>) -> Value {
     let flags = passthrough_flag_map(argv, spec.passthrough_flags);
     let mut out = json!({
@@ -48,25 +66,14 @@ fn lane_receipt(root: &Path, cmd: &str, argv: &[String], spec: &LaneSpec<'_>) ->
         "flags": flags,
         "replacement": spec.replacement,
         "root": root.to_string_lossy(),
-        "claim_evidence": [
-            {
-                "id": format!("native_{}_lane", spec.lane_id),
-                "claim": "lane_executes_natively_in_rust",
-                "evidence": {
-                    "command": cmd
-                }
-            }
-        ]
+        "claim_evidence": lane_claim_evidence(spec, cmd)
     });
     out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
     out
 }
 
 pub fn run_lane(root: &Path, argv: &[String], spec: &LaneSpec<'_>) -> i32 {
-    let cmd = argv
-        .first()
-        .map(|v| v.trim().to_ascii_lowercase())
-        .unwrap_or_else(|| "status".to_string());
+    let cmd = normalized_cmd(argv);
 
     if matches!(cmd.as_str(), "help" | "--help" | "-h") {
         usage(spec.usage);

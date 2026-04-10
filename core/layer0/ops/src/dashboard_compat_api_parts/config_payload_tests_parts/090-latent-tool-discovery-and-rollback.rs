@@ -1,3 +1,24 @@
+fn hinted_paths_lower(hints: &[Value]) -> String {
+    hints
+        .iter()
+        .filter_map(|row| row.get("path").and_then(Value::as_str))
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_ascii_lowercase()
+}
+
+fn candidate_tool_names(candidates: &[Value]) -> Vec<String> {
+    candidates
+        .iter()
+        .filter_map(|row| row.get("tool").and_then(Value::as_str))
+        .map(|row| row.to_string())
+        .collect::<Vec<_>>()
+}
+
+fn rollback_session_path(root: &std::path::Path) -> std::path::PathBuf {
+    state_path(root, AGENT_SESSIONS_DIR_REL).join("agent-rollback.json")
+}
+
 #[test]
 fn workspace_hints_and_latent_tool_candidates_surface_security_paths() {
     let root = tempfile::tempdir().expect("tempdir");
@@ -16,22 +37,14 @@ fn workspace_hints_and_latent_tool_candidates_surface_security_paths() {
         5,
     );
     assert!(!hints.is_empty());
-    let joined_paths = hints
-        .iter()
-        .filter_map(|row| row.get("path").and_then(Value::as_str))
-        .collect::<Vec<_>>()
-        .join(" ")
-        .to_ascii_lowercase();
+    let joined_paths = hinted_paths_lower(&hints);
     assert!(joined_paths.contains("security_gate.rs"));
 
     let candidates =
         latent_tool_candidates_for_message("Please audit the security of this API code", &hints);
-    let tools = candidates
-        .iter()
-        .filter_map(|row| row.get("tool").and_then(Value::as_str))
-        .collect::<Vec<_>>();
-    assert!(tools.contains(&"terminal_exec"));
-    assert!(tools.contains(&"file_read"));
+    let tools = candidate_tool_names(&candidates);
+    assert!(tools.iter().any(|row| row == "terminal_exec"));
+    assert!(tools.iter().any(|row| row == "file_read"));
 }
 
 #[test]
@@ -45,14 +58,16 @@ fn direct_intent_parser_supports_undo_routes() {
 
 #[test]
 fn direct_intent_parser_does_not_force_semantic_query_for_recall_prompts() {
-    let recall_route = direct_tool_intent_from_user_message("remember our first chat in this session");
+    let recall_route =
+        direct_tool_intent_from_user_message("remember our first chat in this session");
     assert!(recall_route.is_none());
 }
 
 #[test]
 fn direct_intent_parser_routes_capability_probe_prompts() {
-    let route = direct_tool_intent_from_user_message("can you read files at all in this workspace?")
-        .expect("capability probe route");
+    let route =
+        direct_tool_intent_from_user_message("can you read files at all in this workspace?")
+            .expect("capability probe route");
     assert_eq!(route.0, "tool_capabilities");
     assert_eq!(
         route.1.get("scope").and_then(Value::as_str).unwrap_or(""),
@@ -88,7 +103,7 @@ fn tool_capabilities_surface_reports_default_read_tools() {
 #[test]
 fn rollback_tool_removes_recent_turn_and_writes_archive() {
     let root = tempfile::tempdir().expect("tempdir");
-    let session_path = state_path(root.path(), AGENT_SESSIONS_DIR_REL).join("agent-rollback.json");
+    let session_path = rollback_session_path(root.path());
     write_json(
         &session_path,
         &json!({
