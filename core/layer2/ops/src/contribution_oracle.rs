@@ -1,6 +1,6 @@
 // Layer ownership: core/layer2/ops (authoritative)
 // SPDX-License-Identifier: Apache-2.0
-use crate::deterministic_receipt_hash;
+use crate::{deterministic_receipt_hash, parse_cli_flag, print_json_line};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::path::Path;
@@ -11,14 +11,6 @@ const USAGE: &[&str] = &[
     "  protheus-ops contribution-oracle status",
 ];
 
-fn print_json(value: &Value) {
-    println!(
-        "{}",
-        serde_json::to_string(value)
-            .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
-    );
-}
-
 fn usage() {
     for line in USAGE {
         println!("{line}");
@@ -26,20 +18,7 @@ fn usage() {
 }
 
 fn parse_flag(argv: &[String], key: &str) -> Option<String> {
-    let pref = format!("--{key}=");
-    let long = format!("--{key}");
-    let mut idx = 0usize;
-    while idx < argv.len() {
-        let token = argv[idx].trim();
-        if let Some(value) = token.strip_prefix(&pref) {
-            return Some(value.to_string());
-        }
-        if token == long && idx + 1 < argv.len() {
-            return Some(argv[idx + 1].clone());
-        }
-        idx += 1;
-    }
-    None
+    parse_cli_flag(argv, key)
 }
 
 fn clean_text(value: &str, max_len: usize) -> String {
@@ -169,17 +148,17 @@ pub fn run(_root: &Path, argv: &[String]) -> i32 {
             } else {
                 1
             };
-            print_json(&payload);
+            print_json_line(&payload);
             exit
         }
         "status" => {
-            print_json(&status_payload());
+            print_json_line(&status_payload());
             0
         }
         _ => {
             usage();
             let out = json!({"ok":false,"error":format!("unknown_command:{cmd}")});
-            print_json(&out);
+            print_json_line(&out);
             1
         }
     }
