@@ -1,6 +1,6 @@
 // Layer ownership: core/layer2/ops (authoritative)
 // SPDX-License-Identifier: Apache-2.0
-use crate::ops_lane_runtime::{run_lane, LaneSpec};
+use crate::ops_lane_runtime::{lane_spec, run_lane};
 use std::path::Path;
 
 const USAGE: &[&str] = &[
@@ -12,12 +12,12 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     run_lane(
         root,
         argv,
-        &LaneSpec {
-            lane_id: "company_layer_orchestration",
-            lane_type: "company_layer_orchestration",
-            replacement: "protheus-ops company-layer-orchestration",
-            usage: USAGE,
-            passthrough_flags: &["strict", "policy", "state-path", "budget"],
-        },
+        &lane_spec(
+            "company_layer_orchestration",
+            "company_layer_orchestration",
+            "protheus-ops company-layer-orchestration",
+            USAGE,
+            &["strict", "policy", "state-path", "budget"],
+        ),
     )
 }
