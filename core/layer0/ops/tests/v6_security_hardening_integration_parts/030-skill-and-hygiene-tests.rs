@@ -1,3 +1,17 @@
+fn run_security(root: &Path, args: &[&str]) -> i32 {
+    let argv = args.iter().map(|row| row.to_string()).collect::<Vec<_>>();
+    security_plane::run(root, &argv)
+}
+
+fn assert_latest_type_claim(root: &Path, expected_type: &str, claim: &str) -> Value {
+    let latest = read_json(&latest_path(root));
+    assert_eq!(
+        latest.get("type").and_then(Value::as_str),
+        Some(expected_type)
+    );
+    assert_claim(&latest, claim);
+    latest
+}
 
 #[test]
 fn v6_sec_connected_skill_and_hygiene_guards_fail_closed() {
@@ -7,56 +21,55 @@ fn v6_sec_connected_skill_and_hygiene_guards_fail_closed() {
 
     let invalid_path = "../../etc/passwd";
     assert_eq!(
-        security_plane::run(
+        run_security(
             root,
             &[
-                "skill-install-path-enforcer".to_string(),
-                format!("--skill-path={invalid_path}"),
-                "--strict=1".to_string(),
+                "skill-install-path-enforcer",
+                &format!("--skill-path={invalid_path}"),
+                "--strict=1",
             ],
         ),
         2
     );
-    let invalid_latest = read_json(&latest_path(root));
-    assert_eq!(
-        invalid_latest.get("type").and_then(Value::as_str),
-        Some("security_plane_skill_install_path_enforcer")
+    let invalid_latest = assert_latest_type_claim(
+        root,
+        "security_plane_skill_install_path_enforcer",
+        "V6-SEC-SKILL-PATH-001",
     );
     assert_eq!(
         invalid_latest.get("allowed").and_then(Value::as_bool),
         Some(false)
     );
-    assert_claim(&invalid_latest, "V6-SEC-SKILL-PATH-001");
 
     assert_eq!(
-        security_plane::run(
+        run_security(
             root,
             &[
-                "skill-install-path-enforcer".to_string(),
-                "--skill-path=client/runtime/systems/skills/packages/demo".to_string(),
-                "--strict=1".to_string(),
+                "skill-install-path-enforcer",
+                "--skill-path=client/runtime/systems/skills/packages/demo",
+                "--strict=1",
             ],
         ),
         0
     );
 
     assert_eq!(
-        security_plane::run(
+        run_security(
             root,
             &[
-                "skill-quarantine".to_string(),
-                "quarantine".to_string(),
-                "--skill-id=demo-skill".to_string(),
-                "--reason=suspicious-network".to_string(),
-                "--strict=1".to_string(),
+                "skill-quarantine",
+                "quarantine",
+                "--skill-id=demo-skill",
+                "--reason=suspicious-network",
+                "--strict=1",
             ],
         ),
         0
     );
-    let quarantine_latest = read_json(&latest_path(root));
-    assert_eq!(
-        quarantine_latest.get("type").and_then(Value::as_str),
-        Some("security_plane_skill_quarantine")
+    let quarantine_latest = assert_latest_type_claim(
+        root,
+        "security_plane_skill_quarantine",
+        "V6-SEC-SKILL-QUARANTINE-001",
     );
     assert_eq!(
         quarantine_latest
@@ -64,16 +77,15 @@ fn v6_sec_connected_skill_and_hygiene_guards_fail_closed() {
             .and_then(Value::as_u64),
         Some(1)
     );
-    assert_claim(&quarantine_latest, "V6-SEC-SKILL-QUARANTINE-001");
 
     assert_eq!(
-        security_plane::run(
+        run_security(
             root,
             &[
-                "skill-quarantine".to_string(),
-                "release".to_string(),
-                "--skill-id=demo-skill".to_string(),
-                "--strict=1".to_string(),
+                "skill-quarantine",
+                "release",
+                "--skill-id=demo-skill",
+                "--strict=1",
             ],
         ),
         0
@@ -90,27 +102,26 @@ fn v6_sec_connected_skill_and_hygiene_guards_fail_closed() {
         r#"{"installed":{"demo-a":{},"demo-b":{},"demo-c":{}}}"#,
     );
     assert_eq!(
-        security_plane::run(
+        run_security(
             root,
             &[
-                "autonomous-skill-necessity-audit".to_string(),
-                "--required-skills=demo-a".to_string(),
-                "--max-installed=1".to_string(),
-                "--strict=1".to_string(),
+                "autonomous-skill-necessity-audit",
+                "--required-skills=demo-a",
+                "--max-installed=1",
+                "--strict=1",
             ],
         ),
         2
     );
-    let audit_latest = read_json(&latest_path(root));
-    assert_eq!(
-        audit_latest.get("type").and_then(Value::as_str),
-        Some("security_plane_autonomous_skill_necessity_audit")
+    let audit_latest = assert_latest_type_claim(
+        root,
+        "security_plane_autonomous_skill_necessity_audit",
+        "V6-SEC-SKILL-AUDIT-001",
     );
     assert_eq!(
         audit_latest.get("overloaded").and_then(Value::as_bool),
         Some(true)
     );
-    assert_claim(&audit_latest, "V6-SEC-SKILL-AUDIT-001");
 }
 
 #[test]
@@ -119,20 +130,15 @@ fn v6_sec_remediate_fails_closed_when_scan_is_missing_in_strict_mode() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let root = tmp.path();
 
-    let exit = security_plane::run(root, &["remediate".to_string(), "--strict=1".to_string()]);
+    let exit = run_security(root, &["remediate", "--strict=1"]);
     assert_eq!(exit, 2, "strict remediation must fail without a prior scan");
 
-    let latest = read_json(&latest_path(root));
-    assert_eq!(
-        latest.get("type").and_then(Value::as_str),
-        Some("security_plane_auto_remediation")
-    );
+    let latest = assert_latest_type_claim(root, "security_plane_auto_remediation", "V6-SEC-011");
     assert_eq!(latest.get("ok").and_then(Value::as_bool), Some(false));
     assert_eq!(
         latest.get("error").and_then(Value::as_str),
         Some("scan_missing")
     );
-    assert_claim(&latest, "V6-SEC-011");
 }
 
 #[test]
@@ -141,27 +147,19 @@ fn v6_sec_skill_quarantine_requires_skill_id_in_strict_mode() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let root = tmp.path();
 
-    let exit = security_plane::run(
-        root,
-        &[
-            "skill-quarantine".to_string(),
-            "quarantine".to_string(),
-            "--strict=1".to_string(),
-        ],
-    );
+    let exit = run_security(root, &["skill-quarantine", "quarantine", "--strict=1"]);
     assert_eq!(exit, 2, "strict quarantine must require --skill-id");
 
-    let latest = read_json(&latest_path(root));
-    assert_eq!(
-        latest.get("type").and_then(Value::as_str),
-        Some("security_plane_skill_quarantine")
+    let latest = assert_latest_type_claim(
+        root,
+        "security_plane_skill_quarantine",
+        "V6-SEC-SKILL-QUARANTINE-001",
     );
     assert_eq!(latest.get("ok").and_then(Value::as_bool), Some(false));
     assert_eq!(
         latest.get("error").and_then(Value::as_str),
         Some("skill_id_required")
     );
-    assert_claim(&latest, "V6-SEC-SKILL-QUARANTINE-001");
 }
 
 #[test]
@@ -341,4 +339,3 @@ fn v6_sec_rsi_self_mod_gate_requires_approval_for_sensitive_paths() {
         0
     );
 }
-

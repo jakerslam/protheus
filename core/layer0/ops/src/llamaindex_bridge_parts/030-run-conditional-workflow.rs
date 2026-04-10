@@ -14,6 +14,14 @@ fn run_conditional_workflow(
     if steps.is_empty() {
         return Err("llamaindex_conditional_workflow_steps_required".to_string());
     }
+    let step_lookup = steps
+        .iter()
+        .filter_map(|row| {
+            row.get("id")
+                .and_then(Value::as_str)
+                .map(|id| (id.to_string(), row.clone()))
+        })
+        .collect::<BTreeMap<_, _>>();
     let context = payload
         .get("context")
         .and_then(Value::as_object)
@@ -47,9 +55,8 @@ fn run_conditional_workflow(
         if next_id.is_empty() {
             break;
         }
-        current = steps
-            .iter()
-            .find(|row| row.get("id").and_then(Value::as_str) == Some(next_id))
+        current = step_lookup
+            .get(next_id)
             .cloned()
             .ok_or_else(|| format!("llamaindex_conditional_workflow_unknown_step:{next_id}"))?;
     }
@@ -326,4 +333,3 @@ mod tests {
         );
     }
 }
-
