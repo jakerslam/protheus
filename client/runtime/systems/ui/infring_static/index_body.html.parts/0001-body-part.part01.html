@@ -432,33 +432,51 @@
             <div class="topbar-brand-version" x-text="'v' + version"></div>
           </div>
         </div>
-        <button
-          class="btn btn-ghost btn-sm topbar-icon-btn topbar-nav-btn topbar-back-btn"
-          :class="{ 'is-disabled': !canNavigateBack() }"
-          @click="navigateBackPage()"
-          :disabled="!canNavigateBack()"
-          title="Back"
-          aria-label="Back"
+        <div
+          class="topbar-reorder-box topbar-reorder-box-left"
+          @pointerdown="handleTopbarReorderPointerDown('left', $event)"
+          @pointerup="cancelTopbarDragHold()"
+          @pointercancel="cancelTopbarDragHold()"
+          @pointerleave="cancelTopbarDragHold()"
+          @dragstart="handleTopbarReorderDragStart('left', $event)"
+          @drag="handleTopbarReorderDragMove($event)"
+          @dragenter="handleTopbarReorderDragEnter('left', $event)"
+          @dragover="handleTopbarReorderDragOver('left', $event)"
+          @drop="handleTopbarReorderDrop('left', $event)"
+          @dragend="handleTopbarDragEnd()"
         >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="m15 18-6-6 6-6"></path>
-          </svg>
-        </button>
-        <button
-          class="btn btn-ghost btn-sm topbar-icon-btn topbar-nav-btn topbar-forward-btn"
-          :class="{ 'is-disabled': !canNavigateForward() }"
-          @click="navigateForwardPage()"
-          :disabled="!canNavigateForward()"
-          title="Forward"
-          aria-label="Forward"
-        >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="m9 18 6-6-6-6"></path>
-          </svg>
-        </button>
-        <button class="btn btn-ghost btn-sm topbar-icon-btn topbar-refresh-btn" @click="requestTopbarRefresh()" title="Refresh" aria-label="Refresh">
-          <svg class="topbar-refresh-icon" :style="'transform: rotate(' + (($store.app.topbarRefreshTurns || 0) * 360) + 'deg)'" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"></path>
-            <path d="M21 3v5h-5"></path>
-          </svg>
-        </button>
+          <div class="topbar-reorder-item topbar-reorder-nav-cluster topbar-nav-pill" data-topbar-item="nav_cluster" :style="topbarReorderItemStyle('left', 'nav_cluster')" draggable="true">
+            <button
+              class="btn btn-ghost btn-sm topbar-icon-btn topbar-nav-btn topbar-back-btn"
+              :class="{ 'is-disabled': !canNavigateBack() }"
+              @click="navigateBackPage()"
+              :disabled="!canNavigateBack()"
+              title="Back"
+              aria-label="Back"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="m15 18-6-6 6-6"></path>
+              </svg>
+            </button>
+            <button
+              class="btn btn-ghost btn-sm topbar-icon-btn topbar-nav-btn topbar-forward-btn"
+              :class="{ 'is-disabled': !canNavigateForward() }"
+              @click="navigateForwardPage()"
+              :disabled="!canNavigateForward()"
+              title="Forward"
+              aria-label="Forward"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="m9 18 6-6-6-6"></path>
+              </svg>
+            </button>
+          </div>
+          <div class="topbar-reorder-item" data-topbar-item="refresh" :style="topbarReorderItemStyle('left', 'refresh')" draggable="true">
+            <button class="btn btn-ghost btn-sm topbar-icon-btn topbar-refresh-btn" @click="requestTopbarRefresh()" title="Refresh" aria-label="Refresh">
+              <svg class="topbar-refresh-icon" :style="'transform: rotate(' + (($store.app.topbarRefreshTurns || 0) * 360) + 'deg)'" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"></path>
+                <path d="M21 3v5h-5"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
