@@ -47,6 +47,40 @@ fn run_invariants(root: &Path, strict: bool) -> Value {
     })
 }
 
+const METAKERNEL_USAGE_LINES: &[&str] = &[
+    "Usage:",
+    "  protheus-ops metakernel status",
+    "  protheus-ops metakernel registry [--strict=1|0]",
+    "  protheus-ops metakernel manifest [--manifest=<path>] [--strict=1|0]",
+    "  protheus-ops metakernel worlds [--manifest=<path>] [--strict=1|0]",
+    "  protheus-ops metakernel capability-taxonomy [--manifest=<path>] [--strict=1|0]",
+    "  protheus-ops metakernel budget-admission [--manifest=<path>] [--strict=1|0]",
+    "  protheus-ops metakernel epistemic-object [--manifest=<path>] [--strict=1|0]",
+    "  protheus-ops metakernel effect-journal [--manifest=<path>] [--strict=1|0]",
+    "  protheus-ops metakernel substrate-registry [--strict=1|0]",
+    "  protheus-ops metakernel radix-guard [--strict=1|0]",
+    "  protheus-ops metakernel quantum-broker [--strict=1|0]",
+    "  protheus-ops metakernel neural-consent [--strict=1|0]",
+    "  protheus-ops metakernel attestation-graph [--strict=1|0]",
+    "  protheus-ops metakernel degradation-contracts [--strict=1|0]",
+    "  protheus-ops metakernel execution-profiles [--strict=1|0]",
+    "  protheus-ops metakernel variant-profiles [--strict=1|0]",
+    "  protheus-ops metakernel mpu-compartments [--strict=1|0]",
+    "  protheus-ops metakernel dna-status [--strict=1|0]",
+    "  protheus-ops metakernel dna-create [--instance-id=<id>] [--parent-signature=<sig>] [--schema-version=<v>] [--generation=<n>] [--seed=<text>] [--strict=1|0]",
+    "  protheus-ops metakernel dna-mutate --instance-id=<id> [--mutation=repair|append-codon|bump-generation] [--seed=<text>] [--strict=1|0]",
+    "  protheus-ops metakernel dna-enforce-subservience --instance-id=<id> --parent-signature=<sig> [--action=invoke_agent|fork_instance] [--strict=1|0]",
+    "  protheus-ops metakernel dna-hybrid-status [--strict=1|0]",
+    "  protheus-ops metakernel dna-hybrid-commit --instance-id=<id> [--boundary=gene_revision_commit|genome_revision_commit|critical_receipt_commit|worm_supersession_commit] [--gene-index=<n>] [--critical=1|0] [--strict=1|0]",
+    "  protheus-ops metakernel dna-hybrid-verify [--instance-id=<id>] [--strict=1|0]",
+    "  protheus-ops metakernel dna-hybrid-repair-gene --instance-id=<id> [--gene-index=<n>] [--strict=1|0]",
+    "  protheus-ops metakernel dna-hybrid-worm-supersede --instance-id=<id> --region=<root_identity|constitutional_safety_rules|lineage_parent_anchor|high_stakes_receipt> [--region-key=<id>] --value=<text> [--strict=1|0]",
+    "  protheus-ops metakernel dna-hybrid-worm-mutate --instance-id=<id> --region=<...> [--region-key=<id>] [--strict=1|0]",
+    "  protheus-ops metakernel dna-hybrid-protected-lineage --instance-id=<id> --parent-signature=<sig> [--action=invoke_agent|fork_instance] [--strict=1|0]",
+    "  protheus-ops metakernel microkernel-safety [--syscall=<id>] [--allow=<csv>] [--session=<id>] [--instance-dna=<id>] [--parent-signature=<sig>] [--step=<n>] [--step-cap=<n>] [--drift=<0..1>] [--drift-threshold=<0..1>] [--strict=1|0]",
+    "  protheus-ops metakernel invariants [--strict=1|0]",
+];
+
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     let parsed = parse_args(argv);
     let command = parsed
@@ -86,41 +120,9 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     let drift_threshold_flag = parsed.flags.get("drift-threshold");
 
     if matches!(command.as_str(), "help" | "--help" | "-h") {
-        println!("Usage:");
-        println!("  protheus-ops metakernel status");
-        println!("  protheus-ops metakernel registry [--strict=1|0]");
-        println!("  protheus-ops metakernel manifest [--manifest=<path>] [--strict=1|0]");
-        println!("  protheus-ops metakernel worlds [--manifest=<path>] [--strict=1|0]");
-        println!(
-            "  protheus-ops metakernel capability-taxonomy [--manifest=<path>] [--strict=1|0]"
-        );
-        println!("  protheus-ops metakernel budget-admission [--manifest=<path>] [--strict=1|0]");
-        println!("  protheus-ops metakernel epistemic-object [--manifest=<path>] [--strict=1|0]");
-        println!("  protheus-ops metakernel effect-journal [--manifest=<path>] [--strict=1|0]");
-        println!("  protheus-ops metakernel substrate-registry [--strict=1|0]");
-        println!("  protheus-ops metakernel radix-guard [--strict=1|0]");
-        println!("  protheus-ops metakernel quantum-broker [--strict=1|0]");
-        println!("  protheus-ops metakernel neural-consent [--strict=1|0]");
-        println!("  protheus-ops metakernel attestation-graph [--strict=1|0]");
-        println!("  protheus-ops metakernel degradation-contracts [--strict=1|0]");
-        println!("  protheus-ops metakernel execution-profiles [--strict=1|0]");
-        println!("  protheus-ops metakernel variant-profiles [--strict=1|0]");
-        println!("  protheus-ops metakernel mpu-compartments [--strict=1|0]");
-        println!("  protheus-ops metakernel dna-status [--strict=1|0]");
-        println!("  protheus-ops metakernel dna-create [--instance-id=<id>] [--parent-signature=<sig>] [--schema-version=<v>] [--generation=<n>] [--seed=<text>] [--strict=1|0]");
-        println!("  protheus-ops metakernel dna-mutate --instance-id=<id> [--mutation=repair|append-codon|bump-generation] [--seed=<text>] [--strict=1|0]");
-        println!("  protheus-ops metakernel dna-enforce-subservience --instance-id=<id> --parent-signature=<sig> [--action=invoke_agent|fork_instance] [--strict=1|0]");
-        println!("  protheus-ops metakernel dna-hybrid-status [--strict=1|0]");
-        println!("  protheus-ops metakernel dna-hybrid-commit --instance-id=<id> [--boundary=gene_revision_commit|genome_revision_commit|critical_receipt_commit|worm_supersession_commit] [--gene-index=<n>] [--critical=1|0] [--strict=1|0]");
-        println!("  protheus-ops metakernel dna-hybrid-verify [--instance-id=<id>] [--strict=1|0]");
-        println!("  protheus-ops metakernel dna-hybrid-repair-gene --instance-id=<id> [--gene-index=<n>] [--strict=1|0]");
-        println!("  protheus-ops metakernel dna-hybrid-worm-supersede --instance-id=<id> --region=<root_identity|constitutional_safety_rules|lineage_parent_anchor|high_stakes_receipt> [--region-key=<id>] --value=<text> [--strict=1|0]");
-        println!("  protheus-ops metakernel dna-hybrid-worm-mutate --instance-id=<id> --region=<...> [--region-key=<id>] [--strict=1|0]");
-        println!("  protheus-ops metakernel dna-hybrid-protected-lineage --instance-id=<id> --parent-signature=<sig> [--action=invoke_agent|fork_instance] [--strict=1|0]");
-        println!(
-            "  protheus-ops metakernel microkernel-safety [--syscall=<id>] [--allow=<csv>] [--session=<id>] [--instance-dna=<id>] [--parent-signature=<sig>] [--step=<n>] [--step-cap=<n>] [--drift=<0..1>] [--drift-threshold=<0..1>] [--strict=1|0]"
-        );
-        println!("  protheus-ops metakernel invariants [--strict=1|0]");
+        for line in METAKERNEL_USAGE_LINES {
+            println!("{line}");
+        }
         return 0;
     }
 
@@ -278,11 +280,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     write_json(&latest, &out);
     append_jsonl(&history, &out);
     print_receipt(&out);
-    if ok {
-        0
-    } else {
-        1
-    }
+    if ok { 0 } else { 1 }
 }
 
 #[cfg(test)]
