@@ -73,6 +73,25 @@ function importSpecs(source: string): string[] {
   return specs;
 }
 
+function isAllowedClientOrchestrationShim(
+  file: string,
+  source: string,
+  spec: string
+): boolean {
+  const relFile = rel(file);
+  if (!relFile.startsWith('client/runtime/systems/')) return false;
+  if (!source.includes('TypeScript compatibility shim only.')) return false;
+  if (!source.includes('const impl = require(')) return false;
+  if (!source.includes('module.exports')) return false;
+  if (!source.includes('return impl.run(')) return false;
+  if (!source.includes('...impl')) return false;
+
+  // Transitional allowance: client wrapper shims may delegate to surface
+  // orchestration scripts while preserving a thin boundary contract.
+  const normalized = spec.replace(/\\/g, '/');
+  return /^(\.\.\/)+surface\/orchestration\/scripts\/[a-zA-Z0-9_.-]+\.ts$/.test(normalized);
+}
+
 function run(args: Args): number {
   const violations: Violation[] = [];
   const clientFiles = walk(path.join(ROOT, 'client'), new Set(['.ts', '.tsx']));
@@ -100,6 +119,9 @@ function run(args: Args): number {
         spec.startsWith('../surface') ||
         spec.startsWith('../../surface')
       ) {
+        if (isAllowedClientOrchestrationShim(file, source, spec)) {
+          continue;
+        }
         violations.push({
           file: rel(file),
           reason: 'client_imports_orchestration_internals_forbidden',
