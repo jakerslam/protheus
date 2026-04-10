@@ -463,7 +463,6 @@ pub fn run(_root: &std::path::Path, argv: &[String]) -> i32 {
         }
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
