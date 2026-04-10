@@ -165,6 +165,44 @@
       style="position:absolute;width:0;height:0;overflow:hidden;pointer-events:none"
     >
       <defs>
+        <linearGradient id="dock-home-icon-stroke-grad" gradientUnits="userSpaceOnUse" x1="12" y1="24" x2="12" y2="0">
+          <stop offset="0%" stop-color="#a8bbd6"></stop>
+          <stop offset="100%" stop-color="#f6f9fe"></stop>
+        </linearGradient>
+        <linearGradient id="dock-agents-icon-stroke-grad" gradientUnits="userSpaceOnUse" x1="12" y1="24" x2="12" y2="0">
+          <stop offset="0%" stop-color="#90a9cf"></stop>
+          <stop offset="100%" stop-color="#f4f9ff"></stop>
+        </linearGradient>
+        <linearGradient id="dock-cog-top-stroke-grad" gradientUnits="userSpaceOnUse" x1="12" y1="12.88" x2="12" y2="2.32">
+          <stop offset="0%" stop-color="#7f8ea5"></stop>
+          <stop offset="100%" stop-color="#f0f4f9"></stop>
+        </linearGradient>
+        <linearGradient id="dock-cog-bl-stroke-grad" gradientUnits="userSpaceOnUse" x1="8.4" y1="20.84" x2="8.4" y2="11.96">
+          <stop offset="0%" stop-color="#7f8ea5"></stop>
+          <stop offset="100%" stop-color="#f0f4f9"></stop>
+        </linearGradient>
+        <linearGradient id="dock-cog-br-stroke-grad" gradientUnits="userSpaceOnUse" x1="15.6" y1="19.64" x2="15.6" y2="13.16">
+          <stop offset="0%" stop-color="#7f8ea5"></stop>
+          <stop offset="100%" stop-color="#f0f4f9"></stop>
+        </linearGradient>
+        <linearGradient id="dock-system-icon-stroke-grad" gradientUnits="userSpaceOnUse" x1="12" y1="24" x2="12" y2="0">
+          <stop offset="0%" stop-color="#91a8cf"></stop>
+          <stop offset="100%" stop-color="#f7fbff"></stop>
+        </linearGradient>
+        <linearGradient id="dock-settings-icon-stroke-grad" x1="0" y1="1" x2="0" y2="0">
+          <stop offset="0%" stop-color="#7f8ea5"></stop>
+          <stop offset="100%" stop-color="#f0f4f9"></stop>
+        </linearGradient>
+        <linearGradient id="dock-apps-cell-overlay-grad" x1="1" y1="1" x2="0" y2="0">
+          <stop offset="0%" stop-color="#000000" stop-opacity="0.16"></stop>
+          <stop offset="100%" stop-color="#ffffff" stop-opacity="0.24"></stop>
+        </linearGradient>
+        <clipPath id="dock-icon-clip-top" clipPathUnits="userSpaceOnUse">
+          <rect x="0" y="0" width="24" height="12"></rect>
+        </clipPath>
+        <clipPath id="dock-icon-clip-bottom" clipPathUnits="userSpaceOnUse">
+          <rect x="0" y="12" width="24" height="12"></rect>
+        </clipPath>
         <symbol id="dock-icon-gear" viewBox="0 0 24 24">
           <circle cx="12" cy="12" r="3"></circle>
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.33 1V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-.33-1 1.65 1.65 0 0 0-1-.6 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1-.33H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1-.33 1.65 1.65 0 0 0 .6-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 1 1 7.13 3.6l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .33-1V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 .33 1 1.65 1.65 0 0 0 1 .6 1.65 1.65 0 0 0 1.82-.33l.06-.06A2 2 0 1 1 20.4 7.13l-.06.06A1.65 1.65 0 0 0 19.4 9c0 .38.13.74.36 1.03.23.29.57.5.94.57H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1 .4c-.29.24-.5.57-.57.94z"></path>
@@ -250,7 +288,11 @@
         aria-label="Home"
         :aria-current="(page === 'analytics' || page === 'overview') ? 'page' : false"
       >
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12L12 4L21 12"></path><path d="M6 10V20H18V10"></path><path d="M10 20V14H14V20"></path></svg>
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M3 12L12 4L21 12"></path>
+          <path d="M6 10V20H18V10"></path>
+          <path d="M10 20V14H14V20"></path>
+        </svg>
       </button>
       <button
         type="button"
@@ -292,27 +334,20 @@
         :aria-current="['scheduler','workflows'].indexOf(page) >= 0 ? 'page' : false"
       >
         <svg viewBox="0 0 24 24" aria-hidden="true">
-          <g transform="translate(12 7.6) scale(0.44)">
-            <g transform="translate(-12 -12)">
-              <g class="dock-automation-gear dock-automation-gear-top">
-                <use href="#dock-icon-gear"></use>
-              </g>
-            </g>
-          </g>
-          <g transform="translate(8.4 16.4) scale(0.37)">
-            <g transform="translate(-12 -12)">
-              <g class="dock-automation-gear dock-automation-gear-bottom-left">
-                <use href="#dock-icon-gear"></use>
-              </g>
-            </g>
-          </g>
-          <g transform="translate(15.6 16.4) scale(0.27)">
-            <g transform="translate(-12 -12)">
-              <g class="dock-automation-gear dock-automation-gear-bottom-right">
-                <use href="#dock-icon-gear"></use>
-              </g>
-            </g>
-          </g>
+          <defs>
+            <mask id="dock-automation-cog-top-mask" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" mask-type="alpha" x="6.72" y="2.32" width="10.56" height="10.56">
+              <g fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" transform="translate(12 7.6) scale(0.44)"><g transform="translate(-12 -12)"><g class="dock-automation-mask-gear dock-automation-mask-gear-top"><use href="#dock-icon-gear"></use></g></g></g>
+            </mask>
+            <mask id="dock-automation-cog-bl-mask" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" mask-type="alpha" x="3.96" y="11.96" width="8.88" height="8.88">
+              <g fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" transform="translate(8.4 16.4) scale(0.37)"><g transform="translate(-12 -12)"><g class="dock-automation-mask-gear dock-automation-mask-gear-bottom-left"><use href="#dock-icon-gear"></use></g></g></g>
+            </mask>
+            <mask id="dock-automation-cog-br-mask" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" mask-type="alpha" x="12.36" y="13.16" width="6.48" height="6.48">
+              <g fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" transform="translate(15.6 16.4) scale(0.27)"><g transform="translate(-12 -12)"><g class="dock-automation-mask-gear dock-automation-mask-gear-bottom-right"><use href="#dock-icon-gear"></use></g></g></g>
+            </mask>
+          </defs>
+          <rect x="6.72" y="2.32" width="10.56" height="10.56" fill="url(#dock-cog-top-stroke-grad)" mask="url(#dock-automation-cog-top-mask)"></rect>
+          <rect x="3.96" y="11.96" width="8.88" height="8.88" fill="url(#dock-cog-bl-stroke-grad)" mask="url(#dock-automation-cog-bl-mask)"></rect>
+          <rect x="12.36" y="13.16" width="6.48" height="6.48" fill="url(#dock-cog-br-stroke-grad)" mask="url(#dock-automation-cog-br-mask)"></rect>
         </svg>
       </button>
       <button
@@ -343,6 +378,15 @@
           <rect x="3" y="17" width="5" height="5" rx="1.1" :fill="appsIconBottomRowFill(0)" stroke="none"></rect>
           <rect x="10" y="17" width="5" height="5" rx="1.1" :fill="appsIconBottomRowFill(1)" stroke="none"></rect>
           <rect x="17" y="17" width="5" height="5" rx="1.1" :fill="appsIconBottomRowFill(2)" stroke="none"></rect>
+          <rect x="3" y="3" width="5" height="5" rx="1.1" fill="url(#dock-apps-cell-overlay-grad)" stroke="none"></rect>
+          <rect x="10" y="3" width="5" height="5" rx="1.1" fill="url(#dock-apps-cell-overlay-grad)" stroke="none"></rect>
+          <rect x="17" y="3" width="5" height="5" rx="1.1" fill="url(#dock-apps-cell-overlay-grad)" stroke="none"></rect>
+          <rect x="3" y="10" width="5" height="5" rx="1.1" fill="url(#dock-apps-cell-overlay-grad)" stroke="none"></rect>
+          <rect x="10" y="10" width="5" height="5" rx="1.1" fill="url(#dock-apps-cell-overlay-grad)" stroke="none"></rect>
+          <rect x="17" y="10" width="5" height="5" rx="1.1" fill="url(#dock-apps-cell-overlay-grad)" stroke="none"></rect>
+          <rect x="3" y="17" width="5" height="5" rx="1.1" fill="url(#dock-apps-cell-overlay-grad)" stroke="none"></rect>
+          <rect x="10" y="17" width="5" height="5" rx="1.1" fill="url(#dock-apps-cell-overlay-grad)" stroke="none"></rect>
+          <rect x="17" y="17" width="5" height="5" rx="1.1" fill="url(#dock-apps-cell-overlay-grad)" stroke="none"></rect>
         </svg>
       </button>
       <button
@@ -363,7 +407,7 @@
         aria-label="System"
         :aria-current="['runtime','analytics','logs'].indexOf(page) >= 0 ? 'page' : false"
       >
-        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"></path><path d="M12 17v4"></path></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"></rect><path d="M8 21h8"></path><path d="M12 17v4"></path></svg>
       </button>
       <button
         type="button"
@@ -384,6 +428,17 @@
         aria-label="Settings"
         :aria-current="page === 'settings' ? 'page' : false"
       >
-        <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#dock-icon-settings"></use></svg>
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <g class="dock-icon-split-top" clip-path="url(#dock-icon-clip-top)">
+            <g class="dock-icon-rotor-settings">
+              <use href="#dock-icon-settings"></use>
+            </g>
+          </g>
+          <g class="dock-icon-split-bottom" clip-path="url(#dock-icon-clip-bottom)">
+            <g class="dock-icon-rotor-settings">
+              <use href="#dock-icon-settings"></use>
+            </g>
+          </g>
+        </svg>
       </button>
     </nav>

@@ -108,6 +108,101 @@ body:not([data-theme='dark']) .main-pointer-fx-layer .global-reflection-overlay 
   opacity: calc(var(--chat-grid-active, 0) * 0.42);
 }
 
+.dock-tile[data-dock-icon='home'] svg {
+  stroke: url(#dock-home-icon-stroke-grad);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.dock-tile[data-dock-icon='agents'] svg {
+  stroke: url(#dock-agents-icon-stroke-grad);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.dock-tile[data-dock-icon='system'] svg * {
+  stroke: url(#dock-system-icon-stroke-grad);
+}
+
+.dock-tile[data-dock-icon='system'] svg {
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.dock-tile[data-dock-icon='system'] svg path {
+  stroke-width: 2.05;
+}
+
+.dock-icon-rotor-settings {
+  transform-origin: center;
+  transform-box: fill-box;
+}
+
+.dock-icon-split-top {
+  stroke: var(--dock-icon-split-top-color, #eef3f9);
+}
+
+.dock-icon-split-bottom {
+  stroke: var(--dock-icon-split-bottom-color, #b8c3d4);
+}
+
+.dock-tile[data-dock-icon='settings'] {
+  --dock-icon-split-top-color: #ecf0f6;
+  --dock-icon-split-bottom-color: #9ba7ba;
+}
+
+.dock-tile.click-animating[data-dock-click-animation='spin'][data-dock-icon='settings'] svg {
+  animation: none !important;
+}
+
+.dock-tile.click-animating[data-dock-click-animation='spin'][data-dock-icon='settings'] .dock-icon-rotor-settings {
+  animation: dock-tile-rotate-cw-once var(--dock-click-duration, 980ms) cubic-bezier(0.2, 0.7, 0.2, 1) 1;
+}
+
+body[data-theme='dark'] {
+  --bottom-dock-icon-shadow-base:
+    0 3px 10px color-mix(in srgb, #000 64%, transparent),
+    0 1px 4px color-mix(in srgb, #000 52%, transparent);
+  --bottom-dock-icon-shadow-active:
+    0 3px 10px color-mix(in srgb, #000 64%, transparent),
+    0 1px 4px color-mix(in srgb, #000 52%, transparent),
+    0 0 0 1px color-mix(in srgb, #fff 16%, transparent),
+    0 10px 28px color-mix(in srgb, #000 72%, transparent);
+}
+
+body[data-theme='dark'] .dock-tile.hovered {
+  box-shadow:
+    0 calc(60px * var(--bottom-dock-icon-emphasis-main))
+      calc(140px * var(--bottom-dock-icon-emphasis-main))
+      color-mix(in srgb, #000 74%, transparent),
+    0 calc(20px * var(--bottom-dock-icon-emphasis-main))
+      calc(40px * var(--bottom-dock-icon-emphasis-main))
+      color-mix(in srgb, #000 58%, transparent);
+}
+
+body[data-theme='dark'] .dock-tile.neighbor-hover {
+  box-shadow:
+    0 calc(60px * var(--bottom-dock-icon-emphasis-neighbor))
+      calc(140px * var(--bottom-dock-icon-emphasis-neighbor))
+      color-mix(in srgb, #000 74%, transparent),
+    0 calc(20px * var(--bottom-dock-icon-emphasis-neighbor))
+      calc(40px * var(--bottom-dock-icon-emphasis-neighbor))
+      color-mix(in srgb, #000 58%, transparent);
+}
+
+body[data-theme='dark'] .dock-tile.second-neighbor-hover {
+  box-shadow:
+    0 calc(60px * var(--bottom-dock-icon-emphasis-second-neighbor))
+      calc(140px * var(--bottom-dock-icon-emphasis-second-neighbor))
+      color-mix(in srgb, #000 74%, transparent),
+    0 calc(20px * var(--bottom-dock-icon-emphasis-second-neighbor))
+      calc(40px * var(--bottom-dock-icon-emphasis-second-neighbor))
+      color-mix(in srgb, #000 58%, transparent);
+}
+
 /* Universal topbar should always stay standard height. */
 .main-content > .global-topbar {
   flex: 0 0 auto;
