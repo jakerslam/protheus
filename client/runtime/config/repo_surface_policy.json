@@ -23,6 +23,17 @@
       "notes": "Rust-first. C/C++ only for low-level or hardware-adjacent modules. Shell allowed only for tightly-scoped build/install/packaging helpers."
     },
     "surface": {
+      "target_extensions": [
+        "rs",
+        "ts",
+        "tsx"
+      ],
+      "legacy_debt_extensions": [
+        "js",
+        "py",
+        "sh"
+      ],
+      "notes": "Surface is orchestration-only. Rust-first orchestration contracts are allowed here, but the surface remains non-authoritative and routes durable truth through core contracts."
       "allowed_extensions": [
         "rs",
         "ts",

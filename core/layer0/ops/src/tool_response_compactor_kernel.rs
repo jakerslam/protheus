@@ -454,6 +454,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     }
 }
 #[cfg(test)]
+#[path = "tool_response_compactor_kernel_tests.rs"]
+mod tool_response_compactor_kernel_tests;
 mod tests {
     use super::*;
     #[test]
