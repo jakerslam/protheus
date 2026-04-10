@@ -1,3 +1,14 @@
+fn ok(payload: Value) -> CommandResult {
+    CommandResult {
+        exit_code: 0,
+        payload,
+    }
+}
+
+fn with_exit(payload: Value, exit_code: i32) -> CommandResult {
+    CommandResult { exit_code, payload }
+}
+
 fn run_command(cli_root: &Path, argv: &[String]) -> CommandResult {
     let root = resolve_root(cli_root);
     let command = argv
@@ -6,10 +17,9 @@ fn run_command(cli_root: &Path, argv: &[String]) -> CommandResult {
         .unwrap_or_else(|| "status".to_string());
     if matches!(command.as_str(), "help" | "--help" | "-h") {
         usage();
-        return CommandResult {
-            exit_code: 0,
-            payload: with_hash(json!({"ok":true,"type":"public_api_catalog_usage"})),
-        };
+        return ok(with_hash(
+            json!({"ok":true,"type":"public_api_catalog_usage"}),
+        ));
     }
     let policy = load_policy(&root, argv);
     let mut state = match load_state(&policy.state_path) {
@@ -55,10 +65,7 @@ fn run_command(cli_root: &Path, argv: &[String]) -> CommandResult {
                 &root,
                 &policy,
             );
-            CommandResult {
-                exit_code: 0,
-                payload: out,
-            }
+            ok(out)
         }
         "sync" | "run" => {
             let (incoming, source_ref) = match parse_actions(&root, argv, &policy) {
@@ -136,10 +143,7 @@ fn run_command(cli_root: &Path, argv: &[String]) -> CommandResult {
                 &root,
                 &policy,
             );
-            CommandResult {
-                exit_code: 0,
-                payload: out,
-            }
+            ok(out)
         }
         "search" => {
             let query = parse_flag(argv, "query")
@@ -205,10 +209,7 @@ fn run_command(cli_root: &Path, argv: &[String]) -> CommandResult {
                 &root,
                 &policy,
             );
-            CommandResult {
-                exit_code: 0,
-                payload: out,
-            }
+            ok(out)
         }
         "integrate" => {
             let action_id = parse_flag(argv, "action-id")
@@ -261,10 +262,7 @@ fn run_command(cli_root: &Path, argv: &[String]) -> CommandResult {
                 &root,
                 &policy,
             );
-            CommandResult {
-                exit_code: 0,
-                payload: out,
-            }
+            ok(out)
         }
         "connect" => {
             let platform = parse_flag(argv, "platform")
@@ -364,10 +362,7 @@ fn run_command(cli_root: &Path, argv: &[String]) -> CommandResult {
                 &root,
                 &policy,
             );
-            CommandResult {
-                exit_code: 0,
-                payload: out,
-            }
+            ok(out)
         }
         "import-flow" => {
             let flow_path = parse_flag(argv, "flow-path").map(PathBuf::from);
@@ -704,10 +699,7 @@ fn run_command(cli_root: &Path, argv: &[String]) -> CommandResult {
                 &root,
                 &policy,
             );
-            CommandResult {
-                exit_code: if overall_ok { 0 } else { 1 },
-                payload: out,
-            }
+            with_exit(out, if overall_ok { 0 } else { 1 })
         }
         "verify" => {
             let mut stale = Vec::new();
@@ -755,10 +747,7 @@ fn run_command(cli_root: &Path, argv: &[String]) -> CommandResult {
                 &root,
                 &policy,
             );
-            CommandResult {
-                exit_code: 0,
-                payload: out,
-            }
+            ok(out)
         }
         _ => err(
             &root,
