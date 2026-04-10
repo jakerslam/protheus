@@ -36,6 +36,22 @@ pub struct RouteLeaseCapability {
 }
 
 impl RouteLeaseCapability {
+    fn deny(code: &str) -> Result<(), String> {
+        Err(code.to_string())
+    }
+
+    fn route_matches(&self, input: &LeaseAuthorizationInput) -> bool {
+        self.source == input.source && self.target == input.target
+    }
+
+    fn allows_schema(&self, schema_id: &str) -> bool {
+        self.schema_ids.iter().any(|schema| schema == schema_id)
+    }
+
+    fn allows_verb(&self, verb: &str) -> bool {
+        self.verbs.iter().any(|row| row == verb)
+    }
+
     pub fn new(
         source: impl Into<String>,
         target: impl Into<String>,
@@ -107,23 +123,19 @@ impl RouteLeaseCapability {
 
     pub fn authorizes(&self, input: &LeaseAuthorizationInput) -> Result<(), String> {
         if !self.is_active(input.now_ms) {
-            return Err("lease_inactive".to_string());
+            return Self::deny("lease_inactive");
         }
-        if self.source != input.source || self.target != input.target {
-            return Err("lease_route_mismatch".to_string());
+        if !self.route_matches(input) {
+            return Self::deny("lease_route_mismatch");
         }
-        if !self
-            .schema_ids
-            .iter()
-            .any(|schema| schema == &input.schema_id)
-        {
-            return Err("lease_schema_denied".to_string());
+        if !self.allows_schema(&input.schema_id) {
+            return Self::deny("lease_schema_denied");
         }
-        if !self.verbs.iter().any(|verb| verb == &input.verb) {
-            return Err("lease_verb_denied".to_string());
+        if !self.allows_verb(&input.verb) {
+            return Self::deny("lease_verb_denied");
         }
         if !input.offered_verity.permits(self.required_verity) {
-            return Err("lease_verity_insufficient".to_string());
+            return Self::deny("lease_verity_insufficient");
         }
         Ok(())
     }
