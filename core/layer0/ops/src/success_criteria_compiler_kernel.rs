@@ -171,20 +171,30 @@ fn parse_first_int(text: &str, fallback: i64) -> i64 {
         .unwrap_or(fallback)
 }
 
+fn comparator_lte_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        Regex::new(
+            r"(?:<=|≤|\bat most\b|\bwithin\b|\bunder\b|\bbelow\b|\bmax(?:imum)?\b|\bless than\b)",
+        )
+        .unwrap()
+    })
+}
+
+fn comparator_gte_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        Regex::new(r"(?:>=|≥|\bat least\b|\bover\b|\babove\b|\bminimum\b|\bmin\b|\bmore than\b)")
+            .unwrap()
+    })
+}
+
 fn parse_comparator(text: &str, fallback: &str) -> &'static str {
     let lower = text.to_ascii_lowercase();
-    if Regex::new(
-        r"(?:<=|≤|\bat most\b|\bwithin\b|\bunder\b|\bbelow\b|\bmax(?:imum)?\b|\bless than\b)",
-    )
-    .unwrap()
-    .is_match(&lower)
-    {
+    if comparator_lte_re().is_match(&lower) {
         return "lte";
     }
-    if Regex::new(r"(?:>=|≥|\bat least\b|\bover\b|\babove\b|\bminimum\b|\bmin\b|\bmore than\b)")
-        .unwrap()
-        .is_match(&lower)
-    {
+    if comparator_gte_re().is_match(&lower) {
         return "gte";
     }
     if fallback == "lte" {
@@ -280,74 +290,40 @@ fn parse_horizon(text: &str) -> String {
     String::new()
 }
 
+fn comparator_symbol(comparator: &str) -> &'static str {
+    if comparator == "lte" {
+        "<="
+    } else {
+        ">="
+    }
+}
+
+fn format_count_target(text: &str, fallback: &str, suffix: &str) -> String {
+    let comparator = parse_comparator(text, fallback);
+    let threshold = parse_first_int(text, 1);
+    format!("{}{} {suffix}", comparator_symbol(comparator), threshold)
+}
+
 fn normalize_target(metric: &str, target_text: &str, horizon_text: &str) -> String {
     let text = normalize_spaces_str(&format!("{target_text} {horizon_text}").to_ascii_lowercase());
     match metric {
         "execution_success" => "execution success".to_string(),
         "postconditions_ok" => "postconditions pass".to_string(),
         "queue_outcome_logged" => "outcome receipt logged".to_string(),
-        "artifact_count" => {
-            let comparator = parse_comparator(&text, "gte");
-            let threshold = parse_first_int(&text, 1);
-            format!(
-                "{}{} artifact",
-                if comparator == "lte" { "<=" } else { ">=" },
-                threshold
-            )
-        }
-        "outreach_artifact" => {
-            let comparator = parse_comparator(&text, "gte");
-            let threshold = parse_first_int(&text, 1);
-            format!(
-                "{}{} outreach artifact",
-                if comparator == "lte" { "<=" } else { ">=" },
-                threshold
-            )
-        }
-        "reply_or_interview_count" => {
-            let comparator = parse_comparator(&text, "gte");
-            let threshold = parse_first_int(&text, 1);
-            format!(
-                "{}{} reply/interview signal",
-                if comparator == "lte" { "<=" } else { ">=" },
-                threshold
-            )
-        }
-        "entries_count" => {
-            let comparator = parse_comparator(&text, "gte");
-            let threshold = parse_first_int(&text, 1);
-            format!(
-                "{}{} entries",
-                if comparator == "lte" { "<=" } else { ">=" },
-                threshold
-            )
-        }
-        "revenue_actions_count" => {
-            let comparator = parse_comparator(&text, "gte");
-            let threshold = parse_first_int(&text, 1);
-            format!(
-                "{}{} revenue actions",
-                if comparator == "lte" { "<=" } else { ">=" },
-                threshold
-            )
-        }
+        "artifact_count" => format_count_target(&text, "gte", "artifact"),
+        "outreach_artifact" => format_count_target(&text, "gte", "outreach artifact"),
+        "reply_or_interview_count" => format_count_target(&text, "gte", "reply/interview signal"),
+        "entries_count" => format_count_target(&text, "gte", "entries"),
+        "revenue_actions_count" => format_count_target(&text, "gte", "revenue actions"),
         "token_usage" => {
             let comparator = parse_comparator(&text, "lte");
             let limit = parse_token_limit(&text).unwrap_or(1200);
-            format!(
-                "tokens {}{}",
-                if comparator == "gte" { ">=" } else { "<=" },
-                limit
-            )
+            format!("tokens {}{}", comparator_symbol(comparator), limit)
         }
         "duration_ms" => {
             let comparator = parse_comparator(&text, "lte");
             let limit = parse_duration_limit_ms(&text).unwrap_or(15000);
-            format!(
-                "duration {}{}ms",
-                if comparator == "gte" { ">=" } else { "<=" },
-                limit
-            )
+            format!("duration {}{}ms", comparator_symbol(comparator), limit)
         }
         _ => {
             let normalized = normalize_spaces_str(target_text);
@@ -360,6 +336,14 @@ fn normalize_target(metric: &str, target_text: &str, horizon_text: &str) -> Stri
     }
 }
 
+fn contains_any(text: &str, needles: &[&str]) -> bool {
+    needles.iter().any(|token| text.contains(token))
+}
+
+fn has_outreach_artifact_hint(text: &str) -> bool {
+    text.contains("outreach") && contains_any(text, &["artifact", "draft", "offer", "proposal"])
+}
+
 fn classify_metric(metric_text: &str, target_text: &str, source_text: &str) -> String {
     let metric = normalize_spaces_str(metric_text).to_ascii_lowercase();
     let text = normalize_spaces_str(&format!("{metric_text} {target_text} {source_text}"))
@@ -368,12 +352,7 @@ fn classify_metric(metric_text: &str, target_text: &str, source_text: &str) -> S
     if metric.is_empty() && (text.contains("reply") || text.contains("interview")) {
         return "reply_or_interview_count".to_string();
     }
-    if metric.is_empty()
-        && text.contains("outreach")
-        && ["artifact", "draft", "offer", "proposal"]
-            .iter()
-            .any(|token| text.contains(token))
-    {
+    if metric.is_empty() && has_outreach_artifact_hint(&text) {
         return "outreach_artifact".to_string();
     }
 
@@ -405,64 +384,41 @@ fn classify_metric(metric_text: &str, target_text: &str, source_text: &str) -> S
         _ => {
             if text.contains("reply") || text.contains("interview") {
                 "reply_or_interview_count".to_string()
-            } else if text.contains("outreach")
-                && ["artifact", "draft", "offer", "proposal"]
-                    .iter()
-                    .any(|token| text.contains(token))
-            {
+            } else if has_outreach_artifact_hint(&text) {
                 "outreach_artifact".to_string()
-            } else if [
-                "artifact",
-                "draft",
-                "experiment",
-                "patch",
-                "plan",
-                "deliverable",
-            ]
-            .iter()
-            .any(|token| text.contains(token))
-            {
+            } else if contains_any(
+                &text,
+                &["artifact", "draft", "experiment", "patch", "plan", "deliverable"],
+            ) {
                 "artifact_count".to_string()
-            } else if [
-                "postcondition",
-                "contract",
-                "verify",
-                "verification",
-                "check pass",
-            ]
-            .iter()
-            .any(|token| text.contains(token))
-            {
+            } else if contains_any(
+                &text,
+                &["postcondition", "contract", "verify", "verification", "check pass"],
+            ) {
                 "postconditions_ok".to_string()
-            } else if ["receipt", "evidence", "queue outcome", "logged"]
-                .iter()
-                .any(|token| text.contains(token))
-            {
+            } else if contains_any(&text, &["receipt", "evidence", "queue outcome", "logged"]) {
                 "queue_outcome_logged".to_string()
             } else if text.contains("revenue") {
                 "revenue_actions_count".to_string()
-            } else if ["entries", "entry", "notes"]
-                .iter()
-                .any(|token| text.contains(token))
-            {
+            } else if contains_any(&text, &["entries", "entry", "notes"]) {
                 "entries_count".to_string()
             } else if text.contains("token") {
                 "token_usage".to_string()
-            } else if [
-                "latency",
-                "duration",
-                "time",
-                "ms",
-                "msec",
-                "millisecond",
-                "second",
-                "sec",
-                "min",
-                "minute",
-            ]
-            .iter()
-            .any(|token| text.contains(token))
-            {
+            } else if contains_any(
+                &text,
+                &[
+                    "latency",
+                    "duration",
+                    "time",
+                    "ms",
+                    "msec",
+                    "millisecond",
+                    "second",
+                    "sec",
+                    "min",
+                    "minute",
+                ],
+            ) {
                 "duration_ms".to_string()
             } else {
                 "execution_success".to_string()

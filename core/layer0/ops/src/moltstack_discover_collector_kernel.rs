@@ -43,6 +43,10 @@ fn now_iso() -> String {
     Utc::now().to_rfc3339()
 }
 
+fn object_from_value(value: Value) -> Map<String, Value> {
+    value.as_object().cloned().unwrap_or_default()
+}
+
 fn sha16(input: &str) -> String {
     let digest = Sha256::digest(input.as_bytes());
     hex::encode(digest)[..16].to_string()
@@ -138,6 +142,40 @@ fn host_from_url(raw: &str) -> Option<String> {
     split_scheme_host(raw).map(|(_, host)| host)
 }
 
+fn resolved_api_url(payload: &Map<String, Value>) -> String {
+    let url = clean_text(
+        payload
+            .get("api_url")
+            .and_then(Value::as_str)
+            .or_else(|| payload.get("url").and_then(Value::as_str)),
+        600,
+    );
+    if url.is_empty() {
+        "https://moltstack.net/api/posts".to_string()
+    } else {
+        url
+    }
+}
+
+fn first_preflight_error(preflight_result: &Value) -> String {
+    let first = preflight_result
+        .get("failures")
+        .and_then(Value::as_array)
+        .and_then(|rows| rows.first())
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    let code = clean_text(first.get("code").and_then(Value::as_str), 64);
+    let message = clean_text(first.get("message").and_then(Value::as_str), 180);
+    if code.is_empty() {
+        "moltstack_discover_preflight_failed".to_string()
+    } else if message.is_empty() {
+        format!("moltstack_discover_preflight_failed:{code}")
+    } else {
+        format!("moltstack_discover_preflight_failed:{code}:{message}")
+    }
+}
+
 fn classify_curl_transport_error(stderr: &str) -> String {
     let lower = stderr.to_ascii_lowercase();
     if lower.contains("could not resolve host")
@@ -226,18 +264,7 @@ fn parse_json_or_null(raw: &str) -> Value {
 fn preflight(payload: &Map<String, Value>) -> Value {
     let mut checks = Vec::<Value>::new();
     let mut failures = Vec::<Value>::new();
-    let url = clean_text(
-        payload
-            .get("api_url")
-            .and_then(Value::as_str)
-            .or_else(|| payload.get("url").and_then(Value::as_str)),
-        600,
-    );
-    let url = if url.is_empty() {
-        "https://moltstack.net/api/posts".to_string()
-    } else {
-        url
-    };
+    let url = resolved_api_url(payload);
     let max_items = payload
         .get("max_items")
         .and_then(Value::as_u64)
@@ -356,8 +383,9 @@ fn map_posts(payload: &Map<String, Value>) -> Value {
         if title.is_empty() || slug.is_empty() {
             continue;
         }
-        let url = if !clean_text(obj.get("url").and_then(Value::as_str), 600).is_empty() {
-            clean_text(obj.get("url").and_then(Value::as_str), 600)
+        let explicit_url = clean_text(obj.get("url").and_then(Value::as_str), 600);
+        let url = if !explicit_url.is_empty() {
+            explicit_url
         } else if !agent_slug.is_empty() {
             format!("https://moltstack.net/{agent_slug}/{slug}")
         } else {
@@ -366,6 +394,7 @@ fn map_posts(payload: &Map<String, Value>) -> Value {
         if host_from_url(&url).is_none() {
             continue;
         }
+        let url_len = url.len();
         let topics = keyword_topics(&title, &topics_cfg)
             .into_iter()
             .map(Value::String)
@@ -376,7 +405,7 @@ fn map_posts(payload: &Map<String, Value>) -> Value {
             "url": url,
             "title": title,
             "topics": topics,
-            "bytes": std::cmp::min(512_usize, title.len() + 64 + clean_text(Some(&url), 600).len())
+            "bytes": std::cmp::min(512_usize, title.len() + 64 + url_len)
         }));
     }
     json!({
@@ -389,18 +418,7 @@ fn build_fetch_plan(payload: &Map<String, Value>) -> Value {
     let max_items = clamp_u64(payload, "max_items", 20, 1, 50);
     let max_seconds = clamp_u64(payload, "max_seconds", 10, 1, 30);
     let timeout_ms = (max_seconds.saturating_mul(1000)).min(15_000);
-    let url = clean_text(
-        payload
-            .get("api_url")
-            .and_then(Value::as_str)
-            .or_else(|| payload.get("url").and_then(Value::as_str)),
-        600,
-    );
-    let url = if url.is_empty() {
-        "https://moltstack.net/api/posts".to_string()
-    } else {
-        url
-    };
+    let url = resolved_api_url(payload);
     json!({
         "ok": true,
         "max_items": max_items,
@@ -446,49 +464,24 @@ fn finalize_run(payload: &Map<String, Value>) -> Value {
         .cloned()
         .unwrap_or_default();
     let posts = payload.get("posts").cloned().unwrap_or(Value::Null);
-    map_posts(
-        &json!({
-            "max_items": max_items,
-            "topics": topics,
-            "posts": posts
-        })
-        .as_object()
-        .cloned()
-        .unwrap_or_default(),
-    )
+    map_posts(&object_from_value(json!({
+        "max_items": max_items,
+        "topics": topics,
+        "posts": posts
+    })))
 }
 
 fn command_collect(payload: &Map<String, Value>) -> Result<Value, String> {
     let pre = preflight(payload);
     if pre.get("ok").and_then(Value::as_bool) != Some(true) {
-        let first = pre
-            .get("failures")
-            .and_then(Value::as_array)
-            .and_then(|rows| rows.first())
-            .and_then(Value::as_object)
-            .cloned()
-            .unwrap_or_default();
-        let code = clean_text(first.get("code").and_then(Value::as_str), 64);
-        let message = clean_text(first.get("message").and_then(Value::as_str), 180);
-        return Err(if code.is_empty() {
-            "moltstack_discover_preflight_failed".to_string()
-        } else if message.is_empty() {
-            format!("moltstack_discover_preflight_failed:{code}")
-        } else {
-            format!("moltstack_discover_preflight_failed:{code}:{message}")
-        });
+        return Err(first_preflight_error(&pre));
     }
 
     let fetch_error = clean_text(payload.get("fetch_error").and_then(Value::as_str), 80);
     if !fetch_error.is_empty() {
-        let policy = classify_fetch_error(
-            &json!({
-                "error_code": fetch_error
-            })
-            .as_object()
-            .cloned()
-            .unwrap_or_default(),
-        );
+        let policy = classify_fetch_error(&object_from_value(json!({
+            "error_code": fetch_error
+        })));
         return Ok(json!({
             "ok": true,
             "success": false,
@@ -497,16 +490,11 @@ fn command_collect(payload: &Map<String, Value>) -> Result<Value, String> {
         }));
     }
 
-    let mapped = finalize_run(
-        &json!({
-            "max_items": payload.get("max_items").cloned().unwrap_or(Value::from(20)),
-            "topics": payload.get("topics").cloned().unwrap_or(Value::Array(Vec::new())),
-            "posts": payload.get("posts_json").cloned().unwrap_or_else(|| payload.get("posts").cloned().unwrap_or(Value::Null))
-        })
-        .as_object()
-        .cloned()
-        .unwrap_or_default(),
-    );
+    let mapped = finalize_run(&object_from_value(json!({
+        "max_items": payload.get("max_items").cloned().unwrap_or(Value::from(20)),
+        "topics": payload.get("topics").cloned().unwrap_or(Value::Array(Vec::new())),
+        "posts": payload.get("posts_json").cloned().unwrap_or_else(|| payload.get("posts").cloned().unwrap_or(Value::Null))
+    })));
     let items = mapped
         .get("items")
         .and_then(Value::as_array)
@@ -581,21 +569,16 @@ fn command_run(payload: &Map<String, Value>) -> Result<Value, String> {
         .max(0)
         .saturating_sub(started_at_ms as i64) as u64;
 
-    let mut out = command_collect(
-        &json!({
-            "api_url": fetch_url,
-            "allowed_domains": payload.get("allowed_domains").cloned().unwrap_or(Value::Array(Vec::new())),
-            "max_seconds": max_seconds,
-            "topics": payload.get("topics").cloned().unwrap_or(Value::Array(Vec::new())),
-            "max_items": max_items,
-            "posts_json": posts_json,
-            "fetch_error": fetch_error,
-            "duration_ms": duration_ms
-        })
-        .as_object()
-        .cloned()
-        .unwrap_or_default(),
-    )?;
+    let mut out = command_collect(&object_from_value(json!({
+        "api_url": fetch_url,
+        "allowed_domains": payload.get("allowed_domains").cloned().unwrap_or(Value::Array(Vec::new())),
+        "max_seconds": max_seconds,
+        "topics": payload.get("topics").cloned().unwrap_or(Value::Array(Vec::new())),
+        "max_items": max_items,
+        "posts_json": posts_json,
+        "fetch_error": fetch_error,
+        "duration_ms": duration_ms
+    })))?;
     if let Some(obj) = out.as_object_mut() {
         obj.insert("bytes".to_string(), Value::from(bytes));
         obj.insert("requests".to_string(), Value::from(requests));
