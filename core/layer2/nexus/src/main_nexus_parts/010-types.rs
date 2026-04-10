@@ -48,6 +48,33 @@ pub struct DirectDeliveryAuthorization {
     pub conduit_link_id: Option<String>,
 }
 
+impl DirectDeliveryAuthorization {
+    pub fn allow(
+        reason: impl Into<String>,
+        local_resolution: bool,
+        lease_id: Option<String>,
+        conduit_link_id: Option<String>,
+    ) -> Self {
+        Self {
+            allowed: true,
+            reason: reason.into(),
+            local_resolution,
+            lease_id,
+            conduit_link_id,
+        }
+    }
+
+    pub fn deny(reason: impl Into<String>) -> Self {
+        Self {
+            allowed: false,
+            reason: reason.into(),
+            local_resolution: false,
+            lease_id: None,
+            conduit_link_id: None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum NexusReceiptKind {
@@ -84,6 +111,19 @@ pub struct NexusMetrics {
     pub active_lease_count: usize,
     pub revoked_lease_count: usize,
     pub active_conduit_count: usize,
+}
+
+impl NexusMetrics {
+    pub fn set_resolution_counts(&mut self, local_count: u64, cross_module_count: u64) {
+        self.local_resolution_count = local_count;
+        self.cross_module_resolution_count = cross_module_count;
+        let total = local_count.saturating_add(cross_module_count);
+        self.local_resolution_ratio = if total == 0 {
+            1.0
+        } else {
+            local_count as f64 / total as f64
+        };
+    }
 }
 
 pub struct MainNexusControlPlane {

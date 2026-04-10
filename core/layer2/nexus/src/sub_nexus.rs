@@ -10,6 +10,15 @@ pub struct SubNexus {
 }
 
 impl SubNexus {
+    fn increment(counter: &mut u64) {
+        *counter = counter.saturating_add(1);
+    }
+
+    pub fn total_delivery_count(&self) -> u64 {
+        self.local_delivery_count
+            .saturating_add(self.cross_module_delivery_count)
+    }
+
     pub fn from_registration(registration: &SubNexusRegistration) -> Self {
         Self {
             sub_nexus_id: registration.sub_nexus_id.clone(),
@@ -20,17 +29,15 @@ impl SubNexus {
     }
 
     pub fn record_local_delivery(&mut self) {
-        self.local_delivery_count = self.local_delivery_count.saturating_add(1);
+        Self::increment(&mut self.local_delivery_count);
     }
 
     pub fn record_cross_module_delivery(&mut self) {
-        self.cross_module_delivery_count = self.cross_module_delivery_count.saturating_add(1);
+        Self::increment(&mut self.cross_module_delivery_count);
     }
 
     pub fn local_resolution_ratio(&self) -> f64 {
-        let total = self
-            .local_delivery_count
-            .saturating_add(self.cross_module_delivery_count);
+        let total = self.total_delivery_count();
         if total == 0 {
             return 1.0;
         }
