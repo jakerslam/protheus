@@ -8,6 +8,7 @@ use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use super::CompatApiResponse;
+use crate::contract_lane_utils as lane_utils;
 
 const CHANNEL_REGISTRY_REL: &str =
     "client/runtime/local/state/ui/infring_dashboard/channel_registry.json";
@@ -15,13 +16,7 @@ const CHANNEL_QR_REL: &str =
     "client/runtime/local/state/ui/infring_dashboard/channel_qr_sessions.json";
 
 fn clean_text(raw: &str, max_len: usize) -> String {
-    raw.split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
-        .trim()
-        .chars()
-        .take(max_len)
-        .collect::<String>()
+    lane_utils::clean_text(Some(raw), max_len.max(1))
 }
 
 fn parse_json(raw: &[u8]) -> Value {
@@ -33,9 +28,7 @@ fn state_path(root: &Path, rel: &str) -> PathBuf {
 }
 
 fn read_json(path: &Path) -> Option<Value> {
-    fs::read_to_string(path)
-        .ok()
-        .and_then(|raw| serde_json::from_str::<Value>(&raw).ok())
+    lane_utils::read_json(path)
 }
 
 fn write_json(path: &Path, value: &Value) {

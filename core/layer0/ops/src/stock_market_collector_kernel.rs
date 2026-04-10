@@ -88,10 +88,7 @@ fn cache_path_for(root: &Path, payload: &Map<String, Value>) -> PathBuf {
 }
 
 fn read_json(path: &Path, fallback: Value) -> Value {
-    match fs::read_to_string(path) {
-        Ok(raw) => serde_json::from_str::<Value>(&raw).unwrap_or(fallback),
-        Err(_) => fallback,
-    }
+    lane_utils::read_json(path).unwrap_or(fallback)
 }
 
 fn write_json_atomic(path: &Path, value: &Value) -> Result<(), String> {
