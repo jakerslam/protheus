@@ -35,6 +35,7 @@ jobs:
           npm run -s ops:arch:conformance
           npm run -s ops:transport:convergence:guard
           npm run -s ops:transport:topology:gate
+          npm run -s ops:production-closure:gate
           npm run -s ops:orchestration:contract:guard
           npm run -s ops:orchestration:hidden-state:guard
           npm run -s ops:debt:expiry:guard

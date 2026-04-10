@@ -210,6 +210,22 @@ function checkProductionTransportPolicy(root: string): GateCheck {
   };
 }
 
+function checkProductionClosurePolicy(root: string): GateCheck {
+  const rel = 'client/runtime/config/production_readiness_closure_policy.json';
+  const policy = readJson(path.resolve(root, rel), {});
+  const canonical = cleanText(policy?.production_surface_contract?.canonical_surface ?? '', 40).toLowerCase();
+  const transportMode = cleanText(policy?.release_candidate_topology?.transport_mode ?? '', 120);
+  const forbidFallback = policy?.release_candidate_topology?.forbid_process_transport_in_production === true;
+  const ok = canonical === 'rich' && transportMode === 'resident_ipc_authoritative' && forbidFallback;
+  return {
+    id: 'production_closure_policy',
+    ok,
+    detail: ok
+      ? `canonical_surface=${canonical};transport_mode=${transportMode}`
+      : `invalid:${rel}`,
+  };
+}
+
 function main() {
   const root = path.resolve(__dirname, '../../../..');
   const args = parseArgs(process.argv.slice(2));
@@ -224,6 +240,7 @@ function main() {
     checkDependabotSchedule(root),
     checkInstallerChecksumVerification(root),
     checkProductionTransportPolicy(root),
+    checkProductionClosurePolicy(root),
   ];
   const ok = checks.every((row) => row.ok);
   const report = {
