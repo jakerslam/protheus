@@ -26,6 +26,7 @@
     "ops:simplicity:audit": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/simplicity_drift_audit.ts --strict=1",
     "ops:legacy-alias:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/legacy_alias_guard.ts --strict=1",
     "ops:churn:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/churn_guard.ts --strict=1",
+    "ops:codex:wave:preflight": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/codex_wave_preflight.ts --strict=1",
     "ops:churn:commit-gate": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/churn_guard.ts --strict=1 --commit-gate=1",
     "ops:repo-surface:audit": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/repo_surface_policy_audit.ts --strict=1",
     "ops:root-surface:audit": "npm run -s ops:root-surface:check",

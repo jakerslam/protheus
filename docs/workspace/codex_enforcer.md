@@ -58,6 +58,21 @@ Completion requires all of the following:
 - Do not close items based on inferred completion.
 - Keep failed or blocked items visible with explicit reasons.
 
+## Codex Assimilation Wave Protocol (Mandatory)
+- Codex assimilation must run in waves of **4-8 disjoint file shards** per wave.
+- Disjoint means one row per unique file path in the wave (no duplicate paths).
+- Every wave must run strict preflight before implementation:
+  1. `git status --short` is empty.
+  2. `npm run -s ops:churn:guard` passes.
+  3. selected ledger rows exist and are `queued`.
+- Every wave must run targeted tests for touched files before ledger mutation.
+- Only after preflight + targeted tests pass may the wave:
+  1. update ledger rows (`queued -> done`),
+  2. commit,
+  3. push.
+- If any step fails, stop with:
+  - `BLOCKED — codex wave preflight/test gate failed`
+
 ## Rust Migration Rules
 - Use real public-source metrics only (tracked source files), not weighted/internal metrics.
 - Report `.rs` vs `.ts` lines from tracked files.
