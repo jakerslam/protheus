@@ -1,25 +1,27 @@
-include!("set_config_payload_parts/010-part.rs");
-include!("set_config_payload_parts/020-part.rs");
-include!("set_config_payload_parts/030-part.rs");
-include!("set_config_payload_parts/040-part.rs");
-include!("set_config_payload_parts/050-part.rs");
-include!("set_config_payload_parts/060-part.rs");
-include!("set_config_payload_parts/070-part.rs");
-include!("set_config_payload_parts/080-part.rs");
-include!("set_config_payload_parts/090-part.rs");
-include!("set_config_payload_parts/100-part.rs");
-include!("set_config_payload_parts/110-part.rs");
-include!("set_config_payload_parts/120-part.rs");
-include!("set_config_payload_parts/130-part.rs");
-include!("set_config_payload_parts/131-part.rs");
-include!("set_config_payload_parts/140-part.rs");
-include!("set_config_payload_parts/141-part.rs");
-include!("set_config_payload_parts/150-part.rs");
-include!("set_config_payload_parts/160-part.rs");
-include!("set_config_payload_parts/170-part.rs");
-include!("set_config_payload_parts/180-part.rs");
-include!("set_config_payload_parts/190-part.rs");
-include!("set_config_payload_parts/191-part.rs");
-include!("set_config_payload_parts/192-part.rs");
-include!("set_config_payload_parts/193-part.rs");
-include!("set_config_payload_parts/200-part.rs");
+include_parts!(
+    "set_config_payload_parts/010-part.rs",
+    "set_config_payload_parts/020-part.rs",
+    "set_config_payload_parts/030-part.rs",
+    "set_config_payload_parts/040-part.rs",
+    "set_config_payload_parts/050-part.rs",
+    "set_config_payload_parts/060-part.rs",
+    "set_config_payload_parts/070-part.rs",
+    "set_config_payload_parts/080-part.rs",
+    "set_config_payload_parts/090-part.rs",
+    "set_config_payload_parts/100-part.rs",
+    "set_config_payload_parts/110-part.rs",
+    "set_config_payload_parts/120-part.rs",
+    "set_config_payload_parts/130-part.rs",
+    "set_config_payload_parts/131-part.rs",
+    "set_config_payload_parts/140-part.rs",
+    "set_config_payload_parts/141-part.rs",
+    "set_config_payload_parts/150-part.rs",
+    "set_config_payload_parts/160-part.rs",
+    "set_config_payload_parts/170-part.rs",
+    "set_config_payload_parts/180-part.rs",
+    "set_config_payload_parts/190-part.rs",
+    "set_config_payload_parts/191-part.rs",
+    "set_config_payload_parts/192-part.rs",
+    "set_config_payload_parts/193-part.rs",
+    "set_config_payload_parts/200-part.rs",
+);
