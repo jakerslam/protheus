@@ -55,6 +55,34 @@ fn parse_u32(value: Option<String>, fallback: u32, min: u32, max: u32) -> u32 {
         .unwrap_or(fallback)
 }
 
+fn parse_bool_flag(argv: &[String], key: &str, fallback: bool) -> bool {
+    parse_bool(flag_value(argv, key), fallback)
+}
+
+fn parse_u32_flag(argv: &[String], key: &str, fallback: u32, min: u32, max: u32) -> u32 {
+    parse_u32(flag_value(argv, key), fallback, min, max)
+}
+
+fn parse_csv_list(value: Option<String>) -> Vec<String> {
+    value
+        .unwrap_or_default()
+        .split(',')
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .collect::<Vec<_>>()
+}
+
+fn parse_csv_set(value: Option<String>, fallback: &str) -> HashSet<String> {
+    value
+        .or_else(|| Some(fallback.to_string()))
+        .map(|row| {
+            parse_csv_list(Some(row))
+                .into_iter()
+                .collect::<HashSet<_>>()
+        })
+        .unwrap_or_default()
+}
+
 pub fn run(root: &Path, args: &[String]) -> i32 {
     let cmd = args
         .first()
@@ -84,19 +112,12 @@ pub fn run(root: &Path, args: &[String]) -> i32 {
     }
 
     let current_mode = flag_value(args, "mode").unwrap_or_else(|| "score_only".to_string());
-    let strict_ready = parse_bool(flag_value(args, "ready"), false);
-    let failed_checks = flag_value(args, "failed-checks")
-        .unwrap_or_default()
-        .split(',')
-        .map(|v| v.trim().to_string())
-        .filter(|v| !v.is_empty())
-        .collect::<Vec<_>>();
-    let relax_checks = flag_value(args, "canary-relax-checks")
-        .unwrap_or_else(|| "success_criteria_pass_rate".to_string())
-        .split(',')
-        .map(|v| v.trim().to_string())
-        .filter(|v| !v.is_empty())
-        .collect::<HashSet<_>>();
+    let strict_ready = parse_bool_flag(args, "ready", false);
+    let failed_checks = parse_csv_list(flag_value(args, "failed-checks"));
+    let relax_checks = parse_csv_set(
+        flag_value(args, "canary-relax-checks"),
+        "success_criteria_pass_rate",
+    );
     let readiness = readiness_state(
         &current_mode,
         strict_ready,
@@ -106,37 +127,36 @@ pub fn run(root: &Path, args: &[String]) -> i32 {
     );
 
     let canary = CanaryState {
-        preview_ready_for_canary: parse_bool(
-            flag_value(args, "canary-preview-ready"),
+        preview_ready_for_canary: parse_bool_flag(
+            args,
+            "canary-preview-ready",
             readiness.ready_for_canary,
         ),
-        ready_for_execute: parse_bool(
-            flag_value(args, "canary-ready"),
-            readiness.ready_for_execute,
-        ),
-        quality_lock_active: parse_bool(flag_value(args, "quality-lock"), true),
+        ready_for_execute: parse_bool_flag(args, "canary-ready", readiness.ready_for_execute),
+        quality_lock_active: parse_bool_flag(args, "quality-lock", true),
     };
 
     let policy = GovernorPolicy {
-        promote_canary: parse_bool(flag_value(args, "promote-canary"), true),
-        promote_execute: parse_bool(flag_value(args, "promote-execute"), true),
-        demote_not_ready: parse_bool(flag_value(args, "demote-not-ready"), true),
-        min_escalate_streak: parse_u32(flag_value(args, "min-escalate-streak"), 1, 1, 100),
-        min_demote_streak: parse_u32(flag_value(args, "min-demote-streak"), 1, 1, 100),
-        canary_require_quality_lock_for_execute: parse_bool(
-            flag_value(args, "require-quality-lock"),
+        promote_canary: parse_bool_flag(args, "promote-canary", true),
+        promote_execute: parse_bool_flag(args, "promote-execute", true),
+        demote_not_ready: parse_bool_flag(args, "demote-not-ready", true),
+        min_escalate_streak: parse_u32_flag(args, "min-escalate-streak", 1, 1, 100),
+        min_demote_streak: parse_u32_flag(args, "min-demote-streak", 1, 1, 100),
+        canary_require_quality_lock_for_execute: parse_bool_flag(
+            args,
+            "require-quality-lock",
             true,
         ),
-        require_spc: parse_bool(flag_value(args, "require-spc"), true),
+        require_spc: parse_bool_flag(args, "require-spc", true),
     };
 
     let streak = StreakState {
-        escalate_ready_streak: parse_u32(flag_value(args, "escalate-streak"), 1, 0, 1000),
-        demote_not_ready_streak: parse_u32(flag_value(args, "demote-streak"), 0, 0, 1000),
+        escalate_ready_streak: parse_u32_flag(args, "escalate-streak", 1, 0, 1000),
+        demote_not_ready_streak: parse_u32_flag(args, "demote-streak", 0, 0, 1000),
     };
 
-    let spc_pass = parse_bool(flag_value(args, "spc-pass"), true);
-    let spc_hold_escalation = parse_bool(flag_value(args, "spc-hold"), false);
+    let spc_pass = parse_bool_flag(args, "spc-pass", true);
+    let spc_hold_escalation = parse_bool_flag(args, "spc-hold", false);
     let transition = decide_transition(
         &current_mode,
         &readiness,
