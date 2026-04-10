@@ -92,8 +92,14 @@ fn default_policy(root: &Path) -> DebatePolicy {
         require_distinct_roles_for_quorum: true,
         roles,
         latest_path: debate_state_path(root, "local/state/autonomy/multi_agent_debate/latest.json"),
-        history_path: debate_state_path(root, "local/state/autonomy/multi_agent_debate/history.jsonl"),
-        receipts_path: debate_state_path(root, "local/state/autonomy/multi_agent_debate/receipts.jsonl"),
+        history_path: debate_state_path(
+            root,
+            "local/state/autonomy/multi_agent_debate/history.jsonl",
+        ),
+        receipts_path: debate_state_path(
+            root,
+            "local/state/autonomy/multi_agent_debate/receipts.jsonl",
+        ),
     }
 }
 

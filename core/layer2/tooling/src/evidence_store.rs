@@ -235,7 +235,11 @@ fn deterministic_hash<T: Serialize>(value: &T) -> String {
     format!("{:x}", hasher.finalize())
 }
 
-fn event_identity_seed(record: &EvidenceRecord, event_sequence: u64, timestamp: u64) -> serde_json::Value {
+fn event_identity_seed(
+    record: &EvidenceRecord,
+    event_sequence: u64,
+    timestamp: u64,
+) -> serde_json::Value {
     let mut seed = serde_json::json!({
         "kind": "evidence_store_event",
         "event_sequence": event_sequence,

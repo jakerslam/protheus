@@ -50,7 +50,8 @@ fn status_envelope(
     ttl_ms: u64,
 ) -> CommandEnvelope {
     let command = TsCommand::GetSystemStatus;
-    let security_metadata = security.mint_security_metadata(client_id, request_id, ts_ms, &command, ttl_ms);
+    let security_metadata =
+        security.mint_security_metadata(client_id, request_id, ts_ms, &command, ttl_ms);
     CommandEnvelope {
         schema_id: conduit::CONDUIT_SCHEMA_ID.to_string(),
         schema_version: conduit::CONDUIT_SCHEMA_VERSION.to_string(),
