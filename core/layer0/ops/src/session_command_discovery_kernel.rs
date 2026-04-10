@@ -40,144 +40,7 @@ struct DiscoverRule {
     subcmd_status: &'static [(&'static str, SupportStatus)],
 }
 
-const RULES: &[DiscoverRule] = &[
-    DiscoverRule {
-        pattern: r"^git\s+(?:-[Cc]\s+\S+\s+)*(status|log|diff|show|add|commit|push|pull|branch|fetch|stash|worktree)",
-        canonical: "infring git",
-        category: "Git",
-        savings_pct: 70.0,
-        subcmd_savings: &[
-            ("diff", 80.0),
-            ("show", 80.0),
-            ("add", 59.0),
-            ("commit", 59.0),
-        ],
-        subcmd_status: &[],
-    },
-    DiscoverRule {
-        pattern: r"^gh\s+(pr|issue|run|repo|api|release)",
-        canonical: "infring github",
-        category: "GitHub",
-        savings_pct: 82.0,
-        subcmd_savings: &[("pr", 87.0), ("run", 82.0), ("issue", 80.0)],
-        subcmd_status: &[],
-    },
-    DiscoverRule {
-        pattern: r"^cargo\s+(build|test|clippy|check|fmt|install)",
-        canonical: "infring cargo",
-        category: "Cargo",
-        savings_pct: 80.0,
-        subcmd_savings: &[("test", 90.0), ("check", 80.0)],
-        subcmd_status: &[("fmt", SupportStatus::Passthrough)],
-    },
-    DiscoverRule {
-        pattern: r"^(cat|head|tail)\s+",
-        canonical: "infring read",
-        category: "Files",
-        savings_pct: 60.0,
-        subcmd_savings: &[],
-        subcmd_status: &[],
-    },
-    DiscoverRule {
-        pattern: r"^(rg|grep)\s+",
-        canonical: "infring grep",
-        category: "Files",
-        savings_pct: 75.0,
-        subcmd_savings: &[],
-        subcmd_status: &[],
-    },
-    DiscoverRule {
-        pattern: r"^ls(\s|$)",
-        canonical: "infring ls",
-        category: "Files",
-        savings_pct: 65.0,
-        subcmd_savings: &[],
-        subcmd_status: &[],
-    },
-    DiscoverRule {
-        pattern: r"^find\s+",
-        canonical: "infring find",
-        category: "Files",
-        savings_pct: 70.0,
-        subcmd_savings: &[],
-        subcmd_status: &[],
-    },
-    DiscoverRule {
-        pattern: r"^tree(\s|$)",
-        canonical: "infring tree",
-        category: "Files",
-        savings_pct: 70.0,
-        subcmd_savings: &[],
-        subcmd_status: &[],
-    },
-    DiscoverRule {
-        pattern: r"^diff\s+",
-        canonical: "infring diff",
-        category: "Files",
-        savings_pct: 60.0,
-        subcmd_savings: &[],
-        subcmd_status: &[],
-    },
-    DiscoverRule {
-        pattern: r"^curl\s+",
-        canonical: "infring web fetch",
-        category: "Network",
-        savings_pct: 70.0,
-        subcmd_savings: &[],
-        subcmd_status: &[],
-    },
-    DiscoverRule {
-        pattern: r"^wget\s+",
-        canonical: "infring web fetch",
-        category: "Network",
-        savings_pct: 65.0,
-        subcmd_savings: &[],
-        subcmd_status: &[],
-    },
-    DiscoverRule {
-        pattern: r"^(pnpm|npm|npx)\s+",
-        canonical: "infring npm",
-        category: "PackageManager",
-        savings_pct: 70.0,
-        subcmd_savings: &[],
-        subcmd_status: &[],
-    },
-    DiscoverRule {
-        pattern: r"^(python\s+-m\s+)?pytest(\s|$)",
-        canonical: "infring pytest",
-        category: "Tests",
-        savings_pct: 90.0,
-        subcmd_savings: &[],
-        subcmd_status: &[],
-    },
-    DiscoverRule {
-        pattern: r"^ruff\s+(check|format)",
-        canonical: "infring ruff",
-        category: "Python",
-        savings_pct: 80.0,
-        subcmd_savings: &[("format", 75.0), ("check", 80.0)],
-        subcmd_status: &[],
-    },
-    DiscoverRule {
-        pattern: r"^docker\s+(ps|images|logs|run|exec|build|compose\s+(ps|logs|build))",
-        canonical: "infring docker",
-        category: "Infra",
-        savings_pct: 85.0,
-        subcmd_savings: &[],
-        subcmd_status: &[],
-    },
-    DiscoverRule {
-        pattern: r"^kubectl\s+(get|logs|describe|apply)",
-        canonical: "infring kubectl",
-        category: "Infra",
-        savings_pct: 85.0,
-        subcmd_savings: &[],
-        subcmd_status: &[],
-    },
-];
-
-const IGNORED_EXACT: &[&str] = &["", "exit", "clear", "pwd", "history", "reset"];
-const IGNORED_PREFIXES: &[&str] = &["echo ", "printf ", "export ", "alias "];
+include!("session_command_discovery_kernel_parts/010-rules.rs");
 
 #[derive(Debug, PartialEq)]
 enum Classification {
@@ -394,6 +257,13 @@ fn flush_arg(tokens: &mut Vec<ParsedToken>, current: &mut String, offset: usize)
     });
 }
 
+fn push_chain_segment(out: &mut Vec<String>, source: &str, start: usize, end: usize) {
+    let segment = source[start..end].trim();
+    if !segment.is_empty() {
+        out.push(segment.to_string());
+    }
+}
+
 fn split_command_chain(cmd: &str) -> Vec<String> {
     let trimmed = cmd.trim();
     if trimmed.is_empty() {
@@ -408,26 +278,17 @@ fn split_command_chain(cmd: &str) -> Vec<String> {
     for token in &tokens {
         match token.kind {
             TokenKind::Operator => {
-                let segment = trimmed[seg_start..token.offset].trim();
-                if !segment.is_empty() {
-                    out.push(segment.to_string());
-                }
+                push_chain_segment(&mut out, trimmed, seg_start, token.offset);
                 seg_start = token.offset + token.value.len();
             }
             TokenKind::Pipe => {
-                let segment = trimmed[seg_start..token.offset].trim();
-                if !segment.is_empty() {
-                    out.push(segment.to_string());
-                }
+                push_chain_segment(&mut out, trimmed, seg_start, token.offset);
                 return out;
             }
             TokenKind::Arg => {}
         }
     }
-    let segment = trimmed[seg_start..].trim();
-    if !segment.is_empty() {
-        out.push(segment.to_string());
-    }
+    push_chain_segment(&mut out, trimmed, seg_start, trimmed.len());
     out
 }
 
@@ -509,6 +370,20 @@ fn normalize_explicit_tool_alias(token: &str) -> Option<&'static str> {
     }
 }
 
+fn subcmd_savings(rule: &DiscoverRule, subcmd: &str) -> Option<f64> {
+    rule.subcmd_savings
+        .iter()
+        .find(|(label, _)| *label == subcmd)
+        .map(|(_, pct)| *pct)
+}
+
+fn subcmd_status(rule: &DiscoverRule, subcmd: &str) -> Option<SupportStatus> {
+    rule.subcmd_status
+        .iter()
+        .find(|(label, _)| *label == subcmd)
+        .map(|(_, status)| *status)
+}
+
 fn classify_explicit_tool_alias(cmd: &str) -> Option<Classification> {
     let (first, _) = parse_first_token_with_rest(cmd)?;
     let alias = normalize_explicit_tool_alias(&first)?;
@@ -574,20 +449,8 @@ fn classify_command(raw: &str) -> Classification {
                 if !subcmd.is_empty() {
                     command_key = subcmd.clone();
                 }
-                if let Some((_, pct)) = rule
-                    .subcmd_savings
-                    .iter()
-                    .find(|(label, _)| *label == subcmd)
-                {
-                    savings = *pct;
-                }
-                if let Some((_, mapped)) = rule
-                    .subcmd_status
-                    .iter()
-                    .find(|(label, _)| *label == subcmd)
-                {
-                    status = *mapped;
-                }
+                savings = subcmd_savings(rule, &subcmd).unwrap_or(savings);
+                status = subcmd_status(rule, &subcmd).unwrap_or(status);
             }
         }
         return Classification::Supported {
@@ -650,6 +513,21 @@ fn classify_command_list(input: &[String], limit: usize) -> Value {
         }
     }
 
+    fn sort_and_limit(rows: &mut Vec<Value>, limit: usize) {
+        rows.sort_by(|a, b| {
+            let ac = a.get("count").and_then(Value::as_u64).unwrap_or(0);
+            let bc = b.get("count").and_then(Value::as_u64).unwrap_or(0);
+            bc.cmp(&ac)
+        });
+        rows.truncate(limit.max(1));
+    }
+
+    fn sum_row_key(rows: &[Value], key: &str) -> usize {
+        rows.iter()
+            .map(|row| row.get(key).and_then(Value::as_u64).unwrap_or(0) as usize)
+            .sum::<usize>()
+    }
+
     let mut supported_rows = supported
         .into_iter()
         .map(|(key, row)| {
@@ -665,12 +543,7 @@ fn classify_command_list(input: &[String], limit: usize) -> Value {
             })
         })
         .collect::<Vec<_>>();
-    supported_rows.sort_by(|a, b| {
-        let ac = a.get("count").and_then(Value::as_u64).unwrap_or(0);
-        let bc = b.get("count").and_then(Value::as_u64).unwrap_or(0);
-        bc.cmp(&ac)
-    });
-    supported_rows.truncate(limit.max(1));
+    sort_and_limit(&mut supported_rows, limit);
 
     let mut unsupported_rows = unsupported
         .into_iter()
@@ -682,29 +555,11 @@ fn classify_command_list(input: &[String], limit: usize) -> Value {
             })
         })
         .collect::<Vec<_>>();
-    unsupported_rows.sort_by(|a, b| {
-        let ac = a.get("count").and_then(Value::as_u64).unwrap_or(0);
-        let bc = b.get("count").and_then(Value::as_u64).unwrap_or(0);
-        bc.cmp(&ac)
-    });
-    unsupported_rows.truncate(limit.max(1));
+    sort_and_limit(&mut unsupported_rows, limit);
 
-    let supported_count = supported_rows
-        .iter()
-        .map(|row| row.get("count").and_then(Value::as_u64).unwrap_or(0) as usize)
-        .sum::<usize>();
-    let unsupported_count = unsupported_rows
-        .iter()
-        .map(|row| row.get("count").and_then(Value::as_u64).unwrap_or(0) as usize)
-        .sum::<usize>();
-    let total_estimated_savings_tokens = supported_rows
-        .iter()
-        .map(|row| {
-            row.get("estimated_savings_tokens")
-                .and_then(Value::as_u64)
-                .unwrap_or(0) as usize
-        })
-        .sum::<usize>();
+    let supported_count = sum_row_key(&supported_rows, "count");
+    let unsupported_count = sum_row_key(&unsupported_rows, "count");
+    let total_estimated_savings_tokens = sum_row_key(&supported_rows, "estimated_savings_tokens");
 
     // Track unique commands from incoming payload for quick operator visibility.
     for row in input {

@@ -161,6 +161,87 @@ fn load_changed_paths(path: &Path) -> Vec<String> {
         .collect::<Vec<_>>()
 }
 
+fn parse_nonempty_string_array(value: Option<&Value>) -> Option<Vec<String>> {
+    value
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter()
+                .filter_map(Value::as_str)
+                .map(|v| v.trim().replace('\\', "/"))
+                .filter(|v| !v.is_empty())
+                .collect::<Vec<_>>()
+        })
+        .filter(|rows| !rows.is_empty())
+}
+
+fn insert_check(checks: &mut BTreeMap<String, Value>, key: &str, value: Value) {
+    checks.insert(key.to_string(), value);
+}
+
+fn insert_presence_check(checks: &mut BTreeMap<String, Value>, key: &str, value: &str) -> bool {
+    let ok = ref_is_present(value);
+    insert_check(checks, key, json!({ "ok": ok, "value": value }));
+    ok
+}
+
+fn insert_required_ref_check(
+    checks: &mut BTreeMap<String, Value>,
+    key: &str,
+    root: &Path,
+    required: bool,
+    value: &str,
+) -> bool {
+    let ok = !required || ref_exists(root, value);
+    insert_check(
+        checks,
+        key,
+        json!({
+            "ok": ok,
+            "required": required,
+            "value": value
+        }),
+    );
+    ok
+}
+
+fn insert_approver_check(
+    checks: &mut BTreeMap<String, Value>,
+    required_count: usize,
+    approvers: &[String],
+) -> bool {
+    let ok = approvers.len() >= required_count;
+    insert_check(
+        checks,
+        "approver_requirement",
+        json!({
+            "ok": ok,
+            "required_count": required_count,
+            "actual_count": approvers.len(),
+            "approvers": approvers
+        }),
+    );
+    ok
+}
+
+fn insert_approval_receipts_check(
+    checks: &mut BTreeMap<String, Value>,
+    root: &Path,
+    required: bool,
+    receipts: &[String],
+) -> bool {
+    let ok = !required || (!receipts.is_empty() && receipts.iter().all(|receipt| ref_exists(root, receipt)));
+    insert_check(
+        checks,
+        "approval_receipts_requirement",
+        json!({
+            "ok": ok,
+            "required": required,
+            "receipts": receipts
+        }),
+    );
+    ok
+}
+
 fn starts_with_any(path: &str, prefixes: &[String]) -> bool {
     prefixes.iter().any(|prefix| path.starts_with(prefix))
 }
@@ -237,17 +318,7 @@ fn load_policy(root: &Path, policy_override: Option<&String>) -> Policy {
         .and_then(|s| serde_json::from_str::<Value>(&s).ok())
         .unwrap_or_else(|| json!({}));
 
-    let high_risk_path_prefixes = raw
-        .get("high_risk_path_prefixes")
-        .and_then(Value::as_array)
-        .map(|rows| {
-            rows.iter()
-                .filter_map(Value::as_str)
-                .map(|v| v.trim().replace('\\', "/"))
-                .filter(|v| !v.is_empty())
-                .collect::<Vec<_>>()
-        })
-        .filter(|rows| !rows.is_empty())
+    let high_risk_path_prefixes = parse_nonempty_string_array(raw.get("high_risk_path_prefixes"))
         .unwrap_or_else(|| {
             vec![
                 "core/layer0/security/".to_string(),
@@ -258,17 +329,7 @@ fn load_policy(root: &Path, policy_override: Option<&String>) -> Policy {
             ]
         });
 
-    let major_path_prefixes = raw
-        .get("major_path_prefixes")
-        .and_then(Value::as_array)
-        .map(|rows| {
-            rows.iter()
-                .filter_map(Value::as_str)
-                .map(|v| v.trim().replace('\\', "/"))
-                .filter(|v| !v.is_empty())
-                .collect::<Vec<_>>()
-        })
-        .filter(|rows| !rows.is_empty())
+    let major_path_prefixes = parse_nonempty_string_array(raw.get("major_path_prefixes"))
         .unwrap_or_else(|| {
             vec![
                 "core/layer0/ops/".to_string(),
@@ -338,16 +399,19 @@ fn evaluate(root: &Path, policy: &Policy, pr_body_path: &Path, changed_paths_pat
     let declared = RiskClass::parse(&fields.risk_class_raw).unwrap_or(RiskClass::Standard);
 
     let mut checks = BTreeMap::<String, Value>::new();
-    checks.insert(
-        "declared_risk_class_valid".to_string(),
+    let declared_valid = RiskClass::parse(&fields.risk_class_raw).is_some();
+    insert_check(
+        &mut checks,
+        "declared_risk_class_valid",
         json!({
-            "ok": RiskClass::parse(&fields.risk_class_raw).is_some(),
+            "ok": declared_valid,
             "declared": fields.risk_class_raw,
             "allowed": ["standard", "major", "high-risk"]
         }),
     );
-    checks.insert(
-        "declared_not_understated".to_string(),
+    insert_check(
+        &mut checks,
+        "declared_not_understated",
         json!({
             "ok": declared >= inferred,
             "declared": declared.as_str(),
@@ -355,50 +419,33 @@ fn evaluate(root: &Path, policy: &Policy, pr_body_path: &Path, changed_paths_pat
         }),
     );
 
-    let rollback_plan_ok = ref_is_present(&fields.rollback_plan);
-    checks.insert(
-        "rollback_plan_present".to_string(),
-        json!({
-            "ok": rollback_plan_ok,
-            "value": fields.rollback_plan
-        }),
+    let rollback_plan_ok = insert_presence_check(
+        &mut checks,
+        "rollback_plan_present",
+        &fields.rollback_plan,
+    );
+    let rollback_owner_ok = insert_presence_check(
+        &mut checks,
+        "rollback_owner_present",
+        &fields.rollback_owner,
     );
 
-    let rollback_owner_ok = ref_is_present(&fields.rollback_owner);
-    checks.insert(
-        "rollback_owner_present".to_string(),
-        json!({
-            "ok": rollback_owner_ok,
-            "value": fields.rollback_owner
-        }),
+    let require_rfc = declared >= RiskClass::Major && policy.require_rfc_for_major;
+    insert_required_ref_check(
+        &mut checks,
+        "rfc_link_requirement",
+        root,
+        require_rfc,
+        &fields.rfc_link,
     );
 
-    let rfc_ok = if declared >= RiskClass::Major && policy.require_rfc_for_major {
-        ref_exists(root, &fields.rfc_link)
-    } else {
-        true
-    };
-    checks.insert(
-        "rfc_link_requirement".to_string(),
-        json!({
-            "ok": rfc_ok,
-            "required": declared >= RiskClass::Major && policy.require_rfc_for_major,
-            "value": fields.rfc_link
-        }),
-    );
-
-    let adr_ok = if declared == RiskClass::HighRisk && policy.require_adr_for_high_risk {
-        ref_exists(root, &fields.adr_link)
-    } else {
-        true
-    };
-    checks.insert(
-        "adr_link_requirement".to_string(),
-        json!({
-            "ok": adr_ok,
-            "required": declared == RiskClass::HighRisk && policy.require_adr_for_high_risk,
-            "value": fields.adr_link
-        }),
+    let require_adr = declared == RiskClass::HighRisk && policy.require_adr_for_high_risk;
+    insert_required_ref_check(
+        &mut checks,
+        "adr_link_requirement",
+        root,
+        require_adr,
+        &fields.adr_link,
     );
 
     let approver_req = if declared == RiskClass::HighRisk {
@@ -408,49 +455,25 @@ fn evaluate(root: &Path, policy: &Policy, pr_body_path: &Path, changed_paths_pat
     } else {
         0
     };
-    let approvers_ok = fields.approvers.len() >= approver_req;
-    checks.insert(
-        "approver_requirement".to_string(),
-        json!({
-            "ok": approvers_ok,
-            "required_count": approver_req,
-            "actual_count": fields.approvers.len(),
-            "approvers": fields.approvers
-        }),
+    insert_approver_check(&mut checks, approver_req, &fields.approvers);
+
+    let require_approval_receipts =
+        declared >= RiskClass::Major && policy.require_approval_receipts_for_major;
+    let approval_receipts_ok = insert_approval_receipts_check(
+        &mut checks,
+        root,
+        require_approval_receipts,
+        &fields.approval_receipts,
     );
 
-    let approval_receipts_ok =
-        if declared >= RiskClass::Major && policy.require_approval_receipts_for_major {
-            !fields.approval_receipts.is_empty()
-                && fields
-                    .approval_receipts
-                    .iter()
-                    .all(|receipt| ref_exists(root, receipt))
-        } else {
-            true
-        };
-    checks.insert(
-        "approval_receipts_requirement".to_string(),
-        json!({
-            "ok": approval_receipts_ok,
-            "required": declared >= RiskClass::Major && policy.require_approval_receipts_for_major,
-            "receipts": fields.approval_receipts
-        }),
-    );
-
-    let rollback_drill_ok =
-        if declared == RiskClass::HighRisk && policy.require_rollback_drill_for_high_risk {
-            ref_exists(root, &fields.rollback_drill_receipt)
-        } else {
-            true
-        };
-    checks.insert(
-        "rollback_drill_requirement".to_string(),
-        json!({
-            "ok": rollback_drill_ok,
-            "required": declared == RiskClass::HighRisk && policy.require_rollback_drill_for_high_risk,
-            "value": fields.rollback_drill_receipt
-        }),
+    let require_rollback_drill =
+        declared == RiskClass::HighRisk && policy.require_rollback_drill_for_high_risk;
+    let rollback_drill_ok = insert_required_ref_check(
+        &mut checks,
+        "rollback_drill_requirement",
+        root,
+        require_rollback_drill,
+        &fields.rollback_drill_receipt,
     );
 
     let blocking_checks = checks
@@ -629,120 +652,4 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use tempfile::tempdir;
-
-    fn write_text(path: &Path, text: &str) {
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).expect("create parent");
-        }
-        fs::write(path, text).expect("write text");
-    }
-
-    fn write_policy(root: &Path) {
-        write_text(
-            &root.join("client/runtime/config/sdlc_change_control_policy.json"),
-            &json!({
-                "strict_default": true,
-                "required_approvers_major": 1,
-                "required_approvers_high_risk": 2,
-                "require_rfc_for_major": true,
-                "require_adr_for_high_risk": true,
-                "require_rollback_drill_for_high_risk": true,
-                "require_approval_receipts_for_major": true,
-                "high_risk_path_prefixes": ["core/layer0/security/", "client/runtime/systems/security/"],
-                "major_path_prefixes": ["core/layer0/ops/", "client/runtime/systems/ops/"],
-                "outputs": {
-                    "latest_path": "local/state/ops/sdlc_change_control/latest.json",
-                    "history_path": "local/state/ops/sdlc_change_control/history.jsonl"
-                }
-            }).to_string(),
-        );
-    }
-
-    #[test]
-    fn high_risk_change_requires_full_approval_bundle() {
-        let temp = tempdir().expect("tempdir");
-        let root = temp.path();
-        write_policy(root);
-
-        write_text(
-            &root.join("local/state/ops/sdlc_change_control/pr_body.md"),
-            "- Risk class: high-risk\n- Rollback plan: revert and freeze\n- Rollback owner: ops-oncall\n- Approvers: alice\n- Approval receipts: docs/client/approvals/one.md\n- Rollback drill receipt: docs/client/drills/rollback.json\n",
-        );
-        write_text(
-            &root.join("local/state/ops/sdlc_change_control/changed_paths.txt"),
-            "core/layer0/security/src/lib.rs\n",
-        );
-
-        write_text(&root.join("docs/client/approvals/one.md"), "ok");
-        write_text(&root.join("docs/client/drills/rollback.json"), "{}");
-
-        let code = run(
-            root,
-            &[
-                "run".to_string(),
-                "--strict=1".to_string(),
-                "--pr-body-path=local/state/ops/sdlc_change_control/pr_body.md".to_string(),
-                "--changed-paths-path=local/state/ops/sdlc_change_control/changed_paths.txt"
-                    .to_string(),
-            ],
-        );
-        assert_eq!(code, 1);
-
-        let latest =
-            fs::read_to_string(root.join("local/state/ops/sdlc_change_control/latest.json"))
-                .unwrap();
-        let payload: Value = serde_json::from_str(&latest).unwrap();
-        assert_eq!(payload.get("ok").and_then(Value::as_bool), Some(false));
-        assert!(payload
-            .get("blocking_checks")
-            .and_then(Value::as_array)
-            .map(|rows| rows
-                .iter()
-                .any(|v| v.as_str() == Some("adr_link_requirement")))
-            .unwrap_or(false));
-    }
-
-    #[test]
-    fn major_change_passes_with_rfc_and_single_approver() {
-        let temp = tempdir().expect("tempdir");
-        let root = temp.path();
-        write_policy(root);
-
-        write_text(&root.join("docs/client/rfc/RFC-1.md"), "rfc");
-        write_text(&root.join("docs/client/approvals/approve-1.md"), "receipt");
-
-        write_text(
-            &root.join("local/state/ops/sdlc_change_control/pr_body.md"),
-            "- Risk class: major\n- RFC link: docs/client/rfc/RFC-1.md\n- Rollback plan: git revert\n- Rollback owner: platform\n- Approvers: alice\n- Approval receipts: docs/client/approvals/approve-1.md\n",
-        );
-        write_text(
-            &root.join("local/state/ops/sdlc_change_control/changed_paths.txt"),
-            "core/layer0/ops/src/main.rs\n",
-        );
-
-        let code = run(
-            root,
-            &[
-                "run".to_string(),
-                "--strict=1".to_string(),
-                "--pr-body-path=local/state/ops/sdlc_change_control/pr_body.md".to_string(),
-                "--changed-paths-path=local/state/ops/sdlc_change_control/changed_paths.txt"
-                    .to_string(),
-            ],
-        );
-        assert_eq!(code, 0);
-
-        let latest =
-            fs::read_to_string(root.join("local/state/ops/sdlc_change_control/latest.json"))
-                .unwrap();
-        let payload: Value = serde_json::from_str(&latest).unwrap();
-        assert_eq!(payload.get("ok").and_then(Value::as_bool), Some(true));
-        assert_eq!(
-            payload.get("declared_risk_class").and_then(Value::as_str),
-            Some("major")
-        );
-    }
-}
+include!("sdlc_change_control_parts/020-tests.rs");
