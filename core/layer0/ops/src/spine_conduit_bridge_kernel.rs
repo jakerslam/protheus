@@ -18,6 +18,17 @@ fn usage() {
     println!("  protheus-ops spine-conduit-bridge-kernel normalize-spine-args -- <args...>");
 }
 
+fn is_yyyy_mm_dd(raw: &str) -> bool {
+    raw.len() == 10
+        && raw.chars().enumerate().all(|(idx, ch)| {
+            if idx == 4 || idx == 7 {
+                ch == '-'
+            } else {
+                ch.is_ascii_digit()
+            }
+        })
+}
+
 fn normalize_spine_args(args: &[String]) -> Vec<String> {
     let rows = args
         .iter()
@@ -40,20 +51,17 @@ fn normalize_spine_args(args: &[String]) -> Vec<String> {
     };
     let mut normalized = vec![mode.to_string()];
     let date_token = rows.get(2).map(String::as_str).unwrap_or("").trim();
-    let has_date = date_token.len() == 10
-        && date_token.chars().enumerate().all(|(idx, ch)| {
-            if idx == 4 || idx == 7 {
-                ch == '-'
-            } else {
-                ch.is_ascii_digit()
-            }
-        });
+    let has_date = is_yyyy_mm_dd(date_token);
     let rest_start = if has_date { 3usize } else { 2usize };
     if has_date {
         normalized.push(date_token.to_string());
     }
     normalized.extend(rows.into_iter().skip(rest_start));
     normalized
+}
+
+fn consumes_bridge_flag_value(token: &str) -> bool {
+    matches!(token, "--domain" | "--normalize-spine")
 }
 
 fn collect_passthrough(args: &[String]) -> Vec<String> {
@@ -79,7 +87,7 @@ fn collect_passthrough(args: &[String]) -> Vec<String> {
             i += 1;
             continue;
         }
-        if token == "--domain" || token == "--normalize-spine" {
+        if consumes_bridge_flag_value(token) {
             if let Some(next) = args.get(i + 1) {
                 if !next.trim_start().starts_with("--") {
                     i += 2;

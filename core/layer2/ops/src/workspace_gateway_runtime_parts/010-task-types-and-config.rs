@@ -171,16 +171,15 @@ fn parse_non_empty(flags: &BTreeMap<String, String>, key: &str) -> Option<String
     })
 }
 
+fn parse_bool_like(raw: &str) -> bool {
+    matches!(
+        raw.trim().to_ascii_lowercase().as_str(),
+        "1" | "true" | "yes" | "on"
+    )
+}
+
 fn parse_bool_flag(flags: &BTreeMap<String, String>, key: &str, fallback: bool) -> bool {
-    flags
-        .get(key)
-        .map(|raw| {
-            matches!(
-                raw.trim().to_ascii_lowercase().as_str(),
-                "1" | "true" | "yes" | "on"
-            )
-        })
-        .unwrap_or(fallback)
+    flags.get(key).map(|raw| parse_bool_like(raw)).unwrap_or(fallback)
 }
 
 fn clean_id(raw: &str) -> String {
@@ -193,12 +192,20 @@ fn clean_id(raw: &str) -> String {
     out
 }
 
-fn task_state_root(root: &Path) -> PathBuf {
-    if let Ok(override_root) = std::env::var(TASK_STATE_ROOT_ENV) {
-        let trimmed = override_root.trim();
-        if !trimmed.is_empty() {
-            return PathBuf::from(trimmed);
+fn env_non_empty(key: &str) -> Option<String> {
+    std::env::var(key).ok().and_then(|value| {
+        let trimmed = value.trim();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed.to_string())
         }
+    })
+}
+
+fn task_state_root(root: &Path) -> PathBuf {
+    if let Some(override_root) = env_non_empty(TASK_STATE_ROOT_ENV) {
+        return PathBuf::from(override_root);
     }
     root.join("local")
         .join("state")
