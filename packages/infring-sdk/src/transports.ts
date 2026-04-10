@@ -59,6 +59,23 @@ function asStringArray(value: unknown): string[] {
     .filter((row) => row.length > 0);
 }
 
+function releaseChannel(env: NodeJS.ProcessEnv = process.env): string {
+  const raw =
+    String(env.INFRING_RELEASE_CHANNEL || env.PROTHEUS_RELEASE_CHANNEL || '').trim().toLowerCase();
+  return raw || 'stable';
+}
+
+function isProductionReleaseChannel(channel: string): boolean {
+  const normalized = String(channel || '').trim().toLowerCase();
+  return (
+    normalized === 'stable' ||
+    normalized === 'production' ||
+    normalized === 'prod' ||
+    normalized === 'ga' ||
+    normalized === 'release'
+  );
+}
+
 export interface CliTransportOptions {
   command: string;
   cwd?: string;
@@ -160,9 +177,15 @@ export function createCliTransport(options: CliTransportOptions): InfringTranspo
   const allowSyntheticFallback =
     options.allow_synthetic_fallback === true &&
     String(process.env.INFRING_SDK_ALLOW_SYNTHETIC_FALLBACK || '').trim() === '1';
-  const allowProcessTransport =
+  const processTransportRequested =
     options.allow_process_transport === true ||
     String(process.env.INFRING_SDK_ALLOW_PROCESS_TRANSPORT || '').trim() === '1';
+  const activeReleaseChannel = releaseChannel({
+    ...process.env,
+    ...(options.env || {}),
+  });
+  const productionRelease = isProductionReleaseChannel(activeReleaseChannel);
+  const allowProcessTransport = processTransportRequested && !productionRelease;
   return {
     async invoke<TData extends JsonValue = JsonValue>(
       request: InfringTransportRequest
@@ -175,9 +198,12 @@ export function createCliTransport(options: CliTransportOptions): InfringTranspo
           receipts: [],
           data: {} as TData,
           error: {
-            code: 'resident_transport_required',
-            message:
-              'CLI process transport is disabled by default; route through resident IPC transport or set INFRING_SDK_ALLOW_PROCESS_TRANSPORT=1 for emergency fallback.',
+            code: productionRelease
+              ? 'process_transport_forbidden_in_production'
+              : 'resident_transport_required',
+            message: productionRelease
+              ? `CLI process transport is forbidden for release channel '${activeReleaseChannel}'; route through resident IPC transport.`
+              : 'CLI process transport is disabled by default; route through resident IPC transport or set INFRING_SDK_ALLOW_PROCESS_TRANSPORT=1 for emergency fallback.',
           },
         };
       }

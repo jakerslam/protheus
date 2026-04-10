@@ -1,0 +1,280 @@
+#!/usr/bin/env node
+/* eslint-disable no-console */
+import fs from 'node:fs';
+import path from 'node:path';
+
+type Args = {
+  strict: boolean;
+  out: string;
+};
+
+type Violation = {
+  file: string;
+  reason: string;
+  detail: string;
+};
+
+const ROOT = process.cwd();
+
+function parseArgs(argv: string[]): Args {
+  const args: Args = {
+    strict: false,
+    out: 'core/local/artifacts/transport_convergence_guard_current.json',
+  };
+  for (const token of argv) {
+    if (token === '--strict') args.strict = true;
+    else if (token.startsWith('--strict=')) {
+      const value = token.slice('--strict='.length).toLowerCase();
+      args.strict = value === '1' || value === 'true' || value === 'yes' || value === 'on';
+    } else if (token.startsWith('--out=')) {
+      args.out = token.slice('--out='.length);
+    }
+  }
+  return args;
+}
+
+function rel(filePath: string): string {
+  return path.relative(ROOT, filePath).replace(/\\/g, '/');
+}
+
+function walk(base: string, exts: Set<string>): string[] {
+  if (!fs.existsSync(base)) return [];
+  const out: string[] = [];
+  const stack = [base];
+  while (stack.length > 0) {
+    const current = stack.pop() as string;
+    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+      const abs = path.join(current, entry.name);
+      const rp = rel(abs);
+      if (rp.includes('/node_modules/') || rp.includes('/dist/') || rp.includes('/target/')) {
+        continue;
+      }
+      if (entry.isDirectory()) {
+        stack.push(abs);
+      } else if (entry.isFile() && exts.has(path.extname(entry.name))) {
+        out.push(abs);
+      }
+    }
+  }
+  return out.sort();
+}
+
+function countToken(source: string, token: string): number {
+  if (!source) return 0;
+  return source.split(token).length - 1;
+}
+
+function run(args: Args): number {
+  const violations: Violation[] = [];
+
+  const adaptersRuntimeFiles = walk(path.join(ROOT, 'adapters', 'runtime'), new Set(['.ts', '.tsx']));
+  const orchestrationScriptFiles = walk(
+    path.join(ROOT, 'surface', 'orchestration', 'scripts'),
+    new Set(['.ts', '.tsx'])
+  );
+  const sdkTransportFiles = walk(path.join(ROOT, 'packages', 'infring-sdk', 'src'), new Set(['.ts', '.tsx']));
+
+  const allowedSpawnSyncByFile = new Map<string, number>([
+    ['adapters/runtime/ops_lane_bridge.ts', 1],
+    ['adapters/runtime/run_protheus_ops.ts', 1],
+  ]);
+
+  for (const file of adaptersRuntimeFiles) {
+    const source = fs.readFileSync(file, 'utf8');
+    const relPath = rel(file);
+    const spawnSyncCount = countToken(source, 'spawnSync(');
+    const allowed = allowedSpawnSyncByFile.get(relPath);
+    if (typeof allowed === 'number') {
+      if (spawnSyncCount > allowed) {
+        violations.push({
+          file: relPath,
+          reason: 'spawn_sync_budget_exceeded',
+          detail: `spawnSync count ${spawnSyncCount} > allowed ${allowed}`,
+        });
+      }
+      continue;
+    }
+    if (spawnSyncCount > 0) {
+      violations.push({
+        file: relPath,
+        reason: 'spawn_sync_outside_adapter_allowlist_forbidden',
+        detail: `spawnSync count ${spawnSyncCount}`,
+      });
+    }
+  }
+
+  for (const file of orchestrationScriptFiles) {
+    const source = fs.readFileSync(file, 'utf8');
+    const relPath = rel(file);
+    const spawnSyncCount = countToken(source, 'spawnSync(');
+    const spawnCount = countToken(source, 'spawn(');
+    if (spawnSyncCount > 0) {
+      violations.push({
+        file: relPath,
+        reason: 'orchestration_scripts_spawn_sync_forbidden',
+        detail: `spawnSync count ${spawnSyncCount}`,
+      });
+    }
+    if (spawnCount > 0) {
+      violations.push({
+        file: relPath,
+        reason: 'orchestration_scripts_direct_spawn_forbidden',
+        detail: `spawn count ${spawnCount}`,
+      });
+    }
+  }
+
+  for (const file of sdkTransportFiles) {
+    const source = fs.readFileSync(file, 'utf8');
+    const relPath = rel(file);
+    const spawnSyncCount = countToken(source, 'spawnSync(');
+    if (spawnSyncCount > 0) {
+      violations.push({
+        file: relPath,
+        reason: 'sdk_spawn_sync_forbidden',
+        detail: `spawnSync count ${spawnSyncCount}`,
+      });
+    }
+  }
+
+  const opsLaneBridgePath = path.join(ROOT, 'adapters', 'runtime', 'ops_lane_bridge.ts');
+  if (fs.existsSync(opsLaneBridgePath)) {
+    const source = fs.readFileSync(opsLaneBridgePath, 'utf8');
+    if (!source.includes('ipcBridgeEnabled()')) {
+      violations.push({
+        file: rel(opsLaneBridgePath),
+        reason: 'ops_lane_bridge_ipc_guard_missing',
+        detail: 'expected ipcBridgeEnabled() transport gate',
+      });
+    }
+    if (!source.includes('processFallbackEnabled()')) {
+      violations.push({
+        file: rel(opsLaneBridgePath),
+        reason: 'ops_lane_bridge_process_fallback_gate_missing',
+        detail: 'expected processFallbackEnabled() fallback gate',
+      });
+    }
+  }
+
+  const runProtheusOpsPath = path.join(ROOT, 'adapters', 'runtime', 'run_protheus_ops.ts');
+  if (fs.existsSync(runProtheusOpsPath)) {
+    const source = fs.readFileSync(runProtheusOpsPath, 'utf8');
+    if (!source.includes('createOpsLaneBridge')) {
+      violations.push({
+        file: rel(runProtheusOpsPath),
+        reason: 'run_protheus_ops_bridge_first_contract_missing',
+        detail: 'expected createOpsLaneBridge import/use for resident-first transport',
+      });
+    }
+    if (!source.includes('preferLocalCore: true')) {
+      violations.push({
+        file: rel(runProtheusOpsPath),
+        reason: 'run_protheus_ops_prefer_local_core_missing',
+        detail: 'expected preferLocalCore: true for bridge-first path',
+      });
+    }
+    if (!source.includes('INFRING_OPS_FORCE_LEGACY_PROCESS_RUNNER')) {
+      violations.push({
+        file: rel(runProtheusOpsPath),
+        reason: 'run_protheus_ops_legacy_escape_hatch_missing',
+        detail: 'expected explicit legacy process runner override env',
+      });
+    }
+    if (!source.includes('isProductionReleaseChannel')) {
+      violations.push({
+        file: rel(runProtheusOpsPath),
+        reason: 'run_protheus_ops_production_channel_guard_missing',
+        detail: 'expected release-channel lock for legacy process runner overrides',
+      });
+    }
+  }
+
+  const sdkTransportPath = path.join(ROOT, 'packages', 'infring-sdk', 'src', 'transports.ts');
+  if (fs.existsSync(sdkTransportPath)) {
+    const source = fs.readFileSync(sdkTransportPath, 'utf8');
+    if (!source.includes('process_transport_forbidden_in_production')) {
+      violations.push({
+        file: rel(sdkTransportPath),
+        reason: 'sdk_production_transport_lock_missing',
+        detail: 'expected production release lockout for process transport',
+      });
+    }
+    if (!source.includes('isProductionReleaseChannel')) {
+      violations.push({
+        file: rel(sdkTransportPath),
+        reason: 'sdk_release_channel_guard_missing',
+        detail: 'expected release-channel policy check in sdk transport',
+      });
+    }
+  }
+
+  if (fs.existsSync(opsLaneBridgePath)) {
+    const source = fs.readFileSync(opsLaneBridgePath, 'utf8');
+    if (!source.includes('process_fallback_forbidden_in_production')) {
+      violations.push({
+        file: rel(opsLaneBridgePath),
+        reason: 'ops_lane_bridge_production_fallback_lock_missing',
+        detail: 'expected production lockout marker for process fallback',
+      });
+    }
+    if (!source.includes('processFallbackPolicy')) {
+      violations.push({
+        file: rel(opsLaneBridgePath),
+        reason: 'ops_lane_bridge_fallback_policy_helper_missing',
+        detail: 'expected centralized process fallback policy helper',
+      });
+    }
+  }
+
+  const topologyStatusPath = path.join(ROOT, 'client', 'runtime', 'systems', 'ops', 'transport_topology_status.ts');
+  if (!fs.existsSync(topologyStatusPath)) {
+    violations.push({
+      file: 'client/runtime/systems/ops/transport_topology_status.ts',
+      reason: 'transport_topology_status_missing',
+      detail: 'expected runtime topology self-check entrypoint',
+    });
+  } else {
+    const source = fs.readFileSync(topologyStatusPath, 'utf8');
+    if (!source.includes('resident_ipc_authoritative')) {
+      violations.push({
+        file: rel(topologyStatusPath),
+        reason: 'transport_topology_mode_marker_missing',
+        detail: 'expected resident IPC topology mode marker',
+      });
+    }
+    if (!source.includes('process_fallback_effective')) {
+      violations.push({
+        file: rel(topologyStatusPath),
+        reason: 'transport_topology_effective_fallback_signal_missing',
+        detail: 'expected explicit effective fallback signal in topology report',
+      });
+    }
+  }
+
+  const report = {
+    type: 'transport_convergence_guard',
+    generated_at: new Date().toISOString(),
+    strict: args.strict,
+    summary: {
+      violation_count: violations.length,
+      pass: violations.length === 0,
+      scanned: {
+        adapters_runtime_files: adaptersRuntimeFiles.length,
+        orchestration_script_files: orchestrationScriptFiles.length,
+        sdk_transport_files: sdkTransportFiles.length,
+      },
+    },
+    violations,
+  };
+
+  const outPath = path.resolve(ROOT, args.out);
+  fs.mkdirSync(path.dirname(outPath), { recursive: true });
+  fs.writeFileSync(outPath, JSON.stringify(report, null, 2));
+  console.log(JSON.stringify(report, null, 2));
+
+  if (args.strict && violations.length > 0) return 1;
+  return 0;
+}
+
+const code = run(parseArgs(process.argv.slice(2)));
+process.exit(code);
