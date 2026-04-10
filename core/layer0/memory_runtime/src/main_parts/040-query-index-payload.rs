@@ -67,7 +67,6 @@ fn query_index_payload(args: &HashMap<String, String>) -> QueryResult {
     let top = budget_decision.effective_top;
     let expand_lines = budget_decision.effective_expand_lines;
     let max_files = budget_decision.effective_max_files;
-
     let runtime_index = load_runtime_index(&root, args);
     let newest_index_mtime = newest_runtime_index_mtime_ms(&root, &runtime_index);
     let estimated_hydration_tokens = estimate_hydration_tokens(&runtime_index);
@@ -108,7 +107,6 @@ fn query_index_payload(args: &HashMap<String, String>) -> QueryResult {
             None,
         );
     }
-
     let allow_stale = parse_bool_arg(&arg_any(args, &["allow-stale", "allow_stale"]), false);
     let max_index_age_ms = parse_u64_clamped(
         &arg_any(args, &["max-index-age-ms", "max_index_age_ms"]),
@@ -155,7 +153,6 @@ fn query_index_payload(args: &HashMap<String, String>) -> QueryResult {
             None,
         );
     }
-
     let bootstrap = parse_bool_arg(&arg_any(args, &["bootstrap"]), false);
     let hydrate_mode = arg_any(args, &["hydrate-mode", "hydrate_mode", "hydrate"]);
     let lazy_hydration = if hydrate_mode.trim().is_empty() {
@@ -224,14 +221,12 @@ fn query_index_payload(args: &HashMap<String, String>) -> QueryResult {
             None,
         );
     }
-
     let vector_enabled = score_mode != "lexical";
     let query_vector = if vector_enabled {
         vectorize_text(&format!("{} {}", q, tag_filters.join(" ")), 64)
     } else {
         vec![]
     };
-
     let mut tag_node_ids: HashSet<String> = HashSet::new();
     for tag in &tag_filters {
         if let Some(ids) = tag_map.get(tag) {
@@ -240,7 +235,6 @@ fn query_index_payload(args: &HashMap<String, String>) -> QueryResult {
             }
         }
     }
-
     let mut candidates = entries.clone();
     if !tag_filters.is_empty() && !tag_node_ids.is_empty() {
         candidates = candidates
@@ -248,7 +242,6 @@ fn query_index_payload(args: &HashMap<String, String>) -> QueryResult {
             .filter(|entry| tag_node_ids.contains(&entry.node_id))
             .collect::<Vec<IndexEntry>>();
     }
-
     let query_tokens = tokenize(&q);
     let mut scored = candidates
         .iter()
@@ -282,7 +275,6 @@ fn query_index_payload(args: &HashMap<String, String>) -> QueryResult {
             (entry, fused_score, reasons)
         })
         .collect::<Vec<(&IndexEntry, i64, Vec<String>)>>();
-
     scored.sort_by(|a, b| {
         if b.1 != a.1 {
             return b.1.cmp(&a.1);
@@ -292,7 +284,6 @@ fn query_index_payload(args: &HashMap<String, String>) -> QueryResult {
         }
         a.0.node_id.cmp(&b.0.node_id)
     });
-
     let mut hits = scored
         .into_iter()
         .take(top)
@@ -311,7 +302,6 @@ fn query_index_payload(args: &HashMap<String, String>) -> QueryResult {
             expand_error: None,
         })
         .collect::<Vec<QueryHit>>();
-
     if expand_lines > 0 {
         let mut file_order = hits
             .iter()
@@ -323,7 +313,6 @@ fn query_index_payload(args: &HashMap<String, String>) -> QueryResult {
             .take(max_files)
             .collect::<HashSet<String>>();
         let mut file_cache: HashMap<String, String> = HashMap::new();
-
         for hit in hits.iter_mut() {
             if !allowed_files.contains(&hit.file) {
                 hit.expand_blocked = Some("file_budget".to_string());
@@ -366,11 +355,9 @@ fn query_index_payload(args: &HashMap<String, String>) -> QueryResult {
             }
         }
     }
-
     if let Some(ref mut cache_ref) = cache {
         save_working_set_cache(&cache_path, cache_ref, cache_max_bytes);
     }
-
     let startup_tokens = parse_u32_clamped(
         &arg_any(args, &["startup-token-estimate", "startup_tokens"]),
         0,
@@ -462,7 +449,6 @@ fn query_index_payload(args: &HashMap<String, String>) -> QueryResult {
             Some(burn_payload),
         );
     }
-
     QueryResult {
         ok: true,
         backend: "protheus_memory_core".to_string(),

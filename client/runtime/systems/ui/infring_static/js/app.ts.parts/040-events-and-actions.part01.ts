@@ -10,7 +10,6 @@
       this.navigate('chat');
       this.closeAgentChatsSidebar();
     },
-
     sidebarAgentSortTs(agent) {
       if (!agent) return 0;
       var store = this.getAppStore();
@@ -22,7 +21,6 @@
       if (agent.created_at) return Number(new Date(agent.created_at).getTime()) || 0;
       return 0;
     },
-
     chatSidebarTopologyKey(agent) {
       if (!agent || !agent.id) return 'z|~~~~|';
       var treeKind = String(agent.git_tree_kind || '').trim().toLowerCase();
@@ -44,7 +42,6 @@
       var branchKey = branch || String(agent.parent_agent_id || '').trim().toLowerCase() || String(agent.id || '').trim().toLowerCase();
       return (root ? '0' : '1') + '|' + depthKey + '|' + branchKey;
     },
-
     chatSidebarSortComparator(a, b) {
       var mode = String(this.chatSidebarSortMode || '').toLowerCase();
       if (mode === 'topology') {
@@ -61,7 +58,6 @@
       if (aName > bName) return 1;
       return 0;
     },
-
     syncChatSidebarTopologyOrderFromAgents() {
       var self = this;
       var archivedSet = new Set((this.archivedAgentIds || []).map(function(id) { return String(id || ''); }));
@@ -95,7 +91,6 @@
         this.persistChatSidebarTopologyOrder();
       }
     },
-
     setChatSidebarSortMode(mode) {
       var normalized = String(mode || '').trim().toLowerCase() === 'topology' ? 'topology' : 'age';
       this.chatSidebarSortMode = normalized;
@@ -109,7 +104,6 @@
       } catch(_) {}
       this.scheduleSidebarScrollIndicators();
     },
-
     chatSidebarPreview(agent) {
       if (!agent) return { text: 'No messages yet', ts: 0, role: 'agent', has_tools: false, tool_state: '', tool_label: '', unread_response: false };
       if (agent._timed_out_local === true || agent.revive_recommended === true) {
@@ -158,7 +152,6 @@
       if (!preview || !preview.text) return { text: fallbackText, ts: this.sidebarAgentSortTs(agent), role: 'agent', has_tools: false, tool_state: '', tool_label: '', unread_response: false };
       return preview;
     },
-
     sidebarDisplayEmoji(agent) {
       if (!agent) return '';
       var isSystem = this.isSystemSidebarThread && this.isSystemSidebarThread(agent);
@@ -167,7 +160,6 @@
       if (this.isReservedSystemEmoji && this.isReservedSystemEmoji(emoji)) return '';
       return emoji;
     },
-
     persistArchivedAgentIds() {
       var seen = {};
       var out = [];
@@ -182,7 +174,6 @@
         localStorage.setItem('infring-archived-agent-ids', JSON.stringify(out));
       } catch(_) {}
     },
-
     reconcileArchivedAgentIdsWithLiveAgents() {
       var activeLiveSet = new Set((this.agents || []).map(function(agent) {
         if (!agent || !agent.id) return '';
@@ -201,7 +192,6 @@
         this.persistArchivedAgentIds();
       }
     },
-
     mostRecentModelFromUsageCache() {
       try {
         var raw = localStorage.getItem('of-chat-model-usage-v1');
@@ -225,7 +215,6 @@
         return '';
       }
     },
-
     async archiveAgentFromSidebar(agent) {
       if (!agent || !agent.id) return;
       var agentId = String(agent.id);
@@ -265,7 +254,6 @@
       }
       this.scheduleSidebarScrollIndicators();
     },
-
     async createSidebarAgentChat() {
       if (this.sidebarSpawningAgent) return;
       this.confirmArchiveAgentId = '';
@@ -296,7 +284,6 @@
         };
         var store = this.getAppStore();
         if (!store || typeof store.refreshAgents !== 'function') throw new Error('app_store_unavailable');
-
         this.archivedAgentIds = (this.archivedAgentIds || []).filter(function(id) { return String(id) !== createdId; });
         this.persistArchivedAgentIds();
         this.syncChatSidebarTopologyOrderFromAgents();
@@ -308,7 +295,6 @@
         this.closeAgentChatsSidebar();
         InfringToast.success('Agent draft created. Complete initialization to launch.');
         this.scheduleSidebarScrollIndicators();
-
         var preferredModel = this.mostRecentModelFromUsageCache();
         (async function() {
           if (preferredModel) {
@@ -327,7 +313,6 @@
       }
       this.sidebarSpawningAgent = false;
     },
-
     selectAgentChatFromSidebar(agent) {
       if (!agent || !agent.id) return;
       if (typeof this.hideCollapsedAgentHover === 'function') this.hideCollapsedAgentHover();
@@ -368,7 +353,6 @@
         }
       }
     },
-
     formatChatSidebarTime(ts) {
       if (!ts) return '';
       var d = new Date(ts);
@@ -381,7 +365,6 @@
       if (isYesterday) return 'Yesterday';
       return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
     },
-
     agentAutoTerminateEnabled(agent) {
       if (!agent || typeof agent !== 'object') return false;
       var contract = (agent.contract && typeof agent.contract === 'object') ? agent.contract : null;
@@ -408,7 +391,6 @@
       if (contract && contract.idle_terminate_allowed === false && contract.auto_terminate_allowed === false) return false;
       return true;
     },
-
     agentContractRemainingMs(agent) {
       // Force recompute every second for live countdown updates.
       var _tick = Number(this.clockTick || 0);
@@ -439,7 +421,6 @@
       if (!Number.isFinite(expiryTs) || expiryTs <= 0) return null;
       return Math.max(0, expiryTs - Date.now());
     },
-
     agentContractExpiryMs(agent) {
       if (!agent || typeof agent !== 'object') return 0;
       var contract = (agent.contract && typeof agent.contract === 'object') ? agent.contract : null;
@@ -453,7 +434,6 @@
       if (!Number.isFinite(expiryTs) || expiryTs <= 0) return 0;
       return expiryTs;
     },
-
     agentContractHasFiniteExpiry(agent) {
       if (!agent || typeof agent !== 'object') return false;
       var contract = (agent.contract && typeof agent.contract === 'object') ? agent.contract : null;
@@ -465,18 +445,15 @@
       }
       return this.agentContractExpiryMs(agent) > 0;
     },
-
     agentContractTerminationGraceMs() {
       return 10000;
     },
-
     agentContractOverdueMs(agent) {
       if (!this.agentAutoTerminateEnabled(agent)) return null;
       var expiryTs = this.agentContractExpiryMs(agent);
       if (!expiryTs) return null;
       return Math.max(0, Date.now() - expiryTs);
     },
-
     isAgentPendingTermination(agent) {
       if (!this.agentAutoTerminateEnabled(agent)) return false;
       if (!this.agentContractHasFiniteExpiry(agent)) return false;
@@ -486,14 +463,12 @@
       if (overdueMs == null) return false;
       return overdueMs < this.agentContractTerminationGraceMs();
     },
-
     shouldShowInfinityLifespan(agent) {
       if (!agent || typeof agent !== 'object') return false;
       if (agent._timed_out_local === true) return false;
       if (!this.agentAutoTerminateEnabled(agent)) return true;
       return !this.agentContractHasFiniteExpiry(agent);
     },
-
     shouldShowExpiryCountdown(agent) {
       if (agent && agent._timed_out_local === true) return true;
       if (!this.agentAutoTerminateEnabled(agent)) return false;
@@ -503,7 +478,6 @@
       if (remainingMs <= 0) return this.isAgentPendingTermination(agent);
       return true;
     },
-
     expiryCountdownLabel(agent) {
       if (agent && agent._timed_out_local === true) return 'timed out';
       var remainingMs = this.agentContractRemainingMs(agent);

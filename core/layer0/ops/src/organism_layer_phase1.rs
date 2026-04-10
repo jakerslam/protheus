@@ -1,5 +1,4 @@
 use super::*;
-
 pub(super) fn command_status(root: &Path) -> i32 {
     let mut state = load_state(root);
     let obj = state_obj_mut(&mut state);
@@ -23,7 +22,6 @@ pub(super) fn command_status(root: &Path) -> i32 {
         }),
     )
 }
-
 pub(super) fn command_ignite(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
     let apply = parse_bool(parsed.flags.get("apply"), true);
     let allowed = gate(root, "organism:ignite");
@@ -52,7 +50,6 @@ pub(super) fn command_ignite(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
             drift
         )
     });
-
     let treasury = network
         .get("balances")
         .and_then(Value::as_object)
@@ -69,7 +66,6 @@ pub(super) fn command_ignite(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
     } else {
         "maintain"
     };
-
     let persona = clean(
         parsed
             .flags
@@ -112,12 +108,10 @@ pub(super) fn command_ignite(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
             )
         });
     personality["signature"] = Value::String(crystal_sig.clone());
-
     let nodes = parse_f64(parsed.flags.get("nodes"), 7.0).max(1.0) as u64;
     let memory_share_rate = parse_f64(parsed.flags.get("memory-share"), 0.58).clamp(0.0, 1.0);
     let symbiosis_coherence =
         ((memory_share_rate * 0.8) + ((nodes as f64).ln() / 10.0)).clamp(0.0, 1.0);
-
     let pain = (drift * 0.8).clamp(0.0, 1.0);
     let pleasure = ((1.0 - drift) * 0.7).clamp(0.0, 1.0);
     let sensory_adjustment = if pain > pleasure {
@@ -127,13 +121,11 @@ pub(super) fn command_ignite(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
     } else {
         "maintain"
     };
-
     let narrative = json!({
         "ts": now_iso(),
         "summary": format!("Ignition complete: organism coherence now {:.1}%.", coherence * 100.0),
         "coherence": coherence
     });
-
     {
         let obj = state_obj_mut(&mut state);
         obj.insert("active".to_string(), Value::Bool(apply && allowed));
@@ -333,7 +325,6 @@ pub(super) fn command_ignite(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
         }),
     )
 }
-
 pub(super) fn command_dream(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
     let idle_hours = parse_f64(parsed.flags.get("idle-hours"), 6.0).max(0.0);
     let experiments = parse_f64(parsed.flags.get("experiments"), 3.0).max(1.0) as u64;
@@ -357,7 +348,6 @@ pub(super) fn command_dream(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
         "drift_score": drift,
         "insight": insight
     });
-
     let mut evolve_exit = 0i32;
     if apply && allowed {
         let _ = append_jsonl(&dream_log_path(root), &dream_entry);
@@ -381,7 +371,6 @@ pub(super) fn command_dream(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
         }
         let _ = store_state(root, &state);
     }
-
     emit(
         root,
         json!({
@@ -405,13 +394,11 @@ pub(super) fn command_dream(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
         }),
     )
 }
-
 pub(super) fn command_homeostasis(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
     let apply = parse_bool(parsed.flags.get("apply"), true);
     let allowed = gate(root, "organism:homeostasis");
     let rsi_state = read_json(&rsi_state_path(root)).unwrap_or(Value::Null);
     let network = read_json(&network_ledger_path(root)).unwrap_or(Value::Null);
-
     let drift = rsi_state
         .get("drift_score")
         .and_then(Value::as_f64)
@@ -442,7 +429,6 @@ pub(super) fn command_homeostasis(root: &Path, parsed: &crate::ParsedArgs) -> i3
     } else {
         "maintain"
     };
-
     let mut reflect_exit = 0i32;
     if apply && allowed {
         reflect_exit = rsi_ignition::run(
@@ -482,7 +468,6 @@ pub(super) fn command_homeostasis(root: &Path, parsed: &crate::ParsedArgs) -> i3
         }
         let _ = store_state(root, &state);
     }
-
     emit(
         root,
         json!({

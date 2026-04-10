@@ -242,7 +242,6 @@
       }
       this.scheduleConversationPersist();
     },
-
     maybeDiscardPendingFreshAgent: function(nextAgentId) {
       var store = Alpine.store('app');
       if (!store) return;
@@ -257,7 +256,6 @@
         setTimeout(function() { store.refreshAgents({ force: true }).catch(function() {}); }, 0);
       }
     },
-
     selectAgent(agent) {
       var resolved = this.resolveAgent(agent);
       if (!resolved) return;
@@ -427,7 +425,6 @@
         self.scheduleMessageRenderWindowUpdate();
       });
     },
-
     shouldRenderMessage(msg, idx) {
       // Reliability-first history visibility: never clip old turns out of view
       // purely because thread length exceeded a render threshold.
@@ -436,7 +433,6 @@
       if (!this.currentAgent) return true;
       return true;
     },
-
     forceMessageRender(msg, idx, ttlMs) {
       if (!msg) return;
       var id = this.messageDomId(msg, idx);
@@ -449,7 +445,6 @@
       this._forcedHydrateById[id] = until;
       this.scheduleMessageRenderWindowUpdate();
     },
-
     scheduleMessageRenderWindowUpdate(container) {
       var self = this;
       if (this._renderWindowRaf && typeof cancelAnimationFrame === 'function') {
@@ -466,7 +461,6 @@
         setTimeout(run, 0);
       }
     },
-
     updateMessageRenderWindow(container) {
       var el = this.resolveMessagesScroller(container || null);
       if (!el || !this.currentAgent) return;

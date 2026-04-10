@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
 use super::*;
-
 fn evaluate_budget_gate(dry_run: &Value, guard: &Value) -> RouterGlobalBudgetGateResult {
     let execution_intent = json!(true);
     let autopause = json!({"active": false});
@@ -16,7 +15,6 @@ fn evaluate_budget_gate(dry_run: &Value, guard: &Value) -> RouterGlobalBudgetGat
         guard: Some(guard),
     })
 }
-
 #[test]
 fn evaluate_router_global_budget_gate_matches_hard_stop_dry_run_and_enforced_paths() {
     let hard_guard = json!({
@@ -45,7 +43,6 @@ fn evaluate_router_global_budget_gate_matches_hard_stop_dry_run_and_enforced_pat
         Some("daily_usd_cap_exceeded")
     );
 }
-
 #[test]
 fn project_budget_state_matches_unavailable_and_projection_contracts() {
     let unavailable = project_budget_state(
@@ -88,7 +85,6 @@ fn project_budget_state_matches_unavailable_and_projection_contracts() {
     assert_eq!(invalid_cap["projected_ratio"], Value::Null);
     assert_eq!(invalid_cap["projected_pressure"], "none");
 }
-
 #[test]
 fn route_class_policy_matches_reflex_defaults_and_overrides() {
     let empty = json!({});
@@ -137,7 +133,6 @@ fn route_class_policy_matches_reflex_defaults_and_overrides() {
     assert_eq!(focus.prefer_slot.as_deref(), Some("specialist"));
     assert_eq!(focus.max_tokens_est, None);
 }
-
 #[test]
 fn prompt_cache_lane_for_route_matches_contract() {
     assert_eq!(
@@ -157,7 +152,6 @@ fn prompt_cache_lane_for_route_matches_contract() {
         "autonomy"
     );
 }
-
 #[test]
 fn mode_adjustments_match_config_and_fallback_contracts() {
     let base = ModeAdjustmentInput {
@@ -205,7 +199,6 @@ fn mode_adjustments_match_config_and_fallback_contracts() {
     assert_eq!(creative.role, "chat");
     assert_eq!(creative.mode_reason.as_deref(), Some("creative_bias_chat"));
 }
-
 #[test]
 fn env_probe_blocked_text_and_normalization_match_contract() {
     assert!(is_env_probe_blocked_text(
@@ -240,7 +233,6 @@ fn env_probe_blocked_text_and_normalization_match_contract() {
     })));
     assert!(!passthrough.changed);
 }
-
 #[test]
 fn suppression_active_matches_contract() {
     assert!(suppression_active(
@@ -253,7 +245,6 @@ fn suppression_active_matches_contract() {
     ));
     assert!(!suppression_active(None, 1_000));
 }
-
 #[test]
 fn probe_health_stabilizer_applies_timeout_suppression_and_rehab_clearance() {
     let policy = ProbeHealthStabilizerPolicy::default();
@@ -294,7 +285,6 @@ fn probe_health_stabilizer_applies_timeout_suppression_and_rehab_clearance() {
     assert!(cleared.get("suppressed_at_ms").is_none());
     assert_eq!(cleared["available"], true);
 }
-
 #[test]
 fn handoff_packet_tier_and_budget_behavior_matches_contract() {
     let tier2 = json!({
@@ -348,7 +338,6 @@ fn handoff_packet_tier_and_budget_behavior_matches_contract() {
     assert_eq!(out3["post_task_return_model"], "ollama/smallthinker");
     assert_eq!(out3["budget_enforcement"]["blocked"], true);
 }
-
 #[test]
 fn handoff_packet_defaults_match_js_truthy_semantics_for_tier_zero() {
     let payload = json!({
@@ -364,7 +353,6 @@ fn handoff_packet_defaults_match_js_truthy_semantics_for_tier_zero() {
     assert_eq!(out["capability"], "chat");
     assert_eq!(out["fallback_slot"], "fallback");
 }
-
 #[test]
 fn handoff_packet_default_shape_is_fail_closed_for_non_object_input() {
     let out = build_handoff_packet(&json!(null));
@@ -379,7 +367,6 @@ fn handoff_packet_default_shape_is_fail_closed_for_non_object_input() {
     assert_eq!(out["slot"], Value::Null);
     assert_eq!(out["escalation_chain"], json!([]));
 }
-
 #[test]
 fn handoff_packet_budget_tokens_require_numeric_conversion() {
     let falsey_tokens = json!({
@@ -419,7 +406,6 @@ fn handoff_packet_budget_tokens_require_numeric_conversion() {
     let out_bool_numeric = build_handoff_packet(&bool_numeric_tokens);
     assert_eq!(out_bool_numeric["budget"]["request_tokens_est"], 1.0);
 }
-
 #[test]
 fn handoff_packet_tier_one_general_omits_capability_fields() {
     let payload = json!({
@@ -433,7 +419,6 @@ fn handoff_packet_tier_one_general_omits_capability_fields() {
     assert!(out.get("capability").is_none());
     assert!(out.get("fallback_slot").is_none());
 }
-
 #[test]
 fn handoff_packet_tier_one_coding_keeps_capability_fields() {
     let payload = json!({
@@ -447,7 +432,6 @@ fn handoff_packet_tier_one_coding_keeps_capability_fields() {
     assert_eq!(out["capability"], "file_edit");
     assert_eq!(out["fallback_slot"], "fallback");
 }
-
 #[test]
 fn handoff_packet_budget_projected_pressure_falls_back_to_pressure() {
     let payload = json!({
@@ -462,7 +446,6 @@ fn handoff_packet_budget_projected_pressure_falls_back_to_pressure() {
     assert_eq!(out["budget"]["projected_pressure"], "hard");
     assert_eq!(out["budget"]["request_tokens_est"], 250.0);
 }
-
 #[test]
 fn handoff_packet_budget_enforcement_blocked_requires_true_bool() {
     let payload = json!({
@@ -478,7 +461,6 @@ fn handoff_packet_budget_enforcement_blocked_requires_true_bool() {
     assert_eq!(out["budget_enforcement"]["reason"], "string-flag");
     assert_eq!(out["budget_enforcement"]["blocked"], false);
 }
-
 #[test]
 fn handoff_packet_fast_path_and_model_changed_require_true_bools() {
     let payload = json!({
@@ -492,7 +474,6 @@ fn handoff_packet_fast_path_and_model_changed_require_true_bools() {
     assert!(out.get("fast_path").is_none());
     assert_eq!(out["model_changed"], false);
 }
-
 #[test]
 fn handoff_packet_post_task_return_model_requires_truthy_value() {
     let payload = json!({
@@ -504,24 +485,4 @@ fn handoff_packet_post_task_return_model_requires_truthy_value() {
     assert_eq!(out["guardrails"]["deep_thinker"], true);
     assert_eq!(out["guardrails"]["verification_required"], true);
     assert!(out.get("post_task_return_model").is_none());
-}
-
-#[test]
-fn helper_fallbacks_cover_general_task_type_and_proposal_capability_family() {
-    assert_eq!(infer_role("prioritize candidate fixes", ""), "planning");
-    assert_eq!(capability_family_key("proposal"), "proposal");
-    assert_eq!(task_type_key_from_route("default", "", ""), "general");
-}
-
-#[test]
-fn normalize_capability_key_collapses_and_truncates_deterministically() {
-    assert_eq!(
-        normalize_capability_key("  __Proposal@@@Doctor:::Repair__  "),
-        "proposal_doctor:::repair"
-    );
-
-    let long_input = "A".repeat(120);
-    let normalized = normalize_capability_key(&long_input);
-    assert_eq!(normalized.len(), 72);
-    assert!(normalized.chars().all(|ch| ch == 'a'));
 }

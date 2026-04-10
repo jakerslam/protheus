@@ -1,7 +1,4 @@
 // SPDX-License-Identifier: Apache-2.0
-// Layer ownership: core/layer2/autonomy (authoritative)
-// SRS coverage marker: V4-DUAL-PRI-001
-
 use serde_json::{json, Map, Value};
 use std::collections::{BTreeSet, HashSet};
 use std::fs;
@@ -19,7 +16,6 @@ const DEFAULT_HISTORY_REL: &str = "local/state/autonomy/duality/history.jsonl";
 const TRIT_PAIN: i64 = -1;
 const TRIT_UNKNOWN: i64 = 0;
 const TRIT_OK: i64 = 1;
-
 fn print_json_line(value: &Value) {
     println!(
         "{}",
@@ -27,11 +23,9 @@ fn print_json_line(value: &Value) {
             .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
     );
 }
-
 fn parse_flag(argv: &[String], key: &str) -> Option<String> {
     lane_utils::parse_flag(argv, key, false)
 }
-
 fn load_payload(argv: &[String]) -> Result<Value, String> {
     if let Some(payload) = parse_flag(argv, "payload") {
         return serde_json::from_str::<Value>(&payload)
@@ -45,7 +39,6 @@ fn load_payload(argv: &[String]) -> Result<Value, String> {
     }
     Err("duality_seed_missing_payload".to_string())
 }
-
 fn as_str(value: Option<&Value>) -> String {
     value
         .map(|v| match v {
@@ -55,7 +48,6 @@ fn as_str(value: Option<&Value>) -> String {
         })
         .unwrap_or_default()
 }
-
 fn as_bool(value: Option<&Value>, fallback: bool) -> bool {
     match value {
         Some(Value::Bool(v)) => *v,
@@ -68,7 +60,6 @@ fn as_bool(value: Option<&Value>, fallback: bool) -> bool {
         _ => fallback,
     }
 }
-
 fn as_i64(value: Option<&Value>) -> Option<i64> {
     match value {
         Some(Value::Number(n)) => n.as_i64(),
@@ -76,7 +67,6 @@ fn as_i64(value: Option<&Value>) -> Option<i64> {
         _ => None,
     }
 }
-
 fn as_f64(value: Option<&Value>) -> Option<f64> {
     match value {
         Some(Value::Number(n)) => n.as_f64(),
@@ -84,7 +74,6 @@ fn as_f64(value: Option<&Value>) -> Option<f64> {
         _ => None,
     }
 }
-
 fn clean_text(raw: &str, max_len: usize) -> String {
     raw.split_whitespace()
         .collect::<Vec<_>>()
@@ -93,7 +82,6 @@ fn clean_text(raw: &str, max_len: usize) -> String {
         .take(max_len)
         .collect()
 }
-
 fn normalize_token(raw: &str, max_len: usize) -> String {
     let text = clean_text(raw, max_len).to_ascii_lowercase();
     let mut out = String::new();
@@ -111,7 +99,6 @@ fn normalize_token(raw: &str, max_len: usize) -> String {
     let trimmed = out.trim_matches('_').to_string();
     trimmed.chars().take(max_len).collect()
 }
-
 fn normalize_word(raw: &str, max_len: usize) -> String {
     let text = clean_text(raw, max_len).to_ascii_lowercase();
     let mut out = String::new();
@@ -129,7 +116,6 @@ fn normalize_word(raw: &str, max_len: usize) -> String {
     let trimmed = out.trim_matches('_').to_string();
     trimmed.chars().take(max_len).collect()
 }
-
 fn clamp_i64(value: i64, lo: i64, hi: i64) -> i64 {
     if value < lo {
         lo
@@ -139,7 +125,6 @@ fn clamp_i64(value: i64, lo: i64, hi: i64) -> i64 {
         value
     }
 }
-
 fn clamp_f64(value: f64, lo: f64, hi: f64) -> f64 {
     if value < lo {
         lo
@@ -149,7 +134,6 @@ fn clamp_f64(value: f64, lo: f64, hi: f64) -> f64 {
         value
     }
 }
-
 fn normalize_trit(value: Option<&Value>) -> i64 {
     let n = as_f64(value).unwrap_or(0.0);
     if n > 0.0 {
@@ -160,7 +144,6 @@ fn normalize_trit(value: Option<&Value>) -> i64 {
         TRIT_UNKNOWN
     }
 }
-
 fn trit_label(trit: i64) -> &'static str {
     if trit > 0 {
         "ok"
@@ -170,7 +153,6 @@ fn trit_label(trit: i64) -> &'static str {
         "unknown"
     }
 }
-
 fn ensure_parent(path: &Path) -> Result<(), String> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)
@@ -178,7 +160,6 @@ fn ensure_parent(path: &Path) -> Result<(), String> {
     }
     Ok(())
 }
-
 fn write_json_atomic(path: &Path, value: &Value) -> Result<(), String> {
     ensure_parent(path)?;
     let temp = path.with_extension(format!(
@@ -196,23 +177,19 @@ fn write_json_atomic(path: &Path, value: &Value) -> Result<(), String> {
     fs::rename(&temp, path)
         .map_err(|err| format!("duality_seed_rename_tmp_failed:{}:{err}", path.display()))
 }
-
 fn append_jsonl(path: &Path, row: &Value) -> Result<(), String> {
     lane_utils::append_jsonl(path, row)
         .map_err(|err| format!("duality_seed_append_jsonl_failed:{err}"))
 }
-
 fn read_json(path: &Path) -> Value {
     let Ok(raw) = fs::read_to_string(path) else {
         return Value::Null;
     };
     serde_json::from_str::<Value>(&raw).unwrap_or(Value::Null)
 }
-
 fn read_text(path: &Path) -> String {
     fs::read_to_string(path).unwrap_or_default()
 }
-
 fn resolve_path(root: &Path, raw: &str, fallback_rel: &str) -> PathBuf {
     let token = clean_text(raw, 400);
     if token.is_empty() {
@@ -225,7 +202,6 @@ fn resolve_path(root: &Path, raw: &str, fallback_rel: &str) -> PathBuf {
         root.join(candidate)
     }
 }
-
 fn default_policy(root: &Path) -> Value {
     json!({
         "version": "1.0",
@@ -274,7 +250,6 @@ fn default_policy(root: &Path) -> Value {
         }
     })
 }
-
 fn load_policy(root: &Path, policy_path_override: Option<&str>) -> Value {
     let policy_path = policy_path_override
         .map(|v| resolve_path(root, v, DEFAULT_POLICY_REL))
@@ -466,7 +441,6 @@ fn load_policy(root: &Path, policy_path_override: Option<&str>) -> Value {
         }
     })
 }
-
 fn parse_attrs(raw: &str) -> Vec<String> {
     let mut out = Vec::<String>::new();
     let mut seen = BTreeSet::<String>::new();
@@ -481,7 +455,6 @@ fn parse_attrs(raw: &str) -> Vec<String> {
     }
     out
 }
-
 fn default_codex() -> Value {
     json!({
         "version": "1.0",

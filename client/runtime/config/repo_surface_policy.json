@@ -24,6 +24,7 @@
     },
     "surface": {
       "target_extensions": [
+        "rs",
         "ts",
         "tsx"
       ],
@@ -32,7 +33,7 @@
         "py",
         "sh"
       ],
-      "notes": "Surface is orchestration-only. It may shape requests and sequence work, but it must remain non-authoritative and route durable truth through core contracts."
+      "notes": "Surface is orchestration-only. Rust-first orchestration contracts are allowed here, but the surface remains non-authoritative and routes durable truth through core contracts."
     },
     "client": {
       "target_extensions": [

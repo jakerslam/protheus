@@ -14,7 +14,6 @@ use crate::{deterministic_receipt_hash, now_iso};
 
 const DEFAULT_REL_PATH: &str = "habits/registry.json";
 const SOURCE_PATH: &str = "core/layer1/memory_runtime/adaptive/habit_store.ts";
-
 fn usage() {
     println!("habit-store-kernel commands:");
     println!("  protheus-ops habit-store-kernel default-state");
@@ -23,7 +22,6 @@ fn usage() {
     println!("  protheus-ops habit-store-kernel ensure-state [--payload-base64=<json>]");
     println!("  protheus-ops habit-store-kernel set-state --payload-base64=<json>");
 }
-
 fn cli_receipt(kind: &str, payload: Value) -> Value {
     let ts = now_iso();
     let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(true);
@@ -37,7 +35,6 @@ fn cli_receipt(kind: &str, payload: Value) -> Value {
     out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
     out
 }
-
 fn cli_error(kind: &str, error: &str) -> Value {
     let ts = now_iso();
     let mut out = json!({
@@ -51,7 +48,6 @@ fn cli_error(kind: &str, error: &str) -> Value {
     out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
     out
 }
-
 fn print_json_line(value: &Value) {
     println!(
         "{}",
@@ -59,7 +55,6 @@ fn print_json_line(value: &Value) {
             .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
     );
 }
-
 fn payload_json(argv: &[String]) -> Result<Value, String> {
     if let Some(raw) = lane_utils::parse_flag(argv, "payload", false) {
         return serde_json::from_str::<Value>(&raw)
@@ -76,25 +71,21 @@ fn payload_json(argv: &[String]) -> Result<Value, String> {
     }
     Ok(json!({}))
 }
-
 fn payload_obj<'a>(value: &'a Value) -> &'a Map<String, Value> {
     value.as_object().unwrap_or_else(|| {
         static EMPTY: std::sync::OnceLock<Map<String, Value>> = std::sync::OnceLock::new();
         EMPTY.get_or_init(Map::new)
     })
 }
-
 fn as_object<'a>(value: Option<&'a Value>) -> Option<&'a Map<String, Value>> {
     value.and_then(Value::as_object)
 }
-
 fn as_array<'a>(value: Option<&'a Value>) -> &'a Vec<Value> {
     value.and_then(Value::as_array).unwrap_or_else(|| {
         static EMPTY: std::sync::OnceLock<Vec<Value>> = std::sync::OnceLock::new();
         EMPTY.get_or_init(Vec::new)
     })
 }
-
 fn as_str(value: Option<&Value>) -> String {
     match value {
         Some(Value::String(v)) => v.trim().to_string(),
@@ -102,7 +93,6 @@ fn as_str(value: Option<&Value>) -> String {
         Some(v) => v.to_string().trim_matches('"').trim().to_string(),
     }
 }
-
 fn clean_text(value: Option<&Value>, max_len: usize) -> String {
     let mut out = as_str(value)
         .split_whitespace()
@@ -113,7 +103,6 @@ fn clean_text(value: Option<&Value>, max_len: usize) -> String {
     }
     out
 }
-
 fn clamp_int(value: Option<&Value>, lo: i64, hi: i64, fallback: i64) -> i64 {
     let raw = match value {
         Some(Value::Number(n)) => n.as_i64().unwrap_or(fallback),
@@ -122,7 +111,6 @@ fn clamp_int(value: Option<&Value>, lo: i64, hi: i64, fallback: i64) -> i64 {
     };
     raw.clamp(lo, hi)
 }
-
 fn normalize_key(raw: &str, max_len: usize) -> String {
     let mut out = String::new();
     let mut prev_us = false;
@@ -142,7 +130,6 @@ fn normalize_key(raw: &str, max_len: usize) -> String {
     }
     out.trim_matches('_').to_string()
 }
-
 fn normalize_tag(raw: &str) -> String {
     let mut out = String::new();
     let mut prev_dash = false;
@@ -162,11 +149,9 @@ fn normalize_tag(raw: &str) -> String {
     }
     out.trim_matches('-').to_string()
 }
-
 fn is_alnum(raw: &str) -> bool {
     !raw.is_empty() && raw.chars().all(|ch| ch.is_ascii_alphanumeric())
 }
-
 fn stable_uid(seed: &str, prefix: &str, length: usize) -> String {
     let mut hasher = Sha256::new();
     hasher.update(seed.as_bytes());
@@ -181,7 +166,6 @@ fn stable_uid(seed: &str, prefix: &str, length: usize) -> String {
     out.truncate(length.max(8).min(48));
     out
 }
-
 fn random_uid(prefix: &str, length: usize) -> String {
     stable_uid(
         &format!(
@@ -194,11 +178,9 @@ fn random_uid(prefix: &str, length: usize) -> String {
         length,
     )
 }
-
 fn now_ts() -> String {
     now_iso()
 }
-
 pub(crate) fn default_habit_state() -> Value {
     json!({
         "version": "1.0",
@@ -216,7 +198,6 @@ pub(crate) fn default_habit_state() -> Value {
         }
     })
 }
-
 fn normalize_usage(raw: Option<&Map<String, Value>>) -> Value {
     let last_used_ts = raw
         .and_then(|row| row.get("last_used_ts"))
@@ -229,7 +210,6 @@ fn normalize_usage(raw: Option<&Map<String, Value>>) -> Value {
         "last_used_ts": last_used_ts
     })
 }
-
 fn normalize_routine_uid(
     item: &Map<String, Value>,
     taken: &mut std::collections::BTreeSet<String>,
@@ -255,7 +235,6 @@ fn normalize_routine_uid(
     }
     uid
 }
-
 fn normalize_routine(
     raw: Option<&Map<String, Value>>,
     taken: &mut std::collections::BTreeSet<String>,
@@ -292,7 +271,6 @@ fn normalize_routine(
         "updated_ts": now,
     }))
 }
-
 pub(crate) fn normalize_habit_state(raw: Option<&Value>, fallback: Option<&Value>) -> Value {
     let src = raw
         .or(fallback)
@@ -325,7 +303,6 @@ pub(crate) fn normalize_habit_state(raw: Option<&Value>, fallback: Option<&Value
         }
     })
 }
-
 fn store_target_path(root: &Path, payload: &Map<String, Value>) -> Result<String, String> {
     let raw = as_str(payload.get("file_path"));
     if raw.is_empty() {
@@ -356,7 +333,6 @@ fn store_target_path(root: &Path, payload: &Map<String, Value>) -> Result<String
         raw.trim()
     ))
 }
-
 fn meta_with_defaults(payload: &Map<String, Value>, default_reason: &str) -> Value {
     let mut meta = as_object(payload.get("meta")).cloned().unwrap_or_default();
     if as_str(meta.get("source")).is_empty() {
@@ -370,7 +346,6 @@ fn meta_with_defaults(payload: &Map<String, Value>, default_reason: &str) -> Val
     }
     Value::Object(meta)
 }
-
 fn read_state_value(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> {
     let target = store_target_path(root, payload)?;
     let fallback = payload
@@ -389,7 +364,6 @@ fn read_state_value(root: &Path, payload: &Map<String, Value>) -> Result<Value, 
     )?;
     Ok(normalize_habit_state(out.get("value"), Some(&fallback)))
 }
-
 fn ensure_state_value(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> {
     let target = store_target_path(root, payload)?;
     let default_state = default_habit_state();
@@ -409,7 +383,6 @@ fn ensure_state_value(root: &Path, payload: &Map<String, Value>) -> Result<Value
         Some(&default_state),
     ))
 }
-
 fn set_state_value(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> {
     let target = store_target_path(root, payload)?;
     let default_state = default_habit_state();
@@ -430,7 +403,6 @@ fn set_state_value(root: &Path, payload: &Map<String, Value>) -> Result<Value, S
         Some(&default_state),
     ))
 }
-
 fn run_command(root: &Path, command: &str, payload: &Map<String, Value>) -> Result<Value, String> {
     match command {
         "default-state" => Ok(json!({ "ok": true, "state": default_habit_state() })),
@@ -444,7 +416,6 @@ fn run_command(root: &Path, command: &str, payload: &Map<String, Value>) -> Resu
         _ => Err("habit_store_kernel_unknown_command".to_string()),
     }
 }
-
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     let Some(command) = argv.first().map(|row| row.as_str()) else {
         usage();
@@ -472,7 +443,6 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         }
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;

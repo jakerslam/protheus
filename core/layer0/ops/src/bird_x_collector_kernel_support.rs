@@ -15,11 +15,9 @@ use crate::contract_lane_utils as lane_utils;
 
 pub const COLLECTOR_ID: &str = "bird_x";
 const EYES_STATE_DEFAULT_REL: &str = "local/state/sensory/eyes";
-
 pub fn clean_text(raw: Option<&str>, max_len: usize) -> String {
     lane_utils::clean_text(raw, max_len)
 }
-
 pub fn clamp_u64(payload: &Map<String, Value>, key: &str, fallback: u64, lo: u64, hi: u64) -> u64 {
     payload
         .get(key)
@@ -27,24 +25,19 @@ pub fn clamp_u64(payload: &Map<String, Value>, key: &str, fallback: u64, lo: u64
         .unwrap_or(fallback)
         .clamp(lo, hi)
 }
-
 pub fn as_bool(value: Option<&Value>, fallback: bool) -> bool {
     value.and_then(Value::as_bool).unwrap_or(fallback)
 }
-
 pub fn as_f64(value: Option<&Value>, fallback: f64) -> f64 {
     value.and_then(Value::as_f64).unwrap_or(fallback)
 }
-
 pub fn now_iso() -> String {
     Utc::now().to_rfc3339()
 }
-
 pub fn sha16(input: &str) -> String {
     let digest = Sha256::digest(input.as_bytes());
     hex::encode(digest)[..16].to_string()
 }
-
 pub fn resolve_eyes_state_dir(root: &Path, payload: &Map<String, Value>) -> PathBuf {
     if let Some(raw) = payload.get("eyes_state_dir").and_then(Value::as_str) {
         let trimmed = raw.trim();
@@ -64,26 +57,22 @@ pub fn resolve_eyes_state_dir(root: &Path, payload: &Map<String, Value>) -> Path
     }
     root.join(EYES_STATE_DEFAULT_REL)
 }
-
 pub fn meta_path_for(root: &Path, payload: &Map<String, Value>) -> PathBuf {
     resolve_eyes_state_dir(root, payload)
         .join("collector_meta")
         .join(format!("{COLLECTOR_ID}.json"))
 }
-
 pub fn cache_path_for(root: &Path, payload: &Map<String, Value>) -> PathBuf {
     resolve_eyes_state_dir(root, payload)
         .join("collector_meta")
         .join(format!("{COLLECTOR_ID}.cache.json"))
 }
-
 pub fn read_json(path: &Path, fallback: Value) -> Value {
     match fs::read_to_string(path) {
         Ok(raw) => serde_json::from_str::<Value>(&raw).unwrap_or(fallback),
         Err(_) => fallback,
     }
 }
-
 pub fn write_json_atomic(path: &Path, value: &Value) -> Result<(), String> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)
@@ -102,7 +91,6 @@ pub fn write_json_atomic(path: &Path, value: &Value) -> Result<(), String> {
     fs::write(&tmp, body).map_err(|err| format!("bird_x_collector_kernel_write_failed:{err}"))?;
     fs::rename(&tmp, path).map_err(|err| format!("bird_x_collector_kernel_rename_failed:{err}"))
 }
-
 pub fn clean_seen_id(raw: &str) -> String {
     let mut out = String::new();
     for ch in raw.chars() {
@@ -116,7 +104,6 @@ pub fn clean_seen_id(raw: &str) -> String {
     }
     out
 }
-
 pub fn normalize_meta_value(raw: Option<&Value>) -> Value {
     let obj = raw.and_then(Value::as_object);
     let last_run = clean_text(
@@ -153,13 +140,11 @@ pub fn normalize_meta_value(raw: Option<&Value>) -> Value {
         "seen_ids": seen_ids
     })
 }
-
 pub fn parse_iso_ms(raw: &str) -> Option<i64> {
     DateTime::parse_from_rfc3339(raw)
         .ok()
         .map(|dt| dt.timestamp_millis())
 }
-
 pub fn load_cache_items(root: &Path, payload: &Map<String, Value>) -> Vec<Value> {
     read_json(&cache_path_for(root, payload), json!({ "items": [] }))
         .get("items")
@@ -167,7 +152,6 @@ pub fn load_cache_items(root: &Path, payload: &Map<String, Value>) -> Vec<Value>
         .cloned()
         .unwrap_or_default()
 }
-
 pub fn infer_topics(content: &str) -> Vec<String> {
     let mut out = Vec::<String>::new();
     let text = content.to_lowercase();
@@ -226,7 +210,6 @@ pub fn infer_topics(content: &str) -> Vec<String> {
 
     out.into_iter().take(6).collect::<Vec<_>>()
 }
-
 pub fn as_i64(obj: &Map<String, Value>, keys: &[&str]) -> i64 {
     for key in keys {
         if let Some(v) = obj.get(*key) {
@@ -245,7 +228,6 @@ pub fn as_i64(obj: &Map<String, Value>, keys: &[&str]) -> i64 {
     }
     0
 }
-
 pub fn extract_author_parts(item: &Map<String, Value>) -> (String, String) {
     let mut handle = String::new();
     let mut name = String::new();
@@ -287,7 +269,6 @@ pub fn extract_author_parts(item: &Map<String, Value>) -> (String, String) {
     }
     (handle, name)
 }
-
 pub fn first_line_title(content: &str, author_handle: &str) -> String {
     let first = content.lines().next().unwrap_or("");
     let title = clean_text(Some(first), 100);
@@ -297,7 +278,6 @@ pub fn first_line_title(content: &str, author_handle: &str) -> String {
         title
     }
 }
-
 pub fn normalize_seen_ids(payload: &Map<String, Value>) -> HashSet<String> {
     payload
         .get("seen_ids")
@@ -311,7 +291,6 @@ pub fn normalize_seen_ids(payload: &Map<String, Value>) -> HashSet<String> {
         })
         .unwrap_or_default()
 }
-
 pub fn query_failures(payload: &Map<String, Value>) -> Vec<Value> {
     payload
         .get("query_failures")
@@ -329,7 +308,6 @@ pub fn query_failures(payload: &Map<String, Value>) -> Vec<Value> {
         })
         .collect::<Vec<_>>()
 }
-
 pub fn bird_cli_present() -> bool {
     match Command::new("bird")
         .arg("--version")
@@ -341,7 +319,6 @@ pub fn bird_cli_present() -> bool {
         Err(_) => false,
     }
 }
-
 pub fn normalize_queries(payload: &Map<String, Value>) -> Vec<String> {
     let mut out = payload
         .get("queries")
@@ -363,27 +340,21 @@ pub fn normalize_queries(payload: &Map<String, Value>) -> Vec<String> {
     }
     out.into_iter().take(3).collect::<Vec<_>>()
 }
-
 pub fn normalize_retry_attempts(payload: &Map<String, Value>) -> u64 {
     clamp_u64(payload, "retry_attempts", 2, 1, 4)
 }
-
 pub fn normalize_timeout_ms(payload: &Map<String, Value>) -> u64 {
     clamp_u64(payload, "timeout_ms", 15_000, 1_000, 120_000)
 }
-
 pub fn normalize_max_items(payload: &Map<String, Value>) -> u64 {
     clamp_u64(payload, "max_items", 15, 1, 200)
 }
-
 pub fn normalize_max_items_per_query(payload: &Map<String, Value>) -> u64 {
     clamp_u64(payload, "max_items_per_query", 10, 1, 50)
 }
-
 pub fn sleep_backoff_ms(attempt_index: usize) -> u64 {
     120u64.saturating_mul((attempt_index as u64).saturating_add(1))
 }
-
 fn wait_for_output_with_timeout(
     mut child: std::process::Child,
     timeout_ms: u64,
@@ -412,7 +383,6 @@ fn wait_for_output_with_timeout(
         }
     }
 }
-
 pub fn run_bird_search_once(
     query: &str,
     max_items_per_query: u64,

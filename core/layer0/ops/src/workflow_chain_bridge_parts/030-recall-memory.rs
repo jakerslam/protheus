@@ -3,7 +3,6 @@ fn value_array_has_text(rows: &[Value], wanted: &str) -> bool {
         .filter_map(Value::as_str)
         .any(|row| row == wanted)
 }
-
 fn recall_memory(state: &mut Value, payload: &Map<String, Value>) -> Result<Value, String> {
     let store_id = clean_token(
         payload
@@ -114,7 +113,6 @@ fn recall_memory(state: &mut Value, payload: &Map<String, Value>) -> Result<Valu
         "claim_evidence": default_claim_evidence("V6-WORKFLOW-014.3", workflow_chain_claim("V6-WORKFLOW-014.3")),
     }))
 }
-
 fn route_prompt(state: &mut Value, payload: &Map<String, Value>) -> Result<Value, String> {
     let name = clean_token(
         payload.get("name").and_then(Value::as_str),
@@ -203,7 +201,6 @@ fn route_prompt(state: &mut Value, payload: &Map<String, Value>) -> Result<Value
         "claim_evidence": default_claim_evidence("V6-WORKFLOW-014.5", workflow_chain_claim("V6-WORKFLOW-014.5")),
     }))
 }
-
 fn value_matches_structured_type(value: &Value, wanted: &str) -> bool {
     match wanted {
         "any" => true,
@@ -217,7 +214,6 @@ fn value_matches_structured_type(value: &Value, wanted: &str) -> bool {
         _ => false,
     }
 }
-
 fn parse_structured_output(
     state: &mut Value,
     payload: &Map<String, Value>,
@@ -301,7 +297,6 @@ fn parse_structured_output(
         "claim_evidence": default_claim_evidence("V6-WORKFLOW-014.8", workflow_chain_claim("V6-WORKFLOW-014.8")),
     }))
 }
-
 fn checkpoint_run(
     root: &Path,
     argv: &[String],
@@ -375,7 +370,6 @@ fn checkpoint_run(
         "claim_evidence": default_claim_evidence("V6-WORKFLOW-014.7", workflow_chain_claim("V6-WORKFLOW-014.7")),
     }))
 }
-
 fn record_trace(
     root: &Path,
     state: &mut Value,
@@ -410,7 +404,6 @@ fn record_trace(
         "claim_evidence": default_claim_evidence("V6-WORKFLOW-014.6", workflow_chain_claim("V6-WORKFLOW-014.6")),
     }))
 }
-
 fn import_integration(
     root: &Path,
     state: &mut Value,
@@ -460,7 +453,6 @@ fn import_integration(
         "claim_evidence": default_claim_evidence("V6-WORKFLOW-014.4", workflow_chain_claim("V6-WORKFLOW-014.4")),
     }))
 }
-
 fn assimilate_intake(
     root: &Path,
     state: &mut Value,

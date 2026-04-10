@@ -7,7 +7,6 @@ use std::path::{Path, PathBuf};
 const LANE_ID: &str = "ab_lane_eval";
 const STATE_DIR_REL: &str = "local/state/ops/ab_lane_eval";
 const NEURALAVB_DIR_REL: &str = "local/state/ops/ab_lane_eval/neuralavb";
-
 fn print_json_line(value: &Value) {
     println!(
         "{}",
@@ -15,7 +14,6 @@ fn print_json_line(value: &Value) {
             .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
     );
 }
-
 fn flag_value(argv: &[String], key: &str) -> Option<String> {
     let pref = format!("--{key}=");
     let mut idx = 0usize;
@@ -35,13 +33,11 @@ fn flag_value(argv: &[String], key: &str) -> Option<String> {
     }
     None
 }
-
 fn to_f64(raw: Option<String>, fallback: f64) -> f64 {
     raw.and_then(|v| v.trim().parse::<f64>().ok())
         .filter(|v| v.is_finite())
         .unwrap_or(fallback)
 }
-
 fn ensure_parent(path: &Path) -> Result<(), String> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)
@@ -49,7 +45,6 @@ fn ensure_parent(path: &Path) -> Result<(), String> {
     }
     Ok(())
 }
-
 fn write_json(path: &Path, value: &Value) -> Result<(), String> {
     ensure_parent(path)?;
     let payload =
@@ -57,7 +52,6 @@ fn write_json(path: &Path, value: &Value) -> Result<(), String> {
     fs::write(path, format!("{payload}\n"))
         .map_err(|err| format!("write_json_failed:{}:{err}", path.display()))
 }
-
 fn append_jsonl(path: &Path, value: &Value) -> Result<(), String> {
     ensure_parent(path)?;
     let encoded =
@@ -73,11 +67,9 @@ fn append_jsonl(path: &Path, value: &Value) -> Result<(), String> {
     file.write_all(line.as_bytes())
         .map_err(|err| format!("append_jsonl_failed:{}:{err}", path.display()))
 }
-
 fn score_variant(quality: f64, drift: f64, escalation: f64, cost: f64) -> f64 {
     quality - (drift * 2.0) - (escalation * 3.0) - (cost * 0.1)
 }
-
 fn state_paths(root: &Path) -> (PathBuf, PathBuf) {
     let state_dir = root.join(STATE_DIR_REL);
     (
@@ -85,7 +77,6 @@ fn state_paths(root: &Path) -> (PathBuf, PathBuf) {
         state_dir.join("history.jsonl"),
     )
 }
-
 fn neuralavb_paths(root: &Path) -> (PathBuf, PathBuf, PathBuf) {
     let dir = root.join(NEURALAVB_DIR_REL);
     (
@@ -94,11 +85,9 @@ fn neuralavb_paths(root: &Path) -> (PathBuf, PathBuf, PathBuf) {
         dir.join("history.jsonl"),
     )
 }
-
 fn to_f64_clamped(raw: Option<String>, fallback: f64, lo: f64, hi: f64) -> f64 {
     to_f64(raw, fallback).clamp(lo, hi)
 }
-
 fn enable_neuralavb_receipt(root: &Path, args: &[String]) -> Value {
     let enabled = flag_value(args, "enabled")
         .map(|v| {
@@ -132,7 +121,6 @@ fn enable_neuralavb_receipt(root: &Path, args: &[String]) -> Value {
     let _ = append_jsonl(&history_path, &out);
     out
 }
-
 fn experiment_loop_receipt(root: &Path, args: &[String]) -> Value {
     let build_score = to_f64_clamped(flag_value(args, "build-score"), 0.82, 0.0, 1.0);
     let experiment_score = to_f64_clamped(flag_value(args, "experiment-score"), 0.84, 0.0, 1.0);
@@ -207,7 +195,6 @@ fn experiment_loop_receipt(root: &Path, args: &[String]) -> Value {
     let _ = append_jsonl(&history_path, &out);
     out
 }
-
 fn benchmark_neuralavb_receipt(root: &Path) -> Value {
     let (_, latest_loop_path, history_path) = neuralavb_paths(root);
     let latest_loop = fs::read_to_string(&latest_loop_path)
@@ -260,7 +247,6 @@ fn benchmark_neuralavb_receipt(root: &Path) -> Value {
     let _ = append_jsonl(&history_path, &out);
     out
 }
-
 fn run_receipt(root: &Path, args: &[String]) -> Value {
     let lane = flag_value(args, "lane").unwrap_or_else(|| "general".to_string());
     let variant_a = flag_value(args, "variant-a").unwrap_or_else(|| "A".to_string());
@@ -334,7 +320,6 @@ fn run_receipt(root: &Path, args: &[String]) -> Value {
     let _ = append_jsonl(&history_path, &out);
     out
 }
-
 fn status_receipt(root: &Path) -> Value {
     let (latest_path, _) = state_paths(root);
     let latest = fs::read_to_string(&latest_path)
@@ -351,7 +336,6 @@ fn status_receipt(root: &Path) -> Value {
     out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
     out
 }
-
 fn usage() {
     println!("Usage:");
     println!("  protheus-ops ab-lane-eval status");
@@ -360,7 +344,6 @@ fn usage() {
     println!("  protheus-ops ab-lane-eval experiment-loop [--build-score=<0..1>] [--experiment-score=<0..1>] [--evaluate-score=<0..1>] [--baseline-cost-usd=<n>] [--run-cost-usd=<n>] [--baseline-accuracy=<0..1>] [--run-accuracy=<0..1>] [--iterations=<n>]");
     println!("  protheus-ops ab-lane-eval benchmark-neuralavb");
 }
-
 pub fn run(root: &Path, args: &[String]) -> i32 {
     if args
         .iter()
@@ -412,7 +395,6 @@ pub fn run(root: &Path, args: &[String]) -> i32 {
         }
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
