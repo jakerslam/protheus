@@ -214,14 +214,36 @@ fn run_incident(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value 
                 "artifact_sha256": sha256_hex_str(&artifact.to_string())
             }));
         }
+        let context = intelligent_context(root);
+        let external_dispatch =
+            run_incident_external_dispatch(parsed, &incident_id, &runbook, &requested_actions);
+        if strict && external_dispatch.hard_fail {
+            return json!({
+                "ok": false,
+                "strict": strict,
+                "type": "observability_plane_incident",
+                "errors": ["observability_incident_external_dispatch_required_failed"],
+                "incident_id": incident_id,
+                "external_dispatch": {
+                    "requested": external_dispatch.requested,
+                    "mode": external_dispatch.mode,
+                    "receipts": external_dispatch.receipts
+                }
+            });
+        }
         let incident = json!({
             "incident_id": incident_id,
             "runbook": runbook,
             "action": action,
             "response_actions": requested_actions,
             "response_receipts": response_receipts,
+            "external_dispatch": {
+                "requested": external_dispatch.requested,
+                "mode": external_dispatch.mode,
+                "receipts": external_dispatch.receipts
+            },
             "status": "active",
-            "context": intelligent_context(root),
+            "context": context,
             "triggered_at": crate::now_iso()
         });
         state["incidents"][&incident_id] = incident.clone();
@@ -247,10 +269,16 @@ fn run_incident(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value 
                     "id": "V6-OBSERVABILITY-001.3",
                     "claim": "incident_triggers_invoke_policy_bounded_response_actions_with_receipts",
                     "evidence": {
-                        "incident_id": incident_id,
-                        "response_action_count": incident
-                            .get("response_actions")
-                            .and_then(Value::as_array)
+                    "incident_id": incident_id,
+                    "external_dispatch_count": incident
+                        .get("external_dispatch")
+                        .and_then(|v| v.get("receipts"))
+                        .and_then(Value::as_array)
+                        .map(|rows| rows.len())
+                        .unwrap_or(0),
+                    "response_action_count": incident
+                        .get("response_actions")
+                        .and_then(Value::as_array)
                             .map(|rows| rows.len())
                             .unwrap_or(0)
                     }
@@ -456,4 +484,3 @@ fn run_selfhost(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value 
     out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
-

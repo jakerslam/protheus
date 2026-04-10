@@ -11,5 +11,28 @@
     "rollback",
     "page-oncall"
   ],
+  "allowed_response_actions": [
+    "snapshot",
+    "log-capture",
+    "recovery",
+    "quarantine",
+    "rollback",
+    "page-oncall"
+  ],
+  "external_dispatch": {
+    "providers": [
+      "pagerduty",
+      "datadog"
+    ],
+    "pagerduty": {
+      "events_api": "https://events.pagerduty.com/v2/enqueue",
+      "routing_key_env": "PAGERDUTY_ROUTING_KEY"
+    },
+    "datadog": {
+      "events_api_template": "https://api.${DATADOG_SITE}/api/v1/events",
+      "api_key_env": "DATADOG_API_KEY",
+      "site_env": "DATADOG_SITE"
+    }
+  },
   "policy_bounded": true
 }

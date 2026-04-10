@@ -2,4 +2,5 @@
 include!("observability_plane_parts/010-usage.rs");
 include!("observability_plane_parts/020-run-monitor.rs");
 include!("observability_plane_parts/030-run-incident.rs");
+include!("observability_plane_parts/035-incident-external-dispatch.rs");
 include!("observability_plane_parts/040-run-acp-provenance.rs");

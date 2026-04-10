@@ -4,8 +4,39 @@ use protheus_ops_core::{health_status, observability_plane};
 use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 use tempfile::TempDir;
 use walkdir::WalkDir;
+
+static OBSERVABILITY_ENV_MUTEX: Mutex<()> = Mutex::new(());
+
+struct ScopedEnvVar {
+    key: &'static str,
+    previous: Option<String>,
+}
+
+impl ScopedEnvVar {
+    fn set(key: &'static str, value: &str) -> Self {
+        let previous = std::env::var(key).ok();
+        std::env::set_var(key, value);
+        Self { key, previous }
+    }
+
+    fn clear(key: &'static str) -> Self {
+        let previous = std::env::var(key).ok();
+        std::env::remove_var(key);
+        Self { key, previous }
+    }
+}
+
+impl Drop for ScopedEnvVar {
+    fn drop(&mut self) {
+        match &self.previous {
+            Some(value) => std::env::set_var(self.key, value),
+            None => std::env::remove_var(self.key),
+        }
+    }
+}
 
 fn workspace_root() -> PathBuf {
     let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -198,6 +229,117 @@ fn v6_observability_batch15_rejects_bypass_when_strict() {
         latest.get("type").and_then(Value::as_str),
         Some("observability_plane_conduit_gate")
     );
+}
+
+#[test]
+fn v6_observability_batch15_incident_external_dispatch_records_receipts() {
+    let _env_guard = OBSERVABILITY_ENV_MUTEX.lock().expect("lock env mutex");
+    let fixture = stage_fixture_root();
+    let root = fixture.path();
+    let _clear_pd = ScopedEnvVar::clear("PAGERDUTY_ROUTING_KEY");
+    let _clear_dd = ScopedEnvVar::clear("DATADOG_API_KEY");
+
+    let trigger_exit = observability_plane::run(
+        root,
+        &[
+            "incident".to_string(),
+            "--strict=1".to_string(),
+            "--op=trigger".to_string(),
+            "--incident-id=inc-ext-001".to_string(),
+            "--runbook=oncall-runbook".to_string(),
+            "--action=page-oncall".to_string(),
+            "--external-dispatch-mode=dry-run".to_string(),
+        ],
+    );
+    assert_eq!(trigger_exit, 0);
+    let latest = read_json(&latest_path(root));
+    let receipts = latest
+        .get("incident")
+        .and_then(|row| row.get("external_dispatch"))
+        .and_then(|row| row.get("receipts"))
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    assert_eq!(receipts.len(), 2);
+    assert!(receipts.iter().any(|row| {
+        row.get("provider").and_then(Value::as_str) == Some("pagerduty")
+            && row.get("status").and_then(Value::as_str) == Some("blocked")
+    }));
+    assert!(receipts.iter().any(|row| {
+        row.get("provider").and_then(Value::as_str) == Some("datadog")
+            && row.get("status").and_then(Value::as_str) == Some("blocked")
+    }));
+}
+
+#[test]
+fn v6_observability_batch15_incident_external_dispatch_can_fail_closed() {
+    let _env_guard = OBSERVABILITY_ENV_MUTEX.lock().expect("lock env mutex");
+    let fixture = stage_fixture_root();
+    let root = fixture.path();
+    let _clear_pd = ScopedEnvVar::clear("PAGERDUTY_ROUTING_KEY");
+    let _clear_dd = ScopedEnvVar::clear("DATADOG_API_KEY");
+
+    let trigger_exit = observability_plane::run(
+        root,
+        &[
+            "incident".to_string(),
+            "--strict=1".to_string(),
+            "--op=trigger".to_string(),
+            "--incident-id=inc-ext-002".to_string(),
+            "--runbook=oncall-runbook".to_string(),
+            "--action=page-oncall".to_string(),
+            "--require-external-dispatch=1".to_string(),
+            "--external-dispatch-mode=live".to_string(),
+        ],
+    );
+    assert_eq!(trigger_exit, 1);
+    let latest = read_json(&latest_path(root));
+    assert_eq!(latest.get("ok").and_then(Value::as_bool), Some(false));
+    assert!(latest
+        .get("errors")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .iter()
+        .any(
+            |row| row.as_str() == Some("observability_incident_external_dispatch_required_failed")
+        ));
+}
+
+#[test]
+fn v6_observability_batch15_incident_external_dispatch_dry_run_with_keys_succeeds() {
+    let _env_guard = OBSERVABILITY_ENV_MUTEX.lock().expect("lock env mutex");
+    let fixture = stage_fixture_root();
+    let root = fixture.path();
+    let _pd = ScopedEnvVar::set("PAGERDUTY_ROUTING_KEY", "pd-routing-key-test");
+    let _dd = ScopedEnvVar::set("DATADOG_API_KEY", "dd-api-key-test");
+
+    let trigger_exit = observability_plane::run(
+        root,
+        &[
+            "incident".to_string(),
+            "--strict=1".to_string(),
+            "--op=trigger".to_string(),
+            "--incident-id=inc-ext-003".to_string(),
+            "--runbook=oncall-runbook".to_string(),
+            "--action=page-oncall".to_string(),
+            "--require-external-dispatch=1".to_string(),
+            "--external-dispatch-mode=dry-run".to_string(),
+        ],
+    );
+    assert_eq!(trigger_exit, 0);
+    let latest = read_json(&latest_path(root));
+    let receipts = latest
+        .get("incident")
+        .and_then(|row| row.get("external_dispatch"))
+        .and_then(|row| row.get("receipts"))
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    assert_eq!(receipts.len(), 2);
+    assert!(receipts
+        .iter()
+        .all(|row| { row.get("status").and_then(Value::as_str) == Some("simulated") }));
 }
 
 #[test]
