@@ -5,6 +5,15 @@ import path from 'node:path';
 import { execSync } from 'node:child_process';
 
 const ROOT = process.cwd();
+const IGNORED_DIR_NAMES = new Set([
+  'node_modules',
+  '.svelte-kit',
+  'dist',
+  'build',
+  'coverage',
+  '.vite',
+  '.turbo',
+]);
 
 function parseArgs(argv) {
   const out = {
@@ -26,6 +35,9 @@ function parseArgs(argv) {
 function walk(dir, out = []) {
   if (!fs.existsSync(dir)) return out;
   for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (ent.isDirectory() && (IGNORED_DIR_NAMES.has(ent.name) || ent.name.startsWith('.'))) {
+      continue;
+    }
     const p = path.join(dir, ent.name);
     if (ent.isDirectory()) walk(p, out);
     else if (/\.(ts|js)$/.test(ent.name)) out.push(p);

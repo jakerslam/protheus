@@ -57,7 +57,7 @@ INSTALL_SUDO_SHIMS="${INFRING_INSTALL_SUDO_SHIMS:-auto}"
 RUNTIME_MANIFEST_REL="client/runtime/config/install_runtime_manifest_v1.txt"
 RUNTIME_NODE_REQUIRED_MODULES="${INFRING_RUNTIME_NODE_REQUIRED_MODULES:-typescript ws}"
 INSTALL_VERIFY_ASSETS="${INFRING_INSTALL_VERIFY_ASSETS:-1}"
-INSTALL_ALLOW_UNVERIFIED_ASSETS="${INFRING_INSTALL_ALLOW_UNVERIFIED_ASSETS:-0}"
+INSTALL_ALLOW_UNVERIFIED_ASSETS="${INFRING_INSTALL_ALLOW_UNVERIFIED_ASSETS:-${PROTHEUS_INSTALL_ALLOW_UNVERIFIED_ASSETS:-0}}"
 INSTALL_STRICT_PRERELEASE_CHECKSUM="${INFRING_INSTALL_STRICT_PRERELEASE_CHECKSUM:-0}"
 INSTALL_ASSET_CACHE="${INFRING_INSTALL_ASSET_CACHE:-1}"
 INSTALL_OFFLINE="${INFRING_INSTALL_OFFLINE:-0}"
@@ -1905,10 +1905,12 @@ source_fallback_bin_candidates() {
   case "$stem_name" in
     infring-ops)
       printf '%s\n' "infring-ops"
+      # 'protheus-ops' is deprecated and kept as a compatibility alias for legacy release bundles.
       printf '%s\n' "protheus-ops"
       ;;
     infringd|infringd-tiny-max)
       printf '%s\n' "infringd"
+      # 'protheusd' is deprecated and kept as a compatibility alias for legacy release bundles.
       printf '%s\n' "protheusd"
       ;;
     conduit_daemon)
