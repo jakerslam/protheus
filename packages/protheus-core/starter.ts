@@ -2,20 +2,9 @@
 'use strict';
 
 const core = require('./index.js');
+const { parseArgs } = require('../../client/runtime/lib/queued_backlog_runtime');
 
-function parseFlags(argv) {
-  const out = {};
-  for (const tok of argv) {
-    const raw = String(tok || '').trim();
-    if (!raw.startsWith('--')) continue;
-    const idx = raw.indexOf('=');
-    if (idx < 0) out[raw.slice(2)] = true;
-    else out[raw.slice(2, idx)] = raw.slice(idx + 1);
-  }
-  return out;
-}
-
-const flags = parseFlags(process.argv.slice(2));
+const flags = parseArgs(process.argv.slice(2));
 const mode = String(flags.mode || '').trim().toLowerCase();
 const options = {
   spine: flags.spine,
