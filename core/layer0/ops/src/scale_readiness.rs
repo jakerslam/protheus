@@ -4,9 +4,12 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::env;
+#[cfg(test)]
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+
+use crate::contract_lane_utils as lane_utils;
 
 const SCALE_IDS: [&str; 10] = [
     "V4-SCALE-001",
@@ -67,14 +70,7 @@ fn normalize_id(v: &str) -> String {
 }
 
 fn to_bool(v: Option<&str>, fallback: bool) -> bool {
-    let Some(raw) = v else {
-        return fallback;
-    };
-    match raw.trim().to_ascii_lowercase().as_str() {
-        "1" | "true" | "yes" | "on" => true,
-        "0" | "false" | "no" | "off" => false,
-        _ => fallback,
-    }
+    lane_utils::parse_bool(v, fallback)
 }
 
 fn clamp_int(v: Option<i64>, lo: i64, hi: i64, fallback: i64) -> i64 {
@@ -91,42 +87,17 @@ fn clamp_int(v: Option<i64>, lo: i64, hi: i64, fallback: i64) -> i64 {
 }
 
 fn read_json(path: &Path) -> Value {
-    match fs::read_to_string(path) {
-        Ok(raw) => serde_json::from_str::<Value>(&raw).unwrap_or(Value::Null),
-        Err(_) => Value::Null,
-    }
+    lane_utils::read_json(path).unwrap_or(Value::Null)
 }
 
 fn append_jsonl(path: &Path, row: &Value) -> Result<(), String> {
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)
-            .map_err(|e| format!("create_dir_failed:{}:{e}", parent.display()))?;
-    }
-    let mut payload = serde_json::to_string(row).map_err(|e| format!("encode_row_failed:{e}"))?;
-    payload.push('\n');
-    fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(path)
-        .and_then(|mut f| std::io::Write::write_all(&mut f, payload.as_bytes()))
+    lane_utils::append_jsonl(path, row)
         .map_err(|e| format!("append_jsonl_failed:{}:{e}", path.display()))
 }
 
 fn write_json_atomic(path: &Path, value: &Value) -> Result<(), String> {
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)
-            .map_err(|e| format!("create_dir_failed:{}:{e}", parent.display()))?;
-    }
-    let tmp = path.with_extension(format!(
-        "tmp-{}-{}",
-        std::process::id(),
-        chrono::Utc::now().timestamp_millis()
-    ));
-    let mut payload =
-        serde_json::to_string_pretty(value).map_err(|e| format!("encode_json_failed:{e}"))?;
-    payload.push('\n');
-    fs::write(&tmp, payload).map_err(|e| format!("write_tmp_failed:{}:{e}", tmp.display()))?;
-    fs::rename(&tmp, path).map_err(|e| format!("rename_tmp_failed:{}:{e}", path.display()))
+    lane_utils::write_json(path, value)
+        .map_err(|e| format!("write_json_failed:{}:{e}", path.display()))
 }
 
 fn rel_path(root: &Path, path: &Path) -> String {

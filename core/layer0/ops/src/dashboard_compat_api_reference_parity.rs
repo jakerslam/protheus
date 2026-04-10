@@ -1,6 +1,7 @@
 // Layer ownership: core/layer0/ops (authoritative)
 // SPDX-License-Identifier: Apache-2.0
 use super::CompatApiResponse;
+use crate::contract_lane_utils as lane_utils;
 use base64::Engine;
 use serde_json::{json, Value};
 use std::collections::hash_map::DefaultHasher;
@@ -17,13 +18,7 @@ const ACTION_HISTORY_REL: &str =
     "client/runtime/local/state/ui/infring_dashboard/actions/history.jsonl";
 
 fn clean_text(raw: &str, max_len: usize) -> String {
-    raw.split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
-        .trim()
-        .chars()
-        .take(max_len)
-        .collect::<String>()
+    lane_utils::clean_text(Some(raw), max_len.max(1))
 }
 
 fn state_path(root: &Path, rel: &str) -> PathBuf {
@@ -31,18 +26,11 @@ fn state_path(root: &Path, rel: &str) -> PathBuf {
 }
 
 fn read_json(path: &Path) -> Option<Value> {
-    fs::read_to_string(path)
-        .ok()
-        .and_then(|raw| serde_json::from_str::<Value>(&raw).ok())
+    lane_utils::read_json(path)
 }
 
 fn write_json(path: &Path, value: &Value) {
-    if let Some(parent) = path.parent() {
-        let _ = fs::create_dir_all(parent);
-    }
-    if let Ok(raw) = serde_json::to_string_pretty(value) {
-        let _ = fs::write(path, raw);
-    }
+    let _ = lane_utils::write_json(path, value);
 }
 
 fn now_ms() -> i64 {
