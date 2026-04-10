@@ -15,6 +15,19 @@ type Violation = {
   detail: string;
 };
 
+type AllowViolationRule = {
+  file?: string;
+  reason?: string;
+  detail_contains?: string;
+  owner?: string;
+  ticket?: string;
+  expires_at?: string;
+};
+
+type PolicyFile = {
+  allowed_violations?: AllowViolationRule[];
+};
+
 const ROOT = process.cwd();
 
 function parseArgs(argv: string[]): Args {
@@ -92,21 +105,42 @@ function isAllowedClientOrchestrationShim(
   return /^(\.\.\/)+surface\/orchestration\/scripts\/[a-zA-Z0-9_.-]+\.ts$/.test(normalized);
 }
 
+function isImportIntoDomain(spec: string, domain: string): boolean {
+  return (
+    spec.includes(`${domain}/`) ||
+    spec.startsWith(`../${domain}`) ||
+    spec.startsWith(`../../${domain}`) ||
+    spec.startsWith(`/${domain}/`)
+  );
+}
+
+function isRuleExpired(rule: AllowViolationRule): boolean {
+  if (!rule.expires_at) return false;
+  const ts = Date.parse(`${rule.expires_at}T00:00:00Z`);
+  if (!Number.isFinite(ts)) return true;
+  return ts < Date.now();
+}
+
+function matchAllowRule(rule: AllowViolationRule, violation: Violation): boolean {
+  const fileOk = !rule.file || rule.file === violation.file;
+  const reasonOk = !rule.reason || rule.reason === violation.reason;
+  const detailOk = !rule.detail_contains || violation.detail.includes(String(rule.detail_contains));
+  return fileOk && reasonOk && detailOk;
+}
+
 function run(args: Args): number {
   const violations: Violation[] = [];
   const clientFiles = walk(path.join(ROOT, 'client'), new Set(['.ts', '.tsx']));
   const coreFiles = walk(path.join(ROOT, 'core'), new Set(['.rs', '.ts']));
   const orchestrationCargo = path.join(ROOT, 'surface', 'orchestration', 'Cargo.toml');
   const surfaceFiles = walk(path.join(ROOT, 'surface', 'orchestration', 'src'), new Set(['.rs']));
+  const surfaceScriptFiles = walk(path.join(ROOT, 'surface', 'orchestration', 'scripts'), new Set(['.ts', '.tsx']));
 
   for (const file of clientFiles) {
     const source = fs.readFileSync(file, 'utf8');
     for (const spec of importSpecs(source)) {
       if (
-        spec.includes('core/') ||
-        spec.startsWith('../core') ||
-        spec.startsWith('../../core') ||
-        spec.startsWith('/core/')
+        isImportIntoDomain(spec, 'core')
       ) {
         violations.push({
           file: rel(file),
@@ -146,6 +180,26 @@ function run(args: Args): number {
         reason: 'core_references_orchestration_path_forbidden',
         detail: 'detected path reference surface/orchestration',
       });
+    }
+  }
+
+  for (const file of surfaceScriptFiles) {
+    const source = fs.readFileSync(file, 'utf8');
+    for (const spec of importSpecs(source)) {
+      if (isImportIntoDomain(spec, 'client')) {
+        violations.push({
+          file: rel(file),
+          reason: 'orchestration_scripts_import_client_forbidden',
+          detail: spec,
+        });
+      }
+      if (isImportIntoDomain(spec, 'core')) {
+        violations.push({
+          file: rel(file),
+          reason: 'orchestration_scripts_import_core_forbidden',
+          detail: spec,
+        });
+      }
     }
   }
 
@@ -199,36 +253,51 @@ function run(args: Args): number {
 
   const policyPath = path.resolve(ROOT, args.policy);
   let allowedViolations: Violation[] = [];
+  let expiredAllowedViolations: Violation[] = [];
+  let malformedAllowRules: Violation[] = [];
   let hardViolations = violations.slice();
   if (fs.existsSync(policyPath)) {
-    const policy = JSON.parse(fs.readFileSync(policyPath, 'utf8')) as {
-      allowed_violations?: Array<{ file?: string; reason?: string; detail_contains?: string }>;
-    };
+    const policy = JSON.parse(fs.readFileSync(policyPath, 'utf8')) as PolicyFile;
     const allow = Array.isArray(policy.allowed_violations) ? policy.allowed_violations : [];
     hardViolations = [];
-    for (const violation of violations) {
-      const isAllowed = allow.some((rule) => {
-        const fileOk = !rule.file || rule.file === violation.file;
-        const reasonOk = !rule.reason || rule.reason === violation.reason;
-        const detailOk =
-          !rule.detail_contains || violation.detail.includes(String(rule.detail_contains));
-        return fileOk && reasonOk && detailOk;
-      });
-      if (isAllowed) {
-        allowedViolations.push(violation);
-      } else {
-        hardViolations.push(violation);
+    for (const rule of allow) {
+      if (!rule.file || !rule.reason || !rule.detail_contains || !rule.owner || !rule.ticket || !rule.expires_at) {
+        malformedAllowRules.push({
+          file: rel(policyPath),
+          reason: 'allowlist_rule_missing_metadata',
+          detail: JSON.stringify(rule),
+        });
       }
     }
+    for (const violation of violations) {
+      const matchedRule = allow.find((rule) => matchAllowRule(rule, violation));
+      if (!matchedRule) {
+        hardViolations.push(violation);
+        continue;
+      }
+      if (isRuleExpired(matchedRule)) {
+        expiredAllowedViolations.push(violation);
+        hardViolations.push({
+          file: violation.file,
+          reason: 'allowlist_rule_expired',
+          detail: `${violation.reason}:${violation.detail}`,
+        });
+      } else {
+        allowedViolations.push(violation);
+      }
+    }
+    hardViolations.push(...malformedAllowRules);
   }
 
   report.summary = {
     violation_count: violations.length,
     allowed_violation_count: allowedViolations.length,
+    expired_allowed_violation_count: expiredAllowedViolations.length,
     hard_violation_count: hardViolations.length,
     pass: hardViolations.length === 0,
   };
   (report as any).allowed_violations = allowedViolations;
+  (report as any).expired_allowed_violations = expiredAllowedViolations;
   report.violations = hardViolations;
 
   const outPath = path.resolve(ROOT, args.out);
