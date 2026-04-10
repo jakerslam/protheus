@@ -4,15 +4,58 @@ mod tests {
 
     static TEST_ENV_MUTEX: Mutex<()> = Mutex::new(());
 
+    struct ScopedEnvVar {
+        key: &'static str,
+        previous: Option<String>,
+    }
+
+    impl ScopedEnvVar {
+        fn set(key: &'static str, value: &str) -> Self {
+            let previous = std::env::var(key).ok();
+            std::env::set_var(key, value);
+            Self { key, previous }
+        }
+    }
+
+    impl Drop for ScopedEnvVar {
+        fn drop(&mut self) {
+            match &self.previous {
+                Some(value) => std::env::set_var(self.key, value),
+                None => std::env::remove_var(self.key),
+            }
+        }
+    }
+
     fn with_fixture<T>(fixture: Value, run: impl FnOnce() -> T) -> T {
         let _guard = TEST_ENV_MUTEX.lock().expect("lock");
-        std::env::set_var(
+        let _fixture = ScopedEnvVar::set(
             "INFRING_BATCH_QUERY_TEST_FIXTURE_JSON",
-            serde_json::to_string(&fixture).expect("encode fixture"),
+            &serde_json::to_string(&fixture).expect("encode fixture"),
         );
-        let out = run();
-        std::env::remove_var("INFRING_BATCH_QUERY_TEST_FIXTURE_JSON");
-        out
+        run()
+    }
+
+    fn run_query(root: &Path, query: &str, aperture: &str) -> Value {
+        api_batch_query(
+            root,
+            &json!({
+                "source":"web",
+                "query": query,
+                "aperture": aperture
+            }),
+        )
+    }
+
+    fn run_query_with_fixture(fixture: Value, query: &str, aperture: &str) -> Value {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        with_fixture(fixture, || run_query(tmp.path(), query, aperture))
+    }
+
+    fn summary_lowered(out: &Value) -> String {
+        out.get("summary")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_ascii_lowercase()
     }
 
     #[test]
@@ -27,15 +70,10 @@ mod tests {
 
     #[test]
     fn web_query_with_results_returns_evidence_and_clean_summary() {
-        let tmp = tempfile::tempdir().expect("tempdir");
-        let out = with_fixture(
+        let out = run_query_with_fixture(
             json!({"agent systems":{"ok":true,"summary":"Agent systems coordinate tools with deterministic receipts.","requested_url":"https://example.com/agents","status_code":200}}),
-            || {
-                api_batch_query(
-                    tmp.path(),
-                    &json!({"source":"web","query":"agent systems","aperture":"small"}),
-                )
-            },
+            "agent systems",
+            "small",
         );
         assert_eq!(out.get("status").and_then(Value::as_str), Some("ok"));
         assert!(out
@@ -43,28 +81,21 @@ mod tests {
             .and_then(Value::as_array)
             .map(|rows| !rows.is_empty())
             .unwrap_or(false));
-        let summary = out.get("summary").and_then(Value::as_str).unwrap_or("");
-        assert!(!summary
-            .to_ascii_lowercase()
-            .contains("web search completed"));
-        assert!(!summary.to_ascii_lowercase().contains("key findings for"));
-        assert!(!summary.to_ascii_lowercase().contains("potential sources:"));
+        let summary = summary_lowered(&out);
+        assert!(!summary.contains("web search completed"));
+        assert!(!summary.contains("key findings for"));
+        assert!(!summary.contains("potential sources:"));
     }
 
     #[test]
     fn no_results_path_returns_clean_no_results_status() {
-        let tmp = tempfile::tempdir().expect("tempdir");
-        let out = with_fixture(
+        let out = run_query_with_fixture(
             json!({
                 "batch query no results":{"ok":false,"error":"provider_network_policy_blocked"},
                 "bing_rss::batch query no results":{"ok":false,"error":"bing_rss_search_failed"}
             }),
-            || {
-                api_batch_query(
-                    tmp.path(),
-                    &json!({"source":"web","query":"batch query no results","aperture":"small"}),
-                )
-            },
+            "batch query no results",
+            "small",
         );
         assert_eq!(
             out.get("status").and_then(Value::as_str),
@@ -81,8 +112,7 @@ mod tests {
 
     #[test]
     fn source_only_scaffold_is_filtered_and_returns_no_results() {
-        let tmp = tempfile::tempdir().expect("tempdir");
-        let out = with_fixture(
+        let out = run_query_with_fixture(
             json!({
                 "infring competitors": {
                     "ok": true,
@@ -99,19 +129,14 @@ mod tests {
                     "error": "duckduckgo_instant_no_usable_summary"
                 }
             }),
-            || {
-                api_batch_query(
-                    tmp.path(),
-                    &json!({"source":"web","query":"infring competitors","aperture":"small"}),
-                )
-            },
+            "infring competitors",
+            "small",
         );
         assert_eq!(
             out.get("status").and_then(Value::as_str),
             Some("no_results")
         );
-        let summary = out.get("summary").and_then(Value::as_str).unwrap_or("");
-        let lowered = summary.to_ascii_lowercase();
+        let lowered = summary_lowered(&out);
         assert!(!lowered.contains("key findings for"));
         assert!(!lowered.contains("potential sources:"));
         assert!(lowered.contains("no useful information"));
@@ -119,17 +144,11 @@ mod tests {
 
     #[test]
     fn medium_aperture_enables_parallel_retrieval_for_rewrites() {
-        let tmp = tempfile::tempdir().expect("tempdir");
         let fixture = json!({
             "agent runtime reliability":{"ok":true,"summary":"Primary finding for runtime reliability.","requested_url":"https://example.com/one","status_code":200},
             "agent runtime reliability overview":{"ok":true,"summary":"Secondary finding for runtime reliability.","requested_url":"https://example.com/two","status_code":200}
         });
-        let out = with_fixture(fixture, || {
-            api_batch_query(
-                tmp.path(),
-                &json!({"source":"web","query":"agent runtime reliability","aperture":"medium"}),
-            )
-        });
+        let out = run_query_with_fixture(fixture, "agent runtime reliability", "medium");
         assert_eq!(
             out.get("parallel_retrieval_used").and_then(Value::as_bool),
             Some(true)
@@ -300,9 +319,8 @@ mod tests {
 
     #[test]
     fn low_signal_search_payload_uses_link_fetch_fallback_for_synthesis() {
-        let tmp = tempfile::tempdir().expect("tempdir");
         let query = "latest technology news today";
-        let out = with_fixture(
+        let out = run_query_with_fixture(
             json!({
                 query: {
                     "ok": true,
@@ -319,16 +337,11 @@ mod tests {
                     "status_code": 200
                 }
             }),
-            || {
-                api_batch_query(
-                    tmp.path(),
-                    &json!({"source":"web","query":query,"aperture":"small"}),
-                )
-            },
+            query,
+            "small",
         );
         assert_eq!(out.get("status").and_then(Value::as_str), Some("ok"));
-        let summary = out.get("summary").and_then(Value::as_str).unwrap_or("");
-        let lowered = summary.to_ascii_lowercase();
+        let lowered = summary_lowered(&out);
         assert!(lowered.contains("reuters") || lowered.contains("latency"));
         assert!(!lowered.contains("all regions"));
         assert!(!lowered.contains("safe search"));
@@ -336,9 +349,8 @@ mod tests {
 
     #[test]
     fn search_engine_domain_only_candidates_fail_closed() {
-        let tmp = tempfile::tempdir().expect("tempdir");
         let query = "framework compare snapshots";
-        let out = with_fixture(
+        let out = run_query_with_fixture(
             json!({
                 query: {
                     "ok": true,
@@ -357,26 +369,20 @@ mod tests {
                     "error": "duckduckgo_instant_no_usable_summary"
                 }
             }),
-            || {
-                api_batch_query(
-                    tmp.path(),
-                    &json!({"source":"web","query":query,"aperture":"small"}),
-                )
-            },
+            query,
+            "small",
         );
         assert_eq!(
             out.get("status").and_then(Value::as_str),
             Some("no_results")
         );
-        let summary = out.get("summary").and_then(Value::as_str).unwrap_or("");
-        assert!(!summary.to_ascii_lowercase().contains("bing.com"));
+        assert!(!summary_lowered(&out).contains("bing.com"));
     }
 
     #[test]
     fn compare_query_resolves_deictic_framework_and_blocks_grammar_noise() {
-        let tmp = tempfile::tempdir().expect("tempdir");
         let query = "compare this framework to openclaw";
-        let out = with_fixture(
+        let out = run_query_with_fixture(
             json!({
                 "compare infring to openclaw": {
                     "ok": true,
@@ -385,19 +391,14 @@ mod tests {
                     "status_code": 200
                 }
             }),
-            || {
-                api_batch_query(
-                    tmp.path(),
-                    &json!({"source":"web","query":query,"aperture":"medium"}),
-                )
-            },
+            query,
+            "medium",
         );
         assert_eq!(
             out.get("status").and_then(Value::as_str),
             Some("no_results")
         );
-        let summary = out.get("summary").and_then(Value::as_str).unwrap_or("");
-        let lowered = summary.to_ascii_lowercase();
+        let lowered = summary_lowered(&out);
         assert!(lowered.contains("comparison findings"));
         assert!(lowered.contains("infring"));
         assert!(lowered.contains("openclaw"));
@@ -406,9 +407,8 @@ mod tests {
 
     #[test]
     fn compare_query_prefers_entities_coverage_for_synthesis() {
-        let tmp = tempfile::tempdir().expect("tempdir");
         let query = "compare this framework to openclaw";
-        let out = with_fixture(
+        let out = run_query_with_fixture(
             json!({
                 "compare infring to openclaw": {
                     "ok": true,
@@ -423,16 +423,11 @@ mod tests {
                     "status_code": 200
                 }
             }),
-            || {
-                api_batch_query(
-                    tmp.path(),
-                    &json!({"source":"web","query":query,"aperture":"medium"}),
-                )
-            },
+            query,
+            "medium",
         );
         assert_eq!(out.get("status").and_then(Value::as_str), Some("ok"));
-        let summary = out.get("summary").and_then(Value::as_str).unwrap_or("");
-        let lowered = summary.to_ascii_lowercase();
+        let lowered = summary_lowered(&out);
         assert!(lowered.contains("infring"));
         assert!(lowered.contains("openclaw"));
         assert!(lowered.contains("ops/sec") || lowered.contains("latency"));
@@ -441,9 +436,8 @@ mod tests {
 
     #[test]
     fn compare_query_filters_unrelated_news_and_portal_noise() {
-        let tmp = tempfile::tempdir().expect("tempdir");
         let query = "compare this framework to openclaw";
-        let out = with_fixture(
+        let out = run_query_with_fixture(
             json!({
                 "compare infring to openclaw": {
                     "ok": true,
@@ -458,19 +452,14 @@ mod tests {
                     "status_code": 200
                 }
             }),
-            || {
-                api_batch_query(
-                    tmp.path(),
-                    &json!({"source":"web","query":query,"aperture":"medium"}),
-                )
-            },
+            query,
+            "medium",
         );
         assert_eq!(
             out.get("status").and_then(Value::as_str),
             Some("no_results")
         );
-        let summary = out.get("summary").and_then(Value::as_str).unwrap_or("");
-        let lowered = summary.to_ascii_lowercase();
+        let lowered = summary_lowered(&out);
         assert!(lowered.contains("comparison findings"));
         assert!(!lowered.contains("fox news"));
         assert!(!lowered.contains("mychart"));
@@ -478,9 +467,8 @@ mod tests {
 
     #[test]
     fn vague_retry_prompt_fails_closed_instead_of_synthesizing_noise() {
-        let tmp = tempfile::tempdir().expect("tempdir");
         let query = "we tired to patch it, try again";
-        let out = with_fixture(
+        let out = run_query_with_fixture(
             json!({
                 "we tired to patch it, try again": {
                     "ok": true,
@@ -495,19 +483,14 @@ mod tests {
                     "status_code": 200
                 }
             }),
-            || {
-                api_batch_query(
-                    tmp.path(),
-                    &json!({"source":"web","query":query,"aperture":"medium"}),
-                )
-            },
+            query,
+            "medium",
         );
         assert_eq!(
             out.get("status").and_then(Value::as_str),
             Some("no_results")
         );
-        let summary = out.get("summary").and_then(Value::as_str).unwrap_or("");
-        let lowered = summary.to_ascii_lowercase();
+        let lowered = summary_lowered(&out);
         assert!(lowered.contains("no useful information"));
         assert!(!lowered.contains("fox news"));
         assert!(!lowered.contains("mychart"));
@@ -515,15 +498,10 @@ mod tests {
 
     #[test]
     fn exact_match_query_disables_rewrite_and_parallel() {
-        let tmp = tempfile::tempdir().expect("tempdir");
-        let out = with_fixture(
+        let out = run_query_with_fixture(
             json!({"\"agent::run\"":{"ok":true,"summary":"Exact symbol lookup result.","requested_url":"https://example.com/symbol","status_code":200}}),
-            || {
-                api_batch_query(
-                    tmp.path(),
-                    &json!({"source":"web","query":"\"agent::run\"","aperture":"medium"}),
-                )
-            },
+            "\"agent::run\"",
+            "medium",
         );
         assert_eq!(
             out.get("parallel_retrieval_used").and_then(Value::as_bool),
@@ -540,20 +518,12 @@ mod tests {
 
     #[test]
     fn ack_only_summary_is_never_returned_to_user() {
-        let tmp = tempfile::tempdir().expect("tempdir");
-        let out = with_fixture(
+        let out = run_query_with_fixture(
             json!({"ack leak":{"ok":true,"summary":"Web search completed.","requested_url":"https://example.com/ack","status_code":200}}),
-            || {
-                api_batch_query(
-                    tmp.path(),
-                    &json!({"source":"web","query":"ack leak","aperture":"small"}),
-                )
-            },
+            "ack leak",
+            "small",
         );
-        let summary = out.get("summary").and_then(Value::as_str).unwrap_or("");
-        assert!(!summary
-            .to_ascii_lowercase()
-            .contains("web search completed"));
+        assert!(!summary_lowered(&out).contains("web search completed"));
     }
 
     #[test]

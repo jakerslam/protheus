@@ -654,7 +654,11 @@ fn looks_like_portal_noise_candidate(candidate: &Candidate) -> bool {
     .any(|marker| lowered.contains(marker))
 }
 
-fn candidate_passes_relevance_gate(query: &str, candidate: &Candidate, benchmark_intent: bool) -> bool {
+fn candidate_passes_relevance_gate(
+    query: &str,
+    candidate: &Candidate,
+    benchmark_intent: bool,
+) -> bool {
     let query_tokens = tokenize_relevance(query, 40);
     if query_tokens.is_empty() {
         return true;
@@ -838,6 +842,67 @@ fn extract_domains_from_text(text: &str, max_domains: usize) -> Vec<String> {
         }
     }
     out
+}
+
+fn is_search_engine_domain(domain: &str) -> bool {
+    let normalized = clean_text(domain, 120).to_ascii_lowercase();
+    matches!(
+        normalized.as_str(),
+        "duckduckgo.com"
+            | "lite.duckduckgo.com"
+            | "bing.com"
+            | "www.bing.com"
+            | "google.com"
+            | "www.google.com"
+            | "search.yahoo.com"
+            | "yahoo.com"
+            | "search.brave.com"
+            | "brave.com"
+    )
+}
+
+fn non_search_engine_links(payload: &Value, max_links: usize) -> Vec<String> {
+    if max_links == 0 {
+        return Vec::new();
+    }
+    let mut out = Vec::<String>::new();
+    let mut seen = HashSet::<String>::new();
+    for row in payload
+        .get("links")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+    {
+        let link = clean_text(row.as_str().unwrap_or(""), 2_200);
+        if link.is_empty() || !seen.insert(link.clone()) {
+            continue;
+        }
+        let domain = extract_domains_from_text(&link, 1)
+            .into_iter()
+            .next()
+            .unwrap_or_default();
+        if domain.is_empty() || is_search_engine_domain(&domain) {
+            continue;
+        }
+        out.push(link);
+        if out.len() >= max_links.max(1) {
+            break;
+        }
+    }
+    out
+}
+
+fn first_non_search_engine_link(payload: &Value) -> String {
+    let preferred = non_search_engine_links(payload, 1);
+    if let Some(link) = preferred.first() {
+        return link.clone();
+    }
+    payload
+        .get("links")
+        .and_then(Value::as_array)
+        .and_then(|links| links.iter().find_map(Value::as_str))
+        .map(|link| clean_text(link, 2_200))
+        .unwrap_or_default()
 }
 
 fn fixture_payload_for_query(query: &str) -> Option<Value> {
@@ -1037,43 +1102,7 @@ fn candidate_from_search_payload(query: &str, payload: &Value) -> Result<Candida
     if looks_like_source_only_snippet(&snippet) {
         return Err("no_usable_summary".to_string());
     }
-    fn is_search_engine_domain(domain: &str) -> bool {
-        matches!(
-            domain,
-            "duckduckgo.com"
-                | "lite.duckduckgo.com"
-                | "bing.com"
-                | "www.bing.com"
-                | "google.com"
-                | "www.google.com"
-        )
-    }
-
-    fn first_result_link(payload: &Value) -> String {
-        let mut fallback = String::new();
-        let Some(links) = payload.get("links").and_then(Value::as_array) else {
-            return String::new();
-        };
-        for row in links {
-            let link = clean_text(row.as_str().unwrap_or(""), 2_200);
-            if link.is_empty() {
-                continue;
-            }
-            if fallback.is_empty() {
-                fallback = link.clone();
-            }
-            let domain = extract_domains_from_text(&link, 1)
-                .into_iter()
-                .next()
-                .unwrap_or_default();
-            if !domain.is_empty() && !is_search_engine_domain(domain.as_str()) {
-                return link;
-            }
-        }
-        fallback
-    }
-
-    let mut locator = first_result_link(payload);
+    let mut locator = first_non_search_engine_link(payload);
     if locator.is_empty() {
         locator = clean_text(
             payload
