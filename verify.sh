@@ -139,6 +139,7 @@ run_protheus_ops_defer() {
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:arch:conformance
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:transport:convergence:guard
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:transport:topology:gate
+  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:production-closure:gate
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:orchestration:contract:guard
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:orchestration:hidden-state:guard
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:debt:expiry:guard

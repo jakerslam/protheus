@@ -1,0 +1,83 @@
+{
+  "schema_id": "production_readiness_closure_policy",
+  "schema_version": "1.0",
+  "canonical_release_channel": "stable",
+  "release_candidate_topology": {
+    "transport_mode": "resident_ipc_authoritative",
+    "require_ipc_daemon": true,
+    "require_ipc_strict": true,
+    "forbid_process_transport_in_production": true
+  },
+  "production_surface_contract": {
+    "canonical_surface": "rich",
+    "constrained_profiles": [
+      "pure",
+      "tiny-max"
+    ],
+    "command_tiers": {
+      "production_supported": [
+        "gateway",
+        "status",
+        "doctor",
+        "memory",
+        "task",
+        "receipts",
+        "update"
+      ],
+      "experimental": [
+        "assimilate"
+      ],
+      "internal": [
+        "runtime-systems",
+        "backlog-delivery-plane"
+      ]
+    }
+  },
+  "required_files": [
+    "client/runtime/config/release_channel_policy.json",
+    "client/runtime/config/release_compatibility_policy.json",
+    "client/runtime/config/schema_versioning_gate_policy.json",
+    "client/runtime/config/supply_chain_trust_policy.json",
+    ".github/workflows/release-security-artifacts.yml",
+    "docs/client/RELEASE_SECURITY_CHECKLIST.md",
+    "docs/client/releases/v0.2.0_migration_guide.md",
+    "client/runtime/config/runtime_telemetry_policy.json",
+    "client/runtime/config/production_readiness_closure_policy.json",
+    "docs/client/RECOVERY_TRUTH_TABLE.md"
+  ],
+  "required_package_scripts": [
+    "ops:transport:topology:gate",
+    "ops:release-contract:gate",
+    "ops:reliability:gauntlet",
+    "ops:ipc-bridge:soak",
+    "ops:f100-enterprise-baseline",
+    "dr:gameday:gate",
+    "chaos:continuous:gate",
+    "ops:runtime-telemetry:status",
+    "ops:support-bundle:export",
+    "ops:production-closure:gate"
+  ],
+  "required_ci_invocations": [
+    "ops:transport:topology:gate",
+    "ops:release-contract:gate",
+    "ops:reliability:gauntlet",
+    "ops:ipc-bridge:soak",
+    "ops:production-closure:gate"
+  ],
+  "required_verify_invocations": [
+    "ops:transport:topology:gate",
+    "ops:production-closure:gate"
+  ],
+  "required_readme_markers": [
+    "Production Support Contract",
+    "Canonical production profile: rich",
+    "Constrained profiles: `--pure`, `--tiny-max`",
+    "Experimental lanes (explicit opt-in): `assimilate`",
+    "`npm run -s ops:support-bundle:export`"
+  ],
+  "smoke_scripts": [
+    "ops:transport:topology:gate",
+    "ops:release-contract:gate",
+    "ops:support-bundle:export"
+  ]
+}

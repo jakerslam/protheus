@@ -47,6 +47,14 @@ What is true in this repository today:
 - Full command surface still requires Node.js 22+; Node-free fallback remains available for core operations.
 - Production release channels are resident-IPC authoritative: process transport fallbacks are blocked (`process_transport_forbidden_in_production` / `process_fallback_forbidden_in_production`).
 
+## Production Support Contract
+
+- Canonical production profile: rich
+- Constrained profiles: `--pure`, `--tiny-max`
+- Experimental lanes (explicit opt-in): `assimilate`
+- Internal/maintenance lanes are not part of the public production SLA.
+- Operator diagnostics and incident export: `npm run -s ops:support-bundle:export`
+
 ## Quick Start
 
 ### macOS / Linux
