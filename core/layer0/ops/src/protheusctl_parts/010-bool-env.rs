@@ -63,6 +63,42 @@ fn csv_list_env(name: &str, fallback_csv: &str) -> Vec<String> {
         .collect()
 }
 
+fn env_nonempty(name: &str) -> Option<String> {
+    env::var(name)
+        .ok()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+}
+
+fn parse_workspace_root_candidate(raw: &str) -> Option<PathBuf> {
+    let base = PathBuf::from(raw.trim());
+    let candidate = if base.is_absolute() {
+        base
+    } else {
+        let cwd = std::env::current_dir().ok()?;
+        cwd.join(base)
+    };
+    if candidate
+        .join("core")
+        .join("layer0")
+        .join("ops")
+        .join("Cargo.toml")
+        .exists()
+        && candidate.join("client").join("runtime").exists()
+    {
+        Some(candidate)
+    } else {
+        None
+    }
+}
+
+fn workspace_root_from_env() -> Option<PathBuf> {
+    [INFRING_WORKSPACE_ROOT_ENV, PROTHEUS_WORKSPACE_ROOT_ENV]
+        .iter()
+        .filter_map(|name| env_nonempty(name))
+        .find_map(|raw| parse_workspace_root_candidate(&raw))
+}
+
 fn requested_lens_arg(args: &[String]) -> Option<String> {
     let mut idx = 0usize;
     while idx < args.len() {
@@ -114,53 +150,13 @@ fn should_offer_setup(root: &Path, skip_setup: bool) -> bool {
 }
 
 fn resolve_workspace_root(start: &Path) -> Option<PathBuf> {
-    let parse_workspace_root = |raw: String| -> Option<PathBuf> {
-        let trimmed = raw.trim();
-        if trimmed.is_empty() {
-            return None;
-        }
-        let base = PathBuf::from(trimmed);
-        let candidate = if base.is_absolute() {
-            base
-        } else {
-            let cwd = std::env::current_dir().ok()?;
-            cwd.join(base)
-        };
-        if candidate
-            .join("core")
-            .join("layer0")
-            .join("ops")
-            .join("Cargo.toml")
-            .exists()
-            && candidate.join("client").join("runtime").exists()
-        {
-            Some(candidate)
-        } else {
-            None
-        }
-    };
-
-    if let Ok(raw) = env::var(INFRING_WORKSPACE_ROOT_ENV) {
-        if let Some(root) = parse_workspace_root(raw) {
-            return Some(root);
-        }
-    }
-    if let Ok(raw) = env::var(PROTHEUS_WORKSPACE_ROOT_ENV) {
-        if let Some(root) = parse_workspace_root(raw) {
-            return Some(root);
-        }
+    if let Some(root) = workspace_root_from_env() {
+        return Some(root);
     }
 
     let mut cursor = Some(start);
     while let Some(path) = cursor {
-        if path
-            .join("core")
-            .join("layer0")
-            .join("ops")
-            .join("Cargo.toml")
-            .exists()
-            && path.join("client").join("runtime").exists()
-        {
+        if parse_workspace_root_candidate(path.to_string_lossy().as_ref()).is_some() {
             return Some(path.to_path_buf());
         }
         cursor = path.parent();
@@ -197,11 +193,8 @@ fn script_exists_with_ts_js_fallback(root: &Path, rel: &str) -> bool {
 }
 
 fn runtime_mode_state_path(root: &Path) -> PathBuf {
-    if let Ok(raw) = env::var("PROTHEUS_RUNTIME_MODE_STATE_PATH") {
-        let trimmed = raw.trim();
-        if !trimmed.is_empty() {
-            return PathBuf::from(trimmed);
-        }
+    if let Some(raw) = env_nonempty("PROTHEUS_RUNTIME_MODE_STATE_PATH") {
+        return PathBuf::from(raw);
     }
     root.join("local")
         .join("state")
