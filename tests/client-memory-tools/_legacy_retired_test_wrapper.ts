@@ -48,6 +48,11 @@ function createTestModule(scriptDir, scriptName, laneId) {
   );
 }
 
+function requireFresh(modulePath) {
+  delete require.cache[require.resolve(modulePath)];
+  return require(modulePath);
+}
+
 function bindLegacyRetiredTest(
   currentModule,
   scriptDir,
@@ -65,6 +70,7 @@ function bindLegacyRetiredTest(
 module.exports = {
   bindLegacyRetiredTest,
   createTestModule,
+  requireFresh,
   runAsMain: runtimeHelper.runAsMain,
   normalizeLaneId
 };
