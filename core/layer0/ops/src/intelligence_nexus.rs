@@ -23,19 +23,15 @@ const VAULT_KEY_ENV: &str = "INTELLIGENCE_NEXUS_VAULT_KEY";
 mod intelligence_nexus_finance;
 #[path = "intelligence_nexus_keys.rs"]
 mod intelligence_nexus_keys;
-
 fn state_root(root: &Path) -> PathBuf {
     scoped_state_root(root, STATE_ENV, STATE_SCOPE)
 }
-
 fn latest_path(root: &Path) -> PathBuf {
     state_root(root).join("latest.json")
 }
-
 fn ledger_path(root: &Path) -> PathBuf {
     state_root(root).join("ledger.json")
 }
-
 fn default_ledger() -> Value {
     json!({
         "version": "1.0",
@@ -50,22 +46,18 @@ fn default_ledger() -> Value {
         "created_at": now_iso()
     })
 }
-
 fn load_ledger(root: &Path) -> Value {
     read_json(&ledger_path(root)).unwrap_or_else(default_ledger)
 }
-
 fn store_ledger(root: &Path, ledger: &Value) -> Result<(), String> {
     write_json(&ledger_path(root), ledger)
 }
-
 fn ledger_obj_mut(ledger: &mut Value) -> &mut Map<String, Value> {
     if !ledger.is_object() {
         *ledger = default_ledger();
     }
     ledger.as_object_mut().expect("ledger_object")
 }
-
 fn map_mut<'a>(obj: &'a mut Map<String, Value>, key: &str) -> &'a mut Map<String, Value> {
     if !obj.get(key).map(Value::is_object).unwrap_or(false) {
         obj.insert(key.to_string(), Value::Object(Map::new()));
@@ -74,7 +66,6 @@ fn map_mut<'a>(obj: &'a mut Map<String, Value>, key: &str) -> &'a mut Map<String
         .and_then(Value::as_object_mut)
         .expect("map")
 }
-
 fn array_mut<'a>(obj: &'a mut Map<String, Value>, key: &str) -> &'a mut Vec<Value> {
     if !obj.get(key).map(Value::is_array).unwrap_or(false) {
         obj.insert(key.to_string(), Value::Array(Vec::new()));
@@ -83,11 +74,9 @@ fn array_mut<'a>(obj: &'a mut Map<String, Value>, key: &str) -> &'a mut Vec<Valu
         .and_then(Value::as_array_mut)
         .expect("array")
 }
-
 fn f64_in_map(map: &Map<String, Value>, key: &str) -> f64 {
     map.get(key).and_then(Value::as_f64).unwrap_or(0.0)
 }
-
 fn emit(root: &Path, payload: Value) -> i32 {
     match write_receipt(root, STATE_ENV, STATE_SCOPE, payload) {
         Ok(out) => {
@@ -112,13 +101,11 @@ fn emit(root: &Path, payload: Value) -> i32 {
         }
     }
 }
-
 fn provider_name(raw: Option<&String>) -> String {
     clean(raw.cloned().unwrap_or_else(|| "openai".to_string()), 40)
         .to_ascii_lowercase()
         .replace(' ', "-")
 }
-
 fn key_masked(raw: &str) -> String {
     let chars = raw.chars().collect::<Vec<_>>();
     if chars.len() < 10 {
@@ -136,20 +123,17 @@ fn key_masked(raw: &str) -> String {
         .collect::<String>();
     format!("{first}...{last}")
 }
-
 fn key_fingerprint(raw: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(raw.as_bytes());
     hex::encode(hasher.finalize())
 }
-
 fn vault_secret() -> Option<String> {
     env::var(VAULT_KEY_ENV)
         .ok()
         .map(|v| clean(v, 512))
         .filter(|v| !v.is_empty())
 }
-
 fn xor_crypt(bytes: &[u8], mask: &[u8]) -> Vec<u8> {
     if mask.is_empty() {
         return bytes.to_vec();
@@ -160,7 +144,6 @@ fn xor_crypt(bytes: &[u8], mask: &[u8]) -> Vec<u8> {
         .map(|(i, b)| b ^ mask[i % mask.len()])
         .collect::<Vec<_>>()
 }
-
 fn derive_mask(secret: &str, context: &str) -> Vec<u8> {
     let mut hasher = Sha256::new();
     hasher.update(secret.as_bytes());
@@ -168,14 +151,12 @@ fn derive_mask(secret: &str, context: &str) -> Vec<u8> {
     hasher.update(context.as_bytes());
     hasher.finalize().to_vec()
 }
-
 fn seal_key(raw: &str, provider: &str, fingerprint: &str) -> Option<String> {
     let secret = vault_secret()?;
     let context = format!("{provider}:{fingerprint}");
     let mask = derive_mask(&secret, &context);
     Some(BASE64_STANDARD.encode(xor_crypt(raw.as_bytes(), &mask)))
 }
-
 fn unseal_key(sealed: &str, provider: &str, fingerprint: &str) -> Option<String> {
     let secret = vault_secret()?;
     let context = format!("{provider}:{fingerprint}");
@@ -184,7 +165,6 @@ fn unseal_key(sealed: &str, provider: &str, fingerprint: &str) -> Option<String>
     let plain = xor_crypt(&bytes, &mask);
     String::from_utf8(plain).ok()
 }
-
 fn validate_key(provider: &str, key: &str) -> Value {
     let ok = match provider {
         "openai" => key.starts_with("sk-") && key.len() >= 20,
@@ -200,7 +180,6 @@ fn validate_key(provider: &str, key: &str) -> Value {
         "reason": if ok { "accepted" } else { "invalid_format" }
     })
 }
-
 fn key_from_flags(parsed: &ParsedArgs) -> Option<(String, String)> {
     if let Some(raw) = parsed.flags.get("key").map(|v| clean(v, 1024)) {
         if !raw.is_empty() {
@@ -218,7 +197,6 @@ fn key_from_flags(parsed: &ParsedArgs) -> Option<(String, String)> {
     }
     Some((raw, clean(env_key, 128)))
 }
-
 fn key_for_provider(parsed: &ParsedArgs, provider: &str, ledger: &Value) -> Option<String> {
     if let Some((raw, _)) = key_from_flags(parsed) {
         return Some(raw);
@@ -241,7 +219,6 @@ fn key_for_provider(parsed: &ParsedArgs, provider: &str, ledger: &Value) -> Opti
     }
     unseal_key(sealed, provider, fingerprint)
 }
-
 fn parse_probe_output(raw: &str) -> Option<Value> {
     let text = raw.trim();
     if text.is_empty() {
@@ -257,7 +234,6 @@ fn parse_probe_output(raw: &str) -> Option<Value> {
     }
     None
 }
-
 fn provider_env_suffix(provider: &str) -> String {
     provider
         .chars()
@@ -270,14 +246,12 @@ fn provider_env_suffix(provider: &str) -> String {
         })
         .collect::<String>()
 }
-
 fn provider_probe_env_key(provider: &str) -> String {
     format!(
         "INTELLIGENCE_NEXUS_PROVIDER_PROBE_{}",
         provider_env_suffix(provider)
     )
 }
-
 fn run_provider_probe(
     root: &Path,
     parsed: &ParsedArgs,
@@ -360,7 +334,6 @@ fn run_provider_probe(
 
     Err("credit_probe_unavailable".to_string())
 }
-
 fn days_left(credits: f64, burn_rate: f64) -> f64 {
     if burn_rate <= 0.0 {
         3650.0
@@ -368,7 +341,6 @@ fn days_left(credits: f64, burn_rate: f64) -> f64 {
         (credits / burn_rate).max(0.0)
     }
 }
-
 fn append_purchase_event(
     ledger: &mut Value,
     provider: &str,
@@ -389,7 +361,6 @@ fn append_purchase_event(
     });
     append_chain_event(ledger, "purchase_history", event_base)
 }
-
 fn append_key_event(ledger: &mut Value, provider: &str, action: &str, detail: Value) -> Value {
     let prev_hash = ledger
         .get("event_head")
@@ -406,7 +377,6 @@ fn append_key_event(ledger: &mut Value, provider: &str, action: &str, detail: Va
     });
     append_chain_event(ledger, "key_events", event_base)
 }
-
 fn append_chain_event(ledger: &mut Value, lane: &str, event_base: Value) -> Value {
     let obj = ledger_obj_mut(ledger);
     let prev_hash = obj
@@ -430,11 +400,9 @@ fn append_chain_event(ledger: &mut Value, lane: &str, event_base: Value) -> Valu
     );
     event
 }
-
 fn today_key() -> String {
     now_iso().chars().take(10).collect::<String>()
 }
-
 fn spent_today(ledger: &Value, actor: &str, provider: &str) -> f64 {
     let today = today_key();
     ledger
@@ -470,7 +438,6 @@ fn spent_today(ledger: &Value, actor: &str, provider: &str) -> f64 {
         })
         .sum::<f64>()
 }
-
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     let parsed = parse_args(argv);
     let command = parsed
@@ -522,7 +489,6 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         ),
     }
 }
-
 #[cfg(test)]
 #[path = "intelligence_nexus_tests.rs"]
 mod tests;

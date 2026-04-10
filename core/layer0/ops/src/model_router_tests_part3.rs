@@ -358,3 +358,23 @@ fn select_route_model_applies_fallback_when_provider_offline() {
     assert_eq!(fallback, "ollama/kimi-k2.5:cloud");
     assert!(used_fallback);
 }
+
+#[test]
+fn helper_fallbacks_cover_general_task_type_and_proposal_capability_family() {
+    assert_eq!(infer_role("prioritize candidate fixes", ""), "planning");
+    assert_eq!(capability_family_key("proposal"), "proposal");
+    assert_eq!(task_type_key_from_route("default", "", ""), "general");
+}
+
+#[test]
+fn normalize_capability_key_collapses_and_truncates_deterministically() {
+    assert_eq!(
+        normalize_capability_key("  __Proposal@@@Doctor:::Repair__  "),
+        "proposal_doctor:::repair"
+    );
+
+    let long_input = "A".repeat(120);
+    let normalized = normalize_capability_key(&long_input);
+    assert_eq!(normalized.len(), 72);
+    assert!(normalized.chars().all(|ch| ch == 'a'));
+}

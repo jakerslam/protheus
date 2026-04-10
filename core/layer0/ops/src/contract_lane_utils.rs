@@ -12,7 +12,6 @@ use std::process::{Command, Stdio};
 use std::sync::OnceLock;
 
 use crate::{deterministic_receipt_hash, now_iso};
-
 pub fn parse_flag(argv: &[String], key: &str, allow_switch_true: bool) -> Option<String> {
     let with_eq = format!("--{key}=");
     let plain = format!("--{key}");
@@ -37,7 +36,6 @@ pub fn parse_flag(argv: &[String], key: &str, allow_switch_true: bool) -> Option
     }
     None
 }
-
 pub fn parse_bool(raw: Option<&str>, fallback: bool) -> bool {
     let Some(v) = raw else {
         return fallback;
@@ -48,7 +46,6 @@ pub fn parse_bool(raw: Option<&str>, fallback: bool) -> bool {
         _ => fallback,
     }
 }
-
 pub fn parse_bool_extended(raw: Option<&str>, fallback: bool) -> bool {
     let Some(v) = raw else {
         return fallback;
@@ -59,22 +56,18 @@ pub fn parse_bool_extended(raw: Option<&str>, fallback: bool) -> bool {
         _ => fallback,
     }
 }
-
 pub fn parse_u64(raw: Option<&str>, fallback: u64) -> u64 {
     raw.and_then(|v| v.trim().parse::<u64>().ok())
         .unwrap_or(fallback)
 }
-
 pub fn parse_u64_clamped(raw: Option<&str>, fallback: u64, lo: u64, hi: u64) -> u64 {
     parse_u64(raw, fallback).clamp(lo, hi)
 }
-
 pub fn parse_f64_clamped(raw: Option<&str>, fallback: f64, lo: f64, hi: f64) -> f64 {
     raw.and_then(|v| v.trim().parse::<f64>().ok())
         .unwrap_or(fallback)
         .clamp(lo, hi)
 }
-
 pub fn parse_opt_bool(raw: Option<&str>) -> Option<bool> {
     let v = raw?.trim().to_ascii_lowercase();
     match v.as_str() {
@@ -83,13 +76,11 @@ pub fn parse_opt_bool(raw: Option<&str>) -> Option<bool> {
         _ => None,
     }
 }
-
 pub fn parse_i64_clamped(raw: Option<&str>, fallback: i64, lo: i64, hi: i64) -> i64 {
     raw.and_then(|v| v.trim().parse::<i64>().ok())
         .unwrap_or(fallback)
         .clamp(lo, hi)
 }
-
 pub fn node_binary_usable(binary: &str) -> bool {
     let trimmed = binary.trim();
     if trimmed.is_empty() {
@@ -104,7 +95,6 @@ pub fn node_binary_usable(binary: &str) -> bool {
         .map(|status| status.success())
         .unwrap_or(false)
 }
-
 pub fn resolve_binary_in_path(binary: &str) -> Option<String> {
     let locator = if cfg!(windows) { "where" } else { "which" };
     let out = Command::new(locator)
@@ -123,7 +113,6 @@ pub fn resolve_binary_in_path(binary: &str) -> Option<String> {
         .find(|row| !row.is_empty())
         .map(ToString::to_string)
 }
-
 pub fn resolve_node_from_runtime_root(runtime_root: &Path) -> Option<String> {
     let executable = if cfg!(windows) { "node.exe" } else { "node" };
     let direct = runtime_root.join("bin").join(executable);
@@ -146,14 +135,12 @@ pub fn resolve_node_from_runtime_root(runtime_root: &Path) -> Option<String> {
     }
     None
 }
-
 pub fn infer_infring_home_from_exe() -> Option<PathBuf> {
     let exe = env::current_exe().ok()?;
     let bin_dir = exe.parent()?;
     let home = bin_dir.parent()?;
     Some(home.to_path_buf())
 }
-
 pub fn resolve_preferred_node_binary() -> String {
     let mut candidates = Vec::<String>::new();
 
@@ -197,7 +184,6 @@ pub fn resolve_preferred_node_binary() -> String {
     }
     "node".to_string()
 }
-
 pub fn clean_token(raw: Option<&str>, fallback: &str) -> String {
     let mut out = String::new();
     if let Some(v) = raw {
@@ -219,7 +205,6 @@ pub fn clean_token(raw: Option<&str>, fallback: &str) -> String {
         trimmed.to_string()
     }
 }
-
 pub fn clean_text(raw: Option<&str>, max_len: usize) -> String {
     let mut out = String::new();
     if let Some(v) = raw {
@@ -232,7 +217,6 @@ pub fn clean_text(raw: Option<&str>, max_len: usize) -> String {
     }
     out.trim().to_string()
 }
-
 pub fn cli_receipt(kind: &str, payload: Value) -> Value {
     let ts = now_iso();
     let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(true);
@@ -246,7 +230,6 @@ pub fn cli_receipt(kind: &str, payload: Value) -> Value {
     out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
     out
 }
-
 pub fn cli_error(kind: &str, error: &str) -> Value {
     let ts = now_iso();
     let mut out = json!({
@@ -260,7 +243,6 @@ pub fn cli_error(kind: &str, error: &str) -> Value {
     out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
     out
 }
-
 pub fn print_json_line(value: &Value) {
     println!(
         "{}",
@@ -268,7 +250,6 @@ pub fn print_json_line(value: &Value) {
             .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
     );
 }
-
 pub fn payload_json(argv: &[String], lane: &str) -> Result<Value, String> {
     if let Some(raw) = parse_flag(argv, "payload", false) {
         return serde_json::from_str::<Value>(&raw)
@@ -285,14 +266,12 @@ pub fn payload_json(argv: &[String], lane: &str) -> Result<Value, String> {
     }
     Ok(json!({}))
 }
-
 pub fn payload_obj<'a>(value: &'a Value) -> &'a Map<String, Value> {
     value.as_object().unwrap_or_else(|| {
         static EMPTY: OnceLock<Map<String, Value>> = OnceLock::new();
         EMPTY.get_or_init(Map::new)
     })
 }
-
 pub fn repo_path(root: &Path, rel: &str) -> PathBuf {
     let candidate = PathBuf::from(rel.trim());
     if candidate.is_absolute() {
@@ -301,7 +280,6 @@ pub fn repo_path(root: &Path, rel: &str) -> PathBuf {
         root.join(candidate)
     }
 }
-
 pub fn path_flag(
     root: &Path,
     argv: &[String],
@@ -320,17 +298,14 @@ pub fn path_flag(
         .map(|raw| repo_path(root, &raw))
         .unwrap_or_else(|| root.join(default_rel))
 }
-
 pub fn json_u64(raw: Option<&Value>, fallback: u64, min: u64, max: u64) -> u64 {
     raw.and_then(Value::as_u64)
         .unwrap_or(fallback)
         .clamp(min, max)
 }
-
 pub fn json_bool(raw: Option<&Value>, fallback: bool) -> bool {
     raw.and_then(Value::as_bool).unwrap_or(fallback)
 }
-
 pub fn json_u64_coerce(raw: Option<&Value>, fallback: u64, min: u64, max: u64) -> u64 {
     raw.and_then(|value| match value {
         Value::Number(number) => number.as_u64(),
@@ -340,7 +315,6 @@ pub fn json_u64_coerce(raw: Option<&Value>, fallback: u64, min: u64, max: u64) -
     .unwrap_or(fallback)
     .clamp(min, max)
 }
-
 pub fn json_f64_coerce(raw: Option<&Value>, fallback: f64, min: f64, max: f64) -> f64 {
     raw.and_then(|value| match value {
         Value::Number(number) => number.as_f64(),
@@ -350,7 +324,6 @@ pub fn json_f64_coerce(raw: Option<&Value>, fallback: f64, min: f64, max: f64) -
     .unwrap_or(fallback)
     .clamp(min, max)
 }
-
 pub fn json_bool_coerce(raw: Option<&Value>, fallback: bool) -> bool {
     raw.and_then(|value| match value {
         Value::Bool(flag) => Some(*flag),
@@ -363,7 +336,6 @@ pub fn json_bool_coerce(raw: Option<&Value>, fallback: bool) -> bool {
     })
     .unwrap_or(fallback)
 }
-
 pub fn json_string_list(raw: Option<&Value>) -> Vec<String> {
     raw.and_then(Value::as_array)
         .cloned()
@@ -373,7 +345,6 @@ pub fn json_string_list(raw: Option<&Value>) -> Vec<String> {
         .filter(|value| !value.is_empty())
         .collect()
 }
-
 pub fn string_set(raw: Option<&Value>) -> Vec<String> {
     let mut out = BTreeSet::new();
     if let Some(items) = raw.and_then(Value::as_array) {
@@ -386,13 +357,11 @@ pub fn string_set(raw: Option<&Value>) -> Vec<String> {
     }
     out.into_iter().collect()
 }
-
 pub fn bridge_surface_prefix_allowed(path: &str) -> bool {
     ["adapters/", "client/runtime/", "client/lib/", "tests/"]
         .iter()
         .any(|prefix| path.starts_with(prefix))
 }
-
 pub fn normalize_bridge_path(root: &Path, raw: &str) -> Result<String, String> {
     let candidate = raw.trim();
     if candidate.is_empty() {
@@ -408,7 +377,6 @@ pub fn normalize_bridge_path(root: &Path, raw: &str) -> Result<String, String> {
     }
     Ok(rel_path)
 }
-
 pub fn normalize_bridge_path_clean(
     root: &Path,
     raw: &str,
@@ -420,14 +388,12 @@ pub fn normalize_bridge_path_clean(
     }
     Ok(rel_path(root, &repo_path(root, &clean)))
 }
-
 pub fn ensure_parent(path: &Path) -> Result<(), String> {
     let Some(parent) = path.parent() else {
         return Ok(());
     };
     fs::create_dir_all(parent).map_err(|err| format!("mkdir_failed:{}:{err}", parent.display()))
 }
-
 pub fn write_json(path: &Path, payload: &Value) -> Result<(), String> {
     ensure_parent(path)?;
     let mut encoded =
@@ -435,7 +401,6 @@ pub fn write_json(path: &Path, payload: &Value) -> Result<(), String> {
     encoded.push('\n');
     fs::write(path, encoded).map_err(|err| format!("write_failed:{}:{err}", path.display()))
 }
-
 pub fn append_jsonl(path: &Path, row: &Value) -> Result<(), String> {
     ensure_parent(path)?;
     use std::io::Write;
@@ -448,19 +413,16 @@ pub fn append_jsonl(path: &Path, row: &Value) -> Result<(), String> {
     file.write_all(line.as_bytes())
         .map_err(|err| format!("append_failed:{}:{err}", path.display()))
 }
-
 pub fn read_json(path: &Path) -> Option<Value> {
     let text = fs::read_to_string(path).ok()?;
     serde_json::from_str::<Value>(&text).ok()
 }
-
 pub fn rel_path(root: &Path, path: &Path) -> String {
     path.strip_prefix(root)
         .ok()
         .map(|p| p.to_string_lossy().replace('\\', "/"))
         .unwrap_or_else(|| path.to_string_lossy().replace('\\', "/"))
 }
-
 fn now_millis() -> u128 {
     use std::time::{SystemTime, UNIX_EPOCH};
     SystemTime::now()
@@ -468,7 +430,6 @@ fn now_millis() -> u128 {
         .map(|row| row.as_millis())
         .unwrap_or(0)
 }
-
 fn to_base36(mut value: u128) -> String {
     if value == 0 {
         return "0".to_string();
@@ -485,12 +446,10 @@ fn to_base36(mut value: u128) -> String {
     }
     out.iter().rev().collect()
 }
-
 pub fn stable_id(prefix: &str, basis: &Value) -> String {
     let digest = deterministic_receipt_hash(basis);
     format!("{prefix}_{}_{}", to_base36(now_millis()), &digest[..12])
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;

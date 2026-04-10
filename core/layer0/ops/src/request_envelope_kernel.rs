@@ -13,7 +13,6 @@ use crate::contract_lane_utils as lane_utils;
 use crate::{deterministic_receipt_hash, now_iso};
 
 type HmacSha256 = Hmac<Sha256>;
-
 fn usage() {
     println!("request-envelope-kernel commands:");
     println!("  protheus-ops request-envelope-kernel envelope-payload --payload-base64=<json>");
@@ -28,7 +27,6 @@ fn usage() {
         "  protheus-ops request-envelope-kernel secret-key-env-var-name --payload-base64=<json>"
     );
 }
-
 fn cli_receipt(kind: &str, payload: Value) -> Value {
     let ts = now_iso();
     let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(true);
@@ -42,7 +40,6 @@ fn cli_receipt(kind: &str, payload: Value) -> Value {
     out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
     out
 }
-
 fn cli_error(kind: &str, error: &str) -> Value {
     let ts = now_iso();
     let mut out = json!({
@@ -56,7 +53,6 @@ fn cli_error(kind: &str, error: &str) -> Value {
     out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
     out
 }
-
 fn print_json_line(value: &Value) {
     println!(
         "{}",
@@ -64,7 +60,6 @@ fn print_json_line(value: &Value) {
             .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
     );
 }
-
 fn payload_json(argv: &[String]) -> Result<Value, String> {
     if let Some(raw) = lane_utils::parse_flag(argv, "payload", false) {
         return serde_json::from_str::<Value>(&raw)
@@ -81,14 +76,12 @@ fn payload_json(argv: &[String]) -> Result<Value, String> {
     }
     Ok(json!({}))
 }
-
 fn payload_obj<'a>(value: &'a Value) -> &'a Map<String, Value> {
     value.as_object().unwrap_or_else(|| {
         static EMPTY: std::sync::OnceLock<Map<String, Value>> = std::sync::OnceLock::new();
         EMPTY.get_or_init(Map::new)
     })
 }
-
 fn as_text(value: Option<&Value>) -> String {
     match value {
         Some(Value::String(v)) => v.trim().to_string(),
@@ -96,11 +89,9 @@ fn as_text(value: Option<&Value>) -> String {
         Some(other) => other.to_string().trim_matches('"').trim().to_string(),
     }
 }
-
 fn normalize_lower(value: Option<&Value>) -> String {
     as_text(value).to_ascii_lowercase()
 }
-
 fn normalize_key_id_text(raw: &str) -> String {
     raw.trim()
         .to_ascii_lowercase()
@@ -109,11 +100,9 @@ fn normalize_key_id_text(raw: &str) -> String {
         .take(40)
         .collect::<String>()
 }
-
 fn normalize_key_id(value: Option<&Value>) -> String {
     normalize_key_id_text(&as_text(value))
 }
-
 fn secret_key_env_var_name_text(kid: &str) -> String {
     let key_id = normalize_key_id_text(kid);
     if key_id.is_empty() {
@@ -128,7 +117,6 @@ fn secret_key_env_var_name_text(kid: &str) -> String {
             .collect::<String>()
     )
 }
-
 fn normalize_files(value: Option<&Value>) -> Vec<String> {
     let mut out = value
         .and_then(Value::as_array)
@@ -148,13 +136,11 @@ fn normalize_files(value: Option<&Value>) -> Vec<String> {
     out.dedup();
     out
 }
-
 fn random_nonce() -> String {
     let mut bytes = [0_u8; 12];
     rand::thread_rng().fill_bytes(&mut bytes);
     hex::encode(bytes)
 }
-
 fn envelope_payload_map(input: &Map<String, Value>) -> Value {
     let source = normalize_lower(input.get("source"));
     let action = normalize_lower(input.get("action"));
@@ -181,7 +167,6 @@ fn envelope_payload_map(input: &Map<String, Value>) -> Value {
         "files": normalize_files(input.get("files")),
     })
 }
-
 fn canonical_envelope_string(input: &Map<String, Value>) -> String {
     let payload = envelope_payload_map(input);
     let obj = payload.as_object().cloned().unwrap_or_default();
@@ -205,7 +190,6 @@ fn canonical_envelope_string(input: &Map<String, Value>) -> String {
     ]
     .join("|")
 }
-
 fn sign_envelope(input: &Map<String, Value>, secret: &str) -> String {
     if secret.trim().is_empty() {
         return String::new();
@@ -214,7 +198,6 @@ fn sign_envelope(input: &Map<String, Value>, secret: &str) -> String {
     mac.update(canonical_envelope_string(input).as_bytes());
     hex::encode(mac.finalize().into_bytes())
 }
-
 fn safe_equal_hex(a: &str, b: &str) -> bool {
     let ax = a.trim().to_ascii_lowercase();
     let bx = b.trim().to_ascii_lowercase();
@@ -238,7 +221,6 @@ fn safe_equal_hex(a: &str, b: &str) -> bool {
     }
     diff == 0
 }
-
 fn verify_envelope(input: &Map<String, Value>) -> Value {
     let secret = as_text(input.get("secret"));
     if secret.is_empty() {
@@ -272,7 +254,6 @@ fn verify_envelope(input: &Map<String, Value>) -> Value {
     }
     json!({ "ok": true, "reason": "ok", "skew_sec": skew })
 }
-
 fn stamp_guard_env(input: &Map<String, Value>) -> Value {
     let mut env = input
         .get("baseEnv")
@@ -367,7 +348,6 @@ fn stamp_guard_env(input: &Map<String, Value>) -> Value {
     );
     Value::Object(env)
 }
-
 fn verify_from_env(input: &Map<String, Value>) -> Value {
     let env = input
         .get("env")
@@ -433,7 +413,6 @@ fn verify_from_env(input: &Map<String, Value>) -> Value {
     }
     verify_envelope(&payload)
 }
-
 pub fn run(_root: &std::path::Path, argv: &[String]) -> i32 {
     let cmd = argv
         .first()
@@ -484,7 +463,6 @@ pub fn run(_root: &std::path::Path, argv: &[String]) -> i32 {
         }
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
