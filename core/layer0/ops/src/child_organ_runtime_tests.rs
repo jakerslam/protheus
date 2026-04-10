@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 use super::*;
 
+fn args(values: &[&str]) -> Vec<String> {
+    values.iter().map(|value| (*value).to_string()).collect()
+}
+
 #[test]
 fn plan_and_spawn_echo() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -8,22 +12,22 @@ fn plan_and_spawn_echo() {
     plan_payload(
         dir.path(),
         &policy,
-        &[
-            "--organ-id=o1".to_string(),
-            "--budget-json={\"max_runtime_ms\":5000,\"max_output_bytes\":2048,\"allow_commands\":[\"echo\"]}".to_string(),
-            "--apply=1".to_string(),
-        ],
+        &args(&[
+            "--organ-id=o1",
+            "--budget-json={\"max_runtime_ms\":5000,\"max_output_bytes\":2048,\"allow_commands\":[\"echo\"]}",
+            "--apply=1",
+        ]),
     )
     .expect("plan");
     let spawn = spawn_payload(
         dir.path(),
         &policy,
-        &[
-            "--organ-id=o1".to_string(),
-            "--command=echo".to_string(),
-            "--arg=hello".to_string(),
-            "--apply=1".to_string(),
-        ],
+        &args(&[
+            "--organ-id=o1",
+            "--command=echo",
+            "--arg=hello",
+            "--apply=1",
+        ]),
     )
     .expect("spawn");
     assert!(spawn.get("ok").and_then(Value::as_bool).unwrap_or(false));
@@ -36,11 +40,11 @@ fn disallowed_command_fails_closed() {
     let err = spawn_payload(
         dir.path(),
         &policy,
-        &[
-            "--organ-id=o2".to_string(),
-            "--command=definitely_not_allowed".to_string(),
-            "--apply=0".to_string(),
-        ],
+        &args(&[
+            "--organ-id=o2",
+            "--command=definitely_not_allowed",
+            "--apply=0",
+        ]),
     )
     .expect_err("blocked");
     assert!(err.contains("command_blocked_by_budget_policy"));
