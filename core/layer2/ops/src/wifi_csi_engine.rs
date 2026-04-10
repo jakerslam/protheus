@@ -1,6 +1,6 @@
 // Layer ownership: core/layer2/ops (authoritative)
 // SPDX-License-Identifier: Apache-2.0
-use crate::ops_lane_runtime::{run_lane, LaneSpec};
+use crate::ops_lane_runtime::{lane_spec, run_lane};
 use std::path::Path;
 
 const USAGE: &[&str] = &[
@@ -12,12 +12,12 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     run_lane(
         root,
         argv,
-        &LaneSpec {
-            lane_id: "wifi_csi_engine",
-            lane_type: "wifi_csi_engine",
-            replacement: "protheus-ops wifi-csi-engine",
-            usage: USAGE,
-            passthrough_flags: &["strict", "policy", "local-only", "state-path"],
-        },
+        &lane_spec(
+            "wifi_csi_engine",
+            "wifi_csi_engine",
+            "protheus-ops wifi-csi-engine",
+            USAGE,
+            &["strict", "policy", "local-only", "state-path"],
+        ),
     )
 }
