@@ -263,6 +263,9 @@
 
 :root {
   --bottom-dock-collapsed-height: calc((32px + (9px * 2)) * 0.95);
+  --bottom-dock-z-index: 2147483000;
+  --bottom-dock-ghost-z-index: 2147483600;
+  --bottom-dock-preview-z-index: 2147483500;
   --bottom-dock-icon-emphasis-main: 0.15;
   --bottom-dock-icon-emphasis-neighbor: calc(var(--bottom-dock-icon-emphasis-main) / 3);
   --bottom-dock-icon-emphasis-second-neighbor: calc(var(--bottom-dock-icon-emphasis-main) / 9);
@@ -281,17 +284,21 @@
   --bottom-dock-glass-alpha: 0;
   --bottom-dock-expanded-bg-alpha: 0;
   --bottom-dock-expanded-glass-alpha: 0;
+  --bottom-dock-anchor-x: 50%;
+  --bottom-dock-anchor-y: calc(100% - 4px);
+  --bottom-dock-position-transition: 360ms;
+  --bottom-dock-scale: 0.95;
+  --bottom-dock-expanded-scale: 1.54;
   position: fixed;
-  left: 0;
-  right: 0;
+  left: var(--bottom-dock-anchor-x);
+  top: var(--bottom-dock-anchor-y);
   width: max-content;
-  margin-left: auto;
-  margin-right: auto;
-  bottom: 4px;
-  transform: scale(0.95);
+  margin: 0;
+  transform: translate(-50%, -100%) scale(var(--bottom-dock-scale));
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  cursor: grab;
   padding: 9px 12px;
   border-top-left-radius: 16px;
   border-top-right-radius: 16px;
@@ -308,10 +315,12 @@
   opacity: 0.6;
   transform-origin: center bottom;
   transition:
+    left var(--bottom-dock-position-transition) var(--ease-smooth),
+    top var(--bottom-dock-position-transition) var(--ease-smooth),
     opacity 0.34s var(--ease-smooth),
     transform 0.18s var(--ease-smooth),
     box-shadow 0.22s var(--ease-smooth);
-  z-index: 10880;
+  z-index: var(--bottom-dock-z-index);
 }
 
 body[data-theme='dark'] .bottom-dock {
@@ -350,8 +359,8 @@ body[data-theme='dark'] .bottom-dock::before {
 .bottom-dock:active {
   --bottom-dock-bg-alpha: var(--bottom-dock-expanded-bg-alpha);
   --bottom-dock-glass-alpha: var(--bottom-dock-expanded-glass-alpha);
+  --bottom-dock-scale: 1.54;
   opacity: 1;
-  transform: scale(1.54);
   box-shadow:
     0 16px 42px color-mix(in srgb, var(--text) 24%, transparent),
     0 6px 18px color-mix(in srgb, var(--text) 14%, transparent);
@@ -379,20 +388,36 @@ body[data-theme='dark'] .bottom-dock::before {
 .bottom-dock.is-settling {
   --bottom-dock-bg-alpha: var(--bottom-dock-expanded-bg-alpha);
   --bottom-dock-glass-alpha: var(--bottom-dock-expanded-glass-alpha);
+  --bottom-dock-scale: var(--bottom-dock-drag-scale, 0.95);
   opacity: 1;
-  transform: scale(var(--bottom-dock-drag-scale, 0.95)) !important;
 }
 
 .bottom-dock.is-dragging {
   --bottom-dock-bg-alpha: var(--bottom-dock-expanded-bg-alpha);
   --bottom-dock-glass-alpha: var(--bottom-dock-expanded-glass-alpha);
+  --bottom-dock-scale: var(--bottom-dock-drag-scale, 0.95);
   opacity: 1;
-  transform: scale(var(--bottom-dock-drag-scale, 0.95)) !important;
 }
 
 .bottom-dock.is-dragging,
 .bottom-dock.is-dragging .dock-tile {
   cursor: grabbing;
+}
+
+.bottom-dock.is-container-dragging {
+  --bottom-dock-position-transition: 0ms;
+  --bottom-dock-scale: var(--bottom-dock-expanded-scale, 1.54);
+  opacity: 1;
+  cursor: grabbing;
+}
+
+.bottom-dock.is-container-dragging .dock-tile {
+  cursor: grabbing;
+}
+
+.bottom-dock.is-container-settling {
+  --bottom-dock-scale: var(--bottom-dock-expanded-scale, 1.54);
+  opacity: 1;
 }
 
 .dock-tile {
@@ -416,7 +441,6 @@ body[data-theme='dark'] .bottom-dock::before {
   transition:
     color var(--transition-fast),
     background var(--transition-fast),
-    transform 0.2s var(--ease-smooth),
     box-shadow 0s linear,
     opacity var(--transition-fast);
   will-change: transform, box-shadow;
@@ -568,7 +592,7 @@ body[data-theme='dark'] .bottom-dock::before {
   transform-origin: top left;
   will-change: left, top, transform, opacity;
   transition: none;
-  z-index: 10960;
+  z-index: var(--bottom-dock-ghost-z-index);
 }
 
 .bottom-dock-drag-ghost svg {

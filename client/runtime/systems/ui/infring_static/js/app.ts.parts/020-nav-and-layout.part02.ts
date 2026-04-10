@@ -165,12 +165,21 @@
     bottomDockHoverWeightById: {},
     bottomDockPointerX: 0,
     bottomDockPreviewText: '',
+    bottomDockPreviewMorphFromText: '',
+    bottomDockPreviewHoverKey: '',
     bottomDockPreviewX: 0,
     bottomDockPreviewY: 0,
+    bottomDockPreviewWidth: 0,
     bottomDockPreviewVisible: false,
+    bottomDockPreviewLabelMorphing: false,
+    bottomDockPreviewLabelFxReady: true,
     _bottomDockPreviewHideTimer: 0,
     _bottomDockPreviewReflowRaf: 0,
     _bottomDockPreviewReflowFrames: 0,
+    _bottomDockPreviewWidthRaf: 0,
+    _bottomDockPreviewLabelFxRaf: 0,
+    _bottomDockPreviewLabelFxTimer: 0,
+    _bottomDockPreviewLabelMorphTimer: 0,
     bottomDockClickAnimId: '',
     _bottomDockDragGhostEl: null,
     _bottomDockClickAnimTimer: 0,
@@ -201,6 +210,33 @@
     _bottomDockDragBoundaries: [],
     _bottomDockLastInsertionIndex: -1,
     _bottomDockReorderLockUntil: 0,
+    bottomDockPlacementId: (() => {
+      try {
+        var raw = String(localStorage.getItem('infring-bottom-dock-placement') || '').trim().toLowerCase();
+        if (raw === 'left' || raw === 'center' || raw === 'right') return raw;
+      } catch(_) {}
+      return 'center';
+    })(),
+    bottomDockSnapPoints: [
+      { id: 'left', x: 0.16, y: 0.995 },
+      { id: 'center', x: 0.50, y: 0.995 },
+      { id: 'right', x: 0.84, y: 0.995 }
+    ],
+    bottomDockContainerDragActive: false,
+    bottomDockContainerSettling: false,
+    bottomDockContainerDragX: 0,
+    bottomDockContainerDragY: 0,
+    _bottomDockContainerPointerActive: false,
+    _bottomDockContainerPointerMoved: false,
+    _bottomDockContainerPointerStartX: 0,
+    _bottomDockContainerPointerStartY: 0,
+    _bottomDockContainerPointerLastX: 0,
+    _bottomDockContainerPointerLastY: 0,
+    _bottomDockContainerOriginX: 0,
+    _bottomDockContainerOriginY: 0,
+    _bottomDockContainerPointerMoveHandler: null,
+    _bottomDockContainerPointerUpHandler: null,
+    _bottomDockContainerSettleTimer: 0,
     navBackStack: [],
     navForwardStack: [],
     _navCurrentPage: '',
@@ -345,16 +381,296 @@
       ghost.style.top = Math.round(targetY) + 'px';
     },
 
+    dragSurfaceMoveDurationMs(rawValue, fallbackMs) {
+      var fallback = Number(fallbackMs || 280);
+      if (!Number.isFinite(fallback)) fallback = 280;
+      fallback = Math.max(80, Math.round(fallback));
+      var raw = Number(rawValue);
+      if (!Number.isFinite(raw)) raw = fallback;
+      return Math.max(80, Math.round(raw));
+    },
+
     bottomDockMoveDurationMs() {
-      var raw = Number(this._bottomDockMoveDurationMs || 360);
-      if (!Number.isFinite(raw)) raw = 360;
-      return Math.max(120, Math.round(raw));
+      return this.dragSurfaceMoveDurationMs(this._bottomDockMoveDurationMs, 360);
     },
 
     bottomDockExpandedScale() {
       var raw = Number(this._bottomDockExpandedScale || 1.54);
       if (!Number.isFinite(raw) || raw <= 1) raw = 1.54;
       return raw;
+    },
+
+    bottomDockReadViewportSize() {
+      var width = 0;
+      var height = 0;
+      try {
+        width = Number(window && window.innerWidth || 0);
+        height = Number(window && window.innerHeight || 0);
+      } catch(_) {
+        width = 0;
+        height = 0;
+      }
+      if (!Number.isFinite(width) || width <= 0) {
+        width = Number(document && document.documentElement && document.documentElement.clientWidth || 1440);
+      }
+      if (!Number.isFinite(height) || height <= 0) {
+        height = Number(document && document.documentElement && document.documentElement.clientHeight || 900);
+      }
+      if (!Number.isFinite(width) || width <= 0) width = 1440;
+      if (!Number.isFinite(height) || height <= 0) height = 900;
+      return { width: width, height: height };
+    },
+
+    bottomDockReadBaseSize() {
+      var width = 0;
+      var height = 0;
+      try {
+        var node = document && typeof document.querySelector === 'function'
+          ? document.querySelector('.bottom-dock')
+          : null;
+        if (node) {
+          width = Number(node.offsetWidth || 0);
+          height = Number(node.offsetHeight || 0);
+        }
+      } catch(_) {
+        width = 0;
+        height = 0;
+      }
+      if (!Number.isFinite(width) || width <= 0) width = 420;
+      if (!Number.isFinite(height) || height <= 0) height = 54;
+      return { width: width, height: height };
+    },
+
+    bottomDockSnapDefinitions() {
+      var source = Array.isArray(this.bottomDockSnapPoints) ? this.bottomDockSnapPoints : [];
+      var out = [];
+      var seen = {};
+      for (var i = 0; i < source.length; i += 1) {
+        var row = source[i];
+        if (!row || typeof row !== 'object') continue;
+        var id = String(row.id || '').trim().toLowerCase();
+        if (!id || seen[id]) continue;
+        var nx = Number(row.x);
+        var ny = Number(row.y);
+        if (!Number.isFinite(nx)) nx = 0.5;
+        if (!Number.isFinite(ny)) ny = 0.995;
+        nx = Math.max(0, Math.min(1, nx));
+        ny = Math.max(0, Math.min(1, ny));
+        seen[id] = true;
+        out.push({ id: id, x: nx, y: ny });
+      }
+      if (!out.length) {
+        out.push({ id: 'center', x: 0.5, y: 0.995 });
+      }
+      return out;
+    },
+
+    bottomDockSnapDefinitionById(id) {
+      var key = String(id || '').trim().toLowerCase();
+      var defs = this.bottomDockSnapDefinitions();
+      if (!defs.length) return null;
+      for (var i = 0; i < defs.length; i += 1) {
+        if (defs[i] && defs[i].id === key) return defs[i];
+      }
+      for (var j = 0; j < defs.length; j += 1) {
+        if (defs[j] && defs[j].id === 'center') return defs[j];
+      }
+      return defs[0] || null;
+    },
+
+    bottomDockClampAnchor(anchorX, anchorY) {
+      var view = this.bottomDockReadViewportSize();
+      var dock = this.bottomDockReadBaseSize();
+      var hoverScale = this.bottomDockExpandedScale();
+      if (!Number.isFinite(hoverScale) || hoverScale < 1) hoverScale = 1;
+      var margin = 8;
+      var halfWidth = Math.max(20, (Number(dock.width || 0) * hoverScale) / 2);
+      var fullHeight = Math.max(20, Number(dock.height || 0) * hoverScale);
+      var minX = halfWidth + margin;
+      var maxX = Number(view.width || 0) - halfWidth - margin;
+      var minY = fullHeight + margin;
+      var maxY = Number(view.height || 0) - margin;
+      if (!Number.isFinite(minX) || !Number.isFinite(maxX) || maxX <= minX) {
+        minX = margin;
+        maxX = Number(view.width || 0) - margin;
+      }
+      if (!Number.isFinite(minY) || !Number.isFinite(maxY) || maxY <= minY) {
+        minY = margin;
+        maxY = Number(view.height || 0) - margin;
+      }
+      var x = Number(anchorX);
+      var y = Number(anchorY);
+      if (!Number.isFinite(x)) x = Number(view.width || 0) * 0.5;
+      if (!Number.isFinite(y)) y = Number(view.height || 0) - margin;
+      x = Math.max(minX, Math.min(maxX, x));
+      y = Math.max(minY, Math.min(maxY, y));
+      return { x: x, y: y };
+    },
+
+    bottomDockAnchorForSnapId(id) {
+      var snap = this.bottomDockSnapDefinitionById(id);
+      var view = this.bottomDockReadViewportSize();
+      var x = Number(view.width || 0) * Number(snap && snap.x || 0.5);
+      var y = Number(view.height || 0) * Number(snap && snap.y || 0.995);
+      return this.bottomDockClampAnchor(x, y);
+    },
+
+    bottomDockNearestSnapId(anchorX, anchorY) {
+      var defs = this.bottomDockSnapDefinitions();
+      if (!defs.length) return 'center';
+      var anchor = this.bottomDockClampAnchor(anchorX, anchorY);
+      var bestId = defs[0].id;
+      var bestDist = Number.POSITIVE_INFINITY;
+      for (var i = 0; i < defs.length; i += 1) {
+        var row = defs[i];
+        if (!row) continue;
+        var snapAnchor = this.bottomDockAnchorForSnapId(row.id);
+        var dx = Number(anchor.x || 0) - Number(snapAnchor.x || 0);
+        var dy = Number(anchor.y || 0) - Number(snapAnchor.y || 0);
+        var dist = (dx * dx) + (dy * dy);
+        if (!Number.isFinite(dist)) continue;
+        if (dist >= bestDist) continue;
+        bestDist = dist;
+        bestId = row.id;
+      }
+      return String(bestId || 'center');
+    },
+
+    persistBottomDockPlacement() {
+      var key = String(this.bottomDockPlacementId || '').trim().toLowerCase();
+      var snap = this.bottomDockSnapDefinitionById(key);
+      this.bottomDockPlacementId = String(snap && snap.id || 'center');
+      try {
+        localStorage.setItem('infring-bottom-dock-placement', this.bottomDockPlacementId);
+      } catch(_) {}
+    },
+
+    bottomDockContainerStyle() {
+      var anchor = this.bottomDockContainerDragActive
+        ? this.bottomDockClampAnchor(this.bottomDockContainerDragX, this.bottomDockContainerDragY)
+        : this.bottomDockAnchorForSnapId(this.bottomDockPlacementId);
+      var durationMs = this.bottomDockContainerDragActive ? 0 : this.bottomDockMoveDurationMs();
+      return (
+        '--bottom-dock-anchor-x:' + Math.round(Number(anchor.x || 0)) + 'px;' +
+        '--bottom-dock-anchor-y:' + Math.round(Number(anchor.y || 0)) + 'px;' +
+        '--bottom-dock-position-transition:' + Math.max(0, Math.round(Number(durationMs || 0))) + 'ms;'
+      );
+    },
+
+    bindBottomDockContainerPointerListeners() {
+      if (this._bottomDockContainerPointerMoveHandler || this._bottomDockContainerPointerUpHandler) return;
+      var self = this;
+      this._bottomDockContainerPointerMoveHandler = function(ev) { self.handleBottomDockContainerPointerMove(ev); };
+      this._bottomDockContainerPointerUpHandler = function(ev) { self.endBottomDockContainerPointerDrag(ev); };
+      window.addEventListener('pointermove', this._bottomDockContainerPointerMoveHandler, true);
+      window.addEventListener('pointerup', this._bottomDockContainerPointerUpHandler, true);
+      window.addEventListener('pointercancel', this._bottomDockContainerPointerUpHandler, true);
+      window.addEventListener('mousemove', this._bottomDockContainerPointerMoveHandler, true);
+      window.addEventListener('mouseup', this._bottomDockContainerPointerUpHandler, true);
+    },
+
+    unbindBottomDockContainerPointerListeners() {
+      if (this._bottomDockContainerPointerMoveHandler) {
+        try { window.removeEventListener('pointermove', this._bottomDockContainerPointerMoveHandler, true); } catch(_) {}
+        try { window.removeEventListener('mousemove', this._bottomDockContainerPointerMoveHandler, true); } catch(_) {}
+      }
+      if (this._bottomDockContainerPointerUpHandler) {
+        try { window.removeEventListener('pointerup', this._bottomDockContainerPointerUpHandler, true); } catch(_) {}
+        try { window.removeEventListener('pointercancel', this._bottomDockContainerPointerUpHandler, true); } catch(_) {}
+        try { window.removeEventListener('mouseup', this._bottomDockContainerPointerUpHandler, true); } catch(_) {}
+      }
+      this._bottomDockContainerPointerMoveHandler = null;
+      this._bottomDockContainerPointerUpHandler = null;
+    },
+
+    startBottomDockContainerPointerDrag(ev) {
+      if (!ev || Number(ev.button) !== 0) return;
+      if (String(this.bottomDockDragId || '').trim()) return;
+      var target = ev && ev.target ? ev.target : null;
+      if (target && typeof target.closest === 'function') {
+        var tileNode = target.closest('.bottom-dock-btn[data-dock-id]');
+        if (tileNode) return;
+      }
+      if (this._bottomDockContainerSettleTimer) {
+        try { clearTimeout(this._bottomDockContainerSettleTimer); } catch(_) {}
+      }
+      this._bottomDockContainerSettleTimer = 0;
+      this.bottomDockContainerSettling = false;
+      var anchor = this.bottomDockAnchorForSnapId(this.bottomDockPlacementId);
+      this._bottomDockContainerPointerActive = true;
+      this._bottomDockContainerPointerMoved = false;
+      this._bottomDockContainerPointerStartX = Number(ev.clientX || 0);
+      this._bottomDockContainerPointerStartY = Number(ev.clientY || 0);
+      this._bottomDockContainerPointerLastX = Number(ev.clientX || 0);
+      this._bottomDockContainerPointerLastY = Number(ev.clientY || 0);
+      this._bottomDockContainerOriginX = Number(anchor.x || 0);
+      this._bottomDockContainerOriginY = Number(anchor.y || 0);
+      this.bottomDockContainerDragX = Number(anchor.x || 0);
+      this.bottomDockContainerDragY = Number(anchor.y || 0);
+      this.bindBottomDockContainerPointerListeners();
+      try {
+        if (ev.currentTarget && typeof ev.currentTarget.setPointerCapture === 'function' && Number.isFinite(ev.pointerId)) {
+          ev.currentTarget.setPointerCapture(ev.pointerId);
+        }
+      } catch(_) {}
+      if (ev.cancelable && typeof ev.preventDefault === 'function') ev.preventDefault();
+    },
+
+    handleBottomDockContainerPointerMove(ev) {
+      if (!this._bottomDockContainerPointerActive) return;
+      var nextX = Number(ev.clientX || 0);
+      var nextY = Number(ev.clientY || 0);
+      this._bottomDockContainerPointerLastX = nextX;
+      this._bottomDockContainerPointerLastY = nextY;
+      var movedX = Math.abs(nextX - Number(this._bottomDockContainerPointerStartX || 0));
+      var movedY = Math.abs(nextY - Number(this._bottomDockContainerPointerStartY || 0));
+      if (!this._bottomDockContainerPointerMoved) {
+        if (movedX < 4 && movedY < 4) return;
+        this._bottomDockContainerPointerMoved = true;
+        this.bottomDockContainerDragActive = true;
+        this.bottomDockHoverId = '';
+        this.bottomDockHoverWeightById = {};
+        this.bottomDockPointerX = 0;
+        this.bottomDockPreviewVisible = false;
+        this.bottomDockPreviewText = '';
+        this.bottomDockPreviewMorphFromText = '';
+        this.bottomDockPreviewLabelMorphing = false;
+        this.bottomDockPreviewWidth = 0;
+        this.cancelBottomDockPreviewReflow();
+      }
+      var candidateX = Number(this._bottomDockContainerOriginX || 0) + (nextX - Number(this._bottomDockContainerPointerStartX || 0));
+      var candidateY = Number(this._bottomDockContainerOriginY || 0) + (nextY - Number(this._bottomDockContainerPointerStartY || 0));
+      var anchor = this.bottomDockClampAnchor(candidateX, candidateY);
+      this.bottomDockContainerDragX = Number(anchor.x || 0);
+      this.bottomDockContainerDragY = Number(anchor.y || 0);
+      if (ev.cancelable && typeof ev.preventDefault === 'function') ev.preventDefault();
+    },
+
+    endBottomDockContainerPointerDrag() {
+      if (!this._bottomDockContainerPointerActive) return;
+      this._bottomDockContainerPointerActive = false;
+      this.unbindBottomDockContainerPointerListeners();
+      if (!this._bottomDockContainerPointerMoved) {
+        this.bottomDockContainerDragActive = false;
+        this._bottomDockContainerPointerMoved = false;
+        return;
+      }
+      var anchor = this.bottomDockClampAnchor(this.bottomDockContainerDragX, this.bottomDockContainerDragY);
+      var nearestId = this.bottomDockNearestSnapId(anchor.x, anchor.y);
+      this.bottomDockPlacementId = nearestId;
+      this.persistBottomDockPlacement();
+      this.bottomDockContainerDragActive = false;
+      this.bottomDockContainerSettling = true;
+      this._bottomDockContainerPointerMoved = false;
+      if (this._bottomDockContainerSettleTimer) {
+        try { clearTimeout(this._bottomDockContainerSettleTimer); } catch(_) {}
+      }
+      var self = this;
+      var settleMs = this.bottomDockMoveDurationMs() + 36;
+      this._bottomDockContainerSettleTimer = window.setTimeout(function() {
+        self._bottomDockContainerSettleTimer = 0;
+        self.bottomDockContainerSettling = false;
+      }, settleMs);
     },
 
     settleBottomDockDragGhost(dragId, done) {
@@ -1072,6 +1388,7 @@
 
     setBottomDockHover(id) {
       if (String(this.bottomDockDragId || '').trim()) return;
+      if (this.bottomDockContainerDragActive || this._bottomDockContainerPointerActive) return;
       var key = String(id || '').trim();
       this.bottomDockHoverId = key;
       if (this._bottomDockPreviewHideTimer) {
@@ -1108,6 +1425,9 @@
           if (!String(self.bottomDockHoverId || '').trim()) {
             self.bottomDockPreviewVisible = false;
             self.bottomDockPreviewText = '';
+            self.bottomDockPreviewMorphFromText = '';
+            self.bottomDockPreviewLabelMorphing = false;
+            self.bottomDockPreviewWidth = 0;
           }
         }, 40);
         return;
@@ -1177,6 +1497,7 @@
     updateBottomDockPointer(ev) {
       if (!ev) return;
       if (String(this.bottomDockDragId || '').trim()) return;
+      if (this.bottomDockContainerDragActive || this._bottomDockContainerPointerActive) return;
       var x = Number(ev.clientX || 0);
       if (!Number.isFinite(x) || x <= 0) return;
       this.bottomDockPointerX = x;
@@ -1186,6 +1507,7 @@
 
     reviveBottomDockHoverFromPoint(clientX, clientY) {
       if (String(this.bottomDockDragId || '').trim()) return;
+      if (this.bottomDockContainerDragActive || this._bottomDockContainerPointerActive) return;
       var x = Number(clientX || 0);
       var y = Number(clientY || 0);
       if (!Number.isFinite(x) || !Number.isFinite(y) || x <= 0 || y <= 0) return;
@@ -1230,11 +1552,114 @@
       this._bottomDockPreviewReflowFrames = 0;
     },
 
+    scheduleBottomDockPreviewWidthSync() {
+      if (this._bottomDockPreviewWidthRaf && typeof cancelAnimationFrame === 'function') {
+        try { cancelAnimationFrame(this._bottomDockPreviewWidthRaf); } catch(_) {}
+      }
+      var self = this;
+      var syncWidth = function() {
+        self._bottomDockPreviewWidthRaf = 0;
+        try {
+          var bubble = document && typeof document.querySelector === 'function'
+            ? document.querySelector('.bottom-dock-preview-bubble')
+            : null;
+          if (!bubble) return;
+          var stack = (typeof bubble.querySelector === 'function')
+            ? bubble.querySelector('.bottom-dock-preview-bubble-label-stack')
+            : null;
+          var contentWidth = Number(stack && (stack.scrollWidth || stack.offsetWidth) || 0);
+          var bubbleStyle = (typeof window !== 'undefined' && typeof window.getComputedStyle === 'function')
+            ? window.getComputedStyle(bubble)
+            : null;
+          var paddingLeft = bubbleStyle ? Number(parseFloat(String(bubbleStyle.paddingLeft || '0')) || 0) : 0;
+          var paddingRight = bubbleStyle ? Number(parseFloat(String(bubbleStyle.paddingRight || '0')) || 0) : 0;
+          var borderLeft = bubbleStyle ? Number(parseFloat(String(bubbleStyle.borderLeftWidth || '0')) || 0) : 0;
+          var borderRight = bubbleStyle ? Number(parseFloat(String(bubbleStyle.borderRightWidth || '0')) || 0) : 0;
+          var nextWidth = contentWidth + paddingLeft + paddingRight + borderLeft + borderRight;
+          if (!Number.isFinite(nextWidth) || nextWidth <= 0) return;
+          self.bottomDockPreviewWidth = Math.max(0, Math.ceil(nextWidth));
+        } catch(_) {}
+      };
+      if (typeof requestAnimationFrame === 'function') {
+        this._bottomDockPreviewWidthRaf = requestAnimationFrame(syncWidth);
+      } else {
+        syncWidth();
+      }
+    },
+
+    retriggerBottomDockPreviewLabelFx(nextLabel) {
+      if (this._bottomDockPreviewLabelFxRaf && typeof cancelAnimationFrame === 'function') {
+        try { cancelAnimationFrame(this._bottomDockPreviewLabelFxRaf); } catch(_) {}
+      }
+      if (this._bottomDockPreviewLabelFxTimer) {
+        try { clearTimeout(this._bottomDockPreviewLabelFxTimer); } catch(_) {}
+      }
+      if (this._bottomDockPreviewLabelMorphTimer) {
+        try { clearTimeout(this._bottomDockPreviewLabelMorphTimer); } catch(_) {}
+      }
+      this._bottomDockPreviewLabelFxRaf = 0;
+      this._bottomDockPreviewLabelFxTimer = 0;
+      this._bottomDockPreviewLabelMorphTimer = 0;
+      this.bottomDockPreviewLabelFxReady = false;
+      var self = this;
+      var nextText = (typeof nextLabel === 'string')
+        ? nextLabel
+        : String(this.bottomDockPreviewText || '');
+      var previousText = String(this.bottomDockPreviewText || '');
+      this.bottomDockPreviewMorphFromText = previousText;
+      this.bottomDockPreviewLabelMorphing = Boolean(previousText && nextText && previousText !== nextText);
+      this.bottomDockPreviewText = nextText;
+      this.scheduleBottomDockPreviewWidthSync();
+      var commitLabelAndAnimateIn = function() {
+        try {
+          var node = document && typeof document.querySelector === 'function'
+            ? document.querySelector('.bottom-dock-preview-bubble-label-stack')
+            : null;
+          if (node) void node.offsetWidth;
+        } catch(_) {}
+        if (typeof requestAnimationFrame === 'function') {
+          self._bottomDockPreviewLabelFxRaf = requestAnimationFrame(function() {
+            self._bottomDockPreviewLabelFxRaf = 0;
+            self._bottomDockPreviewLabelFxTimer = window.setTimeout(function() {
+              self._bottomDockPreviewLabelFxTimer = 0;
+              self.bottomDockPreviewLabelFxReady = true;
+              if (self._bottomDockPreviewLabelMorphTimer) {
+                try { clearTimeout(self._bottomDockPreviewLabelMorphTimer); } catch(_) {}
+              }
+              self._bottomDockPreviewLabelMorphTimer = window.setTimeout(function() {
+                self._bottomDockPreviewLabelMorphTimer = 0;
+                self.bottomDockPreviewMorphFromText = '';
+                self.bottomDockPreviewLabelMorphing = false;
+                self.scheduleBottomDockPreviewWidthSync();
+              }, 200);
+            }, 16);
+          });
+        } else {
+          self.bottomDockPreviewLabelFxReady = true;
+        }
+      };
+      if (typeof requestAnimationFrame === 'function') {
+        this._bottomDockPreviewLabelFxRaf = requestAnimationFrame(function() {
+          self._bottomDockPreviewLabelFxRaf = 0;
+          commitLabelAndAnimateIn();
+        });
+      } else {
+        this.bottomDockPreviewLabelFxReady = true;
+        this.bottomDockPreviewMorphFromText = '';
+        this.bottomDockPreviewLabelMorphing = false;
+      }
+    },
+
     syncBottomDockPreview() {
       var key = String(this.bottomDockHoverId || '').trim();
       if (!key) {
         this.bottomDockPreviewVisible = false;
         this.bottomDockPreviewText = '';
+        this.bottomDockPreviewMorphFromText = '';
+        this.bottomDockPreviewHoverKey = '';
+        this.bottomDockPreviewLabelMorphing = false;
+        this.bottomDockPreviewWidth = 0;
+        this.bottomDockPreviewLabelFxReady = true;
         return;
       }
       var text = this.bottomDockTileData(key, 'tooltip', '');
@@ -1242,6 +1667,11 @@
       if (!label) {
         this.bottomDockPreviewVisible = false;
         this.bottomDockPreviewText = '';
+        this.bottomDockPreviewMorphFromText = '';
+        this.bottomDockPreviewHoverKey = '';
+        this.bottomDockPreviewLabelMorphing = false;
+        this.bottomDockPreviewWidth = 0;
+        this.bottomDockPreviewLabelFxReady = true;
         return;
       }
       var root = document.querySelector('.bottom-dock');
@@ -1249,8 +1679,16 @@
       if (!root || !slot) {
         this.bottomDockPreviewVisible = false;
         this.bottomDockPreviewText = '';
+        this.bottomDockPreviewMorphFromText = '';
+        this.bottomDockPreviewHoverKey = '';
+        this.bottomDockPreviewLabelMorphing = false;
+        this.bottomDockPreviewWidth = 0;
+        this.bottomDockPreviewLabelFxReady = true;
         return;
       }
+      var wasVisible = Boolean(this.bottomDockPreviewVisible);
+      var previousHoverKey = String(this.bottomDockPreviewHoverKey || '');
+      var previousLabel = String(this.bottomDockPreviewText || '');
       var centerX = 0;
       var anchorY = 0;
       var dockRect = (typeof root.getBoundingClientRect === 'function')
@@ -1280,8 +1718,20 @@
       if (!Number.isFinite(anchorY)) anchorY = 0;
       this.bottomDockPreviewX = centerX;
       this.bottomDockPreviewY = anchorY;
-      this.bottomDockPreviewText = label;
+      this.bottomDockPreviewHoverKey = key;
       this.bottomDockPreviewVisible = true;
+      if (wasVisible && (key !== previousHoverKey || label !== previousLabel)) {
+        this.retriggerBottomDockPreviewLabelFx(label);
+      } else {
+        this.bottomDockPreviewText = label;
+        this.scheduleBottomDockPreviewWidthSync();
+        if (!this.bottomDockPreviewLabelMorphing) {
+          this.bottomDockPreviewMorphFromText = '';
+        }
+        if (!wasVisible && !this.bottomDockPreviewLabelFxReady) {
+          this.bottomDockPreviewLabelFxReady = true;
+        }
+      }
     },
 
     bindBottomDockPointerListeners() {
@@ -1312,6 +1762,7 @@
 
     startBottomDockPointerDrag(id, ev) {
       if (!ev || Number(ev.button) !== 0) return;
+      if (this.bottomDockContainerDragActive || this._bottomDockContainerPointerActive) return;
       var key = String(id || '').trim();
       if (!key) return;
       var hostEl = ev && ev.currentTarget ? ev.currentTarget : null;
@@ -1377,6 +1828,9 @@
       this.bottomDockPointerX = 0;
       this.bottomDockPreviewVisible = false;
       this.bottomDockPreviewText = '';
+      this.bottomDockPreviewMorphFromText = '';
+      this.bottomDockPreviewLabelMorphing = false;
+      this.bottomDockPreviewWidth = 0;
       this.cancelBottomDockPreviewReflow();
       this._bottomDockRevealTargetDuringSettle = false;
       this.bottomDockDragId = dragId;
@@ -1657,6 +2111,9 @@
       this.bottomDockPointerX = 0;
       this.bottomDockPreviewVisible = false;
       this.bottomDockPreviewText = '';
+      this.bottomDockPreviewMorphFromText = '';
+      this.bottomDockPreviewLabelMorphing = false;
+      this.bottomDockPreviewWidth = 0;
       this.cancelBottomDockPreviewReflow();
       this.bottomDockDragId = key;
       this.bottomDockDragCommitted = false;

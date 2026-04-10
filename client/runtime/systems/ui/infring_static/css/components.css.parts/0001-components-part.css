@@ -10,7 +10,7 @@ body.theme-switching *::after {
 .boot-splash {
   position: fixed;
   inset: 0;
-  z-index: 22000;
+  z-index: 2147483647;
   display: flex;
   align-items: center;
   justify-content: center;
