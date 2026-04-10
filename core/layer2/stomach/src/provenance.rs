@@ -33,16 +33,27 @@ pub struct ProvenanceRecord {
     pub receipt_link: String,
 }
 
-pub fn classify_spdx(spdx: Option<&str>) -> SpdxDecision {
-    let normalized = spdx
-        .unwrap_or("")
+fn normalized_spdx(spdx: Option<&str>) -> String {
+    spdx.unwrap_or("")
         .trim()
         .to_ascii_uppercase()
-        .replace(' ', "");
+        .replace(' ', "")
+}
+
+pub fn classify_spdx(spdx: Option<&str>) -> SpdxDecision {
+    let normalized = normalized_spdx(spdx);
     match normalized.as_str() {
         "MIT" | "APACHE-2.0" | "BSD-3-CLAUSE" | "BSD-2-CLAUSE" | "MPL-2.0" => SpdxDecision::Allow,
         "AGPL-3.0" | "GPL-3.0" | "GPL-2.0" | "BUSL-1.1" | "SSPL-1.0" => SpdxDecision::Deny,
         _ => SpdxDecision::Review,
+    }
+}
+
+fn require_non_empty(value: &str, error_code: &str) -> Result<(), String> {
+    if value.trim().is_empty() {
+        Err(error_code.to_string())
+    } else {
+        Ok(())
     }
 }
 
@@ -105,21 +116,16 @@ pub fn build_provenance(
 }
 
 pub fn gate_provenance(record: &ProvenanceRecord) -> Result<(), String> {
-    if record.snapshot_id.trim().is_empty() {
-        return Err("provenance_gate_snapshot_id_missing".to_string());
-    }
-    if record.origin_url.trim().is_empty() {
-        return Err("provenance_gate_origin_missing".to_string());
-    }
-    if record.commit_hash.trim().is_empty() {
-        return Err("provenance_gate_commit_missing".to_string());
-    }
+    require_non_empty(&record.snapshot_id, "provenance_gate_snapshot_id_missing")?;
+    require_non_empty(&record.origin_url, "provenance_gate_origin_missing")?;
+    require_non_empty(&record.commit_hash, "provenance_gate_commit_missing")?;
     if record.blob_hashes.is_empty() {
         return Err("provenance_gate_blob_hashes_missing".to_string());
     }
-    if record.fetch_receipt_link.trim().is_empty() {
-        return Err("provenance_gate_fetch_receipt_missing".to_string());
-    }
+    require_non_empty(
+        &record.fetch_receipt_link,
+        "provenance_gate_fetch_receipt_missing",
+    )?;
     if matches!(record.spdx_decision, SpdxDecision::Deny) {
         return Err("provenance_gate_license_denied".to_string());
     }

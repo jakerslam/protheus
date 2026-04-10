@@ -211,15 +211,23 @@ pub fn jaccard_score(neighbors: &[BTreeSet<usize>], a: usize, b: usize) -> (f64,
     if a >= neighbors.len() || b >= neighbors.len() {
         return (0.0, 0, 0);
     }
-    let left = &neighbors[a];
-    let right = &neighbors[b];
+    let (inter, union, score) = overlap_stats(&neighbors[a], &neighbors[b]);
+    (score, inter, union)
+}
+
+fn overlap_stats(left: &BTreeSet<usize>, right: &BTreeSet<usize>) -> (usize, usize, f64) {
     let inter = left.intersection(right).count();
     let union = left.union(right).count();
-    if union == 0 {
-        (0.0, inter, union)
+    let score = if union == 0 {
+        0.0
     } else {
-        ((inter as f64) / (union as f64), inter, union)
-    }
+        (inter as f64) / (union as f64)
+    };
+    (inter, union, score)
+}
+
+fn bounded_top_k(top_k: usize) -> usize {
+    top_k.max(1)
 }
 
 pub fn top_jaccard_pairs(
@@ -242,7 +250,7 @@ pub fn top_jaccard_pairs(
             .then_with(|| left.0.cmp(&right.0))
             .then_with(|| left.1.cmp(&right.1))
     });
-    out.truncate(top_k.max(1));
+    out.truncate(bounded_top_k(top_k));
     out
 }
 
@@ -340,13 +348,7 @@ pub fn predict_links(
             if existing_edges.contains(&(a, b)) {
                 continue;
             }
-            let common_neighbors = neighbors[a].intersection(&neighbors[b]).count();
-            let union = neighbors[a].union(&neighbors[b]).count();
-            let jaccard = if union == 0 {
-                0.0
-            } else {
-                common_neighbors as f64 / union as f64
-            };
+            let (jaccard, common_neighbors, _) = jaccard_score(&neighbors, a, b);
             let preferential_attachment = (neighbors[a].len() * neighbors[b].len()) as f64;
             let pagerank_pair_sum = pagerank_scores.get(a).copied().unwrap_or(0.0)
                 + pagerank_scores.get(b).copied().unwrap_or(0.0);
@@ -376,6 +378,6 @@ pub fn predict_links(
             .then_with(|| left.a.cmp(&right.a))
             .then_with(|| left.b.cmp(&right.b))
     });
-    out.truncate(top_k.max(1));
+    out.truncate(bounded_top_k(top_k));
     out
 }

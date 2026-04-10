@@ -182,6 +182,10 @@ fn hash_text(text: &str) -> String {
     hex::encode(hasher.finalize())
 }
 
+fn value_field_or_null(value: &Value, field: &str) -> Value {
+    value.get(field).cloned().unwrap_or(Value::Null)
+}
+
 fn persist_security_receipt(root: &Path, payload: &Value) {
     let _ = lane_utils::write_json(&security_latest_path(root), payload);
     let _ = lane_utils::append_jsonl(&security_history_path(root), payload);
@@ -240,6 +244,8 @@ fn run_security_contract_command(
             "strict": strict
         }),
     );
+    let missing_flags = value_field_or_null(&contract_state, "missing_flags");
+    let mismatch_flags = value_field_or_null(&contract_state, "mismatch_flags");
 
     let out = json!({
         "ok": ok,
@@ -249,16 +255,16 @@ fn run_security_contract_command(
         "strict": strict,
         "contract_id": contract_id,
         "state_path": path.display().to_string(),
-        "missing_flags": contract_state.get("missing_flags").cloned().unwrap_or(Value::Null),
-        "mismatch_flags": contract_state.get("mismatch_flags").cloned().unwrap_or(Value::Null),
+        "missing_flags": missing_flags.clone(),
+        "mismatch_flags": mismatch_flags.clone(),
         "claim_evidence": [{
             "id": contract_id,
             "claim": "security_contract_lane_executes_with_fail_closed_validation_and_receipted_state_artifacts",
             "evidence": {
                 "command": command,
                 "state_path": path.display().to_string(),
-                "missing_flags": contract_state.get("missing_flags").cloned().unwrap_or(Value::Null),
-                "mismatch_flags": contract_state.get("mismatch_flags").cloned().unwrap_or(Value::Null)
+                "missing_flags": missing_flags,
+                "mismatch_flags": mismatch_flags
             }
         }]
     });

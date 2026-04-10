@@ -1,3 +1,15 @@
+fn ensure_conduit_ok_or_fail(type_name: &str, strict: bool, conduit: &Value) -> Option<Value> {
+    if strict && !conduit.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+        return Some(fail_payload(
+            type_name,
+            strict,
+            vec!["conduit_bypass_rejected".to_string()],
+            Some(conduit.clone()),
+        ));
+    }
+    None
+}
+
 fn run_template_governance_common(
     root: &Path,
     parsed: &ParsedArgs,
@@ -9,13 +21,8 @@ fn run_template_governance_common(
     claim_id: &str,
     conduit: Value,
 ) -> Value {
-    if strict && !conduit.get("ok").and_then(Value::as_bool).unwrap_or(false) {
-        return fail_payload(
-            type_name,
-            strict,
-            vec!["conduit_bypass_rejected".to_string()],
-            Some(conduit),
-        );
+    if let Some(payload) = ensure_conduit_ok_or_fail(type_name, strict, &conduit) {
+        return payload;
     }
 
     let contract = read_json_or(
@@ -209,13 +216,8 @@ pub fn run_firecrawl_template_governance(root: &Path, parsed: &ParsedArgs, stric
 
 pub fn run_js_scrape(root: &Path, parsed: &ParsedArgs, strict: bool) -> Value {
     let conduit = conduit_enforcement(root, parsed, strict, "js_scrape");
-    if strict && !conduit.get("ok").and_then(Value::as_bool).unwrap_or(false) {
-        return fail_payload(
-            "research_plane_js_scrape",
-            strict,
-            vec!["conduit_bypass_rejected".to_string()],
-            Some(conduit),
-        );
+    if let Some(payload) = ensure_conduit_ok_or_fail("research_plane_js_scrape", strict, &conduit) {
+        return payload;
     }
 
     let contract = read_json_or(
@@ -371,4 +373,3 @@ pub fn run_js_scrape(root: &Path, parsed: &ParsedArgs, strict: bool) -> Value {
     out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
     out
 }
-

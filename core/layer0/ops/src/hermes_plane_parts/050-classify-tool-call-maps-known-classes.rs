@@ -3,6 +3,19 @@
 mod tests {
     use super::*;
 
+    fn cockpit_parsed() -> crate::ParsedArgs {
+        crate::parse_args(&["cockpit".to_string(), "--max-blocks=8".to_string()])
+    }
+
+    fn lane_block<'a>(out: &'a Value, lane: &str) -> &'a Value {
+        out["cockpit"]["render"]["stream_blocks"]
+            .as_array()
+            .expect("stream blocks")
+            .iter()
+            .find(|entry| entry.get("lane").and_then(Value::as_str) == Some(lane))
+            .expect("lane block should be present")
+    }
+
     #[test]
     fn classify_tool_call_maps_known_classes() {
         assert_eq!(classify_tool_call("skills_plane_run"), "skills");
@@ -89,15 +102,9 @@ mod tests {
             }),
         );
 
-        let parsed = crate::parse_args(&["cockpit".to_string(), "--max-blocks=8".to_string()]);
+        let parsed = cockpit_parsed();
         let out = run_cockpit(root.path(), &parsed, true);
-        let blocks = out["cockpit"]["render"]["stream_blocks"]
-            .as_array()
-            .expect("stream blocks");
-        let row = blocks
-            .iter()
-            .find(|entry| entry.get("lane").and_then(Value::as_str) == Some("alpha_lane"))
-            .expect("alpha lane block should be present");
+        let row = lane_block(&out, "alpha_lane");
         assert_eq!(
             row.get("conduit_enforced").and_then(Value::as_bool),
             Some(true)
@@ -124,15 +131,9 @@ mod tests {
             }),
         );
 
-        let parsed = crate::parse_args(&["cockpit".to_string(), "--max-blocks=8".to_string()]);
+        let parsed = cockpit_parsed();
         let out = run_cockpit(root.path(), &parsed, true);
-        let blocks = out["cockpit"]["render"]["stream_blocks"]
-            .as_array()
-            .expect("stream blocks");
-        let row = blocks
-            .iter()
-            .find(|entry| entry.get("lane").and_then(Value::as_str) == Some("age_lane"))
-            .expect("age lane block should be present");
+        let row = lane_block(&out, "age_lane");
         assert!(
             row.get("duration_ms").and_then(Value::as_u64).unwrap_or(0) > 1_000,
             "duration_ms should reflect parsed timestamp age"
@@ -158,15 +159,9 @@ mod tests {
             }),
         );
 
-        let parsed = crate::parse_args(&["cockpit".to_string(), "--max-blocks=8".to_string()]);
+        let parsed = cockpit_parsed();
         let out = run_cockpit(root.path(), &parsed, true);
-        let blocks = out["cockpit"]["render"]["stream_blocks"]
-            .as_array()
-            .expect("stream blocks");
-        let row = blocks
-            .iter()
-            .find(|entry| entry.get("lane").and_then(Value::as_str) == Some("mtime_lane"))
-            .expect("mtime lane block should be present");
+        let row = lane_block(&out, "mtime_lane");
         assert_eq!(
             row.get("duration_source").and_then(Value::as_str),
             Some("latest_mtime")
@@ -207,7 +202,7 @@ mod tests {
             }),
         );
 
-        let parsed = crate::parse_args(&["cockpit".to_string(), "--max-blocks=8".to_string()]);
+        let parsed = cockpit_parsed();
         let out = run_cockpit(root.path(), &parsed, true);
         let metrics = out["cockpit"]["metrics"].clone();
         let stale_count = metrics
@@ -230,5 +225,3 @@ mod tests {
         );
     }
 }
-
-

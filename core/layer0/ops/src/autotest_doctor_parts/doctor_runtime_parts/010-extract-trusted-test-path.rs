@@ -1,58 +1,47 @@
+fn trusted_test_path(path: String) -> TrustedTestPath {
+    TrustedTestPath {
+        path: Some(path),
+        trusted: true,
+        reason: None,
+    }
+}
+
+fn untrusted_test_path(reason: &str) -> TrustedTestPath {
+    TrustedTestPath {
+        path: None,
+        trusted: false,
+        reason: Some(reason.to_string()),
+    }
+}
+
+fn has_shell_meta(command: &str) -> bool {
+    const SHELL_META: [&str; 8] = ["|", "&&", ";", "$(", "`", ">", "<", "\n"];
+    SHELL_META.iter().any(|token| command.contains(token))
+}
+
 fn extract_trusted_test_path(command: &str) -> TrustedTestPath {
     let cmd = command.trim();
     if cmd.is_empty() {
-        return TrustedTestPath {
-            path: None,
-            trusted: false,
-            reason: Some("missing_command".to_string()),
-        };
+        return untrusted_test_path("missing_command");
     }
-    if cmd.contains('|')
-        || cmd.contains("&&")
-        || cmd.contains(';')
-        || cmd.contains("$(")
-        || cmd.contains('`')
-        || cmd.contains('>')
-        || cmd.contains('<')
-        || cmd.contains('\n')
-    {
-        return TrustedTestPath {
-            path: None,
-            trusted: false,
-            reason: Some("shell_meta_detected".to_string()),
-        };
+    if has_shell_meta(cmd) {
+        return untrusted_test_path("shell_meta_detected");
     }
 
     let mut parts = cmd.split_whitespace();
     let head = parts.next().unwrap_or_default();
     let path = parts.next().unwrap_or_default();
     if !head.eq_ignore_ascii_case("node") || !path.ends_with(".test.ts") {
-        return TrustedTestPath {
-            path: None,
-            trusted: false,
-            reason: Some("non_node_test_command".to_string()),
-        };
+        return untrusted_test_path("non_node_test_command");
     }
     let norm = path.trim_matches('"').trim_matches('\'').replace('\\', "/");
     if !norm.starts_with("tests/client-memory-tools/") {
-        return TrustedTestPath {
-            path: None,
-            trusted: false,
-            reason: Some("path_outside_allowlist".to_string()),
-        };
+        return untrusted_test_path("path_outside_allowlist");
     }
     if norm.contains("..") {
-        return TrustedTestPath {
-            path: None,
-            trusted: false,
-            reason: Some("path_traversal".to_string()),
-        };
+        return untrusted_test_path("path_traversal");
     }
-    TrustedTestPath {
-        path: Some(norm),
-        trusted: true,
-        reason: None,
-    }
+    trusted_test_path(norm)
 }
 
 fn collect_failures(run_row: &Value) -> Vec<FailureSignature> {

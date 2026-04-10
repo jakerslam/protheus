@@ -1,3 +1,12 @@
+fn run_secrets_contract_probe(root: &Path, argv: &[String], strict: bool) {
+    let _ =
+        run_security_contract_command(root, argv, strict, "secrets-federation", "V6-SEC-016", &[]);
+}
+
+fn out_handle_id_or_null(out: &Value) -> Value {
+    out.get("handle_id").cloned().unwrap_or(Value::Null)
+}
+
 fn run_secrets_federation_command(root: &Path, argv: &[String], strict: bool) -> (Value, i32) {
     let op = parse_subcommand(argv, "status");
     let provider = parse_flag(argv, "provider")
@@ -8,14 +17,7 @@ fn run_secrets_federation_command(root: &Path, argv: &[String], strict: bool) ->
     let lease_seconds = parse_u64(parse_flag(argv, "lease-seconds"), 3600);
     let supported = ["vault", "aws", "1password", "onepassword"];
     if strict && !supported.contains(&provider.as_str()) {
-        let _ = run_security_contract_command(
-            root,
-            argv,
-            strict,
-            "secrets-federation",
-            "V6-SEC-016",
-            &[],
-        );
+        run_secrets_contract_probe(root, argv, strict);
         let out = json!({
             "ok": false,
             "type": "security_plane_secrets_federation",
@@ -56,14 +58,7 @@ fn run_secrets_federation_command(root: &Path, argv: &[String], strict: bool) ->
                     "claim": "external_secrets_federation_fails_closed_when_secret_material_is_missing",
                     "evidence": {"provider": provider, "secret_path": secret_path}
                 }]);
-                let _ = run_security_contract_command(
-                    root,
-                    argv,
-                    strict,
-                    "secrets-federation",
-                    "V6-SEC-016",
-                    &[],
-                );
+                run_secrets_contract_probe(root, argv, strict);
                 return (out, if strict { 2 } else { 0 });
             };
             let ts = now_iso();
@@ -113,7 +108,7 @@ fn run_secrets_federation_command(root: &Path, argv: &[String], strict: bool) ->
             out["claim_evidence"] = json!([{
                 "id": "V6-SEC-016",
                 "claim": "external_secrets_federation_supports_rotation_and_audit_receipts_for_issued_handles",
-                "evidence": {"handle_id": out.get("handle_id").cloned().unwrap_or(Value::Null)}
+                "evidence": {"handle_id": out_handle_id_or_null(&out)}
             }]);
         }
         "revoke" => {
@@ -130,7 +125,7 @@ fn run_secrets_federation_command(root: &Path, argv: &[String], strict: bool) ->
             out["claim_evidence"] = json!([{
                 "id": "V6-SEC-016",
                 "claim": "external_secrets_federation_supports_revoke_semantics_for_issued_handles",
-                "evidence": {"handle_id": out.get("handle_id").cloned().unwrap_or(Value::Null)}
+                "evidence": {"handle_id": out_handle_id_or_null(&out)}
             }]);
         }
         _ => {
@@ -155,8 +150,7 @@ fn run_secrets_federation_command(root: &Path, argv: &[String], strict: bool) ->
     }
 
     write_secret_state(root, &handles);
-    let _ =
-        run_security_contract_command(root, argv, strict, "secrets-federation", "V6-SEC-016", &[]);
+    run_secrets_contract_probe(root, argv, strict);
     append_jsonl(
         &secrets_events_path(root),
         &json!({
@@ -165,7 +159,7 @@ fn run_secrets_federation_command(root: &Path, argv: &[String], strict: bool) ->
             "ok": out.get("ok").and_then(Value::as_bool).unwrap_or(false),
             "provider": provider,
             "secret_path": secret_path,
-            "handle_id": out.get("handle_id").cloned().unwrap_or(Value::Null)
+            "handle_id": out_handle_id_or_null(&out)
         }),
     );
     let failed = !out.get("ok").and_then(Value::as_bool).unwrap_or(false);

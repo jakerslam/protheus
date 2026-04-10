@@ -28,6 +28,11 @@ fn cmd_request(root: &Path, argv: &[String]) -> i32 {
     let bounds = hardware_bounds(&policy, &plan.payload);
     let limits = compute_limits(&policy, &state, &module, &bounds);
     let autopause = load_autopause(root);
+    let reason_value = if reason.is_empty() {
+        Value::Null
+    } else {
+        Value::String(reason.clone())
+    };
     if autopause.active {
         let mut blocked = json!({
             "ok": true,
@@ -111,7 +116,7 @@ fn cmd_request(root: &Path, argv: &[String]) -> i32 {
                 "profile": profile,
                 "requested_cells": requested_cells,
                 "granted_cells": granted_cells,
-                "reason": if reason.is_empty() { Value::Null } else { Value::String(reason.clone()) },
+                "reason": reason_value.clone(),
                 "lease_expires_at": lease_expires_at
             }),
         );
@@ -126,7 +131,7 @@ fn cmd_request(root: &Path, argv: &[String]) -> i32 {
         "requested_cells": requested_cells,
         "granted_cells": granted_cells,
         "requested_tokens_est": 0,
-        "reason": if reason.is_empty() { Value::Null } else { Value::String(reason.clone()) },
+        "reason": reason_value,
         "lineage_contract": null,
         "lineage_error": null,
         "lease_expires_at": lease_expires_at,
@@ -219,4 +224,3 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         }
     }
 }
-

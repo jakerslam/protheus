@@ -1,3 +1,20 @@
+fn run_with_payload<F>(argv: &[String], op_type: &str, build: F) -> i32
+where
+    F: FnOnce(Map<String, Value>) -> Value,
+{
+    match payload_json(argv) {
+        Ok(payload) => {
+            let obj = payload.as_object().cloned().unwrap_or_default();
+            print_json_line(&cli_receipt(op_type, build(obj)));
+            0
+        }
+        Err(err) => {
+            print_json_line(&cli_error(op_type, &err));
+            1
+        }
+    }
+}
+
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     let parsed = parse_args(argv);
     let cmd = parsed
@@ -11,106 +28,52 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             usage();
             0
         }
-        "default-policy" => match payload_json(argv) {
-            Ok(payload) => {
-                let root_dir =
-                    root_dir_from_payload(root, payload.as_object().unwrap_or(&Map::new()));
-                print_json_line(&cli_receipt(
-                    "training_conduit_schema_kernel_default_policy",
-                    json!({ "policy": default_policy(&root_dir) }),
-                ));
-                0
-            }
-            Err(err) => {
-                print_json_line(&cli_error(
-                    "training_conduit_schema_kernel_default_policy",
-                    &err,
-                ));
-                1
-            }
-        },
-        "normalize-policy" => match payload_json(argv) {
-            Ok(payload) => {
-                let obj = payload.as_object().cloned().unwrap_or_default();
+        "default-policy" => run_with_payload(
+            argv,
+            "training_conduit_schema_kernel_default_policy",
+            |obj| {
                 let root_dir = root_dir_from_payload(root, &obj);
-                print_json_line(&cli_receipt(
-                    "training_conduit_schema_kernel_normalize_policy",
-                    json!({ "policy": normalize_policy(obj.get("policy"), &root_dir) }),
-                ));
-                0
-            }
-            Err(err) => {
-                print_json_line(&cli_error(
-                    "training_conduit_schema_kernel_normalize_policy",
-                    &err,
-                ));
-                1
-            }
-        },
-        "load-policy" => match payload_json(argv) {
-            Ok(payload) => {
-                let obj = payload.as_object().cloned().unwrap_or_default();
+                json!({ "policy": default_policy(&root_dir) })
+            },
+        ),
+        "normalize-policy" => run_with_payload(
+            argv,
+            "training_conduit_schema_kernel_normalize_policy",
+            |obj| {
                 let root_dir = root_dir_from_payload(root, &obj);
-                print_json_line(&cli_receipt(
-                    "training_conduit_schema_kernel_load_policy",
-                    json!({ "policy": load_policy(&root_dir, &obj) }),
-                ));
-                0
-            }
-            Err(err) => {
-                print_json_line(&cli_error(
-                    "training_conduit_schema_kernel_load_policy",
-                    &err,
-                ));
-                1
-            }
-        },
-        "build-metadata" => match payload_json(argv) {
-            Ok(payload) => {
-                let obj = payload.as_object().cloned().unwrap_or_default();
+                json!({ "policy": normalize_policy(obj.get("policy"), &root_dir) })
+            },
+        ),
+        "load-policy" => run_with_payload(argv, "training_conduit_schema_kernel_load_policy", |obj| {
+            let root_dir = root_dir_from_payload(root, &obj);
+            json!({ "policy": load_policy(&root_dir, &obj) })
+        }),
+        "build-metadata" => run_with_payload(
+            argv,
+            "training_conduit_schema_kernel_build_metadata",
+            |obj| {
                 let root_dir = root_dir_from_payload(root, &obj);
-                print_json_line(&cli_receipt(
-                    "training_conduit_schema_kernel_build_metadata",
-                    json!({
-                        "metadata": build_training_conduit_metadata(obj.get("input"), obj.get("policy"), &root_dir)
-                    }),
-                ));
-                0
-            }
-            Err(err) => {
-                print_json_line(&cli_error(
-                    "training_conduit_schema_kernel_build_metadata",
-                    &err,
-                ));
-                1
-            }
-        },
-        "validate-metadata" => match payload_json(argv) {
-            Ok(payload) => {
-                let obj = payload.as_object().cloned().unwrap_or_default();
+                json!({
+                    "metadata": build_training_conduit_metadata(obj.get("input"), obj.get("policy"), &root_dir)
+                })
+            },
+        ),
+        "validate-metadata" => run_with_payload(
+            argv,
+            "training_conduit_schema_kernel_validate_metadata",
+            |obj| {
                 let root_dir = root_dir_from_payload(root, &obj);
                 let empty = json!({});
                 let metadata = obj.get("metadata").unwrap_or(&empty);
-                print_json_line(&cli_receipt(
-                    "training_conduit_schema_kernel_validate_metadata",
-                    json!({
-                        "validation": validate_training_conduit_metadata(
-                            metadata,
-                            obj.get("policy"),
-                            &root_dir
-                        )
-                    }),
-                ));
-                0
-            }
-            Err(err) => {
-                print_json_line(&cli_error(
-                    "training_conduit_schema_kernel_validate_metadata",
-                    &err,
-                ));
-                1
-            }
-        },
+                json!({
+                    "validation": validate_training_conduit_metadata(
+                        metadata,
+                        obj.get("policy"),
+                        &root_dir
+                    )
+                })
+            },
+        ),
         _ => {
             usage();
             print_json_line(&cli_error(
@@ -189,4 +152,3 @@ mod tests {
         );
     }
 }
-

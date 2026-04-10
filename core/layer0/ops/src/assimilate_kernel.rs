@@ -12,8 +12,8 @@ use std::time::Duration;
 use support::{
     build_receipt_hash, canonical_assimilation_plan, decode_injected_route, maybe_prewarm,
     parse_args, payload_scaffold_for, render_bar, run_core_assimilation, update_metrics, usage,
-    Route, RunResult, TargetMetrics,
-    DEFAULT_REALTIME_DURATION_MS, DEFAULT_SHOWCASE_DURATION_MS, STAGES,
+    Route, RunResult, TargetMetrics, DEFAULT_REALTIME_DURATION_MS, DEFAULT_SHOWCASE_DURATION_MS,
+    STAGES,
 };
 
 fn emit_stage_snapshot(total_ms: u64, include_final: bool) {
@@ -105,6 +105,15 @@ fn runtime_receipt_fallback(payload: Option<&Value>, target: &str, ts_iso: &str)
         .unwrap_or_else(|| build_receipt_hash(target, ts_iso))
 }
 
+fn print_pretty_json(value: &Value, stderr: bool) {
+    let out = serde_json::to_string_pretty(value).unwrap_or_else(|_| "{}".to_string());
+    if stderr {
+        eprintln!("{out}");
+    } else {
+        println!("{out}");
+    }
+}
+
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     let options = parse_args(argv);
     if options.help {
@@ -179,15 +188,9 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "ts": ts_iso
             });
             if options.json {
-                println!(
-                    "{}",
-                    serde_json::to_string_pretty(&out).unwrap_or_else(|_| "{}".to_string())
-                );
+                print_pretty_json(&out, false);
             } else {
-                eprintln!(
-                    "{}",
-                    serde_json::to_string_pretty(&out).unwrap_or_else(|_| "{}".to_string())
-                );
+                print_pretty_json(&out, true);
             }
             return 1;
         }
@@ -207,17 +210,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 ),
                 "ts": ts_iso
             });
-            if options.json {
-                println!(
-                    "{}",
-                    serde_json::to_string_pretty(&out).unwrap_or_else(|_| "{}".to_string())
-                );
-            } else {
-                println!(
-                    "{}",
-                    serde_json::to_string_pretty(&out).unwrap_or_else(|_| "{}".to_string())
-                );
-            }
+            print_pretty_json(&out, false);
             return 0;
         }
         let receipt = build_receipt_hash(&target, &ts_iso);
@@ -230,9 +223,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         }
         let metrics = update_metrics(root, &target, display_ms, true);
         if options.json {
-            println!(
-                "{}",
-                serde_json::to_string_pretty(&json!({
+            print_pretty_json(
+                &json!({
                     "ok": true,
                     "type": "assimilate_progress",
                     "mode": "simulation",
@@ -243,8 +235,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     "metrics": metrics,
                     "ts": ts_iso,
                     "motto": "Power to The Users."
-                }))
-                .unwrap_or_else(|_| "{}".to_string())
+                }),
+                false,
             );
             return 0;
         }
@@ -271,10 +263,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "canonical_plan": plan,
             "ts": ts_iso
         });
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&out).unwrap_or_else(|_| "{}".to_string())
-        );
+        print_pretty_json(&out, false);
         return 0;
     }
     let run_result = if display_ms > 0 && !options.json {
@@ -296,9 +285,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     let receipt = runtime_receipt_fallback(run_result.payload.as_ref(), &target, &ts_iso);
 
     if options.json {
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&json!({
+        print_pretty_json(
+            &json!({
                 "ok": run_result.status == 0,
                 "type": "assimilate_execution",
                 "mode": "runtime",
@@ -311,8 +299,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "payload": run_result.payload,
                 "stderr": if run_result.status == 0 { "" } else { run_result.stderr.trim() },
                 "ts": ts_iso
-            }))
-            .unwrap_or_else(|_| "{}".to_string())
+            }),
+            false,
         );
         return if run_result.status == 0 { 0 } else { 1 };
     }
@@ -349,7 +337,10 @@ mod tests {
         let root = temp_root();
         let code = run(
             &root,
-            &["workflow://definitely-unknown".to_string(), "--json=1".to_string()],
+            &[
+                "workflow://definitely-unknown".to_string(),
+                "--json=1".to_string(),
+            ],
         );
         assert_eq!(code, 1);
     }

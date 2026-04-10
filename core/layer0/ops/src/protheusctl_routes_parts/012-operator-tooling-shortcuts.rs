@@ -1,208 +1,48 @@
-fn resolve_operator_tooling_shortcuts(cmd: &str, rest: &[String]) -> Option<Route> {
-    match cmd {
-        "route-model" | "model-route" => Some(Route {
-            script_rel: "core://operator-tooling-kernel".to_string(),
-            args: std::iter::once("route-model".to_string())
-                .chain(rest.iter().cloned())
-                .collect(),
-            forward_stdin: false,
-        }),
-        "escalate-model" | "model-escalate" => Some(Route {
-            script_rel: "core://operator-tooling-kernel".to_string(),
-            args: std::iter::once("escalate-model".to_string())
-                .chain(rest.iter().cloned())
-                .collect(),
-            forward_stdin: false,
-        }),
-        "plan-auto" | "plan-first" => Some(Route {
-            script_rel: "core://operator-tooling-kernel".to_string(),
-            args: std::iter::once("plan-auto".to_string())
-                .chain(rest.iter().cloned())
-                .collect(),
-            forward_stdin: false,
-        }),
-        "plan-validate" => Some(Route {
-            script_rel: "core://operator-tooling-kernel".to_string(),
-            args: std::iter::once("plan-validate".to_string())
-                .chain(rest.iter().cloned())
-                .collect(),
-            forward_stdin: false,
-        }),
-        "postflight-validate" | "postflight-check" => Some(Route {
-            script_rel: "core://operator-tooling-kernel".to_string(),
-            args: std::iter::once("postflight-validate".to_string())
-                .chain(rest.iter().cloned())
-                .collect(),
-            forward_stdin: false,
-        }),
-        "output-validate" | "output-check" => Some(Route {
-            script_rel: "core://operator-tooling-kernel".to_string(),
-            args: std::iter::once("output-validate".to_string())
-                .chain(rest.iter().cloned())
-                .collect(),
-            forward_stdin: false,
-        }),
-        "state-read" | "read-state" => Some(Route {
-            script_rel: "core://operator-tooling-kernel".to_string(),
-            args: std::iter::once("state-read".to_string())
-                .chain(rest.iter().cloned())
-                .collect(),
-            forward_stdin: false,
-        }),
-        "state-write" | "write-state" => Some(Route {
-            script_rel: "core://operator-tooling-kernel".to_string(),
-            args: std::iter::once("state-write".to_string())
-                .chain(rest.iter().cloned())
-                .collect(),
-            forward_stdin: false,
-        }),
-        "decision-log-append" | "append-decision" => Some(Route {
-            script_rel: "core://operator-tooling-kernel".to_string(),
-            args: std::iter::once("decision-log-append".to_string())
-                .chain(rest.iter().cloned())
-                .collect(),
-            forward_stdin: false,
-        }),
-        "safe-apply" => Some(Route {
-            script_rel: "core://operator-tooling-kernel".to_string(),
-            args: std::iter::once("safe-apply".to_string())
-                .chain(rest.iter().cloned())
-                .collect(),
-            forward_stdin: false,
-        }),
-        "memory-search" => Some(Route {
-            script_rel: "core://operator-tooling-kernel".to_string(),
-            args: std::iter::once("memory-search".to_string())
-                .chain(rest.iter().cloned())
-                .collect(),
-            forward_stdin: false,
-        }),
-        "memory-summarize" => Some(Route {
-            script_rel: "core://operator-tooling-kernel".to_string(),
-            args: std::iter::once("memory-summarize".to_string())
-                .chain(rest.iter().cloned())
-                .collect(),
-            forward_stdin: false,
-        }),
-        "memory-last-change" | "memlast" => Some(Route {
-            script_rel: "core://operator-tooling-kernel".to_string(),
-            args: std::iter::once("memory-last-change".to_string())
-                .chain(rest.iter().cloned())
-                .collect(),
-            forward_stdin: false,
-        }),
-        "membrief" => Some(Route {
-            script_rel: "core://operator-tooling-kernel".to_string(),
-            args: std::iter::once("membrief".to_string())
-                .chain(rest.iter().cloned())
-                .collect(),
-            forward_stdin: false,
-        }),
-        "trace-find" => Some(Route {
-            script_rel: "core://operator-tooling-kernel".to_string(),
-            args: std::iter::once("trace-find".to_string())
-                .chain(rest.iter().cloned())
-                .collect(),
-            forward_stdin: false,
-        }),
-        "sync-allowed-models" => Some(Route {
-            script_rel: "core://operator-tooling-kernel".to_string(),
-            args: std::iter::once("sync-allowed-models".to_string())
-                .chain(rest.iter().cloned())
-                .collect(),
-            forward_stdin: false,
-        }),
-        "smoke-routing" => Some(Route {
-            script_rel: "core://operator-tooling-kernel".to_string(),
-            args: std::iter::once("smoke-routing".to_string())
-                .chain(rest.iter().cloned())
-                .collect(),
-            forward_stdin: false,
-        }),
-        "spawn-safe" => Some(Route {
-            script_rel: "core://operator-tooling-kernel".to_string(),
-            args: std::iter::once("spawn-safe".to_string())
-                .chain(rest.iter().cloned())
-                .collect(),
-            forward_stdin: false,
-        }),
-        "smart-spawn" => Some(Route {
-            script_rel: "core://operator-tooling-kernel".to_string(),
-            args: std::iter::once("smart-spawn".to_string())
-                .chain(rest.iter().cloned())
-                .collect(),
-            forward_stdin: false,
-        }),
-        "auto-spawn" => Some(Route {
-            script_rel: "core://operator-tooling-kernel".to_string(),
-            args: std::iter::once("auto-spawn".to_string())
-                .chain(rest.iter().cloned())
-                .collect(),
-            forward_stdin: false,
-        }),
-        "execute-handoff" => Some(Route {
-            script_rel: "core://operator-tooling-kernel".to_string(),
-            args: std::iter::once("execute-handoff".to_string())
-                .chain(rest.iter().cloned())
-                .collect(),
-            forward_stdin: false,
-        }),
-        "safe-run" | "control_runtime-safe" | "watch-exec" => Some(Route {
-            script_rel: "core://operator-tooling-kernel".to_string(),
-            args: std::iter::once("safe-run".to_string())
-                .chain(rest.iter().cloned())
-                .collect(),
-            forward_stdin: false,
-        }),
-        "control_runtime-health" | "safe-health" => Some(Route {
-            script_rel: "core://operator-tooling-kernel".to_string(),
-            args: std::iter::once("control_runtime-health".to_string())
-                .chain(rest.iter().cloned())
-                .collect(),
-            forward_stdin: false,
-        }),
-        "cron-drift" => Some(Route {
-            script_rel: "core://operator-tooling-kernel".to_string(),
-            args: std::iter::once("cron-drift".to_string())
-                .chain(rest.iter().cloned())
-                .collect(),
-            forward_stdin: false,
-        }),
-        "cron-sync" => Some(Route {
-            script_rel: "core://operator-tooling-kernel".to_string(),
-            args: std::iter::once("cron-sync".to_string())
-                .chain(rest.iter().cloned())
-                .collect(),
-            forward_stdin: false,
-        }),
-        "control_runtime-doctor" => Some(Route {
-            script_rel: "core://operator-tooling-kernel".to_string(),
-            args: std::iter::once("doctor".to_string())
-                .chain(rest.iter().cloned())
-                .collect(),
-            forward_stdin: false,
-        }),
-        "audit-plane" | "control-plane-audit" => Some(Route {
-            script_rel: "core://operator-tooling-kernel".to_string(),
-            args: std::iter::once("audit-plane".to_string())
-                .chain(rest.iter().cloned())
-                .collect(),
-            forward_stdin: false,
-        }),
-        "daily-brief" => Some(Route {
-            script_rel: "core://operator-tooling-kernel".to_string(),
-            args: std::iter::once("daily-brief".to_string())
-                .chain(rest.iter().cloned())
-                .collect(),
-            forward_stdin: false,
-        }),
-        "fail-playbook" => Some(Route {
-            script_rel: "core://operator-tooling-kernel".to_string(),
-            args: std::iter::once("fail-playbook".to_string())
-                .chain(rest.iter().cloned())
-                .collect(),
-            forward_stdin: false,
-        }),
-        _ => None,
+fn operator_tooling_route(action: &str, rest: &[String]) -> Route {
+    Route {
+        script_rel: "core://operator-tooling-kernel".to_string(),
+        args: std::iter::once(action.to_string())
+            .chain(rest.iter().cloned())
+            .collect(),
+        forward_stdin: false,
     }
+}
+
+fn operator_tooling_shortcut_action(cmd: &str) -> Option<&'static str> {
+    Some(match cmd {
+        "route-model" | "model-route" => "route-model",
+        "escalate-model" | "model-escalate" => "escalate-model",
+        "plan-auto" | "plan-first" => "plan-auto",
+        "plan-validate" => "plan-validate",
+        "postflight-validate" | "postflight-check" => "postflight-validate",
+        "output-validate" | "output-check" => "output-validate",
+        "state-read" | "read-state" => "state-read",
+        "state-write" | "write-state" => "state-write",
+        "decision-log-append" | "append-decision" => "decision-log-append",
+        "safe-apply" => "safe-apply",
+        "memory-search" => "memory-search",
+        "memory-summarize" => "memory-summarize",
+        "memory-last-change" | "memlast" => "memory-last-change",
+        "membrief" => "membrief",
+        "trace-find" => "trace-find",
+        "sync-allowed-models" => "sync-allowed-models",
+        "smoke-routing" => "smoke-routing",
+        "spawn-safe" => "spawn-safe",
+        "smart-spawn" => "smart-spawn",
+        "auto-spawn" => "auto-spawn",
+        "execute-handoff" => "execute-handoff",
+        "safe-run" | "control_runtime-safe" | "watch-exec" => "safe-run",
+        "control_runtime-health" | "safe-health" => "control_runtime-health",
+        "cron-drift" => "cron-drift",
+        "cron-sync" => "cron-sync",
+        "control_runtime-doctor" => "doctor",
+        "audit-plane" | "control-plane-audit" => "audit-plane",
+        "daily-brief" => "daily-brief",
+        "fail-playbook" => "fail-playbook",
+        _ => return None,
+    })
+}
+
+fn resolve_operator_tooling_shortcuts(cmd: &str, rest: &[String]) -> Option<Route> {
+    operator_tooling_shortcut_action(cmd).map(|action| operator_tooling_route(action, rest))
 }

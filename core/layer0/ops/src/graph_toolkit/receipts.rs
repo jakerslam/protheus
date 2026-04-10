@@ -17,6 +17,18 @@ pub fn latest_path(root: &Path) -> PathBuf {
     state_root(root).join("latest.json")
 }
 
+fn direct_error_payload(type_name: &str, error: &str) -> Value {
+    let mut out = json!({
+        "ok": false,
+        "type": type_name,
+        "lane": "core/layer0/ops",
+        "error": error,
+        "exit_code": 2
+    });
+    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out
+}
+
 fn materialized_path(root: &Path, command: &str, cache_key: &str) -> PathBuf {
     state_root(root)
         .join("materialized")
@@ -35,14 +47,7 @@ pub fn emit(root: &Path, payload: Value) -> i32 {
             }
         }
         Err(err) => {
-            let mut out = json!({
-                "ok": false,
-                "type": "graph_toolkit_error",
-                "lane": "core/layer0/ops",
-                "error": clean(err, 240),
-                "exit_code": 2
-            });
-            out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+            let out = direct_error_payload("graph_toolkit_error", &clean(err, 240));
             print_json(&out);
             2
         }
@@ -57,23 +62,24 @@ fn cache_key(command: &str, graph_hash: &str, params: &Value) -> String {
 }
 
 fn claim_evidence(id: &str, command: &str, cached: bool) -> Vec<Value> {
-    let mut out = vec![json!({
-        "id": id,
-        "claim": "graph_algorithm_execution_is_native_and_receipted",
-        "evidence": {
-            "command": command,
-            "cached": cached
-        }
-    })];
-    out.push(json!({
-        "id": "V6-TOOLS-008.5",
-        "claim": "graph_runs_are_gate_checked_and_receipted_for_conduit_routing",
-        "evidence": {
-            "routed_via": ROUTE_TAG,
-            "conduit_required": true
-        }
-    }));
-    out
+    vec![
+        json!({
+            "id": id,
+            "claim": "graph_algorithm_execution_is_native_and_receipted",
+            "evidence": {
+                "command": command,
+                "cached": cached
+            }
+        }),
+        json!({
+            "id": "V6-TOOLS-008.5",
+            "claim": "graph_runs_are_gate_checked_and_receipted_for_conduit_routing",
+            "evidence": {
+                "routed_via": ROUTE_TAG,
+                "conduit_required": true
+            }
+        }),
+    ]
 }
 
 pub fn materialize_and_emit(
@@ -131,15 +137,7 @@ pub fn materialize_and_emit(
             "ts": now_iso()
         });
         if let Err(err) = write_json(&artifact, &materialized) {
-            return emit(
-                root,
-                json!({
-                    "ok": false,
-                    "type": type_name,
-                    "lane": "core/layer0/ops",
-                    "error": clean(err, 220)
-                }),
-            );
+            return emit(root, direct_error_payload(type_name, &clean(err, 220)));
         }
     }
 

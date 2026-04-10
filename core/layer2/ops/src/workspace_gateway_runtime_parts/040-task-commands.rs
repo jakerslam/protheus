@@ -1,3 +1,23 @@
+fn print_task_error(kind: &str, err: impl Into<Value>) -> i32 {
+    eprintln!(
+        "{}",
+        json!({
+            "ok": false,
+            "type": kind,
+            "error": err.into()
+        })
+    );
+    1
+}
+
+fn parse_ticket_id(parsed: &ParsedCli) -> Option<String> {
+    parse_non_empty(&parsed.flags, "ticket")
+        .or_else(|| parse_non_empty(&parsed.flags, "ticket-id"))
+        .or_else(|| parsed.positional.first().cloned())
+        .map(|raw| clean_id(raw.as_str()))
+        .filter(|value| !value.is_empty())
+}
+
 fn create_payload_from_flags(parsed: &ParsedCli) -> TaskPayload {
     let id = Uuid::new_v4().to_string();
     let kind = parse_non_empty(&parsed.flags, "kind").unwrap_or_else(|| "analysis".to_string());
@@ -23,23 +43,13 @@ fn create_payload_from_flags(parsed: &ParsedCli) -> TaskPayload {
 fn submit_task(root: &Path, parsed: &ParsedCli) -> i32 {
     let paths = task_paths(root);
     if let Err(err) = ensure_task_state(&paths) {
-        eprintln!(
-            "{}",
-            json!({ "ok": false, "type": "task_submit_error", "error": err })
-        );
-        return 1;
+        return print_task_error("task_submit_error", err);
     }
     let (bus, notes) = build_task_bus(root, &parsed.flags);
     let payload = create_payload_from_flags(parsed);
     let mut registry = match load_registry(&paths) {
         Ok(value) => value,
-        Err(err) => {
-            eprintln!(
-                "{}",
-                json!({ "ok": false, "type": "task_submit_error", "error": err })
-            );
-            return 1;
-        }
+        Err(err) => return print_task_error("task_submit_error", err),
     };
     let now = now_epoch_ms();
     let record = TaskRecord {
@@ -56,18 +66,10 @@ fn submit_task(root: &Path, parsed: &ParsedCli) -> i32 {
     };
     upsert_task_record(&mut registry, record);
     if let Err(err) = save_registry(&paths, &registry) {
-        eprintln!(
-            "{}",
-            json!({ "ok": false, "type": "task_submit_error", "error": err })
-        );
-        return 1;
+        return print_task_error("task_submit_error", err);
     }
     if let Err(err) = bus.enqueue(&payload) {
-        eprintln!(
-            "{}",
-            json!({ "ok": false, "type": "task_submit_error", "error": err })
-        );
-        return 1;
+        return print_task_error("task_submit_error", err);
     }
     let ticket = TaskTicket {
         id: payload.id.clone(),
@@ -99,13 +101,7 @@ fn list_tasks(root: &Path, parsed: &ParsedCli) -> i32 {
     let paths = task_paths(root);
     let registry = match load_registry(&paths) {
         Ok(value) => value,
-        Err(err) => {
-            eprintln!(
-                "{}",
-                json!({ "ok": false, "type": "task_list_error", "error": err })
-            );
-            return 1;
-        }
+        Err(err) => return print_task_error("task_list_error", err),
     };
     let limit = parse_u64_flag(&parsed.flags, "limit", 100) as usize;
     let tasks = sorted_tasks_desc(&registry.tasks)
@@ -128,19 +124,9 @@ fn status_task(root: &Path, parsed: &ParsedCli) -> i32 {
     let paths = task_paths(root);
     let registry = match load_registry(&paths) {
         Ok(value) => value,
-        Err(err) => {
-            eprintln!(
-                "{}",
-                json!({ "ok": false, "type": "task_status_error", "error": err })
-            );
-            return 1;
-        }
+        Err(err) => return print_task_error("task_status_error", err),
     };
-    let ticket = parse_non_empty(&parsed.flags, "ticket")
-        .or_else(|| parse_non_empty(&parsed.flags, "ticket-id"))
-        .or_else(|| parsed.positional.first().cloned())
-        .map(|raw| clean_id(raw.as_str()))
-        .filter(|value| !value.is_empty());
+    let ticket = parse_ticket_id(parsed);
     if let Some(ticket_id) = ticket {
         let found = registry.tasks.into_iter().find(|row| row.id == ticket_id);
         match found {
@@ -194,28 +180,14 @@ fn status_task(root: &Path, parsed: &ParsedCli) -> i32 {
 }
 
 fn cancel_task(root: &Path, parsed: &ParsedCli) -> i32 {
-    let ticket = parse_non_empty(&parsed.flags, "ticket")
-        .or_else(|| parse_non_empty(&parsed.flags, "ticket-id"))
-        .or_else(|| parsed.positional.first().cloned())
-        .map(|raw| clean_id(raw.as_str()))
-        .filter(|value| !value.is_empty());
+    let ticket = parse_ticket_id(parsed);
     let Some(ticket_id) = ticket else {
-        eprintln!(
-            "{}",
-            json!({ "ok": false, "type": "task_cancel_error", "error": "missing_ticket_id" })
-        );
-        return 1;
+        return print_task_error("task_cancel_error", "missing_ticket_id");
     };
     let paths = task_paths(root);
     let mut registry = match load_registry(&paths) {
         Ok(value) => value,
-        Err(err) => {
-            eprintln!(
-                "{}",
-                json!({ "ok": false, "type": "task_cancel_error", "error": err })
-            );
-            return 1;
-        }
+        Err(err) => return print_task_error("task_cancel_error", err),
     };
     let mut cancelled = load_cancelled_set(&paths).unwrap_or_default();
     cancelled.insert(ticket_id.clone());
@@ -225,18 +197,10 @@ fn cancel_task(root: &Path, parsed: &ParsedCli) -> i32 {
         row.updated_at_ms = now_epoch_ms();
     }
     if let Err(err) = save_registry(&paths, &registry) {
-        eprintln!(
-            "{}",
-            json!({ "ok": false, "type": "task_cancel_error", "error": err })
-        );
-        return 1;
+        return print_task_error("task_cancel_error", err);
     }
     if let Err(err) = save_cancelled_set(&paths, &cancelled) {
-        eprintln!(
-            "{}",
-            json!({ "ok": false, "type": "task_cancel_error", "error": err })
-        );
-        return 1;
+        return print_task_error("task_cancel_error", err);
     }
     let (bus, notes) = build_task_bus(root, &parsed.flags);
     let _ = bus.publish_cancel(&ticket_id);
