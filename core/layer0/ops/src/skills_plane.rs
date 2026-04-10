@@ -1,9 +1,11 @@
-include!("skills_plane_parts/010-usage.rs");
-include!("skills_plane_parts/020-run-create.rs");
-include!("skills_plane_parts/030-run-chain-validate.rs");
-include!("skills_plane_parts/040-verify-gallery-signature.rs");
-include!("skills_plane_parts/050-run-tot-deliberate.rs");
-include!("skills_plane_parts/060-run-install.rs");
-include!("skills_plane_parts/070-run-quarantine.rs");
-include!("skills_plane_parts/080-run.rs");
-include!("skills_plane_parts/090-placeholder.rs");
+include_parts!(
+    "skills_plane_parts/010-usage.rs",
+    "skills_plane_parts/020-run-create.rs",
+    "skills_plane_parts/030-run-chain-validate.rs",
+    "skills_plane_parts/040-verify-gallery-signature.rs",
+    "skills_plane_parts/050-run-tot-deliberate.rs",
+    "skills_plane_parts/060-run-install.rs",
+    "skills_plane_parts/070-run-quarantine.rs",
+    "skills_plane_parts/080-run.rs",
+    "skills_plane_parts/090-placeholder.rs",
+);

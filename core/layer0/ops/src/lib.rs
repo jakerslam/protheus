@@ -4,4 +4,10 @@
 // core-lazy
 // configure_low_memory_allocator_env
 // no-client-bloat
+macro_rules! include_parts {
+    ($($path:literal),+ $(,)?) => {
+        $(include!($path);)+
+    };
+}
+
 include!("lib.rs.inc");
