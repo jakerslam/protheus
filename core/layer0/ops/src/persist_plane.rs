@@ -102,16 +102,24 @@ fn conduit_enforcement(
     )
 }
 
+fn persist_state_path(root: &Path, parts: &[&str]) -> PathBuf {
+    let mut path = state_root(root);
+    for part in parts {
+        path.push(part);
+    }
+    path
+}
+
 fn schedules_path(root: &Path) -> PathBuf {
-    state_root(root).join("schedules").join("registry.json")
+    persist_state_path(root, &["schedules", "registry.json"])
 }
 
 fn mobile_path(root: &Path) -> PathBuf {
-    state_root(root).join("mobile").join("latest.json")
+    persist_state_path(root, &["mobile", "latest.json"])
 }
 
 fn continuity_dir(root: &Path) -> PathBuf {
-    state_root(root).join("continuity")
+    persist_state_path(root, &["continuity"])
 }
 
 fn continuity_snapshot_path(root: &Path, session_id: &str) -> PathBuf {
@@ -127,15 +135,15 @@ fn continuity_reconstruct_path(root: &Path, session_id: &str) -> PathBuf {
 }
 
 fn connectors_path(root: &Path) -> PathBuf {
-    state_root(root).join("connectors").join("registry.json")
+    persist_state_path(root, &["connectors", "registry.json"])
 }
 
 fn cowork_path(root: &Path) -> PathBuf {
-    state_root(root).join("cowork").join("runs.json")
+    persist_state_path(root, &["cowork", "runs.json"])
 }
 
 fn mobile_daemon_path(root: &Path) -> PathBuf {
-    state_root(root).join("mobile").join("daemon_profile.json")
+    persist_state_path(root, &["mobile", "daemon_profile.json"])
 }
 
 fn parse_json_flag(raw: Option<&String>) -> Option<Value> {

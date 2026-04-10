@@ -7,19 +7,14 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use super::CompatApiResponse;
+use crate::contract_lane_utils as lane_utils;
 
 const HANDS_STATE_REL: &str = "client/runtime/local/state/ui/infring_dashboard/hands_state.json";
 const BROWSER_PLACEHOLDER_SCREENSHOT_BASE64: &str =
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO9f3n8AAAAASUVORK5CYII=";
 
 fn clean_text(raw: &str, max_len: usize) -> String {
-    raw.split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
-        .trim()
-        .chars()
-        .take(max_len)
-        .collect::<String>()
+    lane_utils::clean_text(Some(raw), max_len.max(1))
 }
 
 fn clean_id(raw: &str, max_len: usize) -> String {
@@ -42,9 +37,7 @@ fn state_path(root: &Path, rel: &str) -> PathBuf {
 }
 
 fn read_json(path: &Path) -> Option<Value> {
-    fs::read_to_string(path)
-        .ok()
-        .and_then(|raw| serde_json::from_str::<Value>(&raw).ok())
+    lane_utils::read_json(path)
 }
 
 fn write_json(path: &Path, value: &Value) {
