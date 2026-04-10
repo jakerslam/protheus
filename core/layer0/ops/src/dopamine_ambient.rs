@@ -224,16 +224,7 @@ fn load_policy(root: &Path) -> DopamineAmbientPolicy {
 }
 
 fn summary_number(summary: &Value, key: &str) -> f64 {
-    if let Some(n) = summary.get(key).and_then(Value::as_f64) {
-        return n;
-    }
-    if let Some(n) = summary.get(key).and_then(Value::as_i64) {
-        return n as f64;
-    }
-    if let Some(n) = summary.get(key).and_then(Value::as_u64) {
-        return n as f64;
-    }
-    0.0
+    parse_optional_number(summary.get(key)).unwrap_or(0.0)
 }
 
 fn classify_threshold(summary: &Value) -> (String, bool, Vec<String>) {
@@ -583,15 +574,22 @@ fn cli_error_receipt(command: &str, reason: &str, date: &str, exit_code: i32) ->
     out
 }
 
+fn print_receipt(receipt: &Value) {
+    println!(
+        "{}",
+        serde_json::to_string(receipt).unwrap_or_else(|_| "{\"ok\":false}".to_string())
+    );
+}
+
+fn exit_with_error(command: &str, reason: &str, date: &str, exit_code: i32) -> i32 {
+    print_receipt(&cli_error_receipt(command, reason, date, exit_code));
+    exit_code
+}
+
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     if argv.is_empty() {
         usage();
-        let receipt = cli_error_receipt("unknown", "missing_command", &now_iso()[..10], 2);
-        println!(
-            "{}",
-            serde_json::to_string(&receipt).unwrap_or_else(|_| "{\"ok\":false}".to_string())
-        );
-        return 2;
+        return exit_with_error("unknown", "missing_command", &now_iso()[..10], 2);
     }
     let command = argv
         .first()
@@ -599,12 +597,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         .unwrap_or_default();
     if !matches!(command.as_str(), "closeout" | "status" | "evaluate") {
         usage();
-        let receipt = cli_error_receipt(&command, "unknown_command", &now_iso()[..10], 2);
-        println!(
-            "{}",
-            serde_json::to_string(&receipt).unwrap_or_else(|_| "{\"ok\":false}".to_string())
-        );
-        return 2;
+        return exit_with_error(&command, "unknown_command", &now_iso()[..10], 2);
     }
 
     let flags = parse_cli_flags(&argv.iter().skip(1).cloned().collect::<Vec<_>>());
@@ -622,22 +615,10 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         let summary = match parse_summary_from_flags(&flags) {
             Ok(Some(value)) => value,
             Ok(None) => {
-                let receipt = cli_error_receipt(&command, "missing_summary_json", &date, 2);
-                println!(
-                    "{}",
-                    serde_json::to_string(&receipt)
-                        .unwrap_or_else(|_| "{\"ok\":false}".to_string())
-                );
-                return 2;
+                return exit_with_error(&command, "missing_summary_json", &date, 2);
             }
             Err(reason) => {
-                let receipt = cli_error_receipt(&command, &reason, &date, 2);
-                println!(
-                    "{}",
-                    serde_json::to_string(&receipt)
-                        .unwrap_or_else(|_| "{\"ok\":false}".to_string())
-                );
-                return 2;
+                return exit_with_error(&command, &reason, &date, 2);
             }
         };
         let (severity, breached, reasons) = classify_threshold(&summary);
@@ -647,13 +628,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         let summary = match run_snapshot(root, &policy, "closeout", &date) {
             Ok(snapshot) => parse_snapshot_summary(&snapshot),
             Err(reason) => {
-                let receipt = cli_error_receipt(&command, &reason, &date, 1);
-                println!(
-                    "{}",
-                    serde_json::to_string(&receipt)
-                        .unwrap_or_else(|_| "{\"ok\":false}".to_string())
-                );
-                return 1;
+                return exit_with_error(&command, &reason, &date, 1);
             }
         };
         let (severity, breached, reasons) = classify_threshold(&summary);
@@ -686,13 +661,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         ) {
             Ok(value) => value,
             Err(reason) => {
-                let receipt = cli_error_receipt(&command, &reason, &date, 1);
-                println!(
-                    "{}",
-                    serde_json::to_string(&receipt)
-                        .unwrap_or_else(|_| "{\"ok\":false}".to_string())
-                );
-                return 1;
+                return exit_with_error(&command, &reason, &date, 1);
             }
         }
     } else {
@@ -748,10 +717,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         }),
     );
 
-    println!(
-        "{}",
-        serde_json::to_string(&receipt).unwrap_or_else(|_| "{\"ok\":false}".to_string())
-    );
+    print_receipt(&receipt);
     0
 }
 
