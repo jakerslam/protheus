@@ -76,6 +76,31 @@ fn conduit_enforcement(
     )
 }
 
+fn validate_contract(
+    contract: &Value,
+    expected_kind: &str,
+    version_error: &str,
+    kind_error: &str,
+    errors: &mut Vec<String>,
+) {
+    if contract
+        .get("version")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        != "v1"
+    {
+        errors.push(version_error.to_string());
+    }
+    if contract
+        .get("kind")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        != expected_kind
+    {
+        errors.push(kind_error.to_string());
+    }
+}
+
 fn run_create_shadow(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
     let contract = load_json_or(
         root,
@@ -92,22 +117,13 @@ fn run_create_shadow(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> V
     );
 
     let mut errors = Vec::<String>::new();
-    if contract
-        .get("version")
-        .and_then(Value::as_str)
-        .unwrap_or_default()
-        != "v1"
-    {
-        errors.push("agency_template_contract_version_must_be_v1".to_string());
-    }
-    if contract
-        .get("kind")
-        .and_then(Value::as_str)
-        .unwrap_or_default()
-        != "agency_personality_template_pack_contract"
-    {
-        errors.push("agency_template_contract_kind_invalid".to_string());
-    }
+    validate_contract(
+        &contract,
+        "agency_personality_template_pack_contract",
+        "agency_template_contract_version_must_be_v1",
+        "agency_template_contract_kind_invalid",
+        &mut errors,
+    );
 
     let template = clean(
         parsed
@@ -217,22 +233,13 @@ fn run_topology(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value 
     );
 
     let mut errors = Vec::<String>::new();
-    if contract
-        .get("version")
-        .and_then(Value::as_str)
-        .unwrap_or_default()
-        != "v1"
-    {
-        errors.push("agency_topology_contract_version_must_be_v1".to_string());
-    }
-    if contract
-        .get("kind")
-        .and_then(Value::as_str)
-        .unwrap_or_default()
-        != "agency_division_topology_contract"
-    {
-        errors.push("agency_topology_contract_kind_invalid".to_string());
-    }
+    validate_contract(
+        &contract,
+        "agency_division_topology_contract",
+        "agency_topology_contract_version_must_be_v1",
+        "agency_topology_contract_kind_invalid",
+        &mut errors,
+    );
 
     let manifest = parsed
         .flags
@@ -311,7 +318,7 @@ fn run_topology(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value 
     let artifact_path = state_root(root).join("topology").join("latest.json");
     let _ = write_json(&artifact_path, &topology);
 
-    let mut out = json!({
+    json!({
         "ok": true,
         "strict": strict,
         "type": "agency_plane_topology",
@@ -335,9 +342,8 @@ fn run_topology(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value 
                 }
             }
         ]
-    });
-    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
-    out
+    })
+    .with_receipt_hash()
 }
 
 fn run_orchestrate(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
@@ -354,22 +360,13 @@ fn run_orchestrate(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Val
         }),
     );
     let mut errors = Vec::<String>::new();
-    if contract
-        .get("version")
-        .and_then(Value::as_str)
-        .unwrap_or_default()
-        != "v1"
-    {
-        errors.push("agency_orchestrator_contract_version_must_be_v1".to_string());
-    }
-    if contract
-        .get("kind")
-        .and_then(Value::as_str)
-        .unwrap_or_default()
-        != "agency_multi_agent_orchestrator_contract"
-    {
-        errors.push("agency_orchestrator_contract_kind_invalid".to_string());
-    }
+    validate_contract(
+        &contract,
+        "agency_multi_agent_orchestrator_contract",
+        "agency_orchestrator_contract_version_must_be_v1",
+        "agency_orchestrator_contract_kind_invalid",
+        &mut errors,
+    );
 
     let team = clean(
         parsed
@@ -500,7 +497,7 @@ fn run_orchestrate(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Val
         &run_receipt,
     );
 
-    let mut out = json!({
+    json!({
         "ok": true,
         "strict": strict,
         "type": "agency_plane_orchestrate",
@@ -529,9 +526,8 @@ fn run_orchestrate(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Val
                 }
             }
         ]
-    });
-    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
-    out
+    })
+    .with_receipt_hash()
 }
 
 fn run_workflow_bind(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
@@ -558,22 +554,13 @@ fn run_workflow_bind(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> V
         }),
     );
     let mut errors = Vec::<String>::new();
-    if contract
-        .get("version")
-        .and_then(Value::as_str)
-        .unwrap_or_default()
-        != "v1"
-    {
-        errors.push("agency_workflow_binding_contract_version_must_be_v1".to_string());
-    }
-    if contract
-        .get("kind")
-        .and_then(Value::as_str)
-        .unwrap_or_default()
-        != "agency_workflow_metric_binding_contract"
-    {
-        errors.push("agency_workflow_binding_contract_kind_invalid".to_string());
-    }
+    validate_contract(
+        &contract,
+        "agency_workflow_metric_binding_contract",
+        "agency_workflow_binding_contract_version_must_be_v1",
+        "agency_workflow_binding_contract_kind_invalid",
+        &mut errors,
+    );
     let template = clean(
         parsed
             .flags
@@ -688,7 +675,7 @@ fn run_workflow_bind(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> V
         &deliverable_pack,
     );
 
-    let mut out = json!({
+    json!({
         "ok": true,
         "strict": strict,
         "type": "agency_plane_workflow_bind",
@@ -723,9 +710,8 @@ fn run_workflow_bind(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> V
                 }
             }
         ]
-    });
-    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
-    out
+    })
+    .with_receipt_hash()
 }
 
 pub fn run(root: &Path, argv: &[String]) -> i32 {

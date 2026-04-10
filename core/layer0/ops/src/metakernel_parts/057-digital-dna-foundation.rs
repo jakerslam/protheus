@@ -154,6 +154,14 @@ fn trit_from_byte(byte: u8) -> i8 {
     }
 }
 
+fn zero_baryon() -> Baryon {
+    Baryon::from_trits([0, 0, 0]).expect("zero trits valid")
+}
+
+fn zero_letter() -> Letter {
+    Letter::new(zero_baryon(), zero_baryon(), zero_baryon())
+}
+
 // TODO-NORMATIVE: Standardize verity derivation across all runtime surfaces once Digital DNA v2 is approved.
 fn derive_verity(core: &Baryon, func: &Baryon, mod_: &Baryon) -> Baryon {
     let mut hasher = Sha256::new();
@@ -172,7 +180,7 @@ fn derive_verity(core: &Baryon, func: &Baryon, mod_: &Baryon) -> Baryon {
         trit_from_byte(digest[1]),
         trit_from_byte(digest[2]),
     ])
-    .unwrap_or_else(|_| Baryon::from_trits([0, 0, 0]).expect("zero trits are valid"))
+    .unwrap_or_else(|_| zero_baryon())
 }
 
 fn is_complement(a: &Baryon, b: &Baryon) -> bool {
@@ -190,7 +198,7 @@ fn seeded_baryon(seed: &str, scope: &str) -> Baryon {
         trit_from_byte(digest[1]),
         trit_from_byte(digest[2]),
     ])
-    .unwrap_or_else(|_| Baryon::from_trits([0, 0, 0]).expect("zero trits are valid"))
+    .unwrap_or_else(|_| zero_baryon())
 }
 
 fn seeded_letter(seed: &str, scope: &str) -> Letter {
@@ -208,29 +216,8 @@ fn seeded_codon(seed: &str, index: usize) -> Codon {
         seeded_letter(seed, &format!("codon_{index}_3")),
     ];
     Codon::new(letters).unwrap_or_else(|_| {
-        Codon::new([
-            Letter::new(
-                Baryon::from_trits([0, 0, 0]).expect("zero trits valid"),
-                Baryon::from_trits([0, 0, 0]).expect("zero trits valid"),
-                Baryon::from_trits([0, 0, 0]).expect("zero trits valid"),
-            ),
-            Letter::new(
-                Baryon::from_trits([0, 0, 0]).expect("zero trits valid"),
-                Baryon::from_trits([0, 0, 0]).expect("zero trits valid"),
-                Baryon::from_trits([0, 0, 0]).expect("zero trits valid"),
-            ),
-            Letter::new(
-                Baryon::from_trits([0, 0, 0]).expect("zero trits valid"),
-                Baryon::from_trits([0, 0, 0]).expect("zero trits valid"),
-                Baryon::from_trits([0, 0, 0]).expect("zero trits valid"),
-            ),
-            Letter::new(
-                Baryon::from_trits([0, 0, 0]).expect("zero trits valid"),
-                Baryon::from_trits([0, 0, 0]).expect("zero trits valid"),
-                Baryon::from_trits([0, 0, 0]).expect("zero trits valid"),
-            ),
-        ])
-        .expect("fallback codon must remain valid")
+        Codon::new([zero_letter(), zero_letter(), zero_letter(), zero_letter()])
+            .expect("fallback codon must remain valid")
     })
 }
 

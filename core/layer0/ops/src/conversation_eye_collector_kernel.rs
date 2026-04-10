@@ -2,7 +2,7 @@
 // Layer ownership: core/layer0/ops (authoritative)
 
 use serde_json::{json, Map, Value};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::contract_lane_utils as lane_utils;
 use crate::conversation_eye_collector_kernel_support::{
@@ -51,6 +51,34 @@ fn nested_u64(payload: &Map<String, Value>, parent: &str, key: &str) -> Option<u
         .and_then(Value::as_u64)
 }
 
+fn default_memory_jsonl_rel() -> String {
+    format!("{}/nodes.jsonl", DEFAULT_MEMORY_DIR_REL)
+}
+
+fn default_index_rel() -> String {
+    format!("{}/index.json", DEFAULT_MEMORY_DIR_REL)
+}
+
+fn resolve_memory_jsonl_path(root: &Path, payload: &Map<String, Value>, key: &str) -> PathBuf {
+    let fallback = default_memory_jsonl_rel();
+    resolve_path(root, payload, key, fallback.as_str())
+}
+
+fn resolve_index_path(root: &Path, payload: &Map<String, Value>) -> PathBuf {
+    let fallback = default_index_rel();
+    resolve_path(root, payload, "index_path", fallback.as_str())
+}
+
+fn denied_node(index: &Value, reason: &str, quota_skipped: bool) -> Value {
+    json!({
+        "ok": true,
+        "allowed": false,
+        "reason": reason,
+        "quota_skipped": quota_skipped,
+        "index": index
+    })
+}
+
 fn command_begin_collection(root: &Path, payload: &Map<String, Value>) -> Value {
     let max_items = nested_u64(payload, "budgets", "max_items")
         .or_else(|| payload.get("max_items").and_then(Value::as_u64))
@@ -91,18 +119,8 @@ fn command_begin_collection(root: &Path, payload: &Map<String, Value>) -> Value 
         });
     let history_path = resolve_path(root, payload, "history_path", DEFAULT_HISTORY_REL);
     let latest_path = resolve_path(root, payload, "latest_path", DEFAULT_LATEST_REL);
-    let memory_jsonl_path = resolve_path(
-        root,
-        payload,
-        "memory_jsonl_path",
-        &format!("{}/nodes.jsonl", DEFAULT_MEMORY_DIR_REL),
-    );
-    let index_path = resolve_path(
-        root,
-        payload,
-        "index_path",
-        &format!("{}/index.json", DEFAULT_MEMORY_DIR_REL),
-    );
+    let memory_jsonl_path = resolve_memory_jsonl_path(root, payload, "memory_jsonl_path");
+    let index_path = resolve_index_path(root, payload);
 
     let preflight = command_preflight(
         root,
@@ -264,12 +282,7 @@ fn command_normalize_topics(payload: &Map<String, Value>) -> Value {
 }
 
 fn command_load_index(root: &Path, payload: &Map<String, Value>) -> Value {
-    let index_path = resolve_path(
-        root,
-        payload,
-        "index_path",
-        &format!("{}/index.json", DEFAULT_MEMORY_DIR_REL),
-    );
+    let index_path = resolve_index_path(root, payload);
     let index = normalize_index(Some(&read_json(&index_path, Value::Object(Map::new()))));
 
     json!({
@@ -286,25 +299,13 @@ fn command_apply_node(payload: &Map<String, Value>) -> Value {
     let node = match payload.get("node").and_then(Value::as_object) {
         Some(v) => v,
         None => {
-            return json!({
-                "ok": true,
-                "allowed": false,
-                "reason": "invalid_node",
-                "quota_skipped": false,
-                "index": index
-            });
+            return denied_node(&index, "invalid_node", false);
         }
     };
 
     let node_id = clean_text(node.get("node_id").and_then(Value::as_str), 120);
     if node_id.is_empty() {
-        return json!({
-            "ok": true,
-            "allowed": false,
-            "reason": "missing_node_id",
-            "quota_skipped": false,
-            "index": index
-        });
+        return denied_node(&index, "missing_node_id", false);
     }
 
     let now = clean_text(payload.get("now_ts").and_then(Value::as_str), 80);
@@ -324,13 +325,7 @@ fn command_apply_node(payload: &Map<String, Value>) -> Value {
         .cloned()
         .unwrap_or_default();
     if emitted.contains_key(&node_id) {
-        return json!({
-            "ok": true,
-            "allowed": false,
-            "reason": "duplicate",
-            "quota_skipped": false,
-            "index": index
-        });
+        return denied_node(&index, "duplicate", false);
     }
 
     let mut weekly_counts = index_obj
@@ -594,12 +589,7 @@ fn command_process_nodes(payload: &Map<String, Value>) -> Value {
 }
 
 fn command_append_memory_row(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> {
-    let jsonl_path = resolve_path(
-        root,
-        payload,
-        "jsonl_path",
-        &format!("{}/nodes.jsonl", DEFAULT_MEMORY_DIR_REL),
-    );
+    let jsonl_path = resolve_memory_jsonl_path(root, payload, "jsonl_path");
     let row = payload
         .get("row")
         .cloned()
@@ -612,12 +602,7 @@ fn command_append_memory_row(root: &Path, payload: &Map<String, Value>) -> Resul
 }
 
 fn command_append_memory_rows(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> {
-    let jsonl_path = resolve_path(
-        root,
-        payload,
-        "jsonl_path",
-        &format!("{}/nodes.jsonl", DEFAULT_MEMORY_DIR_REL),
-    );
+    let jsonl_path = resolve_memory_jsonl_path(root, payload, "jsonl_path");
     let rows = payload
         .get("rows")
         .and_then(Value::as_array)
@@ -636,12 +621,7 @@ fn command_append_memory_rows(root: &Path, payload: &Map<String, Value>) -> Resu
 }
 
 fn command_save_index(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> {
-    let index_path = resolve_path(
-        root,
-        payload,
-        "index_path",
-        &format!("{}/index.json", DEFAULT_MEMORY_DIR_REL),
-    );
+    let index_path = resolve_index_path(root, payload);
     let index = normalize_index(payload.get("index"));
     write_json_atomic(&index_path, &index)?;
     Ok(json!({
