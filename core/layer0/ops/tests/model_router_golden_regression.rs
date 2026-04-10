@@ -15,31 +15,35 @@ struct GoldenCase {
     expected_tier: u8,
 }
 
+fn assert_golden_case(case: &GoldenCase) {
+    let role = infer_role(&case.intent, &case.task);
+    let capability = infer_capability(&case.intent, &case.task, &role);
+    let tier = infer_tier(&case.risk, &case.complexity);
+    assert_eq!(
+        role, case.expected_role,
+        "role mismatch for {:?}",
+        case.intent
+    );
+    assert_eq!(
+        capability, case.expected_capability,
+        "capability mismatch for {:?}",
+        case.intent
+    );
+    assert_eq!(
+        tier, case.expected_tier,
+        "tier mismatch for {:?}",
+        case.intent
+    );
+}
+
 #[test]
 fn model_router_matches_golden_cases() {
     let cases: Vec<GoldenCase> =
         serde_json::from_str(include_str!("golden/model_router_cases.json"))
             .expect("valid golden dataset");
     assert!(!cases.is_empty(), "golden dataset must not be empty");
-    for case in cases {
-        let role = infer_role(&case.intent, &case.task);
-        let capability = infer_capability(&case.intent, &case.task, &role);
-        let tier = infer_tier(&case.risk, &case.complexity);
-        assert_eq!(
-            role, case.expected_role,
-            "role mismatch for {:?}",
-            case.intent
-        );
-        assert_eq!(
-            capability, case.expected_capability,
-            "capability mismatch for {:?}",
-            case.intent
-        );
-        assert_eq!(
-            tier, case.expected_tier,
-            "tier mismatch for {:?}",
-            case.intent
-        );
+    for case in &cases {
+        assert_golden_case(case);
     }
 }
 
