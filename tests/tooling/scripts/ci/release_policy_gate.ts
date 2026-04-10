@@ -179,6 +179,37 @@ function checkInstallerChecksumVerification(root: string): GateCheck {
   };
 }
 
+function checkProductionTransportPolicy(root: string): GateCheck {
+  const sdkPath = path.resolve(root, 'packages/infring-sdk/src/transports.ts');
+  const bridgePath = path.resolve(root, 'adapters/runtime/ops_lane_bridge.ts');
+  const runnerPath = path.resolve(root, 'adapters/runtime/run_protheus_ops.ts');
+  const sdkSource = fs.readFileSync(sdkPath, 'utf8');
+  const bridgeSource = fs.readFileSync(bridgePath, 'utf8');
+  const runnerSource = fs.readFileSync(runnerPath, 'utf8');
+
+  const sdkLock =
+    sdkSource.includes('process_transport_forbidden_in_production') &&
+    sdkSource.includes('isProductionReleaseChannel') &&
+    sdkSource.includes('INFRING_RELEASE_CHANNEL');
+  const bridgeLock =
+    bridgeSource.includes('process_fallback_forbidden_in_production') &&
+    bridgeSource.includes('processFallbackPolicy') &&
+    bridgeSource.includes('isProductionReleaseChannel');
+  const legacyLock =
+    runnerSource.includes('legacyProcessRunnerForced') &&
+    runnerSource.includes('isProductionReleaseChannel') &&
+    runnerSource.includes('INFRING_OPS_FORCE_LEGACY_PROCESS_RUNNER');
+
+  const ok = sdkLock && bridgeLock && legacyLock;
+  return {
+    id: 'production_transport_policy',
+    ok,
+    detail: ok
+      ? 'production release channel enforces resident IPC topology'
+      : `sdk_lock=${sdkLock};bridge_lock=${bridgeLock};legacy_lock=${legacyLock}`,
+  };
+}
+
 function main() {
   const root = path.resolve(__dirname, '../../../..');
   const args = parseArgs(process.argv.slice(2));
@@ -192,6 +223,7 @@ function main() {
     checkDependencyPolicy(root),
     checkDependabotSchedule(root),
     checkInstallerChecksumVerification(root),
+    checkProductionTransportPolicy(root),
   ];
   const ok = checks.every((row) => row.ok);
   const report = {

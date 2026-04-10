@@ -54,3 +54,7 @@ const transport = createCliTransport({
 
 const sdk = new InfringSdkClient({ transport });
 ```
+
+Production channel policy:
+- Process transport is emergency-only and blocked for production release channels (`stable`, `prod`, `production`, `ga`, `release`).
+- Production deployments must route through the resident IPC topology.
