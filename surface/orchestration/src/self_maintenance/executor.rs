@@ -154,11 +154,17 @@ impl GovernedSelfMaintenanceSupervisor {
         generated: &GeneratedTaskGraph,
         now_ms: u64,
     ) -> Result<(), String> {
+        let proof_root = generated
+            .tasks
+            .first()
+            .map(|task| format!("task_graph_root:{}", task.id))
+            .unwrap_or_else(|| "task_graph_root:unknown".to_string());
         for task in &generated.tasks {
             let envelope = MutationEnvelope {
                 actor: self.actor_id.clone(),
                 trace_id: format!("trace-submit-{}", task.id),
                 idempotency_key: format!("self-maintenance-submit-{}", task.id),
+                proof_refs: vec![proof_root.clone()],
                 expected_revision: Some(task.revision_id),
                 now_ms,
                 mutation_kind: MutationKind::CreateTask,
@@ -185,6 +191,7 @@ impl GovernedSelfMaintenanceSupervisor {
                     "self-maintenance-dependency-{}-{}",
                     edge.task_id, edge.depends_on_task_id
                 ),
+                proof_refs: vec![proof_root.clone()],
                 expected_revision: None,
                 now_ms,
                 mutation_kind: MutationKind::AddDependency,

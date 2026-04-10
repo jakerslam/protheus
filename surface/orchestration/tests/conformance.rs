@@ -15,7 +15,10 @@ fn orchestration_surface_cannot_bypass_tool_broker() {
     );
     assert_eq!(
         package.core_contract_calls,
-        vec![CoreContractCall::ToolBrokerRequest]
+        vec![
+            CoreContractCall::ToolCapabilityProbe,
+            CoreContractCall::ToolBrokerRequest
+        ]
     );
 }
 
