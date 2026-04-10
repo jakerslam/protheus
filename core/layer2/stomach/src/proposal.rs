@@ -109,6 +109,17 @@ fn build_preview_lines(request: &TransformRequest) -> Vec<String> {
     }
 }
 
+fn rationale_for(kind: &TransformKind) -> &'static str {
+    match kind {
+        TransformKind::NamespaceFix => "normalize namespace drift to local authority conventions",
+        TransformKind::HeaderInjection => {
+            "inject mandatory ownership/license headers for imported assets"
+        }
+        TransformKind::PathRemap => "remap imported paths into allowed workspace boundaries",
+        TransformKind::AdapterScaffold => "scaffold thin adapters for external capability mapping",
+    }
+}
+
 pub fn generate_proposal(
     snapshot: &SnapshotMetadata,
     snapshot_root: &Path,
@@ -132,15 +143,7 @@ pub fn generate_proposal(
     let pre_hash = stable_hash(&(snapshot.snapshot_id.clone(), &targets, &preview, request));
     let proposal_id = format!("proposal-{}", &pre_hash[..16]);
     let diff_hash = stable_hash(&(&proposal_id, request, &targets, &preview));
-    let rationale = match request.kind {
-        TransformKind::NamespaceFix => "normalize namespace drift to local authority conventions",
-        TransformKind::HeaderInjection => {
-            "inject mandatory ownership/license headers for imported assets"
-        }
-        TransformKind::PathRemap => "remap imported paths into allowed workspace boundaries",
-        TransformKind::AdapterScaffold => "scaffold thin adapters for external capability mapping",
-    }
-    .to_string();
+    let rationale = rationale_for(&request.kind).to_string();
 
     let mut contributing = vec![
         "deterministic_analysis".to_string(),

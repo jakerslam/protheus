@@ -30,208 +30,174 @@ fn assert_claim(payload: &Value, id: &str) {
     assert!(ok, "missing claim {id}");
 }
 
+fn run_cmd(root: &Path, args: &[&str]) -> i32 {
+    let argv = args.iter().map(|row| row.to_string()).collect::<Vec<_>>();
+    government_plane::run(root, &argv)
+}
+
 #[test]
 fn v7_gov_001_1_to_001_9_runtime_contracts_proven() {
     let root = tempfile::tempdir().expect("tempdir");
     let root_path = root.path();
 
     std::env::set_var("PROTHEUS_HSM_RECEIPT_KEY", "test-hsm");
-    let attest_exit = government_plane::run(
+    let attest_exit = run_cmd(
         root_path,
         &[
-            "attestation".to_string(),
-            "--op=attest".to_string(),
-            "--device-id=tpm-node".to_string(),
-            "--nonce=n1".to_string(),
-            "--strict=1".to_string(),
+            "attestation",
+            "--op=attest",
+            "--device-id=tpm-node",
+            "--nonce=n1",
+            "--strict=1",
         ],
     );
     assert_eq!(attest_exit, 0);
-    let verify_exit = government_plane::run(
-        root_path,
-        &[
-            "attestation".to_string(),
-            "--op=verify".to_string(),
-            "--strict=1".to_string(),
-        ],
-    );
+    let verify_exit = run_cmd(root_path, &["attestation", "--op=verify", "--strict=1"]);
     assert_eq!(verify_exit, 0);
     let attest_latest = read_json(&latest_path(root_path));
     assert_claim(&attest_latest, "V7-GOV-001.1");
 
-    let set_clearance = government_plane::run(
+    let set_clearance = run_cmd(
         root_path,
         &[
-            "classification".to_string(),
-            "--op=set-clearance".to_string(),
-            "--principal=analyst".to_string(),
-            "--clearance=secret".to_string(),
-            "--strict=1".to_string(),
+            "classification",
+            "--op=set-clearance",
+            "--principal=analyst",
+            "--clearance=secret",
+            "--strict=1",
         ],
     );
     assert_eq!(set_clearance, 0);
-    let write_secret = government_plane::run(
+    let write_secret = run_cmd(
         root_path,
         &[
-            "classification".to_string(),
-            "--op=write".to_string(),
-            "--principal=analyst".to_string(),
-            "--level=secret".to_string(),
-            "--id=brief".to_string(),
-            "--payload-json={\"summary\":\"classified\"}".to_string(),
-            "--strict=1".to_string(),
+            "classification",
+            "--op=write",
+            "--principal=analyst",
+            "--level=secret",
+            "--id=brief",
+            "--payload-json={\"summary\":\"classified\"}",
+            "--strict=1",
         ],
     );
     assert_eq!(write_secret, 0);
-    let low_read = government_plane::run(
+    let low_read = run_cmd(
         root_path,
         &[
-            "classification".to_string(),
-            "--op=read".to_string(),
-            "--principal=intern".to_string(),
-            "--level=secret".to_string(),
-            "--id=brief".to_string(),
-            "--strict=1".to_string(),
+            "classification",
+            "--op=read",
+            "--principal=intern",
+            "--level=secret",
+            "--id=brief",
+            "--strict=1",
         ],
     );
     assert_eq!(low_read, 1, "lower clearance read must fail");
     let class_latest = read_json(&latest_path(root_path));
     assert_claim(&class_latest, "V7-GOV-001.2");
 
-    let legal_exit = government_plane::run(
+    let legal_exit = run_cmd(
         root_path,
         &[
-            "nonrepudiation".to_string(),
-            "--principal=CN=User,O=Gov,OU=Dept".to_string(),
-            "--action=approve_order".to_string(),
-            "--auth-signature=RSA4096SIG".to_string(),
-            "--timestamp-authority=tsa.gov".to_string(),
-            "--legal-hold=1".to_string(),
-            "--strict=1".to_string(),
+            "nonrepudiation",
+            "--principal=CN=User,O=Gov,OU=Dept",
+            "--action=approve_order",
+            "--auth-signature=RSA4096SIG",
+            "--timestamp-authority=tsa.gov",
+            "--legal-hold=1",
+            "--strict=1",
         ],
     );
     assert_eq!(legal_exit, 0);
     let legal_latest = read_json(&latest_path(root_path));
     assert_claim(&legal_latest, "V7-GOV-001.3");
 
-    let diode_exit = government_plane::run(
+    let diode_exit = run_cmd(
         root_path,
         &[
-            "diode".to_string(),
-            "--from=secret".to_string(),
-            "--to=unclassified".to_string(),
-            "--sanitize=1".to_string(),
-            "--payload-json={\"doc\":\"summary\"}".to_string(),
-            "--strict=1".to_string(),
+            "diode",
+            "--from=secret",
+            "--to=unclassified",
+            "--sanitize=1",
+            "--payload-json={\"doc\":\"summary\"}",
+            "--strict=1",
         ],
     );
     assert_eq!(diode_exit, 0);
     let diode_latest = read_json(&latest_path(root_path));
     assert_claim(&diode_latest, "V7-GOV-001.4");
 
-    let soc_connect = government_plane::run(
+    let soc_connect = run_cmd(
         root_path,
-        &[
-            "soc".to_string(),
-            "--op=connect".to_string(),
-            "--endpoint=splunk://soc".to_string(),
-            "--strict=1".to_string(),
-        ],
+        &["soc", "--op=connect", "--endpoint=splunk://soc", "--strict=1"],
     );
     assert_eq!(soc_connect, 0);
-    let soc_emit = government_plane::run(
+    let soc_emit = run_cmd(
         root_path,
         &[
-            "soc".to_string(),
-            "--op=emit".to_string(),
-            "--event-json={\"kind\":\"policy_violation\"}".to_string(),
-            "--strict=1".to_string(),
+            "soc",
+            "--op=emit",
+            "--event-json={\"kind\":\"policy_violation\"}",
+            "--strict=1",
         ],
     );
     assert_eq!(soc_emit, 0);
     let soc_latest = read_json(&latest_path(root_path));
     assert_claim(&soc_latest, "V7-GOV-001.5");
 
-    let site_a = government_plane::run(
+    let site_a = run_cmd(
         root_path,
         &[
-            "coop".to_string(),
-            "--op=register-site".to_string(),
-            "--site=alpha".to_string(),
-            "--state=ACTIVE".to_string(),
-            "--strict=1".to_string(),
+            "coop",
+            "--op=register-site",
+            "--site=alpha",
+            "--state=ACTIVE",
+            "--strict=1",
         ],
     );
     assert_eq!(site_a, 0);
-    let site_b = government_plane::run(
+    let site_b = run_cmd(
         root_path,
         &[
-            "coop".to_string(),
-            "--op=register-site".to_string(),
-            "--site=beta".to_string(),
-            "--state=STANDBY".to_string(),
-            "--strict=1".to_string(),
+            "coop",
+            "--op=register-site",
+            "--site=beta",
+            "--state=STANDBY",
+            "--strict=1",
         ],
     );
     assert_eq!(site_b, 0);
-    let failover = government_plane::run(
+    let failover = run_cmd(
         root_path,
-        &[
-            "coop".to_string(),
-            "--op=failover".to_string(),
-            "--target-site=beta".to_string(),
-            "--strict=1".to_string(),
-        ],
+        &["coop", "--op=failover", "--target-site=beta", "--strict=1"],
     );
     assert_eq!(failover, 0);
     let coop_latest = read_json(&latest_path(root_path));
     assert_claim(&coop_latest, "V7-GOV-001.6");
 
-    let proofs_exit = government_plane::run(
-        root_path,
-        &[
-            "proofs".to_string(),
-            "--op=verify".to_string(),
-            "--strict=1".to_string(),
-        ],
-    );
+    let proofs_exit = run_cmd(root_path, &["proofs", "--op=verify", "--strict=1"]);
     assert_eq!(proofs_exit, 1, "proofs may fail in isolated temp root");
     let proofs_latest = read_json(&latest_path(root_path));
     assert_claim(&proofs_latest, "V7-GOV-001.7");
 
-    let interop_exit = government_plane::run(
+    let interop_exit = run_cmd(
         root_path,
         &[
-            "interoperability".to_string(),
-            "--op=validate".to_string(),
-            "--profile-json={\"standards\":[\"PKI\",\"SAML\",\"OIDC\",\"SMIME\",\"IPv6\",\"DNSSEC\",\"OAuth2\"],\"endpoint\":\"https://gov.api\"}".to_string(),
-            "--strict=1".to_string(),
+            "interoperability",
+            "--op=validate",
+            "--profile-json={\"standards\":[\"PKI\",\"SAML\",\"OIDC\",\"SMIME\",\"IPv6\",\"DNSSEC\",\"OAuth2\"],\"endpoint\":\"https://gov.api\"}",
+            "--strict=1",
         ],
     );
     assert_eq!(interop_exit, 0);
     let interop_latest = read_json(&latest_path(root_path));
     assert_claim(&interop_latest, "V7-GOV-001.8");
 
-    let ato_exit = government_plane::run(
-        root_path,
-        &[
-            "ato-pack".to_string(),
-            "--op=generate".to_string(),
-            "--strict=1".to_string(),
-        ],
-    );
+    let ato_exit = run_cmd(root_path, &["ato-pack", "--op=generate", "--strict=1"]);
     assert_eq!(ato_exit, 0);
     let ato_latest = read_json(&latest_path(root_path));
     assert_claim(&ato_latest, "V7-GOV-001.9");
 
-    let bypass_exit = government_plane::run(
-        root_path,
-        &[
-            "soc".to_string(),
-            "--op=status".to_string(),
-            "--strict=1".to_string(),
-            "--bypass=1".to_string(),
-        ],
-    );
+    let bypass_exit = run_cmd(root_path, &["soc", "--op=status", "--strict=1", "--bypass=1"]);
     assert_eq!(bypass_exit, 1, "bypass must fail closed");
 }
