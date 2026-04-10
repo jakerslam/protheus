@@ -440,7 +440,6 @@ fn collect_recent_thread_context(messages: &[Value], limit: usize) -> Vec<(Strin
     out.reverse();
     out
 }
-
 #[derive(Default)]
 struct SuggestionStyle {
     prefer_can_you: bool,

@@ -17,8 +17,13 @@
     "LICENSE-INFRING-NC-1.0",
     "LICENSE_MATRIX.json",
     "LICENSE_SCOPE.md",
+    "GOVERNANCE.md",
     "LICENSE",
-    "README.md",
+    "LICENSE-APACHE-2.0",
+    "LICENSE-INFRING-NC-1.0",
+    "LICENSE_MATRIX.json",
+    "LICENSE_SCOPE.md",
+    "README.md",m
     "SECURITY.md",
     "codex.helix",
     "docker-compose.yml",
@@ -34,6 +39,7 @@
     "tsconfig.build.json",
     "tsconfig.sdk.references.json",
     "tsconfig.runtime.json",
+    "tsconfig.sdk.references.json",
     "verify.sh",
     "vitest.config.ts"
   ],
@@ -57,6 +63,9 @@
     "proofs",
     "setup",
     "surface",
+    "surface",
+    "scripts",
+    "setup",
     "tests",
     "tools",
     "xtask"

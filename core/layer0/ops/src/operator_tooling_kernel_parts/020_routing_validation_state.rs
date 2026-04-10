@@ -47,7 +47,6 @@ fn run_escalate_model(policy: &Value, payload: &Value, policy_path: &Path) -> Va
     let high_risk = tag_set
         .iter()
         .any(|tag| high_risk_tags().contains(tag.as_str()));
-
     let mut chain = Vec::<String>::new();
     if high_risk {
         let tier1 = first_model_for_tier(policy, "tier1", &base_model);

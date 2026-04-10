@@ -34,6 +34,13 @@
         "sh"
       ],
       "notes": "Surface is orchestration-only. Rust-first orchestration contracts are allowed here, but the surface remains non-authoritative and routes durable truth through core contracts."
+      "allowed_extensions": [
+        "rs",
+        "ts",
+        "tsx",
+        "sh"
+      ],
+      "notes": "Orchestration Surface (non-canonical coordination). Rust-first contracts with thin TS ingress/wrapper utilities only; no canonical authority state."
     },
     "client": {
       "target_extensions": [

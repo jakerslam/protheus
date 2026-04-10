@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
 // Layer ownership: core/layer0/ops (authoritative)
-
 use crate::directive_kernel;
 use crate::network_protocol;
 use crate::v8_kernel::{
@@ -15,7 +14,6 @@ use sha2::{Digest, Sha256};
 use std::env;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-
 const STATE_ENV: &str = "INTELLIGENCE_NEXUS_STATE_ROOT";
 const STATE_SCOPE: &str = "intelligence_nexus";
 const VAULT_KEY_ENV: &str = "INTELLIGENCE_NEXUS_VAULT_KEY";
@@ -267,7 +265,6 @@ fn run_provider_probe(
             "source": "manual_flag"
         }));
     }
-
     let cmd = parsed
         .flags
         .get("probe-cmd")
@@ -315,7 +312,6 @@ fn run_provider_probe(
             "adapter_payload": parsed_out
         }));
     }
-
     let env_credits_key = format!("NEXUS_CREDITS_{}", provider_env_suffix(provider));
     if let Ok(raw) = env::var(&env_credits_key) {
         if let Ok(credits) = raw.trim().parse::<f64>() {
@@ -331,7 +327,6 @@ fn run_provider_probe(
             }));
         }
     }
-
     Err("credit_probe_unavailable".to_string())
 }
 fn days_left(credits: f64, burn_rate: f64) -> f64 {
@@ -445,7 +440,6 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         .first()
         .map(|v| v.trim().to_ascii_lowercase())
         .unwrap_or_else(|| "status".to_string());
-
     if matches!(command.as_str(), "help" | "--help" | "-h") {
         println!("Usage:");
         println!("  protheus-ops intelligence-nexus status");
@@ -459,7 +453,6 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         println!("  protheus-ops intelligence-nexus autobuy-evaluate [--provider=<id>] [--threshold=<n>] [--refill=<n>] [--daily-cap=<n>] [--priority=low|normal|high] [--apply=1|0]");
         return 0;
     }
-
     match command.as_str() {
         "status" => intelligence_nexus_keys::command_status(root),
         "open" | "keys-open" => intelligence_nexus_keys::command_open(root),

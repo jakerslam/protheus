@@ -1,10 +1,11 @@
 # InfRing Layer Rulebook — Strict Enforcement Policy
-**Version 1.2** — March 2026  
+**Version 1.3** — April 2026  
 **This is the source of truth for file placement, language boundaries, and layer ownership. No deviations without explicit user approval.**
 
 ### 1. Directory Split (Enforced)
-The repository has six top-level product/code roots:
+The repository has seven top-level product/code roots:
 - `/core` — deterministic core stack (`layer_minus_one`, `layer0`, `layer1`, `layer2`, `layer3`) and trusted low-level logic.
+- `/surface` — orchestration coordination surfaces (request shaping, sequencing, clarification, recovery, packaging) that do not canonize truth.
 - `/client` — developer-facing platform, SDKs, CLI, dashboards, and thin wrappers.
 - `/packages` — public SDK/package distribution surfaces, starter bundles, and installable developer-facing wrappers.
 - `/apps` — end-user applications built on top of the client/platform surface.
@@ -19,6 +20,7 @@ Allowed root-level exceptions (metadata/infrastructure): `.github/`, `.githooks/
 Placement is decided by authority before language.
 
 - If a surface decides, enforces, records, budgets, schedules, or guards system truth, it belongs in `core`.
+- If a surface performs non-canonical orchestration coordination (classification, clarification, sequencing, progress/recovery packaging), it belongs in `surface/orchestration`.
 - If a surface exists to help developers call, inspect, visualize, package, or extend the system, it belongs in `client`.
 - If a surface exists to ship the public SDK/package layer to developers, it belongs in `packages`.
 - If a surface is an opinionated workflow/product on top of the platform, it belongs in `apps`.
@@ -41,19 +43,28 @@ Placement is decided by authority before language.
 - **Layer 3 (OS Personality Template)** — `/core/layer3/`  
   Traditional OS growth surface (process/VFS/drivers/syscalls/namespaces/network/userland isolation).
 
-- **Cognition Plane (Unnumbered)** — `/client/`  
-  TS/JS/Python/Shell/PowerShell/HTML/CSS surfaces for user-facing and probabilistic workflows.
+- **Cognition Plane (Unnumbered)** — `/surface/orchestration/` + `/client/`  
+  Orchestration Surface in `surface/orchestration/` for non-canonical execution coordination; Presentation Client in `client/` for UX and interaction shells.
 
-### 2.1 Client Scope Contract (Developer-Only Surface)
+### 2.1 Orchestration Surface Contract
+Orchestration Surface code must be limited to:
+1. Request normalization/classification and clarification policy.
+2. Execution posture, sequencing, progress, retry/fallback, and result packaging.
+3. Contract-bound calls into core authority paths (Tool Broker, Unified Memory, Task Fabric, Assimilation).
+4. Transient sweepable orchestration context only.
+
+Orchestration Surface must not canonize truth, persist private durable workflow state, or bypass core ingress contracts.
+
+### 2.2 Client Scope Contract (Developer-Only Surface)
 Client code must be limited to:
-1. SDK/wrapper surfaces that call core through conduit/lanes.
+1. SDK/wrapper surfaces that call orchestration/core through conduit/lanes.
 2. Developer experience tooling (CLI, templates, local orchestrators, diagnostics).
 3. Developer-visible interfaces (observability UI, dashboards, docs, runbooks).
 4. App construction and app hosting surfaces (`/apps` and client app glue).
 
 Safety, policy, receipts, and system-truth authority remain in core.
 
-### 2.2 Packages Scope Contract
+### 2.3 Packages Scope Contract
 Packages are the public distribution layer for InfRing-facing SDKs and starter surfaces.
 
 - Packages may be polyglot.
@@ -61,7 +72,7 @@ Packages are the public distribution layer for InfRing-facing SDKs and starter s
 - Packages must not own policy, receipts, or canonical state.
 - If a package starts making authority decisions, it is misplaced and must move into `core`.
 
-### 2.3 Apps Scope Contract
+### 2.4 Apps Scope Contract
 Apps are not part of the platform core and are allowed to be more opinionated.
 
 - Apps may be polyglot.
@@ -69,7 +80,7 @@ Apps are not part of the platform core and are allowed to be more opinionated.
 - Apps must not become the canonical owner of policy, receipts, or core state.
 - Apps should consume public platform contracts, not private core internals.
 
-### 2.4 Adapters Scope Contract
+### 2.5 Adapters Scope Contract
 Adapters exist to connect InfRing to non-native systems.
 
 - Adapters may be polyglot.
@@ -77,7 +88,7 @@ Adapters exist to connect InfRing to non-native systems.
 - Adapters must remain capability-scoped and must not bypass conduit/policy/receipt contracts.
 - If an adapter starts owning system truth, it is misplaced and must move into `core`.
 
-### 2.5 Tests Scope Contract
+### 2.6 Tests Scope Contract
 Tests are a separate verification surface, with one exception:
 
 - Unit tests may remain close to the code they verify.
@@ -85,6 +96,7 @@ Tests are a separate verification surface, with one exception:
 
 ### 3. Language Rules
 - `/core/`: Rust by default; C/C++ allowed only for approved low-level performance-critical or hardware-adjacent modules; shell allowed only for tightly-scoped build/install/packaging wrappers and never as safety authority.
+- `/surface/`: Rust-first orchestration coordination contracts; TS/TSX wrappers allowed only for thin ingress/packaging interfaces.
 - `/client/`: target state is TS/TSX + HTML/CSS frontend surfaces. JS/Python/Shell/PowerShell are tolerated only for explicitly-audited legacy shims, packaging helpers, or migration debt.
 - `/packages/`: public SDK/package layer; polyglot is allowed, but packages stay thin and developer-facing.
 - `/apps/`: polyglot by design.
@@ -106,7 +118,9 @@ The extension boundary for apps and adapters is:
 Apps and adapters should build against the contract, not against private implementation files.
 
 ### 4. Boundary Rules (Enforced)
-- Client <-> core communication is conduit + scrambler only.
+- Primary path is Client -> Orchestration Surface -> Core for user-driven execution flows.
+- Client <-> core communication is conduit + scrambler only when explicitly approved ingress requires it.
+- Orchestration Surface <-> core communication is conduit + scrambler + lease/policy validation.
 - Packages <-> core communication flows through public client/package contracts, never private authority backdoors.
 - No direct client-side policy authority over core decisions.
 - Apps/adapters must reach authority through platform contracts, not by importing private core internals.

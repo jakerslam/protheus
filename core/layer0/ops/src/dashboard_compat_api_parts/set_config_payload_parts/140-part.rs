@@ -75,6 +75,11 @@ fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
         }
         return trim_text(&summary, 24_000);
     }
+    if let Some(capability_summary) =
+        summarize_tool_capability_payload(&normalized, tool_name, payload)
+    {
+        return capability_summary;
+    }
     if normalized == "memory_semantic_query" || normalized == "memory_query" {
         let query = clean_text(
             payload.get("query").and_then(Value::as_str).unwrap_or(""),

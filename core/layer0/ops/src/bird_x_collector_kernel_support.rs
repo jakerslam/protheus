@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
 // Layer ownership: core/layer0/ops (authoritative)
-
 use chrono::{DateTime, Utc};
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
@@ -10,7 +9,6 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::thread;
 use std::time::{Duration, Instant};
-
 use crate::contract_lane_utils as lane_utils;
 
 pub const COLLECTOR_ID: &str = "bird_x";
