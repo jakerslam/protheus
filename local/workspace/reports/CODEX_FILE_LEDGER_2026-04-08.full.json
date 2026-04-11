@@ -4314,10 +4314,10 @@
       "order": 391
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/tests/v9_swarm_runtime_integration.rs",
       "language": "rs",
-      "loc": 5,
+      "loc": 6,
       "authority_risk_score": 5,
       "migration_potential_score": 1,
       "concept_opportunity_score": 3,
@@ -6965,10 +6965,10 @@
       "order": 632
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/orchestration_parts/030-detect-scope-overlaps.rs",
       "language": "rs",
-      "loc": 442,
+      "loc": 459,
       "authority_risk_score": 5,
       "migration_potential_score": 1,
       "concept_opportunity_score": 2,
@@ -7966,10 +7966,10 @@
       "order": 723
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/orchestration_parts/010-print-json-line.rs",
       "language": "rs",
-      "loc": 399,
+      "loc": 405,
       "authority_risk_score": 5,
       "migration_potential_score": 1,
       "concept_opportunity_score": 2,
@@ -8483,10 +8483,10 @@
       "order": 770
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/orchestration_parts/020-validate-finding.rs",
       "language": "rs",
-      "loc": 365,
+      "loc": 368,
       "authority_risk_score": 5,
       "migration_potential_score": 1,
       "concept_opportunity_score": 2,

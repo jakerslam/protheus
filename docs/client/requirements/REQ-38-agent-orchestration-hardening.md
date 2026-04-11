@@ -64,8 +64,9 @@ Out of scope:
 - Scratchpad is cleaned up after task completion (success or failure)
 
 **Evidence:**
-- Implementation in `client/cognition/orchestration/scratchpad.ts`
-- Test: `tests/client/cognition/scratchpad.test.ts` (read/write/schema/cleanup)
+- Implementation in `core/layer0/ops/src/orchestration.rs` and `core/layer0/ops/src/orchestration_parts/010-print-json-line.rs`
+- Test: `core/layer0/ops/src/orchestration_parts/090-tests.rs` (corrupt scratchpad fails closed)
+- Test: `core/layer0/ops/tests/orchestration_domain_integration.rs` (shared scratchpad lifecycle)
 
 ---
 
@@ -81,9 +82,9 @@ Out of scope:
 - One automatic retry attempted before marking as failed
 
 **Evidence:**
-- Implementation in `client/cognition/orchestration/checkpoint.ts`
-- Test: `tests/client/cognition/checkpoint.test.ts` (10 items / 2min + timeout recovery)
-- Test: `tests/client/cognition/partial.checkpoint.test.ts` (checkpoint fallback retrieval)
+- Implementation in `core/layer0/ops/src/orchestration.rs`, `core/layer0/ops/src/orchestration_parts/050-maybe-checkpoint.rs`, and `core/layer0/ops/src/orchestration_parts/060-retrieve-partial-results.rs`
+- Test: `core/layer0/ops/src/orchestration_parts/090-tests.rs` (nonempty checkpoint fallback + timeout recovery)
+- Test: `core/layer0/ops/tests/orchestration_domain_integration.rs` (coordinator partial recovery)
 
 ---
 
@@ -98,10 +99,9 @@ Out of scope:
 - Scope violations logged to coordinator for reassignment
 
 **Evidence:**
-- Implementation in `client/cognition/orchestration/scope.ts`
-- Test: `tests/client/cognition/scope.validation.test.ts` (valid scope formats)
-- Test: `tests/client/cognition/scope.overlap.test.ts` (overlap detection)
-- Test: `tests/client/cognition/scope.violation.test.ts` (violation logging)
+- Implementation in `core/layer0/ops/src/orchestration.rs` and `core/layer0/ops/src/orchestration_parts/030-detect-scope-overlaps.rs`
+- Test: `core/layer0/ops/src/orchestration_parts/090-tests.rs` (duplicate `scope_id` rejection)
+- Test: `core/layer0/ops/tests/v9_swarm_runtime_integration_parts/050-orchestration-hardening-tests.rs` (swarm-facing scope hardening)
 
 ---
 
@@ -118,9 +118,9 @@ Out of scope:
 - Schema validation enforced before accepting agent results
 
 **Evidence:**
-- Schema file: `client/cognition/orchestration/schemas/finding-v1.json`
-- Test: `tests/client/cognition/schema.validation.test.ts` (valid/invalid payloads)
-- Test: `tests/client/cognition/schema.enforcement.test.ts` (rejection of non-compliant)
+- Enforcement in `core/layer0/ops/src/orchestration.rs` and `core/layer0/ops/src/orchestration_parts/020-validate-finding.rs`
+- Test: `core/layer0/ops/src/orchestration_parts/090-tests.rs` (invalid severity rejection)
+- Test: `core/layer0/ops/tests/v9_swarm_runtime_integration_parts/050-orchestration-hardening-tests.rs` (deduped retry payloads)
 
 ---
 
@@ -136,10 +136,8 @@ Out of scope:
 - Optional: auto-aggregate results into unified report
 
 **Evidence:**
-- Implementation in `client/cognition/orchestration/completion.ts`
-- Test: `tests/client/cognition/completion.tracking.test.ts` (status tracking)
-- Test: `tests/client/cognition/completion.notification.test.ts` (parent notification)
-- Test: `tests/client/cognition/completion.aggregate.test.ts` (auto-aggregation)
+- Implementation in `core/layer0/ops/src/orchestration.rs` and `core/layer0/ops/src/orchestration_parts/070-run-coordinator.rs`
+- Test: `core/layer0/ops/tests/orchestration_domain_integration.rs` (aggregate completion details)
 
 ---
 
@@ -154,10 +152,8 @@ Out of scope:
 - Task group metadata includes: created_at, coordinator_session, agent_count, status
 
 **Evidence:**
-- Implementation in `client/cognition/orchestration/taskgroup.ts`
-- Test: `tests/client/cognition/taskgroup.tagging.test.ts` (metadata tagging)
-- Test: `tests/client/cognition/taskgroup.query.test.ts` (group querying)
-- Test: `tests/client/cognition/taskgroup.metadata.test.ts` (metadata completeness)
+- Implementation in `core/layer0/ops/src/orchestration.rs`
+- Test: `core/layer0/ops/tests/orchestration_domain_integration.rs` (task-group metadata and group queries)
 
 ---
 
@@ -172,10 +168,9 @@ Out of scope:
 - Parent session can decide: retry, continue with partial, or abort
 
 **Evidence:**
-- Implementation in `client/cognition/orchestration/partial.ts`
-- Test: `tests/client/cognition/partial.session.test.ts` (session history retrieval)
-- Test: `tests/client/cognition/partial.checkpoint.test.ts` (checkpoint fallback)
-- Test: `tests/client/cognition/partial.decision.test.ts` (parent decision flow)
+- Implementation in `core/layer0/ops/src/orchestration.rs` and `core/layer0/ops/src/orchestration_parts/060-retrieve-partial-results.rs`
+- Test: `core/layer0/ops/src/orchestration_parts/090-tests.rs` (task-group and checkpoint fallback retrieval)
+- Test: `core/layer0/ops/tests/orchestration_domain_integration.rs` (parent decision flow)
 
 ## Verification Requirements
 

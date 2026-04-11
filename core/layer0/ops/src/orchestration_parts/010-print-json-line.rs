@@ -210,17 +210,24 @@ fn load_scratchpad(
                 file_path,
                 exists: true,
             }),
-            _ => Ok(LoadedScratchpad {
-                scratchpad: empty_scratchpad(task_id),
-                file_path,
-                exists: false,
-            }),
+            Ok(_) => Err(format!(
+                "scratchpad_invalid_payload:{}",
+                file_path.display()
+            )),
+            Err(err) => Err(format!(
+                "scratchpad_parse_failed:{}:{err}",
+                file_path.display()
+            )),
         },
-        Err(_) => Ok(LoadedScratchpad {
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(LoadedScratchpad {
             scratchpad: empty_scratchpad(task_id),
             file_path,
             exists: false,
         }),
+        Err(err) => Err(format!(
+            "scratchpad_read_failed:{}:{err}",
+            file_path.display()
+        )),
     }
 }
 
@@ -396,4 +403,3 @@ fn normalize_finding(input: &Value) -> Value {
 
     Value::Object(out)
 }
-

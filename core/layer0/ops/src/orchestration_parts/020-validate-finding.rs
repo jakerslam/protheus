@@ -93,7 +93,10 @@ fn append_finding(root: &Path, task_id: &str, finding: &Value, root_dir: Option<
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
-    findings.push(normalized);
+    let already_present = findings.iter().any(|existing| existing == &normalized);
+    if !already_present {
+        findings.push(normalized);
+    }
     let out = match write_scratchpad(root, task_id, &json!({ "findings": findings }), root_dir) {
         Ok(value) => value,
         Err(err) => {
@@ -119,7 +122,8 @@ fn append_finding(root: &Path, task_id: &str, finding: &Value, root_dir: Option<
         "task_id": task_id,
         "file_path": out.get("file_path").cloned().unwrap_or(Value::Null),
         "scratchpad": out.get("scratchpad").cloned().unwrap_or(Value::Null),
-        "finding_count": count
+        "finding_count": count,
+        "deduped": already_present
     })
 }
 
@@ -362,4 +366,3 @@ fn normalize_scope(raw_scope: &Value, index: usize) -> Value {
         }
     })
 }
-

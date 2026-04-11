@@ -1,5 +1,6 @@
 fn detect_scope_overlaps(scopes: &[Value]) -> Value {
-    let mut normalized = Vec::new();
+    let mut normalized: Vec<Value> = Vec::new();
+    let mut seen_scope_ids: HashMap<String, usize> = HashMap::new();
     for (index, scope) in scopes.iter().enumerate() {
         let out = normalize_scope(scope, index);
         if out.get("ok").and_then(Value::as_bool) != Some(true) {
@@ -10,11 +11,28 @@ fn detect_scope_overlaps(scopes: &[Value]) -> Value {
                 "overlaps": []
             });
         }
-        normalized.push(
-            out.get("scope")
-                .cloned()
-                .unwrap_or(Value::Object(Map::new())),
-        );
+        let normalized_scope = out
+            .get("scope")
+            .cloned()
+            .unwrap_or(Value::Object(Map::new()));
+        let scope_id = to_clean_string(normalized_scope.get("scope_id"));
+        if let Some(previous_index) = seen_scope_ids.insert(scope_id.clone(), index) {
+            return json!({
+                "ok": false,
+                "reason_code": "scope_duplicate_scope_id",
+                "scope_id": scope_id,
+                "normalized_scopes": normalized,
+                "overlaps": [{
+                    "left_scope_id": normalized[previous_index]
+                        .get("scope_id")
+                        .cloned()
+                        .unwrap_or(Value::Null),
+                    "right_scope_id": normalized_scope.get("scope_id").cloned().unwrap_or(Value::Null),
+                    "reason_code": "scope_duplicate_scope_id"
+                }]
+            });
+        }
+        normalized.push(normalized_scope);
     }
 
     let mut overlaps = Vec::new();
@@ -439,4 +457,3 @@ struct LoadedTaskGroup {
     file_path: PathBuf,
     task_group: Value,
 }
-
