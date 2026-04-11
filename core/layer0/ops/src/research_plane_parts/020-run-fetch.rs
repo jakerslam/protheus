@@ -171,6 +171,30 @@ fn normalize_selector_for_match(selector: &str) -> String {
     trimmed.to_ascii_lowercase()
 }
 
+fn html_attribute_values<'a>(html_lc: &'a str, attribute: &str) -> Vec<&'a str> {
+    let mut out = Vec::new();
+    for quote in ['"', '\''] {
+        let needle = format!("{attribute}={quote}");
+        let mut start = 0usize;
+        while let Some(offset) = html_lc[start..].find(&needle) {
+            let value_start = start + offset + needle.len();
+            let Some(value_end_rel) = html_lc[value_start..].find(quote) else {
+                break;
+            };
+            let value_end = value_start + value_end_rel;
+            out.push(&html_lc[value_start..value_end]);
+            start = value_end.saturating_add(1);
+        }
+    }
+    out
+}
+
+fn html_class_contains(html_lc: &str, class_name: &str) -> bool {
+    html_attribute_values(html_lc, "class")
+        .into_iter()
+        .any(|value| value.split_whitespace().any(|token| token == class_name))
+}
+
 fn selector_exists(html_lc: &str, selector: &str) -> bool {
     let sel = normalize_selector_for_match(selector);
     if sel.is_empty() {
@@ -181,9 +205,7 @@ fn selector_exists(html_lc: &str, selector: &str) -> bool {
             || html_lc.contains(&format!("id='{}'", id));
     }
     if let Some(class) = sel.strip_prefix('.') {
-        return html_lc.contains(&format!("class=\"{}\"", class))
-            || html_lc.contains(&format!("class='{}'", class))
-            || html_lc.contains(&format!(" {} ", class));
+        return html_class_contains(html_lc, class);
     }
     if let Some(xpath) = sel.strip_prefix("//") {
         let tag = xpath
@@ -405,5 +427,7 @@ fn parse_seed_urls(parsed: &ParsedArgs) -> Vec<String> {
             }
         }
     }
+    let mut seen = std::collections::BTreeSet::<String>::new();
+    out.retain(|url| seen.insert(url.clone()));
     out
 }
