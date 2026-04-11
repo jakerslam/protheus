@@ -1,0 +1,49 @@
+{
+  "schema_id": "release_state_fixture",
+  "schema_version": "1.0",
+  "release": "v0.3.8-alpha",
+  "receipts": [
+    {
+      "receipt_id": "receipt:upgrade:v038",
+      "parent_receipt_ids": [],
+      "plane": "ops",
+      "stage": "release",
+      "action": "compat_probe",
+      "proof_type": "state_fixture"
+    }
+  ],
+  "task_fabric": {
+    "schema_version": "1.0",
+    "tasks": [
+      {
+        "task_id": "task:v038",
+        "lifecycle_status": "pending",
+        "readiness": "ready",
+        "related_links": [
+          "receipt:upgrade:v038"
+        ]
+      }
+    ]
+  },
+  "memory_state": {
+    "schema_version": "1.0",
+    "objects": [
+      {
+        "object_id": "mem:v038",
+        "scope": "permanent",
+        "canonical": true,
+        "revision": 1
+      }
+    ]
+  },
+  "assimilation_state": {
+    "schema_version": "1.0",
+    "protocol_state": {
+      "target_id": "legacy:v038",
+      "latest_receipt_id": "receipt:upgrade:v038",
+      "capability_mapping": {
+        "degraded": false
+      }
+    }
+  }
+}

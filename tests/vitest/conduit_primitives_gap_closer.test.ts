@@ -294,6 +294,34 @@ describe('conduit primitive wrapper contract', () => {
     const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
     expect(typeof pkg.scripts['ops:production-closure:gate']).toBe('string');
     expect(typeof pkg.scripts['ops:support-bundle:export']).toBe('string');
+    expect(typeof pkg.scripts['ops:production-topology:status']).toBe('string');
+    expect(typeof pkg.scripts['ops:stateful-upgrade-rollback:gate']).toBe('string');
+    expect(typeof pkg.scripts['ops:release-blockers:gate']).toBe('string');
+    expect(typeof pkg.scripts['dr:gameday']).toBe('string');
+    expect(typeof pkg.scripts['dr:gameday:gate']).toBe('string');
+  });
+
+  test('production topology diagnostic enforces legacy runner dev-only contract', () => {
+    const source = fs.readFileSync(
+      path.join(ROOT, 'tests/tooling/scripts/ops/production_topology_diagnostic.ts'),
+      'utf8',
+    );
+    expect(source.includes('legacy_runner_not_dev_only')).toBe(true);
+    expect(source.includes('production_closure_regressed')).toBe(true);
+  });
+
+  test('dr gameday wrappers route to the authoritative operator script', () => {
+    const runtimeWrapper = fs.readFileSync(
+      path.join(ROOT, 'client/runtime/systems/ops/dr_gameday.ts'),
+      'utf8',
+    );
+    const gateWrapper = fs.readFileSync(
+      path.join(ROOT, 'client/runtime/systems/ops/dr_gameday_gate.ts'),
+      'utf8',
+    );
+    expect(runtimeWrapper.includes('tests/tooling/scripts/ops/dr_gameday.ts')).toBe(true);
+    expect(gateWrapper.includes('tests/tooling/scripts/ops/dr_gameday.ts')).toBe(true);
+    expect(gateWrapper.includes("token === 'run' ? 'gate' : token")).toBe(true);
   });
 
   test('support bundle export writes a deterministic artifact envelope', () => {
@@ -313,6 +341,8 @@ describe('conduit primitive wrapper contract', () => {
     const payload = JSON.parse(fs.readFileSync(outPath, 'utf8'));
     expect(payload.type).toBe('support_bundle');
     expect(Array.isArray(payload.checks)).toBe(true);
+    expect(payload.closure_evidence.arch_boundary_conformance).toBeTruthy();
+    expect(payload.closure_evidence.release_hardening_window).toBeTruthy();
     fs.rmSync(outPath, { force: true });
   });
 

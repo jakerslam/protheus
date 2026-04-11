@@ -75,8 +75,8 @@ function run(args: Args): number {
   const sdkTransportFiles = walk(path.join(ROOT, 'packages', 'infring-sdk', 'src'), new Set(['.ts', '.tsx']));
 
   const allowedSpawnSyncByFile = new Map<string, number>([
-    ['adapters/runtime/ops_lane_bridge.ts', 1],
-    ['adapters/runtime/run_protheus_ops.ts', 1],
+    ['adapters/runtime/dev_only/legacy_process_runner.ts', 1],
+    ['adapters/runtime/dev_only/ops_lane_process_fallback.ts', 1],
   ]);
 
   for (const file of adaptersRuntimeFiles) {
@@ -187,6 +187,20 @@ function run(args: Args): number {
         detail: 'expected release-channel lock for legacy process runner overrides',
       });
     }
+    if (source.includes('spawnSync(')) {
+      violations.push({
+        file: rel(runProtheusOpsPath),
+        reason: 'run_protheus_ops_spawn_sync_entrypoint_forbidden',
+        detail: 'release-path entrypoint must not embed spawnSync legacy runner logic',
+      });
+    }
+    if (!source.includes("./dev_only/legacy_process_runner.ts")) {
+      violations.push({
+        file: rel(runProtheusOpsPath),
+        reason: 'run_protheus_ops_dev_only_legacy_runner_missing',
+        detail: 'expected legacy process runner to be quarantined under adapters/runtime/dev_only',
+      });
+    }
   }
 
   const sdkTransportPath = path.join(ROOT, 'packages', 'infring-sdk', 'src', 'transports.ts');
@@ -224,6 +238,50 @@ function run(args: Args): number {
         detail: 'expected centralized process fallback policy helper',
       });
     }
+    if (source.includes('spawnSync(')) {
+      violations.push({
+        file: rel(opsLaneBridgePath),
+        reason: 'ops_lane_bridge_spawn_sync_entrypoint_forbidden',
+        detail: 'release-path bridge entrypoint must not embed process fallback spawnSync logic',
+      });
+    }
+    if (!source.includes("./dev_only/ops_lane_process_fallback.ts")) {
+      violations.push({
+        file: rel(opsLaneBridgePath),
+        reason: 'ops_lane_bridge_dev_only_process_fallback_missing',
+        detail: 'expected process fallback to be quarantined under adapters/runtime/dev_only',
+      });
+    }
+  }
+
+  const legacyDevOnlyPath = path.join(ROOT, 'adapters', 'runtime', 'dev_only', 'legacy_process_runner.ts');
+  if (!fs.existsSync(legacyDevOnlyPath)) {
+    violations.push({
+      file: 'adapters/runtime/dev_only/legacy_process_runner.ts',
+      reason: 'legacy_process_runner_dev_only_missing',
+      detail: 'expected quarantined legacy runner helper',
+    });
+  } else if (!fs.readFileSync(legacyDevOnlyPath, 'utf8').includes('legacy_process_runner_dev_only')) {
+    violations.push({
+      file: rel(legacyDevOnlyPath),
+      reason: 'legacy_process_runner_dev_only_marker_missing',
+      detail: 'expected explicit dev-only marker',
+    });
+  }
+
+  const processFallbackDevOnlyPath = path.join(ROOT, 'adapters', 'runtime', 'dev_only', 'ops_lane_process_fallback.ts');
+  if (!fs.existsSync(processFallbackDevOnlyPath)) {
+    violations.push({
+      file: 'adapters/runtime/dev_only/ops_lane_process_fallback.ts',
+      reason: 'ops_lane_process_fallback_dev_only_missing',
+      detail: 'expected quarantined ops lane process fallback helper',
+    });
+  } else if (!fs.readFileSync(processFallbackDevOnlyPath, 'utf8').includes('process_fallback_dev_only')) {
+    violations.push({
+      file: rel(processFallbackDevOnlyPath),
+      reason: 'ops_lane_process_fallback_dev_only_marker_missing',
+      detail: 'expected explicit dev-only marker',
+    });
   }
 
   const topologyStatusPath = path.join(ROOT, 'client', 'runtime', 'systems', 'ops', 'transport_topology_status.ts');

@@ -314,10 +314,28 @@
       var sec = Math.round((num % 60000) / 1000);
       return min + 'm ' + sec + 's';
     },
+    toolAttemptIdentity: function(tool, idx, prefix) {
+      var row = tool && typeof tool === 'object' ? tool : {};
+      var receipt = row.tool_attempt_receipt && typeof row.tool_attempt_receipt === 'object'
+        ? row.tool_attempt_receipt
+        : {};
+      var toolName = String(row.name || row.tool || receipt.tool_name || 'tool').trim() || 'tool';
+      var attemptId = String(row.attempt_id || row.tool_attempt_id || receipt.attempt_id || '').trim();
+      var attemptSequence = Number(row.attempt_sequence || row.tool_attempt_sequence || idx + 1);
+      if (!Number.isFinite(attemptSequence) || attemptSequence < 1) attemptSequence = idx + 1;
+      var fallbackId = String(row.id || ((prefix || 'tool') + '-' + toolName + '-' + attemptSequence)).trim();
+      return {
+        id: attemptId || fallbackId,
+        attempt_id: attemptId,
+        attempt_sequence: attemptSequence,
+        identity_key: attemptId || (toolName.toLowerCase() + '#' + attemptSequence)
+      };
+    },
     normalizeResponseToolCard: function(tool, idx, prefix) {
       var row = tool && typeof tool === 'object' ? tool : {};
+      var identity = this.toolAttemptIdentity(row, idx, prefix || 'tool');
       return {
-        id: (row.id || ((prefix || 'tool') + '-' + Date.now() + '-' + idx)),
+        id: identity.id,
         name: row.name || row.tool || 'tool',
         running: false,
         expanded: false,
@@ -326,6 +344,9 @@
         is_error: !!(row.is_error || row.error || row.blocked),
         blocked: row.blocked === true || String(row.status || '').toLowerCase() === 'blocked',
         status: String(row.status || '').trim().toLowerCase(),
+        attempt_id: identity.attempt_id,
+        attempt_sequence: identity.attempt_sequence,
+        identity_key: identity.identity_key,
         tool_attempt_receipt: row.tool_attempt_receipt || null
       };
     },
@@ -350,8 +371,14 @@
       if (!result && backend) result = 'Attempted via ' + backend;
       if (!result && rawStatus === 'ok') result = 'Attempt succeeded';
       if (!result) result = 'Attempt recorded';
+      var identity = this.toolAttemptIdentity({
+        name: toolName,
+        attempt_id: attempt.attempt_id || '',
+        attempt_sequence: idx + 1,
+        tool_attempt_receipt: attempt
+      }, idx, prefix || 'attempt');
       return {
-        id: ((prefix || 'attempt') + '-' + Date.now() + '-' + idx),
+        id: identity.id,
         name: toolName,
         running: false,
         expanded: false,
@@ -360,6 +387,9 @@
         is_error: isError,
         blocked: blocked,
         status: blocked ? 'blocked' : (rawStatus || (isError ? 'error' : 'ok')),
+        attempt_id: identity.attempt_id,
+        attempt_sequence: identity.attempt_sequence,
+        identity_key: identity.identity_key,
         reason_code: String(attempt.reason_code || '').trim(),
         backend: String(attempt.backend || '').trim(),
         tool_attempt_receipt: attempt
@@ -382,18 +412,28 @@
         : [];
       if (!attempts.length) return base;
       var merged = base.slice();
+      var claimedBaseIndexes = {};
       for (var i = 0; i < attempts.length; i++) {
         var attemptCard = this.toolCardFromAttemptReceipt(attempts[i], i, prefix || 'attempt');
         var matched = false;
         for (var j = 0; j < merged.length; j++) {
           var current = merged[j];
-          if (!current || String(current.name || '').toLowerCase() !== String(attemptCard.name || '').toLowerCase()) continue;
+          if (!current) continue;
+          var sameAttempt = !!attemptCard.attempt_id && String(current.attempt_id || '').trim() === String(attemptCard.attempt_id || '').trim();
+          var sameUnnamedTool = !attemptCard.attempt_id && String(current.name || '').toLowerCase() === String(attemptCard.name || '').toLowerCase();
+          var adoptUnnamedBase = !sameAttempt && !current.attempt_id && !claimedBaseIndexes[j] && String(current.name || '').toLowerCase() === String(attemptCard.name || '').toLowerCase();
+          if (!sameAttempt && !sameUnnamedTool && !adoptUnnamedBase) continue;
           if (!current.input && attemptCard.input) current.input = attemptCard.input;
           if ((!current.result || !String(current.result).trim()) && attemptCard.result) current.result = attemptCard.result;
           if (attemptCard.blocked) current.blocked = true;
           if (attemptCard.status) current.status = attemptCard.status;
           if (attemptCard.is_error) current.is_error = true;
+          if (attemptCard.id) current.id = attemptCard.id;
+          if (attemptCard.attempt_id) current.attempt_id = attemptCard.attempt_id;
+          if (attemptCard.attempt_sequence) current.attempt_sequence = attemptCard.attempt_sequence;
+          if (attemptCard.identity_key) current.identity_key = attemptCard.identity_key;
           if (!current.tool_attempt_receipt && attemptCard.tool_attempt_receipt) current.tool_attempt_receipt = attemptCard.tool_attempt_receipt;
+          claimedBaseIndexes[j] = true;
           matched = true;
           break;
         }

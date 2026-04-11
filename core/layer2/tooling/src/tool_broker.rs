@@ -1,11 +1,13 @@
+use crate::backend_registry::{live_backend_registry, ToolBackendHealth};
 use crate::capability::{
     all_capabilities_for_callers, capability_probe_for, ToolCapability, ToolCapabilityProbe,
     ToolReasonCode,
 };
+use crate::request_validation::{clean_text, repair_and_validate_args};
 use crate::schemas::{NormalizedToolMetrics, NormalizedToolResult, NormalizedToolStatus};
 use crate::{deterministic_hash, now_ms};
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Map, Value};
+use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
 use std::fs::{create_dir_all, File, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
@@ -181,8 +183,16 @@ impl ToolBroker {
         all_capabilities_for_callers(&self.allowed_tools)
     }
 
+    pub fn backend_registry(&self) -> Vec<ToolBackendHealth> {
+        live_backend_registry()
+    }
+
     pub fn capability_probe(&self, caller: BrokerCaller, tool_name: &str) -> ToolCapabilityProbe {
-        capability_probe_for(&self.allowed_tools, caller, clean_text(tool_name, 120).as_str())
+        capability_probe_for(
+            &self.allowed_tools,
+            caller,
+            clean_text(tool_name, 120).as_str(),
+        )
     }
 
     pub fn direct_tool_bypass_attempt(&self, caller: BrokerCaller) -> Result<(), BrokerError> {
@@ -216,9 +226,14 @@ impl ToolBroker {
                 ToolReasonCode::UnknownTool | ToolReasonCode::TransportUnavailable => {
                     ToolAttemptStatus::Unavailable
                 }
+                ToolReasonCode::DaemonUnavailable | ToolReasonCode::WebsocketUnavailable => {
+                    ToolAttemptStatus::Unavailable
+                }
                 ToolReasonCode::CallerNotAuthorized | ToolReasonCode::PolicyDenied => {
                     ToolAttemptStatus::Blocked
                 }
+                ToolReasonCode::AuthRequired => ToolAttemptStatus::Blocked,
+                ToolReasonCode::BackendDegraded => ToolAttemptStatus::TransportError,
                 ToolReasonCode::InvalidArgs => ToolAttemptStatus::InvalidArgs,
                 ToolReasonCode::Timeout => ToolAttemptStatus::Timeout,
                 ToolReasonCode::ExecutionError => ToolAttemptStatus::ExecutionError,
@@ -292,9 +307,10 @@ impl ToolBroker {
             NormalizedToolStatus::Blocked => {
                 (ToolAttemptStatus::Blocked, ToolReasonCode::PolicyDenied)
             }
-            NormalizedToolStatus::Error => {
-                (ToolAttemptStatus::ExecutionError, ToolReasonCode::ExecutionError)
-            }
+            NormalizedToolStatus::Error => (
+                ToolAttemptStatus::ExecutionError,
+                ToolReasonCode::ExecutionError,
+            ),
         };
         let status_tag = match status {
             NormalizedToolStatus::Ok => "ok",
@@ -310,7 +326,11 @@ impl ToolBroker {
             errors
                 .first()
                 .map(String::as_str)
-                .unwrap_or(if status_tag == "ok" { "ok" } else { "execution_error" }),
+                .unwrap_or(if status_tag == "ok" {
+                    "ok"
+                } else {
+                    "execution_error"
+                }),
             reason_code,
             event_ts,
             duration_ms,
@@ -572,10 +592,6 @@ impl ToolBroker {
     }
 }
 
-fn clean_text(raw: &str, max_len: usize) -> String {
-    raw.trim().chars().take(max_len).collect::<String>()
-}
-
 fn dedupe_freshness_window_ms(tool_name: &str, requested: Option<u64>) -> u64 {
     let default = if matches!(tool_name, "web_search" | "web_fetch" | "batch_query") {
         30_000
@@ -640,104 +656,6 @@ fn default_ledger_path() -> PathBuf {
         .join("tool_broker_events.jsonl")
 }
 
-fn canonicalize_value(value: &Value) -> Value {
-    match value {
-        Value::Object(map) => {
-            let mut sorted = std::collections::BTreeMap::<String, Value>::new();
-            for (k, v) in map {
-                sorted.insert(clean_text(k, 200), canonicalize_value(v));
-            }
-            let mut out = Map::<String, Value>::new();
-            for (k, v) in sorted {
-                out.insert(k, v);
-            }
-            Value::Object(out)
-        }
-        Value::Array(arr) => Value::Array(arr.iter().map(canonicalize_value).collect::<Vec<_>>()),
-        Value::String(text) => Value::String(clean_text(text, 4000)),
-        _ => value.clone(),
-    }
-}
-
-fn set_if_missing(map: &mut Map<String, Value>, to: &str, from: &str) {
-    if map.contains_key(to) {
-        return;
-    }
-    if let Some(v) = map.get(from).cloned() {
-        map.insert(to.to_string(), v);
-    }
-}
-
-fn repair_and_validate_args(tool_name: &str, args: &Value) -> Result<Value, BrokerError> {
-    let mut map = args
-        .as_object()
-        .cloned()
-        .ok_or_else(|| BrokerError::InvalidArgs("args_must_be_object".to_string()))?;
-    set_if_missing(&mut map, "query", "q");
-    set_if_missing(&mut map, "path", "file_path");
-    set_if_missing(&mut map, "paths", "sources");
-    set_if_missing(&mut map, "url", "uri");
-    map.remove("q");
-    map.remove("file_path");
-    map.remove("sources");
-    map.remove("uri");
-    let repaired = canonicalize_value(&Value::Object(map.clone()));
-    let repaired_map = repaired.as_object().cloned().unwrap_or_default();
-    match tool_name {
-        "web_search" | "batch_query" => {
-            let query = repaired_map
-                .get("query")
-                .and_then(Value::as_str)
-                .map(|v| clean_text(v, 1200))
-                .unwrap_or_default();
-            if query.is_empty() {
-                return Err(BrokerError::InvalidArgs("query_required".to_string()));
-            }
-        }
-        "web_fetch" => {
-            let url = repaired_map
-                .get("url")
-                .and_then(Value::as_str)
-                .map(|v| clean_text(v, 2000))
-                .unwrap_or_default();
-            if url.is_empty() {
-                return Err(BrokerError::InvalidArgs("url_required".to_string()));
-            }
-        }
-        "file_read" => {
-            let path = repaired_map
-                .get("path")
-                .and_then(Value::as_str)
-                .map(|v| clean_text(v, 2000))
-                .unwrap_or_default();
-            if path.is_empty() {
-                return Err(BrokerError::InvalidArgs("path_required".to_string()));
-            }
-        }
-        "file_read_many" => {
-            let has_paths = repaired_map
-                .get("paths")
-                .and_then(Value::as_array)
-                .map(|rows| !rows.is_empty())
-                .unwrap_or(false);
-            let has_single_path = repaired_map
-                .get("path")
-                .and_then(Value::as_str)
-                .map(|v| !clean_text(v, 2000).is_empty())
-                .unwrap_or(false);
-            if !has_paths && !has_single_path {
-                return Err(BrokerError::InvalidArgs("paths_required".to_string()));
-            }
-        }
-        _ => {
-            return Err(BrokerError::InvalidArgs(
-                "unsupported_tool_name".to_string(),
-            ))
-        }
-    }
-    Ok(Value::Object(repaired_map))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -745,7 +663,9 @@ mod tests {
     #[test]
     fn broker_rejects_unauthorized_tool_request() {
         let mut broker = ToolBroker::default();
-        broker.allowed_tools.insert(BrokerCaller::Client, HashSet::new());
+        broker
+            .allowed_tools
+            .insert(BrokerCaller::Client, HashSet::new());
         let out = broker.execute_and_normalize(
             ToolCallRequest {
                 trace_id: "trace".to_string(),
@@ -973,7 +893,10 @@ mod tests {
         assert!(catalog.iter().any(|row| row.tool_name == "terminal_exec"));
         let allowed = broker.capability_probe(BrokerCaller::Client, "web_search");
         assert!(allowed.available);
-        assert_eq!(allowed.reason_code, ToolReasonCode::Ok);
+        assert!(matches!(
+            allowed.reason_code,
+            ToolReasonCode::Ok | ToolReasonCode::BackendDegraded
+        ));
         assert_eq!(allowed.backend, "retrieval_plane");
         assert_eq!(allowed.required_args, vec!["query".to_string()]);
         let unknown = broker.capability_probe(BrokerCaller::Client, "tool_that_does_not_exist");
@@ -985,7 +908,9 @@ mod tests {
     #[test]
     fn unauthorized_attempts_are_receipted() {
         let mut broker = ToolBroker::default();
-        broker.allowed_tools.insert(BrokerCaller::Client, HashSet::new());
+        broker
+            .allowed_tools
+            .insert(BrokerCaller::Client, HashSet::new());
         let out = broker.execute_and_normalize(
             ToolCallRequest {
                 trace_id: "trace-attempt".to_string(),
@@ -1039,7 +964,9 @@ mod tests {
     #[test]
     fn execute_and_envelope_returns_structured_failure_attempt() {
         let mut broker = ToolBroker::default();
-        broker.allowed_tools.insert(BrokerCaller::Client, HashSet::new());
+        broker
+            .allowed_tools
+            .insert(BrokerCaller::Client, HashSet::new());
         let attempt = broker.execute_and_envelope(
             ToolCallRequest {
                 trace_id: "trace-envelope".to_string(),

@@ -33,6 +33,18 @@
       ]
     }
   },
+  "assimilation_v1": {
+    "contract_path": "client/runtime/config/assimilation_v1_support_contract.json",
+    "support_level": "experimental_opt_in",
+    "frozen_vertical_slice": "runtime_ingress_to_assimilation_kernel"
+  },
+  "numeric_thresholds": {
+    "ipc_success_rate_min": 0.95,
+    "receipt_completeness_rate_min": 1,
+    "supported_command_latency_ms_max": 2500,
+    "recovery_rto_minutes_max": 30,
+    "recovery_rpo_hours_max": 24
+  },
   "required_files": [
     "client/runtime/config/release_channel_policy.json",
     "client/runtime/config/release_compatibility_policy.json",
@@ -43,11 +55,19 @@
     "docs/client/releases/v0.2.0_migration_guide.md",
     "client/runtime/config/runtime_telemetry_policy.json",
     "client/runtime/config/production_readiness_closure_policy.json",
-    "docs/client/RECOVERY_TRUTH_TABLE.md"
+    "docs/client/RECOVERY_TRUTH_TABLE.md",
+    "client/runtime/config/assimilation_v1_support_contract.json",
+    "client/runtime/config/release_blocker_rubric.json",
+    "client/runtime/config/release_hardening_window_policy.json",
+    "tests/tooling/scripts/ci/legacy_process_runner_release_guard.ts"
   ],
   "required_package_scripts": [
+    "ops:legacy-runner:release-guard",
     "ops:transport:topology:gate",
+    "ops:production-topology:status",
     "ops:release-contract:gate",
+    "ops:stateful-upgrade-rollback:gate",
+    "ops:release-blockers:gate",
     "ops:reliability:gauntlet",
     "ops:ipc-bridge:soak",
     "ops:f100-enterprise-baseline",
@@ -58,14 +78,20 @@
     "ops:production-closure:gate"
   ],
   "required_ci_invocations": [
+    "ops:legacy-runner:release-guard",
     "ops:transport:topology:gate",
+    "ops:stateful-upgrade-rollback:gate",
+    "ops:release-blockers:gate",
     "ops:release-contract:gate",
     "ops:reliability:gauntlet",
     "ops:ipc-bridge:soak",
     "ops:production-closure:gate"
   ],
   "required_verify_invocations": [
+    "ops:legacy-runner:release-guard",
     "ops:transport:topology:gate",
+    "ops:stateful-upgrade-rollback:gate",
+    "ops:release-blockers:gate",
     "ops:production-closure:gate"
   ],
   "required_readme_markers": [
@@ -73,10 +99,20 @@
     "Canonical production profile: rich",
     "Constrained profiles: `--pure`, `--tiny-max`",
     "Experimental lanes (explicit opt-in): `assimilate`",
+    "Resident IPC is the only supported production topology; the legacy process runner is dev-only.",
+    "Release entrypoints quarantine the legacy runner under `adapters/runtime/dev_only/**`.",
+    "Operator topology diagnostic: `npm run -s ops:production-topology:status`",
+    "Frozen assimilation v1 slice: one ingress -> orchestration -> assimilation-kernel -> receipt-output path is hardened; broader assimilation surfaces remain experimental.",
     "`npm run -s ops:support-bundle:export`"
   ],
   "smoke_scripts": [
+    "ops:legacy-runner:release-guard",
     "ops:transport:topology:gate",
+    "ops:production-topology:status",
+    "ops:stateful-upgrade-rollback:gate",
+    "ops:release-blockers:gate",
+    "dr:gameday",
+    "dr:gameday:gate",
     "ops:release-contract:gate",
     "ops:support-bundle:export"
   ]

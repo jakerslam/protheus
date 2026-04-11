@@ -208,5 +208,6 @@ function bootstrap(entryPath, mod) {
 }
 
 module.exports = {
-  bootstrap
+  bootstrap,
+  installTsRequireHook
 };

@@ -34,7 +34,10 @@ jobs:
           npm run -s ops:arch:governance
           npm run -s ops:arch:conformance
           npm run -s ops:transport:convergence:guard
+          npm run -s ops:legacy-runner:release-guard
           npm run -s ops:transport:topology:gate
+          npm run -s ops:stateful-upgrade-rollback:gate
+          npm run -s ops:release-blockers:gate
           npm run -s ops:production-closure:gate
           npm run -s ops:orchestration:contract:guard
           npm run -s ops:orchestration:hidden-state:guard
@@ -73,6 +76,13 @@ jobs:
       - name: IPC Bridge Stability Soak
         run: npm run -s ops:ipc-bridge:soak
 
+      - name: Recovery Rehearsal Gate
+        run: |
+          npm run -s dr:gameday
+          npm run -s dr:gameday
+          npm run -s dr:gameday
+          npm run -s dr:gameday:gate
+
       - name: Upload IPC Bridge Soak Artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -82,6 +92,8 @@ jobs:
             artifacts/ops_ipc_bridge_stability_soak_report_*.json
             artifacts/ops_ipc_bridge_stability_soak_report_latest.json
             local/state/ops/ops_ipc_bridge_stability_soak/latest.json
+            local/state/ops/dr_gameday/latest.json
+            local/state/ops/dr_gameday_gate/latest.json
           if-no-files-found: warn
 
       - name: Release Contract Gate

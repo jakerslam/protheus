@@ -34,6 +34,22 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
   const parseJson = (raw) => { try { return JSON.parse(raw); } catch { return null; } };
   const toNum = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(ms) || 0)));
+  const toolIdentity = (row, idx, prefix = 'tool') => {
+    const source = row && typeof row === 'object' ? row : {};
+    const receipt = source.tool_attempt_receipt && typeof source.tool_attempt_receipt === 'object'
+      ? source.tool_attempt_receipt
+      : {};
+    const name = cleanText(source.name || source.tool || receipt.tool_name || 'tool', 120).toLowerCase() || 'tool';
+    const attemptId = cleanText(source.attempt_id || source.tool_attempt_id || receipt.attempt_id || '', 160);
+    const attemptSequence = toNum(source.attempt_sequence || source.tool_attempt_sequence || idx + 1, idx + 1);
+    const fallbackId = cleanText(source.id || `${prefix}-${name}-${attemptSequence}`, 160);
+    return {
+      id: attemptId || fallbackId,
+      attemptId,
+      attemptSequence,
+      identityKey: attemptId || `${name}#${attemptSequence}`,
+    };
+  };
   const splitThoughtSentences = (raw, maxItems = 6) => {
     const normalized = String(raw || '').replace(/\s+/g, ' ').trim();
     if (!normalized) return [];
@@ -53,17 +69,21 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
     for (let i = 0; i < rawTools.length; i++) {
       const row = rawTools[i] && typeof rawTools[i] === 'object' ? rawTools[i] : {};
       const name = cleanText(row.name || row.tool || 'tool', 120).toLowerCase() || 'tool';
+      const identity = toolIdentity({ ...row, name }, i, 'tool');
       const input = cleanText(row.input || row.arguments || row.args || '', 16000);
       const result = cleanText(row.result || row.output || row.summary || '', 24000);
       const isError = !!(row.is_error || row.error || row.blocked);
       out.push({
-        id: cleanText(row.id || `${name}-${Date.now()}-${i}`, 160),
+        id: identity.id,
         name,
         input,
         result,
         is_error: isError,
         blocked: row.blocked === true || String(row.status || '').toLowerCase() === 'blocked',
         status: cleanText(row.status || '', 40).toLowerCase(),
+        attempt_id: identity.attemptId,
+        attempt_sequence: identity.attemptSequence,
+        identity_key: identity.identityKey,
         tool_attempt_receipt: row.tool_attempt_receipt || null,
       });
       if (out.length >= 16) break;
@@ -77,6 +97,12 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
     const rawStatus = cleanText(attempt.status || attempt.outcome || '', 40).toLowerCase();
     const blocked = rawStatus === 'blocked' || rawStatus === 'policy_denied';
     const isError = !blocked && !!rawStatus && rawStatus !== 'ok';
+    const identity = toolIdentity({
+      name: toolName,
+      attempt_id: attempt.attempt_id || '',
+      attempt_sequence: idx + 1,
+      tool_attempt_receipt: attempt,
+    }, idx, 'attempt');
     let input = '';
     try {
       if (envelope.normalized_result && envelope.normalized_result.normalized_args) {
@@ -88,13 +114,16 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
       24000
     );
     return {
-      id: cleanText(`${toolName}-attempt-${Date.now()}-${idx}`, 160),
+      id: identity.id,
       name: toolName,
       input,
       result,
       is_error: isError,
       blocked,
       status: blocked ? 'blocked' : (rawStatus || (isError ? 'error' : 'ok')),
+      attempt_id: identity.attemptId,
+      attempt_sequence: identity.attemptSequence,
+      identity_key: identity.identityKey,
       tool_attempt_receipt: attempt,
     };
   };
@@ -113,17 +142,27 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
       : [];
     if (!attempts.length) return base;
     const merged = base.slice();
+    const claimedBaseIndexes = new Set();
     for (let i = 0; i < attempts.length; i++) {
       const attemptCard = toolCardFromAttempt(attempts[i], i);
       let matched = false;
       for (let j = 0; j < merged.length; j++) {
         const current = merged[j] || {};
-        if (String(current.name || '').toLowerCase() !== String(attemptCard.name || '').toLowerCase()) continue;
+        const sameAttempt = attemptCard.attempt_id && String(current.attempt_id || '').trim() === attemptCard.attempt_id;
+        const sameUnnamedTool = !attemptCard.attempt_id && String(current.name || '').toLowerCase() === String(attemptCard.name || '').toLowerCase();
+        const adoptUnnamedBase = !sameAttempt && !current.attempt_id && !claimedBaseIndexes.has(j) && String(current.name || '').toLowerCase() === String(attemptCard.name || '').toLowerCase();
+        if (!sameAttempt && !sameUnnamedTool && !adoptUnnamedBase) continue;
         if (!current.input && attemptCard.input) current.input = attemptCard.input;
         if (!current.result && attemptCard.result) current.result = attemptCard.result;
         if (attemptCard.blocked) current.blocked = true;
         if (attemptCard.status) current.status = attemptCard.status;
         if (attemptCard.is_error) current.is_error = true;
+        if (attemptCard.id) current.id = attemptCard.id;
+        if (attemptCard.attempt_id) current.attempt_id = attemptCard.attempt_id;
+        if (attemptCard.attempt_sequence) current.attempt_sequence = attemptCard.attempt_sequence;
+        if (attemptCard.identity_key) current.identity_key = attemptCard.identity_key;
+        if (attemptCard.tool_attempt_receipt) current.tool_attempt_receipt = attemptCard.tool_attempt_receipt;
+        claimedBaseIndexes.add(j);
         matched = true;
         break;
       }
@@ -190,6 +229,8 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
       const toolInput = cleanText(tool.input || '', 16000);
       const toolResult = cleanText(tool.result || '', 24000);
       const toolError = !!tool.is_error;
+      const attemptId = cleanText(tool.attempt_id || (tool.tool_attempt_receipt && tool.tool_attempt_receipt.attempt_id) || '', 160);
+      const attemptSequence = toNum(tool.attempt_sequence || i + 1, i + 1);
       const toolStatus = toolStatusFromCompletion(
         toolName,
         i,
@@ -201,6 +242,8 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
         agent_id: agentId,
         tool: toolName,
         input: toolInput,
+        attempt_id: attemptId,
+        attempt_sequence: attemptSequence,
         tool_status: toolStatus,
       });
       if (toolStatus) {
@@ -234,6 +277,8 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
         agent_id: agentId,
         tool: toolName,
         input: toolInput,
+        attempt_id: attemptId,
+        attempt_sequence: attemptSequence,
         result: toolResult,
         is_error: toolError,
         tool_status: toolStatus,
@@ -243,6 +288,8 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
         agent_id: agentId,
         tool: toolName,
         input: toolInput,
+        attempt_id: attemptId,
+        attempt_sequence: attemptSequence,
         tool_status: toolStatus,
       });
       await sleep(basePauseMs);

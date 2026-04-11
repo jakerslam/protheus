@@ -1,3 +1,4 @@
+use crate::backend_registry::{live_backend_registry, live_backend_status_for, ToolBackendClass};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -19,6 +20,10 @@ pub enum ToolReasonCode {
     UnknownTool,
     CallerNotAuthorized,
     InvalidArgs,
+    AuthRequired,
+    DaemonUnavailable,
+    WebsocketUnavailable,
+    BackendDegraded,
     ExecutionError,
     PolicyDenied,
     TransportUnavailable,
@@ -31,6 +36,7 @@ pub struct ToolCapability {
     pub required_args: Vec<String>,
     pub allowed_callers: Vec<BrokerCaller>,
     pub backend: String,
+    pub backend_class: ToolBackendClass,
     pub read_only: bool,
     pub discoverable: bool,
     pub status: ToolCapabilityStatus,
@@ -47,6 +53,14 @@ pub struct ToolCapabilityProbe {
     pub reason: String,
     pub required_args: Vec<String>,
     pub backend: String,
+    pub backend_class: ToolBackendClass,
+    pub backend_status: ToolCapabilityStatus,
+    pub backend_reason_code: ToolReasonCode,
+    pub backend_reason: String,
+    pub daemon_healthy: Option<bool>,
+    pub ws_healthy: Option<bool>,
+    pub auth_healthy: Option<bool>,
+    pub resident_ipc_authoritative: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -135,7 +149,7 @@ fn capability_specs() -> Vec<CapabilitySpec> {
         },
         CapabilitySpec {
             tool_name: "workspace_analyze".to_string(),
-            required_args: vec!["path".to_string()],
+            required_args: vec!["query".to_string()],
             backend: "workspace_fs".to_string(),
             read_only: true,
             discoverable: true,
@@ -156,8 +170,16 @@ pub fn all_capabilities_for_callers(
     allowed_tools: &std::collections::HashMap<BrokerCaller, std::collections::HashSet<String>>,
 ) -> Vec<ToolCapability> {
     let matrix = capability_matrix();
+    let backend_registry = live_backend_registry()
+        .into_iter()
+        .map(|row| (row.backend.clone(), row))
+        .collect::<BTreeMap<_, _>>();
     let mut out = Vec::<ToolCapability>::new();
     for (tool_name, spec) in matrix {
+        let backend_health = backend_registry
+            .get(&spec.backend)
+            .cloned()
+            .unwrap_or_else(|| live_backend_status_for(spec.backend.as_str()));
         let mut callers = allowed_tools
             .iter()
             .filter_map(|(caller, tools)| {
@@ -178,9 +200,10 @@ pub fn all_capabilities_for_callers(
             required_args: spec.required_args,
             allowed_callers: callers,
             backend: spec.backend,
+            backend_class: backend_health.backend_class,
             read_only: spec.read_only,
             discoverable: spec.discoverable,
-            status: spec.status,
+            status: merge_status(spec.status, backend_health.status),
         });
     }
     out
@@ -203,21 +226,66 @@ pub fn capability_probe_for(
             reason: "unknown_tool".to_string(),
             required_args: Vec::new(),
             backend: "unknown".to_string(),
+            backend_class: ToolBackendClass::Unknown,
+            backend_status: ToolCapabilityStatus::Unavailable,
+            backend_reason_code: ToolReasonCode::UnknownTool,
+            backend_reason: "unknown_backend".to_string(),
+            daemon_healthy: None,
+            ws_healthy: None,
+            auth_healthy: None,
+            resident_ipc_authoritative: true,
         };
     };
+    let backend_health = live_backend_status_for(spec.backend.as_str());
     let allowed = allowed_tools
         .get(&caller)
         .map(|set| set.contains(&normalized))
         .unwrap_or(false);
-    let (available, status, reason_code, reason) = if allowed {
-        (true, spec.status, ToolReasonCode::Ok, "ok".to_string())
-    } else {
+    let (available, status, reason_code, reason) = if !allowed {
         (
             false,
             ToolCapabilityStatus::Blocked,
             ToolReasonCode::CallerNotAuthorized,
             "caller_not_authorized".to_string(),
         )
+    } else {
+        match merge_status(spec.status, backend_health.status) {
+            ToolCapabilityStatus::Available => (
+                true,
+                ToolCapabilityStatus::Available,
+                ToolReasonCode::Ok,
+                "ok".to_string(),
+            ),
+            ToolCapabilityStatus::Degraded => (
+                true,
+                ToolCapabilityStatus::Degraded,
+                ToolReasonCode::BackendDegraded,
+                backend_health.reason.clone(),
+            ),
+            ToolCapabilityStatus::Blocked => (
+                false,
+                ToolCapabilityStatus::Blocked,
+                if matches!(
+                    backend_health.reason_code,
+                    ToolReasonCode::AuthRequired | ToolReasonCode::PolicyDenied
+                ) {
+                    backend_health.reason_code
+                } else {
+                    ToolReasonCode::PolicyDenied
+                },
+                backend_health.reason.clone(),
+            ),
+            ToolCapabilityStatus::Unavailable => (
+                false,
+                ToolCapabilityStatus::Unavailable,
+                if matches!(spec.status, ToolCapabilityStatus::Unavailable) {
+                    ToolReasonCode::TransportUnavailable
+                } else {
+                    backend_health.reason_code
+                },
+                backend_health.reason.clone(),
+            ),
+        }
     };
     ToolCapabilityProbe {
         tool_name: normalized,
@@ -229,6 +297,32 @@ pub fn capability_probe_for(
         reason,
         required_args: spec.required_args,
         backend: spec.backend,
+        backend_class: backend_health.backend_class,
+        backend_status: backend_health.status,
+        backend_reason_code: backend_health.reason_code,
+        backend_reason: backend_health.reason,
+        daemon_healthy: backend_health.daemon_healthy,
+        ws_healthy: backend_health.ws_healthy,
+        auth_healthy: backend_health.auth_healthy,
+        resident_ipc_authoritative: backend_health.resident_ipc_authoritative,
+    }
+}
+
+fn merge_status(
+    static_status: ToolCapabilityStatus,
+    backend_status: ToolCapabilityStatus,
+) -> ToolCapabilityStatus {
+    match (static_status, backend_status) {
+        (ToolCapabilityStatus::Unavailable, _) | (_, ToolCapabilityStatus::Unavailable) => {
+            ToolCapabilityStatus::Unavailable
+        }
+        (ToolCapabilityStatus::Blocked, _) | (_, ToolCapabilityStatus::Blocked) => {
+            ToolCapabilityStatus::Blocked
+        }
+        (ToolCapabilityStatus::Degraded, _) | (_, ToolCapabilityStatus::Degraded) => {
+            ToolCapabilityStatus::Degraded
+        }
+        _ => ToolCapabilityStatus::Available,
     }
 }
 
@@ -237,4 +331,42 @@ pub fn required_args_for(tool_name: &str) -> Vec<String> {
         .get(tool_name)
         .map(|spec| spec.required_args.clone())
         .unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::{HashMap, HashSet};
+
+    #[test]
+    fn workspace_analyze_contract_is_query_driven() {
+        let mut allowed = HashMap::<BrokerCaller, HashSet<String>>::new();
+        allowed.insert(
+            BrokerCaller::Client,
+            ["workspace_analyze"]
+                .iter()
+                .map(|row| row.to_string())
+                .collect::<HashSet<_>>(),
+        );
+        let probe = capability_probe_for(&allowed, BrokerCaller::Client, "workspace_analyze");
+        assert!(probe.available);
+        assert_eq!(probe.required_args, vec!["query".to_string()]);
+        assert_eq!(probe.reason_code, ToolReasonCode::Ok);
+    }
+
+    #[test]
+    fn probe_includes_live_backend_health_fields() {
+        let mut allowed = HashMap::<BrokerCaller, HashSet<String>>::new();
+        allowed.insert(
+            BrokerCaller::Client,
+            ["web_search"]
+                .iter()
+                .map(|row| row.to_string())
+                .collect::<HashSet<_>>(),
+        );
+        let probe = capability_probe_for(&allowed, BrokerCaller::Client, "web_search");
+        assert_eq!(probe.backend, "retrieval_plane");
+        assert_eq!(probe.backend_class, ToolBackendClass::RetrievalPlane);
+        assert!(!probe.backend_reason.is_empty());
+    }
 }

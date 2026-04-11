@@ -63,8 +63,13 @@ impl OrchestrationSurfaceRuntime {
         };
         let (plan, recovery_applied) = recovery::apply_recovery_policy(&normalized, plan);
         let progress = progress::progress_message(&plan);
-        let fallback_actions =
-            sequencing::fallback_actions(&normalized, plan.request_class.clone());
+        let tool_fallback_context =
+            sequencing::tool_fallback_context_from_payload(&normalized.payload);
+        let fallback_actions = sequencing::fallback_actions(
+            &normalized,
+            plan.request_class.clone(),
+            tool_fallback_context.as_ref(),
+        );
         result_packaging::package_result(&plan, progress, recovery_applied, fallback_actions)
     }
 
