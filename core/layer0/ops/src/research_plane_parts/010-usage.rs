@@ -35,7 +35,7 @@ fn usage() {
     println!("  protheus-ops research-plane mcp-extract [--payload=<html>|--payload-path=<path>] [--source=<url>] [--query=<text>] [--strict=1|0]");
     println!("  protheus-ops research-plane spider|crawl-spider [--graph-json=<json>|--graph-path=<path>] --seed-urls=<u1,u2> [--allow-rules=a,b] [--deny-rules=a,b] [--allowed-domains=a,b] [--max-depth=<n>] [--max-links=<n>] [--strict=1|0]");
     println!("  protheus-ops research-plane middleware|crawl-middleware [--request-json=<json>] [--response-json=<json>] [--stack-json=<json>] [--strict=1|0]");
-    println!("  protheus-ops research-plane pipeline|crawl-pipeline [--items-json=<json>] [--pipeline-json=<json>] [--export-format=json|csv] [--export-path=<path>] [--strict=1|0]");
+    println!("  protheus-ops research-plane pipeline|crawl-pipeline [--items-json=<json>|--items-path=<path>] [--pipeline-json=<json>|--pipeline-path=<path>] [--export-format=json|csv] [--export-path=<path>] [--strict=1|0]");
     println!("  protheus-ops research-plane signals|crawl-signals [--events-json=<json>] [--handlers-json=<json>] [--strict=1|0]");
     println!("  protheus-ops research-plane console|crawl-console --op=<status|stats|queue|pause|resume|enqueue> --auth-token=<token> [--url=<u>] [--strict=1|0]");
     println!("  protheus-ops research-plane template-governance [--manifest=<path>] [--templates-root=<dir>] [--strict=1|0]");
@@ -209,7 +209,11 @@ fn fetch_with_curl(
     max_bytes: usize,
 ) -> Value {
     if url.starts_with("file://") {
-        return fetch_file_url(url, max_bytes);
+        let started = Instant::now();
+        let mut row = fetch_file_url(url, max_bytes);
+        row["elapsed_ms"] = json!(started.elapsed().as_millis());
+        row["mode"] = Value::String(mode.to_string());
+        return row;
     }
 
     let timeout_sec = ((timeout_ms as f64) / 1000.0).ceil() as u64;
@@ -261,6 +265,28 @@ fn fetch_with_curl(
             "error": format!("curl_spawn_failed:{err}"),
             "mode": mode
         }),
+    }
+}
+
+#[cfg(test)]
+mod research_plane_usage_tests {
+    use super::*;
+
+    #[test]
+    fn fetch_with_curl_file_urls_emit_mode_and_elapsed_ms() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let page = temp.path().join("page.html");
+        fs::write(&page, "<html>ok</html>").expect("write page");
+        let out = fetch_with_curl(
+            &format!("file://{}", page.display()),
+            "stealth",
+            1_000,
+            &BTreeMap::new(),
+            64,
+        );
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(out.get("mode").and_then(Value::as_str), Some("stealth"));
+        assert!(out.get("elapsed_ms").and_then(Value::as_u64).is_some());
     }
 }
 
@@ -398,4 +424,3 @@ fn fetch_auto(
         "safety_plane_receipts": safety_receipts
     })
 }
-
