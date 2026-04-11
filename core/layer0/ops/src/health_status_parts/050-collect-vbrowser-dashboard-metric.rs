@@ -7,33 +7,40 @@ fn collect_vbrowser_dashboard_metric(root: &Path) -> Value {
         .join("vbrowser_plane")
         .join("latest.json");
     let latest = read_json(&latest_path).ok();
-    let session_id = latest
-        .as_ref()
-        .and_then(|v| v.get("session"))
-        .and_then(|v| v.get("session_id"))
-        .and_then(Value::as_str)
-        .map(ToString::to_string)
-        .or_else(|| {
-            latest
-                .as_ref()
-                .and_then(|v| v.get("policy"))
-                .and_then(|v| v.get("session_id"))
-                .and_then(Value::as_str)
-                .map(ToString::to_string)
-        });
+    let session_id = latest.as_ref().and_then(|v| {
+        v.pointer("/session/session_id")
+            .and_then(Value::as_str)
+            .or_else(|| v.get("session_id").and_then(Value::as_str))
+            .or_else(|| v.pointer("/policy/session_id").and_then(Value::as_str))
+            .map(ToString::to_string)
+    });
     let stream_latency_ms = latest
         .as_ref()
-        .and_then(|v| v.get("session"))
-        .and_then(|v| v.get("stream"))
-        .and_then(|v| v.get("latency_ms"))
-        .and_then(Value::as_u64)
+        .and_then(|v| {
+            v.pointer("/session/stream/latency_ms")
+                .and_then(Value::as_u64)
+                .or_else(|| v.pointer("/stream/latency_ms").and_then(Value::as_u64))
+        })
         .unwrap_or(0);
+    let receipt_type = latest
+        .as_ref()
+        .and_then(|v| v.get("type"))
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
+    let receipt_hash_present = latest
+        .as_ref()
+        .and_then(|v| v.get("receipt_hash"))
+        .and_then(Value::as_str)
+        .map(|value| !value.trim().is_empty())
+        .unwrap_or(false);
     let status = match latest
         .as_ref()
         .and_then(|v| v.get("ok"))
         .and_then(Value::as_bool)
     {
-        Some(true) => "pass",
+        Some(true) if receipt_hash_present && receipt_type.starts_with("vbrowser_plane_") => "pass",
+        Some(true) => "warn",
         Some(false) => "warn",
         None => "warn",
     };
@@ -44,6 +51,8 @@ fn collect_vbrowser_dashboard_metric(root: &Path) -> Value {
             "status": status,
             "session_id": session_id,
             "stream_latency_ms": stream_latency_ms,
+            "receipt_type": receipt_type,
+            "receipt_hash_present": receipt_hash_present,
             "source": latest_path.to_string_lossy()
         }
     })
@@ -384,4 +393,3 @@ fn collect_dashboard_metrics_light(cron_audit: &Value) -> Value {
     );
     Value::Object(metrics)
 }
-

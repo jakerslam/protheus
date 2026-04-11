@@ -715,15 +715,16 @@ fn run_type(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
 
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     let parsed = parse_args(argv);
-    let command = parsed
+    let raw_command = parsed
         .positional
         .first()
         .map(|v| v.trim().to_ascii_lowercase())
         .unwrap_or_else(|| "status".to_string());
-    if matches!(command.as_str(), "help" | "--help" | "-h") {
+    if matches!(raw_command.as_str(), "help" | "--help" | "-h") {
         usage();
         return 0;
     }
+    let command = canonical_vbrowser_command(&raw_command).to_string();
 
     let strict = parse_bool(parsed.flags.get("strict"), true);
     let conduit = if command != "status" {
@@ -752,17 +753,17 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
     let payload = match command.as_str() {
         "status" => status(root),
-        "session-start" | "start" | "open" => run_session_start(root, &parsed, strict),
-        "session-control" | "control" => run_session_control(root, &parsed, strict),
-        "goto" | "navigate" => run_goto(root, &parsed, strict),
-        "navback" | "back" => run_navback(root, &parsed, strict),
-        "wait" | "pause" => run_wait(root, &parsed, strict),
+        "session-start" => run_session_start(root, &parsed, strict),
+        "session-control" => run_session_control(root, &parsed, strict),
+        "goto" => run_goto(root, &parsed, strict),
+        "navback" => run_navback(root, &parsed, strict),
+        "wait" => run_wait(root, &parsed, strict),
         "scroll" => run_scroll(root, &parsed, strict),
         "click" => run_click(root, &parsed, strict),
         "type" => run_type(root, &parsed, strict),
         "automate" => run_automate(root, &parsed, strict),
-        "key-input" | "keys" => run_key_input(root, &parsed, strict),
-        "privacy-guard" | "privacy" => run_privacy_guard(root, &parsed, strict),
+        "key-input" => run_key_input(root, &parsed, strict),
+        "privacy-guard" => run_privacy_guard(root, &parsed, strict),
         "snapshot" => run_snapshot(root, &parsed, strict),
         "screenshot" => run_screenshot(root, &parsed, strict),
         "action-policy" => run_action_policy(root, &parsed, strict),
@@ -799,5 +800,14 @@ mod tests {
         let parsed = crate::parse_args(&["start".to_string(), "--bypass=1".to_string()]);
         let out = conduit_enforcement(root.path(), &parsed, true, "session-start");
         assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
+    }
+
+    #[test]
+    fn alias_commands_are_canonicalized_for_claims() {
+        assert_eq!(canonical_vbrowser_command("open"), "session-start");
+        assert_eq!(canonical_vbrowser_command("navigate"), "goto");
+        assert_eq!(canonical_vbrowser_command("control"), "session-control");
+        assert_eq!(canonical_vbrowser_command("keys"), "key-input");
+        assert_eq!(canonical_vbrowser_command("privacy"), "privacy-guard");
     }
 }

@@ -50,6 +50,7 @@ fn run_session_control(root: &Path, parsed: &crate::ParsedArgs, strict: bool) ->
 
     let sid = session_id(parsed);
     let path = session_state_path(root, &sid);
+    let session_exists = path.exists();
     let mut session = read_json(&path).unwrap_or_else(|| {
         json!({
             "version": "v1",
@@ -75,6 +76,7 @@ fn run_session_control(root: &Path, parsed: &crate::ParsedArgs, strict: bool) ->
             .unwrap_or_else(|| "operator".to_string()),
         80,
     );
+    let explicit_to = parsed.flags.get("to").cloned();
 
     let allowed_roles = contract
         .get("roles")
@@ -93,6 +95,14 @@ fn run_session_control(root: &Path, parsed: &crate::ParsedArgs, strict: bool) ->
             "errors": ["vbrowser_role_invalid"]
         });
     }
+    if strict && op != "status" && !session_exists {
+        return json!({
+            "ok": false,
+            "strict": strict,
+            "type": "vbrowser_plane_session_control",
+            "errors": ["vbrowser_session_not_found"]
+        });
+    }
 
     if !session
         .get("participants")
@@ -108,7 +118,58 @@ fn run_session_control(root: &Path, parsed: &crate::ParsedArgs, strict: bool) ->
     {
         session["handoffs"] = Value::Array(Vec::new());
     }
+    let existing_participants = session
+        .get("participants")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let actor_joined = existing_participants
+        .iter()
+        .any(|row| row.get("actor").and_then(Value::as_str) == Some(actor.as_str()));
+    let allow_handoff = contract
+        .get("allow_handoff")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let to = clean(explicit_to.unwrap_or_else(|| "reviewer".to_string()), 80);
+    let target_joined = existing_participants
+        .iter()
+        .any(|row| row.get("actor").and_then(Value::as_str) == Some(to.as_str()));
+    if strict && op == "handoff" {
+        let mut handoff_errors = Vec::<&str>::new();
+        if !allow_handoff {
+            handoff_errors.push("vbrowser_handoff_disabled");
+        }
+        if !actor_joined {
+            handoff_errors.push("vbrowser_handoff_actor_not_joined");
+        }
+        if parsed.flags.get("to").is_none() {
+            handoff_errors.push("vbrowser_handoff_target_required");
+        }
+        if actor == to {
+            handoff_errors.push("vbrowser_handoff_target_must_differ");
+        }
+        if !target_joined {
+            handoff_errors.push("vbrowser_handoff_target_not_joined");
+        }
+        if !handoff_errors.is_empty() {
+            return json!({
+                "ok": false,
+                "strict": strict,
+                "type": "vbrowser_plane_session_control",
+                "errors": handoff_errors
+            });
+        }
+    }
+    if strict && op == "leave" && !actor_joined {
+        return json!({
+            "ok": false,
+            "strict": strict,
+            "type": "vbrowser_plane_session_control",
+            "errors": ["vbrowser_leave_actor_not_joined"]
+        });
+    }
 
+    let mut changed = false;
     match op.as_str() {
         "join" => {
             let mut participants = session
@@ -126,17 +187,10 @@ fn run_session_control(root: &Path, parsed: &crate::ParsedArgs, strict: bool) ->
                     "joined_at": crate::now_iso()
                 }));
                 session["participants"] = Value::Array(participants);
+                changed = true;
             }
         }
         "handoff" => {
-            let to = clean(
-                parsed
-                    .flags
-                    .get("to")
-                    .cloned()
-                    .unwrap_or_else(|| "reviewer".to_string()),
-                80,
-            );
             let handoff = json!({
                 "from": actor,
                 "to": to,
@@ -150,6 +204,7 @@ fn run_session_control(root: &Path, parsed: &crate::ParsedArgs, strict: bool) ->
                 .unwrap_or_default();
             handoffs.push(handoff);
             session["handoffs"] = Value::Array(handoffs);
+            changed = true;
         }
         "leave" => {
             let participants = session
@@ -161,12 +216,15 @@ fn run_session_control(root: &Path, parsed: &crate::ParsedArgs, strict: bool) ->
                 .filter(|row| row.get("actor").and_then(Value::as_str) != Some(actor.as_str()))
                 .collect::<Vec<_>>();
             session["participants"] = Value::Array(participants);
+            changed = true;
         }
         _ => {}
     }
 
-    session["updated_at"] = Value::String(crate::now_iso());
-    let _ = write_json(&path, &session);
+    if changed {
+        session["updated_at"] = Value::String(crate::now_iso());
+        let _ = write_json(&path, &session);
+    }
 
     let participants = session
         .get("participants")
@@ -185,6 +243,7 @@ fn run_session_control(root: &Path, parsed: &crate::ParsedArgs, strict: bool) ->
         "type": "vbrowser_plane_session_control",
         "lane": "core/layer0/ops",
         "op": op,
+        "session_exists": session_exists,
         "session": session,
         "artifact": {
             "path": path.display().to_string(),
@@ -335,4 +394,3 @@ fn run_automate(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value 
     out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
-
