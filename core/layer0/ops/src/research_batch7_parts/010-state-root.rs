@@ -161,8 +161,17 @@ fn extract_links(html: &str) -> Vec<String> {
             }
         }
     }
-    out.sort();
-    out.dedup();
+    stable_unique_strings(out)
+}
+
+fn stable_unique_strings(rows: Vec<String>) -> Vec<String> {
+    let mut seen = BTreeSet::<String>::new();
+    let mut out = Vec::<String>::new();
+    for row in rows {
+        if seen.insert(row.clone()) {
+            out.push(row);
+        }
+    }
     out
 }
 
@@ -192,6 +201,117 @@ fn domain_of(url: &str) -> String {
         180,
     )
     .to_ascii_lowercase()
+}
+
+fn percent_decode(raw: &str) -> String {
+    let bytes = raw.as_bytes();
+    let mut out = String::new();
+    let mut i = 0usize;
+    while i < bytes.len() {
+        if bytes[i] == b'%' && i + 2 < bytes.len() {
+            let hex = &raw[i + 1..i + 3];
+            if let Ok(v) = u8::from_str_radix(hex, 16) {
+                out.push(v as char);
+                i += 3;
+                continue;
+            }
+        }
+        if bytes[i] == b'+' {
+            out.push(' ');
+        } else {
+            out.push(bytes[i] as char);
+        }
+        i += 1;
+    }
+    out
+}
+
+fn extract_http_candidate(text: &str) -> Option<String> {
+    let lower = text.to_ascii_lowercase();
+    let start = lower.find("https://").or_else(|| lower.find("http://"))?;
+    let tail = &text[start..];
+    let end = tail
+        .find(|c: char| c.is_whitespace() || ['"', '\'', '<', '>'].contains(&c))
+        .unwrap_or(tail.len());
+    let out = clean(&tail[..end], 2000);
+    if out.starts_with("http://") || out.starts_with("https://") {
+        Some(out)
+    } else {
+        None
+    }
+}
+
+fn decode_b64_candidate(token: &str) -> Option<String> {
+    let trimmed = token.trim().trim_matches('/');
+    for decoder in [&URL_SAFE_NO_PAD, &URL_SAFE, &STANDARD] {
+        if let Ok(bytes) = decoder.decode(trimmed.as_bytes()) {
+            let decoded = String::from_utf8_lossy(&bytes).to_string();
+            if let Some(url) = extract_http_candidate(&decoded) {
+                return Some(url);
+            }
+        }
+    }
+    for pad in ["=", "==", "==="] {
+        let padded = format!("{trimmed}{pad}");
+        if let Ok(bytes) = URL_SAFE.decode(padded.as_bytes()) {
+            let decoded = String::from_utf8_lossy(&bytes).to_string();
+            if let Some(url) = extract_http_candidate(&decoded) {
+                return Some(url);
+            }
+        }
+    }
+    None
+}
+
+fn decode_news_url_once(input_url: &str) -> Option<(String, &'static str)> {
+    if let Some((_, query)) = input_url.split_once('?') {
+        for part in query.split('&') {
+            let mut chunks = part.splitn(2, '=');
+            let key = chunks.next().unwrap_or_default();
+            let value = chunks.next().unwrap_or_default();
+            if ["url", "u", "q"].contains(&key) {
+                let candidate = percent_decode(value);
+                if candidate.starts_with("http://") || candidate.starts_with("https://") {
+                    return Some((candidate, "query_param"));
+                }
+            }
+        }
+    }
+
+    let path = input_url.split('?').next().unwrap_or_default().to_string();
+    let segments = path
+        .split('/')
+        .map(|v| clean(v, 1200))
+        .filter(|v| !v.is_empty())
+        .collect::<Vec<_>>();
+    let token = segments.last()?;
+    decode_b64_candidate(token).map(|candidate| (candidate, "base64_segment"))
+}
+
+fn decode_news_url_recursively(input_url: &str, max_hops: usize) -> (String, String) {
+    let mut current = input_url.to_string();
+    let mut seen = BTreeSet::<String>::new();
+    let mut methods = Vec::<String>::new();
+
+    for _ in 0..max_hops {
+        if !seen.insert(current.clone()) {
+            break;
+        }
+        let Some((next, method)) = decode_news_url_once(&current) else {
+            break;
+        };
+        if next == current {
+            break;
+        }
+        methods.push(method.to_string());
+        current = next;
+    }
+
+    if methods.is_empty() {
+        (input_url.to_string(), "fallback_identity".to_string())
+    } else {
+        (current, methods.join("->"))
+    }
 }
 
 fn guess_bool(raw: Option<&str>, fallback: bool) -> bool {
@@ -297,4 +417,3 @@ fn canonicalize_json(value: &Value) -> Value {
 fn canonical_json_string(value: &Value) -> String {
     serde_json::to_string(&canonicalize_json(value)).unwrap_or_else(|_| "null".to_string())
 }
-

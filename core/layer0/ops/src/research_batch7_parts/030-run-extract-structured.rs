@@ -151,7 +151,7 @@ pub fn run_extract_structured(root: &Path, parsed: &ParsedArgs, strict: bool) ->
         "validation_receipts": validation,
         "provenance": {
             "payload_sha256": sha256_hex_str(&payload),
-            "schema_sha256": if schema.is_null() { Value::Null } else { Value::String(sha256_hex_str(&schema.to_string())) },
+            "schema_sha256": if schema.is_null() { Value::Null } else { Value::String(sha256_hex_str(&canonical_json_string(&schema))) },
             "prompt_sha256": if prompt.is_empty() { Value::Null } else { Value::String(sha256_hex_str(&prompt)) }
         },
         "conduit_enforcement": conduit,
@@ -174,6 +174,46 @@ pub fn run_extract_structured(root: &Path, parsed: &ParsedArgs, strict: bool) ->
     });
     out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
     out
+}
+
+#[cfg(test)]
+mod extract_structured_tests {
+    use super::*;
+
+    #[test]
+    fn extract_structured_preserves_document_link_order_and_canonical_schema_hash() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let parsed = crate::parse_args(&[
+            "extract-structured".to_string(),
+            "--payload=<html><head><title>Ordered</title></head><body><a href=\"https://z.test/first\">first</a><a href=\"https://a.test/second\">second</a><a href=\"https://z.test/first\">dup</a></body></html>".to_string(),
+            "--schema-json={\"fields\":[{\"required\":false,\"name\":\"links\"},{\"name\":\"title\",\"required\":true}]}".to_string(),
+        ]);
+        let out = run_extract_structured(root.path(), &parsed, true);
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            out.pointer("/json/links")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default(),
+            vec![
+                Value::String("https://z.test/first".to_string()),
+                Value::String("https://a.test/second".to_string()),
+            ]
+        );
+        assert_eq!(
+            out.pointer("/provenance/schema_sha256")
+                .and_then(Value::as_str),
+            Some(sha256_hex_str(
+                &canonical_json_string(&json!({
+                    "fields": [
+                        {"required": false, "name": "links"},
+                        {"name": "title", "required": true}
+                    ]
+                }))
+            ))
+            .as_deref()
+        );
+    }
 }
 
 pub fn run_monitor(root: &Path, parsed: &ParsedArgs, strict: bool) -> Value {
@@ -319,4 +359,3 @@ pub fn run_monitor(root: &Path, parsed: &ParsedArgs, strict: bool) -> Value {
     out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
     out
 }
-

@@ -4226,7 +4226,7 @@
       "order": 383
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer2/ops/src/nexus_internal_comms.rs",
       "language": "rs",
       "loc": 6,
@@ -4303,7 +4303,7 @@
       "order": 390
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/tests/v6_security_hardening_integration.rs",
       "language": "rs",
       "loc": 5,
@@ -4325,7 +4325,7 @@
       "order": 392
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer2/conduit/src/runtime_paths.rs",
       "language": "rs",
       "loc": 5,
@@ -4413,7 +4413,7 @@
       "order": 400
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer2/conduit/src/lib.rs",
       "language": "rs",
       "loc": 4,
@@ -7812,7 +7812,7 @@
       "order": 709
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/research_batch7_parts/050-run-auth-session.rs",
       "language": "rs",
       "loc": 407,
@@ -9011,7 +9011,7 @@
       "order": 818
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/research_batch7_parts/030-run-extract-structured.rs",
       "language": "rs",
       "loc": 322,
@@ -9165,7 +9165,7 @@
       "order": 832
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/research_batch7_parts/010-state-root.rs",
       "language": "rs",
       "loc": 300,
@@ -9990,7 +9990,7 @@
       "order": 907
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/research_batch7_parts/060-run-decode-news-url.rs",
       "language": "rs",
       "loc": 183,

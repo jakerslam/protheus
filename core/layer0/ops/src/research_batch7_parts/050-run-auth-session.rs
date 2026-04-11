@@ -134,6 +134,14 @@ pub fn run_auth_session(root: &Path, parsed: &ParsedArgs, strict: bool) -> Value
         state["updated_at"] = Value::String(now_iso());
         let _ = write_json(&session_path, &state);
     } else if op == "close" {
+        if !session_path.exists() {
+            return fail_payload(
+                "research_plane_auth_session",
+                strict,
+                vec!["session_not_open".to_string()],
+                Some(conduit),
+            );
+        }
         state["status"] = Value::String("closed".to_string());
         state["authenticated"] = Value::Bool(false);
         state["last_op"] = Value::String(op.clone());
@@ -345,63 +353,26 @@ pub fn run_proxy_rotate(root: &Path, parsed: &ParsedArgs, strict: bool) -> Value
     out
 }
 
-fn percent_decode(raw: &str) -> String {
-    let bytes = raw.as_bytes();
-    let mut out = String::new();
-    let mut i = 0usize;
-    while i < bytes.len() {
-        if bytes[i] == b'%' && i + 2 < bytes.len() {
-            let hex = &raw[i + 1..i + 3];
-            if let Ok(v) = u8::from_str_radix(hex, 16) {
-                out.push(v as char);
-                i += 3;
-                continue;
-            }
-        }
-        if bytes[i] == b'+' {
-            out.push(' ');
-        } else {
-            out.push(bytes[i] as char);
-        }
-        i += 1;
-    }
-    out
-}
+#[cfg(test)]
+mod auth_session_tests {
+    use super::*;
 
-fn extract_http_candidate(text: &str) -> Option<String> {
-    let lower = text.to_ascii_lowercase();
-    let start = lower.find("https://").or_else(|| lower.find("http://"))?;
-    let tail = &text[start..];
-    let end = tail
-        .find(|c: char| c.is_whitespace() || ['"', '\'', '<', '>'].contains(&c))
-        .unwrap_or(tail.len());
-    let out = clean(&tail[..end], 2000);
-    if out.starts_with("http://") || out.starts_with("https://") {
-        Some(out)
-    } else {
-        None
+    #[test]
+    fn auth_session_close_requires_existing_session() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let parsed = crate::parse_args(&[
+            "auth-session".to_string(),
+            "--op=close".to_string(),
+            "--session-id=missing-session".to_string(),
+        ]);
+        let out = run_auth_session(root.path(), &parsed, true);
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
+        assert!(out
+            .get("errors")
+            .and_then(Value::as_array)
+            .map(|rows| rows
+                .iter()
+                .any(|row| row.as_str() == Some("session_not_open")))
+            .unwrap_or(false));
     }
 }
-
-fn decode_b64_candidate(token: &str) -> Option<String> {
-    let trimmed = token.trim().trim_matches('/');
-    for decoder in [&URL_SAFE_NO_PAD, &URL_SAFE, &STANDARD] {
-        if let Ok(bytes) = decoder.decode(trimmed.as_bytes()) {
-            let decoded = String::from_utf8_lossy(&bytes).to_string();
-            if let Some(url) = extract_http_candidate(&decoded) {
-                return Some(url);
-            }
-        }
-    }
-    for pad in ["=", "==", "==="] {
-        let padded = format!("{trimmed}{pad}");
-        if let Ok(bytes) = URL_SAFE.decode(padded.as_bytes()) {
-            let decoded = String::from_utf8_lossy(&bytes).to_string();
-            if let Some(url) = extract_http_candidate(&decoded) {
-                return Some(url);
-            }
-        }
-    }
-    None
-}
-

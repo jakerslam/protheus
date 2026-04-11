@@ -57,44 +57,7 @@ pub fn run_decode_news_url(root: &Path, parsed: &ParsedArgs, strict: bool) -> Va
         );
     }
 
-    let mut decoded = String::new();
-    let mut method = "none".to_string();
-
-    if let Some((_, query)) = input_url.split_once('?') {
-        for part in query.split('&') {
-            let mut chunks = part.splitn(2, '=');
-            let key = chunks.next().unwrap_or_default();
-            let value = chunks.next().unwrap_or_default();
-            if ["url", "u", "q"].contains(&key) {
-                let candidate = percent_decode(value);
-                if candidate.starts_with("http://") || candidate.starts_with("https://") {
-                    decoded = candidate;
-                    method = "query_param".to_string();
-                    break;
-                }
-            }
-        }
-    }
-
-    if decoded.is_empty() {
-        let path = input_url.split('?').next().unwrap_or_default().to_string();
-        let segments = path
-            .split('/')
-            .map(|v| clean(v, 1200))
-            .filter(|v| !v.is_empty())
-            .collect::<Vec<_>>();
-        if let Some(token) = segments.last() {
-            if let Some(candidate) = decode_b64_candidate(token) {
-                decoded = candidate;
-                method = "base64_segment".to_string();
-            }
-        }
-    }
-
-    if decoded.is_empty() {
-        decoded = input_url.clone();
-        method = "fallback_identity".to_string();
-    }
+    let (decoded, method) = decode_news_url_recursively(&input_url, 4);
 
     let mut out = json!({
         "ok": true,
@@ -142,7 +105,7 @@ pub fn run_decode_news_url(root: &Path, parsed: &ParsedArgs, strict: bool) -> Va
 }
 
 #[cfg(test)]
-mod tests {
+mod decode_news_url_tests {
     use super::*;
 
     #[test]
@@ -179,5 +142,24 @@ mod tests {
             Some("https://example.com/story")
         );
     }
-}
 
+    #[test]
+    fn decode_news_url_unwraps_nested_google_redirects() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let nested = "https://news.google.com/read/OUTER?url=https%3A%2F%2Fnews.google.com%2Fread%2FINNER%3Furl%3Dhttps%253A%252F%252Fexample.com%252Fnested-story";
+        let parsed = crate::parse_args(&[
+            "decode-news-url".to_string(),
+            format!("--url={nested}"),
+        ]);
+        let out = run_decode_news_url(root.path(), &parsed, true);
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            out.get("decoded_url").and_then(Value::as_str),
+            Some("https://example.com/nested-story")
+        );
+        assert_eq!(
+            out.get("decode_method").and_then(Value::as_str),
+            Some("query_param->query_param")
+        );
+    }
+}
