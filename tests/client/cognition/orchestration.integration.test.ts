@@ -29,7 +29,7 @@ function main() {
         item_id: 'V6-SEC-010',
         severity: 'high',
         status: 'open',
-        location: 'core/layer0/ops/src/security_plane.rs:10',
+        location: 'core/layer0/ops/src/orchestration_parts/070-run-coordinator.rs:10',
         evidence: [{ type: 'receipt', value: 'sec-1' }],
         timestamp: new Date('2026-03-15T00:00:00Z').toISOString()
       },
@@ -39,7 +39,7 @@ function main() {
         item_id: 'V6-MEMORY-013',
         severity: 'medium',
         status: 'open',
-        location: 'client/runtime/systems/memory/policy_validator.ts:10',
+        location: 'surface/orchestration/scripts/personas_orchestration.ts:10',
         evidence: [{ type: 'receipt', value: 'out-of-scope' }],
         timestamp: new Date('2026-03-15T00:00:01Z').toISOString()
       },
@@ -49,7 +49,7 @@ function main() {
         item_id: 'REQ-38-004',
         severity: 'low',
         status: 'open',
-        location: 'client/cognition/orchestration/scope.ts:20',
+        location: 'core/layer0/ops/src/orchestration_parts/030-detect-scope-overlaps.rs:20',
         evidence: [{ type: 'receipt', value: 'req38' }],
         timestamp: new Date('2026-03-15T00:00:02Z').toISOString()
       }
@@ -59,15 +59,28 @@ function main() {
 
   assert.strictEqual(out.ok, true);
   assert.strictEqual(out.findings_total, 3);
-  assert.strictEqual(out.findings_in_scope, 2);
-  assert.strictEqual(out.scope_violation_count, 1);
+  assert.strictEqual(out.findings_in_scope, 1);
+  assert.strictEqual(out.scope_violation_count, 2);
   assert.strictEqual(out.completion_summary.complete, true);
+  assert.strictEqual(out.completion_summary.partial_count, 1);
   assert.notStrictEqual(out.notification, null);
+  assert.strictEqual(out.notification.status, 'done');
+  assert.strictEqual(out.report.findings[0].location, 'core/layer0/ops/src/orchestration_parts/070-run-coordinator.rs:10');
+  assert.strictEqual(out.scope_violations[0].location, 'surface/orchestration/scripts/personas_orchestration.ts:10');
+  assert.strictEqual(out.scope_violations[1].location, 'core/layer0/ops/src/orchestration_parts/030-detect-scope-overlaps.rs:20');
+  assert.strictEqual(out.checkpoint.ok, true);
+  assert.strictEqual(out.checkpoint.checkpoint_written, true);
+  assert.strictEqual(fs.existsSync(out.checkpoint.checkpoint_path), true);
 
   const group = taskgroup.queryTaskGroup(out.task_group_id, { rootDir });
   assert.strictEqual(group.ok, true);
   assert.strictEqual(group.counts.done, 2);
   assert.strictEqual(group.task_group.status, 'done');
+  assert.strictEqual(fs.existsSync(group.filePath), true);
+  assert.strictEqual(Array.isArray(group.task_group.history), true);
+  assert.strictEqual(group.task_group.history.length, 2);
+  assert.strictEqual(group.task_group.agents[0].details.partial_results_count, 1);
+  assert.strictEqual(group.task_group.agents[1].details.partial_results_count, 0);
 
   console.log(JSON.stringify({ ok: true, type: 'orchestration_integration_test' }));
 }
