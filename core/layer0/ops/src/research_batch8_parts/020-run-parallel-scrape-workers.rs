@@ -38,7 +38,7 @@ pub fn run_parallel_scrape_workers(root: &Path, parsed: &ParsedArgs, strict: boo
         errors.push("parallel_worker_contract_kind_invalid".to_string());
     }
 
-    let targets = parse_csv_or_file_unique(root, &parsed.flags, "targets", "targets-file", 2000);
+    let targets = parse_csv_or_file_stable_unique(root, &parsed.flags, "targets", "targets-file", 2000);
     let mut session_ids = parse_csv_flag(&parsed.flags, "session-ids", 120);
     if session_ids.is_empty() {
         session_ids.push("session-default".to_string());
@@ -416,4 +416,3 @@ pub fn run_decoder_template_governance(root: &Path, parsed: &ParsedArgs, strict:
         conduit,
     )
 }
-

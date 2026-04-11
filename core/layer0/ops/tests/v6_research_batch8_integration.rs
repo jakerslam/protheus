@@ -411,3 +411,85 @@ fn v6_research_batch8_rejects_conduit_bypass_in_strict_mode() {
             .any(|r| r.as_str() == Some("conduit_bypass_rejected")))
         .unwrap_or(false));
 }
+
+#[test]
+fn v6_research_batch8_preserves_input_order_while_deduping_batch_inputs() {
+    let fixture = stage_fixture_root();
+    let root = fixture.path();
+
+    let targets_file = root.join("fixtures").join("parallel_targets.txt");
+    if let Some(parent) = targets_file.parent() {
+        fs::create_dir_all(parent).expect("mkdir parallel fixture");
+    }
+    fs::write(
+        &targets_file,
+        "https://a.test/retry-two\nhttps://a.test/one\nhttps://a.test/retry-two\n",
+    )
+    .expect("write targets");
+    let parallel_exit = research_plane::run(
+        root,
+        &[
+            "parallel-scrape-workers".to_string(),
+            "--strict=1".to_string(),
+            format!("--targets-file={}", targets_file.display()),
+            "--session-ids=s-alpha,s-beta".to_string(),
+            "--max-concurrency=2".to_string(),
+            "--max-retries=1".to_string(),
+        ],
+    );
+    assert_eq!(parallel_exit, 0);
+    let parallel_latest = read_json(&latest_path(root));
+    let queue = read_json(
+        Path::new(
+            parallel_latest
+                .get("artifact")
+                .and_then(|v| v.get("path"))
+                .and_then(Value::as_str)
+                .expect("parallel artifact path"),
+        ),
+    )
+    .get("queue")
+    .and_then(Value::as_array)
+    .cloned()
+    .unwrap_or_default();
+    assert_eq!(queue.len(), 2);
+    assert_eq!(
+        queue[0].get("target").and_then(Value::as_str),
+        Some("https://a.test/retry-two")
+    );
+    assert_eq!(
+        queue[1].get("target").and_then(Value::as_str),
+        Some("https://a.test/one")
+    );
+
+    let urls_file = root.join("fixtures").join("ordered_decode_urls.txt");
+    fs::write(
+        &urls_file,
+        "https://news.google.com/read/ZZZ?continue=https%3A%2F%2Fexample.com%2Fz-story\nhttps://news.google.com/read/AAA?continue=https%3A%2F%2Fexample.com%2Fa-story\nhttps://news.google.com/read/ZZZ?continue=https%3A%2F%2Fexample.com%2Fz-story\n",
+    )
+    .expect("write ordered decode urls");
+    let decode_exit = research_plane::run(
+        root,
+        &[
+            "decode-news-urls".to_string(),
+            "--strict=1".to_string(),
+            format!("--urls-file={}", urls_file.display()),
+        ],
+    );
+    assert_eq!(decode_exit, 0);
+    let decode_latest = read_json(&latest_path(root));
+    let items = decode_latest
+        .get("items")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    assert_eq!(items.len(), 2);
+    assert_eq!(
+        items[0].get("decoded_url").and_then(Value::as_str),
+        Some("https://example.com/z-story")
+    );
+    assert_eq!(
+        items[1].get("decoded_url").and_then(Value::as_str),
+        Some("https://example.com/a-story")
+    );
+}
