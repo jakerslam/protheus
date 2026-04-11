@@ -744,7 +744,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             json!({
                 "ok": false,
                 "strict": strict,
-                "type": "vbrowser_plane_conduit_gate",
+                "type": vbrowser_receipt_type(&command),
                 "errors": ["conduit_bypass_rejected"],
                 "conduit_enforcement": conduit
             }),
@@ -774,7 +774,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "ok": false,
             "type": "vbrowser_plane_error",
             "error": "unknown_command",
-            "command": command
+            "command": command,
+            "requested_command": raw_command
         }),
     };
     if command == "status" {
@@ -809,5 +810,31 @@ mod tests {
         assert_eq!(canonical_vbrowser_command("control"), "session-control");
         assert_eq!(canonical_vbrowser_command("keys"), "key-input");
         assert_eq!(canonical_vbrowser_command("privacy"), "privacy-guard");
+    }
+
+    #[test]
+    fn alias_bypass_emits_action_specific_receipt_type() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let exit = run(
+            root.path(),
+            &[
+                "open".to_string(),
+                "--strict=1".to_string(),
+                "--bypass=1".to_string(),
+            ],
+        );
+        assert_eq!(exit, 1);
+        let latest = crate::v8_kernel::read_json(&state_root(root.path()).join("latest.json"))
+            .expect("latest vbrowser receipt");
+        assert_eq!(
+            latest.get("type").and_then(Value::as_str),
+            Some("vbrowser_plane_session_start")
+        );
+        assert_eq!(
+            latest
+                .pointer("/conduit_enforcement/action")
+                .and_then(Value::as_str),
+            Some("session-start")
+        );
     }
 }

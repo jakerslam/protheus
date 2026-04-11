@@ -85,7 +85,7 @@ fn v6_parse_batch8_parse_doc_and_visualize_with_receipts() {
     let parse_exit = parse_plane::run(
         root,
         &[
-            "parse-doc".to_string(),
+            "parse_doc".to_string(),
             format!("--file={}", source_path.display()),
             "--mapping=default".to_string(),
             "--strict=1".to_string(),
@@ -96,6 +96,12 @@ fn v6_parse_batch8_parse_doc_and_visualize_with_receipts() {
     assert_eq!(
         parse_latest.get("type").and_then(Value::as_str),
         Some("parse_plane_parse_doc")
+    );
+    assert_eq!(
+        parse_latest
+            .pointer("/conduit_enforcement/action")
+            .and_then(Value::as_str),
+        Some("parse-doc")
     );
     assert_eq!(parse_latest.get("ok").and_then(Value::as_bool), Some(true));
     assert!(parse_latest
@@ -117,7 +123,7 @@ fn v6_parse_batch8_parse_doc_and_visualize_with_receipts() {
     let viz_exit = parse_plane::run(
         root,
         &[
-            "visualize".to_string(),
+            "viz".to_string(),
             format!("--from-path={parse_artifact}"),
             "--strict=1".to_string(),
         ],
@@ -127,6 +133,12 @@ fn v6_parse_batch8_parse_doc_and_visualize_with_receipts() {
     assert_eq!(
         viz_latest.get("type").and_then(Value::as_str),
         Some("parse_plane_visualize")
+    );
+    assert_eq!(
+        viz_latest
+            .pointer("/conduit_enforcement/action")
+            .and_then(Value::as_str),
+        Some("visualize")
     );
     assert_eq!(viz_latest.get("ok").and_then(Value::as_bool), Some(true));
     assert!(viz_latest
