@@ -159,7 +159,7 @@
   display: flex;
   align-items: center;
   gap: 14px;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .topbar-brand {
@@ -200,6 +200,7 @@
   align-items: center;
   gap: 8px;
   min-width: 0;
+  overflow: hidden;
 }
 
 .global-topbar-controls {

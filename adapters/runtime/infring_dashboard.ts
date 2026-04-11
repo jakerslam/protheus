@@ -5,7 +5,12 @@ const fs = require('node:fs');
 const path = require('node:path');
 const http = require('node:http');
 const { spawn } = require('node:child_process');
-const { ROOT, resolveBinary, runProtheusOps } = require('./run_protheus_ops.ts');
+const {
+  ROOT,
+  invokeProtheusOpsViaBridge,
+  resolveBinary,
+  runProtheusOps,
+} = require('./run_protheus_ops.ts');
 const { buildPrimaryDashboardHtml, hasPrimaryDashboardUi, readBuildVersionInfo, readPrimaryDashboardAsset } = require('./dashboard_asset_router.ts');
 const { createAgentWsBridge } = require('./agent_ws_bridge.ts');
 
@@ -270,6 +275,48 @@ function sendJson(res, statusCode, value) {
   res.writeHead(statusCode, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
   res.end(`${JSON.stringify(value, null, 2)}\n`);
 }
+function parseLastJson(stdout) {
+  const lines = String(stdout || '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    const line = lines[i];
+    if (!line.startsWith('{')) continue;
+    try {
+      return JSON.parse(line);
+    } catch {}
+  }
+  return null;
+}
+function readJsonBody(req, maxBytes = 65536) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let total = 0;
+    ignoreStreamErrors(req);
+    req.on('data', (chunk) => {
+      const next = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      total += next.length;
+      if (total > maxBytes) {
+        reject(new Error('request_body_too_large'));
+        return;
+      }
+      chunks.push(next);
+    });
+    req.on('end', () => {
+      if (!chunks.length) {
+        resolve({});
+        return;
+      }
+      try {
+        resolve(JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}'));
+      } catch {
+        reject(new Error('request_body_invalid_json'));
+      }
+    });
+    req.on('error', reject);
+  });
+}
 function currentDashboardBuildInfo() {
   return readBuildVersionInfo(STATIC_DIR);
 }
@@ -299,6 +346,112 @@ function filteredHeaders(headers, host) {
   }
   out.host = host;
   return out;
+}
+function dashboardSystemActionArgs(action, payload = {}) {
+  const normalized = cleanText(action, 40).toLowerCase();
+  const body = (payload && typeof payload === 'object' && !Array.isArray(payload)) ? payload : {};
+  if (normalized === 'restart') return ['restart', '--json'];
+  if (normalized === 'shutdown') return ['stop', '--json'];
+  if (normalized === 'update') {
+    const args = ['update', '--json'];
+    if (body.force === true) args.push('--force');
+    if (body.apply !== false) args.push('--apply');
+    return args;
+  }
+  throw new Error(`unknown_dashboard_system_action:${normalized}`);
+}
+function dashboardSystemActionEnv() {
+  return {
+    ...process.env,
+    PROTHEUS_ROOT: ROOT,
+    PROTHEUS_OPS_ALLOW_STALE: process.env.PROTHEUS_OPS_ALLOW_STALE || '1',
+    PROTHEUS_NPM_ALLOW_STALE: process.env.PROTHEUS_NPM_ALLOW_STALE || '1',
+  };
+}
+function runDashboardSystemAction(action, payload = {}) {
+  const args = dashboardSystemActionArgs(action, payload);
+  const run =
+    invokeProtheusOpsViaBridge(args, {
+      allowProcessFallback: false,
+      unknownDomainFallback: false,
+    }) || {
+      status: 1,
+      stdout: '',
+      stderr: 'resident_ipc_bridge_unavailable',
+      payload: null,
+    };
+  const status = Number.isFinite(Number(run.status)) ? Number(run.status) : 1;
+  const receipt = (run && run.payload && typeof run.payload === 'object') ? run.payload : parseLastJson(run.stdout);
+  const ok = status === 0 && (!receipt || receipt.ok !== false);
+  const error = ok
+    ? ''
+    : cleanText(
+        (receipt && receipt.error) || run.stderr || run.stdout || `${cleanText(action, 40).toLowerCase()}_failed`,
+        260,
+      );
+  return {
+    ok,
+    type: 'dashboard_system_action',
+    action: cleanText(action, 40).toLowerCase(),
+    command: args[0],
+    args: args.slice(1),
+    exit_code: status,
+    payload: receipt || null,
+    error,
+  };
+}
+function dispatchDashboardSystemAction(action, payload = {}) {
+  const args = dashboardSystemActionArgs(action, payload);
+  const env = dashboardSystemActionEnv();
+  const bin = resolveBinary({ env });
+  if (!bin) {
+    return {
+      ok: false,
+      type: 'dashboard_system_action',
+      action: cleanText(action, 40).toLowerCase(),
+      command: '',
+      args: args.slice(1),
+      error: 'dashboard_backend_binary_missing',
+    };
+  }
+  try {
+    const child = spawn(bin, args, {
+      cwd: ROOT,
+      env,
+      detached: true,
+      stdio: 'ignore',
+    });
+    if (child && typeof child.unref === 'function') child.unref();
+    return {
+      ok: true,
+      type: 'dashboard_system_action',
+      action: cleanText(action, 40).toLowerCase(),
+      command: path.basename(bin),
+      args: args.slice(1),
+      dispatch_mode: 'detached_subprocess',
+      pid: Number(child && child.pid) || 0,
+      payload: null,
+      error: '',
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      type: 'dashboard_system_action',
+      action: cleanText(action, 40).toLowerCase(),
+      command: path.basename(String(bin || '')),
+      args: args.slice(1),
+      error: cleanText(error && error.message ? error.message : String(error), 260),
+    };
+  }
+}
+function scheduleDashboardHostExit(cleanup, delayMs = 180) {
+  const waitMs = parsePositiveInt(delayMs, 180, 80, 5000);
+  setTimeout(() => {
+    try { cleanup(); } catch {}
+    setTimeout(() => {
+      try { process.exit(0); } catch {}
+    }, 0);
+  }, waitMs);
 }
 function proxyToBackend(req, res, flags) {
   return new Promise((resolve, reject) => {
@@ -433,6 +586,45 @@ async function runServe(flags) {
         const auth = await fetchBackendJson(flags, '/api/auth/check', 8000).catch(() => ({ ok: true, mode: 'none', authenticated: true, user: 'operator' }));
         return void sendJson(res, 200, auth);
       }
+      if (req.method === 'POST' && pathname === '/api/system/restart') {
+        const body = await readJsonBody(req);
+        const result = dispatchDashboardSystemAction('restart', body);
+        return void sendJson(res, result.ok ? 200 : 500, result);
+      }
+      if (req.method === 'POST' && pathname === '/api/system/update') {
+        const body = await readJsonBody(req);
+        try {
+          const upstream = await fetchBackend(flags, '/api/system/update', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(body || {})
+          }, body && body.apply === false ? 8000 : 3500);
+          const text = await upstream.text();
+          let payload = {};
+          try {
+            payload = text ? JSON.parse(text) : {};
+          } catch {
+            payload = {};
+          }
+          return void sendJson(
+            res,
+            upstream.status || ((payload && payload.ok === false) ? 400 : 200),
+            payload && typeof payload === 'object' ? payload : { ok: upstream.ok }
+          );
+        } catch (_) {
+          const result = runDashboardSystemAction('update', body);
+          return void sendJson(res, result.ok ? 200 : 500, result);
+        }
+      }
+      if (req.method === 'POST' && pathname === '/api/system/shutdown') {
+        const body = await readJsonBody(req);
+        const result = dispatchDashboardSystemAction('shutdown', body);
+        sendJson(res, result.ok ? 200 : 500, result);
+        if (result.ok) {
+          scheduleDashboardHostExit(cleanup, body && body.exit_delay_ms);
+        }
+        return;
+      }
       if (req.method === 'GET') {
         if (svelteKitUiEnabled) {
           const svelteAsset = readSvelteKitAsset(pathname);
@@ -452,7 +644,9 @@ async function runServe(flags) {
       if (pathname === '/healthz' || pathname.startsWith('/api/')) return void await proxyToBackend(req, res, flags);
       sendJson(res, 404, { ok: false, type: 'infring_dashboard_not_found', path: pathname });
     } catch (error) {
-      sendJson(res, 500, { ok: false, type: 'infring_dashboard_request_error', error: cleanText(error && error.message ? error.message : String(error), 260) });
+      const message = cleanText(error && error.message ? error.message : String(error), 260);
+      const statusCode = message === 'request_body_invalid_json' || message === 'request_body_too_large' ? 400 : 500;
+      sendJson(res, statusCode, { ok: false, type: 'infring_dashboard_request_error', error: message });
     }
   });
   server.on('upgrade', (req, socket, head) => {
@@ -498,7 +692,19 @@ async function run(argv = process.argv.slice(2)) {
     },
   });
 }
-module.exports = { cleanText, currentDashboardBuildInfo, isTransientSocketError, mergeDashboardVersionPayload, normalizeArgs, parseFlags, run };
+module.exports = {
+  cleanText,
+  currentDashboardBuildInfo,
+  dashboardSystemActionArgs,
+  isTransientSocketError,
+  mergeDashboardVersionPayload,
+  normalizeArgs,
+  parseFlags,
+  dispatchDashboardSystemAction,
+  run,
+  runDashboardSystemAction,
+  scheduleDashboardHostExit,
+};
 if (require.main === module) {
   process.on('uncaughtException', (error) => {
     if (isTransientSocketError(error)) {

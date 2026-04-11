@@ -76,7 +76,7 @@
       if (!target || typeof target.closest !== 'function') return false;
       return Boolean(
         target.closest(
-          'button, a, input, textarea, select, [role="button"], [draggable="true"], .topbar-reorder-item, .theme-switcher, .notif-wrap, .topbar-search-popup, .topbar-search-popup-anchor, .topbar-clock'
+          'button, a, input, textarea, select, [role="button"], [draggable="true"], .topbar-reorder-item, .topbar-hero-menu-anchor, .topbar-hero-menu, .theme-switcher, .notif-wrap, .topbar-search-popup, .topbar-search-popup-anchor, .topbar-clock'
         )
       );
     },
@@ -160,7 +160,7 @@
     topbarReorderDefaults(group) {
       var key = String(group || '').trim().toLowerCase();
       if (key === 'right') return ['connectivity', 'theme', 'notifications', 'search', 'auth'];
-      return ['nav_cluster', 'refresh'];
+      return ['nav_cluster'];
     },
 
     topbarReorderStorageKey(group) {

@@ -247,6 +247,13 @@ function buildReport(args = parseArgs(process.argv.slice(2))) {
     channel,
     tag: cleanText(semver?.next_tag ?? 'none', 120),
     version: cleanText(semver?.next_version ?? semver?.current_version ?? '0.0.0', 120),
+    policy_thresholds: {
+      ipc_success_rate_min: safeNumber(thresholds.ipc_success_rate_min, 0.95),
+      receipt_completeness_rate_min: safeNumber(thresholds.receipt_completeness_rate_min, 1),
+      supported_command_latency_ms_max: safeNumber(thresholds.supported_command_latency_ms_max, 2500),
+      recovery_rto_minutes_max: safeNumber(thresholds.recovery_rto_minutes_max, 30),
+      recovery_rpo_hours_max: safeNumber(thresholds.recovery_rpo_hours_max, 24),
+    },
     thresholds: {
       ipc_success_rate: Number(ipcSuccessRate.toFixed(4)),
       receipt_completeness_rate: Number(receiptCompleteness.toFixed(4)),
@@ -255,6 +262,7 @@ function buildReport(args = parseArgs(process.argv.slice(2))) {
       observed_rto_minutes: observedRtoMinutes,
       observed_rpo_hours: observedRpoHours,
     },
+    failed_gate_ids: gates.filter((row) => !row.ok).map((row) => row.id),
     gates,
   };
 

@@ -24,6 +24,19 @@ type Policy = {
   required_verify_profile_gate_ids?: Record<string, string[]>;
   required_readme_markers?: string[];
   smoke_scripts?: string[];
+  numeric_thresholds?: {
+    ipc_success_rate_min?: number;
+    receipt_completeness_rate_min?: number;
+    supported_command_latency_ms_max?: number;
+    recovery_rto_minutes_max?: number;
+    recovery_rpo_hours_max?: number;
+  };
+  release_candidate_rehearsal?: {
+    required_step_gate_ids?: string[];
+  };
+  standing_regression_guards?: {
+    client_authority_gate_id?: string;
+  };
 };
 
 const ROOT = process.cwd();
@@ -36,6 +49,14 @@ const SUPPORT_BUNDLE_ARTIFACT_PATH = path.join(ROOT, 'core/local/artifacts/suppo
 const RELEASE_SCORECARD_PATH = path.join(
   ROOT,
   'client/runtime/local/state/release/scorecard/release_scorecard.json',
+);
+const RELEASE_RC_REHEARSAL_PATH = path.join(
+  ROOT,
+  'core/local/artifacts/release_candidate_dress_rehearsal_current.json',
+);
+const CLIENT_BOUNDARY_ARTIFACT_PATH = path.join(
+  ROOT,
+  'core/local/artifacts/client_layer_boundary_audit_current.json',
 );
 
 function parseBool(raw: string | undefined, fallback = false): boolean {
@@ -65,6 +86,17 @@ function readJson<T>(filePath: string, fallback: T): T {
   } catch {
     return fallback;
   }
+}
+
+function safeNumber(value: unknown, fallback: number): number {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : fallback;
+}
+
+function metricText(value: unknown): string {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return 'missing';
+  return Number.isInteger(numeric) ? String(numeric) : numeric.toFixed(4);
 }
 
 function checkRequiredFiles(files: string[]): Check[] {
@@ -183,11 +215,23 @@ function runSmokeScripts(scriptNames: string[]): Check[] {
   });
 }
 
-function checkReleaseEvidence(): Check[] {
+function checkReleaseEvidence(policy: Policy): Check[] {
   const topology = readJson<any>(TOPOLOGY_ARTIFACT_PATH, {});
   const stateCompat = readJson<any>(STATE_COMPAT_ARTIFACT_PATH, {});
   const supportBundle = readJson<any>(SUPPORT_BUNDLE_ARTIFACT_PATH, {});
   const scorecard = readJson<any>(RELEASE_SCORECARD_PATH, {});
+  const rcRehearsal = readJson<any>(RELEASE_RC_REHEARSAL_PATH, {});
+  const clientBoundary = readJson<any>(CLIENT_BOUNDARY_ARTIFACT_PATH, {});
+  const thresholds = policy.numeric_thresholds || {};
+  const requiredRcStepIds = Array.isArray(policy.release_candidate_rehearsal?.required_step_gate_ids)
+    ? policy.release_candidate_rehearsal?.required_step_gate_ids || []
+    : [];
+  const clientAuthorityGateId = String(
+    policy.standing_regression_guards?.client_authority_gate_id || 'audit:client-layer-boundary',
+  );
+  const scorecardGates = new Map<string, any>(
+    (Array.isArray(scorecard?.gates) ? scorecard.gates : []).map((row: any) => [String(row?.id || ''), row]),
+  );
   const liveChecks = stateCompat?.checks || {};
   const liveRehearsalOk =
     liveChecks.live_taskgroup_rehearsal_verified === true &&
@@ -195,12 +239,80 @@ function checkReleaseEvidence(): Check[] {
     liveChecks.live_memory_surface_verified === true &&
     liveChecks.live_runtime_receipt_verified === true &&
     liveChecks.live_assimilation_contract_verified === true;
+  const rcSteps = Array.isArray(rcRehearsal?.steps) ? rcRehearsal.steps : [];
+  const passedRcStepIds = new Set(
+    rcSteps.filter((row: any) => row?.ok === true).map((row: any) => String(row?.gate_id || '')),
+  );
+  const activeRcCycle = parseBool(process.env.INFRING_RELEASE_RC_REHEARSAL_ACTIVE, false);
+  const rcRequiredStepsOk =
+    requiredRcStepIds.length > 0 &&
+    requiredRcStepIds.every((gateId) => passedRcStepIds.has(String(gateId)));
+  const ipcSuccessRate = safeNumber(scorecard?.thresholds?.ipc_success_rate, Number.NaN);
+  const receiptCompletenessRate = safeNumber(
+    scorecard?.thresholds?.receipt_completeness_rate,
+    Number.NaN,
+  );
+  const supportedCommandLatencyMs = safeNumber(
+    scorecard?.thresholds?.max_command_latency_ms,
+    safeNumber(scorecard?.thresholds?.supported_command_latency_ms, Number.NaN),
+  );
+  const observedRtoMinutes = safeNumber(scorecard?.thresholds?.observed_rto_minutes, Number.NaN);
+  const observedRpoHours = safeNumber(scorecard?.thresholds?.observed_rpo_hours, Number.NaN);
+  const directThresholdChecks: Check[] = [
+    {
+      id: 'release_metric:ipc_success_rate',
+      ok:
+        ipcSuccessRate >= safeNumber(thresholds.ipc_success_rate_min, 0.95) &&
+        scorecardGates.get('ipc_success_rate_threshold')?.ok === true,
+      detail:
+        `value=${metricText(ipcSuccessRate)};min=${metricText(thresholds.ipc_success_rate_min)};` +
+        `scorecard_gate=${scorecardGates.get('ipc_success_rate_threshold')?.ok === true}`,
+    },
+    {
+      id: 'release_metric:receipt_completeness_rate',
+      ok:
+        receiptCompletenessRate >= safeNumber(thresholds.receipt_completeness_rate_min, 1) &&
+        scorecardGates.get('receipt_completeness_threshold')?.ok === true,
+      detail:
+        `value=${metricText(receiptCompletenessRate)};min=${metricText(thresholds.receipt_completeness_rate_min)};` +
+        `scorecard_gate=${scorecardGates.get('receipt_completeness_threshold')?.ok === true}`,
+    },
+    {
+      id: 'release_metric:supported_command_latency_ms',
+      ok:
+        supportedCommandLatencyMs <= safeNumber(thresholds.supported_command_latency_ms_max, 2500) &&
+        scorecardGates.get('supported_command_latency_threshold')?.ok === true,
+      detail:
+        `value=${metricText(supportedCommandLatencyMs)};max=${metricText(thresholds.supported_command_latency_ms_max)};` +
+        `scorecard_gate=${scorecardGates.get('supported_command_latency_threshold')?.ok === true}`,
+    },
+    {
+      id: 'release_metric:recovery_rto_minutes',
+      ok:
+        observedRtoMinutes <= safeNumber(thresholds.recovery_rto_minutes_max, 30) &&
+        scorecardGates.get('recovery_rto_threshold')?.ok === true,
+      detail:
+        `value=${metricText(observedRtoMinutes)};max=${metricText(thresholds.recovery_rto_minutes_max)};` +
+        `scorecard_gate=${scorecardGates.get('recovery_rto_threshold')?.ok === true}`,
+    },
+    {
+      id: 'release_metric:recovery_rpo_hours',
+      ok:
+        observedRpoHours <= safeNumber(thresholds.recovery_rpo_hours_max, 24) &&
+        scorecardGates.get('recovery_rpo_threshold')?.ok === true,
+      detail:
+        `value=${metricText(observedRpoHours)};max=${metricText(thresholds.recovery_rpo_hours_max)};` +
+        `scorecard_gate=${scorecardGates.get('recovery_rpo_threshold')?.ok === true}`,
+    },
+  ];
+  const clientBoundaryOk = clientBoundary?.summary?.pass === true || clientBoundary?.ok === true;
   return [
     {
       id: 'release_scorecard_numeric_thresholds',
       ok: scorecard?.ok === true,
       detail: scorecard?.ok === true ? 'enforced' : 'missing_or_failed',
     },
+    ...directThresholdChecks,
     {
       id: 'production_topology_supported',
       ok:
@@ -211,9 +323,31 @@ function checkReleaseEvidence(): Check[] {
       detail: `support_level=${String(topology?.support_level || 'unknown')}`,
     },
     {
+      id: 'production_topology_degraded_flags_clear',
+      ok: Array.isArray(topology?.degraded_flags) && topology.degraded_flags.length === 0,
+      detail: `flags=${Array.isArray(topology?.degraded_flags) ? topology.degraded_flags.join(',') || 'none' : 'missing'}`,
+    },
+    {
       id: 'stateful_upgrade_live_rehearsal',
       ok: stateCompat?.ok === true && liveRehearsalOk,
       detail: `live_rehearsal=${liveRehearsalOk}`,
+    },
+    {
+      id: 'release_candidate_rehearsal_completed',
+      ok: activeRcCycle || (rcRehearsal?.ok === true && rcRequiredStepsOk),
+      detail:
+        activeRcCycle
+          ? 'current_rc_cycle_active'
+          : `required_steps=${requiredRcStepIds.length};present=${rcRequiredStepsOk};` +
+            `failed=${safeNumber(rcRehearsal?.summary?.failed_count, -1)}`,
+    },
+    {
+      id: 'client_authority_regression_guard',
+      ok: clientBoundaryOk && (activeRcCycle || passedRcStepIds.has(clientAuthorityGateId)),
+      detail:
+        activeRcCycle
+          ? `current_rc_cycle_active;violations=${safeNumber(clientBoundary?.summary?.violation_count, -1)}`
+          : `rc_step=${clientAuthorityGateId};violations=${safeNumber(clientBoundary?.summary?.violation_count, -1)}`,
     },
     {
       id: 'support_bundle_incident_truth_package',
@@ -252,7 +386,7 @@ function buildReport(args: Args) {
     ),
   );
   if (args.runSmoke) checks.push(...runSmokeScripts(policy.smoke_scripts || []));
-  if (args.runSmoke) checks.push(...checkReleaseEvidence());
+  if (args.runSmoke) checks.push(...checkReleaseEvidence(policy));
 
   const failed = checks.filter((row) => !row.ok);
   return {

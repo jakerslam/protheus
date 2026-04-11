@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 use serde_json::{json, Value};
 use std::fs;
-use std::path::Path;
-use std::process::Command;
+use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
 
 const REPO_RELEASE_URL: &str = "https://github.com/protheuslabs/InfRing.git";
 
@@ -171,6 +171,163 @@ pub fn apply_update(root: &Path) -> Value {
     })
 }
 
+fn update_apply_spawn_spec() -> (String, Vec<String>) {
+    if cfg!(windows) {
+        (
+            "cmd".to_string(),
+            vec![
+                "/C".to_string(),
+                "git fetch --all --tags && git pull --ff-only".to_string(),
+            ],
+        )
+    } else {
+        (
+            "sh".to_string(),
+            vec![
+                "-lc".to_string(),
+                "git fetch --all --tags && git pull --ff-only".to_string(),
+            ],
+        )
+    }
+}
+
+pub fn dispatch_update_apply(root: &Path) -> Value {
+    if git_worktree_dirty(root) {
+        return json!({
+            "ok": false,
+            "type": "dashboard_release_apply",
+            "error": "worktree_not_clean",
+            "message": "Refusing update apply on dirty workspace."
+        });
+    }
+    let current_version = read_package_version(root);
+    let (program, args) = update_apply_spawn_spec();
+    let mut command = Command::new(&program);
+    command
+        .args(&args)
+        .current_dir(root)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+    match command.spawn() {
+        Ok(child) => json!({
+            "ok": true,
+            "type": "dashboard_release_apply",
+            "queued": true,
+            "dispatch_mode": "detached_subprocess",
+            "pid": child.id(),
+            "command": program,
+            "argv": args,
+            "current_version": current_version
+        }),
+        Err(err) => json!({
+            "ok": false,
+            "type": "dashboard_release_apply",
+            "error": format!("update_apply_spawn_failed:{}", clean_text(&err.to_string(), 200))
+        }),
+    }
+}
+
+fn is_dashboard_daemon_executable(exe: &Path) -> bool {
+    let name = exe
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    name.contains("infringd") || name.contains("protheusd")
+}
+
+fn dashboard_system_action_args_for_exe(exe: &Path, action: &str) -> Result<Vec<String>, String> {
+    let normalized = clean_text(action, 40).to_ascii_lowercase();
+    match normalized.as_str() {
+        "restart" => {
+            if is_dashboard_daemon_executable(exe) {
+                Ok(vec!["restart".to_string(), "--json".to_string()])
+            } else {
+                Ok(vec![
+                    "daemon-control".to_string(),
+                    "restart".to_string(),
+                    "--json".to_string(),
+                    "--dashboard-open=0".to_string(),
+                ])
+            }
+        }
+        "shutdown" | "stop" => {
+            if is_dashboard_daemon_executable(exe) {
+                Ok(vec!["stop".to_string(), "--json".to_string()])
+            } else {
+                Ok(vec![
+                    "daemon-control".to_string(),
+                    "stop".to_string(),
+                    "--json".to_string(),
+                ])
+            }
+        }
+        other => Err(format!("unknown_dashboard_system_action:{other}")),
+    }
+}
+
+fn dashboard_system_action_executables() -> Vec<PathBuf> {
+    let mut candidates = Vec::new();
+    if let Ok(current) = std::env::current_exe() {
+        candidates.push(current);
+    }
+    candidates.push(PathBuf::from("infring-ops"));
+    candidates.push(PathBuf::from("protheus-ops"));
+    candidates
+}
+
+pub fn dispatch_system_action(root: &Path, action: &str) -> Value {
+    let normalized = clean_text(action, 40).to_ascii_lowercase();
+    let mut last_error = String::new();
+    for exe in dashboard_system_action_executables() {
+        let args = match dashboard_system_action_args_for_exe(&exe, &normalized) {
+            Ok(args) => args,
+            Err(err) => {
+                last_error = err;
+                continue;
+            }
+        };
+        let mut command = Command::new(&exe);
+        command
+            .args(&args)
+            .current_dir(root)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null());
+        match command.spawn() {
+            Ok(child) => {
+                return json!({
+                    "ok": true,
+                    "type": "dashboard_system_action",
+                    "action": normalized,
+                    "dispatch_mode": "detached_subprocess",
+                    "pid": child.id(),
+                    "command": exe.file_name().and_then(|value| value.to_str()).unwrap_or_default(),
+                    "argv": args,
+                });
+            }
+            Err(err) => {
+                last_error = format!(
+                    "dashboard_system_action_spawn_failed:{}:{}",
+                    exe.display(),
+                    clean_text(&err.to_string(), 200)
+                );
+            }
+        }
+    }
+    json!({
+        "ok": false,
+        "type": "dashboard_system_action",
+        "action": normalized,
+        "error": if last_error.is_empty() {
+            "dashboard_system_action_spawn_unavailable".to_string()
+        } else {
+            last_error
+        }
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -189,5 +346,60 @@ mod tests {
         assert_eq!(row.1, 5);
         assert_eq!(row.2, 0);
         assert_eq!(row.3, "alpha");
+    }
+
+    #[test]
+    fn dashboard_system_action_routes_ops_binary_through_daemon_control() {
+        let exe = PathBuf::from("infring-ops");
+        assert_eq!(
+            dashboard_system_action_args_for_exe(&exe, "restart").expect("restart args"),
+            vec![
+                "daemon-control".to_string(),
+                "restart".to_string(),
+                "--json".to_string(),
+                "--dashboard-open=0".to_string()
+            ]
+        );
+        assert_eq!(
+            dashboard_system_action_args_for_exe(&exe, "shutdown").expect("shutdown args"),
+            vec![
+                "daemon-control".to_string(),
+                "stop".to_string(),
+                "--json".to_string()
+            ]
+        );
+    }
+
+    #[test]
+    fn dashboard_system_action_routes_daemon_binary_directly() {
+        let exe = PathBuf::from("infringd");
+        assert_eq!(
+            dashboard_system_action_args_for_exe(&exe, "restart").expect("restart args"),
+            vec!["restart".to_string(), "--json".to_string()]
+        );
+        assert_eq!(
+            dashboard_system_action_args_for_exe(&exe, "shutdown").expect("shutdown args"),
+            vec!["stop".to_string(), "--json".to_string()]
+        );
+    }
+
+    #[test]
+    fn update_apply_spawn_spec_includes_git_fetch_and_pull() {
+        let (_program, args) = update_apply_spawn_spec();
+        let joined = args.join(" ");
+        assert!(joined.contains("git fetch --all --tags"));
+        assert!(joined.contains("git pull --ff-only"));
+    }
+
+    #[test]
+    fn dispatch_update_apply_rejects_dirty_worktree() {
+        let root = tempfile::tempdir().expect("tempdir");
+        fs::write(root.path().join("package.json"), r#"{"version":"0.3.10-alpha"}"#).expect("package");
+        let payload = dispatch_update_apply(root.path());
+        assert_eq!(payload.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            payload.get("error").and_then(Value::as_str),
+            Some("worktree_not_clean")
+        );
     }
 }

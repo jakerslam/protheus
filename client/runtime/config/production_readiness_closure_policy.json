@@ -36,11 +36,14 @@
   "assimilation_v1": {
     "contract_path": "client/runtime/config/assimilation_v1_support_contract.json",
     "support_level": "experimental_opt_in",
-    "frozen_vertical_slice": "runtime_ingress_to_assimilation_kernel"
+    "frozen_vertical_slice": "runtime_ingress_to_assimilation_kernel",
+    "graduation_policy": "evidence_only_no_surface_growth"
   },
   "legacy_process_runner_transition": {
     "status": "dev_only_quarantined",
-    "deletion_target": "Delete after one stable release cycle beyond v0.3.10-alpha unless a release blocker remains open.",
+    "deletion_target_release": "v0.3.11-stable",
+    "deletion_target_date": "2026-05-15",
+    "deletion_condition": "Delete adapters/runtime/dev_only/legacy_process_runner.ts after the first stable release cycle that ships without an explicit open release blocker depending on it.",
     "owner": "ops"
   },
   "support_bundle_contract": {
@@ -49,7 +52,23 @@
   },
   "release_candidate_rehearsal": {
     "script": "ops:release:rc-rehearsal",
-    "strict": true
+    "strict": true,
+    "required_every_cycle": true,
+    "required_step_gate_ids": [
+      "dr:gameday:gate",
+      "ops:production-topology:gate",
+      "audit:client-layer-boundary",
+      "ops:stateful-upgrade-rollback:gate",
+      "ops:assimilation:v1:support:guard",
+      "ops:release-blockers:gate",
+      "ops:release-hardening-window:guard",
+      "ops:release:scorecard:gate",
+      "ops:production-closure:gate"
+    ]
+  },
+  "standing_regression_guards": {
+    "client_authority_gate_id": "audit:client-layer-boundary",
+    "client_authority_package_script": "ops:client-layer:boundary"
   },
   "numeric_thresholds": {
     "ipc_success_rate_min": 0.95,
@@ -100,6 +119,7 @@
     "dr:gameday:gate",
     "chaos:continuous:gate",
     "ops:runtime-telemetry:status",
+    "ops:client-layer:boundary",
     "ops:support-bundle:export",
     "ops:production-closure:gate",
     "tooling:list",
@@ -129,6 +149,7 @@
         "ops:origin-integrity:run",
         "ops:origin-integrity:certificate",
         "ops:production-topology:gate",
+        "audit:client-layer-boundary",
         "ops:release-hardening-window:guard",
         "ops:release:scorecard:gate"
       ]
@@ -140,13 +161,16 @@
     "Experimental lanes (explicit opt-in): `assimilate`",
     "Resident IPC is the only supported production topology; the legacy process runner is dev-only.",
     "Release entrypoints quarantine the legacy runner under `adapters/runtime/dev_only/**`.",
-    "Legacy runner deletion target: after one stable release cycle beyond `v0.3.10-alpha` unless a release blocker remains.",
+    "Legacy runner deletion target: remove `adapters/runtime/dev_only/legacy_process_runner.ts` by `v0.3.11-stable` / `2026-05-15` unless an explicit open release blocker depends on it.",
     "Operator topology diagnostic: `npm run -s ops:production-topology:status`",
     "Transport spawn audit: `npm run -s ops:transport:spawn-audit`",
     "Assimilation v1 support guard: `npm run -s ops:assimilation:v1:support:guard`",
     "Frozen assimilation v1 slice: one ingress -> orchestration -> assimilation-kernel -> receipt-output path is hardened; broader assimilation surfaces remain experimental.",
-    "Numeric release thresholds are enforced by `npm run -s ops:release:scorecard:gate`.",
+    "Assimilation v1 can graduate only through candidate-build evidence; no new assimilation surface is added during hardening.",
+    "Numeric release thresholds are enforced by `npm run -s ops:release:scorecard:gate` and re-checked directly by `npm run -s ops:production-closure:gate`.",
     "Release-candidate dress rehearsal: `npm run -s ops:release:rc-rehearsal`.",
+    "Release-candidate recovery rehearsal is required every cycle through `npm run -s ops:release:rc-rehearsal`.",
+    "Client authority regression guard: `npm run -s ops:client-layer:boundary`.",
     "Support bundle is the single incident truth package for release closure.",
     "`npm run -s ops:support-bundle:export`"
   ],
@@ -155,6 +179,7 @@
     "ops:transport:topology:gate",
     "ops:transport:spawn-audit",
     "ops:production-topology:gate",
+    "audit:client-layer-boundary",
     "ops:stateful-upgrade-rollback:gate",
     "ops:assimilation:v1:support:guard",
     "ops:release-blockers:gate",
