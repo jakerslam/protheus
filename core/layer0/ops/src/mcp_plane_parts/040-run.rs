@@ -1,3 +1,15 @@
+fn canonical_command_name(command: &str) -> String {
+    match command.trim().to_ascii_lowercase().as_str() {
+        "capability_matrix" | "capabilities" => "capability-matrix".to_string(),
+        "durable-workflow" | "workflow-runtime" => "workflow".to_string(),
+        "pattern_pack" => "pattern-pack".to_string(),
+        "template_governance" | "templates" => "template-governance".to_string(),
+        "template_suite" => "template-suite".to_string(),
+        "interop_status" => "interop-status".to_string(),
+        other => other.to_string(),
+    }
+}
+
 fn attach_v8_claim(mut payload: Value, mode: &str) -> Value {
     payload["claim_evidence"] = json!([{
         "id": "V8-MCP-001",
@@ -135,11 +147,12 @@ fn run_interop_status(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> 
 
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     let parsed = parse_args(argv);
-    let command = parsed
+    let raw_command = parsed
         .positional
         .first()
-        .map(|v| v.trim().to_ascii_lowercase())
+        .map(|v| v.trim().to_string())
         .unwrap_or_else(|| "status".to_string());
+    let command = canonical_command_name(&raw_command);
     if matches!(command.as_str(), "help" | "--help" | "-h") {
         usage();
         return 0;
@@ -191,7 +204,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "ok": false,
             "type": "mcp_plane_error",
             "error": "unknown_command",
-            "command": command
+            "command": command,
+            "requested_command": raw_command
         }),
     };
     if command == "status" {
@@ -221,5 +235,11 @@ mod tests {
         let out = conduit_enforcement(root.path(), &parsed, true, "capability-matrix");
         assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
     }
-}
 
+    #[test]
+    fn command_aliases_are_canonicalized() {
+        assert_eq!(canonical_command_name("pattern_pack"), "pattern-pack");
+        assert_eq!(canonical_command_name("template_suite"), "template-suite");
+        assert_eq!(canonical_command_name("workflow-runtime"), "workflow");
+    }
+}

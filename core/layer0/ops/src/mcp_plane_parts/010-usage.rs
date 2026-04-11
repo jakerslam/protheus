@@ -37,7 +37,7 @@ fn usage() {
     println!(
         "  protheus-ops mcp-plane expose --agent=<id> [--tools=a,b] [--max-rps=<n>] [--strict=1|0]"
     );
-    println!("  protheus-ops mcp-plane pattern-pack [--pattern=router|map-reduce|fanout|sequential] [--tasks=a,b] [--steps-json=<json>] [--strict=1|0]");
+    println!("  protheus-ops mcp-plane pattern-pack [--pattern=router|map-reduce|orchestrator|evaluator|swarm|fanout|sequential] [--tasks=a,b] [--tasks-file=<path>] [--steps-json=<json>|--steps-path=<path>] [--strict=1|0]");
     println!("  protheus-ops mcp-plane template-governance [--manifest=<path>] [--templates-root=<path>] [--strict=1|0]");
     println!("  protheus-ops mcp-plane template-suite [--template=<id>] [--strict=1|0]");
     println!("  protheus-ops mcp-plane interop-status [--server-capabilities=a,b] [--server-capabilities-file=<path>] [--agent=<id>] [--tools=a,b] [--max-rps=<n>] [--strict=1|0]");
@@ -275,4 +275,3 @@ fn load_checkpoint(root: &Path, parsed: &crate::ParsedArgs) -> Option<Value> {
     }
     None
 }
-
