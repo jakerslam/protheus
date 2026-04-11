@@ -27,7 +27,8 @@ For every incoming user prompt:
 - Enforce Rust-core authority and thin-client boundaries on every implementation.
 - Orchestration Surface is Rust-first by policy:
   - New orchestration authority and coordination logic must land in `surface/orchestration/src/**` (`.rs`).
-  - TypeScript in `surface/orchestration/scripts/**` is adapter-only and must remain thin wrapper/bridge code.
+  - `surface/orchestration/**` must remain at least `95%` Rust by tracked source lines.
+  - TypeScript in `surface/orchestration/scripts/**` is adapter-only and must remain minimal delegation code.
   - If orchestration logic requires TypeScript beyond adapter scope, stop with:
     - `BLOCKED — orchestration authority must be Rust; TS allowed only for minimal adapters`
 - Any net-new functionality must be paired with a canonical SRS row update in `docs/workspace/SRS.md` before it can be considered complete (`done`), including acceptance criteria and regression-proof references.
