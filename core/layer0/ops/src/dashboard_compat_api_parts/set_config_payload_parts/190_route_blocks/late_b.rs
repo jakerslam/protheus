@@ -193,12 +193,12 @@ fn handle_global_status_get_routes(
                 json!({"ok": true, "valid": true, "entries": entries.len(), "tip_hash": tip_hash})
             }
             "/api/version" => {
-                let version = read_json(&root.join("package.json"))
-                    .and_then(|v| v.get("version").and_then(Value::as_str).map(str::to_string))
-                    .unwrap_or_else(|| "0.0.0".to_string());
+                let version_info = dashboard_runtime_version_info(root);
                 json!({
                     "ok": true,
-                    "version": version,
+                    "version": version_info.get("version").and_then(Value::as_str).unwrap_or("0.0.0"),
+                    "tag": version_info.get("tag").and_then(Value::as_str).unwrap_or("v0.0.0"),
+                    "source": version_info.get("source").and_then(Value::as_str).unwrap_or("fallback_default"),
                     "rust_authority": "rust_core_lanes",
                     "platform": std::env::consts::OS,
                     "arch": std::env::consts::ARCH

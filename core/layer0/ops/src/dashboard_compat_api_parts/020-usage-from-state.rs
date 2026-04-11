@@ -280,6 +280,193 @@ fn monotonic_now_ms() -> u128 {
         .unwrap_or(0)
 }
 
+fn normalize_dashboard_version_text(value: &str) -> String {
+    clean_text(value.trim_start_matches(['v', 'V']), 120)
+}
+
+fn compare_dashboard_version_text(left: &str, right: &str) -> std::cmp::Ordering {
+    let left_normalized = normalize_dashboard_version_text(left);
+    let right_normalized = normalize_dashboard_version_text(right);
+    match (
+        semver::Version::parse(&left_normalized),
+        semver::Version::parse(&right_normalized),
+    ) {
+        (Ok(a), Ok(b)) => a.cmp(&b),
+        (Ok(_), Err(_)) => std::cmp::Ordering::Greater,
+        (Err(_), Ok(_)) => std::cmp::Ordering::Less,
+        _ => left_normalized.cmp(&right_normalized),
+    }
+}
+
+fn dashboard_version_source_priority(source: &str) -> i32 {
+    match clean_text(source, 80).as_str() {
+        "git_latest_tag" => 40,
+        "install_release_meta" => 30,
+        "install_release_tag" => 28,
+        "runtime_version_contract" => 20,
+        "package_json" => 10,
+        _ => 0,
+    }
+}
+
+fn dashboard_version_candidate(version: &str, tag: &str, source: &str) -> Option<Value> {
+    let normalized_version = normalize_dashboard_version_text(version);
+    if normalized_version.is_empty() {
+        return None;
+    }
+    let normalized_tag = {
+        let cleaned = clean_text(tag, 120);
+        if cleaned.is_empty() {
+            format!("v{normalized_version}")
+        } else {
+            cleaned
+        }
+    };
+    Some(json!({
+        "version": normalized_version,
+        "tag": normalized_tag,
+        "source": clean_text(source, 80)
+    }))
+}
+
+fn pick_dashboard_version_candidate(best: Option<Value>, candidate: Option<Value>) -> Option<Value> {
+    let Some(candidate_value) = candidate else {
+        return best;
+    };
+    let candidate_version = candidate_value
+        .get("version")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    let candidate_source = candidate_value
+        .get("source")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    match best {
+        None => Some(candidate_value),
+        Some(best_value) => {
+            let best_version = best_value.get("version").and_then(Value::as_str).unwrap_or("");
+            let cmp = compare_dashboard_version_text(candidate_version, best_version);
+            if cmp == std::cmp::Ordering::Greater {
+                Some(candidate_value)
+            } else if cmp == std::cmp::Ordering::Less {
+                Some(best_value)
+            } else {
+                let best_source = best_value
+                    .get("source")
+                    .and_then(Value::as_str)
+                    .unwrap_or("");
+                if dashboard_version_source_priority(candidate_source)
+                    >= dashboard_version_source_priority(best_source)
+                {
+                    Some(candidate_value)
+                } else {
+                    Some(best_value)
+                }
+            }
+        }
+    }
+}
+
+fn dashboard_git_latest_tag_candidate(root: &Path) -> Option<Value> {
+    let output = std::process::Command::new("git")
+        .args(["tag", "--list", "--sort=-v:refname", "v*"])
+        .current_dir(root)
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let tag = String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .map(|row| clean_text(row, 120))
+        .find(|row| !row.is_empty())?;
+    dashboard_version_candidate(&tag, &tag, "git_latest_tag")
+}
+
+fn dashboard_installed_release_candidate(root: &Path) -> Option<Value> {
+    let meta_path = root
+        .join("local")
+        .join("state")
+        .join("ops")
+        .join("install_release_meta.json");
+    if let Some(meta) = read_json(&meta_path) {
+        let value = clean_text(
+            meta.get("release_version_normalized")
+                .and_then(Value::as_str)
+                .or_else(|| meta.get("release_tag").and_then(Value::as_str))
+                .unwrap_or(""),
+            120,
+        );
+        let tag = clean_text(
+            meta.get("release_tag")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            120,
+        );
+        let candidate = dashboard_version_candidate(&value, &tag, "install_release_meta");
+        if candidate.is_some() {
+            return candidate;
+        }
+    }
+    let tag_path = root
+        .join("local")
+        .join("state")
+        .join("ops")
+        .join("install_release_tag.txt");
+    let raw = std::fs::read_to_string(tag_path).ok()?;
+    let tag = clean_text(raw.lines().next().unwrap_or(""), 120);
+    dashboard_version_candidate(&tag, &tag, "install_release_tag")
+}
+
+fn dashboard_runtime_version_candidate(root: &Path) -> Option<Value> {
+    let path = root
+        .join("client")
+        .join("runtime")
+        .join("config")
+        .join("runtime_version.json");
+    let payload = read_json(&path)?;
+    let source = clean_text(
+        payload
+            .get("source")
+            .and_then(Value::as_str)
+            .unwrap_or("runtime_version_contract"),
+        80,
+    );
+    dashboard_version_candidate(
+        payload.get("version").and_then(Value::as_str).unwrap_or(""),
+        payload.get("tag").and_then(Value::as_str).unwrap_or(""),
+        if source.is_empty() {
+            "runtime_version_contract"
+        } else {
+            &source
+        },
+    )
+}
+
+fn dashboard_package_version_candidate(root: &Path) -> Option<Value> {
+    let payload = read_json(&root.join("package.json"))?;
+    dashboard_version_candidate(
+        payload.get("version").and_then(Value::as_str).unwrap_or(""),
+        "",
+        "package_json",
+    )
+}
+
+fn dashboard_runtime_version_info(root: &Path) -> Value {
+    let mut best = None;
+    best = pick_dashboard_version_candidate(best, dashboard_runtime_version_candidate(root));
+    best = pick_dashboard_version_candidate(best, dashboard_package_version_candidate(root));
+    best = pick_dashboard_version_candidate(best, dashboard_installed_release_candidate(root));
+    best = pick_dashboard_version_candidate(best, dashboard_git_latest_tag_candidate(root));
+    best.unwrap_or_else(|| {
+        json!({
+            "version": "0.0.0",
+            "tag": "v0.0.0",
+            "source": "fallback_default"
+        })
+    })
+}
+
 fn status_payload_cache() -> &'static Mutex<Option<StatusPayloadCacheEntry>> {
     static STATUS_PAYLOAD_CACHE: OnceLock<Mutex<Option<StatusPayloadCacheEntry>>> = OnceLock::new();
     STATUS_PAYLOAD_CACHE.get_or_init(|| Mutex::new(None))
@@ -320,9 +507,22 @@ fn status_payload(root: &Path, snapshot: &Value, host_header: &str) -> Value {
     let hot_path_allocators = protheus_ops_core_v1::hot_path_allocators::snapshot_json();
     let web_conduit = crate::web_conduit::api_status(root);
     let (default_provider, default_model) = effective_app_settings(root, snapshot);
-    let version = read_json(&root.join("package.json"))
-        .and_then(|v| v.get("version").and_then(Value::as_str).map(str::to_string))
-        .unwrap_or_else(|| "0.0.0".to_string());
+    let version_info = dashboard_runtime_version_info(root);
+    let version = version_info
+        .get("version")
+        .and_then(Value::as_str)
+        .unwrap_or("0.0.0")
+        .to_string();
+    let version_tag = version_info
+        .get("tag")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
+    let version_source = version_info
+        .get("source")
+        .and_then(Value::as_str)
+        .unwrap_or("fallback_default")
+        .to_string();
     let listen = {
         let cleaned = clean_text(host_header, 200);
         if cleaned.is_empty() {
@@ -345,6 +545,8 @@ fn status_payload(root: &Path, snapshot: &Value, host_header: &str) -> Value {
     let out = json!({
         "ok": true,
         "version": version,
+        "version_tag": version_tag,
+        "version_source": version_source,
         "agent_count": agent_count,
         "connected": true,
         "uptime_sec": uptime_seconds,
@@ -901,6 +1103,7 @@ fn proactive_telemetry_alerts_payload(root: &Path, snapshot: &Value) -> Value {
 #[cfg(test)]
 mod continuity_tests {
     use super::*;
+    use std::process::Command;
     use tempfile::tempdir;
 
     fn write_json(path: &Path, value: &Value) {
@@ -909,6 +1112,20 @@ mod continuity_tests {
         }
         let raw = serde_json::to_string_pretty(value).expect("json");
         fs::write(path, raw).expect("write");
+    }
+
+    fn run_git(root: &Path, args: &[&str]) {
+        let output = Command::new("git")
+            .args(args)
+            .current_dir(root)
+            .output()
+            .expect("git spawn");
+        assert!(
+            output.status.success(),
+            "git {:?} failed: {}",
+            args,
+            String::from_utf8_lossy(&output.stderr)
+        );
     }
 
     #[test]
@@ -1078,5 +1295,47 @@ mod continuity_tests {
             .filter_map(|row| row.get("id").and_then(Value::as_str))
             .collect::<Vec<_>>();
         assert!(ids.contains(&"snapshot_history_bloat"));
+    }
+
+    #[test]
+    fn dashboard_runtime_version_info_prefers_latest_git_tag_over_stale_contract_files() {
+        let temp = tempdir().expect("tempdir");
+        write_json(
+            &temp.path().join("package.json"),
+            &json!({
+                "version": "0.2.1-alpha.1"
+            }),
+        );
+        write_json(
+            &temp
+                .path()
+                .join("client/runtime/config/runtime_version.json"),
+            &json!({
+                "version": "0.2.1-alpha.1",
+                "tag": "v0.2.1-alpha.1",
+                "source": "runtime_version_contract"
+            }),
+        );
+        fs::write(temp.path().join("README.md"), "demo\n").expect("write readme");
+        run_git(temp.path(), &["init"]);
+        run_git(temp.path(), &["config", "user.email", "tests@example.com"]);
+        run_git(temp.path(), &["config", "user.name", "Dashboard Tests"]);
+        run_git(temp.path(), &["add", "."]);
+        run_git(temp.path(), &["commit", "-m", "test repo"]);
+        run_git(temp.path(), &["tag", "v0.3.10-alpha"]);
+
+        let payload = dashboard_runtime_version_info(temp.path());
+        assert_eq!(
+            payload.get("version").and_then(Value::as_str),
+            Some("0.3.10-alpha")
+        );
+        assert_eq!(
+            payload.get("tag").and_then(Value::as_str),
+            Some("v0.3.10-alpha")
+        );
+        assert_eq!(
+            payload.get("source").and_then(Value::as_str),
+            Some("git_latest_tag")
+        );
     }
 }

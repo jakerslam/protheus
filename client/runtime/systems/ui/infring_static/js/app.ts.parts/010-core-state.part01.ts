@@ -384,9 +384,15 @@ document.addEventListener('alpine:init', function() {
       }
       try {
         var startedAt = Date.now();
-        var s = await InfringAPI.get('/api/status');
+        var results = await Promise.all([
+          InfringAPI.get('/api/status'),
+          InfringAPI.get('/api/version').catch(function() { return null; })
+        ]);
         var latencyMs = Math.max(0, Date.now() - startedAt);
+        var s = results[0];
+        var versionPayload = results[1];
         var statusObj = (s && typeof s === 'object') ? s : {};
+        var versionObj = (versionPayload && typeof versionPayload === 'object') ? versionPayload : {};
         var stateRaw = String(
           statusObj.connection_state ||
           statusObj.state ||
@@ -407,7 +413,8 @@ document.addEventListener('alpine:init', function() {
         this.lastStatusLatencyMs = latencyMs;
         this.lastStatusAt = new Date().toISOString();
         this.lastError = degraded ? String(statusObj.error || statusObj.warning || '') : '';
-        this.version = statusObj.version || this.version || window.__INFRING_APP_VERSION || '0.0.0';
+        var liveVersion = String(versionObj.version || versionObj.tag || '').trim().replace(/^[vV]/, '');
+        this.version = liveVersion || statusObj.version || this.version || window.__INFRING_APP_VERSION || '0.0.0';
         this.gitBranch = statusObj.git_branch ? String(statusObj.git_branch) : (this.gitBranch || '');
         this.agentCount = statusObj.agent_count || 0;
         this.runtimeSync = (statusObj.runtime_sync && typeof statusObj.runtime_sync === 'object') ? statusObj.runtime_sync : null;
