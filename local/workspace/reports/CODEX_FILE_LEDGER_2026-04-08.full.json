@@ -10650,7 +10650,7 @@
       "order": 967
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/crawl_console.rs",
       "language": "rs",
       "loc": 26,
@@ -10661,7 +10661,7 @@
       "order": 968
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/crawl_middleware.rs",
       "language": "rs",
       "loc": 26,
@@ -10672,7 +10672,7 @@
       "order": 969
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/crawl_pipeline.rs",
       "language": "rs",
       "loc": 26,
@@ -10683,7 +10683,7 @@
       "order": 970
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/crawl_signals.rs",
       "language": "rs",
       "loc": 26,
@@ -10694,7 +10694,7 @@
       "order": 971
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/crawl_spider.rs",
       "language": "rs",
       "loc": 26,

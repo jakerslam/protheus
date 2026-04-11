@@ -350,7 +350,11 @@ impl ReceiptJsonExt for Value {
     }
 
     fn set_receipt_hash(&mut self) {
-        self["receipt_hash"] = Value::String(deterministic_receipt_hash(self));
+        let mut unhashed = self.clone();
+        if let Some(obj) = unhashed.as_object_mut() {
+            obj.remove("receipt_hash");
+        }
+        self["receipt_hash"] = Value::String(deterministic_receipt_hash(&unhashed));
     }
 }
 
@@ -874,5 +878,27 @@ mod tests {
 
         let queue_path = receipt_binary_queue_path(&history_path);
         assert!(!queue_path.exists());
+    }
+
+    #[test]
+    fn set_receipt_hash_matches_payload_without_receipt_hash_field() {
+        let mut payload = json!({
+            "ok": true,
+            "type": "receipt_test",
+            "receipt_hash": "stale",
+            "nested": {"value": 1}
+        });
+        payload.set_receipt_hash();
+        let receipt_hash = payload
+            .get("receipt_hash")
+            .and_then(Value::as_str)
+            .expect("receipt hash")
+            .to_string();
+        let mut unhashed = payload.clone();
+        unhashed
+            .as_object_mut()
+            .expect("receipt payload")
+            .remove("receipt_hash");
+        assert_eq!(deterministic_receipt_hash(&unhashed), receipt_hash);
     }
 }

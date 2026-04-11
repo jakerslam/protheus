@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-use protheus_ops_core::{research_plane, v8_kernel::sha256_hex_str};
+use protheus_ops_core::{deterministic_receipt_hash, research_plane, v8_kernel::sha256_hex_str};
 use serde_json::{json, Value};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -79,6 +79,48 @@ fn assert_claim(payload: &Value, claim_id: &str) {
         .iter()
         .any(|row| row.get("id").and_then(Value::as_str) == Some(claim_id));
     assert!(has, "missing claim evidence id={claim_id}");
+}
+
+fn assert_runtime_receipt(payload: &Value, component: &str, contract: &str, claim_id: &str) {
+    assert_eq!(
+        payload.get("runtime_component").and_then(Value::as_str),
+        Some(component)
+    );
+    assert_eq!(
+        payload.get("runtime_contract").and_then(Value::as_str),
+        Some(contract)
+    );
+    assert_eq!(
+        payload.pointer("/runtime_claim/id").and_then(Value::as_str),
+        Some(claim_id)
+    );
+    assert_eq!(
+        payload
+            .pointer("/runtime_claim/evidence/component")
+            .and_then(Value::as_str),
+        Some(component)
+    );
+    assert_eq!(
+        payload
+            .pointer("/runtime_claim/evidence/claim_count")
+            .and_then(Value::as_u64),
+        payload
+            .get("claim_evidence")
+            .and_then(Value::as_array)
+            .map(|rows| rows.len() as u64)
+    );
+
+    let receipt_hash = payload
+        .get("receipt_hash")
+        .and_then(Value::as_str)
+        .expect("receipt hash")
+        .to_string();
+    let mut unhashed = payload.clone();
+    unhashed
+        .as_object_mut()
+        .expect("receipt object")
+        .remove("receipt_hash");
+    assert_eq!(deterministic_receipt_hash(&unhashed), receipt_hash);
 }
 
 #[test]
@@ -194,13 +236,13 @@ fn v6_research_batch6_strict_commands_emit_receipts_and_contract_behavior() {
             .unwrap_or(false),
         "spider must emit per-link receipts"
     );
-    assert_eq!(
-        spider_latest
-            .get("runtime_component")
-            .and_then(Value::as_str),
-        Some("crawl_spider")
-    );
     assert_claim(&spider_latest, "V6-RESEARCH-002.1");
+    assert_runtime_receipt(
+        &spider_latest,
+        "crawl_spider",
+        "V6-RESEARCH-002.1",
+        "V6-RESEARCH-002.1",
+    );
 
     let middleware_exit = research_plane::run(
         root,
@@ -222,13 +264,13 @@ fn v6_research_batch6_strict_commands_emit_receipts_and_contract_behavior() {
         middleware_latest.get("ok").and_then(Value::as_bool),
         Some(true)
     );
-    assert_eq!(
-        middleware_latest
-            .get("runtime_component")
-            .and_then(Value::as_str),
-        Some("crawl_middleware")
-    );
     assert_claim(&middleware_latest, "V6-RESEARCH-002.2");
+    assert_runtime_receipt(
+        &middleware_latest,
+        "crawl_middleware",
+        "V6-RESEARCH-002.2",
+        "V6-RESEARCH-002.2",
+    );
 
     let export_path = root
         .join("state")
@@ -259,13 +301,13 @@ fn v6_research_batch6_strict_commands_emit_receipts_and_contract_behavior() {
         export_path.exists(),
         "pipeline exporter must write output artifact"
     );
-    assert_eq!(
-        pipeline_latest
-            .get("runtime_component")
-            .and_then(Value::as_str),
-        Some("crawl_pipeline")
-    );
     assert_claim(&pipeline_latest, "V6-RESEARCH-002.3");
+    assert_runtime_receipt(
+        &pipeline_latest,
+        "crawl_pipeline",
+        "V6-RESEARCH-002.3",
+        "V6-RESEARCH-002.3",
+    );
 
     let signals_exit = research_plane::run(
         root,
@@ -286,13 +328,13 @@ fn v6_research_batch6_strict_commands_emit_receipts_and_contract_behavior() {
         signals_latest.get("ok").and_then(Value::as_bool),
         Some(true)
     );
-    assert_eq!(
-        signals_latest
-            .get("runtime_component")
-            .and_then(Value::as_str),
-        Some("crawl_signals")
-    );
     assert_claim(&signals_latest, "V6-RESEARCH-002.4");
+    assert_runtime_receipt(
+        &signals_latest,
+        "crawl_signals",
+        "V6-RESEARCH-002.4",
+        "V6-RESEARCH-002.4",
+    );
 
     std::env::set_var("RESEARCH_CONSOLE_TOKEN", "batch6-console-token");
     let console_exit = research_plane::run(
@@ -321,13 +363,13 @@ fn v6_research_batch6_strict_commands_emit_receipts_and_contract_behavior() {
             .and_then(Value::as_bool),
         Some(true)
     );
-    assert_eq!(
-        console_latest
-            .get("runtime_component")
-            .and_then(Value::as_str),
-        Some("crawl_console")
-    );
     assert_claim(&console_latest, "V6-RESEARCH-002.5");
+    assert_runtime_receipt(
+        &console_latest,
+        "crawl_console",
+        "V6-RESEARCH-002.5",
+        "V6-RESEARCH-002.5",
+    );
 
     let templates_root = root
         .join("planes")
