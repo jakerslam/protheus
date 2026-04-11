@@ -458,6 +458,9 @@ body[data-theme='dark'] .bottom-dock::before {
   --dock-tile-fg-hover: var(--dock-tile-fg);
   --dock-tile-fg-active: var(--dock-tile-fg-hover);
   --dock-tile-shadow-active: var(--bottom-dock-icon-shadow-active);
+  --dock-reorder-translate-x: 0px;
+  --dock-reorder-translate-y: 0px;
+  --dock-reorder-transition: 0ms;
   width: 32px;
   height: 32px;
   border: 1px solid color-mix(in srgb, #fff 24%, transparent);
@@ -469,11 +472,15 @@ body[data-theme='dark'] .bottom-dock::before {
   justify-content: center;
   cursor: pointer;
   position: relative;
-  transform: rotate(var(--bottom-dock-tile-rotation-deg, 0deg)) scale(1);
+  transform:
+    translate(var(--dock-reorder-translate-x), var(--dock-reorder-translate-y))
+    rotate(var(--bottom-dock-tile-rotation-deg, 0deg))
+    scale(1);
   box-shadow: var(--bottom-dock-icon-shadow-base);
   transition:
     color var(--transition-fast),
     background var(--transition-fast),
+    transform var(--dock-reorder-transition, 0ms) var(--ease-smooth),
     box-shadow 0s linear,
     opacity var(--transition-fast);
   will-change: transform, box-shadow;
@@ -561,6 +568,7 @@ body[data-theme='dark'] .bottom-dock::before {
 
 .dock-tile-slot .dock-tile {
   transform:
+    translate(var(--dock-reorder-translate-x), var(--dock-reorder-translate-y))
     rotate(var(--bottom-dock-tile-rotation-deg, 0deg))
     scale(calc(1 + (var(--bottom-dock-icon-emphasis-main) * var(--bottom-dock-hover-weight))));
   box-shadow:
@@ -612,6 +620,8 @@ body[data-theme='dark'] .bottom-dock::before {
 .bottom-dock-drag-ghost {
   --dock-ghost-scale: 1;
   --dock-tile-fg: #d9dee6;
+  --bottom-dock-tile-rotation-deg: 0deg;
+  --bottom-dock-icon-rotation-deg: 0deg;
   width: 32px;
   height: 32px;
   box-sizing: border-box;
@@ -625,7 +635,9 @@ body[data-theme='dark'] .bottom-dock::before {
   align-items: center;
   justify-content: center;
   border: 1px solid color-mix(in srgb, #fff 24%, transparent);
-  transform: scale(1);
+  transform:
+    rotate(var(--bottom-dock-tile-rotation-deg, 0deg))
+    scale(1);
   transform-origin: top left;
   will-change: left, top, transform, opacity;
   transition: none;
@@ -641,6 +653,7 @@ body[data-theme='dark'] .bottom-dock::before {
   stroke-linecap: round;
   stroke-linejoin: round;
   pointer-events: none;
+  transform: rotate(var(--bottom-dock-icon-rotation-deg, 0deg));
 }
 
 .dock-tile-slot.active .dock-tile::before,
@@ -656,6 +669,23 @@ body[data-theme='dark'] .bottom-dock::before {
   transform: translateX(-50%);
   pointer-events: none;
   opacity: 0.95;
+}
+
+.bottom-dock.is-side-left .dock-tile-slot.active .dock-tile::before,
+.bottom-dock.is-side-left .dock-tile.active::before {
+  left: auto;
+  right: -6px;
+  top: 50%;
+  bottom: auto;
+  transform: translateY(-50%);
+}
+
+.bottom-dock.is-side-right .dock-tile-slot.active .dock-tile::before,
+.bottom-dock.is-side-right .dock-tile.active::before {
+  left: -6px;
+  top: 50%;
+  bottom: auto;
+  transform: translateY(-50%);
 }
 
 .bottom-dock-drag-ghost.active::before {

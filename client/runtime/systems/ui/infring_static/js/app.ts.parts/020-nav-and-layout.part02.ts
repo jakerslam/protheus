@@ -58,6 +58,22 @@
     _bootProgressUpdatedAt: Date.now(),
     _topbarRefreshOverlayTimer: 0,
     _topbarRefreshReloadTimer: 0,
+    topbarDockEdge: (() => {
+      try {
+        var raw = String(localStorage.getItem('infring-topbar-dock-edge') || '').trim().toLowerCase();
+        if (raw === 'bottom') return 'bottom';
+      } catch(_) {}
+      return 'top';
+    })(),
+    topbarDockDragActive: false,
+    topbarDockDragY: 0,
+    _topbarDockPointerActive: false,
+    _topbarDockPointerMoved: false,
+    _topbarDockPointerStartX: 0,
+    _topbarDockPointerStartY: 0,
+    _topbarDockOriginY: 0,
+    _topbarDockPointerMoveHandler: null,
+    _topbarDockPointerUpHandler: null,
     topbarReorderLeft: (() => {
       var defaults = ['nav_cluster', 'refresh'];
       try {
@@ -489,6 +505,63 @@
       return 0;
     },
 
+    bottomDockUpDegForSide(side) {
+      var key = this.bottomDockNormalizeSide(side);
+      if (key === 'left' || key === 'right' || key === 'top' || key === 'bottom') return 0;
+      return 0;
+    },
+
+    bottomDockOrientation(sideHint) {
+      var side = this.bottomDockNormalizeSide(sideHint || this.bottomDockActiveSide());
+      var horizontal = !this.bottomDockIsVerticalSide(side);
+      var axis = horizontal ? 'x' : 'y';
+      return {
+        side: side,
+        horizontal: horizontal,
+        axis: axis,
+        primarySign: 1,
+        upDeg: Number(this.bottomDockUpDegForSide(side) || 0)
+      };
+    },
+
+    bottomDockOppositeSide(sideHint) {
+      var side = this.bottomDockNormalizeSide(sideHint);
+      if (side === 'left') return 'right';
+      if (side === 'right') return 'left';
+      if (side === 'top') return 'bottom';
+      return 'top';
+    },
+
+    bottomDockWallSide() {
+      return this.bottomDockNormalizeSide(this.bottomDockActiveSide());
+    },
+
+    bottomDockOpenSide() {
+      return this.bottomDockOppositeSide(this.bottomDockWallSide());
+    },
+
+    bottomDockRotationDegResolved(sideHint) {
+      var side = this.bottomDockNormalizeSide(sideHint || this.bottomDockActiveSide());
+      var rotationDeg = Number(this.bottomDockRotationDeg);
+      if (!Number.isFinite(rotationDeg)) {
+        rotationDeg = Number(this.bottomDockRotationDegForSide(side));
+      }
+      return Number(this.bottomDockNormalizeRotationDeg(rotationDeg) || 0);
+    },
+
+    bottomDockScreenDeltaToLocal(dx, dy, sideHint) {
+      var screenDx = Number(dx || 0);
+      var screenDy = Number(dy || 0);
+      var rotationDeg = this.bottomDockRotationDegResolved(sideHint);
+      var theta = (rotationDeg * Math.PI) / 180;
+      var cos = Math.cos(theta);
+      var sin = Math.sin(theta);
+      return {
+        x: (screenDx * cos) + (screenDy * sin),
+        y: (-screenDx * sin) + (screenDy * cos)
+      };
+    },
+
     bottomDockCanonicalRotationCandidatesForSide(side) {
       var key = this.bottomDockNormalizeSide(side);
       if (key === 'left' || key === 'right') return [90, -90];
@@ -789,13 +862,15 @@
         rotationDeg = this.bottomDockResolveRotationForSide(side, anchor.x, anchor.y);
         this.bottomDockRotationDeg = rotationDeg;
       }
-      var tileRotationDeg = -Number(rotationDeg || 0);
+      var upDeg = Number(this.bottomDockUpDegForSide(side) || 0);
+      var tileRotationDeg = upDeg - Number(rotationDeg || 0);
       var iconRotationDeg = 0;
       var durationMs = this.bottomDockContainerDragActive ? 0 : this.bottomDockMoveDurationMs();
       return (
         '--bottom-dock-anchor-x:' + Math.round(Number(anchor.x || 0)) + 'px;' +
         '--bottom-dock-anchor-y:' + Math.round(Number(anchor.y || 0)) + 'px;' +
         '--bottom-dock-position-transition:' + Math.max(0, Math.round(Number(durationMs || 0))) + 'ms;' +
+        '--bottom-dock-up-deg:' + Math.round(Number(upDeg || 0)) + 'deg;' +
         '--bottom-dock-rotation-deg:' + Math.round(Number(rotationDeg || 0)) + 'deg;' +
         '--bottom-dock-tile-rotation-deg:' + Math.round(Number(tileRotationDeg || 0)) + 'deg;' +
         '--bottom-dock-icon-rotation-deg:' + Math.round(Number(iconRotationDeg || 0)) + 'deg;'
@@ -1121,6 +1196,165 @@
         this.setBootProgressPercent(target);
       }
       this.bootProgressEvent = event;
+    },
+
+    topbarDockEdgeNormalized(raw) {
+      var key = String(raw || '').trim().toLowerCase();
+      return key === 'bottom' ? 'bottom' : 'top';
+    },
+
+    topbarPersistDockEdge() {
+      this.topbarDockEdge = this.topbarDockEdgeNormalized(this.topbarDockEdge);
+      try {
+        localStorage.setItem('infring-topbar-dock-edge', this.topbarDockEdge);
+      } catch(_) {}
+    },
+
+    topbarReadHeight() {
+      if (typeof document === 'undefined') return 46;
+      try {
+        var node = document.querySelector('.global-topbar');
+        var height = Number(node && node.offsetHeight || 0);
+        if (Number.isFinite(height) && height > 0) return height;
+      } catch(_) {}
+      return 46;
+    },
+
+    topbarReadViewportHeight() {
+      var h = 0;
+      try { h = Number(window && window.innerHeight || 0); } catch(_) { h = 0; }
+      if (!Number.isFinite(h) || h <= 0) {
+        h = Number(document && document.documentElement && document.documentElement.clientHeight || 900);
+      }
+      if (!Number.isFinite(h) || h <= 0) h = 900;
+      return h;
+    },
+
+    topbarAnchorForDockEdge(edgeRaw) {
+      var edge = this.topbarDockEdgeNormalized(edgeRaw);
+      if (edge === 'bottom') {
+        return Math.max(0, this.topbarReadViewportHeight() - this.topbarReadHeight());
+      }
+      return 0;
+    },
+
+    topbarClampDragY(yRaw) {
+      var y = Number(yRaw);
+      if (!Number.isFinite(y)) y = this.topbarAnchorForDockEdge(this.topbarDockEdge);
+      var maxY = Math.max(0, this.topbarReadViewportHeight() - this.topbarReadHeight());
+      return Math.max(0, Math.min(maxY, y));
+    },
+
+    topbarNearestDockEdge(yRaw) {
+      var y = this.topbarClampDragY(yRaw);
+      var topY = this.topbarAnchorForDockEdge('top');
+      var bottomY = this.topbarAnchorForDockEdge('bottom');
+      var topDist = Math.abs(y - topY);
+      var bottomDist = Math.abs(y - bottomY);
+      return bottomDist < topDist ? 'bottom' : 'top';
+    },
+
+    topbarContainerStyle() {
+      var styles = [];
+      if (this.page !== 'chat') {
+        styles.push('background:transparent;border-bottom:none;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none;');
+      }
+      var transitionMs = this.topbarDockDragActive ? 0 : 220;
+      styles.push('--topbar-dock-transition:' + Math.max(0, Math.round(Number(transitionMs || 0))) + 'ms;');
+      if (this.topbarDockDragActive) {
+        var y = this.topbarClampDragY(this.topbarDockDragY);
+        styles.push('top:' + Math.round(Number(y || 0)) + 'px;bottom:auto;');
+      } else if (this.topbarDockEdgeNormalized(this.topbarDockEdge) === 'bottom') {
+        styles.push('top:auto;bottom:0;');
+      } else {
+        styles.push('top:0;bottom:auto;');
+      }
+      return styles.join('');
+    },
+
+    shouldIgnoreTopbarDockDragTarget(target) {
+      if (!target || typeof target.closest !== 'function') return false;
+      return Boolean(
+        target.closest(
+          'button, a, input, textarea, select, [role="button"], [draggable="true"], .topbar-reorder-item, .theme-switcher, .notif-wrap, .topbar-search-popup, .topbar-search-popup-anchor, .topbar-clock'
+        )
+      );
+    },
+
+    bindTopbarDockPointerListeners() {
+      if (this._topbarDockPointerMoveHandler || this._topbarDockPointerUpHandler) return;
+      var self = this;
+      this._topbarDockPointerMoveHandler = function(ev) { self.handleTopbarDockPointerMove(ev); };
+      this._topbarDockPointerUpHandler = function(ev) { self.endTopbarDockPointerDrag(ev); };
+      window.addEventListener('pointermove', this._topbarDockPointerMoveHandler, true);
+      window.addEventListener('pointerup', this._topbarDockPointerUpHandler, true);
+      window.addEventListener('pointercancel', this._topbarDockPointerUpHandler, true);
+      window.addEventListener('mousemove', this._topbarDockPointerMoveHandler, true);
+      window.addEventListener('mouseup', this._topbarDockPointerUpHandler, true);
+    },
+
+    unbindTopbarDockPointerListeners() {
+      if (this._topbarDockPointerMoveHandler) {
+        try { window.removeEventListener('pointermove', this._topbarDockPointerMoveHandler, true); } catch(_) {}
+        try { window.removeEventListener('mousemove', this._topbarDockPointerMoveHandler, true); } catch(_) {}
+      }
+      if (this._topbarDockPointerUpHandler) {
+        try { window.removeEventListener('pointerup', this._topbarDockPointerUpHandler, true); } catch(_) {}
+        try { window.removeEventListener('pointercancel', this._topbarDockPointerUpHandler, true); } catch(_) {}
+        try { window.removeEventListener('mouseup', this._topbarDockPointerUpHandler, true); } catch(_) {}
+      }
+      this._topbarDockPointerMoveHandler = null;
+      this._topbarDockPointerUpHandler = null;
+    },
+
+    startTopbarDockPointerDrag(ev) {
+      if (!ev || Number(ev.button) !== 0) return;
+      if (String(this.topbarDragGroup || '').trim()) return;
+      var target = ev && ev.target ? ev.target : null;
+      if (this.shouldIgnoreTopbarDockDragTarget(target)) return;
+      this._topbarDockPointerActive = true;
+      this._topbarDockPointerMoved = false;
+      this._topbarDockPointerStartX = Number(ev.clientX || 0);
+      this._topbarDockPointerStartY = Number(ev.clientY || 0);
+      this._topbarDockOriginY = this.topbarAnchorForDockEdge(this.topbarDockEdge);
+      this.topbarDockDragY = this._topbarDockOriginY;
+      this.bindTopbarDockPointerListeners();
+      try {
+        if (ev.currentTarget && typeof ev.currentTarget.setPointerCapture === 'function' && Number.isFinite(ev.pointerId)) {
+          ev.currentTarget.setPointerCapture(ev.pointerId);
+        }
+      } catch(_) {}
+      if (ev.cancelable && typeof ev.preventDefault === 'function') ev.preventDefault();
+    },
+
+    handleTopbarDockPointerMove(ev) {
+      if (!this._topbarDockPointerActive) return;
+      var x = Number(ev.clientX || 0);
+      var y = Number(ev.clientY || 0);
+      var movedX = Math.abs(x - Number(this._topbarDockPointerStartX || 0));
+      var movedY = Math.abs(y - Number(this._topbarDockPointerStartY || 0));
+      if (!this._topbarDockPointerMoved) {
+        if (movedX < 4 && movedY < 4) return;
+        this._topbarDockPointerMoved = true;
+        this.topbarDockDragActive = true;
+      }
+      var candidateY = Number(this._topbarDockOriginY || 0) + (y - Number(this._topbarDockPointerStartY || 0));
+      this.topbarDockDragY = this.topbarClampDragY(candidateY);
+      if (ev.cancelable && typeof ev.preventDefault === 'function') ev.preventDefault();
+    },
+
+    endTopbarDockPointerDrag() {
+      if (!this._topbarDockPointerActive) return;
+      this._topbarDockPointerActive = false;
+      this.unbindTopbarDockPointerListeners();
+      if (!this._topbarDockPointerMoved) {
+        this.topbarDockDragActive = false;
+        return;
+      }
+      this._topbarDockPointerMoved = false;
+      this.topbarDockEdge = this.topbarNearestDockEdge(this.topbarDockDragY);
+      this.topbarDockDragActive = false;
+      this.topbarPersistDockEdge();
     },
 
     topbarReorderDefaults(group) {
@@ -1575,6 +1809,75 @@
       return fallback >= 0 ? fallback : 999;
     },
 
+    bottomDockAxisBasis(sideHint) {
+      var rotationDeg = this.bottomDockRotationDegResolved(sideHint);
+      var theta = (Number(rotationDeg || 0) * Math.PI) / 180;
+      var ux = Math.cos(theta);
+      var uy = Math.sin(theta);
+      if (Math.abs(ux) < 0.0001) ux = 0;
+      if (Math.abs(uy) < 0.0001) uy = 0;
+      return { ux: ux, uy: uy, vx: -uy, vy: ux };
+    },
+
+    bottomDockProjectPointToAxis(x, y, basis) {
+      var axis = basis && typeof basis === 'object'
+        ? basis
+        : this.bottomDockAxisBasis();
+      var ux = Number(axis.ux || 0);
+      var uy = Number(axis.uy || 0);
+      var vx = Number(axis.vx || (-uy));
+      var vy = Number(axis.vy || ux);
+      var px = Number(x || 0);
+      var py = Number(y || 0);
+      return {
+        primary: (px * ux) + (py * uy),
+        secondary: (px * vx) + (py * vy)
+      };
+    },
+
+    bottomDockAxisHalfExtent(width, height, basis) {
+      var axis = basis && typeof basis === 'object'
+        ? basis
+        : this.bottomDockAxisBasis();
+      var w = Number(width || 0);
+      var h = Number(height || 0);
+      if (!Number.isFinite(w) || w < 0) w = 0;
+      if (!Number.isFinite(h) || h < 0) h = 0;
+      var ux = Math.abs(Number(axis.ux || 0));
+      var uy = Math.abs(Number(axis.uy || 0));
+      var vx = Math.abs(Number(axis.vx || 0));
+      var vy = Math.abs(Number(axis.vy || 0));
+      return {
+        primary: ((ux * w) + (uy * h)) / 2,
+        secondary: ((vx * w) + (vy * h)) / 2
+      };
+    },
+
+    bottomDockProjectedRectBounds(rect, basis) {
+      if (!rect) return null;
+      var axis = basis && typeof basis === 'object'
+        ? basis
+        : this.bottomDockAxisBasis();
+      var left = Number(rect.left || 0);
+      var top = Number(rect.top || 0);
+      var right = Number(rect.right || left);
+      var bottom = Number(rect.bottom || top);
+      var p1 = this.bottomDockProjectPointToAxis(left, top, axis);
+      var p2 = this.bottomDockProjectPointToAxis(right, top, axis);
+      var p3 = this.bottomDockProjectPointToAxis(left, bottom, axis);
+      var p4 = this.bottomDockProjectPointToAxis(right, bottom, axis);
+      var primaryMin = Math.min(p1.primary, p2.primary, p3.primary, p4.primary);
+      var primaryMax = Math.max(p1.primary, p2.primary, p3.primary, p4.primary);
+      var secondaryMin = Math.min(p1.secondary, p2.secondary, p3.secondary, p4.secondary);
+      var secondaryMax = Math.max(p1.secondary, p2.secondary, p3.secondary, p4.secondary);
+      return {
+        primaryMin: primaryMin,
+        primaryMax: primaryMax,
+        secondaryMin: secondaryMin,
+        secondaryMax: secondaryMax
+      };
+    },
+
     bottomDockButtonRects() {
       var out = {};
       var root = document.querySelector('.bottom-dock');
@@ -1586,7 +1889,18 @@
         var id = String(node.getAttribute('data-dock-id') || '').trim();
         if (!id) continue;
         var rect = node.getBoundingClientRect();
-        out[id] = { left: Number(rect.left || 0), top: Number(rect.top || 0) };
+        var width = Number(rect.width || 0);
+        var height = Number(rect.height || 0);
+        var left = Number(rect.left || 0);
+        var top = Number(rect.top || 0);
+        out[id] = {
+          left: left,
+          top: top,
+          width: width,
+          height: height,
+          cx: left + (width / 2),
+          cy: top + (height / 2)
+        };
       }
       return out;
     },
@@ -1601,6 +1915,7 @@
         if (!root) return;
         var rootScale = self.readBottomDockScale(root);
         if (!Number.isFinite(rootScale) || rootScale <= 0.01) rootScale = 1;
+        var side = self.bottomDockActiveSide();
         var nodes = root.querySelectorAll('.bottom-dock-btn[data-dock-id]');
         for (var i = 0; i < nodes.length; i++) {
           var node = nodes[i];
@@ -1609,16 +1924,26 @@
           if (!id || !Object.prototype.hasOwnProperty.call(beforeRects, id)) continue;
           var from = beforeRects[id] || {};
           var rect = node.getBoundingClientRect();
-          var dx = Number(from.left || 0) - Number(rect.left || 0);
-          var dy = Number(from.top || 0) - Number(rect.top || 0);
-          if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) continue;
-          var tx = dx / rootScale;
-          var ty = dy / rootScale;
-          node.style.transition = 'none';
-          node.style.transform = 'translate(' + Math.round(tx) + 'px,' + Math.round(ty) + 'px)';
+          var fromCx = Number(from.cx);
+          var fromCy = Number(from.cy);
+          if (!Number.isFinite(fromCx)) fromCx = Number(from.left || 0) + (Number(from.width || 0) / 2);
+          if (!Number.isFinite(fromCy)) fromCy = Number(from.top || 0) + (Number(from.height || 0) / 2);
+          var toCx = Number(rect.left || 0) + (Number(rect.width || 0) / 2);
+          var toCy = Number(rect.top || 0) + (Number(rect.height || 0) / 2);
+          var screenDx = Number(fromCx || 0) - Number(toCx || 0);
+          var screenDy = Number(fromCy || 0) - Number(toCy || 0);
+          if (Math.abs(screenDx) < 0.5 && Math.abs(screenDy) < 0.5) continue;
+          var localDelta = self.bottomDockScreenDeltaToLocal(screenDx, screenDy, side);
+          var tx = Number(localDelta.x || 0) / rootScale;
+          var ty = Number(localDelta.y || 0) / rootScale;
+          if (Math.abs(tx) < 0.25 && Math.abs(ty) < 0.25) continue;
+          node.style.setProperty('--dock-reorder-transition', '0ms');
+          node.style.setProperty('--dock-reorder-translate-x', Math.round(tx) + 'px');
+          node.style.setProperty('--dock-reorder-translate-y', Math.round(ty) + 'px');
           void node.offsetHeight;
-          node.style.transition = 'transform ' + durationMs + 'ms var(--ease-smooth)';
-          node.style.transform = 'translate(0px, 0px)';
+          node.style.setProperty('--dock-reorder-transition', Math.max(0, Math.round(durationMs)) + 'ms');
+          node.style.setProperty('--dock-reorder-translate-x', '0px');
+          node.style.setProperty('--dock-reorder-translate-y', '0px');
           (function(el) {
             window.setTimeout(function() {
               if (
@@ -1627,9 +1952,10 @@
                 !el.classList.contains('neighbor-hover') &&
                 !el.classList.contains('second-neighbor-hover')
               ) {
-                el.style.transform = '';
+                el.style.removeProperty('--dock-reorder-translate-x');
+                el.style.removeProperty('--dock-reorder-translate-y');
               }
-              el.style.transition = '';
+              el.style.removeProperty('--dock-reorder-transition');
             }, durationMs + 30);
           })(node);
         }
@@ -1954,8 +2280,9 @@
       var centerY = 0;
       var anchorY = 0;
       var anchorX = 0;
-      var side = this.bottomDockActiveSide();
-      var vertical = this.bottomDockIsVerticalSide(side);
+      var wallSide = this.bottomDockWallSide();
+      var openSide = this.bottomDockOpenSide();
+      var vertical = this.bottomDockIsVerticalSide(wallSide);
       var dockRect = (typeof root.getBoundingClientRect === 'function')
         ? root.getBoundingClientRect()
         : null;
@@ -1963,27 +2290,27 @@
         var slotRect = slot.getBoundingClientRect();
         centerX = Number(slotRect.left || 0) + (Number(slotRect.width || 0) / 2);
         centerY = Number(slotRect.top || 0) + (Number(slotRect.height || 0) / 2);
-        if (side === 'top') {
+        if (openSide === 'top') {
+          anchorY = Number(dockRect.top || 0) - 8;
+        } else if (openSide === 'bottom') {
           anchorY = Number(dockRect.bottom || 0) + 8;
-        } else if (side === 'left') {
-          anchorX = Number(dockRect.right || 0) + 8;
-        } else if (side === 'right') {
+        } else if (openSide === 'left') {
           anchorX = Number(dockRect.left || 0) - 8;
         } else {
-          anchorY = Number(dockRect.top || 0) - 8;
+          anchorX = Number(dockRect.right || 0) + 8;
         }
       } else if (slot.offsetParent === root) {
         var rootRect = root.getBoundingClientRect();
         centerX = Number(rootRect.left || 0) + Number(slot.offsetLeft || 0) + (Number(slot.offsetWidth || 0) / 2);
         centerY = Number(rootRect.top || 0) + Number(slot.offsetTop || 0) + (Number(slot.offsetHeight || 0) / 2);
-        if (side === 'top') {
+        if (openSide === 'top') {
+          anchorY = Number(rootRect.top || 0) - 8;
+        } else if (openSide === 'bottom') {
           anchorY = Number(rootRect.bottom || 0) + 8;
-        } else if (side === 'left') {
-          anchorX = Number(rootRect.right || 0) + 8;
-        } else if (side === 'right') {
+        } else if (openSide === 'left') {
           anchorX = Number(rootRect.left || 0) - 8;
         } else {
-          anchorY = Number(rootRect.top || 0) - 8;
+          anchorX = Number(rootRect.right || 0) + 8;
         }
       }
       var pointerX = Number(this.bottomDockPointerX || 0);
@@ -2167,6 +2494,11 @@
         '--dock-ghost-scale',
         String(Math.max(0.8, Math.min(4, Number(this._bottomDockDragGhostWidth || 32) / 32)))
       );
+      var ghostUpDeg = Number(this.bottomDockUpDegForSide(this.bottomDockActiveSide()) || 0);
+      var ghostTileRotation = Math.round(ghostUpDeg) + 'deg';
+      var ghostIconRotation = '0deg';
+      ghost.style.setProperty('--bottom-dock-tile-rotation-deg', ghostTileRotation);
+      ghost.style.setProperty('--bottom-dock-icon-rotation-deg', ghostIconRotation);
       var ghostX = Number(ev.clientX || 0) - Number(this._bottomDockPointerGrabOffsetX || 16);
       var ghostY = Number(ev.clientY || 0) - Number(this._bottomDockPointerGrabOffsetY || 16);
       this._bottomDockGhostCurrentX = ghostX;
@@ -2202,6 +2534,25 @@
       }
       var dragId = String(this.bottomDockDragId || '').trim();
       if (!dragId) return;
+      var insertionIndex = this.bottomDockInsertionIndexFromPointer(dragId, ev);
+      if (Number.isFinite(insertionIndex)) {
+        var normalizedIndex = Math.max(0, Math.round(Number(insertionIndex || 0)));
+        var nowMs = Date.now();
+        var lockUntil = Number(this._bottomDockReorderLockUntil || 0);
+        if (
+          normalizedIndex !== Number(this._bottomDockLastInsertionIndex || -1) &&
+          (!Number.isFinite(lockUntil) || lockUntil <= nowMs)
+        ) {
+          var changed = this.applyBottomDockReorderByIndex(dragId, normalizedIndex, true);
+          this._bottomDockLastInsertionIndex = normalizedIndex;
+          if (changed) {
+            var moveDuration = this.bottomDockMoveDurationMs();
+            var lockMs = Math.max(220, Math.min(420, Math.round(moveDuration * 0.55)));
+            this._bottomDockReorderLockUntil = nowMs + lockMs;
+          }
+        }
+        return;
+      }
       var targetId = '';
       var targetEl = null;
       try {
@@ -2240,7 +2591,10 @@
           clientX: Number(this._bottomDockPointerLastX || 0),
           clientY: Number(this._bottomDockPointerLastY || 0)
         };
-        if (this.bottomDockShouldAppendFromPointer(dragId, finalPointerEvent)) {
+        var finalInsertionIndex = this.bottomDockInsertionIndexFromPointer(dragId, finalPointerEvent);
+        if (Number.isFinite(finalInsertionIndex)) {
+          this.applyBottomDockReorderByIndex(dragId, finalInsertionIndex, false);
+        } else if (this.bottomDockShouldAppendFromPointer(dragId, finalPointerEvent)) {
           var appendTargetId = this.bottomDockAppendTargetId(dragId);
           if (appendTargetId) {
             this.handleBottomDockDragOver(appendTargetId, finalPointerEvent, true);
@@ -2477,12 +2831,15 @@
       var height = Number(rect.height || 0);
       if (!Number.isFinite(width) || width <= 0) return false;
       if (!Number.isFinite(height) || height <= 0) return false;
-      var vertical = this.bottomDockIsVerticalSide(this.bottomDockActiveSide());
-      var offset = vertical
-        ? (clientY - Number(rect.top || 0))
-        : (clientX - Number(rect.left || 0));
-      var extent = vertical ? height : width;
-      var ratio = offset / extent;
+      var basis = this.bottomDockAxisBasis();
+      var centerX = Number(rect.left || 0) + (width / 2);
+      var centerY = Number(rect.top || 0) + (height / 2);
+      var centerProj = this.bottomDockProjectPointToAxis(centerX, centerY, basis);
+      var pointerProj = this.bottomDockProjectPointToAxis(clientX, clientY, basis);
+      var half = this.bottomDockAxisHalfExtent(width, height, basis).primary;
+      if (!Number.isFinite(half) || half <= 0) half = Math.max(width, height) / 2;
+      if (!Number.isFinite(half) || half <= 0) return false;
+      var ratio = (pointerProj.primary - (centerProj.primary - half)) / (half * 2);
       return ratio >= 0.5;
     },
 
@@ -2505,7 +2862,7 @@
         return [];
       }
       var centers = [];
-      var vertical = this.bottomDockIsVerticalSide(this.bottomDockActiveSide());
+      var basis = this.bottomDockAxisBasis();
       try {
         var nodes = dock.querySelectorAll('.bottom-dock-btn[data-dock-id]');
         for (var i = 0; i < nodes.length; i += 1) {
@@ -2518,10 +2875,9 @@
           var height = Number(rect.height || 0);
           if (!Number.isFinite(width) || width <= 0) continue;
           if (!Number.isFinite(height) || height <= 0) continue;
-          var center = vertical
-            ? (Number(rect.top || 0) + (height / 2))
-            : (Number(rect.left || 0) + (width / 2));
-          centers.push(center);
+          var centerX = Number(rect.left || 0) + (width / 2);
+          var centerY = Number(rect.top || 0) + (height / 2);
+          centers.push(this.bottomDockProjectPointToAxis(centerX, centerY, basis).primary);
         }
       } catch(_) {}
       centers.sort(function(a, b) { return a - b; });
@@ -2564,26 +2920,27 @@
       var height = Number(rect.height || 0);
       if (!Number.isFinite(width) || width <= 0) return false;
       if (!Number.isFinite(height) || height <= 0) return false;
-      var vertical = this.bottomDockIsVerticalSide(this.bottomDockActiveSide());
-      if (vertical) {
-        var xMin = Number(rect.left || 0) - (width * 0.75);
-        var xMax = Number(rect.right || 0) + (width * 0.75);
-        if (clientX < xMin || clientX > xMax) return false;
-        var thresholdY = Number(rect.bottom || 0) - Math.min(18, height * 0.35);
-        return clientY >= thresholdY;
-      }
-      var yMin = Number(rect.top || 0) - (height * 0.75);
-      var yMax = Number(rect.bottom || 0) + (height * 0.75);
-      if (clientY < yMin || clientY > yMax) return false;
-      var thresholdX = Number(rect.right || 0) - Math.min(18, width * 0.35);
-      return clientX >= thresholdX;
+      var basis = this.bottomDockAxisBasis();
+      var centerX = Number(rect.left || 0) + (width / 2);
+      var centerY = Number(rect.top || 0) + (height / 2);
+      var centerProj = this.bottomDockProjectPointToAxis(centerX, centerY, basis);
+      var pointerProj = this.bottomDockProjectPointToAxis(clientX, clientY, basis);
+      var extent = this.bottomDockAxisHalfExtent(width, height, basis);
+      var halfPrimary = Number(extent.primary || 0);
+      var halfSecondary = Number(extent.secondary || 0);
+      if (!Number.isFinite(halfPrimary) || halfPrimary <= 0) halfPrimary = Math.max(width, height) / 2;
+      if (!Number.isFinite(halfSecondary) || halfSecondary <= 0) halfSecondary = Math.min(width, height) / 2;
+      var secondaryPad = Math.max(18, halfSecondary * 0.75);
+      if (Math.abs(pointerProj.secondary - centerProj.secondary) > (halfSecondary + secondaryPad)) return false;
+      var threshold = centerProj.primary + halfPrimary - Math.min(18, halfPrimary * 0.7);
+      return pointerProj.primary >= threshold;
     },
 
-    bottomDockInsertionIndexFromPointer(dragId, ev) {
+    bottomDockInsertionIndexFromCoords(dragId, clientXRaw, clientYRaw) {
       var key = String(dragId || '').trim();
-      if (!key || !ev || typeof document === 'undefined') return null;
-      var clientX = Number(ev.clientX || 0);
-      var clientY = Number(ev.clientY || 0);
+      if (!key || typeof document === 'undefined') return null;
+      var clientX = Number(clientXRaw || 0);
+      var clientY = Number(clientYRaw || 0);
       if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) return null;
       var dock = null;
       try {
@@ -2593,30 +2950,42 @@
       }
       if (!dock || typeof dock.getBoundingClientRect !== 'function') return null;
       var dockRect = dock.getBoundingClientRect();
-      var vertical = this.bottomDockIsVerticalSide(this.bottomDockActiveSide());
-      if (vertical) {
-        var xMin = Number(dockRect.left || 0) - 24;
-        var xMax = Number(dockRect.right || 0) + 24;
-        if (clientX < xMin || clientX > xMax) return null;
-      } else {
-        var yMin = Number(dockRect.top || 0) - 24;
-        var yMax = Number(dockRect.bottom || 0) + 24;
-        if (clientY < yMin || clientY > yMax) return null;
-      }
-      var centers = Array.isArray(this._bottomDockDragBoundaries)
-        ? this._bottomDockDragBoundaries.slice()
-        : [];
-      if (centers.length === 0) {
-        centers = this.captureBottomDockDragBoundaries(key);
-      }
+      var basis = this.bottomDockAxisBasis();
+      var pointerProj = this.bottomDockProjectPointToAxis(clientX, clientY, basis);
+      var dockBounds = this.bottomDockProjectedRectBounds(dockRect, basis);
+      if (!dockBounds) return null;
+      if (
+        pointerProj.secondary < (Number(dockBounds.secondaryMin || 0) - 24) ||
+        pointerProj.secondary > (Number(dockBounds.secondaryMax || 0) + 24)
+      ) return null;
+      var centers = this.captureBottomDockDragBoundaries(key);
       if (centers.length === 0) return null;
       var insertionIndex = 0;
       for (var c = 0; c < centers.length; c += 1) {
-        var pointerPrimary = vertical ? clientY : clientX;
-        if (pointerPrimary >= centers[c]) insertionIndex += 1;
+        if (pointerProj.primary >= centers[c]) insertionIndex += 1;
       }
       insertionIndex = Math.max(0, Math.min(centers.length, insertionIndex));
       return insertionIndex;
+    },
+
+    bottomDockGhostCenterPoint() {
+      var x = Number(this._bottomDockGhostTargetX || this._bottomDockGhostCurrentX || 0);
+      var y = Number(this._bottomDockGhostTargetY || this._bottomDockGhostCurrentY || 0);
+      var width = Number(this._bottomDockDragGhostWidth || 0);
+      var height = Number(this._bottomDockDragGhostHeight || 0);
+      if (!Number.isFinite(width) || width <= 0) width = 32;
+      if (!Number.isFinite(height) || height <= 0) height = 32;
+      return {
+        x: x + (width / 2),
+        y: y + (height / 2)
+      };
+    },
+
+    bottomDockInsertionIndexFromPointer(dragId, ev) {
+      var key = String(dragId || '').trim();
+      if (!key || !ev) return null;
+      var center = this.bottomDockGhostCenterPoint();
+      return this.bottomDockInsertionIndexFromCoords(key, center.x, center.y);
     },
 
     applyBottomDockReorderByIndex(dragId, insertionIndex, animate) {
