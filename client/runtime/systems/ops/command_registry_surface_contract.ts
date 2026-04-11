@@ -3,6 +3,7 @@
 
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
+import { execSync } from 'node:child_process';
 
 type CommandPolicy = {
   version: string;
@@ -13,6 +14,13 @@ type CommandPolicy = {
     docs_path: string;
     latest_path: string;
     receipts_path: string;
+  };
+  tooling_governance?: {
+    ci_script_root?: string;
+    tooling_gate_registry_path?: string;
+    base_ref?: string;
+    shared_cli_import?: string;
+    shared_result_import?: string;
   };
   curated_operator_surface?: string[];
   groups?: Array<{ prefix: string; owner: string; scope: string; risk_tier: number }>;
@@ -38,6 +46,11 @@ type GeneratedRow = {
   risk_tier: number;
   indexed: boolean;
   source: 'package' | 'lane_registry';
+};
+
+type ToolingGateRegistry = {
+  version?: string;
+  gates?: Record<string, { script?: string; command?: string[] }>;
 };
 
 function clean(value: unknown, max = 400): string {
@@ -85,14 +98,15 @@ function classifyCommand(name: string, policy: CommandPolicy) {
 function buildGeneratedRegistry(policy: CommandPolicy, laneRegistryPath: string) {
   const pkg = readJson<{ scripts?: Record<string, string> }>(policy.paths.package_json_path);
   const laneRegistry = readJson<LaneRegistry>(laneRegistryPath);
+  const packageScripts = pkg.scripts || {};
   const commands: GeneratedRow[] = [];
   const unmatchedPackageScripts: string[] = [];
-  const scriptNames = Object.keys(pkg.scripts || {});
+  const scriptNames = Object.keys(packageScripts);
   const curatedOperatorSurface = (policy.curated_operator_surface || []).map((value) =>
     clean(value, 200),
   );
 
-  for (const [name] of Object.entries(pkg.scripts || {}).sort((a, b) => a[0].localeCompare(b[0]))) {
+  for (const [name] of Object.entries(packageScripts).sort((a, b) => a[0].localeCompare(b[0]))) {
     const classification = classifyCommand(name, policy);
     if (!classification) {
       unmatchedPackageScripts.push(name);
@@ -140,12 +154,14 @@ function buildGeneratedRegistry(policy: CommandPolicy, laneRegistryPath: string)
   const missingIndexedSurfaceScripts = canonicalIndexedSurface.filter(
     (name) => !scriptNames.includes(name),
   );
+  const toolingGovernance = buildToolingGovernance(policy, packageScripts);
 
   const payload = {
     ok:
       missingCuratedOperatorSurface.length === 0 &&
       unclassifiedCuratedOperatorSurface.length === 0 &&
-      missingIndexedSurfaceScripts.length === 0,
+      missingIndexedSurfaceScripts.length === 0 &&
+      toolingGovernance.pass,
     type: 'command_registry_surface_contract',
     version: clean(policy.version || '1.0', 40),
     generated_at: new Date().toISOString(),
@@ -157,6 +173,7 @@ function buildGeneratedRegistry(policy: CommandPolicy, laneRegistryPath: string)
     missing_curated_operator_surface: missingCuratedOperatorSurface,
     unclassified_curated_operator_surface: unclassifiedCuratedOperatorSurface,
     missing_indexed_surface_scripts: missingIndexedSurfaceScripts,
+    tooling_governance: toolingGovernance,
     commands,
   };
 
@@ -174,12 +191,23 @@ function buildGeneratedRegistry(policy: CommandPolicy, laneRegistryPath: string)
     `- missing curated operator surface commands: ${payload.missing_curated_operator_surface.length}`,
     `- unclassified curated operator surface commands: ${payload.unclassified_curated_operator_surface.length}`,
     `- missing indexed surface commands: ${payload.missing_indexed_surface_scripts.length}`,
+    `- tooling governance added-script pass: ${payload.tooling_governance.pass}`,
+    `- tooling governance added scripts checked: ${payload.tooling_governance.added_script_count}`,
     '',
     '## Canonical Indexed Lane Surface',
     '- `npm run -s lane:run -- --id=<ID>`',
     '- `npm run -s test:lane:run -- --id=<ID>`',
     '- `npm run -s lane:list -- --json=1`',
     '- `npm run -s test:lane:list -- --json=1`',
+    '',
+    '## Tooling Governance',
+    `- Added CI scripts checked: ${payload.tooling_governance.added_script_count}`,
+    `- Registered added CI scripts: ${payload.tooling_governance.registered_added_script_count}`,
+    `- Missing registry entries: ${payload.tooling_governance.unregistered_added_scripts.length}`,
+    `- Missing shared cli import: ${payload.tooling_governance.missing_shared_cli_import.length}`,
+    `- Missing shared result import: ${payload.tooling_governance.missing_shared_result_import.length}`,
+    `- Missing emitStructuredResult: ${payload.tooling_governance.missing_emit_structured_result.length}`,
+    `- Local parseArgs usage: ${payload.tooling_governance.local_parse_args_added_scripts.length}`,
     '',
     '## Curated Commands',
     '| Command | Owner | Scope | Risk | Source |',
@@ -192,6 +220,129 @@ function buildGeneratedRegistry(policy: CommandPolicy, laneRegistryPath: string)
   ].join('\n');
 
   return { payload, markdown };
+}
+
+function normalizePath(value: string): string {
+  return clean(value, 600).replace(/\\/g, '/');
+}
+
+function safeExec(command: string): string {
+  try {
+    return String(execSync(command, { encoding: 'utf8' }) || '');
+  } catch (error) {
+    return String((error as { stdout?: string })?.stdout || '');
+  }
+}
+
+function resolveGovernanceBaseRef(baseRef: string): string {
+  const explicit = clean(baseRef, 120);
+  if (explicit) {
+    const mergeBase = safeExec(`git merge-base HEAD ${explicit}`).trim();
+    if (mergeBase) return mergeBase;
+  }
+  return clean(safeExec('git rev-parse HEAD~1').trim(), 120) || 'HEAD';
+}
+
+function collectAddedCiScripts(ciRoot: string, baseRef: string): string[] {
+  const normalizedRoot = normalizePath(ciRoot).replace(/\/+$/, '');
+  const out = new Set<string>();
+  const mergeBase = resolveGovernanceBaseRef(baseRef);
+  const diffRaw = safeExec(`git diff --name-only --diff-filter=A ${mergeBase}...HEAD -- ${normalizedRoot}`);
+  for (const line of diffRaw.split('\n')) {
+    const file = normalizePath(line);
+    if (file.startsWith(`${normalizedRoot}/`) && file.endsWith('.ts')) out.add(file);
+  }
+  const statusRaw = safeExec(`git status --porcelain=v1 -uall -- ${normalizedRoot}`);
+  for (const line of statusRaw.split('\n')) {
+    const raw = String(line || '');
+    if (raw.length < 4) continue;
+    const status = raw.slice(0, 2);
+    const file = normalizePath(raw.slice(3).trim());
+    if (!file.startsWith(`${normalizedRoot}/`) || !file.endsWith('.ts')) continue;
+    if (status === '??' || status.includes('A')) out.add(file);
+  }
+  return [...out].sort((a, b) => a.localeCompare(b));
+}
+
+function extractRegisteredCiScriptPaths(
+  registryPath: string,
+  packageScripts: Record<string, string>,
+): Set<string> {
+  const out = new Set<string>();
+  const registry = readJson<ToolingGateRegistry>(registryPath);
+  const filePattern = /tests\/tooling\/scripts\/ci\/[A-Za-z0-9_./-]+\.ts/g;
+  for (const gate of Object.values(registry.gates || {})) {
+    for (const part of gate.command || []) {
+      const normalized = normalizePath(part);
+      if (normalized.startsWith('tests/tooling/scripts/ci/') && normalized.endsWith('.ts')) {
+        out.add(normalized);
+      }
+    }
+    if (!gate.script) continue;
+    const command = clean(packageScripts[gate.script] || '', 4000);
+    if (!command) continue;
+    const matches = command.match(filePattern) || [];
+    for (const match of matches) out.add(normalizePath(match));
+  }
+  return out;
+}
+
+function buildToolingGovernance(
+  policy: CommandPolicy,
+  packageScripts: Record<string, string>,
+) {
+  const config = policy.tooling_governance || {};
+  const ciRoot = clean(config.ci_script_root || 'tests/tooling/scripts/ci', 260);
+  const registryPath = clean(
+    config.tooling_gate_registry_path || 'tests/tooling/config/tooling_gate_registry.json',
+    260,
+  );
+  const baseRef = clean(config.base_ref || 'origin/main', 120);
+  const sharedCliImport = clean(config.shared_cli_import || '../../lib/cli.ts', 260);
+  const sharedResultImport = clean(config.shared_result_import || '../../lib/result.ts', 260);
+  const addedScripts = collectAddedCiScripts(ciRoot, baseRef);
+  const registeredScripts = extractRegisteredCiScriptPaths(registryPath, packageScripts);
+  const missingSharedCliImport: string[] = [];
+  const missingSharedResultImport: string[] = [];
+  const missingEmitStructuredResult: string[] = [];
+  const localParseArgsAddedScripts: string[] = [];
+  const unregisteredAddedScripts: string[] = [];
+
+  for (const relPath of addedScripts) {
+    const abs = resolve(relPath);
+    const source = readFileSync(abs, 'utf8');
+    if (!registeredScripts.has(relPath)) unregisteredAddedScripts.push(relPath);
+    if (!source.includes(sharedCliImport)) missingSharedCliImport.push(relPath);
+    if (!source.includes(sharedResultImport)) missingSharedResultImport.push(relPath);
+    if (!source.includes('emitStructuredResult(')) missingEmitStructuredResult.push(relPath);
+    if (
+      /\bfunction\s+parseArgs\s*\(/.test(source) ||
+      /\bfunction\s+parseCliFlags\s*\(/.test(source) ||
+      /\bconst\s+parseArgs\s*=/.test(source)
+    ) {
+      localParseArgsAddedScripts.push(relPath);
+    }
+  }
+
+  return {
+    pass:
+      unregisteredAddedScripts.length === 0 &&
+      missingSharedCliImport.length === 0 &&
+      missingSharedResultImport.length === 0 &&
+      missingEmitStructuredResult.length === 0 &&
+      localParseArgsAddedScripts.length === 0,
+    base_ref: baseRef,
+    ci_script_root: ciRoot,
+    tooling_gate_registry_path: registryPath,
+    added_script_count: addedScripts.length,
+    registered_added_script_count: addedScripts.filter((row) => registeredScripts.has(row)).length,
+    added_scripts: addedScripts,
+    unregistered_added_scripts: unregisteredAddedScripts,
+    missing_shared_cli_import: missingSharedCliImport,
+    missing_shared_result_import: missingSharedResultImport,
+    missing_emit_structured_result: missingEmitStructuredResult,
+    local_parse_args_added_scripts: localParseArgsAddedScripts,
+  };
 }
 
 function writeText(filePath: string, text: string) {

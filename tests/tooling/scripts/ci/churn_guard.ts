@@ -2,11 +2,14 @@
 /* eslint-disable no-console */
 // TODO(rkapoor): Add threshold validation for weekly churn % - Q2 2026
 import { execSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { cleanText, hasFlag, parseBool, readFlag } from '../../lib/cli.ts';
+import { currentRevision } from '../../lib/git.ts';
+import { emitStructuredResult, writeJsonArtifact, writeTextArtifact } from '../../lib/result.ts';
 
-const OUT_JSON = 'core/local/artifacts/churn_guard_current.json';
-const OUT_MD = 'local/workspace/reports/CHURN_GUARD_CURRENT.md';
+const DEFAULT_OUT_JSON = 'core/local/artifacts/churn_guard_current.json';
+const DEFAULT_OUT_MD = 'local/workspace/reports/CHURN_GUARD_CURRENT.md';
 const SWARM_CODE_SURFACES = new Set([
   'core/layer0/ops/src/swarm_runtime.rs',
   'client/runtime/systems/autonomy/swarm_sessions_bridge.ts',
@@ -23,18 +26,21 @@ const SWARM_DOC_SURFACES = new Set([
 ]);
 
 function parseArgs(argv) {
+  const strictRaw = readFlag(argv, 'strict');
   const allowGovernanceDocChurn =
-    argv.includes('--allow-governance-doc-churn=1') ||
-    argv.includes('--allow-governance-doc-churn') ||
+    hasFlag(argv, 'allow-governance-doc-churn') ||
+    parseBool(readFlag(argv, 'allow-governance-doc-churn'), false) ||
     process.env.ALLOW_GOVERNANCE_DOC_CHURN === '1';
   const commitGate =
-    argv.includes('--commit-gate=1') ||
-    argv.includes('--commit-gate') ||
+    hasFlag(argv, 'commit-gate') ||
+    parseBool(readFlag(argv, 'commit-gate'), false) ||
     process.env.CHURN_GUARD_COMMIT_GATE === '1';
   return {
-    strict: argv.includes('--strict=1') || argv.includes('--strict'),
+    strict: hasFlag(argv, 'strict') || parseBool(strictRaw, false),
     allowGovernanceDocChurn,
     commitGate,
+    outJson: cleanText(readFlag(argv, 'out-json') || DEFAULT_OUT_JSON, 400),
+    outMarkdown: cleanText(readFlag(argv, 'out-markdown') || DEFAULT_OUT_MD, 400),
   };
 }
 
@@ -275,7 +281,7 @@ function toMarkdown(payload) {
   const lines = [];
   lines.push('# Churn Guard (Current)');
   lines.push('');
-  lines.push(`Generated: ${payload.generatedAt}`);
+  lines.push(`Generated: ${payload.generated_at}`);
   lines.push('');
   lines.push('## Summary');
   lines.push(`- strict: ${payload.summary.strict}`);
@@ -346,6 +352,7 @@ function toMarkdown(payload) {
 }
 
 function main() {
+  const started = Date.now();
   const args = parseArgs(process.argv.slice(2));
   const rows = parseStatus();
   const sessionChurnSignals = detectSessionChurnSignals();
@@ -401,40 +408,62 @@ function main() {
   summary.commit_gate_pass = commitGatePass;
   summary.pass = args.commitGate ? summary.commit_gate_pass : summary.clean_pass;
 
+  const failures = [];
+  if (!summary.pass) {
+    failures.push({
+      id: args.commitGate ? 'commit_gate_failed' : 'clean_pass_failed',
+      detail: JSON.stringify(summary),
+    });
+  }
+  if (sessionChurnSignals.length > 0) {
+    failures.push({
+      id: 'session_churn_signals_present',
+      detail: sessionChurnSignals.map((row) => row.type).join(','),
+    });
+  }
+  if (likelyUnstagedMoves.length > 0) {
+    failures.push({
+      id: 'likely_unstaged_moves_present',
+      detail: likelyUnstagedMoves.map((row) => `${row.from}->${row.to}`).join(',').slice(0, 500),
+    });
+  }
+  if (swarmCompanionGaps.length > 0) {
+    failures.push({
+      id: 'swarm_companion_gaps_present',
+      detail: swarmCompanionGaps.map((row) => row.type).join(','),
+    });
+  }
+
   const payload = {
-    ok: true,
+    ok: summary.pass,
     type: 'churn_guard',
-    generatedAt: new Date().toISOString(),
+    generated_at: new Date().toISOString(),
+    duration_ms: Date.now() - started,
+    owner: 'ops',
+    revision: currentRevision(process.cwd()),
+    inputs: {
+      strict: args.strict,
+      commit_gate: args.commitGate,
+      allow_governance_doc_churn: args.allowGovernanceDocChurn,
+      out_json: args.outJson,
+      out_markdown: args.outMarkdown,
+    },
     summary,
+    failures,
+    artifact_paths: [args.outJson, args.outMarkdown],
     session_churn_signals: sessionChurnSignals,
     likely_unstaged_moves: likelyUnstagedMoves,
     swarm_companion_gaps: swarmCompanionGaps,
     rows,
   };
 
-  mkdirSync(resolve('core/local/artifacts'), { recursive: true });
-  mkdirSync(resolve('local/workspace/reports'), { recursive: true });
-  writeFileSync(resolve(OUT_JSON), `${JSON.stringify(payload, null, 2)}\n`);
-  writeFileSync(resolve(OUT_MD), toMarkdown(payload));
-
-  if (args.strict && !summary.pass) {
-    console.error(
-      JSON.stringify(
-        { ok: false, type: 'churn_guard', out_json: OUT_JSON, out_markdown: OUT_MD, summary },
-        null,
-        2,
-      ),
-    );
-    process.exit(1);
-  }
-
-  console.log(
-    JSON.stringify(
-      { ok: true, type: 'churn_guard', out_json: OUT_JSON, out_markdown: OUT_MD, summary },
-      null,
-      2,
-    ),
-  );
+  writeJsonArtifact(resolve(args.outJson), payload);
+  writeTextArtifact(resolve(args.outMarkdown), toMarkdown(payload));
+  return emitStructuredResult(payload, {
+    outPath: '',
+    strict: args.strict,
+    ok: payload.ok,
+  });
 }
 
-main();
+process.exit(main());

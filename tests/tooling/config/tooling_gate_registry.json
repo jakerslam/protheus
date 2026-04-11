@@ -15,6 +15,30 @@
       "timeout_sec": 180,
       "command": ["bash", "proofs/layer0/verify.sh"]
     },
+    "ops:top1:proof-coverage": {
+      "owner": "ops",
+      "description": "Top1 proof coverage verification.",
+      "timeout_env": "VERIFY_PROOF_TIMEOUT_SEC",
+      "timeout_sec": 420,
+      "defer_host_stall": true,
+      "script": "ops:top1:proof-coverage"
+    },
+    "ops:origin-integrity:run": {
+      "owner": "ops",
+      "description": "Origin integrity strict run gate.",
+      "timeout_env": "VERIFY_TIMEOUT_SEC",
+      "timeout_sec": 45,
+      "defer_host_stall": true,
+      "command": ["cargo", "run", "--quiet", "--manifest-path", "core/layer0/ops/Cargo.toml", "--bin", "infring-ops", "--", "origin-integrity", "run", "--strict=1"]
+    },
+    "ops:origin-integrity:certificate": {
+      "owner": "ops",
+      "description": "Origin integrity certificate validation gate.",
+      "timeout_env": "VERIFY_TIMEOUT_SEC",
+      "timeout_sec": 45,
+      "defer_host_stall": true,
+      "command": ["cargo", "run", "--quiet", "--manifest-path", "core/layer0/ops/Cargo.toml", "--bin", "infring-ops", "--", "origin-integrity", "certificate", "--strict=1"]
+    },
     "ops:dependency-boundary:check": {
       "owner": "ops",
       "description": "Dependency boundary policy gate.",
@@ -207,6 +231,14 @@
       "timeout_sec": 60,
       "script": "ops:arch:governance"
     },
+    "ops:arch:boundary:audit": {
+      "owner": "ops",
+      "description": "Architecture boundary audit.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "command": ["node", "client/runtime/lib/ts_entrypoint.ts", "tests/tooling/scripts/ci/architecture_boundary_audit.ts", "--strict=1", "--out-json=core/local/artifacts/architecture_boundary_audit_current.json", "--out-md=local/workspace/reports/ARCHITECTURE_BOUNDARY_AUDIT_CURRENT.md"],
+      "artifact_paths": ["core/local/artifacts/architecture_boundary_audit_current.json", "local/workspace/reports/ARCHITECTURE_BOUNDARY_AUDIT_CURRENT.md"]
+    },
     "ops:public-platform:contract": {
       "owner": "ops",
       "description": "Public platform contract gate.",
@@ -219,7 +251,8 @@
       "description": "Benchmark sanity gate.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
-      "script": "ops:benchmark:sanity"
+      "command": ["node", "client/runtime/lib/ts_entrypoint.ts", "tests/tooling/scripts/ci/benchmark_sanity_gate.ts", "--strict=1", "--out-json=core/local/artifacts/benchmark_sanity_gate_current.json", "--out-markdown=local/workspace/reports/BENCHMARK_SANITY_GATE_CURRENT.md"],
+      "artifact_paths": ["core/local/artifacts/benchmark_sanity_gate_current.json", "local/workspace/reports/BENCHMARK_SANITY_GATE_CURRENT.md"]
     },
     "ops:benchmark:public-audit": {
       "owner": "ops",
@@ -314,7 +347,16 @@
       "description": "Full SRS gate.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
-      "script": "ops:srs:full:gate"
+      "command": ["node", "client/runtime/lib/ts_entrypoint.ts", "tests/tooling/scripts/ci/srs_full_regression.ts", "--strict=1", "--out-json=core/local/artifacts/srs_full_regression_current.json", "--out-markdown=local/workspace/reports/SRS_FULL_REGRESSION_CURRENT.md"],
+      "artifact_paths": ["core/local/artifacts/srs_full_regression_current.json", "local/workspace/reports/SRS_FULL_REGRESSION_CURRENT.md"]
+    },
+    "ops:srs:full:regression": {
+      "owner": "ops",
+      "description": "Full SRS regression report.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "command": ["node", "client/runtime/lib/ts_entrypoint.ts", "tests/tooling/scripts/ci/srs_full_regression.ts", "--out-json=core/local/artifacts/srs_full_regression_current.json", "--out-markdown=local/workspace/reports/SRS_FULL_REGRESSION_CURRENT.md"],
+      "artifact_paths": ["core/local/artifacts/srs_full_regression_current.json", "local/workspace/reports/SRS_FULL_REGRESSION_CURRENT.md"]
     },
     "ops:dod:gate": {
       "owner": "ops",
@@ -335,7 +377,16 @@
       "description": "Repository churn guard.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
-      "script": "ops:churn:guard"
+      "command": ["node", "client/runtime/lib/ts_entrypoint.ts", "tests/tooling/scripts/ci/churn_guard.ts", "--strict=1", "--out-json=core/local/artifacts/churn_guard_current.json", "--out-markdown=local/workspace/reports/CHURN_GUARD_CURRENT.md"],
+      "artifact_paths": ["core/local/artifacts/churn_guard_current.json", "local/workspace/reports/CHURN_GUARD_CURRENT.md"]
+    },
+    "ops:churn:commit-gate": {
+      "owner": "ops",
+      "description": "Repository churn commit gate.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "command": ["node", "client/runtime/lib/ts_entrypoint.ts", "tests/tooling/scripts/ci/churn_guard.ts", "--strict=1", "--commit-gate=1", "--out-json=core/local/artifacts/churn_guard_current.json", "--out-markdown=local/workspace/reports/CHURN_GUARD_CURRENT.md"],
+      "artifact_paths": ["core/local/artifacts/churn_guard_current.json", "local/workspace/reports/CHURN_GUARD_CURRENT.md"]
     },
     "ops:command-registry:check": {
       "owner": "ops",

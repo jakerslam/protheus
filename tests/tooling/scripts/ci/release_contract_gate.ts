@@ -3,7 +3,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { collectTopologyStatus } from '../../../../client/runtime/systems/ops/transport_topology_status.ts';
+import { execFileSync } from 'node:child_process';
 import { executeGate } from '../../lib/runner.ts';
 
 type Check = {
@@ -15,6 +15,8 @@ type Check = {
 const ROOT = process.cwd();
 const DEFAULT_OUT = path.join(ROOT, 'core/local/artifacts/release_contract_gate_current.json');
 const GATE_REGISTRY_PATH = 'tests/tooling/config/tooling_gate_registry.json';
+const TS_ENTRYPOINT = path.join(ROOT, 'client/runtime/lib/ts_entrypoint.ts');
+const TOPOLOGY_STATUS_SCRIPT = path.join(ROOT, 'client/runtime/systems/ops/transport_topology_status.ts');
 const WRAPPER_FILES = [
   'client/runtime/systems/autonomy/self_improvement_cadence_orchestrator.ts',
   'client/runtime/systems/memory/causal_temporal_graph.ts',
@@ -128,13 +130,25 @@ function transportLockCheck(): Check {
   };
 }
 
+function collectTopologyStatusViaEntrypoint(envOverrides: NodeJS.ProcessEnv): any {
+  const stdout = execFileSync('node', [TS_ENTRYPOINT, TOPOLOGY_STATUS_SCRIPT, '--json=1'], {
+    cwd: ROOT,
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      ...envOverrides,
+    },
+  });
+  return JSON.parse(String(stdout || '{}').trim() || '{}');
+}
+
 function topologyModeChecks(): Check[] {
-  const dev = collectTopologyStatus({
+  const dev = collectTopologyStatusViaEntrypoint({
     ...process.env,
     INFRING_RELEASE_CHANNEL: 'dev',
     INFRING_OPS_ALLOW_PROCESS_FALLBACK: '1',
   });
-  const stable = collectTopologyStatus({
+  const stable = collectTopologyStatusViaEntrypoint({
     ...process.env,
     INFRING_RELEASE_CHANNEL: 'stable',
     INFRING_OPS_IPC_DAEMON: '1',
