@@ -88,6 +88,8 @@ fn run_flatten_transform(root: &Path, parsed: &crate::ParsedArgs, strict: bool) 
             json!({
                 "input_sha256": sha256_hex_str(&canonical_json_string(&input)),
                 "flattened_sha256": sha256_hex_str(&canonical_json_string(&Value::Object(flattened.clone()))),
+                "unnested_rows_sha256": sha256_hex_str(&canonical_json_string(&Value::Array(unnested_rows.clone()))),
+                "unnested_row_count": unnested_rows.len(),
                 "preserve_metadata": true
             })
         } else {
@@ -377,4 +379,3 @@ fn run_template_governance(root: &Path, parsed: &crate::ParsedArgs, strict: bool
     out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
-

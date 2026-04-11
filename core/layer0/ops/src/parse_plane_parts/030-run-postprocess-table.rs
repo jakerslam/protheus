@@ -134,7 +134,6 @@ fn run_postprocess_table(root: &Path, parsed: &crate::ParsedArgs, strict: bool) 
         stage3.push(rendered);
     }
 
-    let after_hash = sha256_hex_str(&canonical_json_string(&json!(stage3)));
     let stage_receipts = vec![
         json!({
             "stage": "detect_fake_table",
@@ -153,6 +152,18 @@ fn run_postprocess_table(root: &Path, parsed: &crate::ParsedArgs, strict: bool) 
             "footnotes_extracted": footnotes.len()
         }),
     ];
+
+    if strict && stage3.is_empty() {
+        return json!({
+            "ok": false,
+            "strict": strict,
+            "type": "parse_plane_postprocess_table",
+            "errors": ["table_empty_after_postprocess"],
+            "stage_receipts": stage_receipts
+        });
+    }
+
+    let after_hash = sha256_hex_str(&canonical_json_string(&json!(stage3)));
 
     let artifact = json!({
         "source_hint": source_hint,
@@ -339,10 +350,14 @@ fn parse_transform_input(
         .get("pipeline")
         .and_then(|v| v.get("structured"))
         .cloned()
+        .or_else(|| artifact.get("after").cloned())
+        .or_else(|| artifact.get("flattened").cloned())
+        .or_else(|| artifact.get("result").and_then(|v| v.get("after")).cloned())
+        .or_else(|| artifact.get("result").and_then(|v| v.get("flattened")).cloned())
+        .or_else(|| artifact.get("result").cloned())
         .unwrap_or(Value::Null);
     if structured.is_null() {
         return Err("structured_payload_missing".to_string());
     }
     Ok((path.display().to_string(), structured))
 }
-

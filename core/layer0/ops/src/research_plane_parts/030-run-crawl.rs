@@ -245,7 +245,9 @@ fn run_crawl(root: &Path, parsed: &ParsedArgs, strict: bool) -> Value {
             clock_ms = clock_ms.saturating_add(5);
         }
 
-        if visited.len() % checkpoint_every == 0 || queue.is_empty() {
+        let checkpoint_due = (!visited.is_empty() && visited.len() % checkpoint_every == 0)
+            || queue.is_empty();
+        if checkpoint_due {
             if let Some(parent) = checkpoint_path.parent() {
                 let _ = fs::create_dir_all(parent);
             }
@@ -416,6 +418,22 @@ mod tests {
         assert_eq!(
             out.get("recovered_strategy").and_then(Value::as_str),
             Some("css_or_xpath")
+        );
+    }
+
+    #[test]
+    fn selector_recovery_matches_class_token_boundaries() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let parsed = parse_args(&[
+            "recover-selectors".to_string(),
+            "--html=<section class=\"foo bar\"><p>hello</p></section>".to_string(),
+            "--selectors=.foo".to_string(),
+        ]);
+        let out = run_recover_selectors(root.path(), &parsed, true);
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            out.get("recovered_selector").and_then(Value::as_str),
+            Some(".foo")
         );
     }
 

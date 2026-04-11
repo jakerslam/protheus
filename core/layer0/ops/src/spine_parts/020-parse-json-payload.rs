@@ -8,7 +8,7 @@ fn parse_json_payload(raw: &str) -> Option<Value> {
     }
     for line in text.lines().rev() {
         let line = line.trim();
-        if !line.starts_with('{') {
+        if !line.starts_with('{') && !line.starts_with('[') {
             continue;
         }
         if let Ok(v) = serde_json::from_str::<Value>(line) {
@@ -16,6 +16,17 @@ fn parse_json_payload(raw: &str) -> Option<Value> {
         }
     }
     None
+}
+
+#[cfg(test)]
+mod parse_json_payload_tests {
+    use super::*;
+
+    #[test]
+    fn parse_json_payload_recovers_array_lines() {
+        let parsed = parse_json_payload("noise before\n[1,2,{\"ok\":true}]\ntrailer");
+        assert_eq!(parsed, Some(json!([1, 2, {"ok": true}])));
+    }
 }
 
 fn spine_runs_dir(root: &Path) -> PathBuf {
