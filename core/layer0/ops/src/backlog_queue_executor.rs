@@ -8,6 +8,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+const INDEXED_LANE_SCRIPT: &str = "lane:run";
+const INDEXED_TEST_LANE_SCRIPT: &str = "test:lane:run";
+
 fn state_root(root: &Path) -> PathBuf {
     if let Ok(v) = std::env::var("BACKLOG_QUEUE_EXECUTOR_STATE_ROOT") {
         let s = v.trim();
@@ -44,7 +47,7 @@ fn lane_route(use_core_contract_lane: bool, use_dynamic_lane: bool) -> &'static 
     } else if use_dynamic_lane {
         "dynamic_legacy_adapter"
     } else {
-        "npm_script"
+        "indexed_npm_script"
     }
 }
 
@@ -59,18 +62,19 @@ fn lane_script_value(
     } else if use_dynamic_lane {
         Value::String(format!("dynamic:legacy_alias_adapter:{id}"))
     } else {
-        Value::String(lane_script.to_string())
+        Value::String(format!("{lane_script} -- --id={id}"))
     }
 }
 
 fn test_script_value(
+    id: &str,
     test_exists: bool,
     use_dynamic_lane: bool,
     use_core_contract_lane: bool,
     test_script: &str,
 ) -> Value {
     if test_exists && !use_dynamic_lane && !use_core_contract_lane {
-        Value::String(test_script.to_string())
+        Value::String(format!("{test_script} -- --id={id}"))
     } else {
         Value::Null
     }
@@ -87,6 +91,7 @@ fn row_scripts_and_route(
     (
         lane_script_value(id, lane_script, use_core_contract_lane, use_dynamic_lane),
         test_script_value(
+            id,
             test_exists,
             use_dynamic_lane,
             use_core_contract_lane,
@@ -133,12 +138,28 @@ fn parse_ids_csv(raw: &str) -> Vec<String> {
         .collect()
 }
 
-fn lane_script_name(id: &str) -> String {
-    format!("lane:{}:run", id.to_ascii_lowercase().replace('_', "-"))
+fn lane_registry_path(root: &Path) -> PathBuf {
+    root.join("client")
+        .join("runtime")
+        .join("config")
+        .join("lane_command_registry.json")
 }
 
-fn test_script_name(id: &str) -> String {
-    format!("test:lane:{}", id.to_ascii_lowercase().replace('_', "-"))
+fn load_lane_registry(root: &Path) -> Value {
+    let path = lane_registry_path(root);
+    let Ok(raw) = fs::read_to_string(path) else {
+        return Value::Null;
+    };
+    serde_json::from_str::<Value>(&raw).unwrap_or(Value::Null)
+}
+
+fn lane_registry_command(registry: &Value, section: &str, id: &str) -> Option<String> {
+    registry
+        .get(section)
+        .and_then(|value| value.get(id))
+        .and_then(|value| value.get("command"))
+        .and_then(Value::as_str)
+        .map(|value| clean(value, 4000))
 }
 
 fn detect_missing_node_entrypoint(root: &Path, script_cmd: &str) -> Option<String> {
@@ -238,13 +259,19 @@ fn load_npm_scripts(root: &Path) -> serde_json::Map<String, Value> {
         .unwrap_or_default()
 }
 
-fn run_npm_script(root: &Path, script: &str) -> Value {
-    let output = Command::new("npm")
+fn run_npm_script(root: &Path, script: &str, args: &[String]) -> Value {
+    let mut command = Command::new("npm");
+    command
         .arg("run")
         .arg("-s")
-        .arg(script)
-        .current_dir(root)
-        .output();
+        .arg(script);
+    if !args.is_empty() {
+        command.arg("--");
+        for arg in args {
+            command.arg(arg);
+        }
+    }
+    let output = command.current_dir(root).output();
     match output {
         Ok(out) => {
             let stdout = String::from_utf8_lossy(&out.stdout).trim().to_string();
@@ -409,6 +436,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     candidates.retain(|id| dedup.insert(id.clone()));
 
     let scripts = load_npm_scripts(root);
+    let lane_registry = load_lane_registry(root);
     let mut executed = 0usize;
     let mut skipped = 0usize;
     let mut failed = 0usize;
@@ -416,18 +444,16 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     let mut rows = Vec::new();
 
     for id in candidates.iter() {
-        let lane_script = lane_script_name(id);
-        let test_script = test_script_name(id);
+        let lane_script = INDEXED_LANE_SCRIPT.to_string();
+        let test_script = INDEXED_TEST_LANE_SCRIPT.to_string();
         let lane_cmd = scripts
             .get(&lane_script)
             .and_then(|v| v.as_str())
             .unwrap_or("");
-        let lane_exists = !lane_cmd.is_empty();
-        let test_cmd = scripts
-            .get(&test_script)
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
-        let mut test_exists = !test_cmd.is_empty();
+        let lane_exists = !lane_cmd.is_empty() && lane_registry_command(&lane_registry, "run", id).is_some();
+        let mut test_exists =
+            scripts.get(&test_script).and_then(|v| v.as_str()).is_some()
+                && lane_registry_command(&lane_registry, "test", id).is_some();
 
         let use_core_contract_lane = runtime_contract_profile_for(id).is_some();
         let use_dynamic_lane = !lane_exists && !use_core_contract_lane;
@@ -527,7 +553,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         } else if use_dynamic_lane {
             run_dynamic_legacy_lane(root, id)
         } else {
-            run_npm_script(root, &lane_script)
+            run_npm_script(root, &lane_script, &[format!("--id={id}")])
         };
         let mut test_result = Value::Null;
         let lane_ok = lane_result
@@ -536,7 +562,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             .unwrap_or(false);
         let mut test_ok = true;
         if with_tests && test_exists && lane_ok && !use_dynamic_lane && !use_core_contract_lane {
-            test_result = run_npm_script(root, &test_script);
+            test_result = run_npm_script(root, &test_script, &[format!("--id={id}")]);
             test_ok = test_result
                 .get("ok")
                 .and_then(|v| v.as_bool())

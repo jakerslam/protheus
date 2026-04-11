@@ -152,10 +152,16 @@ $env:Path = "$HOME/.infring/bin;$env:Path"; infring --help
 For local repository work, use the canonical workspace entrypoints:
 
 - Inspect the script surface: `npm run -s workspace:commands`
+- Inspect the governed tooling registry: `npm run -s tooling:list`
 - Start the canonical local dev loop: `npm run -s workspace:dev`
 - Run the canonical full verification path: `npm run -s workspace:verify`
+- Run the fast tooling profile: `npm run -s tooling:profile -- --id=fast`
+- Run any registered tooling gate: `npm run -s tooling:run -- --id=ops:arch:conformance`
+- Inspect indexed lane inventory: `npm run -s lane:list -- --json=1`
+- Run any registered lane: `npm run -s lane:run -- --id=<ID>`
+- Run lane-specific regression coverage: `npm run -s test:lane:run -- --id=<ID>`
 
-`workspace:verify` delegates to the root [`verify.sh`](/Users/jay/.openclaw/workspace/verify.sh) pipeline, and `workspace:ci` is the canonical CI-equivalent alias for the same path.
+`workspace:verify` delegates to the root [`verify.sh`](/Users/jay/.openclaw/workspace/verify.sh) pipeline, which now reads the manifest-driven tooling profile in [`tests/tooling/config/verify_profiles.json`](/Users/jay/.openclaw/workspace/tests/tooling/config/verify_profiles.json) through the shared runner at [`tests/tooling/scripts/ci/tooling_registry_runner.ts`](/Users/jay/.openclaw/workspace/tests/tooling/scripts/ci/tooling_registry_runner.ts). `workspace:ci` is the canonical CI-equivalent alias for the same path.
 
 Installer behavior:
 

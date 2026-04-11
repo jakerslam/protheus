@@ -4,7 +4,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const DEFAULT_ACTIONABLE_MAP = 'core/local/artifacts/srs_actionable_map_current.json';
-const PACKAGE_PATH = 'package.json';
+const LANE_REGISTRY_PATH = 'client/runtime/config/lane_command_registry.json';
 
 function readJson(path) {
   return JSON.parse(readFileSync(resolve(path), 'utf8'));
@@ -38,8 +38,8 @@ function main() {
   const dryRun = String(args.get('dry-run') || '0') === '1';
 
   const actionable = readJson(actionablePath);
-  const pkg = readJson(PACKAGE_PATH);
-  const scripts = { ...(pkg.scripts || {}) };
+  const registry = readJson(LANE_REGISTRY_PATH);
+  const runRegistry = { ...(registry.run || {}) };
 
   const rows = Array.isArray(actionable.rows) ? actionable.rows : [];
   const repairRows = rows.filter(
@@ -55,9 +55,9 @@ function main() {
     if (!id) continue;
     const key = laneNameForId(id);
     const next = laneCommand(id);
-    const existing = scripts[key];
+    const existing = runRegistry[id] && runRegistry[id].command;
     if (!existing) {
-      scripts[key] = next;
+      runRegistry[id] = { id, command: next, source_script: key };
       added.push(id);
       continue;
     }
@@ -65,13 +65,13 @@ function main() {
       alreadyCorrect.push(id);
       continue;
     }
-    scripts[key] = next;
+    runRegistry[id] = { id, command: next, source_script: key };
     replaced.push(id);
   }
 
   if (!dryRun && (added.length > 0 || replaced.length > 0)) {
-    pkg.scripts = scripts;
-    writeFileSync(resolve(PACKAGE_PATH), `${JSON.stringify(pkg, null, 2)}\n`);
+    registry.run = runRegistry;
+    writeFileSync(resolve(LANE_REGISTRY_PATH), `${JSON.stringify(registry, null, 2)}\n`);
   }
 
   console.log(
@@ -80,6 +80,7 @@ function main() {
         ok: true,
         type: 'sync_repair_lane_scripts',
         actionablePath,
+        laneRegistryPath: LANE_REGISTRY_PATH,
         repair_rows: repairRows.length,
         added: added.length,
         replaced: replaced.length,

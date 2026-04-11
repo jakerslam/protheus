@@ -11,7 +11,7 @@
 #   Designed to run via cron daily or weekly depending on log volume.
 #
 # Usage:
-#   ./log-rotate.sh [options]
+#   ./setup/utils/log-rotate.sh [options]
 #
 # Options:
 #   --service <name>    Rotate logs for specific service only
@@ -23,13 +23,13 @@
 #
 # Examples:
 #   # Rotate all service logs
-#   ./log-rotate.sh
+#   ./setup/utils/log-rotate.sh
 #
 #   # Rotate only core service logs, 7 day retention
-#   ./log-rotate.sh --service core --days 7
+#   ./setup/utils/log-rotate.sh --service core --days 7
 #
 #   # Preview what would be rotated
-#   ./log-rotate.sh --dry-run
+#   ./setup/utils/log-rotate.sh --dry-run
 #
 # Cron Setup:
 #   Daily rotation at 2 AM:

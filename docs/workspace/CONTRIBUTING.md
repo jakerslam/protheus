@@ -8,7 +8,10 @@ Thanks for contributing.
 2. Make focused changes with tests.
 3. Run local checks before opening a PR:
    - `npm run -s workspace:commands` (discover canonical repo entrypoints)
+   - `npm run -s tooling:list` (inspect the governed tooling gate/profile registry)
    - `npm run -s workspace:verify` (canonical full local verify path)
+   - `npm run -s tooling:profile -- --id=fast` (fast manifest-driven tooling sanity profile)
+   - `npm run -s lane:list -- --json=1` (discover indexed lane commands without root script sprawl)
    - optional narrower checks as needed: `npm run ops:format:check:staged`, `npm run lint`, `npm run test`
 4. Open a pull request and wait for CI + review.
 

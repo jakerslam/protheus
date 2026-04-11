@@ -11,10 +11,25 @@
       "command": "npm run -s workspace:verify",
       "summary": "Canonical full local verification path: run the root verify pipeline."
     },
+    "tooling_fast": {
+      "script": "tooling:profile",
+      "command": "npm run -s tooling:profile -- --id=fast",
+      "summary": "Fast manifest-driven tooling profile for local policy/boundary sanity checks."
+    },
     "ci": {
       "script": "workspace:ci",
       "command": "npm run -s workspace:ci",
       "summary": "Canonical CI-equivalent entrypoint, aligned to the root verify pipeline."
+    },
+    "lane_run": {
+      "script": "lane:run",
+      "command": "npm run -s lane:run -- --id=<ID>",
+      "summary": "Indexed lane entrypoint: execute a registered lane without keeping one root package alias per lane."
+    },
+    "lane_test_run": {
+      "script": "test:lane:run",
+      "command": "npm run -s test:lane:run -- --id=<ID>",
+      "summary": "Indexed lane test entrypoint: run lane regression coverage through the shared lane registry."
     }
   },
   "namespace_order": [
