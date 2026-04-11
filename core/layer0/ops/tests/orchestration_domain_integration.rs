@@ -70,6 +70,46 @@ fn scratchpad_write_and_append_finding_roundtrip() {
 }
 
 #[test]
+fn append_finding_is_idempotent_for_exact_retries() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let scratchpad_dir = root.path().join("tmp-scratchpad");
+    let finding = json!({
+        "audit_id": "audit-001",
+        "item_id": "item-001",
+        "severity": "high",
+        "status": "open",
+        "location": "core/layer0/ops/src/main.rs:10",
+        "evidence": [{"type":"receipt","value":"abc"}],
+        "timestamp": "2026-03-15T00:00:00Z"
+    });
+
+    for _ in 0..2 {
+        let code = run_invoke(
+            root.path(),
+            "scratchpad.append_finding",
+            json!({
+                "task_id": "audit-task-dup",
+                "finding": finding,
+                "root_dir": scratchpad_dir
+            }),
+        );
+        assert_eq!(code, 0);
+    }
+
+    let file_path = scratchpad_dir.join("audit-task-dup.json");
+    let stored: Value =
+        serde_json::from_str(&fs::read_to_string(&file_path).expect("read scratchpad"))
+            .expect("parse");
+    assert_eq!(
+        stored
+            .get("findings")
+            .and_then(Value::as_array)
+            .map(|rows| rows.len()),
+        Some(1)
+    );
+}
+
+#[test]
 fn coordinator_run_writes_taskgroup_and_progress() {
     let root = tempfile::tempdir().expect("tempdir");
     let scratchpad_dir = root.path().join("coord-scratchpad");
@@ -183,4 +223,33 @@ fn coordinator_run_writes_taskgroup_and_progress() {
             }),
         Some(2)
     );
+}
+
+#[test]
+fn coordinator_run_rejects_duplicate_scope_ids() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let scratchpad_dir = root.path().join("coord-scratchpad");
+
+    let code = run_invoke(
+        root.path(),
+        "coordinator.run",
+        json!({
+            "task_id": "coord-task-duplicate-scope",
+            "task_type": "integration-audit",
+            "coordinator_session": "session-main",
+            "agent_count": 2,
+            "items": ["REQ-38-004"],
+            "scopes": [
+                { "scope_id": "scope-shared", "series": ["REQ-38"], "paths": ["core/*"] },
+                { "scope_id": "scope-shared", "series": ["REQ-38"], "paths": ["surface/*"] }
+            ],
+            "findings": [],
+            "root_dir": scratchpad_dir
+        }),
+    );
+
+    assert_eq!(code, 1);
+    assert!(!scratchpad_dir
+        .join("coord-task-duplicate-scope.json")
+        .exists());
 }
