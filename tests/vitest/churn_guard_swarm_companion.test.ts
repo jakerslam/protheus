@@ -5,6 +5,7 @@ import { execSync, spawnSync } from 'node:child_process';
 import { afterEach, describe, expect, test } from 'vitest';
 
 const ROOT = process.cwd();
+const ENTRYPOINT = path.join(ROOT, 'client/runtime/lib/ts_entrypoint.ts');
 const GUARD_PATH = path.join(ROOT, 'tests/tooling/scripts/ci/churn_guard.ts');
 
 function writeTrackedFile(repoRoot: string, relativePath: string, contents = `${relativePath}\n`) {
@@ -35,7 +36,7 @@ function createFixtureRepo(): string {
 }
 
 function runGuard(repoRoot: string, args: string[] = []) {
-  const result = spawnSync(process.execPath, [GUARD_PATH, ...args], {
+  const result = spawnSync(process.execPath, [ENTRYPOINT, GUARD_PATH, ...args], {
     cwd: repoRoot,
     encoding: 'utf8',
   });
@@ -44,6 +45,23 @@ function runGuard(repoRoot: string, args: string[] = []) {
     stdout: result.stdout,
     stderr: result.stderr,
   };
+}
+
+function parseJsonOutput(text: string) {
+  const trimmed = String(text || '').trim();
+  if (!trimmed) return null;
+  try {
+    return JSON.parse(trimmed);
+  } catch {}
+  const lines = trimmed.split('\n');
+  for (let index = 0; index < lines.length; index += 1) {
+    const candidate = lines.slice(index).join('\n').trim();
+    if (!candidate.startsWith('{') || !candidate.endsWith('}')) continue;
+    try {
+      return JSON.parse(candidate);
+    } catch {}
+  }
+  return null;
 }
 
 const tempDirs: string[] = [];
@@ -66,7 +84,8 @@ describe('swarm companion churn guard', () => {
     const result = runGuard(repoRoot, ['--strict=1']);
     expect(result.status).toBe(1);
 
-    const payload = JSON.parse(result.stderr);
+    const payload = parseJsonOutput(result.stdout) ?? parseJsonOutput(result.stderr);
+    expect(payload).not.toBeNull();
     expect(payload.summary.swarm_surface_churn).toBe(1);
     expect(payload.summary.swarm_companion_gaps).toBe(2);
   });
@@ -88,10 +107,40 @@ describe('swarm companion churn guard', () => {
     ]);
     expect(result.status).toBe(0);
 
-    const payload = JSON.parse(result.stdout);
+    const payload = parseJsonOutput(result.stdout) ?? parseJsonOutput(result.stderr);
+    expect(payload).not.toBeNull();
     expect(payload.summary.swarm_surface_churn).toBe(2);
+    expect(payload.summary.governance_doc_churn).toBe(1);
     expect(payload.summary.swarm_companion_gaps).toBe(0);
     expect(payload.summary.commit_gate).toBe(true);
+    expect(payload.summary.pass).toBe(true);
+  });
+
+  test('passes commit gate when the audit runner is the swarm-test companion', () => {
+    const repoRoot = createFixtureRepo();
+    tempDirs.push(repoRoot);
+    fs.appendFileSync(path.join(repoRoot, 'core/layer0/ops/src/swarm_runtime.rs'), '// audit-hardening\n');
+    fs.appendFileSync(
+      path.join(repoRoot, 'tests/tooling/scripts/ci/swarm_protocol_audit_runner.ts'),
+      '// audit proof\n',
+    );
+    fs.appendFileSync(
+      path.join(repoRoot, 'docs/client/requirements/REQ-38-agent-orchestration-hardening.md'),
+      '\n- audit runner companion proof\n',
+    );
+
+    const result = runGuard(repoRoot, [
+      '--strict=1',
+      '--commit-gate=1',
+      '--allow-governance-doc-churn=1',
+    ]);
+    expect(result.status).toBe(0);
+
+    const payload = parseJsonOutput(result.stdout) ?? parseJsonOutput(result.stderr);
+    expect(payload).not.toBeNull();
+    expect(payload.summary.swarm_surface_churn).toBe(2);
+    expect(payload.summary.swarm_companion_gaps).toBe(0);
+    expect(payload.summary.commit_gate_pass).toBe(true);
     expect(payload.summary.pass).toBe(true);
   });
 });

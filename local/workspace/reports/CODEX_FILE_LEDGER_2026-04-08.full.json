@@ -21859,10 +21859,10 @@
       "order": 1986
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/vitest/churn_guard_swarm_companion.test.ts",
       "language": "ts",
-      "loc": 97,
+      "loc": 146,
       "authority_risk_score": 2,
       "migration_potential_score": 2,
       "concept_opportunity_score": 3,
@@ -28778,10 +28778,10 @@
       "order": 2615
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/client-memory-tools/personas_orchestration_cli.test.ts",
       "language": "ts",
-      "loc": 9,
+      "loc": 89,
       "authority_risk_score": 2,
       "migration_potential_score": 2,
       "concept_opportunity_score": 3,
@@ -28789,10 +28789,10 @@
       "order": 2616
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/client-memory-tools/personas_orchestration_policies.test.ts",
       "language": "ts",
-      "loc": 9,
+      "loc": 88,
       "authority_risk_score": 2,
       "migration_potential_score": 2,
       "concept_opportunity_score": 3,
@@ -31704,10 +31704,10 @@
       "order": 2881
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/client/cognition/orchestration.integration.test.ts",
       "language": "ts",
-      "loc": 79,
+      "loc": 92,
       "authority_risk_score": 2,
       "migration_potential_score": 2,
       "concept_opportunity_score": 2,
@@ -31737,10 +31737,10 @@
       "order": 2884
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/client/cognition/orchestration.load.test.ts",
       "language": "ts",
-      "loc": 52,
+      "loc": 71,
       "authority_risk_score": 2,
       "migration_potential_score": 2,
       "concept_opportunity_score": 2,

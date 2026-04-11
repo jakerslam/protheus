@@ -8,6 +8,7 @@ const path = require('node:path');
 
 const ROOT = path.resolve(__dirname, '../../..');
 const coordinator = require(path.join(ROOT, 'client/cognition/orchestration/coordinator.ts'));
+const taskgroup = require(path.join(ROOT, 'client/cognition/orchestration/taskgroup.ts'));
 
 function main() {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'orchestration-load-'));
@@ -19,7 +20,7 @@ function main() {
     item_id: itemId,
     severity: 'low',
     status: 'open',
-    location: `client/cognition/orchestration/${index}.ts:1`,
+    location: `core/layer0/ops/src/orchestration_parts/080-invoke.rs:${index + 1}`,
     evidence: [{ type: 'receipt', value: `receipt-${index}` }],
     timestamp: new Date('2026-03-15T00:00:00Z').toISOString()
   }));
@@ -40,7 +41,25 @@ function main() {
   assert.strictEqual(out.findings_merged, findings.length);
   assert.strictEqual(out.completion_summary.complete, true);
   assert.strictEqual(out.completion_summary.total_count, agentCount);
+  assert.strictEqual(out.completion_summary.partial_count, agentCount);
   assert.strictEqual(out.scope_violation_count, 0);
+  assert.strictEqual(out.notification.total_count, agentCount);
+  assert.strictEqual(out.partitions.every((row) => row.items.length === 2), true);
+  assert.strictEqual(out.report.findings[0].location, 'core/layer0/ops/src/orchestration_parts/080-invoke.rs:1');
+  assert.strictEqual(fs.existsSync(out.checkpoint.checkpoint_path), true);
+
+  const group = taskgroup.queryTaskGroup(out.task_group_id, { rootDir });
+  assert.strictEqual(group.ok, true);
+  assert.strictEqual(group.counts.done, agentCount);
+  assert.strictEqual(group.task_group.history.length, agentCount);
+  assert.strictEqual(
+    group.task_group.agents.every((row) => row.details.partial_results_count === 2),
+    true,
+  );
+  assert.strictEqual(
+    group.task_group.agents.every((row) => row.details.processed_count === 2),
+    true,
+  );
 
   console.log(JSON.stringify({ ok: true, type: 'orchestration_load_test', agent_count: agentCount }));
 }
