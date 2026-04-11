@@ -3,10 +3,9 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
+import { invokeTsModuleSync } from '../../../../client/runtime/lib/in_process_ts_delegate.ts';
 
 const ROOT = process.cwd();
-const ENTRYPOINT = path.join(ROOT, 'client/runtime/lib/ts_entrypoint.ts');
 const CLOSURE_POLICY_PATH = path.join(ROOT, 'client/runtime/config/production_readiness_closure_policy.json');
 const RUNNER_PATH = path.join(ROOT, 'adapters/runtime/run_protheus_ops.ts');
 const BRIDGE_PATH = path.join(ROOT, 'adapters/runtime/ops_lane_bridge.ts');
@@ -64,12 +63,12 @@ function parseJsonLine(stdout: string): any {
 }
 
 function runTs(scriptRelPath: string, args: string[]) {
-  const out = spawnSync(process.execPath, [ENTRYPOINT, path.join(ROOT, scriptRelPath), ...args], {
+  const out = invokeTsModuleSync(path.join(ROOT, scriptRelPath), {
+    argv: args,
     cwd: ROOT,
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-    env: { ...process.env },
-    maxBuffer: 32 * 1024 * 1024,
+    exportName: 'run',
+    teeStdout: false,
+    teeStderr: false,
   });
   return {
     status: Number.isFinite(out.status) ? Number(out.status) : 1,

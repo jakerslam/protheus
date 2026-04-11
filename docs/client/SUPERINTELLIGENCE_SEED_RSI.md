@@ -27,7 +27,7 @@ This upgrade adds an RSI wrapper at `client/cognition/adaptive/rsi/rsi_bootstrap
 
 1. Baseline internal control:
    - Measure `packages/protheus-core` cold start and package size:
-     - `node packages/protheus-core/starter.js --mode=contract --max-mb=5 --max-ms=200`
+     - `node client/runtime/lib/ts_entrypoint.ts packages/protheus-core/starter.ts --mode=contract --max-mb=5 --max-ms=200`
 2. RSI orchestration latency:
    - `node client/cognition/adaptive/rsi/rsi_bootstrap.ts step --owner=operator --mock=1`
    - Record p50/p95 step duration from `state/client/cognition/adaptive/rsi/receipts.jsonl`.
@@ -48,4 +48,3 @@ This upgrade adds an RSI wrapper at `client/cognition/adaptive/rsi/rsi_bootstrap
 - [x] Swarm lineage hooks (`seed_spawn_lineage`, `spawn_broker`, `nursery`) are available under RSI step flags.
 - [ ] Move from shadow-only to controlled live apply with explicit operator command.
 - [ ] Add continuous external benchmark lanes and weekly regression receipts.
-
