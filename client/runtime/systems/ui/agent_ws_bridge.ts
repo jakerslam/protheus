@@ -62,10 +62,74 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
         input,
         result,
         is_error: isError,
+        blocked: row.blocked === true || String(row.status || '').toLowerCase() === 'blocked',
+        status: cleanText(row.status || '', 40).toLowerCase(),
+        tool_attempt_receipt: row.tool_attempt_receipt || null,
       });
       if (out.length >= 16) break;
     }
     return out;
+  };
+  const toolCardFromAttempt = (rawAttempt, idx) => {
+    const envelope = rawAttempt && typeof rawAttempt === 'object' ? rawAttempt : {};
+    const attempt = envelope.attempt && typeof envelope.attempt === 'object' ? envelope.attempt : envelope;
+    const toolName = cleanText(attempt.tool_name || attempt.tool || 'tool', 120).toLowerCase() || 'tool';
+    const rawStatus = cleanText(attempt.status || attempt.outcome || '', 40).toLowerCase();
+    const blocked = rawStatus === 'blocked' || rawStatus === 'policy_denied';
+    const isError = !blocked && !!rawStatus && rawStatus !== 'ok';
+    let input = '';
+    try {
+      if (envelope.normalized_result && envelope.normalized_result.normalized_args) {
+        input = cleanText(JSON.stringify(envelope.normalized_result.normalized_args), 16000);
+      }
+    } catch {}
+    const result = cleanText(
+      envelope.error || attempt.reason || (attempt.backend ? ('Attempted via ' + String(attempt.backend).replace(/_/g, ' ')) : '') || rawStatus || 'attempt recorded',
+      24000
+    );
+    return {
+      id: cleanText(`${toolName}-attempt-${Date.now()}-${idx}`, 160),
+      name: toolName,
+      input,
+      result,
+      is_error: isError,
+      blocked,
+      status: blocked ? 'blocked' : (rawStatus || (isError ? 'error' : 'ok')),
+      tool_attempt_receipt: attempt,
+    };
+  };
+  const mergeResponseToolRows = (payload) => {
+    const data = payload && typeof payload === 'object' ? payload : {};
+    const base = normalizeToolRows(data.tools);
+    const completion =
+      data &&
+      data.response_finalization &&
+      data.response_finalization.tool_completion &&
+      typeof data.response_finalization.tool_completion === 'object'
+        ? data.response_finalization.tool_completion
+        : null;
+    const attempts = Array.isArray(completion && completion.tool_attempts)
+      ? completion.tool_attempts
+      : [];
+    if (!attempts.length) return base;
+    const merged = base.slice();
+    for (let i = 0; i < attempts.length; i++) {
+      const attemptCard = toolCardFromAttempt(attempts[i], i);
+      let matched = false;
+      for (let j = 0; j < merged.length; j++) {
+        const current = merged[j] || {};
+        if (String(current.name || '').toLowerCase() !== String(attemptCard.name || '').toLowerCase()) continue;
+        if (!current.input && attemptCard.input) current.input = attemptCard.input;
+        if (!current.result && attemptCard.result) current.result = attemptCard.result;
+        if (attemptCard.blocked) current.blocked = true;
+        if (attemptCard.status) current.status = attemptCard.status;
+        if (attemptCard.is_error) current.is_error = true;
+        matched = true;
+        break;
+      }
+      if (!matched) merged.push(attemptCard);
+    }
+    return merged.slice(0, 16);
   };
   const normalizeToolCompletionSteps = (rawCompletion) => {
     if (!rawCompletion || typeof rawCompletion !== 'object') return [];
@@ -218,11 +282,19 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
             body: JSON.stringify({ message: content, attachments: Array.isArray(payload.attachments) ? payload.attachments : [] }),
           }, 180000);
           out = await res.json().catch(() => ({}));
-          if (!res.ok || out.ok === false) {
+          const hasStructuredResponse =
+            !!(out && typeof out === 'object' && (
+              typeof out.response === 'string' ||
+              (out.response_finalization &&
+                out.response_finalization.tool_completion &&
+                Array.isArray(out.response_finalization.tool_completion.tool_attempts)) ||
+              Array.isArray(out.tools)
+            ));
+          if ((!res.ok || out.ok === false) && !hasStructuredResponse) {
             send(ws, { type: 'error', agent_id: targetAgent, content: cleanText(out.error || `backend_http_${res.status}`, 260) });
             return;
           }
-          const toolRows = normalizeToolRows(out.tools);
+          const toolRows = mergeResponseToolRows(out);
           const toolCompletion =
             out &&
             out.response_finalization &&

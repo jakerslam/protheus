@@ -1,5 +1,6 @@
 use crate::contracts::{
-    CoreContractCall, OrchestrationPlanStep, OrchestrationRequest, RequestClass,
+    CoreContractCall, OrchestrationFallbackAction, OrchestrationPlanStep, OrchestrationRequest,
+    RequestClass,
 };
 
 pub fn build_steps(
@@ -41,5 +42,37 @@ pub fn build_steps(
             operation: "request_materialized_view".to_string(),
             target_contract: CoreContractCall::UnifiedMemoryRead,
         }],
+    }
+}
+
+pub fn fallback_actions(
+    request: &OrchestrationRequest,
+    request_class: RequestClass,
+) -> Vec<OrchestrationFallbackAction> {
+    match request_class {
+        RequestClass::ToolCall => vec![
+            OrchestrationFallbackAction {
+                kind: "inspect_tool_capabilities".to_string(),
+                label: "Check available tools".to_string(),
+                reason: "probe the governed tool surface before retrying".to_string(),
+            },
+            OrchestrationFallbackAction {
+                kind: "narrow_tool_request".to_string(),
+                label: "Retry with narrower input".to_string(),
+                reason: "reduce ambiguity in the tool payload or query".to_string(),
+            },
+            OrchestrationFallbackAction {
+                kind: if request.intent.to_ascii_lowercase().contains("file")
+                    || request.intent.to_ascii_lowercase().contains("workspace")
+                {
+                    "paste_workspace_context".to_string()
+                } else {
+                    "ask_for_source_material".to_string()
+                },
+                label: "Provide direct source context".to_string(),
+                reason: "fallback to explicit files, paths, or pasted content when tools are blocked".to_string(),
+            },
+        ],
+        _ => Vec::new(),
     }
 }

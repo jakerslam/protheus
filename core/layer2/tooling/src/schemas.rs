@@ -185,10 +185,41 @@ pub const CLAIM_BUNDLE_FIELDS: &[&str] = &[
     "coverage_score",
 ];
 
+pub const TOOL_ATTEMPT_RECEIPT_FIELDS: &[&str] = &[
+    "attempt_id",
+    "trace_id",
+    "task_id",
+    "caller",
+    "tool_name",
+    "status",
+    "outcome",
+    "reason_code",
+    "reason",
+    "latency_ms",
+    "required_args",
+    "backend",
+    "discoverable",
+    "timestamp",
+];
+
+pub const TOOL_CAPABILITY_PROBE_FIELDS: &[&str] = &[
+    "tool_name",
+    "caller",
+    "available",
+    "discoverable",
+    "status",
+    "reason_code",
+    "reason",
+    "required_args",
+    "backend",
+];
+
 pub fn published_schema_contract_v1() -> Value {
     json!({
-        "version": "tooling_schema_v2",
+        "version": "tooling_schema_v3",
         "normalized_tool_result": NORMALIZED_TOOL_RESULT_FIELDS,
+        "tool_attempt_receipt": TOOL_ATTEMPT_RECEIPT_FIELDS,
+        "tool_capability_probe": TOOL_CAPABILITY_PROBE_FIELDS,
         "evidence_card": EVIDENCE_CARD_FIELDS,
         "worker_output": WORKER_OUTPUT_FIELDS,
         "claim": CLAIM_FIELDS,
@@ -199,6 +230,8 @@ pub fn published_schema_contract_v1() -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::capability::ToolCapabilityProbe;
+    use crate::tool_broker::ToolAttemptReceipt;
     use serde_json::json;
 
     #[test]
@@ -206,7 +239,7 @@ mod tests {
         let contract = published_schema_contract_v1();
         assert_eq!(
             contract.get("version").and_then(Value::as_str),
-            Some("tooling_schema_v2")
+            Some("tooling_schema_v3")
         );
         assert_eq!(
             contract
@@ -214,6 +247,13 @@ mod tests {
                 .and_then(Value::as_array)
                 .map(|rows| rows.len()),
             Some(NORMALIZED_TOOL_RESULT_FIELDS.len())
+        );
+        assert_eq!(
+            contract
+                .get("tool_attempt_receipt")
+                .and_then(Value::as_array)
+                .map(|rows| rows.len()),
+            Some(TOOL_ATTEMPT_RECEIPT_FIELDS.len())
         );
         assert_eq!(
             contract
@@ -254,6 +294,57 @@ mod tests {
         assert!(keys.contains(&"trace_id".to_string()));
         assert!(keys.contains(&"task_id".to_string()));
         assert_eq!(keys.len(), EVIDENCE_CARD_FIELDS.len());
+    }
+
+    #[test]
+    fn tool_attempt_receipt_schema_includes_reason_and_backend() {
+        let attempt = ToolAttemptReceipt {
+            attempt_id: "attempt-1".to_string(),
+            trace_id: "trace-1".to_string(),
+            task_id: "task-1".to_string(),
+            caller: crate::tool_broker::BrokerCaller::Client,
+            tool_name: "web_search".to_string(),
+            status: crate::tool_broker::ToolAttemptStatus::Ok,
+            outcome: "ok".to_string(),
+            reason_code: crate::capability::ToolReasonCode::Ok,
+            reason: "ok".to_string(),
+            latency_ms: 1,
+            required_args: vec!["query".to_string()],
+            backend: "retrieval_plane".to_string(),
+            discoverable: true,
+            timestamp: 1,
+        };
+        let value = serde_json::to_value(attempt).expect("serialize");
+        let keys = value
+            .as_object()
+            .map(|obj| obj.keys().cloned().collect::<Vec<_>>())
+            .unwrap_or_default();
+        assert!(keys.contains(&"reason_code".to_string()));
+        assert!(keys.contains(&"backend".to_string()));
+        assert_eq!(keys.len(), TOOL_ATTEMPT_RECEIPT_FIELDS.len());
+    }
+
+    #[test]
+    fn tool_capability_probe_schema_includes_status_and_required_args() {
+        let probe = ToolCapabilityProbe {
+            tool_name: "web_search".to_string(),
+            caller: crate::tool_broker::BrokerCaller::Client,
+            available: true,
+            discoverable: true,
+            status: crate::capability::ToolCapabilityStatus::Available,
+            reason_code: crate::capability::ToolReasonCode::Ok,
+            reason: "ok".to_string(),
+            required_args: vec!["query".to_string()],
+            backend: "retrieval_plane".to_string(),
+        };
+        let value = serde_json::to_value(probe).expect("serialize");
+        let keys = value
+            .as_object()
+            .map(|obj| obj.keys().cloned().collect::<Vec<_>>())
+            .unwrap_or_default();
+        assert!(keys.contains(&"status".to_string()));
+        assert!(keys.contains(&"required_args".to_string()));
+        assert_eq!(keys.len(), TOOL_CAPABILITY_PROBE_FIELDS.len());
     }
 
     #[test]

@@ -93,6 +93,15 @@ fn execute_tool_call_by_name(
             let path = format!("/api/agents/{actor}/folder/export");
             route_with_body("POST", &path, &body)
         }
+        "workspace_analyze" | "workspace_scan" | "analyze_workspace" => {
+            let body = if input.is_object() {
+                input.clone()
+            } else {
+                json!({"path": clean_text(input.as_str().unwrap_or("."), 4000)})
+            };
+            let path = format!("/api/agents/{actor}/folder/export");
+            route_with_body("POST", &path, &body)
+        }
         "terminal_exec" | "run_terminal" | "terminal" | "shell_exec" => {
             let mut body = if input.is_object() {
                 input.clone()

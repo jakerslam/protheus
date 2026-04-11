@@ -314,6 +314,93 @@
       var sec = Math.round((num % 60000) / 1000);
       return min + 'm ' + sec + 's';
     },
+    normalizeResponseToolCard: function(tool, idx, prefix) {
+      var row = tool && typeof tool === 'object' ? tool : {};
+      return {
+        id: (row.id || ((prefix || 'tool') + '-' + Date.now() + '-' + idx)),
+        name: row.name || row.tool || 'tool',
+        running: false,
+        expanded: false,
+        input: row.input || row.arguments || row.args || '',
+        result: row.result || row.output || row.summary || '',
+        is_error: !!(row.is_error || row.error || row.blocked),
+        blocked: row.blocked === true || String(row.status || '').toLowerCase() === 'blocked',
+        status: String(row.status || '').trim().toLowerCase(),
+        tool_attempt_receipt: row.tool_attempt_receipt || null
+      };
+    },
+
+    toolCardFromAttemptReceipt: function(rawAttempt, idx, prefix) {
+      var envelope = rawAttempt && typeof rawAttempt === 'object' ? rawAttempt : {};
+      var attempt = envelope.attempt && typeof envelope.attempt === 'object' ? envelope.attempt : envelope;
+      var toolName = String(attempt.tool_name || attempt.tool || 'tool').trim() || 'tool';
+      var rawStatus = String(attempt.status || attempt.outcome || '').trim().toLowerCase();
+      var blocked = rawStatus === 'blocked' || rawStatus === 'policy_denied';
+      var isError = !blocked && !!rawStatus && rawStatus !== 'ok';
+      var normalizedArgs = envelope.normalized_result && envelope.normalized_result.normalized_args
+        ? envelope.normalized_result.normalized_args
+        : null;
+      var input = '';
+      try {
+        if (normalizedArgs && typeof normalizedArgs === 'object') input = JSON.stringify(normalizedArgs);
+      } catch (_) {}
+      var reason = String(envelope.error || attempt.reason || rawStatus || '').trim();
+      var backend = String(attempt.backend || '').trim().replace(/_/g, ' ');
+      var result = reason;
+      if (!result && backend) result = 'Attempted via ' + backend;
+      if (!result && rawStatus === 'ok') result = 'Attempt succeeded';
+      if (!result) result = 'Attempt recorded';
+      return {
+        id: ((prefix || 'attempt') + '-' + Date.now() + '-' + idx),
+        name: toolName,
+        running: false,
+        expanded: false,
+        input: input,
+        result: result,
+        is_error: isError,
+        blocked: blocked,
+        status: blocked ? 'blocked' : (rawStatus || (isError ? 'error' : 'ok')),
+        reason_code: String(attempt.reason_code || '').trim(),
+        backend: String(attempt.backend || '').trim(),
+        tool_attempt_receipt: attempt
+      };
+    },
+
+    responseToolRowsFromPayload: function(payload, prefix) {
+      var data = payload && typeof payload === 'object' ? payload : {};
+      var base = Array.isArray(data.tools)
+        ? data.tools.map(function(row, idx) { return this.normalizeResponseToolCard(row, idx, prefix || 'tool'); }, this)
+        : [];
+      var completion =
+        data.response_finalization &&
+        data.response_finalization.tool_completion &&
+        typeof data.response_finalization.tool_completion === 'object'
+          ? data.response_finalization.tool_completion
+          : null;
+      var attempts = Array.isArray(completion && completion.tool_attempts)
+        ? completion.tool_attempts
+        : [];
+      if (!attempts.length) return base;
+      var merged = base.slice();
+      for (var i = 0; i < attempts.length; i++) {
+        var attemptCard = this.toolCardFromAttemptReceipt(attempts[i], i, prefix || 'attempt');
+        var matched = false;
+        for (var j = 0; j < merged.length; j++) {
+          var current = merged[j];
+          if (!current || String(current.name || '').toLowerCase() !== String(attemptCard.name || '').toLowerCase()) continue;
+          if (!current.input && attemptCard.input) current.input = attemptCard.input;
+          if ((!current.result || !String(current.result).trim()) && attemptCard.result) current.result = attemptCard.result;
+          if (attemptCard.blocked) current.blocked = true;
+          if (attemptCard.status) current.status = attemptCard.status;
+          if (attemptCard.is_error) current.is_error = true;
+          if (!current.tool_attempt_receipt && attemptCard.tool_attempt_receipt) current.tool_attempt_receipt = attemptCard.tool_attempt_receipt;
+          matched = true;
+          break;
+        }
+        if (!matched) merged.push(attemptCard);
+      }
+      return merged.slice(0, 16);
+    },
     stepMessageMap: function(list, dir) {
       if (!Array.isArray(list) || !list.length) return;
       this.suppressMapPreview = true;

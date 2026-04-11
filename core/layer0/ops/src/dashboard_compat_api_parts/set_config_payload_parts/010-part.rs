@@ -109,31 +109,39 @@ where
     let mut store = protheus_tooling_core_v1::EvidenceStore::default();
     let _ = store.recover_from_ledger();
     let verifier = protheus_tooling_core_v1::StructuredVerifier;
+    let tool_name_clean = clean_text(tool_name, 80);
+    let capability_probe = broker.capability_probe(
+        protheus_tooling_core_v1::BrokerCaller::Client,
+        tool_name_clean.as_str(),
+    );
     let request = protheus_tooling_core_v1::ToolCallRequest {
         trace_id: clean_text(trace_id, 160),
         task_id: clean_text(task_id, 160),
-        tool_name: clean_text(tool_name, 80),
+        tool_name: tool_name_clean.clone(),
         args: tool_args.clone(),
         lineage: vec!["dashboard_compat_api".to_string()],
         caller: protheus_tooling_core_v1::BrokerCaller::Client,
         policy_revision: Some("policy.tooling.dashboard_compat_api.v1".to_string()),
-        tool_version: Some(format!("{}.v1", clean_text(tool_name, 80))),
+        tool_version: Some(format!("{tool_name_clean}.v1")),
         freshness_window_ms: None,
         force_no_dedupe: false,
     };
-    let execution = match broker.execute_and_normalize(request, executor) {
-        Ok(out) => out,
-        Err(err) => {
-            return json!({
-                "ok": false,
-                "error": err.as_message(),
-                "tool_name": clean_text(tool_name, 80),
-                "task_id": clean_text(task_id, 160),
-                "trace_id": clean_text(trace_id, 160)
-            })
-        }
+    let attempt = broker.execute_and_envelope(request, executor);
+    let attempt_receipt = attempt.attempt.clone();
+    let Some(normalized_result) = attempt.normalized_result.clone() else {
+        return json!({
+            "ok": false,
+            "error": attempt.error.clone().unwrap_or_else(|| attempt_receipt.reason.clone()),
+            "tool_name": tool_name_clean,
+            "task_id": clean_text(task_id, 160),
+            "trace_id": clean_text(trace_id, 160),
+            "tool_capability_probe": capability_probe,
+            "tool_attempt": attempt,
+            "tool_attempt_receipt": attempt_receipt
+        });
     };
-    let cards = extractor.extract(&execution.normalized_result, &execution.raw_payload);
+    let raw_payload = attempt.raw_payload.clone().unwrap_or(Value::Null);
+    let cards = extractor.extract(&normalized_result, &raw_payload);
     let evidence_ids = store.append_evidence(&cards);
     let bundle = verifier.derive_claim_bundle(task_id, &cards);
     let claim_ref_validation = verifier.validate_claim_evidence_refs(&bundle, &cards).err();
@@ -161,24 +169,27 @@ where
         } else {
             Vec::new()
         },
-        blockers: if execution.normalized_result.errors.is_empty() {
+        blockers: if normalized_result.errors.is_empty() {
             claim_ref_validation.into_iter().collect::<Vec<_>>()
         } else {
-            let mut rows = execution.normalized_result.errors.clone();
+            let mut rows = normalized_result.errors.clone();
             rows.extend(claim_ref_validation);
             rows
         },
         budget_used: protheus_tooling_core_v1::WorkerBudgetUsed {
             tool_calls: 1,
             input_tokens: (clean_text(&tool_args.to_string(), 8000).len() / 4).max(1),
-            output_tokens: (clean_text(&execution.raw_payload.to_string(), 8000).len() / 4).max(1),
+            output_tokens: (clean_text(&raw_payload.to_string(), 8000).len() / 4).max(1),
         },
     };
     json!({
         "ok": true,
         "schema_contract": protheus_tooling_core_v1::published_schema_contract_v1(),
-        "raw_payload": execution.raw_payload,
-        "normalized_result": execution.normalized_result,
+        "tool_capability_probe": capability_probe,
+        "tool_attempt": attempt,
+        "tool_attempt_receipt": attempt_receipt,
+        "raw_payload": raw_payload,
+        "normalized_result": normalized_result,
         "evidence_cards": cards,
         "evidence_store_records": store.records(),
         "worker_output": worker_output,
@@ -198,7 +209,16 @@ fn attach_tool_pipeline(payload: &mut Value, pipeline: &Value) {
 fn tool_pipeline_supported_tool(tool_name: &str) -> bool {
     matches!(
         normalize_tool_name(tool_name).as_str(),
-        "web_search" | "web_fetch" | "batch_query" | "file_read" | "file_read_many"
+        "web_search"
+            | "web_fetch"
+            | "batch_query"
+            | "file_read"
+            | "file_read_many"
+            | "folder_export"
+            | "manage_agent"
+            | "spawn_subagents"
+            | "terminal_exec"
+            | "workspace_analyze"
     )
 }
 
@@ -316,73 +336,6 @@ fn parent_agent_id_from_row(row: &Value) -> String {
             })
             .unwrap_or(""),
     )
-}
-
-fn agent_parent_map(root: &Path, snapshot: &Value) -> HashMap<String, String> {
-    let mut out = HashMap::<String, String>::new();
-    for row in build_agent_roster(root, snapshot, true) {
-        let id = clean_agent_id(row.get("id").and_then(Value::as_str).unwrap_or(""));
-        if id.is_empty() {
-            continue;
-        }
-        let parent = parent_agent_id_from_row(&row);
-        if !parent.is_empty() {
-            out.insert(id, parent);
-        }
-    }
-    out
-}
-
-fn actor_can_manage_target(root: &Path, snapshot: &Value, actor_id: &str, target_id: &str) -> bool {
-    let actor = clean_agent_id(actor_id);
-    let target = clean_agent_id(target_id);
-    if actor.is_empty() || target.is_empty() {
-        return actor.is_empty();
-    }
-    if actor == target {
-        return true;
-    }
-    let parent_map = agent_parent_map(root, snapshot);
-    let mut current = target;
-    let mut hops = 0usize;
-    let mut seen = HashSet::<String>::new();
-    while hops < 64 && seen.insert(current.clone()) {
-        let Some(parent) = parent_map.get(&current).cloned() else {
-            return false;
-        };
-        if parent == actor {
-            return true;
-        }
-        current = parent;
-        hops += 1;
-    }
-    false
-}
-
-fn parent_can_archive_descendant_without_signoff(
-    root: &Path,
-    snapshot: &Value,
-    actor_id: &str,
-    normalized_tool: &str,
-    input: &Value,
-) -> bool {
-    if !matches!(normalized_tool, "agent_action" | "manage_agent") {
-        return false;
-    }
-    let action = clean_text(
-        input.get("action").and_then(Value::as_str).unwrap_or(""),
-        80,
-    )
-    .to_ascii_lowercase();
-    if !matches!(action.as_str(), "archive" | "delete") {
-        return false;
-    }
-    let actor = clean_agent_id(actor_id);
-    let target = clean_agent_id(input.get("agent_id").and_then(Value::as_str).unwrap_or(""));
-    if actor.is_empty() || target.is_empty() || actor == target {
-        return false;
-    }
-    actor_can_manage_target(root, snapshot, &actor, &target)
 }
 
 fn parse_rfc3339_utc(raw: &str) -> Option<DateTime<Utc>> {

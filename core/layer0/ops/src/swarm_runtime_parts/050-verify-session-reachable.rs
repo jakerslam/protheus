@@ -241,7 +241,7 @@ fn next_message_id(
     format!("msg-{}-{:x}", &digest[..10], state.message_sequence)
 }
 
-fn is_sibling_or_child_allowed(
+fn is_lineage_adjacent_allowed(
     state: &SwarmState,
     sender_session_id: &str,
     recipient_session_id: &str,
@@ -254,7 +254,8 @@ fn is_sibling_or_child_allowed(
     };
     let sibling = sender.parent_id == recipient.parent_id;
     let child = recipient.parent_id.as_deref() == Some(sender_session_id);
-    sibling || child
+    let parent = sender.parent_id.as_deref() == Some(recipient_session_id);
+    sibling || child || parent
 }
 
 fn send_session_message(
@@ -276,7 +277,7 @@ fn send_session_message(
         return Err("self_delivery_blocked".to_string());
     }
     if sender_session_id != "coordinator"
-        && !is_sibling_or_child_allowed(state, sender_session_id, recipient_session_id)
+        && !is_lineage_adjacent_allowed(state, sender_session_id, recipient_session_id)
     {
         return Err(format!(
             "recipient_scope_denied:sender={sender_session_id}:recipient={recipient_session_id}"

@@ -1,9 +1,12 @@
-use crate::contracts::{OrchestrationPlan, OrchestrationResultPackage, RequestClass};
+use crate::contracts::{
+    OrchestrationFallbackAction, OrchestrationPlan, OrchestrationResultPackage, RequestClass,
+};
 
 pub fn package_result(
     plan: &OrchestrationPlan,
     progress_message: String,
     recovery_applied: bool,
+    fallback_actions: Vec<OrchestrationFallbackAction>,
 ) -> OrchestrationResultPackage {
     let requires_core_promotion = matches!(
         plan.request_class,
@@ -19,6 +22,7 @@ pub fn package_result(
         summary,
         progress_message,
         recovery_applied,
+        fallback_actions,
         core_contract_calls: plan
             .steps
             .iter()

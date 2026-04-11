@@ -10,16 +10,26 @@ fn handle_agent_scope_full(
 ) -> Option<CompatApiResponse> {
     if let Some((requested_agent_id, segments)) = parse_agent_route(path_only) {
         let agent_id = resolve_agent_id_alias(root, &requested_agent_id);
+        let lineage_message_route =
+            method == "POST" && segments.len() == 1 && segments[0] == "message";
         if !requester_agent.is_empty()
             && method != "GET"
             && requester_agent != agent_id
-            && !actor_can_manage_target(root, snapshot, &requester_agent, &agent_id)
+            && !(if lineage_message_route {
+                actor_can_message_target(root, snapshot, &requester_agent, &agent_id)
+            } else {
+                actor_can_manage_target(root, snapshot, &requester_agent, &agent_id)
+            })
         {
             return Some(CompatApiResponse {
                 status: 403,
                 payload: json!({
                     "ok": false,
-                    "error": "agent_manage_forbidden",
+                    "error": if lineage_message_route {
+                        "agent_message_forbidden"
+                    } else {
+                        "agent_manage_forbidden"
+                    },
                     "actor_agent_id": requester_agent.clone(),
                     "target_agent_id": agent_id
                 }),

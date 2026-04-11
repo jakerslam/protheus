@@ -1,4 +1,7 @@
-use crate::capability::{all_capabilities_for_callers, required_args_for, ToolCapability, ToolCapabilityProbe};
+use crate::capability::{
+    all_capabilities_for_callers, capability_probe_for, ToolCapability, ToolCapabilityProbe,
+    ToolReasonCode,
+};
 use crate::schemas::{NormalizedToolMetrics, NormalizedToolResult, NormalizedToolStatus};
 use crate::{deterministic_hash, now_ms};
 use serde::{Deserialize, Serialize};
@@ -32,8 +35,30 @@ pub struct ToolCallRequest {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ToolBrokerExecution {
+    pub attempt: ToolAttemptEnvelope,
     pub normalized_result: NormalizedToolResult,
     pub raw_payload: Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ToolAttemptStatus {
+    Ok,
+    Unavailable,
+    Blocked,
+    InvalidArgs,
+    ExecutionError,
+    TransportError,
+    Timeout,
+    PolicyDenied,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ToolAttemptEnvelope {
+    pub attempt: ToolAttemptReceipt,
+    pub normalized_result: Option<NormalizedToolResult>,
+    pub raw_payload: Option<Value>,
+    pub error: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -63,8 +88,14 @@ pub struct ToolAttemptReceipt {
     pub task_id: String,
     pub caller: BrokerCaller,
     pub tool_name: String,
+    pub status: ToolAttemptStatus,
     pub outcome: String,
+    pub reason_code: ToolReasonCode,
     pub reason: String,
+    pub latency_ms: u64,
+    pub required_args: Vec<String>,
+    pub backend: String,
+    pub discoverable: bool,
     pub timestamp: u64,
 }
 
@@ -108,6 +139,11 @@ impl Default for ToolBroker {
             "batch_query",
             "file_read",
             "file_read_many",
+            "folder_export",
+            "manage_agent",
+            "spawn_subagents",
+            "terminal_exec",
+            "workspace_analyze",
         ]
         .iter()
         .map(|v| v.to_string())
@@ -146,31 +182,7 @@ impl ToolBroker {
     }
 
     pub fn capability_probe(&self, caller: BrokerCaller, tool_name: &str) -> ToolCapabilityProbe {
-        let normalized = clean_text(tool_name, 120).to_ascii_lowercase();
-        let known = !required_args_for(&normalized).is_empty();
-        if !known {
-            return ToolCapabilityProbe {
-                tool_name: normalized,
-                caller,
-                available: false,
-                reason: "unknown_tool".to_string(),
-            };
-        }
-        let allowed = self
-            .allowed_tools
-            .get(&caller)
-            .map(|set| set.contains(&normalized))
-            .unwrap_or(false);
-        ToolCapabilityProbe {
-            tool_name: normalized,
-            caller,
-            available: allowed,
-            reason: if allowed {
-                "ok".to_string()
-            } else {
-                "caller_not_authorized".to_string()
-            },
-        }
+        capability_probe_for(&self.allowed_tools, caller, clean_text(tool_name, 120).as_str())
     }
 
     pub fn direct_tool_bypass_attempt(&self, caller: BrokerCaller) -> Result<(), BrokerError> {
@@ -200,14 +212,29 @@ impl ToolBroker {
         let event_ts = now_ms();
         let probe = self.capability_probe(request.caller, &tool_name);
         if !probe.available {
+            let attempt_status = match probe.reason_code {
+                ToolReasonCode::UnknownTool | ToolReasonCode::TransportUnavailable => {
+                    ToolAttemptStatus::Unavailable
+                }
+                ToolReasonCode::CallerNotAuthorized | ToolReasonCode::PolicyDenied => {
+                    ToolAttemptStatus::Blocked
+                }
+                ToolReasonCode::InvalidArgs => ToolAttemptStatus::InvalidArgs,
+                ToolReasonCode::Timeout => ToolAttemptStatus::Timeout,
+                ToolReasonCode::ExecutionError => ToolAttemptStatus::ExecutionError,
+                ToolReasonCode::Ok => ToolAttemptStatus::Ok,
+            };
             self.record_attempt_receipt(
                 request.trace_id.as_str(),
                 request.task_id.as_str(),
                 request.caller,
                 tool_name.as_str(),
-                "unavailable",
+                attempt_status,
                 probe.reason.as_str(),
+                probe.reason_code,
                 event_ts,
+                0,
+                &probe,
             );
             return Err(BrokerError::UnauthorizedToolRequest(tool_name));
         }
@@ -219,9 +246,12 @@ impl ToolBroker {
                     request.task_id.as_str(),
                     request.caller,
                     tool_name.as_str(),
-                    "error",
+                    ToolAttemptStatus::InvalidArgs,
                     "invalid_args",
+                    ToolReasonCode::InvalidArgs,
                     event_ts,
+                    0,
+                    &probe,
                 );
                 return Err(err);
             }
@@ -257,22 +287,34 @@ impl ToolBroker {
                 vec![clean_text(&err, 500)],
             ),
         };
+        let (attempt_status, reason_code) = match status {
+            NormalizedToolStatus::Ok => (ToolAttemptStatus::Ok, ToolReasonCode::Ok),
+            NormalizedToolStatus::Blocked => {
+                (ToolAttemptStatus::Blocked, ToolReasonCode::PolicyDenied)
+            }
+            NormalizedToolStatus::Error => {
+                (ToolAttemptStatus::ExecutionError, ToolReasonCode::ExecutionError)
+            }
+        };
         let status_tag = match status {
             NormalizedToolStatus::Ok => "ok",
             NormalizedToolStatus::Error => "error",
             NormalizedToolStatus::Blocked => "blocked",
         };
-        self.record_attempt_receipt(
+        let attempt_receipt = self.record_attempt_receipt(
             request.trace_id.as_str(),
             request.task_id.as_str(),
             request.caller,
             tool_name.as_str(),
-            status_tag,
+            attempt_status,
             errors
                 .first()
                 .map(String::as_str)
                 .unwrap_or(if status_tag == "ok" { "ok" } else { "execution_error" }),
+            reason_code,
             event_ts,
+            duration_ms,
+            &probe,
         );
         let content_fingerprint = deterministic_hash(&json!({
             "kind": "normalized_tool_result_content",
@@ -360,10 +402,66 @@ impl ToolBroker {
         };
         self.persist_ledger_event(&ledger_event)?;
         self.ledger_events.push(ledger_event);
+        let attempt = ToolAttemptEnvelope {
+            attempt: attempt_receipt,
+            normalized_result: Some(normalized_result.clone()),
+            raw_payload: Some(raw_payload.clone()),
+            error: None,
+        };
         Ok(ToolBrokerExecution {
+            attempt,
             normalized_result,
             raw_payload,
         })
+    }
+
+    pub fn execute_and_envelope<F>(
+        &mut self,
+        request: ToolCallRequest,
+        executor: F,
+    ) -> ToolAttemptEnvelope
+    where
+        F: FnOnce(&Value) -> Result<Value, String>,
+    {
+        let before = self.attempt_receipts.len();
+        match self.execute_and_normalize(request.clone(), executor) {
+            Ok(out) => out.attempt,
+            Err(err) => {
+                let attempt = self
+                    .attempt_receipts
+                    .get(before)
+                    .cloned()
+                    .or_else(|| self.attempt_receipts.last().cloned())
+                    .unwrap_or_else(|| ToolAttemptReceipt {
+                        attempt_id: deterministic_hash(&json!({
+                            "kind": "tool_attempt_receipt_fallback",
+                            "trace_id": request.trace_id,
+                            "task_id": request.task_id,
+                            "tool_name": request.tool_name,
+                            "timestamp": now_ms()
+                        })),
+                        trace_id: clean_text(&request.trace_id, 160),
+                        task_id: clean_text(&request.task_id, 160),
+                        caller: request.caller,
+                        tool_name: clean_text(&request.tool_name, 120),
+                        status: ToolAttemptStatus::ExecutionError,
+                        outcome: "error".to_string(),
+                        reason_code: ToolReasonCode::ExecutionError,
+                        reason: clean_text(&err.as_message(), 300),
+                        latency_ms: 0,
+                        required_args: Vec::new(),
+                        backend: "unknown".to_string(),
+                        discoverable: false,
+                        timestamp: now_ms(),
+                    });
+                ToolAttemptEnvelope {
+                    attempt,
+                    normalized_result: None,
+                    raw_payload: None,
+                    error: Some(err.as_message()),
+                }
+            }
+        }
     }
 
     pub fn raw_payload(&self, raw_ref: &str) -> Option<&Value> {
@@ -428,10 +526,22 @@ impl ToolBroker {
         task_id: &str,
         caller: BrokerCaller,
         tool_name: &str,
-        outcome: &str,
+        status: ToolAttemptStatus,
         reason: &str,
+        reason_code: ToolReasonCode,
         timestamp: u64,
-    ) {
+        latency_ms: u64,
+        probe: &ToolCapabilityProbe,
+    ) -> ToolAttemptReceipt {
+        let outcome = match status {
+            ToolAttemptStatus::Ok => "ok",
+            ToolAttemptStatus::Unavailable => "unavailable",
+            ToolAttemptStatus::Blocked | ToolAttemptStatus::PolicyDenied => "blocked",
+            ToolAttemptStatus::InvalidArgs
+            | ToolAttemptStatus::ExecutionError
+            | ToolAttemptStatus::TransportError
+            | ToolAttemptStatus::Timeout => "error",
+        };
         let receipt = ToolAttemptReceipt {
             attempt_id: deterministic_hash(&json!({
                 "kind": "tool_attempt_receipt",
@@ -447,11 +557,18 @@ impl ToolBroker {
             task_id: clean_text(task_id, 160),
             caller,
             tool_name: clean_text(tool_name, 120),
+            status,
             outcome: clean_text(outcome, 40),
+            reason_code,
             reason: clean_text(reason, 300),
+            latency_ms,
+            required_args: probe.required_args.clone(),
+            backend: clean_text(&probe.backend, 120),
+            discoverable: probe.discoverable,
             timestamp,
         };
-        self.attempt_receipts.push(receipt);
+        self.attempt_receipts.push(receipt.clone());
+        receipt
     }
 }
 
@@ -628,6 +745,7 @@ mod tests {
     #[test]
     fn broker_rejects_unauthorized_tool_request() {
         let mut broker = ToolBroker::default();
+        broker.allowed_tools.insert(BrokerCaller::Client, HashSet::new());
         let out = broker.execute_and_normalize(
             ToolCallRequest {
                 trace_id: "trace".to_string(),
@@ -852,16 +970,22 @@ mod tests {
         let broker = ToolBroker::default();
         let catalog = broker.capability_catalog();
         assert!(catalog.iter().any(|row| row.tool_name == "web_search"));
+        assert!(catalog.iter().any(|row| row.tool_name == "terminal_exec"));
         let allowed = broker.capability_probe(BrokerCaller::Client, "web_search");
         assert!(allowed.available);
+        assert_eq!(allowed.reason_code, ToolReasonCode::Ok);
+        assert_eq!(allowed.backend, "retrieval_plane");
+        assert_eq!(allowed.required_args, vec!["query".to_string()]);
         let unknown = broker.capability_probe(BrokerCaller::Client, "tool_that_does_not_exist");
         assert!(!unknown.available);
         assert_eq!(unknown.reason, "unknown_tool");
+        assert_eq!(unknown.reason_code, ToolReasonCode::UnknownTool);
     }
 
     #[test]
     fn unauthorized_attempts_are_receipted() {
         let mut broker = ToolBroker::default();
+        broker.allowed_tools.insert(BrokerCaller::Client, HashSet::new());
         let out = broker.execute_and_normalize(
             ToolCallRequest {
                 trace_id: "trace-attempt".to_string(),
@@ -879,8 +1003,12 @@ mod tests {
         );
         assert!(out.is_err());
         let attempt = broker.attempt_receipts().last().expect("attempt");
-        assert_eq!(attempt.outcome, "unavailable");
-        assert_eq!(attempt.reason, "unknown_tool");
+        assert_eq!(attempt.outcome, "blocked");
+        assert_eq!(attempt.status, ToolAttemptStatus::Blocked);
+        assert_eq!(attempt.reason, "caller_not_authorized");
+        assert_eq!(attempt.reason_code, ToolReasonCode::CallerNotAuthorized);
+        assert_eq!(attempt.backend, "governed_terminal");
+        assert_eq!(attempt.required_args, vec!["command".to_string()]);
     }
 
     #[test]
@@ -904,5 +1032,35 @@ mod tests {
         assert!(out.is_ok());
         let attempt = broker.attempt_receipts().last().expect("attempt");
         assert_eq!(attempt.outcome, "ok");
+        assert_eq!(attempt.status, ToolAttemptStatus::Ok);
+        assert_eq!(attempt.reason_code, ToolReasonCode::Ok);
+    }
+
+    #[test]
+    fn execute_and_envelope_returns_structured_failure_attempt() {
+        let mut broker = ToolBroker::default();
+        broker.allowed_tools.insert(BrokerCaller::Client, HashSet::new());
+        let attempt = broker.execute_and_envelope(
+            ToolCallRequest {
+                trace_id: "trace-envelope".to_string(),
+                task_id: "task-envelope".to_string(),
+                tool_name: "terminal_exec".to_string(),
+                args: json!({"command":"ls"}),
+                lineage: vec![],
+                caller: BrokerCaller::Client,
+                policy_revision: None,
+                tool_version: None,
+                freshness_window_ms: None,
+                force_no_dedupe: false,
+            },
+            |_| Ok(json!({"ok": true})),
+        );
+        assert_eq!(attempt.attempt.status, ToolAttemptStatus::Blocked);
+        assert_eq!(
+            attempt.attempt.reason_code,
+            ToolReasonCode::CallerNotAuthorized
+        );
+        assert!(attempt.normalized_result.is_none());
+        assert!(attempt.error.is_some());
     }
 }

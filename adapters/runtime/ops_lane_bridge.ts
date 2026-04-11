@@ -805,7 +805,31 @@ function runBridge(config, args = [], cliMode = false) {
     const passArgs = Array.isArray(args) ? args.slice(0) : [];
     if (config.mode === 'ops_domain') {
         if (config.preferLocalCore === true) {
-            const local = runLocalOpsDomain(root, config.domain, passArgs, cliMode, config.inheritStdio);
+            const resolved = resolveProtheusOpsCommand(root, config.domain);
+            const initial = runLocalOpsDomainOnce(root, config.domain, passArgs, cliMode, config.inheritStdio, resolved);
+            const local = resolved.command === 'cargo' || !shouldRetryWithCargo(initial)
+                ? initial
+                : (() => {
+                    const cargoResolved = {
+                        command: 'cargo',
+                        args: [
+                            'run',
+                            '--quiet',
+                            '--manifest-path',
+                            'core/layer0/ops/Cargo.toml',
+                            '--bin',
+                            'infring-ops',
+                            '--',
+                            config.domain
+                        ]
+                    };
+                    const retried = runLocalOpsDomainOnce(root, config.domain, passArgs, cliMode, config.inheritStdio, cargoResolved);
+                    if (retried.ok || retried.status === 0) {
+                        retried.fallback_reason = 'stale_prebuilt_retry';
+                        return retried;
+                    }
+                    return initial;
+                })();
             return {
                 ...local,
                 lane: config.lane
@@ -888,8 +912,12 @@ function runCliWithOutput(out, inheritStdio) {
     process.exit(out.status);
 }
 function createOpsLaneBridge(scriptDir, lane, domain, opts = {}) {
+    // Default to freshness-aware binary selection for local bridge calls.
+    // Explicit env overrides can still force prebuilt-only behavior when needed.
+    process.env.INFRING_OPS_USE_PREBUILT =
+        process.env.INFRING_OPS_USE_PREBUILT || '0';
     process.env.PROTHEUS_OPS_USE_PREBUILT =
-        process.env.PROTHEUS_OPS_USE_PREBUILT || '1';
+        process.env.PROTHEUS_OPS_USE_PREBUILT || '0';
     process.env.PROTHEUS_OPS_DEFER_ON_HOST_STALL =
         process.env.PROTHEUS_OPS_DEFER_ON_HOST_STALL || '0';
     process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS =

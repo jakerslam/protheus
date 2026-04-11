@@ -9,7 +9,9 @@ pub mod schemas;
 pub mod tool_broker;
 pub mod verifier;
 
-pub use capability::{ToolCapability, ToolCapabilityProbe};
+pub use capability::{
+    ToolCapability, ToolCapabilityProbe, ToolCapabilityStatus, ToolReasonCode,
+};
 pub use client_adapter::{ClientAdapterRequest, ClientDelegationResult, ThinClientDelegator};
 pub use evidence_extractor::EvidenceExtractor;
 pub use evidence_store::{
@@ -20,11 +22,12 @@ pub use schemas::{
     published_schema_contract_v1, Claim, ClaimBundle, ClaimStatus, ConfidenceVector, EvidenceCard,
     NormalizedToolMetrics, NormalizedToolResult, NormalizedToolStatus, WorkerBudgetUsed,
     WorkerOutput, WorkerTaskStatus, CLAIM_BUNDLE_FIELDS, CLAIM_FIELDS, EVIDENCE_CARD_FIELDS,
-    NORMALIZED_TOOL_RESULT_FIELDS, WORKER_OUTPUT_FIELDS,
+    NORMALIZED_TOOL_RESULT_FIELDS, TOOL_ATTEMPT_RECEIPT_FIELDS, TOOL_CAPABILITY_PROBE_FIELDS,
+    WORKER_OUTPUT_FIELDS,
 };
 pub use tool_broker::{
-    BrokerCaller, BrokerError, ToolAttemptReceipt, ToolBroker, ToolBrokerExecution,
-    ToolCallRequest,
+    BrokerCaller, BrokerError, ToolAttemptEnvelope, ToolAttemptReceipt, ToolAttemptStatus,
+    ToolBroker, ToolBrokerExecution, ToolCallRequest,
 };
 pub use verifier::StructuredVerifier;
 

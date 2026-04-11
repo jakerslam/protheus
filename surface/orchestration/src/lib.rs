@@ -41,6 +41,7 @@ impl OrchestrationSurfaceRuntime {
                     "Transient orchestration context unavailable; halted before core contract planning"
                         .to_string(),
                 recovery_applied: true,
+                fallback_actions: Vec::new(),
                 core_contract_calls: Vec::new(),
                 requires_core_promotion: false,
             };
@@ -62,7 +63,9 @@ impl OrchestrationSurfaceRuntime {
         };
         let (plan, recovery_applied) = recovery::apply_recovery_policy(&normalized, plan);
         let progress = progress::progress_message(&plan);
-        result_packaging::package_result(&plan, progress, recovery_applied)
+        let fallback_actions =
+            sequencing::fallback_actions(&normalized, plan.request_class.clone());
+        result_packaging::package_result(&plan, progress, recovery_applied, fallback_actions)
     }
 
     pub fn sweep_transient(&mut self, now_ms: u64) -> usize {

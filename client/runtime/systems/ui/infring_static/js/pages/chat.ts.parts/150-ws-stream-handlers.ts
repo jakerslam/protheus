@@ -189,17 +189,9 @@
           var streamedText = envelope.text;
           var streamedTools = envelope.tools;
           var streamedThought = envelope.thought;
-          var responseTools = Array.isArray(data.tools) ? data.tools.map(function(t, idx) {
-            return {
-              id: (t && t.id) || ('ws-tool-' + Date.now() + '-' + idx),
-              name: (t && t.name) || (t && t.tool) || 'tool',
-              running: false,
-              expanded: false,
-              input: (t && t.input) || (t && t.arguments) || '',
-              result: (t && t.result) || (t && t.output) || '',
-              is_error: !!(t && (t.is_error || t.error || t.blocked))
-            };
-          }) : [];
+          var responseTools = typeof this.responseToolRowsFromPayload === 'function'
+            ? this.responseToolRowsFromPayload(data, 'ws-tool')
+            : [];
           var hasAgentTerminalTranscript = !!(Array.isArray(data.terminal_transcript) && data.terminal_transcript.length && typeof this.appendAgentTerminalTranscript === 'function' && this.appendAgentTerminalTranscript(data.terminal_transcript));
           if (hasAgentTerminalTranscript) responseTools = responseTools.filter(function(t) { var n = String((t && t.name) || '').toLowerCase(); return !(n === 'terminal_exec' || n === 'run_terminal' || n === 'terminal' || n === 'shell_exec'); });
           if ((!Array.isArray(streamedTools) || !streamedTools.length) && responseTools.length) streamedTools = responseTools;

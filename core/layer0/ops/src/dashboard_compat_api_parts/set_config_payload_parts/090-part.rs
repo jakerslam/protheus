@@ -356,6 +356,15 @@ fn enrich_tool_completion_receipt(tool_completion: Value, response_tools: &[Valu
         json!({})
     };
     let steps = tool_completion_live_steps(response_tools);
+    let tool_attempts = response_tools
+        .iter()
+        .filter_map(|row| {
+            row.get("tool_attempt_receipt")
+                .cloned()
+                .or_else(|| row.pointer("/tool_attempt/attempt").cloned())
+        })
+        .take(16)
+        .collect::<Vec<_>>();
     let live_tool_status = steps
         .first()
         .and_then(|row| row.get("status"))
@@ -364,6 +373,7 @@ fn enrich_tool_completion_receipt(tool_completion: Value, response_tools: &[Valu
         .to_string();
     enriched["live_tool_status"] = json!(clean_text(&live_tool_status, 180));
     enriched["live_tool_steps"] = Value::Array(steps);
+    enriched["tool_attempts"] = Value::Array(tool_attempts);
     enriched["live_status_source"] = json!("tool_completion_receipt_v1");
     enriched
 }
@@ -438,5 +448,34 @@ mod tool_completion_live_status_tests {
         assert_eq!(rows[0].get("output").and_then(Value::as_str), Some("ok"));
         assert_eq!(rows[0].get("cwd").and_then(Value::as_str), Some("/tmp"));
     }
-}
 
+    #[test]
+    fn carries_tool_attempt_receipts_into_tool_completion() {
+        let enriched = enrich_tool_completion_receipt(
+            json!({"completion_state":"reported_findings"}),
+            &[json!({
+                "name": "terminal_exec",
+                "input": "{\"command\":\"ls\"}",
+                "result": "permission denied",
+                "is_error": true,
+                "tool_attempt_receipt": {
+                    "tool_name": "terminal_exec",
+                    "status": "blocked",
+                    "outcome": "blocked",
+                    "reason_code": "caller_not_authorized",
+                    "reason": "caller_not_authorized",
+                    "backend": "governed_terminal",
+                    "required_args": ["command"],
+                    "discoverable": true
+                }
+            })],
+        );
+        assert_eq!(
+            enriched
+                .get("tool_attempts")
+                .and_then(Value::as_array)
+                .map(|rows| rows.len()),
+            Some(1)
+        );
+    }
+}
