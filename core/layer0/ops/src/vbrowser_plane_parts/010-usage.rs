@@ -174,6 +174,29 @@ fn canonical_vbrowser_command(action: &str) -> &str {
     }
 }
 
+fn vbrowser_receipt_type(command: &str) -> &str {
+    match command {
+        "session-start" => "vbrowser_plane_session_start",
+        "session-control" => "vbrowser_plane_session_control",
+        "goto" => "vbrowser_plane_goto",
+        "navback" => "vbrowser_plane_navback",
+        "wait" => "vbrowser_plane_wait",
+        "scroll" => "vbrowser_plane_scroll",
+        "click" => "vbrowser_plane_click",
+        "type" => "vbrowser_plane_type",
+        "automate" => "vbrowser_plane_automate",
+        "key-input" => "vbrowser_plane_key_input",
+        "privacy-guard" => "vbrowser_plane_privacy_guard",
+        "snapshot" => "vbrowser_plane_snapshot",
+        "screenshot" => "vbrowser_plane_screenshot",
+        "action-policy" => "vbrowser_plane_action_policy",
+        "auth-save" => "vbrowser_plane_auth_save",
+        "auth-login" => "vbrowser_plane_auth_login",
+        "native" => "vbrowser_plane_native",
+        _ => "vbrowser_plane_error",
+    }
+}
+
 fn conduit_enforcement(
     root: &Path,
     parsed: &crate::ParsedArgs,
