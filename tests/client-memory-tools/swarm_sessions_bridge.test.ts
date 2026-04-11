@@ -12,6 +12,7 @@ const path = require('path');
 const bridge = require('../../client/runtime/systems/autonomy/swarm_sessions_bridge.ts');
 
 function run() {
+  assert.strictEqual(typeof bridge.run, 'function', 'expected wrapper to expose shared run binder');
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'swarm-sessions-bridge-'));
   const state = path.join(tmpDir, 'state.json');
 
