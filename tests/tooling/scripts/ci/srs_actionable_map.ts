@@ -229,7 +229,7 @@ function toMarkdown(summary, rows) {
   return `${lines.join('\n')}\n`;
 }
 
-function main() {
+export function buildActionableMap() {
   const srs = parseSrsRows(read(SRS_PATH));
   const scripts = loadScripts();
   const coreContractIds = loadRuntimeContractIds();
@@ -274,12 +274,36 @@ function main() {
     blocked_external: rows.filter((r) => r.todoBucket === 'blocked_external').length,
   };
 
-  const out = { ok: true, type: 'srs_actionable_map', summary, rows };
+  return { ok: true, type: 'srs_actionable_map', summary, rows };
+}
+
+export function run() {
+  const out = buildActionableMap();
   mkdirSync(dirname(resolve(OUT_JSON)), { recursive: true });
   mkdirSync(dirname(resolve(OUT_MD)), { recursive: true });
   writeFileSync(resolve(OUT_JSON), JSON.stringify(out, null, 2) + '\n');
-  writeFileSync(resolve(OUT_MD), toMarkdown(summary, rows));
-  console.log(JSON.stringify({ ok: true, type: out.type, out_json: OUT_JSON, out_md: OUT_MD, summary }, null, 2));
+  writeFileSync(resolve(OUT_MD), toMarkdown(out.summary, out.rows));
+  console.log(
+    JSON.stringify(
+      {
+        ok: true,
+        type: out.type,
+        out_json: OUT_JSON,
+        out_md: OUT_MD,
+        summary: out.summary,
+      },
+      null,
+      2,
+    ),
+  );
+  return 0;
 }
 
-main();
+if (require.main === module) {
+  process.exit(run());
+}
+
+module.exports = {
+  buildActionableMap,
+  run,
+};

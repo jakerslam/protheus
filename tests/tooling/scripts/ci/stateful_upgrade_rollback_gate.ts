@@ -42,6 +42,9 @@ function validateFixtureShape(id: string, payload: any): string[] {
   if (!Array.isArray(payload?.task_fabric?.tasks) || payload.task_fabric.tasks.length === 0) errors.push(`${id}:task_fabric_missing`);
   if (!Array.isArray(payload?.memory_state?.objects) || payload.memory_state.objects.length === 0) errors.push(`${id}:memory_state_missing`);
   if (!payload?.assimilation_state?.protocol_state?.latest_receipt_id) errors.push(`${id}:assimilation_state_missing`);
+  if (!Array.isArray(payload?.package_runtime_surfaces?.packages) || payload.package_runtime_surfaces.packages.length === 0) {
+    errors.push(`${id}:package_runtime_surfaces_missing`);
+  }
   for (const task of payload?.task_fabric?.tasks || []) {
     if (!task.task_id || !task.lifecycle_status || !task.readiness) errors.push(`${id}:task_missing_required_fields`);
     if (!Array.isArray(task.related_links)) errors.push(`${id}:task_related_links_missing`);
@@ -49,6 +52,14 @@ function validateFixtureShape(id: string, payload: any): string[] {
   for (const object of payload?.memory_state?.objects || []) {
     if (!object.object_id || !object.scope || typeof object.canonical !== 'boolean') {
       errors.push(`${id}:memory_object_missing_required_fields`);
+    }
+  }
+  for (const pkg of payload?.package_runtime_surfaces?.packages || []) {
+    if (!pkg.name || !pkg.support_level || !pkg.transport_mode) {
+      errors.push(`${id}:package_surface_missing_required_fields`);
+    }
+    if (!Array.isArray(pkg.supported_commands) || pkg.supported_commands.length === 0) {
+      errors.push(`${id}:package_surface_commands_missing`);
     }
   }
   return errors;
@@ -66,6 +77,24 @@ function validateUpgradePath(previous: any, next: any): string[] {
   for (const field of Object.keys(previousReceipt)) {
     if (!(field in nextReceipt)) errors.push(`upgrade_missing_receipt_field:${field}`);
   }
+  const previousPackages = new Map(
+    (previous.package_runtime_surfaces?.packages || []).map((row: any) => [clean(row?.name), row]),
+  );
+  const nextPackages = new Map(
+    (next.package_runtime_surfaces?.packages || []).map((row: any) => [clean(row?.name), row]),
+  );
+  for (const [name, pkg] of previousPackages.entries()) {
+    if (!nextPackages.has(name)) {
+      errors.push(`upgrade_missing_package_surface:${name}`);
+      continue;
+    }
+    const nextPkg = nextPackages.get(name);
+    const previousCommands = new Set((pkg?.supported_commands || []).map((row: any) => clean(row)));
+    const nextCommands = new Set((nextPkg?.supported_commands || []).map((row: any) => clean(row)));
+    for (const command of previousCommands) {
+      if (!nextCommands.has(command)) errors.push(`upgrade_missing_package_command:${name}:${command}`);
+    }
+  }
   return errors;
 }
 
@@ -81,7 +110,17 @@ function validateRollbackPath(previous: any, next: any): string[] {
   for (const scope of previousScopes) {
     if (!nextScopes.has(scope)) errors.push(`rollback_scope_missing:${scope}`);
   }
+  const nextPackages = next.package_runtime_surfaces?.packages || [];
+  for (const pkg of nextPackages) {
+    const supportLevel = clean(pkg?.support_level, 80);
+    if (!supportLevel) errors.push('rollback_package_support_level_missing');
+    if (!clean(pkg?.transport_mode, 80)) errors.push('rollback_package_transport_mode_missing');
+  }
   return errors;
+}
+
+function clean(value: unknown, max = 240): string {
+  return String(value == null ? '' : value).trim().slice(0, max);
 }
 
 function buildReport() {
