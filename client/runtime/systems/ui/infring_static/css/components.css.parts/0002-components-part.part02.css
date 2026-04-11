@@ -38,6 +38,29 @@
   --agent-pulse-glow-end: 18px;
 }
 
+body:not([data-theme='dark']) .chat-loading-fairy-avatar {
+  background:
+    radial-gradient(
+      circle at 34% 30%,
+      rgba(255, 255, 255, 0.98) 0%,
+      rgba(255, 255, 255, 0.56) 10%,
+      rgba(255, 255, 255, 0.08) 17%,
+      rgba(15, 23, 42, 0.98) 27%,
+      rgba(2, 6, 23, 0.98) 62%,
+      rgba(2, 6, 23, 0.84) 100%
+    );
+  border: 1px solid rgba(15, 23, 42, 0.16);
+  box-shadow:
+    0 10px 20px rgba(15, 23, 42, 0.2),
+    0 0 0 1px rgba(255, 255, 255, 0.22) inset;
+}
+
+body:not([data-theme='dark']) .chat-loading-fairy-avatar .agent-mark {
+  background: transparent;
+  color: rgba(248, 250, 252, 0.96);
+  box-shadow: none;
+}
+
 .chat-loading-fairy-core {
   width: 9px;
   height: 9px;
