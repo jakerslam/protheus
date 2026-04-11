@@ -27,6 +27,24 @@
     "release_supported": false,
     "operator_expectation": "One frozen ingress -> orchestration -> assimilation-kernel -> receipt-output path is hardened; broader assimilation surfaces remain experimental."
   },
+  "graduation_criteria": {
+    "mode": "evidence_only",
+    "forbid_surface_growth_during_hardening": true,
+    "required_candidate_build_rehearsals": 1,
+    "required_release_gates": [
+      "ops:assimilation:v1:support:guard",
+      "ops:stateful-upgrade-rollback:gate",
+      "ops:release:rc-rehearsal",
+      "ops:production-closure:gate"
+    ],
+    "required_runtime_contracts": [
+      "canonical_slice_only",
+      "candidate_rehearsal_pass",
+      "incident_truth_package_ready",
+      "release_scorecard_pass"
+    ],
+    "promotion_rule": "Do not mark assimilation release-supported until the frozen slice passes candidate-build rehearsal evidence without expanding surface area."
+  },
   "enforcement": {
     "guard_script": "tests/tooling/scripts/ci/assimilation_v1_support_guard.ts",
     "package_script": "ops:assimilation:v1:support:guard",

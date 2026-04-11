@@ -7,10 +7,61 @@ fn handle_global_post_delete_routes(
     snapshot: &Value,
 ) -> Option<CompatApiResponse> {
     if method == "POST" {
-        if path_only == "/api/update/apply" {
+        if path_only == "/api/system/restart" {
+            let payload = crate::dashboard_release_update::dispatch_system_action(root, "restart");
             return Some(CompatApiResponse {
-                status: 200,
-                payload: crate::dashboard_release_update::apply_update(root),
+                status: if payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                    200
+                } else {
+                    500
+                },
+                payload,
+            });
+        }
+        if path_only == "/api/system/shutdown" {
+            let payload = crate::dashboard_release_update::dispatch_system_action(root, "shutdown");
+            return Some(CompatApiResponse {
+                status: if payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                    200
+                } else {
+                    500
+                },
+                payload,
+            });
+        }
+        if path_only == "/api/system/update" {
+            let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+            let payload = if request.get("apply").and_then(Value::as_bool).unwrap_or(true) {
+                crate::dashboard_release_update::dispatch_update_apply(root)
+            } else {
+                crate::dashboard_release_update::check_update(root)
+            };
+            return Some(CompatApiResponse {
+                status: if payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                    if payload.get("queued").and_then(Value::as_bool).unwrap_or(false) {
+                        202
+                    } else {
+                        200
+                    }
+                } else {
+                    400
+                },
+                payload,
+            });
+        }
+        if path_only == "/api/update/apply" {
+            let payload = crate::dashboard_release_update::dispatch_update_apply(root);
+            return Some(CompatApiResponse {
+                status: if payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                    if payload.get("queued").and_then(Value::as_bool).unwrap_or(false) {
+                        202
+                    } else {
+                        200
+                    }
+                } else {
+                    400
+                },
+                payload,
             });
         }
         if path_only == "/api/config/set" {

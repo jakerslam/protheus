@@ -30,38 +30,6 @@
       var next = modes[(modes.indexOf(this.themeMode) + 1) % modes.length];
       this.setTheme(next);
     },
-    requestTopbarRefresh() {
-      var appStore = this.getAppStore ? this.getAppStore() : null;
-      if (appStore && typeof appStore.bumpTopbarRefreshTurn === 'function') {
-        appStore.bumpTopbarRefreshTurn();
-      }
-      if (this._topbarRefreshOverlayTimer) {
-        clearTimeout(this._topbarRefreshOverlayTimer);
-        this._topbarRefreshOverlayTimer = 0;
-      }
-      if (this._topbarRefreshReloadTimer) {
-        clearTimeout(this._topbarRefreshReloadTimer);
-        this._topbarRefreshReloadTimer = 0;
-      }
-      var self = this;
-      this._topbarRefreshOverlayTimer = window.setTimeout(function() {
-        self.bootSplashVisible = true;
-        self._bootSplashStartedAt = Date.now();
-        if (typeof self.resetBootProgress === 'function') self.resetBootProgress();
-        if (typeof self.setBootProgressEvent === 'function') self.setBootProgressEvent('status_requesting');
-        self._topbarRefreshOverlayTimer = 0;
-      }, 1000);
-      this._topbarRefreshReloadTimer = window.setTimeout(function() {
-        self._topbarRefreshReloadTimer = 0;
-        try {
-          window.location.reload();
-        } catch (_) {
-          try {
-            window.location.href = window.location.href;
-          } catch (_) {}
-        }
-      }, 1100);
-    },
     toggleSidebar() {
       var nextCollapsed = !this.sidebarCollapsed;
       var resolveMessagesHost = function() {

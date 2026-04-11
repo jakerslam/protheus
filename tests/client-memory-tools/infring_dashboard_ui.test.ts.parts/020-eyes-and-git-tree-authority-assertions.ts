@@ -407,6 +407,7 @@ function runSnapshotAssertions() {
   assertDashboardInlineScriptsParse();
   assertDashboardBuildVersionFresh();
   assertDashboardVersionRefreshUsesApiVersion();
+  assertTopbarHeroSystemMenu();
   assertDashboardHostOverlaysLiveVersion();
   assertChatEnhancementFeatures();
   assertMemoryApiWired();

@@ -43,6 +43,7 @@ const SUPPORTED_COMMAND_LATENCY_IDS = new Set([
   'legacy_process_runner_release_guard',
   'production_topology_diagnostic',
   'transport_spawn_audit',
+  'client_layer_boundary_audit',
   'arch_boundary_conformance',
   'release_policy_gate',
   'assimilation_v1_support_guard',
@@ -154,6 +155,7 @@ function collectBundleFiles() {
     checkFile('core/local/artifacts/production_topology_diagnostic_current.json'),
     checkFile('core/local/artifacts/transport_spawn_audit_current.json'),
     checkFile('core/local/artifacts/legacy_process_runner_release_guard_current.json'),
+    checkFile('core/local/artifacts/client_layer_boundary_audit_current.json'),
     checkFile('core/local/artifacts/stateful_upgrade_rollback_gate_current.json'),
     checkFile('core/local/artifacts/assimilation_v1_support_guard_current.json'),
     checkFile('core/local/artifacts/release_blocker_rubric_current.json'),
@@ -188,6 +190,17 @@ function assembleBundleReport(checks: CommandResult[], files: Array<{ path: stri
       stderr: clean(row.stderr, 400),
       artifact_paths: files.filter((fileRow) => fileRow.exists).map((fileRow) => fileRow.path),
     }));
+  const releaseScorecardPayload =
+    checks.find((row) => row.id === 'release_scorecard')?.payload || readJsonMaybe(RELEASE_SCORECARD_PATH);
+  const releaseCandidateRehearsal = readJsonMaybe(RELEASE_RC_REHEARSAL_PATH);
+  const failedReleaseGates = Array.isArray((releaseScorecardPayload as any)?.gates)
+    ? (releaseScorecardPayload as any).gates
+        .filter((row: any) => row && row.ok === false)
+        .map((row: any) => ({
+          id: clean(row?.id, 160),
+          detail: clean(row?.detail, 300),
+        }))
+    : [];
 
   return {
     ok: checks.every((row) => row.ok),
@@ -215,6 +228,8 @@ function assembleBundleReport(checks: CommandResult[], files: Array<{ path: stri
         checks.find((row) => row.id === 'production_topology_diagnostic')?.payload || null,
       transport_spawn_audit:
         checks.find((row) => row.id === 'transport_spawn_audit')?.payload || null,
+      client_layer_boundary_audit:
+        checks.find((row) => row.id === 'client_layer_boundary_audit')?.payload || null,
       arch_boundary_conformance:
         checks.find((row) => row.id === 'arch_boundary_conformance')?.payload || null,
       production_closure: checks.find((row) => row.id === 'production_closure')?.payload || null,
@@ -245,12 +260,22 @@ function assembleBundleReport(checks: CommandResult[], files: Array<{ path: stri
     incident_truth_package: {
       ready: failedChecks.length === 0 && degradedFlags.length === 0,
       failed_checks: failedChecks,
+      failed_release_gates: failedReleaseGates,
       degraded_flags: degradedFlags,
       topology_support_level:
         (checks.find((row) => row.id === 'production_topology_diagnostic')?.payload as any)?.support_level ||
         'unknown',
       recovery_gate_state:
         (checks.find((row) => row.id === 'recovery_rehearsal')?.payload as any)?.gate_state || 'unknown',
+      client_boundary_ok:
+        (checks.find((row) => row.id === 'client_layer_boundary_audit')?.payload as any)?.summary?.pass === true ||
+        (checks.find((row) => row.id === 'client_layer_boundary_audit')?.payload as any)?.ok === true,
+      release_candidate_rehearsal: {
+        present: !!releaseCandidateRehearsal,
+        ok: (releaseCandidateRehearsal as any)?.ok === true,
+        candidate_ready: (releaseCandidateRehearsal as any)?.summary?.candidate_ready === true,
+        recovery_gate_state: clean((releaseCandidateRehearsal as any)?.recovery_rehearsal?.gate_state, 120),
+      },
       artifact_paths: files.filter((row) => row.exists).map((row) => row.path),
     },
     degraded_flags: degradedFlags,
@@ -275,6 +300,10 @@ function buildBundle(outPath: string) {
     runTsCommand('transport_spawn_audit', 'tests/tooling/scripts/ci/transport_spawn_audit.ts', [
       '--strict=0',
       '--out=core/local/artifacts/transport_spawn_audit_current.json',
+    ]),
+    runTsCommand('client_layer_boundary_audit', 'tests/tooling/scripts/ci/client_layer_boundary_audit.ts', [
+      '--strict=0',
+      '--out=core/local/artifacts/client_layer_boundary_audit_current.json',
     ]),
     runTsCommand('arch_boundary_conformance', 'tests/tooling/scripts/ci/arch_boundary_conformance.ts', [
       '--strict=0',

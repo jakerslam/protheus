@@ -533,7 +533,7 @@ fn run_action(root: &Path, action: &str, payload: &Value) -> LaneResult {
             }
         }
         "dashboard.update.apply" => {
-            let result = crate::dashboard_release_update::apply_update(root);
+            let result = crate::dashboard_release_update::dispatch_update_apply(root);
             LaneResult {
                 ok: result.get("ok").and_then(Value::as_bool).unwrap_or(false),
                 status: if result.get("ok").and_then(Value::as_bool).unwrap_or(false) {
@@ -542,6 +542,32 @@ fn run_action(root: &Path, action: &str, payload: &Value) -> LaneResult {
                     2
                 },
                 argv: vec!["dashboard.update.apply".to_string()],
+                payload: Some(result),
+            }
+        }
+        "dashboard.system.restart" => {
+            let result = crate::dashboard_release_update::dispatch_system_action(root, "restart");
+            LaneResult {
+                ok: result.get("ok").and_then(Value::as_bool).unwrap_or(false),
+                status: if result.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                    0
+                } else {
+                    2
+                },
+                argv: vec!["dashboard.system.restart".to_string()],
+                payload: Some(result),
+            }
+        }
+        "dashboard.system.shutdown" => {
+            let result = crate::dashboard_release_update::dispatch_system_action(root, "shutdown");
+            LaneResult {
+                ok: result.get("ok").and_then(Value::as_bool).unwrap_or(false),
+                status: if result.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                    0
+                } else {
+                    2
+                },
+                argv: vec!["dashboard.system.shutdown".to_string()],
                 payload: Some(result),
             }
         }
