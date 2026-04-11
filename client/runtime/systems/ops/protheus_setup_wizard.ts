@@ -5,19 +5,10 @@
 // Thin TypeScript UX wrapper only.
 
 const path = require('path');
-const { spawnSync } = require('child_process');
 const readline = require('readline');
+const { invokeKernelPayload } = require('../../lib/protheus_kernel_bridge.ts');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..', '..');
-const OPS_WRAPPER = path.join(
-  ROOT,
-  'client',
-  'runtime',
-  'systems',
-  'ops',
-  'run_protheus_ops.ts'
-);
-const TS_ENTRYPOINT = path.join(ROOT, 'client', 'runtime', 'lib', 'ts_entrypoint.ts');
 const DEFAULT_STATE_PATH = path.join(
   ROOT,
   'local',
@@ -42,59 +33,16 @@ function asBool(raw, fallback = false) {
   return fallback;
 }
 
-function encodeBase64(value) {
-  return Buffer.from(String(value == null ? '' : value), 'utf8').toString('base64');
-}
-
-function parseLastJson(stdout) {
-  const lines = String(stdout || '')
-    .split('\n')
-    .map((line) => String(line || '').trim())
-    .filter(Boolean);
-  for (let i = lines.length - 1; i >= 0; i -= 1) {
-    const line = lines[i];
-    if (!line.startsWith('{')) continue;
-    try {
-      return JSON.parse(line);
-    } catch (_) {}
-  }
-  return null;
-}
-
 function invokeSetupWizardKernel(payload) {
-  const serialized = JSON.stringify(payload && typeof payload === 'object' ? payload : {});
-  const run = spawnSync(
-    process.execPath,
-    [
-      TS_ENTRYPOINT,
-      OPS_WRAPPER,
-      'state-kernel',
-      'setup-wizard',
-      `--payload-base64=${encodeBase64(serialized)}`
-    ],
+  return invokeKernelPayload(
+    'state-kernel',
+    'setup-wizard',
+    payload,
     {
-      cwd: ROOT,
-      env: { ...process.env },
-      encoding: 'utf8'
+      throwOnError: false,
+      fallbackError: 'setup_wizard_kernel_bridge_failed',
     }
   );
-  const status = Number.isFinite(Number(run.status)) ? Number(run.status) : 1;
-  const receipt = parseLastJson(run.stdout);
-  const payloadOut = receipt && typeof receipt === 'object'
-    && receipt.payload && typeof receipt.payload === 'object'
-    ? receipt.payload
-    : receipt;
-  if (status !== 0 || !payloadOut || typeof payloadOut !== 'object') {
-    return {
-      ok: false,
-      type: 'protheus_setup_wizard',
-      error: cleanText(
-        run && run.stderr ? String(run.stderr) : 'setup_wizard_kernel_bridge_failed',
-        240
-      )
-    };
-  }
-  return payloadOut;
 }
 
 function parseArgs(argv = process.argv.slice(2)) {
@@ -328,6 +276,8 @@ if (require.main === module) {
 }
 
 module.exports = {
+  main,
+  invokeSetupWizardKernel,
   parseArgs,
   runWizard,
   statusWizard,

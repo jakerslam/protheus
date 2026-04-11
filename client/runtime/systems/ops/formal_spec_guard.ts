@@ -3,28 +3,33 @@
 // TypeScript compatibility shim only.
 // Layer ownership: core/layer1/policy + core/layer2/ops (authoritative)
 
-import path from 'node:path';
-import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
+'use strict';
 
-const THIS_FILE = fileURLToPath(import.meta.url);
-const THIS_DIR = path.dirname(THIS_FILE);
-const WORKSPACE_ROOT = path.resolve(THIS_DIR, '..', '..', '..', '..');
+const path = require('node:path');
+const { invokeTsModuleSync } = require('../../lib/in_process_ts_delegate.ts');
+
+const WORKSPACE_ROOT = path.resolve(__dirname, '..', '..', '..', '..');
 const GUARD_SCRIPT = path.resolve(WORKSPACE_ROOT, 'tests/tooling/scripts/ci/formal_spec_guard.ts');
 
-export function run(argv = []) {
+function run(argv = []) {
   const args = Array.isArray(argv) ? argv.map((v) => String(v)) : [];
-  const res = spawnSync(process.execPath, [GUARD_SCRIPT, ...args], {
+  const res = invokeTsModuleSync(GUARD_SCRIPT, {
+    argv: args,
     cwd: WORKSPACE_ROOT,
-    stdio: 'inherit',
+    exportName: 'run',
+    teeStdout: true,
+    teeStderr: true,
   });
   if (typeof res.status === 'number' && res.status !== 0) {
     process.exit(res.status);
   }
-  if (res.error) throw res.error;
   return { ok: true, delegated_to: 'tests/tooling/scripts/ci/formal_spec_guard.ts' };
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === THIS_FILE) {
+if (require.main === module) {
   run(process.argv.slice(2));
 }
+
+module.exports = {
+  run,
+};

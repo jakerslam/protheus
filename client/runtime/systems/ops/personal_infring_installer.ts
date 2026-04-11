@@ -2,17 +2,37 @@
 'use strict';
 
 const path = require('path');
-const { spawnSync } = require('child_process');
+const { invokeTsModuleAsync } = require('../../lib/in_process_ts_delegate.ts');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..', '..');
-const TS_ENTRYPOINT = path.join(ROOT, 'client', 'runtime', 'lib', 'ts_entrypoint.ts');
 const SETUP_WIZARD = path.join(ROOT, 'client', 'runtime', 'systems', 'ops', 'infring_setup_wizard.ts');
 
-const run = spawnSync(process.execPath, [TS_ENTRYPOINT, SETUP_WIZARD, ...process.argv.slice(2)], {
-  cwd: ROOT,
-  env: { ...process.env },
-  stdio: 'inherit'
-});
+async function main(argv = process.argv.slice(2)) {
+  const run = await invokeTsModuleAsync(SETUP_WIZARD, {
+    argv,
+    cwd: ROOT,
+    exportName: 'main',
+    teeStdout: true,
+    teeStderr: true,
+  });
+  return Number.isFinite(Number(run.status)) ? Number(run.status) : 1;
+}
 
-const code = Number.isFinite(Number(run.status)) ? Number(run.status) : 1;
-process.exit(code);
+if (require.main === module) {
+  Promise.resolve(main(process.argv.slice(2)))
+    .then((code) => process.exit(code))
+    .catch((error) => {
+      process.stderr.write(
+        `${JSON.stringify({
+          ok: false,
+          type: 'personal_infring_installer',
+          error: String(error && error.message ? error.message : error),
+        })}\n`
+      );
+      process.exit(1);
+    });
+}
+
+module.exports = {
+  main,
+};

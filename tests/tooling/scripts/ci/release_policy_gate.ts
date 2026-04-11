@@ -259,9 +259,7 @@ function checkProductionClosurePolicy(root: string): GateCheck {
   };
 }
 
-function main() {
-  const root = path.resolve(__dirname, '../../../..');
-  const args = parseArgs(process.argv.slice(2));
+function buildReport(root: string) {
   const checks: GateCheck[] = [
     checkFileExists(root, 'client/runtime/config/release_channel_policy.json', 'release_channel_policy_file'),
     checkReleaseChannelPolicy(root),
@@ -277,18 +275,35 @@ function main() {
     checkAssimilationV1SupportContract(root),
   ];
   const ok = checks.every((row) => row.ok);
-  const report = {
+  return {
     ok,
     type: 'release_policy_gate',
-    strict: args.strict,
     checks,
     failed: checks.filter((row) => !row.ok).map((row) => row.id),
+  };
+}
+
+export function run(argv: string[] = process.argv.slice(2)): number {
+  const root = path.resolve(__dirname, '../../../..');
+  const args = parseArgs(argv);
+  const report = {
+    ...buildReport(root),
+    strict: args.strict,
   };
   const outPath = path.resolve(root, args.outPath);
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
   fs.writeFileSync(outPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
-  if (args.strict && !ok) process.exitCode = 1;
+  if (args.strict && !report.ok) return 1;
+  return 0;
 }
 
-main();
+if (require.main === module) {
+  process.exit(run(process.argv.slice(2)));
+}
+
+module.exports = {
+  buildReport,
+  parseArgs,
+  run,
+};

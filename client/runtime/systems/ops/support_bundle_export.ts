@@ -4,7 +4,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
+import { invokeTsModuleSync } from '../../lib/in_process_ts_delegate.ts';
 
 type CommandResult = {
   id: string;
@@ -25,7 +25,6 @@ type ParsedArgs = {
 };
 
 const ROOT = path.resolve(__dirname, '..', '..', '..', '..');
-const TS_ENTRYPOINT = path.join(ROOT, 'client/runtime/lib/ts_entrypoint.ts');
 const DEFAULT_OUT = path.join(ROOT, 'core/local/artifacts/support_bundle_latest.json');
 const CLOSURE_POLICY_PATH = path.join(ROOT, 'client/runtime/config/production_readiness_closure_policy.json');
 const ASSIMILATION_V1_PATH = path.join(ROOT, 'client/runtime/config/assimilation_v1_support_contract.json');
@@ -101,14 +100,14 @@ function readJsonMaybe(filePath: string): unknown {
 function runTsCommand(id: string, scriptRelPath: string, args: string[] = []): CommandResult {
   const started = Date.now();
   const scriptAbs = path.join(ROOT, scriptRelPath);
-  const out = spawnSync(process.execPath, [TS_ENTRYPOINT, scriptAbs].concat(args), {
+  const out = invokeTsModuleSync(scriptAbs, {
+    argv: args,
     cwd: ROOT,
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-    env: { ...process.env },
-    maxBuffer: 16 * 1024 * 1024,
+    exportName: 'run',
+    teeStdout: false,
+    teeStderr: false,
   });
-  const status = Number.isFinite(out.status) ? out.status : 1;
+  const status = Number.isFinite(Number(out.status)) ? Number(out.status) : 1;
   const stdout = String(out.stdout || '');
   const stderr = String(out.stderr || '');
   return {
@@ -116,8 +115,8 @@ function runTsCommand(id: string, scriptRelPath: string, args: string[] = []): C
     ok: status === 0,
     status,
     duration_ms: Date.now() - started,
-    command: process.execPath,
-    args: [TS_ENTRYPOINT, scriptAbs].concat(args),
+    command: 'in_process_ts_delegate',
+    args: [scriptRelPath].concat(args),
     stdout,
     stderr,
     payload: parseJsonLine(stdout),
