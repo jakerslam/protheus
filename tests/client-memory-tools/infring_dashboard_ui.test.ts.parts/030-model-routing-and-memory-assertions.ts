@@ -221,7 +221,10 @@ function runContract(contract) {
 }
 
 const contract = getFlag('--contract');
-if (contract) {
+const parseOnly = getFlag('--dashboard-inline-parse-only');
+if (parseOnly) {
+  assertDashboardInlineScriptsParse();
+} else if (contract) {
   runContract(contract);
 } else {
   runSnapshotAssertions();

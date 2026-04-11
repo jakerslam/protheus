@@ -404,6 +404,7 @@ function runSnapshotAssertions() {
   assertThinClientAuthorityBoundary();
   assertLegacyDashboardArtifactsRemoved();
   assertChatSyntaxGuards();
+  assertDashboardInlineScriptsParse();
   assertChatEnhancementFeatures();
   assertMemoryApiWired();
   assertEyesPageWired();

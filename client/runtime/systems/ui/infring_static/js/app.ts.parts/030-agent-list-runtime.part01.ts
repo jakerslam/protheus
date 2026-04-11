@@ -1,10 +1,3 @@
-      var maxScroll = Math.max(0, scrollHeight - clientHeight);
-      if (maxScroll <= 2) return { above: false, below: false };
-      return {
-        above: scrollTop > 2,
-        below: (maxScroll - scrollTop) > 2
-      };
-    },
     updateSidebarScrollIndicators() {
       var refs = this.$refs || {};
       var navState = this._computeScrollHintState(refs.sidebarNav);
