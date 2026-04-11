@@ -2,6 +2,7 @@
 'use strict';
 
 import assert from 'node:assert';
+import { readFileSync } from 'node:fs';
 import {
   collectWorkspaceCommandIndex,
   filterIndex,
@@ -9,10 +10,14 @@ import {
 
 async function run(): Promise<void> {
   const payload = collectWorkspaceCommandIndex();
+  const pkg = JSON.parse(readFileSync('package.json', 'utf8')) as {
+    scripts?: Record<string, string>;
+  };
+  const expectedScriptCount = Object.keys(pkg.scripts || {}).length;
   assert.equal(payload.ok, true, 'workspace command index should return ok');
   assert.ok(
-    payload.summary.total_scripts >= 1700,
-    'workspace command index should report the full package script surface',
+    payload.summary.total_scripts === expectedScriptCount,
+    'workspace command index should report the current package script surface exactly',
   );
   assert.equal(
     payload.canonical_paths.local_dev?.script,

@@ -1,11 +1,18 @@
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
-import path from 'node:path';
+import { cleanText, hasFlag, readFlag } from '../../lib/cli.ts';
+import { currentRevision } from '../../lib/git.ts';
+import { emitStructuredResult } from '../../lib/result.ts';
 
 type GatePayload = {
   ok: boolean;
   type: 'runtime_dependency_contract_gate';
+  generated_at: string;
+  revision: string;
   strict: boolean;
+  inputs: {
+    out: string;
+  };
   summary: {
     required_modules: number;
     manifest_entries: number;
@@ -16,11 +23,15 @@ type GatePayload = {
 };
 
 const ROOT = process.cwd();
-const nodeRequire = createRequire(path.join(ROOT, 'package.json'));
+const nodeRequire = createRequire(`${ROOT}/package.json`);
+const DEFAULT_OUT = 'core/local/artifacts/runtime_dependency_contract_gate_current.json';
 
 function parseArgs(argv: string[]) {
   return {
-    strict: argv.includes('--strict=1') || argv.includes('--strict'),
+    strict:
+      hasFlag(argv, 'strict') ||
+      ['1', 'true', 'yes', 'on'].includes(cleanText(readFlag(argv, 'strict') || '', 16).toLowerCase()),
+    out: cleanText(readFlag(argv, 'out') || DEFAULT_OUT, 400),
   };
 }
 
@@ -56,7 +67,7 @@ function parseTier1RuntimeEntriesFromKernel(abs: string): string[] {
 function buildReport(strict = false): GatePayload {
   const failures: string[] = [];
   const warnings: string[] = [];
-  const pkgPath = path.join(ROOT, 'package.json');
+  const pkgPath = `${ROOT}/package.json`;
   let requiredModules: string[] = [];
   let manifestRel = 'client/runtime/config/install_runtime_manifest_v1.txt';
 
@@ -86,7 +97,7 @@ function buildReport(strict = false): GatePayload {
     }
   }
 
-  const manifestPath = path.join(ROOT, manifestRel);
+  const manifestPath = `${ROOT}/${manifestRel}`;
   let manifestRows: string[] = [];
   if (!fs.existsSync(manifestPath)) {
     failures.push(`tier1_manifest_missing:${manifestRel}`);
@@ -94,12 +105,12 @@ function buildReport(strict = false): GatePayload {
     manifestRows = parseManifestRows(manifestPath);
     if (manifestRows.length === 0) failures.push('tier1_manifest_empty');
     for (const rel of manifestRows) {
-      const abs = path.join(ROOT, rel);
+      const abs = `${ROOT}/${rel}`;
       if (!fs.existsSync(abs)) failures.push(`tier1_manifest_entry_missing:${rel}`);
     }
   }
 
-  const kernelPath = path.join(ROOT, 'core/layer0/ops/src/command_list_kernel.rs');
+  const kernelPath = `${ROOT}/core/layer0/ops/src/command_list_kernel.rs`;
   let tier1KernelEntries: string[] = [];
   if (!fs.existsSync(kernelPath)) {
     failures.push('command_list_kernel_missing');
@@ -118,7 +129,7 @@ function buildReport(strict = false): GatePayload {
     }
   }
 
-  const routesPath = path.join(ROOT, 'core/layer0/ops/src/protheusctl_routes_parts/010-command-routing.rs');
+  const routesPath = `${ROOT}/core/layer0/ops/src/protheusctl_routes_parts/010-command-routing.rs`;
   if (!fs.existsSync(routesPath)) {
     failures.push('command_routing_source_missing');
   } else {
@@ -137,7 +148,12 @@ function buildReport(strict = false): GatePayload {
   return {
     ok: failures.length === 0,
     type: 'runtime_dependency_contract_gate',
+    generated_at: new Date().toISOString(),
+    revision: currentRevision(ROOT),
     strict,
+    inputs: {
+      out: DEFAULT_OUT,
+    },
     summary: {
       required_modules: requiredModules.length,
       manifest_entries: manifestRows.length,
@@ -150,10 +166,17 @@ function buildReport(strict = false): GatePayload {
 
 function run(argv: string[] = process.argv.slice(2)): number {
   const args = parseArgs(argv);
-  const payload = buildReport(args.strict);
-  console.log(JSON.stringify(payload, null, 2));
-  if (args.strict && payload.failures.length > 0) return 1;
-  return 0;
+  const payload = {
+    ...buildReport(args.strict),
+    inputs: {
+      out: args.out,
+    },
+  };
+  return emitStructuredResult(payload, {
+    outPath: args.out,
+    strict: args.strict,
+    ok: payload.failures.length === 0,
+  });
 }
 
 if (require.main === module) {

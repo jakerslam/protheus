@@ -31,7 +31,8 @@ include_parts!(
     "lib.index.030-collectors-and-ingest.rs",
     "lib.index.040-runtime-state-and-workflows.rs",
     "lib.index.050-security-governance-and-policy.rs",
-    "lib.index.060-planes-programs-and-specializations.rs",
+    "lib.index.060-plane-authorities-and-control.rs",
+    "lib.index.070-programs-organs-and-specializations.rs",
 );
 
 #[cfg(kani)]

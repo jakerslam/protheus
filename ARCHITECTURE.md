@@ -156,19 +156,29 @@ Client cognition exposes a compact reflex set for frequent operations under stri
 - Reflexes: `read_snippet`, `write_quick`, `summarize_brief`, `git_status`, `memory_lookup`
 - Each reflex response is capped at `<=150` estimated tokens.
 
-## Why Root Is Clean
+## Why Root Is Governed
 
-Repository root is intentionally reduced to:
+Repository root is curated by contract, not by visual minimalism alone.
 
-- source roots (`core/`, `surface/`, `client/`, `planes/`)
-- governance and product docs (`README.md`, `ARCHITECTURE.md`, `docs/workspace/SRS.md`, `docs/workspace/TODO.md`)
-- build/deploy metadata (`Cargo.toml`, `package.json`, lockfiles, CI/deploy manifests)
+Canonical source and product roots are still:
 
-All high-churn runtime artifacts are localized to `client/runtime/local/` and `core/local/` so:
+- source/runtime authorities (`core/`, `surface/`, `client/`, `adapters/`, `apps/`, `packages/`, `planes/`, `tests/`)
+- documentation and governance (`README.md`, `ARCHITECTURE.md`, `docs/`, licenses, roadmap/governance files)
+- build/bootstrap/operator metadata (`Cargo.toml`, `package.json`, lockfiles, CI/deploy manifests, `setup/`, `xtask/`)
 
-- source diffs stay reviewable
-- sensitive/user-specific state is easier to reset or ignore
-- open-source client surface can be published without leaking instance data
+The live root also contains managed support zones that are intentionally tolerated while the repo hardening program continues:
+
+- generated/build/vendor bulk (`target/`, `node_modules/`, `artifacts/`, `audit_reports/`, `dist/`)
+- local operator/runtime state (`local/`, `core/local/`, `client/runtime/local/`)
+- research/reference surfaces (`benchmarks/`, `proofs/`, `research/`, `tools/`)
+
+The governing rule is:
+
+- canonical source authority stays inside `core/`, `surface/`, `client/`, `adapters/`, `tests/`, and deletable `apps/`
+- per-instance runtime state belongs under `client/runtime/local/` and `core/local/`
+- root-level support zones are allowed only when they are explicitly covered by the root-surface contract or tracked as deprecated debt
+
+This means root is reviewable by policy even when it is not cosmetically tiny. Search/navigation tooling should default away from generated bulk, while the root-surface contract continues to burn down deprecated entries over time.
 
 `planes/` is the living architectural contract surface. If code and docs diverge, `planes/*` + this file define the expected target state.
 

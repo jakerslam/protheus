@@ -10,6 +10,8 @@ VERIFY_NPM_TIMEOUT_SEC="${PROTHEUS_VERIFY_NPM_TIMEOUT_SEC:-60}"
 VERIFY_RUST_TIMEOUT_SEC="${PROTHEUS_VERIFY_RUST_TIMEOUT_SEC:-180}"
 VERIFY_PROOF_TIMEOUT_SEC="${PROTHEUS_VERIFY_PROOF_TIMEOUT_SEC:-420}"
 VERIFY_ARTIFACT_MODE="${PROTHEUS_VERIFY_ARTIFACT_MODE:-ephemeral}"
+VERIFY_PROFILE="${PROTHEUS_VERIFY_PROFILE:-release}"
+VERIFY_PROFILES_PATH="tests/tooling/config/verify_profiles.json"
 
 if [[ "$VERIFY_ARTIFACT_MODE" == "ephemeral" ]]; then
   VERIFY_TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/protheus-verify-XXXXXX")"
@@ -21,6 +23,7 @@ if [[ "$VERIFY_ARTIFACT_MODE" == "ephemeral" ]]; then
   CLIENT_SCOPE_OUT="$VERIFY_TMP_DIR/client_scope_inventory_current.json"
   CLIENT_SURFACE_OUT="$VERIFY_TMP_DIR/client_surface_disposition_current.json"
   CLIENT_TARGET_OUT="$VERIFY_TMP_DIR/client_target_contract_audit_current.json"
+  VERIFY_PROFILE_OUT="$VERIFY_TMP_DIR/verify_profile_current.json"
 else
   CLIENT_LAYER_AUDIT_OUT="$ROOT/core/local/artifacts/client_layer_boundary_audit_current.json"
   MODULE_COHESION_OUT_JSON="$ROOT/core/local/artifacts/module_cohesion_audit_current.json"
@@ -29,6 +32,7 @@ else
   CLIENT_SCOPE_OUT="$ROOT/core/local/artifacts/client_scope_inventory_current.json"
   CLIENT_SURFACE_OUT="$ROOT/core/local/artifacts/client_surface_disposition_current.json"
   CLIENT_TARGET_OUT="$ROOT/core/local/artifacts/client_target_contract_audit_current.json"
+  VERIFY_PROFILE_OUT="$ROOT/core/local/artifacts/verify_profile_current.json"
 fi
 
 run_with_timeout() {
@@ -130,49 +134,14 @@ run_protheus_ops_defer() {
 
 (
   cd "$ROOT"
-  run_with_timeout_strict "$VERIFY_RUST_TIMEOUT_SEC" cargo test --manifest-path "$MANIFEST_PATH" --test v8_runtime_proof
-  run_with_timeout_strict "$VERIFY_RUST_TIMEOUT_SEC" bash "$ROOT/proofs/layer0/verify.sh"
   run_protheus_ops_defer "$VERIFY_PROOF_TIMEOUT_SEC" top1-assurance proof-coverage --strict=1 --check-toolchains=0 --execute-proofs=1
-  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:dependency-boundary:check
-  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:formal-spec:check
-  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/client_layer_boundary_audit.ts --strict=1 --out="$CLIENT_LAYER_AUDIT_OUT"
-  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:arch:conformance
-  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:transport:convergence:guard
-  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:legacy-runner:release-guard
-  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:transport:topology:gate
-  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:transport:spawn-audit
-  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:stateful-upgrade-rollback:gate
-  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:assimilation:v1:support:guard
-  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:release-blockers:gate
-  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:production-closure:gate
-  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:orchestration:contract:guard
-  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:orchestration:hidden-state:guard
-  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:debt:expiry:guard
-  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:system:fitness:gate
-  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/module_cohesion_policy_audit.ts --strict=1 --out-json="$MODULE_COHESION_OUT_JSON" --out-markdown="$MODULE_COHESION_OUT_MD"
-  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:legacy-alias:guard
-  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:simplicity:audit
-  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:root-surface:audit
-  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:repo-surface:audit
-  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:arch:governance
-  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:public-platform:contract
-  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:benchmark:sanity
-  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:benchmark:public-audit
-  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:flaky:quarantine:audit
-  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:test-priority:audit
-  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:strategic-contracts:audit
-  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:rust-core-file-size:gate
-  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:file-size:gate
-  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:license:spdx-story:gate
-  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/client_import_integrity_audit.ts --strict=1 --out="$CLIENT_IMPORT_INTEGRITY_OUT"
-  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/client_scope_inventory.ts --out="$CLIENT_SCOPE_OUT"
-  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/client_surface_disposition.ts --out="$CLIENT_SURFACE_OUT"
-  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/client_target_contract_audit.ts --strict=1 --scope="$CLIENT_SCOPE_OUT" --boundary="$CLIENT_LAYER_AUDIT_OUT" --disposition="$CLIENT_SURFACE_OUT" --out="$CLIENT_TARGET_OUT"
-  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:v8:runtime-proof:gate
-  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:srs:full:gate
-  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:dod:gate
-  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s test:ops:srs-contract-runtime-evidence
-  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:churn:guard
+  run_with_timeout_strict "$VERIFY_PROOF_TIMEOUT_SEC" \
+    node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/tooling_registry_runner.ts \
+    profile \
+    --profiles="$VERIFY_PROFILES_PATH" \
+    --id="$VERIFY_PROFILE" \
+    --strict=1 \
+    --out="$VERIFY_PROFILE_OUT"
 )
 
 run_origin_integrity run --strict=1

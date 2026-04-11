@@ -141,6 +141,21 @@ fn fallback_action(
     }
 }
 
+fn is_swarm_agent_bridge_tool(tool_context: Option<&ToolFallbackContext>) -> bool {
+    matches!(
+        tool_context.map(|ctx| ctx.backend_class),
+        Some(ToolBackendClass::AgentRuntime)
+    ) && tool_context
+        .map(|ctx| {
+            let tool = ctx.tool_name.to_ascii_lowercase();
+            tool.starts_with("sessions_")
+                || tool.starts_with("networks_")
+                || tool.starts_with("turns_")
+                || tool.starts_with("stream_")
+        })
+        .unwrap_or(false)
+}
+
 fn tool_fallback_actions(
     request: &OrchestrationRequest,
     tool_context: Option<&ToolFallbackContext>,
@@ -159,6 +174,16 @@ fn tool_fallback_actions(
         tool_context,
     )];
     match tool_context.map(|ctx| (ctx.reason_code, ctx.backend_class)) {
+        Some((ToolReasonCode::InvalidArgs, ToolBackendClass::AgentRuntime))
+            if is_swarm_agent_bridge_tool(tool_context) =>
+        {
+            out.push(fallback_action(
+                "inspect_agent_bootstrap_contract",
+                "Inspect agent bootstrap contract",
+                "agent-runtime orchestration args are invalid, so reload the sessions_bootstrap or sessions_state contract before retrying the bridge call",
+                tool_context,
+            ));
+        }
         Some((ToolReasonCode::AuthRequired, ToolBackendClass::RetrievalPlane)) => {
             out.push(fallback_action(
                 "configure_provider_access",
@@ -168,18 +193,46 @@ fn tool_fallback_actions(
             ));
         }
         Some((ToolReasonCode::DaemonUnavailable, ToolBackendClass::AgentRuntime)) => {
-            out.push(fallback_action(
-                "retry_after_runtime_recovery",
-                "Retry after runtime recovery",
-                "agent runtime health is down, so wait for the daemon to recover before rerunning the tool path",
-                tool_context,
-            ));
+            if is_swarm_agent_bridge_tool(tool_context) {
+                out.push(fallback_action(
+                    "inspect_swarm_runtime_status",
+                    "Inspect swarm runtime status",
+                    "agent orchestration is down at the runtime layer, so query swarm runtime status before retrying message or handoff routes",
+                    tool_context,
+                ));
+            } else {
+                out.push(fallback_action(
+                    "retry_after_runtime_recovery",
+                    "Retry after runtime recovery",
+                    "agent runtime health is down, so wait for the daemon to recover before rerunning the tool path",
+                    tool_context,
+                ));
+            }
         }
         Some((ToolReasonCode::WebsocketUnavailable, ToolBackendClass::AgentRuntime)) => {
+            if is_swarm_agent_bridge_tool(tool_context) {
+                out.push(fallback_action(
+                    "inspect_swarm_runtime_status",
+                    "Inspect swarm runtime status",
+                    "agent messaging is blocked on websocket health, so restore bridge connectivity before retrying the swarm route",
+                    tool_context,
+                ));
+            } else {
+                out.push(fallback_action(
+                    "retry_after_ws_reconnect",
+                    "Retry after websocket recovery",
+                    "the runtime is up but the websocket bridge is unavailable, so retry after WS health returns",
+                    tool_context,
+                ));
+            }
+        }
+        Some((ToolReasonCode::TransportUnavailable, ToolBackendClass::AgentRuntime))
+            if is_swarm_agent_bridge_tool(tool_context) =>
+        {
             out.push(fallback_action(
-                "retry_after_ws_reconnect",
-                "Retry after websocket recovery",
-                "the runtime is up but the websocket bridge is unavailable, so retry after WS health returns",
+                "inspect_swarm_runtime_status",
+                "Inspect swarm runtime status",
+                "agent orchestration transport is unavailable, so verify resident IPC health before retrying the bridge request",
                 tool_context,
             ));
         }
@@ -196,6 +249,17 @@ fn tool_fallback_actions(
                 "prefer_non_terminal_path",
                 "Prefer non-terminal path",
                 "terminal execution is degraded, so use read-only routes or explicit source context until resident IPC is healthy",
+                tool_context,
+            ));
+        }
+        Some((ToolReasonCode::CallerNotAuthorized, _))
+        | Some((ToolReasonCode::PolicyDenied, _))
+            if is_swarm_agent_bridge_tool(tool_context) =>
+        {
+            out.push(fallback_action(
+                "verify_lineage_scope",
+                "Verify lineage scope",
+                "agent orchestration policy denied the request, so confirm the sender and target stay within allowed parent/child or sibling lineage",
                 tool_context,
             ));
         }
@@ -264,5 +328,27 @@ mod tests {
         assert!(actions
             .iter()
             .all(|row| row.reason_code == Some(ToolReasonCode::AuthRequired)));
+    }
+
+    #[test]
+    fn swarm_agent_runtime_invalid_args_recommends_bootstrap_contract() {
+        let request = OrchestrationRequest {
+            session_id: "s1".to_string(),
+            intent: "send directive to child agent".to_string(),
+            payload: json!({}),
+        };
+        let context = ToolFallbackContext {
+            tool_name: "sessions_send".to_string(),
+            backend: "agent_runtime".to_string(),
+            backend_class: ToolBackendClass::AgentRuntime,
+            reason_code: ToolReasonCode::InvalidArgs,
+        };
+        let actions = fallback_actions(&request, RequestClass::ToolCall, Some(&context));
+        assert!(actions
+            .iter()
+            .any(|row| row.kind == "inspect_agent_bootstrap_contract"));
+        assert!(actions
+            .iter()
+            .all(|row| row.reason_code == Some(ToolReasonCode::InvalidArgs)));
     }
 }

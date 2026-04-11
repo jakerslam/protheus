@@ -55,6 +55,9 @@
     "docs/client/releases/v0.2.0_migration_guide.md",
     "client/runtime/config/runtime_telemetry_policy.json",
     "client/runtime/config/production_readiness_closure_policy.json",
+    "tests/tooling/config/tooling_gate_registry.json",
+    "tests/tooling/config/verify_profiles.json",
+    "tests/tooling/scripts/ci/tooling_registry_runner.ts",
     "docs/client/RECOVERY_TRUTH_TABLE.md",
     "client/runtime/config/assimilation_v1_support_contract.json",
     "client/runtime/config/release_blocker_rubric.json",
@@ -80,7 +83,10 @@
     "chaos:continuous:gate",
     "ops:runtime-telemetry:status",
     "ops:support-bundle:export",
-    "ops:production-closure:gate"
+    "ops:production-closure:gate",
+    "tooling:list",
+    "tooling:run",
+    "tooling:profile"
   ],
   "required_ci_invocations": [
     "ops:legacy-runner:release-guard",
@@ -95,13 +101,11 @@
     "ops:production-closure:gate"
   ],
   "required_verify_invocations": [
-    "ops:legacy-runner:release-guard",
-    "ops:transport:topology:gate",
-    "ops:transport:spawn-audit",
-    "ops:stateful-upgrade-rollback:gate",
-    "ops:assimilation:v1:support:guard",
-    "ops:release-blockers:gate",
-    "ops:production-closure:gate"
+    "tooling_registry_runner.ts",
+    "tests/tooling/config/verify_profiles.json",
+    "--id=\"$VERIFY_PROFILE\"",
+    "top1-assurance proof-coverage",
+    "run_origin_integrity run --strict=1"
   ],
   "required_readme_markers": [
     "Production Support Contract",

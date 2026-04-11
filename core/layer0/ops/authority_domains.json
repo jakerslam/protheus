@@ -1,0 +1,54 @@
+{
+  "version": "1.0",
+  "crate": "core/layer0/ops",
+  "policy": {
+    "owner": "layer0_ops",
+    "require_registered_shards": true,
+    "require_unique_modules": true,
+    "require_nonempty_domains": true
+  },
+  "domains": [
+    {
+      "id": "dashboard_cli",
+      "shard": "core/layer0/ops/src/lib.index.010-dashboard-and-cli.rs",
+      "owner": "layer0_ops",
+      "purpose": "Operator entrypoints, dashboard state, and CLI-facing authorities."
+    },
+    {
+      "id": "bridges_external",
+      "shard": "core/layer0/ops/src/lib.index.020-bridges-and-external-surfaces.rs",
+      "owner": "layer0_ops",
+      "purpose": "Governed bridges that expose or integrate external orchestration/runtime surfaces."
+    },
+    {
+      "id": "collectors_ingest",
+      "shard": "core/layer0/ops/src/lib.index.030-collectors-and-ingest.rs",
+      "owner": "layer0_ops",
+      "purpose": "Collector and ingest authorities for external content acquisition."
+    },
+    {
+      "id": "runtime_state_workflows",
+      "shard": "core/layer0/ops/src/lib.index.040-runtime-state-and-workflows.rs",
+      "owner": "layer0_ops",
+      "purpose": "State mutation, runtime coordination, queueing, and workflow execution authorities."
+    },
+    {
+      "id": "security_governance_policy",
+      "shard": "core/layer0/ops/src/lib.index.050-security-governance-and-policy.rs",
+      "owner": "layer0_ops",
+      "purpose": "Safety, provenance, security, and governance enforcement authorities."
+    },
+    {
+      "id": "plane_authorities_control",
+      "shard": "core/layer0/ops/src/lib.index.060-plane-authorities-and-control.rs",
+      "owner": "layer0_ops",
+      "purpose": "Top-level plane/control authorities with broad cross-domain coordination responsibility."
+    },
+    {
+      "id": "programs_organs_specializations",
+      "shard": "core/layer0/ops/src/lib.index.070-programs-organs-and-specializations.rs",
+      "owner": "layer0_ops",
+      "purpose": "Program-level kernels, organs, and specialized authorities layered on top of the plane/control domains."
+    }
+  ]
+}

@@ -2,6 +2,9 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { parseStrictOutArgs, readFlag } from '../../lib/cli.ts';
+import { currentRevision } from '../../lib/git.ts';
+import { emitStructuredResult } from '../../lib/result.ts';
 
 type GateCheck = {
   id: string;
@@ -20,17 +23,13 @@ function parseBool(value: string | undefined, fallback = false): boolean {
 }
 
 function parseArgs(argv: string[]) {
-  const out = {
-    strict: false,
-    outPath: 'core/local/artifacts/release_policy_gate_current.json',
+  const common = parseStrictOutArgs(argv, {
+    out: 'core/local/artifacts/release_policy_gate_current.json',
+  });
+  return {
+    strict: common.strict,
+    outPath: cleanText(readFlag(argv, 'out') || common.out || '', 400),
   };
-  for (const tokenRaw of argv) {
-    const token = cleanText(tokenRaw, 400);
-    if (!token) continue;
-    if (token.startsWith('--strict=')) out.strict = parseBool(token.slice(9), false);
-    else if (token.startsWith('--out=')) out.outPath = cleanText(token.slice(6), 400);
-  }
-  return out;
 }
 
 function readJson(filePath: string, fallback: any = null): any {
@@ -297,14 +296,18 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   const args = parseArgs(argv);
   const report = {
     ...buildReport(root),
+    generated_at: new Date().toISOString(),
+    revision: currentRevision(root),
     strict: args.strict,
+    inputs: {
+      out: args.outPath,
+    },
   };
-  const outPath = path.resolve(root, args.outPath);
-  fs.mkdirSync(path.dirname(outPath), { recursive: true });
-  fs.writeFileSync(outPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
-  process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
-  if (args.strict && !report.ok) return 1;
-  return 0;
+  return emitStructuredResult(report, {
+    outPath: path.resolve(root, args.outPath),
+    strict: args.strict,
+    ok: report.ok,
+  });
 }
 
 if (require.main === module) {

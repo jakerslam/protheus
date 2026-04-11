@@ -190,7 +190,7 @@
       "inbound": ["eye signals"],
       "outbound": ["shadow route map", "classifier receipt"],
       "failure_mode": "no_route_match",
-      "health_check": "npm run -s test:lane:v6-shadow-003",
+      "health_check": "npm run -s test:lane:run -- --id=V6-SHADOW-003",
       "srs": ["V6-SHADOW-003"]
     },
     {
@@ -202,7 +202,7 @@
       "inbound": ["classifier route", "dispatch request"],
       "outbound": ["dispatch queue state", "escalation/ack receipts"],
       "failure_mode": "dispatch_queue_stall",
-      "health_check": "npm run -s test:lane:v6-shadow-004",
+      "health_check": "npm run -s test:lane:run -- --id=V6-SHADOW-004",
       "srs": ["V6-SHADOW-004"]
     },
     {
@@ -214,7 +214,7 @@
       "inbound": ["html/text snapshot", "before/after text"],
       "outbound": ["text snapshot receipt", "diff receipt with token reduction"],
       "failure_mode": "snapshot_parse_failed",
-      "health_check": "npm run -s test:lane:v6-browser-007",
+      "health_check": "npm run -s test:lane:run -- --id=V6-BROWSER-007",
       "srs": ["V6-BROWSER-007"]
     },
     {
@@ -226,7 +226,7 @@
       "inbound": ["interaction/heartbeat triggers", "resource metrics"],
       "outbound": ["adaptation cycle receipts", "review bridge submissions"],
       "failure_mode": "cadence_throttle_or_drift_gate",
-      "health_check": "npm run -s test:lane:v6-adapt-004",
+      "health_check": "npm run -s test:lane:run -- --id=V6-ADAPT-004",
       "srs": ["V6-ADAPT-004", "V6-ADAPT-005", "V6-ADAPT-006"]
     },
     {
