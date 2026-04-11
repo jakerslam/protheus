@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 'use strict';
 
-// Client compatibility shim only.
+// TypeScript compatibility shim only.
+// Layer ownership: adapters/runtime::run-protheus-ops (authoritative shared operator bridge).
 const impl = require('../../../../adapters/runtime/run_protheus_ops.ts');
 
 if (require.main === module) {

@@ -230,6 +230,37 @@ describe('conduit primitive wrapper contract', () => {
     expect(String(proc.stderr || '').trim()).toBe('');
   });
 
+  test('non-UI client compatibility surfaces delegate to adapter-owned modules', () => {
+    const wrapperTargets: Array<[string, string]> = [
+      ['client/runtime/lib/protheus_kernel_bridge.ts', 'adapters/runtime/protheus_kernel_bridge.ts'],
+      ['client/runtime/lib/shannon_bridge.ts', 'adapters/runtime/shannon_bridge.ts'],
+      ['client/runtime/systems/autonomy/swarm_repl_demo.ts', 'adapters/runtime/swarm_repl_demo.ts'],
+      ['client/runtime/systems/ui/agent_ws_bridge.ts', 'adapters/runtime/agent_ws_bridge.ts'],
+      ['client/runtime/systems/ui/dashboard_asset_router.ts', 'adapters/runtime/dashboard_asset_router.ts'],
+      ['client/runtime/systems/ui/infring_dashboard.ts', 'adapters/runtime/infring_dashboard.ts'],
+      ['client/runtime/systems/ops/backlog_github_sync.ts', 'adapters/runtime/protheus_cli_modules.ts'],
+      ['client/runtime/systems/ops/backlog_registry.ts', 'adapters/runtime/protheus_cli_modules.ts'],
+      ['client/runtime/systems/ops/protheus_control_plane.ts', 'adapters/runtime/protheus_cli_modules.ts'],
+      ['client/runtime/systems/ops/protheus_repl.ts', 'adapters/runtime/protheus_cli_modules.ts'],
+      ['client/runtime/systems/ops/protheus_setup_wizard.ts', 'adapters/runtime/protheus_setup_wizard.ts'],
+      ['client/runtime/systems/ops/protheus_status_dashboard.ts', 'adapters/runtime/protheus_cli_modules.ts'],
+      ['client/runtime/systems/ops/protheus_unknown_guard.ts', 'adapters/runtime/protheus_cli_modules.ts'],
+      ['client/runtime/systems/ops/run_infring_ops.ts', 'adapters/runtime/run_protheus_ops.ts'],
+      ['client/runtime/systems/ops/run_protheus_ops.ts', 'adapters/runtime/run_protheus_ops.ts'],
+      ['client/runtime/systems/ops/rust50_migration_program.ts', 'adapters/runtime/protheus_cli_modules.ts'],
+      ['client/runtime/systems/ops/rust_enterprise_productivity_program.ts', 'adapters/runtime/protheus_cli_modules.ts'],
+      ['client/runtime/systems/security/venom_containment_layer.ts', 'adapters/runtime/protheus_cli_modules.ts'],
+      ['client/runtime/systems/spine/contract_check.ts', 'adapters/runtime/protheus_cli_modules.ts'],
+      ['client/runtime/systems/workflow/shannon_desktop_shell.ts', 'adapters/runtime/shannon_desktop_shell.ts'],
+    ];
+
+    for (const [clientRel, adapterRel] of wrapperTargets) {
+      const source = fs.readFileSync(path.join(ROOT, clientRel), 'utf8');
+      expect(source.includes('TypeScript compatibility shim only.')).toBe(true);
+      expect(source.includes(adapterRel)).toBe(true);
+    }
+  });
+
   test('runtime manifest lists resolvable runtime entrypoints', () => {
     const rel = 'client/runtime/config/install_runtime_manifest_v1.txt';
     const manifestPath = path.join(ROOT, rel);

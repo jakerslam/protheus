@@ -33,41 +33,9 @@
     "JSON.parse(fs.readFileSync(",
     "while (stack.length)"
   ],
-  "allowed_non_wrapper_paths": [
-    "client/runtime/systems/conduit/conduit-client.ts",
-    "client/runtime/systems/ops/local_runtime_partitioner.ts",
-    "client/runtime/systems/ops/run_protheus_ops.ts",
-    "client/runtime/systems/ops/run_protheus_ops.ts",
-    "client/runtime/systems/ops/protheus_command_list.ts",
-    "client/runtime/systems/ops/protheus_control_plane.ts",
-    "client/runtime/systems/ops/protheus_debug_diagnostics.ts",
-    "client/runtime/systems/ops/protheus_repl.ts",
-    "client/runtime/systems/ops/protheus_unknown_guard.ts",
-    "client/runtime/systems/ops/backlog_github_sync.ts",
-    "client/runtime/systems/ops/backlog_registry.ts",
-    "client/runtime/systems/ops/generate_coverage_badge.ts",
-    "client/runtime/systems/ops/infring_setup_wizard.ts",
-    "client/runtime/systems/ops/protheusd.ts",
-    "client/runtime/systems/ops/run_infring_ops.ts",
-    "client/runtime/systems/ops/rust_enterprise_productivity_program.ts",
-    "client/runtime/systems/ops/protheus_status_dashboard.ts",
-    "client/runtime/systems/ops/rust50_migration_program.ts",
-    "client/runtime/systems/ops/rust_hotpath_inventory.ts",
-    "client/runtime/systems/ops/security_layer_inventory_gate.ts",
-    "client/runtime/systems/ops/top50_roi_sweep.ts",
-    "client/runtime/systems/security/venom_containment_layer.ts",
-    "client/runtime/systems/spine/contract_check.ts",
-    "client/runtime/systems/tools/assimilate.ts",
-    "client/runtime/systems/autonomy/swarm_repl_demo.ts",
-    "client/runtime/systems/memory/policy_validator.ts",
-    "client/runtime/systems/memory/session_isolation.ts",
-    "client/runtime/systems/sensory/conversation_eye_synthesizer.ts",
-    "client/runtime/systems/workflow/shannon_desktop_shell.ts",
-    "client/runtime/systems/ui/infring_dashboard.ts",
-    "client/runtime/systems/ui/dashboard_asset_router.ts"
-  ],
+  "allowed_non_wrapper_paths": [],
   "allowed_non_wrapper_roots": [
     "client/runtime/systems/ui/infring_static/"
   ],
-  "max_allowed_non_wrapper_count": 128
+  "max_allowed_non_wrapper_count": 96
 }

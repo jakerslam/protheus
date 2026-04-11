@@ -380,6 +380,7 @@ fn safe_tool_bridge_path(raw: &str) -> Result<String, String> {
         return Err(format!("unsafe_tool_bridge:{normalized}"));
     }
     if normalized == "client/runtime/systems/autonomy/swarm_sessions_bridge.ts"
+        || normalized == "adapters/runtime/swarm_bridge_modules.ts"
         || normalized.starts_with("adapters/")
     {
         Ok(normalized)
