@@ -12,7 +12,10 @@ fn parse_worktree_blocks(raw: &str) -> Vec<(PathBuf, bool)> {
             continue;
         }
         if let Some(path) = row.strip_prefix("worktree ") {
-            current_path = Some(PathBuf::from(path.trim()));
+            if let Some(prev) = current_path.replace(PathBuf::from(path.trim())) {
+                out.push((prev, detached));
+            }
+            detached = false;
             continue;
         }
         if row == "detached" {
@@ -448,4 +451,19 @@ fn execute_sleep_cleanup_purge(
     origin: &str,
 ) -> (i32, Value) {
     execute_sleep_cleanup_with_mode(root, apply, force, origin, SleepCleanupMode::Purge)
+}
+
+#[cfg(test)]
+mod parse_worktree_blocks_tests {
+    use super::*;
+
+    #[test]
+    fn parse_worktree_blocks_flushes_previous_block_without_blank_line() {
+        let rows = parse_worktree_blocks(
+            "worktree /tmp/a\ndetached\nworktree /tmp/b\nbranch refs/heads/main\n",
+        );
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0], (PathBuf::from("/tmp/a"), true));
+        assert_eq!(rows[1], (PathBuf::from("/tmp/b"), false));
+    }
 }

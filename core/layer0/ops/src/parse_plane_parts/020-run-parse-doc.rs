@@ -77,6 +77,33 @@ fn run_parse_doc(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value
     if rules.is_empty() {
         errors.push("mapping_rules_required".to_string());
     }
+    let supported_strategies = parse_contract
+        .get("supported_strategies")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .iter()
+        .filter_map(Value::as_str)
+        .map(|value| clean(value, 80).to_ascii_lowercase())
+        .collect::<std::collections::BTreeSet<_>>();
+    for rule in &rules {
+        let strategy = rule
+            .get("strategy")
+            .and_then(Value::as_str)
+            .map(|value| clean(value, 80).to_ascii_lowercase())
+            .unwrap_or_else(|| "contains".to_string());
+        if !supported_strategies.is_empty() && !supported_strategies.contains(&strategy) {
+            errors.push(format!("unsupported_mapping_strategy:{strategy}"));
+        }
+    }
+    if !errors.is_empty() {
+        return json!({
+            "ok": false,
+            "strict": strict,
+            "type": "parse_plane_parse_doc",
+            "errors": errors
+        });
+    }
 
     let source_plain = strip_tags(&source_raw);
     let mut instructions = Vec::<Value>::new();
@@ -363,4 +390,3 @@ fn parse_table_input(
     }
     Err("table_unavailable_in_artifact".to_string())
 }
-

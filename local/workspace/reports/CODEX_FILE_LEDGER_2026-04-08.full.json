@@ -6195,7 +6195,7 @@
       "order": 562
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/research_batch6_parts/020-run-mcp-extract.rs",
       "language": "rs",
       "loc": 459,
@@ -6305,7 +6305,7 @@
       "order": 572
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/spine_parts/020-parse-json-payload.rs",
       "language": "rs",
       "loc": 457,
@@ -6635,7 +6635,7 @@
       "order": 602
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/spine_parts/030-parse-worktree-blocks.rs",
       "language": "rs",
       "loc": 451,
@@ -7339,7 +7339,7 @@
       "order": 666
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/research_plane_parts/030-run-crawl.rs",
       "language": "rs",
       "loc": 429,
@@ -7746,7 +7746,7 @@
       "order": 703
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/research_plane_parts/020-run-fetch.rs",
       "language": "rs",
       "loc": 409,
@@ -8274,7 +8274,7 @@
       "order": 751
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/parse_plane_parts/040-run-flatten-transform.rs",
       "language": "rs",
       "loc": 380,
@@ -8472,7 +8472,7 @@
       "order": 769
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/parse_plane_parts/020-run-parse-doc.rs",
       "language": "rs",
       "loc": 366,
@@ -8692,7 +8692,7 @@
       "order": 789
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/parse_plane_parts/030-run-postprocess-table.rs",
       "language": "rs",
       "loc": 348,

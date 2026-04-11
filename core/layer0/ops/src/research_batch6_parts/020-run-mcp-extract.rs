@@ -83,9 +83,15 @@ pub fn run_mcp_extract(root: &Path, parsed: &ParsedArgs, strict: bool) -> Value 
     for token in words {
         *freq.entry(token).or_insert(0) += 1;
     }
-    let entities = freq
-        .iter()
-        .rev()
+    let mut entities_ranked = freq.into_iter().collect::<Vec<_>>();
+    entities_ranked.sort_by(|left, right| {
+        right
+            .1
+            .cmp(&left.1)
+            .then_with(|| left.0.cmp(&right.0))
+    });
+    let entities = entities_ranked
+        .into_iter()
         .take(8)
         .map(|(token, count)| json!({"token": token, "count": count}))
         .collect::<Vec<_>>();
@@ -456,4 +462,3 @@ pub fn run_middleware(root: &Path, parsed: &ParsedArgs, strict: bool) -> Value {
     }));
     out
 }
-
