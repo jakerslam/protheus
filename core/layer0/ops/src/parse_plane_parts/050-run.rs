@@ -115,15 +115,16 @@ fn run_export(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
 
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     let parsed = parse_args(argv);
-    let command = parsed
+    let raw_command = parsed
         .positional
         .first()
         .map(|v| v.trim().to_ascii_lowercase())
         .unwrap_or_else(|| "status".to_string());
-    if matches!(command.as_str(), "help" | "--help" | "-h") {
+    if matches!(raw_command.as_str(), "help" | "--help" | "-h") {
         usage();
         return 0;
     }
+    let command = canonical_parse_command(&raw_command).to_string();
     let strict = parse_bool(parsed.flags.get("strict"), true);
 
     let conduit = if command != "status" {
@@ -143,7 +144,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             json!({
                 "ok": false,
                 "strict": strict,
-                "type": "parse_plane_conduit_gate",
+                "type": parse_receipt_type(&command),
                 "errors": ["conduit_bypass_rejected"],
                 "conduit_enforcement": conduit
             }),
@@ -152,21 +153,22 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
     let payload = match command.as_str() {
         "status" => status(root),
-        "parse-doc" | "parse_doc" | "doc" => run_parse_doc(root, &parsed, strict),
-        "visualize" | "viz" => run_visualize(root, &parsed, strict),
-        "postprocess-table" | "postprocess_table" | "postprocess" => {
+        "parse-doc" => run_parse_doc(root, &parsed, strict),
+        "visualize" => run_visualize(root, &parsed, strict),
+        "postprocess-table" => {
             run_postprocess_table(root, &parsed, strict)
         }
-        "flatten" | "unnest" => run_flatten_transform(root, &parsed, strict),
+        "flatten" => run_flatten_transform(root, &parsed, strict),
         "export" => run_export(root, &parsed, strict),
-        "template-governance" | "template_governance" | "templates" => {
+        "template-governance" => {
             run_template_governance(root, &parsed, strict)
         }
         _ => json!({
             "ok": false,
             "type": "parse_plane_error",
             "error": "unknown_command",
-            "command": command
+            "command": command,
+            "requested_command": raw_command
         }),
     };
     if command == "status" {
@@ -179,6 +181,19 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parse_alias_commands_are_canonicalized() {
+        assert_eq!(canonical_parse_command("parse_doc"), "parse-doc");
+        assert_eq!(canonical_parse_command("doc"), "parse-doc");
+        assert_eq!(canonical_parse_command("viz"), "visualize");
+        assert_eq!(canonical_parse_command("postprocess"), "postprocess-table");
+        assert_eq!(canonical_parse_command("unnest"), "flatten");
+        assert_eq!(
+            canonical_parse_command("template_governance"),
+            "template-governance"
+        );
+    }
 
     #[test]
     fn parse_doc_requires_source() {
@@ -201,6 +216,32 @@ mod tests {
         let parsed = crate::parse_args(&["parse-doc".to_string(), "--bypass=1".to_string()]);
         let gate = conduit_enforcement(root.path(), &parsed, true, "parse-doc");
         assert_eq!(gate.get("ok").and_then(Value::as_bool), Some(false));
+    }
+
+    #[test]
+    fn parse_alias_bypass_emits_action_specific_receipt_type() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let exit = run(
+            root.path(),
+            &[
+                "unnest".to_string(),
+                "--strict=1".to_string(),
+                "--bypass=1".to_string(),
+            ],
+        );
+        assert_eq!(exit, 1);
+        let latest =
+            crate::v8_kernel::read_json(&latest_path(root.path())).expect("latest parse receipt");
+        assert_eq!(
+            latest.get("type").and_then(Value::as_str),
+            Some("parse_plane_flatten_transform")
+        );
+        assert_eq!(
+            latest
+                .pointer("/conduit_enforcement/action")
+                .and_then(Value::as_str),
+            Some("flatten")
+        );
     }
 
     #[test]

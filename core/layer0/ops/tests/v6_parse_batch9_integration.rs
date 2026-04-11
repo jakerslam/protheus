@@ -253,13 +253,21 @@ fn v6_parse_batch9_table_flatten_and_template_governance_lanes_work() {
 fn v6_parse_batch9_rejects_bypass_when_strict() {
     let fixture = stage_fixture_root();
     let root = fixture.path();
-    for action in [
-        "parse-doc",
-        "visualize",
-        "postprocess-table",
-        "flatten",
-        "export",
-        "template-governance",
+    for (action, expected_type, expected_conduit_action) in [
+        ("parse_doc", "parse_plane_parse_doc", "parse-doc"),
+        ("viz", "parse_plane_visualize", "visualize"),
+        (
+            "postprocess",
+            "parse_plane_postprocess_table",
+            "postprocess-table",
+        ),
+        ("unnest", "parse_plane_flatten_transform", "flatten"),
+        ("export", "parse_plane_export", "export"),
+        (
+            "templates",
+            "parse_plane_template_governance",
+            "template-governance",
+        ),
     ] {
         let exit = parse_plane::run(
             root,
@@ -273,8 +281,15 @@ fn v6_parse_batch9_rejects_bypass_when_strict() {
         let latest = read_json(&latest_path(root));
         assert_eq!(
             latest.get("type").and_then(Value::as_str),
-            Some("parse_plane_conduit_gate"),
-            "action={action} should emit conduit gate payload"
+            Some(expected_type),
+            "action={action} should emit action-specific payload"
+        );
+        assert_eq!(
+            latest
+                .pointer("/conduit_enforcement/action")
+                .and_then(Value::as_str),
+            Some(expected_conduit_action),
+            "action={action} should use canonical conduit action"
         );
         assert!(
             latest

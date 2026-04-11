@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-11T23:19:42.684Z",
+  "generated_at": "2026-04-11T23:41:33.625Z",
   "scope": [
     "core",
     "client/runtime",
@@ -9242,7 +9242,7 @@
       "order": 839
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/tests/v6_parse_batch9_integration.rs",
       "language": "rs",
       "loc": 291,
@@ -10023,7 +10023,7 @@
       "order": 910
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/tests/v6_parse_batch8_integration.rs",
       "language": "rs",
       "loc": 176,
@@ -11123,7 +11123,7 @@
       "order": 1010
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/parse_plane.rs",
       "language": "rs",
       "loc": 6,
@@ -11343,7 +11343,7 @@
       "order": 1030
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/vbrowser_plane.rs",
       "language": "rs",
       "loc": 5,

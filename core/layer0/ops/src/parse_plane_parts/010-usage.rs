@@ -57,6 +57,29 @@ fn emit(root: &Path, payload: Value) -> i32 {
     emit_plane_receipt(root, STATE_ENV, STATE_SCOPE, "parse_plane_error", payload)
 }
 
+fn canonical_parse_command(action: &str) -> &str {
+    match action {
+        "parse_doc" | "doc" => "parse-doc",
+        "viz" => "visualize",
+        "postprocess_table" | "postprocess" => "postprocess-table",
+        "unnest" => "flatten",
+        "template_governance" | "templates" => "template-governance",
+        other => other,
+    }
+}
+
+fn parse_receipt_type(command: &str) -> &str {
+    match command {
+        "parse-doc" => "parse_plane_parse_doc",
+        "visualize" => "parse_plane_visualize",
+        "postprocess-table" => "parse_plane_postprocess_table",
+        "flatten" => "parse_plane_flatten_transform",
+        "export" => "parse_plane_export",
+        "template-governance" => "parse_plane_template_governance",
+        _ => "parse_plane_error",
+    }
+}
+
 fn status(root: &Path) -> Value {
     plane_status(root, STATE_ENV, STATE_SCOPE, "parse_plane_status")
 }
