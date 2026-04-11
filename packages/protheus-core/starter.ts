@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-const core = require('./index.js');
+const core = require('./index.ts');
 const { parseArgs } = require('../../client/runtime/lib/queued_backlog_runtime');
 
 const flags = parseArgs(process.argv.slice(2));
@@ -12,7 +12,7 @@ const options = {
   gates: flags.gates,
   timeout_ms: flags['timeout-ms'] || flags.timeout_ms,
   max_mb: flags['max-mb'] || flags.max_mb,
-  max_ms: flags['max-ms'] || flags.max_ms
+  max_ms: flags['max-ms'] || flags.max_ms,
 };
 
 const out = mode === 'contract'

@@ -17,9 +17,9 @@ const POLICY_PATH = process.env.PROTHEUS_CORE_PROFILE_POLICY_PATH
 
 function usage() {
   console.log('Usage:');
-  console.log('  node packages/protheus-core/core_profile_contract.js configure --owner=<owner_id> [--mode=lite]');
-  console.log('  node packages/protheus-core/core_profile_contract.js bootstrap --owner=<owner_id> [--mode=lite]');
-  console.log('  node packages/protheus-core/core_profile_contract.js status [--owner=<owner_id>]');
+  console.log('  node client/runtime/lib/ts_entrypoint.ts packages/protheus-core/core_profile_contract.ts configure --owner=<owner_id> [--mode=lite]');
+  console.log('  node client/runtime/lib/ts_entrypoint.ts packages/protheus-core/core_profile_contract.ts bootstrap --owner=<owner_id> [--mode=lite]');
+  console.log('  node client/runtime/lib/ts_entrypoint.ts packages/protheus-core/core_profile_contract.ts status [--owner=<owner_id>]');
 }
 
 runStandardLane({
