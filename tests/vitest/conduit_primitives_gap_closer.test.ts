@@ -324,6 +324,47 @@ describe('conduit primitive wrapper contract', () => {
     expect(gateWrapper.includes("token === 'run' ? 'gate' : token")).toBe(true);
   });
 
+  test('runtime telemetry and support bundle wrappers route to authoritative operator scripts', () => {
+    const telemetryWrapper = fs.readFileSync(
+      path.join(ROOT, 'client/runtime/systems/observability/runtime_telemetry_optin.ts'),
+      'utf8',
+    );
+    const supportBundleWrapper = fs.readFileSync(
+      path.join(ROOT, 'client/runtime/systems/ops/support_bundle_export.ts'),
+      'utf8',
+    );
+    expect(telemetryWrapper.includes('tests/tooling/scripts/ops/runtime_telemetry_optin.ts')).toBe(true);
+    expect(supportBundleWrapper.includes('tests/tooling/scripts/ops/support_bundle_export.ts')).toBe(true);
+  });
+
+  test('ops client wrappers route to authoritative operator scripts or allowed runtime utility targets', () => {
+    const transportWrapper = fs.readFileSync(
+      path.join(ROOT, 'client/runtime/systems/ops/transport_topology_status.ts'),
+      'utf8',
+    );
+    const workspaceWrapper = fs.readFileSync(
+      path.join(ROOT, 'client/runtime/systems/ops/workspace_command_index.ts'),
+      'utf8',
+    );
+    const registryWrapper = fs.readFileSync(
+      path.join(ROOT, 'client/runtime/systems/ops/command_registry_surface_contract.ts'),
+      'utf8',
+    );
+    const f100Wrapper = fs.readFileSync(
+      path.join(ROOT, 'client/runtime/systems/ops/f100_readiness_remediation.ts'),
+      'utf8',
+    );
+    const personalInstallerWrapper = fs.readFileSync(
+      path.join(ROOT, 'client/runtime/systems/ops/personal_infring_installer.ts'),
+      'utf8',
+    );
+    expect(transportWrapper.includes('tests/tooling/scripts/ops/transport_topology_status.ts')).toBe(true);
+    expect(workspaceWrapper.includes('tests/tooling/scripts/ops/workspace_command_index.ts')).toBe(true);
+    expect(registryWrapper.includes('tests/tooling/scripts/ops/command_registry_surface_contract.ts')).toBe(true);
+    expect(f100Wrapper.includes('tests/tooling/scripts/ops/f100_readiness_remediation_impl.ts')).toBe(true);
+    expect(personalInstallerWrapper.includes("path.resolve(__dirname, 'infring_setup_wizard.ts')")).toBe(true);
+  });
+
   test('support bundle export writes a deterministic artifact envelope', () => {
     const entrypoint = path.join(ROOT, 'client/runtime/lib/ts_entrypoint.ts');
     const script = path.join(ROOT, 'client/runtime/systems/ops/support_bundle_export.ts');

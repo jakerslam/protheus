@@ -1,21 +1,20 @@
 #!/usr/bin/env node
 'use strict';
 
-const path = require('path');
-const { invokeTsModuleAsync } = require('../../lib/in_process_ts_delegate.ts');
+// TypeScript compatibility shim only.
+// Layer ownership: client/runtime/systems/ops/infring_setup_wizard.ts (allowed operator runtime utility); this file is a thin CLI bridge.
 
-const ROOT = path.resolve(__dirname, '..', '..', '..', '..');
-const SETUP_WIZARD = path.join(ROOT, 'client', 'runtime', 'systems', 'ops', 'infring_setup_wizard.ts');
+const path = require('path');
+const { installTsRequireHook } = require('../../lib/ts_bootstrap.ts');
+
+const target = path.resolve(__dirname, 'infring_setup_wizard.ts');
+
+installTsRequireHook();
+const impl = require(target);
 
 async function main(argv = process.argv.slice(2)) {
-  const run = await invokeTsModuleAsync(SETUP_WIZARD, {
-    argv,
-    cwd: ROOT,
-    exportName: 'main',
-    teeStdout: true,
-    teeStderr: true,
-  });
-  return Number.isFinite(Number(run.status)) ? Number(run.status) : 1;
+  const outcome = await Promise.resolve(impl.main(Array.isArray(argv) ? argv : []));
+  return Number.isFinite(Number(outcome)) ? Number(outcome) : 1;
 }
 
 if (require.main === module) {
@@ -34,5 +33,6 @@ if (require.main === module) {
 }
 
 module.exports = {
+  ...impl,
   main,
 };
