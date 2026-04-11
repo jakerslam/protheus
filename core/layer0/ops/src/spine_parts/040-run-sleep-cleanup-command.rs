@@ -9,12 +9,7 @@ fn run_sleep_cleanup_command(root: &Path, argv: &[String]) -> i32 {
         "status" => {
             let policy = load_sleep_cleanup_policy(root);
             let latest = read_json(&policy.state_path).unwrap_or_else(|| json!({}));
-            let out = json!({
-                "ok": true,
-                "type": "spine_sleep_cleanup_status",
-                "ts": now_iso(),
-                "latest": latest
-            });
+            let out = build_sleep_cleanup_status_receipt(&policy, &latest);
             print_json_line(&out);
             0
         }
@@ -44,6 +39,38 @@ fn run_sleep_cleanup_command(root: &Path, argv: &[String]) -> i32 {
             2
         }
     }
+}
+
+fn build_sleep_cleanup_status_receipt(policy: &SleepCleanupPolicy, latest: &Value) -> Value {
+    let mut out = json!({
+        "ok": true,
+        "type": "spine_sleep_cleanup_status",
+        "ts": now_iso(),
+        "enabled": policy.enabled,
+        "policy": {
+            "min_interval_minutes": policy.min_interval_minutes,
+            "archive_max_age_hours": policy.archive_max_age_hours,
+            "archive_keep_latest": policy.archive_keep_latest,
+            "target_max_age_hours": policy.target_max_age_hours,
+            "detached_worktree_max_age_hours": policy.detached_worktree_max_age_hours,
+            "disk_free_floor_percent": policy.disk_free_floor_percent,
+            "hard_free_floor_percent": policy.hard_free_floor_percent,
+            "pressure_target_free_percent": policy.pressure_target_free_percent,
+            "pressure_jsonl_cap_bytes": policy.pressure_jsonl_cap_bytes,
+            "pressure_log_cap_bytes": policy.pressure_log_cap_bytes,
+            "pressure_max_candidates": policy.pressure_max_candidates,
+            "pressure_min_age_hours": policy.pressure_min_age_hours
+        },
+        "paths": {
+            "archive_root": policy.archive_root.display().to_string(),
+            "target_root": policy.target_root.display().to_string(),
+            "state_path": policy.state_path.display().to_string(),
+            "history_path": policy.history_path.display().to_string()
+        },
+        "latest": latest
+    });
+    out["receipt_hash"] = Value::String(receipt_hash(&out));
+    out
 }
 
 fn load_mech_suit_policy(root: &Path) -> MechSuitPolicy {
@@ -443,4 +470,3 @@ fn default_evidence_plan() -> Value {
         "evidence_runs": 0
     })
 }
-

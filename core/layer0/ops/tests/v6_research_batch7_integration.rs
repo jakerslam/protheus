@@ -449,3 +449,57 @@ fn v6_research_batch7_rejects_conduit_bypass_in_strict_mode() {
             .any(|r| r.as_str() == Some("conduit_bypass_rejected")))
         .unwrap_or(false));
 }
+
+#[test]
+fn v6_research_batch7_goal_crawl_prefers_default_catalog_and_dedupes_keywords() {
+    let fixture = stage_fixture_root();
+    let root = fixture.path();
+
+    let exit = research_plane::run(
+        root,
+        &[
+            "goal-crawl".to_string(),
+            "--strict=1".to_string(),
+            "--goal=memory memory coherence".to_string(),
+            "--catalog-json={".to_string()
+                + "\"memory\":[],"
+                + "\"coherence\":[],"
+                + "\"default\":[\"https://default.test/docs\"]"
+                + "}",
+        ],
+    );
+    assert_eq!(exit, 0);
+
+    let latest = read_json(&latest_path(root));
+    assert_eq!(
+        latest.get("type").and_then(Value::as_str),
+        Some("research_plane_goal_crawl")
+    );
+    assert_eq!(latest.get("ok").and_then(Value::as_bool), Some(true));
+    assert_eq!(
+        latest
+            .pointer("/plan_receipts/0/keywords")
+            .and_then(Value::as_array)
+            .map(|rows| rows.len()),
+        Some(2)
+    );
+    assert_eq!(
+        latest
+            .pointer("/discovery_receipts/0/source")
+            .and_then(Value::as_str),
+        Some("default")
+    );
+    assert_eq!(
+        latest
+            .pointer("/discovery_receipts/0/url")
+            .and_then(Value::as_str),
+        Some("https://default.test/docs")
+    );
+    assert_eq!(
+        latest
+            .get("discovery_receipts")
+            .and_then(Value::as_array)
+            .map(|rows| rows.len()),
+        Some(1)
+    );
+}
