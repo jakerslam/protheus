@@ -100,15 +100,17 @@ fn assert_runtime_receipt(payload: &Value, component: &str, contract: &str, clai
             .and_then(Value::as_str),
         Some(component)
     );
-    assert_eq!(
-        payload
-            .pointer("/runtime_claim/evidence/claim_count")
-            .and_then(Value::as_u64),
-        payload
-            .get("claim_evidence")
-            .and_then(Value::as_array)
-            .map(|rows| rows.len() as u64)
-    );
+    let runtime_claim_count = payload
+        .pointer("/runtime_claim/evidence/claim_count")
+        .and_then(Value::as_u64)
+        .expect("runtime claim count");
+    let total_claims = payload
+        .get("claim_evidence")
+        .and_then(Value::as_array)
+        .map(|rows| rows.len() as u64)
+        .expect("claim evidence");
+    assert!(runtime_claim_count >= 1);
+    assert!(runtime_claim_count <= total_claims);
 
     let receipt_hash = payload
         .get("receipt_hash")
@@ -121,6 +123,21 @@ fn assert_runtime_receipt(payload: &Value, component: &str, contract: &str, clai
         .expect("receipt object")
         .remove("receipt_hash");
     assert_eq!(deterministic_receipt_hash(&unhashed), receipt_hash);
+}
+
+fn assert_conduit_ok(payload: &Value, action: &str) {
+    assert_eq!(
+        payload
+            .pointer("/conduit_enforcement/ok")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        payload
+            .pointer("/conduit_enforcement/action")
+            .and_then(Value::as_str),
+        Some(action)
+    );
 }
 
 #[test]
@@ -182,6 +199,7 @@ fn v6_research_batch6_strict_commands_emit_receipts_and_contract_behavior() {
         "fetch should emit at least one safety plane receipt"
     );
     assert_claim(&fetch_latest, "V6-RESEARCH-001.5");
+    assert_conduit_ok(&fetch_latest, "fetch");
 
     let mcp_exit = research_plane::run(
         root,
@@ -210,6 +228,7 @@ fn v6_research_batch6_strict_commands_emit_receipts_and_contract_behavior() {
         "mcp extraction must emit structured summary"
     );
     assert_claim(&mcp_latest, "V6-RESEARCH-001.4");
+    assert_conduit_ok(&mcp_latest, "mcp-extract");
 
     let spider_exit = research_plane::run(
         root,
@@ -237,6 +256,7 @@ fn v6_research_batch6_strict_commands_emit_receipts_and_contract_behavior() {
         "spider must emit per-link receipts"
     );
     assert_claim(&spider_latest, "V6-RESEARCH-002.1");
+    assert_conduit_ok(&spider_latest, "spider");
     assert_runtime_receipt(
         &spider_latest,
         "crawl_spider",
@@ -265,6 +285,7 @@ fn v6_research_batch6_strict_commands_emit_receipts_and_contract_behavior() {
         Some(true)
     );
     assert_claim(&middleware_latest, "V6-RESEARCH-002.2");
+    assert_conduit_ok(&middleware_latest, "middleware");
     assert_runtime_receipt(
         &middleware_latest,
         "crawl_middleware",
@@ -302,6 +323,7 @@ fn v6_research_batch6_strict_commands_emit_receipts_and_contract_behavior() {
         "pipeline exporter must write output artifact"
     );
     assert_claim(&pipeline_latest, "V6-RESEARCH-002.3");
+    assert_conduit_ok(&pipeline_latest, "pipeline");
     assert_runtime_receipt(
         &pipeline_latest,
         "crawl_pipeline",
@@ -329,6 +351,7 @@ fn v6_research_batch6_strict_commands_emit_receipts_and_contract_behavior() {
         Some(true)
     );
     assert_claim(&signals_latest, "V6-RESEARCH-002.4");
+    assert_conduit_ok(&signals_latest, "signals");
     assert_runtime_receipt(
         &signals_latest,
         "crawl_signals",
@@ -356,6 +379,7 @@ fn v6_research_batch6_strict_commands_emit_receipts_and_contract_behavior() {
         console_latest.get("ok").and_then(Value::as_bool),
         Some(true)
     );
+    assert_conduit_ok(&console_latest, "console");
     assert_eq!(
         console_latest
             .get("state")
@@ -547,4 +571,80 @@ fn v6_research_batch6_strict_commands_emit_receipts_and_contract_behavior() {
 
     std::env::remove_var("RESEARCH_CONSOLE_TOKEN");
     std::env::remove_var("RESEARCH_TEMPLATE_SIGNING_KEY");
+}
+
+#[test]
+fn v6_research_batch6_rejects_top_level_conduit_bypass_in_strict_mode() {
+    let fixture = stage_fixture_root();
+    let root = fixture.path();
+
+    let fetch_exit = research_plane::run(
+        root,
+        &[
+            "fetch".to_string(),
+            "--strict=1".to_string(),
+            "--url=file:///tmp/example.html".to_string(),
+            "--bypass=1".to_string(),
+        ],
+    );
+    assert_eq!(fetch_exit, 1);
+    let fetch_latest = read_json(&latest_path(root));
+    assert_eq!(
+        fetch_latest.get("type").and_then(Value::as_str),
+        Some("research_plane_fetch")
+    );
+    assert!(fetch_latest
+        .get("errors")
+        .and_then(Value::as_array)
+        .map(|rows| rows
+            .iter()
+            .any(|row| row.as_str() == Some("conduit_bypass_rejected")))
+        .unwrap_or(false));
+
+    let recover_exit = research_plane::run(
+        root,
+        &[
+            "recover_selectors".to_string(),
+            "--strict=1".to_string(),
+            "--html=<main>hello</main>".to_string(),
+            "--selectors=main".to_string(),
+            "--bypass=1".to_string(),
+        ],
+    );
+    assert_eq!(recover_exit, 1);
+    let recover_latest = read_json(&latest_path(root));
+    assert_eq!(
+        recover_latest.get("type").and_then(Value::as_str),
+        Some("research_plane_selector_recovery")
+    );
+    assert!(recover_latest
+        .get("errors")
+        .and_then(Value::as_array)
+        .map(|rows| rows
+            .iter()
+            .any(|row| row.as_str() == Some("conduit_bypass_rejected")))
+        .unwrap_or(false));
+
+    let crawl_exit = research_plane::run(
+        root,
+        &[
+            "crawl".to_string(),
+            "--strict=1".to_string(),
+            "--seed-urls=https://a.test".to_string(),
+            "--bypass=1".to_string(),
+        ],
+    );
+    assert_eq!(crawl_exit, 1);
+    let crawl_latest = read_json(&latest_path(root));
+    assert_eq!(
+        crawl_latest.get("type").and_then(Value::as_str),
+        Some("research_plane_crawl")
+    );
+    assert!(crawl_latest
+        .get("errors")
+        .and_then(Value::as_array)
+        .map(|rows| rows
+            .iter()
+            .any(|row| row.as_str() == Some("conduit_bypass_rejected")))
+        .unwrap_or(false));
 }

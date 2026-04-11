@@ -5,7 +5,8 @@ use crate::research_batch6;
 use crate::research_batch7;
 use crate::research_batch8;
 use crate::v8_kernel::{
-    parse_bool, parse_u64, read_json, scoped_state_root, sha256_hex_str, write_receipt,
+    attach_conduit, parse_bool, parse_u64, read_json, scoped_state_root, sha256_hex_str,
+    write_receipt,
 };
 use crate::{clean, parse_args, ParsedArgs};
 use crate::{crawl_console, crawl_middleware, crawl_pipeline, crawl_signals, crawl_spider};
@@ -92,6 +93,70 @@ fn emit(root: &Path, payload: Value) -> i32 {
             }));
             1
         }
+    }
+}
+
+fn canonical_research_command(action: &str) -> &str {
+    match action {
+        "recover_selectors" | "selector-recovery" => "recover-selectors",
+        "mcp_extract" => "mcp-extract",
+        "crawl-spider" | "crawl_spider" => "spider",
+        "crawl-middleware" | "crawl_middleware" => "middleware",
+        "crawl-pipeline" | "crawl_pipeline" => "pipeline",
+        "crawl-signals" | "crawl_signals" => "signals",
+        "crawl-console" | "crawl_console" => "console",
+        "template_governance" => "template-governance",
+        "goal_crawl" => "goal-crawl",
+        "map_site" | "map" => "map-site",
+        "extract_structured" => "extract-structured",
+        "firecrawl_template_governance" => "firecrawl-template-governance",
+        "js_scrape" => "js-scrape",
+        "auth_session" => "auth-session",
+        "proxy_rotate" => "proxy-rotate",
+        "parallel_scrape_workers" => "parallel-scrape-workers",
+        "book_patterns_template_governance" => "book-patterns-template-governance",
+        "decode_news_url" => "decode-news-url",
+        "decode_news_urls" => "decode-news-urls",
+        "decoder_template_governance" => "decoder-template-governance",
+        other => other,
+    }
+}
+
+fn top_level_conduit_receipt_type(command: &str) -> &str {
+    match command {
+        "fetch" => "research_plane_fetch",
+        "recover-selectors" => "research_plane_selector_recovery",
+        "crawl" => "research_plane_crawl",
+        "mcp-extract" => "research_plane_mcp_extract",
+        "spider" => "research_plane_rule_spider",
+        "middleware" => "research_plane_middleware",
+        "pipeline" => "research_plane_item_pipeline",
+        "signals" => "research_plane_signal_bus",
+        "console" => "research_plane_console",
+        _ => "research_plane_error",
+    }
+}
+
+fn command_uses_top_level_conduit(command: &str) -> bool {
+    matches!(
+        command,
+        "fetch"
+            | "recover-selectors"
+            | "crawl"
+            | "mcp-extract"
+            | "spider"
+            | "middleware"
+            | "pipeline"
+            | "signals"
+            | "console"
+    )
+}
+
+fn attach_conduit_if_missing(payload: Value, conduit: Option<&Value>) -> Value {
+    if payload.get("conduit_enforcement").is_some() {
+        payload
+    } else {
+        attach_conduit(payload, conduit)
     }
 }
 
@@ -271,6 +336,14 @@ fn fetch_with_curl(
 #[cfg(test)]
 mod research_plane_usage_tests {
     use super::*;
+
+    #[test]
+    fn command_aliases_are_canonicalized() {
+        assert_eq!(canonical_research_command("crawl_spider"), "spider");
+        assert_eq!(canonical_research_command("crawl-console"), "console");
+        assert_eq!(canonical_research_command("goal_crawl"), "goal-crawl");
+        assert_eq!(canonical_research_command("decode_news_urls"), "decode-news-urls");
+    }
 
     #[test]
     fn fetch_with_curl_file_urls_emit_mode_and_elapsed_ms() {
