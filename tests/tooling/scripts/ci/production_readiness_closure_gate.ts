@@ -30,6 +30,13 @@ const ROOT = process.cwd();
 const POLICY_PATH = path.join(ROOT, 'client/runtime/config/production_readiness_closure_policy.json');
 const VERIFY_PROFILES_PATH = path.join(ROOT, 'tests/tooling/config/verify_profiles.json');
 const GATE_REGISTRY_PATH = 'tests/tooling/config/tooling_gate_registry.json';
+const TOPOLOGY_ARTIFACT_PATH = path.join(ROOT, 'core/local/artifacts/production_topology_diagnostic_current.json');
+const STATE_COMPAT_ARTIFACT_PATH = path.join(ROOT, 'core/local/artifacts/stateful_upgrade_rollback_gate_current.json');
+const SUPPORT_BUNDLE_ARTIFACT_PATH = path.join(ROOT, 'core/local/artifacts/support_bundle_latest.json');
+const RELEASE_SCORECARD_PATH = path.join(
+  ROOT,
+  'client/runtime/local/state/release/scorecard/release_scorecard.json',
+);
 
 function parseBool(raw: string | undefined, fallback = false): boolean {
   const value = String(raw || '').trim().toLowerCase();
@@ -105,6 +112,24 @@ function checkTextMarkers(filePath: string, markers: string[], prefix: string): 
   });
 }
 
+function checkWorkflowMarkers(markers: string[]): Check[] {
+  const workflowFiles = [
+    path.join(ROOT, '.github/workflows/ci.yml'),
+    path.join(ROOT, '.github/workflows/release.yml'),
+  ];
+  const sources = workflowFiles
+    .filter((filePath) => fs.existsSync(filePath))
+    .map((filePath) => fs.readFileSync(filePath, 'utf8'));
+  return markers.map((marker) => {
+    const ok = sources.some((source) => source.includes(marker));
+    return {
+      id: `ci_invocation:${marker}`,
+      ok,
+      detail: ok ? 'present' : 'missing_from_ci_or_release_workflow',
+    };
+  });
+}
+
 function checkVerifyProfileGateIds(requiredProfiles: Record<string, string[]>): Check[] {
   const manifest = readJson<{ profiles?: Record<string, { gate_ids?: string[] }> }>(
     VERIFY_PROFILES_PATH,
@@ -158,6 +183,46 @@ function runSmokeScripts(scriptNames: string[]): Check[] {
   });
 }
 
+function checkReleaseEvidence(): Check[] {
+  const topology = readJson<any>(TOPOLOGY_ARTIFACT_PATH, {});
+  const stateCompat = readJson<any>(STATE_COMPAT_ARTIFACT_PATH, {});
+  const supportBundle = readJson<any>(SUPPORT_BUNDLE_ARTIFACT_PATH, {});
+  const scorecard = readJson<any>(RELEASE_SCORECARD_PATH, {});
+  const liveChecks = stateCompat?.checks || {};
+  const liveRehearsalOk =
+    liveChecks.live_taskgroup_rehearsal_verified === true &&
+    liveChecks.live_receipt_rehearsal_verified === true &&
+    liveChecks.live_memory_surface_verified === true &&
+    liveChecks.live_runtime_receipt_verified === true &&
+    liveChecks.live_assimilation_contract_verified === true;
+  return [
+    {
+      id: 'release_scorecard_numeric_thresholds',
+      ok: scorecard?.ok === true,
+      detail: scorecard?.ok === true ? 'enforced' : 'missing_or_failed',
+    },
+    {
+      id: 'production_topology_supported',
+      ok:
+        topology?.ok === true &&
+        topology?.supported_production_topology === true &&
+        Array.isArray(topology?.degraded_flags) &&
+        topology.degraded_flags.length === 0,
+      detail: `support_level=${String(topology?.support_level || 'unknown')}`,
+    },
+    {
+      id: 'stateful_upgrade_live_rehearsal',
+      ok: stateCompat?.ok === true && liveRehearsalOk,
+      detail: `live_rehearsal=${liveRehearsalOk}`,
+    },
+    {
+      id: 'support_bundle_incident_truth_package',
+      ok: supportBundle?.incident_truth_package?.ready === true,
+      detail: `failed_checks=${Array.isArray(supportBundle?.incident_truth_package?.failed_checks) ? supportBundle.incident_truth_package.failed_checks.length : 'missing'}`,
+    },
+  ];
+}
+
 function buildReport(args: Args) {
   const checks: Check[] = [];
   if (!fs.existsSync(POLICY_PATH)) {
@@ -170,13 +235,7 @@ function buildReport(args: Args) {
   const policy = readJson<Policy>(POLICY_PATH, {});
   checks.push(...checkRequiredFiles(policy.required_files || []));
   checks.push(...checkPackageScripts(policy.required_package_scripts || []));
-  checks.push(
-    ...checkTextMarkers(
-      path.join(ROOT, '.github/workflows/ci.yml'),
-      policy.required_ci_invocations || [],
-      'ci_invocation',
-    ),
-  );
+  checks.push(...checkWorkflowMarkers(policy.required_ci_invocations || []));
   checks.push(
     ...checkTextMarkers(
       path.join(ROOT, 'verify.sh'),
@@ -193,6 +252,7 @@ function buildReport(args: Args) {
     ),
   );
   if (args.runSmoke) checks.push(...runSmokeScripts(policy.smoke_scripts || []));
+  if (args.runSmoke) checks.push(...checkReleaseEvidence());
 
   const failed = checks.filter((row) => !row.ok);
   return {

@@ -128,7 +128,7 @@
       "owner": "ops",
       "description": "Stateful upgrade and rollback compatibility gate.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
-      "timeout_sec": 60,
+      "timeout_sec": 180,
       "script": "ops:stateful-upgrade-rollback:gate",
       "artifact_paths": ["core/local/artifacts/stateful_upgrade_rollback_gate_current.json"]
     },
@@ -147,6 +147,14 @@
       "timeout_sec": 60,
       "script": "ops:release-blockers:gate",
       "artifact_paths": ["core/local/artifacts/release_blocker_rubric_current.json"]
+    },
+    "ops:release-hardening-window:guard": {
+      "owner": "ops",
+      "description": "Release hardening window guard.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:release-hardening-window:guard",
+      "artifact_paths": ["core/local/artifacts/release_hardening_window_guard_current.json"]
     },
     "ops:production-closure:gate": {
       "owner": "ops",
@@ -433,6 +441,22 @@
       "timeout_sec": 60,
       "script": "ops:support-bundle:export",
       "artifact_paths": ["core/local/artifacts/support_bundle_latest.json"]
+    },
+    "ops:release:scorecard:gate": {
+      "owner": "ops",
+      "description": "Release numeric threshold scorecard gate.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:release:scorecard:gate",
+      "artifact_paths": ["client/runtime/local/state/release/scorecard/release_scorecard.json"]
+    },
+    "ops:release:rc-rehearsal": {
+      "owner": "ops",
+      "description": "Release candidate dress rehearsal.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 120,
+      "script": "ops:release:rc-rehearsal",
+      "artifact_paths": ["core/local/artifacts/release_candidate_dress_rehearsal_current.json"]
     },
     "dr:gameday": {
       "owner": "ops",

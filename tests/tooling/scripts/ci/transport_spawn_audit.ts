@@ -130,6 +130,18 @@ function classify(file: string, source: string): Omit<Row, 'kind'> | null {
   }
 
   if (
+    normalized === 'tests/tooling/scripts/ci/stateful_upgrade_rollback_gate.ts' ||
+    normalized === 'tests/tooling/scripts/ci/swarm_protocol_audit_runner.ts'
+  ) {
+    return {
+      classification: 'test_harness_subprocess',
+      severity: 'info',
+      detail: 'release/runtime rehearsal script intentionally exercises a real operator boundary',
+      recommended_action: 'acceptable while the subprocess is part of the proof itself rather than wrapper delegation',
+    };
+  }
+
+  if (
     normalized.startsWith('tests/tooling/scripts/ci/') ||
     normalized.startsWith('tests/tooling/scripts/ops/') ||
     normalized.startsWith('tests/tooling/scripts/metrics/') ||
