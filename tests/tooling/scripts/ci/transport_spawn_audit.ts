@@ -2,6 +2,8 @@
 /* eslint-disable no-console */
 import fs from 'node:fs';
 import path from 'node:path';
+import { parseBool, readFlag } from '../../lib/cli.ts';
+import { emitStructuredResult } from '../../lib/result.ts';
 
 type Row = {
   file: string;
@@ -29,18 +31,11 @@ const DEFAULT_OUT = path.join(ROOT, 'core/local/artifacts/transport_spawn_audit_
 const SCAN_ROOTS = ['adapters', 'client', 'tests', 'packages'];
 
 function parseArgs(argv: string[]): Args {
-  const args: Args = { strict: false, out: DEFAULT_OUT };
-  for (const token of argv) {
-    if (token === '--strict' || token === '--strict=1') args.strict = true;
-    else if (token.startsWith('--strict=')) {
-      const value = token.slice('--strict='.length).trim().toLowerCase();
-      args.strict = ['1', 'true', 'yes', 'on'].includes(value);
-    } else if (token.startsWith('--out=')) {
-      const raw = token.slice('--out='.length).trim();
-      if (raw) args.out = path.resolve(ROOT, raw);
-    }
-  }
-  return args;
+  const rawOut = String(readFlag(argv, 'out') || DEFAULT_OUT).trim();
+  return {
+    strict: argv.includes('--strict') || parseBool(readFlag(argv, 'strict'), false),
+    out: path.resolve(ROOT, rawOut),
+  };
 }
 
 function rel(filePath: string): string {
@@ -220,11 +215,11 @@ function buildReport() {
 export function run(argv: string[] = process.argv.slice(2)): number {
   const args = parseArgs(argv);
   const report = buildReport();
-  fs.mkdirSync(path.dirname(args.out), { recursive: true });
-  fs.writeFileSync(args.out, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
-  console.log(JSON.stringify(report, null, 2));
-  if (args.strict && report.ok !== true) return 1;
-  return 0;
+  return emitStructuredResult(report, {
+    outPath: args.out,
+    strict: args.strict,
+    ok: report.ok,
+  });
 }
 
 if (require.main === module) {

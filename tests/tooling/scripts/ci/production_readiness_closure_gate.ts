@@ -2,7 +2,7 @@
 /* eslint-disable no-console */
 import fs from 'node:fs';
 import path from 'node:path';
-import { invokeTsModuleSync } from '../../../../client/runtime/lib/in_process_ts_delegate.ts';
+import { executeGate } from '../../lib/runner.ts';
 
 type Args = {
   strict: boolean;
@@ -27,6 +27,7 @@ type Policy = {
 
 const ROOT = process.cwd();
 const POLICY_PATH = path.join(ROOT, 'client/runtime/config/production_readiness_closure_policy.json');
+const GATE_REGISTRY_PATH = 'tests/tooling/config/tooling_gate_registry.json';
 
 function parseBool(raw: string | undefined, fallback = false): boolean {
   const value = String(raw || '').trim().toLowerCase();
@@ -102,107 +103,27 @@ function checkTextMarkers(filePath: string, markers: string[], prefix: string): 
   });
 }
 
-function parseJsonLine(stdout: string): unknown {
-  const whole = String(stdout || '').trim();
-  if (whole) {
-    try {
-      return JSON.parse(whole);
-    } catch {}
-  }
-  const lines = String(stdout || '')
-    .split('\n')
-    .map((row) => row.trim())
-    .filter(Boolean);
-  for (let i = lines.length - 1; i >= 0; i -= 1) {
-    try {
-      return JSON.parse(lines[i]);
-    } catch {}
-  }
-  return null;
-}
-
-function runTsScript(scriptRelPath: string, args: string[] = []) {
-  const out = invokeTsModuleSync(path.join(ROOT, scriptRelPath), {
-    argv: args,
-    cwd: ROOT,
-    exportName: 'run',
-    teeStdout: false,
-    teeStderr: false,
-  });
-  const status = Number.isFinite(Number(out.status)) ? Number(out.status) : 1;
-  return {
-    status,
-    stdout: String(out.stdout || ''),
-    stderr: String(out.stderr || ''),
-    payload: parseJsonLine(String(out.stdout || '')),
-  };
-}
-
 function runSmokeScripts(scriptNames: string[]): Check[] {
-  const registry: Record<string, { script: string; args: string[] }> = {
-    'ops:legacy-runner:release-guard': {
-      script: 'tests/tooling/scripts/ci/legacy_process_runner_release_guard.ts',
-      args: ['--strict=1', '--out=core/local/artifacts/legacy_process_runner_release_guard_current.json'],
-    },
-    'ops:transport:topology:gate': {
-      script: 'client/runtime/systems/ops/transport_topology_status.ts',
-      args: ['--strict=1', '--json=1'],
-    },
-    'ops:transport:spawn-audit': {
-      script: 'tests/tooling/scripts/ci/transport_spawn_audit.ts',
-      args: ['--strict=1', '--out=core/local/artifacts/transport_spawn_audit_current.json'],
-    },
-    'ops:production-topology:status': {
-      script: 'tests/tooling/scripts/ops/production_topology_diagnostic.ts',
-      args: ['--out=core/local/artifacts/production_topology_diagnostic_current.json'],
-    },
-    'ops:stateful-upgrade-rollback:gate': {
-      script: 'tests/tooling/scripts/ci/stateful_upgrade_rollback_gate.ts',
-      args: ['--strict=1', '--out=core/local/artifacts/stateful_upgrade_rollback_gate_current.json'],
-    },
-    'ops:assimilation:v1:support:guard': {
-      script: 'tests/tooling/scripts/ci/assimilation_v1_support_guard.ts',
-      args: ['--strict=1', '--out=core/local/artifacts/assimilation_v1_support_guard_current.json'],
-    },
-    'ops:release-blockers:gate': {
-      script: 'tests/tooling/scripts/ci/release_blocker_rubric_gate.ts',
-      args: ['--strict=1', '--out=core/local/artifacts/release_blocker_rubric_current.json'],
-    },
-    'dr:gameday': {
-      script: 'client/runtime/systems/ops/dr_gameday.ts',
-      args: ['run', '--strict=1'],
-    },
-    'dr:gameday:gate': {
-      script: 'client/runtime/systems/ops/dr_gameday_gate.ts',
-      args: ['run', '--strict=1'],
-    },
-    'ops:release-contract:gate': {
-      script: 'tests/tooling/scripts/ci/release_contract_gate.ts',
-      args: ['--strict=1', '--out=core/local/artifacts/release_contract_gate_current.json'],
-    },
-    'ops:support-bundle:export': {
-      script: 'client/runtime/systems/ops/support_bundle_export.ts',
-      args: ['run', '--out=core/local/artifacts/support_bundle_latest.json'],
-    },
-  };
-
   return scriptNames.map((scriptName) => {
-    const spec = registry[scriptName];
-    if (!spec) {
+    try {
+      const report = executeGate(scriptName, {
+        registryPath: GATE_REGISTRY_PATH,
+        strict: true,
+      });
+      return {
+        id: `smoke_script:${scriptName}`,
+        ok: report.ok,
+        detail: report.ok
+          ? `ok:${report.summary.exit_code}`
+          : String(report.failures[0]?.detail || 'gate_failed').slice(0, 400),
+      };
+    } catch (error) {
       return {
         id: `smoke_script:${scriptName}`,
         ok: false,
-        detail: 'unregistered_direct_smoke_script',
+        detail: `unregistered_or_failed:${String(error)}`.slice(0, 400),
       };
     }
-    const out = runTsScript(spec.script, spec.args);
-    return {
-      id: `smoke_script:${scriptName}`,
-      ok: out.status === 0,
-      detail: out.status === 0
-        ? 'ok'
-        : `status=${out.status}; stderr=${String(out.stderr || '').trim().slice(0, 400)}`,
-    };
   });
 }
 

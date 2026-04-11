@@ -30,6 +30,7 @@
   ],
   "groups": [
     { "prefix": "ops:", "owner": "ops", "scope": "operations", "risk_tier": 2 },
+    { "prefix": "tooling:", "owner": "ops", "scope": "tooling", "risk_tier": 1 },
     { "prefix": "security:", "owner": "security", "scope": "security", "risk_tier": 3 },
     { "prefix": "sensory:", "owner": "sensory", "scope": "analysis", "risk_tier": 2 },
     { "prefix": "runtime:", "owner": "platform", "scope": "runtime", "risk_tier": 2 },

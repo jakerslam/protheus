@@ -2,29 +2,23 @@
 /* eslint-disable no-console */
 import fs from 'node:fs';
 import path from 'node:path';
-import { execSync } from 'node:child_process';
+import { hasFlag, readFlag } from '../../lib/cli.ts';
+import { currentRevision, trackedFiles } from '../../lib/git.ts';
+import { emitStructuredResult, writeJsonArtifact, writeTextArtifact } from '../../lib/result.ts';
 
 const ROOT = process.cwd();
 const OUT_JSON_DEFAULT = 'core/local/artifacts/module_cohesion_audit_current.json';
 const OUT_MD_DEFAULT = 'local/workspace/reports/MODULE_COHESION_AUDIT_CURRENT.md';
 
 function parseArgs(argv) {
-  const out = {
-    policy: 'client/runtime/config/module_cohesion_policy.json',
-    outJson: OUT_JSON_DEFAULT,
-    outMarkdown: OUT_MD_DEFAULT,
-    strict: false,
+  return {
+    policy: String(readFlag(argv, 'policy') || 'client/runtime/config/module_cohesion_policy.json'),
+    outJson: String(readFlag(argv, 'out-json') || OUT_JSON_DEFAULT),
+    outMarkdown: String(readFlag(argv, 'out-markdown') || OUT_MD_DEFAULT),
+    strict:
+      hasFlag(argv, 'strict') ||
+      ['1', 'true', 'yes', 'on'].includes(String(readFlag(argv, 'strict') || '').toLowerCase()),
   };
-  for (const arg of argv) {
-    if (arg.startsWith('--policy=')) out.policy = arg.slice('--policy='.length);
-    else if (arg.startsWith('--out-json=')) out.outJson = arg.slice('--out-json='.length);
-    else if (arg.startsWith('--out-markdown=')) out.outMarkdown = arg.slice('--out-markdown='.length);
-    else if (arg.startsWith('--strict=')) {
-      const value = String(arg.slice('--strict='.length)).toLowerCase();
-      out.strict = ['1', 'true', 'yes', 'on'].includes(value);
-    } else if (arg === '--strict') out.strict = true;
-  }
-  return out;
 }
 
 function normalizePath(value) {
@@ -74,14 +68,6 @@ function loadBaseline(policy) {
     return { path: baselinePathRel, files: raw.files };
   }
   return { path: baselinePathRel, files: raw && typeof raw === 'object' ? raw : {} };
-}
-
-function trackedFiles() {
-  const out = execSync('git ls-files', { cwd: ROOT, encoding: 'utf8' });
-  return out
-    .split('\n')
-    .map((line) => normalizePath(line.trim()))
-    .filter(Boolean);
 }
 
 function sortByLinesDesc(rows) {
@@ -147,11 +133,7 @@ function main() {
   const policyPathAbs = path.resolve(ROOT, args.policy);
   const policyPathRel = rel(policyPathAbs);
   const policy = readJson(policyPathAbs);
-
-  let revision = 'unknown';
-  try {
-    revision = execSync('git rev-parse HEAD', { cwd: ROOT, encoding: 'utf8' }).trim();
-  } catch {}
+  const revision = currentRevision(ROOT);
 
   const scanRoots = (policy.scan_roots || []).map((v) => normalizePath(v).replace(/\/+$/, ''));
   const includeExts = new Set((policy.include_extensions || []).map((v) => String(v).toLowerCase()));
@@ -165,7 +147,7 @@ function main() {
   const legacySlack = Number(policy.legacy_growth_slack_lines || 0);
   const baseline = loadBaseline(policy);
 
-  const files = trackedFiles()
+  const files = trackedFiles(ROOT)
     .filter((file) => hasAnyPrefix(file, scanRoots))
     .filter((file) => !hasAnyPrefix(file, ignorePathPrefixes))
     .filter((file) => !ignoreExactPaths.has(file))
@@ -279,33 +261,26 @@ function main() {
     legacy_retired: legacyRetired,
   };
 
-  if (args.outJson) {
-    const outJsonAbs = path.resolve(ROOT, args.outJson);
-    fs.mkdirSync(path.dirname(outJsonAbs), { recursive: true });
-    fs.writeFileSync(outJsonAbs, `${JSON.stringify(payload, null, 2)}\n`);
-  }
+  if (args.outJson) writeJsonArtifact(path.resolve(ROOT, args.outJson), payload);
+  if (args.outMarkdown) writeTextArtifact(path.resolve(ROOT, args.outMarkdown), toMarkdown(payload));
 
-  if (args.outMarkdown) {
-    const outMdAbs = path.resolve(ROOT, args.outMarkdown);
-    fs.mkdirSync(path.dirname(outMdAbs), { recursive: true });
-    fs.writeFileSync(outMdAbs, toMarkdown(payload));
-  }
-
-  console.log(
-    JSON.stringify(
+  process.exit(
+    emitStructuredResult(
       {
         ok: payload.summary.pass,
         type: payload.type,
+        generated_at: payload.generated_at,
+        revision,
         out_json: args.outJson,
         out_markdown: args.outMarkdown,
         summary: payload.summary,
       },
-      null,
-      2,
+      {
+        strict: args.strict,
+        ok: payload.summary.pass,
+      },
     ),
   );
-
-  if (args.strict && violations.length > 0) process.exit(1);
 }
 
 main();

@@ -1,0 +1,82 @@
+{
+  "version": "1.0",
+  "profiles": {
+    "fast": {
+      "description": "Fast tooling profile for local policy/boundary sanity checks.",
+      "gate_ids": [
+        "ops:command-registry:check",
+        "ops:layer0-ops:authority:audit",
+        "ops:root-surface:audit",
+        "ops:arch:conformance"
+      ]
+    },
+    "boundary": {
+      "description": "Boundary and governance focused tooling profile.",
+      "gate_ids": [
+        "ops:dependency-boundary:check",
+        "ops:formal-spec:check",
+        "ops:arch:conformance",
+        "ops:arch:governance",
+        "ops:root-surface:audit",
+        "ops:repo-surface:audit"
+      ]
+    },
+    "codex-wave": {
+      "description": "Assimilation wave preflight profile.",
+      "gate_ids": [
+        "ops:command-registry:check",
+        "ops:layer0-ops:authority:audit",
+        "ops:arch:conformance",
+        "ops:churn:guard"
+      ]
+    },
+    "release": {
+      "description": "Release verification profile driven from manifest instead of hardcoded shell sequencing.",
+      "gate_ids": [
+        "cargo:v8-runtime-proof",
+        "proofs:layer0:verify",
+        "ops:dependency-boundary:check",
+        "ops:formal-spec:check",
+        "audit:client-layer-boundary",
+        "ops:arch:conformance",
+        "ops:transport:convergence:guard",
+        "ops:legacy-runner:release-guard",
+        "ops:transport:topology:gate",
+        "ops:transport:spawn-audit",
+        "ops:stateful-upgrade-rollback:gate",
+        "ops:assimilation:v1:support:guard",
+        "ops:release-blockers:gate",
+        "ops:production-closure:gate",
+        "ops:orchestration:contract:guard",
+        "ops:orchestration:hidden-state:guard",
+        "ops:debt:expiry:guard",
+        "ops:system:fitness:gate",
+        "audit:module-cohesion",
+        "ops:legacy-alias:guard",
+        "ops:simplicity:audit",
+        "ops:root-surface:audit",
+        "ops:repo-surface:audit",
+        "ops:arch:governance",
+        "ops:public-platform:contract",
+        "ops:benchmark:sanity",
+        "ops:benchmark:public-audit",
+        "ops:flaky:quarantine:audit",
+        "ops:test-priority:audit",
+        "ops:strategic-contracts:audit",
+        "ops:rust-core-file-size:gate",
+        "ops:file-size:gate",
+        "ops:license:spdx-story:gate",
+        "audit:client-import-integrity",
+        "audit:client-scope-inventory",
+        "audit:client-surface-disposition",
+        "audit:client-target-contract",
+        "ops:v8:runtime-proof:gate",
+        "ops:srs:full:gate",
+        "ops:dod:gate",
+        "test:ops:srs-contract-runtime-evidence",
+        "ops:churn:guard"
+      ]
+    }
+  }
+}
+

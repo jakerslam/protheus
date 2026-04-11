@@ -3,8 +3,8 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { invokeTsModuleSync } from '../../../../client/runtime/lib/in_process_ts_delegate.ts';
 import { collectTopologyStatus } from '../../../../client/runtime/systems/ops/transport_topology_status.ts';
+import { executeGate } from '../../lib/runner.ts';
 
 type Check = {
   id: string;
@@ -14,6 +14,7 @@ type Check = {
 
 const ROOT = process.cwd();
 const DEFAULT_OUT = path.join(ROOT, 'core/local/artifacts/release_contract_gate_current.json');
+const GATE_REGISTRY_PATH = 'tests/tooling/config/tooling_gate_registry.json';
 const WRAPPER_FILES = [
   'client/runtime/systems/autonomy/self_improvement_cadence_orchestrator.ts',
   'client/runtime/systems/memory/causal_temporal_graph.ts',
@@ -32,21 +33,17 @@ function read(relPath: string): string {
   return fs.readFileSync(path.join(ROOT, relPath), 'utf8');
 }
 
-function runTsCheck(id: string, scriptRelPath: string, args: string[] = []): Check {
-  const out = invokeTsModuleSync(path.join(ROOT, scriptRelPath), {
-    argv: args,
-    cwd: ROOT,
-    exportName: 'run',
-    teeStdout: false,
-    teeStderr: false,
+function runGateCheck(id: string): Check {
+  const out = executeGate(id, {
+    registryPath: GATE_REGISTRY_PATH,
+    strict: true,
   });
-  const status = Number.isFinite(Number(out.status)) ? Number(out.status) : 1;
-  const stdout = String(out.stdout || '').trim();
-  const stderr = String(out.stderr || '').trim();
   return {
     id,
-    ok: status === 0,
-    detail: status === 0 ? 'ok' : `status=${status}; stderr=${stderr || stdout}`.slice(0, 500),
+    ok: out.ok,
+    detail: out.ok
+      ? 'ok'
+      : String(out.failures[0]?.detail || `status=${out.summary.exit_code}`).slice(0, 500),
   };
 }
 
@@ -161,23 +158,11 @@ function topologyModeChecks(): Check[] {
 
 function buildReport() {
   const checks: Check[] = [
-    runTsCheck('runtime_dependency_contract', 'tests/tooling/scripts/ci/runtime_dependency_contract_gate.ts', ['--strict=1']),
-    runTsCheck('legacy_runner_release_guard', 'tests/tooling/scripts/ci/legacy_process_runner_release_guard.ts', [
-      '--strict=1',
-      '--out=core/local/artifacts/legacy_process_runner_release_guard_current.json',
-    ]),
-    runTsCheck('transport_spawn_audit', 'tests/tooling/scripts/ci/transport_spawn_audit.ts', [
-      '--strict=1',
-      '--out=core/local/artifacts/transport_spawn_audit_current.json',
-    ]),
-    runTsCheck('release_policy_gate', 'tests/tooling/scripts/ci/release_policy_gate.ts', [
-      '--strict=1',
-      '--out=core/local/artifacts/release_policy_gate_current.json',
-    ]),
-    runTsCheck('assimilation_v1_support_guard', 'tests/tooling/scripts/ci/assimilation_v1_support_guard.ts', [
-      '--strict=1',
-      '--out=core/local/artifacts/assimilation_v1_support_guard_current.json',
-    ]),
+    runGateCheck('runtime_dependency_contract'),
+    runGateCheck('ops:legacy-runner:release-guard'),
+    runGateCheck('ops:transport:spawn-audit'),
+    runGateCheck('release_policy_gate'),
+    runGateCheck('ops:assimilation:v1:support:guard'),
     wrapperContractCheck(),
     installerContractCheck(),
     windowsAndDocsCheck(),

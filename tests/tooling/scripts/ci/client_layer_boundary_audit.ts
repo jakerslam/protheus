@@ -2,7 +2,9 @@
 /* eslint-disable no-console */
 import fs from 'node:fs';
 import path from 'node:path';
-import { execSync } from 'node:child_process';
+import { cleanText, parseStrictOutArgs, readFlag } from '../../lib/cli.ts';
+import { currentRevision } from '../../lib/git.ts';
+import { emitStructuredResult } from '../../lib/result.ts';
 
 const ROOT = process.cwd();
 const IGNORED_DIR_NAMES = new Set([
@@ -16,19 +18,12 @@ const IGNORED_DIR_NAMES = new Set([
 ]);
 
 function parseArgs(argv) {
+  const common = parseStrictOutArgs(argv, {});
   const out = {
-    policy: 'client/runtime/config/client_layer_boundary_policy.json',
-    out: '',
-    strict: false,
+    policy: cleanText(readFlag(argv, 'policy') || 'client/runtime/config/client_layer_boundary_policy.json', 400),
+    out: cleanText(common.out || '', 400),
+    strict: common.strict,
   };
-  for (const arg of argv) {
-    if (arg.startsWith('--policy=')) out.policy = arg.slice('--policy='.length);
-    else if (arg.startsWith('--out=')) out.out = arg.slice('--out='.length);
-    else if (arg.startsWith('--strict=')) {
-      const v = String(arg.slice('--strict='.length)).toLowerCase();
-      out.strict = v === '1' || v === 'true' || v === 'yes' || v === 'on';
-    } else if (arg === '--strict') out.strict = true;
-  }
   return out;
 }
 
@@ -58,10 +53,7 @@ function main() {
   const policyPath = path.resolve(ROOT, args.policy);
   const policy = JSON.parse(fs.readFileSync(policyPath, 'utf8'));
 
-  let revision = 'unknown';
-  try {
-    revision = execSync('git rev-parse HEAD', { cwd: ROOT, encoding: 'utf8' }).trim();
-  } catch {}
+  const revision = currentRevision(ROOT);
 
   const scanRoots = Array.isArray(policy.scan_roots) ? policy.scan_roots : [];
   const wrapperRequiredRoots = Array.isArray(policy.wrapper_required_roots)
@@ -143,14 +135,13 @@ function main() {
     violations,
   };
 
-  if (args.out) {
-    const outPath = path.resolve(ROOT, args.out);
-    fs.mkdirSync(path.dirname(outPath), { recursive: true });
-    fs.writeFileSync(outPath, `${JSON.stringify(payload, null, 2)}\n`);
-  }
-
-  console.log(JSON.stringify(payload, null, 2));
-  if (args.strict && violations.length > 0) process.exit(1);
+  process.exit(
+    emitStructuredResult(payload, {
+      outPath: args.out || '',
+      strict: args.strict,
+      ok: violations.length === 0,
+    }),
+  );
 }
 
 main();
