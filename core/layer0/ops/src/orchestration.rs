@@ -7,4 +7,5 @@ include_parts!(
     "orchestration_parts/060-retrieve-partial-results.rs",
     "orchestration_parts/070-run-coordinator.rs",
     "orchestration_parts/080-invoke.rs",
+    "orchestration_parts/090-tests.rs",
 );

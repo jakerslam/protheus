@@ -1,3 +1,14 @@
+fn array_from_payload_value(value: Option<&Value>) -> Vec<Value> {
+    match value {
+        Some(Value::Array(rows)) => rows.clone(),
+        Some(Value::String(text)) => serde_json::from_str::<Value>(text)
+            .ok()
+            .and_then(|parsed| parsed.as_array().cloned())
+            .unwrap_or_default(),
+        _ => Vec::new(),
+    }
+}
+
 fn invoke(root: &Path, op: &str, payload: &Value) -> Value {
     match op {
         "schema.validate_finding" => {
@@ -230,12 +241,12 @@ fn invoke(root: &Path, op: &str, payload: &Value) -> Value {
         }
         "completion.batch" => {
             let task_group_id = get_string_any(payload, &["task_group_id", "taskGroupId", "id"]);
-            let updates = payload
-                .get("updates")
-                .or_else(|| payload.get("updates_json"))
-                .and_then(Value::as_array)
-                .cloned()
-                .unwrap_or_default();
+            let updates = array_from_payload_value(
+                payload
+                    .get("updates")
+                    .or_else(|| payload.get("updates_json"))
+                    .or_else(|| payload.get("updatesJson")),
+            );
             let root_dir = payload_root_dir(payload);
             track_batch_completion(root, &task_group_id, &updates, root_dir.as_deref())
         }
@@ -380,32 +391,3 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         1
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn normalize_decision_defaults_to_retry_without_partials() {
-        assert_eq!(normalize_decision("", false), "retry");
-        assert_eq!(normalize_decision("continue", false), "continue");
-    }
-
-    #[test]
-    fn finding_validation_rejects_invalid_severity() {
-        let finding = json!({
-            "audit_id": "a",
-            "item_id": "b",
-            "severity": "fatal",
-            "status": "open",
-            "location": "x:1",
-            "evidence": [{ "type": "receipt", "value": "r" }],
-            "timestamp": now_iso()
-        });
-        let normalized = normalize_finding(&finding);
-        let (ok, reason) = validate_finding(&normalized);
-        assert!(!ok);
-        assert_eq!(reason, "finding_invalid_severity");
-    }
-}
-

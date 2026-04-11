@@ -1,3 +1,27 @@
+fn findings_by_agent(findings: &[Value]) -> BTreeMap<String, Vec<Value>> {
+    let mut out: BTreeMap<String, Vec<Value>> = BTreeMap::new();
+    for finding in findings {
+        let agent_id = {
+            let direct = to_clean_string(finding.get("agent_id"));
+            if !direct.is_empty() {
+                direct
+            } else {
+                finding
+                    .get("metadata")
+                    .and_then(Value::as_object)
+                    .and_then(|meta| meta.get("agent_id"))
+                    .map(|value| to_clean_string(Some(value)))
+                    .unwrap_or_default()
+            }
+        };
+        if agent_id.is_empty() {
+            continue;
+        }
+        out.entry(agent_id).or_default().push(finding.clone());
+    }
+    out
+}
+
 fn run_coordinator(root: &Path, input: &Value) -> Value {
     let task_id = get_string_any(input, &["task_id"]);
     if task_id.is_empty() {
@@ -132,6 +156,12 @@ fn run_coordinator(root: &Path, input: &Value) -> Value {
             .cloned()
             .unwrap_or_default(),
     );
+    let kept_findings = filtered
+        .get("kept")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let findings_by_agent = findings_by_agent(&kept_findings);
 
     let updated_progress = json!({
         "processed": merged
@@ -190,7 +220,7 @@ fn run_coordinator(root: &Path, input: &Value) -> Value {
         }
     }
 
-    let _ = maybe_checkpoint(
+    let checkpoint = maybe_checkpoint(
         root,
         &task_id,
         &json!({
@@ -200,6 +230,15 @@ fn run_coordinator(root: &Path, input: &Value) -> Value {
         }),
         root_dir,
     );
+    if checkpoint.get("ok").and_then(Value::as_bool) != Some(true) {
+        return json!({
+            "ok": false,
+            "type": "orchestration_coordinator",
+            "reason_code": checkpoint.get("reason_code").cloned().unwrap_or(Value::String("checkpoint_tick_failed".to_string())),
+            "task_id": task_id,
+            "audit_id": audit_id
+        });
+    }
 
     let completion = track_batch_completion(
         root,
@@ -211,6 +250,11 @@ fn run_coordinator(root: &Path, input: &Value) -> Value {
         &partitions
             .iter()
             .map(|partition| {
+                let agent_id = to_clean_string(partition.get("agent_id"));
+                let partial_results = findings_by_agent
+                    .get(&agent_id)
+                    .cloned()
+                    .unwrap_or_default();
                 json!({
                     "agent_id": partition.get("agent_id").cloned().unwrap_or(Value::Null),
                     "status": "done",
@@ -220,6 +264,8 @@ fn run_coordinator(root: &Path, input: &Value) -> Value {
                             .and_then(Value::as_array)
                             .map(|rows| rows.len())
                             .unwrap_or(0),
+                        "partial_results_count": partial_results.len(),
+                        "partial_results": partial_results,
                         "scope_id": partition
                             .get("scope")
                             .and_then(|scope| scope.get("scope_id"))
@@ -257,6 +303,7 @@ fn run_coordinator(root: &Path, input: &Value) -> Value {
         "findings_dropped": merged.get("dropped").and_then(Value::as_array).map(|rows| rows.len()).unwrap_or(0),
         "scope_violation_count": filtered.get("violations").and_then(Value::as_array).map(|rows| rows.len()).unwrap_or(0),
         "scope_violations": filtered.get("violations").cloned().unwrap_or(Value::Array(Vec::new())),
+        "checkpoint": checkpoint,
         "completion_summary": completion.get("summary").cloned().unwrap_or(Value::Null),
         "notification": completion.get("notification").cloned().unwrap_or(Value::Null),
         "report": {
@@ -265,4 +312,3 @@ fn run_coordinator(root: &Path, input: &Value) -> Value {
         }
     })
 }
-
