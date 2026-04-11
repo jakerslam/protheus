@@ -1,0 +1,22 @@
+// Safety, provenance, policy, and governance enforcement paths.
+pub mod approval_gate_kernel;
+pub mod audit_log_export;
+pub mod command_permission_kernel;
+pub mod conduit_client_security_kernel;
+pub mod enterprise_hardening;
+pub mod foundation_contract_gate;
+pub mod hardware_route_hardening;
+pub mod integrity_hash_utility_kernel;
+pub mod offsite_backup;
+pub mod origin_integrity;
+pub mod quorum_validator_kernel;
+pub mod rollout_rings;
+pub mod rust_enterprise_productivity_program;
+pub mod secret_broker_kernel;
+pub mod security_integrity_kernel;
+pub mod security_layer_inventory_gate_kernel;
+pub mod security_plane;
+pub mod supply_chain_provenance_v2;
+pub mod system_health_audit_runner_kernel;
+pub mod t0_invariants_kernel;
+pub mod top1_assurance;
