@@ -36,15 +36,43 @@ fn retrieve_partial_results(root: &Path, input: &Value) -> Value {
     } else {
         Some(root_dir_value.as_str())
     };
+
+    let task_group_id = get_string_any(input, &["task_group_id", "taskGroupId", "id"]);
+    if !task_group_id.is_empty() {
+        let task_group_partial = latest_partial_results_from_task_group(
+            root,
+            &task_group_id,
+            root_dir,
+        );
+        if task_group_partial.get("ok").and_then(Value::as_bool) == Some(true) {
+            return json!({
+                "ok": true,
+                "type": "orchestration_partial_retrieval",
+                "source": task_group_partial.get("source").cloned().unwrap_or(Value::Null),
+                "task_id": task_id,
+                "task_group_id": task_group_partial.get("task_group_id").cloned().unwrap_or(Value::Null),
+                "items_completed": task_group_partial.get("items_completed").cloned().unwrap_or(Value::Null),
+                "findings_sofar": task_group_partial.get("findings_sofar").cloned().unwrap_or(Value::Array(Vec::new())),
+                "checkpoint_path": task_group_partial.get("checkpoint_path").cloned().unwrap_or(Value::Null),
+                "source_agent_ids": task_group_partial.get("source_agent_ids").cloned().unwrap_or(Value::Array(Vec::new())),
+                "decision": normalize_decision(&get_string_any(input, &["decision"]), true)
+            });
+        }
+    }
     let checkpoint = latest_checkpoint_from_scratchpad(root, &task_id, root_dir);
 
     if checkpoint.get("ok").and_then(Value::as_bool) != Some(true) {
+        let attempted_sources = if task_group_id.is_empty() {
+            vec!["session_history", "checkpoint"]
+        } else {
+            vec!["session_history", "task_group", "checkpoint"]
+        };
         return json!({
             "ok": false,
             "type": "orchestration_partial_retrieval",
             "reason_code": "partial_results_unavailable",
             "task_id": task_id,
-            "attempted_sources": ["session_history", "checkpoint"],
+            "attempted_sources": attempted_sources,
             "checkpoint_reason": checkpoint.get("reason_code").cloned().unwrap_or(Value::Null)
         });
     }
@@ -59,6 +87,80 @@ fn retrieve_partial_results(root: &Path, input: &Value) -> Value {
         "checkpoint_path": checkpoint.get("checkpoint_path").cloned().unwrap_or(Value::Null),
         "retry_allowed": checkpoint.get("retry_allowed").cloned().unwrap_or(Value::Bool(false)),
         "decision": normalize_decision(&get_string_any(input, &["decision"]), true)
+    })
+}
+
+fn latest_partial_results_from_task_group(
+    root: &Path,
+    task_group_id: &str,
+    root_dir: Option<&str>,
+) -> Value {
+    let query = query_task_group(root, task_group_id, root_dir);
+    if query.get("ok").and_then(Value::as_bool) != Some(true) {
+        return json!({
+            "ok": false,
+            "type": "orchestration_partial_taskgroup_fallback",
+            "reason_code": query.get("reason_code").cloned().unwrap_or(Value::String("task_group_query_failed".to_string())),
+            "task_group_id": task_group_id.trim().to_ascii_lowercase()
+        });
+    }
+
+    let agents = query
+        .get("task_group")
+        .and_then(|value| value.get("agents"))
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let mut findings_sofar = Vec::new();
+    let mut source_agent_ids = Vec::new();
+    let mut items_completed = 0i64;
+
+    for agent in agents {
+        let details = agent
+            .get("details")
+            .cloned()
+            .unwrap_or(Value::Object(Map::new()));
+        let partial_results = details
+            .get("partial_results")
+            .or_else(|| details.get("partialResults"))
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        if partial_results.is_empty() {
+            continue;
+        }
+        items_completed += get_i64_any(
+            &details,
+            &["items_completed", "processed_count", "partial_results_count"],
+            partial_results.len() as i64,
+        )
+        .max(partial_results.len() as i64);
+        findings_sofar.extend(partial_results);
+
+        let agent_id = to_clean_string(agent.get("agent_id"));
+        if !agent_id.is_empty() {
+            source_agent_ids.push(Value::String(agent_id));
+        }
+    }
+
+    if findings_sofar.is_empty() {
+        return json!({
+            "ok": false,
+            "type": "orchestration_partial_taskgroup_fallback",
+            "reason_code": "task_group_no_partial_results",
+            "task_group_id": task_group_id.trim().to_ascii_lowercase()
+        });
+    }
+
+    json!({
+        "ok": true,
+        "type": "orchestration_partial_taskgroup_fallback",
+        "source": "task_group",
+        "task_group_id": task_group_id.trim().to_ascii_lowercase(),
+        "items_completed": items_completed,
+        "findings_sofar": findings_sofar,
+        "checkpoint_path": Value::Null,
+        "source_agent_ids": source_agent_ids
     })
 }
 
@@ -304,4 +406,3 @@ fn stable_hash_short(input: &str) -> String {
         .take(12)
         .collect::<String>()
 }
-
