@@ -180,6 +180,38 @@ function run() {
       && shownRun.payload.run.turns.some((row) => row.status === 'ok'),
     'expected turn run to record both transient error and recovered completion'
   );
+  const bootstrap = bridge.sessionsBootstrap({
+    session_id: specialist.session_id,
+    state_path: state,
+  });
+  assert.strictEqual(bootstrap.bootstrap.version, 'swarm-agent-bootstrap/v1');
+  assert(
+    String(bootstrap.bootstrap.commands.sessions_send || '').includes('sessions_send'),
+    'expected workflow-007 bootstrap to advertise direct swarm messaging'
+  );
+
+  const directive = bridge.sessionsSend({
+    sender: coordinator.session_id,
+    session_id: specialist.session_id,
+    message: 'workflow-007:confirm specialist delivery',
+    delivery: 'at_least_once',
+    state_path: state,
+  });
+  const specialistInbox = bridge.sessionsReceive({
+    session_id: specialist.session_id,
+    limit: 8,
+    state_path: state,
+  });
+  assert(
+    specialistInbox.messages.some((row) => row.message_id === directive.message_id),
+    'expected specialist inbox to expose coordinator directive'
+  );
+  const directiveAck = bridge.sessionsAck({
+    session_id: specialist.session_id,
+    message_id: directive.message_id,
+    state_path: state,
+  });
+  assert.strictEqual(directiveAck.payload.acknowledged, true);
 
   const network = bridge.networksCreate({
     session_id: coordinator.session_id,
