@@ -46,12 +46,17 @@ What is true in this repository today:
 - Pure profiles (`--pure`, `--tiny-max`) are Rust-only and intentionally do not expose the rich `gateway` UI surface.
 - Full command surface still requires Node.js 22+; Node-free fallback remains available for core operations.
 - Production release channels are resident-IPC authoritative: process transport fallbacks are blocked (`process_transport_forbidden_in_production` / `process_fallback_forbidden_in_production`).
+- Release-closure evidence now includes topology diagnostics, state compatibility fixtures, recovery rehearsal, and support-bundle export.
 
 ## Production Support Contract
 
 - Canonical production profile: rich
 - Constrained profiles: `--pure`, `--tiny-max`
 - Experimental lanes (explicit opt-in): `assimilate`
+- Resident IPC is the only supported production topology; the legacy process runner is dev-only.
+- Release entrypoints quarantine the legacy runner under `adapters/runtime/dev_only/**`.
+- Operator topology diagnostic: `npm run -s ops:production-topology:status`
+- Frozen assimilation v1 slice: one ingress -> orchestration -> assimilation-kernel -> receipt-output path is hardened; broader assimilation surfaces remain experimental.
 - Internal/maintenance lanes are not part of the public production SLA.
 - Operator diagnostics and incident export: `npm run -s ops:support-bundle:export`
 
@@ -245,6 +250,15 @@ Behavior:
 - Unknown targets fail as `unadmitted` by default.
 - Local simulation mode is test-only and must be explicitly enabled via `--allow-local-simulation=1`.
 - Use `--plan-only=1` to emit the canonical assimilation planning chain without executing bridge mutations.
+
+### Release-Closure Diagnostics
+
+- `npm run -s ops:production-topology:status`
+- `npm run -s ops:legacy-runner:release-guard`
+- `npm run -s ops:stateful-upgrade-rollback:gate`
+- `npm run -s dr:gameday`
+- `npm run -s dr:gameday:gate`
+- `npm run -s ops:support-bundle:export`
 
 ### Local Source Workflow
 

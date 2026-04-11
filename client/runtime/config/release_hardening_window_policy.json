@@ -1,0 +1,19 @@
+{
+  "schema_id": "release_hardening_window_policy",
+  "schema_version": "1.0",
+  "activation_env": "INFRING_RELEASE_HARDENING_WINDOW",
+  "default_base_ref": "origin/main",
+  "blocked_prefixes": [
+    "client/runtime/systems/ui/",
+    "client/runtime/systems/ui/infring_static/",
+    "surface/orchestration/scripts/"
+  ],
+  "allowed_change_classes": [
+    "bug_fix",
+    "observability",
+    "compatibility",
+    "blocker_removal",
+    "docs"
+  ],
+  "rule": "When a hardening window is active, new wrappers and UI behavior changes pause. Only reliability, observability, compatibility, and blocker-removal work may enter the release lane."
+}

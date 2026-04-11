@@ -17,7 +17,13 @@ This table defines what survives, what degrades, and what is blocked when a subs
 ## Operator Commands
 
 - Topology check: `npm run -s ops:transport:topology:gate`
+- Supported production topology diagnostic: `npm run -s ops:production-topology:status`
+- Legacy-runner quarantine gate: `npm run -s ops:legacy-runner:release-guard`
 - Release contract gate: `npm run -s ops:release-contract:gate`
+- Stateful upgrade/rollback compatibility gate: `npm run -s ops:stateful-upgrade-rollback:gate`
+- Release-blocker rubric gate: `npm run -s ops:release-blockers:gate`
 - Reliability gauntlet: `npm run -s ops:reliability:gauntlet`
 - IPC soak: `npm run -s ops:ipc-bridge:soak`
+- Recovery rehearsal: `npm run -s dr:gameday`
+- Recovery rehearsal gate: `npm run -s dr:gameday:gate`
 - Support bundle export: `npm run -s ops:support-bundle:export`

@@ -1,17 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 // Layer ownership: core/layer2/tooling (authoritative canonical tool/evidence substrate).
 
+pub mod backend_registry;
 pub mod capability;
 pub mod client_adapter;
 pub mod evidence_extractor;
 pub mod evidence_store;
+mod request_validation;
 pub mod schemas;
 pub mod tool_broker;
 pub mod verifier;
 
-pub use capability::{
-    ToolCapability, ToolCapabilityProbe, ToolCapabilityStatus, ToolReasonCode,
-};
+pub use backend_registry::{live_backend_registry, ToolBackendClass, ToolBackendHealth};
+pub use capability::{ToolCapability, ToolCapabilityProbe, ToolCapabilityStatus, ToolReasonCode};
 pub use client_adapter::{ClientAdapterRequest, ClientDelegationResult, ThinClientDelegator};
 pub use evidence_extractor::EvidenceExtractor;
 pub use evidence_store::{

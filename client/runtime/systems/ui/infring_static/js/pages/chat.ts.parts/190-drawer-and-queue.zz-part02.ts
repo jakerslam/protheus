@@ -177,31 +177,32 @@
       var name = String(toolName || '').trim();
       if (!name) name = 'tool';
       var opts = options && typeof options === 'object' ? options : {};
+      var identity = typeof this.toolAttemptIdentity === 'function'
+        ? this.toolAttemptIdentity({ name: name, attempt_id: opts.attempt_id || '', attempt_sequence: opts.attempt_sequence || (msg.tools.length + 1), tool_attempt_receipt: opts.tool_attempt_receipt || null }, msg.tools.length, 'stream-tool')
+        : { id: name + '-' + Date.now(), attempt_id: '', attempt_sequence: (msg.tools.length + 1), identity_key: name.toLowerCase() };
       var markRunning = opts.running !== false;
       var allowCreate = opts.no_create !== true;
       for (var i = msg.tools.length - 1; i >= 0; i--) {
         var card = msg.tools[i];
-        if (!card || String(card.name || '') !== name) continue;
+        if (!card) continue;
+        var matchesIdentity = String(card.identity_key || '').trim() && String(card.identity_key || '').trim() === String(identity.identity_key || '').trim();
+        if (!matchesIdentity && String(card.name || '') !== name) continue;
         if (markRunning && card.running) {
           if (typeof toolInput === 'string') card.input = toolInput;
+          if (identity.id) card.id = identity.id;
+          if (identity.attempt_id) card.attempt_id = identity.attempt_id; if (identity.attempt_sequence) card.attempt_sequence = identity.attempt_sequence; if (identity.identity_key) card.identity_key = identity.identity_key;
           return card;
         }
         if (!markRunning && card.running) {
           if (typeof toolInput === 'string') card.input = toolInput;
+          if (identity.id) card.id = identity.id;
+          if (identity.attempt_id) card.attempt_id = identity.attempt_id; if (identity.attempt_sequence) card.attempt_sequence = identity.attempt_sequence; if (identity.identity_key) card.identity_key = identity.identity_key;
           card.running = false;
           return card;
         }
       }
       if (!allowCreate) return null;
-      var created = {
-        id: name + '-' + Date.now(),
-        name: name,
-        running: markRunning,
-        expanded: false,
-        input: typeof toolInput === 'string' ? toolInput : '',
-        result: '',
-        is_error: false
-      };
+      var created = { id: identity.id, name: name, running: markRunning, expanded: false, input: typeof toolInput === 'string' ? toolInput : '', result: '', is_error: false, attempt_id: identity.attempt_id, attempt_sequence: identity.attempt_sequence, identity_key: identity.identity_key };
       msg.tools.push(created);
       return created;
     },

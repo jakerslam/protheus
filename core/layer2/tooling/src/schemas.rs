@@ -212,11 +212,19 @@ pub const TOOL_CAPABILITY_PROBE_FIELDS: &[&str] = &[
     "reason",
     "required_args",
     "backend",
+    "backend_class",
+    "backend_status",
+    "backend_reason_code",
+    "backend_reason",
+    "daemon_healthy",
+    "ws_healthy",
+    "auth_healthy",
+    "resident_ipc_authoritative",
 ];
 
 pub fn published_schema_contract_v1() -> Value {
     json!({
-        "version": "tooling_schema_v3",
+        "version": "tooling_schema_v4",
         "normalized_tool_result": NORMALIZED_TOOL_RESULT_FIELDS,
         "tool_attempt_receipt": TOOL_ATTEMPT_RECEIPT_FIELDS,
         "tool_capability_probe": TOOL_CAPABILITY_PROBE_FIELDS,
@@ -239,7 +247,7 @@ mod tests {
         let contract = published_schema_contract_v1();
         assert_eq!(
             contract.get("version").and_then(Value::as_str),
-            Some("tooling_schema_v3")
+            Some("tooling_schema_v4")
         );
         assert_eq!(
             contract
@@ -336,6 +344,14 @@ mod tests {
             reason: "ok".to_string(),
             required_args: vec!["query".to_string()],
             backend: "retrieval_plane".to_string(),
+            backend_class: crate::backend_registry::ToolBackendClass::RetrievalPlane,
+            backend_status: crate::capability::ToolCapabilityStatus::Available,
+            backend_reason_code: crate::capability::ToolReasonCode::Ok,
+            backend_reason: "provider_reachable".to_string(),
+            daemon_healthy: Some(true),
+            ws_healthy: None,
+            auth_healthy: Some(true),
+            resident_ipc_authoritative: true,
         };
         let value = serde_json::to_value(probe).expect("serialize");
         let keys = value
@@ -344,6 +360,7 @@ mod tests {
             .unwrap_or_default();
         assert!(keys.contains(&"status".to_string()));
         assert!(keys.contains(&"required_args".to_string()));
+        assert!(keys.contains(&"backend_class".to_string()));
         assert_eq!(keys.len(), TOOL_CAPABILITY_PROBE_FIELDS.len());
     }
 

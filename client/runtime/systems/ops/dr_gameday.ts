@@ -8,14 +8,10 @@ const path = require('path');
 const { installTsRequireHook } = require('../../lib/ts_bootstrap.ts');
 
 function run(argv = process.argv.slice(2)) {
-  const passArgs =
-    Array.isArray(argv) && argv.length
-      ? argv.map((token, index) => (index === 0 && token === 'run' ? 'gate' : token))
-      : ['gate'];
   const target = path.resolve(__dirname, '..', '..', '..', '..', 'tests', 'tooling', 'scripts', 'ops', 'dr_gameday.ts');
   installTsRequireHook();
   const { run: targetRun } = require(target);
-  return Number(targetRun(passArgs)) || 0;
+  return Number(targetRun(Array.isArray(argv) ? argv : [])) || 0;
 }
 
 if (require.main === module) {

@@ -183,9 +183,15 @@ function checkProductionTransportPolicy(root: string): GateCheck {
   const sdkPath = path.resolve(root, 'packages/infring-sdk/src/transports.ts');
   const bridgePath = path.resolve(root, 'adapters/runtime/ops_lane_bridge.ts');
   const runnerPath = path.resolve(root, 'adapters/runtime/run_protheus_ops.ts');
+  const legacyHelperPath = path.resolve(root, 'adapters/runtime/dev_only/legacy_process_runner.ts');
+  const processFallbackHelperPath = path.resolve(root, 'adapters/runtime/dev_only/ops_lane_process_fallback.ts');
   const sdkSource = fs.readFileSync(sdkPath, 'utf8');
   const bridgeSource = fs.readFileSync(bridgePath, 'utf8');
   const runnerSource = fs.readFileSync(runnerPath, 'utf8');
+  const legacyHelperSource = fs.existsSync(legacyHelperPath) ? fs.readFileSync(legacyHelperPath, 'utf8') : '';
+  const processFallbackHelperSource = fs.existsSync(processFallbackHelperPath)
+    ? fs.readFileSync(processFallbackHelperPath, 'utf8')
+    : '';
 
   const sdkLock =
     sdkSource.includes('process_transport_forbidden_in_production') &&
@@ -194,19 +200,46 @@ function checkProductionTransportPolicy(root: string): GateCheck {
   const bridgeLock =
     bridgeSource.includes('process_fallback_forbidden_in_production') &&
     bridgeSource.includes('processFallbackPolicy') &&
-    bridgeSource.includes('isProductionReleaseChannel');
+    bridgeSource.includes('isProductionReleaseChannel') &&
+    !bridgeSource.includes('spawnSync(') &&
+    bridgeSource.includes("./dev_only/ops_lane_process_fallback.ts");
   const legacyLock =
     runnerSource.includes('legacyProcessRunnerForced') &&
     runnerSource.includes('isProductionReleaseChannel') &&
-    runnerSource.includes('INFRING_OPS_FORCE_LEGACY_PROCESS_RUNNER');
+    runnerSource.includes('INFRING_OPS_FORCE_LEGACY_PROCESS_RUNNER') &&
+    runnerSource.includes('legacy_process_runner_dev_only') &&
+    runnerSource.includes('INFRING_DEV_ENABLE_LEGACY_PROCESS_RUNNER') &&
+    !runnerSource.includes('spawnSync(') &&
+    runnerSource.includes("./dev_only/legacy_process_runner.ts");
+  const helperLock =
+    legacyHelperSource.includes('legacy_process_runner_dev_only') &&
+    legacyHelperSource.includes('spawnSync(') &&
+    processFallbackHelperSource.includes('process_fallback_dev_only') &&
+    processFallbackHelperSource.includes('spawnSync(');
 
-  const ok = sdkLock && bridgeLock && legacyLock;
+  const ok = sdkLock && bridgeLock && legacyLock && helperLock;
   return {
     id: 'production_transport_policy',
     ok,
     detail: ok
       ? 'production release channel enforces resident IPC topology'
-      : `sdk_lock=${sdkLock};bridge_lock=${bridgeLock};legacy_lock=${legacyLock}`,
+      : `sdk_lock=${sdkLock};bridge_lock=${bridgeLock};legacy_lock=${legacyLock};helper_lock=${helperLock}`,
+  };
+}
+
+function checkAssimilationV1SupportContract(root: string): GateCheck {
+  const rel = 'client/runtime/config/assimilation_v1_support_contract.json';
+  const policy = readJson(path.resolve(root, rel), {});
+  const canonicalSlice = cleanText(policy?.canonical_slice?.name ?? '', 120);
+  const supportLevel = cleanText(policy?.production_contract?.support_level ?? '', 120);
+  const ok =
+    cleanText(policy?.status ?? '', 80) === 'frozen_v1_vertical_slice' &&
+    canonicalSlice.length > 0 &&
+    supportLevel === 'experimental_opt_in';
+  return {
+    id: 'assimilation_v1_support_contract',
+    ok,
+    detail: ok ? `slice=${canonicalSlice};support_level=${supportLevel}` : `invalid:${rel}`,
   };
 }
 
@@ -241,6 +274,7 @@ function main() {
     checkInstallerChecksumVerification(root),
     checkProductionTransportPolicy(root),
     checkProductionClosurePolicy(root),
+    checkAssimilationV1SupportContract(root),
   ];
   const ok = checks.every((row) => row.ok);
   const report = {

@@ -4,17 +4,9 @@
 // Layer ownership: client/runtime/systems/autonomy (thin wrapper over core/layer0/ops).
 
 const path = require('path');
-const { spawnSync } = require('child_process');
+const { invokeProtheusOpsViaBridge } = require('../../../../adapters/runtime/run_protheus_ops.ts');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..', '..');
-const OPS_WRAPPER = path.join(
-  ROOT,
-  'client',
-  'runtime',
-  'systems',
-  'ops',
-  'run_protheus_ops.ts'
-);
 const DEFAULT_STATE_PATH = path.join(ROOT, 'local', 'state', 'ops', 'swarm_runtime', 'latest.json');
 
 function parseArgs(argv) {
@@ -63,11 +55,11 @@ function parseLastJson(stdout) {
 }
 
 function execOps(args, env = {}) {
-  const run = spawnSync(process.execPath, [OPS_WRAPPER].concat(args), {
-    cwd: ROOT,
-    encoding: 'utf8',
+  const run = invokeProtheusOpsViaBridge(args, {
     env: { ...process.env, ...env },
-  });
+    allowProcessFallback: false,
+    unknownDomainFallback: false,
+  }) || { status: 1, stdout: '', stderr: 'resident_ipc_bridge_unavailable', payload: null };
   const status = Number.isFinite(Number(run.status)) ? Number(run.status) : 1;
   return {
     status,

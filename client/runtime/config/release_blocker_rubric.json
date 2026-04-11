@@ -1,0 +1,45 @@
+{
+  "schema_id": "release_blocker_rubric",
+  "schema_version": "1.0",
+  "allowed_classifications": [
+    "release_blocker",
+    "post_release_improvement",
+    "experimental_only"
+  ],
+  "allowed_statuses": [
+    "open",
+    "mitigated",
+    "accepted_risk",
+    "done"
+  ],
+  "blocking_statuses": [
+    "open",
+    "mitigated"
+  ],
+  "entries": [
+    {
+      "id": "RBR-001",
+      "title": "Resident IPC must remain authoritative in release topology",
+      "classification": "release_blocker",
+      "status": "done",
+      "owner": "ops",
+      "rationale": "Release artifacts must not silently fall back to the legacy process runner."
+    },
+    {
+      "id": "RBR-002",
+      "title": "State compatibility fixtures must pass before release promotion",
+      "classification": "release_blocker",
+      "status": "done",
+      "owner": "ops",
+      "rationale": "Receipts, task state, memory state, and assimilation artifacts need explicit upgrade and rollback coverage."
+    },
+    {
+      "id": "RBR-003",
+      "title": "Broader assimilation surface remains experimental outside the frozen v1 slice",
+      "classification": "experimental_only",
+      "status": "done",
+      "owner": "orchestration",
+      "rationale": "Only the v1 vertical slice is hardened for closure evidence; other assimilation lanes must not be implied as production supported."
+    }
+  ]
+}

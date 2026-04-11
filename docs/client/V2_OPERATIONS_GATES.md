@@ -4,15 +4,15 @@ Purpose: provide deterministic operational maturity controls for V2 rollout.
 
 ## 1) DR Game-Day + Release Gate
 
-- Runner: `node client/runtime/systems/ops/dr_gameday.ts run --strict=1`
-- Cadence status: `node client/runtime/systems/ops/dr_gameday.ts status`
-- Regression gate: `node client/runtime/systems/ops/dr_gameday_gate.ts run --strict=1`
+- Runner: `npm run -s dr:gameday`
+- Cadence status: `npm run -s dr:gameday:status`
+- Regression gate: `npm run -s dr:gameday:gate`
 
 Policy: `client/runtime/config/dr_gameday_policy.json`
 
 Outputs:
-- `state/ops/dr_gameday_receipts.jsonl`
-- `state/ops/dr_gameday_gate_receipts.jsonl`
+- `local/state/ops/dr_gameday_receipts.jsonl`
+- `local/state/ops/dr_gameday_gate_receipts.jsonl`
 
 Gate behavior:
 - Uses rolling window pass-rate + RTO/RPO regression checks.
@@ -70,3 +70,14 @@ Checks:
   - `docs_coverage_gate`
   - `dr_gameday_gate`
 - GitHub required checks include dedicated jobs for both gates.
+
+## Production Topology Closure
+
+- Topology diagnostic: `npm run -s ops:production-topology:status`
+- Legacy-runner quarantine gate: `npm run -s ops:legacy-runner:release-guard`
+- Support bundle export: `npm run -s ops:support-bundle:export`
+
+Closure expectation:
+- Resident IPC is authoritative in production.
+- Legacy process fallback remains quarantined under `adapters/runtime/dev_only/**`.
+- Support bundles carry topology, closure, blocker, hardening-window, and recovery evidence together.
