@@ -159,7 +159,7 @@ function Normalize-WindowsPathEntry([string]$value) {
   return $trimmed.ToLowerInvariant()
 }
 
-function Ensure-WindowsPathContains([string]$pathValue, [string]$entry) {
+function Ensure-WindowsPathContains([string]$pathValue, [string]$entry, [switch]$PreferFront, [string[]]$RemoveEntries = @()) {
   $parts = @()
   if (-not [string]::IsNullOrWhiteSpace($pathValue)) {
     $parts = $pathValue.Split(";") |
@@ -170,6 +170,13 @@ function Ensure-WindowsPathContains([string]$pathValue, [string]$entry) {
 
   $entryClean = [string]$entry
   $entryNorm = Normalize-WindowsPathEntry $entryClean
+  $removeNorms = @{}
+  foreach ($removeEntry in $RemoveEntries) {
+    $removeNorm = Normalize-WindowsPathEntry $removeEntry
+    if (-not [string]::IsNullOrWhiteSpace($removeNorm)) {
+      $removeNorms[$removeNorm] = $true
+    }
+  }
   $seen = @{}
   $deduped = New-Object System.Collections.Generic.List[string]
   $containsEntry = $false
@@ -179,8 +186,14 @@ function Ensure-WindowsPathContains([string]$pathValue, [string]$entry) {
     if ([string]::IsNullOrWhiteSpace($norm)) {
       continue
     }
+    if ($removeNorms.ContainsKey($norm) -and $norm -ne $entryNorm) {
+      continue
+    }
     if ($norm -eq $entryNorm) {
       $containsEntry = $true
+      if ($PreferFront) {
+        continue
+      }
     }
     if (-not $seen.ContainsKey($norm)) {
       $deduped.Add($part)
@@ -188,7 +201,9 @@ function Ensure-WindowsPathContains([string]$pathValue, [string]$entry) {
     }
   }
 
-  if (-not $containsEntry) {
+  if ($PreferFront) {
+    $deduped.Insert(0, $entryClean)
+  } elseif (-not $containsEntry) {
     $deduped.Add($entryClean)
   }
 
@@ -198,6 +213,28 @@ function Ensure-WindowsPathContains([string]$pathValue, [string]$entry) {
     Added = (-not $containsEntry)
     Changed = ($joined -ne [string]$pathValue)
   }
+}
+
+function Invoke-SourceFallbackCleanup {
+  if (-not ($script:SourceFallbackTmp -and (Test-Path $script:SourceFallbackTmp.FullName))) {
+    return
+  }
+
+  $cleanupRoot = $script:SourceFallbackTmp.FullName
+  $script:SourceFallbackTmp = $null
+  $script:SourceFallbackDir = $null
+
+  if ($HostIsWindows) {
+    try {
+      Start-Process -FilePath "cmd.exe" -ArgumentList @("/d", "/c", "rmdir /s /q `"$cleanupRoot`"") -WindowStyle Hidden | Out-Null
+      Write-Host "[infring install] scheduled background cleanup of source fallback temp dir: $cleanupRoot"
+      return
+    } catch {
+      Write-Host "[infring install] warning: background temp cleanup scheduling failed; falling back to synchronous cleanup"
+    }
+  }
+
+  Remove-Item -Force -Recurse $cleanupRoot
 }
 
 function Resolve-Version {
@@ -963,7 +1000,7 @@ if ($InstallPure) {
 }
 
 $machinePath = [Environment]::GetEnvironmentVariable("Path", "User")
-$userPathResult = Ensure-WindowsPathContains $machinePath $InstallDir
+$userPathResult = Ensure-WindowsPathContains $machinePath $InstallDir -PreferFront -RemoveEntries @($legacyInstallDir)
 if ([bool]$userPathResult.Changed) {
   [Environment]::SetEnvironmentVariable("Path", [string]$userPathResult.Value, "User")
   if ([bool]$userPathResult.Added) {
@@ -972,12 +1009,17 @@ if ([bool]$userPathResult.Changed) {
     Write-Host "[infring install] normalized user PATH entries"
   }
 }
-$sessionPathResult = Ensure-WindowsPathContains $env:Path $InstallDir
+$sessionPathResult = Ensure-WindowsPathContains $env:Path $InstallDir -PreferFront -RemoveEntries @($legacyInstallDir)
 $env:Path = [string]$sessionPathResult.Value
 
 $resolvedInfring = Get-Command infring -ErrorAction SilentlyContinue
 if ($null -ne $resolvedInfring) {
   Write-Host "[infring install] shell command resolves to: $($resolvedInfring.Source)"
+  $resolvedNorm = Normalize-WindowsPathEntry $resolvedInfring.Source
+  $installNorm = Normalize-WindowsPathEntry $InstallDir
+  if ($installNorm -and (-not $resolvedNorm.StartsWith($installNorm))) {
+    Write-Host "[infring install] warning: current shell still prefers a non-canonical infring shim; use direct path fallback or start a new PowerShell session."
+  }
 } else {
   Write-Host "[infring install] warning: shell command resolution for 'infring' not ready in this session; use direct path fallback."
 }
@@ -1010,6 +1052,4 @@ Write-Host "[infring install] if command isn't found immediately, run: $InstallD
 Write-Host "[infring install] if `Remove-Item` prints nothing, that's expected success behavior in PowerShell."
 Write-Host "[infring install] if script execution is restricted, relaunch PowerShell with process-only bypass: Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force"
 
-if ($script:SourceFallbackTmp -and (Test-Path $script:SourceFallbackTmp.FullName)) {
-  Remove-Item -Force -Recurse $script:SourceFallbackTmp.FullName
-}
+Invoke-SourceFallbackCleanup
