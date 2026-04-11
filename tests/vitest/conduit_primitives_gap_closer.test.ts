@@ -51,6 +51,26 @@ describe('conduit primitive wrapper contract', () => {
     expect(source.includes('legacy_retired_lane_bridge')).toBe(false);
   });
 
+  test('surface orchestration scripts remain adapter-only shims', () => {
+    const surfaceScripts = collectFilesUnder('surface/orchestration/scripts', '.ts');
+    expect(surfaceScripts.length).toBeGreaterThan(0);
+    for (const relativePath of surfaceScripts) {
+      const source = fs.readFileSync(path.join(ROOT, relativePath), 'utf8');
+      const nonEmptyLines = source
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+      expect(source.includes('adapters/runtime/orchestration_surface_modules.ts')).toBe(true);
+      expect(source.includes('bindOrchestrationSurfaceModule(')).toBe(true);
+      expect(source.includes('createOpsLaneBridge')).toBe(false);
+      expect(source.includes('const SYSTEM_ID =')).toBe(false);
+      expect(source.includes('function run(')).toBe(false);
+      expect(source.includes('process.stdout.write(')).toBe(false);
+      expect(source.includes('process.stderr.write(')).toBe(false);
+      expect(nonEmptyLines.length).toBeLessThanOrEqual(4);
+    }
+  });
+
   test('install.sh exists and references hosted installer endpoint', () => {
     const source = fs.readFileSync(path.join(ROOT, 'install.sh'), 'utf8');
     expect(source.includes('api.github.com/repos')).toBe(true);

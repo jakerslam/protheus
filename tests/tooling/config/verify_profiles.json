@@ -6,6 +6,7 @@
       "gate_ids": [
         "ops:command-registry:check",
         "ops:layer0-ops:authority:audit",
+        "ops:orchestration:ts-boundary:guard",
         "ops:root-surface:audit",
         "ops:arch:conformance"
       ]
@@ -16,6 +17,7 @@
         "ops:dependency-boundary:check",
         "ops:formal-spec:check",
         "ops:arch:conformance",
+        "ops:orchestration:ts-boundary:guard",
         "ops:arch:governance",
         "ops:root-surface:audit",
         "ops:repo-surface:audit"
@@ -52,6 +54,7 @@
         "ops:production-closure:gate",
         "ops:orchestration:contract:guard",
         "ops:orchestration:hidden-state:guard",
+        "ops:orchestration:ts-boundary:guard",
         "ops:debt:expiry:guard",
         "ops:system:fitness:gate",
         "audit:module-cohesion",

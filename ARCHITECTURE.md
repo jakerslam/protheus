@@ -15,7 +15,7 @@ InfRing is the target operating model: a portable autonomous substrate that runs
 - Rust kernel remains the single source of truth.
 - Conduit is the only TS <-> Rust bridge.
 - TS is reserved for flexible surfaces (UI, marketplace, extensions, experimentation).
-- Orchestration Surface authority is Rust-first (`surface/orchestration/src/**`); TypeScript under `surface/orchestration/scripts/**` is adapter-only and must stay minimal.
+- Orchestration Surface authority is Rust-first (`surface/orchestration/src/**`); `surface/orchestration/**` must remain at least `95%` Rust by tracked source lines, and TypeScript under `surface/orchestration/scripts/**` is adapter-only and must stay minimal.
 
 ## Three-Plane Metakernel
 

@@ -1,0 +1,22 @@
+{
+  "version": "2026-04-11",
+  "surface_root": "surface/orchestration",
+  "script_root": "surface/orchestration/scripts",
+  "min_rust_pct": 95,
+  "max_nonempty_lines_per_script": 4,
+  "required_markers": [
+    "adapters/runtime/orchestration_surface_modules.ts",
+    "bindOrchestrationSurfaceModule("
+  ],
+  "forbidden_markers": [
+    "createOpsLaneBridge",
+    "const SYSTEM_ID =",
+    "function run(",
+    "process.stdout.write(",
+    "process.stderr.write(",
+    "bridge.run(",
+    "writeBridgeOutput(",
+    "bindRuntimeSystemModule(",
+    "bindSwarmOrchestrationRuntimeModule("
+  ]
+}

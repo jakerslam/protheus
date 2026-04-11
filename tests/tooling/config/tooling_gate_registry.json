@@ -172,6 +172,14 @@
       "script": "ops:orchestration:hidden-state:guard",
       "artifact_paths": ["core/local/artifacts/orchestration_hidden_state_guard_current.json"]
     },
+    "ops:orchestration:ts-boundary:guard": {
+      "owner": "ops",
+      "description": "Orchestration TS boundary guard.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:orchestration:ts-boundary:guard",
+      "artifact_paths": ["core/local/artifacts/orchestration_ts_boundary_audit_current.json"]
+    },
     "ops:debt:expiry:guard": {
       "owner": "ops",
       "description": "Debt expiry guard.",
