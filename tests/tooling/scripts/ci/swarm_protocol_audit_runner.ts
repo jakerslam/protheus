@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
-import { spawnSync } from 'node:child_process';
+import { invokeTsModuleSync } from '../../../../client/runtime/lib/in_process_ts_delegate.ts';
 const ROOT = path.resolve(__dirname, '..', '..', '..', '..');
 const OPS = path.join(ROOT, 'client', 'runtime', 'systems', 'ops', 'run_protheus_ops.ts');
 const bridge = require(path.join(ROOT, 'client', 'runtime', 'systems', 'autonomy', 'swarm_sessions_bridge.ts'));
@@ -35,10 +35,10 @@ function parseLastJson(stdout) {
 }
 
 function runOps(args) {
-  const run = spawnSync(process.execPath, [OPS].concat(args), {
+  const run = invokeTsModuleSync(OPS, {
+    argv: args,
     cwd: ROOT,
-    encoding: 'utf8',
-    env: process.env,
+    exportName: 'runProtheusOps',
   });
   const status = Number.isFinite(Number(run.status)) ? Number(run.status) : 1;
   return {

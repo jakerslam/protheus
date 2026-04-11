@@ -140,7 +140,9 @@ run_protheus_ops_defer() {
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:transport:convergence:guard
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:legacy-runner:release-guard
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:transport:topology:gate
+  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:transport:spawn-audit
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:stateful-upgrade-rollback:gate
+  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:assimilation:v1:support:guard
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:release-blockers:gate
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:production-closure:gate
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:orchestration:contract:guard

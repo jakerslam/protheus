@@ -166,9 +166,17 @@ function buildReport() {
       '--strict=1',
       '--out=core/local/artifacts/legacy_process_runner_release_guard_current.json',
     ]),
+    runTsCheck('transport_spawn_audit', 'tests/tooling/scripts/ci/transport_spawn_audit.ts', [
+      '--strict=1',
+      '--out=core/local/artifacts/transport_spawn_audit_current.json',
+    ]),
     runTsCheck('release_policy_gate', 'tests/tooling/scripts/ci/release_policy_gate.ts', [
       '--strict=1',
       '--out=core/local/artifacts/release_policy_gate_current.json',
+    ]),
+    runTsCheck('assimilation_v1_support_guard', 'tests/tooling/scripts/ci/assimilation_v1_support_guard.ts', [
+      '--strict=1',
+      '--out=core/local/artifacts/assimilation_v1_support_guard_current.json',
     ]),
     wrapperContractCheck(),
     installerContractCheck(),

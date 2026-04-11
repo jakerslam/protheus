@@ -3,6 +3,7 @@
 import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { invokeTsModuleSync } from '../../../../client/runtime/lib/in_process_ts_delegate.ts';
 
 const ROOT = resolve('.');
 const TS_ENTRYPOINT = resolve('client/runtime/lib/ts_entrypoint.ts');
@@ -52,7 +53,22 @@ function runStep(name, cmd, args, opts = {}) {
 }
 
 function runTsStep(name, scriptPath, opts = {}) {
-  return runStep(name, 'node', [TS_ENTRYPOINT, scriptPath], opts);
+  const out = invokeTsModuleSync(resolve(scriptPath), {
+    cwd: ROOT,
+    exportName: 'run',
+  });
+  const rec = {
+    name,
+    command: ['node', TS_ENTRYPOINT, scriptPath].join(' '),
+    ok: Number(out.status) === 0,
+    status: Number(out.status ?? 1),
+    stdout_tail: String(out.stdout || '').trim().slice(-2000),
+    stderr_tail: String(out.stderr || '').trim().slice(-2000),
+  };
+  if (!rec.ok && !opts.allowFail) {
+    throw new Error(`${name}_failed`);
+  }
+  return rec;
 }
 
 function writeArtifacts(payload) {

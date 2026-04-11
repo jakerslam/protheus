@@ -2,7 +2,7 @@
 /* eslint-disable no-console */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { spawnSync } from 'node:child_process';
+import { invokeTsModuleSync } from '../../../../client/runtime/lib/in_process_ts_delegate.ts';
 
 const ROOT = resolve('.');
 const ACTIONABLE_MAP_PATH = resolve('core/local/artifacts/srs_actionable_map_current.json');
@@ -25,14 +25,14 @@ function fail(msg, payload = {}) {
 
 function ensureActionableMap() {
   if (existsSync(ACTIONABLE_MAP_PATH)) return;
-  const run = spawnSync('node', ['tests/tooling/scripts/ci/srs_actionable_map.ts'], {
+  const run = invokeTsModuleSync(resolve('tests/tooling/scripts/ci/srs_actionable_map.ts'), {
     cwd: ROOT,
-    encoding: 'utf8',
-    maxBuffer: 1024 * 1024 * 32
+    exportName: 'run',
   });
-  if (run.status !== 0) {
+  const status = Number.isFinite(Number(run.status)) ? Number(run.status) : 1;
+  if (status !== 0) {
     fail('srs_actionable_map_generation_failed', {
-      status: run.status,
+      status,
       stdout: String(run.stdout || '').slice(-4000),
       stderr: String(run.stderr || '').slice(-4000)
     });

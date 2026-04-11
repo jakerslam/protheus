@@ -232,14 +232,23 @@ function checkAssimilationV1SupportContract(root: string): GateCheck {
   const policy = readJson(path.resolve(root, rel), {});
   const canonicalSlice = cleanText(policy?.canonical_slice?.name ?? '', 120);
   const supportLevel = cleanText(policy?.production_contract?.support_level ?? '', 120);
+  const components = Array.isArray(policy?.canonical_slice?.supported_components)
+    ? policy.canonical_slice.supported_components
+    : [];
+  const guardScript = cleanText(policy?.enforcement?.guard_script ?? '', 240);
   const ok =
     cleanText(policy?.status ?? '', 80) === 'frozen_v1_vertical_slice' &&
     canonicalSlice.length > 0 &&
-    supportLevel === 'experimental_opt_in';
+    supportLevel === 'experimental_opt_in' &&
+    policy?.production_contract?.release_supported === false &&
+    components.length === 3 &&
+    guardScript === 'tests/tooling/scripts/ci/assimilation_v1_support_guard.ts';
   return {
     id: 'assimilation_v1_support_contract',
     ok,
-    detail: ok ? `slice=${canonicalSlice};support_level=${supportLevel}` : `invalid:${rel}`,
+    detail: ok
+      ? `slice=${canonicalSlice};support_level=${supportLevel};components=${components.length}`
+      : `invalid:${rel}`,
   };
 }
 

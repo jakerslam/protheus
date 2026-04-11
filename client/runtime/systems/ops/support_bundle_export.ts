@@ -144,6 +144,10 @@ function buildBundle(outPath: string) {
     runTsCommand('production_topology_diagnostic', 'tests/tooling/scripts/ops/production_topology_diagnostic.ts', [
       '--out=core/local/artifacts/production_topology_diagnostic_current.json',
     ]),
+    runTsCommand('transport_spawn_audit', 'tests/tooling/scripts/ci/transport_spawn_audit.ts', [
+      '--strict=0',
+      '--out=core/local/artifacts/transport_spawn_audit_current.json',
+    ]),
     runTsCommand('arch_boundary_conformance', 'tests/tooling/scripts/ci/arch_boundary_conformance.ts', [
       '--strict=0',
       '--out=core/local/artifacts/arch_boundary_conformance_current.json',
@@ -160,6 +164,10 @@ function buildBundle(outPath: string) {
     runTsCommand('stateful_upgrade_rollback', 'tests/tooling/scripts/ci/stateful_upgrade_rollback_gate.ts', [
       '--strict=0',
       '--out=core/local/artifacts/stateful_upgrade_rollback_gate_current.json',
+    ]),
+    runTsCommand('assimilation_v1_support_guard', 'tests/tooling/scripts/ci/assimilation_v1_support_guard.ts', [
+      '--strict=0',
+      '--out=core/local/artifacts/assimilation_v1_support_guard_current.json',
     ]),
     runTsCommand('release_blocker_rubric', 'tests/tooling/scripts/ci/release_blocker_rubric_gate.ts', [
       '--strict=0',
@@ -181,8 +189,10 @@ function buildBundle(outPath: string) {
     checkFile('core/local/artifacts/release_policy_gate_current.json'),
     checkFile('core/local/artifacts/production_readiness_closure_gate_current.json'),
     checkFile('core/local/artifacts/production_topology_diagnostic_current.json'),
+    checkFile('core/local/artifacts/transport_spawn_audit_current.json'),
     checkFile('core/local/artifacts/legacy_process_runner_release_guard_current.json'),
     checkFile('core/local/artifacts/stateful_upgrade_rollback_gate_current.json'),
+    checkFile('core/local/artifacts/assimilation_v1_support_guard_current.json'),
     checkFile('core/local/artifacts/release_blocker_rubric_current.json'),
     checkFile('core/local/artifacts/release_hardening_window_guard_current.json'),
     checkFile('core/local/artifacts/arch_boundary_conformance_current.json'),
@@ -224,12 +234,16 @@ function buildBundle(outPath: string) {
         checks.find((row) => row.id === 'legacy_process_runner_release_guard')?.payload || null,
       production_topology_diagnostic:
         checks.find((row) => row.id === 'production_topology_diagnostic')?.payload || null,
+      transport_spawn_audit:
+        checks.find((row) => row.id === 'transport_spawn_audit')?.payload || null,
       arch_boundary_conformance:
         checks.find((row) => row.id === 'arch_boundary_conformance')?.payload || null,
       production_closure: checks.find((row) => row.id === 'production_closure')?.payload || null,
       release_policy_gate: checks.find((row) => row.id === 'release_policy_gate')?.payload || null,
       stateful_upgrade_rollback:
         checks.find((row) => row.id === 'stateful_upgrade_rollback')?.payload || null,
+      assimilation_v1_support_guard:
+        checks.find((row) => row.id === 'assimilation_v1_support_guard')?.payload || null,
       release_blocker_rubric:
         checks.find((row) => row.id === 'release_blocker_rubric')?.payload || null,
       release_hardening_window:

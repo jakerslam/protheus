@@ -148,6 +148,10 @@ function runSmokeScripts(scriptNames: string[]): Check[] {
       script: 'client/runtime/systems/ops/transport_topology_status.ts',
       args: ['--strict=1', '--json=1'],
     },
+    'ops:transport:spawn-audit': {
+      script: 'tests/tooling/scripts/ci/transport_spawn_audit.ts',
+      args: ['--strict=1', '--out=core/local/artifacts/transport_spawn_audit_current.json'],
+    },
     'ops:production-topology:status': {
       script: 'tests/tooling/scripts/ops/production_topology_diagnostic.ts',
       args: ['--out=core/local/artifacts/production_topology_diagnostic_current.json'],
@@ -155,6 +159,10 @@ function runSmokeScripts(scriptNames: string[]): Check[] {
     'ops:stateful-upgrade-rollback:gate': {
       script: 'tests/tooling/scripts/ci/stateful_upgrade_rollback_gate.ts',
       args: ['--strict=1', '--out=core/local/artifacts/stateful_upgrade_rollback_gate_current.json'],
+    },
+    'ops:assimilation:v1:support:guard': {
+      script: 'tests/tooling/scripts/ci/assimilation_v1_support_guard.ts',
+      args: ['--strict=1', '--out=core/local/artifacts/assimilation_v1_support_guard_current.json'],
     },
     'ops:release-blockers:gate': {
       script: 'tests/tooling/scripts/ci/release_blocker_rubric_gate.ts',

@@ -56,6 +56,8 @@ What is true in this repository today:
 - Resident IPC is the only supported production topology; the legacy process runner is dev-only.
 - Release entrypoints quarantine the legacy runner under `adapters/runtime/dev_only/**`.
 - Operator topology diagnostic: `npm run -s ops:production-topology:status`
+- Transport spawn audit: `npm run -s ops:transport:spawn-audit`
+- Assimilation v1 support guard: `npm run -s ops:assimilation:v1:support:guard`
 - Frozen assimilation v1 slice: one ingress -> orchestration -> assimilation-kernel -> receipt-output path is hardened; broader assimilation surfaces remain experimental.
 - Internal/maintenance lanes are not part of the public production SLA.
 - Operator diagnostics and incident export: `npm run -s ops:support-bundle:export`

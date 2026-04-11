@@ -21,6 +21,8 @@
     "ops:legacy-runner:release-guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/legacy_process_runner_release_guard.ts --strict=1 --out=core/local/artifacts/legacy_process_runner_release_guard_current.json",
     "ops:transport:topology:status": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/transport_topology_status.ts --json=1",
     "ops:transport:topology:gate": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/transport_topology_status.ts --strict=1 --json=1",
+    "ops:transport:spawn-audit": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/transport_spawn_audit.ts --strict=1 --out=core/local/artifacts/transport_spawn_audit_current.json",
+    "ops:assimilation:v1:support:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/assimilation_v1_support_guard.ts --strict=1 --out=core/local/artifacts/assimilation_v1_support_guard_current.json",
     "ops:production-topology:status": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ops/production_topology_diagnostic.ts --out=core/local/artifacts/production_topology_diagnostic_current.json",
     "ops:production-topology:gate": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ops/production_topology_diagnostic.ts --strict=1 --out=core/local/artifacts/production_topology_diagnostic_current.json",
     "ops:production-closure:status": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/production_readiness_closure_gate.ts --strict=0 --out=core/local/artifacts/production_readiness_closure_gate_current.json",
