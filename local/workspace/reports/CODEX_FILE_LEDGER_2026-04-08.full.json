@@ -7119,7 +7119,7 @@
       "order": 646
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/research_batch8_parts/010-state-root.rs",
       "language": "rs",
       "loc": 438,
@@ -7592,7 +7592,7 @@
       "order": 689
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/research_batch8_parts/020-run-parallel-scrape-workers.rs",
       "language": "rs",
       "loc": 419,
@@ -7680,7 +7680,7 @@
       "order": 697
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/tests/v6_research_batch8_integration.rs",
       "language": "rs",
       "loc": 413,
@@ -9297,7 +9297,7 @@
       "order": 844
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/research_batch8_parts/030-run-decode-common.rs",
       "language": "rs",
       "loc": 281,

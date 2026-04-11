@@ -29,18 +29,18 @@ fn run_decode_common(
     }
 
     let urls = if batch {
-        let mut rows = parse_csv_or_file_unique(root, &parsed.flags, "urls", "urls-file", 2400);
+        let mut rows =
+            parse_csv_or_file_stable_unique(root, &parsed.flags, "urls", "urls-file", 2400);
         if rows.is_empty() {
-            rows.extend(
+            rows = stable_unique(
                 parsed
                     .positional
                     .iter()
                     .skip(1)
                     .map(|v| clean(v, 2400))
-                    .filter(|v| !v.is_empty()),
+                    .filter(|v| !v.is_empty())
+                    .collect(),
             );
-            rows.sort();
-            rows.dedup();
         }
         rows
     } else {
@@ -274,8 +274,37 @@ mod tests {
             .and_then(Value::as_array)
             .map(|rows| rows
                 .iter()
-                .any(|row| row.as_str() == Some("conduit_bypass_rejected")))
+            .any(|row| row.as_str() == Some("conduit_bypass_rejected")))
             .unwrap_or(false));
     }
-}
 
+    #[test]
+    fn decode_batch_preserves_input_order_while_deduping() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let parsed = crate::parse_args(&[
+            "decode-news-urls".to_string(),
+            "--urls=https://news.google.com/read/ZZZ?continue=https%3A%2F%2Fexample.com%2Fz-story,https://news.google.com/read/AAA?continue=https%3A%2F%2Fexample.com%2Fa-story,https://news.google.com/read/ZZZ?continue=https%3A%2F%2Fexample.com%2Fz-story".to_string(),
+            "--strict=1".to_string(),
+        ]);
+        let out = run_decode_news_urls(root.path(), &parsed, true);
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        let items = out
+            .get("items")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert_eq!(items.len(), 2);
+        assert_eq!(
+            items[0]
+                .get("decoded_url")
+                .and_then(Value::as_str),
+            Some("https://example.com/z-story")
+        );
+        assert_eq!(
+            items[1]
+                .get("decoded_url")
+                .and_then(Value::as_str),
+            Some("https://example.com/a-story")
+        );
+    }
+}
