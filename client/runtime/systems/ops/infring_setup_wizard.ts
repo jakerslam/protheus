@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 'use strict';
 
-const impl = require('./protheus_setup_wizard.ts');
+// TypeScript compatibility shim only.
+// Layer ownership: adapters/runtime::protheus-setup-wizard (authoritative operator UX bridge).
+
+const impl = require('../../../../adapters/runtime/protheus_setup_wizard.ts');
 
 async function main(argv = process.argv.slice(2)) {
   return impl.main(argv);

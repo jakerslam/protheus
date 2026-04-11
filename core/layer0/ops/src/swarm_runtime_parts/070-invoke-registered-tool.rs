@@ -30,7 +30,9 @@ fn invoke_registered_tool(
         .and_then(Value::as_str)
         .unwrap_or_default();
     let safe_path = safe_tool_bridge_path(bridge_path)?;
-    if safe_path != "client/runtime/systems/autonomy/swarm_sessions_bridge.ts" {
+    if safe_path != "client/runtime/systems/autonomy/swarm_sessions_bridge.ts"
+        && safe_path != "adapters/runtime/swarm_bridge_modules.ts"
+    {
         return Err(format!("unsupported_tool_bridge:{safe_path}"));
     }
 
