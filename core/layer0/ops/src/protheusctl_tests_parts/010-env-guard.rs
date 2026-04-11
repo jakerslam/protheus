@@ -62,9 +62,17 @@ fn route_edge_swarm_maps_correctly() {
     ]);
     assert_eq!(
         route.script_rel,
-        "client/runtime/systems/spawn/mobile_edge_swarm_bridge.ts"
+        "client/runtime/systems/ops/run_protheus_ops.ts"
     );
-    assert_eq!(route.args.first().map(String::as_str), Some("enroll"));
+    assert_eq!(
+        route.args,
+        vec![
+            "edge".to_string(),
+            "swarm".to_string(),
+            "enroll".to_string(),
+            "--owner=operator".to_string()
+        ]
+    );
 }
 
 #[test]

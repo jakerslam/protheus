@@ -4,8 +4,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
-import { invokeTsModuleSync } from '../../../../client/runtime/lib/in_process_ts_delegate.ts';
+import { spawnSync } from 'node:child_process';
 const ROOT = path.resolve(__dirname, '..', '..', '..', '..');
+const ENTRYPOINT = path.join(ROOT, 'client', 'runtime', 'lib', 'ts_entrypoint.ts');
 const OPS = path.join(ROOT, 'client', 'runtime', 'systems', 'ops', 'run_protheus_ops.ts');
 const bridge = require(path.join(ROOT, 'client', 'runtime', 'systems', 'autonomy', 'swarm_sessions_bridge.ts'));
 
@@ -20,7 +21,42 @@ function receiptHash(payload) {
 }
 
 function parseLastJson(stdout) {
-  const lines = String(stdout || '')
+  const text = String(stdout || '').trim();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {}
+  let depth = 0;
+  let start = -1;
+  let inString = false;
+  let escaped = false;
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+    if (ch === '{') {
+      if (depth === 0) start = i;
+      depth += 1;
+      continue;
+    }
+    if (ch === '}') {
+      depth -= 1;
+      if (depth === 0 && start >= 0) {
+        try {
+          return JSON.parse(text.slice(start, i + 1));
+        } catch {}
+      }
+    }
+  }
+  const lines = text
     .split('\n')
     .map((line) => line.trim())
     .filter(Boolean);
@@ -35,10 +71,16 @@ function parseLastJson(stdout) {
 }
 
 function runOps(args) {
-  const run = invokeTsModuleSync(OPS, {
-    argv: args,
+  const run = spawnSync(process.execPath, [ENTRYPOINT, OPS].concat(args), {
     cwd: ROOT,
-    exportName: 'runProtheusOps',
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      PROTHEUS_OPS_LOCAL_TIMEOUT_MS: '240000',
+      INFRING_OPS_LOCAL_TIMEOUT_MS: '240000',
+      PROTHEUS_OPS_USE_PREBUILT: '0',
+      INFRING_OPS_USE_PREBUILT: '0',
+    },
   });
   const status = Number.isFinite(Number(run.status)) ? Number(run.status) : 1;
   return {
@@ -336,6 +378,118 @@ function runGenericBootstrapTest(statePath) {
   }
 }
 
+function runWorkflowReceiptsTest(statePath) {
+  try {
+    const coordinator = bridge.sessionsSpawn({
+      task: 'audit-workflow-coordinator',
+      state_path: statePath,
+    });
+    const specialist = bridge.sessionsSpawn({
+      task: 'audit-workflow-specialist',
+      session_id: coordinator.session_id,
+      state_path: statePath,
+    });
+    const contextPut = bridge.sessionsContextPut({
+      session_id: coordinator.session_id,
+      context: {
+        objective: 'audit workflow',
+        oversized: 'x'.repeat(6000),
+      },
+      state_path: statePath,
+    });
+    const handoff = bridge.sessionsHandoff({
+      session_id: coordinator.session_id,
+      target_session_id: specialist.session_id,
+      reason: 'audit workflow delegation',
+      importance: 0.8,
+      context: { delegated_goal: 'produce governed answer' },
+      state_path: statePath,
+    });
+    if (contextPut.payload?.receipt?.degraded_mode !== 'context_compacted') {
+      return fail('test_13_workflow_receipts', 'context_compaction_missing', {
+        receipt: contextPut.payload?.receipt || null,
+      });
+    }
+    if (!handoff.payload?.handoff?.handoff_id) {
+      return fail('test_13_workflow_receipts', 'handoff_receipt_missing', {
+        handoff: handoff.payload || null,
+      });
+    }
+    const state = bridge.sessionsState({
+      session_id: specialist.session_id,
+      state_path: statePath,
+    });
+    if (
+      !Array.isArray(state.payload?.handoffs)
+      || state.payload.handoffs.length < 1
+      || state.payload?.context?.variables?.delegated_goal !== 'produce governed answer'
+    ) {
+      return fail('test_13_workflow_receipts', 'specialist_receipts_missing', {
+        state: state.payload || null,
+      });
+    }
+    return pass('test_13_workflow_receipts', {
+      coordinator: coordinator.session_id,
+      specialist: specialist.session_id,
+      handoff_id: handoff.payload.handoff.handoff_id,
+    });
+  } catch (err) {
+    return fail('test_13_workflow_receipts', 'bridge_exception', {
+      error: String(err && err.message ? err.message : err),
+    });
+  }
+}
+
+function runLineageDirectiveTest(statePath) {
+  try {
+    const parent = bridge.sessionsSpawn({ task: 'directive-parent', state_path: statePath });
+    const child = bridge.sessionsSpawn({
+      task: 'directive-child',
+      session_id: parent.session_id,
+      state_path: statePath,
+    });
+    const outbound = bridge.sessionsSend({
+      sender: parent.session_id,
+      session_id: child.session_id,
+      message: 'directive:inspect workspace root',
+      delivery: 'at_least_once',
+      state_path: statePath,
+    });
+    const inbox = bridge.sessionsReceive({
+      session_id: child.session_id,
+      limit: 8,
+      state_path: statePath,
+    });
+    const directive = (inbox.messages || []).find((row) => row.message_id === outbound.message_id);
+    if (!directive) {
+      return fail('test_14_lineage_directives', 'child_missing_parent_directive', {
+        parent: parent.session_id,
+        child: child.session_id,
+        message_id: outbound.message_id,
+      });
+    }
+    const ack = bridge.sessionsAck({
+      session_id: child.session_id,
+      message_id: outbound.message_id,
+      state_path: statePath,
+    });
+    if (ack.payload?.acknowledged !== true) {
+      return fail('test_14_lineage_directives', 'directive_ack_missing', {
+        ack: ack.payload || null,
+      });
+    }
+    return pass('test_14_lineage_directives', {
+      parent: parent.session_id,
+      child: child.session_id,
+      message_id: outbound.message_id,
+    });
+  } catch (err) {
+    return fail('test_14_lineage_directives', 'bridge_exception', {
+      error: String(err && err.message ? err.message : err),
+    });
+  }
+}
+
 function runHierarchicalBudgetTest(statePath) {
   try {
     const parent = bridge.sessionsSpawn({
@@ -542,6 +696,8 @@ function main() {
     runDeadLetterRecoveryTest(statePath),
     runRestartRecoveryTest(statePath),
     runGenericBootstrapTest(statePath),
+    runWorkflowReceiptsTest(statePath),
+    runLineageDirectiveTest(statePath),
   ];
 
   const passed = tests.filter((row) => row.ok).length;

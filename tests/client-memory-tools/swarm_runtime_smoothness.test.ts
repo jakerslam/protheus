@@ -1,18 +1,53 @@
 #!/usr/bin/env node
 'use strict';
 
-const assert = require('assert');
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
-const { spawnSync } = require('child_process');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const ENTRYPOINT = path.join(ROOT, 'client', 'runtime', 'lib', 'ts_entrypoint.ts');
 const OPS = path.join(ROOT, 'client', 'runtime', 'systems', 'ops', 'run_protheus_ops.ts');
 
 function parseLastJson(stdout) {
-  const lines = String(stdout || '')
+  const text = String(stdout || '').trim();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {}
+  let depth = 0;
+  let start = -1;
+  let inString = false;
+  let escaped = false;
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+    if (ch === '{') {
+      if (depth === 0) start = i;
+      depth += 1;
+      continue;
+    }
+    if (ch === '}') {
+      depth -= 1;
+      if (depth === 0 && start >= 0) {
+        try {
+          return JSON.parse(text.slice(start, i + 1));
+        } catch {}
+      }
+    }
+  }
+  const lines = text
     .split('\n')
     .map((line) => line.trim())
     .filter(Boolean);
@@ -30,7 +65,14 @@ function runOps(args, env = {}) {
   const run = spawnSync(process.execPath, [ENTRYPOINT, OPS].concat(args), {
     cwd: ROOT,
     encoding: 'utf8',
-    env: { ...process.env, ...env },
+    env: {
+      ...process.env,
+      PROTHEUS_OPS_LOCAL_TIMEOUT_MS: '240000',
+      INFRING_OPS_LOCAL_TIMEOUT_MS: '240000',
+      PROTHEUS_OPS_USE_PREBUILT: '0',
+      INFRING_OPS_USE_PREBUILT: '0',
+      ...env,
+    },
   });
   const payload = parseLastJson(run.stdout);
   return {
@@ -39,16 +81,6 @@ function runOps(args, env = {}) {
     stderr: String(run.stderr || ''),
     payload,
   };
-}
-
-function assertOk(result, label) {
-  assert.strictEqual(
-    result.status,
-    0,
-    `${label} exited non-zero\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`
-  );
-  assert(result.payload, `${label} did not emit JSON payload`);
-  assert.strictEqual(result.payload.ok, true, `${label} payload not ok`);
 }
 
 function run() {
@@ -65,6 +97,11 @@ function run() {
   ]);
   assertOk(concurrency, 'test-concurrency');
   assert.strictEqual(concurrency.payload.test, 'concurrency');
+  assert.strictEqual(
+    typeof (concurrency.payload.metrics && concurrency.payload.metrics.queue_wait_avg_ms),
+    'number',
+    'expected concurrency metrics to expose queue_wait_avg_ms'
+  );
 
   const recursive = runOps([
     'swarm-runtime',
@@ -158,6 +195,18 @@ function run() {
     Number(status.payload.session_count || 0) >= 10,
     `unexpected session_count in status: ${status.stdout}`
   );
+  assert.strictEqual(status.payload.ok, true);
+  assert.strictEqual(status.payload.scale.readiness.within_session_cap, true);
+}
+
+function assertOk(result, label) {
+  assert.strictEqual(
+    result.status,
+    0,
+    `${label} exited non-zero\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`
+  );
+  assert(result.payload, `${label} did not emit JSON payload`);
+  assert.strictEqual(result.payload.ok, true, `${label} payload not ok`);
 }
 
 run();

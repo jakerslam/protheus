@@ -17338,10 +17338,10 @@
       "order": 1575
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/client-memory-tools/swarm_workflow_007_bridge.test.ts",
       "language": "ts",
-      "loc": 218,
+      "loc": 251,
       "authority_risk_score": 2,
       "migration_potential_score": 2,
       "concept_opportunity_score": 4,
@@ -17459,10 +17459,10 @@
       "order": 1586
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/client-memory-tools/swarm_runtime_smoothness.test.ts",
       "language": "ts",
-      "loc": 169,
+      "loc": 219,
       "authority_risk_score": 2,
       "migration_potential_score": 2,
       "concept_opportunity_score": 4,
@@ -19054,10 +19054,10 @@
       "order": 1731
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/client-memory-tools/mobile_edge_swarm_bridge.test.ts",
       "language": "ts",
-      "loc": 9,
+      "loc": 65,
       "authority_risk_score": 2,
       "migration_potential_score": 2,
       "concept_opportunity_score": 4,
@@ -19538,10 +19538,10 @@
       "order": 1775
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/client-memory-tools/rsi_swarm_spawn_bridge.test.ts",
       "language": "ts",
-      "loc": 9,
+      "loc": 112,
       "authority_risk_score": 2,
       "migration_potential_score": 2,
       "concept_opportunity_score": 4,
@@ -19846,10 +19846,10 @@
       "order": 1803
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/client-memory-tools/swarm_phase7_rust_parity.test.ts",
       "language": "ts",
-      "loc": 9,
+      "loc": 147,
       "authority_risk_score": 2,
       "migration_potential_score": 2,
       "concept_opportunity_score": 4,
@@ -19857,10 +19857,10 @@
       "order": 1804
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/client-memory-tools/swarm_verification_mode.test.ts",
       "language": "ts",
-      "loc": 9,
+      "loc": 126,
       "authority_risk_score": 2,
       "migration_potential_score": 2,
       "concept_opportunity_score": 4,
@@ -19879,10 +19879,10 @@
       "order": 1806
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/client-memory-tools/thorn_swarm_protocol.test.ts",
       "language": "ts",
-      "loc": 9,
+      "loc": 143,
       "authority_risk_score": 2,
       "migration_potential_score": 2,
       "concept_opportunity_score": 4,
@@ -20055,10 +20055,10 @@
       "order": 1822
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/tooling/scripts/ci/swarm_protocol_audit_runner.ts",
       "language": "ts",
-      "loc": 569,
+      "loc": 726,
       "authority_risk_score": 2,
       "migration_potential_score": 2,
       "concept_opportunity_score": 3,

@@ -220,3 +220,18 @@ Out of scope:
   - `core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/agent_scope_full_parts/010-prelude-and-session.rs`
   - `core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/agent_scope_full_parts/020-message-direct-tool.rs`
   - `core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/040-terminated-agent-endpoints-round-trip_parts/030-part.rs`
+
+### 2026-04-11: Swarm Audit + Companion Surface Update
+
+- Swarm dominance auditing now covers 14 cases, adding workflow receipt compaction/handoff coverage and parent-child directive delivery on top of concurrency, budgets, dead letters, restart recovery, and generic-agent bootstrap checks.
+- Companion swarm proofs now cover Rust/runtime parity, thorn quarantine/release, RSI swarm gate failure semantics, verification-mode receipt surfacing, and the mobile-edge swarm dispatch contract so stale legacy wrappers no longer stand in for live swarm evidence.
+- Current evidence references:
+  - `tests/tooling/scripts/ci/swarm_protocol_audit_runner.ts`
+  - `tests/client-memory-tools/swarm_workflow_007_bridge.test.ts`
+  - `tests/client-memory-tools/swarm_runtime_smoothness.test.ts`
+  - `tests/client-memory-tools/swarm_phase7_rust_parity.test.ts`
+  - `tests/client-memory-tools/thorn_swarm_protocol.test.ts`
+  - `tests/client-memory-tools/rsi_swarm_spawn_bridge.test.ts`
+  - `tests/client-memory-tools/swarm_verification_mode.test.ts`
+  - `tests/client-memory-tools/mobile_edge_swarm_bridge.test.ts`
+  - `core/layer0/ops/src/protheusctl_parts/020-evaluate-dispatch-security.rs`
