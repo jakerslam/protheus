@@ -437,6 +437,22 @@ function bindSwarmOrchestrationRuntimeModule(
   return mod;
 }
 
+function bindSwarmSurfaceModule(
+  moduleKey,
+  currentModule,
+  argv = process.argv.slice(2),
+  options = {},
+) {
+  const normalized = String(moduleKey || '').trim();
+  if (normalized === 'swarm_sessions_bridge') {
+    return bindSwarmSessionsBridgeModule(currentModule, argv, options);
+  }
+  if (normalized === 'swarm_orchestration_runtime') {
+    return bindSwarmOrchestrationRuntimeModule(currentModule, argv, options);
+  }
+  throw new Error(`unknown_swarm_surface_module:${normalized}`);
+}
+
 module.exports = {
   ROOT,
   SWARM_RUNTIME_DEFAULT_STATE_PATH,
@@ -448,4 +464,5 @@ module.exports = {
   bindSwarmSessionsBridgeModule,
   createSwarmOrchestrationRuntimeModule,
   bindSwarmOrchestrationRuntimeModule,
+  bindSwarmSurfaceModule,
 };

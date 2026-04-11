@@ -11772,10 +11772,10 @@
       "order": 1069
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/autonomy/swarm_sessions_bridge.ts",
       "language": "ts",
-      "loc": 318,
+      "loc": 9,
       "authority_risk_score": 4,
       "migration_potential_score": 5,
       "concept_opportunity_score": 4,
@@ -11838,10 +11838,10 @@
       "order": 1075
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/autonomy/swarm_repl_demo.ts",
       "language": "ts",
-      "loc": 372,
+      "loc": 9,
       "authority_risk_score": 4,
       "migration_potential_score": 5,
       "concept_opportunity_score": 3,
@@ -11871,10 +11871,10 @@
       "order": 1078
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/autonomy/swarm_orchestration_runtime.ts",
       "language": "ts",
-      "loc": 240,
+      "loc": 8,
       "authority_risk_score": 4,
       "migration_potential_score": 5,
       "concept_opportunity_score": 3,
@@ -16040,10 +16040,10 @@
       "order": 1457
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/personas/orchestration.ts",
       "language": "ts",
-      "loc": 29,
+      "loc": 8,
       "authority_risk_score": 3,
       "migration_potential_score": 3,
       "concept_opportunity_score": 3,
@@ -17261,10 +17261,10 @@
       "order": 1568
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/client-memory-tools/swarm_sessions_bridge.test.ts",
       "language": "ts",
-      "loc": 403,
+      "loc": 447,
       "authority_risk_score": 2,
       "migration_potential_score": 2,
       "concept_opportunity_score": 4,
@@ -17580,10 +17580,10 @@
       "order": 1597
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/client-memory-tools/swarm_orchestration_runtime.test.ts",
       "language": "ts",
-      "loc": 106,
+      "loc": 112,
       "authority_risk_score": 2,
       "migration_potential_score": 2,
       "concept_opportunity_score": 4,
@@ -17965,10 +17965,10 @@
       "order": 1632
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/client-memory-tools/swarm_repl_demo.test.ts",
       "language": "ts",
-      "loc": 48,
+      "loc": 54,
       "authority_risk_score": 2,
       "migration_potential_score": 2,
       "concept_opportunity_score": 4,

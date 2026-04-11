@@ -51,7 +51,11 @@ function createLegacyRetiredModule(scriptDir, scriptName, laneId) {
 
 function runAsMain(mod, argv = []) {
   const out = mod.run(argv);
-  process.exit(Number.isFinite(Number(out && out.status)) ? Number(out.status) : 1);
+  const exitCode =
+    typeof out === 'number'
+      ? out
+      : (out && out.status);
+  process.exit(Number.isFinite(Number(exitCode)) ? Number(exitCode) : 1);
 }
 
 function createLegacyRetiredModuleForFile(filePath) {

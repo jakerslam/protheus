@@ -43,7 +43,7 @@ function bindOrchestrationSurfaceModule(moduleKey, currentModule, argv = process
     throw new Error(`unknown_orchestration_surface_module:${String(moduleKey)}`);
   }
   if (binding.kind === 'swarm') {
-    return bindSwarmOrchestrationRuntimeModule(currentModule);
+    return bindSwarmOrchestrationRuntimeModule(currentModule, argv);
   }
   return bindRuntimeSystemModule(__dirname, binding.scriptName, binding.systemId, currentModule, argv);
 }

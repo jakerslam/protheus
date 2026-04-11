@@ -17,6 +17,7 @@ const WRAPPER = path.join(
   'autonomy',
   'swarm_orchestration_runtime.ts'
 );
+const runtimeModule = require(WRAPPER);
 
 function parseLastJson(stdout) {
   const lines = String(stdout || '')
@@ -42,6 +43,11 @@ function runNode(args, env = {}) {
 }
 
 function run() {
+  assert.strictEqual(
+    typeof runtimeModule.run,
+    'function',
+    'expected swarm orchestration wrapper to expose shared run binder'
+  );
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'swarm-runtime-test-'));
   const fakeBin = path.join(tmpDir, 'protheus-ops');
   const testState = path.join(tmpDir, 'state.json');

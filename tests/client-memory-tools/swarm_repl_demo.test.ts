@@ -11,6 +11,7 @@ const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const DEMO = path.join(ROOT, 'client', 'runtime', 'systems', 'autonomy', 'swarm_repl_demo.ts');
+const demoModule = require(DEMO);
 
 function parseLastJson(stdout) {
   const lines = String(stdout || '').split('\n').map((row) => row.trim()).filter(Boolean);
@@ -24,6 +25,11 @@ function parseLastJson(stdout) {
 }
 
 function run() {
+  assert.strictEqual(
+    demoModule.run(['help']),
+    0,
+    'expected compatibility binder to preserve numeric exit codes'
+  );
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'swarm-repl-demo-'));
   const state = path.join(tmpDir, 'demo-state.json');
   const result = spawnSync(process.execPath, [DEMO, 'demo', '--kind=full', `--state-path=${state}`], {
