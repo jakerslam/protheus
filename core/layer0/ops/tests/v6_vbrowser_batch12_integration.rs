@@ -317,6 +317,19 @@ fn v6_vbrowser_batch12_core_lanes_execute_with_receipts() {
     assert_eq!(join_latest.get("op").and_then(Value::as_str), Some("join"));
     assert_claim(&join_latest, "V6-VBROWSER-001.2");
 
+    let join_bob_exit = vbrowser_plane::run(
+        root,
+        &[
+            "session-control".to_string(),
+            "--strict=1".to_string(),
+            "--op=join".to_string(),
+            "--session-id=batch12-vb".to_string(),
+            "--actor=bob".to_string(),
+            "--role=watch-only".to_string(),
+        ],
+    );
+    assert_eq!(join_bob_exit, 0);
+
     let handoff_exit = vbrowser_plane::run(
         root,
         &[
@@ -639,5 +652,165 @@ fn v6_vbrowser_batch12_rejects_bypass_when_strict() {
     assert_eq!(
         latest.get("type").and_then(Value::as_str),
         Some("vbrowser_plane_conduit_gate")
+    );
+}
+
+#[test]
+fn v6_vbrowser_batch12_aliases_are_canonical_and_dashboard_metric_uses_receipt_fields() {
+    let fixture = stage_fixture_root();
+    let root = fixture.path();
+
+    let open_exit = vbrowser_plane::run(
+        root,
+        &[
+            "open".to_string(),
+            "--strict=1".to_string(),
+            "--session-id=batch12-alias".to_string(),
+            "--url=example.net/path".to_string(),
+        ],
+    );
+    assert_eq!(open_exit, 0);
+    let latest = read_json(&latest_path(root));
+    assert_eq!(
+        latest.get("type").and_then(Value::as_str),
+        Some("vbrowser_plane_session_start")
+    );
+    assert_claim(&latest, "V6-VBROWSER-001.1");
+    assert_eq!(
+        latest
+            .pointer("/session/session_id")
+            .and_then(Value::as_str),
+        Some("batch12-alias")
+    );
+
+    let dashboard_exit = health_status::run(root, &["dashboard".to_string()]);
+    assert_eq!(dashboard_exit, 0);
+    let dashboard_latest = read_json(&health_latest_path(root));
+    let metric = dashboard_latest
+        .get("dashboard_metrics")
+        .and_then(|v| v.get("vbrowser_session_surface"))
+        .expect("vbrowser metric");
+    assert_eq!(metric.get("status").and_then(Value::as_str), Some("pass"));
+    assert_eq!(
+        metric.get("session_id").and_then(Value::as_str),
+        Some("batch12-alias")
+    );
+    assert_eq!(
+        metric.get("stream_latency_ms").and_then(Value::as_u64),
+        Some(60)
+    );
+    assert_eq!(
+        metric.get("receipt_type").and_then(Value::as_str),
+        Some("vbrowser_plane_session_start")
+    );
+    assert_eq!(
+        metric.get("receipt_hash_present").and_then(Value::as_bool),
+        Some(true)
+    );
+}
+
+#[test]
+fn v6_vbrowser_batch12_strict_handoff_requires_existing_session_and_joined_target() {
+    let fixture = stage_fixture_root();
+    let root = fixture.path();
+
+    let missing_session_exit = vbrowser_plane::run(
+        root,
+        &[
+            "control".to_string(),
+            "--strict=1".to_string(),
+            "--op=handoff".to_string(),
+            "--session-id=batch12-missing".to_string(),
+            "--actor=alice".to_string(),
+            "--to=bob".to_string(),
+        ],
+    );
+    assert_eq!(missing_session_exit, 1);
+    let missing_latest = read_json(&latest_path(root));
+    assert!(missing_latest
+        .get("errors")
+        .and_then(Value::as_array)
+        .map(|rows| rows
+            .iter()
+            .any(|row| row.as_str() == Some("vbrowser_session_not_found")))
+        .unwrap_or(false));
+
+    let start_exit = vbrowser_plane::run(
+        root,
+        &[
+            "start".to_string(),
+            "--strict=1".to_string(),
+            "--session-id=batch12-handoff".to_string(),
+            "--url=https://example.com".to_string(),
+        ],
+    );
+    assert_eq!(start_exit, 0);
+    let join_alice_exit = vbrowser_plane::run(
+        root,
+        &[
+            "control".to_string(),
+            "--strict=1".to_string(),
+            "--op=join".to_string(),
+            "--session-id=batch12-handoff".to_string(),
+            "--actor=alice".to_string(),
+            "--role=shared-control".to_string(),
+        ],
+    );
+    assert_eq!(join_alice_exit, 0);
+    let invalid_handoff_exit = vbrowser_plane::run(
+        root,
+        &[
+            "control".to_string(),
+            "--strict=1".to_string(),
+            "--op=handoff".to_string(),
+            "--session-id=batch12-handoff".to_string(),
+            "--actor=alice".to_string(),
+            "--to=bob".to_string(),
+        ],
+    );
+    assert_eq!(invalid_handoff_exit, 1);
+    let invalid_handoff_latest = read_json(&latest_path(root));
+    assert!(invalid_handoff_latest
+        .get("errors")
+        .and_then(Value::as_array)
+        .map(|rows| rows
+            .iter()
+            .any(|row| row.as_str() == Some("vbrowser_handoff_target_not_joined")))
+        .unwrap_or(false));
+
+    let join_bob_exit = vbrowser_plane::run(
+        root,
+        &[
+            "control".to_string(),
+            "--strict=1".to_string(),
+            "--op=join".to_string(),
+            "--session-id=batch12-handoff".to_string(),
+            "--actor=bob".to_string(),
+            "--role=watch-only".to_string(),
+        ],
+    );
+    assert_eq!(join_bob_exit, 0);
+    let valid_handoff_exit = vbrowser_plane::run(
+        root,
+        &[
+            "control".to_string(),
+            "--strict=1".to_string(),
+            "--op=handoff".to_string(),
+            "--session-id=batch12-handoff".to_string(),
+            "--actor=alice".to_string(),
+            "--to=bob".to_string(),
+        ],
+    );
+    assert_eq!(valid_handoff_exit, 0);
+    let handoff_latest = read_json(&latest_path(root));
+    assert_eq!(
+        handoff_latest.get("op").and_then(Value::as_str),
+        Some("handoff")
+    );
+    assert_eq!(
+        handoff_latest
+            .get("session_exists")
+            .and_then(Value::as_bool),
+        Some(true)
     );
 }

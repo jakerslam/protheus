@@ -28,17 +28,17 @@ const PRIVACY_CONTRACT_PATH: &str = "planes/contracts/vbrowser/privacy_security_
 fn usage() {
     println!("Usage:");
     println!("  protheus-ops vbrowser-plane status");
-    println!("  protheus-ops vbrowser-plane session-start [--session-id=<id>] [--url=<url>] [--shadow=<id>] [--strict=1|0]");
-    println!("  protheus-ops vbrowser-plane session-control --op=<join|handoff|leave|status> [--session-id=<id>] [--actor=<id>] [--role=<watch-only|shared-control>] [--to=<id>] [--strict=1|0]");
-    println!("  protheus-ops vbrowser-plane goto [--session-id=<id>] [--url=<url>] [--wait-until=<load|domcontentloaded|networkidle|commit>] [--strict=1|0]");
-    println!("  protheus-ops vbrowser-plane navback [--session-id=<id>] [--wait-until=<load|domcontentloaded|networkidle|commit>] [--strict=1|0]");
-    println!("  protheus-ops vbrowser-plane wait [--session-id=<id>] [--time-ms=<n>] [--strict=1|0]");
+    println!("  protheus-ops vbrowser-plane session-start|start|open [--session-id=<id>] [--url=<url>] [--shadow=<id>] [--strict=1|0]");
+    println!("  protheus-ops vbrowser-plane session-control|control --op=<join|handoff|leave|status> [--session-id=<id>] [--actor=<id>] [--role=<watch-only|shared-control>] [--to=<id>] [--strict=1|0]");
+    println!("  protheus-ops vbrowser-plane goto|navigate [--session-id=<id>] [--url=<url>] [--wait-until=<load|domcontentloaded|networkidle|commit>] [--strict=1|0]");
+    println!("  protheus-ops vbrowser-plane navback|back [--session-id=<id>] [--wait-until=<load|domcontentloaded|networkidle|commit>] [--strict=1|0]");
+    println!("  protheus-ops vbrowser-plane wait|pause [--session-id=<id>] [--time-ms=<n>] [--strict=1|0]");
     println!("  protheus-ops vbrowser-plane scroll [--session-id=<id>] [--direction=up|down] [--percentage=<1-200>] [--x=<n>] [--y=<n>] [--strict=1|0]");
     println!("  protheus-ops vbrowser-plane click [--session-id=<id>] [--x=<n>] [--y=<n>] [--coordinates=<x,y>] [--describe=<text>] [--strict=1|0]");
     println!("  protheus-ops vbrowser-plane type [--session-id=<id>] [--x=<n>] [--y=<n>] [--coordinates=<x,y>] [--describe=<text>] [--text=<value>] [--variables-json=<json>] [--strict=1|0]");
     println!("  protheus-ops vbrowser-plane automate --session-id=<id> [--actions=navigate,click,type] [--strict=1|0]");
-    println!("  protheus-ops vbrowser-plane key-input [--session-id=<id>] [--method=press|type] [--value=<text|combo>] [--repeat=<n>] [--delay-ms=<n>] [--strict=1|0]");
-    println!("  protheus-ops vbrowser-plane privacy-guard [--session-id=<id>] [--network=isolated|restricted|public] [--recording=0|1] [--allow-recording=0|1] [--budget-tokens=<n>] [--strict=1|0]");
+    println!("  protheus-ops vbrowser-plane key-input|keys [--session-id=<id>] [--method=press|type] [--value=<text|combo>] [--repeat=<n>] [--delay-ms=<n>] [--strict=1|0]");
+    println!("  protheus-ops vbrowser-plane privacy-guard|privacy [--session-id=<id>] [--network=isolated|restricted|public] [--recording=0|1] [--allow-recording=0|1] [--budget-tokens=<n>] [--strict=1|0]");
     println!(
         "  protheus-ops vbrowser-plane snapshot [--session-id=<id>] [--refs=1|0] [--strict=1|0]"
     );
@@ -70,7 +70,7 @@ fn status(root: &Path) -> Value {
 }
 
 fn claim_ids_for_action(action: &str) -> Vec<&'static str> {
-    match action {
+    match canonical_vbrowser_command(action) {
         "session-start" => vec![
             "V6-VBROWSER-001.1",
             "V6-VBROWSER-001.5",
@@ -158,6 +158,19 @@ fn claim_ids_for_action(action: &str) -> Vec<&'static str> {
             "V6-VBROWSER-001.6",
         ],
         _ => vec!["V6-VBROWSER-001.5", "V6-VBROWSER-001.6"],
+    }
+}
+
+fn canonical_vbrowser_command(action: &str) -> &str {
+    match action {
+        "start" | "open" => "session-start",
+        "control" => "session-control",
+        "navigate" => "goto",
+        "back" => "navback",
+        "pause" => "wait",
+        "keys" => "key-input",
+        "privacy" => "privacy-guard",
+        _ => action,
     }
 }
 
