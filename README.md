@@ -55,13 +55,16 @@ What is true in this repository today:
 - Experimental lanes (explicit opt-in): `assimilate`
 - Resident IPC is the only supported production topology; the legacy process runner is dev-only.
 - Release entrypoints quarantine the legacy runner under `adapters/runtime/dev_only/**`.
-- Legacy runner deletion target: after one stable release cycle beyond `v0.3.10-alpha` unless a release blocker remains.
+- Legacy runner deletion target: remove `adapters/runtime/dev_only/legacy_process_runner.ts` by `v0.3.11-stable` / `2026-05-15` unless an explicit open release blocker depends on it.
 - Operator topology diagnostic: `npm run -s ops:production-topology:status`
 - Transport spawn audit: `npm run -s ops:transport:spawn-audit`
 - Assimilation v1 support guard: `npm run -s ops:assimilation:v1:support:guard`
 - Frozen assimilation v1 slice: one ingress -> orchestration -> assimilation-kernel -> receipt-output path is hardened; broader assimilation surfaces remain experimental.
-- Numeric release thresholds are enforced by `npm run -s ops:release:scorecard:gate`.
+- Assimilation v1 can graduate only through candidate-build evidence; no new assimilation surface is added during hardening.
+- Numeric release thresholds are enforced by `npm run -s ops:release:scorecard:gate` and re-checked directly by `npm run -s ops:production-closure:gate`.
 - Release-candidate dress rehearsal: `npm run -s ops:release:rc-rehearsal`.
+- Release-candidate recovery rehearsal is required every cycle through `npm run -s ops:release:rc-rehearsal`.
+- Client authority regression guard: `npm run -s ops:client-layer:boundary`.
 - Support bundle is the single incident truth package for release closure.
 - Internal/maintenance lanes are not part of the public production SLA.
 - Operator diagnostics and incident export: `npm run -s ops:support-bundle:export`

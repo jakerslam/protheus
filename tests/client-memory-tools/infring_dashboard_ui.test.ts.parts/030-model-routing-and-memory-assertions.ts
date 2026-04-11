@@ -226,6 +226,7 @@ if (parseOnly) {
   assertDashboardInlineScriptsParse();
   assertDashboardBuildVersionFresh();
   assertDashboardVersionRefreshUsesApiVersion();
+  assertTopbarHeroSystemMenu();
   assertDashboardHostOverlaysLiveVersion();
 } else if (contract) {
   runContract(contract);

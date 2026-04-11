@@ -58,6 +58,8 @@
     _bootProgressUpdatedAt: Date.now(),
     _topbarRefreshOverlayTimer: 0,
     _topbarRefreshReloadTimer: 0,
+    topbarHeroMenuOpen: false,
+    topbarHeroActionPending: '',
     topbarDockEdge: (() => {
       try {
         var raw = String(localStorage.getItem('infring-topbar-dock-edge') || '').trim().toLowerCase();
@@ -75,7 +77,7 @@
     _topbarDockPointerMoveHandler: null,
     _topbarDockPointerUpHandler: null,
     topbarReorderLeft: (() => {
-      var defaults = ['nav_cluster', 'refresh'];
+      var defaults = ['nav_cluster'];
       try {
         var raw = localStorage.getItem('infring-topbar-order-left');
         var parsed = raw ? JSON.parse(raw) : [];
