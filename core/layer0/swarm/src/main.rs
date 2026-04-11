@@ -4,6 +4,7 @@ use base64::Engine;
 use protheus_swarm_core_v1::{orchestrate_swarm, orchestrate_swarm_json, SwarmRequest};
 use std::env;
 use std::fs;
+use std::io::{self, Read};
 
 fn parse_arg(args: &[String], key: &str) -> Option<String> {
     for arg in args {
@@ -16,21 +17,71 @@ fn parse_arg(args: &[String], key: &str) -> Option<String> {
     None
 }
 
+fn read_stdin_request() -> Result<String, String> {
+    let mut payload = String::new();
+    io::stdin()
+        .read_to_string(&mut payload)
+        .map_err(|e| format!("stdin_read_failed:{e}"))?;
+    if payload.trim().is_empty() {
+        Err("stdin_request_empty".to_string())
+    } else {
+        Ok(payload)
+    }
+}
+
+fn request_source_count(
+    request_json: Option<&str>,
+    request_base64: Option<&str>,
+    request_file: Option<&str>,
+    request_stdin: bool,
+) -> usize {
+    let file_source = request_file.map(|v| v != "-").unwrap_or(false);
+    let stdin_source = request_stdin || request_file == Some("-");
+    [
+        request_json.is_some(),
+        request_base64.is_some(),
+        file_source,
+        stdin_source,
+    ]
+    .into_iter()
+    .filter(|v| *v)
+    .count()
+}
+
 fn load_request(args: &[String]) -> Result<String, String> {
-    if let Some(v) = parse_arg(args, "--request-json") {
+    let request_json = parse_arg(args, "--request-json");
+    let request_base64 = parse_arg(args, "--request-base64");
+    let request_file = parse_arg(args, "--request-file");
+    let request_stdin =
+        args.iter().any(|arg| arg == "--request-stdin") || request_file.as_deref() == Some("-");
+
+    if request_source_count(
+        request_json.as_deref(),
+        request_base64.as_deref(),
+        request_file.as_deref(),
+        request_stdin,
+    ) != 1
+    {
+        return Err("expected_exactly_one_request_source".to_string());
+    }
+
+    if let Some(v) = request_json {
         return Ok(v);
     }
-    if let Some(v) = parse_arg(args, "--request-base64") {
+    if let Some(v) = request_base64 {
         let bytes = BASE64_STANDARD
             .decode(v.as_bytes())
             .map_err(|e| format!("base64_decode_failed:{e}"))?;
         let text = String::from_utf8(bytes).map_err(|e| format!("utf8_decode_failed:{e}"))?;
         return Ok(text);
     }
-    if let Some(v) = parse_arg(args, "--request-file") {
+    if let Some(v) = request_file {
+        if v == "-" {
+            return read_stdin_request();
+        }
         return fs::read_to_string(v.as_str()).map_err(|e| format!("request_file_read_failed:{e}"));
     }
-    Err("missing_request_payload".to_string())
+    read_stdin_request()
 }
 
 fn demo_request() -> SwarmRequest {
@@ -72,6 +123,8 @@ fn usage() {
     eprintln!("Usage:");
     eprintln!("  swarm_core run --request-json=<payload>");
     eprintln!("  swarm_core run --request-base64=<payload>");
+    eprintln!("  swarm_core run --request-file=<path>");
+    eprintln!("  swarm_core run --request-stdin");
     eprintln!("  swarm_core demo");
 }
 
@@ -104,5 +157,24 @@ fn main() {
             usage();
             std::process::exit(1);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::request_source_count;
+
+    #[test]
+    fn request_sources_fail_when_ambiguous() {
+        assert_eq!(
+            request_source_count(Some("{}"), None, Some("payload.json"), false),
+            2
+        );
+    }
+
+    #[test]
+    fn stdin_file_sentinel_counts_as_single_source() {
+        assert_eq!(request_source_count(None, None, Some("-"), false), 1);
+        assert_eq!(request_source_count(None, None, None, true), 1);
     }
 }

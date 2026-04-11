@@ -10111,10 +10111,10 @@
       "order": 918
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/tests/orchestration_domain_integration.rs",
       "language": "rs",
-      "loc": 159,
+      "loc": 253,
       "authority_risk_score": 5,
       "migration_potential_score": 1,
       "concept_opportunity_score": 2,
@@ -14379,10 +14379,10 @@
       "order": 1306
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/swarm/src/lib.rs",
       "language": "rs",
-      "loc": 279,
+      "loc": 351,
       "authority_risk_score": 4,
       "migration_potential_score": 1,
       "concept_opportunity_score": 3,
@@ -14610,10 +14610,10 @@
       "order": 1327
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/swarm/src/main.rs",
       "language": "rs",
-      "loc": 108,
+      "loc": 174,
       "authority_risk_score": 4,
       "migration_potential_score": 1,
       "concept_opportunity_score": 3,
@@ -14621,10 +14621,10 @@
       "order": 1328
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/swarm/src/blob.rs",
       "language": "rs",
-      "loc": 95,
+      "loc": 158,
       "authority_risk_score": 4,
       "migration_potential_score": 1,
       "concept_opportunity_score": 3,
