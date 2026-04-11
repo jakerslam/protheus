@@ -1,0 +1,17 @@
+// Operator entrypoints and dashboard-facing authorities.
+pub mod command_list_kernel;
+pub mod dashboard_agent_state;
+pub mod dashboard_channel_catalog;
+pub mod dashboard_compat_api;
+pub mod dashboard_git_runtime;
+pub mod dashboard_internal_search;
+pub mod dashboard_model_catalog;
+pub mod dashboard_provider_runtime;
+pub mod dashboard_release_update;
+pub mod dashboard_terminal_broker;
+pub mod dashboard_tool_turn_loop;
+pub mod dashboard_ui;
+pub mod personas_cli;
+pub mod protheusctl;
+pub mod rag_cli;
+pub mod workspace_file_search;

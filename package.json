@@ -1,5 +1,10 @@
 {
   "scripts": {
+    "workspace:commands": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/workspace_command_index.ts",
+    "workspace:commands:json": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/workspace_command_index.ts --json=1",
+    "workspace:dev": "npm run -s dashboard:serve",
+    "workspace:verify": "bash ./verify.sh",
+    "workspace:ci": "npm run -s workspace:verify",
     "test:ci": "node client/runtime/lib/ts_entrypoint.ts tests/client-memory-tools/run_ci_suite.ts",
     "test:ci:stateful": "node client/runtime/lib/ts_entrypoint.ts tests/client-memory-tools/run_ci_suite.ts --include-stateful",
     "test:ci:full": "node client/runtime/lib/ts_entrypoint.ts tests/client-memory-tools/run_ci_suite.ts --full-corpus",
@@ -212,6 +217,7 @@
     "test:ops:tools:context-route": "node client/runtime/lib/ts_entrypoint.ts tests/client-memory-tools/tool_context_router.test.ts",
     "test:ops:tools:notify": "node client/runtime/lib/ts_entrypoint.ts tests/client-memory-tools/tool_notification_lane.test.ts",
     "test:ops:tools:shadow-bridge": "node client/runtime/lib/ts_entrypoint.ts tests/client-memory-tools/shadow_tool_notification_bridge.test.ts",
+    "test:ops:workspace-command-index": "node client/runtime/lib/ts_entrypoint.ts tests/client-memory-tools/workspace_command_index.test.ts",
     "test:ops:sdk:surface": "node client/runtime/lib/ts_entrypoint.ts tests/client-memory-tools/infring_sdk_contract.test.ts && npm run -s ops:sdk:surface:build",
     "lane:v6-tools-001:run": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/srs_repair_lane_runner.ts --id=V6-TOOLS-001 --strict=1",
     "lane:v6-tools-003:run": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/srs_repair_lane_runner.ts --id=V6-TOOLS-003 --strict=1",

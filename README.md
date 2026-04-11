@@ -140,6 +140,16 @@ set -gx PATH "$HOME/.infring/bin" $PATH; and command -q rehash; and rehash; and 
 $env:Path = "$HOME/.infring/bin;$env:Path"; infring --help
 ```
 
+## Repository Workflows
+
+For local repository work, use the canonical workspace entrypoints:
+
+- Inspect the script surface: `npm run -s workspace:commands`
+- Start the canonical local dev loop: `npm run -s workspace:dev`
+- Run the canonical full verification path: `npm run -s workspace:verify`
+
+`workspace:verify` delegates to the root [`verify.sh`](/Users/jay/.openclaw/workspace/verify.sh) pipeline, and `workspace:ci` is the canonical CI-equivalent alias for the same path.
+
 Installer behavior:
 
 - Persists `PATH` to shell startup file(s)

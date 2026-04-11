@@ -15,25 +15,7 @@
   "generated_at": "2026-03-27T02:13:14.058Z",
   "exceptions": [
     {
-      "path": "client/runtime/systems/ui/infring_static/css/components.css.parts/0012-components-part.css",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-04-23"
-    },
-    {
       "path": "client/runtime/systems/ui/infring_static/css/components.css.parts/0018-components-part.css",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-04-23"
-    },
-    {
-      "path": "client/runtime/systems/ui/infring_static/css/layout.css.parts/0001-layout-part.part02.css",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-04-23"
-    },
-    {
-      "path": "client/runtime/systems/ui/infring_static/js/app.ts.parts/020-nav-and-layout.part02.ts",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
       "expires": "2026-04-23"
@@ -681,12 +663,6 @@
       "expires": "2026-04-23"
     },
     {
-      "path": "core/layer0/ops/src/rsi_ignition.rs",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-04-23"
-    },
-    {
       "path": "core/layer0/ops/src/runtime_systems_parts/020-dashboard-runtime-authority-from-payload.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
@@ -742,12 +718,6 @@
     },
     {
       "path": "core/layer0/ops/src/session_command_discovery_kernel.rs",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-04-23"
-    },
-    {
-      "path": "core/layer0/ops/src/session_command_session_analytics_kernel.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
       "expires": "2026-04-23"

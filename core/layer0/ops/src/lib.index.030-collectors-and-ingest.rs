@@ -1,0 +1,20 @@
+// Ingest lanes, collectors, and content acquisition surfaces.
+pub mod bird_x_collector_kernel;
+pub mod bird_x_collector_kernel_support;
+pub mod collector_content_kernel;
+pub mod collector_runtime_kernel;
+pub mod collector_runtime_kernel_support;
+pub mod collector_state_kernel;
+pub mod conversation_eye_collector_kernel;
+pub mod conversation_eye_collector_kernel_support;
+pub mod crawl_console;
+pub mod crawl_middleware;
+pub mod crawl_pipeline;
+pub mod crawl_signals;
+pub mod crawl_spider;
+pub mod github_repo_collector_kernel;
+pub mod github_repo_collector_kernel_support;
+pub mod moltbook_hot_collector_kernel;
+pub mod moltstack_discover_collector_kernel;
+pub mod stock_market_collector_kernel;
+pub mod upwork_gigs_collector_kernel;

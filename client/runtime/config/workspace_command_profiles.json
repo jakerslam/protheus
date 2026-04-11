@@ -1,0 +1,44 @@
+{
+  "version": "1.0",
+  "canonical_paths": {
+    "local_dev": {
+      "script": "workspace:dev",
+      "command": "npm run -s workspace:dev",
+      "summary": "Canonical local operator/dev loop: launch the dashboard-backed runtime surface."
+    },
+    "verify": {
+      "script": "workspace:verify",
+      "command": "npm run -s workspace:verify",
+      "summary": "Canonical full local verification path: run the root verify pipeline."
+    },
+    "ci": {
+      "script": "workspace:ci",
+      "command": "npm run -s workspace:ci",
+      "summary": "Canonical CI-equivalent entrypoint, aligned to the root verify pipeline."
+    }
+  },
+  "namespace_order": [
+    "workspace",
+    "ops",
+    "test",
+    "dashboard",
+    "build",
+    "runtime",
+    "security",
+    "state",
+    "dr",
+    "metrics"
+  ],
+  "namespace_descriptions": {
+    "workspace": "Canonical repository entrypoints and generated command discovery.",
+    "ops": "Governance gates, audits, operator lanes, and policy checks.",
+    "test": "Regression suites and targeted test commands.",
+    "dashboard": "Dashboard runtime, snapshot, and UI interaction surfaces.",
+    "build": "System build and runtime packaging flows.",
+    "runtime": "Runtime mode/cutover management and distribution verification.",
+    "security": "Security, integrity, and formal verification operators.",
+    "state": "State kernel migration, replay, and cutover flows.",
+    "dr": "Disaster-recovery simulations and status checks.",
+    "metrics": "Repository/source metrics and tracking reports."
+  }
+}

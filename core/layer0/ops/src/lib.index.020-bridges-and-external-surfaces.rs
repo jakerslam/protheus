@@ -1,0 +1,24 @@
+// Cross-runtime adapters and governed external surface bridges.
+pub mod camel_bridge;
+pub mod crewai_bridge;
+pub mod dify_bridge;
+pub mod dspy_bridge;
+pub mod framework_adapter_contract;
+pub mod google_adk_bridge;
+pub mod haystack_bridge;
+pub mod instinct_bridge;
+pub mod llamaindex_bridge;
+pub mod mastra_bridge;
+pub mod metagpt_bridge;
+pub mod phone_runtime_bridge;
+pub mod pydantic_ai_bridge;
+pub mod readiness_bridge_pack_kernel;
+pub mod semantic_kernel_bridge;
+pub mod shannon_bridge;
+pub mod spine_conduit_bridge_kernel;
+pub mod swarm_sessions_bridge;
+pub mod vbrowser_plane;
+pub mod web_conduit;
+pub mod web_conduit_provider_runtime;
+pub mod workflow_chain_bridge;
+pub mod workflow_graph_bridge;
