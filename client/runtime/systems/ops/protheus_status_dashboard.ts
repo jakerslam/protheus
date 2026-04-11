@@ -1,43 +1,13 @@
 #!/usr/bin/env node
 'use strict';
 
-// Thin compatibility lane: dashboard authority is Rust-core (`daemon-control`).
-const { runProtheusOps } = require('./run_protheus_ops.ts');
+// TypeScript compatibility shim only.
+// Layer ownership: core/layer0/ops::daemon-control (authoritative dashboard/operator status route).
 
-function hasWebFlag(argv) {
-  return Array.isArray(argv) && argv.some((arg) => arg === '--web' || arg === 'web');
-}
-
-function stripDashboardCompatFlags(argv) {
-  return (Array.isArray(argv) ? argv : []).filter(
-    (arg) =>
-      arg !== '--dashboard' &&
-      arg !== 'dashboard' &&
-      arg !== '--web' &&
-      arg !== 'web'
-  );
-}
-
-function runDashboardUi(argv) {
-  const forward = stripDashboardCompatFlags(argv);
-  return runProtheusOps(
-    ['daemon-control', 'start', ...forward],
-    { unknownDomainFallback: true }
-  );
-}
-
-function run(argv = process.argv.slice(2)) {
-  if (hasWebFlag(argv)) {
-    return runDashboardUi(argv);
-  }
-  const passthrough = argv.length
-    ? argv
-    : ['daemon-control', 'status'];
-  return runProtheusOps(passthrough, { unknownDomainFallback: true });
-}
+const mod = require('../../../../adapters/runtime/protheus_cli_modules.ts').protheusStatusDashboard;
 
 if (require.main === module) {
-  process.exit(run(process.argv.slice(2)));
+  process.exit(mod.run(process.argv.slice(2)));
 }
 
-module.exports = { run, runDashboardUi };
+module.exports = mod;

@@ -1,25 +1,13 @@
 #!/usr/bin/env node
 'use strict';
 
-// Thin bridge to core authority: rust50-migration-program domain.
-const { runProtheusOps } = require('./run_protheus_ops.ts');
+// TypeScript compatibility shim only.
+// Layer ownership: core/layer0/ops::rust50-migration-program (authoritative domain route).
 
-function normalizeSubcommand(raw) {
-  const sub = String(raw || 'status').trim().toLowerCase();
-  if (!sub) return 'status';
-  return sub;
-}
-
-function run(argv = process.argv.slice(2)) {
-  const sub = normalizeSubcommand(argv[0]);
-  const rest = argv.slice(1);
-  return runProtheusOps(['rust50-migration-program', sub, ...rest], {
-    unknownDomainFallback: true,
-  });
-}
+const mod = require('../../../../adapters/runtime/protheus_cli_modules.ts').rust50MigrationProgram;
 
 if (require.main === module) {
-  process.exit(run(process.argv.slice(2)));
+  process.exit(mod.run(process.argv.slice(2)));
 }
 
-module.exports = { run, normalizeSubcommand };
+module.exports = mod;

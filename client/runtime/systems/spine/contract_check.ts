@@ -1,13 +1,11 @@
 #!/usr/bin/env tsx
-// Compatibility shim: routes legacy merge-guard contract-check entrypoint into Rust authority.
+// TypeScript compatibility shim only.
+// Layer ownership: core/layer0/ops::contract-check (authoritative contract validation route).
 
-import { runProtheusOps } from '../ops/run_protheus_ops.ts';
-
-export function run(argv: string[] = process.argv.slice(2)): number {
-  const args = argv.length ? ['contract-check', ...argv] : ['contract-check', 'status'];
-  return runProtheusOps(args, { unknownDomainFallback: false });
-}
+const mod = require('../../../../adapters/runtime/protheus_cli_modules.ts').contractCheck;
 
 if (require.main === module) {
-  process.exit(run(process.argv.slice(2)));
+  process.exit(mod.run(process.argv.slice(2)));
 }
+
+module.exports = mod;
