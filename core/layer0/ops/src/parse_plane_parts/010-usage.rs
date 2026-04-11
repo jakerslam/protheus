@@ -33,12 +33,20 @@ fn usage() {
     println!("  protheus-ops parse-plane visualize [--from-path=<path>] [--strict=1|0]");
     println!("  protheus-ops parse-plane postprocess-table [--table-json=<json>|--table-path=<path>|--from-path=<path>] [--max-rows=<n>] [--max-cols=<n>] [--strict=1|0]");
     println!("  protheus-ops parse-plane flatten [--json=<json>|--json-path=<path>|--from-path=<path>] [--max-depth=<n>] [--format=dot|slash] [--strict=1|0]");
-    println!("  protheus-ops parse-plane export [--from-path=<path>] [--output-path=<path>] [--format=json|jsonl|md] [--strict=1|0]");
+    println!("  protheus-ops parse-plane export [--from-path=<path>] [--output-path=<path>|--out-path=<path>] [--format=json|jsonl|md] [--strict=1|0]");
     println!("  protheus-ops parse-plane template-governance [--manifest=<path>] [--templates-root=<path>] [--strict=1|0]");
 }
 
 fn state_root(root: &Path) -> PathBuf {
     scoped_state_root(root, STATE_ENV, STATE_SCOPE)
+}
+
+fn resolve_plane_path(root: &Path, raw: &str) -> PathBuf {
+    if Path::new(raw).is_absolute() {
+        PathBuf::from(raw)
+    } else {
+        root.join(raw)
+    }
 }
 
 fn latest_path(root: &Path) -> PathBuf {
@@ -138,11 +146,7 @@ fn load_source(root: &Path, parsed: &crate::ParsedArgs) -> Result<(String, Strin
         .get("file")
         .or_else(|| parsed.positional.get(1))
     {
-        let path = if Path::new(file_rel).is_absolute() {
-            PathBuf::from(file_rel)
-        } else {
-            root.join(file_rel)
-        };
+        let path = resolve_plane_path(root, file_rel);
         let source = fs::read_to_string(&path)
             .map_err(|_| format!("source_file_not_found:{}", path.display()))?;
         if source.trim().is_empty() {
@@ -155,11 +159,7 @@ fn load_source(root: &Path, parsed: &crate::ParsedArgs) -> Result<(String, Strin
 
 fn load_mapping(root: &Path, parsed: &crate::ParsedArgs) -> Result<(String, Value), String> {
     if let Some(path_raw) = parsed.flags.get("mapping-path") {
-        let path = if Path::new(path_raw).is_absolute() {
-            PathBuf::from(path_raw)
-        } else {
-            root.join(path_raw)
-        };
+        let path = resolve_plane_path(root, path_raw);
         let value =
             read_json(&path).ok_or_else(|| format!("mapping_not_found:{}", path.display()))?;
         return Ok((path.display().to_string(), value));
@@ -355,4 +355,3 @@ fn strip_footnote(cell: &str) -> (String, Option<String>) {
     let note = clean(&trimmed[open_idx..], 64);
     (base, Some(note))
 }
-
