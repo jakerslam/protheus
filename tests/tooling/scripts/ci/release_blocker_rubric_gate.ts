@@ -38,24 +38,69 @@ function buildReport() {
   const allowedStatuses = new Set(rubric.allowed_statuses || []);
   const blockingStatuses = new Set(rubric.blocking_statuses || []);
   const invalid: string[] = [];
-  const openBlockers: string[] = [];
+  const openBlockers: Array<{
+    id: string;
+    title: string;
+    owner: string;
+    status: string;
+    age_days: number;
+    exit_criteria: string;
+  }> = [];
+  const ownerCounts: Record<string, number> = {};
+  const statusCounts: Record<string, number> = {};
+  const budgetMaxOpen = Number.isFinite(Number(rubric.release_blocker_budget_max_open))
+    ? Number(rubric.release_blocker_budget_max_open)
+    : 0;
   for (const row of rubric.entries || []) {
     const id = clean(row.id, 120) || 'unknown';
+    const owner = clean(row.owner, 120);
+    const title = clean(row.title, 200);
+    const status = clean(row.status, 80);
+    const exitCriteria = clean(row.exit_criteria, 300);
+    const openedAt = clean(row.opened_at, 40);
     if (!allowedClassifications.has(row.classification)) invalid.push(`${id}:invalid_classification`);
     if (!allowedStatuses.has(row.status)) invalid.push(`${id}:invalid_status`);
-    if (!clean(row.owner, 120) || !clean(row.title, 200) || !clean(row.rationale, 300)) {
+    if (!owner || !title || !clean(row.rationale, 300)) {
       invalid.push(`${id}:missing_required_fields`);
     }
+    if (!openedAt) invalid.push(`${id}:opened_at_missing`);
+    if (!exitCriteria) invalid.push(`${id}:exit_criteria_missing`);
+    ownerCounts[owner || 'unassigned'] = (ownerCounts[owner || 'unassigned'] || 0) + 1;
+    statusCounts[status || 'unknown'] = (statusCounts[status || 'unknown'] || 0) + 1;
     if (row.classification === 'release_blocker' && blockingStatuses.has(row.status)) {
-      openBlockers.push(id);
+      const openedAtMs = Date.parse(openedAt);
+      const ageDays = Number.isFinite(openedAtMs)
+        ? Math.max(0, Math.floor((Date.now() - openedAtMs) / 86400000))
+        : -1;
+      if (!Number.isFinite(openedAtMs)) invalid.push(`${id}:opened_at_invalid`);
+      openBlockers.push({
+        id,
+        title,
+        owner,
+        status,
+        age_days: ageDays,
+        exit_criteria: exitCriteria,
+      });
     }
   }
+  const openBlockerIds = openBlockers.map((row) => row.id);
+  const oldestOpenBlockerDays = openBlockers.reduce(
+    (max, row) => Math.max(max, Number(row.age_days || 0)),
+    0,
+  );
+  const budgetRemaining = budgetMaxOpen - openBlockers.length;
   return {
-    ok: invalid.length === 0 && openBlockers.length === 0,
+    ok: invalid.length === 0 && openBlockers.length <= budgetMaxOpen,
     type: 'release_blocker_rubric_gate',
     generated_at: new Date().toISOString(),
     invalid,
-    open_release_blockers: openBlockers,
+    release_blocker_budget_max_open: budgetMaxOpen,
+    release_blocker_budget_remaining: budgetRemaining,
+    open_release_blockers: openBlockerIds,
+    oldest_open_blocker_days: oldestOpenBlockerDays,
+    by_owner: ownerCounts,
+    by_status: statusCounts,
+    burn_down_dashboard: openBlockers,
     total_entries: Array.isArray(rubric.entries) ? rubric.entries.length : 0,
   };
 }

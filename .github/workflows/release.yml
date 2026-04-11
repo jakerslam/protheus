@@ -157,20 +157,9 @@ jobs:
 
       - name: Release topology, compatibility, and recovery evidence
         if: steps.semver.outputs.release_ready == '1'
-        env:
-          INFRING_RELEASE_HARDENING_WINDOW: "1"
         run: |
-          npm run -s dr:gameday
-          npm run -s dr:gameday
-          npm run -s dr:gameday
-          npm run -s dr:gameday:gate
-          npm run -s ops:legacy-runner:release-guard
-          npm run -s ops:production-topology:gate
-          npm run -s ops:stateful-upgrade-rollback:gate
-          npm run -s ops:release-blockers:gate
-          npm run -s ops:release-hardening-window:guard
+          npm run -s ops:release:rc-rehearsal
           npm run -s ops:ipc-bridge:soak
-          npm run -s ops:support-bundle:export
 
       - name: Benchmark public artifact gate
         if: steps.semver.outputs.release_ready == '1'
@@ -315,9 +304,12 @@ jobs:
             --topology=core/local/artifacts/production_topology_diagnostic_current.json \
             --state-compat=core/local/artifacts/stateful_upgrade_rollback_gate_current.json \
             --blockers=core/local/artifacts/release_blocker_rubric_current.json \
+            --closure=core/local/artifacts/production_readiness_closure_gate_current.json \
+            --hardening=core/local/artifacts/release_hardening_window_guard_current.json \
             --ipc-soak=local/state/ops/ops_ipc_bridge_stability_soak/latest.json \
             --dr=local/state/ops/dr_gameday/latest.json \
-            --changelog=client/runtime/local/state/release/CHANGELOG.auto.md
+            --changelog=client/runtime/local/state/release/CHANGELOG.auto.md \
+            --require-release-artifacts=1
 
       - name: Generate release SHA256SUMS
         if: steps.semver.outputs.release_ready == '1'

@@ -34,6 +34,22 @@ const RELEASE_SCORECARD_PATH = path.join(
   ROOT,
   'client/runtime/local/state/release/scorecard/release_scorecard.json',
 );
+const RELEASE_RC_REHEARSAL_PATH = path.join(
+  ROOT,
+  'core/local/artifacts/release_candidate_dress_rehearsal_current.json',
+);
+const SUPPORTED_COMMAND_LATENCY_IDS = new Set([
+  'transport_topology',
+  'legacy_process_runner_release_guard',
+  'production_topology_diagnostic',
+  'transport_spawn_audit',
+  'arch_boundary_conformance',
+  'release_policy_gate',
+  'assimilation_v1_support_guard',
+  'release_blocker_rubric',
+  'release_hardening_window',
+  'runtime_telemetry_status',
+]);
 
 function clean(value: unknown, max = 500): string {
   return String(value == null ? '' : value).trim().slice(0, max);
@@ -131,6 +147,118 @@ function checkFile(pathRel: string) {
   };
 }
 
+function collectBundleFiles() {
+  return [
+    checkFile('core/local/artifacts/release_policy_gate_current.json'),
+    checkFile('core/local/artifacts/production_readiness_closure_gate_current.json'),
+    checkFile('core/local/artifacts/production_topology_diagnostic_current.json'),
+    checkFile('core/local/artifacts/transport_spawn_audit_current.json'),
+    checkFile('core/local/artifacts/legacy_process_runner_release_guard_current.json'),
+    checkFile('core/local/artifacts/stateful_upgrade_rollback_gate_current.json'),
+    checkFile('core/local/artifacts/assimilation_v1_support_guard_current.json'),
+    checkFile('core/local/artifacts/release_blocker_rubric_current.json'),
+    checkFile('core/local/artifacts/release_hardening_window_guard_current.json'),
+    checkFile('core/local/artifacts/arch_boundary_conformance_current.json'),
+    checkFile('client/runtime/config/production_readiness_closure_policy.json'),
+    checkFile('client/runtime/config/assimilation_v1_support_contract.json'),
+    checkFile('client/runtime/config/release_blocker_rubric.json'),
+    checkFile('client/runtime/config/release_hardening_window_policy.json'),
+    checkFile('client/runtime/local/state/release/scorecard/release_scorecard.json'),
+    checkFile('core/local/artifacts/release_candidate_dress_rehearsal_current.json'),
+  ];
+}
+
+function assembleBundleReport(checks: CommandResult[], files: Array<{ path: string; exists: boolean }>) {
+  const payloadChecks = checks.filter((row) => row.payload && typeof row.payload === 'object');
+  const degradedFlags = checks
+    .flatMap((row) =>
+      Array.isArray((row.payload as any)?.degraded_flags) ? (row.payload as any).degraded_flags : [],
+    )
+    .filter(Boolean);
+  const maxCommandLatencyMs = checks.reduce((max, row) => Math.max(max, Number(row.duration_ms || 0)), 0);
+  const supportedCommandLatencyMs = checks
+    .filter((row) => SUPPORTED_COMMAND_LATENCY_IDS.has(row.id))
+    .reduce((max, row) => Math.max(max, Number(row.duration_ms || 0)), 0);
+  const receiptCompletenessRate = checks.length === 0 ? 1 : payloadChecks.length / checks.length;
+  const failedChecks = checks
+    .filter((row) => !row.ok)
+    .map((row) => ({
+      id: row.id,
+      status: row.status,
+      stderr: clean(row.stderr, 400),
+      artifact_paths: files.filter((fileRow) => fileRow.exists).map((fileRow) => fileRow.path),
+    }));
+
+  return {
+    ok: checks.every((row) => row.ok),
+    type: 'support_bundle',
+    generated_at: new Date().toISOString(),
+    host: {
+      platform: process.platform,
+      arch: process.arch,
+      node: process.version,
+      cwd: ROOT,
+      hostname: os.hostname(),
+    },
+    metrics: {
+      total_checks: checks.length,
+      receipted_checks: payloadChecks.length,
+      receipt_completeness_rate: Number(receiptCompletenessRate.toFixed(4)),
+      supported_command_latency_ms: supportedCommandLatencyMs,
+      max_command_latency_ms: maxCommandLatencyMs,
+    },
+    closure_evidence: {
+      transport_topology: checks.find((row) => row.id === 'transport_topology')?.payload || null,
+      legacy_process_runner_release_guard:
+        checks.find((row) => row.id === 'legacy_process_runner_release_guard')?.payload || null,
+      production_topology_diagnostic:
+        checks.find((row) => row.id === 'production_topology_diagnostic')?.payload || null,
+      transport_spawn_audit:
+        checks.find((row) => row.id === 'transport_spawn_audit')?.payload || null,
+      arch_boundary_conformance:
+        checks.find((row) => row.id === 'arch_boundary_conformance')?.payload || null,
+      production_closure: checks.find((row) => row.id === 'production_closure')?.payload || null,
+      release_policy_gate: checks.find((row) => row.id === 'release_policy_gate')?.payload || null,
+      stateful_upgrade_rollback:
+        checks.find((row) => row.id === 'stateful_upgrade_rollback')?.payload || null,
+      assimilation_v1_support_guard:
+        checks.find((row) => row.id === 'assimilation_v1_support_guard')?.payload || null,
+      release_blocker_rubric:
+        checks.find((row) => row.id === 'release_blocker_rubric')?.payload || null,
+      release_hardening_window:
+        checks.find((row) => row.id === 'release_hardening_window')?.payload || null,
+      recovery_rehearsal: checks.find((row) => row.id === 'recovery_rehearsal')?.payload || null,
+      runtime_telemetry_status:
+        checks.find((row) => row.id === 'runtime_telemetry_status')?.payload || null,
+      release_scorecard: checks.find((row) => row.id === 'release_scorecard')?.payload || null,
+    },
+    closure_contracts: {
+      production_readiness_closure_policy: readJsonMaybe(CLOSURE_POLICY_PATH),
+      assimilation_v1_support_contract: readJsonMaybe(ASSIMILATION_V1_PATH),
+      release_blocker_rubric: readJsonMaybe(BLOCKER_RUBRIC_PATH),
+      release_hardening_window_policy: readJsonMaybe(HARDENING_WINDOW_PATH),
+    },
+    closure_artifacts: {
+      release_scorecard: readJsonMaybe(RELEASE_SCORECARD_PATH),
+      release_candidate_dress_rehearsal: readJsonMaybe(RELEASE_RC_REHEARSAL_PATH),
+    },
+    incident_truth_package: {
+      ready: failedChecks.length === 0 && degradedFlags.length === 0,
+      failed_checks: failedChecks,
+      degraded_flags: degradedFlags,
+      topology_support_level:
+        (checks.find((row) => row.id === 'production_topology_diagnostic')?.payload as any)?.support_level ||
+        'unknown',
+      recovery_gate_state:
+        (checks.find((row) => row.id === 'recovery_rehearsal')?.payload as any)?.gate_state || 'unknown',
+      artifact_paths: files.filter((row) => row.exists).map((row) => row.path),
+    },
+    degraded_flags: degradedFlags,
+    checks,
+    files,
+  };
+}
+
 function buildBundle(outPath: string) {
   const checks: CommandResult[] = [
     runTsCommand('transport_topology', 'client/runtime/systems/ops/transport_topology_status.ts', [
@@ -185,86 +313,20 @@ function buildBundle(outPath: string) {
     ]),
   ];
 
-  const files = [
-    checkFile('core/local/artifacts/release_policy_gate_current.json'),
-    checkFile('core/local/artifacts/production_readiness_closure_gate_current.json'),
-    checkFile('core/local/artifacts/production_topology_diagnostic_current.json'),
-    checkFile('core/local/artifacts/transport_spawn_audit_current.json'),
-    checkFile('core/local/artifacts/legacy_process_runner_release_guard_current.json'),
-    checkFile('core/local/artifacts/stateful_upgrade_rollback_gate_current.json'),
-    checkFile('core/local/artifacts/assimilation_v1_support_guard_current.json'),
-    checkFile('core/local/artifacts/release_blocker_rubric_current.json'),
-    checkFile('core/local/artifacts/release_hardening_window_guard_current.json'),
-    checkFile('core/local/artifacts/arch_boundary_conformance_current.json'),
-    checkFile('client/runtime/config/production_readiness_closure_policy.json'),
-    checkFile('client/runtime/config/assimilation_v1_support_contract.json'),
-    checkFile('client/runtime/config/release_blocker_rubric.json'),
-    checkFile('client/runtime/config/release_hardening_window_policy.json'),
-    checkFile('client/runtime/local/state/release/scorecard/release_scorecard.json'),
-  ];
-  const payloadChecks = checks.filter((row) => row.payload && typeof row.payload === 'object');
-  const degradedFlags = checks
-    .flatMap((row) =>
-      Array.isArray((row.payload as any)?.degraded_flags) ? (row.payload as any).degraded_flags : [],
-    )
-    .filter(Boolean);
-  const maxCommandLatencyMs = checks.reduce((max, row) => Math.max(max, Number(row.duration_ms || 0)), 0);
-  const receiptCompletenessRate = checks.length === 0 ? 1 : payloadChecks.length / checks.length;
+  const files = collectBundleFiles();
+  const provisionalPath = outPath.replace(/\.json$/u, '.provisional.json');
+  const provisionalReport = assembleBundleReport(checks, files);
+  fs.mkdirSync(path.dirname(provisionalPath), { recursive: true });
+  fs.writeFileSync(provisionalPath, `${JSON.stringify(provisionalReport, null, 2)}\n`, 'utf8');
 
-  const report = {
-    ok: checks.every((row) => row.ok),
-    type: 'support_bundle',
-    generated_at: new Date().toISOString(),
-    host: {
-      platform: process.platform,
-      arch: process.arch,
-      node: process.version,
-      cwd: ROOT,
-      hostname: os.hostname(),
-    },
-    metrics: {
-      total_checks: checks.length,
-      receipted_checks: payloadChecks.length,
-      receipt_completeness_rate: Number(receiptCompletenessRate.toFixed(4)),
-      max_command_latency_ms: maxCommandLatencyMs,
-    },
-    closure_evidence: {
-      transport_topology: checks.find((row) => row.id === 'transport_topology')?.payload || null,
-      legacy_process_runner_release_guard:
-        checks.find((row) => row.id === 'legacy_process_runner_release_guard')?.payload || null,
-      production_topology_diagnostic:
-        checks.find((row) => row.id === 'production_topology_diagnostic')?.payload || null,
-      transport_spawn_audit:
-        checks.find((row) => row.id === 'transport_spawn_audit')?.payload || null,
-      arch_boundary_conformance:
-        checks.find((row) => row.id === 'arch_boundary_conformance')?.payload || null,
-      production_closure: checks.find((row) => row.id === 'production_closure')?.payload || null,
-      release_policy_gate: checks.find((row) => row.id === 'release_policy_gate')?.payload || null,
-      stateful_upgrade_rollback:
-        checks.find((row) => row.id === 'stateful_upgrade_rollback')?.payload || null,
-      assimilation_v1_support_guard:
-        checks.find((row) => row.id === 'assimilation_v1_support_guard')?.payload || null,
-      release_blocker_rubric:
-        checks.find((row) => row.id === 'release_blocker_rubric')?.payload || null,
-      release_hardening_window:
-        checks.find((row) => row.id === 'release_hardening_window')?.payload || null,
-      recovery_rehearsal: checks.find((row) => row.id === 'recovery_rehearsal')?.payload || null,
-      runtime_telemetry_status:
-        checks.find((row) => row.id === 'runtime_telemetry_status')?.payload || null,
-    },
-    closure_contracts: {
-      production_readiness_closure_policy: readJsonMaybe(CLOSURE_POLICY_PATH),
-      assimilation_v1_support_contract: readJsonMaybe(ASSIMILATION_V1_PATH),
-      release_blocker_rubric: readJsonMaybe(BLOCKER_RUBRIC_PATH),
-      release_hardening_window_policy: readJsonMaybe(HARDENING_WINDOW_PATH),
-    },
-    closure_artifacts: {
-      release_scorecard: readJsonMaybe(RELEASE_SCORECARD_PATH),
-    },
-    degraded_flags: degradedFlags,
-    checks,
-    files,
-  };
+  checks.push(
+    runTsCommand('release_scorecard', 'tests/tooling/scripts/ci/release_scorecard_generate.ts', [
+      '--out=client/runtime/local/state/release/scorecard/release_scorecard.json',
+      `--support-bundle=${provisionalPath}`,
+      '--require-release-artifacts=0',
+    ]),
+  );
+  const report = assembleBundleReport(checks, collectBundleFiles());
 
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
   fs.writeFileSync(outPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
