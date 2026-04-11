@@ -22,7 +22,7 @@ fn run_export(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
     let source_path = parsed
         .flags
         .get("from-path")
-        .map(PathBuf::from)
+        .map(|raw| resolve_plane_path(root, raw))
         .unwrap_or_else(|| latest_path(root));
     let source_value = match read_json(&source_path) {
         Some(v) => v,
@@ -41,7 +41,7 @@ fn run_export(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
         .flags
         .get("output-path")
         .or_else(|| parsed.flags.get("out-path"))
-        .map(PathBuf::from)
+        .map(|raw| resolve_plane_path(root, raw))
         .unwrap_or_else(|| {
             state_root(root)
                 .join("exports")
@@ -202,5 +202,33 @@ mod tests {
         let gate = conduit_enforcement(root.path(), &parsed, true, "parse-doc");
         assert_eq!(gate.get("ok").and_then(Value::as_bool), Some(false));
     }
-}
 
+    #[test]
+    fn export_resolves_relative_paths_against_root() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let source_path = root.path().join("fixtures").join("source.json");
+        std::fs::create_dir_all(source_path.parent().expect("source parent")).expect("mkdir");
+        std::fs::write(&source_path, "{\n  \"ok\": true,\n  \"type\": \"parse_plane_status\"\n}\n")
+            .expect("write source");
+        let parsed = crate::parse_args(&[
+            "export".to_string(),
+            "--from-path=fixtures/source.json".to_string(),
+            "--output-path=artifacts/out.json".to_string(),
+            "--format=json".to_string(),
+        ]);
+        let out = run_export(root.path(), &parsed, true);
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        let source_display = source_path.display().to_string();
+        assert_eq!(
+            out.get("source_path").and_then(Value::as_str),
+            Some(source_display.as_str())
+        );
+        let output_path = root.path().join("artifacts").join("out.json");
+        let output_display = output_path.display().to_string();
+        assert!(output_path.exists());
+        assert_eq!(
+            out.get("output_path").and_then(Value::as_str),
+            Some(output_display.as_str())
+        );
+    }
+}

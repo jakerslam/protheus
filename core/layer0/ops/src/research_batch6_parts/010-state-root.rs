@@ -31,6 +31,14 @@ fn state_root(root: &Path) -> PathBuf {
     scoped_state_root(root, STATE_ENV, STATE_SCOPE)
 }
 
+fn resolve_rooted_path(root: &Path, rel_or_abs: &str) -> PathBuf {
+    if Path::new(rel_or_abs).is_absolute() {
+        PathBuf::from(rel_or_abs)
+    } else {
+        root.join(rel_or_abs)
+    }
+}
+
 fn normalize_claim_evidence(rows: Vec<Value>) -> Vec<Value> {
     rows.into_iter()
         .map(|row| {
@@ -94,11 +102,7 @@ fn finalize_receipt(mut out: Value) -> Value {
 }
 
 fn read_json_or(root: &Path, rel_or_abs: &str, fallback: Value) -> Value {
-    let path = if Path::new(rel_or_abs).is_absolute() {
-        PathBuf::from(rel_or_abs)
-    } else {
-        root.join(rel_or_abs)
-    };
+    let path = resolve_rooted_path(root, rel_or_abs);
     read_json(&path).unwrap_or(fallback)
 }
 
@@ -127,14 +131,39 @@ fn parse_json_flag_or_path(
             .map_err(|err| format!("invalid_json_flag:{json_key}:{err}"));
     }
     if let Some(rel) = parsed.flags.get(path_key) {
-        let path = if Path::new(rel).is_absolute() {
-            PathBuf::from(rel)
-        } else {
-            root.join(rel)
-        };
+        let path = resolve_rooted_path(root, rel);
         return read_json(&path).ok_or_else(|| format!("json_path_not_found:{}", path.display()));
     }
     Ok(fallback)
+}
+
+fn contract_name_set(contract: &Value, key: &str) -> BTreeSet<String> {
+    contract
+        .get(key)
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|value| value.as_str().map(|v| clean(v, 80).to_ascii_lowercase()))
+        .filter(|value| !value.is_empty())
+        .collect::<BTreeSet<_>>()
+}
+
+fn display_value_text(value: &Value, max_len: usize) -> String {
+    match value {
+        Value::Null => String::new(),
+        Value::String(text) => clean(text, max_len),
+        _ => clean(value.to_string(), max_len),
+    }
+}
+
+fn csv_escape(value: &Value) -> String {
+    let rendered = display_value_text(value, 600);
+    if rendered.contains([',', '"', '\n', '\r']) {
+        format!("\"{}\"", rendered.replace('"', "\"\""))
+    } else {
+        rendered
+    }
 }
 
 fn mode_requires_safety(mode: &str, policy: &Value) -> bool {
@@ -357,4 +386,3 @@ fn parse_title(html: &str) -> String {
     }
     "untitled".to_string()
 }
-

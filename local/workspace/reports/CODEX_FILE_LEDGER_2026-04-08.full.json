@@ -6360,7 +6360,7 @@
       "order": 577
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/research_batch6_parts/030-run-pipeline.rs",
       "language": "rs",
       "loc": 456,
@@ -7922,7 +7922,7 @@
       "order": 719
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/research_plane_parts/010-usage.rs",
       "language": "rs",
       "loc": 401,
@@ -8527,7 +8527,7 @@
       "order": 774
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/research_batch6_parts/010-state-root.rs",
       "language": "rs",
       "loc": 360,
@@ -8549,7 +8549,7 @@
       "order": 776
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/parse_plane_parts/010-usage.rs",
       "language": "rs",
       "loc": 358,
@@ -9847,7 +9847,7 @@
       "order": 894
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/parse_plane_parts/050-run.rs",
       "language": "rs",
       "loc": 206,
@@ -10892,7 +10892,7 @@
       "order": 989
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/research_batch6_parts/research_batch6_tests.rs",
       "language": "rs",
       "loc": 17,

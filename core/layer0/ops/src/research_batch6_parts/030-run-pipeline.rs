@@ -37,11 +37,7 @@ pub fn run_pipeline(root: &Path, parsed: &ParsedArgs, strict: bool) -> Value {
             .display()
             .to_string()
     });
-    let export_path = if Path::new(&export_path_rel).is_absolute() {
-        PathBuf::from(&export_path_rel)
-    } else {
-        root.join(&export_path_rel)
-    };
+    let export_path = resolve_rooted_path(root, &export_path_rel);
 
     let mut errors = Vec::<String>::new();
     if contract
@@ -72,6 +68,7 @@ pub fn run_pipeline(root: &Path, parsed: &ParsedArgs, strict: bool) -> Value {
     if !allowed_formats.iter().any(|v| v == &export_format) {
         errors.push("export_format_not_allowed".to_string());
     }
+    let allowed_stages = contract_name_set(&contract, "stages");
     let mut items = items_json.unwrap_or_else(|err| {
         errors.push(err);
         json!([])
@@ -101,6 +98,18 @@ pub fn run_pipeline(root: &Path, parsed: &ParsedArgs, strict: bool) -> Value {
             .and_then(Value::as_str)
             .map(|v| v.to_ascii_lowercase())
             .unwrap_or_else(|| "unknown".to_string());
+        if !allowed_stages.is_empty() && !allowed_stages.contains(&stage_name) {
+            if strict {
+                errors.push(format!("pipeline_stage_not_allowed:{stage_name}"));
+            }
+            stage_receipts.push(json!({
+                "stage": stage_name,
+                "before": rows.len(),
+                "after": rows.len(),
+                "status": "ignored"
+            }));
+            continue;
+        }
         let before = rows.len();
         if stage_name == "validate" {
             let required = stage
@@ -157,6 +166,15 @@ pub fn run_pipeline(root: &Path, parsed: &ParsedArgs, strict: bool) -> Value {
             "after": rows.len()
         }));
     }
+    if !errors.is_empty() {
+        return finalize_receipt(json!({
+            "ok": false,
+            "strict": strict,
+            "type": "research_plane_item_pipeline",
+            "errors": errors,
+            "stage_receipts": stage_receipts
+        }));
+    }
     if let Some(parent) = export_path.parent() {
         let _ = fs::create_dir_all(parent);
     }
@@ -168,12 +186,12 @@ pub fn run_pipeline(root: &Path, parsed: &ParsedArgs, strict: bool) -> Value {
             .collect::<BTreeSet<_>>()
             .into_iter()
             .collect::<Vec<_>>();
-        let mut lines = vec![headers.join(",")];
+        let mut lines = vec![headers.iter().map(|header| csv_escape(&Value::String(header.clone()))).collect::<Vec<_>>().join(",")];
         for row in &rows {
             let obj = row.as_object().cloned().unwrap_or_default();
             let line = headers
                 .iter()
-                .map(|h| clean(obj.get(h).cloned().unwrap_or(Value::Null).to_string(), 600))
+                .map(|h| csv_escape(&obj.get(h).cloned().unwrap_or(Value::Null)))
                 .collect::<Vec<_>>()
                 .join(",");
             lines.push(line);
@@ -453,4 +471,3 @@ pub fn run_console(root: &Path, parsed: &ParsedArgs, strict: bool) -> Value {
     }));
     out
 }
-
