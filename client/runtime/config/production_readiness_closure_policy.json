@@ -38,6 +38,19 @@
     "support_level": "experimental_opt_in",
     "frozen_vertical_slice": "runtime_ingress_to_assimilation_kernel"
   },
+  "legacy_process_runner_transition": {
+    "status": "dev_only_quarantined",
+    "deletion_target": "Delete after one stable release cycle beyond v0.3.10-alpha unless a release blocker remains open.",
+    "owner": "ops"
+  },
+  "support_bundle_contract": {
+    "single_incident_truth_package": true,
+    "script": "ops:support-bundle:export"
+  },
+  "release_candidate_rehearsal": {
+    "script": "ops:release:rc-rehearsal",
+    "strict": true
+  },
   "numeric_thresholds": {
     "ipc_success_rate_min": 0.95,
     "receipt_completeness_rate_min": 1,
@@ -65,17 +78,22 @@
     "tests/tooling/scripts/ci/legacy_process_runner_release_guard.ts"
     ,
     "tests/tooling/scripts/ci/transport_spawn_audit.ts",
-    "tests/tooling/scripts/ci/assimilation_v1_support_guard.ts"
+    "tests/tooling/scripts/ci/assimilation_v1_support_guard.ts",
+    "tests/tooling/scripts/ci/release_candidate_dress_rehearsal.ts"
   ],
   "required_package_scripts": [
     "ops:legacy-runner:release-guard",
     "ops:transport:topology:gate",
     "ops:transport:spawn-audit",
     "ops:production-topology:status",
+    "ops:production-topology:gate",
     "ops:release-contract:gate",
     "ops:stateful-upgrade-rollback:gate",
     "ops:assimilation:v1:support:guard",
     "ops:release-blockers:gate",
+    "ops:release-hardening-window:guard",
+    "ops:release:scorecard:gate",
+    "ops:release:rc-rehearsal",
     "ops:reliability:gauntlet",
     "ops:ipc-bridge:soak",
     "ops:f100-enterprise-baseline",
@@ -90,12 +108,12 @@
   ],
   "required_ci_invocations": [
     "ops:legacy-runner:release-guard",
-    "ops:transport:topology:gate",
     "ops:transport:spawn-audit",
     "ops:stateful-upgrade-rollback:gate",
     "ops:assimilation:v1:support:guard",
     "ops:release-blockers:gate",
     "ops:release-contract:gate",
+    "ops:release:rc-rehearsal",
     "ops:reliability:gauntlet",
     "ops:ipc-bridge:soak",
     "ops:production-closure:gate"
@@ -106,11 +124,14 @@
     "--id=\"$VERIFY_PROFILE\""
   ],
   "required_verify_profile_gate_ids": {
-    "release": [
-      "ops:top1:proof-coverage",
-      "ops:origin-integrity:run",
-      "ops:origin-integrity:certificate"
-    ]
+      "release": [
+        "ops:top1:proof-coverage",
+        "ops:origin-integrity:run",
+        "ops:origin-integrity:certificate",
+        "ops:production-topology:gate",
+        "ops:release-hardening-window:guard",
+        "ops:release:scorecard:gate"
+      ]
   },
   "required_readme_markers": [
     "Production Support Contract",
@@ -119,23 +140,29 @@
     "Experimental lanes (explicit opt-in): `assimilate`",
     "Resident IPC is the only supported production topology; the legacy process runner is dev-only.",
     "Release entrypoints quarantine the legacy runner under `adapters/runtime/dev_only/**`.",
+    "Legacy runner deletion target: after one stable release cycle beyond `v0.3.10-alpha` unless a release blocker remains.",
     "Operator topology diagnostic: `npm run -s ops:production-topology:status`",
     "Transport spawn audit: `npm run -s ops:transport:spawn-audit`",
     "Assimilation v1 support guard: `npm run -s ops:assimilation:v1:support:guard`",
     "Frozen assimilation v1 slice: one ingress -> orchestration -> assimilation-kernel -> receipt-output path is hardened; broader assimilation surfaces remain experimental.",
+    "Numeric release thresholds are enforced by `npm run -s ops:release:scorecard:gate`.",
+    "Release-candidate dress rehearsal: `npm run -s ops:release:rc-rehearsal`.",
+    "Support bundle is the single incident truth package for release closure.",
     "`npm run -s ops:support-bundle:export`"
   ],
   "smoke_scripts": [
     "ops:legacy-runner:release-guard",
     "ops:transport:topology:gate",
     "ops:transport:spawn-audit",
-    "ops:production-topology:status",
+    "ops:production-topology:gate",
     "ops:stateful-upgrade-rollback:gate",
     "ops:assimilation:v1:support:guard",
     "ops:release-blockers:gate",
+    "ops:release-hardening-window:guard",
     "dr:gameday",
     "dr:gameday:gate",
     "ops:release-contract:gate",
-    "ops:support-bundle:export"
+    "ops:support-bundle:export",
+    "ops:release:scorecard:gate"
   ]
 }

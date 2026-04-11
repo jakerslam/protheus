@@ -12,6 +12,7 @@
     "accepted_risk",
     "done"
   ],
+  "release_blocker_budget_max_open": 0,
   "blocking_statuses": [
     "open",
     "mitigated"
@@ -23,7 +24,9 @@
       "classification": "release_blocker",
       "status": "done",
       "owner": "ops",
-      "rationale": "Release artifacts must not silently fall back to the legacy process runner."
+      "rationale": "Release artifacts must not silently fall back to the legacy process runner.",
+      "opened_at": "2026-04-10",
+      "exit_criteria": "Production topology diagnostic, release guard, and release-candidate rehearsal all pass with resident IPC as the only supported production transport."
     },
     {
       "id": "RBR-002",
@@ -31,7 +34,9 @@
       "classification": "release_blocker",
       "status": "done",
       "owner": "ops",
-      "rationale": "Receipts, task state, memory state, and assimilation artifacts need explicit upgrade and rollback coverage."
+      "rationale": "Receipts, task state, memory state, and assimilation artifacts need explicit upgrade and rollback coverage.",
+      "opened_at": "2026-04-10",
+      "exit_criteria": "Fixture validation and live runtime rehearsal both pass for receipts, task state, memory state, and the frozen assimilation support slice."
     },
     {
       "id": "RBR-003",
@@ -39,7 +44,29 @@
       "classification": "experimental_only",
       "status": "done",
       "owner": "orchestration",
-      "rationale": "Only the v1 vertical slice is hardened for closure evidence; other assimilation lanes must not be implied as production supported."
+      "rationale": "Only the v1 vertical slice is hardened for closure evidence; other assimilation lanes must not be implied as production supported.",
+      "opened_at": "2026-04-10",
+      "exit_criteria": "Closure policy, README, and release gates all preserve the frozen slice boundary and classify broader assimilation lanes as experimental."
+    },
+    {
+      "id": "RBR-004",
+      "title": "Numeric release thresholds must fail release when regressed",
+      "classification": "release_blocker",
+      "status": "done",
+      "owner": "ops",
+      "rationale": "IPC success rate, receipt completeness, supported command latency, and recovery RTO/RPO must be enforced as real release blockers rather than advisory metrics.",
+      "opened_at": "2026-04-11",
+      "exit_criteria": "Release scorecard gate is required by the closure path and fails strict mode when numeric thresholds regress."
+    },
+    {
+      "id": "RBR-005",
+      "title": "Operator support bundle must be the single incident truth package",
+      "classification": "release_blocker",
+      "status": "done",
+      "owner": "ops",
+      "rationale": "Incident triage should not require hunting across scattered artifacts once the release closure path has run.",
+      "opened_at": "2026-04-11",
+      "exit_criteria": "Support bundle export includes failed release gates, recovery rehearsal, topology diagnostic, release scorecard, and closure artifacts in one package."
     }
   ]
 }

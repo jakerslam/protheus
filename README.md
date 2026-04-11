@@ -35,7 +35,7 @@ Runtime split inside cognition:
 
 See [planes/README.md](planes/README.md) for the canonical architecture contract.
 
-## Current State (March 2026)
+## Current State (April 2026)
 
 What is true in this repository today:
 
@@ -46,7 +46,7 @@ What is true in this repository today:
 - Pure profiles (`--pure`, `--tiny-max`) are Rust-only and intentionally do not expose the rich `gateway` UI surface.
 - Full command surface still requires Node.js 22+; Node-free fallback remains available for core operations.
 - Production release channels are resident-IPC authoritative: process transport fallbacks are blocked (`process_transport_forbidden_in_production` / `process_fallback_forbidden_in_production`).
-- Release-closure evidence now includes topology diagnostics, state compatibility fixtures, recovery rehearsal, and support-bundle export.
+- Release-closure evidence now includes topology diagnostics, live stateful upgrade/rollback rehearsal, recovery rehearsal, numeric release scorecards, and support-bundle export.
 
 ## Production Support Contract
 
@@ -55,10 +55,14 @@ What is true in this repository today:
 - Experimental lanes (explicit opt-in): `assimilate`
 - Resident IPC is the only supported production topology; the legacy process runner is dev-only.
 - Release entrypoints quarantine the legacy runner under `adapters/runtime/dev_only/**`.
+- Legacy runner deletion target: after one stable release cycle beyond `v0.3.10-alpha` unless a release blocker remains.
 - Operator topology diagnostic: `npm run -s ops:production-topology:status`
 - Transport spawn audit: `npm run -s ops:transport:spawn-audit`
 - Assimilation v1 support guard: `npm run -s ops:assimilation:v1:support:guard`
 - Frozen assimilation v1 slice: one ingress -> orchestration -> assimilation-kernel -> receipt-output path is hardened; broader assimilation surfaces remain experimental.
+- Numeric release thresholds are enforced by `npm run -s ops:release:scorecard:gate`.
+- Release-candidate dress rehearsal: `npm run -s ops:release:rc-rehearsal`.
+- Support bundle is the single incident truth package for release closure.
 - Internal/maintenance lanes are not part of the public production SLA.
 - Operator diagnostics and incident export: `npm run -s ops:support-bundle:export`
 
