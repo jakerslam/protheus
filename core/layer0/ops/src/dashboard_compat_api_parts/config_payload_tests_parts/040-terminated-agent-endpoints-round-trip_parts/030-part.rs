@@ -141,6 +141,67 @@ fn actor_agent_management_is_scoped_to_descendants() {
 }
 
 #[test]
+fn lineage_agents_can_message_parent_and_child_without_manage_rights() {
+    let root = terminated_temp_root();
+    init_git_repo(root.path());
+
+    let parent = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"name":"Parent","role":"director"}"#,
+        &terminated_ok_snapshot(),
+    )
+    .expect("create parent");
+    let parent_id = clean_text(
+        parent
+            .payload
+            .get("agent_id")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        180,
+    );
+    let child = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        format!(
+            "{{\"name\":\"Child\",\"role\":\"analyst\",\"parent_agent_id\":\"{}\"}}",
+            parent_id
+        )
+        .as_bytes(),
+        &terminated_ok_snapshot(),
+    )
+    .expect("create child");
+    let child_id = clean_text(
+        child.payload.get("agent_id").and_then(Value::as_str).unwrap_or(""),
+        180,
+    );
+
+    let child_to_parent = handle_with_headers(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{parent_id}/message"),
+        br#"{"message":"status update"}"#,
+        &[("X-Actor-Agent-Id", child_id.as_str())],
+        &terminated_ok_snapshot(),
+    )
+    .expect("child messages parent");
+    assert_eq!(child_to_parent.status, 200);
+
+    let parent_to_child = handle_with_headers(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{child_id}/message"),
+        br#"{"message":"new directive"}"#,
+        &[("X-Actor-Agent-Id", parent_id.as_str())],
+        &terminated_ok_snapshot(),
+    )
+    .expect("parent messages child");
+    assert_eq!(parent_to_child.status, 200);
+}
+
+#[test]
 fn direct_slash_tool_routes_through_agent_message() {
     let root = terminated_temp_root();
     init_git_repo(root.path());
@@ -455,4 +516,3 @@ fn direct_web_fetch_post_endpoint_emits_nexus_connection_metadata() {
         Some("context_stacks")
     );
 }
-

@@ -214,3 +214,14 @@ Out of scope:
   - `tests/tooling/scripts/ci/srs_repair_lane_runner.ts`
   - `tests/tooling/scripts/ci/roi100_moves_runner.ts`
   - `core/layer0/ops/tests/v6_infring_closure_integration.rs`
+
+### 2026-04-10: Lineage Messaging + Tool Attempt Transparency Update
+
+- Lineage-adjacent message delivery is now explicitly allowed for parent/child and sibling session pairs without granting full manage-agent authority; destructive lifecycle actions remain descendant-scoped.
+- Direct tool routes now preserve structured `tool_attempt_receipt` payloads even for blocked/unavailable/error outcomes so parent coordinators can tell whether a child actually attempted a tool call.
+- Current evidence references:
+  - `core/layer0/ops/src/swarm_runtime_parts/050-verify-session-reachable.rs`
+  - `core/layer0/ops/src/swarm_runtime_parts/171-lineage-message-tests.rs`
+  - `core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/agent_scope_full_parts/010-prelude-and-session.rs`
+  - `core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/agent_scope_full_parts/020-message-direct-tool.rs`
+  - `core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/040-terminated-agent-endpoints-round-trip_parts/030-part.rs`

@@ -135,6 +135,49 @@ function run() {
   });
   assert.strictEqual(ack.payload.acknowledged, true);
 
+  // Parent/child lineage-adjacent messaging should work without sibling-only routing.
+  const directiveParent = bridge.sessionsSpawn({
+    task: 'directive parent',
+    state_path: state,
+  });
+  const directiveChild = bridge.sessionsSpawn({
+    task: 'directive child',
+    session_id: directiveParent.session_id,
+    state_path: state,
+  });
+  const parentToChild = bridge.sessionsSend({
+    sender: directiveParent.session_id,
+    session_id: directiveChild.session_id,
+    message: 'directive:inspect workspace root',
+    delivery: 'at_least_once',
+    state_path: state,
+  });
+  const childInbox = bridge.sessionsReceive({
+    session_id: directiveChild.session_id,
+    limit: 8,
+    state_path: state,
+  });
+  assert(
+    childInbox.messages.some((row) => row.message_id === parentToChild.message_id),
+    'expected child to receive parent directive message'
+  );
+  const childToParent = bridge.sessionsSend({
+    sender: directiveChild.session_id,
+    session_id: directiveParent.session_id,
+    message: 'directive_ack:workspace root inspected',
+    delivery: 'at_least_once',
+    state_path: state,
+  });
+  const parentInbox = bridge.sessionsReceive({
+    session_id: directiveParent.session_id,
+    limit: 8,
+    state_path: state,
+  });
+  assert(
+    parentInbox.messages.some((row) => row.message_id === childToParent.message_id),
+    'expected parent to receive child acknowledgement message'
+  );
+
   // Hierarchical budget reservation + settlement.
   const budgetParent = bridge.sessionsSpawn({
     task: 'budget-parent',

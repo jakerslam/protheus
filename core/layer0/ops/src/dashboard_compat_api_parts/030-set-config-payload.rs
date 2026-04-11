@@ -1,5 +1,6 @@
 include_parts!(
     "set_config_payload_parts/010-part.rs",
+    "set_config_payload_parts/011-part.rs",
     "set_config_payload_parts/020-part.rs",
     "set_config_payload_parts/030-part.rs",
     "set_config_payload_parts/040-part.rs",

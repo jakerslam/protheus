@@ -139,7 +139,20 @@ fn handle_agent_scope_message_route(
                 "name": normalize_tool_name(&tool_name),
                 "input": trim_text(&tool_input.to_string(), 4000),
                 "result": trim_text(&summarize_tool_payload(&tool_name, &tool_payload), 24_000),
-                "is_error": !ok
+                "is_error": !ok,
+                "blocked": tool_payload
+                    .pointer("/tool_pipeline/tool_attempt_receipt/status")
+                    .and_then(Value::as_str)
+                    .map(|status| status == "blocked" || status == "policy_denied")
+                    .unwrap_or(false),
+                "status": tool_payload
+                    .pointer("/tool_pipeline/tool_attempt_receipt/status")
+                    .cloned()
+                    .unwrap_or_else(|| json!(if ok { "ok" } else { "error" })),
+                "tool_attempt_receipt": tool_payload
+                    .pointer("/tool_pipeline/tool_attempt_receipt")
+                    .cloned()
+                    .unwrap_or(Value::Null)
             });
             let response_tools = vec![tool_card.clone()];
             let (finalized_response, tool_completion, finalization_seed) =
@@ -188,7 +201,7 @@ fn handle_agent_scope_message_route(
             let mut turn_receipt = append_turn_message(root, agent_id, &message, &response_text);
             turn_receipt["response_finalization"] = response_finalization.clone();
             return Some(CompatApiResponse {
-                status: if ok { 200 } else { 400 },
+                status: 200,
                 payload: json!({
                     "ok": ok,
                     "agent_id": agent_id,
