@@ -426,3 +426,10 @@
       var scrollHeight = Number(el.scrollHeight || 0);
       var clientHeight = Number(el.clientHeight || 0);
       var scrollTop = Math.max(0, Number(el.scrollTop || 0));
+      var maxScroll = Math.max(0, scrollHeight - clientHeight);
+      if (maxScroll <= 2) return { above: false, below: false };
+      return {
+        above: scrollTop > 2,
+        below: (maxScroll - scrollTop) > 2
+      };
+    },

@@ -3,12 +3,19 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+const vm = require('vm');
 const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const ENTRYPOINT = path.resolve(ROOT, 'client/runtime/lib/ts_entrypoint.ts');
 const TARGET = path.resolve(ROOT, 'client/runtime/systems/ui/infring_dashboard.ts');
 const TARGET_SOURCE = path.resolve(ROOT, 'client/runtime/systems/ui/infring_dashboard.ts');
+const DASHBOARD_ASSET_ROUTER_TS_PATH = path.resolve(
+  ROOT,
+  'client/runtime/systems/ui/dashboard_asset_router.ts'
+);
+const TS_BOOTSTRAP_TS_PATH = path.resolve(ROOT, 'client/runtime/lib/ts_bootstrap.ts');
+const DASHBOARD_STATIC_DIR = path.resolve(ROOT, 'client/runtime/systems/ui/infring_static');
 const REMOVED_DASHBOARD_CLIENT_REL = [
   'client',
   'runtime',
@@ -268,6 +275,24 @@ function assertChatSyntaxGuards() {
     /resolveArtifactDirectives\s*:\s*async\s+function(?:\s+\w+)?\s*\(/.test(chatSource),
     'resolveArtifactDirectives must be declared as async function property'
   );
+}
+
+function assertDashboardInlineScriptsParse() {
+  const { installTsRequireHook } = require(TS_BOOTSTRAP_TS_PATH);
+  installTsRequireHook();
+  const { buildPrimaryDashboardHtml } = require(DASHBOARD_ASSET_ROUTER_TS_PATH);
+  const html = String(buildPrimaryDashboardHtml(DASHBOARD_STATIC_DIR) || '');
+  assert.ok(html.includes('<script>'), 'dashboard html should include inline script blocks');
+  const scriptMatches = Array.from(html.matchAll(/<script>([\s\S]*?)<\/script>/g));
+  assert.ok(scriptMatches.length > 0, 'dashboard html should emit at least one inline script');
+  scriptMatches.forEach((match, idx) => {
+    const source = String((match && match[1]) || '').trim();
+    assert.ok(source.length > 0, `dashboard inline script ${idx + 1} should not be empty`);
+    assert.doesNotThrow(
+      () => new vm.Script(source, { filename: `dashboard_inline_script_${idx + 1}.js` }),
+      `dashboard inline script ${idx + 1} must parse successfully`
+    );
+  });
 }
 
 function assertChatEnhancementFeatures() {
