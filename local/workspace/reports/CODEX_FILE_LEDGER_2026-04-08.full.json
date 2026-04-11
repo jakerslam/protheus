@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-11T23:41:33.625Z",
+  "generated_at": "2026-04-11T23:49:12.320Z",
   "scope": [
     "core",
     "client/runtime",
@@ -16095,7 +16095,7 @@
       "order": 1462
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/research/research_organ.ts",
       "language": "ts",
       "loc": 29,
@@ -29581,7 +29581,7 @@
       "order": 2688
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/client-memory-tools/research_cli.test.ts",
       "language": "ts",
       "loc": 9,
@@ -29592,7 +29592,7 @@
       "order": 2689
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/client-memory-tools/research_organ.test.ts",
       "language": "ts",
       "loc": 9,
@@ -29603,7 +29603,7 @@
       "order": 2690
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/client-memory-tools/research_programmatic_api.test.ts",
       "language": "ts",
       "loc": 9,
