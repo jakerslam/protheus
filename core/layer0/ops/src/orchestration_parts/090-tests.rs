@@ -118,4 +118,16 @@ mod orchestration_regression_tests {
             Some(1)
         );
     }
+
+    #[test]
+    fn load_scratchpad_rejects_corrupt_existing_payload() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let root_dir = root.path().join("scratchpad-store");
+        std::fs::create_dir_all(&root_dir).expect("create dir");
+        std::fs::write(root_dir.join("task-1.json"), "{not-json").expect("write corrupt");
+
+        let err = load_scratchpad(root.path(), "task-1", Some(root_dir.to_str().expect("utf8")))
+            .expect_err("corrupt scratchpad should fail closed");
+        assert!(err.contains("scratchpad_parse_failed"));
+    }
 }
