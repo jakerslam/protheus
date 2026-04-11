@@ -2,10 +2,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-MANIFEST_PATH="$ROOT/core/layer0/ops/Cargo.toml"
 VERIFY_TIMEOUT_SEC="${PROTHEUS_VERIFY_TIMEOUT_SEC:-45}"
 VERIFY_DEFER_HOST_STALL="${PROTHEUS_VERIFY_DEFER_HOST_STALL:-1}"
-PROTHEUS_OPS_BIN="${PROTHEUS_OPS_BIN:-$ROOT/target/debug/protheus-ops}"
 VERIFY_NPM_TIMEOUT_SEC="${PROTHEUS_VERIFY_NPM_TIMEOUT_SEC:-60}"
 VERIFY_RUST_TIMEOUT_SEC="${PROTHEUS_VERIFY_RUST_TIMEOUT_SEC:-180}"
 VERIFY_PROOF_TIMEOUT_SEC="${PROTHEUS_VERIFY_PROOF_TIMEOUT_SEC:-420}"
@@ -35,114 +33,29 @@ else
   VERIFY_PROFILE_OUT="$ROOT/core/local/artifacts/verify_profile_current.json"
 fi
 
-run_with_timeout() {
-  local timeout_sec="$1"
-  shift
-  python3 - "$timeout_sec" "$VERIFY_DEFER_HOST_STALL" "$@" <<'PY'
-import os
-import signal
-import subprocess
-import sys
-
-timeout = float(sys.argv[1])
-defer = str(sys.argv[2]).strip().lower() in {"1", "true", "yes", "on"}
-cmd = sys.argv[3:]
-proc = subprocess.Popen(cmd, start_new_session=True)
-try:
-    raise SystemExit(proc.wait(timeout=timeout))
-except subprocess.TimeoutExpired:
-    try:
-        os.killpg(proc.pid, signal.SIGKILL)
-    except ProcessLookupError:
-        pass
-    try:
-        proc.wait(timeout=5)
-    except Exception:
-        pass
-    if defer:
-        print(
-            f'{{"ok":true,"type":"verify_deferred_host_stall","reason_code":"deferred_host_stall","timeout_sec":{int(timeout)},"command":"{" ".join(cmd)}"}}'
-        )
-        raise SystemExit(0)
-    print(f"verify_timeout:{int(timeout)}s {' '.join(cmd)}", file=sys.stderr)
-    raise SystemExit(124)
-PY
-}
-
-run_with_timeout_strict() {
-  local timeout_sec="$1"
-  shift
-  python3 - "$timeout_sec" "$@" <<'PY'
-import os
-import signal
-import subprocess
-import sys
-
-timeout = float(sys.argv[1])
-cmd = sys.argv[2:]
-proc = subprocess.Popen(cmd, start_new_session=True)
-try:
-    raise SystemExit(proc.wait(timeout=timeout))
-except subprocess.TimeoutExpired:
-    try:
-        os.killpg(proc.pid, signal.SIGKILL)
-    except ProcessLookupError:
-        pass
-    try:
-        proc.wait(timeout=5)
-    except Exception:
-        pass
-    print(f"verify_timeout:{int(timeout)}s {' '.join(cmd)}", file=sys.stderr)
-    raise SystemExit(124)
-PY
-}
-
-run_origin_integrity() {
-  local subcmd="$1"
-  shift
-  local strict_args=("$@")
-  if [[ -x "$PROTHEUS_OPS_BIN" ]]; then
-    run_with_timeout "$VERIFY_TIMEOUT_SEC" "$PROTHEUS_OPS_BIN" origin-integrity "$subcmd" "${strict_args[@]}"
-  else
-    run_with_timeout "$VERIFY_TIMEOUT_SEC" cargo run --quiet --manifest-path "$MANIFEST_PATH" --bin protheus-ops -- origin-integrity "$subcmd" "${strict_args[@]}"
-  fi
-}
-
-run_protheus_ops() {
-  local timeout_sec="$1"
-  shift
-  local cmd_args=("$@")
-  if [[ -x "$PROTHEUS_OPS_BIN" ]]; then
-    run_with_timeout_strict "$timeout_sec" "$PROTHEUS_OPS_BIN" "${cmd_args[@]}"
-  else
-    run_with_timeout_strict "$VERIFY_RUST_TIMEOUT_SEC" cargo build --quiet --manifest-path "$MANIFEST_PATH" --bin protheus-ops
-    run_with_timeout_strict "$timeout_sec" "$PROTHEUS_OPS_BIN" "${cmd_args[@]}"
-  fi
-}
-
-run_protheus_ops_defer() {
-  local timeout_sec="$1"
-  shift
-  local cmd_args=("$@")
-  if [[ -x "$PROTHEUS_OPS_BIN" ]]; then
-    run_with_timeout "$timeout_sec" "$PROTHEUS_OPS_BIN" "${cmd_args[@]}"
-  else
-    run_with_timeout_strict "$VERIFY_RUST_TIMEOUT_SEC" cargo build --quiet --manifest-path "$MANIFEST_PATH" --bin protheus-ops
-    run_with_timeout "$timeout_sec" "$PROTHEUS_OPS_BIN" "${cmd_args[@]}"
-  fi
-}
+export VERIFY_TIMEOUT_SEC
+export VERIFY_DEFER_HOST_STALL
+export VERIFY_NPM_TIMEOUT_SEC
+export VERIFY_RUST_TIMEOUT_SEC
+export VERIFY_PROOF_TIMEOUT_SEC
+export VERIFY_ARTIFACT_MODE
+export VERIFY_PROFILE
+export VERIFY_PROFILES_PATH
+export CLIENT_LAYER_AUDIT_OUT
+export MODULE_COHESION_OUT_JSON
+export MODULE_COHESION_OUT_MD
+export CLIENT_IMPORT_INTEGRITY_OUT
+export CLIENT_SCOPE_OUT
+export CLIENT_SURFACE_OUT
+export CLIENT_TARGET_OUT
+export VERIFY_PROFILE_OUT
 
 (
   cd "$ROOT"
-  run_protheus_ops_defer "$VERIFY_PROOF_TIMEOUT_SEC" top1-assurance proof-coverage --strict=1 --check-toolchains=0 --execute-proofs=1
-  run_with_timeout_strict "$VERIFY_PROOF_TIMEOUT_SEC" \
-    node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/tooling_registry_runner.ts \
+  node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/tooling_registry_runner.ts \
     profile \
     --profiles="$VERIFY_PROFILES_PATH" \
     --id="$VERIFY_PROFILE" \
     --strict=1 \
     --out="$VERIFY_PROFILE_OUT"
 )
-
-run_origin_integrity run --strict=1
-run_origin_integrity certificate --strict=1 >/dev/null

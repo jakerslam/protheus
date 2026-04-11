@@ -103,10 +103,15 @@
   "required_verify_invocations": [
     "tooling_registry_runner.ts",
     "tests/tooling/config/verify_profiles.json",
-    "--id=\"$VERIFY_PROFILE\"",
-    "top1-assurance proof-coverage",
-    "run_origin_integrity run --strict=1"
+    "--id=\"$VERIFY_PROFILE\""
   ],
+  "required_verify_profile_gate_ids": {
+    "release": [
+      "ops:top1:proof-coverage",
+      "ops:origin-integrity:run",
+      "ops:origin-integrity:certificate"
+    ]
+  },
   "required_readme_markers": [
     "Production Support Contract",
     "Canonical production profile: rich",

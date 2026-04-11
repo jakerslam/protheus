@@ -33,6 +33,9 @@
     "release": {
       "description": "Release verification profile driven from manifest instead of hardcoded shell sequencing.",
       "gate_ids": [
+        "ops:top1:proof-coverage",
+        "ops:origin-integrity:run",
+        "ops:origin-integrity:certificate",
         "cargo:v8-runtime-proof",
         "proofs:layer0:verify",
         "ops:dependency-boundary:check",
@@ -79,4 +82,3 @@
     }
   }
 }
-
