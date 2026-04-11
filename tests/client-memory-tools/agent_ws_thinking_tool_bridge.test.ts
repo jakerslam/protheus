@@ -17,9 +17,17 @@ function completionPayload() {
     tools: [
       { name: 'web_search', input: '{"query":"alpha"}', result: 'alpha result', status: 'ok' },
       { name: 'web_search', input: '{"query":"beta"}', result: 'beta result', status: 'ok' },
+      { name: 'file_search', input: '{"query":"secret.txt"}', result: 'policy denied by runtime', status: 'blocked', blocked: true },
+      { name: 'web_search', input: '{"query":"gamma"}', result: 'request_read_failed', status: 'error', is_error: true },
     ],
     response_finalization: {
       tool_completion: {
+        live_tool_steps: [
+          { tool: 'web_search', status: 'searched for alpha' },
+          { tool: 'web_search', status: 'searched for beta' },
+          { tool: 'file_search', status: 'blocked by policy' },
+          { tool: 'web_search', status: 'request read failed; suggest narrower query' },
+        ],
         tool_attempts: [
           {
             attempt: {
@@ -40,6 +48,26 @@ function completionPayload() {
               backend: 'retrieval_plane',
             },
             normalized_result: { normalized_args: { query: 'beta' } },
+          },
+          {
+            attempt: {
+              attempt_id: 'attempt-blocked',
+              tool_name: 'file_search',
+              status: 'blocked',
+              reason: 'policy_denied',
+              backend: 'workspace_plane',
+            },
+            normalized_result: { normalized_args: { query: 'secret.txt' } },
+          },
+          {
+            attempt: {
+              attempt_id: 'attempt-error',
+              tool_name: 'web_search',
+              status: 'error',
+              reason: 'request_read_failed',
+              backend: 'retrieval_plane',
+            },
+            normalized_result: { normalized_args: { query: 'gamma' } },
           },
         ],
       },
@@ -104,19 +132,32 @@ async function run() {
   server.close();
 
   const responseTools = Array.isArray(response.tools) ? response.tools : [];
-  assert.strictEqual(responseTools.length, 2, 'response payload should preserve both repeated same-tool attempts');
+  assert.strictEqual(responseTools.length, 4, 'response payload should preserve repeated, blocked, and failed attempts');
   assert.deepStrictEqual(
     responseTools.map((row) => row.attempt_id),
-    ['attempt-alpha', 'attempt-beta'],
-    'response tool rows should key off authoritative attempt ids'
+    ['attempt-alpha', 'attempt-beta', 'attempt-blocked', 'attempt-error'],
+    'response tool rows should key off authoritative attempt ids across repeated and failed tool calls'
   );
+  const byAttempt = new Map(responseTools.map((row) => [row.attempt_id, row]));
+  assert.strictEqual(byAttempt.get('attempt-blocked').blocked, true, 'blocked attempts should remain visible');
+  assert.strictEqual(byAttempt.get('attempt-blocked').status, 'blocked', 'blocked attempts should keep blocked status');
+  assert.strictEqual(byAttempt.get('attempt-error').is_error, true, 'errored attempts should remain visible');
+  assert.strictEqual(byAttempt.get('attempt-error').status, 'error', 'errored attempts should keep error status');
   const toolStartEvents = events.filter((row) => row.type === 'tool_start');
-  assert.strictEqual(toolStartEvents.length, 2, 'ws runtime should replay both tool_start events');
+  assert.strictEqual(toolStartEvents.length, 4, 'ws runtime should replay every tool_start event');
   assert.deepStrictEqual(
     toolStartEvents.map((row) => row.attempt_id),
-    ['attempt-alpha', 'attempt-beta'],
-    'tool lifecycle events should carry unique attempt ids for repeated same-tool calls'
+    ['attempt-alpha', 'attempt-beta', 'attempt-blocked', 'attempt-error'],
+    'tool lifecycle events should carry unique attempt ids for repeated, blocked, and failed tool calls'
   );
+  const toolResultEvents = events.filter((row) => row.type === 'tool_result');
+  assert.strictEqual(toolResultEvents.length, 4, 'ws runtime should replay every tool_result event');
+  const blockedEvent = toolResultEvents.find((row) => row.attempt_id === 'attempt-blocked');
+  assert.ok(blockedEvent, 'blocked tool result event should be present');
+  assert.strictEqual(blockedEvent.tool_status, 'blocked by policy', 'blocked tool result should carry completion status');
+  const errorEvent = toolResultEvents.find((row) => row.attempt_id === 'attempt-error');
+  assert.ok(errorEvent, 'failed tool result event should be present');
+  assert.strictEqual(errorEvent.is_error, true, 'failed tool result should remain flagged as error');
 }
 
 run().catch((error) => {

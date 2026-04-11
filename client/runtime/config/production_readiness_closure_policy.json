@@ -60,13 +60,18 @@
     "client/runtime/config/release_blocker_rubric.json",
     "client/runtime/config/release_hardening_window_policy.json",
     "tests/tooling/scripts/ci/legacy_process_runner_release_guard.ts"
+    ,
+    "tests/tooling/scripts/ci/transport_spawn_audit.ts",
+    "tests/tooling/scripts/ci/assimilation_v1_support_guard.ts"
   ],
   "required_package_scripts": [
     "ops:legacy-runner:release-guard",
     "ops:transport:topology:gate",
+    "ops:transport:spawn-audit",
     "ops:production-topology:status",
     "ops:release-contract:gate",
     "ops:stateful-upgrade-rollback:gate",
+    "ops:assimilation:v1:support:guard",
     "ops:release-blockers:gate",
     "ops:reliability:gauntlet",
     "ops:ipc-bridge:soak",
@@ -80,7 +85,9 @@
   "required_ci_invocations": [
     "ops:legacy-runner:release-guard",
     "ops:transport:topology:gate",
+    "ops:transport:spawn-audit",
     "ops:stateful-upgrade-rollback:gate",
+    "ops:assimilation:v1:support:guard",
     "ops:release-blockers:gate",
     "ops:release-contract:gate",
     "ops:reliability:gauntlet",
@@ -90,7 +97,9 @@
   "required_verify_invocations": [
     "ops:legacy-runner:release-guard",
     "ops:transport:topology:gate",
+    "ops:transport:spawn-audit",
     "ops:stateful-upgrade-rollback:gate",
+    "ops:assimilation:v1:support:guard",
     "ops:release-blockers:gate",
     "ops:production-closure:gate"
   ],
@@ -102,14 +111,18 @@
     "Resident IPC is the only supported production topology; the legacy process runner is dev-only.",
     "Release entrypoints quarantine the legacy runner under `adapters/runtime/dev_only/**`.",
     "Operator topology diagnostic: `npm run -s ops:production-topology:status`",
+    "Transport spawn audit: `npm run -s ops:transport:spawn-audit`",
+    "Assimilation v1 support guard: `npm run -s ops:assimilation:v1:support:guard`",
     "Frozen assimilation v1 slice: one ingress -> orchestration -> assimilation-kernel -> receipt-output path is hardened; broader assimilation surfaces remain experimental.",
     "`npm run -s ops:support-bundle:export`"
   ],
   "smoke_scripts": [
     "ops:legacy-runner:release-guard",
     "ops:transport:topology:gate",
+    "ops:transport:spawn-audit",
     "ops:production-topology:status",
     "ops:stateful-upgrade-rollback:gate",
+    "ops:assimilation:v1:support:guard",
     "ops:release-blockers:gate",
     "dr:gameday",
     "dr:gameday:gate",

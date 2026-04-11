@@ -36,7 +36,9 @@ jobs:
           npm run -s ops:transport:convergence:guard
           npm run -s ops:legacy-runner:release-guard
           npm run -s ops:transport:topology:gate
+          npm run -s ops:transport:spawn-audit
           npm run -s ops:stateful-upgrade-rollback:gate
+          npm run -s ops:assimilation:v1:support:guard
           npm run -s ops:release-blockers:gate
           npm run -s ops:production-closure:gate
           npm run -s ops:orchestration:contract:guard
