@@ -224,6 +224,9 @@ const contract = getFlag('--contract');
 const parseOnly = getFlag('--dashboard-inline-parse-only');
 if (parseOnly) {
   assertDashboardInlineScriptsParse();
+  assertDashboardBuildVersionFresh();
+  assertDashboardVersionRefreshUsesApiVersion();
+  assertDashboardHostOverlaysLiveVersion();
 } else if (contract) {
   runContract(contract);
 } else {

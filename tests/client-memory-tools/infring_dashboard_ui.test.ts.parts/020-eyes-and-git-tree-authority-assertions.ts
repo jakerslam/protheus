@@ -405,6 +405,9 @@ function runSnapshotAssertions() {
   assertLegacyDashboardArtifactsRemoved();
   assertChatSyntaxGuards();
   assertDashboardInlineScriptsParse();
+  assertDashboardBuildVersionFresh();
+  assertDashboardVersionRefreshUsesApiVersion();
+  assertDashboardHostOverlaysLiveVersion();
   assertChatEnhancementFeatures();
   assertMemoryApiWired();
   assertEyesPageWired();
