@@ -75,3 +75,34 @@ fn orchestration_transient_state_is_sweepable() {
     assert_eq!(runtime.sweep_transient(9_000), 0);
     assert_eq!(runtime.sweep_transient(40_001), 1);
 }
+
+#[test]
+fn orchestration_transient_restart_requires_boot_sweep_before_resume() {
+    let mut runtime = OrchestrationSurfaceRuntime::new();
+    let _ = runtime.orchestrate(
+        OrchestrationRequest {
+            session_id: "s5".to_string(),
+            intent: "hold short-term context".to_string(),
+            payload: json!({}),
+        },
+        10_000,
+    );
+    assert_eq!(runtime.transient_entry_count(), 1);
+    assert_eq!(runtime.transient_ephemeral_count(), 1);
+
+    runtime.begin_transient_restart();
+    let blocked = runtime
+        .resume_transient_after_restart()
+        .expect_err("resume should block on stale transient payload");
+    assert!(blocked.starts_with("transient_context_resume_blocked:"));
+
+    let swept = runtime
+        .sweep_transient_before_resume()
+        .expect("boot sweep should succeed");
+    assert_eq!(swept, 1);
+    assert_eq!(runtime.transient_entry_count(), 0);
+    assert_eq!(runtime.transient_ephemeral_count(), 0);
+    runtime
+        .resume_transient_after_restart()
+        .expect("resume should succeed after boot sweep");
+}

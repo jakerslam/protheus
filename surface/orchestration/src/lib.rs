@@ -80,4 +80,20 @@ impl OrchestrationSurfaceRuntime {
     pub fn transient_entry_count(&self) -> usize {
         self.transient.len()
     }
+
+    pub fn transient_ephemeral_count(&self) -> usize {
+        self.transient.active_ephemeral_count()
+    }
+
+    pub fn begin_transient_restart(&mut self) {
+        self.transient.begin_restart();
+    }
+
+    pub fn sweep_transient_before_resume(&mut self) -> Result<usize, String> {
+        self.transient.sweep_stale_before_resume()
+    }
+
+    pub fn resume_transient_after_restart(&mut self) -> Result<(), String> {
+        self.transient.resume_after_restart()
+    }
 }
