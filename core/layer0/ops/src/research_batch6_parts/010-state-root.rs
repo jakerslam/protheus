@@ -202,7 +202,12 @@ fn pattern_match(action: &str, pattern: &str) -> bool {
     a == p || a.contains(&p)
 }
 
-fn conduit_enforcement(root: &Path, parsed: &ParsedArgs, strict: bool, action: &str) -> Value {
+pub(crate) fn conduit_enforcement(
+    root: &Path,
+    parsed: &ParsedArgs,
+    strict: bool,
+    action: &str,
+) -> Value {
     let bypass_requested = conduit_bypass_requested(&parsed.flags);
     let out = build_conduit_enforcement(
         root,
@@ -213,14 +218,24 @@ fn conduit_enforcement(root: &Path, parsed: &ParsedArgs, strict: bool, action: &
         "research_conduit_enforcement",
         "core/layer0/ops/research_plane",
         bypass_requested,
-        vec![json!({
-            "id": "V6-RESEARCH-002.6",
-            "claim": "research_template_and_crawler_controls_are_conduit_routed_with_fail_closed_bypass_rejection",
-            "evidence": {
-                "required_path": "core/layer0/ops/research_plane",
-                "bypass_requested": bypass_requested
-            }
-        })],
+        vec![
+            json!({
+                "id": "V6-RESEARCH-001.5",
+                "claim": "research_fetch_and_crawl_actions_are_conduit_routed_with_fail_closed_bypass_rejection",
+                "evidence": {
+                    "required_path": "core/layer0/ops/research_plane",
+                    "bypass_requested": bypass_requested
+                }
+            }),
+            json!({
+                "id": "V6-RESEARCH-002.6",
+                "claim": "research_template_and_crawler_controls_are_conduit_routed_with_fail_closed_bypass_rejection",
+                "evidence": {
+                    "required_path": "core/layer0/ops/research_plane",
+                    "bypass_requested": bypass_requested
+                }
+            }),
+        ],
     );
     finalize_receipt(out)
 }

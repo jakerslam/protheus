@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-10T09:07:08.109Z",
+  "generated_at": "2026-04-11T23:19:42.684Z",
   "scope": [
     "core",
     "client/runtime",
@@ -5733,7 +5733,7 @@
       "order": 520
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/tests/v6_research_batch6_integration.rs",
       "language": "rs",
       "loc": 508,
@@ -6657,7 +6657,7 @@
       "order": 604
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/tests/v6_research_batch7_integration.rs",
       "language": "rs",
       "loc": 451,
@@ -11277,7 +11277,7 @@
       "order": 1024
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/research_batch6.rs",
       "language": "rs",
       "loc": 5,
@@ -11563,7 +11563,7 @@
       "order": 1050
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/research_plane.rs",
       "language": "rs",
       "loc": 4,

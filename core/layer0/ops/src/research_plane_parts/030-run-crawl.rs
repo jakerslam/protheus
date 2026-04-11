@@ -308,76 +308,91 @@ fn run_crawl(root: &Path, parsed: &ParsedArgs, strict: bool) -> Value {
 
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     let parsed = parse_args(argv);
-    let command = parsed
+    let raw_command = parsed
         .positional
         .first()
         .map(|v| v.trim().to_ascii_lowercase())
         .unwrap_or_else(|| "status".to_string());
-    if matches!(command.as_str(), "help" | "--help" | "-h") {
+    if matches!(raw_command.as_str(), "help" | "--help" | "-h") {
         usage();
         return 0;
     }
+    let command = canonical_research_command(&raw_command).to_string();
     let strict = parse_bool(parsed.flags.get("strict"), true);
+    let conduit = if command_uses_top_level_conduit(&command) {
+        Some(research_batch6::conduit_enforcement(
+            root, &parsed, strict, &command,
+        ))
+    } else {
+        None
+    };
+    if strict
+        && conduit
+            .as_ref()
+            .and_then(|v| v.get("ok"))
+            .and_then(Value::as_bool)
+            == Some(false)
+    {
+        return emit(
+            root,
+            json!({
+                "ok": false,
+                "strict": strict,
+                "type": top_level_conduit_receipt_type(&command),
+                "errors": ["conduit_bypass_rejected"],
+                "conduit_enforcement": conduit
+            }),
+        );
+    }
     let payload = match command.as_str() {
         "status" => status(root),
         "diagnostics" => diagnostics(root),
         "fetch" => run_fetch(root, &parsed, strict),
-        "recover-selectors" | "recover_selectors" | "selector-recovery" => {
-            run_recover_selectors(root, &parsed, strict)
-        }
+        "recover-selectors" => run_recover_selectors(root, &parsed, strict),
         "crawl" => run_crawl(root, &parsed, strict),
-        "mcp-extract" | "mcp_extract" => research_batch6::run_mcp_extract(root, &parsed, strict),
-        "spider" | "crawl-spider" | "crawl_spider" => crawl_spider::run(root, &parsed, strict),
-        "middleware" | "crawl-middleware" | "crawl_middleware" => {
-            crawl_middleware::run(root, &parsed, strict)
-        }
-        "pipeline" | "crawl-pipeline" | "crawl_pipeline" => {
-            crawl_pipeline::run(root, &parsed, strict)
-        }
-        "signals" | "crawl-signals" | "crawl_signals" => crawl_signals::run(root, &parsed, strict),
-        "console" | "crawl-console" | "crawl_console" => crawl_console::run(root, &parsed, strict),
-        "template-governance" | "template_governance" => {
+        "mcp-extract" => research_batch6::run_mcp_extract(root, &parsed, strict),
+        "spider" => crawl_spider::run(root, &parsed, strict),
+        "middleware" => crawl_middleware::run(root, &parsed, strict),
+        "pipeline" => crawl_pipeline::run(root, &parsed, strict),
+        "signals" => crawl_signals::run(root, &parsed, strict),
+        "console" => crawl_console::run(root, &parsed, strict),
+        "template-governance" => {
             research_batch6::run_template_governance(root, &parsed, strict)
         }
-        "goal-crawl" | "goal_crawl" => research_batch7::run_goal_crawl(root, &parsed, strict),
-        "map-site" | "map_site" | "map" => research_batch7::run_map_site(root, &parsed, strict),
-        "extract-structured" | "extract_structured" => {
-            research_batch7::run_extract_structured(root, &parsed, strict)
-        }
+        "goal-crawl" => research_batch7::run_goal_crawl(root, &parsed, strict),
+        "map-site" => research_batch7::run_map_site(root, &parsed, strict),
+        "extract-structured" => research_batch7::run_extract_structured(root, &parsed, strict),
         "monitor" => research_batch7::run_monitor(root, &parsed, strict),
-        "firecrawl-template-governance" | "firecrawl_template_governance" => {
+        "firecrawl-template-governance" => {
             research_batch7::run_firecrawl_template_governance(root, &parsed, strict)
         }
-        "js-scrape" | "js_scrape" => research_batch7::run_js_scrape(root, &parsed, strict),
-        "auth-session" | "auth_session" => research_batch7::run_auth_session(root, &parsed, strict),
-        "proxy-rotate" | "proxy_rotate" => research_batch7::run_proxy_rotate(root, &parsed, strict),
-        "parallel-scrape-workers" | "parallel_scrape_workers" => {
+        "js-scrape" => research_batch7::run_js_scrape(root, &parsed, strict),
+        "auth-session" => research_batch7::run_auth_session(root, &parsed, strict),
+        "proxy-rotate" => research_batch7::run_proxy_rotate(root, &parsed, strict),
+        "parallel-scrape-workers" => {
             research_batch8::run_parallel_scrape_workers(root, &parsed, strict)
         }
-        "book-patterns-template-governance" | "book_patterns_template_governance" => {
+        "book-patterns-template-governance" => {
             research_batch8::run_book_patterns_template_governance(root, &parsed, strict)
         }
-        "decode-news-url" | "decode_news_url" => {
-            research_batch8::run_decode_news_url(root, &parsed, strict)
-        }
-        "decode-news-urls" | "decode_news_urls" => {
-            research_batch8::run_decode_news_urls(root, &parsed, strict)
-        }
-        "decoder-template-governance" | "decoder_template_governance" => {
+        "decode-news-url" => research_batch8::run_decode_news_url(root, &parsed, strict),
+        "decode-news-urls" => research_batch8::run_decode_news_urls(root, &parsed, strict),
+        "decoder-template-governance" => {
             research_batch8::run_decoder_template_governance(root, &parsed, strict)
         }
         _ => json!({
             "ok": false,
             "type": "research_plane_error",
             "error": "unknown_command",
-            "command": command
+            "command": command,
+            "requested_command": raw_command
         }),
     };
     if command == "status" {
         print_payload(&payload);
         return 0;
     }
-    emit(root, payload)
+    emit(root, attach_conduit_if_missing(payload, conduit.as_ref()))
 }
 
 #[cfg(test)]
