@@ -4930,7 +4930,7 @@
       "order": 447
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/vbrowser_plane_parts/040-run.rs",
       "language": "rs",
       "loc": 832,
@@ -5326,7 +5326,7 @@
       "order": 483
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/tests/v6_vbrowser_batch12_integration.rs",
       "language": "rs",
       "loc": 643,
@@ -6679,7 +6679,7 @@
       "order": 606
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/vbrowser_plane_parts/010-usage.rs",
       "language": "rs",
       "loc": 450,
@@ -8131,7 +8131,7 @@
       "order": 738
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/health_status_parts/050-collect-vbrowser-dashboard-metric.rs",
       "language": "rs",
       "loc": 387,
@@ -8835,7 +8835,7 @@
       "order": 802
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/vbrowser_plane_parts/020-run-session-control.rs",
       "language": "rs",
       "loc": 338,
