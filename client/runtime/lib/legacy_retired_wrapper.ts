@@ -66,8 +66,33 @@ function bindLegacyRetiredModule(filePath, currentModule, argv = process.argv.sl
   return mod;
 }
 
+function createCompatibilityBridgeModule(implPath) {
+  const impl = require(implPath);
+
+  function run(args = process.argv.slice(2)) {
+    return impl.run(Array.isArray(args) ? args : []);
+  }
+
+  return {
+    ...impl,
+    run
+  };
+}
+
+function bindCompatibilityBridgeModule(
+  implPath,
+  currentModule,
+  argv = process.argv.slice(2)
+) {
+  const mod = createCompatibilityBridgeModule(implPath);
+  if (currentModule && require.main === currentModule) runAsMain(mod, argv);
+  return mod;
+}
+
 module.exports = {
+  bindCompatibilityBridgeModule,
   bindLegacyRetiredModule,
+  createCompatibilityBridgeModule,
   createLegacyRetiredModuleForFile,
   createLegacyRetiredModule,
   laneIdFromRuntimePath,
