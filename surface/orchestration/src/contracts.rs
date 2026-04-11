@@ -53,10 +53,18 @@ pub struct OrchestrationPlan {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct OrchestrationFallbackAction {
+    pub kind: String,
+    pub label: String,
+    pub reason: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct OrchestrationResultPackage {
     pub summary: String,
     pub progress_message: String,
     pub recovery_applied: bool,
+    pub fallback_actions: Vec<OrchestrationFallbackAction>,
     pub core_contract_calls: Vec<CoreContractCall>,
     pub requires_core_promotion: bool,
 }

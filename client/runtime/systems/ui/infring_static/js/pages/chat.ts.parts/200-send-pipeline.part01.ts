@@ -413,18 +413,8 @@
         if (httpDuration) httpMeta += ' | ' + httpDuration;
         var httpRouteMeta = this.formatAutoRouteMeta(httpRoute || preflightRoute);
         if (httpRouteMeta) httpMeta += ' | ' + httpRouteMeta;
-        var httpTools = Array.isArray(res.tools)
-          ? res.tools.map(function(t, idx) {
-              return {
-                id: (t && t.id) || ('http-tool-' + Date.now() + '-' + idx),
-                name: (t && t.name) || 'tool',
-                running: false,
-                expanded: false,
-                input: (t && t.input) || '',
-                result: (t && t.result) || '',
-                is_error: !!(t && t.is_error),
-              };
-            })
+        var httpTools = typeof this.responseToolRowsFromPayload === 'function'
+          ? this.responseToolRowsFromPayload(res, 'http-tool')
           : [];
         var httpText = this.stripModelPrefix(this.sanitizeToolText(res.response || ''));
         var httpArtifactDirectives = this.extractArtifactDirectives(httpText);

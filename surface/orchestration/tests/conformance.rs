@@ -20,6 +20,10 @@ fn orchestration_surface_cannot_bypass_tool_broker() {
             CoreContractCall::ToolBrokerRequest
         ]
     );
+    assert!(package
+        .fallback_actions
+        .iter()
+        .any(|row| row.kind == "inspect_tool_capabilities"));
 }
 
 #[test]

@@ -15,3 +15,4 @@ include!("swarm_runtime_parts/140-queue-metrics-prometheus.rs");
 include!("swarm_runtime_parts/150-run-test-communication.rs");
 include!("swarm_runtime_parts/160-run.rs");
 include!("swarm_runtime_parts/170-spawn-options.rs");
+include!("swarm_runtime_parts/171-lineage-message-tests.rs");
