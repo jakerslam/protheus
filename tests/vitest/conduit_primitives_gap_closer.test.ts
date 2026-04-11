@@ -175,8 +175,12 @@ describe('conduit primitive wrapper contract', () => {
     expect(source.includes('OSPlatform')).toBe(true);
     expect(source.includes('Unsupported OS for installer (detected:')).toBe(true);
     expect(source.includes('Ensure-WindowsPathContains')).toBe(true);
+    expect(source.includes('-PreferFront')).toBe(true);
+    expect(source.includes('RemoveEntries')).toBe(true);
     expect(source.includes('Normalize-WindowsPathEntry')).toBe(true);
     expect(source.includes('normalized user PATH entries')).toBe(true);
+    expect(source.includes('Invoke-SourceFallbackCleanup')).toBe(true);
+    expect(source.includes('scheduled background cleanup of source fallback temp dir')).toBe(true);
   });
 
   test('README Windows installer path supports flags without iex parameter binding traps', () => {
