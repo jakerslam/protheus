@@ -326,6 +326,93 @@ mod tests {
     }
 
     #[test]
+    fn step_failure_reason_includes_code_and_cleaned_detail() {
+        let result = StepResult {
+            ok: false,
+            code: 17,
+            payload: None,
+            stdout: "  output   detail  ".to_string(),
+            stderr: "spawn_failed: no binary\n".to_string(),
+        };
+
+        assert_eq!(
+            step_failure_reason("guard", &result),
+            "step_failed:guard:17:spawn_failed: no binary output detail"
+        );
+    }
+
+    #[test]
+    fn resolve_infring_ops_command_prefers_built_binary_over_cargo_fallback() {
+        let root = tempdir().expect("tempdir");
+        let release_dir = root.path().join("target").join("release");
+        fs::create_dir_all(&release_dir).expect("mkdir");
+        let binary_name = if cfg!(windows) {
+            "infring-ops.exe"
+        } else {
+            "infring-ops"
+        };
+        let binary_path = release_dir.join(binary_name);
+        fs::write(&binary_path, "").expect("write binary placeholder");
+
+        let (command, args) = resolve_infring_ops_command(root.path(), "autonomy-controller");
+        assert_eq!(command, binary_path.to_string_lossy().to_string());
+        assert_eq!(args, vec!["autonomy-controller".to_string()]);
+    }
+
+    #[test]
+    fn sleep_cleanup_status_receipt_is_hashed_and_includes_policy_summary() {
+        let policy = SleepCleanupPolicy {
+            enabled: true,
+            min_interval_minutes: 45,
+            archive_root: PathBuf::from("archive"),
+            archive_max_age_hours: 72,
+            archive_keep_latest: 4,
+            target_root: PathBuf::from("target-root"),
+            target_max_age_hours: 12,
+            detached_worktree_max_age_hours: 24,
+            disk_free_floor_percent: 12.5,
+            hard_free_floor_percent: 8.0,
+            pressure_target_free_percent: 20.0,
+            pressure_jsonl_cap_bytes: 1024,
+            pressure_log_cap_bytes: 2048,
+            pressure_max_candidates: 16,
+            pressure_min_age_hours: 6,
+            state_path: PathBuf::from("state/latest.json"),
+            history_path: PathBuf::from("state/history.jsonl"),
+        };
+        let latest = json!({"last_result": "ok"});
+
+        let receipt = build_sleep_cleanup_status_receipt(&policy, &latest);
+        assert_eq!(
+            receipt.get("type").and_then(Value::as_str),
+            Some("spine_sleep_cleanup_status")
+        );
+        assert_eq!(receipt.get("enabled").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            receipt
+                .pointer("/policy/min_interval_minutes")
+                .and_then(Value::as_i64),
+            Some(45)
+        );
+        assert_eq!(
+            receipt.pointer("/paths/state_path").and_then(Value::as_str),
+            Some("state/latest.json")
+        );
+
+        let expected_hash = receipt
+            .get("receipt_hash")
+            .and_then(Value::as_str)
+            .expect("hash")
+            .to_string();
+        let mut unhashed = receipt.clone();
+        unhashed
+            .as_object_mut()
+            .expect("object")
+            .remove("receipt_hash");
+        assert_eq!(receipt_hash(&unhashed), expected_hash);
+    }
+
+    #[test]
     fn sleep_cleanup_run_removes_old_archive_and_target() {
         let root = tempdir().expect("tempdir");
         let archive_dir = root.path().join("local/workspace/archive/churn-a");

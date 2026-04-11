@@ -1,3 +1,42 @@
+fn canonical_goal_keywords(goal: &str) -> Vec<String> {
+    let mut keywords = Vec::<String>::new();
+    for word in goal.split_whitespace() {
+        let keyword = clean(word, 64).to_ascii_lowercase();
+        if keyword.len() < 3 || keywords.iter().any(|existing| existing == &keyword) {
+            continue;
+        }
+        keywords.push(keyword);
+    }
+    if keywords.is_empty() {
+        keywords.push("general".to_string());
+    }
+    keywords
+}
+
+fn push_discovery_candidate(
+    discovery: &mut Vec<String>,
+    seen: &mut std::collections::BTreeSet<String>,
+    discovery_receipts: &mut Vec<Value>,
+    keyword: &str,
+    source: &str,
+    url: &str,
+    max_discovery: u64,
+) {
+    if discovery.len() >= max_discovery as usize {
+        return;
+    }
+    let cleaned = clean(url, 1800);
+    if cleaned.is_empty() || !seen.insert(cleaned.clone()) {
+        return;
+    }
+    discovery.push(cleaned.clone());
+    discovery_receipts.push(json!({
+        "keyword": keyword,
+        "source": source,
+        "url": cleaned
+    }));
+}
+
 pub fn run_goal_crawl(root: &Path, parsed: &ParsedArgs, strict: bool) -> Value {
     let conduit = conduit_enforcement(root, parsed, strict, "goal_crawl");
     if strict && !conduit.get("ok").and_then(Value::as_bool).unwrap_or(false) {
@@ -86,16 +125,10 @@ pub fn run_goal_crawl(root: &Path, parsed: &ParsedArgs, strict: bool) -> Value {
         return fail_payload("research_plane_goal_crawl", strict, errors, Some(conduit));
     }
 
-    let mut keywords = goal
-        .split_whitespace()
-        .map(|w| clean(w, 64).to_ascii_lowercase())
-        .filter(|w| w.len() >= 3)
-        .collect::<Vec<_>>();
-    if keywords.is_empty() {
-        keywords.push("general".to_string());
-    }
+    let keywords = canonical_goal_keywords(&goal);
 
     let mut discovery = Vec::<String>::new();
+    let mut discovery_seen = std::collections::BTreeSet::<String>::new();
     let mut discovery_receipts = Vec::<Value>::new();
     let catalog_obj = catalog.as_object().cloned().unwrap_or_default();
 
@@ -105,27 +138,17 @@ pub fn run_goal_crawl(root: &Path, parsed: &ParsedArgs, strict: bool) -> Value {
             .and_then(Value::as_array)
             .cloned()
             .unwrap_or_default();
-        if urls.is_empty() {
-            let fallback = format!("https://{}.example", clean(keyword, 80));
-            discovery.push(fallback.clone());
-            discovery_receipts.push(json!({
-                "keyword": keyword,
-                "source": "fallback",
-                "url": fallback
-            }));
-            continue;
-        }
         for row in urls {
             if let Some(url) = row.as_str() {
-                let cleaned = clean(url, 1800);
-                if !cleaned.is_empty() {
-                    discovery.push(cleaned.clone());
-                    discovery_receipts.push(json!({
-                        "keyword": keyword,
-                        "source": "catalog",
-                        "url": cleaned
-                    }));
-                }
+                push_discovery_candidate(
+                    &mut discovery,
+                    &mut discovery_seen,
+                    &mut discovery_receipts,
+                    keyword,
+                    "catalog",
+                    url,
+                    max_discovery,
+                );
             }
         }
     }
@@ -138,18 +161,32 @@ pub fn run_goal_crawl(root: &Path, parsed: &ParsedArgs, strict: bool) -> Value {
             .unwrap_or_default();
         for row in fallback {
             if let Some(url) = row.as_str() {
-                let cleaned = clean(url, 1800);
-                if !cleaned.is_empty() {
-                    discovery.push(cleaned);
-                }
+                push_discovery_candidate(
+                    &mut discovery,
+                    &mut discovery_seen,
+                    &mut discovery_receipts,
+                    "default",
+                    "default",
+                    url,
+                    max_discovery,
+                );
             }
         }
     }
 
-    discovery.sort();
-    discovery.dedup();
-    if discovery.len() as u64 > max_discovery {
-        discovery.truncate(max_discovery as usize);
+    if discovery.is_empty() {
+        for keyword in &keywords {
+            let fallback = format!("https://{}.example", clean(keyword, 80));
+            push_discovery_candidate(
+                &mut discovery,
+                &mut discovery_seen,
+                &mut discovery_receipts,
+                keyword,
+                "synthetic_fallback",
+                &fallback,
+                max_discovery,
+            );
+        }
     }
 
     let mut page_receipts = Vec::<Value>::new();
@@ -385,4 +422,3 @@ pub fn run_map_site(root: &Path, parsed: &ParsedArgs, strict: bool) -> Value {
     out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
     out
 }
-

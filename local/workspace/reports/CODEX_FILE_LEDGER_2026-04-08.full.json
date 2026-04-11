@@ -5370,7 +5370,7 @@
       "order": 487
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/spine_parts/010-stable-hash.rs",
       "language": "rs",
       "loc": 621,
@@ -6844,7 +6844,7 @@
       "order": 621
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/spine_parts/040-run-sleep-cleanup-command.rs",
       "language": "rs",
       "loc": 446,
@@ -7977,7 +7977,7 @@
       "order": 724
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/spine_parts/060-execute-native.rs",
       "language": "rs",
       "loc": 399,
@@ -8109,7 +8109,7 @@
       "order": 736
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/research_batch7_parts/020-run-goal-crawl.rs",
       "language": "rs",
       "loc": 388,
