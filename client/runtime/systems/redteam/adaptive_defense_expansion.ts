@@ -2,18 +2,9 @@
 'use strict';
 // TypeScript compatibility shim only.
 // Layer ownership: surface/orchestration (redteam coordination); this file is a thin CLI bridge.
+const { bindCompatibilityBridgeModule } = require('../../lib/legacy_retired_wrapper.ts');
 
-const impl = require('../../../../surface/orchestration/scripts/adaptive_defense_expansion.ts');
-
-function run(args = process.argv.slice(2)) {
-  return impl.run(args);
-}
-
-if (require.main === module) {
-  process.exit(run(process.argv.slice(2)));
-}
-
-module.exports = {
-  ...impl,
-  run
-};
+module.exports = bindCompatibilityBridgeModule(
+  require.resolve('../../../../surface/orchestration/scripts/adaptive_defense_expansion.ts'),
+  module
+);
