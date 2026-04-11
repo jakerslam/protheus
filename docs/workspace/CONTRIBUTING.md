@@ -7,9 +7,9 @@ Thanks for contributing.
 1. Create a feature branch from `main`.
 2. Make focused changes with tests.
 3. Run local checks before opening a PR:
-   - `npm run ops:format:check:staged` (code enforcer on staged files)
-   - `npm run lint`
-   - `npm run test`
+   - `npm run -s workspace:commands` (discover canonical repo entrypoints)
+   - `npm run -s workspace:verify` (canonical full local verify path)
+   - optional narrower checks as needed: `npm run ops:format:check:staged`, `npm run lint`, `npm run test`
 4. Open a pull request and wait for CI + review.
 
 ## Snowball Execution Contract (One Page)
@@ -44,7 +44,7 @@ Run high-velocity change waves without losing correctness, architecture integrit
 
 ### What "Sings" Means In This Repo
 
-1. Required tests/gates are green (`cargo test --workspace --all-targets`, `npm run -s test:ci:full`, `./verify.sh`).
+1. Required tests/gates are green (`cargo test --workspace --all-targets`, `npm run -s test:ci:full`, `npm run -s workspace:verify`).
 2. Conduit-only and boundary policies pass.
 3. Module cohesion policy passes (no new structural violations).
 4. DoD evidence is concrete (code/tests/artifacts), not status text.
