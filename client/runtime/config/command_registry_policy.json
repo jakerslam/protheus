@@ -10,6 +10,13 @@
     "latest_path": "local/state/ops/command_registry/latest.json",
     "receipts_path": "local/state/ops/command_registry/receipts.jsonl"
   },
+  "tooling_governance": {
+    "ci_script_root": "tests/tooling/scripts/ci",
+    "tooling_gate_registry_path": "tests/tooling/config/tooling_gate_registry.json",
+    "base_ref": "origin/main",
+    "shared_cli_import": "../../lib/cli.ts",
+    "shared_result_import": "../../lib/result.ts"
+  },
   "curated_operator_surface": [
     "dev",
     "build",

@@ -1,46 +1,25 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
+import { hasFlag, parseBool, readFlag } from '../../lib/cli.ts';
+import { currentRevision } from '../../lib/git.ts';
+import { emitStructuredResult, writeJsonArtifact, writeTextArtifact } from '../../lib/result.ts';
 
 const SRS_PATH = 'docs/workspace/SRS.md';
 const TODO_PATH = 'docs/workspace/TODO.md';
 const OUT_JSON = 'core/local/artifacts/srs_full_regression_current.json';
 const OUT_MD = 'local/workspace/reports/SRS_FULL_REGRESSION_CURRENT.md';
 
-function parseBoolFlag(value, defaultValue = false) {
-  if (value == null || value === '') return defaultValue;
-  const normalized = String(value).trim().toLowerCase();
-  if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
-  if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
-  return defaultValue;
-}
-
 function parseCliFlags(argv = process.argv.slice(2)) {
-  let strict = false;
-  let failOnWarn = false;
-  for (const raw of argv) {
-    const arg = String(raw ?? '').trim();
-    if (!arg) continue;
-    if (arg === '--strict') {
-      strict = true;
-      continue;
-    }
-    if (arg.startsWith('--strict=')) {
-      strict = parseBoolFlag(arg.slice('--strict='.length), strict);
-      continue;
-    }
-    if (arg === '--fail-on-warn') {
-      failOnWarn = true;
-      continue;
-    }
-    if (arg.startsWith('--fail-on-warn=')) {
-      failOnWarn = parseBoolFlag(arg.slice('--fail-on-warn='.length), failOnWarn);
-    }
-  }
-  return { strict, failOnWarn };
+  return {
+    strict: hasFlag(argv, 'strict') || parseBool(readFlag(argv, 'strict'), false),
+    failOnWarn: hasFlag(argv, 'fail-on-warn') || parseBool(readFlag(argv, 'fail-on-warn'), false),
+    outJson: String(readFlag(argv, 'out-json') || OUT_JSON),
+    outMarkdown: String(readFlag(argv, 'out-markdown') || OUT_MD),
+  };
 }
 
 function read(path) {
@@ -403,10 +382,9 @@ function buildRegressionPayload() {
   return { summary, rows };
 }
 
-function writeArtifacts(payload) {
+function writeArtifacts(payload, outJson = OUT_JSON, outMarkdown = OUT_MD) {
   const { summary, rows } = payload;
-  mkdirSync(dirname(OUT_JSON), { recursive: true });
-  writeFileSync(OUT_JSON, `${JSON.stringify(payload, null, 2)}\n`);
+  writeJsonArtifact(resolve(outJson), payload);
 
   const lines = [];
   lines.push('# SRS Full Regression Audit');
@@ -447,11 +425,11 @@ function writeArtifacts(payload) {
   for (const item of rows.filter((r) => r.regression.severity === 'warn')) {
     lines.push(`- \`${item.id}\` (${item.status}): ${item.regression.findings.join(', ')}`);
   }
-  mkdirSync(dirname(OUT_MD), { recursive: true });
-  writeFileSync(OUT_MD, `${lines.join('\n')}\n`);
+  writeTextArtifact(resolve(outMarkdown), `${lines.join('\n')}\n`);
 }
 
 function main() {
+  const started = Date.now();
   const flags = parseCliFlags();
   const first = buildRegressionPayload();
   let payload = first;
@@ -491,32 +469,43 @@ function main() {
     }
   }
   payload.summary.retry = retry;
-  writeArtifacts(payload);
+  writeArtifacts(payload, flags.outJson, flags.outMarkdown);
   const summary = payload.summary;
   const shouldFail =
     flags.strict && (summary.regression.fail > 0 || (flags.failOnWarn && summary.regression.warn > 0));
-
-  console.log(
-    JSON.stringify(
-      {
-        ok: !shouldFail,
-        type: 'srs_full_regression',
-        out_json: OUT_JSON,
-        out_markdown: OUT_MD,
-        summary,
-      },
-      null,
-      2,
-    ),
-  );
-  if (shouldFail) {
-    const failReason =
-      summary.regression.fail > 0
-        ? `fail_rows=${summary.regression.fail}`
-        : `warn_rows=${summary.regression.warn} (fail-on-warn enabled)`;
-    console.error(`[srs_full_regression] strict gate failed: ${failReason}`);
-    process.exit(1);
-  }
+  const result = {
+    ok: !shouldFail,
+    type: 'srs_full_regression',
+    generated_at: new Date().toISOString(),
+    duration_ms: Date.now() - started,
+    owner: 'ops',
+    revision: currentRevision(process.cwd()),
+    inputs: {
+      strict: flags.strict,
+      fail_on_warn: flags.failOnWarn,
+      out_json: flags.outJson,
+      out_markdown: flags.outMarkdown,
+    },
+    summary,
+    failures: rowsToFailures(payload.rows),
+    artifact_paths: [flags.outJson, flags.outMarkdown],
+    report: payload,
+  };
+  return emitStructuredResult(result, {
+    outPath: '',
+    strict: flags.strict || flags.failOnWarn,
+    ok: result.ok,
+    history: true,
+  });
 }
 
-main();
+function rowsToFailures(rows) {
+  return rows
+    .filter((item) => item.regression.severity !== 'pass')
+    .map((item) => ({
+      id: item.id,
+      detail: item.regression.findings.join(', '),
+    }));
+}
+
+process.exit(main());

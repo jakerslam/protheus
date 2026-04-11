@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { cleanText, hasFlag, parseBool, readFlag } from '../../lib/cli.ts';
+import { currentRevision } from '../../lib/git.ts';
+import { emitStructuredResult, writeJsonArtifact, writeTextArtifact } from '../../lib/result.ts';
 
 type CheckResult = {
   id: string;
@@ -12,19 +15,11 @@ type CheckResult = {
 const DEFAULT_OUT_JSON = 'core/local/artifacts/architecture_boundary_audit_current.json';
 const DEFAULT_OUT_MD = 'local/workspace/reports/ARCHITECTURE_BOUNDARY_AUDIT_CURRENT.md';
 
-function argValue(argv: string[], key: string): string | null {
-  const prefix = `--${key}=`;
-  for (const arg of argv) {
-    if (arg.startsWith(prefix)) return arg.slice(prefix.length).trim() || null;
-  }
-  return null;
-}
-
 function parseArgs(argv: string[]) {
   return {
-    strict: argv.includes('--strict') || argv.includes('--strict=1'),
-    outJson: argValue(argv, 'out-json') || DEFAULT_OUT_JSON,
-    outMd: argValue(argv, 'out-md') || DEFAULT_OUT_MD,
+    strict: hasFlag(argv, 'strict') || parseBool(readFlag(argv, 'strict'), false),
+    outJson: cleanText(readFlag(argv, 'out-json') || DEFAULT_OUT_JSON, 400),
+    outMd: cleanText(readFlag(argv, 'out-md') || DEFAULT_OUT_MD, 400),
   };
 }
 
@@ -48,10 +43,12 @@ function toMarkdown(rows: CheckResult[]): string {
 }
 
 function main() {
+  const started = Date.now();
   const args = parseArgs(process.argv.slice(2));
 
-  const federation = read('core/layer0/nexus/src/federation.rs');
-  const coreLib = read('core/layer0/nexus/src/lib.rs');
+  const nexusPolicy = read('core/layer2/nexus/src/policy.rs');
+  const coreLib = read('core/layer2/nexus/src/lib.rs');
+  const dashboardIngress = read('core/layer0/ops/src/dashboard_tool_turn_loop.rs');
   const orchestrationLib = read('surface/orchestration/src/lib.rs');
   const orchestrationSeq = read('surface/orchestration/src/sequencing.rs');
   const orchestrationTransient = read('surface/orchestration/src/transient_context.rs');
@@ -104,7 +101,7 @@ function main() {
     {
       id: 'core_must_not_depend_on_orchestration_surface',
       ok: !coreLib.includes('infring_orchestration_surface_v1'),
-      detail: 'core/layer0/nexus does not import orchestration crate',
+      detail: 'core/layer2/nexus does not import orchestration crate',
     },
     {
       id: 'orchestration_surface_must_not_depend_on_client',
@@ -112,14 +109,16 @@ function main() {
       detail: 'surface/orchestration has no client-layer dependency',
     },
     {
-      id: 'client_core_direct_path_blocked_without_approved_ingress',
-      ok: federation.includes('direct_client_core_path_prohibited'),
-      detail: 'federation enforces explicit deny for direct client/core paths',
+      id: 'client_ingress_routes_authorized_via_nexus',
+      ok: dashboardIngress.includes('authorize_client_ingress_route_with_nexus_inner') &&
+        dashboardIngress.includes('client_ingress_nexus_delivery_denied'),
+      detail: 'client ingress routes flow through nexus authorization and fail closed on denied delivery',
     },
     {
-      id: 'core_orchestration_requires_strong_scrambler',
-      ok: federation.includes('strong_conduit_scrambler_required'),
-      detail: 'core<->orchestration routes require strong scrambler',
+      id: 'nexus_policy_can_block_source_target_pairs',
+      ok: nexusPolicy.includes('block_pair') &&
+        nexusPolicy.includes('source_target_pair_blocked'),
+      detail: 'nexus policy supports explicit blocked source/target route pairs',
     },
     {
       id: 'orchestration_tool_calls_route_to_tool_broker',
@@ -150,7 +149,8 @@ function main() {
     },
     {
       id: 'orchestration_runtime_lives_under_surface',
-      ok: surfaceSwarmRuntime.includes('runSpawn') && surfaceSwarmRuntime.includes('swarm-runtime'),
+      ok: surfaceSwarmRuntime.includes('bindSwarmOrchestrationRuntimeModule') &&
+        surfaceSwarmRuntime.includes('adapters/runtime/swarm_bridge_modules.ts'),
       detail: 'swarm orchestration coordination implementation is hosted in surface/orchestration',
     },
     {
@@ -246,7 +246,8 @@ function main() {
     {
       id: 'task_decomposition_runtime_lives_under_surface',
       ok: surfaceTaskDecompositionRuntime.includes('SYSTEMS-EXECUTION-TASK_DECOMPOSITION_PRIMITIVE') &&
-        surfaceTaskDecompositionRuntime.includes('createOpsLaneBridge'),
+        surfaceTaskDecompositionRuntime.includes('bindRuntimeSystemModule') &&
+        surfaceTaskDecompositionRuntime.includes('adapters/runtime/runtime_system_bridge.ts'),
       detail: 'task_decomposition_primitive coordination implementation is hosted in surface/orchestration',
     },
     {
@@ -400,38 +401,31 @@ function main() {
     ok: failures.length === 0,
     type: 'architecture_boundary_audit',
     generated_at: new Date().toISOString(),
+    duration_ms: Date.now() - started,
+    owner: 'ops',
+    revision: currentRevision(process.cwd()),
+    inputs: {
+      strict: args.strict,
+      out_json: args.outJson,
+      out_markdown: args.outMd,
+    },
     summary: {
       checks: checks.length,
-      failures: failures.length,
+      failure_count: failures.length,
+      pass: failures.length === 0,
     },
+    failures: failures.map((row) => ({ id: row.id, detail: row.detail })),
+    artifact_paths: [args.outJson, args.outMd],
     checks,
   };
 
-  const outJsonAbs = resolve(args.outJson);
-  const outMdAbs = resolve(args.outMd);
-  mkdirSync(dirname(outJsonAbs), { recursive: true });
-  mkdirSync(dirname(outMdAbs), { recursive: true });
-  writeFileSync(outJsonAbs, `${JSON.stringify(payload, null, 2)}\n`);
-  writeFileSync(outMdAbs, toMarkdown(checks));
-
-  if (args.strict && failures.length > 0) {
-    console.error(JSON.stringify(payload, null, 2));
-    process.exit(1);
-  }
-
-  console.log(
-    JSON.stringify(
-      {
-        ok: payload.ok,
-        type: payload.type,
-        out_json: args.outJson,
-        out_md: args.outMd,
-        summary: payload.summary,
-      },
-      null,
-      2,
-    ),
-  );
+  writeJsonArtifact(resolve(args.outJson), payload);
+  writeTextArtifact(resolve(args.outMd), toMarkdown(checks));
+  return emitStructuredResult(payload, {
+    outPath: '',
+    strict: args.strict,
+    ok: payload.ok,
+  });
 }
 
-main();
+process.exit(main());

@@ -1,6 +1,6 @@
 # Command Registry
 
-Generated: 2026-04-11T08:27:26.355Z
+Generated: 2026-04-11T13:40:08.514Z
 
 ## Summary
 - package scripts: 907
@@ -11,12 +11,23 @@ Generated: 2026-04-11T08:27:26.355Z
 - missing curated operator surface commands: 0
 - unclassified curated operator surface commands: 0
 - missing indexed surface commands: 0
+- tooling governance added-script pass: true
+- tooling governance added scripts checked: 0
 
 ## Canonical Indexed Lane Surface
 - `npm run -s lane:run -- --id=<ID>`
 - `npm run -s test:lane:run -- --id=<ID>`
 - `npm run -s lane:list -- --json=1`
 - `npm run -s test:lane:list -- --json=1`
+
+## Tooling Governance
+- Added CI scripts checked: 0
+- Registered added CI scripts: 0
+- Missing registry entries: 0
+- Missing shared cli import: 0
+- Missing shared result import: 0
+- Missing emitStructuredResult: 0
+- Local parseArgs usage: 0
 
 ## Curated Commands
 | Command | Owner | Scope | Risk | Source |

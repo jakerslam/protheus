@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { cleanText, hasFlag, parseBool, readFlag } from '../../lib/cli.ts';
+import { currentRevision } from '../../lib/git.ts';
+import { emitStructuredResult, writeJsonArtifact, writeTextArtifact } from '../../lib/result.ts';
 
 const DEFAULT_POLICY_PATH = 'client/runtime/config/benchmark_sanity_policy.json';
 const OUT_JSON = 'core/local/artifacts/benchmark_sanity_gate_current.json';
@@ -10,33 +13,16 @@ const CANONICAL_THROUGHPUT_METRIC = 'kernel_shared_workload_ops_per_sec';
 const LEGACY_THROUGHPUT_METRIC = 'tasks_per_sec';
 
 function parseArgs(argv) {
-  const out = { strict: false, policyPath: DEFAULT_POLICY_PATH };
-  for (const raw of argv) {
-    const arg = String(raw ?? '').trim();
-    if (!arg) continue;
-    if (arg === '--strict' || arg === '--strict=1') {
-      out.strict = true;
-      continue;
-    }
-    if (arg.startsWith('--strict=')) {
-      const value = arg.slice('--strict='.length).toLowerCase();
-      out.strict = ['1', 'true', 'yes', 'on'].includes(value);
-      continue;
-    }
-    if (arg.startsWith('--policy=')) {
-      out.policyPath = arg.slice('--policy='.length).trim() || DEFAULT_POLICY_PATH;
-      continue;
-    }
-  }
-  return out;
+  return {
+    strict: hasFlag(argv, 'strict') || parseBool(readFlag(argv, 'strict'), false),
+    policyPath: cleanText(readFlag(argv, 'policy') || DEFAULT_POLICY_PATH, 400),
+    outJson: cleanText(readFlag(argv, 'out-json') || OUT_JSON, 400),
+    outMarkdown: cleanText(readFlag(argv, 'out-markdown') || OUT_MD, 400),
+  };
 }
 
 function readJson(relPath) {
   return JSON.parse(readFileSync(resolve(relPath), 'utf8'));
-}
-
-function ensureParent(path) {
-  mkdirSync(dirname(resolve(path)), { recursive: true });
 }
 
 function asFiniteNumber(value) {
@@ -321,20 +307,41 @@ function toMarkdown(payload) {
 }
 
 function main() {
+  const started = Date.now();
   const args = parseArgs(process.argv.slice(2));
   const policy = readJson(args.policyPath);
   const reportPath = policy.report_path;
   const statePath = policy.state_path;
 
   if (!reportPath || !existsSync(resolve(reportPath))) {
-    const out = {
+    const payload = {
       ok: false,
       type: 'benchmark_sanity_gate',
       generated_at: new Date().toISOString(),
-      error: `benchmark_report_missing:${reportPath}`,
+      duration_ms: Date.now() - started,
+      owner: 'ops',
+      revision: currentRevision(process.cwd()),
+      inputs: {
+        strict: args.strict,
+        policy_path: args.policyPath,
+        out_json: args.outJson,
+        out_markdown: args.outMarkdown,
+      },
+      summary: {
+        required_rows: 0,
+        measured_rows: 0,
+        violations: 1,
+        pass: false,
+      },
+      failures: [{ id: 'benchmark_report_missing', detail: String(reportPath || '') }],
+      artifact_paths: [args.outJson, args.outMarkdown],
     };
-    console.error(JSON.stringify(out, null, 2));
-    process.exit(1);
+    writeJsonArtifact(resolve(args.outJson), payload);
+    return emitStructuredResult(payload, {
+      outPath: '',
+      strict: true,
+      ok: false,
+    });
   }
 
   const report = readJson(reportPath);
@@ -364,9 +371,18 @@ function main() {
   ];
 
   const payload = {
-    ok: true,
+    ok: violations.length === 0,
     type: 'benchmark_sanity_gate',
     generated_at: new Date().toISOString(),
+    duration_ms: Date.now() - started,
+    owner: 'ops',
+    revision: currentRevision(process.cwd()),
+    inputs: {
+      strict: args.strict,
+      policy_path: args.policyPath,
+      out_json: args.outJson,
+      out_markdown: args.outMarkdown,
+    },
     policy_path: args.policyPath,
     report_path: reportPath,
     runtime_source_report_path: runtimeSourcePath,
@@ -380,18 +396,17 @@ function main() {
       violations: violations.length,
       pass: violations.length === 0,
     },
+    failures: violations.map((detail) => ({ id: 'benchmark_violation', detail })),
+    artifact_paths: [args.outJson, args.outMarkdown],
     rows,
     violations,
   };
 
-  ensureParent(OUT_JSON);
-  ensureParent(OUT_MD);
-  writeFileSync(resolve(OUT_JSON), `${JSON.stringify(payload, null, 2)}\n`);
-  writeFileSync(resolve(OUT_MD), toMarkdown(payload));
+  writeJsonArtifact(resolve(args.outJson), payload);
+  writeTextArtifact(resolve(args.outMarkdown), toMarkdown(payload));
 
   if (statePath) {
-    ensureParent(statePath);
-    const statePayload = {
+    writeTextArtifact(resolve(statePath), `${JSON.stringify({
       ok: violations.length === 0,
       type: 'benchmark_sanity_gate',
       generated_at: payload.generated_at,
@@ -408,43 +423,14 @@ function main() {
       summary: payload.summary,
       violations: payload.violations,
       projects: latestStateRows(rows),
-    };
-    writeFileSync(
-      resolve(statePath),
-      `${JSON.stringify(statePayload, null, 2)}\n`,
-    );
+    }, null, 2)}\n`);
   }
 
-  if (args.strict && violations.length > 0) {
-    console.error(
-      JSON.stringify(
-        {
-          ok: false,
-          type: payload.type,
-          out_json: OUT_JSON,
-          summary: payload.summary,
-          violations,
-        },
-        null,
-        2,
-      ),
-    );
-    process.exit(1);
-  }
-
-  console.log(
-    JSON.stringify(
-      {
-        ok: true,
-        type: payload.type,
-        out_json: OUT_JSON,
-        out_markdown: OUT_MD,
-        summary: payload.summary,
-      },
-      null,
-      2,
-    ),
-  );
+  return emitStructuredResult(payload, {
+    outPath: '',
+    strict: args.strict,
+    ok: payload.ok,
+  });
 }
 
-main();
+process.exit(main());

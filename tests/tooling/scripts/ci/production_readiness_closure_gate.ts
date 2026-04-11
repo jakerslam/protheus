@@ -21,12 +21,14 @@ type Policy = {
   required_package_scripts?: string[];
   required_ci_invocations?: string[];
   required_verify_invocations?: string[];
+  required_verify_profile_gate_ids?: Record<string, string[]>;
   required_readme_markers?: string[];
   smoke_scripts?: string[];
 };
 
 const ROOT = process.cwd();
 const POLICY_PATH = path.join(ROOT, 'client/runtime/config/production_readiness_closure_policy.json');
+const VERIFY_PROFILES_PATH = path.join(ROOT, 'tests/tooling/config/verify_profiles.json');
 const GATE_REGISTRY_PATH = 'tests/tooling/config/tooling_gate_registry.json';
 
 function parseBool(raw: string | undefined, fallback = false): boolean {
@@ -103,6 +105,35 @@ function checkTextMarkers(filePath: string, markers: string[], prefix: string): 
   });
 }
 
+function checkVerifyProfileGateIds(requiredProfiles: Record<string, string[]>): Check[] {
+  const manifest = readJson<{ profiles?: Record<string, { gate_ids?: string[] }> }>(
+    VERIFY_PROFILES_PATH,
+    {},
+  );
+  const profiles = manifest.profiles || {};
+  const checks: Check[] = [];
+  for (const [profileId, requiredGateIds] of Object.entries(requiredProfiles || {})) {
+    const gateIds = Array.isArray(profiles[profileId]?.gate_ids) ? profiles[profileId]?.gate_ids || [] : [];
+    if (!profiles[profileId]) {
+      checks.push({
+        id: `verify_profile:${profileId}`,
+        ok: false,
+        detail: 'missing',
+      });
+      continue;
+    }
+    for (const gateId of requiredGateIds) {
+      const ok = gateIds.includes(gateId);
+      checks.push({
+        id: `verify_profile_gate:${profileId}:${gateId}`,
+        ok,
+        detail: ok ? 'present' : 'missing',
+      });
+    }
+  }
+  return checks;
+}
+
 function runSmokeScripts(scriptNames: string[]): Check[] {
   return scriptNames.map((scriptName) => {
     try {
@@ -153,6 +184,7 @@ function buildReport(args: Args) {
       'verify_invocation',
     ),
   );
+  checks.push(...checkVerifyProfileGateIds(policy.required_verify_profile_gate_ids || {}));
   checks.push(
     ...checkTextMarkers(
       path.join(ROOT, 'README.md'),
