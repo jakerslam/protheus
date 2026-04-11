@@ -96,7 +96,7 @@ Tests are a separate verification surface, with one exception:
 
 ### 3. Language Rules
 - `/core/`: Rust by default; C/C++ allowed only for approved low-level performance-critical or hardware-adjacent modules; shell allowed only for tightly-scoped build/install/packaging wrappers and never as safety authority.
-- `/surface/`: Rust-first orchestration coordination contracts; TS/TSX wrappers allowed only for thin ingress/packaging interfaces.
+- `/surface/`: Rust-first orchestration coordination contracts; orchestration surface tracked source should remain at least `95%` Rust, with TS/TSX wrappers allowed only for thin ingress/packaging interfaces.
 - `/client/`: target state is TS/TSX + HTML/CSS frontend surfaces. JS/Python/Shell/PowerShell are tolerated only for explicitly-audited legacy shims, packaging helpers, or migration debt.
 - `/packages/`: public SDK/package layer; polyglot is allowed, but packages stay thin and developer-facing.
 - `/apps/`: polyglot by design.

@@ -27,6 +27,15 @@ function read(path: string): string {
   return readFileSync(path, 'utf8');
 }
 
+function isOrchestrationSurfaceShim(source: string, key: string): boolean {
+  const normalizedKey = cleanText(key, 120);
+  return (
+    normalizedKey.length > 0 &&
+    source.includes('adapters/runtime/orchestration_surface_modules.ts') &&
+    source.includes(`bindOrchestrationSurfaceModule('${normalizedKey}', module)`)
+  );
+}
+
 function toMarkdown(rows: CheckResult[]): string {
   const lines: string[] = [];
   lines.push('# Architecture Boundary Audit (Current)');
@@ -149,8 +158,7 @@ function main() {
     },
     {
       id: 'orchestration_runtime_lives_under_surface',
-      ok: surfaceSwarmRuntime.includes('bindSwarmOrchestrationRuntimeModule') &&
-        surfaceSwarmRuntime.includes('adapters/runtime/swarm_bridge_modules.ts'),
+      ok: isOrchestrationSurfaceShim(surfaceSwarmRuntime, 'swarm_orchestration_runtime'),
       detail: 'swarm orchestration coordination implementation is hosted in surface/orchestration',
     },
     {
@@ -161,8 +169,10 @@ function main() {
     },
     {
       id: 'self_improvement_orchestration_runtime_lives_under_surface',
-      ok: surfaceSelfImproveRuntime.includes('SYSTEMS-AUTONOMY-SELF_IMPROVEMENT_CADENCE_ORCHESTRATOR') &&
-        surfaceSelfImproveRuntime.includes('createOpsLaneBridge'),
+      ok: isOrchestrationSurfaceShim(
+        surfaceSelfImproveRuntime,
+        'self_improvement_cadence_orchestrator',
+      ),
       detail: 'self-improvement cadence orchestration coordination implementation is hosted in surface/orchestration',
     },
     {
@@ -173,8 +183,7 @@ function main() {
     },
     {
       id: 'route_task_runtime_lives_under_surface',
-      ok: surfaceRouteTaskRuntime.includes('SYSTEMS-ROUTING-ROUTE_TASK') &&
-        surfaceRouteTaskRuntime.includes('createOpsLaneBridge'),
+      ok: isOrchestrationSurfaceShim(surfaceRouteTaskRuntime, 'route_task'),
       detail: 'route_task orchestration coordination implementation is hosted in surface/orchestration',
     },
     {
@@ -185,8 +194,7 @@ function main() {
     },
     {
       id: 'route_execute_runtime_lives_under_surface',
-      ok: surfaceRouteExecuteRuntime.includes('SYSTEMS-ROUTING-ROUTE_EXECUTE') &&
-        surfaceRouteExecuteRuntime.includes('createOpsLaneBridge'),
+      ok: isOrchestrationSurfaceShim(surfaceRouteExecuteRuntime, 'route_execute'),
       detail: 'route_execute orchestration coordination implementation is hosted in surface/orchestration',
     },
     {
@@ -197,8 +205,10 @@ function main() {
     },
     {
       id: 'provider_onboarding_manifest_runtime_lives_under_surface',
-      ok: surfaceProviderOnboardingRuntime.includes('SYSTEMS-ROUTING-PROVIDER_ONBOARDING_MANIFEST') &&
-        surfaceProviderOnboardingRuntime.includes('createOpsLaneBridge'),
+      ok: isOrchestrationSurfaceShim(
+        surfaceProviderOnboardingRuntime,
+        'provider_onboarding_manifest',
+      ),
       detail: 'provider_onboarding_manifest orchestration coordination implementation is hosted in surface/orchestration',
     },
     {
@@ -209,8 +219,10 @@ function main() {
     },
     {
       id: 'gateway_failure_classifier_runtime_lives_under_surface',
-      ok: surfaceGatewayFailureClassifierRuntime.includes('SYSTEMS-ROUTING-LLM_GATEWAY_FAILURE_CLASSIFIER') &&
-        surfaceGatewayFailureClassifierRuntime.includes('createOpsLaneBridge'),
+      ok: isOrchestrationSurfaceShim(
+        surfaceGatewayFailureClassifierRuntime,
+        'llm_gateway_failure_classifier',
+      ),
       detail: 'llm_gateway_failure_classifier orchestration coordination implementation is hosted in surface/orchestration',
     },
     {
@@ -221,8 +233,7 @@ function main() {
     },
     {
       id: 'morph_planner_runtime_lives_under_surface',
-      ok: surfaceMorphPlannerRuntime.includes('SYSTEMS-FRACTAL-MORPH_PLANNER') &&
-        surfaceMorphPlannerRuntime.includes('createOpsLaneBridge'),
+      ok: isOrchestrationSurfaceShim(surfaceMorphPlannerRuntime, 'morph_planner'),
       detail: 'morph_planner coordination implementation is hosted in surface/orchestration',
     },
     {
@@ -233,8 +244,10 @@ function main() {
     },
     {
       id: 'value_of_information_planner_runtime_lives_under_surface',
-      ok: surfaceValueOfInformationPlannerRuntime.includes('SYSTEMS-SENSORY-VALUE_OF_INFORMATION_COLLECTION_PLANNER') &&
-        surfaceValueOfInformationPlannerRuntime.includes('createOpsLaneBridge'),
+      ok: isOrchestrationSurfaceShim(
+        surfaceValueOfInformationPlannerRuntime,
+        'value_of_information_collection_planner',
+      ),
       detail: 'value_of_information_collection_planner coordination implementation is hosted in surface/orchestration',
     },
     {
@@ -245,9 +258,7 @@ function main() {
     },
     {
       id: 'task_decomposition_runtime_lives_under_surface',
-      ok: surfaceTaskDecompositionRuntime.includes('SYSTEMS-EXECUTION-TASK_DECOMPOSITION_PRIMITIVE') &&
-        surfaceTaskDecompositionRuntime.includes('bindRuntimeSystemModule') &&
-        surfaceTaskDecompositionRuntime.includes('adapters/runtime/runtime_system_bridge.ts'),
+      ok: isOrchestrationSurfaceShim(surfaceTaskDecompositionRuntime, 'task_decomposition_primitive'),
       detail: 'task_decomposition_primitive coordination implementation is hosted in surface/orchestration',
     },
     {
@@ -258,8 +269,7 @@ function main() {
     },
     {
       id: 'learning_conduit_runtime_lives_under_surface',
-      ok: surfaceLearningConduitRuntime.includes('SYSTEMS-WORKFLOW-LEARNING_CONDUIT') &&
-        surfaceLearningConduitRuntime.includes('createOpsLaneBridge'),
+      ok: isOrchestrationSurfaceShim(surfaceLearningConduitRuntime, 'learning_conduit'),
       detail: 'learning_conduit coordination implementation is hosted in surface/orchestration',
     },
     {
@@ -270,8 +280,10 @@ function main() {
     },
     {
       id: 'relationship_manager_runtime_lives_under_surface',
-      ok: surfaceRelationshipManagerRuntime.includes('SYSTEMS-WORKFLOW-CLIENT_RELATIONSHIP_MANAGER') &&
-        surfaceRelationshipManagerRuntime.includes('createOpsLaneBridge'),
+      ok: isOrchestrationSurfaceShim(
+        surfaceRelationshipManagerRuntime,
+        'client_relationship_manager',
+      ),
       detail: 'client_relationship_manager coordination implementation is hosted in surface/orchestration',
     },
     {
@@ -282,8 +294,10 @@ function main() {
     },
     {
       id: 'universal_outreach_runtime_lives_under_surface',
-      ok: surfaceUniversalOutreachRuntime.includes('SYSTEMS-WORKFLOW-UNIVERSAL_OUTREACH_PRIMITIVE') &&
-        surfaceUniversalOutreachRuntime.includes('createOpsLaneBridge'),
+      ok: isOrchestrationSurfaceShim(
+        surfaceUniversalOutreachRuntime,
+        'universal_outreach_primitive',
+      ),
       detail: 'universal_outreach_primitive coordination implementation is hosted in surface/orchestration',
     },
     {
@@ -294,8 +308,7 @@ function main() {
     },
     {
       id: 'payment_skills_runtime_lives_under_surface',
-      ok: surfacePaymentSkillsRuntime.includes('SYSTEMS-WORKFLOW-PAYMENT_SKILLS_BRIDGE') &&
-        surfacePaymentSkillsRuntime.includes('createOpsLaneBridge'),
+      ok: isOrchestrationSurfaceShim(surfacePaymentSkillsRuntime, 'payment_skills_bridge'),
       detail: 'payment_skills_bridge coordination implementation is hosted in surface/orchestration',
     },
     {
@@ -306,8 +319,10 @@ function main() {
     },
     {
       id: 'gated_account_creation_runtime_lives_under_surface',
-      ok: surfaceGatedAccountCreationRuntime.includes('SYSTEMS-WORKFLOW-GATED_ACCOUNT_CREATION_ORGAN') &&
-        surfaceGatedAccountCreationRuntime.includes('createOpsLaneBridge'),
+      ok: isOrchestrationSurfaceShim(
+        surfaceGatedAccountCreationRuntime,
+        'gated_account_creation_organ',
+      ),
       detail: 'gated_account_creation_organ coordination implementation is hosted in surface/orchestration',
     },
     {
@@ -318,8 +333,10 @@ function main() {
     },
     {
       id: 'gated_self_improvement_runtime_lives_under_surface',
-      ok: surfaceGatedSelfImprovementRuntime.includes('SYSTEMS-AUTONOMY-GATED_SELF_IMPROVEMENT_LOOP') &&
-        surfaceGatedSelfImprovementRuntime.includes('createOpsLaneBridge'),
+      ok: isOrchestrationSurfaceShim(
+        surfaceGatedSelfImprovementRuntime,
+        'gated_self_improvement_loop',
+      ),
       detail: 'gated_self_improvement_loop coordination implementation is hosted in surface/orchestration',
     },
     {
@@ -330,8 +347,7 @@ function main() {
     },
     {
       id: 'hold_remediation_runtime_lives_under_surface',
-      ok: surfaceHoldRemediationRuntime.includes('SYSTEMS-AUTONOMY-HOLD_REMEDIATION_ENGINE') &&
-        surfaceHoldRemediationRuntime.includes('createOpsLaneBridge'),
+      ok: isOrchestrationSurfaceShim(surfaceHoldRemediationRuntime, 'hold_remediation_engine'),
       detail: 'hold_remediation_engine coordination implementation is hosted in surface/orchestration',
     },
     {
@@ -342,8 +358,7 @@ function main() {
     },
     {
       id: 'lever_experiment_runtime_lives_under_surface',
-      ok: surfaceLeverExperimentRuntime.includes('SYSTEMS-AUTONOMY-LEVER_EXPERIMENT_GATE') &&
-        surfaceLeverExperimentRuntime.includes('createOpsLaneBridge'),
+      ok: isOrchestrationSurfaceShim(surfaceLeverExperimentRuntime, 'lever_experiment_gate'),
       detail: 'lever_experiment_gate coordination implementation is hosted in surface/orchestration',
     },
     {
@@ -354,8 +369,7 @@ function main() {
     },
     {
       id: 'model_catalog_runtime_lives_under_surface',
-      ok: surfaceModelCatalogRuntime.includes('SYSTEMS-AUTONOMY-MODEL_CATALOG_LOOP') &&
-        surfaceModelCatalogRuntime.includes('createOpsLaneBridge'),
+      ok: isOrchestrationSurfaceShim(surfaceModelCatalogRuntime, 'model_catalog_loop'),
       detail: 'model_catalog_loop coordination implementation is hosted in surface/orchestration',
     },
     {
@@ -366,8 +380,10 @@ function main() {
     },
     {
       id: 'proactive_t1_runtime_lives_under_surface',
-      ok: surfaceProactiveT1Runtime.includes('SYSTEMS-AUTONOMY-PROACTIVE_T1_INITIATIVE_ENGINE') &&
-        surfaceProactiveT1Runtime.includes('createOpsLaneBridge'),
+      ok: isOrchestrationSurfaceShim(
+        surfaceProactiveT1Runtime,
+        'proactive_t1_initiative_engine',
+      ),
       detail: 'proactive_t1_initiative_engine coordination implementation is hosted in surface/orchestration',
     },
     {
@@ -378,8 +394,10 @@ function main() {
     },
     {
       id: 'zero_permission_runtime_lives_under_surface',
-      ok: surfaceZeroPermissionRuntime.includes('SYSTEMS-AUTONOMY-ZERO_PERMISSION_CONVERSATIONAL_LAYER') &&
-        surfaceZeroPermissionRuntime.includes('createOpsLaneBridge'),
+      ok: isOrchestrationSurfaceShim(
+        surfaceZeroPermissionRuntime,
+        'zero_permission_conversational_layer',
+      ),
       detail: 'zero_permission_conversational_layer coordination implementation is hosted in surface/orchestration',
     },
     {
@@ -390,8 +408,7 @@ function main() {
     },
     {
       id: 'persona_orchestration_runtime_lives_under_surface',
-      ok: surfacePersonaRuntime.includes('SYSTEMS-PERSONAS-ORCHESTRATION') &&
-        surfacePersonaRuntime.includes('createOpsLaneBridge'),
+      ok: isOrchestrationSurfaceShim(surfacePersonaRuntime, 'personas_orchestration'),
       detail: 'persona orchestration coordination implementation is hosted in surface/orchestration',
     },
   ];
