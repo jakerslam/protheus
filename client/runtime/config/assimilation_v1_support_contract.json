@@ -1,0 +1,35 @@
+{
+  "schema_id": "assimilation_v1_support_contract",
+  "schema_version": "1.0",
+  "status": "frozen_v1_vertical_slice",
+  "canonical_slice": {
+    "name": "runtime_ingress_to_assimilation_kernel",
+    "ingress": "runtime-systems execute assimilation protocol contract",
+    "orchestration_boundary": "surface/orchestration proposal-only coordination",
+    "authoritative_kernel": "core/layer2/assimilation",
+    "authoritative_receipts": [
+      "protocol_state.json",
+      "protocol_history.jsonl",
+      "protocol_step_receipts.jsonl"
+    ],
+    "supported_modes": [
+      "plan_only",
+      "admitted_execution"
+    ]
+  },
+  "production_contract": {
+    "support_level": "experimental_opt_in",
+    "release_supported": false,
+    "operator_expectation": "One frozen ingress -> orchestration -> assimilation-kernel -> receipt-output path is hardened; broader assimilation surfaces remain experimental."
+  },
+  "experimental_surfaces": [
+    "legacy bridge-backed assimilation wrappers",
+    "showcase timing mode",
+    "target-specific convenience wrappers outside the canonical receipt path"
+  ],
+  "required_evidence": [
+    "core/layer0/ops/src/runtime_systems_parts/095-execute-assimilation-protocol-contract.rs",
+    "core/layer2/assimilation/src/lib.rs",
+    "core/layer0/ops/src/runtime_systems_parts/120-run-writes-latest-and-status-reads-it.rs"
+  ]
+}

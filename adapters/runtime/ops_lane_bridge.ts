@@ -2,7 +2,11 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { spawn, spawnSync } = require('child_process');
+const { spawn } = require('child_process');
+const {
+    runLocalOpsDomainProcessFallback,
+    shouldRetryProcessFallbackWithCargo
+} = require('./dev_only/ops_lane_process_fallback.ts');
 function repoRoot(scriptDir) {
     let dir = path.resolve(scriptDir || process.cwd());
     while (true) {
@@ -601,89 +605,23 @@ function resolveProtheusOpsCommand(root, domain) {
     };
 }
 function runLocalOpsDomainOnce(root, domain, passArgs, cliMode, inheritStdio, resolved) {
-    const commandArgs = resolved.args.concat(Array.isArray(passArgs) ? passArgs : []);
-    const timeoutMs = parseTimeoutMs('PROTHEUS_OPS_LOCAL_TIMEOUT_MS', 45000);
-    const run = spawnSync(resolved.command, commandArgs, {
-        cwd: root,
-        encoding: 'utf8',
-        env: defaultEnv(),
-        stdio: cliMode && inheritStdio ? 'inherit' : undefined,
-        timeout: timeoutMs,
-        maxBuffer: 1024 * 1024 * 4
+    return runLocalOpsDomainProcessFallback({
+        root,
+        domain,
+        passArgs,
+        cliMode,
+        inheritStdio,
+        resolved,
+        defaultEnv,
+        parseTimeoutMs,
+        deferOnHostStallEnabled,
+        isTimeoutLikeSpawnError,
+        normalizeStatus,
+        parseJsonPayload
     });
-    if (deferOnHostStallEnabled() && isTimeoutLikeSpawnError(run.error)) {
-        const payload = {
-            ok: true,
-            type: 'ops_domain_deferred_host_stall',
-            reason_code: 'deferred_host_stall',
-            raw_error_code: String(run.error.code || ''),
-            domain,
-            timeout_ms: timeoutMs
-        };
-        return {
-            ok: true,
-            status: 0,
-            stdout: cliMode && inheritStdio ? '' : `${JSON.stringify(payload)}\n`,
-            stderr: String(run.error && run.error.message ? run.error.message : run.error),
-            payload,
-            rust_command: resolved.command,
-            rust_args: [resolved.command, ...commandArgs],
-            timeout_ms: timeoutMs,
-            routed_via: 'core_local',
-            deferred_host_stall: true
-        };
-    }
-    const status = run.error ? 1 : normalizeStatus(run.status);
-    const stdout = run.stdout || '';
-    const stderr = `${run.stderr || ''}${run.error ? `\n${String(run.error && run.error.message ? run.error.message : run.error)}` : ''}`;
-    const payload = cliMode && inheritStdio ? null : parseJsonPayload(stdout);
-    if (!payload && run.error) {
-        return {
-            ok: false,
-            status,
-            stdout,
-            stderr,
-            payload: {
-                ok: false,
-                type: 'ops_domain_spawn_error',
-                reason: String(run.error && run.error.message ? run.error.message : run.error),
-                raw_error_code: String(run.error.code || ''),
-                domain
-            },
-            error: run.error,
-            rust_command: resolved.command,
-            rust_args: [resolved.command, ...commandArgs],
-            timeout_ms: timeoutMs,
-            routed_via: 'core_local'
-        };
-    }
-    return {
-        ok: status === 0,
-        status,
-        stdout,
-        stderr,
-        payload,
-        error: run.error || null,
-        rust_command: resolved.command,
-        rust_args: [resolved.command, ...commandArgs],
-        timeout_ms: timeoutMs,
-        routed_via: 'core_local'
-    };
 }
 function shouldRetryWithCargo(result) {
-    if (!result || result.status === 0)
-        return false;
-    const rawErrorCode = String((result.payload && result.payload.raw_error_code)
-        || (result.error && result.error.code)
-        || '').toLowerCase();
-    if (rawErrorCode === 'enoent' || rawErrorCode === 'eacces') {
-        return true;
-    }
-    const reason = String((result.payload && result.payload.reason)
-        || (result.payload && result.payload.error)
-        || result.stderr
-        || '').toLowerCase();
-    return reason.includes('unknown_domain') || reason.includes('unknown_command');
+    return shouldRetryProcessFallbackWithCargo(result);
 }
 function markProcessTransportFallback(result, reason) {
     if (!result || typeof result !== 'object') {

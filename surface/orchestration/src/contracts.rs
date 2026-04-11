@@ -1,3 +1,4 @@
+use protheus_tooling_core_v1::{ToolBackendClass, ToolReasonCode};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -52,11 +53,21 @@ pub struct OrchestrationPlan {
     pub steps: Vec<OrchestrationPlanStep>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ToolFallbackContext {
+    pub tool_name: String,
+    pub backend: String,
+    pub backend_class: ToolBackendClass,
+    pub reason_code: ToolReasonCode,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct OrchestrationFallbackAction {
     pub kind: String,
     pub label: String,
     pub reason: String,
+    pub backend_class: Option<ToolBackendClass>,
+    pub reason_code: Option<ToolReasonCode>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

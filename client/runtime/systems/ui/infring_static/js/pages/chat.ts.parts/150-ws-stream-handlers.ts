@@ -114,7 +114,7 @@
           }
           lastMsg.thinking = true;
           lastMsg.streaming = true;
-          this.ensureStreamingToolCard(lastMsg, data.tool, data.input || '', { running: true });
+          this.ensureStreamingToolCard(lastMsg, data.tool, data.input || '', { running: true, attempt_id: data.attempt_id, attempt_sequence: data.attempt_sequence });
           lastMsg._stream_updated_at = Date.now();
           if (!Number.isFinite(Number(lastMsg._stream_started_at))) lastMsg._stream_started_at = Date.now(); var receiptStartLabel = String(data && data.tool_status ? data.tool_status : '').trim();
           if (receiptStartLabel && typeof this.normalizeThinkingStatusCandidate === 'function') receiptStartLabel = this.normalizeThinkingStatusCandidate(receiptStartLabel); var startLabel = receiptStartLabel || (typeof this.toolThinkingActionLabel === 'function' ? this.toolThinkingActionLabel({ name: data.tool, input: data.input || '' }) : String(data.tool || 'tool'));
@@ -126,7 +126,7 @@
           var toolEndAgentId = String(data && data.agent_id ? data.agent_id : (this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '')).trim(); if (toolEndAgentId) this.setAgentLiveActivity(toolEndAgentId, 'working');
           var lastMsg2 = this.messages.length ? this.messages[this.messages.length - 1] : null;
           if (lastMsg2) {
-            var endedTool = this.ensureStreamingToolCard(lastMsg2, data.tool, data.input || '', { running: false, no_create: true });
+            var endedTool = this.ensureStreamingToolCard(lastMsg2, data.tool, data.input || '', { running: false, no_create: true, attempt_id: data.attempt_id, attempt_sequence: data.attempt_sequence });
             if (endedTool) endedTool.running = false;
             var activeToolLabel = typeof this.currentToolDialogLabel === 'function' ? String(this.currentToolDialogLabel(lastMsg2) || '').trim() : '';
             if (activeToolLabel && lastMsg2.thinking_status !== activeToolLabel) {
@@ -144,7 +144,7 @@
           var toolResultAgentId = String(data && data.agent_id ? data.agent_id : (this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '')).trim(); if (toolResultAgentId) this.setAgentLiveActivity(toolResultAgentId, 'working');
           var lastMsg3 = this.messages.length ? this.messages[this.messages.length - 1] : null;
           if (lastMsg3) {
-            var resultTool = this.ensureStreamingToolCard(lastMsg3, data.tool, data.input || '', { running: true });
+            var resultTool = this.ensureStreamingToolCard(lastMsg3, data.tool, data.input || '', { running: true, attempt_id: data.attempt_id, attempt_sequence: data.attempt_sequence });
             if (resultTool) {
               resultTool.running = false;
               resultTool.result = data.result || '';
