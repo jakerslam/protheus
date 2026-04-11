@@ -111,6 +111,7 @@
 }
 /* Stable universal top bar for all pages */
 .global-topbar {
+  --topbar-dock-transition: 220ms;
   min-height: 46px;
   height: 46px;
   display: flex;
@@ -129,8 +130,27 @@
   left: 0;
   right: 0;
   top: 0;
+  bottom: auto;
   /* Keep topbar above sidebar/pulltab so seam shadow renders consistently. */
   z-index: 19300;
+  transition:
+    top var(--topbar-dock-transition) var(--ease-smooth),
+    bottom var(--topbar-dock-transition) var(--ease-smooth);
+}
+
+.global-topbar.is-dock-dragging {
+  --topbar-dock-transition: 0ms;
+  cursor: grabbing;
+}
+
+.global-topbar.is-docked-bottom {
+  top: auto;
+  bottom: 0;
+}
+
+.global-topbar.is-docked-top {
+  top: 0;
+  bottom: auto;
 }
 
 .global-topbar-left {
@@ -338,15 +358,15 @@
 }
 
 .bottom-dock-preview-bubble.is-side-top {
-  transform: translateX(-50%) translateY(-6px);
+  transform: translateX(-50%) translateY(calc(-100% + 6px));
 }
 
 .bottom-dock-preview-bubble.is-side-left {
-  transform: translateX(6px) translateY(-50%);
+  transform: translateX(calc(-100% + 6px)) translateY(-50%);
 }
 
 .bottom-dock-preview-bubble.is-side-right {
-  transform: translateX(calc(-100% - 6px)) translateY(-50%);
+  transform: translateX(-6px) translateY(-50%);
 }
 
 .bottom-dock-preview-bubble::before {
@@ -399,19 +419,19 @@
 
 .bottom-dock-preview-bubble.is-visible {
   opacity: 1;
-  transform: translateX(-50%) translateY(-100%);
-}
-
-.bottom-dock-preview-bubble.is-visible.is-side-top {
   transform: translateX(-50%) translateY(0);
 }
 
+.bottom-dock-preview-bubble.is-visible.is-side-top {
+  transform: translateX(-50%) translateY(-100%);
+}
+
 .bottom-dock-preview-bubble.is-visible.is-side-left {
-  transform: translateX(0) translateY(-50%);
+  transform: translateX(-100%) translateY(-50%);
 }
 
 .bottom-dock-preview-bubble.is-visible.is-side-right {
-  transform: translateX(-100%) translateY(-50%);
+  transform: translateX(0) translateY(-50%);
 }
 
 .bottom-dock-preview-bubble.is-visible .bottom-dock-preview-bubble-label-stack.label-fx-ready .bottom-dock-preview-bubble-label--new {
