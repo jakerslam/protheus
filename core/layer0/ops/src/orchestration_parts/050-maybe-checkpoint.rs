@@ -61,7 +61,7 @@ fn handle_timeout(root: &Path, task_id: &str, metrics: &Value, root_dir: Option<
         });
     }
 
-    let _ = write_scratchpad(
+    if let Err(err) = write_scratchpad(
         root,
         task_id,
         &json!({
@@ -71,7 +71,15 @@ fn handle_timeout(root: &Path, task_id: &str, metrics: &Value, root_dir: Option<
             }
         }),
         root_dir,
-    );
+    ) {
+        return json!({
+            "ok": false,
+            "type": "orchestration_checkpoint_timeout",
+            "reason_code": err,
+            "task_id": task_id,
+            "checkpoint_path": appended.get("file_path").cloned().unwrap_or(Value::Null)
+        });
+    }
 
     json!({
         "ok": true,
@@ -370,7 +378,18 @@ fn latest_checkpoint_from_scratchpad(root: &Path, task_id: &str, root_dir: Optio
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
-    let latest = checkpoints.last().cloned().unwrap_or(Value::Null);
+    let latest = checkpoints
+        .iter()
+        .rev()
+        .find(|checkpoint| {
+            checkpoint
+                .get("partial_results")
+                .and_then(Value::as_array)
+                .map(|rows| !rows.is_empty())
+                .unwrap_or(false)
+        })
+        .cloned()
+        .unwrap_or(Value::Null);
     let partial_results = latest
         .get("partial_results")
         .and_then(Value::as_array)
@@ -398,4 +417,3 @@ fn latest_checkpoint_from_scratchpad(root: &Path, task_id: &str, root_dir: Optio
         "retry_allowed": latest.get("retry_allowed").and_then(Value::as_bool).unwrap_or(false)
     })
 }
-

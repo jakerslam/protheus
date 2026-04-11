@@ -156,4 +156,31 @@ fn coordinator_run_writes_taskgroup_and_progress() {
             .map(|rows| rows.len()),
         Some(2)
     );
+    assert_eq!(
+        taskgroup
+            .get("agents")
+            .and_then(Value::as_array)
+            .and_then(|rows| rows.first())
+            .and_then(|row| row.get("details"))
+            .and_then(|row| row.get("partial_results_count"))
+            .and_then(Value::as_i64),
+        Some(1)
+    );
+    assert_eq!(
+        taskgroup
+            .get("agents")
+            .and_then(Value::as_array)
+            .map(|rows| {
+                rows.iter()
+                    .filter(|row| {
+                        row.get("details")
+                            .and_then(|details| details.get("partial_results"))
+                            .and_then(Value::as_array)
+                            .map(|results| !results.is_empty())
+                            .unwrap_or(false)
+                    })
+                    .count()
+            }),
+        Some(2)
+    );
 }
