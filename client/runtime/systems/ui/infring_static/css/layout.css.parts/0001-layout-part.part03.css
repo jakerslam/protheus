@@ -237,7 +237,6 @@ body[data-theme='dark'] .bottom-dock::before {
 .dock-tile.active {
   color: var(--dock-tile-fg-active);
   background: linear-gradient(to bottom right, #424242 0%, #000 100%);
-  box-shadow: var(--bottom-dock-icon-shadow-base);
 }
 
 .dock-tile svg,
