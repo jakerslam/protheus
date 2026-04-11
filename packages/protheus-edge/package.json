@@ -2,12 +2,12 @@
   "name": "@protheus/edge",
   "version": "0.1.0",
   "private": true,
-  "description": "Lightweight mobile/edge runtime package with reflex cache, wrappers, and benchmark surfaces",
-  "main": "index.js",
+  "description": "Workspace compatibility facade for the supported mobile/edge runtime subset",
+  "main": "index.ts",
   "license": "MIT",
   "scripts": {
-    "start:edge": "node starter.js --mode=edge",
-    "status": "node starter.js --mode=status",
-    "contract": "node starter.js --mode=contract"
+    "start:edge": "node ../../client/runtime/lib/ts_entrypoint.ts ./starter.ts --mode=edge",
+    "status": "node ../../client/runtime/lib/ts_entrypoint.ts ./starter.ts --mode=status",
+    "contract": "node ../../client/runtime/lib/ts_entrypoint.ts ./starter.ts --mode=contract"
   }
 }

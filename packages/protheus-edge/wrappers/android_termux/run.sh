@@ -2,7 +2,8 @@
 set -eu
 
 ROOT_DIR="$(cd "$(dirname "$0")/../../../.." && pwd)"
-POLICY_PATH="${PROTHEUS_EDGE_POLICY_PATH:-$ROOT_DIR/client/runtime/config/protheus_edge_policy.json}"
+ENTRYPOINT="$ROOT_DIR/client/runtime/lib/ts_entrypoint.ts"
+STARTER="$ROOT_DIR/packages/protheus-edge/starter.ts"
 
-echo "[protheus-edge] starting Android/Termux runtime"
-node "$ROOT_DIR/client/runtime/systems/edge/protheus_edge_runtime.ts" start --owner="${PROTHEUS_OWNER:-operator}" --profile=mobile_seed --cache-mode=memfs_cached --online="${PROTHEUS_ONLINE:-1}" --remote-spine="${PROTHEUS_REMOTE_SPINE:-}" --contract-lane-verified=1 --policy="$POLICY_PATH"
+echo "[protheus-edge] checking Android/Termux edge compatibility surface"
+node "$ENTRYPOINT" "$STARTER" --mode=status --target=android_termux --benchmark=0

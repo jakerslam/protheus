@@ -1,23 +1,28 @@
 # `@protheus/edge`
 
-Lightweight runtime surface for mobile/edge operation:
+Workspace compatibility facade for the supported mobile/edge subset:
 
-- edge runtime (`client/runtime/systems/edge/protheus_edge_runtime.ts`)
-- lifecycle resilience (`client/runtime/systems/edge/mobile_lifecycle_resilience.ts`)
-- swarm enrollment bridge (`client/runtime/systems/spawn/mobile_edge_swarm_bridge.ts`)
-- wrapper distribution lane (`client/runtime/systems/ops/mobile_wrapper_distribution_pack.ts`)
-- benchmark matrix lane (`client/runtime/systems/ops/run_protheus_ops.ts` + `benchmark-matrix`)
+- mobile adapter status -> `client/runtime/systems/hybrid/mobile/protheus_mobile_adapter.ts status --json`
+- mobile cockpit status -> `infring-ops persist-plane mobile-cockpit --op=status`
+- mobile daemon status -> `infring-ops persist-plane mobile-daemon --op=status`
+- benchmark matrix status -> `infring-ops benchmark-matrix status`
+- wrapper verification -> static contract inspection over `packages/protheus-edge/wrappers/*`
+
+Deprecated compatibility exports:
+
+- `edgeSwarm()` remains as an explicit compatibility notice because the old swarm bridge path no longer exists.
+- `edgeRuntime('start')` is no longer supported; this package is status/contract only.
 
 Quick start:
 
 ```bash
-node packages/protheus-edge/starter.js --mode=status
+node client/runtime/lib/ts_entrypoint.ts packages/protheus-edge/starter.ts --mode=status
 ```
 
 Contract check:
 
 ```bash
-node packages/protheus-edge/starter.js --mode=contract --max-mb=5 --max-ms=200
+node client/runtime/lib/ts_entrypoint.ts packages/protheus-edge/starter.ts --mode=contract --max-mb=5 --max-ms=200
 ```
 
 Wrapper directories:

@@ -203,7 +203,7 @@
     "ops:runtime-state:status": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/runtime_state_surface_guard.ts status",
     "ops:runtime-deps:gate": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/runtime_dependency_contract_gate.ts --strict=1",
     "ops:release:policy:gate": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/release_policy_gate.ts --strict=1 --out=core/local/artifacts/release_policy_gate_current.json",
-    "ops:release-contract:gate": "npm run -s ops:runtime-deps:gate && npm run -s ops:legacy-runner:release-guard && npm run -s ops:release:policy:gate && npx vitest run --config vitest.config.ts tests/vitest/conduit_primitives_gap_closer.test.ts",
+    "ops:release-contract:gate": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/release_contract_gate.ts --strict=1 --out=core/local/artifacts/release_contract_gate_current.json",
     "ops:tools:context-route": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/tools/tool_context_router.ts route --apply=1 --context-json='{\"scope\":\"analysis\",\"tags\":[\"market\",\"intel\"]}'",
     "ops:tools:notify": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/tools/tool_notification_lane.ts notify --apply=1 --channel=main --severity=info --topic=ops --message=\"runtime heartbeat\"",
     "ops:tools:shadow-bridge": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/tools/shadow_tool_notification_bridge.ts bridge --apply=1 --shadow=alpha --persona=vikram --context-json='{\"scope\":\"memory\",\"tags\":[\"memory\",\"decision\"]}' --message=\"shadow bridge pulse\"",
