@@ -128,7 +128,8 @@ function matchAllowRule(rule: AllowViolationRule, violation: Violation): boolean
   return fileOk && reasonOk && detailOk;
 }
 
-function run(args: Args): number {
+export function run(rawArgs: Args | string[]): number {
+  const args = Array.isArray(rawArgs) ? parseArgs(rawArgs) : rawArgs;
   const violations: Violation[] = [];
   const clientFiles = walk(path.join(ROOT, 'client'), new Set(['.ts', '.tsx']));
   const coreFiles = walk(path.join(ROOT, 'core'), new Set(['.rs', '.ts']));
@@ -311,5 +312,12 @@ function run(args: Args): number {
   return 0;
 }
 
-const exitCode = run(parseArgs(process.argv.slice(2)));
-process.exit(exitCode);
+if (require.main === module) {
+  const exitCode = run(parseArgs(process.argv.slice(2)));
+  process.exit(exitCode);
+}
+
+module.exports = {
+  parseArgs,
+  run,
+};
