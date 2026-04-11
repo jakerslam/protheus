@@ -455,6 +455,15 @@ fn cli_error_receipt(argv: &[String], error: &str, code: i32) -> Value {
     out
 }
 
+fn step_failure_reason(name: &str, result: &StepResult) -> String {
+    let detail = clean_reason(&result.stderr, &result.stdout);
+    if detail.is_empty() {
+        format!("step_failed:{name}:{}", result.code)
+    } else {
+        format!("step_failed:{name}:{}:{detail}", result.code)
+    }
+}
+
 fn run_node_json(root: &Path, args: &[String]) -> StepResult {
     let output = Command::new("node")
         .args(args)
@@ -535,6 +544,22 @@ fn run_ops_domain_json(
     }
 }
 
+fn resolve_profile_binary(root: &Path, profile: &str, stem: &str) -> Option<PathBuf> {
+    let dir = root.join("target").join(profile);
+    if cfg!(windows) {
+        let exe = dir.join(format!("{stem}.exe"));
+        if exe.is_file() {
+            return Some(exe);
+        }
+    }
+
+    let plain = dir.join(stem);
+    if plain.is_file() {
+        return Some(plain);
+    }
+    None
+}
+
 fn resolve_infring_ops_command(root: &Path, domain: &str) -> (String, Vec<String>) {
     if let Some(bin) = std::env::var("INFRING_OPS_BIN")
         .ok()
@@ -546,29 +571,25 @@ fn resolve_infring_ops_command(root: &Path, domain: &str) -> (String, Vec<String
         }
     }
 
-    let release = root.join("target").join("release").join("infring-ops");
-    if release.exists() {
+    if let Some(release) = resolve_profile_binary(root, "release", "infring-ops") {
         return (
             release.to_string_lossy().to_string(),
             vec![domain.to_string()],
         );
     }
-    let release_legacy = root.join("target").join("release").join("protheus-ops");
-    if release_legacy.exists() {
+    if let Some(release_legacy) = resolve_profile_binary(root, "release", "protheus-ops") {
         return (
             release_legacy.to_string_lossy().to_string(),
             vec![domain.to_string()],
         );
     }
-    let debug = root.join("target").join("debug").join("infring-ops");
-    if debug.exists() {
+    if let Some(debug) = resolve_profile_binary(root, "debug", "infring-ops") {
         return (
             debug.to_string_lossy().to_string(),
             vec![domain.to_string()],
         );
     }
-    let debug_legacy = root.join("target").join("debug").join("protheus-ops");
-    if debug_legacy.exists() {
+    if let Some(debug_legacy) = resolve_profile_binary(root, "debug", "protheus-ops") {
         return (
             debug_legacy.to_string_lossy().to_string(),
             vec![domain.to_string()],

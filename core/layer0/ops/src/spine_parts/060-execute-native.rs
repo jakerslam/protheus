@@ -1,3 +1,34 @@
+fn emit_terminal_failure<'a>(
+    root: &Path,
+    ledger: &mut LedgerWriter,
+    run_id: &'a str,
+    cli: &'a CliArgs,
+    policy: &'a MechSuitPolicy,
+    constitution_hash: &'a Option<String>,
+    constitution_ok: bool,
+    evidence_plan: &'a Value,
+    evidence_ok: i64,
+    started_ms: i64,
+    reason: &str,
+) -> i32 {
+    emit_terminal_with_closeout(
+        root,
+        ledger,
+        &TerminalReceiptContext {
+            run_id,
+            cli,
+            policy,
+            constitution_hash,
+            constitution_ok,
+            evidence_plan,
+            evidence_ok,
+            started_ms,
+        },
+        false,
+        Some(reason),
+    )
+}
+
 fn execute_native(root: &Path, cli: &CliArgs) -> i32 {
     if std::env::var("CLEARANCE")
         .ok()
@@ -96,21 +127,18 @@ fn execute_native(root: &Path, cli: &CliArgs) -> i32 {
     }));
 
     if !duality_ok {
-        return emit_terminal_with_closeout(
+        return emit_terminal_failure(
             root,
             &mut ledger,
-            &TerminalReceiptContext {
-                run_id: &run_id,
-                cli,
-                policy: &policy,
-                constitution_hash: &constitution_hash,
-                constitution_ok,
-                evidence_plan: &evidence_plan,
-                evidence_ok,
-                started_ms: run_started_ms,
-            },
-            false,
-            Some("duality_gate_failed"),
+            &run_id,
+            cli,
+            &policy,
+            &constitution_hash,
+            constitution_ok,
+            &evidence_plan,
+            evidence_ok,
+            run_started_ms,
+            "duality_gate_failed",
         );
     }
 
@@ -121,40 +149,34 @@ fn execute_native(root: &Path, cli: &CliArgs) -> i32 {
             "critical",
             "duality_toll_hard_block",
         );
-        return emit_terminal_with_closeout(
+        return emit_terminal_failure(
             root,
             &mut ledger,
-            &TerminalReceiptContext {
-                run_id: &run_id,
-                cli,
-                policy: &policy,
-                constitution_hash: &constitution_hash,
-                constitution_ok,
-                evidence_plan: &evidence_plan,
-                evidence_ok,
-                started_ms: run_started_ms,
-            },
-            false,
-            Some("duality_toll_hard_block"),
+            &run_id,
+            cli,
+            &policy,
+            &constitution_hash,
+            constitution_ok,
+            &evidence_plan,
+            evidence_ok,
+            run_started_ms,
+            "duality_toll_hard_block",
         );
     }
 
     if !constitution_ok {
-        return emit_terminal_with_closeout(
+        return emit_terminal_failure(
             root,
             &mut ledger,
-            &TerminalReceiptContext {
-                run_id: &run_id,
-                cli,
-                policy: &policy,
-                constitution_hash: &constitution_hash,
-                constitution_ok,
-                evidence_plan: &evidence_plan,
-                evidence_ok,
-                started_ms: run_started_ms,
-            },
-            false,
-            Some("constitution_integrity_failed"),
+            &run_id,
+            cli,
+            &policy,
+            &constitution_hash,
+            constitution_ok,
+            &evidence_plan,
+            evidence_ok,
+            run_started_ms,
+            "constitution_integrity_failed",
         );
     }
 
@@ -168,21 +190,19 @@ fn execute_native(root: &Path, cli: &CliArgs) -> i32 {
         "reason": if guard_res.ok { Value::Null } else { Value::String(clean_reason(&guard_res.stderr, &guard_res.stdout)) }
     }));
     if !guard_res.ok {
-        return emit_terminal_with_closeout(
+        let guard_reason = step_failure_reason("guard", &guard_res);
+        return emit_terminal_failure(
             root,
             &mut ledger,
-            &TerminalReceiptContext {
-                run_id: &run_id,
-                cli,
-                policy: &policy,
-                constitution_hash: &constitution_hash,
-                constitution_ok,
-                evidence_plan: &evidence_plan,
-                evidence_ok,
-                started_ms: run_started_ms,
-            },
-            false,
-            Some("guard_failed"),
+            &run_id,
+            cli,
+            &policy,
+            &constitution_hash,
+            constitution_ok,
+            &evidence_plan,
+            evidence_ok,
+            run_started_ms,
+            &guard_reason,
         );
     }
 
@@ -196,21 +216,18 @@ fn execute_native(root: &Path, cli: &CliArgs) -> i32 {
         &cli.mode,
         &cli.date,
     ) {
-        return emit_terminal_with_closeout(
+        return emit_terminal_failure(
             root,
             &mut ledger,
-            &TerminalReceiptContext {
-                run_id: &run_id,
-                cli,
-                policy: &policy,
-                constitution_hash: &constitution_hash,
-                constitution_ok,
-                evidence_plan: &evidence_plan,
-                evidence_ok,
-                started_ms: run_started_ms,
-            },
-            false,
-            Some(&reason),
+            &run_id,
+            cli,
+            &policy,
+            &constitution_hash,
+            constitution_ok,
+            &evidence_plan,
+            evidence_ok,
+            run_started_ms,
+            &reason,
         );
     }
 
@@ -224,21 +241,18 @@ fn execute_native(root: &Path, cli: &CliArgs) -> i32 {
         &cli.mode,
         &cli.date,
     ) {
-        return emit_terminal_with_closeout(
+        return emit_terminal_failure(
             root,
             &mut ledger,
-            &TerminalReceiptContext {
-                run_id: &run_id,
-                cli,
-                policy: &policy,
-                constitution_hash: &constitution_hash,
-                constitution_ok,
-                evidence_plan: &evidence_plan,
-                evidence_ok,
-                started_ms: run_started_ms,
-            },
-            false,
-            Some(&reason),
+            &run_id,
+            cli,
+            &policy,
+            &constitution_hash,
+            constitution_ok,
+            &evidence_plan,
+            evidence_ok,
+            run_started_ms,
+            &reason,
         );
     }
 
