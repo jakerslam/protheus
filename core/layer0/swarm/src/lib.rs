@@ -77,17 +77,53 @@ fn has_skill(agent: &SwarmAgent, skill: &str) -> bool {
         .any(|s| s.to_ascii_lowercase() == target)
 }
 
+fn normalized_identifier(raw: &str, field: &str) -> Result<String, String> {
+    let cleaned = raw.trim();
+    if cleaned.is_empty() {
+        Err(format!("invalid_{field}"))
+    } else {
+        Ok(cleaned.to_string())
+    }
+}
+
+fn task_load(task: &SwarmTask) -> u32 {
+    task.weight.max(1)
+}
+
+fn validate_request(request: &SwarmRequest) -> Result<(), String> {
+    let mut agent_ids = BTreeSet::<String>::new();
+    for agent in &request.agents {
+        let agent_id = normalized_identifier(&agent.id, "agent_id")?;
+        if !agent_ids.insert(agent_id.clone()) {
+            return Err(format!("duplicate_agent_id:{agent_id}"));
+        }
+    }
+
+    let mut task_ids = BTreeSet::<String>::new();
+    for task in &request.tasks {
+        let task_id = normalized_identifier(&task.id, "task_id")?;
+        if !task_ids.insert(task_id.clone()) {
+            return Err(format!("duplicate_task_id:{task_id}"));
+        }
+        if task.required_skill.trim().is_empty() {
+            return Err(format!("missing_required_skill:{task_id}"));
+        }
+    }
+
+    Ok(())
+}
+
 fn candidate_score(
     profile: &SwarmStrategyProfile,
     agent: &SwarmAgent,
-    current_load: u32,
+    projected_load: u32,
     task: &SwarmTask,
 ) -> f64 {
     let reliability = agent.reliability_pct.clamp(0.0, 100.0) / 100.0;
     let fairness = if agent.capacity == 0 {
         0.0
     } else {
-        1.0 - (current_load as f64 / agent.capacity as f64).clamp(0.0, 1.0)
+        1.0 - (projected_load as f64 / agent.capacity as f64).clamp(0.0, 1.0)
     };
     let priority_boost = (task.priority as f64 / 10.0).clamp(0.0, 1.5);
 
@@ -100,6 +136,7 @@ fn candidate_score(
 fn digest_receipt(receipt: &SwarmReceipt) -> String {
     let mut hasher = Sha256::new();
     hasher.update(receipt.swarm_id.as_bytes());
+    hasher.update(receipt.profile_id.as_bytes());
     for assignment in &receipt.assignments {
         hasher.update(
             format!(
@@ -118,6 +155,7 @@ fn digest_receipt(receipt: &SwarmReceipt) -> String {
 }
 
 pub fn orchestrate_swarm(request: &SwarmRequest) -> Result<SwarmReceipt, String> {
+    validate_request(request)?;
     let profile = load_embedded_swarm_strategy().map_err(|e| e.to_string())?;
     let mut assignments = Vec::<TaskAssignment>::new();
     let mut unassigned_tasks = Vec::<String>::new();
@@ -135,10 +173,11 @@ pub fn orchestrate_swarm(request: &SwarmRequest) -> Result<SwarmReceipt, String>
             }
             let current_load = load.get(&agent.id).copied().unwrap_or(0);
             let cap = u32::min(agent.capacity, profile.max_tasks_per_agent);
-            if current_load >= cap {
+            let projected_load = current_load.saturating_add(task_load(task));
+            if projected_load > cap {
                 continue;
             }
-            let score = candidate_score(&profile, agent, current_load, task);
+            let score = candidate_score(&profile, agent, projected_load, task);
             match &best {
                 Some((best_id, best_score)) => {
                     if score > *best_score || (score == *best_score && agent.id < *best_id) {
@@ -152,7 +191,7 @@ pub fn orchestrate_swarm(request: &SwarmRequest) -> Result<SwarmReceipt, String>
         match best {
             Some((agent_id, score)) => {
                 let entry = load.entry(agent_id.clone()).or_insert(0);
-                *entry += 1;
+                *entry += task_load(task);
                 assignments.push(TaskAssignment {
                     task_id: normalize_text(&task.id, "unknown_task"),
                     agent_id,
@@ -204,14 +243,6 @@ pub fn orchestrate_swarm(request: &SwarmRequest) -> Result<SwarmReceipt, String>
 pub fn orchestrate_swarm_json(request_json: &str) -> Result<String, String> {
     let request: SwarmRequest =
         serde_json::from_str(request_json).map_err(|e| format!("request_parse_failed:{e}"))?;
-
-    let mut seen = BTreeSet::<String>::new();
-    for task in &request.tasks {
-        if !seen.insert(task.id.clone()) {
-            return Err(format!("duplicate_task_id:{}", task.id));
-        }
-    }
-
     let receipt = orchestrate_swarm(&request)?;
     serde_json::to_string(&receipt).map_err(|e| format!("receipt_encode_failed:{e}"))
 }
@@ -275,5 +306,46 @@ mod tests {
         let json = serde_json::to_string(&demo_request()).expect("json");
         let out = orchestrate_swarm_json(&json).expect("run");
         assert!(out.contains("swarm_demo"));
+    }
+
+    #[test]
+    fn duplicate_agent_ids_fail_closed() {
+        let mut request = demo_request();
+        request.agents[1].id = " a1 ".to_string();
+        let err = orchestrate_swarm(&request).expect_err("duplicate agent ids must fail");
+        assert_eq!(err, "duplicate_agent_id:a1");
+    }
+
+    #[test]
+    fn task_weight_consumes_capacity() {
+        let request = SwarmRequest {
+            swarm_id: "weighted".to_string(),
+            mode: "deterministic".to_string(),
+            agents: vec![SwarmAgent {
+                id: "solo".to_string(),
+                skills: vec!["coding".to_string()],
+                capacity: 2,
+                reliability_pct: 90.0,
+            }],
+            tasks: vec![
+                SwarmTask {
+                    id: "heavy".to_string(),
+                    required_skill: "coding".to_string(),
+                    weight: 2,
+                    priority: 9,
+                },
+                SwarmTask {
+                    id: "overflow".to_string(),
+                    required_skill: "coding".to_string(),
+                    weight: 1,
+                    priority: 8,
+                },
+            ],
+        };
+
+        let receipt = orchestrate_swarm(&request).expect("weighted swarm");
+        assert_eq!(receipt.assignments.len(), 1);
+        assert_eq!(receipt.assignments[0].task_id, "heavy");
+        assert_eq!(receipt.unassigned_tasks, vec!["overflow".to_string()]);
     }
 }
