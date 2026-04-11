@@ -3,7 +3,7 @@
 
 use crate::v8_kernel::{
     append_jsonl, canonical_json_string, conduit_bypass_requested, parse_bool, parse_csv_flag,
-    parse_csv_or_file_unique, parse_u64, read_json, scoped_state_root, sha256_hex_str, write_json,
+    parse_csv_or_file, parse_u64, read_json, scoped_state_root, sha256_hex_str, write_json,
 };
 use crate::{clean, deterministic_receipt_hash, now_iso, ParsedArgs};
 use base64::engine::general_purpose::{STANDARD, URL_SAFE, URL_SAFE_NO_PAD};
@@ -206,6 +206,26 @@ fn decode_path_segment(url: &str) -> Option<String> {
     let path = url.split('?').next().unwrap_or_default();
     let token = path.split('/').filter(|s| !s.is_empty()).last()?;
     decode_b64_candidate(token)
+}
+
+fn stable_unique(rows: Vec<String>) -> Vec<String> {
+    let mut out = Vec::<String>::new();
+    for row in rows {
+        if !out.iter().any(|existing| existing == &row) {
+            out.push(row);
+        }
+    }
+    out
+}
+
+fn parse_csv_or_file_stable_unique(
+    root: &Path,
+    flags: &std::collections::HashMap<String, String>,
+    csv_key: &str,
+    file_key: &str,
+    max_len: usize,
+) -> Vec<String> {
+    stable_unique(parse_csv_or_file(root, flags, csv_key, file_key, max_len))
 }
 
 #[derive(Clone)]
@@ -435,4 +455,3 @@ fn decode_with_dual_path(url: &str, policy: &DecodePolicy) -> (Value, Vec<Value>
     });
     (result, resolver_attempts, policy_attempts)
 }
-
