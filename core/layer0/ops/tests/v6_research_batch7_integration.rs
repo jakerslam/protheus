@@ -130,6 +130,12 @@ fn v6_research_batch7_strict_lanes_execute_with_receipts() {
     assert_eq!(goal_latest.get("ok").and_then(Value::as_bool), Some(true));
     assert_claim(&goal_latest, "V6-RESEARCH-004.1");
     assert_claim(&goal_latest, "V6-RESEARCH-004.6");
+    assert_eq!(
+        goal_latest
+            .pointer("/conduit_enforcement/action")
+            .and_then(Value::as_str),
+        Some("goal_crawl")
+    );
 
     let map_exit = research_plane::run(
         root,
