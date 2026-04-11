@@ -401,3 +401,74 @@ fn v6_mcp_batch9_default_manifest_governance_passes_in_strict_mode() {
         "default MCP template governance manifest should validate at least one signed template in strict mode"
     );
 }
+
+#[test]
+fn v6_mcp_batch9_pattern_pack_accepts_file_backed_steps_and_alias_command() {
+    let fixture = stage_fixture_root();
+    let root = fixture.path();
+
+    let tasks_path = root.join("fixtures").join("batch9_tasks.txt");
+    let steps_path = root.join("fixtures").join("batch9_steps.json");
+    if let Some(parent) = tasks_path.parent() {
+        fs::create_dir_all(parent).expect("mkdir fixtures");
+    }
+    fs::write(&tasks_path, "collect\naggregate\ncollect\n").expect("write tasks");
+    fs::write(
+        &steps_path,
+        "{\n  \"steps\": [\"ingest\", \"score\", \"score\", \"emit\"]\n}\n",
+    )
+    .expect("write steps");
+
+    let exit = mcp_plane::run(
+        root,
+        &[
+            "pattern_pack".to_string(),
+            "--strict=1".to_string(),
+            "--pattern=swarm".to_string(),
+            format!("--tasks-file={}", tasks_path.display()),
+            format!("--steps-path={}", steps_path.display()),
+        ],
+    );
+    assert_eq!(exit, 0);
+
+    let latest = read_json(&latest_path(root));
+    assert_eq!(
+        latest.get("type").and_then(Value::as_str),
+        Some("mcp_plane_pattern_pack")
+    );
+    assert_eq!(latest.get("ok").and_then(Value::as_bool), Some(true));
+    assert_eq!(
+        latest
+            .pointer("/result/step_source")
+            .and_then(Value::as_str),
+        Some("file")
+    );
+    assert_eq!(
+        latest
+            .pointer("/conduit_enforcement/action")
+            .and_then(Value::as_str),
+        Some("pattern-pack")
+    );
+    assert_eq!(
+        latest
+            .pointer("/result/tasks")
+            .and_then(Value::as_array)
+            .map(|rows| rows.len()),
+        Some(2)
+    );
+    assert_eq!(
+        latest
+            .pointer("/result/steps")
+            .and_then(Value::as_array)
+            .map(|rows| rows.len()),
+        Some(3)
+    );
+    assert_eq!(
+        latest
+            .pointer("/result/steps/0")
+            .and_then(Value::as_str),
+        Some("ingest")
+    );
+    assert_claim(&latest, "V6-MCP-001.4");
+    assert_claim(&latest, "V6-MCP-001.6");
+}

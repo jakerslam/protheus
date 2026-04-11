@@ -1,3 +1,60 @@
+fn normalized_string_rows(rows: Vec<String>, max_len: usize) -> Vec<String> {
+    let mut out = Vec::<String>::new();
+    for row in rows {
+        let cleaned = clean(&row, max_len);
+        if cleaned.is_empty() || out.iter().any(|existing| existing == &cleaned) {
+            continue;
+        }
+        out.push(cleaned);
+    }
+    out
+}
+
+fn parse_pattern_steps_value(value: Value) -> Vec<String> {
+    match value {
+        Value::Array(rows) => normalized_string_rows(
+            rows.into_iter()
+                .filter_map(|row| row.as_str().map(ToString::to_string))
+                .collect(),
+            120,
+        ),
+        Value::Object(map) => map
+            .get("steps")
+            .cloned()
+            .map(parse_pattern_steps_value)
+            .unwrap_or_default(),
+        Value::String(row) => normalized_string_rows(vec![row], 120),
+        _ => Vec::new(),
+    }
+}
+
+fn load_pattern_steps(root: &Path, parsed: &crate::ParsedArgs) -> Result<Option<(Vec<String>, String)>, String> {
+    if let Some(raw) = parsed.flags.get("steps-json") {
+        let value = serde_json::from_str::<Value>(raw)
+            .map_err(|_| "pattern_steps_json_invalid".to_string())?;
+        let steps = parse_pattern_steps_value(value);
+        if steps.is_empty() {
+            return Err("pattern_steps_required".to_string());
+        }
+        return Ok(Some((steps, "inline_json".to_string())));
+    }
+    if let Some(rel_or_abs) = parsed.flags.get("steps-path") {
+        let path = if Path::new(rel_or_abs).is_absolute() {
+            PathBuf::from(rel_or_abs)
+        } else {
+            root.join(rel_or_abs)
+        };
+        let value = read_json(&path)
+            .ok_or_else(|| format!("pattern_steps_path_not_found:{}", path.display()))?;
+        let steps = parse_pattern_steps_value(value);
+        if steps.is_empty() {
+            return Err("pattern_steps_required".to_string());
+        }
+        return Ok(Some((steps, "file".to_string())));
+    }
+    Ok(None)
+}
+
 fn run_pattern_pack(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
     let contract = load_json_or(
         root,
@@ -46,19 +103,8 @@ fn run_pattern_pack(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Va
     if strict && !allowed.iter().any(|row| row == &pattern) {
         errors.push("pattern_not_allowed".to_string());
     }
-    let tasks = parse_csv_flag(&parsed.flags, "tasks", 200);
-    let steps = if let Some(raw) = parsed.flags.get("steps-json") {
-        serde_json::from_str::<Value>(raw)
-            .ok()
-            .and_then(|v| v.as_array().cloned())
-            .unwrap_or_default()
-            .iter()
-            .filter_map(Value::as_str)
-            .map(|v| clean(v, 120))
-            .filter(|v| !v.is_empty())
-            .collect::<Vec<_>>()
-    } else {
-        match pattern.as_str() {
+    let tasks = parse_csv_or_file_unique(root, &parsed.flags, "tasks", "tasks-file", 200);
+    let default_steps = || match pattern.as_str() {
             "map-reduce" => vec![
                 "map_discovery".to_string(),
                 "map_execution".to_string(),
@@ -95,6 +141,13 @@ fn run_pattern_pack(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Va
                 "router_dispatch".to_string(),
                 "router_merge".to_string(),
             ],
+        };
+    let (steps, step_source) = match load_pattern_steps(root, parsed) {
+        Ok(Some((steps, source))) => (steps, source),
+        Ok(None) => (default_steps(), "pattern_default".to_string()),
+        Err(err) => {
+            errors.push(err);
+            (Vec::new(), "invalid".to_string())
         }
     };
     if steps.is_empty() {
@@ -124,6 +177,7 @@ fn run_pattern_pack(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Va
         "pattern": pattern,
         "tasks": tasks,
         "steps": steps,
+        "step_source": step_source,
         "step_receipts": step_receipts
     });
     let artifact_path = state_root(root).join("pattern_pack").join("latest.json");
@@ -145,7 +199,8 @@ fn run_pattern_pack(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Va
                 "claim": "declarative_composable_workflow_pattern_pack_compiles_to_deterministic_steps_with_receipts",
                 "evidence": {
                     "pattern": pattern,
-                    "step_count": steps.len()
+                    "step_count": steps.len(),
+                    "step_source": step_source
                 }
             }
         ]
@@ -450,4 +505,3 @@ fn curated_templates() -> Vec<Value> {
         })
         .collect()
 }
-
