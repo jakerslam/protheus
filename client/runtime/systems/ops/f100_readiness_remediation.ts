@@ -3,8 +3,8 @@
 
 // Thin runtime wrapper: core logic lives in tests/tooling/scripts/ops.
 
-const { spawnSync } = require('child_process');
 const path = require('path');
+const { invokeTsModuleSync } = require('../../lib/in_process_ts_delegate.ts');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..', '..');
 const IMPLEMENTATION = path.join(
@@ -17,20 +17,12 @@ const IMPLEMENTATION = path.join(
 );
 
 function run() {
-  const outcome = spawnSync(process.execPath, [IMPLEMENTATION], {
+  const outcome = invokeTsModuleSync(IMPLEMENTATION, {
     cwd: ROOT,
-    stdio: 'inherit',
+    exportName: 'run',
+    teeStdout: true,
+    teeStderr: true,
   });
-  if (outcome.error) {
-    console.error(
-      JSON.stringify({
-        ok: false,
-        type: 'f100_readiness_remediation_wrapper_error',
-        error: String(outcome.error.message || outcome.error),
-      })
-    );
-    return 1;
-  }
   return typeof outcome.status === 'number' ? outcome.status : 1;
 }
 

@@ -121,7 +121,7 @@ function runSmokeScripts(scriptNames: string[]): Check[] {
   });
 }
 
-function run(args: Args): number {
+function buildReport(args: Args) {
   const checks: Check[] = [];
   if (!fs.existsSync(POLICY_PATH)) {
     checks.push({
@@ -161,7 +161,7 @@ function run(args: Args): number {
   }
 
   const failed = checks.filter((row) => !row.ok);
-  const report = {
+  return {
     type: 'production_readiness_closure_gate',
     generated_at: new Date().toISOString(),
     strict: args.strict,
@@ -175,6 +175,11 @@ function run(args: Args): number {
     checks,
   };
 
+}
+
+export function run(rawArgs: Args | string[]): number {
+  const args = Array.isArray(rawArgs) ? parseArgs(rawArgs) : rawArgs;
+  const report = buildReport(args);
   const outPath = path.resolve(ROOT, args.out);
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
   fs.writeFileSync(outPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
@@ -184,4 +189,12 @@ function run(args: Args): number {
   return 0;
 }
 
-process.exit(run(parseArgs(process.argv.slice(2))));
+if (require.main === module) {
+  process.exit(run(parseArgs(process.argv.slice(2))));
+}
+
+module.exports = {
+  buildReport,
+  parseArgs,
+  run,
+};

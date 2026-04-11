@@ -4,79 +4,21 @@
 // Layer ownership: core/layer0/ops (authoritative)
 // Thin TypeScript wrapper only.
 
-const path = require('path');
-const { spawnSync } = require('child_process');
+const { invokeKernelPayload } = require('../../lib/protheus_kernel_bridge.ts');
 
 const SESSION_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{2,127}$/;
 const DEFAULT_STATE_PATH = 'client/runtime/local/state/memory/session_isolation.json';
 
-const ROOT = path.resolve(__dirname, '..', '..', '..', '..');
-const OPS_WRAPPER = path.join(
-  ROOT,
-  'client',
-  'runtime',
-  'systems',
-  'ops',
-  'run_protheus_ops.ts'
-);
-const TS_ENTRYPOINT = path.join(ROOT, 'client', 'runtime', 'lib', 'ts_entrypoint.ts');
-
-function encodeBase64(value) {
-  return Buffer.from(String(value == null ? '' : value), 'utf8').toString('base64');
-}
-
-function parseLastJson(stdout) {
-  const lines = String(stdout || '')
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean);
-  for (let i = lines.length - 1; i >= 0; i -= 1) {
-    const line = lines[i];
-    if (!line.startsWith('{')) continue;
-    try {
-      return JSON.parse(line);
-    } catch {}
-  }
-  return null;
-}
-
 function invoke(command, payload = {}, opts = {}) {
-  const run = spawnSync(
-    process.execPath,
-    [
-      TS_ENTRYPOINT,
-      OPS_WRAPPER,
-      'memory-session-isolation-kernel',
-      command,
-      `--payload-base64=${encodeBase64(JSON.stringify(payload || {}))}`
-    ],
+  return invokeKernelPayload(
+    'memory-session-isolation-kernel',
+    command,
+    payload,
     {
-      cwd: ROOT,
-      encoding: 'utf8',
-      env: { ...process.env }
+      throwOnError: opts.throwOnError,
+      fallbackError: `memory_session_isolation_kernel_${command}_bridge_failed`,
     }
   );
-  const status = Number.isFinite(Number(run.status)) ? Number(run.status) : 1;
-  const receipt = parseLastJson(run.stdout);
-  const payloadOut = receipt && typeof receipt === 'object'
-    && receipt.payload && typeof receipt.payload === 'object'
-    ? receipt.payload
-    : receipt;
-  if (status !== 0) {
-    const message = payloadOut && typeof payloadOut.error === 'string'
-      ? payloadOut.error
-      : (run && run.stderr ? String(run.stderr).trim() : `memory_session_isolation_kernel_${command}_failed`);
-    if (opts.throwOnError !== false) throw new Error(message || `memory_session_isolation_kernel_${command}_failed`);
-    return { ok: false, error: message || `memory_session_isolation_kernel_${command}_failed` };
-  }
-  if (!payloadOut || typeof payloadOut !== 'object') {
-    const message = run && run.stderr
-      ? String(run.stderr).trim() || `memory_session_isolation_kernel_${command}_bridge_failed`
-      : `memory_session_isolation_kernel_${command}_bridge_failed`;
-    if (opts.throwOnError !== false) throw new Error(message);
-    return { ok: false, error: message };
-  }
-  return payloadOut;
 }
 
 function loadState(filePath = DEFAULT_STATE_PATH) {

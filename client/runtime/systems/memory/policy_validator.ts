@@ -4,69 +4,17 @@
 // Layer ownership: core/layer0/ops (authoritative)
 // Thin TypeScript wrapper only.
 
-const path = require('path');
-const { spawnSync } = require('child_process');
-
-const ROOT = path.resolve(__dirname, '..', '..', '..', '..');
-const OPS_WRAPPER = path.join(
-  ROOT,
-  'client',
-  'runtime',
-  'systems',
-  'ops',
-  'run_protheus_ops.ts'
-);
-const TS_ENTRYPOINT = path.join(ROOT, 'client', 'runtime', 'lib', 'ts_entrypoint.ts');
-
-function encodeBase64(value) {
-  return Buffer.from(String(value == null ? '' : value), 'utf8').toString('base64');
-}
-
-function parseLastJson(stdout) {
-  const lines = String(stdout || '')
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean);
-  for (let i = lines.length - 1; i >= 0; i -= 1) {
-    const line = lines[i];
-    if (!line.startsWith('{')) continue;
-    try {
-      return JSON.parse(line);
-    } catch {}
-  }
-  return null;
-}
-
+const { invokeKernelPayload } = require('../../lib/protheus_kernel_bridge.ts');
 function invoke(command, payload = {}, opts = {}) {
-  const run = spawnSync(
-    process.execPath,
-    [
-      TS_ENTRYPOINT,
-      OPS_WRAPPER,
-      'memory-policy-kernel',
-      command,
-      `--payload-base64=${encodeBase64(JSON.stringify(payload || {}))}`
-    ],
+  return invokeKernelPayload(
+    'memory-policy-kernel',
+    command,
+    payload,
     {
-      cwd: ROOT,
-      encoding: 'utf8',
-      env: { ...process.env }
+      throwOnError: opts.throwOnError,
+      fallbackError: 'memory_policy_kernel_bridge_failed',
     }
   );
-  const status = Number.isFinite(Number(run.status)) ? Number(run.status) : 1;
-  const receipt = parseLastJson(run.stdout);
-  const payloadOut = receipt && typeof receipt === 'object'
-    && receipt.payload && typeof receipt.payload === 'object'
-    ? receipt.payload
-    : receipt;
-  if (status !== 0 || !payloadOut || typeof payloadOut !== 'object') {
-    const message = run && run.stderr
-      ? String(run.stderr).trim() || 'memory_policy_kernel_bridge_failed'
-      : 'memory_policy_kernel_bridge_failed';
-    if (opts.throwOnError !== false) throw new Error(message);
-    return { ok: false, error: message };
-  }
-  return payloadOut;
 }
 
 function parseCliArgs(args = [], options = {}) {
