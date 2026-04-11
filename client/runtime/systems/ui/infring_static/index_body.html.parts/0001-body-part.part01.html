@@ -52,7 +52,7 @@
   </div>
 </div>
 
-<div class="app-layout" :class="{ 'focus-mode': $store.app.focusMode }">
+<div class="app-layout" :class="{ 'focus-mode': $store.app.focusMode, 'topbar-bottom': topbarDockEdge === 'bottom' }">
   <!-- Sidebar -->
   <nav class="sidebar" :class="{ collapsed: sidebarCollapsed, 'mobile-open': mobileMenuOpen, 'chat-only-hidden': page !== 'chat' }">
     <div class="sidebar-nav-shell">
@@ -423,7 +423,12 @@
       <div class="global-reflection-overlay"></div>
       <div class="chat-grid-overlay global-grid-overlay"></div>
     </section>
-    <div class="global-topbar" :style="page !== 'chat' ? 'background:transparent;border-bottom:none;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none;' : ''">
+    <div
+      class="global-topbar"
+      :class="{ 'is-dock-dragging': !!topbarDockDragActive, 'is-docked-bottom': topbarDockEdge === 'bottom', 'is-docked-top': topbarDockEdge !== 'bottom' }"
+      :style="topbarContainerStyle()"
+      @pointerdown.capture="startTopbarDockPointerDrag($event)"
+    >
       <div class="global-topbar-left">
         <div class="topbar-brand">
           <div class="brand-mark" aria-hidden="true"><span class="brand-mark-glyph">&infin;</span></div>

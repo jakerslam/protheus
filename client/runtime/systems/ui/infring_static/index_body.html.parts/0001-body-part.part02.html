@@ -263,7 +263,11 @@
         'is-side-bottom': bottomDockActiveSide() === 'bottom',
         'is-side-top': bottomDockActiveSide() === 'top',
         'is-side-left': bottomDockActiveSide() === 'left',
-        'is-side-right': bottomDockActiveSide() === 'right'
+        'is-side-right': bottomDockActiveSide() === 'right',
+        'is-open-bottom': bottomDockOpenSide() === 'bottom',
+        'is-open-top': bottomDockOpenSide() === 'top',
+        'is-open-left': bottomDockOpenSide() === 'left',
+        'is-open-right': bottomDockOpenSide() === 'right'
       }"
       :style="bottomDockContainerStyle()"
       aria-label="Primary tabs"
@@ -489,10 +493,10 @@
       class="bottom-dock-preview-bubble bottom-dock-preview-overlay"
       :class="{
         'is-visible': !!bottomDockPreviewVisible && !!bottomDockPreviewText,
-        'is-side-bottom': bottomDockActiveSide() === 'bottom',
-        'is-side-top': bottomDockActiveSide() === 'top',
-        'is-side-left': bottomDockActiveSide() === 'left',
-        'is-side-right': bottomDockActiveSide() === 'right'
+        'is-side-bottom': bottomDockOpenSide() === 'bottom',
+        'is-side-top': bottomDockOpenSide() === 'top',
+        'is-side-left': bottomDockOpenSide() === 'left',
+        'is-side-right': bottomDockOpenSide() === 'right'
       }"
       :style="'left:' + bottomDockPreviewX + 'px;top:' + bottomDockPreviewY + 'px;' + (bottomDockPreviewWidth > 0 ? ('width:' + bottomDockPreviewWidth + 'px;') : 'width:auto;')"
       aria-hidden="true"
