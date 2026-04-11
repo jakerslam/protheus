@@ -6,7 +6,7 @@ const path = require('node:path');
 const http = require('node:http');
 const { spawn } = require('node:child_process');
 const { ROOT, resolveBinary, runProtheusOps } = require('./run_protheus_ops.ts');
-const { buildPrimaryDashboardHtml, hasPrimaryDashboardUi, readPrimaryDashboardAsset } = require('./dashboard_asset_router.ts');
+const { buildPrimaryDashboardHtml, hasPrimaryDashboardUi, readBuildVersionInfo, readPrimaryDashboardAsset } = require('./dashboard_asset_router.ts');
 const { createAgentWsBridge } = require('./agent_ws_bridge.ts');
 
 const DASHBOARD_DIR = path.resolve(ROOT, 'client/runtime/systems/ui');
@@ -270,6 +270,27 @@ function sendJson(res, statusCode, value) {
   res.writeHead(statusCode, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
   res.end(`${JSON.stringify(value, null, 2)}\n`);
 }
+function currentDashboardBuildInfo() {
+  return readBuildVersionInfo(STATIC_DIR);
+}
+function mergeDashboardVersionPayload(payload) {
+  const base = (payload && typeof payload === 'object' && !Array.isArray(payload)) ? payload : {};
+  const build = currentDashboardBuildInfo();
+  const version = cleanText(build && build.version, 120) || '0.0.0';
+  const tag = cleanText(build && build.tag, 120) || `v${version}`;
+  const source = cleanText(build && build.source, 80) || 'fallback_default';
+  return {
+    ...base,
+    ok: base.ok !== false,
+    version,
+    tag,
+    version_tag: tag,
+    source,
+    version_source: source,
+    platform: base.platform || process.platform,
+    arch: base.arch || process.arch,
+  };
+}
 function filteredHeaders(headers, host) {
   const out = {};
   for (const [key, value] of Object.entries(headers || {})) {
@@ -393,8 +414,12 @@ async function runServe(flags) {
         }
       }
       if (req.method === 'GET' && pathname === '/api/status') {
-        const status = await statusPayloadWithBootStage(flags);
+        const status = mergeDashboardVersionPayload(await statusPayloadWithBootStage(flags));
         return void sendJson(res, 200, status);
+      }
+      if (req.method === 'GET' && pathname === '/api/version') {
+        const versionPayload = await fetchBackendJson(flags, '/api/version', 4000).catch(() => ({ ok: true }));
+        return void sendJson(res, 200, mergeDashboardVersionPayload(versionPayload));
       }
       if (req.method === 'GET' && pathname === '/api/config') {
         const config = await fetchBackendJson(flags, '/api/config', 8000).catch(() => ({ ok: false, error: 'config_unavailable' }));
@@ -473,7 +498,7 @@ async function run(argv = process.argv.slice(2)) {
     },
   });
 }
-module.exports = { cleanText, isTransientSocketError, normalizeArgs, parseFlags, run };
+module.exports = { cleanText, currentDashboardBuildInfo, isTransientSocketError, mergeDashboardVersionPayload, normalizeArgs, parseFlags, run };
 if (require.main === module) {
   process.on('uncaughtException', (error) => {
     if (isTransientSocketError(error)) {

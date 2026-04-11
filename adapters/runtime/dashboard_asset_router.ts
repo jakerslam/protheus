@@ -1,5 +1,6 @@
 #!/usr/bin/env tsx
 
+const childProcess = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -36,6 +37,135 @@ function readText(filePath, fallback = '') {
 function cleanText(value, maxLen = 200) {
   return String(value == null ? '' : value).replace(/\s+/g, ' ').trim().slice(0, maxLen);
 }
+function normalizeVersionText(value) {
+  return cleanText(value, 120).replace(/^[vV]/, '');
+}
+function parseVersionText(value) {
+  const normalized = normalizeVersionText(value);
+  const match = normalized.match(/^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$/);
+  if (!match) return null;
+  return {
+    raw: normalized,
+    major: Number(match[1] || 0),
+    minor: Number(match[2] || 0),
+    patch: Number(match[3] || 0),
+    prerelease: String(match[4] || '').split('.').filter(Boolean),
+  };
+}
+function comparePrereleaseIdentifiers(left, right) {
+  var leftText = String(left || '');
+  var rightText = String(right || '');
+  var leftNum = /^\d+$/.test(leftText);
+  var rightNum = /^\d+$/.test(rightText);
+  if (leftNum && rightNum) {
+    var leftValue = Number(leftText);
+    var rightValue = Number(rightText);
+    if (leftValue > rightValue) return 1;
+    if (leftValue < rightValue) return -1;
+    return 0;
+  }
+  if (leftNum && !rightNum) return -1;
+  if (!leftNum && rightNum) return 1;
+  if (leftText > rightText) return 1;
+  if (leftText < rightText) return -1;
+  return 0;
+}
+function compareVersionText(left, right) {
+  var leftParsed = parseVersionText(left);
+  var rightParsed = parseVersionText(right);
+  if (leftParsed && rightParsed) {
+    if (leftParsed.major !== rightParsed.major) return leftParsed.major > rightParsed.major ? 1 : -1;
+    if (leftParsed.minor !== rightParsed.minor) return leftParsed.minor > rightParsed.minor ? 1 : -1;
+    if (leftParsed.patch !== rightParsed.patch) return leftParsed.patch > rightParsed.patch ? 1 : -1;
+    if (!leftParsed.prerelease.length && !rightParsed.prerelease.length) return 0;
+    if (!leftParsed.prerelease.length) return 1;
+    if (!rightParsed.prerelease.length) return -1;
+    var len = Math.max(leftParsed.prerelease.length, rightParsed.prerelease.length);
+    for (var i = 0; i < len; i += 1) {
+      var leftPart = leftParsed.prerelease[i];
+      var rightPart = rightParsed.prerelease[i];
+      if (leftPart == null) return -1;
+      if (rightPart == null) return 1;
+      var cmp = comparePrereleaseIdentifiers(leftPart, rightPart);
+      if (cmp !== 0) return cmp;
+    }
+    return 0;
+  }
+  var leftNormalized = normalizeVersionText(left);
+  var rightNormalized = normalizeVersionText(right);
+  if (!leftNormalized && !rightNormalized) return 0;
+  if (!leftNormalized) return -1;
+  if (!rightNormalized) return 1;
+  if (leftNormalized > rightNormalized) return 1;
+  if (leftNormalized < rightNormalized) return -1;
+  return 0;
+}
+function readJsonFile(filePath) {
+  try {
+    return JSON.parse(readText(filePath, '{}') || '{}');
+  } catch {
+    return null;
+  }
+}
+function versionSourcePriority(source) {
+  var key = cleanText(source, 80);
+  if (key === 'git_latest_tag') return 40;
+  if (key === 'install_release_meta') return 30;
+  if (key === 'install_release_tag') return 28;
+  if (key === 'runtime_version_contract') return 20;
+  if (key === 'package_json') return 10;
+  return 0;
+}
+function buildVersionCandidate(version, tag, source) {
+  var normalizedVersion = normalizeVersionText(version);
+  if (!normalizedVersion) return null;
+  var normalizedTag = cleanText(tag || ('v' + normalizedVersion), 120) || ('v' + normalizedVersion);
+  return {
+    version: normalizedVersion,
+    tag: normalizedTag,
+    source: cleanText(source || 'unknown', 80) || 'unknown',
+  };
+}
+function pickHigherVersionCandidate(best, candidate) {
+  if (!candidate) return best || null;
+  if (!best) return candidate;
+  var cmp = compareVersionText(candidate.version, best.version);
+  if (cmp > 0) return candidate;
+  if (cmp < 0) return best;
+  return versionSourcePriority(candidate.source) >= versionSourcePriority(best.source) ? candidate : best;
+}
+function readGitLatestTagCandidate(workspaceRoot) {
+  try {
+    var result = childProcess.spawnSync('git', ['tag', '--list', '--sort=-v:refname', 'v*'], {
+      cwd: workspaceRoot,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    if (!result || result.status !== 0) return null;
+    var tag = String(result.stdout || '').split(/\r?\n/).map(function(row) {
+      return cleanText(row, 120);
+    }).find(Boolean);
+    return buildVersionCandidate(tag, tag, 'git_latest_tag');
+  } catch {
+    return null;
+  }
+}
+function readInstalledReleaseCandidate(workspaceRoot) {
+  var metaPath = path.resolve(workspaceRoot, 'local/state/ops/install_release_meta.json');
+  var meta = readJsonFile(metaPath);
+  if (meta && typeof meta === 'object') {
+    var metaValue = cleanText(
+      (meta && (meta.release_version_normalized || meta.release_tag)) || '',
+      120
+    );
+    var metaTag = cleanText(meta && meta.release_tag, 120);
+    var metaCandidate = buildVersionCandidate(metaValue, metaTag || ('v' + normalizeVersionText(metaValue)), 'install_release_meta');
+    if (metaCandidate) return metaCandidate;
+  }
+  var tagPath = path.resolve(workspaceRoot, 'local/state/ops/install_release_tag.txt');
+  var rawTag = cleanText(readText(tagPath, '').split(/\r?\n/)[0] || '', 120);
+  return buildVersionCandidate(rawTag, rawTag, 'install_release_tag');
+}
 function findWorkspaceRoot(startDir) {
   let cursor = path.resolve(startDir || '.');
   for (let hop = 0; hop < 12; hop += 1) {
@@ -54,32 +184,35 @@ function readBuildVersionInfo(staticDir) {
     'client/runtime/config/runtime_version.json'
   );
   const packagePath = path.resolve(workspaceRoot, 'package.json');
-  let version = '0.0.0';
-  let tag = '';
-  let source = 'package_json';
-  try {
-    const runtimeVersion = JSON.parse(readText(runtimeVersionPath, '{}') || '{}');
-    const runtimeVersionValue = cleanText(runtimeVersion && runtimeVersion.version, 80);
-    const runtimeTagValue = cleanText(runtimeVersion && runtimeVersion.tag, 80);
-    if (runtimeVersionValue) {
-      version = runtimeVersionValue;
-      if (runtimeTagValue) tag = runtimeTagValue;
-      source = cleanText(runtimeVersion && runtimeVersion.source, 80) || 'runtime_version_contract';
-    }
-  } catch {}
-  if (!version || version === '0.0.0') {
-    try {
-      const pkg = JSON.parse(readText(packagePath, '{}') || '{}');
-      const pkgVersion = cleanText(pkg && pkg.version, 80);
-      if (pkgVersion) version = pkgVersion;
-    } catch {}
+  let best = null;
+  const runtimeVersion = readJsonFile(runtimeVersionPath);
+  if (runtimeVersion && typeof runtimeVersion === 'object') {
+    best = pickHigherVersionCandidate(
+      best,
+      buildVersionCandidate(
+        runtimeVersion && runtimeVersion.version,
+        runtimeVersion && runtimeVersion.tag,
+        cleanText(runtimeVersion && runtimeVersion.source, 80) || 'runtime_version_contract'
+      )
+    );
   }
-  if (!tag && version) tag = `v${version}`;
-  return {
-    version: version || '0.0.0',
-    tag: tag || '',
-    source,
-  };
+  const pkg = readJsonFile(packagePath);
+  if (pkg && typeof pkg === 'object') {
+    best = pickHigherVersionCandidate(
+      best,
+      buildVersionCandidate(pkg && pkg.version, '', 'package_json')
+    );
+  }
+  best = pickHigherVersionCandidate(best, readInstalledReleaseCandidate(workspaceRoot));
+  best = pickHigherVersionCandidate(best, readGitLatestTagCandidate(workspaceRoot));
+  if (!best) {
+    return {
+      version: '0.0.0',
+      tag: 'v0.0.0',
+      source: 'fallback_default',
+    };
+  }
+  return best;
 }
 function contentTypeForFile(filePath) {
   return MIME[path.extname(filePath).toLowerCase()] || 'application/octet-stream';
@@ -240,5 +373,6 @@ function readPrimaryDashboardAsset(staticDir, pathname) {
 module.exports = {
   hasPrimaryDashboardUi,
   buildPrimaryDashboardHtml,
+  readBuildVersionInfo,
   readPrimaryDashboardAsset,
 };

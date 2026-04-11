@@ -295,6 +295,113 @@ function assertDashboardInlineScriptsParse() {
   });
 }
 
+function resolveExpectedDashboardBuildVersion() {
+  const latestTagProc = spawnSync('git', ['tag', '--list', '--sort=-v:refname', 'v*'], {
+    cwd: ROOT,
+    encoding: 'utf8',
+    stdio: 'pipe',
+  });
+  const latestTag = latestTagProc.status === 0
+    ? String(latestTagProc.stdout || '')
+        .split(/\r?\n/)
+        .map((row) => String(row || '').trim())
+        .find(Boolean)
+    : '';
+  if (latestTag) {
+    return {
+      version: latestTag.replace(/^[vV]/, ''),
+      tag: latestTag,
+      source: 'git_latest_tag',
+    };
+  }
+  const pkg = JSON.parse(fs.readFileSync(path.resolve(ROOT, 'package.json'), 'utf8'));
+  const version = String((pkg && pkg.version) || '0.0.0').trim().replace(/^[vV]/, '') || '0.0.0';
+  return {
+    version,
+    tag: `v${version}`,
+    source: 'package_json',
+  };
+}
+
+function assertDashboardBuildVersionFresh() {
+  const { installTsRequireHook } = require(TS_BOOTSTRAP_TS_PATH);
+  installTsRequireHook();
+  const { buildPrimaryDashboardHtml } = require(DASHBOARD_ASSET_ROUTER_TS_PATH);
+  const html = String(buildPrimaryDashboardHtml(DASHBOARD_STATIC_DIR) || '');
+  const match = html.match(/window\.__INFRING_BUILD_INFO\s*=\s*(\{[\s\S]*?\});/);
+  assert.ok(match, 'dashboard html should bootstrap build info');
+  const payload = JSON.parse(String(match[1] || '{}'));
+  const expected = resolveExpectedDashboardBuildVersion();
+  assert.strictEqual(
+    payload.version,
+    expected.version,
+    `dashboard build info should follow current repo version (${expected.version})`
+  );
+  assert.strictEqual(
+    payload.tag,
+    expected.tag,
+    `dashboard build tag should follow current repo tag (${expected.tag})`
+  );
+  assert.strictEqual(
+    payload.source,
+    expected.source,
+    `dashboard build source should come from ${expected.source}`
+  );
+}
+
+function assertDashboardVersionRefreshUsesApiVersion() {
+  const appSource = readUtf8(APP_STATIC_TS_PATH);
+  assertContains(
+    appSource,
+    "InfringAPI.get('/api/version').catch(function() { return null; })",
+    'dashboard store should fetch live version from /api/version during status refresh'
+  );
+  assertContains(
+    appSource,
+    "var liveVersion = String(versionObj.version || versionObj.tag || '').trim().replace(/^[vV]/, '');",
+    'dashboard store should normalize live version payload before updating the brand label'
+  );
+  assertContains(
+    appSource,
+    "this.version = liveVersion || statusObj.version || this.version || window.__INFRING_APP_VERSION || '0.0.0';",
+    'dashboard topbar version should prefer the live /api/version payload over stale bootstrap state'
+  );
+}
+
+function assertDashboardHostOverlaysLiveVersion() {
+  const { installTsRequireHook } = require(TS_BOOTSTRAP_TS_PATH);
+  installTsRequireHook();
+  const dashboardHost = require(TARGET_SOURCE);
+  assert.ok(
+    dashboardHost && typeof dashboardHost.mergeDashboardVersionPayload === 'function',
+    'dashboard host should export version overlay helper'
+  );
+  const payload = dashboardHost.mergeDashboardVersionPayload({
+    ok: true,
+    version: '0.2.1-alpha.1',
+    tag: 'v0.2.1-alpha.1',
+    source: 'backend_stale',
+    platform: 'macos',
+    arch: 'aarch64',
+  });
+  const expected = resolveExpectedDashboardBuildVersion();
+  assert.strictEqual(
+    payload.version,
+    expected.version,
+    `dashboard host should override stale backend version with ${expected.version}`
+  );
+  assert.strictEqual(
+    payload.tag,
+    expected.tag,
+    `dashboard host should override stale backend tag with ${expected.tag}`
+  );
+  assert.strictEqual(
+    payload.version_source,
+    expected.source,
+    `dashboard host should expose live version source ${expected.source}`
+  );
+}
+
 function assertChatEnhancementFeatures() {
   const chatSource = readUtf8(CHAT_PAGE_TS_PATH);
   const agentsSource = readUtf8(AGENTS_PAGE_TS_PATH);
