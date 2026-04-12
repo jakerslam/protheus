@@ -211,6 +211,18 @@ fn handle_global_post_delete_routes(
                 payload,
             });
         }
+        if path_only == "/api/web/media-host" {
+            let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+            let payload = crate::web_conduit::api_media_host(root, &request);
+            return Some(CompatApiResponse {
+                status: if payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                    200
+                } else {
+                    400
+                },
+                payload,
+            });
+        }
         if path_only == "/api/web/search" {
             let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
             let nexus_connection =

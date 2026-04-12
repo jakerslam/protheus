@@ -376,7 +376,21 @@ fn web_media_request_contract() -> Value {
         "rejects_windows_network_paths": true,
         "host_read_capability_requires_sniffed_binary_or_office_document": true,
         "summary_only_default": false,
+        "hosting_contract": web_media_host_contract(),
         "file_context_contract": web_media_file_context_contract()
+    })
+}
+
+fn web_media_host_contract() -> Value {
+    json!({
+        "route_prefix": "/api/web/media/",
+        "default_ttl_seconds": 120,
+        "max_ttl_seconds": 3600,
+        "single_use_delivery": true,
+        "cleanup_after_delivery": true,
+        "delivery_shape": "json_data_url",
+        "absolute_url_requires_base_url": true,
+        "source_contract": "same_as_web_media"
     })
 }
 
@@ -400,6 +414,13 @@ fn append_web_media_tool_entry(tool_catalog: &mut Value, policy: &Value) {
             "default_provider": "direct_http",
             "default_provider_chain": fetch_provider_chain_from_request("", &json!({}), policy),
             "request_contract": web_media_request_contract()
+        }));
+        rows.push(json!({
+            "tool": "web_media_host",
+            "label": "Web Media Host",
+            "family": "media",
+            "enabled": policy.pointer("/web_conduit/enabled").and_then(Value::as_bool).unwrap_or(true),
+            "request_contract": web_media_host_contract()
         }));
         rows.push(json!({
             "tool": "web_media_parse",

@@ -126,3 +126,65 @@ fn message_turns_capture_memory_and_attention_receipt() {
         .unwrap_or(false);
     assert!(queued || staged);
 }
+
+#[test]
+fn direct_web_media_host_post_and_get_delivery_route_round_trip() {
+    let root = terminated_temp_root();
+    init_git_repo(root.path());
+    let target = root.path().join("tiny.png");
+    let png = base64::Engine::decode(
+        &base64::engine::general_purpose::STANDARD,
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/woAAn8B9FD5fHAAAAAASUVORK5CYII=",
+    )
+    .expect("png");
+    fs::write(&target, png).expect("write");
+
+    let hosted = handle(
+        root.path(),
+        "POST",
+        "/api/web/media-host",
+        format!(
+            "{{\"path\":\"{}\",\"local_roots\":\"any\"}}",
+            target.display()
+        )
+        .as_bytes(),
+        &terminated_ok_snapshot(),
+    )
+    .expect("host");
+    assert_eq!(hosted.status, 200);
+    let hosted_id = clean_text(
+        hosted.payload.get("id").and_then(Value::as_str).unwrap_or(""),
+        220,
+    );
+    assert!(!hosted_id.is_empty());
+
+    let delivered = handle(
+        root.path(),
+        "GET",
+        &format!("/api/web/media/{hosted_id}"),
+        &[],
+        &terminated_ok_snapshot(),
+    )
+    .expect("deliver");
+    assert_eq!(delivered.status, 200);
+    assert_eq!(
+        delivered.payload.get("content_type").and_then(Value::as_str),
+        Some("image/png")
+    );
+    assert!(delivered
+        .payload
+        .get("data_url")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .starts_with("data:image/png;base64,"));
+
+    let removed = handle(
+        root.path(),
+        "GET",
+        &format!("/api/web/media/{hosted_id}"),
+        &[],
+        &terminated_ok_snapshot(),
+    )
+    .expect("removed");
+    assert_eq!(removed.status, 404);
+}
