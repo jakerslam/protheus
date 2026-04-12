@@ -12,6 +12,30 @@ mod openclaw_runtime_provider_proof_tests {
             .expect("search provider row")
     }
 
+    fn assert_provider_fails_closed(provider: &str) {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let providers = api_providers(tmp.path());
+        assert!(!providers
+            .pointer("/search_provider_registration_contract/supported_provider_ids")
+            .and_then(Value::as_array)
+            .map(|rows| rows.iter().any(|row| row.as_str() == Some(provider)))
+            .unwrap_or(false));
+        assert!(providers
+            .pointer("/search_provider_registration_contract/unsupported_provider_examples")
+            .and_then(Value::as_array)
+            .map(|rows| rows.iter().any(|row| row.as_str() == Some(provider)))
+            .unwrap_or(false));
+        let out = api_search(
+            tmp.path(),
+            &json!({"query": "agent reliability", "provider": provider}),
+        );
+        assert_eq!(out.get("error").and_then(Value::as_str), Some("unknown_search_provider"));
+        assert_eq!(
+            out.get("requested_provider").and_then(Value::as_str),
+            Some(provider)
+        );
+    }
+
     #[test]
     fn openclaw_runtime_contract_search_runtime_prefers_keyless_fallback_without_credentials() {
         let tmp = tempfile::tempdir().expect("tempdir");
@@ -179,5 +203,25 @@ mod openclaw_runtime_provider_proof_tests {
             out.get("requested_provider").and_then(Value::as_str),
             Some("google")
         );
+    }
+
+    #[test]
+    fn openclaw_runtime_contract_moonshot_search_contract_fails_closed_outside_allowlist() {
+        assert_provider_fails_closed("moonshot");
+    }
+
+    #[test]
+    fn openclaw_runtime_contract_perplexity_search_contract_fails_closed_outside_allowlist() {
+        assert_provider_fails_closed("perplexity");
+    }
+
+    #[test]
+    fn openclaw_runtime_contract_tavily_search_contract_fails_closed_outside_allowlist() {
+        assert_provider_fails_closed("tavily");
+    }
+
+    #[test]
+    fn openclaw_runtime_contract_xai_search_contract_fails_closed_outside_allowlist() {
+        assert_provider_fails_closed("xai");
     }
 }
