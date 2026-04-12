@@ -14,9 +14,10 @@ use std::sync::OnceLock;
 
 use crate::parse_args;
 use crate::web_conduit_provider_runtime::{
-    fetch_provider_catalog_snapshot, fetch_provider_chain_from_request, load_search_cache,
-    provider_chain_from_request, provider_circuit_open_until, provider_catalog_snapshot,
-    provider_health_snapshot, record_provider_attempt, search_cache_key, store_search_cache,
+    fetch_cache_key, fetch_provider_catalog_snapshot, fetch_provider_chain_from_request,
+    load_fetch_cache, load_search_cache, provider_chain_from_request,
+    provider_circuit_open_until, provider_catalog_snapshot, provider_health_snapshot,
+    record_provider_attempt, search_cache_key, store_fetch_cache, store_search_cache,
     validate_explicit_fetch_provider_hint, validate_explicit_provider_hint,
 };
 
@@ -39,7 +40,7 @@ fn usage() {
     println!("  protheus-ops web-conduit status");
     println!("  protheus-ops web-conduit receipts [--limit=<n>]");
     println!(
-        "  protheus-ops web-conduit fetch --url=<https://...> [--provider=auto|direct-http|curl] [--human-approved=1] [--approval-id=<id>] [--summary-only=1]"
+        "  protheus-ops web-conduit fetch --url=<https://...> [--provider=auto|direct-http|curl] [--extract-mode=text|markdown] [--max-chars=<n>] [--cache-ttl-minutes=<n>] [--timeout-ms=<n>] [--max-response-bytes=<n>] [--resolve-citation-redirect=1] [--human-approved=1] [--approval-id=<id>] [--summary-only=1]"
     );
     println!(
         "  protheus-ops web-conduit search --query=<terms> [--provider=auto|serper|duckduckgo|duckduckgo-lite|bing] [--top-k=8] [--allowed-domains=docs.rs,github.com] [--exact-domain-only=1] [--human-approved=1] [--summary-only=1]"

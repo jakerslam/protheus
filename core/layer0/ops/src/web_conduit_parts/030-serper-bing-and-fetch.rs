@@ -30,7 +30,9 @@ fn render_serper_payload(
     let mut links = Vec::<String>::new();
     let mut domains = Vec::<String>::new();
     for row in &organic {
-        let link = clean_text(row.get("link").and_then(Value::as_str).unwrap_or(""), 2200);
+        let link = normalize_search_result_link(
+            row.get("link").and_then(Value::as_str).unwrap_or(""),
+        );
         if link.is_empty() || !domain_allowed_for_scope(&link, allowed_domains, exclude_subdomains)
         {
             continue;
@@ -113,7 +115,7 @@ fn render_bing_rss_payload(
     for captures in item_re.captures_iter(body) {
         raw_count += 1;
         let item = captures.get(1).map(|m| m.as_str()).unwrap_or("");
-        let link = clean_text(&extract_xml_tag_value(item, "link"), 2_200);
+        let link = normalize_search_result_link(&extract_xml_tag_value(item, "link"));
         if link.is_empty() || !domain_allowed_for_scope(&link, allowed_domains, exclude_subdomains)
         {
             continue;
@@ -376,4 +378,3 @@ fn is_retryable_fetch_result(row: &Value) -> bool {
         || error.contains("could not resolve host")
         || error.contains("empty reply")
 }
-
