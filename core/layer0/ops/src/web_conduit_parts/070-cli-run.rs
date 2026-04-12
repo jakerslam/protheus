@@ -341,6 +341,36 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 .unwrap_or_else(|| parsed.positional.get(1).map(String::as_str).unwrap_or(""));
             api_parse_media(&json!({ "text": text }))
         }
+        "file-context" => {
+            api_file_context(&json!({
+                "content": parsed.flags.get("content").cloned().unwrap_or_default(),
+                "content_base64": parsed
+                    .flags
+                    .get("content-base64")
+                    .or_else(|| parsed.flags.get("content_base64"))
+                    .cloned()
+                    .unwrap_or_default(),
+                "file_name": parsed
+                    .flags
+                    .get("file-name")
+                    .or_else(|| parsed.flags.get("file_name"))
+                    .cloned()
+                    .unwrap_or_default(),
+                "fallback_name": parsed
+                    .flags
+                    .get("fallback-name")
+                    .or_else(|| parsed.flags.get("fallback_name"))
+                    .cloned()
+                    .unwrap_or_default(),
+                "mime_type": parsed
+                    .flags
+                    .get("mime-type")
+                    .or_else(|| parsed.flags.get("mime_type"))
+                    .cloned()
+                    .unwrap_or_default(),
+                "compact": parse_bool(parsed.flags.get("compact"))
+            }))
+        }
         "search" => {
             let query = clean_text(
                 parsed
