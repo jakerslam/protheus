@@ -15,7 +15,8 @@ use std::sync::OnceLock;
 use crate::parse_args;
 use crate::web_conduit_provider_runtime::{
     load_search_cache, provider_chain_from_request, provider_circuit_open_until,
-    provider_health_snapshot, record_provider_attempt, search_cache_key, store_search_cache,
+    provider_catalog_snapshot, provider_health_snapshot, record_provider_attempt, search_cache_key,
+    store_search_cache, validate_explicit_provider_hint,
 };
 
 const POLICY_REL: &str = "client/runtime/config/web_conduit_policy.json";
@@ -38,8 +39,9 @@ fn usage() {
     println!("  protheus-ops web-conduit receipts [--limit=<n>]");
     println!("  protheus-ops web-conduit fetch --url=<https://...> [--human-approved=1] [--approval-id=<id>] [--summary-only=1]");
     println!(
-        "  protheus-ops web-conduit search --query=<terms> [--provider=auto|serper|duckduckgo|bing] [--top-k=8] [--allowed-domains=docs.rs,github.com] [--exact-domain-only=1] [--human-approved=1] [--summary-only=1]"
+        "  protheus-ops web-conduit search --query=<terms> [--provider=auto|serper|duckduckgo|duckduckgo-lite|bing] [--top-k=8] [--allowed-domains=docs.rs,github.com] [--exact-domain-only=1] [--human-approved=1] [--summary-only=1]"
     );
+    println!("  protheus-ops web-conduit providers");
     println!("  protheus-ops browse fetch --url=<https://...>");
 }
 
@@ -341,4 +343,3 @@ fn requests_last_minute(root: &Path) -> u64 {
     }
     count
 }
-

@@ -80,7 +80,9 @@ fn normalize_provider_token(raw: &str) -> Option<String> {
     let canonical = match lowered.as_str() {
         "serper" | "serperdev" => "serperdev",
         "duckduckgo" | "ddg" => "duckduckgo",
-        "duckduckgo_lite" | "ddg_lite" | "lite" => "duckduckgo_lite",
+        "duckduckgo_lite" | "ddg_lite" | "duckduckgo-lite" | "ddg-lite" | "lite" => {
+            "duckduckgo_lite"
+        }
         "bing" | "bing_rss" => "bing_rss",
         _ => "",
     };
@@ -100,6 +102,27 @@ fn provider_env_keys(provider: &str) -> &'static [&'static str] {
             "SERPER_API_KEY",
         ],
         _ => &[],
+    }
+}
+
+fn provider_aliases(provider: &str) -> &'static [&'static str] {
+    match provider {
+        "serperdev" => &["serper", "serperdev"],
+        "duckduckgo" => &["duckduckgo", "ddg"],
+        "duckduckgo_lite" => {
+            &["duckduckgo_lite", "ddg_lite", "duckduckgo-lite", "ddg-lite", "lite"]
+        }
+        "bing_rss" => &["bing", "bing_rss"],
+        _ => &[],
+    }
+}
+
+fn provider_source_kind(provider: &str) -> &'static str {
+    match provider {
+        "serperdev" => "structured_api",
+        "bing_rss" => "rss_feed",
+        "duckduckgo" | "duckduckgo_lite" => "html_search",
+        _ => "unknown",
     }
 }
 
@@ -224,6 +247,18 @@ pub(crate) fn provider_chain_from_request(
     provider_chain_from_request_with_env(provider_hint, request, policy, |key| {
         std::env::var(key).ok()
     })
+}
+
+pub(crate) fn validate_explicit_provider_hint(provider_hint: &str) -> Option<String> {
+    let trimmed = clean_text(provider_hint, 60).to_ascii_lowercase();
+    if trimmed.is_empty() || trimmed == "auto" {
+        return None;
+    }
+    if normalize_provider_token(&trimmed).is_some() {
+        None
+    } else {
+        Some(trimmed)
+    }
 }
 
 pub(crate) fn circuit_policy(policy: &Value) -> CircuitPolicy {
@@ -380,3 +415,45 @@ pub(crate) fn provider_health_snapshot(root: &Path, providers: &[String]) -> Val
     json!(rows)
 }
 
+fn provider_catalog_snapshot_with_env<F>(root: &Path, policy: &Value, resolve_env: F) -> Value
+where
+    F: Fn(&str) -> Option<String> + Copy,
+{
+    let state = load_provider_health(root);
+    let now_ts = Utc::now().timestamp();
+    let chain = provider_chain_from_request_with_env("", &json!({}), policy, resolve_env);
+    let rows = chain
+        .iter()
+        .enumerate()
+        .map(|(index, provider)| {
+            let entry = state
+                .pointer(&format!("/providers/{provider}"))
+                .cloned()
+                .unwrap_or_else(|| json!({}));
+            let requires_credential = !provider_env_keys(provider).is_empty();
+            let credential_present = provider_has_runtime_credential_with(provider, resolve_env);
+            let circuit_open_until = entry
+                .get("circuit_open_until")
+                .and_then(Value::as_i64)
+                .unwrap_or(0);
+            json!({
+                "provider": provider,
+                "aliases": provider_aliases(provider),
+                "source": provider_source_kind(provider),
+                "requires_credential": requires_credential,
+                "credential_present": credential_present,
+                "available": !requires_credential || credential_present,
+                "selected_by_default": index == 0,
+                "auto_detect_rank": index + 1,
+                "consecutive_failures": entry.get("consecutive_failures").and_then(Value::as_u64).unwrap_or(0),
+                "circuit_open_until": if circuit_open_until > now_ts { circuit_open_until } else { 0 },
+                "last_error": clean_text(entry.get("last_error").and_then(Value::as_str).unwrap_or(""), 220),
+            })
+        })
+        .collect::<Vec<_>>();
+    json!(rows)
+}
+
+pub(crate) fn provider_catalog_snapshot(root: &Path, policy: &Value) -> Value {
+    provider_catalog_snapshot_with_env(root, policy, |key| std::env::var(key).ok())
+}
