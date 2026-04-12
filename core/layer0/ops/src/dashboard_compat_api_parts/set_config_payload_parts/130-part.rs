@@ -101,6 +101,10 @@ fn execute_tool_call_by_name(
                     json!({"name":"terminal_exec","route":"agent terminal","default_enabled":true}),
                 ];
                 obj.insert("command_surface".to_string(), json!("governed_tool_router"));
+                obj.entry("catalog_contract".to_string())
+                    .or_insert_with(|| json!("domain_grouped_tool_catalog_v1"));
+                obj.entry("catalog_default_workflow".to_string())
+                    .or_insert_with(|| json!("complex_prompt_chain_v1"));
                 obj.insert("read_surfaces".to_string(), Value::Array(read_surfaces));
                 obj.insert(
                     "explicit_tool_commands".to_string(),

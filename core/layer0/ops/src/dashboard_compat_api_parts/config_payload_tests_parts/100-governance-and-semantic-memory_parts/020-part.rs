@@ -11,6 +11,21 @@ fn conversational_prompt_does_not_auto_route_direct_tool_intent() {
 }
 
 #[test]
+fn natural_web_prompt_does_not_auto_route_direct_tool_intent() {
+    assert!(
+        direct_tool_intent_from_user_message(
+            "Try to web search \"top AI agentic frameworks\" and return the results"
+        )
+        .is_none()
+    );
+}
+
+#[test]
+fn natural_file_prompt_does_not_auto_route_direct_tool_intent() {
+    assert!(direct_tool_intent_from_user_message("read file core/layer0/ops/src/main.rs").is_none());
+}
+
+#[test]
 fn explicit_tool_command_routes_web_search_with_defaults() {
     let (tool, input) =
         direct_tool_intent_from_user_message("tool::web_search:::latest ai agent benchmarks")
@@ -103,6 +118,12 @@ fn inline_tool_policy_requires_explicit_tooling_request() {
     ));
     assert!(inline_tool_calls_allowed_for_user_message(
         "search the web for latest ai agent benchmarks"
+    ));
+    assert!(inline_tool_calls_allowed_for_user_message(
+        "Try to web search \"top AI agentic frameworks\" and return the results"
+    ));
+    assert!(inline_tool_calls_allowed_for_user_message(
+        "read file core/layer0/ops/src/main.rs"
     ));
     assert!(!inline_tool_calls_allowed_for_user_message(
         "just answer directly, dont use a tool call"

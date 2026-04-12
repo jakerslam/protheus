@@ -191,6 +191,45 @@ fn handle_agent_scope_message_route(
                 synthesis_model = "auto".to_string();
             }
             let synthesis_history = Vec::<Value>::new();
+            let workflow_pending_confirmation = if requires_confirmation {
+                Some(json!({
+                    "tool_name": normalize_tool_name(&tool_name),
+                    "source": "direct_message"
+                }))
+            } else {
+                None
+            };
+            let response_workflow = run_turn_workflow_final_response(
+                root,
+                &synthesis_provider,
+                &synthesis_model,
+                &synthesis_history,
+                &message,
+                "direct_tool_route",
+                &response_tools,
+                &build_turn_workflow_events(
+                    workflow_pending_confirmation.as_ref(),
+                    replayed_pending_confirmation,
+                ),
+                &finalized_response,
+            );
+            if let Some(synthesized) = response_workflow.get("response").and_then(Value::as_str) {
+                finalized_response = synthesized.to_string();
+            }
+            let workflow_status = clean_text(
+                response_workflow
+                    .pointer("/final_llm_response/status")
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                80,
+            );
+            if !workflow_status.is_empty() {
+                finalization_outcome = merge_response_outcomes(
+                    &finalization_outcome,
+                    &format!("workflow:{workflow_status}"),
+                    180,
+                );
+            }
             if let Some(synthesized) = maybe_synthesize_tool_turn_response(
                 root,
                 &synthesis_provider,
@@ -272,6 +311,7 @@ fn handle_agent_scope_message_route(
                 &response_text,
                 &json!({
                     "tools": response_tools.clone(),
+                    "response_workflow": response_workflow.clone(),
                     "response_finalization": response_finalization.clone(),
                     "turn_transaction": turn_transaction.clone()
                 }),
@@ -291,6 +331,7 @@ fn handle_agent_scope_message_route(
                     "cost_usd": 0.0,
                     "response": response_text,
                     "tools": response_tools,
+                    "response_workflow": response_workflow,
                     "response_finalization": response_finalization,
                     "turn_transaction": turn_transaction,
                     "workspace_hints": workspace_hints_value.clone(),

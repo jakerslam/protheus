@@ -1,7 +1,7 @@
 use crate::backend_registry::{live_backend_registry, ToolBackendHealth};
 use crate::capability::{
-    all_capabilities_for_callers, capability_probe_for, ToolCapability, ToolCapabilityProbe,
-    ToolReasonCode,
+    all_capabilities_for_callers, capability_probe_for, grouped_capabilities_for_callers,
+    ToolCapability, ToolCapabilityCatalogGroup, ToolCapabilityProbe, ToolReasonCode,
 };
 use crate::request_validation::{clean_text, repair_and_validate_args};
 use crate::schemas::{NormalizedToolMetrics, NormalizedToolResult, NormalizedToolStatus};
@@ -181,6 +181,10 @@ impl ToolBroker {
 
     pub fn capability_catalog(&self) -> Vec<ToolCapability> {
         all_capabilities_for_callers(&self.allowed_tools)
+    }
+
+    pub fn grouped_capability_catalog(&self) -> Vec<ToolCapabilityCatalogGroup> {
+        grouped_capabilities_for_callers(&self.allowed_tools)
     }
 
     pub fn backend_registry(&self) -> Vec<ToolBackendHealth> {
@@ -891,6 +895,9 @@ mod tests {
         let catalog = broker.capability_catalog();
         assert!(catalog.iter().any(|row| row.tool_name == "web_search"));
         assert!(catalog.iter().any(|row| row.tool_name == "terminal_exec"));
+        assert!(broker.grouped_capability_catalog().iter().any(|group| {
+            group.tools.iter().any(|row| row.tool_name == "web_search")
+        }));
         let allowed = broker.capability_probe(BrokerCaller::Client, "web_search");
         assert!(allowed.available);
         assert!(matches!(

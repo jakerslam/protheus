@@ -98,6 +98,23 @@ fn tool_capabilities_surface_reports_default_read_tools() {
             .map(|value| value == "workspace_analyze")
             .unwrap_or(false)
     }));
+    let catalog_domains = payload
+        .get("catalog_domains")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    assert!(catalog_domains.iter().any(|row| {
+        row.get("domain")
+            .and_then(Value::as_str)
+            .map(|value| value == "web")
+            .unwrap_or(false)
+    }));
+    assert!(catalog_domains.iter().any(|row| {
+        row.get("domain")
+            .and_then(Value::as_str)
+            .map(|value| value == "file")
+            .unwrap_or(false)
+    }));
 }
 
 #[test]

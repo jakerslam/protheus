@@ -7,93 +7,9 @@ fn direct_tool_intent_from_user_message(message: &str) -> Option<(String, Value)
         };
     }
     if !trimmed.starts_with('/') {
-        if message_explicitly_disallows_tool_calls(trimmed) {
-            return None;
-        }
-        let lowered = clean_text(trimmed, 2200).to_ascii_lowercase();
-        if capability_probe_intent_from_message(trimmed, &lowered) {
-            return Some((
-                "tool_capabilities".to_string(),
-                json!({"scope": "agent", "reason": "natural_language_capability_probe"}),
-            ));
-        }
-        if let Some(route) = follow_up_suggestion_tool_intent_from_message(trimmed) {
-            return Some(route);
-        }
-        let asks_file_read = lowered.contains("read file")
-            || lowered.contains("open file")
-            || lowered.contains("show file")
-            || lowered.contains("view file")
-            || lowered.contains("inspect file")
-            || lowered.starts_with("cat ");
-        if asks_file_read {
-            for raw in trimmed.split_whitespace() {
-                let candidate = clean_text(
-                    raw.trim_matches(|ch| matches!(ch, '`' | '"' | '\'' | ',' | ')' | ']' | '>')),
-                    4000,
-                );
-                if candidate.is_empty()
-                    || candidate.starts_with("http://")
-                    || candidate.starts_with("https://")
-                {
-                    continue;
-                }
-                let has_path_shape = candidate.contains('/')
-                    || candidate.contains('\\')
-                    || candidate.starts_with("./")
-                    || candidate.starts_with("../");
-                let ext = Path::new(&candidate)
-                    .extension()
-                    .and_then(|value| value.to_str())
-                    .unwrap_or("")
-                    .to_ascii_lowercase();
-                if has_path_shape
-                    || matches!(
-                        ext.as_str(),
-                        "rs" | "ts"
-                            | "tsx"
-                            | "js"
-                            | "jsx"
-                            | "json"
-                            | "md"
-                            | "toml"
-                            | "yaml"
-                            | "yml"
-                            | "txt"
-                            | "sh"
-                            | "py"
-                    )
-                {
-                    return Some((
-                        "file_read".to_string(),
-                        json!({"path": candidate, "full": true}),
-                    ));
-                }
-            }
-        }
-        if let Some(route) = natural_web_intent_from_user_message(trimmed) {
-            return Some(route);
-        }
-        if let Some(route) = workspace_analyze_intent_from_message(trimmed, &lowered) {
-            return Some(route);
-        }
-        if memory_recall_requested(trimmed) {
-            return None;
-        }
-        let lowered = clean_text(trimmed, 120).to_ascii_lowercase();
-        if lowered.contains("what did we decide") && lowered.contains("about") {
-            return Some((
-                "memory_semantic_query".to_string(),
-                json!({"query": clean_text(trimmed, 600), "limit": 8}),
-            ));
-        }
-        let undo_like = lowered == "undo"
-            || lowered == "undo that"
-            || lowered == "undo last"
-            || lowered == "rewind";
-        if undo_like {
-            return Some(("session_rollback_last_turn".to_string(), json!({})));
-        }
+        // Conversational turns stay model-first. Natural-language tool intent can still be
+        // surfaced to the model via latent candidates / inline-tool permission, but ordinary
+        // chat text should not be converted into a direct tool route before the LLM answers.
         return None;
     }
     let mut split = trimmed.splitn(2, char::is_whitespace);
@@ -301,27 +217,6 @@ fn response_tools_failure_reason_for_user(response_tools: &[Value], max_items: u
     }
 }
 
-fn capability_probe_intent_from_message(trimmed: &str, lowered: &str) -> bool {
-    if trimmed.is_empty() || lowered.is_empty() {
-        return false;
-    }
-    let asks_capability_matrix = lowered.contains("capabilities")
-        || lowered.contains("supported commands")
-        || lowered.contains("available tools")
-        || lowered.contains("tool access")
-        || lowered.contains("what tools can");
-    let asks_file_access = lowered.contains("can you read files")
-        || lowered.contains("can you access files")
-        || lowered.contains("do you have file access")
-        || lowered.contains("can you run ls");
-    let asks_tool_truth = lowered.contains("did you actually run")
-        || lowered.contains("did that actually happen")
-        || lowered.contains("are tools available")
-        || lowered.contains("which tools work")
-        || lowered.contains("verify tooling");
-    asks_capability_matrix || asks_file_access || asks_tool_truth
-}
-
 fn workspace_analyze_intent_from_message(
     trimmed: &str,
     lowered: &str,
@@ -393,7 +288,23 @@ fn inline_tool_calls_allowed_for_user_message(message: &str) -> bool {
         return true;
     }
     let lowered = cleaned.to_ascii_lowercase();
+    let asks_file_read = lowered.contains("read file")
+        || lowered.contains("open file")
+        || lowered.contains("show file")
+        || lowered.contains("view file")
+        || lowered.contains("inspect file")
+        || lowered.starts_with("cat ");
+    let asks_memory = memory_recall_requested(&cleaned)
+        || (lowered.contains("what did we decide") && lowered.contains("about"));
+    let asks_workspace = workspace_analyze_intent_from_message(&cleaned, &lowered).is_some();
+    let asks_follow_up_tool = follow_up_suggestion_tool_intent_from_message(&cleaned).is_some();
+    let asks_live_web = natural_web_intent_from_user_message(&cleaned).is_some();
     swarm_intent_requested(&cleaned)
+        || asks_file_read
+        || asks_memory
+        || asks_workspace
+        || asks_follow_up_tool
+        || asks_live_web
         || lowered.contains("multi-agent")
         || lowered.contains("multi agent")
         || lowered.contains("use tool")

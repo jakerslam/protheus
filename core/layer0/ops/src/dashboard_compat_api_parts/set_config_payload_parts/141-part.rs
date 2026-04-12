@@ -291,6 +291,31 @@ fn summarize_tool_capability_payload(
             }
         }
     }
+    let domains = payload
+        .get("catalog_domains")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|row| {
+            let domain = clean_text(row.get("domain").and_then(Value::as_str).unwrap_or(""), 80);
+            let count = row
+                .get("tool_count")
+                .and_then(Value::as_u64)
+                .unwrap_or(0);
+            if domain.is_empty() {
+                None
+            } else {
+                Some(format!("{domain} ({count})"))
+            }
+        })
+        .collect::<Vec<_>>();
+    if !domains.is_empty() {
+        lines.push(format!(
+            "Catalog domains: {}.",
+            clean_text(&domains.join(", "), 240)
+        ));
+    }
     let read_defaults = payload
         .get("read_surfaces")
         .and_then(Value::as_array)
