@@ -1,38 +1,3 @@
-fn content_type_is_textual(content_type: &str) -> bool {
-    let lowered = normalize_fetch_content_type(content_type);
-    if lowered.is_empty() {
-        return true;
-    }
-    lowered.starts_with("text/")
-        || lowered.contains("json")
-        || lowered.contains("xml")
-        || lowered.contains("javascript")
-        || lowered.contains("yaml")
-        || lowered.contains("csv")
-}
-
-fn parse_fetch_u64(value: Option<&Value>, fallback: u64, min: u64, max: u64) -> u64 {
-    value.and_then(Value::as_u64).unwrap_or(fallback).clamp(min, max)
-}
-
-fn fetch_extract_mode(request: &Value) -> String {
-    let raw = clean_text(
-        request
-            .get("extract_mode")
-            .or_else(|| request.get("extractMode"))
-            .or_else(|| request.get("mode"))
-            .and_then(Value::as_str)
-            .unwrap_or("text"),
-        24,
-    )
-    .to_ascii_lowercase();
-    if raw == "markdown" {
-        "markdown".to_string()
-    } else {
-        "text".to_string()
-    }
-}
-
 fn execute_fetch_request(root: &Path, request: &Value) -> Value {
     let raw_requested_url = clean_text(
         request
@@ -320,11 +285,17 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
     );
     let fetched_body = fetched.get("body").and_then(Value::as_str).unwrap_or("");
     let content_is_textual = content_type_is_textual(&content_type);
-    let (content, title, content_truncated, extractor) = if content_is_textual {
+    let (raw_content, raw_title, content_truncated, extractor) = if content_is_textual {
         extract_fetch_content_with_extractor(fetched_body, &content_type, &extract_mode, max_chars)
     } else {
         (String::new(), None, false, "binary".to_string())
     };
+    let (content, wrapped_truncated, raw_length, wrapped_length) = if content_is_textual {
+        wrap_web_fetch_content(&raw_content, max_chars)
+    } else {
+        (String::new(), false, 0, 0)
+    };
+    let title = wrap_web_fetch_field(raw_title.as_deref());
     let final_url = clean_text(
         fetched
             .get("effective_url")
@@ -332,7 +303,7 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
             .unwrap_or(resolved_url.as_str()),
         2200,
     );
-    let summary_body = extract_fetch_summary_body(&content, &extract_mode);
+    let summary_body = extract_fetch_summary_body(&raw_content, &extract_mode);
     let summary = if content_is_textual {
         summarize_text(&summary_body, 900)
     } else if resolved_url.is_empty() {
@@ -379,7 +350,19 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
         .get("stderr")
         .and_then(Value::as_str)
         .map(|v| clean_text(v, 320))
-        .unwrap_or_default();
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| {
+            if status_code >= 400 {
+                let detail = format_web_fetch_error_detail(fetched_body, &content_type, 4000);
+                if detail.is_empty() {
+                    String::new()
+                } else {
+                    wrap_web_fetch_content(&detail, 4000).0
+                }
+            } else {
+                String::new()
+            }
+        });
     let receipt_reason = if matches!(
         error_value.as_str(),
         "invalid_fetch_url"
@@ -464,7 +447,14 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
         "title": title.unwrap_or_default(),
         "summary": summary,
         "content": if summary_only { Value::String(String::new()) } else { Value::String(content.clone()) },
-        "content_truncated": content_truncated,
+        "content_truncated": content_truncated || wrapped_truncated,
+        "raw_length": raw_length,
+        "wrapped_length": wrapped_length,
+        "external_content": {
+            "untrusted": true,
+            "source": "web_fetch",
+            "wrapped": content_is_textual
+        },
         "cache_status": "miss",
         "retry_attempts": fetched.get("retry_attempts").cloned().unwrap_or_else(|| json!(1)),
         "retry_used": fetched.get("retry_used").cloned().unwrap_or_else(|| json!(false)),
