@@ -134,13 +134,21 @@ pub fn api_status(root: &Path) -> Value {
         .filter(|row| row.get("policy_decision").and_then(Value::as_str) == Some("deny"))
         .count();
     let last = recent.first().cloned().unwrap_or(Value::Null);
+    let default_search_provider_chain = provider_chain_from_request("", &json!({}), &policy);
+    let default_fetch_provider_chain = fetch_provider_chain_from_request("", &json!({}), &policy);
+    let search_provider_catalog = provider_catalog_snapshot(root, &policy);
+    let fetch_provider_catalog = fetch_provider_catalog_snapshot(root, &policy);
     json!({
         "ok": true,
         "enabled": policy.pointer("/web_conduit/enabled").and_then(Value::as_bool).unwrap_or(true),
         "policy_path": policy_path_value.to_string_lossy().to_string(),
         "policy": policy,
-        "default_provider_chain": provider_chain_from_request("", &json!({}), &policy),
-        "provider_catalog": provider_catalog_snapshot(root, &policy),
+        "default_provider_chain": default_search_provider_chain.clone(),
+        "default_search_provider_chain": default_search_provider_chain,
+        "default_fetch_provider_chain": default_fetch_provider_chain,
+        "provider_catalog": search_provider_catalog.clone(),
+        "search_provider_catalog": search_provider_catalog,
+        "fetch_provider_catalog": fetch_provider_catalog,
         "receipts_total": receipt_count(root),
         "recent_denied": denied,
         "recent_receipts": recent,
@@ -150,12 +158,20 @@ pub fn api_status(root: &Path) -> Value {
 
 pub fn api_providers(root: &Path) -> Value {
     let (policy, policy_path_value) = load_policy(root);
+    let default_search_provider_chain = provider_chain_from_request("", &json!({}), &policy);
+    let default_fetch_provider_chain = fetch_provider_chain_from_request("", &json!({}), &policy);
+    let search_providers = provider_catalog_snapshot(root, &policy);
+    let fetch_providers = fetch_provider_catalog_snapshot(root, &policy);
     json!({
         "ok": true,
         "type": "web_conduit_providers",
         "policy_path": policy_path_value.to_string_lossy().to_string(),
-        "default_provider_chain": provider_chain_from_request("", &json!({}), &policy),
-        "providers": provider_catalog_snapshot(root, &policy)
+        "default_provider_chain": default_search_provider_chain.clone(),
+        "default_search_provider_chain": default_search_provider_chain,
+        "default_fetch_provider_chain": default_fetch_provider_chain,
+        "providers": search_providers.clone(),
+        "search_providers": search_providers,
+        "fetch_providers": fetch_providers
     })
 }
 
@@ -195,6 +211,40 @@ pub fn api_fetch(root: &Path, request: &Value) -> Value {
     let token_approved = approval_state.as_deref() == Some("approved");
     let effective_human_approved = human_approved || token_approved;
     let (policy, _policy_path_value) = load_policy(root);
+    let provider_hint = clean_text(
+        request
+            .get("provider")
+            .or_else(|| request.get("source"))
+            .or_else(|| request.get("fetch_provider"))
+            .and_then(Value::as_str)
+            .unwrap_or("auto"),
+        40,
+    )
+    .to_ascii_lowercase();
+    if let Some(unknown_provider) = validate_explicit_fetch_provider_hint(&provider_hint) {
+        let receipt = build_receipt(
+            &requested_url,
+            "deny",
+            None,
+            0,
+            "unknown_fetch_provider",
+            Some(&unknown_provider),
+        );
+        let _ = append_jsonl(&receipts_path(root), &receipt);
+        return json!({
+            "ok": false,
+            "error": "unknown_fetch_provider",
+            "requested_url": requested_url,
+            "requested_provider": unknown_provider,
+            "fetch_provider_catalog": fetch_provider_catalog_snapshot(root, &policy),
+            "receipt": receipt
+        });
+    }
+    let fetch_provider_chain = fetch_provider_chain_from_request(&provider_hint, request, &policy);
+    let selected_provider = fetch_provider_chain
+        .first()
+        .cloned()
+        .unwrap_or_else(|| "direct_http".to_string());
     let policy_eval = infring_layer1_security::evaluate_web_conduit_policy(
         root,
         &json!({
@@ -371,7 +421,11 @@ pub fn api_fetch(root: &Path, request: &Value) -> Value {
 
     json!({
         "ok": fetch_ok,
+        "type": "web_conduit_fetch",
         "requested_url": requested_url,
+        "provider": selected_provider,
+        "provider_hint": provider_hint,
+        "provider_chain": fetch_provider_chain,
         "status_code": status_code,
         "content_type": if content_type.is_empty() { Value::String(String::new()) } else { Value::String(content_type) },
         "summary": summary,

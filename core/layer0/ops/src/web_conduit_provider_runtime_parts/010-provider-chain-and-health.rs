@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // Layer ownership: core/layer0/ops (authoritative)
-// Web search provider runtime: chain selection + provider health + local search cache.
+// Web provider runtime: chain selection + provider health + local search/fetch provider catalogs.
 
 use chrono::Utc;
 use serde_json::{json, Value};
@@ -13,7 +13,24 @@ const SEARCH_CACHE_MAX_ENTRIES: usize = 256;
 const SEARCH_CACHE_TTL_SUCCESS_SECS: i64 = 8 * 60;
 const SEARCH_CACHE_TTL_NO_RESULTS_SECS: i64 = 90;
 
-const DEFAULT_PROVIDER_CHAIN: &[&str] = &["serperdev", "duckduckgo", "duckduckgo_lite", "bing_rss"];
+const DEFAULT_SEARCH_PROVIDER_CHAIN: &[&str] =
+    &["serperdev", "duckduckgo", "duckduckgo_lite", "bing_rss"];
+const DEFAULT_FETCH_PROVIDER_CHAIN: &[&str] = &["direct_http"];
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum WebProviderFamily {
+    Search,
+    Fetch,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct WebProviderDescriptor {
+    family: WebProviderFamily,
+    provider: &'static str,
+    aliases: &'static [&'static str],
+    source_kind: &'static str,
+    env_keys: &'static [&'static str],
+}
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct CircuitPolicy {
@@ -35,11 +52,74 @@ fn runtime_state_path(root: &Path, rel: &str) -> PathBuf {
     root.join(rel)
 }
 
-fn default_provider_chain_vec() -> Vec<String> {
-    DEFAULT_PROVIDER_CHAIN
-        .iter()
-        .map(|row| row.to_string())
-        .collect::<Vec<_>>()
+fn builtin_provider_descriptors(family: WebProviderFamily) -> &'static [WebProviderDescriptor] {
+    const SEARCH: &[WebProviderDescriptor] = &[
+        WebProviderDescriptor {
+            family: WebProviderFamily::Search,
+            provider: "serperdev",
+            aliases: &["serper", "serperdev"],
+            source_kind: "structured_api",
+            env_keys: &[
+                "INFRING_SERPERDEV_API_KEY",
+                "SERPERDEV_API_KEY",
+                "INFRING_SERPER_API_KEY",
+                "SERPER_API_KEY",
+            ],
+        },
+        WebProviderDescriptor {
+            family: WebProviderFamily::Search,
+            provider: "duckduckgo",
+            aliases: &["duckduckgo", "ddg"],
+            source_kind: "html_search",
+            env_keys: &[],
+        },
+        WebProviderDescriptor {
+            family: WebProviderFamily::Search,
+            provider: "duckduckgo_lite",
+            aliases: &[
+                "duckduckgo_lite",
+                "ddg_lite",
+                "duckduckgo-lite",
+                "ddg-lite",
+                "lite",
+            ],
+            source_kind: "html_search",
+            env_keys: &[],
+        },
+        WebProviderDescriptor {
+            family: WebProviderFamily::Search,
+            provider: "bing_rss",
+            aliases: &["bing", "bing_rss"],
+            source_kind: "rss_feed",
+            env_keys: &[],
+        },
+    ];
+    const FETCH: &[WebProviderDescriptor] = &[WebProviderDescriptor {
+        family: WebProviderFamily::Fetch,
+        provider: "direct_http",
+        aliases: &["direct_http", "direct-http", "curl", "http", "fetch"],
+        source_kind: "http_get",
+        env_keys: &[],
+    }];
+    match family {
+        WebProviderFamily::Search => SEARCH,
+        WebProviderFamily::Fetch => FETCH,
+    }
+}
+
+fn provider_family_name(family: WebProviderFamily) -> &'static str {
+    match family {
+        WebProviderFamily::Search => "search",
+        WebProviderFamily::Fetch => "fetch",
+    }
+}
+
+fn default_provider_chain_vec(family: WebProviderFamily) -> Vec<String> {
+    let defaults = match family {
+        WebProviderFamily::Search => DEFAULT_SEARCH_PROVIDER_CHAIN,
+        WebProviderFamily::Fetch => DEFAULT_FETCH_PROVIDER_CHAIN,
+    };
+    defaults.iter().map(|row| row.to_string()).collect::<Vec<_>>()
 }
 
 fn default_provider_health_state() -> Value {
@@ -75,62 +155,58 @@ fn write_json_atomic(path: &Path, value: &Value) -> Result<(), String> {
     Ok(())
 }
 
-fn normalize_provider_token(raw: &str) -> Option<String> {
+fn normalize_provider_token_for_family(raw: &str, family: WebProviderFamily) -> Option<String> {
     let lowered = clean_text(raw, 60).to_ascii_lowercase();
-    let canonical = match lowered.as_str() {
-        "serper" | "serperdev" => "serperdev",
-        "duckduckgo" | "ddg" => "duckduckgo",
-        "duckduckgo_lite" | "ddg_lite" | "duckduckgo-lite" | "ddg-lite" | "lite" => {
-            "duckduckgo_lite"
+    for descriptor in builtin_provider_descriptors(family) {
+        if descriptor.provider == lowered || descriptor.aliases.iter().any(|alias| *alias == lowered)
+        {
+            return Some(descriptor.provider.to_string());
         }
-        "bing" | "bing_rss" => "bing_rss",
-        _ => "",
-    };
-    if canonical.is_empty() {
-        None
-    } else {
-        Some(canonical.to_string())
     }
+    None
 }
 
-fn provider_env_keys(provider: &str) -> &'static [&'static str] {
-    match provider {
-        "serperdev" => &[
-            "INFRING_SERPERDEV_API_KEY",
-            "SERPERDEV_API_KEY",
-            "INFRING_SERPER_API_KEY",
-            "SERPER_API_KEY",
-        ],
-        _ => &[],
-    }
+fn normalize_provider_token(raw: &str) -> Option<String> {
+    normalize_provider_token_for_family(raw, WebProviderFamily::Search)
 }
 
-fn provider_aliases(provider: &str) -> &'static [&'static str] {
-    match provider {
-        "serperdev" => &["serper", "serperdev"],
-        "duckduckgo" => &["duckduckgo", "ddg"],
-        "duckduckgo_lite" => {
-            &["duckduckgo_lite", "ddg_lite", "duckduckgo-lite", "ddg-lite", "lite"]
-        }
-        "bing_rss" => &["bing", "bing_rss"],
-        _ => &[],
-    }
+fn provider_descriptor(
+    provider: &str,
+    family: WebProviderFamily,
+) -> Option<&'static WebProviderDescriptor> {
+    let provider_id = normalize_provider_token_for_family(provider, family)?;
+    builtin_provider_descriptors(family)
+        .iter()
+        .find(|descriptor| descriptor.provider == provider_id)
 }
 
-fn provider_source_kind(provider: &str) -> &'static str {
-    match provider {
-        "serperdev" => "structured_api",
-        "bing_rss" => "rss_feed",
-        "duckduckgo" | "duckduckgo_lite" => "html_search",
-        _ => "unknown",
-    }
+fn provider_env_keys(provider: &str, family: WebProviderFamily) -> &'static [&'static str] {
+    provider_descriptor(provider, family)
+        .map(|descriptor| descriptor.env_keys)
+        .unwrap_or(&[])
 }
 
-fn provider_has_runtime_credential_with<F>(provider: &str, resolve_env: F) -> bool
+fn provider_aliases(provider: &str, family: WebProviderFamily) -> &'static [&'static str] {
+    provider_descriptor(provider, family)
+        .map(|descriptor| descriptor.aliases)
+        .unwrap_or(&[])
+}
+
+fn provider_source_kind(provider: &str, family: WebProviderFamily) -> &'static str {
+    provider_descriptor(provider, family)
+        .map(|descriptor| descriptor.source_kind)
+        .unwrap_or("unknown")
+}
+
+fn provider_has_runtime_credential_with<F>(
+    provider: &str,
+    family: WebProviderFamily,
+    resolve_env: F,
+) -> bool
 where
     F: Fn(&str) -> Option<String>,
 {
-    let keys = provider_env_keys(provider);
+    let keys = provider_env_keys(provider, family);
     if keys.is_empty() {
         return true;
     }
@@ -141,7 +217,7 @@ where
     })
 }
 
-fn parse_provider_list(raw: &Value) -> Vec<String> {
+fn parse_provider_list_for_family(raw: &Value, family: WebProviderFamily) -> Vec<String> {
     let rows = if let Some(array) = raw.as_array() {
         array
             .iter()
@@ -158,7 +234,7 @@ fn parse_provider_list(raw: &Value) -> Vec<String> {
         Vec::new()
     };
     rows.into_iter()
-        .filter_map(|row| normalize_provider_token(&row))
+        .filter_map(|row| normalize_provider_token_for_family(&row, family))
         .collect::<Vec<_>>()
 }
 
@@ -183,13 +259,13 @@ where
     let hint = clean_text(provider_hint, 60).to_ascii_lowercase();
     let request_chain = request
         .get("provider_chain")
-        .map(parse_provider_list)
+        .map(|raw| parse_provider_list_for_family(raw, WebProviderFamily::Search))
         .unwrap_or_default();
     let request_chain_explicit = !request_chain.is_empty();
     let policy_chain = policy
         .pointer("/web_conduit/search_provider_order")
         .or_else(|| policy.get("search_provider_order"))
-        .map(parse_provider_list)
+        .map(|raw| parse_provider_list_for_family(raw, WebProviderFamily::Search))
         .unwrap_or_default();
     let configured = if request_chain.is_empty() {
         policy_chain
@@ -197,7 +273,7 @@ where
         request_chain
     };
     let configured = if configured.is_empty() {
-        default_provider_chain_vec()
+        default_provider_chain_vec(WebProviderFamily::Search)
     } else {
         configured
     };
@@ -217,7 +293,7 @@ where
     }
     let mut merged = prefix;
     merged.extend(configured);
-    merged.extend(default_provider_chain_vec());
+    merged.extend(default_provider_chain_vec(WebProviderFamily::Search));
     let deduped = dedupe_preserve(merged);
     let hint_explicit = matches!(
         hint.as_str(),
@@ -229,7 +305,58 @@ where
     let mut credential_ready = Vec::<String>::new();
     let mut missing_credential = Vec::<String>::new();
     for provider in deduped {
-        if provider_has_runtime_credential_with(&provider, resolve_env) {
+        if provider_has_runtime_credential_with(&provider, WebProviderFamily::Search, resolve_env) {
+            credential_ready.push(provider);
+        } else {
+            missing_credential.push(provider);
+        }
+    }
+    credential_ready.extend(missing_credential);
+    credential_ready
+}
+
+fn fetch_provider_chain_from_request_with_env<F>(
+    provider_hint: &str,
+    request: &Value,
+    policy: &Value,
+    resolve_env: F,
+) -> Vec<String>
+where
+    F: Fn(&str) -> Option<String> + Copy,
+{
+    let explicit = normalize_provider_token_for_family(provider_hint, WebProviderFamily::Fetch);
+    let request_chain = request
+        .get("fetch_provider_chain")
+        .or_else(|| request.get("provider_chain"))
+        .map(|raw| parse_provider_list_for_family(raw, WebProviderFamily::Fetch))
+        .unwrap_or_default();
+    let policy_chain = policy
+        .pointer("/web_conduit/fetch_provider_order")
+        .or_else(|| policy.get("fetch_provider_order"))
+        .map(|raw| parse_provider_list_for_family(raw, WebProviderFamily::Fetch))
+        .unwrap_or_default();
+    let configured = if request_chain.is_empty() {
+        policy_chain
+    } else {
+        request_chain
+    };
+    let configured = if configured.is_empty() {
+        default_provider_chain_vec(WebProviderFamily::Fetch)
+    } else {
+        configured
+    };
+
+    let mut merged = Vec::<String>::new();
+    if let Some(provider) = explicit {
+        merged.push(provider);
+    }
+    merged.extend(configured);
+    merged.extend(default_provider_chain_vec(WebProviderFamily::Fetch));
+    let deduped = dedupe_preserve(merged);
+    let mut credential_ready = Vec::<String>::new();
+    let mut missing_credential = Vec::<String>::new();
+    for provider in deduped {
+        if provider_has_runtime_credential_with(&provider, WebProviderFamily::Fetch, resolve_env) {
             credential_ready.push(provider);
         } else {
             missing_credential.push(provider);
@@ -249,16 +376,37 @@ pub(crate) fn provider_chain_from_request(
     })
 }
 
-pub(crate) fn validate_explicit_provider_hint(provider_hint: &str) -> Option<String> {
+pub(crate) fn fetch_provider_chain_from_request(
+    provider_hint: &str,
+    request: &Value,
+    policy: &Value,
+) -> Vec<String> {
+    fetch_provider_chain_from_request_with_env(provider_hint, request, policy, |key| {
+        std::env::var(key).ok()
+    })
+}
+
+fn validate_explicit_provider_hint_for_family(
+    provider_hint: &str,
+    family: WebProviderFamily,
+) -> Option<String> {
     let trimmed = clean_text(provider_hint, 60).to_ascii_lowercase();
     if trimmed.is_empty() || trimmed == "auto" {
         return None;
     }
-    if normalize_provider_token(&trimmed).is_some() {
+    if normalize_provider_token_for_family(&trimmed, family).is_some() {
         None
     } else {
         Some(trimmed)
     }
+}
+
+pub(crate) fn validate_explicit_provider_hint(provider_hint: &str) -> Option<String> {
+    validate_explicit_provider_hint_for_family(provider_hint, WebProviderFamily::Search)
+}
+
+pub(crate) fn validate_explicit_fetch_provider_hint(provider_hint: &str) -> Option<String> {
+    validate_explicit_provider_hint_for_family(provider_hint, WebProviderFamily::Fetch)
 }
 
 pub(crate) fn circuit_policy(policy: &Value) -> CircuitPolicy {
@@ -415,13 +563,29 @@ pub(crate) fn provider_health_snapshot(root: &Path, providers: &[String]) -> Val
     json!(rows)
 }
 
-fn provider_catalog_snapshot_with_env<F>(root: &Path, policy: &Value, resolve_env: F) -> Value
+fn provider_catalog_snapshot_with_env_family<F>(
+    root: &Path,
+    policy: &Value,
+    family: WebProviderFamily,
+    resolve_env: F,
+) -> Value
 where
     F: Fn(&str) -> Option<String> + Copy,
 {
-    let state = load_provider_health(root);
+    let state = if family == WebProviderFamily::Search {
+        load_provider_health(root)
+    } else {
+        default_provider_health_state()
+    };
     let now_ts = Utc::now().timestamp();
-    let chain = provider_chain_from_request_with_env("", &json!({}), policy, resolve_env);
+    let chain = match family {
+        WebProviderFamily::Search => {
+            provider_chain_from_request_with_env("", &json!({}), policy, resolve_env)
+        }
+        WebProviderFamily::Fetch => {
+            fetch_provider_chain_from_request_with_env("", &json!({}), policy, resolve_env)
+        }
+    };
     let rows = chain
         .iter()
         .enumerate()
@@ -430,24 +594,41 @@ where
                 .pointer(&format!("/providers/{provider}"))
                 .cloned()
                 .unwrap_or_else(|| json!({}));
-            let requires_credential = !provider_env_keys(provider).is_empty();
-            let credential_present = provider_has_runtime_credential_with(provider, resolve_env);
+            let descriptor = provider_descriptor(provider, family);
+            let requires_credential = descriptor
+                .map(|current| !current.env_keys.is_empty())
+                .unwrap_or(false);
+            let credential_present =
+                provider_has_runtime_credential_with(provider, family, resolve_env);
             let circuit_open_until = entry
                 .get("circuit_open_until")
                 .and_then(Value::as_i64)
                 .unwrap_or(0);
             json!({
+                "family": provider_family_name(descriptor.map(|current| current.family).unwrap_or(family)),
                 "provider": provider,
-                "aliases": provider_aliases(provider),
-                "source": provider_source_kind(provider),
+                "aliases": provider_aliases(provider, family),
+                "source": provider_source_kind(provider, family),
                 "requires_credential": requires_credential,
                 "credential_present": credential_present,
                 "available": !requires_credential || credential_present,
                 "selected_by_default": index == 0,
                 "auto_detect_rank": index + 1,
-                "consecutive_failures": entry.get("consecutive_failures").and_then(Value::as_u64).unwrap_or(0),
-                "circuit_open_until": if circuit_open_until > now_ts { circuit_open_until } else { 0 },
-                "last_error": clean_text(entry.get("last_error").and_then(Value::as_str).unwrap_or(""), 220),
+                "consecutive_failures": if family == WebProviderFamily::Search {
+                    entry.get("consecutive_failures").and_then(Value::as_u64).unwrap_or(0)
+                } else {
+                    0
+                },
+                "circuit_open_until": if family == WebProviderFamily::Search && circuit_open_until > now_ts {
+                    circuit_open_until
+                } else {
+                    0
+                },
+                "last_error": if family == WebProviderFamily::Search {
+                    clean_text(entry.get("last_error").and_then(Value::as_str).unwrap_or(""), 220)
+                } else {
+                    String::new()
+                },
             })
         })
         .collect::<Vec<_>>();
@@ -455,5 +636,13 @@ where
 }
 
 pub(crate) fn provider_catalog_snapshot(root: &Path, policy: &Value) -> Value {
-    provider_catalog_snapshot_with_env(root, policy, |key| std::env::var(key).ok())
+    provider_catalog_snapshot_with_env_family(root, policy, WebProviderFamily::Search, |key| {
+        std::env::var(key).ok()
+    })
+}
+
+pub(crate) fn fetch_provider_catalog_snapshot(root: &Path, policy: &Value) -> Value {
+    provider_catalog_snapshot_with_env_family(root, policy, WebProviderFamily::Fetch, |key| {
+        std::env::var(key).ok()
+    })
 }

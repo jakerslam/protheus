@@ -19,6 +19,9 @@
       "duckduckgo_lite",
       "bing_rss"
     ],
+    "fetch_provider_order": [
+      "direct_http"
+    ],
     "provider_circuit_breaker": {
       "enabled": true,
       "failure_threshold": 3,

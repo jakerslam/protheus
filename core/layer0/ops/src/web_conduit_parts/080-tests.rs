@@ -9,12 +9,22 @@ mod tests {
         assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
         assert!(out.get("policy").is_some());
         assert!(out
+            .get("fetch_provider_catalog")
+            .and_then(Value::as_array)
+            .map(|rows| !rows.is_empty())
+            .unwrap_or(false));
+        assert!(out
             .get("provider_catalog")
             .and_then(Value::as_array)
             .map(|rows| !rows.is_empty())
             .unwrap_or(false));
         assert!(out
             .get("default_provider_chain")
+            .and_then(Value::as_array)
+            .map(|rows| !rows.is_empty())
+            .unwrap_or(false));
+        assert!(out
+            .get("default_fetch_provider_chain")
             .and_then(Value::as_array)
             .map(|rows| !rows.is_empty())
             .unwrap_or(false));
@@ -37,6 +47,13 @@ mod tests {
             .iter()
             .any(|row| row.get("provider").and_then(Value::as_str) == Some("duckduckgo")));
         assert!(providers.iter().all(|row| row.get("auto_detect_rank").is_some()));
+        let fetch_providers = out
+            .get("fetch_providers")
+            .and_then(Value::as_array)
+            .expect("fetch provider catalog");
+        assert!(fetch_providers.iter().any(|row| {
+            row.get("provider").and_then(Value::as_str) == Some("direct_http")
+        }));
     }
 
     #[test]
@@ -106,6 +123,15 @@ mod tests {
             &json!({"url": "https://example.com", "summary_only": true}),
         );
         assert!(out.get("receipt").is_some());
+        assert_eq!(
+            out.get("provider").and_then(Value::as_str),
+            Some("direct_http")
+        );
+        assert!(out
+            .get("provider_chain")
+            .and_then(Value::as_array)
+            .map(|rows| !rows.is_empty())
+            .unwrap_or(false));
         if out.get("ok").and_then(Value::as_bool).unwrap_or(false) {
             assert!(out
                 .get("summary")
@@ -115,6 +141,32 @@ mod tests {
         } else {
             assert!(out.get("error").is_some());
         }
+    }
+
+    #[test]
+    fn api_fetch_rejects_unknown_explicit_provider() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let out = api_fetch(
+            tmp.path(),
+            &json!({
+                "url": "https://example.com",
+                "provider": "firecrawl"
+            }),
+        );
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            out.get("error").and_then(Value::as_str),
+            Some("unknown_fetch_provider")
+        );
+        assert_eq!(
+            out.get("requested_provider").and_then(Value::as_str),
+            Some("firecrawl")
+        );
+        assert!(out
+            .get("fetch_provider_catalog")
+            .and_then(Value::as_array)
+            .map(|rows| rows.iter().any(|row| row.get("provider").and_then(Value::as_str) == Some("direct_http")))
+            .unwrap_or(false));
     }
 
     #[test]
