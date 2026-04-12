@@ -32,6 +32,22 @@ fn provider_ids_for_family(family: WebProviderFamily) -> Vec<String> {
         .collect::<Vec<_>>()
 }
 
+fn unsupported_provider_examples(family: WebProviderFamily) -> &'static [&'static str] {
+    match family {
+        WebProviderFamily::Search => &[
+            "brave",
+            "exa",
+            "firecrawl",
+            "google",
+            "moonshot",
+            "perplexity",
+            "tavily",
+            "xai",
+        ],
+        WebProviderFamily::Fetch => &["firecrawl"],
+    }
+}
+
 fn public_artifact_contract_for_family(family: WebProviderFamily) -> Value {
     json!({
         "family": provider_family_name(family),
@@ -96,6 +112,8 @@ fn provider_registration_contract(policy: &Value, family: WebProviderFamily) -> 
             WebProviderFamily::Fetch => "/web_conduit/fetch_provider_order",
         },
         "default_provider_chain": default_provider_chain,
+        "supported_provider_ids": provider_ids_for_family(family),
+        "unsupported_provider_examples": unsupported_provider_examples(family),
         "credential_types_supported": match family {
             WebProviderFamily::Search => json!(["none", "top-level"]),
             WebProviderFamily::Fetch => json!(["none"]),
