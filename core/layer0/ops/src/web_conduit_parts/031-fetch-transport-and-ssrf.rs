@@ -325,7 +325,13 @@ fn extract_fetch_content_with_extractor(
     let (content, title, truncated) =
         extract_fetch_content(raw_body, content_type, extract_mode, max_chars);
     let extractor = if looks_like_html_document(raw_body, content_type) {
-        "readability"
+        let visible_text = normalize_block_text(&strip_tags_to_text(&sanitize_html_visibility(raw_body)));
+        let title_only = html_title(raw_body).unwrap_or_default();
+        if visible_text.is_empty() || visible_text == title_only {
+            "raw-html"
+        } else {
+            "readability"
+        }
     } else {
         "raw"
     };
