@@ -70,6 +70,9 @@ fn usage() {
         "  protheus-ops web-conduit pdf-native-analyze --provider=<anthropic|google> --model-id=<id> --prompt='<text>' [--path=<pdf>|--url=<pdf>|--sources-json=<json>] [--api-key=<key>|--api-key-env=<ENV>] [--base-url=<url>] [--max-tokens=<n>] [--summary-only=1]"
     );
     println!(
+        "  protheus-ops web-conduit pdf-tool [--prompt='<text>'] [--model=<provider/model>|--provider=<provider> --model-id=<id>] [--path=<pdf>|--url=<pdf>|--pdf=<pdf>|--pdfs-json=<json>] [--pages=1-3,5] [--max-bytes-mb=<n>] [--max-pages=<n>] [--min-text-chars=<n>] [--api-key=<key>|--api-key-env=<ENV>] [--summary-only=1]"
+    );
+    println!(
         "  protheus-ops web-conduit image-metadata --url=<https://...|file://...>|--path=<local-path> [--workspace-dir=<path>] [--local-roots=<path,...>|any] [--host-read-capability=1] [--max-bytes=<n>] [--summary-only=1]"
     );
     println!(

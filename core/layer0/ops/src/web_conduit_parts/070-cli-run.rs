@@ -20,6 +20,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         | "audio-probe"
         | "pdf-extract"
         | "pdf-native-analyze"
+        | "pdf-tool"
         | "image-metadata"
         | "outbound-attachment"
         | "qr-image" => {
@@ -265,7 +266,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             )
         }
         "media" => api_media(root, &cli_media_request_from_parsed(&parsed)),
-        "audio-probe" | "pdf-extract" | "pdf-native-analyze" => {
+        "audio-probe" | "pdf-extract" | "pdf-native-analyze" | "pdf-tool" => {
             match run_document_cli_command(root, command.as_str(), &parsed) {
                 Ok(Some(value)) => value,
                 Ok(None) => unreachable!("document command dispatch"),

@@ -142,6 +142,7 @@ fn append_openclaw_pdf_tool_entries(tool_catalog: &mut Value, policy: &Value) {
         }));
     }
     append_pdf_native_provider_tool_entry(tool_catalog, policy);
+    append_web_media_pdf_tool_entry(tool_catalog, policy);
 }
 
 fn parse_pdf_page_numbers(request: &Value, max_pages: usize) -> Vec<u32> {
