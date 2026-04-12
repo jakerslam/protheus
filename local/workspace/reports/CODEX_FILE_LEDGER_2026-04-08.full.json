@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-12T01:55:39.501Z",
+  "generated_at": "2026-04-12T02:01:05.378Z",
   "scope": [
     "core",
     "client/runtime",
@@ -13422,7 +13422,7 @@
       "order": 1219
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/lib/moltbook_api.ts",
       "language": "ts",
       "loc": 101,
@@ -17129,7 +17129,7 @@
       "order": 1556
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "adapters/cognition/skills/moltbook/actuation_adapter.ts",
       "language": "ts",
       "loc": 9,
@@ -17140,7 +17140,7 @@
       "order": 1557
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "adapters/cognition/skills/moltbook/moltbook_publish_guard.ts",
       "language": "ts",
       "loc": 9,
@@ -17151,7 +17151,7 @@
       "order": 1558
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "adapters/cognition/skills/moltbook/proposal_template.ts",
       "language": "ts",
       "loc": 9,
@@ -28261,7 +28261,7 @@
       "order": 2568
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/client-memory-tools/moltbook_exec_wrapper.ts",
       "language": "ts",
       "loc": 9,
