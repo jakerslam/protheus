@@ -5381,7 +5381,7 @@
       "order": 488
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/bird_x_collector_kernel.rs",
       "language": "rs",
       "loc": 612,
@@ -5843,7 +5843,7 @@
       "order": 530
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/github_repo_collector_kernel_support.rs",
       "language": "rs",
       "loc": 492,
@@ -7295,7 +7295,7 @@
       "order": 662
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/upwork_gigs_collector_kernel_parts/020-map-gigs.rs",
       "language": "rs",
       "loc": 432,
@@ -25181,7 +25181,7 @@
       "order": 2288
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/client-memory-tools/backlog_github_sync.test.ts",
       "language": "ts",
       "loc": 9,

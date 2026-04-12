@@ -349,6 +349,11 @@ pub fn file_risk_flags(rows: &[Value]) -> Vec<Value> {
     out
 }
 
+fn canonical_repo_url(owner: &str, repo: &str, raw: Option<&str>, suffix: &str) -> String {
+    let cleaned = clean_text(raw, 500);
+    if cleaned.starts_with("https://github.com/") { cleaned } else { format!("https://github.com/{owner}/{repo}/{suffix}") }
+}
+
 pub fn map_release_item(
     owner: &str,
     repo: &str,
@@ -366,7 +371,7 @@ pub fn map_release_item(
     Some(json!({
         "id": id,
         "collected_at": now_iso(),
-        "url": clean_text(release.get("html_url").and_then(Value::as_str), 500),
+        "url": canonical_repo_url(owner, repo, release.get("html_url").and_then(Value::as_str), &format!("releases/tag/{tag}")),
         "title": format!("{owner}/{repo}: {tag}"),
         "description": clean_text(Some(&format!(
             "Release: {}. {}",
@@ -423,7 +428,7 @@ pub fn map_commit_items(
         out.push(json!({
             "id": id,
             "collected_at": now_iso(),
-            "url": clean_text(obj.get("html_url").and_then(Value::as_str), 500),
+            "url": canonical_repo_url(owner, repo, obj.get("html_url").and_then(Value::as_str), &format!("commit/{sha}")),
             "title": format!("{owner}/{repo}: {}", clean_text(Some(msg), 90)),
             "description": clean_text(Some(&format!(
                 "Commit by {}",
@@ -469,7 +474,7 @@ pub fn map_pr_items(
         out.push(json!({
             "id": id,
             "collected_at": now_iso(),
-            "url": clean_text(obj.get("html_url").and_then(Value::as_str), 500),
+            "url": canonical_repo_url(owner, repo, obj.get("html_url").and_then(Value::as_str), &format!("pull/{number}")),
             "title": format!("{owner}/{repo} PR #{number}: {}", clean_text(obj.get("title").and_then(Value::as_str), 120)),
             "description": clean_text(Some(&format!(
                 "Open PR by {}; draft={}",
