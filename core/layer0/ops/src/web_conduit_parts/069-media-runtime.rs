@@ -1,3 +1,4 @@
+#[derive(Clone, Debug)]
 struct LoadedMedia {
     buffer: Vec<u8>,
     content_type: String,
@@ -55,13 +56,21 @@ fn load_local_media_binary(root: &Path, request: &Value) -> Result<LoadedMedia, 
         .trim()
         .to_string();
     let workspace_dir = resolve_media_workspace_dir(root, request);
-    let max_bytes = request
-        .get("max_bytes")
-        .and_then(Value::as_u64)
-        .unwrap_or(8 * 1024 * 1024)
-        .clamp(256, 32 * 1024 * 1024) as usize;
+    let max_bytes = media_prefetch_max_bytes(request);
     let host_read_capability = media_request_host_read_capability(request);
     let resolved = resolve_local_media_source_path(root, request, &raw_source, &workspace_dir)?;
+    if fs::metadata(&resolved)
+        .ok()
+        .map(|row| row.len() as usize > max_bytes)
+        .unwrap_or(false)
+    {
+        return Err(json!({
+            "ok": false,
+            "error": "max_bytes",
+            "declared_size": fs::metadata(&resolved).ok().map(|row| row.len()),
+            "resolved_path": resolved.display().to_string()
+        }));
+    }
     let bytes = match fs::read(&resolved) {
         Ok(row) => row,
         Err(_) => {
@@ -76,6 +85,7 @@ fn load_local_media_binary(root: &Path, request: &Value) -> Result<LoadedMedia, 
         return Err(json!({
             "ok": false,
             "error": "max_bytes",
+            "declared_size": bytes.len(),
             "resolved_path": resolved.display().to_string()
         }));
     }
@@ -128,8 +138,47 @@ pub fn api_media(root: &Path, request: &Value) -> Value {
     };
     match loaded {
         Ok(loaded) => {
+            let finalized = match finalize_loaded_media_for_request(loaded, request) {
+                Ok(row) => row,
+                Err(mut err) => {
+                    let status_code = err.get("status_code").and_then(Value::as_i64).unwrap_or(0);
+                    let reason = clean_text(
+                        err.get("error")
+                            .and_then(Value::as_str)
+                            .unwrap_or("web_media_failed"),
+                        180,
+                    );
+                    let receipt = build_receipt(
+                        &requested_source,
+                        "deny",
+                        None,
+                        status_code,
+                        &reason,
+                        err.get("reason").and_then(Value::as_str),
+                    );
+                    let _ = append_jsonl(&receipts_path(root), &receipt);
+                    if let Some(obj) = err.as_object_mut() {
+                        obj.insert("type".to_string(), json!("web_conduit_media"));
+                        obj.insert("requested_source".to_string(), json!(requested_source));
+                        obj.insert(
+                            "media_request_contract".to_string(),
+                            web_media_request_contract(),
+                        );
+                        obj.insert("receipt".to_string(), receipt);
+                    }
+                    return err;
+                }
+            };
+            let FinalizedMedia {
+                loaded,
+                effective_max_bytes,
+                original_bytes,
+                optimize_images,
+                optimized,
+                optimization,
+            } = finalized;
             let kind_max_bytes = max_bytes_for_media_kind(&loaded.kind);
-            if loaded.buffer.len() > kind_max_bytes {
+            if loaded.buffer.len() > effective_max_bytes {
                 let receipt = build_receipt(&requested_source, "deny", None, loaded.status_code, "kind_max_bytes", None);
                 let _ = append_jsonl(&receipts_path(root), &receipt);
                 return json!({
@@ -137,14 +186,18 @@ pub fn api_media(root: &Path, request: &Value) -> Value {
                     "type": "web_conduit_media",
                     "error": "kind_max_bytes",
                     "requested_source": requested_source,
-                "resolved_source": loaded.resolved_source,
-                "detected_kind": loaded.kind,
-                "kind_max_bytes": kind_max_bytes,
-                "bytes": loaded.buffer.len(),
-                "redirect_count": loaded.redirect_count,
-                "media_request_contract": web_media_request_contract(),
-                "receipt": receipt
-            });
+                    "resolved_source": loaded.resolved_source,
+                    "detected_kind": loaded.kind,
+                    "kind_max_bytes": kind_max_bytes,
+                    "effective_max_bytes": effective_max_bytes,
+                    "bytes": loaded.buffer.len(),
+                    "original_bytes": original_bytes,
+                    "optimize_images": optimize_images,
+                    "optimization": optimization,
+                    "redirect_count": loaded.redirect_count,
+                    "media_request_contract": web_media_request_contract(),
+                    "receipt": receipt
+                });
             }
             let artifact = persist_media_artifact(root, &loaded).unwrap_or(Value::Null);
             let response_hash = sha256_hex(&String::from_utf8_lossy(&loaded.buffer));
@@ -178,9 +231,14 @@ pub fn api_media(root: &Path, request: &Value) -> Value {
                 "content_type": loaded.content_type,
                 "kind": loaded.kind,
                 "kind_max_bytes": kind_max_bytes,
+                "effective_max_bytes": effective_max_bytes,
                 "file_name": loaded.file_name,
                 "voice_compatible_audio": is_telegram_voice_compatible_audio(Some(&loaded.content_type), Some(&loaded.file_name)),
                 "bytes": loaded.buffer.len(),
+                "original_bytes": original_bytes,
+                "optimize_images": optimize_images,
+                "optimized": optimized,
+                "optimization": optimization,
                 "content_base64": if include_inline {
                     use base64::Engine;
                     base64::engine::general_purpose::STANDARD.encode(&loaded.buffer)
@@ -189,12 +247,22 @@ pub fn api_media(root: &Path, request: &Value) -> Value {
                 },
                 "content_included": include_inline,
                 "artifact": artifact,
-                "summary": format!(
-                    "Loaded {} {} ({} bytes).",
-                    loaded.source_kind,
-                    loaded.kind,
-                    loaded.buffer.len()
-                ),
+                "summary": if optimized {
+                    format!(
+                        "Loaded {} {} ({} bytes, optimized from {} bytes).",
+                        loaded.source_kind,
+                        loaded.kind,
+                        loaded.buffer.len(),
+                        original_bytes
+                    )
+                } else {
+                    format!(
+                        "Loaded {} {} ({} bytes).",
+                        loaded.source_kind,
+                        loaded.kind,
+                        loaded.buffer.len()
+                    )
+                },
                 "media_request_contract": web_media_request_contract(),
                 "receipt": receipt
             })
