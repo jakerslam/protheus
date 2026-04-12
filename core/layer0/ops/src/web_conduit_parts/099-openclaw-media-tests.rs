@@ -183,6 +183,111 @@ mod openclaw_media_tests {
     }
 
     #[test]
+    fn openclaw_media_remote_fetch_prefers_extension_for_generic_content_type() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        write_test_policy(tmp.path());
+        let body = b"body { color: red; }\n".to_vec();
+        let response = [
+            b"HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: ".as_slice(),
+            body.len().to_string().as_bytes(),
+            b"\r\n\r\n".as_slice(),
+            body.as_slice(),
+        ]
+        .concat();
+        let base = run_http_server(response);
+        let out = api_media(tmp.path(), &json!({"url": format!("{base}/styles.css")}));
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            out.get("content_type").and_then(Value::as_str),
+            Some("text/css")
+        );
+        assert_eq!(out.get("kind").and_then(Value::as_str), Some("document"));
+        assert_eq!(out.get("file_name").and_then(Value::as_str), Some("styles.css"));
+    }
+
+    #[test]
+    fn openclaw_media_remote_fetch_rejects_declared_oversize_content_length() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        write_test_policy(tmp.path());
+        let body = vec![b'a'; 2048];
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
+        let addr = listener.local_addr().expect("addr");
+        thread::spawn(move || {
+            if let Ok((mut socket, _)) = listener.accept() {
+                let mut buffer = [0u8; 1024];
+                let _ = socket.read(&mut buffer);
+                let response = [
+                    b"HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: "
+                        .as_slice(),
+                    body.len().to_string().as_bytes(),
+                    b"\r\nConnection: close\r\n\r\n".as_slice(),
+                    body.as_slice(),
+                ]
+                .concat();
+                let _ = socket.write_all(&response);
+                let _ = socket.flush();
+            }
+        });
+        let url = format!("http://{addr}/oversize.bin");
+        let out = api_media(tmp.path(), &json!({"url": url, "max_bytes": 512}));
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(out.get("error").and_then(Value::as_str), Some("max_bytes"));
+        assert_eq!(out.get("declared_size").and_then(Value::as_u64), Some(2048));
+    }
+
+    #[test]
+    fn openclaw_media_remote_fetch_classifies_stalled_transfer() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        write_test_policy(tmp.path());
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
+        let addr = listener.local_addr().expect("addr");
+        thread::spawn(move || {
+            if let Ok((mut socket, _)) = listener.accept() {
+                let mut buffer = [0u8; 1024];
+                let _ = socket.read(&mut buffer);
+                let _ = socket.write_all(
+                    b"HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: 10\r\n\r\n1",
+                );
+                let _ = socket.flush();
+                std::thread::sleep(std::time::Duration::from_secs(2));
+            }
+        });
+        let out = api_media(
+            tmp.path(),
+            &json!({
+                "url": format!("http://{addr}/stalled.bin"),
+                "timeout_ms": 3000,
+                "idle_timeout_ms": 1000
+            }),
+        );
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            out.get("error").and_then(Value::as_str),
+            Some("fetch_stalled")
+        );
+    }
+
+    #[test]
+    fn openclaw_media_mime_helpers_cover_extended_audio_and_archive_types() {
+        assert_eq!(
+            media_guess_content_type(Some("voice.m4a"), b"hello", Some("application/octet-stream")),
+            "audio/x-m4a"
+        );
+        assert_eq!(
+            media_extension_for_content_type("audio/flac"),
+            Some("flac")
+        );
+        assert_eq!(
+            media_extension_for_content_type("application/gzip"),
+            Some("gz")
+        );
+        assert_eq!(
+            media_extension_for_content_type("text/css"),
+            Some("css")
+        );
+    }
+
+    #[test]
     fn openclaw_media_loads_managed_canvas_document_paths() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let canvas_file = tmp
