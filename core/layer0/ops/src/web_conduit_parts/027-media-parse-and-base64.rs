@@ -327,6 +327,8 @@ fn split_media_from_output(raw: &str) -> Value {
         "media_urls": if media_urls.is_empty() { Value::Null } else { json!(media_urls) },
         "media_url": media_urls.first().cloned(),
         "audio_as_voice": if audio_as_voice { Value::Bool(true) } else { Value::Null },
+        "had_audio_tag": audio_as_voice,
+        "audio_delivery_mode": if audio_as_voice { "voice" } else { "file" },
         "segments": if segments.is_empty() { Value::Null } else { json!(segments) }
     })
 }
@@ -344,6 +346,8 @@ fn api_parse_media(request: &Value) -> Value {
         "media_urls": parsed.get("media_urls").cloned().unwrap_or(Value::Null),
         "media_url": parsed.get("media_url").cloned().unwrap_or(Value::Null),
         "audio_as_voice": parsed.get("audio_as_voice").cloned().unwrap_or(Value::Null),
+        "had_audio_tag": parsed.get("had_audio_tag").cloned().unwrap_or(Value::Bool(false)),
+        "audio_delivery_mode": parsed.get("audio_delivery_mode").cloned().unwrap_or(json!("file")),
         "segments": parsed.get("segments").cloned().unwrap_or(Value::Null)
     })
 }
