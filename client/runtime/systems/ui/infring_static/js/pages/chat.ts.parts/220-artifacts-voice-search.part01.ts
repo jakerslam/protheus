@@ -1,6 +1,9 @@
       if (successfulToolSummary) {
         return successfulToolSummary;
       }
+      if (toolCompletionSummary) {
+        return toolCompletionSummary;
+      }
       if (thought) {
         var derived = this.deriveUserFacingFromThought(thought);
         if (derived) return derived;

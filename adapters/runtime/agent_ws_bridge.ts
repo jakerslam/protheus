@@ -62,6 +62,77 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
     }
     return out;
   };
+  const stringifyStructuredValue = (value, max = 16000) => {
+    if (typeof value === 'string') return cleanText(value, max);
+    if (value == null) return '';
+    try {
+      return cleanText(JSON.stringify(value), max);
+    } catch {
+      return cleanText(String(value), max);
+    }
+  };
+  const normalizeToolContentType = (value) =>
+    typeof value === 'string' ? value.toLowerCase() : '';
+  const isToolCallContentType = (value) => {
+    const type = normalizeToolContentType(value);
+    return type === 'toolcall' || type === 'tool_call' || type === 'tooluse' || type === 'tool_use';
+  };
+  const isToolResultContentType = (value) => {
+    const type = normalizeToolContentType(value);
+    return type === 'toolresult' || type === 'tool_result' || type === 'tool_result_error';
+  };
+  const resolveToolBlockArgs = (block) => {
+    if (!block || typeof block !== 'object') return '';
+    return block.args ?? block.arguments ?? block.input ?? '';
+  };
+  const resolveToolUseId = (block) => {
+    if (!block || typeof block !== 'object') return '';
+    const id =
+      (typeof block.id === 'string' && block.id.trim()) ||
+      (typeof block.tool_use_id === 'string' && block.tool_use_id.trim()) ||
+      (typeof block.toolUseId === 'string' && block.toolUseId.trim()) ||
+      '';
+    return cleanText(id, 160);
+  };
+  const structuredContentBlocks = (payload) => {
+    const data = payload && typeof payload === 'object' ? payload : {};
+    const out = [];
+    const pushBlocks = (value) => {
+      if (!Array.isArray(value)) return;
+      for (let i = 0; i < value.length; i++) out.push(value[i]);
+    };
+    pushBlocks(data.content);
+    pushBlocks(data.response);
+    if (data.message && typeof data.message === 'object') {
+      pushBlocks(data.message.content);
+    }
+    return out;
+  };
+  const assistantTextFromPayload = (payload) => {
+    const data = payload && typeof payload === 'object' ? payload : {};
+    if (typeof data.response === 'string') return String(data.response || '');
+    if (typeof data.content === 'string') return String(data.content || '');
+    const blocks = structuredContentBlocks(data);
+    if (!blocks.length) return '';
+    const parts = [];
+    for (let i = 0; i < blocks.length; i++) {
+      const entry = blocks[i];
+      if (typeof entry === 'string') {
+        const text = cleanText(entry, 12000);
+        if (text) parts.push(text);
+        continue;
+      }
+      if (!entry || typeof entry !== 'object') continue;
+      if (isToolCallContentType(entry.type) || isToolResultContentType(entry.type)) continue;
+      const text =
+        typeof entry.text === 'string'
+          ? entry.text
+          : (typeof entry.content === 'string' ? entry.content : '');
+      const cleaned = cleanText(text, 12000);
+      if (cleaned) parts.push(cleaned);
+    }
+    return cleanText(parts.join('\n\n'), 24000);
+  };
   const normalizeToolRows = (rawTools) => {
     if (!Array.isArray(rawTools)) return [];
     const out = [];
@@ -69,8 +140,8 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
       const row = rawTools[i] && typeof rawTools[i] === 'object' ? rawTools[i] : {};
       const name = cleanText(row.name || row.tool || 'tool', 120).toLowerCase() || 'tool';
       const identity = toolIdentity({ ...row, name }, i, 'tool');
-      const input = cleanText(row.input || row.arguments || row.args || '', 16000);
-      const result = cleanText(row.result || row.output || row.summary || '', 24000);
+      const input = stringifyStructuredValue(row.input || row.arguments || row.args || '', 16000);
+      const result = stringifyStructuredValue(row.result || row.output || row.summary || '', 24000);
       const isError = !!(row.is_error || row.error || row.blocked);
       out.push({
         id: identity.id,
@@ -88,6 +159,74 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
       if (out.length >= 16) break;
     }
     return out;
+  };
+  const structuredToolRows = (payload) => {
+    const blocks = structuredContentBlocks(payload);
+    if (!blocks.length) return [];
+    const out = [];
+    const byIdentity = new Map();
+    const ensureRow = (row, idx) => {
+      const identity = toolIdentity(row, idx, 'content');
+      const key = identity.identityKey;
+      let current = byIdentity.get(key) || null;
+      if (!current) {
+        current = {
+          id: identity.id,
+          name: cleanText(row.name || row.tool || 'tool', 120).toLowerCase() || 'tool',
+          input: '',
+          result: '',
+          is_error: false,
+          blocked: false,
+          status: '',
+          attempt_id: identity.attemptId,
+          attempt_sequence: identity.attemptSequence,
+          identity_key: identity.identityKey,
+          tool_attempt_receipt: null,
+        };
+        byIdentity.set(key, current);
+        out.push(current);
+      }
+      return current;
+    };
+    for (let i = 0; i < blocks.length; i++) {
+      const entry = blocks[i];
+      if (!entry || typeof entry !== 'object') continue;
+      const block = entry;
+      if (isToolCallContentType(block.type)) {
+        const toolName = cleanText(block.name || block.tool || 'tool', 120).toLowerCase() || 'tool';
+        const row = ensureRow({
+          name: toolName,
+          attempt_id: resolveToolUseId(block),
+          attempt_sequence: out.length + 1,
+        }, out.length);
+        if (!row.input) row.input = stringifyStructuredValue(resolveToolBlockArgs(block), 16000);
+        continue;
+      }
+      if (!isToolResultContentType(block.type)) continue;
+      const toolUseId = resolveToolUseId(block);
+      const toolName = cleanText(block.name || block.tool || 'tool', 120).toLowerCase() || 'tool';
+      const row = ensureRow({
+        name: toolName,
+        attempt_id: toolUseId,
+        attempt_sequence: out.length + 1,
+      }, out.length);
+      const result = stringifyStructuredValue(
+        block.result ?? block.output ?? block.content ?? block.text ?? block.error ?? '',
+        24000
+      );
+      if (!row.result && result) row.result = result;
+      if (!row.name || row.name === 'tool') row.name = toolName;
+      const rawStatus = cleanText(block.status || '', 40).toLowerCase();
+      const blocked = block.blocked === true || rawStatus === 'blocked' || rawStatus === 'policy_denied';
+      const isError =
+        block.is_error === true ||
+        normalizeToolContentType(block.type) === 'tool_result_error' ||
+        (!!rawStatus && rawStatus !== 'ok' && !blocked);
+      if (blocked) row.blocked = true;
+      if (isError) row.is_error = true;
+      if (rawStatus) row.status = rawStatus;
+    }
+    return out.slice(0, 16);
   };
   const toolCardFromAttempt = (rawAttempt, idx) => {
     const envelope = rawAttempt && typeof rawAttempt === 'object' ? rawAttempt : {};
@@ -126,9 +265,43 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
       tool_attempt_receipt: attempt,
     };
   };
+  const mergeToolRowSets = (baseRows, extraRows) => {
+    const merged = Array.isArray(baseRows) ? baseRows.slice() : [];
+    const incoming = Array.isArray(extraRows) ? extraRows : [];
+    const claimedBaseIndexes = new Set();
+    for (let i = 0; i < incoming.length; i++) {
+      const candidate = incoming[i] || {};
+      let matched = false;
+      for (let j = 0; j < merged.length; j++) {
+        const current = merged[j] || {};
+        const sameAttempt = candidate.attempt_id && String(current.attempt_id || '').trim() === String(candidate.attempt_id || '').trim();
+        const sameUnnamedTool = !candidate.attempt_id && String(current.name || '').toLowerCase() === String(candidate.name || '').toLowerCase();
+        const adoptUnnamedBase = !sameAttempt && !current.attempt_id && !claimedBaseIndexes.has(j) && String(current.name || '').toLowerCase() === String(candidate.name || '').toLowerCase();
+        if (!sameAttempt && !sameUnnamedTool && !adoptUnnamedBase) continue;
+        if (!current.input && candidate.input) current.input = candidate.input;
+        if (!current.result && candidate.result) current.result = candidate.result;
+        if (candidate.blocked) current.blocked = true;
+        if (candidate.status) current.status = candidate.status;
+        if (candidate.is_error) current.is_error = true;
+        if (candidate.id) current.id = candidate.id;
+        if (candidate.attempt_id) current.attempt_id = candidate.attempt_id;
+        if (candidate.attempt_sequence) current.attempt_sequence = candidate.attempt_sequence;
+        if (candidate.identity_key) current.identity_key = candidate.identity_key;
+        if (candidate.tool_attempt_receipt) current.tool_attempt_receipt = candidate.tool_attempt_receipt;
+        claimedBaseIndexes.add(j);
+        matched = true;
+        break;
+      }
+      if (!matched) merged.push(candidate);
+    }
+    return merged.slice(0, 16);
+  };
   const mergeResponseToolRows = (payload) => {
     const data = payload && typeof payload === 'object' ? payload : {};
-    const base = normalizeToolRows(data.tools);
+    const base = mergeToolRowSets(
+      normalizeToolRows(data.tools),
+      structuredToolRows(data)
+    );
     const completion =
       data &&
       data.response_finalization &&
@@ -141,31 +314,11 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
       : [];
     if (!attempts.length) return base;
     const merged = base.slice();
-    const claimedBaseIndexes = new Set();
     for (let i = 0; i < attempts.length; i++) {
       const attemptCard = toolCardFromAttempt(attempts[i], i);
-      let matched = false;
-      for (let j = 0; j < merged.length; j++) {
-        const current = merged[j] || {};
-        const sameAttempt = attemptCard.attempt_id && String(current.attempt_id || '').trim() === attemptCard.attempt_id;
-        const sameUnnamedTool = !attemptCard.attempt_id && String(current.name || '').toLowerCase() === String(attemptCard.name || '').toLowerCase();
-        const adoptUnnamedBase = !sameAttempt && !current.attempt_id && !claimedBaseIndexes.has(j) && String(current.name || '').toLowerCase() === String(attemptCard.name || '').toLowerCase();
-        if (!sameAttempt && !sameUnnamedTool && !adoptUnnamedBase) continue;
-        if (!current.input && attemptCard.input) current.input = attemptCard.input;
-        if (!current.result && attemptCard.result) current.result = attemptCard.result;
-        if (attemptCard.blocked) current.blocked = true;
-        if (attemptCard.status) current.status = attemptCard.status;
-        if (attemptCard.is_error) current.is_error = true;
-        if (attemptCard.id) current.id = attemptCard.id;
-        if (attemptCard.attempt_id) current.attempt_id = attemptCard.attempt_id;
-        if (attemptCard.attempt_sequence) current.attempt_sequence = attemptCard.attempt_sequence;
-        if (attemptCard.identity_key) current.identity_key = attemptCard.identity_key;
-        if (attemptCard.tool_attempt_receipt) current.tool_attempt_receipt = attemptCard.tool_attempt_receipt;
-        claimedBaseIndexes.add(j);
-        matched = true;
-        break;
-      }
-      if (!matched) merged.push(attemptCard);
+      const nextMerged = mergeToolRowSets(merged, [attemptCard]);
+      merged.length = 0;
+      Array.prototype.push.apply(merged, nextMerged);
     }
     return merged.slice(0, 16);
   };
@@ -331,6 +484,8 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
           const hasStructuredResponse =
             !!(out && typeof out === 'object' && (
               typeof out.response === 'string' ||
+              Array.isArray(out.response) ||
+              Array.isArray(out.content) ||
               (out.response_finalization &&
                 out.response_finalization.tool_completion &&
                 Array.isArray(out.response_finalization.tool_completion.tool_attempts)) ||
@@ -355,7 +510,7 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
             type: 'response',
             agent_id: targetAgent,
             agent_name: agentName || cleanText(out.agent_name || '', 120) || '',
-            content: String(out.response || out.content || ''),
+            content: assistantTextFromPayload(out),
             input_tokens: toNum(out.input_tokens || 0, 0),
             output_tokens: toNum(out.output_tokens || 0, 0),
             cost_usd: toNum(out.cost_usd || 0, 0),

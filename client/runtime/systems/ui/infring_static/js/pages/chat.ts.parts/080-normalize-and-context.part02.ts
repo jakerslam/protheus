@@ -210,6 +210,12 @@
         var textSource = m && (m.content != null ? m.content : (m.text != null ? m.text : m.message));
         if (role === 'user' && m && m.user != null) textSource = m.user;
         if (role !== 'user' && !isTerminal && m && m.assistant != null) textSource = m.assistant;
+        if (role !== 'user' && !isTerminal && typeof self.assistantTextFromPayload === 'function') {
+          var structuredText = self.assistantTextFromPayload(m);
+          if (structuredText || Array.isArray(textSource) || (textSource && typeof textSource === 'object')) {
+            textSource = structuredText;
+          }
+        }
         var text = typeof textSource === 'string' ? textSource : JSON.stringify(textSource || '');
         text = self.sanitizeToolText(text);
         if (isTerminal) {
@@ -229,17 +235,19 @@
           if (!derivedSystemOrigin) derivedSystemOrigin = 'runtime:task';
         }
 
-        var tools = (m && Array.isArray(m.tools) ? m.tools : []).map(function(t, idx) {
-          return {
-            id: (t.name || 'tool') + '-hist-' + idx,
-            name: t.name || 'unknown',
-            running: false,
-            expanded: false,
-            input: t.input || '',
-            result: t.result || '',
-            is_error: !!t.is_error
-          };
-        });
+        var tools = typeof self.responseToolRowsFromPayload === 'function'
+          ? self.responseToolRowsFromPayload(m, 'hist-tool')
+          : ((m && Array.isArray(m.tools) ? m.tools : []).map(function(t, idx) {
+              return {
+                id: (t.name || 'tool') + '-hist-' + idx,
+                name: t.name || 'unknown',
+                running: false,
+                expanded: false,
+                input: t.input || '',
+                result: t.result || '',
+                is_error: !!t.is_error
+              };
+            }));
         var images = (m && Array.isArray(m.images) ? m.images : []).map(function(img) {
           return { file_id: img.file_id, filename: img.filename || 'image' };
         });

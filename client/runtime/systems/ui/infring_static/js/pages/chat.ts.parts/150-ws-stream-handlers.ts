@@ -192,6 +192,9 @@
           var responseTools = typeof this.responseToolRowsFromPayload === 'function'
             ? this.responseToolRowsFromPayload(data, 'ws-tool')
             : [];
+          var responseHasToolCompletion = typeof this.responseHasAuthoritativeToolCompletion === 'function'
+            ? this.responseHasAuthoritativeToolCompletion(data, responseTools.length ? responseTools : streamedTools)
+            : (responseTools.length > 0 || streamedTools.length > 0);
           var hasAgentTerminalTranscript = !!(Array.isArray(data.terminal_transcript) && data.terminal_transcript.length && typeof this.appendAgentTerminalTranscript === 'function' && this.appendAgentTerminalTranscript(data.terminal_transcript));
           if (hasAgentTerminalTranscript) responseTools = responseTools.filter(function(t) { var n = String((t && t.name) || '').toLowerCase(); return !(n === 'terminal_exec' || n === 'run_terminal' || n === 'terminal' || n === 'shell_exec'); });
           if ((!Array.isArray(streamedTools) || !streamedTools.length) && responseTools.length) streamedTools = responseTools;
@@ -216,7 +219,10 @@
           var wsDuration = this.formatResponseDuration(wsDurationMs); if (wsDuration) meta += ' | ' + wsDuration;
           var wsRouteMeta = this.formatAutoRouteMeta(wsRoute);
           if (wsRouteMeta) meta += ' | ' + wsRouteMeta;
-          var finalText = (data.content && data.content.trim()) ? data.content : streamedText;
+          var payloadText = typeof this.assistantTextFromPayload === 'function'
+            ? this.assistantTextFromPayload(data)
+            : '';
+          var finalText = (payloadText && payloadText.trim()) ? payloadText : streamedText;
           finalText = this.stripModelPrefix(finalText);
           var artifactDirectives = this.extractArtifactDirectives(finalText);
           var finalSplit = this.extractThinkingLeak(finalText);
@@ -247,8 +253,15 @@
           }
           var usedFallback = false;
           if (!finalText.trim()) {
-            finalText = this.defaultAssistantFallback(collapsedThought, streamedTools);
-            usedFallback = true;
+            var toolOnlySummary = responseHasToolCompletion && typeof this.completedToolOnlySummary === 'function'
+              ? String(this.completedToolOnlySummary(streamedTools) || '').trim()
+              : '';
+            if (toolOnlySummary) {
+              finalText = toolOnlySummary;
+            } else {
+              finalText = this.defaultAssistantFallback(collapsedThought, streamedTools);
+              usedFallback = true;
+            }
           }
           var finalMessage = {
             id: ++msgId,
@@ -270,7 +283,7 @@
             renderedFinalMessage = this.pushAgentMessageDeduped(finalMessage, { dedupe_window_ms: 90000 }) || finalMessage;
           }
           this.markAgentMessageComplete(renderedFinalMessage);
-          var wsFailure = this.extractRecoverableBackendFailure(finalText);
+          var wsFailure = responseHasToolCompletion ? null : this.extractRecoverableBackendFailure(finalText);
           this.sending = false;
           this._responseStartedAt = 0;
           this.tokenCount = 0;
@@ -343,15 +356,18 @@
           if (silentThought) {
             silentTools.unshift(this.makeThoughtToolCard(silentThought, Number(data && data.duration_ms ? data.duration_ms : 0)));
           }
+          var silentToolSummary = typeof this.completedToolOnlySummary === 'function'
+            ? String(this.completedToolOnlySummary(silentTools) || '').trim()
+            : '';
           typeof this.clearTransientThinkingRows === 'function' ? this.clearTransientThinkingRows({ force: true }) : (this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; }));
           this.messages.push({
             id: ++msgId,
             role: 'agent',
-            text: this.defaultAssistantFallback(silentThought, silentTools),
+            text: silentToolSummary || this.defaultAssistantFallback(silentThought, silentTools),
             meta: '',
             tools: silentTools,
             ts: Date.now(),
-            _auto_fallback: true,
+            _auto_fallback: !silentToolSummary,
             agent_id: data && data.agent_id ? String(data.agent_id) : (this.currentAgent && this.currentAgent.id ? String(this.currentAgent.id) : ''),
             agent_name: data && data.agent_name ? String(data.agent_name) : (this.currentAgent && this.currentAgent.name ? String(this.currentAgent.name) : '')
           });
