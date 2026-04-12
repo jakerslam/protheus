@@ -462,6 +462,7 @@ pub fn api_media(root: &Path, request: &Value) -> Value {
                 "kind": loaded.kind,
                 "kind_max_bytes": kind_max_bytes,
                 "file_name": loaded.file_name,
+                "voice_compatible_audio": is_telegram_voice_compatible_audio(Some(&loaded.content_type), Some(&loaded.file_name)),
                 "bytes": loaded.buffer.len(),
                 "content_base64": if include_inline {
                     use base64::Engine;
