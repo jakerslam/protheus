@@ -167,6 +167,22 @@ function run() {
   });
   assert.strictEqual(invocation.mcp_invocation.mode, 'mcp_tool_call');
 
+  let capturedInvokePayload = null;
+  const originalInvokeMcpBridge = bridge.invokeMcpBridge;
+  bridge.invokeMcpBridge = (payload) => {
+    capturedInvokePayload = payload;
+    return { ok: true, intercepted: true };
+  };
+  try {
+    const wrappedInvoke = mcpBridge.invokeBridge({ bridge_id: 'bridge-demo', args: { ping: true } });
+    assert.strictEqual(wrappedInvoke.intercepted, true);
+    assert.strictEqual(capturedInvokePayload.bridge_path, 'adapters/protocol/mastra_mcp_bridge.ts');
+    assert.strictEqual(capturedInvokePayload.framework, 'mastra');
+    assert.strictEqual(capturedInvokePayload.bridge_id, 'bridge-demo');
+  } finally {
+    bridge.invokeMcpBridge = originalInvokeMcpBridge;
+  }
+
   const evaluation = bridge.recordEvalTrace({
     session_id: agent.agent.primary_session_id,
     profile: 'rich',
