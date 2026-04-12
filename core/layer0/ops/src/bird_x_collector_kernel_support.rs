@@ -50,7 +50,12 @@ pub fn resolve_eyes_state_dir(root: &Path, payload: &Map<String, Value>) -> Path
     if let Ok(raw) = std::env::var("EYES_STATE_DIR") {
         let trimmed = raw.trim();
         if !trimmed.is_empty() {
-            return PathBuf::from(trimmed);
+            let candidate = PathBuf::from(trimmed);
+            return if candidate.is_absolute() {
+                candidate
+            } else {
+                root.join(candidate)
+            };
         }
     }
     root.join(EYES_STATE_DEFAULT_REL)
@@ -466,4 +471,25 @@ pub fn run_bird_search_once(
         }
     };
     Ok((results, bytes))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn resolve_eyes_state_dir_roots_relative_env_override() {
+        let previous = std::env::var("EYES_STATE_DIR").ok();
+        std::env::set_var("EYES_STATE_DIR", "tmp/eyes-state");
+
+        let root = Path::new("/tmp/bird-x-root");
+        let path = resolve_eyes_state_dir(root, &Map::new());
+        assert_eq!(path, root.join("tmp/eyes-state"));
+
+        if let Some(value) = previous {
+            std::env::set_var("EYES_STATE_DIR", value);
+        } else {
+            std::env::remove_var("EYES_STATE_DIR");
+        }
+    }
 }
