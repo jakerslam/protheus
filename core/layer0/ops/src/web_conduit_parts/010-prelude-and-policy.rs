@@ -61,6 +61,15 @@ fn usage() {
         "  protheus-ops web-conduit media --url=<https://...|file://...>|--path=<local-path> [--workspace-dir=<path>] [--local-roots=<path,...>|any] [--host-read-capability=1] [--max-bytes=<n>] [--optimize-images=1] [--raw=1] [--resolve-citation-redirect=1] [--human-approved=1] [--approval-id=<id>] [--summary-only=1]"
     );
     println!(
+        "  protheus-ops web-conduit audio-probe --url=<https://...|file://...>|--path=<local-path> [--workspace-dir=<path>] [--local-roots=<path,...>|any] [--host-read-capability=1] [--max-bytes=<n>]"
+    );
+    println!(
+        "  protheus-ops web-conduit pdf-extract --url=<https://...|file://...>|--path=<local-path> [--max-pages=<n>] [--page-numbers=1,2] [--min-text-chars=<n>] [--extract-images=1] [--summary-only=1]"
+    );
+    println!(
+        "  protheus-ops web-conduit pdf-native-analyze --provider=<anthropic|google> --model-id=<id> --prompt='<text>' [--path=<pdf>|--url=<pdf>|--sources-json=<json>] [--api-key=<key>|--api-key-env=<ENV>] [--base-url=<url>] [--max-tokens=<n>] [--summary-only=1]"
+    );
+    println!(
         "  protheus-ops web-conduit image-metadata --url=<https://...|file://...>|--path=<local-path> [--workspace-dir=<path>] [--local-roots=<path,...>|any] [--host-read-capability=1] [--max-bytes=<n>] [--summary-only=1]"
     );
     println!(
