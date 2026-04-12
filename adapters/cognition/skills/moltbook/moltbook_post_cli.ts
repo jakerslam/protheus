@@ -1,15 +1,11 @@
 #!/usr/bin/env node
 'use strict';
 
-// Compatibility shim: keep legacy post CLI entrypoint but route all publishing
-// through the guarded publisher to enforce verification + receipts.
+// Compatibility shim: keep the legacy post CLI entrypoint, but execute it
+// with the same sync/async-safe main contract as every other retired wrapper.
+const { runAsMain } = require('../../../../client/runtime/lib/legacy_retired_wrapper.ts');
+const mod = require('./moltbook_publish_guard.ts');
 
-const { run } = require('./moltbook_publish_guard.ts');
+if (require.main === module) runAsMain(mod, process.argv.slice(2));
 
-run(process.argv.slice(2))
-  .then((r) => process.exit(r.exitCode))
-  .catch((err) => {
-    const msg = String(err && err.message ? err.message : err);
-    process.stdout.write(JSON.stringify({ ok: false, error: msg }) + '\n');
-    process.exit(1);
-  });
+module.exports = mod;

@@ -16,20 +16,13 @@ fn usage() {
     println!("moltbook-hot-collector-kernel commands:");
     println!("  protheus-ops moltbook-hot-collector-kernel run --payload-base64=<json>");
     println!("  protheus-ops moltbook-hot-collector-kernel preflight --payload-base64=<json>");
-    println!(
-        "  protheus-ops moltbook-hot-collector-kernel classify-fetch-error --payload-base64=<json>"
-    );
+    println!("  protheus-ops moltbook-hot-collector-kernel classify-fetch-error --payload-base64=<json>");
     println!("  protheus-ops moltbook-hot-collector-kernel map-posts --payload-base64=<json>");
     println!("  protheus-ops moltbook-hot-collector-kernel collect --payload-base64=<json>");
 }
 
-fn clean_text(raw: Option<&str>, max_len: usize) -> String {
-    lane_utils::clean_text(raw, max_len)
-}
-
-fn now_iso() -> String {
-    Utc::now().to_rfc3339()
-}
+fn clean_text(raw: Option<&str>, max_len: usize) -> String { lane_utils::clean_text(raw, max_len) }
+fn now_iso() -> String { Utc::now().to_rfc3339() }
 
 fn clamp_u64(payload: &Map<String, Value>, key: &str, fallback: u64, lo: u64, hi: u64) -> u64 {
     payload
@@ -150,9 +143,7 @@ fn curl_fetch_with_status(
     Ok((status, body, bytes))
 }
 
-fn parse_json_or_null(raw: &str) -> Value {
-    serde_json::from_str::<Value>(raw).unwrap_or(Value::Null)
-}
+fn parse_json_or_null(raw: &str) -> Value { serde_json::from_str::<Value>(raw).unwrap_or(Value::Null) }
 
 fn resolve_api_base(payload: &Map<String, Value>) -> String {
     let env_api_base = std::env::var("MOLTBOOK_API_BASE").ok();
@@ -163,12 +154,22 @@ fn resolve_api_base(payload: &Map<String, Value>) -> String {
             .or(env_api_base.as_deref()),
         400,
     );
-    let base = if candidate.is_empty() {
-        "https://api.moltbook.com".to_string()
-    } else {
-        candidate
-    };
+    let base = if candidate.is_empty() { "https://api.moltbook.com".to_string() } else { candidate };
     base.trim_end_matches('/').to_string()
+}
+
+fn requested_host(payload: &Map<String, Value>) -> String { clean_text(payload.get("host").and_then(Value::as_str), 200).to_ascii_lowercase() }
+
+fn host_from_urlish(raw: &str) -> String {
+    raw.trim().split_once("://").map(|(_, rest)| rest).unwrap_or(raw.trim()).trim_start_matches("//").split(['/', '?', '#']).next().unwrap_or("").rsplit('@').next().unwrap_or("").trim().split(':').next().unwrap_or("").trim_matches(|c| c == '[' || c == ']').to_ascii_lowercase()
+}
+
+fn resolved_host(payload: &Map<String, Value>) -> String {
+    let from_api_base = host_from_urlish(&resolve_api_base(payload));
+    if !from_api_base.is_empty() {
+        return from_api_base;
+    }
+    match requested_host(payload) { requested if !requested.is_empty() => requested, _ => DEFAULT_HOST.to_string() }
 }
 
 fn auth_headers(payload: &Map<String, Value>) -> Vec<(String, String)> {
@@ -237,13 +238,20 @@ fn post_id(post: &Map<String, Value>) -> String {
 
 fn post_url(post: &Map<String, Value>, pid: &str) -> String {
     let direct = clean_text(post.get("url").and_then(Value::as_str), 600);
-    if !direct.is_empty() {
-        return direct;
-    }
-    if !pid.is_empty() {
-        return format!("https://www.moltbook.com/p/{pid}");
-    }
-    String::new()
+    if !direct.is_empty() { direct } else if !pid.is_empty() { format!("https://www.moltbook.com/p/{pid}") } else { String::new() }
+}
+
+fn preflight_error(pre: &Value) -> String {
+    let first = pre
+        .get("failures")
+        .and_then(Value::as_array)
+        .and_then(|rows| rows.first())
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    let code = clean_text(first.get("code").and_then(Value::as_str), 64);
+    let message = clean_text(first.get("message").and_then(Value::as_str), 180);
+    if code.is_empty() { "moltbook_hot_preflight_failed".to_string() } else if message.is_empty() { format!("moltbook_hot_preflight_failed:{code}") } else { format!("moltbook_hot_preflight_failed:{code}:{message}") }
 }
 
 fn preflight(payload: &Map<String, Value>) -> Value {
@@ -254,12 +262,9 @@ fn preflight(payload: &Map<String, Value>) -> Value {
         .get("secret_present")
         .and_then(Value::as_bool)
         .unwrap_or(false);
-    let host = clean_text(payload.get("host").and_then(Value::as_str), 200);
-    let host = if host.is_empty() {
-        DEFAULT_HOST.to_string()
-    } else {
-        host.to_ascii_lowercase()
-    };
+    let host = resolved_host(payload);
+    let requested = requested_host(payload);
+    let api_base_host = host_from_urlish(&resolve_api_base(payload));
 
     if !secret_present {
         failures.push(json!({
@@ -283,6 +288,13 @@ fn preflight(payload: &Map<String, Value>) -> Value {
             "name": "max_items_valid",
             "ok": true,
             "value": max_items
+        }));
+    }
+
+    if !requested.is_empty() && !api_base_host.is_empty() && requested != api_base_host {
+        failures.push(json!({
+            "code": "api_base_host_mismatch",
+            "message": format!("api_base resolves to {api_base_host} not {requested}")
         }));
     }
 
@@ -367,22 +379,7 @@ fn map_posts(payload: &Map<String, Value>) -> Value {
 fn command_collect(payload: &Map<String, Value>) -> Result<Value, String> {
     let pre = preflight(payload);
     if pre.get("ok").and_then(Value::as_bool) != Some(true) {
-        let first = pre
-            .get("failures")
-            .and_then(Value::as_array)
-            .and_then(|rows| rows.first())
-            .and_then(Value::as_object)
-            .cloned()
-            .unwrap_or_default();
-        let code = clean_text(first.get("code").and_then(Value::as_str), 64);
-        let message = clean_text(first.get("message").and_then(Value::as_str), 180);
-        return Err(if code.is_empty() {
-            "moltbook_hot_preflight_failed".to_string()
-        } else if message.is_empty() {
-            format!("moltbook_hot_preflight_failed:{code}")
-        } else {
-            format!("moltbook_hot_preflight_failed:{code}:{message}")
-        });
+        return Err(preflight_error(&pre));
     }
 
     let fetch_error = clean_text(payload.get("fetch_error").and_then(Value::as_str), 80);
@@ -426,6 +423,10 @@ fn command_collect(payload: &Map<String, Value>) -> Result<Value, String> {
 }
 
 fn command_run(payload: &Map<String, Value>) -> Result<Value, String> {
+    let pre = preflight(payload);
+    if pre.get("ok").and_then(Value::as_bool) != Some(true) {
+        return Err(preflight_error(&pre));
+    }
     let max_items = clamp_u64(payload, "max_items", 20, 1, 50);
     let started_at_ms = Utc::now().timestamp_millis().max(0) as u64;
     let timeout_ms = payload
@@ -474,7 +475,7 @@ fn command_run(payload: &Map<String, Value>) -> Result<Value, String> {
     let mut out = command_collect(
         &json!({
             "secret_present": payload.get("secret_present").cloned().unwrap_or(Value::Bool(false)),
-            "host": payload.get("host").cloned().unwrap_or(Value::String(DEFAULT_HOST.to_string())),
+            "host": Value::String(resolved_host(payload)),
             "allowed_domains": payload.get("allowed_domains").cloned().unwrap_or(Value::Array(Vec::new())),
             "max_items": max_items,
             "posts": posts,
@@ -494,14 +495,7 @@ fn command_run(payload: &Map<String, Value>) -> Result<Value, String> {
 }
 
 fn dispatch(command: &str, payload: &Map<String, Value>) -> Result<Value, String> {
-    match command {
-        "run" => command_run(payload),
-        "preflight" => Ok(preflight(payload)),
-        "classify-fetch-error" => Ok(classify_fetch_error(payload)),
-        "map-posts" => Ok(map_posts(payload)),
-        "collect" => command_collect(payload),
-        _ => Err("moltbook_hot_collector_kernel_unknown_command".to_string()),
-    }
+    match command { "run" => command_run(payload), "preflight" => Ok(preflight(payload)), "classify-fetch-error" => Ok(classify_fetch_error(payload)), "map-posts" => Ok(map_posts(payload)), "collect" => command_collect(payload), _ => Err("moltbook_hot_collector_kernel_unknown_command".to_string()) }
 }
 
 pub fn run(_root: &Path, argv: &[String]) -> i32 {
@@ -544,22 +538,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn preflight_requires_secret_and_allowlist() {
-        let out = preflight(lane_utils::payload_obj(&json!({
-            "secret_present": false,
-            "allowed_domains": ["moltbook.com"],
-            "max_items": 10
-        })));
+    fn preflight_uses_api_base_host_for_allowlist_checks() {
+        let out = preflight(lane_utils::payload_obj(&json!({"secret_present": false, "allowed_domains": ["api.moltbook.com"], "host": "www.moltbook.com", "api_base": "https://api.moltbook.com", "max_items": 10})));
         assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
-        let codes = out
-            .get("failures")
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default()
-            .into_iter()
-            .filter_map(|row| row.get("code").and_then(Value::as_str).map(str::to_string))
-            .collect::<Vec<_>>();
+        let codes = out.get("failures").and_then(Value::as_array).cloned().unwrap_or_default().into_iter().filter_map(|row| row.get("code").and_then(Value::as_str).map(str::to_string)).collect::<Vec<_>>();
         assert!(codes.contains(&"auth_missing".to_string()));
+        assert!(codes.contains(&"api_base_host_mismatch".to_string()));
+        assert_eq!(out.get("checks").and_then(Value::as_array).and_then(|rows| rows.iter().find(|row| row.get("name").and_then(Value::as_str) == Some("allowlisted_host"))).and_then(|row| row.get("host")).and_then(Value::as_str), Some("api.moltbook.com"));
     }
 
     #[test]
