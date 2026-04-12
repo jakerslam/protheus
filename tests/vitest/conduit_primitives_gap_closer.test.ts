@@ -705,6 +705,36 @@ process.stdin.on('data', (chunk) => {
     await client.close();
   });
 
+  test('overStdio tolerates log preamble and parses the last JSON response line', async () => {
+    const conduit = await import(pathToFileURL(path.join(ROOT, 'client/runtime/systems/conduit/conduit-client.ts')).href);
+    const script = `
+process.stdin.setEncoding('utf8');
+let buffer = '';
+process.stdin.on('data', (chunk) => {
+  buffer += chunk;
+  if (!buffer.includes('\\n')) return;
+  const line = buffer.split('\\n')[0];
+  const req = JSON.parse(line);
+  process.stdout.write('boot log before response\\n');
+  process.stdout.write(JSON.stringify({
+    schema_id: req.schema_id,
+    schema_version: req.schema_version,
+    request_id: req.request_id,
+    ts_ms: req.ts_ms,
+    event: { type: 'system_feedback', status: 'ok', detail: { command_type: req.command.type }, violation_reason: null },
+    validation: { ok: true, fail_closed: false, reason: 'validated', policy_receipt_hash: 'p', security_receipt_hash: 's', receipt_hash: 'v' },
+    crossing: { crossing_id: req.request_id, direction: 'TsToRust', command_type: req.command.type, deterministic_hash: 'd', ts_ms: req.ts_ms },
+    receipt_hash: 'r'
+  }) + '\\n');
+});
+`;
+    const client = conduit.ConduitClient.overStdio(process.execPath, ['-e', script], ROOT, { token_ttl_ms: 60_000 });
+    const response = await client.send({ type: 'get_system_status' }, 'req-stdio-last-json');
+    await client.close();
+    expect(response.request_id).toBe('req-stdio-last-json');
+    expect((response.event as any).detail.command_type).toBe('get_system_status');
+  }, 60_000);
+
   test('overUnixSocket path works for single roundtrip', async () => {
     if (process.platform === 'win32') return;
     const previousFallback = process.env.PROTHEUS_CONDUIT_TS_FALLBACK;
@@ -988,5 +1018,42 @@ module.exports = {
     else process.env.PROTHEUS_CONDUIT_DAEMON_COMMAND = prevCommand;
     if (prevArgs == null) delete process.env.PROTHEUS_CONDUIT_DAEMON_ARGS;
     else process.env.PROTHEUS_CONDUIT_DAEMON_ARGS = prevArgs;
+  });
+});
+
+describe('websocket stability patch coverage paths', () => {
+  test('server patch tolerates send failures during connection and subscription replay', async () => {
+    const mod = await import(pathToFileURL(path.join(ROOT, 'client/runtime/patches/websocket-server-patch.ts')).href);
+    const listeners = new Map<string, Function[]>();
+    const wss = {
+      on(type: string, handler: Function) {
+        const rows = listeners.get(type) || [];
+        rows.push(handler);
+        listeners.set(type, rows);
+      }
+    } as any;
+    mod.globalEventBuffer.events = [{ id: 3, timestamp: Date.now(), data: { ok: true } }];
+    mod.globalEventBuffer.lastEventId = 3;
+    mod.patchWebSocketServer(wss);
+    const connection = listeners.get('connection')?.[0];
+    expect(typeof connection).toBe('function');
+
+    const socketListeners = new Map<string, Function[]>();
+    const ws = {
+      readyState: 1,
+      send() {
+        throw new Error('boom-send');
+      },
+      close() {},
+      on(type: string, handler: Function) {
+        const rows = socketListeners.get(type) || [];
+        rows.push(handler);
+        socketListeners.set(type, rows);
+      }
+    } as any;
+    expect(() => connection(ws, { socket: { remoteAddress: '127.0.0.1' }, url: '/ws' })).not.toThrow();
+    const message = socketListeners.get('message')?.[0];
+    expect(typeof message).toBe('function');
+    expect(() => message(JSON.stringify({ type: 'subscribe', last_event_id: 0 }))).not.toThrow();
   });
 });

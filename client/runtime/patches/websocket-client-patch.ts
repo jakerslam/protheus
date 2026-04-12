@@ -263,6 +263,8 @@
         clearTimeout(this.reconnectTimer);
         this.reconnectTimer = null;
       }
+      this.pendingSends.length = 0;
+      this.connectedResolvers.length = 0;
       if (this.ws) {
         this.ws.close(code, reason);
       }
@@ -271,6 +273,8 @@
     send(data) {
       if (this.ws?.readyState === OriginalWebSocket.OPEN) {
         this.ws.send(data);
+      } else if (!this.shouldReconnect) {
+        log('WARN', 'Dropped send on closed websocket');
       } else {
         if (this.pendingSends.length >= MAX_PENDING_SENDS) {
           this.pendingSends.shift();

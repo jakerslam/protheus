@@ -61,8 +61,19 @@ function run() {
 
   const timers = [];
   const storage = new Map();
+  const logs = [];
   const context = {
-    console,
+    console: {
+      log(...args) {
+        logs.push(args.map((value) => String(value)).join(' '));
+      },
+      warn(...args) {
+        logs.push(args.map((value) => String(value)).join(' '));
+      },
+      error(...args) {
+        logs.push(args.map((value) => String(value)).join(' '));
+      }
+    },
     setTimeout(fn, delay) {
       timers.push({ fn, delay });
       return timers.length;
@@ -108,7 +119,7 @@ function run() {
   context.window.location = context.location;
   context.window.sessionStorage = context.sessionStorage;
   context.window.fetch = context.fetch;
-  context.window.console = console;
+  context.window.console = context.console;
   context.window.Event = context.Event;
   context.window.MessageEvent = context.MessageEvent;
   context.window.setTimeout = context.setTimeout;
@@ -144,7 +155,69 @@ function run() {
 
   rawSocket.dispatchEvent({ type: 'close', code: 1006, reason: 'drop', wasClean: false });
   assert.equal(timers.length > 0, true);
+
+  socket.close(1000, 'bye');
+  socket.send('dropped-after-close');
+  assert.equal(logs.some((line) => line.includes('Dropped send on closed websocket')), true);
+}
+
+function runHeartbeatPatchWithoutProcess() {
+  const patchPath = path.resolve(__dirname, '..', '..', 'client', 'runtime', 'patches', 'websocket-heartbeat.ts');
+  const source = fs.readFileSync(patchPath, 'utf8');
+  const intervals = [];
+
+  class HeartbeatSocket extends SimpleEventTarget {
+    static CONNECTING = 0;
+    static OPEN = 1;
+    static CLOSING = 2;
+    static CLOSED = 3;
+
+    constructor(url, protocols) {
+      super();
+      this.url = url;
+      this.protocols = protocols;
+      this.readyState = HeartbeatSocket.CONNECTING;
+      this.sent = [];
+    }
+
+    send(data) {
+      this.sent.push(data);
+    }
+
+    close(code = 1000, reason = '') {
+      this.readyState = HeartbeatSocket.CLOSED;
+      this.dispatchEvent({ type: 'close', code, reason, wasClean: code === 1000 });
+    }
+  }
+
+  const context = {
+    console: {
+      log() {},
+      warn() {},
+      error() {}
+    },
+    setInterval(fn, delay) {
+      intervals.push({ fn, delay });
+      return intervals.length;
+    },
+    clearInterval() {},
+    globalThis: null,
+    WebSocket: HeartbeatSocket,
+  };
+  context.globalThis = context;
+
+  vm.runInNewContext(source, context, { filename: patchPath });
+
+  const PatchedSocket = context.WebSocket;
+  const socket = new PatchedSocket('ws://example.test/heartbeat');
+  socket.readyState = HeartbeatSocket.OPEN;
+  socket.dispatchEvent({ type: 'open' });
+  assert.equal(intervals.length >= 2, true);
+  intervals[0].fn();
+  assert.equal(socket.sent.length, 1);
+  assert.equal(JSON.parse(socket.sent[0]).type, 'ping');
 }
 
 run();
+runHeartbeatPatchWithoutProcess();
 console.log(JSON.stringify({ ok: true, type: 'websocket_client_patch_test' }));
