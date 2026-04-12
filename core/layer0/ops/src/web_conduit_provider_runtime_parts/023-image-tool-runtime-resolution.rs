@@ -1,10 +1,3 @@
-const DEFAULT_IMAGE_TOOL_PROMPT: &str = "Describe the image.";
-const DEFAULT_IMAGE_TOOL_MAX_IMAGES: u64 = 20;
-const DEFAULT_IMAGE_TOOL_MAX_BYTES: u64 = 10 * 1024 * 1024;
-const DEFAULT_IMAGE_TOOL_TIMEOUT_SECONDS: u64 = 60;
-const DEFAULT_IMAGE_TOOL_OUTPUT_MAX_BUFFER_BYTES: u64 = 5 * 1024 * 1024;
-const DEFAULT_IMAGE_TOOL_MEDIA_CONCURRENCY: u64 = 2;
-
 fn normalize_image_tool_provider_id(raw: &str) -> String {
     match clean_text(raw, 80).to_ascii_lowercase().as_str() {
         "anthropic" | "claude" | "frontier-provider" => "frontier_provider".to_string(),
@@ -188,7 +181,8 @@ fn image_tool_provider_catalog_rows(root: &Path) -> Vec<Value> {
                 "auto_priority_source": if auto_priority.is_some() { "bundled" } else { "runtime_registry" },
                 "default_model": pick_default_image_tool_model(&provider, &image_models),
                 "image_models": image_models,
-                "supports_image_description": true
+                "supports_image_description": true,
+                "execution_supported": image_tool_provider_execution_supported(&provider)
             }))
         })
         .collect::<Vec<_>>();
@@ -264,73 +258,6 @@ fn image_tool_provider_entry<'a>(catalog: &'a [Value], provider: &str) -> Option
     })
 }
 
-fn default_image_tool_runtime_metadata() -> Value {
-    json!({
-        "enabled": true,
-        "configured_provider_input": Value::Null,
-        "configured_model_input": Value::Null,
-        "provider_source": "auto-detect",
-        "selection_scope": "auto-detect",
-        "allow_fallback": true,
-        "selected_provider": Value::Null,
-        "selected_model": Value::Null,
-        "selection_ready": false,
-        "selection_fallback_reason": Value::Null,
-        "default_prompt": DEFAULT_IMAGE_TOOL_PROMPT,
-        "max_images": DEFAULT_IMAGE_TOOL_MAX_IMAGES,
-        "max_bytes": DEFAULT_IMAGE_TOOL_MAX_BYTES,
-        "timeout_seconds": DEFAULT_IMAGE_TOOL_TIMEOUT_SECONDS,
-        "output_max_buffer_bytes": DEFAULT_IMAGE_TOOL_OUTPUT_MAX_BUFFER_BYTES,
-        "media_concurrency": DEFAULT_IMAGE_TOOL_MEDIA_CONCURRENCY,
-        "execution_mode": "selection_only",
-        "execution_gap": "multimodal_transport_not_enabled",
-        "auto_provider_order": [],
-        "ready_provider_order": [],
-        "provider_catalog": [],
-        "diagnostics": []
-    })
-}
-
-pub(crate) fn web_image_tool_contract(root: &Path, policy: &Value) -> Value {
-    let configured_prompt = image_tool_config_string(policy, "default_prompt", 4000);
-    json!({
-        "input_fields": ["prompt", "provider", "model", "path", "url", "image", "images"],
-        "default_prompt": if configured_prompt.is_empty() {
-            DEFAULT_IMAGE_TOOL_PROMPT.to_string()
-        } else {
-            configured_prompt
-        },
-        "max_images": image_tool_config_u64(policy, "max_images", DEFAULT_IMAGE_TOOL_MAX_IMAGES, 1, 64),
-        "default_max_bytes": image_tool_config_u64(policy, "max_bytes", DEFAULT_IMAGE_TOOL_MAX_BYTES, 1024, 50 * 1024 * 1024),
-        "timeout_seconds": image_tool_config_u64(policy, "timeout_seconds", DEFAULT_IMAGE_TOOL_TIMEOUT_SECONDS, 1, 600),
-        "output_max_buffer_bytes": image_tool_config_u64(
-            policy,
-            "output_max_buffer_bytes",
-            DEFAULT_IMAGE_TOOL_OUTPUT_MAX_BUFFER_BYTES,
-            1024,
-            20 * 1024 * 1024
-        ),
-        "media_concurrency": image_tool_config_u64(policy, "media_concurrency", DEFAULT_IMAGE_TOOL_MEDIA_CONCURRENCY, 1, 16),
-        "source_contract": "same_as_web_media",
-        "execution_contract": {
-            "mode": "selection_only",
-            "gap": "multimodal_transport_not_enabled"
-        },
-        "provider_resolution_contract": {
-            "supports_provider_override": true,
-            "supports_model_override": true,
-            "request_provider_scope": "no_fallback",
-            "configured_provider_scope": "fallback_allowed",
-            "auto_provider_priority_contract": "bundled_defaults_then_runtime_registry_image_models"
-        },
-        "provider_catalog_contract": {
-            "image_model_required": true,
-            "ready_rule": "local_provider_or_configured_auth",
-            "supported_provider_count": image_tool_provider_catalog_rows(root).len()
-        }
-    })
-}
-
 pub(crate) fn image_tool_runtime_resolution_snapshot(
     root: &Path,
     policy: &Value,
@@ -339,11 +266,21 @@ pub(crate) fn image_tool_runtime_resolution_snapshot(
     let catalog = image_tool_provider_catalog_rows(root);
     let auto_provider_order = catalog
         .iter()
+        .filter(|row| {
+            row.get("execution_supported")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+        })
         .filter_map(|row| row.get("provider").and_then(Value::as_str))
         .map(|row| row.to_string())
         .collect::<Vec<_>>();
     let ready_provider_order = catalog
         .iter()
+        .filter(|row| {
+            row.get("execution_supported")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+        })
         .filter(|row| row.get("ready").and_then(Value::as_bool).unwrap_or(false))
         .filter_map(|row| row.get("provider").and_then(Value::as_str))
         .map(|row| row.to_string())
@@ -391,6 +328,30 @@ pub(crate) fn image_tool_runtime_resolution_snapshot(
 
     if !explicit_provider.is_empty() {
         if let Some(provider_row) = image_tool_provider_entry(&catalog, &explicit_provider) {
+            let execution_supported = provider_row
+                .get("execution_supported")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+            if !execution_supported {
+                if allow_fallback {
+                    selection_fallback_reason = json!("unsupported_execution_provider");
+                    diagnostics.push(json!({
+                        "code": "WEB_IMAGE_TOOL_PROVIDER_EXECUTION_UNSUPPORTED_FALLBACK_USED",
+                        "message": format!(
+                            "Configured image tool provider \"{}\" has image-capable models but is not yet executable in the Rust web conduit; falling back to the next executable provider.",
+                            explicit_provider
+                        )
+                    }));
+                } else {
+                    diagnostics.push(json!({
+                        "code": "WEB_IMAGE_TOOL_PROVIDER_EXECUTION_UNSUPPORTED",
+                        "message": format!(
+                            "Requested image tool provider \"{}\" has image-capable models but is not yet executable in the Rust web conduit.",
+                            explicit_provider
+                        )
+                    }));
+                }
+            } else {
             selected_provider = explicit_provider.clone();
             let available_models = provider_row
                 .get("image_models")
@@ -438,6 +399,7 @@ pub(crate) fn image_tool_runtime_resolution_snapshot(
                     .and_then(Value::as_str)
                     .unwrap_or("")
                     .to_string();
+            }
             }
         } else if allow_fallback {
             selection_fallback_reason = json!("invalid_configured_provider");
@@ -517,8 +479,8 @@ pub(crate) fn image_tool_runtime_resolution_snapshot(
             20 * 1024 * 1024
         ),
         "media_concurrency": image_tool_config_u64(policy, "media_concurrency", DEFAULT_IMAGE_TOOL_MEDIA_CONCURRENCY, 1, 16),
-        "execution_mode": "selection_only",
-        "execution_gap": "multimodal_transport_not_enabled",
+        "execution_mode": "direct_multimodal_provider",
+        "execution_gap": "provider_subset_only",
         "auto_provider_order": auto_provider_order,
         "ready_provider_order": ready_provider_order,
         "provider_catalog": catalog,

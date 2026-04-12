@@ -5,5 +5,6 @@ include!("web_conduit_provider_runtime_parts/018-runtime-web-tools-state.rs");
 include!("web_conduit_provider_runtime_parts/019-fetch-runtime-resolution.rs");
 include!("web_conduit_provider_runtime_parts/021-search-runtime-resolution.rs");
 include!("web_conduit_provider_runtime_parts/023-image-tool-runtime-resolution.rs");
+include!("web_conduit_provider_runtime_parts/024-image-tool-runtime-contract.rs");
 include!("web_conduit_provider_runtime_parts/020-cache-and-tests.rs");
 include!("web_conduit_provider_runtime_parts/030-fetch-cache.rs");

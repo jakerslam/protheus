@@ -23,6 +23,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         | "pdf-tool"
         | "image-metadata"
         | "image-tool-status"
+        | "image-tool"
         | "outbound-attachment"
         | "qr-image" => {
             match crate::dashboard_tool_turn_loop::authorize_ingress_tool_call_with_nexus(
@@ -298,6 +299,21 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     || parse_bool(parsed.flags.get("summary_only"))
             }),
         ),
+        "image-tool" => match build_image_tool_cli_request(&parsed) {
+            Ok(request) => api_image_tool(root, &request),
+            Err(err) => {
+                println!(
+                    "{}",
+                    json!({
+                        "ok": false,
+                        "type": "web_conduit_image_tool",
+                        "error": "invalid_images_json",
+                        "reason": err
+                    })
+                );
+                return 1;
+            }
+        },
         "media-host" => api_media_host(root, &cli_media_host_request_from_parsed(&parsed)),
         "outbound-attachment" => {
             api_outbound_attachment(root, &cli_outbound_attachment_request_from_parsed(&parsed))
