@@ -45,6 +45,10 @@ fn handle_global_status_get_routes(
                     .clamp(1, 200);
                 crate::web_conduit::api_receipts(root, limit)
             }
+            _ if path_only.starts_with("/api/web/media/") => {
+                let hosted_id = clean_text(path_only.trim_start_matches("/api/web/media/"), 220);
+                crate::web_conduit::api_media_host_read(root, &hosted_id)
+            }
             "/api/web/search" => {
                 let nexus_connection =
                     match crate::dashboard_tool_turn_loop::authorize_ingress_tool_call_with_nexus(
@@ -306,10 +310,25 @@ fn handle_global_status_get_routes(
             }),
             _ => return None,
         };
-        return Some(CompatApiResponse {
-            status: 200,
-            payload,
-        });
+        let status = if path_only.starts_with("/api/web/media/") {
+            match payload.get("error").and_then(Value::as_str).unwrap_or("") {
+                "invalid-path" => 400,
+                "outside-workspace" => 400,
+                "expired" => 410,
+                "too-large" => 413,
+                "not-found" => 404,
+                _ => {
+                    if payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                        200
+                    } else {
+                        400
+                    }
+                }
+            }
+        } else {
+            200
+        };
+        return Some(CompatApiResponse { status, payload });
     }
 
     None
