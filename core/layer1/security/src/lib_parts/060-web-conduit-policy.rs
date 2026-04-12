@@ -54,6 +54,11 @@ fn web_conduit_domain_matches(domain: &str, rule: &str) -> bool {
     domain.ends_with(&format!(".{rule}"))
 }
 
+fn web_conduit_scheme_ok(raw_url: &str) -> bool {
+    let lowered = clean(raw_url, 32).to_ascii_lowercase();
+    lowered.starts_with("http://") || lowered.starts_with("https://")
+}
+
 pub fn evaluate_web_conduit_policy(_repo_root: &Path, request: &Value, policy: &Value) -> Value {
     let policy_scope = policy
         .get("web_conduit")
@@ -121,7 +126,7 @@ pub fn evaluate_web_conduit_policy(_repo_root: &Path, request: &Value, policy: &
         .get("human_approved")
         .and_then(Value::as_bool)
         .unwrap_or(false);
-    let scheme_ok = requested_url.starts_with("http://") || requested_url.starts_with("https://");
+    let scheme_ok = web_conduit_scheme_ok(&requested_url);
     let mut allow = enabled && !requested_url.is_empty() && !domain.is_empty() && scheme_ok;
     let mut reason = if allow {
         "policy_allow".to_string()
@@ -260,5 +265,17 @@ mod web_conduit_policy_tests {
         let out = evaluate_web_conduit_policy(Path::new("."), &request, &base_policy());
         assert_eq!(out.get("allow").and_then(Value::as_bool), Some(true));
         assert_eq!(out.get("decision").and_then(Value::as_str), Some("allow"));
+    }
+
+    #[test]
+    fn uppercase_scheme_is_accepted_when_policy_allows() {
+        let request = json!({
+            "requested_url": "HTTPS://Example.com/docs",
+            "requests_last_minute": 0,
+            "human_approved": false
+        });
+        let out = evaluate_web_conduit_policy(Path::new("."), &request, &base_policy());
+        assert_eq!(out.get("allow").and_then(Value::as_bool), Some(true));
+        assert_eq!(out.get("domain").and_then(Value::as_str), Some("example.com"));
     }
 }

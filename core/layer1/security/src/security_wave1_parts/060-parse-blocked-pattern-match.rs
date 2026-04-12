@@ -1,6 +1,7 @@
 
 fn parse_blocked_pattern_match(path: &str, pattern: &str) -> bool {
-    let norm = path.to_ascii_lowercase();
+    let norm = path.replace('\\', "/").to_ascii_lowercase();
+    let basename = norm.rsplit('/').next().unwrap_or_default();
     let mut pat = pattern.trim().to_ascii_lowercase();
     pat = pat
         .trim_start_matches('^')
@@ -12,9 +13,13 @@ fn parse_blocked_pattern_match(path: &str, pattern: &str) -> bool {
     if pat.contains("ts|js") {
         let lhs = pat.replace("ts|js", "ts");
         let rhs = pat.replace("ts|js", "js");
-        return norm == lhs || norm == rhs;
+        return norm == lhs || norm == rhs || basename == lhs || basename == rhs;
     }
-    norm == pat || norm.contains(&pat.replace(".*", ""))
+    if norm == pat || basename == pat {
+        return true;
+    }
+    let needle = pat.replace(".*", "");
+    !needle.is_empty() && (norm.contains(&needle) || (!pat.contains('/') && basename.contains(&needle)))
 }
 
 fn proposal_touches_recursive_self_improvement(
@@ -464,5 +469,22 @@ fn resolve_runtime_path(repo_root: &Path, raw: &str) -> PathBuf {
         p
     } else {
         runtime_root(repo_root).join(raw)
+    }
+}
+
+#[cfg(test)]
+mod parse_blocked_pattern_match_tests {
+    use super::parse_blocked_pattern_match;
+
+    #[test]
+    fn basename_only_block_rules_match_nested_paths() {
+        assert!(parse_blocked_pattern_match(
+            "docs/workspace/AGENT-CONSTITUTION.md",
+            "^AGENT-CONSTITUTION\\.md$"
+        ));
+        assert!(parse_blocked_pattern_match(
+            "local/workspace/assistant/SOUL.md",
+            "^SOUL\\.md$"
+        ));
     }
 }
