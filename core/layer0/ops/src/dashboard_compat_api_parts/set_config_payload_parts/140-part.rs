@@ -363,22 +363,44 @@ fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
             40,
         )
         .to_ascii_lowercase();
+        let query = clean_text(
+            payload.get("query").and_then(Value::as_str).unwrap_or(""),
+            400,
+        );
         let summary = clean_text(
             payload.get("summary").and_then(Value::as_str).unwrap_or(""),
             2400,
         );
+        let content = clean_text(
+            payload.get("content").and_then(Value::as_str).unwrap_or(""),
+            2400,
+        );
+        let combined = if summary.is_empty() {
+            content.clone()
+        } else if content.is_empty() {
+            summary.clone()
+        } else {
+            format!("{summary}\n{content}")
+        };
+        if response_mentions_context_guard(&combined) {
+            if message_requests_comparative_answer(&query) {
+                return comparative_no_findings_fallback(&query);
+            }
+            return web_tool_context_guard_fallback("Live web batch query");
+        }
+        let sanitized_summary = strip_context_guard_markers(&summary);
         if status == "blocked" {
-            if !summary.is_empty() {
-                return trim_text(&summary, 1200);
+            if !sanitized_summary.is_empty() {
+                return trim_text(&sanitized_summary, 1200);
             }
             return "Batch query was blocked by policy.".to_string();
         }
-        if !summary.is_empty()
-            && !response_looks_like_tool_ack_without_findings(&summary)
-            && !response_looks_like_raw_web_artifact_dump(&summary)
-            && !response_looks_like_unsynthesized_web_snippet_dump(&summary)
+        if !sanitized_summary.is_empty()
+            && !response_looks_like_tool_ack_without_findings(&sanitized_summary)
+            && !response_looks_like_raw_web_artifact_dump(&sanitized_summary)
+            && !response_looks_like_unsynthesized_web_snippet_dump(&sanitized_summary)
         {
-            return trim_text(&summary, 1200);
+            return trim_text(&sanitized_summary, 1200);
         }
         let evidence_refs = payload
             .get("evidence_refs")
@@ -407,6 +429,9 @@ fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
             return trim_text(&lines.join("\n"), 1200);
         }
         if status == "no_results" {
+            if message_requests_comparative_answer(&query) {
+                return comparative_no_findings_fallback(&query);
+            }
             return no_findings_user_facing_response();
         }
         return "Search returned no useful information.".to_string();
@@ -444,12 +469,6 @@ fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
             payload.get("domain").and_then(Value::as_str).unwrap_or(""),
             120,
         );
-        if !summary.is_empty()
-            && !looks_like_search_engine_chrome_summary(&summary)
-            && !response_looks_like_tool_ack_without_findings(&summary)
-        {
-            return trim_text(&summary, 1_200);
-        }
         let combined = if content.is_empty() {
             summary.clone()
         } else if summary.is_empty() {
@@ -457,6 +476,20 @@ fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
         } else {
             format!("{summary}\n{content}")
         };
+        if response_mentions_context_guard(&combined) {
+            if message_requests_comparative_answer(&query) {
+                return comparative_no_findings_fallback(&query);
+            }
+            return web_tool_context_guard_fallback("Web search");
+        }
+        let sanitized_summary = strip_context_guard_markers(&summary);
+        if !sanitized_summary.is_empty()
+            && !looks_like_search_engine_chrome_summary(&sanitized_summary)
+            && !response_looks_like_tool_ack_without_findings(&sanitized_summary)
+        {
+            return trim_text(&sanitized_summary, 1_200);
+        }
+        let combined = strip_context_guard_markers(&combined);
         let findings = extract_search_result_findings(&combined, 3);
         if !findings.is_empty() {
             let findings_lines = findings

@@ -98,6 +98,47 @@ fn normalize_placeholder_signature(text: &str) -> String {
         .join(" ")
 }
 
+fn response_mentions_context_guard(text: &str) -> bool {
+    let lowered = clean_text(text, 4_000).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    lowered.contains("context overflow: estimated context size exceeds safe threshold during tool loop")
+        || lowered.contains("more characters truncated")
+        || lowered.contains("middle content omitted")
+        || lowered.contains("output exceeded safe context budget")
+        || lowered.contains("safe context budget")
+}
+
+fn strip_context_guard_markers(text: &str) -> String {
+    let mut out = clean_text(text, 8_000);
+    if out.is_empty() {
+        return String::new();
+    }
+    let patterns = [
+        r"\[\.\.\.\s+\d+\s+more characters truncated\]",
+        r"\[\.\.\.\s*middle content omitted[^\]]*\]",
+        r"Context overflow:\s*estimated context size exceeds safe threshold during tool loop\.?",
+    ];
+    for pattern in patterns {
+        if let Ok(regex) = regex::Regex::new(pattern) {
+            out = regex.replace_all(&out, " ").to_string();
+        }
+    }
+    clean_text(&out, 8_000)
+}
+
+fn web_tool_context_guard_fallback(scope: &str) -> String {
+    let label = clean_text(scope, 120);
+    if label.is_empty() {
+        return "The web tool returned more output than fit safely in context before a final answer was composed. Retry with a narrower query, one specific source URL, or ask me to continue from the partial result.".to_string();
+    }
+    format!(
+        "{} returned more output than fit safely in context before a final answer was composed. Retry with a narrower query, one specific source URL, or ask me to continue from the partial result.",
+        label
+    )
+}
+
 fn latest_assistant_message_text(messages: &[Value]) -> String {
     for row in messages.iter().rev() {
         let role = clean_text(row.get("role").and_then(Value::as_str).unwrap_or(""), 40)
@@ -132,6 +173,7 @@ fn maybe_tooling_failure_fallback(
 ) -> Option<String> {
     if !response_is_no_findings_placeholder(finalized_response)
         && !response_looks_like_tool_ack_without_findings(finalized_response)
+        && !response_mentions_context_guard(finalized_response)
     {
         return None;
     }
@@ -140,6 +182,12 @@ fn maybe_tooling_failure_fallback(
         && response_is_no_findings_placeholder(latest_assistant_response)
         && normalize_placeholder_signature(latest_assistant_response)
             == normalize_placeholder_signature(finalized_response);
+    if response_mentions_context_guard(finalized_response) && (asks_diagnosis || repeated_placeholder)
+    {
+        return Some(web_tool_context_guard_fallback(
+            "Live web retrieval",
+        ));
+    }
     if asks_diagnosis || repeated_placeholder {
         return Some(tooling_failure_diagnostic_fallback());
     }
