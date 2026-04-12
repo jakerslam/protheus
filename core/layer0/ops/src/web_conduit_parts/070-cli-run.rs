@@ -24,6 +24,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         | "image-metadata"
         | "image-tool-status"
         | "image-tool"
+        | "attachments"
         | "outbound-attachment"
         | "qr-image" => {
             match crate::dashboard_tool_turn_loop::authorize_ingress_tool_call_with_nexus(
@@ -276,29 +277,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             }
         }
         "image-metadata" => api_image_metadata(root, &cli_media_request_from_parsed(&parsed)),
-        "image-tool-status" => api_image_tool_status(
-            root,
-            &json!({
-                "provider": clean_text(
-                    parsed
-                        .flags
-                        .get("provider")
-                        .map(String::as_str)
-                        .unwrap_or(""),
-                    80
-                ),
-                "model": clean_text(
-                    parsed
-                        .flags
-                        .get("model")
-                        .map(String::as_str)
-                        .unwrap_or(""),
-                    240
-                ),
-                "summary_only": parse_bool(parsed.flags.get("summary-only"))
-                    || parse_bool(parsed.flags.get("summary_only"))
-            }),
-        ),
+        "image-tool-status" => api_image_tool_status(root, &build_image_tool_status_cli_request(&parsed)),
         "image-tool" => match build_image_tool_cli_request(&parsed) {
             Ok(request) => api_image_tool(root, &request),
             Err(err) => {
@@ -311,6 +290,13 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                         "reason": err
                     })
                 );
+                return 1;
+            }
+        },
+        "attachments" => match build_media_attachments_cli_request(&parsed) {
+            Ok(request) => api_media_attachments(&request),
+            Err(err) => {
+                println!("{}", json!({"ok": false, "type": "web_conduit_media_attachments", "error": "invalid_context_json", "reason": err}));
                 return 1;
             }
         },

@@ -15456,3 +15456,17 @@ Source summary:
   - `core/layer0/ops/src/web_conduit_parts/089-image-tool-runtime.rs`
   - `core/layer0/ops/src/web_conduit_parts/111-openclaw-image-tool-runtime-tests.rs`
   - `cargo test --manifest-path core/layer0/ops/Cargo.toml --lib openclaw_image_tool_ -- --nocapture`
+
+### V11-ASSIM-007 — OpenClaw Media Attachment Normalization + Selection in Rust Web Conduit
+
+- Intent:
+  - Assimilate the OpenClaw `media-understanding attachments` normalization and selection layer into Rust-authoritative `web-conduit`.
+- Acceptance criteria:
+  - `web-conduit attachments` accepts upstream-style `MediaPath/MediaPaths/MediaUrl/MediaUrls/MediaType/MediaTypes` payloads plus explicit attachment objects.
+  - Attachment path normalization allows `file://localhost/...`, rejects remote-host file URLs, and rejects Windows network paths fail-closed.
+  - Capability-based selection supports `image`, `audio`, and `video`, honors `prefer=first|last|path|url`, supports `mode=first|all`, and skips `alreadyTranscribed` audio attachments.
+  - `web-conduit status` exposes an `attachments_contract`, and the tool catalog includes `web_media_attachments`.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/092-media-understanding-attachments.rs`
+  - `core/layer0/ops/src/web_conduit_parts/112-openclaw-media-understanding-attachments-tests.rs`
+  - `cargo test --manifest-path core/layer0/ops/Cargo.toml --lib openclaw_media_attachments_ -- --nocapture`
