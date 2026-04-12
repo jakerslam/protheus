@@ -55,6 +55,7 @@
     "strict": true,
     "required_every_cycle": true,
     "required_step_gate_ids": [
+      "release_policy_gate",
       "dr:gameday:gate",
       "ops:production-topology:gate",
       "audit:client-layer-boundary",
@@ -64,6 +65,32 @@
       "ops:release-hardening-window:guard",
       "ops:release:scorecard:gate",
       "ops:production-closure:gate"
+    ]
+  },
+  "release_verdict": {
+    "script": "ops:release:verdict",
+    "artifact_path": "core/local/artifacts/release_verdict_current.json",
+    "required_gate_artifacts": {
+      "release_policy_gate": "core/local/artifacts/release_policy_gate_current.json",
+      "ops:production-topology:gate": "core/local/artifacts/production_topology_diagnostic_current.json",
+      "ops:stateful-upgrade-rollback:gate": "core/local/artifacts/stateful_upgrade_rollback_gate_current.json",
+      "ops:assimilation:v1:support:guard": "core/local/artifacts/assimilation_v1_support_guard_current.json",
+      "ops:release-blockers:gate": "core/local/artifacts/release_blocker_rubric_current.json",
+      "ops:release-hardening-window:guard": "core/local/artifacts/release_hardening_window_guard_current.json",
+      "ops:release:scorecard:gate": "client/runtime/local/state/release/scorecard/release_scorecard.json",
+      "ops:production-closure:gate": "core/local/artifacts/production_readiness_closure_gate_current.json",
+      "ops:release:rc-rehearsal": "core/local/artifacts/release_candidate_dress_rehearsal_current.json"
+    },
+    "checksum_artifact_paths": [
+      "core/local/artifacts/release_policy_gate_current.json",
+      "core/local/artifacts/production_topology_diagnostic_current.json",
+      "core/local/artifacts/stateful_upgrade_rollback_gate_current.json",
+      "core/local/artifacts/assimilation_v1_support_guard_current.json",
+      "core/local/artifacts/release_blocker_rubric_current.json",
+      "core/local/artifacts/release_hardening_window_guard_current.json",
+      "client/runtime/local/state/release/scorecard/release_scorecard.json",
+      "core/local/artifacts/production_readiness_closure_gate_current.json",
+      "core/local/artifacts/release_candidate_dress_rehearsal_current.json"
     ]
   },
   "standing_regression_guards": {
@@ -112,6 +139,7 @@
     "ops:release-blockers:gate",
     "ops:release-hardening-window:guard",
     "ops:release:scorecard:gate",
+    "ops:release:verdict",
     "ops:release:rc-rehearsal",
     "ops:reliability:gauntlet",
     "ops:ipc-bridge:soak",
@@ -134,6 +162,7 @@
     "ops:release-blockers:gate",
     "ops:release-contract:gate",
     "ops:release:rc-rehearsal",
+    "ops:release:verdict",
     "ops:reliability:gauntlet",
     "ops:ipc-bridge:soak",
     "ops:production-closure:gate"
@@ -151,7 +180,8 @@
         "ops:production-topology:gate",
         "audit:client-layer-boundary",
         "ops:release-hardening-window:guard",
-        "ops:release:scorecard:gate"
+        "ops:release:scorecard:gate",
+        "ops:release:verdict"
       ]
   },
   "required_readme_markers": [
@@ -168,6 +198,8 @@
     "Frozen assimilation v1 slice: one ingress -> orchestration -> assimilation-kernel -> receipt-output path is hardened; broader assimilation surfaces remain experimental.",
     "Assimilation v1 can graduate only through candidate-build evidence; no new assimilation surface is added during hardening.",
     "Numeric release thresholds are enforced by `npm run -s ops:release:scorecard:gate` and re-checked directly by `npm run -s ops:production-closure:gate`.",
+    "Release scorecard compares against the previous release scorecard when a baseline is provided.",
+    "Release verdict artifact: `npm run -s ops:release:verdict`.",
     "Release-candidate dress rehearsal: `npm run -s ops:release:rc-rehearsal`.",
     "Release-candidate recovery rehearsal is required every cycle through `npm run -s ops:release:rc-rehearsal`.",
     "Client authority regression guard: `npm run -s ops:client-layer:boundary`.",
