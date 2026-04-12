@@ -56,6 +56,59 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             json!({"ok": true, "type": "web_conduit_help"})
         }
         "status" => api_status(root),
+        "setup" => api_setup(
+            root,
+            &json!({
+                "provider": clean_text(
+                    parsed
+                        .flags
+                        .get("provider")
+                        .or_else(|| parsed.flags.get("search-provider"))
+                        .or_else(|| parsed.flags.get("search_provider"))
+                        .map(String::as_str)
+                        .unwrap_or_else(|| parsed.positional.get(1).map(String::as_str).unwrap_or("")),
+                    60
+                ),
+                "api_key": clean_text(
+                    parsed
+                        .flags
+                        .get("api-key")
+                        .or_else(|| parsed.flags.get("api_key"))
+                        .map(String::as_str)
+                        .unwrap_or(""),
+                    600
+                ),
+                "api_key_env": clean_text(
+                    parsed
+                        .flags
+                        .get("api-key-env")
+                        .or_else(|| parsed.flags.get("api_key_env"))
+                        .map(String::as_str)
+                        .unwrap_or(""),
+                    160
+                ),
+                "apply": parse_bool(parsed.flags.get("apply")),
+                "summary_only": parse_bool(parsed.flags.get("summary-only")) || parse_bool(parsed.flags.get("summary_only"))
+            }),
+        ),
+        "migrate-legacy-config" => api_migrate_legacy_config(
+            root,
+            &json!({
+                "source_path": clean_text(
+                    parsed
+                        .flags
+                        .get("source-path")
+                        .or_else(|| parsed.flags.get("source_path"))
+                        .or_else(|| parsed.flags.get("from-path"))
+                        .or_else(|| parsed.flags.get("from_path"))
+                        .map(String::as_str)
+                        .unwrap_or(""),
+                    2200
+                ),
+                "apply": parse_bool(parsed.flags.get("apply")),
+                "summary_only": parse_bool(parsed.flags.get("summary-only")) || parse_bool(parsed.flags.get("summary_only"))
+            }),
+        ),
         "providers" => api_providers(root),
         "receipts" => {
             let limit = parse_u64(parsed.flags.get("limit"), 20, 1, 200) as usize;

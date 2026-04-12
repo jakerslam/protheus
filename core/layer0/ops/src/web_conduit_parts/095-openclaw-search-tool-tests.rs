@@ -155,4 +155,123 @@ mod openclaw_search_tool_tests {
             Some("direct_http")
         );
     }
+
+    #[test]
+    fn api_setup_lists_provider_options_and_defaults() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let out = api_setup(tmp.path(), &json!({}));
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            out.pointer("/setup_contract/default_provider")
+                .and_then(Value::as_str),
+            Some("serperdev")
+        );
+        assert!(out
+            .pointer("/setup_contract/provider_options")
+            .and_then(Value::as_array)
+            .map(|rows| rows.iter().any(|row| row.get("provider").and_then(Value::as_str) == Some("serperdev")))
+            .unwrap_or(false));
+    }
+
+    #[test]
+    fn api_setup_apply_preserves_disabled_state_and_sets_key_env() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let path = policy_path(tmp.path());
+        write_json_atomic(
+            &path,
+            &json!({
+                "web_conduit": {
+                    "enabled": false,
+                    "search_provider_order": ["duckduckgo", "bing_rss"],
+                    "fetch_provider_order": ["direct_http"]
+                }
+            }),
+        )
+        .expect("write policy");
+        let out = api_setup(
+            tmp.path(),
+            &json!({
+                "provider": "serper",
+                "api_key_env": "SERPER_API_KEY",
+                "apply": true
+            }),
+        );
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        let updated = read_json_or(&path, json!({}));
+        assert_eq!(
+            updated.pointer("/web_conduit/enabled").and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            updated
+                .pointer("/web_conduit/search_provider_order/0")
+                .and_then(Value::as_str),
+            Some("serperdev")
+        );
+        assert_eq!(
+            updated
+                .pointer("/web_conduit/search_provider_config/serperdev/api_key_env")
+                .and_then(Value::as_str),
+            Some("SERPER_API_KEY")
+        );
+    }
+
+    #[test]
+    fn api_migrate_legacy_config_moves_search_and_archives_fetch() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let source = tmp.path().join("legacy-web-config.json");
+        write_json_atomic(
+            &source,
+            &json!({
+                "tools": {
+                    "web": {
+                        "search": {
+                            "provider": "serper",
+                            "enabled": false,
+                            "apiKeyEnv": "SERPERDEV_API_KEY"
+                        },
+                        "fetch": {
+                            "firecrawl": {
+                                "apiKey": "fc-test",
+                                "baseUrl": "https://api.firecrawl.dev"
+                            }
+                        }
+                    }
+                }
+            }),
+        )
+        .expect("write source");
+        let out = api_migrate_legacy_config(
+            tmp.path(),
+            &json!({
+                "source_path": source.display().to_string(),
+                "apply": true
+            }),
+        );
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        let updated = read_json_or(&source, json!({}));
+        assert_eq!(
+            updated
+                .pointer("/web_conduit/search_provider_order/0")
+                .and_then(Value::as_str),
+            Some("serperdev")
+        );
+        assert_eq!(
+            updated
+                .pointer("/web_conduit/search_provider_config/serperdev/api_key_env")
+                .and_then(Value::as_str),
+            Some("SERPERDEV_API_KEY")
+        );
+        assert_eq!(
+            updated.pointer("/web_conduit/enabled").and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            updated
+                .pointer("/web_conduit/legacy_migration_archive/fetch/firecrawl/baseUrl")
+                .and_then(Value::as_str),
+            Some("https://api.firecrawl.dev")
+        );
+        assert!(updated.pointer("/tools/web/fetch/firecrawl").is_none());
+    }
 }
