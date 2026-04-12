@@ -199,7 +199,7 @@ fn handle_message_chat_response_pass(
                     response_text = "I can answer this directly without running tools. If you want live sourcing, ask me to run a web search explicitly.".to_string();
                 }
             }
-            if let Some(pending) = inline_pending_confirmation {
+            if let Some(ref pending) = inline_pending_confirmation {
                 let pending_tool = clean_text(
                     pending
                         .get("tool_name")
@@ -272,6 +272,13 @@ fn handle_message_chat_response_pass(
                     "I dropped an unrelated context artifact and did not return it. Please resend your request and I will answer only that prompt.".to_string()
                 });
             }
+            let workflow_mode = if response_tools.is_empty() {
+                "model_direct_answer".to_string()
+            } else {
+                "model_inline_tool_execution".to_string()
+            };
+            let workflow_system_events =
+                build_turn_workflow_events(inline_pending_confirmation.as_ref(), false);
             Some(finalize_message_finalization_and_payload(
                 root,
                 agent_id,
@@ -279,6 +286,8 @@ fn handle_message_chat_response_pass(
                 &result,
                 response_text,
                 response_tools,
+                workflow_mode,
+                workflow_system_events,
                 runtime_summary,
                 state,
                 messages,

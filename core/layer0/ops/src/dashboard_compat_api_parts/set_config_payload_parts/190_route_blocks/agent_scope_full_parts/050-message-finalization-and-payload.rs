@@ -5,6 +5,8 @@ fn finalize_message_finalization_and_payload(
     result: &Value,
     mut response_text: String,
     response_tools: Vec<Value>,
+    workflow_mode: String,
+    workflow_system_events: Vec<Value>,
     runtime_summary: Value,
     state: Value,
     messages: Vec<Value>,
@@ -37,9 +39,37 @@ fn finalize_message_finalization_and_payload(
     latent_tool_candidates: Value,
     inline_tools_allowed: bool,
 ) -> CompatApiResponse {
+    let response_workflow = run_turn_workflow_final_response(
+        root,
+        &provider,
+        &model,
+        &active_messages,
+        message,
+        &workflow_mode,
+        &response_tools,
+        &workflow_system_events,
+        &response_text,
+    );
+    if let Some(synthesized) = response_workflow.get("response").and_then(Value::as_str) {
+        response_text = synthesized.to_string();
+    }
     let (mut finalized_response, mut tool_completion, seed_outcome) =
         enforce_user_facing_finalization_contract(response_text, &response_tools);
     let mut finalization_outcome = clean_text(&seed_outcome, 200);
+    let workflow_status = clean_text(
+        response_workflow
+            .pointer("/final_llm_response/status")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        80,
+    );
+    if !workflow_status.is_empty() {
+        finalization_outcome = merge_response_outcomes(
+            &finalization_outcome,
+            &format!("workflow:{workflow_status}"),
+            200,
+        );
+    }
     let mut tool_synthesis_retry_used = false;
     let initial_ack_only = tool_completion
         .get("initial_ack_only")
@@ -284,6 +314,7 @@ fn finalize_message_finalization_and_payload(
         &response_text,
         &json!({
             "tools": response_tools.clone(),
+            "response_workflow": response_workflow.clone(),
             "response_finalization": response_finalization.clone(),
             "turn_transaction": turn_transaction.clone(),
             "terminal_transcript": terminal_transcript.clone()
@@ -324,6 +355,7 @@ fn finalize_message_finalization_and_payload(
     payload["response"] = json!(response_text);
     payload["runtime_sync"] = runtime_summary;
     payload["tools"] = Value::Array(response_tools);
+    payload["response_workflow"] = response_workflow;
     payload["terminal_transcript"] = Value::Array(terminal_transcript);
     payload["response_finalization"] = response_finalization;
     payload["turn_transaction"] = turn_transaction;

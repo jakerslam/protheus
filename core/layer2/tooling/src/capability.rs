@@ -30,9 +30,19 @@ pub enum ToolReasonCode {
     Timeout,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[serde(rename_all = "snake_case")]
+pub enum ToolCapabilityDomain {
+    Web,
+    File,
+    Agent,
+    Terminal,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ToolCapability {
     pub tool_name: String,
+    pub domain: ToolCapabilityDomain,
     pub required_args: Vec<String>,
     pub allowed_callers: Vec<BrokerCaller>,
     pub backend: String,
@@ -40,6 +50,16 @@ pub struct ToolCapability {
     pub read_only: bool,
     pub discoverable: bool,
     pub status: ToolCapabilityStatus,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ToolCapabilityCatalogGroup {
+    pub domain: ToolCapabilityDomain,
+    pub description: String,
+    pub tool_count: usize,
+    pub available_count: usize,
+    pub discoverable_count: usize,
+    pub tools: Vec<ToolCapability>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -66,6 +86,7 @@ pub struct ToolCapabilityProbe {
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct CapabilitySpec {
     tool_name: String,
+    domain: ToolCapabilityDomain,
     required_args: Vec<String>,
     backend: String,
     read_only: bool,
@@ -77,6 +98,7 @@ fn capability_specs() -> Vec<CapabilitySpec> {
     vec![
         CapabilitySpec {
             tool_name: "batch_query".to_string(),
+            domain: ToolCapabilityDomain::Web,
             required_args: vec!["query".to_string()],
             backend: "retrieval_plane".to_string(),
             read_only: true,
@@ -85,6 +107,7 @@ fn capability_specs() -> Vec<CapabilitySpec> {
         },
         CapabilitySpec {
             tool_name: "file_read".to_string(),
+            domain: ToolCapabilityDomain::File,
             required_args: vec!["path".to_string()],
             backend: "workspace_fs".to_string(),
             read_only: true,
@@ -93,6 +116,7 @@ fn capability_specs() -> Vec<CapabilitySpec> {
         },
         CapabilitySpec {
             tool_name: "file_read_many".to_string(),
+            domain: ToolCapabilityDomain::File,
             required_args: vec!["paths".to_string()],
             backend: "workspace_fs".to_string(),
             read_only: true,
@@ -101,6 +125,7 @@ fn capability_specs() -> Vec<CapabilitySpec> {
         },
         CapabilitySpec {
             tool_name: "folder_export".to_string(),
+            domain: ToolCapabilityDomain::File,
             required_args: vec!["path".to_string()],
             backend: "workspace_fs".to_string(),
             read_only: true,
@@ -109,6 +134,7 @@ fn capability_specs() -> Vec<CapabilitySpec> {
         },
         CapabilitySpec {
             tool_name: "manage_agent".to_string(),
+            domain: ToolCapabilityDomain::Agent,
             required_args: vec!["action".to_string(), "agent_id".to_string()],
             backend: "agent_runtime".to_string(),
             read_only: false,
@@ -117,6 +143,7 @@ fn capability_specs() -> Vec<CapabilitySpec> {
         },
         CapabilitySpec {
             tool_name: "spawn_subagents".to_string(),
+            domain: ToolCapabilityDomain::Agent,
             required_args: vec!["objective".to_string()],
             backend: "agent_runtime".to_string(),
             read_only: false,
@@ -125,6 +152,7 @@ fn capability_specs() -> Vec<CapabilitySpec> {
         },
         CapabilitySpec {
             tool_name: "terminal_exec".to_string(),
+            domain: ToolCapabilityDomain::Terminal,
             required_args: vec!["command".to_string()],
             backend: "governed_terminal".to_string(),
             read_only: false,
@@ -133,6 +161,7 @@ fn capability_specs() -> Vec<CapabilitySpec> {
         },
         CapabilitySpec {
             tool_name: "web_fetch".to_string(),
+            domain: ToolCapabilityDomain::Web,
             required_args: vec!["url".to_string()],
             backend: "retrieval_plane".to_string(),
             read_only: true,
@@ -141,6 +170,7 @@ fn capability_specs() -> Vec<CapabilitySpec> {
         },
         CapabilitySpec {
             tool_name: "web_search".to_string(),
+            domain: ToolCapabilityDomain::Web,
             required_args: vec!["query".to_string()],
             backend: "retrieval_plane".to_string(),
             read_only: true,
@@ -149,6 +179,7 @@ fn capability_specs() -> Vec<CapabilitySpec> {
         },
         CapabilitySpec {
             tool_name: "workspace_analyze".to_string(),
+            domain: ToolCapabilityDomain::File,
             required_args: vec!["query".to_string()],
             backend: "workspace_fs".to_string(),
             read_only: true,
@@ -197,6 +228,7 @@ pub fn all_capabilities_for_callers(
         });
         out.push(ToolCapability {
             tool_name,
+            domain: spec.domain,
             required_args: spec.required_args,
             allowed_callers: callers,
             backend: spec.backend,
@@ -207,6 +239,44 @@ pub fn all_capabilities_for_callers(
         });
     }
     out
+}
+
+pub fn grouped_capabilities_for_callers(
+    allowed_tools: &std::collections::HashMap<BrokerCaller, std::collections::HashSet<String>>,
+) -> Vec<ToolCapabilityCatalogGroup> {
+    let mut grouped = BTreeMap::<ToolCapabilityDomain, Vec<ToolCapability>>::new();
+    for capability in all_capabilities_for_callers(allowed_tools) {
+        grouped
+            .entry(capability.domain)
+            .or_default()
+            .push(capability);
+    }
+    grouped
+        .into_iter()
+        .map(|(domain, mut tools)| {
+            tools.sort_by(|left, right| left.tool_name.cmp(&right.tool_name));
+            ToolCapabilityCatalogGroup {
+                domain,
+                description: capability_domain_description(domain).to_string(),
+                tool_count: tools.len(),
+                available_count: tools
+                    .iter()
+                    .filter(|row| matches!(row.status, ToolCapabilityStatus::Available))
+                    .count(),
+                discoverable_count: tools.iter().filter(|row| row.discoverable).count(),
+                tools,
+            }
+        })
+        .collect::<Vec<_>>()
+}
+
+pub fn capability_domain_description(domain: ToolCapabilityDomain) -> &'static str {
+    match domain {
+        ToolCapabilityDomain::Web => "Governed web search, fetch, and retrieval tools.",
+        ToolCapabilityDomain::File => "Workspace file, folder, and repository reading tools.",
+        ToolCapabilityDomain::Agent => "Agent management and subagent orchestration tools.",
+        ToolCapabilityDomain::Terminal => "Governed terminal execution tools.",
+    }
 }
 
 pub fn capability_probe_for(
@@ -368,5 +438,41 @@ mod tests {
         assert_eq!(probe.backend, "retrieval_plane");
         assert_eq!(probe.backend_class, ToolBackendClass::RetrievalPlane);
         assert!(!probe.backend_reason.is_empty());
+    }
+
+    #[test]
+    fn grouped_catalog_clusters_tools_by_domain() {
+        let mut allowed = HashMap::<BrokerCaller, HashSet<String>>::new();
+        allowed.insert(
+            BrokerCaller::Client,
+            [
+                "web_search",
+                "web_fetch",
+                "file_read",
+                "workspace_analyze",
+                "spawn_subagents",
+                "terminal_exec",
+            ]
+            .iter()
+            .map(|row| row.to_string())
+            .collect::<HashSet<_>>(),
+        );
+        let grouped = grouped_capabilities_for_callers(&allowed);
+        assert!(grouped.iter().any(|row| {
+            row.domain == ToolCapabilityDomain::Web
+                && row.tools.iter().any(|tool| tool.tool_name == "web_search")
+        }));
+        assert!(grouped.iter().any(|row| {
+            row.domain == ToolCapabilityDomain::File
+                && row.tools.iter().any(|tool| tool.tool_name == "file_read")
+        }));
+        assert!(grouped.iter().any(|row| {
+            row.domain == ToolCapabilityDomain::Agent
+                && row.tools.iter().any(|tool| tool.tool_name == "spawn_subagents")
+        }));
+        assert!(grouped.iter().any(|row| {
+            row.domain == ToolCapabilityDomain::Terminal
+                && row.tools.iter().any(|tool| tool.tool_name == "terminal_exec")
+        }));
     }
 }

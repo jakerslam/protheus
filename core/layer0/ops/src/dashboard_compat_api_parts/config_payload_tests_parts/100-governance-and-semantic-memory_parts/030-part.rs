@@ -152,15 +152,12 @@ fn natural_web_intent_routes_test_web_fetch_probe_to_example_dot_com() {
 }
 
 #[test]
-fn direct_tool_intent_prefers_live_web_over_workspace_analyze_for_openclaw_probe() {
-    let route = direct_tool_intent_from_user_message(
-        "compare openclaw to this system/workspace and do a test web fetch"
-    )
-    .expect("route");
-    assert_eq!(route.0, "batch_query");
-    assert_eq!(
-        route.1.get("source").and_then(Value::as_str),
-        Some("web")
+fn direct_tool_intent_does_not_auto_route_openclaw_probe() {
+    assert!(
+        direct_tool_intent_from_user_message(
+            "compare openclaw to this system/workspace and do a test web fetch"
+        )
+        .is_none()
     );
 }
 
