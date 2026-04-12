@@ -73,11 +73,8 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
             "receipt": receipt
         });
     }
-    let fetch_provider_chain = fetch_provider_chain_from_request(&provider_hint, request, &policy);
-    let selected_provider = fetch_provider_chain
-        .first()
-        .cloned()
-        .unwrap_or_else(|| "direct_http".to_string());
+    let (provider_resolution, fetch_provider_chain, selected_provider) =
+        resolved_fetch_provider_selection(root, &policy, request, &provider_hint);
     let allow_rfc2544_benchmark_range = request
         .pointer("/ssrf_policy/allow_rfc2544_benchmark_range")
         .and_then(Value::as_bool)
@@ -119,6 +116,7 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
             "provider": selected_provider,
             "provider_hint": provider_hint,
             "provider_chain": fetch_provider_chain,
+            "provider_resolution": provider_resolution,
             "ssrf_guard": ssrf_guard,
             "receipt": receipt
         });
@@ -176,6 +174,10 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
             "requested_url": raw_requested_url,
             "resolved_url": resolved_url,
             "citation_redirect_resolved": redirect_resolved,
+            "provider": selected_provider,
+            "provider_hint": provider_hint,
+            "provider_chain": fetch_provider_chain,
+            "provider_resolution": provider_resolution,
             "policy_decision": policy_eval,
             "receipt": receipt,
             "approval_required": approval.is_some(),
@@ -262,6 +264,10 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
                 Value::String(provider_hint.clone()),
             );
             obj.insert("provider_chain".to_string(), json!(fetch_provider_chain.clone()));
+            obj.insert(
+                "provider_resolution".to_string(),
+                provider_resolution.clone(),
+            );
         }
         return cached;
     }
@@ -440,6 +446,7 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
         "provider": selected_provider,
         "provider_hint": provider_hint,
         "provider_chain": fetch_provider_chain,
+        "provider_resolution": provider_resolution,
         "extractor": extractor,
         "status_code": status_code,
         "content_type": if content_type.is_empty() { Value::String(String::new()) } else { Value::String(content_type) },
