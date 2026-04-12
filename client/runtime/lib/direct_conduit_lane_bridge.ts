@@ -1,30 +1,29 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
-const Module = require('module');
-function loadTsModule(modulePath) {
-    const ts = require('typescript');
-    const source = fs.readFileSync(modulePath, 'utf8');
-    const transpiled = ts.transpileModule(source, {
-        compilerOptions: {
-            module: ts.ModuleKind.CommonJS,
-            target: ts.ScriptTarget.ES2022,
-            moduleResolution: ts.ModuleResolutionKind.NodeJs,
-            esModuleInterop: true,
-            allowSyntheticDefaultImports: true,
-            sourceMap: false,
-            declaration: false,
-            removeComments: false
-        },
-        fileName: modulePath,
-        reportDiagnostics: false
-    }).outputText;
-    const m = new Module(modulePath, module.parent || module);
-    m.filename = modulePath;
-    m.paths = Module._nodeModulePaths(path.dirname(modulePath));
-    m._compile(transpiled, modulePath);
-    return m.exports;
+const { installTsRequireHook } = require('./ts_bootstrap.ts');
+
+function cleanText(value, maxLen = 240) {
+    return String(value == null ? '' : value).replace(/\s+/g, ' ').trim().slice(0, maxLen);
 }
+
+function laneBridgeError(laneId, error, response = null) {
+    const payload = {
+        ok: false,
+        type: 'conduit_lane_bridge_error',
+        lane_id: cleanText(laneId, 160).toUpperCase(),
+        error: cleanText(error, 320) || 'conduit_lane_bridge_failed',
+    };
+    if (response && typeof response === 'object') {
+        payload.conduit_response = response;
+    }
+    return payload;
+}
+
+function normalizeLaneId(laneId) {
+    return cleanText(laneId, 160).toUpperCase();
+}
+
 function findRepoRoot(startDir) {
     let dir = path.resolve(startDir || process.cwd());
     while (true) {
@@ -49,10 +48,11 @@ function loadConduitClient(root) {
     ];
     for (const candidate of candidates) {
         if (fs.existsSync(candidate)) {
-            if (candidate.endsWith('.ts')) {
-                return loadTsModule(candidate);
-            }
-            return require(candidate);
+            if (candidate.endsWith('.ts')) installTsRequireHook();
+            delete require.cache[require.resolve(candidate)];
+            const mod = require(candidate);
+            if (mod && mod.ConduitClient) return mod;
+            throw new Error('conduit_client_missing_export');
         }
     }
     throw new Error('conduit_client_missing');
@@ -80,7 +80,10 @@ function daemonArgs(command) {
         : [];
 }
 async function runLaneViaConduit(laneId, cwdHint) {
-    const normalized = String(laneId || '').trim().toUpperCase();
+    const normalized = normalizeLaneId(laneId);
+    if (!normalized) {
+        return laneBridgeError('', 'missing_lane_id');
+    }
     const root = findRepoRoot(cwdHint || process.cwd());
     const { ConduitClient } = loadConduitClient(root);
     const command = daemonCommand(root);
@@ -98,21 +101,10 @@ async function runLaneViaConduit(laneId, cwdHint) {
         if (laneReceipt && typeof laneReceipt === 'object') {
             return laneReceipt;
         }
-        return {
-            ok: false,
-            type: 'conduit_lane_bridge_error',
-            lane_id: normalized,
-            error: 'lane_receipt_missing',
-            conduit_response: response,
-        };
+        return laneBridgeError(normalized, 'lane_receipt_missing', response);
     }
     catch (err) {
-        return {
-            ok: false,
-            type: 'conduit_lane_bridge_error',
-            lane_id: normalized,
-            error: String(err && err.message ? err.message : err),
-        };
+        return laneBridgeError(normalized, err && err.message ? err.message : err);
     }
     finally {
         await client.close().catch(() => { });
