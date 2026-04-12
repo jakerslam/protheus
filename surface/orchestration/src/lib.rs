@@ -29,9 +29,10 @@ impl OrchestrationSurfaceRuntime {
         now_ms: u64,
     ) -> OrchestrationResultPackage {
         let normalized = ingress::normalize_request(request);
+        let classification = request_classification::classify_request(&normalized);
         if let Err(err) = self.transient.upsert(
             normalized.session_id.as_str(),
-            normalized.intent.clone(),
+            transient_summary(&normalized),
             now_ms,
             30_000,
         ) {
@@ -44,18 +45,21 @@ impl OrchestrationSurfaceRuntime {
                 fallback_actions: Vec::new(),
                 core_contract_calls: Vec::new(),
                 requires_core_promotion: false,
+                classification,
             };
         }
 
-        let request_class = request_classification::classify_request(&normalized);
         let clarification_prompt =
-            clarification::clarification_prompt_for(&normalized, request_class.clone());
-        let needs_clarification = clarification_prompt.is_some();
-        let posture = posture::choose_posture(request_class.clone(), needs_clarification);
-        let steps = sequencing::build_steps(&normalized, request_class.clone());
+            clarification::clarification_prompt_for(&normalized, &classification);
+        let needs_clarification =
+            classification.needs_clarification || clarification_prompt.is_some();
+        let posture =
+            posture::choose_posture(classification.request_class.clone(), needs_clarification);
+        let steps = sequencing::build_steps(&normalized, &classification);
 
         let plan = OrchestrationPlan {
-            request_class,
+            request_class: classification.request_class.clone(),
+            classification,
             posture,
             needs_clarification,
             clarification_prompt,
@@ -96,4 +100,12 @@ impl OrchestrationSurfaceRuntime {
     pub fn resume_transient_after_restart(&mut self) -> Result<(), String> {
         self.transient.resume_after_restart()
     }
+}
+
+fn transient_summary(request: &crate::contracts::TypedOrchestrationRequest) -> String {
+    format!(
+        "kind={:?};operation={:?};resource={:?};legacy_intent={}",
+        request.request_kind, request.operation_kind, request.resource_kind, request.legacy_intent
+    )
+    .to_lowercase()
 }

@@ -657,6 +657,9 @@ function assertChatEnhancementFeatures() {
   assertContains(chatSource, 'var responseTools = Array.isArray(data.tools)', 'ws response tool fallback map missing');
   assertContains(chatSource, "rtool.name || '').toLowerCase() === 'thought_process'", 'ws response thought-tool hydration guard missing');
   assertContains(chatSource, 'streamedTools = responseTools;', 'ws response tool fallback should hydrate final tool cards when stream events are sparse');
+  assertContains(chatSource, 'this.assistantTurnMetadataFromPayload(data, streamedTools)', 'ws response path should preserve structured turn metadata from payloads');
+  assertContains(chatSource, 'this.normalizeSessionMessages({ messages: sanitized })', 'cached session restore should re-normalize persisted tool metadata');
+  assertContains(chatSource, 'duplicate.response_finalization = payload.response_finalization;', 'dedupe merge should preserve response finalization metadata on agent rows');
 }
 
 function assertMemoryApiWired() {

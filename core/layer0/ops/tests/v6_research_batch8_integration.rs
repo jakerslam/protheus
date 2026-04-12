@@ -439,15 +439,13 @@ fn v6_research_batch8_preserves_input_order_while_deduping_batch_inputs() {
     );
     assert_eq!(parallel_exit, 0);
     let parallel_latest = read_json(&latest_path(root));
-    let queue = read_json(
-        Path::new(
-            parallel_latest
-                .get("artifact")
-                .and_then(|v| v.get("path"))
-                .and_then(Value::as_str)
-                .expect("parallel artifact path"),
-        ),
-    )
+    let queue = read_json(Path::new(
+        parallel_latest
+            .get("artifact")
+            .and_then(|v| v.get("path"))
+            .and_then(Value::as_str)
+            .expect("parallel artifact path"),
+    ))
     .get("queue")
     .and_then(Value::as_array)
     .cloned()

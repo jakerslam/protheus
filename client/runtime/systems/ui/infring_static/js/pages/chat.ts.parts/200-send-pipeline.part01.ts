@@ -419,6 +419,7 @@
         var httpHasToolCompletion = typeof this.responseHasAuthoritativeToolCompletion === 'function'
           ? this.responseHasAuthoritativeToolCompletion(res, httpTools)
           : httpTools.length > 0;
+        var httpMessageMetadata = typeof this.assistantTurnMetadataFromPayload === 'function' ? this.assistantTurnMetadataFromPayload(res, httpTools) : {};
         var httpPayloadText = typeof this.assistantTextFromPayload === 'function'
           ? this.assistantTextFromPayload(res)
           : String(res.response || '');
@@ -437,21 +438,12 @@
         ) {
           httpText = '';
         }
+        var httpToolFailureSummary = httpMessageMetadata && typeof httpMessageMetadata.tool_failure_summary === 'string' ? String(httpMessageMetadata.tool_failure_summary || '').trim() : '';
         var httpToolSummary = httpHasToolCompletion && typeof this.completedToolOnlySummary === 'function'
           ? String(this.completedToolOnlySummary(httpTools) || '').trim()
           : '';
-        if (
-          httpHasToolCompletion &&
-          httpToolSummary &&
-          (
-            (typeof this.textLooksNoFindingsPlaceholder === 'function' && this.textLooksNoFindingsPlaceholder(httpText)) ||
-            (typeof this.textLooksToolAckWithoutFindings === 'function' && this.textLooksToolAckWithoutFindings(httpText))
-          )
-        ) {
-          httpText = httpToolSummary;
-        }
         if (!String(httpText || '').trim()) {
-          httpText = httpToolSummary || this.defaultAssistantFallback(httpSplit.thought || '', httpTools);
+          httpText = httpToolFailureSummary || httpToolSummary || this.defaultAssistantFallback(httpSplit.thought || '', httpTools);
         }
         var httpFailure = httpHasToolCompletion ? null : this.extractRecoverableBackendFailure(httpText);
         if (httpFailure) {
@@ -470,7 +462,7 @@
             return;
           }
         }
-        var httpMessage = {
+        var httpMessage = Object.assign({
           id: ++msgId,
           role: 'agent',
           text: httpText,
@@ -479,7 +471,7 @@
           ts: Date.now(),
           agent_id: res && res.agent_id ? String(res.agent_id) : (this.currentAgent && this.currentAgent.id ? String(this.currentAgent.id) : ''),
           agent_name: res && res.agent_name ? String(res.agent_name) : (this.currentAgent && this.currentAgent.name ? String(this.currentAgent.name) : '')
-        };
+        }, httpMessageMetadata || {});
         var pushedHttpMessage = this.pushAgentMessageDeduped(httpMessage, { dedupe_window_ms: 90000 }) || httpMessage;
         this.markAgentMessageComplete(pushedHttpMessage);
         this.maybeAddAutoModelSwitchNotice(httpAutoSwitchPrevious, httpRoute || preflightRoute);

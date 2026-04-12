@@ -108,7 +108,10 @@ fn v6_fetch_parse_batch10_research_and_parse_lanes_harden_edge_cases() {
     );
     assert_eq!(crawl_exit, 0);
     let crawl_latest = read_json(&latest_research_path(root));
-    assert_eq!(crawl_latest.get("seed_count").and_then(Value::as_u64), Some(1));
+    assert_eq!(
+        crawl_latest.get("seed_count").and_then(Value::as_u64),
+        Some(1)
+    );
     assert_eq!(
         crawl_latest.get("visited_count").and_then(Value::as_u64),
         Some(1)
@@ -169,7 +172,9 @@ fn v6_fetch_parse_batch10_research_and_parse_lanes_harden_edge_cases() {
     assert!(parse_latest
         .get("errors")
         .and_then(Value::as_array)
-        .map(|rows| rows.iter().any(|row| row.as_str() == Some("unsupported_mapping_strategy:mystery")))
+        .map(|rows| rows
+            .iter()
+            .any(|row| row.as_str() == Some("unsupported_mapping_strategy:mystery")))
         .unwrap_or(false));
 
     let fake_table_exit = parse_plane::run(
@@ -185,7 +190,9 @@ fn v6_fetch_parse_batch10_research_and_parse_lanes_harden_edge_cases() {
     assert!(fake_table_latest
         .get("errors")
         .and_then(Value::as_array)
-        .map(|rows| rows.iter().any(|row| row.as_str() == Some("table_empty_after_postprocess")))
+        .map(|rows| rows
+            .iter()
+            .any(|row| row.as_str() == Some("table_empty_after_postprocess")))
         .unwrap_or(false));
 
     let post_exit = parse_plane::run(
@@ -193,7 +200,8 @@ fn v6_fetch_parse_batch10_research_and_parse_lanes_harden_edge_cases() {
         &[
             "postprocess-table".to_string(),
             "--strict=1".to_string(),
-            "--table-json=[[\"Item\",\"Value\"],[\"Revenue [1]\",\"100\"],[\"\",\"USD\"]]".to_string(),
+            "--table-json=[[\"Item\",\"Value\"],[\"Revenue [1]\",\"100\"],[\"\",\"USD\"]]"
+                .to_string(),
         ],
     );
     assert_eq!(post_exit, 0);

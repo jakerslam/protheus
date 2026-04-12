@@ -4,7 +4,10 @@ use persona_dispatch_security_gate::evaluate_persona_dispatch_gate;
 const SCRIPT_REL: &str = "client/runtime/systems/ops/protheus_control_plane.js";
 const LENSES: &[&str] = &["guardian", "operator"];
 
-fn decision(requested_lens: Option<&str>, blocked_paths: &[&str]) -> persona_dispatch_security_gate::PersonaDispatchGateDecision {
+fn decision(
+    requested_lens: Option<&str>,
+    blocked_paths: &[&str],
+) -> persona_dispatch_security_gate::PersonaDispatchGateDecision {
     evaluate_persona_dispatch_gate(
         SCRIPT_REL,
         requested_lens,

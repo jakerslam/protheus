@@ -335,7 +335,10 @@
         } catch(_) {
           cacheChanged = sanitized.length !== rawCachedMessages.length;
         }
-        this.messages = this.mergeModelNoticesForAgent(agentId, sanitized);
+        this.messages = this.mergeModelNoticesForAgent(
+          agentId,
+          this.normalizeSessionMessages({ messages: sanitized })
+        );
         this.tokenCount = Number(cached.token_count || 0);
         this.sending = false;
         this._responseStartedAt = 0;

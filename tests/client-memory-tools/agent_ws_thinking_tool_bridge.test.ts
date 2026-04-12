@@ -158,6 +158,12 @@ function structuredErrorPayload() {
   };
 }
 
+function structuredErrorPayloadWithServerResponse() {
+  const payload = structuredErrorPayload();
+  payload.response = 'The web search step failed before I could finish the answer: provider timeout after 30s.';
+  return payload;
+}
+
 function structuredLargeToolResultPayload() {
   return {
     ok: true,
@@ -338,6 +344,20 @@ async function run() {
     structuredErrorTools[0].result,
     'provider timeout after 30s',
     'structured tool error block should preserve nested text results instead of JSON blobs'
+  );
+  assert.ok(
+    String(scenarioThree.response.content || '').toLowerCase().includes('provider timeout after 30s'),
+    'bridge should synthesize a readable failure sentence when tool rows error and the server returned no prose'
+  );
+
+  const scenarioThreeB = await runScenario(
+    structuredErrorPayloadWithServerResponse,
+    'run failing tool blocks with prose'
+  );
+  assert.strictEqual(
+    String(scenarioThreeB.response.content || ''),
+    'The web search step failed before I could finish the answer: provider timeout after 30s.',
+    'bridge should preserve server-authored failure prose instead of replacing it with adapter fallback copy'
   );
 
   const scenarioFour = await runScenario(structuredLargeToolResultPayload, 'run large tool blocks');

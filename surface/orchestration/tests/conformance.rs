@@ -1,4 +1,6 @@
-use infring_orchestration_surface_v1::contracts::{CoreContractCall, OrchestrationRequest};
+use infring_orchestration_surface_v1::contracts::{
+    ClarificationReason, CoreContractCall, OrchestrationRequest, RequestClass,
+};
 use infring_orchestration_surface_v1::OrchestrationSurfaceRuntime;
 use serde_json::json;
 
@@ -20,6 +22,7 @@ fn orchestration_surface_cannot_bypass_tool_broker() {
             CoreContractCall::ToolBrokerRequest
         ]
     );
+    assert_eq!(package.classification.request_class, RequestClass::ToolCall);
     assert!(package
         .fallback_actions
         .iter()
@@ -105,4 +108,61 @@ fn orchestration_transient_restart_requires_boot_sweep_before_resume() {
     runtime
         .resume_transient_after_restart()
         .expect("resume should succeed after boot sweep");
+}
+
+#[test]
+fn orchestration_legacy_intent_path_still_produces_typed_tool_plan() {
+    let mut runtime = OrchestrationSurfaceRuntime::new();
+    let package = runtime.orchestrate(
+        OrchestrationRequest {
+            session_id: "legacy-s1".to_string(),
+            intent: "  Search web for release notes  ".to_string(),
+            payload: serde_json::Value::Null,
+        },
+        2_000,
+    );
+    assert_eq!(package.classification.request_class, RequestClass::ToolCall);
+    assert!(!package.classification.needs_clarification);
+    assert!(package
+        .classification
+        .reasons
+        .iter()
+        .any(|row| row == "legacy_intent_compatibility_shim"));
+}
+
+#[test]
+fn ambiguous_legacy_intent_returns_machine_readable_clarification_reason() {
+    let mut runtime = OrchestrationSurfaceRuntime::new();
+    let package = runtime.orchestrate(
+        OrchestrationRequest {
+            session_id: "s6".to_string(),
+            intent: "maybe do something".to_string(),
+            payload: json!({}),
+        },
+        2_500,
+    );
+    assert!(package.classification.needs_clarification);
+    assert!(package
+        .classification
+        .clarification_reasons
+        .contains(&ClarificationReason::AmbiguousOperation));
+    assert!(package.summary.contains("clarification"));
+}
+
+#[test]
+fn mutation_without_target_requires_typed_scope_clarification() {
+    let mut runtime = OrchestrationSurfaceRuntime::new();
+    let package = runtime.orchestrate(
+        OrchestrationRequest {
+            session_id: "s7".to_string(),
+            intent: "update workflow".to_string(),
+            payload: json!({}),
+        },
+        3_000,
+    );
+    assert!(package.classification.needs_clarification);
+    assert!(package
+        .classification
+        .clarification_reasons
+        .contains(&ClarificationReason::MutationScopeRequired));
 }
