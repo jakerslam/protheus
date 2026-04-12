@@ -8,12 +8,14 @@ use crate::bird_x_collector_kernel_support as support;
 use crate::contract_lane_utils as lane_utils;
 
 fn usage() {
-    println!("bird-x-collector-kernel commands:");
-    println!("  protheus-ops bird-x-collector-kernel preflight --payload-base64=<json>");
-    println!("  protheus-ops bird-x-collector-kernel prepare-run --payload-base64=<json>");
-    println!("  protheus-ops bird-x-collector-kernel map-results --payload-base64=<json>");
-    println!("  protheus-ops bird-x-collector-kernel finalize-run --payload-base64=<json>");
-    println!("  protheus-ops bird-x-collector-kernel collect --payload-base64=<json>");
+    for line in [
+        "bird-x-collector-kernel commands:",
+        "  protheus-ops bird-x-collector-kernel preflight --payload-base64=<json>",
+        "  protheus-ops bird-x-collector-kernel prepare-run --payload-base64=<json>",
+        "  protheus-ops bird-x-collector-kernel map-results --payload-base64=<json>",
+        "  protheus-ops bird-x-collector-kernel finalize-run --payload-base64=<json>",
+        "  protheus-ops bird-x-collector-kernel collect --payload-base64=<json>",
+    ] { println!("{line}"); }
 }
 
 fn command_preflight(payload: &Map<String, Value>) -> Value {
@@ -231,7 +233,6 @@ fn command_map_results(payload: &Map<String, Value>) -> Value {
         .unwrap_or_default();
     let mut seen = support::normalize_seen_ids(payload);
     let mut items = Vec::<Value>::new();
-
     for row in results {
         if items.len() >= max_items {
             break;
@@ -260,6 +261,11 @@ fn command_map_results(payload: &Map<String, Value>) -> Value {
         let title = support::first_line_title(&content, &author_handle);
         let likes = support::as_i64(obj, &["likes", "favorite_count"]);
         let retweets = support::as_i64(obj, &["retweets", "retweet_count"]);
+        let url = if author_handle.is_empty() || author_handle == "unknown" {
+            format!("https://x.com/i/web/status/{tweet_id}")
+        } else {
+            format!("https://x.com/{author_handle}/status/{tweet_id}")
+        };
         let topics = support::infer_topics(&content)
             .into_iter()
             .map(Value::String)
@@ -281,11 +287,7 @@ fn command_map_results(payload: &Map<String, Value>) -> Value {
             "tweet_id": tweet_id,
             "title": title,
             "description": content,
-            "url": format!(
-                "https://x.com/{}/status/{}",
-                author_handle,
-                support::clean_text(Some(&tweet_id), 120)
-            ),
+            "url": url,
             "author": author_handle,
             "tags": tags,
             "topics": topics,
@@ -534,16 +536,15 @@ mod tests {
             "seen_ids": [],
             "results": [
                 { "id": "123", "text": "AI agent launch update", "author": { "handle": "ax", "name": "Axiom" }, "likes": 10, "retweets": 3 },
-                { "id": "123", "text": "AI agent launch update", "author": { "handle": "ax", "name": "Axiom" }, "likes": 10, "retweets": 3 }
+                { "id": "123", "text": "AI agent launch update", "author": { "handle": "ax", "name": "Axiom" }, "likes": 10, "retweets": 3 },
+                { "id": "456", "text": "LLM news update", "author_name": "Anon" }
             ]
         });
         let out = command_map_results(lane_utils::payload_obj(&payload));
-        assert_eq!(
-            out.get("items")
-                .and_then(Value::as_array)
-                .map(|rows| rows.len()),
-            Some(1)
-        );
+        let rows = out.get("items").and_then(Value::as_array).cloned().unwrap_or_default();
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[1].get("url").and_then(Value::as_str), Some("https://x.com/i/web/status/456"));
+        assert_eq!(rows[0].get("topics").and_then(Value::as_array).map(|topics| !topics.is_empty()), Some(true));
     }
 
     #[test]
@@ -585,12 +586,7 @@ mod tests {
         .expect("finalize");
         assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
         assert_eq!(out.get("cache_hit").and_then(Value::as_bool), Some(true));
-        assert_eq!(
-            out.get("items")
-                .and_then(Value::as_array)
-                .map(|rows| rows.len()),
-            Some(1)
-        );
+        assert_eq!(out.get("items").and_then(Value::as_array).map(|rows| rows.len()), Some(1));
     }
 
     #[test]
@@ -604,9 +600,6 @@ mod tests {
         )
         .expect("collect");
         assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
-        assert_eq!(
-            out.get("error").and_then(Value::as_str),
-            Some("env_blocked")
-        );
+        assert_eq!(out.get("error").and_then(Value::as_str), Some("env_blocked"));
     }
 }
