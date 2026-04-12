@@ -105,4 +105,30 @@ mod openclaw_search_tool_tests {
             .iter()
             .any(|row| row.get("tool").and_then(Value::as_str) == Some("web_fetch")));
     }
+
+    #[test]
+    fn api_providers_reports_public_artifact_contracts_and_registration_contracts() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let out = api_providers(tmp.path());
+        assert_eq!(
+            out.pointer("/public_artifact_contracts/search/artifact_candidates/0")
+                .and_then(Value::as_str),
+            Some("web-search-contract-api.js")
+        );
+        assert_eq!(
+            out.pointer("/search_provider_registration_contract/credential_types_supported/0")
+                .and_then(Value::as_str),
+            Some("none")
+        );
+        assert_eq!(
+            out.pointer("/search_provider_registration_contract/credential_types_supported/1")
+                .and_then(Value::as_str),
+            Some("top-level")
+        );
+        assert_eq!(
+            out.pointer("/fetch_provider_registration_contract/public_artifact_contract/resolution_mode")
+                .and_then(Value::as_str),
+            Some("explicit_allowlist")
+        );
+    }
 }
