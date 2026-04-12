@@ -217,6 +217,10 @@ fn parse_cli(argv: &[String]) -> CliArgs {
     let mut i = 0usize;
     while i < argv.len() {
         let tok = argv[i].trim().to_string();
+        if tok == "--" {
+            positional.extend(argv.iter().skip(i + 1).cloned());
+            break;
+        }
         if !tok.starts_with("--") {
             positional.push(argv[i].clone());
             i += 1;

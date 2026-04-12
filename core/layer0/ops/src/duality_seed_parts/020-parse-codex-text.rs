@@ -91,8 +91,15 @@ fn parse_codex_text(text: &str) -> Value {
         }
 
         if section == "flow_values" {
-            if line.contains('/') {
-                flow_values.push(clean_text(&line, 120));
+            for chunk in line.split([',', ';']) {
+                let value = clean_text(chunk, 120);
+                if !value.contains('/') || value.is_empty() {
+                    continue;
+                }
+                if flow_values.iter().any(|existing| existing == &value) {
+                    continue;
+                }
+                flow_values.push(value);
             }
             continue;
         }

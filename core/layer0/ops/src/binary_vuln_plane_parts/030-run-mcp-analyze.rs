@@ -27,15 +27,15 @@ fn run_mcp_analyze(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Val
         errors.push("mcp_server_contract_kind_invalid".to_string());
     }
 
-    let transport = clean(
+    let normalize_transport = |raw: &str| clean(raw, 20).to_ascii_lowercase().replace('_', "-");
+    let transport = normalize_transport(
         parsed
             .flags
             .get("transport")
             .cloned()
-            .unwrap_or_else(|| "stdio".to_string()),
-        20,
-    )
-    .to_ascii_lowercase();
+            .unwrap_or_else(|| "stdio".to_string())
+            .as_str(),
+    );
     let dx_source = clean(
         parsed
             .flags
@@ -51,7 +51,7 @@ fn run_mcp_analyze(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Val
         .unwrap_or_else(|| vec![json!("stdio")])
         .iter()
         .filter_map(Value::as_str)
-        .map(|v| clean(v, 20).to_ascii_lowercase())
+        .map(|v| normalize_transport(v))
         .collect::<Vec<_>>();
     if strict && !allowed_transports.iter().any(|v| v == &transport) {
         errors.push("mcp_transport_invalid".to_string());
@@ -437,4 +437,3 @@ fn run_rulepack_enable(root: &Path, parsed: &crate::ParsedArgs, strict: bool) ->
     out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
-

@@ -1111,4 +1111,18 @@ mod duality_v4_tests {
             Some(true)
         );
     }
+
+    #[test]
+    fn parse_codex_text_dedupes_flow_values_while_preserving_order() {
+        let parsed = parse_codex_text(
+            r#"
+            [flow_values]
+            observe/reflect, fetch/parse; observe/reflect
+            "#,
+        );
+        assert_eq!(
+            parsed.get("flow_values").cloned().unwrap_or(Value::Null),
+            json!(["observe/reflect", "fetch/parse"])
+        );
+    }
 }
