@@ -194,6 +194,7 @@ fn api_search_bing_rss(
         timeout_ms,
         max_response_bytes,
         retry_attempts,
+        false,
     );
     let status_code = fetched
         .get("status_code")

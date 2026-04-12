@@ -92,11 +92,120 @@ mod openclaw_fetch_helper_tests {
     }
 
     #[test]
+    fn openclaw_fetch_helper_uses_cf_markdown_for_markdown_responses() {
+        let (content, title, truncated, extractor) = extract_fetch_content_with_extractor(
+            "# CF Markdown\n\nThis is server-rendered markdown.",
+            "text/markdown; charset=utf-8",
+            "markdown",
+            4000,
+        );
+        assert_eq!(extractor, "cf-markdown");
+        assert_eq!(title.as_deref(), Some("CF Markdown"));
+        assert!(!truncated);
+        assert!(content.contains("# CF Markdown"));
+        assert!(content.contains("server-rendered markdown"));
+    }
+
+    #[test]
+    fn openclaw_fetch_helper_converts_markdown_to_text_in_text_mode() {
+        let (content, title, truncated, extractor) = extract_fetch_content_with_extractor(
+            "# Heading\n\n**Bold text** and [a link](https://example.com).",
+            "text/markdown",
+            "text",
+            4000,
+        );
+        assert_eq!(extractor, "cf-markdown");
+        assert_eq!(title.as_deref(), Some("Heading"));
+        assert!(!truncated);
+        assert!(!content.contains("# Heading"));
+        assert!(!content.contains("[a link](https://example.com)"));
+        assert!(content.contains("Heading"));
+        assert!(content.contains("a link"));
+    }
+
+    #[test]
     fn normalize_search_result_link_decodes_duckduckgo_redirects() {
         let normalized = normalize_search_result_link(
             "https://duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com%2Fguide",
         );
         assert_eq!(normalized, "https://example.com/guide");
+    }
+
+    #[test]
+    fn openclaw_fetch_ssrf_guard_blocks_private_targets_and_localhost() {
+        let localhost = evaluate_fetch_ssrf_guard("http://localhost/test", false, None);
+        assert_eq!(
+            localhost.get("error").and_then(Value::as_str),
+            Some("blocked_hostname")
+        );
+        let private = evaluate_fetch_ssrf_guard("http://127.0.0.1/test", false, None);
+        assert_eq!(
+            private.get("error").and_then(Value::as_str),
+            Some("blocked_private_network_target")
+        );
+        let v4_mapped = evaluate_fetch_ssrf_guard("http://[::ffff:127.0.0.1]/", false, None);
+        assert_eq!(
+            v4_mapped.get("error").and_then(Value::as_str),
+            Some("blocked_private_network_target")
+        );
+    }
+
+    #[test]
+    fn openclaw_fetch_ssrf_guard_blocks_private_dns_resolution_without_network_access() {
+        let blocked = evaluate_fetch_ssrf_guard(
+            "https://private.test/resource",
+            false,
+            Some(&["10.0.0.5".parse().expect("ip")]),
+        );
+        assert_eq!(
+            blocked.get("error").and_then(Value::as_str),
+            Some("blocked_private_network_target")
+        );
+        let allowed = evaluate_fetch_ssrf_guard(
+            "https://example.com/resource",
+            false,
+            Some(&["93.184.216.34".parse().expect("ip")]),
+        );
+        assert_eq!(allowed.get("ok").and_then(Value::as_bool), Some(true));
+    }
+
+    #[test]
+    fn openclaw_fetch_ssrf_guard_allows_rfc2544_only_when_opted_in() {
+        let addr = "198.18.0.153".parse().expect("ip");
+        let denied = evaluate_fetch_ssrf_guard(
+            "http://198.18.0.153/file",
+            false,
+            Some(&[addr]),
+        );
+        assert_eq!(
+            denied.get("error").and_then(Value::as_str),
+            Some("blocked_private_network_target")
+        );
+        let allowed = evaluate_fetch_ssrf_guard(
+            "http://198.18.0.153/file",
+            true,
+            Some(&[addr]),
+        );
+        assert_eq!(allowed.get("ok").and_then(Value::as_bool), Some(true));
+    }
+
+    #[test]
+    fn openclaw_fetch_redirect_guard_blocks_private_redirect_targets() {
+        let redirected = resolve_fetch_redirect_url("https://example.com/start", "http://127.0.0.1/secret")
+            .expect("redirect url");
+        let blocked = evaluate_fetch_ssrf_guard(&redirected, false, None);
+        assert_eq!(
+            blocked.get("error").and_then(Value::as_str),
+            Some("blocked_private_network_target")
+        );
+    }
+
+    #[test]
+    fn openclaw_fetch_transport_uses_markdown_first_accept_header() {
+        assert_eq!(
+            FETCH_MARKDOWN_ACCEPT_HEADER,
+            "text/markdown, text/html;q=0.9, */*;q=0.1"
+        );
     }
 
     #[test]
@@ -149,5 +258,26 @@ mod openclaw_fetch_helper_tests {
             .and_then(Value::as_str)
             .map(|text| text.contains("[Read more](https://example.com/guide)"))
             .unwrap_or(false));
+    }
+
+    #[test]
+    fn api_fetch_blocks_private_network_targets_before_transport() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let out = api_fetch(
+            tmp.path(),
+            &json!({
+                "url": "http://127.0.0.1/test",
+                "summary_only": true
+            }),
+        );
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            out.get("error").and_then(Value::as_str),
+            Some("blocked_private_network_target")
+        );
+        assert_eq!(
+            out.pointer("/ssrf_guard/error").and_then(Value::as_str),
+            Some("blocked_private_network_target")
+        );
     }
 }

@@ -3,6 +3,7 @@ fn fetch_with_curl_retry(
     timeout_ms: u64,
     max_response_bytes: usize,
     max_attempts: usize,
+    allow_rfc2544_benchmark_range: bool,
 ) -> Value {
     let mut attempts = 0usize;
     let mut best = json!({
@@ -19,7 +20,13 @@ fn fetch_with_curl_retry(
             .get(idx % DEFAULT_WEB_USER_AGENTS.len())
             .copied()
             .unwrap_or(DEFAULT_WEB_USER_AGENTS[0]);
-        let current = fetch_with_curl(url, timeout_ms, max_response_bytes, ua);
+        let current = fetch_with_curl(
+            url,
+            timeout_ms,
+            max_response_bytes,
+            ua,
+            allow_rfc2544_benchmark_range,
+        );
         let current_ok = current.get("ok").and_then(Value::as_bool).unwrap_or(false);
         best = current;
         if current_ok {
