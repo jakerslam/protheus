@@ -76,14 +76,22 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
                 .get("error")
                 .and_then(Value::as_str)
                 .unwrap_or("unsupported_search_filter"),
-            unsupported.get("unsupported_filter").and_then(Value::as_str),
+            unsupported
+                .get("unsupported_filter")
+                .and_then(Value::as_str),
         );
         let _ = append_jsonl(&receipts_path(root), &receipt);
         if let Some(obj) = unsupported.as_object_mut() {
             obj.insert("query".to_string(), Value::String(query.clone()));
-            obj.insert("provider_hint".to_string(), Value::String(provider_hint.clone()));
+            obj.insert(
+                "provider_hint".to_string(),
+                Value::String(provider_hint.clone()),
+            );
             obj.insert("filters".to_string(), normalized_filters.clone());
-            obj.insert("provider_catalog".to_string(), provider_catalog_snapshot(root, &policy));
+            obj.insert(
+                "provider_catalog".to_string(),
+                provider_catalog_snapshot(root, &policy),
+            );
             obj.insert("receipt".to_string(), receipt);
         }
         return unsupported;
@@ -104,7 +112,8 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
         .get("approval_id")
         .and_then(Value::as_str)
         .unwrap_or("");
-    let provider_chain = provider_chain_from_request(&provider_hint, request, &policy);
+    let (mut provider_resolution, provider_chain, selected_provider, allow_fallback) =
+        resolved_search_provider_selection(root, &policy, request, &provider_hint);
     let cache_ttl_seconds = resolve_search_cache_ttl_seconds(request, &policy, "ok");
     let cache_ttl_minutes = if cache_ttl_seconds <= 0 {
         0
@@ -143,14 +152,19 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
                 Value::String(provider_hint.clone()),
             );
             obj.insert("provider_chain".to_string(), json!(provider_chain));
+            obj.insert(
+                "provider_resolution".to_string(),
+                provider_resolution.clone(),
+            );
             obj.insert("cache_status".to_string(), json!("hit"));
         }
         return cached;
     }
     let primary_url = web_search_url(&scoped_query);
     let lite_url = web_search_lite_url(&scoped_query);
-    let mut selected_provider = String::new();
     let mut selected = Value::Null;
+    let initial_selected_provider = selected_provider.clone();
+    let mut executed_provider = String::new();
     let mut attempted = Vec::<String>::new();
     let mut skipped = Vec::<Value>::new();
     let mut provider_errors = Vec::<Value>::new();
@@ -163,6 +177,20 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
                 "reason": "circuit_open",
                 "open_until": open_until
             }));
+            if !allow_fallback {
+                last_payload = Some(json!({
+                    "ok": false,
+                    "error": "provider_circuit_open",
+                    "summary": format!(
+                        "Search provider \"{provider}\" is temporarily unavailable because its circuit breaker is open."
+                    ),
+                    "content": "",
+                    "provider": provider,
+                    "provider_unavailable_reason": "circuit_open",
+                    "circuit_open_until": open_until
+                }));
+                break;
+            }
             continue;
         }
         attempted.push(provider.clone());
@@ -208,7 +236,7 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
         };
         if search_payload_usable(&candidate) {
             record_provider_attempt(root, provider, true, "", &policy);
-            selected_provider = provider.clone();
+            executed_provider = provider.clone();
             selected = candidate;
             break;
         }
@@ -222,6 +250,9 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
             "status_code": candidate.get("status_code").and_then(Value::as_i64).unwrap_or(0)
         }));
         last_payload = Some(candidate);
+        if !allow_fallback {
+            break;
+        }
     }
 
     let mut out = if !selected.is_null() {
@@ -236,6 +267,26 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
             })
         })
     };
+    let final_selected_provider = if executed_provider.is_empty() {
+        selected_provider.clone()
+    } else {
+        executed_provider.clone()
+    };
+    if let Some(obj) = provider_resolution.as_object_mut() {
+        if final_selected_provider != initial_selected_provider {
+            obj.insert(
+                "initial_selected_provider".to_string(),
+                json!(initial_selected_provider),
+            );
+            obj.insert("selection_fallback_used".to_string(), json!(true));
+        } else {
+            obj.insert("selection_fallback_used".to_string(), json!(false));
+        }
+        obj.insert(
+            "selected_provider".to_string(),
+            json!(final_selected_provider),
+        );
+    }
     if out
         .get("provider")
         .and_then(Value::as_str)
@@ -245,10 +296,10 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
         if let Some(obj) = out.as_object_mut() {
             obj.insert(
                 "provider".to_string(),
-                if selected_provider.is_empty() {
+                if final_selected_provider.is_empty() {
                     Value::String("none".to_string())
                 } else {
-                    Value::String(selected_provider.clone())
+                    Value::String(final_selected_provider.clone())
                 },
             );
         }
@@ -276,8 +327,8 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
             }
         }
     }
-    let used_lite_fallback = selected_provider == "duckduckgo_lite";
-    let used_bing_fallback = selected_provider == "bing_rss";
+    let used_lite_fallback = final_selected_provider == "duckduckgo_lite";
+    let used_bing_fallback = final_selected_provider == "bing_rss";
     if let Some(obj) = out.as_object_mut() {
         obj.insert(
             "type".to_string(),
@@ -303,6 +354,10 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
         obj.insert("providers_skipped".to_string(), json!(skipped));
         obj.insert("provider_errors".to_string(), json!(provider_errors));
         obj.insert(
+            "provider_resolution".to_string(),
+            provider_resolution.clone(),
+        );
+        obj.insert(
             "provider_health".to_string(),
             provider_health_snapshot(root, &provider_chain),
         );
@@ -322,7 +377,7 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
     } else {
         "no_results"
     };
-    let search_url = match selected_provider.as_str() {
+    let search_url = match final_selected_provider.as_str() {
         "duckduckgo_lite" => lite_url.clone(),
         "bing_rss" => web_search_bing_rss_url(&scoped_query),
         _ => primary_url.clone(),
@@ -353,7 +408,13 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
         obj.insert("receipt".to_string(), receipt);
     }
     if cache_ttl_seconds > 0 {
-        store_search_cache(root, &cache_key, &out, cache_status, Some(cache_ttl_seconds));
+        store_search_cache(
+            root,
+            &cache_key,
+            &out,
+            cache_status,
+            Some(cache_ttl_seconds),
+        );
     }
     out
 }

@@ -160,7 +160,11 @@ fn configured_scope_path(provider: &str, family: WebProviderFamily) -> String {
     }
 }
 
-fn config_surface_snapshot(policy: &Value, provider: Option<&str>, family: WebProviderFamily) -> Value {
+fn config_surface_snapshot(
+    policy: &Value,
+    provider: Option<&str>,
+    family: WebProviderFamily,
+) -> Value {
     let Some(provider_id) = provider else {
         return Value::Null;
     };
@@ -204,7 +208,11 @@ fn manifest_contract_owner(provider: Option<&str>, family: WebProviderFamily) ->
         .unwrap_or(Value::Null)
 }
 
-fn selected_provider_key_source(policy: &Value, provider: Option<&str>, family: WebProviderFamily) -> Value {
+fn selected_provider_key_source(
+    policy: &Value,
+    provider: Option<&str>,
+    family: WebProviderFamily,
+) -> Value {
     let Some(provider_id) = provider else {
         return Value::Null;
     };
@@ -235,7 +243,7 @@ fn runtime_web_family_metadata(root: &Path, policy: &Value, family: WebProviderF
         .as_ref()
         .and_then(|raw| normalize_provider_token_for_family(raw, family));
     let selected_provider = match family {
-        WebProviderFamily::Search => provider_chain_from_request("", &json!({}), policy)
+        WebProviderFamily::Search => resolved_search_provider_chain("", &json!({}), policy)
             .first()
             .cloned(),
         WebProviderFamily::Fetch => fetch_provider_chain_from_request("", &json!({}), policy)
@@ -271,13 +279,12 @@ fn runtime_web_family_metadata(root: &Path, policy: &Value, family: WebProviderF
         if selected_provider.as_ref() == Some(configured) {
             "configured"
         } else if selected_provider.is_some() {
-            let missing_credential = !provider_has_runtime_credential_with(
-                configured,
-                family,
-                |key| std::env::var(key).ok(),
-            ) && provider_descriptor(configured, family)
-                .map(|descriptor| !descriptor.env_keys.is_empty())
-                .unwrap_or(false);
+            let missing_credential =
+                !provider_has_runtime_credential_with(configured, family, |key| {
+                    std::env::var(key).ok()
+                }) && provider_descriptor(configured, family)
+                    .map(|descriptor| !descriptor.env_keys.is_empty())
+                    .unwrap_or(false);
             if missing_credential {
                 if let Some(selected) = selected_provider.as_ref() {
                     diagnostics.push(runtime_diagnostic(
@@ -359,7 +366,8 @@ pub(crate) fn runtime_web_tools_snapshot(root: &Path, policy: &Value) -> Value {
         .flatten()
         .cloned()
         .chain(
-            fetch.get("diagnostics")
+            fetch
+                .get("diagnostics")
                 .and_then(Value::as_array)
                 .into_iter()
                 .flatten()
@@ -390,12 +398,16 @@ mod openclaw_runtime_web_tools_tests {
         });
         let metadata = runtime_web_tools_snapshot(tmp.path(), &policy);
         assert_eq!(
-            metadata.pointer("/search/selected_provider").and_then(Value::as_str),
+            metadata
+                .pointer("/search/selected_provider")
+                .and_then(Value::as_str),
             Some("duckduckgo")
         );
         let loaded = load_active_runtime_web_tools_metadata(tmp.path());
         assert_eq!(
-            loaded.pointer("/fetch/selected_provider").and_then(Value::as_str),
+            loaded
+                .pointer("/fetch/selected_provider")
+                .and_then(Value::as_str),
             Some("direct_http")
         );
     }
@@ -411,13 +423,18 @@ mod openclaw_runtime_web_tools_tests {
         });
         let metadata = runtime_web_tools_snapshot(tmp.path(), &policy);
         assert_eq!(
-            metadata.pointer("/search/provider_source").and_then(Value::as_str),
+            metadata
+                .pointer("/search/provider_source")
+                .and_then(Value::as_str),
             Some("auto-detect")
         );
         assert!(metadata
             .pointer("/search/diagnostics")
             .and_then(Value::as_array)
-            .map(|rows| rows.iter().any(|row| row.get("code").and_then(Value::as_str) == Some("WEB_SEARCH_PROVIDER_INVALID_AUTODETECT")))
+            .map(|rows| rows
+                .iter()
+                .any(|row| row.get("code").and_then(Value::as_str)
+                    == Some("WEB_SEARCH_PROVIDER_INVALID_AUTODETECT")))
             .unwrap_or(false));
     }
 
@@ -432,17 +449,24 @@ mod openclaw_runtime_web_tools_tests {
         });
         let metadata = runtime_web_tools_snapshot(tmp.path(), &policy);
         assert_eq!(
-            metadata.pointer("/search/provider_configured").and_then(Value::as_str),
+            metadata
+                .pointer("/search/provider_configured")
+                .and_then(Value::as_str),
             Some("serperdev")
         );
         assert_eq!(
-            metadata.pointer("/search/selected_provider").and_then(Value::as_str),
+            metadata
+                .pointer("/search/selected_provider")
+                .and_then(Value::as_str),
             Some("duckduckgo")
         );
         assert!(metadata
             .pointer("/search/diagnostics")
             .and_then(Value::as_array)
-            .map(|rows| rows.iter().any(|row| row.get("code").and_then(Value::as_str) == Some("WEB_SEARCH_KEY_UNRESOLVED_FALLBACK_USED")))
+            .map(|rows| rows
+                .iter()
+                .any(|row| row.get("code").and_then(Value::as_str)
+                    == Some("WEB_SEARCH_KEY_UNRESOLVED_FALLBACK_USED")))
             .unwrap_or(false));
     }
 }
