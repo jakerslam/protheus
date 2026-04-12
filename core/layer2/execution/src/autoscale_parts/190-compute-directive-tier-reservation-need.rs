@@ -230,7 +230,7 @@ pub fn compute_parse_lower_list(input: &ParseLowerListInput) -> ParseLowerListOu
             .csv
             .as_deref()
             .unwrap_or("")
-            .split(',')
+            .split(|ch| matches!(ch, ',' | '\n' | '\r' | ';'))
             .map(|value| value.trim().to_ascii_lowercase())
             .filter(|value| !value.is_empty())
             .collect::<Vec<_>>()

@@ -9,8 +9,10 @@ pub fn compute_parse_lane_decision(input: &ParseLaneDecisionInput) -> ParseLaneD
         let candidates = [
             value_to_string(args.get("brain_lane")),
             value_to_string(args.get("brain-lane")),
+            value_to_string(args.get("brainLane")),
             value_to_string(args.get("generation_lane")),
             value_to_string(args.get("generation-lane")),
+            value_to_string(args.get("generationLane")),
         ];
         candidates
             .into_iter()
