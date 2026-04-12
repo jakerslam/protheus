@@ -251,6 +251,79 @@
       }
       return merged.slice(0, 16);
     },
+    parseStructuredToolInput: function(tool) {
+      var row = tool && typeof tool === 'object' ? tool : {};
+      var input = row.input;
+      if (input && typeof input === 'object' && !Array.isArray(input)) return input;
+      var raw = typeof input === 'string' ? String(input).trim() : '';
+      if (!raw || raw.charAt(0) !== '{') return {};
+      try {
+        var parsed = JSON.parse(raw);
+        return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+      } catch (_) {
+        return {};
+      }
+    },
+    toolMetaCandidates: function(tool) {
+      var input = this.parseStructuredToolInput(tool);
+      var out = [];
+      var query = String(input.query || input.q || '').trim();
+      if (query) out.push('"' + query + '"');
+      var url = String(input.url || input.link || '').trim();
+      if (url) out.push(url);
+      var filePath = String(input.path || '').trim();
+      if (filePath) out.push(filePath);
+      return out.slice(0, 3);
+    },
+    formatToolAggregateMeta: function(tool) {
+      var label = String(tool && tool.name ? tool.name : 'tool').replace(/_/g, ' ').trim() || 'tool';
+      var metas = this.toolMetaCandidates(tool);
+      if (!metas.length) return label;
+      return label + ': ' + metas.join('; ');
+    },
+    backfillToolRowsFromCompletion: function(rows, payload) {
+      var merged = Array.isArray(rows) ? rows.map(function(row) {
+        return row && typeof row === 'object' ? Object.assign({}, row) : row;
+      }) : [];
+      var data = payload && typeof payload === 'object' ? payload : {};
+      var completion =
+        data.response_finalization &&
+        data.response_finalization.tool_completion &&
+        typeof data.response_finalization.tool_completion === 'object'
+          ? data.response_finalization.tool_completion
+          : null;
+      var steps = Array.isArray(completion && completion.live_tool_steps)
+        ? completion.live_tool_steps
+        : [];
+      if (!steps.length) return merged.slice(0, 16);
+      for (var i = 0; i < merged.length; i++) {
+        var row = merged[i] && typeof merged[i] === 'object' ? merged[i] : null;
+        if (!row) continue;
+        var rowName = String(row.name || '').trim().toLowerCase();
+        var step = null;
+        var byIndex = steps[i] && typeof steps[i] === 'object' ? steps[i] : null;
+        if (byIndex && String(byIndex.tool || byIndex.name || '').trim().toLowerCase() === rowName && String(byIndex.status || '').trim()) {
+          step = byIndex;
+        } else {
+          for (var si = 0; si < steps.length; si++) {
+            var candidate = steps[si] && typeof steps[si] === 'object' ? steps[si] : null;
+            if (!candidate) continue;
+            if (String(candidate.tool || candidate.name || '').trim().toLowerCase() !== rowName) continue;
+            if (!String(candidate.status || '').trim()) continue;
+            step = candidate;
+            break;
+          }
+        }
+        if (!step) continue;
+        var statusText = String(step.status || '').trim();
+        if (!row.status && statusText) row.status = statusText.toLowerCase();
+        if ((!row.result || !String(row.result).trim()) && statusText) {
+          row.result = 'Missing tool_result block; last known status: ' + statusText;
+        }
+        if (step.is_error === true && !row.blocked) row.is_error = true;
+      }
+      return merged.slice(0, 16);
+    },
     responseToolRowsFromPayload: function(payload, prefix) {
       var data = payload && typeof payload === 'object' ? payload : {};
       var base = this.mergeToolCardSets(
@@ -268,11 +341,11 @@
       var attempts = Array.isArray(completion && completion.tool_attempts)
         ? completion.tool_attempts
         : [];
-      if (!attempts.length) return base;
+      if (!attempts.length) return this.backfillToolRowsFromCompletion(base, data).slice(0, 16);
       var merged = base.slice();
       for (var i = 0; i < attempts.length; i++) {
         var attemptCard = this.toolCardFromAttemptReceipt(attempts[i], i, prefix || 'attempt');
         merged = this.mergeToolCardSets(merged, [attemptCard]);
       }
-      return merged.slice(0, 16);
+      return this.backfillToolRowsFromCompletion(merged, data).slice(0, 16);
     },

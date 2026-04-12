@@ -8,15 +8,44 @@ fn resolve_tool_name_fallback(normalized: &str, input: &Value) -> String {
             .and_then(Value::as_array)
             .map(|rows| !rows.is_empty())
             .unwrap_or(false);
+    let has_queryish_text = !clean_text(
+        input.as_str().unwrap_or_else(|| {
+            input.get("query")
+                .or_else(|| input.get("message"))
+                .or_else(|| input.get("prompt"))
+                .or_else(|| input.get("objective"))
+                .and_then(Value::as_str)
+                .unwrap_or("")
+        }),
+        400,
+    )
+    .is_empty();
     if normalized.contains("batch") && normalized.contains("query") {
         return "batch_query".to_string();
     }
     if normalized.contains("search") || normalized.contains("web_query") {
         return "batch_query".to_string();
     }
+    if (normalized.contains("compare")
+        || normalized.contains("ranking")
+        || normalized.contains("rank")
+        || normalized.contains("peer")
+        || normalized.contains("framework"))
+        && (has_queryish_text
+            || input
+                .get("source")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .eq_ignore_ascii_case("web"))
+    {
+        return "batch_query".to_string();
+    }
     if normalized.contains("browse")
         || normalized.contains("web_fetch")
         || normalized.contains("fetch_url")
+        || normalized == "fetch"
+        || normalized.contains("open_url")
+        || normalized.contains("read_url")
     {
         return "web_fetch".to_string();
     }
@@ -105,6 +134,17 @@ mod tool_name_fallback_tests {
     fn resolves_search_like_names_to_batch_query() {
         assert_eq!(
             resolve_tool_name_fallback("internet_search_now", &json!({"query": "status"})),
+            "batch_query"
+        );
+    }
+
+    #[test]
+    fn resolves_compare_like_names_to_batch_query() {
+        assert_eq!(
+            resolve_tool_name_fallback(
+                "framework_compare",
+                &json!({"query": "top ai agent frameworks", "source": "web"})
+            ),
             "batch_query"
         );
     }
@@ -488,4 +528,3 @@ fn pending_tool_confirmation_call(root: &Path, agent_id: &str) -> Option<(String
     let input = payload.get("input").cloned().unwrap_or_else(|| json!({}));
     Some((tool_name, input))
 }
-

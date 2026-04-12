@@ -93,6 +93,63 @@ fn clean_agent_id(raw: &str) -> String {
     out
 }
 
+fn tooling_pipeline_display_meta(tool_name: &str, tool_args: &Value) -> Value {
+    let normalized = normalize_tool_name(tool_name);
+    let primary_subject = match normalized.as_str() {
+        "batch_query" | "web_search" | "search_web" | "search" | "web_query" => clean_text(
+            tool_args
+                .get("query")
+                .or_else(|| tool_args.get("q"))
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            240,
+        ),
+        "web_fetch" | "browse" | "web_conduit_fetch" => clean_text(
+            tool_args
+                .get("url")
+                .or_else(|| tool_args.get("link"))
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            240,
+        ),
+        "file_read" | "file_read_many" | "folder_export" | "workspace_analyze" => clean_text(
+            tool_args
+                .get("path")
+                .or_else(|| tool_args.get("query"))
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            240,
+        ),
+        "spawn_subagents" => clean_text(
+            tool_args
+                .get("objective")
+                .or_else(|| tool_args.get("task"))
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            240,
+        ),
+        "terminal_exec" => clean_text(
+            tool_args
+                .get("command")
+                .or_else(|| tool_args.get("cmd"))
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            240,
+        ),
+        _ => String::new(),
+    };
+    let summary = if primary_subject.is_empty() {
+        normalized.clone()
+    } else {
+        format!("{normalized}: {}", trim_text(&primary_subject, 180))
+    };
+    json!({
+        "tool": normalized,
+        "primary_subject": primary_subject,
+        "summary": clean_text(&summary, 260)
+    })
+}
+
 fn tooling_pipeline_execute<F>(
     trace_id: &str,
     task_id: &str,
@@ -185,6 +242,7 @@ where
     json!({
         "ok": true,
         "schema_contract": protheus_tooling_core_v1::published_schema_contract_v1(),
+        "tool_display_meta": tooling_pipeline_display_meta(&tool_name_clean, tool_args),
         "tool_capability_probe": capability_probe,
         "tool_attempt": attempt,
         "tool_attempt_receipt": attempt_receipt,

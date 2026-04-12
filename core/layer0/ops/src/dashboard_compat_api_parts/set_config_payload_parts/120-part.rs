@@ -46,22 +46,32 @@ fn message_requests_comparative_answer(message: &str) -> bool {
     if lowered.is_empty() {
         return false;
     }
-    let asks_compare = lowered.contains("compare")
+    let asks_direct_compare = lowered.contains("compare")
         || lowered.contains("comparison")
         || lowered.contains("vs")
-        || lowered.contains("versus")
+        || lowered.contains("versus");
+    let mentions_subject = lowered.contains("infring")
+        || lowered.contains("openclaw")
+        || lowered.contains("this system")
+        || lowered.contains("this workspace")
+        || lowered.contains("this repo")
+        || lowered.contains("this repository")
+        || lowered.contains("this codebase")
+        || lowered.contains("this project")
+        || lowered.contains("workspace")
+        || lowered.contains("repository")
+        || lowered.contains("codebase")
+        || lowered.contains("project");
+    let asks_peer_position = (lowered.contains("peer")
+        || lowered.contains("peers")
         || lowered.contains("competitor")
         || lowered.contains("competitors")
-        || lowered.contains("framework");
-    let asks_structure = lowered.contains("table")
+        || lowered.contains("among")
         || lowered.contains("rank")
         || lowered.contains("ranking")
-        || lowered.contains("peer")
-        || lowered.contains("peers")
-        || lowered.contains("among")
-        || lowered.contains("top ")
-        || lowered.contains("grade");
-    asks_compare || asks_structure
+        || lowered.contains("grade"))
+        && mentions_subject;
+    asks_direct_compare || asks_peer_position
 }
 
 fn message_requests_tooling_failure_diagnosis(message: &str) -> bool {
