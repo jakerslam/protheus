@@ -124,6 +124,22 @@
       "command": ["node", "client/runtime/lib/ts_entrypoint.ts", "tests/tooling/scripts/ci/release_policy_gate.ts", "--strict=1", "--out=core/local/artifacts/release_policy_gate_current.json"],
       "artifact_paths": ["core/local/artifacts/release_policy_gate_current.json"]
     },
+    "chaos:continuous:gate": {
+      "owner": "ops",
+      "description": "Continuous chaos resilience gate.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "chaos:continuous:gate",
+      "artifact_paths": ["client/local/state/runtime_systems/RUNTIME-SYSTEMS-OPS-CONTINUOUS_CHAOS_RESILIENCE/latest.json"]
+    },
+    "state:kernel:replay": {
+      "owner": "ops",
+      "description": "Deterministic replay verification for the state kernel.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "state:kernel:replay",
+      "artifact_paths": ["client/local/state/runtime_systems/RUNTIME-SYSTEMS-OPS-STATE_KERNEL/latest.json"]
+    },
     "ops:stateful-upgrade-rollback:gate": {
       "owner": "ops",
       "description": "Stateful upgrade and rollback compatibility gate.",

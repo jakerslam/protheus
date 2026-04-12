@@ -22,12 +22,15 @@ const DEFAULT_SEQUENCE = [
   'dr:gameday',
   'dr:gameday',
   'dr:gameday:gate',
+  'chaos:continuous:gate',
+  'state:kernel:replay',
   'release_policy_gate',
   'ops:legacy-runner:release-guard',
   'ops:production-topology:gate',
   'audit:client-layer-boundary',
   'ops:stateful-upgrade-rollback:gate',
   'ops:assimilation:v1:support:guard',
+  'ops:orchestration:hidden-state:guard',
   'ops:release-blockers:gate',
   'ops:release-hardening-window:guard',
   'ops:support-bundle:export',
@@ -103,8 +106,11 @@ function buildReport(argv: string[] = process.argv.slice(2)) {
     const requiredStepsSatisfied =
       requiredStepGateIds.length === 0 || requiredStepGateIds.every((gateId) => passedGateIds.has(gateId));
     const recoveryStep = steps.find((row) => row.gate_id === 'dr:gameday:gate');
+    const chaosStep = steps.find((row) => row.gate_id === 'chaos:continuous:gate');
+    const replayStep = steps.find((row) => row.gate_id === 'state:kernel:replay');
     const topologyStep = steps.find((row) => row.gate_id === 'ops:production-topology:gate');
     const clientBoundaryStep = steps.find((row) => row.gate_id === 'audit:client-layer-boundary');
+    const hiddenStateStep = steps.find((row) => row.gate_id === 'ops:orchestration:hidden-state:guard');
     return {
       ok: failed.length === 0 && requiredStepsSatisfied,
       type: 'release_candidate_dress_rehearsal',
@@ -128,6 +134,16 @@ function buildReport(argv: string[] = process.argv.slice(2)) {
         gate_state: clean(recoveryStep?.gate_state || '', 120),
         ok: recoveryStep?.ok === true,
       },
+      chaos: {
+        ok: chaosStep?.ok === true,
+        payload_type: clean(chaosStep?.payload_type || '', 120),
+        artifact_paths: chaosStep?.artifact_paths || [],
+      },
+      replay: {
+        ok: replayStep?.ok === true,
+        payload_type: clean(replayStep?.payload_type || '', 120),
+        artifact_paths: replayStep?.artifact_paths || [],
+      },
       topology: {
         ok: topologyStep?.ok === true,
         degraded_flags: topologyStep?.degraded_flags || [],
@@ -135,6 +151,10 @@ function buildReport(argv: string[] = process.argv.slice(2)) {
       client_boundary: {
         ok: clientBoundaryStep?.ok === true,
         failed_ids: clientBoundaryStep?.failed_ids || [],
+      },
+      hidden_state: {
+        ok: hiddenStateStep?.ok === true,
+        failure: clean(hiddenStateStep?.failure || '', 200),
       },
       steps,
     };

@@ -324,11 +324,6 @@ function buildBundle(outPath: string) {
       '--strict=0',
       `--out=${probeOut('arch_boundary_conformance.json')}`,
     ]),
-    runTsCommand('production_closure', 'tests/tooling/scripts/ci/production_readiness_closure_gate.ts', [
-      '--strict=0',
-      '--run-smoke=0',
-      `--out=${probeOut('production_readiness_closure_gate.json')}`,
-    ]),
     runTsCommand('release_policy_gate', 'tests/tooling/scripts/ci/release_policy_gate.ts', [
       '--strict=0',
       `--out=${probeOut('release_policy_gate.json')}`,
@@ -365,9 +360,20 @@ function buildBundle(outPath: string) {
 
   checks.push(
     runTsCommand('release_scorecard', 'tests/tooling/scripts/ci/release_scorecard_generate.ts', [
+      '--stage=prebundle',
       `--out=${probeOut('release_scorecard.json')}`,
       `--support-bundle=${provisionalPath}`,
       '--require-release-artifacts=0',
+    ]),
+  );
+  checks.push(
+    runTsCommand('production_closure', 'tests/tooling/scripts/ci/production_readiness_closure_gate.ts', [
+      '--strict=0',
+      '--run-smoke=0',
+      '--stage=prebundle',
+      `--out=${probeOut('production_readiness_closure_gate.json')}`,
+      `--scorecard=${probeOut('release_scorecard.json')}`,
+      `--support-bundle=${provisionalPath}`,
     ]),
   );
   const report = assembleBundleReport(checks, collectBundleFiles());

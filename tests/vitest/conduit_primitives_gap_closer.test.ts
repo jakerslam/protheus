@@ -370,7 +370,8 @@ describe('conduit primitive wrapper contract', () => {
       'utf8',
     );
     expect(source.includes('legacy_runner_not_dev_only')).toBe(true);
-    expect(source.includes('production_closure_regressed')).toBe(true);
+    expect(source.includes('legacy_runner_not_quarantined_from_release_entrypoints')).toBe(true);
+    expect(source.includes('production_closure_regressed')).toBe(false);
   });
 
   test('production closure gate re-checks direct release metrics and client boundary evidence', () => {

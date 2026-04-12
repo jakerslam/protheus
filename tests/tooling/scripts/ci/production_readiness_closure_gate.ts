@@ -8,6 +8,13 @@ type Args = {
   strict: boolean;
   out: string;
   runSmoke: boolean;
+  stage: 'prebundle' | 'final';
+  supportBundlePath: string;
+  scorecardPath: string;
+  topologyPath: string;
+  stateCompatPath: string;
+  rcRehearsalPath: string;
+  clientBoundaryPath: string;
 };
 
 type Check = {
@@ -70,12 +77,40 @@ function parseArgs(argv: string[]): Args {
     strict: false,
     out: 'core/local/artifacts/production_readiness_closure_gate_current.json',
     runSmoke: true,
+    stage: 'final',
+    supportBundlePath: SUPPORT_BUNDLE_ARTIFACT_PATH,
+    scorecardPath: RELEASE_SCORECARD_PATH,
+    topologyPath: TOPOLOGY_ARTIFACT_PATH,
+    stateCompatPath: STATE_COMPAT_ARTIFACT_PATH,
+    rcRehearsalPath: RELEASE_RC_REHEARSAL_PATH,
+    clientBoundaryPath: CLIENT_BOUNDARY_ARTIFACT_PATH,
   };
   for (const token of argv) {
     if (token === '--strict') args.strict = true;
     else if (token.startsWith('--strict=')) args.strict = parseBool(token.slice('--strict='.length), false);
     else if (token.startsWith('--out=')) args.out = token.slice('--out='.length);
     else if (token.startsWith('--run-smoke=')) args.runSmoke = parseBool(token.slice('--run-smoke='.length), true);
+    else if (token.startsWith('--stage=')) {
+      args.stage = token.slice('--stage='.length) === 'prebundle' ? 'prebundle' : 'final';
+    }
+    else if (token.startsWith('--support-bundle=')) {
+      args.supportBundlePath = path.resolve(ROOT, token.slice('--support-bundle='.length));
+    }
+    else if (token.startsWith('--scorecard=')) {
+      args.scorecardPath = path.resolve(ROOT, token.slice('--scorecard='.length));
+    }
+    else if (token.startsWith('--topology=')) {
+      args.topologyPath = path.resolve(ROOT, token.slice('--topology='.length));
+    }
+    else if (token.startsWith('--state-compat=')) {
+      args.stateCompatPath = path.resolve(ROOT, token.slice('--state-compat='.length));
+    }
+    else if (token.startsWith('--rc-rehearsal=')) {
+      args.rcRehearsalPath = path.resolve(ROOT, token.slice('--rc-rehearsal='.length));
+    }
+    else if (token.startsWith('--client-boundary=')) {
+      args.clientBoundaryPath = path.resolve(ROOT, token.slice('--client-boundary='.length));
+    }
   }
   return args;
 }
@@ -215,14 +250,15 @@ function runSmokeScripts(scriptNames: string[]): Check[] {
   });
 }
 
-function checkReleaseEvidence(policy: Policy): Check[] {
-  const topology = readJson<any>(TOPOLOGY_ARTIFACT_PATH, {});
-  const stateCompat = readJson<any>(STATE_COMPAT_ARTIFACT_PATH, {});
-  const supportBundle = readJson<any>(SUPPORT_BUNDLE_ARTIFACT_PATH, {});
-  const scorecard = readJson<any>(RELEASE_SCORECARD_PATH, {});
-  const rcRehearsal = readJson<any>(RELEASE_RC_REHEARSAL_PATH, {});
-  const clientBoundary = readJson<any>(CLIENT_BOUNDARY_ARTIFACT_PATH, {});
+function checkReleaseEvidence(policy: Policy, args: Args): Check[] {
+  const topology = readJson<any>(args.topologyPath, {});
+  const stateCompat = readJson<any>(args.stateCompatPath, {});
+  const supportBundle = readJson<any>(args.supportBundlePath, {});
+  const scorecard = readJson<any>(args.scorecardPath, {});
+  const rcRehearsal = readJson<any>(args.rcRehearsalPath, {});
+  const clientBoundary = readJson<any>(args.clientBoundaryPath, {});
   const thresholds = policy.numeric_thresholds || {};
+  const finalStage = args.stage === 'final';
   const requiredRcStepIds = Array.isArray(policy.release_candidate_rehearsal?.required_step_gate_ids)
     ? policy.release_candidate_rehearsal?.required_step_gate_ids || []
     : [];
@@ -334,25 +370,33 @@ function checkReleaseEvidence(policy: Policy): Check[] {
     },
     {
       id: 'release_candidate_rehearsal_completed',
-      ok: activeRcCycle || (rcRehearsal?.ok === true && rcRequiredStepsOk),
+      ok: !finalStage || activeRcCycle || (rcRehearsal?.ok === true && rcRequiredStepsOk),
       detail:
-        activeRcCycle
+        !finalStage
+          ? 'stage=prebundle;rc_rehearsal_not_required'
+          : activeRcCycle
           ? 'current_rc_cycle_active'
           : `required_steps=${requiredRcStepIds.length};present=${rcRequiredStepsOk};` +
             `failed=${safeNumber(rcRehearsal?.summary?.failed_count, -1)}`,
     },
     {
       id: 'client_authority_regression_guard',
-      ok: clientBoundaryOk && (activeRcCycle || passedRcStepIds.has(clientAuthorityGateId)),
+      ok:
+        clientBoundaryOk &&
+        (!finalStage || activeRcCycle || passedRcStepIds.has(clientAuthorityGateId)),
       detail:
-        activeRcCycle
+        !finalStage
+          ? `stage=prebundle;violations=${safeNumber(clientBoundary?.summary?.violation_count, -1)}`
+          : activeRcCycle
           ? `current_rc_cycle_active;violations=${safeNumber(clientBoundary?.summary?.violation_count, -1)}`
           : `rc_step=${clientAuthorityGateId};violations=${safeNumber(clientBoundary?.summary?.violation_count, -1)}`,
     },
     {
       id: 'support_bundle_incident_truth_package',
-      ok: supportBundle?.incident_truth_package?.ready === true,
-      detail: `failed_checks=${Array.isArray(supportBundle?.incident_truth_package?.failed_checks) ? supportBundle.incident_truth_package.failed_checks.length : 'missing'}`,
+      ok: !finalStage || supportBundle?.incident_truth_package?.ready === true,
+      detail: !finalStage
+        ? 'stage=prebundle;final_bundle_truth_not_required'
+        : `failed_checks=${Array.isArray(supportBundle?.incident_truth_package?.failed_checks) ? supportBundle.incident_truth_package.failed_checks.length : 'missing'}`,
     },
   ];
 }
@@ -386,7 +430,7 @@ function buildReport(args: Args) {
     ),
   );
   if (args.runSmoke) checks.push(...runSmokeScripts(policy.smoke_scripts || []));
-  if (args.runSmoke) checks.push(...checkReleaseEvidence(policy));
+  checks.push(...checkReleaseEvidence(policy, args));
 
   const failed = checks.filter((row) => !row.ok);
   return {
@@ -394,6 +438,7 @@ function buildReport(args: Args) {
     generated_at: new Date().toISOString(),
     strict: args.strict,
     run_smoke: args.runSmoke,
+    stage: args.stage,
     summary: {
       check_count: checks.length,
       failed_count: failed.length,

@@ -7,10 +7,6 @@ import { invokeTsModuleSync } from '../../../../client/runtime/lib/in_process_ts
 
 const ROOT = process.cwd();
 const CLOSURE_POLICY_PATH = path.join(ROOT, 'client/runtime/config/production_readiness_closure_policy.json');
-const CLOSURE_PROBE_PATH = path.join(
-  ROOT,
-  'core/local/artifacts/support_bundle_probes/production_topology_closure_gate.json',
-);
 const RUNNER_PATH = path.join(ROOT, 'adapters/runtime/run_protheus_ops.ts');
 const BRIDGE_PATH = path.join(ROOT, 'adapters/runtime/ops_lane_bridge.ts');
 const DEFAULT_OUT = path.join(ROOT, 'core/local/artifacts/production_topology_diagnostic_current.json');
@@ -84,11 +80,6 @@ function runTs(scriptRelPath: string, args: string[]) {
 function buildReport() {
   const closurePolicy = readJson<any>(CLOSURE_POLICY_PATH, {});
   const topology = runTs('client/runtime/systems/ops/transport_topology_status.ts', ['--json=1']);
-  const closure = runTs('tests/tooling/scripts/ci/production_readiness_closure_gate.ts', [
-    '--strict=0',
-    '--run-smoke=0',
-    `--out=${CLOSURE_PROBE_PATH}`,
-  ]);
   const dr = runTs('tests/tooling/scripts/ops/dr_gameday.ts', ['gate']);
   const runnerSource = fs.existsSync(RUNNER_PATH) ? fs.readFileSync(RUNNER_PATH, 'utf8') : '';
   const bridgeSource = fs.existsSync(BRIDGE_PATH) ? fs.readFileSync(BRIDGE_PATH, 'utf8') : '';
@@ -105,18 +96,16 @@ function buildReport() {
     !bridgeSource.includes('spawnSync(') &&
     runnerSource.includes("./dev_only/legacy_process_runner.ts") &&
     bridgeSource.includes("./dev_only/ops_lane_process_fallback.ts");
-  const closurePass = closure.payload?.summary?.pass === true || closure.payload?.ok === true;
   const topologyPass = topology.payload?.ok === true;
   const degradedFlags = []
     .concat(Array.isArray(topology.payload?.violations) ? topology.payload.violations.map((row: any) => row.id) : [])
-    .concat(closurePass ? [] : ['production_closure_regressed'])
     .concat(legacyRunnerDevOnly ? [] : ['legacy_runner_not_dev_only'])
     .concat(releaseEntrypointsQuarantined ? [] : ['legacy_runner_not_quarantined_from_release_entrypoints'])
     .concat(dr.payload?.gate_state === 'fail' ? ['recovery_rehearsal_regressed'] : [])
     .concat(dr.payload?.gate_state === 'insufficient_samples' ? ['recovery_samples_insufficient'] : [])
     .filter(Boolean);
   const supportedProductionTopology =
-    topologyPass && closurePass && legacyRunnerDevOnly && releaseEntrypointsQuarantined;
+    topologyPass && legacyRunnerDevOnly && releaseEntrypointsQuarantined;
   const supportLevel = supportedProductionTopology
     ? 'production_supported'
     : topology.payload?.production_release === true
@@ -124,7 +113,7 @@ function buildReport() {
       : 'non_production_topology';
 
   return {
-    ok: degradedFlags.length === 0 && topologyPass && closurePass && legacyRunnerDevOnly,
+    ok: degradedFlags.length === 0 && topologyPass && legacyRunnerDevOnly,
     type: 'production_topology_diagnostic',
     generated_at: new Date().toISOString(),
     release_channel: releaseChannel,
@@ -144,8 +133,9 @@ function buildReport() {
         : [],
     },
     closure_status: {
-      ok: closurePass,
-      failed_ids: Array.isArray(closure.payload?.failed_ids) ? closure.payload.failed_ids : [],
+      ok: null,
+      skipped: true,
+      failed_ids: [],
     },
     transport: topology.payload?.transport || {},
     legacy_runner: {

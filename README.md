@@ -57,15 +57,18 @@ What is true in this repository today:
 - Release entrypoints quarantine the legacy runner under `adapters/runtime/dev_only/**`.
 - Legacy runner deletion target: remove `adapters/runtime/dev_only/legacy_process_runner.ts` by `v0.3.11-stable` / `2026-05-15` unless an explicit open release blocker depends on it.
 - Operator topology diagnostic: `npm run -s ops:production-topology:status`
+- Single operator production truth command: `npm run -s ops:status:production`.
 - Transport spawn audit: `npm run -s ops:transport:spawn-audit`
 - Assimilation v1 support guard: `npm run -s ops:assimilation:v1:support:guard`
 - Frozen assimilation v1 slice: one ingress -> orchestration -> assimilation-kernel -> receipt-output path is hardened; broader assimilation surfaces remain experimental.
 - Assimilation v1 can graduate only through candidate-build evidence; no new assimilation surface is added during hardening.
 - Numeric release thresholds are enforced by `npm run -s ops:release:scorecard:gate` and re-checked directly by `npm run -s ops:production-closure:gate`.
+- Release evidence is staged: `ops:release:scorecard:gate` is pre-bundle, and `ops:production-closure:gate` is the final-seal gate after `npm run -s ops:support-bundle:export`.
 - Release scorecard compares against the previous release scorecard when a baseline is provided.
 - Release verdict artifact: `npm run -s ops:release:verdict`.
 - Release-candidate dress rehearsal: `npm run -s ops:release:rc-rehearsal`.
 - Release-candidate recovery rehearsal is required every cycle through `npm run -s ops:release:rc-rehearsal`.
+- Release-candidate rehearsal also requires chaos, replay, and orchestration hidden-state proofs.
 - Client authority regression guard: `npm run -s ops:client-layer:boundary`.
 - Support bundle is the single incident truth package for release closure.
 - Internal/maintenance lanes are not part of the public production SLA.
