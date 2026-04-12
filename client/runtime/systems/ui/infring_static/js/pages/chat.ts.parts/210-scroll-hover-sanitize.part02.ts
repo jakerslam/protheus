@@ -164,7 +164,8 @@
         lower.indexOf('no usable findings yet') >= 0 ||
         lower.indexOf("couldn't extract usable findings") >= 0 ||
         lower.indexOf('could not extract usable findings') >= 0 ||
-        lower.indexOf("couldn't produce source-backed findings in this turn") >= 0
+        lower.indexOf("couldn't produce source-backed findings in this turn") >= 0 ||
+        lower.indexOf('search returned no useful information') >= 0
       );
     },
     textLooksToolAckWithoutFindings: function(text) {
@@ -218,10 +219,14 @@
     },
     lowSignalWebToolSummary: function(tool) {
       var toolName = String(tool && tool.name ? tool.name : 'web tool').replace(/_/g, ' ').trim();
+      var aggregate = typeof this.formatToolAggregateMeta === 'function'
+        ? String(this.formatToolAggregateMeta(tool || {}) || '').trim()
+        : toolName;
+      var suffix = aggregate && aggregate !== toolName ? ' (' + aggregate.replace(/^.*?:\s*/, '') + ')' : '';
       if (this.textMentionsContextGuard(tool && tool.result)) {
-        return 'The ' + (toolName || 'web tool') + ' step returned more output than fit safely in context. Retry with a narrower query, one specific source URL, or ask me to continue from the partial result.';
+        return 'The ' + (toolName || 'web tool') + ' step' + suffix + ' returned more output than fit safely in context. Retry with a narrower query, one specific source URL, or ask me to continue from the partial result.';
       }
-      return 'The ' + (toolName || 'web tool') + ' step ran, but only low-signal web output came back. Retry with a narrower query, one specific source URL, or ask me to continue from the recorded tool result.';
+      return 'The ' + (toolName || 'web tool') + ' step' + suffix + ' ran, but only low-signal web output came back. Retry with a narrower query, one specific source URL, or ask me to continue from the recorded tool result.';
     },
     responseHasAuthoritativeToolCompletion: function(payload, tools) {
       var rows = Array.isArray(tools) ? tools : [];

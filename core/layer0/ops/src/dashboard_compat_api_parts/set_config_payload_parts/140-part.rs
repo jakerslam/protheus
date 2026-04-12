@@ -399,6 +399,7 @@ fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
             && !response_looks_like_tool_ack_without_findings(&sanitized_summary)
             && !response_looks_like_raw_web_artifact_dump(&sanitized_summary)
             && !response_looks_like_unsynthesized_web_snippet_dump(&sanitized_summary)
+            && !response_is_no_findings_placeholder(&sanitized_summary)
         {
             return trim_text(&sanitized_summary, 1200);
         }
@@ -434,7 +435,10 @@ fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
             }
             return no_findings_user_facing_response();
         }
-        return "Search returned no useful information.".to_string();
+        if message_requests_comparative_answer(&query) {
+            return comparative_no_findings_fallback(&query);
+        }
+        return no_findings_user_facing_response();
     }
     if normalized == "web_search"
         || normalized == "search_web"
@@ -486,6 +490,7 @@ fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
         if !sanitized_summary.is_empty()
             && !looks_like_search_engine_chrome_summary(&sanitized_summary)
             && !response_looks_like_tool_ack_without_findings(&sanitized_summary)
+            && !response_is_no_findings_placeholder(&sanitized_summary)
         {
             return trim_text(&sanitized_summary, 1_200);
         }

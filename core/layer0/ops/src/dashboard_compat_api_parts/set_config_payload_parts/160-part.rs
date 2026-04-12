@@ -418,6 +418,12 @@ fn natural_web_intent_from_user_message(message: &str) -> Option<(String, Value)
         let asks_browse = lowered.contains("browse") || lowered.contains("fetch") || lowered.contains("read this") || lowered.contains("summarize") || lowered.contains("look at") || lowered.contains("open") || lowered.contains("web");
         if asks_browse { return Some(("web_fetch".to_string(), json!({"url": url, "summary_only": true}))); }
     }
+    if let Some(query) = natural_web_search_query_from_message(trimmed) {
+        return Some((
+            "batch_query".to_string(),
+            json!({"source": "web", "query": query, "aperture": "medium"}),
+        ));
+    }
     if let Some(route) = comparative_natural_web_intent_from_message(trimmed) {
         return Some(route);
     }
@@ -427,12 +433,62 @@ fn natural_web_intent_from_user_message(message: &str) -> Option<(String, Value)
     {
         return Some(("web_fetch".to_string(), json!({"url": "https://example.com", "summary_only": true, "diagnostic": "natural_language_test_web_fetch"})));
     }
-    let prefixes = ["search the web for ", "search web for ", "search for ", "web search for ", "look up ", "find online "];
+    None
+}
+
+fn strip_wrapped_natural_web_query(text: &str, max_chars: usize) -> String {
+    let mut cleaned = clean_text(text, max_chars);
+    if cleaned.is_empty() {
+        return cleaned;
+    }
+    cleaned = cleaned
+        .trim()
+        .trim_matches(|ch| matches!(ch, '"' | '\'' | '`' | '“' | '”'))
+        .trim()
+        .to_string();
+    loop {
+        let trailing = cleaned.chars().last();
+        if matches!(trailing, Some('.' | '!' | '?' | ';' | ':')) {
+            cleaned.pop();
+            cleaned = cleaned.trim_end().to_string();
+            continue;
+        }
+        break;
+    }
+    clean_text(&cleaned, max_chars)
+}
+
+fn natural_web_search_query_from_message(message: &str) -> Option<String> {
+    let mut trimmed = clean_text(message, 2_200);
+    if trimmed.is_empty() {
+        return None;
+    }
+    let polite_prefixes = ["please ", "can you ", "could you ", "would you ", "just "];
+    for prefix in polite_prefixes {
+        if trimmed.to_ascii_lowercase().starts_with(prefix) && trimmed.len() > prefix.len() {
+            trimmed = clean_text(&trimmed[prefix.len()..], 2_200);
+            break;
+        }
+    }
+    let lowered = trimmed.to_ascii_lowercase();
+    let prefixes = [
+        "try to web search ",
+        "try web search ",
+        "web search for ",
+        "web search ",
+        "search the web for ",
+        "search web for ",
+        "search online for ",
+        "search for ",
+        "look up ",
+        "find online ",
+        "find on the web ",
+    ];
     for prefix in prefixes {
         if lowered.starts_with(prefix) {
-            let query = clean_text(&trimmed[prefix.len()..], 600);
+            let query = strip_wrapped_natural_web_query(&trimmed[prefix.len()..], 600);
             if !query.is_empty() {
-                return Some(("batch_query".to_string(), json!({"source": "web", "query": query, "aperture": "medium"})));
+                return Some(query);
             }
         }
     }
@@ -466,7 +522,21 @@ fn levenshtein_distance(left: &str, right: &str) -> usize {
     costs[right_chars.len()]
 }
 
-const EXPLICIT_SUPPORTED_TOOL_COMMANDS: &[&str] = &["capabilities", "web_search", "web_fetch", "spawn_subagents", "manage_agent", "batch_query", "memory_store", "memory_retrieve", "workspace_analyze"];
+const EXPLICIT_SUPPORTED_TOOL_COMMANDS: &[&str] = &[
+    "capabilities",
+    "web_search",
+    "web_fetch",
+    "spawn_subagents",
+    "manage_agent",
+    "batch_query",
+    "memory_store",
+    "memory_retrieve",
+    "workspace_analyze",
+    "search",
+    "fetch",
+    "browse",
+    "compare",
+];
 
 fn closest_supported_tool_command(command: &str) -> Option<&'static str> {
     let mut best = None::<(&'static str, usize)>;
