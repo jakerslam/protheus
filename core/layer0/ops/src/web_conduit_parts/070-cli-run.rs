@@ -14,7 +14,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         .map(|row| row.to_ascii_lowercase())
         .unwrap_or_else(|| "status".to_string());
     let nexus_connection = match command.as_str() {
-        "fetch" | "browse" | "media" => {
+        "fetch" | "browse" | "media" | "outbound-attachment" => {
             match crate::dashboard_tool_turn_loop::authorize_ingress_tool_call_with_nexus(
                 "web_conduit_fetch",
             ) {
@@ -256,100 +256,11 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 }),
             )
         }
-        "media" => {
-            let source = clean_text(
-                parsed
-                    .flags
-                    .get("url")
-                    .or_else(|| parsed.flags.get("path"))
-                    .map(String::as_str)
-                    .unwrap_or_else(|| parsed.positional.get(1).map(String::as_str).unwrap_or("")),
-                4000,
-            );
-            let resolve_citation_redirect = parsed
-                .flags
-                .get("resolve-citation-redirect")
-                .or_else(|| parsed.flags.get("resolve_citation_redirect"))
-                .map(|raw| {
-                    !matches!(
-                        raw.trim().to_ascii_lowercase().as_str(),
-                        "0" | "false" | "no" | "off"
-                    )
-                })
-                .unwrap_or(true);
-            api_media(
-                root,
-                &json!({
-                    "url": source,
-                    "path": clean_text(parsed.flags.get("path").map(String::as_str).unwrap_or(""), 4000),
-                    "workspace_dir": clean_text(
-                        parsed
-                            .flags
-                            .get("workspace-dir")
-                            .or_else(|| parsed.flags.get("workspace_dir"))
-                            .map(String::as_str)
-                            .unwrap_or(""),
-                        2200
-                    ),
-                    "local_roots": clean_text(
-                        parsed
-                            .flags
-                            .get("local-roots")
-                            .or_else(|| parsed.flags.get("local_roots"))
-                            .or_else(|| parsed.flags.get("local-root"))
-                            .or_else(|| parsed.flags.get("local_root"))
-                            .map(String::as_str)
-                            .unwrap_or(""),
-                        4000
-                    ),
-                    "host_read_capability": parse_bool(parsed.flags.get("host-read-capability"))
-                        || parse_bool(parsed.flags.get("host_read_capability"))
-                        || parse_bool(parsed.flags.get("allow-host-read"))
-                        || parse_bool(parsed.flags.get("allow_host_read")),
-                    "human_approved": parse_bool(parsed.flags.get("human-approved")) || parse_bool(parsed.flags.get("human_approved")),
-                    "approval_id": clean_text(
-                        parsed
-                            .flags
-                            .get("approval-id")
-                            .or_else(|| parsed.flags.get("approval_id"))
-                            .map(String::as_str)
-                            .unwrap_or(""),
-                        160
-                    ),
-                    "summary_only": parse_bool(parsed.flags.get("summary-only")) || parse_bool(parsed.flags.get("summary_only")),
-                    "provider": clean_text(
-                        parsed
-                            .flags
-                            .get("provider")
-                            .or_else(|| parsed.flags.get("fetch-provider"))
-                            .or_else(|| parsed.flags.get("fetch_provider"))
-                            .map(String::as_str)
-                            .unwrap_or("auto"),
-                        40
-                    ),
-                    "resolve_citation_redirect": resolve_citation_redirect,
-                    "timeout_ms": parse_u64(parsed.flags.get("timeout-ms").or_else(|| parsed.flags.get("timeout_ms")), 9000, 1000, 120000),
-                    "max_bytes": parse_u64(parsed.flags.get("max-bytes").or_else(|| parsed.flags.get("max_bytes")), 8 * 1024 * 1024, 4096, 32 * 1024 * 1024)
-                }),
-            )
+        "media" => api_media(root, &cli_media_request_from_parsed(&parsed)),
+        "media-host" => api_media_host(root, &cli_media_host_request_from_parsed(&parsed)),
+        "outbound-attachment" => {
+            api_outbound_attachment(root, &cli_outbound_attachment_request_from_parsed(&parsed))
         }
-        "media-host" => api_media_host(
-            root,
-            &json!({
-                "url": clean_text(parsed.flags.get("url").map(String::as_str).unwrap_or(""), 4000),
-                "path": clean_text(parsed.flags.get("path").map(String::as_str).unwrap_or_else(|| parsed.positional.get(1).map(String::as_str).unwrap_or("")), 4000),
-                "workspace_dir": clean_text(parsed.flags.get("workspace-dir").or_else(|| parsed.flags.get("workspace_dir")).map(String::as_str).unwrap_or(""), 2200),
-                "local_roots": clean_text(parsed.flags.get("local-roots").or_else(|| parsed.flags.get("local_roots")).or_else(|| parsed.flags.get("local-root")).or_else(|| parsed.flags.get("local_root")).map(String::as_str).unwrap_or(""), 4000),
-                "host_read_capability": parse_bool(parsed.flags.get("host-read-capability")) || parse_bool(parsed.flags.get("host_read_capability")) || parse_bool(parsed.flags.get("allow-host-read")) || parse_bool(parsed.flags.get("allow_host_read")),
-                "summary_only": parse_bool(parsed.flags.get("summary-only")) || parse_bool(parsed.flags.get("summary_only")),
-                "provider": clean_text(parsed.flags.get("provider").or_else(|| parsed.flags.get("fetch-provider")).or_else(|| parsed.flags.get("fetch_provider")).map(String::as_str).unwrap_or("auto"), 40),
-                "resolve_citation_redirect": parsed.flags.get("resolve-citation-redirect").or_else(|| parsed.flags.get("resolve_citation_redirect")).map(|raw| !matches!(raw.trim().to_ascii_lowercase().as_str(), "0" | "false" | "no" | "off")).unwrap_or(true),
-                "timeout_ms": parse_u64(parsed.flags.get("timeout-ms").or_else(|| parsed.flags.get("timeout_ms")), 9000, 1000, 120000),
-                "max_bytes": parse_u64(parsed.flags.get("max-bytes").or_else(|| parsed.flags.get("max_bytes")), 8 * 1024 * 1024, 4096, 32 * 1024 * 1024),
-                "ttl_seconds": parse_u64(parsed.flags.get("ttl-seconds").or_else(|| parsed.flags.get("ttl_seconds")), DEFAULT_HOSTED_MEDIA_TTL_SECONDS, 1, MAX_HOSTED_MEDIA_TTL_SECONDS),
-                "base_url": clean_text(parsed.flags.get("base-url").or_else(|| parsed.flags.get("base_url")).map(String::as_str).unwrap_or(""), 2200)
-            }),
-        ),
         "parse-media" => {
             let text = parsed
                 .flags

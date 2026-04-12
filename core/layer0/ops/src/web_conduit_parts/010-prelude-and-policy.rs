@@ -63,6 +63,9 @@ fn usage() {
     println!(
         "  protheus-ops web-conduit media-host --url=<https://...|file://...>|--path=<local-path> [--workspace-dir=<path>] [--local-roots=<path,...>|any] [--ttl-seconds=<n>] [--base-url=<url>] [--summary-only=1]"
     );
+    println!(
+        "  protheus-ops web-conduit outbound-attachment --url=<https://...|file://...>|--path=<local-path> [--workspace-dir=<path>] [--local-roots=<path,...>|any] [--host-read-capability=1] [--summary-only=1]"
+    );
     println!("  protheus-ops web-conduit parse-media --text='<output with MEDIA:... tokens>'");
     println!("  protheus-ops web-conduit file-context --content='<text>' [--content-base64=<base64>] [--file-name=<name>] [--mime-type=<type>] [--fallback-name=<name>] [--compact=1]");
     println!(
