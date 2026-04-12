@@ -415,30 +415,19 @@ fn natural_web_intent_from_user_message(message: &str) -> Option<(String, Value)
     let lowered = clean_text(trimmed, 2200).to_ascii_lowercase();
     let url = first_http_url_in_text(trimmed);
     if !url.is_empty() {
-        let asks_browse = lowered.contains("browse")
-            || lowered.contains("fetch")
-            || lowered.contains("read this")
-            || lowered.contains("summarize")
-            || lowered.contains("look at")
-            || lowered.contains("open")
-            || lowered.contains("web");
-        if asks_browse {
-            return Some(("web_fetch".to_string(), json!({"url": url, "summary_only": true})));
-        }
+        let asks_browse = lowered.contains("browse") || lowered.contains("fetch") || lowered.contains("read this") || lowered.contains("summarize") || lowered.contains("look at") || lowered.contains("open") || lowered.contains("web");
+        if asks_browse { return Some(("web_fetch".to_string(), json!({"url": url, "summary_only": true}))); }
     }
-
     if let Some(route) = comparative_natural_web_intent_from_message(trimmed) {
         return Some(route);
     }
-
-    let prefixes = [
-        "search the web for ",
-        "search web for ",
-        "search for ",
-        "web search for ",
-        "look up ",
-        "find online ",
-    ];
+    if url.is_empty() && ["test web fetch", "do a test web fetch", "try web fetch", "check web fetch"]
+        .iter()
+        .any(|term| lowered.contains(term))
+    {
+        return Some(("web_fetch".to_string(), json!({"url": "https://example.com", "summary_only": true, "diagnostic": "natural_language_test_web_fetch"})));
+    }
+    let prefixes = ["search the web for ", "search web for ", "search for ", "web search for ", "look up ", "find online "];
     for prefix in prefixes {
         if lowered.starts_with(prefix) {
             let query = clean_text(&trimmed[prefix.len()..], 600);

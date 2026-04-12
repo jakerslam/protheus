@@ -277,6 +277,12 @@
       var raw = String(text || '').trim();
       if (!raw) return null;
       var lower = raw.toLowerCase();
+      if (
+        lower === 'i lost the final response handoff for this turn. context is still intact, and i can continue from exactly where this left off.' ||
+        lower.indexOf('completed tool steps:') === 0
+      ) {
+        return null;
+      }
       var markers = [
         "couldn't reach a chat model backend",
         'could not reach a chat model backend',

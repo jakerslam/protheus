@@ -71,6 +71,123 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
       return cleanText(String(value), max);
     }
   };
+  const collectTextContentBlocks = (value, maxItems = 12) => {
+    const out = [];
+    const push = (entry) => {
+      if (!entry || out.length >= maxItems) return;
+      if (typeof entry === 'string') {
+        const text = cleanText(entry, 4000);
+        if (text) out.push(text);
+        return;
+      }
+      if (typeof entry !== 'object') return;
+      if (Array.isArray(entry)) {
+        for (let i = 0; i < entry.length && out.length < maxItems; i++) push(entry[i]);
+        return;
+      }
+      if (Array.isArray(entry.content)) push(entry.content);
+      if (Array.isArray(entry.output)) push(entry.output);
+      const text =
+        typeof entry.text === 'string'
+          ? entry.text
+          : (typeof entry.content === 'string' ? entry.content : '');
+      const cleaned = cleanText(text, 4000);
+      if (cleaned) out.push(cleaned);
+    };
+    push(value);
+    return out;
+  };
+  const extractStructuredTextCandidate = (value, max = 24000) => {
+    const direct = collectTextContentBlocks(value);
+    if (direct.length) return cleanText(direct.join('\n'), max);
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return '';
+    const nestedValues = [value.content, value.result, value.output, value.message, value.summary, value.error, value.text];
+    for (let i = 0; i < nestedValues.length; i++) {
+      const nested = collectTextContentBlocks(nestedValues[i]);
+      if (nested.length) return cleanText(nested.join('\n'), max);
+    }
+    return '';
+  };
+  const isErrorLikeToolStatus = (value) => {
+    const normalized = cleanText(value || '', 80).toLowerCase();
+    if (!normalized) return false;
+    if (
+      normalized === '0' ||
+      normalized === 'ok' ||
+      normalized === 'success' ||
+      normalized === 'completed' ||
+      normalized === 'running'
+    ) {
+      return false;
+    }
+    return /error|fail|timeout|timed[_\s-]?out|denied|cancel|invalid|forbidden/.test(normalized);
+  };
+  const readToolResultDetails = (value) => {
+    if (!value || typeof value !== 'object') return null;
+    const details = value.details;
+    return details && typeof details === 'object' && !Array.isArray(details) ? details : null;
+  };
+  const readToolResultStatus = (value) => {
+    if (!value || typeof value !== 'object') return '';
+    const details = readToolResultDetails(value);
+    const direct = cleanText(value.status || '', 80);
+    if (direct) return direct;
+    return cleanText((details && details.status) || '', 80);
+  };
+  const extractToolErrorText = (value) => {
+    if (typeof value === 'string') {
+      const direct = cleanText(value, 400);
+      return isErrorLikeToolStatus(direct) ? direct : '';
+    }
+    if (!value || typeof value !== 'object') return '';
+    const details = readToolResultDetails(value);
+    const candidates = [
+      value.error,
+      value.message,
+      value.reason,
+      details && details.error,
+      details && details.message,
+      details && details.reason,
+      readToolResultStatus(value),
+    ];
+    for (let i = 0; i < candidates.length; i++) {
+      const text = cleanText(candidates[i] || '', 400);
+      if (!text) continue;
+      if (i < candidates.length - 1 || isErrorLikeToolStatus(text)) return text;
+    }
+    return '';
+  };
+  const extractStructuredToolResultText = (value, max = 24000) => {
+    if (typeof value === 'string') return cleanText(value, max);
+    if (!value || typeof value !== 'object') return '';
+    const structured = extractStructuredTextCandidate(value, max);
+    if (structured) return structured;
+    const textBlocks = collectTextContentBlocks(value.content);
+    if (textBlocks.length) return cleanText(textBlocks.join('\n'), max);
+    const details = readToolResultDetails(value);
+    const candidates = [
+      value.result,
+      value.output,
+      value.summary,
+      value.text,
+      value.message,
+      value.error,
+      details && details.result,
+      details && details.summary,
+      details && details.output,
+      details && details.message,
+      details && details.error,
+      details && details.reason,
+      details && details.status,
+    ];
+    for (let i = 0; i < candidates.length; i++) {
+      const structuredCandidate = extractStructuredTextCandidate(candidates[i], max);
+      if (structuredCandidate) return structuredCandidate;
+      const text = stringifyStructuredValue(candidates[i], max);
+      if (text) return text;
+    }
+    return stringifyStructuredValue(value, max);
+  };
   const normalizeToolContentType = (value) =>
     typeof value === 'string' ? value.toLowerCase() : '';
   const isToolCallContentType = (value) => {
@@ -103,8 +220,24 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
     };
     pushBlocks(data.content);
     pushBlocks(data.response);
+    if (data.response && typeof data.response === 'object' && !Array.isArray(data.response)) {
+      if (typeof data.response.type === 'string') out.push(data.response);
+      pushBlocks(data.response.content);
+      if (data.response.message && typeof data.response.message === 'object') {
+        pushBlocks(data.response.message.content);
+      }
+    }
+    pushBlocks(data.output);
     if (data.message && typeof data.message === 'object') {
+      if (typeof data.message.type === 'string') out.push(data.message);
       pushBlocks(data.message.content);
+    }
+    if (data.result && typeof data.result === 'object') {
+      if (typeof data.result.type === 'string') out.push(data.result);
+      pushBlocks(data.result.content);
+      if (data.result.message && typeof data.result.message === 'object') {
+        pushBlocks(data.result.message.content);
+      }
     }
     return out;
   };
@@ -112,6 +245,10 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
     const data = payload && typeof payload === 'object' ? payload : {};
     if (typeof data.response === 'string') return String(data.response || '');
     if (typeof data.content === 'string') return String(data.content || '');
+    if (data.response && typeof data.response === 'object' && !Array.isArray(data.response)) {
+      if (typeof data.response.text === 'string') return String(data.response.text || '');
+      if (typeof data.response.content === 'string') return String(data.response.content || '');
+    }
     const blocks = structuredContentBlocks(data);
     if (!blocks.length) return '';
     const parts = [];
@@ -141,16 +278,25 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
       const name = cleanText(row.name || row.tool || 'tool', 120).toLowerCase() || 'tool';
       const identity = toolIdentity({ ...row, name }, i, 'tool');
       const input = stringifyStructuredValue(row.input || row.arguments || row.args || '', 16000);
-      const result = stringifyStructuredValue(row.result || row.output || row.summary || '', 24000);
-      const isError = !!(row.is_error || row.error || row.blocked);
+      const rawStatus = cleanText(readToolResultStatus(row) || row.status || '', 40).toLowerCase();
+      const blocked = row.blocked === true || rawStatus === 'blocked' || rawStatus === 'policy_denied';
+      const errorText = extractToolErrorText(row);
+      const result =
+        extractStructuredToolResultText(
+          row.result != null || row.output != null || row.summary != null || row.content != null
+            ? row
+            : {},
+          24000
+        ) || errorText;
+      const isError = !blocked && !!(row.is_error || row.error || errorText || (rawStatus && rawStatus !== 'ok'));
       out.push({
         id: identity.id,
         name,
         input,
         result,
         is_error: isError,
-        blocked: row.blocked === true || String(row.status || '').toLowerCase() === 'blocked',
-        status: cleanText(row.status || '', 40).toLowerCase(),
+        blocked,
+        status: rawStatus,
         attempt_id: identity.attemptId,
         attempt_sequence: identity.attemptSequence,
         identity_key: identity.identityKey,
@@ -210,17 +356,29 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
         attempt_id: toolUseId,
         attempt_sequence: out.length + 1,
       }, out.length);
-      const result = stringifyStructuredValue(
-        block.result ?? block.output ?? block.content ?? block.text ?? block.error ?? '',
-        24000
-      );
+      const rawStatus = cleanText(readToolResultStatus(block) || block.status || '', 40).toLowerCase();
+      const blocked = block.blocked === true || rawStatus === 'blocked' || rawStatus === 'policy_denied';
+      const errorText = extractToolErrorText(block);
+      const result =
+        extractStructuredToolResultText(
+          {
+            result: block.result,
+            output: block.output,
+            content: block.content,
+            text: block.text,
+            error: block.error,
+            message: block.message,
+            status: block.status,
+            details: block.details,
+          },
+          24000
+        ) || errorText;
       if (!row.result && result) row.result = result;
       if (!row.name || row.name === 'tool') row.name = toolName;
-      const rawStatus = cleanText(block.status || '', 40).toLowerCase();
-      const blocked = block.blocked === true || rawStatus === 'blocked' || rawStatus === 'policy_denied';
       const isError =
         block.is_error === true ||
         normalizeToolContentType(block.type) === 'tool_result_error' ||
+        !!errorText ||
         (!!rawStatus && rawStatus !== 'ok' && !blocked);
       if (blocked) row.blocked = true;
       if (isError) row.is_error = true;

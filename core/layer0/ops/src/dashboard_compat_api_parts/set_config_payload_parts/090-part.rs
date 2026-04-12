@@ -22,21 +22,31 @@ fn enforce_user_facing_finalization_contract(
     response_tools: &[Value],
 ) -> (String, Value, String) {
     let findings = response_tools_summary_for_user(response_tools, 4);
-    let findings = if findings.is_empty() {
-        None
-    } else {
-        Some(findings)
-    };
-    let (prefinalized, pre_outcome, _) =
-        finalize_user_facing_response_with_outcome(output, findings);
-    let (finalized, report) = enforce_tool_completion_contract(prefinalized, response_tools);
-    let contract_outcome = clean_text(
-        report
-            .get("outcome")
-            .and_then(Value::as_str)
-            .unwrap_or("unchanged"),
-        200,
-    );
+    let findings = if findings.is_empty() { None } else { Some(findings) };
+    let failure_reason = response_tools_failure_reason_for_user(response_tools, 4);
+    let (mut prefinalized, mut pre_outcome, _) = finalize_user_facing_response_with_outcome(output, findings);
+    let prefinalized_cleaned = clean_text(&prefinalized, 32_000);
+    if !failure_reason.is_empty()
+        && (prefinalized_cleaned.is_empty()
+            || response_looks_like_tool_ack_without_findings(&prefinalized_cleaned)
+            || response_is_no_findings_placeholder(&prefinalized_cleaned))
+    {
+        prefinalized = failure_reason.clone();
+        pre_outcome = merge_response_outcomes(&pre_outcome, "replaced_no_findings_with_tool_failure_reason", 220);
+    }
+    let (mut finalized, mut report) = enforce_tool_completion_contract(prefinalized, response_tools);
+    if !failure_reason.is_empty()
+        && report.get("completion_state").and_then(Value::as_str) == Some("reported_no_findings")
+    {
+        finalized = failure_reason;
+        if let Some(obj) = report.as_object_mut() {
+            obj.insert("completion_state".to_string(), Value::String("reported_reason".to_string()));
+            obj.insert("final_ack_only".to_string(), Value::Bool(false));
+            obj.insert("final_no_findings".to_string(), Value::Bool(false));
+            obj.insert("reasoning".to_string(), Value::String(first_sentence(&finalized, 220)));
+        }
+    }
+    let contract_outcome = clean_text(report.get("outcome").and_then(Value::as_str).unwrap_or("unchanged"), 200);
     let merged_outcome = merge_response_outcomes(&pre_outcome, &contract_outcome, 220);
     (finalized, report, merged_outcome)
 }

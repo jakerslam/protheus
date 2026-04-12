@@ -220,6 +220,16 @@ function assertInterfaceSafetyGuards() {
     'runtime.facade_response_p95_ms',
     'runtime facade p95 must come from rust authority payload when available'
   );
+  assertContains(
+    chatSource,
+    "lower === 'i lost the final response handoff for this turn. context is still intact, and i can continue from exactly where this left off.'",
+    'failover recovery must not recurse on the pure lost-handoff placeholder sentence'
+  );
+  assertContains(
+    chatSource,
+    "lower.indexOf('completed tool steps:') === 0",
+    'failover recovery must not treat tool-only completion summaries as backend failures'
+  );
 
   assertContains(
     hostSource,

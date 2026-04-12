@@ -68,10 +68,10 @@ fn direct_tool_intent_from_user_message(message: &str) -> Option<(String, Value)
                 }
             }
         }
-        if let Some(route) = workspace_analyze_intent_from_message(trimmed, &lowered) {
+        if let Some(route) = natural_web_intent_from_user_message(trimmed) {
             return Some(route);
         }
-        if let Some(route) = natural_web_intent_from_user_message(trimmed) {
+        if let Some(route) = workspace_analyze_intent_from_message(trimmed, &lowered) {
             return Some(route);
         }
         if memory_recall_requested(trimmed) {
@@ -245,6 +245,56 @@ fn direct_tool_intent_from_user_message(message: &str) -> Option<(String, Value)
         }
         "/cron" | "/schedule" => cron_tool_request_from_args(arg),
         _ => None,
+    }
+}
+
+fn response_tools_failure_reason_for_user(response_tools: &[Value], max_items: usize) -> String {
+    let limit = max_items.clamp(1, 6);
+    let mut lines = Vec::<String>::new();
+    let mut seen = HashSet::<String>::new();
+    for tool in response_tools {
+        let name = clean_text(tool.get("name").and_then(Value::as_str).unwrap_or("tool"), 80)
+            .replace('_', " ");
+        let status = clean_text(tool.get("status").and_then(Value::as_str).unwrap_or(""), 120)
+            .to_ascii_lowercase();
+        let blocked = tool.get("blocked").and_then(Value::as_bool).unwrap_or(false);
+        let errored = tool.get("is_error").and_then(Value::as_bool).unwrap_or(false);
+        if name.eq_ignore_ascii_case("thought_process")
+            || (!blocked
+                && !errored
+                && !matches!(status.as_str(), "blocked" | "error" | "failed" | "timeout" | "policy_denied"))
+        {
+            continue;
+        }
+        let reason = first_sentence(
+            &clean_text(
+                tool.get("result").and_then(Value::as_str).unwrap_or(if status.is_empty() {
+                    "tool failed"
+                } else {
+                    &status
+                }),
+                400,
+            ),
+            220,
+        );
+        if reason.is_empty() {
+            continue;
+        }
+        let line = format!("- {}: {}", clean_text(&name, 60), reason);
+        if seen.insert(line.to_ascii_lowercase()) {
+            lines.push(line);
+        }
+        if lines.len() >= limit {
+            break;
+        }
+    }
+    if lines.is_empty() {
+        String::new()
+    } else {
+        trim_text(
+            &format!("The tool run hit issues:\n{}", lines.join("\n")),
+            32_000,
+        )
     }
 }
 
