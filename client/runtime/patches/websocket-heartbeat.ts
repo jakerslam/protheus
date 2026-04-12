@@ -19,11 +19,20 @@
 
 (function() {
   'use strict';
+
+  const env =
+    typeof globalThis !== 'undefined' &&
+    globalThis &&
+    globalThis.process &&
+    globalThis.process.env &&
+    typeof globalThis.process.env === 'object'
+      ? globalThis.process.env
+      : {};
   
   // Configuration
-  const HEARTBEAT_INTERVAL = parseInt(process?.env?.WS_HEARTBEAT_INTERVAL_MS) || 20000;
-  const HEARTBEAT_TIMEOUT = parseInt(process?.env?.WS_HEARTBEAT_TIMEOUT_MS) || 60000;
-  const DEBUG = process?.env?.WS_DEBUG === '1' || false;
+  const HEARTBEAT_INTERVAL = parseInt(env.WS_HEARTBEAT_INTERVAL_MS, 10) || 20000;
+  const HEARTBEAT_TIMEOUT = parseInt(env.WS_HEARTBEAT_TIMEOUT_MS, 10) || 60000;
+  const DEBUG = env.WS_DEBUG === '1' || false;
   
   // Store original WebSocket
   const OriginalWebSocket = globalThis.WebSocket;

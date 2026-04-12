@@ -61,6 +61,16 @@ class EventBuffer {
 // Global event buffer instance
 const globalEventBuffer = new EventBuffer();
 
+function safeSend(ws, socketId, payload, label) {
+  try {
+    ws.send(JSON.stringify(payload));
+    return true;
+  } catch (err) {
+    log('WARN', socketId, `Failed to send ${label}`, err && err.message ? err.message : String(err));
+    return false;
+  }
+}
+
 /**
  * Patch a WebSocketServer to add heartbeat and event replay
  */
@@ -82,12 +92,12 @@ function patchWebSocketServer(wss) {
     });
     
     // Send welcome with current event position
-    ws.send(JSON.stringify({
+    safeSend(ws, socketId, {
       type: 'connected',
       socket_id: socketId,
       current_event_id: globalEventBuffer.lastEventId,
       server_time: Date.now()
-    }));
+    }, 'connected');
     
     // Setup heartbeat
     ws._heartbeatInterval = setInterval(() => {
@@ -106,13 +116,8 @@ function patchWebSocketServer(wss) {
       
       // Send ping
       ws._lastPing = Date.now();
-      try {
-        ws.send(JSON.stringify({ type: 'ping', timestamp: ws._lastPing }));
-        if (DEBUG) {
-          log('DEBUG', socketId, 'Ping sent');
-        }
-      } catch (err) {
-        log('WARN', socketId, 'Failed to send ping', err.message);
+      if (safeSend(ws, socketId, { type: 'ping', timestamp: ws._lastPing }, 'ping') && DEBUG) {
+        log('DEBUG', socketId, 'Ping sent');
       }
     }, HEARTBEAT_INTERVAL_MS);
     
@@ -143,31 +148,33 @@ function patchWebSocketServer(wss) {
           // Check if last_event_id is too old
           if (ws._lastEventId > 0 && globalEventBuffer.isIdTooOld(ws._lastEventId)) {
             log('WARN', socketId, 'Last event ID too old, sending resync_required');
-            ws.send(JSON.stringify({
+            safeSend(ws, socketId, {
               type: 'resync_required',
               current_event_id: globalEventBuffer.lastEventId,
               message: 'Buffered events exceeded, fetch latest via HTTP'
-            }));
+            }, 'resync_required');
           } else {
             // Replay missed events
             const missedEvents = globalEventBuffer.getSince(ws._lastEventId);
             if (missedEvents.length > 0) {
               log('INFO', socketId, `Replaying ${missedEvents.length} missed events`);
               for (const event of missedEvents) {
-                ws.send(JSON.stringify({
+                if (!safeSend(ws, socketId, {
                   type: 'event',
                   event_id: event.id,
                   event_time: event.timestamp,
                   data: event.data
-                }));
+                }, 'event_replay')) {
+                  break;
+                }
               }
             }
             
             // Send caught up
-            ws.send(JSON.stringify({
+            safeSend(ws, socketId, {
               type: 'caught_up',
               current_event_id: globalEventBuffer.lastEventId
-            }));
+            }, 'caught_up');
           }
           return;
         }

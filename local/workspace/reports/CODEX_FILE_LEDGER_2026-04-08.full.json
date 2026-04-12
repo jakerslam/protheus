@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-12T00:38:04.463Z",
+  "generated_at": "2026-04-12T00:43:59.072Z",
   "scope": [
     "core",
     "client/runtime",
@@ -15424,7 +15424,7 @@
       "order": 1401
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/conduit/conduit-client.ts",
       "language": "ts",
       "loc": 411,
@@ -15435,7 +15435,7 @@
       "order": 1402
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/patches/websocket-client-patch.ts",
       "language": "ts",
       "loc": 310,
@@ -15446,7 +15446,7 @@
       "order": 1403
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/patches/websocket-server-patch.ts",
       "language": "ts",
       "loc": 259,
@@ -15457,7 +15457,7 @@
       "order": 1404
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/patches/websocket-heartbeat.ts",
       "language": "ts",
       "loc": 189,
@@ -20022,7 +20022,7 @@
       "order": 1819
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/vitest/conduit_primitives_gap_closer.test.ts",
       "language": "ts",
       "loc": 720,
@@ -21331,7 +21331,7 @@
       "order": 1938
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/client-memory-tools/websocket_client_patch.test.ts",
       "language": "ts",
       "loc": 150,

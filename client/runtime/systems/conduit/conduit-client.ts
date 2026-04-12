@@ -151,6 +151,24 @@ function parseLastJson(stdout: string): Record<string, unknown> | null {
   return null;
 }
 
+function parseResponseEnvelope(raw: string): ResponseEnvelope {
+  const parsed = parseLastJson(raw);
+  if (!parsed) {
+    throw new Error('conduit_response_decode_failed');
+  }
+  if (
+    typeof parsed.request_id !== 'string' ||
+    !parsed.event ||
+    typeof parsed.event !== 'object' ||
+    !parsed.validation ||
+    typeof parsed.validation !== 'object' ||
+    typeof parsed.receipt_hash !== 'string'
+  ) {
+    throw new Error('conduit_response_invalid');
+  }
+  return parsed as ResponseEnvelope;
+}
+
 function runConduitSecurityKernel(command: string, payload: Record<string, unknown>): Record<string, unknown> {
   const encoded = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64');
   const out = conduitSecurityBridge.run([command, `--payload-base64=${encoded}`]);
@@ -372,7 +390,7 @@ export class ConduitClient {
 
     const line = JSON.stringify(envelope);
     const raw = await this.transport.sendLine(line);
-    return JSON.parse(raw) as ResponseEnvelope;
+    return parseResponseEnvelope(raw);
   }
 
   async close(): Promise<void> {
