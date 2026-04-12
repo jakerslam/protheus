@@ -40,9 +40,18 @@ pub struct ParsedArgs {
 
 pub fn parse_args(raw: &[String]) -> ParsedArgs {
     let mut out = ParsedArgs::default();
-    for token in raw {
-        if !token.starts_with("--") {
+    let mut passthrough = false;
+    let mut index = 0usize;
+    while index < raw.len() {
+        let token = &raw[index];
+        if passthrough || !token.starts_with("--") || token == "-" {
             out.positional.push(token.clone());
+            index += 1;
+            continue;
+        }
+        if token == "--" {
+            passthrough = true;
+            index += 1;
             continue;
         }
         match token.split_once('=') {
@@ -51,12 +60,17 @@ pub fn parse_args(raw: &[String]) -> ParsedArgs {
                     .insert(k.trim_start_matches("--").to_string(), v.to_string());
             }
             None => {
-                out.flags.insert(
-                    token.trim_start_matches("--").to_string(),
-                    "true".to_string(),
-                );
+                let key = token.trim_start_matches("--").to_string();
+                let next = raw.get(index + 1).cloned();
+                if let Some(value) = next.filter(|row| row != "--" && !row.starts_with("--")) {
+                    out.flags.insert(key, value);
+                    index += 1;
+                } else {
+                    out.flags.insert(key, "true".to_string());
+                }
             }
         }
+        index += 1;
     }
     out
 }
@@ -385,3 +399,21 @@ fn summarize_violation_counts(violations: &[Value]) -> BTreeMap<String, u64> {
     out
 }
 
+#[cfg(test)]
+mod parse_args_tests {
+    use super::parse_args;
+
+    #[test]
+    fn parse_args_supports_space_separated_values_and_terminator() {
+        let parsed = parse_args(&[
+            "--scope".to_string(),
+            "browser".to_string(),
+            "--strict".to_string(),
+            "--".to_string(),
+            "--literal".to_string(),
+        ]);
+        assert_eq!(parsed.flags.get("scope").map(String::as_str), Some("browser"));
+        assert_eq!(parsed.flags.get("strict").map(String::as_str), Some("true"));
+        assert_eq!(parsed.positional, vec!["--literal".to_string()]);
+    }
+}
