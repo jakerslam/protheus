@@ -126,7 +126,8 @@ pub fn api_status(root: &Path) -> Value {
     let search_provider_catalog = provider_catalog_snapshot(root, &policy);
     let fetch_provider_catalog = fetch_provider_catalog_snapshot(root, &policy);
     let search_request_contract = search_provider_request_contract(&policy);
-    let tool_catalog = web_tool_catalog_snapshot(&policy);
+    let mut tool_catalog = web_tool_catalog_snapshot(&policy);
+    append_web_media_tool_entry(&mut tool_catalog, &policy);
     let search_provider_registration_contract = search_provider_registration_contract(&policy);
     let fetch_provider_registration_contract = fetch_provider_registration_contract(&policy);
     let public_artifact_contracts = web_provider_public_artifact_contracts();
@@ -146,6 +147,7 @@ pub fn api_status(root: &Path) -> Value {
         "search_request_contract": search_request_contract,
         "search_provider_registration_contract": search_provider_registration_contract,
         "fetch_provider_registration_contract": fetch_provider_registration_contract,
+        "media_request_contract": web_media_request_contract(),
         "public_artifact_contracts": public_artifact_contracts,
         "runtime_web_tools_state_path": runtime_web_tools_state_path(root).display().to_string(),
         "runtime_web_tools_metadata": runtime_web_tools_metadata,
@@ -164,7 +166,8 @@ pub fn api_providers(root: &Path) -> Value {
     let default_fetch_provider_chain = fetch_provider_chain_from_request("", &json!({}), &policy);
     let search_providers = provider_catalog_snapshot(root, &policy);
     let fetch_providers = fetch_provider_catalog_snapshot(root, &policy);
-    let tool_catalog = web_tool_catalog_snapshot(&policy);
+    let mut tool_catalog = web_tool_catalog_snapshot(&policy);
+    append_web_media_tool_entry(&mut tool_catalog, &policy);
     let search_provider_registration_contract = search_provider_registration_contract(&policy);
     let fetch_provider_registration_contract = fetch_provider_registration_contract(&policy);
     let public_artifact_contracts = web_provider_public_artifact_contracts();
@@ -180,6 +183,7 @@ pub fn api_providers(root: &Path) -> Value {
         "search_request_contract": search_provider_request_contract(&policy),
         "search_provider_registration_contract": search_provider_registration_contract,
         "fetch_provider_registration_contract": fetch_provider_registration_contract,
+        "media_request_contract": web_media_request_contract(),
         "public_artifact_contracts": public_artifact_contracts,
         "runtime_web_tools_state_path": runtime_web_tools_state_path(root).display().to_string(),
         "runtime_web_tools_metadata": runtime_web_tools_metadata,
