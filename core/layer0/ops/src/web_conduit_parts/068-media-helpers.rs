@@ -397,6 +397,7 @@ fn web_media_request_contract() -> Value {
         "audio_probe_contract": web_media_audio_probe_contract(),
         "pdf_extract_contract": web_media_pdf_extract_contract(),
         "pdf_native_provider_contract": web_media_pdf_native_provider_contract(),
+        "pdf_tool_contract": web_media_pdf_tool_contract(),
         "media_store_contract": media_store_contract(),
         "hosting_contract": web_media_host_contract(),
         "outbound_attachment_contract": web_media_outbound_attachment_contract(),
