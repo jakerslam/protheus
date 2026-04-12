@@ -1,15 +1,37 @@
-pub fn compute_parse_candidate_list_from_llm_payload(
-    input: &ParseCandidateListFromLlmPayloadInput,
-) -> ParseCandidateListFromLlmPayloadOutput {
-    let rows = match input.payload.as_ref() {
-        Some(Value::Array(arr)) => arr.clone(),
-        Some(Value::Object(obj)) => obj
+fn candidate_rows_from_payload(value: &Value) -> Vec<Value> {
+    match value {
+        Value::Array(arr) => arr.clone(),
+        Value::Object(obj) => obj
             .get("candidates")
             .and_then(|v| v.as_array())
             .cloned()
+            .or_else(|| {
+                obj.get("payload")
+                    .map(candidate_rows_from_payload)
+                    .filter(|rows| !rows.is_empty())
+            })
+            .or_else(|| {
+                obj.get("output")
+                    .map(candidate_rows_from_payload)
+                    .filter(|rows| !rows.is_empty())
+            })
+            .unwrap_or_default(),
+        Value::String(raw) => serde_json::from_str::<Value>(raw)
+            .ok()
+            .map(|parsed| candidate_rows_from_payload(&parsed))
             .unwrap_or_default(),
         _ => Vec::new(),
-    };
+    }
+}
+
+pub fn compute_parse_candidate_list_from_llm_payload(
+    input: &ParseCandidateListFromLlmPayloadInput,
+) -> ParseCandidateListFromLlmPayloadOutput {
+    let rows = input
+        .payload
+        .as_ref()
+        .map(candidate_rows_from_payload)
+        .unwrap_or_default();
     let mut out = Vec::new();
     for (idx, row) in rows.iter().enumerate() {
         let row_obj = row.as_object();
