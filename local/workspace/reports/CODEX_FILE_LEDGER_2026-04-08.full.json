@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-12T00:43:59.072Z",
+  "generated_at": "2026-04-12T00:50:31.312Z",
   "scope": [
     "core",
     "client/runtime",
@@ -13741,7 +13741,7 @@
       "order": 1248
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/lib/legacy_conduit_proxy.ts",
       "language": "ts",
       "loc": 36,
@@ -16348,7 +16348,7 @@
       "order": 1485
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/workflow/learning_conduit.ts",
       "language": "ts",
       "loc": 29,
@@ -17668,7 +17668,7 @@
       "order": 1605
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/client-memory-tools/training_conduit_schema_rust_bridge.test.ts",
       "language": "ts",
       "loc": 89,
@@ -19021,7 +19021,7 @@
       "order": 1728
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/client-memory-tools/learning_conduit.test.ts",
       "language": "ts",
       "loc": 9,
@@ -19032,7 +19032,7 @@
       "order": 1729
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/client-memory-tools/learning_conduit_redaction.test.ts",
       "language": "ts",
       "loc": 9,
@@ -19901,7 +19901,7 @@
       "order": 1808
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/client-memory-tools/training_conduit_schema.test.ts",
       "language": "ts",
       "loc": 9,
