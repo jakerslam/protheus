@@ -140,10 +140,15 @@ pub fn api_status(root: &Path) -> Value {
     let search_request_contract = search_provider_request_contract(&policy);
     let mut tool_catalog = web_tool_catalog_snapshot(&policy);
     append_web_media_tool_entry(&mut tool_catalog, &policy);
+    append_web_image_tool_entry(&mut tool_catalog, root, &policy);
     let search_provider_registration_contract = search_provider_registration_contract(&policy);
     let fetch_provider_registration_contract = fetch_provider_registration_contract(&policy);
     let public_artifact_contracts = web_provider_public_artifact_contracts();
     let runtime_web_tools_metadata = runtime_web_tools_snapshot(root, &policy);
+    let image_tool_runtime = runtime_web_tools_metadata
+        .get("image_tool")
+        .cloned()
+        .unwrap_or(Value::Null);
     let native_codex_web_search = native_codex_public_contract(root, &policy);
     let media_generation_action_contracts = media_generate_action_contracts();
     json!({
@@ -161,6 +166,8 @@ pub fn api_status(root: &Path) -> Value {
         "search_provider_registration_contract": search_provider_registration_contract,
         "fetch_provider_registration_contract": fetch_provider_registration_contract,
         "media_request_contract": web_media_request_contract(),
+        "image_tool_contract": crate::web_conduit_provider_runtime::web_image_tool_contract(root, &policy),
+        "image_tool_runtime": image_tool_runtime,
         "public_artifact_contracts": public_artifact_contracts,
         "runtime_web_tools_state_path": runtime_web_tools_state_path(root).display().to_string(),
         "runtime_web_tools_metadata": runtime_web_tools_metadata,
@@ -187,10 +194,15 @@ pub fn api_providers(root: &Path) -> Value {
     let fetch_providers = fetch_provider_catalog_snapshot(root, &policy);
     let mut tool_catalog = web_tool_catalog_snapshot(&policy);
     append_web_media_tool_entry(&mut tool_catalog, &policy);
+    append_web_image_tool_entry(&mut tool_catalog, root, &policy);
     let search_provider_registration_contract = search_provider_registration_contract(&policy);
     let fetch_provider_registration_contract = fetch_provider_registration_contract(&policy);
     let public_artifact_contracts = web_provider_public_artifact_contracts();
     let runtime_web_tools_metadata = runtime_web_tools_snapshot(root, &policy);
+    let image_tool_runtime = runtime_web_tools_metadata
+        .get("image_tool")
+        .cloned()
+        .unwrap_or(Value::Null);
     let native_codex_web_search = native_codex_public_contract(root, &policy);
     let media_generation_action_contracts = media_generate_action_contracts();
     json!({
@@ -204,6 +216,8 @@ pub fn api_providers(root: &Path) -> Value {
         "search_provider_registration_contract": search_provider_registration_contract,
         "fetch_provider_registration_contract": fetch_provider_registration_contract,
         "media_request_contract": web_media_request_contract(),
+        "image_tool_contract": crate::web_conduit_provider_runtime::web_image_tool_contract(root, &policy),
+        "image_tool_runtime": image_tool_runtime,
         "public_artifact_contracts": public_artifact_contracts,
         "runtime_web_tools_state_path": runtime_web_tools_state_path(root).display().to_string(),
         "runtime_web_tools_metadata": runtime_web_tools_metadata,
