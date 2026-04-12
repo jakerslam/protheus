@@ -15442,3 +15442,17 @@ Source summary:
   - `core/layer0/ops/src/web_conduit_parts/082-media-pdf-native-provider.rs`
   - `core/layer0/ops/src/web_conduit_parts/107-openclaw-pdf-ffmpeg-tests.rs`
   - `cargo test --manifest-path core/layer0/ops/Cargo.toml --lib openclaw_pdf_ffmpeg_ -- --nocapture`
+
+### V11-ASSIM-006 — OpenClaw Image Understanding Execution in Rust Web Conduit
+
+- Intent:
+  - Assimilate OpenClaw image-understanding runtime behavior into a Rust-authoritative `web-conduit image-tool` surface with provider-aware multimodal execution and bounded fallback.
+- Acceptance criteria:
+  - `web-conduit` exposes a real `image-tool` execution surface in addition to `image-tool-status`.
+  - Image inputs are loaded through the governed web-media path and fail closed on missing or non-image sources.
+  - Supported providers issue provider-native multimodal request shapes for OpenAI-compatible, Anthropic, Google, and Ollama execution lanes.
+  - Runtime fallback can advance from a failed primary image provider to the next ready executable provider when fallback is allowed.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/089-image-tool-runtime.rs`
+  - `core/layer0/ops/src/web_conduit_parts/111-openclaw-image-tool-runtime-tests.rs`
+  - `cargo test --manifest-path core/layer0/ops/Cargo.toml --lib openclaw_image_tool_ -- --nocapture`

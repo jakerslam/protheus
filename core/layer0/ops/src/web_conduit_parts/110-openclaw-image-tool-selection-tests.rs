@@ -3,7 +3,7 @@ mod openclaw_image_tool_selection_tests {
     use super::*;
 
     #[test]
-    fn openclaw_image_tool_contract_reports_defaults_and_selection_only_gap() {
+    fn openclaw_image_tool_contract_reports_defaults_and_execution_surface() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let policy = default_policy();
         let contract =
@@ -17,14 +17,19 @@ mod openclaw_image_tool_selection_tests {
             contract
                 .pointer("/execution_contract/mode")
                 .and_then(Value::as_str),
-            Some("selection_only")
+            Some("direct_multimodal_provider")
         );
         assert_eq!(
             contract
                 .pointer("/execution_contract/gap")
                 .and_then(Value::as_str),
-            Some("multimodal_transport_not_enabled")
+            Some("provider_subset_only")
         );
+        assert!(contract
+            .pointer("/execution_contract/supported_provider_ids")
+            .and_then(Value::as_array)
+            .map(|rows| rows.iter().any(|row| row.as_str() == Some("openai")))
+            .unwrap_or(false));
     }
 
     #[test]
