@@ -1,0 +1,192 @@
+#[cfg(test)]
+mod openclaw_search_runtime_resolution_tests {
+    use super::*;
+
+    #[test]
+    fn openclaw_search_runtime_resolution_flags_invalid_top_level_search_provider() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        write_json_atomic(
+            &policy_path(tmp.path()),
+            &json!({
+                "web_conduit": {
+                    "enabled": true,
+                    "search_provider": "firecrawl",
+                    "search_provider_order": ["serperdev", "duckduckgo", "bing_rss"]
+                }
+            }),
+        )
+        .expect("write policy");
+
+        let out = api_providers(tmp.path());
+        assert_eq!(
+            out.pointer("/runtime_web_tools_metadata/search/configured_provider_input")
+                .and_then(Value::as_str),
+            Some("firecrawl")
+        );
+        assert_eq!(
+            out.pointer("/runtime_web_tools_metadata/search/selected_provider")
+                .and_then(Value::as_str),
+            Some("duckduckgo")
+        );
+        assert_eq!(
+            out.pointer("/runtime_web_tools_metadata/search/selection_fallback_reason")
+                .and_then(Value::as_str),
+            Some("invalid_configured_provider")
+        );
+        assert_eq!(
+            out.pointer("/default_search_provider_chain/0")
+                .and_then(Value::as_str),
+            Some("duckduckgo")
+        );
+        assert!(out
+            .pointer("/runtime_web_tools_metadata/search/diagnostics")
+            .and_then(Value::as_array)
+            .map(|rows| rows.iter().any(|row| {
+                row.get("code").and_then(Value::as_str)
+                    == Some("WEB_SEARCH_PROVIDER_INVALID_AUTODETECT")
+            }))
+            .unwrap_or(false));
+    }
+
+    #[test]
+    fn openclaw_search_runtime_resolution_prefers_valid_top_level_provider_in_default_chain() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        write_json_atomic(
+            &policy_path(tmp.path()),
+            &json!({
+                "web_conduit": {
+                    "enabled": true,
+                    "search_provider": "bing_rss",
+                    "search_provider_order": ["duckduckgo", "duckduckgo_lite", "bing_rss"]
+                }
+            }),
+        )
+        .expect("write policy");
+
+        let out = api_providers(tmp.path());
+        assert_eq!(
+            out.pointer("/default_search_provider_chain/0")
+                .and_then(Value::as_str),
+            Some("bing_rss")
+        );
+        assert_eq!(
+            out.pointer("/runtime_web_tools_metadata/search/provider_source")
+                .and_then(Value::as_str),
+            Some("configured")
+        );
+        assert_eq!(
+            out.pointer("/runtime_web_tools_metadata/search/selected_provider")
+                .and_then(Value::as_str),
+            Some("bing_rss")
+        );
+        assert_eq!(
+            out.pointer("/tool_catalog/0/default_provider")
+                .and_then(Value::as_str),
+            Some("bing_rss")
+        );
+    }
+
+    #[test]
+    fn openclaw_search_runtime_resolution_snapshot_prefers_request_hint_scope() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let policy = json!({
+            "web_conduit": {
+                "enabled": true,
+                "search_provider_order": ["duckduckgo", "bing_rss"]
+            }
+        });
+
+        let out = crate::web_conduit_provider_runtime::search_provider_resolution_snapshot(
+            tmp.path(),
+            &policy,
+            &json!({"provider": "ddg"}),
+            "ddg",
+        );
+        assert_eq!(
+            out.pointer("/selection_scope").and_then(Value::as_str),
+            Some("request_provider_hint")
+        );
+        assert_eq!(
+            out.pointer("/requested_provider_hint")
+                .and_then(Value::as_str),
+            Some("ddg")
+        );
+        assert_eq!(
+            out.pointer("/provider_chain/0").and_then(Value::as_str),
+            Some("duckduckgo")
+        );
+        assert_eq!(
+            out.pointer("/allow_fallback").and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer("/resolution_contract/prefer_runtime_providers")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+    }
+
+    #[test]
+    fn api_search_does_not_fallback_when_policy_provider_is_explicit_and_circuit_open() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        write_json_atomic(
+            &policy_path(tmp.path()),
+            &json!({
+                "web_conduit": {
+                    "enabled": true,
+                    "search_provider": "bing_rss",
+                    "search_provider_order": ["duckduckgo", "duckduckgo_lite", "bing_rss"],
+                    "provider_circuit_breaker": {
+                        "enabled": true,
+                        "failure_threshold": 1,
+                        "open_for_secs": 60
+                    }
+                }
+            }),
+        )
+        .expect("write policy");
+        let (policy, _) = load_policy(tmp.path());
+        record_provider_attempt(tmp.path(), "bing_rss", false, "timeout", &policy);
+
+        let out = api_search(tmp.path(), &json!({"query": "agent reliability"}));
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            out.get("error").and_then(Value::as_str),
+            Some("provider_circuit_open")
+        );
+        assert_eq!(
+            out.get("provider").and_then(Value::as_str),
+            Some("bing_rss")
+        );
+        assert_eq!(
+            out.pointer("/provider_resolution/selection_scope")
+                .and_then(Value::as_str),
+            Some("policy_configured")
+        );
+        assert_eq!(
+            out.pointer("/provider_resolution/allow_fallback")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer("/provider_resolution/selected_provider")
+                .and_then(Value::as_str),
+            Some("bing_rss")
+        );
+        assert_eq!(
+            out.pointer("/providers_skipped/0/provider")
+                .and_then(Value::as_str),
+            Some("bing_rss")
+        );
+        assert_eq!(
+            out.pointer("/providers_skipped/0/reason")
+                .and_then(Value::as_str),
+            Some("circuit_open")
+        );
+        assert!(out
+            .get("providers_attempted")
+            .and_then(Value::as_array)
+            .map(|rows| rows.is_empty())
+            .unwrap_or(false));
+    }
+}
