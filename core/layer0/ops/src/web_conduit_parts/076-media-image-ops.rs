@@ -326,11 +326,12 @@ fn resize_image_to_jpeg(
         return Err("image_resize_backend_unavailable".to_string());
     }
     with_openclaw_image_temp_dir(|dir| {
+        let normalized = normalize_exif_orientation_for_sips(bytes);
         let input = dir.join("in.img");
         let output = dir.join("out.jpg");
-        fs::write(&input, bytes).map_err(|err| format!("write_resize_input_failed:{err}"))?;
+        fs::write(&input, &normalized).map_err(|err| format!("write_resize_input_failed:{err}"))?;
         let effective_side = if without_enlargement {
-            if let Some(meta) = get_image_metadata(bytes) {
+            if let Some(meta) = get_image_metadata(&normalized) {
                 max_side.min(meta.width.max(meta.height)).max(1)
             } else {
                 max_side.max(1)

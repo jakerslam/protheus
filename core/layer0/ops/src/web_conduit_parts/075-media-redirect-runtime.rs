@@ -261,11 +261,7 @@ fn fetch_remote_media_binary(root: &Path, request: &Value) -> Result<LoadedMedia
         .and_then(Value::as_u64)
         .unwrap_or(requested_timeout_ms.min(5000))
         .clamp(1000, 30_000);
-    let max_bytes = request
-        .get("max_bytes")
-        .and_then(Value::as_u64)
-        .unwrap_or(8 * 1024 * 1024)
-        .clamp(256, 32 * 1024 * 1024) as usize;
+    let max_bytes = media_prefetch_max_bytes(request);
     let resolve_redirect = request
         .get("resolve_citation_redirect")
         .and_then(Value::as_bool)

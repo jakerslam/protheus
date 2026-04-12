@@ -119,11 +119,7 @@ fn media_default_inline_file_name(content_type: &str) -> String {
 
 fn load_inline_media_binary(request: &Value) -> Result<LoadedMedia, Value> {
     let raw_source = media_request_source(request);
-    let max_bytes = request
-        .get("max_bytes")
-        .and_then(Value::as_u64)
-        .unwrap_or(8 * 1024 * 1024)
-        .clamp(256, 32 * 1024 * 1024) as usize;
+    let max_bytes = media_prefetch_max_bytes(request);
     let (bytes, header_content_type) = parse_inline_media_data_url(&raw_source, max_bytes)?;
     let file_name = clean_text(
         request

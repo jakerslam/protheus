@@ -58,7 +58,7 @@ fn usage() {
         "  protheus-ops web-conduit fetch --url=<https://...> [--provider=auto|direct-http|curl] [--extract-mode=text|markdown] [--max-chars=<n>] [--cache-ttl-minutes=<n>] [--timeout-ms=<n>] [--max-response-bytes=<n>] [--resolve-citation-redirect=1] [--human-approved=1] [--approval-id=<id>] [--summary-only=1]"
     );
     println!(
-        "  protheus-ops web-conduit media --url=<https://...|file://...>|--path=<local-path> [--workspace-dir=<path>] [--local-roots=<path,...>|any] [--host-read-capability=1] [--max-bytes=<n>] [--resolve-citation-redirect=1] [--human-approved=1] [--approval-id=<id>] [--summary-only=1]"
+        "  protheus-ops web-conduit media --url=<https://...|file://...>|--path=<local-path> [--workspace-dir=<path>] [--local-roots=<path,...>|any] [--host-read-capability=1] [--max-bytes=<n>] [--optimize-images=1] [--raw=1] [--resolve-citation-redirect=1] [--human-approved=1] [--approval-id=<id>] [--summary-only=1]"
     );
     println!(
         "  protheus-ops web-conduit image-metadata --url=<https://...|file://...>|--path=<local-path> [--workspace-dir=<path>] [--local-roots=<path,...>|any] [--host-read-capability=1] [--max-bytes=<n>] [--summary-only=1]"
@@ -67,7 +67,7 @@ fn usage() {
         "  protheus-ops web-conduit media-host --url=<https://...|file://...>|--path=<local-path> [--workspace-dir=<path>] [--local-roots=<path,...>|any] [--ttl-seconds=<n>] [--base-url=<url>] [--summary-only=1]"
     );
     println!(
-        "  protheus-ops web-conduit outbound-attachment --url=<https://...|file://...>|--path=<local-path> [--workspace-dir=<path>] [--local-roots=<path,...>|any] [--host-read-capability=1] [--summary-only=1]"
+        "  protheus-ops web-conduit outbound-attachment --url=<https://...|file://...>|--path=<local-path> [--workspace-dir=<path>] [--local-roots=<path,...>|any] [--host-read-capability=1] [--optimize-images=1] [--raw=1] [--summary-only=1]"
     );
     println!("  protheus-ops web-conduit parse-media --text='<output with MEDIA:... tokens>'");
     println!(
