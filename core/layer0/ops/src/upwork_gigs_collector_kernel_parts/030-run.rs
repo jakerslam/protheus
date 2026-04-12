@@ -214,5 +214,29 @@ mod tests {
         assert_eq!(out.get("skipped").and_then(Value::as_bool), Some(true));
         assert_eq!(out.get("reason").and_then(Value::as_str), Some("cadence"));
     }
-}
 
+    #[test]
+    fn prepare_run_roots_relative_env_state_dir_under_root() {
+        let root = temp_root();
+        let previous = std::env::var("EYES_STATE_DIR").ok();
+        std::env::set_var("EYES_STATE_DIR", "relative/upwork-eyes");
+
+        let out = command_prepare_run(&root, &Map::new());
+        assert_eq!(
+            out.get("meta_path").and_then(Value::as_str),
+            Some(
+                root.join("relative/upwork-eyes")
+                    .join("collector_meta")
+                    .join("upwork_gigs.json")
+                    .to_string_lossy()
+                    .as_ref()
+            )
+        );
+
+        if let Some(value) = previous {
+            std::env::set_var("EYES_STATE_DIR", value);
+        } else {
+            std::env::remove_var("EYES_STATE_DIR");
+        }
+    }
+}

@@ -65,7 +65,12 @@ fn resolve_eyes_state_dir(root: &Path, payload: &Map<String, Value>) -> PathBuf 
     if let Ok(raw) = std::env::var("EYES_STATE_DIR") {
         let trimmed = raw.trim();
         if !trimmed.is_empty() {
-            return PathBuf::from(trimmed);
+            let candidate = PathBuf::from(trimmed);
+            return if candidate.is_absolute() {
+                candidate
+            } else {
+                root.join(candidate)
+            };
         }
     }
     root.join(EYES_STATE_DEFAULT_REL)
@@ -395,4 +400,3 @@ fn date_seed(payload: &Map<String, Value>) -> String {
     let raw = clean_text(payload.get("date").and_then(Value::as_str), 32);
     if raw.is_empty() { today_utc() } else { raw }
 }
-
