@@ -113,7 +113,7 @@ fn provider_contract_fields_snapshot(provider: &str, family: WebProviderFamily) 
 
 fn provider_registration_contract(policy: &Value, family: WebProviderFamily) -> Value {
     let default_provider_chain = match family {
-        WebProviderFamily::Search => provider_chain_from_request("", &json!({}), policy),
+        WebProviderFamily::Search => resolved_search_provider_chain("", &json!({}), policy),
         WebProviderFamily::Fetch => fetch_provider_chain_from_request("", &json!({}), policy),
     };
     json!({
@@ -162,7 +162,7 @@ pub(crate) fn web_provider_public_artifact_contracts() -> Value {
 }
 
 pub(crate) fn web_tool_catalog_snapshot(policy: &Value) -> Value {
-    let search_chain = provider_chain_from_request("", &json!({}), policy);
+    let search_chain = resolved_search_provider_chain("", &json!({}), policy);
     let fetch_chain = fetch_provider_chain_from_request("", &json!({}), policy);
     json!([
         {
@@ -318,14 +318,18 @@ mod openclaw_provider_contract_tests {
                 "search_cache_ttl_minutes": 13
             }
         });
-        let catalog =
-            provider_catalog_snapshot_with_env_family(tmp.path(), &policy, WebProviderFamily::Search, |key| {
+        let catalog = provider_catalog_snapshot_with_env_family(
+            tmp.path(),
+            &policy,
+            WebProviderFamily::Search,
+            |key| {
                 if key == "SERPER_API_KEY" {
                     Some("test-key".to_string())
                 } else {
                     None
                 }
-            });
+            },
+        );
         let rows = catalog.as_array().expect("catalog rows");
         let serper = rows
             .iter()
@@ -336,7 +340,8 @@ mod openclaw_provider_contract_tests {
             Some("env")
         );
         assert_eq!(
-            serper.pointer("/request_contract/default_count")
+            serper
+                .pointer("/request_contract/default_count")
                 .and_then(Value::as_u64),
             Some(7)
         );
@@ -405,7 +410,8 @@ mod openclaw_provider_contract_tests {
             .find(|row| row.get("tool").and_then(Value::as_str) == Some("web_fetch"))
             .expect("web_fetch tool");
         assert_eq!(
-            search.pointer("/request_contract/default_count")
+            search
+                .pointer("/request_contract/default_count")
                 .and_then(Value::as_u64),
             Some(4)
         );

@@ -128,7 +128,12 @@ pub fn api_status(root: &Path) -> Value {
         .filter(|row| row.get("policy_decision").and_then(Value::as_str) == Some("deny"))
         .count();
     let last = recent.first().cloned().unwrap_or(Value::Null);
-    let default_search_provider_chain = provider_chain_from_request("", &json!({}), &policy);
+    let default_search_provider_chain =
+        crate::web_conduit_provider_runtime::resolved_search_provider_chain(
+            "",
+            &json!({}),
+            &policy,
+        );
     let default_fetch_provider_chain = fetch_provider_chain_from_request("", &json!({}), &policy);
     let search_provider_catalog = provider_catalog_snapshot(root, &policy);
     let fetch_provider_catalog = fetch_provider_catalog_snapshot(root, &policy);
@@ -169,7 +174,12 @@ pub fn api_status(root: &Path) -> Value {
 
 pub fn api_providers(root: &Path) -> Value {
     let (policy, policy_path_value) = load_policy(root);
-    let default_search_provider_chain = provider_chain_from_request("", &json!({}), &policy);
+    let default_search_provider_chain =
+        crate::web_conduit_provider_runtime::resolved_search_provider_chain(
+            "",
+            &json!({}),
+            &policy,
+        );
     let default_fetch_provider_chain = fetch_provider_chain_from_request("", &json!({}), &policy);
     let search_providers = provider_catalog_snapshot(root, &policy);
     let fetch_providers = fetch_provider_catalog_snapshot(root, &policy);
