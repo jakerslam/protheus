@@ -6,6 +6,10 @@ import path from 'node:path';
 
 const ROOT = process.cwd();
 const DEFAULT_OUT = path.join(ROOT, 'core/local/artifacts/legacy_process_runner_release_guard_current.json');
+const CLOSURE_POLICY_PATH = path.join(
+  ROOT,
+  'client/runtime/config/production_readiness_closure_policy.json',
+);
 
 function clean(value: unknown, max = 240): string {
   return String(value == null ? '' : value).trim().slice(0, max);
@@ -36,18 +40,44 @@ function readSource(relPath: string): string {
   return fs.existsSync(abs) ? fs.readFileSync(abs, 'utf8') : '';
 }
 
+function readJson<T>(filePath: string, fallback: T): T {
+  try {
+    return JSON.parse(fs.readFileSync(filePath, 'utf8')) as T;
+  } catch {
+    return fallback;
+  }
+}
+
 function buildReport() {
   const runnerPath = 'adapters/runtime/run_protheus_ops.ts';
   const bridgePath = 'adapters/runtime/ops_lane_bridge.ts';
   const legacyHelperPath = 'adapters/runtime/dev_only/legacy_process_runner.ts';
   const processFallbackHelperPath = 'adapters/runtime/dev_only/ops_lane_process_fallback.ts';
   const runtimeManifestPath = 'client/runtime/config/install_runtime_manifest_v1.txt';
+  const closurePolicy = readJson<any>(CLOSURE_POLICY_PATH, {});
+  const deletionTargetDate = clean(
+    closurePolicy?.legacy_process_runner_transition?.deletion_target_date,
+    40,
+  );
+  const deletionTargetRelease = clean(
+    closurePolicy?.legacy_process_runner_transition?.deletion_target_release,
+    80,
+  );
+  const todayRaw = clean(process.env.INFRING_LEGACY_RUNNER_GUARD_TODAY, 40);
+  const today = todayRaw || new Date().toISOString().slice(0, 10);
+  const deletionDeadlineReached =
+    Boolean(deletionTargetDate) && Number.isFinite(Date.parse(`${deletionTargetDate}T00:00:00Z`))
+      ? Date.parse(`${today}T00:00:00Z`) >= Date.parse(`${deletionTargetDate}T00:00:00Z`)
+      : false;
+  const cutoffOverride = parseBool(process.env.INFRING_LEGACY_RUNNER_DELETION_BLOCKER, false);
 
   const runnerSource = readSource(runnerPath);
   const bridgeSource = readSource(bridgePath);
   const legacyHelperSource = readSource(legacyHelperPath);
   const processFallbackHelperSource = readSource(processFallbackHelperPath);
   const runtimeManifest = readSource(runtimeManifestPath);
+  const legacyHelperExists = fs.existsSync(path.join(ROOT, legacyHelperPath));
+  const processFallbackHelperExists = fs.existsSync(path.join(ROOT, processFallbackHelperPath));
 
   const checks = [
     {
@@ -92,12 +122,31 @@ function buildReport() {
         !runtimeManifest.includes('ops_lane_process_fallback.ts'),
       detail: 'install runtime manifest must not ship dev-only legacy helpers',
     },
+    {
+      id: 'legacy_runner_deletion_target_declared',
+      ok: Boolean(deletionTargetDate) && Boolean(deletionTargetRelease),
+      detail: `target_date=${deletionTargetDate || 'missing'};target_release=${deletionTargetRelease || 'missing'}`,
+    },
+    {
+      id: 'legacy_runner_deleted_by_cutoff',
+      ok: !deletionDeadlineReached || cutoffOverride || !legacyHelperExists,
+      detail: `today=${today};target_date=${deletionTargetDate || 'missing'};exists=${String(legacyHelperExists)};override=${String(cutoffOverride)}`,
+    },
+    {
+      id: 'process_fallback_deleted_by_cutoff',
+      ok: !deletionDeadlineReached || cutoffOverride || !processFallbackHelperExists,
+      detail: `today=${today};target_date=${deletionTargetDate || 'missing'};exists=${String(processFallbackHelperExists)};override=${String(cutoffOverride)}`,
+    },
   ];
 
   return {
     ok: checks.every((row) => row.ok),
     type: 'legacy_process_runner_release_guard',
     generated_at: new Date().toISOString(),
+    deletion_target_date: deletionTargetDate || null,
+    deletion_target_release: deletionTargetRelease || null,
+    deletion_deadline_reached: deletionDeadlineReached,
+    cutoff_override_active: cutoffOverride,
     checks,
     failed: checks.filter((row) => !row.ok).map((row) => row.id),
   };

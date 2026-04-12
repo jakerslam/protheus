@@ -49,6 +49,8 @@
         "ops:transport:topology:gate",
         "ops:transport:spawn-audit",
         "ops:production-topology:gate",
+        "chaos:continuous:gate",
+        "state:kernel:replay",
         "ops:stateful-upgrade-rollback:gate",
         "ops:assimilation:v1:support:guard",
         "ops:release-blockers:gate",
