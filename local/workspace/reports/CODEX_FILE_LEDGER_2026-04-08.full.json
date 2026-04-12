@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-12T03:24:06.339Z",
+  "generated_at": "2026-04-12T03:33:32.964Z",
   "scope": [
     "core",
     "client/runtime",
@@ -10716,7 +10716,7 @@
       "order": 973
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/backlog_github_sync.rs",
       "language": "rs",
       "loc": 24,
@@ -12553,7 +12553,7 @@
       "order": 1140
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ops/backlog_github_sync.ts",
       "language": "ts",
       "loc": 25,
@@ -13279,7 +13279,7 @@
       "order": 1206
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/lib/duality_seed.ts",
       "language": "ts",
       "loc": 170,
@@ -25819,7 +25819,7 @@
       "order": 2346
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/client-memory-tools/conversation_eye_bootstrap.test.ts",
       "language": "ts",
       "loc": 9,
@@ -26270,7 +26270,7 @@
       "order": 2387
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/client-memory-tools/duality_seed.test.ts",
       "language": "ts",
       "loc": 9,
