@@ -8,6 +8,35 @@ mod tests {
         let out = api_status(tmp.path());
         assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
         assert!(out.get("policy").is_some());
+        assert!(out
+            .get("provider_catalog")
+            .and_then(Value::as_array)
+            .map(|rows| !rows.is_empty())
+            .unwrap_or(false));
+        assert!(out
+            .get("default_provider_chain")
+            .and_then(Value::as_array)
+            .map(|rows| !rows.is_empty())
+            .unwrap_or(false));
+    }
+
+    #[test]
+    fn providers_surface_returns_ranked_catalog() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let out = api_providers(tmp.path());
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            out.get("type").and_then(Value::as_str),
+            Some("web_conduit_providers")
+        );
+        let providers = out
+            .get("providers")
+            .and_then(Value::as_array)
+            .expect("provider catalog");
+        assert!(providers
+            .iter()
+            .any(|row| row.get("provider").and_then(Value::as_str) == Some("duckduckgo")));
+        assert!(providers.iter().all(|row| row.get("auto_detect_rank").is_some()));
     }
 
     #[test]
@@ -125,6 +154,32 @@ mod tests {
             out.get("provider")
         );
         assert!(out.get("provider_chain").is_some());
+    }
+
+    #[test]
+    fn api_search_rejects_unknown_explicit_provider() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let out = api_search(
+            tmp.path(),
+            &json!({
+                "query": "agent reliability benchmarks",
+                "provider": "perplexity"
+            }),
+        );
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            out.get("error").and_then(Value::as_str),
+            Some("unknown_search_provider")
+        );
+        assert_eq!(
+            out.get("requested_provider").and_then(Value::as_str),
+            Some("perplexity")
+        );
+        assert!(out
+            .get("provider_catalog")
+            .and_then(Value::as_array)
+            .map(|rows| rows.iter().any(|row| row.get("provider").and_then(Value::as_str) == Some("duckduckgo")))
+            .unwrap_or(false));
     }
 
     #[test]

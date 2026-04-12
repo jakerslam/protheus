@@ -139,10 +139,23 @@ pub fn api_status(root: &Path) -> Value {
         "enabled": policy.pointer("/web_conduit/enabled").and_then(Value::as_bool).unwrap_or(true),
         "policy_path": policy_path_value.to_string_lossy().to_string(),
         "policy": policy,
+        "default_provider_chain": provider_chain_from_request("", &json!({}), &policy),
+        "provider_catalog": provider_catalog_snapshot(root, &policy),
         "receipts_total": receipt_count(root),
         "recent_denied": denied,
         "recent_receipts": recent,
         "last_receipt": last
+    })
+}
+
+pub fn api_providers(root: &Path) -> Value {
+    let (policy, policy_path_value) = load_policy(root);
+    json!({
+        "ok": true,
+        "type": "web_conduit_providers",
+        "policy_path": policy_path_value.to_string_lossy().to_string(),
+        "default_provider_chain": provider_chain_from_request("", &json!({}), &policy),
+        "providers": provider_catalog_snapshot(root, &policy)
     })
 }
 
@@ -407,4 +420,3 @@ pub fn api_fetch(root: &Path, request: &Value) -> Value {
         }
     })
 }
-

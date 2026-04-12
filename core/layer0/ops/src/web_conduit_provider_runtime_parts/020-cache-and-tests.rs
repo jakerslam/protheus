@@ -179,6 +179,50 @@ mod tests {
     }
 
     #[test]
+    fn explicit_provider_hint_rejects_unknown_provider() {
+        assert_eq!(
+            validate_explicit_provider_hint("perplexity"),
+            Some("perplexity".to_string())
+        );
+        assert_eq!(validate_explicit_provider_hint("auto"), None);
+        assert_eq!(validate_explicit_provider_hint("duckduckgo-lite"), None);
+    }
+
+    #[test]
+    fn provider_catalog_snapshot_reports_aliases_and_availability() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let policy = json!({
+            "web_conduit": {
+                "search_provider_order": ["serperdev", "duckduckgo", "bing_rss"]
+            }
+        });
+        let catalog = provider_catalog_snapshot_with_env(tmp.path(), &policy, |_key| None);
+        let rows = catalog.as_array().expect("catalog rows");
+        let default = rows
+            .iter()
+            .find(|row| row.get("selected_by_default").and_then(Value::as_bool) == Some(true))
+            .expect("default provider");
+        assert_eq!(default.get("provider").and_then(Value::as_str), Some("duckduckgo"));
+        let serper = rows
+            .iter()
+            .find(|row| row.get("provider").and_then(Value::as_str) == Some("serperdev"))
+            .expect("serper row");
+        assert_eq!(
+            serper.get("requires_credential").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            serper.get("credential_present").and_then(Value::as_bool),
+            Some(false)
+        );
+        assert!(serper
+            .get("aliases")
+            .and_then(Value::as_array)
+            .map(|rows| rows.iter().any(|row| row.as_str() == Some("serper")))
+            .unwrap_or(false));
+    }
+
+    #[test]
     fn circuit_breaker_opens_after_threshold_failures() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let policy = json!({

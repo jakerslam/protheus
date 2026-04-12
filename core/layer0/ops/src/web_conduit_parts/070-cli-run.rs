@@ -56,6 +56,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             json!({"ok": true, "type": "web_conduit_help"})
         }
         "status" => api_status(root),
+        "providers" => api_providers(root),
         "receipts" => {
             let limit = parse_u64(parsed.flags.get("limit"), 20, 1, 200) as usize;
             api_receipts(root, limit)
@@ -169,4 +170,3 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         1
     }
 }
-

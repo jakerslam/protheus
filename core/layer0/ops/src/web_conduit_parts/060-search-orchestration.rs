@@ -42,6 +42,25 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
         40,
     )
     .to_ascii_lowercase();
+    if let Some(unknown_provider) = validate_explicit_provider_hint(&provider_hint) {
+        let receipt = build_receipt(
+            "",
+            "deny",
+            None,
+            0,
+            "unknown_search_provider",
+            Some(&unknown_provider),
+        );
+        let _ = append_jsonl(&receipts_path(root), &receipt);
+        return json!({
+            "ok": false,
+            "error": "unknown_search_provider",
+            "query": query,
+            "requested_provider": unknown_provider,
+            "provider_catalog": provider_catalog_snapshot(root, &policy),
+            "receipt": receipt
+        });
+    }
     let top_k = request
         .get("top_k")
         .or_else(|| request.get("max_results"))
@@ -296,4 +315,3 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
     store_search_cache(root, &cache_key, &out, cache_status);
     out
 }
-
