@@ -127,6 +127,9 @@ pub fn api_status(root: &Path) -> Value {
     let fetch_provider_catalog = fetch_provider_catalog_snapshot(root, &policy);
     let search_request_contract = search_provider_request_contract(&policy);
     let tool_catalog = web_tool_catalog_snapshot(&policy);
+    let search_provider_registration_contract = search_provider_registration_contract(&policy);
+    let fetch_provider_registration_contract = fetch_provider_registration_contract(&policy);
+    let public_artifact_contracts = web_provider_public_artifact_contracts();
     json!({
         "ok": true,
         "enabled": policy.pointer("/web_conduit/enabled").and_then(Value::as_bool).unwrap_or(true),
@@ -139,6 +142,9 @@ pub fn api_status(root: &Path) -> Value {
         "search_provider_catalog": search_provider_catalog,
         "fetch_provider_catalog": fetch_provider_catalog,
         "search_request_contract": search_request_contract,
+        "search_provider_registration_contract": search_provider_registration_contract,
+        "fetch_provider_registration_contract": fetch_provider_registration_contract,
+        "public_artifact_contracts": public_artifact_contracts,
         "tool_catalog": tool_catalog,
         "receipts_total": receipt_count(root),
         "recent_denied": denied,
@@ -154,6 +160,9 @@ pub fn api_providers(root: &Path) -> Value {
     let search_providers = provider_catalog_snapshot(root, &policy);
     let fetch_providers = fetch_provider_catalog_snapshot(root, &policy);
     let tool_catalog = web_tool_catalog_snapshot(&policy);
+    let search_provider_registration_contract = search_provider_registration_contract(&policy);
+    let fetch_provider_registration_contract = fetch_provider_registration_contract(&policy);
+    let public_artifact_contracts = web_provider_public_artifact_contracts();
     json!({
         "ok": true,
         "type": "web_conduit_providers",
@@ -162,6 +171,9 @@ pub fn api_providers(root: &Path) -> Value {
         "default_search_provider_chain": default_search_provider_chain,
         "default_fetch_provider_chain": default_fetch_provider_chain,
         "search_request_contract": search_provider_request_contract(&policy),
+        "search_provider_registration_contract": search_provider_registration_contract,
+        "fetch_provider_registration_contract": fetch_provider_registration_contract,
+        "public_artifact_contracts": public_artifact_contracts,
         "tool_catalog": tool_catalog,
         "providers": search_providers.clone(),
         "search_providers": search_providers,
