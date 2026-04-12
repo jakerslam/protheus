@@ -71,14 +71,8 @@ fn combine_pdf_extraction_text(rows: &[Value]) -> String {
 
 fn api_pdf_tool(root: &Path, request: &Value) -> Value {
     let contract = web_media_pdf_tool_contract();
-    let prompt = {
-        let value = normalize_request_string(request, "prompt", &[], 4000);
-        if value.is_empty() {
-            PDF_TOOL_DEFAULT_PROMPT.to_string()
-        } else {
-            value
-        }
-    };
+    let (prompt, _model_override) =
+        resolve_media_tool_prompt_and_model_override(request, PDF_TOOL_DEFAULT_PROMPT);
     let max_bytes_mb = parse_fetch_u64(
         request
             .get("max_bytes_mb")
@@ -104,10 +98,7 @@ fn api_pdf_tool(root: &Path, request: &Value) -> Value {
         0,
         20_000,
     ) as usize;
-    let summary_only = request
-        .get("summary_only")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
+    let summary_only = media_tool_read_boolean_param(request, "summary_only").unwrap_or(false);
     let pdf_inputs = match resolve_pdf_tool_inputs(request) {
         Ok(rows) => rows,
         Err(mut err) => {

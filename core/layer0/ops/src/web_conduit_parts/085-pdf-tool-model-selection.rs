@@ -149,12 +149,7 @@ fn dedupe_trimmed_rows(rows: Vec<String>) -> Vec<String> {
 }
 
 fn resolve_pdf_tool_inputs(request: &Value) -> Result<Vec<String>, Value> {
-    let mut inputs = Vec::<String>::new();
-    let pdf = normalize_request_string(request, "pdf", &[], 4000);
-    if !pdf.is_empty() {
-        inputs.push(pdf);
-    }
-    inputs.extend(request_string_list(request, "pdfs", &[], 4000));
+    let mut inputs = normalize_media_reference_inputs(request, "pdf", "pdfs", PDF_TOOL_MAX_PDFS, "PDF inputs")?;
     inputs.extend(request_string_list(request, "sources", &[], 4000));
     let path = normalize_request_string(request, "path", &[], 4000);
     if !path.is_empty() {
@@ -164,7 +159,7 @@ fn resolve_pdf_tool_inputs(request: &Value) -> Result<Vec<String>, Value> {
     if !url.is_empty() {
         inputs.push(url);
     }
-    let deduped = dedupe_trimmed_rows(inputs);
+    let deduped = normalize_media_reference_candidates(inputs, PDF_TOOL_MAX_PDFS, "PDF inputs")?;
     if deduped.is_empty() {
         Err(json!({
             "ok": false,

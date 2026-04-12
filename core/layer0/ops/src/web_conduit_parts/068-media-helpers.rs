@@ -329,14 +329,24 @@ fn media_request_read_denied_by_policy(request: &Value) -> bool {
 }
 
 fn media_request_host_read_capability(request: &Value) -> bool {
-    let requested = request
-        .get("host_read_capability")
-        .or_else(|| request.get("allow_host_read"))
-        .or_else(|| request.pointer("/media_access/host_read_capability"))
-        .or_else(|| request.pointer("/media_access/allow_host_read"))
-        .or_else(|| request.pointer("/mediaAccess/host_read_capability"))
-        .or_else(|| request.pointer("/mediaAccess/allowHostRead"))
-        .and_then(Value::as_bool)
+    let requested = media_tool_read_boolean_param(request, "host_read_capability")
+        .or_else(|| media_tool_read_boolean_param(request, "allow_host_read"))
+        .or_else(|| {
+            request
+                .pointer("/media_access/host_read_capability")
+                .and_then(Value::as_bool)
+        })
+        .or_else(|| {
+            request
+                .pointer("/media_access/allow_host_read")
+                .and_then(Value::as_bool)
+        })
+        .or_else(|| {
+            request
+                .pointer("/mediaAccess/host_read_capability")
+                .and_then(Value::as_bool)
+        })
+        .or_else(|| request.pointer("/mediaAccess/allowHostRead").and_then(Value::as_bool))
         .unwrap_or(false);
     requested && !media_request_read_denied_by_policy(request)
 }
@@ -381,6 +391,7 @@ fn web_media_request_contract() -> Value {
         "rejects_windows_network_paths": true,
         "host_read_capability_requires_sniffed_binary_or_office_document": true,
         "summary_only_default": false,
+        "tool_shared_contract": web_media_tool_shared_contract(),
         "remote_request_headers_contract": {
             "top_level_fields": ["headers", "http_headers", "request_headers"],
             "string_map_only": true,
