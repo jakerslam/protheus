@@ -14,7 +14,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         .map(|row| row.to_ascii_lowercase())
         .unwrap_or_else(|| "status".to_string());
     let nexus_connection = match command.as_str() {
-        "fetch" | "browse" | "media" | "outbound-attachment" => {
+        "fetch" | "browse" | "media" | "outbound-attachment" | "qr-image" => {
             match crate::dashboard_tool_turn_loop::authorize_ingress_tool_call_with_nexus(
                 "web_conduit_fetch",
             ) {
@@ -268,6 +268,39 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 .map(String::as_str)
                 .unwrap_or_else(|| parsed.positional.get(1).map(String::as_str).unwrap_or(""));
             api_parse_media(&json!({ "text": text }))
+        }
+        "qr-image" => {
+            let text = parsed
+                .flags
+                .get("text")
+                .map(String::as_str)
+                .unwrap_or_else(|| parsed.positional.get(1).map(String::as_str).unwrap_or(""));
+            api_qr_image(
+                root,
+                &json!({
+                    "text": text,
+                    "scale": parse_u64(parsed.flags.get("scale"), DEFAULT_QR_SCALE as u64, 1, MAX_QR_SCALE as u64),
+                    "margin_modules": parse_u64(
+                        parsed
+                            .flags
+                            .get("margin-modules")
+                            .or_else(|| parsed.flags.get("margin_modules")),
+                        DEFAULT_QR_MARGIN_MODULES as u64,
+                        0,
+                        MAX_QR_MARGIN_MODULES as u64
+                    ),
+                    "prompt_image_order": clean_text(
+                        parsed
+                            .flags
+                            .get("prompt-image-order")
+                            .or_else(|| parsed.flags.get("prompt_image_order"))
+                            .map(String::as_str)
+                            .unwrap_or(""),
+                        40
+                    ),
+                    "summary_only": parse_bool(parsed.flags.get("summary-only")) || parse_bool(parsed.flags.get("summary_only"))
+                }),
+            )
         }
         "file-context" => {
             api_file_context(&json!({

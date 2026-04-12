@@ -376,11 +376,13 @@ fn web_media_request_contract() -> Value {
         "rejects_windows_network_paths": true,
         "host_read_capability_requires_sniffed_binary_or_office_document": true,
         "summary_only_default": false,
+        "prompt_image_order_contract": web_media_prompt_image_order_contract(),
         "voice_audio_contract": web_media_voice_contract(),
         "media_store_contract": media_store_contract(),
         "hosting_contract": web_media_host_contract(),
         "outbound_attachment_contract": web_media_outbound_attachment_contract(),
-        "file_context_contract": web_media_file_context_contract()
+        "file_context_contract": web_media_file_context_contract(),
+        "qr_image_contract": web_media_qr_contract()
     })
 }
 
@@ -401,9 +403,11 @@ fn web_media_parse_contract() -> Value {
     json!({
         "marker": "MEDIA:",
         "supports_audio_as_voice_tag": true,
+        "audio_tag_contract": web_media_audio_tag_contract(),
         "rejects_traversal_and_home_dir_paths": true,
         "ignores_fenced_media_lines": true,
-        "supports_quoted_paths_with_spaces": true
+        "supports_quoted_paths_with_spaces": true,
+        "returns": ["text", "media_urls", "media_url", "audio_as_voice", "had_audio_tag", "audio_delivery_mode", "segments"]
     })
 }
 
@@ -441,4 +445,5 @@ fn append_web_media_tool_entry(tool_catalog: &mut Value, policy: &Value) {
         }));
     }
     append_web_media_outbound_tool_entry(tool_catalog, policy);
+    append_web_media_qr_tool_entry(tool_catalog, policy);
 }
