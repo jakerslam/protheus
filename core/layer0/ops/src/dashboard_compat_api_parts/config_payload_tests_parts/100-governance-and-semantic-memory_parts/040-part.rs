@@ -97,11 +97,165 @@ fn direct_tool_turn_persists_tool_cards_and_finalization_in_session_history() {
         .cloned()
         .unwrap_or(Value::Null);
     assert_eq!(assistant.get("role").and_then(Value::as_str), Some("assistant"));
+    let first_tool_name = assistant
+        .pointer("/tools/0/name")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    assert!(
+        matches!(first_tool_name, "tool_command_router" | "web_search"),
+        "unexpected tool name: {first_tool_name}"
+    );
     assert_eq!(
-        assistant.pointer("/tools/0/name").and_then(Value::as_str),
-        Some("tool_command_router")
+        assistant
+            .pointer("/response_workflow/contract")
+            .and_then(Value::as_str),
+        Some("agent_workflow_library_v1")
+    );
+    assert_eq!(
+        assistant
+            .pointer("/response_workflow/selected_workflow/name")
+            .and_then(Value::as_str),
+        Some("complex_prompt_chain_v1")
     );
     assert!(assistant.get("response_finalization").is_some());
+}
+
+#[test]
+fn workflow_library_marks_final_llm_stage_for_tool_turns() {
+    let workflow = run_turn_workflow_final_response(
+        Path::new("."),
+        "auto",
+        "auto",
+        &[],
+        "Try to web search \"top AI agent frameworks\" and return the results",
+        "model_inline_tool_execution",
+        &[json!({
+            "name": "batch_query",
+            "input": "{\"source\":\"web\",\"query\":\"top AI agent frameworks\"}",
+            "status": "ok",
+            "is_error": false,
+            "blocked": false,
+            "result": "Web retrieval returned low-signal snippets without synthesis."
+        })],
+        &[],
+        "Web retrieval returned low-signal snippets without synthesis.",
+    );
+    assert_eq!(
+        workflow.get("contract").and_then(Value::as_str),
+        Some("agent_workflow_library_v1")
+    );
+    assert_eq!(
+        workflow
+            .pointer("/selected_workflow/name")
+            .and_then(Value::as_str),
+        Some("complex_prompt_chain_v1")
+    );
+    assert_eq!(
+        workflow
+            .pointer("/final_llm_response/required")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        workflow
+            .pointer("/workflow_gate/status")
+            .and_then(Value::as_str),
+        Some("enforced")
+    );
+    assert_eq!(
+        workflow
+            .pointer("/final_llm_response/status")
+            .and_then(Value::as_str),
+        Some("skipped_test")
+    );
+}
+
+#[test]
+fn workflow_library_gate_applies_to_direct_answers_too() {
+    let workflow = run_turn_workflow_final_response(
+        Path::new("."),
+        "auto",
+        "auto",
+        &[],
+        "Just say hello normally",
+        "model_direct_answer",
+        &[],
+        &[],
+        "Hello there.",
+    );
+    assert_eq!(
+        workflow.get("contract").and_then(Value::as_str),
+        Some("agent_workflow_library_v1")
+    );
+    assert_eq!(
+        workflow
+            .pointer("/selected_workflow/name")
+            .and_then(Value::as_str),
+        Some("complex_prompt_chain_v1")
+    );
+    assert_eq!(
+        workflow
+            .pointer("/workflow_gate/status")
+            .and_then(Value::as_str),
+        Some("enforced")
+    );
+    assert_eq!(
+        workflow
+            .pointer("/final_llm_response/status")
+            .and_then(Value::as_str),
+        Some("accepted_initial_model_response")
+    );
+}
+
+#[test]
+fn direct_message_safe_step_prompt_returns_workflow_metadata() {
+    let root = governance_temp_root();
+    let snapshot = governance_ok_snapshot();
+    let parent = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"name":"workflow-metadata-agent","role":"operator"}"#,
+        &snapshot,
+    )
+    .expect("parent create");
+    let parent_id = clean_agent_id(
+        parent
+            .payload
+            .get("agent_id")
+            .or_else(|| parent.payload.get("id"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+    );
+    let response = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{parent_id}/message"),
+        br#"{"message":"Run `infring web search` as the next safe step."}"#,
+        &snapshot,
+    )
+    .expect("message response");
+    assert_eq!(
+        response
+            .payload
+            .pointer("/response_workflow/contract")
+            .and_then(Value::as_str),
+        Some("agent_workflow_library_v1")
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/response_workflow/selected_workflow/name")
+            .and_then(Value::as_str),
+        Some("complex_prompt_chain_v1")
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/response_workflow/final_llm_response/status")
+            .and_then(Value::as_str),
+        Some("skipped_test")
+    );
 }
 
 #[test]
