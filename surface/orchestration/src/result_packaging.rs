@@ -29,5 +29,6 @@ pub fn package_result(
             .map(|row| row.target_contract.clone())
             .collect(),
         requires_core_promotion,
+        classification: plan.classification.clone(),
     }
 }

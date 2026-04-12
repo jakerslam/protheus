@@ -464,9 +464,7 @@ fn v6_mcp_batch9_pattern_pack_accepts_file_backed_steps_and_alias_command() {
         Some(3)
     );
     assert_eq!(
-        latest
-            .pointer("/result/steps/0")
-            .and_then(Value::as_str),
+        latest.pointer("/result/steps/0").and_then(Value::as_str),
         Some("ingest")
     );
     assert_claim(&latest, "V6-MCP-001.4");

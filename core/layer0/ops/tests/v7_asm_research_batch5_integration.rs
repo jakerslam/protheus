@@ -335,15 +335,13 @@ fn v7_research_batch8_lanes_emit_receipts_via_research_plane() {
         parallel_latest.get("ok").and_then(Value::as_bool),
         Some(true)
     );
-    let queue = read_json(
-        Path::new(
-            parallel_latest
-                .get("artifact")
-                .and_then(|v| v.get("path"))
-                .and_then(Value::as_str)
-                .expect("parallel artifact path"),
-        ),
-    )
+    let queue = read_json(Path::new(
+        parallel_latest
+            .get("artifact")
+            .and_then(|v| v.get("path"))
+            .and_then(Value::as_str)
+            .expect("parallel artifact path"),
+    ))
     .get("queue")
     .and_then(Value::as_array)
     .cloned()

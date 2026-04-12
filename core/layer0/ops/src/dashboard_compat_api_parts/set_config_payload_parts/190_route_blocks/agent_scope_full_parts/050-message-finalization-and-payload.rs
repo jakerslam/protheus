@@ -40,6 +40,7 @@ fn finalize_message_finalization_and_payload(
     let (mut finalized_response, mut tool_completion, seed_outcome) =
         enforce_user_facing_finalization_contract(response_text, &response_tools);
     let mut finalization_outcome = clean_text(&seed_outcome, 200);
+    let mut tool_synthesis_retry_used = false;
     let initial_ack_only = tool_completion
         .get("initial_ack_only")
         .and_then(Value::as_bool)
@@ -89,6 +90,29 @@ fn finalize_message_finalization_and_payload(
                 200,
             );
             retry_used = true;
+        }
+    }
+    if let Some(retried_text) = maybe_synthesize_tool_turn_response(
+        root,
+        &provider,
+        &model,
+        &active_messages,
+        message,
+        &response_tools,
+        &finalized_response,
+    ) {
+        let (retry_finalized, _retry_report, retry_outcome) =
+            enforce_user_facing_finalization_contract(retried_text, &response_tools);
+        if !response_is_no_findings_placeholder(&retry_finalized)
+            || response_tools_failure_reason_for_user(&response_tools, 4).is_empty()
+        {
+            finalized_response = retry_finalized;
+            finalization_outcome = merge_response_outcomes(
+                &finalization_outcome,
+                &format!("tool_synthesis_retry:{retry_outcome}"),
+                200,
+            );
+            tool_synthesis_retry_used = true;
         }
     }
     let mut synthesis_retry_used = false;
@@ -224,6 +248,7 @@ fn finalize_message_finalization_and_payload(
     {
         response_text = build_memory_recall_response(&state, &messages, message);
     }
+    response_text = ensure_tool_turn_response_text(&response_text, &response_tools);
     let final_ack_only = response_looks_like_tool_ack_without_findings(&response_text);
     let response_finalization = json!({
         "applied": finalization_outcome != "unchanged",
@@ -237,6 +262,7 @@ fn finalize_message_finalization_and_payload(
         "tool_completion": tool_completion,
         "retry_attempted": retry_attempted,
         "retry_used": retry_used,
+        "tool_synthesis_retry_used": tool_synthesis_retry_used,
         "synthesis_retry_used": synthesis_retry_used,
         "tooling_fallback_used": tooling_fallback_used
     });
@@ -250,7 +276,19 @@ fn finalize_message_finalization_and_payload(
         "complete",
         "complete",
     );
+    let terminal_transcript = tool_terminal_transcript(&response_tools);
     let mut turn_receipt = append_turn_message(root, agent_id, message, &response_text);
+    turn_receipt["assistant_turn_patch"] = persist_last_assistant_turn_metadata(
+        root,
+        agent_id,
+        &response_text,
+        &json!({
+            "tools": response_tools.clone(),
+            "response_finalization": response_finalization.clone(),
+            "turn_transaction": turn_transaction.clone(),
+            "terminal_transcript": terminal_transcript.clone()
+        }),
+    );
     turn_receipt["response_finalization"] = response_finalization.clone();
     let runtime_model = clean_text(
         result
@@ -277,7 +315,6 @@ fn finalize_message_finalization_and_payload(
         }
     }
     let _ = update_profile_patch(root, agent_id, &runtime_patch);
-    let terminal_transcript = tool_terminal_transcript(&response_tools);
     let mut payload = result.clone();
     payload["ok"] = json!(true);
     payload["agent_id"] = json!(agent_id);

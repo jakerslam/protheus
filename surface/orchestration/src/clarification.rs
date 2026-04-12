@@ -1,19 +1,26 @@
-use crate::contracts::{OrchestrationRequest, RequestClass};
+use crate::contracts::{ClarificationReason, RequestClassification, TypedOrchestrationRequest};
 
 pub fn clarification_prompt_for(
-    request: &OrchestrationRequest,
-    request_class: RequestClass,
+    request: &TypedOrchestrationRequest,
+    classification: &RequestClassification,
 ) -> Option<String> {
-    if request.session_id.is_empty() {
-        return Some("missing session_id for orchestration context".to_string());
-    }
-    match request_class {
-        RequestClass::Mutation => {
-            Some("confirm mutation scope and target contract before execution".to_string())
+    let primary = classification.clarification_reasons.first()?;
+    match primary {
+        ClarificationReason::MissingSessionId => {
+            Some("missing session_id for orchestration context".to_string())
         }
-        RequestClass::Assimilation if request.intent.contains("unknown") => {
+        ClarificationReason::AmbiguousOperation => Some(format!(
+            "clarify requested operation before orchestration planning (parsed operation={:?}, resource={:?})",
+            request.operation_kind, request.resource_kind
+        ).to_lowercase()),
+        ClarificationReason::MissingTargetRefs => {
             Some("specify target artifacts for assimilation planning".to_string())
         }
-        _ => None,
+        ClarificationReason::MutationScopeRequired => {
+            Some("confirm mutation scope and target contract before execution".to_string())
+        }
+        ClarificationReason::PlannerGap => {
+            Some("no executable plan steps were generated".to_string())
+        }
     }
 }

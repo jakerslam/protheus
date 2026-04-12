@@ -167,9 +167,50 @@ fn handle_agent_scope_message_route(
                 enforce_user_facing_finalization_contract(response_text, &response_tools);
             let mut tooling_fallback_used = false;
             let mut comparative_fallback_used = false;
+            let mut tool_synthesis_retry_used = false;
             let mut finalized_response = finalized_response;
             let mut finalization_outcome = clean_text(&finalization_seed, 180);
             let mut tool_completion = tool_completion;
+            let mut synthesis_provider = clean_text(
+                row.get("model_provider")
+                    .and_then(Value::as_str)
+                    .unwrap_or("auto"),
+                80,
+            );
+            if synthesis_provider.is_empty() {
+                synthesis_provider = "auto".to_string();
+            }
+            let mut synthesis_model = clean_text(
+                row.get("runtime_model")
+                    .or_else(|| row.get("model_name"))
+                    .and_then(Value::as_str)
+                    .unwrap_or("auto"),
+                240,
+            );
+            if synthesis_model.is_empty() {
+                synthesis_model = "auto".to_string();
+            }
+            let synthesis_history = Vec::<Value>::new();
+            if let Some(synthesized) = maybe_synthesize_tool_turn_response(
+                root,
+                &synthesis_provider,
+                &synthesis_model,
+                &synthesis_history,
+                &message,
+                &response_tools,
+                &finalized_response,
+            ) {
+                let (contracted, report, retry_outcome) =
+                    enforce_user_facing_finalization_contract(synthesized, &response_tools);
+                finalized_response = contracted;
+                tool_completion = report;
+                finalization_outcome = merge_response_outcomes(
+                    &finalization_outcome,
+                    &format!("tool_synthesis_retry:{retry_outcome}"),
+                    180,
+                );
+                tool_synthesis_retry_used = true;
+            }
             if let Some(tooling_fallback) =
                 maybe_tooling_failure_fallback(&message, &finalized_response, "")
             {
@@ -198,6 +239,7 @@ fn handle_agent_scope_message_route(
                     merge_response_outcomes(&finalization_outcome, &retry_outcome, 180);
             }
             tool_completion = enrich_tool_completion_receipt(tool_completion, &response_tools);
+            finalized_response = ensure_tool_turn_response_text(&finalized_response, &response_tools);
             let final_ack_only = response_looks_like_tool_ack_without_findings(&finalized_response);
             response_text = finalized_response;
             let response_finalization = json!({
@@ -213,6 +255,7 @@ fn handle_agent_scope_message_route(
                     .and_then(Value::as_bool)
                     .unwrap_or(false),
                 "tool_completion": tool_completion,
+                "tool_synthesis_retry_used": tool_synthesis_retry_used,
                 "pending_confirmation_replayed": replayed_pending_confirmation,
                 "tooling_fallback_used": tooling_fallback_used,
                 "comparative_fallback_used": comparative_fallback_used,
@@ -223,6 +266,16 @@ fn handle_agent_scope_message_route(
                 "complete", "complete", "complete", "complete",
             );
             let mut turn_receipt = append_turn_message(root, agent_id, &message, &response_text);
+            turn_receipt["assistant_turn_patch"] = persist_last_assistant_turn_metadata(
+                root,
+                agent_id,
+                &response_text,
+                &json!({
+                    "tools": response_tools.clone(),
+                    "response_finalization": response_finalization.clone(),
+                    "turn_transaction": turn_transaction.clone()
+                }),
+            );
             turn_receipt["response_finalization"] = response_finalization.clone();
             return Some(CompatApiResponse {
                 status: 200,
