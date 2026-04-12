@@ -76,6 +76,9 @@ fn usage() {
         "  protheus-ops web-conduit image-metadata --url=<https://...|file://...>|--path=<local-path> [--workspace-dir=<path>] [--local-roots=<path,...>|any] [--host-read-capability=1] [--max-bytes=<n>] [--summary-only=1]"
     );
     println!(
+        "  protheus-ops web-conduit image-tool-status [--provider=<id>] [--model=<provider/model|model>] [--summary-only=1]"
+    );
+    println!(
         "  protheus-ops web-conduit media-host --url=<https://...|file://...>|--path=<local-path> [--workspace-dir=<path>] [--local-roots=<path,...>|any] [--ttl-seconds=<n>] [--base-url=<url>] [--summary-only=1]"
     );
     println!(
@@ -220,6 +223,17 @@ fn default_policy() -> Value {
                 "enabled": false,
                 "mode": "cached",
                 "allowed_domains": []
+            },
+            "image_tool": {
+                "enabled": true,
+                "provider": "",
+                "model": "",
+                "default_prompt": "Describe the image.",
+                "max_images": 20,
+                "max_bytes": 10485760,
+                "timeout_seconds": 60,
+                "output_max_buffer_bytes": 5242880,
+                "media_concurrency": 2
             }
         }
     })
