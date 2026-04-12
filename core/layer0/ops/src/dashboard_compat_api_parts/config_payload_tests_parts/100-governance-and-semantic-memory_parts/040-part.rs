@@ -116,6 +116,31 @@ fn tool_completion_contract_preserves_actionable_failure_reason_when_no_findings
 }
 
 #[test]
+fn enforce_user_facing_finalization_contract_uses_tool_failure_reason_when_payload_is_unsynthesized() {
+    let cards = vec![json!({
+        "name": "web_search",
+        "is_error": true,
+        "status": "timeout",
+        "result": "provider timeout after 30s"
+    })];
+    let (finalized, report, outcome) = enforce_user_facing_finalization_contract(
+        "I completed the tool call, but no synthesized response was available yet. Check the tool details below.".to_string(),
+        &cards,
+    );
+    let lowered = finalized.to_ascii_lowercase();
+    assert!(
+        lowered.contains("provider timeout"),
+        "finalized={finalized} outcome={outcome} report={report}"
+    );
+    assert!(!response_is_no_findings_placeholder(&finalized));
+    assert_eq!(
+        report.get("completion_state").and_then(Value::as_str),
+        Some("reported_reason")
+    );
+    assert!(outcome.contains("tool_failure_reason"));
+}
+
+#[test]
 fn relevant_recall_context_surfaces_older_thread_facts_for_continuity() {
     let pooled_messages = vec![
         json!({"role":"user","text":"Remember that cobalt sunrise is our fallback phrase.","ts":"2026-04-01T00:00:00Z"}),

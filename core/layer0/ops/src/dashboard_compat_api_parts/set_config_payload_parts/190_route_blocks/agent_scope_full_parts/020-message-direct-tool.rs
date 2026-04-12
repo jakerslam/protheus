@@ -155,6 +155,14 @@ fn handle_agent_scope_message_route(
                     .unwrap_or(Value::Null)
             });
             let response_tools = vec![tool_card.clone()];
+            let tool_failure_reason = response_tools_failure_reason_for_user(&response_tools, 4);
+            if !tool_failure_reason.is_empty()
+                && (response_text.trim().is_empty()
+                    || response_looks_like_tool_ack_without_findings(&response_text)
+                    || response_is_no_findings_placeholder(&response_text))
+            {
+                response_text = tool_failure_reason;
+            }
             let (finalized_response, tool_completion, finalization_seed) =
                 enforce_user_facing_finalization_contract(response_text, &response_tools);
             let mut tooling_fallback_used = false;

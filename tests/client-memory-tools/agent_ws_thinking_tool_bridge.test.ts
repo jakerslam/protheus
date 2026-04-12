@@ -114,6 +114,50 @@ function structuredContentPayload() {
   };
 }
 
+function structuredErrorPayload() {
+  return {
+    ok: true,
+    response: '',
+    content: [
+      {
+        type: 'tool_call',
+        id: 'call-search-1',
+        name: 'web_search',
+        arguments: { query: 'agent reliability benchmarks' },
+      },
+      {
+        type: 'tool_result_error',
+        tool_use_id: 'call-search-1',
+        result: {
+          content: [
+            { type: 'text', text: 'provider timeout after 30s' },
+          ],
+        },
+        details: { status: 'timeout', reason: 'provider_timeout' },
+      },
+    ],
+    response_finalization: {
+      tool_completion: {
+        live_tool_steps: [
+          { tool: 'web_search', status: 'provider timeout after 30s' },
+        ],
+        tool_attempts: [
+          {
+            attempt: {
+              attempt_id: 'call-search-1',
+              tool_name: 'web_search',
+              status: 'timeout',
+              reason: 'provider_timeout',
+              backend: 'retrieval_plane',
+            },
+            normalized_result: { normalized_args: { query: 'agent reliability benchmarks' } },
+          },
+        ],
+      },
+    },
+  };
+}
+
 async function runScenario(payloadFactory, messageText) {
   const flags = { host: '127.0.0.1', port: 0 };
   const fetchBackendJson = async (_flags, route) => {
@@ -221,6 +265,18 @@ async function run() {
   const structuredToolResult = structuredEvents.find((row) => row.type === 'tool_result');
   assert.ok(structuredToolResult, 'structured tool-only completion should still replay tool_result events');
   assert.strictEqual(structuredToolResult.attempt_id, 'call-fetch-1');
+
+  const scenarioThree = await runScenario(structuredErrorPayload, 'run failing tool blocks');
+  const structuredErrorTools = Array.isArray(scenarioThree.response.tools) ? scenarioThree.response.tools : [];
+  assert.strictEqual(structuredErrorTools.length, 1, 'structured tool error blocks should become response tool rows');
+  assert.strictEqual(structuredErrorTools[0].attempt_id, 'call-search-1');
+  assert.strictEqual(structuredErrorTools[0].is_error, true, 'structured tool error block should stay marked as error');
+  assert.strictEqual(structuredErrorTools[0].status, 'timeout', 'structured tool error block should preserve timeout status');
+  assert.strictEqual(
+    structuredErrorTools[0].result,
+    'provider timeout after 30s',
+    'structured tool error block should preserve nested text results instead of JSON blobs'
+  );
 }
 
 run().catch((error) => {
