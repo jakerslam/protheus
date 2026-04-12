@@ -235,9 +235,12 @@ fn media_expand_user_path(raw: &str) -> PathBuf {
 
 fn resolve_media_workspace_dir(root: &Path, request: &Value) -> PathBuf {
     let workspace_dir = clean_text(
-        request
-            .get("workspace_dir")
+        request.get("workspace_dir")
             .or_else(|| request.get("workspaceDir"))
+            .or_else(|| request.pointer("/media_access/workspace_dir"))
+            .or_else(|| request.pointer("/media_access/workspaceDir"))
+            .or_else(|| request.pointer("/mediaAccess/workspace_dir"))
+            .or_else(|| request.pointer("/mediaAccess/workspaceDir"))
             .and_then(Value::as_str)
             .unwrap_or(""),
         2200,
@@ -276,15 +279,20 @@ fn media_request_local_roots(
     request: &Value,
     workspace_dir: &Path,
 ) -> Result<Option<Vec<String>>, Value> {
-    let Some(value) = request.get("local_roots") else {
+    let Some(value) = request.get("local_roots")
+        .or_else(|| request.get("localRoots"))
+        .or_else(|| request.pointer("/media_access/local_roots"))
+        .or_else(|| request.pointer("/media_access/localRoots"))
+        .or_else(|| request.pointer("/mediaAccess/local_roots"))
+        .or_else(|| request.pointer("/mediaAccess/localRoots")) else {
         return Ok(Some(media_default_local_root_patterns(root, workspace_dir, request)));
     };
-    if value
-        .as_str()
-        .map(|row| row.trim().eq_ignore_ascii_case("any"))
-        .unwrap_or(false)
-    {
-        return Ok(None);
+    if value.as_str().map(|row| row.trim().eq_ignore_ascii_case("any")).unwrap_or(false) {
+        return Ok(if media_request_read_denied_by_policy(request) {
+            Some(media_default_local_root_patterns(root, workspace_dir, request))
+        } else {
+            None
+        });
     }
     let raw_roots = if let Some(rows) = value.as_array() {
         rows.iter()

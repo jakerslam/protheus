@@ -346,11 +346,7 @@ fn load_local_media_binary(root: &Path, request: &Value) -> Result<LoadedMedia, 
         .and_then(Value::as_u64)
         .unwrap_or(8 * 1024 * 1024)
         .clamp(256, 32 * 1024 * 1024) as usize;
-    let host_read_capability = request
-        .get("host_read_capability")
-        .or_else(|| request.get("allow_host_read"))
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
+    let host_read_capability = media_request_host_read_capability(request);
     let resolved = resolve_local_media_source_path(root, request, &raw_source, &workspace_dir)?;
     let bytes = match fs::read(&resolved) {
         Ok(row) => row,
