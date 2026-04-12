@@ -377,6 +377,7 @@ fn web_media_request_contract() -> Value {
         "host_read_capability_requires_sniffed_binary_or_office_document": true,
         "summary_only_default": false,
         "voice_audio_contract": web_media_voice_contract(),
+        "media_store_contract": media_store_contract(),
         "hosting_contract": web_media_host_contract(),
         "outbound_attachment_contract": web_media_outbound_attachment_contract(),
         "file_context_contract": web_media_file_context_contract()
