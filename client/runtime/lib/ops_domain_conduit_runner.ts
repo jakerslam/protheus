@@ -23,6 +23,15 @@ function encodeBase64(value) {
   return Buffer.from(String(value == null ? '' : value), 'utf8').toString('base64');
 }
 
+function buildFailurePayload(reason, type = 'ops_domain_conduit_bridge_error') {
+  return {
+    ok: false,
+    type,
+    reason: cleanText(reason, 320) || 'ops_domain_conduit_bridge_failed',
+    routed_via: 'core_local'
+  };
+}
+
 function normalizeObject(value) {
   return value && typeof value === 'object' && !Array.isArray(value) ? { ...value } : {};
 }
@@ -41,15 +50,16 @@ function invoke(command, payload = {}, opts = {}) {
       ? payloadOut.error
       : (out && out.stderr ? String(out.stderr).trim() : `ops_domain_conduit_runner_kernel_${command}_failed`);
     if (opts.throwOnError !== false) throw new Error(message || `ops_domain_conduit_runner_kernel_${command}_failed`);
-    return { ok: false, error: message || `ops_domain_conduit_runner_kernel_${command}_failed` };
+    return buildFailurePayload(message || `ops_domain_conduit_runner_kernel_${command}_failed`);
   }
   if (!payloadOut || typeof payloadOut !== 'object') {
     const message = out && out.stderr
       ? String(out.stderr).trim() || `ops_domain_conduit_runner_kernel_${command}_bridge_failed`
       : `ops_domain_conduit_runner_kernel_${command}_bridge_failed`;
     if (opts.throwOnError !== false) throw new Error(message);
-    return { ok: false, error: message };
+    return buildFailurePayload(message);
   }
+  if (!payloadOut.routed_via) payloadOut.routed_via = 'core_local';
   return payloadOut;
 }
 
@@ -83,12 +93,7 @@ async function run(argv = process.argv.slice(2)) {
   const status = Number.isFinite(Number(payload && payload.status)) ? Number(payload.status) : 1;
   const body = payload && payload.payload && typeof payload.payload === 'object'
     ? payload.payload
-    : {
-      ok: false,
-      type: 'ops_domain_conduit_bridge_error',
-      reason: 'missing_result',
-      routed_via: 'core_local'
-    };
+    : buildFailurePayload('missing_result');
   return {
     status,
     payload: body,
@@ -100,24 +105,14 @@ async function main() {
   const out = await run(process.argv.slice(2));
   const payload = out && out.payload
     ? out.payload
-    : {
-      ok: false,
-      type: 'ops_domain_conduit_bridge_error',
-      reason: 'missing_result',
-      routed_via: 'core_local'
-    };
+    : buildFailurePayload('missing_result');
   process.stdout.write(`${JSON.stringify(payload)}\n`);
   process.exit(Number.isFinite(out && out.status) ? Number(out.status) : 1);
 }
 
 if (require.main === module) {
   main().catch((err) => {
-    const out = {
-      ok: false,
-      type: 'ops_domain_conduit_bridge_error',
-      reason: cleanText(err && err.message ? err.message : err, 220),
-      routed_via: 'core_local'
-    };
+    const out = buildFailurePayload(err && err.message ? err.message : err);
     process.stdout.write(`${JSON.stringify(out)}\n`);
     process.exit(1);
   });

@@ -44,6 +44,20 @@ function buildErrorPayload(type, reason, routedVia = 'core_local') {
   };
 }
 
+function buildFailureResult(type, reason, routedVia = 'core_local', status = 1) {
+  const payload = buildErrorPayload(type, reason, routedVia);
+  return {
+    ok: false,
+    status,
+    payload,
+    detail: payload,
+    response: null,
+    routed_via: routedVia,
+    stdout: '',
+    stderr: String(reason || '')
+  };
+}
+
 function toBridgeResult(out, errorType, fallbackReason = 'bridge_result_unavailable') {
   const status = Number.isFinite(Number(out && out.status)) ? Number(out.status) : 1;
   const routedVia = out && out.routed_via ? String(out.routed_via) : 'core_local';
@@ -75,14 +89,7 @@ function toBridgeResult(out, errorType, fallbackReason = 'bridge_result_unavaila
 function runDomainBridge(domain, commandArgs, opts = {}) {
   const normalizedDomain = String(domain || '').trim();
   if (!normalizedDomain) {
-    return {
-      ok: false,
-      status: 1,
-      stdout: '',
-      stderr: 'missing_domain',
-      payload: buildErrorPayload('ops_domain_conduit_bridge_error', 'missing_domain', 'core_local'),
-      routed_via: 'core_local'
-    };
+    return buildFailureResult('ops_domain_conduit_bridge_error', 'missing_domain');
   }
   const passArgs = [
     'run-domain',
@@ -133,16 +140,7 @@ async function runMemoryAmbientCommand(commandArgs, _opts = {}) {
 async function runOpsDomainCommand(domain, commandArgs, _opts = {}) {
   const normalizedDomain = String(domain || '').trim();
   if (!normalizedDomain) {
-    return {
-      ok: false,
-      status: 1,
-      payload: buildErrorPayload('ops_domain_conduit_bridge_error', 'missing_domain'),
-      detail: null,
-      response: null,
-      routed_via: 'core_local',
-      stdout: '',
-      stderr: 'missing_domain'
-    };
+    return buildFailureResult('ops_domain_conduit_bridge_error', 'missing_domain');
   }
   const out = runDomainBridge(normalizedDomain, commandArgs);
   return toBridgeResult(out, 'ops_domain_conduit_bridge_error', 'ops_domain_bridge_failed');
@@ -158,4 +156,3 @@ module.exports = {
   runSpineCommand,
   runSpineCommandCli
 };
-
