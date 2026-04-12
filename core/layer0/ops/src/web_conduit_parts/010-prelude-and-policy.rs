@@ -15,13 +15,15 @@ use std::sync::OnceLock;
 use crate::parse_args;
 use crate::web_conduit_provider_runtime::{
     fetch_cache_key, fetch_provider_catalog_snapshot, fetch_provider_chain_from_request,
+    fetch_provider_registration_contract,
     load_fetch_cache, load_search_cache, normalized_search_filters, provider_chain_from_request,
     provider_circuit_open_until, provider_catalog_snapshot, provider_health_snapshot, record_provider_attempt,
+    search_provider_registration_contract,
     resolve_search_cache_ttl_seconds, resolve_search_count, resolve_search_provider_credential,
     resolve_search_timeout_ms, search_cache_key, search_default_timeout_ms,
     search_provider_request_contract, store_fetch_cache, store_search_cache,
     unsupported_search_filter_response, validate_explicit_fetch_provider_hint,
-    validate_explicit_provider_hint, web_tool_catalog_snapshot,
+    validate_explicit_provider_hint, web_provider_public_artifact_contracts, web_tool_catalog_snapshot,
 };
 
 const POLICY_REL: &str = "client/runtime/config/web_conduit_policy.json";
