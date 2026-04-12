@@ -154,6 +154,15 @@ function maybeRunSelfValidation(policyPath?: string) {
   return result && typeof result === 'object' ? result : {};
 }
 
+function main(argv = process.argv.slice(2)) {
+  const args = Array.isArray(argv) ? argv.map((token) => String(token || '').trim()).filter(Boolean) : [];
+  bridge.runCli(args);
+}
+
+if (require.main === module) {
+  main(process.argv.slice(2));
+}
+
 module.exports = {
   loadDualityPolicy,
   loadDualityCodex,
@@ -166,5 +175,6 @@ module.exports = {
   duality_toll_update,
   duality_memory_tag,
   quarantineDualitySeed,
-  maybeRunSelfValidation
+  maybeRunSelfValidation,
+  main
 };
