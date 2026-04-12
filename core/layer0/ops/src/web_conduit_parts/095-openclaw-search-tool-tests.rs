@@ -157,6 +157,225 @@ mod openclaw_search_tool_tests {
     }
 
     #[test]
+    fn api_status_and_providers_report_native_codex_contract() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let status = api_status(tmp.path());
+        let providers = api_providers(tmp.path());
+        assert_eq!(
+            status
+                .pointer("/native_codex_web_search/eligible_model_contract/api")
+                .and_then(Value::as_str),
+            Some("openai-codex-responses")
+        );
+        assert_eq!(
+            providers
+                .pointer("/native_codex_web_search/auth/env_keys/0")
+                .and_then(Value::as_str),
+            Some("OPENAI_API_KEY")
+        );
+        assert_eq!(
+            providers
+                .pointer("/native_codex_web_search/tool_definition/type")
+                .and_then(Value::as_str),
+            Some("web_search")
+        );
+    }
+
+    #[test]
+    fn api_native_codex_requires_auth_for_direct_openai_codex_models() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        write_json_atomic(
+            &policy_path(tmp.path()),
+            &json!({
+                "web_conduit": {
+                    "enabled": true,
+                    "search_provider_order": ["duckduckgo"],
+                    "fetch_provider_order": ["direct_http"],
+                    "native_codex_web_search": {
+                        "enabled": true,
+                        "mode": "cached"
+                    }
+                }
+            }),
+        )
+        .expect("write policy");
+        let out = api_native_codex(
+            tmp.path(),
+            &json!({
+                "model_provider": "openai-codex",
+                "model_api": "openai-codex-responses"
+            }),
+        );
+        assert_eq!(
+            out.pointer("/activation/state").and_then(Value::as_str),
+            Some("managed_only")
+        );
+        assert_eq!(
+            out.pointer("/activation/inactive_reason")
+                .and_then(Value::as_str),
+            Some("codex_auth_missing")
+        );
+    }
+
+    #[test]
+    fn api_native_codex_activates_and_patches_payload_when_configured() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        write_json_atomic(
+            &policy_path(tmp.path()),
+            &json!({
+                "web_conduit": {
+                    "enabled": true,
+                    "search_provider_order": ["duckduckgo", "bing_rss"],
+                    "fetch_provider_order": ["direct_http"],
+                    "native_codex_web_search": {
+                        "enabled": true,
+                        "mode": "live",
+                        "allowedDomains": [" example.com ", "example.com"],
+                        "contextSize": "high",
+                        "userLocation": {
+                            "country": "US",
+                            "city": "New York",
+                            "timezone": "America/New_York"
+                        }
+                    }
+                }
+            }),
+        )
+        .expect("write policy");
+        write_json_atomic(
+            &tmp.path()
+                .join("client/runtime/local/state/ui/infring_dashboard/provider_secrets.json"),
+            &json!({
+                "providers": {
+                    "openai": {
+                        "key": "sk-test-openai"
+                    }
+                }
+            }),
+        )
+        .expect("write provider secrets");
+        let out = api_native_codex(
+            tmp.path(),
+            &json!({
+                "model_provider": "openai-codex",
+                "model_api": "openai-codex-responses",
+                "payload": {
+                    "tools": [
+                        { "type": "function", "name": "read" }
+                    ]
+                }
+            }),
+        );
+        assert_eq!(
+            out.pointer("/activation/state").and_then(Value::as_str),
+            Some("native_active")
+        );
+        assert_eq!(
+            out.pointer("/payload_patch/status").and_then(Value::as_str),
+            Some("injected")
+        );
+        assert_eq!(
+            out.pointer("/suppress_managed_web_search_tool")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/native_codex_web_search/tool_definition/external_web_access")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/native_codex_web_search/tool_definition/filters/allowed_domains/0")
+                .and_then(Value::as_str),
+            Some("example.com")
+        );
+        assert_eq!(
+            out.pointer("/native_codex_web_search/tool_definition/search_context_size")
+                .and_then(Value::as_str),
+            Some("high")
+        );
+        assert_eq!(
+            out.pointer("/native_codex_web_search/tool_definition/user_location/city")
+                .and_then(Value::as_str),
+            Some("New York")
+        );
+    }
+
+    #[test]
+    fn api_native_codex_keeps_api_compatible_models_active_without_direct_auth() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        write_json_atomic(
+            &policy_path(tmp.path()),
+            &json!({
+                "web_conduit": {
+                    "enabled": true,
+                    "search_provider_order": ["duckduckgo"],
+                    "fetch_provider_order": ["direct_http"],
+                    "native_codex_web_search": {
+                        "enabled": true,
+                        "mode": "cached"
+                    }
+                }
+            }),
+        )
+        .expect("write policy");
+        let out = api_native_codex(
+            tmp.path(),
+            &json!({
+                "model_provider": "gateway",
+                "model_api": "openai-codex-responses",
+                "payload": {
+                    "tools": [{ "type": "web_search" }]
+                }
+            }),
+        );
+        assert_eq!(
+            out.pointer("/activation/state").and_then(Value::as_str),
+            Some("native_active")
+        );
+        assert_eq!(
+            out.pointer("/payload_patch/status").and_then(Value::as_str),
+            Some("native_tool_already_present")
+        );
+    }
+
+    #[test]
+    fn api_providers_fetch_contract_aligns_with_builtin_fetch_catalog() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let out = api_providers(tmp.path());
+        let allowlist = out
+            .pointer("/fetch_provider_registration_contract/public_artifact_contract/allowlisted_provider_ids")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        let fetch_rows = out
+            .get("fetch_providers")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(!fetch_rows.is_empty());
+        for row in fetch_rows {
+            let provider = row
+                .get("provider")
+                .and_then(Value::as_str)
+                .expect("provider");
+            assert!(allowlist
+                .iter()
+                .any(|entry| entry.as_str() == Some(provider)));
+            assert_eq!(
+                row.pointer("/contract_fields/credential_contract/type")
+                    .and_then(Value::as_str),
+                Some("none")
+            );
+            assert_eq!(
+                row.pointer("/public_artifact_contract/resolution_mode")
+                    .and_then(Value::as_str),
+                Some("explicit_allowlist")
+            );
+        }
+    }
+
+    #[test]
     fn api_setup_lists_provider_options_and_defaults() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let out = api_setup(tmp.path(), &json!({}));

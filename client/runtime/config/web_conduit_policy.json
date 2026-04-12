@@ -25,6 +25,11 @@
     "fetch_provider_order": [
       "direct_http"
     ],
+    "native_codex_web_search": {
+      "enabled": false,
+      "mode": "cached",
+      "allowed_domains": []
+    },
     "provider_circuit_breaker": {
       "enabled": true,
       "failure_threshold": 3,
