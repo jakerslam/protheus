@@ -15622,10 +15622,10 @@
       "order": 1419
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "adapters/protocol/mastra_mcp_bridge.ts",
       "language": "ts",
-      "loc": 31,
+      "loc": 35,
       "authority_risk_score": 3,
       "migration_potential_score": 3,
       "concept_opportunity_score": 3,
@@ -16876,10 +16876,10 @@
       "order": 1533
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "adapters/cognition/skills/mcp/mcp_gateway.ts",
       "language": "ts",
-      "loc": 452,
+      "loc": 471,
       "authority_risk_score": 3,
       "migration_potential_score": 3,
       "concept_opportunity_score": 2,
@@ -21518,10 +21518,10 @@
       "order": 1955
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/client-memory-tools/mcp_gateway.test.ts",
       "language": "ts",
-      "loc": 127,
+      "loc": 142,
       "authority_risk_score": 2,
       "migration_potential_score": 2,
       "concept_opportunity_score": 3,
@@ -27931,10 +27931,10 @@
       "order": 2538
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/client-memory-tools/mcp_a2a_venom_contract_gate.test.ts",
       "language": "ts",
-      "loc": 9,
+      "loc": 111,
       "authority_risk_score": 2,
       "migration_potential_score": 2,
       "concept_opportunity_score": 3,
