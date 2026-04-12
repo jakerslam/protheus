@@ -158,6 +158,7 @@ fn handle_agent_scope_message_route(
             let (finalized_response, tool_completion, finalization_seed) =
                 enforce_user_facing_finalization_contract(response_text, &response_tools);
             let mut tooling_fallback_used = false;
+            let mut comparative_fallback_used = false;
             let mut finalized_response = finalized_response;
             let mut finalization_outcome = clean_text(&finalization_seed, 180);
             let mut tool_completion = tool_completion;
@@ -167,6 +168,20 @@ fn handle_agent_scope_message_route(
                 finalized_response = tooling_fallback;
                 finalization_outcome = format!("{finalization_outcome}+tooling_failure_fallback");
                 tooling_fallback_used = true;
+                let (contracted, report, retry_outcome) =
+                    enforce_user_facing_finalization_contract(finalized_response, &response_tools);
+                finalized_response = contracted;
+                tool_completion = report;
+                finalization_outcome =
+                    merge_response_outcomes(&finalization_outcome, &retry_outcome, 180);
+            }
+            if response_is_no_findings_placeholder(&finalized_response)
+                && message_requests_live_web_comparison(&message)
+            {
+                comparative_fallback_used = true;
+                finalized_response = comparative_no_findings_fallback(&message);
+                finalization_outcome =
+                    merge_response_outcomes(&finalization_outcome, "comparative_fallback", 180);
                 let (contracted, report, retry_outcome) =
                     enforce_user_facing_finalization_contract(finalized_response, &response_tools);
                 finalized_response = contracted;
@@ -192,6 +207,7 @@ fn handle_agent_scope_message_route(
                 "tool_completion": tool_completion,
                 "pending_confirmation_replayed": replayed_pending_confirmation,
                 "tooling_fallback_used": tooling_fallback_used,
+                "comparative_fallback_used": comparative_fallback_used,
                 "retry_attempted": false,
                 "retry_used": false
             });

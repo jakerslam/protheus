@@ -92,6 +92,36 @@ fn comparative_detector_matches_peer_ranking_language() {
 }
 
 #[test]
+fn comparative_live_web_detector_matches_openclaw_vs_workspace_language() {
+    assert!(message_requests_live_web_comparison(
+        "compare this system (infring) to openclaw"
+    ));
+    assert!(message_requests_live_web_comparison(
+        "compare openclaw to this system/workspace"
+    ));
+}
+
+#[test]
+fn natural_web_intent_routes_openclaw_comparison_to_batch_query() {
+    let route = natural_web_intent_from_user_message(
+        "compare openclaw to this system/workspace"
+    )
+    .expect("route");
+    assert_eq!(route.0, "batch_query");
+    assert_eq!(
+        route.1.get("source").and_then(Value::as_str),
+        Some("web")
+    );
+    let query = route
+        .1
+        .get("query")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    assert!(query.to_ascii_lowercase().contains("openclaw"));
+    assert!(query.to_ascii_lowercase().contains("workspace"));
+}
+
+#[test]
 fn comparative_no_findings_fallback_is_actionable() {
     let fallback = comparative_no_findings_fallback("rank infring among peers");
     let lowered = fallback.to_ascii_lowercase();
@@ -347,4 +377,3 @@ fn summarize_tool_payload_unknown_tool_avoids_raw_json_dump() {
     assert!(!lowered.contains("\"agent_id\""));
     assert!(lowered.contains("completed"));
 }
-

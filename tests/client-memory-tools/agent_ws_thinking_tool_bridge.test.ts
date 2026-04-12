@@ -75,7 +75,46 @@ function completionPayload() {
   };
 }
 
-async function run() {
+function structuredContentPayload() {
+  return {
+    ok: true,
+    response: '',
+    content: [
+      {
+        type: 'tool_call',
+        id: 'call-fetch-1',
+        name: 'web_fetch',
+        arguments: { url: 'https://example.com' },
+      },
+      {
+        type: 'tool_result',
+        tool_use_id: 'call-fetch-1',
+        content: 'Example Domain summary',
+      },
+    ],
+    response_finalization: {
+      tool_completion: {
+        live_tool_steps: [
+          { tool: 'web_fetch', status: 'fetched https://example.com' },
+        ],
+        tool_attempts: [
+          {
+            attempt: {
+              attempt_id: 'call-fetch-1',
+              tool_name: 'web_fetch',
+              status: 'ok',
+              reason: 'ok',
+              backend: 'retrieval_plane',
+            },
+            normalized_result: { normalized_args: { url: 'https://example.com' } },
+          },
+        ],
+      },
+    },
+  };
+}
+
+async function runScenario(payloadFactory, messageText) {
   const flags = { host: '127.0.0.1', port: 0 };
   const fetchBackendJson = async (_flags, route) => {
     if (String(route || '').includes('/api/agents/agent-1')) {
@@ -85,7 +124,7 @@ async function run() {
   };
   const fetchBackend = async (_flags, route) => {
     if (String(route || '').includes('/api/agents/agent-1/message')) {
-      return { ok: true, status: 200, json: async () => completionPayload() };
+      return { ok: true, status: 200, json: async () => payloadFactory() };
     }
     return { ok: false, status: 404, json: async () => ({ error: 'not_found' }) };
   };
@@ -115,7 +154,7 @@ async function run() {
       const parsed = JSON.parse(String(chunk || '{}'));
       events.push(parsed);
       if (parsed.type === 'connected') {
-        ws.send(JSON.stringify({ type: 'message', content: 'run two searches' }));
+        ws.send(JSON.stringify({ type: 'message', content: messageText }));
       }
       if (parsed.type === 'response') {
         clearTimeout(timeout);
@@ -130,6 +169,13 @@ async function run() {
   const response = await responsePromise;
   ws.close();
   server.close();
+  return { response, events };
+}
+
+async function run() {
+  const scenarioOne = await runScenario(completionPayload, 'run two searches');
+  const response = scenarioOne.response;
+  const events = scenarioOne.events;
 
   const responseTools = Array.isArray(response.tools) ? response.tools : [];
   assert.strictEqual(responseTools.length, 4, 'response payload should preserve repeated, blocked, and failed attempts');
@@ -158,6 +204,23 @@ async function run() {
   const errorEvent = toolResultEvents.find((row) => row.attempt_id === 'attempt-error');
   assert.ok(errorEvent, 'failed tool result event should be present');
   assert.strictEqual(errorEvent.is_error, true, 'failed tool result should remain flagged as error');
+
+  const scenarioTwo = await runScenario(structuredContentPayload, 'run tool blocks');
+  const structuredResponse = scenarioTwo.response;
+  const structuredEvents = scenarioTwo.events;
+  const structuredTools = Array.isArray(structuredResponse.tools) ? structuredResponse.tools : [];
+  assert.strictEqual(
+    String(structuredResponse.content || ''),
+    '',
+    'structured tool-only completions may have empty prose content'
+  );
+  assert.strictEqual(structuredTools.length, 1, 'structured tool blocks should become response tool rows');
+  assert.strictEqual(structuredTools[0].attempt_id, 'call-fetch-1', 'structured tool rows should preserve tool use ids');
+  assert.strictEqual(structuredTools[0].name, 'web_fetch', 'structured tool rows should preserve tool names');
+  assert.strictEqual(structuredTools[0].result, 'Example Domain summary', 'structured tool rows should preserve tool results');
+  const structuredToolResult = structuredEvents.find((row) => row.type === 'tool_result');
+  assert.ok(structuredToolResult, 'structured tool-only completion should still replay tool_result events');
+  assert.strictEqual(structuredToolResult.attempt_id, 'call-fetch-1');
 }
 
 run().catch((error) => {

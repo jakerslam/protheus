@@ -423,11 +423,12 @@ fn natural_web_intent_from_user_message(message: &str) -> Option<(String, Value)
             || lowered.contains("open")
             || lowered.contains("web");
         if asks_browse {
-            return Some((
-                "web_fetch".to_string(),
-                json!({"url": url, "summary_only": true}),
-            ));
+            return Some(("web_fetch".to_string(), json!({"url": url, "summary_only": true})));
         }
+    }
+
+    if let Some(route) = comparative_natural_web_intent_from_message(trimmed) {
+        return Some(route);
     }
 
     let prefixes = [
@@ -442,10 +443,7 @@ fn natural_web_intent_from_user_message(message: &str) -> Option<(String, Value)
         if lowered.starts_with(prefix) {
             let query = clean_text(&trimmed[prefix.len()..], 600);
             if !query.is_empty() {
-                return Some((
-                    "batch_query".to_string(),
-                    json!({"source": "web", "query": query, "aperture": "medium"}),
-                ));
+                return Some(("batch_query".to_string(), json!({"source": "web", "query": query, "aperture": "medium"})));
             }
         }
     }

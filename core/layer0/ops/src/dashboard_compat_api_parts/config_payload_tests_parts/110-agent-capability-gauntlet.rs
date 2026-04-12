@@ -203,6 +203,25 @@ fn agent_capability_gauntlet_20_difficult_tasks() {
         format!("status={web_search_status} tools={search_tools}"),
     );
 
+    let comparative_search = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{parent_id}/message"),
+        br#"{"message":"compare openclaw to this system/workspace"}"#,
+        &snapshot,
+    );
+    let comparative_status = response_status(comparative_search.as_ref());
+    let comparative_payload = response_payload(comparative_search.as_ref());
+    let comparative_tools = tool_names(&comparative_payload).join(",");
+    record_gauntlet_task(
+        &mut results,
+        "05b_comparative_openclaw_routes_to_live_web",
+        matches!(comparative_status, 200 | 400)
+            && (tool_used(&comparative_payload, "batch_query")
+                || tool_used(&comparative_payload, "web_search")),
+        format!("status={comparative_status} tools={comparative_tools}"),
+    );
+
     // 06) Persist semantic memory via slash memory set.
     let memory_set = handle(
         root.path(),
