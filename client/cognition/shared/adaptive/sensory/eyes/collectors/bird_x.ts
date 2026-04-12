@@ -36,8 +36,51 @@ const birdBridge = createOpsLaneBridge(
   { preferLocalCore: true }
 );
 
+function parseBoolToken(value) {
+  const text = String(value == null ? '' : value).trim().toLowerCase();
+  if (['1', 'true', 'yes', 'on'].includes(text)) return true;
+  if (['0', 'false', 'no', 'off'].includes(text)) return false;
+  return null;
+}
+
 function cleanText(v, max = 240) {
   return String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, max);
+}
+
+function parseArgs(argv = []) {
+  const out = { command: 'collect', force: false, queries: [] };
+  let consumedCommand = false;
+  for (const token of Array.isArray(argv) ? argv : []) {
+    const s = String(token || '');
+    if (!s) continue;
+    if (!consumedCommand && !s.startsWith('--')) {
+      if (s === 'preflight' || s === 'collect') {
+        out.command = s;
+        consumedCommand = true;
+        continue;
+      }
+      consumedCommand = true;
+      out.queries.push(cleanText(s, 200));
+      continue;
+    }
+    if (s === '--force') out.force = true;
+    else if (s.startsWith('--max=')) out.maxItems = Number(s.slice('--max='.length));
+    else if (s.startsWith('--min-hours=')) out.minHours = Number(s.slice('--min-hours='.length));
+    else if (s.startsWith('--max-per-query=')) {
+      out.maxItemsPerQuery = Number(s.slice('--max-per-query='.length));
+    } else if (s.startsWith('--timeout-ms=')) {
+      out.timeoutMs = Number(s.slice('--timeout-ms='.length));
+    } else if (s.startsWith('--retry-attempts=')) {
+      out.retryAttempts = Number(s.slice('--retry-attempts='.length));
+    } else if (s.startsWith('--bird-cli-present=')) {
+      out.birdCliPresent = parseBoolToken(s.slice('--bird-cli-present='.length));
+    } else if (s.startsWith('--query=')) {
+      const query = cleanText(s.slice('--query='.length), 200);
+      if (query) out.queries.push(query);
+    }
+  }
+  out.queries = out.queries.filter(Boolean);
+  return out;
 }
 
 function invokeBirdKernel(command, payload = {}, requireOk = true) {
@@ -63,8 +106,13 @@ function invokeBirdKernel(command, payload = {}, requireOk = true) {
   return payloadOut;
 }
 
-async function preflightBirdX() {
-  return invokeBirdKernel('preflight', {}, false);
+async function preflightBirdX(options = {}) {
+  const opts = options && typeof options === 'object' ? options : {};
+  const payload = {};
+  if (typeof opts.birdCliPresent === 'boolean') {
+    payload.bird_cli_present = opts.birdCliPresent;
+  }
+  return invokeBirdKernel('preflight', payload, false);
 }
 
 async function collectBirdX(options = {}) {
@@ -86,10 +134,23 @@ async function collectBirdX(options = {}) {
     queries: Array.isArray(options.queries)
       ? options.queries.map((q) => cleanText(q, 200)).filter(Boolean)
       : [],
+    bird_cli_present: typeof options.birdCliPresent === 'boolean' ? options.birdCliPresent : undefined,
   });
 }
 
+async function run(input = {}) {
+  const opts = Array.isArray(input)
+    ? parseArgs(input)
+    : (input && typeof input === 'object' ? input : {});
+  if (opts.command === 'preflight') {
+    return preflightBirdX(opts);
+  }
+  return collectBirdX(opts);
+}
+
 module.exports = {
+  parseArgs,
+  run,
   collectBirdX,
   preflightBirdX,
 };

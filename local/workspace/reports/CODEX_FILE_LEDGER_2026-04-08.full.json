@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-12T01:10:29.197Z",
+  "generated_at": "2026-04-12T01:28:07.253Z",
   "scope": [
     "core",
     "client/runtime",
@@ -12641,7 +12641,7 @@
       "order": 1148
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/sensory/eyes_collectors/bird_x.ts",
       "language": "ts",
       "loc": 6,
@@ -12652,7 +12652,7 @@
       "order": 1149
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/sensory/eyes_collectors/ollama_search.ts",
       "language": "ts",
       "loc": 6,
@@ -17074,7 +17074,7 @@
       "order": 1551
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "adapters/cognition/collectors/bird_x.ts",
       "language": "ts",
       "loc": 18,
@@ -17085,7 +17085,7 @@
       "order": 1552
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "adapters/cognition/collectors/ollama_search.ts",
       "language": "ts",
       "loc": 18,
@@ -20792,7 +20792,7 @@
       "order": 1889
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/client-memory-tools/ollama_search_collector.test.ts",
       "language": "ts",
       "loc": 290,
@@ -25269,7 +25269,7 @@
       "order": 2296
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/client-memory-tools/bird_x_collector.test.ts",
       "language": "ts",
       "loc": 9,
