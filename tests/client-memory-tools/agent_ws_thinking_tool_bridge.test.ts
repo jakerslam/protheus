@@ -226,6 +226,58 @@ function structuredMissingToolResultPayload() {
   };
 }
 
+function structuredPlaceholderLowSignalPayload() {
+  return {
+    ok: true,
+    response: "I don't have usable tool findings from this turn yet. Ask me to retry with a narrower query or a specific source URL.",
+    tools: [
+      {
+        name: 'batch_query',
+        input: '{"query":"top AI agentic frameworks"}',
+        result:
+          'Web retrieval returned low-signal snippets without synthesis. Ask me to rerun with a narrower query and I will return a concise source-backed answer.',
+        status: 'no_results',
+      },
+    ],
+    response_finalization: {
+      tool_completion: {
+        live_tool_steps: [
+          {
+            tool: 'batch_query',
+            status:
+              'Web retrieval returned low-signal snippets without synthesis. Ask me to rerun with a narrower query and I will return a concise source-backed answer.',
+          },
+        ],
+      },
+    },
+  };
+}
+
+function structuredPlaceholderComparisonPayload() {
+  return {
+    ok: true,
+    response: "I don't have usable tool findings from this turn yet. Ask me to retry with a narrower query or a specific source URL.",
+    tools: [
+      {
+        name: 'batch_query',
+        input: '{"query":"compare this system to openclaw"}',
+        result: 'Search returned no useful comparison findings for infring vs openclaw.',
+        status: 'no_results',
+      },
+    ],
+    response_finalization: {
+      tool_completion: {
+        live_tool_steps: [
+          {
+            tool: 'batch_query',
+            status: 'Search returned no useful comparison findings for infring vs openclaw.',
+          },
+        ],
+      },
+    },
+  };
+}
+
 async function runScenario(payloadFactory, messageText) {
   const flags = { host: '127.0.0.1', port: 0 };
   const fetchBackendJson = async (_flags, route) => {
@@ -390,6 +442,32 @@ async function run() {
   const repairedResultEvent = scenarioFive.events.find((row) => row.type === 'tool_result');
   assert.ok(repairedResultEvent, 'synthetic tool rows should still replay a tool_result event');
   assert.strictEqual(repairedResultEvent.attempt_id, 'call-batch-2');
+
+  const scenarioSix = await runScenario(
+    structuredPlaceholderLowSignalPayload,
+    'Try to web search "top AI agentic frameworks" and return the results'
+  );
+  assert.ok(
+    !String(scenarioSix.response.content || '').toLowerCase().includes("don't have usable tool findings"),
+    'generic no-findings assistant placeholder should be replaced when the tool result already contains a better web diagnostic'
+  );
+  assert.ok(
+    String(scenarioSix.response.content || '').toLowerCase().includes('low-signal web output'),
+    'placeholder assistant prose should be replaced with actionable low-signal web guidance'
+  );
+
+  const scenarioSeven = await runScenario(
+    structuredPlaceholderComparisonPayload,
+    'compare this system to openclaw'
+  );
+  assert.ok(
+    String(scenarioSeven.response.content || '').toLowerCase().includes('retrieval-quality miss'),
+    'comparison placeholder turns should explain that missing comparative coverage is a retrieval-quality miss'
+  );
+  assert.ok(
+    String(scenarioSeven.response.content || '').toLowerCase().includes('not proof the systems are equivalent'),
+    'comparison placeholder turns should avoid sounding like a definitive no-answer'
+  );
 }
 
 run().catch((error) => {

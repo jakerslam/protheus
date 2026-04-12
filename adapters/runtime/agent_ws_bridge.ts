@@ -637,6 +637,19 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
       .replace(/context overflow:\s*estimated context size exceeds safe threshold during tool loop\.?/gi, ' ')
       .replace(/middle content omitted/gi, ' ')
       .replace(/\s+/g, ' '), 24000);
+  const textLooksActionableWebDiagnostic = (text) => {
+    const lower = cleanText(text || '', 2400).replace(/\s+/g, ' ').trim().toLowerCase();
+    if (!lower) return false;
+    return (
+      textMentionsContextGuard(text) ||
+      textLooksNoFindingsPlaceholder(text) ||
+      lower.includes('low-signal') ||
+      lower.includes('retrieval-quality miss') ||
+      lower.includes('comparison findings') ||
+      lower.includes('source-backed answer') ||
+      lower.includes('source-backed findings')
+    );
+  };
   const parseStructuredToolInput = (tool) => {
     if (!tool || typeof tool !== 'object') return {};
     const input = tool.input;
@@ -664,8 +677,13 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
     const label = cleanText(String(tool && tool.name ? tool.name : 'web tool').replace(/_/g, ' '), 80) || 'web tool';
     const subject = toolInputMeta(tool);
     const suffix = subject ? ` for ${subject}` : '';
+    const result = cleanText(tool && tool.result ? tool.result : '', 24000);
+    const lower = result.toLowerCase();
     if (textMentionsContextGuard(tool && tool.result)) {
       return `The ${label} step${suffix} returned more output than fit safely in context. Retry with a narrower query, one specific source URL, or continue from the partial result.`;
+    }
+    if (lower.includes('search returned no useful comparison findings') || lower.includes('retrieval-quality miss')) {
+      return `The ${label} step${suffix} ran, but retrieval did not produce enough source coverage to compare both sides in this turn. That is a retrieval-quality miss, not proof the systems are equivalent. Retry with named competitors, one specific source URL per side, or continue from the recorded tool result.`;
     }
     return `The ${label} step${suffix} ran, but only low-signal web output came back. Retry with a narrower query, one specific source URL, or continue from the recorded tool result.`;
   };
@@ -676,13 +694,14 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
     const lostHandoff =
       !lower ||
       lower === 'i lost the final response handoff for this turn. context is still intact, and i can continue from exactly where this left off.';
-    if (!lostHandoff) return cleanText(assistantText || '', 24000);
+    const replaceablePlaceholder = lostHandoff || textLooksNoFindingsPlaceholder(assistantText);
+    if (!replaceablePlaceholder) return cleanText(assistantText || '', 24000);
     const actionableWeb = rows.find((tool) => {
       const name = cleanText(tool && tool.name ? tool.name : '', 80).toLowerCase();
       if (!(name === 'web_search' || name === 'web_fetch' || name === 'batch_query' || name === 'search_web' || name === 'web_query' || name === 'browse')) {
         return false;
       }
-      return textMentionsContextGuard(tool.result || '') || textLooksNoFindingsPlaceholder(tool.result || '');
+      return textLooksActionableWebDiagnostic(tool.result || '');
     });
     if (actionableWeb) return lowSignalWebToolSummary(actionableWeb);
     const failed = rows.find((tool) => tool && (tool.is_error || tool.blocked));
@@ -869,11 +888,12 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
             await replayToolTimeline(ws, targetAgent, toolRows, toolCompletion);
           }
           const assistantContent = assistantTextFromPayload(out);
+          const finalAssistantContent = toolOnlyResponseSummary(assistantContent, toolRows);
           send(ws, {
             type: 'response',
             agent_id: targetAgent,
             agent_name: agentName || cleanText(out.agent_name || '', 120) || '',
-            content: cleanText(assistantContent || '', 24000) || toolOnlyResponseSummary(assistantContent, toolRows),
+            content: finalAssistantContent,
             input_tokens: toNum(out.input_tokens || 0, 0),
             output_tokens: toNum(out.output_tokens || 0, 0),
             cost_usd: toNum(out.cost_usd || 0, 0),

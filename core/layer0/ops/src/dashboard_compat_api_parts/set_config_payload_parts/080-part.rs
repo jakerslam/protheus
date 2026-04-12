@@ -310,6 +310,9 @@ fn response_looks_like_tool_ack_without_findings(text: &str) -> bool {
     if response_is_no_findings_placeholder(&cleaned) {
         return false;
     }
+    if response_is_actionable_tool_diagnostic(&cleaned) {
+        return false;
+    }
     if response_looks_like_unsynthesized_web_snippet_dump(&cleaned)
         || response_looks_like_raw_web_artifact_dump(&cleaned)
         || response_contains_tool_telemetry_dump(&cleaned)

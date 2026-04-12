@@ -3,16 +3,6 @@ fn message_requests_live_web_comparison(message: &str) -> bool {
     if lowered.is_empty() || !message_requests_comparative_answer(message) {
         return false;
     }
-    let mentions_workspace_side = lowered.contains("this system")
-        || lowered.contains("this workspace")
-        || lowered.contains("this repo")
-        || lowered.contains("this repository")
-        || lowered.contains("this codebase")
-        || lowered.contains("this project")
-        || lowered.contains("workspace")
-        || lowered.contains("repository")
-        || lowered.contains("codebase")
-        || lowered.contains("infring");
     let mentions_external_peer = lowered.contains("openclaw")
         || lowered.contains("chatgpt")
         || lowered.contains("claude")
@@ -22,13 +12,17 @@ fn message_requests_live_web_comparison(message: &str) -> bool {
         || lowered.contains("windsurf")
         || lowered.contains("perplexity");
     let asks_live_web = lowered.contains("web")
+        || lowered.contains("web search")
+        || lowered.contains("search the web")
+        || lowered.contains("search online")
+        || lowered.contains("browse")
         || lowered.contains("online")
         || lowered.contains("latest")
         || lowered.contains("current")
         || lowered.contains("today")
         || lowered.contains("source-backed")
         || lowered.contains("with sources");
-    asks_live_web || (mentions_workspace_side && mentions_external_peer)
+    asks_live_web && mentions_external_peer
 }
 
 fn comparative_web_query_from_message(message: &str) -> Option<String> {

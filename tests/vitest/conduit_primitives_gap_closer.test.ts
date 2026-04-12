@@ -481,6 +481,30 @@ describe('conduit primitive wrapper contract', () => {
     expect(source.includes('dashboard status --json')).toBe(true);
   });
 
+  test('installers preserve infringd compat aliases through ops fallback wrappers', () => {
+    const shellSource = fs.readFileSync(path.join(ROOT, 'install.sh'), 'utf8');
+    const powershellSource = fs.readFileSync(path.join(ROOT, 'install.ps1'), 'utf8');
+    const daemonHelp = fs.readFileSync(
+      path.join(ROOT, 'core/layer0/ops/src/protheusd_parts/010-print-json.rs'),
+      'utf8',
+    );
+
+    expect(shellSource.includes('daemon_binary_wrapper_body()')).toBe(true);
+    expect(shellSource.includes('daemon-control|dashboard-ui')).toBe(true);
+    expect(shellSource.includes('INFRING_DAEMON_FALLBACK_OPS_BIN')).toBe(true);
+    expect(shellSource.includes('ops_domain="infringctl"')).toBe(true);
+    expect(shellSource.includes('ops_domain="protheusctl"')).toBe(true);
+
+    expect(powershellSource.includes('$daemonCompatDispatchTemplate')).toBe(true);
+    expect(powershellSource.includes('Write-DaemonCmdWrapper')).toBe(true);
+    expect(powershellSource.includes('%~dp0infring-ops.exe')).toBe(true);
+    expect(powershellSource.includes('dashboard-ui')).toBe(true);
+    expect(powershellSource.includes('daemon-control')).toBe(true);
+
+    expect(daemonHelp.includes('infringd daemon-control <...>')).toBe(true);
+    expect(daemonHelp.includes('infringd dashboard-ui <...>')).toBe(true);
+  });
+
   test('command registry exposes tier1 route/runtime contract surfaces', () => {
     const source = fs.readFileSync(
       path.join(ROOT, 'core/layer0/ops/src/command_list_kernel.rs'),

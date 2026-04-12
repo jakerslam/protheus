@@ -39,6 +39,8 @@ fn usage() {
     println!("      --dashboard-autoboot=1|0 (default: 1)");
     println!("      --dashboard-open=1|0     (default: 1)");
     println!("      --dashboard-host=<ip> --dashboard-port=<n>");
+    println!("  infringd daemon-control <...> (internal installer compat alias)");
+    println!("  infringd dashboard-ui <...>   (internal installer compat alias)");
     println!("  infringd think --prompt=<text> [--session-id=<id>] [--memory-limit=<n>]");
     println!("  infringd research <status|fetch|diagnostics> [flags]");
     println!("  infringd memory <status|write|query> [flags]");
@@ -456,4 +458,3 @@ fn validate_orchestration_profile(
     }
     Ok(())
 }
-

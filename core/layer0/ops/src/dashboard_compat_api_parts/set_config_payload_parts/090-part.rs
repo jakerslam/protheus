@@ -120,23 +120,25 @@ fn response_tools_summary_for_user(response_tools: &[Value], max_items: usize) -
         if raw_result.is_empty() {
             continue;
         }
-        let lowered = raw_result.to_ascii_lowercase();
+        let user_result =
+            rewrite_tool_result_for_user_summary(&name, &raw_result).unwrap_or(raw_result);
+        let lowered = user_result.to_ascii_lowercase();
         if lowered.contains("model attempted this call as text") {
             continue;
         }
-        if response_looks_like_tool_ack_without_findings(&raw_result) {
+        if response_looks_like_tool_ack_without_findings(&user_result) {
             continue;
         }
-        if response_looks_like_unsynthesized_web_snippet_dump(&raw_result)
-            || response_looks_like_raw_web_artifact_dump(&raw_result)
-            || response_contains_tool_telemetry_dump(&raw_result)
+        if response_looks_like_unsynthesized_web_snippet_dump(&user_result)
+            || response_looks_like_raw_web_artifact_dump(&user_result)
+            || response_contains_tool_telemetry_dump(&user_result)
         {
             continue;
         }
         if looks_like_search_engine_chrome_summary(&lowered) {
             continue;
         }
-        let snippet = first_sentence(&raw_result, 220);
+        let snippet = first_sentence(&user_result, 220);
         if snippet.is_empty() {
             continue;
         }

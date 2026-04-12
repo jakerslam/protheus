@@ -667,9 +667,22 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                 .unwrap_or(crate::tool_output_match_filter::no_findings_user_copy()),
             budget.max_summary_tokens.max(60),
         );
-        let summary = if clean_text(&raw_summary, 320)
-            .to_ascii_lowercase()
-            .contains("search returned no useful information")
+        let raw_summary_lowered = clean_text(&raw_summary, 320).to_ascii_lowercase();
+        let summary = if raw_summary_lowered.contains("search returned no useful comparison findings")
+        {
+            let comparison_entities = comparison_entities_from_query(&query);
+            let entity_label = if comparison_entities.len() >= 2 {
+                comparison_entities.join(" vs ")
+            } else {
+                "the requested sides".to_string()
+            };
+            format!(
+                "Search did not produce enough source coverage to compare {} in this turn. This is a retrieval-quality miss, not proof the systems are equivalent. Retry with named competitors or one specific source URL per side.",
+                entity_label
+            )
+        } else if raw_summary_lowered.contains("search returned no useful information")
+            || raw_summary_lowered.contains("don't have usable tool findings from this turn yet")
+            || raw_summary_lowered.contains("dont have usable tool findings from this turn yet")
         {
             let anti_bot_detected = partial_failure_details
                 .as_array()
@@ -690,6 +703,9 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                     .to_string()
             } else if has_partial_failures {
                 "Search providers ran, but only low-signal or low-relevance web results came back in this turn. Retry with a narrower query or one specific source URL for source-backed findings."
+                    .to_string()
+            } else if source == "web" {
+                "Web retrieval ran, but no usable findings were extracted in this turn. Retry with a narrower query or one specific source URL for source-backed findings."
                     .to_string()
             } else {
                 crate::tool_output_match_filter::no_findings_user_copy().to_string()
@@ -912,7 +928,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         if !coverage_ok {
             actionable_ranked.clear();
             comparison_guard_summary = Some(format!(
-                "Search returned no useful comparison findings for {}.",
+                "Search did not produce enough source coverage to compare {} in this turn. This is a retrieval-quality miss, not proof the systems are equivalent. Retry with named competitors or one specific source URL per side.",
                 comparison_entities.join(" vs ")
             ));
         }
@@ -957,6 +973,9 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         } else if !hard_partial_failures.is_empty() {
             "Search providers ran, but only low-signal or low-relevance web results came back in this turn. Retry with a narrower query or one specific source URL for source-backed findings."
                 .to_string()
+        } else if source == "web" {
+            "Web retrieval ran, but no usable findings were extracted in this turn. Retry with a narrower query or one specific source URL for source-backed findings."
+                .to_string()
         } else {
             crate::tool_output_match_filter::no_findings_user_copy().to_string()
         }
@@ -996,7 +1015,12 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             }
         }
         if synthesized_insights.is_empty() {
-            crate::tool_output_match_filter::no_findings_user_copy().to_string()
+            if source == "web" {
+                "Web retrieval ran, but only low-signal snippets were available for synthesis in this turn. Retry with a narrower query or one specific source URL for source-backed findings."
+                    .to_string()
+            } else {
+                crate::tool_output_match_filter::no_findings_user_copy().to_string()
+            }
         } else {
             let prefix = if benchmark_intent {
                 "Benchmark findings:"
