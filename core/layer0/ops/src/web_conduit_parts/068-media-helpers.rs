@@ -14,7 +14,11 @@ fn media_content_disposition_filename(header: &str) -> Option<String> {
             .trim_matches('\'');
         let decoded = encoded.split("''").nth(1).unwrap_or(encoded);
         let name = percent_decode_urlish(decoded);
-        let base = Path::new(name.trim()).file_name()?.to_str()?.trim().to_string();
+        let base = Path::new(name.trim())
+            .file_name()?
+            .to_str()?
+            .trim()
+            .to_string();
         if !base.is_empty() {
             return Some(base);
         }
@@ -393,7 +397,8 @@ fn web_media_request_contract() -> Value {
         "hosting_contract": web_media_host_contract(),
         "outbound_attachment_contract": web_media_outbound_attachment_contract(),
         "file_context_contract": web_media_file_context_contract(),
-        "qr_image_contract": web_media_qr_contract()
+        "qr_image_contract": web_media_qr_contract(),
+        "image_ops_contract": web_media_image_ops_contract()
     })
 }
 
@@ -457,4 +462,5 @@ fn append_web_media_tool_entry(tool_catalog: &mut Value, policy: &Value) {
     }
     append_web_media_outbound_tool_entry(tool_catalog, policy);
     append_web_media_qr_tool_entry(tool_catalog, policy);
+    append_web_media_image_ops_tool_entry(tool_catalog, policy);
 }
