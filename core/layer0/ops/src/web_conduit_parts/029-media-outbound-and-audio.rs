@@ -1,4 +1,3 @@
-const STORED_MEDIA_DIR_REL: &str = "client/runtime/local/state/web_conduit/stored_media";
 const DEFAULT_OUTBOUND_MEDIA_SUBDIR: &str = "outbound";
 const TELEGRAM_VOICE_AUDIO_EXTENSIONS: &[&str] = &["oga", "ogg", "opus", "mp3", "m4a"];
 const TELEGRAM_VOICE_MIME_TYPES: &[&str] = &[
@@ -10,57 +9,6 @@ const TELEGRAM_VOICE_MIME_TYPES: &[&str] = &[
     "audio/x-m4a",
     "audio/m4a",
 ];
-
-fn stored_media_dir_path(root: &Path, subdir: &str) -> PathBuf {
-    root.join(STORED_MEDIA_DIR_REL).join(clean_text(subdir, 80))
-}
-
-fn sanitize_saved_media_base(raw: &str) -> String {
-    raw.trim()
-        .chars()
-        .map(|ch| {
-            if ch.is_alphanumeric() || matches!(ch, '.' | '_' | '-') {
-                ch
-            } else {
-                '_'
-            }
-        })
-        .collect::<String>()
-        .split('_')
-        .filter(|part| !part.is_empty())
-        .collect::<Vec<_>>()
-        .join("_")
-        .chars()
-        .take(60)
-        .collect::<String>()
-}
-
-fn media_saved_id(file_name: &str, content_type: &str) -> String {
-    let base_seed = format!(
-        "{}:{}:{}:{}",
-        clean_text(file_name, 220),
-        clean_text(content_type, 120),
-        std::process::id(),
-        Utc::now().timestamp_millis()
-    );
-    let hash = sha256_hex(&base_seed);
-    let ext = Path::new(file_name)
-        .extension()
-        .and_then(|row| row.to_str())
-        .map(|row| row.to_ascii_lowercase())
-        .or_else(|| media_extension_for_content_type(content_type).map(|row| row.to_string()))
-        .unwrap_or_else(|| "bin".to_string());
-    let base_name = Path::new(file_name)
-        .file_stem()
-        .and_then(|row| row.to_str())
-        .map(sanitize_saved_media_base)
-        .unwrap_or_default();
-    if base_name.is_empty() {
-        format!("{}.{}", &hash[..24], ext)
-    } else {
-        format!("{base_name}---{}.{}", &hash[..24], ext)
-    }
-}
 
 fn normalize_request_string(request: &Value, key: &str, aliases: &[&str], max_len: usize) -> String {
     request
@@ -151,41 +99,6 @@ fn build_outbound_media_request(request: &Value) -> Value {
     })
 }
 
-fn store_media_artifact_copy(
-    root: &Path,
-    artifact_path: &Path,
-    file_name: &str,
-    content_type: &str,
-    bytes: usize,
-    subdir: &str,
-) -> Result<Value, Value> {
-    let dir = stored_media_dir_path(root, subdir);
-    fs::create_dir_all(&dir).map_err(|err| {
-        json!({
-            "ok": false,
-            "error": "stored_media_dir_create_failed",
-            "detail": clean_text(&err.to_string(), 240)
-        })
-    })?;
-    let id = media_saved_id(file_name, content_type);
-    let dest = dir.join(&id);
-    fs::copy(artifact_path, &dest).map_err(|err| {
-        json!({
-            "ok": false,
-            "error": "stored_media_copy_failed",
-            "detail": clean_text(&err.to_string(), 240)
-        })
-    })?;
-    Ok(json!({
-        "id": id,
-        "path": dest.display().to_string(),
-        "bytes": bytes,
-        "content_type": normalize_media_content_type(content_type),
-        "file_name": clean_text(file_name, 220),
-        "subdir": clean_text(subdir, 80)
-    }))
-}
-
 fn normalized_audio_file_extension(file_name: Option<&str>) -> String {
     file_name
         .and_then(|row| Path::new(row).extension().and_then(|ext| ext.to_str()))
@@ -231,7 +144,8 @@ fn web_media_outbound_attachment_contract() -> Value {
         ],
         "workspace_dir_precedence": "top_level_over_media_access",
         "default_store_subdir": DEFAULT_OUTBOUND_MEDIA_SUBDIR,
-        "saved_id_shape": "<sanitized-base>---<hash24>.<ext>",
+        "saved_id_shape": media_store_contract().get("saved_id_shape").cloned().unwrap_or(Value::Null),
+        "media_store_contract": media_store_contract(),
         "returns": ["path", "content_type", "file_name", "saved_media.id", "saved_media.bytes"],
         "voice_audio_contract": web_media_voice_contract()
     })
@@ -324,7 +238,11 @@ pub fn api_outbound_attachment(root: &Path, request: &Value) -> Value {
     let media_request = build_outbound_media_request(request);
     let media_out = api_media(root, &media_request);
     if !media_out.get("ok").and_then(Value::as_bool).unwrap_or(false) {
-        let mut payload = media_out;
+        let mut raw_source = normalize_request_string(request, "path", &[], 4000);
+        if raw_source.is_empty() {
+            raw_source = normalize_request_string(request, "url", &[], 4000);
+        }
+        let mut payload = map_media_store_source_error(&raw_source, &media_out);
         if let Some(obj) = payload.as_object_mut() {
             obj.insert("type".to_string(), json!("web_conduit_outbound_attachment"));
             obj.insert(
