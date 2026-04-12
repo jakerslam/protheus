@@ -248,6 +248,19 @@
                 is_error: !!t.is_error
               };
             }));
+        if (role === 'agent' && !isTerminal && !String(text || '').trim() && Array.isArray(tools) && tools.length) {
+          var repairedToolText = '';
+          if (typeof self.readableToolFailureSummary === 'function') {
+            repairedToolText = String(self.readableToolFailureSummary(m, tools) || '').trim();
+          }
+          if (!repairedToolText && typeof self.completedToolOnlySummary === 'function') {
+            repairedToolText = String(self.completedToolOnlySummary(tools) || '').trim();
+          }
+          if (repairedToolText) text = repairedToolText;
+        }
+        var messageMetadata = typeof self.assistantTurnMetadataFromPayload === 'function'
+          ? self.assistantTurnMetadataFromPayload(m, tools)
+          : {};
         var images = (m && Array.isArray(m.images) ? m.images : []).map(function(img) {
           return { file_id: img.file_id, filename: img.filename || 'image' };
         });
@@ -316,7 +329,7 @@
           // Keep global/system-wide notices out of non-system chats.
           return null;
         }
-        return {
+        return Object.assign({
           id: ++msgId,
           role: role,
           text: text,
@@ -339,7 +352,7 @@
           system_origin: systemOrigin,
           actor_id: m && m.actor_id ? String(m.actor_id) : '',
           actor: m && m.actor ? String(m.actor) : ''
-        };
+        }, messageMetadata || {});
       }).filter(function(row) { return !!row; });
     },
 

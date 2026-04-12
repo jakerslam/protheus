@@ -428,6 +428,21 @@
       if (Array.isArray(payload.tools) && payload.tools.length) {
         duplicate.tools = mergeToolCards(duplicate.tools, payload.tools);
       }
+      if (payload.response_finalization && typeof payload.response_finalization === 'object') {
+        duplicate.response_finalization = payload.response_finalization;
+      }
+      if (payload.turn_transaction && typeof payload.turn_transaction === 'object') {
+        duplicate.turn_transaction = payload.turn_transaction;
+      }
+      if (Array.isArray(payload.terminal_transcript) && payload.terminal_transcript.length) {
+        duplicate.terminal_transcript = payload.terminal_transcript;
+      }
+      if (payload.attention_queue && typeof payload.attention_queue === 'object') {
+        duplicate.attention_queue = payload.attention_queue;
+      }
+      if (String(payload.tool_failure_summary || '').trim()) {
+        duplicate.tool_failure_summary = String(payload.tool_failure_summary || '').trim();
+      }
       var nextMeta = String(payload.meta || '').trim();
       if (nextMeta) {
         var priorMeta = String(duplicate.meta || '').trim();

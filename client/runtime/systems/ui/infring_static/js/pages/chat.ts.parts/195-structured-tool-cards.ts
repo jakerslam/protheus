@@ -349,3 +349,61 @@
       }
       return this.backfillToolRowsFromCompletion(merged, data).slice(0, 16);
     },
+    responseFinalizationFromPayload: function(payload) {
+      var data = payload && typeof payload === 'object' ? payload : {};
+      return data.response_finalization && typeof data.response_finalization === 'object'
+        ? data.response_finalization
+        : null;
+    },
+    readableToolFailureSummary: function(payload, tools) {
+      var rows = Array.isArray(tools) ? tools.filter(function(tool) {
+        return !!(tool && String(tool.name || '').toLowerCase() !== 'thought_process');
+      }) : [];
+      if (!rows.length) return '';
+      var blocked = rows.find(function(tool) {
+        return !!(tool && !tool.running && this.isBlockedTool(tool));
+      }, this);
+      if (blocked) {
+        var blockedName = this.toolDisplayName(blocked);
+        var blockedDetail = this.toolResultSummarySnippet(blocked) || String(blocked.status || '').trim() || 'blocked by policy';
+        return 'The ' + (blockedName || 'tool') + ' step was blocked before I could finish the answer: ' + blockedDetail;
+      }
+      var failed = rows.find(function(tool) {
+        return !!(tool && !tool.running && tool.is_error);
+      });
+      if (failed) {
+        var failedName = this.toolDisplayName(failed);
+        var failedDetail = this.toolResultSummarySnippet(failed) || String(failed.status || '').trim() || 'step failed';
+        return 'The ' + (failedName || 'tool') + ' step failed before I could finish the answer: ' + failedDetail;
+      }
+      var actionableWeb = rows.find(function(tool) {
+        if (!tool || tool.running || !this.isWebLikeToolName(tool.name || '')) return false;
+        return (
+          this.textMentionsContextGuard(tool.result || '') ||
+          this.textLooksNoFindingsPlaceholder(tool.result || '') ||
+          this.textLooksToolAckWithoutFindings(tool.result || '')
+        );
+      }, this);
+      if (actionableWeb) {
+        return this.lowSignalWebToolSummary(actionableWeb);
+      }
+      return '';
+    },
+    assistantTurnMetadataFromPayload: function(payload, tools) {
+      var data = payload && typeof payload === 'object' ? payload : {};
+      var out = {};
+      var finalization = this.responseFinalizationFromPayload(data);
+      if (finalization) out.response_finalization = finalization;
+      if (data.turn_transaction && typeof data.turn_transaction === 'object') {
+        out.turn_transaction = data.turn_transaction;
+      }
+      if (Array.isArray(data.terminal_transcript) && data.terminal_transcript.length) {
+        out.terminal_transcript = data.terminal_transcript.slice(0, 48);
+      }
+      if (data.attention_queue && typeof data.attention_queue === 'object') {
+        out.attention_queue = data.attention_queue;
+      }
+      var failureSummary = this.readableToolFailureSummary(data, tools);
+      if (failureSummary) out.tool_failure_summary = failureSummary;
+      return out;
+    },

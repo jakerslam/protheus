@@ -1,4 +1,5 @@
 include!("agent_scope_full_parts/030-message-routing-and-context.rs");
+include!("agent_scope_full_parts/045-tool-recovery-and-turn-persistence.rs");
 include!("agent_scope_full_parts/050-message-finalization-and-payload.rs");
 include!("agent_scope_full_parts/040-message-chat-response-pass.rs");
 include!("agent_scope_full_parts/020-message-direct-tool.rs");

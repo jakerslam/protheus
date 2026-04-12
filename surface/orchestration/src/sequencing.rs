@@ -1,54 +1,23 @@
 use crate::contracts::{
-    CoreContractCall, OrchestrationFallbackAction, OrchestrationPlanStep, OrchestrationRequest,
-    RequestClass, ToolFallbackContext,
+    CoreContractCall, OrchestrationFallbackAction, OrchestrationPlanStep, RequestClass,
+    RequestClassification, ResourceKind, ToolFallbackContext, TypedOrchestrationRequest,
 };
 use protheus_tooling_core_v1::{ToolBackendClass, ToolReasonCode};
 use serde_json::Value;
 
 pub fn build_steps(
-    _request: &OrchestrationRequest,
-    request_class: RequestClass,
+    _request: &TypedOrchestrationRequest,
+    classification: &RequestClassification,
 ) -> Vec<OrchestrationPlanStep> {
-    match request_class {
-        RequestClass::ToolCall => vec![
-            OrchestrationPlanStep {
-                step_id: "step_tool_capability_probe".to_string(),
-                operation: "probe_tool_capability".to_string(),
-                target_contract: CoreContractCall::ToolCapabilityProbe,
-            },
-            OrchestrationPlanStep {
-                step_id: "step_tool_broker_request".to_string(),
-                operation: "route_tool_call".to_string(),
-                target_contract: CoreContractCall::ToolBrokerRequest,
-            },
-        ],
-        RequestClass::Assimilation => vec![
-            OrchestrationPlanStep {
-                step_id: "step_assimilation_plan".to_string(),
-                operation: "request_assimilation_plan".to_string(),
-                target_contract: CoreContractCall::AssimilationPlanRequest,
-            },
-            OrchestrationPlanStep {
-                step_id: "step_task_fabric_proposal".to_string(),
-                operation: "propose_assimilation_task".to_string(),
-                target_contract: CoreContractCall::TaskFabricProposal,
-            },
-        ],
-        RequestClass::TaskProposal | RequestClass::Mutation => vec![OrchestrationPlanStep {
-            step_id: "step_task_fabric_proposal".to_string(),
-            operation: "propose_task_graph_update".to_string(),
-            target_contract: CoreContractCall::TaskFabricProposal,
-        }],
-        RequestClass::ReadOnly => vec![OrchestrationPlanStep {
-            step_id: "step_memory_read".to_string(),
-            operation: "request_materialized_view".to_string(),
-            target_contract: CoreContractCall::UnifiedMemoryRead,
-        }],
-    }
+    classification
+        .required_contracts
+        .iter()
+        .map(step_for_contract)
+        .collect()
 }
 
 pub fn fallback_actions(
-    request: &OrchestrationRequest,
+    request: &TypedOrchestrationRequest,
     request_class: RequestClass,
     tool_context: Option<&ToolFallbackContext>,
 ) -> Vec<OrchestrationFallbackAction> {
@@ -157,15 +126,12 @@ fn is_swarm_agent_bridge_tool(tool_context: Option<&ToolFallbackContext>) -> boo
 }
 
 fn tool_fallback_actions(
-    request: &OrchestrationRequest,
+    request: &TypedOrchestrationRequest,
     tool_context: Option<&ToolFallbackContext>,
 ) -> Vec<OrchestrationFallbackAction> {
-    let direct_context_kind = if request.intent.to_ascii_lowercase().contains("file")
-        || request.intent.to_ascii_lowercase().contains("workspace")
-    {
-        "paste_workspace_context"
-    } else {
-        "ask_for_source_material"
+    let direct_context_kind = match request.resource_kind {
+        ResourceKind::Workspace => "paste_workspace_context",
+        _ => "ask_for_source_material",
     };
     let mut out = vec![fallback_action(
         "inspect_tool_capabilities",
@@ -290,9 +256,40 @@ fn tool_fallback_actions(
     out
 }
 
+fn step_for_contract(contract: &CoreContractCall) -> OrchestrationPlanStep {
+    match contract {
+        CoreContractCall::ToolCapabilityProbe => OrchestrationPlanStep {
+            step_id: "step_tool_capability_probe".to_string(),
+            operation: "probe_tool_capability".to_string(),
+            target_contract: CoreContractCall::ToolCapabilityProbe,
+        },
+        CoreContractCall::ToolBrokerRequest => OrchestrationPlanStep {
+            step_id: "step_tool_broker_request".to_string(),
+            operation: "route_tool_call".to_string(),
+            target_contract: CoreContractCall::ToolBrokerRequest,
+        },
+        CoreContractCall::TaskFabricProposal => OrchestrationPlanStep {
+            step_id: "step_task_fabric_proposal".to_string(),
+            operation: "propose_task_graph_update".to_string(),
+            target_contract: CoreContractCall::TaskFabricProposal,
+        },
+        CoreContractCall::UnifiedMemoryRead => OrchestrationPlanStep {
+            step_id: "step_memory_read".to_string(),
+            operation: "request_materialized_view".to_string(),
+            target_contract: CoreContractCall::UnifiedMemoryRead,
+        },
+        CoreContractCall::AssimilationPlanRequest => OrchestrationPlanStep {
+            step_id: "step_assimilation_plan".to_string(),
+            operation: "request_assimilation_plan".to_string(),
+            target_contract: CoreContractCall::AssimilationPlanRequest,
+        },
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ingress;
     use serde_json::json;
 
     #[test]
@@ -310,11 +307,11 @@ mod tests {
 
     #[test]
     fn fallback_actions_are_reason_and_backend_aware() {
-        let request = OrchestrationRequest {
+        let request = ingress::normalize_request(crate::contracts::OrchestrationRequest {
             session_id: "s1".to_string(),
             intent: "search the web".to_string(),
             payload: json!({}),
-        };
+        });
         let context = ToolFallbackContext {
             tool_name: "web_search".to_string(),
             backend: "retrieval_plane".to_string(),
@@ -332,11 +329,11 @@ mod tests {
 
     #[test]
     fn swarm_agent_runtime_invalid_args_recommends_bootstrap_contract() {
-        let request = OrchestrationRequest {
+        let request = ingress::normalize_request(crate::contracts::OrchestrationRequest {
             session_id: "s1".to_string(),
             intent: "send directive to child agent".to_string(),
             payload: json!({}),
-        };
+        });
         let context = ToolFallbackContext {
             tool_name: "sessions_send".to_string(),
             backend: "agent_runtime".to_string(),
@@ -350,5 +347,18 @@ mod tests {
         assert!(actions
             .iter()
             .all(|row| row.reason_code == Some(ToolReasonCode::InvalidArgs)));
+    }
+
+    #[test]
+    fn workspace_resource_uses_direct_context_fallback() {
+        let request = ingress::normalize_request(crate::contracts::OrchestrationRequest {
+            session_id: "s1".to_string(),
+            intent: "read workspace file".to_string(),
+            payload: json!({"path":"README.md"}),
+        });
+        let actions = fallback_actions(&request, RequestClass::ToolCall, None);
+        assert!(actions
+            .iter()
+            .any(|row| row.kind == "paste_workspace_context"));
     }
 }

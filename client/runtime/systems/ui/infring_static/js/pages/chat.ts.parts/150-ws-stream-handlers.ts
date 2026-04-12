@@ -198,6 +198,7 @@
           var hasAgentTerminalTranscript = !!(Array.isArray(data.terminal_transcript) && data.terminal_transcript.length && typeof this.appendAgentTerminalTranscript === 'function' && this.appendAgentTerminalTranscript(data.terminal_transcript));
           if (hasAgentTerminalTranscript) responseTools = responseTools.filter(function(t) { var n = String((t && t.name) || '').toLowerCase(); return !(n === 'terminal_exec' || n === 'run_terminal' || n === 'terminal' || n === 'shell_exec'); });
           if ((!Array.isArray(streamedTools) || !streamedTools.length) && responseTools.length) streamedTools = responseTools;
+          var messageMetadata = typeof this.assistantTurnMetadataFromPayload === 'function' ? this.assistantTurnMetadataFromPayload(data, streamedTools) : {};
           if (!streamedThought && responseTools.length) {
             var thoughtTool = responseTools.find(function(rtool) { return !!(rtool && String(rtool.name || '').toLowerCase() === 'thought_process'); });
             if (thoughtTool) streamedThought = String(thoughtTool.input || thoughtTool.result || '').trim();
@@ -239,41 +240,27 @@
           var collapsedThought = String(streamedThought || '').trim();
           var compactFinal = String(finalText || '').replace(/\s+/g, ' ').trim();
           var maybePlaceholder = /^(thinking|processing|working)\.\.\.$/i.test(compactFinal);
-          if (
-            typeof this.isThinkingPlaceholderText === 'function' &&
-            this.isThinkingPlaceholderText(compactFinal)
-          ) {
-            maybePlaceholder = true;
-          }
-          if (maybePlaceholder) {
-            finalText = '';
-          }
-          if (collapsedThought && !streamedTools.some(function(tool) { return !!(tool && String(tool.name || '').toLowerCase() === 'thought_process'); })) {
-            streamedTools.unshift(this.makeThoughtToolCard(collapsedThought, wsDurationMs));
-          }
+          if (typeof this.isThinkingPlaceholderText === 'function' && this.isThinkingPlaceholderText(compactFinal)) maybePlaceholder = true;
+          if (maybePlaceholder) finalText = '';
+          if (collapsedThought && !streamedTools.some(function(tool) { return !!(tool && String(tool.name || '').toLowerCase() === 'thought_process'); })) streamedTools.unshift(this.makeThoughtToolCard(collapsedThought, wsDurationMs));
           var usedFallback = false;
+          var toolFailureSummary = messageMetadata && typeof messageMetadata.tool_failure_summary === 'string' ? String(messageMetadata.tool_failure_summary || '').trim() : '';
           var toolOnlySummary = responseHasToolCompletion && typeof this.completedToolOnlySummary === 'function'
             ? String(this.completedToolOnlySummary(streamedTools) || '').trim()
             : '';
-          if (
-            responseHasToolCompletion &&
-            toolOnlySummary &&
-            (
-              (typeof this.textLooksNoFindingsPlaceholder === 'function' && this.textLooksNoFindingsPlaceholder(finalText)) ||
-              (typeof this.textLooksToolAckWithoutFindings === 'function' && this.textLooksToolAckWithoutFindings(finalText))
-            )
-          ) {
-            finalText = toolOnlySummary;
-          }
           if (!finalText.trim()) {
-            if (toolOnlySummary) {
+            if (toolFailureSummary) {
+              finalText = toolFailureSummary;
+              usedFallback = true;
+            } else if (toolOnlySummary) {
               finalText = toolOnlySummary;
+              usedFallback = true;
             } else {
               finalText = this.defaultAssistantFallback(collapsedThought, streamedTools);
               usedFallback = true;
             }
           }
-          var finalMessage = {
+          var finalMessage = Object.assign({
             id: ++msgId,
             role: 'agent',
             text: finalText,
@@ -283,7 +270,7 @@
             _auto_fallback: usedFallback,
             agent_id: data && data.agent_id ? String(data.agent_id) : (this.currentAgent && this.currentAgent.id ? String(this.currentAgent.id) : ''),
             agent_name: data && data.agent_name ? String(data.agent_name) : (this.currentAgent && this.currentAgent.name ? String(this.currentAgent.name) : '')
-          };
+          }, messageMetadata || {});
           var renderedFinalMessage = finalMessage;
           var lastStable = this.messages.length ? this.messages[this.messages.length - 1] : null;
           if (!usedFallback && lastStable && lastStable.role === 'agent' && lastStable._auto_fallback) {

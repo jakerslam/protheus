@@ -55,6 +55,56 @@ fn maybe_tooling_failure_fallback_rewrites_safe_step_prompt() {
 }
 
 #[test]
+fn direct_tool_turn_persists_tool_cards_and_finalization_in_session_history() {
+    let root = governance_temp_root();
+    let snapshot = governance_ok_snapshot();
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"name":"persisted-tool-history-agent","role":"operator"}"#,
+        &snapshot,
+    )
+    .expect("agent create");
+    let agent_id = clean_agent_id(
+        created
+            .payload
+            .get("agent_id")
+            .or_else(|| created.payload.get("id"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+    );
+    let _ = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/message"),
+        br#"{"message":"Run `infring web search` as the next safe step."}"#,
+        &snapshot,
+    )
+    .expect("message");
+    let state = crate::dashboard_agent_state::load_session(root.path(), &agent_id);
+    let assistant = state
+        .pointer("/session/sessions/0/messages")
+        .and_then(Value::as_array)
+        .and_then(|rows| {
+            rows.iter().rev().find(|row| {
+                row.get("role")
+                    .and_then(Value::as_str)
+                    .map(|role| role.eq_ignore_ascii_case("assistant"))
+                    .unwrap_or(false)
+            })
+        })
+        .cloned()
+        .unwrap_or(Value::Null);
+    assert_eq!(assistant.get("role").and_then(Value::as_str), Some("assistant"));
+    assert_eq!(
+        assistant.pointer("/tools/0/name").and_then(Value::as_str),
+        Some("tool_command_router")
+    );
+    assert!(assistant.get("response_finalization").is_some());
+}
+
+#[test]
 fn maybe_tooling_failure_fallback_rewrites_web_file_better_prompt() {
     let fallback = maybe_tooling_failure_fallback(
         "does the web or file tooling seem any better?",
