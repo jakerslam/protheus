@@ -17,6 +17,9 @@ fn direct_tool_intent_from_user_message(message: &str) -> Option<(String, Value)
                 json!({"scope": "agent", "reason": "natural_language_capability_probe"}),
             ));
         }
+        if let Some(route) = follow_up_suggestion_tool_intent_from_message(trimmed) {
+            return Some(route);
+        }
         let asks_file_read = lowered.contains("read file")
             || lowered.contains("open file")
             || lowered.contains("show file")
