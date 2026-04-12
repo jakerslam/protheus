@@ -153,6 +153,7 @@ fn load_inline_media_binary(request: &Value) -> Result<LoadedMedia, Value> {
         provider: "inline_base64".to_string(),
         provider_hint: "inline".to_string(),
         citation_redirect_resolved: false,
+        redirect_count: 0,
     })
 }
 

@@ -376,6 +376,17 @@ fn web_media_request_contract() -> Value {
         "rejects_windows_network_paths": true,
         "host_read_capability_requires_sniffed_binary_or_office_document": true,
         "summary_only_default": false,
+        "remote_request_headers_contract": {
+            "top_level_fields": ["headers", "http_headers", "request_headers"],
+            "string_map_only": true,
+            "cross_origin_retained_headers": MEDIA_CROSS_ORIGIN_REDIRECT_SAFE_HEADERS
+        },
+        "remote_redirect_contract": {
+            "max_redirects": MEDIA_REMOTE_MAX_REDIRECTS,
+            "preserve_headers_on_same_origin": true,
+            "strip_sensitive_headers_on_cross_origin": true,
+            "missing_location_error": "invalid_redirect"
+        },
         "prompt_image_order_contract": web_media_prompt_image_order_contract(),
         "voice_audio_contract": web_media_voice_contract(),
         "media_store_contract": media_store_contract(),

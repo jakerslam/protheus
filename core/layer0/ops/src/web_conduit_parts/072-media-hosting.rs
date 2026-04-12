@@ -171,6 +171,7 @@ pub fn api_media_host(root: &Path, request: &Value) -> Value {
             "human_approved": request.get("human_approved").cloned().unwrap_or(Value::Null),
             "approval_id": request.get("approval_id").cloned().unwrap_or(Value::Null),
             "provider": request.get("provider").cloned().unwrap_or(Value::Null),
+            "headers": request.get("headers").cloned().unwrap_or(Value::Null),
             "resolve_citation_redirect": request.get("resolve_citation_redirect").cloned().unwrap_or(Value::Bool(true)),
             "timeout_ms": request.get("timeout_ms").cloned().unwrap_or(Value::Null),
             "max_bytes": request.get("max_bytes").cloned().unwrap_or(Value::Null),

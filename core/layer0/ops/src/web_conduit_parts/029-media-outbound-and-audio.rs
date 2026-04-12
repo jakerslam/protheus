@@ -88,6 +88,7 @@ fn build_outbound_media_request(request: &Value) -> Value {
         "human_approved": normalize_request_bool(request, "human_approved", &["humanApproved"]),
         "approval_id": normalize_request_string(request, "approval_id", &["approvalId"], 160),
         "provider": normalize_request_string(request, "provider", &["fetch_provider", "fetchProvider"], 40),
+        "headers": request.get("headers").cloned().unwrap_or(Value::Null),
         "resolve_citation_redirect": request
             .get("resolve_citation_redirect")
             .or_else(|| request.get("resolveCitationRedirect"))
