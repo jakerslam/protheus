@@ -2,27 +2,8 @@
 'use strict';
 
 const assert = require('assert');
-const fs = require('fs');
 const path = require('path');
-const ts = require('typescript');
-
-if (!require.extensions['.ts']) {
-  require.extensions['.ts'] = function compileTs(module, filename) {
-    const source = fs.readFileSync(filename, 'utf8');
-    const output = ts.transpileModule(source, {
-      compilerOptions: {
-        module: ts.ModuleKind.CommonJS,
-        target: ts.ScriptTarget.ES2022,
-        moduleResolution: ts.ModuleResolutionKind.NodeJs,
-        esModuleInterop: true,
-        allowSyntheticDefaultImports: true
-      },
-      fileName: filename,
-      reportDiagnostics: false
-    }).outputText;
-    module._compile(output, filename);
-  };
-}
+require(path.resolve(__dirname, '..', '..', 'client', 'runtime', 'lib', 'ts_bootstrap.ts')).installTsRequireHook();
 
 const mod = require(path.resolve(__dirname, '..', '..', 'client', 'runtime', 'lib', 'ops_domain_conduit_runner.ts'));
 

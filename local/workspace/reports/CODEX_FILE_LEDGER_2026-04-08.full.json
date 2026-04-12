@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-11T23:49:12.320Z",
+  "generated_at": "2026-04-12T00:38:04.463Z",
   "scope": [
     "core",
     "client/runtime",
@@ -13147,7 +13147,7 @@
       "order": 1194
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/lib/spine_conduit_bridge.ts",
       "language": "ts",
       "loc": 161,
@@ -13158,7 +13158,7 @@
       "order": 1195
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/lib/direct_conduit_lane_bridge.ts",
       "language": "ts",
       "loc": 140,
@@ -13345,7 +13345,7 @@
       "order": 1212
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/lib/ops_domain_conduit_runner.ts",
       "language": "ts",
       "loc": 133,
@@ -17932,7 +17932,7 @@
       "order": 1629
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/client-memory-tools/ops_domain_conduit_runner_rust_bridge.test.ts",
       "language": "ts",
       "loc": 49,
@@ -17976,7 +17976,7 @@
       "order": 1633
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/client-memory-tools/ops_domain_conduit_runner_arg_passthrough.test.ts",
       "language": "ts",
       "loc": 47,
@@ -19186,7 +19186,7 @@
       "order": 1743
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/client-memory-tools/ops_domain_conduit_runner.test.ts",
       "language": "ts",
       "loc": 9,
