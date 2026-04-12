@@ -898,6 +898,28 @@ set "_cmd_rc=!ERRORLEVEL!"
 exit /b !_cmd_rc!
 '@
 
+$daemonCompatDispatchTemplate = @'
+:_dispatch
+set "_daemon_cmd=%~1"
+if /I "%_daemon_cmd%"=="daemon-control" goto :_compat_dispatch
+if /I "%_daemon_cmd%"=="dashboard-ui" goto :_compat_dispatch
+call __ENTRY__ __ENTRY_ARGS__ %*
+set "_cmd_rc=!ERRORLEVEL!"
+exit /b !_cmd_rc!
+
+:_compat_dispatch
+set "_ops_domain=%INFRING_OPS_DOMAIN%"
+if not defined _ops_domain set "_ops_domain=infringctl"
+if exist "%~dp0infring-ops.exe" (
+  call "%~dp0infring-ops.exe" "!_ops_domain!" %*
+  set "_cmd_rc=!ERRORLEVEL!"
+  exit /b !_cmd_rc!
+)
+call __ENTRY__ __ENTRY_ARGS__ %*
+set "_cmd_rc=!ERRORLEVEL!"
+exit /b !_cmd_rc!
+'@
+
 function Write-CmdWrapper {
   param(
     [string]$Path,
@@ -908,6 +930,24 @@ function Write-CmdWrapper {
 
   $dispatch = if ($Gateway) { $gatewayDispatchTemplate } else { $plainDispatchTemplate }
   $dispatch = $dispatch.Replace("__ENTRY__", $Entry)
+  if ([string]::IsNullOrWhiteSpace($EntryArgs)) {
+    $dispatch = $dispatch.Replace("__ENTRY_ARGS__", "")
+  } else {
+    $dispatch = $dispatch.Replace("__ENTRY_ARGS__", $EntryArgs)
+  }
+
+  $content = $wrapperPrelude + "`r`n" + $dispatch + "`r`n"
+  Set-Content -Path $Path -Value $content
+}
+
+function Write-DaemonCmdWrapper {
+  param(
+    [string]$Path,
+    [string]$Entry,
+    [string]$EntryArgs
+  )
+
+  $dispatch = $daemonCompatDispatchTemplate.Replace("__ENTRY__", $Entry)
   if ([string]::IsNullOrWhiteSpace($EntryArgs)) {
     $dispatch = $dispatch.Replace("__ENTRY_ARGS__", "")
   } else {
@@ -966,7 +1006,7 @@ if ($InstallPure) {
 }
 
 if ($daemonMode -eq "infringd") {
-  Write-CmdWrapper -Path $infringdCmd -Entry '"%~dp0infringd.exe"' -EntryArgs ''
+  Write-DaemonCmdWrapper -Path $infringdCmd -Entry '"%~dp0infringd.exe"' -EntryArgs ''
 } elseif ($daemonMode -eq "conduit") {
   Write-CmdWrapper -Path $infringdCmd -Entry '"%~dp0conduit_daemon.exe"' -EntryArgs ''
 } else {
