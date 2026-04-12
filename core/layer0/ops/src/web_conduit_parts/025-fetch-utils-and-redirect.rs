@@ -74,17 +74,6 @@ fn regex_markdown_numbers() -> &'static Regex {
     REGEX.get_or_init(|| Regex::new(r"(?m)^\s*\d+\.\s+").expect("regex"))
 }
 
-fn strip_invisible_unicode(raw: &str) -> String {
-    raw.chars()
-        .filter(|ch| {
-            !matches!(
-                ch,
-                '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}'
-            ) && (!ch.is_control() || matches!(ch, '\n' | '\r' | '\t'))
-        })
-        .collect::<String>()
-}
-
 fn normalize_block_text(raw: &str) -> String {
     strip_invisible_unicode(raw)
         .replace('\r', "")
@@ -122,7 +111,8 @@ fn html_title(raw_html: &str) -> Option<String> {
 
 fn html_to_markdown_document(raw_html: &str) -> (String, Option<String>) {
     let title = html_title(raw_html);
-    let mut text = regex_script().replace_all(raw_html, " ").to_string();
+    let readable_html = select_readable_html_body(raw_html);
+    let mut text = regex_script().replace_all(&readable_html, " ").to_string();
     text = regex_style().replace_all(&text, " ").to_string();
     text = regex_noscript().replace_all(&text, " ").to_string();
     text = regex_anchor()
@@ -170,7 +160,16 @@ fn html_to_markdown_document(raw_html: &str) -> (String, Option<String>) {
     text = regex_breaks().replace_all(&text, "\n").to_string();
     text = regex_block_endings().replace_all(&text, "\n").to_string();
     let markdown = normalize_block_text(&strip_tags_to_text(&text));
-    (markdown, title)
+    if markdown.is_empty() {
+        let title_markdown = title
+            .as_ref()
+            .map(|value| normalize_block_text(value))
+            .filter(|value| !value.is_empty())
+            .map(|value| format!("# {value}"));
+        (title_markdown.unwrap_or_default(), title)
+    } else {
+        (markdown, title)
+    }
 }
 
 fn markdown_to_text_document(markdown: &str) -> String {
