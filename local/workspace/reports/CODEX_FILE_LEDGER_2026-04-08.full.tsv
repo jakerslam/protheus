@@ -500,7 +500,7 @@ order	status	file	language	loc	authority_risk_score	migration_potential_score	co
 499	queued	core/layer0/ops/src/baremetal_substrate.rs	rs	579	5	1	2	3.2
 500	queued	core/layer0/ops/src/autonomy_controller_parts/010-prelude-and-state.rs	rs	576	5	1	2	3.2
 501	queued	core/layer0/ops/tests/v6_flow_batch10_integration.rs	rs	571	5	1	2	3.2
-502	queued	core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/140-part.rs	rs	570	5	1	2	3.2
+502	done	core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/140-part.rs	rs	570	5	1	2	3.2
 503	queued	core/layer0/ops/src/autonomy_controller_parts/051-speculation-and-regression-tests.rs	rs	563	5	1	2	3.2
 504	queued	core/layer0/ops/src/identity_federation.rs	rs	558	5	1	2	3.2
 505	queued	core/layer0/ops/src/dashboard_compat_api_comms_store.rs	rs	557	5	1	2	3.2
@@ -521,7 +521,7 @@ order	status	file	language	loc	authority_risk_score	migration_potential_score	co
 520	queued	core/layer0/ops/src/habit_store_kernel.rs	rs	509	5	1	2	3.2
 521	done	core/layer0/ops/tests/v6_research_batch6_integration.rs	rs	508	5	1	2	3.2
 522	done	core/layer0/ops/src/bird_x_collector_kernel_support.rs	rs	501	5	1	2	3.2
-523	queued	core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/120-part.rs	rs	499	5	1	2	3.2
+523	done	core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/120-part.rs	rs	499	5	1	2	3.2
 524	done	core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/160-part.rs	rs	499	5	1	2	3.2
 525	queued	core/layer0/ops/src/flow_plane_parts/020-playground-and-marketplace.rs	rs	499	5	1	2	3.2
 526	queued	core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/010-part.rs	rs	498	5	1	2	3.2
@@ -542,7 +542,7 @@ order	status	file	language	loc	authority_risk_score	migration_potential_score	co
 541	queued	core/layer0/ops/tests/v6_workflow_001_integration.rs	rs	473	5	1	2	3.2
 542	queued	core/layer0/ops/tests/v8_network_enterprise_batch25_integration.rs	rs	473	5	1	2	3.2
 543	queued	core/layer0/ops/src/rust_hotpath_inventory_kernel.rs	rs	466	5	1	2	3.2
-544	queued	core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/150-part.rs	rs	465	5	1	2	3.2
+544	done	core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/150-part.rs	rs	465	5	1	2	3.2
 545	done	core/layer0/ops/src/duality_seed_parts/020-parse-codex-text.rs	rs	465	5	1	2	3.2
 546	queued	core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/100-part.rs	rs	464	5	1	2	3.2
 547	queued	core/layer0/ops/src/autonomy_controller_parts/052-autoreason.rs	rs	462	5	1	2	3.2
@@ -1829,10 +1829,10 @@ order	status	file	language	loc	authority_risk_score	migration_potential_score	co
 1828	queued	tests/tooling/scripts/ci/roi100_moves_runner.ts	ts	517	2	2	3	2.2
 1829	queued	client/runtime/systems/ui/infring_static/js/app.ts.parts/040-events-and-actions.part01.ts	ts	510	2	2	3	2.2
 1830	queued	tests/tooling/scripts/ci/srs_contract_receipts_20260312.ts	ts	510	2	2	3	2.2
-1831	queued	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/150-ws-stream-handlers.ts	ts	507	2	2	3	2.2
+1831	done	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/150-ws-stream-handlers.ts	ts	507	2	2	3	2.2
 1832	queued	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/120-slash-and-agent-select.ts	ts	501	2	2	3	2.2
 1833	queued	client/runtime/systems/ui/infring_static/js/app.ts.parts/020-nav-and-layout.part01.ts	ts	499	2	2	3	2.2
-1834	queued	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/200-send-pipeline.part01.ts	ts	499	2	2	3	2.2
+1834	done	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/200-send-pipeline.part01.ts	ts	499	2	2	3	2.2
 1835	queued	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/140-session-and-ws.part01.ts	ts	498	2	2	3	2.2
 1836	queued	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/190-drawer-and-queue.zz-part02.ts	ts	498	2	2	3	2.2
 1837	queued	tests/tooling/scripts/ci/benchmark_matrix_refresh.ts	ts	496	2	2	3	2.2
@@ -1847,7 +1847,7 @@ order	status	file	language	loc	authority_risk_score	migration_potential_score	co
 1846	queued	client/runtime/systems/ui/infring_static/js/app.ts.parts/010-core-state.part01.ts	ts	470	2	2	3	2.2
 1847	queued	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/130-render-window-and-session.part01.ts	ts	470	2	2	3	2.2
 1848	queued	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/210-scroll-hover-sanitize.part01.ts	ts	463	2	2	3	2.2
-1849	queued	tests/client-memory-tools/infring_dashboard_ui.test.ts.parts/020-eyes-and-git-tree-authority-assertions.ts	ts	462	2	2	3	2.2
+1849	done	tests/client-memory-tools/infring_dashboard_ui.test.ts.parts/020-eyes-and-git-tree-authority-assertions.ts	ts	462	2	2	3	2.2
 1850	queued	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/080-normalize-and-context.part01.ts	ts	456	2	2	3	2.2
 1851	queued	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/020-init-roles-and-vibes.part01.ts	ts	451	2	2	3	2.2
 1852	queued	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/220-artifacts-voice-search.part01.ts	ts	450	2	2	3	2.2
@@ -1918,7 +1918,7 @@ order	status	file	language	loc	authority_risk_score	migration_potential_score	co
 1917	queued	tests/tooling/scripts/memory/audit_exec_usage.ts	ts	197	2	2	3	2.2
 1918	queued	tests/tooling/scripts/ci/flaky_quarantine_audit.ts	ts	195	2	2	3	2.2
 1919	queued	tests/tooling/scripts/memory/lint_memory.ts	ts	188	2	2	3	2.2
-1920	queued	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/210-scroll-hover-sanitize.part02.ts	ts	182	2	2	3	2.2
+1920	done	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/210-scroll-hover-sanitize.part02.ts	ts	182	2	2	3	2.2
 1921	queued	client/runtime/systems/ui/infring_static/js/pages/wizard.ts.parts/020-actions-and-finish.ts	ts	181	2	2	3	2.2
 1922	queued	tests/tooling/scripts/ci/srs_repair_lane_runner.ts	ts	179	2	2	3	2.2
 1923	queued	tests/tooling/scripts/metrics/heartbeat_kpi_report.ts	ts	179	2	2	3	2.2

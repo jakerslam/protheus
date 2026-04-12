@@ -33,6 +33,64 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
   const parseJson = (raw) => { try { return JSON.parse(raw); } catch { return null; } };
   const toNum = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(ms) || 0)));
+  const CONTEXT_LIMIT_TRUNCATION_NOTICE = 'more characters truncated';
+  const DEFAULT_MAX_LIVE_TOOL_RESULT_CHARS = 40000;
+  const MIN_KEEP_CHARS = 2000;
+  const MAX_TOOL_RESULT_CONTEXT_SHARE = 0.3;
+  const MIDDLE_OMISSION_MARKER = '\n\n[... middle content omitted - showing head and tail ...]\n\n';
+  const formatContextLimitTruncationNotice = (truncatedChars) =>
+    `[... ${Math.max(1, Math.floor(Number(truncatedChars) || 0))} ${CONTEXT_LIMIT_TRUNCATION_NOTICE}]`;
+  const hasImportantTail = (text) => {
+    const tail = String(text || '').slice(-2000).toLowerCase();
+    return (
+      /\b(error|exception|failed|fatal|traceback|panic|stack trace|errno|exit code)\b/.test(tail) ||
+      /\}\s*$/.test(String(text || '').trim()) ||
+      /\b(total|summary|result|complete|finished|done)\b/.test(tail)
+    );
+  };
+  const truncateToolResultText = (text, maxChars) => {
+    const raw = String(text || '');
+    if (!raw || raw.length <= maxChars) return raw;
+    const defaultSuffix = formatContextLimitTruncationNotice(Math.max(1, raw.length - maxChars));
+    const budget = Math.max(MIN_KEEP_CHARS, maxChars - defaultSuffix.length);
+    if (hasImportantTail(raw) && budget > MIN_KEEP_CHARS * 2) {
+      const tailBudget = Math.min(Math.floor(budget * 0.3), 4000);
+      const headBudget = budget - tailBudget - MIDDLE_OMISSION_MARKER.length;
+      if (headBudget > MIN_KEEP_CHARS) {
+        var headCut = headBudget;
+        var headNewline = raw.lastIndexOf('\n', headBudget);
+        if (headNewline > headBudget * 0.8) headCut = headNewline;
+        var tailStart = raw.length - tailBudget;
+        var tailNewline = raw.indexOf('\n', tailStart);
+        if (tailNewline !== -1 && tailNewline < tailStart + tailBudget * 0.2) tailStart = tailNewline + 1;
+        var kept = raw.slice(0, headCut) + MIDDLE_OMISSION_MARKER + raw.slice(tailStart);
+        return kept + formatContextLimitTruncationNotice(Math.max(1, raw.length - kept.length));
+      }
+    }
+    var cutPoint = budget;
+    var lastNewline = raw.lastIndexOf('\n', budget);
+    if (lastNewline > budget * 0.8) cutPoint = lastNewline;
+    var keptHead = raw.slice(0, cutPoint);
+    return keptHead + formatContextLimitTruncationNotice(Math.max(1, raw.length - keptHead.length));
+  };
+  const calculateMaxToolResultChars = (contextWindowTokens) => {
+    const tokens = Math.max(1, Math.floor(Number(contextWindowTokens) || 0));
+    if (tokens <= 1) return 12000;
+    const maxTokens = Math.floor(tokens * MAX_TOOL_RESULT_CONTEXT_SHARE);
+    const maxChars = Math.max(1024, maxTokens * 4);
+    return Math.min(maxChars, DEFAULT_MAX_LIVE_TOOL_RESULT_CHARS);
+  };
+  const truncateToolRowsForContext = (rows, contextWindowTokens) => {
+    const limit = calculateMaxToolResultChars(contextWindowTokens);
+    return (Array.isArray(rows) ? rows : []).map((row) => {
+      if (!row || typeof row !== 'object') return row;
+      var next = { ...row };
+      if (typeof next.result === 'string' && next.result.length > limit) {
+        next.result = truncateToolResultText(next.result, limit);
+      }
+      return next;
+    });
+  };
   const toolIdentity = (row, idx, prefix = 'tool') => {
     const source = row && typeof row === 'object' ? row : {};
     const receipt = source.tool_attempt_receipt && typeof source.tool_attempt_receipt === 'object'
@@ -71,12 +129,12 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
       return cleanText(String(value), max);
     }
   };
-  const collectTextContentBlocks = (value, maxItems = 12) => {
+  const collectTextContentBlocks = (value, maxItems = 12, maxChars = 64000) => {
     const out = [];
     const push = (entry) => {
       if (!entry || out.length >= maxItems) return;
       if (typeof entry === 'string') {
-        const text = cleanText(entry, 4000);
+        const text = cleanText(entry, maxChars);
         if (text) out.push(text);
         return;
       }
@@ -91,7 +149,7 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
         typeof entry.text === 'string'
           ? entry.text
           : (typeof entry.content === 'string' ? entry.content : '');
-      const cleaned = cleanText(text, 4000);
+      const cleaned = cleanText(text, maxChars);
       if (cleaned) out.push(cleaned);
     };
     push(value);
@@ -614,10 +672,12 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
   wss.on('connection', (ws, _req, agentId) => {
     const targetAgent = cleanText(agentId || '', 180);
     let agentName = '';
+    let agentContextWindow = 0;
     let chain = Promise.resolve();
     chain = chain.then(async () => {
       const agent = await sendContext(ws, targetAgent);
       agentName = cleanText(agent.name || '', 120);
+      agentContextWindow = toNum(agent.context_window || agent.context_window_tokens || 0, 0);
       send(ws, { type: 'connected', agent_id: targetAgent, agent_name: agentName || '' });
     }).catch((error) => send(ws, { type: 'error', content: cleanText(error && error.message ? error.message : 'ws_connect_failed', 260), agent_id: targetAgent }));
     ws.on('message', (chunk) => {
@@ -653,7 +713,11 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
             send(ws, { type: 'error', agent_id: targetAgent, content: cleanText(out.error || `backend_http_${res.status}`, 260) });
             return;
           }
-          const toolRows = mergeResponseToolRows(out);
+          const effectiveContextWindow = toNum(
+            out.context_window || out.context_window_tokens || 0,
+            agentContextWindow
+          );
+          const toolRows = truncateToolRowsForContext(mergeResponseToolRows(out), effectiveContextWindow);
           const toolCompletion =
             out &&
             out.response_finalization &&

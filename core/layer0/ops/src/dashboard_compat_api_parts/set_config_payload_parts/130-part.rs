@@ -42,7 +42,11 @@ fn comparative_web_query_from_message(message: &str) -> Option<String> {
 fn comparative_no_findings_fallback(message: &str) -> String {
     let lowered = clean_text(message, 400).to_ascii_lowercase();
     let asks_rank = lowered.contains("rank") || lowered.contains("ranking");
-    if asks_rank {
+    let asks_structured_compare = lowered.contains("compare")
+        || lowered.contains("comparison")
+        || lowered.contains("vs")
+        || lowered.contains("versus");
+    if asks_rank || asks_structured_compare {
         return "Live web retrieval was low-signal in this turn (search-engine chrome without extractable findings). Provisional comparison: Infring is strongest in identity persistence, memory continuity, and integrated tool orchestration; top peers are currently stronger on tool/search failure recovery and handoff consistency. Ask me to rerun `batch_query` with named competitors and I will return a source-backed ranked table.".to_string();
     }
     "Live web retrieval was low-signal in this turn, so here is the stable comparison: Infring is strongest in identity persistence, memory continuity, and integrated tool orchestration, while mature peers are still stronger on failure recovery and handoff consistency. If you want live sourcing, I can rerun with `batch_query` and a narrower competitor set.".to_string()

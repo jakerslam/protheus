@@ -158,6 +158,46 @@ function structuredErrorPayload() {
   };
 }
 
+function structuredLargeToolResultPayload() {
+  return {
+    ok: true,
+    response: '',
+    content: [
+      {
+        type: 'tool_call',
+        id: 'call-batch-1',
+        name: 'batch_query',
+        arguments: { query: 'compare openclaw to this workspace' },
+      },
+      {
+        type: 'tool_result',
+        tool_use_id: 'call-batch-1',
+        content: 'alpha line\n'.repeat(700) + '\nsummary: final ranked comparison ready\nerror tail preserved',
+      },
+    ],
+    context_window: 4096,
+    response_finalization: {
+      tool_completion: {
+        live_tool_steps: [
+          { tool: 'batch_query', status: 'completed ranked comparison retrieval' },
+        ],
+        tool_attempts: [
+          {
+            attempt: {
+              attempt_id: 'call-batch-1',
+              tool_name: 'batch_query',
+              status: 'ok',
+              reason: 'ok',
+              backend: 'retrieval_plane',
+            },
+            normalized_result: { normalized_args: { query: 'compare openclaw to this workspace' } },
+          },
+        ],
+      },
+    },
+  };
+}
+
 async function runScenario(payloadFactory, messageText) {
   const flags = { host: '127.0.0.1', port: 0 };
   const fetchBackendJson = async (_flags, route) => {
@@ -276,6 +316,18 @@ async function run() {
     structuredErrorTools[0].result,
     'provider timeout after 30s',
     'structured tool error block should preserve nested text results instead of JSON blobs'
+  );
+
+  const scenarioFour = await runScenario(structuredLargeToolResultPayload, 'run large tool blocks');
+  const largeTools = Array.isArray(scenarioFour.response.tools) ? scenarioFour.response.tools : [];
+  assert.strictEqual(largeTools.length, 1, 'large structured tool result should stay visible');
+  assert.ok(
+    largeTools[0].result.includes('more characters truncated'),
+    'large structured tool results should be truncated with an OpenClaw-style notice'
+  );
+  assert.ok(
+    largeTools[0].result.includes('summary: final ranked comparison ready'),
+    'truncation should preserve important tail content'
   );
 }
 
