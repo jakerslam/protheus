@@ -413,6 +413,23 @@ pub fn api_media(root: &Path, request: &Value) -> Value {
     };
     match loaded {
         Ok(loaded) => {
+            let kind_max_bytes = max_bytes_for_media_kind(&loaded.kind);
+            if loaded.buffer.len() > kind_max_bytes {
+                let receipt = build_receipt(&requested_source, "deny", None, loaded.status_code, "kind_max_bytes", None);
+                let _ = append_jsonl(&receipts_path(root), &receipt);
+                return json!({
+                    "ok": false,
+                    "type": "web_conduit_media",
+                    "error": "kind_max_bytes",
+                    "requested_source": requested_source,
+                    "resolved_source": loaded.resolved_source,
+                    "detected_kind": loaded.kind,
+                    "kind_max_bytes": kind_max_bytes,
+                    "bytes": loaded.buffer.len(),
+                    "media_request_contract": web_media_request_contract(),
+                    "receipt": receipt
+                });
+            }
             let artifact = persist_media_artifact(root, &loaded).unwrap_or(Value::Null);
             let response_hash = sha256_hex(&String::from_utf8_lossy(&loaded.buffer));
             let receipt = build_receipt(
@@ -443,6 +460,7 @@ pub fn api_media(root: &Path, request: &Value) -> Value {
                 "status_code": loaded.status_code,
                 "content_type": loaded.content_type,
                 "kind": loaded.kind,
+                "kind_max_bytes": kind_max_bytes,
                 "file_name": loaded.file_name,
                 "bytes": loaded.buffer.len(),
                 "content_base64": if include_inline {
