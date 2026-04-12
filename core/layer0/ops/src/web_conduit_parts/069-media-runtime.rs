@@ -399,8 +399,15 @@ pub fn api_media(root: &Path, request: &Value) -> Value {
         return json!({"ok": false, "error": "media_source_required"});
     }
     let summary_only = request.get("summary_only").and_then(Value::as_bool).unwrap_or(false);
+    let requested_source = if raw.starts_with("data:") {
+        media_redacted_inline_source(&raw)
+    } else {
+        raw.clone()
+    };
     let loaded = if raw.starts_with("http://") || raw.starts_with("https://") {
         fetch_remote_media_binary(root, request)
+    } else if raw.starts_with("data:") {
+        load_inline_media_binary(request)
     } else {
         load_local_media_binary(root, request)
     };
@@ -409,11 +416,17 @@ pub fn api_media(root: &Path, request: &Value) -> Value {
             let artifact = persist_media_artifact(root, &loaded).unwrap_or(Value::Null);
             let response_hash = sha256_hex(&String::from_utf8_lossy(&loaded.buffer));
             let receipt = build_receipt(
-                &raw,
+                &requested_source,
                 "allow",
                 Some(&response_hash),
                 loaded.status_code,
-                if loaded.source_kind == "remote" { "media_loaded" } else { "local_media_loaded" },
+                if loaded.source_kind == "remote" {
+                    "media_loaded"
+                } else if loaded.source_kind == "inline" {
+                    "inline_media_loaded"
+                } else {
+                    "local_media_loaded"
+                },
                 None,
             );
             let _ = append_jsonl(&receipts_path(root), &receipt);
@@ -421,7 +434,7 @@ pub fn api_media(root: &Path, request: &Value) -> Value {
             json!({
                 "ok": true,
                 "type": "web_conduit_media",
-                "requested_source": raw,
+                "requested_source": requested_source,
                 "resolved_source": loaded.resolved_source,
                 "source_kind": loaded.source_kind,
                 "provider": loaded.provider,

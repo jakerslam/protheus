@@ -340,7 +340,7 @@ fn media_request_host_read_capability(request: &Value) -> bool {
 fn web_media_request_contract() -> Value {
     json!({
         "max_bytes_default": 8 * 1024 * 1024,
-        "supported_source_schemes": ["http", "https", "file", "local_path"],
+        "supported_source_schemes": ["http", "https", "file", "local_path", "data"],
         "supported_file_url_hosts": ["", "localhost"],
         "workspace_relative_paths": true,
         "managed_canvas_media_prefix": "/canvas/documents/",
@@ -378,6 +378,16 @@ fn web_media_request_contract() -> Value {
     })
 }
 
+fn web_media_parse_contract() -> Value {
+    json!({
+        "marker": "MEDIA:",
+        "supports_audio_as_voice_tag": true,
+        "rejects_traversal_and_home_dir_paths": true,
+        "ignores_fenced_media_lines": true,
+        "supports_quoted_paths_with_spaces": true
+    })
+}
+
 fn append_web_media_tool_entry(tool_catalog: &mut Value, policy: &Value) {
     if let Some(rows) = tool_catalog.as_array_mut() {
         rows.push(json!({
@@ -388,6 +398,13 @@ fn append_web_media_tool_entry(tool_catalog: &mut Value, policy: &Value) {
             "default_provider": "direct_http",
             "default_provider_chain": fetch_provider_chain_from_request("", &json!({}), policy),
             "request_contract": web_media_request_contract()
+        }));
+        rows.push(json!({
+            "tool": "web_media_parse",
+            "label": "Web Media Parse",
+            "family": "media",
+            "enabled": true,
+            "request_contract": web_media_parse_contract()
         }));
     }
 }
