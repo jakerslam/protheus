@@ -301,6 +301,101 @@ fn v6_research_001_1_to_001_3_strict_lanes_execute_with_receipts() {
 }
 
 #[test]
+fn v7_research_batch8_lanes_emit_receipts_via_research_plane() {
+    let fixture = stage_fixture_root();
+    let root = fixture.path();
+
+    let targets_file = root.join("fixtures").join("parallel_targets.txt");
+    if let Some(parent) = targets_file.parent() {
+        fs::create_dir_all(parent).expect("mkdir parallel fixture");
+    }
+    fs::write(
+        &targets_file,
+        "https://a.test/retry-two\nhttps://a.test/one\nhttps://a.test/retry-two\n",
+    )
+    .expect("write targets");
+    let parallel_exit = research_plane::run(
+        root,
+        &[
+            "parallel-scrape-workers".to_string(),
+            "--strict=1".to_string(),
+            format!("--targets-file={}", targets_file.display()),
+            "--session-ids=s-alpha,s-beta".to_string(),
+            "--max-concurrency=2".to_string(),
+            "--max-retries=1".to_string(),
+        ],
+    );
+    assert_eq!(parallel_exit, 0);
+    let parallel_latest = read_json(&research_latest_path(root));
+    assert_eq!(
+        parallel_latest.get("type").and_then(Value::as_str),
+        Some("research_plane_parallel_scrape_workers")
+    );
+    assert_eq!(
+        parallel_latest.get("ok").and_then(Value::as_bool),
+        Some(true)
+    );
+    let queue = read_json(
+        Path::new(
+            parallel_latest
+                .get("artifact")
+                .and_then(|v| v.get("path"))
+                .and_then(Value::as_str)
+                .expect("parallel artifact path"),
+        ),
+    )
+    .get("queue")
+    .and_then(Value::as_array)
+    .cloned()
+    .unwrap_or_default();
+    assert_eq!(queue.len(), 2);
+    assert_eq!(
+        queue[0].get("target").and_then(Value::as_str),
+        Some("https://a.test/retry-two")
+    );
+    assert_eq!(
+        queue[1].get("target").and_then(Value::as_str),
+        Some("https://a.test/one")
+    );
+
+    let urls_file = root.join("fixtures").join("ordered_decode_urls.txt");
+    fs::write(
+        &urls_file,
+        "https://news.google.com/read/ZZZ?continue=https%3A%2F%2Fexample.com%2Fz-story\nhttps://news.google.com/read/AAA?continue=https%3A%2F%2Fexample.com%2Fa-story\nhttps://news.google.com/read/ZZZ?continue=https%3A%2F%2Fexample.com%2Fz-story\n",
+    )
+    .expect("write ordered decode urls");
+    let decode_exit = research_plane::run(
+        root,
+        &[
+            "decode-news-urls".to_string(),
+            "--strict=1".to_string(),
+            format!("--urls-file={}", urls_file.display()),
+        ],
+    );
+    assert_eq!(decode_exit, 0);
+    let decode_latest = read_json(&research_latest_path(root));
+    assert_eq!(
+        decode_latest.get("type").and_then(Value::as_str),
+        Some("research_plane_decode_news_urls")
+    );
+    assert_eq!(decode_latest.get("ok").and_then(Value::as_bool), Some(true));
+    let items = decode_latest
+        .get("items")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    assert_eq!(items.len(), 2);
+    assert_eq!(
+        items[0].get("decoded_url").and_then(Value::as_str),
+        Some("https://example.com/z-story")
+    );
+    assert_eq!(
+        items[1].get("decoded_url").and_then(Value::as_str),
+        Some("https://example.com/a-story")
+    );
+}
+
+#[test]
 fn v7_asm_006_abac_lane_runs_via_security_plane_and_writes_flight_chain() {
     let fixture = stage_fixture_root();
     let root = fixture.path();
