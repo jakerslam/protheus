@@ -2,18 +2,4 @@
 'use strict';
 // TypeScript compatibility shim only.
 // Layer ownership: surface/orchestration (workflow coordination); this file is a thin CLI bridge.
-
-const impl = require('../../../../surface/orchestration/scripts/learning_conduit.ts');
-
-function run(args = process.argv.slice(2)) {
-  return impl.run(args);
-}
-
-if (require.main === module) {
-  process.exit(run(process.argv.slice(2)));
-}
-
-module.exports = {
-  ...impl,
-  run
-};
+module.exports = require('../../../../adapters/runtime/orchestration_surface_modules.ts').bindOrchestrationSurfaceModule('learning_conduit', module);
