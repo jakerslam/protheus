@@ -131,4 +131,28 @@ mod openclaw_search_tool_tests {
             Some("explicit_allowlist")
         );
     }
+
+    #[test]
+    fn api_status_and_providers_report_runtime_web_tools_metadata() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let status = api_status(tmp.path());
+        let providers = api_providers(tmp.path());
+        assert!(status
+            .get("runtime_web_tools_state_path")
+            .and_then(Value::as_str)
+            .map(|path| path.ends_with("runtime_web_tools_metadata.json"))
+            .unwrap_or(false));
+        assert_eq!(
+            status
+                .pointer("/runtime_web_tools_metadata/search/selected_provider")
+                .and_then(Value::as_str),
+            Some("duckduckgo")
+        );
+        assert_eq!(
+            providers
+                .pointer("/runtime_web_tools_metadata/fetch/selected_provider")
+                .and_then(Value::as_str),
+            Some("direct_http")
+        );
+    }
 }
