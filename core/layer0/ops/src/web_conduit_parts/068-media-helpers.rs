@@ -373,6 +373,7 @@ fn web_media_request_contract() -> Value {
             "nested_media_access_fields": ["media_access.workspace_dir", "media_access.workspaceDir", "mediaAccess.workspace_dir", "mediaAccess.workspaceDir"],
             "precedence": "top_level_over_media_access"
         },
+        "attachments_contract": web_media_attachments_contract(),
         "host_read_policy_contract": {
             "request_fields": ["host_read_capability", "allow_host_read", "media_access.host_read_capability", "media_access.allow_host_read"],
             "deny_policy_fields": ["sender_tool_policy", "group_tool_policy", "tool_policy"],
@@ -468,6 +469,13 @@ fn append_web_media_tool_entry(tool_catalog: &mut Value, policy: &Value) {
             "family": "media",
             "enabled": true,
             "request_contract": web_media_parse_contract()
+        }));
+        rows.push(json!({
+            "tool": "web_media_attachments",
+            "label": "Web Media Attachments",
+            "family": "media",
+            "enabled": true,
+            "request_contract": web_media_attachments_contract()
         }));
         rows.push(json!({
             "tool": "web_media_file_context",

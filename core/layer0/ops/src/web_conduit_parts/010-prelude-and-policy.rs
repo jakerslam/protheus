@@ -82,6 +82,9 @@ fn usage() {
         "  protheus-ops web-conduit image-tool [--prompt='<text>'] [--provider=<id>] [--model=<provider/model|model>] [--image=<path|url>|--images-json=<json>|--path=<path>|--url=<url>] [--max-images=<n>] [--max-bytes=<n>] [--timeout-seconds=<n>] [--max-tokens=<n>] [--summary-only=1]"
     );
     println!(
+        "  protheus-ops web-conduit attachments [--context-json=<json>] [--attachments-json=<json>] [--media-path=<path>|--media-url=<url>|--media-type=<mime>] [--media-paths-json=<json>] [--media-urls-json=<json>] [--media-types-json=<json>] [--already-transcribed-indices=0,2] [--capability=image|audio|video] [--prefer=first|last|path|url] [--mode=first|all] [--max-attachments=<n>] [--summary-only=1]"
+    );
+    println!(
         "  protheus-ops web-conduit media-host --url=<https://...|file://...>|--path=<local-path> [--workspace-dir=<path>] [--local-roots=<path,...>|any] [--ttl-seconds=<n>] [--base-url=<url>] [--summary-only=1]"
     );
     println!(
