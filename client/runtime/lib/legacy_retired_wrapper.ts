@@ -50,12 +50,49 @@ function createLegacyRetiredModule(scriptDir, scriptName, laneId) {
 }
 
 function runAsMain(mod, argv = []) {
-  const out = mod.run(argv);
-  const exitCode =
-    typeof out === 'number'
-      ? out
-      : (out && out.status);
-  process.exit(Number.isFinite(Number(exitCode)) ? Number(exitCode) : 1);
+  function maybePrintPayload(out) {
+    if (
+      out
+      && typeof out === 'object'
+      && !Array.isArray(out)
+      && typeof out.stdout !== 'string'
+      && typeof out.stderr !== 'string'
+    ) {
+      process.stdout.write(`${JSON.stringify(out)}\n`);
+    }
+  }
+
+  function exitFromResult(out) {
+    maybePrintPayload(out);
+    const exitCode =
+      typeof out === 'number'
+        ? out
+        : (out && out.status);
+    process.exit(Number.isFinite(Number(exitCode)) ? Number(exitCode) : 1);
+  }
+
+  try {
+    const out = mod.run(argv);
+    if (out && typeof out.then === 'function') {
+      out.then(exitFromResult).catch((err) => {
+        const payload = {
+          ok: false,
+          error: String((err && (err.code || err.message)) || err || 'compatibility_bridge_failed')
+        };
+        process.stderr.write(`${JSON.stringify(payload)}\n`);
+        process.exit(1);
+      });
+      return;
+    }
+    exitFromResult(out);
+  } catch (err) {
+    const payload = {
+      ok: false,
+      error: String((err && (err.code || err.message)) || err || 'compatibility_bridge_failed')
+    };
+    process.stderr.write(`${JSON.stringify(payload)}\n`);
+    process.exit(1);
+  }
 }
 
 function createLegacyRetiredModuleForFile(filePath) {
@@ -83,12 +120,24 @@ function createCompatibilityBridgeModule(implPath) {
   };
 }
 
+function resolveCompatibilityImplPath(implPath, currentModule) {
+  const path = require('path');
+  if (path.isAbsolute(implPath)) return implPath;
+  const callerDir =
+    currentModule && currentModule.filename
+      ? path.dirname(currentModule.filename)
+      : __dirname;
+  return path.resolve(callerDir, implPath);
+}
+
 function bindCompatibilityBridgeModule(
   implPath,
   currentModule,
   argv = process.argv.slice(2)
 ) {
-  const mod = createCompatibilityBridgeModule(implPath);
+  const mod = createCompatibilityBridgeModule(
+    resolveCompatibilityImplPath(implPath, currentModule)
+  );
   if (currentModule && require.main === currentModule) runAsMain(mod, argv);
   return mod;
 }
