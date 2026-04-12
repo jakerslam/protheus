@@ -416,7 +416,13 @@
         var httpTools = typeof this.responseToolRowsFromPayload === 'function'
           ? this.responseToolRowsFromPayload(res, 'http-tool')
           : [];
-        var httpText = this.stripModelPrefix(this.sanitizeToolText(res.response || ''));
+        var httpHasToolCompletion = typeof this.responseHasAuthoritativeToolCompletion === 'function'
+          ? this.responseHasAuthoritativeToolCompletion(res, httpTools)
+          : httpTools.length > 0;
+        var httpPayloadText = typeof this.assistantTextFromPayload === 'function'
+          ? this.assistantTextFromPayload(res)
+          : String(res.response || '');
+        var httpText = this.stripModelPrefix(this.sanitizeToolText(httpPayloadText || ''));
         var httpArtifactDirectives = this.extractArtifactDirectives(httpText);
         var httpSplit = this.extractThinkingLeak(httpText);
         if (httpSplit.thought) {
@@ -432,9 +438,12 @@
           httpText = '';
         }
         if (!String(httpText || '').trim()) {
-          httpText = this.defaultAssistantFallback(httpSplit.thought || '', httpTools);
+          var httpToolSummary = httpHasToolCompletion && typeof this.completedToolOnlySummary === 'function'
+            ? String(this.completedToolOnlySummary(httpTools) || '').trim()
+            : '';
+          httpText = httpToolSummary || this.defaultAssistantFallback(httpSplit.thought || '', httpTools);
         }
-        var httpFailure = this.extractRecoverableBackendFailure(httpText);
+        var httpFailure = httpHasToolCompletion ? null : this.extractRecoverableBackendFailure(httpText);
         if (httpFailure) {
           this._clearPendingWsRequest(targetAgentId);
           this._pendingAutoModelSwitchBaseline = '';

@@ -64,15 +64,6 @@ fn message_requests_comparative_answer(message: &str) -> bool {
     asks_compare || asks_structure
 }
 
-fn comparative_no_findings_fallback(message: &str) -> String {
-    let lowered = clean_text(message, 400).to_ascii_lowercase();
-    let asks_rank = lowered.contains("rank") || lowered.contains("ranking");
-    if asks_rank {
-        return "Live web retrieval was low-signal in this turn (search-engine chrome without extractable findings). Provisional comparison: Infring is strongest in identity persistence, memory continuity, and integrated tool orchestration; top peers are currently stronger on tool/search failure recovery and handoff consistency. Ask me to rerun `batch_query` with named competitors and I will return a source-backed ranked table.".to_string();
-    }
-    "Live web retrieval was low-signal in this turn, so here is the stable comparison: Infring is strongest in identity persistence, memory continuity, and integrated tool orchestration, while mature peers are still stronger on failure recovery and handoff consistency. If you want live sourcing, I can rerun with `batch_query` and a narrower competitor set.".to_string()
-}
-
 fn message_requests_tooling_failure_diagnosis(message: &str) -> bool {
     let lowered = clean_text(message, 500).to_ascii_lowercase();
     if lowered.is_empty() {
@@ -496,4 +487,3 @@ fn append_tool_decision_audit(
     append_jsonl_row(&tool_decision_audit_path(root), &row);
     receipt
 }
-
