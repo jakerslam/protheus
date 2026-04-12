@@ -67,6 +67,63 @@ fn normalize_media_content_type(raw: &str) -> String {
         .to_ascii_lowercase()
 }
 
+fn media_is_generic_content_type(content_type: &str) -> bool {
+    matches!(
+        normalize_media_content_type(content_type).as_str(),
+        "" | "application/octet-stream" | "application/zip"
+    )
+}
+
+fn media_mime_type_from_extension(ext: &str) -> Option<&'static str> {
+    match ext {
+        "png" => Some("image/png"),
+        "jpg" | "jpeg" => Some("image/jpeg"),
+        "gif" => Some("image/gif"),
+        "webp" => Some("image/webp"),
+        "svg" => Some("image/svg+xml"),
+        "heic" => Some("image/heic"),
+        "heif" => Some("image/heif"),
+        "mp3" => Some("audio/mpeg"),
+        "wav" => Some("audio/wav"),
+        "ogg" | "oga" => Some("audio/ogg"),
+        "flac" => Some("audio/flac"),
+        "aac" => Some("audio/aac"),
+        "opus" => Some("audio/opus"),
+        "m4a" => Some("audio/x-m4a"),
+        "mp4" => Some("video/mp4"),
+        "mov" => Some("video/quicktime"),
+        "pdf" => Some("application/pdf"),
+        "doc" => Some("application/msword"),
+        "docx" => Some("application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
+        "xls" => Some("application/vnd.ms-excel"),
+        "xlsx" => Some("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+        "ppt" => Some("application/vnd.ms-powerpoint"),
+        "pptx" => Some("application/vnd.openxmlformats-officedocument.presentationml.presentation"),
+        "csv" => Some("text/csv"),
+        "html" | "htm" => Some("text/html"),
+        "txt" => Some("text/plain"),
+        "md" => Some("text/markdown"),
+        "json" => Some("application/json"),
+        "xml" => Some("text/xml"),
+        "css" => Some("text/css"),
+        "js" => Some("text/javascript"),
+        "zip" => Some("application/zip"),
+        "gz" => Some("application/gzip"),
+        "tar" => Some("application/x-tar"),
+        "7z" => Some("application/x-7z-compressed"),
+        "rar" => Some("application/vnd.rar"),
+        _ => None,
+    }
+}
+
+fn media_mime_type_from_file_name(file_name: Option<&str>) -> Option<&'static str> {
+    let ext = file_name
+        .and_then(|row| Path::new(row).extension().and_then(|ext| ext.to_str()))
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    media_mime_type_from_extension(&ext)
+}
+
 fn media_sniff_content_type(bytes: &[u8]) -> String {
     if bytes.starts_with(b"\x89PNG\r\n\x1a\n") {
         return "image/png".to_string();
@@ -114,39 +171,20 @@ fn media_guess_content_type(
     let header = header_content_type
         .map(normalize_media_content_type)
         .unwrap_or_default();
-    if !header.is_empty() && header != "application/octet-stream" {
+    if !media_is_generic_content_type(&header) {
         return header;
     }
     let sniffed = media_sniff_content_type(bytes);
-    if sniffed != "application/octet-stream" && sniffed != "text/plain" {
+    if !media_is_generic_content_type(&sniffed) && sniffed != "text/plain" {
         return sniffed;
     }
-    let ext = file_name
-        .and_then(|row| Path::new(row).extension().and_then(|ext| ext.to_str()))
-        .unwrap_or("")
-        .to_ascii_lowercase();
-    match ext.as_str() {
-        "png" => "image/png",
-        "jpg" | "jpeg" => "image/jpeg",
-        "gif" => "image/gif",
-        "webp" => "image/webp",
-        "svg" => "image/svg+xml",
-        "mp3" => "audio/mpeg",
-        "wav" => "audio/wav",
-        "ogg" => "audio/ogg",
-        "mp4" => "video/mp4",
-        "pdf" => "application/pdf",
-        "doc" => "application/msword",
-        "docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "xls" => "application/vnd.ms-excel",
-        "xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "ppt" => "application/vnd.ms-powerpoint",
-        "pptx" => "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-        "html" | "htm" => "text/html",
-        "txt" | "md" => "text/plain",
-        _ => sniffed.as_str(),
+    if let Some(ext_mime) = media_mime_type_from_file_name(file_name) {
+        return ext_mime.to_string();
     }
-    .to_string()
+    if !header.is_empty() {
+        return header;
+    }
+    sniffed
 }
 
 fn media_kind_from_content_type(content_type: &str) -> String {
@@ -158,6 +196,9 @@ fn media_kind_from_content_type(content_type: &str) -> String {
     } else if normalized.starts_with("video/") {
         "video".to_string()
     } else if normalized == "application/pdf"
+        || normalized == "application/json"
+        || normalized == "application/xml"
+        || normalized == "text/javascript"
         || normalized.contains("msword")
         || normalized.contains("ms-excel")
         || normalized.contains("ms-powerpoint")
@@ -179,13 +220,32 @@ fn media_extension_for_content_type(content_type: &str) -> Option<&'static str> 
         "image/gif" => Some("gif"),
         "image/webp" => Some("webp"),
         "image/svg+xml" => Some("svg"),
+        "image/heic" => Some("heic"),
+        "image/heif" => Some("heif"),
         "audio/mpeg" => Some("mp3"),
         "audio/wav" => Some("wav"),
         "audio/ogg" => Some("ogg"),
+        "audio/flac" => Some("flac"),
+        "audio/aac" => Some("aac"),
+        "audio/opus" => Some("opus"),
+        "audio/x-m4a" | "audio/mp4" => Some("m4a"),
         "video/mp4" => Some("mp4"),
+        "video/quicktime" => Some("mov"),
         "application/pdf" => Some("pdf"),
+        "application/json" => Some("json"),
+        "application/xml" => Some("xml"),
+        "application/zip" => Some("zip"),
+        "application/gzip" => Some("gz"),
+        "application/x-tar" => Some("tar"),
+        "application/x-7z-compressed" => Some("7z"),
+        "application/vnd.rar" => Some("rar"),
         "text/html" => Some("html"),
         "text/plain" => Some("txt"),
+        "text/markdown" => Some("md"),
+        "text/csv" => Some("csv"),
+        "text/xml" => Some("xml"),
+        "text/css" => Some("css"),
+        "text/javascript" => Some("js"),
         _ => None,
     }
 }
