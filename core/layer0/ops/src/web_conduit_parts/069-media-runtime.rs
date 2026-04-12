@@ -287,107 +287,38 @@ fn fetch_remote_media_binary(
 }
 
 fn load_local_media_binary(root: &Path, request: &Value) -> Result<LoadedMedia, Value> {
-    let workspace_dir = clean_text(
-        request
-            .get("workspace_dir")
-            .or_else(|| request.get("workspaceDir"))
-            .and_then(Value::as_str)
-            .unwrap_or(""),
-        2200,
-    );
     let raw_source = media_request_source(request)
-    .replace("MEDIA:", "")
-    .trim()
-    .to_string();
-    let max_bytes = request.get("max_bytes").and_then(Value::as_u64).unwrap_or(8 * 1024 * 1024).clamp(4096, 32 * 1024 * 1024) as usize;
+        .replace("MEDIA:", "")
+        .trim()
+        .to_string();
+    let workspace_dir = resolve_media_workspace_dir(root, request);
+    let max_bytes = request
+        .get("max_bytes")
+        .and_then(Value::as_u64)
+        .unwrap_or(8 * 1024 * 1024)
+        .clamp(4096, 32 * 1024 * 1024) as usize;
     let host_read_capability = request
         .get("host_read_capability")
         .or_else(|| request.get("allow_host_read"))
         .and_then(Value::as_bool)
         .unwrap_or(false);
-    let allow_any_roots = request
-        .get("local_roots")
-        .and_then(|row| row.as_str())
-        .map(|row| row.trim().eq_ignore_ascii_case("any"))
-        .unwrap_or(false);
-    if media_is_windows_network_path(&raw_source) {
-        return Err(json!({"ok": false, "error": "network-path-not-allowed"}));
-    }
-    let mut resolved = match media_file_url_to_path(&raw_source) {
-        Ok(path) => PathBuf::from(path),
-        Err((code, message)) => return Err(json!({"ok": false, "error": code, "message": message})),
-    };
-    let canvas_prefix = "/canvas/documents/";
-    if raw_source.starts_with(canvas_prefix) {
-        resolved = root.join("client/runtime/local/state").join(raw_source.trim_start_matches('/'));
-    } else if raw_source.starts_with("~/") {
-        if let Ok(home) = std::env::var("HOME") {
-            resolved = PathBuf::from(home).join(raw_source.trim_start_matches("~/"));
-        }
-    } else if !resolved.is_absolute() {
-        let base = if workspace_dir.is_empty() {
-            root.to_path_buf()
-        } else {
-            PathBuf::from(workspace_dir.clone())
-        };
-        resolved = base.join(&raw_source);
-    }
-    if !allow_any_roots {
-        let roots = request
-            .get("local_roots")
-            .and_then(|row| {
-                if let Some(rows) = row.as_array() {
-                    Some(
-                        rows.iter()
-                            .filter_map(Value::as_str)
-                            .map(|value| clean_text(value, 2200))
-                            .collect::<Vec<_>>(),
-                    )
-                } else {
-                    row.as_str().map(|value| {
-                        value
-                            .split(',')
-                            .map(|part| clean_text(part, 2200))
-                            .filter(|part| !part.is_empty())
-                            .collect::<Vec<_>>()
-                    })
-                }
-            })
-            .map(|rows| {
-                rows.into_iter()
-                    .map(|clean| {
-                        let path = PathBuf::from(&clean);
-                        if path.is_absolute() {
-                            path
-                        } else {
-                            root.join(clean)
-                        }
-                    })
-                    .collect::<Vec<_>>()
-            })
-            .filter(|rows| !rows.is_empty())
-            .unwrap_or_else(|| {
-                vec![if workspace_dir.is_empty() {
-                    root.to_path_buf()
-                } else {
-                    PathBuf::from(workspace_dir.clone())
-                }]
-            });
-        let candidate = fs::canonicalize(&resolved).unwrap_or_else(|_| resolved.clone());
-        let allowed = roots.iter().any(|base| {
-            let canonical = fs::canonicalize(base).unwrap_or_else(|_| base.clone());
-            candidate.starts_with(&canonical)
-        });
-        if !allowed {
-            return Err(json!({"ok": false, "error": "path-not-allowed", "resolved_path": resolved.display().to_string()}));
-        }
-    }
+    let resolved = resolve_local_media_source_path(root, request, &raw_source, &workspace_dir)?;
     let bytes = match fs::read(&resolved) {
         Ok(row) => row,
-        Err(_) => return Err(json!({"ok": false, "error": "not-found", "resolved_path": resolved.display().to_string()})),
+        Err(_) => {
+            return Err(json!({
+                "ok": false,
+                "error": "not-found",
+                "resolved_path": resolved.display().to_string()
+            }))
+        }
     };
     if bytes.len() > max_bytes {
-        return Err(json!({"ok": false, "error": "max_bytes", "resolved_path": resolved.display().to_string()}));
+        return Err(json!({
+            "ok": false,
+            "error": "max_bytes",
+            "resolved_path": resolved.display().to_string()
+        }));
     }
     let file_name = resolved
         .file_name()

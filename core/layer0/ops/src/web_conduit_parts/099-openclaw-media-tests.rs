@@ -88,6 +88,42 @@ mod openclaw_media_tests {
     }
 
     #[test]
+    fn openclaw_media_loads_localhost_file_urls() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let target = tmp.path().join("chart.png");
+        fs::write(&target, tiny_png_bytes()).expect("png");
+        let out = api_media(
+            tmp.path(),
+            &json!({
+                "url": format!("file://localhost{}", target.display()),
+                "local_roots": "any"
+            }),
+        );
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(out.get("file_name").and_then(Value::as_str), Some("chart.png"));
+        assert_eq!(out.get("source_kind").and_then(Value::as_str), Some("local"));
+    }
+
+    #[test]
+    fn openclaw_media_rejects_filesystem_root_local_roots() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let target = tmp.path().join("chart.png");
+        fs::write(&target, tiny_png_bytes()).expect("png");
+        let out = api_media(
+            tmp.path(),
+            &json!({
+                "path": target.display().to_string(),
+                "local_roots": "/"
+            }),
+        );
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            out.get("error").and_then(Value::as_str),
+            Some("invalid-root")
+        );
+    }
+
+    #[test]
     fn openclaw_media_rejects_disguised_host_read_text_files() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let disguised = tmp.path().join("secret.pdf");
@@ -147,6 +183,41 @@ mod openclaw_media_tests {
     }
 
     #[test]
+    fn openclaw_media_loads_managed_canvas_document_paths() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let canvas_file = tmp
+            .path()
+            .join("client/runtime/local/state/canvas/documents/cv_demo/collection.media/tiny.png");
+        fs::create_dir_all(canvas_file.parent().expect("parent")).expect("canvas dir");
+        fs::write(&canvas_file, tiny_png_bytes()).expect("png");
+        let out = api_media(
+            tmp.path(),
+            &json!({
+                "path": "/canvas/documents/cv_demo/collection.media/tiny.png?cache=1"
+            }),
+        );
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(out.get("source_kind").and_then(Value::as_str), Some("local"));
+        assert_eq!(out.get("file_name").and_then(Value::as_str), Some("tiny.png"));
+    }
+
+    #[test]
+    fn openclaw_media_rejects_canvas_document_traversal_paths() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let out = api_media(
+            tmp.path(),
+            &json!({
+                "path": "/canvas/documents/../collection.media/index.html"
+            }),
+        );
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            out.get("error").and_then(Value::as_str),
+            Some("invalid-path")
+        );
+    }
+
+    #[test]
     fn openclaw_media_status_and_providers_report_contract_and_tool_catalog() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let status = api_status(tmp.path());
@@ -157,6 +228,18 @@ mod openclaw_media_tests {
                 .and_then(Value::as_str),
             Some("/canvas/documents/")
         );
+        let suffixes = status
+            .pointer("/media_request_contract/default_local_root_suffixes")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(suffixes.iter().any(|row| row.as_str() == Some("client/runtime/local/state/canvas")));
+        let error_codes = status
+            .pointer("/media_request_contract/fail_closed_error_codes")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(error_codes.iter().any(|row| row.as_str() == Some("invalid-root")));
         assert!(providers
             .get("tool_catalog")
             .and_then(Value::as_array)

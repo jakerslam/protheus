@@ -224,30 +224,6 @@ fn redact_media_locator(raw: &str) -> String {
     out
 }
 
-fn media_file_url_to_path(raw: &str) -> Result<String, (String, String)> {
-    let Some(rest) = raw.strip_prefix("file://") else {
-        return Ok(raw.to_string());
-    };
-    if rest.is_empty() {
-        return Err(("invalid-file-url".to_string(), "file URL missing path".to_string()));
-    }
-    if let Some(path) = rest.strip_prefix("localhost/") {
-        return Ok(format!("/{}", percent_decode_urlish(path)));
-    }
-    if rest.starts_with('/') {
-        return Ok(percent_decode_urlish(rest));
-    }
-    Err((
-        "invalid-file-url".to_string(),
-        "Remote hosts are not allowed in file URLs.".to_string(),
-    ))
-}
-
-fn media_is_windows_network_path(raw: &str) -> bool {
-    let clean = raw.trim();
-    clean.starts_with("\\\\") || clean.starts_with("//")
-}
-
 fn host_read_media_allowed(sniffed_content_type: &str) -> bool {
     let normalized = normalize_media_content_type(sniffed_content_type);
     normalized.starts_with("image/")
@@ -269,8 +245,21 @@ fn web_media_request_contract() -> Value {
     json!({
         "max_bytes_default": 8 * 1024 * 1024,
         "supported_source_schemes": ["http", "https", "file", "local_path"],
+        "supported_file_url_hosts": ["", "localhost"],
         "workspace_relative_paths": true,
         "managed_canvas_media_prefix": "/canvas/documents/",
+        "default_local_root_suffixes": media_default_local_root_suffixes(),
+        "fail_closed_error_codes": [
+            "invalid-file-url",
+            "invalid-path",
+            "invalid-root",
+            "network-path-not-allowed",
+            "not-file",
+            "not-found",
+            "path-not-allowed",
+            "unsafe-bypass"
+        ],
+        "rejects_windows_network_paths": true,
         "host_read_capability_requires_sniffed_binary_or_office_document": true,
         "summary_only_default": false
     })

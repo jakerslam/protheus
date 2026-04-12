@@ -11,6 +11,7 @@ include!("web_conduit_parts/066-legacy-config-migration.rs");
 include!("web_conduit_parts/067-native-codex-activation.rs");
 include!("web_conduit_parts/068-media-helpers.rs");
 include!("web_conduit_parts/069-media-runtime.rs");
+include!("web_conduit_parts/071-media-local-path-policy.rs");
 include!("web_conduit_parts/070-cli-run.rs");
 include!("web_conduit_parts/080-tests.rs");
 include!("web_conduit_parts/090-openclaw-fetch-helper-tests.rs");
