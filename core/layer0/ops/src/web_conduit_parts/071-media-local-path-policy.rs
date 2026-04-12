@@ -1,4 +1,6 @@
 const MANAGED_CANVAS_MEDIA_PREFIX: &str = "/canvas/documents/";
+const DEFAULT_IMESSAGE_ATTACHMENT_ROOT_PATTERNS: &[&str] =
+    &["/Users/*/Library/Messages/Attachments"];
 
 fn media_default_local_root_suffixes() -> Vec<&'static str> {
     vec![
@@ -40,6 +42,156 @@ fn media_json_error(code: &str, message: &str) -> Value {
         "ok": false,
         "error": code,
         "message": clean_text(message, 260)
+    })
+}
+
+fn media_is_windows_drive_absolute(raw: &str) -> bool {
+    let bytes = raw.as_bytes();
+    bytes.len() >= 3
+        && bytes[0].is_ascii_alphabetic()
+        && bytes[1] == b':'
+        && bytes[2] == b'/'
+}
+
+fn media_normalize_root_pattern(raw: &str) -> Option<String> {
+    let normalized = clean_text(raw, 2200).replace('\\', "/");
+    let trimmed = normalized.trim_end_matches('/');
+    if trimmed.is_empty() || trimmed == "/" {
+        return None;
+    }
+    let (prefix, body) = if media_is_windows_drive_absolute(trimmed) {
+        (trimmed[..2].to_string(), &trimmed[2..])
+    } else if trimmed.starts_with('/') {
+        (String::new(), trimmed)
+    } else {
+        return None;
+    };
+    let segments = body
+        .split('/')
+        .filter(|segment| !segment.is_empty())
+        .collect::<Vec<_>>();
+    if segments.is_empty() {
+        return None;
+    }
+    let mut normalized_segments = Vec::new();
+    for segment in segments {
+        if segment == "." || segment == ".." {
+            return None;
+        }
+        if segment == "*" {
+            normalized_segments.push(segment.to_string());
+            continue;
+        }
+        if segment.contains('*') {
+            return None;
+        }
+        normalized_segments.push(segment.to_string());
+    }
+    if normalized_segments.is_empty() {
+        return None;
+    }
+    if let Some(wildcard_index) = normalized_segments.iter().position(|segment| segment == "*") {
+        if wildcard_index > 0 {
+            let concrete_prefix = if prefix.is_empty() {
+                format!("/{}", normalized_segments[..wildcard_index].join("/"))
+            } else {
+                format!("{}/{}", prefix, normalized_segments[..wildcard_index].join("/"))
+            };
+            let canonical_prefix = media_canonicalize_or_resolve(Path::new(&concrete_prefix));
+            let canonical_prefix = canonical_prefix
+                .to_string_lossy()
+                .replace('\\', "/")
+                .trim_end_matches('/')
+                .to_string();
+            if canonical_prefix.is_empty() || canonical_prefix == "/" {
+                return None;
+            }
+            return Some(format!(
+                "{}/{}",
+                canonical_prefix,
+                normalized_segments[wildcard_index..].join("/")
+            ));
+        }
+    }
+    Some(if prefix.is_empty() {
+        format!("/{}", normalized_segments.join("/"))
+    } else {
+        format!("{}/{}", prefix, normalized_segments.join("/"))
+    })
+}
+
+fn media_normalize_resolved_root_path(path: &Path) -> Result<String, Value> {
+    let canonical = media_canonicalize_or_resolve(path);
+    if canonical.parent().is_none() {
+        return Err(media_json_error(
+            "invalid-root",
+            "Local root cannot be a filesystem root.",
+        ));
+    }
+    media_normalize_root_pattern(&canonical.to_string_lossy())
+        .ok_or_else(|| media_json_error("invalid-root", "Local root pattern is invalid."))
+}
+
+fn media_match_root_pattern(candidate_path: &str, root_pattern: &str) -> bool {
+    let candidate_segments = candidate_path
+        .split('/')
+        .filter(|segment| !segment.is_empty())
+        .collect::<Vec<_>>();
+    let root_segments = root_pattern
+        .split('/')
+        .filter(|segment| !segment.is_empty())
+        .collect::<Vec<_>>();
+    if candidate_segments.len() < root_segments.len() {
+        return false;
+    }
+    root_segments
+        .iter()
+        .zip(candidate_segments.iter())
+        .all(|(expected, actual)| *expected == "*" || expected == actual)
+}
+
+fn media_merge_root_patterns(lists: &[Vec<String>]) -> Vec<String> {
+    let mut merged = Vec::new();
+    for list in lists {
+        for pattern in list {
+            if !merged.iter().any(|existing| existing == pattern) {
+                merged.push(pattern.clone());
+            }
+        }
+    }
+    merged
+}
+
+fn media_channel_surface_id(request: &Value) -> String {
+    for key in ["channel_surface", "channel", "message_provider", "messageProvider"] {
+        let value = clean_text(request.get(key).and_then(Value::as_str).unwrap_or(""), 80)
+            .to_ascii_lowercase();
+        if !value.is_empty() {
+            return value;
+        }
+    }
+    String::new()
+}
+
+fn media_channel_attachment_root_patterns(request: &Value) -> Vec<String> {
+    match media_channel_surface_id(request).as_str() {
+        "imessage" | "messages" => DEFAULT_IMESSAGE_ATTACHMENT_ROOT_PATTERNS
+            .iter()
+            .filter_map(|row| media_normalize_root_pattern(row))
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
+fn media_channel_attachment_root_contract() -> Value {
+    json!({
+        "supported_channels": ["imessage"],
+        "channels": {
+            "imessage": {
+                "default_attachment_roots": DEFAULT_IMESSAGE_ATTACHMENT_ROOT_PATTERNS,
+                "default_remote_attachment_roots": DEFAULT_IMESSAGE_ATTACHMENT_ROOT_PATTERNS
+            }
+        }
     })
 }
 
@@ -101,7 +253,7 @@ fn resolve_media_workspace_dir(root: &Path, request: &Value) -> PathBuf {
     }
 }
 
-fn media_default_local_roots(root: &Path, workspace_dir: &Path) -> Vec<PathBuf> {
+fn media_default_local_root_patterns(root: &Path, workspace_dir: &Path, request: &Value) -> Vec<String> {
     let mut roots = vec![
         media_local_config_dir(root).join("media"),
         media_local_state_dir(root).join("media"),
@@ -112,23 +264,20 @@ fn media_default_local_roots(root: &Path, workspace_dir: &Path) -> Vec<PathBuf> 
     if !workspace_dir.as_os_str().is_empty() {
         roots.push(workspace_dir.to_path_buf());
     }
-    let mut deduped = Vec::new();
-    for root_path in roots {
-        let canonical = media_canonicalize_or_resolve(&root_path);
-        if !deduped.iter().any(|existing: &PathBuf| existing == &canonical) {
-            deduped.push(canonical);
-        }
-    }
-    deduped
+    let concrete = roots
+        .into_iter()
+        .filter_map(|root_path| media_normalize_resolved_root_path(&root_path).ok())
+        .collect::<Vec<_>>();
+    media_merge_root_patterns(&[concrete, media_channel_attachment_root_patterns(request)])
 }
 
 fn media_request_local_roots(
     root: &Path,
     request: &Value,
     workspace_dir: &Path,
-) -> Result<Option<Vec<PathBuf>>, Value> {
+) -> Result<Option<Vec<String>>, Value> {
     let Some(value) = request.get("local_roots") else {
-        return Ok(Some(media_default_local_roots(root, workspace_dir)));
+        return Ok(Some(media_default_local_root_patterns(root, workspace_dir, request)));
     };
     if value
         .as_str()
@@ -150,31 +299,44 @@ fn media_request_local_roots(
             .collect::<Vec<_>>()
     };
     if raw_roots.is_empty() {
-        return Ok(Some(media_default_local_roots(root, workspace_dir)));
+        return Ok(Some(media_default_local_root_patterns(root, workspace_dir, request)));
     }
     let mut resolved_roots = Vec::new();
     for raw_root in raw_roots {
-        let mut candidate = if raw_root.starts_with("file://") {
+        if raw_root.contains('*') {
+            let normalized = media_normalize_root_pattern(&raw_root).ok_or_else(|| {
+                media_json_error(
+                    "invalid-root",
+                    "Local root wildcard patterns must be absolute and may use only '*' path segments.",
+                )
+            })?;
+            if !resolved_roots.iter().any(|existing| existing == &normalized) {
+                resolved_roots.push(normalized);
+            }
+            continue;
+        }
+        let candidate = if raw_root.starts_with("file://") {
             media_safe_file_url_to_path(&raw_root)?
         } else {
-            media_expand_user_path(&raw_root)
+            let expanded = media_expand_user_path(&raw_root);
+            if expanded.is_absolute() {
+                expanded
+            } else {
+                root.join(expanded)
+            }
         };
-        if !candidate.is_absolute() {
-            candidate = root.join(candidate);
-        }
-        let canonical = media_canonicalize_or_resolve(&candidate);
-        if canonical.parent().is_none() {
-            return Err(json!({
+        let normalized = media_normalize_resolved_root_path(&candidate).map_err(|_| {
+            json!({
                 "ok": false,
                 "error": "invalid-root",
                 "message": format!(
-                    "Invalid localRoots entry (refuses filesystem root): {}. Pass a narrower directory.",
+                    "Invalid localRoots entry (refuses filesystem root or invalid pattern): {}. Pass a narrower absolute directory or wildcard pattern.",
                     raw_root
                 )
-            }));
-        }
-        if !resolved_roots.iter().any(|existing: &PathBuf| existing == &canonical) {
-            resolved_roots.push(canonical);
+            })
+        })?;
+        if !resolved_roots.iter().any(|existing| existing == &normalized) {
+            resolved_roots.push(normalized);
         }
     }
     Ok(Some(resolved_roots))
@@ -281,6 +443,14 @@ fn resolve_local_media_source_path(
     let roots = media_request_local_roots(root, request, workspace_dir)?;
     if let Some(allowed_roots) = roots {
         let candidate = media_canonicalize_or_resolve(&resolved);
+        let candidate_pattern = media_normalize_resolved_root_path(&candidate).map_err(|_| {
+            json!({
+                "ok": false,
+                "error": "invalid-path",
+                "resolved_path": resolved.display().to_string(),
+                "message": format!("Local media path is invalid: {}", raw_source)
+            })
+        })?;
         let default_state_dir = media_canonicalize_or_resolve(&media_local_state_dir(root));
         let uses_default_roots = request.get("local_roots").is_none();
         if uses_default_roots {
@@ -301,10 +471,9 @@ fn resolve_local_media_source_path(
                 }
             }
         }
-        let allowed = allowed_roots.iter().any(|base| {
-            let canonical = media_canonicalize_or_resolve(base);
-            candidate == canonical || candidate.starts_with(&canonical)
-        });
+        let allowed = allowed_roots
+            .iter()
+            .any(|root_pattern| media_match_root_pattern(&candidate_pattern, root_pattern));
         if !allowed {
             return Err(json!({
                 "ok": false,
