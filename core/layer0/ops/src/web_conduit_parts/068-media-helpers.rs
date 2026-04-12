@@ -309,6 +309,13 @@ fn web_media_request_contract() -> Value {
         "workspace_relative_paths": true,
         "managed_canvas_media_prefix": "/canvas/documents/",
         "default_local_root_suffixes": media_default_local_root_suffixes(),
+        "supports_wildcard_local_roots": true,
+        "local_root_pattern_contract": {
+            "wildcard_segment": "*",
+            "requires_absolute_paths": true,
+            "rejects_double_star": true
+        },
+        "channel_attachment_root_contract": media_channel_attachment_root_contract(),
         "fail_closed_error_codes": [
             "invalid-file-url",
             "invalid-path",
