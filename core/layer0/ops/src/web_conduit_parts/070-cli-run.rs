@@ -14,7 +14,15 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         .map(|row| row.to_ascii_lowercase())
         .unwrap_or_else(|| "status".to_string());
     let nexus_connection = match command.as_str() {
-        "fetch" | "browse" | "media" | "image-metadata" | "outbound-attachment" | "qr-image" => {
+        "fetch"
+        | "browse"
+        | "media"
+        | "audio-probe"
+        | "pdf-extract"
+        | "pdf-native-analyze"
+        | "image-metadata"
+        | "outbound-attachment"
+        | "qr-image" => {
             match crate::dashboard_tool_turn_loop::authorize_ingress_tool_call_with_nexus(
                 "web_conduit_fetch",
             ) {
@@ -257,6 +265,13 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             )
         }
         "media" => api_media(root, &cli_media_request_from_parsed(&parsed)),
+        "audio-probe" | "pdf-extract" | "pdf-native-analyze" => {
+            match run_document_cli_command(root, command.as_str(), &parsed) {
+                Ok(Some(value)) => value,
+                Ok(None) => unreachable!("document command dispatch"),
+                Err(code) => return code,
+            }
+        }
         "image-metadata" => api_image_metadata(root, &cli_media_request_from_parsed(&parsed)),
         "media-host" => api_media_host(root, &cli_media_host_request_from_parsed(&parsed)),
         "outbound-attachment" => {

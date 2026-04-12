@@ -15424,3 +15424,18 @@ Source summary:
 - Regression evidence pointers:
   - `core/layer0/ops/src/assimilate_kernel_support.rs`
   - `cargo test -p protheus-ops-core canonical_plan_ -- --nocapture`
+
+### V11-ASSIM-005 — OpenClaw PDF and FFmpeg Media Authority in Rust Web Conduit
+
+- Intent:
+  - Assimilate OpenClaw PDF extraction, native PDF-provider analysis, and FFprobe-backed media probing into the Rust-authoritative web conduit surface.
+- Acceptance criteria:
+  - `web-conduit` exposes first-class `audio-probe`, `pdf-extract`, and `pdf-native-analyze` surfaces in the tool catalog and status contract.
+  - PDF extraction returns text from valid PDF inputs with bounded page selection and explicit image-fallback status.
+  - Native Anthropic and Google PDF analysis request shapes are exercised by local regression servers and fail closed on missing credentials or unsupported providers.
+  - FFprobe parsing normalizes codec/sample-rate output and is surfaced through a deterministic audio-probe contract.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/081-media-audio-probe-and-pdf-extract.rs`
+  - `core/layer0/ops/src/web_conduit_parts/082-media-pdf-native-provider.rs`
+  - `core/layer0/ops/src/web_conduit_parts/107-openclaw-pdf-ffmpeg-tests.rs`
+  - `cargo test --manifest-path core/layer0/ops/Cargo.toml --lib openclaw_pdf_ffmpeg_ -- --nocapture`

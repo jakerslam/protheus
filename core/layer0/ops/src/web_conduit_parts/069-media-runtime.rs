@@ -129,13 +129,7 @@ pub fn api_media(root: &Path, request: &Value) -> Value {
     } else {
         raw.clone()
     };
-    let loaded = if raw.starts_with("http://") || raw.starts_with("https://") {
-        fetch_remote_media_binary(root, request)
-    } else if raw.starts_with("data:") {
-        load_inline_media_binary(request)
-    } else {
-        load_local_media_binary(root, request)
-    };
+    let loaded = load_media_binary_for_request(root, request);
     match loaded {
         Ok(loaded) => {
             let finalized = match finalize_loaded_media_for_request(loaded, request) {

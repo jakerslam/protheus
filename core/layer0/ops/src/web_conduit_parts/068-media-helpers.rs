@@ -394,6 +394,9 @@ fn web_media_request_contract() -> Value {
         },
         "prompt_image_order_contract": web_media_prompt_image_order_contract(),
         "voice_audio_contract": web_media_voice_contract(),
+        "audio_probe_contract": web_media_audio_probe_contract(),
+        "pdf_extract_contract": web_media_pdf_extract_contract(),
+        "pdf_native_provider_contract": web_media_pdf_native_provider_contract(),
         "media_store_contract": media_store_contract(),
         "hosting_contract": web_media_host_contract(),
         "outbound_attachment_contract": web_media_outbound_attachment_contract(),
@@ -465,4 +468,5 @@ fn append_web_media_tool_entry(tool_catalog: &mut Value, policy: &Value) {
     append_web_media_outbound_tool_entry(tool_catalog, policy);
     append_web_media_qr_tool_entry(tool_catalog, policy);
     append_web_media_image_ops_tool_entry(tool_catalog, policy);
+    append_openclaw_pdf_tool_entries(tool_catalog, policy);
 }
