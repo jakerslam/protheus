@@ -19,7 +19,7 @@ fn map_gigs(payload: &Map<String, Value>) -> Value {
             None => continue,
         };
         let title = clean_text(obj.get("title").and_then(Value::as_str), 220);
-        let url = clean_text(obj.get("url").and_then(Value::as_str), 600);
+        let url = canonical_upwork_gig_url(obj.get("url").and_then(Value::as_str));
         if title.is_empty() || url.is_empty() {
             continue;
         }
@@ -67,6 +67,21 @@ fn map_gigs(payload: &Map<String, Value>) -> Value {
         "items": items,
         "seen_ids": seen_ids
     })
+}
+
+fn canonical_upwork_gig_url(raw: Option<&str>) -> String {
+    let cleaned = clean_text(raw, 600);
+    for prefix in [
+        "https://www.upwork.com/",
+        "https://upwork.com/",
+        "http://www.upwork.com/",
+        "http://upwork.com/",
+    ] {
+        if let Some(rest) = cleaned.strip_prefix(prefix) {
+            return format!("https://www.upwork.com/{}", clean_text(Some(rest), 560));
+        }
+    }
+    String::new()
 }
 
 fn fallback_gigs(payload: &Map<String, Value>) -> Value {
@@ -429,4 +444,3 @@ fn command_collect(root: &Path, payload: &Map<String, Value>) -> Result<Value, S
         .unwrap_or_default(),
     )
 }
-

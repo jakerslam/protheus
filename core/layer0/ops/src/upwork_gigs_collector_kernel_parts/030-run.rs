@@ -163,6 +163,23 @@ mod tests {
     }
 
     #[test]
+    fn map_gigs_rejects_non_upwork_urls_and_canonicalizes_host() {
+        let payload = json!({
+            "date": "2026-04-11",
+            "max_items": 10,
+            "seen_ids": [],
+            "gigs": [
+                {"title": "bad", "url": "javascript:alert(1)"},
+                {"title": "good", "url": "http://upwork.com/jobs/good", "description": "AI workflow build"}
+            ]
+        });
+        let out = map_gigs(lane_utils::payload_obj(&payload));
+        let items = out.get("items").and_then(Value::as_array).cloned().unwrap_or_default();
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0].get("url").and_then(Value::as_str), Some("https://www.upwork.com/jobs/good"));
+    }
+
+    #[test]
     fn build_fetch_plan_returns_rss_request() {
         let out = command_build_fetch_plan(&Map::new());
         let reqs = out.get("requests").and_then(Value::as_array).cloned().unwrap_or_default();
