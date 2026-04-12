@@ -263,6 +263,28 @@ fn summarize_web_fetch_payload(payload: &Value) -> String {
     } else {
         summary.clone()
     };
+    let stripped_body = strip_context_guard_markers(&body);
+    if response_mentions_context_guard(&body) {
+        let source = source_label_from_url(&requested_url);
+        let snippet = first_sentence(&stripped_body, 320);
+        if !snippet.is_empty() {
+            if source.is_empty() {
+                return format!(
+                    "{} Web fetch output was truncated before final synthesis; retry with one specific URL or ask me to continue from the partial result.",
+                    snippet
+                );
+            }
+            return format!(
+                "From {}: {} Web fetch output was truncated before final synthesis; retry with one specific URL or ask me to continue from the partial result.",
+                trim_text(&source, 120),
+                snippet
+            );
+        }
+        if source.is_empty() {
+            return web_tool_context_guard_fallback("The fetched page");
+        }
+        return web_tool_context_guard_fallback(&format!("Fetch from {}", trim_text(&source, 120)));
+    }
     if body.is_empty() {
         if requested_url.is_empty() {
             return "I fetched the page, but it returned no readable content.".to_string();
@@ -439,6 +461,15 @@ fn user_facing_tool_failure_summary(tool_name: &str, payload: &Value) -> Option<
         return Some(format!(
             "`{normalized}` hit temporary runtime I/O pressure (`request_read_failed`). I already retry transient failures automatically; retry once, then run `infringctl doctor --json` if it persists."
         ));
+    }
+    if lowered.contains("context overflow")
+        || lowered.contains("safe threshold during tool loop")
+        || lowered.contains("more characters truncated")
+    {
+        return Some(web_tool_context_guard_fallback(&format!(
+            "`{}`",
+            normalized
+        )));
     }
     if lowered.contains("timeout")
         || lowered.contains("timed out")

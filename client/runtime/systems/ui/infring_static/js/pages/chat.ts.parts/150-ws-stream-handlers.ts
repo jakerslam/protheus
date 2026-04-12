@@ -252,10 +252,20 @@
             streamedTools.unshift(this.makeThoughtToolCard(collapsedThought, wsDurationMs));
           }
           var usedFallback = false;
+          var toolOnlySummary = responseHasToolCompletion && typeof this.completedToolOnlySummary === 'function'
+            ? String(this.completedToolOnlySummary(streamedTools) || '').trim()
+            : '';
+          if (
+            responseHasToolCompletion &&
+            toolOnlySummary &&
+            (
+              (typeof this.textLooksNoFindingsPlaceholder === 'function' && this.textLooksNoFindingsPlaceholder(finalText)) ||
+              (typeof this.textLooksToolAckWithoutFindings === 'function' && this.textLooksToolAckWithoutFindings(finalText))
+            )
+          ) {
+            finalText = toolOnlySummary;
+          }
           if (!finalText.trim()) {
-            var toolOnlySummary = responseHasToolCompletion && typeof this.completedToolOnlySummary === 'function'
-              ? String(this.completedToolOnlySummary(streamedTools) || '').trim()
-              : '';
             if (toolOnlySummary) {
               finalText = toolOnlySummary;
             } else {

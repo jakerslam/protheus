@@ -230,6 +230,21 @@ function assertInterfaceSafetyGuards() {
     "lower.indexOf('completed tool steps:') === 0",
     'failover recovery must not treat tool-only completion summaries as backend failures'
   );
+  assertContains(
+    chatSource,
+    'textLooksNoFindingsPlaceholder: function(text)',
+    'chat UI must detect no-findings placeholder copy so tool-only web turns can be rewritten to visible summaries'
+  );
+  assertContains(
+    chatSource,
+    'textMentionsContextGuard: function(text)',
+    'chat UI must detect context-guard truncation copy so oversized tool results degrade visibly instead of disappearing'
+  );
+  assertContains(
+    chatSource,
+    'lowSignalWebToolSummary: function(tool)',
+    'chat UI must synthesize actionable low-signal web summaries from tool-only completions'
+  );
 
   assertContains(
     hostSource,

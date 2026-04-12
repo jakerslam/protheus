@@ -205,6 +205,18 @@ fn web_search_request_read_failed_summary_is_actionable() {
 }
 
 #[test]
+fn web_search_context_guard_failure_summary_is_actionable() {
+    let summary = user_facing_tool_failure_summary(
+        "web_search",
+        &json!({"ok": false, "error": "Context overflow: estimated context size exceeds safe threshold during tool loop."}),
+    )
+    .expect("summary");
+    let lowered = summary.to_ascii_lowercase();
+    assert!(lowered.contains("fit safely in context"));
+    assert!(lowered.contains("narrower query"));
+}
+
+#[test]
 fn transient_tool_failure_detects_request_read_failed_signature() {
     assert!(transient_tool_failure(&json!({
         "ok": false,
@@ -304,6 +316,36 @@ fn batch_query_summary_rewrites_unsynthesized_domain_dump_to_structured_evidence
     let lowered = summary.to_ascii_lowercase();
     assert!(lowered.contains("batch query evidence"));
     assert!(!lowered.contains("bing.com: compare"));
+}
+
+#[test]
+fn batch_query_context_guard_comparison_uses_comparative_fallback() {
+    let summary = summarize_tool_payload(
+        "batch_query",
+        &json!({
+            "ok": true,
+            "status": "ok",
+            "query": "compare openclaw to this system/workspace",
+            "source": "web",
+            "summary": "Context overflow: estimated context size exceeds safe threshold during tool loop."
+        }),
+    );
+    let lowered = summary.to_ascii_lowercase();
+    assert!(lowered.contains("infring is strongest"));
+    assert!(lowered.contains("source-backed ranked table"));
+}
+
+#[test]
+fn maybe_tooling_failure_fallback_rewrites_context_guard_diagnosis() {
+    let fallback = maybe_tooling_failure_fallback(
+        "why is web search failing lately",
+        "Context overflow: estimated context size exceeds safe threshold during tool loop.",
+        "",
+    )
+    .expect("fallback");
+    let lowered = fallback.to_ascii_lowercase();
+    assert!(lowered.contains("fit safely in context"));
+    assert!(lowered.contains("partial result"));
 }
 
 #[test]

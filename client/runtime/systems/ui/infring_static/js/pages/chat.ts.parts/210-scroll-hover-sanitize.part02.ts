@@ -155,6 +155,74 @@
       var text = this.nextThoughtSentenceFrame(msg, thoughtText) || this.latestCompleteSentence(thoughtText) || '';
       return '<span class="thinking-live-inline"><em>' + escapeHtml(text) + '</em></span>';
     },
+    textLooksNoFindingsPlaceholder: function(text) {
+      var lower = String(text || '').replace(/\s+/g, ' ').trim().toLowerCase();
+      if (!lower) return false;
+      return (
+        lower.indexOf("don't have usable tool findings from this turn yet") >= 0 ||
+        lower.indexOf("dont have usable tool findings from this turn yet") >= 0 ||
+        lower.indexOf('no usable findings yet') >= 0 ||
+        lower.indexOf("couldn't extract usable findings") >= 0 ||
+        lower.indexOf('could not extract usable findings') >= 0 ||
+        lower.indexOf("couldn't produce source-backed findings in this turn") >= 0
+      );
+    },
+    textLooksToolAckWithoutFindings: function(text) {
+      var lower = String(text || '').replace(/\s+/g, ' ').trim().toLowerCase();
+      if (!lower) return false;
+      return (
+        lower.indexOf('completed tool steps:') === 0 ||
+        lower.indexOf('completed the tool call, but no synthesized response was available yet') >= 0 ||
+        lower.indexOf('returned no usable findings yet') >= 0
+      );
+    },
+    textMentionsContextGuard: function(text) {
+      var lower = String(text || '').replace(/\s+/g, ' ').trim().toLowerCase();
+      if (!lower) return false;
+      return (
+        lower.indexOf('context overflow: estimated context size exceeds safe threshold during tool loop') >= 0 ||
+        lower.indexOf('more characters truncated') >= 0 ||
+        lower.indexOf('middle content omitted') >= 0 ||
+        lower.indexOf('safe context budget') >= 0
+      );
+    },
+    isWebLikeToolName: function(toolName) {
+      var lower = String(toolName || '').trim().toLowerCase();
+      return (
+        lower === 'web_search' ||
+        lower === 'web_fetch' ||
+        lower === 'batch_query' ||
+        lower === 'search_web' ||
+        lower === 'web_query' ||
+        lower === 'browse'
+      );
+    },
+    stripContextGuardMarkers: function(text) {
+      var value = String(text || '');
+      if (!value) return '';
+      return value
+        .replace(/\[\.\.\.\s+\d+\s+more characters truncated\]/gi, ' ')
+        .replace(/context overflow:\s*estimated context size exceeds safe threshold during tool loop\.?/gi, ' ')
+        .replace(/middle content omitted/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    },
+    toolResultSummarySnippet: function(tool) {
+      var text = this.stripContextGuardMarkers(String(tool && tool.result ? tool.result : ''));
+      if (!text) return '';
+      if (this.textLooksNoFindingsPlaceholder(text) || this.textLooksToolAckWithoutFindings(text)) return '';
+      var sentence = this.latestCompleteSentence(text) || text;
+      var out = String(sentence || '').replace(/\s+/g, ' ').trim();
+      if (out.length > 160) out = out.slice(0, 157) + '...';
+      return out;
+    },
+    lowSignalWebToolSummary: function(tool) {
+      var toolName = String(tool && tool.name ? tool.name : 'web tool').replace(/_/g, ' ').trim();
+      if (this.textMentionsContextGuard(tool && tool.result)) {
+        return 'The ' + (toolName || 'web tool') + ' step returned more output than fit safely in context. Retry with a narrower query, one specific source URL, or ask me to continue from the partial result.';
+      }
+      return 'The ' + (toolName || 'web tool') + ' step ran, but only low-signal web output came back. Retry with a narrower query, one specific source URL, or ask me to continue from the recorded tool result.';
+    },
     responseHasAuthoritativeToolCompletion: function(payload, tools) {
       var rows = Array.isArray(tools) ? tools : [];
       var finalization = payload && payload.response_finalization && typeof payload.response_finalization === 'object'
@@ -177,17 +245,27 @@
         return !!(tool && String(tool.name || '').toLowerCase() !== 'thought_process');
       }) : [];
       if (!rows.length) return '';
+      var actionableWeb = rows.find(function(tool) {
+        if (!tool || tool.running || !this.isWebLikeToolName(tool.name || '')) return false;
+        return (
+          this.textMentionsContextGuard(tool.result || '') ||
+          this.textLooksNoFindingsPlaceholder(tool.result || '') ||
+          this.textLooksToolAckWithoutFindings(tool.result || '')
+        );
+      }, this);
+      if (actionableWeb) {
+        return this.lowSignalWebToolSummary(actionableWeb);
+      }
       var successful = rows.filter(function(tool) {
         if (!tool || tool.running || tool.is_error || tool.blocked) return false;
-        return !!String(tool.result || '').trim();
-      });
+        return !!this.toolResultSummarySnippet(tool);
+      }, this);
       if (successful.length) {
         var parts = successful.slice(0, 2).map(function(tool) {
           var toolName = String(tool.name || 'tool').replace(/_/g, ' ').trim();
-          var result = String(tool.result || '').replace(/\s+/g, ' ').trim();
-          if (result.length > 120) result = result.slice(0, 117) + '...';
+          var result = this.toolResultSummarySnippet(tool);
           return toolName ? (toolName + ': ' + result) : result;
-        }).filter(function(part) { return !!part; });
+        }, this).filter(function(part) { return !!part; });
         if (parts.length) return parts.join(' | ');
       }
       var blocked = rows.filter(function(tool) { return !!(tool && tool.blocked); });
@@ -200,8 +278,11 @@
       var failed = rows.filter(function(tool) { return !!(tool && tool.is_error); });
       if (failed.length) {
         var firstFailure = failed[0] || {};
+        if (this.isWebLikeToolName(firstFailure.name || '') && this.textMentionsContextGuard(firstFailure.result || '')) {
+          return this.lowSignalWebToolSummary(firstFailure);
+        }
         var failureName = String(firstFailure.name || 'tool').replace(/_/g, ' ').trim();
-        var failureDetail = String(firstFailure.result || firstFailure.status || '').replace(/\s+/g, ' ').trim();
+        var failureDetail = this.toolResultSummarySnippet(firstFailure) || String(firstFailure.status || '').replace(/\s+/g, ' ').trim();
         if (failureDetail.length > 120) failureDetail = failureDetail.slice(0, 117) + '...';
         if (failureDetail) {
           return 'The tool run completed, but ' + (failureName || 'a required step') + ' failed before a final prose answer was composed: ' + failureDetail;
@@ -229,15 +310,14 @@
       if (Array.isArray(tools) && tools.length) {
         var successful = tools.filter(function(tool) {
           if (!tool || tool.running || tool.is_error) return false;
-          return !!String(tool.result || '').trim();
-        });
+          return !!this.toolResultSummarySnippet(tool);
+        }, this);
         if (successful.length) {
           var parts = successful.slice(0, 2).map(function(tool) {
             var toolName = String(tool.name || 'tool').replace(/_/g, ' ').trim();
-            var result = String(tool.result || '').replace(/\s+/g, ' ').trim();
-            if (result.length > 120) result = result.slice(0, 117) + '...';
+            var result = this.toolResultSummarySnippet(tool);
             return toolName ? (toolName + ': ' + result) : result;
-          }).filter(function(part) { return !!part; });
+          }, this).filter(function(part) { return !!part; });
           if (parts.length) successfulToolSummary = parts.join(' | ');
         }
       }

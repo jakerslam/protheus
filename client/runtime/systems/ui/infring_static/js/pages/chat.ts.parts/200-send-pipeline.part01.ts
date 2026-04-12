@@ -437,10 +437,20 @@
         ) {
           httpText = '';
         }
+        var httpToolSummary = httpHasToolCompletion && typeof this.completedToolOnlySummary === 'function'
+          ? String(this.completedToolOnlySummary(httpTools) || '').trim()
+          : '';
+        if (
+          httpHasToolCompletion &&
+          httpToolSummary &&
+          (
+            (typeof this.textLooksNoFindingsPlaceholder === 'function' && this.textLooksNoFindingsPlaceholder(httpText)) ||
+            (typeof this.textLooksToolAckWithoutFindings === 'function' && this.textLooksToolAckWithoutFindings(httpText))
+          )
+        ) {
+          httpText = httpToolSummary;
+        }
         if (!String(httpText || '').trim()) {
-          var httpToolSummary = httpHasToolCompletion && typeof this.completedToolOnlySummary === 'function'
-            ? String(this.completedToolOnlySummary(httpTools) || '').trim()
-            : '';
           httpText = httpToolSummary || this.defaultAssistantFallback(httpSplit.thought || '', httpTools);
         }
         var httpFailure = httpHasToolCompletion ? null : this.extractRecoverableBackendFailure(httpText);
