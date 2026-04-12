@@ -301,6 +301,42 @@ fn host_read_media_allowed(sniffed_content_type: &str) -> bool {
         )
 }
 
+fn media_policy_denies_read(policy: &Value) -> bool {
+    policy
+        .get("read_allowed")
+        .and_then(Value::as_bool)
+        .is_some_and(|allowed| !allowed)
+        || policy
+            .get("deny")
+            .and_then(Value::as_array)
+            .map(|rows| {
+                rows.iter()
+                    .filter_map(Value::as_str)
+                    .any(|row| row.eq_ignore_ascii_case("read"))
+            })
+            .unwrap_or(false)
+}
+
+fn media_request_read_denied_by_policy(request: &Value) -> bool {
+    ["sender_tool_policy", "group_tool_policy", "tool_policy"]
+        .iter()
+        .filter_map(|key| request.get(*key))
+        .any(media_policy_denies_read)
+}
+
+fn media_request_host_read_capability(request: &Value) -> bool {
+    let requested = request
+        .get("host_read_capability")
+        .or_else(|| request.get("allow_host_read"))
+        .or_else(|| request.pointer("/media_access/host_read_capability"))
+        .or_else(|| request.pointer("/media_access/allow_host_read"))
+        .or_else(|| request.pointer("/mediaAccess/host_read_capability"))
+        .or_else(|| request.pointer("/mediaAccess/allowHostRead"))
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    requested && !media_request_read_denied_by_policy(request)
+}
+
 fn web_media_request_contract() -> Value {
     json!({
         "max_bytes_default": 8 * 1024 * 1024,
@@ -316,6 +352,16 @@ fn web_media_request_contract() -> Value {
             "rejects_double_star": true
         },
         "channel_attachment_root_contract": media_channel_attachment_root_contract(),
+        "workspace_dir_resolution_contract": {
+            "top_level_fields": ["workspace_dir", "workspaceDir"],
+            "nested_media_access_fields": ["media_access.workspace_dir", "media_access.workspaceDir", "mediaAccess.workspace_dir", "mediaAccess.workspaceDir"],
+            "precedence": "top_level_over_media_access"
+        },
+        "host_read_policy_contract": {
+            "request_fields": ["host_read_capability", "allow_host_read", "media_access.host_read_capability", "media_access.allow_host_read"],
+            "deny_policy_fields": ["sender_tool_policy", "group_tool_policy", "tool_policy"],
+            "deny_rule": "deny.read_or_read_allowed_false_disables_host_read_and_unbounded_local_roots"
+        },
         "fail_closed_error_codes": [
             "invalid-file-url",
             "invalid-path",

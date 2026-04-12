@@ -88,6 +88,32 @@ mod openclaw_media_tests {
     }
 
     #[test]
+    fn openclaw_media_preserves_media_access_workspace_dir_when_top_level_missing() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let workspace = tmp.path().join("media-workspace");
+        fs::create_dir_all(&workspace).expect("workspace");
+        let target = workspace.join("chart.png");
+        fs::write(&target, tiny_png_bytes()).expect("png");
+        let out = api_media(tmp.path(), &json!({"path": "chart.png", "media_access": {"workspace_dir": workspace.display().to_string()}}));
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(out.get("file_name").and_then(Value::as_str), Some("chart.png"));
+    }
+
+    #[test]
+    fn openclaw_media_prefers_explicit_workspace_dir_over_media_access_workspace_dir() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let nested_workspace = tmp.path().join("nested-workspace");
+        fs::create_dir_all(&nested_workspace).expect("nested");
+        fs::write(nested_workspace.join("chart.png"), tiny_png_bytes()).expect("nested png");
+        let explicit_workspace = tmp.path().join("explicit-workspace");
+        fs::create_dir_all(&explicit_workspace).expect("explicit");
+        fs::write(explicit_workspace.join("chart.png"), tiny_png_bytes()).expect("explicit png");
+        let out = api_media(tmp.path(), &json!({"path": "chart.png", "workspace_dir": explicit_workspace.display().to_string(), "media_access": {"workspace_dir": nested_workspace.display().to_string()}}));
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(out.get("resolved_source").and_then(Value::as_str), Some(explicit_workspace.join("chart.png").to_string_lossy().as_ref()));
+    }
+
+    #[test]
     fn openclaw_media_loads_localhost_file_urls() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let target = tmp.path().join("chart.png");
@@ -102,6 +128,17 @@ mod openclaw_media_tests {
         assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
         assert_eq!(out.get("file_name").and_then(Value::as_str), Some("chart.png"));
         assert_eq!(out.get("source_kind").and_then(Value::as_str), Some("local"));
+    }
+
+    #[test]
+    fn openclaw_media_uses_media_access_local_roots_when_top_level_missing() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let target = tmp.path().join("scoped/chart.png");
+        fs::create_dir_all(target.parent().expect("parent")).expect("dirs");
+        fs::write(&target, tiny_png_bytes()).expect("png");
+        let out = api_media(tmp.path(), &json!({"path": target.display().to_string(), "media_access": {"local_roots": [tmp.path().join("scoped").display().to_string()]}}));
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(out.get("file_name").and_then(Value::as_str), Some("chart.png"));
     }
 
     #[test]
@@ -177,6 +214,30 @@ mod openclaw_media_tests {
             out.get("error").and_then(Value::as_str),
             Some("path-not-allowed")
         );
+    }
+
+    #[test]
+    fn openclaw_media_disables_unbounded_host_reads_when_sender_policy_denies_read() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let outside = tempfile::tempdir().expect("outside");
+        let target = outside.path().join("sender-denied/chart.png");
+        fs::create_dir_all(target.parent().expect("parent")).expect("dirs");
+        fs::write(&target, tiny_png_bytes()).expect("png");
+        let out = api_media(tmp.path(), &json!({"path": target.display().to_string(), "local_roots": "any", "host_read_capability": true, "sender_tool_policy": {"deny": ["read"]}}));
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(out.get("error").and_then(Value::as_str), Some("path-not-allowed"));
+    }
+
+    #[test]
+    fn openclaw_media_keeps_unbounded_host_reads_when_no_policy_denies_read() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let outside = tempfile::tempdir().expect("outside");
+        let target = outside.path().join("sender-allowed/chart.png");
+        fs::create_dir_all(target.parent().expect("parent")).expect("dirs");
+        fs::write(&target, tiny_png_bytes()).expect("png");
+        let out = api_media(tmp.path(), &json!({"path": target.display().to_string(), "local_roots": "any", "host_read_capability": true}));
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(out.get("kind").and_then(Value::as_str), Some("image"));
     }
 
     #[test]
@@ -387,6 +448,13 @@ mod openclaw_media_tests {
                 .and_then(Value::as_str),
             Some("*")
         );
+        assert_eq!(status.pointer("/media_request_contract/workspace_dir_resolution_contract/precedence").and_then(Value::as_str), Some("top_level_over_media_access"));
+        let policy_fields = status
+            .pointer("/media_request_contract/host_read_policy_contract/deny_policy_fields")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(policy_fields.iter().any(|row| row.as_str() == Some("sender_tool_policy")));
         let supported_channels = status
             .pointer("/media_request_contract/channel_attachment_root_contract/supported_channels")
             .and_then(Value::as_array)
