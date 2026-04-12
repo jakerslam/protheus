@@ -1,5 +1,5 @@
 fn content_type_is_textual(content_type: &str) -> bool {
-    let lowered = clean_text(content_type, 120).to_ascii_lowercase();
+    let lowered = normalize_fetch_content_type(content_type);
     if lowered.is_empty() {
         return true;
     }
@@ -113,6 +113,51 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
         .first()
         .cloned()
         .unwrap_or_else(|| "direct_http".to_string());
+    let allow_rfc2544_benchmark_range = request
+        .pointer("/ssrf_policy/allow_rfc2544_benchmark_range")
+        .and_then(Value::as_bool)
+        .or_else(|| {
+            policy
+                .pointer("/web_conduit/ssrf_policy/allow_rfc2544_benchmark_range")
+                .and_then(Value::as_bool)
+        })
+        .unwrap_or(false);
+    let ssrf_guard =
+        evaluate_fetch_ssrf_guard(&resolved_url, allow_rfc2544_benchmark_range, None);
+    if !ssrf_guard
+        .get("ok")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
+        let error = clean_text(
+            ssrf_guard
+                .get("error")
+                .and_then(Value::as_str)
+                .unwrap_or("blocked_private_network_target"),
+            220,
+        );
+        let receipt = build_receipt(
+            &raw_requested_url,
+            "deny",
+            None,
+            0,
+            &error,
+            Some(error.as_str()),
+        );
+        let _ = append_jsonl(&receipts_path(root), &receipt);
+        return json!({
+            "ok": false,
+            "error": error,
+            "requested_url": raw_requested_url,
+            "resolved_url": resolved_url,
+            "citation_redirect_resolved": redirect_resolved,
+            "provider": selected_provider,
+            "provider_hint": provider_hint,
+            "provider_chain": fetch_provider_chain,
+            "ssrf_guard": ssrf_guard,
+            "receipt": receipt
+        });
+    }
     let policy_eval = infring_layer1_security::evaluate_web_conduit_policy(
         root,
         &json!({
@@ -261,25 +306,32 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
         timeout_ms,
         max_response_bytes,
         retry_attempts,
+        allow_rfc2544_benchmark_range,
     );
     let status_code = fetched
         .get("status_code")
         .and_then(Value::as_i64)
         .unwrap_or(0);
-    let content_type = clean_text(
+    let content_type = normalize_fetch_content_type(
         fetched
             .get("content_type")
             .and_then(Value::as_str)
             .unwrap_or(""),
-        180,
     );
     let fetched_body = fetched.get("body").and_then(Value::as_str).unwrap_or("");
     let content_is_textual = content_type_is_textual(&content_type);
-    let (content, title, content_truncated) = if content_is_textual {
-        extract_fetch_content(fetched_body, &content_type, &extract_mode, max_chars)
+    let (content, title, content_truncated, extractor) = if content_is_textual {
+        extract_fetch_content_with_extractor(fetched_body, &content_type, &extract_mode, max_chars)
     } else {
-        (String::new(), None, false)
+        (String::new(), None, false, "binary".to_string())
     };
+    let final_url = clean_text(
+        fetched
+            .get("effective_url")
+            .and_then(Value::as_str)
+            .unwrap_or(resolved_url.as_str()),
+        2200,
+    );
     let summary_body = extract_fetch_summary_body(&content, &extract_mode);
     let summary = if content_is_textual {
         summarize_text(&summary_body, 900)
@@ -295,7 +347,7 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
     } else {
         format!(
             "Fetched non-text content from {} ({}).",
-            clean_text(&resolved_url, 220),
+            clean_text(&final_url, 220),
             if content_type.is_empty() {
                 "binary/unknown"
             } else {
@@ -328,6 +380,18 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
         .and_then(Value::as_str)
         .map(|v| clean_text(v, 320))
         .unwrap_or_default();
+    let receipt_reason = if matches!(
+        error_value.as_str(),
+        "invalid_fetch_url"
+            | "blocked_hostname"
+            | "blocked_private_network_target"
+            | "blocked_private_network_redirect"
+            | "invalid_redirect_target"
+    ) {
+        error_value.as_str()
+    } else {
+        reason.as_str()
+    };
     let receipt = build_receipt(
         &raw_requested_url,
         &decision,
@@ -337,7 +401,7 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
             Some(response_hash.as_str())
         },
         status_code,
-        &reason,
+        receipt_reason,
         if error_value.is_empty() {
             None
         } else {
@@ -345,16 +409,55 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
         },
     );
     let _ = append_jsonl(&receipts_path(root), &receipt);
-
+    let epistemic_object = json!({
+        "kind": "web_document",
+        "trusted": false,
+        "provenance": {
+            "source": "web_conduit",
+            "requested_url": raw_requested_url,
+            "resolved_url": resolved_url,
+            "final_url": final_url,
+            "response_hash": response_hash,
+            "artifact_id": artifact
+                .as_ref()
+                .and_then(|row| row.get("artifact_id"))
+                .cloned()
+                .unwrap_or(Value::Null),
+            "artifact_path": artifact
+                .as_ref()
+                .and_then(|row| row.get("path"))
+                .cloned()
+                .unwrap_or(Value::Null),
+            "receipt_hash": receipt.get("receipt_hash").cloned().unwrap_or(Value::Null)
+        },
+        "verity": {
+            "validated": false,
+            "checks": [
+                "policy_gate_passed",
+                "content_hash_recorded",
+                "source_marked_untrusted_until_verified"
+            ]
+        }
+    });
+    let fetch_error = if fetch_ok {
+        Value::Null
+    } else if error_value.is_empty() {
+        json!("web_conduit_fetch_failed")
+    } else {
+        json!(error_value)
+    };
+    let fetched_ssrf_guard = fetched.get("ssrf_guard").cloned().unwrap_or(ssrf_guard);
     let mut out = json!({
         "ok": fetch_ok,
         "type": "web_conduit_fetch",
         "requested_url": raw_requested_url,
         "resolved_url": resolved_url,
+        "final_url": final_url,
         "citation_redirect_resolved": redirect_resolved,
         "provider": selected_provider,
         "provider_hint": provider_hint,
         "provider_chain": fetch_provider_chain,
+        "extractor": extractor,
         "status_code": status_code,
         "content_type": if content_type.is_empty() { Value::String(String::new()) } else { Value::String(content_type) },
         "extract_mode": extract_mode,
@@ -365,47 +468,17 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
         "cache_status": "miss",
         "retry_attempts": fetched.get("retry_attempts").cloned().unwrap_or_else(|| json!(1)),
         "retry_used": fetched.get("retry_used").cloned().unwrap_or_else(|| json!(false)),
+        "redirect_count": fetched.get("redirect_count").cloned().unwrap_or_else(|| json!(0)),
         "user_agent": fetched.get("user_agent").cloned().unwrap_or_else(|| json!(DEFAULT_WEB_USER_AGENTS[0])),
+        "accept_header": fetched.get("accept_header").cloned().unwrap_or_else(|| json!(FETCH_MARKDOWN_ACCEPT_HEADER)),
+        "x_markdown_tokens": fetched.get("x_markdown_tokens").cloned().unwrap_or(Value::Null),
         "response_hash": response_hash,
         "artifact": artifact.clone().unwrap_or(Value::Null),
         "policy_decision": policy_eval,
+        "ssrf_guard": fetched_ssrf_guard,
         "receipt": receipt,
-        "epistemic_object": {
-            "kind": "web_document",
-            "trusted": false,
-            "provenance": {
-                "source": "web_conduit",
-                "requested_url": raw_requested_url,
-                "resolved_url": resolved_url,
-                "response_hash": response_hash,
-                "artifact_id": artifact
-                    .as_ref()
-                    .and_then(|row| row.get("artifact_id"))
-                    .cloned()
-                    .unwrap_or(Value::Null),
-                "artifact_path": artifact
-                    .as_ref()
-                    .and_then(|row| row.get("path"))
-                    .cloned()
-                    .unwrap_or(Value::Null),
-                "receipt_hash": receipt.get("receipt_hash").cloned().unwrap_or(Value::Null)
-            },
-            "verity": {
-                "validated": false,
-                "checks": [
-                    "policy_gate_passed",
-                    "content_hash_recorded",
-                    "source_marked_untrusted_until_verified"
-                ]
-            }
-        },
-        "error": if fetch_ok {
-            Value::Null
-        } else if error_value.is_empty() {
-            json!("web_conduit_fetch_failed")
-        } else {
-            json!(error_value)
-        }
+        "epistemic_object": epistemic_object,
+        "error": fetch_error
     });
     let cache_status = if fetch_ok { "ok" } else { "error" };
     if cache_ttl_minutes > 0 {
