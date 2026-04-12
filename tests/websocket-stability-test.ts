@@ -25,17 +25,39 @@ const path = require('path');
 const DEFAULT_URL = 'ws://127.0.0.1:18789/';
 const DEFAULT_DURATION_MINUTES = 2;
 
-const durationMinutes = parseInt(process.argv[2]) || DEFAULT_DURATION_MINUTES;
-const targetUrl = process.argv[3] || DEFAULT_URL;
+function parseCli(argv) {
+  const positional = [];
+  const flags = new Map();
+  for (const token of argv.slice(2)) {
+    if (!token.startsWith('--')) {
+      positional.push(token);
+      continue;
+    }
+    const idx = token.indexOf('=');
+    if (idx === -1) {
+      flags.set(token.slice(2), '1');
+    } else {
+      flags.set(token.slice(2, idx), token.slice(idx + 1));
+    }
+  }
+  const durationRaw = flags.get('duration-minutes') || positional[0];
+  const durationParsed = durationRaw == null ? NaN : Number(durationRaw);
+  return {
+    durationMinutes: Number.isFinite(durationParsed) ? Math.max(0, durationParsed) : DEFAULT_DURATION_MINUTES,
+    targetUrl: flags.get('url') || positional[1] || DEFAULT_URL,
+    logFile: flags.get('log-file') || path.join(__dirname, '..', 'client', 'local', 'logs', 'websocket-stability-test.log'),
+    dryRun: flags.get('dry-run') === '1',
+    jsonSummary: flags.get('json-summary') === '1',
+  };
+}
+
+const cli = parseCli(process.argv);
+const durationMinutes = cli.durationMinutes;
+const targetUrl = cli.targetUrl;
 const durationMs = durationMinutes * 60 * 1000;
-
-const LOG_FILE = path.join(__dirname, '..', 'client', 'local', 'logs', 'websocket-stability-test.log');
-
-// Ensure logs directory exists
-fs.mkdirSync(path.dirname(LOG_FILE), { recursive: true });
+const LOG_FILE = cli.logFile;
 
 let connectionLog = [];
-let currentWs = null;
 let reconnectAttempts = 0;
 let isTestRunning = true;
 let stats = {
@@ -50,7 +72,7 @@ let stats = {
 function log(level, message) {
   const timestamp = new Date().toISOString();
   const line = `[${timestamp}] [${level}] ${message}`;
-  console.log(line);
+  if (!cli.jsonSummary) console.log(line);
   connectionLog.push(line);
   fs.appendFileSync(LOG_FILE, line + '\n');
 }
@@ -191,15 +213,67 @@ class StabilityTestSocket {
   }
 }
 
-// Print test header
-console.log('═══════════════════════════════════════════════════════════');
-console.log('     WEBSOCKET STABILITY TEST');
-console.log('═══════════════════════════════════════════════════════════');
-console.log(`Target URL:   ${targetUrl}`);
-console.log(`Duration:     ${durationMinutes} minute(s)`);
-console.log(`Log file:     ${LOG_FILE}`);
-console.log(`Started at:   ${new Date().toISOString()}`);
-console.log('═══════════════════════════════════════════════════════════\n');
+function buildSummary() {
+  const stable = stats.disconnects === 0 && stats.connects > 0;
+  const mostlyStable = !stable && stats.disconnects <= 1;
+  return {
+    ok: stable || mostlyStable,
+    type: 'websocket_stability',
+    target_url: targetUrl,
+    duration_minutes: durationMinutes,
+    log_file: LOG_FILE,
+    dry_run: cli.dryRun,
+    stable,
+    mostly_stable: mostlyStable,
+    stats,
+  };
+}
+
+function renderAndExit() {
+  const summary = buildSummary();
+  if (cli.jsonSummary) {
+    console.log(JSON.stringify(summary, null, 2));
+  } else {
+    console.log('\n═══════════════════════════════════════════════════════════');
+    console.log('     TEST SUMMARY');
+    console.log('═══════════════════════════════════════════════════════════');
+    console.log(`Duration:        ${durationMinutes} minute(s)`);
+    console.log(`Connects:        ${stats.connects}`);
+    console.log(`Disconnects:     ${stats.disconnects}`);
+    console.log(`Errors:          ${stats.errors}`);
+    console.log(`Pings sent:      ${stats.pingsSent}`);
+    console.log(`Pongs received:  ${stats.pongsReceived}`);
+    console.log(`Messages:        ${stats.messagesReceived}`);
+    console.log(`Log file:        ${LOG_FILE}`);
+    console.log('═══════════════════════════════════════════════════════════');
+    if (summary.stable) {
+      console.log('STABLE: No disconnects during test period');
+    } else if (summary.mostly_stable) {
+      console.log('MOSTLY STABLE: 1 disconnect (may be initial connection setup)');
+    } else {
+      console.log(`UNSTABLE: ${stats.disconnects} disconnects detected`);
+    }
+  }
+  process.exit(summary.ok ? 0 : 1);
+}
+
+if (cli.dryRun) {
+  console.log(JSON.stringify(buildSummary(), null, 2));
+  process.exit(0);
+}
+
+fs.mkdirSync(path.dirname(LOG_FILE), { recursive: true });
+
+if (!cli.jsonSummary) {
+  console.log('═══════════════════════════════════════════════════════════');
+  console.log('     WEBSOCKET STABILITY TEST');
+  console.log('═══════════════════════════════════════════════════════════');
+  console.log(`Target URL:   ${targetUrl}`);
+  console.log(`Duration:     ${durationMinutes} minute(s)`);
+  console.log(`Log file:     ${LOG_FILE}`);
+  console.log(`Started at:   ${new Date().toISOString()}`);
+  console.log('═══════════════════════════════════════════════════════════\n');
+}
 
 // Clear old log
 fs.writeFileSync(LOG_FILE, '');
@@ -214,34 +288,7 @@ setTimeout(() => {
   testSocket.close();
   
   setTimeout(() => {
-    // Print summary
-    const uptime = connectionLog.filter(l => l.includes('Connected!')).length > 0 
-      ? 'Multiple connections (see log)'
-      : 'No successful connects';
-    
-    console.log('\n═══════════════════════════════════════════════════════════');
-    console.log('     TEST SUMMARY');
-    console.log('═══════════════════════════════════════════════════════════');
-    console.log(`Duration:        ${durationMinutes} minute(s)`);
-    console.log(`Connects:        ${stats.connects}`);
-    console.log(`Disconnects:     ${stats.disconnects}`);
-    console.log(`Errors:          ${stats.errors}`);
-    console.log(`Pings sent:      ${stats.pingsSent}`);
-    console.log(`Pongs received:  ${stats.pongsReceived}`);
-    console.log(`Messages:        ${stats.messagesReceived}`);
-    console.log(`Log file:        ${LOG_FILE}`);
-    console.log('═══════════════════════════════════════════════════════════');
-    
-    if (stats.disconnects === 0 && stats.connects > 0) {
-      console.log('✅ STABLE: No disconnects during test period');
-      process.exit(0);
-    } else if (stats.disconnects <= 1) {
-      console.log('⚠️  MOSTLY STABLE: 1 disconnect (may be initial connection setup)');
-      process.exit(0);
-    } else {
-      console.log(`❌ UNSTABLE: ${stats.disconnects} disconnects detected`);
-      process.exit(1);
-    }
+    renderAndExit();
   }, 1000);
 }, durationMs);
 
