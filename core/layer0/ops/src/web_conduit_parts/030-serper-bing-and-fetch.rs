@@ -229,64 +229,100 @@ fn fetch_with_curl(
     timeout_ms: u64,
     max_response_bytes: usize,
     user_agent: &str,
+    allow_rfc2544_benchmark_range: bool,
 ) -> Value {
-    let timeout_sec = ((timeout_ms as f64) / 1000.0).ceil() as u64;
-    let output = Command::new("curl")
-        .arg("-sS")
-        .arg("-L")
-        .arg("--compressed")
-        .arg("--proto")
-        .arg("=http,https")
-        .arg("--connect-timeout")
-        .arg(timeout_sec.max(1).to_string())
-        .arg("--max-time")
-        .arg(timeout_sec.max(1).to_string())
-        .arg("-A")
-        .arg(clean_text(user_agent, 260))
-        .arg("-H")
-        .arg(format!("Accept-Language: {DEFAULT_ACCEPT_LANGUAGE}"))
-        .arg("-e")
-        .arg(DEFAULT_REFERER)
-        .arg("-w")
-        .arg("\n__STATUS__:%{http_code}\n__CTYPE__:%{content_type}")
-        .arg(url)
-        .output();
-
-    match output {
-        Ok(run) => {
-            let stdout = String::from_utf8_lossy(&run.stdout).to_string();
-            let stderr = clean_text(&String::from_utf8_lossy(&run.stderr), 320);
-            let status_marker = "\n__STATUS__:";
-            let ctype_marker = "\n__CTYPE__:";
-            let (body_and_status, content_type) = match stdout.rsplit_once(ctype_marker) {
-                Some((left, right)) => (left.to_string(), clean_text(right, 120)),
-                None => (stdout, String::new()),
-            };
-            let (body_raw, status_raw) = match body_and_status.rsplit_once(status_marker) {
-                Some((left, right)) => (left.to_string(), clean_text(right, 12)),
-                None => (body_and_status, "0".to_string()),
-            };
-            let status_code = status_raw.parse::<i64>().unwrap_or(0);
-            let body = clip_bytes(&body_raw, max_response_bytes.max(256));
-            let status_ok = (200..400).contains(&status_code);
-            json!({
-                "ok": run.status.success() && status_ok,
-                "status_code": status_code,
-                "content_type": content_type,
-                "body": body,
-                "stderr": if stderr.is_empty() { Value::Null } else { Value::String(stderr) },
-                "user_agent": clean_text(user_agent, 260)
-            })
+    let mut current_url = clean_text(url, 2200);
+    let mut redirect_count = 0usize;
+    for _ in 0..=5 {
+        let ssrf_guard =
+            evaluate_fetch_ssrf_guard(&current_url, allow_rfc2544_benchmark_range, None);
+        if !ssrf_guard
+            .get("ok")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+        {
+            return json!({
+                "ok": false,
+                "status_code": 0,
+                "content_type": "",
+                "body": "",
+                "stderr": clean_text(ssrf_guard.get("error").and_then(Value::as_str).unwrap_or("blocked_private_network_target"), 220),
+                "user_agent": clean_text(user_agent, 260),
+                "effective_url": current_url,
+                "ssrf_guard": ssrf_guard,
+                "redirect_count": redirect_count,
+                "accept_header": FETCH_MARKDOWN_ACCEPT_HEADER
+            });
         }
-        Err(err) => json!({
-            "ok": false,
-            "status_code": 0,
-            "content_type": "",
-            "body": "",
-            "stderr": format!("curl_spawn_failed:{err}"),
-            "user_agent": clean_text(user_agent, 260)
-        }),
+        let mut current = run_curl_fetch_once(&current_url, timeout_ms, max_response_bytes, user_agent);
+        let status_code = current
+            .get("status_code")
+            .and_then(Value::as_i64)
+            .unwrap_or(0);
+        let location = clean_text(
+            current.get("location").and_then(Value::as_str).unwrap_or(""),
+            2200,
+        );
+        if matches!(status_code, 301 | 302 | 303 | 307 | 308) && !location.is_empty() {
+            let Some(next_url) = resolve_fetch_redirect_url(&current_url, &location) else {
+                if let Some(obj) = current.as_object_mut() {
+                    obj.insert(
+                        "stderr".to_string(),
+                        Value::String("invalid_redirect_target".to_string()),
+                    );
+                    obj.insert("ok".to_string(), Value::Bool(false));
+                    obj.insert("redirect_count".to_string(), json!(redirect_count));
+                }
+                return current;
+            };
+            let redirect_guard =
+                evaluate_fetch_ssrf_guard(&next_url, allow_rfc2544_benchmark_range, None);
+            if !redirect_guard
+                .get("ok")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+            {
+                if let Some(obj) = current.as_object_mut() {
+                    obj.insert("ok".to_string(), Value::Bool(false));
+                    obj.insert(
+                        "stderr".to_string(),
+                        Value::String("blocked_private_network_redirect".to_string()),
+                    );
+                    obj.insert("redirect_target".to_string(), Value::String(next_url));
+                    obj.insert("ssrf_guard".to_string(), redirect_guard);
+                    obj.insert("redirect_count".to_string(), json!(redirect_count + 1));
+                }
+                return current;
+            }
+            current_url = next_url;
+            redirect_count += 1;
+            continue;
+        }
+        let effective_url = clean_text(
+            current
+                .get("effective_url")
+                .and_then(Value::as_str)
+                .unwrap_or(current_url.as_str()),
+            2200,
+        );
+        if let Some(obj) = current.as_object_mut() {
+            obj.insert("redirect_count".to_string(), json!(redirect_count));
+            obj.insert("effective_url".to_string(), Value::String(effective_url));
+            obj.insert("ssrf_guard".to_string(), ssrf_guard);
+        }
+        return current;
     }
+    json!({
+        "ok": false,
+        "status_code": 0,
+        "content_type": "",
+        "body": "",
+        "stderr": "too_many_redirects",
+        "user_agent": clean_text(user_agent, 260),
+        "effective_url": clean_text(url, 2200),
+        "redirect_count": redirect_count,
+        "accept_header": FETCH_MARKDOWN_ACCEPT_HEADER
+    })
 }
 
 fn fetch_serper_with_curl(

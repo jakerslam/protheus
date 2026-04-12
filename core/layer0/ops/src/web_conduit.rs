@@ -8,6 +8,7 @@ include!("web_conduit_parts/073-media-store.rs");
 include!("web_conduit_parts/074-media-qr-and-audio-tags.rs");
 include!("web_conduit_parts/029-media-outbound-and-audio.rs");
 include!("web_conduit_parts/030-serper-bing-and-fetch.rs");
+include!("web_conduit_parts/031-fetch-transport-and-ssrf.rs");
 include!("web_conduit_parts/035-fetch-runtime.rs");
 include!("web_conduit_parts/040-receipts-and-fetch-api.rs");
 include!("web_conduit_parts/050-search-providers.rs");
