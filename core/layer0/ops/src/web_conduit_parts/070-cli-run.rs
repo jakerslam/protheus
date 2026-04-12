@@ -70,10 +70,22 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     .unwrap_or_else(|| parsed.positional.get(1).map(String::as_str).unwrap_or("")),
                 2200,
             );
+            let provider = clean_text(
+                parsed
+                    .flags
+                    .get("provider")
+                    .or_else(|| parsed.flags.get("source"))
+                    .or_else(|| parsed.flags.get("fetch-provider"))
+                    .or_else(|| parsed.flags.get("fetch_provider"))
+                    .map(String::as_str)
+                    .unwrap_or("auto"),
+                40,
+            );
             api_fetch(
                 root,
                 &json!({
                     "url": url,
+                    "provider": provider,
                     "human_approved": parse_bool(parsed.flags.get("human-approved")) || parse_bool(parsed.flags.get("human_approved")),
                     "approval_id": clean_text(
                         parsed

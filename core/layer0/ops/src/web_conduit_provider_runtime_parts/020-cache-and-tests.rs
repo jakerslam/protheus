@@ -189,6 +189,28 @@ mod tests {
     }
 
     #[test]
+    fn fetch_provider_chain_prefers_explicit_alias_then_policy_then_defaults() {
+        let request = json!({});
+        let policy = json!({
+            "web_conduit": {
+                "fetch_provider_order": ["direct_http"]
+            }
+        });
+        let chain = fetch_provider_chain_from_request("curl", &request, &policy);
+        assert_eq!(chain, vec!["direct_http".to_string()]);
+    }
+
+    #[test]
+    fn explicit_fetch_provider_hint_rejects_unknown_provider() {
+        assert_eq!(
+            validate_explicit_fetch_provider_hint("firecrawl"),
+            Some("firecrawl".to_string())
+        );
+        assert_eq!(validate_explicit_fetch_provider_hint("auto"), None);
+        assert_eq!(validate_explicit_fetch_provider_hint("curl"), None);
+    }
+
+    #[test]
     fn provider_catalog_snapshot_reports_aliases_and_availability() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let policy = json!({
@@ -196,7 +218,7 @@ mod tests {
                 "search_provider_order": ["serperdev", "duckduckgo", "bing_rss"]
             }
         });
-        let catalog = provider_catalog_snapshot_with_env(tmp.path(), &policy, |_key| None);
+        let catalog = provider_catalog_snapshot(tmp.path(), &policy);
         let rows = catalog.as_array().expect("catalog rows");
         let default = rows
             .iter()
@@ -219,6 +241,30 @@ mod tests {
             .get("aliases")
             .and_then(Value::as_array)
             .map(|rows| rows.iter().any(|row| row.as_str() == Some("serper")))
+            .unwrap_or(false));
+    }
+
+    #[test]
+    fn fetch_provider_catalog_snapshot_reports_direct_http() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let policy = json!({
+            "web_conduit": {
+                "fetch_provider_order": ["direct_http"]
+            }
+        });
+        let catalog = fetch_provider_catalog_snapshot(tmp.path(), &policy);
+        let rows = catalog.as_array().expect("catalog rows");
+        let default = rows.first().expect("default fetch provider");
+        assert_eq!(
+            default.get("provider").and_then(Value::as_str),
+            Some("direct_http")
+        );
+        assert_eq!(default.get("family").and_then(Value::as_str), Some("fetch"));
+        assert_eq!(default.get("source").and_then(Value::as_str), Some("http_get"));
+        assert!(default
+            .get("aliases")
+            .and_then(Value::as_array)
+            .map(|rows| rows.iter().any(|row| row.as_str() == Some("curl")))
             .unwrap_or(false));
     }
 

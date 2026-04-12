@@ -14,9 +14,10 @@ use std::sync::OnceLock;
 
 use crate::parse_args;
 use crate::web_conduit_provider_runtime::{
-    load_search_cache, provider_chain_from_request, provider_circuit_open_until,
-    provider_catalog_snapshot, provider_health_snapshot, record_provider_attempt, search_cache_key,
-    store_search_cache, validate_explicit_provider_hint,
+    fetch_provider_catalog_snapshot, fetch_provider_chain_from_request, load_search_cache,
+    provider_chain_from_request, provider_circuit_open_until, provider_catalog_snapshot,
+    provider_health_snapshot, record_provider_attempt, search_cache_key, store_search_cache,
+    validate_explicit_fetch_provider_hint, validate_explicit_provider_hint,
 };
 
 const POLICY_REL: &str = "client/runtime/config/web_conduit_policy.json";
@@ -37,7 +38,9 @@ fn usage() {
     println!("web-conduit commands:");
     println!("  protheus-ops web-conduit status");
     println!("  protheus-ops web-conduit receipts [--limit=<n>]");
-    println!("  protheus-ops web-conduit fetch --url=<https://...> [--human-approved=1] [--approval-id=<id>] [--summary-only=1]");
+    println!(
+        "  protheus-ops web-conduit fetch --url=<https://...> [--provider=auto|direct-http|curl] [--human-approved=1] [--approval-id=<id>] [--summary-only=1]"
+    );
     println!(
         "  protheus-ops web-conduit search --query=<terms> [--provider=auto|serper|duckduckgo|duckduckgo-lite|bing] [--top-k=8] [--allowed-domains=docs.rs,github.com] [--exact-domain-only=1] [--human-approved=1] [--summary-only=1]"
     );
@@ -176,6 +179,7 @@ fn default_policy() -> Value {
             ],
             "require_human_for_sensitive": true,
             "search_provider_order": ["serperdev", "duckduckgo", "duckduckgo_lite", "bing_rss"],
+            "fetch_provider_order": ["direct_http"],
             "provider_circuit_breaker": {
                 "enabled": true,
                 "failure_threshold": 3,
