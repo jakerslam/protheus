@@ -33,6 +33,7 @@ fn default_runtime_web_tools_metadata() -> Value {
             "public_artifact_runtime": public_artifact_contract_for_family(WebProviderFamily::Fetch),
             "diagnostics": []
         },
+        "image_tool": default_image_tool_runtime_metadata(),
         "diagnostics": []
     })
 }
@@ -359,6 +360,7 @@ fn runtime_web_family_metadata(root: &Path, policy: &Value, family: WebProviderF
 pub(crate) fn runtime_web_tools_snapshot(root: &Path, policy: &Value) -> Value {
     let search = runtime_web_family_metadata(root, policy, WebProviderFamily::Search);
     let fetch = runtime_web_family_metadata(root, policy, WebProviderFamily::Fetch);
+    let image_tool = image_tool_runtime_resolution_snapshot(root, policy, &json!({}));
     let diagnostics = search
         .get("diagnostics")
         .and_then(Value::as_array)
@@ -373,10 +375,19 @@ pub(crate) fn runtime_web_tools_snapshot(root: &Path, policy: &Value) -> Value {
                 .flatten()
                 .cloned(),
         )
+        .chain(
+            image_tool
+                .get("diagnostics")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+                .cloned(),
+        )
         .collect::<Vec<_>>();
     let metadata = json!({
         "search": search,
         "fetch": fetch,
+        "image_tool": image_tool,
         "diagnostics": diagnostics
     });
     store_active_runtime_web_tools_metadata(root, &metadata);
