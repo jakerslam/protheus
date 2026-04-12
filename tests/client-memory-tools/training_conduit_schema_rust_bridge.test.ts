@@ -34,6 +34,11 @@ function main() {
   process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = '120000';
 
   const mod = resetModule(path.join(ROOT, 'client/lib/training_conduit_schema.ts'));
+  const defaults = mod.defaultPolicy();
+  assert.equal(typeof defaults.defaults.owner_id, 'string');
+  assert.equal(defaults.defaults.owner_id.length > 0, true);
+  assert.equal(typeof defaults.constraints.max_retention_days, 'number');
+
   const policy = mod.loadTrainingConduitPolicy(policyPath);
   assert.equal(policy.defaults.owner_id, 'operator-x');
   assert.equal(policy.defaults.retention_days, 30);
@@ -64,6 +69,7 @@ function main() {
   assert.equal(metadata.source.system, 'discord');
   assert.equal(metadata.source.channel, 'ops');
   assert.equal(metadata.delete.key, 'custom_key');
+  assert.equal(metadata.consent.status, 'granted');
   assert.equal(metadata.validation.ok, true);
 
   const invalid = mod.validateTrainingConduitMetadata({
@@ -75,6 +81,7 @@ function main() {
     delete: {}
   }, policy);
   assert.equal(invalid.ok, false);
+  assert.equal(invalid.policy_version, '1.0');
   assert.ok(invalid.errors.includes('missing_source_system'));
   assert.ok(invalid.errors.includes('missing_delete_key'));
 
