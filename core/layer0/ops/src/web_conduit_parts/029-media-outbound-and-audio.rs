@@ -89,6 +89,12 @@ fn build_outbound_media_request(request: &Value) -> Value {
         "approval_id": normalize_request_string(request, "approval_id", &["approvalId"], 160),
         "provider": normalize_request_string(request, "provider", &["fetch_provider", "fetchProvider"], 40),
         "headers": request.get("headers").cloned().unwrap_or(Value::Null),
+        "optimize_images": request
+            .get("optimize_images")
+            .or_else(|| request.get("optimizeImages"))
+            .and_then(Value::as_bool)
+            .unwrap_or(true),
+        "raw": request.get("raw").and_then(Value::as_bool).unwrap_or(false),
         "resolve_citation_redirect": request
             .get("resolve_citation_redirect")
             .or_else(|| request.get("resolveCitationRedirect"))
@@ -139,6 +145,9 @@ fn web_media_outbound_attachment_contract() -> Value {
             "workspace_dir",
             "local_roots",
             "host_read_capability",
+            "max_bytes",
+            "optimize_images",
+            "raw",
             "media_access.workspace_dir",
             "media_access.local_roots",
             "media_access.host_read_capability"
@@ -165,6 +174,10 @@ fn append_web_media_outbound_tool_entry(tool_catalog: &mut Value, policy: &Value
 }
 
 fn cli_media_request_from_parsed(parsed: &crate::ParsedArgs) -> Value {
+    let optimize_images_flag = parsed
+        .flags
+        .get("optimize-images")
+        .or_else(|| parsed.flags.get("optimize_images"));
     json!({
         "url": clean_text(parsed.flags.get("url").map(String::as_str).unwrap_or(""), 4000),
         "path": clean_text(parsed.flags.get("path").map(String::as_str).unwrap_or_else(|| parsed.positional.get(1).map(String::as_str).unwrap_or("")), 4000),
@@ -177,6 +190,10 @@ fn cli_media_request_from_parsed(parsed: &crate::ParsedArgs) -> Value {
         "human_approved": parse_bool(parsed.flags.get("human-approved")) || parse_bool(parsed.flags.get("human_approved")),
         "approval_id": clean_text(parsed.flags.get("approval-id").or_else(|| parsed.flags.get("approval_id")).map(String::as_str).unwrap_or(""), 160),
         "summary_only": parse_bool(parsed.flags.get("summary-only")) || parse_bool(parsed.flags.get("summary_only")),
+        "optimize_images": optimize_images_flag
+            .map(|_| Value::Bool(parse_bool(optimize_images_flag)))
+            .unwrap_or(Value::Null),
+        "raw": parse_bool(parsed.flags.get("raw")),
         "provider": clean_text(
             parsed
                 .flags
@@ -192,7 +209,7 @@ fn cli_media_request_from_parsed(parsed: &crate::ParsedArgs) -> Value {
             .map(|raw| !matches!(raw.trim().to_ascii_lowercase().as_str(), "0" | "false" | "no" | "off"))
             .unwrap_or(true),
         "timeout_ms": parse_u64(parsed.flags.get("timeout-ms").or_else(|| parsed.flags.get("timeout_ms")), 9000, 1000, 120000),
-        "max_bytes": parse_u64(parsed.flags.get("max-bytes").or_else(|| parsed.flags.get("max_bytes")), 8 * 1024 * 1024, 4096, 32 * 1024 * 1024)
+        "max_bytes": parse_u64(parsed.flags.get("max-bytes").or_else(|| parsed.flags.get("max_bytes")), 8 * 1024 * 1024, 256, MAX_DOCUMENT_BYTES as u64)
     })
 }
 

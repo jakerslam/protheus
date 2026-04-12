@@ -343,7 +343,8 @@ fn media_request_host_read_capability(request: &Value) -> bool {
 
 fn web_media_request_contract() -> Value {
     json!({
-        "max_bytes_default": 8 * 1024 * 1024,
+        "max_bytes_default": Value::Null,
+        "default_max_bytes_rule": "kind_budget_when_unspecified",
         "max_bytes_by_kind": media_kind_budget_contract(),
         "supported_source_schemes": ["http", "https", "file", "local_path", "data"],
         "supported_file_url_hosts": ["", "localhost"],
@@ -398,7 +399,8 @@ fn web_media_request_contract() -> Value {
         "outbound_attachment_contract": web_media_outbound_attachment_contract(),
         "file_context_contract": web_media_file_context_contract(),
         "qr_image_contract": web_media_qr_contract(),
-        "image_ops_contract": web_media_image_ops_contract()
+        "image_ops_contract": web_media_image_ops_contract(),
+        "image_optimization_contract": web_media_image_optimization_contract()
     })
 }
 

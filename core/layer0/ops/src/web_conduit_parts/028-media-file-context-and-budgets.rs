@@ -239,20 +239,14 @@ mod openclaw_media_file_context_tests {
     }
 
     #[test]
-    fn openclaw_media_rejects_detected_kind_oversize_after_load() {
-        let tmp = tempfile::tempdir().expect("tempdir");
-        let target = tmp.path().join("big.png");
-        let mut bytes = b"\x89PNG\r\n\x1a\n".to_vec();
-        bytes.resize(MAX_IMAGE_BYTES + 1, b'A');
-        fs::write(&target, &bytes).expect("write");
-        let out = api_media(
-            tmp.path(),
-            &json!({
-                "path": target.display().to_string(),
-                "max_bytes": (MAX_IMAGE_BYTES + 1024) as u64
-            }),
+    fn openclaw_media_explicit_max_bytes_overrides_default_kind_budget() {
+        assert_eq!(
+            media_effective_output_max_bytes(&json!({"max_bytes": (MAX_IMAGE_BYTES + 1024) as u64}), "image"),
+            MAX_IMAGE_BYTES + 1024
         );
-        assert_eq!(out.get("error").and_then(Value::as_str), Some("kind_max_bytes"));
-        assert_eq!(out.get("detected_kind").and_then(Value::as_str), Some("image"));
+        assert_eq!(
+            media_effective_output_max_bytes(&json!({}), "image"),
+            MAX_IMAGE_BYTES
+        );
     }
 }
