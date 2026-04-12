@@ -38,6 +38,14 @@ const RELEASE_RC_REHEARSAL_PATH = path.join(
   ROOT,
   'core/local/artifacts/release_candidate_dress_rehearsal_current.json',
 );
+const RELEASE_VERDICT_PATH = path.join(
+  ROOT,
+  'core/local/artifacts/release_verdict_current.json',
+);
+const SUPPORT_BUNDLE_PROBE_DIR = path.join(
+  ROOT,
+  'core/local/artifacts/support_bundle_probes',
+);
 const SUPPORTED_COMMAND_LATENCY_IDS = new Set([
   'transport_topology',
   'legacy_process_runner_release_guard',
@@ -140,6 +148,10 @@ function runTsCommand(id: string, scriptRelPath: string, args: string[] = []): C
   };
 }
 
+function probeOut(fileName: string): string {
+  return path.join(SUPPORT_BUNDLE_PROBE_DIR, fileName);
+}
+
 function checkFile(pathRel: string) {
   const abs = path.join(ROOT, pathRel);
   return {
@@ -167,6 +179,7 @@ function collectBundleFiles() {
     checkFile('client/runtime/config/release_hardening_window_policy.json'),
     checkFile('client/runtime/local/state/release/scorecard/release_scorecard.json'),
     checkFile('core/local/artifacts/release_candidate_dress_rehearsal_current.json'),
+    checkFile('core/local/artifacts/release_verdict_current.json'),
   ];
 }
 
@@ -246,6 +259,7 @@ function assembleBundleReport(checks: CommandResult[], files: Array<{ path: stri
       runtime_telemetry_status:
         checks.find((row) => row.id === 'runtime_telemetry_status')?.payload || null,
       release_scorecard: checks.find((row) => row.id === 'release_scorecard')?.payload || null,
+      release_verdict: readJsonMaybe(RELEASE_VERDICT_PATH),
     },
     closure_contracts: {
       production_readiness_closure_policy: readJsonMaybe(CLOSURE_POLICY_PATH),
@@ -256,6 +270,7 @@ function assembleBundleReport(checks: CommandResult[], files: Array<{ path: stri
     closure_artifacts: {
       release_scorecard: readJsonMaybe(RELEASE_SCORECARD_PATH),
       release_candidate_dress_rehearsal: readJsonMaybe(RELEASE_RC_REHEARSAL_PATH),
+      release_verdict: readJsonMaybe(RELEASE_VERDICT_PATH),
     },
     incident_truth_package: {
       ready: failedChecks.length === 0 && degradedFlags.length === 0,
@@ -292,47 +307,47 @@ function buildBundle(outPath: string) {
     runTsCommand(
       'legacy_process_runner_release_guard',
       'tests/tooling/scripts/ci/legacy_process_runner_release_guard.ts',
-      ['--strict=0', '--out=core/local/artifacts/legacy_process_runner_release_guard_current.json'],
+      ['--strict=0', `--out=${probeOut('legacy_process_runner_release_guard.json')}`],
     ),
     runTsCommand('production_topology_diagnostic', 'tests/tooling/scripts/ops/production_topology_diagnostic.ts', [
-      '--out=core/local/artifacts/production_topology_diagnostic_current.json',
+      `--out=${probeOut('production_topology_diagnostic.json')}`,
     ]),
     runTsCommand('transport_spawn_audit', 'tests/tooling/scripts/ci/transport_spawn_audit.ts', [
       '--strict=0',
-      '--out=core/local/artifacts/transport_spawn_audit_current.json',
+      `--out=${probeOut('transport_spawn_audit.json')}`,
     ]),
     runTsCommand('client_layer_boundary_audit', 'tests/tooling/scripts/ci/client_layer_boundary_audit.ts', [
       '--strict=0',
-      '--out=core/local/artifacts/client_layer_boundary_audit_current.json',
+      `--out=${probeOut('client_layer_boundary_audit.json')}`,
     ]),
     runTsCommand('arch_boundary_conformance', 'tests/tooling/scripts/ci/arch_boundary_conformance.ts', [
       '--strict=0',
-      '--out=core/local/artifacts/arch_boundary_conformance_current.json',
+      `--out=${probeOut('arch_boundary_conformance.json')}`,
     ]),
     runTsCommand('production_closure', 'tests/tooling/scripts/ci/production_readiness_closure_gate.ts', [
       '--strict=0',
       '--run-smoke=0',
-      '--out=core/local/artifacts/production_readiness_closure_gate_current.json',
+      `--out=${probeOut('production_readiness_closure_gate.json')}`,
     ]),
     runTsCommand('release_policy_gate', 'tests/tooling/scripts/ci/release_policy_gate.ts', [
       '--strict=0',
-      '--out=core/local/artifacts/release_policy_gate_current.json',
+      `--out=${probeOut('release_policy_gate.json')}`,
     ]),
     runTsCommand('stateful_upgrade_rollback', 'tests/tooling/scripts/ci/stateful_upgrade_rollback_gate.ts', [
       '--strict=0',
-      '--out=core/local/artifacts/stateful_upgrade_rollback_gate_current.json',
+      `--out=${probeOut('stateful_upgrade_rollback_gate.json')}`,
     ]),
     runTsCommand('assimilation_v1_support_guard', 'tests/tooling/scripts/ci/assimilation_v1_support_guard.ts', [
       '--strict=0',
-      '--out=core/local/artifacts/assimilation_v1_support_guard_current.json',
+      `--out=${probeOut('assimilation_v1_support_guard.json')}`,
     ]),
     runTsCommand('release_blocker_rubric', 'tests/tooling/scripts/ci/release_blocker_rubric_gate.ts', [
       '--strict=0',
-      '--out=core/local/artifacts/release_blocker_rubric_current.json',
+      `--out=${probeOut('release_blocker_rubric_gate.json')}`,
     ]),
     runTsCommand('release_hardening_window', 'tests/tooling/scripts/ci/release_hardening_window_guard.ts', [
       '--strict=0',
-      '--out=core/local/artifacts/release_hardening_window_guard_current.json',
+      `--out=${probeOut('release_hardening_window_guard.json')}`,
     ]),
     runTsCommand('recovery_rehearsal', 'tests/tooling/scripts/ops/dr_gameday.ts', [
       'gate',
@@ -350,7 +365,7 @@ function buildBundle(outPath: string) {
 
   checks.push(
     runTsCommand('release_scorecard', 'tests/tooling/scripts/ci/release_scorecard_generate.ts', [
-      '--out=client/runtime/local/state/release/scorecard/release_scorecard.json',
+      `--out=${probeOut('release_scorecard.json')}`,
       `--support-bundle=${provisionalPath}`,
       '--require-release-artifacts=0',
     ]),

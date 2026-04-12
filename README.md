@@ -62,6 +62,8 @@ What is true in this repository today:
 - Frozen assimilation v1 slice: one ingress -> orchestration -> assimilation-kernel -> receipt-output path is hardened; broader assimilation surfaces remain experimental.
 - Assimilation v1 can graduate only through candidate-build evidence; no new assimilation surface is added during hardening.
 - Numeric release thresholds are enforced by `npm run -s ops:release:scorecard:gate` and re-checked directly by `npm run -s ops:production-closure:gate`.
+- Release scorecard compares against the previous release scorecard when a baseline is provided.
+- Release verdict artifact: `npm run -s ops:release:verdict`.
 - Release-candidate dress rehearsal: `npm run -s ops:release:rc-rehearsal`.
 - Release-candidate recovery rehearsal is required every cycle through `npm run -s ops:release:rc-rehearsal`.
 - Client authority regression guard: `npm run -s ops:client-layer:boundary`.

@@ -292,9 +292,28 @@ jobs:
       - name: Generate release scorecard
         if: steps.semver.outputs.release_ready == '1'
         id: release_scorecard
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
+          BASELINE_ARGS=()
+          if [ "${{ steps.semver.outputs.previous_tag }}" != "none" ]; then
+            mkdir -p /tmp/release-baseline
+            gh release download "${{ steps.semver.outputs.previous_tag }}" \
+              --repo "${{ github.repository }}" \
+              --pattern "release_scorecard.json" \
+              --dir /tmp/release-baseline
+            BASELINE_ARGS+=(
+              --baseline=/tmp/release-baseline/release_scorecard.json
+              --baseline-tag=${{ steps.semver.outputs.previous_tag }}
+              --require-baseline=1
+            )
+          else
+            BASELINE_ARGS+=(--require-baseline=0)
+          fi
           node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/release_scorecard_generate.ts \
             --out=client/runtime/local/state/release/scorecard/release_scorecard.json \
+            --strict=1 \
             --semver=/tmp/release-plan.json \
             --commit-lint=core/local/artifacts/conventional_commit_gate_current.json \
             --policy=core/local/artifacts/release_policy_gate_current.json \
@@ -309,7 +328,23 @@ jobs:
             --ipc-soak=local/state/ops/ops_ipc_bridge_stability_soak/latest.json \
             --dr=local/state/ops/dr_gameday/latest.json \
             --changelog=client/runtime/local/state/release/CHANGELOG.auto.md \
-            --require-release-artifacts=1
+            --require-release-artifacts=1 \
+            "${BASELINE_ARGS[@]}"
+
+      - name: Refresh closure evidence after final scorecard
+        if: steps.semver.outputs.release_ready == '1'
+        run: |
+          npm run -s ops:production-closure:gate
+
+      - name: Generate release verdict
+        if: steps.semver.outputs.release_ready == '1'
+        run: |
+          npm run -s ops:release:verdict
+
+      - name: Refresh support bundle incident truth package
+        if: steps.semver.outputs.release_ready == '1'
+        run: |
+          npm run -s ops:support-bundle:export
 
       - name: Generate release SHA256SUMS
         if: steps.semver.outputs.release_ready == '1'
@@ -335,7 +370,8 @@ jobs:
             client/runtime/local/state/release/signatures/infring-npm.spdx.json.sig \
             client/runtime/local/state/release/signatures/release_public.pem \
             client/runtime/local/state/release/licensing/release_licensing_manifest.json \
-            client/runtime/local/state/release/scorecard/release_scorecard.json; do
+            client/runtime/local/state/release/scorecard/release_scorecard.json \
+            core/local/artifacts/release_verdict_current.json; do
             [ -f "$f" ] || continue
             sha256sum "$f" >> "$OUT"
           done
@@ -397,6 +433,7 @@ jobs:
             client/runtime/local/state/release/licensing/release_licensing_manifest.json
             client/runtime/local/state/release/artifacts/SHA256SUMS
             client/runtime/local/state/release/scorecard/release_scorecard.json
+            core/local/artifacts/release_verdict_current.json
             docs/client/reports/benchmark_matrix_run_latest.json
             core/local/artifacts/benchmark_sanity_gate_current.json
             core/local/artifacts/benchmark_public_audit_current.json
