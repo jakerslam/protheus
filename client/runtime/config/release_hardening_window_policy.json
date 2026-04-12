@@ -8,6 +8,20 @@
     "client/runtime/systems/ui/infring_static/",
     "surface/orchestration/scripts/"
   ],
+  "blocked_added_file_prefixes": [
+    "core/",
+    "surface/orchestration/src/",
+    "surface/orchestration/scripts/"
+  ],
+  "block_new_package_scripts": true,
+  "allowed_new_package_scripts": [
+    "ops:status:production"
+  ],
+  "block_new_tooling_gate_ids": true,
+  "allowed_new_tooling_gate_ids": [
+    "chaos:continuous:gate",
+    "state:kernel:replay"
+  ],
   "allowed_change_classes": [
     "bug_fix",
     "observability",
@@ -15,5 +29,5 @@
     "blocker_removal",
     "docs"
   ],
-  "rule": "When a hardening window is active, new wrappers and UI behavior changes pause. Only reliability, observability, compatibility, and blocker-removal work may enter the release lane."
+  "rule": "When a hardening window is active, new wrappers, UI behavior changes, new core/orchestration files, and new command or gate surfaces pause. Only reliability, observability, compatibility, and blocker-removal work may enter the release lane."
 }

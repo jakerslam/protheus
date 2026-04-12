@@ -10,6 +10,7 @@ function cleanText(value: unknown, maxLen = 2000): string {
 function parseArgs(argv: string[]) {
   const out = {
     strict: false,
+    stage: 'prebundle' as 'prebundle' | 'final',
     outPath: 'client/runtime/local/state/release/scorecard/release_scorecard.json',
     semverPath: '/tmp/release-plan.json',
     commitLintPath: 'core/local/artifacts/conventional_commit_gate_current.json',
@@ -36,6 +37,10 @@ function parseArgs(argv: string[]) {
     if (!token) continue;
     if (token.startsWith('--strict=')) {
       out.strict = ['1', 'true', 'yes', 'on'].includes(cleanText(token.slice(9), 40).toLowerCase());
+    }
+    else if (token.startsWith('--stage=')) {
+      const stage = cleanText(token.slice(8), 40).toLowerCase();
+      out.stage = stage === 'final' ? 'final' : 'prebundle';
     }
     if (token.startsWith('--out=')) out.outPath = cleanText(token.slice(6), 400);
     else if (token.startsWith('--semver=')) out.semverPath = cleanText(token.slice(9), 400);
@@ -117,22 +122,23 @@ function releaseChannel(raw: unknown): 'alpha' | 'beta' | 'stable' {
 }
 
 function buildReport(args = parseArgs(process.argv.slice(2))) {
-  const root = path.resolve(args.rootPath || path.resolve(__dirname, '../../../..'));
-  const semverPath = resolveMaybe(root, args.semverPath);
-  const commitLintPath = resolveMaybe(root, args.commitLintPath);
-  const policyPath = resolveMaybe(root, args.policyPath);
-  const canaryPath = resolveMaybe(root, args.canaryPath);
-  const changelogPath = resolveMaybe(root, args.changelogPath);
-  const closurePolicyPath = resolveMaybe(root, args.closurePolicyPath);
-  const supportBundlePath = resolveMaybe(root, args.supportBundlePath);
-  const topologyPath = resolveMaybe(root, args.topologyPath);
-  const stateCompatPath = resolveMaybe(root, args.stateCompatPath);
-  const blockersPath = resolveMaybe(root, args.blockersPath);
-  const closurePath = resolveMaybe(root, args.closurePath);
-  const hardeningPath = resolveMaybe(root, args.hardeningPath);
-  const ipcSoakPath = resolveMaybe(root, args.ipcSoakPath);
-  const drPath = resolveMaybe(root, args.drPath);
-  const baselinePath = args.baselinePath ? resolveMaybe(root, args.baselinePath) : '';
+  const normalizedArgs = { ...parseArgs([]), ...args };
+  const root = path.resolve(normalizedArgs.rootPath || path.resolve(__dirname, '../../../..'));
+  const semverPath = resolveMaybe(root, normalizedArgs.semverPath);
+  const commitLintPath = resolveMaybe(root, normalizedArgs.commitLintPath);
+  const policyPath = resolveMaybe(root, normalizedArgs.policyPath);
+  const canaryPath = resolveMaybe(root, normalizedArgs.canaryPath);
+  const changelogPath = resolveMaybe(root, normalizedArgs.changelogPath);
+  const closurePolicyPath = resolveMaybe(root, normalizedArgs.closurePolicyPath);
+  const supportBundlePath = resolveMaybe(root, normalizedArgs.supportBundlePath);
+  const topologyPath = resolveMaybe(root, normalizedArgs.topologyPath);
+  const stateCompatPath = resolveMaybe(root, normalizedArgs.stateCompatPath);
+  const blockersPath = resolveMaybe(root, normalizedArgs.blockersPath);
+  const closurePath = resolveMaybe(root, normalizedArgs.closurePath);
+  const hardeningPath = resolveMaybe(root, normalizedArgs.hardeningPath);
+  const ipcSoakPath = resolveMaybe(root, normalizedArgs.ipcSoakPath);
+  const drPath = resolveMaybe(root, normalizedArgs.drPath);
+  const baselinePath = normalizedArgs.baselinePath ? resolveMaybe(root, normalizedArgs.baselinePath) : '';
 
   const semver = readJsonMaybe(semverPath) ?? {};
   const commitLint = readJsonMaybe(commitLintPath) ?? {};
@@ -149,8 +155,9 @@ function buildReport(args = parseArgs(process.argv.slice(2))) {
   const dr = readJsonMaybe(drPath) ?? {};
   const baselineScorecard = baselinePath ? readJsonMaybe(baselinePath) ?? {} : null;
   const channel = releaseChannel(semver?.release_channel);
-  const requireReleaseArtifacts = Boolean(args.requireReleaseArtifacts);
-  const requireBaseline = Boolean(args.requireBaseline);
+  const requireReleaseArtifacts = Boolean(normalizedArgs.requireReleaseArtifacts);
+  const requireBaseline = Boolean(normalizedArgs.requireBaseline);
+  const finalStage = normalizedArgs.stage === 'final';
 
   const changelogExists = fs.existsSync(changelogPath);
   const canaryOk = canary?.ok === true;
@@ -173,7 +180,7 @@ function buildReport(args = parseArgs(process.argv.slice(2))) {
   const observedRpoHours = safeNumber(dr?.observed_rpo_hours, Number.POSITIVE_INFINITY);
   const baselineAvailable = Boolean(baselineScorecard && typeof baselineScorecard === 'object');
   const baselineThresholds = baselineAvailable ? baselineScorecard?.thresholds ?? {} : {};
-  const baselineTag = cleanText(args.baselineTag || baselineScorecard?.tag || 'none', 120);
+  const baselineTag = cleanText(normalizedArgs.baselineTag || baselineScorecard?.tag || 'none', 120);
   const trendGates = baselineAvailable
     ? [
         trendGateRow(
@@ -243,8 +250,10 @@ function buildReport(args = parseArgs(process.argv.slice(2))) {
     ),
     gateRow(
       'production_closure_gate',
-      closure?.summary?.pass === true || closure?.ok === true,
-      `failed=${Array.isArray(closure?.failed_ids) ? closure.failed_ids.join(',') : 'none'}`
+      !finalStage || closure?.summary?.pass === true || closure?.ok === true,
+      finalStage
+        ? `failed=${Array.isArray(closure?.failed_ids) ? closure.failed_ids.join(',') : 'none'}`
+        : 'stage=prebundle;final_closure_not_required'
     ),
     gateRow(
       'production_topology_diagnostic',
@@ -298,8 +307,10 @@ function buildReport(args = parseArgs(process.argv.slice(2))) {
     ),
     gateRow(
       'support_bundle_incident_truth_package',
-      supportBundle?.incident_truth_package?.ready === true,
-      `failed_checks=${Array.isArray(supportBundle?.incident_truth_package?.failed_checks) ? supportBundle.incident_truth_package.failed_checks.length : 0}`
+      !finalStage || supportBundle?.incident_truth_package?.ready === true,
+      finalStage
+        ? `failed_checks=${Array.isArray(supportBundle?.incident_truth_package?.failed_checks) ? supportBundle.incident_truth_package.failed_checks.length : 0}`
+        : 'stage=prebundle;final_bundle_truth_not_required'
     ),
     optionalGateRow(
       'changelog_generated',
@@ -320,7 +331,8 @@ function buildReport(args = parseArgs(process.argv.slice(2))) {
     ok: overall,
     type: 'release_scorecard',
     generated_at: new Date().toISOString(),
-    strict: Boolean(args.strict),
+    strict: Boolean(normalizedArgs.strict),
+    stage: normalizedArgs.stage,
     channel,
     tag: cleanText(semver?.next_tag ?? 'none', 120),
     version: cleanText(semver?.next_version ?? semver?.current_version ?? '0.0.0', 120),
@@ -352,7 +364,7 @@ function buildReport(args = parseArgs(process.argv.slice(2))) {
 
   return {
     root,
-    outPath: resolveMaybe(root, args.outPath),
+    outPath: resolveMaybe(root, normalizedArgs.outPath),
     report,
   };
 }

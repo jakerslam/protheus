@@ -45,12 +45,17 @@ function artifactOk(gateId: string, payload: any): boolean {
         Array.isArray(payload?.degraded_flags) &&
         payload.degraded_flags.length === 0
       );
+    case 'chaos:continuous:gate':
+    case 'state:kernel:replay':
+      return payload?.ok === true;
     case 'ops:stateful-upgrade-rollback:gate':
     case 'ops:assimilation:v1:support:guard':
     case 'ops:release-blockers:gate':
     case 'ops:release-hardening-window:guard':
     case 'ops:release:scorecard:gate':
       return payload?.ok === true;
+    case 'ops:orchestration:hidden-state:guard':
+      return payload?.summary?.pass === true || payload?.summary?.violation_count === 0;
     case 'ops:production-closure:gate':
       return payload?.summary?.pass === true || payload?.ok === true;
     case 'ops:release:rc-rehearsal':
