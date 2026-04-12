@@ -81,6 +81,17 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     .unwrap_or("auto"),
                 40,
             );
+            let resolve_citation_redirect = parsed
+                .flags
+                .get("resolve-citation-redirect")
+                .or_else(|| parsed.flags.get("resolve_citation_redirect"))
+                .map(|raw| {
+                    !matches!(
+                        raw.trim().to_ascii_lowercase().as_str(),
+                        "0" | "false" | "no" | "off"
+                    )
+                })
+                .unwrap_or(true);
             api_fetch(
                 root,
                 &json!({
@@ -96,7 +107,42 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                             .unwrap_or(""),
                         160
                     ),
-                    "summary_only": parse_bool(parsed.flags.get("summary-only")) || parse_bool(parsed.flags.get("summary_only"))
+                    "summary_only": parse_bool(parsed.flags.get("summary-only")) || parse_bool(parsed.flags.get("summary_only")),
+                    "extract_mode": clean_text(
+                        parsed
+                            .flags
+                            .get("extract-mode")
+                            .or_else(|| parsed.flags.get("extract_mode"))
+                            .map(String::as_str)
+                            .unwrap_or(""),
+                        24
+                    ),
+                    "max_chars": parse_u64(
+                        parsed.flags.get("max-chars").or_else(|| parsed.flags.get("max_chars")),
+                        50000,
+                        100,
+                        200000
+                    ),
+                    "max_response_bytes": parse_u64(
+                        parsed
+                            .flags
+                            .get("max-response-bytes")
+                            .or_else(|| parsed.flags.get("max_response_bytes")),
+                        350000,
+                        4096,
+                        4000000
+                    ),
+                    "timeout_ms": parse_u64(parsed.flags.get("timeout-ms").or_else(|| parsed.flags.get("timeout_ms")), 9000, 1000, 120000),
+                    "cache_ttl_minutes": parse_u64(
+                        parsed
+                            .flags
+                            .get("cache-ttl-minutes")
+                            .or_else(|| parsed.flags.get("cache_ttl_minutes")),
+                        15,
+                        0,
+                        240
+                    ),
+                    "resolve_citation_redirect": resolve_citation_redirect
                 }),
             )
         }
