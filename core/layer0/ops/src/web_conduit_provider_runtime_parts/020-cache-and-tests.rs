@@ -69,7 +69,13 @@ pub(crate) fn load_search_cache(root: &Path, key: &str) -> Option<Value> {
     hit
 }
 
-pub(crate) fn store_search_cache(root: &Path, key: &str, response: &Value, status: &str) {
+pub(crate) fn store_search_cache(
+    root: &Path,
+    key: &str,
+    response: &Value,
+    status: &str,
+    ttl_override_seconds: Option<i64>,
+) {
     let path = search_cache_path(root);
     let mut cache = read_json_or(&path, default_search_cache_state());
     let now_ts = Utc::now().timestamp();
@@ -80,7 +86,9 @@ pub(crate) fn store_search_cache(root: &Path, key: &str, response: &Value, statu
         .unwrap_or_default();
     entries
         .retain(|_, entry| entry.get("expires_at").and_then(Value::as_i64).unwrap_or(0) > now_ts);
-    let ttl = cache_ttl_for_status(status).max(30);
+    let ttl = ttl_override_seconds
+        .unwrap_or_else(|| cache_ttl_for_status(status))
+        .max(30);
     entries.insert(
         key.to_string(),
         json!({
@@ -293,7 +301,7 @@ mod tests {
         let tmp = tempfile::tempdir().expect("tempdir");
         let key = "cache-key";
         let response = json!({"ok": true, "summary": "cached"});
-        store_search_cache(tmp.path(), key, &response, "ok");
+        store_search_cache(tmp.path(), key, &response, "ok", None);
         let loaded = load_search_cache(tmp.path(), key).expect("cache hit");
         assert_eq!(
             loaded.get("summary").and_then(Value::as_str),

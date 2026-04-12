@@ -13,6 +13,9 @@
     "max_response_bytes": 350000,
     "rate_limit_per_minute": 30,
     "require_human_for_sensitive": true,
+    "search_default_count": 8,
+    "search_max_count": 12,
+    "search_cache_ttl_minutes": 8,
     "search_provider_order": [
       "serperdev",
       "duckduckgo",

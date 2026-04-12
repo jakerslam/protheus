@@ -178,6 +178,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     .flags
                     .get("top-k")
                     .or_else(|| parsed.flags.get("top_k"))
+                    .or_else(|| parsed.flags.get("count"))
                     .or_else(|| parsed.flags.get("max-results"))
                     .or_else(|| parsed.flags.get("max_results")),
                 8,
@@ -191,7 +192,31 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     "allowed_domains": normalize_allowed_domains(&json!(allowed_domains)),
                     "provider": provider,
                     "top_k": top_k,
+                    "count": top_k,
                     "exclude_subdomains": parse_bool(parsed.flags.get("exclude-subdomains")) || parse_bool(parsed.flags.get("exclude_subdomains")) || parse_bool(parsed.flags.get("exact-domain-only")) || parse_bool(parsed.flags.get("exact_domain_only")),
+                    "timeout_ms": parse_u64(
+                        parsed.flags.get("timeout-ms").or_else(|| parsed.flags.get("timeout_ms")),
+                        9000,
+                        1000,
+                        120000
+                    ),
+                    "cache_ttl_minutes": parse_u64(
+                        parsed.flags.get("cache-ttl-minutes").or_else(|| parsed.flags.get("cache_ttl_minutes")),
+                        8,
+                        0,
+                        240
+                    ),
+                    "country": clean_text(parsed.flags.get("country").map(String::as_str).unwrap_or(""), 32),
+                    "language": clean_text(parsed.flags.get("language").map(String::as_str).unwrap_or(""), 32),
+                    "freshness": clean_text(parsed.flags.get("freshness").map(String::as_str).unwrap_or(""), 32),
+                    "date_after": clean_text(
+                        parsed.flags.get("date-after").or_else(|| parsed.flags.get("date_after")).map(String::as_str).unwrap_or(""),
+                        32
+                    ),
+                    "date_before": clean_text(
+                        parsed.flags.get("date-before").or_else(|| parsed.flags.get("date_before")).map(String::as_str).unwrap_or(""),
+                        32
+                    ),
                     "human_approved": parse_bool(parsed.flags.get("human-approved")) || parse_bool(parsed.flags.get("human_approved")),
                     "approval_id": clean_text(
                         parsed

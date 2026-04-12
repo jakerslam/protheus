@@ -125,6 +125,8 @@ pub fn api_status(root: &Path) -> Value {
     let default_fetch_provider_chain = fetch_provider_chain_from_request("", &json!({}), &policy);
     let search_provider_catalog = provider_catalog_snapshot(root, &policy);
     let fetch_provider_catalog = fetch_provider_catalog_snapshot(root, &policy);
+    let search_request_contract = search_provider_request_contract(&policy);
+    let tool_catalog = web_tool_catalog_snapshot(&policy);
     json!({
         "ok": true,
         "enabled": policy.pointer("/web_conduit/enabled").and_then(Value::as_bool).unwrap_or(true),
@@ -136,6 +138,8 @@ pub fn api_status(root: &Path) -> Value {
         "provider_catalog": search_provider_catalog.clone(),
         "search_provider_catalog": search_provider_catalog,
         "fetch_provider_catalog": fetch_provider_catalog,
+        "search_request_contract": search_request_contract,
+        "tool_catalog": tool_catalog,
         "receipts_total": receipt_count(root),
         "recent_denied": denied,
         "recent_receipts": recent,
@@ -149,6 +153,7 @@ pub fn api_providers(root: &Path) -> Value {
     let default_fetch_provider_chain = fetch_provider_chain_from_request("", &json!({}), &policy);
     let search_providers = provider_catalog_snapshot(root, &policy);
     let fetch_providers = fetch_provider_catalog_snapshot(root, &policy);
+    let tool_catalog = web_tool_catalog_snapshot(&policy);
     json!({
         "ok": true,
         "type": "web_conduit_providers",
@@ -156,6 +161,8 @@ pub fn api_providers(root: &Path) -> Value {
         "default_provider_chain": default_search_provider_chain.clone(),
         "default_search_provider_chain": default_search_provider_chain,
         "default_fetch_provider_chain": default_fetch_provider_chain,
+        "search_request_contract": search_provider_request_contract(&policy),
+        "tool_catalog": tool_catalog,
         "providers": search_providers.clone(),
         "search_providers": search_providers,
         "fetch_providers": fetch_providers
