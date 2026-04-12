@@ -93,3 +93,24 @@ fn collect_returns_skip_payload_when_cadence_not_met() {
     assert_eq!(out.get("skipped").and_then(Value::as_bool), Some(true));
     assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
 }
+
+#[test]
+fn map_quotes_encodes_index_symbol_urls() {
+    let payload = json!({
+        "date": "2026-03-27",
+        "max_items": 10,
+        "seen_ids": [],
+        "quotes": [
+            {"symbol":"^GSPC","shortName":"S&P 500","price":5300.12,"change":-10.5,"changePercent":-0.21,"volume":12345}
+        ]
+    });
+    let out = map_quotes(lane_utils::payload_obj(&payload));
+    assert_eq!(
+        out.get("items")
+            .and_then(Value::as_array)
+            .and_then(|rows| rows.first())
+            .and_then(|row| row.get("url"))
+            .and_then(Value::as_str),
+        Some("https://finance.yahoo.com/quote/%5EGSPC")
+    );
+}
