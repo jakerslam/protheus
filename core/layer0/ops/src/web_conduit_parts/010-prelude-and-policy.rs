@@ -18,6 +18,7 @@ use crate::web_conduit_provider_runtime::{
     fetch_provider_registration_contract,
     load_fetch_cache, load_search_cache, normalized_search_filters, provider_chain_from_request,
     provider_circuit_open_until, provider_catalog_snapshot, provider_health_snapshot, record_provider_attempt,
+    runtime_web_tools_snapshot, runtime_web_tools_state_path,
     search_provider_registration_contract,
     resolve_search_cache_ttl_seconds, resolve_search_count, resolve_search_provider_credential,
     resolve_search_timeout_ms, search_cache_key, search_default_timeout_ms,
