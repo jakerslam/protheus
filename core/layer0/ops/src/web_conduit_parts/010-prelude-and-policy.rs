@@ -46,6 +46,12 @@ fn usage() {
     println!("  protheus-ops web-conduit status");
     println!("  protheus-ops web-conduit receipts [--limit=<n>]");
     println!(
+        "  protheus-ops web-conduit setup [--provider=<serperdev|duckduckgo|duckduckgo-lite|bing>] [--api-key=<key>] [--api-key-env=<ENV>] [--apply=1] [--summary-only=1]"
+    );
+    println!(
+        "  protheus-ops web-conduit migrate-legacy-config [--source-path=<path>] [--apply=1] [--summary-only=1]"
+    );
+    println!(
         "  protheus-ops web-conduit fetch --url=<https://...> [--provider=auto|direct-http|curl] [--extract-mode=text|markdown] [--max-chars=<n>] [--cache-ttl-minutes=<n>] [--timeout-ms=<n>] [--max-response-bytes=<n>] [--resolve-citation-redirect=1] [--human-approved=1] [--approval-id=<id>] [--summary-only=1]"
     );
     println!(
