@@ -37,6 +37,22 @@ function startServer() {
       );
       return;
     }
+    if (req.url === '/ollama-tags') {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(
+        JSON.stringify({
+          models: [
+            {
+              name: 'qwen2.5-coder:14b',
+              modified_at: '2026-03-15T00:00:00Z',
+              size: 1024 * 1024 * 1024,
+              details: { parameter_size: '14B', family: 'qwen2.5' }
+            }
+          ]
+        })
+      );
+      return;
+    }
     if (req.url === '/always-500') {
       res.writeHead(500, { 'content-type': 'text/plain' });
       res.end('nope');
@@ -54,6 +70,7 @@ function startServer() {
 }
 
 async function main() {
+  const bridgeOnly = process.argv.includes('--collector-bridge-only=1');
   const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'protheus-collector-runtime-test-'));
   process.env.EYES_STATE_DIR = stateDir;
   process.env.EYES_COLLECTOR_ALLOW_DIRECT_FETCH_FALLBACK = '1';
@@ -76,13 +93,64 @@ async function main() {
     ROOT,
     'client/cognition/shared/adaptive/sensory/eyes/collectors/github_repo.ts'
   ));
+  const ollamaAdapter = require(path.join(
+    ROOT,
+    'adapters/cognition/collectors/ollama_search.ts'
+  ));
+  const ollamaShim = require(path.join(
+    ROOT,
+    'client/runtime/systems/sensory/eyes_collectors/ollama_search.ts'
+  ));
 
   const { server, port } = await startServer();
   const flakyRss = `http://127.0.0.1:${port}/flaky-rss`;
   const jsonUrl = `http://127.0.0.1:${port}/json`;
+  const ollamaTagsUrl = `http://127.0.0.1:${port}/ollama-tags`;
   const always500 = `http://127.0.0.1:${port}/always-500`;
 
   try {
+    const extracted = ollama.extractOllamaModels({
+      models: [{ name: 'qwen2.5-coder:14b', modified_at: '2026-03-15T00:00:00Z', size: 1024 * 1024 * 1024 }]
+    });
+    assert.strictEqual(Array.isArray(extracted), true);
+    assert.strictEqual(extracted.length, 1);
+    assert.strictEqual(extracted[0].title, 'qwen2.5-coder:14b');
+    assert.strictEqual(extracted[0].signal, true);
+    assert.strictEqual(typeof ollamaAdapter.run, 'function');
+    assert.strictEqual(typeof ollamaAdapter.parseArgs, 'function');
+    assert.strictEqual(typeof ollamaAdapter.extractOllamaModels, 'function');
+    assert.strictEqual(typeof ollamaShim.parseArgs, 'function');
+    assert.strictEqual(typeof ollamaShim.extractOllamaModels, 'function');
+    assert.deepStrictEqual(
+      ollamaAdapter.extractOllamaModels({
+        models: [{ name: 'qwen2.5-coder:14b', modified_at: '2026-03-15T00:00:00Z', size: 1024 * 1024 * 1024 }]
+      }),
+      extracted
+    );
+    const parsedArgs = ollamaAdapter.parseArgs([
+      '--force',
+      '--max=5',
+      '--min-hours=0',
+      '--attempts=1',
+      `--url=${ollamaTagsUrl}`,
+    ]);
+    assert.deepStrictEqual(parsedArgs, {
+      force: true,
+      maxItems: 5,
+      minHours: 0,
+      attempts: 1,
+      url: ollamaTagsUrl,
+    });
+
+    if (bridgeOnly) {
+      console.log(JSON.stringify({
+        ok: true,
+        type: 'ollama_search_collector_bridge_test',
+        status: 'pass'
+      }));
+      return;
+    }
+
     const fetched = await runtime.fetchTextWithAdaptiveControls('flaky_feed', flakyRss, {
       scope: 'sensory.collector.dynamic',
       caller: 'tests/ollama_search_collector',
@@ -175,14 +243,6 @@ async function main() {
     }
     assert.ok(secondErr, 'second breaker request should fail due open circuit');
     assert.strictEqual(secondErr.code, 'rate_limited');
-
-    const extracted = ollama.extractOllamaModels({
-      models: [{ name: 'qwen2.5-coder:14b', modified_at: '2026-03-15T00:00:00Z', size: 1024 * 1024 * 1024 }]
-    });
-    assert.strictEqual(Array.isArray(extracted), true);
-    assert.strictEqual(extracted.length, 1);
-    assert.strictEqual(extracted[0].title, 'qwen2.5-coder:14b');
-    assert.strictEqual(extracted[0].signal, true);
 
     const rateStatePath = path.join(stateDir, 'collector_rate_state.json');
     assert.ok(fs.existsSync(rateStatePath), 'rate state should persist to disk');
