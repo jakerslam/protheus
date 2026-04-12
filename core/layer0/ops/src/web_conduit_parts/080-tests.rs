@@ -490,6 +490,7 @@ mod tests {
                 "provider": "duckduckgo"
             }),
             "ok",
+            None,
         );
 
         let out = api_search(tmp.path(), &request);

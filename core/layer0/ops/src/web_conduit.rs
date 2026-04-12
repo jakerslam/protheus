@@ -9,3 +9,4 @@ include!("web_conduit_parts/060-search-orchestration.rs");
 include!("web_conduit_parts/070-cli-run.rs");
 include!("web_conduit_parts/080-tests.rs");
 include!("web_conduit_parts/090-openclaw-fetch-helper-tests.rs");
+include!("web_conduit_parts/095-openclaw-search-tool-tests.rs");

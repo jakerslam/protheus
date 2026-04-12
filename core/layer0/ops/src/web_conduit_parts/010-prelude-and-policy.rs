@@ -15,10 +15,13 @@ use std::sync::OnceLock;
 use crate::parse_args;
 use crate::web_conduit_provider_runtime::{
     fetch_cache_key, fetch_provider_catalog_snapshot, fetch_provider_chain_from_request,
-    load_fetch_cache, load_search_cache, provider_chain_from_request,
-    provider_circuit_open_until, provider_catalog_snapshot, provider_health_snapshot,
-    record_provider_attempt, search_cache_key, store_fetch_cache, store_search_cache,
-    validate_explicit_fetch_provider_hint, validate_explicit_provider_hint,
+    load_fetch_cache, load_search_cache, normalized_search_filters, provider_chain_from_request,
+    provider_circuit_open_until, provider_catalog_snapshot, provider_health_snapshot, record_provider_attempt,
+    resolve_search_cache_ttl_seconds, resolve_search_count, resolve_search_provider_credential,
+    resolve_search_timeout_ms, search_cache_key, search_default_timeout_ms,
+    search_provider_request_contract, store_fetch_cache, store_search_cache,
+    unsupported_search_filter_response, validate_explicit_fetch_provider_hint,
+    validate_explicit_provider_hint, web_tool_catalog_snapshot,
 };
 
 const POLICY_REL: &str = "client/runtime/config/web_conduit_policy.json";
@@ -43,7 +46,7 @@ fn usage() {
         "  protheus-ops web-conduit fetch --url=<https://...> [--provider=auto|direct-http|curl] [--extract-mode=text|markdown] [--max-chars=<n>] [--cache-ttl-minutes=<n>] [--timeout-ms=<n>] [--max-response-bytes=<n>] [--resolve-citation-redirect=1] [--human-approved=1] [--approval-id=<id>] [--summary-only=1]"
     );
     println!(
-        "  protheus-ops web-conduit search --query=<terms> [--provider=auto|serper|duckduckgo|duckduckgo-lite|bing] [--top-k=8] [--allowed-domains=docs.rs,github.com] [--exact-domain-only=1] [--human-approved=1] [--summary-only=1]"
+        "  protheus-ops web-conduit search --query=<terms> [--provider=auto|serper|duckduckgo|duckduckgo-lite|bing] [--top-k=8|--count=8] [--timeout-ms=<n>] [--cache-ttl-minutes=<n>] [--allowed-domains=docs.rs,github.com] [--exact-domain-only=1] [--country=<code>] [--language=<code>] [--freshness=<token>] [--date-after=<YYYY-MM-DD>] [--date-before=<YYYY-MM-DD>] [--human-approved=1] [--summary-only=1]"
     );
     println!("  protheus-ops web-conduit providers");
     println!("  protheus-ops browse fetch --url=<https://...>");
@@ -116,23 +119,6 @@ fn parse_u64(value: Option<&String>, fallback: u64, min: u64, max: u64) -> u64 {
         .clamp(min, max)
 }
 
-fn serper_api_key() -> Option<String> {
-    for key in [
-        "INFRING_SERPERDEV_API_KEY",
-        "SERPERDEV_API_KEY",
-        "INFRING_SERPER_API_KEY",
-        "SERPER_API_KEY",
-    ] {
-        if let Ok(raw) = std::env::var(key) {
-            let cleaned = clean_text(&raw, 600);
-            if !cleaned.is_empty() {
-                return Some(cleaned);
-            }
-        }
-    }
-    None
-}
-
 fn policy_path(root: &Path) -> PathBuf {
     if let Ok(raw) = std::env::var("INFRING_WEB_CONDUIT_POLICY_PATH") {
         let trimmed = raw.trim();
@@ -179,6 +165,9 @@ fn default_policy() -> Value {
                 "bankofamerica.com"
             ],
             "require_human_for_sensitive": true,
+            "search_default_count": 8,
+            "search_max_count": 12,
+            "search_cache_ttl_minutes": 8,
             "search_provider_order": ["serperdev", "duckduckgo", "duckduckgo_lite", "bing_rss"],
             "fetch_provider_order": ["direct_http"],
             "provider_circuit_breaker": {

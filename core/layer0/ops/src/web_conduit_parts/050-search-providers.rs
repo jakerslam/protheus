@@ -6,9 +6,11 @@ fn api_search_serper(
     allowed_domains: &[String],
     exclude_subdomains: bool,
     top_k: usize,
+    requested_timeout_ms: u64,
 ) -> Value {
     let requested_url = SERPER_SEARCH_URL.to_string();
-    let Some(api_key) = serper_api_key() else {
+    let (policy, _policy_path_value) = load_policy(root);
+    let Some(api_key) = resolve_search_provider_credential(&policy, "serperdev") else {
         return json!({
             "ok": false,
             "error": "serper_api_key_missing",
@@ -16,7 +18,6 @@ fn api_search_serper(
             "provider": "serperdev"
         });
     };
-    let (policy, _policy_path_value) = load_policy(root);
     let policy_eval = infring_layer1_security::evaluate_web_conduit_policy(
         root,
         &json!({
@@ -57,10 +58,13 @@ fn api_search_serper(
             "receipt": receipt
         });
     }
-    let timeout_ms = policy_eval
-        .pointer("/policy/timeout_ms")
-        .and_then(Value::as_u64)
-        .unwrap_or(9000);
+    let timeout_ms = requested_timeout_ms.clamp(
+        1_000,
+        policy_eval
+            .pointer("/policy/timeout_ms")
+            .and_then(Value::as_u64)
+            .unwrap_or(search_default_timeout_ms(&policy)),
+    );
     let max_response_bytes = policy_eval
         .pointer("/policy/max_response_bytes")
         .and_then(Value::as_u64)
@@ -180,9 +184,9 @@ fn api_search_bing_rss(
     allowed_domains: &[String],
     exclude_subdomains: bool,
     top_k: usize,
+    timeout_ms: u64,
 ) -> Value {
     let requested_url = web_search_bing_rss_url(query);
-    let timeout_ms = 9_000u64;
     let max_response_bytes = 280_000usize;
     let retry_attempts = 2usize;
     let fetched = fetch_with_curl_retry(
@@ -294,4 +298,3 @@ fn search_payload_error(payload: &Value) -> String {
     }
     "no_usable_summary".to_string()
 }
-

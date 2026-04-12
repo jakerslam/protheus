@@ -25,6 +25,7 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
         });
     }
     let (policy, _policy_path_value) = load_policy(root);
+    let normalized_filters = normalized_search_filters(request);
     let allowed_domains =
         normalize_allowed_domains(request.get("allowed_domains").unwrap_or(&Value::Null));
     let exclude_subdomains = request
@@ -57,17 +58,38 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
             "error": "unknown_search_provider",
             "query": query,
             "requested_provider": unknown_provider,
+            "supported_filters": search_provider_request_contract(&policy)
+                .get("supports_filters")
+                .cloned()
+                .unwrap_or_else(|| json!({})),
             "provider_catalog": provider_catalog_snapshot(root, &policy),
             "receipt": receipt
         });
     }
-    let top_k = request
-        .get("top_k")
-        .or_else(|| request.get("max_results"))
-        .or_else(|| request.get("num"))
-        .and_then(Value::as_u64)
-        .unwrap_or(8)
-        .clamp(1, 12) as usize;
+    if let Some(mut unsupported) = unsupported_search_filter_response(request) {
+        let receipt = build_receipt(
+            "",
+            "deny",
+            None,
+            0,
+            unsupported
+                .get("error")
+                .and_then(Value::as_str)
+                .unwrap_or("unsupported_search_filter"),
+            unsupported.get("unsupported_filter").and_then(Value::as_str),
+        );
+        let _ = append_jsonl(&receipts_path(root), &receipt);
+        if let Some(obj) = unsupported.as_object_mut() {
+            obj.insert("query".to_string(), Value::String(query.clone()));
+            obj.insert("provider_hint".to_string(), Value::String(provider_hint.clone()));
+            obj.insert("filters".to_string(), normalized_filters.clone());
+            obj.insert("provider_catalog".to_string(), provider_catalog_snapshot(root, &policy));
+            obj.insert("receipt".to_string(), receipt);
+        }
+        return unsupported;
+    }
+    let top_k = resolve_search_count(request, &policy);
+    let timeout_ms = resolve_search_timeout_ms(request, &policy);
     let scoped_query = scoped_search_query(&query, &allowed_domains, exclude_subdomains);
     let summary_only = request
         .get("summary_only")
@@ -83,6 +105,12 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
         .and_then(Value::as_str)
         .unwrap_or("");
     let provider_chain = provider_chain_from_request(&provider_hint, request, &policy);
+    let cache_ttl_seconds = resolve_search_cache_ttl_seconds(request, &policy, "ok");
+    let cache_ttl_minutes = if cache_ttl_seconds <= 0 {
+        0
+    } else {
+        ((cache_ttl_seconds + 59) / 60) as u64
+    };
     let cache_key = search_cache_key(
         &query,
         &scoped_query,
@@ -106,6 +134,10 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
             obj.insert("allowed_domains".to_string(), json!(allowed_domains));
             obj.insert("exclude_subdomains".to_string(), json!(exclude_subdomains));
             obj.insert("top_k".to_string(), json!(top_k));
+            obj.insert("count".to_string(), json!(top_k));
+            obj.insert("timeout_ms".to_string(), json!(timeout_ms));
+            obj.insert("cache_ttl_minutes".to_string(), json!(cache_ttl_minutes));
+            obj.insert("filters".to_string(), normalized_filters.clone());
             obj.insert(
                 "provider_hint".to_string(),
                 Value::String(provider_hint.clone()),
@@ -143,6 +175,7 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
                 &allowed_domains,
                 exclude_subdomains,
                 top_k,
+                timeout_ms,
             ),
             "duckduckgo_lite" => api_fetch(
                 root,
@@ -150,7 +183,8 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
                     "url": lite_url,
                     "summary_only": summary_only,
                     "human_approved": human_approved,
-                    "approval_id": approval_id
+                    "approval_id": approval_id,
+                    "timeout_ms": timeout_ms
                 }),
             ),
             "bing_rss" => api_search_bing_rss(
@@ -159,6 +193,7 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
                 &allowed_domains,
                 exclude_subdomains,
                 top_k,
+                timeout_ms,
             ),
             _ => api_fetch(
                 root,
@@ -166,7 +201,8 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
                     "url": primary_url,
                     "summary_only": summary_only,
                     "human_approved": human_approved,
-                    "approval_id": approval_id
+                    "approval_id": approval_id,
+                    "timeout_ms": timeout_ms
                 }),
             ),
         };
@@ -258,6 +294,10 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
         );
         obj.insert("exclude_subdomains".to_string(), json!(exclude_subdomains));
         obj.insert("top_k".to_string(), json!(top_k));
+        obj.insert("count".to_string(), json!(top_k));
+        obj.insert("timeout_ms".to_string(), json!(timeout_ms));
+        obj.insert("cache_ttl_minutes".to_string(), json!(cache_ttl_minutes));
+        obj.insert("filters".to_string(), normalized_filters.clone());
         obj.insert("provider_chain".to_string(), json!(provider_chain.clone()));
         obj.insert("providers_attempted".to_string(), json!(attempted));
         obj.insert("providers_skipped".to_string(), json!(skipped));
@@ -312,6 +352,8 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
     if let Some(obj) = out.as_object_mut() {
         obj.insert("receipt".to_string(), receipt);
     }
-    store_search_cache(root, &cache_key, &out, cache_status);
+    if cache_ttl_seconds > 0 {
+        store_search_cache(root, &cache_key, &out, cache_status, Some(cache_ttl_seconds));
+    }
     out
 }
