@@ -131,6 +131,7 @@ pub fn api_status(root: &Path) -> Value {
     let fetch_provider_registration_contract = fetch_provider_registration_contract(&policy);
     let public_artifact_contracts = web_provider_public_artifact_contracts();
     let runtime_web_tools_metadata = runtime_web_tools_snapshot(root, &policy);
+    let native_codex_web_search = native_codex_public_contract(root, &policy);
     json!({
         "ok": true,
         "enabled": policy.pointer("/web_conduit/enabled").and_then(Value::as_bool).unwrap_or(true),
@@ -148,6 +149,7 @@ pub fn api_status(root: &Path) -> Value {
         "public_artifact_contracts": public_artifact_contracts,
         "runtime_web_tools_state_path": runtime_web_tools_state_path(root).display().to_string(),
         "runtime_web_tools_metadata": runtime_web_tools_metadata,
+        "native_codex_web_search": native_codex_web_search,
         "tool_catalog": tool_catalog,
         "receipts_total": receipt_count(root),
         "recent_denied": denied,
@@ -167,6 +169,7 @@ pub fn api_providers(root: &Path) -> Value {
     let fetch_provider_registration_contract = fetch_provider_registration_contract(&policy);
     let public_artifact_contracts = web_provider_public_artifact_contracts();
     let runtime_web_tools_metadata = runtime_web_tools_snapshot(root, &policy);
+    let native_codex_web_search = native_codex_public_contract(root, &policy);
     json!({
         "ok": true,
         "type": "web_conduit_providers",
@@ -180,6 +183,7 @@ pub fn api_providers(root: &Path) -> Value {
         "public_artifact_contracts": public_artifact_contracts,
         "runtime_web_tools_state_path": runtime_web_tools_state_path(root).display().to_string(),
         "runtime_web_tools_metadata": runtime_web_tools_metadata,
+        "native_codex_web_search": native_codex_web_search,
         "tool_catalog": tool_catalog,
         "providers": search_providers.clone(),
         "search_providers": search_providers,
