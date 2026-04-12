@@ -82,6 +82,13 @@ fn parse_media_header_value(headers: &str, key: &str) -> String {
         .unwrap_or_default()
 }
 
+fn parse_media_content_length(raw: &str) -> Option<usize> {
+    clean_text(raw, 40)
+        .parse::<u64>()
+        .ok()
+        .map(|row| row.min(usize::MAX as u64) as usize)
+}
+
 fn fetch_remote_media_binary(
     root: &Path,
     request: &Value,
@@ -110,7 +117,12 @@ fn fetch_remote_media_binary(
     let human_approved = request.get("human_approved").and_then(Value::as_bool).unwrap_or(false);
     let approval_id = clean_text(request.get("approval_id").and_then(Value::as_str).unwrap_or(""), 160);
     let requested_timeout_ms = request.get("timeout_ms").and_then(Value::as_u64).unwrap_or(9000).clamp(1000, 120_000);
-    let max_bytes = request.get("max_bytes").and_then(Value::as_u64).unwrap_or(8 * 1024 * 1024).clamp(4096, 32 * 1024 * 1024) as usize;
+    let requested_idle_timeout_ms = request
+        .get("idle_timeout_ms")
+        .and_then(Value::as_u64)
+        .unwrap_or(requested_timeout_ms.min(5000))
+        .clamp(1000, 30_000);
+    let max_bytes = request.get("max_bytes").and_then(Value::as_u64).unwrap_or(8 * 1024 * 1024).clamp(256, 32 * 1024 * 1024) as usize;
     let resolve_redirect = request
         .get("resolve_citation_redirect")
         .and_then(Value::as_bool)
@@ -159,6 +171,8 @@ fn fetch_remote_media_binary(
     let header_path = media_temp_file(root, "headers");
     let body_path = media_temp_file(root, "body");
     let timeout_sec = ((requested_timeout_ms as f64) / 1000.0).ceil() as u64;
+    let idle_timeout_sec = ((requested_idle_timeout_ms as f64) / 1000.0).ceil() as u64;
+    let max_probe_bytes = max_bytes.saturating_add(1);
     let output = Command::new("curl")
         .arg("-sS")
         .arg("-L")
@@ -169,8 +183,14 @@ fn fetch_remote_media_binary(
         .arg(timeout_sec.max(1).to_string())
         .arg("--max-time")
         .arg(timeout_sec.max(1).to_string())
+        .arg("--speed-limit")
+        .arg("1")
+        .arg("--speed-time")
+        .arg(idle_timeout_sec.to_string())
+        .arg("-r")
+        .arg(format!("0-{}", max_bytes))
         .arg("--max-filesize")
-        .arg(max_bytes.to_string())
+        .arg(max_probe_bytes.to_string())
         .arg("-A")
         .arg(DEFAULT_WEB_USER_AGENTS[0])
         .arg("-H")
@@ -182,7 +202,7 @@ fn fetch_remote_media_binary(
         .arg("-o")
         .arg(&body_path)
         .arg("-w")
-        .arg("__STATUS__:%{http_code}\n__CTYPE__:%{content_type}\n__EFFECTIVE__:%{url_effective}")
+        .arg("__STATUS__:%{http_code}\n__CTYPE__:%{content_type}\n__EFFECTIVE__:%{url_effective}\n__CLEN__:%header{content-length}\n__ERR__:%{errormsg}")
         .arg(&resolved_url)
         .output();
     let cleanup = || {
@@ -206,9 +226,25 @@ fn fetch_remote_media_binary(
     let headers = fs::read_to_string(&header_path).unwrap_or_default();
     let bytes = fs::read(&body_path).unwrap_or_default();
     cleanup();
+    let curl_error = stdout
+        .lines()
+        .find_map(|line| line.strip_prefix("__ERR__:"))
+        .map(|row| clean_text(row, 240))
+        .unwrap_or_default();
+    let declared_content_length = stdout
+        .lines()
+        .find_map(|line| line.strip_prefix("__CLEN__:"))
+        .and_then(parse_media_content_length)
+        .or_else(|| parse_media_content_length(&parse_media_header_value(&headers, "content-length")));
     if !run.status.success() {
-        let code = if stderr.to_ascii_lowercase().contains("maximum file size exceeded") {
+        let lowered_stderr = format!("{stderr} {curl_error}").to_ascii_lowercase();
+        let code = if lowered_stderr.contains("maximum file size exceeded") {
             "max_bytes"
+        } else if lowered_stderr.contains("operation too slow")
+            || lowered_stderr.contains("timed out")
+            || lowered_stderr.contains("timeout")
+        {
+            "fetch_stalled"
         } else {
             "fetch_failed"
         };
@@ -219,7 +255,9 @@ fn fetch_remote_media_binary(
             "resolved_url": redact_media_locator(&resolved_url),
             "provider": selected_provider,
             "provider_hint": provider_hint,
-            "stderr": stderr
+            "stderr": stderr,
+            "curl_error": curl_error,
+            "declared_size": declared_content_length
         }));
     }
     let status_code = stdout
@@ -252,13 +290,24 @@ fn fetch_remote_media_binary(
             "body_snippet": snippet
         }));
     }
+    if declared_content_length.is_some_and(|row| row > max_bytes) {
+        return Err(json!({
+            "ok": false,
+            "error": "max_bytes",
+            "requested_url": redact_media_locator(&raw_requested_url),
+            "resolved_url": redact_media_locator(&effective_url),
+            "status_code": status_code,
+            "declared_size": declared_content_length
+        }));
+    }
     if bytes.len() > max_bytes {
         return Err(json!({
             "ok": false,
             "error": "max_bytes",
             "requested_url": redact_media_locator(&raw_requested_url),
             "resolved_url": redact_media_locator(&effective_url),
-            "status_code": status_code
+            "status_code": status_code,
+            "declared_size": declared_content_length
         }));
     }
     let disposition = parse_media_header_value(&headers, "content-disposition");
@@ -296,7 +345,7 @@ fn load_local_media_binary(root: &Path, request: &Value) -> Result<LoadedMedia, 
         .get("max_bytes")
         .and_then(Value::as_u64)
         .unwrap_or(8 * 1024 * 1024)
-        .clamp(4096, 32 * 1024 * 1024) as usize;
+        .clamp(256, 32 * 1024 * 1024) as usize;
     let host_read_capability = request
         .get("host_read_capability")
         .or_else(|| request.get("allow_host_read"))
