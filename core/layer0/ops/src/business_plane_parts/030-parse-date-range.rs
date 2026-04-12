@@ -1,20 +1,26 @@
 fn parse_date_range(range: &str) -> (Option<String>, Option<String>) {
-    let parts = range
-        .split(':')
-        .map(|s| s.trim().to_string())
-        .collect::<Vec<_>>();
-    if parts.len() != 2 {
-        return (None, None);
-    }
-    let start = if parts[0].is_empty() {
-        None
+    let trimmed = range.trim();
+    let parts = if let Some((start, end)) = trimmed.split_once("..") {
+        Some((start.trim(), end.trim()))
+    } else if trimmed.matches(':').count() == 1 {
+        trimmed
+            .split_once(':')
+            .map(|(start, end)| (start.trim(), end.trim()))
     } else {
-        Some(parts[0].clone())
+        None
     };
-    let end = if parts[1].is_empty() {
+    let Some((start_raw, end_raw)) = parts else {
+        return (None, None);
+    };
+    let start = if start_raw.is_empty() {
         None
     } else {
-        Some(parts[1].clone())
+        Some(start_raw.to_string())
+    };
+    let end = if end_raw.is_empty() {
+        None
+    } else {
+        Some(end_raw.to_string())
     };
     (start, end)
 }
@@ -135,6 +141,29 @@ fn archive_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Value, Str
             "evidence": {"op": op, "row_count": filtered.len()}
         }]
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_date_range_supports_plain_dates_and_timestamps() {
+        assert_eq!(
+            parse_date_range("2026-04-01:2026-04-30"),
+            (
+                Some("2026-04-01".to_string()),
+                Some("2026-04-30".to_string())
+            )
+        );
+        assert_eq!(
+            parse_date_range("2026-04-01T00:00:00Z..2026-04-30T23:59:59Z"),
+            (
+                Some("2026-04-01T00:00:00Z".to_string()),
+                Some("2026-04-30T23:59:59Z".to_string())
+            )
+        );
+    }
 }
 
 struct WalkCount;

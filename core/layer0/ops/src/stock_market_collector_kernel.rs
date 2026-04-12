@@ -489,7 +489,7 @@ fn map_quotes(payload: &Map<String, Value>) -> Value {
         items.push(json!({
             "id": id,
             "collected_at": collected_at,
-            "url": format!("https://finance.yahoo.com/quote/{}", q.symbol),
+            "url": quote_url(&q.symbol),
             "title": format!(
                 "{}: ${:.2} ({}, {}%)",
                 if q.short_name.is_empty() { q.symbol.clone() } else { q.short_name.clone() },
@@ -554,7 +554,7 @@ fn fallback_indices(payload: &Map<String, Value>) -> Value {
         items.push(json!({
             "id": id,
             "collected_at": collected_at,
-            "url": format!("https://finance.yahoo.com/quote/{symbol}"),
+            "url": quote_url(symbol),
             "title": format!("{name} - Market Index"),
             "description": "Major market index tracking. Monitor for significant moves.",
             "symbol": symbol,
@@ -579,6 +579,10 @@ fn fallback_indices(payload: &Map<String, Value>) -> Value {
         "items": items,
         "seen_ids": seen_ids
     })
+}
+
+fn quote_url(symbol: &str) -> String {
+    format!("https://finance.yahoo.com/quote/{}", urlencoding::encode(symbol))
 }
 
 fn command_prepare_run(root: &Path, payload: &Map<String, Value>) -> Value {

@@ -321,4 +321,24 @@ mod tests {
             .remove("receipt_hash");
         assert_eq!(receipt_hash(&unhashed), expected_hash);
     }
+
+    #[test]
+    fn parse_cli_honors_double_dash_passthrough() {
+        let cli = parse_cli(&[
+            "run".to_string(),
+            "--strict=1".to_string(),
+            "--".to_string(),
+            "--grep".to_string(),
+            "web fetch".to_string(),
+        ]);
+        assert_eq!(cli.flags.get("strict").map(String::as_str), Some("1"));
+        assert_eq!(
+            cli.positional,
+            vec![
+                "run".to_string(),
+                "--grep".to_string(),
+                "web fetch".to_string(),
+            ]
+        );
+    }
 }

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-12T02:01:05.378Z",
+  "generated_at": "2026-04-12T03:24:06.339Z",
   "scope": [
     "core",
     "client/runtime",
@@ -5997,7 +5997,7 @@
       "order": 544
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/duality_seed_parts/020-parse-codex-text.rs",
       "language": "rs",
       "loc": 465,
@@ -7064,7 +7064,7 @@
       "order": 641
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/binary_vuln_plane_parts/030-run-mcp-analyze.rs",
       "language": "rs",
       "loc": 440,
@@ -7240,7 +7240,7 @@
       "order": 657
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/autotest_controller_parts/010-parse-cli.rs",
       "language": "rs",
       "loc": 433,
@@ -8197,7 +8197,7 @@
       "order": 744
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/autotest_doctor_parts/010-parse-cli.rs",
       "language": "rs",
       "loc": 382,
@@ -9572,7 +9572,7 @@
       "order": 869
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/business_plane_parts/030-parse-date-range.rs",
       "language": "rs",
       "loc": 246,
@@ -10397,7 +10397,7 @@
       "order": 944
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/stock_market_collector_kernel_tests.rs",
       "language": "rs",
       "loc": 95,
@@ -11244,7 +11244,7 @@
       "order": 1021
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/mcp_plane.rs",
       "language": "rs",
       "loc": 5,
@@ -11596,7 +11596,7 @@
       "order": 1053
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/upwork_gigs_collector_kernel.rs",
       "language": "rs",
       "loc": 4,

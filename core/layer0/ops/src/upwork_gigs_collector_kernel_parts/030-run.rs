@@ -170,7 +170,7 @@ mod tests {
             "seen_ids": [],
             "gigs": [
                 {"title": "bad", "url": "javascript:alert(1)"},
-                {"title": "good", "url": "http://upwork.com/jobs/good", "description": "AI workflow build"}
+                {"title": "good", "url": "http://upwork.com/jobs/good?source=rss#frag", "description": "AI workflow build"}
             ]
         });
         let out = map_gigs(lane_utils::payload_obj(&payload));

@@ -78,7 +78,16 @@ fn canonical_upwork_gig_url(raw: Option<&str>) -> String {
         "http://upwork.com/",
     ] {
         if let Some(rest) = cleaned.strip_prefix(prefix) {
-            return format!("https://www.upwork.com/{}", clean_text(Some(rest), 560));
+            let canonical = rest
+                .split(['?', '#'])
+                .next()
+                .map(|value| value.trim_matches('/'))
+                .unwrap_or_default();
+            let canonical = clean_text(Some(canonical), 560);
+            if canonical.is_empty() {
+                return String::new();
+            }
+            return format!("https://www.upwork.com/{canonical}");
         }
     }
     String::new()

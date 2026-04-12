@@ -65,6 +65,13 @@ fn read_json(path: &Path) -> Value {
     serde_json::from_str(&raw).expect("parse")
 }
 
+fn write_sample_fixture(root: &Path, name: &str, contents: impl AsRef<[u8]>) -> PathBuf {
+    let sample = root.join("tmp").join(name);
+    fs::create_dir_all(sample.parent().expect("parent")).expect("mkdir");
+    fs::write(&sample, contents).expect("write sample");
+    sample
+}
+
 fn canonicalize_json(value: &Value) -> Value {
     match value {
         Value::Object(map) => {
@@ -109,13 +116,11 @@ fn v6_binvuln_batch11_core_lanes_execute_with_receipts() {
     let fixture = stage_fixture_root();
     let root = fixture.path();
 
-    let sample = root.join("tmp").join("firmware.bin");
-    fs::create_dir_all(sample.parent().expect("parent")).expect("mkdir");
-    fs::write(
-        &sample,
+    let sample = write_sample_fixture(
+        root,
+        "firmware.bin",
         b"firmware-start\npassword=supersecret\n/bin/sh\nhttp://example.local\n",
-    )
-    .expect("write sample");
+    );
 
     let scan_exit = binary_vuln_plane::run(
         root,
@@ -402,5 +407,35 @@ fn v6_binvuln_batch30_rejects_unsigned_rulepack_install_in_strict_mode() {
             })
             .unwrap_or(false),
         "strict rulepack intake must reject unsigned payloads"
+    );
+}
+
+#[test]
+fn v6_binvuln_batch11_accepts_http_sse_transport_alias() {
+    let fixture = stage_fixture_root();
+    let root = fixture.path();
+    let sample = write_sample_fixture(
+        root,
+        "mcp-http-sse-sample.bin",
+        "symbols: open, read, close",
+    );
+
+    let exit = binary_vuln_plane::run(
+        root,
+        &[
+            "mcp-analyze".to_string(),
+            "--strict=1".to_string(),
+            format!("--input={}", sample.display()),
+            "--transport=http_sse".to_string(),
+        ],
+    );
+    assert_eq!(exit, 0);
+    let latest = read_json(&latest_path(root));
+    assert_eq!(
+        latest
+            .get("mcp")
+            .and_then(|v| v.get("transport"))
+            .and_then(Value::as_str),
+        Some("http-sse")
     );
 }
