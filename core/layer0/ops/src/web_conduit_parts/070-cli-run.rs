@@ -14,7 +14,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         .map(|row| row.to_ascii_lowercase())
         .unwrap_or_else(|| "status".to_string());
     let nexus_connection = match command.as_str() {
-        "fetch" | "browse" | "media" | "outbound-attachment" | "qr-image" => {
+        "fetch" | "browse" | "media" | "image-metadata" | "outbound-attachment" | "qr-image" => {
             match crate::dashboard_tool_turn_loop::authorize_ingress_tool_call_with_nexus(
                 "web_conduit_fetch",
             ) {
@@ -257,6 +257,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             )
         }
         "media" => api_media(root, &cli_media_request_from_parsed(&parsed)),
+        "image-metadata" => api_image_metadata(root, &cli_media_request_from_parsed(&parsed)),
         "media-host" => api_media_host(root, &cli_media_host_request_from_parsed(&parsed)),
         "outbound-attachment" => {
             api_outbound_attachment(root, &cli_outbound_attachment_request_from_parsed(&parsed))
@@ -302,36 +303,34 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 }),
             )
         }
-        "file-context" => {
-            api_file_context(&json!({
-                "content": parsed.flags.get("content").cloned().unwrap_or_default(),
-                "content_base64": parsed
-                    .flags
-                    .get("content-base64")
-                    .or_else(|| parsed.flags.get("content_base64"))
-                    .cloned()
-                    .unwrap_or_default(),
-                "file_name": parsed
-                    .flags
-                    .get("file-name")
-                    .or_else(|| parsed.flags.get("file_name"))
-                    .cloned()
-                    .unwrap_or_default(),
-                "fallback_name": parsed
-                    .flags
-                    .get("fallback-name")
-                    .or_else(|| parsed.flags.get("fallback_name"))
-                    .cloned()
-                    .unwrap_or_default(),
-                "mime_type": parsed
-                    .flags
-                    .get("mime-type")
-                    .or_else(|| parsed.flags.get("mime_type"))
-                    .cloned()
-                    .unwrap_or_default(),
-                "compact": parse_bool(parsed.flags.get("compact"))
-            }))
-        }
+        "file-context" => api_file_context(&json!({
+            "content": parsed.flags.get("content").cloned().unwrap_or_default(),
+            "content_base64": parsed
+                .flags
+                .get("content-base64")
+                .or_else(|| parsed.flags.get("content_base64"))
+                .cloned()
+                .unwrap_or_default(),
+            "file_name": parsed
+                .flags
+                .get("file-name")
+                .or_else(|| parsed.flags.get("file_name"))
+                .cloned()
+                .unwrap_or_default(),
+            "fallback_name": parsed
+                .flags
+                .get("fallback-name")
+                .or_else(|| parsed.flags.get("fallback_name"))
+                .cloned()
+                .unwrap_or_default(),
+            "mime_type": parsed
+                .flags
+                .get("mime-type")
+                .or_else(|| parsed.flags.get("mime_type"))
+                .cloned()
+                .unwrap_or_default(),
+            "compact": parse_bool(parsed.flags.get("compact"))
+        })),
         "search" => {
             let query = clean_text(
                 parsed
