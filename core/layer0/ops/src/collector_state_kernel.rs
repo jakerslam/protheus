@@ -70,7 +70,12 @@ fn resolve_eyes_state_dir(root: &Path, payload: &Map<String, Value>) -> PathBuf 
     if let Ok(raw) = std::env::var("EYES_STATE_DIR") {
         let trimmed = raw.trim();
         if !trimmed.is_empty() {
-            return PathBuf::from(trimmed);
+            let candidate = PathBuf::from(trimmed);
+            return if candidate.is_absolute() {
+                candidate
+            } else {
+                root.join(candidate)
+            };
         }
     }
 
@@ -406,5 +411,35 @@ mod tests {
                 .map(|rows| rows.len()),
             Some(1)
         );
+    }
+
+    #[test]
+    fn meta_load_roots_relative_env_state_dir_under_root() {
+        let tmp = tempdir().expect("tmp");
+        let root = tmp.path();
+        let previous = std::env::var("EYES_STATE_DIR").ok();
+        std::env::set_var("EYES_STATE_DIR", "relative/eyes");
+
+        let out = command_meta_load(
+            root,
+            lane_utils::payload_obj(&json!({ "collector_id": "demo" })),
+        )
+        .expect("meta load");
+        assert_eq!(
+            out.get("meta_path").and_then(Value::as_str),
+            Some(
+                root.join("relative/eyes")
+                    .join("collector_meta")
+                    .join("demo.json")
+                    .to_string_lossy()
+                    .as_ref()
+            )
+        );
+
+        if let Some(value) = previous {
+            std::env::set_var("EYES_STATE_DIR", value);
+        } else {
+            std::env::remove_var("EYES_STATE_DIR");
+        }
     }
 }
