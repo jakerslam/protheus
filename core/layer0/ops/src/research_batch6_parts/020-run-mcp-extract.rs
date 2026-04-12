@@ -244,13 +244,17 @@ pub fn run_spider(root: &Path, parsed: &ParsedArgs, strict: bool) -> Value {
     }
 
     let mut queue = VecDeque::<(String, u64)>::new();
+    let mut queued = BTreeSet::<String>::new();
     for seed in seeds {
-        queue.push_back((seed, 0));
+        if queued.insert(seed.clone()) {
+            queue.push_back((seed, 0));
+        }
     }
     let mut visited = BTreeSet::<String>::new();
     let mut per_link = Vec::<Value>::new();
 
     while let Some((url, depth)) = queue.pop_front() {
+        queued.remove(&url);
         if visited.len() as u64 >= max_links {
             break;
         }
@@ -272,13 +276,16 @@ pub fn run_spider(root: &Path, parsed: &ParsedArgs, strict: bool) -> Value {
             } else {
                 allowed_domains.iter().any(|d| d == &next_domain)
             };
-            let decision = !denied && allow_match && domain_allowed && depth < max_depth;
+            let duplicate = visited.contains(&next) || queued.contains(&next);
+            let decision = !duplicate && !denied && allow_match && domain_allowed && depth < max_depth;
             let reason = if denied {
                 "deny_rule"
             } else if !allow_match {
                 "allow_rule_miss"
             } else if !domain_allowed {
                 "domain_not_allowed"
+            } else if duplicate {
+                "duplicate"
             } else if depth >= max_depth {
                 "max_depth_reached"
             } else {
@@ -292,6 +299,7 @@ pub fn run_spider(root: &Path, parsed: &ParsedArgs, strict: bool) -> Value {
                 "reason": reason
             }));
             if decision {
+                queued.insert(next.clone());
                 queue.push_back((next, depth.saturating_add(1)));
             }
         }

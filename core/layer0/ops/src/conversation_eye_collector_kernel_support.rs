@@ -4,7 +4,6 @@
 use chrono::{DateTime, Datelike, Utc};
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
-use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -181,28 +180,39 @@ pub(crate) fn to_iso_week(ts: &str) -> String {
 
 pub(crate) fn normalize_topics(payload: &Map<String, Value>) -> Vec<Value> {
     let defaults = ["conversation", "decision", "insight", "directive", "t1"];
-    let mut dedup = BTreeMap::<String, ()>::new();
+    let mut out = Vec::<Value>::new();
+
+    let push_topic = |out: &mut Vec<Value>, raw: &str| {
+        let value = clean_text(Some(raw), 48).to_lowercase();
+        if value.is_empty() {
+            return;
+        }
+        if out
+            .iter()
+            .any(|existing| existing.as_str() == Some(value.as_str()))
+        {
+            return;
+        }
+        out.push(Value::String(value));
+    };
 
     for topic in defaults {
-        dedup.insert(topic.to_string(), ());
+        push_topic(&mut out, topic);
     }
 
     if let Some(rows) = payload.get("topics").and_then(Value::as_array) {
         for row in rows {
-            let value = clean_text(row.as_str(), 48).to_lowercase();
-            if value.is_empty() {
-                continue;
+            if let Some(raw) = row.as_str() {
+                push_topic(&mut out, raw);
             }
-            dedup.insert(value, ());
+            if out.len() >= 8 {
+                break;
+            }
         }
     }
 
-    dedup
-        .keys()
-        .take(8)
-        .cloned()
-        .map(Value::String)
-        .collect::<Vec<_>>()
+    out.truncate(8);
+    out
 }
 
 pub(crate) fn clean_tags(raw: Option<&Value>) -> Vec<Value> {
@@ -238,17 +248,23 @@ pub(crate) fn clean_tags(raw: Option<&Value>) -> Vec<Value> {
 }
 
 pub(crate) fn clean_edges(raw: Option<&Value>) -> Vec<Value> {
-    raw.and_then(Value::as_array)
-        .map(|rows| {
-            rows.iter()
-                .filter_map(Value::as_str)
-                .map(|row| clean_text(Some(row), 120))
-                .filter(|row| !row.is_empty())
-                .take(12)
-                .map(Value::String)
-                .collect::<Vec<_>>()
-        })
-        .unwrap_or_default()
+    let mut out = Vec::<Value>::new();
+    if let Some(rows) = raw.and_then(Value::as_array) {
+        for row in rows {
+            let value = clean_text(row.as_str(), 120);
+            if value.is_empty() {
+                continue;
+            }
+            if out.iter().any(|existing| existing.as_str() == Some(value.as_str())) {
+                continue;
+            }
+            out.push(Value::String(value));
+            if out.len() >= 12 {
+                break;
+            }
+        }
+    }
+    out
 }
 
 pub(crate) fn sha16(seed: &str) -> String {

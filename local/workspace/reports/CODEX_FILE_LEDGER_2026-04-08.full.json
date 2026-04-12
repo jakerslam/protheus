@@ -7878,7 +7878,7 @@
       "order": 715
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/tests/v7_asm_research_batch5_integration.rs",
       "language": "rs",
       "loc": 404,
@@ -9484,7 +9484,7 @@
       "order": 861
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/conversation_eye_collector_kernel_support.rs",
       "language": "rs",
       "loc": 257,
@@ -10584,7 +10584,7 @@
       "order": 961
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/research_batch6_tests.rs",
       "language": "rs",
       "loc": 46,
@@ -11552,7 +11552,7 @@
       "order": 1049
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/research_batch8.rs",
       "language": "rs",
       "loc": 4,
@@ -25830,7 +25830,7 @@
       "order": 2347
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/client-memory-tools/conversation_eye_collector.test.ts",
       "language": "ts",
       "loc": 9,

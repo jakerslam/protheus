@@ -703,6 +703,55 @@ mod tests {
             .iter()
             .any(|row| row.as_str() == Some("conversation")));
         assert!(topics.iter().any(|row| row.as_str() == Some("alpha")));
+        assert_eq!(
+            topics,
+            vec![
+                json!("conversation"),
+                json!("decision"),
+                json!("insight"),
+                json!("directive"),
+                json!("t1"),
+                json!("alpha"),
+            ]
+        );
+    }
+
+    #[test]
+    fn process_nodes_dedupes_edges_and_preserves_topic_order() {
+        let payload = json!({
+            "index": { "emitted_node_ids": {} },
+            "topics": ["conversation", "decision", "insight", "directive", "t1", "browser", "fetch"],
+            "max_items": 1,
+            "candidates": [
+                {
+                    "node": {
+                        "node_id": "n1",
+                        "ts": "2026-01-01T00:00:00Z",
+                        "title": "First node",
+                        "preview": "Collected from the web",
+                        "level": 3,
+                        "node_tags": ["collector", "collector", "web"],
+                        "edges_to": ["alpha", "alpha", "beta"]
+                    }
+                }
+            ]
+        });
+        let out = command_process_nodes(lane_utils::payload_obj(&payload));
+        let items = out
+            .get("items")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert_eq!(items.len(), 1);
+        let item = items[0].as_object().cloned().unwrap_or_default();
+        assert_eq!(
+            item.get("topics").cloned().unwrap_or(Value::Null),
+            json!(["conversation", "decision", "insight", "directive", "t1", "browser", "fetch"])
+        );
+        assert_eq!(
+            item.get("edges_to").cloned().unwrap_or(Value::Null),
+            json!(["alpha", "beta"])
+        );
     }
 
     #[test]
