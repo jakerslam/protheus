@@ -31,6 +31,18 @@ function normalizeToken(v, maxLen = 120) {
   return cleanText(v, maxLen).toLowerCase().replace(/[^a-z0-9_.:-]+/g, '_').replace(/^_+|_+$/g, '');
 }
 
+function canonicalSkillId(v, maxLen = 120) {
+  return cleanText(v, maxLen).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+}
+
+function canonicalSourceKey(source) {
+  const cleaned = cleanText(source, 180).toLowerCase();
+  if (!cleaned) return '';
+  const withoutScheme = cleaned.startsWith('mcp://') ? cleaned.slice(6) : cleaned;
+  const authority = withoutScheme.split(/[/?#]/, 1)[0];
+  return normalizeToken(authority, 80);
+}
+
 function stableHash(value) {
   return crypto.createHash('sha256').update(String(value || ''), 'utf8').digest('hex');
 }
@@ -152,7 +164,7 @@ function capabilityMatrixForSkills(skills) {
   const out = [];
   for (const skill of Array.isArray(skills) ? skills : []) {
     const source = cleanText(skill && skill.source, 180);
-    const sourceKey = source.startsWith('mcp://') ? source.slice(6).split('/')[0] : source;
+    const sourceKey = canonicalSourceKey(source);
     const trustTier = cleanText(skill && skill.trust_tier, 40) || 'standard';
     const caps = (sourceCaps[sourceKey] || ['invoke']).slice();
     out.push({
@@ -168,7 +180,7 @@ function capabilityMatrixForSkills(skills) {
 
 function installedIds(installs) {
   const rows = installs && Array.isArray(installs.installed) ? installs.installed : [];
-  return new Set(rows.map((row) => cleanText(row && row.id, 120)).filter(Boolean));
+  return new Set(rows.map((row) => canonicalSkillId(row && row.id, 120)).filter(Boolean));
 }
 
 function persistGatewayRow(policy, row) {
@@ -261,7 +273,7 @@ function cmdDiscover(ctx, args) {
     details: {
       skills: skills.map((row) => ({
         ...row,
-        installed: installed.has(cleanText(row && row.id, 120))
+        installed: installed.has(canonicalSkillId(row && row.id, 120))
       })),
       capability_matrix: matrix,
       export: {
@@ -274,7 +286,8 @@ function cmdDiscover(ctx, args) {
 }
 
 function cmdInstall(ctx, args) {
-  const id = cleanText(args.id || args.skill || '', 120);
+  const requestedId = cleanText(args.id || args.skill || '', 120);
+  const id = canonicalSkillId(requestedId, 120);
   if (!id) {
     return recordRow({
       ok: false,
@@ -284,20 +297,20 @@ function cmdInstall(ctx, args) {
     }, ctx.policy, args);
   }
   const skills = Array.isArray(ctx.registry.skills) ? ctx.registry.skills : [];
-  const target = skills.find((row) => cleanText(row && row.id, 120) === id);
+  const target = skills.find((row) => canonicalSkillId(row && row.id, 120) === id);
   if (!target) {
     return recordRow({
       ok: false,
       type: 'mcp_gateway_error',
       action: 'install',
       error: 'unknown_skill',
-      details: { id }
+      details: { id, requested_id: requestedId || id }
     }, ctx.policy, args);
   }
 
   const installs = ctx.installs && typeof ctx.installs === 'object' ? { ...ctx.installs } : { schema_id: 'mcp_gateway_installs_v1', installed: [] };
   installs.installed = Array.isArray(installs.installed) ? installs.installed : [];
-  const exists = installs.installed.some((row) => cleanText(row && row.id, 120) === id);
+  const exists = installs.installed.some((row) => canonicalSkillId(row && row.id, 120) === id);
   if (!exists) {
     installs.installed.push({
       id,
@@ -317,6 +330,7 @@ function cmdInstall(ctx, args) {
     action: 'install',
     details: {
       id,
+      requested_id: requestedId || id,
       source: cleanText(target.source, 200),
       already_installed: exists,
       installed_count: installs.installed.length
@@ -325,7 +339,8 @@ function cmdInstall(ctx, args) {
 }
 
 function cmdUninstall(ctx, args) {
-  const id = cleanText(args.id || args.skill || '', 120);
+  const requestedId = cleanText(args.id || args.skill || '', 120);
+  const id = canonicalSkillId(requestedId, 120);
   if (!id) {
     return recordRow({
       ok: false,
@@ -337,7 +352,7 @@ function cmdUninstall(ctx, args) {
   const installs = ctx.installs && typeof ctx.installs === 'object' ? { ...ctx.installs } : { schema_id: 'mcp_gateway_installs_v1', installed: [] };
   installs.installed = Array.isArray(installs.installed) ? installs.installed : [];
   const before = installs.installed.length;
-  installs.installed = installs.installed.filter((row) => cleanText(row && row.id, 120) !== id);
+  installs.installed = installs.installed.filter((row) => canonicalSkillId(row && row.id, 120) !== id);
   installs.updated_at = nowIso();
   if (boolFlag(args.apply, true)) {
     writeJson(ctx.policy.paths.installs_path, installs);
@@ -349,6 +364,7 @@ function cmdUninstall(ctx, args) {
     action: 'uninstall',
     details: {
       id,
+      requested_id: requestedId || id,
       removed: before !== installs.installed.length,
       installed_count: installs.installed.length
     }
@@ -448,5 +464,7 @@ module.exports = {
   main,
   parseArgs,
   capabilityMatrixForSkills,
-  loadGateway
+  loadGateway,
+  canonicalSkillId,
+  canonicalSourceKey
 };
