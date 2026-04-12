@@ -59,3 +59,38 @@ fn pipeline_csv_export_escapes_commas_and_quotes() {
     assert!(body.contains("\"Hello, \"\"world\"\"\""));
     assert!(!body.contains("\\\"world\\\""));
 }
+
+#[test]
+fn spider_emits_domain_rejections_and_dedupes_links() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let root = temp.path();
+    let parsed = ParsedArgs {
+        flags: std::collections::HashMap::from([
+            (
+                "graph-json".to_string(),
+                "{\"https://a.test\":{\"links\":[\"https://a.test/x\",\"https://a.test/x\",\"https://b.test/y\"]},\"https://a.test/x\":{\"links\":[]},\"https://b.test/y\":{\"links\":[]}}".to_string(),
+            ),
+            ("seed-urls".to_string(), "https://a.test".to_string()),
+            ("allowed-domains".to_string(), "a.test".to_string()),
+        ]),
+        positional: vec!["spider".to_string()],
+    };
+    let payload = run_spider(root, &parsed, true);
+    assert_eq!(payload.get("ok").and_then(Value::as_bool), Some(true));
+    assert_eq!(payload.get("visited_count").and_then(Value::as_u64), Some(2));
+    let per_link = payload
+        .get("per_link_receipts")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let enqueued_x = per_link
+        .iter()
+        .filter(|row| row.get("to").and_then(Value::as_str) == Some("https://a.test/x"))
+        .filter(|row| row.get("decision").and_then(Value::as_str) == Some("enqueue"))
+        .count();
+    assert_eq!(enqueued_x, 1);
+    assert!(per_link.iter().any(|row| {
+        row.get("to").and_then(Value::as_str) == Some("https://b.test/y")
+            && row.get("reason").and_then(Value::as_str) == Some("domain_not_allowed")
+    }));
+}
