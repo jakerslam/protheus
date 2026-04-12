@@ -1,10 +1,11 @@
 // skills/moltbook/moltbook_api.ts
 // Core Moltbook functions for agent automation
 
-const { egressFetch, EgressGatewayError } = require('../../../lib/egress_gateway.ts');
-const { resolveSecretHandle } = require('../../../lib/secret_broker.ts');
+const { egressFetch, EgressGatewayError } = require('../../../../client/lib/egress_gateway.ts');
+const { resolveSecretHandle } = require('../../../../client/lib/secret_broker.ts');
 
 const DEFAULT_API_BASES = ['https://www.moltbook.com/api/v1', 'https://api.moltbook.com/api/v1'];
+const ALLOWED_API_HOSTS = new Set(['www.moltbook.com', 'api.moltbook.com']);
 const getAuthHeader = (apiKey) => ({ 'Authorization': 'Bearer ' + apiKey });
 
 function clip(v, n = 220) {
@@ -89,13 +90,37 @@ function parseErrorMessage(payload, status, fallback) {
   return `${fallback} (${status})`;
 }
 
+function canonicalizeApiBase(raw) {
+  const value = String(raw || '').trim();
+  if (!value) return null;
+  let parsed;
+  try {
+    parsed = new URL(value);
+  } catch {
+    return null;
+  }
+  if (parsed.protocol !== 'https:') return null;
+  const host = String(parsed.hostname || '').trim().toLowerCase();
+  if (!ALLOWED_API_HOSTS.has(host)) return null;
+  const normalizedPath = parsed.pathname.replace(/\/+$/g, '');
+  if (normalizedPath && normalizedPath !== '/api/v1' && !normalizedPath.startsWith('/api/v1/')) {
+    return null;
+  }
+  return `https://${host}/api/v1`;
+}
+
 function resolveApiBases() {
   const raw = String(process.env.MOLTBOOK_API_BASES || '').trim();
   if (!raw) return DEFAULT_API_BASES.slice();
+  const seen = new Set();
   const parsed = raw
     .split(',')
-    .map((x) => x.trim())
-    .filter(Boolean);
+    .map((x) => canonicalizeApiBase(x))
+    .filter((x) => {
+      if (!x || seen.has(x)) return false;
+      seen.add(x);
+      return true;
+    });
   return parsed.length ? parsed : DEFAULT_API_BASES.slice();
 }
 
@@ -542,6 +567,9 @@ module.exports = {
   moltbook_createPost,
   moltbook_listAgents,
   moltbook_capabilities,
+  canonicalizeApiBase,
+  DEFAULT_API_BASES,
   MoltbookApiError,
+  resolveApiBases,
   solveVerificationChallenge
 };
