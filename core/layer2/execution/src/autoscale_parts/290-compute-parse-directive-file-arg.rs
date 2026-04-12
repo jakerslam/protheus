@@ -7,11 +7,20 @@ pub fn compute_parse_directive_file_arg(
             file: String::new(),
         };
     }
-    let re = Regex::new(r#"(?:^|\s)--file=(?:"([^"]+)"|'([^']+)'|([^\s]+))"#)
+    let re = Regex::new(
+        r#"(?:^|\s)--file(?:=(?:"([^"]+)"|'([^']+)'|([^\s]+))|\s+(?:"([^"]+)"|'([^']+)'|([^\s]+)))"#,
+    )
         .expect("valid directive file arg regex");
     let raw = re
         .captures(text)
-        .and_then(|caps| caps.get(1).or_else(|| caps.get(2)).or_else(|| caps.get(3)))
+        .and_then(|caps| {
+            caps.get(1)
+                .or_else(|| caps.get(2))
+                .or_else(|| caps.get(3))
+                .or_else(|| caps.get(4))
+                .or_else(|| caps.get(5))
+                .or_else(|| caps.get(6))
+        })
         .map(|m| m.as_str().trim().replace('\\', "/"))
         .unwrap_or_default();
     if raw.is_empty() {

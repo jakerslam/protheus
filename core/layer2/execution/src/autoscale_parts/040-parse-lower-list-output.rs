@@ -1,4 +1,4 @@
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct ParseLowerListOutput {
     #[serde(default)]
     pub items: Vec<String>,

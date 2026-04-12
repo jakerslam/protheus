@@ -6382,10 +6382,10 @@
       "order": 579
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer2/execution/src/autoscale_parts/040-parse-lower-list-output.rs",
       "language": "rs",
-      "loc": 456,
+      "loc": 457,
       "authority_risk_score": 5,
       "migration_potential_score": 1,
       "concept_opportunity_score": 2,
@@ -7097,10 +7097,10 @@
       "order": 644
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer2/execution/src/inversion_parts/070-compute-parse-candidate-list-from-llm-payload.rs",
       "language": "rs",
-      "loc": 439,
+      "loc": 462,
       "authority_risk_score": 5,
       "migration_potential_score": 1,
       "concept_opportunity_score": 2,
@@ -8098,10 +8098,10 @@
       "order": 735
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer2/execution/src/autoscale_parts/290-compute-parse-directive-file-arg.rs",
       "language": "rs",
-      "loc": 390,
+      "loc": 400,
       "authority_risk_score": 5,
       "migration_potential_score": 1,
       "concept_opportunity_score": 2,
@@ -8318,10 +8318,10 @@
       "order": 755
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer2/execution/src/inversion_parts/170-compute-parse-lane-decision.rs",
       "language": "rs",
-      "loc": 377,
+      "loc": 380,
       "authority_risk_score": 5,
       "migration_potential_score": 1,
       "concept_opportunity_score": 2,
@@ -23542,10 +23542,10 @@
       "order": 2139
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/client-memory-tools/autonomy_directive_parser_helpers_rust_parity.test.ts",
       "language": "ts",
-      "loc": 9,
+      "loc": 125,
       "authority_risk_score": 2,
       "migration_potential_score": 2,
       "concept_opportunity_score": 3,
