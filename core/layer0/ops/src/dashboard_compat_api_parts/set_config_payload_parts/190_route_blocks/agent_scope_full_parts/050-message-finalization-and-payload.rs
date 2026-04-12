@@ -143,6 +143,14 @@ fn finalize_message_finalization_and_payload(
         finalized_response = comparative_no_findings_fallback(message);
         finalization_outcome = format!("{finalization_outcome}+comparative_fallback");
     }
+    if response_is_no_findings_placeholder(&finalized_response) && !response_tools.is_empty() {
+        let tool_failure_reason = response_tools_failure_reason_for_user(&response_tools, 4);
+        if !tool_failure_reason.is_empty() {
+            finalized_response = tool_failure_reason;
+            finalization_outcome =
+                merge_response_outcomes(&finalization_outcome, "tool_failure_reason", 200);
+        }
+    }
     if response_tools.is_empty()
         && !inline_tools_allowed
         && response_is_no_findings_placeholder(&finalized_response)

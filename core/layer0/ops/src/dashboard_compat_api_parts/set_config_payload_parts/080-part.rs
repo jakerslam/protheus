@@ -194,9 +194,12 @@ fn normalize_raw_response_payload_dump(text: &str) -> Option<String> {
     if !synthesized.is_empty() {
         return Some(synthesized);
     }
-    Some(
-        "I completed the tool call, but no synthesized response was available yet. Check the tool details below.".to_string(),
-    )
+    let tools = payload.get("tools").and_then(Value::as_array).cloned().unwrap_or_default();
+    let findings = response_tools_summary_for_user(&tools, 4);
+    if !findings.is_empty() { return Some(findings); }
+    let failure_reason = response_tools_failure_reason_for_user(&tools, 4);
+    if !failure_reason.is_empty() { return Some(failure_reason); }
+    Some("I completed the tool call, but no synthesized response was available yet. Check the tool details below.".to_string())
 }
 
 fn with_payload_normalization_outcome(outcome: &str, payload_normalized: bool) -> String {
@@ -491,4 +494,3 @@ fn finalize_user_facing_response_with_outcome(
 fn finalize_user_facing_response(output: String, findings: Option<String>) -> String {
     finalize_user_facing_response_with_outcome(output, findings).0
 }
-
