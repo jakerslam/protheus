@@ -89,6 +89,9 @@ fn comparative_detector_matches_peer_ranking_language() {
     assert!(message_requests_comparative_answer(
         "compare infring versus top competitors"
     ));
+    assert!(!message_requests_comparative_answer(
+        "top AI agent frameworks"
+    ));
 }
 
 #[test]
@@ -122,6 +125,19 @@ fn natural_web_intent_routes_openclaw_comparison_to_batch_query() {
 }
 
 #[test]
+fn natural_web_intent_normalizes_try_to_web_search_query() {
+    let route = natural_web_intent_from_user_message(
+        "try to web search \"top AI agent frameworks\""
+    )
+    .expect("route");
+    assert_eq!(route.0, "batch_query");
+    assert_eq!(
+        route.1.get("query").and_then(Value::as_str),
+        Some("top AI agent frameworks")
+    );
+}
+
+#[test]
 fn natural_web_intent_routes_test_web_fetch_probe_to_example_dot_com() {
     let route = natural_web_intent_from_user_message("do a test web fetch").expect("route");
     assert_eq!(route.0, "web_fetch");
@@ -145,6 +161,23 @@ fn direct_tool_intent_prefers_live_web_over_workspace_analyze_for_openclaw_probe
     assert_eq!(
         route.1.get("source").and_then(Value::as_str),
         Some("web")
+    );
+}
+
+#[test]
+fn latent_tool_candidates_normalize_try_to_web_search_query() {
+    let candidates = latent_tool_candidates_for_message(
+        "try to web search \"top AI agent frameworks\"",
+        &[],
+    );
+    let batch = candidates
+        .iter()
+        .find(|row| row.get("tool").and_then(Value::as_str) == Some("batch_query"))
+        .cloned()
+        .expect("batch query candidate");
+    assert_eq!(
+        batch.pointer("/proposed_input/query").and_then(Value::as_str),
+        Some("top AI agent frameworks")
     );
 }
 
@@ -333,6 +366,25 @@ fn batch_query_context_guard_comparison_uses_comparative_fallback() {
     let lowered = summary.to_ascii_lowercase();
     assert!(lowered.contains("infring is strongest"));
     assert!(lowered.contains("source-backed ranked table"));
+}
+
+#[test]
+fn batch_query_summary_rewrites_no_useful_information_copy_to_actionable_guidance() {
+    let summary = summarize_tool_payload(
+        "batch_query",
+        &json!({
+            "ok": true,
+            "status": "ok",
+            "query": "top AI agent frameworks",
+            "summary": "Search returned no useful information."
+        }),
+    );
+    let lowered = summary.to_ascii_lowercase();
+    assert!(
+        lowered.contains("usable tool findings") || lowered.contains("source-backed findings"),
+        "unexpected summary: {summary}"
+    );
+    assert!(!lowered.contains("search returned no useful information"));
 }
 
 #[test]

@@ -31,6 +31,34 @@ fn explicit_tool_command_routes_web_search_with_defaults() {
 }
 
 #[test]
+fn explicit_tool_command_alias_routes_compare_to_batch_query() {
+    let (tool, input) =
+        direct_tool_intent_from_user_message("tool::compare:::top AI agent frameworks")
+            .expect("explicit tool command");
+    assert_eq!(tool, "batch_query");
+    assert_eq!(
+        input.get("query").and_then(Value::as_str).unwrap_or(""),
+        "top AI agent frameworks"
+    );
+    assert_eq!(
+        input.get("source").and_then(Value::as_str).unwrap_or(""),
+        "web"
+    );
+}
+
+#[test]
+fn explicit_tool_command_alias_routes_fetch_to_web_fetch() {
+    let (tool, input) =
+        direct_tool_intent_from_user_message("tool::fetch:::https://example.com")
+            .expect("explicit tool command");
+    assert_eq!(tool, "web_fetch");
+    assert_eq!(
+        input.get("url").and_then(Value::as_str).unwrap_or(""),
+        "https://example.com"
+    );
+}
+
+#[test]
 fn explicit_tool_command_rejects_unknown_names_with_suggestion() {
     let (tool, input) =
         direct_tool_intent_from_user_message("tool::web_serch:::latest").expect("router reply");
@@ -298,6 +326,42 @@ fn append_turn_message_captures_explicit_remember_fact_for_long_term_memory() {
 }
 
 #[test]
+fn append_turn_message_captures_low_signal_web_tool_outcome_keyframe() {
+    let root = governance_temp_root();
+    let receipt = append_turn_message(
+        root.path(),
+        "agent-web-keyframe",
+        "try to web search \"top AI agent frameworks\"",
+        "The batch query step ran, but only low-signal web output came back. Retry with a narrower query, one specific source URL, or ask me to continue from the recorded tool result.",
+    );
+    assert_eq!(
+        receipt
+            .pointer("/tool_outcome_keyframe/tool")
+            .and_then(Value::as_str),
+        Some("batch_query")
+    );
+    let context = context_command_payload(
+        root.path(),
+        "agent-web-keyframe",
+        &json!({}),
+        &json!({}),
+        true,
+    );
+    let outcomes = context
+        .get("recent_tool_outcomes")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    assert!(outcomes.iter().any(|entry| {
+        entry.get("summary")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_ascii_lowercase()
+            .contains("top ai agent frameworks")
+    }));
+}
+
+#[test]
 fn response_tools_summary_rewrites_ack_only_text_into_user_facing_findings() {
     let synthesized = response_tools_summary_for_user(
         &[json!({
@@ -336,4 +400,3 @@ fn ack_only_detector_flags_explicit_no_findings_failure_copy() {
         "From web retrieval: bing.com: OpenClaw — Personal AI Assistant — https://openclaw.ai/"
     ));
 }
-

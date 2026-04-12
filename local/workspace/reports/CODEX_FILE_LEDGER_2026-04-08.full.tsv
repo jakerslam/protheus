@@ -524,13 +524,13 @@ order	status	file	language	loc	authority_risk_score	migration_potential_score	co
 523	done	core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/120-part.rs	rs	499	5	1	2	3.2
 524	done	core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/160-part.rs	rs	499	5	1	2	3.2
 525	queued	core/layer0/ops/src/flow_plane_parts/020-playground-and-marketplace.rs	rs	499	5	1	2	3.2
-526	queued	core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/010-part.rs	rs	498	5	1	2	3.2
+526	done	core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/010-part.rs	rs	498	5	1	2	3.2
 527	queued	core/layer0/ops/src/autonomy_controller_parts/030-ephemeral-and-trunk.rs	rs	495	5	1	2	3.2
 528	queued	core/layer0/ops/src/collab_plane_parts/050-run-continuity.rs	rs	495	5	1	2	3.2
 529	done	core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/080-part.rs	rs	494	5	1	2	3.2
 530	queued	core/layer2/autonomy/src/simulation_parts/020-run-autonomy-simulation.rs	rs	493	5	1	2	3.2
 531	done	core/layer0/ops/src/github_repo_collector_kernel_support.rs	rs	492	5	1	2	3.2
-532	queued	core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/110-part.rs	rs	491	5	1	2	3.2
+532	done	core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/110-part.rs	rs	491	5	1	2	3.2
 533	queued	core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/040-part.rs	rs	489	5	1	2	3.2
 534	queued	core/layer0/ops/src/directive_kernel_parts/050-env-guard.rs	rs	488	5	1	2	3.2
 535	queued	core/layer0/ops/src/success_criteria_kernel_parts/030-evaluate-row.rs	rs	487	5	1	2	3.2
@@ -544,7 +544,7 @@ order	status	file	language	loc	authority_risk_score	migration_potential_score	co
 543	queued	core/layer0/ops/src/rust_hotpath_inventory_kernel.rs	rs	466	5	1	2	3.2
 544	done	core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/150-part.rs	rs	465	5	1	2	3.2
 545	done	core/layer0/ops/src/duality_seed_parts/020-parse-codex-text.rs	rs	465	5	1	2	3.2
-546	queued	core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/100-part.rs	rs	464	5	1	2	3.2
+546	done	core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/100-part.rs	rs	464	5	1	2	3.2
 547	queued	core/layer0/ops/src/autonomy_controller_parts/052-autoreason.rs	rs	462	5	1	2	3.2
 548	queued	core/layer0/ops/tests/v6_workflow_010_integration.rs	rs	461	5	1	2	3.2
 549	queued	core/layer0/ops/src/asm_plane_parts/010-usage.rs	rs	460	5	1	2	3.2
@@ -557,7 +557,7 @@ order	status	file	language	loc	authority_risk_score	migration_potential_score	co
 556	queued	core/layer2/execution/src/autoscale_parts/330-compute-non-yield-category.rs	rs	460	5	1	2	3.2
 557	queued	core/layer2/execution/src/inversion_parts/020-normalize-band-map-output.rs	rs	460	5	1	2	3.2
 558	queued	core/layer2/execution/src/inversion_parts/140-compute-normalize-harness-suite.rs	rs	460	5	1	2	3.2
-559	queued	core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/070-part.rs	rs	459	5	1	2	3.2
+559	done	core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/070-part.rs	rs	459	5	1	2	3.2
 560	queued	core/layer0/ops/src/mech_suit_mode_kernel_parts/010-usage.rs	rs	459	5	1	2	3.2
 561	queued	core/layer0/ops/src/observability_plane_parts/030-run-incident.rs	rs	459	5	1	2	3.2
 562	queued	core/layer0/ops/src/protheusd_parts/010-print-json.rs	rs	459	5	1	2	3.2
@@ -662,7 +662,7 @@ order	status	file	language	loc	authority_risk_score	migration_potential_score	co
 661	queued	core/layer0/ops/src/enterprise_hardening_parts/040-run-moat-license.rs	rs	432	5	1	2	3.2
 662	queued	core/layer0/ops/src/source_comment_filter_kernel.rs	rs	432	5	1	2	3.2
 663	done	core/layer0/ops/src/upwork_gigs_collector_kernel_parts/020-map-gigs.rs	rs	432	5	1	2	3.2
-664	queued	core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/050-part.rs	rs	431	5	1	2	3.2
+664	done	core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/050-part.rs	rs	431	5	1	2	3.2
 665	queued	core/layer2/execution/src/autoscale_parts/180-compute-shadow-scope-matches.rs	rs	430	5	1	2	3.2
 666	queued	core/layer2/execution/src/inversion_parts/190-compute-extract-failure-cluster-principle.rs	rs	430	5	1	2	3.2
 667	done	core/layer0/ops/src/research_plane_parts/030-run-crawl.rs	rs	429	5	1	2	3.2
@@ -833,7 +833,7 @@ order	status	file	language	loc	authority_risk_score	migration_potential_score	co
 832	queued	core/layer0/ops/tests/v6_cognition_cockpit_batch21_integration.rs	rs	306	5	1	2	3.2
 833	done	core/layer0/ops/src/research_batch7_parts/010-state-root.rs	rs	300	5	1	2	3.2
 834	queued	core/layer0/ops/tests/v6_workflow_002_integration.rs	rs	300	5	1	2	3.2
-835	queued	core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/170-part.rs	rs	298	5	1	2	3.2
+835	done	core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/170-part.rs	rs	298	5	1	2	3.2
 836	queued	core/layer0/ops/src/proposal_type_classifier_kernel.rs	rs	298	5	1	2	3.2
 837	queued	core/layer0/ops/tests/v6_app_batch18_integration.rs	rs	296	5	1	2	3.2
 838	queued	core/layer0/ops/tests/v7_moat_genesis_integration.rs	rs	294	5	1	2	3.2

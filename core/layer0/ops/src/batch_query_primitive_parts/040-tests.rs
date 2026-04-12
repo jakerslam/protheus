@@ -111,6 +111,51 @@ mod tests {
     }
 
     #[test]
+    fn cached_placeholder_summary_is_rewritten_to_actionable_low_signal_guidance() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let policy = load_policy(tmp.path());
+        let key = cache_key("web", "top AI agent frameworks", "medium", &policy);
+        let now_ts = chrono::Utc::now().timestamp();
+        let payload = json!({
+            "version": 1,
+            "entries": {
+                key: {
+                    "stored_at": now_ts,
+                    "expires_at": now_ts + 120,
+                    "response": {
+                        "status": "no_results",
+                        "summary": "Search returned no useful information.",
+                        "evidence_refs": [],
+                        "rewrite_set": [],
+                        "parallel_retrieval_used": true,
+                        "partial_failure_details": [
+                            "top ai agent frameworks overview:primary:fetch_candidate_low_relevance"
+                        ]
+                    }
+                }
+            }
+        });
+        write_json_atomic(&cache_path(tmp.path()), &payload).expect("write cache");
+
+        let out = api_batch_query(
+            tmp.path(),
+            &json!({
+                "source":"web",
+                "query":"top AI agent frameworks",
+                "aperture":"medium"
+            }),
+        );
+        let lowered = summary_lowered(&out);
+        assert!(lowered.contains("low-signal") || lowered.contains("source-backed findings"));
+        assert!(!lowered.contains("search returned no useful information"));
+        assert!(out
+            .get("partial_failure_details")
+            .and_then(Value::as_array)
+            .map(|rows| !rows.is_empty())
+            .unwrap_or(false));
+    }
+
+    #[test]
     fn source_only_scaffold_is_filtered_and_returns_no_results() {
         let out = run_query_with_fixture(
             json!({
@@ -139,7 +184,7 @@ mod tests {
         let lowered = summary_lowered(&out);
         assert!(!lowered.contains("key findings for"));
         assert!(!lowered.contains("potential sources:"));
-        assert!(lowered.contains("no useful information"));
+        assert!(lowered.contains("usable tool findings") || lowered.contains("source-backed findings"));
     }
 
     #[test]
@@ -491,7 +536,7 @@ mod tests {
             Some("no_results")
         );
         let lowered = summary_lowered(&out);
-        assert!(lowered.contains("no useful information"));
+        assert!(lowered.contains("usable tool findings") || lowered.contains("source-backed findings"));
         assert!(!lowered.contains("fox news"));
         assert!(!lowered.contains("mychart"));
     }

@@ -558,6 +558,145 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
     }
     return out;
   };
+  const backfillToolRowsFromCompletion = (rows, payload) => {
+    const merged = Array.isArray(rows) ? rows.map((row) => (row && typeof row === 'object' ? { ...row } : row)) : [];
+    const data = payload && typeof payload === 'object' ? payload : {};
+    const completion =
+      data &&
+      data.response_finalization &&
+      data.response_finalization.tool_completion &&
+      typeof data.response_finalization.tool_completion === 'object'
+        ? data.response_finalization.tool_completion
+        : null;
+    const completionSteps = normalizeToolCompletionSteps(completion);
+    if (!completionSteps.length) return merged.slice(0, 16);
+    for (let i = 0; i < merged.length; i++) {
+      const row = merged[i] && typeof merged[i] === 'object' ? merged[i] : null;
+      if (!row) continue;
+      let step = null;
+      const rowName = cleanText(row.name || '', 120).toLowerCase();
+      const byIndex = completionSteps[i] || null;
+      if (
+        byIndex &&
+        cleanText(byIndex.tool || '', 120).toLowerCase() === rowName &&
+        cleanText(byIndex.status || '', 220)
+      ) {
+        step = byIndex;
+      } else {
+        for (let si = 0; si < completionSteps.length; si++) {
+          const candidate = completionSteps[si] || {};
+          if (
+            cleanText(candidate.tool || '', 120).toLowerCase() === rowName &&
+            cleanText(candidate.status || '', 220)
+          ) {
+            step = candidate;
+            break;
+          }
+        }
+      }
+      if (!step) continue;
+      const stepStatus = cleanText(step.status || '', 220);
+      if (!cleanText(row.status || '', 80) && stepStatus) {
+        row.status = stepStatus.toLowerCase();
+      }
+      if ((!cleanText(row.result || '', 24000)) && stepStatus) {
+        row.result = `Missing tool_result block; last known status: ${stepStatus}`;
+      }
+      if (step.is_error && !row.blocked) {
+        row.is_error = true;
+      }
+    }
+    return merged.slice(0, 16);
+  };
+  const textLooksNoFindingsPlaceholder = (text) => {
+    const lower = cleanText(text || '', 1200).replace(/\s+/g, ' ').trim().toLowerCase();
+    if (!lower) return false;
+    return (
+      lower.includes("don't have usable tool findings from this turn yet") ||
+      lower.includes('dont have usable tool findings from this turn yet') ||
+      lower.includes('no usable findings yet') ||
+      lower.includes("couldn't extract usable findings") ||
+      lower.includes('could not extract usable findings') ||
+      lower.includes("couldn't produce source-backed findings in this turn") ||
+      lower.includes('search returned no useful information')
+    );
+  };
+  const textMentionsContextGuard = (text) => {
+    const lower = cleanText(text || '', 4000).replace(/\s+/g, ' ').trim().toLowerCase();
+    if (!lower) return false;
+    return (
+      lower.includes('context overflow: estimated context size exceeds safe threshold during tool loop') ||
+      lower.includes('more characters truncated') ||
+      lower.includes('middle content omitted') ||
+      lower.includes('safe context budget')
+    );
+  };
+  const stripContextGuardMarkers = (text) =>
+    cleanText(String(text || '')
+      .replace(/\[\.\.\.\s+\d+\s+more characters truncated\]/gi, ' ')
+      .replace(/context overflow:\s*estimated context size exceeds safe threshold during tool loop\.?/gi, ' ')
+      .replace(/middle content omitted/gi, ' ')
+      .replace(/\s+/g, ' '), 24000);
+  const parseStructuredToolInput = (tool) => {
+    if (!tool || typeof tool !== 'object') return {};
+    const input = tool.input;
+    if (input && typeof input === 'object' && !Array.isArray(input)) return input;
+    const raw = typeof input === 'string' ? input.trim() : '';
+    if (!raw || raw.charAt(0) !== '{') return {};
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+    } catch {
+      return {};
+    }
+  };
+  const toolInputMeta = (tool) => {
+    const input = parseStructuredToolInput(tool);
+    const query = cleanText(input.query || input.q || '', 180);
+    if (query) return `"${query}"`;
+    const url = cleanText(input.url || input.link || '', 220);
+    if (url) return url;
+    const filePath = cleanText(input.path || '', 220);
+    if (filePath) return filePath;
+    return '';
+  };
+  const lowSignalWebToolSummary = (tool) => {
+    const label = cleanText(String(tool && tool.name ? tool.name : 'web tool').replace(/_/g, ' '), 80) || 'web tool';
+    const subject = toolInputMeta(tool);
+    const suffix = subject ? ` for ${subject}` : '';
+    if (textMentionsContextGuard(tool && tool.result)) {
+      return `The ${label} step${suffix} returned more output than fit safely in context. Retry with a narrower query, one specific source URL, or continue from the partial result.`;
+    }
+    return `The ${label} step${suffix} ran, but only low-signal web output came back. Retry with a narrower query, one specific source URL, or continue from the recorded tool result.`;
+  };
+  const toolOnlyResponseSummary = (assistantText, tools) => {
+    const rows = Array.isArray(tools) ? tools.filter((tool) => tool && cleanText(tool.name || '', 80).toLowerCase() !== 'thought_process') : [];
+    if (!rows.length) return cleanText(assistantText || '', 24000);
+    const lower = cleanText(assistantText || '', 1200).replace(/\s+/g, ' ').trim().toLowerCase();
+    const lostHandoff =
+      !lower ||
+      lower === 'i lost the final response handoff for this turn. context is still intact, and i can continue from exactly where this left off.' ||
+      lower.indexOf('completed tool steps:') === 0 ||
+      textLooksNoFindingsPlaceholder(lower);
+    if (!lostHandoff) return cleanText(assistantText || '', 24000);
+    const actionableWeb = rows.find((tool) => {
+      const name = cleanText(tool && tool.name ? tool.name : '', 80).toLowerCase();
+      if (!(name === 'web_search' || name === 'web_fetch' || name === 'batch_query' || name === 'search_web' || name === 'web_query' || name === 'browse')) {
+        return false;
+      }
+      return textMentionsContextGuard(tool.result || '') || textLooksNoFindingsPlaceholder(tool.result || '');
+    });
+    if (actionableWeb) return lowSignalWebToolSummary(actionableWeb);
+    const failed = rows.find((tool) => tool && (tool.is_error || tool.blocked));
+    if (failed) {
+      const label = cleanText(String(failed.name || 'tool').replace(/_/g, ' '), 80) || 'tool';
+      const detail = stripContextGuardMarkers(failed.result || failed.status || '');
+      if (detail) {
+        return `The ${label} step finished without a final prose answer: ${cleanText(detail, 220)}.`;
+      }
+    }
+    return '';
+  };
   const toolStatusFromCompletion = (toolName, toolIndex, completionSteps, fallbackStatus) => {
     if (Array.isArray(completionSteps) && completionSteps.length > 0) {
       const byIndex = completionSteps[toolIndex] || null;
@@ -717,7 +856,10 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
             out.context_window || out.context_window_tokens || 0,
             agentContextWindow
           );
-          const toolRows = truncateToolRowsForContext(mergeResponseToolRows(out), effectiveContextWindow);
+          const toolRows = truncateToolRowsForContext(
+            backfillToolRowsFromCompletion(mergeResponseToolRows(out), out),
+            effectiveContextWindow
+          );
           const toolCompletion =
             out &&
             out.response_finalization &&
@@ -728,11 +870,12 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
           if (toolRows.length > 0) {
             await replayToolTimeline(ws, targetAgent, toolRows, toolCompletion);
           }
+          const assistantContent = assistantTextFromPayload(out);
           send(ws, {
             type: 'response',
             agent_id: targetAgent,
             agent_name: agentName || cleanText(out.agent_name || '', 120) || '',
-            content: assistantTextFromPayload(out),
+            content: toolOnlyResponseSummary(assistantContent, toolRows),
             input_tokens: toNum(out.input_tokens || 0, 0),
             output_tokens: toNum(out.output_tokens || 0, 0),
             cost_usd: toNum(out.cost_usd || 0, 0),

@@ -100,6 +100,123 @@ fn passive_memory_attention_event(
     Some(event)
 }
 
+fn tool_outcome_keyframe_from_turn(user_text: &str, assistant_text: &str) -> Option<Value> {
+    let assistant = clean_text(assistant_text, 1_600);
+    if assistant.is_empty() {
+        return None;
+    }
+    let lowered = assistant.to_ascii_lowercase();
+    let mentions_web = lowered.contains("batch_query")
+        || lowered.contains("batch query")
+        || lowered.contains("web search")
+        || lowered.contains("web fetch")
+        || lowered.contains("live web")
+        || lowered.contains("source url");
+    let low_signal = lowered.contains("low-signal")
+        || lowered.contains("no usable findings")
+        || lowered.contains("no extractable findings")
+        || lowered.contains("couldn't extract usable findings")
+        || lowered.contains("could not extract usable findings")
+        || lowered.contains("usable tool findings from this turn yet")
+        || lowered.contains("source-backed findings in this turn")
+        || lowered.contains("search returned no useful information")
+        || lowered.contains("fit safely in context")
+        || lowered.contains("partial result");
+    if !(mentions_web && low_signal) {
+        return None;
+    }
+    let query = natural_web_search_query_from_message(user_text)
+        .or_else(|| comparative_web_query_from_message(user_text))
+        .unwrap_or_default();
+    let url = first_http_url_in_text(user_text);
+    let tool = if lowered.contains("web fetch") || !url.is_empty() {
+        "web_fetch"
+    } else if lowered.contains("batch_query")
+        || lowered.contains("batch query")
+        || message_requests_live_web_comparison(user_text)
+    {
+        "batch_query"
+    } else {
+        "web_search"
+    };
+    let subject = if !query.is_empty() {
+        format!(" for `{}`", trim_text(&query, 120))
+    } else if !url.is_empty() {
+        format!(" for {}", trim_text(&url, 120))
+    } else {
+        String::new()
+    };
+    let summary = if lowered.contains("fit safely in context") || lowered.contains("partial result")
+    {
+        format!(
+            "Recent {tool} outcome{subject}: web output exceeded the safe context budget; rerun with a narrower query or continue from the partial result."
+        )
+    } else {
+        format!(
+            "Recent {tool} outcome{subject}: retrieval returned low-signal web output instead of usable findings; rerun with a narrower query or one source URL."
+        )
+    };
+    let key_seed = json!({
+        "kind": "tool_outcome",
+        "tool": tool,
+        "summary": summary
+    });
+    let key_hash = crate::deterministic_receipt_hash(&key_seed);
+    Some(json!({
+        "keyframe_id": format!("kf-{}", &key_hash[..12]),
+        "kind": "tool_outcome",
+        "tool": tool,
+        "summary": clean_text(&summary, 260),
+        "captured_at": crate::now_iso()
+    }))
+}
+
+fn append_context_keyframe_to_active_session(root: &Path, agent_id: &str, keyframe: &Value) {
+    let id = clean_agent_id(agent_id);
+    if id.is_empty() {
+        return;
+    }
+    let mut state = load_session_state(root, &id);
+    let active_id = clean_text(
+        state
+            .get("active_session_id")
+            .and_then(Value::as_str)
+            .unwrap_or("default"),
+        120,
+    );
+    if let Some(rows) = state.get_mut("sessions").and_then(Value::as_array_mut) {
+        for row in rows.iter_mut() {
+            let sid = clean_text(
+                row.get("session_id").and_then(Value::as_str).unwrap_or(""),
+                120,
+            );
+            if sid != active_id {
+                continue;
+            }
+            if !row
+                .get("context_keyframes")
+                .map(Value::is_array)
+                .unwrap_or(false)
+            {
+                row["context_keyframes"] = Value::Array(Vec::new());
+            }
+            if let Some(keyframes) = row
+                .get_mut("context_keyframes")
+                .and_then(Value::as_array_mut)
+            {
+                keyframes.push(keyframe.clone());
+                if keyframes.len() > 48 {
+                    let trim = keyframes.len().saturating_sub(48);
+                    keyframes.drain(0..trim);
+                }
+            }
+            row["updated_at"] = Value::String(crate::now_iso());
+            break;
+        }
+    }
+    save_session_state(root, &id, &state);
+}
+
 fn enqueue_attention_event_best_effort(root: &Path, run_context: &str, event: &Value) -> Value {
     let event_json = match serde_json::to_string(event) {
         Ok(raw) => raw,
@@ -179,6 +296,10 @@ fn append_turn_message(
             "queued": false,
             "reason": "empty_turn"
         });
+    }
+    if let Some(tool_keyframe) = tool_outcome_keyframe_from_turn(user_text, assistant_text) {
+        append_context_keyframe_to_active_session(root, agent_id, &tool_keyframe);
+        receipt["tool_outcome_keyframe"] = tool_keyframe;
     }
     receipt
 }
@@ -428,4 +549,3 @@ fn build_context_keyframes_from_removed(removed: &[Value], max_keyframes: usize)
     }
     out
 }
-

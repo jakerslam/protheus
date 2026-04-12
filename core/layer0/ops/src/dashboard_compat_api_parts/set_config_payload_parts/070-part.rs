@@ -282,7 +282,31 @@ fn latent_tool_candidates_for_message(message: &str, workspace_hints: &[Value]) 
         }
     }
 
-    if lowered.contains("search")
+    if let Some(query) = natural_web_search_query_from_message(message) {
+        push_candidate(
+            "batch_query",
+            "search live web",
+            "Message explicitly asks for a live web search.",
+            json!({"source": "web", "query": query, "aperture": "medium"}),
+        );
+    } else if let Some(query) = comparative_web_query_from_message(message) {
+        push_candidate(
+            "batch_query",
+            "compare on live web",
+            "Message asks for a comparative answer that should use live web evidence.",
+            json!({"source": "web", "query": query, "aperture": "medium"}),
+        );
+    } else if ["test web fetch", "do a test web fetch", "try web fetch", "check web fetch"]
+        .iter()
+        .any(|term| lowered.contains(term))
+    {
+        push_candidate(
+            "web_fetch",
+            "test web fetch",
+            "Message explicitly asks for a diagnostic web fetch probe.",
+            json!({"url": "https://example.com", "summary_only": true}),
+        );
+    } else if lowered.contains("search")
         || lowered.contains("latest")
         || lowered.contains("news")
         || lowered.contains("internet")
@@ -290,10 +314,10 @@ fn latent_tool_candidates_for_message(message: &str, workspace_hints: &[Value]) 
         || lowered.contains("look up")
     {
         push_candidate(
-            "web_search",
+            "batch_query",
             "search web",
             "Message implies live web research intent.",
-            json!({"query": clean_text(message, 600), "summary_only": false}),
+            json!({"source": "web", "query": clean_text(message, 600), "aperture": "medium"}),
         );
     }
 
@@ -456,4 +480,3 @@ fn attention_queue_path_for_dashboard(root: &Path) -> PathBuf {
         root.join(raw)
     }
 }
-

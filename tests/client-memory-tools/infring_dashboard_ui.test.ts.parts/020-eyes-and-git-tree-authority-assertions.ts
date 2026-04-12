@@ -245,6 +245,21 @@ function assertInterfaceSafetyGuards() {
     'lowSignalWebToolSummary: function(tool)',
     'chat UI must synthesize actionable low-signal web summaries from tool-only completions'
   );
+  assertContains(
+    chatSource,
+    'formatToolAggregateMeta: function(tool)',
+    'chat UI must format OpenClaw-style tool meta so web-tool fallbacks mention the actual query/url instead of bare tool names'
+  );
+  assertContains(
+    chatSource,
+    'backfillToolRowsFromCompletion: function(rows, payload)',
+    'chat UI must synthesize missing tool_result rows from completion receipts so tool-only turns stay visible'
+  );
+  assertContains(
+    chatSource,
+    "lower.indexOf('search returned no useful information') >= 0",
+    'chat UI must treat raw no-useful-information copy as a low-signal placeholder instead of surfacing it verbatim'
+  );
 
   assertContains(
     hostSource,

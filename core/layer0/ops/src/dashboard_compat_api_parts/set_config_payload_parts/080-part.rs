@@ -388,6 +388,7 @@ fn response_is_no_findings_placeholder(text: &str) -> bool {
         || lowered.contains("don't have usable tool findings from this turn yet")
         || lowered.contains("couldn't extract usable findings")
         || lowered.contains("could not extract usable findings")
+        || lowered.contains("search returned no useful information")
         || lowered.contains("couldn't extract reliable findings")
         || lowered.contains("could not extract reliable findings")
         || lowered.contains("no usable findings yet")

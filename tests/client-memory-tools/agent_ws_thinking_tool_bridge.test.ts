@@ -198,6 +198,28 @@ function structuredLargeToolResultPayload() {
   };
 }
 
+function structuredMissingToolResultPayload() {
+  return {
+    ok: true,
+    response: '',
+    content: [
+      {
+        type: 'tool_call',
+        id: 'call-batch-2',
+        name: 'batch_query',
+        arguments: { query: 'top AI agent frameworks' },
+      },
+    ],
+    response_finalization: {
+      tool_completion: {
+        live_tool_steps: [
+          { tool: 'batch_query', status: 'Search returned no useful information.' },
+        ],
+      },
+    },
+  };
+}
+
 async function runScenario(payloadFactory, messageText) {
   const flags = { host: '127.0.0.1', port: 0 };
   const fetchBackendJson = async (_flags, route) => {
@@ -329,6 +351,25 @@ async function run() {
     largeTools[0].result.includes('summary: final ranked comparison ready'),
     'truncation should preserve important tail content'
   );
+
+  const scenarioFive = await runScenario(
+    structuredMissingToolResultPayload,
+    'try to web search "top AI agent frameworks"'
+  );
+  const repairedTools = Array.isArray(scenarioFive.response.tools) ? scenarioFive.response.tools : [];
+  assert.strictEqual(repairedTools.length, 1, 'missing tool_result block should synthesize a visible tool row');
+  assert.strictEqual(repairedTools[0].name, 'batch_query');
+  assert.ok(
+    repairedTools[0].result.includes('Search returned no useful information.'),
+    'missing tool_result block should preserve the last known completion status'
+  );
+  assert.ok(
+    String(scenarioFive.response.content || '').toLowerCase().includes('low-signal web output'),
+    'tool-only low-signal web turns should produce an actionable fallback summary'
+  );
+  const repairedResultEvent = scenarioFive.events.find((row) => row.type === 'tool_result');
+  assert.ok(repairedResultEvent, 'synthetic tool rows should still replay a tool_result event');
+  assert.strictEqual(repairedResultEvent.attempt_id, 'call-batch-2');
 }
 
 run().catch((error) => {

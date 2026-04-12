@@ -16,6 +16,7 @@ fn context_keyframes_prompt_context(
         .cloned()
         .unwrap_or_default();
     let mut keyframes = Vec::<String>::new();
+    let mut tool_outcomes = Vec::<String>::new();
     for session in sessions {
         let sid = clean_text(
             session
@@ -50,22 +51,87 @@ fn context_keyframes_prompt_context(
             {
                 continue;
             }
-            keyframes.push(summary);
+            if clean_text(entry.get("kind").and_then(Value::as_str).unwrap_or(""), 40)
+                == "tool_outcome"
+            {
+                tool_outcomes.push(summary);
+            } else {
+                keyframes.push(summary);
+            }
         }
         break;
     }
-    if keyframes.is_empty() {
-        String::new()
-    } else {
+    let mut sections = Vec::<String>::new();
+    if !tool_outcomes.is_empty() {
+        let joined = tool_outcomes
+            .into_iter()
+            .rev()
+            .collect::<Vec<_>>()
+            .join(" | ");
+        sections.push(trim_text(
+            &format!("Recent tool outcomes:\n- {}", clean_text(&joined, max_chars)),
+            max_chars,
+        ));
+    }
+    if !keyframes.is_empty() {
         let joined = keyframes.into_iter().rev().collect::<Vec<_>>().join(" | ");
-        trim_text(
+        sections.push(trim_text(
             &format!(
                 "Compacted thread keyframes:\n- {}",
                 clean_text(&joined, max_chars)
             ),
             max_chars,
-        )
+        ));
     }
+    if sections.is_empty() {
+        String::new()
+    } else {
+        trim_text(&sections.join("\n\n"), max_chars)
+    }
+}
+
+fn recent_tool_outcome_keyframes(state: &Value, max_keyframes: usize) -> Vec<Value> {
+    let active_id = clean_text(
+        state
+            .get("active_session_id")
+            .and_then(Value::as_str)
+            .unwrap_or("default"),
+        120,
+    );
+    let sessions = state
+        .get("sessions")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    for session in sessions {
+        let sid = clean_text(
+            session
+                .get("session_id")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            120,
+        );
+        if sid != active_id {
+            continue;
+        }
+        return session
+            .get("context_keyframes")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|entry| {
+                clean_text(entry.get("kind").and_then(Value::as_str).unwrap_or(""), 40)
+                    == "tool_outcome"
+            })
+            .rev()
+            .take(max_keyframes.max(1))
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .collect::<Vec<_>>();
+    }
+    Vec::new()
 }
 
 fn first_sentence(raw: &str, max_len: usize) -> String {
@@ -224,6 +290,7 @@ fn context_command_payload(
         .unwrap_or(ACTIVE_CONTEXT_MIN_RECENT_FLOOR as u64)
         .clamp(ACTIVE_CONTEXT_MIN_RECENT_FLOOR as u64, 256)
         as usize;
+    let recent_tool_outcomes = recent_tool_outcome_keyframes(&state, 4);
     let (pooled_messages, recent_floor_injected) = enforce_recent_context_floor(
         &messages,
         &pooled_messages_unfloored,
@@ -336,6 +403,7 @@ fn context_command_payload(
             "emergency_compact_enabled": true,
             "emergency_compact": emergency_compact
         },
+        "recent_tool_outcomes": recent_tool_outcomes,
         "message": format!(
             "Context window: {} tokens | Active: {} tokens ({}%) | Pressure: {}",
             context_window.max(0),

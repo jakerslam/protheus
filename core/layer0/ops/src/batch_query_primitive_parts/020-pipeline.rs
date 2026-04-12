@@ -642,13 +642,6 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                 .unwrap_or("no_results"),
             32,
         );
-        let summary = clean_text(
-            cached
-                .get("summary")
-                .and_then(Value::as_str)
-                .unwrap_or("Search returned no useful information."),
-            budget.max_summary_tokens.max(60),
-        );
         let evidence_refs = cached
             .get("evidence_refs")
             .and_then(Value::as_array)
@@ -661,6 +654,49 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             .cloned()
             .map(Value::Array)
             .unwrap_or_else(|| json!([]));
+        let partial_failure_details = cached
+            .get("partial_failure_details")
+            .and_then(Value::as_array)
+            .cloned()
+            .map(Value::Array)
+            .unwrap_or_else(|| json!([]));
+        let raw_summary = clean_text(
+            cached
+                .get("summary")
+                .and_then(Value::as_str)
+                .unwrap_or(crate::tool_output_match_filter::no_findings_user_copy()),
+            budget.max_summary_tokens.max(60),
+        );
+        let summary = if clean_text(&raw_summary, 320)
+            .to_ascii_lowercase()
+            .contains("search returned no useful information")
+        {
+            let anti_bot_detected = partial_failure_details
+                .as_array()
+                .map(|rows| {
+                    rows.iter().any(|row| {
+                        clean_text(row.as_str().unwrap_or(""), 320)
+                            .to_ascii_lowercase()
+                            .contains("anti_bot_challenge")
+                    })
+                })
+                .unwrap_or(false);
+            let has_partial_failures = partial_failure_details
+                .as_array()
+                .map(|rows| !rows.is_empty())
+                .unwrap_or(false);
+            if anti_bot_detected {
+                "Search providers returned anti-bot challenge pages before usable content was extracted. Retry with specific source URLs or alternate providers."
+                    .to_string()
+            } else if has_partial_failures {
+                "Search providers ran, but only low-signal or low-relevance web results came back in this turn. Retry with a narrower query or one specific source URL for source-backed findings."
+                    .to_string()
+            } else {
+                crate::tool_output_match_filter::no_findings_user_copy().to_string()
+            }
+        } else {
+            raw_summary
+        };
         let parallel_retrieval_used = cached
             .get("parallel_retrieval_used")
             .and_then(Value::as_bool)
@@ -712,6 +748,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             "query_timeout_ms": query_timeout.as_millis() as u64,
             "parallel_window": parallel_window,
             "rewrite_set": rewrite_set,
+            "partial_failure_details": partial_failure_details,
             "cache_status": "hit"
         });
         if let Some(meta) = nexus_connection {
@@ -915,9 +952,13 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         if anti_bot_detected {
             "Search providers returned anti-bot challenge pages before usable content was extracted. Retry with specific source URLs or alternate providers."
                 .to_string()
+        } else if let Some(summary) = comparison_guard_summary {
+            summary
+        } else if !hard_partial_failures.is_empty() {
+            "Search providers ran, but only low-signal or low-relevance web results came back in this turn. Retry with a narrower query or one specific source URL for source-backed findings."
+                .to_string()
         } else {
-            comparison_guard_summary
-                .unwrap_or_else(|| "Search returned no useful information.".to_string())
+            crate::tool_output_match_filter::no_findings_user_copy().to_string()
         }
     } else {
         let mut synthesized_insights = Vec::<String>::new();
@@ -955,7 +996,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             }
         }
         if synthesized_insights.is_empty() {
-            "Search returned no useful information.".to_string()
+            crate::tool_output_match_filter::no_findings_user_copy().to_string()
         } else {
             let prefix = if benchmark_intent {
                 "Benchmark findings:"
@@ -1017,6 +1058,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         "query_timeout_ms": query_timeout.as_millis() as u64,
         "parallel_window": parallel_window,
         "rewrite_set": rewrite_set.clone(),
+        "partial_failure_details": hard_partial_failures.clone(),
         "cache_status": "miss"
     });
     store_cached_response(
@@ -1027,6 +1069,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             "summary": summary,
             "evidence_refs": evidence_refs,
             "rewrite_set": rewrite_set,
+            "partial_failure_details": hard_partial_failures,
             "parallel_retrieval_used": parallel_allowed
         }),
         status,

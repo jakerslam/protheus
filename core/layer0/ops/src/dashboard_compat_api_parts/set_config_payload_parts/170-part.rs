@@ -90,19 +90,21 @@ fn parse_explicit_tool_command_from_message(message: &str) -> Option<Result<(Str
                 out_input["scope"] = json!("agent");
             }
         }
-        "web_search" | "batch_query" => {
-            let query = clean_text(
+        "web_search" | "batch_query" | "search" | "compare" => {
+            let query_source = clean_text(
                 parsed_object
                     .and_then(|obj| obj.get("query").or_else(|| obj.get("q")))
                     .and_then(Value::as_str)
                     .unwrap_or(if parsed_params.is_none() { raw_params } else { "" }),
                 600,
             );
+            let query = natural_web_search_query_from_message(&query_source)
+                .unwrap_or_else(|| strip_wrapped_natural_web_query(&query_source, 600));
             if query.is_empty() {
                 return Some(Err(explicit_tool_command_error(
                     mapped,
                     "tool_command_query_required",
-                    "`web_search` and `batch_query` require a query string.",
+                    "`web_search`, `search`, `compare`, and `batch_query` require a query string.",
                     None,
                 )));
             }
@@ -134,7 +136,7 @@ fn parse_explicit_tool_command_from_message(message: &str) -> Option<Result<(Str
                 out_input["aperture"] = json!("medium");
             }
         }
-        "web_fetch" => {
+        "web_fetch" | "fetch" | "browse" => {
             let url = clean_text(
                 parsed_object
                     .and_then(|obj| obj.get("url").or_else(|| obj.get("link")))
