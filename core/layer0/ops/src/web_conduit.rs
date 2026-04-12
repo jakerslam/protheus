@@ -2,6 +2,7 @@ include!("web_conduit_parts/010-prelude-and-policy.rs");
 include!("web_conduit_parts/020-domain-and-render.rs");
 include!("web_conduit_parts/025-fetch-utils-and-redirect.rs");
 include!("web_conduit_parts/026-fetch-visibility-and-readability.rs");
+include!("web_conduit_parts/027-media-parse-and-base64.rs");
 include!("web_conduit_parts/030-serper-bing-and-fetch.rs");
 include!("web_conduit_parts/035-fetch-runtime.rs");
 include!("web_conduit_parts/040-receipts-and-fetch-api.rs");

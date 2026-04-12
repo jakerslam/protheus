@@ -333,6 +333,14 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 }),
             )
         }
+        "parse-media" => {
+            let text = parsed
+                .flags
+                .get("text")
+                .map(String::as_str)
+                .unwrap_or_else(|| parsed.positional.get(1).map(String::as_str).unwrap_or(""));
+            api_parse_media(&json!({ "text": text }))
+        }
         "search" => {
             let query = clean_text(
                 parsed
