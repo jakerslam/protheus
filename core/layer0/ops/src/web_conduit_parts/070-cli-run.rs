@@ -1,3 +1,11 @@
+fn parse_json_flag(raw: Option<&String>) -> Result<Value, String> {
+    let Some(raw_value) = raw else {
+        return Ok(Value::Null);
+    };
+    serde_json::from_str::<Value>(raw_value)
+        .map_err(|err| format!("invalid_json_flag:{}", clean_text(&err.to_string(), 240)))
+}
+
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     let parsed = parse_args(argv);
     let command = parsed
@@ -91,6 +99,55 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "summary_only": parse_bool(parsed.flags.get("summary-only")) || parse_bool(parsed.flags.get("summary_only"))
             }),
         ),
+        "native-codex" => {
+            let payload = match parse_json_flag(
+                parsed
+                    .flags
+                    .get("payload-json")
+                    .or_else(|| parsed.flags.get("payload_json")),
+            ) {
+                Ok(value) => value,
+                Err(err) => {
+                    println!(
+                        "{}",
+                        json!({
+                            "ok": false,
+                            "type": "web_conduit_native_codex",
+                            "error": "invalid_payload_json",
+                            "reason": err
+                        })
+                    );
+                    return 1;
+                }
+            };
+            api_native_codex(
+                root,
+                &json!({
+                    "model_provider": clean_text(
+                        parsed
+                            .flags
+                            .get("model-provider")
+                            .or_else(|| parsed.flags.get("model_provider"))
+                            .or_else(|| parsed.flags.get("provider"))
+                            .map(String::as_str)
+                            .unwrap_or(""),
+                        80
+                    ),
+                    "model_api": clean_text(
+                        parsed
+                            .flags
+                            .get("model-api")
+                            .or_else(|| parsed.flags.get("model_api"))
+                            .or_else(|| parsed.flags.get("api"))
+                            .map(String::as_str)
+                            .unwrap_or(""),
+                        80
+                    ),
+                    "payload": payload,
+                    "summary_only": parse_bool(parsed.flags.get("summary-only")) || parse_bool(parsed.flags.get("summary_only"))
+                }),
+            )
+        }
         "migrate-legacy-config" => api_migrate_legacy_config(
             root,
             &json!({

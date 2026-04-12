@@ -52,6 +52,9 @@ fn usage() {
         "  protheus-ops web-conduit migrate-legacy-config [--source-path=<path>] [--apply=1] [--summary-only=1]"
     );
     println!(
+        "  protheus-ops web-conduit native-codex [--model-provider=<id>] [--model-api=<id>] [--payload-json=<json>] [--summary-only=1]"
+    );
+    println!(
         "  protheus-ops web-conduit fetch --url=<https://...> [--provider=auto|direct-http|curl] [--extract-mode=text|markdown] [--max-chars=<n>] [--cache-ttl-minutes=<n>] [--timeout-ms=<n>] [--max-response-bytes=<n>] [--resolve-citation-redirect=1] [--human-approved=1] [--approval-id=<id>] [--summary-only=1]"
     );
     println!(
@@ -183,6 +186,11 @@ fn default_policy() -> Value {
                 "enabled": true,
                 "failure_threshold": 3,
                 "open_for_secs": 300
+            },
+            "native_codex_web_search": {
+                "enabled": false,
+                "mode": "cached",
+                "allowed_domains": []
             }
         }
     })

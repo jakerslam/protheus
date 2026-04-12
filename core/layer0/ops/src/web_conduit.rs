@@ -8,6 +8,7 @@ include!("web_conduit_parts/050-search-providers.rs");
 include!("web_conduit_parts/060-search-orchestration.rs");
 include!("web_conduit_parts/065-setup-and-migration.rs");
 include!("web_conduit_parts/066-legacy-config-migration.rs");
+include!("web_conduit_parts/067-native-codex-activation.rs");
 include!("web_conduit_parts/070-cli-run.rs");
 include!("web_conduit_parts/080-tests.rs");
 include!("web_conduit_parts/090-openclaw-fetch-helper-tests.rs");
