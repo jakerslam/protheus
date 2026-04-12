@@ -3020,6 +3020,29 @@ write_wrapper() {
   chmod 755 "$wrapper_path"
 }
 
+daemon_binary_wrapper_body() {
+  cat <<'EOF'
+daemon_cmd="${1:-status}"
+case "$daemon_cmd" in
+  daemon-control|dashboard-ui)
+    ops_bin="${INFRING_DAEMON_FALLBACK_OPS_BIN:-__INSTALL_DIR__/infring-ops}"
+    if [ -x "$ops_bin" ]; then
+      ops_domain="${INFRING_OPS_DOMAIN:-}"
+      if [ -z "$ops_domain" ]; then
+        if "$ops_bin" infringctl --help >/dev/null 2>&1; then
+          ops_domain="infringctl"
+        else
+          ops_domain="protheusctl"
+        fi
+      fi
+      exec "$ops_bin" "$ops_domain" "$@"
+    fi
+    ;;
+esac
+exec "__INSTALL_DIR__/infringd-bin" "$@"
+EOF
+}
+
 gateway_wrapper_body() {
   cat <<'EOF'
 infring_gateway_pidfile() {
@@ -4003,25 +4026,25 @@ main() {
   if [ "$prefer_musl_infringd" = "1" ]; then
     if is_truthy "$INSTALL_TINY_MAX"; then
       if install_binary "$version" "x86_64-unknown-linux-musl" "infringd-tiny-max" "$infringd_bin"; then
-        daemon_wrapper_body="exec \"$infringd_bin\" \"\$@\""
+        daemon_wrapper_body="$(daemon_binary_wrapper_body)"
         echo "[infring install] using static musl tiny-max daemon runtime"
       fi
     fi
     if [ -z "$daemon_wrapper_body" ] && install_binary "$version" "x86_64-unknown-linux-musl" "infringd" "$infringd_bin"; then
-      daemon_wrapper_body="exec \"$infringd_bin\" \"\$@\""
+      daemon_wrapper_body="$(daemon_binary_wrapper_body)"
       echo "[infring install] using static musl daemon runtime (embedded-minimal-core)"
     fi
   fi
 
   if [ -z "$daemon_wrapper_body" ] && is_truthy "$INSTALL_TINY_MAX"; then
     if install_binary "$version" "$triple" "infringd-tiny-max" "$infringd_bin"; then
-      daemon_wrapper_body="exec \"$infringd_bin\" \"\$@\""
+      daemon_wrapper_body="$(daemon_binary_wrapper_body)"
       echo "[infring install] using native tiny-max daemon runtime"
     fi
   fi
 
   if [ -z "$daemon_wrapper_body" ] && install_binary "$version" "$triple" "infringd" "$infringd_bin"; then
-    daemon_wrapper_body="exec \"$infringd_bin\" \"\$@\""
+    daemon_wrapper_body="$(daemon_binary_wrapper_body)"
     echo "[infring install] using native daemon runtime"
   fi
 

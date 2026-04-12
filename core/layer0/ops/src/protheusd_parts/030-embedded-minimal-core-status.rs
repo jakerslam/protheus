@@ -66,6 +66,20 @@ fn tiny_max_status() -> Value {
     out
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum InstallerCompatCommand {
+    DaemonControl,
+    DashboardUi,
+}
+
+fn installer_compat_command(command: &str) -> Option<InstallerCompatCommand> {
+    match command {
+        "daemon-control" => Some(InstallerCompatCommand::DaemonControl),
+        "dashboard-ui" => Some(InstallerCompatCommand::DashboardUi),
+        _ => None,
+    }
+}
+
 fn main() {
     configure_low_memory_allocator_env();
     #[cfg(feature = "embedded-max")]
@@ -80,6 +94,16 @@ fn main() {
     if matches!(command.as_str(), "help" | "--help" | "-h") {
         usage();
         return;
+    }
+
+    if let Some(compat) = installer_compat_command(command.as_str()) {
+        let exit = match compat {
+            InstallerCompatCommand::DaemonControl => daemon_control::run(&cwd, &args[1..]),
+            InstallerCompatCommand::DashboardUi => {
+                protheus_ops_core::dashboard_ui::run(&cwd, &args[1..])
+            }
+        };
+        std::process::exit(exit);
     }
 
     match command.as_str() {
@@ -147,6 +171,19 @@ mod tests {
     use tempfile::tempdir;
 
     use serde_json::Value;
+
+    #[test]
+    fn installer_compat_aliases_are_recognized() {
+        assert_eq!(
+            installer_compat_command("daemon-control"),
+            Some(InstallerCompatCommand::DaemonControl)
+        );
+        assert_eq!(
+            installer_compat_command("dashboard-ui"),
+            Some(InstallerCompatCommand::DashboardUi)
+        );
+        assert_eq!(installer_compat_command("status"), None);
+    }
 
     #[test]
     fn memory_write_and_query_roundtrip() {
@@ -326,5 +363,3 @@ mod tests {
             .unwrap_or(false));
     }
 }
-
-

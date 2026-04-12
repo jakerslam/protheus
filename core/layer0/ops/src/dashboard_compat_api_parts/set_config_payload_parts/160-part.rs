@@ -436,28 +436,6 @@ fn natural_web_intent_from_user_message(message: &str) -> Option<(String, Value)
     None
 }
 
-fn strip_wrapped_natural_web_query(text: &str, max_chars: usize) -> String {
-    let mut cleaned = clean_text(text, max_chars);
-    if cleaned.is_empty() {
-        return cleaned;
-    }
-    cleaned = cleaned
-        .trim()
-        .trim_matches(|ch| matches!(ch, '"' | '\'' | '`' | '“' | '”'))
-        .trim()
-        .to_string();
-    loop {
-        let trailing = cleaned.chars().last();
-        if matches!(trailing, Some('.' | '!' | '?' | ';' | ':')) {
-            cleaned.pop();
-            cleaned = cleaned.trim_end().to_string();
-            continue;
-        }
-        break;
-    }
-    clean_text(&cleaned, max_chars)
-}
-
 fn natural_web_search_query_from_message(message: &str) -> Option<String> {
     let mut trimmed = clean_text(message, 2_200);
     if trimmed.is_empty() {
