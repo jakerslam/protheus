@@ -58,6 +58,17 @@ fn public_artifact_contract_for_family(family: WebProviderFamily) -> Value {
     })
 }
 
+fn runtime_resolution_contract(family: WebProviderFamily) -> Value {
+    json!({
+        "family": provider_family_name(family),
+        "runtime_mode": "built_in_only",
+        "supports_runtime_registry": false,
+        "prefer_runtime_providers": false,
+        "configured_provider_fallback": "auto-detect",
+        "bundled_provider_precedence": true
+    })
+}
+
 fn provider_contract_fields_snapshot(provider: &str, family: WebProviderFamily) -> Value {
     match family {
         WebProviderFamily::Search => {
@@ -118,6 +129,7 @@ fn provider_registration_contract(policy: &Value, family: WebProviderFamily) -> 
             WebProviderFamily::Search => json!(["none", "top-level"]),
             WebProviderFamily::Fetch => json!(["none"]),
         },
+        "runtime_resolution_contract": runtime_resolution_contract(family),
         "supports_configured_credential": family == WebProviderFamily::Search,
         "scoped_credentials_supported": false,
         "public_artifact_contract": public_artifact_contract_for_family(family)
@@ -408,6 +420,12 @@ mod openclaw_provider_contract_tests {
                 .pointer("/registration_contract/public_artifact_contract/runtime_mode")
                 .and_then(Value::as_str),
             Some("built_in_only")
+        );
+        assert_eq!(
+            fetch
+                .pointer("/registration_contract/runtime_resolution_contract/configured_provider_fallback")
+                .and_then(Value::as_str),
+            Some("auto-detect")
         );
     }
 }

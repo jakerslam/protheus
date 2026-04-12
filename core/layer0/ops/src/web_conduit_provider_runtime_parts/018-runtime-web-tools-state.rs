@@ -71,6 +71,10 @@ fn raw_provider_tokens_from_value(raw: &Value) -> Vec<String> {
     dedupe_preserve(rows)
 }
 
+fn first_raw_provider_token_from_value(raw: &Value) -> Option<String> {
+    raw_provider_tokens_from_value(raw).into_iter().next()
+}
+
 fn raw_provider_tokens_from_policy(policy: &Value, family: WebProviderFamily) -> Vec<String> {
     match family {
         WebProviderFamily::Search => policy
@@ -86,7 +90,7 @@ fn raw_provider_tokens_from_policy(policy: &Value, family: WebProviderFamily) ->
     }
 }
 
-fn configured_provider_hint_from_policy(
+fn configured_provider_input_from_policy(
     policy: &Value,
     family: WebProviderFamily,
 ) -> Option<String> {
@@ -101,7 +105,16 @@ fn configured_provider_hint_from_policy(
     .and_then(Value::as_str)
     .map(|raw| clean_text(raw, 60).to_ascii_lowercase())
     .filter(|value| !value.is_empty());
-    explicit.or_else(|| raw_provider_tokens_from_policy(policy, family).into_iter().next())
+    explicit.or_else(|| match family {
+        WebProviderFamily::Search => policy
+            .pointer("/web_conduit/search_provider_order")
+            .or_else(|| policy.get("search_provider_order"))
+            .and_then(first_raw_provider_token_from_value),
+        WebProviderFamily::Fetch => policy
+            .pointer("/web_conduit/fetch_provider_order")
+            .or_else(|| policy.get("fetch_provider_order"))
+            .and_then(first_raw_provider_token_from_value),
+    })
 }
 
 fn runtime_diagnostic(code: &str, message: String, path: &str) -> Value {
@@ -217,8 +230,8 @@ fn runtime_web_family_metadata(root: &Path, policy: &Value, family: WebProviderF
         WebProviderFamily::Search => "/web_conduit/search_provider_order",
         WebProviderFamily::Fetch => "/web_conduit/fetch_provider_order",
     };
-    let raw_configured = configured_provider_hint_from_policy(policy, family);
-    let configured_provider = raw_configured
+    let configured_provider_input = configured_provider_input_from_policy(policy, family);
+    let configured_provider = configured_provider_input
         .as_ref()
         .and_then(|raw| normalize_provider_token_for_family(raw, family));
     let selected_provider = match family {
@@ -230,8 +243,21 @@ fn runtime_web_family_metadata(root: &Path, policy: &Value, family: WebProviderF
             .cloned(),
     };
     let mut diagnostics = Vec::<Value>::new();
+    if let Some(raw) = configured_provider_input.as_ref() {
+        if configured_provider.is_none() {
+            diagnostics.push(runtime_diagnostic(
+                invalid_provider_code(family),
+                format!(
+                    "{configured_path} contains unsupported provider token \"{raw}\"; falling back to auto-detect precedence."
+                ),
+                configured_path,
+            ));
+        }
+    }
     for raw in raw_provider_tokens_from_policy(policy, family) {
-        if normalize_provider_token_for_family(&raw, family).is_none() {
+        if normalize_provider_token_for_family(&raw, family).is_none()
+            && configured_provider_input.as_deref() != Some(raw.as_str())
+        {
             diagnostics.push(runtime_diagnostic(
                 invalid_provider_code(family),
                 format!(
@@ -288,20 +314,36 @@ fn runtime_web_family_metadata(root: &Path, policy: &Value, family: WebProviderF
     } else {
         "none"
     };
+    let selection_fallback_reason = if configured_provider_input.is_some()
+        && configured_provider.is_none()
+        && selected_provider.is_some()
+    {
+        Some("invalid_configured_provider")
+    } else if configured_provider.is_some()
+        && selected_provider.is_some()
+        && selected_provider != configured_provider
+    {
+        Some("credential_unresolved")
+    } else {
+        None
+    };
     let owner_provider = selected_provider
         .as_deref()
         .or(configured_provider.as_deref());
     json!({
+        "configured_provider_input": configured_provider_input,
         "provider_configured": configured_provider,
         "provider_source": provider_source,
         "selected_provider": selected_provider,
         "selected_provider_key_source": selected_provider_key_source(policy, owner_provider, family),
+        "selection_fallback_reason": selection_fallback_reason,
         "configured_surface_path": configured_provider
             .as_deref()
             .map(|provider| configured_scope_path(provider, family)),
         "config_surface": config_surface_snapshot(policy, owner_provider, family),
         "manifest_contract_owner": manifest_contract_owner(owner_provider, family),
         "public_artifact_runtime": public_artifact_contract_for_family(family),
+        "resolution_contract": runtime_resolution_contract(family),
         "state_path": runtime_web_tools_state_path(root).display().to_string(),
         "diagnostics": diagnostics
     })
