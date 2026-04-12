@@ -450,6 +450,14 @@
       "script": "ops:release:scorecard:gate",
       "artifact_paths": ["client/runtime/local/state/release/scorecard/release_scorecard.json"]
     },
+    "ops:release:verdict": {
+      "owner": "ops",
+      "description": "Aggregated release verdict artifact gate.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:release:verdict",
+      "artifact_paths": ["core/local/artifacts/release_verdict_current.json"]
+    },
     "ops:release:rc-rehearsal": {
       "owner": "ops",
       "description": "Release candidate dress rehearsal.",

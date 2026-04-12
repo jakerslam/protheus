@@ -54,6 +54,7 @@
         "ops:release-blockers:gate",
         "ops:release-hardening-window:guard",
         "ops:release:scorecard:gate",
+        "ops:release:verdict",
         "ops:production-closure:gate",
         "ops:orchestration:contract:guard",
         "ops:orchestration:hidden-state:guard",

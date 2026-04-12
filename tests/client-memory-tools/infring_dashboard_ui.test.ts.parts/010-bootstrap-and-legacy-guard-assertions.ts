@@ -578,7 +578,9 @@ function assertChatEnhancementFeatures() {
   assertContains(cssSource, '.chat-pointer-ripple', 'pointer ripple style missing');
   assertContains(cssSource, "body[data-theme='dark'] .chat-pointer-trail-dot", 'dark neon pointer style missing');
   assertContains(cssSource, "body:not([data-theme='dark']) .chat-pointer-orb.chat-pointer-agent", 'light-mode fairy orb visibility style missing');
+  assertContains(cssSource, "rgba(0, 0, 0, 1) 28%", 'light-mode fairy orb should stay black at the visible core');
   assertContains(cssSource, "body:not([data-theme='dark']) .chat-loading-fairy-avatar", 'light-mode loading fairy orb style missing');
+  assertContains(cssSource, "rgba(0, 0, 0, 0.98) 27%", 'light-mode loading fairy should stay black');
 
   // Artifact output: full file and folder tree + downloadable archive
   assertContains(chatSource, "case '/file':", 'slash command /file missing');

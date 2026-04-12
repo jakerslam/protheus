@@ -9,6 +9,7 @@ function cleanText(value: unknown, maxLen = 2000): string {
 
 function parseArgs(argv: string[]) {
   const out = {
+    strict: false,
     outPath: 'client/runtime/local/state/release/scorecard/release_scorecard.json',
     semverPath: '/tmp/release-plan.json',
     commitLintPath: 'core/local/artifacts/conventional_commit_gate_current.json',
@@ -24,11 +25,18 @@ function parseArgs(argv: string[]) {
     hardeningPath: 'core/local/artifacts/release_hardening_window_guard_current.json',
     ipcSoakPath: 'local/state/ops/ops_ipc_bridge_stability_soak/latest.json',
     drPath: 'local/state/ops/dr_gameday/latest.json',
+    baselinePath: '',
+    baselineTag: '',
+    requireBaseline: false,
     requireReleaseArtifacts: false,
+    rootPath: '',
   };
   for (const tokenRaw of argv) {
     const token = cleanText(tokenRaw, 400);
     if (!token) continue;
+    if (token.startsWith('--strict=')) {
+      out.strict = ['1', 'true', 'yes', 'on'].includes(cleanText(token.slice(9), 40).toLowerCase());
+    }
     if (token.startsWith('--out=')) out.outPath = cleanText(token.slice(6), 400);
     else if (token.startsWith('--semver=')) out.semverPath = cleanText(token.slice(9), 400);
     else if (token.startsWith('--commit-lint=')) out.commitLintPath = cleanText(token.slice(14), 400);
@@ -44,6 +52,13 @@ function parseArgs(argv: string[]) {
     else if (token.startsWith('--hardening=')) out.hardeningPath = cleanText(token.slice(12), 400);
     else if (token.startsWith('--ipc-soak=')) out.ipcSoakPath = cleanText(token.slice(11), 400);
     else if (token.startsWith('--dr=')) out.drPath = cleanText(token.slice(5), 400);
+    else if (token.startsWith('--baseline=')) out.baselinePath = cleanText(token.slice(11), 400);
+    else if (token.startsWith('--baseline-tag=')) out.baselineTag = cleanText(token.slice(15), 400);
+    else if (token.startsWith('--require-baseline=')) {
+      out.requireBaseline = ['1', 'true', 'yes', 'on'].includes(
+        cleanText(token.slice(19), 40).toLowerCase(),
+      );
+    }
     else if (token.startsWith('--require-release-artifacts=')) {
       out.requireReleaseArtifacts = ['1', 'true', 'yes', 'on'].includes(
         cleanText(token.slice(28), 40).toLowerCase(),
@@ -79,6 +94,20 @@ function safeNumber(value: unknown, fallback = 0): number {
   return Number.isFinite(num) ? num : fallback;
 }
 
+function trendGateRow(
+  id: string,
+  current: number,
+  baseline: number,
+  mode: 'min' | 'max',
+) {
+  const ok = mode === 'min' ? current >= baseline : current <= baseline;
+  return gateRow(
+    id,
+    ok,
+    `value=${Number.isFinite(current) ? current : 'missing'};baseline=${Number.isFinite(baseline) ? baseline : 'missing'};mode=${mode}`,
+  );
+}
+
 function releaseChannel(raw: unknown): 'alpha' | 'beta' | 'stable' {
   const normalized = cleanText(raw ?? '', 40).toLowerCase();
   if (normalized === 'alpha' || normalized === 'beta' || normalized === 'stable') {
@@ -88,7 +117,7 @@ function releaseChannel(raw: unknown): 'alpha' | 'beta' | 'stable' {
 }
 
 function buildReport(args = parseArgs(process.argv.slice(2))) {
-  const root = path.resolve(__dirname, '../../../..');
+  const root = path.resolve(args.rootPath || path.resolve(__dirname, '../../../..'));
   const semverPath = resolveMaybe(root, args.semverPath);
   const commitLintPath = resolveMaybe(root, args.commitLintPath);
   const policyPath = resolveMaybe(root, args.policyPath);
@@ -103,6 +132,7 @@ function buildReport(args = parseArgs(process.argv.slice(2))) {
   const hardeningPath = resolveMaybe(root, args.hardeningPath);
   const ipcSoakPath = resolveMaybe(root, args.ipcSoakPath);
   const drPath = resolveMaybe(root, args.drPath);
+  const baselinePath = args.baselinePath ? resolveMaybe(root, args.baselinePath) : '';
 
   const semver = readJsonMaybe(semverPath) ?? {};
   const commitLint = readJsonMaybe(commitLintPath) ?? {};
@@ -117,8 +147,10 @@ function buildReport(args = parseArgs(process.argv.slice(2))) {
   const hardening = readJsonMaybe(hardeningPath) ?? {};
   const ipcSoak = readJsonMaybe(ipcSoakPath) ?? {};
   const dr = readJsonMaybe(drPath) ?? {};
+  const baselineScorecard = baselinePath ? readJsonMaybe(baselinePath) ?? {} : null;
   const channel = releaseChannel(semver?.release_channel);
   const requireReleaseArtifacts = Boolean(args.requireReleaseArtifacts);
+  const requireBaseline = Boolean(args.requireBaseline);
 
   const changelogExists = fs.existsSync(changelogPath);
   const canaryOk = canary?.ok === true;
@@ -139,6 +171,43 @@ function buildReport(args = parseArgs(process.argv.slice(2))) {
   );
   const observedRtoMinutes = safeNumber(dr?.observed_rto_minutes, Number.POSITIVE_INFINITY);
   const observedRpoHours = safeNumber(dr?.observed_rpo_hours, Number.POSITIVE_INFINITY);
+  const baselineAvailable = Boolean(baselineScorecard && typeof baselineScorecard === 'object');
+  const baselineThresholds = baselineAvailable ? baselineScorecard?.thresholds ?? {} : {};
+  const baselineTag = cleanText(args.baselineTag || baselineScorecard?.tag || 'none', 120);
+  const trendGates = baselineAvailable
+    ? [
+        trendGateRow(
+          'ipc_success_rate_trend_regression',
+          Number(ipcSuccessRate.toFixed(4)),
+          safeNumber(baselineThresholds?.ipc_success_rate, Number.NaN),
+          'min',
+        ),
+        trendGateRow(
+          'receipt_completeness_trend_regression',
+          Number(receiptCompleteness.toFixed(4)),
+          safeNumber(baselineThresholds?.receipt_completeness_rate, Number.NaN),
+          'min',
+        ),
+        trendGateRow(
+          'supported_command_latency_trend_regression',
+          maxCommandLatencyMs,
+          safeNumber(baselineThresholds?.max_command_latency_ms, Number.NaN),
+          'max',
+        ),
+        trendGateRow(
+          'recovery_rto_trend_regression',
+          observedRtoMinutes,
+          safeNumber(baselineThresholds?.observed_rto_minutes, Number.NaN),
+          'max',
+        ),
+        trendGateRow(
+          'recovery_rpo_trend_regression',
+          observedRpoHours,
+          safeNumber(baselineThresholds?.observed_rpo_hours, Number.NaN),
+          'max',
+        ),
+      ]
+    : [];
   const liveChecks = stateCompat?.checks ?? {};
   const liveRehearsalOk =
     liveChecks.live_taskgroup_rehearsal_verified === true &&
@@ -238,15 +307,30 @@ function buildReport(args = parseArgs(process.argv.slice(2))) {
       changelogExists,
       `path=${path.relative(root, changelogPath)}`
     ),
+    optionalGateRow(
+      'previous_release_scorecard_baseline',
+      requireBaseline,
+      baselineAvailable,
+      baselinePath ? `path=${path.relative(root, baselinePath)};tag=${baselineTag}` : 'missing',
+    ),
+    ...trendGates,
   ];
   const overall = gates.every((row) => row.ok);
   const report = {
     ok: overall,
     type: 'release_scorecard',
     generated_at: new Date().toISOString(),
+    strict: Boolean(args.strict),
     channel,
     tag: cleanText(semver?.next_tag ?? 'none', 120),
     version: cleanText(semver?.next_version ?? semver?.current_version ?? '0.0.0', 120),
+    baseline: {
+      required: requireBaseline,
+      available: baselineAvailable,
+      path: baselinePath ? path.relative(root, baselinePath) : '',
+      tag: baselineTag,
+      version: cleanText(baselineScorecard?.version ?? '', 120),
+    },
     policy_thresholds: {
       ipc_success_rate_min: safeNumber(thresholds.ipc_success_rate_min, 0.95),
       receipt_completeness_rate_min: safeNumber(thresholds.receipt_completeness_rate_min, 1),
@@ -274,7 +358,8 @@ function buildReport(args = parseArgs(process.argv.slice(2))) {
 }
 
 export function run(argv = process.argv.slice(2)) {
-  const result = buildReport(parseArgs(argv));
+  const args = parseArgs(argv);
+  const result = buildReport(args);
   fs.mkdirSync(path.dirname(result.outPath), { recursive: true });
   fs.writeFileSync(result.outPath, `${JSON.stringify(result.report, null, 2)}\n`, 'utf8');
   process.stdout.write(`${JSON.stringify(result.report, null, 2)}\n`);

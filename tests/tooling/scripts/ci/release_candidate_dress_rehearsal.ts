@@ -22,6 +22,7 @@ const DEFAULT_SEQUENCE = [
   'dr:gameday',
   'dr:gameday',
   'dr:gameday:gate',
+  'release_policy_gate',
   'ops:legacy-runner:release-guard',
   'ops:production-topology:gate',
   'audit:client-layer-boundary',
@@ -108,6 +109,7 @@ function buildReport(argv: string[] = process.argv.slice(2)) {
       ok: failed.length === 0 && requiredStepsSatisfied,
       type: 'release_candidate_dress_rehearsal',
       generated_at: new Date().toISOString(),
+      strict: args.strict,
       inputs: {
         activate_hardening_window: args.activateHardening,
         registry_path: DEFAULT_GATE_REGISTRY_PATH,

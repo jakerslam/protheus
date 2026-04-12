@@ -7,6 +7,10 @@ import { invokeTsModuleSync } from '../../../../client/runtime/lib/in_process_ts
 
 const ROOT = process.cwd();
 const CLOSURE_POLICY_PATH = path.join(ROOT, 'client/runtime/config/production_readiness_closure_policy.json');
+const CLOSURE_PROBE_PATH = path.join(
+  ROOT,
+  'core/local/artifacts/support_bundle_probes/production_topology_closure_gate.json',
+);
 const RUNNER_PATH = path.join(ROOT, 'adapters/runtime/run_protheus_ops.ts');
 const BRIDGE_PATH = path.join(ROOT, 'adapters/runtime/ops_lane_bridge.ts');
 const DEFAULT_OUT = path.join(ROOT, 'core/local/artifacts/production_topology_diagnostic_current.json');
@@ -83,7 +87,7 @@ function buildReport() {
   const closure = runTs('tests/tooling/scripts/ci/production_readiness_closure_gate.ts', [
     '--strict=0',
     '--run-smoke=0',
-    '--out=core/local/artifacts/production_readiness_closure_gate_current.json',
+    `--out=${CLOSURE_PROBE_PATH}`,
   ]);
   const dr = runTs('tests/tooling/scripts/ops/dr_gameday.ts', ['gate']);
   const runnerSource = fs.existsSync(RUNNER_PATH) ? fs.readFileSync(RUNNER_PATH, 'utf8') : '';
