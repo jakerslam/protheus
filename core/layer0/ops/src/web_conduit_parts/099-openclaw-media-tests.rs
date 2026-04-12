@@ -124,6 +124,42 @@ mod openclaw_media_tests {
     }
 
     #[test]
+    fn openclaw_media_accepts_wildcard_local_roots_for_attachment_paths() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let target = tmp
+            .path()
+            .join("Users/alice/Library/Messages/Attachments/12/34/IMG_0001.png");
+        fs::create_dir_all(target.parent().expect("parent")).expect("dirs");
+        fs::write(&target, tiny_png_bytes()).expect("png");
+        let out = api_media(
+            tmp.path(),
+            &json!({
+                "path": target.display().to_string(),
+                "local_roots": format!("{}/Users/*/Library/Messages/Attachments", tmp.path().display())
+            }),
+        );
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(out.get("kind").and_then(Value::as_str), Some("image"));
+        assert_eq!(out.get("file_name").and_then(Value::as_str), Some("IMG_0001.png"));
+    }
+
+    #[test]
+    fn openclaw_media_rejects_invalid_double_star_local_root_patterns() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let target = tmp.path().join("chart.png");
+        fs::write(&target, tiny_png_bytes()).expect("png");
+        let out = api_media(
+            tmp.path(),
+            &json!({
+                "path": target.display().to_string(),
+                "local_roots": format!("{}/Users/**/Library/Messages/Attachments", tmp.path().display())
+            }),
+        );
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(out.get("error").and_then(Value::as_str), Some("invalid-root"));
+    }
+
+    #[test]
     fn openclaw_media_rejects_disguised_host_read_text_files() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let disguised = tmp.path().join("secret.pdf");
@@ -339,6 +375,30 @@ mod openclaw_media_tests {
             .cloned()
             .unwrap_or_default();
         assert!(suffixes.iter().any(|row| row.as_str() == Some("client/runtime/local/state/canvas")));
+        assert_eq!(
+            status
+                .pointer("/media_request_contract/supports_wildcard_local_roots")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            status
+                .pointer("/media_request_contract/local_root_pattern_contract/wildcard_segment")
+                .and_then(Value::as_str),
+            Some("*")
+        );
+        let supported_channels = status
+            .pointer("/media_request_contract/channel_attachment_root_contract/supported_channels")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(supported_channels.iter().any(|row| row.as_str() == Some("imessage")));
+        let imessage_roots = status
+            .pointer("/media_request_contract/channel_attachment_root_contract/channels/imessage/default_attachment_roots")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(imessage_roots.iter().any(|row| row.as_str() == Some("/Users/*/Library/Messages/Attachments")));
         let error_codes = status
             .pointer("/media_request_contract/fail_closed_error_codes")
             .and_then(Value::as_array)
