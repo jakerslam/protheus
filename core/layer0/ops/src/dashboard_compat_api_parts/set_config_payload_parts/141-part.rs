@@ -1,3 +1,177 @@
+fn safe_step_command_candidate(message: &str) -> String {
+    let cleaned = clean_text(message, 800);
+    if cleaned.is_empty() {
+        return String::new();
+    }
+    if let Some(start) = cleaned.find('`') {
+        if let Some(end_rel) = cleaned[start + 1..].find('`') {
+            let candidate = clean_text(&cleaned[start + 1..start + 1 + end_rel], 400);
+            if !candidate.is_empty() {
+                return candidate;
+            }
+        }
+    }
+    let lowered = cleaned.to_ascii_lowercase();
+    if let Some(rest) = lowered.strip_prefix("run ") {
+        if let Some(end_idx) = rest.find(" as the next safe step") {
+            let prefix_len = cleaned.len().saturating_sub(rest.len());
+            let candidate = clean_text(&cleaned[prefix_len..prefix_len + end_idx], 400);
+            if !candidate.is_empty() {
+                return candidate;
+            }
+        }
+    }
+    String::new()
+}
+
+fn follow_up_suggestion_tool_intent_from_message(message: &str) -> Option<(String, Value)> {
+    let candidate = safe_step_command_candidate(message);
+    if candidate.is_empty() {
+        return None;
+    }
+    let lowered = candidate.to_ascii_lowercase();
+    let supported_prefixes = [
+        ("infring web search", "web search"),
+        ("infring batch-query", "batch-query"),
+        ("infring batch query", "batch-query"),
+    ];
+    for (prefix, label) in supported_prefixes {
+        if !lowered.starts_with(prefix) {
+            continue;
+        }
+        let query = strip_wrapped_natural_web_query(candidate[prefix.len()..].trim(), 600);
+        if query.is_empty() {
+            return Some((
+                "tool_command_router".to_string(),
+                json!({
+                    "ok": false,
+                    "error": "tool_command_query_required",
+                    "message": format!(
+                        "`{}` needs a query before it can run. Ask me to {} for a specific topic, for example `try to web search \"top AI agent frameworks\"`.",
+                        clean_text(prefix, 80),
+                        label
+                    )
+                }),
+            ));
+        }
+        return Some((
+            "batch_query".to_string(),
+            json!({"source": "web", "query": query, "aperture": "medium"}),
+        ));
+    }
+    None
+}
+
+fn message_requests_tooling_failure_diagnosis(message: &str) -> bool {
+    let lowered = clean_text(message, 500).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    let asks_about_tooling = lowered.contains("tooling")
+        || lowered.contains("tool")
+        || lowered.contains("web search")
+        || lowered.contains("web fetch")
+        || lowered.contains("file tooling")
+        || lowered.contains("file access")
+        || lowered.contains("search");
+    let asks_failure = lowered.contains("broken")
+        || lowered.contains("failing")
+        || lowered.contains("failed")
+        || lowered.contains("not working")
+        || lowered.contains("isn't working")
+        || lowered.contains("isnt working")
+        || lowered.contains("failure mode")
+        || lowered.contains("root cause")
+        || lowered.contains("why")
+        || lowered.contains("fix")
+        || lowered.contains("better")
+        || lowered.contains("improved");
+    asks_about_tooling && asks_failure
+}
+
+fn normalize_placeholder_signature(text: &str) -> String {
+    clean_text(text, 800)
+        .to_ascii_lowercase()
+        .chars()
+        .map(|ch| if ch.is_ascii_alphanumeric() { ch } else { ' ' })
+        .collect::<String>()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn response_mentions_context_guard(text: &str) -> bool {
+    let lowered = clean_text(text, 4_000).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    lowered.contains("context overflow: estimated context size exceeds safe threshold during tool loop")
+        || lowered.contains("more characters truncated")
+        || lowered.contains("middle content omitted")
+        || lowered.contains("output exceeded safe context budget")
+        || lowered.contains("safe context budget")
+}
+
+fn web_tool_context_guard_fallback(scope: &str) -> String {
+    let label = clean_text(scope, 120);
+    if label.is_empty() {
+        return "The web tool returned more output than fit safely in context before a final answer was composed. Retry with a narrower query, one specific source URL, or ask me to continue from the partial result.".to_string();
+    }
+    format!(
+        "{} returned more output than fit safely in context before a final answer was composed. Retry with a narrower query, one specific source URL, or ask me to continue from the partial result.",
+        label
+    )
+}
+
+fn tooling_failure_diagnostic_fallback() -> String {
+    "Web/search tooling is partially working: retrieval ran, but this turn returned low-signal output (search-engine chrome or parse miss) instead of usable findings. This is usually extraction/parsing drift, not a total outage. Next step: rerun with `batch_query` and a narrower query (or give one source URL for `web_fetch`). If it keeps repeating, run `infringctl doctor --json` and share the output so I can pinpoint the failing lane."
+        .to_string()
+}
+
+fn follow_up_suggestion_no_findings_fallback(message: &str) -> Option<String> {
+    if let Some((tool_name, payload)) = follow_up_suggestion_tool_intent_from_message(message) {
+        if tool_name == "tool_command_router" {
+            let summary = clean_text(
+                payload.get("message").and_then(Value::as_str).unwrap_or(""),
+                320,
+            );
+            if !summary.is_empty() {
+                return Some(summary);
+            }
+        }
+    }
+    let lowered = clean_text(message, 600).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return None;
+    }
+    if lowered.contains("command-to-route mapping")
+        && lowered.contains("supported tool hit rate")
+    {
+        return Some(
+            "That suggestion is an implementation task, not a runnable command. The right next step is to patch the command-to-route mapping and add a regression for the missed prompt shape."
+                .to_string(),
+        );
+    }
+    if lowered.contains("supported rust route")
+        && (lowered.contains("tool::spawn_subagents") || lowered.contains("spawn_subagents"))
+    {
+        return Some(
+            "That is a runtime-route implementation task, not a live web query. The right next step is to patch the Rust route layer for `spawn_subagents` and add a regression proving the prompt resolves cleanly."
+                .to_string(),
+        );
+    }
+    if lowered.contains("tooling")
+        && lowered.contains("better")
+        && (lowered.contains("web") || lowered.contains("file"))
+    {
+        return Some(
+            "The web/file tooling is better in some lanes, but this turn still fell into the no-findings fallback instead of a real status answer. That points to a routing/finalization miss, not a total outage. Next step: run one concrete `web_search`, `web_fetch`, or `file_read` probe and inspect the route that handled it."
+                .to_string(),
+        );
+    }
+    None
+}
+
 fn summary_excluded_key(key: &str) -> bool {
     matches!(
         key,

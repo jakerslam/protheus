@@ -31,6 +31,120 @@ fn enforce_user_facing_finalization_contract_unwraps_internal_payload_dump() {
 }
 
 #[test]
+fn follow_up_suggestion_tool_intent_requires_query_for_infring_web_search_prompt() {
+    let (tool, payload) =
+        follow_up_suggestion_tool_intent_from_message("Run `infring web search` as the next safe step.")
+            .expect("route");
+    assert_eq!(tool, "tool_command_router");
+    let message = payload.get("message").and_then(Value::as_str).unwrap_or("");
+    assert!(message.contains("needs a query"));
+    assert!(message.contains("top AI agent frameworks"));
+}
+
+#[test]
+fn maybe_tooling_failure_fallback_rewrites_safe_step_prompt() {
+    let fallback = maybe_tooling_failure_fallback(
+        "Run `infring web search` as the next safe step.",
+        &no_findings_user_facing_response(),
+        "",
+    )
+    .expect("fallback");
+    let lowered = fallback.to_ascii_lowercase();
+    assert!(lowered.contains("needs a query"));
+    assert!(!response_is_no_findings_placeholder(&fallback));
+}
+
+#[test]
+fn maybe_tooling_failure_fallback_rewrites_web_file_better_prompt() {
+    let fallback = maybe_tooling_failure_fallback(
+        "does the web or file tooling seem any better?",
+        &no_findings_user_facing_response(),
+        "",
+    )
+    .expect("fallback");
+    let lowered = fallback.to_ascii_lowercase();
+    assert!(lowered.contains("routing/finalization miss"));
+    assert!(lowered.contains("web_search"));
+    assert!(!response_is_no_findings_placeholder(&fallback));
+}
+
+#[test]
+fn maybe_tooling_failure_fallback_rewrites_route_mapping_suggestion_prompt() {
+    let fallback = maybe_tooling_failure_fallback(
+        "Run Improve command-to-route mapping for higher supported tool hit rate",
+        &no_findings_user_facing_response(),
+        "",
+    )
+    .expect("fallback");
+    let lowered = fallback.to_ascii_lowercase();
+    assert!(lowered.contains("implementation task"));
+    assert!(lowered.contains("command-to-route mapping"));
+    assert!(!response_is_no_findings_placeholder(&fallback));
+}
+
+#[test]
+fn maybe_tooling_failure_fallback_rewrites_spawn_route_prompt() {
+    let fallback = maybe_tooling_failure_fallback(
+        "Implement a supported Rust route for `tool::spawn_subagents`",
+        &no_findings_user_facing_response(),
+        "",
+    )
+    .expect("fallback");
+    let lowered = fallback.to_ascii_lowercase();
+    assert!(lowered.contains("runtime-route implementation task"));
+    assert!(lowered.contains("spawn_subagents"));
+    assert!(!response_is_no_findings_placeholder(&fallback));
+}
+
+#[test]
+fn direct_message_safe_step_prompt_returns_actionable_query_required_copy() {
+    let root = governance_temp_root();
+    let snapshot = governance_ok_snapshot();
+    let parent = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"name":"follow-up-suggestion-agent","role":"operator"}"#,
+        &snapshot,
+    )
+    .expect("parent create");
+    let parent_id = clean_agent_id(
+        parent
+            .payload
+            .get("agent_id")
+            .or_else(|| parent.payload.get("id"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+    );
+    assert!(!parent_id.is_empty());
+    let response = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{parent_id}/message"),
+        br#"{"message":"Run `infring web search` as the next safe step."}"#,
+        &snapshot,
+    )
+    .expect("message response");
+    assert_eq!(response.status, 200);
+    let response_text = response
+        .payload
+        .get("response")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    assert!(response_text.contains("needs a query"), "{response_text}");
+    assert!(!response_is_no_findings_placeholder(response_text));
+    let tool_name = response
+        .payload
+        .get("tools")
+        .and_then(Value::as_array)
+        .and_then(|rows| rows.first())
+        .and_then(|row| row.get("name"))
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    assert_eq!(tool_name, "tool_command_router");
+}
+
+#[test]
 fn tool_completion_contract_rewrites_ack_to_findings_from_tool_cards() {
     let cards = vec![json!({
         "name": "web_search",
