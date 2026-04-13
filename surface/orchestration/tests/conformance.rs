@@ -1,5 +1,5 @@
 use infring_orchestration_surface_v1::contracts::{
-    ClarificationReason, CoreContractCall, OrchestrationRequest, RequestClass,
+    ClarificationReason, CoreContractCall, OrchestrationRequest, RequestClass, RequestSurface,
 };
 use infring_orchestration_surface_v1::OrchestrationSurfaceRuntime;
 use serde_json::json;
@@ -11,6 +11,7 @@ fn orchestration_surface_cannot_bypass_tool_broker() {
         OrchestrationRequest {
             session_id: "s1".to_string(),
             intent: "search web for release notes".to_string(),
+            surface: RequestSurface::Legacy,
             payload: json!({}),
         },
         1_000,
@@ -36,6 +37,7 @@ fn orchestration_surface_cannot_persist_private_durable_task_state() {
         OrchestrationRequest {
             session_id: "s2".to_string(),
             intent: "plan tasks".to_string(),
+            surface: RequestSurface::Legacy,
             payload: json!({}),
         },
         1_000,
@@ -53,6 +55,7 @@ fn orchestration_surface_cannot_canonize_truth() {
         OrchestrationRequest {
             session_id: "s3".to_string(),
             intent: "update workflow".to_string(),
+            surface: RequestSurface::Legacy,
             payload: json!({"target":"task_fabric"}),
         },
         1_000,
@@ -70,6 +73,7 @@ fn orchestration_transient_state_is_sweepable() {
         OrchestrationRequest {
             session_id: "s4".to_string(),
             intent: "read status".to_string(),
+            surface: RequestSurface::Legacy,
             payload: json!({}),
         },
         10_000,
@@ -86,6 +90,7 @@ fn orchestration_transient_restart_requires_boot_sweep_before_resume() {
         OrchestrationRequest {
             session_id: "s5".to_string(),
             intent: "hold short-term context".to_string(),
+            surface: RequestSurface::Legacy,
             payload: json!({}),
         },
         10_000,
@@ -117,6 +122,7 @@ fn orchestration_legacy_intent_path_still_produces_typed_tool_plan() {
         OrchestrationRequest {
             session_id: "legacy-s1".to_string(),
             intent: "  Search web for release notes  ".to_string(),
+            surface: RequestSurface::Legacy,
             payload: serde_json::Value::Null,
         },
         2_000,
@@ -137,6 +143,7 @@ fn ambiguous_legacy_intent_returns_machine_readable_clarification_reason() {
         OrchestrationRequest {
             session_id: "s6".to_string(),
             intent: "maybe do something".to_string(),
+            surface: RequestSurface::Legacy,
             payload: json!({}),
         },
         2_500,
@@ -156,6 +163,7 @@ fn mutation_without_target_requires_typed_scope_clarification() {
         OrchestrationRequest {
             session_id: "s7".to_string(),
             intent: "update workflow".to_string(),
+            surface: RequestSurface::Legacy,
             payload: json!({}),
         },
         3_000,
@@ -174,6 +182,7 @@ fn comparative_request_changes_plan_when_transport_is_unavailable() {
         OrchestrationRequest {
             session_id: "cmp-ready".to_string(),
             intent: "compare this workspace state to the web".to_string(),
+            surface: RequestSurface::Legacy,
             payload: json!({
                 "path": "README.md",
                 "url": "https://example.com"
@@ -185,6 +194,7 @@ fn comparative_request_changes_plan_when_transport_is_unavailable() {
         OrchestrationRequest {
             session_id: "cmp-degraded".to_string(),
             intent: "compare this workspace state to the web".to_string(),
+            surface: RequestSurface::Legacy,
             payload: json!({
                 "path": "README.md",
                 "url": "https://example.com",
@@ -214,6 +224,7 @@ fn execution_state_is_typed_for_blocked_mutation_requests() {
         OrchestrationRequest {
             session_id: "blocked-mutation".to_string(),
             intent: "implement the requested mutation".to_string(),
+            surface: RequestSurface::Legacy,
             payload: json!({
                 "target": "task_fabric",
                 "authorization_valid": false
@@ -236,4 +247,108 @@ fn execution_state_is_typed_for_blocked_mutation_requests() {
             .and_then(|row| row.reason.clone()),
         Some(infring_orchestration_surface_v1::contracts::RecoveryReason::AuthorizationFailure)
     );
+}
+
+#[test]
+fn sdk_surface_adapter_bypasses_legacy_intent_shim() {
+    let mut runtime = OrchestrationSurfaceRuntime::new();
+    let package = runtime.orchestrate(
+        OrchestrationRequest {
+            session_id: "sdk-s1".to_string(),
+            intent: "maybe do something".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "search",
+                    "resource_kind": "web",
+                    "request_kind": "direct",
+                    "tool_hints": ["web_search"],
+                    "targets": [{ "kind": "url", "value": "https://example.com/releases" }]
+                }
+            }),
+        },
+        4_000,
+    );
+    assert_eq!(package.classification.request_class, RequestClass::ToolCall);
+    assert!(!package
+        .classification
+        .reasons
+        .iter()
+        .any(|row| row == "legacy_intent_compatibility_shim"));
+    assert!(package
+        .classification
+        .reasons
+        .iter()
+        .any(|row| row == "surface_adapter:sdk"));
+}
+
+#[test]
+fn sdk_and_gateway_adapters_converge_on_same_tool_plan() {
+    let mut runtime = OrchestrationSurfaceRuntime::new();
+    let sdk = runtime.orchestrate(
+        OrchestrationRequest {
+            session_id: "sdk-compare".to_string(),
+            intent: "compare things".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "compare",
+                    "resource_kind": "mixed",
+                    "targets": [
+                        { "kind": "workspace_path", "value": "README.md" },
+                        { "kind": "url", "value": "https://example.com/docs" }
+                    ]
+                }
+            }),
+        },
+        4_100,
+    );
+    let gateway = runtime.orchestrate(
+        OrchestrationRequest {
+            session_id: "gateway-compare".to_string(),
+            intent: "opaque".to_string(),
+            surface: RequestSurface::Gateway,
+            payload: json!({
+                "gateway": {
+                    "route": "compare.resource",
+                    "resource_kind": "mixed",
+                    "targets": [
+                        { "kind": "workspace_path", "value": "README.md" },
+                        { "kind": "url", "value": "https://example.com/docs" }
+                    ]
+                }
+            }),
+        },
+        4_200,
+    );
+
+    assert_eq!(sdk.classification.request_class, gateway.classification.request_class);
+    assert_eq!(sdk.core_contract_calls, gateway.core_contract_calls);
+    assert!(sdk
+        .core_contract_calls
+        .contains(&CoreContractCall::UnifiedMemoryRead));
+}
+
+#[test]
+fn surface_adapter_fallback_requires_clarification() {
+    let mut runtime = OrchestrationSurfaceRuntime::new();
+    let package = runtime.orchestrate(
+        OrchestrationRequest {
+            session_id: "dashboard-fallback".to_string(),
+            intent: "".to_string(),
+            surface: RequestSurface::Dashboard,
+            payload: json!({
+                "dashboard": {
+                    "selection_mode": "panel"
+                }
+            }),
+        },
+        4_300,
+    );
+    assert!(package.classification.needs_clarification);
+    assert!(package
+        .classification
+        .reasons
+        .iter()
+        .any(|row| row == "surface_adapter_fallback:dashboard"));
 }

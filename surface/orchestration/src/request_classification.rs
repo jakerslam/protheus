@@ -1,6 +1,6 @@
 use crate::contracts::{
     AmbiguityReason, Capability, ClarificationReason, Mutability, OperationKind, ParseResult,
-    RequestClass, RequestClassification, RequestKind, ResourceKind,
+    RequestClass, RequestClassification, RequestKind, RequestSurface, ResourceKind,
 };
 
 pub fn classify_request(parsed: &ParseResult) -> RequestClassification {
@@ -45,6 +45,11 @@ pub fn classify_request(parsed: &ParseResult) -> RequestClassification {
             .ambiguity
             .iter()
             .any(|row| !matches!(row, AmbiguityReason::LegacyCompatOnly))
+        || (request.surface != RequestSurface::Legacy
+            && parsed
+                .ambiguity
+                .iter()
+                .any(|row| matches!(row, AmbiguityReason::LegacyCompatOnly)))
     {
         clarification_reasons.push(ClarificationReason::AmbiguousOperation);
     }
@@ -105,12 +110,15 @@ mod tests {
         let request = ParseResult {
             typed_request: crate::contracts::TypedOrchestrationRequest {
                 session_id: "s1".to_string(),
+                surface: RequestSurface::Legacy,
                 legacy_intent: "search the web".to_string(),
+                adapted: false,
                 payload: json!({}),
                 request_kind: RequestKind::Direct,
                 operation_kind: OperationKind::Read,
                 resource_kind: ResourceKind::Memory,
                 mutability: Mutability::ReadOnly,
+                target_descriptors: Vec::new(),
                 target_refs: Vec::new(),
                 tool_hints: Vec::new(),
                 policy_scope: crate::contracts::PolicyScope::Default,
@@ -130,12 +138,15 @@ mod tests {
         let request = ParseResult {
             typed_request: crate::contracts::TypedOrchestrationRequest {
                 session_id: "s1".to_string(),
+                surface: RequestSurface::Legacy,
                 legacy_intent: "maybe do something".to_string(),
+                adapted: false,
                 payload: json!({}),
                 request_kind: RequestKind::Ambiguous,
                 operation_kind: OperationKind::Unknown,
                 resource_kind: ResourceKind::Unspecified,
                 mutability: Mutability::ReadOnly,
+                target_descriptors: Vec::new(),
                 target_refs: Vec::new(),
                 tool_hints: Vec::new(),
                 policy_scope: crate::contracts::PolicyScope::Default,
