@@ -15503,8 +15503,13 @@ Source summary:
   - Replace static request-class routing with a capability planner that emits blocked/degraded candidates and machine-readable execution state.
 - Acceptance criteria:
   - Orchestration classification returns required capabilities instead of required contract steps.
-  - Planner emits `PlanCandidate` with `confidence`, `blocked_on`, `degradation`, `capabilities`, and typed plan steps.
-  - Result packaging exposes `ExecutionState` with `plan_status`, per-step status, and structured recovery/degradation data while retaining `progress_message` only as a rendered projection.
+  - Planner emits `selected_plan` plus `alternative_plans`, with per-candidate `variant`, `score`, `blocked_on`, `degradation`, `capabilities`, `capability_probes`, and typed plan steps.
+  - Capability planning uses explicit per-capability probe results instead of one global blocked/degraded mood.
+  - `VerifyClaim` routes through a first-class verifier contract instead of collapsing to memory read only.
+  - Result packaging exposes `ExecutionState` with `plan_status`, per-step status, structured recovery/degradation data, and core-correlation fields while retaining `progress_message` only as a rendered projection.
+  - Recovery distinguishes missing target, invalid target syntax, and target-not-found instead of flattening all target issues into one reason.
+  - Execution correlation accepts nested core execution payloads (`core_execution.status`, receipt ids, outcome refs, and per-step status maps).
+  - Non-legacy surfaces expose typed adapter usage/fallback fields, and conformance keeps adapted-surface fallback rate below the declared threshold.
   - The same comparative request can produce different plans when transport/tool availability changes.
 - Regression evidence pointers:
   - `surface/orchestration/src/contracts.rs`
@@ -15545,6 +15550,8 @@ Source summary:
   - Remove spawned transport from the production SDK surface and quarantine CLI fallback under an explicit dev-only import path.
 - Acceptance criteria:
   - `packages/infring-sdk/src/transports.ts` exports resident IPC and in-memory transports only.
+  - `packages/infring-sdk/src/transports.ts` does not re-export any dev-only CLI transport surface.
+  - In-memory transport exposes explicit unseeded behavior modes instead of a misleading boolean that only rewrites the error path.
   - CLI process transport lives under a dev-only path and is not re-exported from the package index.
   - Transport spawn audit reports zero `runtime_hot_path` findings.
   - Release transport policy gates continue to prove resident IPC as the only production topology.
@@ -15557,6 +15564,7 @@ Source summary:
   - `tests/tooling/scripts/ci/transport_convergence_guard.ts`
   - `tests/tooling/scripts/ci/release_contract_gate.ts`
   - `tests/tooling/scripts/ci/release_policy_gate.ts`
+  - `tests/client-memory-tools/infring_sdk_contract.test.ts`
   - `node client/runtime/lib/ts_entrypoint.ts tests/client-memory-tools/infring_sdk_contract.test.ts`
   - `npm run -s ops:transport:spawn-audit`
   - `npm run -s ops:transport:convergence:guard`
@@ -15568,7 +15576,11 @@ Source summary:
 - Acceptance criteria:
   - `Failed -> InProgress`, `Failed -> Cancelled`, and `Cancelled -> InProgress` transitions are rejected.
   - Tests explicitly prove failed and cancelled tasks are terminal.
+  - Readiness does not collapse terminal tasks into generic blocked state; terminal tasks are counted separately and excluded from stale/runnable views.
+  - Direct lifecycle transition tests protect the no-reopen matrix.
 - Regression evidence pointers:
   - `core/layer2/tools/task_fabric/src/status_machine.rs`
+  - `core/layer2/tools/task_fabric/src/task_graph.rs`
+  - `core/layer2/tools/task_fabric/src/query_api.rs`
   - `core/layer2/tools/task_fabric/tests/task_fabric.rs`
   - `cargo test --manifest-path core/layer2/tools/task_fabric/Cargo.toml`

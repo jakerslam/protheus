@@ -468,11 +468,17 @@ mod tests {
         }));
         assert!(grouped.iter().any(|row| {
             row.domain == ToolCapabilityDomain::Agent
-                && row.tools.iter().any(|tool| tool.tool_name == "spawn_subagents")
+                && row
+                    .tools
+                    .iter()
+                    .any(|tool| tool.tool_name == "spawn_subagents")
         }));
         assert!(grouped.iter().any(|row| {
             row.domain == ToolCapabilityDomain::Terminal
-                && row.tools.iter().any(|tool| tool.tool_name == "terminal_exec")
+                && row
+                    .tools
+                    .iter()
+                    .any(|tool| tool.tool_name == "terminal_exec")
         }));
     }
 }
