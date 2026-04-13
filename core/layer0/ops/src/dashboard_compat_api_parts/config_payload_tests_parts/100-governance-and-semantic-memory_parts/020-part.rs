@@ -231,6 +231,42 @@ fn inline_tool_execution_replaces_low_signal_cleaned_text_with_tool_fallback_lin
 }
 
 #[test]
+fn workflow_retry_sanitizer_drops_follow_up_tool_markup_tail() {
+    let response = "My search for \"top AI agentic frameworks\" didn't return specific framework listings. Let me try a more targeted approach with some well-known framework names.\n\n<function=web_search>{\"query\":\"LangChain AutoGPT BabyAGI AI agent frameworks comparison\"}</function>";
+    assert!(workflow_response_requests_more_tooling(response));
+    assert_eq!(
+        sanitize_workflow_final_response_candidate(response),
+        "My search for \"top AI agentic frameworks\" didn't return specific framework listings."
+    );
+}
+
+#[test]
+fn inline_tool_parser_accepts_quoted_function_name_markup() {
+    let response = "<function=\"web_search\">{\"query\":\"top AI agentic frameworks 2024\",\"source\":\"web\",\"aperture\":\"medium\"}</function>";
+    let (cleaned, calls) = extract_inline_tool_calls(response, 4);
+    assert!(cleaned.is_empty());
+    assert_eq!(calls.len(), 1);
+    assert_eq!(calls[0].0, "web_search");
+    assert_eq!(calls[0].1.get("query").and_then(Value::as_str), Some("top AI agentic frameworks 2024"));
+}
+
+#[test]
+fn inline_tool_workspace_analyze_hydrates_comparison_query_from_message() {
+    let input = normalize_inline_tool_execution_input(
+        "workspace_analyze",
+        &json!({}),
+        "compare this system (infring) to openclaw",
+    );
+    assert_eq!(input.get("path").and_then(Value::as_str), Some("."));
+    assert_eq!(input.get("full").and_then(Value::as_bool), Some(true));
+    assert!(input
+        .get("query")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .contains("compare this system"));
+}
+
+#[test]
 fn pending_confirmation_yes_replays_manage_agent_action() {
     let root = governance_temp_root();
     let snapshot = governance_ok_snapshot();
@@ -440,8 +476,11 @@ fn ack_only_detector_flags_generic_tool_acknowledgements() {
 
 #[test]
 fn ack_only_detector_flags_explicit_no_findings_failure_copy() {
-    assert!(response_looks_like_tool_ack_without_findings(
-        "I couldn't extract usable findings from the search response yet."
+    assert!(!response_looks_like_tool_ack_without_findings(
+        "The web search ran, but it only returned low-signal snippets in this turn."
+    ));
+    assert!(!response_looks_like_tool_ack_without_findings(
+        "My search for top AI agentic frameworks 2024 didn't return specific framework listings or detailed comparisons."
     ));
     assert!(response_looks_like_tool_ack_without_findings(
         "From web retrieval: bing.com: OpenClaw — Personal AI Assistant — https://openclaw.ai/"

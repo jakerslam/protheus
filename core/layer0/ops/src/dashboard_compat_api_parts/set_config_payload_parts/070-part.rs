@@ -681,7 +681,8 @@ fn latent_tool_candidates_for_message(message: &str, workspace_hints: &[Value]) 
             "batch_query",
             "collect external peer evidence",
             "Message compares the local system/workspace to an external peer, so external web evidence is required too.",
-            json!({"source": "web", "query": web_query, "aperture": "medium"}),
+            workspace_plus_web_comparison_web_payload_from_message(message)
+                .unwrap_or_else(|| json!({"source": "web", "query": web_query, "aperture": "medium"})),
         );
     } else if let Some(query) = natural_web_search_query_from_message(message) {
         push_latent_tool_candidate(
