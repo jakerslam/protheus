@@ -4,7 +4,7 @@
   "hot_runtime": [
     { "id": "memory_index", "authority": "core/layer0/memory", "paths": ["core/layer0/memory"], "read_contract": "native_store" },
     { "id": "state_kernel", "authority": "client/runtime/systems/ops/state_kernel.ts", "paths": ["local/state/ops/state_kernel"], "read_contract": "typed_store" },
-    { "id": "workflow_state", "authority": "client/runtime/systems/workflow/workflow_executor.ts", "paths": ["local/state/workflow"], "read_contract": "typed_store" }
+    { "id": "workflow_state", "authority": "client/runtime/lib/workflow_graph_bridge.ts", "paths": ["local/state/workflow"], "read_contract": "typed_store" }
   ],
   "audit_mirror": [
     { "id": "event_stream", "paths": ["local/state/events/event_stream.jsonl"], "contract": "append_only_jsonl" },

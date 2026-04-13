@@ -34,6 +34,7 @@ Runtime split inside cognition:
 - Presentation Client: `client/**`
 
 See [planes/README.md](planes/README.md) for the canonical architecture contract.
+See [docs/client/PUBLIC_OPERATOR_PROFILE.md](docs/client/PUBLIC_OPERATOR_PROFILE.md) for the public operator-facing surface and support expectations.
 
 ## Current State (April 2026)
 
