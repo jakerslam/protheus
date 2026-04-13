@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-12T17:30:35Z",
+  "generated_at": "2026-04-13T17:10:00Z",
   "scope": [
     "core",
     "client/runtime",
@@ -20187,7 +20187,7 @@
       "order": 1834
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/140-session-and-ws.part01.ts",
       "language": "ts",
       "loc": 498,
@@ -20195,7 +20195,10 @@
       "migration_potential_score": 2,
       "concept_opportunity_score": 3,
       "priority_score": 2.2,
-      "order": 1835
+      "order": 1835,
+      "wave": "2026-04-13-openclaw-tooling-wave-001",
+      "source": "openclaw:ui/src/ui/app-gateway.ts",
+      "notes": "OPENCLAW-TOOLING-CHAT-002 reconnect-aware pending-run sync landed in ws/session recovery."
     },
     {
       "status": "queued",
@@ -20286,7 +20289,7 @@
       "order": 1843
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/160-runtime-events-and-render.part01.ts",
       "language": "ts",
       "loc": 472,
@@ -20294,7 +20297,10 @@
       "migration_potential_score": 2,
       "concept_opportunity_score": 3,
       "priority_score": 2.2,
-      "order": 1844
+      "order": 1844,
+      "wave": "2026-04-13-openclaw-tooling-wave-001",
+      "source": "openclaw:ui/src/ui/app-tool-stream.ts",
+      "notes": "OPENCLAW-TOOLING-CHAT-003 enriched terminal/tool summaries with fallback and preview context."
     },
     {
       "status": "queued",
@@ -20627,7 +20633,7 @@
       "order": 1874
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/040-models-and-cache.part02.ts",
       "language": "ts",
       "loc": 352,
@@ -20635,7 +20641,10 @@
       "migration_potential_score": 2,
       "concept_opportunity_score": 3,
       "priority_score": 2.2,
-      "order": 1875
+      "order": 1875,
+      "wave": "2026-04-13-openclaw-tooling-wave-001",
+      "source": "openclaw:ui/src/ui/chat-model-select-state.ts",
+      "notes": "OPENCLAW-TOOLING-CHAT-001 added provider-scoped model resolution helpers."
     },
     {
       "status": "queued",
@@ -20979,7 +20988,7 @@
       "order": 1906
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/190-drawer-and-queue.ts",
       "language": "ts",
       "loc": 218,
@@ -20987,7 +20996,10 @@
       "migration_potential_score": 2,
       "concept_opportunity_score": 3,
       "priority_score": 2.2,
-      "order": 1907
+      "order": 1907,
+      "wave": "2026-04-13-openclaw-tooling-wave-001",
+      "source": "openclaw:ui/src/ui/app-chat.ts",
+      "notes": "OPENCLAW-TOOLING-CHAT-001 applied deduped fallback/model selection behavior in drawer actions."
     },
     {
       "status": "queued",
@@ -22112,7 +22124,7 @@
       "order": 2009
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/140-session-and-ws.part02.ts",
       "language": "ts",
       "loc": 69,
@@ -22120,7 +22132,10 @@
       "migration_potential_score": 2,
       "concept_opportunity_score": 3,
       "priority_score": 2.2,
-      "order": 2010
+      "order": 2010,
+      "wave": "2026-04-13-openclaw-tooling-wave-001",
+      "source": "openclaw:ui/src/ui/chat/tool-cards.ts",
+      "notes": "OPENCLAW-TOOLING-CHAT-003 deduped repeated phase updates for cleaner live tool streaming."
     },
     {
       "status": "queued",

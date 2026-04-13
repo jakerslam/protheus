@@ -22,6 +22,14 @@
             if (typeof this.isThinkingPlaceholderText === 'function' && this.isThinkingPlaceholderText(phaseStatusCandidate)) {
               phaseStatusCandidate = '';
             }
+            var phaseFingerprint = phaseKey + '|' + phaseDetailText + '|' + (Number.isFinite(phasePercent) ? String(Math.round(phasePercent)) : '');
+            if (phaseMsg._phase_update_fingerprint === phaseFingerprint) {
+              phaseMsg._stream_updated_at = Date.now();
+              this._resetTypingTimeout();
+              this.scrollToBottom();
+              break;
+            }
+            phaseMsg._phase_update_fingerprint = phaseFingerprint;
             // Skip phases that have no user-meaningful display text — "streaming"
             // and "done" are lifecycle signals, not status to show in the chat bubble.
             if (phaseKey === 'streaming' || phaseKey === 'done') {

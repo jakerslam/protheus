@@ -190,6 +190,8 @@
       this._wsConnectSeq = connectSeq;
       this._wsAgent = targetAgentId;
       var self = this;
+      var reconnectPending = false;
+      var reconnectSyncInFlight = false;
       var isLiveConnection = function(eventAgentId) {
         if (Number(self._wsConnectSeq || 0) !== connectSeq) return false;
         if (String(self._wsAgent || '').trim() !== targetAgentId) return false;
@@ -235,12 +237,43 @@
           pendingRow._stream_updated_at = Date.now();
         }
       };
+      var syncPendingAfterReconnect = function(reason) {
+        if (reconnectSyncInFlight) return;
+        var pending = self._pendingWsRequest;
+        if (!pending || String(pending.agent_id || '').trim() !== targetAgentId) return;
+        reconnectSyncInFlight = true;
+        ensurePendingThinkingRow('Reconnected. Syncing response...');
+        self.setAgentLiveActivity(targetAgentId, 'working');
+        Promise.resolve()
+          .then(function() {
+            return self.loadSessions(targetAgentId);
+          })
+          .catch(function() { return null; })
+          .then(function() {
+            var isActive = !!(self.currentAgent && String(self.currentAgent.id || '').trim() === targetAgentId);
+            if (!isActive) return null;
+            return self.loadSession(targetAgentId, true).catch(function() { return null; });
+          })
+          .then(function() {
+            return self._recoverPendingWsRequest(reason || 'ws_reopen');
+          })
+          .catch(function() { return null; })
+          .finally(function() {
+            reconnectSyncInFlight = false;
+          });
+      };
 
       InfringAPI.wsConnect(targetAgentId, {
         onOpen: function() {
           if (!isLiveConnection('')) return;
           Alpine.store('app').wsConnected = true;
           self.requestContextTelemetry(true);
+          if (reconnectPending) {
+            reconnectPending = false;
+            syncPendingAfterReconnect('ws_reopen');
+          } else if (!self.sending) {
+            self.$nextTick(function() { self._processQueue(); });
+          }
         },
         onMessage: function(data) {
           var dataAgentId = data && data.agent_id ? data.agent_id : '';
@@ -250,6 +283,12 @@
         onReconnect: function() {
           if (!isLiveConnection('')) return;
           Alpine.store('app').wsConnected = false;
+          reconnectPending = true;
+          var pending = self._pendingWsRequest;
+          if (pending && pending.agent_id) {
+            ensurePendingThinkingRow('Connection interrupted. Reconnecting...');
+            self.setAgentLiveActivity(pending.agent_id, 'working');
+          }
         },
         onClose: function() {
           if (!isLiveConnection('')) return;
@@ -257,6 +296,7 @@
           self._wsAgent = null;
           var pending = self._pendingWsRequest;
           if (self.sending && pending && pending.agent_id) {
+            reconnectPending = true;
             self._clearTypingTimeout();
             ensurePendingThinkingRow('Connection interrupted. Reconnecting...');
             self.setAgentLiveActivity(pending.agent_id, 'working');
@@ -278,6 +318,7 @@
           self._wsAgent = null;
           var pending = self._pendingWsRequest;
           if (self.sending && pending && pending.agent_id) {
+            reconnectPending = true;
             self._clearTypingTimeout();
             ensurePendingThinkingRow('Connection interrupted. Reconnecting...');
             self.setAgentLiveActivity(pending.agent_id, 'working');
