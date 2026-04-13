@@ -2,6 +2,7 @@
 /* eslint-disable no-console */
 import fs from 'node:fs';
 import path from 'node:path';
+import { parseBool, readFlag } from '../../lib/cli.ts';
 import { currentRevision } from '../../lib/git.ts';
 import { emitStructuredResult, writeTextArtifact } from '../../lib/result.ts';
 
@@ -15,26 +16,12 @@ type ScriptArgs = {
   outMarkdown: string;
 };
 
-function parseArgs(argv: string[]): ScriptArgs {
-  const out: ScriptArgs = {
-    strict: false,
-    outJson: DEFAULT_OUT_JSON,
-    outMarkdown: DEFAULT_OUT_MD,
+function resolveArgs(argv: string[]): ScriptArgs {
+  return {
+    strict: argv.includes('--strict') || parseBool(readFlag(argv, 'strict'), false),
+    outJson: readFlag(argv, 'out-json') || DEFAULT_OUT_JSON,
+    outMarkdown: readFlag(argv, 'out-markdown') || DEFAULT_OUT_MD,
   };
-  for (const raw of argv) {
-    const arg = String(raw || '').trim();
-    if (!arg) continue;
-    if (arg === '--strict' || arg === '--strict=1') out.strict = true;
-    else if (arg.startsWith('--strict=')) {
-      const value = arg.slice('--strict='.length).trim().toLowerCase();
-      out.strict = ['1', 'true', 'yes', 'on'].includes(value);
-    } else if (arg.startsWith('--out-json=')) {
-      out.outJson = arg.slice('--out-json='.length).trim() || out.outJson;
-    } else if (arg.startsWith('--out-markdown=')) {
-      out.outMarkdown = arg.slice('--out-markdown='.length).trim() || out.outMarkdown;
-    }
-  }
-  return out;
 }
 
 function readJsonMaybe<T>(filePath: string, fallback: T): T {
@@ -66,6 +53,14 @@ function toMarkdown(payload: any): string {
   lines.push(`- exempted_oversized_files: ${payload.debt.size.exempted}`);
   lines.push(`- expired_debt_rules: ${payload.debt.expiry.violation_count}`);
   lines.push(`- expiring_soon_rules: ${payload.debt.expiry.expiring_soon_count}`);
+  lines.push(`- non_size_open_items: ${payload.debt.non_size.open_items}`);
+  lines.push(`- non_size_blocked_items: ${payload.debt.non_size.blocked_items}`);
+  lines.push(`- policy_green_but_debt_remaining: ${payload.debt.non_size.policy_green_but_debt_remaining}`);
+  lines.push(`- classic_asset_files: ${payload.debt.dashboard.classic_asset_files}`);
+  lines.push(`- classic_href_references: ${payload.debt.dashboard.classic_href_references}`);
+  lines.push(`- embedded_fallback_references: ${payload.debt.dashboard.embedded_fallback_references}`);
+  lines.push(`- adapter_fallback_guard_pass: ${payload.debt.orchestration.adapter_fallback_guard_pass}`);
+  lines.push(`- adapter_fallback_threshold: ${payload.debt.orchestration.adapter_fallback_threshold}`);
   lines.push('');
   lines.push('## Top Expiring Soon');
   if (payload.top_expiring_soon.length === 0) {
@@ -88,13 +83,18 @@ function toMarkdown(payload: any): string {
 }
 
 function run(argv: string[]): number {
-  const args = parseArgs(argv);
+  const args = resolveArgs(argv);
   const srs = readJsonMaybe<any>('core/local/artifacts/srs_full_regression_current.json', null);
   const size = readJsonMaybe<any>('core/local/artifacts/repo_file_size_gate_current.json', null);
   const expiry = readJsonMaybe<any>('core/local/artifacts/debt_expiry_guard_current.json', null);
   const closure = readJsonMaybe<any>('core/local/artifacts/production_readiness_closure_gate_current.json', null);
   const arch = readJsonMaybe<any>('core/local/artifacts/arch_boundary_conformance_current.json', null);
   const registry = readJsonMaybe<any>('core/local/artifacts/tooling_registry_contract_guard_current.json', null);
+  const ciWorkflow = readJsonMaybe<any>('core/local/artifacts/ci_workflow_rationalization_contract_current.json', null);
+  const ciQuality = readJsonMaybe<any>('core/local/artifacts/ci_quality_scorecard_current.json', null);
+  const adapterFallback = readJsonMaybe<any>('core/local/artifacts/orchestration_adapter_fallback_guard_current.json', null);
+  const techDebt = readJsonMaybe<any>('core/local/artifacts/tech_debt_report_current.json', null);
+  const classicDashboard = readJsonMaybe<any>('core/local/artifacts/classic_dashboard_debt_inventory_current.json', null);
 
   const gates = [
     {
@@ -127,6 +127,26 @@ function run(argv: string[]): number {
       ok: registry?.summary?.pass === true,
       detail: registry ? `failures=${registry.summary.failure_count}` : 'missing_artifact',
     },
+    {
+      id: 'ci_workflow_rationalization_contract',
+      ok: ciWorkflow?.summary?.pass === true,
+      detail: ciWorkflow ? `failures=${ciWorkflow.summary.failure_count}` : 'missing_artifact',
+    },
+    {
+      id: 'ci_quality_scorecard',
+      ok: ciQuality?.summary?.pass === true,
+      detail: ciQuality ? `failures=${ciQuality.summary.failure_count}` : 'missing_artifact',
+    },
+    {
+      id: 'orchestration_adapter_fallback_guard',
+      ok: adapterFallback?.summary?.pass === true,
+      detail: adapterFallback ? `exit_code=${adapterFallback.summary.exit_code}` : 'missing_artifact',
+    },
+    {
+      id: 'tech_debt_report',
+      ok: techDebt?.ok === true,
+      detail: techDebt ? `open_items=${techDebt.summary.open_items}` : 'missing_artifact',
+    },
   ];
 
   const payload = {
@@ -151,6 +171,20 @@ function run(argv: string[]): number {
         violation_count: expiry?.summary?.violation_count ?? null,
         expiring_soon_count: expiry?.summary?.expiring_soon_count ?? null,
         warn_days: expiry?.summary?.warn_days ?? null,
+      },
+      non_size: {
+        open_items: techDebt?.summary?.open_items ?? null,
+        blocked_items: techDebt?.summary?.blocked_items ?? null,
+        policy_green_but_debt_remaining: techDebt?.summary?.policy_green_but_debt_remaining ?? null,
+      },
+      dashboard: {
+        classic_asset_files: classicDashboard?.summary?.classic_asset_files ?? null,
+        classic_href_references: classicDashboard?.summary?.classic_href_references ?? null,
+        embedded_fallback_references: classicDashboard?.summary?.embedded_fallback_references ?? null,
+      },
+      orchestration: {
+        adapter_fallback_guard_pass: adapterFallback?.ok ?? null,
+        adapter_fallback_threshold: adapterFallback?.threshold ?? null,
       },
     },
     top_expiring_soon: Array.isArray(expiry?.expiring_soon) ? expiry.expiring_soon.slice(0, 10) : [],

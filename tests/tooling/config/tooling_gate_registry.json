@@ -223,6 +223,73 @@
       "script": "ops:debt:expiry:guard",
       "artifact_paths": ["core/local/artifacts/debt_expiry_guard_current.json"]
     },
+    "ops:ci-workflow:check": {
+      "owner": "ops",
+      "description": "CI workflow rationalization contract guard.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:ci-workflow:check",
+      "artifact_paths": [
+        "core/local/artifacts/ci_workflow_rationalization_contract_current.json",
+        "local/workspace/reports/CI_WORKFLOW_RATIONALIZATION_CONTRACT_CURRENT.md"
+      ]
+    },
+    "ops:ci-quality:check": {
+      "owner": "ops",
+      "description": "CI quality scorecard contract.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 120,
+      "script": "ops:ci-quality:check",
+      "artifact_paths": [
+        "core/local/artifacts/ci_quality_scorecard_current.json",
+        "local/workspace/reports/CI_QUALITY_SCORECARD_CURRENT.md",
+        "local/state/ops/ci_quality_scorecard/latest.json"
+      ]
+    },
+    "ops:orchestration:adapter-fallback:guard": {
+      "owner": "ops",
+      "description": "Typed-surface adapter fallback regression guard.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 180,
+      "script": "ops:orchestration:adapter-fallback:guard",
+      "artifact_paths": [
+        "core/local/artifacts/orchestration_adapter_fallback_guard_current.json",
+        "local/workspace/reports/ORCHESTRATION_ADAPTER_FALLBACK_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:dashboard-classic:debt:report": {
+      "owner": "ops",
+      "description": "Classic dashboard debt inventory.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:dashboard-classic:debt:report",
+      "artifact_paths": [
+        "core/local/artifacts/classic_dashboard_debt_inventory_current.json",
+        "local/workspace/reports/CLASSIC_DASHBOARD_DEBT_INVENTORY_CURRENT.md"
+      ]
+    },
+    "ops:tech-debt:report": {
+      "owner": "ops",
+      "description": "Consolidated tech debt report.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:tech-debt:report",
+      "artifact_paths": [
+        "core/local/artifacts/tech_debt_report_current.json",
+        "local/workspace/reports/TECH_DEBT_REPORT_CURRENT.md"
+      ]
+    },
+    "ops:policy-debt:summary": {
+      "owner": "ops",
+      "description": "Aggregated policy debt summary.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:policy-debt:summary",
+      "artifact_paths": [
+        "core/local/artifacts/policy_debt_summary_current.json",
+        "local/workspace/reports/POLICY_DEBT_SUMMARY_CURRENT.md"
+      ]
+    },
     "ops:system:fitness:gate": {
       "owner": "ops",
       "description": "System fitness gate.",
