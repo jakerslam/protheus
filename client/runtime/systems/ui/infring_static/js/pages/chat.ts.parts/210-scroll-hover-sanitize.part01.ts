@@ -332,29 +332,69 @@
 
     addFiles(files) {
       var self = this;
-      var allowed = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'text/plain', 'application/pdf',
-                      'text/markdown', 'application/json', 'text/csv'];
-      var allowedExts = ['.txt', '.pdf', '.md', '.json', '.csv'];
+      var acceptedMimeTypes = [
+        'image/png',
+        'image/jpeg',
+        'image/gif',
+        'image/webp',
+        'text/plain',
+        'application/pdf',
+        'text/markdown',
+        'application/json',
+        'text/csv'
+      ];
+      var acceptedExtensions = ['.txt', '.pdf', '.md', '.json', '.csv'];
+      var existingKeys = {};
+      var rows = Array.isArray(this.attachments) ? this.attachments : [];
+      var attachmentKeyFor = function(file) {
+        if (!file) return '';
+        return [
+          String(file.name || '').trim().toLowerCase(),
+          Number(file.size || 0),
+          Number(file.lastModified || 0)
+        ].join('|');
+      };
+      var isSupportedMimeType = function(mimeType) {
+        if (typeof mimeType !== 'string') return false;
+        if (mimeType.indexOf('image/') === 0) return true;
+        return acceptedMimeTypes.indexOf(mimeType) !== -1;
+      };
+      var isSupportedFile = function(file) {
+        if (!file) return false;
+        if (isSupportedMimeType(file.type)) return true;
+        var ext = file.name.lastIndexOf('.') !== -1
+          ? file.name.substring(file.name.lastIndexOf('.')).toLowerCase()
+          : '';
+        return acceptedExtensions.indexOf(ext) !== -1;
+      };
+      for (var existingIdx = 0; existingIdx < rows.length; existingIdx++) {
+        var existing = rows[existingIdx];
+        if (!existing || !existing.file) continue;
+        var existingKey = attachmentKeyFor(existing.file);
+        if (existingKey) existingKeys[existingKey] = true;
+      }
       for (var i = 0; i < files.length; i++) {
         var file = files[i];
+        var dedupeKey = attachmentKeyFor(file);
+        if (dedupeKey && existingKeys[dedupeKey]) {
+          InfringToast.info('Already attached: ' + file.name);
+          continue;
+        }
         if (file.size > 10 * 1024 * 1024) {
           InfringToast.warn('File "' + file.name + '" exceeds 10MB limit');
           continue;
         }
-        var typeOk = allowed.indexOf(file.type) !== -1;
-        if (!typeOk) {
-          var ext = file.name.lastIndexOf('.') !== -1 ? file.name.substring(file.name.lastIndexOf('.')).toLowerCase() : '';
-          typeOk = allowedExts.indexOf(ext) !== -1 || file.type.startsWith('image/');
-        }
+        var typeOk = isSupportedFile(file);
         if (!typeOk) {
           InfringToast.warn('File type not supported: ' + file.name);
           continue;
         }
         var preview = null;
-        if (file.type.startsWith('image/')) {
+        if (isSupportedMimeType(file.type) && file.type.indexOf('image/') === 0) {
           preview = URL.createObjectURL(file);
         }
         self.attachments.push({ file: file, preview: preview, uploading: false });
+        if (dedupeKey) existingKeys[dedupeKey] = true;
       }
     },
     removeAttachment(idx) {

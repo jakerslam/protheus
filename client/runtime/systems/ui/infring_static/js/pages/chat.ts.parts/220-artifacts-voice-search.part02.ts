@@ -31,12 +31,75 @@ function resolveBottomFollowTolerancePx(page, overridePx) {
   return raw;
 }
 
+function extractChatMarkdownText(message) {
+  var row = message && typeof message === 'object' ? message : {};
+  var text = String(row.text || '').trim();
+  if (!text && row.file_output && row.file_output.content) {
+    text = String(row.file_output.content || '').trim();
+  }
+  if (!text && row.folder_output && row.folder_output.tree) {
+    text = String(row.folder_output.tree || '').trim();
+  }
+  return text;
+}
+
+function buildChatMarkdown(messages, assistantName) {
+  var rows = Array.isArray(messages) ? messages : [];
+  if (!rows.length) return '';
+  var assistantLabel = String(assistantName || 'Assistant').trim() || 'Assistant';
+  var lines = ['# Chat with ' + assistantLabel, ''];
+  for (var i = 0; i < rows.length; i++) {
+    var row = rows[i] && typeof rows[i] === 'object' ? rows[i] : {};
+    var role = String(row.role || '').toLowerCase();
+    var label = role === 'user'
+      ? 'You'
+      : (role === 'agent'
+        ? assistantLabel
+        : (role === 'system' ? 'System' : 'Tool'));
+    var content = extractChatMarkdownText(row);
+    if (!content) continue;
+    var ts = Number(row.ts || row.timestamp || 0);
+    var tsLabel = Number.isFinite(ts) && ts > 0 ? (' (' + new Date(ts).toISOString() + ')') : '';
+    lines.push('## ' + label + tsLabel, '', content, '');
+  }
+  return lines.join('\n').trim();
+}
+
+function exportChatMarkdown(messages, assistantName) {
+  var markdown = buildChatMarkdown(messages, assistantName);
+  if (!markdown) return false;
+  var blob = new Blob([markdown + '\n'], { type: 'text/markdown' });
+  var url = URL.createObjectURL(blob);
+  var anchor = document.createElement('a');
+  var label = String(assistantName || 'chat').trim().replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '') || 'chat';
+  anchor.href = url;
+  anchor.download = 'chat-' + label + '-' + Date.now() + '.md';
+  anchor.click();
+  URL.revokeObjectURL(url);
+  return true;
+}
+
+function resolveDistanceFromLatestMessageBottom(page, el) {
+  var host = el || (page && typeof page.resolveMessagesScroller === 'function' ? page.resolveMessagesScroller() : null);
+  if (!host) return Number.POSITIVE_INFINITY;
+  var targetTop = resolveLatestMessageScrollTop(page, host);
+  var top = Math.max(0, Number(host.scrollTop || 0));
+  return Math.max(0, targetTop - top);
+}
+
+function syncLatestMessageBottomState(page, el, tolerancePx) {
+  if (!page || typeof page !== 'object') return;
+  var host = el || (typeof page.resolveMessagesScroller === 'function' ? page.resolveMessagesScroller() : null);
+  if (!host) return;
+  var hiddenBottom = resolveDistanceFromLatestMessageBottom(page, host);
+  page._stickToBottom = hiddenBottom <= resolveBottomFollowTolerancePx(page, tolerancePx);
+  page.showScrollDown = hiddenBottom > 120;
+}
+
 function isNearLatestMessageBottom(page, el, tolerancePx) {
   var host = el || (page && typeof page.resolveMessagesScroller === 'function' ? page.resolveMessagesScroller() : null);
   if (!host) return false;
-  var targetTop = resolveLatestMessageScrollTop(page, host);
-  var top = Math.max(0, Number(host.scrollTop || 0));
-  return Math.abs(top - targetTop) <= resolveBottomFollowTolerancePx(page, tolerancePx);
+  return resolveDistanceFromLatestMessageBottom(page, host) <= resolveBottomFollowTolerancePx(page, tolerancePx);
 }
 
 function clampScrollToLatestMessageBottom(page, el) {
@@ -69,6 +132,7 @@ function scheduleBottomHardCapClamp(page, el, targetTop, delayMs) {
     if (recentAt > 0 && (now - recentAt) < 96) return scheduleBottomHardCapClamp(page, host, hardCapTop, 72);
     clampScrollToLatestMessageBottom(page, host);
     if (typeof page.syncGridBackgroundOffset === 'function') page.syncGridBackgroundOffset(host);
+    syncLatestMessageBottomState(page, host);
   }, delay);
 }
 function resolveLatestMessageScrollTop(page, el) {

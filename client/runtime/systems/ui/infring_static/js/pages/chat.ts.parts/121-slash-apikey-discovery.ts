@@ -17,23 +17,29 @@
           input: discoveryInput,
           api_key: discoveryInput
         });
-        var providerName = String((discovery && discovery.provider) || '').trim();
-        var discoveredCount = Number((discovery && discovery.model_count) || 0);
-        var refreshed = await InfringAPI.get('/api/models');
-        var catalogRows = this.sanitizeModelCatalogRows((refreshed && refreshed.models) || []);
-        this._modelCache = catalogRows;
-        this._modelCacheTime = Date.now();
-        this.modelPickerList = catalogRows;
+        var catalogRows = typeof this.loadModelCatalogSafely === 'function'
+          ? await this.loadModelCatalogSafely({
+            prefer_cached: true,
+            suppress_errors: true
+          })
+          : this.sanitizeModelCatalogRows(this._modelCache || []);
         if (this.availableModelRowsCount(catalogRows) === 0) {
           this.injectNoModelsGuidance('apikey_discover');
         }
+        var statusLine = typeof this.describeModelDiscoveryResult === 'function'
+          ? this.describeModelDiscoveryResult(discovery, catalogRows)
+          : 'Model discovery updated.';
+        var providerName = String((discovery && discovery.provider) || '').trim();
+        var inputKind = String((discovery && discovery.input_kind) || '').trim().toLowerCase();
+        var guidanceLine = inputKind === 'local_path'
+          ? 'Local model path indexed and ready for `/model`.'
+          : (providerName
+            ? ('Provider `' + providerName + '` is now available in the model switcher.')
+            : 'Refresh the model switcher to use the new entries.');
         this.messages.push({
           id: ++msgId,
           role: 'system',
-          text:
-            'Model discovery updated' +
-            (providerName ? (' for `' + providerName + '`') : '') +
-            '. Added/updated ' + discoveredCount + ' model entries.',
+          text: statusLine + '\n' + guidanceLine,
           meta: '',
           tools: [],
           system_origin: 'slash:apikey'
@@ -51,4 +57,10 @@
         });
         this.scrollToBottom();
       }
+    },
+    exportCurrentChatMarkdown: function() {
+      var assistantName = String(
+        (this.currentAgent && (this.currentAgent.name || this.currentAgent.id)) || 'infring'
+      ).trim() || 'infring';
+      return exportChatMarkdown(this.messages, assistantName);
     },

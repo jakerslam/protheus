@@ -106,6 +106,19 @@
     - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/130-render-window-and-session.part02.ts`
     - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/190-drawer-and-queue.zz-part02.ts`
 
+- `OPENCLAW-TOOLING-CHAT-012`:
+  - Imported scroll-state, session-scope, attachment-support, model-loader, and markdown-export patterns from:
+    - `ui/src/ui/app-scroll.ts`
+    - `ui/src/ui/app-last-active-session.ts`
+    - `ui/src/ui/chat/attachment-support.ts`
+    - `ui/src/ui/controllers/models.ts`
+    - `ui/src/ui/chat/export.ts`
+  - Landed in:
+    - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/070-init-sequences-and-pointer.part01.ts`
+    - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/090-init-hooks-and-shortcuts.part02.ts`
+    - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/121-slash-apikey-discovery.ts`
+    - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/210-scroll-hover-sanitize.part01.ts`
+    - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/220-artifacts-voice-search.part02.ts`
 ## Current Intake State
-- Imported rows in this wave: `25`
+- Imported rows in this wave: `30`
 - Pending rows in this wave: `0`
