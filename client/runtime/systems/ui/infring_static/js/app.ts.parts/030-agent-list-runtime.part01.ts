@@ -361,8 +361,14 @@
       this.toggleAgentChatsSection = function() {
         this.agentChatsSectionCollapsed = false;
       };
+      var searchParams = new URLSearchParams(window.location.search || '');
+      var embeddedDashboardMode = searchParams.get('embed') === '1';
+      var embeddedPage = String(searchParams.get('page') || '').trim().toLowerCase();
+      if (embeddedDashboardMode && document && document.body && document.body.classList) {
+        document.body.classList.add('dashboard-embedded-shell');
+      }
       function handleHash() {
-        var hash = window.location.hash.replace('#', '') || 'chat';
+        var hash = window.location.hash.replace('#', '') || embeddedPage || 'chat';
         if (pageRedirects[hash]) {
           hash = pageRedirects[hash];
           window.location.hash = hash;

@@ -3487,10 +3487,6 @@ body[data-theme='dark'] .chat-map-marker-terminal {
   right: 0;
   z-index: 100;
   width: 240px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
   overflow: hidden;
 }
 .session-dropdown-header {
@@ -3498,7 +3494,6 @@ body[data-theme='dark'] .chat-map-marker-terminal {
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
-  border-bottom: 1px solid var(--border);
 }
 .session-item {
   display: flex;
@@ -5073,10 +5068,6 @@ body[data-theme='dark'] .prompt-suggestion-chip {
   bottom: calc(100% + 6px);
   left: 0;
   width: 340px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg);
   z-index: 12000;
   overflow: hidden;
 }
@@ -5783,14 +5774,8 @@ body[data-theme='dark'] .prompt-suggestion-chip {
   right: 0;
   width: 330px;
   max-width: min(92vw, 330px);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--surface) 94%, transparent);
-  box-shadow: var(--shadow-md);
   overflow: hidden;
   z-index: 18100;
-  backdrop-filter: blur(10px) saturate(1.08);
-  -webkit-backdrop-filter: blur(10px) saturate(1.08);
 }
 
 .notif-dropdown-head {
@@ -5799,7 +5784,6 @@ body[data-theme='dark'] .prompt-suggestion-chip {
   justify-content: space-between;
   gap: 8px;
   padding: 9px 10px;
-  border-bottom: 1px solid var(--border);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.03em;
@@ -5923,6 +5907,7 @@ body[data-theme='dark'] .prompt-suggestion-chip {
 }
 
 .dashboard-preview-trigger,
+.dashboard-dropdown-surface,
 .dashboard-popup-surface,
 .dashboard-preview-surface,
 .topbar-search-popup {
@@ -5954,6 +5939,21 @@ body[data-theme='dark'] .prompt-suggestion-chip {
   --dashboard-preview-text-align: center;
   --dashboard-preview-white-space: nowrap;
   --dashboard-preview-padding: var(--dashboard-preview-surface-padding);
+}
+
+.dashboard-dropdown-surface {
+  color: var(--dashboard-preview-surface-color);
+  border: 1px solid var(--dashboard-preview-surface-border);
+  border-radius: var(--dashboard-preview-surface-radius);
+  background: var(--dashboard-preview-surface-background);
+  box-shadow: var(--dashboard-preview-surface-shadow);
+  backdrop-filter: blur(var(--dashboard-preview-surface-blur)) saturate(var(--dashboard-preview-surface-saturate));
+  -webkit-backdrop-filter: blur(var(--dashboard-preview-surface-blur)) saturate(var(--dashboard-preview-surface-saturate));
+  overflow: hidden;
+}
+
+.dashboard-dropdown-header {
+  border-bottom: 1px solid var(--dashboard-preview-surface-border);
 }
 
 .dashboard-preview-trigger::after,
@@ -6163,12 +6163,6 @@ body[data-theme='dark'] .prompt-suggestion-chip {
   flex-direction: column;
   gap: 4px;
   padding: 10px;
-  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
-  border-radius: 18px;
-  background: color-mix(in srgb, var(--surface) 92%, transparent);
-  box-shadow: var(--shadow-lg);
-  backdrop-filter: blur(14px) saturate(1.08);
-  -webkit-backdrop-filter: blur(14px) saturate(1.08);
   z-index: 19420;
 }
 

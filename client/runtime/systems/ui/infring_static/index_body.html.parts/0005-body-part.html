@@ -87,8 +87,8 @@
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
                     <span class="session-count-badge" x-show="sessions.length > 1" x-text="sessions.length"></span>
                   </button>
-                  <div class="session-dropdown" x-show="sessionsOpen" @click.outside="sessionsOpen = false" x-transition>
-                    <div class="session-dropdown-header">
+                  <div class="session-dropdown dashboard-dropdown-surface" x-show="sessionsOpen" @click.outside="sessionsOpen = false" x-transition>
+                    <div class="session-dropdown-header dashboard-dropdown-header">
                       <span class="text-xs font-bold">Sessions</span>
                       <button class="btn btn-ghost btn-sm" @click="createSession()" style="padding:2px 6px;font-size:11px">+ New</button>
                     </div>

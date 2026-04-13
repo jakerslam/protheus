@@ -190,6 +190,26 @@ function assertDashboardFileSizeCaps() {
   );
 }
 
+function assertSvelteKitPrimaryDashboardContract() {
+  const hostSource = readUtf8(ADAPTER_DASHBOARD_HOST_TS_PATH);
+  const distBuildSource = readUtf8(path.resolve(ROOT, 'tests/tooling/scripts/ci/build_dashboard_dist.ts'));
+  assertContains(
+    hostSource,
+    "process.env.INFRING_DASHBOARD_UI || 'sveltekit'",
+    'dashboard host should default to SvelteKit as the requested UI mode'
+  );
+  assertContains(
+    hostSource,
+    "pathname === '/dashboard-classic' || pathname === '/dashboard-shell'",
+    'dashboard host should preserve an explicit classic-only fallback route'
+  );
+  assertContains(
+    distBuildSource,
+    "const svelteBuildSrc = path.join(svelteSrc, 'build');",
+    'dashboard dist build should package the SvelteKit build output'
+  );
+}
+
 function walkUiJsFiles(dir, out = []) {
   if (!fs.existsSync(dir)) return out;
   const entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -392,7 +412,7 @@ function assertTopbarHeroSystemMenu() {
   const htmlSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/infring_static/index_body.html'));
   const hostSource = readUtf8(ADAPTER_DASHBOARD_HOST_TS_PATH);
   assertHeroMenuIsNotClipped();
-  assertContains(htmlSource, 'class="topbar-hero-menu"', 'topbar hero dropdown container missing');
+  assertContains(htmlSource, 'class="topbar-hero-menu dashboard-dropdown-surface"', 'topbar hero dropdown container missing');
   assertContains(htmlSource, "runTopbarHeroCommand('restart')", 'topbar hero restart action missing');
   assertContains(htmlSource, "runTopbarHeroCommand('update')", 'topbar hero update action missing');
   assertContains(htmlSource, "runTopbarHeroCommand('shutdown')", 'topbar hero shutdown action missing');

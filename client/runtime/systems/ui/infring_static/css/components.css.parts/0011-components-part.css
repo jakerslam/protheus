@@ -58,10 +58,6 @@ body[data-theme='dark'] .prompt-suggestion-chip {
   bottom: calc(100% + 6px);
   left: 0;
   width: 340px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg);
   z-index: 12000;
   overflow: hidden;
 }

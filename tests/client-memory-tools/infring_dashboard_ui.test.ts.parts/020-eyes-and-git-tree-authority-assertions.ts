@@ -404,6 +404,31 @@ function assertInterfaceSafetyGuards() {
   );
   assertContains(
     componentsSource,
+    '.dashboard-dropdown-surface {',
+    'shared dashboard dropdown surface styles missing'
+  );
+  assertContains(
+    htmlSource,
+    'class="topbar-hero-menu dashboard-dropdown-surface"',
+    'hero dropdown should share the popup/dropdown surface styling'
+  );
+  assertContains(
+    htmlSource,
+    'class="notif-dropdown dashboard-dropdown-surface"',
+    'notifications dropdown should share the popup/dropdown surface styling'
+  );
+  assertContains(
+    htmlSource,
+    'class="session-dropdown dashboard-dropdown-surface"',
+    'session/agent details dropdown should share the popup/dropdown surface styling'
+  );
+  assertContains(
+    htmlSource,
+    'class="model-switcher-dropdown model-switcher-dropdown-inline dashboard-dropdown-surface"',
+    'model switcher dropdown should share the popup/dropdown surface styling'
+  );
+  assertContains(
+    componentsSource,
     '--dashboard-preview-surface-radius: 18px;',
     'shared dashboard popup surface should use a fixed radius so multi-line cards do not stretch into pills'
   );
@@ -657,6 +682,7 @@ function assertLifecycleAndPlatformSrsEvidence() {
 
 function runSnapshotAssertions() {
   assertDashboardFileSizeCaps();
+  assertSvelteKitPrimaryDashboardContract();
   assertThinClientAuthorityBoundary();
   assertLegacyDashboardArtifactsRemoved();
   assertChatSyntaxGuards();
