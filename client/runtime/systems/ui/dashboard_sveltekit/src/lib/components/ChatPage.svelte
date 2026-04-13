@@ -2,7 +2,6 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { onDestroy, onMount } from 'svelte';
-  import { dashboardClassicHref } from '$lib/dashboard';
   import ChatComposer from '$lib/components/ChatComposer.svelte';
   import ChatDrawer from '$lib/components/ChatDrawer.svelte';
   import ChatSidebar from '$lib/components/ChatSidebar.svelte';
@@ -412,7 +411,7 @@
   <ChatSidebar {agents} {activeAgentId} loading={loadingAgents} creating={creatingAgent} on:refresh={() => void refreshAgents()} on:create={() => void handleCreateAgent()} on:select={(event) => void activateAgent(event.detail.id, { syncQuery: true, forceReload: event.detail.id !== activeAgentId || messages.length === 0 })} />
 
   <div class="chat-workbench">
-    <ChatStatusHeader {activeAgent} {activeModel} {streamState} {drawerOpen} {error} {notice} classicHref={dashboardClassicHref('chat')} on:toggledrawer={() => { drawerOpen = !drawerOpen; if (drawerOpen && models.length === 0) void loadModels(); }} />
+    <ChatStatusHeader {activeAgent} {activeModel} {streamState} {drawerOpen} {error} {notice} on:toggledrawer={() => { drawerOpen = !drawerOpen; if (drawerOpen && models.length === 0) void loadModels(); }} />
 
     <ChatTranscript {activeAgentId} loading={loadingSession} {messages} />
     <ChatComposer bind:value={composer} bind:files={pendingFiles} disabled={!activeAgentId || sending} {sending} on:submit={() => void handleSend()} />

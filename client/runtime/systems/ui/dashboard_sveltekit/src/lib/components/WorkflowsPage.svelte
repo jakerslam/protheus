@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { dashboardClassicHref } from '$lib/dashboard';
   import WorkflowEditorPanel from '$lib/components/WorkflowEditorPanel.svelte';
   import WorkflowRunPanel from '$lib/components/WorkflowRunPanel.svelte';
   import { createWorkflow, deleteWorkflow, readWorkflow, readWorkflowRuns, readWorkflows, runWorkflow, updateWorkflow, type DashboardWorkflowRow, type WorkflowStepInput } from '$lib/workflows';
@@ -121,7 +120,6 @@
     </div>
     <div class="hero-actions">
       <button class="ghost" type="button" on:click={() => { selected = null; resetForm(); }}>New workflow</button>
-      <a class="ghost" href={dashboardClassicHref('workflows')}>Open classic workflows</a>
     </div>
   </div>
 

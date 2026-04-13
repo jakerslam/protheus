@@ -6,7 +6,6 @@
   export let activeModel = 'Select a conversation';
   export let streamState = 'disconnected';
   export let drawerOpen = false;
-  export let classicHref = '';
   export let error = '';
   export let notice = '';
 
@@ -41,7 +40,6 @@
     <button class="ghost" type="button" on:click={() => dispatch('toggledrawer')}>
       {drawerOpen ? 'Hide details' : 'Details'}
     </button>
-    <a class="ghost" href={classicHref}>Open classic chat</a>
   </div>
 </header>
 

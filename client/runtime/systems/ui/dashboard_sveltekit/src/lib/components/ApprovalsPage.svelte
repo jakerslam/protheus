@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { dashboardClassicHref } from '$lib/dashboard';
   import { approveApproval, readApprovals, rejectApproval, type DashboardApprovalRow } from '$lib/approvals';
   import { onMount } from 'svelte';
 
@@ -81,7 +80,6 @@
         <option value="approved">Approved</option>
         <option value="rejected">Rejected</option>
       </select>
-      <a class="ghost" href={dashboardClassicHref('approvals')}>Open classic approvals</a>
     </div>
   </div>
 

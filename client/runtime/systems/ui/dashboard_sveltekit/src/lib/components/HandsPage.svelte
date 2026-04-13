@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { dashboardClassicHref } from '$lib/dashboard';
   import { activateHand, checkHandDependencies, deleteHandInstance, pauseHandInstance, readActiveHands, readHandDetail, readHandsCatalog, resumeHandInstance, type DashboardHandInstanceRow, type DashboardHandRow } from '$lib/hands';
   import { onMount } from 'svelte';
 
@@ -105,7 +104,6 @@
     </div>
     <div class="hero-actions">
       <button class="ghost" type="button" on:click={() => void refresh()} disabled={loading}>{loading ? 'Refreshing…' : 'Refresh'}</button>
-      <a class="ghost" href={dashboardClassicHref('hands')}>Open classic hands</a>
     </div>
   </div>
 

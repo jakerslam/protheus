@@ -1,6 +1,5 @@
 <script lang="ts">
   import type { DashboardModelRow } from '$lib/chat';
-  import { dashboardClassicHref } from '$lib/dashboard';
   import type { DashboardProviderRow, DashboardSystemInfo } from '$lib/settings';
   import {
     addCustomModel,
@@ -162,7 +161,6 @@
       <button class="ghost" type="button" on:click={() => void refreshAll()} disabled={loading}>
         {loading ? 'Refreshing…' : 'Refresh'}
       </button>
-      <a class="ghost" href={dashboardClassicHref('settings')}>Open classic settings</a>
     </div>
   </div>
 

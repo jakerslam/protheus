@@ -234,6 +234,7 @@
     "test:ops:empty-fort:visuals": "node client/runtime/lib/ts_entrypoint.ts tests/client-memory-tools/empty_fort_visuals.test.ts",
     "test:ops:empty-fort:verify": "node client/runtime/lib/ts_entrypoint.ts tests/client-memory-tools/verify_empty_fort.test.ts",
     "test:ops:dashboard-ui": "node client/runtime/lib/ts_entrypoint.ts tests/client-memory-tools/infring_dashboard_ui.test.ts",
+    "test:ops:dashboard-native-operator-flows": "node client/runtime/lib/ts_entrypoint.ts tests/client-memory-tools/infring_dashboard_native_operator_flows.test.ts",
     "test:ops:tools:context-route": "node client/runtime/lib/ts_entrypoint.ts tests/client-memory-tools/tool_context_router.test.ts",
     "test:ops:tools:notify": "node client/runtime/lib/ts_entrypoint.ts tests/client-memory-tools/tool_notification_lane.test.ts",
     "test:ops:tools:shadow-bridge": "node client/runtime/lib/ts_entrypoint.ts tests/client-memory-tools/shadow_tool_notification_bridge.test.ts",

@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { dashboardClassicHref } from '$lib/dashboard';
   import RuntimeOverviewPanel from '$lib/components/RuntimeOverviewPanel.svelte';
   import RuntimeProvidersPanel from '$lib/components/RuntimeProvidersPanel.svelte';
   import RuntimeWebToolingPanel from '$lib/components/RuntimeWebToolingPanel.svelte';
@@ -46,7 +45,6 @@
       <button class="ghost" type="button" on:click={() => void refresh()} disabled={loading}>
         {loading ? 'Refreshing…' : 'Refresh'}
       </button>
-      <a class="ghost" href={dashboardClassicHref('runtime')}>Open classic runtime</a>
     </div>
   </div>
 
