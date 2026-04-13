@@ -30,7 +30,7 @@ jobs:
         shell: bash
         run: |
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            node tests/tooling/scripts/ci/layer_placement_check.ts --base-ref=origin/${{ github.base_ref }}
+            node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/layer_placement_check.ts --base-ref=origin/${{ github.base_ref }}
           else
-            node tests/tooling/scripts/ci/layer_placement_check.ts --base-ref=HEAD~1
+            node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/layer_placement_check.ts --base-ref=HEAD~1
           fi
