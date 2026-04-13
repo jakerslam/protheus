@@ -13,6 +13,31 @@
       this.loadSlashAliases();
       this.fetchModelContextWindows();
       this.fetchProactiveTelemetryAlerts(false);
+      this.refreshCurrentAgentSessionListIfStale = function(reason, maxAgeMs) {
+        var agentId = String(self.currentAgent && self.currentAgent.id ? self.currentAgent.id : '').trim();
+        if (!agentId) return;
+        if (!self._sessionsLastLoadedAtByAgent || typeof self._sessionsLastLoadedAtByAgent !== 'object') {
+          self._sessionsLastLoadedAtByAgent = {};
+        }
+        var normalizedAgentId = typeof self.normalizeSessionAgentId === 'function'
+          ? self.normalizeSessionAgentId(agentId)
+          : agentId.toLowerCase();
+        var lastLoadedAt = Number(self._sessionsLastLoadedAtByAgent[normalizedAgentId] || 0);
+        var ttlMs = Number(maxAgeMs || 0);
+        if (!Number.isFinite(ttlMs) || ttlMs < 2000) ttlMs = 15000;
+        if (lastLoadedAt > 0 && (Date.now() - lastLoadedAt) < ttlMs) return;
+        Promise.resolve(self.loadSessions(agentId)).catch(function() { return []; });
+      };
+      this._chatFocusSessionRefreshHandler = function() {
+        if (document && document.visibilityState && document.visibilityState === 'hidden') return;
+        self.refreshCurrentAgentSessionListIfStale('focus', 15000);
+      };
+      this._chatVisibilitySessionRefreshHandler = function() {
+        if (!document || document.visibilityState !== 'visible') return;
+        self.refreshCurrentAgentSessionListIfStale('visibility', 15000);
+      };
+      window.addEventListener('focus', this._chatFocusSessionRefreshHandler);
+      document.addEventListener('visibilitychange', this._chatVisibilitySessionRefreshHandler);
 
       // Ctrl+/ keyboard shortcut
       document.addEventListener('keydown', function(e) {
@@ -73,6 +98,14 @@
         }
         self.teardownChatResizeBlurObserver();
         self.stopAgentTrailLoop(true);
+        if (self._chatFocusSessionRefreshHandler) {
+          window.removeEventListener('focus', self._chatFocusSessionRefreshHandler);
+          self._chatFocusSessionRefreshHandler = null;
+        }
+        if (self._chatVisibilitySessionRefreshHandler) {
+          document.removeEventListener('visibilitychange', self._chatVisibilitySessionRefreshHandler);
+          self._chatVisibilitySessionRefreshHandler = null;
+        }
       });
 
       // Load session + session list when agent changes
