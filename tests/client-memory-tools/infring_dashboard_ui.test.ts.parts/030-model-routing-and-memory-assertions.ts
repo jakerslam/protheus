@@ -398,10 +398,54 @@ function assertNativeAgentsRouteContract() {
   assertContains(routeLoadSource, 'export const prerender = true;', 'native agents route should keep static prerender options in +page.ts');
 }
 
+function assertNativeSettingsRouteContract() {
+  const dashboardSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/dashboard.ts'));
+  const settingsRuntimeSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/settings.ts'));
+  const pageSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/components/SettingsPage.svelte'));
+  const providersSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/components/ProviderSettingsPanel.svelte'));
+  const modelsSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/components/ModelCatalogPanel.svelte'));
+  const systemInfoSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/components/SystemInfoPanel.svelte'));
+  const routeSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/routes/settings/+page.svelte'));
+  const routeLoadSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/routes/settings/+page.ts'));
+
+  assert.ok(
+    /\{\s*key:\s*'settings'[\s\S]{0,220}mode:\s*'native'/.test(dashboardSource),
+    'dashboard registry should mark settings as a native route'
+  );
+  assertContains(settingsRuntimeSource, '/api/providers', 'native settings runtime should read the authoritative provider catalog');
+  assertContains(settingsRuntimeSource, '/api/models', 'native settings runtime should read the authoritative model catalog');
+  assertContains(settingsRuntimeSource, '/api/version', 'native settings runtime should read the authoritative version lane');
+  assertContains(settingsRuntimeSource, '/api/status', 'native settings runtime should read the authoritative runtime status lane');
+  assertContains(settingsRuntimeSource, '/api/providers/${encodeURIComponent(providerId)}/key', 'native settings runtime should update provider keys through the authoritative key endpoint');
+  assertContains(settingsRuntimeSource, '/api/providers/${encodeURIComponent(providerId)}/test', 'native settings runtime should test providers through the authoritative provider test endpoint');
+  assertContains(settingsRuntimeSource, '/api/providers/${encodeURIComponent(providerId)}/url', 'native settings runtime should update local provider URLs through the authoritative URL endpoint');
+  assertContains(settingsRuntimeSource, '/api/models/custom', 'native settings runtime should manage custom models through the authoritative custom-model contract');
+  assertContains(pageSource, 'readProviders()', 'native settings page should load providers through the native settings runtime helper');
+  assertContains(pageSource, 'readSettingsModels()', 'native settings page should load the model catalog through the native settings runtime helper');
+  assertContains(pageSource, 'readSystemInfo()', 'native settings page should load runtime status through the native settings runtime helper');
+  assertContains(pageSource, 'await saveProviderKey(providerId, value)', 'native settings page should save provider keys through the authoritative helper');
+  assertContains(pageSource, 'await saveProviderUrl(providerId, value)', 'native settings page should save provider URLs through the authoritative helper');
+  assertContains(pageSource, 'await addCustomModel({', 'native settings page should add custom models through the authoritative helper');
+  assertContains(pageSource, 'await deleteCustomModel(modelId)', 'native settings page should delete custom models through the authoritative helper');
+  assertContains(pageSource, '<ProviderSettingsPanel', 'native settings page should render a dedicated native provider settings panel');
+  assertContains(pageSource, '<ModelCatalogPanel', 'native settings page should render a dedicated native model catalog panel');
+  assertContains(pageSource, '<SystemInfoPanel', 'native settings page should render a dedicated native system info panel');
+  assertContains(pageSource, "href={dashboardClassicHref('settings')}", 'native settings should preserve a classic escape hatch while deeper legacy tabs remain');
+  assertContains(providersSource, "dispatch('savekey'", 'native provider settings panel should expose key save via event dispatch');
+  assertContains(providersSource, "dispatch('testprovider'", 'native provider settings panel should expose provider test via event dispatch');
+  assertContains(providersSource, "dispatch('saveurl'", 'native provider settings panel should expose local URL save via event dispatch');
+  assertContains(modelsSource, "dispatch('addcustom')", 'native model catalog panel should expose custom-model creation via event dispatch');
+  assertContains(modelsSource, "dispatch('deletecustom'", 'native model catalog panel should expose custom-model deletion via event dispatch');
+  assertContains(systemInfoSource, 'formatUptime', 'native system info panel should format runtime uptime locally without new authority');
+  assertContains(routeSource, '<SettingsPage />', 'native settings route should render the Svelte settings page directly');
+  assertContains(routeLoadSource, 'export const prerender = true;', 'native settings route should keep static prerender options in +page.ts');
+}
+
 const runSnapshotAssertionsWithNativeChat = runSnapshotAssertions;
 runSnapshotAssertions = function() {
   assertNativeChatRouteContract();
   assertNativeAgentsRouteContract();
+  assertNativeSettingsRouteContract();
   return runSnapshotAssertionsWithNativeChat();
 };
 
