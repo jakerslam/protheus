@@ -11,7 +11,7 @@
     },
 
     pushInputHistoryEntry: function(explicitMode, rawText) {
-      var text = String(rawText == null ? '' : rawText).trim();
+      var text = this.normalizeInputHistoryEntry(rawText);
       if (!text) return;
       var mode = this.inputHistoryMode(explicitMode);
       var rows = this.inputHistoryEntries(mode);
@@ -20,10 +20,9 @@
         this.resetInputHistoryNavigation(mode);
         return;
       }
-      rows.push(text);
-      var maxEntries = Number(this.inputHistoryMaxEntries || 0);
-      if (!Number.isFinite(maxEntries) || maxEntries < 20) maxEntries = 120;
-      if (rows.length > maxEntries) rows.splice(0, rows.length - maxEntries);
+      var nextRows = this.normalizeInputHistoryRows(rows.concat([text]));
+      rows.splice(0, rows.length);
+      for (var i = 0; i < nextRows.length; i += 1) rows.push(nextRows[i]);
       this.syncInputHistoryToCache(mode);
       this.resetInputHistoryNavigation(mode);
     },
@@ -36,11 +35,14 @@
       if (!Array.isArray(rows) || !rows.length) return false;
       var cursor = mode === 'terminal' ? Number(this.terminalInputHistoryCursor || -1) : Number(this.chatInputHistoryCursor || -1);
       if (!Number.isFinite(cursor)) cursor = -1;
-      var draft = '';
+      var draft = mode === 'terminal'
+        ? String(this.terminalInputHistoryDraft || '')
+        : String(this.chatInputHistoryDraft || '');
 
       var nextText = '';
       if (step < 0) {
         if (cursor < 0) {
+          draft = String(this.inputText || '');
           cursor = rows.length - 1;
         } else {
           cursor = Math.max(0, cursor - 1);
@@ -48,11 +50,10 @@
         nextText = String(rows[cursor] || '');
       } else {
         if (cursor < 0) {
-          nextText = '';
+          return false;
         } else if (cursor >= rows.length - 1) {
           cursor = -1;
-          nextText = '';
-          draft = '';
+          nextText = draft;
         } else {
           cursor += 1;
           nextText = String(rows[cursor] || '');
