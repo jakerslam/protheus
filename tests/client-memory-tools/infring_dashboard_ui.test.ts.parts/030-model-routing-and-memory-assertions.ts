@@ -309,9 +309,99 @@ function assertNativeChatRouteContract() {
   );
 }
 
+function assertNativeAgentsRouteContract() {
+  const dashboardSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/dashboard.ts'));
+  const agentsRuntimeSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/agents.ts'));
+  const pageSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/components/AgentsPage.svelte'));
+  const detailSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/components/AgentDetailPanel.svelte'));
+  const templatesSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/components/AgentTemplatesPanel.svelte'));
+  const routeSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/routes/agents/+page.svelte'));
+  const routeLoadSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/routes/agents/+page.ts'));
+
+  assert.ok(
+    /\{\s*key:\s*'agents'[\s\S]{0,220}mode:\s*'native'/.test(dashboardSource),
+    'dashboard registry should mark agents as a native route'
+  );
+  assertContains(
+    agentsRuntimeSource,
+    '/api/agents/terminated',
+    'native agents runtime should read the authoritative terminated-agent lane'
+  );
+  assertContains(
+    agentsRuntimeSource,
+    '/api/templates',
+    'native agents runtime should read the authoritative template catalog'
+  );
+  assertContains(
+    agentsRuntimeSource,
+    "/api/agents/${encodeURIComponent(agent.id)}",
+    'native agents runtime should archive agents through the authoritative agent endpoint'
+  );
+  assertContains(
+    agentsRuntimeSource,
+    '/history',
+    'native agents runtime should expose authoritative history clearing'
+  );
+  assertContains(
+    agentsRuntimeSource,
+    '/clone',
+    'native agents runtime should expose authoritative cloning'
+  );
+  assertContains(
+    pageSource,
+    'await readSidebarAgents();',
+    'native agents page should load the authoritative active roster'
+  );
+  assertContains(
+    pageSource,
+    'await readTerminatedAgents();',
+    'native agents page should load the authoritative archived-agent roster'
+  );
+  assertContains(
+    pageSource,
+    'await readTemplates();',
+    'native agents page should load the authoritative template catalog'
+  );
+  assertContains(
+    pageSource,
+    'const created = await createDraftAgent();',
+    'native agents page should support native draft creation'
+  );
+  assertContains(
+    pageSource,
+    'await spawnTemplateAgent(templateName);',
+    'native agents page should spawn agents from the existing template manifest contract'
+  );
+  assertContains(
+    pageSource,
+    'await updateAgentConfig(selectedAgent.id, { name: nameDraft.trim() });',
+    'native agents page should rename agents through the authoritative config patch path'
+  );
+  assertContains(
+    pageSource,
+    'await updateAgentModel(selectedAgent.id, modelDraft.trim());',
+    'native agents page should switch models through the authoritative model path'
+  );
+  assertContains(pageSource, '<AgentDetailPanel', 'native agents page should render a dedicated native detail panel');
+  assertContains(pageSource, '<AgentTemplatesPanel', 'native agents page should render a dedicated native template panel');
+  assertContains(
+    pageSource,
+    "href={dashboardClassicHref('agents')}",
+    'native agents should preserve a classic escape hatch while deeper legacy tabs remain'
+  );
+  assertContains(detailSource, "dispatch('savename')", 'native agents detail panel should expose rename via event dispatch');
+  assertContains(detailSource, "dispatch('savemodel')", 'native agents detail panel should expose model switch via event dispatch');
+  assertContains(detailSource, "dispatch('clone')", 'native agents detail panel should expose clone via event dispatch');
+  assertContains(detailSource, "dispatch('archive')", 'native agents detail panel should expose archive via event dispatch');
+  assertContains(templatesSource, "dispatch('spawn'", 'native agents templates panel should expose spawn via event dispatch');
+  assertContains(routeSource, '<AgentsPage />', 'native agents route should render the Svelte agents page directly');
+  assertContains(routeLoadSource, 'export const prerender = true;', 'native agents route should keep static prerender options in +page.ts');
+}
+
 const runSnapshotAssertionsWithNativeChat = runSnapshotAssertions;
 runSnapshotAssertions = function() {
   assertNativeChatRouteContract();
+  assertNativeAgentsRouteContract();
   return runSnapshotAssertionsWithNativeChat();
 };
 
