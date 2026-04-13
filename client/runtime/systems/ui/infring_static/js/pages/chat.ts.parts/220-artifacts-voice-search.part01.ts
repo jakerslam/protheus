@@ -345,16 +345,11 @@
     get allFilteredMessages() {
       var query = String(this.searchQuery || '').trim();
       if (!query) return this.messages;
-      var q = query.toLowerCase();
+      var self = this;
       var filtered = this.messages.filter(function(m) {
+        if (typeof self.messageMatchesSearchQuery === 'function') return self.messageMatchesSearchQuery(m, query);
         var text = typeof (m && m.text) === 'string' ? m.text : String((m && m.text) || '');
-        var textMatch = text.toLowerCase().indexOf(q) !== -1;
-        if (textMatch) return true;
-        if (!m || !Array.isArray(m.tools)) return false;
-        return m.tools.some(function(t) {
-          var name = String((t && t.name) || '');
-          return name.toLowerCase().indexOf(q) !== -1;
-        });
+        return text.toLowerCase().indexOf(query.toLowerCase()) !== -1;
       });
       if (filtered.length > 0) return filtered;
       // Avoid "blank thread" states from stale hidden query filters.

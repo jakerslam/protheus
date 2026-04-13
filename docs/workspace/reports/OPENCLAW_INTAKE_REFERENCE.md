@@ -57,7 +57,28 @@
   - Landed in:
     - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/120-slash-and-agent-select.ts`
     - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/192-slash-alias-and-alerts.ts`
+- `OPENCLAW-TOOLING-CHAT-007`:
+  - Imported visible-text / thinking extraction and grouped-role normalization from:
+    - `ui/src/ui/chat/message-normalizer.ts`
+    - `ui/src/ui/chat/message-extract.ts`
+  - Landed in:
+    - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/080-normalize-and-context.part02.ts`
+    - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/170-grouping-and-day-map.part01.ts`
+- `OPENCLAW-TOOLING-CHAT-008`:
+  - Imported grouped-render preview shaping plus search-aware navigation from:
+    - `ui/src/ui/chat/grouped-render.ts`
+    - `ui/src/ui/chat/search-match.ts`
+  - Landed in:
+    - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/170-grouping-and-day-map.part01.ts`
+    - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/170-grouping-and-day-map.part02.ts`
+    - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/180-map-navigation.part01.ts`
+    - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/220-artifacts-voice-search.part01.ts`
+- `OPENCLAW-TOOLING-CHAT-009`:
+  - Imported search-window filtering behavior from:
+    - `ui/src/ui/views/chat.ts`
+  - Landed in:
+    - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/220-artifacts-voice-search.part01.ts`
 
 ## Current Intake State
-- Imported rows in this wave: `10`
+- Imported rows in this wave: `15`
 - Pending rows in this wave: `0`

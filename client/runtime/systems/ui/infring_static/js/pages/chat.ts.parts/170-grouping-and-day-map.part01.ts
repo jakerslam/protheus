@@ -22,20 +22,18 @@
     },
 
     isLongMessagePreview: function(msg) {
-      if (!msg) return false;
-      var raw = '';
-      if (typeof msg.text === 'string' && msg.text.trim()) {
-        raw = msg.text;
-      } else if (Array.isArray(msg.tools) && msg.tools.length) {
-        raw = msg.tools.map(function(tool) {
-          return tool && tool.name ? tool.name : 'tool';
-        }).join(', ');
-      }
-      if (!raw) return false;
-      var compact = raw.replace(/\s+/g, ' ').trim();
-      if (compact.length >= 220) return true;
-      if (raw.indexOf('\n\n') >= 0) return true;
-      return false;
+      var compact = this.messageVisiblePreviewText(msg);
+      if (!compact) return false;
+      return compact.length >= 220 || compact.indexOf('\n\n') >= 0;
+    },
+
+    messageVisiblePreviewText: function(msg) {
+      if (!msg) return '';
+      var text = typeof this.extractMessageVisibleText === 'function' ? this.extractMessageVisibleText(msg) : '';
+      if (!text && typeof msg.thinking_text === 'string') text = String(msg.thinking_text || '');
+      if (!text && Array.isArray(msg.tools) && msg.tools.length) text = this.messageToolSummary(msg);
+      if (!text && msg.notice_label) text = String(msg.notice_label || '');
+      return String(text || '').trim();
     },
 
     isSelectedMessage: function(msg, idx) {
@@ -322,11 +320,7 @@
 
     agentMessageSignature: function(message) {
       if (!message || typeof message !== 'object') return '';
-      var text = String(message.text || '');
-      text = this.stripModelPrefix(text);
-      text = this.sanitizeToolText(text);
-      text = this.stripArtifactDirectivesFromText(text);
-      text = text.replace(/\s+/g, ' ').trim().toLowerCase();
+      var text = this.messageVisiblePreviewText(message).replace(/\s+/g, ' ').trim().toLowerCase();
       var tools = Array.isArray(message.tools) ? message.tools : [];
       var toolParts = [];
       for (var i = 0; i < tools.length && i < 8; i += 1) {
