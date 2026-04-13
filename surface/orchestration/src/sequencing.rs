@@ -255,7 +255,10 @@ fn tool_fallback_actions(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{contracts::OrchestrationRequest, ingress};
+    use crate::{
+        contracts::{OrchestrationRequest, RequestSurface},
+        ingress,
+    };
     use serde_json::json;
 
     #[test]
@@ -276,6 +279,7 @@ mod tests {
         let request = ingress::normalize_request(OrchestrationRequest {
             session_id: "s1".to_string(),
             intent: "search the web".to_string(),
+            surface: RequestSurface::Legacy,
             payload: json!({}),
         });
         let context = ToolFallbackContext {
@@ -302,6 +306,7 @@ mod tests {
         let request = ingress::normalize_request(OrchestrationRequest {
             session_id: "s1".to_string(),
             intent: "send directive to child agent".to_string(),
+            surface: RequestSurface::Legacy,
             payload: json!({}),
         });
         let context = ToolFallbackContext {
@@ -328,6 +333,7 @@ mod tests {
         let request = ingress::normalize_request(OrchestrationRequest {
             session_id: "s1".to_string(),
             intent: "read workspace file".to_string(),
+            surface: RequestSurface::Legacy,
             payload: json!({"path":"README.md"}),
         });
         let actions = fallback_actions(&request.typed_request, RequestClass::ToolCall, None);

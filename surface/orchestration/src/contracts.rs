@@ -97,7 +97,20 @@ pub enum CoreContractCall {
 pub struct OrchestrationRequest {
     pub session_id: String,
     pub intent: String,
+    #[serde(default)]
+    pub surface: RequestSurface,
     pub payload: Value,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RequestSurface {
+    #[default]
+    Legacy,
+    Cli,
+    Gateway,
+    Sdk,
+    Dashboard,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -106,15 +119,42 @@ pub struct UserConstraint {
     pub value: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum TargetDescriptor {
+    WorkspacePath {
+        value: String,
+    },
+    Url {
+        value: String,
+    },
+    TaskId {
+        value: String,
+    },
+    MemoryRef {
+        scope: String,
+        object_id: Option<String>,
+    },
+    ToolName {
+        value: String,
+    },
+    Unknown {
+        value: String,
+    },
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TypedOrchestrationRequest {
     pub session_id: String,
+    pub surface: RequestSurface,
     pub legacy_intent: String,
+    pub adapted: bool,
     pub payload: Value,
     pub request_kind: RequestKind,
     pub operation_kind: OperationKind,
     pub resource_kind: ResourceKind,
     pub mutability: Mutability,
+    pub target_descriptors: Vec<TargetDescriptor>,
     pub target_refs: Vec<String>,
     pub tool_hints: Vec<String>,
     pub policy_scope: PolicyScope,
@@ -128,6 +168,8 @@ pub enum AmbiguityReason {
     MultipleOperationCandidates,
     MultipleResourceCandidates,
     MissingTargetSignals,
+    SurfaceAdapterFallback,
+    UnresolvedTargetDomain,
     LowConfidence,
     LegacyCompatOnly,
 }
