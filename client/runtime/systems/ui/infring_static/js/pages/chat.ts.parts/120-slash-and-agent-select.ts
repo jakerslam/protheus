@@ -53,13 +53,57 @@
         case '/model':
           if (self.currentAgent) {
             if (cmdArgs) {
-              self.switchAgentModelWithGuards({ id: cmdArgs }, {
+              var resolvedSlashModel = typeof self.resolveModelCatalogOption === 'function'
+                ? self.resolveModelCatalogOption(
+                  cmdArgs,
+                  String((self.currentAgent && self.currentAgent.model_provider) || '').trim(),
+                  typeof self.modelCatalogRows === 'function' ? self.modelCatalogRows() : []
+                )
+                : null;
+              self.switchAgentModelWithGuards(resolvedSlashModel || { id: cmdArgs }, {
                 agent_id: self.currentAgent.id
               }).catch(function(e) {
                 InfringToast.error('Model switch failed: ' + e.message);
               });
             } else {
-              self.messages.push({ id: ++msgId, role: 'system', text: '**Current Model**\n- Provider: `' + (self.currentAgent.model_provider || '?') + '`\n- Model: `' + (self.currentAgent.model_name || '?') + '`', meta: '', tools: [], system_origin: 'slash:model' });
+              var catalogRows = typeof self.modelCatalogRows === 'function' ? self.modelCatalogRows() : [];
+              var selectedModelRef = typeof self.normalizeQualifiedModelRef === 'function'
+                ? self.normalizeQualifiedModelRef(
+                  String((self.currentAgent && (self.currentAgent.model_name || self.currentAgent.runtime_model)) || ''),
+                  String((self.currentAgent && self.currentAgent.model_provider) || '').trim(),
+                  catalogRows
+                )
+                : String((self.currentAgent && (self.currentAgent.model_name || self.currentAgent.runtime_model)) || '').trim();
+              var runtimeModelRef = typeof self.normalizeQualifiedModelRef === 'function'
+                ? self.normalizeQualifiedModelRef(
+                  String((self.currentAgent && (self.currentAgent.runtime_model || self.currentAgent.model_name)) || ''),
+                  String((self.currentAgent && self.currentAgent.model_provider) || '').trim(),
+                  catalogRows
+                )
+                : String((self.currentAgent && (self.currentAgent.runtime_model || self.currentAgent.model_name)) || '').trim();
+              var selectedDisplay = typeof self.formatQualifiedModelDisplay === 'function'
+                ? self.formatQualifiedModelDisplay(selectedModelRef)
+                : selectedModelRef;
+              var runtimeDisplay = typeof self.formatQualifiedModelDisplay === 'function'
+                ? self.formatQualifiedModelDisplay(runtimeModelRef)
+                : runtimeModelRef;
+              var availableCount = Array.isArray(catalogRows)
+                ? catalogRows.filter(function(row) { return row && row.available !== false; }).length
+                : 0;
+              self.messages.push({
+                id: ++msgId,
+                role: 'system',
+                text:
+                  '**Current Model**\n' +
+                  '- Provider: `' + (self.currentAgent.model_provider || '?') + '`\n' +
+                  '- Selected: `' + (selectedDisplay || selectedModelRef || '?') + '`\n' +
+                  '- Runtime: `' + (runtimeDisplay || runtimeModelRef || '?') + '`\n' +
+                  '- Available catalog models: ' + availableCount + '\n' +
+                  '- Usage: `/model <provider/model>` or `/model <model>`',
+                meta: '',
+                tools: [],
+                system_origin: 'slash:model'
+              });
               self.scrollToBottom();
             }
           } else {

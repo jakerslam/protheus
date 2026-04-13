@@ -388,13 +388,21 @@
       var pending = this._pendingWsRequest;
       if (!pending || !pending.agent_id) return;
       this._pendingWsRecovering = true;
+      var recoverySeq = Number(this._pendingWsRecoverySeq || 0) + 1;
+      this._pendingWsRecoverySeq = recoverySeq;
       var agentId = String(pending.agent_id);
       var startedAt = Number(pending.started_at || Date.now());
       var recoverStartedAt = Date.now();
       var maxRecoverMs = 15000;
       var resolved = false;
+      var self = this;
+      var recoveryStillCurrent = function() {
+        if (Number(self._pendingWsRecoverySeq || 0) !== recoverySeq) return false;
+        if (!self._pendingWsRequest || String(self._pendingWsRequest.agent_id || '') !== agentId) return false;
+        return true;
+      };
       for (var attempt = 0; attempt < 30; attempt++) {
-        if (!this._pendingWsRequest || String(this._pendingWsRequest.agent_id || '') !== agentId) {
+        if (!recoveryStillCurrent()) {
           break;
         }
         if ((Date.now() - recoverStartedAt) > maxRecoverMs) {
@@ -402,8 +410,12 @@
         }
         try {
           var sessionData = await InfringAPI.get('/api/agents/' + encodeURIComponent(agentId) + '/session');
+          if (!recoveryStillCurrent()) break;
           var normalized = this.normalizeSessionMessages(sessionData);
-          var hasFreshAgentReply = this._pendingRequestReplyObserved(normalized, pending, startedAt);
+          var hasFreshAgentReply =
+            this._pendingRequestReplyObserved(normalized, pending, startedAt) ||
+            this._recentAgentReplyObserved(normalized, startedAt) ||
+            this._hasAgentReplyAfterLatestUser(normalized);
           if (!hasFreshAgentReply) {
             await new Promise(function(resolve) { setTimeout(resolve, 650); });
             continue;
@@ -431,10 +443,15 @@
           resolved = true;
           break;
         } catch(_) {
+          if (!recoveryStillCurrent()) break;
           await new Promise(function(resolve) { setTimeout(resolve, 500); });
         }
       }
 
+      if (!recoveryStillCurrent()) {
+        this._pendingWsRecovering = false;
+        return;
+      }
       var stillActiveAgent = !!(this.currentAgent && String(this.currentAgent.id || '') === agentId);
       if (!resolved && stillActiveAgent) {
         var localRows = Array.isArray(this.messages) ? this.messages : [];
@@ -486,6 +503,7 @@
         });
       }
       this._clearPendingWsRequest(agentId);
+      this._pendingWsRecovering = false;
     },
 
     async executeSlashCommand(cmd, cmdArgs) {
