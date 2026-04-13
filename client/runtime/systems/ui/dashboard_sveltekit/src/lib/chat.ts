@@ -42,10 +42,48 @@ export type DashboardChatSession = {
   raw: unknown;
 };
 
+export type DashboardUploadedFile = {
+  file_id: string;
+  filename: string;
+  content_type: string;
+};
+
+export type DashboardModelRow = {
+  id: string;
+  provider: string;
+  display_name: string;
+  local?: boolean;
+};
+
+export type DashboardAgentStreamEvent = Record<string, unknown>;
+
+export type DashboardAgentStreamController = {
+  disconnect: () => void;
+  sendMessage: (content: string, attachments?: DashboardUploadedFile[]) => boolean;
+  isConnected: () => boolean;
+};
+
 type JsonRecord = Record<string, unknown>;
 
 function asRecord(value: unknown): JsonRecord {
   return value && typeof value === 'object' ? (value as JsonRecord) : {};
+}
+
+function readAuthToken(): string {
+  if (typeof window === 'undefined' || !window.localStorage) return '';
+  try {
+    return String(window.localStorage.getItem('infring-api-key') || '').trim();
+  } catch {
+    return '';
+  }
+}
+
+function requestHeaders(withBody: boolean): Record<string, string> {
+  const headers: Record<string, string> = {};
+  const token = readAuthToken();
+  if (withBody) headers['Content-Type'] = 'application/json';
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
 }
 
 function textValue(value: unknown, limit = 24000): string {
@@ -194,7 +232,7 @@ async function requestJson<T>(method: string, url: string, body?: unknown): Prom
   const response = await fetch(url, {
     method,
     cache: 'no-store',
-    headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+    headers: requestHeaders(body !== undefined),
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!response.ok) {
@@ -208,6 +246,11 @@ async function requestJson<T>(method: string, url: string, body?: unknown): Prom
     throw new Error(message);
   }
   return (await response.json()) as T;
+}
+
+function wsBase(): string {
+  if (typeof window === 'undefined') return '';
+  return String(window.location.origin || '').replace(/^http/i, 'ws');
 }
 
 export async function readSidebarAgents(): Promise<DashboardAgentRow[]> {
@@ -241,9 +284,14 @@ export async function readAgentSession(agentId: string): Promise<DashboardChatSe
   };
 }
 
-export async function sendAgentMessage(agentId: string, message: string): Promise<void> {
-  await requestJson<JsonRecord>('POST', `/api/agents/${encodeURIComponent(agentId)}/message`, {
+export function messageFromPayload(payload: unknown, index = 0): DashboardChatMessage | null {
+  return normalizeMessage(asRecord(payload), index);
+}
+
+export async function sendAgentMessage(agentId: string, message: string, attachments: DashboardUploadedFile[] = []): Promise<unknown> {
+  return requestJson<JsonRecord>('POST', `/api/agents/${encodeURIComponent(agentId)}/message`, {
     message,
+    attachments: attachments.length ? attachments : undefined,
   });
 }
 
@@ -271,5 +319,150 @@ export async function createDraftAgent(): Promise<DashboardAgentRow> {
     created_at: String(payload.created_at || new Date().toISOString()),
     draft: true,
     identity: { emoji: '∞' },
+  };
+}
+
+export async function uploadAgentFile(agentId: string, file: File): Promise<DashboardUploadedFile> {
+  const headers: Record<string, string> = {
+    'Content-Type': file.type || 'application/octet-stream',
+    'X-Filename': file.name,
+  };
+  const token = readAuthToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const response = await fetch(`/api/agents/${encodeURIComponent(agentId)}/upload`, {
+    method: 'POST',
+    headers,
+    body: file,
+  });
+  const raw = await response.text();
+  let payload: JsonRecord = {};
+  if (raw.trim()) {
+    try {
+      payload = asRecord(JSON.parse(raw));
+    } catch {
+      payload = {};
+    }
+  }
+  if (!response.ok) throw new Error(String(payload.error || 'upload_failed'));
+  const fileId = String(payload.file_id || '').trim();
+  if (!fileId) throw new Error('upload_invalid_response');
+  return {
+    file_id: fileId,
+    filename: String(payload.filename || file.name).trim() || file.name,
+    content_type: String(payload.content_type || file.type || 'application/octet-stream'),
+  };
+}
+
+export async function readModels(): Promise<DashboardModelRow[]> {
+  const payload = await requestJson<JsonRecord>('GET', '/api/models');
+  const rows = Array.isArray(payload.models) ? payload.models : [];
+  return rows
+    .map((row) => asRecord(row))
+    .filter((row) => String(row.id || row.display_name || '').trim())
+    .map((row) => ({
+      id: String(row.id || row.display_name || '').trim(),
+      provider: String(row.provider || '').trim(),
+      display_name: String(row.display_name || row.id || '').trim(),
+      local: row.local === true || row.is_local === true,
+    }));
+}
+
+export async function updateAgentConfig(agentId: string, payload: Record<string, unknown>): Promise<unknown> {
+  return requestJson<JsonRecord>('PATCH', `/api/agents/${encodeURIComponent(agentId)}/config`, payload);
+}
+
+export async function updateAgentModel(agentId: string, model: string): Promise<unknown> {
+  return requestJson<JsonRecord>('PUT', `/api/agents/${encodeURIComponent(agentId)}/model`, { model });
+}
+
+export async function compactAgentSession(agentId: string): Promise<string> {
+  const payload = await requestJson<JsonRecord>('POST', `/api/agents/${encodeURIComponent(agentId)}/session/compact`, {});
+  return String(payload.message || 'Compaction complete').trim();
+}
+
+export async function resetAgentSession(agentId: string): Promise<string> {
+  const payload = await requestJson<JsonRecord>('POST', `/api/agents/${encodeURIComponent(agentId)}/session/reset`, {});
+  return String(payload.message || 'Session reset').trim();
+}
+
+export async function stopAgent(agentId: string): Promise<string> {
+  const payload = await requestJson<JsonRecord>('POST', `/api/agents/${encodeURIComponent(agentId)}/stop`, {});
+  return String(payload.message || 'Agent stopped').trim();
+}
+
+export function connectAgentStream(
+  agentId: string,
+  callbacks: {
+    onOpen?: () => void;
+    onMessage?: (event: DashboardAgentStreamEvent) => void;
+    onReconnect?: (meta: { attempt: number; code: number }) => void;
+    onClose?: () => void;
+    onError?: () => void;
+  }
+): DashboardAgentStreamController {
+  let ws: WebSocket | null = null;
+  let closed = false;
+  let connected = false;
+  let reconnectAttempt = 0;
+  let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const open = () => {
+    if (closed) return;
+    const targetId = String(agentId || '').trim();
+    if (!targetId) return;
+    const token = readAuthToken();
+    let url = `${wsBase()}/api/agents/${encodeURIComponent(targetId)}/ws`;
+    if (token) url += `?token=${encodeURIComponent(token)}`;
+    ws = new WebSocket(url);
+    ws.onopen = () => {
+      connected = true;
+      reconnectAttempt = 0;
+      callbacks.onOpen?.();
+    };
+    ws.onmessage = (event) => {
+      try {
+        callbacks.onMessage?.(asRecord(JSON.parse(String(event.data || '{}'))));
+      } catch {
+        callbacks.onMessage?.({});
+      }
+    };
+    ws.onclose = (event) => {
+      connected = false;
+      ws = null;
+      if (closed || event.code === 1000) {
+        callbacks.onClose?.();
+        return;
+      }
+      reconnectAttempt += 1;
+      callbacks.onReconnect?.({ attempt: reconnectAttempt, code: Number(event.code || 0) });
+      reconnectTimer = setTimeout(open, 1000);
+    };
+    ws.onerror = () => {
+      connected = false;
+      callbacks.onError?.();
+    };
+  };
+
+  open();
+
+  return {
+    disconnect: () => {
+      closed = true;
+      connected = false;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+      if (ws) ws.close(1000);
+      ws = null;
+    },
+    sendMessage: (content: string, attachments: DashboardUploadedFile[] = []) => {
+      if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+      ws.send(JSON.stringify({
+        type: 'message',
+        content,
+        attachments: attachments.length ? attachments : undefined,
+      }));
+      return true;
+    },
+    isConnected: () => connected && !!ws && ws.readyState === WebSocket.OPEN,
   };
 }
