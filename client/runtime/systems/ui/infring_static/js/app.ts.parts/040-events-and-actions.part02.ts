@@ -325,9 +325,6 @@
       if (typeof this.syncChatSidebarTopologyOrderFromAgents === 'function') {
         this.syncChatSidebarTopologyOrderFromAgents();
       }
-      if (typeof this.sanitizeCollapsedAgentHoverState === 'function') {
-        this.sanitizeCollapsedAgentHoverState();
-      }
       this.connected = store.connected;
       this.version = store.version;
       this.agentCount = store.agentCount;

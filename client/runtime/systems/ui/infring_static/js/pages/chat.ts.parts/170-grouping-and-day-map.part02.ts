@@ -317,8 +317,9 @@
     stepMessageMap: function(list, dir) {
       if (!Array.isArray(list) || !list.length) return;
       this.suppressMapPreview = true;
-      this.activeMapPreviewDomId = '';
-      this.activeMapPreviewDayKey = '';
+      if (typeof this.hideDashboardPopupBySource === 'function') {
+        this.hideDashboardPopupBySource(this.chatMapPopupSource());
+      }
       if (this._mapPreviewSuppressTimer) clearTimeout(this._mapPreviewSuppressTimer);
       var visibleIndexes = [];
       for (var i = 0; i < list.length; i++) {

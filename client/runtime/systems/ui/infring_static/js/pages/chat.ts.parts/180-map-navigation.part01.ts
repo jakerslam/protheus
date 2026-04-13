@@ -41,44 +41,63 @@
       }, 220);
     },
 
-    setMapItemHover: function(msg, idx) {
+    chatMapPopupSource: function() {
+      return 'chat-map';
+    },
+
+    messageMapPopupTitle: function(msg) {
+      if (!msg) return 'Message';
+      return this.messageActorLabel(msg);
+    },
+
+    messageMapPopupBody: function(msg) {
+      if (!msg) return '';
+      return this.messageMapPreview(msg);
+    },
+
+    showMapItemPopup: function(msg, idx, ev) {
       if (!msg) return;
       var domId = this.messageDomId(msg, idx);
       this.forceMessageRender(msg, idx, 9000);
       this.suppressMapPreview = false;
-      this.activeMapPreviewDomId = domId;
-      this.activeMapPreviewDayKey = '';
       this.selectedMessageDomId = domId;
       this.mapStepIndex = idx;
       this.setHoveredMessage(msg, idx);
+      if (typeof this.showDashboardPopup !== 'function') return;
+      this.showDashboardPopup('chat-map-item:' + domId, this.messageMapPopupTitle(msg), ev, {
+        source: this.chatMapPopupSource(),
+        side: 'left',
+        body: this.messageMapPopupBody(msg),
+        meta_origin: 'Chat map',
+        meta_time: String(this.messageTs(msg) || '').trim()
+      });
     },
 
-    clearMapItemHover: function() {
-      this.activeMapPreviewDomId = '';
+    hideMapItemPopup: function() {
+      if (typeof this.hideDashboardPopupBySource === 'function') {
+        this.hideDashboardPopupBySource(this.chatMapPopupSource());
+      }
       this.clearHoveredMessage();
     },
 
-    setMapDayHover: function(msg) {
+    showMapDayPopup: function(msg, ev) {
       if (!msg) return;
       this.suppressMapPreview = false;
-      this.activeMapPreviewDayKey = this.messageDayKey(msg);
-      this.activeMapPreviewDomId = '';
+      if (typeof this.showDashboardPopup !== 'function') return;
+      this.showDashboardPopup('chat-map-day:' + this.messageDayKey(msg), this.messageDayLabel(msg), ev, {
+        source: this.chatMapPopupSource(),
+        side: 'left',
+        body: this.isMessageDayCollapsed(msg)
+          ? 'Expand this day in the chat map'
+          : 'Collapse this day in the chat map',
+        meta_origin: 'Chat map'
+      });
     },
 
-    clearMapDayHover: function() {
-      this.activeMapPreviewDayKey = '';
-    },
-
-    isMapPreviewVisible: function(msg, idx) {
-      if (this.suppressMapPreview) return false;
-      if (!msg) return false;
-      return this.activeMapPreviewDomId === this.messageDomId(msg, idx);
-    },
-
-    isMapDayPreviewVisible: function(msg) {
-      if (this.suppressMapPreview) return false;
-      if (!msg) return false;
-      return this.activeMapPreviewDayKey === this.messageDayKey(msg);
+    hideMapDayPopup: function() {
+      if (typeof this.hideDashboardPopupBySource === 'function') {
+        this.hideDashboardPopupBySource(this.chatMapPopupSource());
+      }
     },
 
     setHoveredMessage: function(msg, idx) {
@@ -110,6 +129,9 @@
       if (this._hoverClearTimer) {
         clearTimeout(this._hoverClearTimer);
         this._hoverClearTimer = 0;
+      }
+      if (typeof this.hideDashboardPopupBySource === 'function') {
+        this.hideDashboardPopupBySource(this.chatMapPopupSource());
       }
       this.hoveredMessageDomId = '';
       this.directHoveredMessageDomId = '';

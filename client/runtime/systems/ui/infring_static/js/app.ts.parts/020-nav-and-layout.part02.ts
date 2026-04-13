@@ -3,14 +3,19 @@
     chatSidebarVisibleBase: 7,
     chatSidebarVisibleStep: 5,
     chatSidebarVisibleCount: 7,
-    collapsedAgentHover: {
+    dashboardPopup: {
       id: '',
-      kind: 'agent',
       active: false,
-      name: '',
-      text: '',
+      source: '',
+      title: '',
+      body: '',
+      meta_origin: '',
+      meta_time: '',
       unread: false,
-      top: 0
+      left: 0,
+      top: 0,
+      side: 'bottom',
+      compact: false
     },
     confirmArchiveAgentId: '',
     archivedAgentIds: (() => {
@@ -44,9 +49,6 @@
     _chatSidebarFlipDurationMs: 240,
     _chatSidebarFlipRaf: 0,
     _chatSidebarLastSnapshot: null,
-    _collapsedHoverSuppressedUntil: 0,
-    _collapsedHoverNeedsPointerMove: false,
-    _collapsedHoverPointerMovedAt: 0,
     bootSplashVisible: true,
     _bootSplashStartedAt: Date.now(),
     _bootSplashMinMs: 850,

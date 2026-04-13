@@ -1,3 +1,293 @@
+fn response_requires_visible_repair(text: &str) -> bool {
+    let cleaned = clean_chat_text(text, 32_000);
+    cleaned.trim().is_empty()
+        || response_is_no_findings_placeholder(&cleaned)
+        || response_looks_like_tool_ack_without_findings(&cleaned)
+        || response_looks_like_unsynthesized_web_snippet_dump(&cleaned)
+        || response_looks_like_raw_web_artifact_dump(&cleaned)
+}
+
+fn repair_visible_response_after_workflow(
+    message: &str,
+    candidate_response: &str,
+    initial_draft_response: &str,
+    latest_assistant_text: &str,
+    response_tools: &[Value],
+    inline_tools_allowed: bool,
+    memory_fallback: Option<&str>,
+) -> (String, String, bool, bool) {
+    let cleaned = clean_chat_text(candidate_response, 32_000);
+    if !response_requires_visible_repair(&cleaned) {
+        return (cleaned, "unchanged".to_string(), false, false);
+    }
+
+    let cleaned_initial_draft = clean_chat_text(initial_draft_response, 32_000);
+    if !response_requires_visible_repair(&cleaned_initial_draft) {
+        return (
+            cleaned_initial_draft,
+            "repaired_with_initial_draft".to_string(),
+            false,
+            false,
+        );
+    }
+
+    let cleaned_latest_assistant = clean_chat_text(latest_assistant_text, 32_000);
+    if !response_requires_visible_repair(&cleaned_latest_assistant) {
+        return (
+            cleaned_latest_assistant,
+            "repaired_with_latest_assistant".to_string(),
+            false,
+            false,
+        );
+    }
+
+    let findings_summary = clean_text(&response_tools_summary_for_user(response_tools, 4), 4_000);
+    if !findings_summary.is_empty() {
+        return (
+            findings_summary,
+            "repaired_with_tool_findings_summary".to_string(),
+            false,
+            false,
+        );
+    }
+
+    let failure_reason = clean_text(
+        &response_tools_failure_reason_for_user(response_tools, 4),
+        4_000,
+    );
+    if !failure_reason.is_empty() {
+        return (
+            failure_reason,
+            "repaired_with_tool_failure_reason".to_string(),
+            false,
+            false,
+        );
+    }
+
+    if message_requests_comparative_answer(message) {
+        return (
+            comparative_no_findings_fallback(message),
+            "repaired_with_comparative_guidance".to_string(),
+            false,
+            true,
+        );
+    }
+
+    if let Some(tooling_guidance) =
+        maybe_tooling_failure_fallback(message, initial_draft_response, latest_assistant_text)
+    {
+        return (
+            tooling_guidance,
+            "repaired_with_tooling_guidance".to_string(),
+            true,
+            false,
+        );
+    }
+
+    if let Some(memory_response) = memory_fallback {
+        let cleaned_memory = clean_chat_text(memory_response, 32_000);
+        if !cleaned_memory.is_empty() {
+            return (
+                cleaned_memory,
+                "repaired_with_memory_fallback".to_string(),
+                false,
+                false,
+            );
+        }
+    }
+
+    if !response_tools.is_empty() {
+        let readability_guidance =
+            clean_text(&ensure_tool_turn_response_text(initial_draft_response, response_tools), 4_000);
+        if !readability_guidance.is_empty() {
+            return (
+                readability_guidance,
+                "repaired_with_tool_readability_guidance".to_string(),
+                false,
+                false,
+            );
+        }
+    }
+
+    if response_tools.is_empty() && !inline_tools_allowed {
+        return (
+            "I can answer this directly without tool calls. Ask your question naturally and I’ll respond conversationally unless you explicitly request a tool run.".to_string(),
+            "repaired_with_direct_answer_guard".to_string(),
+            false,
+            false,
+        );
+    }
+
+    (
+        "I completed the workflow gate, but the visible response stayed empty or low-signal. Please retry and I’ll rerun the chain and explain what worked or failed directly.".to_string(),
+        "repaired_with_generic_workflow_failure".to_string(),
+        false,
+        false,
+    )
+}
+
+fn initial_model_invoke_failure_response(message: &str, err: &str) -> String {
+    let cleaned_error = clean_text(err, 220);
+    let base = if message_requests_comparative_answer(message) {
+        "I couldn’t start the first model step for this comparison turn, so I did not finish gathering workspace and web evidence yet. Retry and I’ll rerun the full chain."
+            .to_string()
+    } else {
+        "I couldn’t start the first model step for this turn, so the workflow could not continue normally. Retry and I’ll rerun the chain."
+            .to_string()
+    };
+    if cleaned_error.is_empty() {
+        return base;
+    }
+    format!("{base} Backend error: {cleaned_error}.")
+}
+
+fn finalize_message_invoke_failure_and_payload(
+    root: &Path,
+    agent_id: &str,
+    message: &str,
+    provider: &str,
+    model: &str,
+    error_text: &str,
+    active_messages: &[Value],
+    workspace_hints: Value,
+    latent_tool_candidates: Value,
+) -> CompatApiResponse {
+    let workflow_events = vec![turn_workflow_event(
+        "initial_model_invoke_failed",
+        json!({
+            "error": clean_text(error_text, 240),
+            "provider": clean_text(provider, 80),
+            "model": clean_text(model, 240)
+        }),
+    )];
+    let latest_assistant_text = latest_assistant_message_text(active_messages);
+    let response_workflow = run_turn_workflow_final_response(
+        root,
+        provider,
+        model,
+        active_messages,
+        message,
+        "model_initial_invoke_failed",
+        &[],
+        &workflow_events,
+        &initial_model_invoke_failure_response(message, error_text),
+        &latest_assistant_text,
+    );
+    let workflow_status = workflow_final_response_status(&response_workflow);
+    let workflow_used = workflow_final_response_used(&response_workflow);
+    let workflow_fallback_allowed =
+        workflow_final_response_allows_system_fallback(&response_workflow);
+    let mut response_text = response_workflow
+        .get("response")
+        .and_then(Value::as_str)
+        .map(ToString::to_string)
+        .unwrap_or_default();
+    let mut finalization_outcome = if workflow_used {
+        "workflow_authored".to_string()
+    } else {
+        "workflow_llm_unavailable".to_string()
+    };
+    if !workflow_status.is_empty() {
+        finalization_outcome = merge_response_outcomes(
+            &finalization_outcome,
+            &format!("workflow:{workflow_status}"),
+            220,
+        );
+    }
+    let mut workflow_system_fallback_used = false;
+    if !workflow_used && workflow_fallback_allowed {
+        response_text = initial_model_invoke_failure_response(message, error_text);
+        workflow_system_fallback_used = true;
+        finalization_outcome = merge_response_outcomes(
+            &finalization_outcome,
+            "workflow_system_fallback",
+            220,
+        );
+    }
+    let (repaired_response, repair_outcome, _, comparative_repair_used) =
+        repair_visible_response_after_workflow(
+            message,
+            &response_text,
+            &response_text,
+            &latest_assistant_text,
+            &[],
+            true,
+            None,
+        );
+    let (finalized_response, tool_completion, contract_outcome) =
+        enforce_user_facing_finalization_contract(repaired_response, &[]);
+    finalization_outcome = merge_response_outcomes(&finalization_outcome, &repair_outcome, 220);
+    finalization_outcome = merge_response_outcomes(&finalization_outcome, &contract_outcome, 220);
+    let response_finalization = json!({
+        "applied": true,
+        "outcome": finalization_outcome,
+        "initial_ack_only": false,
+        "final_ack_only": response_looks_like_tool_ack_without_findings(&finalized_response),
+        "findings_available": false,
+        "tool_completion": tool_completion,
+        "retry_attempted": false,
+        "retry_used": false,
+        "tool_synthesis_retry_used": false,
+        "synthesis_retry_used": false,
+        "tooling_fallback_used": false,
+        "comparative_fallback_used": comparative_repair_used,
+        "workflow_system_fallback_used": workflow_system_fallback_used,
+        "visible_response_repaired": repair_outcome != "unchanged",
+        "initial_model_invoke_failed": true
+    });
+    let turn_transaction = crate::dashboard_tool_turn_loop::turn_transaction_payload(
+        "complete",
+        "none",
+        "invoke_failed",
+        "complete",
+    );
+    let terminal_transcript = Vec::<Value>::new();
+    let mut turn_receipt = append_turn_message(root, agent_id, message, &finalized_response);
+    turn_receipt["assistant_turn_patch"] = persist_last_assistant_turn_metadata(
+        root,
+        agent_id,
+        &finalized_response,
+        &json!({
+            "tools": [],
+            "response_workflow": response_workflow.clone(),
+            "response_finalization": response_finalization.clone(),
+            "turn_transaction": turn_transaction.clone(),
+            "terminal_transcript": terminal_transcript.clone()
+        }),
+    );
+    turn_receipt["response_finalization"] = response_finalization.clone();
+    CompatApiResponse {
+        status: 200,
+        payload: json!({
+            "ok": true,
+            "agent_id": agent_id,
+            "provider": provider,
+            "model": model,
+            "runtime_model": model,
+            "iterations": 1,
+            "response": finalized_response,
+            "tools": [],
+            "response_workflow": response_workflow,
+            "response_finalization": response_finalization,
+            "turn_transaction": turn_transaction,
+            "terminal_transcript": terminal_transcript,
+            "workspace_hints": workspace_hints,
+            "latent_tool_candidates": latent_tool_candidates,
+            "attention_queue": turn_receipt
+                .get("attention_queue")
+                .cloned()
+                .unwrap_or_else(|| json!({})),
+            "memory_capture": turn_receipt
+                .get("memory_capture")
+                .cloned()
+                .unwrap_or_else(|| json!({})),
+            "error": clean_text(error_text, 280),
+            "degraded": true,
+            "initial_invoke_error": true
+        }),
+    }
+}
+
 fn finalize_message_finalization_and_payload(
     root: &Path,
     agent_id: &str,
@@ -42,6 +332,11 @@ fn finalize_message_finalization_and_payload(
     let initial_draft_response = clean_chat_text(&response_text, 32_000);
     let initial_ack_only = response_looks_like_tool_ack_without_findings(&initial_draft_response)
         || response_is_no_findings_placeholder(&initial_draft_response);
+    let memory_fallback = if memory_recall_requested(message) {
+        Some(build_memory_recall_response(&state, &messages, message))
+    } else {
+        None
+    };
     let latest_assistant_text = latest_assistant_message_text(&active_messages);
     let response_workflow = run_turn_workflow_final_response(
         root,
@@ -81,6 +376,7 @@ fn finalize_message_finalization_and_payload(
     let mut tooling_fallback_used = false;
     let mut comparative_fallback_used = false;
     let mut workflow_system_fallback_used = false;
+    let mut visible_response_repaired = false;
     if workflow_used {
         tool_completion = tool_completion_report_for_response(
             &finalized_response,
@@ -95,6 +391,11 @@ fn finalize_message_finalization_and_payload(
         )
         .unwrap_or_default();
         tooling_fallback_used = !fallback_response.is_empty();
+        if fallback_response.is_empty()
+            && !response_requires_visible_repair(&initial_draft_response)
+        {
+            fallback_response = initial_draft_response.clone();
+        }
         if fallback_response.is_empty()
             && message_requests_comparative_answer(message)
             && (response_is_no_findings_placeholder(&initial_draft_response)
@@ -147,6 +448,28 @@ fn finalize_message_finalization_and_payload(
         finalization_outcome =
             merge_response_outcomes(&finalization_outcome, &contract_outcome, 200);
     }
+    let (repaired_response, repair_outcome, repair_tooling_used, repair_comparative_used) =
+        repair_visible_response_after_workflow(
+            message,
+            &finalized_response,
+            &initial_draft_response,
+            &latest_assistant_text,
+            &response_tools,
+            inline_tools_allowed,
+            memory_fallback.as_deref(),
+        );
+    if repair_outcome != "unchanged" {
+        visible_response_repaired = true;
+        tooling_fallback_used |= repair_tooling_used;
+        comparative_fallback_used |= repair_comparative_used;
+        let (contract_finalized, contract_report, contract_outcome) =
+            enforce_user_facing_finalization_contract(repaired_response, &response_tools);
+        finalized_response = contract_finalized;
+        tool_completion = contract_report;
+        finalization_outcome = merge_response_outcomes(&finalization_outcome, &repair_outcome, 200);
+        finalization_outcome =
+            merge_response_outcomes(&finalization_outcome, &contract_outcome, 200);
+    }
     tool_completion = enrich_tool_completion_receipt(tool_completion, &response_tools);
     response_text = finalized_response;
     let final_ack_only = response_looks_like_tool_ack_without_findings(&response_text);
@@ -166,7 +489,8 @@ fn finalize_message_finalization_and_payload(
         "synthesis_retry_used": false,
         "tooling_fallback_used": tooling_fallback_used,
         "comparative_fallback_used": comparative_fallback_used,
-        "workflow_system_fallback_used": workflow_system_fallback_used
+        "workflow_system_fallback_used": workflow_system_fallback_used,
+        "visible_response_repaired": visible_response_repaired
     });
     let turn_transaction = crate::dashboard_tool_turn_loop::turn_transaction_payload(
         "complete",

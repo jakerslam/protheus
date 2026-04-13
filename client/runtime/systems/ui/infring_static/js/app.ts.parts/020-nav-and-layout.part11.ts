@@ -384,3 +384,93 @@
       this._bottomDockSuppressClickUntil = Date.now() + 220;
       this.cleanupBottomDockDragGhost();
     },
+
+    dashboardPopupOrigin(overrides) {
+      return Object.assign({
+        source: '',
+        active: false,
+        ready: false,
+        side: 'top',
+        left: 0,
+        top: 0,
+        compact: false,
+        title: '',
+        body: '',
+        meta_origin: '',
+        meta_time: '',
+        unread: false
+      }, overrides || {});
+    },
+
+    bottomDockPopupOrigin() {
+      var label = String(this.bottomDockPreviewText || '').trim();
+      var left = Math.round(Number(this.bottomDockPreviewX || 0));
+      var top = Math.round(Number(this.bottomDockPreviewY || 0));
+      if (!this.bottomDockPreviewVisible || !label) return this.dashboardPopupOrigin();
+      return this.dashboardPopupOrigin({
+        source: 'bottom_dock',
+        active: true,
+        ready: left > 0 && top > 0,
+        side: this.bottomDockOpenSide(),
+        left: left,
+        top: top,
+        compact: false,
+        title: label
+      });
+    },
+
+    dashboardPopupStateOrigin() {
+      var popup = this.dashboardPopup || {};
+      var title = String(popup.title || '').trim();
+      var body = String(popup.body || '').trim();
+      var left = Math.round(Number(popup.left || 0));
+      var top = Math.round(Number(popup.top || 0));
+      var side = String(popup.side || 'bottom').trim().toLowerCase();
+      if (side !== 'top' && side !== 'left' && side !== 'right') side = 'bottom';
+      if (!popup.active || !title) return this.dashboardPopupOrigin();
+      return this.dashboardPopupOrigin({
+        source: String(popup.source || 'ui').trim(),
+        active: true,
+        ready: left > 0 && top > 0,
+        side: side,
+        left: left,
+        top: top,
+        compact: false,
+        title: title,
+        body: body,
+        meta_origin: String(popup.meta_origin || '').trim(),
+        meta_time: String(popup.meta_time || '').trim(),
+        unread: !!popup.unread
+      });
+    },
+
+    activeDashboardPopupOrigin() {
+      var sharedPopup = this.dashboardPopupStateOrigin();
+      if (sharedPopup.active && sharedPopup.ready) return sharedPopup;
+      var dockPopup = this.bottomDockPopupOrigin();
+      if (dockPopup.active && dockPopup.ready) return dockPopup;
+      return this.dashboardPopupOrigin();
+    },
+
+    isDashboardPopupVisible() {
+      var popup = this.activeDashboardPopupOrigin();
+      return !!(popup.active && popup.ready && popup.title);
+    },
+
+    dashboardPopupOverlayClass() {
+      var popup = this.activeDashboardPopupOrigin();
+      return {
+        'is-visible': !!(popup.active && popup.ready && popup.title),
+        'is-side-top': popup.side === 'top',
+        'is-side-bottom': popup.side === 'bottom',
+        'is-side-left': popup.side === 'left',
+        'is-side-right': popup.side === 'right',
+        'is-unread': !!popup.unread
+      };
+    },
+
+    dashboardPopupOverlayStyle() {
+      var popup = this.activeDashboardPopupOrigin();
+      if (!popup.active || !popup.ready) return 'left:-9999px;top:-9999px;';
+      return 'left:' + Math.round(Number(popup.left || 0)) + 'px;top:' + Math.round(Number(popup.top || 0)) + 'px;';
+    },

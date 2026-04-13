@@ -96,7 +96,10 @@
       if (!bestNode || !bestNode.id) return;
       var domId = String(bestNode.id);
       if (this.selectedMessageDomId !== domId) this.selectedMessageDomId = domId;
-      if (!this.activeMapPreviewDomId) this.hoveredMessageDomId = domId;
+      var popup = typeof this.activeDashboardPopupOrigin === 'function'
+        ? (this.activeDashboardPopupOrigin() || {})
+        : {};
+      if (String(popup.source || '').trim() !== 'chat-map') this.hoveredMessageDomId = domId;
       for (var idx = 0; idx < this.messages.length; idx++) {
         if (this.messageDomId(this.messages[idx], idx) === domId) { this.mapStepIndex = idx; break; }
       }

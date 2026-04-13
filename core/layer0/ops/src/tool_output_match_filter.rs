@@ -44,7 +44,7 @@ const RAW_PAYLOAD_KEY_MARKERS: &[&str] = &[
 ];
 
 const NO_FINDINGS_USER_COPY: &str =
-    "I don't have usable tool findings from this turn yet. Ask me to retry with a narrower query or a specific source URL.";
+    "The tool path ran, but this turn only produced low-signal or no-result output. Retry with a narrower query or one specific source URL and I’ll give you a source-backed answer.";
 
 const UNSYNTHESIZED_WEB_MARKERS: &[&str] = &[
     "from web retrieval:",
@@ -68,6 +68,7 @@ const UNSYNTHESIZED_WEB_MARKERS: &[&str] = &[
     "no relevant results found for that request yet",
     "couldn't produce source-backed findings in this turn",
     "don't have usable tool findings from this turn yet",
+    "low-signal or no-result output",
 ];
 
 const ANALYSIS_MARKERS: &[&str] = &[

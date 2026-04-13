@@ -109,6 +109,7 @@ fn tool_row_is_low_signal(row: &Value) -> bool {
 fn scripted_response_is_no_findings_placeholder(text: &str) -> bool {
     let lowered = clean_text(text, 2_000).to_ascii_lowercase();
     lowered.contains("don't have usable tool findings from this turn yet")
+        || lowered.contains("low-signal or no-result output")
         || lowered.contains("search returned no useful information")
         || lowered.contains("search returned no useful comparison findings")
 }

@@ -276,8 +276,6 @@
       var pendingFreshId = store && store.pendingFreshAgentId ? String(store.pendingFreshAgentId) : '';
       var forceFreshSession = pendingFreshId && String(resolved.id) === pendingFreshId;
       this.clearHoveredMessageHard();
-      this.activeMapPreviewDomId = '';
-      this.activeMapPreviewDayKey = '';
       if (this.currentAgent && this.currentAgent.id && this.currentAgent.id !== resolved.id) {
         var switchingFrom = String(this.currentAgent.id || '');
         if (

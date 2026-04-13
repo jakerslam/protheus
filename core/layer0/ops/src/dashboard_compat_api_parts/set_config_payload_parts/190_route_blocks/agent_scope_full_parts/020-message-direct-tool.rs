@@ -165,6 +165,7 @@ fn handle_agent_scope_message_route(
                 .unwrap_or(false);
             let mut tooling_fallback_used = false;
             let mut comparative_fallback_used = false;
+            let mut visible_response_repaired = false;
             let mut finalized_response = finalized_response;
             let mut finalization_outcome = clean_text(&finalization_seed, 180);
             let mut tool_completion = json!({});
@@ -241,6 +242,11 @@ fn handle_agent_scope_message_route(
                         .unwrap_or_default();
                 tooling_fallback_used = !fallback_response.is_empty();
                 if fallback_response.is_empty()
+                    && !response_requires_visible_repair(&initial_draft_response)
+                {
+                    fallback_response = initial_draft_response.clone();
+                }
+                if fallback_response.is_empty()
                     && response_is_no_findings_placeholder(&initial_draft_response)
                     && message_requests_live_web_comparison(&message)
                 {
@@ -280,6 +286,29 @@ fn handle_agent_scope_message_route(
                 finalization_outcome =
                     merge_response_outcomes(&finalization_outcome, &retry_outcome, 180);
             }
+            let (repaired_response, repair_outcome, repair_tooling_used, repair_comparative_used) =
+                repair_visible_response_after_workflow(
+                    &message,
+                    &finalized_response,
+                    &initial_draft_response,
+                    "",
+                    &response_tools,
+                    true,
+                    None,
+                );
+            if repair_outcome != "unchanged" {
+                visible_response_repaired = true;
+                tooling_fallback_used |= repair_tooling_used;
+                comparative_fallback_used |= repair_comparative_used;
+                let (contracted, report, retry_outcome) =
+                    enforce_user_facing_finalization_contract(repaired_response, &response_tools);
+                finalized_response = contracted;
+                tool_completion = report;
+                finalization_outcome =
+                    merge_response_outcomes(&finalization_outcome, &repair_outcome, 180);
+                finalization_outcome =
+                    merge_response_outcomes(&finalization_outcome, &retry_outcome, 180);
+            }
             tool_completion = enrich_tool_completion_receipt(tool_completion, &response_tools);
             let final_ack_only = response_looks_like_tool_ack_without_findings(&finalized_response);
             response_text = finalized_response;
@@ -298,6 +327,7 @@ fn handle_agent_scope_message_route(
                 "tooling_fallback_used": tooling_fallback_used,
                 "comparative_fallback_used": comparative_fallback_used,
                 "workflow_system_fallback_used": workflow_system_fallback_used,
+                "visible_response_repaired": visible_response_repaired,
                 "retry_attempted": false,
                 "retry_used": false
             });

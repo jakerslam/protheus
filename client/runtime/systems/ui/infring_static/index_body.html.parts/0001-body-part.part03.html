@@ -308,28 +308,25 @@
       </div>
     </nav>
     <div
-      class="bottom-dock-preview-bubble bottom-dock-preview-overlay"
-      :class="{
-        'is-visible': !!bottomDockPreviewVisible && !!bottomDockPreviewText,
-        'is-side-bottom': bottomDockOpenSide() === 'bottom',
-        'is-side-top': bottomDockOpenSide() === 'top',
-        'is-side-left': bottomDockOpenSide() === 'left',
-        'is-side-right': bottomDockOpenSide() === 'right'
-      }"
-      :style="'left:' + bottomDockPreviewX + 'px;top:' + bottomDockPreviewY + 'px;' + (bottomDockPreviewWidth > 0 ? ('width:' + bottomDockPreviewWidth + 'px;') : 'width:auto;')"
+      class="dashboard-popup-surface dashboard-preview-surface dashboard-popup-overlay"
+      x-cloak
+      x-show="isDashboardPopupVisible()"
+      :class="dashboardPopupOverlayClass()"
+      :style="dashboardPopupOverlayStyle()"
       aria-hidden="true"
     >
-      <span
-        class="bottom-dock-preview-bubble-label-stack"
-        :class="{ 'label-fx-ready': !!bottomDockPreviewLabelFxReady, 'is-morphing': !!bottomDockPreviewLabelMorphing }"
+      <div
+        class="dashboard-popup-meta-row"
+        x-show="String(activeDashboardPopupOrigin().meta_origin || '').trim().length > 0 || String(activeDashboardPopupOrigin().meta_time || '').trim().length > 0"
       >
-        <span
-          class="bottom-dock-preview-bubble-label bottom-dock-preview-bubble-label--old"
-          x-text="bottomDockPreviewMorphFromText"
-        ></span>
-        <span
-          class="bottom-dock-preview-bubble-label bottom-dock-preview-bubble-label--new"
-          x-text="bottomDockPreviewText"
-        ></span>
-      </span>
+        <span class="dashboard-popup-origin-label" x-show="String(activeDashboardPopupOrigin().meta_origin || '').trim().length > 0" x-text="activeDashboardPopupOrigin().meta_origin || ''"></span>
+        <span class="dashboard-popup-time" x-show="String(activeDashboardPopupOrigin().meta_time || '').trim().length > 0" x-text="activeDashboardPopupOrigin().meta_time || ''"></span>
+      </div>
+      <span class="dashboard-popup-title" x-text="activeDashboardPopupOrigin().title || ''"></span>
+      <span
+        class="dashboard-popup-body"
+        x-show="String(activeDashboardPopupOrigin().body || '').trim().length > 0"
+        :class="{ 'preview-unread': !!activeDashboardPopupOrigin().unread }"
+        x-text="activeDashboardPopupOrigin().body || ''"
+      ></span>
     </div>
