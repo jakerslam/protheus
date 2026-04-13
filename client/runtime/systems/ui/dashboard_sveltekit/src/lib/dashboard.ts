@@ -30,7 +30,7 @@ export type DashboardPage = {
 
 export const dashboardPages: DashboardPage[] = [
   { key: 'overview', title: 'Overview', summary: 'Primary SvelteKit landing view and migration dashboard.', mode: 'native', churn: 'medium' },
-  { key: 'chat', title: 'Conversations', summary: 'High-churn chat workspace with live agent traffic.', mode: 'legacy', churn: 'high' },
+  { key: 'chat', title: 'Conversations', summary: 'High-churn chat workspace with live agent traffic.', mode: 'native', churn: 'high' },
   { key: 'agents', title: 'Agents', summary: 'Agent roster, creation, and lifecycle management.', mode: 'legacy', churn: 'high' },
   { key: 'sessions', title: 'Memory', summary: 'Session history, continuity, and recall surfaces.', mode: 'legacy', churn: 'medium' },
   { key: 'approvals', title: 'Approvals', summary: 'Queued approvals and gated operator actions.', mode: 'legacy', churn: 'medium' },
