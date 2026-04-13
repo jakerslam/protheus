@@ -1,3 +1,4 @@
+// Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 use crate::contracts::{
     DegradationState, ExecutionCorrelation, ExecutionState, OrchestrationPlan, PlanCandidate,
     PlanStatus, StepState, StepStatus, TypedOrchestrationRequest,

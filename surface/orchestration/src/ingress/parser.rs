@@ -1,3 +1,4 @@
+// Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 use crate::contracts::{Mutability, OperationKind, ResourceKind, TargetDescriptor, UserConstraint};
 use serde_json::{Map, Value};
 

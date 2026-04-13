@@ -1,3 +1,4 @@
+// Layer ownership: core/layer2/tooling (authoritative canonical tool/evidence substrate).
 use crate::backend_registry::{live_backend_registry, ToolBackendHealth};
 use crate::capability::{
     all_capabilities_for_callers, capability_probe_for, grouped_capabilities_for_callers,

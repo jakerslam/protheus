@@ -1,3 +1,4 @@
+// Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 use crate::contracts::{
     AmbiguityReason, Capability, ClarificationReason, Mutability, OperationKind, ParseResult,
     RequestClass, RequestClassification, RequestKind, RequestSurface, ResourceKind,
