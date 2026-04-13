@@ -1,0 +1,45 @@
+name: Weekly Policy Debt Report
+
+on:
+  schedule:
+    - cron: "17 8 * * 1"
+  workflow_dispatch:
+
+jobs:
+  weekly-policy-debt-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build weekly debt snapshot
+        run: |
+          npm run -s ops:file-size:gate
+          npm run -s ops:debt:expiry:guard
+          npm run -s ops:tooling-registry:contract:guard
+          npm run -s ops:srs:full:gate
+          npm run -s ops:arch:conformance
+          npm run -s ops:policy-debt:summary
+
+      - name: Upload weekly debt snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-policy-debt-report
+          path: |
+            core/local/artifacts/repo_file_size_gate_current.json
+            core/local/artifacts/debt_expiry_guard_current.json
+            core/local/artifacts/tooling_registry_contract_guard_current.json
+            core/local/artifacts/arch_boundary_conformance_current.json
+            core/local/artifacts/policy_debt_summary_current.json
+            local/workspace/reports/POLICY_DEBT_SUMMARY_CURRENT.md
+          if-no-files-found: error

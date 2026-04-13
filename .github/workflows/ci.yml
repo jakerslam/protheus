@@ -44,6 +44,7 @@ jobs:
           npm run -s ops:orchestration:contract:guard
           npm run -s ops:orchestration:hidden-state:guard
           npm run -s ops:debt:expiry:guard
+          npm run -s ops:tooling-registry:contract:guard
           npm run -s ops:system:fitness:gate
 
       - name: Setup Rust
@@ -104,6 +105,9 @@ jobs:
       - name: SRS Full Regression Gate (Strict)
         run: npm run -s ops:srs:full:gate
 
+      - name: Policy Debt Summary
+        run: npm run -s ops:policy-debt:summary
+
       - name: Source Runtime Classifier
         run: npm run ops:source-runtime:check
 
@@ -130,6 +134,20 @@ jobs:
 
       - name: Mobile Benchmark Matrix (Smoke)
         run: node client/runtime/lib/ts_entrypoint.ts tests/client-memory-tools/mobile_competitive_benchmark_matrix.test.ts
+
+      - name: Upload Policy Debt Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: policy-debt-artifacts
+          path: |
+            core/local/artifacts/debt_expiry_guard_current.json
+            core/local/artifacts/repo_file_size_gate_current.json
+            core/local/artifacts/tooling_registry_contract_guard_current.json
+            core/local/artifacts/policy_debt_summary_current.json
+            local/workspace/reports/POLICY_DEBT_SUMMARY_CURRENT.md
+            local/workspace/reports/SRS_FULL_REGRESSION_CURRENT.md
+          if-no-files-found: warn
 
   container-smoke:
     runs-on: ubuntu-latest
