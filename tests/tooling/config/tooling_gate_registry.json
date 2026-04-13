@@ -236,8 +236,8 @@
       "description": "Module cohesion policy audit with explicit output paths.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
-      "command": ["node", "client/runtime/lib/ts_entrypoint.ts", "tests/tooling/scripts/ci/module_cohesion_policy_audit.ts", "--strict=1", "--out-json=${MODULE_COHESION_OUT_JSON}", "--out-markdown=${MODULE_COHESION_OUT_MD}"],
-      "artifact_paths": ["${MODULE_COHESION_OUT_JSON}", "${MODULE_COHESION_OUT_MD}"]
+      "command": ["node", "client/runtime/lib/ts_entrypoint.ts", "tests/tooling/scripts/ci/module_cohesion_policy_audit.ts", "--strict=1", "--out-json=core/local/artifacts/module_cohesion_audit_current.json", "--out-markdown=local/workspace/reports/MODULE_COHESION_AUDIT_CURRENT.md"],
+      "artifact_paths": ["core/local/artifacts/module_cohesion_audit_current.json", "local/workspace/reports/MODULE_COHESION_AUDIT_CURRENT.md"]
     },
     "ops:legacy-alias:guard": {
       "owner": "ops",
@@ -351,8 +351,8 @@
       "description": "Client import integrity audit.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
-      "command": ["node", "client/runtime/lib/ts_entrypoint.ts", "tests/tooling/scripts/ci/client_import_integrity_audit.ts", "--strict=1", "--out=${CLIENT_IMPORT_INTEGRITY_OUT}"],
-      "artifact_paths": ["${CLIENT_IMPORT_INTEGRITY_OUT}"]
+      "command": ["node", "client/runtime/lib/ts_entrypoint.ts", "tests/tooling/scripts/ci/client_import_integrity_audit.ts", "--strict=1", "--out=core/local/artifacts/client_import_integrity_audit_current.json"],
+      "artifact_paths": ["core/local/artifacts/client_import_integrity_audit_current.json"]
     },
     "audit:client-scope-inventory": {
       "owner": "ops",
@@ -392,6 +392,14 @@
       "timeout_sec": 60,
       "command": ["node", "client/runtime/lib/ts_entrypoint.ts", "tests/tooling/scripts/ci/srs_full_regression.ts", "--strict=1", "--out-json=core/local/artifacts/srs_full_regression_current.json", "--out-markdown=local/workspace/reports/SRS_FULL_REGRESSION_CURRENT.md"],
       "artifact_paths": ["core/local/artifacts/srs_full_regression_current.json", "local/workspace/reports/SRS_FULL_REGRESSION_CURRENT.md"]
+    },
+    "ops:tooling-registry:contract:guard": {
+      "owner": "ops",
+      "description": "Tooling registry contract guard for concrete artifact paths.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "command": ["node", "client/runtime/lib/ts_entrypoint.ts", "tests/tooling/scripts/ci/tooling_registry_contract_guard.ts", "--strict=1", "--out=core/local/artifacts/tooling_registry_contract_guard_current.json"],
+      "artifact_paths": ["core/local/artifacts/tooling_registry_contract_guard_current.json"]
     },
     "ops:srs:full:regression": {
       "owner": "ops",

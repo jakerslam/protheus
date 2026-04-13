@@ -41,6 +41,8 @@
     "ops:orchestration:hidden-state:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/orchestration_hidden_state_guard.ts --strict=1 --out=core/local/artifacts/orchestration_hidden_state_guard_current.json",
     "ops:orchestration:ts-boundary:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/orchestration_ts_boundary_audit.ts --strict=1 --out=core/local/artifacts/orchestration_ts_boundary_audit_current.json",
     "ops:debt:expiry:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/debt_expiry_guard.ts --strict=1 --out=core/local/artifacts/debt_expiry_guard_current.json",
+    "ops:tooling-registry:contract:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/tooling_registry_contract_guard.ts --strict=1 --out=core/local/artifacts/tooling_registry_contract_guard_current.json",
+    "ops:policy-debt:summary": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/policy_debt_summary.ts --strict=1 --out-json=core/local/artifacts/policy_debt_summary_current.json --out-markdown=local/workspace/reports/POLICY_DEBT_SUMMARY_CURRENT.md",
     "ops:system:fitness:gate": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/system_fitness_gate.ts --strict=1 --out=core/local/artifacts/system_fitness_gate_current.json",
     "ops:roi100:run": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/roi100_moves_runner.ts",
     "ops:roi100:runtime-top": "cargo run -q --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops -- runtime-systems roi-sweep --limit=100 --apply=1 --strict=1 && cargo run -q --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops -- backlog-queue-executor run --all=1 --max=100 --with-tests=1",
