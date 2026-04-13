@@ -23,14 +23,67 @@ fn response_is_actionable_tool_diagnostic(text: &str) -> bool {
         || lowered.contains("doctor --json")
 }
 
+fn strip_redundant_key_findings_prefix(raw: &str) -> String {
+    let mut cleaned = clean_text(raw, 2_400);
+    loop {
+        let lowered = cleaned.to_ascii_lowercase();
+        if lowered.starts_with("key findings:") {
+            cleaned = clean_text(cleaned["key findings:".len()..].trim(), 2_400);
+            continue;
+        }
+        break;
+    }
+    cleaned
+}
+
+fn rewrite_workspace_analyze_result_for_user_summary(raw_result: &str) -> Option<String> {
+    let payload = parse_json_payload_dump(&strip_redundant_key_findings_prefix(raw_result))?;
+    let stdout = clean_text(payload.get("stdout").and_then(Value::as_str).unwrap_or(""), 2_000);
+    let stderr = clean_text(payload.get("stderr").and_then(Value::as_str).unwrap_or(""), 800);
+    let tool_summary = clean_text(
+        payload.get("tool_summary").and_then(Value::as_str).unwrap_or(""),
+        400,
+    );
+    let stdout_lines = stdout
+        .lines()
+        .map(|line| clean_text(line, 220))
+        .filter(|line| !line.is_empty())
+        .take(3)
+        .collect::<Vec<_>>();
+    if !stdout_lines.is_empty() {
+        return Some(trim_text(
+            &format!("Local workspace evidence: {}", stdout_lines.join(" | ")),
+            420,
+        ));
+    }
+    if !tool_summary.is_empty() {
+        return Some(trim_text(
+            &format!("Local workspace evidence: {tool_summary}"),
+            420,
+        ));
+    }
+    if !stderr.is_empty() {
+        return Some(trim_text(
+            &format!(
+                "Workspace analysis returned diagnostics: {}",
+                first_sentence(&stderr, 220)
+            ),
+            420,
+        ));
+    }
+    None
+}
+
 fn rewrite_tool_result_for_user_summary(tool_name: &str, raw_result: &str) -> Option<String> {
     let cleaned = clean_text(raw_result, 2_400);
     if cleaned.is_empty() {
         return None;
     }
+    let cleaned_without_prefix = strip_redundant_key_findings_prefix(&cleaned);
     let lowered = cleaned.to_ascii_lowercase();
+    let lowered_without_prefix = cleaned_without_prefix.to_ascii_lowercase();
     if lowered.contains("search returned no useful comparison findings") {
-        let base = cleaned
+        let base = cleaned_without_prefix
             .trim_end_matches(|ch| matches!(ch, '.' | '!' | '?'))
             .trim()
             .to_string();
@@ -43,9 +96,17 @@ fn rewrite_tool_result_for_user_summary(tool_name: &str, raw_result: &str) -> Op
         ));
     }
     if response_is_actionable_tool_diagnostic(&cleaned) {
-        return Some(trim_text(&cleaned, 420));
+        return Some(trim_text(&cleaned_without_prefix, 420));
     }
     let normalized = normalize_tool_name(tool_name);
+    if normalized == "workspace_analyze" {
+        if let Some(rewritten) = rewrite_workspace_analyze_result_for_user_summary(raw_result) {
+            return Some(rewritten);
+        }
+        if cleaned_without_prefix != cleaned {
+            return Some(trim_text(&cleaned_without_prefix, 420));
+        }
+    }
     let is_web_tool = matches!(
         normalized.as_str(),
         "batch_query"
@@ -63,7 +124,8 @@ fn rewrite_tool_result_for_user_summary(tool_name: &str, raw_result: &str) -> Op
     if response_mentions_context_guard(&cleaned) {
         return Some(web_tool_context_guard_fallback("Live web retrieval"));
     }
-    if let Some((rewritten, _)) = crate::tool_output_match_filter::rewrite_unsynthesized_web_dump(&cleaned)
+    if let Some((rewritten, _)) =
+        crate::tool_output_match_filter::rewrite_unsynthesized_web_dump(&cleaned_without_prefix)
     {
         return Some(trim_text(&rewritten, 420));
     }
@@ -79,7 +141,7 @@ fn rewrite_tool_result_for_user_summary(tool_name: &str, raw_result: &str) -> Op
                 .to_string(),
         );
     }
-    if lowered.contains("search returned no useful information")
+    if lowered_without_prefix.contains("search returned no useful information")
         || response_is_no_findings_placeholder(&cleaned)
     {
         return Some(

@@ -106,6 +106,30 @@ fn strip_wrapped_natural_web_query(text: &str, max_chars: usize) -> String {
     clean_text(&cleaned, max_chars)
 }
 
+fn web_input_lacks_explicit_query_pack(input: &Value) -> bool {
+    input.get("queries")
+        .and_then(Value::as_array)
+        .map(|rows| rows.is_empty())
+        .unwrap_or(true)
+}
+
+fn shallow_workspace_plus_web_compare_query(query: &str, user_message: &str) -> bool {
+    let current_query = clean_text(query, 600);
+    if current_query.is_empty() {
+        return true;
+    }
+    let lowered = current_query.to_ascii_lowercase();
+    if lowered == clean_text(user_message, 600).to_ascii_lowercase()
+        || lowered.contains("compare this system")
+    {
+        return true;
+    }
+    lowered.contains("openclaw")
+        && !lowered.contains("docs")
+        && !lowered.contains("architecture")
+        && !lowered.contains("site:")
+}
+
 fn normalize_inline_tool_execution_input(
     normalized_name: &str,
     input: &Value,
@@ -171,17 +195,19 @@ fn normalize_inline_tool_execution_input(
                     .unwrap_or(""),
                 600,
             );
-            let current_query_lowered = current_query.to_ascii_lowercase();
-            if current_query.is_empty()
-                || current_query_lowered == clean_text(user_message, 600).to_ascii_lowercase()
-                || current_query_lowered.contains("compare this system")
-            {
+            let lacks_query_pack = web_input_lacks_explicit_query_pack(&normalized_input);
+            if lacks_query_pack || shallow_workspace_plus_web_compare_query(&current_query, user_message) {
                 if !normalized_input.is_object() {
                     normalized_input = json!({});
                 }
-                for key in ["query", "queries", "source", "aperture"] {
+                for key in ["queries", "source", "aperture"] {
                     if let Some(value) = comparison_payload.get(key) {
                         normalized_input[key] = value.clone();
+                    }
+                }
+                if shallow_workspace_plus_web_compare_query(&current_query, user_message) {
+                    if let Some(value) = comparison_payload.get("query") {
+                        normalized_input["query"] = value.clone();
                     }
                 }
             }
@@ -216,6 +242,20 @@ fn normalize_inline_tool_execution_input(
                 .is_empty()
             {
                 normalized_input["aperture"] = json!("medium");
+            }
+            if normalized_input
+                .get("queries")
+                .and_then(Value::as_array)
+                .map(|rows| rows.is_empty())
+                .unwrap_or(true)
+            {
+                if let Some(framework_payload) = framework_catalog_web_payload_from_query(&cleaned_query) {
+                    for key in ["query", "queries", "source", "aperture"] {
+                        if let Some(value) = framework_payload.get(key) {
+                            normalized_input[key] = value.clone();
+                        }
+                    }
+                }
             }
         }
     }

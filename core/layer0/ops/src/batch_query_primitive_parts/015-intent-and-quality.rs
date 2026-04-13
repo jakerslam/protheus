@@ -56,7 +56,7 @@ fn preferred_query_rewrite(base: &str) -> String {
             .unwrap_or_else(|| clean_text(&format!("{base} overview"), 600));
     }
     if let Some(focus) = canonical_framework_catalog_focus(base) {
-        return clean_text(&format!("{focus} comparison"), 600);
+        return clean_text(&format!("{focus} landscape"), 600);
     }
     clean_text(&format!("{base} overview"), 600)
 }
@@ -92,6 +92,24 @@ fn framework_name_hits(text: &str) -> usize {
     .count()
 }
 
+fn framework_names_in_text(text: &str) -> Vec<&'static str> {
+    let lowered = clean_text(text, 2_400).to_ascii_lowercase();
+    [
+        ("langgraph", "LangGraph"),
+        ("openai agents sdk", "OpenAI Agents SDK"),
+        ("autogen", "AutoGen"),
+        ("crewai", "CrewAI"),
+        ("llamaindex", "LlamaIndex"),
+        ("semantic kernel", "Semantic Kernel"),
+        ("haystack", "Haystack"),
+        ("mastra", "Mastra"),
+        ("smolagents", "smolagents"),
+    ]
+    .iter()
+    .filter_map(|(needle, label)| lowered.contains(needle).then_some(*label))
+    .collect::<Vec<_>>()
+}
+
 fn looks_like_framework_catalog_text(text: &str) -> bool {
     let lowered = clean_text(text, 2_400).to_ascii_lowercase();
     if lowered.is_empty() {
@@ -104,4 +122,121 @@ fn looks_like_framework_catalog_text(text: &str) -> bool {
         || lowered.contains("popular agent frameworks")
         || lowered.contains("top agent frameworks")
         || lowered.contains("agentic frameworks")
+}
+
+fn looks_like_framework_overview_text(text: &str) -> bool {
+    let lowered = clean_text(text, 2_400).to_ascii_lowercase();
+    if lowered.is_empty() || framework_name_hits(&lowered) < 1 {
+        return false;
+    }
+    lowered.contains("framework")
+        || lowered.contains("agent")
+        || lowered.contains("sdk")
+        || lowered.contains("workflow")
+        || lowered.contains("orchestration")
+}
+
+fn candidate_needs_link_fetch(query: &str, candidate: &Candidate) -> bool {
+    let snippet = clean_text(&candidate.snippet, 1_600);
+    if snippet.is_empty() {
+        return true;
+    }
+    if is_framework_catalog_intent(query) {
+        let combined = format!("{} {}", candidate.title, snippet);
+        if framework_name_hits(&combined) < 2 {
+            return true;
+        }
+        if snippet.split_whitespace().count() < 18 {
+            return true;
+        }
+    }
+    false
+}
+
+fn framework_catalog_fallback_insights(
+    actionable_ranked: &[(Candidate, f64)],
+    max_items: usize,
+) -> Vec<String> {
+    let mut insights = Vec::<String>::new();
+    let mut seen_frameworks = HashSet::<String>::new();
+    for (candidate, _) in actionable_ranked {
+        let framework_names = framework_names_in_text(&format!(
+            "{} {} {}",
+            candidate.title, candidate.snippet, candidate.locator
+        ));
+        if framework_names.is_empty() {
+            continue;
+        }
+        let domain = candidate_domain_hint(candidate);
+        let snippet = trim_words(&clean_text(&candidate.snippet, 220), 18);
+        for framework in framework_names {
+            let framework_key = framework.to_ascii_lowercase();
+            if !seen_frameworks.insert(framework_key) {
+                continue;
+            }
+            let insight = if !snippet.is_empty() && looks_like_framework_overview_text(&format!("{framework} {snippet}")) {
+                if domain == "source" {
+                    format!("{framework}: {snippet}")
+                } else {
+                    format!("{framework} ({domain}): {snippet}")
+                }
+            } else if domain == "source" {
+                format!("{framework}: framework overview result")
+            } else {
+                format!("{framework}: overview result from {domain}")
+            };
+            insights.push(trim_words(&insight, 24));
+            if insights.len() >= max_items.max(1) {
+                return insights;
+            }
+        }
+    }
+    insights
+}
+
+fn framework_catalog_source_adjustment(candidate: &Candidate) -> f64 {
+    let domain = candidate_domain_hint(candidate).to_ascii_lowercase();
+    let combined = format!("{} {} {}", candidate.title, candidate.snippet, candidate.locator);
+    let combined_lowered = combined.to_ascii_lowercase();
+    if domain.contains("reddit.com") || domain.contains("zhihu.com") || domain.contains("quora.com")
+    {
+        return -0.28;
+    }
+    if domain.contains("medium.com") || domain.contains("dev.to") {
+        return -0.12;
+    }
+    if domain.contains("support.microsoft.com")
+        || combined_lowered.contains("contact microsoft support")
+        || combined_lowered.contains("/contactus")
+        || (combined_lowered.contains("support")
+            && !combined_lowered.contains("agent")
+            && framework_name_hits(&combined_lowered) == 0)
+    {
+        return -0.4;
+    }
+    if domain.contains("langgraph.com.cn")
+        || domain.contains("crewai.org.cn")
+        || domain.ends_with(".org.cn")
+        || domain.ends_with(".com.cn")
+    {
+        return -0.18;
+    }
+    if domain.contains("langchain.com")
+        || domain.contains("openai.com")
+        || domain.contains("openai.github.io")
+        || domain.contains("crewai.com")
+        || domain.contains("huggingface.co")
+        || domain.contains("microsoft.github.io")
+    {
+        return 0.2;
+    }
+    if domain.contains("github.com") {
+        if combined_lowered.contains("microsoft/autogen") || combined_lowered.contains("autogen") {
+            return 0.18;
+        }
+        if framework_name_hits(&combined) >= 1 {
+            return 0.12;
+        }
+    }
+    0.0
 }

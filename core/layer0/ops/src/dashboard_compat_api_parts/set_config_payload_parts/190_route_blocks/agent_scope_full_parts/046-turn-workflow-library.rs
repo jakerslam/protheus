@@ -255,6 +255,12 @@ fn workflow_response_requests_more_tooling(response: &str) -> bool {
             "let me try",
             "i'll try",
             "i will try",
+            "if you'd like, i can search",
+            "if you would like, i can search",
+            "if you'd like, i can fetch",
+            "if you would like, i can fetch",
+            "if you'd like, i can look deeper",
+            "if you would like, i can look deeper",
             "more targeted approach",
             "another search",
             "technical documentation",
@@ -275,7 +281,22 @@ fn sanitize_workflow_final_response_candidate(response: &str) -> String {
         32_000,
     );
     let lowered = cleaned.to_ascii_lowercase();
-    let cutoff = ["let me try", "i'll try", "i will try", "let me search", "i'll search", "i will search"]
+    let cutoff = [
+        "let me try",
+        "i'll try",
+        "i will try",
+        "let me search",
+        "i'll search",
+        "i will search",
+        "would you like me to search",
+        "would you like me to fetch",
+        "if you'd like, i can search",
+        "if you would like, i can search",
+        "if you'd like, i can fetch",
+        "if you would like, i can fetch",
+        "if you'd like, i can look deeper",
+        "if you would like, i can look deeper",
+    ]
         .iter()
         .filter_map(|marker| lowered.find(marker))
         .min();
