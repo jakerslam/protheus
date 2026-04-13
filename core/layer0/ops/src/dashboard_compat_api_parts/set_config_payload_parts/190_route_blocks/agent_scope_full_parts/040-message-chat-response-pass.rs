@@ -324,15 +324,16 @@ fn handle_message_chat_response_pass(
                 inline_tools_allowed,
             ))
         }
-        Err(err) => Some(CompatApiResponse {
-            status: 502,
-            payload: json!({
-                "ok": false,
-                "agent_id": agent_id,
-                "error": clean_text(&err, 280),
-                "provider": provider,
-                "model": model
-            }),
-        }),
+        Err(err) => Some(finalize_message_invoke_failure_and_payload(
+            root,
+            agent_id,
+            message,
+            &provider,
+            &model,
+            &err,
+            &active_messages,
+            workspace_hints,
+            latent_tool_candidates,
+        )),
     }
 }

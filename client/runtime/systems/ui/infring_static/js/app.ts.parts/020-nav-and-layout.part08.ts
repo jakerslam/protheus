@@ -175,104 +175,6 @@
       this._bottomDockPreviewReflowFrames = 0;
     },
 
-    scheduleBottomDockPreviewWidthSync() {
-      if (this._bottomDockPreviewWidthRaf && typeof cancelAnimationFrame === 'function') {
-        try { cancelAnimationFrame(this._bottomDockPreviewWidthRaf); } catch(_) {}
-      }
-      var self = this;
-      var syncWidth = function() {
-        self._bottomDockPreviewWidthRaf = 0;
-        try {
-          var bubble = document && typeof document.querySelector === 'function'
-            ? document.querySelector('.bottom-dock-preview-bubble')
-            : null;
-          if (!bubble) return;
-          var stack = (typeof bubble.querySelector === 'function')
-            ? bubble.querySelector('.bottom-dock-preview-bubble-label-stack')
-            : null;
-          var contentWidth = Number(stack && (stack.scrollWidth || stack.offsetWidth) || 0);
-          var bubbleStyle = (typeof window !== 'undefined' && typeof window.getComputedStyle === 'function')
-            ? window.getComputedStyle(bubble)
-            : null;
-          var paddingLeft = bubbleStyle ? Number(parseFloat(String(bubbleStyle.paddingLeft || '0')) || 0) : 0;
-          var paddingRight = bubbleStyle ? Number(parseFloat(String(bubbleStyle.paddingRight || '0')) || 0) : 0;
-          var borderLeft = bubbleStyle ? Number(parseFloat(String(bubbleStyle.borderLeftWidth || '0')) || 0) : 0;
-          var borderRight = bubbleStyle ? Number(parseFloat(String(bubbleStyle.borderRightWidth || '0')) || 0) : 0;
-          var nextWidth = contentWidth + paddingLeft + paddingRight + borderLeft + borderRight;
-          if (!Number.isFinite(nextWidth) || nextWidth <= 0) return;
-          self.bottomDockPreviewWidth = Math.max(0, Math.ceil(nextWidth));
-        } catch(_) {}
-      };
-      if (typeof requestAnimationFrame === 'function') {
-        this._bottomDockPreviewWidthRaf = requestAnimationFrame(syncWidth);
-      } else {
-        syncWidth();
-      }
-    },
-
-    retriggerBottomDockPreviewLabelFx(nextLabel) {
-      if (this._bottomDockPreviewLabelFxRaf && typeof cancelAnimationFrame === 'function') {
-        try { cancelAnimationFrame(this._bottomDockPreviewLabelFxRaf); } catch(_) {}
-      }
-      if (this._bottomDockPreviewLabelFxTimer) {
-        try { clearTimeout(this._bottomDockPreviewLabelFxTimer); } catch(_) {}
-      }
-      if (this._bottomDockPreviewLabelMorphTimer) {
-        try { clearTimeout(this._bottomDockPreviewLabelMorphTimer); } catch(_) {}
-      }
-      this._bottomDockPreviewLabelFxRaf = 0;
-      this._bottomDockPreviewLabelFxTimer = 0;
-      this._bottomDockPreviewLabelMorphTimer = 0;
-      this.bottomDockPreviewLabelFxReady = false;
-      var self = this;
-      var nextText = (typeof nextLabel === 'string')
-        ? nextLabel
-        : String(this.bottomDockPreviewText || '');
-      var previousText = String(this.bottomDockPreviewText || '');
-      this.bottomDockPreviewMorphFromText = previousText;
-      this.bottomDockPreviewLabelMorphing = Boolean(previousText && nextText && previousText !== nextText);
-      this.bottomDockPreviewText = nextText;
-      this.scheduleBottomDockPreviewWidthSync();
-      var commitLabelAndAnimateIn = function() {
-        try {
-          var node = document && typeof document.querySelector === 'function'
-            ? document.querySelector('.bottom-dock-preview-bubble-label-stack')
-            : null;
-          if (node) void node.offsetWidth;
-        } catch(_) {}
-        if (typeof requestAnimationFrame === 'function') {
-          self._bottomDockPreviewLabelFxRaf = requestAnimationFrame(function() {
-            self._bottomDockPreviewLabelFxRaf = 0;
-            self._bottomDockPreviewLabelFxTimer = window.setTimeout(function() {
-              self._bottomDockPreviewLabelFxTimer = 0;
-              self.bottomDockPreviewLabelFxReady = true;
-              if (self._bottomDockPreviewLabelMorphTimer) {
-                try { clearTimeout(self._bottomDockPreviewLabelMorphTimer); } catch(_) {}
-              }
-              self._bottomDockPreviewLabelMorphTimer = window.setTimeout(function() {
-                self._bottomDockPreviewLabelMorphTimer = 0;
-                self.bottomDockPreviewMorphFromText = '';
-                self.bottomDockPreviewLabelMorphing = false;
-                self.scheduleBottomDockPreviewWidthSync();
-              }, 200);
-            }, 16);
-          });
-        } else {
-          self.bottomDockPreviewLabelFxReady = true;
-        }
-      };
-      if (typeof requestAnimationFrame === 'function') {
-        this._bottomDockPreviewLabelFxRaf = requestAnimationFrame(function() {
-          self._bottomDockPreviewLabelFxRaf = 0;
-          commitLabelAndAnimateIn();
-        });
-      } else {
-        this.bottomDockPreviewLabelFxReady = true;
-        this.bottomDockPreviewMorphFromText = '';
-        this.bottomDockPreviewLabelMorphing = false;
-      }
-    },
-
     syncBottomDockPreview() {
       var key = String(this.bottomDockHoverId || '').trim();
       if (!key) {
@@ -309,9 +211,6 @@
         this.bottomDockPreviewLabelFxReady = true;
         return;
       }
-      var wasVisible = Boolean(this.bottomDockPreviewVisible);
-      var previousHoverKey = String(this.bottomDockPreviewHoverKey || '');
-      var previousLabel = String(this.bottomDockPreviewText || '');
       var centerX = 0;
       var centerY = 0;
       var anchorY = 0;
@@ -379,16 +278,9 @@
       this.bottomDockPreviewY = vertical ? centerY : anchorY;
       this.bottomDockPreviewHoverKey = key;
       this.bottomDockPreviewVisible = true;
-      if (wasVisible && (key !== previousHoverKey || label !== previousLabel)) {
-        this.retriggerBottomDockPreviewLabelFx(label);
-      } else {
-        this.bottomDockPreviewText = label;
-        this.scheduleBottomDockPreviewWidthSync();
-        if (!this.bottomDockPreviewLabelMorphing) {
-          this.bottomDockPreviewMorphFromText = '';
-        }
-        if (!wasVisible && !this.bottomDockPreviewLabelFxReady) {
-          this.bottomDockPreviewLabelFxReady = true;
-        }
-      }
+      this.bottomDockPreviewText = label;
+      this.bottomDockPreviewMorphFromText = '';
+      this.bottomDockPreviewLabelMorphing = false;
+      this.bottomDockPreviewWidth = 0;
+      this.bottomDockPreviewLabelFxReady = true;
     },

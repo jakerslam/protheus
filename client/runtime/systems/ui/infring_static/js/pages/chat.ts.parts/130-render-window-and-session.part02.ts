@@ -38,8 +38,6 @@
           // Always prefer server-authoritative session state over potentially stale cache.
           self.messages = normalized;
           self.clearHoveredMessageHard();
-          self.activeMapPreviewDomId = '';
-          self.activeMapPreviewDayKey = '';
           self.recomputeContextEstimate();
           self.cacheAgentConversation(agentId);
           self.$nextTick(function() {
@@ -54,8 +52,6 @@
             self.showFreshArchetypeTiles = false;
             self.messages = [];
             self.clearHoveredMessageHard();
-            self.activeMapPreviewDomId = '';
-            self.activeMapPreviewDayKey = '';
             self.recomputeContextEstimate();
             self.recoverEmptySessionRender(agentId, data || null);
           }

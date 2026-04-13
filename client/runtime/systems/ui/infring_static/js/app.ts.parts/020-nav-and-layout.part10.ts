@@ -79,6 +79,224 @@
       if (pageKey) this.navigate(pageKey);
     },
 
+    normalizeSidebarPopupText(rawText) {
+      var text = String(rawText || '').trim();
+      if (!text) return '';
+      if (this.isSidebarPopupPlaceholderText(text)) return '';
+      return text;
+    },
+
+    isSidebarPopupPlaceholderText(text) {
+      var normalized = String(text || '').trim().toLowerCase();
+      return normalized === 'no messages yet'
+        || normalized === 'system events and terminal output'
+        || normalized === 'no matching text'
+        || normalized === 'agent';
+    },
+
+    sidebarPopupMetaOrigin(preview, fallbackLabel) {
+      var role = String(preview && preview.role || '').trim().toLowerCase();
+      if (role === 'user') return 'User';
+      if (role === 'assistant' || role === 'agent') return 'Agent';
+      if (role) return role.charAt(0).toUpperCase() + role.slice(1);
+      return String(fallbackLabel || 'Sidebar').trim() || 'Sidebar';
+    },
+
+    hideDashboardPopupBySource(source) {
+      var expected = String(source || '').trim();
+      if (!expected) return;
+      var popup = this.dashboardPopup || {};
+      var currentSource = String(popup.source || '').trim();
+      if (currentSource !== expected) return;
+      this.hideDashboardPopup(String(popup.id || '').trim());
+    },
+
+    showCollapsedSidebarAgentPopup(agent, ev) {
+      if (!this.sidebarCollapsed || !agent) {
+        this.hideDashboardPopupBySource('sidebar');
+        return;
+      }
+      var rawId = String(agent.id || '').trim();
+      var rawIdLower = rawId.toLowerCase();
+      var isSystemThread = (typeof this.isSystemSidebarThread === 'function')
+        ? this.isSystemSidebarThread(agent)
+        : (agent.is_system_thread === true || rawIdLower === 'system');
+      if (isSystemThread || rawIdLower === 'settings') {
+        this.hideDashboardPopupBySource('sidebar');
+        return;
+      }
+      var preview = this.chatSidebarPreview(agent) || {};
+      var previewText = this.normalizeSidebarPopupText(preview.text || '');
+      var title = String(agent.name || rawId).trim();
+      if (!rawId || !title || !previewText) {
+        this.hideDashboardPopupBySource('sidebar');
+        return;
+      }
+      this.showDashboardPopup('sidebar-agent:' + rawId, title, ev, {
+        source: 'sidebar',
+        side: 'right',
+        body: previewText,
+        meta_origin: this.sidebarPopupMetaOrigin(preview, 'Agent'),
+        meta_time: typeof this.formatChatSidebarTime === 'function'
+          ? String(this.formatChatSidebarTime(preview.ts) || '').trim()
+          : '',
+        unread: !!preview.unread_response
+      });
+    },
+
+    showCollapsedSidebarNavPopup(label, ev) {
+      if (!this.sidebarCollapsed) {
+        this.hideDashboardPopupBySource('sidebar');
+        return;
+      }
+      var navLabel = String(label || '').trim();
+      var navLabelLower = navLabel.toLowerCase();
+      if (!navLabel || navLabelLower === 'system' || navLabelLower === 'settings') {
+        this.hideDashboardPopupBySource('sidebar');
+        return;
+      }
+      this.showDashboardPopup('sidebar-nav:' + navLabelLower.replace(/[^a-z0-9_-]+/g, '-'), navLabel, ev, {
+        source: 'sidebar',
+        side: 'right',
+        meta_origin: 'Sidebar'
+      });
+    },
+
+    clearDashboardPopupState() {
+      this.dashboardPopup = {
+        id: '',
+        active: false,
+        source: '',
+        title: '',
+        body: '',
+        meta_origin: '',
+        meta_time: '',
+        unread: false,
+        left: 0,
+        top: 0,
+        side: 'bottom',
+        compact: false
+      };
+    },
+
+    dashboardPopupAnchorPoint(ev, sideOverride) {
+      var side = String(sideOverride || 'bottom').trim().toLowerCase();
+      if (side !== 'top' && side !== 'left' && side !== 'right') side = 'bottom';
+      var node = ev && ev.currentTarget ? ev.currentTarget : null;
+      if (!node && ev && ev.target && typeof ev.target.closest === 'function') {
+        try {
+          node = ev.target.closest('button,[role="button"],.topbar-reorder-item');
+        } catch(_) {
+          node = null;
+        }
+      }
+      if (!node || typeof node.getBoundingClientRect !== 'function') {
+        return { left: 0, top: 0, side: side };
+      }
+      var rect = node.getBoundingClientRect();
+      var width = Number(rect.width || 0);
+      var height = Number(rect.height || 0);
+      var left = Math.round(Number(rect.left || 0) + (width / 2));
+      var top = Math.round(Number(rect.bottom || 0));
+      if (side === 'top') {
+        top = Math.round(Number(rect.top || 0));
+      } else if (side === 'left') {
+        left = Math.round(Number(rect.left || 0));
+        top = Math.round(Number(rect.top || 0) + (height / 2));
+      } else if (side === 'right') {
+        left = Math.round(Number(rect.right || 0));
+        top = Math.round(Number(rect.top || 0) + (height / 2));
+      }
+      return {
+        left: left,
+        top: top,
+        side: side
+      };
+    },
+
+    showDashboardPopup(id, label, ev, overrides) {
+      var popupId = String(id || '').trim();
+      var title = String(label || '').trim();
+      if (!popupId || !title) {
+        this.hideDashboardPopup();
+        return;
+      }
+      var eventType = String((ev && ev.type) || '').toLowerCase();
+      if (
+        eventType === 'mouseleave' ||
+        eventType === 'pointerleave' ||
+        eventType === 'blur' ||
+        eventType === 'focusout'
+      ) {
+        this.hideDashboardPopup(popupId);
+        return;
+      }
+      if (ev && ev.isTrusted === false) return;
+      var config = overrides && typeof overrides === 'object' ? overrides : {};
+      var anchor = this.dashboardPopupAnchorPoint(ev, config.side);
+      var body = String(config.body || '').trim();
+      this.dashboardPopup = {
+        id: popupId,
+        active: true,
+        source: String(config.source || '').trim(),
+        title: title,
+        body: body,
+        meta_origin: String(config.meta_origin || 'Topbar').trim(),
+        meta_time: String(config.meta_time || '').trim(),
+        unread: !!config.unread,
+        left: anchor.left,
+        top: anchor.top,
+        side: anchor.side,
+        compact: false
+      };
+    },
+
+    showTopbarNavPopup(label, ev) {
+      var navLabel = String(label || '').trim();
+      if (!navLabel) {
+        this.hideDashboardPopup();
+        return;
+      }
+      var navKey = navLabel.toLowerCase().replace(/[^a-z0-9_-]+/g, '-');
+      var body = navKey === 'back'
+        ? (this.canNavigateBack() ? 'Go to the previous page in this session' : 'No earlier page in this session')
+        : (this.canNavigateForward() ? 'Go to the next page in this session' : 'No later page in this session');
+      this.showDashboardPopup('topbar-nav:' + navKey, navLabel, ev, {
+        source: 'topbar',
+        side: 'bottom',
+        compact: false,
+        body: body,
+        meta_origin: 'Chat nav'
+      });
+    },
+
+    showTopbarUtilityPopup(label, body, ev) {
+      var utilityLabel = String(label || '').trim();
+      if (!utilityLabel) {
+        this.hideDashboardPopup();
+        return;
+      }
+      this.showDashboardPopup(
+        'topbar-utility:' + utilityLabel.toLowerCase().replace(/[^a-z0-9_-]+/g, '-'),
+        utilityLabel,
+        ev,
+        {
+          source: 'topbar',
+          side: 'bottom',
+          compact: false,
+          body: String(body || '').trim(),
+          meta_origin: 'Topbar'
+        }
+      );
+    },
+
+    hideDashboardPopup(rawId) {
+      var popupId = String(rawId || '').trim();
+      var currentId = String(this.dashboardPopup && this.dashboardPopup.id || '').trim();
+      if (popupId && currentId && popupId !== currentId) return;
+      this.clearDashboardPopupState();
+    },
+
     bottomDockIsDraggingVisual(id) {
       var key = String(id || '').trim();
       if (!key) return false;

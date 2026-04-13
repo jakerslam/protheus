@@ -160,8 +160,6 @@ function chatPage() {
     selectedMessageDomId: '',
     _systemMessageDedupeIndex: {},
     mapStepIndex: -1,
-    activeMapPreviewDomId: '',
-    activeMapPreviewDayKey: '',
     suppressMapPreview: false,
     _mapPreviewSuppressTimer: null,
     _scrollSyncFrame: 0,

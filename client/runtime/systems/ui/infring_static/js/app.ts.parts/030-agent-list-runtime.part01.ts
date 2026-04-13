@@ -322,9 +322,7 @@
       this.bootSplashVisible = true;
       if (typeof this.resetBootProgress === 'function') this.resetBootProgress();
       if (typeof this.setBootProgressEvent === 'function') this.setBootProgressEvent('splash_visible');
-      if (typeof this.hideCollapsedAgentHover === 'function') this.hideCollapsedAgentHover();
-      this._collapsedHoverNeedsPointerMove = !!this.sidebarCollapsed;
-      this._collapsedHoverSuppressedUntil = this.sidebarCollapsed ? (Date.now() + 700) : 0;
+      if (typeof this.hideDashboardPopupBySource === 'function') this.hideDashboardPopupBySource('sidebar');
       if (this._bootSplashMaxTimer) {
         clearTimeout(this._bootSplashMaxTimer);
         this._bootSplashMaxTimer = 0;
@@ -570,7 +568,7 @@
       this.navigate(target);
     },
     navigate(p) {
-      if (typeof this.hideCollapsedAgentHover === 'function') this.hideCollapsedAgentHover();
+      if (typeof this.hideDashboardPopupBySource === 'function') this.hideDashboardPopupBySource('sidebar');
       if (String(p || '') !== 'chat') {
         var store = this.getAppStore();
         var pendingId = String((store && store.pendingFreshAgentId) || '').trim();

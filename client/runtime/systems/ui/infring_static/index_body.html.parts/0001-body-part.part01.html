@@ -56,7 +56,7 @@
   <!-- Sidebar -->
   <nav class="sidebar" :class="{ collapsed: sidebarCollapsed, 'mobile-open': mobileMenuOpen, 'chat-only-hidden': page !== 'chat' }">
     <div class="sidebar-nav-shell">
-    <div class="sidebar-nav" role="navigation" aria-label="Main navigation" x-ref="sidebarNav" @scroll.passive="scheduleSidebarScrollIndicators(); hideCollapsedAgentHover()">
+    <div class="sidebar-nav" role="navigation" aria-label="Main navigation" x-ref="sidebarNav" @scroll.passive="scheduleSidebarScrollIndicators(); hideDashboardPopupBySource('sidebar')">
       <div class="sidebar-top-ghost" aria-hidden="true"></div>
       <!-- Agents conversations — primary action -->
       <div class="nav-section" aria-label="Agent conversations">
@@ -66,9 +66,9 @@
               :class="{ active: page === 'chat' }"
               @click="navigate('chat')"
               :aria-current="page === 'chat' ? 'page' : false"
-              @mouseenter="if (sidebarCollapsed) { _collapsedHoverNeedsPointerMove = false; _collapsedHoverSuppressedUntil = Date.now() + 70; updateCollapsedAgentHoverPosition($event); }"
-              @mousemove="if (sidebarCollapsed) handleCollapsedNavHoverMove('Conversations', $event)"
-              @mouseleave="if (sidebarCollapsed) hideCollapsedAgentHover()"
+              @mouseenter="if (sidebarCollapsed) showCollapsedSidebarNavPopup('Conversations', $event)"
+              @mousemove="if (sidebarCollapsed) showCollapsedSidebarNavPopup('Conversations', $event)"
+              @mouseleave="if (sidebarCollapsed) hideDashboardPopupBySource('sidebar')"
             >
               <span class="nav-icon">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
@@ -77,9 +77,11 @@
             </a>
             <div class="nav-sub-search-row">
               <div
-                class="nav-sub-search-wrap nav-sub-search-coming-soon dashboard-preview-trigger"
-                data-tooltip="Coming soon"
+                class="nav-sub-search-wrap nav-sub-search-coming-soon"
                 :class="{ 'is-active': false, 'is-loading': false }"
+                @mouseenter="showDashboardPopup('sidebar-utility:conversation-search', 'Conversation search', $event, { source: 'sidebar', side: 'right', body: 'Search coming soon', meta_origin: 'Sidebar' })"
+                @mousemove="showDashboardPopup('sidebar-utility:conversation-search', 'Conversation search', $event, { source: 'sidebar', side: 'right', body: 'Search coming soon', meta_origin: 'Sidebar' })"
+                @mouseleave="hideDashboardPopup('sidebar-utility:conversation-search')"
               >
                 <span class="nav-sub-search-icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.6-3.6"></path></svg>
@@ -98,7 +100,6 @@
                   class="nav-sub-search-clear"
                   x-show="false"
                   @click="chatSidebarQuery=''; clearChatSidebarSearch()"
-                  title="Clear search"
                   aria-label="Clear search"
                 >
                   &times;
@@ -118,7 +119,11 @@
                   class="nav-sub-sort-btn"
                   :class="{ active: chatSidebarSortMode === 'age' }"
                   @click.stop="setChatSidebarSortMode('age')"
-                  title="Sort by recent activity"
+                  @mouseenter="showDashboardPopup('sidebar-utility:sort-conversations', 'Sort conversations', $event, { source: 'sidebar', side: 'right', body: 'Sort by recent activity', meta_origin: 'Sidebar' })"
+                  @mousemove="showDashboardPopup('sidebar-utility:sort-conversations', 'Sort conversations', $event, { source: 'sidebar', side: 'right', body: 'Sort by recent activity', meta_origin: 'Sidebar' })"
+                  @mouseleave="hideDashboardPopup('sidebar-utility:sort-conversations')"
+                  @focus="showDashboardPopup('sidebar-utility:sort-conversations', 'Sort conversations', $event, { source: 'sidebar', side: 'right', body: 'Sort by recent activity', meta_origin: 'Sidebar' })"
+                  @blur="hideDashboardPopup('sidebar-utility:sort-conversations')"
                   aria-label="Sort by recent activity"
                 >
                   <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v6l4 2"></path></svg>
@@ -128,7 +133,11 @@
                   class="nav-sub-sort-btn"
                   :class="{ active: chatSidebarSortMode === 'topology' }"
                   @click.stop="setChatSidebarSortMode('topology')"
-                  title="Sort by topology"
+                  @mouseenter="showDashboardPopup('sidebar-utility:sort-conversations', 'Sort conversations', $event, { source: 'sidebar', side: 'right', body: 'Sort by topology', meta_origin: 'Sidebar' })"
+                  @mousemove="showDashboardPopup('sidebar-utility:sort-conversations', 'Sort conversations', $event, { source: 'sidebar', side: 'right', body: 'Sort by topology', meta_origin: 'Sidebar' })"
+                  @mouseleave="hideDashboardPopup('sidebar-utility:sort-conversations')"
+                  @focus="showDashboardPopup('sidebar-utility:sort-conversations', 'Sort conversations', $event, { source: 'sidebar', side: 'right', body: 'Sort by topology', meta_origin: 'Sidebar' })"
+                  @blur="hideDashboardPopup('sidebar-utility:sort-conversations')"
                   aria-label="Sort by topology"
                 >
                   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h10"></path><path d="M5 12h14"></path><path d="M5 17h8"></path><path d="m16 5 3 2-3 2"></path><path d="m20 10 3 2-3 2"></path><path d="m14 15 3 2-3 2"></path></svg>
@@ -153,7 +162,9 @@
               x-show="sidebarCollapsed"
               :aria-disabled="sidebarSpawningAgent ? 'true' : 'false'"
               @click="if (!sidebarSpawningAgent) createSidebarAgentChat()"
-              title="New agent"
+              @mouseenter="showDashboardPopup('sidebar-utility:new-agent', 'New agent', $event, { source: 'sidebar', side: 'right', body: sidebarSpawningAgent ? 'Agent creation already in progress' : 'Create a new agent conversation', meta_origin: 'Sidebar' })"
+              @mousemove="showDashboardPopup('sidebar-utility:new-agent', 'New agent', $event, { source: 'sidebar', side: 'right', body: sidebarSpawningAgent ? 'Agent creation already in progress' : 'Create a new agent conversation', meta_origin: 'Sidebar' })"
+              @mouseleave="hideDashboardPopup('sidebar-utility:new-agent')"
               aria-label="New agent"
             >
               <span class="nav-icon new-agent-plus-icon-wrap">
@@ -183,9 +194,9 @@
                 @dragover="handleChatSidebarTopologyDragOver(agent, $event)"
                 @drop="handleChatSidebarTopologyDrop(agent, $event)"
                 @dragend="endChatSidebarTopologyDrag()"
-                @mouseenter="if (sidebarCollapsed) { if (isSystemSidebarThread(agent)) { hideCollapsedAgentHover(); } else { _collapsedHoverNeedsPointerMove = false; _collapsedHoverSuppressedUntil = 0; updateCollapsedAgentHoverPosition($event); showCollapsedAgentHover(agent, $event); } }"
-                @mousemove="if (sidebarCollapsed) { if (isSystemSidebarThread(agent)) hideCollapsedAgentHover(); else handleCollapsedAgentHoverMove(agent, $event); }"
-                @mouseleave="if (sidebarCollapsed) hideCollapsedAgentHover()"
+                @mouseenter="if (sidebarCollapsed) showCollapsedSidebarAgentPopup(agent, $event)"
+                @mousemove="if (sidebarCollapsed) showCollapsedSidebarAgentPopup(agent, $event)"
+                @mouseleave="if (sidebarCollapsed) hideDashboardPopupBySource('sidebar')"
               >
                 <span class="nav-icon nav-agent-icon">
                   <span class="nav-agent-avatar-wrap" :class="{ 'nav-agent-avatar-archived-mask': !!agent.archived, 'nav-agent-avatar-timeout-mask': !!agent._timed_out_local, 'nav-agent-avatar-expiring-critical': expiryCountdownCritical(agent) }">
@@ -211,7 +222,14 @@
                       x-show="shouldShowInfinityLifespan(agent)"
                     >&infin;</span>
                   </span>
-                  <span class="agent-status-dot nav-agent-status" :class="'status-' + $store.app.agentStatusState(agent)" :title="'Agent status: ' + $store.app.agentStatusLabel(agent)" aria-hidden="true"></span>
+                  <span
+                    class="agent-status-dot nav-agent-status"
+                    :class="'status-' + $store.app.agentStatusState(agent)"
+                    @mouseenter="if (String(agentStatusLabel(agent) || '').trim()) showDashboardPopup('sidebar-status:' + String(agent.id || ''), 'Agent status', $event, { source: 'sidebar', side: 'right', body: String(agentStatusLabel(agent) || '').trim(), meta_origin: 'Sidebar', meta_time: formatChatSidebarTime((chatSidebarPreview(agent) || {}).ts) }); else hideDashboardPopup('sidebar-status:' + String(agent.id || ''))"
+                    @mousemove="if (String(agentStatusLabel(agent) || '').trim()) showDashboardPopup('sidebar-status:' + String(agent.id || ''), 'Agent status', $event, { source: 'sidebar', side: 'right', body: String(agentStatusLabel(agent) || '').trim(), meta_origin: 'Sidebar', meta_time: formatChatSidebarTime((chatSidebarPreview(agent) || {}).ts) }); else hideDashboardPopup('sidebar-status:' + String(agent.id || ''))"
+                    @mouseleave="hideDashboardPopup('sidebar-status:' + String(agent.id || ''))"
+                    aria-hidden="true"
+                  ></span>
                 </span>
                 <span class="nav-agent-main">
                   <span class="nav-agent-top">
@@ -221,7 +239,9 @@
                         class="nav-agent-tool-pill"
                         x-show="chatSidebarPreview(agent).has_tools"
                         :class="'state-' + (chatSidebarPreview(agent).tool_state || 'warning')"
-                        :title="chatSidebarPreview(agent).tool_label || 'Tool call'"
+                        @mouseenter="if (String((chatSidebarPreview(agent) || {}).tool_label || '').trim()) showDashboardPopup('sidebar-tool:' + String(agent.id || ''), 'Tool activity', $event, { source: 'sidebar', side: 'right', body: String((chatSidebarPreview(agent) || {}).tool_label || '').trim(), meta_origin: 'Sidebar', meta_time: formatChatSidebarTime((chatSidebarPreview(agent) || {}).ts), unread: !!(chatSidebarPreview(agent) || {}).unread_response }); else hideDashboardPopup('sidebar-tool:' + String(agent.id || ''))"
+                        @mousemove="if (String((chatSidebarPreview(agent) || {}).tool_label || '').trim()) showDashboardPopup('sidebar-tool:' + String(agent.id || ''), 'Tool activity', $event, { source: 'sidebar', side: 'right', body: String((chatSidebarPreview(agent) || {}).tool_label || '').trim(), meta_origin: 'Sidebar', meta_time: formatChatSidebarTime((chatSidebarPreview(agent) || {}).ts), unread: !!(chatSidebarPreview(agent) || {}).unread_response }); else hideDashboardPopup('sidebar-tool:' + String(agent.id || ''))"
+                        @mouseleave="hideDashboardPopup('sidebar-tool:' + String(agent.id || ''))"
                       >
                         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
                       </span>
@@ -238,7 +258,9 @@
                       class="nav-agent-archive"
                       x-show="!agent.archived && !(agent.is_system_thread === true || String(agent.id || '').toLowerCase() === 'system') && confirmArchiveAgentId !== String(agent.id)"
                       @click.stop="confirmArchiveAgentId = String(agent.id)"
-                      title="Archive agent chat"
+                      @mouseenter="showDashboardPopup('sidebar-utility:archive-chat', 'Archive chat', $event, { source: 'sidebar', side: 'right', body: 'Archive this agent conversation', meta_origin: 'Sidebar' })"
+                      @mousemove="showDashboardPopup('sidebar-utility:archive-chat', 'Archive chat', $event, { source: 'sidebar', side: 'right', body: 'Archive this agent conversation', meta_origin: 'Sidebar' })"
+                      @mouseleave="hideDashboardPopup('sidebar-utility:archive-chat')"
                     >
                       <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9h14v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z"/><path d="M10 13h4"/></svg>
                     </button>
@@ -246,8 +268,9 @@
                       class="nav-agent-archive nav-agent-archive-confirm"
                       x-show="!agent.archived && !(agent.is_system_thread === true || String(agent.id || '').toLowerCase() === 'system') && confirmArchiveAgentId === String(agent.id)"
                       @click.stop="archiveAgentFromSidebar(agent)"
-                      @mouseleave="if (confirmArchiveAgentId === String(agent.id)) confirmArchiveAgentId = ''"
-                      title="Confirm archive"
+                      @mouseleave="hideDashboardPopup('sidebar-utility:confirm-archive'); if (confirmArchiveAgentId === String(agent.id)) confirmArchiveAgentId = ''"
+                      @mouseenter="showDashboardPopup('sidebar-utility:confirm-archive', 'Confirm archive', $event, { source: 'sidebar', side: 'right', body: 'Archive this agent conversation now', meta_origin: 'Sidebar' })"
+                      @mousemove="showDashboardPopup('sidebar-utility:confirm-archive', 'Confirm archive', $event, { source: 'sidebar', side: 'right', body: 'Archive this agent conversation now', meta_origin: 'Sidebar' })"
                     >
                       Confirm
                     </button>
@@ -272,9 +295,9 @@
               :class="{ active: ['agents','sessions','approvals'].indexOf(page) >= 0 }"
               @click="navigate('agents')"
               :aria-current="['agents','sessions','approvals'].indexOf(page) >= 0 ? 'page' : false"
-              @mouseenter="if (sidebarCollapsed) { _collapsedHoverNeedsPointerMove = false; _collapsedHoverSuppressedUntil = 0; updateCollapsedAgentHoverPosition($event); showCollapsedNavHover('Agents', $event); }"
-              @mousemove="if (sidebarCollapsed) handleCollapsedNavHoverMove('Agents', $event)"
-              @mouseleave="if (sidebarCollapsed) hideCollapsedAgentHover()"
+              @mouseenter="if (sidebarCollapsed) showCollapsedSidebarNavPopup('Agents', $event)"
+              @mousemove="if (sidebarCollapsed) showCollapsedSidebarNavPopup('Agents', $event)"
+              @mouseleave="if (sidebarCollapsed) hideDashboardPopupBySource('sidebar')"
             >
               <span class="nav-icon">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -292,9 +315,9 @@
               :class="{ active: ['scheduler','workflows'].indexOf(page) >= 0 }"
               @click="navigate('scheduler')"
               :aria-current="['scheduler','workflows'].indexOf(page) >= 0 ? 'page' : false"
-              @mouseenter="if (sidebarCollapsed) { _collapsedHoverNeedsPointerMove = false; _collapsedHoverSuppressedUntil = 0; updateCollapsedAgentHoverPosition($event); showCollapsedNavHover('Automation', $event); }"
-              @mousemove="if (sidebarCollapsed) handleCollapsedNavHoverMove('Automation', $event)"
-              @mouseleave="if (sidebarCollapsed) hideCollapsedAgentHover()"
+              @mouseenter="if (sidebarCollapsed) showCollapsedSidebarNavPopup('Automation', $event)"
+              @mousemove="if (sidebarCollapsed) showCollapsedSidebarNavPopup('Automation', $event)"
+              @mouseleave="if (sidebarCollapsed) hideDashboardPopupBySource('sidebar')"
             >
               <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span>
               <span class="nav-label">Automation</span>
@@ -310,9 +333,9 @@
               :class="{ active: ['channels','eyes','skills','hands'].indexOf(page) >= 0 }"
               @click="navigate('skills')"
               :aria-current="['channels','eyes','skills','hands'].indexOf(page) >= 0 ? 'page' : false"
-              @mouseenter="if (sidebarCollapsed) { _collapsedHoverNeedsPointerMove = false; _collapsedHoverSuppressedUntil = 0; updateCollapsedAgentHoverPosition($event); showCollapsedNavHover('Apps', $event); }"
-              @mousemove="if (sidebarCollapsed) handleCollapsedNavHoverMove('Apps', $event)"
-              @mouseleave="if (sidebarCollapsed) hideCollapsedAgentHover()"
+              @mouseenter="if (sidebarCollapsed) showCollapsedSidebarNavPopup('Apps', $event)"
+              @mousemove="if (sidebarCollapsed) showCollapsedSidebarNavPopup('Apps', $event)"
+              @mouseleave="if (sidebarCollapsed) hideDashboardPopupBySource('sidebar')"
             >
               <span class="nav-icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -335,9 +358,9 @@
               :class="{ active: ['runtime','analytics','logs'].indexOf(page) >= 0 }"
               @click="navigate('runtime')"
               :aria-current="['runtime','analytics','logs'].indexOf(page) >= 0 ? 'page' : false"
-              @mouseenter="if (sidebarCollapsed) { _collapsedHoverNeedsPointerMove = false; _collapsedHoverSuppressedUntil = Date.now() + 250; hideCollapsedAgentHover(); }"
-              @mousemove="if (sidebarCollapsed) hideCollapsedAgentHover()"
-              @mouseleave="if (sidebarCollapsed) hideCollapsedAgentHover()"
+              @mouseenter="if (sidebarCollapsed) hideDashboardPopupBySource('sidebar')"
+              @mousemove="if (sidebarCollapsed) hideDashboardPopupBySource('sidebar')"
+              @mouseleave="if (sidebarCollapsed) hideDashboardPopupBySource('sidebar')"
             >
               <span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span>
               <span class="nav-label">System</span>
@@ -364,33 +387,15 @@
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
       </button>
     </div>
-    <div
-      class="nav-agent-collapsed-hover-float dashboard-preview-surface"
-      :class="{ 'nav-only': String(collapsedAgentHover.kind || '').toLowerCase() === 'nav' }"
-      x-cloak
-      style="display: none;"
-      x-show="page === 'chat' && sidebarCollapsed && isCollapsedAgentHoverVisible(collapsedAgentHover) && ['system','settings','nav:system','nav:settings'].indexOf(String(collapsedAgentHover.id || '').toLowerCase()) < 0 && ['system','settings'].indexOf(String(collapsedAgentHover.name || '').toLowerCase()) < 0"
-      :style="'top:' + (collapsedAgentHover.top || 0) + 'px'"
-      aria-hidden="true"
-    >
-      <span class="nav-agent-collapsed-hover-name truncate" x-text="collapsedAgentHover.name || ''"></span>
-      <span
-        class="nav-agent-collapsed-hover-text"
-        x-show="String(collapsedAgentHover.text || '').trim().length > 0"
-        :class="{ 'preview-unread': !!collapsedAgentHover.unread }"
-        x-text="collapsedAgentHover.text || ''"
-      ></span>
-    </div>
-
     <div class="sidebar-settings-anchor sidebar-tab-section">
       <a
         class="nav-item sidebar-settings-item sidebar-tab-item"
         :class="{ active: page === 'settings' }"
         @click="navigate('settings')"
         :aria-current="page === 'settings' ? 'page' : false"
-        @mouseenter="if (sidebarCollapsed) { _collapsedHoverNeedsPointerMove = false; _collapsedHoverSuppressedUntil = Date.now() + 250; hideCollapsedAgentHover(); }"
-        @mousemove="if (sidebarCollapsed) hideCollapsedAgentHover()"
-        @mouseleave="if (sidebarCollapsed) hideCollapsedAgentHover()"
+        @mouseenter="if (sidebarCollapsed) hideDashboardPopupBySource('sidebar')"
+        @mousemove="if (sidebarCollapsed) hideDashboardPopupBySource('sidebar')"
+        @mouseleave="if (sidebarCollapsed) hideDashboardPopupBySource('sidebar')"
       >
         <span class="nav-icon"><svg class="settings-cog-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.33 1V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-.33-1 1.65 1.65 0 0 0-1-.6 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1-.33H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1-.33 1.65 1.65 0 0 0 .6-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 1 1 7.13 3.6l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .33-1V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 .33 1 1.65 1.65 0 0 0 1 .6 1.65 1.65 0 0 0 1.82-.33l.06-.06A2 2 0 1 1 20.4 7.13l-.06.06A1.65 1.65 0 0 0 19.4 9c0 .38.13.74.36 1.03.23.29.57.5.94.57H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1 .4c-.29.24-.5.57-.57.94z"/></svg></span>
         <span class="nav-label">Settings</span>
@@ -403,7 +408,14 @@
         <button @click="$store.app.sessionLogout()" class="btn btn-ghost btn-sm" style="font-size:11px;padding:2px 8px;opacity:0.7" title="Sign out">Logout</button>
       </div>
     </div>
-    <button class="sidebar-pulltab" @click="toggleSidebar()" :title="sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'" aria-label="Toggle sidebar">
+    <button
+      class="sidebar-pulltab"
+      @click="toggleSidebar()"
+      @mouseenter="showDashboardPopup('sidebar-utility:' + ((sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar').toLowerCase().replace(/[^a-z0-9_-]+/g, '-')), sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar', $event, { source: 'sidebar', side: 'left', body: sidebarCollapsed ? 'Open the chat navigation rail' : 'Hide the chat navigation rail', meta_origin: 'Sidebar' })"
+      @mousemove="showDashboardPopup('sidebar-utility:' + ((sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar').toLowerCase().replace(/[^a-z0-9_-]+/g, '-')), sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar', $event, { source: 'sidebar', side: 'left', body: sidebarCollapsed ? 'Open the chat navigation rail' : 'Hide the chat navigation rail', meta_origin: 'Sidebar' })"
+      @mouseleave="hideDashboardPopup('sidebar-utility:' + ((sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar').toLowerCase().replace(/[^a-z0-9_-]+/g, '-')))"
+      aria-label="Toggle sidebar"
+    >
       <span class="sidebar-pulltab-joint sidebar-pulltab-joint-top-left" aria-hidden="true"></span>
       <span class="sidebar-pulltab-joint sidebar-pulltab-joint-top-right" aria-hidden="true"></span>
       <span class="sidebar-pulltab-joint sidebar-pulltab-joint-bottom-left" aria-hidden="true"></span>
@@ -460,8 +472,12 @@
               class="btn btn-ghost btn-sm topbar-icon-btn topbar-nav-btn topbar-back-btn"
               :class="{ 'is-disabled': !canNavigateBack() }"
               @click="navigateBackPage()"
-              :disabled="!canNavigateBack()"
-              title="Back"
+              @mouseenter="showTopbarNavPopup('Back', $event)"
+              @mousemove="showTopbarNavPopup('Back', $event)"
+              @mouseleave="hideDashboardPopup('topbar-nav:back')"
+              @focus="showTopbarNavPopup('Back', $event)"
+              @blur="hideDashboardPopup('topbar-nav:back')"
+              :aria-disabled="!canNavigateBack() ? 'true' : 'false'"
               aria-label="Back"
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -472,8 +488,12 @@
               class="btn btn-ghost btn-sm topbar-icon-btn topbar-nav-btn topbar-forward-btn"
               :class="{ 'is-disabled': !canNavigateForward() }"
               @click="navigateForwardPage()"
-              :disabled="!canNavigateForward()"
-              title="Forward"
+              @mouseenter="showTopbarNavPopup('Forward', $event)"
+              @mousemove="showTopbarNavPopup('Forward', $event)"
+              @mouseleave="hideDashboardPopup('topbar-nav:forward')"
+              @focus="showTopbarNavPopup('Forward', $event)"
+              @blur="hideDashboardPopup('topbar-nav:forward')"
+              :aria-disabled="!canNavigateForward() ? 'true' : 'false'"
               aria-label="Forward"
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

@@ -315,7 +315,7 @@
     },
     selectAgentChatFromSidebar(agent) {
       if (!agent || !agent.id) return;
-      if (typeof this.hideCollapsedAgentHover === 'function') this.hideCollapsedAgentHover();
+      if (typeof this.hideDashboardPopupBySource === 'function') this.hideDashboardPopupBySource('sidebar');
       this.confirmArchiveAgentId = '';
       var store = this.getAppStore();
       var archived = agent.archived === true;
