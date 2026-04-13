@@ -89,6 +89,146 @@
       return merged;
     },
 
+    modelCatalogRows: function(rows) {
+      var list = Array.isArray(rows) && rows.length
+        ? rows
+        : (
+          Array.isArray(this.modelPickerList) && this.modelPickerList.length
+            ? this.modelPickerList
+            : (Array.isArray(this._modelCache) ? this._modelCache : [])
+        );
+      return this.sanitizeModelCatalogRows(list);
+    },
+
+    resolveModelCatalogOption: function(value, providerHint, rows) {
+      var list = this.modelCatalogRows(rows);
+      var raw = value && typeof value === 'object'
+        ? String(value.id || value.model || value.model_name || value.runtime_model || '').trim()
+        : String(value || '').trim();
+      var provider = value && typeof value === 'object'
+        ? String(value.provider || value.model_provider || providerHint || '').trim().toLowerCase()
+        : String(providerHint || '').trim().toLowerCase();
+      if (!raw || this.isPlaceholderModelRef(raw)) return null;
+
+      var candidates = [];
+      var seen = {};
+      var addCandidate = function(candidate) {
+        var next = String(candidate || '').trim();
+        if (!next) return;
+        var key = next.toLowerCase();
+        if (seen[key]) return;
+        seen[key] = true;
+        candidates.push(next);
+      };
+      addCandidate(raw);
+      if (provider && raw.indexOf('/') < 0) addCandidate(provider + '/' + raw);
+      if (raw.indexOf('/') >= 0) addCandidate(raw.split('/').slice(-1)[0]);
+
+      var fallbackMatches = [];
+      for (var i = 0; i < list.length; i += 1) {
+        var row = list[i] || {};
+        var rowId = String(row.id || '').trim();
+        var rowProvider = String(row.provider || row.model_provider || '').trim().toLowerCase();
+        var rowModel = String(row.model || row.model_name || row.runtime_model || '').trim();
+        var rowDisplay = String(row.display_name || '').trim();
+        for (var j = 0; j < candidates.length; j += 1) {
+          var candidate = candidates[j];
+          var candidateLower = candidate.toLowerCase();
+          if (rowId && rowId.toLowerCase() === candidateLower) return row;
+          if (rowModel && rowModel.toLowerCase() === candidateLower) {
+            if (!provider || rowProvider === provider) return row;
+            fallbackMatches.push(row);
+          }
+          if (rowDisplay && rowDisplay.toLowerCase() === candidateLower) {
+            if (!provider || rowProvider === provider) return row;
+            fallbackMatches.push(row);
+          }
+        }
+      }
+      if (provider) {
+        for (var k = 0; k < fallbackMatches.length; k += 1) {
+          var fallback = fallbackMatches[k] || {};
+          if (String(fallback.provider || fallback.model_provider || '').trim().toLowerCase() === provider) {
+            return fallback;
+          }
+        }
+      }
+      return fallbackMatches.length ? fallbackMatches[0] : null;
+    },
+
+    resolveProviderScopedModelCatalogOption: function(providerValue, modelValue, rows) {
+      var provider = String(providerValue || '').trim().toLowerCase();
+      var list = this.modelCatalogRows(rows);
+      if (!provider) return this.resolveModelCatalogOption(modelValue, '', list);
+      var resolved = this.resolveModelCatalogOption(modelValue, provider, list);
+      if (resolved && String(resolved.provider || resolved.model_provider || '').trim().toLowerCase() === provider) {
+        return resolved;
+      }
+      var rawModel = String(modelValue || '').trim();
+      var targetModel = rawModel.indexOf('/') >= 0 ? rawModel.split('/').slice(-1)[0] : rawModel;
+      var matches = [];
+      for (var i = 0; i < list.length; i += 1) {
+        var row = list[i] || {};
+        var rowProvider = String(row.provider || row.model_provider || '').trim().toLowerCase();
+        if (rowProvider !== provider) continue;
+        if (!targetModel) {
+          matches.push(row);
+          continue;
+        }
+        var rowModel = String(row.model || row.model_name || row.runtime_model || '').trim();
+        var rowId = String(row.id || '').trim();
+        var exactId = rowId && rowId.toLowerCase() === (provider + '/' + targetModel).toLowerCase();
+        var exactModel = rowModel && rowModel.toLowerCase() === targetModel.toLowerCase();
+        if (exactId || exactModel) return row;
+        matches.push(row);
+      }
+      if (!matches.length) return resolved || null;
+      for (var j = 0; j < matches.length; j += 1) {
+        if (matches[j] && matches[j].available !== false) return matches[j];
+      }
+      return matches[0];
+    },
+
+    dedupeFallbackModelList: function(entries, options) {
+      var list = Array.isArray(entries) ? entries : [];
+      var opts = options && typeof options === 'object' ? options : {};
+      var rows = this.modelCatalogRows(opts.rows);
+      var primary = this.resolveModelCatalogOption(opts.primary_id || '', opts.primary_provider || '', rows);
+      var primaryId = String(primary && primary.id ? primary.id : '').trim().toLowerCase();
+      var out = [];
+      var seen = {};
+      for (var i = 0; i < list.length; i += 1) {
+        var entry = list[i];
+        var raw = entry && typeof entry === 'object' ? entry : { model: entry };
+        var provider = String(raw.provider || raw.model_provider || '').trim();
+        var model = String(raw.model || raw.model_name || raw.runtime_model || raw.id || '').trim();
+        if (!model || this.isPlaceholderModelRef(model)) continue;
+        var resolved = provider
+          ? this.resolveProviderScopedModelCatalogOption(provider, model, rows)
+          : this.resolveModelCatalogOption(model, '', rows);
+        var normalizedProvider = String(
+          (resolved && (resolved.provider || resolved.model_provider)) || provider || ''
+        ).trim();
+        var normalizedModel = String(
+          (resolved && (resolved.model || resolved.model_name || resolved.runtime_model)) || model
+        ).trim();
+        var normalizedId = String(
+          (resolved && resolved.id) ||
+          (normalizedProvider && normalizedModel ? (normalizedProvider + '/' + normalizedModel) : normalizedModel)
+        ).trim();
+        if (!normalizedId || this.isPlaceholderModelRef(normalizedId)) continue;
+        var dedupeKey = normalizedId.toLowerCase();
+        if (primaryId && dedupeKey === primaryId) continue;
+        if (seen[dedupeKey]) continue;
+        seen[dedupeKey] = true;
+        out.push({
+          provider: normalizedProvider || String(provider || '').trim(),
+          model: normalizedModel
+        });
+      }
+      return out;
+    },
+
     noModelsGuidanceText: function() {
       return [
         "I don't have any usable models yet.",

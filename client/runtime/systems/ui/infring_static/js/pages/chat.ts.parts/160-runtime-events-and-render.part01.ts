@@ -98,10 +98,18 @@
             var summaryRan = String(toolSummary.executed_command || invokedCommand || '').trim();
             var summaryPolicy = String(toolSummary.permission_verdict || '').trim();
             if (summaryRan) summaryLines.push('Ran: ' + summaryRan);
+            var summaryModel = this.toolSummaryModelLabel(toolSummary);
+            if (summaryModel) summaryLines.push('Model: ' + summaryModel);
             if (summaryPolicy && summaryPolicy !== 'allow') summaryLines.push('Policy: ' + summaryPolicy);
             if (toolSummary.blocked) summaryLines.push('Blocked: ' + String(toolSummary.blocked_reason || 'policy'));
             var summaryRouter = String(toolSummary.translation_reason || (data && data.translation_reason) || '').trim();
             if ((toolSummary.command_translated || (data && data.command_translated)) && summaryRouter) summaryLines.push('Router: ' + summaryRouter);
+            var summaryFallbacks = this.toolSummaryFallbackLines(toolSummary);
+            for (var summaryFallbackIdx = 0; summaryFallbackIdx < summaryFallbacks.length; summaryFallbackIdx += 1) {
+              summaryLines.push(summaryFallbacks[summaryFallbackIdx]);
+            }
+            var summaryPreview = this.toolSummaryOutputPreview(toolSummary, termText);
+            if (summaryPreview) summaryLines.push('Preview: ' + summaryPreview);
             this._appendTerminalMessage({ role: 'terminal', text: summaryLines.join('\n'), meta: 'tool summary', tools: [], ts: Date.now(), terminal_source: 'system', cwd: termCwd });
           }
           this._appendTerminalMessage({
@@ -194,6 +202,61 @@
         case 'pong': break;
       }
       this.scheduleConversationPersist();
+    },
+
+    truncateToolSummaryText: function(value, maxLen) {
+      var text = String(value || '').replace(/\s+/g, ' ').trim();
+      var limit = Number(maxLen || 0) || 160;
+      if (!text) return '';
+      if (text.length <= limit) return text;
+      return text.slice(0, Math.max(0, limit - 1)).trim() + '…';
+    },
+
+    toolSummaryModelLabel: function(summary) {
+      var row = summary && typeof summary === 'object' ? summary : {};
+      var provider = String(row.provider || row.model_provider || '').trim();
+      var model = String(row.model || row.model_name || row.runtime_model || row.selected_model || '').trim();
+      if (!provider && !model) return '';
+      if (!provider) return model;
+      if (!model) return provider;
+      if (model.toLowerCase().indexOf((provider + '/').toLowerCase()) === 0) return model;
+      return provider + '/' + model;
+    },
+
+    toolSummaryFallbackLines: function(summary) {
+      var row = summary && typeof summary === 'object' ? summary : {};
+      var lines = [];
+      var seen = {};
+      var addLine = function(text) {
+        var next = String(text || '').trim();
+        if (!next) return;
+        if (seen[next]) return;
+        seen[next] = true;
+        lines.push(next);
+      };
+      var attemptSummaries = Array.isArray(row.fallback_attempt_summaries) ? row.fallback_attempt_summaries : [];
+      for (var i = 0; i < attemptSummaries.length && lines.length < 3; i += 1) {
+        addLine('Fallback: ' + this.truncateToolSummaryText(attemptSummaries[i], 140));
+      }
+      var attempts = Array.isArray(row.fallback_attempts) ? row.fallback_attempts : [];
+      for (var j = 0; j < attempts.length && lines.length < 3; j += 1) {
+        var attempt = attempts[j] && typeof attempts[j] === 'object' ? attempts[j] : {};
+        var provider = String(attempt.provider || '').trim();
+        var model = String(attempt.model || '').trim();
+        var reason = String(attempt.reason || attempt.code || attempt.error || '').trim().replace(/_/g, ' ');
+        var label = provider && model ? (provider + '/' + model) : (model || provider);
+        if (!label) continue;
+        addLine('Fallback: ' + label + (reason ? ' (' + this.truncateToolSummaryText(reason, 64) + ')' : ''));
+      }
+      return lines;
+    },
+
+    toolSummaryOutputPreview: function(summary, fallbackText) {
+      var row = summary && typeof summary === 'object' ? summary : {};
+      var preview = String(row.output_preview || row.preview || row.result_preview || '').trim();
+      if (!preview) preview = String(fallbackText || '').trim();
+      if (!preview || preview === '(no output)') return '';
+      return this.truncateToolSummaryText(preview, 180);
     },
 
     // Format timestamp for display

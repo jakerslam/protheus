@@ -1,9 +1,17 @@
           if (!Array.isArray(this.agentDrawer._fallbacks)) this.agentDrawer._fallbacks = [];
           this.agentDrawer._fallbacks.push({ provider: fallbackProvider, model: fallbackModel });
           appendedFallback = true;
-          configPayload.fallback_models = this.agentDrawer._fallbacks;
+          configPayload.fallback_models = this.dedupeFallbackModelList(this.agentDrawer._fallbacks, {
+            primary_id: (this.agentDrawer && (this.agentDrawer.runtime_model || this.agentDrawer.model_name)) || '',
+            primary_provider: (this.agentDrawer && this.agentDrawer.model_provider) || '',
+          });
+          this.agentDrawer._fallbacks = configPayload.fallback_models.slice();
         } else if (Array.isArray(this.agentDrawer._fallbacks)) {
-          configPayload.fallback_models = this.agentDrawer._fallbacks;
+          configPayload.fallback_models = this.dedupeFallbackModelList(this.agentDrawer._fallbacks, {
+            primary_id: (this.agentDrawer && (this.agentDrawer.runtime_model || this.agentDrawer.model_name)) || '',
+            primary_provider: (this.agentDrawer && this.agentDrawer.model_provider) || '',
+          });
+          this.agentDrawer._fallbacks = configPayload.fallback_models.slice();
         }
 
         var configResponse = await InfringAPI.patch('/api/agents/' + agentId + '/config', configPayload);
@@ -16,17 +24,29 @@
         if (this.drawerEditingProvider && String(this.drawerNewProviderValue || '').trim()) {
           var previousProviderName = String((this.agentDrawer && this.agentDrawer.model_provider) || (this.currentAgent && this.currentAgent.model_provider) || '').trim();
           var previousModelName = String((this.agentDrawer && (this.agentDrawer.runtime_model || this.agentDrawer.model_name)) || (this.currentAgent && (this.currentAgent.runtime_model || this.currentAgent.model_name)) || '').trim();
-          var combined = String(this.drawerNewProviderValue || '').trim() + '/' + (this.agentDrawer.model_name || '');
-          await this.switchAgentModelWithGuards({ id: combined }, {
+          var resolvedProviderModel = this.resolveProviderScopedModelCatalogOption(
+            this.drawerNewProviderValue,
+            (this.agentDrawer && (this.agentDrawer.runtime_model || this.agentDrawer.model_name)) || '',
+            this.modelCatalogRows()
+          );
+          await this.switchAgentModelWithGuards(
+            resolvedProviderModel || { id: String(this.drawerNewProviderValue || '').trim() + '/' + (this.agentDrawer.model_name || '') },
+            {
             agent_id: agentId,
             previous_model: previousModelName,
             previous_provider: previousProviderName
-          });
+            }
+          );
         } else if (this.drawerEditingModel && String(this.drawerNewModelValue || '').trim()) {
           var previousModelNameForModelEdit = String((this.agentDrawer && (this.agentDrawer.runtime_model || this.agentDrawer.model_name)) || (this.currentAgent && (this.currentAgent.runtime_model || this.currentAgent.model_name)) || '').trim();
           var previousProviderForModelEdit = String((this.agentDrawer && this.agentDrawer.model_provider) || (this.currentAgent && this.currentAgent.model_provider) || '').trim();
+          var resolvedDrawerModel = this.resolveModelCatalogOption(
+            this.drawerNewModelValue,
+            previousProviderForModelEdit,
+            this.modelCatalogRows()
+          );
           await this.switchAgentModelWithGuards(
-            { id: String(this.drawerNewModelValue || '').trim() },
+            resolvedDrawerModel || { id: String(this.drawerNewModelValue || '').trim() },
             {
               agent_id: agentId,
               previous_model: previousModelNameForModelEdit,
@@ -139,8 +159,13 @@
       try {
         var previousModel = String((this.agentDrawer && (this.agentDrawer.runtime_model || this.agentDrawer.model_name)) || (this.currentAgent && (this.currentAgent.runtime_model || this.currentAgent.model_name)) || '').trim();
         var previousProvider = String((this.agentDrawer && this.agentDrawer.model_provider) || (this.currentAgent && this.currentAgent.model_provider) || '').trim();
+        var resolvedDrawerModel = this.resolveModelCatalogOption(
+          this.drawerNewModelValue,
+          previousProvider,
+          this.modelCatalogRows()
+        );
         var resp = await this.switchAgentModelWithGuards(
-          { id: String(this.drawerNewModelValue || '').trim() },
+          resolvedDrawerModel || { id: String(this.drawerNewModelValue || '').trim() },
           {
             agent_id: this.agentDrawer.id,
             previous_model: previousModel,
@@ -164,9 +189,13 @@
       try {
         var previousProvider = String((this.agentDrawer && this.agentDrawer.model_provider) || (this.currentAgent && this.currentAgent.model_provider) || '').trim();
         var previousModel = String((this.agentDrawer && (this.agentDrawer.runtime_model || this.agentDrawer.model_name)) || (this.currentAgent && (this.currentAgent.runtime_model || this.currentAgent.model_name)) || '').trim();
-        var combined = String(this.drawerNewProviderValue || '').trim() + '/' + (this.agentDrawer.model_name || '');
+        var resolvedProviderModel = this.resolveProviderScopedModelCatalogOption(
+          this.drawerNewProviderValue,
+          previousModel || (this.agentDrawer && this.agentDrawer.model_name) || '',
+          this.modelCatalogRows()
+        );
         var resp = await this.switchAgentModelWithGuards(
-          { id: combined },
+          resolvedProviderModel || { id: String(this.drawerNewProviderValue || '').trim() + '/' + (this.agentDrawer.model_name || '') },
           {
             agent_id: this.agentDrawer.id,
             previous_model: previousModel,
@@ -189,17 +218,30 @@
       var provider = parts.length > 1 ? parts[0] : this.agentDrawer.model_provider;
       var model = parts.length > 1 ? parts.slice(1).join('/') : parts[0];
       if (!this.agentDrawer._fallbacks) this.agentDrawer._fallbacks = [];
-      this.agentDrawer._fallbacks.push({ provider: provider, model: model });
+      var previousFallbacks = this.agentDrawer._fallbacks.slice();
+      var nextFallbacks = this.dedupeFallbackModelList(
+        this.agentDrawer._fallbacks.concat([{ provider: provider, model: model }]),
+        {
+          primary_id: (this.agentDrawer && (this.agentDrawer.runtime_model || this.agentDrawer.model_name)) || '',
+          primary_provider: (this.agentDrawer && this.agentDrawer.model_provider) || '',
+        }
+      );
+      if (nextFallbacks.length === this.agentDrawer._fallbacks.length) {
+        InfringToast.info('Fallback already exists or matches the primary model');
+        return;
+      }
+      this.agentDrawer._fallbacks = nextFallbacks;
       try {
         await InfringAPI.patch('/api/agents/' + this.agentDrawer.id + '/config', {
           fallback_models: this.agentDrawer._fallbacks
         });
-        InfringToast.success('Fallback added: ' + provider + '/' + model);
+        var latestFallback = this.agentDrawer._fallbacks[this.agentDrawer._fallbacks.length - 1] || {};
+        InfringToast.success('Fallback added: ' + String((latestFallback.provider || provider) || '').trim() + '/' + String((latestFallback.model || model) || '').trim());
         this.drawerEditingFallback = false;
         this.drawerNewFallbackValue = '';
       } catch(e) {
         InfringToast.error('Failed to save fallbacks: ' + e.message);
-        this.agentDrawer._fallbacks.pop();
+        this.agentDrawer._fallbacks = previousFallbacks;
       }
     },
 
