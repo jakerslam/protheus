@@ -421,3 +421,74 @@ fn mutation_requires_proof_refs() {
     assert!(out.is_err());
     assert_eq!(out.err().unwrap_or_default(), "proof_refs_required");
 }
+
+#[test]
+fn terminal_tasks_are_counted_separately_and_excluded_from_stale_views() {
+    let mut fabric = TaskFabric::new("scope-a");
+    let gate = AllowAllVerityGate;
+    fabric
+        .submit_task(
+            sample_task("scope-a", "terminal-summary", "Terminal Summary"),
+            envelope(MutationKind::CreateTask, "ts1"),
+            &gate,
+        )
+        .expect("create");
+    let rev = fabric
+        .graph
+        .task("terminal-summary")
+        .map(|v| v.revision_id)
+        .unwrap_or(0);
+    let heartbeat_ms = now_ms().saturating_sub(120_000);
+    fabric
+        .transition_status(
+            "terminal-summary",
+            LifecycleStatus::Failed,
+            MutationEnvelope {
+                expected_revision: Some(rev),
+                now_ms: heartbeat_ms,
+                ..envelope(MutationKind::UpdateStatus, "ts2")
+            },
+            &gate,
+        )
+        .expect("fail");
+    fabric
+        .graph
+        .tasks
+        .get_mut("terminal-summary")
+        .expect("task")
+        .last_heartbeat_at = Some(heartbeat_ms);
+
+    let summary = fabric
+        .query_via_hierarchical_nexus(
+            NexusConduitRequest {
+                operation: "summary".to_string(),
+                args: json!({"scope":"scope-a"}),
+            },
+            now_ms(),
+        )
+        .expect("summary");
+    assert_eq!(
+        summary
+            .get("readiness")
+            .and_then(|row| row.get("terminal"))
+            .and_then(|row| row.as_u64()),
+        Some(1)
+    );
+
+    let stale = fabric
+        .query_via_hierarchical_nexus(
+            NexusConduitRequest {
+                operation: "stale_tasks".to_string(),
+                args: json!({"scope":"scope-a","age_ms":60_000}),
+            },
+            now_ms(),
+        )
+        .expect("stale");
+    assert_eq!(
+        stale
+            .get("tasks")
+            .and_then(|row| row.as_array())
+            .map(|rows| rows.len()),
+        Some(0)
+    );
+}

@@ -3,4 +3,4 @@ pub mod planner;
 pub mod preconditions;
 pub mod scoring;
 
-pub use planner::build_plan_candidate;
+pub use planner::{build_plan_candidate, build_plan_candidates};
