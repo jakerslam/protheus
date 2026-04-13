@@ -1,6 +1,6 @@
 use crate::contracts::{
     AmbiguityReason, Mutability, OperationKind, ParseResult, PolicyScope, RequestKind,
-    ResourceKind, TypedOrchestrationRequest,
+    RequestSurface, ResourceKind, TargetDescriptor, TypedOrchestrationRequest,
 };
 
 pub fn select_operation_kind(candidates: &[OperationKind]) -> OperationKind {
@@ -52,10 +52,15 @@ pub fn parse_diagnostics(
     typed_request: TypedOrchestrationRequest,
     operation_candidates: &[OperationKind],
     resource_candidates: &[ResourceKind],
+    adapter_reasons: &[String],
 ) -> ParseResult {
     let mut confidence: f32 = 0.20;
     let mut ambiguity = Vec::new();
-    let mut reasons = vec!["legacy_intent_compatibility_shim".to_string()];
+    let mut reasons = if typed_request.adapted {
+        adapter_reasons.to_vec()
+    } else {
+        vec!["legacy_intent_compatibility_shim".to_string()]
+    };
 
     if typed_request.operation_kind != OperationKind::Unknown {
         confidence += 0.30;
@@ -72,6 +77,18 @@ pub fn parse_diagnostics(
     }
     if typed_request.request_kind != RequestKind::Ambiguous {
         confidence += 0.10;
+    }
+    if typed_request.adapted {
+        confidence += 0.15;
+        reasons.push("surface_native_typed_adapter".to_string());
+    } else if !matches!(typed_request.surface, RequestSurface::Legacy) {
+        ambiguity.push(AmbiguityReason::SurfaceAdapterFallback);
+        confidence -= 0.15;
+        reasons.push(format!(
+            "surface_adapter_fallback:{:?}",
+            typed_request.surface
+        )
+        .to_lowercase());
     }
     if operation_candidates.len() > 1 {
         ambiguity.push(AmbiguityReason::MultipleOperationCandidates);
@@ -95,6 +112,14 @@ pub fn parse_diagnostics(
     }
     if typed_request.payload.as_object().map(|row| row.is_empty()).unwrap_or(true) {
         ambiguity.push(AmbiguityReason::LegacyCompatOnly);
+    }
+    if typed_request
+        .target_descriptors
+        .iter()
+        .any(|row| matches!(row, TargetDescriptor::Unknown { .. }))
+    {
+        ambiguity.push(AmbiguityReason::UnresolvedTargetDomain);
+        confidence -= 0.05;
     }
 
     confidence = confidence.clamp(0.0, 0.99);

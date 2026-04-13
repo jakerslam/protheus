@@ -15521,7 +15521,9 @@ Source summary:
   - Reduce silent heuristic execution by separating parse/classify stages and enforcing internal orchestration domain boundaries.
 - Acceptance criteria:
   - Ingress returns a typed `ParseResult` with confidence, ambiguity reasons, and a normalized typed request.
-  - Low-confidence or ambiguous inputs require clarification instead of silently proceeding down an execution lane.
+  - CLI, gateway, SDK, and dashboard surfaces can provide typed adapter hints so orchestration is not forced through legacy-intent tokenization for every request.
+  - Target normalization resolves domain-specific descriptors (`workspace_path`, `url`, `task_id`, `memory_ref`, `tool_name`) instead of relying only on generic payload-key guessing.
+  - Low-confidence, surface-adapter-fallback, or ambiguous inputs require clarification instead of silently proceeding down an execution lane.
   - Planner, transient, presentation, and `self_maintenance` domains are guarded against hidden cross-domain authority and direct durable I/O.
   - `self_maintenance` remains supervisory only: it may use contracts and ephemeral memory, but not direct durable truth writes.
 - Regression evidence pointers:
@@ -15529,8 +15531,10 @@ Source summary:
   - `surface/orchestration/src/ingress/parser.rs`
   - `surface/orchestration/src/ingress/classifier.rs`
   - `surface/orchestration/src/request_classification.rs`
+  - `surface/orchestration/tests/conformance.rs`
   - `surface/orchestration/src/self_maintenance/mod.rs`
   - `tests/tooling/scripts/ci/orchestration_hidden_state_guard.ts`
+  - `cargo test --manifest-path surface/orchestration/Cargo.toml`
   - `npm run -s ops:orchestration:hidden-state:guard`
   - `npm run -s ops:orchestration:ts-boundary:guard`
   - `npm run -s ops:orchestration:contract:guard`
