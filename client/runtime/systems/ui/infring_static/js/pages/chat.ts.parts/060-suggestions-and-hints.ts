@@ -17,7 +17,60 @@
     },
 
     derivePromptSuggestionFallback(agent, hint, gateContext) {
-      return [];
+      var context = this.collectPromptSuggestionContext();
+      var typedHistory = (Array.isArray(context.history) ? context.history : [])
+        .map(function(entry, index) {
+          var role = String((entry && entry.role) || 'agent').trim().toLowerCase();
+          if (role === 'assistant') role = 'agent';
+          return {
+            key: 'fallback:' + String(index),
+            kind: role === 'user' || role === 'agent' ? 'message' : 'synthetic',
+            role: role,
+            text: String((entry && entry.text) || '').trim()
+          };
+        })
+        .filter(function(entry) {
+          return entry.kind === 'message' && !!entry.text;
+        });
+      var corpus = [
+        String(hint || ''),
+        String(gateContext || ''),
+        String(context.lastUser || ''),
+        String(context.lastAgent || ''),
+        typedHistory.slice(-3).map(function(entry) { return entry.role + ':' + entry.text; }).join(' || ')
+      ].join(' || ').toLowerCase();
+      var out = [];
+      var add = function(value) {
+        var text = String(value || '').trim();
+        if (text) out.push(text);
+      };
+      if (/(connect|pair|token|auth|unauthorized|secure context|device identity|gateway|fetch failed)/.test(corpus)) {
+        add('Summarize the fastest recovery step for this connection error');
+        add('/apikey');
+        add('/help');
+      }
+      if (/(model|provider|fallback|failover|slow|thinking|reasoning)/.test(corpus)) {
+        add('/model');
+        add('Continue from the last successful step with a safer model');
+      }
+      if (/(voice|audio|microphone|dictat|record)/.test(corpus) || this.recording) {
+        add('Turn the latest voice note into a concise prompt');
+        add('Summarize this chat into a one-line handoff note');
+      }
+      if (/(agent|session|chat|thread|roster|branch)/.test(corpus) || !typedHistory.length) {
+        add('/agents');
+        add('/new');
+      }
+      if (!out.length) {
+        add('Give me the next best action from this conversation');
+        add('/help');
+        add('/model');
+      }
+      return this.normalizePromptSuggestions(
+        out,
+        String(gateContext || context.signature || '').trim(),
+        this.recentUserSuggestionSamples()
+      );
     },
 
     collectPromptSuggestionContext() {

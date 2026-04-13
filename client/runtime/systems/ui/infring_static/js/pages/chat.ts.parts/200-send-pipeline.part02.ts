@@ -46,8 +46,33 @@
           { remove_last_agent_failure: false }
         );
         if (!handedOffToRecovery) {
+          var normalizedSendErrorText = (function(message) {
+            var raw = String(message || '').replace(/\s+/g, ' ').trim();
+            var lower = raw.toLowerCase();
+            if (!raw || lower === 'unknown error') return 'Connection failed before the runtime returned a usable response. Retry after the gateway is reachable.';
+            if (lower.indexOf('pairing required') >= 0) return 'Gateway pairing is required. Open Settings, pair this dashboard with the gateway, then retry.';
+            if (
+              lower.indexOf('device identity required') >= 0 ||
+              lower.indexOf('secure context') >= 0 ||
+              lower.indexOf('https/localhost') >= 0
+            ) return 'This action requires HTTPS or localhost. Reopen the dashboard from a trusted origin, then retry.';
+            if (
+              lower.indexOf('unauthorized') >= 0 ||
+              lower.indexOf('token mismatch') >= 0 ||
+              lower.indexOf('token missing') >= 0 ||
+              lower.indexOf('auth failed') >= 0 ||
+              lower.indexOf('authentication') >= 0
+            ) return 'Gateway authentication failed. Verify the API token or password in Settings, then retry.';
+            if (
+              lower === 'fetch failed' ||
+              lower === 'failed to fetch' ||
+              lower === 'connect failed' ||
+              lower.indexOf('gateway connect failed') >= 0
+            ) return 'Gateway connect failed. Check runtime availability, pairing, and auth settings, then retry.';
+            return 'Connection error: ' + raw;
+          })(rawHttpError || (e && e.message) || '');
           this.pushSystemMessage({
-            text: 'Error: ' + e.message,
+            text: normalizedSendErrorText,
             meta: '',
             tools: [],
             system_origin: 'http:error',

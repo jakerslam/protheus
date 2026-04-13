@@ -140,7 +140,7 @@
 		            this._lastSuggestionsAgentId = suggestionScopeKey;
 		            return;
 		          }
-		          this.promptSuggestions = [];
+		          this.promptSuggestions = this.derivePromptSuggestionFallback(agent, hint, String(fallbackContext.signature || ''));
           this._lastSuggestionsAt = Date.now();
           this._lastSuggestionsAgentId = suggestionScopeKey;
         }

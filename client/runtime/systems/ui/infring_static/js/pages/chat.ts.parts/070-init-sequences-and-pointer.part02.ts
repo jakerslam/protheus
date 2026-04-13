@@ -1,6 +1,7 @@
 
     spawnPointerTrail(container, x, y, opts) {
       var options = opts || {};
+      if (!options.agentTrail && this.shouldSuspendPointerFx && this.shouldSuspendPointerFx()) return;
       var layer = options.agentTrail ? this.resolveAgentFxLayer(container) : this.resolvePointerFxLayer(container);
       if (!layer) return;
       var marker = document.createElement('span');
@@ -26,6 +27,7 @@
 
     spawnPointerTrailSegment(container, x0, y0, x1, y1, opts) {
       var options = opts || {};
+      if (!options.agentTrail && this.shouldSuspendPointerFx && this.shouldSuspendPointerFx()) return;
       var layer = options.agentTrail ? this.resolveAgentFxLayer(container) : this.resolvePointerFxLayer(container);
       if (!layer) return;
       var dx = Number(x1 || 0) - Number(x0 || 0);
@@ -58,6 +60,7 @@
     },
 
     spawnPointerRipple(container, x, y) {
+      if (this.shouldSuspendPointerFx && this.shouldSuspendPointerFx()) return;
       var layer = this.resolvePointerFxLayer(container);
       if (!layer) return;
       var ripple = document.createElement('span');
@@ -68,6 +71,9 @@
       setTimeout(function() {
         try { ripple.remove(); } catch(_) {}
       }, 820);
+    },
+    shouldSuspendPointerFx() {
+      return !!this.recording;
     },
 
     resolvePointerFxLayer(container) {
@@ -85,6 +91,7 @@
     },
 
     ensurePointerOrb(container, x, y) {
+      if (this.shouldSuspendPointerFx && this.shouldSuspendPointerFx()) return null;
       var layer = this.resolvePointerFxLayer(container);
       if (!layer) return null;
       var orb = this._pointerOrbEl;
@@ -114,6 +121,10 @@
       var host = event.currentTarget;
       this.startAgentTrailLoop(host);
       this.syncDirectHoverFromPointer(event);
+      if (this.shouldSuspendPointerFx && this.shouldSuspendPointerFx()) {
+        this.removePointerOrb();
+        return;
+      }
       if (this.pointerFxThemeMode() !== 'dark') {
         this.removePointerOrb();
         return;
