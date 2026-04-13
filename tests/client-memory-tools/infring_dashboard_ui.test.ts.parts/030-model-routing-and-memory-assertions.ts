@@ -224,6 +224,8 @@ function assertNativeChatRouteContract() {
   const dashboardSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/dashboard.ts'));
   const runtimeSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/chat.ts'));
   const componentSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/components/ChatPage.svelte'));
+  const composerSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/components/ChatComposer.svelte'));
+  const drawerSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/components/ChatDrawer.svelte'));
   const routeSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/routes/chat/+page.svelte'));
   const routeLoadSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/routes/chat/+page.ts'));
 
@@ -251,6 +253,13 @@ function assertNativeChatRouteContract() {
     "mission: 'Fresh chat initialization'",
     'native chat draft creation should preserve the fresh chat initialization contract'
   );
+  assertContains(runtimeSource, '/api/models', 'native chat runtime should read the authoritative model catalog for drawer controls');
+  assertContains(runtimeSource, '/session/compact', 'native chat runtime should expose compact session authority');
+  assertContains(runtimeSource, '/session/reset', 'native chat runtime should expose reset session authority');
+  assertContains(runtimeSource, '/stop', 'native chat runtime should expose stop-agent authority');
+  assertContains(runtimeSource, '/upload', 'native chat runtime should expose attachment upload through the authoritative upload endpoint');
+  assertContains(runtimeSource, 'new WebSocket(url);', 'native chat runtime should own a direct websocket bridge for streaming turns');
+  assertContains(runtimeSource, "type: 'message'", 'native chat websocket bridge should send the canonical message envelope');
   assertContains(
     componentSource,
     'const rows = await readSidebarAgents();',
@@ -271,11 +280,23 @@ function assertNativeChatRouteContract() {
     'const created = await createDraftAgent();',
     'native chat page should support native draft-chat creation'
   );
+  assertContains(componentSource, 'bindStream(agentId);', 'native chat page should bind the authoritative websocket stream when selecting an agent');
+  assertContains(componentSource, 'await uploadPendingFiles(activeAgentId, files)', 'native chat page should upload attachments before sending through the native route');
+  assertContains(componentSource, 'streamController.sendMessage(finalText, uploadSummary.uploaded)', 'native chat page should prefer websocket send for live streaming when connected');
+  assertContains(componentSource, 'await sendAgentMessage(activeAgentId, finalText, uploadSummary.uploaded);', 'native chat page should preserve authoritative HTTP fallback when websocket send is unavailable');
+  assertContains(componentSource, '<ChatComposer', 'native chat page should render a dedicated native composer surface');
+  assertContains(componentSource, '<ChatDrawer', 'native chat page should render a dedicated native operator drawer');
   assertContains(
     componentSource,
     "href={dashboardClassicHref('chat')}",
     'native chat should preserve a classic escape hatch while advanced legacy features remain'
   );
+  assertContains(composerSource, 'input type="file"', 'native composer should expose file attachment selection');
+  assertContains(composerSource, "dispatch('submit')", 'native composer should dispatch submit events instead of owning authority directly');
+  assertContains(drawerSource, "dispatch('savemodel')", 'native drawer should expose model switching via event dispatch');
+  assertContains(drawerSource, "dispatch('compact')", 'native drawer should expose compact session control');
+  assertContains(drawerSource, "dispatch('reset')", 'native drawer should expose reset session control');
+  assertContains(drawerSource, "dispatch('stop')", 'native drawer should expose stop-agent control');
   assertContains(
     routeSource,
     '<ChatPage />',
