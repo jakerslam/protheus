@@ -1,48 +1,80 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
-  import { onMount } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
   import { dashboardClassicHref } from '$lib/dashboard';
+  import ChatComposer from '$lib/components/ChatComposer.svelte';
+  import ChatDrawer from '$lib/components/ChatDrawer.svelte';
+  import ChatSidebar from '$lib/components/ChatSidebar.svelte';
+  import ChatStatusHeader from '$lib/components/ChatStatusHeader.svelte';
   import ChatTranscript from '$lib/components/ChatTranscript.svelte';
-  import type { DashboardAgentRow, DashboardChatMessage } from '$lib/chat';
-  import { createDraftAgent, readAgentSession, readSidebarAgents, sendAgentMessage } from '$lib/chat';
+  import type {
+    DashboardAgentRow,
+    DashboardAgentStreamController,
+    DashboardChatMessage,
+    DashboardChatToolRow,
+    DashboardModelRow,
+    DashboardUploadedFile,
+  } from '$lib/chat';
+  import {
+    compactAgentSession,
+    connectAgentStream,
+    createDraftAgent,
+    readAgentSession,
+    readModels,
+    readSidebarAgents,
+    resetAgentSession,
+    sendAgentMessage,
+    stopAgent,
+    updateAgentConfig,
+    updateAgentModel,
+    uploadAgentFile,
+  } from '$lib/chat';
 
   let agents: DashboardAgentRow[] = [];
   let activeAgentId = '';
   let messages: DashboardChatMessage[] = [];
+  let models: DashboardModelRow[] = [];
   let composer = '';
+  let pendingFiles: File[] = [];
   let error = '';
+  let notice = '';
   let loadingAgents = true;
   let loadingSession = false;
+  let loadingModels = false;
   let creatingAgent = false;
   let sending = false;
+  let drawerOpen = false;
+  let drawerBusy = '';
+  let drawerName = '';
+  let drawerModel = '';
+  let streamState = 'disconnected';
+  let streamController: DashboardAgentStreamController | null = null;
 
   $: activeAgent = agents.find((row) => row.id === activeAgentId) || null;
   $: activeModel = activeAgent ? String(activeAgent.runtime_model || activeAgent.model_name || 'Server default') : 'Select a conversation';
 
   onMount(async () => {
-    await refreshAgents({ syncQuery: false });
+    await Promise.all([refreshAgents({ syncQuery: false }), loadModels()]);
   });
 
-  function agentEmoji(agent: DashboardAgentRow | null): string {
-    return String(agent?.identity?.emoji || '∞').trim() || '∞';
+  onDestroy(() => {
+    streamController?.disconnect();
+    streamController = null;
+  });
+
+  function resetDrawerDrafts(): void {
+    drawerName = String(activeAgent?.name || '').trim();
+    drawerModel = String(activeAgent?.runtime_model || activeAgent?.model_name || '').trim();
   }
 
-  function agentLabel(agent: DashboardAgentRow): string {
-    return String(agent.name || agent.id || 'Conversation').trim() || 'Conversation';
-  }
+  function setNotice(text: string): void { notice = String(text || '').trim(); error = ''; }
 
-  function agentState(agent: DashboardAgentRow | null): string {
-    if (!agent) return 'No conversation selected';
-    if (agent.archived) return 'Archived';
-    if (agent.draft) return 'Draft';
-    return String(agent.state || 'running').trim() || 'running';
-  }
+  function setErrorMessage(text: string): void { error = String(text || '').trim(); notice = ''; }
 
   function preferredAgentId(rows: DashboardAgentRow[], requestedId: string): string {
     const cleanRequested = String(requestedId || '').trim();
-    if (cleanRequested && rows.some((row) => row.id === cleanRequested)) return cleanRequested;
-    return rows.length ? rows[0].id : '';
+    return cleanRequested && rows.some((row) => row.id === cleanRequested) ? cleanRequested : (rows[0]?.id || '');
   }
 
   async function syncAgentQuery(agentId: string): Promise<void> {
@@ -57,20 +89,141 @@
     });
   }
 
+  function appendSystemMessage(text: string, meta = 'System'): void {
+    messages = [...messages, { id: `system-${Date.now()}`, role: 'system', text, meta, ts: Date.now(), tools: [] }];
+  }
+
+  function ensureStreamingAssistant(): DashboardChatMessage {
+    const existing = messages[messages.length - 1];
+    if (existing && existing.role === 'agent' && existing.pending) return existing;
+    const row: DashboardChatMessage = { id: `stream-${Date.now()}`, role: 'agent', text: '', meta: streamState === 'connected' ? 'Streaming…' : 'Waiting for response…', ts: Date.now(), tools: [], pending: true };
+    messages = [...messages, row];
+    return row;
+  }
+
+  function updatePendingAssistant(mutator: (row: DashboardChatMessage) => void): void {
+    const row = ensureStreamingAssistant();
+    const next = { ...row, tools: row.tools.map((tool) => ({ ...tool })) };
+    mutator(next);
+    messages = [...messages.slice(0, -1), next];
+  }
+
+  function upsertPendingTool(name: string, mutator: (tool: DashboardChatToolRow) => void): void {
+    updatePendingAssistant((row) => {
+      const toolName = String(name || 'tool').trim() || 'tool';
+      const existingIndex = row.tools.findIndex((tool) => tool.name === toolName);
+      const current = existingIndex >= 0
+        ? { ...row.tools[existingIndex] }
+        : {
+            id: `tool-${toolName}-${row.tools.length + 1}`,
+            name: toolName,
+            input: '',
+            result: '',
+            status: 'running',
+            isError: false,
+            blocked: false,
+          };
+      mutator(current);
+      if (existingIndex >= 0) row.tools = row.tools.map((tool, index) => (index === existingIndex ? current : tool));
+      else row.tools = [...row.tools, current];
+    });
+  }
+
+  function bindStream(agentId: string): void {
+    streamController?.disconnect();
+    streamController = null;
+    streamState = agentId ? 'connecting' : 'disconnected';
+    if (!agentId) return;
+    streamController = connectAgentStream(agentId, {
+      onOpen: () => {
+        if (agentId !== activeAgentId) return;
+        streamState = 'connected';
+      },
+      onReconnect: () => {
+        if (agentId !== activeAgentId) return;
+        streamState = 'reconnecting';
+        updatePendingAssistant((row) => {
+          row.meta = 'Reconnecting…';
+        });
+      },
+      onClose: () => {
+        if (agentId !== activeAgentId) return;
+        streamState = 'disconnected';
+      },
+      onError: () => {
+        if (agentId !== activeAgentId) return;
+        streamState = 'reconnecting';
+      },
+      onMessage: async (event) => {
+        if (agentId !== activeAgentId) return;
+        const type = String(event.type || '').trim().toLowerCase();
+        if (type === 'text_delta') {
+          updatePendingAssistant((row) => {
+            row.text = `${String(row.text || '')}${String(event.content || '')}`;
+            row.meta = 'Streaming…';
+          });
+          return;
+        }
+        if (type === 'tool_start') {
+          upsertPendingTool(String(event.tool || 'tool'), (tool) => {
+            tool.input = String(event.input || tool.input || '');
+            tool.status = 'running';
+          });
+          return;
+        }
+        if (type === 'tool_result') {
+          upsertPendingTool(String(event.tool || 'tool'), (tool) => {
+            tool.input = String(event.input || tool.input || '');
+            tool.result = String(event.result || '');
+            tool.status = String(event.is_error ? 'error' : 'done');
+            tool.isError = Boolean(event.is_error);
+          });
+          return;
+        }
+        if (type === 'tool_end') {
+          upsertPendingTool(String(event.tool || 'tool'), (tool) => {
+            tool.status = 'done';
+          });
+          return;
+        }
+        if (type === 'response') {
+          sending = false;
+          await loadSession(agentId);
+          return;
+        }
+        if (type === 'error' || type === 'response_error' || type === 'terminal_error') {
+          sending = false;
+          setErrorMessage(String(event.message || 'stream_error'));
+          appendSystemMessage(`Stream error: ${String(event.message || 'unknown failure')}`, 'Runtime');
+        }
+      },
+    });
+  }
+
+  async function loadModels(): Promise<void> {
+    loadingModels = true;
+    try {
+      models = await readModels();
+    } catch (cause) {
+      setErrorMessage(cause instanceof Error ? cause.message : String(cause || 'models_unavailable'));
+    } finally {
+      loadingModels = false;
+    }
+  }
+
   async function loadSession(agentId: string): Promise<void> {
     if (!agentId) {
       messages = [];
       return;
     }
     loadingSession = true;
-    error = '';
     try {
       const session = await readAgentSession(agentId);
       if (agentId !== activeAgentId) return;
       messages = session.messages;
     } catch (cause) {
       if (agentId === activeAgentId) {
-        error = cause instanceof Error ? cause.message : String(cause || 'session_unavailable');
+        setErrorMessage(cause instanceof Error ? cause.message : String(cause || 'session_unavailable'));
       }
     } finally {
       if (agentId === activeAgentId) loadingSession = false;
@@ -81,13 +234,14 @@
     if (!agentId) return;
     const changed = agentId !== activeAgentId;
     activeAgentId = agentId;
+    resetDrawerDrafts();
+    if (changed) bindStream(agentId);
     if (options.syncQuery !== false) await syncAgentQuery(agentId);
     if (changed || options.forceReload) await loadSession(agentId);
   }
 
   async function refreshAgents(options: { syncQuery?: boolean; preferredId?: string } = {}): Promise<void> {
     loadingAgents = true;
-    error = '';
     try {
       const rows = await readSidebarAgents();
       agents = rows;
@@ -96,15 +250,15 @@
       if (!nextId) {
         activeAgentId = '';
         messages = [];
+        streamController?.disconnect();
+        streamController = null;
+        streamState = 'disconnected';
         if (options.syncQuery !== false) await syncAgentQuery('');
         return;
       }
-      await activateAgent(nextId, {
-        syncQuery: options.syncQuery !== false && nextId !== requestedId,
-        forceReload: true,
-      });
+      await activateAgent(nextId, { syncQuery: options.syncQuery !== false && nextId !== requestedId, forceReload: true });
     } catch (cause) {
-      error = cause instanceof Error ? cause.message : String(cause || 'agent_roster_unavailable');
+      setErrorMessage(cause instanceof Error ? cause.message : String(cause || 'agent_roster_unavailable'));
     } finally {
       loadingAgents = false;
     }
@@ -112,146 +266,175 @@
 
   async function handleCreateAgent(): Promise<void> {
     creatingAgent = true;
-    error = '';
     try {
       const created = await createDraftAgent();
+      setNotice('Draft chat created.');
       await refreshAgents({ preferredId: created.id });
     } catch (cause) {
-      error = cause instanceof Error ? cause.message : String(cause || 'spawn_failed');
+      setErrorMessage(cause instanceof Error ? cause.message : String(cause || 'spawn_failed'));
     } finally {
       creatingAgent = false;
     }
   }
 
-  async function handleSelectAgent(agentId: string): Promise<void> {
-    await activateAgent(agentId, { syncQuery: true, forceReload: agentId !== activeAgentId || messages.length === 0 });
+  async function uploadPendingFiles(agentId: string, files: File[]): Promise<{ uploaded: DashboardUploadedFile[]; refs: string[] }> {
+    const uploaded: DashboardUploadedFile[] = [];
+    const refs: string[] = [];
+    for (const file of files) {
+      try {
+        const result = await uploadAgentFile(agentId, file);
+        uploaded.push(result);
+        refs.push(`[File: ${result.filename}]`);
+      } catch (cause) {
+        refs.push(`[File: ${file.name} (upload failed)]`);
+        appendSystemMessage(
+          `Failed to upload ${file.name}: ${cause instanceof Error ? cause.message : String(cause || 'upload_failed')}`,
+          'Upload'
+        );
+      }
+    }
+    return { uploaded, refs };
   }
 
   async function handleSend(): Promise<void> {
     const raw = String(composer || '');
+    const files = pendingFiles.slice();
     const text = raw.trim();
-    if (!text || !activeAgentId || sending) return;
+    if ((!text && files.length === 0) || !activeAgentId || sending) return;
     composer = '';
-    const optimistic: DashboardChatMessage = {
-      id: `pending-${Date.now()}`,
-      role: 'user',
-      text: raw,
-      meta: 'Sending…',
-      ts: Date.now(),
-      tools: [],
-      pending: true,
-    };
-    messages = [...messages, optimistic];
+    pendingFiles = [];
+    const uploadSummary = files.length ? await uploadPendingFiles(activeAgentId, files) : { uploaded: [], refs: [] };
+    const finalText = uploadSummary.refs.length
+      ? `${text ? `${text}\n` : ''}${uploadSummary.refs.join('\n')}`
+      : raw;
+    if (!String(finalText || '').trim()) return;
+    messages = [
+      ...messages,
+      {
+        id: `pending-user-${Date.now()}`,
+        role: 'user',
+        text: finalText,
+        meta: uploadSummary.uploaded.length ? `${uploadSummary.uploaded.length} attachment(s)` : '',
+        ts: Date.now(),
+        tools: [],
+      },
+    ];
     sending = true;
+    notice = '';
     error = '';
+    if (streamController && streamController.isConnected() && streamController.sendMessage(finalText, uploadSummary.uploaded)) {
+      ensureStreamingAssistant();
+      return;
+    }
     try {
-      await sendAgentMessage(activeAgentId, raw);
+      await sendAgentMessage(activeAgentId, finalText, uploadSummary.uploaded);
       await loadSession(activeAgentId);
     } catch (cause) {
-      const reason = cause instanceof Error ? cause.message : String(cause || 'send_failed');
-      error = reason;
-      messages = [
-        ...messages,
-        {
-          id: `send-error-${Date.now()}`,
-          role: 'system',
-          text: `Message failed: ${reason}`,
-          meta: 'Send failed',
-          ts: Date.now(),
-          tools: [],
-        },
-      ];
+      setErrorMessage(cause instanceof Error ? cause.message : String(cause || 'send_failed'));
+      appendSystemMessage(`Message failed: ${error || 'send_failed'}`, 'Runtime');
     } finally {
       sending = false;
     }
   }
 
-  function handleComposerKeydown(event: KeyboardEvent): void {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault();
-      void handleSend();
+  async function handleSaveName(): Promise<void> {
+    if (!activeAgentId || !drawerName.trim() || drawerBusy) return;
+    drawerBusy = 'name';
+    try {
+      await updateAgentConfig(activeAgentId, { name: drawerName.trim() });
+      setNotice('Conversation name updated.');
+      await refreshAgents({ preferredId: activeAgentId, syncQuery: false });
+    } catch (cause) {
+      setErrorMessage(cause instanceof Error ? cause.message : String(cause || 'config_update_failed'));
+    } finally {
+      drawerBusy = '';
+    }
+  }
+
+  async function handleSaveModel(): Promise<void> {
+    if (!activeAgentId || !drawerModel.trim() || drawerBusy) return;
+    drawerBusy = 'model';
+    try {
+      await updateAgentModel(activeAgentId, drawerModel.trim());
+      setNotice('Model switched. Session memory was reset by the backend contract.');
+      await refreshAgents({ preferredId: activeAgentId, syncQuery: false });
+    } catch (cause) {
+      setErrorMessage(cause instanceof Error ? cause.message : String(cause || 'model_update_failed'));
+    } finally {
+      drawerBusy = '';
+    }
+  }
+
+  async function handleCompact(): Promise<void> {
+    if (!activeAgentId || drawerBusy) return;
+    drawerBusy = 'compact';
+    try {
+      const summary = await compactAgentSession(activeAgentId);
+      await loadSession(activeAgentId);
+      setNotice(summary);
+    } catch (cause) {
+      setErrorMessage(cause instanceof Error ? cause.message : String(cause || 'compact_failed'));
+    } finally {
+      drawerBusy = '';
+    }
+  }
+
+  async function handleReset(): Promise<void> {
+    if (!activeAgentId || drawerBusy) return;
+    drawerBusy = 'reset';
+    try {
+      const summary = await resetAgentSession(activeAgentId);
+      await loadSession(activeAgentId);
+      setNotice(summary);
+    } catch (cause) {
+      setErrorMessage(cause instanceof Error ? cause.message : String(cause || 'reset_failed'));
+    } finally {
+      drawerBusy = '';
+    }
+  }
+
+  async function handleStop(): Promise<void> {
+    if (!activeAgentId || drawerBusy) return;
+    drawerBusy = 'stop';
+    try {
+      const summary = await stopAgent(activeAgentId);
+      setNotice(summary);
+      await refreshAgents({ preferredId: activeAgentId, syncQuery: false });
+    } catch (cause) {
+      setErrorMessage(cause instanceof Error ? cause.message : String(cause || 'stop_failed'));
+    } finally {
+      drawerBusy = '';
     }
   }
 </script>
 
-<section class="chat-page">
-  <aside class="chat-rail">
-    <div class="rail-header">
-      <div>
-        <p class="eyebrow">Native chat</p>
-        <h2>Conversations</h2>
-      </div>
-      <button class="ghost" type="button" on:click={() => void refreshAgents()} disabled={loadingAgents}>
-        Refresh
-      </button>
-    </div>
-
-    <button class="create-button" type="button" on:click={() => void handleCreateAgent()} disabled={creatingAgent}>
-      {creatingAgent ? 'Creating draft…' : 'New draft chat'}
-    </button>
-
-    <div class="rail-list" aria-label="Conversation roster">
-      {#if loadingAgents && agents.length === 0}
-        <div class="empty-card">Loading conversations…</div>
-      {:else if agents.length === 0}
-        <div class="empty-card">
-          <strong>No conversations yet</strong>
-          <span>Create a draft agent to start a native chat thread.</span>
-        </div>
-      {:else}
-        {#each agents as agent}
-          <button
-            class:active={agent.id === activeAgentId}
-            class="agent-row"
-            type="button"
-            on:click={() => void handleSelectAgent(agent.id)}
-          >
-            <span class="agent-mark" aria-hidden="true">{agentEmoji(agent)}</span>
-            <span class="agent-copy">
-              <strong>{agentLabel(agent)}</strong>
-              <span>{agentState(agent)} · {String(agent.runtime_model || agent.model_name || 'server default')}</span>
-            </span>
-          </button>
-        {/each}
-      {/if}
-    </div>
-  </aside>
+<section class:drawer-open={drawerOpen} class="chat-page">
+  <ChatSidebar {agents} {activeAgentId} loading={loadingAgents} creating={creatingAgent} on:refresh={() => void refreshAgents()} on:create={() => void handleCreateAgent()} on:select={(event) => void activateAgent(event.detail.id, { syncQuery: true, forceReload: event.detail.id !== activeAgentId || messages.length === 0 })} />
 
   <div class="chat-workbench">
-    <header class="chat-header">
-      <div>
-        <p class="eyebrow">Authoritative lane</p>
-        <h2>{activeAgent ? agentLabel(activeAgent) : 'Select a conversation'}</h2>
-        <p class="summary">
-          {activeAgent ? `${agentState(activeAgent)} · ${activeModel}` : 'This route now talks directly to the real /api/agents session and message surfaces.'}
-        </p>
-      </div>
-      <a class="ghost" href={dashboardClassicHref('chat')}>Open classic chat</a>
-    </header>
-
-    {#if error}
-      <div class="banner error">{error}</div>
-    {/if}
+    <ChatStatusHeader {activeAgent} {activeModel} {streamState} {drawerOpen} {error} {notice} classicHref={dashboardClassicHref('chat')} on:toggledrawer={() => { drawerOpen = !drawerOpen; if (drawerOpen && models.length === 0) void loadModels(); }} />
 
     <ChatTranscript {activeAgentId} loading={loadingSession} {messages} />
-
-    <div class="composer-card">
-      <textarea
-        bind:value={composer}
-        class="composer"
-        rows="4"
-        placeholder={activeAgentId ? 'Send a message to this conversation…' : 'Create or select a conversation first…'}
-        disabled={!activeAgentId || sending}
-        on:keydown={handleComposerKeydown}
-      ></textarea>
-      <div class="composer-actions">
-        <span>{sending ? 'Waiting for authoritative response…' : 'Enter to send · Shift+Enter for newline'}</span>
-        <button class="send-button" type="button" on:click={() => void handleSend()} disabled={!activeAgentId || sending || !composer.trim()}>
-          {sending ? 'Sending…' : 'Send'}
-        </button>
-      </div>
-    </div>
+    <ChatComposer bind:value={composer} bind:files={pendingFiles} disabled={!activeAgentId || sending} {sending} on:submit={() => void handleSend()} />
   </div>
+
+  <ChatDrawer
+    open={drawerOpen}
+    agent={activeAgent}
+    models={models}
+    loadingModels={loadingModels}
+    connectionState={streamState}
+    busyKey={drawerBusy}
+    bind:nameDraft={drawerName}
+    bind:modelDraft={drawerModel}
+    on:close={() => { drawerOpen = false; }}
+    on:refreshmodels={() => void loadModels()}
+    on:savename={() => void handleSaveName()}
+    on:savemodel={() => void handleSaveModel()}
+    on:compact={() => void handleCompact()}
+    on:reset={() => void handleReset()}
+    on:stop={() => void handleStop()}
+  />
 </section>
 
 <style>
@@ -262,159 +445,27 @@
     min-height: calc(100vh - 170px);
   }
 
-  .chat-rail,
-  .chat-header,
-  .composer-card,
-  .banner {
-    border-radius: 24px;
-    border: 1px solid rgba(158, 188, 255, 0.14);
-    background: rgba(11, 22, 39, 0.82);
-    backdrop-filter: blur(14px);
-  }
-
-  .chat-rail {
-    padding: 18px;
-    display: grid;
-    align-content: start;
-    gap: 14px;
-  }
-
-  .rail-header,
-  .chat-header,
-  .composer-actions {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-  }
-
-  h2,
-  p {
-    margin: 0;
-  }
-
-  .eyebrow,
-  .summary,
-  .composer-actions span,
-  .agent-copy span {
-    color: #8aa4cf;
-  }
-
-  .rail-list,
-  .chat-workbench {
-    display: grid;
-    gap: 12px;
+  .chat-page.drawer-open {
+    grid-template-columns: 300px minmax(0, 1fr) 320px;
   }
 
   .chat-workbench {
     min-width: 0;
     grid-template-rows: auto auto minmax(0, 1fr) auto;
-  }
-
-  .chat-header,
-  .composer-card,
-  .banner {
-    padding: 18px 20px;
-  }
-
-  .agent-row,
-  .ghost,
-  .create-button,
-  .send-button {
-    border: 1px solid rgba(158, 188, 255, 0.18);
-    background: rgba(255, 255, 255, 0.04);
-    color: inherit;
-  }
-
-  .agent-row,
-  .empty-card {
-    width: 100%;
-    border-radius: 18px;
-    padding: 14px;
-  }
-
-  .agent-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    text-align: left;
-    cursor: pointer;
-  }
-
-  .agent-row.active,
-  .agent-row:hover,
-  .ghost:hover,
-  .create-button:hover,
-  .send-button:hover {
-    background: rgba(74, 116, 182, 0.18);
-  }
-
-  .agent-mark {
-    width: 36px;
-    height: 36px;
-    border-radius: 14px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid rgba(122, 168, 255, 0.3);
-    background: rgba(40, 79, 138, 0.24);
-    flex: 0 0 auto;
-  }
-
-  .agent-copy {
-    min-width: 0;
-    display: grid;
-    gap: 4px;
-  }
-
-  .agent-copy strong {
-    word-break: break-word;
-  }
-
-  .create-button,
-  .send-button,
-  .ghost {
-    border-radius: 16px;
-    padding: 0.8rem 1rem;
-    text-decoration: none;
-  }
-
-  .create-button,
-  .send-button {
-    cursor: pointer;
-  }
-
-  .empty-card {
-    border-radius: 20px;
-    border: 1px solid rgba(158, 188, 255, 0.12);
-    background: rgba(255, 255, 255, 0.03);
-  }
-
-  .composer-card {
     display: grid;
     gap: 12px;
   }
 
-  .composer {
-    width: 100%;
-    min-height: 112px;
-    resize: vertical;
-    border: 1px solid rgba(158, 188, 255, 0.18);
-    border-radius: 18px;
-    background: rgba(4, 11, 20, 0.4);
-    color: inherit;
-    padding: 14px 16px;
-    font: inherit;
-    box-sizing: border-box;
-  }
-
-  .error {
-    border-color: rgba(229, 112, 93, 0.28);
-    background: rgba(91, 31, 23, 0.58);
+  @media (max-width: 1320px) {
+    .chat-page,
+    .chat-page.drawer-open {
+      grid-template-columns: 300px minmax(0, 1fr);
+    }
   }
 
   @media (max-width: 1080px) {
-    .chat-page {
+    .chat-page,
+    .chat-page.drawer-open {
       grid-template-columns: 1fr;
     }
   }
