@@ -73,12 +73,21 @@ function classify(file: string, source: string): Omit<Row, 'kind'> | null {
     };
   }
 
+  if (normalized === 'packages/infring-sdk/src/transports/cli_dev_only.ts') {
+    return {
+      classification: 'dev_only_fallback',
+      severity: 'info',
+      detail: 'sdk cli transport is quarantined under a dev-only import path',
+      recommended_action: 'retain quarantine; do not re-export from the production SDK surface',
+    };
+  }
+
   if (normalized === 'packages/infring-sdk/src/transports.ts') {
     return {
       classification: 'runtime_hot_path',
       severity: 'critical',
-      detail: 'sdk transport still uses resident process spawning on fallback path',
-      recommended_action: 'continue collapsing toward resident IPC only',
+      detail: 'sdk production transport surface still shells out or references process fallback',
+      recommended_action: 'keep production SDK transport resident-IPC only',
     };
   }
 
@@ -203,11 +212,12 @@ function buildReport() {
   };
   const strictFailures = rows.filter(
     (row) =>
-      row.classification === 'wrapper_candidate' &&
+      row.classification === 'runtime_hot_path' ||
+      (row.classification === 'wrapper_candidate' &&
         (row.file.startsWith('tests/tooling/scripts/ci/') ||
           row.file.startsWith('tests/tooling/scripts/ops/') ||
           row.file.startsWith('client/runtime/systems/ops/') ||
-          row.file.startsWith('client/runtime/systems/autonomy/')),
+          row.file.startsWith('client/runtime/systems/autonomy/'))),
   );
   return {
     ok: strictFailures.length === 0,

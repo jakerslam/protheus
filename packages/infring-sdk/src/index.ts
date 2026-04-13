@@ -1,5 +1,9 @@
 export { InfringSdkClient } from './client';
-export { createCliTransport, createInMemoryTransport } from './transports';
+export {
+  RESIDENT_IPC_TOPOLOGY,
+  createInMemoryTransport,
+  createResidentIpcTransport,
+} from './transports';
 export type {
   AttachPoliciesData,
   AttachPoliciesRequest,
@@ -26,4 +30,9 @@ export type {
   SubmitTaskData,
   SubmitTaskRequest,
 } from './types';
-export type { CliTransportOptions, InMemorySeed, InMemoryTransportOptions } from './transports';
+export type {
+  InMemorySeed,
+  InMemoryTransportOptions,
+  ResidentIpcInvoker,
+  ResidentIpcTransportOptions,
+} from './transports';

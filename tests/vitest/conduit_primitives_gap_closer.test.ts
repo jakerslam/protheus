@@ -81,6 +81,21 @@ describe('conduit primitive wrapper contract', () => {
     expect(source.includes('persist_path_for_shell')).toBe(true);
     expect(source.includes('PATH persisted in')).toBe(true);
     expect(source.includes('activate now: .')).toBe(true);
+    expect(source.includes('run_dashboard_health_smoke')).toBe(true);
+    expect(source.includes('use --full to enforce')).toBe(true);
+    expect(source.includes('dashboard_ui.log')).toBe(true);
+    expect(source.includes('dashboard_watchdog.log')).toBe(true);
+  });
+
+  test('installers enforce dashboard health smoke for full installs', () => {
+    const shellSource = fs.readFileSync(path.join(ROOT, 'install.sh'), 'utf8');
+    const psSource = fs.readFileSync(path.join(ROOT, 'install.ps1'), 'utf8');
+    expect(shellSource.includes('if is_truthy "$INSTALL_FULL" || is_truthy "$INSTALL_STRICT_SMOKE"; then')).toBe(true);
+    expect(shellSource.includes('smoke dashboard_health: failed (healthz timeout)')).toBe(true);
+    expect(shellSource.includes('gateway stop')).toBe(true);
+    expect(psSource.includes('function Test-DashboardHealthSmoke')).toBe(true);
+    expect(psSource.includes('Full install failed dashboard health smoke.')).toBe(true);
+    expect(psSource.includes('Invoke-WebRequest -Uri "http://$Host`:$Port/healthz"')).toBe(true);
   });
 
   test('install.sh gateway fallback is Rust-first (Node optional legacy only)', () => {
@@ -126,9 +141,16 @@ describe('conduit primitive wrapper contract', () => {
 
   test('sdk transport and bridge lock process fallback in production channels', () => {
     const sdk = fs.readFileSync(path.join(ROOT, 'packages/infring-sdk/src/transports.ts'), 'utf8');
+    const sdkCliDevOnly = fs.readFileSync(
+      path.join(ROOT, 'packages/infring-sdk/src/transports/cli_dev_only.ts'),
+      'utf8'
+    );
     const bridge = fs.readFileSync(path.join(ROOT, 'adapters/runtime/ops_lane_bridge.ts'), 'utf8');
-    expect(sdk.includes('process_transport_forbidden_in_production')).toBe(true);
-    expect(sdk.includes('isProductionReleaseChannel')).toBe(true);
+    expect(sdk.includes('resident_ipc_authoritative')).toBe(true);
+    expect(sdk.includes('createResidentIpcTransport')).toBe(true);
+    expect(sdk.includes('node:child_process')).toBe(false);
+    expect(sdkCliDevOnly.includes('process_transport_forbidden_in_production')).toBe(true);
+    expect(sdkCliDevOnly.includes('isProductionReleaseChannel')).toBe(true);
     expect(bridge.includes('process_fallback_forbidden_in_production')).toBe(true);
     expect(bridge.includes('processFallbackPolicy')).toBe(true);
   });

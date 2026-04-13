@@ -166,3 +166,74 @@ fn mutation_without_target_requires_typed_scope_clarification() {
         .clarification_reasons
         .contains(&ClarificationReason::MutationScopeRequired));
 }
+
+#[test]
+fn comparative_request_changes_plan_when_transport_is_unavailable() {
+    let mut runtime = OrchestrationSurfaceRuntime::new();
+    let ready = runtime.orchestrate(
+        OrchestrationRequest {
+            session_id: "cmp-ready".to_string(),
+            intent: "compare this workspace state to the web".to_string(),
+            payload: json!({
+                "path": "README.md",
+                "url": "https://example.com"
+            }),
+        },
+        3_500,
+    );
+    let degraded = runtime.orchestrate(
+        OrchestrationRequest {
+            session_id: "cmp-degraded".to_string(),
+            intent: "compare this workspace state to the web".to_string(),
+            payload: json!({
+                "path": "README.md",
+                "url": "https://example.com",
+                "transport_available": false
+            }),
+        },
+        3_600,
+    );
+
+    assert!(ready
+        .core_contract_calls
+        .contains(&CoreContractCall::ToolBrokerRequest));
+    assert_eq!(
+        degraded.core_contract_calls,
+        vec![CoreContractCall::UnifiedMemoryRead]
+    );
+    assert!(matches!(
+        degraded.execution_state.plan_status,
+        infring_orchestration_surface_v1::contracts::PlanStatus::Degraded
+    ));
+}
+
+#[test]
+fn execution_state_is_typed_for_blocked_mutation_requests() {
+    let mut runtime = OrchestrationSurfaceRuntime::new();
+    let package = runtime.orchestrate(
+        OrchestrationRequest {
+            session_id: "blocked-mutation".to_string(),
+            intent: "implement the requested mutation".to_string(),
+            payload: json!({
+                "target": "task_fabric",
+                "authorization_valid": false
+            }),
+        },
+        3_700,
+    );
+
+    assert!(package.recovery_applied);
+    assert!(matches!(
+        package.execution_state.plan_status,
+        infring_orchestration_surface_v1::contracts::PlanStatus::Blocked
+            | infring_orchestration_surface_v1::contracts::PlanStatus::ClarificationRequired
+    ));
+    assert_eq!(
+        package
+            .execution_state
+            .recovery
+            .as_ref()
+            .and_then(|row| row.reason.clone()),
+        Some(infring_orchestration_surface_v1::contracts::RecoveryReason::AuthorizationFailure)
+    );
+}

@@ -1,3 +1,7 @@
+//! Supervisory coordination only.
+//! Self-maintenance may read via contracts, use ephemeral memory, and propose work through
+//! Task Fabric, but it must not create durable truth or bypass core-owned mutation authority.
+
 pub mod analyzer;
 pub mod contracts;
 pub mod escalation;

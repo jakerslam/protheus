@@ -33,6 +33,18 @@ const FORBIDDEN_DURABLE_IO_PATTERNS: Array<{ re: RegExp; detail: string }> = [
   { re: /\bcreate_dir_all\s*\(/, detail: 'create_dir_all' },
 ];
 
+const FORBIDDEN_SELF_MAINTENANCE_PATTERNS: Array<{ re: RegExp; detail: string }> = [
+  { re: /\bstd::fs::/, detail: 'std::fs' },
+  { re: /\btokio::fs::/, detail: 'tokio::fs' },
+  { re: /\bstd::process::Command\b/, detail: 'std::process::Command' },
+];
+
+const PRESENTATION_FILES = new Set([
+  'surface/orchestration/src/clarification.rs',
+  'surface/orchestration/src/progress.rs',
+  'surface/orchestration/src/result_packaging.rs',
+]);
+
 function parseArgs(argv: string[]): Args {
   const out: Args = {
     strict: false,
@@ -87,13 +99,14 @@ function run(args: Args): number {
   const violations: Violation[] = [];
   for (const file of files) {
     const source = fs.readFileSync(file, 'utf8');
+    const normalized = rel(file);
     for (const pattern of FORBIDDEN_STATE_PATTERNS) {
       if (!pattern.re.test(source)) continue;
       if (isEphemeralContainerAllowed(file, source) && pattern.detail === 'BTreeMap') {
         continue;
       }
       violations.push({
-        file: rel(file),
+        file: normalized,
         reason: 'hidden_state_container_forbidden',
         detail: pattern.detail,
       });
@@ -101,10 +114,55 @@ function run(args: Args): number {
     for (const pattern of FORBIDDEN_DURABLE_IO_PATTERNS) {
       if (!pattern.re.test(source)) continue;
       violations.push({
-        file: rel(file),
+        file: normalized,
         reason: 'durable_io_in_orchestration_forbidden',
         detail: pattern.detail,
       });
+    }
+
+    if (normalized.startsWith('surface/orchestration/src/planner/')) {
+      if (
+        /\btransient_context\b|\bTransientContextStore\b|\bself_maintenance\b/.test(source)
+      ) {
+        violations.push({
+          file: normalized,
+          reason: 'planner_domain_violation',
+          detail: 'planner must not depend on transient context or self_maintenance domains',
+        });
+      }
+    }
+
+    if (PRESENTATION_FILES.has(normalized)) {
+      if (
+        /\bcrate::planner\b|\bcrate::transient_context\b|\bcrate::self_maintenance\b/.test(source)
+      ) {
+        violations.push({
+          file: normalized,
+          reason: 'presentation_domain_violation',
+          detail: 'presentation files may depend only on orchestration contracts and projections',
+        });
+      }
+    }
+
+    if (normalized === 'surface/orchestration/src/transient_context.rs') {
+      if (/\bcrate::planner\b|\bcrate::self_maintenance\b/.test(source)) {
+        violations.push({
+          file: normalized,
+          reason: 'transient_domain_violation',
+          detail: 'transient context must remain isolated from planner and self_maintenance domains',
+        });
+      }
+    }
+
+    if (normalized.startsWith('surface/orchestration/src/self_maintenance/')) {
+      for (const pattern of FORBIDDEN_SELF_MAINTENANCE_PATTERNS) {
+        if (!pattern.re.test(source)) continue;
+        violations.push({
+          file: normalized,
+          reason: 'self_maintenance_direct_io_forbidden',
+          detail: pattern.detail,
+        });
+      }
     }
   }
   const payload = {

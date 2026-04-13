@@ -3,6 +3,17 @@
 // TypeScript compatibility shim only.
 // Layer ownership: surface/orchestration (persona orchestration coordination); this file is a thin CLI bridge.
 
-const { bindOrchestrationSurfaceModule } = require('../../../../adapters/runtime/orchestration_surface_modules.ts');
+const impl = require('../../../../surface/orchestration/scripts/personas_orchestration.ts');
 
-module.exports = bindOrchestrationSurfaceModule('personas_orchestration', module);
+function run(args = process.argv.slice(2)) {
+  return impl.run(args);
+}
+
+if (require.main === module) {
+  process.exit(run(process.argv.slice(2)));
+}
+
+module.exports = {
+  ...impl,
+  run
+};

@@ -77,6 +77,7 @@ function run(args: Args): number {
   const allowedSpawnSyncByFile = new Map<string, number>([
     ['adapters/runtime/dev_only/legacy_process_runner.ts', 1],
     ['adapters/runtime/dev_only/ops_lane_process_fallback.ts', 1],
+    ['adapters/runtime/dashboard_asset_router.ts', 1],
   ]);
 
   for (const file of adaptersRuntimeFiles) {
@@ -206,18 +207,44 @@ function run(args: Args): number {
   const sdkTransportPath = path.join(ROOT, 'packages', 'infring-sdk', 'src', 'transports.ts');
   if (fs.existsSync(sdkTransportPath)) {
     const source = fs.readFileSync(sdkTransportPath, 'utf8');
-    if (!source.includes('process_transport_forbidden_in_production')) {
+    if (!source.includes('resident_ipc_authoritative')) {
       violations.push({
         file: rel(sdkTransportPath),
         reason: 'sdk_production_transport_lock_missing',
-        detail: 'expected production release lockout for process transport',
+        detail: 'expected resident IPC authoritative topology marker',
+      });
+    }
+    if (!source.includes('createResidentIpcTransport')) {
+      violations.push({
+        file: rel(sdkTransportPath),
+        reason: 'sdk_release_channel_guard_missing',
+        detail: 'expected production SDK surface to expose resident IPC transport only',
+      });
+    }
+    if (source.includes('spawn(') || source.includes('spawnSync(')) {
+      violations.push({
+        file: rel(sdkTransportPath),
+        reason: 'sdk_spawn_path_forbidden',
+        detail: 'production SDK transport surface must not shell out',
+      });
+    }
+  }
+
+  const sdkCliDevOnlyPath = path.join(ROOT, 'packages', 'infring-sdk', 'src', 'transports', 'cli_dev_only.ts');
+  if (fs.existsSync(sdkCliDevOnlyPath)) {
+    const source = fs.readFileSync(sdkCliDevOnlyPath, 'utf8');
+    if (!source.includes('process_transport_forbidden_in_production')) {
+      violations.push({
+        file: rel(sdkCliDevOnlyPath),
+        reason: 'sdk_dev_only_transport_lock_missing',
+        detail: 'expected dev-only CLI transport to keep production lockout marker',
       });
     }
     if (!source.includes('isProductionReleaseChannel')) {
       violations.push({
-        file: rel(sdkTransportPath),
-        reason: 'sdk_release_channel_guard_missing',
-        detail: 'expected release-channel policy check in sdk transport',
+        file: rel(sdkCliDevOnlyPath),
+        reason: 'sdk_dev_only_release_guard_missing',
+        detail: 'expected release-channel policy check in quarantined CLI transport',
       });
     }
   }

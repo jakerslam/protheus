@@ -114,11 +114,15 @@ function architectureDocsCheck(): Check {
 
 function transportLockCheck(): Check {
   const sdk = read('packages/infring-sdk/src/transports.ts');
+  const sdkCliDevOnly = read('packages/infring-sdk/src/transports/cli_dev_only.ts');
   const bridge = read('adapters/runtime/ops_lane_bridge.ts');
   const runner = read('adapters/runtime/run_protheus_ops.ts');
   const ok =
-    sdk.includes('process_transport_forbidden_in_production') &&
-    sdk.includes('isProductionReleaseChannel') &&
+    sdk.includes('resident_ipc_authoritative') &&
+    sdk.includes('createResidentIpcTransport') &&
+    !sdk.includes("node:child_process") &&
+    sdkCliDevOnly.includes('process_transport_forbidden_in_production') &&
+    sdkCliDevOnly.includes('isProductionReleaseChannel') &&
     bridge.includes('process_fallback_forbidden_in_production') &&
     bridge.includes('processFallbackPolicy') &&
     runner.includes('createOpsLaneBridge') &&

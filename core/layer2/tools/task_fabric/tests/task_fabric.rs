@@ -256,6 +256,84 @@ fn lease_heartbeat_and_concurrency_contracts_hold() {
     assert_eq!(same.event_id, deduped.event_id);
 }
 
+#[test]
+fn failed_tasks_are_terminal() {
+    let mut fabric = TaskFabric::new("scope-a");
+    let gate = AllowAllVerityGate;
+    fabric
+        .submit_task(
+            sample_task("scope-a", "terminal-failed", "Terminal Failed"),
+            envelope(MutationKind::CreateTask, "tf1"),
+            &gate,
+        )
+        .expect("create");
+    let rev = fabric
+        .graph
+        .task("terminal-failed")
+        .map(|v| v.revision_id)
+        .unwrap_or(0);
+    fabric
+        .transition_status(
+            "terminal-failed",
+            LifecycleStatus::Failed,
+            MutationEnvelope {
+                expected_revision: Some(rev),
+                ..envelope(MutationKind::UpdateStatus, "tf2")
+            },
+            &gate,
+        )
+        .expect("fail");
+    let blocked = fabric.transition_status(
+        "terminal-failed",
+        LifecycleStatus::InProgress,
+        MutationEnvelope {
+            expected_revision: None,
+            ..envelope(MutationKind::UpdateStatus, "tf3")
+        },
+        &gate,
+    );
+    assert!(blocked.is_err());
+}
+
+#[test]
+fn cancelled_tasks_are_terminal() {
+    let mut fabric = TaskFabric::new("scope-a");
+    let gate = AllowAllVerityGate;
+    fabric
+        .submit_task(
+            sample_task("scope-a", "terminal-cancelled", "Terminal Cancelled"),
+            envelope(MutationKind::CreateTask, "tc1"),
+            &gate,
+        )
+        .expect("create");
+    let rev = fabric
+        .graph
+        .task("terminal-cancelled")
+        .map(|v| v.revision_id)
+        .unwrap_or(0);
+    fabric
+        .transition_status(
+            "terminal-cancelled",
+            LifecycleStatus::Cancelled,
+            MutationEnvelope {
+                expected_revision: Some(rev),
+                ..envelope(MutationKind::UpdateStatus, "tc2")
+            },
+            &gate,
+        )
+        .expect("cancel");
+    let blocked = fabric.transition_status(
+        "terminal-cancelled",
+        LifecycleStatus::InProgress,
+        MutationEnvelope {
+            expected_revision: None,
+            ..envelope(MutationKind::UpdateStatus, "tc3")
+        },
+        &gate,
+    );
+    assert!(blocked.is_err());
+}
+
 struct DenyGate;
 
 impl VerityGate for DenyGate {
