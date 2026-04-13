@@ -121,20 +121,17 @@
           <button class="chat-map-jump chat-map-jump-up" type="button" @click="stepMessageMap(messages, -1)" title="Previous message" aria-label="Previous message">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"></path></svg>
           </button>
-          <div class="chat-map-scroll">
+          <div class="chat-map-scroll" @scroll.passive="hideDashboardPopupBySource('chat-map')">
           <div class="chat-map-spacer" aria-hidden="true"></div>
               <template x-for="(msg, idx) in messages" :key="'map-' + messageRenderKey(msg, idx)">
                 <div class="chat-map-entry">
                   <template x-if="isNewMessageDay(messages, idx)">
-                <button class="chat-map-day" type="button" @click="toggleMessageDayCollapse(msg)" @mouseenter="setMapDayHover(msg)" @mouseleave="clearMapDayHover()" :aria-label="'Messages for ' + messageDayLabel(msg)">
+                <button class="chat-map-day" type="button" @click="toggleMessageDayCollapse(msg)" @mouseenter="showMapDayPopup(msg, $event)" @mousemove="showMapDayPopup(msg, $event)" @focus="showMapDayPopup(msg, $event)" @mouseleave="hideMapDayPopup()" @blur="hideMapDayPopup()" :aria-label="'Messages for ' + messageDayLabel(msg)">
                   <span class="chat-map-day-chevron" x-text="isMessageDayCollapsed(msg) ? '▸' : '▾'" aria-hidden="true"></span>
                   <span class="chat-map-day-icon" aria-hidden="true">&#9728;</span>
-                  <div class="chat-map-preview chat-map-day-preview" x-show="isMapDayPreviewVisible(msg)" x-transition.opacity>
-                    <div class="chat-map-preview-day" x-text="messageDayLabel(msg)"></div>
-                  </div>
                 </button>
-                  </template>
-              <button x-show="!isMessageDayCollapsed(msg)" class="chat-map-item" :data-msg-dom-id="messageDomId(msg, idx)" :class="['role-' + (msg.role || 'agent'), isLongMessagePreview(msg) ? 'long-message' : '', isSelectedMessage(msg, idx) ? 'selected-linked' : '', isHoveredMessage(msg, idx) ? 'hover-linked' : '']" @mouseenter="setMapItemHover(msg, idx)" @mouseleave="clearMapItemHover()" @click="jumpToMessage(msg, idx)" :aria-label="'Jump to message ' + (idx + 1)">
+              </template>
+              <button x-show="!isMessageDayCollapsed(msg)" class="chat-map-item" :data-msg-dom-id="messageDomId(msg, idx)" :class="['role-' + (msg.role || 'agent'), isLongMessagePreview(msg) ? 'long-message' : '', isSelectedMessage(msg, idx) ? 'selected-linked' : '', isHoveredMessage(msg, idx) ? 'hover-linked' : '']" @mouseenter="showMapItemPopup(msg, idx, $event)" @mousemove="showMapItemPopup(msg, idx, $event)" @focus="showMapItemPopup(msg, idx, $event)" @mouseleave="hideMapItemPopup()" @blur="hideMapItemPopup()" @click="jumpToMessage(msg, idx)" :aria-label="'Jump to message ' + (idx + 1)">
                 <span class="chat-map-item-main" x-show="messageMapMarkerType(msg) === ''">
                   <span class="chat-map-bar"></span>
                 </span>
@@ -158,13 +155,6 @@
                     <svg viewBox="0 0 24 24"><path d="M4 17 10 11 4 5"/><path d="M12 19h8"/></svg>
                   </span>
                 </span>
-                <div class="chat-map-preview" x-show="isMapPreviewVisible(msg, idx)" x-transition.opacity>
-                  <div class="chat-map-preview-meta">
-                    <span class="chat-map-preview-role" x-text="messageActorLabel(msg)"></span>
-                    <span class="chat-map-preview-time" x-text="messageTs(msg)"></span>
-                  </div>
-                  <div class="chat-map-preview-text" x-text="messageMapPreview(msg)"></div>
-                </div>
               </button>
             </div>
           </template>

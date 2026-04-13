@@ -65,6 +65,8 @@ function assertInterfaceSafetyGuards() {
   const hostSource = readUtf8(TARGET);
   const laneSource = readUtf8(TARGET_SOURCE);
   const wsBridgeSource = readUtf8(AGENT_WS_BRIDGE_TS_PATH);
+  const htmlSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/infring_static/index_body.html'));
+  const componentsSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/infring_static/css/components.css'));
 
   assertContains(
     appSource,
@@ -219,6 +221,220 @@ function assertInterfaceSafetyGuards() {
     appSource,
     'runtime.facade_response_p95_ms',
     'runtime facade p95 must come from rust authority payload when available'
+  );
+  assertContains(
+    appSource,
+    'dashboardPopupOrigin(overrides) {',
+    'dashboard popup base helper missing'
+  );
+  assertContains(
+    appSource,
+    'activeDashboardPopupOrigin() {',
+    'dashboard popup selector helper missing'
+  );
+  assertContains(
+    appSource,
+    'bottomDockPopupOrigin() {',
+    'bottom dock popup must route through shared popup origin helper'
+  );
+  assertContains(
+    appSource,
+    'dashboardPopupStateOrigin() {',
+    'chat-nav and topbar popups must route through the shared popup state origin helper'
+  );
+  assertContains(
+    appSource,
+    'showTopbarNavPopup(label, ev) {',
+    'topbar chat-nav hover should be authored through the shared popup state'
+  );
+  assertContains(
+    appSource,
+    'showDashboardPopup(id, label, ev, overrides) {',
+    'shared dashboard popup opener missing'
+  );
+  assertContains(
+    appSource,
+    'showCollapsedSidebarAgentPopup(agent, ev) {',
+    'collapsed sidebar agent hover should call the shared popup object directly'
+  );
+  assertContains(
+    htmlSource,
+    "@mouseenter=\"showMapItemPopup(msg, idx, $event)\"",
+    'chat map items should route hover previews through the shared dashboard popup object'
+  );
+  assertContains(
+    htmlSource,
+    "@mouseenter=\"showMapDayPopup(msg, $event)\"",
+    'chat map day markers should route hover previews through the shared dashboard popup object'
+  );
+  assert.ok(
+    !htmlSource.includes('class="chat-map-preview"'),
+    'chat map should not keep inline preview popup markup once shared dashboard popup owns that surface'
+  );
+  assert.ok(
+    !componentsSource.includes('.chat-map-preview {'),
+    'chat map should not keep bespoke preview popup styling once shared dashboard popup owns that surface'
+  );
+  assertContains(
+    appSource,
+    'showCollapsedSidebarNavPopup(label, ev) {',
+    'collapsed sidebar nav hover should call the shared popup object directly'
+  );
+  assertContains(
+    appSource,
+    'hideDashboardPopupBySource(source) {',
+    'shared popup source-specific closer missing'
+  );
+  assertContains(
+    appSource,
+    'hideDashboardPopup(rawId) {',
+    'shared dashboard popup closer missing'
+  );
+  assertContains(
+    appSource,
+    'source: String(config.source || \'\').trim(),',
+    'shared dashboard popup state should preserve popup source metadata'
+  );
+  assertContains(
+    appSource,
+    'showTopbarUtilityPopup(label, body, ev) {',
+    'topbar utility hover should be authored through the shared popup state'
+  );
+  assert.ok(
+    !appSource.includes('showChatNavStatusPopup('),
+    'chat-nav should not keep a dedicated popup helper path'
+  );
+  assert.ok(
+    !appSource.includes('showChatNavToolPopup('),
+    'chat-nav tool popup should use the shared popup object directly'
+  );
+  assert.ok(
+    !appSource.includes('showChatNavUtilityPopup('),
+    'chat-nav utility popup should use the shared popup object directly'
+  );
+  assert.ok(
+    !appSource.includes('collapsedAgentHover'),
+    'collapsed sidebar should not keep legacy hover state'
+  );
+  assert.ok(
+    !appSource.includes('collapsedSidebarPopupOrigin('),
+    'collapsed sidebar should not keep a dedicated popup origin path'
+  );
+  assertContains(
+    htmlSource,
+    'class="dashboard-popup-surface dashboard-preview-surface dashboard-popup-overlay"',
+    'shared dashboard popup overlay must literally inherit the base preview surface class'
+  );
+  assertContains(
+    htmlSource,
+    "@mouseenter=\"if (sidebarCollapsed) showCollapsedSidebarNavPopup('Conversations', $event)\"",
+    'collapsed sidebar conversation nav should use the shared sidebar popup helper'
+  );
+  assertContains(
+    htmlSource,
+    "@mouseenter=\"if (sidebarCollapsed) showCollapsedSidebarAgentPopup(agent, $event)\"",
+    'collapsed sidebar agent preview should use the shared sidebar popup helper'
+  );
+  assertContains(
+    htmlSource,
+    "@scroll.passive=\"scheduleSidebarScrollIndicators(); hideDashboardPopupBySource('sidebar')\"",
+    'collapsed sidebar scroll should clear the shared sidebar popup source'
+  );
+  assertContains(
+    htmlSource,
+    "@mouseenter=\"showTopbarNavPopup('Back', $event)\"",
+    'topbar back button should inherit the shared popup object'
+  );
+  assertContains(
+    htmlSource,
+    ":aria-disabled=\"!canNavigateBack() ? 'true' : 'false'\"",
+    'topbar back button should still allow shared popup hover when navigation is unavailable'
+  );
+  assertContains(
+    htmlSource,
+    "@mouseenter=\"showTopbarNavPopup('Forward', $event)\"",
+    'topbar forward button should inherit the shared popup object'
+  );
+  assertContains(
+    htmlSource,
+    ":aria-disabled=\"!canNavigateForward() ? 'true' : 'false'\"",
+    'topbar forward button should still allow shared popup hover when navigation is unavailable'
+  );
+  assertContains(
+    htmlSource,
+    "@mouseenter=\"showTopbarUtilityPopup('Search', 'Search coming soon', $event)\"",
+    'topbar search preview should inherit the shared popup object'
+  );
+  assertContains(
+    htmlSource,
+    "@mouseenter=\"if (String(agentStatusLabel(agent) || '').trim()) showDashboardPopup('chat-nav-status:' + String(agent.id || ''), 'Agent status', $event, { source: 'chat_nav', side: 'right', body: String(agentStatusLabel(agent) || '').trim(), meta_origin: 'Chat nav', meta_time: formatChatSidebarTime((chatSidebarPreview(agent) || {}).ts) }); else hideDashboardPopup('chat-nav-status:' + String(agent.id || ''))\"",
+    'chat-nav status preview should call the shared popup object directly'
+  );
+  assertContains(
+    htmlSource,
+    "@mouseenter=\"if (String((chatSidebarPreview(agent) || {}).tool_label || '').trim()) showDashboardPopup('chat-nav-tool:' + String(agent.id || ''), 'Tool activity', $event, { source: 'chat_nav', side: 'right', body: String((chatSidebarPreview(agent) || {}).tool_label || '').trim(), meta_origin: 'Chat nav', meta_time: formatChatSidebarTime((chatSidebarPreview(agent) || {}).ts), unread: !!(chatSidebarPreview(agent) || {}).unread_response }); else hideDashboardPopup('chat-nav-tool:' + String(agent.id || ''))\"",
+    'chat-nav tool preview should call the shared popup object directly'
+  );
+  assertContains(
+    htmlSource,
+    "@mouseenter=\"showDashboardPopup('chat-nav-utility:conversation-search', 'Conversation search', $event, { source: 'chat_nav', side: 'right', body: 'Search coming soon', meta_origin: 'Chat nav' })\"",
+    'chat-nav search affordance should call the shared popup object directly'
+  );
+  assertContains(
+    htmlSource,
+    "@mouseenter=\"showDashboardPopup('chat-nav-utility:archive-chat', 'Archive chat', $event, { source: 'chat_nav', side: 'right', body: 'Archive this agent conversation', meta_origin: 'Chat nav' })\"",
+    'chat-nav archive affordance should call the shared popup object directly'
+  );
+  assert.ok(
+    !htmlSource.includes(":title=\"chatSidebarPreview(agent).tool_label || 'Tool call'\""),
+    'chat-nav tool preview should not fall back to a native title tooltip'
+  );
+  assert.ok(
+    !htmlSource.includes('data-tooltip="Coming soon"'),
+    'chat-nav search affordance should not fall back to the old dashboard-preview-trigger tooltip'
+  );
+  assert.ok(
+    !htmlSource.includes('nav-agent-collapsed-hover-float'),
+    'legacy sidebar collapsed popup float should be removed once shared popup overlay is active'
+  );
+  assertContains(
+    componentsSource,
+    '.dashboard-popup-surface',
+    'shared dashboard popup surface styles missing'
+  );
+  assertContains(
+    componentsSource,
+    '--dashboard-preview-surface-radius: 18px;',
+    'shared dashboard popup surface should use a fixed radius so multi-line cards do not stretch into pills'
+  );
+  assertContains(
+    componentsSource,
+    '.dashboard-popup-surface.is-compact {',
+    'shared dashboard popup compact state styles missing'
+  );
+  assertContains(
+    componentsSource,
+    'text-align: left;',
+    'shared dashboard popup compact state should keep the doc-popup text alignment'
+  );
+  assertContains(
+    componentsSource,
+    '--dashboard-preview-surface-background: color-mix(in srgb, var(--surface) 8%, transparent);',
+    'shared dashboard popup surface should inherit the old lightweight dock/doc popup background'
+  );
+  assertContains(
+    componentsSource,
+    '.dashboard-popup-overlay {',
+    'shared dashboard popup overlay positioning styles missing'
+  );
+  assertContains(
+    componentsSource,
+    'left: -9999px;',
+    'shared dashboard popup overlay should default offscreen to prevent top-corner flash'
+  );
+  assert.ok(
+    !/\.dashboard-popup-surface\s*\{[\s\S]*position:\s*fixed;/.test(componentsSource),
+    'shared dashboard popup surface must stay position-agnostic so inherited popups do not jump to the top corner'
   );
   assertContains(
     chatSource,

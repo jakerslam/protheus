@@ -97,13 +97,10 @@
   align-items: center;
   gap: 6px;
   pointer-events: auto;
-  padding: 0 8px;
-  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--surface2) 64%, transparent);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
-  box-shadow: 0 10px 28px color-mix(in srgb, #000 22%, transparent);
+  padding: 0 12px;
+  --dashboard-preview-surface-max-width: min(640px, calc(100vw - 32px));
+  --dashboard-preview-surface-padding: 0 12px;
+  --dashboard-preview-surface-radius: 18px;
   transition: border-color var(--transition-fast), background var(--transition-fast), box-shadow var(--transition-fast);
 }
 
@@ -162,7 +159,6 @@
 .topbar-nav-btn[disabled] {
   opacity: 0.42;
   cursor: default;
-  pointer-events: none;
 }
 
 .topbar-reorder-box {
