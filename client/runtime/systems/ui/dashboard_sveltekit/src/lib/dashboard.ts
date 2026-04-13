@@ -43,7 +43,7 @@ export const dashboardPages: DashboardPage[] = [
   { key: 'hands', title: 'Hands', summary: 'Manual actions, desktop control, and actuation status.', mode: 'legacy', churn: 'medium' },
   { key: 'analytics', title: 'Analytics', summary: 'Usage, spend, and per-model breakdowns.', mode: 'legacy', churn: 'medium' },
   { key: 'logs', title: 'Logs', summary: 'Recent audit activity and operator-facing receipts.', mode: 'legacy', churn: 'medium' },
-  { key: 'runtime', title: 'Runtime', summary: 'Backend health, providers, and web tooling status.', mode: 'legacy', churn: 'high' },
+  { key: 'runtime', title: 'Runtime', summary: 'Backend health, providers, and web tooling status.', mode: 'native', churn: 'high' },
   { key: 'settings', title: 'Settings', summary: 'Provider config, auth, and dashboard behavior.', mode: 'native', churn: 'high' },
   { key: 'wizard', title: 'Wizard', summary: 'Guided setup and onboarding utilities.', mode: 'legacy', churn: 'low' },
 ];

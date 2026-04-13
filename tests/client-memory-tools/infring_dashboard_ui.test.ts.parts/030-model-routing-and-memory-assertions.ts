@@ -441,11 +441,44 @@ function assertNativeSettingsRouteContract() {
   assertContains(routeLoadSource, 'export const prerender = true;', 'native settings route should keep static prerender options in +page.ts');
 }
 
+function assertNativeRuntimeRouteContract() {
+  const dashboardSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/dashboard.ts'));
+  const runtimeSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/runtime.ts'));
+  const pageSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/components/RuntimePage.svelte'));
+  const overviewSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/components/RuntimeOverviewPanel.svelte'));
+  const providersSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/components/RuntimeProvidersPanel.svelte'));
+  const webSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/components/RuntimeWebToolingPanel.svelte'));
+  const routeSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/routes/runtime/+page.svelte'));
+  const routeLoadSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/routes/runtime/+page.ts'));
+
+  assert.ok(
+    /\{\s*key:\s*'runtime'[\s\S]{0,220}mode:\s*'native'/.test(dashboardSource),
+    'dashboard registry should mark runtime as a native route'
+  );
+  assertContains(runtimeSource, '/api/status', 'native runtime helper should read the authoritative runtime status lane');
+  assertContains(runtimeSource, '/api/version', 'native runtime helper should read the authoritative version lane');
+  assertContains(runtimeSource, '/api/providers', 'native runtime helper should read the authoritative provider lane');
+  assertContains(runtimeSource, '/api/agents', 'native runtime helper should read the authoritative agent roster lane');
+  assertContains(runtimeSource, '/api/web/status', 'native runtime helper should read the authoritative web tooling status lane');
+  assertContains(runtimeSource, '/api/web/receipts?limit=5', 'native runtime helper should read recent web tooling receipts');
+  assertContains(pageSource, 'await readRuntimePageData();', 'native runtime page should load the bounded runtime slice through the runtime helper');
+  assertContains(pageSource, '<RuntimeOverviewPanel', 'native runtime page should render a dedicated native runtime overview panel');
+  assertContains(pageSource, '<RuntimeProvidersPanel', 'native runtime page should render a dedicated native provider status panel');
+  assertContains(pageSource, '<RuntimeWebToolingPanel', 'native runtime page should render a dedicated native web tooling panel');
+  assertContains(pageSource, "href={dashboardClassicHref('runtime')}", 'native runtime should preserve a classic escape hatch while deeper legacy tabs remain');
+  assertContains(overviewSource, 'formatUptime', 'native runtime overview panel should format uptime locally without new authority');
+  assertContains(providersSource, 'Provider health', 'native runtime providers panel should keep provider health visible in the Svelte route');
+  assertContains(webSource, 'formatReceiptTime', 'native runtime web tooling panel should render recent receipt timing locally');
+  assertContains(routeSource, '<RuntimePage />', 'native runtime route should render the Svelte runtime page directly');
+  assertContains(routeLoadSource, 'export const prerender = true;', 'native runtime route should keep static prerender options in +page.ts');
+}
+
 const runSnapshotAssertionsWithNativeChat = runSnapshotAssertions;
 runSnapshotAssertions = function() {
   assertNativeChatRouteContract();
   assertNativeAgentsRouteContract();
   assertNativeSettingsRouteContract();
+  assertNativeRuntimeRouteContract();
   return runSnapshotAssertionsWithNativeChat();
 };
 
