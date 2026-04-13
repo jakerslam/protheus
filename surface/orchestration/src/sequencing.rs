@@ -12,6 +12,13 @@ pub fn build_plan_candidate(
     crate::planner::build_plan_candidate(request, classification)
 }
 
+pub fn build_plan_candidates(
+    request: &TypedOrchestrationRequest,
+    classification: &RequestClassification,
+) -> Vec<PlanCandidate> {
+    crate::planner::build_plan_candidates(request, classification)
+}
+
 pub fn fallback_actions(
     request: &TypedOrchestrationRequest,
     request_class: RequestClass,
