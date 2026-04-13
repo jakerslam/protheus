@@ -20,6 +20,7 @@ pub enum LifecycleStatus {
 pub enum ReadinessStatus {
     Runnable,
     Blocked,
+    Terminal,
     Leased,
     Stale,
 }
@@ -234,6 +235,12 @@ impl TaskGraph {
         stale_after_ms: u64,
     ) -> Option<ReadinessStatus> {
         let task = self.tasks.get(task_id)?;
+        if matches!(
+            task.lifecycle_status,
+            LifecycleStatus::Completed | LifecycleStatus::Failed | LifecycleStatus::Cancelled
+        ) {
+            return Some(ReadinessStatus::Terminal);
+        }
         let leased = task.lease_expires_at.map(|ts| ts > now_ms).unwrap_or(false);
         if leased {
             return Some(ReadinessStatus::Leased);
@@ -262,7 +269,7 @@ impl TaskGraph {
                 Some(ReadinessStatus::Runnable)
             }
             LifecycleStatus::Completed | LifecycleStatus::Failed | LifecycleStatus::Cancelled => {
-                Some(ReadinessStatus::Blocked)
+                Some(ReadinessStatus::Terminal)
             }
         }
     }

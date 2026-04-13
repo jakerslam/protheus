@@ -15,6 +15,12 @@ pub fn package_result(
     );
     let summary = if plan.needs_clarification {
         "orchestration requires clarification".to_string()
+    } else if matches!(plan.execution_state.plan_status, PlanStatus::Running) {
+        "orchestration is tracking in-flight core execution".to_string()
+    } else if matches!(plan.execution_state.plan_status, PlanStatus::Completed) {
+        "orchestration completed with correlated core execution".to_string()
+    } else if matches!(plan.execution_state.plan_status, PlanStatus::Failed) {
+        "orchestration observed a failed core execution outcome".to_string()
     } else if matches!(plan.execution_state.plan_status, PlanStatus::Degraded) {
         "orchestration prepared degraded plan for core contract execution".to_string()
     } else {
@@ -36,5 +42,6 @@ pub fn package_result(
         requires_core_promotion,
         classification: plan.classification.clone(),
         selected_plan: plan.selected_plan.clone(),
+        alternative_plans: plan.alternative_plans.clone(),
     }
 }
