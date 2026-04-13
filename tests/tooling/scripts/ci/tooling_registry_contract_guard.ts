@@ -1,30 +1,17 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
 import { loadGateRegistry } from '../../lib/manifest.ts';
+import { parseBool, readFlag } from '../../lib/cli.ts';
 import { emitStructuredResult } from '../../lib/result.ts';
 const DEFAULT_REGISTRY = 'tests/tooling/config/tooling_gate_registry.json';
 const DEFAULT_OUT = 'core/local/artifacts/tooling_registry_contract_guard_current.json';
 
-function parseArgs(argv: string[]) {
-  const out = {
-    strict: false,
-    registry: DEFAULT_REGISTRY,
-    out: DEFAULT_OUT,
+function resolveArgs(argv: string[]) {
+  return {
+    strict: argv.includes('--strict') || parseBool(readFlag(argv, 'strict'), false),
+    registry: readFlag(argv, 'registry') || DEFAULT_REGISTRY,
+    out: readFlag(argv, 'out') || DEFAULT_OUT,
   };
-  for (const raw of argv) {
-    const arg = String(raw || '').trim();
-    if (!arg) continue;
-    if (arg === '--strict' || arg === '--strict=1') out.strict = true;
-    else if (arg.startsWith('--strict=')) {
-      const value = arg.slice('--strict='.length).trim().toLowerCase();
-      out.strict = ['1', 'true', 'yes', 'on'].includes(value);
-    } else if (arg.startsWith('--registry=')) {
-      out.registry = arg.slice('--registry='.length).trim() || out.registry;
-    } else if (arg.startsWith('--out=')) {
-      out.out = arg.slice('--out='.length).trim() || out.out;
-    }
-  }
-  return out;
 }
 
 function containsPlaceholder(value: string): boolean {
@@ -43,7 +30,7 @@ function looksLikeArtifactFlag(value: string): boolean {
 }
 
 function run(argv: string[]) {
-  const args = parseArgs(argv);
+  const args = resolveArgs(argv);
   const registry = loadGateRegistry(args.registry);
   const failures: Array<{ id: string; detail: string }> = [];
   const gates = Object.entries(registry.gates || {});
