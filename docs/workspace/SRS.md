@@ -15544,6 +15544,27 @@ Source summary:
   - `npm run -s ops:orchestration:ts-boundary:guard`
   - `npm run -s ops:orchestration:contract:guard`
 
+### V11-DASH-001 — Native Runtime Debt + Orchestration Audit Surface
+
+- Intent:
+  - Make classic-dashboard deletion and orchestration hardening visible in the native operator runtime instead of leaving both as report-only debt.
+- Acceptance criteria:
+  - The dashboard host exposes a native route-telemetry feed that reports current native vs legacy page counts, classic asset counts, classic-link references, embedded fallback references, and the largest remaining classic files.
+  - The dashboard host exposes a native orchestration audit feed that reports whether capability probes, alternative plans, verifier requests, nested core execution projection, and receipt/outcome correlation fields are present in the orchestration surface contract.
+  - `/dashboard/runtime` renders both feeds in operator-facing cards without adding new authority to the client.
+  - The runtime helper reads the new bounded dashboard-host feeds instead of scraping classic HTML or inventing static copy.
+  - Dashboard regression coverage proves the runtime page and dashboard host both keep these telemetry lanes wired.
+- Regression evidence pointers:
+  - `adapters/runtime/infring_dashboard.ts`
+  - `client/runtime/systems/ui/dashboard_sveltekit/src/lib/runtime.ts`
+  - `client/runtime/systems/ui/dashboard_sveltekit/src/lib/components/RuntimePage.svelte`
+  - `tests/client-memory-tools/infring_dashboard_ui.test.ts.parts/030-model-routing-and-memory-assertions.ts`
+  - `npm run -s ops:dashboard-classic:debt:report`
+  - `npm run -s ops:policy-debt:summary`
+  - `npm run -s ops:tech-debt:report`
+  - `node tests/client-memory-tools/infring_dashboard_ui.test.ts --dashboard-inline-parse-only=1`
+  - `npm run -s ops:arch:conformance`
+
 ### V11-SDK-003 — Resident IPC Only Production SDK Transport Surface
 
 - Intent:

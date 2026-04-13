@@ -85,10 +85,48 @@ export type RuntimeWebStatus = {
   recent_receipts: RuntimeWebReceipt[];
 };
 
+export type RuntimeDebtFile = {
+  path: string;
+  lines: number;
+};
+
+export type RuntimePolicyDebt = {
+  open_items: number;
+  blocked_items: number;
+  policy_green_but_debt_remaining: boolean;
+  size_exception_count: number;
+  oversized_files: number;
+  native_pages: number;
+  legacy_pages: number;
+  classic_asset_files: number;
+  classic_href_references: number;
+  embedded_fallback_references: number;
+  top_classic_files: RuntimeDebtFile[];
+};
+
+export type RuntimeOrchestrationSurface = {
+  capability_probes: boolean;
+  alternative_plans: boolean;
+  verifier_request: boolean;
+  verifier_registry_mapping: boolean;
+  nested_core_projection: boolean;
+  receipt_correlation: boolean;
+  plan_variants: string[];
+  plan_statuses: string[];
+  step_statuses: string[];
+  correlation_fields: string[];
+  adapter_fallback_pass: boolean | null;
+  adapter_fallback_threshold: number | null;
+  hidden_state_pass: boolean | null;
+  hidden_state_violations: number | null;
+};
+
 export type RuntimePageData = {
   overview: RuntimeOverview;
   providers: DashboardProviderRow[];
   web: RuntimeWebStatus;
+  debt: RuntimePolicyDebt;
+  orchestration: RuntimeOrchestrationSurface;
 };
 
 type JsonRecord = Record<string, unknown>;
@@ -195,6 +233,63 @@ function normalizeWebStatus(statusPayload: JsonRecord, receiptsPayload: JsonReco
   };
 }
 
+function normalizePolicyDebt(payload: JsonRecord): RuntimePolicyDebt {
+  const summary = asRecord(payload.summary);
+  const topClassicFiles = Array.isArray(payload.top_classic_files) ? payload.top_classic_files : [];
+  return {
+    open_items: Number(summary.open_items || 0) || 0,
+    blocked_items: Number(summary.blocked_items || 0) || 0,
+    policy_green_but_debt_remaining: summary.policy_green_but_debt_remaining === true,
+    size_exception_count: Number(summary.size_exception_count || 0) || 0,
+    oversized_files: Number(summary.oversized_files || 0) || 0,
+    native_pages: Number(summary.native_pages || 0) || 0,
+    legacy_pages: Number(summary.legacy_pages || 0) || 0,
+    classic_asset_files: Number(summary.classic_asset_files || 0) || 0,
+    classic_href_references: Number(summary.classic_href_references || 0) || 0,
+    embedded_fallback_references: Number(summary.embedded_fallback_references || 0) || 0,
+    top_classic_files: topClassicFiles.slice(0, 5).map((row) => {
+      const file = asRecord(row);
+      return {
+        path: String(file.path || '-').trim() || '-',
+        lines: Number(file.lines || 0) || 0,
+      };
+    }),
+  };
+}
+
+function normalizeOrchestrationSurface(payload: JsonRecord): RuntimeOrchestrationSurface {
+  const summary = asRecord(payload.summary);
+  const guardrails = asRecord(payload.guardrails);
+  return {
+    capability_probes: summary.capability_probes === true,
+    alternative_plans: summary.alternative_plans === true,
+    verifier_request: summary.verifier_request === true,
+    verifier_registry_mapping: summary.verifier_registry_mapping === true,
+    nested_core_projection: summary.nested_core_projection === true,
+    receipt_correlation: summary.receipt_correlation === true,
+    plan_variants: Array.isArray(payload.plan_variants)
+      ? payload.plan_variants.map((row) => String(row || '').trim()).filter(Boolean)
+      : [],
+    plan_statuses: Array.isArray(payload.plan_statuses)
+      ? payload.plan_statuses.map((row) => String(row || '').trim()).filter(Boolean)
+      : [],
+    step_statuses: Array.isArray(payload.step_statuses)
+      ? payload.step_statuses.map((row) => String(row || '').trim()).filter(Boolean)
+      : [],
+    correlation_fields: Array.isArray(payload.correlation_fields)
+      ? payload.correlation_fields.map((row) => String(row || '').trim()).filter(Boolean)
+      : [],
+    adapter_fallback_pass:
+      guardrails.adapter_fallback_pass === true ? true : guardrails.adapter_fallback_pass === false ? false : null,
+    adapter_fallback_threshold:
+      Number.isFinite(Number(guardrails.adapter_fallback_threshold)) ? Number(guardrails.adapter_fallback_threshold) : null,
+    hidden_state_pass:
+      guardrails.hidden_state_pass === true ? true : guardrails.hidden_state_pass === false ? false : null,
+    hidden_state_violations:
+      guardrails.hidden_state_violations == null ? null : Number(guardrails.hidden_state_violations || 0) || 0,
+  };
+}
+
 export async function readRuntimeStatus(): Promise<RuntimeStatus> {
   return readJson<RuntimeStatus>('/api/status', {});
 }
@@ -231,18 +326,22 @@ export async function readOverviewSnapshot(): Promise<DashboardOverviewSnapshot>
 }
 
 export async function readRuntimePageData(): Promise<RuntimePageData> {
-  const [status, version, providers, agents, webStatus, webReceipts] = await Promise.all([
+  const [status, version, providers, agents, webStatus, webReceipts, policyDebt, orchestrationSurface] = await Promise.all([
     requestJson<JsonRecord>('/api/status'),
     requestJson<JsonRecord>('/api/version'),
     requestJson<JsonRecord>('/api/providers'),
     readJson<unknown[]>('/api/agents', []),
     readJson<JsonRecord>('/api/web/status', {}),
     readJson<JsonRecord>('/api/web/receipts?limit=5', { receipts: [] }),
+    readJson<JsonRecord>('/api/runtime/policy-debt', {}),
+    readJson<JsonRecord>('/api/runtime/orchestration-surface', {}),
   ]);
   return {
     overview: normalizeOverview(asRecord(status), asRecord(version), Array.isArray(agents) ? agents : []),
     providers: normalizeProviders(asRecord(providers)),
     web: normalizeWebStatus(asRecord(webStatus), asRecord(webReceipts)),
+    debt: normalizePolicyDebt(asRecord(policyDebt)),
+    orchestration: normalizeOrchestrationSurface(asRecord(orchestrationSurface)),
   };
 }
 
