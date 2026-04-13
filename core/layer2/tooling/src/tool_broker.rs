@@ -895,9 +895,10 @@ mod tests {
         let catalog = broker.capability_catalog();
         assert!(catalog.iter().any(|row| row.tool_name == "web_search"));
         assert!(catalog.iter().any(|row| row.tool_name == "terminal_exec"));
-        assert!(broker.grouped_capability_catalog().iter().any(|group| {
-            group.tools.iter().any(|row| row.tool_name == "web_search")
-        }));
+        assert!(broker
+            .grouped_capability_catalog()
+            .iter()
+            .any(|group| { group.tools.iter().any(|row| row.tool_name == "web_search") }));
         let allowed = broker.capability_probe(BrokerCaller::Client, "web_search");
         assert!(allowed.available);
         assert!(matches!(

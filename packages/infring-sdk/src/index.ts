@@ -1,5 +1,6 @@
 export { InfringSdkClient } from './client';
 export {
+  PRODUCTION_TRANSPORT_SURFACE,
   RESIDENT_IPC_TOPOLOGY,
   createInMemoryTransport,
   createResidentIpcTransport,
