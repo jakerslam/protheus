@@ -1,20 +1,20 @@
 # CODEX File Ledger
 
-Generated: 2026-04-13T18:20:05.227Z
+Generated: 2026-04-13T18:38:53.096Z
 
 ## Status Counts
 
-- done: 763
-- queued: 2143
+- done: 768
+- queued: 2138
 - blocked: 0
 - in_progress: 0
 - existing-coverage-validated: 0
 
 ## Active Wave
 
-- `2026-04-13-openclaw-tooling-wave-006`
-- `1843` `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/070-init-sequences-and-pointer.part01.ts`
-- `1848` `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/210-scroll-hover-sanitize.part01.ts`
-- `1930` `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/090-init-hooks-and-shortcuts.part02.ts`
-- `1992` `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/220-artifacts-voice-search.part02.ts`
-- `2020` `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/121-slash-apikey-discovery.ts`
+- `2026-04-13-openclaw-tooling-wave-007`
+- `1818` `client/runtime/systems/ui/infring_static/js/app.ts.parts/020-nav-and-layout.part02.ts`
+- `1821` `client/runtime/systems/ui/infring_static/js/app.ts.parts/030-agent-list-runtime.part02.ts`
+- `1822` `client/runtime/systems/ui/infring_static/js/app.ts.parts/030-agent-list-runtime.part01.ts`
+- `1894` `client/runtime/systems/ui/infring_static/js/pages/agents.ts.parts/030-actions-and-ops.ts`
+- `1943` `client/runtime/systems/ui/infring_static/js/app.ts.parts/040-events-and-actions.part02.ts`

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-13T18:20:05.227Z",
+  "generated_at": "2026-04-13T18:38:53.087Z",
   "scope": [
     "core",
     "client/runtime",
@@ -20000,7 +20000,7 @@
       "order": 1817
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/app.ts.parts/020-nav-and-layout.part02.ts",
       "language": "ts",
       "loc": 1251,
@@ -20033,7 +20033,7 @@
       "order": 1820
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/app.ts.parts/030-agent-list-runtime.part02.ts",
       "language": "ts",
       "loc": 615,
@@ -20044,7 +20044,7 @@
       "order": 1821
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/app.ts.parts/030-agent-list-runtime.part01.ts",
       "language": "ts",
       "loc": 603,
@@ -20854,7 +20854,7 @@
       "order": 1893
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/agents.ts.parts/030-actions-and-ops.ts",
       "language": "ts",
       "loc": 264,
@@ -21402,7 +21402,7 @@
       "order": 1942
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/app.ts.parts/040-events-and-actions.part02.ts",
       "language": "ts",
       "loc": 146,

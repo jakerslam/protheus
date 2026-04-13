@@ -120,5 +120,20 @@
     - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/210-scroll-hover-sanitize.part01.ts`
     - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/220-artifacts-voice-search.part02.ts`
 ## Current Intake State
-- Imported rows in this wave: `30`
+- Imported rows in this wave: `35`
 - Pending rows in this wave: `0`
+
+- `OPENCLAW-TOOLING-APP-013`:
+  - Imported app/runtime lifecycle, polling, health, agent-refresh, and agent-file controller patterns from:
+    - `ui/src/ui/app-lifecycle.ts`
+    - `ui/src/ui/app-polling.ts`
+    - `ui/src/ui/controllers/agents.ts`
+    - `ui/src/ui/controllers/health.ts`
+    - `ui/src/ui/controllers/agent-files.ts`
+  - Landed in:
+    - `client/runtime/systems/ui/infring_static/js/app.ts.parts/020-nav-and-layout.part02.ts`
+    - `client/runtime/systems/ui/infring_static/js/app.ts.parts/030-agent-list-runtime.part01.ts`
+    - `client/runtime/systems/ui/infring_static/js/app.ts.parts/030-agent-list-runtime.part02.ts`
+    - `client/runtime/systems/ui/infring_static/js/app.ts.parts/040-events-and-actions.part02.ts`
+    - `client/runtime/systems/ui/infring_static/js/pages/agents.ts.parts/030-actions-and-ops.ts`
+

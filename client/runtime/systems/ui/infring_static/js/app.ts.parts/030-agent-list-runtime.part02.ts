@@ -96,6 +96,13 @@
       }
       this.scheduleSidebarScrollIndicators();
     },
+    runtimeFacadeHealthSummary() {
+      var summary = this.healthSummary && typeof this.healthSummary === 'object' ? this.healthSummary : null;
+      if (!summary) return null;
+      var loadedAt = Number(this._healthSummaryLoadedAt || 0);
+      if (loadedAt > 0 && (Date.now() - loadedAt) > 60000) return null;
+      return summary;
+    },
     runtimeFacadeState() {
       var store = this.getAppStore();
       var conn = this.normalizeConnectionIndicatorState(
@@ -103,22 +110,26 @@
         ((store && store.connectionState) || this.connectionState || '')
       );
       if (conn === 'connecting') return 'connecting';
-      if (conn === 'disconnected') return 'down';
+      if (conn === 'disconnected') return this.runtimeFacadeHealthSummary() ? 'connecting' : 'down';
+      if (this.runtimeEtaSeconds() > 0) return 'active';
       return 'connected';
     },
     runtimeFacadeClass() {
       var state = this.runtimeFacadeState();
-      if (state === 'connected') return 'health-ok';
+      if (state === 'connected' || state === 'active') return 'health-ok';
       if (state === 'connecting') return 'health-connecting';
       return 'health-down';
     },
     runtimeFacadeLabel() {
       var state = this.runtimeFacadeState();
+      if (state === 'active') return 'Active';
       if (state === 'connected') {
         var store = this.getAppStore();
-        var agents = ((store && store.agents && store.agents.length) || (store && store.agentCount) || this.agentCount || 0);
+        var health = this.runtimeFacadeHealthSummary();
+        var agents = ((store && store.agents && store.agents.length) || (store && store.agentCount) || this.agentCount || Number(health && health.agent_count || 0) || Number(health && health.agents && health.agents.length || 0));
         return String(agents) + ' agents';
       }
+      if (state === 'connecting' && this.runtimeFacadeHealthSummary()) return 'Reconnecting...';
       if (state === 'connecting') return 'Connecting...';
       return 'Disconnected';
     },
@@ -132,7 +143,11 @@
       var runtime = store && store.runtimeSync && typeof store.runtimeSync === 'object'
         ? store.runtimeSync
         : null;
-      if (!runtime) return null;
+      if (!runtime) {
+        var health = this.runtimeFacadeHealthSummary();
+        var durationMs = Number(health && health.durationMs);
+        return Number.isFinite(durationMs) && durationMs >= 0 ? Math.round(durationMs) : null;
+      }
       var facadeP95 = Number(runtime.facade_response_p95_ms);
       if (Number.isFinite(facadeP95) && facadeP95 > 0) return Math.round(facadeP95);
       var p95 = Number(runtime.receipt_latency_p95_ms);
@@ -146,7 +161,7 @@
       var runtime = store && store.runtimeSync && typeof store.runtimeSync === 'object'
         ? store.runtimeSync
         : null;
-      if (!runtime) return 80;
+      if (!runtime) return this.runtimeFacadeHealthSummary() ? 92 : 80;
       var facadeConfidence = Number(runtime.facade_confidence_percent);
       if (Number.isFinite(facadeConfidence) && facadeConfidence > 0) {
         return Math.max(10, Math.min(100, Math.round(facadeConfidence)));
@@ -195,11 +210,13 @@
       var store = this.getAppStore();
       var bootStage = String((store && store.bootStage) || '').trim();
       var stageSuffix = bootStage ? (' · ' + bootStage.replace(/_/g, ' ')) : '';
+      if (state === 'connecting' && this.runtimeFacadeHealthSummary()) return 'HTTP health OK · reconnecting live runtime' + stageSuffix;
       if (state === 'connecting') return 'Establishing runtime link' + stageSuffix;
       if (state === 'down') return 'Runtime unavailable' + stageSuffix;
       var response = this.runtimeResponseP95Ms();
       var confidence = this.runtimeConfidencePercent();
-      var agents = ((store && store.agents && store.agents.length) || (store && store.agentCount) || 0);
+      var health = this.runtimeFacadeHealthSummary();
+      var agents = ((store && store.agents && store.agents.length) || (store && store.agentCount) || Number(health && health.agent_count || 0) || Number(health && health.agents && health.agents.length || 0));
       var base = 'Response ' + (response != null ? (response + 'ms') : '—') + ' · Confidence ' + confidence + '%';
       if (store && store.statusDegraded) {
         return base + ' · Status degraded' + stageSuffix;

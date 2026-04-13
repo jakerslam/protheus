@@ -29,3 +29,9 @@ imported	ui/src/ui/app-last-active-session.ts	OPENCLAW-TOOLING-CHAT-012 session-
 imported	ui/src/ui/chat/attachment-support.ts	OPENCLAW-TOOLING-CHAT-012 attachment support helpers and dedupe assimilated into chat.ts.parts/210-scroll-hover-sanitize.part01.ts
 imported	ui/src/ui/controllers/models.ts	OPENCLAW-TOOLING-CHAT-012 safe model catalog reloads assimilated into chat.ts.parts/090-init-hooks-and-shortcuts.part02.ts and 121-slash-apikey-discovery.ts
 imported	ui/src/ui/chat/export.ts	OPENCLAW-TOOLING-CHAT-012 chat markdown export helpers assimilated into chat.ts.parts/220-artifacts-voice-search.part02.ts and 121-slash-apikey-discovery.ts
+
+imported	ui/src/ui/app-lifecycle.ts	OPENCLAW-TOOLING-APP-013 lifecycle-style visibility-aware status polling assimilated into app.ts.parts/030-agent-list-runtime.part01.ts and 040-events-and-actions.part02.ts
+imported	ui/src/ui/app-polling.ts	OPENCLAW-TOOLING-APP-013 idempotent dashboard pulse timers assimilated into app.ts.parts/020-nav-and-layout.part02.ts and 030-agent-list-runtime.part01.ts
+imported	ui/src/ui/controllers/agents.ts	OPENCLAW-TOOLING-APP-013 refresh-preserving agent detail/sidebar behaviors assimilated into app.ts.parts/040-events-and-actions.part02.ts and pages/agents.ts.parts/030-actions-and-ops.ts
+imported	ui/src/ui/controllers/health.ts	OPENCLAW-TOOLING-APP-013 safe health fallback summary assimilated into app.ts.parts/020-nav-and-layout.part02.ts, 030-agent-list-runtime.part02.ts, and 040-events-and-actions.part02.ts
+imported	ui/src/ui/controllers/agent-files.ts	OPENCLAW-TOOLING-APP-013 stale-safe file editor cache and save semantics assimilated into pages/agents.ts.parts/030-actions-and-ops.ts

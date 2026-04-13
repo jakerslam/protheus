@@ -331,7 +331,6 @@
         self.releaseBootSplash(true);
       }, Number(this._bootSplashMaxMs || 5000));
 
-      // Listen for OS theme changes (only matters when mode is 'system')
       window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
         if (self.themeMode === 'system') {
           self.beginInstantThemeFlip();
@@ -339,7 +338,6 @@
         }
       });
 
-      // Hash routing
       var validPages = ['chat','agents','sessions','approvals','comms','workflows','scheduler','channels','eyes','skills','hands','overview','analytics','logs','runtime','settings','wizard'];
       var pageRedirects = {
         'automation': 'scheduler',
@@ -382,19 +380,15 @@
       window.addEventListener('hashchange', handleHash);
       handleHash();
 
-      // Keyboard shortcuts
       document.addEventListener('keydown', function(e) {
-        // Ctrl+K — focus agent switch / go to agents
         if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
           e.preventDefault();
           self.navigate('agents');
         }
-        // Ctrl+N — new agent
         if ((e.ctrlKey || e.metaKey) && e.key === 'n' && !e.shiftKey) {
           e.preventDefault();
           self.createSidebarAgentChat();
         }
-        // Ctrl+Shift+F — toggle focus mode
         if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'F') {
           e.preventDefault();
           var keyStore = self.getAppStore();
@@ -402,13 +396,11 @@
             keyStore.toggleFocusMode();
           }
         }
-        // Escape — close mobile menu
         if (e.key === 'Escape') {
           self.mobileMenuOpen = false;
         }
       });
 
-      // Connection state listener
       InfringAPI.onConnectionChange(function(state) {
         var connStore = self.getAppStore();
         if (connStore) connStore.connectionState = state;
@@ -427,13 +419,19 @@
         window.__infringToastCaptureInstalled = true;
       }
 
-      // Initial data load
       this.pollStatus();
       var initStore = this.getAppStore();
       if (initStore && typeof initStore.checkOnboarding === 'function') initStore.checkOnboarding();
       if (initStore && typeof initStore.checkAuth === 'function') initStore.checkAuth();
-      setInterval(function() { self.clockTick = Date.now(); }, 1000);
-      setInterval(function() { self.pollStatus(); }, 10000);
+      if (!this._dashboardClockTimer) this._dashboardClockTimer = setInterval(function() { self.clockTick = Date.now(); }, 1000);
+      if (!this._dashboardStatusTimer) this._dashboardStatusTimer = setInterval(function() {
+        if (document && document.hidden) return;
+        self.pollStatus();
+      }, 10000);
+      if (!this._dashboardVisibilityHandler && document) {
+        this._dashboardVisibilityHandler = function() { if (!document.hidden) self.pollStatus(); };
+        document.addEventListener('visibilitychange', this._dashboardVisibilityHandler);
+      }
       window.addEventListener('resize', function() {
         self.scheduleSidebarScrollIndicators();
       });
