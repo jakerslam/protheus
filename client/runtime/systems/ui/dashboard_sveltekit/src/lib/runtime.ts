@@ -1,3 +1,5 @@
+import type { DashboardProviderRow } from '$lib/settings';
+
 export type RuntimeStatus = {
   ok?: boolean;
   connected?: boolean;
@@ -52,15 +54,145 @@ export type DashboardOverviewSnapshot = {
   };
 };
 
+export type RuntimeOverview = {
+  version: string;
+  platform: string;
+  arch: string;
+  uptime_seconds: number;
+  agent_count: number;
+  default_provider: string;
+  default_model: string;
+  api_listen: string;
+  home_dir: string;
+  log_level: string;
+  network_enabled: boolean;
+};
+
+export type RuntimeWebReceipt = {
+  requested_url: string;
+  method: string;
+  status: string;
+  blocked: boolean;
+  created_at: string;
+};
+
+export type RuntimeWebStatus = {
+  enabled: boolean;
+  rate_limit: string;
+  receipts_total: number;
+  recent_denied: number;
+  last_url: string;
+  recent_receipts: RuntimeWebReceipt[];
+};
+
+export type RuntimePageData = {
+  overview: RuntimeOverview;
+  providers: DashboardProviderRow[];
+  web: RuntimeWebStatus;
+};
+
+type JsonRecord = Record<string, unknown>;
+
+function asRecord(value: unknown): JsonRecord {
+  return value && typeof value === 'object' ? (value as JsonRecord) : {};
+}
+
+function readAuthToken(): string {
+  if (typeof window === 'undefined' || !window.localStorage) return '';
+  try {
+    return String(window.localStorage.getItem('infring-api-key') || '').trim();
+  } catch {
+    return '';
+  }
+}
+
+function requestHeaders(withBody: boolean): Record<string, string> {
+  const headers: Record<string, string> = {};
+  const token = readAuthToken();
+  if (withBody) headers['Content-Type'] = 'application/json';
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
+}
+
+async function requestJson<T>(url: string): Promise<T> {
+  const response = await fetch(url, {
+    method: 'GET',
+    cache: 'no-store',
+    headers: requestHeaders(false),
+  });
+  if (!response.ok) {
+    let message = `GET ${url} failed`;
+    try {
+      const payload = asRecord(await response.json());
+      message = String(payload.error || payload.message || message);
+    } catch {
+      message = (await response.text().catch(() => message)) || message;
+    }
+    throw new Error(message);
+  }
+  return (await response.json()) as T;
+}
+
 async function readJson<T>(url: string, fallback: T): Promise<T> {
   try {
-    const response = await fetch(url, { cache: 'no-store' });
-    if (!response.ok) return fallback;
-    const payload = (await response.json()) as T;
-    return payload || fallback;
+    return await requestJson<T>(url);
   } catch {
     return fallback;
   }
+}
+
+function normalizeProviders(payload: JsonRecord): DashboardProviderRow[] {
+  const rows = Array.isArray(payload.providers) ? payload.providers : [];
+  return rows
+    .map((row) => asRecord(row))
+    .filter((row) => row.auth_status === 'Configured' || row.reachable === true || row.is_local === true)
+    .map((row) => ({
+      id: String(row.id || '').trim(),
+      display_name: String(row.display_name || row.id || '').trim(),
+      auth_status: String(row.auth_status || '').trim(),
+      api_key_env: String(row.api_key_env || '').trim(),
+      base_url: String(row.base_url || '').trim(),
+      is_local: row.is_local === true,
+    }));
+}
+
+function normalizeOverview(status: JsonRecord, version: JsonRecord, agents: unknown[]): RuntimeOverview {
+  return {
+    version: String(version.version || '-').trim() || '-',
+    platform: String(version.platform || '-').trim() || '-',
+    arch: String(version.arch || '-').trim() || '-',
+    uptime_seconds: Number(status.uptime_seconds || 0) || 0,
+    agent_count: Array.isArray(agents) ? agents.length : 0,
+    default_provider: String(status.default_provider || '-').trim() || '-',
+    default_model: String(status.default_model || '-').trim() || '-',
+    api_listen: String(status.api_listen || status.listen || '-').trim() || '-',
+    home_dir: String(status.home_dir || '-').trim() || '-',
+    log_level: String(status.log_level || '-').trim() || '-',
+    network_enabled: status.network_enabled === true,
+  };
+}
+
+function normalizeWebStatus(statusPayload: JsonRecord, receiptsPayload: JsonRecord): RuntimeWebStatus {
+  const policy = asRecord(statusPayload.policy);
+  const webConduit = asRecord(policy.web_conduit);
+  const receipts = Array.isArray(receiptsPayload.receipts) ? receiptsPayload.receipts : [];
+  return {
+    enabled: statusPayload.enabled === true,
+    rate_limit: webConduit.rate_limit_per_minute ? `${webConduit.rate_limit_per_minute}/min` : '-',
+    receipts_total: Number(statusPayload.receipts_total || 0) || 0,
+    recent_denied: Number(statusPayload.recent_denied || 0) || 0,
+    last_url: String(asRecord(statusPayload.last_receipt).requested_url || '-').trim() || '-',
+    recent_receipts: receipts.slice(0, 5).map((row) => {
+      const receipt = asRecord(row);
+      return {
+        requested_url: String(receipt.requested_url || '-').trim() || '-',
+        method: String(receipt.method || 'GET').trim() || 'GET',
+        status: String(receipt.status || receipt.outcome || 'unknown').trim() || 'unknown',
+        blocked: receipt.blocked === true,
+        created_at: String(receipt.created_at || receipt.ts || '').trim(),
+      };
+    }),
+  };
 }
 
 export async function readRuntimeStatus(): Promise<RuntimeStatus> {
@@ -95,6 +227,22 @@ export async function readOverviewSnapshot(): Promise<DashboardOverviewSnapshot>
       total_tools: usageAgents.reduce((sum, row) => sum + Number(row.tool_calls || 0), 0),
       total_cost: usageAgents.reduce((sum, row) => sum + Number(row.cost_usd || 0), 0),
     },
+  };
+}
+
+export async function readRuntimePageData(): Promise<RuntimePageData> {
+  const [status, version, providers, agents, webStatus, webReceipts] = await Promise.all([
+    requestJson<JsonRecord>('/api/status'),
+    requestJson<JsonRecord>('/api/version'),
+    requestJson<JsonRecord>('/api/providers'),
+    readJson<unknown[]>('/api/agents', []),
+    readJson<JsonRecord>('/api/web/status', {}),
+    readJson<JsonRecord>('/api/web/receipts?limit=5', { receipts: [] }),
+  ]);
+  return {
+    overview: normalizeOverview(asRecord(status), asRecord(version), Array.isArray(agents) ? agents : []),
+    providers: normalizeProviders(asRecord(providers)),
+    web: normalizeWebStatus(asRecord(webStatus), asRecord(webReceipts)),
   };
 }
 
