@@ -154,6 +154,32 @@
       };
     },
 
+    normalizeSlashCommandName: function(value) {
+      var name = String(value || '').trim().toLowerCase();
+      if (!name) return '';
+      return name.startsWith('/') ? name : ('/' + name);
+    },
+
+    findSlashCommandDefinition: function(value) {
+      var target = this.normalizeSlashCommandName(value);
+      if (!target) return null;
+      var rows = Array.isArray(this.slashCommands) ? this.slashCommands : [];
+      for (var i = 0; i < rows.length; i += 1) {
+        var row = rows[i] && typeof rows[i] === 'object' ? rows[i] : null;
+        if (!row) continue;
+        if (this.normalizeSlashCommandName(row.cmd) === target) return row;
+      }
+      return null;
+    },
+
+    formatSlashCommandUsage: function(value) {
+      var target = this.normalizeSlashCommandName(value);
+      if (!target) return '';
+      var def = this.findSlashCommandDefinition(target);
+      var desc = String(def && def.desc ? def.desc : '').trim();
+      return desc ? ('`' + target + '` — ' + desc) : ('`' + target + '`');
+    },
+
     loadSlashAliases: function() {
       var defaults = this.defaultSlashAliases();
       var persisted = {};
@@ -191,28 +217,40 @@
     },
 
     resolveSlashAlias: function(inputCmd, cmdArgs) {
-      var cmd = String(inputCmd || '').trim().toLowerCase();
+      var cmd = this.normalizeSlashCommandName(inputCmd);
       var args = String(cmdArgs || '').trim();
       var aliases = this.slashAliasMap || {};
-      var target = String(aliases[cmd] || '').trim();
-      if (!target) return { cmd: cmd, args: args, expanded: cmd };
-      var expanded = target;
+      var visited = {};
+      var expandedCmd = cmd;
       var expandedArgs = args;
-      var targetParts = expanded.split(/\s+/);
-      if (targetParts.length > 1) {
-        expanded = targetParts[0];
+      var rendered = cmd + (args ? (' ' + args) : '');
+      for (var depth = 0; depth < 5; depth += 1) {
+        var target = String(aliases[expandedCmd] || '').trim();
+        if (!target) break;
+        if (visited[expandedCmd]) break;
+        visited[expandedCmd] = true;
+        rendered = target + (expandedArgs ? (' ' + expandedArgs) : '');
+        var targetParts = target.split(/\s+/).filter(Boolean);
+        if (!targetParts.length) break;
+        expandedCmd = this.normalizeSlashCommandName(targetParts[0]);
         var trailing = targetParts.slice(1).join(' ').trim();
-        expandedArgs = trailing ? (trailing + (args ? (' ' + args) : '')) : args;
+        if (trailing) {
+          expandedArgs = trailing + (expandedArgs ? (' ' + expandedArgs) : '');
+        }
       }
-      return { cmd: expanded, args: expandedArgs.trim(), expanded: target + (args ? (' ' + args) : '') };
+      return { cmd: expandedCmd, args: expandedArgs.trim(), expanded: rendered };
     },
 
     formatSlashAliasRows: function() {
+      var self = this;
       var aliases = this.slashAliasMap || {};
       var rows = Object.keys(aliases)
         .sort()
         .map(function(alias) {
-          return '- `' + alias + '` → `' + String(aliases[alias] || '') + '`';
+          var target = String(aliases[alias] || '').trim();
+          var targetCommand = self.normalizeSlashCommandName(target.split(/\s+/)[0] || '');
+          var usage = self.formatSlashCommandUsage(targetCommand);
+          return '- `' + alias + '` → `' + target + '`' + (usage ? ('\n  ↳ ' + usage) : '');
         });
       return rows.join('\n');
     },
