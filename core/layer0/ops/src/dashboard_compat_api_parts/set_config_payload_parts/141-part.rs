@@ -211,6 +211,38 @@ fn summarize_unknown_tool_payload(normalized: &str, payload: &Value) -> String {
         return user_facing_tool_failure_summary(normalized, payload)
             .unwrap_or_else(|| format!("I couldn't complete `{normalized}` right now."));
     }
+    if normalized == "workspace_analyze" {
+        let stdout = clean_text(payload.get("stdout").and_then(Value::as_str).unwrap_or(""), 2_000);
+        let tool_summary = clean_text(
+            payload.get("tool_summary").and_then(Value::as_str).unwrap_or(""),
+            400,
+        );
+        let stderr = clean_text(payload.get("stderr").and_then(Value::as_str).unwrap_or(""), 800);
+        let stdout_lines = stdout
+            .lines()
+            .map(|line| clean_text(line, 220))
+            .filter(|line| !line.is_empty())
+            .take(3)
+            .collect::<Vec<_>>();
+        if !stdout_lines.is_empty() {
+            return trim_text(
+                &format!("Key findings: {}", stdout_lines.join(" | ")),
+                1_200,
+            );
+        }
+        if !tool_summary.is_empty() {
+            return trim_text(&format!("Key findings: {tool_summary}"), 1_200);
+        }
+        if !stderr.is_empty() {
+            return trim_text(
+                &format!(
+                    "Workspace analysis returned diagnostics: {}",
+                    first_sentence(&stderr, 220)
+                ),
+                1_200,
+            );
+        }
+    }
     if let Some(response) = payload.get("response").and_then(Value::as_str) {
         let candidate = clean_text(response, 1_400);
         if !candidate.is_empty()

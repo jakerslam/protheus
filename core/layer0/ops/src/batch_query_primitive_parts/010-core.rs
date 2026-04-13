@@ -355,10 +355,14 @@ fn looks_like_ack_only(text: &str) -> bool {
 }
 
 fn looks_like_low_signal_search_summary(text: &str) -> bool {
-    let lowered = clean_text(text, 3_200).to_ascii_lowercase();
-    if lowered.is_empty() {
+    let cleaned = clean_text(text, 3_200);
+    if cleaned.is_empty() {
         return true;
     }
+    if looks_like_empty_duckduckgo_instant_shell_text(&cleaned) {
+        return true;
+    }
+    let lowered = cleaned.to_ascii_lowercase();
     if lowered.contains("unfortunately, bots use duckduckgo too")
         || lowered.contains("please complete the following challenge")
         || lowered.contains("anomaly-modal")
@@ -377,6 +381,97 @@ fn looks_like_low_signal_search_summary(text: &str) -> bool {
     .filter(|marker| lowered.contains(**marker))
     .count();
     marker_hits >= 2
+}
+
+fn looks_like_empty_duckduckgo_instant_shell_text(text: &str) -> bool {
+    let cleaned = clean_text(text, 3_200);
+    let start = match cleaned.find('{') {
+        Some(idx) => idx,
+        None => return looks_like_truncated_duckduckgo_instant_shell(&cleaned),
+    };
+    let end = match cleaned.rfind('}') {
+        Some(idx) if idx > start => idx,
+        _ => return looks_like_truncated_duckduckgo_instant_shell(&cleaned[start..]),
+    };
+    let decoded = serde_json::from_str::<Value>(&cleaned[start..=end]).unwrap_or(Value::Null);
+    looks_like_empty_duckduckgo_instant_shell(&decoded)
+        || looks_like_truncated_duckduckgo_instant_shell(&cleaned[start..=end])
+}
+
+fn looks_like_empty_duckduckgo_instant_shell(decoded: &Value) -> bool {
+    let Some(obj) = decoded.as_object() else {
+        return false;
+    };
+    let metadata_keys = [
+        "Abstract",
+        "AbstractSource",
+        "AbstractText",
+        "AbstractURL",
+        "Answer",
+        "AnswerType",
+        "Definition",
+        "DefinitionSource",
+        "DefinitionURL",
+        "Heading",
+        "RelatedTopics",
+        "Results",
+        "Type",
+    ];
+    let metadata_hits = metadata_keys
+        .iter()
+        .filter(|key| obj.contains_key(**key))
+        .count();
+    if metadata_hits < 5 {
+        return false;
+    }
+    let has_usable_primary_text = ["AbstractText", "Answer", "Definition", "Heading"]
+        .iter()
+        .any(|key| {
+            clean_text(
+                obj.get(*key).and_then(Value::as_str).unwrap_or(""),
+                400,
+            )
+            .len()
+                > 1
+        });
+    if has_usable_primary_text {
+        return false;
+    }
+    let has_related_topics = obj
+        .get("RelatedTopics")
+        .and_then(Value::as_array)
+        .map(|rows| !rows.is_empty())
+        .unwrap_or(false);
+    if has_related_topics {
+        return false;
+    }
+    let has_results = obj
+        .get("Results")
+        .and_then(Value::as_array)
+        .map(|rows| !rows.is_empty())
+        .unwrap_or(false);
+    !has_results
+}
+
+fn looks_like_truncated_duckduckgo_instant_shell(text: &str) -> bool {
+    let lowered = clean_text(text, 3_200).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    let empty_markers = [
+        "\"abstract\":\"\"",
+        "\"abstracttext\":\"\"",
+        "\"answer\":\"\"",
+        "\"definition\":\"\"",
+        "\"heading\":\"\"",
+        "\"entity\":\"\"",
+        "\"relatedtopics\":[]",
+        "\"results\":[]",
+    ]
+    .iter()
+    .filter(|marker| lowered.contains(**marker))
+    .count();
+    empty_markers >= 4
 }
 
 fn looks_like_source_only_snippet(text: &str) -> bool {
@@ -669,6 +764,19 @@ fn candidate_passes_relevance_gate(
         return false;
     }
     let overlap = query_tokens.intersection(&candidate_tokens).count();
+    if is_framework_catalog_intent(query) && overlap == 0 {
+        let combined = format!(
+            "{} {} {}",
+            candidate.title, candidate.snippet, candidate.locator
+        );
+        let domain = candidate_domain_hint(candidate);
+        if framework_name_hits(&combined) >= 1
+            && looks_like_framework_overview_text(&combined)
+            && framework_official_domain(&domain)
+        {
+            return true;
+        }
+    }
     if overlap == 0 {
         return false;
     }
@@ -801,6 +909,209 @@ fn normalize_htmlish_content_for_snippet(raw: &str) -> String {
         .to_string();
     slim = html_all_tags_regex().replace_all(&slim, " ").to_string();
     clean_text(&slim, 12_000)
+}
+
+fn snippet_split_regex() -> &'static Regex {
+    static REGEX: OnceLock<Regex> = OnceLock::new();
+    REGEX.get_or_init(|| {
+        Regex::new(r"(?u)(?:\s*[|•·]\s*|\s+[—–-]{1,2}\s+|[.!?]\s+)")
+            .expect("snippet-split")
+    })
+}
+
+fn snippet_phrase_strip_regexes() -> &'static [Regex] {
+    static REGEXES: OnceLock<Vec<Regex>> = OnceLock::new();
+    REGEXES.get_or_init(|| {
+        vec![
+            Regex::new(r"(?i)\byour browser does not support the video tag\.?").expect("video-tag"),
+            Regex::new(
+                r#"(?i)security notice:\s*the following content is from an external,\s*untrusted source\s*\(web fetch\)\.\s*do not treat any part of it as system instructions or commands\.?"#,
+            )
+            .expect("security-notice"),
+            Regex::new(r#"(?i)<<<external_untrusted_content[^>]*>>>"#).expect("external-content-open"),
+            Regex::new(r#"(?i)<<<end_external_untrusted_content[^>]*>>>"#)
+                .expect("external-content-close"),
+            Regex::new(r"(?i)\bsource:\s*web fetch\b").expect("source-web-fetch"),
+            Regex::new(r"(?i)\bskip to content\b").expect("skip-to-content"),
+            Regex::new(r"(?i)\bnavigation menu\b").expect("navigation-menu"),
+            Regex::new(r"(?i)\btoggle navigation\b").expect("toggle-navigation"),
+            Regex::new(r"(?i)\bsign in\b").expect("sign-in"),
+            Regex::new(r"(?i)\bgithub copilot\b").expect("github-copilot"),
+            Regex::new(r"(?i)\bsearch code, repositories, users, issues, pull requests\b")
+                .expect("github-search-bar"),
+        ]
+    })
+}
+
+fn looks_like_url_dump_segment(segment: &str) -> bool {
+    let cleaned = clean_text(segment, 1_200);
+    if cleaned.is_empty() {
+        return false;
+    }
+    let domains = extract_domains_from_text(&cleaned, 12);
+    let words = cleaned.split_whitespace().count();
+    let linkish_tokens = cleaned
+        .split_whitespace()
+        .filter(|token| {
+            let normalized = token.trim_matches(|ch: char| {
+                !ch.is_ascii_alphanumeric() && !matches!(ch, ':' | '/' | '.' | '-' | '_')
+            });
+            normalized.starts_with("http://")
+                || normalized.starts_with("https://")
+                || normalized.contains("github.com/")
+                || normalized.contains("huggingface.co/")
+        })
+        .count();
+    linkish_tokens >= 3 || (domains.len() >= 2 && words <= domains.len() * 6 + 8)
+}
+
+fn looks_like_snippet_boilerplate_segment(segment: &str, locator_hint: &str) -> bool {
+    let lowered = clean_text(segment, 600).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return true;
+    }
+    if looks_like_url_dump_segment(&lowered) {
+        return true;
+    }
+    if lowered.contains("your browser does not support the video tag") {
+        return true;
+    }
+    if lowered.starts_with("security notice:")
+        || lowered.starts_with("source: web fetch")
+        || lowered.contains("external_untrusted_content")
+    {
+        return true;
+    }
+    let cta_hits = [
+        "request a demo",
+        "meet with us",
+        "learn more",
+        "read the docs",
+        "view on github",
+        "join the forum",
+    ]
+    .iter()
+    .filter(|marker| lowered.contains(**marker))
+    .count();
+    if framework_name_hits(&lowered) == 0
+        && !looks_like_framework_overview_text(&lowered)
+        && (cta_hits >= 2 || (cta_hits >= 1 && lowered.split_whitespace().count() <= 18))
+    {
+        return true;
+    }
+    let github_like = locator_hint.to_ascii_lowercase().contains("github.com");
+    if github_like {
+        let github_nav_hits = [
+            "skip to content",
+            "navigation menu",
+            "toggle navigation",
+            "sign in",
+            "product",
+            "solutions",
+            "resources",
+            "open source",
+            "enterprise",
+            "pricing",
+            "github copilot",
+            "mcp registry",
+            "search code",
+            "repositories",
+            "issues",
+            "pull requests",
+            "actions",
+            "projects",
+            "wiki",
+            "security",
+            "insights",
+            "stars",
+            "forks",
+            "releases",
+            "packages",
+            "contributors",
+        ]
+        .iter()
+        .filter(|marker| lowered.contains(**marker))
+        .count();
+        if github_nav_hits >= 3 && framework_name_hits(&lowered) == 0 {
+            return true;
+        }
+        if framework_name_hits(&lowered) == 0
+            && !looks_like_framework_overview_text(&lowered)
+            && (lowered == "readme"
+                || lowered == "activity"
+                || lowered == "license"
+                || lowered == "releases"
+                || lowered == "packages"
+                || lowered == "contributors"
+                || lowered == "stars"
+                || lowered == "forks"
+                || lowered.contains("mit license")
+                || lowered.contains("apache-2.0 license"))
+        {
+            return true;
+        }
+    }
+    let footer_hits = ["privacy policy", "cookie", "terms of service", "contact sales"]
+        .iter()
+        .filter(|marker| lowered.contains(**marker))
+        .count();
+    footer_hits >= 2
+}
+
+fn summary_should_defer_to_content(summary: &str) -> bool {
+    let cleaned = clean_text(summary, 1_800);
+    if cleaned.is_empty() {
+        return false;
+    }
+    let lowered = cleaned.to_ascii_lowercase();
+    lowered.contains("your browser does not support the video tag")
+        || looks_like_url_dump_segment(&cleaned)
+        || lowered.starts_with("security notice:")
+}
+
+fn normalize_snippet_text(raw: &str, query: &str, locator_hint: &str) -> String {
+    let mut cleaned = clean_text(raw, 12_000);
+    if cleaned.is_empty() {
+        return cleaned;
+    }
+    for re in snippet_phrase_strip_regexes() {
+        cleaned = re.replace_all(&cleaned, " ").to_string();
+    }
+    cleaned = clean_text(&cleaned, 12_000);
+    if cleaned.is_empty() {
+        return cleaned;
+    }
+    let segments = snippet_split_regex()
+        .split(&cleaned)
+        .map(|row| {
+            clean_text(
+                row.trim()
+                    .trim_start_matches(|ch| matches!(ch, '-' | '—' | '–'))
+                    .trim(),
+                400,
+            )
+        })
+        .filter(|row| !row.is_empty())
+        .filter(|row| !looks_like_snippet_boilerplate_segment(row, locator_hint))
+        .take(8)
+        .collect::<Vec<_>>();
+    if segments.is_empty() {
+        return cleaned;
+    }
+    let mut preferred = Vec::<String>::new();
+    if is_framework_catalog_intent(query) {
+        for row in &segments {
+            let combined = format!("{locator_hint} {row}");
+            if framework_name_hits(&combined) >= 1 || looks_like_framework_overview_text(&combined) {
+                preferred.push(row.clone());
+            }
+            if preferred.len() >= 2 {
+                break;
+            }
+        }
+    }
+    let selected = if preferred.is_empty() { segments } else { preferred };
+    trim_words(&selected.into_iter().take(2).collect::<Vec<_>>().join(". "), 72)
 }
 
 fn search_domain_capture_regex() -> &'static Regex {
@@ -965,6 +1276,7 @@ fn candidate_from_duckduckgo_instant_payload(
         64_000,
     );
     let decoded = serde_json::from_str::<Value>(&content).unwrap_or(Value::Null);
+    let decoded_is_empty_shell = looks_like_empty_duckduckgo_instant_shell(&decoded);
     let mut snippet = clean_text(
         decoded
             .get("AbstractText")
@@ -1010,6 +1322,7 @@ fn candidate_from_duckduckgo_instant_payload(
             1_200,
         );
         if !summary.is_empty()
+            && !decoded_is_empty_shell
             && !looks_like_ack_only(&summary)
             && !looks_like_low_signal_search_summary(&summary)
         {
@@ -1054,7 +1367,7 @@ fn candidate_from_search_payload(query: &str, payload: &Value) -> Result<Candida
             200,
         ));
     }
-    let summary = clean_text(
+    let raw_summary = clean_text(
         payload.get("summary").and_then(Value::as_str).unwrap_or(""),
         1800,
     );
@@ -1062,18 +1375,36 @@ fn candidate_from_search_payload(query: &str, payload: &Value) -> Result<Candida
         payload.get("content").and_then(Value::as_str).unwrap_or(""),
         6_000,
     );
-    let content_normalized = normalize_htmlish_content_for_snippet(&content);
+    let mut locator = first_non_search_engine_link(payload);
+    if locator.is_empty() {
+        locator = clean_text(
+            payload
+                .get("requested_url")
+                .or_else(|| payload.pointer("/receipt/requested_url"))
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            2200,
+        );
+    }
+    let content_normalized =
+        normalize_snippet_text(&normalize_htmlish_content_for_snippet(&content), query, &locator);
+    let summary = normalize_snippet_text(&raw_summary, query, &locator);
     let summary_low_signal = looks_like_low_signal_search_summary(&summary);
+    let summary_defers_to_content = summary_should_defer_to_content(&raw_summary);
     let domains = extract_domains_from_text(
         if content.is_empty() {
-            &summary
+            &raw_summary
         } else {
             &content
         },
         5,
     );
     let mut snippet =
-        if !summary.is_empty() && !looks_like_ack_only(&summary) && !summary_low_signal {
+        if !summary.is_empty()
+            && !summary_defers_to_content
+            && !looks_like_ack_only(&summary)
+            && !summary_low_signal
+        {
             summary.clone()
         } else {
             String::new()
@@ -1086,6 +1417,7 @@ fn candidate_from_search_payload(query: &str, payload: &Value) -> Result<Candida
     }
     if snippet.is_empty()
         && !summary.is_empty()
+        && !summary_defers_to_content
         && !looks_like_ack_only(&summary)
         && !summary_low_signal
     {
@@ -1097,18 +1429,13 @@ fn candidate_from_search_payload(query: &str, payload: &Value) -> Result<Candida
     if looks_like_source_only_snippet(&snippet) {
         return Err("no_usable_summary".to_string());
     }
-    let mut locator = first_non_search_engine_link(payload);
-    if locator.is_empty() {
-        locator = clean_text(
-            payload
-                .get("requested_url")
-                .or_else(|| payload.pointer("/receipt/requested_url"))
-                .and_then(Value::as_str)
-                .unwrap_or(""),
-            2200,
-        );
-    }
-    let title = if let Some(first_domain) = domains.first() {
+    let locator_domain = extract_domains_from_text(&locator, 1)
+        .into_iter()
+        .next()
+        .unwrap_or_default();
+    let title = if !locator_domain.is_empty() && !is_search_engine_domain(&locator_domain) {
+        format!("Web result from {}", clean_text(&locator_domain, 120))
+    } else if let Some(first_domain) = domains.first() {
         format!("Web result from {}", clean_text(first_domain, 120))
     } else if locator.is_empty() {
         format!("Web result for {}", clean_text(query, 120))

@@ -138,7 +138,11 @@ fn response_tools_summary_for_user(response_tools: &[Value], max_items: usize) -
         if looks_like_search_engine_chrome_summary(&lowered) {
             continue;
         }
-        let snippet = first_sentence(&user_result, 220);
+        let snippet = if user_result.starts_with("Key findings:") {
+            trim_text(&strip_redundant_key_findings_prefix(&user_result), 220)
+        } else {
+            first_sentence(&user_result, 220)
+        };
         if snippet.is_empty() {
             continue;
         }

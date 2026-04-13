@@ -241,6 +241,16 @@ fn workflow_retry_sanitizer_drops_follow_up_tool_markup_tail() {
 }
 
 #[test]
+fn workflow_retry_sanitizer_drops_polite_more_search_tail() {
+    let response = "I searched official framework sources and found LangGraph, OpenAI Agents SDK, CrewAI, and smolagents. Would you like me to search for deeper benchmark comparisons too?";
+    assert!(workflow_response_requests_more_tooling(response));
+    assert_eq!(
+        sanitize_workflow_final_response_candidate(response),
+        "I searched official framework sources and found LangGraph, OpenAI Agents SDK, CrewAI, and smolagents."
+    );
+}
+
+#[test]
 fn inline_tool_parser_accepts_quoted_function_name_markup() {
     let response = "<function=\"web_search\">{\"query\":\"top AI agentic frameworks 2024\",\"source\":\"web\",\"aperture\":\"medium\"}</function>";
     let (cleaned, calls) = extract_inline_tool_calls(response, 4);
