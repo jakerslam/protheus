@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { dashboardPageHref, highChurnMigrationTargets } from '$lib/dashboard';
+  import { dashboardPageHref, highChurnMigrationTargets, nativeDashboardPages } from '$lib/dashboard';
   import { formatRelativeTime, readOverviewSnapshot, type DashboardOverviewSnapshot } from '$lib/runtime';
 
   let snapshot: DashboardOverviewSnapshot | null = null;
@@ -47,7 +47,7 @@
       </div>
       <div class="hero-stat">
         <span class="label">Native pages</span>
-        <strong>1</strong>
+        <strong>{nativeDashboardPages.length}</strong>
       </div>
     </div>
   </div>

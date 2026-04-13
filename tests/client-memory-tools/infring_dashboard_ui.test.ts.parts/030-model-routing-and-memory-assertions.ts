@@ -220,6 +220,80 @@ function runContract(contract) {
   assert.fail(`unsupported_contract:${contract}`);
 }
 
+function assertNativeChatRouteContract() {
+  const dashboardSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/dashboard.ts'));
+  const runtimeSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/chat.ts'));
+  const componentSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/components/ChatPage.svelte'));
+  const routeSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/routes/chat/+page.svelte'));
+  const routeLoadSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/routes/chat/+page.ts'));
+
+  assert.ok(
+    /\{\s*key:\s*'chat'[\s\S]{0,220}mode:\s*'native'/.test(dashboardSource),
+    'dashboard registry should mark chat as a native route'
+  );
+  assertContains(
+    runtimeSource,
+    '/api/agents?view=sidebar&authority=runtime',
+    'native chat should load the authoritative sidebar roster'
+  );
+  assertContains(
+    runtimeSource,
+    "/api/agents/${encodeURIComponent(agentId)}/session",
+    'native chat should read authoritative agent session payloads'
+  );
+  assertContains(
+    runtimeSource,
+    "/api/agents/${encodeURIComponent(agentId)}/message",
+    'native chat should send messages through the existing agent message endpoint'
+  );
+  assertContains(
+    runtimeSource,
+    "mission: 'Fresh chat initialization'",
+    'native chat draft creation should preserve the fresh chat initialization contract'
+  );
+  assertContains(
+    componentSource,
+    'const rows = await readSidebarAgents();',
+    'native chat page should hydrate from the authoritative roster helper'
+  );
+  assertContains(
+    componentSource,
+    'const session = await readAgentSession(agentId);',
+    'native chat page should load the authoritative transcript helper'
+  );
+  assertContains(
+    componentSource,
+    'await sendAgentMessage(activeAgentId, raw);',
+    'native chat page should send through the authoritative chat helper'
+  );
+  assertContains(
+    componentSource,
+    'const created = await createDraftAgent();',
+    'native chat page should support native draft-chat creation'
+  );
+  assertContains(
+    componentSource,
+    "href={dashboardClassicHref('chat')}",
+    'native chat should preserve a classic escape hatch while advanced legacy features remain'
+  );
+  assertContains(
+    routeSource,
+    '<ChatPage />',
+    'native chat route should render the Svelte chat page directly'
+  );
+  assertContains(
+    routeLoadSource,
+    'export const prerender = true;',
+    'native chat route should keep static prerender options in +page.ts'
+  );
+}
+
+const runSnapshotAssertionsWithNativeChat = runSnapshotAssertions;
+runSnapshotAssertions = function() {
+  assertNativeChatRouteContract();
+  return runSnapshotAssertionsWithNativeChat();
+};
+
 const contract = getFlag('--contract');
 const parseOnly = getFlag('--dashboard-inline-parse-only');
 if (parseOnly) {
