@@ -6,8 +6,6 @@ pub fn can_transition(from: LifecycleStatus, to: LifecycleStatus) -> bool {
         (Pending, InProgress | Failed | Cancelled) => true,
         (InProgress, Review | Completed | Failed | Cancelled) => true,
         (Review, InProgress | Completed | Failed | Cancelled) => true,
-        (Failed, InProgress | Cancelled) => true,
-        (Cancelled, InProgress) => true,
         (a, b) if a == b => true,
         _ => false,
     }

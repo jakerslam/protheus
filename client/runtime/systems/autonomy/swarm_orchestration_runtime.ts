@@ -3,6 +3,17 @@
 // TypeScript compatibility shim only.
 // Layer ownership: surface/orchestration (swarm orchestration coordination); this file is a thin CLI bridge.
 
-const { bindSwarmSurfaceModule } = require('../../../../adapters/runtime/swarm_bridge_modules.ts');
+const impl = require('../../../../surface/orchestration/scripts/swarm_orchestration_runtime.ts');
 
-module.exports = bindSwarmSurfaceModule('swarm_orchestration_runtime', module);
+function run(args = process.argv.slice(2)) {
+  return impl.run(args);
+}
+
+if (require.main === module) {
+  process.exit(run(process.argv.slice(2)));
+}
+
+module.exports = {
+  ...impl,
+  run
+};

@@ -1,6 +1,7 @@
 pub mod clarification;
 pub mod contracts;
 pub mod ingress;
+pub mod planner;
 pub mod posture;
 pub mod progress;
 pub mod recovery;
@@ -10,7 +11,11 @@ pub mod self_maintenance;
 pub mod sequencing;
 pub mod transient_context;
 
-use contracts::{OrchestrationPlan, OrchestrationRequest, OrchestrationResultPackage};
+use contracts::{
+    DegradationReason, ExecutionState, OrchestrationPlan, OrchestrationRequest,
+    OrchestrationResultPackage, PlanCandidate, PlanStatus, RecoveryDecision, RecoveryReason,
+    RecoveryState,
+};
 use transient_context::TransientContextStore;
 
 #[derive(Debug, Default)]
@@ -31,8 +36,8 @@ impl OrchestrationSurfaceRuntime {
         let normalized = ingress::normalize_request(request);
         let classification = request_classification::classify_request(&normalized);
         if let Err(err) = self.transient.upsert(
-            normalized.session_id.as_str(),
-            transient_summary(&normalized),
+            normalized.typed_request.session_id.as_str(),
+            transient_summary(&normalized.typed_request),
             now_ms,
             30_000,
         ) {
@@ -41,21 +46,44 @@ impl OrchestrationSurfaceRuntime {
                 progress_message:
                     "Transient orchestration context unavailable; halted before core contract planning"
                         .to_string(),
+                execution_state: ExecutionState {
+                    plan_status: PlanStatus::Blocked,
+                    steps: Vec::new(),
+                    recovery: Some(RecoveryState {
+                        decision: RecoveryDecision::Halt,
+                        reason: Some(RecoveryReason::TransportFailure),
+                        retryable: true,
+                        note: "transient context unavailable".to_string(),
+                    }),
+                    degradation: None,
+                },
                 recovery_applied: true,
                 fallback_actions: Vec::new(),
                 core_contract_calls: Vec::new(),
                 requires_core_promotion: false,
                 classification,
+                selected_plan: PlanCandidate {
+                    plan_id: "plan_transient_context_failed".to_string(),
+                    steps: Vec::new(),
+                    confidence: 0.0,
+                    requires_clarification: true,
+                    blocked_on: Vec::new(),
+                    degradation: Some(DegradationReason::TransportFailure),
+                    capabilities: Vec::new(),
+                    reasons: vec!["transient_context_unavailable".to_string()],
+                },
             };
         }
 
         let clarification_prompt =
-            clarification::clarification_prompt_for(&normalized, &classification);
+            clarification::clarification_prompt_for(&normalized.typed_request, &classification);
         let needs_clarification =
             classification.needs_clarification || clarification_prompt.is_some();
         let posture =
             posture::choose_posture(classification.request_class.clone(), needs_clarification);
-        let steps = sequencing::build_steps(&normalized, &classification);
+        let selected_plan =
+            sequencing::build_plan_candidate(&normalized.typed_request, &classification);
+        let execution_state = progress::execution_state_for(&selected_plan, needs_clarification);
 
         let plan = OrchestrationPlan {
             request_class: classification.request_class.clone(),
@@ -63,14 +91,16 @@ impl OrchestrationSurfaceRuntime {
             posture,
             needs_clarification,
             clarification_prompt,
-            steps,
+            selected_plan,
+            execution_state,
         };
-        let (plan, recovery_applied) = recovery::apply_recovery_policy(&normalized, plan);
+        let (plan, recovery_applied) =
+            recovery::apply_recovery_policy(&normalized.typed_request, plan);
         let progress = progress::progress_message(&plan);
         let tool_fallback_context =
-            sequencing::tool_fallback_context_from_payload(&normalized.payload);
+            sequencing::tool_fallback_context_from_payload(&normalized.typed_request.payload);
         let fallback_actions = sequencing::fallback_actions(
-            &normalized,
+            &normalized.typed_request,
             plan.request_class.clone(),
             tool_fallback_context.as_ref(),
         );

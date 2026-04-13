@@ -2723,7 +2723,35 @@ run_dashboard_health_smoke() {
   log="$smoke_dir/dashboard_health.log"
   [ -x "$install_dir/infring" ] || return 1
 
-  if run_command_with_timeout 90 env INFRING_DASHBOARD_LAUNCHD=0 INFRING_DASHBOARD_WAIT_MAX=30 \
+  dashboard_smoke_root="${INFRING_WORKSPACE_ROOT:-}"
+  if [ -z "$dashboard_smoke_root" ] || [ ! -d "$dashboard_smoke_root" ]; then
+    for candidate in "$HOME/.infring/workspace" "$HOME/.protheus/workspace"; do
+      if [ -d "$candidate" ]; then
+        dashboard_smoke_root="$candidate"
+        break
+      fi
+    done
+  fi
+
+  print_dashboard_smoke_failure_logs() {
+    state_dir=""
+    if [ -n "$dashboard_smoke_root" ] && [ -d "$dashboard_smoke_root" ]; then
+      state_dir="$dashboard_smoke_root/local/state/ops/daemon_control"
+    fi
+    for log_name in dashboard_ui.log dashboard_watchdog.log; do
+      log_path="$state_dir/$log_name"
+      if [ -f "$log_path" ]; then
+        echo "[infring install] tail $log_path" >&2
+        tail -n 80 "$log_path" >&2 || true
+      fi
+    done
+  }
+
+  run_command_with_timeout 30 env INFRING_DASHBOARD_LAUNCHD=0 INFRING_NO_BROWSER=1 \
+    "$install_dir/infring" gateway stop \
+    "--dashboard-host=${host}" "--dashboard-port=${port}" >/dev/null 2>&1 || true
+
+  if run_command_with_timeout 90 env INFRING_DASHBOARD_LAUNCHD=0 INFRING_DASHBOARD_WAIT_MAX=30 INFRING_NO_BROWSER=1 \
     "$install_dir/infring" gateway start \
     "--dashboard-host=${host}" "--dashboard-port=${port}" \
     "--dashboard-open=0" "--gateway-persist=0" >"$log" 2>&1; then
@@ -2739,6 +2767,7 @@ run_dashboard_health_smoke() {
       echo "[infring install] smoke dashboard_health: failed (gateway start)" >&2
     fi
     cat "$log" >&2 || true
+    print_dashboard_smoke_failure_logs
     return 1
   fi
 
@@ -2760,6 +2789,7 @@ run_dashboard_health_smoke() {
   if [ "$ready" != "1" ]; then
     echo "[infring install] smoke dashboard_health: failed (healthz timeout)" >&2
     cat "$log" >&2 || true
+    print_dashboard_smoke_failure_logs
     return 1
   fi
   echo "[infring install] smoke dashboard_health: ok"
@@ -2895,20 +2925,24 @@ EOF
   fi
   run_post_install_smoke_command "$smoke_dir" "infring_status" "$install_dir/infring" status || failures=$((failures + 1))
   run_post_install_smoke_command "$smoke_dir" "dashboard_route_check" "$install_dir/infringctl" dashboard status --json || failures=$((failures + 1))
+  dashboard_smoke_required=0
+  if is_truthy "$INSTALL_FULL" || is_truthy "$INSTALL_STRICT_SMOKE"; then
+    dashboard_smoke_required=1
+  fi
   if node_runtime_meets_minimum; then
     run_post_install_smoke_command "$smoke_dir" "verify_install" "$install_dir/infringctl" verify-install --json || failures=$((failures + 1))
-    if is_truthy "$INSTALL_STRICT_SMOKE"; then
-      smoke_port="$((4400 + ($$ % 1000)))"
-      if run_dashboard_health_smoke "$smoke_dir" "$install_dir" "127.0.0.1" "$smoke_port"; then
-        INSTALL_DASHBOARD_SMOKE_PASSED=1
-      else
-        failures=$((failures + 1))
-      fi
-    else
-      echo "[infring install] smoke dashboard_health: skipped (set INFRING_INSTALL_STRICT_SMOKE=1 to enforce)"
-    fi
   else
     echo "[infring install] smoke verify_install: skipped (node runtime unavailable)"
+  fi
+  if [ "$dashboard_smoke_required" = "1" ]; then
+    smoke_port="$((4400 + ($$ % 1000)))"
+    if run_dashboard_health_smoke "$smoke_dir" "$install_dir" "127.0.0.1" "$smoke_port"; then
+      INSTALL_DASHBOARD_SMOKE_PASSED=1
+    else
+      failures=$((failures + 1))
+    fi
+  else
+    echo "[infring install] smoke dashboard_health: skipped (set INFRING_INSTALL_STRICT_SMOKE=1 or use --full to enforce)"
   fi
   model_ready_required=0
   if [ "$OLLAMA_INSTALL_CONFIRMED" = "1" ] || is_truthy "$INSTALL_REQUIRE_MODEL_READY"; then

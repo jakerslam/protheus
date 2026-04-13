@@ -1,5 +1,6 @@
 use crate::contracts::{
-    OrchestrationFallbackAction, OrchestrationPlan, OrchestrationResultPackage, RequestClass,
+    OrchestrationFallbackAction, OrchestrationPlan, OrchestrationResultPackage, PlanStatus,
+    RequestClass,
 };
 
 pub fn package_result(
@@ -14,6 +15,8 @@ pub fn package_result(
     );
     let summary = if plan.needs_clarification {
         "orchestration requires clarification".to_string()
+    } else if matches!(plan.execution_state.plan_status, PlanStatus::Degraded) {
+        "orchestration prepared degraded plan for core contract execution".to_string()
     } else {
         "orchestration ready for core contract execution".to_string()
     };
@@ -21,14 +24,17 @@ pub fn package_result(
     OrchestrationResultPackage {
         summary,
         progress_message,
+        execution_state: plan.execution_state.clone(),
         recovery_applied,
         fallback_actions,
         core_contract_calls: plan
+            .selected_plan
             .steps
             .iter()
             .map(|row| row.target_contract.clone())
             .collect(),
         requires_core_promotion,
         classification: plan.classification.clone(),
+        selected_plan: plan.selected_plan.clone(),
     }
 }

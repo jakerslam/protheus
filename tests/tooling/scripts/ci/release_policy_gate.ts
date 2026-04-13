@@ -180,11 +180,15 @@ function checkInstallerChecksumVerification(root: string): GateCheck {
 
 function checkProductionTransportPolicy(root: string): GateCheck {
   const sdkPath = path.resolve(root, 'packages/infring-sdk/src/transports.ts');
+  const sdkCliDevOnlyPath = path.resolve(root, 'packages/infring-sdk/src/transports/cli_dev_only.ts');
   const bridgePath = path.resolve(root, 'adapters/runtime/ops_lane_bridge.ts');
   const runnerPath = path.resolve(root, 'adapters/runtime/run_protheus_ops.ts');
   const legacyHelperPath = path.resolve(root, 'adapters/runtime/dev_only/legacy_process_runner.ts');
   const processFallbackHelperPath = path.resolve(root, 'adapters/runtime/dev_only/ops_lane_process_fallback.ts');
   const sdkSource = fs.readFileSync(sdkPath, 'utf8');
+  const sdkCliDevOnlySource = fs.existsSync(sdkCliDevOnlyPath)
+    ? fs.readFileSync(sdkCliDevOnlyPath, 'utf8')
+    : '';
   const bridgeSource = fs.readFileSync(bridgePath, 'utf8');
   const runnerSource = fs.readFileSync(runnerPath, 'utf8');
   const legacyHelperSource = fs.existsSync(legacyHelperPath) ? fs.readFileSync(legacyHelperPath, 'utf8') : '';
@@ -193,9 +197,14 @@ function checkProductionTransportPolicy(root: string): GateCheck {
     : '';
 
   const sdkLock =
-    sdkSource.includes('process_transport_forbidden_in_production') &&
-    sdkSource.includes('isProductionReleaseChannel') &&
-    sdkSource.includes('INFRING_RELEASE_CHANNEL');
+    sdkSource.includes('resident_ipc_authoritative') &&
+    sdkSource.includes('createResidentIpcTransport') &&
+    !sdkSource.includes('spawn(') &&
+    !sdkSource.includes('spawnSync(');
+  const sdkCliLock =
+    sdkCliDevOnlySource.includes('process_transport_forbidden_in_production') &&
+    sdkCliDevOnlySource.includes('isProductionReleaseChannel') &&
+    sdkCliDevOnlySource.includes('INFRING_RELEASE_CHANNEL');
   const bridgeLock =
     bridgeSource.includes('process_fallback_forbidden_in_production') &&
     bridgeSource.includes('processFallbackPolicy') &&
@@ -216,13 +225,13 @@ function checkProductionTransportPolicy(root: string): GateCheck {
     processFallbackHelperSource.includes('process_fallback_dev_only') &&
     processFallbackHelperSource.includes('spawnSync(');
 
-  const ok = sdkLock && bridgeLock && legacyLock && helperLock;
+  const ok = sdkLock && sdkCliLock && bridgeLock && legacyLock && helperLock;
   return {
     id: 'production_transport_policy',
     ok,
     detail: ok
       ? 'production release channel enforces resident IPC topology'
-      : `sdk_lock=${sdkLock};bridge_lock=${bridgeLock};legacy_lock=${legacyLock};helper_lock=${helperLock}`,
+      : `sdk_lock=${sdkLock};sdk_cli_lock=${sdkCliLock};bridge_lock=${bridgeLock};legacy_lock=${legacyLock};helper_lock=${helperLock}`,
   };
 }
 
