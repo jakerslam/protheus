@@ -130,7 +130,7 @@
       "category": "legacy-ui",
       "status": "in_progress",
       "owner": "jay",
-      "summary": "Delete the classic dashboard fallback surface route by route now that top-level pages are native.",
+      "summary": "Delete the classic dashboard fallback surface route by route now that top-level pages are native; explicit classic escape hatches and the dead per-page legacy frame path are gone from the Svelte shell, while the top-level fallback host and classic asset corpus still need burn-down.",
       "planned_batch_date": "2026-05-15",
       "paths": [
         "client/runtime/systems/ui/infring_dashboard.ts",
@@ -178,9 +178,9 @@
     {
       "id": "TD-UI-E2E-001",
       "category": "qa",
-      "status": "in_progress",
+      "status": "done",
       "owner": "jay",
-      "summary": "Add golden end-to-end UI flows for chat, runtime, settings, and skills/MCP surfaces.",
+      "summary": "Added golden native operator-flow coverage for chat, runtime debt/orchestration audit, settings, skills/MCP, and web-tooling receipts through a stub-backed dashboard-host end-to-end test.",
       "planned_batch_date": "2026-04-20",
       "paths": [
         "tests/client-memory-tools",

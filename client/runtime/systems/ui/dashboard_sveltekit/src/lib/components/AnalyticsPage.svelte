@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { dashboardClassicHref } from '$lib/dashboard';
   import { readAnalyticsSnapshot, type AnalyticsSnapshot } from '$lib/analytics';
   import { onMount } from 'svelte';
 
@@ -45,7 +44,6 @@
     </div>
     <div class="hero-actions">
       <button class="ghost" type="button" on:click={() => void refresh()} disabled={loading}>{loading ? 'Refreshing…' : 'Refresh'}</button>
-      <a class="ghost" href={dashboardClassicHref('analytics')}>Open classic analytics</a>
     </div>
   </div>
 

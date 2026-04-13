@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { dashboardClassicHref } from '$lib/dashboard';
   import { readSidebarAgents } from '$lib/chat';
   import { createCronJob, deleteCronJob, deleteTrigger, readCronJobs, readTriggers, runCronJobNow, setCronJobEnabled, setTriggerEnabled, type DashboardCronJobRow, type DashboardTriggerRow } from '$lib/scheduler';
   import { onMount } from 'svelte';
@@ -66,7 +65,6 @@
     </div>
     <div class="hero-actions">
       <button class="ghost" type="button" on:click={() => void refresh()} disabled={loading}>{loading ? 'Refreshing…' : 'Refresh'}</button>
-      <a class="ghost" href={dashboardClassicHref('scheduler')}>Open classic scheduler</a>
     </div>
   </div>
   {#if error}<div class="banner error">{error}</div>{:else if notice}<div class="banner notice">{notice}</div>{/if}
