@@ -478,16 +478,52 @@
       return text;
     },
 
+    conversationCacheMaxEntries: function() {
+      return 20;
+    },
+
+    pruneConversationCacheEntries: function() {
+      if (!this.conversationCache || typeof this.conversationCache !== 'object') return;
+      var keys = Object.keys(this.conversationCache || {});
+      var maxEntries = Number(this.conversationCacheMaxEntries ? this.conversationCacheMaxEntries() : 20);
+      if (!Number.isFinite(maxEntries) || maxEntries < 1) maxEntries = 20;
+      if (keys.length <= maxEntries) return;
+      keys.sort((left, right) => {
+        var a = this.conversationCache[left] && typeof this.conversationCache[left] === 'object'
+          ? Number(this.conversationCache[left].saved_at || 0)
+          : 0;
+        var b = this.conversationCache[right] && typeof this.conversationCache[right] === 'object'
+          ? Number(this.conversationCache[right].saved_at || 0)
+          : 0;
+        return b - a;
+      });
+      var next = {};
+      for (var i = 0; i < keys.length && i < maxEntries; i += 1) {
+        next[keys[i]] = this.conversationCache[keys[i]];
+      }
+      this.conversationCache = next;
+    },
+
+    touchConversationCacheEntry: function(agentId, patch) {
+      var key = String(agentId || '').trim();
+      if (!key) return null;
+      if (!this.conversationCache || typeof this.conversationCache !== 'object') this.conversationCache = {};
+      var prior = this.conversationCache[key] && typeof this.conversationCache[key] === 'object'
+        ? this.conversationCache[key]
+        : {};
+      var next = Object.assign({}, prior, patch || {}, { saved_at: Date.now() });
+      this.conversationCache[key] = next;
+      this.pruneConversationCacheEntries();
+      return this.conversationCache[key];
+    },
+
     captureConversationDraft(agentId, explicitMode) {
       var key = String(agentId || '').trim();
       if (!key) return;
       if (!this.conversationCache) this.conversationCache = {};
       var mode = String(explicitMode || this.currentConversationInputMode(key) || 'chat').trim().toLowerCase();
       if (mode !== 'terminal') mode = 'chat';
-      var prior = this.conversationCache[key] && typeof this.conversationCache[key] === 'object'
-        ? this.conversationCache[key]
-        : {};
-      var next = { ...prior, saved_at: Date.now() };
+      var next = this.touchConversationCacheEntry(key) || {};
       var sanitized = this.sanitizeConversationDraftText(this.inputText);
       if (mode === 'terminal') next.draft_terminal = sanitized;
       else next.draft_chat = sanitized;
@@ -510,6 +546,7 @@
       if (mode !== 'terminal') mode = 'chat';
       var raw = mode === 'terminal' ? cached.draft_terminal : cached.draft_chat;
       var nextText = this.sanitizeConversationDraftText(raw);
+      this.touchConversationCacheEntry(key);
       this.inputText = nextText;
       var self = this;
       this.$nextTick(function() {
@@ -527,17 +564,17 @@
       if (!this.conversationCache) this.conversationCache = {};
       try {
         var key = String(agentId);
-        var prior = this.conversationCache[key] && typeof this.conversationCache[key] === 'object'
-          ? this.conversationCache[key]
-          : {};
         var cachedMessages = this.sanitizeConversationForCache(this.messages || []);
-        var next = {
-          ...prior,
+        var next = Object.assign(
+          {},
+          this.touchConversationCacheEntry(key),
+          {
           saved_at: Date.now(),
           token_count: this.tokenCount || 0,
           default_terminal: this.currentConversationInputMode(agentId) === 'terminal',
           messages: cachedMessages,
-        };
+          }
+        );
         var mode = this.currentConversationInputMode(agentId);
         var draft = this.sanitizeConversationDraftText(this.inputText);
         if (mode === 'terminal') next.draft_terminal = draft;

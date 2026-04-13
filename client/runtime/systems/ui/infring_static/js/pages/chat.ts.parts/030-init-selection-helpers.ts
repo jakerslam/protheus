@@ -272,8 +272,39 @@
       }
       return false;
     },
+    buildQualifiedModelRef: function(modelValue, providerValue) {
+      var model = String(modelValue || '').trim();
+      var provider = String(providerValue || '').trim().toLowerCase();
+      if (!model || this.isPlaceholderModelRef(model)) return '';
+      if (!provider) return model;
+      var normalizedPrefix = provider + '/';
+      if (model.toLowerCase().indexOf(normalizedPrefix) === 0) return model;
+      if (model.indexOf('/') >= 0) return model;
+      return provider + '/' + model;
+    },
+    normalizeQualifiedModelRef: function(modelValue, providerValue, rows) {
+      var raw = String(modelValue || '').trim();
+      if (!raw || this.isPlaceholderModelRef(raw)) return '';
+      if (typeof this.resolveModelCatalogOption === 'function') {
+        var resolved = this.resolveModelCatalogOption(raw, providerValue || '', rows);
+        var resolvedId = String(resolved && resolved.id ? resolved.id : '').trim();
+        if (resolvedId) return resolvedId;
+      }
+      return this.buildQualifiedModelRef(raw, providerValue);
+    },
+    formatQualifiedModelDisplay: function(value) {
+      var ref = String(value || '').trim();
+      if (!ref || this.isPlaceholderModelRef(ref)) return '';
+      if (ref.indexOf('/') < 0) return ref;
+      var parts = ref.split('/');
+      var provider = String(parts[0] || '').trim();
+      var model = String(parts.slice(1).join('/') || '').trim();
+      if (!model) return provider || ref;
+      if (!provider) return model;
+      return model + ' · ' + provider;
+    },
     compactModelLabel: function(value) {
-      var raw = String(value || '').trim();
+      var raw = this.normalizeQualifiedModelRef(value, '', this._modelCache || []);
       if (!raw || this.isPlaceholderModelRef(raw)) return '';
       var compact = raw;
       if (raw.indexOf('/') >= 0) {
@@ -292,17 +323,25 @@
       var seen = {};
       for (var i = 0; i < list.length; i += 1) {
         var row = list[i] && typeof list[i] === 'object' ? list[i] : {};
-        var id = String(row.id || row.model || row.model_name || '').trim();
-        if (!id || this.isPlaceholderModelRef(id)) continue;
         var provider = String(row.provider || row.model_provider || '').trim();
+        var modelName = String(row.model || row.model_name || row.runtime_model || row.id || '').trim();
+        var id = this.buildQualifiedModelRef(row.id || modelName, provider);
+        if (!id || this.isPlaceholderModelRef(id)) continue;
         if (!provider && id.indexOf('/') >= 0) provider = String(id.split('/')[0] || '').trim();
         if (!provider) provider = 'unknown';
         var key = id.toLowerCase();
         if (seen[key]) continue;
         seen[key] = true;
+        var normalizedModelName = modelName;
+        if (!normalizedModelName && id.indexOf('/') >= 0) {
+          normalizedModelName = String(id.split('/').slice(1).join('/') || '').trim();
+        }
         out.push(Object.assign({}, row, {
           id: id,
           provider: provider,
+          model: normalizedModelName || id,
+          model_name: normalizedModelName || id,
+          display_name: String(row.display_name || normalizedModelName || this.formatQualifiedModelDisplay(id) || id).trim(),
           available: row.available !== false
         }));
       }
@@ -313,7 +352,7 @@
       var seen = {};
       var self = this;
       var add = function(value) {
-        var id = String(value || '').trim();
+        var id = self.normalizeQualifiedModelRef(value, provider, self._modelCache || []);
         if (!id || self.isPlaceholderModelRef(id) || seen[id]) return;
         seen[id] = true;
         out.push(id);
@@ -324,8 +363,6 @@
       var provider = String(agent.model_provider || '').trim().toLowerCase();
       if (selected) add(selected);
       if (runtime) add(runtime);
-      if (selected && provider && provider !== 'ollama' && selected.indexOf('/') < 0) add(provider + '/' + selected);
-      if (runtime && provider && provider !== 'ollama' && runtime.indexOf('/') < 0) add(provider + '/' + runtime);
       return out;
     },
     isSwitcherModelActive: function(model) {
@@ -349,6 +386,7 @@
       var runtime = String(agent.runtime_model || '').trim();
       var provider = String(agent.model_provider || '').trim();
       var activeId = selected.toLowerCase() === 'auto' && runtime ? runtime : (selected || runtime);
+      activeId = this.normalizeQualifiedModelRef(activeId, provider, rows);
       if (!activeId || this.isPlaceholderModelRef(activeId)) return null;
       return {
         id: activeId,

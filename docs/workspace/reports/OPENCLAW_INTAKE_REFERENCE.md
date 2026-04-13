@@ -37,7 +37,27 @@
   - Landed in:
     - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/140-session-and-ws.part02.ts`
     - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/160-runtime-events-and-render.part01.ts`
+- `OPENCLAW-TOOLING-CHAT-004`:
+  - Imported qualified model-ref normalization and display shaping from:
+    - `ui/src/ui/chat-model-ref.ts`
+  - Landed in:
+    - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/030-init-selection-helpers.ts`
+    - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/120-slash-and-agent-select.ts`
+- `OPENCLAW-TOOLING-CHAT-005`:
+  - Imported session-cache hygiene and stale pending-run recovery patterns from:
+    - `ui/src/ui/chat/session-cache.ts`
+    - `ui/src/ui/controllers/chat.ts`
+  - Landed in:
+    - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/040-models-and-cache.part01.ts`
+    - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/110-failover-and-health.part01.ts`
+- `OPENCLAW-TOOLING-CHAT-006`:
+  - Imported slash-command metadata, alias expansion, and model-command execution patterns from:
+    - `ui/src/ui/chat/slash-commands.ts`
+    - `ui/src/ui/chat/slash-command-executor.ts`
+  - Landed in:
+    - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/120-slash-and-agent-select.ts`
+    - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/192-slash-alias-and-alerts.ts`
 
 ## Current Intake State
-- Imported rows in this wave: `5`
+- Imported rows in this wave: `10`
 - Pending rows in this wave: `0`
