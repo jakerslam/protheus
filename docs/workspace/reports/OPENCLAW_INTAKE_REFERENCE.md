@@ -120,7 +120,7 @@
     - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/210-scroll-hover-sanitize.part01.ts`
     - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/220-artifacts-voice-search.part02.ts`
 ## Current Intake State
-- Imported rows in this wave: `35`
+- Imported rows in this wave: `40`
 - Pending rows in this wave: `0`
 
 - `OPENCLAW-TOOLING-APP-013`:
@@ -136,4 +136,16 @@
     - `client/runtime/systems/ui/infring_static/js/app.ts.parts/030-agent-list-runtime.part02.ts`
     - `client/runtime/systems/ui/infring_static/js/app.ts.parts/040-events-and-actions.part02.ts`
     - `client/runtime/systems/ui/infring_static/js/pages/agents.ts.parts/030-actions-and-ops.ts`
-
+- `OPENCLAW-TOOLING-APP-014`:
+  - Imported bootstrap view-state, config-form snapshot mutation, and agent-identity normalization patterns from:
+    - `ui/src/ui/app-view-state.ts`
+    - `ui/src/ui/controllers/config.ts`
+    - `ui/src/ui/controllers/config/form-utils.ts`
+    - `ui/src/ui/controllers/agent-identity.ts`
+    - `ui/src/ui/views/agents-utils.ts`
+  - Landed in:
+    - `client/runtime/systems/ui/infring_static/js/app.ts.parts/005-core-rendering-helpers.part01.ts`
+    - `client/runtime/systems/ui/infring_static/js/app.ts.parts/010-core-state.part01.ts`
+    - `client/runtime/systems/ui/infring_static/js/app.ts.parts/010-core-state.part02.ts`
+    - `client/runtime/systems/ui/infring_static/js/pages/agents.ts.parts/010-state-and-load.ts`
+    - `client/runtime/systems/ui/infring_static/js/pages/agents.ts.parts/020-list-and-filters.ts`

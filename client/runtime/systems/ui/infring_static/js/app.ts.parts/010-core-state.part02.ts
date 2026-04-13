@@ -36,6 +36,86 @@
       } catch(_) {}
     },
 
+    normalizeDashboardAssistantIdentity(payload) {
+      var source = payload && typeof payload === 'object' ? payload : {};
+      var name = normalizeDashboardOptionalString(
+        source.name ||
+        source.assistant_name ||
+        source.display_name ||
+        source.label
+      );
+      var avatar = normalizeDashboardOptionalString(
+        source.avatar ||
+        source.avatar_url ||
+        source.assistant_avatar
+      );
+      var agentId = normalizeDashboardOptionalString(
+        source.agent_id ||
+        source.assistant_agent_id ||
+        source.id
+      );
+      return {
+        name: name || 'Assistant',
+        avatar: avatar || '',
+        agentId: agentId || ''
+      };
+    },
+
+    applyBootstrapRuntimeState(statusObj, versionObj) {
+      var status = statusObj && typeof statusObj === 'object' ? statusObj : {};
+      var version = versionObj && typeof versionObj === 'object' ? versionObj : {};
+      var assistantPayload =
+        (status.assistant_identity && typeof status.assistant_identity === 'object' && status.assistant_identity) ||
+        (status.assistant && typeof status.assistant === 'object' && status.assistant) ||
+        (version.assistant_identity && typeof version.assistant_identity === 'object' && version.assistant_identity) ||
+        (version.assistant && typeof version.assistant === 'object' && version.assistant) ||
+        {
+          name: status.assistant_name || version.assistant_name || '',
+          avatar: status.assistant_avatar || version.assistant_avatar || '',
+          agent_id: status.assistant_agent_id || version.assistant_agent_id || ''
+        };
+      var assistantIdentity = this.normalizeDashboardAssistantIdentity(assistantPayload);
+      this.assistantName = assistantIdentity.name || this.assistantName || 'Assistant';
+      this.assistantAvatar = assistantIdentity.avatar || this.assistantAvatar || null;
+      this.assistantAgentId = assistantIdentity.agentId || this.assistantAgentId || null;
+
+      var serverVersion = normalizeDashboardOptionalString(version.version || version.tag || status.version).replace(/^[vV]/, '');
+      if (serverVersion) this.serverVersion = serverVersion;
+
+      var previewRoots = status.local_media_preview_roots || version.local_media_preview_roots;
+      if (!Array.isArray(previewRoots) && status.media && typeof status.media === 'object') {
+        previewRoots = status.media.local_preview_roots;
+      }
+      if (!Array.isArray(previewRoots) && version.media && typeof version.media === 'object') {
+        previewRoots = version.media.local_preview_roots;
+      }
+      if (Array.isArray(previewRoots)) {
+        this.localMediaPreviewRoots = previewRoots
+          .map(function(root) { return normalizeDashboardOptionalString(root); })
+          .filter(function(root) { return !!root; });
+      }
+
+      var sandboxMode = normalizeDashboardOptionalString(
+        status.embed_sandbox_mode ||
+        (status.embed && status.embed.sandbox_mode) ||
+        version.embed_sandbox_mode ||
+        (version.embed && version.embed.sandbox_mode)
+      );
+      if (sandboxMode) this.embedSandboxMode = sandboxMode;
+
+      var allowExternal = status.allow_external_embed_urls;
+      if (typeof allowExternal !== 'boolean' && status.embed && typeof status.embed === 'object') {
+        allowExternal = status.embed.allow_external_urls;
+      }
+      if (typeof allowExternal !== 'boolean') {
+        allowExternal = version.allow_external_embed_urls;
+      }
+      if (typeof allowExternal !== 'boolean' && version.embed && typeof version.embed === 'object') {
+        allowExternal = version.embed.allow_external_urls;
+      }
+      if (typeof allowExternal === 'boolean') this.allowExternalEmbedUrls = allowExternal;
+    },
+
     focusTopbarSearchInput() {
       var self = this;
       if (this._topbarSearchFocusTimer) {

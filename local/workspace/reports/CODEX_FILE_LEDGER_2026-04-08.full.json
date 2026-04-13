@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-13T18:38:53.087Z",
+  "generated_at": "2026-04-13T18:55:31.264Z",
   "scope": [
     "core",
     "client/runtime",
@@ -20320,7 +20320,7 @@
       "order": 1845
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/app.ts.parts/010-core-state.part01.ts",
       "language": "ts",
       "loc": 470,
@@ -20554,7 +20554,7 @@
       "order": 1866
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/agents.ts.parts/010-state-and-load.ts",
       "language": "ts",
       "loc": 395,
@@ -20631,7 +20631,7 @@
       "order": 1873
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/agents.ts.parts/020-list-and-filters.ts",
       "language": "ts",
       "loc": 365,
@@ -21743,7 +21743,7 @@
       "order": 1973
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/app.ts.parts/010-core-state.part02.ts",
       "language": "ts",
       "loc": 110,
@@ -21831,7 +21831,7 @@
       "order": 1981
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/app.ts.parts/005-core-rendering-helpers.part01.ts",
       "language": "ts",
       "loc": 100,

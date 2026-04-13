@@ -98,8 +98,15 @@ document.addEventListener('alpine:init', function() {
     lastStatusLatencyMs: 0,
     lastStatusAt: '',
     version: (window.__INFRING_APP_VERSION || '0.0.0'),
+    serverVersion: '',
     gitBranch: '',
+    assistantName: 'Assistant',
+    assistantAvatar: null,
+    assistantAgentId: null,
     agentCount: 0,
+    localMediaPreviewRoots: [],
+    embedSandboxMode: 'scripts',
+    allowExternalEmbedUrls: false,
     pendingAgent: null,
     pendingFreshAgentId: null,
     activeAgentId: (() => {
@@ -138,6 +145,7 @@ document.addEventListener('alpine:init', function() {
     _refreshAgentsInFlight: null,
     _lastAgentsRefreshAt: 0,
     runtimeSync: null,
+    lastErrorCode: '',
     _sessionActivityByAgent: {},
     _sessionActivityBootstrapped: false,
     _lastSessionActivityPollAt: 0,
@@ -413,11 +421,15 @@ document.addEventListener('alpine:init', function() {
         this.lastStatusLatencyMs = latencyMs;
         this.lastStatusAt = new Date().toISOString();
         this.lastError = degraded ? String(statusObj.error || statusObj.warning || '') : '';
+        this.lastErrorCode = normalizeDashboardOptionalString(statusObj.error_code || statusObj.warning_code || '');
         var liveVersion = String(versionObj.version || versionObj.tag || '').trim().replace(/^[vV]/, '');
         this.version = liveVersion || statusObj.version || this.version || window.__INFRING_APP_VERSION || '0.0.0';
         this.gitBranch = statusObj.git_branch ? String(statusObj.git_branch) : (this.gitBranch || '');
         this.agentCount = statusObj.agent_count || 0;
         this.runtimeSync = (statusObj.runtime_sync && typeof statusObj.runtime_sync === 'object') ? statusObj.runtime_sync : null;
+        if (typeof this.applyBootstrapRuntimeState === 'function') {
+          this.applyBootstrapRuntimeState(statusObj, versionObj);
+        }
         await this.pollSessionActivity(false);
       } catch(e) {
         var streak = Number(this.statusFailureStreak || 0) + 1;
@@ -430,6 +442,7 @@ document.addEventListener('alpine:init', function() {
         this.lastStatusLatencyMs = 0;
         this.lastStatusAt = new Date().toISOString();
         this.lastError = e.message || 'Unknown error';
+        this.lastErrorCode = normalizeDashboardOptionalString((e && (e.code || e.name)) || '');
         this.runtimeSync = null;
         console.warn('[Infring] Status check failed:', e.message);
       }
