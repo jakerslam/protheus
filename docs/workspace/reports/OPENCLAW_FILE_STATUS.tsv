@@ -9,3 +9,8 @@ imported	ui/src/ui/chat/session-cache.ts	OPENCLAW-TOOLING-CHAT-005 cache touch/p
 imported	ui/src/ui/controllers/chat.ts	OPENCLAW-TOOLING-CHAT-005 stale pending-run recovery guards assimilated into chat.ts.parts/110-failover-and-health.part01.ts
 imported	ui/src/ui/chat/slash-commands.ts	OPENCLAW-TOOLING-CHAT-006 slash metadata, usage, and alias expansion assimilated into chat.ts.parts/192-slash-alias-and-alerts.ts
 imported	ui/src/ui/chat/slash-command-executor.ts	OPENCLAW-TOOLING-CHAT-006 model slash resolution and richer /model output assimilated into chat.ts.parts/120-slash-and-agent-select.ts
+imported	ui/src/ui/chat/message-normalizer.ts	OPENCLAW-TOOLING-CHAT-007 visible-text/thinking extraction and grouped role normalization assimilated into chat.ts.parts/080-normalize-and-context.part02.ts
+imported	ui/src/ui/chat/message-extract.ts	OPENCLAW-TOOLING-CHAT-007 cached visible/thinking extraction patterns assimilated into chat.ts.parts/080-normalize-and-context.part02.ts and 170-grouping-and-day-map.part01.ts
+imported	ui/src/ui/chat/grouped-render.ts	OPENCLAW-TOOLING-CHAT-008 preview shaping and grouped message search/navigation assimilated into chat.ts.parts/170-grouping-and-day-map.part01.ts and 180-map-navigation.part01.ts
+imported	ui/src/ui/chat/search-match.ts	OPENCLAW-TOOLING-CHAT-008 search corpus matching assimilated into chat.ts.parts/220-artifacts-voice-search.part01.ts and 170-grouping-and-day-map.part02.ts
+imported	ui/src/ui/views/chat.ts	OPENCLAW-TOOLING-CHAT-009 search-window filtering behavior assimilated into chat.ts.parts/220-artifacts-voice-search.part01.ts

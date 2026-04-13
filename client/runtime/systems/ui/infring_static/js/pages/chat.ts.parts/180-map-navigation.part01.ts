@@ -1,4 +1,5 @@
       }
+      if (!visibleIndexes.length) visibleIndexes = fallbackIndexes;
       if (!visibleIndexes.length) return;
 
       var activePos = -1;
@@ -52,7 +53,9 @@
 
     messageMapPopupBody: function(msg) {
       if (!msg) return '';
-      return this.messageMapPreview(msg);
+      var preview = typeof this.messageVisiblePreviewText === 'function' ? this.messageVisiblePreviewText(msg) : '';
+      if (!preview && typeof this.messageMapPreview === 'function') preview = this.messageMapPreview(msg);
+      return String(preview || '').trim();
     },
 
     showMapItemPopup: function(msg, idx, ev) {
