@@ -140,12 +140,13 @@
     {
       "id": "TD-ROUTE-TELEMETRY-001",
       "category": "legacy-ui",
-      "status": "in_progress",
+      "status": "done",
       "owner": "jay",
-      "summary": "Add route and fallback telemetry so classic dashboard deletion can be driven by evidence instead of guesswork.",
-      "planned_batch_date": "2026-04-20",
+      "summary": "Native runtime now exposes route and fallback telemetry so classic dashboard deletion can be driven by evidence instead of guesswork.",
+      "planned_batch_date": "2026-04-13",
       "paths": [
         "client/runtime/systems/ui/dashboard_sveltekit/src",
+        "adapters/runtime/infring_dashboard.ts",
         "client/runtime/systems/ui/infring_dashboard.ts"
       ]
     },
@@ -154,10 +155,11 @@
       "category": "orchestration",
       "status": "in_progress",
       "owner": "jay",
-      "summary": "Push orchestration probes, alternative plans, verifier receipts, and execution correlation into operator-facing surfaces.",
+      "summary": "Push orchestration probes, alternative plans, verifier receipts, and execution correlation into operator-facing surfaces; native runtime now exposes contract health and correlation fields, while live per-request receipt capture still needs a dedicated operator stream.",
       "planned_batch_date": "2026-04-20",
       "paths": [
         "surface/orchestration/src",
+        "adapters/runtime/infring_dashboard.ts",
         "client/runtime/systems/ui/dashboard_sveltekit/src"
       ]
     },
