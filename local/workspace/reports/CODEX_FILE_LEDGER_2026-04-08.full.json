@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-13T17:10:00Z",
+  "generated_at": "2026-04-13T18:20:05.227Z",
   "scope": [
     "core",
     "client/runtime",
@@ -20284,7 +20284,7 @@
       "notes": "OPENCLAW-TOOLING-CHAT-010 added stale session-list refresh hooks on focus and visibility changes."
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/070-init-sequences-and-pointer.part01.ts",
       "language": "ts",
       "loc": 480,
@@ -20345,7 +20345,7 @@
       "notes": "OPENCLAW-TOOLING-CHAT-010 added normalized session-key parsing and deduped session payload hydration."
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/210-scroll-hover-sanitize.part01.ts",
       "language": "ts",
       "loc": 463,
@@ -21259,7 +21259,7 @@
       "order": 1929
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/090-init-hooks-and-shortcuts.part02.ts",
       "language": "ts",
       "loc": 164,
@@ -21941,7 +21941,7 @@
       "order": 1991
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/220-artifacts-voice-search.part02.ts",
       "language": "ts",
       "loc": 92,
@@ -22252,7 +22252,7 @@
       "order": 2019
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/121-slash-apikey-discovery.ts",
       "language": "ts",
       "loc": 54,

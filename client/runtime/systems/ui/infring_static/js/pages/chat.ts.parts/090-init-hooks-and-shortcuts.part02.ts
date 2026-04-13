@@ -67,6 +67,54 @@
       this.sendMessage();
     },
 
+    loadModelCatalogSafely: function(options) {
+      var opts = options && typeof options === 'object' ? options : {};
+      var preferCached = opts.prefer_cached !== false;
+      var suppressErrors = opts.suppress_errors === true;
+      var self = this;
+      return InfringAPI.get('/api/models').then(function(data) {
+        var models = self.sanitizeModelCatalogRows((data && data.models) || []);
+        self._modelCache = models;
+        self._modelCacheTime = Date.now();
+        self.modelPickerList = models;
+        return models;
+      }).catch(function(error) {
+        var fallback = preferCached ? self.sanitizeModelCatalogRows(self._modelCache || []) : [];
+        if (fallback.length) {
+          self._modelCache = fallback;
+          self.modelPickerList = fallback;
+          return fallback;
+        }
+        if (suppressErrors) return [];
+        throw error;
+      });
+    },
+
+    describeModelDiscoveryResult: function(resp, catalogRows) {
+      var provider = String((resp && resp.provider) || '').trim();
+      var inputKind = String((resp && resp.input_kind) || '').trim().toLowerCase();
+      var discoveredCount = Number((resp && resp.model_count) || ((resp && resp.models && resp.models.length) || 0));
+      if (!Number.isFinite(discoveredCount) || discoveredCount < 0) discoveredCount = 0;
+      var availableRows = Array.isArray(catalogRows) ? catalogRows : [];
+      var availableCount = this.availableModelRowsCount ? this.availableModelRowsCount(availableRows) : availableRows.length;
+      var prefix = '';
+      if (inputKind === 'local_path') {
+        prefix = provider
+          ? ('Indexed local path for `' + provider + '`')
+          : 'Indexed local path';
+      } else {
+        prefix = provider
+          ? ('Added provider `' + provider + '`')
+          : 'Saved model discovery input';
+      }
+      prefix += ' (' + discoveredCount + ' discovered';
+      if (availableCount > 0) {
+        prefix += ', ' + availableCount + ' available now';
+      }
+      prefix += ').';
+      return prefix;
+    },
+
     toggleModelSwitcher() {
       if (this.showModelSwitcher) { this.showModelSwitcher = false; return; }
       var self = this;
@@ -91,12 +139,19 @@
       var shouldRefresh = !cacheFresh || cached.length < 8 || cachedAvailable < 4;
       if (!shouldRefresh) return;
       self.refreshModelCatalogAndGuidance({ discover: true, guidance: true }).catch(function(e) {
-        if (!self.modelPickerList || !self.modelPickerList.length) {
-          var active = self.resolveActiveSwitcherModel([]);
-          self.modelPickerList = active ? [active] : [];
-        }
-        self.modelApiKeyStatus = 'Unable to refresh model list (showing cached entries)';
-        InfringToast.error('Failed to refresh models: ' + e.message);
+        return self.loadModelCatalogSafely({
+          prefer_cached: true,
+          suppress_errors: true
+        }).then(function(models) {
+          if (!models.length && (!self.modelPickerList || !self.modelPickerList.length)) {
+            var active = self.resolveActiveSwitcherModel([]);
+            self.modelPickerList = active ? [active] : [];
+          }
+          self.modelApiKeyStatus = models.length
+            ? 'Unable to refresh model list (showing cached entries)'
+            : 'Unable to refresh model list right now';
+          InfringToast.error('Failed to refresh models: ' + e.message);
+        });
       });
     },
 
@@ -126,12 +181,14 @@
         }
         self._modelCache = null;
         self._modelCacheTime = 0;
-        return InfringAPI.get('/api/models');
-      }).then(function(data) {
-        var models = self.sanitizeModelCatalogRows((data && data.models) || []);
-        self._modelCache = models;
-        self._modelCacheTime = Date.now();
-        self.modelPickerList = models;
+        return self.loadModelCatalogSafely({
+          prefer_cached: false,
+          suppress_errors: false
+        }).then(function(models) {
+          self.modelApiKeyStatus = self.describeModelDiscoveryResult(resp, models);
+          return models;
+        });
+      }).then(function(models) {
         if (self.availableModelRowsCount(models) === 0) {
           self.injectNoModelsGuidance('discover_key');
         }

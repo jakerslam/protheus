@@ -87,9 +87,16 @@
       }
       var now = Date.now();
       var agentId = String(agent.id);
+      var suggestionScopeKey = agentId + '|main';
+      if (typeof this.resolveConversationCacheScopeKey === 'function') {
+        try {
+          var resolvedScopeKey = String(this.resolveConversationCacheScopeKey(agentId) || '').trim();
+          if (resolvedScopeKey) suggestionScopeKey = resolvedScopeKey;
+        } catch (_) {}
+      }
       var recentlyFetched =
         !force &&
-        this._lastSuggestionsAgentId === agentId &&
+        this._lastSuggestionsAgentId === suggestionScopeKey &&
         (now - Number(this._lastSuggestionsAt || 0)) < 12000 &&
         Array.isArray(this.promptSuggestions) &&
         this.promptSuggestions.length > 0;
@@ -102,6 +109,7 @@
 	        var payload = {};
 	        var context = this.collectPromptSuggestionContext();
 	        if (context.signature) payload.recent_context = String(context.signature).trim();
+          if (suggestionScopeKey) payload.session_scope_key = suggestionScopeKey;
 	        var result = await InfringAPI.post('/api/agents/' + encodeURIComponent(agentId) + '/suggestions', payload);
 	        if (this._suggestionFetchSeq !== seq) return;
 	        var freshContext = this.collectPromptSuggestionContext();
@@ -109,7 +117,7 @@
 	        if (freshHistoryCount < 7) {
 	          this.promptSuggestions = [];
 	          this._lastSuggestionsAt = Date.now();
-	          this._lastSuggestionsAgentId = agentId;
+	          this._lastSuggestionsAgentId = suggestionScopeKey;
 	          return;
 	        }
 	        var gatingContext = String(context.signature || '');
@@ -121,7 +129,7 @@
 	        );
         this.promptSuggestions = suggestions;
         this._lastSuggestionsAt = Date.now();
-        this._lastSuggestionsAgentId = agentId;
+        this._lastSuggestionsAgentId = suggestionScopeKey;
 	      } catch (_) {
 		        if (this._suggestionFetchSeq === seq) {
 		          var fallbackContext = this.collectPromptSuggestionContext();
@@ -129,12 +137,12 @@
 		          if (fallbackHistoryCount < 7) {
 		            this.promptSuggestions = [];
 		            this._lastSuggestionsAt = Date.now();
-		            this._lastSuggestionsAgentId = agentId;
+		            this._lastSuggestionsAgentId = suggestionScopeKey;
 		            return;
 		          }
 		          this.promptSuggestions = [];
           this._lastSuggestionsAt = Date.now();
-          this._lastSuggestionsAgentId = agentId;
+          this._lastSuggestionsAgentId = suggestionScopeKey;
         }
       } finally {
         if (this._suggestionFetchSeq === seq) this.suggestionsLoading = false;

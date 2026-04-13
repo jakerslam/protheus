@@ -24,3 +24,8 @@ imported	ui/src/ui/chat/copy-as-markdown.ts	OPENCLAW-TOOLING-CHAT-011 markdown-o
 imported	ui/src/ui/chat/tool-helpers.ts	OPENCLAW-TOOLING-CHAT-011 JSON-aware tool preview formatting assimilated into chat.ts.parts/190-drawer-and-queue.zz-part02.ts
 imported	ui/src/ui/chat/constants.ts	OPENCLAW-TOOLING-CHAT-011 tool preview line/character limits assimilated into chat.ts.parts/010-chat-state.ts and 190-drawer-and-queue.zz-part02.ts
 imported	ui/src/ui/chat/pinned-summary.ts	OPENCLAW-TOOLING-CHAT-011 message summary extraction patterns assimilated into chat.ts.parts/190-drawer-and-queue.zz-part02.ts
+imported	ui/src/ui/app-scroll.ts	OPENCLAW-TOOLING-CHAT-012 bottom-follow distance and scroll-state sync assimilated into chat.ts.parts/220-artifacts-voice-search.part02.ts
+imported	ui/src/ui/app-last-active-session.ts	OPENCLAW-TOOLING-CHAT-012 session-key-aware suggestion caching assimilated into chat.ts.parts/070-init-sequences-and-pointer.part01.ts
+imported	ui/src/ui/chat/attachment-support.ts	OPENCLAW-TOOLING-CHAT-012 attachment support helpers and dedupe assimilated into chat.ts.parts/210-scroll-hover-sanitize.part01.ts
+imported	ui/src/ui/controllers/models.ts	OPENCLAW-TOOLING-CHAT-012 safe model catalog reloads assimilated into chat.ts.parts/090-init-hooks-and-shortcuts.part02.ts and 121-slash-apikey-discovery.ts
+imported	ui/src/ui/chat/export.ts	OPENCLAW-TOOLING-CHAT-012 chat markdown export helpers assimilated into chat.ts.parts/220-artifacts-voice-search.part02.ts and 121-slash-apikey-discovery.ts
