@@ -92,7 +92,20 @@
     - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/160-runtime-events-and-render.part02.ts`
     - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/191-slash-continuity-and-alias-helpers.ts`
     - support call sites in `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/140-session-and-ws.part01.ts`, `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/160-runtime-events-and-render.part01.ts`, `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/040-models-and-cache.part01.ts`, and `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/040-models-and-cache.part02.ts`
+- `OPENCLAW-TOOLING-CHAT-011`:
+  - Imported session-scoped input history plus markdown/tool-copy helpers from:
+    - `ui/src/ui/chat/input-history.ts`
+    - `ui/src/ui/chat/copy-as-markdown.ts`
+    - `ui/src/ui/chat/tool-helpers.ts`
+    - `ui/src/ui/chat/constants.ts`
+    - `ui/src/ui/chat/pinned-summary.ts`
+  - Landed in:
+    - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/010-chat-state.ts`
+    - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/020-init-roles-and-vibes.part01.ts`
+    - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/020-init-roles-and-vibes.part02.ts`
+    - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/130-render-window-and-session.part02.ts`
+    - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/190-drawer-and-queue.zz-part02.ts`
 
 ## Current Intake State
-- Imported rows in this wave: `20`
+- Imported rows in this wave: `25`
 - Pending rows in this wave: `0`

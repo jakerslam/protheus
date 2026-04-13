@@ -1834,7 +1834,7 @@ order	status	file	language	loc	authority_risk_score	migration_potential_score	co
 1833	queued	client/runtime/systems/ui/infring_static/js/app.ts.parts/020-nav-and-layout.part01.ts	ts	499	2	2	3	2.2
 1834	done	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/200-send-pipeline.part01.ts	ts	499	2	2	3	2.2
 1835	done	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/140-session-and-ws.part01.ts	ts	498	2	2	3	2.2
-1836	queued	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/190-drawer-and-queue.zz-part02.ts	ts	498	2	2	3	2.2
+1836	done	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/190-drawer-and-queue.zz-part02.ts	ts	498	2	2	3	2.2
 1837	queued	tests/tooling/scripts/ci/benchmark_matrix_refresh.ts	ts	496	2	2	3	2.2
 1838	done	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/110-failover-and-health.part01.ts	ts	492	2	2	3	2.2
 1839	done	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/050-conversation-cache.ts	ts	491	2	2	3	2.2
@@ -1849,10 +1849,10 @@ order	status	file	language	loc	authority_risk_score	migration_potential_score	co
 1848	queued	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/210-scroll-hover-sanitize.part01.ts	ts	463	2	2	3	2.2
 1849	done	tests/client-memory-tools/infring_dashboard_ui.test.ts.parts/020-eyes-and-git-tree-authority-assertions.ts	ts	462	2	2	3	2.2
 1850	queued	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/080-normalize-and-context.part01.ts	ts	456	2	2	3	2.2
-1851	queued	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/020-init-roles-and-vibes.part01.ts	ts	451	2	2	3	2.2
+1851	done	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/020-init-roles-and-vibes.part01.ts	ts	451	2	2	3	2.2
 1852	done	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/220-artifacts-voice-search.part01.ts	ts	450	2	2	3	2.2
 1853	queued	tests/tooling/scripts/ci/benchmark_sanity_gate.ts	ts	450	2	2	3	2.2
-1854	queued	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/010-chat-state.ts	ts	447	2	2	3	2.2
+1854	done	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/010-chat-state.ts	ts	447	2	2	3	2.2
 1855	done	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/170-grouping-and-day-map.part01.ts	ts	440	2	2	3	2.2
 1856	queued	tests/tooling/scripts/ci/churn_guard.ts	ts	440	2	2	3	2.2
 1857	queued	tests/tooling/scripts/memory/rebuild_exclusive.ts.parts/010-bootstrap-and-path-config.ts	ts	420	2	2	3	2.2
@@ -1936,7 +1936,7 @@ order	status	file	language	loc	authority_risk_score	migration_potential_score	co
 1935	queued	tests/tooling/scripts/ci/runtime_dependency_contract_gate.ts	ts	157	2	2	3	2.2
 1936	queued	tests/tooling/scripts/ci/blocked_external_evidence_status.ts	ts	156	2	2	3	2.2
 1937	queued	client/runtime/systems/ui/infring_static/js/pages/hands.ts.parts/030-actions-and-sync.ts	ts	155	2	2	3	2.2
-1938	queued	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/020-init-roles-and-vibes.part02.ts	ts	150	2	2	3	2.2
+1938	done	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/020-init-roles-and-vibes.part02.ts	ts	150	2	2	3	2.2
 1939	done	tests/client-memory-tools/websocket_client_patch.test.ts	ts	150	2	2	3	2.2
 1940	queued	tests/tooling/scripts/ci/client_target_contract_audit.ts	ts	150	2	2	3	2.2
 1941	queued	client/runtime/systems/ui/infring_static/js/pages/sessions.ts	ts	147	2	2	3	2.2
@@ -2013,7 +2013,7 @@ order	status	file	language	loc	authority_risk_score	migration_potential_score	co
 2012	queued	client/runtime/systems/ui/infring_static/js/pages/approvals.ts	ts	66	2	2	3	2.2
 2013	queued	tests/tooling/scripts/ci/backlog_actionable_report.ts	ts	64	2	2	3	2.2
 2014	queued	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/180-map-navigation.part02.ts	ts	63	2	2	3	2.2
-2015	queued	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/130-render-window-and-session.part02.ts	ts	61	2	2	3	2.2
+2015	done	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/130-render-window-and-session.part02.ts	ts	61	2	2	3	2.2
 2016	queued	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/200-send-pipeline.part02.ts	ts	59	2	2	3	2.2
 2017	queued	tests/client-memory-tools/memory_uid_enforcement.test.ts	ts	59	2	2	3	2.2
 2018	queued	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/110-failover-and-health.part02.ts	ts	58	2	2	3	2.2

@@ -306,13 +306,101 @@
       this.scheduleConversationPersist();
     },
 
-    // Copy message text to clipboard
+    formatToolOutputForClipboard: function(text) {
+      var raw = String(text == null ? '' : text);
+      var trimmed = raw.trim();
+      if (!trimmed) return '';
+      if (trimmed.charAt(0) === '{' || trimmed.charAt(0) === '[') {
+        try {
+          return '```json\n' + JSON.stringify(JSON.parse(trimmed), null, 2) + '\n```';
+        } catch (_) {}
+      }
+      return raw;
+    },
+
+    truncateToolOutputPreview: function(text) {
+      var raw = String(text == null ? '' : text).trim();
+      if (!raw) return '';
+      var allLines = raw.split('\n');
+      var maxLines = Number(this.toolPreviewMaxLines || 0);
+      if (!Number.isFinite(maxLines) || maxLines < 1) maxLines = 2;
+      var maxChars = Number(this.toolPreviewMaxChars || 0);
+      if (!Number.isFinite(maxChars) || maxChars < 24) maxChars = 100;
+      var preview = allLines.slice(0, maxLines).join('\n');
+      if (preview.length > maxChars) return preview.slice(0, maxChars).trimEnd() + '…';
+      return allLines.length > maxLines ? preview.trimEnd() + '…' : preview;
+    },
+
+    messageCopyMarkdown: function(msg) {
+      var row = msg && typeof msg === 'object' ? msg : {};
+      var parts = [];
+      var label = typeof this.messageActorLabel === 'function'
+        ? String(this.messageActorLabel(row) || '').trim()
+        : String(row.role || 'Message').trim();
+      var stamp = typeof this.messageTs === 'function' ? String(this.messageTs(row) || '').trim() : '';
+      if (label) parts.push('**' + label + '**');
+      if (stamp) parts.push('_' + stamp + '_');
+
+      var text = '';
+      if (typeof this.extractMessageVisibleText === 'function') {
+        text = String(this.extractMessageVisibleText(row) || '').trim();
+      }
+      if (!text && typeof this.messageVisiblePreviewText === 'function') {
+        text = String(this.messageVisiblePreviewText(row) || '').trim();
+      }
+      if (!text) text = String(row.text || '').trim();
+      if (text) parts.push(text);
+
+      if (row.notice_label) {
+        var notice = String(row.notice_label || '').trim();
+        if (notice) parts.push('Notice: ' + notice);
+      }
+
+      var toolLines = [];
+      var tools = Array.isArray(row.tools) ? row.tools : [];
+      for (var i = 0; i < tools.length; i += 1) {
+        var tool = tools[i] || {};
+        var toolName = this.toolDisplayName(tool);
+        var status = String(tool.status || '').trim();
+        var rendered = this.formatToolOutputForClipboard(tool.result || '');
+        var preview = rendered ? this.truncateToolOutputPreview(rendered) : '';
+        var line = '- ' + toolName;
+        if (status) line += ' (' + status + ')';
+        if (preview) line += ': ' + preview;
+        toolLines.push(line);
+      }
+      if (toolLines.length) {
+        parts.push('');
+        parts.push('Tools:');
+        for (var j = 0; j < toolLines.length; j += 1) parts.push(toolLines[j]);
+      }
+
+      if (row.file_output && row.file_output.path) parts.push('', 'File: `' + String(row.file_output.path).trim() + '`');
+      if (row.folder_output && row.folder_output.path) parts.push('', 'Folder: `' + String(row.folder_output.path).trim() + '`');
+
+      return parts.filter(function(part, idx, arr) {
+        if (part !== '') return true;
+        return idx > 0 && arr[idx - 1] !== '';
+      }).join('\n').trim();
+    },
+
+    // Copy message text to clipboard as markdown
     copyMessage: function(msg) {
-      var text = msg.text || '';
+      if (!msg || msg._copying) return;
+      var text = this.messageCopyMarkdown(msg);
+      if (!text || !navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
+        InfringToast.error('Copy failed.');
+        return;
+      }
+      msg._copying = true;
       navigator.clipboard.writeText(text).then(function() {
+        msg._copying = false;
         msg._copied = true;
-        setTimeout(function() { msg._copied = false; }, 2000);
-      }).catch(function() {});
+        setTimeout(function() { msg._copied = false; }, 1500);
+      }).catch(function() {
+        msg._copying = false;
+        InfringToast.error('Copy failed.');
+      });
     },
 
     prefersReducedMotion: function() {

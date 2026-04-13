@@ -362,11 +362,81 @@
       return mode === 'terminal' ? 'terminal' : 'chat';
     },
 
-    inputHistoryAgentKey: function(explicitAgentId) {
+    inputHistoryLimit: function() {
+      var maxEntries = Number(this.inputHistoryMaxEntries || 0);
+      if (!Number.isFinite(maxEntries) || maxEntries < 20) maxEntries = 120;
+      if (maxEntries > 500) maxEntries = 500;
+      return maxEntries;
+    },
+
+    normalizeInputHistoryEntry: function(value) {
+      return String(value == null ? '' : value).trim();
+    },
+
+    normalizeInputHistoryRows: function(rows) {
+      var source = Array.isArray(rows) ? rows : [];
+      var clean = [];
+      for (var i = 0; i < source.length; i += 1) {
+        var item = this.normalizeInputHistoryEntry(source[i]);
+        if (!item) continue;
+        if (clean.length && clean[clean.length - 1] === item) continue;
+        clean.push(item);
+      }
+      var maxEntries = this.inputHistoryLimit();
+      if (clean.length > maxEntries) clean = clean.slice(clean.length - maxEntries);
+      return clean;
+    },
+
+    inputHistoryLegacyAgentKey: function(explicitAgentId) {
       var direct = String(explicitAgentId || '').trim();
       if (direct) return direct;
       var active = this.currentAgent && this.currentAgent.id ? String(this.currentAgent.id) : '';
       return String(active || '').trim();
+    },
+
+    inputHistorySessionScopeKey: function(explicitAgentId) {
+      var agentId = this.inputHistoryLegacyAgentKey(explicitAgentId);
+      if (!agentId) return '';
+      var scopeKey = '';
+      if (typeof this.resolveConversationCacheScopeKey === 'function') {
+        try {
+          scopeKey = String(this.resolveConversationCacheScopeKey(agentId) || '').trim();
+        } catch (_) {
+          scopeKey = '';
+        }
+      }
+      if (!scopeKey) scopeKey = agentId + '|main';
+      var prefix = String(this.inputHistorySessionScopePrefix || 'session:').trim() || 'session:';
+      return prefix + scopeKey;
+    },
+
+    inputHistoryAgentKey: function(explicitAgentId) {
+      var scoped = this.inputHistorySessionScopeKey(explicitAgentId);
+      if (scoped) return scoped;
+      return this.inputHistoryLegacyAgentKey(explicitAgentId);
+    },
+
+    inputHistoryBucketRows: function(cache, agentKey, legacyKey, mode) {
+      var buckets = [];
+      if (cache && agentKey && cache[agentKey] && typeof cache[agentKey] === 'object') {
+        buckets.push(cache[agentKey]);
+      }
+      if (
+        cache &&
+        legacyKey &&
+        legacyKey !== agentKey &&
+        (!buckets.length || !Array.isArray(mode === 'terminal' ? buckets[0].terminal : buckets[0].chat) || !(mode === 'terminal' ? buckets[0].terminal : buckets[0].chat).length) &&
+        cache[legacyKey] &&
+        typeof cache[legacyKey] === 'object'
+      ) {
+        buckets.push(cache[legacyKey]);
+      }
+      for (var i = 0; i < buckets.length; i += 1) {
+        var bucket = buckets[i];
+        var rows = mode === 'terminal' ? bucket.terminal : bucket.chat;
+        if (Array.isArray(rows) && rows.length) return this.normalizeInputHistoryRows(rows);
+      }
+      return [];
     },
 
     loadInputHistoryCache: function() {
@@ -378,7 +448,21 @@
           return;
         }
         var parsed = JSON.parse(raw);
-        this._inputHistoryByAgent = parsed && typeof parsed === 'object' ? parsed : empty;
+        var next = parsed && typeof parsed === 'object' ? parsed : empty;
+        var normalized = {};
+        var keys = Object.keys(next);
+        for (var i = 0; i < keys.length; i += 1) {
+          var key = String(keys[i] || '').trim();
+          if (!key) continue;
+          var bucket = next[key];
+          if (!bucket || typeof bucket !== 'object') continue;
+          normalized[key] = {
+            chat: this.normalizeInputHistoryRows(bucket.chat),
+            terminal: this.normalizeInputHistoryRows(bucket.terminal),
+            updated_at: Number(bucket.updated_at || 0) || 0,
+          };
+        }
+        this._inputHistoryByAgent = normalized;
       } catch (_) {
         this._inputHistoryByAgent = empty;
       }
@@ -399,23 +483,13 @@
       if (!Array.isArray(rows)) return;
       var agentKey = this.inputHistoryAgentKey(explicitAgentId);
       if (!agentKey) return;
+      var legacyKey = this.inputHistoryLegacyAgentKey(explicitAgentId);
       var cache = this._inputHistoryByAgent && typeof this._inputHistoryByAgent === 'object'
         ? this._inputHistoryByAgent
         : {};
-      var bucket = cache[agentKey] && typeof cache[agentKey] === 'object' ? cache[agentKey] : null;
-      if (!bucket) return;
-      var cachedRows = mode === 'terminal' ? bucket.terminal : bucket.chat;
+      var cachedRows = this.inputHistoryBucketRows(cache, agentKey, legacyKey, mode);
       if (!Array.isArray(cachedRows) || !cachedRows.length) return;
-      var maxEntries = Number(this.inputHistoryMaxEntries || 0);
-      if (!Number.isFinite(maxEntries) || maxEntries < 20) maxEntries = 120;
-      var merged = rows.slice();
-      for (var i = 0; i < cachedRows.length; i += 1) {
-        var item = String(cachedRows[i] || '').trim();
-        if (!item) continue;
-        if (merged.length && merged[merged.length - 1] === item) continue;
-        merged.push(item);
-      }
-      if (merged.length > maxEntries) merged = merged.slice(merged.length - maxEntries);
+      var merged = this.normalizeInputHistoryRows(rows.concat(cachedRows));
       if (mode === 'terminal') this.terminalInputHistory = merged;
       else this.chatInputHistory = merged;
     },
@@ -429,15 +503,10 @@
       if (!this._inputHistoryByAgent || typeof this._inputHistoryByAgent !== 'object') {
         this._inputHistoryByAgent = {};
       }
-      var maxEntries = Number(this.inputHistoryMaxEntries || 0);
-      if (!Number.isFinite(maxEntries) || maxEntries < 20) maxEntries = 120;
       var bucket = this._inputHistoryByAgent[agentKey] && typeof this._inputHistoryByAgent[agentKey] === 'object'
         ? this._inputHistoryByAgent[agentKey]
         : {};
-      var cleanRows = rows
-        .map(function(item) { return String(item || '').trim(); })
-        .filter(function(item, idx, arr) { return !!item && (idx === 0 || item !== arr[idx - 1]); });
-      if (cleanRows.length > maxEntries) cleanRows = cleanRows.slice(cleanRows.length - maxEntries);
+      var cleanRows = this.normalizeInputHistoryRows(rows);
       if (mode === 'terminal') bucket.terminal = cleanRows;
       else bucket.chat = cleanRows;
       bucket.updated_at = Date.now();

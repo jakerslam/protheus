@@ -20201,7 +20201,7 @@
       "notes": "OPENCLAW-TOOLING-CHAT-002 reconnect-aware pending-run sync landed in ws/session recovery."
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/190-drawer-and-queue.zz-part02.ts",
       "language": "ts",
       "loc": 498,
@@ -20378,7 +20378,7 @@
       "order": 1850
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/020-init-roles-and-vibes.part01.ts",
       "language": "ts",
       "loc": 451,
@@ -20411,7 +20411,7 @@
       "order": 1853
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/010-chat-state.ts",
       "language": "ts",
       "loc": 447,
@@ -21347,7 +21347,7 @@
       "order": 1937
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/020-init-roles-and-vibes.part02.ts",
       "language": "ts",
       "loc": 150,
@@ -22197,7 +22197,7 @@
       "order": 2014
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/130-render-window-and-session.part02.ts",
       "language": "ts",
       "loc": 61,
