@@ -177,3 +177,110 @@ fn turn_workflow_stage_rows(
         }),
     ]
 }
+
+fn turn_workflow_metadata(
+    workflow_mode: &str,
+    response_tools: &[Value],
+    workflow_events: &[Value],
+    draft_response: &str,
+) -> Value {
+    let cleaned_draft = clean_text(draft_response, 4_000);
+    let draft_response_state = if cleaned_draft.is_empty() {
+        "empty"
+    } else if response_is_no_findings_placeholder(&cleaned_draft) {
+        "no_findings"
+    } else if response_looks_like_tool_ack_without_findings(&cleaned_draft) {
+        "ack_only"
+    } else {
+        "present"
+    };
+    let requires_final_llm = turn_workflow_requires_final_llm(response_tools, workflow_events);
+    json!({
+        "contract": "agent_workflow_library_v1",
+        "workflow_gate": {
+            "required": true,
+            "status": "enforced"
+        },
+        "library": {
+            "default_workflow": default_turn_workflow_name(),
+            "available_workflows": turn_workflow_library_catalog()
+        },
+        "selected_workflow": selected_turn_workflow(workflow_mode),
+        "tool_count": response_tools.len(),
+        "system_event_count": workflow_events.len(),
+        "draft_response_state": draft_response_state,
+        "findings_summary": clean_text(&response_tools_summary_for_user(response_tools, 4), 2_000),
+        "failure_summary": clean_text(&response_tools_failure_reason_for_user(response_tools, 4), 2_000),
+        "system_events": workflow_events,
+        "stage_statuses": turn_workflow_stage_rows(workflow_mode, response_tools, workflow_events, draft_response),
+        "final_llm_response": {
+            "required": requires_final_llm,
+            "source": "workflow_post_synthesis"
+        }
+    })
+}
+
+fn set_turn_workflow_final_stage_status(workflow: &mut Value, status: &str) {
+    if let Some(rows) = workflow.get_mut("stage_statuses").and_then(Value::as_array_mut) {
+        for row in rows.iter_mut() {
+            if row
+                .get("stage")
+                .and_then(Value::as_str)
+                .map(|value| value == "final_llm_response")
+                .unwrap_or(false)
+            {
+                row["status"] = Value::String(clean_text(status, 80));
+            }
+        }
+    }
+}
+
+fn workflow_response_requests_more_tooling(response: &str) -> bool {
+    let lowered = clean_text(response, 800).to_ascii_lowercase();
+    !lowered.is_empty()
+        && [
+            "let me search",
+            "i'll search",
+            "i will search",
+            "would you like me to search",
+            "would you like me to fetch",
+            "search for more",
+            "rerun with",
+            "retry with",
+            "narrower query",
+            "specific source url",
+            "need to search",
+            "need targeted web research",
+            "need more specific",
+            "let me try",
+            "i'll try",
+            "i will try",
+            "more targeted approach",
+            "another search",
+            "technical documentation",
+            "architecture details to enable",
+        ]
+        .iter()
+        .any(|marker| lowered.contains(marker))
+}
+
+fn sanitize_workflow_final_response_candidate(response: &str) -> String {
+    let (without_inline_calls, inline_calls) = extract_inline_tool_calls(response, 6);
+    let mut cleaned = clean_chat_text(
+        if inline_calls.is_empty() || without_inline_calls.trim().is_empty() {
+            response
+        } else {
+            without_inline_calls.trim()
+        },
+        32_000,
+    );
+    let lowered = cleaned.to_ascii_lowercase();
+    let cutoff = ["let me try", "i'll try", "i will try", "let me search", "i'll search", "i will search"]
+        .iter()
+        .filter_map(|marker| lowered.find(marker))
+        .min();
+    if let Some(idx) = cutoff {
+        cleaned = cleaned[..idx].trim().trim_end_matches(&['\n', ' ', '-', ':'][..]).to_string();
+    }
+    clean_chat_text(cleaned.trim(), 32_000)
+}

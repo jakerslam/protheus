@@ -51,6 +51,7 @@ fn handle_agent_scope_message_route(
         let latent_tool_candidates = latent_tool_candidates_for_message(&message, &workspace_hints);
         let workspace_hints_value = json!(workspace_hints);
         let latent_tool_candidates_value = json!(latent_tool_candidates);
+        let explicit_operator_command = message.trim_start().starts_with('/');
         let mut resolved_tool_intent = direct_tool_intent_from_user_message(&message);
         let mut replayed_pending_confirmation = false;
         if let Some((pending_tool_name, mut pending_tool_input)) =
@@ -74,6 +75,9 @@ fn handle_agent_scope_message_route(
                     replayed_pending_confirmation = true;
                 }
             }
+        }
+        if resolved_tool_intent.is_some() && !explicit_operator_command && !replayed_pending_confirmation {
+            resolved_tool_intent = None;
         }
         if available_model_count(root, snapshot) == 0 && resolved_tool_intent.is_none() {
             return Some(CompatApiResponse {

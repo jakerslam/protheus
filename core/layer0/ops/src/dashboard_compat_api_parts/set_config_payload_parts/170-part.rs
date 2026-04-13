@@ -313,3 +313,108 @@ fn parse_explicit_tool_command_from_message(message: &str) -> Option<Result<(Str
     }
     Some(Ok((out_tool, out_input)))
 }
+
+fn extract_inline_tool_calls(
+    text: &str,
+    max_calls: usize,
+) -> (String, Vec<(String, Value, String)>) {
+    let mut calls = Vec::<(String, Value, String)>::new();
+    let mut spans = Vec::<(usize, usize)>::new();
+    let mut cursor = 0usize;
+    let cap = max_calls.clamp(1, 12);
+
+    while cursor < text.len() && calls.len() < cap {
+        let next_open = text[cursor..].find("<function=").map(|idx| cursor + idx);
+        let next_close = text[cursor..].find("</function>").map(|idx| cursor + idx);
+        let next = match (next_open, next_close) {
+            (Some(open), Some(close)) => Some(if open <= close { ("open", open) } else { ("close", close) }),
+            (Some(open), None) => Some(("open", open)),
+            (None, Some(close)) => Some(("close", close)),
+            (None, None) => None,
+        };
+        let Some((kind, idx)) = next else {
+            break;
+        };
+        if kind == "open" {
+            let name_start = idx + "<function=".len();
+            let Some(gt_rel) = text[name_start..].find('>') else { break; };
+            let name_end = name_start + gt_rel;
+            let raw_name = text[name_start..name_end].trim();
+            let trimmed_name = raw_name.trim_matches(|ch| ch == '"' || ch == '\'');
+            let name = trimmed_name
+                .chars()
+                .take_while(|ch| tool_name_char(*ch))
+                .collect::<String>();
+            if name.is_empty() {
+                cursor = name_end.saturating_add(1);
+                continue;
+            }
+            let payload_start = name_end + 1;
+            let Some((json_start, json_end)) = find_json_object_span(text, payload_start) else {
+                cursor = payload_start;
+                continue;
+            };
+            let Some(input) = serde_json::from_str::<Value>(&text[json_start..json_end]).ok() else {
+                cursor = json_end;
+                continue;
+            };
+            let full_end = text[json_end..]
+                .find("</function>")
+                .map(|end| json_end + end + "</function>".len())
+                .unwrap_or(json_end);
+            calls.push((name, input, text[idx..full_end].to_string()));
+            spans.push((idx, full_end));
+            cursor = full_end;
+            continue;
+        }
+
+        let close_idx = idx;
+        let close_end = close_idx + "</function>".len();
+        let prefix = &text[..close_idx];
+        let mut back = prefix.len();
+        while back > 0 {
+            let ch = prefix[..back].chars().next_back().unwrap_or(' ');
+            if tool_name_char(ch) {
+                back -= ch.len_utf8();
+            } else {
+                break;
+            }
+        }
+        let name = prefix[back..close_idx]
+            .chars()
+            .filter(|ch| tool_name_char(*ch))
+            .collect::<String>();
+        if name.is_empty() {
+            cursor = close_end;
+            continue;
+        }
+        let Some((json_start, json_end)) = find_json_object_span(text, close_end) else {
+            cursor = close_end;
+            continue;
+        };
+        let Some(input) = serde_json::from_str::<Value>(&text[json_start..json_end]).ok() else {
+            cursor = json_end;
+            continue;
+        };
+        calls.push((name, input, text[back..json_end].to_string()));
+        spans.push((back, json_end));
+        cursor = json_end;
+    }
+
+    if spans.is_empty() {
+        return (text.to_string(), Vec::new());
+    }
+    spans.sort_by_key(|(start, _)| *start);
+    let mut cleaned = String::new();
+    let mut last = 0usize;
+    for (start, end) in spans {
+        if start > last {
+            cleaned.push_str(&text[last..start]);
+        }
+        last = last.max(end);
+    }
+    if last < text.len() {
+        cleaned.push_str(&text[last..]);
+    }
+    (cleaned.trim().to_string(), calls)
+}

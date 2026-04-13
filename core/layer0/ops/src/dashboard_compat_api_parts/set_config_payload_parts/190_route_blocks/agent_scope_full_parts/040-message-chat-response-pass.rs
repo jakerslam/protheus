@@ -99,7 +99,7 @@ fn handle_message_chat_response_pass(
             }
             let (
                 tool_adjusted_response,
-                response_tools,
+                mut response_tools,
                 inline_pending_confirmation,
                 inline_tools_suppressed,
             ) = execute_inline_tool_calls(
@@ -112,6 +112,25 @@ fn handle_message_chat_response_pass(
                 inline_tools_allowed,
             );
             response_text = tool_adjusted_response;
+            let supplemental_comparison_tools = latent_tool_candidate_completion_cards(
+                root,
+                snapshot,
+                agent_id,
+                Some(row),
+                message,
+                &latent_tool_candidates,
+                &response_tools,
+            );
+            if !supplemental_comparison_tools.is_empty() {
+                response_tools.extend(supplemental_comparison_tools);
+                let supplemented_summary =
+                    clean_text(&response_tools_summary_for_user(&response_tools, 4), 32_000);
+                if !supplemented_summary.is_empty()
+                    && message_requests_workspace_plus_web_comparison(message)
+                {
+                    response_text = supplemented_summary;
+                }
+            }
             if inline_tools_suppressed {
                 let direct_only_prompt = clean_text(
                     &format!(
