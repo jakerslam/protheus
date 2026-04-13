@@ -20,6 +20,106 @@ function renderLatex(el) {
   } catch (e) { /* KaTeX render error — ignore gracefully */ }
 }
 
+function cloneDashboardConfigObject(value) {
+  if (typeof structuredClone === 'function') return structuredClone(value);
+  return JSON.parse(JSON.stringify(value));
+}
+
+function normalizeDashboardOptionalString(value) {
+  var text = String(value == null ? '' : value).trim();
+  return text || '';
+}
+
+var DASHBOARD_FORBIDDEN_CONFIG_KEYS = { '__proto__': true, 'prototype': true, 'constructor': true };
+
+function resolveDashboardConfigPathContainer(obj, path, createMissing) {
+  if (!obj || !Array.isArray(path) || !path.length) return null;
+  var current = obj;
+  for (var i = 0; i < path.length - 1; i += 1) {
+    var key = path[i];
+    if (typeof key === 'string' && DASHBOARD_FORBIDDEN_CONFIG_KEYS[key]) return null;
+    var nextKey = path[i + 1];
+    if (typeof key === 'number') {
+      if (!Array.isArray(current)) return null;
+      if (current[key] == null) {
+        if (!createMissing) return null;
+        current[key] = typeof nextKey === 'number' ? [] : {};
+      }
+      current = current[key];
+      continue;
+    }
+    if (!current || typeof current !== 'object') return null;
+    if (current[key] == null) {
+      if (!createMissing) return null;
+      current[key] = typeof nextKey === 'number' ? [] : {};
+    }
+    current = current[key];
+  }
+  return { current: current, lastKey: path[path.length - 1] };
+}
+
+function setDashboardConfigPathValue(obj, path, value) {
+  var container = resolveDashboardConfigPathContainer(obj, path, true);
+  if (!container) return;
+  if (typeof container.lastKey === 'number') {
+    if (Array.isArray(container.current)) container.current[container.lastKey] = value;
+    return;
+  }
+  if (typeof container.lastKey === 'string' && DASHBOARD_FORBIDDEN_CONFIG_KEYS[container.lastKey]) return;
+  if (container.current && typeof container.current === 'object') container.current[container.lastKey] = value;
+}
+
+function removeDashboardConfigPathValue(obj, path) {
+  var container = resolveDashboardConfigPathContainer(obj, path, false);
+  if (!container) return;
+  if (typeof container.lastKey === 'number') {
+    if (Array.isArray(container.current)) container.current.splice(container.lastKey, 1);
+    return;
+  }
+  if (typeof container.lastKey === 'string' && DASHBOARD_FORBIDDEN_CONFIG_KEYS[container.lastKey]) return;
+  if (container.current && typeof container.current === 'object') delete container.current[container.lastKey];
+}
+
+function normalizeDashboardAgentLabel(agent, agentIdentity) {
+  var identityName = normalizeDashboardOptionalString(agentIdentity && agentIdentity.name);
+  if (identityName) return identityName;
+  var agentName = normalizeDashboardOptionalString(agent && agent.name);
+  if (agentName) return agentName;
+  var nestedName = normalizeDashboardOptionalString(agent && agent.identity && agent.identity.name);
+  if (nestedName) return nestedName;
+  return normalizeDashboardOptionalString(agent && agent.id) || 'agent';
+}
+
+function resolveDashboardAgentAvatar(agent, agentIdentity) {
+  var values = [
+    normalizeDashboardOptionalString(agentIdentity && agentIdentity.avatar),
+    normalizeDashboardOptionalString(agent && agent.identity && agent.identity.avatar_url),
+    normalizeDashboardOptionalString(agent && agent.identity && agent.identity.avatar),
+    normalizeDashboardOptionalString(agent && agent.avatar_url)
+  ];
+  for (var i = 0; i < values.length; i += 1) {
+    if (/^(https?:\/\/|data:image\/|\/)/i.test(values[i])) return values[i];
+  }
+  return '';
+}
+
+function resolveDashboardAgentEmoji(agent, agentIdentity) {
+  var values = [
+    normalizeDashboardOptionalString(agentIdentity && agentIdentity.emoji),
+    normalizeDashboardOptionalString(agent && agent.identity && agent.identity.emoji),
+    normalizeDashboardOptionalString(agent && agent.identity && agent.identity.avatar),
+    normalizeDashboardOptionalString(agent && agent.avatar)
+  ];
+  for (var i = 0; i < values.length; i += 1) {
+    var value = values[i];
+    if (!value || value.length > 16) continue;
+    if (/[A-Za-z0-9]/.test(value) && value.charCodeAt(0) < 128) continue;
+    if (value.indexOf('://') >= 0 || value.indexOf('/') >= 0 || value.indexOf('.') >= 0) continue;
+    return value;
+  }
+  return '';
+}
+
 function copyCode(btn) {
   var code = null;
   if (btn && typeof btn.closest === 'function') {

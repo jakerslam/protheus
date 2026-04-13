@@ -62,6 +62,7 @@ function assertAgentGitTreeAuthority() {
 
 function assertInterfaceSafetyGuards() {
   const appSource = readUtf8(APP_STATIC_TS_PATH);
+  const agentsSource = readUtf8(AGENTS_PAGE_TS_PATH);
   const hostSource = readUtf8(TARGET);
   const laneSource = readUtf8(TARGET_SOURCE);
   const wsBridgeSource = readUtf8(AGENT_WS_BRIDGE_TS_PATH);
@@ -75,8 +76,38 @@ function assertInterfaceSafetyGuards() {
   );
   assertContains(
     appSource,
+    "assistantName: 'Assistant'",
+    'app shell must retain assistant identity bootstrap state'
+  );
+  assertContains(
+    appSource,
+    'applyBootstrapRuntimeState(statusObj, versionObj);',
+    'status polling must hydrate bootstrap runtime metadata into the app store'
+  );
+  assertContains(
+    appSource,
     "agents = await InfringAPI.get('/api/agents?view=sidebar&authority=runtime');",
     'agent sidebar hydration must call authoritative runtime agents endpoint'
+  );
+  assertContains(
+    agentsSource,
+    'configFormOriginal: {}',
+    'agents page must keep an original config snapshot for safe local mutation'
+  );
+  assertContains(
+    agentsSource,
+    'rememberAgentIdentity(agent, extra) {',
+    'agents page must cache normalized agent identity metadata'
+  );
+  assertContains(
+    agentsSource,
+    'setConfigFormPath(path, value) {',
+    'agents page must expose safe config path mutation helpers'
+  );
+  assertContains(
+    agentsSource,
+    'var seq = Number(this._lifecycleLoadSeq || 0) + 1;',
+    'agents lifecycle loader must ignore stale snapshot responses'
   );
   assertContains(
     laneSource,

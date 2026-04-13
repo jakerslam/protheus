@@ -9,15 +9,32 @@
       return 'contract ' + status + ' · ' + this.formatDurationMs(remaining) + ' left';
     },
 
+    setConfigFormPath(path, value) {
+      var draft = cloneDashboardConfigObject(this.configForm && typeof this.configForm === 'object' ? this.configForm : {});
+      setDashboardConfigPathValue(draft, path, value);
+      this.configForm = draft;
+      return this.configForm;
+    },
+
+    removeConfigFormPath(path) {
+      var draft = cloneDashboardConfigObject(this.configForm && typeof this.configForm === 'object' ? this.configForm : {});
+      removeDashboardConfigPathValue(draft, path);
+      this.configForm = draft;
+      return this.configForm;
+    },
+
     async loadLifecycle() {
       var firstLoad = !this.terminatedHydrated;
       var now = Date.now();
       var recentlyLoaded = Number(this._lifecycleLoadedAt || 0);
       if (!firstLoad && (now - recentlyLoaded) < 1200) return;
+      var seq = Number(this._lifecycleLoadSeq || 0) + 1;
+      this._lifecycleLoadSeq = seq;
       this.lifecycleLoading = true;
       if (firstLoad) this.terminatedLoading = true;
       try {
         var snapshot = await InfringAPI.getDashboardSnapshot(this._dashboardSnapshotHash || '');
+        if (seq !== Number(this._lifecycleLoadSeq || 0)) return;
         var snapshotHash = String(
           (snapshot && snapshot.sync && snapshot.sync.composite_checksum)
             || (snapshot && snapshot.sync && snapshot.sync.previous_composite_checksum)
@@ -29,19 +46,32 @@
           : null;
         if (lifecycle) {
           this.agentLifecycle = lifecycle;
+          if (typeof this.rememberAgentIdentity === 'function') {
+            var lifecycleRows = [];
+            if (Array.isArray(lifecycle.active_agents)) lifecycleRows = lifecycleRows.concat(lifecycle.active_agents);
+            if (Array.isArray(lifecycle.terminated_recent)) lifecycleRows = lifecycleRows.concat(lifecycle.terminated_recent);
+            for (var i = 0; i < lifecycleRows.length; i += 1) this.rememberAgentIdentity(lifecycleRows[i], lifecycleRows[i]);
+          }
         }
         if (!lifecycle || !Array.isArray(lifecycle.terminated_recent) || lifecycle.terminated_recent.length === 0) {
           var terminated = await InfringAPI.get('/api/agents/terminated');
+          if (seq !== Number(this._lifecycleLoadSeq || 0)) return;
           if (terminated && Array.isArray(terminated.entries)) {
             this.agentLifecycle = {
               ...(this.agentLifecycle || {}),
               terminated_recent: terminated.entries,
             };
+            if (typeof this.rememberAgentIdentity === 'function') {
+              for (var ti = 0; ti < terminated.entries.length; ti += 1) {
+                this.rememberAgentIdentity(terminated.entries[ti], terminated.entries[ti]);
+              }
+            }
           }
         }
       } catch (e) {
         // keep last-known lifecycle state to avoid UI flicker
       } finally {
+        if (seq !== Number(this._lifecycleLoadSeq || 0)) return;
         this._lifecycleLoadedAt = Date.now();
         this.terminatedHydrated = true;
         this.terminatedLoading = false;
@@ -71,10 +101,26 @@
       if (!agentId) return;
       var store = Alpine.store('app');
       if (!store) return;
-      var name = String(row.agent_name || row.name || agentId).trim();
-      store.pendingAgent = {
+      var pendingAgent = typeof this.normalizePendingAgent === 'function'
+        ? this.normalizePendingAgent({
+          id: agentId,
+          agent_id: agentId,
+          name: row.agent_name || row.name || agentId,
+          agent_name: row.agent_name || row.name || agentId,
+          state: 'archived',
+          archived: true,
+          role: String(row.role || 'analyst')
+        })
+        : {
+          id: agentId,
+          name: String(row.agent_name || row.name || agentId).trim() || agentId,
+          state: 'archived',
+          archived: true,
+          role: String(row.role || 'analyst')
+        };
+      store.pendingAgent = pendingAgent || {
         id: agentId,
-        name: name || agentId,
+        name: agentId,
         state: 'archived',
         archived: true,
         role: String(row.role || 'analyst')
@@ -271,8 +317,11 @@
     chatWithAgent(agent) {
       if (!agent) return;
       var store = Alpine.store('app');
-      store.pendingAgent = agent;
-      store.activeAgentId = agent.id || null;
+      var pendingAgent = typeof this.normalizePendingAgent === 'function' ? this.normalizePendingAgent(agent) : agent;
+      if (!pendingAgent) return;
+      store.pendingAgent = pendingAgent;
+      if (typeof store.setActiveAgentId === 'function') store.setActiveAgentId(pendingAgent.id || null);
+      else store.activeAgentId = pendingAgent.id || null;
       this.activeChatAgent = null;
       window.location.hash = 'chat';
     },
@@ -283,7 +332,9 @@
     },
 
     async showDetail(agent) {
-      this.detailAgent = agent;
+      var normalizedAgent = typeof this.normalizePendingAgent === 'function' ? this.normalizePendingAgent(agent) : agent;
+      if (!normalizedAgent) return;
+      this.detailAgent = normalizedAgent;
       this.detailAgent._fallbacks = [];
       this.detailTab = 'info';
       this.agentFiles = [];
@@ -291,19 +342,20 @@
       this.fileContent = '';
       this.editingFallback = false;
       this.newFallbackValue = '';
-      this.configForm = {
-        name: agent.name || '',
-        system_prompt: agent.system_prompt || '',
-        emoji: (agent.identity && agent.identity.emoji) || '',
-        color: (agent.identity && agent.identity.color) || '#2563EB',
-        archetype: (agent.identity && agent.identity.archetype) || '',
-        vibe: (agent.identity && agent.identity.vibe) || ''
-      };
+      if (typeof this.captureDetailConfigForm === 'function') this.captureDetailConfigForm(normalizedAgent, null);
       this.showDetailModal = true;
       // Fetch full agent detail to get fallback_models
       try {
-        var full = await InfringAPI.get('/api/agents/' + agent.id);
-        this.detailAgent._fallbacks = full.fallback_models || [];
+        var agentId = String(normalizedAgent.id || '').trim();
+        var full = await InfringAPI.get('/api/agents/' + agentId);
+        if (agentId !== this.activeDetailAgentId()) return;
+        var refreshed = typeof this.normalizePendingAgent === 'function'
+          ? this.normalizePendingAgent(Object.assign({}, normalizedAgent, full || {}))
+          : Object.assign({}, normalizedAgent, full || {});
+        this.detailAgent = Object.assign({}, refreshed || normalizedAgent, {
+          _fallbacks: Array.isArray(full && full.fallback_models) ? full.fallback_models : []
+        });
+        if (typeof this.captureDetailConfigForm === 'function') this.captureDetailConfigForm(this.detailAgent, full);
       } catch(e) { /* ignore */ }
     },
 
