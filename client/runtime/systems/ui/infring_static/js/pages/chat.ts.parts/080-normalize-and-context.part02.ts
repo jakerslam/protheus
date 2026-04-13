@@ -248,15 +248,22 @@
                 is_error: !!t.is_error
               };
             }));
-        if (role === 'agent' && !isTerminal && !String(text || '').trim() && Array.isArray(tools) && tools.length) {
+        if (role === 'agent' && !isTerminal) {
           var repairedToolText = '';
-          if (typeof self.readableToolFailureSummary === 'function') {
-            repairedToolText = String(self.readableToolFailureSummary(m, tools) || '').trim();
+          var needsRepair =
+            !String(text || '').trim() ||
+            (typeof self.textLooksNoFindingsPlaceholder === 'function' && self.textLooksNoFindingsPlaceholder(text)) ||
+            (typeof self.textLooksToolAckWithoutFindings === 'function' && self.textLooksToolAckWithoutFindings(text));
+          if (needsRepair && typeof self.fallbackAssistantTextFromPayload === 'function') {
+            repairedToolText = String(self.fallbackAssistantTextFromPayload(m, tools) || '').trim();
           }
-          if (!repairedToolText && typeof self.completedToolOnlySummary === 'function') {
-            repairedToolText = String(self.completedToolOnlySummary(tools) || '').trim();
+          if (
+            repairedToolText &&
+            repairedToolText !== String(text || '').trim() &&
+            !(typeof self.textLooksNoFindingsPlaceholder === 'function' && self.textLooksNoFindingsPlaceholder(repairedToolText))
+          ) {
+            text = repairedToolText;
           }
-          if (repairedToolText) text = repairedToolText;
         }
         var messageMetadata = typeof self.assistantTurnMetadataFromPayload === 'function'
           ? self.assistantTurnMetadataFromPayload(m, tools)

@@ -1,16 +1,31 @@
 fn turn_workflow_library_catalog() -> Vec<Value> {
-    vec![json!({
-        "name": "complex_prompt_chain_v1",
-        "workflow_type": "hard_agent_workflow",
-        "default": true,
-        "description": "Model-first workflow: the LLM interprets the user prompt, decides whether tools are needed, the system collects tool and workflow outputs, and the final user-facing reply is LLM-authored when the model is online.",
-        "stages": [
-            "workflow_gate",
-            "tool_and_system_collection",
-            "final_llm_response"
-        ],
-        "final_response_policy": "llm_authored_when_online"
-    })]
+    vec![
+        json!({
+            "name": "complex_prompt_chain_v1",
+            "workflow_type": "hard_agent_workflow",
+            "default": true,
+            "description": "Model-first workflow: the LLM interprets the user prompt, decides whether tools are needed, the system collects tool and workflow outputs, and the final user-facing reply is LLM-authored when the model is online.",
+            "stages": [
+                "workflow_gate",
+                "initial_model_interpretation",
+                "tool_and_system_collection",
+                "final_llm_response"
+            ],
+            "final_response_policy": "llm_authored_when_online"
+        }),
+        json!({
+            "name": "simple_conversation_v1",
+            "workflow_type": "hard_agent_workflow",
+            "default": false,
+            "description": "Reserved lightweight workflow slot for direct conversation. It still passes through the workflow gate so turn control remains centralized.",
+            "stages": [
+                "workflow_gate",
+                "initial_model_interpretation",
+                "final_llm_response"
+            ],
+            "final_response_policy": "llm_authored_when_online"
+        }),
+    ]
 }
 
 fn default_turn_workflow_name() -> &'static str {
@@ -27,8 +42,86 @@ fn selected_turn_workflow(workflow_mode: &str) -> Value {
     })
 }
 
+fn workflow_library_prompt_context(latent_tool_candidates: &[Value]) -> String {
+    let broker = protheus_tooling_core_v1::ToolBroker::default();
+    let grouped_catalog = broker.grouped_capability_catalog();
+    let mut lines = vec![
+        format!(
+            "Workflow library gate: every chat turn must pass through `{}`. The default selected workflow is `{}`.",
+            "agent_workflow_library_v1",
+            default_turn_workflow_name()
+        ),
+        "Default workflow contract: read the user request, decide whether tools are needed, emit inline `<function=...>{...}</function>` calls only when justified, wait for tool/system results, and write the final answer using the recorded evidence.".to_string(),
+        "Chat operator syntax such as `tool::...` or slash tool requests are workflow hints, not pre-executed results. You still must decide whether to call the hinted tool.".to_string(),
+    ];
+    if !grouped_catalog.is_empty() {
+        lines.push("Modular tool catalog by domain:".to_string());
+        for group in grouped_catalog.iter().take(6) {
+            let domain = serde_json::to_value(group.domain)
+                .ok()
+                .and_then(|value| value.as_str().map(|row| row.to_string()))
+                .unwrap_or_else(|| "unknown".to_string());
+            let tool_names = group
+                .tools
+                .iter()
+                .filter(|row| row.discoverable)
+                .take(6)
+                .map(|row| clean_text(&row.tool_name, 80))
+                .filter(|row| !row.is_empty())
+                .collect::<Vec<_>>();
+            if tool_names.is_empty() {
+                lines.push(format!(
+                    "- {}: {}",
+                    clean_text(&domain, 40),
+                    clean_text(&group.description, 180)
+                ));
+            } else {
+                lines.push(format!(
+                    "- {}: {} Available tools: {}.",
+                    clean_text(&domain, 40),
+                    clean_text(&group.description, 180),
+                    clean_text(&tool_names.join(", "), 240)
+                ));
+            }
+        }
+    }
+    if !latent_tool_candidates.is_empty() {
+        lines.push("Strong workflow hints for this turn (not yet executed):".to_string());
+        for row in latent_tool_candidates.iter().take(4) {
+            let tool = clean_text(row.get("tool").and_then(Value::as_str).unwrap_or(""), 80);
+            let reason = clean_text(row.get("reason").and_then(Value::as_str).unwrap_or(""), 220);
+            let label = clean_text(row.get("label").and_then(Value::as_str).unwrap_or(""), 80);
+            let workflow_only = row
+                .get("workflow_only")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+            let detail = if workflow_only {
+                let message = clean_text(
+                    row.pointer("/proposed_input/message")
+                        .and_then(Value::as_str)
+                        .unwrap_or(""),
+                    220,
+                );
+                if message.is_empty() {
+                    format!("- {}: {}.", tool, reason)
+                } else {
+                    format!("- {}: {} Guidance: {}.", tool, reason, message)
+                }
+            } else if label.is_empty() {
+                format!("- {}: {}.", tool, reason)
+            } else {
+                format!("- {} ({}): {}.", tool, label, reason)
+            };
+            lines.push(clean_text(&detail, 360));
+        }
+    }
+    clean_text(&lines.join("\n"), 12_000)
+}
+
 fn turn_workflow_requires_final_llm(response_tools: &[Value], workflow_events: &[Value]) -> bool {
-    !response_tools.is_empty() || !workflow_events.is_empty()
+    let _ = response_tools;
+    let _ = workflow_events;
+    true
 }
 
 fn turn_workflow_stage_rows(
@@ -38,13 +131,10 @@ fn turn_workflow_stage_rows(
     draft_response: &str,
 ) -> Vec<Value> {
     let requires_final_llm = turn_workflow_requires_final_llm(response_tools, workflow_events);
-    let draft_present = !clean_text(draft_response, 4_000).is_empty();
+    let _ = workflow_mode;
+    let cleaned_draft = clean_text(draft_response, 2_000);
     let final_stage_status = if requires_final_llm {
         "pending_final_llm"
-    } else if workflow_mode == "model_direct_answer" && draft_present {
-        "accepted_initial_model_response"
-    } else if workflow_mode == "direct_tool_route" && draft_present {
-        "accepted_operator_route_response"
     } else {
         "no_post_synthesis_required"
     };
@@ -52,6 +142,23 @@ fn turn_workflow_stage_rows(
         json!({
             "stage": "workflow_gate",
             "status": "enforced"
+        }),
+        json!({
+            "stage": "initial_model_interpretation",
+            "status": if cleaned_draft.is_empty() {
+                "completed_empty"
+            } else {
+                "completed"
+            },
+            "draft_response_state": if cleaned_draft.is_empty() {
+                "empty"
+            } else if response_is_no_findings_placeholder(&cleaned_draft) {
+                "no_findings"
+            } else if response_looks_like_tool_ack_without_findings(&cleaned_draft) {
+                "ack_only"
+            } else {
+                "present"
+            }
         }),
         json!({
             "stage": "tool_and_system_collection",

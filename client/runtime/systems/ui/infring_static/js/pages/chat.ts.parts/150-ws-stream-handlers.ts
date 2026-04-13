@@ -248,12 +248,29 @@
           var toolOnlySummary = responseHasToolCompletion && typeof this.completedToolOnlySummary === 'function'
             ? String(this.completedToolOnlySummary(streamedTools) || '').trim()
             : '';
+          var workflowFallbackSummary = typeof this.fallbackAssistantTextFromPayload === 'function'
+            ? String(this.fallbackAssistantTextFromPayload(data, streamedTools) || '').trim()
+            : '';
+          var replaceableFinalText =
+            !!compactFinal &&
+            (
+              (typeof this.textLooksNoFindingsPlaceholder === 'function' && this.textLooksNoFindingsPlaceholder(compactFinal)) ||
+              (typeof this.textLooksToolAckWithoutFindings === 'function' && this.textLooksToolAckWithoutFindings(compactFinal))
+            );
+          if (replaceableFinalText && workflowFallbackSummary && workflowFallbackSummary !== compactFinal) {
+            finalText = workflowFallbackSummary;
+            compactFinal = String(finalText || '').replace(/\s+/g, ' ').trim();
+            usedFallback = true;
+          }
           if (!finalText.trim()) {
             if (toolFailureSummary) {
               finalText = toolFailureSummary;
               usedFallback = true;
             } else if (toolOnlySummary) {
               finalText = toolOnlySummary;
+              usedFallback = true;
+            } else if (workflowFallbackSummary) {
+              finalText = workflowFallbackSummary;
               usedFallback = true;
             } else {
               finalText = this.defaultAssistantFallback(collapsedThought, streamedTools);

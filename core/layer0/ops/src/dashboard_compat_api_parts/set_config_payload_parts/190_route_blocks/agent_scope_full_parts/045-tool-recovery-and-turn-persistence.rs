@@ -1,20 +1,3 @@
-fn tool_turn_needs_llm_recovery(response_text: &str, response_tools: &[Value]) -> bool {
-    if response_tools.is_empty() {
-        return false;
-    }
-    let cleaned = clean_text(response_text, 32_000);
-    if cleaned.is_empty()
-        || response_is_no_findings_placeholder(&cleaned)
-        || response_looks_like_tool_ack_without_findings(&cleaned)
-    {
-        return true;
-    }
-    response_tools.iter().any(|tool| {
-        tool.get("is_error").and_then(Value::as_bool).unwrap_or(false)
-            || tool.get("blocked").and_then(Value::as_bool).unwrap_or(false)
-    })
-}
-
 fn tool_rows_for_llm_recovery(response_tools: &[Value], limit: usize) -> Value {
     let mut rows = Vec::<Value>::new();
     for tool in response_tools.iter().take(limit.clamp(1, 8)) {
@@ -32,75 +15,6 @@ fn tool_rows_for_llm_recovery(response_tools: &[Value], limit: usize) -> Value {
         }));
     }
     Value::Array(rows)
-}
-
-fn maybe_synthesize_tool_turn_response(
-    root: &Path,
-    provider: &str,
-    model: &str,
-    active_messages: &[Value],
-    message: &str,
-    response_tools: &[Value],
-    draft_response: &str,
-) -> Option<String> {
-    if cfg!(test) {
-        return None;
-    }
-    if !tool_turn_needs_llm_recovery(draft_response, response_tools) {
-        return None;
-    }
-    let tool_rows = tool_rows_for_llm_recovery(response_tools, 6);
-    let findings = clean_text(&response_tools_summary_for_user(response_tools, 4), 2_000);
-    let failure_reason = clean_text(
-        &response_tools_failure_reason_for_user(response_tools, 4),
-        2_000,
-    );
-    let tool_rows_json = serde_json::to_string(&tool_rows).ok()?;
-    let system_prompt = clean_text(
-        &format!(
-            "{}\n\nTool recovery guard: write the final assistant reply in natural language. If the recorded tool steps failed, were blocked, or returned low-signal output, say that plainly in your own words. Never pretend a failed tool succeeded. Do not emit raw tool telemetry or placeholder copy.",
-            AGENT_RUNTIME_SYSTEM_PROMPT
-        ),
-        12_000,
-    );
-    let user_prompt = clean_text(
-        &format!(
-            "User request:\n{message}\n\nCurrent draft response:\n{}\n\nRecorded tool outcomes:\n{tool_rows_json}\n\nReadable findings summary:\n{}\n\nReadable failure summary:\n{}\n\nWrite the final assistant reply now.",
-            if clean_text(draft_response, 2_000).is_empty() {
-                "(empty)"
-            } else {
-                draft_response
-            },
-            if findings.is_empty() { "(none)" } else { &findings },
-            if failure_reason.is_empty() { "(none)" } else { &failure_reason }
-        ),
-        20_000,
-    );
-    let retried = crate::dashboard_provider_runtime::invoke_chat(
-        root,
-        provider,
-        model,
-        &system_prompt,
-        active_messages,
-        &user_prompt,
-    )
-    .ok()?;
-    let mut retried_text = clean_chat_text(
-        retried
-            .get("response")
-            .and_then(Value::as_str)
-            .unwrap_or(""),
-        32_000,
-    );
-    retried_text = strip_internal_context_metadata_prefix(&retried_text);
-    retried_text = strip_internal_cache_control_markup(&retried_text);
-    if !user_requested_internal_runtime_details(message) {
-        retried_text = abstract_runtime_mechanics_terms(&retried_text);
-    }
-    if retried_text.is_empty() || response_is_unrelated_context_dump(message, &retried_text) {
-        return None;
-    }
-    Some(retried_text)
 }
 
 fn ensure_tool_turn_response_text(response_text: &str, response_tools: &[Value]) -> String {

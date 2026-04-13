@@ -277,8 +277,11 @@ fn handle_message_chat_response_pass(
             } else {
                 "model_inline_tool_execution".to_string()
             };
-            let workflow_system_events =
-                build_turn_workflow_events(inline_pending_confirmation.as_ref(), false);
+            let workflow_system_events = build_turn_workflow_events(
+                &response_tools,
+                inline_pending_confirmation.as_ref(),
+                false,
+            );
             Some(finalize_message_finalization_and_payload(
                 root,
                 agent_id,

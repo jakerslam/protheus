@@ -134,21 +134,15 @@ fn handle_agent_scope_message_route(
                 response_text = abstract_runtime_mechanics_terms(&response_text);
             }
             response_text = strip_internal_cache_control_markup(&response_text);
+            let tool_card_status = tool_card_status_from_payload(&tool_payload);
             let tool_card = json!({
                 "id": format!("tool-direct-{}", normalize_tool_name(&tool_name)),
                 "name": normalize_tool_name(&tool_name),
                 "input": trim_text(&tool_input.to_string(), 4000),
                 "result": trim_text(&summarize_tool_payload(&tool_name, &tool_payload), 24_000),
                 "is_error": !ok,
-                "blocked": tool_payload
-                    .pointer("/tool_pipeline/tool_attempt_receipt/status")
-                    .and_then(Value::as_str)
-                    .map(|status| status == "blocked" || status == "policy_denied")
-                    .unwrap_or(false),
-                "status": tool_payload
-                    .pointer("/tool_pipeline/tool_attempt_receipt/status")
-                    .cloned()
-                    .unwrap_or_else(|| json!(if ok { "ok" } else { "error" })),
+                "blocked": tool_card_status == "blocked" || tool_card_status == "policy_denied",
+                "status": tool_card_status,
                 "tool_attempt_receipt": tool_payload
                     .pointer("/tool_pipeline/tool_attempt_receipt")
                     .cloned()
@@ -165,12 +159,15 @@ fn handle_agent_scope_message_route(
             }
             let (finalized_response, tool_completion, finalization_seed) =
                 enforce_user_facing_finalization_contract(response_text, &response_tools);
+            let initial_ack_only = tool_completion
+                .get("initial_ack_only")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
             let mut tooling_fallback_used = false;
             let mut comparative_fallback_used = false;
-            let mut tool_synthesis_retry_used = false;
             let mut finalized_response = finalized_response;
             let mut finalization_outcome = clean_text(&finalization_seed, 180);
-            let mut tool_completion = tool_completion;
+            let mut tool_completion = json!({});
             let mut synthesis_provider = clean_text(
                 row.get("model_provider")
                     .and_then(Value::as_str)
@@ -208,21 +205,17 @@ fn handle_agent_scope_message_route(
                 "direct_tool_route",
                 &response_tools,
                 &build_turn_workflow_events(
+                    &response_tools,
                     workflow_pending_confirmation.as_ref(),
                     replayed_pending_confirmation,
                 ),
                 &finalized_response,
+                "",
             );
-            if let Some(synthesized) = response_workflow.get("response").and_then(Value::as_str) {
-                finalized_response = synthesized.to_string();
-            }
-            let workflow_status = clean_text(
-                response_workflow
-                    .pointer("/final_llm_response/status")
-                    .and_then(Value::as_str)
-                    .unwrap_or(""),
-                80,
-            );
+            let workflow_status = workflow_final_response_status(&response_workflow);
+            let workflow_used = workflow_final_response_used(&response_workflow);
+            let workflow_fallback_allowed =
+                workflow_final_response_allows_system_fallback(&response_workflow);
             if !workflow_status.is_empty() {
                 finalization_outcome = merge_response_outcomes(
                     &finalization_outcome,
@@ -230,74 +223,81 @@ fn handle_agent_scope_message_route(
                     180,
                 );
             }
-            if let Some(synthesized) = maybe_synthesize_tool_turn_response(
-                root,
-                &synthesis_provider,
-                &synthesis_model,
-                &synthesis_history,
-                &message,
-                &response_tools,
-                &finalized_response,
-            ) {
-                let (contracted, report, retry_outcome) =
-                    enforce_user_facing_finalization_contract(synthesized, &response_tools);
-                finalized_response = contracted;
-                tool_completion = report;
+            let initial_draft_response = finalized_response.clone();
+            let mut workflow_system_fallback_used = false;
+            if workflow_used {
+                if let Some(synthesized) = response_workflow.get("response").and_then(Value::as_str)
+                {
+                    finalized_response = synthesized.to_string();
+                }
+                tool_completion = tool_completion_report_for_response(
+                    &finalized_response,
+                    &response_tools,
+                    "workflow_authored",
+                );
+            } else if workflow_fallback_allowed {
+                let mut fallback_response =
+                    maybe_tooling_failure_fallback(&message, &initial_draft_response, "")
+                        .unwrap_or_default();
+                tooling_fallback_used = !fallback_response.is_empty();
+                if fallback_response.is_empty()
+                    && response_is_no_findings_placeholder(&initial_draft_response)
+                    && message_requests_live_web_comparison(&message)
+                {
+                    comparative_fallback_used = true;
+                    fallback_response = comparative_no_findings_fallback(&message);
+                }
+                if fallback_response.is_empty() {
+                    fallback_response =
+                        ensure_tool_turn_response_text(&initial_draft_response, &response_tools);
+                }
+                workflow_system_fallback_used = true;
                 finalization_outcome = merge_response_outcomes(
                     &finalization_outcome,
-                    &format!("tool_synthesis_retry:{retry_outcome}"),
+                    "workflow_system_fallback",
                     180,
                 );
-                tool_synthesis_retry_used = true;
-            }
-            if let Some(tooling_fallback) =
-                maybe_tooling_failure_fallback(&message, &finalized_response, "")
-            {
-                finalized_response = tooling_fallback;
-                finalization_outcome = format!("{finalization_outcome}+tooling_failure_fallback");
-                tooling_fallback_used = true;
                 let (contracted, report, retry_outcome) =
-                    enforce_user_facing_finalization_contract(finalized_response, &response_tools);
+                    enforce_user_facing_finalization_contract(fallback_response, &response_tools);
                 finalized_response = contracted;
                 tool_completion = report;
                 finalization_outcome =
                     merge_response_outcomes(&finalization_outcome, &retry_outcome, 180);
-            }
-            if response_is_no_findings_placeholder(&finalized_response)
-                && message_requests_live_web_comparison(&message)
-            {
-                comparative_fallback_used = true;
-                finalized_response = comparative_no_findings_fallback(&message);
-                finalization_outcome =
-                    merge_response_outcomes(&finalization_outcome, "comparative_fallback", 180);
-                let (contracted, report, retry_outcome) =
-                    enforce_user_facing_finalization_contract(finalized_response, &response_tools);
+            } else {
+                workflow_system_fallback_used = true;
+                finalization_outcome = merge_response_outcomes(
+                    &finalization_outcome,
+                    "workflow_unexpected_state",
+                    180,
+                );
+                let (contracted, report, retry_outcome) = enforce_user_facing_finalization_contract(
+                    "I completed the workflow gate, but the final workflow state was unexpected. Please retry so I can rerun the chain cleanly."
+                        .to_string(),
+                    &response_tools,
+                );
                 finalized_response = contracted;
                 tool_completion = report;
                 finalization_outcome =
                     merge_response_outcomes(&finalization_outcome, &retry_outcome, 180);
             }
             tool_completion = enrich_tool_completion_receipt(tool_completion, &response_tools);
-            finalized_response = ensure_tool_turn_response_text(&finalized_response, &response_tools);
             let final_ack_only = response_looks_like_tool_ack_without_findings(&finalized_response);
             response_text = finalized_response;
             let response_finalization = json!({
                 "applied": finalization_outcome != "unchanged",
                 "outcome": finalization_outcome,
-                "initial_ack_only": tool_completion
-                    .get("initial_ack_only")
-                    .and_then(Value::as_bool)
-                    .unwrap_or(false),
+                "initial_ack_only": initial_ack_only,
                 "final_ack_only": final_ack_only,
                 "findings_available": tool_completion
                     .get("findings_available")
                     .and_then(Value::as_bool)
                     .unwrap_or(false),
                 "tool_completion": tool_completion,
-                "tool_synthesis_retry_used": tool_synthesis_retry_used,
+                "tool_synthesis_retry_used": false,
                 "pending_confirmation_replayed": replayed_pending_confirmation,
                 "tooling_fallback_used": tooling_fallback_used,
                 "comparative_fallback_used": comparative_fallback_used,
+                "workflow_system_fallback_used": workflow_system_fallback_used,
                 "retry_attempted": false,
                 "retry_used": false
             });

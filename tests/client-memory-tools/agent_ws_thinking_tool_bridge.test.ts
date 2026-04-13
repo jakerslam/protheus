@@ -278,6 +278,57 @@ function structuredPlaceholderComparisonPayload() {
   };
 }
 
+function structuredWorkflowSynthesizedPayload() {
+  return {
+    ok: true,
+    response: "I don't have usable tool findings from this turn yet. Ask me to retry with a narrower query or a specific source URL.",
+    response_workflow: {
+      response: 'Using the recorded web retrieval, the strongest frameworks in this run were LangGraph, OpenAI Agents SDK, and AutoGen.',
+      selected_workflow: { name: 'complex_prompt_chain_v1' },
+      final_llm_response: {
+        status: 'synthesized',
+        used: true,
+      },
+    },
+    tools: [
+      {
+        name: 'batch_query',
+        input: '{"query":"top AI agentic frameworks"}',
+        result: 'LangGraph, OpenAI Agents SDK, and AutoGen surfaced in the fetched results.',
+        status: 'ok',
+      },
+    ],
+    response_finalization: {
+      workflow_system_fallback_used: false,
+      tool_completion: {
+        live_tool_steps: [
+          { tool: 'batch_query', status: 'completed ranked comparison retrieval' },
+        ],
+      },
+    },
+  };
+}
+
+function finalizationOnlyBlankPayload() {
+  return {
+    ok: true,
+    response: '',
+    tools: [],
+    response_finalization: {
+      applied: true,
+      tool_completion: {
+        applied: true,
+        completion_state: 'reported_no_findings',
+        live_tool_steps: [
+          { tool: 'batch_query', status: 'Searching internet' },
+        ],
+        reasoning: "I don't have usable tool findings from this turn yet.",
+        tool_attempts: [],
+      },
+    },
+  };
+}
+
 async function runScenario(payloadFactory, messageText) {
   const flags = { host: '127.0.0.1', port: 0 };
   const fetchBackendJson = async (_flags, route) => {
@@ -373,10 +424,9 @@ async function run() {
   const structuredResponse = scenarioTwo.response;
   const structuredEvents = scenarioTwo.events;
   const structuredTools = Array.isArray(structuredResponse.tools) ? structuredResponse.tools : [];
-  assert.strictEqual(
-    String(structuredResponse.content || ''),
-    '',
-    'structured tool-only completions may have empty prose content'
+  assert.ok(
+    String(structuredResponse.content || '').toLowerCase().includes('example domain summary'),
+    'structured tool-only completions should synthesize a visible assistant summary instead of staying blank'
   );
   assert.strictEqual(structuredTools.length, 1, 'structured tool blocks should become response tool rows');
   assert.strictEqual(structuredTools[0].attempt_id, 'call-fetch-1', 'structured tool rows should preserve tool use ids');
@@ -467,6 +517,40 @@ async function run() {
   assert.ok(
     String(scenarioSeven.response.content || '').toLowerCase().includes('not proof the systems are equivalent'),
     'comparison placeholder turns should avoid sounding like a definitive no-answer'
+  );
+
+  const scenarioEight = await runScenario(
+    finalizationOnlyBlankPayload,
+    'try again'
+  );
+  const finalizationOnlyTools = Array.isArray(scenarioEight.response.tools) ? scenarioEight.response.tools : [];
+  assert.strictEqual(finalizationOnlyTools.length, 1, 'finalization-only tool receipts should synthesize a visible tool row');
+  assert.strictEqual(finalizationOnlyTools[0].name, 'batch_query');
+  assert.ok(
+    String(scenarioEight.response.content || '').toLowerCase().includes('completed tool steps') ||
+      String(scenarioEight.response.content || '').toLowerCase().includes('missing tool_result block'),
+    'finalization-only blank payloads should still produce a visible assistant fallback summary'
+  );
+
+  const scenarioNine = await runScenario(
+    structuredWorkflowSynthesizedPayload,
+    'Try to web search "top AI agentic frameworks" and return the results'
+  );
+  assert.strictEqual(
+    String(scenarioNine.response.content || ''),
+    'Using the recorded web retrieval, the strongest frameworks in this run were LangGraph, OpenAI Agents SDK, and AutoGen.',
+    'bridge should prefer workflow-authored synthesized response text over stale placeholder assistant text'
+  );
+  assert.ok(
+    !String(scenarioNine.response.content || '').toLowerCase().includes("don't have usable tool findings"),
+    'workflow-authored synthesized response must suppress stale placeholder assistant prose'
+  );
+  assert.strictEqual(
+    scenarioNine.response.response_workflow && scenarioNine.response.response_workflow.selected_workflow
+      ? scenarioNine.response.response_workflow.selected_workflow.name
+      : '',
+    'complex_prompt_chain_v1',
+    'bridge should preserve workflow metadata on ws response payloads'
   );
 }
 
