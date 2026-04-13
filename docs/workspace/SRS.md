@@ -14899,6 +14899,7 @@ Filtered/normalized decisions:
 | V11-INSTALL-009 | queued | Windows PowerShell execution-policy-safe install path + `-Force` compatibility shim | Windows hosts with restricted execution policies fail on `& $tmp` script launches, and operators frequently invoke `install.ps1` with `-Force` expecting a repair-style reinstall. | Hardened Windows install guidance to use process-scoped bypass (`Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force`) and added no-file `irm ... | iex` fallback docs; updated `install.ps1` to accept `-Force` and map it to repair semantics (and full mode unless constrained mode selected). Evidence: `install.ps1`, `README.md` Windows install section, `docs/client/GETTING_STARTED.md`, validation `pwsh -NoProfile -Command '[System.Management.Automation.Language.Parser]::ParseFile(...)'` parse check. | 8 | 0/1/2 |
 | V11-INSTALL-010 | queued | Windows no-prebuilt-asset fallback: release compatibility selection + source bootstrap path | Latest tags can lack Windows assets (`protheus-ops-*windows*`), causing hard installer failure even when source fallback is possible. | `install.ps1` now checks release-list metadata for asset-compatible versions when `latest` lacks required platform binaries, retries with the nearest compatible release when available, and hardens source fallback by supporting archive-based checkout (no git required) plus optional Windows Rust toolchain bootstrap (`INFRING_INSTALL_AUTO_RUSTUP`) before cargo build. Failure messages now explicitly call out toolchain/build prerequisites instead of generic download failure. Evidence: `install.ps1`, `README.md`, `docs/client/GETTING_STARTED.md`, validation `pwsh -NoProfile -Command '[System.Management.Automation.Language.Parser]::ParseFile(...)'`. | 9 | 0/1/2 |
 | V11-INSTALL-011 | done | Daemon wrapper compat aliases survive native installer paths | Native `infringd` wrappers regressed older internal installer/script flows that still invoked `daemon-control` and `dashboard-ui` through the daemon entrypoint, leaving those compat commands dead when only the native daemon binary was selected. | `install.sh` now renders native `infringd` wrappers through `daemon_binary_wrapper_body()` so `daemon-control` / `dashboard-ui` fall back to `infring-ops <infringctl|protheusctl>` when available, `install.ps1` mirrors the same behavior via `Write-DaemonCmdWrapper`, and embedded minimal core recognizes and documents both aliases directly in `core/layer0/ops/src/protheusd_parts/{010-print-json,030-embedded-minimal-core-status}.rs`. Evidence: `bash -n install.sh`, `sh -n install.sh`, `pwsh -NoProfile -Command '[System.Management.Automation.Language.Parser]::ParseFile(...)'`, `cargo test --manifest-path core/layer0/ops/Cargo.toml installer_compat_aliases_are_recognized -- --nocapture`, `npm run -s test:vitest -- tests/vitest/conduit_primitives_gap_closer.test.ts`. | 8 | 0/1/2 |
+| V11-INSTALL-012 | done | Full-install dashboard health smoke is fail-closed on both shell and PowerShell installers | Fresh installs should not report success when the dashboard never becomes healthy; operators need immediate failure plus actionable daemon/watchdog log tails. | `install.sh` now requires `run_dashboard_health_smoke()` whenever `--full` or `INFRING_INSTALL_STRICT_SMOKE=1` is active, stops any stale gateway before the smoke, probes `/healthz`, and prints `local/state/ops/daemon_control/{dashboard_ui.log,dashboard_watchdog.log}` tails on failure; `install.ps1` now mirrors this with `Test-DashboardHealthSmoke` and throws on failed full-install smoke instead of logging a weak `gateway status` warning. Evidence: `bash -n install.sh`, `sh -n install.sh`, `pwsh -NoProfile -Command '[void][System.Management.Automation.Language.Parser]::ParseFile(...)'`, `npm run -s test:vitest -- tests/vitest/conduit_primitives_gap_closer.test.ts`. | 9 | 0/1/2 |
 | V11-DOCTOR-001 | queued | Expand `infring doctor` (`verify-install`) one-shot health schema | Operators need one command for deterministic root-cause triage across installer, runtime, network, and health states. | `doctor` output includes binary paths, runtime manifest state, module closure status, dashboard probe status, port availability, and machine-friendly root-cause codes. | 10 | 0/1/2 |
 | V11-LLM-001 | queued | Full LLM provider/model discovery + fallback chain | Model list regressed to a minimal static set and blocks provider-level routing quality. | Restore discovery for local Ollama, configured providers, and environment API sources; include freshness stamps, health status, and deterministic fallback ranking. | 10 | 1/2 |
 | V11-LLM-002 | queued | Tool-call output hygiene (no accidental data-return) | Agents were emitting raw metadata blocks to users instead of synthesized answers. | Add policy gate that prevents unbounded metadata echo, enforces answer synthesis before chat output, and surfaces source confidence separately from user-facing answer. | 10 | 0/1/2 |
@@ -15477,3 +15478,75 @@ Source summary:
   - `core/layer0/ops/src/web_conduit_parts/092-media-understanding-attachments.rs`
   - `core/layer0/ops/src/web_conduit_parts/112-openclaw-media-understanding-attachments-tests.rs`
   - `cargo test --manifest-path core/layer0/ops/Cargo.toml --lib openclaw_media_attachments_ -- --nocapture`
+
+### V11-ORCH-001 — Capability Planner + Typed Execution State for Orchestration Surface
+
+- Intent:
+  - Replace static request-class routing with a capability planner that emits blocked/degraded candidates and machine-readable execution state.
+- Acceptance criteria:
+  - Orchestration classification returns required capabilities instead of required contract steps.
+  - Planner emits `PlanCandidate` with `confidence`, `blocked_on`, `degradation`, `capabilities`, and typed plan steps.
+  - Result packaging exposes `ExecutionState` with `plan_status`, per-step status, and structured recovery/degradation data while retaining `progress_message` only as a rendered projection.
+  - The same comparative request can produce different plans when transport/tool availability changes.
+- Regression evidence pointers:
+  - `surface/orchestration/src/contracts.rs`
+  - `surface/orchestration/src/planner/`
+  - `surface/orchestration/src/progress.rs`
+  - `surface/orchestration/src/recovery.rs`
+  - `surface/orchestration/src/result_packaging.rs`
+  - `surface/orchestration/tests/conformance.rs`
+  - `cargo test --manifest-path surface/orchestration/Cargo.toml`
+
+### V11-ORCH-002 — Confidence-Scored Typed Ingress + Internal Orchestration Guardrails
+
+- Intent:
+  - Reduce silent heuristic execution by separating parse/classify stages and enforcing internal orchestration domain boundaries.
+- Acceptance criteria:
+  - Ingress returns a typed `ParseResult` with confidence, ambiguity reasons, and a normalized typed request.
+  - Low-confidence or ambiguous inputs require clarification instead of silently proceeding down an execution lane.
+  - Planner, transient, presentation, and `self_maintenance` domains are guarded against hidden cross-domain authority and direct durable I/O.
+  - `self_maintenance` remains supervisory only: it may use contracts and ephemeral memory, but not direct durable truth writes.
+- Regression evidence pointers:
+  - `surface/orchestration/src/ingress.rs`
+  - `surface/orchestration/src/ingress/parser.rs`
+  - `surface/orchestration/src/ingress/classifier.rs`
+  - `surface/orchestration/src/request_classification.rs`
+  - `surface/orchestration/src/self_maintenance/mod.rs`
+  - `tests/tooling/scripts/ci/orchestration_hidden_state_guard.ts`
+  - `npm run -s ops:orchestration:hidden-state:guard`
+  - `npm run -s ops:orchestration:ts-boundary:guard`
+  - `npm run -s ops:orchestration:contract:guard`
+
+### V11-SDK-003 — Resident IPC Only Production SDK Transport Surface
+
+- Intent:
+  - Remove spawned transport from the production SDK surface and quarantine CLI fallback under an explicit dev-only import path.
+- Acceptance criteria:
+  - `packages/infring-sdk/src/transports.ts` exports resident IPC and in-memory transports only.
+  - CLI process transport lives under a dev-only path and is not re-exported from the package index.
+  - Transport spawn audit reports zero `runtime_hot_path` findings.
+  - Release transport policy gates continue to prove resident IPC as the only production topology.
+- Regression evidence pointers:
+  - `packages/infring-sdk/src/transports.ts`
+  - `packages/infring-sdk/src/transports/resident_ipc.ts`
+  - `packages/infring-sdk/src/transports/cli_dev_only.ts`
+  - `packages/infring-sdk/src/index.ts`
+  - `tests/tooling/scripts/ci/transport_spawn_audit.ts`
+  - `tests/tooling/scripts/ci/transport_convergence_guard.ts`
+  - `tests/tooling/scripts/ci/release_contract_gate.ts`
+  - `tests/tooling/scripts/ci/release_policy_gate.ts`
+  - `node client/runtime/lib/ts_entrypoint.ts tests/client-memory-tools/infring_sdk_contract.test.ts`
+  - `npm run -s ops:transport:spawn-audit`
+  - `npm run -s ops:transport:convergence:guard`
+
+### V11-TASK-001 — Task Fabric Terminal States Are Truly Terminal
+
+- Intent:
+  - Make Task Fabric lifecycle semantics dependable by removing implicit reopen from failed/cancelled states.
+- Acceptance criteria:
+  - `Failed -> InProgress`, `Failed -> Cancelled`, and `Cancelled -> InProgress` transitions are rejected.
+  - Tests explicitly prove failed and cancelled tasks are terminal.
+- Regression evidence pointers:
+  - `core/layer2/tools/task_fabric/src/status_machine.rs`
+  - `core/layer2/tools/task_fabric/tests/task_fabric.rs`
+  - `cargo test --manifest-path core/layer2/tools/task_fabric/Cargo.toml`

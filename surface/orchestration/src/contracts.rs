@@ -75,6 +75,16 @@ pub enum ExecutionPosture {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+pub enum Capability {
+    ReadMemory,
+    MutateTask,
+    ExecuteTool,
+    PlanAssimilation,
+    VerifyClaim,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum CoreContractCall {
     ToolCapabilityProbe,
     ToolBrokerRequest,
@@ -109,8 +119,25 @@ pub struct TypedOrchestrationRequest {
     pub tool_hints: Vec<String>,
     pub policy_scope: PolicyScope,
     pub user_constraints: Vec<UserConstraint>,
-    pub parse_confidence: f32,
-    pub parse_reasons: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AmbiguityReason {
+    UnknownOperation,
+    MultipleOperationCandidates,
+    MultipleResourceCandidates,
+    MissingTargetSignals,
+    LowConfidence,
+    LegacyCompatOnly,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ParseResult {
+    pub typed_request: TypedOrchestrationRequest,
+    pub confidence: f32,
+    pub ambiguity: Vec<AmbiguityReason>,
+    pub reasons: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -128,9 +155,29 @@ pub struct RequestClassification {
     pub request_class: RequestClass,
     pub confidence: f32,
     pub reasons: Vec<String>,
-    pub required_contracts: Vec<CoreContractCall>,
+    pub required_capabilities: Vec<Capability>,
     pub clarification_reasons: Vec<ClarificationReason>,
     pub needs_clarification: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Precondition {
+    ToolAvailable,
+    TargetExists,
+    AuthorizationValid,
+    PolicyAllows,
+    TransportAvailable,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DegradationReason {
+    ToolUnavailable,
+    AuthFailure,
+    PolicyDenied,
+    MissingTarget,
+    TransportFailure,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -138,6 +185,90 @@ pub struct OrchestrationPlanStep {
     pub step_id: String,
     pub operation: String,
     pub target_contract: CoreContractCall,
+    pub capability: Capability,
+    pub blocked_on: Vec<Precondition>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PlanCandidate {
+    pub plan_id: String,
+    pub steps: Vec<OrchestrationPlanStep>,
+    pub confidence: f32,
+    pub requires_clarification: bool,
+    pub blocked_on: Vec<Precondition>,
+    pub degradation: Option<DegradationReason>,
+    pub capabilities: Vec<Capability>,
+    pub reasons: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PlanStatus {
+    Planned,
+    ClarificationRequired,
+    Blocked,
+    Degraded,
+    Ready,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StepStatus {
+    Pending,
+    Ready,
+    Blocked,
+    Degraded,
+    Skipped,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RecoveryDecision {
+    None,
+    Clarify,
+    Degrade,
+    Halt,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RecoveryReason {
+    MissingTarget,
+    ToolUnavailable,
+    AuthorizationFailure,
+    PolicyDenied,
+    PlannerContradiction,
+    TransportFailure,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct StepState {
+    pub step_id: String,
+    pub status: StepStatus,
+    pub blocked_on: Vec<Precondition>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RecoveryState {
+    pub decision: RecoveryDecision,
+    pub reason: Option<RecoveryReason>,
+    pub retryable: bool,
+    pub note: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DegradationState {
+    pub reason: DegradationReason,
+    pub alternate_path: Vec<CoreContractCall>,
+    pub note: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ExecutionState {
+    pub plan_status: PlanStatus,
+    pub steps: Vec<StepState>,
+    pub recovery: Option<RecoveryState>,
+    pub degradation: Option<DegradationState>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -147,7 +278,8 @@ pub struct OrchestrationPlan {
     pub posture: ExecutionPosture,
     pub needs_clarification: bool,
     pub clarification_prompt: Option<String>,
-    pub steps: Vec<OrchestrationPlanStep>,
+    pub selected_plan: PlanCandidate,
+    pub execution_state: ExecutionState,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -171,9 +303,11 @@ pub struct OrchestrationFallbackAction {
 pub struct OrchestrationResultPackage {
     pub summary: String,
     pub progress_message: String,
+    pub execution_state: ExecutionState,
     pub recovery_applied: bool,
     pub fallback_actions: Vec<OrchestrationFallbackAction>,
     pub core_contract_calls: Vec<CoreContractCall>,
     pub requires_core_promotion: bool,
     pub classification: RequestClassification,
+    pub selected_plan: PlanCandidate,
 }

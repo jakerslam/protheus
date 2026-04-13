@@ -958,6 +958,87 @@ function Write-DaemonCmdWrapper {
   Set-Content -Path $Path -Value $content
 }
 
+function Resolve-WorkspaceRootForSmoke {
+  return Resolve-WorkspaceRootForRepair
+}
+
+function Show-DashboardFailureLogs {
+  param(
+    [string]$WorkspaceRoot
+  )
+
+  $root = if ([string]::IsNullOrWhiteSpace($WorkspaceRoot)) {
+    Resolve-WorkspaceRootForSmoke
+  } else {
+    $WorkspaceRoot
+  }
+  if ([string]::IsNullOrWhiteSpace($root)) {
+    return
+  }
+  $stateDir = Join-Path $root "local/state/ops/daemon_control"
+  foreach ($name in @("dashboard_ui.log", "dashboard_watchdog.log")) {
+    $path = Join-Path $stateDir $name
+    if (-not (Test-Path $path)) { continue }
+    Write-Host "[infring install] tail $path"
+    Get-Content -Path $path -Tail 80 -ErrorAction SilentlyContinue
+  }
+}
+
+function Test-DashboardHealthSmoke {
+  param(
+    [string]$InstallDir,
+    [string]$Host = "127.0.0.1",
+    [int]$Port = 4173
+  )
+
+  $workspaceRoot = Resolve-WorkspaceRootForSmoke
+  $healthLog = Join-Path ([System.IO.Path]::GetTempPath()) ("infring-dashboard-health-" + [guid]::NewGuid().ToString("N") + ".log")
+
+  try {
+    & "$InstallDir\\infring.cmd" gateway stop "--dashboard-host=$Host" "--dashboard-port=$Port" "--dashboard-open=0" *> $null
+  } catch {}
+
+  $startExit = 0
+  try {
+    & "$InstallDir\\infring.cmd" gateway start "--dashboard-host=$Host" "--dashboard-port=$Port" "--dashboard-open=0" "--gateway-persist=0" *> $healthLog
+    $startExit = $LASTEXITCODE
+  } catch {
+    $startExit = if ($LASTEXITCODE -is [int]) { $LASTEXITCODE } else { 1 }
+    ($_ | Out-String) | Add-Content -Path $healthLog
+  }
+
+  if ($startExit -ne 0) {
+    Write-Host "[infring install] smoke dashboard_health: failed (gateway start)"
+    if (Test-Path $healthLog) { Get-Content -Path $healthLog -Tail 120 -ErrorAction SilentlyContinue }
+    Show-DashboardFailureLogs -WorkspaceRoot $workspaceRoot
+    return $false
+  }
+
+  $ready = $false
+  for ($i = 0; $i -lt 45; $i++) {
+    try {
+      Invoke-WebRequest -Uri "http://$Host`:$Port/healthz" -UseBasicParsing -TimeoutSec 2 | Out-Null
+      $ready = $true
+      break
+    } catch {}
+    Start-Sleep -Seconds 1
+  }
+
+  try {
+    & "$InstallDir\\infring.cmd" gateway stop "--dashboard-host=$Host" "--dashboard-port=$Port" "--dashboard-open=0" *> $null
+  } catch {}
+
+  if (-not $ready) {
+    Write-Host "[infring install] smoke dashboard_health: failed (healthz timeout)"
+    if (Test-Path $healthLog) { Get-Content -Path $healthLog -Tail 120 -ErrorAction SilentlyContinue }
+    Show-DashboardFailureLogs -WorkspaceRoot $workspaceRoot
+    return $false
+  }
+
+  Write-Host "[infring install] smoke dashboard_health: ok"
+  return $true
+}
+
 $powerShellShimTemplate = @'
 param(
   [Parameter(ValueFromRemainingArguments = $true)]
@@ -1080,6 +1161,19 @@ if ($gatewaySmokeOk) {
   Write-Host "[infring install] smoke gateway_status: ok"
 } else {
   Write-Host "[infring install] smoke gateway_status: failed ($gatewaySmokeError)"
+}
+
+$dashboardSmokeRequired = $InstallFull
+if ($env:INFRING_INSTALL_STRICT_SMOKE -and @("1", "true", "yes", "on") -contains $env:INFRING_INSTALL_STRICT_SMOKE.ToLower()) {
+  $dashboardSmokeRequired = $true
+}
+if ($dashboardSmokeRequired) {
+  $smokePort = 4400 + (Get-Random -Minimum 0 -Maximum 1000)
+  if (-not (Test-DashboardHealthSmoke -InstallDir $InstallDir -Host "127.0.0.1" -Port $smokePort)) {
+    throw "Full install failed dashboard health smoke."
+  }
+} else {
+  Write-Host "[infring install] smoke dashboard_health: skipped (set INFRING_INSTALL_STRICT_SMOKE=1 or use -Full to enforce)"
 }
 
 Write-Host "[infring install] installed: infring, infringctl, infringd"

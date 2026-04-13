@@ -35,26 +35,24 @@ const task = await sdk.submitTask({
 console.log(task.data.task_id, task.receipts[0]?.receipt_id);
 ```
 
-## CLI transport
+## Resident IPC transport
 
-`createCliTransport` is explicit by design: you provide `args_for_operation` so command mapping stays controlled and auditable per deployment.
+Production deployments must route through the resident IPC topology.
 
 ```ts
-import { InfringSdkClient, createCliTransport } from '@infring/sdk';
+import { InfringSdkClient, createResidentIpcTransport } from '@infring/sdk';
 
-const transport = createCliTransport({
-  command: 'infring',
-  args_for_operation: (req) => [
-    'orchestration',
-    'invoke',
-    `--op=${req.operation}`,
-    `--payload-json=${JSON.stringify(req.payload)}`,
-  ],
+const transport = createResidentIpcTransport({
+  invoke: async (req) => residentIpcInvoke(req),
 });
 
 const sdk = new InfringSdkClient({ transport });
 ```
 
-Production channel policy:
-- Process transport is emergency-only and blocked for production release channels (`stable`, `prod`, `production`, `ga`, `release`).
-- Production deployments must route through the resident IPC topology.
+## Dev-only CLI fallback
+
+The old CLI transport lives under the quarantined deep import:
+
+`@infring/sdk/src/transports/cli_dev_only`
+
+It is not exported from the production SDK surface.
