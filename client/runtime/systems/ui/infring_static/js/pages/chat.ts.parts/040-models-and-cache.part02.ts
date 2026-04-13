@@ -465,6 +465,11 @@
       if (!agentId || !this.conversationCache) return false;
       const cached = this.conversationCache[String(agentId)];
       if (!cached || !Array.isArray(cached.messages)) return false;
+      var scopeKey = typeof this.resolveConversationCacheScopeKey === 'function'
+        ? this.resolveConversationCacheScopeKey(agentId)
+        : String(agentId || '').trim();
+      var cachedScopeKey = String(cached.session_scope_key || '').trim();
+      if (scopeKey && cachedScopeKey && scopeKey !== cachedScopeKey) return false;
       try {
         if (this.applyConversationInputMode) this.applyConversationInputMode(agentId);
         var rawCachedMessages = cached.messages || [];

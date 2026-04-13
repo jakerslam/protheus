@@ -28,6 +28,70 @@
       } catch {}
     },
 
+    sessionNoticeMemoryStorageKey(scopeKey) {
+      var normalized = String(scopeKey || '').trim();
+      if (!normalized) return '';
+      return 'of-chat-session-notices-v1:' + normalized;
+    },
+
+    loadSessionNoticeMemory(scopeKey) {
+      var storageKey = this.sessionNoticeMemoryStorageKey(scopeKey);
+      if (!storageKey) return {};
+      try {
+        var raw = localStorage.getItem(storageKey);
+        if (!raw) return {};
+        var parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return {};
+        var next = {};
+        for (var i = 0; i < parsed.length; i++) {
+          var key = String(parsed[i] || '').trim();
+          if (key) next[key] = true;
+        }
+        return next;
+      } catch (_) {
+        return {};
+      }
+    },
+
+    saveSessionNoticeMemory(scopeKey, nextMemory) {
+      var storageKey = this.sessionNoticeMemoryStorageKey(scopeKey);
+      if (!storageKey) return;
+      var rows = Object.keys(nextMemory || {}).filter(function(key) {
+        return !!nextMemory[key];
+      });
+      try {
+        if (!rows.length) {
+          localStorage.removeItem(storageKey);
+          return;
+        }
+        localStorage.setItem(storageKey, JSON.stringify(rows));
+      } catch (_) {}
+    },
+
+    hasSeenSessionNotice(scopeKey, noticeKey) {
+      var normalizedNoticeKey = String(noticeKey || '').trim();
+      if (!normalizedNoticeKey) return false;
+      var memory = this.loadSessionNoticeMemory(scopeKey);
+      return memory[normalizedNoticeKey] === true;
+    },
+
+    markSeenSessionNotice(scopeKey, noticeKey) {
+      var normalizedNoticeKey = String(noticeKey || '').trim();
+      if (!normalizedNoticeKey) return;
+      var memory = this.loadSessionNoticeMemory(scopeKey);
+      memory[normalizedNoticeKey] = true;
+      this.saveSessionNoticeMemory(scopeKey, memory);
+    },
+
+    clearSeenSessionNotice(scopeKey, noticeKey) {
+      var normalizedNoticeKey = String(noticeKey || '').trim();
+      if (!normalizedNoticeKey) return;
+      var memory = this.loadSessionNoticeMemory(scopeKey);
+      if (!memory[normalizedNoticeKey]) return;
+      delete memory[normalizedNoticeKey];
+      this.saveSessionNoticeMemory(scopeKey, memory);
+    },
+
     estimateTokensFromText(text) {
       return Math.max(0, Math.round(String(text || '').length / 4));
     },

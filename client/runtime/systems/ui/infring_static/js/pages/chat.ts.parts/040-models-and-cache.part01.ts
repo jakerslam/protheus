@@ -524,6 +524,10 @@
       var mode = String(explicitMode || this.currentConversationInputMode(key) || 'chat').trim().toLowerCase();
       if (mode !== 'terminal') mode = 'chat';
       var next = this.touchConversationCacheEntry(key) || {};
+      var scopeKey = typeof this.resolveConversationCacheScopeKey === 'function'
+        ? this.resolveConversationCacheScopeKey(key)
+        : key;
+      next.session_scope_key = scopeKey;
       var sanitized = this.sanitizeConversationDraftText(this.inputText);
       if (mode === 'terminal') next.draft_terminal = sanitized;
       else next.draft_chat = sanitized;
@@ -539,6 +543,14 @@
       }
       var cached = this.conversationCache[key];
       if (!cached || typeof cached !== 'object') {
+        this.inputText = '';
+        return '';
+      }
+      var scopeKey = typeof this.resolveConversationCacheScopeKey === 'function'
+        ? this.resolveConversationCacheScopeKey(key)
+        : key;
+      var cachedScopeKey = String(cached.session_scope_key || '').trim();
+      if (scopeKey && cachedScopeKey && scopeKey !== cachedScopeKey) {
         this.inputText = '';
         return '';
       }
@@ -564,12 +576,22 @@
       if (!this.conversationCache) this.conversationCache = {};
       try {
         var key = String(agentId);
+        var scopeKey = typeof this.resolveConversationCacheScopeKey === 'function'
+          ? this.resolveConversationCacheScopeKey(agentId)
+          : key;
+        var currentSessionRow = typeof this.resolveCurrentSessionRow === 'function'
+          ? this.resolveCurrentSessionRow(agentId)
+          : null;
         var cachedMessages = this.sanitizeConversationForCache(this.messages || []);
         var next = Object.assign(
           {},
           this.touchConversationCacheEntry(key),
           {
           saved_at: Date.now(),
+          session_scope_key: scopeKey,
+          session_label: typeof this.resolveSessionRowLabel === 'function'
+            ? this.resolveSessionRowLabel(currentSessionRow, agentId)
+            : '',
           token_count: this.tokenCount || 0,
           default_terminal: this.currentConversationInputMode(agentId) === 'terminal',
           messages: cachedMessages,
