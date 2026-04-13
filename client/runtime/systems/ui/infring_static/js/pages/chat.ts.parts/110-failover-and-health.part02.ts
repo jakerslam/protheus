@@ -3,7 +3,36 @@
       cmdArgs = cmdArgs || '';
       switch (cmd) {
         case '/help':
-          self.messages.push({ id: ++msgId, role: 'system', text: self.slashCommands.map(function(c) { return '`' + c.cmd + '` — ' + c.desc; }).join('\n'), meta: '', tools: [], system_origin: 'slash:help' });
+          self.messages.push({
+            id: ++msgId,
+            role: 'system',
+            text: (function(rows) {
+              var commands = Array.isArray(rows) ? rows : [];
+              var groups = { navigation: [], session: [], tooling: [], other: [] };
+              commands.forEach(function(row) {
+                var name = String(row && row.cmd ? row.cmd : '').trim();
+                if (!name) return;
+                var summary = '`' + name + '` — ' + String(row && row.desc ? row.desc : '').trim();
+                if (/^\/(agents|new|model|apikey|status)$/i.test(name)) groups.navigation.push(summary);
+                else if (/^\/(compact|stop|usage|think|context|queue)$/i.test(name)) groups.session.push(summary);
+                else if (/^\/(alerts|next|memory|continuity|aliases|alias|opt|file|folder)$/i.test(name)) groups.tooling.push(summary);
+                else groups.other.push(summary);
+              });
+              var voiceLine = (navigator && navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function')
+                ? '- Voice note capture is available from the composer mic.'
+                : '- Voice note capture is unavailable in this browser.';
+              var sections = ['**Slash Help**'];
+              if (groups.navigation.length) sections.push('**Navigation**\n' + groups.navigation.slice(0, 5).join('\n'));
+              if (groups.session.length) sections.push('**Session Controls**\n' + groups.session.slice(0, 6).join('\n'));
+              if (groups.tooling.length) sections.push('**Tooling & Recovery**\n' + groups.tooling.slice(0, 8).join('\n'));
+              if (groups.other.length) sections.push('**More**\n' + groups.other.slice(0, 6).join('\n'));
+              sections.push('**Voice**\n' + voiceLine);
+              return sections.join('\n\n');
+            })(self.slashCommands),
+            meta: '',
+            tools: [],
+            system_origin: 'slash:help'
+          });
           self.scrollToBottom();
           break;
         case '/agents':

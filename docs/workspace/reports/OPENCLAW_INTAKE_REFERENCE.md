@@ -120,7 +120,7 @@
     - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/210-scroll-hover-sanitize.part01.ts`
     - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/220-artifacts-voice-search.part02.ts`
 ## Current Intake State
-- Imported rows in this wave: `40`
+- Imported rows in this wave: `45`
 - Pending rows in this wave: `0`
 
 - `OPENCLAW-TOOLING-APP-013`:
@@ -149,3 +149,18 @@
     - `client/runtime/systems/ui/infring_static/js/app.ts.parts/010-core-state.part02.ts`
     - `client/runtime/systems/ui/infring_static/js/pages/agents.ts.parts/010-state-and-load.ts`
     - `client/runtime/systems/ui/infring_static/js/pages/agents.ts.parts/020-list-and-filters.ts`
+- `OPENCLAW-TOOLING-CHAT-015`:
+  - Imported command-palette quick actions, overview recovery hints, speech-aware UX gating, typed chat-context classification, and normalized connect-error handling from:
+    - `ui/src/ui/views/command-palette.ts`
+    - `ui/src/ui/views/overview-hints.ts`
+    - `ui/src/ui/chat/speech.ts`
+    - `ui/src/ui/types/chat-types.ts`
+    - `ui/src/ui/connect-error.ts`
+  - Landed in:
+    - `client/runtime/systems/ui/infring_static/js/app.ts.parts/030-agent-list-runtime.part01.ts`
+    - `client/runtime/systems/ui/infring_static/js/app.ts.parts/040-events-and-actions.part01.ts`
+    - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/060-suggestions-and-hints.ts`
+    - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/070-init-sequences-and-pointer.part01.ts`
+    - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/070-init-sequences-and-pointer.part02.ts`
+    - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/110-failover-and-health.part02.ts`
+    - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/200-send-pipeline.part02.ts`

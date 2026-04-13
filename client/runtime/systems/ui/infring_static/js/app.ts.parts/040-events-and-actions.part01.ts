@@ -317,6 +317,20 @@
       if (!agent || !agent.id) return;
       if (typeof this.hideDashboardPopupBySource === 'function') this.hideDashboardPopupBySource('sidebar');
       this.confirmArchiveAgentId = '';
+      var quickAction = agent && agent._sidebar_quick_action && typeof agent._sidebar_quick_action === 'object' ? agent._sidebar_quick_action : null;
+      if (quickAction) {
+        var actionType = String(quickAction.type || '').trim().toLowerCase();
+        if (actionType === 'copy_connect') {
+          var checklist = 'Gateway connect checklist: open Settings, verify pairing or API token setup, and use HTTPS or localhost when device identity is required.';
+          try { if (navigator && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') navigator.clipboard.writeText(checklist).catch(function() {}); } catch(_) {}
+          InfringToast.success('Copied connection checklist');
+        }
+        this.navigate(quickAction.page || 'chat');
+        this.clearChatSidebarSearch();
+        this.closeAgentChatsSidebar();
+        this.scheduleSidebarScrollIndicators();
+        return;
+      }
       var store = this.getAppStore();
       var archived = agent.archived === true;
       if (!archived && store && typeof store.isArchivedLikeAgent === 'function') {

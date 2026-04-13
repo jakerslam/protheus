@@ -220,6 +220,31 @@ function assertInterfaceSafetyGuards() {
   );
   assertContains(
     appSource,
+    '_sidebar_quick_action',
+    'chat sidebar search must expose quick action rows for navigation and connection recovery'
+  );
+  assertContains(
+    chatSource,
+    'derivePromptSuggestionFallback(agent, hint, gateContext)',
+    'chat prompt suggestion fallback helper missing'
+  );
+  assertContains(
+    chatSource,
+    'shouldSuspendPointerFx()',
+    'chat pointer effects must suspend while voice capture is active'
+  );
+  assertContains(
+    chatSource,
+    'Gateway pairing is required. Open Settings, pair this dashboard with the gateway, then retry.',
+    'chat send pipeline must normalize pairing guidance instead of dumping raw transport errors'
+  );
+  assertContains(
+    chatSource,
+    '**Slash Help**',
+    'chat slash help should provide grouped quick-action guidance'
+  );
+  assertContains(
+    appSource,
     "statusAgentCountHint > 0 || connectionState === 'connecting' || connectionState === 'reconnecting'",
     'strict roster refresh should preserve prior agents while runtime still reports active agents'
   );
