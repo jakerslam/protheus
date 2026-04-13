@@ -274,6 +274,11 @@ fn workflow_test_llm_enabled(root: &Path) -> bool {
         )
 }
 
+#[cfg(not(test))]
+fn workflow_test_llm_enabled(_root: &Path) -> bool {
+    false
+}
+
 fn turn_workflow_metadata(
     workflow_mode: &str,
     response_tools: &[Value],
