@@ -997,6 +997,240 @@
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
       "expires": "2026-04-23"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/css/components.css",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/css/components.css.parts/0002-components-part.part01.css",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/css/layout.css",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/css/layout.css.parts/0001-layout-part.part01.css",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/index_body.html",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/index_body.html.parts/0001-body-part.part01.html",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/js/pages/agents.ts.parts/010-state-and-load.ts",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/020-init-roles-and-vibes.part01.ts",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/030-init-selection-helpers.ts",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/040-models-and-cache.part02.ts",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/050-conversation-cache.ts",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/090-init-hooks-and-shortcuts.part01.ts",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/110-failover-and-health.part01.ts",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/120-slash-and-agent-select.ts",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/130-render-window-and-session.part01.ts",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/140-session-and-ws.part01.ts",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/150-ws-stream-handlers.ts",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/160-runtime-events-and-render.part01.ts",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/190-drawer-and-queue.zz-part02.ts",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/200-send-pipeline.part01.ts",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/210-scroll-hover-sanitize.part01.ts",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15"
+    },
+    {
+      "path": "core/layer0/ops/src/batch_query_primitive_parts/041-quality-tests.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/040-terminated-agent-endpoints-round-trip_parts/030-part.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/030-part.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/040-part.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/045-part.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/010-part.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/050-part.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/070-part.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/080-part.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/100-part.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/140-part.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/150-part.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/160-part.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/agent_scope_full_parts/050-message-finalization-and-payload.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15"
+    },
+    {
+      "path": "core/layer0/ops/src/mcp_plane_parts/030-run-pattern-pack.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15"
+    },
+    {
+      "path": "core/layer0/ops/src/web_conduit_parts/030-serper-bing-and-fetch.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15"
+    },
+    {
+      "path": "core/layer0/ops/src/web_conduit_parts/080-tests.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15"
+    },
+    {
+      "path": "core/layer0/ops/src/web_conduit_provider_runtime_parts/010-provider-chain-and-health.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15"
     }
   ]
 }

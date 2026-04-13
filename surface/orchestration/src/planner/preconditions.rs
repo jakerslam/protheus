@@ -1,3 +1,4 @@
+// Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 use crate::contracts::{
     Capability, CapabilityProbeResult, DegradationReason, Mutability, OperationKind, PolicyScope,
     Precondition, ResourceKind, TargetDescriptor, TypedOrchestrationRequest,

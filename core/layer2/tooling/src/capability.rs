@@ -1,3 +1,4 @@
+// Layer ownership: core/layer2/tooling (authoritative canonical tool/evidence substrate).
 use crate::backend_registry::{live_backend_registry, live_backend_status_for, ToolBackendClass};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;

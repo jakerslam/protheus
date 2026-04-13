@@ -40,7 +40,7 @@ jobs:
           npm run -s ops:stateful-upgrade-rollback:gate
           npm run -s ops:assimilation:v1:support:guard
           npm run -s ops:release-blockers:gate
-          npm run -s ops:production-closure:gate
+          node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/production_readiness_closure_gate.ts --strict=1 --stage=prebundle --out=core/local/artifacts/production_readiness_closure_gate_current.json
           npm run -s ops:orchestration:contract:guard
           npm run -s ops:orchestration:hidden-state:guard
           npm run -s ops:debt:expiry:guard

@@ -1,3 +1,4 @@
+// Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 use infring_layer1_memory::{
     Classification, EphemeralMemoryHeap, TrustState, VerityEphemeralPolicy,
 };

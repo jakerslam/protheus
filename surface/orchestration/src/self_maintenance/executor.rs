@@ -1,3 +1,4 @@
+// Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 use crate::self_maintenance::analyzer;
 use crate::self_maintenance::contracts::{
     Claim, ClaimBundle, ObservationInputs, SupervisorMode, SupervisorReceipt,

@@ -1,3 +1,4 @@
+// Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 pub mod clarification;
 pub mod contracts;
 pub mod ingress;

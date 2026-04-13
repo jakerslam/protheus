@@ -1,3 +1,4 @@
+// Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 use protheus_tooling_core_v1::{ToolBackendClass, ToolReasonCode};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
