@@ -473,12 +473,280 @@ function assertNativeRuntimeRouteContract() {
   assertContains(routeLoadSource, 'export const prerender = true;', 'native runtime route should keep static prerender options in +page.ts');
 }
 
+function assertNativeApprovalsRouteContract() {
+  const dashboardSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/dashboard.ts'));
+  const approvalsSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/approvals.ts'));
+  const pageSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/components/ApprovalsPage.svelte'));
+  const routeSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/routes/approvals/+page.svelte'));
+  const routeLoadSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/routes/approvals/+page.ts'));
+
+  assert.ok(
+    /\{\s*key:\s*'approvals'[\s\S]{0,220}mode:\s*'native'/.test(dashboardSource),
+    'dashboard registry should mark approvals as a native route'
+  );
+  assertContains(approvalsSource, '/api/approvals', 'native approvals runtime should read the authoritative approvals queue');
+  assertContains(approvalsSource, '/approve', 'native approvals runtime should approve through the authoritative approval endpoint');
+  assertContains(approvalsSource, '/reject', 'native approvals runtime should reject through the authoritative approval endpoint');
+  assertContains(pageSource, 'await readApprovals();', 'native approvals page should load approvals through the runtime helper');
+  assertContains(pageSource, 'await approveApproval(id)', 'native approvals page should approve through the helper');
+  assertContains(pageSource, 'await rejectApproval(id)', 'native approvals page should reject through the helper');
+  assertContains(pageSource, "href={dashboardClassicHref('approvals')}", 'native approvals should preserve a classic escape hatch');
+  assertContains(routeSource, '<ApprovalsPage />', 'native approvals route should render the Svelte approvals page directly');
+  assertContains(routeLoadSource, 'export const prerender = true;', 'native approvals route should keep static prerender options in +page.ts');
+}
+
+function assertNativeAnalyticsRouteContract() {
+  const dashboardSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/dashboard.ts'));
+  const analyticsSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/analytics.ts'));
+  const pageSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/components/AnalyticsPage.svelte'));
+  const routeSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/routes/analytics/+page.svelte'));
+  const routeLoadSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/routes/analytics/+page.ts'));
+
+  assert.ok(
+    /\{\s*key:\s*'analytics'[\s\S]{0,220}mode:\s*'native'/.test(dashboardSource),
+    'dashboard registry should mark analytics as a native route'
+  );
+  assertContains(analyticsSource, '/api/usage/summary', 'native analytics helper should read the authoritative usage summary lane');
+  assertContains(analyticsSource, '/api/usage/by-model', 'native analytics helper should read the authoritative per-model usage lane');
+  assertContains(analyticsSource, '/api/usage', 'native analytics helper should read the authoritative per-agent usage lane');
+  assertContains(analyticsSource, '/api/usage/daily', 'native analytics helper should read the authoritative daily usage lane');
+  assertContains(pageSource, 'await readAnalyticsSnapshot();', 'native analytics page should load its data through the analytics helper');
+  assertContains(pageSource, "href={dashboardClassicHref('analytics')}", 'native analytics should preserve a classic escape hatch');
+  assertContains(routeSource, '<AnalyticsPage />', 'native analytics route should render the Svelte analytics page directly');
+  assertContains(routeLoadSource, 'export const prerender = true;', 'native analytics route should keep static prerender options in +page.ts');
+}
+
+function assertNativeLogsRouteContract() {
+  const dashboardSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/dashboard.ts'));
+  const logsSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/logs.ts'));
+  const pageSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/components/LogsPage.svelte'));
+  const routeSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/routes/logs/+page.svelte'));
+  const routeLoadSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/routes/logs/+page.ts'));
+
+  assert.ok(
+    /\{\s*key:\s*'logs'[\s\S]{0,220}mode:\s*'native'/.test(dashboardSource),
+    'dashboard registry should mark logs as a native route'
+  );
+  assertContains(logsSource, '/api/audit/recent?n=200', 'native logs helper should read the authoritative recent audit lane');
+  assertContains(logsSource, '/api/audit/verify', 'native logs helper should read the authoritative audit verification lane');
+  assertContains(pageSource, 'await refresh();', 'native logs page should load its bounded audit slice on mount');
+  assertContains(pageSource, 'setInterval(() => void refreshLogsOnly(), 4000)', 'native logs page should keep a bounded polling refresh for recent audit entries');
+  assertContains(pageSource, "href={dashboardClassicHref('logs')}", 'native logs should preserve a classic escape hatch');
+  assertContains(routeSource, '<LogsPage />', 'native logs route should render the Svelte logs page directly');
+  assertContains(routeLoadSource, 'export const prerender = true;', 'native logs route should keep static prerender options in +page.ts');
+}
+
+function assertNativeWorkflowsRouteContract() {
+  const dashboardSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/dashboard.ts'));
+  const workflowsSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/workflows.ts'));
+  const pageSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/components/WorkflowsPage.svelte'));
+  const editorSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/components/WorkflowEditorPanel.svelte'));
+  const runSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/components/WorkflowRunPanel.svelte'));
+  const routeSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/routes/workflows/+page.svelte'));
+  const routeLoadSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/routes/workflows/+page.ts'));
+
+  assert.ok(
+    /\{\s*key:\s*'workflows'[\s\S]{0,220}mode:\s*'native'/.test(dashboardSource),
+    'dashboard registry should mark workflows as a native route'
+  );
+  assertContains(workflowsSource, '/api/workflows', 'native workflows helper should read the authoritative workflow catalog');
+  assertContains(workflowsSource, '/run', 'native workflows helper should run workflows through the authoritative run endpoint');
+  assertContains(workflowsSource, '/runs', 'native workflows helper should load run history through the authoritative runs endpoint');
+  assertContains(pageSource, 'await readWorkflows();', 'native workflows page should load the authoritative workflow library');
+  assertContains(pageSource, 'await updateWorkflow(selected.id, payload)', 'native workflows page should update workflows through the helper');
+  assertContains(pageSource, 'await createWorkflow(payload)', 'native workflows page should create workflows through the helper');
+  assertContains(pageSource, 'await runWorkflow(selected.id, runInput)', 'native workflows page should run workflows through the helper');
+  assertContains(pageSource, 'await readWorkflowRuns(selected.id)', 'native workflows page should load run history through the helper');
+  assertContains(pageSource, "href={dashboardClassicHref('workflows')}", 'native workflows should preserve a classic escape hatch');
+  assertContains(editorSource, "dispatch('submit')", 'native workflow editor panel should expose saves via event dispatch');
+  assertContains(editorSource, "dispatch('addstep')", 'native workflow editor panel should expose step creation via event dispatch');
+  assertContains(runSource, "dispatch('run')", 'native workflow run panel should expose workflow execution via event dispatch');
+  assertContains(routeSource, '<WorkflowsPage />', 'native workflows route should render the Svelte workflows page directly');
+  assertContains(routeLoadSource, 'export const prerender = true;', 'native workflows route should keep static prerender options in +page.ts');
+}
+
+function assertNativeSessionsRouteContract() {
+  const dashboardSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/dashboard.ts'));
+  const sessionsSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/sessions.ts'));
+  const pageSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/components/SessionsPage.svelte'));
+  const routeSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/routes/sessions/+page.svelte'));
+  const routeLoadSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/routes/sessions/+page.ts'));
+
+  assert.ok(/\{\s*key:\s*'sessions'[\s\S]{0,220}mode:\s*'native'/.test(dashboardSource), 'dashboard registry should mark sessions as a native route');
+  assertContains(sessionsSource, '/api/sessions', 'native sessions helper should read the authoritative session inventory');
+  assertContains(sessionsSource, '/api/memory/agents/${encodeURIComponent(agentId)}/kv', 'native sessions helper should read authoritative agent memory kv pairs');
+  assertContains(sessionsSource, '/api/memory/agents/${encodeURIComponent(agentId)}/kv/${encodeURIComponent(key)}', 'native sessions helper should mutate authoritative memory kv pairs');
+  assertContains(pageSource, 'await readSessions();', 'native sessions page should load session inventory through the helper');
+  assertContains(pageSource, 'await readAgentMemoryKv(selectedAgentId);', 'native sessions page should load agent memory through the helper');
+  assertContains(pageSource, 'await upsertAgentMemoryKv(selectedAgentId, keyDraft.trim(), value);', 'native sessions page should save memory through the helper');
+  assertContains(pageSource, 'await deleteAgentMemoryKv(selectedAgentId, key);', 'native sessions page should delete memory through the helper');
+  assertContains(pageSource, "href={dashboardClassicHref('sessions')}", 'native sessions should preserve a classic escape hatch');
+  assertContains(routeSource, '<SessionsPage />', 'native sessions route should render the Svelte sessions page directly');
+  assertContains(routeLoadSource, 'export const prerender = true;', 'native sessions route should keep static prerender options in +page.ts');
+}
+
+function assertNativeSchedulerRouteContract() {
+  const dashboardSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/dashboard.ts'));
+  const schedulerSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/scheduler.ts'));
+  const pageSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/components/SchedulerPage.svelte'));
+  const routeSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/routes/scheduler/+page.svelte'));
+  const routeLoadSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/routes/scheduler/+page.ts'));
+
+  assert.ok(/\{\s*key:\s*'scheduler'[\s\S]{0,220}mode:\s*'native'/.test(dashboardSource), 'dashboard registry should mark scheduler as a native route');
+  assertContains(schedulerSource, '/api/cron/jobs', 'native scheduler helper should read the authoritative cron jobs lane');
+  assertContains(schedulerSource, '/api/triggers', 'native scheduler helper should read the authoritative trigger lane');
+  assertContains(schedulerSource, '/api/schedules/${encodeURIComponent(jobId)}/run', 'native scheduler helper should run schedules through the authoritative schedule endpoint');
+  assertContains(pageSource, 'await createCronJob({ agent_id: jobAgentId, name: jobName.trim(), cron: jobCron.trim(), message: jobMessage.trim(), enabled: jobEnabled });', 'native scheduler page should create schedules through the helper');
+  assertContains(pageSource, 'setCronJobEnabled(job.id, !job.enabled)', 'native scheduler page should toggle schedule state through the helper');
+  assertContains(pageSource, 'runCronJobNow(job.id)', 'native scheduler page should run schedules immediately through the helper');
+  assertContains(pageSource, 'deleteTrigger(trigger.id)', 'native scheduler page should delete triggers through the helper');
+  assertContains(pageSource, "href={dashboardClassicHref('scheduler')}", 'native scheduler should preserve a classic escape hatch');
+  assertContains(routeSource, '<SchedulerPage />', 'native scheduler route should render the Svelte scheduler page directly');
+  assertContains(routeLoadSource, 'export const prerender = true;', 'native scheduler route should keep static prerender options in +page.ts');
+}
+
+function assertNativeEyesRouteContract() {
+  const dashboardSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/dashboard.ts'));
+  const eyesSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/eyes.ts'));
+  const pageSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/components/EyesPage.svelte'));
+  const routeSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/routes/eyes/+page.svelte'));
+  const routeLoadSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/routes/eyes/+page.ts'));
+
+  assert.ok(/\{\s*key:\s*'eyes'[\s\S]{0,220}mode:\s*'native'/.test(dashboardSource), 'dashboard registry should mark eyes as a native route');
+  assertContains(eyesSource, '/api/eyes', 'native eyes helper should read the authoritative eye catalog');
+  assertContains(eyesSource, "requestJson<JsonRecord>('POST', '/api/eyes', input)", 'native eyes helper should save eye configuration through the authoritative endpoint');
+  assertContains(pageSource, 'await readEyes();', 'native eyes page should load the eye catalog through the helper');
+  assertContains(pageSource, "await saveEye({ name, status, url, api_key: apiKey, cadence_hours: cadenceHours, topics });", 'native eyes page should save eyes through the helper');
+  assertContains(pageSource, "href={dashboardClassicHref('eyes')}", 'native eyes should preserve a classic escape hatch');
+  assertContains(routeSource, '<EyesPage />', 'native eyes route should render the Svelte eyes page directly');
+  assertContains(routeLoadSource, 'export const prerender = true;', 'native eyes route should keep static prerender options in +page.ts');
+}
+
+function assertNativeCommsRouteContract() {
+  const dashboardSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/dashboard.ts'));
+  const commsSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/comms.ts'));
+  const pageSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/components/CommsPage.svelte'));
+  const routeSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/routes/comms/+page.svelte'));
+  const routeLoadSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/routes/comms/+page.ts'));
+
+  assert.ok(/\{\s*key:\s*'comms'[\s\S]{0,220}mode:\s*'native'/.test(dashboardSource), 'dashboard registry should mark comms as a native route');
+  assertContains(commsSource, '/api/comms/topology', 'native comms helper should read the authoritative comms topology');
+  assertContains(commsSource, '/api/comms/events?limit=200', 'native comms helper should read recent comms events');
+  assertContains(commsSource, '/api/comms/send', 'native comms helper should send messages through the authoritative comms endpoint');
+  assertContains(commsSource, '/api/comms/task', 'native comms helper should post tasks through the authoritative comms endpoint');
+  assertContains(pageSource, 'setInterval(() => void refresh(), 5000)', 'native comms page should keep bounded polling refresh for the live comms slice');
+  assertContains(pageSource, "await sendCommsMessage({ from_agent_id: sendFrom, to_agent_id: sendTo, message: sendMessage.trim() });", 'native comms page should send messages through the helper');
+  assertContains(pageSource, "await postCommsTask({ title: taskTitle.trim(), description: taskDesc.trim(), assigned_to: taskAssign });", 'native comms page should post tasks through the helper');
+  assertContains(pageSource, "href={dashboardClassicHref('comms')}", 'native comms should preserve a classic escape hatch');
+  assertContains(routeSource, '<CommsPage />', 'native comms route should render the Svelte comms page directly');
+  assertContains(routeLoadSource, 'export const prerender = true;', 'native comms route should keep static prerender options in +page.ts');
+}
+
+function assertNativeChannelsRouteContract() {
+  const dashboardSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/dashboard.ts'));
+  const channelsSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/channels.ts'));
+  const pageSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/components/ChannelsPage.svelte'));
+  const routeSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/routes/channels/+page.svelte'));
+  const routeLoadSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/routes/channels/+page.ts'));
+
+  assert.ok(/\{\s*key:\s*'channels'[\s\S]{0,220}mode:\s*'native'/.test(dashboardSource), 'dashboard registry should mark channels as a native route');
+  assertContains(channelsSource, '/api/channels', 'native channels helper should read the authoritative channel catalog');
+  assertContains(channelsSource, '/api/channels/${encodeURIComponent(name)}/configure', 'native channels helper should configure channels through the authoritative endpoint');
+  assertContains(channelsSource, '/api/channels/${encodeURIComponent(name)}/test', 'native channels helper should test channels through the authoritative endpoint');
+  assertContains(channelsSource, '/api/channels/whatsapp/qr/start', 'native channels helper should start WhatsApp QR flows through the authoritative endpoint');
+  assertContains(channelsSource, '/api/channels/whatsapp/qr/status?session_id=', 'native channels helper should read WhatsApp QR status');
+  assertContains(pageSource, 'await readChannels();', 'native channels page should load the channel catalog through the helper');
+  assertContains(pageSource, 'await configureChannel(selectedChannel.name, fieldsPayload());', 'native channels page should save channel config through the helper');
+  assertContains(pageSource, 'await testChannel(selectedChannel.name);', 'native channels page should test channels through the helper');
+  assertContains(pageSource, 'await startWhatsappQr();', 'native channels page should support WhatsApp QR start through the helper');
+  assertContains(pageSource, "href={dashboardClassicHref('channels')}", 'native channels should preserve a classic escape hatch');
+  assertContains(routeSource, '<ChannelsPage />', 'native channels route should render the Svelte channels page directly');
+  assertContains(routeLoadSource, 'export const prerender = true;', 'native channels route should keep static prerender options in +page.ts');
+}
+
+function assertNativeSkillsRouteContract() {
+  const dashboardSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/dashboard.ts'));
+  const skillsSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/skills.ts'));
+  const pageSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/components/SkillsPage.svelte'));
+  const routeSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/routes/skills/+page.svelte'));
+  const routeLoadSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/routes/skills/+page.ts'));
+
+  assert.ok(/\{\s*key:\s*'skills'[\s\S]{0,220}mode:\s*'native'/.test(dashboardSource), 'dashboard registry should mark skills as a native route');
+  assertContains(skillsSource, '/api/skills', 'native skills helper should read installed skills through the authoritative endpoint');
+  assertContains(skillsSource, '/api/mcp/servers', 'native skills helper should read MCP server status');
+  assertContains(skillsSource, '/api/clawhub/browse', 'native skills helper should browse marketplace results');
+  assertContains(skillsSource, '/api/clawhub/search', 'native skills helper should search marketplace results');
+  assertContains(skillsSource, '/api/clawhub/install', 'native skills helper should install marketplace skills');
+  assertContains(skillsSource, '/api/skills/create', 'native skills helper should create prompt-only skills');
+  assertContains(skillsSource, '/api/skills/uninstall', 'native skills helper should uninstall skills');
+  assertContains(pageSource, 'await readInstalledSkills()', 'native skills page should load installed skills through the helper');
+  assertContains(pageSource, 'await browseMarketplace(sort)', 'native skills page should browse marketplace results through the helper');
+  assertContains(pageSource, 'await searchMarketplace(search.trim())', 'native skills page should search marketplace results through the helper');
+  assertContains(pageSource, 'await installMarketplaceSkill(slug)', 'native skills page should install marketplace skills through the helper');
+  assertContains(pageSource, "href={dashboardClassicHref('skills')}", 'native skills should preserve a classic escape hatch');
+  assertContains(routeSource, '<SkillsPage />', 'native skills route should render the Svelte skills page directly');
+  assertContains(routeLoadSource, 'export const prerender = true;', 'native skills route should keep static prerender options in +page.ts');
+}
+
+function assertNativeHandsRouteContract() {
+  const dashboardSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/dashboard.ts'));
+  const handsSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/hands.ts'));
+  const pageSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/components/HandsPage.svelte'));
+  const routeSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/routes/hands/+page.svelte'));
+  const routeLoadSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/routes/hands/+page.ts'));
+
+  assert.ok(/\{\s*key:\s*'hands'[\s\S]{0,220}mode:\s*'native'/.test(dashboardSource), 'dashboard registry should mark hands as a native route');
+  assertContains(handsSource, '/api/hands', 'native hands helper should read the authoritative hands catalog');
+  assertContains(handsSource, '/api/hands/active', 'native hands helper should read active hand instances');
+  assertContains(handsSource, '/api/hands/${encodeURIComponent(handId)}/activate', 'native hands helper should activate hands through the authoritative endpoint');
+  assertContains(handsSource, '/api/hands/instances/${encodeURIComponent(instanceId)}/pause', 'native hands helper should pause instances through the authoritative endpoint');
+  assertContains(handsSource, '/api/hands/instances/${encodeURIComponent(instanceId)}/resume', 'native hands helper should resume instances through the authoritative endpoint');
+  assertContains(pageSource, 'await readHandsCatalog()', 'native hands page should load the hands catalog through the helper');
+  assertContains(pageSource, 'await readActiveHands()', 'native hands page should load active instances through the helper');
+  assertContains(pageSource, 'await activateHand(selectedId, parsedConfig)', 'native hands page should activate hands through the helper');
+  assertContains(pageSource, 'await checkHandDependencies(selectedId)', 'native hands page should support dependency checks through the helper');
+  assertContains(pageSource, "href={dashboardClassicHref('hands')}", 'native hands should preserve a classic escape hatch');
+  assertContains(routeSource, '<HandsPage />', 'native hands route should render the Svelte hands page directly');
+  assertContains(routeLoadSource, 'export const prerender = true;', 'native hands route should keep static prerender options in +page.ts');
+}
+
+function assertNativeWizardRouteContract() {
+  const dashboardSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/dashboard.ts'));
+  const pageSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/lib/components/WizardPage.svelte'));
+  const routeSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/routes/wizard/+page.svelte'));
+  const routeLoadSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_sveltekit/src/routes/wizard/+page.ts'));
+
+  assert.ok(/\{\s*key:\s*'wizard'[\s\S]{0,220}mode:\s*'native'/.test(dashboardSource), 'dashboard registry should mark wizard as a native route');
+  assertContains(pageSource, 'await Promise.all([readProviders(), readTemplates(), readChannels()])', 'native wizard should load providers, templates, and channels through authoritative helpers');
+  assertContains(pageSource, 'await saveProviderKey(selectedProvider.id, providerKey.trim())', 'native wizard should save provider keys through the authoritative settings helper');
+  assertContains(pageSource, 'await testProvider(selectedProvider.id)', 'native wizard should test providers through the authoritative settings helper');
+  assertContains(pageSource, 'await spawnTemplateAgent(selectedTemplate.name)', 'native wizard should create agents through the authoritative template flow');
+  assertContains(pageSource, 'await createDraftAgent()', 'native wizard should keep a draft-agent fallback for empty template catalogs');
+  assertContains(pageSource, 'await configureChannel(selectedChannel.name, fields)', 'native wizard should configure optional channels through the authoritative channels helper');
+  assertContains(pageSource, 'await startWhatsappQr()', 'native wizard should support QR-based WhatsApp setup through the authoritative channels helper');
+  assertContains(pageSource, "href={dashboardClassicHref('wizard')}", 'native wizard should preserve a classic escape hatch');
+  assertContains(routeSource, '<WizardPage />', 'native wizard route should render the Svelte wizard page directly');
+  assertContains(routeLoadSource, 'export const prerender = true;', 'native wizard route should keep static prerender options in +page.ts');
+}
+
 const runSnapshotAssertionsWithNativeChat = runSnapshotAssertions;
 runSnapshotAssertions = function() {
   assertNativeChatRouteContract();
   assertNativeAgentsRouteContract();
   assertNativeSettingsRouteContract();
   assertNativeRuntimeRouteContract();
+  assertNativeApprovalsRouteContract();
+  assertNativeAnalyticsRouteContract();
+  assertNativeLogsRouteContract();
+  assertNativeWorkflowsRouteContract();
+  assertNativeSessionsRouteContract();
+  assertNativeSchedulerRouteContract();
+  assertNativeEyesRouteContract();
+  assertNativeCommsRouteContract();
+  assertNativeChannelsRouteContract();
+  assertNativeSkillsRouteContract();
+  assertNativeHandsRouteContract();
+  assertNativeWizardRouteContract();
   return runSnapshotAssertionsWithNativeChat();
 };
 
