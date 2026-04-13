@@ -1,58 +1,49 @@
-fn message_requests_live_web_comparison(message: &str) -> bool {
-    let lowered = clean_text(message, 500).to_ascii_lowercase();
-    if lowered.is_empty() || !message_requests_comparative_answer(message) {
-        return false;
-    }
-    let mentions_external_peer = lowered.contains("openclaw")
-        || lowered.contains("chatgpt")
-        || lowered.contains("claude")
-        || lowered.contains("codex")
-        || lowered.contains("cursor")
-        || lowered.contains("copilot")
-        || lowered.contains("windsurf")
-        || lowered.contains("perplexity");
-    let asks_live_web = lowered.contains("web")
-        || lowered.contains("web search")
-        || lowered.contains("search the web")
-        || lowered.contains("search online")
-        || lowered.contains("browse")
-        || lowered.contains("online")
-        || lowered.contains("latest")
-        || lowered.contains("current")
-        || lowered.contains("today")
-        || lowered.contains("source-backed")
-        || lowered.contains("with sources");
-    asks_live_web && mentions_external_peer
+#[cfg(test)]
+fn scripted_tool_harness_path(root: &Path) -> PathBuf {
+    state_path(
+        root,
+        "client/runtime/local/state/ui/infring_dashboard/test_tool_script.json",
+    )
 }
 
-fn comparative_web_query_from_message(message: &str) -> Option<String> {
-    if !message_requests_live_web_comparison(message) {
+#[cfg(test)]
+fn take_scripted_tool_harness_payload(root: &Path, tool_name: &str, input: &Value) -> Option<Value> {
+    let path = scripted_tool_harness_path(root);
+    let mut script = read_json(&path)?;
+    let queue = script.get_mut("queue").and_then(Value::as_array_mut)?;
+    if queue.is_empty() {
         return None;
     }
-    let query = clean_text(message, 600);
-    if query.is_empty() { None } else { Some(query) }
-}
-
-fn comparative_no_findings_fallback(message: &str) -> String {
-    let lowered = clean_text(message, 400).to_ascii_lowercase();
-    let asks_rank = lowered.contains("rank") || lowered.contains("ranking");
-    let asks_structured_compare = lowered.contains("compare")
-        || lowered.contains("comparison")
-        || lowered.contains("vs")
-        || lowered.contains("versus");
-    if asks_rank || asks_structured_compare {
-        return "Live web retrieval was low-signal in this turn (search-engine chrome without extractable findings). Provisional comparison: Infring is strongest in identity persistence, memory continuity, and integrated tool orchestration; top peers are currently stronger on tool/search failure recovery and handoff consistency. Ask me to rerun `batch_query` with named competitors and I will return a source-backed ranked table.".to_string();
+    let step = queue.remove(0);
+    let mut output = step
+        .get("payload")
+        .cloned()
+        .unwrap_or_else(|| json!({"ok": false, "error": "scripted_tool_payload_missing"}));
+    let expected_tool = clean_text(step.get("tool").and_then(Value::as_str).unwrap_or(""), 120);
+    if !expected_tool.is_empty()
+        && !expected_tool.eq_ignore_ascii_case(tool_name)
+    {
+        output = json!({
+            "ok": false,
+            "error": "scripted_tool_harness_tool_mismatch",
+            "expected_tool": expected_tool,
+            "received_tool": clean_text(tool_name, 120)
+        });
     }
-    "Live web retrieval was low-signal in this turn, so here is the stable comparison: Infring is strongest in identity persistence, memory continuity, and integrated tool orchestration, while mature peers are still stronger on failure recovery and handoff consistency. If you want live sourcing, I can rerun with `batch_query` and a narrower competitor set.".to_string()
-}
-
-fn comparative_natural_web_intent_from_message(message: &str) -> Option<(String, Value)> {
-    comparative_web_query_from_message(message).map(|query| {
-        (
-            "batch_query".to_string(),
-            json!({"source": "web", "query": query, "aperture": "medium"}),
-        )
-    })
+    if let Some(obj) = script.as_object_mut() {
+        let calls = obj
+            .entry("calls".to_string())
+            .or_insert_with(|| json!([]));
+        if let Some(rows) = calls.as_array_mut() {
+            rows.push(json!({
+                "tool": clean_text(tool_name, 120),
+                "input": input.clone(),
+                "payload": output.clone()
+            }));
+        }
+    }
+    write_json(&path, &script);
+    Some(output)
 }
 
 fn execute_tool_call_by_name(
@@ -76,6 +67,10 @@ fn execute_tool_call_by_name(
         enforce_tool_capability_tier(root, snapshot, &actor, &resolved, input)
     {
         return gate_payload;
+    }
+    #[cfg(test)]
+    if let Some(scripted_payload) = take_scripted_tool_harness_payload(root, &resolved, input) {
+        return scripted_payload;
     }
     let headers = vec![("X-Actor-Agent-Id", actor.as_str())];
     let route_with_body = |method: &str, path: &str, body: &Value| -> Value {

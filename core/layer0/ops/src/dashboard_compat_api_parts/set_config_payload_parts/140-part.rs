@@ -395,6 +395,11 @@ fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
             }
             return "Batch query was blocked by policy.".to_string();
         }
+        if !payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+            if let Some(failure) = user_facing_tool_failure_summary(tool_name, payload) {
+                return trim_text(&failure, 1200);
+            }
+        }
         if !sanitized_summary.is_empty()
             && !response_looks_like_tool_ack_without_findings(&sanitized_summary)
             && !response_looks_like_raw_web_artifact_dump(&sanitized_summary)

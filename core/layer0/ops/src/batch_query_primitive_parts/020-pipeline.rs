@@ -264,6 +264,7 @@ fn candidate_is_synthesis_eligible(
     candidate: &Candidate,
     benchmark_intent: bool,
 ) -> bool {
+    let framework_catalog_intent = is_framework_catalog_intent(query);
     if !candidate_passes_relevance_gate(query, candidate, benchmark_intent) {
         return false;
     }
@@ -291,6 +292,12 @@ fn candidate_is_synthesis_eligible(
         {
             return false;
         }
+    }
+    if framework_catalog_intent
+        && !looks_like_framework_catalog_text(&format!("{} {}", candidate.title, candidate.snippet))
+        && query_overlap_terms(query, candidate) < 2
+    {
+        return false;
     }
     true
 }
@@ -466,6 +473,7 @@ fn retrieve_web_candidates_for_query(root: &Path, query: &str) -> Result<Vec<Can
 
 fn rerank_score(query: &str, candidate: &Candidate) -> f64 {
     let benchmark_intent = is_benchmark_or_comparison_intent(query);
+    let framework_catalog_intent = is_framework_catalog_intent(query);
     let query_tokens = query
         .split(|ch: char| !ch.is_ascii_alphanumeric())
         .filter(|token| token.len() > 2)
@@ -496,6 +504,13 @@ fn rerank_score(query: &str, candidate: &Candidate) -> f64 {
     } else {
         0.0
     };
+    let framework_catalog_bonus = if framework_catalog_intent
+        && looks_like_framework_catalog_text(&format!("{} {}", candidate.title, candidate.snippet))
+    {
+        0.18
+    } else {
+        0.0
+    };
     let definition_penalty = if benchmark_intent && looks_like_definition_candidate(candidate) {
         0.72
     } else {
@@ -507,7 +522,11 @@ fn rerank_score(query: &str, candidate: &Candidate) -> f64 {
         } else {
             0.0
         };
-    let mut score = 0.6 * overlap_norm + locator_bonus + status_bonus + metric_bonus
+    let mut score = 0.6 * overlap_norm
+        + locator_bonus
+        + status_bonus
+        + metric_bonus
+        + framework_catalog_bonus
         - definition_penalty
         - comparison_noise_penalty;
     if benchmark_intent && !looks_like_metric_rich_text(&candidate.snippet) {
@@ -613,6 +632,16 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             return json!({"ok": false, "status": "blocked", "summary": "Unsupported aperture.", "evidence_refs": [], "receipt_id": "", "error": "aperture_unsupported"})
         }
     };
+    if source == "web" && is_local_subject_comparison_query(&query) {
+        return json!({
+            "ok": true,
+            "status": "no_results",
+            "summary": local_subject_comparison_summary(&query),
+            "evidence_refs": [],
+            "receipt_id": "",
+            "error": "local_subject_requires_workspace_analysis"
+        });
+    }
     let nexus_connection =
         match crate::dashboard_tool_turn_loop::authorize_ingress_tool_call_with_nexus("batch_query")
         {
@@ -667,52 +696,12 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                 .unwrap_or(crate::tool_output_match_filter::no_findings_user_copy()),
             budget.max_summary_tokens.max(60),
         );
-        let raw_summary_lowered = clean_text(&raw_summary, 320).to_ascii_lowercase();
-        let summary = if raw_summary_lowered.contains("search returned no useful comparison findings")
-        {
-            let comparison_entities = comparison_entities_from_query(&query);
-            let entity_label = if comparison_entities.len() >= 2 {
-                comparison_entities.join(" vs ")
-            } else {
-                "the requested sides".to_string()
-            };
-            format!(
-                "Search did not produce enough source coverage to compare {} in this turn. This is a retrieval-quality miss, not proof the systems are equivalent. Retry with named competitors or one specific source URL per side.",
-                entity_label
-            )
-        } else if raw_summary_lowered.contains("search returned no useful information")
-            || raw_summary_lowered.contains("don't have usable tool findings from this turn yet")
-            || raw_summary_lowered.contains("dont have usable tool findings from this turn yet")
-        {
-            let anti_bot_detected = partial_failure_details
-                .as_array()
-                .map(|rows| {
-                    rows.iter().any(|row| {
-                        clean_text(row.as_str().unwrap_or(""), 320)
-                            .to_ascii_lowercase()
-                            .contains("anti_bot_challenge")
-                    })
-                })
-                .unwrap_or(false);
-            let has_partial_failures = partial_failure_details
-                .as_array()
-                .map(|rows| !rows.is_empty())
-                .unwrap_or(false);
-            if anti_bot_detected {
-                "Search providers returned anti-bot challenge pages before usable content was extracted. Retry with specific source URLs or alternate providers."
-                    .to_string()
-            } else if has_partial_failures {
-                "Search providers ran, but only low-signal or low-relevance web results came back in this turn. Retry with a narrower query or one specific source URL for source-backed findings."
-                    .to_string()
-            } else if source == "web" {
-                "Web retrieval ran, but no usable findings were extracted in this turn. Retry with a narrower query or one specific source URL for source-backed findings."
-                    .to_string()
-            } else {
-                crate::tool_output_match_filter::no_findings_user_copy().to_string()
-            }
-        } else {
-            raw_summary
-        };
+        let summary = rewrite_cached_batch_query_summary(
+            &query,
+            &source,
+            &raw_summary,
+            &partial_failure_details,
+        );
         let parallel_retrieval_used = cached
             .get("parallel_retrieval_used")
             .and_then(Value::as_bool)
@@ -952,11 +941,6 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         .filter(|row| !is_benign_partial_failure(row))
         .cloned()
         .collect::<Vec<_>>();
-    let anti_bot_detected = hard_partial_failures.iter().any(|row| {
-        clean_text(row, 320)
-            .to_ascii_lowercase()
-            .contains("anti_bot_challenge")
-    });
     let status = if evidence_refs.is_empty() {
         "no_results"
     } else if hard_partial_failures.is_empty() {
@@ -965,20 +949,19 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         "partial"
     };
     let summary = if evidence_refs.is_empty() {
-        if anti_bot_detected {
-            "Search providers returned anti-bot challenge pages before usable content was extracted. Retry with specific source URLs or alternate providers."
-                .to_string()
-        } else if let Some(summary) = comparison_guard_summary {
-            summary
-        } else if !hard_partial_failures.is_empty() {
-            "Search providers ran, but only low-signal or low-relevance web results came back in this turn. Retry with a narrower query or one specific source URL for source-backed findings."
-                .to_string()
-        } else if source == "web" {
-            "Web retrieval ran, but no usable findings were extracted in this turn. Retry with a narrower query or one specific source URL for source-backed findings."
-                .to_string()
-        } else {
-            crate::tool_output_match_filter::no_findings_user_copy().to_string()
-        }
+        let partial_failure_value = Value::Array(
+            hard_partial_failures
+                .iter()
+                .cloned()
+                .map(Value::String)
+                .collect::<Vec<_>>(),
+        );
+        no_results_summary_for_batch_query(
+            &query,
+            &source,
+            &partial_failure_value,
+            comparison_guard_summary,
+        )
     } else {
         let mut synthesized_insights = Vec::<String>::new();
         let mut seen_domains = HashSet::<String>::new();
@@ -1022,7 +1005,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                 crate::tool_output_match_filter::no_findings_user_copy().to_string()
             }
         } else {
-            let prefix = if benchmark_intent {
+            let prefix = if is_benchmark_or_comparison_intent(&query) {
                 "Benchmark findings:"
             } else {
                 "Key findings:"

@@ -105,3 +105,49 @@ fn strip_wrapped_natural_web_query(text: &str, max_chars: usize) -> String {
     }
     clean_text(&cleaned, max_chars)
 }
+
+fn normalize_inline_tool_execution_input(
+    normalized_name: &str,
+    input: &Value,
+    user_message: &str,
+) -> Value {
+    let mut normalized_input = input.clone();
+    if matches!(
+        normalized_name,
+        "batch_query" | "batch-query" | "web_search" | "search_web" | "search" | "web_query"
+    ) {
+        let raw_query = clean_text(
+            normalized_input
+                .get("query")
+                .or_else(|| normalized_input.get("q"))
+                .and_then(Value::as_str)
+                .unwrap_or(user_message),
+            600,
+        );
+        let cleaned_query = natural_web_search_query_from_message(&raw_query)
+            .unwrap_or_else(|| strip_wrapped_natural_web_query(&raw_query, 600));
+        if !cleaned_query.is_empty() {
+            if !normalized_input.is_object() {
+                normalized_input = json!({});
+            }
+            normalized_input["query"] = json!(cleaned_query);
+            if normalized_input
+                .get("source")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .is_empty()
+            {
+                normalized_input["source"] = json!("web");
+            }
+            if normalized_input
+                .get("aperture")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .is_empty()
+            {
+                normalized_input["aperture"] = json!("medium");
+            }
+        }
+    }
+    normalized_input
+}

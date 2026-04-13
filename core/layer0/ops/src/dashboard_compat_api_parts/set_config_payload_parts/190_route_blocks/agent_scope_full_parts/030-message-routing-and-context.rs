@@ -296,6 +296,15 @@ fn prepare_message_route_context(
         prompt_parts.push(identity_hydration_prompt);
     }
     prompt_parts.push(AGENT_RUNTIME_SYSTEM_PROMPT.to_string());
+    let workflow_prompt_context = workflow_library_prompt_context(
+        latent_tool_candidates
+            .as_array()
+            .map(Vec::as_slice)
+            .unwrap_or(&[]),
+    );
+    if !workflow_prompt_context.is_empty() {
+        prompt_parts.push(workflow_prompt_context);
+    }
     if !inline_tools_allowed {
         prompt_parts.push("Direct-answer guard: default to natural conversational answers. Do not emit `<function=...>` tool calls unless the user explicitly requested web retrieval, file/terminal operations, memory operations, or agent management in this turn.".to_string());
     }

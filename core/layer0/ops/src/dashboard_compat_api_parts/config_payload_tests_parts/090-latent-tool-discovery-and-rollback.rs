@@ -64,14 +64,10 @@ fn direct_intent_parser_does_not_force_semantic_query_for_recall_prompts() {
 }
 
 #[test]
-fn direct_intent_parser_routes_capability_probe_prompts() {
-    let route =
+fn direct_intent_parser_keeps_capability_probe_prompts_model_first() {
+    assert!(
         direct_tool_intent_from_user_message("can you read files at all in this workspace?")
-            .expect("capability probe route");
-    assert_eq!(route.0, "tool_capabilities");
-    assert_eq!(
-        route.1.get("scope").and_then(Value::as_str).unwrap_or(""),
-        "agent"
+            .is_none()
     );
 }
 

@@ -62,6 +62,49 @@ fn fallback_memory_query_payload(
     }))
 }
 
+fn tool_card_status_from_payload(payload: &Value) -> String {
+    let payload_status = clean_text(
+        payload.get("status").and_then(Value::as_str).unwrap_or(""),
+        80,
+    )
+    .to_ascii_lowercase();
+    let error_text = tool_error_text(payload).to_ascii_lowercase();
+    let receipt_status = clean_text(
+        payload
+            .pointer("/tool_pipeline/tool_attempt_receipt/status")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        80,
+    )
+    .to_ascii_lowercase();
+    let preferred_payload_statuses = [
+        "timeout",
+        "blocked",
+        "policy_denied",
+        "error",
+        "failed",
+        "execution_error",
+        "no_results",
+    ];
+    if error_text.contains("timeout") {
+        return "timeout".to_string();
+    }
+    if preferred_payload_statuses.contains(&payload_status.as_str()) {
+        return payload_status;
+    }
+    if !receipt_status.is_empty() {
+        return receipt_status;
+    }
+    if !payload_status.is_empty() {
+        return payload_status;
+    }
+    if payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+        "ok".to_string()
+    } else {
+        "error".to_string()
+    }
+}
+
 fn execute_tool_call_with_recovery(
     root: &Path,
     snapshot: &Value,
@@ -197,8 +240,9 @@ fn execute_inline_tool_calls(
     let mut fallback_lines = Vec::<String>::new();
     let mut pending_confirmation: Option<Value> = None;
     for (idx, (name, input, _raw)) in calls.into_iter().enumerate() {
-        let mut input_for_call = input.clone();
         let normalized_name = normalize_tool_name(&name);
+        let mut input_for_call =
+            normalize_inline_tool_execution_input(&normalized_name, &input, user_message);
         let user_requested_swarm = swarm_intent_requested(user_message)
             || user_message.to_ascii_lowercase().contains("multi-agent")
             || user_message.to_ascii_lowercase().contains("multi agent");
@@ -239,6 +283,7 @@ fn execute_inline_tool_calls(
         );
         let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(false);
         let result_text = summarize_tool_payload(&name, &payload);
+        let card_status = tool_card_status_from_payload(&payload);
         if !ok
             && tool_error_requires_confirmation(&payload)
             && pending_confirmation.is_none()
@@ -255,7 +300,13 @@ fn execute_inline_tool_calls(
             "name": normalize_tool_name(&name),
             "input": trim_text(&input_for_call.to_string(), 4000),
             "result": trim_text(&result_text, 24_000),
-            "is_error": !ok
+            "is_error": !ok,
+            "blocked": card_status == "blocked" || card_status == "policy_denied",
+            "status": card_status,
+            "tool_attempt_receipt": payload
+                .pointer("/tool_pipeline/tool_attempt_receipt")
+                .cloned()
+                .unwrap_or(Value::Null)
         }));
         if ok && !result_text.trim().is_empty() {
             if !response_looks_like_tool_ack_without_findings(&result_text) {

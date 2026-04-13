@@ -3,7 +3,7 @@ fn finalize_message_finalization_and_payload(
     agent_id: &str,
     message: &str,
     result: &Value,
-    mut response_text: String,
+    response_text: String,
     response_tools: Vec<Value>,
     workflow_mode: String,
     workflow_system_events: Vec<Value>,
@@ -39,6 +39,10 @@ fn finalize_message_finalization_and_payload(
     latent_tool_candidates: Value,
     inline_tools_allowed: bool,
 ) -> CompatApiResponse {
+    let initial_draft_response = clean_chat_text(&response_text, 32_000);
+    let initial_ack_only = response_looks_like_tool_ack_without_findings(&initial_draft_response)
+        || response_is_no_findings_placeholder(&initial_draft_response);
+    let latest_assistant_text = latest_assistant_message_text(&active_messages);
     let response_workflow = run_turn_workflow_final_response(
         root,
         &provider,
@@ -49,20 +53,24 @@ fn finalize_message_finalization_and_payload(
         &response_tools,
         &workflow_system_events,
         &response_text,
+        &latest_assistant_text,
     );
-    if let Some(synthesized) = response_workflow.get("response").and_then(Value::as_str) {
-        response_text = synthesized.to_string();
-    }
-    let (mut finalized_response, mut tool_completion, seed_outcome) =
-        enforce_user_facing_finalization_contract(response_text, &response_tools);
-    let mut finalization_outcome = clean_text(&seed_outcome, 200);
-    let workflow_status = clean_text(
-        response_workflow
-            .pointer("/final_llm_response/status")
-            .and_then(Value::as_str)
-            .unwrap_or(""),
-        80,
-    );
+    let mut response_text = response_workflow
+        .get("response")
+        .and_then(Value::as_str)
+        .map(ToString::to_string)
+        .unwrap_or_default();
+    let mut finalized_response = clean_chat_text(&response_text, 32_000);
+    let mut tool_completion = json!({});
+    let workflow_status = workflow_final_response_status(&response_workflow);
+    let workflow_used = workflow_final_response_used(&response_workflow);
+    let workflow_fallback_allowed =
+        workflow_final_response_allows_system_fallback(&response_workflow);
+    let mut finalization_outcome = if workflow_used {
+        "workflow_authored".to_string()
+    } else {
+        "workflow_llm_unavailable".to_string()
+    };
     if !workflow_status.is_empty() {
         finalization_outcome = merge_response_outcomes(
             &finalization_outcome,
@@ -70,215 +78,77 @@ fn finalize_message_finalization_and_payload(
             200,
         );
     }
-    let mut tool_synthesis_retry_used = false;
-    let initial_ack_only = tool_completion
-        .get("initial_ack_only")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
-    let mut retry_attempted = false;
-    let mut retry_used = false;
-    if initial_ack_only
-        && tool_completion
-            .get("final_ack_only")
-            .and_then(Value::as_bool)
-            .unwrap_or(false)
-    {
-        retry_attempted = true;
-        let strict_tool_prompt = clean_text(
-            &format!(
-                "{}\n\nOutput guard: Return synthesized findings or an explicit no-findings reason. Do not output tool status text like 'Web search completed' or 'Tool call finished'.",
-                AGENT_RUNTIME_SYSTEM_PROMPT
-            ),
-            12_000,
-        );
-        if let Ok(retried) = crate::dashboard_provider_runtime::invoke_chat(
-            root,
-            &provider,
-            &model,
-            &strict_tool_prompt,
-            &active_messages,
-            message,
-        ) {
-            let mut retried_text = clean_chat_text(
-                retried
-                    .get("response")
-                    .and_then(Value::as_str)
-                    .unwrap_or(""),
-                32_000,
-            );
-            retried_text = strip_internal_context_metadata_prefix(&retried_text);
-            retried_text = strip_internal_cache_control_markup(&retried_text);
-            if !user_requested_internal_runtime_details(message) {
-                retried_text = abstract_runtime_mechanics_terms(&retried_text);
-            }
-            let (retry_finalized, _retry_report, retry_outcome) =
-                enforce_user_facing_finalization_contract(retried_text, &response_tools);
-            finalized_response = retry_finalized;
-            finalization_outcome = merge_response_outcomes(
-                &finalization_outcome,
-                &format!("retry:{retry_outcome}"),
-                200,
-            );
-            retry_used = true;
-        }
-    }
-    if let Some(retried_text) = maybe_synthesize_tool_turn_response(
-        root,
-        &provider,
-        &model,
-        &active_messages,
-        message,
-        &response_tools,
-        &finalized_response,
-    ) {
-        let (retry_finalized, _retry_report, retry_outcome) =
-            enforce_user_facing_finalization_contract(retried_text, &response_tools);
-        if !response_is_no_findings_placeholder(&retry_finalized)
-            || response_tools_failure_reason_for_user(&response_tools, 4).is_empty()
-        {
-            finalized_response = retry_finalized;
-            finalization_outcome = merge_response_outcomes(
-                &finalization_outcome,
-                &format!("tool_synthesis_retry:{retry_outcome}"),
-                200,
-            );
-            tool_synthesis_retry_used = true;
-        }
-    }
-    let mut synthesis_retry_used = false;
-    if response_is_no_findings_placeholder(&finalized_response)
-        && message_requests_comparative_answer(message)
-    {
-        let synthesis_prompt = clean_text(
-            &format!(
-                "{}\n\nFallback guard: if tool extraction failed or returned no usable findings, still answer the user directly using stable knowledge. Prioritize relevance to the latest request and return usable content in the requested format.",
-                AGENT_RUNTIME_SYSTEM_PROMPT
-            ),
-            12_000,
-        );
-        if let Ok(retried) = crate::dashboard_provider_runtime::invoke_chat(
-            root,
-            &provider,
-            &model,
-            &synthesis_prompt,
-            &active_messages,
-            message,
-        ) {
-            let mut retried_text = clean_chat_text(
-                retried
-                    .get("response")
-                    .and_then(Value::as_str)
-                    .unwrap_or(""),
-                32_000,
-            );
-            retried_text = strip_internal_context_metadata_prefix(&retried_text);
-            retried_text = strip_internal_cache_control_markup(&retried_text);
-            if !user_requested_internal_runtime_details(message) {
-                retried_text = abstract_runtime_mechanics_terms(&retried_text);
-            }
-            if !response_is_unrelated_context_dump(message, &retried_text) {
-                let (retry_finalized, _retry_report, retry_outcome) =
-                    enforce_user_facing_finalization_contract(retried_text, &response_tools);
-                if !response_is_no_findings_placeholder(&retry_finalized) {
-                    finalized_response = retry_finalized;
-                    finalization_outcome = merge_response_outcomes(
-                        &finalization_outcome,
-                        &format!("synthesis_retry:{retry_outcome}"),
-                        200,
-                    );
-                    synthesis_retry_used = true;
-                }
-            }
-        }
-    }
-    if response_is_no_findings_placeholder(&finalized_response)
-        && message_requests_comparative_answer(message)
-    {
-        finalized_response = comparative_no_findings_fallback(message);
-        finalization_outcome = format!("{finalization_outcome}+comparative_fallback");
-    }
-    if response_is_no_findings_placeholder(&finalized_response) && !response_tools.is_empty() {
-        let tool_failure_reason = response_tools_failure_reason_for_user(&response_tools, 4);
-        if !tool_failure_reason.is_empty() {
-            finalized_response = tool_failure_reason;
-            finalization_outcome =
-                merge_response_outcomes(&finalization_outcome, "tool_failure_reason", 200);
-        }
-    }
-    if response_tools.is_empty()
-        && !inline_tools_allowed
-        && response_is_no_findings_placeholder(&finalized_response)
-    {
-        let direct_chat_repair_prompt = clean_text(
-            &format!(
-                "{}\n\nConversational recovery: answer directly in natural language without tools. Do not mention missing findings unless the user explicitly requested a tool call.",
-                AGENT_RUNTIME_SYSTEM_PROMPT
-            ),
-            12_000,
-        );
-        if let Ok(retried) = crate::dashboard_provider_runtime::invoke_chat(
-            root,
-            &provider,
-            &model,
-            &direct_chat_repair_prompt,
-            &active_messages,
-            message,
-        ) {
-            let mut retried_text = clean_chat_text(
-                retried
-                    .get("response")
-                    .and_then(Value::as_str)
-                    .unwrap_or(""),
-                32_000,
-            );
-            retried_text = strip_internal_context_metadata_prefix(&retried_text);
-            retried_text = strip_internal_cache_control_markup(&retried_text);
-            if !user_requested_internal_runtime_details(message) {
-                retried_text = abstract_runtime_mechanics_terms(&retried_text);
-            }
-            if !response_is_unrelated_context_dump(message, &retried_text) {
-                let (retry_finalized, _retry_report, retry_outcome) =
-                    enforce_user_facing_finalization_contract(retried_text, &response_tools);
-                if !response_is_no_findings_placeholder(&retry_finalized) {
-                    finalized_response = retry_finalized;
-                    finalization_outcome = merge_response_outcomes(
-                        &finalization_outcome,
-                        &format!("conversation_retry:{retry_outcome}"),
-                        200,
-                    );
-                }
-            }
-        }
-        if response_is_no_findings_placeholder(&finalized_response) {
-            finalized_response =
-                "I can answer directly without tool calls. Ask your question naturally and I’ll respond conversationally unless you explicitly request a tool run.".to_string();
-            finalization_outcome = format!("{finalization_outcome}+conversation_fallback");
-        }
-    }
     let mut tooling_fallback_used = false;
-    if let Some(tooling_fallback) = maybe_tooling_failure_fallback(
-        message,
-        &finalized_response,
-        &latest_assistant_message_text(&active_messages),
-    ) {
-        finalized_response = tooling_fallback;
-        finalization_outcome = format!("{finalization_outcome}+tooling_failure_fallback");
-        tooling_fallback_used = true;
+    let mut comparative_fallback_used = false;
+    let mut workflow_system_fallback_used = false;
+    if workflow_used {
+        tool_completion = tool_completion_report_for_response(
+            &finalized_response,
+            &response_tools,
+            "workflow_authored",
+        );
+    } else if workflow_fallback_allowed {
+        let mut fallback_response = maybe_tooling_failure_fallback(
+            message,
+            &initial_draft_response,
+            &latest_assistant_text,
+        )
+        .unwrap_or_default();
+        tooling_fallback_used = !fallback_response.is_empty();
+        if fallback_response.is_empty()
+            && message_requests_comparative_answer(message)
+            && (response_is_no_findings_placeholder(&initial_draft_response)
+                || response_tools_failure_reason_for_user(&response_tools, 4).is_empty())
+        {
+            comparative_fallback_used = true;
+            fallback_response = comparative_no_findings_fallback(message);
+        }
+        if fallback_response.is_empty() && memory_recall_requested(message) {
+            fallback_response = build_memory_recall_response(&state, &messages, message);
+        }
+        if fallback_response.is_empty() && !response_tools.is_empty() {
+            fallback_response = ensure_tool_turn_response_text(&initial_draft_response, &response_tools);
+        }
+        if fallback_response.is_empty() && response_tools.is_empty() && !inline_tools_allowed {
+            fallback_response =
+                "I can answer directly without tool calls. Ask your question naturally and I’ll respond conversationally unless you explicitly request a tool run.".to_string();
+        }
+        if fallback_response.is_empty() {
+            fallback_response =
+                "I hit a response-synthesis failure after collecting this turn. Please retry and I’ll explain what worked or failed directly.".to_string();
+        }
+        workflow_system_fallback_used = true;
+        finalization_outcome = merge_response_outcomes(
+            &finalization_outcome,
+            "workflow_system_fallback",
+            200,
+        );
+        let (contract_finalized, contract_report, contract_outcome) =
+            enforce_user_facing_finalization_contract(fallback_response, &response_tools);
+        finalized_response = contract_finalized;
+        tool_completion = contract_report;
+        finalization_outcome =
+            merge_response_outcomes(&finalization_outcome, &contract_outcome, 200);
+    } else {
+        workflow_system_fallback_used = true;
+        finalization_outcome = merge_response_outcomes(
+            &finalization_outcome,
+            "workflow_unexpected_state",
+            200,
+        );
+        let (contract_finalized, contract_report, contract_outcome) =
+            enforce_user_facing_finalization_contract(
+                "I completed the workflow gate, but the final workflow state was unexpected. Please retry so I can rerun the chain cleanly."
+                    .to_string(),
+                &response_tools,
+            );
+        finalized_response = contract_finalized;
+        tool_completion = contract_report;
+        finalization_outcome =
+            merge_response_outcomes(&finalization_outcome, &contract_outcome, 200);
     }
-    let (contract_finalized, contract_report, contract_outcome) =
-        enforce_user_facing_finalization_contract(finalized_response, &response_tools);
-    finalized_response = contract_finalized;
-    tool_completion = contract_report;
     tool_completion = enrich_tool_completion_receipt(tool_completion, &response_tools);
-    finalization_outcome = merge_response_outcomes(&finalization_outcome, &contract_outcome, 200);
     response_text = finalized_response;
-    if memory_recall_requested(message)
-        && (response_is_no_findings_placeholder(&response_text)
-            || response_looks_like_tool_ack_without_findings(&response_text))
-    {
-        response_text = build_memory_recall_response(&state, &messages, message);
-    }
-    response_text = ensure_tool_turn_response_text(&response_text, &response_tools);
     let final_ack_only = response_looks_like_tool_ack_without_findings(&response_text);
     let response_finalization = json!({
         "applied": finalization_outcome != "unchanged",
@@ -290,11 +160,13 @@ fn finalize_message_finalization_and_payload(
             .and_then(Value::as_bool)
             .unwrap_or(false),
         "tool_completion": tool_completion,
-        "retry_attempted": retry_attempted,
-        "retry_used": retry_used,
-        "tool_synthesis_retry_used": tool_synthesis_retry_used,
-        "synthesis_retry_used": synthesis_retry_used,
-        "tooling_fallback_used": tooling_fallback_used
+        "retry_attempted": false,
+        "retry_used": false,
+        "tool_synthesis_retry_used": false,
+        "synthesis_retry_used": false,
+        "tooling_fallback_used": tooling_fallback_used,
+        "comparative_fallback_used": comparative_fallback_used,
+        "workflow_system_fallback_used": workflow_system_fallback_used
     });
     let turn_transaction = crate::dashboard_tool_turn_loop::turn_transaction_payload(
         "complete",

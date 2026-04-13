@@ -442,8 +442,21 @@
         var httpToolSummary = httpHasToolCompletion && typeof this.completedToolOnlySummary === 'function'
           ? String(this.completedToolOnlySummary(httpTools) || '').trim()
           : '';
+        var httpWorkflowFallbackSummary = typeof this.fallbackAssistantTextFromPayload === 'function'
+          ? String(this.fallbackAssistantTextFromPayload(res, httpTools) || '').trim()
+          : '';
+        var httpReplaceableFinalText =
+          !!httpCompact &&
+          (
+            (typeof this.textLooksNoFindingsPlaceholder === 'function' && this.textLooksNoFindingsPlaceholder(httpCompact)) ||
+            (typeof this.textLooksToolAckWithoutFindings === 'function' && this.textLooksToolAckWithoutFindings(httpCompact))
+          );
+        if (httpReplaceableFinalText && httpWorkflowFallbackSummary && httpWorkflowFallbackSummary !== httpCompact) {
+          httpText = httpWorkflowFallbackSummary;
+          httpCompact = String(httpText || '').replace(/\s+/g, ' ').trim();
+        }
         if (!String(httpText || '').trim()) {
-          httpText = httpToolFailureSummary || httpToolSummary || this.defaultAssistantFallback(httpSplit.thought || '', httpTools);
+          httpText = httpToolFailureSummary || httpToolSummary || httpWorkflowFallbackSummary || this.defaultAssistantFallback(httpSplit.thought || '', httpTools);
         }
         var httpFailure = httpHasToolCompletion ? null : this.extractRecoverableBackendFailure(httpText);
         if (httpFailure) {

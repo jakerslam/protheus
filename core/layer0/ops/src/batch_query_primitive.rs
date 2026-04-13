@@ -4,9 +4,13 @@
 
 include_parts!(
     "batch_query_primitive_parts/010-core.rs",
+    "batch_query_primitive_parts/015-intent-and-quality.rs",
     "batch_query_primitive_parts/020-pipeline.rs",
+    "batch_query_primitive_parts/021-summary-and-guidance.rs",
     "batch_query_primitive_parts/030-run.rs",
 );
 
 #[cfg(test)]
 include!("batch_query_primitive_parts/040-tests.rs");
+#[cfg(test)]
+include!("batch_query_primitive_parts/041-quality-tests.rs");

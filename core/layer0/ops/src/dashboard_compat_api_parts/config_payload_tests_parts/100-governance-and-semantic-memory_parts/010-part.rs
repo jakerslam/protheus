@@ -6,6 +6,20 @@ fn governance_ok_snapshot() -> Value {
     json!({"ok": true})
 }
 
+fn governance_test_chat_script_path(root: &Path) -> PathBuf {
+    state_path(
+        root,
+        "client/runtime/local/state/ui/infring_dashboard/test_chat_script.json",
+    )
+}
+
+fn governance_test_tool_script_path(root: &Path) -> PathBuf {
+    state_path(
+        root,
+        "client/runtime/local/state/ui/infring_dashboard/test_tool_script.json",
+    )
+}
+
 #[test]
 fn terminal_tools_run_without_signoff_and_still_enforce_command_policy() {
     let root = governance_temp_root();
@@ -331,4 +345,3 @@ fn natural_web_intent_does_not_auto_route_peer_comparisons_without_explicit_web_
     );
     assert!(route.is_none());
 }
-

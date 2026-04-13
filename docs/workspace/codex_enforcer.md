@@ -171,3 +171,10 @@ Each sprint/batch must include:
 - Be direct, factual, and auditable.
 - Surface risks and blockers immediately.
 - Do not hide uncertainty.
+
+## Assistant Final-Response Workflow Policy (Mandatory)
+- Every assistant-visible reply must be produced through a selected workflow from the workflow library.
+- The default selected workflow may be simple or complex, but no assistant reply path is allowed to bypass workflow selection and workflow finalization.
+- Post-workflow prose rewrites are prohibited for user-visible assistant text.
+- System-authored fallback text is allowed only when the workflow's final LLM stage is unavailable, skipped, or invoke-failed. In that case the fallback must be explicit about the failure mode.
+- Regression invariant: if `response_workflow.final_llm_response.status == synthesized`, the visible assistant text must come from the workflow-authored response and placeholder text such as “I don't have usable tool findings from this turn yet” must not survive in chat or restored history.

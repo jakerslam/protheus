@@ -658,8 +658,17 @@ function assertChatEnhancementFeatures() {
   assertContains(chatSource, "rtool.name || '').toLowerCase() === 'thought_process'", 'ws response thought-tool hydration guard missing');
   assertContains(chatSource, 'streamedTools = responseTools;', 'ws response tool fallback should hydrate final tool cards when stream events are sparse');
   assertContains(chatSource, 'this.assistantTurnMetadataFromPayload(data, streamedTools)', 'ws response path should preserve structured turn metadata from payloads');
+  assertContains(chatSource, 'fallbackAssistantTextFromPayload: function(payload, tools)', 'chat UI must expose a shared fallback-summary helper for blank assistant turns');
+  assertContains(chatSource, 'responseWorkflowFromPayload: function(payload)', 'chat UI must preserve workflow metadata for history repair and regression checks');
+  assertContains(chatSource, 'workflowResponseTextFromPayload: function(payload)', 'chat UI must expose workflow-authored response extraction for synthesized turns');
+  assertContains(chatSource, 'var workflowText = this.workflowResponseTextFromPayload(data);', 'chat UI should prefer workflow-authored response text before placeholder assistant prose');
+  assertContains(chatSource, 'out.response_workflow = data.response_workflow;', 'chat history metadata must preserve workflow state on assistant rows');
+  assertContains(chatSource, 'if (role === \'agent\' && !isTerminal && !String(text || \'\').trim()) {', 'session normalization must repair blank assistant rows even when tool cards are sparse');
+  assertContains(chatSource, 'self.fallbackAssistantTextFromPayload(m, tools)', 'session normalization should repair blank assistant rows from workflow/finalization metadata');
   assertContains(chatSource, 'this.normalizeSessionMessages({ messages: sanitized })', 'cached session restore should re-normalize persisted tool metadata');
   assertContains(chatSource, 'duplicate.response_finalization = payload.response_finalization;', 'dedupe merge should preserve response finalization metadata on agent rows');
+  assertContains(chatSource, 'this.fallbackAssistantTextFromPayload(duplicate, duplicate.tools || [])', 'dedupe merge should rehydrate visible assistant text from preserved workflow metadata');
+  assertContains(chatSource, "id: 'completion-step-' + (si + 1) + '-' + stepName", 'tool completion repair should synthesize visible tool rows when only completion metadata was persisted');
 }
 
 function assertMemoryApiWired() {

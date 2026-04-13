@@ -443,6 +443,10 @@
       if (String(payload.tool_failure_summary || '').trim()) {
         duplicate.tool_failure_summary = String(payload.tool_failure_summary || '').trim();
       }
+      if (!String(duplicate.text || '').trim() && typeof this.fallbackAssistantTextFromPayload === 'function') {
+        var repairedDuplicateText = String(this.fallbackAssistantTextFromPayload(duplicate, duplicate.tools || []) || '').trim();
+        if (repairedDuplicateText) duplicate.text = repairedDuplicateText;
+      }
       var nextMeta = String(payload.meta || '').trim();
       if (nextMeta) {
         var priorMeta = String(duplicate.meta || '').trim();
