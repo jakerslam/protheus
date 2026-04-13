@@ -174,6 +174,7 @@ function main() {
   const policy = readJson(args.policyPath);
   const files = listFiles(policy);
   const exceptionRows = Array.isArray(policy?.exceptions) ? policy.exceptions : [];
+  const exceptionCountCeiling = Number(policy?.exception_count_ceiling || 0);
   const exceptionMap = new Map();
   for (const row of exceptionRows) {
     const path = String(row?.path || '').trim();
@@ -186,6 +187,16 @@ function main() {
   let scanned = 0;
   let testsExempt = 0;
   let exempted = 0;
+
+  if (Number.isFinite(exceptionCountCeiling) && exceptionCountCeiling > 0 && exceptionRows.length > exceptionCountCeiling) {
+    violations.push({
+      path: '(policy)',
+      lines: exceptionRows.length,
+      cap: exceptionCountCeiling,
+      code: 'exception_count_ceiling_exceeded',
+      detail: `exceptions=${exceptionRows.length}; ceiling=${exceptionCountCeiling}`,
+    });
+  }
 
   for (const path of files) {
     if (isTestPath(path)) {
@@ -253,6 +264,8 @@ function main() {
       pass: violations.length === 0,
       total_scanned: scanned,
       tests_exempt: testsExempt,
+      exception_count: exceptionRows.length,
+      exception_count_ceiling: Number.isFinite(exceptionCountCeiling) && exceptionCountCeiling > 0 ? exceptionCountCeiling : null,
       oversized: oversizedInventory.length,
       exempted,
       violations: violations.length,
