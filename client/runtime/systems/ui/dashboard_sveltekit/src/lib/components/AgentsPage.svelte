@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { dashboardClassicHref, dashboardPageHref } from '$lib/dashboard';
+  import { dashboardPageHref } from '$lib/dashboard';
   import type { DashboardAgentRow, DashboardModelRow } from '$lib/chat';
   import { createDraftAgent, readModels, readSidebarAgents, updateAgentConfig, updateAgentModel } from '$lib/chat';
   import type { DashboardTemplateRow, DashboardTerminatedAgentRow } from '$lib/agents';
@@ -232,7 +232,6 @@
       <button class="primary" type="button" on:click={() => void handleCreateDraft()} disabled={busyKey === 'draft'}>
         {busyKey === 'draft' ? 'Creating…' : 'New draft chat'}
       </button>
-      <a class="ghost" href={dashboardClassicHref('agents')}>Open classic agents</a>
     </div>
   </div>
 

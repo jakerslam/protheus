@@ -15553,12 +15553,19 @@ Source summary:
   - The dashboard host exposes a native orchestration audit feed that reports whether capability probes, alternative plans, verifier requests, nested core execution projection, and receipt/outcome correlation fields are present in the orchestration surface contract.
   - `/dashboard/runtime` renders both feeds in operator-facing cards without adding new authority to the client.
   - The runtime helper reads the new bounded dashboard-host feeds instead of scraping classic HTML or inventing static copy.
+  - Native operator-flow coverage proves chat, runtime debt/orchestration audit, settings, skills/MCP, and web-tooling receipts through a live dashboard-host roundtrip against a bounded stub backend.
+  - Native Svelte pages stop advertising explicit classic escape-hatch links once their routes are already authoritative in the Svelte shell, and the dead per-page legacy frame path is removed when no dashboard pages remain in legacy mode.
   - Dashboard regression coverage proves the runtime page and dashboard host both keep these telemetry lanes wired.
 - Regression evidence pointers:
   - `adapters/runtime/infring_dashboard.ts`
   - `client/runtime/systems/ui/dashboard_sveltekit/src/lib/runtime.ts`
+  - `client/runtime/systems/ui/dashboard_sveltekit/src/lib/dashboard.ts`
   - `client/runtime/systems/ui/dashboard_sveltekit/src/lib/components/RuntimePage.svelte`
+  - `client/runtime/systems/ui/dashboard_sveltekit/src/lib/components/DashboardShell.svelte`
+  - `client/runtime/systems/ui/dashboard_sveltekit/src/lib/components/ChatStatusHeader.svelte`
+  - `tests/client-memory-tools/infring_dashboard_native_operator_flows.test.ts`
   - `tests/client-memory-tools/infring_dashboard_ui.test.ts.parts/030-model-routing-and-memory-assertions.ts`
+  - `npm run -s test:ops:dashboard-native-operator-flows`
   - `npm run -s ops:dashboard-classic:debt:report`
   - `npm run -s ops:policy-debt:summary`
   - `npm run -s ops:tech-debt:report`

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { spawnTemplateAgent, readTemplates, type DashboardTemplateRow } from '$lib/agents';
   import { configureChannel, readChannels, startWhatsappQr, type DashboardChannelRow, type DashboardWhatsappQrState } from '$lib/channels';
-  import { dashboardClassicHref, dashboardPageHref } from '$lib/dashboard';
+  import { dashboardPageHref } from '$lib/dashboard';
   import { createDraftAgent } from '$lib/chat';
   import { readProviders, saveProviderKey, saveProviderUrl, testProvider, type DashboardProviderRow } from '$lib/settings';
   import { onMount } from 'svelte';
@@ -134,7 +134,6 @@
       <h2>First-run provider, agent, and optional channel setup in the Svelte shell.</h2>
     </div>
     <div class="hero-actions">
-      <a class="ghost" href={dashboardClassicHref('wizard')}>Open classic wizard</a>
     </div>
   </div>
 

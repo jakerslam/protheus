@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { dashboardClassicHref } from '$lib/dashboard';
   import { configureChannel, readChannels, readWhatsappQrStatus, removeChannelConfig, startWhatsappQr, testChannel, type DashboardChannelField, type DashboardChannelRow, type DashboardWhatsappQrState } from '$lib/channels';
   import { onDestroy, onMount } from 'svelte';
 
@@ -167,7 +166,6 @@
     </div>
     <div class="hero-actions">
       <button class="ghost" type="button" on:click={() => void refresh()} disabled={loading}>{loading ? 'Refreshing…' : 'Refresh'}</button>
-      <a class="ghost" href={dashboardClassicHref('channels')}>Open classic channels</a>
     </div>
   </div>
 
