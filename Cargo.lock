@@ -1157,18 +1157,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "infring-orchestration-surface-v1"
-version = "0.1.0"
-dependencies = [
- "infring-layer1-memory",
- "infring-task-fabric-core-v1",
- "protheus-tooling-core-v1",
- "serde",
- "serde_json",
- "sha2",
-]
-
-[[package]]
 name = "infring-task-fabric-core-v1"
 version = "0.1.0"
 dependencies = [
