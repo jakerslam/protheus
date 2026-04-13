@@ -189,4 +189,16 @@ mod openclaw_search_runtime_resolution_tests {
             .map(|rows| rows.is_empty())
             .unwrap_or(false));
     }
+
+    #[test]
+    fn empty_duckduckgo_metadata_shell_is_treated_as_low_signal_search_payload() {
+        let payload = json!({
+            "ok": true,
+            "summary": "Key findings: {\"Abstract\":\"\",\"AbstractSource\":\"\",\"AbstractText\":\"\",\"AbstractURL\":\"\",\"Answer\":\"\",\"AnswerType\":\"\",\"Definition\":\"\",\"DefinitionSource\":\"\",\"DefinitionURL\":\"\",\"Entity\":\"\",\"Heading\":\"\",\"RelatedTopics\":[],\"Results\":[],\"Type\":\"\",\"url\":\"https://duck.",
+            "content": "{\"Abstract\":\"\",\"AbstractSource\":\"\",\"AbstractText\":\"\",\"AbstractURL\":\"\",\"Answer\":\"\",\"AnswerType\":\"\",\"Definition\":\"\",\"DefinitionSource\":\"\",\"DefinitionURL\":\"\",\"Entity\":\"\",\"Heading\":\"\",\"RelatedTopics\":[],\"Results\":[],\"Type\":\"\"}"
+        });
+        assert!(payload_looks_low_signal_search(&payload));
+        assert!(!search_payload_usable(&payload));
+        assert_eq!(search_payload_error(&payload), "low_signal_search_payload");
+    }
 }

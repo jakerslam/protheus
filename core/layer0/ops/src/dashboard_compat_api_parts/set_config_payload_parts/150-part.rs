@@ -61,6 +61,68 @@ fn extract_search_result_domains(summary: &str, max_domains: usize) -> Vec<Strin
     domains
 }
 
+fn web_search_framework_catalog_intent(query: &str) -> bool {
+    let lowered = clean_text(query, 600).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    lowered.contains("framework")
+        || lowered.contains("agentic frameworks")
+        || lowered.contains("agent frameworks")
+        || lowered.contains("ai agent")
+}
+
+fn framework_names_from_web_text(text: &str) -> Vec<&'static str> {
+    let lowered = clean_text(text, 800).to_ascii_lowercase();
+    let mut names = Vec::<&'static str>::new();
+    if lowered.contains("langgraph") || lowered.contains("langchain.com") {
+        names.push("LangGraph");
+    }
+    if lowered.contains("openai agents sdk")
+        || lowered.contains("openai-agents-python")
+        || lowered.contains("openai.github.io")
+    {
+        names.push("OpenAI Agents SDK");
+    }
+    if lowered.contains("autogen") || lowered.contains("microsoft.github.io") {
+        names.push("AutoGen");
+    }
+    if lowered.contains("crewai") {
+        names.push("CrewAI");
+    }
+    if lowered.contains("smolagents") || lowered.contains("huggingface.co") {
+        names.push("smolagents");
+    }
+    names
+}
+
+fn framework_search_source_is_low_signal(domain: &str) -> bool {
+    let lowered = clean_text(domain, 160).to_ascii_lowercase();
+    lowered.contains("zhihu.com")
+        || lowered.contains("reddit.com")
+        || lowered.contains("quora.com")
+        || lowered.contains("news.ycombinator.com")
+        || lowered.contains("langgraph.com.cn")
+        || lowered.contains("crewai.org.cn")
+        || lowered.ends_with(".org.cn")
+        || lowered.ends_with(".com.cn")
+        || lowered.contains("support.microsoft.com")
+}
+
+fn filter_framework_search_domains(query: &str, domains: Vec<String>) -> Vec<String> {
+    if !web_search_framework_catalog_intent(query) {
+        return domains;
+    }
+    let filtered = domains
+        .into_iter()
+        .filter(|domain| !framework_search_source_is_low_signal(domain))
+        .collect::<Vec<_>>();
+    if filtered.is_empty() {
+        return Vec::new();
+    }
+    filtered
+}
+
 fn web_search_no_findings_fallback(
     query: &str,
     combined: &str,
@@ -181,6 +243,94 @@ fn extract_search_result_findings(summary: &str, max_items: usize) -> Vec<String
         }
     }
     out
+}
+
+fn filter_framework_search_findings(query: &str, findings: Vec<String>) -> Vec<String> {
+    if !web_search_framework_catalog_intent(query) {
+        return findings;
+    }
+    let filtered = findings
+        .into_iter()
+        .filter(|row| !framework_search_source_is_low_signal(row))
+        .collect::<Vec<_>>();
+    if filtered.is_empty() {
+        return Vec::new();
+    }
+    filtered
+}
+
+fn rewrite_framework_web_search_summary(
+    query: &str,
+    raw_summary: &str,
+    evidence_refs: &Value,
+) -> Option<String> {
+    if !web_search_framework_catalog_intent(query) {
+        return None;
+    }
+    let mut insights = Vec::<String>::new();
+    let mut seen = HashSet::<String>::new();
+    if let Some(rows) = evidence_refs.as_array() {
+        for row in rows {
+            let title = clean_text(row.get("title").and_then(Value::as_str).unwrap_or(""), 220);
+            let locator = clean_text(row.get("locator").and_then(Value::as_str).unwrap_or(""), 320);
+            let joined = format!("{title} {locator}");
+            let domain = extract_search_result_domains(&locator, 1)
+                .into_iter()
+                .next()
+                .or_else(|| extract_search_result_domains(&joined, 1).into_iter().next())
+                .unwrap_or_default();
+            if framework_search_source_is_low_signal(&domain) {
+                continue;
+            }
+            let names = framework_names_from_web_text(&joined);
+            for name in names {
+                let key = name.to_ascii_lowercase();
+                if !seen.insert(key) {
+                    continue;
+                }
+                let insight = if domain.is_empty() {
+                    format!("{name}: official framework source captured")
+                } else {
+                    format!("{name} ({domain}): official framework source captured")
+                };
+                insights.push(insight);
+                if insights.len() >= 4 {
+                    break;
+                }
+            }
+            if insights.len() >= 4 {
+                break;
+            }
+        }
+    }
+    for name in framework_names_from_web_text(raw_summary) {
+        let key = name.to_ascii_lowercase();
+        if !seen.insert(key) {
+            continue;
+        }
+        insights.push(format!("{name}: secondary web evidence referenced this framework"));
+        if insights.len() >= 4 {
+            break;
+        }
+    }
+    if insights.len() >= 2 {
+        return Some(trim_text(&format!("Key findings: {}", insights.join("; ")), 1_200));
+    }
+    let findings = filter_framework_search_findings(query, extract_search_result_findings(raw_summary, 4));
+    if findings.is_empty() {
+        return None;
+    }
+    Some(trim_text(
+        &format!(
+            "Key web findings:\n{}",
+            findings
+                .iter()
+                .map(|row| format!("- {row}"))
+                .collect::<Vec<_>>()
+                .join("\n")
+        ),
+        1_200,
+    ))
 }
 
 fn looks_like_placeholder_fetch_content(text: &str, requested_url: &str) -> bool {

@@ -1,33 +1,50 @@
 fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
     let normalized = normalize_tool_name(tool_name);
-    if let Some(claims) = payload
-        .pointer("/tool_pipeline/claim_bundle/claims")
-        .and_then(Value::as_array)
-    {
-        let mut findings = claims
-            .iter()
-            .filter_map(|claim| {
-                let status = clean_text(
-                    claim.get("status").and_then(Value::as_str).unwrap_or(""),
-                    40,
-                )
-                .to_ascii_lowercase();
-                if status != "supported" && status != "partial" {
-                    return None;
-                }
-                let text = clean_text(claim.get("text").and_then(Value::as_str).unwrap_or(""), 260);
-                if text.is_empty() {
-                    None
-                } else {
-                    Some(trim_text(&text, 220))
-                }
-            })
-            .take(3)
-            .collect::<Vec<_>>();
-        if !findings.is_empty() {
-            findings.retain(|row| !row.trim().is_empty());
+    let web_tool_payload_prefers_native_summary = matches!(
+        normalized.as_str(),
+        "batch_query"
+            | "batch-query"
+            | "web_search"
+            | "search_web"
+            | "search"
+            | "web_query"
+    ) && (payload.get("summary").and_then(Value::as_str).is_some()
+        || payload.get("query_plan").and_then(Value::as_array).is_some()
+        || payload.get("evidence_refs").and_then(Value::as_array).is_some()
+        || payload.get("type").and_then(Value::as_str) == Some("batch_query"));
+    if normalized != "workspace_analyze" && !web_tool_payload_prefers_native_summary {
+        if let Some(claims) = payload
+            .pointer("/tool_pipeline/claim_bundle/claims")
+            .and_then(Value::as_array)
+        {
+            let mut findings = claims
+                .iter()
+                .filter_map(|claim| {
+                    let status = clean_text(
+                        claim.get("status").and_then(Value::as_str).unwrap_or(""),
+                        40,
+                    )
+                    .to_ascii_lowercase();
+                    if status != "supported" && status != "partial" {
+                        return None;
+                    }
+                    let text = strip_redundant_key_findings_prefix(&clean_text(
+                        claim.get("text").and_then(Value::as_str).unwrap_or(""),
+                        260,
+                    ));
+                    if text.is_empty() {
+                        None
+                    } else {
+                        Some(trim_text(&text, 220))
+                    }
+                })
+                .take(3)
+                .collect::<Vec<_>>();
             if !findings.is_empty() {
-                return trim_text(&format!("Key findings: {}", findings.join(" | ")), 24_000);
+                findings.retain(|row| !row.trim().is_empty());
+                if !findings.is_empty() {
+                    return trim_text(&format!("Key findings: {}", findings.join(" | ")), 24_000);
+                }
             }
         }
     }
@@ -67,17 +84,11 @@ fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
             })
             .unwrap_or_default();
         let mut summary = format!("Spawned {created_count}/{requested_count} descendant agents.");
-        if !ids.is_empty() {
-            summary.push_str(&format!(" IDs: {}.", ids.join(", ")));
-        }
-        if !receipt.is_empty() {
-            summary.push_str(&format!(" Directive receipt: {receipt}."));
-        }
+        if !ids.is_empty() { summary.push_str(&format!(" IDs: {}.", ids.join(", "))); }
+        if !receipt.is_empty() { summary.push_str(&format!(" Directive receipt: {receipt}.")); }
         return trim_text(&summary, 24_000);
     }
-    if let Some(capability_summary) =
-        summarize_tool_capability_payload(&normalized, tool_name, payload)
-    {
+    if let Some(capability_summary) = summarize_tool_capability_payload(&normalized, tool_name, payload) {
         return capability_summary;
     }
     if normalized == "memory_semantic_query" || normalized == "memory_query" {
@@ -485,6 +496,10 @@ fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
         } else {
             format!("{summary}\n{content}")
         };
+        let evidence_refs = payload
+            .get("evidence_refs")
+            .cloned()
+            .unwrap_or_else(|| Value::Array(Vec::new()));
         if response_mentions_context_guard(&combined) {
             if message_requests_comparative_answer(&query) {
                 return comparative_no_findings_fallback(&query);
@@ -492,15 +507,23 @@ fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
             return web_tool_context_guard_fallback("Web search");
         }
         let sanitized_summary = strip_context_guard_markers(&summary);
+        if let Some(rewritten) =
+            rewrite_framework_web_search_summary(&query, &combined, &evidence_refs)
+        {
+            return rewritten;
+        }
         if !sanitized_summary.is_empty()
             && !looks_like_search_engine_chrome_summary(&sanitized_summary)
             && !response_looks_like_tool_ack_without_findings(&sanitized_summary)
+            && !response_looks_like_raw_web_artifact_dump(&sanitized_summary)
+            && !response_looks_like_unsynthesized_web_snippet_dump(&sanitized_summary)
             && !response_is_no_findings_placeholder(&sanitized_summary)
         {
             return trim_text(&sanitized_summary, 1_200);
         }
         let combined = strip_context_guard_markers(&combined);
-        let findings = extract_search_result_findings(&combined, 3);
+        let findings =
+            filter_framework_search_findings(&query, extract_search_result_findings(&combined, 4));
         if !findings.is_empty() {
             let findings_lines = findings
                 .iter()
@@ -513,7 +536,8 @@ fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
                 return findings_summary;
             }
         }
-        let sources = extract_search_result_domains(&combined, 4);
+        let sources =
+            filter_framework_search_domains(&query, extract_search_result_domains(&combined, 4));
         if !sources.is_empty() {
             let joined = sources.join(", ");
             return web_search_no_findings_fallback(

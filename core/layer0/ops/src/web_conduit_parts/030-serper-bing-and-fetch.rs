@@ -174,6 +174,98 @@ fn looks_like_search_challenge_payload(summary: &str, content: &str) -> bool {
     .any(|marker| combined.contains(marker))
 }
 
+fn looks_like_empty_duckduckgo_instant_shell_text(text: &str) -> bool {
+    let cleaned = clean_text(text, 6_000);
+    let start = match cleaned.find('{') {
+        Some(idx) => idx,
+        None => return looks_like_truncated_duckduckgo_instant_shell(&cleaned),
+    };
+    let end = match cleaned.rfind('}') {
+        Some(idx) if idx > start => idx,
+        _ => return looks_like_truncated_duckduckgo_instant_shell(&cleaned[start..]),
+    };
+    let decoded = serde_json::from_str::<Value>(&cleaned[start..=end]).unwrap_or(Value::Null);
+    looks_like_empty_duckduckgo_instant_shell(&decoded)
+        || looks_like_truncated_duckduckgo_instant_shell(&cleaned[start..=end])
+}
+
+fn looks_like_empty_duckduckgo_instant_shell(decoded: &Value) -> bool {
+    let Some(obj) = decoded.as_object() else {
+        return false;
+    };
+    let metadata_keys = [
+        "Abstract",
+        "AbstractSource",
+        "AbstractText",
+        "AbstractURL",
+        "Answer",
+        "AnswerType",
+        "Definition",
+        "DefinitionSource",
+        "DefinitionURL",
+        "Entity",
+        "Heading",
+        "RelatedTopics",
+        "Results",
+        "Type",
+    ];
+    let metadata_hits = metadata_keys
+        .iter()
+        .filter(|key| obj.contains_key(**key))
+        .count();
+    if metadata_hits < 5 {
+        return false;
+    }
+    let has_usable_primary_text = ["AbstractText", "Answer", "Definition", "Heading"]
+        .iter()
+        .any(|key| {
+            clean_text(
+                obj.get(*key).and_then(Value::as_str).unwrap_or(""),
+                400,
+            )
+            .len()
+                > 1
+        });
+    if has_usable_primary_text {
+        return false;
+    }
+    let has_related_topics = obj
+        .get("RelatedTopics")
+        .and_then(Value::as_array)
+        .map(|rows| !rows.is_empty())
+        .unwrap_or(false);
+    if has_related_topics {
+        return false;
+    }
+    let has_results = obj
+        .get("Results")
+        .and_then(Value::as_array)
+        .map(|rows| !rows.is_empty())
+        .unwrap_or(false);
+    !has_results
+}
+
+fn looks_like_truncated_duckduckgo_instant_shell(text: &str) -> bool {
+    let lowered = clean_text(text, 6_000).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    let empty_markers = [
+        "\"abstract\":\"\"",
+        "\"abstracttext\":\"\"",
+        "\"answer\":\"\"",
+        "\"definition\":\"\"",
+        "\"heading\":\"\"",
+        "\"entity\":\"\"",
+        "\"relatedtopics\":[]",
+        "\"results\":[]",
+    ]
+    .iter()
+    .filter(|marker| lowered.contains(**marker))
+    .count();
+    empty_markers >= 4
+}
+
 fn payload_looks_like_search_challenge(payload: &Value) -> bool {
     let summary = clean_text(
         payload.get("summary").and_then(Value::as_str).unwrap_or(""),
@@ -192,6 +284,11 @@ fn looks_like_low_signal_search_payload(summary: &str, content: &str) -> bool {
         return true;
     }
     if looks_like_search_challenge_payload(summary, content) {
+        return true;
+    }
+    if looks_like_empty_duckduckgo_instant_shell_text(summary)
+        || looks_like_empty_duckduckgo_instant_shell_text(content)
+    {
         return true;
     }
     if lowered.contains("key findings for") && lowered.contains("potential sources:") {

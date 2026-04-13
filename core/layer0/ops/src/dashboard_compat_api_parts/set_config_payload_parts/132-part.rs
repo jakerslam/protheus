@@ -119,3 +119,41 @@ fn workspace_plus_web_comparison_web_payload_from_message(message: &str) -> Opti
         "aperture": "medium"
     }))
 }
+
+fn framework_catalog_web_payload_from_query(query: &str) -> Option<Value> {
+    let cleaned = clean_text(query, 600);
+    let lowered = cleaned.to_ascii_lowercase();
+    if cleaned.is_empty() {
+        return None;
+    }
+    let asks_ranking = lowered.contains("top")
+        || lowered.contains("best")
+        || lowered.contains("leading")
+        || lowered.contains("popular")
+        || lowered.contains("comparison")
+        || lowered.contains("compare")
+        || lowered.contains("rank");
+    let mentions_agent_frameworks = (lowered.contains("agentic") || lowered.contains("agent"))
+        && (lowered.contains("framework")
+            || lowered.contains("sdk")
+            || lowered.contains("library")
+            || lowered.contains("stack"));
+    if !(asks_ranking && mentions_agent_frameworks) {
+        return None;
+    }
+    Some(json!({
+        "source": "web",
+        "query": "top AI agent frameworks official docs LangGraph OpenAI Agents SDK AutoGen CrewAI smolagents",
+        "queries": [
+            "top AI agent frameworks official docs LangGraph OpenAI Agents SDK AutoGen CrewAI smolagents",
+            "AI agent frameworks landscape LangGraph OpenAI Agents SDK AutoGen CrewAI smolagents",
+            "site:langchain.com LangGraph agent framework overview",
+            "site:openai.github.io/openai-agents-python OpenAI Agents SDK overview",
+            "site:crewai.com CrewAI agent framework overview",
+            "site:microsoft.github.io AutoGen framework overview",
+            "site:github.com huggingface/smolagents smolagents framework overview",
+            "OpenAI Agents SDK official docs overview"
+        ],
+        "aperture": "medium"
+    }))
+}

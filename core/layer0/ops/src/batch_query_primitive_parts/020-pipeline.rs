@@ -1,147 +1,6 @@
-const CACHE_REL: &str = "client/runtime/local/state/batch_query/cache.json";
-const CACHE_MAX_ENTRIES: usize = 240;
-const CACHE_TTL_SUCCESS_SECS: i64 = 30 * 60;
-const CACHE_TTL_NO_RESULTS_SECS: i64 = 2 * 60;
 const LINK_FETCH_FALLBACK_LIMIT: usize = 2;
 const INTERNAL_ROUTE_HINT: &str =
     "This looks like an internal command mapping request, not a web search query. Use local route diagnostics instead of web retrieval.";
-
-fn contains_antibot_marker(text: &str) -> bool {
-    let lowered = clean_text(text, 4_000).to_ascii_lowercase();
-    if lowered.is_empty() {
-        return false;
-    }
-    [
-        "unfortunately, bots use duckduckgo too",
-        "please complete the following challenge",
-        "select all squares containing",
-        "error-lite@duckduckgo.com",
-        "anomaly-modal",
-        "captcha",
-        "verify you are human",
-    ]
-    .iter()
-    .any(|marker| lowered.contains(marker))
-}
-
-fn looks_like_internal_route_query(query: &str) -> bool {
-    let lowered = clean_text(query, 600).to_ascii_lowercase();
-    lowered.contains("tool::")
-        || lowered.contains("map `tool::")
-        || lowered.contains("supported route")
-        || lowered.contains("command-to-route")
-}
-
-fn looks_like_domain_list_noise(text: &str) -> bool {
-    let cleaned = clean_text(text, 1_600);
-    if cleaned.is_empty() {
-        return false;
-    }
-    let domains = extract_domains_from_text(&cleaned, 16);
-    if domains.len() < 3 {
-        return false;
-    }
-    let words = cleaned.split_whitespace().count();
-    words <= (domains.len() * 3 + 10)
-}
-
-fn cache_path(root: &Path) -> PathBuf {
-    root.join(CACHE_REL)
-}
-
-fn cache_key(source: &str, query: &str, aperture: &str, policy: &Value) -> String {
-    crate::deterministic_receipt_hash(&json!({
-        "version": 1,
-        "source": source,
-        "query": query,
-        "aperture": aperture,
-        "policy": policy.get("batch_query").cloned().unwrap_or(Value::Null),
-    }))
-}
-
-fn cache_ttl_for_status(status: &str) -> i64 {
-    if status == "ok" || status == "partial" {
-        CACHE_TTL_SUCCESS_SECS
-    } else {
-        CACHE_TTL_NO_RESULTS_SECS
-    }
-}
-
-fn load_cached_response(root: &Path, key: &str) -> Option<Value> {
-    let path = cache_path(root);
-    let mut cache = read_json_or(&path, json!({"version": 1, "entries": {}}));
-    let now_ts = chrono::Utc::now().timestamp();
-    let mut mutated = false;
-    let mut hit = None::<Value>;
-    if let Some(entries) = cache.get_mut("entries").and_then(Value::as_object_mut) {
-        let stale_keys = entries
-            .iter()
-            .filter_map(|(entry_key, entry)| {
-                let expires_at = entry.get("expires_at").and_then(Value::as_i64).unwrap_or(0);
-                if expires_at <= now_ts {
-                    Some(entry_key.clone())
-                } else {
-                    None
-                }
-            })
-            .collect::<Vec<_>>();
-        for stale_key in stale_keys {
-            entries.remove(&stale_key);
-            mutated = true;
-        }
-        if let Some(entry) = entries.get(key) {
-            if let Some(response) = entry.get("response") {
-                hit = Some(response.clone());
-            }
-        }
-    }
-    if mutated {
-        let _ = write_json_atomic(&path, &cache);
-    }
-    hit
-}
-
-fn store_cached_response(root: &Path, key: &str, response: &Value, status: &str) {
-    let path = cache_path(root);
-    let mut cache = read_json_or(&path, json!({"version": 1, "entries": {}}));
-    let now_ts = chrono::Utc::now().timestamp();
-    let mut entries = cache
-        .get("entries")
-        .and_then(Value::as_object)
-        .cloned()
-        .unwrap_or_default();
-    entries
-        .retain(|_, entry| entry.get("expires_at").and_then(Value::as_i64).unwrap_or(0) > now_ts);
-    let ttl = cache_ttl_for_status(status).max(30);
-    entries.insert(
-        key.to_string(),
-        json!({
-            "stored_at": now_ts,
-            "expires_at": now_ts + ttl,
-            "status": status,
-            "response": response
-        }),
-    );
-    if entries.len() > CACHE_MAX_ENTRIES {
-        let mut order = entries
-            .iter()
-            .map(|(entry_key, entry)| {
-                (
-                    entry_key.clone(),
-                    entry.get("stored_at").and_then(Value::as_i64).unwrap_or(0),
-                )
-            })
-            .collect::<Vec<_>>();
-        order.sort_by_key(|(_, stored_at)| *stored_at);
-        let drop_count = entries.len().saturating_sub(CACHE_MAX_ENTRIES);
-        for (entry_key, _) in order.into_iter().take(drop_count) {
-            entries.remove(&entry_key);
-        }
-    }
-    cache["version"] = json!(1);
-    cache["entries"] = Value::Object(entries);
-    let _ = write_json_atomic(&path, &cache);
-}
 
 fn fixture_payload_for_stage_url(stage: &str, url: &str) -> Option<Value> {
     let fixtures = fixture_payload_map()?;
@@ -212,6 +71,30 @@ fn payload_links_for_fallback(payload: &Value, max_links: usize) -> Vec<String> 
     non_search_engine_links(payload, max_links)
 }
 
+fn framework_catalog_official_urls(query: &str) -> Vec<String> {
+    if !is_framework_catalog_intent(query) {
+        return Vec::new();
+    }
+    vec![
+        "https://www.langchain.com/langgraph".to_string(),
+        "https://openai.github.io/openai-agents-python/".to_string(),
+        "https://microsoft.github.io/autogen/".to_string(),
+        "https://crewai.com/".to_string(),
+        "https://github.com/huggingface/smolagents".to_string(),
+    ]
+}
+
+fn framework_catalog_candidate_coverage(candidates: &[Candidate]) -> usize {
+    let mut seen = HashSet::<String>::new();
+    for candidate in candidates {
+        let combined = format!("{} {} {}", candidate.title, candidate.snippet, candidate.locator);
+        for framework in framework_names_in_text(&combined) {
+            seen.insert(framework.to_ascii_lowercase());
+        }
+    }
+    seen.len()
+}
+
 fn query_overlap_terms(query: &str, candidate: &Candidate) -> usize {
     let query_tokens = query
         .split(|ch: char| !ch.is_ascii_alphanumeric())
@@ -256,6 +139,14 @@ fn candidate_is_substantive(query: &str, candidate: &Candidate, benchmark_intent
     } else if word_count < 6 && overlap < 1 {
         return false;
     }
+    if is_framework_catalog_intent(query) && word_count < 8 && overlap < 2 {
+        let combined = format!("{} {}", candidate.title, snippet);
+        let domain = candidate_domain_hint(candidate);
+        if framework_official_domain(&domain) && looks_like_framework_overview_text(&combined) {
+            return true;
+        }
+        return false;
+    }
     true
 }
 
@@ -295,6 +186,7 @@ fn candidate_is_synthesis_eligible(
     }
     if framework_catalog_intent
         && !looks_like_framework_catalog_text(&format!("{} {}", candidate.title, candidate.snippet))
+        && !looks_like_framework_overview_text(&format!("{} {}", candidate.title, candidate.snippet))
         && query_overlap_terms(query, candidate) < 2
     {
         return false;
@@ -323,16 +215,30 @@ fn collect_candidates_from_stage_payload(
 ) -> (Vec<Candidate>, Vec<String>) {
     let mut candidates = Vec::<Candidate>::new();
     let mut issues = Vec::<String>::new();
-
-    match candidate_from_search_payload(query, payload) {
-        Ok(candidate) => {
-            if candidate_is_synthesis_eligible(query, &candidate, benchmark_intent) {
-                candidates.push(candidate);
-            } else {
-                issues.push(format!("{stage}:candidate_low_relevance"));
-            }
+    let rendered_rows = candidates_from_rendered_search_payload(
+        query,
+        payload,
+        if is_framework_catalog_intent(query) { 4 } else { 2 },
+    );
+    for candidate in rendered_rows {
+        if candidate_is_synthesis_eligible(query, &candidate, benchmark_intent) {
+            candidates.push(candidate);
+        } else {
+            issues.push(format!("{stage}:candidate_low_relevance"));
         }
-        Err(err) => issues.push(format!("{stage}:{err}")),
+    }
+
+    if candidates.is_empty() {
+        match candidate_from_search_payload(query, payload) {
+            Ok(candidate) => {
+                if candidate_is_synthesis_eligible(query, &candidate, benchmark_intent) {
+                    candidates.push(candidate);
+                } else {
+                    issues.push(format!("{stage}:candidate_low_relevance"));
+                }
+            }
+            Err(err) => issues.push(format!("{stage}:{err}")),
+        }
     }
 
     let summary = clean_text(
@@ -346,8 +252,11 @@ fn collect_candidates_from_stage_payload(
     if contains_antibot_marker(&summary) || contains_antibot_marker(&content) {
         issues.push(format!("{stage}:anti_bot_challenge"));
     }
-    let should_fetch_links =
-        candidates.is_empty() || looks_like_low_signal_search_summary(&summary);
+    let should_fetch_links = candidates.is_empty()
+        || looks_like_low_signal_search_summary(&summary)
+        || candidates
+            .iter()
+            .all(|candidate| candidate_needs_link_fetch(query, candidate));
     if should_fetch_links {
         for link in payload_links_for_fallback(payload, LINK_FETCH_FALLBACK_LIMIT) {
             if !fetched_links.insert(link.clone()) {
@@ -447,6 +356,41 @@ fn retrieve_web_candidates_for_query(root: &Path, query: &str) -> Result<Vec<Can
         }
     }
 
+    if is_framework_catalog_intent(query) && framework_catalog_candidate_coverage(&candidates) < 4 {
+        for url in framework_catalog_official_urls(query) {
+            if !fetched_links.insert(url.clone()) {
+                continue;
+            }
+            let fetch_payload = stage_fetch_payload(root, "framework_official", &url);
+            if !fetch_payload
+                .get("ok")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+            {
+                issues.push(format!(
+                    "framework_official:{}",
+                    stage_error(&fetch_payload, "web_fetch_failed")
+                ));
+                continue;
+            }
+            match candidate_from_search_payload(query, &fetch_payload) {
+                Ok(mut candidate) => {
+                    if candidate.locator.is_empty()
+                        || is_search_engine_domain(&candidate_domain_hint(&candidate))
+                    {
+                        candidate.locator = url.clone();
+                    }
+                    if candidate_is_synthesis_eligible(query, &candidate, benchmark_intent) {
+                        candidates.push(candidate);
+                    } else {
+                        issues.push("framework_official:fetch_candidate_low_relevance".to_string());
+                    }
+                }
+                Err(err) => issues.push(format!("framework_official:fetch_candidate:{err}")),
+            }
+        }
+    }
+
     if candidates.is_empty() {
         if issues.is_empty() {
             Err("no_usable_summary".to_string())
@@ -511,6 +455,11 @@ fn rerank_score(query: &str, candidate: &Candidate) -> f64 {
     } else {
         0.0
     };
+    let framework_catalog_source_bonus = if framework_catalog_intent {
+        framework_catalog_source_adjustment(candidate)
+    } else {
+        0.0
+    };
     let definition_penalty = if benchmark_intent && looks_like_definition_candidate(candidate) {
         0.72
     } else {
@@ -527,6 +476,7 @@ fn rerank_score(query: &str, candidate: &Candidate) -> f64 {
         + status_bonus
         + metric_bonus
         + framework_catalog_bonus
+        + framework_catalog_source_bonus
         - definition_penalty
         - comparison_noise_penalty;
     if benchmark_intent && !looks_like_metric_rich_text(&candidate.snippet) {
@@ -593,23 +543,13 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             .and_then(Value::as_str)
             .unwrap_or("web"),
     );
-    let query = clean_text(
-        request
-            .get("query")
-            .or_else(|| request.get("q"))
-            .and_then(Value::as_str)
-            .unwrap_or(""),
-        600,
-    );
     let aperture = normalize_aperture(
         request
             .get("aperture")
             .and_then(Value::as_str)
             .unwrap_or("medium"),
     );
-    if query.is_empty() {
-        return json!({"ok": false, "status": "blocked", "summary": "Query is required.", "evidence_refs": [], "receipt_id": "", "error": "query_required"});
-    }
+    let query = request_query_text(request, 600);
     if source == "web" && looks_like_internal_route_query(&query) {
         return json!({
             "ok": true,
@@ -632,6 +572,9 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             return json!({"ok": false, "status": "blocked", "summary": "Unsupported aperture.", "evidence_refs": [], "receipt_id": "", "error": "aperture_unsupported"})
         }
     };
+    if query.is_empty() {
+        return json!({"ok": false, "status": "blocked", "summary": "Query is required.", "evidence_refs": [], "receipt_id": "", "error": "query_required"});
+    }
     if source == "web" && is_local_subject_comparison_query(&query) {
         return json!({
             "ok": true,
@@ -662,14 +605,35 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                 })
             }
         };
-    let cache_key = cache_key(&source, &query, &aperture, &policy);
+    let query_plan = resolve_query_plan(request, &query, budget);
+    let cache_key =
+        cache_key_with_query_plan(&source, &query, &aperture, &policy, &query_plan.queries);
     if let Some(cached) = load_cached_response(root, &cache_key) {
-        let status = clean_text(
+        let cached_status = clean_text(
             cached
                 .get("status")
                 .and_then(Value::as_str)
                 .unwrap_or("no_results"),
             32,
+        );
+        let query_plan_value = cached
+            .get("query_plan")
+            .and_then(Value::as_array)
+            .map(|rows| {
+                rows.iter()
+                    .filter_map(Value::as_str)
+                    .map(|row| clean_text(row, 600))
+                    .filter(|row| !row.is_empty())
+                    .collect::<Vec<_>>()
+            })
+            .filter(|rows| !rows.is_empty())
+            .unwrap_or_else(|| query_plan.queries.clone());
+        let query_plan_source = clean_text(
+            cached
+                .get("query_plan_source")
+                .and_then(Value::as_str)
+                .unwrap_or(query_plan.query_plan_source),
+            64,
         );
         let evidence_refs = cached
             .get("evidence_refs")
@@ -696,10 +660,22 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                 .unwrap_or(crate::tool_output_match_filter::no_findings_user_copy()),
             budget.max_summary_tokens.max(60),
         );
+        let cached_summary_requires_refresh = source == "web"
+            && cached_status == "ok"
+            && cached_framework_summary_requires_refresh(&query, &raw_summary, &evidence_refs);
+        if cached_summary_requires_refresh {
+            // Recompute instead of replaying stale forum-led framework summaries.
+        } else {
+        let status = if cached_status == "ok" && looks_like_low_signal_search_summary(&raw_summary) {
+            "no_results".to_string()
+        } else {
+            cached_status
+        };
         let summary = rewrite_cached_batch_query_summary(
             &query,
             &source,
             &raw_summary,
+            &evidence_refs,
             &partial_failure_details,
         );
         let parallel_retrieval_used = cached
@@ -721,7 +697,8 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             "query_timeout_ms": query_timeout.as_millis() as u64,
             "parallel_window": parallel_window,
             "rewrite_set": rewrite_set,
-            "query_plan": [query.clone()],
+            "query_plan": query_plan_value,
+            "query_plan_source": query_plan_source,
             "adapter_version": "web_conduit_v1",
             "provider_snapshot": provider_snapshot,
             "snapshot_id": provider_snapshot.get("id").cloned().unwrap_or(Value::Null),
@@ -753,6 +730,14 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             "query_timeout_ms": query_timeout.as_millis() as u64,
             "parallel_window": parallel_window,
             "rewrite_set": rewrite_set,
+            "query_plan": cached
+                .get("query_plan")
+                .cloned()
+                .unwrap_or_else(|| json!(query_plan.queries)),
+            "query_plan_source": cached
+                .get("query_plan_source")
+                .cloned()
+                .unwrap_or_else(|| json!(query_plan.query_plan_source)),
             "partial_failure_details": partial_failure_details,
             "cache_status": "hit"
         });
@@ -760,10 +745,12 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             out["nexus_connection"] = meta;
         }
         return out;
+        }
     }
 
-    let (queries, rewrite_set, rewrite_applied) = build_query_plan(&query, budget);
-    let parallel_allowed = source == "web" && rewrite_applied && queries.len() > 1;
+    let queries = query_plan.queries.clone();
+    let rewrite_set = query_plan.rewrite_set.clone();
+    let parallel_allowed = source == "web" && query_plan.rewrite_applied && queries.len() > 1;
     let mut candidates = Vec::<Candidate>::new();
     let mut partial_failures = Vec::<String>::new();
     if parallel_allowed {
@@ -862,11 +849,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
     });
     candidates.truncate(budget.max_candidates);
 
-    let rerank_query = if rewrite_applied {
-        queries.last().cloned().unwrap_or_else(|| query.clone())
-    } else {
-        query.clone()
-    };
+    let rerank_query = query_plan.rerank_query.clone();
     let benchmark_intent = is_benchmark_or_comparison_intent(&rerank_query);
     let mut ranked = candidates
         .iter()
@@ -997,6 +980,23 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                 break;
             }
         }
+        if is_framework_catalog_intent(&query) {
+            let fallback_insights =
+                framework_catalog_fallback_insights(&actionable_ranked, budget.max_evidence);
+            let synthesized_joined = synthesized_insights.join(" ");
+            let fallback_joined = fallback_insights.join(" ");
+            if framework_name_hits(&synthesized_joined) < 2
+                && framework_name_hits(&fallback_joined)
+                    > framework_name_hits(&synthesized_joined)
+            {
+                synthesized_insights = fallback_insights.clone();
+            }
+            if framework_summary_contains_low_signal_sources(&synthesized_insights.join(" "))
+                && !fallback_insights.is_empty()
+            {
+                synthesized_insights = fallback_insights;
+            }
+        }
         if synthesized_insights.is_empty() {
             if source == "web" {
                 "Web retrieval ran, but only low-signal snippets were available for synthesis in this turn. Retry with a narrower query or one specific source URL for source-backed findings."
@@ -1033,6 +1033,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         "parallel_window": parallel_window,
         "rewrite_set": rewrite_set,
         "query_plan": queries,
+        "query_plan_source": query_plan.query_plan_source,
         "adapter_version": "web_conduit_v1",
         "provider_snapshot": provider_snapshot,
         "snapshot_id": provider_snapshot.get("id").cloned().unwrap_or(Value::Null),
@@ -1065,6 +1066,8 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         "query_timeout_ms": query_timeout.as_millis() as u64,
         "parallel_window": parallel_window,
         "rewrite_set": rewrite_set.clone(),
+        "query_plan": queries.clone(),
+        "query_plan_source": query_plan.query_plan_source,
         "partial_failure_details": hard_partial_failures.clone(),
         "cache_status": "miss"
     });
@@ -1076,6 +1079,8 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             "summary": summary,
             "evidence_refs": evidence_refs,
             "rewrite_set": rewrite_set,
+            "query_plan": queries,
+            "query_plan_source": query_plan.query_plan_source,
             "partial_failure_details": hard_partial_failures,
             "parallel_retrieval_used": parallel_allowed
         }),
