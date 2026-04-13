@@ -20234,7 +20234,7 @@
       "order": 1838
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/050-conversation-cache.ts",
       "language": "ts",
       "loc": 491,
@@ -20242,7 +20242,10 @@
       "migration_potential_score": 2,
       "concept_opportunity_score": 3,
       "priority_score": 2.2,
-      "order": 1839
+      "order": 1839,
+      "wave": "2026-04-13-openclaw-tooling-wave-004",
+      "source": "openclaw:ui/src/ui/chat/deleted-messages.ts",
+      "notes": "OPENCLAW-TOOLING-CHAT-010 added session-scoped notice memory for chat continuity."
     },
     {
       "status": "queued",
@@ -20267,7 +20270,7 @@
       "order": 1841
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/090-init-hooks-and-shortcuts.part01.ts",
       "language": "ts",
       "loc": 482,
@@ -20275,7 +20278,10 @@
       "migration_potential_score": 2,
       "concept_opportunity_score": 3,
       "priority_score": 2.2,
-      "order": 1842
+      "order": 1842,
+      "wave": "2026-04-13-openclaw-tooling-wave-004",
+      "source": "openclaw:ui/src/ui/controllers/sessions.ts",
+      "notes": "OPENCLAW-TOOLING-CHAT-010 added stale session-list refresh hooks on focus and visibility changes."
     },
     {
       "status": "queued",
@@ -20325,7 +20331,7 @@
       "order": 1846
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/130-render-window-and-session.part01.ts",
       "language": "ts",
       "loc": 470,
@@ -20333,7 +20339,10 @@
       "migration_potential_score": 2,
       "concept_opportunity_score": 3,
       "priority_score": 2.2,
-      "order": 1847
+      "order": 1847,
+      "wave": "2026-04-13-openclaw-tooling-wave-004",
+      "source": "openclaw:ui/src/ui/session-key.ts",
+      "notes": "OPENCLAW-TOOLING-CHAT-010 added normalized session-key parsing and deduped session payload hydration."
     },
     {
       "status": "queued",
@@ -20955,7 +20964,7 @@
       "order": 1903
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/160-runtime-events-and-render.part02.ts",
       "language": "ts",
       "loc": 237,
@@ -20963,10 +20972,13 @@
       "migration_potential_score": 2,
       "concept_opportunity_score": 3,
       "priority_score": 2.2,
-      "order": 1904
+      "order": 1904,
+      "wave": "2026-04-13-openclaw-tooling-wave-004",
+      "source": "openclaw:ui/src/ui/chat-event-reload.ts,ui/src/ui/chat/side-result.ts",
+      "notes": "OPENCLAW-TOOLING-CHAT-010 added final-event reload and side-result parsing helpers."
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/191-slash-continuity-and-alias-helpers.ts",
       "language": "ts",
       "loc": 235,
@@ -20974,7 +20986,10 @@
       "migration_potential_score": 2,
       "concept_opportunity_score": 3,
       "priority_score": 2.2,
-      "order": 1905
+      "order": 1905,
+      "wave": "2026-04-13-openclaw-tooling-wave-004",
+      "source": "openclaw:ui/src/ui/session-key.ts",
+      "notes": "OPENCLAW-TOOLING-CHAT-010 upgraded continuity previews with normalized session labels."
     },
     {
       "status": "queued",

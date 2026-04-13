@@ -113,6 +113,24 @@
         var staleSessions = Number(((((continuity || {}).sessions) || {}).stale_48h_count) || 0);
         var channelAttention = Number(((((continuity || {}).channels) || {}).attention_needed_count) || 0);
         var continuityRows = [];
+        var self = this;
+        var formatContinuitySessionIdentity = function(row) {
+          var agentId = String((row && (row.agent_id || row.agentId)) || '').trim();
+          if (typeof self.resolveSessionRowLabel !== 'function') {
+            return agentId || '?';
+          }
+          var label = self.resolveSessionRowLabel({
+            label: row && (row.session_label || row.label),
+            key: row && (row.session_key || row.key),
+            session_key: row && row.session_key,
+            session_id: row && (row.session_id || row.id),
+            id: row && row.id,
+            agent_id: agentId,
+          }, agentId);
+          if (!agentId) return label || '?';
+          if (!label || label.toLowerCase() === 'main') return agentId;
+          return agentId + ' / ' + label;
+        };
         continuityRows.push('**Cross-Channel Continuity**');
         continuityRows.push('- Pending tasks: ' + taskPending);
         continuityRows.push('- Stale sessions (48h+): ' + staleSessions);
@@ -122,7 +140,7 @@
           continuityRows.push('');
           continuityRows.push('Active agent markers:');
           var markers = activeAgentRows.slice(0, 4).map(function(row) {
-            var id = String((row && row.agent_id) || '?');
+            var id = formatContinuitySessionIdentity(row);
             var objective = String((row && row.objective) || '').trim();
             if (objective.length > 70) objective = objective.slice(0, 67) + '...';
             var completion = Number((row && row.completion_percent) || 0);
@@ -133,7 +151,7 @@
         var stale = (((continuity || {}).sessions) || {}).stale_48h || [];
         if (Array.isArray(stale) && stale.length) {
           var stalePreview = stale.slice(0, 3).map(function(row) {
-            return '- `' + String((row && row.agent_id) || '?') + '` — ' + Number((row && row.age_hours) || 0).toFixed(1) + 'h';
+            return '- `' + formatContinuitySessionIdentity(row) + '` — ' + Number((row && row.age_hours) || 0).toFixed(1) + 'h';
           });
           continuityRows.push('');
           continuityRows.push('Stale session previews:');

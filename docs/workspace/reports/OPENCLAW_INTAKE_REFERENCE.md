@@ -78,7 +78,21 @@
     - `ui/src/ui/views/chat.ts`
   - Landed in:
     - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/220-artifacts-voice-search.part01.ts`
+- `OPENCLAW-TOOLING-CHAT-010`:
+  - Imported session continuity, session-key normalization, final-event reload, and side-result shaping from:
+    - `ui/src/ui/chat/deleted-messages.ts`
+    - `ui/src/ui/controllers/sessions.ts`
+    - `ui/src/ui/session-key.ts`
+    - `ui/src/ui/chat-event-reload.ts`
+    - `ui/src/ui/chat/side-result.ts`
+  - Landed in:
+    - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/050-conversation-cache.ts`
+    - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/090-init-hooks-and-shortcuts.part01.ts`
+    - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/130-render-window-and-session.part01.ts`
+    - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/160-runtime-events-and-render.part02.ts`
+    - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/191-slash-continuity-and-alias-helpers.ts`
+    - support call sites in `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/140-session-and-ws.part01.ts`, `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/160-runtime-events-and-render.part01.ts`, `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/040-models-and-cache.part01.ts`, and `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/040-models-and-cache.part02.ts`
 
 ## Current Intake State
-- Imported rows in this wave: `15`
+- Imported rows in this wave: `20`
 - Pending rows in this wave: `0`

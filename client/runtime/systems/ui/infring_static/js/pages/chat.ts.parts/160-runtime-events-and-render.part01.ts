@@ -39,6 +39,9 @@
           break;
 
         case 'command_result':
+          if (typeof this.appendChatSideResultNotice === 'function' && this.appendChatSideResultNotice(data)) {
+            break;
+          }
           this.applyContextTelemetry(data);
           var isContextTelemetryResult = Object.prototype.hasOwnProperty.call(data || {}, 'context_tokens') ||
             Object.prototype.hasOwnProperty.call(data || {}, 'context_window') ||

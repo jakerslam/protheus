@@ -4,6 +4,57 @@
       return String(msg.role || '');
     },
 
+    shouldReloadHistoryForFinalEventPayload: function(payload) {
+      return !!(
+        payload &&
+        typeof payload === 'object' &&
+        String(payload.state || '').trim().toLowerCase() === 'final'
+      );
+    },
+
+    parseChatSideResult: function(payload) {
+      if (!payload || typeof payload !== 'object') return null;
+      var candidate = payload;
+      if (candidate.kind !== 'btw') return null;
+      var runId = String(candidate.runId || '').trim();
+      var sessionKey = String(candidate.sessionKey || '').trim();
+      var question = String(candidate.question || '').trim();
+      var text = String(candidate.text || '').trim();
+      if (!(runId && sessionKey && question && text)) return null;
+      return {
+        kind: 'btw',
+        runId: runId,
+        sessionKey: sessionKey,
+        question: question,
+        text: text,
+        isError: candidate.isError === true,
+        ts:
+          typeof candidate.ts === 'number' && Number.isFinite(candidate.ts)
+            ? candidate.ts
+            : Date.now()
+      };
+    },
+
+    appendChatSideResultNotice: function(payload) {
+      var parsed = this.parseChatSideResult(payload);
+      if (!parsed) return false;
+      this.messages.push({
+        id: ++msgId,
+        role: 'system',
+        text: parsed.text,
+        meta: '',
+        tools: [],
+        system_origin: parsed.isError ? 'runtime:btw:error' : 'runtime:btw',
+        notice_label: 'Background note: ' + parsed.question,
+        notice_type: parsed.isError ? 'warn' : 'info',
+        run_id: parsed.runId,
+        session_key: parsed.sessionKey,
+        ts: parsed.ts
+      });
+      this.scrollToBottom();
+      return true;
+    },
+
     isStackBoundaryNoticeMessage: function(msg) {
       if (!msg || msg.terminal) return false;
       if (msg.is_notice) return true;

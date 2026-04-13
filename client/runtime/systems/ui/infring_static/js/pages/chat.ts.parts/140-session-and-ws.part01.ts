@@ -144,7 +144,18 @@
     async loadSessions(agentId) {
       try {
         var data = await InfringAPI.get('/api/agents/' + agentId + '/sessions');
-        this.sessions = data.sessions || [];
+        var normalizedAgentId = typeof this.normalizeSessionAgentId === 'function'
+          ? this.normalizeSessionAgentId(agentId)
+          : String(agentId || '').trim().toLowerCase();
+        var rows = data && Array.isArray(data.sessions) ? data.sessions : [];
+        if (typeof this.normalizeSessionsList === 'function') {
+          rows = this.normalizeSessionsList(rows, normalizedAgentId);
+        }
+        this.sessions = rows;
+        if (!this._sessionsLastLoadedAtByAgent || typeof this._sessionsLastLoadedAtByAgent !== 'object') {
+          this._sessionsLastLoadedAtByAgent = {};
+        }
+        this._sessionsLastLoadedAtByAgent[normalizedAgentId] = Date.now();
       } catch(e) { this.sessions = []; }
     },
 
@@ -492,6 +503,16 @@
 
         // New typing lifecycle
         case 'typing':
+          if (typeof this.shouldReloadHistoryForFinalEventPayload === 'function' && this.shouldReloadHistoryForFinalEventPayload(data)) {
+            var finalAgentId = String((data && data.agent_id) || (this.currentAgent && this.currentAgent.id) || '').trim();
+            if (finalAgentId) {
+              var selfFinal = this;
+              Promise.resolve()
+                .then(function() { return selfFinal.loadSessions(finalAgentId); })
+                .catch(function() { return []; })
+                .then(function() { return selfFinal.loadSession(finalAgentId, true).catch(function() { return null; }); });
+            }
+          }
           if (data.state === 'start') {
             this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'typing');
             if (!this.messages.length || !this.messages[this.messages.length - 1].thinking) {
