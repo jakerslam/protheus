@@ -1,3 +1,4 @@
+// Layer ownership: tests (regression proof for orchestration surface contracts).
 use infring_orchestration_surface_v1::contracts::{
     ClarificationReason, CoreContractCall, OrchestrationRequest, RequestClass, RequestSurface,
 };

@@ -1,3 +1,4 @@
+// Layer ownership: core/layer2/tooling (authoritative canonical tool/evidence substrate).
 use crate::capability::{ToolCapabilityStatus, ToolReasonCode};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::collections::BTreeMap;

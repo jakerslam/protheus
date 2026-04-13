@@ -1,3 +1,4 @@
+// Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 use crate::contracts::{
     CoreContractCall, Mutability, PlanScore, RequestClassification, TypedOrchestrationRequest,
 };

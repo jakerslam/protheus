@@ -65,8 +65,8 @@
       "description": "Client layer boundary audit with explicit artifact output.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
-      "command": ["node", "client/runtime/lib/ts_entrypoint.ts", "tests/tooling/scripts/ci/client_layer_boundary_audit.ts", "--strict=1", "--out=${CLIENT_LAYER_AUDIT_OUT}"],
-      "artifact_paths": ["${CLIENT_LAYER_AUDIT_OUT}"]
+      "command": ["node", "client/runtime/lib/ts_entrypoint.ts", "tests/tooling/scripts/ci/client_layer_boundary_audit.ts", "--strict=1", "--out=core/local/artifacts/client_layer_boundary_audit_current.json"],
+      "artifact_paths": ["core/local/artifacts/client_layer_boundary_audit_current.json"]
     },
     "ops:arch:conformance": {
       "owner": "ops",
@@ -171,6 +171,17 @@
       "timeout_sec": 60,
       "script": "ops:release-hardening-window:guard",
       "artifact_paths": ["core/local/artifacts/release_hardening_window_guard_current.json"]
+    },
+    "ops:ipc-bridge:soak": {
+      "owner": "ops",
+      "description": "Resident IPC bridge stability soak for release readiness evidence.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 180,
+      "script": "ops:ipc-bridge:soak",
+      "artifact_paths": [
+        "artifacts/ops_ipc_bridge_stability_soak_report_latest.json",
+        "local/state/ops/ops_ipc_bridge_stability_soak/latest.json"
+      ]
     },
     "ops:production-closure:gate": {
       "owner": "ops",
@@ -348,24 +359,24 @@
       "description": "Client scope inventory.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
-      "command": ["node", "client/runtime/lib/ts_entrypoint.ts", "tests/tooling/scripts/ci/client_scope_inventory.ts", "--out=${CLIENT_SCOPE_OUT}"],
-      "artifact_paths": ["${CLIENT_SCOPE_OUT}"]
+      "command": ["node", "client/runtime/lib/ts_entrypoint.ts", "tests/tooling/scripts/ci/client_scope_inventory.ts", "--out=core/local/artifacts/client_scope_inventory_current.json"],
+      "artifact_paths": ["core/local/artifacts/client_scope_inventory_current.json"]
     },
     "audit:client-surface-disposition": {
       "owner": "ops",
       "description": "Client surface disposition inventory.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
-      "command": ["node", "client/runtime/lib/ts_entrypoint.ts", "tests/tooling/scripts/ci/client_surface_disposition.ts", "--out=${CLIENT_SURFACE_OUT}"],
-      "artifact_paths": ["${CLIENT_SURFACE_OUT}"]
+      "command": ["node", "client/runtime/lib/ts_entrypoint.ts", "tests/tooling/scripts/ci/client_surface_disposition.ts", "--out=core/local/artifacts/client_surface_disposition_current.json"],
+      "artifact_paths": ["core/local/artifacts/client_surface_disposition_current.json"]
     },
     "audit:client-target-contract": {
       "owner": "ops",
       "description": "Client target contract audit.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
-      "command": ["node", "client/runtime/lib/ts_entrypoint.ts", "tests/tooling/scripts/ci/client_target_contract_audit.ts", "--strict=1", "--scope=${CLIENT_SCOPE_OUT}", "--boundary=${CLIENT_LAYER_AUDIT_OUT}", "--disposition=${CLIENT_SURFACE_OUT}", "--out=${CLIENT_TARGET_OUT}"],
-      "artifact_paths": ["${CLIENT_TARGET_OUT}"]
+      "command": ["node", "client/runtime/lib/ts_entrypoint.ts", "tests/tooling/scripts/ci/client_target_contract_audit.ts", "--strict=1", "--scope=core/local/artifacts/client_scope_inventory_current.json", "--boundary=core/local/artifacts/client_layer_boundary_audit_current.json", "--disposition=core/local/artifacts/client_surface_disposition_current.json", "--out=core/local/artifacts/client_target_contract_audit_current.json"],
+      "artifact_paths": ["core/local/artifacts/client_target_contract_audit_current.json"]
     },
     "ops:v8:runtime-proof:gate": {
       "owner": "ops",
