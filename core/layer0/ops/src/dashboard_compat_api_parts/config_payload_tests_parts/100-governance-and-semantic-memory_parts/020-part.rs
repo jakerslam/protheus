@@ -26,11 +26,15 @@ fn natural_file_prompt_does_not_auto_route_direct_tool_intent() {
 }
 
 #[test]
-fn explicit_tool_command_routes_web_search_with_defaults() {
-    let (tool, input) =
-        direct_tool_intent_from_user_message("tool::web_search:::latest ai agent benchmarks")
-            .expect("explicit tool command");
-    assert_eq!(tool, "web_search");
+fn explicit_tool_command_surfaces_web_search_workflow_hint() {
+    assert!(direct_tool_intent_from_user_message("tool::web_search:::latest ai agent benchmarks").is_none());
+    let hints = chat_workflow_tool_hints_for_message("tool::web_search:::latest ai agent benchmarks");
+    assert_eq!(hints.len(), 1);
+    let input = hints[0].get("proposed_input").cloned().unwrap_or(Value::Null);
+    assert_eq!(
+        hints[0].get("tool").and_then(Value::as_str).unwrap_or(""),
+        "web_search"
+    );
     assert_eq!(
         input.get("query").and_then(Value::as_str).unwrap_or(""),
         "latest ai agent benchmarks"
@@ -46,11 +50,14 @@ fn explicit_tool_command_routes_web_search_with_defaults() {
 }
 
 #[test]
-fn explicit_tool_command_alias_routes_compare_to_batch_query() {
-    let (tool, input) =
-        direct_tool_intent_from_user_message("tool::compare:::top AI agent frameworks")
-            .expect("explicit tool command");
-    assert_eq!(tool, "batch_query");
+fn explicit_tool_command_alias_surfaces_compare_workflow_hint() {
+    let hints = chat_workflow_tool_hints_for_message("tool::compare:::top AI agent frameworks");
+    assert_eq!(hints.len(), 1);
+    let input = hints[0].get("proposed_input").cloned().unwrap_or(Value::Null);
+    assert_eq!(
+        hints[0].get("tool").and_then(Value::as_str).unwrap_or(""),
+        "batch_query"
+    );
     assert_eq!(
         input.get("query").and_then(Value::as_str).unwrap_or(""),
         "top AI agent frameworks"
@@ -62,11 +69,14 @@ fn explicit_tool_command_alias_routes_compare_to_batch_query() {
 }
 
 #[test]
-fn explicit_tool_command_alias_routes_fetch_to_web_fetch() {
-    let (tool, input) =
-        direct_tool_intent_from_user_message("tool::fetch:::https://example.com")
-            .expect("explicit tool command");
-    assert_eq!(tool, "web_fetch");
+fn explicit_tool_command_alias_surfaces_fetch_workflow_hint() {
+    let hints = chat_workflow_tool_hints_for_message("tool::fetch:::https://example.com");
+    assert_eq!(hints.len(), 1);
+    let input = hints[0].get("proposed_input").cloned().unwrap_or(Value::Null);
+    assert_eq!(
+        hints[0].get("tool").and_then(Value::as_str).unwrap_or(""),
+        "web_fetch"
+    );
     assert_eq!(
         input.get("url").and_then(Value::as_str).unwrap_or(""),
         "https://example.com"
@@ -75,9 +85,13 @@ fn explicit_tool_command_alias_routes_fetch_to_web_fetch() {
 
 #[test]
 fn explicit_tool_command_rejects_unknown_names_with_suggestion() {
-    let (tool, input) =
-        direct_tool_intent_from_user_message("tool::web_serch:::latest").expect("router reply");
-    assert_eq!(tool, "tool_command_router");
+    let hints = chat_workflow_tool_hints_for_message("tool::web_serch:::latest");
+    assert_eq!(hints.len(), 1);
+    let input = hints[0].get("proposed_input").cloned().unwrap_or(Value::Null);
+    assert_eq!(
+        hints[0].get("tool").and_then(Value::as_str).unwrap_or(""),
+        "tool_command_router"
+    );
     assert_eq!(
         input.get("error").and_then(Value::as_str).unwrap_or(""),
         "unsupported_tool_command"
@@ -90,17 +104,25 @@ fn explicit_tool_command_rejects_unknown_names_with_suggestion() {
 
 #[test]
 fn explicit_tool_command_rejects_malformed_shape_before_routing() {
-    let (tool, input) = direct_tool_intent_from_user_message("tool::web_search::latest").expect("router reply");
-    assert_eq!(tool, "tool_command_router");
+    let hints = chat_workflow_tool_hints_for_message("tool::web_search::latest");
+    assert_eq!(hints.len(), 1);
+    let input = hints[0].get("proposed_input").cloned().unwrap_or(Value::Null);
+    assert_eq!(
+        hints[0].get("tool").and_then(Value::as_str).unwrap_or(""),
+        "tool_command_router"
+    );
     assert_eq!(input.get("error").and_then(Value::as_str).unwrap_or(""), "tool_command_name_invalid");
 }
 
 #[test]
-fn explicit_tool_command_maps_memory_store_to_kv_set() {
-    let (tool, input) =
-        direct_tool_intent_from_user_message("tool::memory_store:::deploy.mode=staged")
-            .expect("memory store command");
-    assert_eq!(tool, "memory_kv_set");
+fn explicit_tool_command_maps_memory_store_to_workflow_hint() {
+    let hints = chat_workflow_tool_hints_for_message("tool::memory_store:::deploy.mode=staged");
+    assert_eq!(hints.len(), 1);
+    let input = hints[0].get("proposed_input").cloned().unwrap_or(Value::Null);
+    assert_eq!(
+        hints[0].get("tool").and_then(Value::as_str).unwrap_or(""),
+        "memory_kv_set"
+    );
     assert_eq!(
         input.get("key").and_then(Value::as_str).unwrap_or(""),
         "deploy.mode"
@@ -122,6 +144,10 @@ fn inline_tool_policy_requires_explicit_tooling_request() {
     assert!(inline_tool_calls_allowed_for_user_message(
         "Try to web search \"top AI agentic frameworks\" and return the results"
     ));
+    assert!(inline_tool_calls_allowed_for_user_message(
+        "tool::web_search:::latest ai agent benchmarks"
+    ));
+    assert!(inline_tool_calls_allowed_for_user_message("/file core/layer0/ops/src/main.rs"));
     assert!(inline_tool_calls_allowed_for_user_message(
         "read file core/layer0/ops/src/main.rs"
     ));

@@ -299,8 +299,32 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
     }
     return out;
   };
+  const responseWorkflowFromPayload = (payload) => {
+    const data = payload && typeof payload === 'object' ? payload : {};
+    return data.response_workflow && typeof data.response_workflow === 'object'
+      ? data.response_workflow
+      : null;
+  };
+  const workflowResponseTextFromPayload = (payload) => {
+    const workflow = responseWorkflowFromPayload(payload);
+    if (!workflow) return '';
+    const status = cleanText(
+      workflow &&
+      workflow.final_llm_response &&
+      workflow.final_llm_response.status,
+      80
+    ).toLowerCase();
+    const response = typeof workflow.response === 'string'
+      ? cleanText(workflow.response, 24000)
+      : '';
+    if (status !== 'synthesized' || !response) return '';
+    if (textLooksNoFindingsPlaceholder(response)) return '';
+    return response;
+  };
   const assistantTextFromPayload = (payload) => {
     const data = payload && typeof payload === 'object' ? payload : {};
+    const workflowText = workflowResponseTextFromPayload(data);
+    if (workflowText) return workflowText;
     if (typeof data.response === 'string') return String(data.response || '');
     if (typeof data.content === 'string') return String(data.content || '');
     if (data.response && typeof data.response === 'object' && !Array.isArray(data.response)) {
@@ -570,6 +594,21 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
         : null;
     const completionSteps = normalizeToolCompletionSteps(completion);
     if (!completionSteps.length) return merged.slice(0, 16);
+    if (!merged.length) {
+      for (let si = 0; si < completionSteps.length && merged.length < 16; si++) {
+        const stepSeed = completionSteps[si] || {};
+        const stepName = cleanText(stepSeed.tool || stepSeed.name || 'tool', 120) || 'tool';
+        const stepStatus = cleanText(stepSeed.status || '', 220);
+        if (!stepName && !stepStatus) continue;
+        merged.push(normalizeToolRows([{
+          id: `completion-step-${si + 1}-${stepName}`,
+          name: stepName,
+          result: stepStatus ? `Missing tool_result block; last known status: ${stepStatus}` : '',
+          is_error: !!stepSeed.is_error,
+          status: stepStatus ? stepStatus.toLowerCase() : '',
+        }])[0]);
+      }
+    }
     for (let i = 0; i < merged.length; i++) {
       const row = merged[i] && typeof merged[i] === 'object' ? merged[i] : null;
       if (!row) continue;
@@ -687,6 +726,7 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
     }
     return `The ${label} step${suffix} ran, but only low-signal web output came back. Retry with a narrower query, one specific source URL, or continue from the recorded tool result.`;
   };
+  const toolResultSummarySnippet = (tool) => cleanText(tool && (tool.result || tool.status || ''), 220);
   const toolOnlyResponseSummary = (assistantText, tools) => {
     const rows = Array.isArray(tools) ? tools.filter((tool) => tool && cleanText(tool.name || '', 80).toLowerCase() !== 'thought_process') : [];
     if (!rows.length) return cleanText(assistantText || '', 24000);
@@ -704,6 +744,25 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
       return textLooksActionableWebDiagnostic(tool.result || '');
     });
     if (actionableWeb) return lowSignalWebToolSummary(actionableWeb);
+    const successful = rows.filter((tool) => {
+      if (!tool || tool.running || tool.is_error || tool.blocked) return false;
+      return !!toolResultSummarySnippet(tool);
+    });
+    if (successful.length) {
+      const parts = successful.slice(0, 2).map((tool) => {
+        const label = cleanText(String(tool.name || 'tool').replace(/_/g, ' '), 80) || 'tool';
+        const result = toolResultSummarySnippet(tool);
+        return label ? `${label}: ${result}` : result;
+      }).filter(Boolean);
+      if (parts.length) return parts.join(' | ');
+    }
+    const blocked = rows.filter((tool) => tool && tool.blocked);
+    if (blocked.length) {
+      const blockedNames = blocked.slice(0, 2).map((tool) =>
+        cleanText(String(tool.name || 'tool').replace(/_/g, ' '), 80) || 'tool'
+      ).filter(Boolean);
+      return `The tool run completed, but policy blocked ${blockedNames.join(' and ') || 'a required step'} before a final prose answer was composed.`;
+    }
     const failed = rows.find((tool) => tool && (tool.is_error || tool.blocked));
     if (failed) {
       const label = cleanText(String(failed.name || 'tool').replace(/_/g, ' '), 80) || 'tool';
@@ -711,6 +770,49 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
       if (detail) {
         return `The ${label} step finished without a final prose answer: ${cleanText(detail, 220)}.`;
       }
+      return 'The tool run completed, but a required step failed before a final prose answer was composed.';
+    }
+    const completedNames = rows.slice(0, 3).map((tool) =>
+      cleanText(String(tool && tool.name ? tool.name : 'tool').replace(/_/g, ' '), 80) || 'tool'
+    ).filter((name, idx, list) => !!name && list.indexOf(name) === idx);
+    if (completedNames.length) {
+      return `Completed tool steps: ${completedNames.join(', ')}. Ask me to continue from those recorded results.`;
+    }
+    return '';
+  };
+  const finalizationFallbackSummary = (payload, tools) => {
+    const rows = Array.isArray(tools) ? tools : [];
+    const toolSummary = toolOnlyResponseSummary('', rows);
+    if (toolSummary) return toolSummary;
+    const finalization =
+      payload &&
+      payload.response_finalization &&
+      typeof payload.response_finalization === 'object'
+        ? payload.response_finalization
+        : null;
+    const completion =
+      finalization &&
+      finalization.tool_completion &&
+      typeof finalization.tool_completion === 'object'
+        ? finalization.tool_completion
+        : null;
+    const reasoning = cleanText(completion && completion.reasoning ? completion.reasoning : '', 24000);
+    if (reasoning && !textLooksNoFindingsPlaceholder(reasoning)) return reasoning;
+    if (finalization && finalization.applied === true) {
+      return 'I completed the run, but the final reply did not render. Ask me to continue and I will synthesize from the recorded workflow state.';
+    }
+    if (
+      payload &&
+      typeof payload === 'object' &&
+      (
+        payload.response_finalization ||
+        payload.turn_transaction ||
+        (Array.isArray(payload.tools) && payload.tools.length) ||
+        payload.response != null ||
+        payload.content != null
+      )
+    ) {
+      return 'I completed the run, but no visible reply was returned. Ask me to continue and I will retry the synthesis.';
     }
     return '';
   };
@@ -888,7 +990,7 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
             await replayToolTimeline(ws, targetAgent, toolRows, toolCompletion);
           }
           const assistantContent = assistantTextFromPayload(out);
-          const finalAssistantContent = toolOnlyResponseSummary(assistantContent, toolRows);
+          const finalAssistantContent = toolOnlyResponseSummary(assistantContent, toolRows) || finalizationFallbackSummary(out, toolRows);
           send(ws, {
             type: 'response',
             agent_id: targetAgent,
@@ -905,6 +1007,7 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
             context_pressure: cleanText(out.context_pressure || '', 32),
             auto_route: out.auto_route || null,
             tools: toolRows,
+            response_workflow: out.response_workflow || null,
             response_finalization: out.response_finalization || null,
             turn_transaction: out.turn_transaction || null,
           });

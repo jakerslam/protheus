@@ -61,8 +61,25 @@
       if (data.message && typeof data.message === 'object') pushBlocks(data.message.content);
       return out;
     },
+    responseWorkflowFromPayload: function(payload) {
+      var data = payload && typeof payload === 'object' ? payload : {};
+      return data.response_workflow && typeof data.response_workflow === 'object'
+        ? data.response_workflow
+        : null;
+    },
+    workflowResponseTextFromPayload: function(payload) {
+      var workflow = this.responseWorkflowFromPayload(payload);
+      if (!workflow) return '';
+      var status = String(workflow && workflow.final_llm_response && workflow.final_llm_response.status || '').trim().toLowerCase();
+      var response = typeof workflow.response === 'string' ? String(workflow.response || '').trim() : '';
+      if (status !== 'synthesized' || !response) return '';
+      if (this.textLooksNoFindingsPlaceholder(response) || this.textLooksToolAckWithoutFindings(response)) return '';
+      return response;
+    },
     assistantTextFromPayload: function(payload) {
       var data = payload && typeof payload === 'object' ? payload : {};
+      var workflowText = this.workflowResponseTextFromPayload(data);
+      if (workflowText) return workflowText;
       if (typeof data.response === 'string') return String(data.response || '');
       if (typeof data.content === 'string') return String(data.content || '');
       var blocks = this.structuredContentBlocksFromPayload(data);
@@ -296,6 +313,21 @@
         ? completion.live_tool_steps
         : [];
       if (!steps.length) return merged.slice(0, 16);
+      if (!merged.length) {
+        for (var si = 0; si < steps.length && merged.length < 16; si++) {
+          var stepSeed = steps[si] && typeof steps[si] === 'object' ? steps[si] : {};
+          var stepName = String(stepSeed.tool || stepSeed.name || 'tool').trim() || 'tool';
+          var stepStatus = String(stepSeed.status || '').trim();
+          if (!stepName && !stepStatus) continue;
+          merged.push(this.normalizeResponseToolCard({
+            id: 'completion-step-' + (si + 1) + '-' + stepName,
+            name: stepName,
+            result: stepStatus ? ('Missing tool_result block; last known status: ' + stepStatus) : '',
+            is_error: !!stepSeed.is_error,
+            status: stepStatus ? stepStatus.toLowerCase() : ''
+          }, si, 'completion'));
+        }
+      }
       for (var i = 0; i < merged.length; i++) {
         var row = merged[i] && typeof merged[i] === 'object' ? merged[i] : null;
         if (!row) continue;
@@ -389,9 +421,52 @@
       }
       return '';
     },
+    fallbackAssistantTextFromPayload: function(payload, tools) {
+      var data = payload && typeof payload === 'object' ? payload : {};
+      var workflowText = this.workflowResponseTextFromPayload(data);
+      if (workflowText) return workflowText;
+      var rows = Array.isArray(tools) ? tools : [];
+      var failureSummary = this.readableToolFailureSummary(data, rows);
+      if (failureSummary) return failureSummary;
+      var toolSummary = this.completedToolOnlySummary(rows);
+      if (toolSummary) return toolSummary;
+      var finalization = this.responseFinalizationFromPayload(data);
+      var completion = finalization && finalization.tool_completion && typeof finalization.tool_completion === 'object'
+        ? finalization.tool_completion
+        : null;
+      var reasoning = String(completion && completion.reasoning ? completion.reasoning : '').trim();
+      if (reasoning && !this.textLooksNoFindingsPlaceholder(reasoning) && !this.textLooksToolAckWithoutFindings(reasoning)) {
+        return reasoning;
+      }
+      var stepRows = this.backfillToolRowsFromCompletion([], data);
+      if (stepRows.length) {
+        var stepSummary = this.completedToolOnlySummary(stepRows);
+        if (stepSummary) return stepSummary;
+      }
+      if (finalization && finalization.applied === true) {
+        return 'I completed the run, but the final reply did not render. Ask me to continue and I will synthesize from the recorded workflow state.';
+      }
+      if (
+        data &&
+        typeof data === 'object' &&
+        (
+          data.response_finalization ||
+          data.turn_transaction ||
+          (Array.isArray(data.tools) && data.tools.length) ||
+          data.response != null ||
+          data.content != null
+        )
+      ) {
+        return 'I completed the run, but no visible reply was returned. Ask me to continue and I will retry the synthesis.';
+      }
+      return '';
+    },
     assistantTurnMetadataFromPayload: function(payload, tools) {
       var data = payload && typeof payload === 'object' ? payload : {};
       var out = {};
+      if (data.response_workflow && typeof data.response_workflow === 'object') {
+        out.response_workflow = data.response_workflow;
+      }
       var finalization = this.responseFinalizationFromPayload(data);
       if (finalization) out.response_finalization = finalization;
       if (data.turn_transaction && typeof data.turn_transaction === 'object') {

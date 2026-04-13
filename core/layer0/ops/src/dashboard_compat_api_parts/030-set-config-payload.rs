@@ -15,6 +15,7 @@ include_parts!(
     "set_config_payload_parts/120-part.rs",
     "set_config_payload_parts/130-part.rs",
     "set_config_payload_parts/131-part.rs",
+    "set_config_payload_parts/132-part.rs",
     "set_config_payload_parts/140-part.rs",
     "set_config_payload_parts/141-part.rs",
     "set_config_payload_parts/150-part.rs",

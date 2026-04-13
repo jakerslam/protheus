@@ -329,12 +329,7 @@ fn build_query_plan(query: &str, budget: ApertureBudget) -> (Vec<String>, Vec<St
     if exact || budget.max_query_rewrites == 0 {
         return (vec![base], Vec::new(), false);
     }
-    let rewrite = if looks_like_instructional_query(&base) {
-        normalize_instructional_query(&base)
-            .unwrap_or_else(|| clean_text(&format!("{base} overview"), 600))
-    } else {
-        clean_text(&format!("{base} overview"), 600)
-    };
+    let rewrite = preferred_query_rewrite(&base);
     if rewrite == base {
         return (vec![base], Vec::new(), false);
     }
@@ -413,10 +408,10 @@ fn is_benchmark_or_comparison_intent(query: &str) -> bool {
         "competitors",
         "versus",
         " vs ",
-        "ranking",
-        "landscape",
         "performance metrics",
-        "top ",
+        "latency",
+        "throughput",
+        "success rate",
     ]
     .iter()
     .any(|marker| lowered.contains(marker))

@@ -55,7 +55,7 @@ fn maybe_tooling_failure_fallback_rewrites_safe_step_prompt() {
 }
 
 #[test]
-fn direct_tool_turn_persists_tool_cards_and_finalization_in_session_history() {
+fn workflow_gated_turn_persists_finalization_in_session_history() {
     let root = governance_temp_root();
     let snapshot = governance_ok_snapshot();
     let created = handle(
@@ -97,14 +97,8 @@ fn direct_tool_turn_persists_tool_cards_and_finalization_in_session_history() {
         .cloned()
         .unwrap_or(Value::Null);
     assert_eq!(assistant.get("role").and_then(Value::as_str), Some("assistant"));
-    let first_tool_name = assistant
-        .pointer("/tools/0/name")
-        .and_then(Value::as_str)
-        .unwrap_or("");
-    assert!(
-        matches!(first_tool_name, "tool_command_router" | "web_search"),
-        "unexpected tool name: {first_tool_name}"
-    );
+    let response_text = assistant.get("text").and_then(Value::as_str).unwrap_or("");
+    assert!(response_text.contains("needs a query"), "{response_text}");
     assert_eq!(
         assistant
             .pointer("/response_workflow/contract")
@@ -139,6 +133,7 @@ fn workflow_library_marks_final_llm_stage_for_tool_turns() {
         })],
         &[],
         "Web retrieval returned low-signal snippets without synthesis.",
+        "",
     );
     assert_eq!(
         workflow.get("contract").and_then(Value::as_str),
@@ -182,6 +177,7 @@ fn workflow_library_gate_applies_to_direct_answers_too() {
         &[],
         &[],
         "Hello there.",
+        "",
     );
     assert_eq!(
         workflow.get("contract").and_then(Value::as_str),
@@ -203,7 +199,7 @@ fn workflow_library_gate_applies_to_direct_answers_too() {
         workflow
             .pointer("/final_llm_response/status")
             .and_then(Value::as_str),
-        Some("accepted_initial_model_response")
+        Some("skipped_test")
     );
 }
 
@@ -256,6 +252,288 @@ fn direct_message_safe_step_prompt_returns_workflow_metadata() {
             .and_then(Value::as_str),
         Some("skipped_test")
     );
+}
+
+#[test]
+fn web_tooling_harness_round_trips_model_decision_tool_execution_and_final_synthesis() {
+    let root = governance_temp_root();
+    let snapshot = governance_ok_snapshot();
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"name":"web-tooling-harness-agent","role":"researcher"}"#,
+        &snapshot,
+    )
+    .expect("agent create");
+    let agent_id = clean_agent_id(
+        created
+            .payload
+            .get("agent_id")
+            .or_else(|| created.payload.get("id"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+    );
+    assert!(!agent_id.is_empty());
+
+    write_json(
+        &governance_test_chat_script_path(root.path()),
+        &json!({
+            "queue": [
+                {
+                    "response": "<function=batch_query>{\"source\":\"web\",\"query\":\"top AI agentic frameworks\",\"aperture\":\"medium\"}</function>"
+                },
+                {
+                    "response": "The fetched results point to LangGraph, OpenAI Agents SDK, and AutoGen as top AI agentic frameworks in this run."
+                }
+            ],
+            "calls": []
+        }),
+    );
+    write_json(
+        &governance_test_tool_script_path(root.path()),
+        &json!({
+            "queue": [
+                {
+                    "tool": "batch_query",
+                    "payload": {
+                        "ok": true,
+                        "status": "ok",
+                        "query": "top AI agentic frameworks",
+                        "summary": "LangGraph, OpenAI Agents SDK, and AutoGen surfaced as top AI agentic frameworks in the fetched results."
+                    }
+                }
+            ],
+            "calls": []
+        }),
+    );
+
+    let response = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/message"),
+        br#"{"message":"Try to web search \"top AI agentic frameworks\" and return the results"}"#,
+        &snapshot,
+    )
+    .expect("message response");
+    assert_eq!(response.status, 200);
+    assert_eq!(
+        response
+            .payload
+            .pointer("/tools/0/name")
+            .and_then(Value::as_str),
+        Some("batch_query")
+    );
+    let response_text = response
+        .payload
+        .get("response")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    assert!(response_text.contains("LangGraph"), "{response_text}");
+    assert!(response_text.contains("OpenAI Agents SDK"), "{response_text}");
+    assert_eq!(
+        response
+            .payload
+            .pointer("/response_workflow/final_llm_response/status")
+            .and_then(Value::as_str),
+        Some("synthesized")
+    );
+
+    let tool_calls = read_json(&governance_test_tool_script_path(root.path()))
+        .and_then(|value| value.get("calls").cloned())
+        .and_then(|value| value.as_array().cloned())
+        .unwrap_or_default();
+    assert_eq!(tool_calls.len(), 1);
+    assert_eq!(
+        tool_calls[0].get("tool").and_then(Value::as_str),
+        Some("batch_query")
+    );
+
+    let model_calls = read_json(&governance_test_chat_script_path(root.path()))
+        .and_then(|value| value.get("calls").cloned())
+        .and_then(|value| value.as_array().cloned())
+        .unwrap_or_default();
+    assert!(
+        model_calls.len() >= 2,
+        "expected at least two model passes, got {}",
+        model_calls.len()
+    );
+    let first_user_message = model_calls[0]
+        .get("user_message")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    assert!(first_user_message.contains("top AI agentic frameworks"));
+    let final_user_message = model_calls
+        .last()
+        .and_then(|row| row.get("user_message"))
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    assert!(final_user_message.contains("Recorded tool outcomes"));
+    assert!(final_user_message.contains("LangGraph"));
+    assert!(final_user_message.contains("OpenAI Agents SDK"));
+}
+
+#[test]
+fn web_tooling_harness_surfaces_timeout_failure_with_final_llm_synthesis() {
+    let root = governance_temp_root();
+    let snapshot = governance_ok_snapshot();
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"name":"web-tooling-failure-harness-agent","role":"researcher"}"#,
+        &snapshot,
+    )
+    .expect("agent create");
+    let agent_id = clean_agent_id(
+        created
+            .payload
+            .get("agent_id")
+            .or_else(|| created.payload.get("id"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+    );
+    assert!(!agent_id.is_empty());
+
+    write_json(
+        &governance_test_chat_script_path(root.path()),
+        &json!({
+            "queue": [
+                {
+                    "response": "<function=batch_query>{\"source\":\"web\",\"query\":\"top AI agentic frameworks\",\"aperture\":\"medium\"}</function>"
+                }
+            ],
+            "calls": []
+        }),
+    );
+    write_json(
+        &governance_test_tool_script_path(root.path()),
+        &json!({
+            "queue": [
+                {
+                    "tool": "batch_query",
+                    "payload": {
+                        "ok": false,
+                        "status": "timeout",
+                        "error": "provider timeout after 30s",
+                        "summary": "provider timeout after 30s"
+                    }
+                },
+                {
+                    "tool": "batch_query",
+                    "payload": {
+                        "ok": false,
+                        "status": "timeout",
+                        "error": "provider timeout after 30s",
+                        "summary": "provider timeout after 30s"
+                    }
+                },
+                {
+                    "tool": "batch_query",
+                    "payload": {
+                        "ok": false,
+                        "status": "timeout",
+                        "error": "provider timeout after 30s",
+                        "summary": "provider timeout after 30s"
+                    }
+                },
+                {
+                    "tool": "batch_query",
+                    "payload": {
+                        "ok": false,
+                        "status": "timeout",
+                        "error": "provider timeout after 30s",
+                        "summary": "provider timeout after 30s"
+                    }
+                }
+            ],
+            "calls": []
+        }),
+    );
+
+    let response = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/message"),
+        br#"{"message":"Try to web search \"top AI agentic frameworks\" and return the results"}"#,
+        &snapshot,
+    )
+    .expect("message response");
+    assert_eq!(response.status, 200);
+    assert_eq!(
+        response
+            .payload
+            .pointer("/tools/0/name")
+            .and_then(Value::as_str),
+        Some("batch_query")
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/tools/0/status")
+            .and_then(Value::as_str),
+        Some("timeout")
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/tools/0/is_error")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    let response_text = response
+        .payload
+        .get("response")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    let lowered = response_text.to_ascii_lowercase();
+    assert!(
+        !response_text.trim().is_empty(),
+        "expected a synthesized failure response"
+    );
+    assert!(
+        lowered.contains("timeout"),
+        "expected timeout detail in final response: {response_text}"
+    );
+    assert!(
+        lowered.contains("batch_query") || lowered.contains("search"),
+        "expected tool context in final response: {response_text}"
+    );
+    assert!(!response_is_no_findings_placeholder(response_text));
+    assert_eq!(
+        response
+            .payload
+            .pointer("/response_workflow/final_llm_response/status")
+            .and_then(Value::as_str),
+        Some("synthesized")
+    );
+
+    let tool_calls = read_json(&governance_test_tool_script_path(root.path()))
+        .and_then(|value| value.get("calls").cloned())
+        .and_then(|value| value.as_array().cloned())
+        .unwrap_or_default();
+    assert_eq!(tool_calls.len(), 4);
+    assert_eq!(
+        tool_calls[0].get("tool").and_then(Value::as_str),
+        Some("batch_query")
+    );
+
+    let model_calls = read_json(&governance_test_chat_script_path(root.path()))
+        .and_then(|value| value.get("calls").cloned())
+        .and_then(|value| value.as_array().cloned())
+        .unwrap_or_default();
+    assert!(
+        model_calls.len() >= 2,
+        "expected at least two model passes, got {}",
+        model_calls.len()
+    );
+    let final_user_message = model_calls
+        .last()
+        .and_then(|row| row.get("user_message"))
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    assert!(final_user_message.contains("Recorded tool outcomes"));
+    assert!(final_user_message.contains("provider timeout after 30s"));
 }
 
 #[test]
@@ -337,15 +615,20 @@ fn direct_message_safe_step_prompt_returns_actionable_query_required_copy() {
         .unwrap_or("");
     assert!(response_text.contains("needs a query"), "{response_text}");
     assert!(!response_is_no_findings_placeholder(response_text));
-    let tool_name = response
+    assert!(
+        response
+            .payload
+            .get("tools")
+            .and_then(Value::as_array)
+            .map(|rows| rows.is_empty())
+            .unwrap_or(true)
+    );
+    let workflow_status = response
         .payload
-        .get("tools")
-        .and_then(Value::as_array)
-        .and_then(|rows| rows.first())
-        .and_then(|row| row.get("name"))
+        .pointer("/response_workflow/final_llm_response/status")
         .and_then(Value::as_str)
         .unwrap_or("");
-    assert_eq!(tool_name, "tool_command_router");
+    assert_eq!(workflow_status, "skipped_test");
 }
 
 #[test]
