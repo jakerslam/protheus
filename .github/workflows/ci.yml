@@ -50,13 +50,13 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Format Guard
-        run: node tests/client-memory-tools/org_code_format_guard.test.ts
+        run: node client/runtime/lib/ts_entrypoint.ts tests/client-memory-tools/org_code_format_guard.test.ts
 
       - name: Lint
         run: npm run lint
 
       - name: Persona Docs Validation
-        run: node tests/client-memory-tools/personas_orchestration_policies.test.ts
+        run: node client/runtime/lib/ts_entrypoint.ts tests/client-memory-tools/personas_orchestration_policies.test.ts
 
       - name: Test
         run: npm run test
@@ -129,7 +129,7 @@ jobs:
         run: npm run ops:race-queue:hardening
 
       - name: Mobile Benchmark Matrix (Smoke)
-        run: node tests/client-memory-tools/mobile_competitive_benchmark_matrix.test.ts
+        run: node client/runtime/lib/ts_entrypoint.ts tests/client-memory-tools/mobile_competitive_benchmark_matrix.test.ts
 
   container-smoke:
     runs-on: ubuntu-latest
