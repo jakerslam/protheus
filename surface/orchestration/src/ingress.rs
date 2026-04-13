@@ -136,7 +136,14 @@ fn adapt_surface_request(
 
     let explicit_operation = read_string(
         obj,
-        &["operation_kind", "operation", "action", "call", "command", "route_kind"],
+        &[
+            "operation_kind",
+            "operation",
+            "action",
+            "call",
+            "command",
+            "route_kind",
+        ],
     )
     .and_then(parse_operation_kind);
     let explicit_resource = read_string(
@@ -161,7 +168,8 @@ fn adapt_surface_request(
     let resource_kind = explicit_resource
         .or_else(|| parser::infer_resource_from_descriptors(&descriptor_targets))
         .or_else(|| resource_candidates.first().cloned());
-    let mutability = explicit_mutability.or_else(|| operation_kind.as_ref().map(parser::infer_mutability));
+    let mutability =
+        explicit_mutability.or_else(|| operation_kind.as_ref().map(parser::infer_mutability));
 
     let adapted = operation_kind.is_some()
         || resource_kind.is_some()
@@ -330,11 +338,21 @@ mod tests {
             "memory_object_id": "abc123",
             "tool_name": "web_search"
         }));
-        assert!(descriptors.iter().any(|row| matches!(row, TargetDescriptor::WorkspacePath { .. })));
-        assert!(descriptors.iter().any(|row| matches!(row, TargetDescriptor::Url { .. })));
-        assert!(descriptors.iter().any(|row| matches!(row, TargetDescriptor::TaskId { .. })));
-        assert!(descriptors.iter().any(|row| matches!(row, TargetDescriptor::MemoryRef { .. })));
-        assert!(descriptors.iter().any(|row| matches!(row, TargetDescriptor::ToolName { .. })));
+        assert!(descriptors
+            .iter()
+            .any(|row| matches!(row, TargetDescriptor::WorkspacePath { .. })));
+        assert!(descriptors
+            .iter()
+            .any(|row| matches!(row, TargetDescriptor::Url { .. })));
+        assert!(descriptors
+            .iter()
+            .any(|row| matches!(row, TargetDescriptor::TaskId { .. })));
+        assert!(descriptors
+            .iter()
+            .any(|row| matches!(row, TargetDescriptor::MemoryRef { .. })));
+        assert!(descriptors
+            .iter()
+            .any(|row| matches!(row, TargetDescriptor::ToolName { .. })));
     }
 
     #[test]
