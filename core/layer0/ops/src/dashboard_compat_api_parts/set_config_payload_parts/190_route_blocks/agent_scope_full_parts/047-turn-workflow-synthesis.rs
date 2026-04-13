@@ -279,71 +279,6 @@ fn workflow_test_llm_enabled(_root: &Path) -> bool {
     false
 }
 
-fn turn_workflow_metadata(
-    workflow_mode: &str,
-    response_tools: &[Value],
-    workflow_events: &[Value],
-    draft_response: &str,
-) -> Value {
-    let cleaned_draft = clean_text(draft_response, 4_000);
-    let draft_response_state = if cleaned_draft.is_empty() {
-        "empty"
-    } else if response_is_no_findings_placeholder(&cleaned_draft) {
-        "no_findings"
-    } else if response_looks_like_tool_ack_without_findings(&cleaned_draft) {
-        "ack_only"
-    } else {
-        "present"
-    };
-    let requires_final_llm = turn_workflow_requires_final_llm(response_tools, workflow_events);
-    json!({
-        "contract": "agent_workflow_library_v1",
-        "workflow_gate": {
-            "required": true,
-            "status": "enforced"
-        },
-        "library": {
-            "default_workflow": default_turn_workflow_name(),
-            "available_workflows": turn_workflow_library_catalog()
-        },
-        "selected_workflow": selected_turn_workflow(workflow_mode),
-        "tool_count": response_tools.len(),
-        "system_event_count": workflow_events.len(),
-        "draft_response_state": draft_response_state,
-        "findings_summary": clean_text(&response_tools_summary_for_user(response_tools, 4), 2_000),
-        "failure_summary": clean_text(&response_tools_failure_reason_for_user(response_tools, 4), 2_000),
-        "system_events": workflow_events,
-        "stage_statuses": turn_workflow_stage_rows(
-            workflow_mode,
-            response_tools,
-            workflow_events,
-            draft_response,
-        ),
-        "final_llm_response": {
-            "required": requires_final_llm,
-            "source": "workflow_post_synthesis"
-        }
-    })
-}
-
-fn set_turn_workflow_final_stage_status(workflow: &mut Value, status: &str) {
-    if let Some(rows) = workflow
-        .get_mut("stage_statuses")
-        .and_then(Value::as_array_mut)
-    {
-        for row in rows.iter_mut() {
-            let is_final_stage = row
-                .get("stage")
-                .and_then(Value::as_str)
-                .map(|value| value == "final_llm_response")
-                .unwrap_or(false);
-            if is_final_stage {
-                row["status"] = Value::String(clean_text(status, 80));
-            }
-        }
-    }
-}
-
 fn run_turn_workflow_final_response(
     root: &Path,
     provider: &str,
@@ -374,15 +309,13 @@ fn run_turn_workflow_final_response(
         .and_then(Value::as_bool)
         .unwrap_or(false);
     if !required {
-        workflow["final_llm_response"]["attempted"] = Value::Bool(false);
-        workflow["final_llm_response"]["used"] = Value::Bool(false);
+        workflow["final_llm_response"]["attempted"] = Value::Bool(false); workflow["final_llm_response"]["used"] = Value::Bool(false);
         workflow["final_llm_response"]["status"] = Value::String("skipped_not_required".to_string());
         set_turn_workflow_final_stage_status(&mut workflow, "skipped_not_required");
         return workflow;
     }
     if cfg!(test) && !workflow_test_llm_enabled(root) {
-        workflow["final_llm_response"]["attempted"] = Value::Bool(false);
-        workflow["final_llm_response"]["used"] = Value::Bool(false);
+        workflow["final_llm_response"]["attempted"] = Value::Bool(false); workflow["final_llm_response"]["used"] = Value::Bool(false);
         workflow["final_llm_response"]["status"] = Value::String("skipped_test".to_string());
         set_turn_workflow_final_stage_status(&mut workflow, "skipped_test");
         return workflow;
@@ -390,8 +323,7 @@ fn run_turn_workflow_final_response(
     let cleaned_provider = clean_text(provider, 80);
     let cleaned_model = clean_text(model, 240);
     if cleaned_provider.is_empty() || cleaned_model.is_empty() {
-        workflow["final_llm_response"]["attempted"] = Value::Bool(false);
-        workflow["final_llm_response"]["used"] = Value::Bool(false);
+        workflow["final_llm_response"]["attempted"] = Value::Bool(false); workflow["final_llm_response"]["used"] = Value::Bool(false);
         workflow["final_llm_response"]["status"] =
             Value::String("skipped_missing_model".to_string());
         set_turn_workflow_final_stage_status(&mut workflow, "skipped_missing_model");
@@ -405,7 +337,7 @@ fn run_turn_workflow_final_response(
         serde_json::to_string(&workflow).unwrap_or_else(|_| "{}".to_string());
     let system_prompt = clean_text(
         &format!(
-            "{}\n\nHardcoded agent workflow: you are writing the final assistant response after the system collected tool outcomes and workflow events. Use the recorded evidence. If a tool failed, timed out, was blocked, or returned low-signal output, say that plainly in your own words. Never emit raw telemetry, placeholder copy, or pretend a failed tool succeeded.",
+            "{}\n\nHardcoded agent workflow: you are writing the final assistant response after the system collected tool outcomes and workflow events. Use the recorded evidence. If a tool failed, timed out, was blocked, or returned low-signal output, say that plainly in your own words. Never emit raw telemetry, placeholder copy, inline `<function=...>` markup, or pretend a failed tool succeeded.",
             AGENT_RUNTIME_SYSTEM_PROMPT
         ),
         12_000,
@@ -428,13 +360,24 @@ fn run_turn_workflow_final_response(
     workflow["final_llm_response"]["max_attempts"] = json!(max_attempts);
     for attempt in 1..=max_attempts {
         workflow["final_llm_response"]["attempt_count"] = json!(attempt);
+        let attempt_user_prompt = if attempt > 1 {
+            clean_text(
+                &format!(
+                    "{}\n\nCorrection for attempt {} of {}: your previous answer did not complete the workflow because it tried to start another search, deferred the answer, or emitted inline tool markup. Do not ask to retry, rerun, narrow the query, fetch another source, or emit `<function=...>` calls. Using only the recorded tool outcomes and workflow events above, explain what happened in your own words and tell the user what the tool actually returned.",
+                    user_prompt, attempt, max_attempts
+                ),
+                20_000,
+            )
+        } else {
+            user_prompt.clone()
+        };
         match crate::dashboard_provider_runtime::invoke_chat(
             root,
             &cleaned_provider,
             &cleaned_model,
             &system_prompt,
             active_messages,
-            &user_prompt,
+            &attempt_user_prompt,
         ) {
             Ok(retried) => {
                 let mut retried_text = clean_chat_text(
@@ -444,14 +387,18 @@ fn run_turn_workflow_final_response(
                         .unwrap_or(""),
                     32_000,
                 );
-                retried_text = strip_internal_context_metadata_prefix(&retried_text);
-                retried_text = strip_internal_cache_control_markup(&retried_text);
+                retried_text = sanitize_workflow_final_response_candidate(
+                    &strip_internal_cache_control_markup(
+                        &strip_internal_context_metadata_prefix(&retried_text),
+                    ),
+                );
                 if !user_requested_internal_runtime_details(message) {
                     retried_text = abstract_runtime_mechanics_terms(&retried_text);
                 }
                 if retried_text.is_empty()
                     || response_is_no_findings_placeholder(&retried_text)
                     || response_looks_like_tool_ack_without_findings(&retried_text)
+                    || workflow_response_requests_more_tooling(&retried_text)
                     || response_is_unrelated_context_dump(message, &retried_text)
                 {
                     last_invalid_excerpt = first_sentence(&retried_text, 240);

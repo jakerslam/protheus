@@ -112,6 +112,15 @@ fn terminal_alias_command_for_tool(normalized_tool: &str, input: &Value) -> Opti
                 || normalized_tool.contains("loc")))
     {
         let hint = input_text_hint_for_terminal_alias(input).to_ascii_lowercase();
+        if hint.contains("compare this system")
+            || (hint.contains("openclaw") && hint.contains("compare"))
+            || (hint.contains("architecture") && hint.contains("workflow"))
+        {
+            return Some(
+                "rg -n -m 2 -S 'complex_prompt_chain_v1|response_workflow|identity persistence|memory continuity|tool orchestration|resident IPC|workflow gate' docs/workspace core/layer0/ops surface client/runtime | head -n 12"
+                    .to_string(),
+            );
+        }
         if hint.contains("loc")
             || hint.contains("line count")
             || hint.contains("linecount")
@@ -174,6 +183,17 @@ mod tool_name_fallback_tests {
     }
 
     #[test]
+    fn terminal_alias_prefers_architecture_probe_for_compare_prompts() {
+        let cmd = terminal_alias_command_for_tool(
+            "workspace_analyze",
+            &json!({"query":"compare this system (infring) to openclaw"}),
+        )
+        .unwrap_or_default();
+        assert!(cmd.contains("complex_prompt_chain_v1"));
+        assert!(cmd.contains("response_workflow"));
+    }
+
+    #[test]
     fn leaves_unmapped_names_unchanged() {
         assert_eq!(
             resolve_tool_name_fallback("memory_semantic_query", &json!({})),
@@ -225,120 +245,6 @@ fn find_json_object_span(raw: &str, from_index: usize) -> Option<(usize, usize)>
     None
 }
 
-fn extract_inline_tool_calls(
-    text: &str,
-    max_calls: usize,
-) -> (String, Vec<(String, Value, String)>) {
-    let mut calls = Vec::<(String, Value, String)>::new();
-    let mut spans = Vec::<(usize, usize)>::new();
-    let mut cursor = 0usize;
-    let cap = max_calls.clamp(1, 12);
-
-    while cursor < text.len() && calls.len() < cap {
-        let next_open = text[cursor..].find("<function=").map(|idx| cursor + idx);
-        let next_close = text[cursor..].find("</function>").map(|idx| cursor + idx);
-        let next = match (next_open, next_close) {
-            (Some(open), Some(close)) => Some(if open <= close {
-                ("open", open)
-            } else {
-                ("close", close)
-            }),
-            (Some(open), None) => Some(("open", open)),
-            (None, Some(close)) => Some(("close", close)),
-            (None, None) => None,
-        };
-        let Some((kind, idx)) = next else {
-            break;
-        };
-        if kind == "open" {
-            let name_start = idx + "<function=".len();
-            let Some(gt_rel) = text[name_start..].find('>') else {
-                break;
-            };
-            let name_end = name_start + gt_rel;
-            let raw_name = &text[name_start..name_end];
-            let name = raw_name
-                .chars()
-                .take_while(|ch| tool_name_char(*ch))
-                .collect::<String>();
-            if name.is_empty() {
-                cursor = name_end.saturating_add(1);
-                continue;
-            }
-            let payload_start = name_end + 1;
-            let Some((json_start, json_end)) = find_json_object_span(text, payload_start) else {
-                cursor = payload_start;
-                continue;
-            };
-            let parsed = serde_json::from_str::<Value>(&text[json_start..json_end]).ok();
-            let Some(input) = parsed else {
-                cursor = json_end;
-                continue;
-            };
-            let tail = &text[json_end..];
-            let full_end = tail
-                .find("</function>")
-                .map(|end| json_end + end + "</function>".len())
-                .unwrap_or(json_end);
-            let raw = text[idx..full_end].to_string();
-            calls.push((name, input, raw));
-            spans.push((idx, full_end));
-            cursor = full_end;
-            continue;
-        }
-
-        let close_idx = idx;
-        let close_end = close_idx + "</function>".len();
-        let prefix = &text[..close_idx];
-        let mut back = prefix.len();
-        while back > 0 {
-            let ch = prefix[..back].chars().next_back().unwrap_or(' ');
-            if tool_name_char(ch) {
-                back -= ch.len_utf8();
-            } else {
-                break;
-            }
-        }
-        let name = prefix[back..close_idx]
-            .chars()
-            .filter(|ch| tool_name_char(*ch))
-            .collect::<String>();
-        if name.is_empty() {
-            cursor = close_end;
-            continue;
-        }
-        let Some((json_start, json_end)) = find_json_object_span(text, close_end) else {
-            cursor = close_end;
-            continue;
-        };
-        let parsed = serde_json::from_str::<Value>(&text[json_start..json_end]).ok();
-        let Some(input) = parsed else {
-            cursor = json_end;
-            continue;
-        };
-        let raw = text[back..json_end].to_string();
-        calls.push((name, input, raw));
-        spans.push((back, json_end));
-        cursor = json_end;
-    }
-
-    if spans.is_empty() {
-        return (text.to_string(), Vec::new());
-    }
-    spans.sort_by_key(|(start, _)| *start);
-    let mut cleaned = String::new();
-    let mut last = 0usize;
-    for (start, end) in spans {
-        if start > last {
-            cleaned.push_str(&text[last..start]);
-        }
-        last = last.max(end);
-    }
-    if last < text.len() {
-        cleaned.push_str(&text[last..]);
-    }
-    (cleaned.trim().to_string(), calls)
-}
 
 fn trim_text(value: &str, max_chars: usize) -> String {
     value.chars().take(max_chars.max(1)).collect::<String>()

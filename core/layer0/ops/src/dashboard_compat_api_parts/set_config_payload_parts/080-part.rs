@@ -354,6 +354,13 @@ fn response_looks_like_tool_ack_without_findings(text: &str) -> bool {
         || lowered.contains("reading files")
         || lowered.contains("searching the internet")
         || lowered.contains("running terminal commands");
+    let plain_failure_explanation = lowered.contains("didn't return")
+        || lowered.contains("did not return")
+        || lowered.contains("low-signal")
+        || lowered.contains("no source-backed")
+        || lowered.contains("specific framework listings")
+        || lowered.contains("catalog-style framework evidence")
+        || lowered.contains("only returned");
     let mainly_ack_language = lowered.contains("i searched")
         || lowered.contains("searched the internet")
         || lowered.contains("i looked up")
@@ -366,6 +373,9 @@ fn response_looks_like_tool_ack_without_findings(text: &str) -> bool {
         || lowered.contains("will execute all searches in parallel")
         || lowered.contains("would execute concurrently")
         || lowered.contains("this demonstrates the full pipeline");
+    if mentions_tooling && plain_failure_explanation {
+        return false;
+    }
     if !mentions_tooling {
         return false;
     }

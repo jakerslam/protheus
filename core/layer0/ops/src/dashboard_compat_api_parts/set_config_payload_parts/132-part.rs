@@ -97,3 +97,25 @@ fn workspace_plus_web_comparison_queries_from_message(message: &str) -> Option<(
     }
     Some((workspace_query, cleaned))
 }
+
+fn workspace_plus_web_comparison_web_payload_from_message(message: &str) -> Option<Value> {
+    let (_, cleaned) = workspace_plus_web_comparison_queries_from_message(message)?;
+    let lowered = cleaned.to_ascii_lowercase();
+    if lowered.contains("openclaw") {
+        return Some(json!({
+            "source": "web",
+            "query": "OpenClaw AI assistant architecture features docs",
+            "queries": [
+                "OpenClaw AI assistant architecture",
+                "OpenClaw AI assistant features",
+                "site:openclaw.ai OpenClaw docs"
+            ],
+            "aperture": "medium"
+        }));
+    }
+    Some(json!({
+        "source": "web",
+        "query": cleaned,
+        "aperture": "medium"
+    }))
+}

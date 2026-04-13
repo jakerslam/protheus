@@ -146,6 +146,86 @@ fn workflow_response_contract_persists_selected_workflow_for_tool_success() {
 }
 
 #[test]
+fn workflow_response_contract_strips_follow_up_tool_markup_from_final_reply() {
+    let root = governance_temp_root();
+    let snapshot = governance_ok_snapshot();
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"name":"workflow-contract-tool-tail-agent","role":"researcher"}"#,
+        &snapshot,
+    )
+    .expect("agent create");
+    let agent_id = clean_agent_id(
+        created
+            .payload
+            .get("agent_id")
+            .or_else(|| created.payload.get("id"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+    );
+    assert!(!agent_id.is_empty());
+    write_json(
+        &governance_test_chat_script_path(root.path()),
+        &json!({
+            "queue": [
+                {
+                    "response": "<function=batch_query>{\"source\":\"web\",\"query\":\"top AI agentic frameworks\",\"aperture\":\"medium\"}</function>"
+                },
+                {
+                    "response": "My search for \"top AI agentic frameworks\" didn't return specific framework listings. Let me try a more targeted approach with some well-known framework names.\n\n<function=web_search>{\"query\":\"LangChain AutoGPT BabyAGI AI agent frameworks comparison\"}</function>"
+                }
+            ],
+            "calls": []
+        }),
+    );
+    write_json(
+        &governance_test_tool_script_path(root.path()),
+        &json!({
+            "queue": [
+                {
+                    "tool": "batch_query",
+                    "payload": {
+                        "ok": true,
+                        "status": "no_results",
+                        "summary": "Web retrieval ran, but did not return enough catalog-style framework evidence in this turn."
+                    }
+                }
+            ],
+            "calls": []
+        }),
+    );
+    let response = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/message"),
+        br#"{"message":"Try to web search \"top AI agentic frameworks\" and return the results"}"#,
+        &snapshot,
+    )
+    .expect("message response");
+    assert_eq!(response.status, 200);
+    assert_selected_workflow_and_visible_response(
+        &response,
+        "My search for \"top AI agentic frameworks\" didn't return specific framework listings.",
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/response_workflow/final_llm_response/status")
+            .and_then(Value::as_str),
+        Some("synthesized")
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/response_finalization/workflow_system_fallback_used")
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+}
+
+#[test]
 fn workflow_system_fallback_requires_final_stage_failure() {
     let root = governance_temp_root();
     let snapshot = governance_ok_snapshot();
