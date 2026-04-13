@@ -1,39 +1,110 @@
 
     // ── Detail modal: Files tab ──
+    activeDetailAgentId() {
+      return String((this.detailAgent && this.detailAgent.id) || '').trim();
+    },
+
+    ensureAgentFileState() {
+      if (!this._agentFileBaseContents || typeof this._agentFileBaseContents !== 'object') this._agentFileBaseContents = {};
+      if (!this._agentFileDrafts || typeof this._agentFileDrafts !== 'object') this._agentFileDrafts = {};
+      return { base: this._agentFileBaseContents, drafts: this._agentFileDrafts };
+    },
+
+    mergeAgentFileEntry(entry) {
+      if (!entry || !entry.name) return;
+      var name = String(entry.name);
+      var found = false;
+      this.agentFiles = (Array.isArray(this.agentFiles) ? this.agentFiles : []).map(function(file) {
+        if (String((file && file.name) || '') !== name) return file;
+        found = true;
+        return Object.assign({}, file || {}, entry);
+      });
+      if (!found) this.agentFiles = this.agentFiles.concat([Object.assign({ exists: true }, entry)]);
+    },
+
+    syncDetailAgentFromStore() {
+      var detailId = this.activeDetailAgentId();
+      var store = Alpine.store('app');
+      var agents = Array.isArray(store && store.agents) ? store.agents : [];
+      for (var i = 0; i < agents.length; i += 1) {
+        if (String((agents[i] && agents[i].id) || '').trim() !== detailId) continue;
+        this.detailAgent = agents[i];
+        return agents[i];
+      }
+      return null;
+    },
+
     async loadAgentFiles() {
-      if (!this.detailAgent) return;
+      var agentId = this.activeDetailAgentId();
+      if (!agentId) return;
+      var seq = Number(this._agentFilesLoadSeq || 0) + 1;
+      this._agentFilesLoadSeq = seq;
       this.filesLoading = true;
       try {
-        var data = await InfringAPI.get('/api/agents/' + this.detailAgent.id + '/files');
-        this.agentFiles = data.files || [];
+        var data = await InfringAPI.get('/api/agents/' + agentId + '/files');
+        if (seq !== Number(this._agentFilesLoadSeq || 0) || agentId !== this.activeDetailAgentId()) return;
+        this.agentFiles = Array.isArray(data && data.files) ? data.files : [];
+        if (this.editingFile && !this.agentFiles.some(function(file) { return String((file && file.name) || '') === String(this.editingFile || ''); }, this)) {
+          this.closeFileEditor();
+        }
       } catch(e) {
+        if (seq !== Number(this._agentFilesLoadSeq || 0)) return;
         this.agentFiles = [];
         InfringToast.error('Failed to load files: ' + e.message);
+      } finally {
+        if (seq === Number(this._agentFilesLoadSeq || 0)) this.filesLoading = false;
       }
-      this.filesLoading = false;
     },
 
     async openFile(file) {
+      var agentId = this.activeDetailAgentId();
+      if (!agentId || !file) return;
+      var name = String(file.name || '').trim();
+      if (!name) return;
+      var fileState = this.ensureAgentFileState();
       if (!file.exists) {
         // Create with empty content
-        this.editingFile = file.name;
-        this.fileContent = '';
+        this.editingFile = name;
+        this.fileContent = Object.prototype.hasOwnProperty.call(fileState.drafts, name)
+          ? String(fileState.drafts[name] || '')
+          : '';
         return;
       }
+      if (Object.prototype.hasOwnProperty.call(fileState.drafts, name)) {
+        this.editingFile = name;
+        this.fileContent = String(fileState.drafts[name] || '');
+      }
+      var seq = Number(this._agentFileContentSeq || 0) + 1;
+      this._agentFileContentSeq = seq;
       try {
-        var data = await InfringAPI.get('/api/agents/' + this.detailAgent.id + '/files/' + encodeURIComponent(file.name));
-        this.editingFile = file.name;
-        this.fileContent = data.content || '';
+        var data = await InfringAPI.get('/api/agents/' + agentId + '/files/' + encodeURIComponent(name));
+        if (seq !== Number(this._agentFileContentSeq || 0) || agentId !== this.activeDetailAgentId()) return;
+        var nextContent = String((data && data.content) || '');
+        var previousBase = Object.prototype.hasOwnProperty.call(fileState.base, name) ? String(fileState.base[name] || '') : '';
+        var currentDraft = Object.prototype.hasOwnProperty.call(fileState.drafts, name) ? String(fileState.drafts[name] || '') : null;
+        fileState.base[name] = nextContent;
+        if (currentDraft == null || currentDraft === previousBase) fileState.drafts[name] = nextContent;
+        this.editingFile = name;
+        this.fileContent = Object.prototype.hasOwnProperty.call(fileState.drafts, name)
+          ? String(fileState.drafts[name] || '')
+          : nextContent;
       } catch(e) {
         InfringToast.error('Failed to read file: ' + e.message);
       }
     },
 
     async saveFile() {
-      if (!this.editingFile || !this.detailAgent) return;
+      var agentId = this.activeDetailAgentId();
+      if (!this.editingFile || !agentId) return;
       this.fileSaving = true;
       try {
-        await InfringAPI.put('/api/agents/' + this.detailAgent.id + '/files/' + encodeURIComponent(this.editingFile), { content: this.fileContent });
+        var fileState = this.ensureAgentFileState();
+        var name = String(this.editingFile || '');
+        var content = String(this.fileContent || '');
+        await InfringAPI.put('/api/agents/' + agentId + '/files/' + encodeURIComponent(name), { content: content });
+        fileState.base[name] = content;
+        fileState.drafts[name] = content;
+        this.mergeAgentFileEntry({ name: name, exists: true, updated_at: new Date().toISOString() });
         InfringToast.success(this.editingFile + ' saved');
         await this.loadAgentFiles();
       } catch(e) {
@@ -49,13 +120,15 @@
 
     // ── Detail modal: Config tab ──
     async saveConfig() {
-      if (!this.detailAgent) return;
+      var agentId = this.activeDetailAgentId();
+      if (!agentId) return;
       this.configSaving = true;
       try {
-        await InfringAPI.patch('/api/agents/' + this.detailAgent.id + '/config', this.configForm);
+        await InfringAPI.patch('/api/agents/' + agentId + '/config', this.configForm);
         InfringToast.success('Config updated');
         await Alpine.store('app').refreshAgents();
         await this.loadLifecycle();
+        this.syncDetailAgentFromStore();
       } catch(e) {
         InfringToast.error('Failed to save config: ' + e.message);
       }
@@ -113,20 +186,17 @@
 
     // ── Model switch ──
     async changeModel() {
-      if (!this.detailAgent || !this.newModelValue.trim()) return;
+      var agentId = this.activeDetailAgentId();
+      if (!agentId || !this.newModelValue.trim()) return;
       this.modelSaving = true;
       try {
-        var resp = await InfringAPI.put('/api/agents/' + this.detailAgent.id + '/model', { model: this.newModelValue.trim() });
+        var resp = await InfringAPI.put('/api/agents/' + agentId + '/model', { model: this.newModelValue.trim() });
         var providerInfo = (resp && resp.provider) ? ' (provider: ' + resp.provider + ')' : '';
         InfringToast.success('Model changed' + providerInfo + ' (memory reset)');
         this.editingModel = false;
         await Alpine.store('app').refreshAgents();
         await this.loadLifecycle();
-        // Refresh detailAgent
-        var agents = Alpine.store('app').agents;
-        for (var i = 0; i < agents.length; i++) {
-          if (agents[i].id === this.detailAgent.id) { this.detailAgent = agents[i]; break; }
-        }
+        this.syncDetailAgentFromStore();
       } catch(e) {
         InfringToast.error('Failed to change model: ' + e.message);
       }
@@ -135,19 +205,17 @@
 
     // ── Provider switch ──
     async changeProvider() {
-      if (!this.detailAgent || !this.newProviderValue.trim()) return;
+      var agentId = this.activeDetailAgentId();
+      if (!agentId || !this.newProviderValue.trim()) return;
       this.modelSaving = true;
       try {
         var combined = this.newProviderValue.trim() + '/' + this.detailAgent.model_name;
-        var resp = await InfringAPI.put('/api/agents/' + this.detailAgent.id + '/model', { model: combined });
+        var resp = await InfringAPI.put('/api/agents/' + agentId + '/model', { model: combined });
         InfringToast.success('Provider changed to ' + (resp && resp.provider ? resp.provider : this.newProviderValue.trim()));
         this.editingProvider = false;
         await Alpine.store('app').refreshAgents();
         await this.loadLifecycle();
-        var agents = Alpine.store('app').agents;
-        for (var i = 0; i < agents.length; i++) {
-          if (agents[i].id === this.detailAgent.id) { this.detailAgent = agents[i]; break; }
-        }
+        this.syncDetailAgentFromStore();
       } catch(e) {
         InfringToast.error('Failed to change provider: ' + e.message);
       }
@@ -191,14 +259,24 @@
 
     // ── Tool filters ──
     async loadToolFilters() {
-      if (!this.detailAgent) return;
+      var agentId = this.activeDetailAgentId();
+      if (!agentId) return;
+      var seq = Number(this._toolFiltersLoadSeq || 0) + 1;
+      this._toolFiltersLoadSeq = seq;
       this.toolFiltersLoading = true;
       try {
-        this.toolFilters = await InfringAPI.get('/api/agents/' + this.detailAgent.id + '/tools');
+        var filters = await InfringAPI.get('/api/agents/' + agentId + '/tools');
+        if (seq !== Number(this._toolFiltersLoadSeq || 0) || agentId !== this.activeDetailAgentId()) return;
+        this.toolFilters = {
+          tool_allowlist: Array.isArray(filters && filters.tool_allowlist) ? filters.tool_allowlist.slice() : [],
+          tool_blocklist: Array.isArray(filters && filters.tool_blocklist) ? filters.tool_blocklist.slice() : []
+        };
       } catch(e) {
+        if (seq !== Number(this._toolFiltersLoadSeq || 0)) return;
         this.toolFilters = { tool_allowlist: [], tool_blocklist: [] };
+      } finally {
+        if (seq === Number(this._toolFiltersLoadSeq || 0)) this.toolFiltersLoading = false;
       }
-      this.toolFiltersLoading = false;
     },
 
     addAllowTool() {
