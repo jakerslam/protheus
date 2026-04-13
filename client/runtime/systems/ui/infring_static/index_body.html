@@ -448,7 +448,7 @@
             <div class="brand-mark" aria-hidden="true"><span class="brand-mark-glyph">&infin;</span></div>
             <div><div class="topbar-brand-title">INFRING</div></div>
           </button>
-          <div class="topbar-hero-menu" x-cloak x-show="topbarHeroMenuOpen" x-transition:enter="transition ease-out duration-120" x-transition:enter-start="opacity-0 -translate-y-1" x-transition:enter-end="opacity-100 translate-y-0" x-transition:leave="transition ease-in duration-90" x-transition:leave-start="opacity-100 translate-y-0" x-transition:leave-end="opacity-0 -translate-y-1">
+          <div class="topbar-hero-menu dashboard-dropdown-surface" x-cloak x-show="topbarHeroMenuOpen" x-transition:enter="transition ease-out duration-120" x-transition:enter-start="opacity-0 -translate-y-1" x-transition:enter-end="opacity-100 translate-y-0" x-transition:leave="transition ease-in duration-90" x-transition:leave-start="opacity-100 translate-y-0" x-transition:leave-end="opacity-0 -translate-y-1">
             <button class="topbar-hero-menu-item" type="button" @click="runTopbarHeroCommand('restart')" :disabled="!!topbarHeroActionPending"><span>Restart</span><svg class="topbar-refresh-icon topbar-hero-menu-icon" :style="'transform: rotate(' + (($store.app.topbarRefreshTurns || 0) * 360) + 'deg)'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path></svg></button>
             <button class="topbar-hero-menu-item" type="button" @click="runTopbarHeroCommand('update')" :disabled="!!topbarHeroActionPending"><span>Update</span><svg class="topbar-hero-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M12 16V8"></path><path d="m8.5 11.5 3.5-3.5 3.5 3.5"></path></svg></button>
             <button class="topbar-hero-menu-item" type="button" @click="runTopbarHeroCommand('shutdown')" :disabled="!!topbarHeroActionPending"><span>Shut down</span><svg class="topbar-hero-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v8"></path><path d="M8.2 5.8A8 8 0 1 0 15.8 5.8"></path></svg></button>
@@ -579,8 +579,8 @@
                 </svg>
                 <span class="notif-badge" x-show="$store.app.unreadNotifications > 0" x-text="$store.app.unreadNotifications > 99 ? '99+' : $store.app.unreadNotifications"></span>
               </button>
-              <div class="notif-dropdown" x-show="$store.app.notificationsOpen" x-transition:enter="transition ease-out duration-120" x-transition:enter-start="opacity-0 transform translate-y-1" x-transition:enter-end="opacity-100 transform translate-y-0">
-                <div class="notif-dropdown-head">
+              <div class="notif-dropdown dashboard-dropdown-surface" x-show="$store.app.notificationsOpen" x-transition:enter="transition ease-out duration-120" x-transition:enter-start="opacity-0 transform translate-y-1" x-transition:enter-end="opacity-100 transform translate-y-0">
+                <div class="notif-dropdown-head dashboard-dropdown-header">
                   <span>Notifications</span>
                   <button class="notif-clear-btn" @click="$store.app.clearNotifications()">Clear</button>
                 </div>
@@ -2192,7 +2192,7 @@
                     <button class="composer-icon-btn composer-model-btn" :class="{ 'active': showModelSwitcher }" @click="toggleModelSwitcher()" title="Switch model (Ctrl+M)">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
                     </button>
-                    <div class="model-switcher-dropdown model-switcher-dropdown-inline" x-show="showModelSwitcher" x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 transform translate-y-1" x-transition:enter-end="opacity-100 transform translate-y-0" x-transition:leave="transition ease-in duration-100" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">
+                    <div class="model-switcher-dropdown model-switcher-dropdown-inline dashboard-dropdown-surface" x-show="showModelSwitcher" x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 transform translate-y-1" x-transition:enter-end="opacity-100 transform translate-y-0" x-transition:leave="transition ease-in duration-100" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">
                       <div class="model-switcher-search">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;opacity:0.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                         <input id="model-switcher-search" type="text" x-model="modelSwitcherFilter" placeholder="Search models..." @keydown.escape.stop="showModelSwitcher = false" @keydown.arrow-down.prevent="modelSwitcherIdx = Math.min(modelSwitcherIdx + 1, filteredSwitcherModels.length - 1)" @keydown.arrow-up.prevent="modelSwitcherIdx = Math.max(modelSwitcherIdx - 1, 0)" @keydown.enter.prevent="!$event.isComposing && $event.keyCode !== 229 && filteredSwitcherModels[modelSwitcherIdx] && switchModel(filteredSwitcherModels[modelSwitcherIdx])">
@@ -2427,8 +2427,8 @@
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
                     <span class="session-count-badge" x-show="sessions.length > 1" x-text="sessions.length"></span>
                   </button>
-                  <div class="session-dropdown" x-show="sessionsOpen" @click.outside="sessionsOpen = false" x-transition>
-                    <div class="session-dropdown-header">
+                  <div class="session-dropdown dashboard-dropdown-surface" x-show="sessionsOpen" @click.outside="sessionsOpen = false" x-transition>
+                    <div class="session-dropdown-header dashboard-dropdown-header">
                       <span class="text-xs font-bold">Sessions</span>
                       <button class="btn btn-ghost btn-sm" @click="createSession()" style="padding:2px 6px;font-size:11px">+ New</button>
                     </div>
@@ -2871,7 +2871,7 @@
                       <button class="composer-icon-btn composer-model-btn" :class="{ 'active': showModelSwitcher }" @click="toggleModelSwitcher()" title="Switch model (Ctrl+M)">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
                       </button>
-                      <div class="model-switcher-dropdown model-switcher-dropdown-inline" x-show="showModelSwitcher" x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 transform translate-y-1" x-transition:enter-end="opacity-100 transform translate-y-0" x-transition:leave="transition ease-in duration-100" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">
+                      <div class="model-switcher-dropdown model-switcher-dropdown-inline dashboard-dropdown-surface" x-show="showModelSwitcher" x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 transform translate-y-1" x-transition:enter-end="opacity-100 transform translate-y-0" x-transition:leave="transition ease-in duration-100" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">
                         <div class="model-switcher-search">
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;opacity:0.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                           <input id="model-switcher-search" type="text" x-model="modelSwitcherFilter" placeholder="Search models..." @keydown.escape.stop="showModelSwitcher = false" @keydown.arrow-down.prevent="modelSwitcherIdx = Math.min(modelSwitcherIdx + 1, filteredSwitcherModels.length - 1)" @keydown.arrow-up.prevent="modelSwitcherIdx = Math.max(modelSwitcherIdx - 1, 0)" @keydown.enter.prevent="!$event.isComposing && $event.keyCode !== 229 && filteredSwitcherModels[modelSwitcherIdx] && switchModel(filteredSwitcherModels[modelSwitcherIdx])">

@@ -114,7 +114,7 @@ function parseFlags(argv = []) {
     apiHost: '',
     apiPort: 0,
     apiReadyTimeoutMs: DEFAULT_BACKEND_READY_TIMEOUT_MS,
-    uiMode: cleanText(process.env.INFRING_DASHBOARD_UI || 'classic', 24).toLowerCase(),
+    uiMode: cleanText(process.env.INFRING_DASHBOARD_UI || 'sveltekit', 24).toLowerCase(),
   };
   let modeSet = false;
   for (const token of argv) {
@@ -536,23 +536,19 @@ async function runServe(flags) {
   const server = http.createServer(async (req, res) => {
     const pathname = new URL(req.url || '/', `http://${flags.host}:${flags.port}`).pathname;
     try {
-      if (req.method === 'GET' && pathname === '/dashboard-shell') {
-        if (svelteKitUiEnabled) {
-          const asset = readSvelteKitAsset('/dashboard');
-          if (asset) {
-            res.writeHead(200, { 'content-type': asset.contentType, 'cache-control': 'no-store' });
-            res.end(asset.body);
-            return;
-          }
-        } else {
-          dashboardHtml = buildPrimaryDashboardHtml(STATIC_DIR) || dashboardHtml;
-          res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
-          res.end(dashboardHtml);
-          return;
-        }
+      if (req.method === 'GET' && (pathname === '/dashboard-classic' || pathname === '/dashboard-shell')) {
+        dashboardHtml = buildPrimaryDashboardHtml(STATIC_DIR) || dashboardHtml;
+        res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
+        res.end(dashboardHtml);
+        return;
       }
       if (req.method === 'GET' && (pathname === '/' || pathname === '/dashboard')) {
         if (svelteKitUiEnabled) {
+          if (pathname === '/') {
+            res.writeHead(302, { location: '/dashboard', 'cache-control': 'no-store' });
+            res.end();
+            return;
+          }
           const asset = readSvelteKitAsset(pathname);
           if (asset) {
             res.writeHead(200, { 'content-type': asset.contentType, 'cache-control': 'no-store' });

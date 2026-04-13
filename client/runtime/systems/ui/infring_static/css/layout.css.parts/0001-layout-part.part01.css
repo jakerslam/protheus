@@ -14,6 +14,30 @@
   padding-bottom: 46px;
 }
 
+body.dashboard-embedded-shell .app-layout {
+  height: 100vh;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+body.dashboard-embedded-shell .sidebar,
+body.dashboard-embedded-shell .sidebar-overlay,
+body.dashboard-embedded-shell .sidebar-pulltab,
+body.dashboard-embedded-shell .mobile-menu-btn,
+body.dashboard-embedded-shell .global-topbar {
+  display: none !important;
+}
+
+body.dashboard-embedded-shell .main-content {
+  max-width: 100%;
+  margin-left: 0;
+  padding: 0;
+}
+
+body.dashboard-embedded-shell .main-content > div:not(.global-topbar):not(.main-pointer-fx-layer) {
+  padding-top: 0;
+}
+
 /* Sidebar */
 .sidebar {
   position: relative;

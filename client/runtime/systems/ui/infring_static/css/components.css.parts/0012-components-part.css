@@ -334,14 +334,8 @@
   right: 0;
   width: 330px;
   max-width: min(92vw, 330px);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--surface) 94%, transparent);
-  box-shadow: var(--shadow-md);
   overflow: hidden;
   z-index: 18100;
-  backdrop-filter: blur(10px) saturate(1.08);
-  -webkit-backdrop-filter: blur(10px) saturate(1.08);
 }
 
 .notif-dropdown-head {
@@ -350,7 +344,6 @@
   justify-content: space-between;
   gap: 8px;
   padding: 9px 10px;
-  border-bottom: 1px solid var(--border);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.03em;

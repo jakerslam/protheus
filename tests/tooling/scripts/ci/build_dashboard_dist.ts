@@ -4,6 +4,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const childProcess = require('child_process');
 const esbuild = require('esbuild');
 
 function repoRoot(startDir = __dirname) {
@@ -49,6 +50,20 @@ function copyDirRecursive(src, dest) {
   }
 }
 
+function runCommand(bin, args, cwd) {
+  const cmd = process.platform === 'win32' && bin === 'npm' ? 'npm.cmd' : bin;
+  const result = childProcess.spawnSync(cmd, args, {
+    cwd,
+    encoding: 'utf8',
+    stdio: 'pipe'
+  });
+  if (result && result.status === 0) return;
+  const stderr = String((result && result.stderr) || '').trim();
+  const stdout = String((result && result.stdout) || '').trim();
+  const detail = stderr || stdout || 'unknown_error';
+  throw new Error(`${bin}_failed:${detail}`);
+}
+
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   const root = repoRoot(__dirname);
@@ -56,7 +71,12 @@ async function main() {
   const outfile = path.join(root, 'dist', 'client', 'runtime', 'systems', 'ui', 'infring_dashboard.js');
   const staticSrc = path.join(root, 'client', 'runtime', 'systems', 'ui', 'infring_static');
   const staticDest = path.join(root, 'dist', 'client', 'runtime', 'systems', 'ui', 'infring_static');
+  const svelteSrc = path.join(root, 'client', 'runtime', 'systems', 'ui', 'dashboard_sveltekit');
+  const svelteBuildSrc = path.join(svelteSrc, 'build');
+  const svelteDest = path.join(root, 'dist', 'client', 'runtime', 'systems', 'ui', 'dashboard_sveltekit');
+  const svelteBuildDest = path.join(svelteDest, 'build');
   fs.mkdirSync(path.dirname(outfile), { recursive: true });
+  runCommand('npm', ['run', 'build'], svelteSrc);
   await esbuild.build({
     entryPoints: [entry],
     outfile,
@@ -72,7 +92,10 @@ async function main() {
       'process.env.NODE_ENV': JSON.stringify('production')
     }
   });
+  fs.rmSync(staticDest, { recursive: true, force: true });
   copyDirRecursive(staticSrc, staticDest);
+  fs.rmSync(svelteBuildDest, { recursive: true, force: true });
+  copyDirRecursive(svelteBuildSrc, svelteBuildDest);
   const bytes = fs.statSync(outfile).size;
   const payload = {
     ok: true,
@@ -80,6 +103,7 @@ async function main() {
     entry: path.relative(root, entry).replace(/\\/g, '/'),
     out_file: path.relative(root, outfile).replace(/\\/g, '/'),
     static_dir: path.relative(root, staticDest).replace(/\\/g, '/'),
+    sveltekit_build_dir: path.relative(root, svelteBuildDest).replace(/\\/g, '/'),
     out_bytes: bytes,
     minify: options.minify
   };

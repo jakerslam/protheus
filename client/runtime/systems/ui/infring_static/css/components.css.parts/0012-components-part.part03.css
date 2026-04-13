@@ -1,4 +1,5 @@
 .dashboard-preview-trigger,
+.dashboard-dropdown-surface,
 .dashboard-popup-surface,
 .dashboard-preview-surface,
 .topbar-search-popup {
@@ -30,6 +31,21 @@
   --dashboard-preview-text-align: center;
   --dashboard-preview-white-space: nowrap;
   --dashboard-preview-padding: var(--dashboard-preview-surface-padding);
+}
+
+.dashboard-dropdown-surface {
+  color: var(--dashboard-preview-surface-color);
+  border: 1px solid var(--dashboard-preview-surface-border);
+  border-radius: var(--dashboard-preview-surface-radius);
+  background: var(--dashboard-preview-surface-background);
+  box-shadow: var(--dashboard-preview-surface-shadow);
+  backdrop-filter: blur(var(--dashboard-preview-surface-blur)) saturate(var(--dashboard-preview-surface-saturate));
+  -webkit-backdrop-filter: blur(var(--dashboard-preview-surface-blur)) saturate(var(--dashboard-preview-surface-saturate));
+  overflow: hidden;
+}
+
+.dashboard-dropdown-header {
+  border-bottom: 1px solid var(--dashboard-preview-surface-border);
 }
 
 .dashboard-preview-trigger::after,
@@ -239,12 +255,6 @@
   flex-direction: column;
   gap: 4px;
   padding: 10px;
-  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
-  border-radius: 18px;
-  background: color-mix(in srgb, var(--surface) 92%, transparent);
-  box-shadow: var(--shadow-lg);
-  backdrop-filter: blur(14px) saturate(1.08);
-  -webkit-backdrop-filter: blur(14px) saturate(1.08);
   z-index: 19420;
 }
 
