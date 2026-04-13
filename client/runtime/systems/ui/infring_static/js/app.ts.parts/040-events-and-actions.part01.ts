@@ -1,3 +1,4 @@
+// Layer ownership: client/runtime/systems/ui (dashboard static UX surface only; no runtime authority).
           return this.chatSidebarSortComparator(a, b);
         }.bind(this));
         target = rows.length ? rows[0] : null;
