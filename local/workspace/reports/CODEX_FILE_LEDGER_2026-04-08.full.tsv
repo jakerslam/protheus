@@ -1816,11 +1816,11 @@ order	status	file	language	loc	authority_risk_score	migration_potential_score	co
 1815	queued	tests/client-memory-tools/wasm_component_runtime.test.ts	ts	9	2	2	4	2.4
 1816	queued	tests/client-memory-tools/windows_native_runtime_parity.test.ts	ts	9	2	2	4	2.4
 1817	queued	tests/client-memory-tools/workflow_executor_step_security_gate.test.ts	ts	9	2	2	4	2.4
-1818	queued	client/runtime/systems/ui/infring_static/js/app.ts.parts/020-nav-and-layout.part02.ts	ts	1251	2	2	3	2.2
+1818	done	client/runtime/systems/ui/infring_static/js/app.ts.parts/020-nav-and-layout.part02.ts	ts	1251	2	2	3	2.2
 1819	queued	client/runtime/systems/ui/infring_static/vendor/highlight.min.ts	ts	1244	2	2	3	2.2
 1820	done	tests/vitest/conduit_primitives_gap_closer.test.ts	ts	720	2	2	3	2.2
-1821	queued	client/runtime/systems/ui/infring_static/js/app.ts.parts/030-agent-list-runtime.part02.ts	ts	615	2	2	3	2.2
-1822	queued	client/runtime/systems/ui/infring_static/js/app.ts.parts/030-agent-list-runtime.part01.ts	ts	603	2	2	3	2.2
+1821	done	client/runtime/systems/ui/infring_static/js/app.ts.parts/030-agent-list-runtime.part02.ts	ts	615	2	2	3	2.2
+1822	done	client/runtime/systems/ui/infring_static/js/app.ts.parts/030-agent-list-runtime.part01.ts	ts	603	2	2	3	2.2
 1823	done	tests/tooling/scripts/ci/swarm_protocol_audit_runner.ts	ts	726	2	2	3	2.2
 1824	done	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/040-models-and-cache.part01.ts	ts	559	2	2	3	2.2
 1825	queued	tests/client-memory-tools/external_eyes.test.ts	ts	553	2	2	3	2.2
@@ -1892,7 +1892,7 @@ order	status	file	language	loc	authority_risk_score	migration_potential_score	co
 1891	queued	client/runtime/systems/ui/infring_static/js/pages/usage.ts	ts	289	2	2	3	2.2
 1892	queued	tests/tooling/scripts/ci/repo_surface_policy_audit.ts	ts	286	2	2	3	2.2
 1893	queued	tests/tooling/scripts/ci/srs_actionable_map.ts	ts	285	2	2	3	2.2
-1894	queued	client/runtime/systems/ui/infring_static/js/pages/agents.ts.parts/030-actions-and-ops.ts	ts	264	2	2	3	2.2
+1894	done	client/runtime/systems/ui/infring_static/js/pages/agents.ts.parts/030-actions-and-ops.ts	ts	264	2	2	3	2.2
 1895	queued	client/runtime/systems/ui/infring_static/js/pages/logs.ts	ts	263	2	2	3	2.2
 1896	queued	tests/tooling/scripts/ci/promote_executed_receipt_ids.ts	ts	260	2	2	3	2.2
 1897	queued	tests/tooling/scripts/ci/srs_todo_sync.ts	ts	255	2	2	3	2.2
@@ -1941,7 +1941,7 @@ order	status	file	language	loc	authority_risk_score	migration_potential_score	co
 1940	queued	tests/tooling/scripts/ci/client_target_contract_audit.ts	ts	150	2	2	3	2.2
 1941	queued	client/runtime/systems/ui/infring_static/js/pages/sessions.ts	ts	147	2	2	3	2.2
 1942	queued	tests/tooling/scripts/ci/blocked_external_human_action_map.ts	ts	147	2	2	3	2.2
-1943	queued	client/runtime/systems/ui/infring_static/js/app.ts.parts/040-events-and-actions.part02.ts	ts	146	2	2	3	2.2
+1943	done	client/runtime/systems/ui/infring_static/js/app.ts.parts/040-events-and-actions.part02.ts	ts	146	2	2	3	2.2
 1944	queued	tests/tooling/scripts/ci/legacy_client_memory_wrapper_audit.ts	ts	145	2	2	3	2.2
 1945	queued	tests/tooling/scripts/ci/client_layer_boundary_audit.ts	ts	144	2	2	3	2.2
 1946	queued	tests/client-memory-tools/top50_roi_sweep_runner.test.ts	ts	141	2	2	3	2.2

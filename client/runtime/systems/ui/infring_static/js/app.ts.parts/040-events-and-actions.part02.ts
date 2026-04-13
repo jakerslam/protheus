@@ -293,53 +293,117 @@
       }
     },
 
-    async pollStatus() {
-      var store = this.getAppStore();
-      if (!store) {
-        this.connected = false;
-        this.connectionState = 'connecting';
-        if (typeof this.setBootProgressEvent === 'function') this.setBootProgressEvent('status_retrying');
-        return;
-      }
-      if (typeof this.setBootProgressEvent === 'function') this.setBootProgressEvent('status_requesting');
-      if (typeof store.checkStatus === 'function') await store.checkStatus();
-      if (typeof this.setBootProgressEvent === 'function') {
-        this.setBootProgressEvent(
-          store && store.connectionState === 'connected' ? 'status_connected' : 'status_retrying',
-          { bootStage: store && store.bootStage }
-        );
-      }
+    normalizeDashboardHealthSummary(payload) {
+      var summary = payload && typeof payload === 'object' ? payload : {};
+      var agents = Array.isArray(summary.agents) ? summary.agents : [];
+      return {
+        ok: summary.ok === true,
+        ts: Number(summary.ts || Date.now()),
+        durationMs: Number(summary.durationMs != null ? summary.durationMs : summary.duration_ms || 0),
+        heartbeatSeconds: Number(summary.heartbeatSeconds != null ? summary.heartbeatSeconds : summary.heartbeat_seconds || 0),
+        defaultAgentId: String(summary.defaultAgentId || summary.default_agent_id || ''),
+        agent_count: Number(summary.agent_count || agents.length || 0),
+        agents: agents
+      };
+    },
+
+    async loadDashboardHealthSummary(force) {
       var now = Date.now();
-      var shouldRefreshAgents =
-        !store.agentsHydrated ||
-        (store.connectionState !== 'connected') ||
-        (now - Number(store._lastAgentsRefreshAt || 0)) >= 12000;
-      if (shouldRefreshAgents) {
-        if (typeof this.setBootProgressEvent === 'function') this.setBootProgressEvent('agents_refresh_started');
-        if (typeof store.refreshAgents === 'function') await store.refreshAgents();
+      if (!force && this._healthSummaryLoading) return this._healthSummaryLoading;
+      if (!force && this._healthSummaryLoadedAt && (now - Number(this._healthSummaryLoadedAt || 0)) < 15000) {
+        return this.healthSummary;
       }
-      if (store.agentsHydrated && !store.agentsLoading) {
-        if (typeof this.setBootProgressEvent === 'function') this.setBootProgressEvent('agents_hydrated');
+      var seq = Number(this._healthSummaryLoadSeq || 0) + 1;
+      this._healthSummaryLoadSeq = seq;
+      var self = this;
+      this._healthSummaryLoading = (async function() {
+        try {
+          var payload = await InfringAPI.get('/api/health');
+          if (seq !== Number(self._healthSummaryLoadSeq || 0)) return self.healthSummary;
+          self.healthSummary = self.normalizeDashboardHealthSummary(payload);
+          self.healthSummaryError = '';
+        } catch (e) {
+          if (seq !== Number(self._healthSummaryLoadSeq || 0)) return self.healthSummary;
+          self.healthSummary = self.normalizeDashboardHealthSummary(null);
+          self.healthSummaryError = String(e && e.message ? e.message : 'health_unavailable');
+        } finally {
+          if (seq === Number(self._healthSummaryLoadSeq || 0)) {
+            self._healthSummaryLoadedAt = Date.now();
+            self._healthSummaryLoading = null;
+          }
+        }
+        return self.healthSummary;
+      })();
+      return this._healthSummaryLoading;
+    },
+
+    async pollStatus(opts) {
+      var force = !!(opts && opts.force);
+      if (this._pollStatusInFlight) {
+        this._pollStatusQueued = true;
+        return this._pollStatusInFlight;
       }
-      this.reconcileArchivedAgentIdsWithLiveAgents();
-      if (typeof this.syncChatSidebarTopologyOrderFromAgents === 'function') {
-        this.syncChatSidebarTopologyOrderFromAgents();
+      var self = this;
+      this._pollStatusInFlight = (async function() {
+        var store = self.getAppStore();
+        if (!store) {
+          self.connected = false;
+          self.connectionState = 'connecting';
+          if (typeof self.setBootProgressEvent === 'function') self.setBootProgressEvent('status_retrying');
+          return;
+        }
+        if (typeof self.setBootProgressEvent === 'function') self.setBootProgressEvent('status_requesting');
+        if (typeof store.checkStatus === 'function') await store.checkStatus();
+        if (typeof self.setBootProgressEvent === 'function') {
+          self.setBootProgressEvent(
+            store && store.connectionState === 'connected' ? 'status_connected' : 'status_retrying',
+            { bootStage: store && store.bootStage }
+          );
+        }
+        var shouldHydrateHealth = force || store.connectionState !== 'connected' || !store.runtimeSync;
+        if (shouldHydrateHealth) await self.loadDashboardHealthSummary(store.connectionState !== 'connected');
+        var now = Date.now();
+        var shouldRefreshAgents =
+          force ||
+          !store.agentsHydrated ||
+          (store.connectionState !== 'connected') ||
+          (now - Number(store._lastAgentsRefreshAt || 0)) >= 12000;
+        if (shouldRefreshAgents) {
+          if (typeof self.setBootProgressEvent === 'function') self.setBootProgressEvent('agents_refresh_started');
+          if (typeof store.refreshAgents === 'function') await store.refreshAgents();
+        }
+        if (store.agentsHydrated && !store.agentsLoading) {
+          if (typeof self.setBootProgressEvent === 'function') self.setBootProgressEvent('agents_hydrated');
+        }
+        self.reconcileArchivedAgentIdsWithLiveAgents();
+        if (typeof self.syncChatSidebarTopologyOrderFromAgents === 'function') {
+          self.syncChatSidebarTopologyOrderFromAgents();
+        }
+        self.connected = store.connected;
+        self.version = store.version;
+        self.agentCount = store.agentCount;
+        self.connectionState = store.connectionState || (store.connected ? 'connected' : 'disconnected');
+        self.queueConnectionIndicatorState(self.connectionState);
+        self.wsConnected = InfringAPI.isWsConnected();
+        if (!self.bootSelectionApplied && store.agentsHydrated && !store.agentsLoading) {
+          await self.applyBootChatSelection();
+          if (typeof self.setBootProgressEvent === 'function') self.setBootProgressEvent('selection_applied');
+        }
+        self.scheduleSidebarScrollIndicators();
+        if (store.booting === false && store.agentsHydrated && !store.agentsLoading) {
+          if (typeof self.setBootProgressEvent === 'function') self.setBootProgressEvent('releasing', { bootStage: store.bootStage });
+        }
+        self.releaseBootSplash(false);
+      })();
+      try {
+        await this._pollStatusInFlight;
+      } finally {
+        this._pollStatusInFlight = null;
+        if (this._pollStatusQueued) {
+          this._pollStatusQueued = false;
+          window.setTimeout(function() { self.pollStatus({ force: true }); }, 0);
+        }
       }
-      this.connected = store.connected;
-      this.version = store.version;
-      this.agentCount = store.agentCount;
-      this.connectionState = store.connectionState || (store.connected ? 'connected' : 'disconnected');
-      this.queueConnectionIndicatorState(this.connectionState);
-      this.wsConnected = InfringAPI.isWsConnected();
-      if (!this.bootSelectionApplied && store.agentsHydrated && !store.agentsLoading) {
-        await this.applyBootChatSelection();
-        if (typeof this.setBootProgressEvent === 'function') this.setBootProgressEvent('selection_applied');
-      }
-      this.scheduleSidebarScrollIndicators();
-      if (store.booting === false && store.agentsHydrated && !store.agentsLoading) {
-        if (typeof this.setBootProgressEvent === 'function') this.setBootProgressEvent('releasing', { bootStage: store.bootStage });
-      }
-      this.releaseBootSplash(false);
     }
   };
 }
