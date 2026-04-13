@@ -20303,7 +20303,7 @@
       "notes": "OPENCLAW-TOOLING-CHAT-003 enriched terminal/tool summaries with fallback and preview context."
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/180-map-navigation.part01.ts",
       "language": "ts",
       "loc": 472,
@@ -20380,7 +20380,7 @@
       "order": 1851
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/220-artifacts-voice-search.part01.ts",
       "language": "ts",
       "loc": 450,
@@ -20413,7 +20413,7 @@
       "order": 1854
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/170-grouping-and-day-map.part01.ts",
       "language": "ts",
       "loc": 440,
@@ -20600,7 +20600,7 @@
       "order": 1871
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/080-normalize-and-context.part02.ts",
       "language": "ts",
       "loc": 370,
@@ -20713,7 +20713,7 @@
       "order": 1881
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/170-grouping-and-day-map.part02.ts",
       "language": "ts",
       "loc": 325,

@@ -322,5 +322,9 @@
       }
       if (this._mapPreviewSuppressTimer) clearTimeout(this._mapPreviewSuppressTimer);
       var visibleIndexes = [];
+      var fallbackIndexes = [];
+      var searchQuery = String(this.searchQuery || '').trim();
       for (var i = 0; i < list.length; i++) {
-        if (!this.isMessageDayCollapsed(list[i])) visibleIndexes.push(i);
+        if (this.isMessageDayCollapsed(list[i])) continue;
+        fallbackIndexes.push(i);
+        if (!searchQuery || !this.messageMatchesSearchQuery || this.messageMatchesSearchQuery(list[i], searchQuery)) visibleIndexes.push(i);
