@@ -444,8 +444,13 @@ function assertInterfaceSafetyGuards() {
   );
   assertContains(
     componentsSource,
-    '--dashboard-preview-surface-background: color-mix(in srgb, var(--surface) 8%, transparent);',
-    'shared dashboard popup surface should inherit the old lightweight dock/doc popup background'
+    '--dashboard-preview-surface-background: color-mix(in srgb, var(--surface) 84%, transparent);',
+    'shared dashboard popup surface should keep an explicit fogged fill instead of near-transparent glass'
+  );
+  assertContains(
+    componentsSource,
+    '.dashboard-dropdown-surface {\n  position: relative;\n  isolation: isolate;',
+    'shared dashboard dropdown surface should create its own paint layer so menu backgrounds do not render transparent'
   );
   assertContains(
     componentsSource,

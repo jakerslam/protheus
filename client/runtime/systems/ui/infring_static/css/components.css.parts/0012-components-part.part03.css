@@ -8,7 +8,7 @@
   --dashboard-preview-surface-padding: 7px 12px;
   --dashboard-preview-surface-radius: 18px;
   --dashboard-preview-surface-border: color-mix(in srgb, var(--border) 78%, transparent);
-  --dashboard-preview-surface-background: color-mix(in srgb, var(--surface) 8%, transparent);
+  --dashboard-preview-surface-background: color-mix(in srgb, var(--surface) 84%, transparent);
   --dashboard-preview-surface-color: var(--text);
   --dashboard-preview-surface-font-size: 13px;
   --dashboard-preview-surface-font-weight: 500;
@@ -34,13 +34,16 @@
 }
 
 .dashboard-dropdown-surface {
+  position: relative;
+  isolation: isolate;
   color: var(--dashboard-preview-surface-color);
   border: 1px solid var(--dashboard-preview-surface-border);
   border-radius: var(--dashboard-preview-surface-radius);
-  background: var(--dashboard-preview-surface-background);
+  background-color: var(--dashboard-preview-surface-background);
   box-shadow: var(--dashboard-preview-surface-shadow);
   backdrop-filter: blur(var(--dashboard-preview-surface-blur)) saturate(var(--dashboard-preview-surface-saturate));
   -webkit-backdrop-filter: blur(var(--dashboard-preview-surface-blur)) saturate(var(--dashboard-preview-surface-saturate));
+  background-clip: padding-box;
   overflow: hidden;
 }
 
