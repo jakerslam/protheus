@@ -73,8 +73,8 @@
                 </svg>
                 <span class="notif-badge" x-show="$store.app.unreadNotifications > 0" x-text="$store.app.unreadNotifications > 99 ? '99+' : $store.app.unreadNotifications"></span>
               </button>
-              <div class="notif-dropdown" x-show="$store.app.notificationsOpen" x-transition:enter="transition ease-out duration-120" x-transition:enter-start="opacity-0 transform translate-y-1" x-transition:enter-end="opacity-100 transform translate-y-0">
-                <div class="notif-dropdown-head">
+              <div class="notif-dropdown dashboard-dropdown-surface" x-show="$store.app.notificationsOpen" x-transition:enter="transition ease-out duration-120" x-transition:enter-start="opacity-0 transform translate-y-1" x-transition:enter-end="opacity-100 transform translate-y-0">
+                <div class="notif-dropdown-head dashboard-dropdown-header">
                   <span>Notifications</span>
                   <button class="notif-clear-btn" @click="$store.app.clearNotifications()">Clear</button>
                 </div>
