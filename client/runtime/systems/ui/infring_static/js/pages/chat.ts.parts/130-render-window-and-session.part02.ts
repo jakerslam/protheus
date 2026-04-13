@@ -1,10 +1,10 @@
 
       this.chatInputHistory = chatRows;
       this.terminalInputHistory = terminalRows;
-      this.hydrateInputHistoryFromCache('chat');
-      this.hydrateInputHistoryFromCache('terminal');
-      this.syncInputHistoryToCache('chat');
-      this.syncInputHistoryToCache('terminal');
+      this.hydrateInputHistoryFromCache('chat', fallbackAgentId);
+      this.hydrateInputHistoryFromCache('terminal', fallbackAgentId);
+      this.syncInputHistoryToCache('chat', fallbackAgentId);
+      this.syncInputHistoryToCache('terminal', fallbackAgentId);
       this.resetInputHistoryNavigation('chat');
       this.resetInputHistoryNavigation('terminal');
     },

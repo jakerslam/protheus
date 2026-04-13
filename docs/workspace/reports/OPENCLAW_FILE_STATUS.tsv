@@ -19,3 +19,8 @@ imported	ui/src/ui/controllers/sessions.ts	OPENCLAW-TOOLING-CHAT-010 stale sessi
 imported	ui/src/ui/session-key.ts	OPENCLAW-TOOLING-CHAT-010 agent/main/subagent session-key normalization assimilated into chat.ts.parts/130-render-window-and-session.part01.ts and 191-slash-continuity-and-alias-helpers.ts
 imported	ui/src/ui/chat-event-reload.ts	OPENCLAW-TOOLING-CHAT-010 final-event reload helper assimilated into chat.ts.parts/160-runtime-events-and-render.part02.ts and 140-session-and-ws.part01.ts
 imported	ui/src/ui/chat/side-result.ts	OPENCLAW-TOOLING-CHAT-010 side-result parsing and notice rendering assimilated into chat.ts.parts/160-runtime-events-and-render.part02.ts and 160-runtime-events-and-render.part01.ts
+imported	ui/src/ui/chat/input-history.ts	OPENCLAW-TOOLING-CHAT-011 session-scoped input history and draft restore assimilated into chat.ts.parts/020-init-roles-and-vibes.part01.ts, 020-init-roles-and-vibes.part02.ts, and 130-render-window-and-session.part02.ts
+imported	ui/src/ui/chat/copy-as-markdown.ts	OPENCLAW-TOOLING-CHAT-011 markdown-oriented message copy flow assimilated into chat.ts.parts/190-drawer-and-queue.zz-part02.ts
+imported	ui/src/ui/chat/tool-helpers.ts	OPENCLAW-TOOLING-CHAT-011 JSON-aware tool preview formatting assimilated into chat.ts.parts/190-drawer-and-queue.zz-part02.ts
+imported	ui/src/ui/chat/constants.ts	OPENCLAW-TOOLING-CHAT-011 tool preview line/character limits assimilated into chat.ts.parts/010-chat-state.ts and 190-drawer-and-queue.zz-part02.ts
+imported	ui/src/ui/chat/pinned-summary.ts	OPENCLAW-TOOLING-CHAT-011 message summary extraction patterns assimilated into chat.ts.parts/190-drawer-and-queue.zz-part02.ts
