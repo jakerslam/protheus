@@ -203,29 +203,36 @@
     get chatSidebarRows() {
       var query = String(this.chatSidebarQuery || '').trim();
       if (!query) return this.chatSidebarAgents || [];
-      if (Array.isArray(this.chatSidebarSearchResults) && this.chatSidebarSearchResults.length) {
-        return this.chatSidebarSearchResults;
-      }
-      return [];
+      if (Array.isArray(this.chatSidebarSearchResults) && this.chatSidebarSearchResults.length) return this.chatSidebarSearchResults;
+      return this.buildChatSidebarQuickActions(query, []);
     },
-    get chatSidebarVisibleRows() {
-      var rows = Array.isArray(this.chatSidebarRows) ? this.chatSidebarRows : [];
-      return rows;
-    },
-    chatSidebarHasMoreRows() {
-      return false;
-    },
-    showMoreChatSidebarRows() {
-      this.scheduleSidebarScrollIndicators();
+    get chatSidebarVisibleRows() { return Array.isArray(this.chatSidebarRows) ? this.chatSidebarRows : []; },
+    chatSidebarHasMoreRows() { return false; },
+    showMoreChatSidebarRows() { this.scheduleSidebarScrollIndicators(); },
+    buildChatSidebarQuickActions(query, rows) {
+      var q = String(query || '').trim().toLowerCase();
+      if (!q) return [];
+      var out = [], seen = {};
+      var hasHits = Array.isArray(rows) && rows.some(function(row) { return !!(row && !row._sidebar_quick_action); });
+      var add = function(id, name, preview, action, emoji) {
+        if (!id || seen[id] || out.length >= 3) return;
+        seen[id] = true;
+        out.push({ id: '_sidebar_action:' + id, name: name, state: 'ready', avatar_url: '', identity: { emoji: emoji || '' }, _sidebar_search_result: true, _sidebar_preview_text: preview, _sidebar_quick_action: action });
+      };
+      var wantsConnect = /(connect|pair|token|auth|secure|identity|gateway)/.test(q);
+      var wantsAgents = /(agent|session|chat|thread|roster)/.test(q);
+      var wantsSettings = /(model|setting|config|token|auth|provider|key)/.test(q);
+      if (wantsSettings) add('settings', 'Open Settings', 'Jump to models, keys, and gateway configuration.', { type: 'navigate', page: 'settings' }, '⚙️');
+      if (wantsAgents || !hasHits) add('agents', 'Open Agents', 'Jump to the agent roster and templates.', { type: 'navigate', page: 'agents' }, '🤖');
+      if (wantsConnect) add('connect', 'Copy connect checklist', 'Copy pairing/auth recovery guidance.', { type: 'copy_connect', page: 'settings' }, '🔐');
+      if (!out.length) { add('chat', 'Open Chat', 'Return to the active chat workspace.', { type: 'navigate', page: 'chat' }, '💬'); add('settings', 'Open Settings', 'Check models, keys, and runtime configuration.', { type: 'navigate', page: 'settings' }, '⚙️'); add('agents', 'Open Agents', 'Jump to the agent roster and templates.', { type: 'navigate', page: 'agents' }, '🤖'); }
+      return out;
     },
     isChatSidebarSearchActive() {
       return String(this.chatSidebarQuery || '').trim().length > 0;
     },
     clearChatSidebarSearch() {
-      if (this._chatSidebarSearchTimer) {
-        clearTimeout(this._chatSidebarSearchTimer);
-        this._chatSidebarSearchTimer = 0;
-      }
+      if (this._chatSidebarSearchTimer) { clearTimeout(this._chatSidebarSearchTimer); this._chatSidebarSearchTimer = 0; }
       this.chatSidebarSearchSeq = Number(this.chatSidebarSearchSeq || 0) + 1;
       this.chatSidebarSearchLoading = false;
       this.chatSidebarSearchError = '';
@@ -244,23 +251,14 @@
     },
     scheduleChatSidebarSearch() {
       var query = String(this.chatSidebarQuery || '').trim();
-      if (!query) {
-        this.clearChatSidebarSearch();
-        return;
-      }
-      if (this._chatSidebarSearchTimer) {
-        clearTimeout(this._chatSidebarSearchTimer);
-        this._chatSidebarSearchTimer = 0;
-      }
+      if (!query) { this.clearChatSidebarSearch(); return; }
+      if (this._chatSidebarSearchTimer) { clearTimeout(this._chatSidebarSearchTimer); this._chatSidebarSearchTimer = 0; }
       var self = this;
       var seq = Number(this.chatSidebarSearchSeq || 0) + 1;
       this.chatSidebarSearchSeq = seq;
       this.chatSidebarSearchLoading = true;
       this.chatSidebarSearchError = '';
-      this._chatSidebarSearchTimer = setTimeout(function() {
-        self._chatSidebarSearchTimer = 0;
-        self.runChatSidebarSearch(seq);
-      }, 140);
+      this._chatSidebarSearchTimer = setTimeout(function() { self._chatSidebarSearchTimer = 0; self.runChatSidebarSearch(seq); }, 140);
     },
     async runChatSidebarSearch(seq) {
       var token = Number(seq || 0);
@@ -287,27 +285,16 @@
           }
           if (!id || seen[id]) continue;
           seen[id] = true;
-          mapped.push({
-            id: id,
-            name: String(row.name || id),
-            state: String(row.state || (row.archived ? 'archived' : 'running')),
-            archived: row.archived === true,
-            avatar_url: String(row.avatar_url || '').trim(),
-            identity: { emoji: String(row.emoji || '').trim() },
-            updated_at: String(row.updated_at || '').trim(),
-            _sidebar_search_result: true,
-            _sidebar_search_score: Number(row.score || 0),
-            _sidebar_preview_text: String(row.snippet || '')
-          });
+          mapped.push({ id: id, name: String(row.name || id), state: String(row.state || (row.archived ? 'archived' : 'running')), archived: row.archived === true, avatar_url: String(row.avatar_url || '').trim(), identity: { emoji: String(row.emoji || '').trim() }, updated_at: String(row.updated_at || '').trim(), _sidebar_search_result: true, _sidebar_search_score: Number(row.score || 0), _sidebar_preview_text: String(row.snippet || '') });
         }
         var self = this;
-        this.chatSidebarSearchResults = mapped.map(function(agent) {
+        this.chatSidebarSearchResults = mapped.concat(this.buildChatSidebarQuickActions(query, mapped)).map(function(agent) {
           return self.sanitizeSidebarAgentRow(agent);
         });
         this.chatSidebarSearchError = '';
       } catch (e) {
         if (token !== Number(this.chatSidebarSearchSeq || 0)) return;
-        this.chatSidebarSearchResults = [];
+        this.chatSidebarSearchResults = this.buildChatSidebarQuickActions(query, []);
         this.chatSidebarSearchError = String(e && e.message ? e.message : 'search_failed');
       } finally {
         if (token === Number(this.chatSidebarSearchSeq || 0)) {

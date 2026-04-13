@@ -1827,7 +1827,7 @@ order	status	file	language	loc	authority_risk_score	migration_potential_score	co
 1826	done	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/030-init-selection-helpers.ts	ts	524	2	2	3	2.2
 1827	queued	tests/tooling/scripts/ci/srs_full_regression.ts	ts	522	2	2	3	2.2
 1828	queued	tests/tooling/scripts/ci/roi100_moves_runner.ts	ts	517	2	2	3	2.2
-1829	queued	client/runtime/systems/ui/infring_static/js/app.ts.parts/040-events-and-actions.part01.ts	ts	510	2	2	3	2.2
+1829	done	client/runtime/systems/ui/infring_static/js/app.ts.parts/040-events-and-actions.part01.ts	ts	510	2	2	3	2.2
 1830	queued	tests/tooling/scripts/ci/srs_contract_receipts_20260312.ts	ts	510	2	2	3	2.2
 1831	done	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/150-ws-stream-handlers.ts	ts	507	2	2	3	2.2
 1832	done	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/120-slash-and-agent-select.ts	ts	501	2	2	3	2.2
@@ -1879,7 +1879,7 @@ order	status	file	language	loc	authority_risk_score	migration_potential_score	co
 1878	done	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/192-slash-alias-and-alerts.ts	ts	339	2	2	3	2.2
 1879	queued	client/runtime/systems/ui/infring_static/js/pages/skills.ts	ts	333	2	2	3	2.2
 1880	queued	client/runtime/systems/ui/infring_static/js/pages/settings.ts.parts/020-keys-and-tests.ts	ts	328	2	2	3	2.2
-1881	queued	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/060-suggestions-and-hints.ts	ts	327	2	2	3	2.2
+1881	done	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/060-suggestions-and-hints.ts	ts	327	2	2	3	2.2
 1882	done	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/170-grouping-and-day-map.part02.ts	ts	325	2	2	3	2.2
 1883	queued	tests/tooling/scripts/ci/benchmark_public_audit.ts	ts	324	2	2	3	2.2
 1884	queued	tests/tooling/scripts/ci/module_cohesion_policy_audit.ts	ts	311	2	2	3	2.2
@@ -1924,7 +1924,7 @@ order	status	file	language	loc	authority_risk_score	migration_potential_score	co
 1923	queued	tests/tooling/scripts/metrics/heartbeat_kpi_report.ts	ts	179	2	2	3	2.2
 1924	queued	tests/tooling/scripts/ci/client_legacy_debt_report.ts	ts	177	2	2	3	2.2
 1925	queued	tests/tooling/scripts/memory/skill_gate.ts	ts	175	2	2	3	2.2
-1926	queued	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/070-init-sequences-and-pointer.part02.ts	ts	172	2	2	3	2.2
+1926	done	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/070-init-sequences-and-pointer.part02.ts	ts	172	2	2	3	2.2
 1927	queued	tests/tooling/scripts/ci/coreization_wave1_static_audit.ts	ts	171	2	2	3	2.2
 1928	queued	tests/tooling/scripts/ci/todo_full_queue.ts	ts	169	2	2	3	2.2
 1929	queued	tests/tooling/scripts/ci/test_priority_manifest_audit.ts	ts	167	2	2	3	2.2
@@ -2014,9 +2014,9 @@ order	status	file	language	loc	authority_risk_score	migration_potential_score	co
 2013	queued	tests/tooling/scripts/ci/backlog_actionable_report.ts	ts	64	2	2	3	2.2
 2014	queued	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/180-map-navigation.part02.ts	ts	63	2	2	3	2.2
 2015	done	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/130-render-window-and-session.part02.ts	ts	61	2	2	3	2.2
-2016	queued	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/200-send-pipeline.part02.ts	ts	59	2	2	3	2.2
+2016	done	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/200-send-pipeline.part02.ts	ts	59	2	2	3	2.2
 2017	queued	tests/client-memory-tools/memory_uid_enforcement.test.ts	ts	59	2	2	3	2.2
-2018	queued	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/110-failover-and-health.part02.ts	ts	58	2	2	3	2.2
+2018	done	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/110-failover-and-health.part02.ts	ts	58	2	2	3	2.2
 2019	queued	tests/client-memory-tools/_legacy_retired_test_wrapper.ts	ts	55	2	2	3	2.2
 2020	done	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/121-slash-apikey-discovery.ts	ts	54	2	2	3	2.2
 2021	queued	tests/client-memory-tools/release_semver_contract.test.ts	ts	54	2	2	3	2.2
