@@ -5,6 +5,7 @@ const { createOpsLaneBridge } = require('../../lib/rust_lane_bridge.ts');
 const { commandNameFromArgs, validateMemoryPolicy, guardFailureResult } = require('./policy_validator.ts');
 const { validateSessionIsolation, sessionFailureResult } = require('./session_isolation.ts');
 
+const SYSTEM_ID = 'SYSTEMS-MEMORY-CAUSAL_TEMPORAL_GRAPH';
 const bridge = createOpsLaneBridge(__dirname, 'causal_temporal_graph', 'memory-plane', {
   inheritStdio: true
 });
@@ -78,45 +79,49 @@ function mapArgs(args = []) {
   return [head].concat(tail);
 }
 
-function run(args = process.argv.slice(2)) {
-  const mapped = mapArgs(args);
-  const command = commandNameFromArgs(mapped, 'status');
-  const policy = validateMemoryPolicy(mapped, { command, lane: 'SYSTEMS-MEMORY-CAUSAL_TEMPORAL_GRAPH' });
-  let out;
-  if (!policy.ok) {
-    out = guardFailureResult(policy, { command, system_id: 'SYSTEMS-MEMORY-CAUSAL_TEMPORAL_GRAPH' });
-  } else {
-    const isolation = validateSessionIsolation(mapped, {
-      command,
-      lane: 'SYSTEMS-MEMORY-CAUSAL_TEMPORAL_GRAPH'
-    });
-    if (!isolation.ok) {
-      out = sessionFailureResult(isolation, { command, system_id: 'SYSTEMS-MEMORY-CAUSAL_TEMPORAL_GRAPH' });
-    } else {
-      out = ensureMutationReceipt(
-        bridge.run(['causal-temporal-graph'].concat(mapped)),
-        command
-      );
-    }
-  }
-
+function emitBridgeResult(out) {
   if (out && out.stdout) process.stdout.write(out.stdout);
   if (out && out.stderr) process.stderr.write(out.stderr);
   if (out && out.payload && !out.stdout) {
     process.stdout.write(`${JSON.stringify(out.payload)}\n`);
   }
+  return Number.isFinite(Number(out && out.status)) ? Number(out.status) : 1;
+}
+
+function run(args = process.argv.slice(2)) {
+  const mapped = mapArgs(args);
+  const command = commandNameFromArgs(mapped, 'status');
+  const policy = validateMemoryPolicy(mapped, { command, lane: SYSTEM_ID });
+  let out;
+  if (!policy.ok) {
+    out = guardFailureResult(policy, { command, system_id: SYSTEM_ID });
+  } else {
+    const isolation = validateSessionIsolation(mapped, {
+      command,
+      lane: SYSTEM_ID
+    });
+    if (!isolation.ok) {
+      out = sessionFailureResult(isolation, { command, system_id: SYSTEM_ID });
+    } else {
+      out = ensureMutationReceipt(
+        bridge.run(['causal-temporal-graph'].concat(mapped).concat([`--system-id=${SYSTEM_ID}`])),
+        command
+      );
+    }
+  }
   return out;
 }
 
 if (require.main === module) {
-  const out = run(process.argv.slice(2));
-  process.exit(Number.isFinite(Number(out && out.status)) ? Number(out.status) : 1);
+  process.exit(emitBridgeResult(run(process.argv.slice(2))));
 }
 
 module.exports = {
   lane: bridge.lane,
+  systemId: SYSTEM_ID,
   run,
   mapArgs,
+  emitBridgeResult,
   normalizeReceiptHash,
   ensureMutationReceipt
 };

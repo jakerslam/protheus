@@ -330,6 +330,7 @@ pub fn run_importer_workflow_graph_json(payload: &str) -> Result<String, String>
 #[cfg(test)]
 #[path = "importers_tests.rs"]
 mod importers_tests;
+#[cfg(test)]
 mod tests {
     use super::{
         parse_simple_yaml_text, run_importer_generic_json_json, run_importer_generic_yaml_json,

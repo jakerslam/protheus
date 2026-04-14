@@ -456,8 +456,11 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 #[cfg(test)]
 #[path = "tool_response_compactor_kernel_tests.rs"]
 mod tool_response_compactor_kernel_tests;
+#[cfg(test)]
 mod tests {
-    use super::*;
+    use super::extract_summary_rows;
+    use super::redact_secrets;
+    use serde_json::json;
     #[test]
     fn redact_hides_tokens_and_bearer_headers() {
         let out = redact_secrets(

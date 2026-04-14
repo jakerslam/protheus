@@ -2,18 +2,19 @@
 /* eslint-disable no-console */
 import fs from 'node:fs';
 import path from 'node:path';
-import { execSync } from 'node:child_process';
+import { cleanText, readFlag } from '../../lib/cli.ts';
+import { currentRevision } from '../../lib/git.ts';
+import { emitStructuredResult } from '../../lib/result.ts';
 
 const ROOT = process.cwd();
+const SCRIPT_PATH = 'tests/tooling/scripts/ci/client_scope_inventory.ts';
 const SKIP_DIRS = new Set(['.git', 'node_modules', 'dist', 'coverage', 'state']);
 
 function parseArgs(argv) {
   const out = {
     out: '',
   };
-  for (const arg of argv) {
-    if (arg.startsWith('--out=')) out.out = arg.slice('--out='.length);
-  }
+  out.out = cleanText(readFlag(argv, 'out') || '', 400);
   return out;
 }
 
@@ -68,15 +69,10 @@ function topDirs(files, depth = 3, limit = 40) {
     .map(([dir, count]) => ({ dir, count }));
 }
 
-function main() {
-  const args = parseArgs(process.argv.slice(2));
-  let revision = 'unknown';
-  try {
-    revision = execSync('git rev-parse HEAD', { cwd: ROOT, encoding: 'utf8' }).trim();
-  } catch {}
-
-  const files = walk(path.resolve(ROOT, 'client'))
-    .map((file) => path.relative(ROOT, file).replace(/\\/g, '/'))
+function buildReport(root = ROOT) {
+  const revision = currentRevision(root);
+  const files = walk(path.resolve(root, 'client'))
+    .map((file) => path.relative(root, file).replace(/\\/g, '/'))
     .filter((file) => !file.startsWith('client/runtime/local/'));
 
   const entries = files.map((file) => ({
@@ -84,7 +80,7 @@ function main() {
     category: classify(file),
   }));
 
-  const payload = {
+  return {
     type: 'client_scope_inventory',
     generated_at: new Date().toISOString(),
     revision,
@@ -95,14 +91,31 @@ function main() {
     },
     entries,
   };
-
-  if (args.out) {
-    const outPath = path.resolve(ROOT, args.out);
-    fs.mkdirSync(path.dirname(outPath), { recursive: true });
-    fs.writeFileSync(outPath, `${JSON.stringify(payload, null, 2)}\n`);
-  }
-
-  console.log(JSON.stringify(payload, null, 2));
 }
 
-main();
+function run(argv = process.argv.slice(2)) {
+  const args = parseArgs(argv);
+  const payload = buildReport(ROOT);
+  return emitStructuredResult(payload, {
+    outPath: args.out || undefined,
+    strict: false,
+    ok: true,
+    history: false,
+  });
+}
+
+if (require.main === module) {
+  process.exit(run(process.argv.slice(2)));
+}
+
+module.exports = {
+  SCRIPT_PATH,
+  SKIP_DIRS,
+  parseArgs,
+  classify,
+  walk,
+  countBy,
+  topDirs,
+  buildReport,
+  run,
+};

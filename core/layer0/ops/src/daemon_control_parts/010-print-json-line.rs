@@ -516,10 +516,10 @@ fn pid_running(pid: u32) -> bool {
     }
 }
 
-fn dashboard_listener_pids(port: u16) -> Vec<u32> {
+fn dashboard_listener_pids(_port: u16) -> Vec<u32> {
     #[cfg(unix)]
     {
-        let query = format!("TCP:{port}");
+        let query = format!("TCP:{_port}");
         let output = Command::new("lsof")
             .arg("-ti")
             .arg(query)
