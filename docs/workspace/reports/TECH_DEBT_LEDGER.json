@@ -130,7 +130,7 @@
       "category": "legacy-ui",
       "status": "in_progress",
       "owner": "jay",
-      "summary": "Delete the classic dashboard fallback surface route by route now that top-level pages are native; explicit classic escape hatches, dead per-page legacy frame routing, and embedded fallback references in the native shell are gone, while the top-level fallback host and classic asset corpus still need burn-down.",
+      "summary": "Delete the classic dashboard fallback surface route by route now that top-level pages are native; explicit classic escape hatches, the old /dashboard-shell alias, dead per-page legacy frame routing, and embedded fallback references in the native shell are gone, while the top-level compatibility host and classic asset corpus still need burn-down.",
       "planned_batch_date": "2026-05-15",
       "paths": [
         "client/runtime/systems/ui/infring_dashboard.ts",

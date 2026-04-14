@@ -936,7 +936,7 @@ async function runServe(flags) {
     const requestUrl = new URL(req.url || '/', `http://${flags.host}:${flags.port}`);
     const pathname = requestUrl.pathname;
     try {
-      if (req.method === 'GET' && (pathname === '/dashboard-classic' || pathname === '/dashboard-shell')) {
+      if (req.method === 'GET' && pathname === '/dashboard-classic') {
         dashboardHtml = buildPrimaryDashboardHtml(STATIC_DIR) || dashboardHtml;
         res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
         res.end(dashboardHtml);
