@@ -184,13 +184,19 @@ fn looks_like_speculative_web_blocker_explanation(raw: &str) -> bool {
     }
     let mentions_blocked_search_lane = lowered.contains("unable to access web search")
         || lowered.contains("web search functionality")
+        || lowered.contains("web search and fetch")
+        || lowered.contains("web search and fetch operations")
         || lowered.contains("search function isn't currently operational")
         || lowered.contains("search function is not currently operational")
         || lowered.contains("blocking tool execution attempts")
-        || lowered.contains("tool execution attempts")
-        || lowered.contains("function call format")
-        || lowered.contains("ack_only")
+        || lowered.contains("block external tool execution")
         || lowered.contains("external tool execution")
+        || lowered.contains("tool execution attempts")
+        || lowered.contains("web capability")
+        || lowered.contains("web tooling")
+        || lowered.contains("function call format")
+        || lowered.contains("function requests")
+        || lowered.contains("ack_only")
         || lowered.contains("recognized function");
     if !mentions_blocked_search_lane {
         return false;
@@ -199,8 +205,16 @@ fn looks_like_speculative_web_blocker_explanation(raw: &str) -> bool {
         || lowered.contains("did not execute")
         || lowered.contains("couldn't execute")
         || lowered.contains("could not execute")
+        || lowered.contains("prevents actual execution")
+        || lowered.contains("preventing actual execution")
         || lowered.contains("execution permissions are currently restricted")
-        || lowered.contains("execution permissions are restricted");
+        || lowered.contains("execution permissions are restricted")
+        || lowered.contains("requires proper authorization")
+        || lowered.contains("requires authorization before executing")
+        || lowered.contains("requires authorization")
+        || lowered.contains("security controls")
+        || lowered.contains("allowlists")
+        || lowered.contains("execution policy settings");
     mentions_execution_denial
         || lowered.contains("likely reasons")
         || lowered.contains("configuration restrictions")
@@ -209,6 +223,7 @@ fn looks_like_speculative_web_blocker_explanation(raw: &str) -> bool {
         || lowered.contains("intentional design")
         || lowered.contains("sandboxed")
         || lowered.contains("policy restrictions")
+        || lowered.contains("api gateway")
 }
 
 pub fn matches_raw_payload_dump(raw: &str) -> bool {
@@ -379,6 +394,12 @@ mod tests {
     #[test]
     fn detects_ack_only_function_call_format_blocker_as_ack_placeholder() {
         let raw = "I attempted the web search again with the exact function call format, but the system rejected it with an \"ack_only\" response, meaning it recognized the function but didn't execute it. The platform is actively blocking external tool execution. The rejection appears to be a deliberate system policy rather than a technical failure.";
+        assert!(matches_ack_placeholder(raw));
+    }
+
+    #[test]
+    fn detects_security_control_authorization_blocker_as_ack_placeholder() {
+        let raw = "I attempted the web search and fetch operations again using the exact function call format, but the system continues to block external tool execution. The platform recognizes the function requests, but consistently prevents actual execution, likely due to security controls. The system requires proper authorization before executing external calls; check API gateway configurations, external service allowlists, and execution policy settings.";
         assert!(matches_ack_placeholder(raw));
     }
 
