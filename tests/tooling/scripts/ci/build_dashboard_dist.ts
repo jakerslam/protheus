@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
-'use strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import esbuild from 'esbuild';
+import { cleanText, hasFlag, parseBool, readFlag } from '../../lib/cli.ts';
+import { emitStructuredResult } from '../../lib/result.ts';
 
-const fs = require('fs');
-const path = require('path');
-const childProcess = require('child_process');
-const esbuild = require('esbuild');
+const SCRIPT_PATH = 'tests/tooling/scripts/ci/build_dashboard_dist.ts';
 
 function repoRoot(startDir = __dirname) {
   let dir = path.resolve(startDir);
@@ -24,15 +25,11 @@ function repoRoot(startDir = __dirname) {
 
 function parseArgs(argv) {
   const out = {
-    minify: false
+    minify: false,
+    out: '',
   };
-  for (const raw of argv) {
-    const token = String(raw || '').trim();
-    if (!token) continue;
-    if (token === '--minify' || token === '--minify=1') {
-      out.minify = true;
-    }
-  }
+  out.minify = hasFlag(argv, 'minify') || parseBool(readFlag(argv, 'minify'), false);
+  out.out = cleanText(readFlag(argv, 'out') || '', 400);
   return out;
 }
 
@@ -50,23 +47,8 @@ function copyDirRecursive(src, dest) {
   }
 }
 
-function runCommand(bin, args, cwd) {
-  const cmd = process.platform === 'win32' && bin === 'npm' ? 'npm.cmd' : bin;
-  const result = childProcess.spawnSync(cmd, args, {
-    cwd,
-    encoding: 'utf8',
-    stdio: 'pipe'
-  });
-  if (result && result.status === 0) return;
-  const stderr = String((result && result.stderr) || '').trim();
-  const stdout = String((result && result.stdout) || '').trim();
-  const detail = stderr || stdout || 'unknown_error';
-  throw new Error(`${bin}_failed:${detail}`);
-}
-
-async function main() {
-  const options = parseArgs(process.argv.slice(2));
-  const root = repoRoot(__dirname);
+async function buildDashboardDist(options = {}, root = repoRoot(__dirname)) {
+  const minify = Boolean(options && options.minify);
   const entry = path.join(root, 'client', 'runtime', 'systems', 'ui', 'infring_dashboard.ts');
   const outfile = path.join(root, 'dist', 'client', 'runtime', 'systems', 'ui', 'infring_dashboard.js');
   const staticSrc = path.join(root, 'client', 'runtime', 'systems', 'ui', 'infring_static');
@@ -80,7 +62,7 @@ async function main() {
     format: 'cjs',
     target: 'node22',
     sourcemap: false,
-    minify: options.minify,
+    minify,
     logLevel: 'silent',
     legalComments: 'none',
     define: {
@@ -97,17 +79,51 @@ async function main() {
     out_file: path.relative(root, outfile).replace(/\\/g, '/'),
     static_dir: path.relative(root, staticDest).replace(/\\/g, '/'),
     out_bytes: bytes,
-    minify: options.minify
+    minify,
   };
-  process.stdout.write(`${JSON.stringify(payload)}\n`);
+  return payload;
 }
 
-main().catch((error) => {
-  const payload = {
-    ok: false,
-    type: 'dashboard_dist_build_failed',
-    error: String((error && error.message) || error || 'unknown_error')
-  };
-  process.stderr.write(`${JSON.stringify(payload)}\n`);
-  process.exit(1);
-});
+async function run(argv = process.argv.slice(2)) {
+  const options = parseArgs(argv);
+  try {
+    const payload = await buildDashboardDist({ minify: options.minify });
+    emitStructuredResult(payload, {
+      outPath: options.out || undefined,
+      strict: false,
+      ok: true,
+      history: false,
+      stdout: false,
+    });
+    process.stdout.write(`${JSON.stringify(payload)}\n`);
+    return 0;
+  } catch (error) {
+    const payload = {
+      ok: false,
+      type: 'dashboard_dist_build_failed',
+      error: String((error && error.message) || error || 'unknown_error'),
+    };
+    emitStructuredResult(payload, {
+      outPath: options.out || undefined,
+      strict: true,
+      ok: false,
+      history: false,
+      stdout: false,
+    });
+    process.stderr.write(`${JSON.stringify(payload)}\n`);
+    return 1;
+  }
+}
+
+if (require.main === module) {
+  run(process.argv.slice(2)).then((code) => process.exit(code));
+}
+
+module.exports = {
+  SCRIPT_PATH,
+  repoRoot,
+  parseArgs,
+  copyDirRecursive,
+  buildDashboardDist,
+  run,
+};

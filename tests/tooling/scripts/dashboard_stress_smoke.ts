@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import fs from 'node:fs';
+import path from 'node:path';
 import { performance } from 'node:perf_hooks';
 import process from 'node:process';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -6,6 +8,7 @@ import WebSocket from 'ws';
 
 const BASE = process.env.DASHBOARD_BASE_URL || 'http://127.0.0.1:4173';
 const WS_BASE = BASE.replace(/^http/i, 'ws');
+const SCRIPT_PATH = 'tests/tooling/scripts/dashboard_stress_smoke.ts';
 
 function percentile(values, p) {
   if (!values.length) return 0;
@@ -264,7 +267,25 @@ async function waitForHealthy(maxAttempts = 5) {
   throw lastError || new Error('healthz_unavailable');
 }
 
-async function main() {
+function parseArgs(argv = []) {
+  const out = {
+    out: '',
+  };
+  for (const raw of argv) {
+    const token = String(raw || '').trim();
+    if (!token) continue;
+    if (token.startsWith('--out=')) out.out = token.slice('--out='.length).trim();
+  }
+  return out;
+}
+
+function writeJsonArtifact(filePath, payload) {
+  const abs = path.resolve(filePath);
+  fs.mkdirSync(path.dirname(abs), { recursive: true });
+  fs.writeFileSync(abs, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
+}
+
+async function buildStressReport() {
   const started = performance.now();
   await waitForHealthy(6);
   const wsAgentId = await createWsProbeAgent();
@@ -295,16 +316,47 @@ async function main() {
     post_snapshot: await parsePostSnapshot(),
   };
 
-  process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
-
   const hasHttpErrors = [health, status, snapshot].some((row) => row.errors > 0);
   const hasWsErrors = ws.errors > 0;
-  process.exitCode = hasHttpErrors || hasWsErrors ? 1 : 0;
+  return {
+    report,
+    ok: !hasHttpErrors && !hasWsErrors,
+  };
 }
 
-main().catch((err) => {
-  process.stderr.write(
-    `dashboard_stress_smoke_failed: ${err && err.stack ? err.stack : String(err)}\n`
-  );
-  process.exit(2);
-});
+async function run(argv = process.argv.slice(2)) {
+  const args = parseArgs(argv);
+  try {
+    const { report, ok } = await buildStressReport();
+    if (args.out) writeJsonArtifact(args.out, report);
+    process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+    return ok ? 0 : 1;
+  } catch (err) {
+    process.stderr.write(
+      `dashboard_stress_smoke_failed: ${err && err.stack ? err.stack : String(err)}\n`
+    );
+    return 2;
+  }
+}
+
+if (require.main === module) {
+  run(process.argv.slice(2)).then((code) => process.exit(code));
+}
+
+module.exports = {
+  SCRIPT_PATH,
+  BASE,
+  WS_BASE,
+  percentile,
+  summarize,
+  hit,
+  bombard,
+  createWsProbeAgent,
+  wsFanout,
+  parsePostSnapshot,
+  waitForHealthy,
+  parseArgs,
+  writeJsonArtifact,
+  buildStressReport,
+  run,
+};
