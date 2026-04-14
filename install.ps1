@@ -429,19 +429,6 @@ function Install-Binary($Version, $Triple, $Stem, $OutPath) {
     $script:SourceFallbackDir = Join-Path $script:SourceFallbackTmp.FullName "repo"
     $repoUrl = "https://github.com/$RepoOwner/$RepoName.git"
 
-    if (Get-Command git -ErrorAction SilentlyContinue) {
-      try {
-        git clone --depth 1 --branch $VersionTag $repoUrl $script:SourceFallbackDir | Out-Null
-        return $script:SourceFallbackDir
-      } catch {
-        try {
-          git clone --depth 1 $repoUrl $script:SourceFallbackDir | Out-Null
-          return $script:SourceFallbackDir
-        } catch {
-        }
-      }
-    }
-
     $archivePath = Join-Path $script:SourceFallbackTmp.FullName "source.zip"
     $extractRoot = Join-Path $script:SourceFallbackTmp.FullName "extract"
     New-Item -ItemType Directory -Path $extractRoot | Out-Null
@@ -461,6 +448,26 @@ function Install-Binary($Version, $Triple, $Stem, $OutPath) {
       } catch {
       }
     }
+
+    if (Get-Command git -ErrorAction SilentlyContinue) {
+      try {
+        git clone --quiet --depth 1 --branch main $repoUrl $script:SourceFallbackDir 2>$null | Out-Null
+        if (-not [string]::IsNullOrWhiteSpace($VersionTag) -and $VersionTag -ne "main") {
+          try {
+            git -C $script:SourceFallbackDir fetch --quiet --depth 1 origin ("refs/tags/$VersionTag^{}") 2>$null | Out-Null
+            git -c advice.detachedHead=false -C $script:SourceFallbackDir checkout --quiet --detach FETCH_HEAD 2>$null | Out-Null
+          } catch {
+            try {
+              git -c advice.detachedHead=false -C $script:SourceFallbackDir checkout --quiet --detach $VersionTag 2>$null | Out-Null
+            } catch {
+            }
+          }
+        }
+        return $script:SourceFallbackDir
+      } catch {
+      }
+    }
+
     return $null
   }
 
@@ -994,22 +1001,21 @@ function Test-DashboardHealthSmoke {
   $workspaceRoot = Resolve-WorkspaceRootForSmoke
   $healthLog = Join-Path ([System.IO.Path]::GetTempPath()) ("infring-dashboard-health-" + [guid]::NewGuid().ToString("N") + ".log")
 
-  try {
-    & "$InstallDir\\infring.cmd" gateway stop "--dashboard-host=$Host" "--dashboard-port=$Port" "--dashboard-open=0" *> $null
-  } catch {}
+  $null = Invoke-InfringCmdWithTimeout -InstallDir $InstallDir -Arguments @("gateway", "stop", "--dashboard-host=$Host", "--dashboard-port=$Port", "--dashboard-open=0") -TimeoutSec 20
 
-  $startExit = 0
-  try {
-    & "$InstallDir\\infring.cmd" gateway start "--dashboard-host=$Host" "--dashboard-port=$Port" "--dashboard-open=0" "--gateway-persist=0" *> $healthLog
-    $startExit = $LASTEXITCODE
-  } catch {
-    $startExit = if ($LASTEXITCODE -is [int]) { $LASTEXITCODE } else { 1 }
-    ($_ | Out-String) | Add-Content -Path $healthLog
-  }
-
-  if ($startExit -ne 0) {
-    Write-Host "[infring install] smoke dashboard_health: failed (gateway start)"
-    if (Test-Path $healthLog) { Get-Content -Path $healthLog -Tail 120 -ErrorAction SilentlyContinue }
+  $startResult = Invoke-InfringCmdWithTimeout -InstallDir $InstallDir -Arguments @("gateway", "start", "--dashboard-host=$Host", "--dashboard-port=$Port", "--dashboard-open=0", "--gateway-persist=0") -TimeoutSec 45 -LogPath $healthLog
+  if (-not [bool]$startResult.Ok) {
+    if ([bool]$startResult.TimedOut) {
+      Write-Host "[infring install] smoke dashboard_health: failed (gateway start timeout)"
+    } else {
+      Write-Host "[infring install] smoke dashboard_health: failed (gateway start)"
+    }
+    if ([bool]$startResult.LogPath -and (Test-Path $startResult.LogPath)) {
+      Get-Content -Path $startResult.LogPath -Tail 120 -ErrorAction SilentlyContinue
+    }
+    if ([bool]$startResult.ErrPath -and (Test-Path $startResult.ErrPath)) {
+      Get-Content -Path $startResult.ErrPath -Tail 120 -ErrorAction SilentlyContinue
+    }
     Show-DashboardFailureLogs -WorkspaceRoot $workspaceRoot
     return $false
   }
@@ -1024,9 +1030,7 @@ function Test-DashboardHealthSmoke {
     Start-Sleep -Seconds 1
   }
 
-  try {
-    & "$InstallDir\\infring.cmd" gateway stop "--dashboard-host=$Host" "--dashboard-port=$Port" "--dashboard-open=0" *> $null
-  } catch {}
+  $null = Invoke-InfringCmdWithTimeout -InstallDir $InstallDir -Arguments @("gateway", "stop", "--dashboard-host=$Host", "--dashboard-port=$Port", "--dashboard-open=0") -TimeoutSec 20
 
   if (-not $ready) {
     Write-Host "[infring install] smoke dashboard_health: failed (healthz timeout)"
@@ -1037,6 +1041,78 @@ function Test-DashboardHealthSmoke {
 
   Write-Host "[infring install] smoke dashboard_health: ok"
   return $true
+}
+
+function Invoke-InfringCmdWithTimeout {
+  param(
+    [string]$InstallDir,
+    [string[]]$Arguments,
+    [int]$TimeoutSec = 25,
+    [string]$LogPath
+  )
+
+  $cmdPath = Join-Path $InstallDir "infring.cmd"
+  if (-not (Test-Path $cmdPath)) {
+    return @{
+      Ok = $false
+      ExitCode = 1
+      TimedOut = $false
+      Error = "missing_infring_cmd"
+      LogPath = $null
+      ErrPath = $null
+    }
+  }
+
+  if ([string]::IsNullOrWhiteSpace($LogPath)) {
+    $LogPath = Join-Path ([System.IO.Path]::GetTempPath()) ("infring-install-smoke-" + [guid]::NewGuid().ToString("N") + ".log")
+  }
+  $errPath = "$LogPath.err"
+
+  $quotedArgs = @()
+  foreach ($arg in $Arguments) {
+    $escaped = [string]$arg
+    $escaped = $escaped.Replace('"', '""')
+    $quotedArgs += "`"$escaped`""
+  }
+  $commandLine = "`"$cmdPath`""
+  if ($quotedArgs.Count -gt 0) {
+    $commandLine = "$commandLine " + ($quotedArgs -join " ")
+  }
+
+  try {
+    $proc = Start-Process -FilePath "cmd.exe" -ArgumentList @("/d", "/c", $commandLine) -PassThru -WindowStyle Hidden -RedirectStandardOutput $LogPath -RedirectStandardError $errPath
+  } catch {
+    return @{
+      Ok = $false
+      ExitCode = 1
+      TimedOut = $false
+      Error = $_.Exception.Message
+      LogPath = $LogPath
+      ErrPath = $errPath
+    }
+  }
+
+  $finished = $proc.WaitForExit($TimeoutSec * 1000)
+  if (-not $finished) {
+    try { $proc.Kill() } catch {}
+    return @{
+      Ok = $false
+      ExitCode = $null
+      TimedOut = $true
+      Error = "timeout_${TimeoutSec}s"
+      LogPath = $LogPath
+      ErrPath = $errPath
+    }
+  }
+
+  return @{
+    Ok = ($proc.ExitCode -eq 0)
+    ExitCode = $proc.ExitCode
+    TimedOut = $false
+    Error = $null
+    LogPath = $LogPath
+    ErrPath = $errPath
+  }
 }
 
 $powerShellShimTemplate = @'
@@ -1147,20 +1223,28 @@ if ($null -ne $resolvedInfring) {
 
 $gatewaySmokeOk = $false
 $gatewaySmokeError = ""
-try {
-  & "$InstallDir\\infring.cmd" gateway status --auto-heal=0 --dashboard-open=0 | Out-Null
-  if ($LASTEXITCODE -eq 0) {
-    $gatewaySmokeOk = $true
-  } else {
-    $gatewaySmokeError = "exit_code_$LASTEXITCODE"
-  }
-} catch {
-  $gatewaySmokeError = $_.Exception.Message
+$gatewaySmokeResult = Invoke-InfringCmdWithTimeout -InstallDir $InstallDir -Arguments @("gateway", "status", "--auto-heal=0", "--dashboard-open=0") -TimeoutSec 25
+if ([bool]$gatewaySmokeResult.Ok) {
+  $gatewaySmokeOk = $true
+} elseif ([bool]$gatewaySmokeResult.TimedOut) {
+  $gatewaySmokeError = "timeout"
+} elseif ($null -ne $gatewaySmokeResult.ExitCode) {
+  $gatewaySmokeError = "exit_code_$($gatewaySmokeResult.ExitCode)"
+} elseif (-not [string]::IsNullOrWhiteSpace([string]$gatewaySmokeResult.Error)) {
+  $gatewaySmokeError = [string]$gatewaySmokeResult.Error
+} else {
+  $gatewaySmokeError = "unknown"
 }
 if ($gatewaySmokeOk) {
   Write-Host "[infring install] smoke gateway_status: ok"
 } else {
   Write-Host "[infring install] smoke gateway_status: failed ($gatewaySmokeError)"
+  if ([bool]$gatewaySmokeResult.LogPath -and (Test-Path $gatewaySmokeResult.LogPath)) {
+    Get-Content -Path $gatewaySmokeResult.LogPath -Tail 80 -ErrorAction SilentlyContinue
+  }
+  if ([bool]$gatewaySmokeResult.ErrPath -and (Test-Path $gatewaySmokeResult.ErrPath)) {
+    Get-Content -Path $gatewaySmokeResult.ErrPath -Tail 80 -ErrorAction SilentlyContinue
+  }
 }
 
 $dashboardSmokeRequired = $InstallFull
