@@ -1440,14 +1440,6 @@
       "planned_batch_date": "2026-04-23"
     },
     {
-      "path": "core/layer0/ops/src/mcp_plane_parts/030-run-pattern-pack.rs",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-05-15",
-      "task_id": "TD-SIZE-OPS-L0",
-      "planned_batch_date": "2026-04-23"
-    },
-    {
       "path": "core/layer0/ops/src/web_conduit_parts/030-serper-bing-and-fetch.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
