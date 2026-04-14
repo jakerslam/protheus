@@ -11860,7 +11860,7 @@
       "order": 1077
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ops/cognitive_toolkit_cli.ts",
       "language": "ts",
       "loc": 327,
@@ -15413,7 +15413,7 @@
       "order": 1400
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/tools/assimilate.ts",
       "language": "ts",
       "loc": 28,
@@ -15523,7 +15523,7 @@
       "order": 1410
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "adapters/protocol/crewai_tool_bridge.ts",
       "language": "ts",
       "loc": 42,
@@ -16304,7 +16304,7 @@
       "order": 1481
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/tools/cli_suggestion_engine.ts",
       "language": "ts",
       "loc": 29,
@@ -16458,7 +16458,7 @@
       "order": 1495
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/tools/one_knowledge.ts",
       "language": "ts",
       "loc": 20,
