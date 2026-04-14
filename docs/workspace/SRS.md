@@ -2488,43 +2488,13 @@ Objective: deliver a polished one-command local RAG operating profile on top of 
 | V6-MEMORY-008.5 | existing-coverage-validated | Local Dockerized Operator Profile for RAG Runtime | One-command local RAG needs reproducible local startup environments without bypassing existing deployment governance. | Provide dockerized local profile wiring via `V6-DEPLOY-001` contracts, with deterministic profile launch/health receipts and fail-closed behavior on missing storage/policy prerequisites. | 7 | 0/1/2/client/app/adapter |
 | V6-MEMORY-008.6 | existing-coverage-validated | Conduit-Only One-Command RAG Boundary Enforcement | Convenience commands and visual flows can accidentally move authority into client/app wrappers unless boundary rules are explicit and tested. | Enforce conduit-only routing for `rag start/ingest/chat/flow run` operations with bypass-rejection tests; keep client/app strictly non-authoritative UX/control layers. | 10 | 0/1/2/client/app |
 
-## Stable Memory Search Library with Versioned Core Intake (Doc/Source `V6-MEMORY-009`, 2026-03-11)
+## Hierarchical Context Topology Intake (Doc/Source `V6-MEMORY-009`, 2026-04-14)
 
-Source references:
-- https://x.com/code_rams/status/2031663613652389968
-
-Notes:
-- Primitive-first normalization: this intake introduces a stability/versioning contract over existing memory search primitives; it does not create a second memory search engine.
-- Overlap handled explicitly:
-  - Local document + citation search baseline: `V6-MEMORY-005.*`
-  - Always-on consolidation/query baseline: `V6-MEMORY-006.*`
-  - Context continuity and curation lane: `V6-MEMORY-007.*`
-  - One-command local RAG operator profile: `V6-MEMORY-008.*`
-  - Existing protocol/interface lanes: `V6-MCP-001.*`, `V6-COCKPIT-021.*`
-  - Extension/registry governance lanes: `V6-EXT-704..709`, `V6-REGISTRY-001.*`
-- Net-new focus from this source:
-  - versioned, backward-compatible stable memory library contract as the canonical integration surface
-  - mandatory adapter layering so CLI/MCP/HTTP routes consume the same stable library interface
-  - explicit compatibility profile for Infring-style external agents without silent breakage
-- Default placement:
-  - Layer `0`: conduit-routed calls + version pin enforcement + immutable receipts
-  - Layer `1`: API version policy, compatibility/deprecation policy, provenance contract
-  - Layer `2`: stable memory API facade and adapter routing (CLI/MCP/HTTP)
-  - Layer `3`: optional memory-heavy persona defaults only
-  - `client`: thin activation/inspection commands only
-  - `app`: optional `/apps/sovereign_cortex/` integration profile
-  - `adapter`: Infring-compatible protocol bindings
-
-Objective: make memory search integrations durable across releases by introducing a versioned stable library contract over existing memory primitives, while preserving conduit governance and thin client/app boundaries.
+Objective: upgrade flat context materialization into a non-canonical, rebuildable, receipted hierarchical context topology inside `core/layer2/memory` without introducing a second truth store.
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V6-MEMORY-009.1 | existing-coverage-validated | Versioned Stable Memory API Contract (Semantic/Graph/Context Queries) | Integrations break when internal memory search changes leak directly into external interfaces without compatibility boundaries. | Define a canonical versioned memory API facade (semantic search, graph traversal, context-tree queries) with strict backward-compat contracts and deterministic capability/version receipts. | 9 | 0/1/2 |
-| V6-MEMORY-009.2 | existing-coverage-validated | CLI/MCP/HTTP Adapter Convergence on Stable Core | Drift appears when interfaces maintain separate query logic instead of one stable library-backed contract. | Route `protheus` CLI, MCP exposure, and HTTP chat/search endpoints through the stable memory API facade only; add conformance tests proving parity across all interface adapters. | 9 | 0/1/2/client/adapter |
-| V6-MEMORY-009.3 | existing-coverage-validated | Infring-Compatible Memory Search Profile Contract | External agents need predictable compatibility, but ad hoc shims cause fragile integration and maintenance churn. | Provide explicit Infring-style compatibility profile mapping external request/response shapes to the stable memory API with deterministic translate/execute receipts and fail-closed schema validation. | 8 | 0/1/2/adapter |
-| V6-MEMORY-009.4 | existing-coverage-validated | Version Pinning + Deprecation Governance Contract | Stable APIs still break trust if consumers cannot pin versions and receive deterministic deprecation/migration guidance. | Add version pin policy (`stable`, `vN`, compatibility window), deprecation receipts, and machine-readable migration hints; reject unsupported versions with deterministic denial receipts. | 8 | 0/1/2/client |
-| V6-MEMORY-009.5 | existing-coverage-validated | Stability Regression Harness for Memory API Surface | Contract stability claims are unverifiable without fixed regression packs that detect schema/behavior drift before release. | Add regression harness covering request/response schemas, ranking/citation invariants, error codes, and adapter parity across versions; release gate fails on compatibility drift. | 9 | 0/1/2/adapter/client |
-| V6-MEMORY-009.6 | existing-coverage-validated | Conduit-Only Stable Library Boundary + Thin Surface Enforcement | A stable interface still becomes unsafe if direct client/app execution bypasses conduit policy and receipt guarantees. | Enforce conduit-only routing for all stable library invocations and adapter bridges with bypass-rejection tests; keep client/app as non-authoritative control/render surfaces only. | 10 | 0/1/2/client/app/adapter |
+| V6-MEMORY-009 | done | Hierarchical Context Topology (ContextAtom + ContextSpan + ContextFrontier + ContextFragment) | Flat context materialization could not preserve long-horizon coherence under budget pressure, and orchestration lacked explicit non-canonical append/materialize contracts for context topology maintenance. | Added topology sidecar modules in [`core/layer2/memory/src/context_atoms.rs`](/Users/jay/.openclaw/workspace/core/layer2/memory/src/context_atoms.rs), [`core/layer2/memory/src/context_topology.rs`](/Users/jay/.openclaw/workspace/core/layer2/memory/src/context_topology.rs), [`core/layer2/memory/src/context_compaction.rs`](/Users/jay/.openclaw/workspace/core/layer2/memory/src/context_compaction.rs), [`core/layer2/memory/src/context_budget.rs`](/Users/jay/.openclaw/workspace/core/layer2/memory/src/context_budget.rs), and [`core/layer2/memory/src/context_fidelity.rs`](/Users/jay/.openclaw/workspace/core/layer2/memory/src/context_fidelity.rs); extended the materializer facade with topology fragments/frontier output in [`core/layer2/memory/src/context_materializer.rs`](/Users/jay/.openclaw/workspace/core/layer2/memory/src/context_materializer.rs); wired heap workflows for `ContextAtomAppend`, topology rebuild, and topology-aware materialization with receipts (`context_atom_append`, `context_span_seal`, `context_span_rollup`, `context_frontier_update`, `context_topology_rebuild`) in [`core/layer2/memory/src/heap_workflows.rs`](/Users/jay/.openclaw/workspace/core/layer2/memory/src/heap_workflows.rs) and [`core/layer2/memory/src/heap_interface.rs`](/Users/jay/.openclaw/workspace/core/layer2/memory/src/heap_interface.rs); and extended orchestration core-contract semantics with explicit topology calls in [`surface/orchestration/src/contracts.rs`](/Users/jay/.openclaw/workspace/surface/orchestration/src/contracts.rs) + planner routing in [`surface/orchestration/src/planner/capability_registry.rs`](/Users/jay/.openclaw/workspace/surface/orchestration/src/planner/capability_registry.rs). Regression coverage: [`core/layer2/memory/src/context_topology.rs`](/Users/jay/.openclaw/workspace/core/layer2/memory/src/context_topology.rs), [`core/layer2/memory/src/context_compaction.rs`](/Users/jay/.openclaw/workspace/core/layer2/memory/src/context_compaction.rs), [`core/layer2/memory/src/context_budget.rs`](/Users/jay/.openclaw/workspace/core/layer2/memory/src/context_budget.rs), [`core/layer2/memory/src/context_topology_heap_tests.rs`](/Users/jay/.openclaw/workspace/core/layer2/memory/src/context_topology_heap_tests.rs), and [`surface/orchestration/tests/conformance.rs`](/Users/jay/.openclaw/workspace/surface/orchestration/tests/conformance.rs). Validation: `cargo test --manifest-path core/layer2/memory/Cargo.toml`, `cargo test --manifest-path surface/orchestration/Cargo.toml`, `npm run -s ops:arch:conformance`, `npm run -s ops:srs:full:gate`. | 10 | 0/1/2 |
 
 ## ByteRover Production-Grade Context Tree + Hybrid Sync Intake (Doc/Source `V6-MEMORY-010`, 2026-03-11)
 
@@ -2535,7 +2505,7 @@ Notes:
 - Primitive-first normalization: this intake hardens existing context-tree and stable-memory lanes; it does not add a new memory primitive.
 - Overlap handled explicitly:
   - Context-tree curation/continuity baseline: `V6-MEMORY-007.*`
-  - Stable API/versioning baseline: `V6-MEMORY-009.*`
+  - Hierarchical context topology baseline: `V6-MEMORY-009`
   - Persistent continuity/snapshot/scheduler lanes: `V6-PERSIST-001.*`
   - Context strategy plugins and hot-swap governance: `V6-CONTEXT-001.*`
   - Sovereign identity binding and `.cortex/` contracts: `V6-SOVEREIGN-001.*`

@@ -2,6 +2,11 @@ use crate::schemas::{
     ContextManifest, ContextManifestEntryRef, MemoryKind, MemoryScope, MemoryVersion,
     OwnerExportRedactionPolicy,
 };
+use crate::{
+    context_atoms::ContextAtom,
+    context_budget::ContextBudgetReport,
+    context_topology::{ContextFrontier, ContextSpan},
+};
 use crate::{deterministic_hash, now_ms};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -21,6 +26,35 @@ pub struct MaterializedMemoryEntry {
 pub struct ContextMaterialization {
     pub manifest: ContextManifest,
     pub entries: Vec<MaterializedMemoryEntry>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ContextFragmentKind {
+    Atom,
+    Span,
+    MemoryVersion,
+    TaskAnchor,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ContextFragment {
+    pub fragment_id: String,
+    pub kind: ContextFragmentKind,
+    pub ref_id: String,
+    pub level: Option<u32>,
+    pub token_count: u32,
+    pub payload: Value,
+    pub lineage_refs: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ContextTopologyMaterialization {
+    pub manifest: ContextManifest,
+    pub frontier: ContextFrontier,
+    pub budget_report: ContextBudgetReport,
+    pub fragments: Vec<ContextFragment>,
+    pub compatibility_entries: Vec<MaterializedMemoryEntry>,
 }
 
 fn allows_scope(requested_scopes: &[MemoryScope], scope: &MemoryScope) -> bool {
@@ -102,6 +136,119 @@ pub fn materialize_context(
     ContextMaterialization { manifest, entries }
 }
 
+#[allow(clippy::too_many_arguments)]
+pub fn materialize_topology_context(
+    principal_id: &str,
+    requested_scopes: &[MemoryScope],
+    redaction_policy: OwnerExportRedactionPolicy,
+    source_versions: &[MemoryVersion],
+    atoms: &[ContextAtom],
+    spans: &[ContextSpan],
+    frontier: ContextFrontier,
+    budget_report: ContextBudgetReport,
+) -> ContextTopologyMaterialization {
+    let flat = materialize_context(
+        principal_id,
+        requested_scopes,
+        redaction_policy,
+        source_versions,
+    );
+    let mut fragments = Vec::<ContextFragment>::new();
+
+    for atom_id in &frontier.hot_atom_refs {
+        if let Some(atom) = atoms.iter().find(|row| &row.atom_id == atom_id) {
+            fragments.push(ContextFragment {
+                fragment_id: format!(
+                    "ctx_fragment_{}",
+                    &deterministic_hash(&(atom.atom_id.clone(), "atom"))[..24]
+                ),
+                kind: ContextFragmentKind::Atom,
+                ref_id: atom.atom_id.clone(),
+                level: Some(0),
+                token_count: atom.token_count,
+                payload: json!({
+                    "source_kind": atom.source_kind,
+                    "source_ref": atom.source_ref,
+                    "task_refs": atom.task_refs,
+                    "memory_version_refs": atom.memory_version_refs,
+                    "sequence_no": atom.sequence_no,
+                }),
+                lineage_refs: atom.lineage_refs.clone(),
+            });
+        }
+    }
+
+    for span_id in frontier
+        .warm_span_refs
+        .iter()
+        .chain(frontier.cool_span_refs.iter())
+        .chain(frontier.cold_span_refs.iter())
+    {
+        if let Some(span) = spans.iter().find(|row| &row.span_id == span_id) {
+            fragments.push(ContextFragment {
+                fragment_id: format!(
+                    "ctx_fragment_{}",
+                    &deterministic_hash(&(span.span_id.clone(), "span"))[..24]
+                ),
+                kind: ContextFragmentKind::Span,
+                ref_id: span.span_id.clone(),
+                level: Some(span.level),
+                token_count: span.token_count,
+                payload: json!({
+                    "summary": span.summary,
+                    "decisions": span.decisions,
+                    "constraints": span.constraints,
+                    "open_loops": span.open_loops,
+                    "entities": span.entities,
+                    "task_refs": span.task_refs,
+                    "memory_version_refs": span.memory_version_refs,
+                    "fidelity_score": span.fidelity_score,
+                    "status": span.status,
+                    "coverage": { "start_seq": span.start_seq, "end_seq": span.end_seq }
+                }),
+                lineage_refs: span.lineage_refs.clone(),
+            });
+        }
+    }
+
+    for entry in &flat.entries {
+        fragments.push(ContextFragment {
+            fragment_id: format!(
+                "ctx_fragment_{}",
+                &deterministic_hash(&(entry.version_id.clone(), "memory_version"))[..24]
+            ),
+            kind: ContextFragmentKind::MemoryVersion,
+            ref_id: entry.version_id.clone(),
+            level: None,
+            token_count: estimate_payload_tokens(&entry.payload),
+            payload: entry.payload.clone(),
+            lineage_refs: entry.lineage_refs.clone(),
+        });
+    }
+
+    for anchor in &frontier.pinned_anchor_refs {
+        fragments.push(ContextFragment {
+            fragment_id: format!(
+                "ctx_fragment_{}",
+                &deterministic_hash(&(anchor.clone(), "task_anchor"))[..24]
+            ),
+            kind: ContextFragmentKind::TaskAnchor,
+            ref_id: anchor.clone(),
+            level: None,
+            token_count: 24,
+            payload: json!({ "anchor_ref": anchor }),
+            lineage_refs: vec![anchor.clone()],
+        });
+    }
+    ContextTopologyMaterialization {
+        manifest: flat.manifest,
+        frontier,
+        budget_report,
+        fragments,
+        compatibility_entries: flat.entries,
+    }
+}
+
 fn render_scope_payload(
     scope: &MemoryScope,
     payload: &Value,
@@ -133,6 +280,14 @@ fn summarize_payload(payload: &Value) -> String {
         .take(24)
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+fn estimate_payload_tokens(payload: &Value) -> u32 {
+    let text = match payload {
+        Value::String(row) => row.clone(),
+        _ => serde_json::to_string(payload).unwrap_or_else(|_| "{}".to_string()),
+    };
+    ((text.len() / 4).max(1)) as u32
 }
 
 #[cfg(test)]

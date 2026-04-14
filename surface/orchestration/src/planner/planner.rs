@@ -319,7 +319,12 @@ fn chain_for_variant(
     if is_structural_comparative_request(request) {
         match variant {
             PlanVariant::Fastest => match capability {
-                Capability::ReadMemory => return (Vec::new(), false, true),
+                Capability::ReadMemory => {
+                    if transport_explicitly_unavailable(request) {
+                        return (spec.primary_steps.clone(), false, false);
+                    }
+                    return (Vec::new(), false, true);
+                }
                 Capability::VerifyClaim if !probe.blocked_on.is_empty() && probe.can_degrade => {
                     return (spec.degraded_steps.clone(), true, false);
                 }
@@ -376,6 +381,14 @@ fn filter_steps_by_contract(
 
 fn is_structural_comparative_request(request: &TypedOrchestrationRequest) -> bool {
     request.request_kind == RequestKind::Comparative || request.resource_kind == ResourceKind::Mixed
+}
+
+fn transport_explicitly_unavailable(request: &TypedOrchestrationRequest) -> bool {
+    request
+        .payload
+        .get("transport_available")
+        .and_then(|row| row.as_bool())
+        == Some(false)
 }
 
 fn variant_priority(variant: &PlanVariant) -> usize {
