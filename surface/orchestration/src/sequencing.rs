@@ -1,4 +1,3 @@
-// Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 use crate::contracts::{
     OrchestrationFallbackAction, PlanCandidate, RequestClass, RequestClassification, ResourceKind,
     ToolFallbackContext, TypedOrchestrationRequest,

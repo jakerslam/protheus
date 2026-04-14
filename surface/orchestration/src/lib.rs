@@ -1,4 +1,3 @@
-// Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 pub mod clarification;
 pub mod contracts;
 pub mod ingress;
@@ -112,11 +111,8 @@ impl OrchestrationSurfaceRuntime {
         } else {
             Vec::new()
         };
-        let execution_state = progress::execution_state_for(
-            &normalized.typed_request,
-            &selected_plan,
-            needs_clarification,
-        );
+        let execution_state =
+            progress::execution_state_for(&normalized.typed_request, &selected_plan, needs_clarification);
 
         let plan = OrchestrationPlan {
             request_class: classification.request_class.clone(),

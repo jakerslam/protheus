@@ -1,4 +1,3 @@
-// Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 use crate::contracts::{
     ClarificationReason, DegradationReason, ExecutionPosture, OrchestrationPlan, PlanStatus,
     Precondition, RecoveryDecision, RecoveryReason, RecoveryState, StepStatus,
@@ -9,7 +8,10 @@ pub fn apply_recovery_policy(
     _request: &TypedOrchestrationRequest,
     mut plan: OrchestrationPlan,
 ) -> (OrchestrationPlan, bool) {
-    if plan.execution_state.plan_status.eq(&PlanStatus::Running)
+    if plan
+        .execution_state
+        .plan_status
+        .eq(&PlanStatus::Running)
         || plan.execution_state.plan_status.eq(&PlanStatus::Completed)
         || plan.execution_state.plan_status.eq(&PlanStatus::Failed)
     {
@@ -60,7 +62,8 @@ pub fn apply_recovery_policy(
     {
         plan.posture = ExecutionPosture::Ask;
         plan.needs_clarification = true;
-        plan.clarification_prompt = Some("target could not be located for execution".to_string());
+        plan.clarification_prompt =
+            Some("target could not be located for execution".to_string());
         plan.execution_state.plan_status = PlanStatus::ClarificationRequired;
         plan.execution_state.recovery = Some(RecoveryState {
             decision: RecoveryDecision::Clarify,
@@ -89,15 +92,10 @@ pub fn apply_recovery_policy(
         return (plan, true);
     }
 
-    if plan
-        .selected_plan
-        .blocked_on
-        .contains(&Precondition::PolicyAllows)
-    {
+    if plan.selected_plan.blocked_on.contains(&Precondition::PolicyAllows) {
         plan.posture = ExecutionPosture::Ask;
         plan.needs_clarification = true;
-        plan.clarification_prompt =
-            Some("policy scope must be narrowed before execution".to_string());
+        plan.clarification_prompt = Some("policy scope must be narrowed before execution".to_string());
         plan.execution_state.plan_status = PlanStatus::Blocked;
         plan.execution_state.recovery = Some(RecoveryState {
             decision: RecoveryDecision::Halt,

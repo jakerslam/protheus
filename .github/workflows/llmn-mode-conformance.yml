@@ -26,4 +26,4 @@ jobs:
       - name: Install npm dependencies
         run: npm ci --include=dev
       - name: Run LLMN conformance smoke
-        run: node client/runtime/lib/ts_entrypoint.ts tests/client-memory-tools/llmn_mode_conformance.test.ts
+        run: node tests/client-memory-tools/llmn_mode_conformance.test.ts

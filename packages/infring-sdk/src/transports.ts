@@ -38,13 +38,6 @@ function toReceipt(policyRef?: string): ReceiptPointer {
   };
 }
 
-function toReceipts(policyRefs: string[]): ReceiptPointer[] {
-  if (policyRefs.length === 0) {
-    return [toReceipt()];
-  }
-  return policyRefs.map((policyRef) => toReceipt(policyRef));
-}
-
 function envelope<TData extends JsonValue>(
   operation: InfringOperation,
   data: TData,
@@ -54,7 +47,7 @@ function envelope<TData extends JsonValue>(
     ok: true,
     operation,
     trace_id: traceId(),
-    receipts: toReceipts(policyRefs),
+    receipts: [toReceipt(policyRefs[0])],
     data,
   };
 }
@@ -76,10 +69,6 @@ function failureEnvelope<TData extends JsonValue>(
 }
 
 export interface InMemoryTransportOptions {
-  unseeded_behavior?: 'error' | 'synthetic_success';
-  /**
-   * @deprecated Use `unseeded_behavior: 'synthetic_success'` instead.
-   */
   allow_unseeded_fallback?: boolean;
 }
 
@@ -89,9 +78,7 @@ export function createInMemoryTransport(
   seed: InMemorySeed = {},
   options: InMemoryTransportOptions = {}
 ): InfringTransport {
-  const unseededBehavior =
-    options.unseeded_behavior ??
-    (options.allow_unseeded_fallback === true ? 'synthetic_success' : 'error');
+  const allowUnseededFallback = options.allow_unseeded_fallback === true;
   return {
     async invoke<TData extends JsonValue = JsonValue>(
       request: InfringTransportRequest
@@ -99,19 +86,12 @@ export function createInMemoryTransport(
       const hasSeed = Object.prototype.hasOwnProperty.call(seed, request.operation);
       const seeded = hasSeed ? seed[request.operation] : undefined;
       if (!hasSeed) {
-        if (unseededBehavior === 'synthetic_success') {
-          return envelope(
-            request.operation,
-            {
-              synthetic_fallback: true,
-            } as TData,
-            [...request.policy_refs, 'sdk.in_memory.synthetic_fallback']
-          );
-        }
         return failureEnvelope<TData>(
           request,
           'in_memory_seed_required',
-          `In-memory transport missing seed for operation '${request.operation}'.`
+          allowUnseededFallback
+            ? `Synthetic in-memory fallback disabled; provide a seed for '${request.operation}'.`
+            : `In-memory transport missing seed for operation '${request.operation}'.`
         );
       }
       return envelope(request.operation, seeded as TData, request.policy_refs);

@@ -102,8 +102,6 @@ function buildReport() {
     .concat(legacyRunnerDevOnly ? [] : ['legacy_runner_not_dev_only'])
     .concat(releaseEntrypointsQuarantined ? [] : ['legacy_runner_not_quarantined_from_release_entrypoints'])
     .concat(dr.payload?.gate_state === 'fail' ? ['recovery_rehearsal_regressed'] : [])
-    .filter(Boolean);
-  const advisoryFlags = []
     .concat(dr.payload?.gate_state === 'insufficient_samples' ? ['recovery_samples_insufficient'] : [])
     .filter(Boolean);
   const supportedProductionTopology =
@@ -147,7 +145,6 @@ function buildReport() {
       quarantined_from_release_entrypoints: releaseEntrypointsQuarantined,
     },
     degraded_flags: degradedFlags,
-    advisory_flags: advisoryFlags,
     recovery: {
       gate_state: clean(dr.payload?.gate_state || '', 80),
       sample_count: Number(dr.payload?.sample_count || 0),

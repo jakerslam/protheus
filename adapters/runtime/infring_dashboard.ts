@@ -69,7 +69,7 @@ function parseFlags(argv = []) {
     apiHost: '',
     apiPort: 0,
     apiReadyTimeoutMs: DEFAULT_BACKEND_READY_TIMEOUT_MS,
-    uiMode: cleanText(process.env.INFRING_DASHBOARD_UI || 'classic', 24).toLowerCase(),
+    uiMode: cleanText(process.env.INFRING_DASHBOARD_UI || 'primary', 24).toLowerCase(),
   };
   let modeSet = false;
   for (const token of argv) {
@@ -88,7 +88,7 @@ function parseFlags(argv = []) {
     else if (value.startsWith('--ui=')) out.uiMode = cleanText(value.slice(5), 24).toLowerCase();
     else if (value === '--pretty=0' || value === '--pretty=false') out.pretty = false;
   }
-  out.uiMode = 'classic';
+  out.uiMode = 'primary';
   out.apiHost = out.apiHost || out.host;
   out.apiPort = out.apiPort || defaultApiPort(out.port);
   if (out.apiPort === out.port) out.apiPort = defaultApiPort(out.port + 1);
@@ -104,7 +104,6 @@ function discoverSiblingAltDashboardSurfaces() {
     if (!entry || typeof entry.isDirectory !== 'function' || !entry.isDirectory()) continue;
     const dirPath = path.resolve(DASHBOARD_DIR, String(entry.name || ''));
     if (!dirPath || dirPath === STATIC_DIR) continue;
-    if (dirPath === SVELTEKIT_MODULE_DIR) continue;
     const dirName = path.basename(dirPath);
     const hasInlineDashboardRoot = hasPrimaryDashboardUi(dirPath);
     const hasBuildIndex = fs.existsSync(path.resolve(dirPath, 'build', 'index.html'));
@@ -462,7 +461,30 @@ async function runServe(flags) {
   assertDashboardSurfaceLocked();
   let dashboardHtml = buildPrimaryDashboardHtml(STATIC_DIR);
   if (!dashboardHtml.trim()) throw new Error('primary_dashboard_html_empty');
-  const backend = await ensureBackend(flags);
+  const backend = {
+    child: null,
+    reused: false,
+    ready: await backendHealth(flags, 1500),
+    startup_error: '',
+  };
+  let backendStartPromise = null;
+  if (!backend.ready) {
+    backendStartPromise = ensureBackend(flags)
+      .then((result) => {
+        backend.child = result && result.child ? result.child : null;
+        backend.reused = !!(result && result.reused);
+        backend.ready = true;
+        backend.startup_error = '';
+        return result;
+      })
+      .catch((error) => {
+        backend.ready = false;
+        backend.startup_error = cleanText(error && error.message ? error.message : String(error), 200);
+        return null;
+      });
+  } else {
+    backend.reused = true;
+  }
   const wsBridge = createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson });
   const status = {
     ok: true,
@@ -475,35 +497,52 @@ async function runServe(flags) {
     team: flags.team,
     authority: 'primary_dashboard_ui_over_rust_core_api',
     dashboard_ui_mode_requested: flags.uiMode,
-    dashboard_ui_mode_active: 'classic',
+    dashboard_ui_mode_active: 'primary',
     backend_url: backendBase(flags),
     backend_reused: backend.reused,
+    backend_ready: backend.ready,
+    backend_start_pending: !!backendStartPromise,
+    backend_start_error: '',
     ws_bridge_enabled: !!wsBridge.ws_enabled,
     ws_bridge_error: cleanText(wsBridge.ws_error || '', 120),
     dashboard_static_dir: path.basename(STATIC_DIR),
     status_path: path.relative(ROOT, STATUS_PATH),
   };
+  function persistStatus() {
+    status.backend_reused = backend.reused;
+    status.backend_ready = backend.ready;
+    status.backend_start_pending = !!backendStartPromise && !backend.ready && !backend.startup_error;
+    status.backend_start_error = backend.startup_error;
+    ensureDir(STATUS_DIR);
+    writeJson(STATUS_PATH, status);
+  }
+  if (backendStartPromise) {
+    backendStartPromise.finally(() => {
+      try { persistStatus(); } catch {}
+    });
+  }
   const server = http.createServer(async (req, res) => {
     const requestUrl = new URL(req.url || '/', `http://${flags.host}:${flags.port}`);
     const pathname = requestUrl.pathname;
     try {
-      if (req.method === 'GET' && (pathname === '/dashboard-classic' || pathname === '/dashboard-shell')) {
+      if ((req.method === 'GET' || req.method === 'HEAD') && (pathname === '/dashboard-classic' || pathname === '/dashboard-shell')) {
         const search = String(requestUrl.search || '');
         res.writeHead(302, { location: `/dashboard${search}`, 'cache-control': 'no-store' });
+        res.end();
         return;
       }
-      if (req.method === 'GET' && pathname === '/') {
+      if ((req.method === 'GET' || req.method === 'HEAD') && pathname === '/') {
         res.writeHead(302, { location: '/dashboard', 'cache-control': 'no-store' });
         res.end();
         return;
       }
       if (
-        req.method === 'GET' &&
+        (req.method === 'GET' || req.method === 'HEAD') &&
         (pathname === '/dashboard' || pathname === '/dashboard/' || (pathname.startsWith('/dashboard/') && !path.extname(pathname)))
       ) {
         dashboardHtml = buildPrimaryDashboardHtml(STATIC_DIR) || dashboardHtml;
         res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
-        res.end(dashboardHtml);
+        res.end(req.method === 'HEAD' ? '' : dashboardHtml);
         return;
       }
       if (req.method === 'GET' && pathname === '/api/status') {
@@ -604,8 +643,7 @@ async function runServe(flags) {
     server.once('error', reject);
     server.listen(flags.port, flags.host, () => {
       server.off('error', reject);
-      ensureDir(STATUS_DIR);
-      writeJson(STATUS_PATH, status);
+      persistStatus();
       console.log(JSON.stringify(status, null, 2));
       console.log(`Dashboard listening at ${status.url}`);
       resolve(null);
