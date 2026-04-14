@@ -16,7 +16,8 @@ const TOOLKIT_SURFACES = [
   'blob-morphing',
   'comment-mapper',
   'assimilate',
-  'research'
+  'research',
+  'web'
 ];
 
 const DICTIONARY = {
@@ -262,8 +263,33 @@ function runOrchestration(rawArgs, asJson) {
   return 1;
 }
 
+function dispatchBridgeSurface(surface, domain, rawArgs, asJson) {
+  const args = withoutJsonFlags(rawArgs);
+  const dispatchOnly = args.includes('--dispatch-only') || args.includes('--dispatch-only=1');
+  const passthrough = args.filter((arg) => arg !== '--dispatch-only' && arg !== '--dispatch-only=1');
+  if (dispatchOnly) {
+    emit(
+      {
+        ok: true,
+        type: 'toolkit_dispatch_preview',
+        surface,
+        domain,
+        args: passthrough
+      },
+      asJson || true
+    );
+    return 0;
+  }
+  return runProtheusOps([domain, ...passthrough], {
+    unknownDomainFallback: false,
+    allowProcessFallback: false
+  });
+}
+
 function printUsage() {
   process.stdout.write('Usage: infring toolkit <surface> [args]\n');
+  process.stdout.write('Aliases: web-tooling -> web\n');
+  process.stdout.write('Tips: add --dispatch-only to preview routed domain/args.\n');
   process.stdout.write('Surfaces:\n');
   for (const surface of TOOLKIT_SURFACES) {
     process.stdout.write(`  - ${surface}\n`);
@@ -309,11 +335,15 @@ function run(argv = process.argv.slice(2)) {
   }
 
   if (cmd === 'assimilate') {
-    return runProtheusOps(['assimilate', ...rest], { unknownDomainFallback: false });
+    return dispatchBridgeSurface('assimilate', 'assimilate', rest, asJson);
   }
 
   if (cmd === 'research') {
-    return runProtheusOps(['research', ...rest], { unknownDomainFallback: false });
+    return dispatchBridgeSurface('research', 'research', rest, asJson);
+  }
+
+  if (cmd === 'web' || cmd === 'web-tooling') {
+    return dispatchBridgeSurface('web', 'web-search', rest, asJson);
   }
 
   printUsage();
