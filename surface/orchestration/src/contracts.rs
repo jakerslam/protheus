@@ -90,6 +90,9 @@ pub enum CoreContractCall {
     ToolCapabilityProbe,
     ToolBrokerRequest,
     TaskFabricProposal,
+    ContextAtomAppend,
+    ContextTopologyMaterialize,
+    ContextTopologyInspect,
     UnifiedMemoryRead,
     VerifierRequest,
     AssimilationPlanRequest,
@@ -194,6 +197,35 @@ pub struct CoreExecutionObservation {
     pub receipt_ids: Vec<String>,
     pub outcome_refs: Vec<String>,
     pub step_statuses: Vec<CoreExecutionStepObservation>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ContextAtomAppendSourceKind {
+    InteractionUnit,
+    ToolResultBundle,
+    StatusSummary,
+    WorkflowBoundary,
+    ExternalReference,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ContextAtomAppendCall {
+    pub session_id: String,
+    pub source_kind: ContextAtomAppendSourceKind,
+    pub source_ref: String,
+    pub token_count: u32,
+    pub task_refs: Vec<String>,
+    pub memory_version_refs: Vec<String>,
+    pub semantic_boundary: bool,
+    pub workflow_boundary: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ContextTopologyMaterializeCall {
+    pub session_id: String,
+    pub budget_tokens: u32,
+    pub pinned_anchor_refs: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

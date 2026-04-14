@@ -1,5 +1,12 @@
 use super::{NexusRouteContext, UnifiedMemoryHeap};
-use crate::context_materializer::{materialize_context, ContextMaterialization};
+use crate::context_budget::ContextBudgetRequest;
+use crate::context_topology::{
+    ContextAppendInput, ContextAppendOutcome, ContextTopologyRebuildReport,
+};
+use crate::context_materializer::{
+    materialize_context, materialize_topology_context, ContextMaterialization,
+    ContextTopologyMaterialization,
+};
 use crate::policy::{MemoryPolicyDecision, MemoryPolicyGate, MemoryPolicyRequest, PolicyAction};
 use crate::schemas::{
     CapabilityToken, MemoryPurgeRecord, MemoryRetentionPolicy, MemoryScope, MemoryVersion,
@@ -9,6 +16,49 @@ use crate::{deterministic_hash, now_ms};
 use std::collections::BTreeMap;
 
 impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
+    fn visible_versions_for_scopes(
+        &self,
+        principal_id: &str,
+        capability: &CapabilityToken,
+        requested_scopes: &[MemoryScope],
+        as_of_ms: Option<u64>,
+    ) -> Vec<MemoryVersion> {
+        let replay = self.replay_mutation_rows();
+        let mut latest_by_object = BTreeMap::<String, MemoryVersion>::new();
+        for row in replay {
+            if let Some(as_of) = as_of_ms {
+                if row.timestamp_ms > as_of {
+                    continue;
+                }
+            }
+            if self.version_ledger.is_inactive(row.version_id.as_str()) {
+                continue;
+            }
+            if row.trust_state.is_poisoned() {
+                continue;
+            }
+            if !requested_scopes.is_empty()
+                && !requested_scopes.iter().any(|scope| scope == &row.scope)
+            {
+                continue;
+            }
+            let decision = self.policy.evaluate(&self.scoped_policy_request(
+                principal_id,
+                PolicyAction::Read,
+                row.scope.clone(),
+                row.trust_state.clone(),
+                capability,
+            ));
+            if !decision.allow {
+                continue;
+            }
+            if let Some(version) = self.version_ledger.get(row.version_id.as_str()).cloned() {
+                latest_by_object.insert(row.object_id, version);
+            }
+        }
+        latest_by_object.into_values().collect::<Vec<_>>()
+    }
+
     fn scoped_policy_request(
         &self,
         principal_id: &str,
@@ -175,40 +225,8 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
         lineage_refs: Vec<String>,
     ) -> Result<ContextMaterialization, String> {
         self.ensure_routed(route)?;
-        let replay = self.replay_mutation_rows();
-        let mut latest_by_object = BTreeMap::<String, MemoryVersion>::new();
-        for row in replay {
-            if let Some(as_of) = as_of_ms {
-                if row.timestamp_ms > as_of {
-                    continue;
-                }
-            }
-            if self.version_ledger.is_inactive(row.version_id.as_str()) {
-                continue;
-            }
-            if row.trust_state.is_poisoned() {
-                continue;
-            }
-            if !requested_scopes.is_empty()
-                && !requested_scopes.iter().any(|scope| scope == &row.scope)
-            {
-                continue;
-            }
-            let decision = self.policy.evaluate(&self.scoped_policy_request(
-                principal_id,
-                PolicyAction::Read,
-                row.scope.clone(),
-                row.trust_state.clone(),
-                capability,
-            ));
-            if !decision.allow {
-                continue;
-            }
-            if let Some(version) = self.version_ledger.get(row.version_id.as_str()).cloned() {
-                latest_by_object.insert(row.object_id, version);
-            }
-        }
-        let versions = latest_by_object.into_values().collect::<Vec<_>>();
+        let versions =
+            self.visible_versions_for_scopes(principal_id, capability, requested_scopes.as_slice(), as_of_ms);
         let materialized = materialize_context(
             principal_id,
             requested_scopes.as_slice(),
@@ -237,4 +255,186 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
         );
         Ok(materialized)
     }
+
+    pub fn append_context_atom(
+        &mut self,
+        route: &NexusRouteContext,
+        principal_id: &str,
+        capability: &CapabilityToken,
+        input: ContextAppendInput,
+        lineage_refs: Vec<String>,
+    ) -> Result<ContextAppendOutcome, String> {
+        self.ensure_routed(route)?;
+        let decision = self.evaluate_policy(MemoryPolicyRequest {
+            principal_id: principal_id.to_string(),
+            action: PolicyAction::Write,
+            source_scope: MemoryScope::Core,
+            target_scope: None,
+            trust_state: Some(crate::schemas::TrustState::Proposed),
+            capability: Some(capability.clone()),
+            owner_settings: self.config.owner_settings.clone(),
+        });
+        if !decision.allow {
+            return Err(format!("context_atom_append_denied:{}", decision.reason));
+        }
+        let mut outcome = self.context_topology.append_atom(input)?;
+        let atom_receipt = self.push_receipt(
+            route,
+            "context_atom_append",
+            self.policy_allow_decision(serde_json::json!([principal_id, outcome.atom.atom_id.clone()])),
+            lineage_refs.clone(),
+            serde_json::json!({
+                "session_id": outcome.atom.session_id,
+                "atom_id": outcome.atom.atom_id,
+                "sequence_no": outcome.atom.sequence_no,
+            }),
+        );
+        outcome.atom.lineage_refs.push(atom_receipt.receipt_id);
+
+        for span in &mut outcome.sealed_spans {
+            let receipt = self.push_receipt(
+                route,
+                "context_span_seal",
+                self.policy_allow_decision(serde_json::json!([principal_id, span.span_id.clone()])),
+                lineage_refs.clone(),
+                serde_json::json!({
+                    "session_id": span.session_id,
+                    "span_id": span.span_id,
+                    "level": span.level,
+                    "coverage": { "start_seq": span.start_seq, "end_seq": span.end_seq },
+                }),
+            );
+            span.receipt_id = receipt.receipt_id.clone();
+            self.context_topology
+                .set_span_receipt(span.session_id.as_str(), span.span_id.as_str(), span.receipt_id.as_str());
+        }
+        for span in &mut outcome.rolled_up_spans {
+            let receipt = self.push_receipt(
+                route,
+                "context_span_rollup",
+                self.policy_allow_decision(serde_json::json!([principal_id, span.span_id.clone()])),
+                lineage_refs.clone(),
+                serde_json::json!({
+                    "session_id": span.session_id,
+                    "span_id": span.span_id,
+                    "level": span.level,
+                    "fidelity_score": span.fidelity_score,
+                }),
+            );
+            span.receipt_id = receipt.receipt_id.clone();
+            self.context_topology
+                .set_span_receipt(span.session_id.as_str(), span.span_id.as_str(), span.receipt_id.as_str());
+        }
+        Ok(outcome)
+    }
+
+    pub fn rebuild_context_topology(
+        &mut self,
+        route: &NexusRouteContext,
+        principal_id: &str,
+        capability: &CapabilityToken,
+        session_id: &str,
+        lineage_refs: Vec<String>,
+    ) -> Result<ContextTopologyRebuildReport, String> {
+        self.ensure_routed(route)?;
+        let decision = self.evaluate_policy(MemoryPolicyRequest {
+            principal_id: principal_id.to_string(),
+            action: PolicyAction::Read,
+            source_scope: MemoryScope::Core,
+            target_scope: None,
+            trust_state: Some(crate::schemas::TrustState::Validated),
+            capability: Some(capability.clone()),
+            owner_settings: self.config.owner_settings.clone(),
+        });
+        if !decision.allow {
+            return Err(format!("context_topology_rebuild_denied:{}", decision.reason));
+        }
+        let report = self.context_topology.rebuild_session_topology(session_id)?;
+        self.push_receipt(
+            route,
+            "context_topology_rebuild",
+            self.policy_allow_decision(serde_json::json!([principal_id, session_id])),
+            lineage_refs,
+            serde_json::json!({
+                "session_id": report.session_id,
+                "atom_count": report.atom_count,
+                "rebuilt_span_count": report.rebuilt_span_count,
+            }),
+        );
+        Ok(report)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn materialize_context_topology(
+        &mut self,
+        route: &NexusRouteContext,
+        principal_id: &str,
+        capability: &CapabilityToken,
+        session_id: &str,
+        requested_scopes: Vec<MemoryScope>,
+        budget_tokens: u32,
+        pinned_anchor_refs: Vec<String>,
+        lineage_refs: Vec<String>,
+    ) -> Result<ContextTopologyMaterialization, String> {
+        reconstruct_context_topology_view(
+            self,
+            route,
+            principal_id,
+            capability,
+            session_id,
+            requested_scopes,
+            budget_tokens,
+            pinned_anchor_refs,
+            lineage_refs,
+        )
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn reconstruct_context_topology_view<P: MemoryPolicyGate + Clone>(
+    heap: &mut UnifiedMemoryHeap<P>,
+    route: &NexusRouteContext,
+    principal_id: &str,
+    capability: &CapabilityToken,
+    session_id: &str,
+    requested_scopes: Vec<MemoryScope>,
+    budget_tokens: u32,
+    pinned_anchor_refs: Vec<String>,
+    lineage_refs: Vec<String>,
+) -> Result<ContextTopologyMaterialization, String> {
+    heap.ensure_routed(route)?;
+    let versions =
+        heap.visible_versions_for_scopes(principal_id, capability, requested_scopes.as_slice(), None);
+    let (frontier, budget_report) = heap.context_topology.materialize_frontier(ContextBudgetRequest {
+        session_id: session_id.to_string(),
+        budget_tokens,
+        pinned_anchor_refs,
+    });
+    let atoms = heap.context_topology.session_atoms(session_id);
+    let spans = heap.context_topology.session_spans(session_id);
+    let materialized = materialize_topology_context(
+        principal_id,
+        requested_scopes.as_slice(),
+        heap.config.owner_settings.export_redaction_policy.clone(),
+        versions.as_slice(),
+        atoms.as_slice(),
+        spans.as_slice(),
+        frontier.clone(),
+        budget_report.clone(),
+    );
+    heap.push_receipt(
+        route,
+        "context_frontier_update",
+        heap.policy_allow_decision(serde_json::json!([principal_id, session_id, "frontier"])),
+        lineage_refs,
+        serde_json::json!({
+            "session_id": session_id,
+            "budget_tokens": budget_report.budget_tokens,
+            "used_tokens": budget_report.used_tokens,
+            "pressure_state": frontier.pressure_state,
+            "fidelity_score": frontier.fidelity_score,
+            "fragment_count": materialized.fragments.len(),
+        }),
+    );
+    Ok(materialized)
 }
