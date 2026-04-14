@@ -1,11 +1,11 @@
 use super::{NexusRouteContext, UnifiedMemoryHeap};
 use crate::context_budget::ContextBudgetRequest;
-use crate::context_topology::{
-    ContextAppendInput, ContextAppendOutcome, ContextTopologyRebuildReport,
-};
 use crate::context_materializer::{
     materialize_context, materialize_topology_context, ContextMaterialization,
     ContextTopologyMaterialization,
+};
+use crate::context_topology::{
+    ContextAppendInput, ContextAppendOutcome, ContextTopologyRebuildReport,
 };
 use crate::policy::{MemoryPolicyDecision, MemoryPolicyGate, MemoryPolicyRequest, PolicyAction};
 use crate::schemas::{
@@ -225,8 +225,12 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
         lineage_refs: Vec<String>,
     ) -> Result<ContextMaterialization, String> {
         self.ensure_routed(route)?;
-        let versions =
-            self.visible_versions_for_scopes(principal_id, capability, requested_scopes.as_slice(), as_of_ms);
+        let versions = self.visible_versions_for_scopes(
+            principal_id,
+            capability,
+            requested_scopes.as_slice(),
+            as_of_ms,
+        );
         let materialized = materialize_context(
             principal_id,
             requested_scopes.as_slice(),
@@ -281,7 +285,10 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
         let atom_receipt = self.push_receipt(
             route,
             "context_atom_append",
-            self.policy_allow_decision(serde_json::json!([principal_id, outcome.atom.atom_id.clone()])),
+            self.policy_allow_decision(serde_json::json!([
+                principal_id,
+                outcome.atom.atom_id.clone()
+            ])),
             lineage_refs.clone(),
             serde_json::json!({
                 "session_id": outcome.atom.session_id,
@@ -305,8 +312,11 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
                 }),
             );
             span.receipt_id = receipt.receipt_id.clone();
-            self.context_topology
-                .set_span_receipt(span.session_id.as_str(), span.span_id.as_str(), span.receipt_id.as_str());
+            self.context_topology.set_span_receipt(
+                span.session_id.as_str(),
+                span.span_id.as_str(),
+                span.receipt_id.as_str(),
+            );
         }
         for span in &mut outcome.rolled_up_spans {
             let receipt = self.push_receipt(
@@ -322,8 +332,11 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
                 }),
             );
             span.receipt_id = receipt.receipt_id.clone();
-            self.context_topology
-                .set_span_receipt(span.session_id.as_str(), span.span_id.as_str(), span.receipt_id.as_str());
+            self.context_topology.set_span_receipt(
+                span.session_id.as_str(),
+                span.span_id.as_str(),
+                span.receipt_id.as_str(),
+            );
         }
         Ok(outcome)
     }
@@ -347,7 +360,10 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
             owner_settings: self.config.owner_settings.clone(),
         });
         if !decision.allow {
-            return Err(format!("context_topology_rebuild_denied:{}", decision.reason));
+            return Err(format!(
+                "context_topology_rebuild_denied:{}",
+                decision.reason
+            ));
         }
         let report = self.context_topology.rebuild_session_topology(session_id)?;
         self.push_receipt(
@@ -403,13 +419,38 @@ pub(crate) fn reconstruct_context_topology_view<P: MemoryPolicyGate + Clone>(
     lineage_refs: Vec<String>,
 ) -> Result<ContextTopologyMaterialization, String> {
     heap.ensure_routed(route)?;
-    let versions =
-        heap.visible_versions_for_scopes(principal_id, capability, requested_scopes.as_slice(), None);
-    let (frontier, budget_report) = heap.context_topology.materialize_frontier(ContextBudgetRequest {
-        session_id: session_id.to_string(),
-        budget_tokens,
-        pinned_anchor_refs,
-    });
+    let versions = heap.visible_versions_for_scopes(
+        principal_id,
+        capability,
+        requested_scopes.as_slice(),
+        None,
+    );
+    for span in heap.context_topology.compact_sealed_session(session_id)? {
+        let receipt = heap.push_receipt(
+            route,
+            "context_span_rollup",
+            heap.policy_allow_decision(serde_json::json!([principal_id, span.span_id.clone()])),
+            lineage_refs.clone(),
+            serde_json::json!({
+                "session_id": span.session_id,
+                "span_id": span.span_id,
+                "level": span.level,
+                "fidelity_score": span.fidelity_score,
+            }),
+        );
+        heap.context_topology.set_span_receipt(
+            session_id,
+            span.span_id.as_str(),
+            receipt.receipt_id.as_str(),
+        );
+    }
+    let (frontier, budget_report) =
+        heap.context_topology
+            .materialize_frontier(ContextBudgetRequest {
+                session_id: session_id.to_string(),
+                budget_tokens,
+                pinned_anchor_refs,
+            });
     let atoms = heap.context_topology.session_atoms(session_id);
     let spans = heap.context_topology.session_spans(session_id);
     let materialized = materialize_topology_context(

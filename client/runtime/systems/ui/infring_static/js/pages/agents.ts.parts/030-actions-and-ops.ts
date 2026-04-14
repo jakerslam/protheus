@@ -156,7 +156,10 @@
       try {
         var data = await InfringAPI.get('/api/templates/' + encodeURIComponent(name));
         if (data.manifest_toml) {
-          var res = await InfringAPI.post('/api/agents', { manifest_toml: data.manifest_toml });
+          var tpl = data && data.template && typeof data.template === 'object' ? data.template : {};
+          var createPayload = { manifest_toml: data.manifest_toml };
+          if (tpl.system_prompt) createPayload.system_prompt = String(tpl.system_prompt || '');
+          var res = await InfringAPI.post('/api/agents', createPayload);
           if (res.agent_id) {
             var launchedName = String((res && (res.name || res.agent_id)) || name || 'agent').trim() || 'agent';
             var launchedRole = String(name || 'agent').trim() || 'agent';

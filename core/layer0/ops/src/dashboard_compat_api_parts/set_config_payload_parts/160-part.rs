@@ -478,6 +478,53 @@ fn natural_web_intent_from_user_message(message: &str) -> Option<(String, Value)
     if let Some(route) = comparative_natural_web_intent_from_message(trimmed) {
         return Some(route);
     }
+    if lowered.contains("web search") {
+        let imperative = lowered.starts_with("try ")
+            || lowered.starts_with("please ")
+            || lowered.starts_with("can you ")
+            || lowered.starts_with("could you ")
+            || lowered.starts_with("would you ")
+            || lowered.starts_with("search ")
+            || lowered.starts_with("look up ")
+            || lowered.starts_with("find ");
+        if imperative {
+            let mut candidate = clean_text(trimmed, 600);
+            if let Some(idx) = candidate.to_ascii_lowercase().find("web search") {
+                let tail_start = idx + "web search".len();
+                candidate = clean_text(
+                    &format!("{} {}", &candidate[..idx], &candidate[tail_start..]),
+                    600,
+                );
+            }
+            for prefix in [
+                "try doing ",
+                "try to ",
+                "try ",
+                "please ",
+                "can you ",
+                "could you ",
+                "would you ",
+            ] {
+                if candidate.to_ascii_lowercase().starts_with(prefix) && candidate.len() > prefix.len()
+                {
+                    candidate = clean_text(&candidate[prefix.len()..], 600);
+                    break;
+                }
+            }
+            let query = {
+                let cleaned = strip_wrapped_natural_web_query(&candidate, 600);
+                if cleaned.is_empty() {
+                    "latest information".to_string()
+                } else {
+                    cleaned
+                }
+            };
+            return Some((
+                "batch_query".to_string(),
+                json!({"source": "web", "query": query, "aperture": "medium"}),
+            ));
+        }
+    }
     if url.is_empty() && ["test web fetch", "do a test web fetch", "try web fetch", "check web fetch"]
         .iter()
         .any(|term| lowered.contains(term))

@@ -145,7 +145,10 @@ fn matches_filter(metadata: &VectorMetadata, filter: &VectorQueryFilter) -> bool
         return false;
     }
     if !filter.namespaces.is_empty()
-        && !filter.namespaces.iter().any(|row| row == &metadata.namespace)
+        && !filter
+            .namespaces
+            .iter()
+            .any(|row| row == &metadata.namespace)
     {
         return false;
     }

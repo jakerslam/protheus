@@ -19,6 +19,35 @@ function commsPage() {
     taskAssign: '',
     taskLoading: false,
 
+    normalizeTopologyPayload(payload) {
+      var source = payload && typeof payload === 'object' ? payload : {};
+      var nested = source.topology && typeof source.topology === 'object' ? source.topology : source;
+      var nodes = Array.isArray(nested.nodes) ? nested.nodes.slice() : [];
+      var edges = Array.isArray(nested.edges) ? nested.edges.slice() : [];
+      return {
+        nodes: nodes,
+        edges: edges,
+        connected: nested.connected !== false
+      };
+    },
+
+    normalizeEventsPayload(payload) {
+      if (Array.isArray(payload)) return payload.slice();
+      var source = payload && typeof payload === 'object' ? payload : {};
+      return Array.isArray(source.events) ? source.events.slice() : [];
+    },
+
+    isFairyNode(node) {
+      var row = node && typeof node === 'object' ? node : {};
+      var probe = [
+        String(row.id || ''),
+        String(row.name || ''),
+        String(row.role || ''),
+        String(row.archetype || '')
+      ].join(' ').toLowerCase();
+      return probe.indexOf('fairy') >= 0 || probe.indexOf('faerie') >= 0;
+    },
+
     async loadData() {
       this.loading = true;
       this.loadError = '';
@@ -27,8 +56,8 @@ function commsPage() {
           InfringAPI.get('/api/comms/topology'),
           InfringAPI.get('/api/comms/events?limit=200')
         ]);
-        this.topology = results[0] || { nodes: [], edges: [] };
-        this.events = results[1] || [];
+        this.topology = this.normalizeTopologyPayload(results[0]);
+        this.events = this.normalizeEventsPayload(results[1]);
         this.startSSE();
       } catch(e) {
         this.loadError = e.message || 'Could not load comms data.';
@@ -65,7 +94,7 @@ function commsPage() {
 
     async refreshTopology() {
       try {
-        this.topology = await InfringAPI.get('/api/comms/topology');
+        this.topology = this.normalizeTopologyPayload(await InfringAPI.get('/api/comms/topology'));
       } catch(e) { /* silent */ }
     },
 
