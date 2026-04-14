@@ -59,7 +59,9 @@ function toMarkdown(payload: any): string {
   lines.push(`- open_items: ${payload.summary.open_items}`);
   lines.push(`- blocked_items: ${payload.summary.blocked_items}`);
   lines.push(`- size_exceptions: ${payload.summary.size_exceptions}`);
-  lines.push(`- classic_asset_files: ${payload.summary.classic_asset_files}`);
+  lines.push(`- dashboard_asset_files: ${payload.summary.dashboard_asset_files}`);
+  lines.push(`- dashboard_surface_guard_pass: ${payload.summary.dashboard_surface_guard_pass}`);
+  lines.push(`- forbidden_dashboard_surfaces: ${payload.summary.forbidden_dashboard_surfaces}`);
   lines.push('');
   lines.push('## Open Debt Items');
   for (const row of payload.open_items) {
@@ -72,7 +74,7 @@ function run(argv: string[]): number {
   const args = resolveArgs(argv);
   const ledger = readJsonMaybe<any>(args.ledgerPath, { items: [] });
   const policyDebt = readJsonMaybe<any>('core/local/artifacts/policy_debt_summary_current.json', null);
-  const classicDashboard = readJsonMaybe<any>('core/local/artifacts/classic_dashboard_debt_inventory_current.json', null);
+  const dashboardSurface = readJsonMaybe<any>('core/local/artifacts/dashboard_surface_authority_guard_current.json', null);
   const clientLegacy = readJsonMaybe<any>('core/local/artifacts/client_legacy_debt_report_current.json', null);
   const adapterFallback = readJsonMaybe<any>('core/local/artifacts/orchestration_adapter_fallback_guard_current.json', null);
 
@@ -97,13 +99,22 @@ function run(argv: string[]): number {
       blocked_items: blockedItems.length,
       by_category: countBy(openItems, (row: any) => String(row.category || 'unknown')),
       size_exceptions: Number(policyDebt?.debt?.size?.exception_count ?? 0),
-      classic_asset_files: Number(classicDashboard?.summary?.classic_asset_files ?? 0),
+      dashboard_asset_files: Number(dashboardSurface?.summary?.dashboard_asset_files ?? 0),
+      dashboard_surface_guard_pass: Boolean(dashboardSurface?.ok),
+      forbidden_dashboard_surfaces:
+        Number(dashboardSurface?.summary?.forbidden_surface_directories ?? 0) +
+        Number(dashboardSurface?.summary?.redirect_alias_handlers ?? 0) +
+        (dashboardSurface?.summary?.retired_alias_guard_present === false ? 1 : 0) +
+        (dashboardSurface?.summary?.svelte_dashboard_packaged === true ? 1 : 0),
       legacy_client_files: Number(clientLegacy?.summary?.total_files ?? 0),
       policy_green_but_debt_remaining:
         Boolean(policyDebt?.ok) &&
         (openItems.length > 0 ||
           Number(policyDebt?.debt?.size?.exempted ?? 0) > 0 ||
-          Number(classicDashboard?.summary?.classic_asset_files ?? 0) > 0),
+          Number(dashboardSurface?.summary?.forbidden_surface_directories ?? 0) > 0 ||
+          Number(dashboardSurface?.summary?.redirect_alias_handlers ?? 0) > 0 ||
+          dashboardSurface?.summary?.retired_alias_guard_present === false ||
+          dashboardSurface?.summary?.svelte_dashboard_packaged === true),
       adapter_fallback_guard_pass: Boolean(adapterFallback?.ok),
     },
     open_items: openItems,

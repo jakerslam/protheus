@@ -7,7 +7,7 @@
       "category": "size",
       "status": "in_progress",
       "owner": "jay",
-      "summary": "Split the remaining classic dashboard HTML/CSS/TS monoliths and retire oversized classic shards.",
+      "summary": "Split the remaining authoritative dashboard HTML/CSS/TS monoliths and retire oversized primary-surface shards.",
       "planned_batch_date": "2026-05-15",
       "paths": [
         "client/runtime/systems/ui/infring_static/css/components.css",
@@ -20,7 +20,7 @@
       "category": "size",
       "status": "in_progress",
       "owner": "jay",
-      "summary": "Finish decomposition of oversized Svelte migration support shards and classic chat parts still above cap.",
+      "summary": "Finish decomposition of oversized authoritative dashboard chat/runtime shards still above cap.",
       "planned_batch_date": "2026-05-15",
       "paths": [
         "client/runtime/systems/ui/infring_static/js/app.ts.parts",
@@ -128,13 +128,14 @@
     {
       "id": "TD-UI-LEGACY-001",
       "category": "legacy-ui",
-      "status": "in_progress",
+      "status": "done",
       "owner": "jay",
-      "summary": "Delete the classic dashboard fallback surface route by route now that top-level pages are native; explicit classic escape hatches, dead per-page legacy frame routing, and embedded fallback references in the native shell are gone, while the top-level fallback host and classic asset corpus still need burn-down.",
-      "planned_batch_date": "2026-05-15",
+      "summary": "Retired every alternate dashboard surface so `/dashboard` is the only authority; experimental shells are deleted, retired aliases are rejected, and CI now guards against reintroduction.",
+      "planned_batch_date": "2026-04-14",
       "paths": [
-        "client/runtime/systems/ui/infring_dashboard.ts",
-        "client/runtime/systems/ui/infring_static"
+        "adapters/runtime/infring_dashboard.ts",
+        "client/runtime/systems/ui/infring_static",
+        "tests/tooling/scripts/ci/dashboard_surface_authority_guard.ts"
       ]
     },
     {
@@ -142,12 +143,11 @@
       "category": "legacy-ui",
       "status": "done",
       "owner": "jay",
-      "summary": "Native runtime now exposes route and fallback telemetry so classic dashboard deletion can be driven by evidence instead of guesswork.",
+      "summary": "Authoritative dashboard runtime now exposes route and authority telemetry so surface cleanup is driven by evidence instead of guesswork.",
       "planned_batch_date": "2026-04-13",
       "paths": [
-        "client/runtime/systems/ui/dashboard_sveltekit/src",
         "adapters/runtime/infring_dashboard.ts",
-        "client/runtime/systems/ui/infring_dashboard.ts"
+        "client/runtime/systems/ui/infring_static"
       ]
     },
     {
@@ -160,7 +160,7 @@
       "paths": [
         "surface/orchestration/src",
         "adapters/runtime/infring_dashboard.ts",
-        "client/runtime/systems/ui/dashboard_sveltekit/src"
+        "client/runtime/systems/ui/infring_static"
       ]
     },
     {
@@ -187,7 +187,8 @@
       "planned_batch_date": "2026-04-20",
       "paths": [
         "tests/client-memory-tools",
-        "client/runtime/systems/ui/dashboard_sveltekit"
+        "adapters/runtime/infring_dashboard.ts",
+        "client/runtime/systems/ui/infring_static"
       ]
     }
   ]

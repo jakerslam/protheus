@@ -526,9 +526,8 @@ async function runServe(flags) {
     const pathname = requestUrl.pathname;
     try {
       if ((req.method === 'GET' || req.method === 'HEAD') && (pathname === '/dashboard-classic' || pathname === '/dashboard-shell')) {
-        const search = String(requestUrl.search || '');
-        res.writeHead(302, { location: `/dashboard${search}`, 'cache-control': 'no-store' });
-        res.end();
+        res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' });
+        res.end(req.method === 'HEAD' ? '' : 'dashboard_surface_retired');
         return;
       }
       if ((req.method === 'GET' || req.method === 'HEAD') && pathname === '/') {

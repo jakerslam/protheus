@@ -743,7 +743,7 @@ function assertLifecycleAndPlatformSrsEvidence() {
 
 function runSnapshotAssertions() {
   assertDashboardFileSizeCaps();
-  assertSvelteKitPrimaryDashboardContract();
+  assertPrimaryDashboardAuthorityContract();
   assertThinClientAuthorityBoundary();
   assertLegacyDashboardArtifactsRemoved();
   assertChatSyntaxGuards();

@@ -58,6 +58,7 @@
         "ops:release:scorecard:gate",
         "ops:release:verdict",
         "ops:production-closure:gate",
+        "ops:dashboard:surface:guard",
         "ops:orchestration:contract:guard",
         "ops:orchestration:hidden-state:guard",
         "ops:orchestration:ts-boundary:guard",

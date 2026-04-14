@@ -47,6 +47,7 @@ jobs:
           npm run -s ops:tooling-registry:contract:guard
           npm run -s ops:ci-workflow:check
           npm run -s ops:ci-quality:check
+          npm run -s ops:dashboard:surface:guard
           npm run -s ops:orchestration:adapter-fallback:guard
           npm run -s ops:system:fitness:gate
 
@@ -108,8 +109,8 @@ jobs:
       - name: SRS Full Regression Gate (Strict)
         run: npm run -s ops:srs:full:gate
 
-      - name: Classic Dashboard Debt Inventory
-        run: npm run -s ops:dashboard-classic:debt:report
+      - name: Dashboard Surface Authority Guard
+        run: npm run -s ops:dashboard:surface:guard
 
       - name: Client Legacy Debt Report
         run: npm run -s ops:client-legacy-debt:report
@@ -159,14 +160,14 @@ jobs:
             core/local/artifacts/ci_workflow_rationalization_contract_current.json
             core/local/artifacts/ci_quality_scorecard_current.json
             core/local/artifacts/orchestration_adapter_fallback_guard_current.json
-            core/local/artifacts/classic_dashboard_debt_inventory_current.json
+            core/local/artifacts/dashboard_surface_authority_guard_current.json
             core/local/artifacts/client_legacy_debt_report_current.json
             core/local/artifacts/tech_debt_report_current.json
             core/local/artifacts/policy_debt_summary_current.json
             local/workspace/reports/CI_WORKFLOW_RATIONALIZATION_CONTRACT_CURRENT.md
             local/workspace/reports/CI_QUALITY_SCORECARD_CURRENT.md
             local/workspace/reports/ORCHESTRATION_ADAPTER_FALLBACK_GUARD_CURRENT.md
-            local/workspace/reports/CLASSIC_DASHBOARD_DEBT_INVENTORY_CURRENT.md
+            local/workspace/reports/DASHBOARD_SURFACE_AUTHORITY_GUARD_CURRENT.md
             local/workspace/reports/TECH_DEBT_REPORT_CURRENT.md
             local/workspace/reports/POLICY_DEBT_SUMMARY_CURRENT.md
             local/workspace/reports/SRS_FULL_REGRESSION_CURRENT.md
