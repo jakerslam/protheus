@@ -268,6 +268,10 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
                 "provider_resolution".to_string(),
                 provider_resolution.clone(),
             );
+            obj.insert(
+                "provider_health".to_string(),
+                provider_health_snapshot(root, &fetch_provider_chain),
+            );
         }
         return cached;
     }

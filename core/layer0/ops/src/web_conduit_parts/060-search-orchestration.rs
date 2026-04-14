@@ -156,6 +156,10 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
                 "provider_resolution".to_string(),
                 provider_resolution.clone(),
             );
+            obj.insert(
+                "provider_health".to_string(),
+                provider_health_snapshot(root, &provider_chain),
+            );
             obj.insert("cache_status".to_string(), json!("hit"));
         }
         return cached;

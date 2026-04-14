@@ -187,6 +187,7 @@ pub const CLAIM_BUNDLE_FIELDS: &[&str] = &[
 
 pub const TOOL_ATTEMPT_RECEIPT_FIELDS: &[&str] = &[
     "attempt_id",
+    "attempt_sequence",
     "trace_id",
     "task_id",
     "caller",
@@ -308,6 +309,7 @@ mod tests {
     fn tool_attempt_receipt_schema_includes_reason_and_backend() {
         let attempt = ToolAttemptReceipt {
             attempt_id: "attempt-1".to_string(),
+            attempt_sequence: 1,
             trace_id: "trace-1".to_string(),
             task_id: "task-1".to_string(),
             caller: crate::tool_broker::BrokerCaller::Client,

@@ -190,6 +190,7 @@ pub(crate) fn web_tool_catalog_snapshot(policy: &Value) -> Value {
 
 pub(crate) fn provider_health_snapshot(root: &Path, providers: &[String]) -> Value {
     let state = load_provider_health(root);
+    let now_ts = Utc::now().timestamp();
     let rows = providers
         .iter()
         .map(|provider| {
@@ -198,10 +199,17 @@ pub(crate) fn provider_health_snapshot(root: &Path, providers: &[String]) -> Val
                 .pointer(&format!("/providers/{provider_id}"))
                 .cloned()
                 .unwrap_or_else(|| json!({}));
+            let circuit_open_until = entry
+                .get("circuit_open_until")
+                .and_then(Value::as_i64)
+                .unwrap_or(0);
             json!({
                 "provider": provider_id,
                 "consecutive_failures": entry.get("consecutive_failures").and_then(Value::as_u64).unwrap_or(0),
-                "circuit_open_until": entry.get("circuit_open_until").and_then(Value::as_i64).unwrap_or(0),
+                "circuit_open_until": circuit_open_until,
+                "circuit_open": circuit_open_until > now_ts,
+                "last_success_at": entry.get("last_success_at").cloned().unwrap_or(Value::Null),
+                "last_failure_at": entry.get("last_failure_at").cloned().unwrap_or(Value::Null),
                 "last_error": clean_text(entry.get("last_error").and_then(Value::as_str).unwrap_or(""), 220)
             })
         })

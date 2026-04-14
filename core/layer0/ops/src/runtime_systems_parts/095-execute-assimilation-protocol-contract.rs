@@ -378,6 +378,16 @@ fn execute_assimilation_protocol_for_system(
             let operation_match = contains_string(&supported_ops, operation.as_str());
             let phase_match = contains_string(&supported_phases, phase.as_str());
             let admissible = selector_match && operation_match && phase_match;
+            let mut denial_reasons = Vec::<String>::new();
+            if !selector_match {
+                denial_reasons.push("selector_mismatch".to_string());
+            }
+            if !operation_match {
+                denial_reasons.push("operation_not_supported".to_string());
+            }
+            if !phase_match {
+                denial_reasons.push("phase_not_supported".to_string());
+            }
             json!({
                 "surface_id": surface.get("surface_id").cloned().unwrap_or(Value::Null),
                 "provider": surface.get("provider").cloned().unwrap_or(Value::Null),
@@ -385,7 +395,8 @@ fn execute_assimilation_protocol_for_system(
                 "selector_match": selector_match,
                 "operation_match": operation_match,
                 "phase_match": phase_match,
-                "admissible": admissible
+                "admissible": admissible,
+                "denial_reasons": denial_reasons
             })
         })
         .collect::<Vec<_>>();
@@ -400,6 +411,8 @@ fn execute_assimilation_protocol_for_system(
         .collect::<Vec<_>>();
     let candidate_set = json!({
         "trace_id": trace_id,
+        "hard_selector_present": hard_selector_present,
+        "hard_selector": hard_selector.clone(),
         "candidates": candidate_set_rows,
         "candidate_count": candidate_set_rows.len(),
         "admissible_count": admissible_rows.len()
@@ -479,22 +492,7 @@ fn execute_assimilation_protocol_for_system(
         .iter()
         .filter(|row| row.get("severity").and_then(Value::as_str) == Some("warning"))
         .count();
-    let provisional_gap_report = json!({
-        "trace_id": trace_id,
-        "blocker_count": blocker_count,
-        "warning_count": warning_count,
-        "gaps": gaps
-    });
-    let admitted = blocker_count == 0
-        && candidate_closure
-            .get("closure_complete")
-            .and_then(Value::as_bool)
-            .unwrap_or(false);
-    let mut denial_codes = provisional_gap_report
-        .get("gaps")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default()
+    let mut denial_codes = gaps
         .iter()
         .filter(|row| row.get("severity").and_then(Value::as_str) == Some("blocker"))
         .filter_map(|row| row.get("gap_id").and_then(Value::as_str))
@@ -507,6 +505,18 @@ fn execute_assimilation_protocol_for_system(
             .cmp(&assimilation_denial_priority(b))
             .then_with(|| a.cmp(b))
     });
+    let provisional_gap_report = json!({
+        "trace_id": trace_id,
+        "blocker_count": blocker_count,
+        "warning_count": warning_count,
+        "gaps": gaps,
+        "denial_codes": denial_codes.clone()
+    });
+    let admitted = blocker_count == 0
+        && candidate_closure
+            .get("closure_complete")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
     let admission_verdict = json!({
         "trace_id": trace_id,
         "admitted": admitted,
@@ -520,7 +530,7 @@ fn execute_assimilation_protocol_for_system(
             "AdmissionVerdict",
             "ProtocolStepReceipt"
         ],
-        "denial_codes": denial_codes
+        "denial_codes": denial_codes.clone()
     });
 
     let mut plan_steps = vec![

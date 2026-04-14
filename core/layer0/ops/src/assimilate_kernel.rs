@@ -12,8 +12,8 @@ use std::time::Duration;
 use support::{
     build_receipt_hash, canonical_assimilation_plan, decode_injected_route, maybe_prewarm,
     parse_args, payload_scaffold_for, render_bar, run_core_assimilation, update_metrics, usage,
-    Route, RunResult, TargetMetrics, DEFAULT_REALTIME_DURATION_MS, DEFAULT_SHOWCASE_DURATION_MS,
-    STAGES,
+    Options, Route, RunResult, TargetMetrics, DEFAULT_REALTIME_DURATION_MS,
+    DEFAULT_SHOWCASE_DURATION_MS, STAGES,
 };
 
 fn emit_stage_snapshot(total_ms: u64, include_final: bool) {
@@ -95,6 +95,30 @@ fn route_or_fallback(route: Option<Route>) -> Route {
         domain: String::new(),
         args: Vec::new(),
     })
+}
+
+fn route_has_flag(args: &[String], key: &str) -> bool {
+    let bare = format!("--{key}");
+    let prefixed = format!("--{key}=");
+    args.iter().any(|arg| {
+        let trimmed = arg.trim();
+        trimmed == bare || trimmed.starts_with(&prefixed)
+    })
+}
+
+fn with_governed_route_flags(route: &Route, options: &Options) -> Route {
+    let mut out = route.clone();
+    if options.strict && !route_has_flag(&out.args, "strict") {
+        out.args.push("--strict=1".to_string());
+    }
+    if !options.hard_selector.trim().is_empty() && !route_has_flag(&out.args, "hard-selector") {
+        out.args
+            .push(format!("--hard-selector={}", options.hard_selector.trim()));
+    }
+    if options.selector_bypass && !route_has_flag(&out.args, "selector-bypass") {
+        out.args.push("--selector-bypass=1".to_string());
+    }
+    out
 }
 
 fn runtime_receipt_fallback(payload: Option<&Value>, target: &str, ts_iso: &str) -> String {
@@ -245,6 +269,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     }
 
     let route = route_or_fallback(route);
+    let effective_route = with_governed_route_flags(&route, &options);
     let plan = canonical_assimilation_plan(
         &target,
         Some(&route),
@@ -259,7 +284,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "type": "assimilate_plan",
             "mode": "runtime",
             "target": target,
-            "route": route,
+            "route": effective_route,
             "canonical_plan": plan,
             "ts": ts_iso
         });
@@ -268,8 +293,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     }
     let run_result = if display_ms > 0 && !options.json {
         let root_clone = root.to_path_buf();
-        let domain = route.domain.clone();
-        let args = route.args.clone();
+        let domain = effective_route.domain.clone();
+        let args = effective_route.args.clone();
         let handle = thread::spawn(move || run_core_assimilation(&root_clone, &domain, &args));
         emit_showcase_progress(display_ms);
         handle.join().unwrap_or(RunResult {
@@ -279,7 +304,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             stderr: "assimilation_worker_join_failed".to_string(),
         })
     } else {
-        run_core_assimilation(root, &route.domain, &route.args)
+        run_core_assimilation(root, &effective_route.domain, &effective_route.args)
     };
     let metrics = update_metrics(root, &target, run_result.latency_ms, run_result.status == 0);
     let receipt = runtime_receipt_fallback(run_result.payload.as_ref(), &target, &ts_iso);
@@ -291,7 +316,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "type": "assimilate_execution",
                 "mode": "runtime",
                 "target": target,
-                "route": route,
+                "route": effective_route,
                 "latency_ms": run_result.latency_ms,
                 "receipt": receipt,
                 "metrics": metrics,
@@ -316,9 +341,11 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
 #[cfg(test)]
 mod tests {
+    use super::{route_has_flag, with_governed_route_flags};
     use super::run;
     use std::fs;
     use std::path::PathBuf;
+    use crate::assimilate_kernel::support::{Options, Route};
 
     fn temp_root() -> PathBuf {
         let root = std::env::temp_dir().join(format!(
@@ -357,5 +384,40 @@ mod tests {
             ],
         );
         assert_eq!(code, 0);
+    }
+
+    #[test]
+    fn route_flag_detection_handles_bare_and_key_value_flags() {
+        let args = vec![
+            "--strict=1".to_string(),
+            "--hard-selector=runtime-systems".to_string(),
+        ];
+        assert!(route_has_flag(&args, "strict"));
+        assert!(route_has_flag(&args, "hard-selector"));
+        assert!(!route_has_flag(&args, "selector-bypass"));
+    }
+
+    #[test]
+    fn governed_route_flags_append_missing_controls() {
+        let route = Route {
+            domain: "runtime-systems".to_string(),
+            args: vec!["run".to_string()],
+        };
+        let options = Options {
+            strict: true,
+            hard_selector: "runtime-systems".to_string(),
+            selector_bypass: true,
+            ..Options::default()
+        };
+        let enriched = with_governed_route_flags(&route, &options);
+        assert!(enriched.args.iter().any(|row| row == "--strict=1"));
+        assert!(enriched
+            .args
+            .iter()
+            .any(|row| row == "--hard-selector=runtime-systems"));
+        assert!(enriched
+            .args
+            .iter()
+            .any(|row| row == "--selector-bypass=1"));
     }
 }
