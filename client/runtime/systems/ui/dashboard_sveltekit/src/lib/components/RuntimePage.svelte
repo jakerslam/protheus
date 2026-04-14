@@ -38,7 +38,7 @@
       <p class="eyebrow">Native runtime</p>
       <h2>Backend health, provider status, and recent web tooling receipts in the Svelte shell.</h2>
       <p class="hero-copy">
-        This native runtime slice covers the day-to-day operational view. Deeper legacy-only runtime tabs can still be reached through the classic escape hatch while we keep migrating.
+        This native runtime slice covers the day-to-day operational view. The remaining migration work is shrinking the top-level classic compatibility host, not routing everyday runtime work back through legacy tabs.
       </p>
     </div>
     <div class="hero-actions">
