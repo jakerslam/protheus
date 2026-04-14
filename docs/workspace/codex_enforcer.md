@@ -20,6 +20,25 @@ For every incoming user prompt:
 2. Emit marker: `[codex_enforcer] reviewed`
 3. Then continue with preflight + execution.
 
+## Execution Efficiency Guardrail (Mandatory)
+Purpose: prevent long proof churn on tiny deltas.
+
+Before implementation, explicitly classify the task and expected delta:
+- `docs_only`
+- `small_runtime_patch` (roughly <= 20 LOC and narrow scope)
+- `broad_runtime_change`
+
+Required execution behavior:
+1. Declare expected impact before deep validation (for example: "expected delta is docs-only" or "small runtime patch").
+2. Enforce a 10-minute stop-loss: if no meaningful runtime/product delta is produced within 10 minutes, pause and report status + blocker before continuing.
+3. Right-size validation to the task class:
+   - `docs_only`: run only formatting/lint/doc/srs/dod gates needed for integrity; skip heavyweight runtime/benchmark loops.
+   - `small_runtime_patch`: run targeted tests touching changed modules and one relevant safety/regression check.
+   - `broad_runtime_change`: run full gates.
+4. Do not run benchmark refresh loops by default unless the change is explicitly performance/benchmark/report focused.
+5. Keep behavior changes and artifact/report churn in separate commits whenever possible.
+6. Escalate immediately if work drifts from expected class (for example docs-only work turning into benchmark/runtime churn).
+
 ## Standard Implementation Rules (Mandatory)
 - Implement all requested items as production code, not receipt scaffolds.
 - Authorized modification scope includes `core/`, `surface/`, `client/`, `apps/`, `adapters/`, `tests/`, and `docs/`.
