@@ -39,36 +39,15 @@ fn bridge_path(
 }
 
 fn state_path(root: &Path, argv: &[String], payload: &Map<String, Value>) -> PathBuf {
-    bridge_path(
-        root,
-        argv,
-        payload,
-        "state-path",
-        "state_path",
-        DEFAULT_STATE_REL,
-    )
+    bridge_path(root, argv, payload, "state-path", "state_path", DEFAULT_STATE_REL)
 }
 
 fn history_path(root: &Path, argv: &[String], payload: &Map<String, Value>) -> PathBuf {
-    bridge_path(
-        root,
-        argv,
-        payload,
-        "history-path",
-        "history_path",
-        DEFAULT_HISTORY_REL,
-    )
+    bridge_path(root, argv, payload, "history-path", "history_path", DEFAULT_HISTORY_REL)
 }
 
 fn lineage_path(root: &Path, argv: &[String], payload: &Map<String, Value>) -> PathBuf {
-    bridge_path(
-        root,
-        argv,
-        payload,
-        "lineage-path",
-        "lineage_path",
-        DEFAULT_LINEAGE_REL,
-    )
+    bridge_path(root, argv, payload, "lineage-path", "lineage_path", DEFAULT_LINEAGE_REL)
 }
 
 fn default_state() -> Value {
@@ -99,11 +78,7 @@ fn ensure_state_shape(value: &mut Value) {
     {
         value["self_model"] = json!({});
     }
-    if value
-        .get("schema_version")
-        .and_then(Value::as_str)
-        .is_none()
-    {
+    if value.get("schema_version").and_then(Value::as_str).is_none() {
         value["schema_version"] = json!("instinct_bridge_state_v1");
     }
 }
@@ -197,14 +172,7 @@ fn cold_start_model(state: &mut Value, payload: &Map<String, Value>) -> Result<V
     let memory_mb = parse_u64(payload.get("memory_mb"), 8192, 128, 262_144);
     let cpu_cores = parse_u64(payload.get("cpu_cores"), 4, 1, 128);
     let battery_pct = parse_u64(payload.get("battery_pct"), 100, 0, 100);
-    let supported_profiles = {
-        let explicit = string_set(payload.get("supported_profiles"));
-        if explicit.is_empty() {
-            preferred_profiles(memory_mb, cpu_cores, battery_pct, &platform)
-        } else {
-            explicit
-        }
-    };
+    let supported_profiles = { let explicit = string_set(payload.get("supported_profiles")); if explicit.is_empty() { preferred_profiles(memory_mb, cpu_cores, battery_pct, &platform) } else { explicit } };
     let dominant_profile = strongest_profile(memory_mb, cpu_cores, battery_pct, &platform);
     let model = json!({
         "model_id": stable_id("instinctmodel", &json!({
@@ -244,10 +212,7 @@ fn cold_start_model(state: &mut Value, payload: &Map<String, Value>) -> Result<V
     Ok(json!({
         "ok": true,
         "self_model": model,
-        "claim_evidence": [{
-            "id": "V10-ULTIMATE-002.1",
-            "claim": "ultra_instinct_capability_self_model_is_authoritative_and_receipted"
-        }]
+        "claim_evidence": [{"id": "V10-ULTIMATE-002.1", "claim": "ultra_instinct_capability_self_model_is_authoritative_and_receipted"}]
     }))
 }
 
@@ -272,8 +237,7 @@ fn activate(state: &mut Value, payload: &Map<String, Value>) -> Result<Value, St
     let battery_pct = parse_u64(payload.get("battery_pct"), fallback_battery_pct, 0, 100);
     let low_power = parse_bool(payload.get("low_power"), battery_pct <= 25);
     let network_available = parse_bool(payload.get("network_available"), true);
-    let want_swarm =
-        requested.iter().any(|row| row == "swarm") || parse_bool(payload.get("want_swarm"), true);
+    let want_swarm = requested.iter().any(|row| row == "swarm") || parse_bool(payload.get("want_swarm"), true);
     let want_provenance = requested.iter().any(|row| row == "provenance")
         || parse_bool(payload.get("want_provenance"), true);
     let want_memory =
@@ -308,9 +272,7 @@ fn activate(state: &mut Value, payload: &Map<String, Value>) -> Result<Value, St
         {
             activated.push("provenance".to_string());
         } else {
-            rejected.push(
-                json!({"capability": "provenance", "reason_code": "provenance_adapter_missing"}),
-            );
+            rejected.push(json!({"capability": "provenance", "reason_code": "provenance_adapter_missing"}));
         }
     }
     if want_swarm {
@@ -341,10 +303,7 @@ fn activate(state: &mut Value, payload: &Map<String, Value>) -> Result<Value, St
     Ok(json!({
         "ok": true,
         "activation": activation,
-        "claim_evidence": [{
-            "id": "V10-ULTIMATE-002.2",
-            "claim": "ultra_instinct_activates_best_valid_profile_with_fail_closed_rejections"
-        }]
+        "claim_evidence": [{"id": "V10-ULTIMATE-002.2", "claim": "ultra_instinct_activates_best_valid_profile_with_fail_closed_rejections"}]
     }))
 }
 
@@ -392,13 +351,7 @@ fn refine(
                 blob_refs.insert(clean);
             }
         }
-        let key = clean_token(
-            row.get("dimension")
-                .and_then(Value::as_str)
-                .or_else(|| row.get("profile").and_then(Value::as_str))
-                .or_else(|| row.get("capability").and_then(Value::as_str)),
-            "general",
-        );
+        let key = clean_token(row.get("dimension").and_then(Value::as_str).or_else(|| row.get("profile").and_then(Value::as_str)).or_else(|| row.get("capability").and_then(Value::as_str)), "general");
         let success = parse_bool(row.get("success"), true);
         let latency_ms = parse_u64(row.get("latency_ms"), 0, 0, 60_000);
         let base = confidence_map.get(&key).copied().unwrap_or(0.5);
@@ -463,10 +416,7 @@ fn refine(
         "ok": true,
         "self_model": self_model,
         "refinement": refinement,
-        "claim_evidence": [{
-            "id": "V10-ULTIMATE-002.3",
-            "claim": "ultra_instinct_refines_capability_confidence_from_usage_and_blob_lineage"
-        }]
+        "claim_evidence": [{"id": "V10-ULTIMATE-002.3", "claim": "ultra_instinct_refines_capability_confidence_from_usage_and_blob_lineage"}]
     }))
 }
 

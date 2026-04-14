@@ -128,10 +128,7 @@ fn default_policy() -> ContinuityPolicy {
 }
 
 fn policy_path(root: &Path) -> PathBuf {
-    root.join("client")
-        .join("runtime")
-        .join("config")
-        .join("continuity_policy.json")
+    root.join("client").join("runtime").join("config").join("continuity_policy.json")
 }
 
 fn load_policy(root: &Path) -> ContinuityPolicy {
@@ -144,25 +141,10 @@ fn load_policy(root: &Path) -> ContinuityPolicy {
             .map(|n| n as usize)
             .filter(|n| *n >= 256)
             .unwrap_or(policy.max_state_bytes);
-        policy.allow_degraded_restore = v
-            .get("allow_degraded_restore")
-            .and_then(Value::as_bool)
-            .unwrap_or(policy.allow_degraded_restore);
-        policy.allow_sessionless_resurrection = v
-            .get("allow_sessionless_resurrection")
-            .and_then(Value::as_bool)
-            .unwrap_or(policy.allow_sessionless_resurrection);
-        policy.require_vault_encryption = v
-            .get("require_vault_encryption")
-            .and_then(Value::as_bool)
-            .unwrap_or(policy.require_vault_encryption);
-        policy.vault_key_env = v
-            .get("vault_key_env")
-            .and_then(Value::as_str)
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-            .unwrap_or(policy.vault_key_env.as_str())
-            .to_string();
+        policy.allow_degraded_restore = v.get("allow_degraded_restore").and_then(Value::as_bool).unwrap_or(policy.allow_degraded_restore);
+        policy.allow_sessionless_resurrection = v.get("allow_sessionless_resurrection").and_then(Value::as_bool).unwrap_or(policy.allow_sessionless_resurrection);
+        policy.require_vault_encryption = v.get("require_vault_encryption").and_then(Value::as_bool).unwrap_or(policy.require_vault_encryption);
+        policy.vault_key_env = v.get("vault_key_env").and_then(Value::as_str).map(str::trim).filter(|s| !s.is_empty()).unwrap_or(policy.vault_key_env.as_str()).to_string();
     }
     policy
 }
@@ -238,16 +220,7 @@ fn checkpoint_payload(
     argv: &[String],
 ) -> Result<Value, String> {
     let session_id = clean_id(parse_flag(argv, "session-id").as_deref(), "session-default");
-    let state_raw = parse_flag(argv, "state-json")
-        .map(|raw| parse_json(Some(raw.as_str())))
-        .transpose()?
-        .unwrap_or_else(|| {
-            json!({
-                "attention_queue": [],
-                "memory_graph": {},
-                "active_personas": []
-            })
-        });
+    let state_raw = parse_flag(argv, "state-json").map(|raw| parse_json(Some(raw.as_str()))).transpose()?.unwrap_or_else(|| json!({"attention_queue": [], "memory_graph": {}, "active_personas": []}));
     let state = normalized_state(state_raw);
     let state_encoded =
         serde_json::to_vec(&state).map_err(|err| format!("state_encode_failed:{err}"))?;
@@ -289,17 +262,7 @@ fn checkpoint_payload(
             rel_path(root, &checkpoint_path),
         );
         write_checkpoint_index(root, &index)?;
-        append_jsonl(
-            &continuity_history_path(root),
-            &json!({
-                "type": "continuity_checkpoint",
-                "session_id": session_id,
-                "path": rel_path(root, &checkpoint_path),
-                "ts": ts,
-                "state_sha256": state_sha,
-                "degraded": degraded
-            }),
-        )?;
+        append_jsonl(&continuity_history_path(root), &json!({"type": "continuity_checkpoint", "session_id": session_id, "path": rel_path(root, &checkpoint_path), "ts": ts, "state_sha256": state_sha, "degraded": degraded}))?;
     }
 
     let mut out = json!({
@@ -335,10 +298,7 @@ fn restore_payload(
     argv: &[String],
 ) -> Result<Value, String> {
     let session_id = clean_id(parse_flag(argv, "session-id").as_deref(), "session-default");
-    let allow_degraded = parse_bool(
-        parse_flag(argv, "allow-degraded").as_deref(),
-        policy.allow_degraded_restore,
-    );
+    let allow_degraded = parse_bool(parse_flag(argv, "allow-degraded").as_deref(), policy.allow_degraded_restore);
     let apply = parse_bool(parse_flag(argv, "apply").as_deref(), true);
 
     let checkpoint_path = if let Some(raw) = parse_flag(argv, "checkpoint-path") {
@@ -387,16 +347,7 @@ fn restore_payload(
     }
 
     if apply {
-        write_json(
-            &continuity_restore_path(root),
-            &json!({
-                "session_id": session_id,
-                "restored_at": now_iso(),
-                "checkpoint_path": rel_path(root, &checkpoint_path),
-                "degraded": degraded,
-                "state": state
-            }),
-        )?;
+        write_json(&continuity_restore_path(root), &json!({"session_id": session_id, "restored_at": now_iso(), "checkpoint_path": rel_path(root, &checkpoint_path), "degraded": degraded, "state": state}))?;
     }
 
     let mut out = json!({

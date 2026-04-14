@@ -327,34 +327,18 @@ fn evaluate_with_rules(
         let segment_normalized = clean_text(&normalize_segment_for_permission(&segment_raw), 600);
         for pattern in deny_rules {
             let direct_match = command_matches_pattern(segment_raw.as_str(), pattern.as_str());
-            let normalized_match = !segment_normalized.is_empty()
-                && segment_normalized != segment_raw
-                && command_matches_pattern(segment_normalized.as_str(), pattern.as_str());
+            let normalized_match = !segment_normalized.is_empty() && segment_normalized != segment_raw && command_matches_pattern(segment_normalized.as_str(), pattern.as_str());
             if direct_match || normalized_match {
-                matched.push(json!({
-                  "segment": segment_raw,
-                  "normalized_segment": segment_normalized,
-                  "pattern": pattern,
-                  "matched_via": if normalized_match { "normalized" } else { "direct" },
-                  "verdict": "deny"
-                }));
+                matched.push(json!({"segment": segment_raw, "normalized_segment": segment_normalized, "pattern": pattern, "matched_via": if normalized_match { "normalized" } else { "direct" }, "verdict": "deny"}));
                 return (PermissionVerdict::Deny, matched);
             }
         }
         for pattern in ask_rules {
             let direct_match = command_matches_pattern(segment_raw.as_str(), pattern.as_str());
-            let normalized_match = !segment_normalized.is_empty()
-                && segment_normalized != segment_raw
-                && command_matches_pattern(segment_normalized.as_str(), pattern.as_str());
+            let normalized_match = !segment_normalized.is_empty() && segment_normalized != segment_raw && command_matches_pattern(segment_normalized.as_str(), pattern.as_str());
             if direct_match || normalized_match {
                 saw_ask = true;
-                matched.push(json!({
-                  "segment": segment_raw,
-                  "normalized_segment": segment_normalized,
-                  "pattern": pattern,
-                  "matched_via": if normalized_match { "normalized" } else { "direct" },
-                  "verdict": "ask"
-                }));
+                matched.push(json!({"segment": segment_raw, "normalized_segment": segment_normalized, "pattern": pattern, "matched_via": if normalized_match { "normalized" } else { "direct" }, "verdict": "ask"}));
                 break;
             }
         }
@@ -404,41 +388,20 @@ pub fn run(_root: &Path, argv: &[String]) -> i32 {
             )
         }
         "match-pattern" => {
-            let cmd = clean_text(
-                input.get("command").and_then(Value::as_str).unwrap_or(""),
-                2000,
-            );
-            let pattern = clean_text(
-                input.get("pattern").and_then(Value::as_str).unwrap_or(""),
-                240,
-            );
+            let cmd = clean_text(input.get("command").and_then(Value::as_str).unwrap_or(""), 2000);
+            let pattern = clean_text(input.get("pattern").and_then(Value::as_str).unwrap_or(""), 240);
             lane_utils::cli_receipt(
                 "command_permission_kernel_match_pattern",
-                json!({
-                  "ok": true,
-                  "command": cmd,
-                  "pattern": pattern,
-                  "matched": command_matches_pattern(&cmd, &pattern)
-                }),
+                json!({"ok": true, "command": cmd, "pattern": pattern, "matched": command_matches_pattern(&cmd, &pattern)}),
             )
         }
         "evaluate" => {
-            let cmd = clean_text(
-                input.get("command").and_then(Value::as_str).unwrap_or(""),
-                4000,
-            );
+            let cmd = clean_text(input.get("command").and_then(Value::as_str).unwrap_or(""), 4000);
             let (deny_rules, ask_rules) = load_rules(input);
             let (verdict, matched) = evaluate_with_rules(cmd.as_str(), &deny_rules, &ask_rules);
             lane_utils::cli_receipt(
                 "command_permission_kernel_evaluate",
-                json!({
-                  "ok": true,
-                  "command": cmd,
-                  "deny_rules_count": deny_rules.len(),
-                  "ask_rules_count": ask_rules.len(),
-                  "verdict": verdict.as_str(),
-                  "matched": matched
-                }),
+                json!({"ok": true, "command": cmd, "deny_rules_count": deny_rules.len(), "ask_rules_count": ask_rules.len(), "verdict": verdict.as_str(), "matched": matched}),
             )
         }
         _ => lane_utils::cli_error(
