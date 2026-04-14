@@ -1832,6 +1832,7 @@ dependencies = [
  "napi",
  "napi-derive",
  "protheus-layer1-memory-runtime",
+ "protheus-memory-core-v1",
  "rand 0.8.5",
  "rusqlite",
  "serde",

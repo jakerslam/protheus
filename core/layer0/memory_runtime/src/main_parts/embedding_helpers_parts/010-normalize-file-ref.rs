@@ -325,28 +325,6 @@ fn vectorize_text(text: &str, dims: usize) -> Vec<f32> {
     normalize_vector(&vec)
 }
 
-fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
-    if a.is_empty() || b.is_empty() {
-        return 0.0;
-    }
-    let len = a.len().min(b.len());
-    if len == 0 {
-        return 0.0;
-    }
-    let mut dot = 0.0f32;
-    let mut norm_a = 0.0f32;
-    let mut norm_b = 0.0f32;
-    for i in 0..len {
-        dot += a[i] * b[i];
-        norm_a += a[i] * a[i];
-        norm_b += b[i] * b[i];
-    }
-    if norm_a <= 0.0 || norm_b <= 0.0 {
-        return 0.0;
-    }
-    dot / (norm_a.sqrt() * norm_b.sqrt())
-}
-
 fn embedding_text_for_entry(entry: &IndexEntry) -> String {
     format!(
         "{} {} {} {}",
@@ -451,37 +429,6 @@ struct RuntimeIndexBundle {
     sqlite_path: Option<String>,
     sqlite_sync_rows: usize,
     sqlite_sync_applied: bool,
-}
-
-fn dedupe_tags(tags: &[String]) -> Vec<String> {
-    let mut out = tags
-        .iter()
-        .map(|tag| normalize_tag(tag))
-        .filter(|tag| !tag.is_empty())
-        .collect::<Vec<String>>();
-    out.sort();
-    out.dedup();
-    out
-}
-
-fn to_db_index_entry(entry: &IndexEntry) -> DbIndexEntry {
-    DbIndexEntry {
-        node_id: entry.node_id.clone(),
-        uid: entry.uid.clone(),
-        file_rel: entry.file_rel.clone(),
-        summary: entry.summary.clone(),
-        tags: dedupe_tags(&entry.tags),
-    }
-}
-
-fn from_db_index_entry(entry: &DbIndexEntry) -> IndexEntry {
-    IndexEntry {
-        node_id: entry.node_id.clone(),
-        uid: entry.uid.clone(),
-        file_rel: entry.file_rel.clone(),
-        summary: entry.summary.clone(),
-        tags: dedupe_tags(&entry.tags),
-    }
 }
 
 fn build_tag_map_from_entries(entries: &[IndexEntry]) -> HashMap<String, HashSet<String>> {

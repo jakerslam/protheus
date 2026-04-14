@@ -4,7 +4,8 @@ use crate::policy::{
 };
 use crate::schemas::{
     CapabilityAction, CapabilityToken, Classification, MemoryObject, MemoryRetentionPolicy,
-    MemoryScope, OwnerExportRedactionPolicy, OwnerScopeSettings, PurgeRelationType, TrustState,
+    MemoryKind, MemoryScope, OwnerExportRedactionPolicy, OwnerScopeSettings, PurgeRelationType,
+    TrustState,
 };
 use serde_json::json;
 
@@ -56,6 +57,7 @@ fn object(object_id: &str, scope: MemoryScope, payload: serde_json::Value) -> Me
     MemoryObject {
         object_id: object_id.to_string(),
         scope,
+        kind: MemoryKind::Episodic,
         classification: Classification::Internal,
         namespace: "memory.tests".to_string(),
         key: "item".to_string(),

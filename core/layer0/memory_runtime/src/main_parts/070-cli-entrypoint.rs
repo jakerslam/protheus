@@ -204,11 +204,22 @@ fn main() {
 
 #[cfg(test)]
 mod memory_policy_tests {
+    // V6-MEMORY-042 runtime regression coverage for hybrid/session recall.
     use super::*;
     use std::thread;
     use std::time::Duration;
 
     fn write_daily_node(root: &Path, day: &str, node_id: &str, tags: &str) {
+        write_daily_node_with_summary(root, day, node_id, tags, &format!("{node_id} summary"));
+    }
+
+    fn write_daily_node_with_summary(
+        root: &Path,
+        day: &str,
+        node_id: &str,
+        tags: &str,
+        summary: &str,
+    ) {
         let memory_dir = root.join("memory");
         fs::create_dir_all(&memory_dir).expect("create memory dir");
         let body = format!(
@@ -216,7 +227,7 @@ mod memory_policy_tests {
 node_id: {node_id}
 uid: UID{node_id}
 tags: [{tags}]
-# {node_id} summary
+# {summary}
 body
 "#
         );
@@ -344,5 +355,112 @@ body
         assert_eq!(code, 2);
         assert_eq!(out["ok"], false);
         assert_eq!(out["error"], "missing_node_or_uid");
+    }
+
+    #[test]
+    fn hybrid_query_supports_multi_hop_graph_recall() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        write_daily_node_with_summary(
+            tmp.path(),
+            "2026-03-01",
+            "node.alice.atlas",
+            "person:alice,project:atlas",
+            "Alice is the tech lead on Project Atlas",
+        );
+        write_daily_node_with_summary(
+            tmp.path(),
+            "2026-03-02",
+            "node.atlas.postgres",
+            "project:atlas,system:postgresql",
+            "Project Atlas uses PostgreSQL as its primary datastore",
+        );
+        write_daily_node_with_summary(
+            tmp.path(),
+            "2026-03-03",
+            "node.postgres.outage",
+            "system:postgresql,incident:tuesday_outage",
+            "The PostgreSQL cluster experienced an outage on Tuesday",
+        );
+        let root = tmp.path().to_string_lossy().to_string();
+        let args = as_map(&[
+            ("root", root.as_str()),
+            ("q", "Was Alice's project affected by Tuesday's outage?"),
+            ("top", "5"),
+        ]);
+        let out = query_index_payload(&args);
+        assert!(out.ok, "hybrid recall should succeed");
+        assert_eq!(out.recall_mode, "heap_hybrid");
+        let bridge_hit = out
+            .hits
+            .iter()
+            .find(|hit| hit.node_id == "node.atlas.postgres")
+            .expect("bridge hit present");
+        let output_json = serde_json::to_string_pretty(&out).expect("serialize output");
+        let rationale = bridge_hit
+            .recall_explanation
+            .as_ref()
+            .and_then(|value| value.get("rationale"))
+            .and_then(serde_json::Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(
+            rationale
+                .iter()
+                .filter_map(serde_json::Value::as_str)
+                .any(|value| value == "graph_expansion"),
+            "bridge hit should be surfaced through graph expansion: {output_json}"
+        );
+    }
+
+    #[test]
+    fn hybrid_query_uses_session_anchor_for_coreference() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        write_daily_node_with_summary(
+            tmp.path(),
+            "2026-03-01",
+            "node.alice.home",
+            "person:alice,semantic",
+            "Alice lives in Denver",
+        );
+        write_daily_node_with_summary(
+            tmp.path(),
+            "2026-03-02",
+            "node.alice.role",
+            "person:alice,semantic",
+            "Alice works on platform engineering",
+        );
+        let root = tmp.path().to_string_lossy().to_string();
+        let first = query_index_payload(&as_map(&[
+            ("root", root.as_str()),
+            ("q", "Where does Alice live?"),
+            ("session-id", "conv-1"),
+            ("top", "4"),
+        ]));
+        assert!(first.ok, "seed recall should succeed");
+
+        let second = query_index_payload(&as_map(&[
+            ("root", root.as_str()),
+            ("q", "What does she work on?"),
+            ("session-id", "conv-1"),
+            ("top", "4"),
+        ]));
+        assert!(second.ok, "coreference recall should succeed");
+        assert_eq!(second.session_id.as_deref(), Some("conv-1"));
+        let output_json = serde_json::to_string_pretty(&second).expect("serialize output");
+        assert!(
+            second.hits.iter().any(|hit| {
+                hit.node_id == "node.alice.role"
+                    && hit
+                        .recall_explanation
+                        .as_ref()
+                        .and_then(|value| value.get("rationale"))
+                        .and_then(serde_json::Value::as_array)
+                        .into_iter()
+                        .flatten()
+                        .filter_map(serde_json::Value::as_str)
+                        .any(|value| value == "session_anchor")
+            }),
+            "session anchor should preserve Alice across the second turn: {output_json}"
+        );
     }
 }

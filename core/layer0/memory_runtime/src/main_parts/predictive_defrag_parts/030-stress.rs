@@ -7,6 +7,7 @@ fn build_stress_index_rows(op: usize) -> Vec<DbIndexEntry> {
             file_rel: format!("client/memory/2026-03-{:02}.md", (idx % 28) + 1),
             summary: format!("stress summary {op}-{idx}"),
             tags: vec!["stress".to_string(), "episodic".to_string()],
+            kind: "episodic".to_string(),
         })
         .collect::<Vec<DbIndexEntry>>()
 }

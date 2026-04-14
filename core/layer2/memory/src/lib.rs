@@ -1,36 +1,50 @@
 // SPDX-License-Identifier: Apache-2.0
 // Layer ownership: core/layer2/memory (authoritative unified memory heap substrate).
+// V6-MEMORY-042 authoritative memory core substrate.
 
 pub mod blob_store;
+pub mod consolidation;
 pub mod context_materializer;
 pub mod graph_subsystem;
 pub mod heap_interface;
 pub mod policy;
 pub mod promotion;
+pub mod recall;
 pub mod record_store;
 pub mod schemas;
 pub mod vector_index;
 pub mod version_ledger;
 
 pub use blob_store::BlobStore;
+pub use consolidation::{ConsolidationReport, ConsolidatedMemoryDraft};
 pub use context_materializer::{ContextMaterialization, MaterializedMemoryEntry};
-pub use graph_subsystem::{GraphEdge, GraphNode, GraphSubsystem, TaskFabricLease};
+pub use graph_subsystem::{
+    GraphEdge, GraphNode, GraphSubsystem, KnowledgeEntityKind, KnowledgeGraph,
+    KnowledgeGraphEdge, KnowledgeGraphNode, KnowledgeRelationKind, TaskFabricLease,
+};
 pub use heap_interface::{NexusRouteContext, UnifiedMemoryHeap, UnifiedMemoryHeapConfig};
 pub use policy::{
     CapabilityValidationResult, DefaultVerityMemoryPolicy, MemoryPolicyDecision, MemoryPolicyGate,
     MemoryPolicyRequest, PolicyAction,
 };
 pub use promotion::{is_valid_trust_transition, rollback_head_from_version};
+pub use recall::{
+    MemoryRecallExplanation, MemoryRecallFeedbackSignal, MemoryRecallHit, MemoryRecallQuery,
+};
 pub use record_store::RecordStore;
 pub use schemas::{
     memory_scope_authority_matrix, owner_export_redaction_matrix, task_fabric_lease_cas_rules,
     trust_state_transition_matrix, CanonicalMemoryRecord, CapabilityAction, CapabilityToken,
-    Classification, ContextManifest, ContextManifestEntryRef, MemoryMutationReplayRow,
-    MemoryObject, MemoryPurgeRecord, MemoryReceipt, MemoryRetentionPolicy, MemoryScope,
-    MemoryVersion, OwnerExportRedactionPolicy, OwnerScopeSettings, PurgeRelationType,
-    RetentionPurgeReport, TrustState,
+    Classification, ContextManifest, ContextManifestEntryRef, DerivationKind, MemoryDerivation,
+    MemoryInvalidationReason, MemoryInvalidationRecord, MemoryKind, MemoryMutationReplayRow,
+    MemoryObject, MemoryPurgeRecord, MemoryReceipt, MemoryRetentionPolicy, MemorySalience,
+    MemoryScope, MemoryVersion, OwnerExportRedactionPolicy, OwnerScopeSettings,
+    PurgeRelationType, RetentionPurgeReport, TrustState,
 };
-pub use vector_index::VectorIndex;
+pub use vector_index::{
+    embed_text, InMemoryVectorStore, VectorIndex, VectorMetadata, VectorQueryFilter,
+    VectorQueryRow, VectorStoreBackend,
+};
 pub use version_ledger::VersionLedger;
 
 use serde::Serialize;
