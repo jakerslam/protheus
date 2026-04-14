@@ -17,6 +17,7 @@ pub struct DbIndexEntry {
     pub file_rel: String,
     pub summary: String,
     pub tags: Vec<String>,
+    pub kind: String,
 }
 
 pub struct MemoryDb {
@@ -44,6 +45,7 @@ pub struct DbFragmentationStats {
     pub working_rows: u64,
     pub episodic_rows: u64,
     pub semantic_rows: u64,
+    pub procedural_rows: u64,
 }
 
 const HOT_STATE_ENVELOPE_SCHEMA_ID: &str = "organ_state_envelope";
@@ -354,6 +356,18 @@ impl MemoryDb {
         Ok(count.max(0) as u64)
     }
 
+    fn query_memory_index_kind_count(&self, kind: &str) -> Result<u64, String> {
+        let count = self
+            .conn
+            .query_row(
+                "SELECT COUNT(1) FROM memory_index WHERE kind = ?1",
+                params![kind],
+                |row| row.get::<_, i64>(0),
+            )
+            .map_err(|err| format!("db_kind_count_failed:{err}"))?;
+        Ok(count.max(0) as u64)
+    }
+
     pub fn fragmentation_stats(&self) -> Result<DbFragmentationStats, String> {
         let page_count = self.query_single_i64("PRAGMA page_count;")?.max(0) as u64;
         let free_pages = self.query_single_i64("PRAGMA freelist_count;")?.max(0) as u64;
@@ -364,13 +378,21 @@ impl MemoryDb {
         };
         let db_file_bytes = fs::metadata(&self.db_path).map(|meta| meta.len()).unwrap_or(0);
         let working_rows = self.query_table_count("hot_state")?;
-        let episodic_rows = self.query_table_count("memory_index")?;
-        let semantic_rows = self.query_table_count("embeddings")?;
+        let episodic_rows = self.query_memory_index_kind_count("episodic")?;
+        let semantic_rows = self.query_memory_index_kind_count("semantic")?;
+        let procedural_rows = self.query_memory_index_kind_count("procedural")?;
         let tier_total = working_rows
             .saturating_add(episodic_rows)
-            .saturating_add(semantic_rows);
-        let tier_max = working_rows.max(episodic_rows).max(semantic_rows);
-        let tier_min = working_rows.min(episodic_rows).min(semantic_rows);
+            .saturating_add(semantic_rows)
+            .saturating_add(procedural_rows);
+        let tier_max = [working_rows, episodic_rows, semantic_rows, procedural_rows]
+            .into_iter()
+            .max()
+            .unwrap_or(0);
+        let tier_min = [working_rows, episodic_rows, semantic_rows, procedural_rows]
+            .into_iter()
+            .min()
+            .unwrap_or(0);
         let tier_fragmentation_ratio = if tier_total == 0 {
             0.0
         } else {
@@ -387,6 +409,7 @@ impl MemoryDb {
             working_rows,
             episodic_rows,
             semantic_rows,
+            procedural_rows,
         })
     }
 
@@ -464,6 +487,7 @@ CREATE TABLE IF NOT EXISTS memory_index (
   file_rel TEXT NOT NULL,
   summary TEXT NOT NULL,
   tags_json TEXT NOT NULL,
+  kind TEXT NOT NULL DEFAULT 'episodic',
   source TEXT NOT NULL,
   updated_ts TEXT NOT NULL,
   PRIMARY KEY (node_id, file_rel)
@@ -473,11 +497,16 @@ CREATE INDEX IF NOT EXISTS idx_memory_index_file ON memory_index(file_rel);
 CREATE INDEX IF NOT EXISTS idx_memory_index_uid ON memory_index(uid);
 CREATE INDEX IF NOT EXISTS idx_memory_index_node ON memory_index(node_id);
 CREATE INDEX IF NOT EXISTS idx_memory_index_source ON memory_index(source);
+CREATE INDEX IF NOT EXISTS idx_memory_index_kind ON memory_index(kind);
 CREATE INDEX IF NOT EXISTS idx_graph_edges_src ON temporal_graph_edges(src_node_id);
 CREATE INDEX IF NOT EXISTS idx_graph_edges_dst ON temporal_graph_edges(dst_node_id);
 "#,
             )
             .map_err(|err| format!("db_schema_failed:{err}"))?;
+        let _ = self.conn.execute(
+            "ALTER TABLE memory_index ADD COLUMN kind TEXT NOT NULL DEFAULT 'episodic'",
+            [],
+        );
 
         // Optional sqlite-vec extension table; non-fatal when extension is unavailable.
         let _ = self.conn.execute(
@@ -539,7 +568,7 @@ CREATE INDEX IF NOT EXISTS idx_graph_edges_dst ON temporal_graph_edges(dst_node_
         let mut stmt = self
             .conn
             .prepare(
-                "SELECT node_id, uid, file_rel, summary, tags_json
+                "SELECT node_id, uid, file_rel, summary, tags_json, kind
                  FROM memory_index
                  ORDER BY file_rel ASC, node_id ASC",
             )
@@ -553,6 +582,7 @@ CREATE INDEX IF NOT EXISTS idx_graph_edges_dst ON temporal_graph_edges(dst_node_
                     file_rel: row.get::<_, String>(2)?,
                     summary: row.get::<_, String>(3)?,
                     tags: parse_tags_json(&tags_raw),
+                    kind: row.get::<_, String>(5)?,
                 })
             })
             .map_err(|err| format!("db_query_index_failed:{err}"))?;
@@ -582,14 +612,15 @@ CREATE INDEX IF NOT EXISTS idx_graph_edges_dst ON temporal_graph_edges(dst_node_
             let tags_json = serde_json::to_string(&entry.tags)
                 .map_err(|err| format!("db_tags_encode_failed:{err}"))?;
             tx.execute(
-                "INSERT INTO memory_index (node_id, uid, file_rel, summary, tags_json, source, updated_ts)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                "INSERT INTO memory_index (node_id, uid, file_rel, summary, tags_json, kind, source, updated_ts)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
                 params![
                     entry.node_id,
                     entry.uid,
                     entry.file_rel,
                     entry.summary,
                     tags_json,
+                    entry.kind,
                     source,
                     now
                 ],
@@ -736,7 +767,11 @@ CREATE INDEX IF NOT EXISTS idx_graph_edges_dst ON temporal_graph_edges(dst_node_
 
 #[cfg(test)]
 mod tests {
-    use super::{decrypt_hot_state_envelope, encrypt_value, wrap_hot_state_envelope};
+    use super::{
+        decrypt_hot_state_envelope, encrypt_value, wrap_hot_state_envelope, DbIndexEntry,
+        MemoryDb,
+    };
+    use tempfile::tempdir;
 
     fn test_key() -> [u8; 32] {
         [7u8; 32]
@@ -779,5 +814,52 @@ mod tests {
         let legacy = "enc-v1:0000000000000001:00";
         let decrypted = decrypt_hot_state_envelope(&key, legacy);
         assert!(decrypted.is_err(), "legacy payload should be rejected");
+    }
+
+    #[test]
+    fn fragmentation_stats_track_memory_kinds_explicitly() {
+        let tmp = tempdir().expect("tempdir");
+        let db = MemoryDb::open(tmp.path(), "").expect("open db");
+        let stats0 = db.fragmentation_stats().expect("baseline stats");
+        assert_eq!(stats0.episodic_rows, 0);
+        assert_eq!(stats0.semantic_rows, 0);
+        assert_eq!(stats0.procedural_rows, 0);
+        drop(db);
+
+        let mut db = MemoryDb::open(tmp.path(), "").expect("reopen db");
+        db.replace_index_entries(
+            &[
+                DbIndexEntry {
+                    node_id: "node.episode".to_string(),
+                    uid: "UIDEPISODE".to_string(),
+                    file_rel: "client/memory/2026-04-13.md".to_string(),
+                    summary: "episodic memory".to_string(),
+                    tags: vec!["memory".to_string()],
+                    kind: "episodic".to_string(),
+                },
+                DbIndexEntry {
+                    node_id: "node.semantic".to_string(),
+                    uid: "UIDSEMANTIC".to_string(),
+                    file_rel: "client/memory/2026-04-13.md".to_string(),
+                    summary: "semantic memory".to_string(),
+                    tags: vec!["fact".to_string()],
+                    kind: "semantic".to_string(),
+                },
+                DbIndexEntry {
+                    node_id: "node.procedural".to_string(),
+                    uid: "UIDPROCEDURAL".to_string(),
+                    file_rel: "client/memory/2026-04-13.md".to_string(),
+                    summary: "procedural memory".to_string(),
+                    tags: vec!["procedure".to_string()],
+                    kind: "procedural".to_string(),
+                },
+            ],
+            "test_kind_split",
+        )
+        .expect("write rows");
+        let stats = db.fragmentation_stats().expect("kind stats");
+        assert_eq!(stats.episodic_rows, 1);
+        assert_eq!(stats.semantic_rows, 1);
+        assert_eq!(stats.procedural_rows, 1);
     }
 }

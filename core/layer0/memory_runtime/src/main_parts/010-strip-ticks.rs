@@ -56,6 +56,14 @@ struct QueryHit {
     score: i64,
     reasons: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    memory_kind: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    trust_state: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    entity_refs: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    recall_explanation: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     section_excerpt: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     section_hash: Option<String>,
@@ -73,11 +81,14 @@ struct QueryResult {
     backend: String,
     score_mode: String,
     vector_enabled: bool,
+    recall_mode: String,
     entries_total: usize,
     candidates_total: usize,
     index_sources: Vec<String>,
     tag_sources: Vec<String>,
     hits: Vec<QueryHit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    session_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     error: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -193,7 +204,11 @@ fn normalize_tag(v: &str) -> String {
         raw = raw[1..].to_string();
     }
     raw.chars()
-        .filter(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || *c == '_' || *c == '-')
+        .filter(|c| {
+            c.is_ascii_lowercase()
+                || c.is_ascii_digit()
+                || matches!(c, '_' | '-' | ':' | '=')
+        })
         .collect::<String>()
 }
 

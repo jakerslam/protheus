@@ -1,7 +1,7 @@
 use crate::{deterministic_hash, now_ms};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 pub const TASK_FABRIC_NAMESPACE: &str = "task_fabric";
 
@@ -188,3 +188,268 @@ impl GraphSubsystem {
         Ok(())
     }
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum KnowledgeEntityKind {
+    Person,
+    Project,
+    System,
+    Incident,
+    Preference,
+    Concept,
+    Procedure,
+    Session,
+    Unknown,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum KnowledgeRelationKind {
+    MentionedWith,
+    DependsOn,
+    Owns,
+    Prefers,
+    AffectedBy,
+    StepOf,
+    RefersTo,
+    Supports,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct KnowledgeGraphNode {
+    pub entity_id: String,
+    pub kind: KnowledgeEntityKind,
+    pub label: String,
+    pub aliases: Vec<String>,
+    pub evidence_version_ids: Vec<String>,
+    pub salience_hint: u32,
+    pub metadata: Value,
+    pub updated_at_ms: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct KnowledgeGraphEdge {
+    pub edge_id: String,
+    pub source_entity_id: String,
+    pub target_entity_id: String,
+    pub relation: KnowledgeRelationKind,
+    pub weight_bps: u16,
+    pub evidence_version_ids: Vec<String>,
+    pub updated_at_ms: u64,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct KnowledgeGraph {
+    nodes: BTreeMap<String, KnowledgeGraphNode>,
+    edges: Vec<KnowledgeGraphEdge>,
+}
+
+fn knowledge_edge_id(source: &str, target: &str, relation: &KnowledgeRelationKind) -> String {
+    format!(
+        "kedge_{}",
+        &deterministic_hash(&(source.to_string(), target.to_string(), relation))[..24]
+    )
+}
+
+fn normalize_aliases(label: &str, aliases: &[String]) -> Vec<String> {
+    let mut out = BTreeSet::new();
+    out.insert(label.trim().to_ascii_lowercase());
+    for alias in aliases {
+        let cleaned = alias.trim().to_ascii_lowercase();
+        if !cleaned.is_empty() {
+            out.insert(cleaned);
+        }
+    }
+    out.into_iter().collect::<Vec<String>>()
+}
+
+fn tokenize_query(text: &str) -> Vec<String> {
+    text.to_ascii_lowercase()
+        .split(|ch: char| !ch.is_ascii_alphanumeric())
+        .filter(|row| !row.is_empty())
+        .map(str::to_string)
+        .collect::<Vec<String>>()
+}
+
+impl KnowledgeGraph {
+    pub fn upsert_entity(
+        &mut self,
+        entity_id: impl Into<String>,
+        kind: KnowledgeEntityKind,
+        label: impl Into<String>,
+        aliases: Vec<String>,
+        evidence_version_ids: Vec<String>,
+        salience_hint: u32,
+        metadata: Value,
+    ) -> KnowledgeGraphNode {
+        let entity_id = entity_id.into();
+        let label = label.into();
+        let now = now_ms();
+        let aliases = normalize_aliases(&label, aliases.as_slice());
+        let node = self
+            .nodes
+            .entry(entity_id.clone())
+            .or_insert_with(|| KnowledgeGraphNode {
+                entity_id: entity_id.clone(),
+                kind: kind.clone(),
+                label: label.clone(),
+                aliases: aliases.clone(),
+                evidence_version_ids: Vec::new(),
+                salience_hint,
+                metadata: metadata.clone(),
+                updated_at_ms: now,
+            });
+        node.kind = kind;
+        node.label = label;
+        node.aliases = aliases;
+        node.salience_hint = node.salience_hint.max(salience_hint);
+        node.metadata = metadata;
+        node.updated_at_ms = now;
+        for version_id in evidence_version_ids {
+            if !node.evidence_version_ids.iter().any(|row| row == &version_id) {
+                node.evidence_version_ids.push(version_id);
+            }
+        }
+        node.clone()
+    }
+
+    pub fn connect(
+        &mut self,
+        source_entity_id: &str,
+        target_entity_id: &str,
+        relation: KnowledgeRelationKind,
+        evidence_version_ids: Vec<String>,
+        weight_bps: u16,
+    ) -> Result<KnowledgeGraphEdge, String> {
+        if !self.nodes.contains_key(source_entity_id) {
+            return Err("knowledge_source_missing".to_string());
+        }
+        if !self.nodes.contains_key(target_entity_id) {
+            return Err("knowledge_target_missing".to_string());
+        }
+        let edge_id = knowledge_edge_id(source_entity_id, target_entity_id, &relation);
+        let now = now_ms();
+        if let Some(existing) = self.edges.iter_mut().find(|edge| edge.edge_id == edge_id) {
+            existing.weight_bps = existing.weight_bps.max(weight_bps);
+            existing.updated_at_ms = now;
+            for version_id in evidence_version_ids {
+                if !existing
+                    .evidence_version_ids
+                    .iter()
+                    .any(|row| row == &version_id)
+                {
+                    existing.evidence_version_ids.push(version_id);
+                }
+            }
+            return Ok(existing.clone());
+        }
+        let edge = KnowledgeGraphEdge {
+            edge_id,
+            source_entity_id: source_entity_id.to_string(),
+            target_entity_id: target_entity_id.to_string(),
+            relation,
+            weight_bps: weight_bps.max(1),
+            evidence_version_ids,
+            updated_at_ms: now,
+        };
+        self.edges.push(edge.clone());
+        Ok(edge)
+    }
+
+    pub fn get_entity(&self, entity_id: &str) -> Option<&KnowledgeGraphNode> {
+        self.nodes.get(entity_id)
+    }
+
+    pub fn nodes(&self) -> Vec<KnowledgeGraphNode> {
+        self.nodes.values().cloned().collect::<Vec<_>>()
+    }
+
+    pub fn edges(&self) -> &[KnowledgeGraphEdge] {
+        self.edges.as_slice()
+    }
+
+    pub fn resolve_entities(&self, query: &str) -> Vec<KnowledgeGraphNode> {
+        let query_tokens = tokenize_query(query);
+        let mut scored = self
+            .nodes
+            .values()
+            .filter_map(|node| {
+                let score = node
+                    .aliases
+                    .iter()
+                    .map(|alias| {
+                        query_tokens
+                            .iter()
+                            .filter(|token| alias.contains(token.as_str()))
+                            .count() as i64
+                    })
+                    .sum::<i64>();
+                if score <= 0 {
+                    return None;
+                }
+                Some((score, node.clone()))
+            })
+            .collect::<Vec<(i64, KnowledgeGraphNode)>>();
+        scored.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.entity_id.cmp(&b.1.entity_id)));
+        scored
+            .into_iter()
+            .take(8)
+            .map(|(_, node)| node)
+            .collect::<Vec<_>>()
+    }
+
+    pub fn expand_related_entity_ids(
+        &self,
+        seed_entity_ids: &[String],
+        max_depth: usize,
+        max_entities: usize,
+    ) -> Vec<String> {
+        let mut seen = BTreeSet::new();
+        let mut queue = VecDeque::new();
+        for entity_id in seed_entity_ids {
+            if seen.insert(entity_id.clone()) {
+                queue.push_back((entity_id.clone(), 0usize));
+            }
+        }
+        while let Some((entity_id, depth)) = queue.pop_front() {
+            if depth >= max_depth || seen.len() >= max_entities.max(1) {
+                continue;
+            }
+            for edge in self.edges.iter().filter(|edge| {
+                edge.source_entity_id == entity_id || edge.target_entity_id == entity_id
+            }) {
+                let next = if edge.source_entity_id == entity_id {
+                    edge.target_entity_id.clone()
+                } else {
+                    edge.source_entity_id.clone()
+                };
+                if seen.insert(next.clone()) {
+                    queue.push_back((next, depth + 1));
+                }
+            }
+        }
+        seen.into_iter().collect::<Vec<String>>()
+    }
+
+    pub fn evidence_path_for(&self, entity_id: &str) -> Vec<String> {
+        let mut out = Vec::new();
+        if let Some(node) = self.nodes.get(entity_id) {
+            out.extend(node.evidence_version_ids.clone());
+        }
+        for edge in self.edges.iter().filter(|edge| {
+            edge.source_entity_id == entity_id || edge.target_entity_id == entity_id
+        }) {
+            out.extend(edge.evidence_version_ids.clone());
+        }
+        let mut deduped = BTreeSet::new();
+        for row in out {
+            deduped.insert(row);
+        }
+        deduped.into_iter().collect::<Vec<String>>()
+    }
+}
+
+#[cfg(test)]
+#[path = "graph_subsystem_tests.rs"]
+mod knowledge_tests;

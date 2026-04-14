@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
 pub enum MemoryScope {
@@ -33,7 +32,6 @@ pub enum Classification {
     Sensitive,
     Restricted,
 }
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
 pub enum TrustState {
@@ -50,6 +48,70 @@ impl TrustState {
     pub fn is_poisoned(&self) -> bool {
         matches!(self, Self::Contested | Self::Quarantined | Self::Revoked)
     }
+}
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum MemoryKind {
+    Working,
+    #[default]
+    Episodic,
+    Semantic,
+    Procedural,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct MemorySalience {
+    pub score: u32,
+    pub retrieval_hits: u32,
+    pub reinforcement_count: u32,
+    pub correction_count: u32,
+    pub pinned: bool,
+    pub last_accessed_ms: Option<u64>,
+}
+
+impl MemorySalience {
+    pub fn for_kind(kind: &MemoryKind, trust_state: &TrustState) -> Self {
+        let kind_score = match kind {
+            MemoryKind::Working => 420,
+            MemoryKind::Episodic => 520,
+            MemoryKind::Semantic => 760,
+            MemoryKind::Procedural => 820,
+        };
+        let trust_score = match trust_state {
+            TrustState::Proposed => 80,
+            TrustState::Corroborated => 150,
+            TrustState::Validated => 260,
+            TrustState::Canonical => 320,
+            TrustState::Contested => 20,
+            TrustState::Quarantined => 10,
+            TrustState::Revoked => 0,
+        };
+        Self {
+            score: kind_score + trust_score,
+            retrieval_hits: 0,
+            reinforcement_count: 0,
+            correction_count: 0,
+            pinned: false,
+            last_accessed_ms: None,
+        }
+    }
+}
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum DerivationKind {
+    ConsolidatedSemantic,
+    ConsolidatedProcedural,
+    RetrievalExpansion,
+    SessionCoreference,
+    RetrievalFeedback,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct MemoryDerivation {
+    pub kind: DerivationKind,
+    pub source_version_ids: Vec<String>,
+    pub notes: String,
+    pub confidence_bps: u16,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -81,6 +143,7 @@ pub struct CanonicalMemoryRecord {
     pub object_id: String,
     pub version_id: String,
     pub scope: MemoryScope,
+    pub kind: MemoryKind,
     pub classification: Classification,
     pub trust_state: TrustState,
     pub capability_action: CapabilityAction,
@@ -94,6 +157,8 @@ pub struct CanonicalMemoryRecord {
 pub struct MemoryObject {
     pub object_id: String,
     pub scope: MemoryScope,
+    #[serde(default)]
+    pub kind: MemoryKind,
     pub classification: Classification,
     pub namespace: String,
     pub key: String,
@@ -108,10 +173,16 @@ pub struct MemoryVersion {
     pub version_id: String,
     pub object_id: String,
     pub scope: MemoryScope,
+    #[serde(default)]
+    pub kind: MemoryKind,
     pub parent_version_id: Option<String>,
     pub lineage_refs: Vec<String>,
     pub receipt_id: String,
     pub trust_state: TrustState,
+    #[serde(default)]
+    pub salience: MemorySalience,
+    #[serde(default)]
+    pub derivation: Option<MemoryDerivation>,
     pub payload: Value,
     pub payload_hash: String,
     pub timestamp_ms: u64,
@@ -187,6 +258,7 @@ pub struct MemoryMutationReplayRow {
     pub version_id: String,
     pub parent_version_id: Option<String>,
     pub scope: MemoryScope,
+    pub kind: MemoryKind,
     pub trust_state: TrustState,
     pub receipt_id: String,
     pub timestamp_ms: u64,
@@ -231,8 +303,30 @@ pub struct ContextManifestEntryRef {
     pub object_id: String,
     pub version_id: String,
     pub scope: MemoryScope,
+    pub kind: MemoryKind,
     pub trust_state: TrustState,
     pub redacted: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum MemoryInvalidationReason {
+    Corrected,
+    Superseded,
+    Revoked,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct MemoryInvalidationRecord {
+    pub invalidation_id: String,
+    pub target_version_id: String,
+    pub target_object_id: String,
+    pub replacement_version_id: Option<String>,
+    pub reason: MemoryInvalidationReason,
+    pub details: Value,
+    pub receipt_id: String,
+    pub timestamp_ms: u64,
+    pub lineage_refs: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

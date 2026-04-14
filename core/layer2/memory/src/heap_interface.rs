@@ -1,12 +1,14 @@
 use crate::context_materializer::{materialize_context, ContextMaterialization};
-use crate::graph_subsystem::{GraphEdge, GraphNode, GraphSubsystem, TaskFabricLease};
+use crate::graph_subsystem::{
+    GraphEdge, GraphNode, GraphSubsystem, KnowledgeGraph, TaskFabricLease,
+};
 use crate::policy::{MemoryPolicyDecision, MemoryPolicyGate, MemoryPolicyRequest, PolicyAction};
 use crate::promotion::{is_valid_trust_transition, rollback_head_from_version};
 use crate::record_store::RecordStore;
 use crate::schemas::{
-    CanonicalMemoryRecord, CapabilityAction, CapabilityToken, MemoryMutationReplayRow,
-    MemoryObject, MemoryPurgeRecord, MemoryReceipt, MemoryScope, MemoryVersion, OwnerScopeSettings,
-    TrustState,
+    CanonicalMemoryRecord, CapabilityAction, CapabilityToken, MemoryInvalidationRecord,
+    MemoryKind, MemoryMutationReplayRow, MemoryObject, MemoryPurgeRecord, MemoryReceipt,
+    MemorySalience, MemoryScope, MemoryVersion, OwnerScopeSettings, TrustState,
 };
 use crate::version_ledger::VersionLedger;
 use crate::{deterministic_hash, now_ms, BlobStore, VectorIndex};
@@ -42,14 +44,15 @@ impl Default for UnifiedMemoryHeapConfig {
 
 #[derive(Debug, Clone)]
 pub struct UnifiedMemoryHeap<P: MemoryPolicyGate + Clone> {
-    policy: P,
-    config: UnifiedMemoryHeapConfig,
-    record_store: RecordStore,
-    version_ledger: VersionLedger,
-    graph_subsystem: GraphSubsystem,
-    vector_index: VectorIndex,
-    blob_store: BlobStore,
-    receipts: Vec<MemoryReceipt>,
+    pub(crate) policy: P,
+    pub(crate) config: UnifiedMemoryHeapConfig,
+    pub(crate) record_store: RecordStore,
+    pub(crate) version_ledger: VersionLedger,
+    pub(crate) graph_subsystem: GraphSubsystem,
+    pub(crate) knowledge_graph: KnowledgeGraph,
+    pub(crate) vector_index: VectorIndex,
+    pub(crate) blob_store: BlobStore,
+    pub(crate) receipts: Vec<MemoryReceipt>,
 }
 
 impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
@@ -64,6 +67,7 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
             record_store: RecordStore::default(),
             version_ledger: VersionLedger::default(),
             graph_subsystem: GraphSubsystem::default(),
+            knowledge_graph: KnowledgeGraph::default(),
             vector_index: VectorIndex::default(),
             blob_store: BlobStore::default(),
             receipts: Vec::new(),
@@ -86,6 +90,10 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
         &self.graph_subsystem
     }
 
+    pub fn knowledge_graph(&self) -> &KnowledgeGraph {
+        &self.knowledge_graph
+    }
+
     pub fn vector_index(&self) -> &VectorIndex {
         &self.vector_index
     }
@@ -100,6 +108,10 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
 
     pub fn purge_records(&self) -> &[MemoryPurgeRecord] {
         self.version_ledger.purge_records()
+    }
+
+    pub fn invalidation_records(&self) -> &[MemoryInvalidationRecord] {
+        self.version_ledger.invalidation_records()
     }
 
     pub fn canonical_head_record(
@@ -126,7 +138,7 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
         let Some(head_version_id) = self.record_store.head_version_id(object_id) else {
             return Ok(None);
         };
-        if self.version_ledger.is_purged(head_version_id.as_str()) {
+        if self.version_ledger.is_inactive(head_version_id.as_str()) {
             return Ok(None);
         }
         let Some(head) = self.version_ledger.get(head_version_id.as_str()).cloned() else {
@@ -137,6 +149,7 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
             object_id: head.object_id,
             version_id: head.version_id,
             scope: head.scope,
+            kind: head.kind,
             classification: object.classification,
             trust_state: head.trust_state,
             capability_action: CapabilityAction::Read,
@@ -197,9 +210,16 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
         if object.created_at_ms == 0 {
             object.created_at_ms = ts;
         }
+        if matches!(object.kind, MemoryKind::Working)
+            && matches!(trust_state, TrustState::Validated | TrustState::Canonical)
+        {
+            object.kind = MemoryKind::Semantic;
+        }
         self.record_store.upsert_object(object.clone());
 
+        let object_for_index = object.clone();
         let payload_hash = deterministic_hash(&(object.payload.clone(), object.scope.label()));
+        let salience = MemorySalience::for_kind(&object.kind, &trust_state);
         let version = MemoryVersion {
             version_id: format!(
                 "version_{}",
@@ -212,10 +232,13 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
             ),
             object_id: object.object_id.clone(),
             scope: object.scope,
+            kind: object.kind.clone(),
             parent_version_id: existing_head,
             lineage_refs,
             receipt_id: receipt.receipt_id.clone(),
-            trust_state,
+            trust_state: trust_state.clone(),
+            salience,
+            derivation: None,
             payload: object.payload,
             payload_hash,
             timestamp_ms: ts,
@@ -226,6 +249,7 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
             .register_version(&version.object_id, &version.version_id);
         self.record_store
             .set_head_version(&version.object_id, &version.version_id);
+        self.refresh_memory_indexes(&object_for_index, &version);
         Ok(version)
     }
 
@@ -253,7 +277,7 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
         let Some(head_version_id) = self.record_store.head_version_id(object_id) else {
             return Ok(None);
         };
-        if !self.version_ledger.is_purged(head_version_id.as_str()) {
+        if !self.version_ledger.is_inactive(head_version_id.as_str()) {
             return Ok(self.version_ledger.get(head_version_id.as_str()).cloned());
         }
         let fallback = self
@@ -336,6 +360,7 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
             .ok_or_else(|| "source_object_not_found".to_string())?;
         let mut target_object = source_object.clone();
         target_object.scope = target_scope;
+        target_object.kind = source_version.kind.clone();
         target_object.payload = source_version.payload.clone();
         target_object.updated_at_ms = now_ms();
         if target_object.scope != source_object.scope {
@@ -368,6 +393,7 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
             deterministic_hash(&(target_object.payload.clone(), target_object.scope.label()));
         let mut lineage = lineage_refs;
         lineage.push(version_id.to_string());
+        let promoted_salience = MemorySalience::for_kind(&target_object.kind, &target_trust_state);
         let promoted = MemoryVersion {
             version_id: format!(
                 "version_{}",
@@ -381,10 +407,13 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
             ),
             object_id: target_object.object_id.clone(),
             scope: target_object.scope.clone(),
+            kind: target_object.kind.clone(),
             parent_version_id: target_head,
             lineage_refs: lineage,
             receipt_id: receipt.receipt_id,
-            trust_state: target_trust_state,
+            trust_state: target_trust_state.clone(),
+            salience: promoted_salience,
+            derivation: source_version.derivation.clone(),
             payload: target_object.payload.clone(),
             payload_hash,
             timestamp_ms: now_ms(),
@@ -395,6 +424,7 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
             .register_version(&promoted.object_id, &promoted.version_id);
         self.record_store
             .set_head_version(&promoted.object_id, &promoted.version_id);
+        self.refresh_memory_indexes(&target_object, &promoted);
         Ok(promoted)
     }
 
@@ -455,6 +485,9 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
             .register_version(&rollback.object_id, &rollback.version_id);
         self.record_store
             .set_head_version(&rollback.object_id, &rollback.version_id);
+        if let Some(object) = self.record_store.get_object(&rollback.object_id).cloned() {
+            self.refresh_memory_indexes(&object, &rollback);
+        }
         Ok(rollback)
     }
 
@@ -489,7 +522,7 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
             let Some(head_version_id) = self.record_store.head_version_id(&object.object_id) else {
                 continue;
             };
-            if self.version_ledger.is_purged(head_version_id.as_str()) {
+            if self.version_ledger.is_inactive(head_version_id.as_str()) {
                 continue;
             }
             let Some(version) = self.version_ledger.get(head_version_id.as_str()).cloned() else {
@@ -537,7 +570,7 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
                 let version_id = self
                     .record_store
                     .head_version_id(object.object_id.as_str())?;
-                if self.version_ledger.is_purged(version_id.as_str()) {
+                if self.version_ledger.is_inactive(version_id.as_str()) {
                     return None;
                 }
                 let version = self.version_ledger.get(version_id.as_str()).cloned()?;
@@ -715,11 +748,11 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
         }
     }
 
-    fn evaluate_policy(&self, request: MemoryPolicyRequest) -> MemoryPolicyDecision {
+    pub(crate) fn evaluate_policy(&self, request: MemoryPolicyRequest) -> MemoryPolicyDecision {
         self.policy.evaluate(&request)
     }
 
-    fn policy_allow_decision(&self, seed: Value) -> MemoryPolicyDecision {
+    pub(crate) fn policy_allow_decision(&self, seed: Value) -> MemoryPolicyDecision {
         MemoryPolicyDecision {
             allow: true,
             decision_id: format!("policy_{}", &deterministic_hash(&seed)[..24]),
@@ -727,7 +760,7 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
         }
     }
 
-    fn ensure_routed(&self, route: &NexusRouteContext) -> Result<(), String> {
+    pub(crate) fn ensure_routed(&self, route: &NexusRouteContext) -> Result<(), String> {
         if route.source.trim().is_empty() || route.target.trim().is_empty() {
             return Err("nexus_route_invalid_missing_source_target".to_string());
         }
@@ -740,7 +773,7 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
         Ok(())
     }
 
-    fn push_receipt(
+    pub(crate) fn push_receipt(
         &mut self,
         route: &NexusRouteContext,
         event_type: &str,

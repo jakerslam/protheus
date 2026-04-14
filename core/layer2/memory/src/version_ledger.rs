@@ -1,4 +1,6 @@
-use crate::schemas::{MemoryMutationReplayRow, MemoryPurgeRecord, MemoryVersion};
+use crate::schemas::{
+    MemoryInvalidationRecord, MemoryMutationReplayRow, MemoryPurgeRecord, MemoryVersion,
+};
 use std::collections::BTreeMap;
 
 #[derive(Debug, Default, Clone)]
@@ -7,6 +9,8 @@ pub struct VersionLedger {
     object_index: BTreeMap<String, Vec<String>>,
     purge_records: Vec<MemoryPurgeRecord>,
     purged_versions: BTreeMap<String, MemoryPurgeRecord>,
+    invalidation_records: Vec<MemoryInvalidationRecord>,
+    invalidated_versions: BTreeMap<String, MemoryInvalidationRecord>,
 }
 
 impl VersionLedger {
@@ -23,6 +27,7 @@ impl VersionLedger {
             version_id: version.version_id.clone(),
             parent_version_id: version.parent_version_id.clone(),
             scope: version.scope.clone(),
+            kind: version.kind.clone(),
             trust_state: version.trust_state.clone(),
             receipt_id: version.receipt_id.clone(),
             timestamp_ms: version.timestamp_ms,
@@ -46,6 +51,10 @@ impl VersionLedger {
 
     pub fn get(&self, version_id: &str) -> Option<&MemoryVersion> {
         self.versions.get(version_id)
+    }
+
+    pub fn get_mut(&mut self, version_id: &str) -> Option<&mut MemoryVersion> {
+        self.versions.get_mut(version_id)
     }
 
     pub fn versions_for_object(&self, object_id: &str) -> Vec<MemoryVersion> {
@@ -87,11 +96,52 @@ impl VersionLedger {
         self.purged_versions.contains_key(version_id)
     }
 
+    pub fn append_invalidation_record(
+        &mut self,
+        record: MemoryInvalidationRecord,
+    ) -> Result<(), String> {
+        if !self.versions.contains_key(record.target_version_id.as_str()) {
+            return Err("invalidation_target_version_not_found".to_string());
+        }
+        if self
+            .invalidated_versions
+            .contains_key(record.target_version_id.as_str())
+        {
+            return Err("version_already_invalidated".to_string());
+        }
+        self.invalidated_versions
+            .insert(record.target_version_id.clone(), record.clone());
+        self.invalidation_records.push(record);
+        Ok(())
+    }
+
+    pub fn invalidation_records(&self) -> &[MemoryInvalidationRecord] {
+        self.invalidation_records.as_slice()
+    }
+
+    pub fn is_invalidated(&self, version_id: &str) -> bool {
+        self.invalidated_versions.contains_key(version_id)
+    }
+
+    pub fn is_inactive(&self, version_id: &str) -> bool {
+        self.is_purged(version_id) || self.is_invalidated(version_id)
+    }
+
     pub fn active_versions_for_object(&self, object_id: &str) -> Vec<MemoryVersion> {
         self.versions_for_object(object_id)
             .into_iter()
-            .filter(|row| !self.is_purged(row.version_id.as_str()))
+            .filter(|row| !self.is_inactive(row.version_id.as_str()))
             .collect::<Vec<_>>()
+    }
+
+    pub fn latest_active_for_object(&self, object_id: &str) -> Option<MemoryVersion> {
+        self.active_versions_for_object(object_id)
+            .into_iter()
+            .max_by(|a, b| {
+                a.timestamp_ms
+                    .cmp(&b.timestamp_ms)
+                    .then_with(|| a.version_id.cmp(&b.version_id))
+            })
     }
 
     pub fn replay_rows(&self) -> Vec<MemoryMutationReplayRow> {

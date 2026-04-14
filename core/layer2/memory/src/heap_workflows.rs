@@ -92,7 +92,7 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
                 if keep.contains_key(row.version_id.as_str()) {
                     continue;
                 }
-                if self.version_ledger.is_purged(row.version_id.as_str()) {
+                if self.version_ledger.is_inactive(row.version_id.as_str()) {
                     continue;
                 }
                 let decision = self.evaluate_policy(self.scoped_policy_request(
@@ -142,7 +142,7 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
             }
 
             if let Some(head_id) = self.record_store.head_version_id(object.object_id.as_str()) {
-                if self.version_ledger.is_purged(head_id.as_str()) {
+                if self.version_ledger.is_inactive(head_id.as_str()) {
                     let fallback = self
                         .version_ledger
                         .active_versions_for_object(object.object_id.as_str())
@@ -183,7 +183,7 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
                     continue;
                 }
             }
-            if self.version_ledger.is_purged(row.version_id.as_str()) {
+            if self.version_ledger.is_inactive(row.version_id.as_str()) {
                 continue;
             }
             if row.trust_state.is_poisoned() {
