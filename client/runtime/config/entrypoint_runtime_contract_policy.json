@@ -3,10 +3,10 @@
   "enabled": true,
   "strict_default": true,
   "required_bins": {
-    "infring": "client/cli/bin/infring",
-    "infringctl": "client/cli/bin/infringctl",
-    "infringd": "client/cli/bin/infringd",
-    "infring-top": "client/cli/bin/infring-top"
+    "protheus": "client/runtime/systems/ops/protheusctl.ts",
+    "protheusctl": "client/runtime/systems/ops/protheusctl.ts",
+    "protheusd": "client/runtime/systems/ops/protheusd.ts",
+    "protheus-top": "client/runtime/systems/ops/protheus_top.ts"
   },
   "paths": {
     "package_json_path": "package.json",

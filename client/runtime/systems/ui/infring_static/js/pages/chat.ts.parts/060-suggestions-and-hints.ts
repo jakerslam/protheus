@@ -1,4 +1,3 @@
-// Layer ownership: client/runtime/systems/ui (dashboard static UX surface only; no runtime authority).
           var hasContextOverlap = contextKeywords.some(function(keyword) {
             return loweredRaw.indexOf(keyword) >= 0;
           });

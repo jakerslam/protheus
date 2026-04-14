@@ -63,28 +63,6 @@ async function run(): Promise<void> {
     'attached policy refs should persist on client'
   );
 
-  const synthetic = createInMemoryTransport({}, { unseeded_behavior: 'synthetic_success' });
-  const syntheticResult = await synthetic.invoke({
-    operation: 'submit_task',
-    payload: { prompt: 'synthetic fallback' },
-    policy_refs: ['policy.synthetic'],
-  });
-  assert.equal(
-    syntheticResult.ok,
-    true,
-    'synthetic unseeded behavior should return a successful envelope'
-  );
-  assert.equal(
-    (syntheticResult.data as Record<string, unknown>).synthetic_fallback,
-    true,
-    'synthetic unseeded behavior should mark the fallback envelope'
-  );
-  assert.deepEqual(
-    syntheticResult.receipts.map((row) => row.policy_ref),
-    ['policy.synthetic', 'sdk.in_memory.synthetic_fallback'],
-    'synthetic fallback should emit a synthetic receipt policy ref'
-  );
-
   let captured: InfringTransportRequest | null = null;
   const spyTransport: InfringTransport = {
     async invoke(request) {

@@ -30,28 +30,6 @@ function parseSrsRows(markdown) {
   const rows = [];
   const lines = markdown.split('\n');
   let section = 'Uncategorized';
-
-  function splitTableCells(line) {
-    const cells = [];
-    let current = '';
-    let inBackticks = false;
-    for (let i = 0; i < line.length; i += 1) {
-      const ch = line[i];
-      const escaped = i > 0 && line[i - 1] === '\\';
-      if (ch === '`' && !escaped) {
-        inBackticks = !inBackticks;
-      }
-      if (ch === '|' && !escaped && !inBackticks) {
-        cells.push(current.trim());
-        current = '';
-        continue;
-      }
-      current += ch;
-    }
-    cells.push(current.trim());
-    return cells;
-  }
-
   for (const line of lines) {
     const h = line.match(/^##\s+(.+)$/);
     if (h) {
@@ -59,30 +37,22 @@ function parseSrsRows(markdown) {
       continue;
     }
     if (!line.startsWith('|')) continue;
-    const rawCells = splitTableCells(line).slice(1, -1).map((c) => c.trim());
-    const cells = [...rawCells];
+    const cells = line
+      .split('|')
+      .slice(1, -1)
+      .map((c) => c.trim());
     if (cells.length < 5) continue;
     if (cells[0] === 'ID' || cells[0] === '---') continue;
     const id = cells[0];
     if (!/^V[0-9A-Z]+-/.test(id)) continue;
-    let impact = cells[5] ?? '';
-    let layerMap = cells[6] ?? '';
-    if ((!impact || !layerMap) && cells.length === 6) {
-      const compact = String(cells[5] ?? '').trim();
-      const compactMatch = compact.match(/^(\d+)\s*\/\s*(.+)$/);
-      if (compactMatch) {
-        impact = compactMatch[1];
-        layerMap = compactMatch[2];
-      }
-    }
     rows.push({
       id,
       status: (cells[1] ?? '').toLowerCase(),
       upgrade: cells[2] ?? '',
       why: cells[3] ?? '',
       exitCriteria: cells[4] ?? '',
-      impact,
-      layerMap,
+      impact: cells[5] ?? '',
+      layerMap: cells[6] ?? '',
       section,
     });
   }

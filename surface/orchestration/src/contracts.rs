@@ -1,4 +1,3 @@
-// Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 use protheus_tooling_core_v1::{ToolBackendClass, ToolReasonCode};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -182,8 +181,6 @@ pub struct ParseResult {
     pub confidence: f32,
     pub ambiguity: Vec<AmbiguityReason>,
     pub reasons: Vec<String>,
-    pub surface_adapter_used: bool,
-    pub surface_adapter_fallback: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -204,8 +201,6 @@ pub struct RequestClassification {
     pub required_capabilities: Vec<Capability>,
     pub clarification_reasons: Vec<ClarificationReason>,
     pub needs_clarification: bool,
-    pub surface_adapter_used: bool,
-    pub surface_adapter_fallback: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]

@@ -1,4 +1,3 @@
-// Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 use crate::contracts::{
     AmbiguityReason, Capability, ClarificationReason, Mutability, OperationKind, ParseResult,
     RequestClass, RequestClassification, RequestKind, RequestSurface, ResourceKind,
@@ -30,10 +29,7 @@ pub fn classify_request(parsed: &ParseResult) -> RequestClassification {
     if request.request_kind == RequestKind::Comparative
         || request.resource_kind == ResourceKind::Mixed
     {
-        if matches!(
-            request.resource_kind,
-            ResourceKind::Web | ResourceKind::Mixed
-        ) {
+        if matches!(request.resource_kind, ResourceKind::Web | ResourceKind::Mixed) {
             required_capabilities.push(Capability::ExecuteTool);
         }
         required_capabilities.push(Capability::VerifyClaim);
@@ -104,8 +100,6 @@ pub fn classify_request(parsed: &ParseResult) -> RequestClassification {
         required_capabilities,
         clarification_reasons: clarification_reasons.clone(),
         needs_clarification: !clarification_reasons.is_empty(),
-        surface_adapter_used: parsed.surface_adapter_used,
-        surface_adapter_fallback: parsed.surface_adapter_fallback,
     }
 }
 
@@ -136,8 +130,6 @@ mod tests {
             confidence: 0.90,
             ambiguity: Vec::new(),
             reasons: vec!["typed_override".to_string()],
-            surface_adapter_used: false,
-            surface_adapter_fallback: false,
         };
         let classification = classify_request(&request);
         assert_eq!(classification.request_class, RequestClass::ReadOnly);
@@ -164,13 +156,8 @@ mod tests {
                 user_constraints: Vec::new(),
             },
             confidence: 0.20,
-            ambiguity: vec![
-                AmbiguityReason::UnknownOperation,
-                AmbiguityReason::LowConfidence,
-            ],
+            ambiguity: vec![AmbiguityReason::UnknownOperation, AmbiguityReason::LowConfidence],
             reasons: vec!["request_kind:ambiguous".to_string()],
-            surface_adapter_used: false,
-            surface_adapter_fallback: false,
         };
         let classification = classify_request(&request);
         assert!(classification.needs_clarification);

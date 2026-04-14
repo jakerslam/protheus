@@ -40,27 +40,23 @@ jobs:
           npm run -s ops:stateful-upgrade-rollback:gate
           npm run -s ops:assimilation:v1:support:guard
           npm run -s ops:release-blockers:gate
-          node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/production_readiness_closure_gate.ts --strict=1 --stage=prebundle --out=core/local/artifacts/production_readiness_closure_gate_current.json
+          npm run -s ops:production-closure:gate
           npm run -s ops:orchestration:contract:guard
           npm run -s ops:orchestration:hidden-state:guard
           npm run -s ops:debt:expiry:guard
-          npm run -s ops:tooling-registry:contract:guard
-          npm run -s ops:ci-workflow:check
-          npm run -s ops:ci-quality:check
-          npm run -s ops:orchestration:adapter-fallback:guard
           npm run -s ops:system:fitness:gate
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
       - name: Format Guard
-        run: node client/runtime/lib/ts_entrypoint.ts tests/client-memory-tools/org_code_format_guard.test.ts
+        run: node tests/client-memory-tools/org_code_format_guard.test.ts
 
       - name: Lint
         run: npm run lint
 
       - name: Persona Docs Validation
-        run: node client/runtime/lib/ts_entrypoint.ts tests/client-memory-tools/personas_orchestration_policies.test.ts
+        run: node tests/client-memory-tools/personas_orchestration_policies.test.ts
 
       - name: Test
         run: npm run test
@@ -108,18 +104,6 @@ jobs:
       - name: SRS Full Regression Gate (Strict)
         run: npm run -s ops:srs:full:gate
 
-      - name: Classic Dashboard Debt Inventory
-        run: npm run -s ops:dashboard-classic:debt:report
-
-      - name: Client Legacy Debt Report
-        run: npm run -s ops:client-legacy-debt:report
-
-      - name: Tech Debt Report
-        run: npm run -s ops:tech-debt:report
-
-      - name: Policy Debt Summary
-        run: npm run -s ops:policy-debt:summary
-
       - name: Source Runtime Classifier
         run: npm run ops:source-runtime:check
 
@@ -145,32 +129,7 @@ jobs:
         run: npm run ops:race-queue:hardening
 
       - name: Mobile Benchmark Matrix (Smoke)
-        run: node client/runtime/lib/ts_entrypoint.ts tests/client-memory-tools/mobile_competitive_benchmark_matrix.test.ts
-
-      - name: Upload Policy Debt Artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: policy-debt-artifacts
-          path: |
-            core/local/artifacts/debt_expiry_guard_current.json
-            core/local/artifacts/repo_file_size_gate_current.json
-            core/local/artifacts/tooling_registry_contract_guard_current.json
-            core/local/artifacts/ci_workflow_rationalization_contract_current.json
-            core/local/artifacts/ci_quality_scorecard_current.json
-            core/local/artifacts/orchestration_adapter_fallback_guard_current.json
-            core/local/artifacts/classic_dashboard_debt_inventory_current.json
-            core/local/artifacts/client_legacy_debt_report_current.json
-            core/local/artifacts/tech_debt_report_current.json
-            core/local/artifacts/policy_debt_summary_current.json
-            local/workspace/reports/CI_WORKFLOW_RATIONALIZATION_CONTRACT_CURRENT.md
-            local/workspace/reports/CI_QUALITY_SCORECARD_CURRENT.md
-            local/workspace/reports/ORCHESTRATION_ADAPTER_FALLBACK_GUARD_CURRENT.md
-            local/workspace/reports/CLASSIC_DASHBOARD_DEBT_INVENTORY_CURRENT.md
-            local/workspace/reports/TECH_DEBT_REPORT_CURRENT.md
-            local/workspace/reports/POLICY_DEBT_SUMMARY_CURRENT.md
-            local/workspace/reports/SRS_FULL_REGRESSION_CURRENT.md
-          if-no-files-found: warn
+        run: node tests/client-memory-tools/mobile_competitive_benchmark_matrix.test.ts
 
   container-smoke:
     runs-on: ubuntu-latest

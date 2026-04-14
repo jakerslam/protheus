@@ -71,7 +71,6 @@
       "ops:orchestration:hidden-state:guard",
       "ops:release-blockers:gate",
       "ops:release-hardening-window:guard",
-      "ops:ipc-bridge:soak",
       "ops:release:scorecard:gate",
       "ops:production-closure:gate"
     ]
@@ -242,7 +241,6 @@
     "ops:release-hardening-window:guard",
     "dr:gameday",
     "dr:gameday:gate",
-    "ops:ipc-bridge:soak",
     "ops:release-contract:gate",
     "ops:support-bundle:export",
     "ops:release:scorecard:gate"

@@ -1,4 +1,3 @@
-// Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 use crate::contracts::{
     DegradationState, ExecutionCorrelation, ExecutionState, OrchestrationPlan, PlanCandidate,
     PlanStatus, StepState, StepStatus, TypedOrchestrationRequest,
@@ -28,7 +27,9 @@ pub fn execution_state_for(
                 .iter()
                 .map(|row| StepState {
                     step_id: row.step_id.clone(),
-                    status: observed_step_status_for(&step_statuses, &row.step_id)
+                    status: step_statuses
+                        .get(&row.step_id)
+                        .cloned()
                         .or_else(|| observed_step_status(request))
                         .unwrap_or(StepStatus::Degraded),
                     blocked_on: row.blocked_on.clone(),
@@ -61,9 +62,7 @@ pub fn execution_state_for(
             .iter()
             .map(|row| StepState {
                 step_id: row.step_id.clone(),
-                status: if let Some(observed) =
-                    observed_step_status_for(&step_statuses, &row.step_id)
-                {
+                status: if let Some(observed) = step_statuses.get(&row.step_id).cloned() {
                     observed
                 } else if let Some(observed) = observed_step_status(request) {
                     observed
@@ -97,13 +96,16 @@ pub fn progress_message(plan: &OrchestrationPlan) -> String {
 fn observed_plan_status(request: &TypedOrchestrationRequest) -> Option<PlanStatus> {
     match read_string_value(
         &request.payload,
-        &[&["core_execution_status"], &["core_execution", "status"]],
+        &[
+            &["core_execution_status"],
+            &["core_execution", "status"],
+        ],
     )
-    .and_then(|row| row.as_str())
-    .unwrap_or("")
-    .trim()
-    .to_ascii_lowercase()
-    .as_str()
+        .and_then(|row| row.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase()
+        .as_str()
     {
         "running" => Some(PlanStatus::Running),
         "completed" | "succeeded" => Some(PlanStatus::Completed),
@@ -115,13 +117,16 @@ fn observed_plan_status(request: &TypedOrchestrationRequest) -> Option<PlanStatu
 fn observed_step_status(request: &TypedOrchestrationRequest) -> Option<StepStatus> {
     match read_string_value(
         &request.payload,
-        &[&["core_execution_status"], &["core_execution", "status"]],
+        &[
+            &["core_execution_status"],
+            &["core_execution", "status"],
+        ],
     )
-    .and_then(|row| row.as_str())
-    .unwrap_or("")
-    .trim()
-    .to_ascii_lowercase()
-    .as_str()
+        .and_then(|row| row.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase()
+        .as_str()
     {
         "running" => Some(StepStatus::Running),
         "completed" | "succeeded" => Some(StepStatus::Succeeded),
@@ -130,8 +135,10 @@ fn observed_step_status(request: &TypedOrchestrationRequest) -> Option<StepStatu
     }
 }
 
-fn observed_step_statuses(request: &TypedOrchestrationRequest) -> Vec<(String, StepStatus)> {
-    let mut out = Vec::<(String, StepStatus)>::new();
+fn observed_step_statuses(
+    request: &TypedOrchestrationRequest,
+) -> std::collections::BTreeMap<String, StepStatus> {
+    let mut out = std::collections::BTreeMap::new();
     for path in [
         &["core_step_statuses"][..],
         &["core_execution", "step_statuses"][..],
@@ -140,33 +147,13 @@ fn observed_step_statuses(request: &TypedOrchestrationRequest) -> Vec<(String, S
             if let Some(map) = value.as_object() {
                 for (key, raw_status) in map {
                     if let Some(status) = parse_step_status(raw_status.as_str().unwrap_or("")) {
-                        let normalized = key.trim();
-                        if normalized.is_empty() {
-                            continue;
-                        }
-                        if let Some(existing) =
-                            out.iter_mut().find(|(step_id, _)| step_id == normalized)
-                        {
-                            existing.1 = status;
-                        } else {
-                            out.push((normalized.to_string(), status));
-                        }
+                        out.insert(key.trim().to_string(), status);
                     }
                 }
             }
         }
     }
     out
-}
-
-fn observed_step_status_for(
-    step_statuses: &[(String, StepStatus)],
-    step_id: &str,
-) -> Option<StepStatus> {
-    step_statuses
-        .iter()
-        .find(|(candidate, _)| candidate == step_id)
-        .map(|(_, status)| status.clone())
 }
 
 fn parse_step_status(raw: &str) -> Option<StepStatus> {
@@ -191,8 +178,7 @@ fn correlation_for(
         orchestration_trace_id: format!(
             "orch_{}_{}",
             request.session_id,
-            plan.plan_id
-                .replace(|ch: char| !ch.is_ascii_alphanumeric(), "")
+            plan.plan_id.replace(|ch: char| !ch.is_ascii_alphanumeric(), "")
         ),
         expected_core_contract_ids: plan
             .steps
@@ -242,7 +228,10 @@ fn read_string_value<'a>(
     paths.iter().find_map(|path| read_path(payload, path))
 }
 
-fn read_path<'a>(payload: &'a serde_json::Value, path: &[&str]) -> Option<&'a serde_json::Value> {
+fn read_path<'a>(
+    payload: &'a serde_json::Value,
+    path: &[&str],
+) -> Option<&'a serde_json::Value> {
     let mut cursor = payload;
     for segment in path {
         cursor = cursor.get(*segment)?;

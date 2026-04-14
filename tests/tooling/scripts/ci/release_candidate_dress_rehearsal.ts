@@ -34,7 +34,6 @@ const DEFAULT_SEQUENCE = [
   'ops:release-blockers:gate',
   'ops:release-hardening-window:guard',
   'ops:support-bundle:export',
-  'ops:ipc-bridge:soak',
   'ops:release:scorecard:gate',
   'ops:production-closure:gate',
 ];

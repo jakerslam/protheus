@@ -6,7 +6,6 @@ import path from 'node:path';
 type Args = {
   strict: boolean;
   out: string;
-  warnDays: number;
 };
 
 type PolicySpec = {
@@ -49,7 +48,6 @@ function parseArgs(argv: string[]): Args {
   const out: Args = {
     strict: false,
     out: 'core/local/artifacts/debt_expiry_guard_current.json',
-    warnDays: 7,
   };
   for (const arg of argv) {
     if (arg === '--strict' || arg === '--strict=1') out.strict = true;
@@ -58,9 +56,6 @@ function parseArgs(argv: string[]): Args {
       out.strict = value === '1' || value === 'true' || value === 'yes' || value === 'on';
     } else if (arg.startsWith('--out=')) {
       out.out = arg.slice('--out='.length).trim() || out.out;
-    } else if (arg.startsWith('--warn-days=')) {
-      const value = Number(arg.slice('--warn-days='.length).trim());
-      if (Number.isFinite(value) && value >= 0) out.warnDays = Math.floor(value);
     }
   }
   return out;
@@ -84,8 +79,6 @@ function run(args: Args): number {
   const violations: Violation[] = [];
   const perPolicy = [];
   const now = Date.now();
-  const warnThreshold = now + args.warnDays * 24 * 60 * 60 * 1000;
-  const expiringSoon: Array<{ file: string; detail: string; expires: string }> = [];
 
   for (const spec of POLICY_SPECS) {
     const abs = path.resolve(ROOT, spec.file);
@@ -160,12 +153,6 @@ function run(args: Args): number {
           reason: 'rule_expired',
           detail: `${spec.array_path}[${idx}] expired=${expiry}`,
         });
-      } else if (expiryTs <= warnThreshold) {
-        expiringSoon.push({
-          file: spec.file,
-          detail: `${spec.array_path}[${idx}]`,
-          expires: expiry,
-        });
       }
     }
     perPolicy.push({
@@ -183,14 +170,9 @@ function run(args: Args): number {
     summary: {
       policy_count: POLICY_SPECS.length,
       violation_count: violations.length,
-      expiring_soon_count: expiringSoon.length,
-      warn_days: args.warnDays,
       pass: violations.length === 0,
     },
     policies: perPolicy,
-    expiring_soon: expiringSoon.sort((left, right) =>
-      left.expires.localeCompare(right.expires) || left.file.localeCompare(right.file),
-    ),
     violations,
   };
 

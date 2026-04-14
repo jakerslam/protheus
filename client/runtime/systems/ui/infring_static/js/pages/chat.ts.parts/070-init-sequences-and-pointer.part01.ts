@@ -1,5 +1,4 @@
 // FILE_SIZE_EXCEPTION: reason=chat pointer fx split continuity owner=jay expires=2026-06-30
-// Layer ownership: client/runtime/systems/ui (dashboard static UX surface only; no runtime authority).
         try {
           chip.classList.remove('is-resizing');
           chip._resizeBlurTimer = 0;

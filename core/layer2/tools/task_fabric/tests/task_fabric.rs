@@ -1,4 +1,3 @@
-// Layer ownership: tests (regression proof for task_fabric authoritative contracts).
 use infring_task_fabric_core_v1::{
     now_ms, phase_task_id, root_task_id, AllowAllVerityGate, Blocker, BlockerKind, DependencyEdge,
     LifecycleStatus, MutationEnvelope, MutationKind, NexusConduitRequest, Task, TaskFabric,
