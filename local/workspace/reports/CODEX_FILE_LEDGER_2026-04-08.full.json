@@ -13257,7 +13257,7 @@
       "order": 1204
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/lib/egress_gateway.ts",
       "language": "ts",
       "loc": 171,
@@ -16106,7 +16106,7 @@
       "order": 1463
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/routing/llm_gateway_failure_classifier.ts",
       "language": "ts",
       "loc": 29,
@@ -16117,7 +16117,7 @@
       "order": 1464
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/routing/provider_onboarding_manifest.ts",
       "language": "ts",
       "loc": 29,
@@ -16469,7 +16469,7 @@
       "order": 1496
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "adapters/protocol/langgraph_frontend_bridge.ts",
       "language": "ts",
       "loc": 18,
@@ -16480,7 +16480,7 @@
       "order": 1497
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "adapters/protocol/openai_agents_frontend_bridge.ts",
       "language": "ts",
       "loc": 18,
