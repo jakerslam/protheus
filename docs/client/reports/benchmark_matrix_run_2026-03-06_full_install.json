@@ -3,8 +3,8 @@
     "Benchmarks: Measured, Not Marketed",
     "Cold Start Time (lower is better)",
     "Infring    ############################################  0 ms",
-    "InfRing (tiny-max) ############################################  1 ms",
     "InfRing (pure) ############################################  1 ms",
+    "InfRing (tiny-max) ############################################  1 ms",
     "OpenHands  ##############################--------------  1.30 sec",
     "Workflow Graph #################---------------------------  2.50 sec",
     "CrewAI     ###########---------------------------------  3.00 sec",
@@ -13,7 +13,7 @@
     "Idle Memory Usage (lower is better)",
     "InfRing (pure) ############################################  1.5 MB",
     "InfRing (tiny-max) ############################################  1.5 MB",
-    "Infring    ###########################################-  8.3 MB",
+    "Infring    ###########################################-  8.4 MB",
     "OpenHands  ##################--------------------------  150.0 MB",
     "Workflow Graph ############--------------------------------  180.0 MB",
     "CrewAI     #########-----------------------------------  200.0 MB",
@@ -21,7 +21,7 @@
     "",
     "Install Size (lower is better)",
     "InfRing (tiny-max) ############################################  0.6 MB",
-    "InfRing (pure) ###########################################-  3.9 MB",
+    "InfRing (pure) ###########################################-  3.8 MB",
     "Infring    ######################################------  28.1 MB",
     "OpenHands  #######################---------------------  95.5 MB",
     "CrewAI     ######################----------------------  100.0 MB",
@@ -29,9 +29,9 @@
     "AutoGen    #-------------------------------------------  200.0 MB",
     "",
     "Throughput (ops/sec, higher is better)",
-    "InfRing (pure) ############################################  360584.5 ops/sec",
-    "InfRing (tiny-max) ############################################  360584.5 ops/sec",
-    "Infring    ############################################  360584.5 ops/sec",
+    "InfRing (pure) ############################################  16502.7 ops/sec",
+    "InfRing (tiny-max) ############################################  16502.7 ops/sec",
+    "Infring    ############################################  16502.7 ops/sec",
     "",
     "Security Checks (merge guard, higher is better)",
     "InfRing (pure) ############################################  83",
@@ -66,20 +66,20 @@
     "blockers": [],
     "cpu_parallelism": 11,
     "enabled": true,
-    "load_average_fifteen": 3.352,
-    "load_average_five": 3.342,
-    "load_average_one": 2.92,
-    "load_per_core_five": 0.304,
-    "load_per_core_one": 0.265,
-    "load_per_core_peak": 0.304,
+    "load_average_fifteen": 5.457,
+    "load_average_five": 4.85,
+    "load_average_one": 3.592,
+    "load_per_core_five": 0.441,
+    "load_per_core_one": 0.327,
+    "load_per_core_peak": 0.441,
     "max_load_per_core": 8,
     "max_noise_cv_pct": 100,
     "noise_cv_pct": 0,
-    "noise_mean_ops_per_sec": 357303.02,
+    "noise_mean_ops_per_sec": 16948.11,
     "noise_rounds": 1,
-    "noise_sample_ms": 1000,
+    "noise_sample_ms": 200,
     "noise_samples_ops_per_sec": [
-      357303.02
+      16948.11
     ],
     "noise_stddev_ops_per_sec": 0,
     "ok": true,
@@ -89,7 +89,7 @@
     "checks": [
       {
         "detail": {
-          "tasks_per_sec": 360584.55
+          "tasks_per_sec": 16502.74
         },
         "id": "shared_throughput_positive",
         "ok": true
@@ -104,7 +104,7 @@
       },
       {
         "detail": {
-          "sample_cv_pct": 0.34,
+          "sample_cv_pct": 1.66,
           "tolerance_pct": 150
         },
         "id": "shared_cv_within_tolerance",
@@ -113,8 +113,8 @@
       {
         "detail": {
           "delta_pct": 0,
-          "shared_tasks_per_sec": 360584.55,
-          "tasks_per_sec": 360584.55
+          "shared_tasks_per_sec": 16502.74,
+          "tasks_per_sec": 16502.74
         },
         "id": "infring_throughput_near_shared_baseline",
         "ok": true
@@ -122,7 +122,7 @@
       {
         "detail": {
           "cold_start_ms": 0.004,
-          "idle_memory_mb": 8.344,
+          "idle_memory_mb": 8.359,
           "install_size_mb": 28.116
         },
         "id": "infring_core_metrics_present",
@@ -131,17 +131,17 @@
       {
         "detail": {
           "delta_pct": 0,
-          "shared_tasks_per_sec": 360584.55,
-          "tasks_per_sec": 360584.55
+          "shared_tasks_per_sec": 16502.74,
+          "tasks_per_sec": 16502.74
         },
         "id": "pure_throughput_near_shared_baseline",
         "ok": true
       },
       {
         "detail": {
-          "cold_start_ms": 1.42175,
+          "cold_start_ms": 1.4706249999999998,
           "idle_memory_mb": 1.515625,
-          "install_size_mb": 3.853
+          "install_size_mb": 3.837
         },
         "id": "pure_core_metrics_present",
         "ok": true
@@ -149,15 +149,15 @@
       {
         "detail": {
           "delta_pct": 0,
-          "shared_tasks_per_sec": 360584.55,
-          "tasks_per_sec": 360584.55
+          "shared_tasks_per_sec": 16502.74,
+          "tasks_per_sec": 16502.74
         },
         "id": "tiny_max_throughput_near_shared_baseline",
         "ok": true
       },
       {
         "detail": {
-          "cold_start_ms": 1.412417,
+          "cold_start_ms": 1.474334,
           "idle_memory_mb": 1.515625,
           "install_size_mb": 0.631
         },
@@ -167,15 +167,15 @@
     ],
     "failed_checks": 0,
     "ok": true,
-    "sample_cv_pct": 0.34
+    "sample_cv_pct": 1.66
   },
   "categories": [
     {
       "ascii_lines": [
         "Cold Start Time (lower is better)",
         "Infring    ############################################  0 ms",
-        "InfRing (tiny-max) ############################################  1 ms",
         "InfRing (pure) ############################################  1 ms",
+        "InfRing (tiny-max) ############################################  1 ms",
         "OpenHands  ##############################--------------  1.30 sec",
         "Workflow Graph #################---------------------------  2.50 sec",
         "CrewAI     ###########---------------------------------  3.00 sec",
@@ -197,18 +197,18 @@
         {
           "bar": "############################################",
           "highlight": false,
-          "project": "InfRing (tiny-max)",
+          "project": "InfRing (pure)",
           "rank": 2,
           "score": "1 ms",
-          "value": 1.412417
+          "value": 1.4706249999999998
         },
         {
           "bar": "############################################",
           "highlight": false,
-          "project": "InfRing (pure)",
+          "project": "InfRing (tiny-max)",
           "rank": 3,
           "score": "1 ms",
-          "value": 1.42175
+          "value": 1.474334
         },
         {
           "bar": "##############################--------------",
@@ -250,7 +250,7 @@
         "Idle Memory Usage (lower is better)",
         "InfRing (pure) ############################################  1.5 MB",
         "InfRing (tiny-max) ############################################  1.5 MB",
-        "Infring    ###########################################-  8.3 MB",
+        "Infring    ###########################################-  8.4 MB",
         "OpenHands  ##################--------------------------  150.0 MB",
         "Workflow Graph ############--------------------------------  180.0 MB",
         "CrewAI     #########-----------------------------------  200.0 MB",
@@ -282,8 +282,8 @@
           "highlight": false,
           "project": "Infring",
           "rank": 3,
-          "score": "8.3 MB",
-          "value": 8.344
+          "score": "8.4 MB",
+          "value": 8.359
         },
         {
           "bar": "##################--------------------------",
@@ -324,7 +324,7 @@
       "ascii_lines": [
         "Install Size (lower is better)",
         "InfRing (tiny-max) ############################################  0.6 MB",
-        "InfRing (pure) ###########################################-  3.9 MB",
+        "InfRing (pure) ###########################################-  3.8 MB",
         "Infring    ######################################------  28.1 MB",
         "OpenHands  #######################---------------------  95.5 MB",
         "CrewAI     ######################----------------------  100.0 MB",
@@ -349,8 +349,8 @@
           "highlight": false,
           "project": "InfRing (pure)",
           "rank": 2,
-          "score": "3.9 MB",
-          "value": 3.853
+          "score": "3.8 MB",
+          "value": 3.837
         },
         {
           "bar": "######################################------",
@@ -398,9 +398,9 @@
     {
       "ascii_lines": [
         "Throughput (ops/sec, higher is better)",
-        "InfRing (pure) ############################################  360584.5 ops/sec",
-        "InfRing (tiny-max) ############################################  360584.5 ops/sec",
-        "Infring    ############################################  360584.5 ops/sec"
+        "InfRing (pure) ############################################  16502.7 ops/sec",
+        "InfRing (tiny-max) ############################################  16502.7 ops/sec",
+        "Infring    ############################################  16502.7 ops/sec"
       ],
       "bar_width": 44,
       "key": "tasks_per_sec",
@@ -412,24 +412,24 @@
           "highlight": false,
           "project": "InfRing (pure)",
           "rank": 1,
-          "score": "360584.5 ops/sec",
-          "value": 360584.55
+          "score": "16502.7 ops/sec",
+          "value": 16502.74
         },
         {
           "bar": "############################################",
           "highlight": false,
           "project": "InfRing (tiny-max)",
           "rank": 2,
-          "score": "360584.5 ops/sec",
-          "value": 360584.55
+          "score": "16502.7 ops/sec",
+          "value": 16502.74
         },
         {
           "bar": "############################################",
           "highlight": false,
           "project": "Infring",
           "rank": 3,
-          "score": "360584.5 ops/sec",
-          "value": 360584.55
+          "score": "16502.7 ops/sec",
+          "value": 16502.74
         }
       ],
       "unit": "ops/sec"
@@ -720,7 +720,7 @@
         "max_load_per_core": 8,
         "max_noise_cv_pct": 100,
         "noise_rounds": 1,
-        "noise_sample_ms": 1000,
+        "noise_sample_ms": 200,
         "preflight_enabled": true
       },
       "id": "competitive_benchmark_matrix_preflight_gate"
@@ -731,7 +731,7 @@
         "checks": [
           {
             "detail": {
-              "tasks_per_sec": 360584.55
+              "tasks_per_sec": 16502.74
             },
             "id": "shared_throughput_positive",
             "ok": true
@@ -746,7 +746,7 @@
           },
           {
             "detail": {
-              "sample_cv_pct": 0.34,
+              "sample_cv_pct": 1.66,
               "tolerance_pct": 150
             },
             "id": "shared_cv_within_tolerance",
@@ -755,8 +755,8 @@
           {
             "detail": {
               "delta_pct": 0,
-              "shared_tasks_per_sec": 360584.55,
-              "tasks_per_sec": 360584.55
+              "shared_tasks_per_sec": 16502.74,
+              "tasks_per_sec": 16502.74
             },
             "id": "infring_throughput_near_shared_baseline",
             "ok": true
@@ -764,7 +764,7 @@
           {
             "detail": {
               "cold_start_ms": 0.004,
-              "idle_memory_mb": 8.344,
+              "idle_memory_mb": 8.359,
               "install_size_mb": 28.116
             },
             "id": "infring_core_metrics_present",
@@ -773,17 +773,17 @@
           {
             "detail": {
               "delta_pct": 0,
-              "shared_tasks_per_sec": 360584.55,
-              "tasks_per_sec": 360584.55
+              "shared_tasks_per_sec": 16502.74,
+              "tasks_per_sec": 16502.74
             },
             "id": "pure_throughput_near_shared_baseline",
             "ok": true
           },
           {
             "detail": {
-              "cold_start_ms": 1.42175,
+              "cold_start_ms": 1.4706249999999998,
               "idle_memory_mb": 1.515625,
-              "install_size_mb": 3.853
+              "install_size_mb": 3.837
             },
             "id": "pure_core_metrics_present",
             "ok": true
@@ -791,15 +791,15 @@
           {
             "detail": {
               "delta_pct": 0,
-              "shared_tasks_per_sec": 360584.55,
-              "tasks_per_sec": 360584.55
+              "shared_tasks_per_sec": 16502.74,
+              "tasks_per_sec": 16502.74
             },
             "id": "tiny_max_throughput_near_shared_baseline",
             "ok": true
           },
           {
             "detail": {
-              "cold_start_ms": 1.412417,
+              "cold_start_ms": 1.474334,
               "idle_memory_mb": 1.515625,
               "install_size_mb": 0.631
             },
@@ -809,7 +809,7 @@
         ],
         "failed_checks": 0,
         "ok": true,
-        "sample_cv_pct": 0.34
+        "sample_cv_pct": 1.66
       },
       "id": "competitive_benchmark_matrix_validation"
     }
@@ -852,7 +852,7 @@
   "environment_fingerprint": {
     "arch": "aarch64",
     "cpu_parallelism": 11,
-    "git_revision": "e8f3fe63b183bb86d028b8a9f349fd99166eee48",
+    "git_revision": "216ae096c3050e4fedb831da7ea7d82de8f5b9dd",
     "os": "macos",
     "rustc_version": "rustc 1.93.1 (01f6ddf75 2026-02-11)",
     "workload_id": "live_hash_workload_v1"
@@ -901,11 +901,11 @@
     "dashboard_interactive_ms": 0.004,
     "data_channels": 4,
     "data_source": "runtime_efficiency_floor + policy counters",
-    "effective_hash_ops_per_sec": 5769352.8,
+    "effective_hash_ops_per_sec": 264043.84,
     "engine_start_ms": 0.004,
     "gateway_ready_ms": 0.004,
     "gateway_supervisor_orchestration_ms": 0,
-    "idle_memory_mb": 8.344,
+    "idle_memory_mb": 8.359,
     "install_size_mb": 28.116,
     "kernel_ready_ms": 0.004,
     "llm_providers": 3,
@@ -922,7 +922,7 @@
         "kernel_ready_ms": 0.004,
         "rich_cold_start_total_ms": 0.004
       },
-      "effective_hash_ops_per_sec": 5769352.8,
+      "effective_hash_ops_per_sec": 264043.84,
       "fallback_reason": null,
       "mode": "status",
       "refresh_requested": false,
@@ -938,27 +938,27 @@
     "security_merge_guard_checks": 83,
     "security_policy_checks_total": 176,
     "security_systems": 83,
-    "tasks_per_sec": 360584.55,
-    "throughput_sampling_max_ops_per_sec": 360829.79,
+    "tasks_per_sec": 16502.74,
+    "throughput_sampling_max_ops_per_sec": 17031.34,
     "throughput_sampling_measured_ops_per_sec": [
-      360829.79,
-      358113.27,
-      360584.55,
-      360657.81,
-      358226.27
+      17031.34,
+      16782.3,
+      16502.74,
+      16265.88,
+      16409.56
     ],
-    "throughput_sampling_min_ops_per_sec": 358113.27,
-    "throughput_sampling_stddev_ops_per_sec": 1238.09,
+    "throughput_sampling_min_ops_per_sec": 16265.88,
+    "throughput_sampling_stddev_ops_per_sec": 274.46,
     "throughput_sampling_warmup_ops_per_sec": [
-      359252.61,
-      359624.01
+      17006.39,
+      16993.52
     ],
     "throughput_source": "live_hash_workload_v1_shared_pre_profile_baseline",
     "throughput_uncached": false,
     "throughput_work_factor": 16,
     "throughput_workload_seed": "live_hash_workload_v1_cached",
-    "kernel_shared_workload_ops_per_sec": 360584.55,
-    "rich_end_to_end_command_path_ops_per_sec": 5.56,
+    "kernel_shared_workload_ops_per_sec": 16502.74,
+    "rich_end_to_end_command_path_ops_per_sec": 5.03,
     "rich_end_to_end_command_path_source": "measured:security_layer_inventory_gate_status_bridge",
     "benchmark_metric_families": {
       "kernel_shared_workload": {
@@ -1004,28 +1004,28 @@
     },
     "InfRing (pure)": {
       "channel_adapters": 0,
-      "cold_start_ms": 1.42175,
-      "cold_start_p50_ms": 1.42175,
-      "cold_start_p95_ms": 1.4599170000000001,
-      "cold_start_p99_ms": 1.4599170000000001,
+      "cold_start_ms": 1.4706249999999998,
+      "cold_start_p50_ms": 1.4706249999999998,
+      "cold_start_p95_ms": 1.559542,
+      "cold_start_p99_ms": 1.559542,
       "daemon_binary_path": "target/release-speed/infringd",
       "data_source": "pure_workspace_binary_probe",
-      "effective_hash_ops_per_sec": 5769352.8,
+      "effective_hash_ops_per_sec": 264043.84,
       "idle_memory_mb": 1.515625,
       "idle_rss_p50_mb": 1.515625,
       "idle_rss_p95_mb": 1.515625,
       "idle_rss_p99_mb": 1.515625,
-      "install_size_mb": 3.853,
+      "install_size_mb": 3.837,
       "llm_providers": 0,
       "measured": true,
       "mode": "pure",
       "probe_binary_path": "target/release-speed/infring-pure-workspace",
       "security_systems": 83,
       "size_binary_path": "target/release-speed/infring-pure-workspace",
-      "tasks_per_sec": 360584.55,
+      "tasks_per_sec": 16502.74,
       "throughput_source": "live_hash_workload_v1_shared_pre_profile_baseline",
       "throughput_work_factor": 16,
-      "kernel_shared_workload_ops_per_sec": 360584.55,
+      "kernel_shared_workload_ops_per_sec": 16502.74,
       "benchmark_metric_families": {
         "kernel_shared_workload": {
           "metric": "kernel_shared_workload_ops_per_sec",
@@ -1043,13 +1043,13 @@
     },
     "InfRing (tiny-max)": {
       "channel_adapters": 0,
-      "cold_start_ms": 1.412417,
-      "cold_start_p50_ms": 1.412417,
-      "cold_start_p95_ms": 1.467709,
-      "cold_start_p99_ms": 1.467709,
+      "cold_start_ms": 1.474334,
+      "cold_start_p50_ms": 1.474334,
+      "cold_start_p95_ms": 1.516583,
+      "cold_start_p99_ms": 1.516583,
       "daemon_binary_path": "local/tmp/daemon-sizes/infringd.pure",
       "data_source": "pure_workspace_binary_probe",
-      "effective_hash_ops_per_sec": 5769352.8,
+      "effective_hash_ops_per_sec": 264043.84,
       "idle_memory_mb": 1.515625,
       "idle_rss_p50_mb": 1.515625,
       "idle_rss_p95_mb": 1.515625,
@@ -1061,10 +1061,10 @@
       "probe_binary_path": "target/release-speed/infring-pure-workspace",
       "security_systems": 83,
       "size_binary_path": "target/release-speed/infring-pure-workspace",
-      "tasks_per_sec": 360584.55,
+      "tasks_per_sec": 16502.74,
       "throughput_source": "live_hash_workload_v1_shared_pre_profile_baseline",
       "throughput_work_factor": 16,
-      "kernel_shared_workload_ops_per_sec": 360584.55,
+      "kernel_shared_workload_ops_per_sec": 16502.74,
       "benchmark_metric_families": {
         "kernel_shared_workload": {
           "metric": "kernel_shared_workload_ops_per_sec",
@@ -1124,11 +1124,11 @@
       "dashboard_interactive_ms": 0.004,
       "data_channels": 4,
       "data_source": "runtime_efficiency_floor + policy counters",
-      "effective_hash_ops_per_sec": 5769352.8,
+      "effective_hash_ops_per_sec": 264043.84,
       "engine_start_ms": 0.004,
       "gateway_ready_ms": 0.004,
       "gateway_supervisor_orchestration_ms": 0,
-      "idle_memory_mb": 8.344,
+      "idle_memory_mb": 8.359,
       "install_size_mb": 28.116,
       "kernel_ready_ms": 0.004,
       "llm_providers": 3,
@@ -1145,7 +1145,7 @@
           "kernel_ready_ms": 0.004,
           "rich_cold_start_total_ms": 0.004
         },
-        "effective_hash_ops_per_sec": 5769352.8,
+        "effective_hash_ops_per_sec": 264043.84,
         "fallback_reason": null,
         "mode": "status",
         "refresh_requested": false,
@@ -1161,30 +1161,30 @@
       "security_merge_guard_checks": 83,
       "security_policy_checks_total": 176,
       "security_systems": 83,
-      "tasks_per_sec": 360584.55,
-      "throughput_sampling_max_ops_per_sec": 360829.79,
+      "tasks_per_sec": 16502.74,
+      "throughput_sampling_max_ops_per_sec": 17031.34,
       "throughput_sampling_measured_ops_per_sec": [
-        360829.79,
-        358113.27,
-        360584.55,
-        360657.81,
-        358226.27
+        17031.34,
+        16782.3,
+        16502.74,
+        16265.88,
+        16409.56
       ],
-      "throughput_sampling_min_ops_per_sec": 358113.27,
-      "throughput_sampling_stddev_ops_per_sec": 1238.09,
+      "throughput_sampling_min_ops_per_sec": 16265.88,
+      "throughput_sampling_stddev_ops_per_sec": 274.46,
       "throughput_sampling_warmup_ops_per_sec": [
-        359252.61,
-        359624.01
+        17006.39,
+        16993.52
       ],
       "throughput_source": "live_hash_workload_v1_shared_pre_profile_baseline",
       "throughput_uncached": false,
       "throughput_work_factor": 16,
       "throughput_workload_seed": "live_hash_workload_v1_cached",
-      "kernel_shared_workload_ops_per_sec": 360584.55,
-      "rich_end_to_end_command_path_ops_per_sec": 5.56,
+      "kernel_shared_workload_ops_per_sec": 16502.74,
+      "rich_end_to_end_command_path_ops_per_sec": 5.03,
       "rich_end_to_end_command_path_source": "measured:security_layer_inventory_gate_status_bridge",
       "rich_end_to_end_command_path_samples": 5,
-      "rich_end_to_end_command_path_sample_total_ms": 899.528,
+      "rich_end_to_end_command_path_sample_total_ms": 994.001,
       "benchmark_metric_families": {
         "kernel_shared_workload": {
           "metric": "kernel_shared_workload_ops_per_sec",
@@ -1226,37 +1226,37 @@
   },
   "pure_workspace_measured": {
     "channel_adapters": 0,
-    "cold_start_ms": 1.42175,
-    "cold_start_p50_ms": 1.42175,
-    "cold_start_p95_ms": 1.4599170000000001,
-    "cold_start_p99_ms": 1.4599170000000001,
+    "cold_start_ms": 1.4706249999999998,
+    "cold_start_p50_ms": 1.4706249999999998,
+    "cold_start_p95_ms": 1.559542,
+    "cold_start_p99_ms": 1.559542,
     "daemon_binary_path": "target/release-speed/infringd",
     "data_source": "pure_workspace_binary_probe",
-    "effective_hash_ops_per_sec": 5769352.8,
+    "effective_hash_ops_per_sec": 264043.84,
     "idle_memory_mb": 1.515625,
     "idle_rss_p50_mb": 1.515625,
     "idle_rss_p95_mb": 1.515625,
     "idle_rss_p99_mb": 1.515625,
-    "install_size_mb": 3.853,
+    "install_size_mb": 3.837,
     "llm_providers": 0,
     "measured": true,
     "mode": "pure",
     "probe_binary_path": "target/release-speed/infring-pure-workspace",
     "security_systems": 83,
     "size_binary_path": "target/release-speed/infring-pure-workspace",
-    "tasks_per_sec": 360584.55,
+    "tasks_per_sec": 16502.74,
     "throughput_source": "live_hash_workload_v1_shared_pre_profile_baseline",
     "throughput_work_factor": 16
   },
   "pure_workspace_tiny_max_measured": {
     "channel_adapters": 0,
-    "cold_start_ms": 1.412417,
-    "cold_start_p50_ms": 1.412417,
-    "cold_start_p95_ms": 1.467709,
-    "cold_start_p99_ms": 1.467709,
+    "cold_start_ms": 1.474334,
+    "cold_start_p50_ms": 1.474334,
+    "cold_start_p95_ms": 1.516583,
+    "cold_start_p99_ms": 1.516583,
     "daemon_binary_path": "local/tmp/daemon-sizes/infringd.pure",
     "data_source": "pure_workspace_binary_probe",
-    "effective_hash_ops_per_sec": 5769352.8,
+    "effective_hash_ops_per_sec": 264043.84,
     "idle_memory_mb": 1.515625,
     "idle_rss_p50_mb": 1.515625,
     "idle_rss_p95_mb": 1.515625,
@@ -1268,17 +1268,17 @@
     "probe_binary_path": "target/release-speed/infring-pure-workspace",
     "security_systems": 83,
     "size_binary_path": "target/release-speed/infring-pure-workspace",
-    "tasks_per_sec": 360584.55,
+    "tasks_per_sec": 16502.74,
     "throughput_source": "live_hash_workload_v1_shared_pre_profile_baseline",
     "throughput_work_factor": 16
   },
-  "receipt_hash": "9e974a63852ac903982a0c3940ba0394edb4d7c7ef2a567a5ba6b051c00ba30a",
+  "receipt_hash": "fe1fac6b18e39489033a9b9bb7f20e7b9cdb933a79362c6398ed2df2fedcca37",
   "reference_month": "2026-02",
   "runtime_receipt": {
     "enforce_hold_streak_strict": false,
-    "history_count": 37,
+    "history_count": 42,
     "history_path": "local/state/ops/runtime_efficiency_floor_history.jsonl",
-    "hold_streak_days": 2,
+    "hold_streak_days": 0,
     "latest": {
       "cold_start": {
         "build_attempted": false,
@@ -1291,32 +1291,32 @@
         "dist_target": null,
         "engine": "core-lazy",
         "engine_start_p50_ms": 0.004,
-        "engine_start_p95_ms": 0.004,
+        "engine_start_p95_ms": 0.005,
         "gateway_supervisor_orchestration_p50_ms": 0,
         "gateway_supervisor_orchestration_p95_ms": 0,
         "max_ms": 500,
         "p50_ms": 0.004,
-        "p95_ms": 0.004,
+        "p95_ms": 0.005,
         "runtime_mode": "source",
         "samples": 5
       },
       "enforce_hold_streak_strict": false,
       "full_install": {
         "paths": {
-          "client/runtime": 80.892,
-          "core/layer0/ops": 11.191,
+          "client/runtime": 83.045,
+          "core/layer0/ops": 11.243,
           "dist": 28.116,
           "target/release/protheusd": 2.162
         },
-        "sum_mb": 122.361
+        "sum_mb": 124.566
       },
       "history_path": "local/state/ops/runtime_efficiency_floor_history.jsonl",
       "hold_streak_days": 2,
       "idle_rss": {
         "max_mb": 120,
         "measurement_mode": "process",
-        "p50_mb": 8.344,
-        "p95_mb": 8.344,
+        "p50_mb": 8.359,
+        "p95_mb": 8.359,
         "required_modules": [],
         "samples": 3
       },
@@ -1329,14 +1329,14 @@
       },
       "metrics": {
         "cold_start_p50_ms": 0.004,
-        "cold_start_p95_ms": 0.004,
+        "cold_start_p95_ms": 0.005,
         "engine_start_p50_ms": 0.004,
-        "engine_start_p95_ms": 0.004,
-        "full_install_total_mb": 122.361,
+        "engine_start_p95_ms": 0.005,
+        "full_install_total_mb": 124.566,
         "gateway_supervisor_orchestration_p50_ms": 0,
         "gateway_supervisor_orchestration_p95_ms": 0,
-        "idle_rss_p50_mb": 8.344,
-        "idle_rss_p95_mb": 8.344,
+        "idle_rss_p50_mb": 8.359,
+        "idle_rss_p95_mb": 8.359,
         "install_artifact_total_mb": 28.116
       },
       "ok": true,
@@ -1347,7 +1347,7 @@
       "strict": false,
       "strict_hold_ok": true,
       "target_hold_days": 7,
-      "ts": "2026-04-09T02:18:36.878Z",
+      "ts": "2026-04-09T17:39:24.036Z",
       "type": "runtime_efficiency_floor"
     },
     "ok": true,
@@ -1358,35 +1358,35 @@
     "type": "runtime_efficiency_floor_status"
   },
   "shared_throughput_sampling": {
-    "max_ops_per_sec": 360829.79,
+    "max_ops_per_sec": 17031.34,
     "measured_samples_ops_per_sec": [
-      360829.79,
-      358113.27,
-      360584.55,
-      360657.81,
-      358226.27
+      17031.34,
+      16782.3,
+      16502.74,
+      16265.88,
+      16409.56
     ],
-    "min_ops_per_sec": 358113.27,
+    "min_ops_per_sec": 16265.88,
     "rounds": 5,
     "sample_ms": 800,
     "source": "live_hash_workload_v1_shared_pre_profile_baseline",
-    "stddev_ops_per_sec": 1238.09,
-    "tasks_per_sec": 360584.55,
+    "stddev_ops_per_sec": 274.46,
+    "tasks_per_sec": 16502.74,
     "uncached": false,
     "warmup_rounds": 2,
     "warmup_samples_ops_per_sec": [
-      359252.61,
-      359624.01
+      17006.39,
+      16993.52
     ],
     "workload_seed": "live_hash_workload_v1_cached"
   },
   "snapshot_generated_from": null,
   "snapshot_path": "client/runtime/config/competitive_benchmark_snapshot_2026_02.json",
   "snapshot_version": null,
-  "ts": "2026-04-09T08:53:05.675Z",
+  "ts": "2026-04-14T22:09:08.952Z",
   "type": "competitive_benchmark_matrix",
   "benchmark_refresh_context": {
-    "build_profile": "release-speed",
+    "build_profile": "debug",
     "refresh_script": "tests/tooling/scripts/ci/benchmark_matrix_refresh.ts",
     "throughput_uncached": false,
     "refresh_runtime": false
