@@ -1360,14 +1360,6 @@
       "planned_batch_date": "2026-04-23"
     },
     {
-      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/030-part.rs",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-05-15",
-      "task_id": "TD-SIZE-OPS-L0",
-      "planned_batch_date": "2026-04-23"
-    },
-    {
       "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/040-part.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
