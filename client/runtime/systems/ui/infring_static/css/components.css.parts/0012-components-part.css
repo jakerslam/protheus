@@ -265,7 +265,15 @@
 .notif-wrap {
   position: relative;
   display: inline-flex;
+  --notif-overlay-gap: 8px;
+  --notif-overlay-top: calc(100% + var(--notif-overlay-gap));
+  --notif-overlay-bottom: auto;
   z-index: 18040;
+}
+
+.global-topbar.is-docked-bottom .notif-wrap {
+  --notif-overlay-top: auto;
+  --notif-overlay-bottom: calc(100% + var(--notif-overlay-gap));
 }
 
 .notif-btn {
@@ -330,7 +338,8 @@
 
 .notif-dropdown {
   position: absolute;
-  top: calc(100% + 8px);
+  top: var(--notif-overlay-top);
+  bottom: var(--notif-overlay-bottom);
   right: 0;
   width: 330px;
   max-width: min(92vw, 330px);

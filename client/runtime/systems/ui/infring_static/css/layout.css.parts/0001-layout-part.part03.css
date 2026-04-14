@@ -32,8 +32,8 @@
   border-top-right-radius: 16px;
   border-bottom-left-radius: 16px;
   border-bottom-right-radius: 16px;
-  border: 1px solid color-mix(in srgb, #fff 24%, transparent);
-  background: transparent;
+  border: 1px solid var(--overlay-surface-border, color-mix(in srgb, #fff 24%, transparent));
+  background: var(--overlay-surface-background, transparent);
   box-shadow:
     0 16px 42px rgba(17, 24, 39, 0.24),
     0 6px 18px rgba(17, 24, 39, 0.14);

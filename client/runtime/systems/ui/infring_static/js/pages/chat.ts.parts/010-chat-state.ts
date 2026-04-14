@@ -97,6 +97,7 @@ function chatPage() {
     _modelCacheTime: 0,
     _modelLogoFailIndex: {},
     _modelSourceLogoFailIndex: {},
+    _modelSwitcherViewCache: null,
     _chatMapWheelLockInstalled: false,
     sessionLoading: false,
     _sessionLoadSeq: 0,
