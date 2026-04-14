@@ -80,6 +80,18 @@ body[data-theme='dark'] .prompt-suggestion-chip {
   max-width: 100px;
   flex-shrink: 0;
 }
+.model-switcher-provider-select {
+  max-width: 100px;
+  flex-shrink: 0;
+  background: color-mix(in srgb, var(--surface2) 52%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 84%, transparent);
+  border-radius: 6px;
+  color: var(--text-dim);
+  font-size: 11px;
+  padding: 2px 6px;
+  cursor: pointer;
+  font-family: var(--font-mono);
+}
 .model-switcher-search select:focus {
   outline: none;
   border-color: var(--accent);
@@ -92,6 +104,23 @@ body[data-theme='dark'] .prompt-suggestion-chip {
   font-family: var(--font-mono);
   font-size: 12px;
   outline: none;
+}
+.model-switcher-discovery-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.model-switcher-discovery-input {
+  flex: 1;
+  background: color-mix(in srgb, var(--surface2) 52%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 84%, transparent);
+  border-radius: 7px;
+  color: var(--text);
+  font-size: 11px;
+  padding: 6px 8px;
+  font-family: var(--font-mono);
 }
 .model-switcher-list {
   max-height: 320px;
@@ -110,7 +139,7 @@ body[data-theme='dark'] .prompt-suggestion-chip {
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: var(--text-muted);
-  background: var(--surface2);
+  background: color-mix(in srgb, var(--surface2) 50%, transparent);
   border-bottom: 1px solid var(--border);
 }
 .model-switcher-item {
@@ -121,10 +150,10 @@ body[data-theme='dark'] .prompt-suggestion-chip {
   cursor: pointer;
   transition: background 0.1s;
 }
-.model-switcher-item:hover { background: var(--surface2); }
-.model-switcher-item.hovered { background: var(--surface2); }
+.model-switcher-item:hover { background: color-mix(in srgb, var(--surface2) 44%, transparent); }
+.model-switcher-item.hovered { background: color-mix(in srgb, var(--surface2) 44%, transparent); }
 .model-switcher-item.active {
-  background: var(--accent-subtle, rgba(59,130,246,0.08));
+  background: color-mix(in srgb, var(--accent-subtle, rgba(59,130,246,0.08)) 72%, transparent);
   cursor: default;
 }
 .model-switcher-item-name {
