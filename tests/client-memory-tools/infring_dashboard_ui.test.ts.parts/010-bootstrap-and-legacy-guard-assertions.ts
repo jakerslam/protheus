@@ -200,8 +200,12 @@ function assertPrimaryDashboardAuthorityContract() {
   );
   assertContains(
     hostSource,
-    "pathname === '/dashboard-classic' || pathname === '/dashboard-shell'",
-    'dashboard host should preserve compatibility aliases for retired dashboard URLs'
+    'dashboard_surface_retired',
+    'dashboard host should explicitly reject retired dashboard URLs'
+  );
+  assert.ok(
+    !hostSource.includes("location: `/dashboard${search}`"),
+    'dashboard host should not redirect retired dashboard URLs back into the live authority surface'
   );
   assertContains(
     hostSource,

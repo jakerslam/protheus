@@ -56,9 +56,11 @@ function toMarkdown(payload: any): string {
   lines.push(`- non_size_open_items: ${payload.debt.non_size.open_items}`);
   lines.push(`- non_size_blocked_items: ${payload.debt.non_size.blocked_items}`);
   lines.push(`- policy_green_but_debt_remaining: ${payload.debt.non_size.policy_green_but_debt_remaining}`);
-  lines.push(`- classic_asset_files: ${payload.debt.dashboard.classic_asset_files}`);
-  lines.push(`- classic_href_references: ${payload.debt.dashboard.classic_href_references}`);
-  lines.push(`- embedded_fallback_references: ${payload.debt.dashboard.embedded_fallback_references}`);
+  lines.push(`- dashboard_surface_guard_pass: ${payload.debt.dashboard.surface_guard_pass}`);
+  lines.push(`- dashboard_asset_files: ${payload.debt.dashboard.dashboard_asset_files}`);
+  lines.push(`- forbidden_surface_directories: ${payload.debt.dashboard.forbidden_surface_directories}`);
+  lines.push(`- redirect_alias_handlers: ${payload.debt.dashboard.redirect_alias_handlers}`);
+  lines.push(`- retired_alias_guard_present: ${payload.debt.dashboard.retired_alias_guard_present}`);
   lines.push(`- adapter_fallback_guard_pass: ${payload.debt.orchestration.adapter_fallback_guard_pass}`);
   lines.push(`- adapter_fallback_threshold: ${payload.debt.orchestration.adapter_fallback_threshold}`);
   lines.push('');
@@ -94,7 +96,7 @@ function run(argv: string[]): number {
   const ciQuality = readJsonMaybe<any>('core/local/artifacts/ci_quality_scorecard_current.json', null);
   const adapterFallback = readJsonMaybe<any>('core/local/artifacts/orchestration_adapter_fallback_guard_current.json', null);
   const techDebt = readJsonMaybe<any>('core/local/artifacts/tech_debt_report_current.json', null);
-  const classicDashboard = readJsonMaybe<any>('core/local/artifacts/classic_dashboard_debt_inventory_current.json', null);
+  const dashboardSurface = readJsonMaybe<any>('core/local/artifacts/dashboard_surface_authority_guard_current.json', null);
 
   const gates = [
     {
@@ -138,6 +140,13 @@ function run(argv: string[]): number {
       detail: ciQuality ? `failures=${ciQuality.summary.failure_count}` : 'missing_artifact',
     },
     {
+      id: 'dashboard_surface_authority_guard',
+      ok: dashboardSurface?.summary?.pass === true,
+      detail: dashboardSurface
+        ? `forbidden=${dashboardSurface.summary.forbidden_surface_directories}; redirects=${dashboardSurface.summary.redirect_alias_handlers}`
+        : 'missing_artifact',
+    },
+    {
       id: 'orchestration_adapter_fallback_guard',
       ok: adapterFallback?.summary?.pass === true,
       detail: adapterFallback ? `exit_code=${adapterFallback.summary.exit_code}` : 'missing_artifact',
@@ -178,9 +187,11 @@ function run(argv: string[]): number {
         policy_green_but_debt_remaining: techDebt?.summary?.policy_green_but_debt_remaining ?? null,
       },
       dashboard: {
-        classic_asset_files: classicDashboard?.summary?.classic_asset_files ?? null,
-        classic_href_references: classicDashboard?.summary?.classic_href_references ?? null,
-        embedded_fallback_references: classicDashboard?.summary?.embedded_fallback_references ?? null,
+        surface_guard_pass: dashboardSurface?.ok ?? null,
+        dashboard_asset_files: dashboardSurface?.summary?.dashboard_asset_files ?? null,
+        forbidden_surface_directories: dashboardSurface?.summary?.forbidden_surface_directories ?? null,
+        redirect_alias_handlers: dashboardSurface?.summary?.redirect_alias_handlers ?? null,
+        retired_alias_guard_present: dashboardSurface?.summary?.retired_alias_guard_present ?? null,
       },
       orchestration: {
         adapter_fallback_guard_pass: adapterFallback?.ok ?? null,

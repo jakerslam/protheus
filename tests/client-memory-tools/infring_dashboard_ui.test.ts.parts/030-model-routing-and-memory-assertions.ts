@@ -220,7 +220,7 @@ function runContract(contract) {
   assert.fail(`unsupported_contract:${contract}`);
 }
 
-function assertClassicDashboardAuthorityResetContract() {
+function assertPrimaryDashboardAuthorityResetContract() {
   const hostSource = readUtf8(ADAPTER_DASHBOARD_HOST_TS_PATH);
   const distBuildSource = readUtf8(path.resolve(ROOT, 'tests/tooling/scripts/ci/build_dashboard_dist.ts'));
   const appSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/infring_static/js/app.ts'));
@@ -233,12 +233,15 @@ function assertClassicDashboardAuthorityResetContract() {
   assertContains(
     hostSource,
     "pathname === '/dashboard' || pathname === '/dashboard/' || (pathname.startsWith('/dashboard/') && !path.extname(pathname))",
-    'dashboard host should serve the authoritative classic dashboard for /dashboard and /dashboard/<page>'
+    'dashboard host should serve the authoritative dashboard for /dashboard and /dashboard/<page>'
   );
-  assertContains(
-    hostSource,
-    "location: `/dashboard${search}`",
-    'dashboard host should redirect old classic aliases back onto /dashboard'
+  assert.ok(
+    hostSource.includes('dashboard_surface_retired'),
+    'dashboard host should reject retired alias dashboard URLs instead of serving or redirecting them'
+  );
+  assert.ok(
+    !hostSource.includes("location: `/dashboard${search}`"),
+    'dashboard host should not redirect retired alias URLs back into the authoritative dashboard surface'
   );
   assert.ok(
     !hostSource.includes('readSvelteKitAsset('),
@@ -262,7 +265,7 @@ function assertClassicDashboardAuthorityResetContract() {
 
 const runSnapshotAssertionsWithNativeChat = runSnapshotAssertions;
 runSnapshotAssertions = function() {
-  assertClassicDashboardAuthorityResetContract();
+  assertPrimaryDashboardAuthorityResetContract();
   return runSnapshotAssertionsWithNativeChat();
 };
 
