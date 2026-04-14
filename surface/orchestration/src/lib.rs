@@ -17,7 +17,7 @@ use contracts::{
     OrchestrationRequest, OrchestrationResultPackage, PlanCandidate, PlanScore, PlanStatus,
     PlanVariant, RecoveryDecision, RecoveryReason, RecoveryState,
 };
-use transient_context::TransientContextStore;
+use transient_context::{TransientContextStore, TransientSleepCleanupReport};
 
 #[derive(Debug, Default)]
 pub struct OrchestrationSurfaceRuntime {
@@ -163,6 +163,13 @@ impl OrchestrationSurfaceRuntime {
 
     pub fn resume_transient_after_restart(&mut self) -> Result<(), String> {
         self.transient.resume_after_restart()
+    }
+
+    pub fn run_transient_sleep_cycle_cleanup(
+        &mut self,
+        sleep_cycle_id: &str,
+    ) -> Result<TransientSleepCleanupReport, String> {
+        self.transient.run_sleep_cycle_cleanup(sleep_cycle_id)
     }
 }
 

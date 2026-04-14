@@ -117,6 +117,39 @@ fn orchestration_transient_restart_requires_boot_sweep_before_resume() {
 }
 
 #[test]
+fn orchestration_sleep_cycle_cleanup_wipes_transient_ephemeral_state() {
+    let mut runtime = OrchestrationSurfaceRuntime::new();
+    let _ = runtime.orchestrate(
+        OrchestrationRequest {
+            session_id: "sleep-cycle-1".to_string(),
+            intent: "hold short-term context".to_string(),
+            surface: RequestSurface::Legacy,
+            payload: json!({}),
+        },
+        10_000,
+    );
+    let _ = runtime.orchestrate(
+        OrchestrationRequest {
+            session_id: "sleep-cycle-2".to_string(),
+            intent: "hold short-term context".to_string(),
+            surface: RequestSurface::Legacy,
+            payload: json!({}),
+        },
+        10_200,
+    );
+    assert_eq!(runtime.transient_entry_count(), 2);
+    assert_eq!(runtime.transient_ephemeral_count(), 2);
+
+    let report = runtime
+        .run_transient_sleep_cycle_cleanup("nightly")
+        .expect("sleep cleanup should succeed");
+    assert_eq!(report.cleaned_count, 2);
+    assert_eq!(report.removed_session_count, 2);
+    assert_eq!(runtime.transient_entry_count(), 0);
+    assert_eq!(runtime.transient_ephemeral_count(), 0);
+}
+
+#[test]
 fn orchestration_legacy_intent_path_still_produces_typed_tool_plan() {
     let mut runtime = OrchestrationSurfaceRuntime::new();
     let package = runtime.orchestrate(
