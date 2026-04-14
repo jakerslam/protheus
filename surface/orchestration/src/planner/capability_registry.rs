@@ -107,7 +107,7 @@ fn step(
         capability,
         merged_capabilities,
         rationale,
-        expected_contract_ref: format!("expect_{step_id}"),
+        expected_contract_refs: vec![format!("expect_{step_id}")],
         blocked_on: Vec::new(),
     }
 }

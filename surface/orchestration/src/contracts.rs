@@ -161,6 +161,39 @@ pub struct TypedOrchestrationRequest {
     pub tool_hints: Vec<String>,
     pub policy_scope: PolicyScope,
     pub user_constraints: Vec<UserConstraint>,
+    pub core_probe_envelope: Option<CoreProbeEnvelope>,
+    pub core_execution_observation: Option<CoreExecutionObservation>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CapabilityProbeSnapshot {
+    pub capability: Capability,
+    pub tool_available: Option<bool>,
+    pub target_supplied: Option<bool>,
+    pub target_syntactically_valid: Option<bool>,
+    pub target_exists: Option<bool>,
+    pub authorization_valid: Option<bool>,
+    pub policy_allows: Option<bool>,
+    pub transport_available: Option<bool>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CoreProbeEnvelope {
+    pub probes: Vec<CapabilityProbeSnapshot>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CoreExecutionStepObservation {
+    pub step_id: String,
+    pub status: StepStatus,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CoreExecutionObservation {
+    pub plan_status: Option<PlanStatus>,
+    pub receipt_ids: Vec<String>,
+    pub outcome_refs: Vec<String>,
+    pub step_statuses: Vec<CoreExecutionStepObservation>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -240,7 +273,7 @@ pub struct OrchestrationPlanStep {
     pub capability: Capability,
     pub merged_capabilities: Vec<Capability>,
     pub rationale: Vec<String>,
-    pub expected_contract_ref: String,
+    pub expected_contract_refs: Vec<String>,
     pub blocked_on: Vec<Precondition>,
 }
 

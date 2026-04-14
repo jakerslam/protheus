@@ -1,7 +1,8 @@
 // Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 use crate::contracts::{
-    Capability, CapabilityProbeResult, OrchestrationPlanStep, PlanCandidate, PlanScore,
-    PlanVariant, Precondition, RequestClassification, TypedOrchestrationRequest,
+    Capability, CapabilityProbeResult, CoreContractCall, OrchestrationPlanStep, PlanCandidate,
+    PlanScore, PlanVariant, Precondition, RequestClassification, RequestKind, ResourceKind,
+    TypedOrchestrationRequest,
 };
 
 use super::{capability_registry, preconditions, scoring};
@@ -87,11 +88,12 @@ fn build_candidate_for_variant(
 ) -> PlanCandidate {
     let mut steps = Vec::new();
     let mut reasons = classification.reasons.clone();
+    let ordered_capabilities = ordered_capabilities_for_variant(request, capabilities, &variant);
 
-    for capability in capabilities {
+    for capability in &ordered_capabilities {
         let probe = probes
             .iter()
-            .find(|row| &row.capability == capability)
+            .find(|row| row.capability == *capability)
             .cloned()
             .unwrap_or_else(|| CapabilityProbeResult {
                 capability: capability.clone(),
@@ -120,19 +122,14 @@ fn build_candidate_for_variant(
             }
         }
 
-        let using_degraded = blocked
-            && probe.can_degrade
-            && !spec.degraded_steps.is_empty()
-            && matches!(
-                variant,
-                PlanVariant::Fastest | PlanVariant::DegradedFallback
-            );
-        let mut chain = if using_degraded {
+        let (mut chain, using_degraded, structurally_deferred) =
+            chain_for_variant(request, capability, &probe, &variant, &spec);
+        if structurally_deferred {
+            reasons.push(format!("capability_structurally_deferred:{capability:?}").to_lowercase());
+        }
+        if using_degraded {
             reasons.push(format!("capability_degraded:{capability:?}").to_lowercase());
-            spec.degraded_steps
-        } else {
-            spec.primary_steps
-        };
+        }
         for step in &mut chain {
             if blocked {
                 step.blocked_on.extend(probe.blocked_on.clone());
@@ -247,12 +244,138 @@ fn dedupe_steps(steps: &mut Vec<OrchestrationPlanStep>) {
             existing.rationale.extend(step.rationale);
             existing.rationale.sort();
             existing.rationale.dedup();
+            existing
+                .expected_contract_refs
+                .extend(step.expected_contract_refs);
+            existing.expected_contract_refs.sort();
+            existing.expected_contract_refs.dedup();
         } else {
             indices.insert(key, merged.len());
             merged.push(step);
         }
     }
     *steps = merged;
+}
+
+fn ordered_capabilities_for_variant(
+    request: &TypedOrchestrationRequest,
+    capabilities: &[Capability],
+    variant: &PlanVariant,
+) -> Vec<Capability> {
+    let comparative = is_structural_comparative_request(request);
+    let mut out = capabilities.to_vec();
+    out.sort_by_key(|capability| {
+        if comparative {
+            match variant {
+                PlanVariant::Safest => match capability {
+                    Capability::ReadMemory => 0,
+                    Capability::ExecuteTool => 1,
+                    Capability::VerifyClaim => 2,
+                    Capability::PlanAssimilation => 3,
+                    Capability::MutateTask => 4,
+                },
+                PlanVariant::Fastest => match capability {
+                    Capability::ExecuteTool => 0,
+                    Capability::VerifyClaim => 1,
+                    Capability::ReadMemory => 2,
+                    Capability::PlanAssimilation => 3,
+                    Capability::MutateTask => 4,
+                },
+                PlanVariant::DegradedFallback => match capability {
+                    Capability::ReadMemory => 0,
+                    Capability::VerifyClaim => 1,
+                    Capability::ExecuteTool => 2,
+                    Capability::PlanAssimilation => 3,
+                    Capability::MutateTask => 4,
+                },
+                PlanVariant::ClarificationFirst => match capability {
+                    Capability::ReadMemory => 0,
+                    Capability::ExecuteTool => 1,
+                    Capability::VerifyClaim => 2,
+                    Capability::PlanAssimilation => 3,
+                    Capability::MutateTask => 4,
+                },
+            }
+        } else {
+            match capability {
+                Capability::ReadMemory => 0,
+                Capability::ExecuteTool => 1,
+                Capability::VerifyClaim => 2,
+                Capability::PlanAssimilation => 3,
+                Capability::MutateTask => 4,
+            }
+        }
+    });
+    out
+}
+
+fn chain_for_variant(
+    request: &TypedOrchestrationRequest,
+    capability: &Capability,
+    probe: &CapabilityProbeResult,
+    variant: &PlanVariant,
+    spec: &capability_registry::CapabilitySpec,
+) -> (Vec<OrchestrationPlanStep>, bool, bool) {
+    if is_structural_comparative_request(request) {
+        match variant {
+            PlanVariant::Fastest => match capability {
+                Capability::ReadMemory => return (Vec::new(), false, true),
+                Capability::VerifyClaim if !probe.blocked_on.is_empty() && probe.can_degrade => {
+                    return (spec.degraded_steps.clone(), true, false);
+                }
+                Capability::VerifyClaim => {
+                    return (
+                        filter_steps_by_contract(
+                            spec.primary_steps.as_slice(),
+                            &[CoreContractCall::VerifierRequest],
+                        ),
+                        false,
+                        false,
+                    );
+                }
+                _ => {}
+            },
+            PlanVariant::DegradedFallback => match capability {
+                Capability::ReadMemory => return (spec.primary_steps.clone(), false, false),
+                Capability::ExecuteTool | Capability::VerifyClaim
+                    if !probe.blocked_on.is_empty() && !spec.degraded_steps.is_empty() =>
+                {
+                    return (spec.degraded_steps.clone(), true, false);
+                }
+                _ => {}
+            },
+            PlanVariant::Safest | PlanVariant::ClarificationFirst => {}
+        }
+    }
+
+    let using_degraded = !probe.blocked_on.is_empty()
+        && probe.can_degrade
+        && !spec.degraded_steps.is_empty()
+        && matches!(
+            variant,
+            PlanVariant::Fastest | PlanVariant::DegradedFallback
+        );
+    let chain = if using_degraded {
+        spec.degraded_steps.clone()
+    } else {
+        spec.primary_steps.clone()
+    };
+    (chain, using_degraded, false)
+}
+
+fn filter_steps_by_contract(
+    steps: &[OrchestrationPlanStep],
+    allowed: &[CoreContractCall],
+) -> Vec<OrchestrationPlanStep> {
+    steps
+        .iter()
+        .filter(|step| allowed.contains(&step.target_contract))
+        .cloned()
+        .collect()
+}
+
+fn is_structural_comparative_request(request: &TypedOrchestrationRequest) -> bool {
+    request.request_kind == RequestKind::Comparative || request.resource_kind == ResourceKind::Mixed
 }
 
 fn variant_priority(variant: &PlanVariant) -> usize {

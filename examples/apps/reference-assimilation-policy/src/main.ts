@@ -1,8 +1,9 @@
-import { InfringSdkClient, createInMemoryTransport } from '@infring/sdk';
+import { InfringSdkClient } from '@infring/sdk';
+import { createTestingInMemoryTransport } from '@infring/sdk/testing';
 
 async function main(): Promise<void> {
   const sdk = new InfringSdkClient({
-    transport: createInMemoryTransport({}, { unseeded_behavior: 'synthetic_success' }),
+    transport: createTestingInMemoryTransport({}, { unseeded_behavior: 'synthetic_success' }),
   });
 
   const attached = await sdk.attachPolicies({
