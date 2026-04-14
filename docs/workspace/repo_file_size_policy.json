@@ -80,14 +80,6 @@
       "planned_batch_date": "2026-04-23"
     },
     {
-      "path": "core/layer0/ops/src/action_envelope_kernel.rs",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-04-23",
-      "task_id": "TD-SIZE-OPS-L0",
-      "planned_batch_date": "2026-04-23"
-    },
-    {
       "path": "core/layer0/ops/src/action_receipts_kernel.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
