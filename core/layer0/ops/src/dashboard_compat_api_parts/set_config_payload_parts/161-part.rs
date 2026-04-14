@@ -317,6 +317,74 @@ fn draft_response_implies_retryable_web_failure(draft_response: &str) -> bool {
         || response_looks_like_tool_ack_without_findings(&lowered)
 }
 
+fn looks_like_generic_web_retry_prompt(message: &str) -> bool {
+    let lowered = clean_text(message, 600).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    let is_web_probe = lowered.contains("web tooling")
+        || lowered.contains("web capability")
+        || lowered.contains("web search")
+        || lowered.contains("search function");
+    let is_retry_shape = lowered.contains("try again")
+        || lowered.contains("test again")
+        || lowered.contains("retry")
+        || (lowered.contains("again")
+            && (lowered.starts_with("try ")
+                || lowered.starts_with("test ")
+                || lowered.starts_with("please ")));
+    let lacks_specific_query = !lowered.contains(" for ")
+        && !lowered.contains(" about ")
+        && !lowered.contains("\"")
+        && !lowered.contains("compare ");
+    is_web_probe && is_retry_shape && lacks_specific_query
+}
+
+fn extract_embedded_search_for_query(text: &str) -> Option<String> {
+    let cleaned = clean_text(text, 2_200);
+    if cleaned.is_empty() {
+        return None;
+    }
+    let lowered = cleaned.to_ascii_lowercase();
+    for marker in ["search for \"", "search for '", "search for `"] {
+        let Some(start_idx) = lowered.find(marker) else {
+            continue;
+        };
+        let quote_char = marker.chars().last().unwrap_or('"');
+        let query_start = start_idx + marker.len();
+        if query_start >= cleaned.len() {
+            continue;
+        }
+        let tail = &cleaned[query_start..];
+        let Some(query_end) = tail.find(quote_char) else {
+            continue;
+        };
+        let query = clean_text(&tail[..query_end], 600);
+        if !query.is_empty() {
+            return Some(query);
+        }
+    }
+    None
+}
+
+fn infer_query_hint_from_failed_draft(draft_response: &str) -> Option<String> {
+    if let Some(query) = extract_embedded_search_for_query(draft_response) {
+        return Some(query);
+    }
+    let lowered = clean_text(draft_response, 2_200).to_ascii_lowercase();
+    if lowered.contains("openclaw")
+        && (lowered.contains("comparison")
+            || lowered.contains("compare")
+            || lowered.contains("this platform"))
+    {
+        return Some("openclaw vs this platform comparison".to_string());
+    }
+    if lowered.contains("latest developments") && lowered.contains("ai") {
+        return Some("latest ai developments".to_string());
+    }
+    None
+}
+
 fn fallback_live_web_query_from_failed_draft(user_message: &str, draft_response: &str) -> String {
     if let Some(query) = natural_web_search_query_from_message(draft_response) {
         return clean_text(&query, 600);
@@ -324,9 +392,15 @@ fn fallback_live_web_query_from_failed_draft(user_message: &str, draft_response:
     if let Some(query) = extract_leading_quoted_natural_web_query(draft_response, 600) {
         return clean_text(&query, 600);
     }
+    if let Some(query) = infer_query_hint_from_failed_draft(draft_response) {
+        return clean_text(&query, 600);
+    }
     let cleaned = clean_text(user_message, 600);
-    if !cleaned.is_empty() {
+    if !cleaned.is_empty() && !looks_like_generic_web_retry_prompt(&cleaned) {
         return cleaned;
+    }
+    if let Some(query) = infer_query_hint_from_failed_draft(draft_response) {
+        return clean_text(&query, 600);
     }
     "latest ai developments".to_string()
 }

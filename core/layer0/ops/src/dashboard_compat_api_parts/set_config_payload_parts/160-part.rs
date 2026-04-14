@@ -478,6 +478,31 @@ fn natural_web_intent_from_user_message(message: &str) -> Option<(String, Value)
     if let Some(route) = comparative_natural_web_intent_from_message(trimmed) {
         return Some(route);
     }
+    let generic_web_retry_probe = (lowered.contains("web tooling")
+        || lowered.contains("web capability")
+        || lowered.contains("web tool")
+        || lowered.contains("web search"))
+        && (lowered.contains("try again")
+            || lowered.contains("test again")
+            || lowered.contains("retry")
+            || (lowered.contains("again")
+                && (lowered.starts_with("try ")
+                    || lowered.starts_with("test ")
+                    || lowered.starts_with("please "))))
+        && !lowered.contains(" for ")
+        && !lowered.contains(" about ")
+        && !lowered.contains("\"");
+    if generic_web_retry_probe {
+        return Some((
+            "batch_query".to_string(),
+            json!({
+                "source": "web",
+                "query": "latest ai developments",
+                "aperture": "medium",
+                "diagnostic": "natural_language_web_retry_probe"
+            }),
+        ));
+    }
     if lowered.contains("web search") {
         let imperative = lowered.starts_with("try ")
             || lowered.starts_with("please ")
