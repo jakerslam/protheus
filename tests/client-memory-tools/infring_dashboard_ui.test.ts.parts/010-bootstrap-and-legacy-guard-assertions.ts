@@ -79,6 +79,30 @@ const SNAPSHOT_PATH = path.resolve(
   ROOT,
   'client/runtime/local/state/ui/infring_dashboard/latest_snapshot.json'
 );
+const PRIMARY_DASHBOARD_HTML_PATH = path.resolve(
+  ROOT,
+  'client/runtime/systems/ui/infring_static/index_body.html'
+);
+const PRIMARY_DASHBOARD_HTML_PARTS_PATH = path.resolve(
+  ROOT,
+  'client/runtime/systems/ui/infring_static/index_body.html.parts'
+);
+const PRIMARY_DASHBOARD_COMPONENTS_CSS_PATH = path.resolve(
+  ROOT,
+  'client/runtime/systems/ui/infring_static/css/components.css'
+);
+const PRIMARY_DASHBOARD_COMPONENTS_CSS_PARTS_PATH = path.resolve(
+  ROOT,
+  'client/runtime/systems/ui/infring_static/css/components.css.parts'
+);
+const PRIMARY_DASHBOARD_LAYOUT_CSS_PATH = path.resolve(
+  ROOT,
+  'client/runtime/systems/ui/infring_static/css/layout.css'
+);
+const PRIMARY_DASHBOARD_LAYOUT_CSS_PARTS_PATH = path.resolve(
+  ROOT,
+  'client/runtime/systems/ui/infring_static/css/layout.css.parts'
+);
 const STATIC_UI_AUTHORITY_PATTERNS = [
   /\brunLaneCached?\s*\(/,
   /\bspawnSync\s*\(/,
@@ -193,6 +217,24 @@ function assertDashboardFileSizeCaps() {
 function assertPrimaryDashboardAuthorityContract() {
   const hostSource = readUtf8(ADAPTER_DASHBOARD_HOST_TS_PATH);
   const distBuildSource = readUtf8(path.resolve(ROOT, 'tests/tooling/scripts/ci/build_dashboard_dist.ts'));
+  const assetRouterSource = readUtf8(DASHBOARD_ASSET_ROUTER_TS_PATH);
+  const segmentedSources = [
+    {
+      wrapper: PRIMARY_DASHBOARD_HTML_PATH,
+      parts: PRIMARY_DASHBOARD_HTML_PARTS_PATH,
+      label: 'dashboard HTML',
+    },
+    {
+      wrapper: PRIMARY_DASHBOARD_COMPONENTS_CSS_PATH,
+      parts: PRIMARY_DASHBOARD_COMPONENTS_CSS_PARTS_PATH,
+      label: 'dashboard components CSS',
+    },
+    {
+      wrapper: PRIMARY_DASHBOARD_LAYOUT_CSS_PATH,
+      parts: PRIMARY_DASHBOARD_LAYOUT_CSS_PARTS_PATH,
+      label: 'dashboard layout CSS',
+    },
+  ];
   assertContains(
     hostSource,
     "process.env.INFRING_DASHBOARD_UI || 'primary'",
@@ -216,6 +258,25 @@ function assertPrimaryDashboardAuthorityContract() {
     !distBuildSource.includes('dashboard_sveltekit'),
     'dashboard dist build should no longer package the retired Svelte dashboard module'
   );
+  assertContains(
+    assetRouterSource,
+    'cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js',
+    'dashboard asset router should load Highlight.js from a pinned external source instead of an oversized vendored bundle'
+  );
+  assert.ok(
+    !assetRouterSource.includes("readForkScript(staticDir, 'vendor/highlight.min')"),
+    'dashboard asset router should not inline the retired vendored Highlight.js bundle'
+  );
+  for (const source of segmentedSources) {
+    assert.ok(
+      !fs.existsSync(source.wrapper),
+      `${source.label} wrapper file should stay deleted once segmented parts are authoritative`
+    );
+    assert.ok(
+      fs.existsSync(source.parts) && fs.statSync(source.parts).isDirectory(),
+      `${source.label} parts directory should remain the authoritative source`
+    );
+  }
 }
 
 function walkUiJsFiles(dir, out = []) {

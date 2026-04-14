@@ -7,12 +7,13 @@
       "category": "size",
       "status": "in_progress",
       "owner": "jay",
-      "summary": "Split the remaining authoritative dashboard HTML/CSS/TS monoliths and retire oversized primary-surface shards.",
+      "summary": "Retired the dead authoritative dashboard HTML/CSS wrapper monoliths; continue decomposing the remaining oversized primary-surface CSS and JS shards.",
       "planned_batch_date": "2026-05-15",
       "paths": [
-        "client/runtime/systems/ui/infring_static/css/components.css",
-        "client/runtime/systems/ui/infring_static/index_body.html",
-        "client/runtime/systems/ui/infring_static/css/layout.css"
+        "client/runtime/systems/ui/infring_static/css/components.css.parts/0018-components-part.css",
+        "client/runtime/systems/ui/infring_static/js/app.ts.parts",
+        "client/runtime/systems/ui/infring_static/js/pages/agents.ts.parts/010-state-and-load.ts",
+        "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts"
       ]
     },
     {
@@ -30,12 +31,14 @@
     {
       "id": "TD-SIZE-VENDORED",
       "category": "size",
-      "status": "in_progress",
+      "status": "done",
       "owner": "jay",
-      "summary": "Relocate or replace vendored/minified assets that still live inside governed source paths.",
-      "planned_batch_date": "2026-04-23",
+      "summary": "Removed the oversized vendored Highlight.js bundle from governed source paths and switched the authoritative dashboard to a pinned external script source.",
+      "planned_batch_date": "2026-04-14",
       "paths": [
-        "client/runtime/systems/ui/infring_static/vendor/highlight.min.ts"
+        "adapters/runtime/dashboard_asset_router.ts",
+        "client/runtime/systems/ui/infring_static/vendor/highlight.min.ts",
+        "tests/client-memory-tools/infring_dashboard_ui.test.ts.parts/010-bootstrap-and-legacy-guard-assertions.ts"
       ]
     },
     {
