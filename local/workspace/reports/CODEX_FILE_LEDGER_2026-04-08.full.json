@@ -11783,7 +11783,7 @@
       "order": 1070
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/memory/policy_validator.ts",
       "language": "ts",
       "loc": 200,
@@ -11816,7 +11816,7 @@
       "order": 1073
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/security/critical_path_formal_verifier.ts",
       "language": "ts",
       "loc": 3,
@@ -11827,7 +11827,7 @@
       "order": 1074
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/security/key_lifecycle_governor.ts",
       "language": "ts",
       "loc": 3,
@@ -11849,7 +11849,7 @@
       "order": 1076
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ops/protheus_setup_wizard.ts",
       "language": "ts",
       "loc": 335,
@@ -11882,7 +11882,7 @@
       "order": 1079
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ops/run_protheus_ops.ts",
       "language": "ts",
       "loc": 213,
