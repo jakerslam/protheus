@@ -107,9 +107,6 @@
 .topbar-search-popup.is-active {
   border-color: color-mix(in srgb, var(--accent) 46%, transparent);
   background: color-mix(in srgb, var(--accent-subtle) 56%, transparent);
-  box-shadow:
-    0 10px 28px color-mix(in srgb, #000 22%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--accent) 16%, transparent);
 }
 
 .topbar-search-icon {
