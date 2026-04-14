@@ -63,6 +63,35 @@ fn payload_low_signal_detector_flags_source_scaffold_summary() {
 }
 
 #[test]
+fn challenge_like_failure_detector_requires_only_low_signal_or_challenge_errors() {
+    let out = json!({
+        "ok": false,
+        "error": "search_providers_exhausted"
+    });
+    let provider_errors = vec![
+        json!({"provider": "duckduckgo", "challenge": true, "low_signal": false}),
+        json!({"provider": "duckduckgo_lite", "challenge": false, "low_signal": true}),
+    ];
+    assert!(search_failure_is_challenge_like(&out, provider_errors.as_slice()));
+}
+
+#[test]
+fn challenge_like_failure_detector_rejects_mixed_error_causes() {
+    let out = json!({
+        "ok": false,
+        "error": "search_providers_exhausted"
+    });
+    let provider_errors = vec![
+        json!({"provider": "duckduckgo", "challenge": true, "low_signal": false}),
+        json!({"provider": "bing_rss", "challenge": false, "low_signal": false}),
+    ];
+    assert!(!search_failure_is_challenge_like(
+        &out,
+        provider_errors.as_slice()
+    ));
+}
+
+#[test]
 fn search_uses_cached_response_when_available() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let request = json!({

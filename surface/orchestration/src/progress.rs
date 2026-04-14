@@ -11,6 +11,7 @@ pub fn execution_state_for(
 ) -> ExecutionState {
     let correlation = correlation_for(request, plan);
     let step_statuses = observed_step_statuses(request);
+    let observed_plan = observed_or_derived_plan_status(request, step_statuses.as_slice());
     let has_observation = request.core_execution_observation.is_some();
     if !plan.degradation.is_empty() {
         let alternate_path = plan
@@ -19,7 +20,7 @@ pub fn execution_state_for(
             .map(|row| row.target_contract.clone())
             .collect::<Vec<_>>();
         return ExecutionState {
-            plan_status: if let Some(observed) = observed_plan_status(request) {
+            plan_status: if let Some(observed) = observed_plan {
                 observed
             } else if needs_clarification || plan.requires_clarification {
                 PlanStatus::ClarificationRequired
@@ -53,7 +54,7 @@ pub fn execution_state_for(
         };
     }
 
-    let plan_status = if let Some(observed) = observed_plan_status(request) {
+    let plan_status = if let Some(observed) = observed_plan {
         observed
     } else if needs_clarification || plan.requires_clarification {
         PlanStatus::ClarificationRequired
@@ -112,6 +113,54 @@ fn observed_plan_status(request: &TypedOrchestrationRequest) -> Option<PlanStatu
         .core_execution_observation
         .as_ref()
         .and_then(|row| row.plan_status.clone())
+}
+
+fn observed_or_derived_plan_status(
+    request: &TypedOrchestrationRequest,
+    observed_step_statuses: &[(String, StepStatus)],
+) -> Option<PlanStatus> {
+    if let Some(observed) = observed_plan_status(request) {
+        return Some(observed);
+    }
+    let observation = request.core_execution_observation.as_ref()?;
+    if observed_step_statuses
+        .iter()
+        .any(|(_, status)| matches!(status, StepStatus::Failed))
+    {
+        return Some(PlanStatus::Failed);
+    }
+    if observed_step_statuses
+        .iter()
+        .any(|(_, status)| matches!(status, StepStatus::Running))
+    {
+        return Some(PlanStatus::Running);
+    }
+    if observed_step_statuses
+        .iter()
+        .any(|(_, status)| matches!(status, StepStatus::Blocked))
+    {
+        return Some(PlanStatus::Blocked);
+    }
+    if observed_step_statuses
+        .iter()
+        .any(|(_, status)| matches!(status, StepStatus::Degraded))
+    {
+        return Some(PlanStatus::Degraded);
+    }
+    if !observed_step_statuses.is_empty()
+        && observed_step_statuses.iter().all(|(_, status)| {
+            matches!(status, StepStatus::Succeeded | StepStatus::Skipped)
+        })
+    {
+        return Some(PlanStatus::Completed);
+    }
+    if !observation.outcome_refs.is_empty() {
+        return Some(PlanStatus::Completed);
+    }
+    if !observation.receipt_ids.is_empty() || !observation.step_statuses.is_empty() {
+        return Some(PlanStatus::Running);
+    }
+    None
 }
 
 fn observed_step_statuses(request: &TypedOrchestrationRequest) -> Vec<(String, StepStatus)> {

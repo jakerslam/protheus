@@ -88,6 +88,7 @@ fn build_candidate_for_variant(
 ) -> PlanCandidate {
     let mut steps = Vec::new();
     let mut reasons = classification.reasons.clone();
+    let mut variant_used_degraded = false;
     let ordered_capabilities = ordered_capabilities_for_variant(request, capabilities, &variant);
 
     for capability in &ordered_capabilities {
@@ -129,6 +130,7 @@ fn build_candidate_for_variant(
         }
         if using_degraded {
             reasons.push(format!("capability_degraded:{capability:?}").to_lowercase());
+            variant_used_degraded = true;
         }
         for step in &mut chain {
             if blocked {
@@ -171,7 +173,7 @@ fn build_candidate_for_variant(
         classification,
         contracts.as_slice(),
         blocked_on.len(),
-        degradation.len(),
+        degradation.len() + usize::from(variant_used_degraded),
         requires_clarification,
     );
     if steps.is_empty() {
