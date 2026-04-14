@@ -5,6 +5,7 @@ const { createOpsLaneBridge } = require('../../lib/rust_lane_bridge.ts');
 const { commandNameFromArgs, validateMemoryPolicy, guardFailureResult } = require('./policy_validator.ts');
 const { validateSessionIsolation, sessionFailureResult } = require('./session_isolation.ts');
 
+const SYSTEM_ID = 'SYSTEMS-MEMORY-MEMORY_FEDERATION_PLANE';
 const bridge = createOpsLaneBridge(__dirname, 'memory_federation_plane', 'memory-plane', {
   inheritStdio: true
 });
@@ -72,45 +73,49 @@ function mapArgs(args = []) {
   return [head].concat(tail);
 }
 
-function run(args = process.argv.slice(2)) {
-  const mapped = mapArgs(args);
-  const command = commandNameFromArgs(mapped, 'status');
-  const policy = validateMemoryPolicy(mapped, { command, lane: 'SYSTEMS-MEMORY-MEMORY_FEDERATION_PLANE' });
-  let out;
-  if (!policy.ok) {
-    out = guardFailureResult(policy, { command, system_id: 'SYSTEMS-MEMORY-MEMORY_FEDERATION_PLANE' });
-  } else {
-    const isolation = validateSessionIsolation(mapped, {
-      command,
-      lane: 'SYSTEMS-MEMORY-MEMORY_FEDERATION_PLANE'
-    });
-    if (!isolation.ok) {
-      out = sessionFailureResult(isolation, { command, system_id: 'SYSTEMS-MEMORY-MEMORY_FEDERATION_PLANE' });
-    } else {
-      out = ensureMutationReceipt(
-        bridge.run(['memory-federation-plane'].concat(mapped)),
-        command
-      );
-    }
-  }
-
+function emitBridgeResult(out) {
   if (out && out.stdout) process.stdout.write(out.stdout);
   if (out && out.stderr) process.stderr.write(out.stderr);
   if (out && out.payload && !out.stdout) {
     process.stdout.write(`${JSON.stringify(out.payload)}\n`);
   }
+  return Number.isFinite(Number(out && out.status)) ? Number(out.status) : 1;
+}
+
+function run(args = process.argv.slice(2)) {
+  const mapped = mapArgs(args);
+  const command = commandNameFromArgs(mapped, 'status');
+  const policy = validateMemoryPolicy(mapped, { command, lane: SYSTEM_ID });
+  let out;
+  if (!policy.ok) {
+    out = guardFailureResult(policy, { command, system_id: SYSTEM_ID });
+  } else {
+    const isolation = validateSessionIsolation(mapped, {
+      command,
+      lane: SYSTEM_ID
+    });
+    if (!isolation.ok) {
+      out = sessionFailureResult(isolation, { command, system_id: SYSTEM_ID });
+    } else {
+      out = ensureMutationReceipt(
+        bridge.run(['memory-federation-plane'].concat(mapped).concat([`--system-id=${SYSTEM_ID}`])),
+        command
+      );
+    }
+  }
   return out;
 }
 
 if (require.main === module) {
-  const out = run(process.argv.slice(2));
-  process.exit(Number.isFinite(Number(out && out.status)) ? Number(out.status) : 1);
+  process.exit(emitBridgeResult(run(process.argv.slice(2))));
 }
 
 module.exports = {
   lane: bridge.lane,
+  systemId: SYSTEM_ID,
   run,
   mapArgs,
+  emitBridgeResult,
   normalizeReceiptHash,
   ensureMutationReceipt
 };

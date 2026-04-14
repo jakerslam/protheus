@@ -11893,7 +11893,7 @@
       "order": 1080
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/memory/session_isolation.ts",
       "language": "ts",
       "loc": 179,
@@ -11904,7 +11904,7 @@
       "order": 1081
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/memory/causal_temporal_graph.ts",
       "language": "ts",
       "loc": 122,
@@ -11915,7 +11915,7 @@
       "order": 1082
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/memory/memory_federation_plane.ts",
       "language": "ts",
       "loc": 116,
@@ -11926,7 +11926,7 @@
       "order": 1083
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ops/local_runtime_partitioner.ts",
       "language": "ts",
       "loc": 101,
@@ -11937,7 +11937,7 @@
       "order": 1084
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ops/rust_hotpath_inventory.ts",
       "language": "ts",
       "loc": 86,
