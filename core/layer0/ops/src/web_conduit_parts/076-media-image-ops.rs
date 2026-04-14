@@ -32,14 +32,14 @@ fn prefers_sips_backend() -> bool {
     }
 }
 
-fn set_private_dir_permissions(path: &Path) {
+fn set_private_dir_permissions(_path: &Path) {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        if let Ok(metadata) = fs::metadata(path) {
+        if let Ok(metadata) = fs::metadata(_path) {
             let mut perms = metadata.permissions();
             perms.set_mode(0o700);
-            let _ = fs::set_permissions(path, perms);
+            let _ = fs::set_permissions(_path, perms);
         }
     }
 }

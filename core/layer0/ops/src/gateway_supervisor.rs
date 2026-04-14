@@ -3,7 +3,7 @@
 
 use serde_json::{json, Value};
 use std::env;
-use std::fs;
+#[allow(unused_imports)] use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
@@ -633,45 +633,44 @@ fn systemd_disable(root: &Path) -> GatewaySupervisorResult {
 }
 
 pub fn enable(
-    root: &Path,
-    executable: &Path,
-    cfg: &GatewaySupervisorConfig,
-    log_path: &Path,
+    _root: &Path,
+    _executable: &Path,
+    _cfg: &GatewaySupervisorConfig,
+    _log_path: &Path,
 ) -> GatewaySupervisorResult {
     #[cfg(target_os = "macos")]
     {
-        return launchd_enable(root, executable, cfg, log_path);
+        return launchd_enable(_root, _executable, _cfg, _log_path);
     }
     #[cfg(target_os = "linux")]
     {
-        let _ = log_path;
-        return systemd_enable(root, executable, cfg);
+        return systemd_enable(_root, _executable, _cfg);
     }
     #[allow(unreachable_code)]
     unsupported_payload("enable", "platform_not_supported")
 }
 
-pub fn disable(root: &Path) -> GatewaySupervisorResult {
+pub fn disable(_root: &Path) -> GatewaySupervisorResult {
     #[cfg(target_os = "macos")]
     {
-        return launchd_disable(root);
+        return launchd_disable(_root);
     }
     #[cfg(target_os = "linux")]
     {
-        return systemd_disable(root);
+        return systemd_disable(_root);
     }
     #[allow(unreachable_code)]
     unsupported_payload("disable", "platform_not_supported")
 }
 
-pub fn status(root: &Path) -> GatewaySupervisorResult {
+pub fn status(_root: &Path) -> GatewaySupervisorResult {
     #[cfg(target_os = "macos")]
     {
-        return launchd_status(root);
+        return launchd_status(_root);
     }
     #[cfg(target_os = "linux")]
     {
-        return systemd_status(root);
+        return systemd_status(_root);
     }
     #[allow(unreachable_code)]
     unsupported_payload("status", "platform_not_supported")
