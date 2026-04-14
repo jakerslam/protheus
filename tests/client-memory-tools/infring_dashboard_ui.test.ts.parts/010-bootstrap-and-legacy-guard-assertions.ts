@@ -200,7 +200,7 @@ function assertSvelteKitPrimaryDashboardContract() {
   );
   assertContains(
     hostSource,
-    "pathname === '/dashboard-classic' || pathname === '/dashboard-shell'",
+    "pathname === '/dashboard-classic'",
     'dashboard host should preserve an explicit classic-only fallback route'
   );
   assertContains(

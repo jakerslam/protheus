@@ -37,7 +37,7 @@
       <p class="eyebrow">Migration status</p>
       <h2>SvelteKit is now the primary dashboard shell.</h2>
       <p class="hero-copy">
-        We’re keeping the classic dashboard around as a contained fallback while we port the busiest views one route at a time.
+        The native shell now owns the primary operator routes. Remaining migration work is focused on retiring the top-level classic compatibility host and asset corpus, not reviving per-page iframe fallback.
       </p>
     </div>
     <div class="hero-card">

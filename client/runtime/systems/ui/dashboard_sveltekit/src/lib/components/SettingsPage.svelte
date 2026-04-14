@@ -154,7 +154,7 @@
       <p class="eyebrow">Native settings</p>
       <h2>Provider setup, model catalog, and runtime defaults without the legacy host detour.</h2>
       <p class="hero-copy">
-        This first native settings slice covers the everyday setup path. Advanced config, security, network, and migration tabs still live behind the classic escape hatch for now.
+        This first native settings slice covers the everyday setup path. Remaining migration work is about folding advanced tabs into the native shell and shrinking the top-level compatibility host.
       </p>
     </div>
     <div class="hero-actions">
