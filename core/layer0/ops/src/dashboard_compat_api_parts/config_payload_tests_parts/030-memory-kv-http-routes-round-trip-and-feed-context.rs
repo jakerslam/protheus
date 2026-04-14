@@ -253,48 +253,12 @@ fn agents_routes_terminal_and_artifact_endpoints_round_trip() {
     )
     .expect("file read many");
     assert_eq!(file_read_many.status, 200);
-    assert_eq!(
-        file_read_many
-            .payload
-            .pointer("/counts/ok")
-            .and_then(Value::as_u64),
-        Some(1)
-    );
-    assert_eq!(
-        file_read_many
-            .payload
-            .pointer("/counts/failed")
-            .and_then(Value::as_u64),
-        Some(1)
-    );
-    assert_eq!(
-        file_read_many
-            .payload
-            .pointer("/files/0/content")
-            .and_then(Value::as_str),
-        Some("ship it")
-    );
-    assert_eq!(
-        file_read_many
-            .payload
-            .pointer("/failed/0/error")
-            .and_then(Value::as_str),
-        Some("binary_file_requires_opt_in")
-    );
-    assert_eq!(
-        file_read_many
-            .payload
-            .pointer("/counts/text")
-            .and_then(Value::as_u64),
-        Some(1)
-    );
-    assert_eq!(
-        file_read_many
-            .payload
-            .pointer("/counts/binary")
-            .and_then(Value::as_u64),
-        Some(1)
-    );
+    assert_eq!(file_read_many.payload.pointer("/counts/ok").and_then(Value::as_u64), Some(1));
+    assert_eq!(file_read_many.payload.pointer("/counts/failed").and_then(Value::as_u64), Some(1));
+    assert_eq!(file_read_many.payload.pointer("/files/0/content").and_then(Value::as_str), Some("ship it"));
+    assert_eq!(file_read_many.payload.pointer("/failed/0/error").and_then(Value::as_str), Some("binary_file_requires_opt_in"));
+    assert_eq!(file_read_many.payload.pointer("/counts/text").and_then(Value::as_u64), Some(1));
+    assert_eq!(file_read_many.payload.pointer("/counts/binary").and_then(Value::as_u64), Some(1));
     assert_eq!(
         file_read_many
             .payload
@@ -314,26 +278,14 @@ fn agents_routes_terminal_and_artifact_endpoints_round_trip() {
     )
     .expect("file read many binary");
     assert_eq!(file_read_many_binary.status, 200);
-    assert_eq!(
-        file_read_many_binary
-            .payload
-            .pointer("/counts/ok")
-            .and_then(Value::as_u64),
-        Some(1)
-    );
+    assert_eq!(file_read_many_binary.payload.pointer("/counts/ok").and_then(Value::as_u64), Some(1));
     assert!(!file_read_many_binary
         .payload
         .pointer("/files/0/content_base64")
         .and_then(Value::as_str)
         .unwrap_or("")
         .is_empty());
-    assert_eq!(
-        file_read_many_binary
-            .payload
-            .pointer("/counts/binary")
-            .and_then(Value::as_u64),
-        Some(1)
-    );
+    assert_eq!(file_read_many_binary.payload.pointer("/counts/binary").and_then(Value::as_u64), Some(1));
 
     let folder_export = handle(
         root.path(),
@@ -343,13 +295,7 @@ fn agents_routes_terminal_and_artifact_endpoints_round_trip() {
         &json!({"ok": true}),
     )
     .expect("folder export");
-    assert_eq!(
-        folder_export
-            .payload
-            .pointer("/folder/ok")
-            .and_then(Value::as_bool),
-        Some(true)
-    );
+    assert_eq!(folder_export.payload.pointer("/folder/ok").and_then(Value::as_bool), Some(true));
     assert!(folder_export
         .payload
         .pointer("/folder/tree")
@@ -371,13 +317,7 @@ fn agents_routes_terminal_and_artifact_endpoints_round_trip() {
         &json!({"ok": true}),
     )
     .expect("folder export limited");
-    assert_eq!(
-        folder_export_limited
-            .payload
-            .pointer("/folder/truncated")
-            .and_then(Value::as_bool),
-        Some(true)
-    );
+    assert_eq!(folder_export_limited.payload.pointer("/folder/truncated").and_then(Value::as_bool), Some(true));
 
     let folder_export_full = handle(
         root.path(),
@@ -387,13 +327,7 @@ fn agents_routes_terminal_and_artifact_endpoints_round_trip() {
         &json!({"ok": true}),
     )
     .expect("folder export full");
-    assert_eq!(
-        folder_export_full
-            .payload
-            .pointer("/folder/truncated")
-            .and_then(Value::as_bool),
-        Some(false)
-    );
+    assert_eq!(folder_export_full.payload.pointer("/folder/truncated").and_then(Value::as_bool), Some(false));
     assert!(folder_export_full
         .payload
         .pointer("/folder/tree")
@@ -409,14 +343,8 @@ fn agents_routes_terminal_and_artifact_endpoints_round_trip() {
         &json!({"ok": true}),
     )
     .expect("terminal");
-    assert_eq!(
-        terminal.payload.get("ok").and_then(Value::as_bool),
-        Some(true)
-    );
-    assert_eq!(
-        terminal.payload.get("stdout").and_then(Value::as_str),
-        Some("ok")
-    );
+    assert_eq!(terminal.payload.get("ok").and_then(Value::as_bool), Some(true));
+    assert_eq!(terminal.payload.get("stdout").and_then(Value::as_str), Some("ok"));
 
     let upload = handle_with_headers(
         root.path(),
@@ -427,10 +355,7 @@ fn agents_routes_terminal_and_artifact_endpoints_round_trip() {
         &json!({"ok": true}),
     )
     .expect("upload");
-    assert_eq!(
-        upload.payload.get("ok").and_then(Value::as_bool),
-        Some(true)
-    );
+    assert_eq!(upload.payload.get("ok").and_then(Value::as_bool), Some(true));
     assert!(!clean_text(
         upload
             .payload
@@ -440,10 +365,7 @@ fn agents_routes_terminal_and_artifact_endpoints_round_trip() {
         180
     )
     .is_empty());
-    assert_eq!(
-        upload.payload.get("filename").and_then(Value::as_str),
-        Some("voice.webm")
-    );
+    assert_eq!(upload.payload.get("filename").and_then(Value::as_str), Some("voice.webm"));
 }
 
 #[test]
@@ -480,13 +402,7 @@ fn full_mode_overrides_file_and_folder_limits() {
         &json!({"ok": true}),
     )
     .expect("file read limited");
-    assert_eq!(
-        file_read_limited
-            .payload
-            .pointer("/file/truncated")
-            .and_then(Value::as_bool),
-        Some(true)
-    );
+    assert_eq!(file_read_limited.payload.pointer("/file/truncated").and_then(Value::as_bool), Some(true));
 
     let file_read_full = handle(
         root.path(),
@@ -496,13 +412,7 @@ fn full_mode_overrides_file_and_folder_limits() {
         &json!({"ok": true}),
     )
     .expect("file read full");
-    assert_eq!(
-        file_read_full
-            .payload
-            .pointer("/file/truncated")
-            .and_then(Value::as_bool),
-        Some(false)
-    );
+    assert_eq!(file_read_full.payload.pointer("/file/truncated").and_then(Value::as_bool), Some(false));
 
     let folder_export_limited = handle(
         root.path(),
@@ -512,13 +422,7 @@ fn full_mode_overrides_file_and_folder_limits() {
         &json!({"ok": true}),
     )
     .expect("folder export limited");
-    assert_eq!(
-        folder_export_limited
-            .payload
-            .pointer("/folder/truncated")
-            .and_then(Value::as_bool),
-        Some(true)
-    );
+    assert_eq!(folder_export_limited.payload.pointer("/folder/truncated").and_then(Value::as_bool), Some(true));
 
     let folder_export_full = handle(
         root.path(),
@@ -528,11 +432,5 @@ fn full_mode_overrides_file_and_folder_limits() {
         &json!({"ok": true}),
     )
     .expect("folder export full");
-    assert_eq!(
-        folder_export_full
-            .payload
-            .pointer("/folder/truncated")
-            .and_then(Value::as_bool),
-        Some(false)
-    );
+    assert_eq!(folder_export_full.payload.pointer("/folder/truncated").and_then(Value::as_bool), Some(false));
 }
