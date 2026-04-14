@@ -7,7 +7,9 @@ use std::collections::{BTreeMap, BTreeSet};
 
 pub const DEFAULT_PINNED_TOKEN_ESTIMATE: u32 = 32;
 const HOT_TAIL_COUNT: usize = 4;
-const DESCEND_HEAT_THRESHOLD: f32 = 0.62;
+const COLD_BASE_HEAT_THRESHOLD: f32 = 0.20;
+const COLD_DESCEND_MEDIUM_HEAT_THRESHOLD: f32 = 0.48;
+const COLD_DESCEND_HIGH_HEAT_THRESHOLD: f32 = 0.62;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ContextBudgetRequest {
@@ -35,13 +37,18 @@ pub fn build_frontier(
     spans: &[ContextSpan],
     previous_frontier: Option<&ContextFrontier>,
 ) -> (ContextFrontier, ContextBudgetReport) {
+    let mut pinned_anchor_refs = request.pinned_anchor_refs.clone();
+    if let Some(previous) = previous_frontier {
+        pinned_anchor_refs.extend(previous.pinned_anchor_refs.iter().cloned());
+    }
+    let pinned_anchor_refs = dedupe(pinned_anchor_refs);
     let mut used_tokens = 0u32;
     let mut hot_tokens = 0u32;
     let mut warm_tokens = 0u32;
     let mut cool_tokens = 0u32;
     let mut cold_tokens = 0u32;
     let pinned_tokens =
-        DEFAULT_PINNED_TOKEN_ESTIMATE.saturating_mul(request.pinned_anchor_refs.len() as u32);
+        DEFAULT_PINNED_TOKEN_ESTIMATE.saturating_mul(pinned_anchor_refs.len() as u32);
 
     let mut hot_atom_refs = Vec::<String>::new();
     let mut warm_span_refs = Vec::<String>::new();
@@ -123,7 +130,7 @@ pub fn build_frontier(
         warm_span_refs,
         cool_span_refs,
         cold_span_refs,
-        pinned_anchor_refs: dedupe(request.pinned_anchor_refs.clone()),
+        pinned_anchor_refs,
         pressure_state: pressure_state.clone(),
         fidelity_score,
     };
@@ -192,10 +199,12 @@ fn previous_pressure_blocks_descent(
     previous_frontier: Option<&ContextFrontier>,
     candidate_heat: f32,
 ) -> bool {
-    match previous_frontier.map(|row| &row.pressure_state) {
-        Some(ContextPressureState::High) => candidate_heat < DESCEND_HEAT_THRESHOLD,
-        _ => false,
-    }
+    let threshold = match previous_frontier.map(|row| &row.pressure_state) {
+        Some(ContextPressureState::High) => COLD_DESCEND_HIGH_HEAT_THRESHOLD,
+        Some(ContextPressureState::Medium) => COLD_DESCEND_MEDIUM_HEAT_THRESHOLD,
+        _ => COLD_BASE_HEAT_THRESHOLD,
+    };
+    candidate_heat < threshold
 }
 
 fn dedupe(values: Vec<String>) -> Vec<String> {
@@ -253,6 +262,25 @@ mod tests {
         }
     }
 
+    fn pressure_frontier(
+        budget_tokens: u32,
+        used_tokens: u32,
+        pressure_state: ContextPressureState,
+    ) -> ContextFrontier {
+        ContextFrontier {
+            session_id: "s".to_string(),
+            budget_tokens,
+            used_tokens,
+            hot_atom_refs: vec![],
+            warm_span_refs: vec![],
+            cool_span_refs: vec![],
+            cold_span_refs: vec![],
+            pinned_anchor_refs: vec![],
+            pressure_state,
+            fidelity_score: 1.0,
+        }
+    }
+
     #[test]
     fn budget_frontier_prioritizes_hot_then_warm() {
         let req = ContextBudgetRequest {
@@ -283,20 +311,46 @@ mod tests {
         };
         let atoms = vec![atom(1, 30)];
         let spans = vec![span("cold-low", 3, 60, 0.2), span("cold-high", 3, 60, 0.9)];
-        let previous = ContextFrontier {
-            session_id: "s".to_string(),
-            budget_tokens: 100,
-            used_tokens: 100,
-            hot_atom_refs: vec![],
-            warm_span_refs: vec![],
-            cool_span_refs: vec![],
-            cold_span_refs: vec![],
-            pinned_anchor_refs: vec![],
-            pressure_state: ContextPressureState::High,
-            fidelity_score: 1.0,
-        };
+        let previous = pressure_frontier(100, 100, ContextPressureState::High);
         let (frontier, _) = build_frontier(&req, &atoms, &spans, Some(&previous));
         assert!(frontier.cold_span_refs.contains(&"cold-high".to_string()));
         assert!(!frontier.cold_span_refs.contains(&"cold-low".to_string()));
+    }
+
+    #[test]
+    fn previous_medium_pressure_uses_mid_threshold_for_cold_descent() {
+        let req = ContextBudgetRequest {
+            session_id: "s".to_string(),
+            budget_tokens: 400,
+            pinned_anchor_refs: vec![],
+        };
+        let atoms = vec![atom(1, 30)];
+        let spans = vec![
+            span("cold-below", 3, 60, 0.45),
+            span("cold-above", 3, 60, 0.55),
+        ];
+        let previous = pressure_frontier(400, 300, ContextPressureState::Medium);
+        let (frontier, _) = build_frontier(&req, &atoms, &spans, Some(&previous));
+        assert!(!frontier.cold_span_refs.contains(&"cold-below".to_string()));
+        assert!(frontier.cold_span_refs.contains(&"cold-above".to_string()));
+    }
+
+    #[test]
+    fn pinned_anchor_refs_persist_from_previous_frontier_and_dedupe_budgeting() {
+        let req = ContextBudgetRequest {
+            session_id: "s".to_string(),
+            budget_tokens: 96,
+            pinned_anchor_refs: vec!["anchor-a".to_string(), "anchor-a".to_string()],
+        };
+        let atoms = vec![atom(1, 12)];
+        let spans = vec![];
+        let mut previous = pressure_frontier(96, 40, ContextPressureState::Low);
+        previous.pinned_anchor_refs = vec!["anchor-b".to_string()];
+        let (frontier, report) = build_frontier(&req, &atoms, &spans, Some(&previous));
+        assert_eq!(
+            frontier.pinned_anchor_refs,
+            vec!["anchor-a".to_string(), "anchor-b".to_string()]
+        );
+        assert_eq!(report.pinned_tokens, 64);
     }
 }
