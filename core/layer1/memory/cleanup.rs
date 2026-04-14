@@ -16,6 +16,19 @@ pub struct CleanupReport {
 }
 
 impl EphemeralMemoryHeap {
+    pub fn run_sleep_cycle_cleanup(
+        &mut self,
+        sleep_cycle_id: &str,
+    ) -> Result<CleanupReport, EphemeralMemoryError> {
+        let normalized_cycle = sleep_cycle_id.trim();
+        let cleanup_reason = if normalized_cycle.is_empty() {
+            "sleep_cycle_ephemeral_wipe".to_string()
+        } else {
+            format!("sleep_cycle_ephemeral_wipe:{normalized_cycle}")
+        };
+        self.run_dream_cleanup(cleanup_reason.as_str())
+    }
+
     pub fn run_dream_cleanup(
         &mut self,
         cleanup_reason: &str,
