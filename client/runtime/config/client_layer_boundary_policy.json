@@ -33,7 +33,16 @@
     "JSON.parse(fs.readFileSync(",
     "while (stack.length)"
   ],
-  "allowed_non_wrapper_paths": [],
+  "allowed_non_wrapper_paths": [
+    "client/runtime/systems/ops/contract_runtime_common.ts",
+    "client/runtime/systems/ops/entrypoint_runtime_contract.ts",
+    "client/runtime/systems/ops/legal_language_contract.ts",
+    "client/runtime/systems/ops/package_manifest_contract.ts",
+    "client/runtime/systems/ops/relocatable_path_contract.ts",
+    "client/runtime/systems/ops/rust_hotpath_inventory.ts",
+    "client/runtime/systems/ops/source_runtime_classifier_contract.ts",
+    "client/runtime/systems/ops/state_tiering_contract.ts"
+  ],
   "allowed_non_wrapper_roots": [
     "client/runtime/systems/ui/infring_static/"
   ],
