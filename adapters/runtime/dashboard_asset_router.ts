@@ -4,6 +4,8 @@ const childProcess = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 
+const HIGHLIGHT_JS_CDN_URL = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js';
+
 const PAGE_SCRIPTS = ['overview', 'chat', 'agents', 'workflows', 'workflow-builder', 'channels', 'eyes', 'skills', 'hands', 'scheduler', 'settings', 'usage', 'sessions', 'logs', 'wizard', 'approvals', 'comms', 'runtime'];
 const MIME = {
   '.css': 'text/css; charset=utf-8',
@@ -251,6 +253,11 @@ function rebrandDashboardText(text) {
     .replace(/\bCONTROL_RUNTIME\b/g, 'INFRING')
     .replace(/\bcontrol_runtime\b/g, 'infring');
 }
+function injectBeforeHeadClose(head, snippet) {
+  if (!snippet) return head;
+  if (head.includes('</head>')) return head.replace('</head>', `${snippet}\n</head>`);
+  return `${head}\n${snippet}`;
+}
 function readForkScript(staticDir, basePathNoExt) {
   const jsPath = path.resolve(staticDir, `${basePathNoExt}.js`);
   if (fileExists(jsPath) || listSegmentPartFiles(jsPath).length > 0) return readSegmentedText(jsPath, '');
@@ -338,6 +345,10 @@ function buildPrimaryDashboardHtml(staticDir) {
   const head = readSegmentedText(path.resolve(staticDir, 'index_head.html'), '');
   const body = readSegmentedText(path.resolve(staticDir, 'index_body.html'), '');
   if (!head || !body) return '';
+  const headWithExternalAssets = injectBeforeHeadClose(
+    head,
+    `<script src="${HIGHLIGHT_JS_CDN_URL}"></script>`
+  );
   const css = [
     readSegmentedText(path.resolve(staticDir, 'css/theme.css'), ''),
     readSegmentedText(path.resolve(staticDir, 'css/layout.css'), ''),
@@ -346,7 +357,6 @@ function buildPrimaryDashboardHtml(staticDir) {
   ].join('\n');
   const scripts = [
     readForkScript(staticDir, 'vendor/marked.min'),
-    readForkScript(staticDir, 'vendor/highlight.min'),
     readForkScript(staticDir, 'vendor/chart.umd.min'),
     readForkScript(staticDir, 'js/api'),
     readForkScript(staticDir, 'js/app'),
@@ -358,7 +368,7 @@ function buildPrimaryDashboardHtml(staticDir) {
     'window.__INFRING_APP_VERSION = window.__INFRING_BUILD_INFO.version || "0.0.0";',
     'window.__INFRING_APP_TAG = window.__INFRING_BUILD_INFO.tag || ("v" + window.__INFRING_APP_VERSION);',
   ].join('\n');
-  return rebrandDashboardText([head, '<style>', css, '</style>', body, '<script>', versionBootstrap, '</script>', '<script>', scripts, '</script>', '<script>', alpine, '</script>', '<script>', agentMutationSyncPatchScript(), '</script>', '</body></html>'].join('\n'));
+  return rebrandDashboardText([headWithExternalAssets, '<style>', css, '</style>', body, '<script>', versionBootstrap, '</script>', '<script>', scripts, '</script>', '<script>', alpine, '</script>', '<script>', agentMutationSyncPatchScript(), '</script>', '</body></html>'].join('\n'));
 }
 function readPrimaryDashboardAsset(staticDir, pathname) {
   const requestPath = pathname === '/' || pathname === '/dashboard' || pathname === '/dashboard/' ? '/index_body.html' : pathname;

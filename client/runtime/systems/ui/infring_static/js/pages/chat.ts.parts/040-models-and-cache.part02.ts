@@ -460,7 +460,6 @@
       }
       return out;
     },
-
     restoreAgentConversation(agentId) {
       if (!agentId || !this.conversationCache) return false;
       const cached = this.conversationCache[String(agentId)];

@@ -451,19 +451,13 @@
       return this.isLastInSourceRun(idx, list);
     },
 
-    // Strip raw function-call text that some models (Llama, Groq, etc.) leak into output.
-    // These models don't use proper tool_use blocks — they output function calls as plain text.
     sanitizeToolText: function(text) {
       if (!text) return text;
-      // Pattern: <function=tool_name>{...}</function> (including hyphenated names)
       text = text.replace(/<function=[^>]+>[\s\S]*?<\/function>/gi, '');
-      // Pattern: stray opening/closing function tags
       text = text.replace(/<\/?function[^>]*>/gi, '');
-      // Pattern: leaked cache-control metadata tags
       text = text.replace(/<cache_control[^>]*\/>/gi, '');
       text = text.replace(/<cache_control[^>]*>[\s\S]*?<\/cache_control>/gi, '');
       text = text.replace(/<\/?cache_control[^>]*>/gi, '');
-      // Pattern: plaintext cache telemetry lines
       text = text
         .split('\n')
         .filter(function(line) {
@@ -471,13 +465,9 @@
           return !(lowered.includes('stable_hash=') && (lowered.includes('cache_control') || lowered.includes('cache control')));
         })
         .join('\n');
-      // Pattern: tool_name</function={"key":"value"} or tool_name</function,{...}
       text = text.replace(/\s*\w+<\/function[=,]?\s*\{[\s\S]*$/gmi, '');
-      // Pattern: dangling <function=...>{... after truncation
       text = text.replace(/\s*<function=[^>]*>\s*\{[\s\S]*$/gmi, '');
-      // Pattern: tool_name{"type":"function",...}
       text = text.replace(/\s*\w+\{"type"\s*:\s*"function"[\s\S]*$/gmi, '');
-      // Pattern: <|python_tag|> or similar special tokens
       text = text.replace(/<\|[\w_:-]+\|>/g, '');
       text = text.replace(/\n{3,}/g, '\n\n');
       return text.trim();
