@@ -15611,7 +15611,7 @@
       "order": 1418
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "adapters/protocol/dify_connector_bridge.ts",
       "language": "ts",
       "loc": 33,
@@ -15633,7 +15633,7 @@
       "order": 1420
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "adapters/protocol/shannon_gateway_bridge.ts",
       "language": "ts",
       "loc": 31,
@@ -15644,7 +15644,7 @@
       "order": 1421
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "adapters/protocol/workflow_graph_trace_bridge.ts",
       "language": "ts",
       "loc": 31,
@@ -15655,7 +15655,7 @@
       "order": 1422
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "adapters/protocol/camel_connector_bridge.ts",
       "language": "ts",
       "loc": 30,
@@ -15666,7 +15666,7 @@
       "order": 1423
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "adapters/protocol/haystack_connector_bridge.ts",
       "language": "ts",
       "loc": 30,
