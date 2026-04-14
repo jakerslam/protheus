@@ -177,6 +177,29 @@ fn looks_like_json_payload_envelope(text: &str) -> bool {
     brace_count >= 6 && colon_count >= 8 && quote_count >= 16
 }
 
+fn looks_like_speculative_web_blocker_explanation(raw: &str) -> bool {
+    let lowered = clean_text(raw, 8_000).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    let mentions_blocked_search_lane = lowered.contains("unable to access web search")
+        || lowered.contains("web search functionality")
+        || lowered.contains("search function isn't currently operational")
+        || lowered.contains("search function is not currently operational")
+        || lowered.contains("blocking tool execution attempts")
+        || lowered.contains("tool execution attempts");
+    if !mentions_blocked_search_lane {
+        return false;
+    }
+    lowered.contains("likely reasons")
+        || lowered.contains("configuration restrictions")
+        || lowered.contains("authentication issues")
+        || lowered.contains("rate limiting")
+        || lowered.contains("intentional design")
+        || lowered.contains("sandboxed")
+        || lowered.contains("policy restrictions")
+}
+
 pub fn matches_raw_payload_dump(raw: &str) -> bool {
     let cleaned = clean_text(raw, 32_000);
     if cleaned.is_empty() {
@@ -282,6 +305,9 @@ pub fn matches_ack_placeholder(raw: &str) -> bool {
         }
         return true;
     }
+    if looks_like_speculative_web_blocker_explanation(&cleaned) {
+        return true;
+    }
     false
 }
 
@@ -331,6 +357,12 @@ mod tests {
         assert!(matches_ack_placeholder(
             "I couldn't extract usable findings from that search yet."
         ));
+    }
+
+    #[test]
+    fn detects_speculative_web_blocker_explanation_as_ack_placeholder() {
+        let raw = "I understand you're looking for a comparison between this platform and OpenClaw, but I'm currently unable to access web search functionality to gather the necessary information. The system is blocking tool execution attempts, which prevents me from retrieving current details.\n\nBased on system behavior, likely reasons include Configuration Restrictions, Authentication Issues, or Rate Limiting.";
+        assert!(matches_ack_placeholder(raw));
     }
 
     #[test]

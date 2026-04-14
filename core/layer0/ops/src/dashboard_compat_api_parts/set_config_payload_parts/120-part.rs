@@ -52,6 +52,7 @@ fn message_requests_comparative_answer(message: &str) -> bool {
         || lowered.contains("versus");
     let mentions_subject = lowered.contains("infring")
         || lowered.contains("openclaw")
+        || lowered.contains("this platform")
         || lowered.contains("this system")
         || lowered.contains("this workspace")
         || lowered.contains("this repo")

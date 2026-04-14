@@ -61,6 +61,7 @@ fn message_requests_workspace_plus_web_comparison(message: &str) -> bool {
         return false;
     }
     let mentions_local_subject = lowered.contains("infring")
+        || lowered.contains("this platform")
         || lowered.contains("this system")
         || lowered.contains("this workspace")
         || lowered.contains("this repo")
