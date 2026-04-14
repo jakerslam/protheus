@@ -297,6 +297,52 @@ mod tests {
     }
 
     #[test]
+    fn provider_health_snapshot_exposes_timestamps_and_circuit_state() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let policy = json!({
+            "web_conduit": {
+                "provider_circuit_breaker": {
+                    "enabled": true,
+                    "failure_threshold": 2,
+                    "open_for_secs": 120
+                }
+            }
+        });
+        record_provider_attempt(tmp.path(), "serperdev", false, "timeout", &policy);
+        record_provider_attempt(tmp.path(), "serperdev", false, "timeout", &policy);
+        let rows = provider_health_snapshot(tmp.path(), &[String::from("serperdev")])
+            .as_array()
+            .cloned()
+            .unwrap_or_default();
+        let row = rows.first().cloned().unwrap_or_else(|| json!({}));
+        assert_eq!(
+            row.get("provider").and_then(Value::as_str),
+            Some("serperdev")
+        );
+        assert!(row
+            .get("last_failure_at")
+            .and_then(Value::as_str)
+            .map(|value| !value.is_empty())
+            .unwrap_or(false));
+        assert_eq!(row.get("circuit_open").and_then(Value::as_bool), Some(true));
+        record_provider_attempt(tmp.path(), "serperdev", true, "", &policy);
+        let rows_after = provider_health_snapshot(tmp.path(), &[String::from("serperdev")])
+            .as_array()
+            .cloned()
+            .unwrap_or_default();
+        let row_after = rows_after.first().cloned().unwrap_or_else(|| json!({}));
+        assert!(row_after
+            .get("last_success_at")
+            .and_then(Value::as_str)
+            .map(|value| !value.is_empty())
+            .unwrap_or(false));
+        assert_eq!(
+            row_after.get("circuit_open").and_then(Value::as_bool),
+            Some(false)
+        );
+    }
+
+    #[test]
     fn search_cache_roundtrip_returns_stored_payload() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let key = "cache-key";
