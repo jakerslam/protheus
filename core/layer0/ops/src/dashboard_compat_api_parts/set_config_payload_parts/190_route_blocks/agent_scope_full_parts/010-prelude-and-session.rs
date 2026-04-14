@@ -30,7 +30,7 @@ fn handle_agent_scope_full(
                     } else {
                         "agent_manage_forbidden"
                     },
-                    "actor_agent_id": requester_agent.clone(),
+                    "actor_agent_id": requester_agent,
                     "target_agent_id": agent_id
                 }),
             });

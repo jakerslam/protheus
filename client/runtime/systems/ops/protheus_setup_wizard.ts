@@ -6,8 +6,18 @@
 
 const mod = require('../../../../adapters/runtime/protheus_setup_wizard.ts');
 
+function normalizeExitCode(value, fallback = 1) {
+  if (Number.isFinite(Number(value))) return Number(value);
+  return fallback;
+}
+
+async function run(argv = process.argv.slice(2)) {
+  const args = Array.isArray(argv) ? argv.map((token) => String(token || '')) : [];
+  return normalizeExitCode(await mod.main(args), 0);
+}
+
 if (require.main === module) {
-  Promise.resolve(mod.main(process.argv.slice(2)))
+  Promise.resolve(run(process.argv.slice(2)))
     .then((code) => process.exit(Number.isFinite(code) ? code : 0))
     .catch((err) => {
       process.stderr.write(
@@ -21,4 +31,7 @@ if (require.main === module) {
     });
 }
 
-module.exports = mod;
+module.exports = {
+  ...mod,
+  run
+};

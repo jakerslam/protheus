@@ -11783,7 +11783,7 @@
       "order": 1070
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/memory/policy_validator.ts",
       "language": "ts",
       "loc": 200,
@@ -11794,7 +11794,7 @@
       "order": 1071
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/memory/eyes_memory_bridge.ts",
       "language": "ts",
       "loc": 45,
@@ -11805,7 +11805,7 @@
       "order": 1072
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/memory/failure_memory_bridge.ts",
       "language": "ts",
       "loc": 45,
@@ -11816,7 +11816,7 @@
       "order": 1073
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/security/critical_path_formal_verifier.ts",
       "language": "ts",
       "loc": 3,
@@ -11827,7 +11827,7 @@
       "order": 1074
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/security/key_lifecycle_governor.ts",
       "language": "ts",
       "loc": 3,
@@ -11849,7 +11849,7 @@
       "order": 1076
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ops/protheus_setup_wizard.ts",
       "language": "ts",
       "loc": 335,
@@ -11882,7 +11882,7 @@
       "order": 1079
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ops/run_protheus_ops.ts",
       "language": "ts",
       "loc": 213,
@@ -11893,7 +11893,7 @@
       "order": 1080
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/memory/session_isolation.ts",
       "language": "ts",
       "loc": 179,
@@ -11904,7 +11904,7 @@
       "order": 1081
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/memory/causal_temporal_graph.ts",
       "language": "ts",
       "loc": 122,
@@ -11915,7 +11915,7 @@
       "order": 1082
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/memory/memory_federation_plane.ts",
       "language": "ts",
       "loc": 116,
@@ -11926,7 +11926,7 @@
       "order": 1083
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ops/local_runtime_partitioner.ts",
       "language": "ts",
       "loc": 101,
@@ -11937,7 +11937,7 @@
       "order": 1084
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ops/rust_hotpath_inventory.ts",
       "language": "ts",
       "loc": 86,
@@ -12168,7 +12168,7 @@
       "order": 1105
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ops/readiness_bridge_pack.ts",
       "language": "ts",
       "loc": 36,
@@ -13169,7 +13169,7 @@
       "order": 1196
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/lib/security_plane_bridge.ts",
       "language": "ts",
       "loc": 27,
@@ -13477,7 +13477,7 @@
       "order": 1224
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/lib/shannon_bridge.ts",
       "language": "ts",
       "loc": 76,
@@ -20755,7 +20755,7 @@
       "order": 1884
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/tooling/scripts/dashboard_stress_smoke.ts",
       "language": "ts",
       "loc": 310,
@@ -21292,7 +21292,7 @@
       "order": 1932
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/tooling/scripts/ci/client_surface_disposition.ts",
       "language": "ts",
       "loc": 161,
@@ -21369,7 +21369,7 @@
       "order": 1939
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/tooling/scripts/ci/client_target_contract_audit.ts",
       "language": "ts",
       "loc": 150,
@@ -21765,7 +21765,7 @@
       "order": 1975
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/tooling/scripts/ci/client_scope_inventory.ts",
       "language": "ts",
       "loc": 108,
@@ -21875,7 +21875,7 @@
       "order": 1985
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/tooling/scripts/ci/build_dashboard_dist.ts",
       "language": "ts",
       "loc": 97,

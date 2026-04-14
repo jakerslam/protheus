@@ -2,19 +2,20 @@
 /* eslint-disable no-console */
 import fs from 'node:fs';
 import path from 'node:path';
-import { execSync } from 'node:child_process';
+import { cleanText, readFlag } from '../../lib/cli.ts';
+import { currentRevision } from '../../lib/git.ts';
+import { emitStructuredResult } from '../../lib/result.ts';
 
 const ROOT = process.cwd();
+const SCRIPT_PATH = 'tests/tooling/scripts/ci/client_surface_disposition.ts';
 
 function parseArgs(argv) {
   const out = {
     policy: 'client/runtime/config/client_target_contract_policy.json',
     out: 'core/local/artifacts/client_surface_disposition_current.json',
   };
-  for (const arg of argv) {
-    if (arg.startsWith('--policy=')) out.policy = arg.slice('--policy='.length);
-    else if (arg.startsWith('--out=')) out.out = arg.slice('--out='.length);
-  }
+  out.policy = cleanText(readFlag(argv, 'policy') || out.policy, 400);
+  out.out = cleanText(readFlag(argv, 'out') || out.out, 400);
   return out;
 }
 
@@ -122,40 +123,59 @@ function countBy(entries, keyFn) {
   return Object.fromEntries(Object.entries(counts).sort((a, b) => b[1] - a[1]));
 }
 
-function main() {
-  const args = parseArgs(process.argv.slice(2));
-  const policyPath = path.resolve(ROOT, args.policy);
+function buildReport(policyRelPath, root = ROOT) {
+  const policyPath = path.resolve(root, policyRelPath);
   const policy = JSON.parse(fs.readFileSync(policyPath, 'utf8'));
-  let revision = 'unknown';
-  try {
-    revision = execSync('git rev-parse HEAD', { cwd: ROOT, encoding: 'utf8' }).trim();
-  } catch {}
-
-  const files = walk(path.resolve(ROOT, 'client'))
-    .map(rel)
+  const revision = currentRevision(root);
+  const files = walk(path.resolve(root, 'client'))
+    .map((candidate) => path.relative(root, candidate).replace(/\\/g, '/'))
     .filter((file) => !file.startsWith('client/runtime/local/'))
     .sort();
 
   const entries = files.map((file) => {
-    const source = fs.readFileSync(path.resolve(ROOT, file), 'utf8');
+    const source = fs.readFileSync(path.resolve(root, file), 'utf8');
     const decision = classify(file, source, policy);
     return { file, bucket: decision.bucket, reason: decision.reason };
   });
 
-  const payload = {
+  return {
     type: 'client_surface_disposition',
     generated_at: new Date().toISOString(),
     revision,
-    policy_path: rel(policyPath),
+    policy_path: path.relative(root, policyPath).replace(/\\/g, '/'),
     summary: countBy(entries, (entry) => entry.bucket),
-    allowlist_audit: Object.entries(policy.allowlist_decisions || {}).map(([file, decision]) => ({ file, ...decision })),
+    allowlist_audit: Object.entries(policy.allowlist_decisions || {}).map(([file, decision]) => ({
+      file,
+      ...decision,
+    })),
     entries,
   };
-
-  const outPath = path.resolve(ROOT, args.out);
-  fs.mkdirSync(path.dirname(outPath), { recursive: true });
-  fs.writeFileSync(outPath, `${JSON.stringify(payload, null, 2)}\n`);
-  console.log(JSON.stringify(payload, null, 2));
 }
 
-main();
+function run(argv = process.argv.slice(2)) {
+  const args = parseArgs(argv);
+  const payload = buildReport(args.policy, ROOT);
+  return emitStructuredResult(payload, {
+    outPath: path.resolve(ROOT, args.out),
+    strict: false,
+    ok: true,
+    history: false,
+  });
+}
+
+if (require.main === module) {
+  process.exit(run(process.argv.slice(2)));
+}
+
+module.exports = {
+  SCRIPT_PATH,
+  parseArgs,
+  walk,
+  rel,
+  isTsBootstrapShim,
+  isLegacyAliasShim,
+  classify,
+  countBy,
+  buildReport,
+  run,
+};
