@@ -3,28 +3,12 @@ fn context_keyframes_prompt_context(
     max_keyframes: usize,
     max_chars: usize,
 ) -> String {
-    let active_id = clean_text(
-        state
-            .get("active_session_id")
-            .and_then(Value::as_str)
-            .unwrap_or("default"),
-        120,
-    );
-    let sessions = state
-        .get("sessions")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default();
+    let active_id = clean_text(state.get("active_session_id").and_then(Value::as_str).unwrap_or("default"), 120);
+    let sessions = state.get("sessions").and_then(Value::as_array).cloned().unwrap_or_default();
     let mut keyframes = Vec::<String>::new();
     let mut tool_outcomes = Vec::<String>::new();
     for session in sessions {
-        let sid = clean_text(
-            session
-                .get("session_id")
-                .and_then(Value::as_str)
-                .unwrap_or(""),
-            120,
-        );
+        let sid = clean_text(session.get("session_id").and_then(Value::as_str).unwrap_or(""), 120);
         if sid != active_id {
             continue;
         }
@@ -34,14 +18,7 @@ fn context_keyframes_prompt_context(
             .cloned()
             .unwrap_or_default();
         for entry in entries.iter().rev().take(max_keyframes.max(1)) {
-            let summary = clean_text(
-                entry
-                    .get("summary")
-                    .and_then(Value::as_str)
-                    .or_else(|| entry.get("text").and_then(Value::as_str))
-                    .unwrap_or(""),
-                260,
-            );
+            let summary = clean_text(entry.get("summary").and_then(Value::as_str).or_else(|| entry.get("text").and_then(Value::as_str)).unwrap_or(""), 260);
             if summary.is_empty() {
                 continue;
             }
@@ -63,25 +40,12 @@ fn context_keyframes_prompt_context(
     }
     let mut sections = Vec::<String>::new();
     if !tool_outcomes.is_empty() {
-        let joined = tool_outcomes
-            .into_iter()
-            .rev()
-            .collect::<Vec<_>>()
-            .join(" | ");
-        sections.push(trim_text(
-            &format!("Recent tool outcomes:\n- {}", clean_text(&joined, max_chars)),
-            max_chars,
-        ));
+        let joined = tool_outcomes.into_iter().rev().collect::<Vec<_>>().join(" | ");
+        sections.push(trim_text(&format!("Recent tool outcomes:\n- {}", clean_text(&joined, max_chars)), max_chars));
     }
     if !keyframes.is_empty() {
         let joined = keyframes.into_iter().rev().collect::<Vec<_>>().join(" | ");
-        sections.push(trim_text(
-            &format!(
-                "Compacted thread keyframes:\n- {}",
-                clean_text(&joined, max_chars)
-            ),
-            max_chars,
-        ));
+        sections.push(trim_text(&format!("Compacted thread keyframes:\n- {}", clean_text(&joined, max_chars)), max_chars));
     }
     if sections.is_empty() {
         String::new()
@@ -91,26 +55,10 @@ fn context_keyframes_prompt_context(
 }
 
 fn recent_tool_outcome_keyframes(state: &Value, max_keyframes: usize) -> Vec<Value> {
-    let active_id = clean_text(
-        state
-            .get("active_session_id")
-            .and_then(Value::as_str)
-            .unwrap_or("default"),
-        120,
-    );
-    let sessions = state
-        .get("sessions")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default();
+    let active_id = clean_text(state.get("active_session_id").and_then(Value::as_str).unwrap_or("default"), 120);
+    let sessions = state.get("sessions").and_then(Value::as_array).cloned().unwrap_or_default();
     for session in sessions {
-        let sid = clean_text(
-            session
-                .get("session_id")
-                .and_then(Value::as_str)
-                .unwrap_or(""),
-            120,
-        );
+        let sid = clean_text(session.get("session_id").and_then(Value::as_str).unwrap_or(""), 120);
         if sid != active_id {
             continue;
         }
@@ -150,13 +98,7 @@ fn first_sentence(raw: &str, max_len: usize) -> String {
 }
 
 fn agent_identity_hydration_prompt(row: &Value) -> String {
-    let agent_id = clean_text(
-        row.get("agent_id")
-            .or_else(|| row.get("id"))
-            .and_then(Value::as_str)
-            .unwrap_or(""),
-        160,
-    );
+    let agent_id = clean_text(row.get("agent_id").or_else(|| row.get("id")).and_then(Value::as_str).unwrap_or(""), 160);
     let name = clean_text(row.get("name").and_then(Value::as_str).unwrap_or(""), 120);
     let resolved_name = if !name.is_empty() {
         name
@@ -165,30 +107,10 @@ fn agent_identity_hydration_prompt(row: &Value) -> String {
     } else {
         "Agent".to_string()
     };
-    let role = clean_text(
-        row.get("role")
-            .and_then(Value::as_str)
-            .unwrap_or("assistant"),
-        80,
-    );
-    let archetype = clean_text(
-        row.pointer("/identity/archetype")
-            .and_then(Value::as_str)
-            .unwrap_or(""),
-        80,
-    );
-    let vibe = clean_text(
-        row.pointer("/identity/vibe")
-            .and_then(Value::as_str)
-            .unwrap_or(""),
-        80,
-    );
-    let personality = first_sentence(
-        row.get("system_prompt")
-            .and_then(Value::as_str)
-            .unwrap_or(""),
-        220,
-    );
+    let role = clean_text(row.get("role").and_then(Value::as_str).unwrap_or("assistant"), 80);
+    let archetype = clean_text(row.pointer("/identity/archetype").and_then(Value::as_str).unwrap_or(""), 80);
+    let vibe = clean_text(row.pointer("/identity/vibe").and_then(Value::as_str).unwrap_or(""), 80);
+    let personality = first_sentence(row.get("system_prompt").and_then(Value::as_str).unwrap_or(""), 220);
 
     let mut profile_parts = vec![format!("name={resolved_name}"), format!("role={role}")];
     if !archetype.is_empty() {
@@ -197,10 +119,7 @@ fn agent_identity_hydration_prompt(row: &Value) -> String {
     if !vibe.is_empty() {
         profile_parts.push(format!("vibe={vibe}"));
     }
-    let mut lines = vec![format!(
-        "Agent identity hydration: {}.",
-        profile_parts.join(", ")
-    )];
+    let mut lines = vec![format!("Agent identity hydration: {}.", profile_parts.join(", "))];
     if !personality.is_empty() {
         lines.push(format!("Personality directive: {personality}"));
     }
@@ -214,19 +133,10 @@ fn agent_identity_hydration_prompt(row: &Value) -> String {
 include!("../031-context-window-and-recall.rs");
 
 fn set_active_session_messages(state: &mut Value, messages: &[Value]) {
-    let active_id = clean_text(
-        state
-            .get("active_session_id")
-            .and_then(Value::as_str)
-            .unwrap_or("default"),
-        120,
-    );
+    let active_id = clean_text(state.get("active_session_id").and_then(Value::as_str).unwrap_or("default"), 120);
     if let Some(rows) = state.get_mut("sessions").and_then(Value::as_array_mut) {
         for row in rows.iter_mut() {
-            let sid = clean_text(
-                row.get("session_id").and_then(Value::as_str).unwrap_or(""),
-                120,
-            );
+            let sid = clean_text(row.get("session_id").and_then(Value::as_str).unwrap_or(""), 120);
             if sid != active_id {
                 continue;
             }
@@ -442,20 +352,8 @@ fn git_tree_payload_for_agent(root: &Path, snapshot: &Value, agent_id: &str) -> 
             current = row.clone();
         }
     }
-    let current_branch = clean_text(
-        current
-            .get("git_branch")
-            .and_then(Value::as_str)
-            .unwrap_or("main"),
-        180,
-    );
-    let current_workspace = clean_text(
-        current
-            .get("workspace_dir")
-            .and_then(Value::as_str)
-            .unwrap_or(""),
-        4000,
-    );
+    let current_branch = clean_text(current.get("git_branch").and_then(Value::as_str).unwrap_or("main"), 180);
+    let current_workspace = clean_text(current.get("workspace_dir").and_then(Value::as_str).unwrap_or(""), 4000);
     let current_workspace_dir = if current_workspace.is_empty() {
         root.to_path_buf()
     } else {

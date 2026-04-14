@@ -86,15 +86,7 @@ fn passive_attention_context_for_message(
 
 fn response_contains_project_dump_sections(text: &str) -> bool {
     let lowered = text.to_ascii_lowercase();
-    let markers = [
-        "project overview",
-        "data source",
-        "tools used",
-        "key features",
-        "sql queries",
-        "future work",
-        "how to use",
-    ];
+    let markers = ["project overview", "data source", "tools used", "key features", "sql queries", "future work", "how to use"];
     let hits = markers
         .iter()
         .filter(|marker| lowered.contains(**marker))
@@ -104,22 +96,7 @@ fn response_contains_project_dump_sections(text: &str) -> bool {
 
 fn response_contains_tool_telemetry_dump(text: &str) -> bool {
     let lowered = text.to_ascii_lowercase();
-    let noisy_markers = [
-        "at duckduckgo all regions",
-        "duckduckgo all regions",
-        "all regions argentina",
-        "all regions australia",
-        "spawn_subagents failed:",
-        "tool_explicit_signoff_required",
-        "tool_confirmation_required",
-        "\"decision_audit_receipt\"",
-        "\"turn_loop_tracking\"",
-        "\"turn_transaction\"",
-        "\"response_finalization\"",
-        "\"latent_tool_candidates\"",
-        "\"workspace_hints\"",
-        "\"nexus_connection\"",
-    ];
+    let noisy_markers = ["at duckduckgo all regions", "duckduckgo all regions", "all regions argentina", "all regions australia", "spawn_subagents failed:", "tool_explicit_signoff_required", "tool_confirmation_required", "\"decision_audit_receipt\"", "\"turn_loop_tracking\"", "\"turn_transaction\"", "\"response_finalization\"", "\"latent_tool_candidates\"", "\"workspace_hints\"", "\"nexus_connection\""];
     let hits = noisy_markers
         .iter()
         .filter(|marker| lowered.contains(**marker))
@@ -157,21 +134,7 @@ fn looks_like_internal_agent_payload_dump(payload: &Value) -> bool {
     let Value::Object(map) = payload else {
         return false;
     };
-    let marker_keys = [
-        "agent_id",
-        "decision_audit_receipt",
-        "response_finalization",
-        "turn_loop_tracking",
-        "turn_transaction",
-        "tools",
-        "nexus_connection",
-        "latent_tool_candidates",
-        "workspace_hints",
-        "input_tokens",
-        "output_tokens",
-        "runtime_model",
-        "provider",
-    ];
+    let marker_keys = ["agent_id", "decision_audit_receipt", "response_finalization", "turn_loop_tracking", "turn_transaction", "tools", "nexus_connection", "latent_tool_candidates", "workspace_hints", "input_tokens", "output_tokens", "runtime_model", "provider"];
     let hits = marker_keys
         .iter()
         .filter(|key| map.contains_key(**key))

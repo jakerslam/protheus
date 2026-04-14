@@ -20,14 +20,7 @@ fn parse_memory_capture_text(user_text: &str) -> Option<String> {
 }
 
 fn important_memory_terms(text: &str, limit: usize) -> Vec<String> {
-    let stop_words = [
-        "the", "and", "for", "with", "that", "this", "from", "have", "your", "you", "are", "was",
-        "were", "will", "into", "about", "what", "when", "then", "than", "just", "they", "them",
-        "able", "make", "made", "need", "want", "does", "did", "done", "cant", "cannot", "dont",
-        "not", "too", "very", "also", "like", "been", "being", "each", "more", "most", "over",
-        "under", "after", "before", "because", "while", "where", "which", "who", "whom", "whose",
-        "would", "could", "should",
-    ];
+    let stop_words = ["the", "and", "for", "with", "that", "this", "from", "have", "your", "you", "are", "was", "were", "will", "into", "about", "what", "when", "then", "than", "just", "they", "them", "able", "make", "made", "need", "want", "does", "did", "done", "cant", "cannot", "dont", "not", "too", "very", "also", "like", "been", "being", "each", "more", "most", "over", "under", "after", "before", "because", "while", "where", "which", "who", "whom", "whose", "would", "could", "should"];
     let mut seen = HashSet::<String>::new();
     let mut out = Vec::<String>::new();
     for raw in clean_text(text, 2000).to_ascii_lowercase().split(' ') {
@@ -59,17 +52,9 @@ fn passive_memory_attention_event(
         return None;
     }
     let summary = if !user.is_empty() {
-        format!(
-            "{}: {}",
-            humanize_agent_name(agent_id),
-            clean_text(&user, 220)
-        )
+        format!("{}: {}", humanize_agent_name(agent_id), clean_text(&user, 220))
     } else {
-        format!(
-            "{}: {}",
-            humanize_agent_name(agent_id),
-            clean_text(&assistant, 220)
-        )
+        format!("{}: {}", humanize_agent_name(agent_id), clean_text(&assistant, 220))
     };
     let terms = important_memory_terms(&format!("{user} {assistant}"), 12);
     let event = json!({
@@ -78,17 +63,7 @@ fn passive_memory_attention_event(
         "source_type": "passive_memory_turn",
         "severity": "info",
         "summary": summary,
-        "attention_key": format!(
-            "agent:{agent_id}:passive_memory:{}",
-            crate::deterministic_receipt_hash(&json!({
-                "agent_id": agent_id,
-                "user": user,
-                "assistant": assistant
-            }))
-            .chars()
-            .take(20)
-            .collect::<String>()
-        ),
+        "attention_key": format!("agent:{agent_id}:passive_memory:{}", crate::deterministic_receipt_hash(&json!({"agent_id": agent_id, "user": user, "assistant": assistant})).chars().take(20).collect::<String>()),
         "raw_event": {
             "agent_id": agent_id,
             "memory_kind": "passive_turn",
@@ -148,13 +123,9 @@ fn tool_outcome_keyframe_from_turn(user_text: &str, assistant_text: &str) -> Opt
     };
     let summary = if lowered.contains("fit safely in context") || lowered.contains("partial result")
     {
-        format!(
-            "Recent {tool} outcome{subject}: web output exceeded the safe context budget; rerun with a narrower query or continue from the partial result."
-        )
+        format!("Recent {tool} outcome{subject}: web output exceeded the safe context budget; rerun with a narrower query or continue from the partial result.")
     } else {
-        format!(
-            "Recent {tool} outcome{subject}: retrieval returned low-signal web output instead of usable findings; rerun with a narrower query or one source URL."
-        )
+        format!("Recent {tool} outcome{subject}: retrieval returned low-signal web output instead of usable findings; rerun with a narrower query or one source URL.")
     };
     let key_seed = json!({
         "kind": "tool_outcome",
@@ -310,23 +281,14 @@ fn rollback_last_turn(root: &Path, agent_id: &str) -> Value {
         return json!({"ok": false, "error": "agent_id_required"});
     }
     let mut state = load_session_state(root, &id);
-    let active_id = clean_text(
-        state
-            .get("active_session_id")
-            .and_then(Value::as_str)
-            .unwrap_or("default"),
-        120,
-    );
+    let active_id = clean_text(state.get("active_session_id").and_then(Value::as_str).unwrap_or("default"), 120);
     let mut removed = Vec::<Value>::new();
     let mut before_messages = 0usize;
     let mut after_messages = 0usize;
     let mut rollback_id = String::new();
     if let Some(rows) = state.get_mut("sessions").and_then(Value::as_array_mut) {
         for row in rows.iter_mut() {
-            let sid = clean_text(
-                row.get("session_id").and_then(Value::as_str).unwrap_or(""),
-                120,
-            );
+            let sid = clean_text(row.get("session_id").and_then(Value::as_str).unwrap_or(""), 120);
             if sid != active_id {
                 continue;
             }
@@ -390,13 +352,7 @@ fn rollback_last_turn(root: &Path, agent_id: &str) -> Value {
             let removed_excerpt = removed
                 .iter()
                 .rev()
-                .map(|entry| {
-                    json!({
-                        "role": clean_text(entry.get("role").and_then(Value::as_str).unwrap_or(""), 24),
-                        "text": clean_text(&message_text(entry), 220),
-                        "ts": entry.get("ts").cloned().unwrap_or(Value::Null)
-                    })
-                })
+                .map(|entry| json!({"role": clean_text(entry.get("role").and_then(Value::as_str).unwrap_or(""), 24), "text": clean_text(&message_text(entry), 220), "ts": entry.get("ts").cloned().unwrap_or(Value::Null)}))
                 .collect::<Vec<_>>();
             rollback_id = format!(
                 "rbk-{}",
@@ -459,19 +415,10 @@ fn reset_active_session(root: &Path, agent_id: &str) -> Value {
         return json!({"ok": false, "error": "agent_id_required"});
     }
     let mut state = load_session_state(root, &id);
-    let active_id = clean_text(
-        state
-            .get("active_session_id")
-            .and_then(Value::as_str)
-            .unwrap_or("default"),
-        120,
-    );
+    let active_id = clean_text(state.get("active_session_id").and_then(Value::as_str).unwrap_or("default"), 120);
     if let Some(rows) = state.get_mut("sessions").and_then(Value::as_array_mut) {
         for row in rows.iter_mut() {
-            let sid = clean_text(
-                row.get("session_id").and_then(Value::as_str).unwrap_or(""),
-                120,
-            );
+            let sid = clean_text(row.get("session_id").and_then(Value::as_str).unwrap_or(""), 120);
             if sid == active_id {
                 row["messages"] = Value::Array(Vec::new());
                 row["updated_at"] = Value::String(crate::now_iso());
@@ -493,10 +440,7 @@ fn compaction_message_text(row: &Value) -> String {
     if !text.is_empty() {
         return clean_text(&text, 4000);
     }
-    clean_text(
-        row.get("summary").and_then(Value::as_str).unwrap_or(""),
-        4000,
-    )
+    clean_text(row.get("summary").and_then(Value::as_str).unwrap_or(""), 4000)
 }
 
 fn build_context_keyframes_from_removed(removed: &[Value], max_keyframes: usize) -> Vec<Value> {
@@ -529,11 +473,7 @@ fn build_context_keyframes_from_removed(removed: &[Value], max_keyframes: usize)
             }
         }
         let summary = if highlights.is_empty() {
-            format!(
-                "Compaction batch {} summarized {} older turns.",
-                idx + 1,
-                chunk.len()
-            )
+            format!("Compaction batch {} summarized {} older turns.", idx + 1, chunk.len())
         } else {
             highlights.join(" | ")
         };
