@@ -1,3 +1,4 @@
+// Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 use crate::contracts::{
     Capability, CapabilityProbeResult, OrchestrationPlanStep, PlanCandidate, PlanScore,
     PlanVariant, Precondition, RequestClassification, TypedOrchestrationRequest,
@@ -55,7 +56,10 @@ pub fn build_plan_candidates(
                     .partial_cmp(&left.score.overall)
                     .unwrap_or(std::cmp::Ordering::Equal),
             )
-            .then(left.requires_clarification.cmp(&right.requires_clarification))
+            .then(
+                left.requires_clarification
+                    .cmp(&right.requires_clarification),
+            )
             .then(variant_priority(&left.variant).cmp(&variant_priority(&right.variant)))
             .then(right.steps.len().cmp(&left.steps.len()))
     });
@@ -69,7 +73,9 @@ pub fn build_plan_candidate(
     build_plan_candidates(request, classification)
         .into_iter()
         .next()
-        .unwrap_or_else(|| empty_candidate(classification, Vec::new(), PlanVariant::ClarificationFirst))
+        .unwrap_or_else(|| {
+            empty_candidate(classification, Vec::new(), PlanVariant::ClarificationFirst)
+        })
 }
 
 fn build_candidate_for_variant(
@@ -104,8 +110,10 @@ fn build_candidate_for_variant(
         }
         if blocked {
             reasons.push(format!("capability_blocked:{capability:?}").to_lowercase());
-            if matches!(variant, PlanVariant::Safest | PlanVariant::ClarificationFirst)
-                || !probe.can_degrade
+            if matches!(
+                variant,
+                PlanVariant::Safest | PlanVariant::ClarificationFirst
+            ) || !probe.can_degrade
                 || spec.degraded_steps.is_empty()
             {
                 continue;
@@ -115,7 +123,10 @@ fn build_candidate_for_variant(
         let using_degraded = blocked
             && probe.can_degrade
             && !spec.degraded_steps.is_empty()
-            && matches!(variant, PlanVariant::Fastest | PlanVariant::DegradedFallback);
+            && matches!(
+                variant,
+                PlanVariant::Fastest | PlanVariant::DegradedFallback
+            );
         let mut chain = if using_degraded {
             reasons.push(format!("capability_degraded:{capability:?}").to_lowercase());
             spec.degraded_steps
@@ -130,8 +141,7 @@ fn build_candidate_for_variant(
             }
             step.rationale
                 .push(format!("variant:{variant:?}").to_lowercase());
-            step.rationale
-                .extend(probe.probe_sources.iter().cloned());
+            step.rationale.extend(probe.probe_sources.iter().cloned());
             step.rationale.sort();
             step.rationale.dedup();
         }
@@ -227,8 +237,12 @@ fn dedupe_steps(steps: &mut Vec<OrchestrationPlanStep>) {
         );
         if let Some(index) = indices.get(&key).copied() {
             let existing = &mut merged[index];
-            existing.merged_capabilities.extend(step.merged_capabilities);
-            existing.merged_capabilities.sort_by_key(|row| format!("{row:?}"));
+            existing
+                .merged_capabilities
+                .extend(step.merged_capabilities);
+            existing
+                .merged_capabilities
+                .sort_by_key(|row| format!("{row:?}"));
             existing.merged_capabilities.dedup();
             existing.rationale.extend(step.rationale);
             existing.rationale.sort();

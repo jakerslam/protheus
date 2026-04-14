@@ -1,3 +1,4 @@
+// Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 use crate::self_maintenance::analyzer;
 use crate::self_maintenance::contracts::{
     Claim, ClaimBundle, ObservationInputs, SupervisorMode, SupervisorReceipt,
@@ -226,7 +227,7 @@ impl GovernedSelfMaintenanceSupervisor {
         let request = ToolCallRequest {
             trace_id: format!("trace-{task_id}"),
             task_id: task_id.clone(),
-            tool_name: "batch_query".to_string(),
+            tool_name: "workspace_analyze".to_string(),
             args: json!({
                 "query": claim.text,
                 "mode": "self_maintenance_apply_safe",
@@ -238,7 +239,7 @@ impl GovernedSelfMaintenanceSupervisor {
             ],
             caller: BrokerCaller::System,
             policy_revision: Some("v6_auto_001".to_string()),
-            tool_version: Some("batch_query_v1".to_string()),
+            tool_version: Some("workspace_analyze_v1".to_string()),
             freshness_window_ms: Some(30_000),
             force_no_dedupe: false,
         };

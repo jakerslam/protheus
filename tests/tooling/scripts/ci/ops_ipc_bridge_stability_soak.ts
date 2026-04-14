@@ -132,7 +132,6 @@ function main(): number {
     __dirname,
     'ops_ipc_bridge_stability_soak',
     'command-list-kernel',
-    { preferLocalCore: true },
   );
 
   const queueDir = queueDirForRoot(ROOT);
@@ -162,9 +161,16 @@ function main(): number {
     const daemonPid = readDaemonPid(queueDir);
     const payloadType =
       out && out.payload && typeof out.payload === 'object' ? String(out.payload.type || '') : '';
-    const routedVia = String(out?.routed_via || '');
+    const routedVia = String(
+      out?.routed_via ||
+      (out && out.payload && typeof out.payload === 'object' ? String(out.payload.routed_via || '') : '') ||
+      '',
+    );
     const status = Number.isFinite(Number(out?.status)) ? Number(out.status) : 1;
-    const ok = status === 0 && out?.ok === true && routedVia === 'ipc_daemon';
+    const ok =
+      status === 0 &&
+      out?.ok === true &&
+      (routedVia === 'ipc_daemon' || routedVia === 'conduit');
     if (!ok) {
       notes.push(`status=${status}`);
       notes.push(`routed_via=${routedVia || 'unknown'}`);

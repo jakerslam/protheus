@@ -1,3 +1,4 @@
+// Layer ownership: core/layer2/tools/task_fabric (authoritative task graph primitive).
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};

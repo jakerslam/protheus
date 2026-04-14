@@ -1,3 +1,4 @@
+// Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 use crate::contracts::{Mutability, OperationKind, ResourceKind, TargetDescriptor, UserConstraint};
 use serde_json::{Map, Value};
 
@@ -27,8 +28,7 @@ pub fn operation_candidates(tokens: &[String], payload: &Value) -> Vec<Operation
     if has_any(&["compare", "vs", "versus"]) {
         out.push(OperationKind::Compare);
     }
-    if has_any(&["tool", "tools", "route", "runtime", "bridge", "command"]) || payload_has("tool")
-    {
+    if has_any(&["tool", "tools", "route", "runtime", "bridge", "command"]) || payload_has("tool") {
         out.push(OperationKind::InspectTooling);
     }
     if has_any(&["assimilate", "assimilation", "ingest", "import"]) {
@@ -325,30 +325,30 @@ fn parse_structured_target(value: &Value) -> Option<TargetDescriptor> {
     let obj = value.as_object()?;
     let kind = read_string(obj, &["kind", "type"])?;
     match kind.to_ascii_lowercase().as_str() {
-        "workspace_path" | "path" => read_string(obj, &["value", "path"]).map(|value| {
-            TargetDescriptor::WorkspacePath {
+        "workspace_path" | "path" => {
+            read_string(obj, &["value", "path"]).map(|value| TargetDescriptor::WorkspacePath {
                 value: value.to_string(),
-            }
-        }),
+            })
+        }
         "url" => read_string(obj, &["value", "url"]).map(|value| TargetDescriptor::Url {
             value: value.to_string(),
         }),
-        "task_id" | "task" => read_string(obj, &["value", "task_id"]).map(|value| {
-            TargetDescriptor::TaskId {
+        "task_id" | "task" => {
+            read_string(obj, &["value", "task_id"]).map(|value| TargetDescriptor::TaskId {
                 value: value.to_string(),
-            }
-        }),
-        "tool_name" | "tool" => read_string(obj, &["value", "tool"]).map(|value| {
-            TargetDescriptor::ToolName {
+            })
+        }
+        "tool_name" | "tool" => {
+            read_string(obj, &["value", "tool"]).map(|value| TargetDescriptor::ToolName {
                 value: value.to_string(),
-            }
-        }),
-        "memory_ref" | "memory" => read_string(obj, &["scope"]).map(|scope| {
-            TargetDescriptor::MemoryRef {
+            })
+        }
+        "memory_ref" | "memory" => {
+            read_string(obj, &["scope"]).map(|scope| TargetDescriptor::MemoryRef {
                 scope: scope.to_string(),
                 object_id: read_string(obj, &["object_id", "value"]).map(str::to_string),
-            }
-        }),
+            })
+        }
         _ => read_string(obj, &["value"]).map(|value| TargetDescriptor::Unknown {
             value: value.to_string(),
         }),
@@ -375,7 +375,12 @@ fn parse_generic_target(value: &str) -> TargetDescriptor {
     if let Some(memory) = trimmed.strip_prefix("memory:") {
         let parts = memory.splitn(2, '/').collect::<Vec<_>>();
         return TargetDescriptor::MemoryRef {
-            scope: parts.first().copied().unwrap_or_default().trim().to_string(),
+            scope: parts
+                .first()
+                .copied()
+                .unwrap_or_default()
+                .trim()
+                .to_string(),
             object_id: parts
                 .get(1)
                 .map(|value| value.trim().to_string())

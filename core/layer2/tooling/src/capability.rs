@@ -1,3 +1,4 @@
+// Layer ownership: core/layer2/tooling (authoritative canonical tool/evidence substrate).
 use crate::backend_registry::{live_backend_registry, live_backend_status_for, ToolBackendClass};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -468,11 +469,17 @@ mod tests {
         }));
         assert!(grouped.iter().any(|row| {
             row.domain == ToolCapabilityDomain::Agent
-                && row.tools.iter().any(|tool| tool.tool_name == "spawn_subagents")
+                && row
+                    .tools
+                    .iter()
+                    .any(|tool| tool.tool_name == "spawn_subagents")
         }));
         assert!(grouped.iter().any(|row| {
             row.domain == ToolCapabilityDomain::Terminal
-                && row.tools.iter().any(|tool| tool.tool_name == "terminal_exec")
+                && row
+                    .tools
+                    .iter()
+                    .any(|tool| tool.tool_name == "terminal_exec")
         }));
     }
 }

@@ -1,0 +1,61 @@
+name: Nightly Policy Debt Audit
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+jobs:
+  nightly-policy-debt-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run nightly debt audits
+        run: |
+          npm run -s ops:file-size:gate
+          npm run -s ops:debt:expiry:guard
+          npm run -s ops:tooling-registry:contract:guard
+          npm run -s ops:ci-workflow:check
+          npm run -s ops:ci-quality:check
+          npm run -s ops:orchestration:adapter-fallback:guard
+          npm run -s ops:srs:full:gate
+          npm run -s ops:dashboard-classic:debt:report
+          npm run -s ops:client-legacy-debt:report
+          npm run -s ops:tech-debt:report
+          npm run -s ops:policy-debt:summary
+
+      - name: Upload nightly debt artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-policy-debt-audit
+          path: |
+            core/local/artifacts/repo_file_size_gate_current.json
+            core/local/artifacts/debt_expiry_guard_current.json
+            core/local/artifacts/tooling_registry_contract_guard_current.json
+            core/local/artifacts/ci_workflow_rationalization_contract_current.json
+            core/local/artifacts/ci_quality_scorecard_current.json
+            core/local/artifacts/orchestration_adapter_fallback_guard_current.json
+            core/local/artifacts/classic_dashboard_debt_inventory_current.json
+            core/local/artifacts/client_legacy_debt_report_current.json
+            core/local/artifacts/tech_debt_report_current.json
+            core/local/artifacts/policy_debt_summary_current.json
+            local/workspace/reports/CI_WORKFLOW_RATIONALIZATION_CONTRACT_CURRENT.md
+            local/workspace/reports/CI_QUALITY_SCORECARD_CURRENT.md
+            local/workspace/reports/ORCHESTRATION_ADAPTER_FALLBACK_GUARD_CURRENT.md
+            local/workspace/reports/CLASSIC_DASHBOARD_DEBT_INVENTORY_CURRENT.md
+            local/workspace/reports/TECH_DEBT_REPORT_CURRENT.md
+            local/workspace/reports/POLICY_DEBT_SUMMARY_CURRENT.md
+            local/workspace/reports/SRS_FULL_REGRESSION_CURRENT.md
+          if-no-files-found: error
