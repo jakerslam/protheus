@@ -195,18 +195,22 @@ function assertSvelteKitPrimaryDashboardContract() {
   const distBuildSource = readUtf8(path.resolve(ROOT, 'tests/tooling/scripts/ci/build_dashboard_dist.ts'));
   assertContains(
     hostSource,
-    "process.env.INFRING_DASHBOARD_UI || 'sveltekit'",
-    'dashboard host should default to SvelteKit as the requested UI mode'
+    "process.env.INFRING_DASHBOARD_UI || 'classic'",
+    'dashboard host should default to the authoritative classic dashboard surface'
   );
   assertContains(
     hostSource,
     "pathname === '/dashboard-classic' || pathname === '/dashboard-shell'",
-    'dashboard host should preserve an explicit classic-only fallback route'
+    'dashboard host should preserve compatibility aliases for old classic URLs'
   );
   assertContains(
-    distBuildSource,
-    "const svelteBuildSrc = path.join(svelteSrc, 'build');",
-    'dashboard dist build should package the SvelteKit build output'
+    hostSource,
+    "pathname.startsWith('/dashboard/') && !path.extname(pathname)",
+    'dashboard host should treat /dashboard/<page> as authoritative classic dashboard entrypoints'
+  );
+  assert.ok(
+    !distBuildSource.includes('dashboard_sveltekit'),
+    'dashboard dist build should no longer package the retired Svelte dashboard module'
   );
 }
 
