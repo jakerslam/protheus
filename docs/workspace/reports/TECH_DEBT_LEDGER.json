@@ -86,8 +86,7 @@
       "planned_batch_date": "2026-04-23",
       "paths": [
         "core/layer0/security/src/lib.rs",
-        "core/layer0/singularity_seed/src/lib.rs",
-        "core/layer0/swarm_router/src/lib.rs"
+        "core/layer0/singularity_seed/src/lib.rs"
       ]
     },
     {
