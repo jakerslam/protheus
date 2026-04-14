@@ -1,3 +1,4 @@
+// Layer ownership: client/runtime/systems/ui (dashboard static UX surface only; no runtime authority).
     updateSidebarScrollIndicators() {
       var refs = this.$refs || {};
       var navState = this._computeScrollHintState(refs.sidebarNav);

@@ -1,14 +1,12 @@
 <script lang="ts">
   import { page } from '$app/stores';
   import {
-    dashboardClassicHref,
     dashboardPageHref,
     dashboardPages,
     resolveDashboardPageFromPathname,
   } from '$lib/dashboard';
 
   $: activePage = resolveDashboardPageFromPathname($page.url.pathname);
-  $: classicHref = dashboardClassicHref(activePage.key);
 </script>
 
 <div class="shell">
@@ -47,7 +45,6 @@
         <span class:mode-native={activePage.mode === 'native'} class="mode-pill">
           {activePage.mode === 'native' ? 'Native page' : 'Classic fallback page'}
         </span>
-        <a class="ghost" href={classicHref}>Open classic dashboard</a>
       </div>
     </header>
     <div class="content">

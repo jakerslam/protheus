@@ -1,3 +1,4 @@
+// Layer ownership: client/runtime/systems/ui (dashboard static UX surface only; no runtime authority).
           this._inflightPayload = null;
           this.refreshPromptSuggestions(true, 'post-http-abort');
           this.scheduleConversationPersist();

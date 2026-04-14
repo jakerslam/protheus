@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { dashboardClassicHref } from '$lib/dashboard';
   import { postCommsTask, readCommsSnapshot, sendCommsMessage, type DashboardCommsSnapshot } from '$lib/comms';
   import { onDestroy, onMount } from 'svelte';
 
@@ -88,7 +87,6 @@
     </div>
     <div class="hero-actions">
       <button class="ghost" type="button" on:click={() => void refresh()} disabled={loading}>{loading ? 'Refreshing…' : 'Refresh'}</button>
-      <a class="ghost" href={dashboardClassicHref('comms')}>Open classic comms</a>
     </div>
   </div>
   {#if error}<div class="banner error">{error}</div>{:else if notice}<div class="banner notice">{notice}</div>{/if}
