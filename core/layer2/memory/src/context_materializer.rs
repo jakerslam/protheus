@@ -1,5 +1,5 @@
 use crate::schemas::{
-    ContextManifest, ContextManifestEntryRef, MemoryScope, MemoryVersion,
+    ContextManifest, ContextManifestEntryRef, MemoryKind, MemoryScope, MemoryVersion,
     OwnerExportRedactionPolicy,
 };
 use crate::{deterministic_hash, now_ms};
@@ -11,6 +11,7 @@ pub struct MaterializedMemoryEntry {
     pub object_id: String,
     pub version_id: String,
     pub scope: MemoryScope,
+    pub kind: MemoryKind,
     pub payload: Value,
     pub redacted: bool,
     pub lineage_refs: Vec<String>,
@@ -71,6 +72,7 @@ pub fn materialize_context(
             object_id: version.object_id.clone(),
             version_id: version.version_id.clone(),
             scope: version.scope.clone(),
+            kind: version.kind.clone(),
             payload,
             redacted,
             lineage_refs: version.lineage_refs.clone(),
@@ -79,6 +81,7 @@ pub fn materialize_context(
             object_id: version.object_id.clone(),
             version_id: version.version_id.clone(),
             scope: version.scope.clone(),
+            kind: version.kind.clone(),
             trust_state: version.trust_state.clone(),
             redacted,
         });
@@ -143,10 +146,16 @@ mod tests {
             version_id: version_id.to_string(),
             object_id: object_id.to_string(),
             scope,
+            kind: MemoryKind::Episodic,
             parent_version_id: None,
             lineage_refs: vec!["lineage:test".to_string()],
             receipt_id: "receipt_test".to_string(),
             trust_state: TrustState::Validated,
+            salience: crate::schemas::MemorySalience::for_kind(
+                &MemoryKind::Episodic,
+                &TrustState::Validated,
+            ),
+            derivation: None,
             payload: json!({"value":"ok"}),
             payload_hash: "hash".to_string(),
             timestamp_ms: 1,

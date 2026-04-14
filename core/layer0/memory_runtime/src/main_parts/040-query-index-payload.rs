@@ -74,7 +74,6 @@ fn query_index_payload(args: &HashMap<String, String>) -> QueryResult {
     let tag_sources = runtime_index.tag_sources;
     let entries = runtime_index.entries;
     let tag_map = runtime_index.tag_map;
-    let embeddings = runtime_index.embeddings;
     let score_mode_raw = arg_any(args, &["score-mode", "score_mode"]).to_lowercase();
     let score_mode = score_mode_raw
         .chars()
@@ -222,11 +221,6 @@ fn query_index_payload(args: &HashMap<String, String>) -> QueryResult {
         );
     }
     let vector_enabled = score_mode != "lexical";
-    let query_vector = if vector_enabled {
-        vectorize_text(&format!("{} {}", q, tag_filters.join(" ")), 64)
-    } else {
-        vec![]
-    };
     let mut tag_node_ids: HashSet<String> = HashSet::new();
     for tag in &tag_filters {
         if let Some(ids) = tag_map.get(tag) {
@@ -243,65 +237,64 @@ fn query_index_payload(args: &HashMap<String, String>) -> QueryResult {
             .collect::<Vec<IndexEntry>>();
     }
     let query_tokens = tokenize(&q);
-    let mut scored = candidates
-        .iter()
-        .map(|entry| {
-            let (lexical_score, mut reasons) =
-                score_entry(entry, &query_tokens, &tag_filters, &tag_node_ids);
-            let vector_score = if vector_enabled {
-                if let Some(entry_vector) = embeddings.get(&entry.node_id) {
-                    let similarity = cosine_similarity(&query_vector, entry_vector);
-                    if similarity > 0.0 {
-                        if !reasons.iter().any(|reason| reason == "vector_similarity") {
-                            reasons.push("vector_similarity".to_string());
-                        }
-                        (similarity * 1000.0).round() as i64
-                    } else {
-                        0
-                    }
-                } else {
-                    0
-                }
+    let session_id = arg_any(args, &["session-id", "session_id"]);
+    let mut hits = if vector_enabled {
+        hybrid_query_hits(
+            &root,
+            args,
+            &RuntimeIndexBundle {
+                entries: candidates.clone(),
+                ..RuntimeIndexBundle::default()
+            },
+            &q,
+            top,
+            if session_id.trim().is_empty() {
+                None
             } else {
-                0
-            };
-            let fused_score = if vector_enabled {
-                lexical_score
-                    .saturating_mul(1000)
-                    .saturating_add(vector_score)
-            } else {
-                lexical_score
-            };
-            (entry, fused_score, reasons)
-        })
-        .collect::<Vec<(&IndexEntry, i64, Vec<String>)>>();
-    scored.sort_by(|a, b| {
-        if b.1 != a.1 {
-            return b.1.cmp(&a.1);
-        }
-        if a.0.file_rel != b.0.file_rel {
-            return a.0.file_rel.cmp(&b.0.file_rel);
-        }
-        a.0.node_id.cmp(&b.0.node_id)
-    });
-    let mut hits = scored
-        .into_iter()
-        .take(top)
-        .map(|(entry, score, reasons)| QueryHit {
-            node_id: entry.node_id.clone(),
-            uid: entry.uid.clone(),
-            file: entry.file_rel.clone(),
-            summary: entry.summary.clone(),
-            tags: dedupe_sorted(entry.tags.clone()),
-            score,
-            reasons,
-            section_excerpt: None,
-            section_hash: None,
-            section_source: None,
-            expand_blocked: None,
-            expand_error: None,
-        })
-        .collect::<Vec<QueryHit>>();
+                Some(session_id.as_str())
+            },
+        )
+    } else {
+        let mut scored = candidates
+            .iter()
+            .map(|entry| {
+                let (lexical_score, reasons) =
+                    score_entry(entry, &query_tokens, &tag_filters, &tag_node_ids);
+                (entry, lexical_score, reasons)
+            })
+            .collect::<Vec<(&IndexEntry, i64, Vec<String>)>>();
+        scored.sort_by(|a, b| {
+            if b.1 != a.1 {
+                return b.1.cmp(&a.1);
+            }
+            if a.0.file_rel != b.0.file_rel {
+                return a.0.file_rel.cmp(&b.0.file_rel);
+            }
+            a.0.node_id.cmp(&b.0.node_id)
+        });
+        scored
+            .into_iter()
+            .take(top)
+            .map(|(entry, score, reasons)| QueryHit {
+                node_id: entry.node_id.clone(),
+                uid: entry.uid.clone(),
+                file: entry.file_rel.clone(),
+                summary: entry.summary.clone(),
+                tags: dedupe_sorted(entry.tags.clone()),
+                score,
+                reasons,
+                memory_kind: None,
+                trust_state: None,
+                entity_refs: None,
+                recall_explanation: None,
+                section_excerpt: None,
+                section_hash: None,
+                section_source: None,
+                expand_blocked: None,
+                expand_error: None,
+            })
+            .collect::<Vec<QueryHit>>()
+    };
     if expand_lines > 0 {
         let mut file_order = hits
             .iter()
@@ -458,11 +451,21 @@ fn query_index_payload(args: &HashMap<String, String>) -> QueryResult {
             "lexical".to_string()
         },
         vector_enabled,
+        recall_mode: if vector_enabled {
+            "heap_hybrid".to_string()
+        } else {
+            "lexical_index".to_string()
+        },
         entries_total: entries.len(),
         candidates_total: candidates.len(),
         index_sources,
         tag_sources,
         hits,
+        session_id: if session_id.trim().is_empty() {
+            None
+        } else {
+            Some(session_id)
+        },
         error: None,
         reason_code: None,
         policy: Some(json!({

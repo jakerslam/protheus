@@ -1,4 +1,4 @@
-use crate::schemas::{MemoryVersion, TrustState};
+use crate::schemas::{MemoryDerivation, MemorySalience, MemoryVersion, TrustState};
 use crate::{deterministic_hash, now_ms};
 
 fn build_rollback_version_id(
@@ -57,10 +57,20 @@ pub fn rollback_head_from_version(
         version_id,
         object_id: object_id.to_string(),
         scope: source_version.scope.clone(),
+        kind: source_version.kind.clone(),
         parent_version_id: current_head_version_id,
         lineage_refs,
         receipt_id: receipt_id.to_string(),
         trust_state: source_version.trust_state.clone(),
+        salience: MemorySalience::for_kind(&source_version.kind, &source_version.trust_state),
+        derivation: source_version.derivation.clone().or_else(|| {
+            Some(MemoryDerivation {
+                kind: crate::schemas::DerivationKind::RetrievalFeedback,
+                source_version_ids: vec![source_version.version_id.clone()],
+                notes: "rollback restored prior memory head".to_string(),
+                confidence_bps: 7000,
+            })
+        }),
         payload: source_version.payload.clone(),
         payload_hash,
         timestamp_ms: ts,

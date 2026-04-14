@@ -224,6 +224,7 @@ fn persist_to_unified_memory(
     let object = MemoryObject {
         object_id: object_id.clone(),
         scope: MemoryScope::Core,
+        kind: protheus_memory_core_v1::MemoryKind::Episodic,
         classification: Classification::Internal,
         namespace: "framework.adapter.workflow".to_string(),
         key: clean_token(task_id, 160),
