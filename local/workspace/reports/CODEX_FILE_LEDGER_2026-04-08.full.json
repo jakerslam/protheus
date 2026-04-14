@@ -13532,7 +13532,7 @@
       "order": 1229
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/lib/haystack_bridge.ts",
       "language": "ts",
       "loc": 72,
@@ -13543,7 +13543,7 @@
       "order": 1230
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/lib/workflow_chain_bridge.ts",
       "language": "ts",
       "loc": 72,
@@ -13576,7 +13576,7 @@
       "order": 1233
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/lib/camel_bridge.ts",
       "language": "ts",
       "loc": 68,
@@ -13598,7 +13598,7 @@
       "order": 1235
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/lib/workflow_graph_bridge.ts",
       "language": "ts",
       "loc": 67,
@@ -13609,7 +13609,7 @@
       "order": 1236
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/lib/dspy_bridge.ts",
       "language": "ts",
       "loc": 66,

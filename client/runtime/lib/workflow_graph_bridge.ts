@@ -4,24 +4,49 @@ export {};
 
 // Layer ownership: client/runtime/lib (thin bridge over core/layer0/ops workflow_graph-bridge)
 
+const path = require('path');
 const { createOpsLaneBridge } = require('./rust_lane_bridge.ts');
 
 process.env.PROTHEUS_OPS_USE_PREBUILT = process.env.PROTHEUS_OPS_USE_PREBUILT || '0';
 process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '120000';
+process.env.INFRING_OPS_ALLOW_PROCESS_FALLBACK = process.env.INFRING_OPS_ALLOW_PROCESS_FALLBACK || '0';
+process.env.PROTHEUS_OPS_ALLOW_PROCESS_FALLBACK = process.env.PROTHEUS_OPS_ALLOW_PROCESS_FALLBACK || '0';
 const bridge = createOpsLaneBridge(__dirname, 'workflow_graph_bridge', 'workflow_graph-bridge', {
   preferLocalCore: true
 });
+const PATH_ARG_KEYS = ['state_path', 'history_path', 'swarm_state_path', 'trace_path'];
 
 function encodeBase64(value) {
   return Buffer.from(String(value == null ? '' : value), 'utf8').toString('base64');
 }
 
+function normalizePayload(payload = {}) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return {};
+  }
+  const normalized = { ...payload };
+  for (const key of PATH_ARG_KEYS) {
+    const value = normalized[key];
+    if (typeof value === 'string' && value.trim().length > 0) {
+      normalized[key] = path.resolve(value);
+    }
+  }
+  return normalized;
+}
+
+function appendPathArgs(args, payload, keys) {
+  for (const key of keys) {
+    const value = payload[key];
+    if (typeof value === 'string' && value.length > 0) {
+      args.push(`--${key.replace(/_/g, '-')}=${String(value)}`);
+    }
+  }
+}
+
 function invoke(command, payload = {}, opts = {}) {
-  const args = [command, `--payload-base64=${encodeBase64(JSON.stringify(payload || {}))}`];
-  if (payload && payload.state_path) args.push(`--state-path=${String(payload.state_path)}`);
-  if (payload && payload.history_path) args.push(`--history-path=${String(payload.history_path)}`);
-  if (payload && payload.swarm_state_path) args.push(`--swarm-state-path=${String(payload.swarm_state_path)}`);
-  if (payload && payload.trace_path) args.push(`--trace-path=${String(payload.trace_path)}`);
+  const normalizedPayload = normalizePayload(payload);
+  const args = [command, `--payload-base64=${encodeBase64(JSON.stringify(normalizedPayload))}`];
+  appendPathArgs(args, normalizedPayload, PATH_ARG_KEYS);
   const out = bridge.run(args);
   const receipt = out && out.payload && typeof out.payload === 'object' ? out.payload : null;
   const payloadOut = receipt && receipt.payload && typeof receipt.payload === 'object' ? receipt.payload : receipt;
@@ -64,4 +89,7 @@ module.exports = {
   recordTrace,
   streamGraph,
   runGovernedWorkflow,
+  normalizePayload,
+  appendPathArgs,
+  PATH_ARG_KEYS,
 };
