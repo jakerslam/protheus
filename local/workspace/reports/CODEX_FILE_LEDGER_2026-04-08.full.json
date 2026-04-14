@@ -13444,7 +13444,7 @@
       "order": 1221
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/lib/pydantic_ai_bridge.ts",
       "language": "ts",
       "loc": 79,
@@ -13455,7 +13455,7 @@
       "order": 1222
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/lib/mastra_bridge.ts",
       "language": "ts",
       "loc": 77,
@@ -13488,7 +13488,7 @@
       "order": 1225
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/lib/google_adk_bridge.ts",
       "language": "ts",
       "loc": 75,
@@ -13510,7 +13510,7 @@
       "order": 1227
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/lib/semantic_kernel_bridge.ts",
       "language": "ts",
       "loc": 74,
@@ -13521,7 +13521,7 @@
       "order": 1228
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/lib/crewai_bridge.ts",
       "language": "ts",
       "loc": 72,
