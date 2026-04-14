@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // Layer ownership: core/layer2/tooling (authoritative canonical tool/evidence substrate).
+// SRS coverage anchor: V6-TOOL-005
 
 pub mod backend_registry;
 pub mod capability;

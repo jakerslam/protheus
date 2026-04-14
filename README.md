@@ -299,24 +299,13 @@ Latest benchmark source:
 - [`docs/client/reports/benchmark_matrix_run_latest.json`](docs/client/reports/benchmark_matrix_run_latest.json)
 
 Canonical throughput metric (kernel/shared workload): `kernel_shared_workload_ops_per_sec`
-Rich zero-boot cold-start metric: `rich_zero_boot_command_path_cold_start_ms`
 Rich end-to-end command-path throughput metric: `rich_end_to_end_command_path_ops_per_sec`
-Realistic workload throughput metric: `realistic_user_workload_ops_per_sec`
-
-### Benchmark Categories
-
-- **Micro-kernel benchmarks (Pure / Tiny-Max):** shared hot-path kernel workload metrics (intentionally optimistic).
-- **Zero-boot lane (Rich):** stopped-from-zero command-process launch from disk with daemon reuse disabled.
-- **Full governed path benchmark (Rich):** command path through runtime guards and receipts.
-- **Realistic user workload (Rich):** ten governed tool calls with memory cache and receipt side effects per sample.
-- **Cold start definitions:** status-path readiness and a distinct rich zero-boot lane are both published to avoid metric blending.
 
 Current measured rows in that artifact:
 
 | Metric | Rich | Pure (`InfRing (pure)`) | Tiny-Max (`InfRing (tiny-max)`) |
 |---|---:|---:|---:|
-| Readiness latency (status-path; not zero-boot) | 0.004 ms | 1.908 ms | 2.738 ms |
-| Cold start (zero-boot rich command lane; stopped-from-zero) | 218.796 ms | n/a | n/a |
+| Readiness latency (status-path; not zero-boot) | 0.004 ms | 1.471 ms | 1.474 ms |
 | Cold start (engine init micro) | 0.004 ms | n/a | n/a |
 | Cold start (orchestration component) | 0.000 ms | n/a | n/a |
 | Kernel ready | 0.004 ms | n/a | n/a |
@@ -324,12 +313,8 @@ Current measured rows in that artifact:
 | Dashboard interactive | 0.004 ms | n/a | n/a |
 | Idle memory | 8.359 MB | 1.516 MB | 1.516 MB |
 | Install artifact size | 28.116 MB | 3.837 MB | 0.631 MB |
-| Throughput (kernel/shared workload) | 315,070.20 ops/sec | 315,070.20 ops/sec | 315,070.20 ops/sec |
-| Throughput (rich end-to-end command path) | 4.22 ops/sec | n/a | n/a |
-| Throughput (realistic user workload: 10 tool calls + memory + receipts) | 160.67 ops/sec | n/a | n/a |
-| Zero-boot lane sample rigor | n=30; p50=218.796 ms; p95=245.237 ms; p99=281.783 ms; min=207.408 ms; max=281.783 ms | n/a | n/a |
-| Rich command-path sample rigor | n=30; p50=233.032 ms; p95=262.306 ms; p99=272.664 ms; min=224.296 ms; max=272.664 ms | n/a | n/a |
-| Realistic workload sample rigor | n=30; p50=61.733 ms; p95=68.001 ms; p99=70.395 ms; min=58.189 ms; max=70.395 ms | n/a | n/a |
+| Throughput (kernel/shared workload) | 16,502.74 ops/sec | 16,502.74 ops/sec | 16,502.74 ops/sec |
+| Throughput (rich end-to-end command path) | 5.03 ops/sec | n/a | n/a |
 | Security systems | 83 | 83 | 83 |
 | Channel adapters | 6 | 0 | 0 |
 | LLM providers | 3 | 0 | 0 |
@@ -340,20 +325,16 @@ Preflight metadata in the same artifact:
 
 - `benchmark_preflight.enabled = true`
 - `benchmark_validation.ok = true`
-- `sample_cv_pct = 2.16` (tolerance `18.75`)
-- Artifact timestamp: `2026-04-09T17:39:25.221Z`
+- `sample_cv_pct = 1.66` (tolerance `150`)
+- Artifact timestamp: `2026-04-14T22:09:08.952Z`
 
 Current nuance:
 
 - Public benchmark summaries are generated from the canonical artifact during refresh and verified by `ops:benchmark:public-audit`.
 - Reproducibility commands are listed below; claims should match the linked JSON artifact exactly.
 - `kernel_shared_workload_ops_per_sec` is a shared kernel workload metric; treat it separately from end-to-end runtime throughput.
-- `rich_zero_boot_command_path_cold_start_ms` is the stopped-from-zero rich command-process cold-start lane.
 - `rich_end_to_end_command_path_ops_per_sec` is the rich command-path throughput metric measured through the governed command bridge.
-- `realistic_user_workload_ops_per_sec` runs ten governed tool calls per sample with memory/receipt side effects.
 - `cold_start_ms` in this matrix is a status-path readiness metric, not a full stopped-from-zero dashboard boot benchmark.
-- JSON report includes raw run arrays and percentile summaries for command-path metrics (median/p95/p99/min/max).
-- Competitor rows are matrix snapshots from the canonical artifact; when methodology is unavailable, entries are treated as comparative references only.
 
 ### Competitor Comparison (Latest Matrix)
 
@@ -361,7 +342,7 @@ Source: [`docs/client/reports/benchmark_matrix_run_latest.json`](docs/client/rep
 
 | Project | Cold Start (ms) | Idle Memory (MB) | Install Size (MB) | Throughput (ops/sec) |
 |---|---:|---:|---:|---:|
-| Infring | 0.004 | 8.359 | 28.116 | 315,070.20 |
+| Infring | 0.004 | 8.359 | 28.116 | 16,502.74 |
 | AutoGen | 4000.000 | 250.000 | 200.000 | 0.00 |
 | CrewAI | 3000.000 | 200.000 | 100.000 | 0.00 |
 | OpenHands | 1300.000 | 150.000 | 95.500 | 0.00 |
@@ -376,6 +357,7 @@ npm run -s ops:benchmark:public-audit
 npm run -s ops:benchmark:repro
 ```
 <!-- END: benchmark-snapshot -->
+
 
 
 

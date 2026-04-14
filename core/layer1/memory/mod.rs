@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // Plane ownership: Layer 1 memory primitives (ephemeral scope authority substrate).
+// SRS coverage anchor: V6-MEMORY-043
 
 pub mod cleanup;
 pub mod ephemeral_scope;
