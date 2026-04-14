@@ -68,6 +68,10 @@ pub struct ToolAttemptEnvelope {
 pub struct ToolExecutionLedgerEvent {
     pub event_id: String,
     pub event_sequence: u64,
+    #[serde(default)]
+    pub attempt_id: Option<String>,
+    #[serde(default)]
+    pub attempt_sequence: u64,
     pub result_id: String,
     pub result_content_id: String,
     pub trace_id: String,
@@ -87,6 +91,7 @@ pub struct ToolExecutionLedgerEvent {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ToolAttemptReceipt {
     pub attempt_id: String,
+    pub attempt_sequence: u64,
     pub trace_id: String,
     pub task_id: String,
     pub caller: BrokerCaller,
@@ -213,6 +218,15 @@ impl ToolBroker {
 
     pub fn attempt_receipts(&self) -> &[ToolAttemptReceipt] {
         self.attempt_receipts.as_slice()
+    }
+
+    pub fn attempt_receipts_for_trace(&self, trace_id: &str) -> Vec<ToolAttemptReceipt> {
+        let normalized = clean_text(trace_id, 160);
+        self.attempt_receipts
+            .iter()
+            .filter(|row| row.trace_id == normalized)
+            .cloned()
+            .collect::<Vec<_>>()
     }
 
     pub fn execute_and_normalize<F>(
@@ -410,6 +424,8 @@ impl ToolBroker {
         let ledger_event = ToolExecutionLedgerEvent {
             event_id,
             event_sequence,
+            attempt_id: Some(attempt_receipt.attempt_id.clone()),
+            attempt_sequence: attempt_receipt.attempt_sequence,
             result_id: normalized_result.result_id.clone(),
             result_content_id: normalized_result.result_content_id.clone(),
             trace_id: normalized_result.trace_id.clone(),
@@ -465,6 +481,7 @@ impl ToolBroker {
                             "tool_name": request.tool_name,
                             "timestamp": now_ms()
                         })),
+                        attempt_sequence: self.attempt_receipts.len() as u64 + 1,
                         trace_id: clean_text(&request.trace_id, 160),
                         task_id: clean_text(&request.task_id, 160),
                         caller: request.caller,
@@ -558,6 +575,7 @@ impl ToolBroker {
         latency_ms: u64,
         probe: &ToolCapabilityProbe,
     ) -> ToolAttemptReceipt {
+        let attempt_sequence = self.attempt_receipts.len() as u64 + 1;
         let outcome = match status {
             ToolAttemptStatus::Ok => "ok",
             ToolAttemptStatus::Unavailable => "unavailable",
@@ -576,8 +594,9 @@ impl ToolBroker {
                 "tool_name": tool_name,
                 "outcome": outcome,
                 "timestamp": timestamp,
-                "sequence": self.attempt_receipts.len() + 1
+                "sequence": attempt_sequence
             })),
+            attempt_sequence,
             trace_id: clean_text(trace_id, 160),
             task_id: clean_text(task_id, 160),
             caller,
@@ -838,6 +857,14 @@ mod tests {
             execution.normalized_result.result_content_id
         );
         assert_eq!(last.event_id, execution.normalized_result.result_event_id);
+        assert_eq!(
+            last.attempt_id.as_deref(),
+            Some(execution.attempt.attempt.attempt_id.as_str())
+        );
+        assert_eq!(
+            last.attempt_sequence,
+            execution.attempt.attempt.attempt_sequence
+        );
         assert!(broker.ledger_path().exists());
     }
 
@@ -943,6 +970,7 @@ mod tests {
         assert_eq!(attempt.reason_code, ToolReasonCode::CallerNotAuthorized);
         assert_eq!(attempt.backend, "governed_terminal");
         assert_eq!(attempt.required_args, vec!["command".to_string()]);
+        assert_eq!(attempt.attempt_sequence, 1);
     }
 
     #[test]
@@ -968,6 +996,7 @@ mod tests {
         assert_eq!(attempt.outcome, "ok");
         assert_eq!(attempt.status, ToolAttemptStatus::Ok);
         assert_eq!(attempt.reason_code, ToolReasonCode::Ok);
+        assert_eq!(attempt.attempt_sequence, 1);
     }
 
     #[test]
@@ -998,5 +1027,44 @@ mod tests {
         );
         assert!(attempt.normalized_result.is_none());
         assert!(attempt.error.is_some());
+    }
+
+    #[test]
+    fn attempt_receipts_for_trace_filters_and_preserves_sequence() {
+        let mut broker = ToolBroker::default();
+        let _ = broker.execute_and_normalize(
+            ToolCallRequest {
+                trace_id: "trace-a".to_string(),
+                task_id: "task-a".to_string(),
+                tool_name: "web_search".to_string(),
+                args: json!({"query":"a"}),
+                lineage: vec![],
+                caller: BrokerCaller::Client,
+                policy_revision: None,
+                tool_version: None,
+                freshness_window_ms: None,
+                force_no_dedupe: false,
+            },
+            |_| Ok(json!({"results":[{"summary":"ok"}]})),
+        );
+        let _ = broker.execute_and_normalize(
+            ToolCallRequest {
+                trace_id: "trace-b".to_string(),
+                task_id: "task-b".to_string(),
+                tool_name: "web_search".to_string(),
+                args: json!({"query":"b"}),
+                lineage: vec![],
+                caller: BrokerCaller::Client,
+                policy_revision: None,
+                tool_version: None,
+                freshness_window_ms: None,
+                force_no_dedupe: false,
+            },
+            |_| Ok(json!({"results":[{"summary":"ok"}]})),
+        );
+        let trace_a = broker.attempt_receipts_for_trace("trace-a");
+        assert_eq!(trace_a.len(), 1);
+        assert_eq!(trace_a[0].trace_id, "trace-a");
+        assert_eq!(trace_a[0].attempt_sequence, 1);
     }
 }

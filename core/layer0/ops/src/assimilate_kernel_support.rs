@@ -27,6 +27,7 @@ const PREWARM_STATE_REL: &str = "local/state/tools/assimilate/prewarm.json";
 const METRICS_STATE_REL: &str = "local/state/tools/assimilate/metrics.json";
 const RECON_MAX_FILES: usize = 2500;
 const RECON_MAX_DEPTH: usize = 8;
+const ASSIMILATION_PROTOCOL_VERSION: &str = "infring_assimilation_protocol_v1";
 
 #[derive(Clone, Copy)]
 pub struct Stage {
@@ -73,6 +74,7 @@ pub struct Options {
     pub prewarm: bool,
     pub allow_local_simulation: bool,
     pub plan_only: bool,
+    pub strict: bool,
     pub hard_selector: String,
     pub selector_bypass: bool,
     pub core_domain: String,
@@ -163,6 +165,17 @@ fn parse_bool_flag(raw: Option<&str>, fallback: bool) -> bool {
     lane_utils::parse_bool(raw, fallback)
 }
 
+fn assimilation_denial_priority(code: &str) -> usize {
+    match code {
+        "assimilation_selector_bypass_rejected" => 0,
+        "assimilation_hard_selector_closure_reject" => 1,
+        "assimilation_candidate_closure_incomplete" => 2,
+        "assimilation_manifest_surface_missing" => 3,
+        "assimilation_structure_surface_empty" => 4,
+        _ => 100,
+    }
+}
+
 fn normalize_target(raw: &str) -> String {
     let mut out = String::new();
     for ch in raw.chars() {
@@ -235,6 +248,14 @@ pub fn parse_args(argv: &[String]) -> Options {
         }
         if trimmed == "--plan-only" {
             out.plan_only = true;
+            continue;
+        }
+        if let Some(raw) = trimmed.strip_prefix("--strict=") {
+            out.strict = parse_bool_flag(Some(raw), out.strict);
+            continue;
+        }
+        if trimmed == "--strict" {
+            out.strict = true;
             continue;
         }
         if let Some(raw) = trimmed.strip_prefix("--hard-selector=") {
@@ -1524,18 +1545,42 @@ pub fn canonical_assimilation_plan(
         .iter()
         .filter(|gap| gap.get("severity").and_then(Value::as_str) == Some("warning"))
         .count();
+    let mut denial_codes = gaps
+        .iter()
+        .filter(|row| row.get("severity").and_then(Value::as_str) == Some("blocker"))
+        .filter_map(|row| row.get("gap_id").and_then(Value::as_str))
+        .map(ToString::to_string)
+        .collect::<Vec<_>>();
+    let mut seen_codes = BTreeSet::<String>::new();
+    denial_codes.retain(|code| seen_codes.insert(code.clone()));
+    denial_codes.sort_by(|a, b| {
+        assimilation_denial_priority(a)
+            .cmp(&assimilation_denial_priority(b))
+            .then_with(|| a.cmp(b))
+    });
     let provisional_gap_report = json!({
         "gap_report_id": build_receipt_hash(&format!("gap:{normalized_target}"), ts_iso),
         "gaps": gaps,
         "risk_level": if admitted { "normal" } else { "elevated" },
         "blocker_count": blocker_count,
-        "warning_count": warning_count
+        "warning_count": warning_count,
+        "denial_codes": denial_codes
     });
     let admission = json!({
         "admission_id": build_receipt_hash(&format!("admission:{normalized_target}"), ts_iso),
         "verdict": if admitted { "admitted" } else { "unadmitted" },
         "policy_gate": "assimilate_admission_v2",
-        "requested_verdict": requested_admission_verdict
+        "requested_verdict": requested_admission_verdict,
+        "required_controls": [
+            "intent_spec",
+            "recon_index",
+            "candidate_set",
+            "candidate_closure",
+            "provisional_gap_report",
+            "admission_verdict",
+            "protocol_step_receipt"
+        ],
+        "denial_codes": denial_codes
     });
     let admitted_plan = json!({
         "plan_id": build_receipt_hash(&format!("plan:{normalized_target}"), ts_iso),
@@ -1561,6 +1606,7 @@ pub fn canonical_assimilation_plan(
         "ts": ts_iso
     });
     json!({
+        "protocol_version": ASSIMILATION_PROTOCOL_VERSION,
         "intent_spec": intent_spec,
         "recon_index": recon_index,
         "candidate_set": candidate_set,
@@ -1815,10 +1861,12 @@ mod tests {
     fn parse_args_accepts_selector_controls() {
         let parsed = parse_args(&[
             "workflow://langgraph".to_string(),
+            "--strict=1".to_string(),
             "--hard-selector=runtime-systems".to_string(),
             "--selector-bypass=1".to_string(),
         ]);
         assert_eq!(parsed.target, "workflow://langgraph");
+        assert!(parsed.strict);
         assert_eq!(parsed.hard_selector, "runtime-systems");
         assert!(parsed.selector_bypass);
     }
