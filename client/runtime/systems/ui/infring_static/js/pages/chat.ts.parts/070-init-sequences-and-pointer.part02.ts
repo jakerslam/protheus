@@ -1,3 +1,4 @@
+// Layer ownership: client/runtime/systems/ui (dashboard static UX surface only; no runtime authority).
 
     spawnPointerTrail(container, x, y, opts) {
       var options = opts || {};

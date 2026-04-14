@@ -1,3 +1,4 @@
+// Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 pub mod capability_registry;
 pub mod planner;
 pub mod preconditions;

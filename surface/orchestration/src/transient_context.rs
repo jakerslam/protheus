@@ -1,3 +1,4 @@
+// Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 use infring_layer1_memory::{
     Classification, EphemeralMemoryHeap, TrustState, VerityEphemeralPolicy,
 };
@@ -180,7 +181,9 @@ mod tests {
         assert_eq!(store.active_ephemeral_count(), 1);
 
         store.begin_restart();
-        let blocked = store.resume_after_restart().expect_err("resume should block");
+        let blocked = store
+            .resume_after_restart()
+            .expect_err("resume should block");
         assert!(blocked.starts_with("transient_context_resume_blocked:"));
 
         let swept = store

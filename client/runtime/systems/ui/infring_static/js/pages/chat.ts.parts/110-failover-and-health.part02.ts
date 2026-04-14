@@ -1,3 +1,4 @@
+// Layer ownership: client/runtime/systems/ui (dashboard static UX surface only; no runtime authority).
       this.inputText = '';
       var self = this;
       cmdArgs = cmdArgs || '';

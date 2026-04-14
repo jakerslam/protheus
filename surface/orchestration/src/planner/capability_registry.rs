@@ -1,6 +1,5 @@
-use crate::contracts::{
-    Capability, CoreContractCall, OrchestrationPlanStep, Precondition,
-};
+// Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
+use crate::contracts::{Capability, CoreContractCall, OrchestrationPlanStep, Precondition};
 
 #[derive(Debug, Clone)]
 pub struct CapabilitySpec {
@@ -32,7 +31,10 @@ pub fn spec_for(capability: &Capability) -> CapabilitySpec {
             degraded_steps: Vec::new(),
         },
         Capability::ExecuteTool => CapabilitySpec {
-            requires: vec![Precondition::ToolAvailable, Precondition::TransportAvailable],
+            requires: vec![
+                Precondition::ToolAvailable,
+                Precondition::TransportAvailable,
+            ],
             primary_steps: vec![
                 step(
                     Capability::ExecuteTool,

@@ -1,3 +1,4 @@
+// Layer ownership: core/layer2/tools/task_fabric (authoritative task graph primitive).
 use crate::task_graph::{ReadinessStatus, Task, TaskGraph};
 use serde_json::{json, Value};
 

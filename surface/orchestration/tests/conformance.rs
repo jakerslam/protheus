@@ -1,3 +1,4 @@
+// Layer ownership: tests (regression proof for orchestration surface contracts).
 use infring_orchestration_surface_v1::contracts::{
     ClarificationReason, CoreContractCall, OrchestrationRequest, RequestClass, RequestSurface,
 };
@@ -270,6 +271,8 @@ fn sdk_surface_adapter_bypasses_legacy_intent_shim() {
         4_000,
     );
     assert_eq!(package.classification.request_class, RequestClass::ToolCall);
+    assert!(package.classification.surface_adapter_used);
+    assert!(!package.classification.surface_adapter_fallback);
     assert!(!package
         .classification
         .reasons
@@ -322,7 +325,10 @@ fn sdk_and_gateway_adapters_converge_on_same_tool_plan() {
         4_200,
     );
 
-    assert_eq!(sdk.classification.request_class, gateway.classification.request_class);
+    assert_eq!(
+        sdk.classification.request_class,
+        gateway.classification.request_class
+    );
     assert_eq!(sdk.core_contract_calls, gateway.core_contract_calls);
     assert!(sdk
         .core_contract_calls
@@ -346,11 +352,87 @@ fn surface_adapter_fallback_requires_clarification() {
         4_300,
     );
     assert!(package.classification.needs_clarification);
+    assert!(!package.classification.surface_adapter_used);
+    assert!(package.classification.surface_adapter_fallback);
     assert!(package
         .classification
         .reasons
         .iter()
         .any(|row| row == "surface_adapter_fallback:dashboard"));
+}
+
+#[test]
+fn non_legacy_surface_fixture_fallback_rate_stays_below_threshold() {
+    let fixtures = vec![
+        OrchestrationRequest {
+            session_id: "sdk-metric".to_string(),
+            intent: "opaque".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "search",
+                    "resource_kind": "web",
+                    "request_kind": "direct",
+                    "targets": [{ "kind": "url", "value": "https://example.com/releases" }]
+                }
+            }),
+        },
+        OrchestrationRequest {
+            session_id: "gateway-metric".to_string(),
+            intent: "opaque".to_string(),
+            surface: RequestSurface::Gateway,
+            payload: json!({
+                "gateway": {
+                    "route": "compare.resource",
+                    "resource_kind": "mixed",
+                    "targets": [
+                        { "kind": "workspace_path", "value": "README.md" },
+                        { "kind": "url", "value": "https://example.com/docs" }
+                    ]
+                }
+            }),
+        },
+        OrchestrationRequest {
+            session_id: "cli-metric".to_string(),
+            intent: "opaque".to_string(),
+            surface: RequestSurface::Cli,
+            payload: json!({
+                "cli": {
+                    "command": "read",
+                    "resource_kind": "workspace",
+                    "targets": [{ "kind": "workspace_path", "value": "README.md" }]
+                }
+            }),
+        },
+        OrchestrationRequest {
+            session_id: "dashboard-metric-fallback".to_string(),
+            intent: "".to_string(),
+            surface: RequestSurface::Dashboard,
+            payload: json!({
+                "dashboard": {
+                    "selection_mode": "panel"
+                }
+            }),
+        },
+    ];
+
+    let mut runtime = OrchestrationSurfaceRuntime::new();
+    let packages = fixtures
+        .into_iter()
+        .enumerate()
+        .map(|(idx, request)| runtime.orchestrate(request, 4_600 + idx as u64))
+        .collect::<Vec<_>>();
+    let fallback_count = packages
+        .iter()
+        .filter(|row| row.classification.surface_adapter_fallback)
+        .count();
+    let fallback_rate = fallback_count as f32 / packages.len() as f32;
+
+    assert!(
+        fallback_rate <= 0.25,
+        "fallback rate should stay below threshold"
+    );
+    assert_eq!(fallback_count, 1);
 }
 
 #[test]
@@ -379,10 +461,8 @@ fn comparative_request_exposes_verifier_and_alternative_plan_provenance() {
         .core_contract_calls
         .contains(&CoreContractCall::VerifierRequest));
     assert!(!package.alternative_plans.is_empty());
-    assert!(package
-        .alternative_plans
-        .iter()
-        .any(|row| row.variant == infring_orchestration_surface_v1::contracts::PlanVariant::ClarificationFirst));
+    assert!(package.alternative_plans.iter().any(|row| row.variant
+        == infring_orchestration_surface_v1::contracts::PlanVariant::ClarificationFirst));
     let merged_memory_step = package
         .selected_plan
         .steps
@@ -426,29 +506,26 @@ fn observed_core_execution_is_projected_into_execution_state_correlation() {
         package.execution_state.plan_status,
         infring_orchestration_surface_v1::contracts::PlanStatus::Completed
     );
-    assert!(package
-        .execution_state
-        .steps
-        .iter()
-        .any(|row| {
-            row.step_id == "step_tool_capability_probe"
-                && row.status
-                    == infring_orchestration_surface_v1::contracts::StepStatus::Succeeded
-        }));
-    assert!(package
-        .execution_state
-        .steps
-        .iter()
-        .any(|row| {
-            row.step_id == "step_tool_broker_request"
-                && row.status == infring_orchestration_surface_v1::contracts::StepStatus::Failed
-        }));
+    assert!(package.execution_state.steps.iter().any(|row| {
+        row.step_id == "step_tool_capability_probe"
+            && row.status == infring_orchestration_surface_v1::contracts::StepStatus::Succeeded
+    }));
+    assert!(package.execution_state.steps.iter().any(|row| {
+        row.step_id == "step_tool_broker_request"
+            && row.status == infring_orchestration_surface_v1::contracts::StepStatus::Failed
+    }));
     assert_eq!(
-        package.execution_state.correlation.observed_core_receipt_ids,
+        package
+            .execution_state
+            .correlation
+            .observed_core_receipt_ids,
         vec!["receipt-1".to_string(), "receipt-2".to_string()]
     );
     assert_eq!(
-        package.execution_state.correlation.observed_core_outcome_refs,
+        package
+            .execution_state
+            .correlation
+            .observed_core_outcome_refs,
         vec!["outcome-1".to_string()]
     );
     assert!(!package
@@ -482,10 +559,7 @@ fn invalid_target_is_reported_separately_from_missing_target() {
             .and_then(|row| row.reason.clone()),
         Some(infring_orchestration_surface_v1::contracts::RecoveryReason::TargetInvalid)
     );
-    assert_eq!(
-        package.classification.request_class,
-        RequestClass::Mutation
-    );
+    assert_eq!(package.classification.request_class, RequestClass::Mutation);
     assert_eq!(
         package.selected_plan.blocked_on,
         vec![infring_orchestration_surface_v1::contracts::Precondition::TargetSyntacticallyValid]
@@ -545,10 +619,10 @@ fn degraded_comparative_request_preserves_multiple_probe_failures() {
         .degradation
         .as_ref()
         .expect("degradation state");
-    assert!(degradation
-        .reasons
-        .contains(&infring_orchestration_surface_v1::contracts::DegradationReason::ToolUnavailable));
-    assert!(degradation
-        .reasons
-        .contains(&infring_orchestration_surface_v1::contracts::DegradationReason::TransportFailure));
+    assert!(degradation.reasons.contains(
+        &infring_orchestration_surface_v1::contracts::DegradationReason::ToolUnavailable
+    ));
+    assert!(degradation.reasons.contains(
+        &infring_orchestration_surface_v1::contracts::DegradationReason::TransportFailure
+    ));
 }
