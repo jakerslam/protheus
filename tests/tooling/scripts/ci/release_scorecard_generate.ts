@@ -81,6 +81,15 @@ function readJsonMaybe(filePath: string): any {
   }
 }
 
+function readJsonFirst(paths: string[]): any {
+  for (const filePath of paths) {
+    if (!filePath) continue;
+    const parsed = readJsonMaybe(filePath);
+    if (parsed && typeof parsed === 'object') return parsed;
+  }
+  return null;
+}
+
 function resolveMaybe(root: string, maybePath: string): string {
   if (path.isAbsolute(maybePath)) return maybePath;
   return path.resolve(root, maybePath);
@@ -139,6 +148,7 @@ function buildReport(args = parseArgs(process.argv.slice(2))) {
   const ipcSoakPath = resolveMaybe(root, normalizedArgs.ipcSoakPath);
   const drPath = resolveMaybe(root, normalizedArgs.drPath);
   const baselinePath = normalizedArgs.baselinePath ? resolveMaybe(root, normalizedArgs.baselinePath) : '';
+  const ipcSoakFallbackPath = path.join(root, 'artifacts', 'ops_ipc_bridge_stability_soak_report_latest.json');
 
   const semver = readJsonMaybe(semverPath) ?? {};
   const commitLint = readJsonMaybe(commitLintPath) ?? {};
@@ -151,7 +161,7 @@ function buildReport(args = parseArgs(process.argv.slice(2))) {
   const blockers = readJsonMaybe(blockersPath) ?? {};
   const closure = readJsonMaybe(closurePath) ?? {};
   const hardening = readJsonMaybe(hardeningPath) ?? {};
-  const ipcSoak = readJsonMaybe(ipcSoakPath) ?? {};
+  const ipcSoak = readJsonFirst([ipcSoakPath, ipcSoakFallbackPath]) ?? {};
   const dr = readJsonMaybe(drPath) ?? {};
   const baselineScorecard = baselinePath ? readJsonMaybe(baselinePath) ?? {} : null;
   const channel = releaseChannel(semver?.release_channel);

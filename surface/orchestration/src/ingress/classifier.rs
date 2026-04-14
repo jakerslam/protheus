@@ -1,3 +1,4 @@
+// Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 use crate::contracts::{
     AmbiguityReason, Mutability, OperationKind, ParseResult, PolicyScope, RequestKind,
     RequestSurface, ResourceKind, TargetDescriptor, TypedOrchestrationRequest,
@@ -54,9 +55,12 @@ pub fn parse_diagnostics(
     resource_candidates: &[ResourceKind],
     adapter_reasons: &[String],
 ) -> ParseResult {
+    let surface_adapter_used = typed_request.adapted;
+    let surface_adapter_fallback =
+        !surface_adapter_used && !matches!(typed_request.surface, RequestSurface::Legacy);
     let mut confidence: f32 = 0.20;
     let mut ambiguity = Vec::new();
-    let mut reasons = if typed_request.adapted {
+    let mut reasons = if surface_adapter_used {
         adapter_reasons.to_vec()
     } else {
         vec!["legacy_intent_compatibility_shim".to_string()]
@@ -64,9 +68,7 @@ pub fn parse_diagnostics(
 
     if typed_request.operation_kind != OperationKind::Unknown {
         confidence += 0.30;
-        reasons.push(
-            format!("operation_kind:{:?}", typed_request.operation_kind).to_lowercase(),
-        );
+        reasons.push(format!("operation_kind:{:?}", typed_request.operation_kind).to_lowercase());
     } else {
         ambiguity.push(AmbiguityReason::UnknownOperation);
         reasons.push("operation_kind:unknown".to_string());
@@ -78,22 +80,22 @@ pub fn parse_diagnostics(
     if typed_request.request_kind != RequestKind::Ambiguous {
         confidence += 0.10;
     }
-    if typed_request.adapted {
+    if surface_adapter_used {
         confidence += 0.15;
         reasons.push("surface_native_typed_adapter".to_string());
-    } else if !matches!(typed_request.surface, RequestSurface::Legacy) {
+    } else if surface_adapter_fallback {
         ambiguity.push(AmbiguityReason::SurfaceAdapterFallback);
         confidence -= 0.15;
-        reasons.push(format!(
-            "surface_adapter_fallback:{:?}",
-            typed_request.surface
-        )
-        .to_lowercase());
+        reasons
+            .push(format!("surface_adapter_fallback:{:?}", typed_request.surface).to_lowercase());
     }
     if operation_candidates.len() > 1 {
         ambiguity.push(AmbiguityReason::MultipleOperationCandidates);
         confidence -= 0.20;
-        reasons.push(format!("operation_candidates:{}", operation_candidates.len()));
+        reasons.push(format!(
+            "operation_candidates:{}",
+            operation_candidates.len()
+        ));
     }
     if resource_candidates.len() > 1 {
         ambiguity.push(AmbiguityReason::MultipleResourceCandidates);
@@ -110,7 +112,12 @@ pub fn parse_diagnostics(
         ambiguity.push(AmbiguityReason::MissingTargetSignals);
         confidence -= 0.10;
     }
-    if typed_request.payload.as_object().map(|row| row.is_empty()).unwrap_or(true) {
+    if typed_request
+        .payload
+        .as_object()
+        .map(|row| row.is_empty())
+        .unwrap_or(true)
+    {
         ambiguity.push(AmbiguityReason::LegacyCompatOnly);
     }
     if typed_request
@@ -132,5 +139,7 @@ pub fn parse_diagnostics(
         confidence,
         ambiguity,
         reasons,
+        surface_adapter_used,
+        surface_adapter_fallback,
     }
 }
