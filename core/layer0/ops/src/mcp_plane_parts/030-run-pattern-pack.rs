@@ -105,43 +105,14 @@ fn run_pattern_pack(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Va
     }
     let tasks = parse_csv_or_file_unique(root, &parsed.flags, "tasks", "tasks-file", 200);
     let default_steps = || match pattern.as_str() {
-            "map-reduce" => vec![
-                "map_discovery".to_string(),
-                "map_execution".to_string(),
-                "reduce_merge".to_string(),
-            ],
-            "orchestrator" => vec![
-                "orchestrator_plan".to_string(),
-                "orchestrator_dispatch".to_string(),
-                "orchestrator_collect".to_string(),
-                "orchestrator_finalize".to_string(),
-            ],
-            "evaluator" => vec![
-                "candidate_generate".to_string(),
-                "candidate_score".to_string(),
-                "candidate_select".to_string(),
-            ],
-            "swarm" => vec![
-                "swarm_spawn".to_string(),
-                "swarm_consensus".to_string(),
-                "swarm_merge".to_string(),
-            ],
-            "fanout" => vec![
-                "fanout_split".to_string(),
-                "parallel_execute".to_string(),
-                "aggregate_outputs".to_string(),
-            ],
-            "sequential" => vec![
-                "step_one".to_string(),
-                "step_two".to_string(),
-                "step_three".to_string(),
-            ],
-            _ => vec![
-                "router_select".to_string(),
-                "router_dispatch".to_string(),
-                "router_merge".to_string(),
-            ],
-        };
+        "map-reduce" => vec!["map_discovery".to_string(), "map_execution".to_string(), "reduce_merge".to_string()],
+        "orchestrator" => vec!["orchestrator_plan".to_string(), "orchestrator_dispatch".to_string(), "orchestrator_collect".to_string(), "orchestrator_finalize".to_string()],
+        "evaluator" => vec!["candidate_generate".to_string(), "candidate_score".to_string(), "candidate_select".to_string()],
+        "swarm" => vec!["swarm_spawn".to_string(), "swarm_consensus".to_string(), "swarm_merge".to_string()],
+        "fanout" => vec!["fanout_split".to_string(), "parallel_execute".to_string(), "aggregate_outputs".to_string()],
+        "sequential" => vec!["step_one".to_string(), "step_two".to_string(), "step_three".to_string()],
+        _ => vec!["router_select".to_string(), "router_dispatch".to_string(), "router_merge".to_string()],
+    };
     let (steps, step_source) = match load_pattern_steps(root, parsed) {
         Ok(Some((steps, source))) => (steps, source),
         Ok(None) => (default_steps(), "pattern_default".to_string()),
