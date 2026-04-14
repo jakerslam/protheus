@@ -11794,7 +11794,7 @@
       "order": 1071
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/memory/eyes_memory_bridge.ts",
       "language": "ts",
       "loc": 45,
@@ -11805,7 +11805,7 @@
       "order": 1072
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/memory/failure_memory_bridge.ts",
       "language": "ts",
       "loc": 45,
@@ -12168,7 +12168,7 @@
       "order": 1105
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ops/readiness_bridge_pack.ts",
       "language": "ts",
       "loc": 36,
@@ -13169,7 +13169,7 @@
       "order": 1196
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/lib/security_plane_bridge.ts",
       "language": "ts",
       "loc": 27,
@@ -13477,7 +13477,7 @@
       "order": 1224
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/lib/shannon_bridge.ts",
       "language": "ts",
       "loc": 76,
