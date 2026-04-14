@@ -92,7 +92,7 @@ protheus-tiny-runtime = { path = "../tiny_runtime", optional = true }
 protheus-pure-workspace = { path = "../../../client/pure-workspace", optional = true }
 crossbeam-channel = "0.5"
 parking_lot = "0.12"
-rusqlite = { version = "0.32", features = ["bundled"] }
+rusqlite = { version = "0.39", features = ["bundled"] }
 urlencoding = "2.1"
 png = "0.17"
 qrcodegen = "1.8"
