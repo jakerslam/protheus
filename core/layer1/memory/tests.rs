@@ -55,6 +55,33 @@ fn dream_cleanup_removes_non_promoted_ephemeral_objects() {
 }
 
 #[test]
+fn sleep_cycle_cleanup_wipes_active_ephemeral_objects() {
+    let mut heap = EphemeralMemoryHeap::new(policy());
+    let (object, _) = heap
+        .write_ephemeral(
+            "agent:alpha",
+            "trace_sleep",
+            json!({"tmp":"sleep"}),
+            Classification::Internal,
+            TrustState::Proposed,
+            "cap:ephemeral_write",
+        )
+        .expect("write");
+    let report = heap
+        .run_sleep_cycle_cleanup("nightly")
+        .expect("sleep cleanup");
+    assert_eq!(report.cleaned_count, 1);
+    let stored = heap
+        .ephemeral_object(object.object_id.as_str())
+        .expect("stored");
+    assert_eq!(stored.terminal_outcome, TerminalOutcome::Cleaned);
+    assert_eq!(
+        stored.cleanup_reason.as_deref(),
+        Some("sleep_cycle_ephemeral_wipe:nightly")
+    );
+}
+
+#[test]
 fn promotion_requires_verity_approval_and_creates_copy_forward_target() {
     let mut heap = EphemeralMemoryHeap::new(policy());
     let (object, _) = heap

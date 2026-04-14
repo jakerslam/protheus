@@ -1,6 +1,6 @@
 // Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 use infring_layer1_memory::{
-    Classification, EphemeralMemoryHeap, TrustState, VerityEphemeralPolicy,
+    Classification, EphemeralMemoryHeap, TerminalOutcome, TrustState, VerityEphemeralPolicy,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -12,6 +12,16 @@ pub struct TransientContextEntry {
     pub value: String,
     pub created_at_ms: u64,
     pub expires_at_ms: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TransientSleepCleanupReport {
+    pub cleanup_cycle_id: String,
+    pub cleaned_count: usize,
+    pub bytes_marked_for_reclaim: u64,
+    pub reclaimed_payload_bytes: u64,
+    pub conflict_count: usize,
+    pub removed_session_count: usize,
 }
 
 #[derive(Debug)]
@@ -114,6 +124,33 @@ impl TransientContextStore {
         expired.len()
     }
 
+    pub fn run_sleep_cycle_cleanup(
+        &mut self,
+        sleep_cycle_id: &str,
+    ) -> Result<TransientSleepCleanupReport, String> {
+        let report = self
+            .heap
+            .run_sleep_cycle_cleanup(sleep_cycle_id)
+            .map_err(|err| format!("transient_context_sleep_cleanup_failed:{err}"))?;
+        let entry_count_before = self.entries.len();
+        self.entries.retain(|_, entry| {
+            self.heap
+                .ephemeral_object(entry.object_id.as_str())
+                .map(|object| object.terminal_outcome == TerminalOutcome::Active)
+                .unwrap_or(false)
+        });
+        let removed_session_count = entry_count_before.saturating_sub(self.entries.len());
+        let reclaimed_payload_bytes = self.heap.reclaim_cleaned_payloads();
+        Ok(TransientSleepCleanupReport {
+            cleanup_cycle_id: report.cleanup_cycle_id,
+            cleaned_count: report.cleaned_count,
+            bytes_marked_for_reclaim: report.bytes_marked_for_reclaim,
+            reclaimed_payload_bytes,
+            conflict_count: report.conflict_count,
+            removed_session_count,
+        })
+    }
+
     pub fn active_ephemeral_count(&self) -> usize {
         self.heap
             .materialize_context_stack("orchestration_surface", true)
@@ -196,5 +233,27 @@ mod tests {
         store
             .resume_after_restart()
             .expect("resume should succeed after sweep");
+    }
+
+    #[test]
+    fn sleep_cycle_cleanup_wipes_active_transient_context() {
+        let mut store = TransientContextStore::default();
+        let _ = store
+            .upsert("session-1", "value a", 100, 60_000)
+            .expect("upsert");
+        let _ = store
+            .upsert("session-2", "value b", 200, 60_000)
+            .expect("upsert");
+        assert_eq!(store.len(), 2);
+        assert_eq!(store.active_ephemeral_count(), 2);
+
+        let report = store
+            .run_sleep_cycle_cleanup("night_cycle")
+            .expect("sleep cycle cleanup");
+        assert_eq!(report.cleaned_count, 2);
+        assert_eq!(report.removed_session_count, 2);
+        assert!(report.cleanup_cycle_id.starts_with("cycle_"));
+        assert_eq!(store.len(), 0);
+        assert_eq!(store.active_ephemeral_count(), 0);
     }
 }
