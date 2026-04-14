@@ -12,13 +12,26 @@ pub fn spec_for(capability: &Capability) -> CapabilitySpec {
     match capability {
         Capability::ReadMemory => CapabilitySpec {
             requires: Vec::new(),
-            primary_steps: vec![step(
+            primary_steps: vec![
+                step(
+                    Capability::ReadMemory,
+                    "step_context_atom_append",
+                    "append_context_atom",
+                    CoreContractCall::ContextAtomAppend,
+                ),
+                step(
+                    Capability::ReadMemory,
+                    "step_context_topology_materialize",
+                    "request_context_topology_materialization",
+                    CoreContractCall::ContextTopologyMaterialize,
+                ),
+            ],
+            degraded_steps: vec![step(
                 Capability::ReadMemory,
-                "step_memory_read",
-                "request_materialized_view",
+                "step_memory_read_compat",
+                "request_materialized_view_compat",
                 CoreContractCall::UnifiedMemoryRead,
             )],
-            degraded_steps: Vec::new(),
         },
         Capability::MutateTask => CapabilitySpec {
             requires: vec![Precondition::AuthorizationValid, Precondition::PolicyAllows],
@@ -72,8 +85,8 @@ pub fn spec_for(capability: &Capability) -> CapabilitySpec {
                 step(
                     Capability::VerifyClaim,
                     "step_claim_verification_read",
-                    "request_materialized_view",
-                    CoreContractCall::UnifiedMemoryRead,
+                    "request_context_topology_materialization",
+                    CoreContractCall::ContextTopologyMaterialize,
                 ),
                 step(
                     Capability::VerifyClaim,
@@ -82,12 +95,20 @@ pub fn spec_for(capability: &Capability) -> CapabilitySpec {
                     CoreContractCall::VerifierRequest,
                 ),
             ],
-            degraded_steps: vec![step(
-                Capability::VerifyClaim,
-                "step_claim_verification_fallback",
-                "request_materialized_view",
-                CoreContractCall::UnifiedMemoryRead,
-            )],
+            degraded_steps: vec![
+                step(
+                    Capability::VerifyClaim,
+                    "step_claim_verification_topology_fallback",
+                    "request_context_topology_materialization",
+                    CoreContractCall::ContextTopologyMaterialize,
+                ),
+                step(
+                    Capability::VerifyClaim,
+                    "step_claim_verification_fallback",
+                    "request_materialized_view",
+                    CoreContractCall::UnifiedMemoryRead,
+                ),
+            ],
         },
     }
 }

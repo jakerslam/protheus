@@ -208,10 +208,12 @@ fn comparative_request_changes_plan_when_transport_is_unavailable() {
     assert!(ready
         .core_contract_calls
         .contains(&CoreContractCall::ToolBrokerRequest));
-    assert_eq!(
-        degraded.core_contract_calls,
-        vec![CoreContractCall::UnifiedMemoryRead]
-    );
+    assert!(degraded
+        .core_contract_calls
+        .contains(&CoreContractCall::ContextTopologyMaterialize));
+    assert!(degraded
+        .core_contract_calls
+        .contains(&CoreContractCall::UnifiedMemoryRead));
     assert!(matches!(
         degraded.execution_state.plan_status,
         infring_orchestration_surface_v1::contracts::PlanStatus::Degraded
@@ -353,7 +355,7 @@ fn sdk_and_gateway_adapters_converge_on_same_tool_plan() {
     assert_eq!(sdk.core_contract_calls, gateway.core_contract_calls);
     assert!(sdk
         .core_contract_calls
-        .contains(&CoreContractCall::UnifiedMemoryRead));
+        .contains(&CoreContractCall::ContextTopologyMaterialize));
 }
 
 #[test]
@@ -613,7 +615,7 @@ fn comparative_request_exposes_verifier_and_alternative_plan_provenance() {
         .selected_plan
         .steps
         .iter()
-        .find(|row| row.target_contract == CoreContractCall::UnifiedMemoryRead)
+        .find(|row| row.target_contract == CoreContractCall::ContextTopologyMaterialize)
         .expect("shared memory read step");
     assert!(merged_memory_step
         .merged_capabilities

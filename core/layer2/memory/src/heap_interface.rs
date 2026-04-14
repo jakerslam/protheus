@@ -1,4 +1,5 @@
 use crate::context_materializer::{materialize_context, ContextMaterialization};
+use crate::context_topology::ContextTopology;
 use crate::graph_subsystem::{
     GraphEdge, GraphNode, GraphSubsystem, KnowledgeGraph, TaskFabricLease,
 };
@@ -52,6 +53,7 @@ pub struct UnifiedMemoryHeap<P: MemoryPolicyGate + Clone> {
     pub(crate) knowledge_graph: KnowledgeGraph,
     pub(crate) vector_index: VectorIndex,
     pub(crate) blob_store: BlobStore,
+    pub(crate) context_topology: ContextTopology,
     pub(crate) receipts: Vec<MemoryReceipt>,
 }
 
@@ -70,6 +72,7 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
             knowledge_graph: KnowledgeGraph::default(),
             vector_index: VectorIndex::default(),
             blob_store: BlobStore::default(),
+            context_topology: ContextTopology::default(),
             receipts: Vec::new(),
         }
     }
@@ -100,6 +103,10 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
 
     pub fn blob_store(&self) -> &BlobStore {
         &self.blob_store
+    }
+
+    pub fn context_topology(&self) -> &ContextTopology {
+        &self.context_topology
     }
 
     pub fn replay_mutation_rows(&self) -> Vec<MemoryMutationReplayRow> {

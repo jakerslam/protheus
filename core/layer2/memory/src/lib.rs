@@ -4,7 +4,12 @@
 
 pub mod blob_store;
 pub mod consolidation;
+pub mod context_atoms;
+pub mod context_budget;
+pub mod context_compaction;
+pub mod context_fidelity;
 pub mod context_materializer;
+pub mod context_topology;
 pub mod graph_subsystem;
 pub mod heap_interface;
 pub mod policy;
@@ -17,7 +22,16 @@ pub mod version_ledger;
 
 pub use blob_store::BlobStore;
 pub use consolidation::{ConsolidationReport, ConsolidatedMemoryDraft};
-pub use context_materializer::{ContextMaterialization, MaterializedMemoryEntry};
+pub use context_atoms::{ContextAtom, ContextAtomSourceKind};
+pub use context_budget::{ContextBudgetReport, ContextBudgetRequest};
+pub use context_materializer::{
+    ContextFragment, ContextFragmentKind, ContextMaterialization, ContextTopologyMaterialization,
+    MaterializedMemoryEntry,
+};
+pub use context_topology::{
+    ContextAppendInput, ContextAppendOutcome, ContextFrontier, ContextPressureState, ContextSpan,
+    ContextSpanStatus, ContextTopology, ContextTopologyConfig, ContextTopologyRebuildReport,
+};
 pub use graph_subsystem::{
     GraphEdge, GraphNode, GraphSubsystem, KnowledgeEntityKind, KnowledgeGraph,
     KnowledgeGraphEdge, KnowledgeGraphNode, KnowledgeRelationKind, TaskFabricLease,
@@ -73,5 +87,7 @@ pub(crate) fn now_ms() -> u64 {
         .unwrap_or(0)
 }
 
+#[cfg(test)]
+mod context_topology_heap_tests;
 #[cfg(test)]
 mod tests;
