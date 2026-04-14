@@ -21,6 +21,73 @@ function invoke(command, payload = {}, opts = {}) {
   );
 }
 
+function cleanText(raw, maxLen = 160) {
+  return String(raw || '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .slice(0, maxLen);
+}
+
+function normalizeArgs(args = []) {
+  return Array.isArray(args) ? args.map((token) => String(token || '').trim()).filter(Boolean) : [];
+}
+
+function parseFlag(args = [], key) {
+  const list = normalizeArgs(args);
+  const inline = list.find((token) => token.startsWith(`${key}=`));
+  if (inline) return inline.slice(key.length + 1).trim();
+  const idx = list.findIndex((token) => token === key);
+  if (idx >= 0 && idx + 1 < list.length) return list[idx + 1].trim();
+  return '';
+}
+
+function parseJson(raw, fallback) {
+  const value = String(raw || '').trim();
+  if (!value) return fallback;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+}
+
+function statusCodeForPayload(payload, fallback = 1) {
+  if (payload && Number.isFinite(Number(payload.status))) {
+    return Number(payload.status);
+  }
+  if (payload && typeof payload.ok === 'boolean') {
+    return payload.ok ? 0 : fallback;
+  }
+  return fallback;
+}
+
+function printPayload(payload) {
+  if (payload && typeof payload.stdout === 'string' && payload.stdout.length > 0) {
+    process.stdout.write(payload.stdout.endsWith('\n') ? payload.stdout : `${payload.stdout}\n`);
+  }
+  if (payload && typeof payload.stderr === 'string' && payload.stderr.length > 0) {
+    process.stderr.write(payload.stderr.endsWith('\n') ? payload.stderr : `${payload.stderr}\n`);
+  }
+  if (
+    payload
+    && payload.payload
+    && typeof payload.payload === 'object'
+    && !(typeof payload.stdout === 'string' && payload.stdout.length > 0)
+  ) {
+    process.stdout.write(`${JSON.stringify(payload.payload)}\n`);
+    return;
+  }
+  if (
+    payload
+    && typeof payload === 'object'
+    && !Array.isArray(payload)
+    && typeof payload.stdout !== 'string'
+    && typeof payload.stderr !== 'string'
+  ) {
+    process.stdout.write(`${JSON.stringify(payload)}\n`);
+  }
+}
+
 function loadState(filePath = DEFAULT_STATE_PATH) {
   const out = invoke(
     'load-state',
@@ -111,9 +178,83 @@ function sessionFailureResult(validation, context = {}) {
       };
 }
 
+function usagePayload(command) {
+  return {
+    ok: false,
+    type: 'memory_session_isolation_usage',
+    error: 'unknown_command',
+    command: cleanText(command || 'status', 80),
+    usage: [
+      'session_isolation.ts status [--state-path=<path>]',
+      'session_isolation.ts load-state [--state-path=<path>]',
+      'session_isolation.ts save-state --state-json=<json> [--state-path=<path>]',
+      'session_isolation.ts validate <runtime-args> [--state-path=<path>]',
+      'session_isolation.ts failure-result <runtime-args> [--validation-json=<json>] [--context-json=<json>] [--state-path=<path>]',
+    ]
+  };
+}
+
+function run(argv = process.argv.slice(2)) {
+  const args = normalizeArgs(argv);
+  const command = (args[0] && !args[0].startsWith('-') ? args[0] : 'status').toLowerCase();
+  const rest = args[0] && !args[0].startsWith('-') ? args.slice(1) : args;
+  const statePath =
+    parseFlag(rest, '--state-path')
+    || parseFlag(rest, '--statePath')
+    || DEFAULT_STATE_PATH;
+
+  let payload;
+  switch (command) {
+    case 'status':
+    case 'load-state':
+      payload = {
+        ok: true,
+        type: 'memory_session_isolation_state',
+        state_path: statePath,
+        state: loadState(statePath),
+      };
+      break;
+    case 'save-state': {
+      const state = parseJson(parseFlag(rest, '--state-json'), {});
+      payload = {
+        ok: true,
+        type: 'memory_session_isolation_state_saved',
+        state_path: statePath,
+        state: saveState(state, statePath),
+      };
+      break;
+    }
+    case 'validate':
+      payload = validateSessionIsolation(rest, { statePath });
+      break;
+    case 'failure-result': {
+      const rawValidation = parseJson(parseFlag(rest, '--validation-json'), null);
+      const rawContext = parseJson(parseFlag(rest, '--context-json'), {});
+      const validation =
+        rawValidation && typeof rawValidation === 'object'
+          ? rawValidation
+          : validateSessionIsolation(rest, { statePath });
+      payload = sessionFailureResult(validation, rawContext && typeof rawContext === 'object' ? rawContext : {});
+      break;
+    }
+    default:
+      payload = usagePayload(command);
+      break;
+  }
+
+  printPayload(payload);
+  if (command === 'validate') return statusCodeForPayload(payload, 2);
+  return statusCodeForPayload(payload, 1);
+}
+
+if (require.main === module) {
+  process.exit(run(process.argv.slice(2)));
+}
+
 module.exports = {
   SESSION_ID_PATTERN,
   DEFAULT_STATE_PATH,
+  run,
   loadState,
   saveState,
   validateSessionIsolation,
