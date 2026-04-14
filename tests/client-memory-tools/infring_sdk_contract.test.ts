@@ -11,6 +11,7 @@ import {
   type InfringTransport,
   type InfringTransportRequest,
 } from '../../packages/infring-sdk/src/index';
+import { createTestingInMemoryTransport } from '../../packages/infring-sdk/src/testing';
 
 async function run(): Promise<void> {
   assert.equal(
@@ -30,6 +31,10 @@ async function run(): Promise<void> {
   assert.ok(
     !transportSource.includes('cli_dev_only'),
     'production SDK transport surface must not re-export dev-only CLI transport'
+  );
+  assert.ok(
+    !transportSource.includes('synthetic_success'),
+    'production SDK transport surface must not expose testing-only synthetic fallback'
   );
 
   const sdk = new InfringSdkClient({
@@ -63,7 +68,7 @@ async function run(): Promise<void> {
     'attached policy refs should persist on client'
   );
 
-  const synthetic = createInMemoryTransport({}, { unseeded_behavior: 'synthetic_success' });
+  const synthetic = createTestingInMemoryTransport({}, { unseeded_behavior: 'synthetic_success' });
   const syntheticResult = await synthetic.invoke({
     operation: 'submit_task',
     payload: { prompt: 'synthetic fallback' },
@@ -81,7 +86,7 @@ async function run(): Promise<void> {
   );
   assert.deepEqual(
     syntheticResult.receipts.map((row) => row.policy_ref),
-    ['policy.synthetic', 'sdk.in_memory.synthetic_fallback'],
+    ['policy.synthetic', 'sdk.testing.synthetic_fallback'],
     'synthetic fallback should emit a synthetic receipt policy ref'
   );
 

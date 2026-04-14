@@ -266,7 +266,11 @@ fn sdk_surface_adapter_bypasses_legacy_intent_shim() {
                     "tool_hints": ["web_search"],
                     "targets": [{ "kind": "url", "value": "https://example.com/releases" }]
                 },
-                "transport_available": true
+                "core_probe_envelope": {
+                    "execute_tool": {
+                        "transport_available": true
+                    }
+                }
             }),
         },
         4_000,
@@ -303,7 +307,14 @@ fn sdk_and_gateway_adapters_converge_on_same_tool_plan() {
                         { "kind": "url", "value": "https://example.com/docs" }
                     ]
                 },
-                "transport_available": true
+                "core_probe_envelope": {
+                    "execute_tool": {
+                        "transport_available": true
+                    },
+                    "verify_claim": {
+                        "transport_available": true
+                    }
+                }
             }),
         },
         4_100,
@@ -322,7 +333,14 @@ fn sdk_and_gateway_adapters_converge_on_same_tool_plan() {
                         { "kind": "url", "value": "https://example.com/docs" }
                     ]
                 },
-                "transport_available": true
+                "core_probe_envelope": {
+                    "execute_tool": {
+                        "transport_available": true
+                    },
+                    "verify_claim": {
+                        "transport_available": true
+                    }
+                }
             }),
         },
         4_200,
@@ -466,7 +484,11 @@ fn non_legacy_surface_fixture_fallback_rate_stays_below_threshold() {
                     "request_kind": "direct",
                     "targets": [{ "kind": "url", "value": "https://example.com/releases" }]
                 },
-                "transport_available": true
+                "core_probe_envelope": {
+                    "execute_tool": {
+                        "transport_available": true
+                    }
+                }
             }),
         },
         OrchestrationRequest {
@@ -482,7 +504,14 @@ fn non_legacy_surface_fixture_fallback_rate_stays_below_threshold() {
                         { "kind": "url", "value": "https://example.com/docs" }
                     ]
                 },
-                "transport_available": true
+                "core_probe_envelope": {
+                    "execute_tool": {
+                        "transport_available": true
+                    },
+                    "verify_claim": {
+                        "transport_available": true
+                    }
+                }
             }),
         },
         OrchestrationRequest {
@@ -545,7 +574,14 @@ fn comparative_request_exposes_verifier_and_alternative_plan_provenance() {
                         { "kind": "url", "value": "https://example.com" }
                     ]
                 },
-                "transport_available": true
+                "core_probe_envelope": {
+                    "execute_tool": {
+                        "transport_available": true
+                    },
+                    "verify_claim": {
+                        "transport_available": true
+                    }
+                }
             }),
         },
         4_400,
@@ -557,6 +593,22 @@ fn comparative_request_exposes_verifier_and_alternative_plan_provenance() {
     assert!(!package.alternative_plans.is_empty());
     assert!(package.alternative_plans.iter().any(|row| row.variant
         == infring_orchestration_surface_v1::contracts::PlanVariant::ClarificationFirst));
+    let mut signatures = std::iter::once(&package.selected_plan)
+        .chain(package.alternative_plans.iter())
+        .map(|plan| {
+            plan.steps
+                .iter()
+                .map(|row| row.step_id.clone())
+                .collect::<Vec<_>>()
+                .join("->")
+        })
+        .collect::<Vec<_>>();
+    signatures.sort();
+    signatures.dedup();
+    assert!(
+        signatures.len() >= 2,
+        "plan variants should preserve structurally distinct step sequences"
+    );
     let merged_memory_step = package
         .selected_plan
         .steps
@@ -569,6 +621,10 @@ fn comparative_request_exposes_verifier_and_alternative_plan_provenance() {
     assert!(merged_memory_step
         .merged_capabilities
         .contains(&infring_orchestration_surface_v1::contracts::Capability::VerifyClaim));
+    assert!(
+        merged_memory_step.expected_contract_refs.len() >= 2,
+        "merged shared step should preserve multiple expected contract refs"
+    );
 }
 
 #[test]
@@ -582,7 +638,7 @@ fn observed_core_execution_is_projected_into_execution_state_correlation() {
             payload: json!({
                 "path": "README.md",
                 "url": "https://example.com",
-                "core_execution": {
+                "core_execution_observation": {
                     "status": "completed",
                     "receipt_ids": ["receipt-1", "receipt-2"],
                     "outcome_refs": ["outcome-1"],

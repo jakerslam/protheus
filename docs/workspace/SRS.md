@@ -15274,10 +15274,12 @@ Source summary:
   - Ensure public SDK transports never fabricate success envelopes by default when backend payloads are absent.
 - Acceptance criteria:
   - CLI transport fails closed on missing backend `data` unless explicit synthetic fallback opt-in is configured.
-  - In-memory transport defaults to fail-closed unless explicit unseeded fallback opt-in is configured.
-  - SDK examples/tests that intentionally exercise synthetic mode must opt in explicitly.
+  - Public SDK in-memory transport defaults to fail-closed and does not expose `synthetic_success` from `@infring/sdk`.
+  - Synthetic in-memory success is quarantined behind the testing-only import path `@infring/sdk/testing`.
+  - SDK examples/tests that intentionally exercise synthetic mode must opt in explicitly through the testing import path.
 - Regression evidence pointers:
   - `packages/infring-sdk/src/transports.ts`
+  - `packages/infring-sdk/src/testing.ts`
   - `packages/infring-sdk/src/types.ts`
   - `packages/infring-sdk/src/index.ts`
   - `tests/client-memory-tools/infring_sdk_contract.test.ts`
@@ -15487,11 +15489,15 @@ Source summary:
   - Orchestration classification returns required capabilities instead of required contract steps.
   - Planner emits `selected_plan` plus `alternative_plans`, with per-candidate `variant`, `score`, `blocked_on`, `degradation`, `capabilities`, `capability_probes`, and typed plan steps.
   - Capability planning uses explicit per-capability probe results instead of one global blocked/degraded mood.
+  - Orchestration normalization accepts a typed `core_probe_envelope` and planning prefers that explicit probe contract over raw payload-shaped probe conventions.
   - Adapted `Cli` / `Gateway` / `Sdk` / `Dashboard` requests fail closed on missing `policy_allows` and `transport_available` probes instead of defaulting those preconditions to success; legacy compatibility requests may still use heuristic fallback.
   - `VerifyClaim` routes through a first-class verifier contract instead of collapsing to memory read only.
   - Result packaging exposes `ExecutionState` with `plan_status`, per-step status, structured recovery/degradation data, and core-correlation fields while retaining `progress_message` only as a rendered projection.
+  - Execution progress consumes a typed `core_execution_observation` contract instead of reading execution status, receipts, and outcomes from arbitrary payload keys.
+  - Shared merged steps preserve multiple `expected_contract_refs` when capabilities collapse onto the same core contract.
+  - Comparative plan variants must preserve at least two structurally distinct step sequences across `selected_plan` plus `alternative_plans`.
   - Recovery distinguishes missing target, invalid target syntax, and target-not-found instead of flattening all target issues into one reason.
-  - Execution correlation accepts nested core execution payloads (`core_execution.status`, receipt ids, outcome refs, and per-step status maps).
+  - Execution correlation accepts typed `core_execution_observation` payloads (`status`, receipt ids, outcome refs, and per-step status maps), with nested `core_execution` retained only as compatibility input to normalization.
   - The same comparative request can produce different plans when transport/tool availability changes.
 - Regression evidence pointers:
   - `surface/orchestration/src/contracts.rs`

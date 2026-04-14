@@ -132,6 +132,8 @@ mod tests {
                 tool_hints: Vec::new(),
                 policy_scope: crate::contracts::PolicyScope::Default,
                 user_constraints: Vec::new(),
+                core_probe_envelope: None,
+                core_execution_observation: None,
             },
             confidence: 0.90,
             ambiguity: Vec::new(),
@@ -162,6 +164,8 @@ mod tests {
                 tool_hints: Vec::new(),
                 policy_scope: crate::contracts::PolicyScope::Default,
                 user_constraints: Vec::new(),
+                core_probe_envelope: None,
+                core_execution_observation: None,
             },
             confidence: 0.20,
             ambiguity: vec![

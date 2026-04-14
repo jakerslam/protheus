@@ -34,6 +34,46 @@ fn probe_bool(request: &TypedOrchestrationRequest, path: &[&str], top_level: &st
         .or_else(|| request.payload.get(top_level).and_then(Value::as_bool))
 }
 
+fn envelope_probe_bool(
+    request: &TypedOrchestrationRequest,
+    capability_key: &str,
+    field: Option<&str>,
+) -> Option<bool> {
+    let field = field?;
+    let capability = parse_capability_key(capability_key)?;
+    let row = request
+        .core_probe_envelope
+        .as_ref()?
+        .probes
+        .iter()
+        .find(|row| row.capability == capability)?;
+    match field {
+        "tool_available" => row.tool_available,
+        "target_supplied" => row.target_supplied,
+        "target_syntactically_valid" => row.target_syntactically_valid,
+        "target_exists" => row.target_exists,
+        "authorization_valid" => row.authorization_valid,
+        "policy_allows" => row.policy_allows,
+        "transport_available" => row.transport_available,
+        _ => None,
+    }
+}
+
+fn envelope_probe_source(capability_key: &str, field: &str) -> String {
+    format!("probe.core_probe_envelope.{capability_key}.{field}")
+}
+
+fn parse_capability_key(value: &str) -> Option<Capability> {
+    match value {
+        "read_memory" => Some(Capability::ReadMemory),
+        "mutate_task" => Some(Capability::MutateTask),
+        "execute_tool" => Some(Capability::ExecuteTool),
+        "plan_assimilation" => Some(Capability::PlanAssimilation),
+        "verify_claim" => Some(Capability::VerifyClaim),
+        _ => None,
+    }
+}
+
 fn traverse_bool(value: &Value, path: &[&str]) -> Option<bool> {
     let mut cursor = value;
     for segment in path {
@@ -62,6 +102,9 @@ fn fail_closed_on_missing_probe_for_adapted_surface(
 
 fn tool_available(request: &TypedOrchestrationRequest, capability: &Capability) -> (bool, String) {
     let key = capability_key(capability);
+    if let Some(value) = envelope_probe_bool(request, key, Some("tool_available")) {
+        return (value, envelope_probe_source(key, "tool_available"));
+    }
     if let Some(value) = probe_bool(request, &[key, "tool_available"], "tool_available") {
         return (
             value,
@@ -80,6 +123,9 @@ fn tool_available(request: &TypedOrchestrationRequest, capability: &Capability) 
 
 fn target_supplied(request: &TypedOrchestrationRequest, capability: &Capability) -> (bool, String) {
     let key = capability_key(capability);
+    if let Some(value) = envelope_probe_bool(request, key, Some("target_supplied")) {
+        return (value, envelope_probe_source(key, "target_supplied"));
+    }
     if let Some(value) = probe_bool(request, &[key, "target_supplied"], "target_supplied") {
         return (
             value,
@@ -95,6 +141,12 @@ fn target_syntax_valid(
     capability: &Capability,
 ) -> (bool, String) {
     let key = capability_key(capability);
+    if let Some(value) = envelope_probe_bool(request, key, Some("target_syntactically_valid")) {
+        return (
+            value,
+            envelope_probe_source(key, "target_syntactically_valid"),
+        );
+    }
     if let Some(value) = probe_bool(
         request,
         &[key, "target_syntactically_valid"],
@@ -114,6 +166,9 @@ fn target_syntax_valid(
 
 fn target_exists(request: &TypedOrchestrationRequest, capability: &Capability) -> (bool, String) {
     let key = capability_key(capability);
+    if let Some(value) = envelope_probe_bool(request, key, Some("target_exists")) {
+        return (value, envelope_probe_source(key, "target_exists"));
+    }
     if let Some(value) = probe_bool(request, &[key, "target_exists"], "target_exists") {
         return (
             value,
@@ -132,6 +187,9 @@ fn authorization_valid(
     capability: &Capability,
 ) -> (bool, String) {
     let key = capability_key(capability);
+    if let Some(value) = envelope_probe_bool(request, key, Some("authorization_valid")) {
+        return (value, envelope_probe_source(key, "authorization_valid"));
+    }
     if let Some(value) = probe_bool(
         request,
         &[key, "authorization_valid"],
@@ -151,6 +209,9 @@ fn authorization_valid(
 
 fn policy_allows(request: &TypedOrchestrationRequest, capability: &Capability) -> (bool, String) {
     let key = capability_key(capability);
+    if let Some(value) = envelope_probe_bool(request, key, Some("policy_allows")) {
+        return (value, envelope_probe_source(key, "policy_allows"));
+    }
     if let Some(value) = probe_bool(request, &[key, "policy_allows"], "policy_allows") {
         return (
             value,
@@ -170,6 +231,9 @@ fn transport_available(
     capability: &Capability,
 ) -> (bool, String) {
     let key = capability_key(capability);
+    if let Some(value) = envelope_probe_bool(request, key, Some("transport_available")) {
+        return (value, envelope_probe_source(key, "transport_available"));
+    }
     if let Some(value) = probe_bool(
         request,
         &[key, "transport_available"],
