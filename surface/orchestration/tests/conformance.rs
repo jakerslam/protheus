@@ -265,7 +265,8 @@ fn sdk_surface_adapter_bypasses_legacy_intent_shim() {
                     "request_kind": "direct",
                     "tool_hints": ["web_search"],
                     "targets": [{ "kind": "url", "value": "https://example.com/releases" }]
-                }
+                },
+                "transport_available": true
             }),
         },
         4_000,
@@ -301,7 +302,8 @@ fn sdk_and_gateway_adapters_converge_on_same_tool_plan() {
                         { "kind": "workspace_path", "value": "README.md" },
                         { "kind": "url", "value": "https://example.com/docs" }
                     ]
-                }
+                },
+                "transport_available": true
             }),
         },
         4_100,
@@ -319,7 +321,8 @@ fn sdk_and_gateway_adapters_converge_on_same_tool_plan() {
                         { "kind": "workspace_path", "value": "README.md" },
                         { "kind": "url", "value": "https://example.com/docs" }
                     ]
-                }
+                },
+                "transport_available": true
             }),
         },
         4_200,
@@ -362,6 +365,94 @@ fn surface_adapter_fallback_requires_clarification() {
 }
 
 #[test]
+fn adapted_tool_request_requires_explicit_transport_probe() {
+    let mut runtime = OrchestrationSurfaceRuntime::new();
+    let package = runtime.orchestrate(
+        OrchestrationRequest {
+            session_id: "sdk-missing-transport".to_string(),
+            intent: "opaque".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "search",
+                    "resource_kind": "web",
+                    "request_kind": "direct",
+                    "tool_hints": ["web_search"],
+                    "targets": [{ "kind": "url", "value": "https://example.com/releases" }]
+                }
+            }),
+        },
+        4_320,
+    );
+
+    assert_eq!(
+        package.execution_state.plan_status,
+        infring_orchestration_surface_v1::contracts::PlanStatus::Degraded
+    );
+    assert_eq!(
+        package
+            .execution_state
+            .recovery
+            .as_ref()
+            .and_then(|row| row.reason.clone()),
+        Some(infring_orchestration_surface_v1::contracts::RecoveryReason::TransportFailure)
+    );
+    assert!(package
+        .selected_plan
+        .blocked_on
+        .contains(&infring_orchestration_surface_v1::contracts::Precondition::TransportAvailable));
+    assert!(package.selected_plan.capability_probes.iter().any(|row| {
+        row.capability == infring_orchestration_surface_v1::contracts::Capability::ExecuteTool
+            && row.probe_sources.iter().any(|source| {
+                source == "probe.required_for_adapted_surface.execute_tool.transport_available"
+            })
+    }));
+}
+
+#[test]
+fn adapted_assimilation_request_requires_explicit_policy_probe() {
+    let mut runtime = OrchestrationSurfaceRuntime::new();
+    let package = runtime.orchestrate(
+        OrchestrationRequest {
+            session_id: "sdk-missing-policy".to_string(),
+            intent: "opaque".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "assimilate",
+                    "resource_kind": "workspace",
+                    "targets": [{ "kind": "workspace_path", "value": "README.md" }]
+                }
+            }),
+        },
+        4_330,
+    );
+
+    assert_eq!(
+        package.execution_state.plan_status,
+        infring_orchestration_surface_v1::contracts::PlanStatus::Blocked
+    );
+    assert_eq!(
+        package
+            .execution_state
+            .recovery
+            .as_ref()
+            .and_then(|row| row.reason.clone()),
+        Some(infring_orchestration_surface_v1::contracts::RecoveryReason::PolicyDenied)
+    );
+    assert!(package
+        .selected_plan
+        .blocked_on
+        .contains(&infring_orchestration_surface_v1::contracts::Precondition::PolicyAllows));
+    assert!(package.selected_plan.capability_probes.iter().any(|row| {
+        row.capability == infring_orchestration_surface_v1::contracts::Capability::PlanAssimilation
+            && row.probe_sources.iter().any(|source| {
+                source == "probe.required_for_adapted_surface.plan_assimilation.policy_allows"
+            })
+    }));
+}
+
+#[test]
 fn non_legacy_surface_fixture_fallback_rate_stays_below_threshold() {
     let fixtures = vec![
         OrchestrationRequest {
@@ -374,7 +465,8 @@ fn non_legacy_surface_fixture_fallback_rate_stays_below_threshold() {
                     "resource_kind": "web",
                     "request_kind": "direct",
                     "targets": [{ "kind": "url", "value": "https://example.com/releases" }]
-                }
+                },
+                "transport_available": true
             }),
         },
         OrchestrationRequest {
@@ -389,7 +481,8 @@ fn non_legacy_surface_fixture_fallback_rate_stays_below_threshold() {
                         { "kind": "workspace_path", "value": "README.md" },
                         { "kind": "url", "value": "https://example.com/docs" }
                     ]
-                }
+                },
+                "transport_available": true
             }),
         },
         OrchestrationRequest {
@@ -451,7 +544,8 @@ fn comparative_request_exposes_verifier_and_alternative_plan_provenance() {
                         { "kind": "workspace_path", "value": "README.md" },
                         { "kind": "url", "value": "https://example.com" }
                     ]
-                }
+                },
+                "transport_available": true
             }),
         },
         4_400,
