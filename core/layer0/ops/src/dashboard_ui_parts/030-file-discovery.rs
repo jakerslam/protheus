@@ -248,6 +248,150 @@ fn collect_memory_artifacts(root: &Path) -> Vec<Value> {
     rows
 }
 
+const DASHBOARD_CHANNEL_REGISTRY_REL: &str =
+    "client/runtime/local/state/ui/infring_dashboard/channel_registry.json";
+const DASHBOARD_PROVIDER_REGISTRY_REL: &str =
+    "client/runtime/local/state/ui/infring_dashboard/provider_registry.json";
+
+fn increment_counter(map: &mut serde_json::Map<String, Value>, key: &str) {
+    let normalized = clean_text(key, 80).to_ascii_lowercase();
+    if normalized.is_empty() {
+        return;
+    }
+    let next = map
+        .get(&normalized)
+        .and_then(Value::as_i64)
+        .unwrap_or(0)
+        .saturating_add(1);
+    map.insert(normalized, json!(next));
+}
+
+fn channel_connected(row: &Value) -> bool {
+    if let Some(connected) = row.get("connected").and_then(Value::as_bool) {
+        return connected;
+    }
+    let configured = row
+        .get("configured")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let has_token = row
+        .get("has_token")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let requires_token = row
+        .get("requires_token")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let runtime_supported = row
+        .get("runtime_supported")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let probe_required = row
+        .get("live_probe_required_for_ready")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let config_ready = if requires_token {
+        configured && has_token
+    } else {
+        configured
+    };
+    let live_ok = row
+        .get("live_probe")
+        .and_then(Value::as_object)
+        .and_then(|probe| probe.get("status"))
+        .and_then(Value::as_str)
+        .map(|status| status.eq_ignore_ascii_case("ok"))
+        .unwrap_or(false);
+    runtime_supported && if probe_required { config_ready && live_ok } else { config_ready }
+}
+
+fn object_values(path: &Path, key: &str) -> Vec<Value> {
+    read_json_file(path)
+        .and_then(|value| value.get(key).and_then(Value::as_object).cloned())
+        .map(|rows| rows.values().cloned().collect::<Vec<_>>())
+        .unwrap_or_default()
+}
+
+fn collect_web_tooling_summary(root: &Path) -> Value {
+    let channel_rows = object_values(&root.join(DASHBOARD_CHANNEL_REGISTRY_REL), "channels");
+    let provider_rows = object_values(&root.join(DASHBOARD_PROVIDER_REGISTRY_REL), "providers");
+
+    let mut channels_configured = 0i64;
+    let mut channels_connected = 0i64;
+    let mut transport_counts = serde_json::Map::<String, Value>::new();
+    for row in &channel_rows {
+        if row
+            .get("configured")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+        {
+            channels_configured += 1;
+        }
+        if channel_connected(row) {
+            channels_connected += 1;
+        }
+        increment_counter(
+            &mut transport_counts,
+            row.get("transport_kind")
+                .and_then(Value::as_str)
+                .unwrap_or("unknown"),
+        );
+    }
+
+    let mut providers_reachable = 0i64;
+    let mut providers_auth_configured = 0i64;
+    for row in &provider_rows {
+        if row
+            .get("reachable")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+        {
+            providers_reachable += 1;
+        }
+        if matches!(
+            clean_text(
+                row.get("auth_status")
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                32
+            )
+            .to_ascii_lowercase()
+            .as_str(),
+            "configured" | "set" | "ok"
+        ) {
+            providers_auth_configured += 1;
+        }
+    }
+
+    let channel_total = channel_rows.len() as i64;
+    let provider_total = provider_rows.len() as i64;
+    let status = if channel_total == 0 && provider_total == 0 {
+        "empty"
+    } else if (channels_configured > 0 && channels_connected == 0)
+        || (provider_total > 0 && providers_auth_configured == 0)
+    {
+        "degraded"
+    } else {
+        "ok"
+    };
+
+    json!({
+        "status": status,
+        "generated_at": now_iso(),
+        "channels": {
+            "total": channel_total,
+            "configured": channels_configured,
+            "connected": channels_connected,
+            "transport_counts": transport_counts
+        },
+        "providers": {
+            "total": provider_total,
+            "reachable": providers_reachable,
+            "auth_configured": providers_auth_configured
+        }
+    })
+}
+
 fn metric_rows(health: &Value) -> Vec<Value> {
     let Some(metrics) = health.get("dashboard_metrics").and_then(Value::as_object) else {
         return Vec::new();

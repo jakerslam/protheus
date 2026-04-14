@@ -27,6 +27,7 @@ fn build_snapshot(root: &Path, flags: &Flags) -> Value {
         read_json_file(&root.join("core/local/state/ops/skills_plane/latest.json"))
             .or_else(|| read_cached_snapshot_component(root, "skills"))
             .unwrap_or_else(|| json!({}));
+    let web_tooling_summary = collect_web_tooling_summary(root);
 
     let health_payload = read_cached_snapshot_component(root, "health").unwrap_or_else(|| {
         json!({
@@ -147,10 +148,13 @@ fn build_snapshot(root: &Path, flags: &Flags) -> Value {
                 "collab": format!("core/local/state/ops/collab_plane/dashboard/{team}.json"),
                 "skills": "core/local/state/ops/skills_plane/latest.json",
                 "health": "client/runtime/local/state/ui/infring_dashboard/latest_snapshot.json#health",
-                "runtime_sync": "protheus-ops dashboard-ui runtime-sync"
+                "runtime_sync": "protheus-ops dashboard-ui runtime-sync",
+                "channel_registry": "client/runtime/local/state/ui/infring_dashboard/channel_registry.json",
+                "provider_registry": "client/runtime/local/state/ui/infring_dashboard/provider_registry.json"
             }
         },
         "health": health_payload,
+        "web_tooling": web_tooling_summary,
         "runtime_sync": runtime_summary,
         "cockpit": cockpit_runtime,
         "attention_queue": attention_runtime,
@@ -223,7 +227,8 @@ fn build_snapshot(root: &Path, flags: &Flags) -> Value {
         "attention_queue": crate::deterministic_receipt_hash(&attention_runtime),
         "cockpit": crate::deterministic_receipt_hash(&cockpit_runtime),
         "memory": crate::deterministic_receipt_hash(&out["memory"]),
-        "agent_lifecycle": crate::deterministic_receipt_hash(&out["agent_lifecycle"])
+        "agent_lifecycle": crate::deterministic_receipt_hash(&out["agent_lifecycle"]),
+        "web_tooling": crate::deterministic_receipt_hash(&out["web_tooling"])
     });
     let composite_checksum = crate::deterministic_receipt_hash(&component_checksums);
     let previous_composite = read_json_file(&root.join(SNAPSHOT_LATEST_REL))

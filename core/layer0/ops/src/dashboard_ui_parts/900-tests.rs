@@ -402,6 +402,64 @@ mod tests {
     }
 
     #[test]
+    fn snapshot_includes_web_tooling_summary_and_checksum() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let channel_registry = root.path().join(DASHBOARD_CHANNEL_REGISTRY_REL);
+        if let Some(parent) = channel_registry.parent() {
+            fs::create_dir_all(parent).expect("mkdir channel registry");
+        }
+        fs::write(
+            &channel_registry,
+            serde_json::to_string_pretty(&json!({
+                "type": "infring_dashboard_channel_registry",
+                "channels": {
+                    "webchat": {
+                        "name": "webchat",
+                        "configured": true,
+                        "requires_token": false,
+                        "runtime_supported": true,
+                        "connected": true,
+                        "web_tooling_ready": true,
+                        "transport_kind": "internal",
+                        "auth_mode": "none"
+                    }
+                }
+            }))
+            .expect("json channel registry"),
+        )
+        .expect("write channel registry");
+        fs::write(
+            root.path().join(DASHBOARD_PROVIDER_REGISTRY_REL),
+            serde_json::to_string_pretty(&json!({
+                "type": "infring_dashboard_provider_registry",
+                "providers": {
+                    "openai": {
+                        "id": "openai",
+                        "auth_status": "configured",
+                        "reachable": true,
+                        "is_local": false,
+                        "needs_key": true
+                    }
+                }
+            }))
+            .expect("json provider registry"),
+        )
+        .expect("write provider registry");
+
+        let flags = parse_flags(&[]);
+        let snapshot = build_snapshot(root.path(), &flags);
+        assert_eq!(
+            snapshot.pointer("/web_tooling/status").and_then(Value::as_str),
+            Some("ok")
+        );
+        let checksum = snapshot
+            .pointer("/sync/component_checksums/web_tooling")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        assert!(!checksum.is_empty());
+    }
+
+    #[test]
     fn request_query_param_extracts_since_hash() {
         let path = "/api/dashboard/snapshot?since=abc123&x=1";
         assert_eq!(request_path_only(path), "/api/dashboard/snapshot");
