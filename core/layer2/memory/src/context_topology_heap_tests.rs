@@ -130,6 +130,17 @@ fn topology_materialization_preserves_pinned_anchor_and_does_not_mutate_task_fab
         .pinned_anchor_refs
         .contains(&"task:blocker:42".to_string()));
     assert!(heap.graph_subsystem().get_node("task:blocker:42").is_none());
+    let frontier_receipt = heap
+        .receipts()
+        .iter()
+        .rev()
+        .find(|row| row.event_type == "context_frontier_update")
+        .expect("frontier receipt");
+    assert!(frontier_receipt.details.get("hot_tokens").is_some());
+    assert!(frontier_receipt.details.get("warm_tokens").is_some());
+    assert!(frontier_receipt.details.get("cool_tokens").is_some());
+    assert!(frontier_receipt.details.get("cold_tokens").is_some());
+    assert!(frontier_receipt.details.get("pinned_tokens").is_some());
 }
 
 #[test]

@@ -333,6 +333,7 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
     }
     let used_lite_fallback = final_selected_provider == "duckduckgo_lite";
     let used_bing_fallback = final_selected_provider == "bing_rss";
+    let challenge_like_failure = search_failure_is_challenge_like(&out, provider_errors.as_slice());
     if let Some(obj) = out.as_object_mut() {
         obj.insert(
             "type".to_string(),
@@ -374,10 +375,22 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
             json!(used_bing_fallback),
         );
         obj.insert("provider_hint".to_string(), Value::String(provider_hint));
+        obj.insert(
+            "cache_store_allowed".to_string(),
+            json!(!challenge_like_failure),
+        );
+        if challenge_like_failure {
+            obj.insert(
+                "cache_skip_reason".to_string(),
+                json!("challenge_or_low_signal_response"),
+            );
+        }
         obj.insert("cache_status".to_string(), json!("miss"));
     }
     let cache_status = if out.get("ok").and_then(Value::as_bool).unwrap_or(false) {
         "ok"
+    } else if challenge_like_failure {
+        "challenge"
     } else {
         "no_results"
     };
@@ -411,7 +424,7 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
     if let Some(obj) = out.as_object_mut() {
         obj.insert("receipt".to_string(), receipt);
     }
-    if cache_ttl_seconds > 0 {
+    if cache_ttl_seconds > 0 && !challenge_like_failure {
         store_search_cache(
             root,
             &cache_key,
@@ -421,4 +434,16 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
         );
     }
     out
+}
+
+fn search_failure_is_challenge_like(out: &Value, provider_errors: &[Value]) -> bool {
+    !out.get("ok").and_then(Value::as_bool).unwrap_or(false)
+        && !provider_errors.is_empty()
+        && provider_errors.iter().all(|row| {
+            row.get("challenge").and_then(Value::as_bool).unwrap_or(false)
+                || row
+                    .get("low_signal")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false)
+        })
 }

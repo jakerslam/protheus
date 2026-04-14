@@ -544,6 +544,49 @@ fn adapted_tool_request_requires_explicit_tool_probe() {
 }
 
 #[test]
+fn adapted_tool_request_rejects_payload_tool_probe_shortcut() {
+    let mut runtime = OrchestrationSurfaceRuntime::new();
+    let package = runtime.orchestrate(
+        OrchestrationRequest {
+            session_id: "sdk-tool-shortcut-rejected".to_string(),
+            intent: "opaque".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "search",
+                    "resource_kind": "web",
+                    "request_kind": "direct",
+                    "tool_hints": ["web_search"],
+                    "targets": [{ "kind": "url", "value": "https://example.com/releases" }]
+                },
+                "core_probe_envelope": {
+                    "execute_tool": {
+                        "transport_available": true
+                    }
+                },
+                "capability_probes": {
+                    "execute_tool": {
+                        "tool_available": true
+                    }
+                }
+            }),
+        },
+        4_329_1,
+    );
+
+    assert!(package
+        .selected_plan
+        .blocked_on
+        .contains(&infring_orchestration_surface_v1::contracts::Precondition::ToolAvailable));
+    assert!(package.selected_plan.capability_probes.iter().any(|row| {
+        row.capability == infring_orchestration_surface_v1::contracts::Capability::ExecuteTool
+            && row.probe_sources.iter().any(|source| {
+                source == "probe.required_for_adapted_surface.execute_tool.tool_available"
+            })
+    }));
+}
+
+#[test]
 fn adapted_assimilation_request_requires_explicit_policy_probe() {
     let mut runtime = OrchestrationSurfaceRuntime::new();
     let package = runtime.orchestrate(
@@ -665,6 +708,49 @@ fn adapted_mutation_request_requires_explicit_authorization_probe() {
             .and_then(|row| row.reason.clone()),
         Some(infring_orchestration_surface_v1::contracts::RecoveryReason::AuthorizationFailure)
     );
+    assert!(package
+        .selected_plan
+        .blocked_on
+        .contains(&infring_orchestration_surface_v1::contracts::Precondition::AuthorizationValid));
+    assert!(package.selected_plan.capability_probes.iter().any(|row| {
+        row.capability == infring_orchestration_surface_v1::contracts::Capability::MutateTask
+            && row.probe_sources.iter().any(|source| {
+                source == "probe.required_for_adapted_surface.mutate_task.authorization_valid"
+            })
+    }));
+}
+
+#[test]
+fn adapted_mutation_rejects_payload_authorization_shortcut_without_probe_envelope() {
+    let mut runtime = OrchestrationSurfaceRuntime::new();
+    let package = runtime.orchestrate(
+        OrchestrationRequest {
+            session_id: "sdk-authorization-shortcut-rejected".to_string(),
+            intent: "opaque".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "mutate",
+                    "resource_kind": "task_graph",
+                    "request_kind": "direct",
+                    "mutability": "mutation",
+                    "targets": [{ "kind": "task_id", "value": "task-42" }]
+                },
+                "core_probe_envelope": {
+                    "mutate_task": {
+                        "policy_allows": true
+                    }
+                },
+                "capability_probes": {
+                    "mutate_task": {
+                        "authorization_valid": true
+                    }
+                }
+            }),
+        },
+        4_333,
+    );
+
     assert!(package
         .selected_plan
         .blocked_on
@@ -943,6 +1029,77 @@ fn observed_core_execution_is_projected_into_execution_state_correlation() {
         .correlation
         .expected_core_contract_ids
         .is_empty());
+}
+
+#[test]
+fn typed_execution_observation_derives_plan_status_from_step_outcomes() {
+    let mut runtime = OrchestrationSurfaceRuntime::new();
+    let package = runtime.orchestrate(
+        OrchestrationRequest {
+            session_id: "typed-observation-derived-status".to_string(),
+            intent: "search web for release notes".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "search",
+                    "resource_kind": "web",
+                    "request_kind": "direct",
+                    "tool_hints": ["web_search"],
+                    "targets": [{ "kind": "url", "value": "https://example.com/releases" }]
+                },
+                "core_probe_envelope": {
+                    "execute_tool": {
+                        "tool_available": true,
+                        "transport_available": true
+                    }
+                },
+                "core_execution_observation": {
+                    "receipt_ids": ["receipt-typed-1"],
+                    "step_statuses": {
+                        "step_tool_capability_probe": "succeeded",
+                        "step_tool_broker_request": "failed"
+                    }
+                }
+            }),
+        },
+        4_526,
+    );
+
+    assert_eq!(
+        package.execution_state.plan_status,
+        infring_orchestration_surface_v1::contracts::PlanStatus::Failed
+    );
+}
+
+#[test]
+fn direct_tool_request_keeps_structurally_distinct_plan_variants() {
+    let mut runtime = OrchestrationSurfaceRuntime::new();
+    let package = runtime.orchestrate(
+        OrchestrationRequest {
+            session_id: "direct-variant-distinct".to_string(),
+            intent: "search web for release notes".to_string(),
+            surface: RequestSurface::Legacy,
+            payload: json!({}),
+        },
+        4_525,
+    );
+
+    let mut signatures = std::iter::once(&package.selected_plan)
+        .chain(package.alternative_plans.iter())
+        .map(|plan| {
+            plan.steps
+                .iter()
+                .map(|row| row.step_id.clone())
+                .collect::<Vec<_>>()
+                .join("->")
+        })
+        .collect::<Vec<_>>();
+    signatures.sort();
+    signatures.dedup();
+    assert!(
+        signatures.len() >= 2,
+        "direct tool-call plans should preserve structurally distinct variants"
+    );
 }
 
 #[test]
