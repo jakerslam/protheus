@@ -3,8 +3,10 @@ mod classifier;
 mod parser;
 
 use crate::contracts::{
-    Mutability, OperationKind, OrchestrationRequest, ParseResult, RequestKind, RequestSurface,
-    ResourceKind, TargetDescriptor, TypedOrchestrationRequest,
+    Capability, CapabilityProbeSnapshot, CoreExecutionObservation, CoreExecutionStepObservation,
+    CoreProbeEnvelope, Mutability, OperationKind, OrchestrationRequest, ParseResult, PlanStatus,
+    RequestKind, RequestSurface, ResourceKind, StepStatus, TargetDescriptor,
+    TypedOrchestrationRequest,
 };
 use serde_json::{Map, Value};
 
@@ -73,6 +75,8 @@ pub fn normalize_request(input: OrchestrationRequest) -> ParseResult {
         .as_ref()
         .map(|row| row.reasons.clone())
         .unwrap_or_default();
+    let core_probe_envelope = extract_core_probe_envelope(&payload);
+    let core_execution_observation = extract_core_execution_observation(&payload);
 
     classifier::parse_diagnostics(
         TypedOrchestrationRequest {
@@ -90,6 +94,8 @@ pub fn normalize_request(input: OrchestrationRequest) -> ParseResult {
             tool_hints,
             policy_scope,
             user_constraints,
+            core_probe_envelope,
+            core_execution_observation,
         },
         &operation_candidates,
         &resource_candidates,
@@ -321,6 +327,195 @@ fn extract_tool_hints_from_object(obj: &Map<String, Value>) -> Vec<String> {
     hints.sort();
     hints.dedup();
     hints
+}
+
+fn extract_core_probe_envelope(payload: &Value) -> Option<CoreProbeEnvelope> {
+    let mut probes = if let Some(explicit) = payload.get("core_probe_envelope") {
+        parse_capability_probe_rows(explicit)
+    } else {
+        Vec::new()
+    };
+    if probes.is_empty() {
+        if let Some(compat) = payload
+            .get("capability_probes")
+            .or_else(|| payload.get("probes"))
+        {
+            probes = parse_capability_probe_rows(compat);
+        }
+    }
+    if probes.is_empty() {
+        None
+    } else {
+        Some(CoreProbeEnvelope { probes })
+    }
+}
+
+fn parse_capability_probe_rows(value: &Value) -> Vec<CapabilityProbeSnapshot> {
+    if let Some(rows) = value.get("probes").and_then(Value::as_array) {
+        let mut out = rows
+            .iter()
+            .filter_map(parse_capability_probe_snapshot)
+            .collect::<Vec<_>>();
+        out.sort_by_key(|row| format!("{:?}", row.capability));
+        return out;
+    }
+    let Some(map) = value.as_object() else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for (raw_capability, raw_probe) in map {
+        let Some(capability) = parse_capability_name(raw_capability) else {
+            continue;
+        };
+        let Some(probe) = raw_probe.as_object() else {
+            continue;
+        };
+        out.push(CapabilityProbeSnapshot {
+            capability,
+            tool_available: probe.get("tool_available").and_then(Value::as_bool),
+            target_supplied: probe.get("target_supplied").and_then(Value::as_bool),
+            target_syntactically_valid: probe
+                .get("target_syntactically_valid")
+                .and_then(Value::as_bool),
+            target_exists: probe.get("target_exists").and_then(Value::as_bool),
+            authorization_valid: probe.get("authorization_valid").and_then(Value::as_bool),
+            policy_allows: probe.get("policy_allows").and_then(Value::as_bool),
+            transport_available: probe.get("transport_available").and_then(Value::as_bool),
+        });
+    }
+    out.sort_by_key(|row| format!("{:?}", row.capability));
+    out
+}
+
+fn parse_capability_probe_snapshot(value: &Value) -> Option<CapabilityProbeSnapshot> {
+    let row = value.as_object()?;
+    let capability = row
+        .get("capability")
+        .and_then(Value::as_str)
+        .and_then(parse_capability_name)?;
+    Some(CapabilityProbeSnapshot {
+        capability,
+        tool_available: row.get("tool_available").and_then(Value::as_bool),
+        target_supplied: row.get("target_supplied").and_then(Value::as_bool),
+        target_syntactically_valid: row
+            .get("target_syntactically_valid")
+            .and_then(Value::as_bool),
+        target_exists: row.get("target_exists").and_then(Value::as_bool),
+        authorization_valid: row.get("authorization_valid").and_then(Value::as_bool),
+        policy_allows: row.get("policy_allows").and_then(Value::as_bool),
+        transport_available: row.get("transport_available").and_then(Value::as_bool),
+    })
+}
+
+fn parse_capability_name(value: &str) -> Option<Capability> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "read_memory" => Some(Capability::ReadMemory),
+        "mutate_task" => Some(Capability::MutateTask),
+        "execute_tool" => Some(Capability::ExecuteTool),
+        "plan_assimilation" => Some(Capability::PlanAssimilation),
+        "verify_claim" => Some(Capability::VerifyClaim),
+        _ => None,
+    }
+}
+
+fn extract_core_execution_observation(payload: &Value) -> Option<CoreExecutionObservation> {
+    let value = payload
+        .get("core_execution_observation")
+        .or_else(|| payload.get("core_execution"))?;
+    let status = value
+        .get("status")
+        .and_then(Value::as_str)
+        .and_then(parse_plan_status);
+    let receipt_ids: Vec<String> = value
+        .get("receipt_ids")
+        .and_then(Value::as_array)
+        .map(|rows| parse_string_array(rows.as_slice()))
+        .unwrap_or_default();
+    let outcome_refs: Vec<String> = value
+        .get("outcome_refs")
+        .and_then(Value::as_array)
+        .map(|rows| parse_string_array(rows.as_slice()))
+        .unwrap_or_default();
+    let step_statuses = value
+        .get("step_statuses")
+        .map(parse_step_observations)
+        .unwrap_or_default();
+    if status.is_none()
+        && receipt_ids.is_empty()
+        && outcome_refs.is_empty()
+        && step_statuses.is_empty()
+    {
+        return None;
+    }
+    Some(CoreExecutionObservation {
+        plan_status: status,
+        receipt_ids,
+        outcome_refs,
+        step_statuses,
+    })
+}
+
+fn parse_string_array(value: &[Value]) -> Vec<String> {
+    let mut out = value
+        .iter()
+        .filter_map(Value::as_str)
+        .map(str::trim)
+        .filter(|row| !row.is_empty())
+        .map(ToString::to_string)
+        .collect::<Vec<_>>();
+    out.sort();
+    out.dedup();
+    out
+}
+
+fn parse_step_observations(value: &Value) -> Vec<CoreExecutionStepObservation> {
+    let Some(map) = value.as_object() else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for (step_id, raw_status) in map {
+        let normalized = step_id.trim();
+        if normalized.is_empty() {
+            continue;
+        }
+        let Some(status) = raw_status.as_str().and_then(parse_step_status) else {
+            continue;
+        };
+        out.push(CoreExecutionStepObservation {
+            step_id: normalized.to_string(),
+            status,
+        });
+    }
+    out.sort_by(|left, right| left.step_id.cmp(&right.step_id));
+    out
+}
+
+fn parse_plan_status(value: &str) -> Option<PlanStatus> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "planned" => Some(PlanStatus::Planned),
+        "clarification_required" => Some(PlanStatus::ClarificationRequired),
+        "blocked" => Some(PlanStatus::Blocked),
+        "degraded" => Some(PlanStatus::Degraded),
+        "ready" => Some(PlanStatus::Ready),
+        "running" => Some(PlanStatus::Running),
+        "completed" | "succeeded" => Some(PlanStatus::Completed),
+        "failed" => Some(PlanStatus::Failed),
+        _ => None,
+    }
+}
+
+fn parse_step_status(value: &str) -> Option<StepStatus> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "pending" => Some(StepStatus::Pending),
+        "ready" => Some(StepStatus::Ready),
+        "blocked" => Some(StepStatus::Blocked),
+        "degraded" => Some(StepStatus::Degraded),
+        "skipped" => Some(StepStatus::Skipped),
+        "running" => Some(StepStatus::Running),
+        "completed" | "succeeded" => Some(StepStatus::Succeeded),
+        "failed" => Some(StepStatus::Failed),
+        _ => None,
+    }
 }
 
 #[cfg(test)]

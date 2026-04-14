@@ -7,16 +7,7 @@ import type {
   ReceiptPointer,
   SdkEnvelope,
 } from './types';
-// Production SDK transport surface: resident_ipc_authoritative only.
-export {
-  RESIDENT_IPC_TOPOLOGY,
-  createResidentIpcTransport,
-} from './transports/resident_ipc';
-export const PRODUCTION_TRANSPORT_SURFACE = 'resident_ipc_only';
-export type {
-  ResidentIpcInvoker,
-  ResidentIpcTransportOptions,
-} from './transports/resident_ipc';
+import type { InMemorySeed } from './transports';
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -75,20 +66,15 @@ function failureEnvelope<TData extends JsonValue>(
   };
 }
 
-export interface InMemoryTransportOptions {
-  unseeded_behavior?: 'error';
-  /**
-   * @deprecated Synthetic fallback moved to `@infring/sdk/testing`.
-   */
-  allow_unseeded_fallback?: boolean;
+export interface TestingInMemoryTransportOptions {
+  unseeded_behavior?: 'error' | 'synthetic_success';
 }
 
-export type InMemorySeed = Partial<Record<InfringOperation, JsonValue>>;
-
-export function createInMemoryTransport(
+export function createTestingInMemoryTransport(
   seed: InMemorySeed = {},
-  options: InMemoryTransportOptions = {}
+  options: TestingInMemoryTransportOptions = {}
 ): InfringTransport {
+  const unseededBehavior = options.unseeded_behavior ?? 'error';
   return {
     async invoke<TData extends JsonValue = JsonValue>(
       request: InfringTransportRequest
@@ -96,11 +82,13 @@ export function createInMemoryTransport(
       const hasSeed = Object.prototype.hasOwnProperty.call(seed, request.operation);
       const seeded = hasSeed ? seed[request.operation] : undefined;
       if (!hasSeed) {
-        if (options.allow_unseeded_fallback === true) {
-          return failureEnvelope<TData>(
-            request,
-            'testing_transport_required',
-            "Synthetic unseeded fallback moved to '@infring/sdk/testing'."
+        if (unseededBehavior === 'synthetic_success') {
+          return envelope(
+            request.operation,
+            {
+              synthetic_fallback: true,
+            } as TData,
+            [...request.policy_refs, 'sdk.testing.synthetic_fallback']
           );
         }
         return failureEnvelope<TData>(
