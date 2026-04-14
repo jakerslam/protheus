@@ -266,6 +266,8 @@
   --bottom-dock-z-index: 2147483000;
   --bottom-dock-ghost-z-index: 2147483600;
   --bottom-dock-preview-z-index: 2147483500;
+  --overlay-surface-border: color-mix(in srgb, #fff 24%, transparent);
+  --overlay-surface-background: transparent;
   --bottom-dock-icon-emphasis-main: 0.15;
   --bottom-dock-icon-emphasis-neighbor: calc(var(--bottom-dock-icon-emphasis-main) / 3);
   --bottom-dock-icon-emphasis-second-neighbor: calc(var(--bottom-dock-icon-emphasis-main) / 9);
@@ -278,4 +280,3 @@
     0 0 0 1px color-mix(in srgb, #fff 20%, transparent),
     0 8px 18px color-mix(in srgb, #000 32%, transparent);
 }
-

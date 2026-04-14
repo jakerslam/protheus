@@ -277,6 +277,15 @@
   );
 }
 
+/* Keep dropdown blur sampling the real chat backdrop when the model menu is open. */
+.input-row:has(.composer-model-btn.active) {
+  isolation: auto;
+}
+
+.input-row:has(.composer-model-btn.active)::before {
+  opacity: 0;
+}
+
 /* Keep the fade anchored to the composer lane (independent of message paint layers). */
 .composer-stack::before {
   content: none;
@@ -319,6 +328,13 @@
 .composer-shell:focus-within {
   box-shadow: -6px 0 12px -14px rgba(0, 0, 0, 0.36), 6px 0 12px -14px rgba(0, 0, 0, 0.36), 0 10px 18px -18px rgba(0, 0, 0, 0.58), 0 2px 6px rgba(0, 0, 0, 0.24), 0 0 0 3px var(--accent-glow);
   filter: saturate(1.06);
+}
+
+/* macOS/WebKit compositor guard:
+   keep ancestor filter off while dropdown backdrop-filter surfaces are active. */
+.composer-shell:has(.composer-model-btn.active),
+.composer-shell:has(.composer-model-btn.active):focus-within {
+  filter: none;
 }
 
 .composer-shell.composer-shell-disabled {

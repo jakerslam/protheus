@@ -336,6 +336,14 @@ document.addEventListener('alpine:init', function() {
             }
           }
           store.agents = nextAgents;
+          var cache = null;
+          try { cache = JSON.parse(localStorage.getItem('of-chat-conversation-cache-v1') || 'null'); } catch(_) {}
+          if (cache && typeof store.saveAgentChatPreview === 'function') nextAgents.forEach(function(row) {
+            var id = row && row.id ? String(row.id) : '';
+            var existing = id && store.agentChatPreviews && store.agentChatPreviews[id];
+            var cached = id && cache[id] && Array.isArray(cache[id].messages) ? cache[id].messages : null;
+            if ((!existing || !String(existing.text || '').trim()) && cached && cached.length) store.saveAgentChatPreview(id, cached);
+          });
           store.agentsHydrated = true;
           store.agentsLoading = false;
           store.agentsLastError = '';
