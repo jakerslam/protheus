@@ -15487,6 +15487,7 @@ Source summary:
   - Orchestration classification returns required capabilities instead of required contract steps.
   - Planner emits `selected_plan` plus `alternative_plans`, with per-candidate `variant`, `score`, `blocked_on`, `degradation`, `capabilities`, `capability_probes`, and typed plan steps.
   - Capability planning uses explicit per-capability probe results instead of one global blocked/degraded mood.
+  - Adapted `Cli` / `Gateway` / `Sdk` / `Dashboard` requests fail closed on missing `policy_allows` and `transport_available` probes instead of defaulting those preconditions to success; legacy compatibility requests may still use heuristic fallback.
   - `VerifyClaim` routes through a first-class verifier contract instead of collapsing to memory read only.
   - Result packaging exposes `ExecutionState` with `plan_status`, per-step status, structured recovery/degradation data, and core-correlation fields while retaining `progress_message` only as a rendered projection.
   - Recovery distinguishes missing target, invalid target syntax, and target-not-found instead of flattening all target issues into one reason.
