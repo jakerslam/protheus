@@ -223,7 +223,7 @@
   <div class="hero">
     <div>
       <p class="eyebrow">Native agents</p>
-      <h2>Roster, lifecycle, and spawning without the classic fallback.</h2>
+      <h2>Roster, lifecycle, and spawning without the legacy host detour.</h2>
       <p class="hero-copy">
         This first native agents slice covers the authoritative roster, archived-agent lifecycle, template spawning, and the highest-value detail controls.
       </p>

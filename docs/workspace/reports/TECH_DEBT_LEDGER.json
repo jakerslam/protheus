@@ -130,7 +130,7 @@
       "category": "legacy-ui",
       "status": "in_progress",
       "owner": "jay",
-      "summary": "Delete the classic dashboard fallback surface route by route now that top-level pages are native; explicit classic escape hatches and the dead per-page legacy frame path are gone from the Svelte shell, while the top-level fallback host and classic asset corpus still need burn-down.",
+      "summary": "Delete the classic dashboard fallback surface route by route now that top-level pages are native; explicit classic escape hatches, dead per-page legacy frame routing, and embedded fallback references in the native shell are gone, while the top-level fallback host and classic asset corpus still need burn-down.",
       "planned_batch_date": "2026-05-15",
       "paths": [
         "client/runtime/systems/ui/infring_dashboard.ts",
@@ -166,13 +166,16 @@
     {
       "id": "TD-TOOL-BROKER-001",
       "category": "tooling-policy",
-      "status": "in_progress",
+      "status": "done",
       "owner": "jay",
-      "summary": "Finish broker-only and evidence-only enforcement in the remaining dashboard/runtime legacy surfaces.",
+      "summary": "Direct compat web/file routes now emit nexus authorization, decision-audit receipts, recovery metadata, and turn-loop tracking so the remaining legacy dashboard/runtime surfaces honor the broker/evidence contract instead of bypassing it.",
       "planned_batch_date": "2026-04-20",
       "paths": [
         "client/runtime/systems/ui",
-        "core/layer0/ops/src"
+        "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/agent_scope_full_parts/080-file-read-routes.rs",
+        "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/late_b.rs",
+        "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/late_c.rs",
+        "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/055-part.rs"
       ]
     },
     {
