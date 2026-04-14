@@ -8,6 +8,8 @@ const { createOpsLaneBridge } = require('./rust_lane_bridge.ts');
 const DEFAULT_POLICY_REL = 'config/egress_gateway_policy.json';
 const DEFAULT_STATE_REL = 'local/state/security/egress_gateway/state.json';
 const DEFAULT_AUDIT_REL = 'local/state/security/egress_gateway/audit.jsonl';
+const BRIDGE_PATH = 'client/runtime/lib/egress_gateway.ts';
+const GATEWAY_KIND = 'egress_gateway';
 function runtimeRoot() {
     if (process.env.PROTHEUS_RUNTIME_ROOT) {
         return path.resolve(String(process.env.PROTHEUS_RUNTIME_ROOT));
@@ -57,10 +59,18 @@ function encodeBase64(value) {
 function normalizeObject(value) {
     return value && typeof value === 'object' && !Array.isArray(value) ? { ...value } : {};
 }
+function withGatewayMetadata(payload = {}) {
+    return {
+        bridge_path: BRIDGE_PATH,
+        gateway_kind: GATEWAY_KIND,
+        ...normalizeObject(payload),
+    };
+}
 function invoke(command, payload = {}, opts = {}) {
+    const kernelPayload = withGatewayMetadata(payload);
     const out = bridge.run([
         command,
-        `--payload-base64=${encodeBase64(JSON.stringify(normalizeObject(payload)))}`
+        `--payload-base64=${encodeBase64(JSON.stringify(kernelPayload))}`
     ]);
     const receipt = out && out.payload && typeof out.payload === 'object' ? out.payload : null;
     const payloadOut = receipt && receipt.payload && typeof receipt.payload === 'object'
@@ -162,7 +172,10 @@ async function egressFetchText(url, init = {}, context = {}) {
     };
 }
 module.exports = {
+    BRIDGE_PATH,
+    GATEWAY_KIND,
     EgressGatewayError,
+    withGatewayMetadata,
     authorizeEgress,
     egressFetch,
     egressFetchText,
