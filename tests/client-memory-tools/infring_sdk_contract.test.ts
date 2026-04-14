@@ -2,14 +2,36 @@
 'use strict';
 
 import assert from 'node:assert';
+import fs from 'node:fs';
 import {
   InfringSdkClient,
+  PRODUCTION_TRANSPORT_SURFACE,
   createInMemoryTransport,
+  createResidentIpcTransport,
   type InfringTransport,
   type InfringTransportRequest,
 } from '../../packages/infring-sdk/src/index';
 
 async function run(): Promise<void> {
+  assert.equal(
+    PRODUCTION_TRANSPORT_SURFACE,
+    'resident_ipc_only',
+    'production SDK transport surface should stay resident IPC only'
+  );
+  assert.equal(
+    typeof createResidentIpcTransport,
+    'function',
+    'resident IPC transport should remain exported from the SDK surface'
+  );
+  const transportSource = fs.readFileSync(
+    '/Users/jay/.openclaw/workspace/packages/infring-sdk/src/transports.ts',
+    'utf8'
+  );
+  assert.ok(
+    !transportSource.includes('cli_dev_only'),
+    'production SDK transport surface must not re-export dev-only CLI transport'
+  );
+
   const sdk = new InfringSdkClient({
     transport: createInMemoryTransport({
       submit_task: {
@@ -39,6 +61,28 @@ async function run(): Promise<void> {
     sdk.getAttachedPolicyRefs(),
     ['policy.alpha', 'policy.beta'],
     'attached policy refs should persist on client'
+  );
+
+  const synthetic = createInMemoryTransport({}, { unseeded_behavior: 'synthetic_success' });
+  const syntheticResult = await synthetic.invoke({
+    operation: 'submit_task',
+    payload: { prompt: 'synthetic fallback' },
+    policy_refs: ['policy.synthetic'],
+  });
+  assert.equal(
+    syntheticResult.ok,
+    true,
+    'synthetic unseeded behavior should return a successful envelope'
+  );
+  assert.equal(
+    (syntheticResult.data as Record<string, unknown>).synthetic_fallback,
+    true,
+    'synthetic unseeded behavior should mark the fallback envelope'
+  );
+  assert.deepEqual(
+    syntheticResult.receipts.map((row) => row.policy_ref),
+    ['policy.synthetic', 'sdk.in_memory.synthetic_fallback'],
+    'synthetic fallback should emit a synthetic receipt policy ref'
   );
 
   let captured: InfringTransportRequest | null = null;

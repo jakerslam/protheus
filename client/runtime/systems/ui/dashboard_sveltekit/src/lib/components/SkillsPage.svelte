@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { dashboardClassicHref } from '$lib/dashboard';
   import { browseMarketplace, createPromptSkill, installMarketplaceSkill, readInstalledSkills, readMcpServers, searchMarketplace, uninstallSkill, type DashboardInstalledSkillRow, type DashboardMarketplaceSkillRow, type DashboardMcpServerSnapshot } from '$lib/skills';
   import { onMount } from 'svelte';
 
@@ -133,7 +132,6 @@
     </div>
     <div class="hero-actions">
       <button class="ghost" type="button" on:click={() => void refresh()} disabled={loading}>{loading ? 'Refreshing…' : 'Refresh'}</button>
-      <a class="ghost" href={dashboardClassicHref('skills')}>Open classic skills</a>
     </div>
   </div>
 

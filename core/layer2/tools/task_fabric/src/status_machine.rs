@@ -1,3 +1,4 @@
+// Layer ownership: core/layer2/tools/task_fabric (authoritative task graph primitive).
 use crate::task_graph::{LifecycleStatus, Task};
 
 pub fn can_transition(from: LifecycleStatus, to: LifecycleStatus) -> bool {
@@ -29,4 +30,29 @@ pub fn apply_transition(task: &mut Task, to: LifecycleStatus, now_ms: u64) -> Re
     task.updated_at = now_ms;
     task.revision_id = task.revision_id.saturating_add(1);
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn failed_and_cancelled_states_do_not_reopen() {
+        assert!(!can_transition(
+            LifecycleStatus::Failed,
+            LifecycleStatus::InProgress
+        ));
+        assert!(!can_transition(
+            LifecycleStatus::Failed,
+            LifecycleStatus::Cancelled
+        ));
+        assert!(!can_transition(
+            LifecycleStatus::Cancelled,
+            LifecycleStatus::InProgress
+        ));
+        assert!(!can_transition(
+            LifecycleStatus::Cancelled,
+            LifecycleStatus::Review
+        ));
+    }
 }

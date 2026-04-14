@@ -1,6 +1,5 @@
-use crate::contracts::{
-    Capability, CoreContractCall, OrchestrationPlanStep, Precondition,
-};
+// Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
+use crate::contracts::{Capability, CoreContractCall, OrchestrationPlanStep, Precondition};
 
 #[derive(Debug, Clone)]
 pub struct CapabilitySpec {
@@ -32,7 +31,10 @@ pub fn spec_for(capability: &Capability) -> CapabilitySpec {
             degraded_steps: Vec::new(),
         },
         Capability::ExecuteTool => CapabilitySpec {
-            requires: vec![Precondition::ToolAvailable, Precondition::TransportAvailable],
+            requires: vec![
+                Precondition::ToolAvailable,
+                Precondition::TransportAvailable,
+            ],
             primary_steps: vec![
                 step(
                     Capability::ExecuteTool,
@@ -66,12 +68,20 @@ pub fn spec_for(capability: &Capability) -> CapabilitySpec {
         },
         Capability::VerifyClaim => CapabilitySpec {
             requires: vec![Precondition::TransportAvailable],
-            primary_steps: vec![step(
-                Capability::VerifyClaim,
-                "step_claim_verification_read",
-                "request_materialized_view",
-                CoreContractCall::UnifiedMemoryRead,
-            )],
+            primary_steps: vec![
+                step(
+                    Capability::VerifyClaim,
+                    "step_claim_verification_read",
+                    "request_materialized_view",
+                    CoreContractCall::UnifiedMemoryRead,
+                ),
+                step(
+                    Capability::VerifyClaim,
+                    "step_claim_verifier_request",
+                    "verify_claim_bundle",
+                    CoreContractCall::VerifierRequest,
+                ),
+            ],
             degraded_steps: vec![step(
                 Capability::VerifyClaim,
                 "step_claim_verification_fallback",
@@ -88,11 +98,16 @@ fn step(
     operation: &str,
     target_contract: CoreContractCall,
 ) -> OrchestrationPlanStep {
+    let merged_capabilities = vec![capability.clone()];
+    let rationale = vec![format!("capability:{capability:?}").to_lowercase()];
     OrchestrationPlanStep {
         step_id: step_id.to_string(),
         operation: operation.to_string(),
         target_contract,
         capability,
+        merged_capabilities,
+        rationale,
+        expected_contract_ref: format!("expect_{step_id}"),
         blocked_on: Vec::new(),
     }
 }

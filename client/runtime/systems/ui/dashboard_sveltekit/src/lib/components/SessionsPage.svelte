@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { dashboardClassicHref } from '$lib/dashboard';
   import { deleteAgentMemoryKv, deleteSession, readAgentMemoryKv, readSessions, upsertAgentMemoryKv, type DashboardMemoryKvRow, type DashboardSessionRow } from '$lib/sessions';
   import { onMount } from 'svelte';
 
@@ -109,7 +108,6 @@
     </div>
     <div class="hero-actions">
       <input bind:value={search} class="field" type="text" placeholder="Search sessions…" />
-      <a class="ghost" href={dashboardClassicHref('sessions')}>Open classic sessions</a>
     </div>
   </div>
   {#if error}<div class="banner error">{error}</div>{:else if notice}<div class="banner notice">{notice}</div>{/if}
