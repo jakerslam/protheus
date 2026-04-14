@@ -43,12 +43,7 @@
               last._toolTextDetected = true;
               if (toolMatch) {
                 var inputMatch = fcPart.match(/[=,>]\s*(\{[\s\S]*)/);
-                var leakTool = this.ensureStreamingToolCard(
-                  last,
-                  toolMatch[1],
-                  inputMatch ? inputMatch[1].replace(/<\/function>?\s*$/, '').trim() : '',
-                  { running: true }
-                );
+                var leakTool = this.ensureStreamingToolCard(last, toolMatch[1], inputMatch ? inputMatch[1].replace(/<\/function>?\s*$/, '').trim() : '', { running: true });
                 var leakLabel = typeof this.toolThinkingActionLabel === 'function'
                   ? this.toolThinkingActionLabel(leakTool || { name: toolMatch[1], input: '' })
                   : String(toolMatch[1] || 'tool');
@@ -61,21 +56,9 @@
             var firstSplit = this.extractThinkingLeak(firstChunk);
             var firstVisible = firstSplit.content || '';
             var firstMessage = {
-              id: ++msgId,
-              role: 'agent',
-              text: '',
-              meta: '',
-              thinking: true,
-              streaming: true,
-              thinking_status: '',
-              tools: [],
-              _streamRawText: firstChunk,
-              _cleanText: firstVisible,
-              _thoughtText: firstSplit.thought || '',
-              _stream_started_at: Date.now(),
-              _stream_updated_at: Date.now(),
-              thoughtStreaming: false,
-              ts: Date.now(),
+              id: ++msgId, role: 'agent', text: '', meta: '', thinking: true, streaming: true, thinking_status: '', tools: [],
+              _streamRawText: firstChunk, _cleanText: firstVisible, _thoughtText: firstSplit.thought || '',
+              _stream_started_at: Date.now(), _stream_updated_at: Date.now(), thoughtStreaming: false, ts: Date.now(),
               agent_id: data && data.agent_id ? String(data.agent_id) : (this.currentAgent && this.currentAgent.id ? String(this.currentAgent.id) : ''),
               agent_name: data && data.agent_name ? String(data.agent_name) : (this.currentAgent && this.currentAgent.name ? String(this.currentAgent.name) : '')
             };
@@ -96,17 +79,8 @@
           var lastMsg = this.messages.length ? this.messages[this.messages.length - 1] : null;
           if (!lastMsg || !(lastMsg.thinking || lastMsg.streaming)) {
             lastMsg = {
-              id: ++msgId,
-              role: 'agent',
-              text: '',
-              meta: '',
-              thinking: true,
-              streaming: true,
-              thinking_status: '',
-              tools: [],
-              _stream_started_at: Date.now(),
-              _stream_updated_at: Date.now(),
-              ts: Date.now(),
+              id: ++msgId, role: 'agent', text: '', meta: '', thinking: true, streaming: true, thinking_status: '', tools: [],
+              _stream_started_at: Date.now(), _stream_updated_at: Date.now(), ts: Date.now(),
               agent_id: data && data.agent_id ? String(data.agent_id) : (this.currentAgent && this.currentAgent.id ? String(this.currentAgent.id) : ''),
               agent_name: data && data.agent_name ? String(data.agent_name) : (this.currentAgent && this.currentAgent.name ? String(this.currentAgent.name) : '')
             };
@@ -189,12 +163,8 @@
           var streamedText = envelope.text;
           var streamedTools = envelope.tools;
           var streamedThought = envelope.thought;
-          var responseTools = typeof this.responseToolRowsFromPayload === 'function'
-            ? this.responseToolRowsFromPayload(data, 'ws-tool')
-            : [];
-          var responseHasToolCompletion = typeof this.responseHasAuthoritativeToolCompletion === 'function'
-            ? this.responseHasAuthoritativeToolCompletion(data, responseTools.length ? responseTools : streamedTools)
-            : (responseTools.length > 0 || streamedTools.length > 0);
+          var responseTools = typeof this.responseToolRowsFromPayload === 'function' ? this.responseToolRowsFromPayload(data, 'ws-tool') : [];
+          var responseHasToolCompletion = typeof this.responseHasAuthoritativeToolCompletion === 'function' ? this.responseHasAuthoritativeToolCompletion(data, responseTools.length ? responseTools : streamedTools) : (responseTools.length > 0 || streamedTools.length > 0);
           var hasAgentTerminalTranscript = !!(Array.isArray(data.terminal_transcript) && data.terminal_transcript.length && typeof this.appendAgentTerminalTranscript === 'function' && this.appendAgentTerminalTranscript(data.terminal_transcript));
           if (hasAgentTerminalTranscript) responseTools = responseTools.filter(function(t) { var n = String((t && t.name) || '').toLowerCase(); return !(n === 'terminal_exec' || n === 'run_terminal' || n === 'terminal' || n === 'shell_exec'); });
           if ((!Array.isArray(streamedTools) || !streamedTools.length) && responseTools.length) streamedTools = responseTools;
@@ -228,11 +198,8 @@
           var artifactDirectives = this.extractArtifactDirectives(finalText);
           var finalSplit = this.extractThinkingLeak(finalText);
           if (finalSplit.thought) {
-            if (!streamedThought) {
-              streamedThought = finalSplit.thought;
-            } else if (streamedThought.indexOf(finalSplit.thought) === -1) {
-              streamedThought += '\n' + finalSplit.thought;
-            }
+            if (!streamedThought) streamedThought = finalSplit.thought;
+            else if (streamedThought.indexOf(finalSplit.thought) === -1) streamedThought += '\n' + finalSplit.thought;
             finalText = finalSplit.content || '';
           }
           finalText = this.sanitizeToolText(finalText);
