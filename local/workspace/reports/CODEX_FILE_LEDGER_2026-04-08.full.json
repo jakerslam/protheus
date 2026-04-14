@@ -20755,7 +20755,7 @@
       "order": 1884
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/tooling/scripts/dashboard_stress_smoke.ts",
       "language": "ts",
       "loc": 310,
@@ -21292,7 +21292,7 @@
       "order": 1932
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/tooling/scripts/ci/client_surface_disposition.ts",
       "language": "ts",
       "loc": 161,
@@ -21369,7 +21369,7 @@
       "order": 1939
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/tooling/scripts/ci/client_target_contract_audit.ts",
       "language": "ts",
       "loc": 150,
@@ -21765,7 +21765,7 @@
       "order": 1975
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/tooling/scripts/ci/client_scope_inventory.ts",
       "language": "ts",
       "loc": 108,
@@ -21875,7 +21875,7 @@
       "order": 1985
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "tests/tooling/scripts/ci/build_dashboard_dist.ts",
       "language": "ts",
       "loc": 97,
