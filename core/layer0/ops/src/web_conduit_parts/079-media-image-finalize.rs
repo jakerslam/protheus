@@ -149,7 +149,7 @@ fn finalize_loaded_media_for_request(
     if try_alpha_png {
         let optimized = match optimize_image_to_png(&loaded.buffer, effective_max_bytes) {
             Ok(row) => row,
-            Err(err) if original_bytes <= effective_max_bytes => {
+            Err(_err) if original_bytes <= effective_max_bytes => {
                 return Ok(FinalizedMedia {
                     loaded,
                     effective_max_bytes,
@@ -216,7 +216,7 @@ fn finalize_loaded_media_for_request(
     );
     let optimized = match optimized {
         Ok(row) => row,
-        Err(err) if original_bytes <= effective_max_bytes => {
+        Err(_err) if original_bytes <= effective_max_bytes => {
             return Ok(FinalizedMedia {
                 loaded,
                 effective_max_bytes,
