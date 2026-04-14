@@ -11,6 +11,7 @@ pub fn execution_state_for(
 ) -> ExecutionState {
     let correlation = correlation_for(request, plan);
     let step_statuses = observed_step_statuses(request);
+    let has_observation = request.core_execution_observation.is_some();
     if !plan.degradation.is_empty() {
         let alternate_path = plan
             .steps
@@ -18,7 +19,9 @@ pub fn execution_state_for(
             .map(|row| row.target_contract.clone())
             .collect::<Vec<_>>();
         return ExecutionState {
-            plan_status: if needs_clarification || plan.requires_clarification {
+            plan_status: if let Some(observed) = observed_plan_status(request) {
+                observed
+            } else if needs_clarification || plan.requires_clarification {
                 PlanStatus::ClarificationRequired
             } else {
                 PlanStatus::Degraded
@@ -28,9 +31,15 @@ pub fn execution_state_for(
                 .iter()
                 .map(|row| StepState {
                     step_id: row.step_id.clone(),
-                    status: observed_step_status_for(&step_statuses, &row.step_id)
-                        .or_else(|| observed_step_status(request))
-                        .unwrap_or(StepStatus::Degraded),
+                    status: if let Some(observed) =
+                        observed_step_status_for(&step_statuses, &row.step_id)
+                    {
+                        observed
+                    } else if has_observation {
+                        StepStatus::Pending
+                    } else {
+                        StepStatus::Degraded
+                    },
                     blocked_on: row.blocked_on.clone(),
                 })
                 .collect(),
@@ -65,8 +74,12 @@ pub fn execution_state_for(
                     observed_step_status_for(&step_statuses, &row.step_id)
                 {
                     observed
-                } else if let Some(observed) = observed_step_status(request) {
-                    observed
+                } else if has_observation {
+                    if row.blocked_on.is_empty() {
+                        StepStatus::Pending
+                    } else {
+                        StepStatus::Blocked
+                    }
                 } else if row.blocked_on.is_empty() {
                     StepStatus::Ready
                 } else {
@@ -99,15 +112,6 @@ fn observed_plan_status(request: &TypedOrchestrationRequest) -> Option<PlanStatu
         .core_execution_observation
         .as_ref()
         .and_then(|row| row.plan_status.clone())
-}
-
-fn observed_step_status(request: &TypedOrchestrationRequest) -> Option<StepStatus> {
-    match observed_plan_status(request) {
-        Some(PlanStatus::Running) => Some(StepStatus::Running),
-        Some(PlanStatus::Completed) => Some(StepStatus::Succeeded),
-        Some(PlanStatus::Failed) => Some(StepStatus::Failed),
-        _ => None,
-    }
 }
 
 fn observed_step_statuses(request: &TypedOrchestrationRequest) -> Vec<(String, StepStatus)> {

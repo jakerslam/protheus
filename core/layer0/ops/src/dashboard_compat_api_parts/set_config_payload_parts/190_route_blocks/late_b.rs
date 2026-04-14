@@ -35,6 +35,55 @@ fn finalize_global_status_tool_payload(
     }
 }
 
+fn dashboard_agent_template_catalog() -> Vec<Value> {
+    vec![
+        json!({"id":"general-assistant","name":"General Assistant","description":"Balanced helper for everyday questions and planning.","role":"assistant","provider":"auto","model":"auto","system_prompt":"You are a helpful general assistant. Give direct, practical answers and ask clarifying questions only when needed."}),
+        json!({"id":"research-analyst","name":"Research Analyst","description":"Evidence-first researcher for synthesis and comparison.","role":"researcher","provider":"openai","model":"gpt-5","system_prompt":"You are a research analyst. Structure findings clearly, separate facts from inference, and call out uncertainty."}),
+        json!({"id":"ops-reliability","name":"Ops Reliability","description":"Reliability-focused operator for incidents and hardening.","role":"ops_engineer","provider":"frontier_provider","model":"claude-opus-4-20250514","system_prompt":"You are an operations reliability engineer. Prioritize safety, rollback plans, and verifiable execution."}),
+        json!({"id":"travel-assistant","name":"Travel Assistant","description":"Plans itineraries, compares options, and keeps logistics clear.","role":"travel_assistant","provider":"auto","model":"auto","system_prompt":"You are a travel assistant. Build clear itinerary options with tradeoffs, costs, and timing details."}),
+        json!({"id":"real-estate-agent","name":"Real Estate Agent","description":"Supports listing analysis, buyer and seller flows, and negotiation prep.","role":"real_estate_agent","provider":"auto","model":"auto","system_prompt":"You are a real estate assistant. Compare properties, surface risk factors, and provide concise next-step guidance."}),
+    ]
+}
+
+fn toml_basic_escape(value: &str) -> String {
+    value.replace('\\', "\\\\").replace('"', "\\\"")
+}
+
+fn toml_multiline_escape(value: &str) -> String {
+    value.replace("\\", "\\\\").replace("\"\"\"", "\"\"\\\"")
+}
+
+fn dashboard_template_manifest_toml(template: &Value) -> String {
+    let name = clean_text(template.get("name").and_then(Value::as_str).unwrap_or("Agent"), 120);
+    let role = clean_text(
+        template.get("role").and_then(Value::as_str).unwrap_or("assistant"),
+        80,
+    );
+    let provider = clean_text(
+        template.get("provider").and_then(Value::as_str).unwrap_or("auto"),
+        80,
+    );
+    let model = clean_text(
+        template.get("model").and_then(Value::as_str).unwrap_or("auto"),
+        160,
+    );
+    let prompt = clean_text(
+        template
+            .get("system_prompt")
+            .and_then(Value::as_str)
+            .unwrap_or("You are a helpful assistant."),
+        6_000,
+    );
+    format!(
+        "name = \"{}\"\nrole = \"{}\"\n\n[model]\nprovider = \"{}\"\nmodel = \"{}\"\n\n[prompt]\nsystem = \"\"\"\n{}\n\"\"\"\n",
+        toml_basic_escape(&name),
+        toml_basic_escape(&role),
+        toml_basic_escape(&provider),
+        toml_basic_escape(&model),
+        toml_multiline_escape(&prompt),
+    )
+}
+
 fn handle_global_status_get_routes(
     root: &Path,
     method: &str,
@@ -46,6 +95,38 @@ fn handle_global_status_get_routes(
     runtime: &Value,
     status: &str,
 ) -> Option<CompatApiResponse> {
+    if method == "GET" && path_only.starts_with("/api/templates/") {
+        let template_id = clean_text(path_only.trim_start_matches("/api/templates/"), 120);
+        let normalized_id = template_id.trim_matches('/').to_ascii_lowercase();
+        if normalized_id.is_empty() {
+            return Some(CompatApiResponse {
+                status: 400,
+                payload: json!({"ok": false, "error": "template_id_required"}),
+            });
+        }
+        if let Some(template) = dashboard_agent_template_catalog().into_iter().find(|row| {
+            clean_text(row.get("id").and_then(Value::as_str).unwrap_or(""), 120)
+                .to_ascii_lowercase()
+                == normalized_id
+        }) {
+            return Some(CompatApiResponse {
+                status: 200,
+                payload: json!({
+                    "ok": true,
+                    "template": template,
+                    "manifest_toml": dashboard_template_manifest_toml(&template)
+                }),
+            });
+        }
+        return Some(CompatApiResponse {
+            status: 404,
+            payload: json!({
+                "ok": false,
+                "error": "template_not_found",
+                "template_id": normalized_id
+            }),
+        });
+    }
     if method == "GET" {
         let payload = match path_only {
             "/api/health" => json!({
@@ -357,24 +438,11 @@ fn handle_global_status_get_routes(
             "/api/sessions" => {
                 json!({"ok": true, "sessions": session_summary_rows(root, snapshot)})
             }
-            "/api/comms/topology" => json!({
-                "ok": true,
-                "topology": {
-                    "nodes": snapshot.pointer("/collab/dashboard/agents").and_then(Value::as_array).map(|rows| rows.len()).unwrap_or(0),
-                    "edges": 0,
-                    "connected": true
-                }
-            }),
-            "/api/comms/events" => json!({"ok": true, "events": []}),
             "/api/profiles" => json!({"ok": true, "profiles": extract_profiles(root)}),
             "/api/update/check" => crate::dashboard_release_update::check_update(root),
             "/api/templates" => json!({
                 "ok": true,
-                "templates": [
-                    {"id": "general-assistant", "name": "General Assistant", "provider": "auto", "model": "auto"},
-                    {"id": "research-analyst", "name": "Research Analyst", "provider": "openai", "model": "gpt-5"},
-                    {"id": "ops-reliability", "name": "Ops Reliability", "provider": "frontier_provider", "model": "claude-opus-4-20250514"}
-                ]
+                "templates": dashboard_agent_template_catalog()
             }),
             _ => return None,
         };

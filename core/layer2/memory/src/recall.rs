@@ -2,8 +2,7 @@ use crate::heap_interface::{NexusRouteContext, UnifiedMemoryHeap};
 use crate::policy::{MemoryPolicyGate, MemoryPolicyRequest, PolicyAction};
 use crate::schemas::{
     CapabilityToken, DerivationKind, MemoryDerivation, MemoryInvalidationReason,
-    MemoryInvalidationRecord, MemoryKind, MemorySalience, MemoryScope, MemoryVersion,
-    TrustState,
+    MemoryInvalidationRecord, MemoryKind, MemorySalience, MemoryScope, MemoryVersion, TrustState,
 };
 use crate::vector_index::{embed_text, VectorQueryFilter};
 use crate::{deterministic_hash, now_ms};
@@ -118,14 +117,18 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
         }
         entity_matches.sort();
         entity_matches.dedup();
-        let expanded = self
-            .knowledge_graph
-            .expand_related_entity_ids(entity_matches.as_slice(), 2, 16);
+        let expanded =
+            self.knowledge_graph
+                .expand_related_entity_ids(entity_matches.as_slice(), 2, 16);
         let vector_hits = self.vector_index.query_cosine_filtered(
             vector_query.as_slice(),
             query.top_k.saturating_mul(4).max(8),
             &VectorQueryFilter {
-                scope_labels: query.requested_scopes.iter().map(MemoryScope::label).collect(),
+                scope_labels: query
+                    .requested_scopes
+                    .iter()
+                    .map(MemoryScope::label)
+                    .collect(),
                 kinds: query.allowed_kinds.clone(),
                 ..VectorQueryFilter::default()
             },
@@ -137,7 +140,10 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
         let mut hits = Vec::<MemoryRecallHit>::new();
         for object in self.record_store.all_objects() {
             if !query.requested_scopes.is_empty()
-                && !query.requested_scopes.iter().any(|scope| scope == &object.scope)
+                && !query
+                    .requested_scopes
+                    .iter()
+                    .any(|scope| scope == &object.scope)
             {
                 continue;
             }
@@ -165,13 +171,18 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
             if version.trust_state.is_poisoned() {
                 continue;
             }
-            if !query.allowed_kinds.is_empty() && !query.allowed_kinds.iter().any(|row| row == &version.kind) {
+            if !query.allowed_kinds.is_empty()
+                && !query.allowed_kinds.iter().any(|row| row == &version.kind)
+            {
                 continue;
             }
             let lexical = query_tokens
                 .iter()
                 .filter(|token| {
-                    object.namespace.to_ascii_lowercase().contains(token.as_str())
+                    object
+                        .namespace
+                        .to_ascii_lowercase()
+                        .contains(token.as_str())
                         || object.key.to_ascii_lowercase().contains(token.as_str())
                         || summary_for(&version.payload)
                             .to_ascii_lowercase()
@@ -190,7 +201,11 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
                         graph_score += 850;
                         matched_entity_ids.push(entity_ref.clone());
                     }
-                    if query.session_entity_hints.iter().any(|row| row == entity_ref) {
+                    if query
+                        .session_entity_hints
+                        .iter()
+                        .any(|row| row == entity_ref)
+                    {
                         session_score += 700;
                     }
                 }
@@ -233,7 +248,11 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
                     salience_score,
                     matched_terms: query_tokens
                         .iter()
-                        .filter(|token| summary_for(&version.payload).to_ascii_lowercase().contains(token.as_str()))
+                        .filter(|token| {
+                            summary_for(&version.payload)
+                                .to_ascii_lowercase()
+                                .contains(token.as_str())
+                        })
                         .cloned()
                         .collect::<Vec<String>>(),
                     matched_entity_ids,
@@ -287,7 +306,10 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
             owner_settings: self.owner_settings().clone(),
         });
         if !write_decision.allow {
-            return Err(format!("retrieval_feedback_denied:{}", write_decision.reason));
+            return Err(format!(
+                "retrieval_feedback_denied:{}",
+                write_decision.reason
+            ));
         }
         let receipt = self.push_receipt(
             route,
@@ -303,7 +325,12 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
         let next = MemoryVersion {
             version_id: format!(
                 "version_{}",
-                &deterministic_hash(&(source.object_id.clone(), source.version_id.clone(), receipt.receipt_id.clone(), "feedback"))[..24]
+                &deterministic_hash(&(
+                    source.object_id.clone(),
+                    source.version_id.clone(),
+                    receipt.receipt_id.clone(),
+                    "feedback"
+                ))[..24]
             ),
             object_id: source.object_id.clone(),
             scope: source.scope.clone(),
@@ -329,8 +356,10 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
             proposed_by: principal_id.to_string(),
         };
         self.version_ledger.append(next.clone())?;
-        self.record_store.register_version(&next.object_id, &next.version_id);
-        self.record_store.set_head_version(&next.object_id, &next.version_id);
+        self.record_store
+            .register_version(&next.object_id, &next.version_id);
+        self.record_store
+            .set_head_version(&next.object_id, &next.version_id);
         self.refresh_memory_indexes(&object, &next);
         Ok(next)
     }
@@ -362,7 +391,10 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
             owner_settings: self.owner_settings().clone(),
         });
         if !write_decision.allow {
-            return Err(format!("memory_invalidation_denied:{}", write_decision.reason));
+            return Err(format!(
+                "memory_invalidation_denied:{}",
+                write_decision.reason
+            ));
         }
         let receipt = self.push_receipt(
             route,
@@ -378,7 +410,11 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
         let record = MemoryInvalidationRecord {
             invalidation_id: format!(
                 "invalid_{}",
-                &deterministic_hash(&(target.version_id.clone(), receipt.receipt_id.clone(), now_ms()))[..24]
+                &deterministic_hash(&(
+                    target.version_id.clone(),
+                    receipt.receipt_id.clone(),
+                    now_ms()
+                ))[..24]
             ),
             target_version_id: target.version_id.clone(),
             target_object_id: target.object_id.clone(),
@@ -389,14 +425,18 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
             timestamp_ms: now_ms(),
             lineage_refs,
         };
-        self.version_ledger.append_invalidation_record(record.clone())?;
+        self.version_ledger
+            .append_invalidation_record(record.clone())?;
         if self
             .record_store
             .head_version_id(&target.object_id)
             .as_deref()
             == Some(target.version_id.as_str())
         {
-            if let Some(fallback) = self.version_ledger.latest_active_for_object(&target.object_id) {
+            if let Some(fallback) = self
+                .version_ledger
+                .latest_active_for_object(&target.object_id)
+            {
                 self.record_store
                     .set_head_version(&target.object_id, &fallback.version_id);
             }

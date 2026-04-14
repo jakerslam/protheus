@@ -100,7 +100,10 @@ impl VersionLedger {
         &mut self,
         record: MemoryInvalidationRecord,
     ) -> Result<(), String> {
-        if !self.versions.contains_key(record.target_version_id.as_str()) {
+        if !self
+            .versions
+            .contains_key(record.target_version_id.as_str())
+        {
             return Err("invalidation_target_version_not_found".to_string());
         }
         if self

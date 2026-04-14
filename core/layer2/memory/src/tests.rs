@@ -3,9 +3,9 @@ use crate::policy::{
     DefaultVerityMemoryPolicy, MemoryPolicyGate, MemoryPolicyRequest, PolicyAction,
 };
 use crate::schemas::{
-    CapabilityAction, CapabilityToken, Classification, MemoryObject, MemoryRetentionPolicy,
-    MemoryKind, MemoryScope, OwnerExportRedactionPolicy, OwnerScopeSettings, PurgeRelationType,
-    TrustState,
+    CapabilityAction, CapabilityToken, Classification, MemoryKind, MemoryObject,
+    MemoryRetentionPolicy, MemoryScope, OwnerExportRedactionPolicy, OwnerScopeSettings,
+    PurgeRelationType, TrustState,
 };
 use serde_json::json;
 

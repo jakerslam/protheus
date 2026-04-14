@@ -7,9 +7,9 @@ use crate::policy::{MemoryPolicyDecision, MemoryPolicyGate, MemoryPolicyRequest,
 use crate::promotion::{is_valid_trust_transition, rollback_head_from_version};
 use crate::record_store::RecordStore;
 use crate::schemas::{
-    CanonicalMemoryRecord, CapabilityAction, CapabilityToken, MemoryInvalidationRecord,
-    MemoryKind, MemoryMutationReplayRow, MemoryObject, MemoryPurgeRecord, MemoryReceipt,
-    MemorySalience, MemoryScope, MemoryVersion, OwnerScopeSettings, TrustState,
+    CanonicalMemoryRecord, CapabilityAction, CapabilityToken, MemoryInvalidationRecord, MemoryKind,
+    MemoryMutationReplayRow, MemoryObject, MemoryPurgeRecord, MemoryReceipt, MemorySalience,
+    MemoryScope, MemoryVersion, OwnerScopeSettings, TrustState,
 };
 use crate::version_ledger::VersionLedger;
 use crate::{deterministic_hash, now_ms, BlobStore, VectorIndex};

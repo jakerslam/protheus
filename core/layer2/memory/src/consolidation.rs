@@ -60,7 +60,11 @@ fn parse_kind_hint(key: &str) -> KnowledgeEntityKind {
     }
 }
 
-pub fn extract_graph_facts(version: &MemoryVersion, payload: &Value, metadata: &Value) -> ExtractedGraphFacts {
+pub fn extract_graph_facts(
+    version: &MemoryVersion,
+    payload: &Value,
+    metadata: &Value,
+) -> ExtractedGraphFacts {
     let mut out = ExtractedGraphFacts::default();
     let mut entity_rows = Vec::<(String, KnowledgeEntityKind, String)>::new();
     let object_rows = [payload, metadata];
@@ -261,7 +265,11 @@ fn build_procedural_draft(
 }
 
 impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
-    pub(crate) fn refresh_memory_indexes(&mut self, object: &MemoryObject, version: &MemoryVersion) {
+    pub(crate) fn refresh_memory_indexes(
+        &mut self,
+        object: &MemoryObject,
+        version: &MemoryVersion,
+    ) {
         let facts = extract_graph_facts(version, &version.payload, &object.metadata);
         let summary_text = format!(
             "{} {} {} {}",
@@ -298,9 +306,13 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
             );
         }
         for (source, target, relation) in facts.relations {
-            let _ = self
-                .knowledge_graph
-                .connect(source.as_str(), target.as_str(), relation, vec![version.version_id.clone()], 7000);
+            let _ = self.knowledge_graph.connect(
+                source.as_str(),
+                target.as_str(),
+                relation,
+                vec![version.version_id.clone()],
+                7000,
+            );
         }
     }
 
@@ -370,7 +382,12 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
                 .map(|row| row.scope.clone())
                 .unwrap_or_else(|| MemoryScope::Core);
             let _ = scope_label;
-            drafts.push(build_semantic_draft(&scope, &key, &value, versions.as_slice()));
+            drafts.push(build_semantic_draft(
+                &scope,
+                &key,
+                &value,
+                versions.as_slice(),
+            ));
         }
         for ((_scope_label, name), versions) in procedure_groups {
             let mut ordered = versions
@@ -378,10 +395,7 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
                 .filter_map(|row| {
                     let map = row.payload.as_object()?;
                     let step = map.get("procedure_step").and_then(Value::as_str)?;
-                    let idx = map
-                        .get("step_index")
-                        .and_then(Value::as_u64)
-                        .unwrap_or(999);
+                    let idx = map.get("step_index").and_then(Value::as_u64).unwrap_or(999);
                     Some((idx, step.to_string()))
                 })
                 .collect::<Vec<(u64, String)>>();
@@ -423,21 +437,34 @@ impl<P: MemoryPolicyGate + Clone> UnifiedMemoryHeap<P> {
                     if let Some(version_mut) = self.version_ledger.get_mut(head_id.as_str()) {
                         version_mut.derivation = Some(draft.derivation.clone());
                     }
-                    if let Some(object) = self.record_store.get_object(&version.object_id).cloned() {
+                    if let Some(object) = self.record_store.get_object(&version.object_id).cloned()
+                    {
                         self.refresh_memory_indexes(&object, &version);
                     }
                 }
             }
             written = written.saturating_add(1);
             match draft.object.kind {
-                MemoryKind::Semantic => report.derived_semantic = report.derived_semantic.saturating_add(1),
-                MemoryKind::Procedural => report.derived_procedural = report.derived_procedural.saturating_add(1),
+                MemoryKind::Semantic => {
+                    report.derived_semantic = report.derived_semantic.saturating_add(1)
+                }
+                MemoryKind::Procedural => {
+                    report.derived_procedural = report.derived_procedural.saturating_add(1)
+                }
                 _ => {}
             }
         }
         report.written_versions = written;
-        report.entity_nodes_upserted = self.knowledge_graph.nodes().len().saturating_sub(entity_count_before);
-        report.relation_edges_upserted = self.knowledge_graph.edges().len().saturating_sub(edge_count_before);
+        report.entity_nodes_upserted = self
+            .knowledge_graph
+            .nodes()
+            .len()
+            .saturating_sub(entity_count_before);
+        report.relation_edges_upserted = self
+            .knowledge_graph
+            .edges()
+            .len()
+            .saturating_sub(edge_count_before);
         let _ = self.policy.evaluate(&crate::policy::MemoryPolicyRequest {
             principal_id: principal_id.to_string(),
             action: PolicyAction::Write,

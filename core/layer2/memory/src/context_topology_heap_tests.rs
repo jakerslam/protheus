@@ -78,7 +78,9 @@ fn topology_receipts_and_lineage_emit_for_append_rollup_and_rebuild() {
     assert!(event_types.iter().any(|row| row == "context_atom_append"));
     assert!(event_types.iter().any(|row| row == "context_span_seal"));
     assert!(event_types.iter().any(|row| row == "context_span_rollup"));
-    assert!(event_types.iter().any(|row| row == "context_topology_rebuild"));
+    assert!(event_types
+        .iter()
+        .any(|row| row == "context_topology_rebuild"));
     assert!(heap
         .receipts()
         .iter()
@@ -127,9 +129,64 @@ fn topology_materialization_preserves_pinned_anchor_and_does_not_mutate_task_fab
         .frontier
         .pinned_anchor_refs
         .contains(&"task:blocker:42".to_string()));
-    assert!(heap
-        .graph_subsystem()
-        .get_node("task:blocker:42")
-        .is_none());
+    assert!(heap.graph_subsystem().get_node("task:blocker:42").is_none());
 }
 
+#[test]
+fn topology_materialization_runs_background_compaction_and_emits_rollup_receipts() {
+    let mut heap = UnifiedMemoryHeap::new(DefaultVerityMemoryPolicy);
+    let route = route();
+    let cap = token();
+    heap.context_topology.config.fanout_target = 99;
+    for idx in 0..12 {
+        let _ = heap
+            .append_context_atom(
+                &route,
+                "agent:alpha",
+                &cap,
+                ContextAppendInput {
+                    session_id: "session-3".to_string(),
+                    source_kind: ContextAtomSourceKind::InteractionUnit,
+                    source_ref: format!("turn-{idx}"),
+                    token_count: 180,
+                    task_refs: vec!["task-open".to_string()],
+                    memory_version_refs: vec![],
+                    semantic_boundary: true,
+                    workflow_boundary: false,
+                    lineage_refs: vec!["lineage:tick".to_string()],
+                },
+                vec!["lineage:req".to_string()],
+            )
+            .expect("append");
+    }
+    let rollup_receipts_before = heap
+        .receipts()
+        .iter()
+        .filter(|row| row.event_type == "context_span_rollup")
+        .count();
+    heap.context_topology.config.fanout_target = 2;
+    let _ = heap
+        .materialize_context_topology(
+            &route,
+            "agent:alpha",
+            &cap,
+            "session-3",
+            vec![],
+            512,
+            vec![],
+            vec!["lineage:materialize".to_string()],
+        )
+        .expect("materialize");
+    let rollup_receipts_after = heap
+        .receipts()
+        .iter()
+        .filter(|row| row.event_type == "context_span_rollup")
+        .count();
+    assert!(rollup_receipts_after > rollup_receipts_before);
+    let spans = heap.context_topology().session_spans("session-3");
+    assert!(spans.iter().any(|row| row.level > 0
+        && matches!(
+            row.status,
+            crate::context_topology::ContextSpanStatus::Sealed
+        )));
+}
