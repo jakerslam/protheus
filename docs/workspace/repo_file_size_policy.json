@@ -1120,14 +1120,6 @@
       "planned_batch_date": "2026-04-23"
     },
     {
-      "path": "core/layer0/swarm_router/src/lib.rs",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-04-23",
-      "task_id": "TD-SIZE-CORE-L0-MISC",
-      "planned_batch_date": "2026-04-23"
-    },
-    {
       "path": "core/layer1/observability/src/lib.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
@@ -1209,14 +1201,6 @@
     },
     {
       "path": "core/layer2/execution/src/inversion_parts/220-normalize-impact-matches-expected-set.rs",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-04-23",
-      "task_id": "TD-SIZE-EXEC-L2",
-      "planned_batch_date": "2026-04-23"
-    },
-    {
-      "path": "core/layer2/execution/src/lib.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
       "expires": "2026-04-23",
