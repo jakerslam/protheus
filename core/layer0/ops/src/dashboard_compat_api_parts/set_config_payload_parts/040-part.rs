@@ -326,11 +326,23 @@ fn build_agent_roster(root: &Path, snapshot: &Value, include_terminated: bool) -
             "revive_recommended": revive_recommended
         }));
     }
-    rows.sort_by_key(|row| {
-        std::cmp::Reverse(clean_text(
-            row.get("updated_at").and_then(Value::as_str).unwrap_or(""),
+    rows.sort_by(|left, right| {
+        let left_updated = clean_text(
+            left.get("updated_at").and_then(Value::as_str).unwrap_or(""),
             80,
-        ))
+        );
+        let right_updated = clean_text(
+            right
+                .get("updated_at")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            80,
+        );
+        right_updated.cmp(&left_updated).then_with(|| {
+            clean_agent_id(left.get("id").and_then(Value::as_str).unwrap_or("")).cmp(
+                &clean_agent_id(right.get("id").and_then(Value::as_str).unwrap_or("")),
+            )
+        })
     });
     rows
 }
@@ -433,7 +445,6 @@ fn archived_agent_stub(root: &Path, agent_id: &str) -> Value {
         "archived": true
     })
 }
-
 fn update_profile_patch(root: &Path, agent_id: &str, patch: &Value) -> Value {
     let id = clean_agent_id(agent_id);
     if id.is_empty() {
@@ -486,4 +497,3 @@ fn append_jsonl_row(path: &Path, row: &Value) {
 fn attention_queue_fallback_path(root: &Path) -> PathBuf {
     root.join("client/runtime/local/state/attention/pending_memory_events.jsonl")
 }
-

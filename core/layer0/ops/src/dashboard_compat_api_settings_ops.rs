@@ -227,8 +227,6 @@ fn detect_paths(root: &Path) -> Vec<PathBuf> {
         let home_path = PathBuf::from(home);
         rows.push(home_path.join(".infring"));
         rows.push(home_path.join(".infring").join("workspace"));
-        rows.push(home_path.join(".infring"));
-        rows.push(home_path.join(".infring").join("workspace"));
     }
     let mut seen = HashSet::<String>::new();
     rows.into_iter()
