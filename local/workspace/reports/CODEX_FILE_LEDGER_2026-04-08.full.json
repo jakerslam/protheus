@@ -13631,7 +13631,7 @@
       "order": 1238
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/lib/llamaindex_bridge.ts",
       "language": "ts",
       "loc": 66,
@@ -13642,7 +13642,7 @@
       "order": 1239
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/lib/metagpt_bridge.ts",
       "language": "ts",
       "loc": 65,
@@ -13653,7 +13653,7 @@
       "order": 1240
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/lib/dify_bridge.ts",
       "language": "ts",
       "loc": 64,
@@ -13675,7 +13675,7 @@
       "order": 1242
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/lib/phone_runtime_bridge.ts",
       "language": "ts",
       "loc": 59,
@@ -13697,7 +13697,7 @@
       "order": 1244
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/lib/instinct_bridge.ts",
       "language": "ts",
       "loc": 54,
