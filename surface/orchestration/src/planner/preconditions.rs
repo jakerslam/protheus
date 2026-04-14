@@ -111,6 +111,11 @@ fn tool_available(request: &TypedOrchestrationRequest, capability: &Capability) 
             format!("probe.capability_probes.{key}.tool_available"),
         );
     }
+    if let Some(required) =
+        fail_closed_on_missing_probe_for_adapted_surface(request, capability, "tool_available")
+    {
+        return required;
+    }
     (
         !request.tool_hints.is_empty()
             || matches!(
@@ -199,6 +204,11 @@ fn authorization_valid(
             value,
             format!("probe.capability_probes.{key}.authorization_valid"),
         );
+    }
+    if let Some(required) =
+        fail_closed_on_missing_probe_for_adapted_surface(request, capability, "authorization_valid")
+    {
+        return required;
     }
     (
         !(request.mutability == Mutability::Mutation

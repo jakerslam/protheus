@@ -92,6 +92,31 @@ fn lease_issue_and_direct_delivery_authorization_succeeds() {
 }
 
 #[test]
+fn client_ingress_domain_boundary_denies_non_context_target_leases() {
+    let mut nexus = test_plane();
+    nexus.register_v1_adapters("tester").expect("adapters");
+    let denied = nexus.issue_route_lease(
+        "tester",
+        LeaseIssueRequest {
+            source: "client_ingress".to_string(),
+            target: "stomach".to_string(),
+            schema_ids: vec!["module.context".to_string()],
+            verbs: vec!["read".to_string()],
+            required_verity: VerityClass::Standard,
+            trust_class: TrustClass::ClientIngressBoundary,
+            requested_ttl_ms: 60_000,
+            template_id: None,
+            template_version: None,
+        },
+    );
+    let err = denied.expect_err("client ingress should fail closed for non-context targets");
+    assert!(
+        err.contains("lease_denied:client_ingress_domain_boundary"),
+        "{err}"
+    );
+}
+
+#[test]
 fn draining_lifecycle_blocks_new_leases_but_not_existing_in_flight() {
     let mut nexus = test_plane();
     nexus.register_v1_adapters("tester").expect("adapters");

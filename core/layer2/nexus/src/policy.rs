@@ -87,6 +87,7 @@ pub struct DefaultNexusPolicy {
     allowed_control_plane_schemas: BTreeSet<String>,
     allowed_schema_prefixes: Vec<String>,
     blocked_pairs: BTreeSet<String>,
+    client_ingress_allowed_targets: BTreeSet<String>,
     max_ttl_ms_by_verity: BTreeMap<VerityClass, u64>,
 }
 
@@ -115,6 +116,7 @@ impl Default for DefaultNexusPolicy {
                 "client_ingress.".to_string(),
             ],
             blocked_pairs: BTreeSet::new(),
+            client_ingress_allowed_targets: ["context_stacks".to_string()].into_iter().collect(),
             max_ttl_ms_by_verity,
         }
     }
@@ -130,6 +132,15 @@ impl DefaultNexusPolicy {
 
     pub fn block_pair(&mut self, source: &str, target: &str) {
         self.blocked_pairs.insert(format!("{source}->{target}"));
+    }
+
+    pub fn allow_client_ingress_target(&mut self, target: &str) {
+        let cleaned = target.trim();
+        if cleaned.is_empty() {
+            return;
+        }
+        self.client_ingress_allowed_targets
+            .insert(cleaned.to_string());
     }
 }
 
@@ -151,6 +162,18 @@ impl NexusPolicyGate for DefaultNexusPolicy {
             .any(|schema| !schema_allowed(schema))
         {
             return PolicyDecisionRef::deny("schema_not_allowlisted", context);
+        }
+        let control_plane_only = context
+            .schema_ids
+            .iter()
+            .all(|schema| schema.starts_with("nexus."));
+        if context.source == "client_ingress"
+            && !control_plane_only
+            && !self
+                .client_ingress_allowed_targets
+                .contains(&context.target)
+        {
+            return PolicyDecisionRef::deny("client_ingress_domain_boundary", context);
         }
         if self
             .blocked_pairs

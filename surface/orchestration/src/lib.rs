@@ -19,9 +19,23 @@ use contracts::{
 };
 use transient_context::{TransientContextStore, TransientSleepCleanupReport};
 
-#[derive(Debug, Default)]
+const DEFAULT_SLEEP_CYCLE_IDLE_GAP_MS: u64 = 8 * 60 * 60 * 1000;
+
+#[derive(Debug)]
 pub struct OrchestrationSurfaceRuntime {
     transient: TransientContextStore,
+    last_activity_ms: Option<u64>,
+    sleep_cycle_idle_gap_ms: u64,
+}
+
+impl Default for OrchestrationSurfaceRuntime {
+    fn default() -> Self {
+        Self {
+            transient: TransientContextStore::default(),
+            last_activity_ms: None,
+            sleep_cycle_idle_gap_ms: DEFAULT_SLEEP_CYCLE_IDLE_GAP_MS,
+        }
+    }
 }
 
 impl OrchestrationSurfaceRuntime {
@@ -29,11 +43,32 @@ impl OrchestrationSurfaceRuntime {
         Self::default()
     }
 
+    pub fn with_sleep_cycle_idle_gap_ms(mut self, idle_gap_ms: u64) -> Self {
+        self.sleep_cycle_idle_gap_ms = idle_gap_ms;
+        self
+    }
+
+    fn maybe_run_sleep_cycle_cleanup(&mut self, now_ms: u64) {
+        let Some(last_activity_ms) = self.last_activity_ms else {
+            return;
+        };
+        if now_ms <= last_activity_ms {
+            return;
+        }
+        let idle_gap = now_ms.saturating_sub(last_activity_ms);
+        if idle_gap < self.sleep_cycle_idle_gap_ms {
+            return;
+        }
+        let cycle_id = format!("auto_idle_gap_{idle_gap}");
+        let _ = self.transient.run_sleep_cycle_cleanup(cycle_id.as_str());
+    }
+
     pub fn orchestrate(
         &mut self,
         request: OrchestrationRequest,
         now_ms: u64,
     ) -> OrchestrationResultPackage {
+        self.maybe_run_sleep_cycle_cleanup(now_ms);
         let normalized = ingress::normalize_request(request);
         let classification = request_classification::classify_request(&normalized);
         if let Err(err) = self.transient.upsert(
@@ -42,6 +77,7 @@ impl OrchestrationSurfaceRuntime {
             now_ms,
             30_000,
         ) {
+            self.last_activity_ms = Some(now_ms);
             return OrchestrationResultPackage {
                 summary: format!("orchestration_degraded:{err}"),
                 progress_message:
@@ -138,6 +174,7 @@ impl OrchestrationSurfaceRuntime {
             plan.request_class.clone(),
             tool_fallback_context.as_ref(),
         );
+        self.last_activity_ms = Some(now_ms);
         result_packaging::package_result(&plan, progress, recovery_applied, fallback_actions)
     }
 

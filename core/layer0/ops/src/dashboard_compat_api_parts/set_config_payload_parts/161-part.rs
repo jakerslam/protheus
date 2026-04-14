@@ -282,18 +282,78 @@ fn response_tool_row_has_workspace_plus_web_leg(row: &Value, leg: &str) -> bool 
     !normalized.is_empty() && workspace_plus_web_tool_leg_for_name(&normalized) == leg
 }
 
+fn draft_response_implies_retryable_web_failure(draft_response: &str) -> bool {
+    let lowered = clean_text(draft_response, 2_000).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    let mentions_web = lowered.contains("web search")
+        || lowered.contains("search function")
+        || lowered.contains("search capabilities")
+        || lowered.contains("tool execution")
+        || lowered.contains("function call format");
+    if !mentions_web {
+        return false;
+    }
+    lowered.contains("not currently operational")
+        || lowered.contains("isn't currently operational")
+        || lowered.contains("isn't currently")
+        || lowered.contains("aren't available")
+        || lowered.contains("not available")
+        || lowered.contains("unable to")
+        || lowered.contains("can't")
+        || lowered.contains("cannot")
+        || lowered.contains("rejected")
+        || lowered.contains("failed")
+        || response_looks_like_tool_ack_without_findings(&lowered)
+}
+
+fn fallback_live_web_query_from_failed_draft(user_message: &str, draft_response: &str) -> String {
+    if let Some(query) = natural_web_search_query_from_message(draft_response) {
+        return clean_text(&query, 600);
+    }
+    if let Some(query) = extract_leading_quoted_natural_web_query(draft_response, 600) {
+        return clean_text(&query, 600);
+    }
+    let cleaned = clean_text(user_message, 600);
+    if !cleaned.is_empty() {
+        return cleaned;
+    }
+    "latest ai developments".to_string()
+}
+
+fn fallback_live_web_intent_from_failed_draft(
+    user_message: &str,
+    draft_response: &str,
+) -> Option<(String, Value)> {
+    if !draft_response_implies_retryable_web_failure(draft_response) {
+        return None;
+    }
+    let query = fallback_live_web_query_from_failed_draft(user_message, draft_response);
+    Some((
+        "batch_query".to_string(),
+        json!({
+            "source": "web",
+            "query": query,
+            "aperture": "medium"
+        }),
+    ))
+}
+
 fn latent_tool_candidate_completion_cards(
     root: &Path,
     snapshot: &Value,
     actor_agent_id: &str,
     existing: Option<&Value>,
     user_message: &str,
+    draft_response: &str,
     latent_tool_candidates: &Value,
     response_tools: &[Value],
 ) -> Vec<Value> {
     let requires_workspace_plus_web =
         workspace_plus_web_comparison_queries_from_message(user_message).is_some();
-    let requires_live_web = natural_web_intent_from_user_message(user_message).is_some();
+    let requires_live_web = natural_web_intent_from_user_message(user_message).is_some()
+        || draft_response_implies_retryable_web_failure(draft_response);
     if !requires_workspace_plus_web && !requires_live_web {
         return Vec::new();
     }
@@ -376,9 +436,9 @@ fn latent_tool_candidate_completion_cards(
         }
     }
     if requires_live_web && !requires_workspace_plus_web && !web_done {
-        if let Some((fallback_tool, fallback_input)) =
-            natural_web_intent_from_user_message(user_message)
-        {
+        let fallback_intent = natural_web_intent_from_user_message(user_message)
+            .or_else(|| fallback_live_web_intent_from_failed_draft(user_message, draft_response));
+        if let Some((fallback_tool, fallback_input)) = fallback_intent {
             let normalized_name = normalize_tool_name(&fallback_tool);
             if !normalized_name.is_empty()
                 && workspace_plus_web_tool_leg_for_name(&normalized_name) == "web"
