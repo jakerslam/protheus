@@ -162,16 +162,9 @@ fn looks_like_search_challenge_payload(summary: &str, content: &str) -> bool {
     if combined.is_empty() {
         return false;
     }
-    [
-        "unfortunately, bots use duckduckgo too",
-        "please complete the following challenge",
-        "select all squares containing a duck",
-        "anomaly-modal",
-        "images not loading?",
-        "error-lite@duckduckgo.com",
-    ]
-    .iter()
-    .any(|marker| combined.contains(marker))
+    ["unfortunately, bots use duckduckgo too", "please complete the following challenge", "select all squares containing a duck", "anomaly-modal", "images not loading?", "error-lite@duckduckgo.com"]
+        .iter()
+        .any(|marker| combined.contains(marker))
 }
 
 fn looks_like_empty_duckduckgo_instant_shell_text(text: &str) -> bool {
@@ -193,22 +186,7 @@ fn looks_like_empty_duckduckgo_instant_shell(decoded: &Value) -> bool {
     let Some(obj) = decoded.as_object() else {
         return false;
     };
-    let metadata_keys = [
-        "Abstract",
-        "AbstractSource",
-        "AbstractText",
-        "AbstractURL",
-        "Answer",
-        "AnswerType",
-        "Definition",
-        "DefinitionSource",
-        "DefinitionURL",
-        "Entity",
-        "Heading",
-        "RelatedTopics",
-        "Results",
-        "Type",
-    ];
+    let metadata_keys = ["Abstract", "AbstractSource", "AbstractText", "AbstractURL", "Answer", "AnswerType", "Definition", "DefinitionSource", "DefinitionURL", "Entity", "Heading", "RelatedTopics", "Results", "Type"];
     let metadata_hits = metadata_keys
         .iter()
         .filter(|key| obj.contains_key(**key))
@@ -250,19 +228,10 @@ fn looks_like_truncated_duckduckgo_instant_shell(text: &str) -> bool {
     if lowered.is_empty() {
         return false;
     }
-    let empty_markers = [
-        "\"abstract\":\"\"",
-        "\"abstracttext\":\"\"",
-        "\"answer\":\"\"",
-        "\"definition\":\"\"",
-        "\"heading\":\"\"",
-        "\"entity\":\"\"",
-        "\"relatedtopics\":[]",
-        "\"results\":[]",
-    ]
-    .iter()
-    .filter(|marker| lowered.contains(**marker))
-    .count();
+    let empty_markers = ["\"abstract\":\"\"", "\"abstracttext\":\"\"", "\"answer\":\"\"", "\"definition\":\"\"", "\"heading\":\"\"", "\"entity\":\"\"", "\"relatedtopics\":[]", "\"results\":[]"]
+        .iter()
+        .filter(|marker| lowered.contains(**marker))
+        .count();
     empty_markers >= 4
 }
 
@@ -294,18 +263,10 @@ fn looks_like_low_signal_search_payload(summary: &str, content: &str) -> bool {
     if lowered.contains("key findings for") && lowered.contains("potential sources:") {
         return true;
     }
-    let marker_hits = [
-        "duckduckgo all regions",
-        "all regions argentina",
-        "all regions australia",
-        "all regions canada",
-        "safe search",
-        "any time",
-        "at duckduckgo",
-    ]
-    .iter()
-    .filter(|marker| lowered.contains(**marker))
-    .count();
+    let marker_hits = ["duckduckgo all regions", "all regions argentina", "all regions australia", "all regions canada", "safe search", "any time", "at duckduckgo"]
+        .iter()
+        .filter(|marker| lowered.contains(**marker))
+        .count();
     marker_hits >= 2
 }
 

@@ -4,13 +4,7 @@ fn value_array_has_text(rows: &[Value], wanted: &str) -> bool {
         .any(|row| row == wanted)
 }
 fn recall_memory(state: &mut Value, payload: &Map<String, Value>) -> Result<Value, String> {
-    let store_id = clean_token(
-        payload
-            .get("memory_id")
-            .and_then(Value::as_str)
-            .or_else(|| payload.get("store_id").and_then(Value::as_str)),
-        "",
-    );
+    let store_id = clean_token(payload.get("memory_id").and_then(Value::as_str).or_else(|| payload.get("store_id").and_then(Value::as_str)), "");
     if store_id.is_empty() {
         return Err("workflow_chain_memory_id_required".to_string());
     }
@@ -26,21 +20,13 @@ fn recall_memory(state: &mut Value, payload: &Map<String, Value>) -> Result<Valu
         .and_then(|rows| rows.get(&store_id))
         .cloned()
         .ok_or_else(|| format!("unknown_workflow_chain_memory_bridge:{store_id}"))?;
-    let supported_profiles = store
-        .get("supported_profiles")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default();
+    let supported_profiles = store.get("supported_profiles").and_then(Value::as_array).cloned().unwrap_or_default();
     if !value_array_has_text(&supported_profiles, &profile) {
         return Err(format!(
             "workflow_chain_memory_bridge_profile_unsupported:{profile}"
         ));
     }
-    let supported_mode_rows = store
-        .get("retrieval_modes")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default();
+    let supported_mode_rows = store.get("retrieval_modes").and_then(Value::as_array).cloned().unwrap_or_default();
     let supported_modes = supported_mode_rows
         .iter()
         .filter_map(Value::as_str)
@@ -114,17 +100,8 @@ fn recall_memory(state: &mut Value, payload: &Map<String, Value>) -> Result<Valu
     }))
 }
 fn route_prompt(state: &mut Value, payload: &Map<String, Value>) -> Result<Value, String> {
-    let name = clean_token(
-        payload.get("name").and_then(Value::as_str),
-        "workflow_chain-prompt",
-    );
-    let template = clean_text(
-        payload
-            .get("template")
-            .and_then(Value::as_str)
-            .or_else(|| payload.get("prompt").and_then(Value::as_str)),
-        4000,
-    );
+    let name = clean_token(payload.get("name").and_then(Value::as_str), "workflow_chain-prompt");
+    let template = clean_text(payload.get("template").and_then(Value::as_str).or_else(|| payload.get("prompt").and_then(Value::as_str)), 4000);
     if template.is_empty() {
         return Err("workflow_chain_prompt_template_required".to_string());
     }
@@ -133,37 +110,18 @@ fn route_prompt(state: &mut Value, payload: &Map<String, Value>) -> Result<Value
         .and_then(Value::as_object)
         .cloned()
         .unwrap_or_default();
-    let provider = clean_token(
-        payload.get("provider").and_then(Value::as_str),
-        "openai-compatible",
-    );
-    let fallback_provider = clean_token(
-        payload.get("fallback_provider").and_then(Value::as_str),
-        &provider,
-    );
+    let provider = clean_token(payload.get("provider").and_then(Value::as_str), "openai-compatible");
+    let fallback_provider = clean_token(payload.get("fallback_provider").and_then(Value::as_str), &provider);
     let model = clean_token(payload.get("model").and_then(Value::as_str), "gpt-5-mini");
-    let fallback_model = clean_token(
-        payload.get("fallback_model").and_then(Value::as_str),
-        &model,
-    );
+    let fallback_model = clean_token(payload.get("fallback_model").and_then(Value::as_str), &model);
     let profile = clean_token(payload.get("profile").and_then(Value::as_str), "rich");
-    let supported_providers = payload
-        .get("supported_providers")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_else(|| vec![json!("openai-compatible"), json!("local")]);
+    let supported_providers = payload.get("supported_providers").and_then(Value::as_array).cloned().unwrap_or_else(|| vec![json!("openai-compatible"), json!("local")]);
     if !value_array_has_text(&supported_providers, &provider) {
         return Err(format!("workflow_chain_provider_unsupported:{provider}"));
     }
     let local_capable = matches!(provider.as_str(), "local" | "openai-compatible");
     let constrained_profile = matches!(profile.as_str(), "pure" | "tiny-max");
-    let selected_provider = if constrained_profile
-        && !local_capable
-        && supported_providers
-            .iter()
-            .filter_map(Value::as_str)
-            .any(|row| row == fallback_provider)
-    {
+    let selected_provider = if constrained_profile && !local_capable && supported_providers.iter().filter_map(Value::as_str).any(|row| row == fallback_provider) {
         fallback_provider.clone()
     } else {
         provider.clone()
@@ -218,10 +176,7 @@ fn parse_structured_output(
     state: &mut Value,
     payload: &Map<String, Value>,
 ) -> Result<Value, String> {
-    let parser_name = clean_token(
-        payload.get("name").and_then(Value::as_str),
-        "workflow_chain-structured-output",
-    );
+    let parser_name = clean_token(payload.get("name").and_then(Value::as_str), "workflow_chain-structured-output");
     let schema = payload
         .get("schema")
         .and_then(Value::as_object)
@@ -285,11 +240,7 @@ fn parse_structured_output(
         "validated_output": Value::Object(parsed_obj.clone()),
         "recorded_at": now_iso(),
     });
-    let parse_id = record
-        .get("parse_id")
-        .and_then(Value::as_str)
-        .unwrap()
-        .to_string();
+    let parse_id = record.get("parse_id").and_then(Value::as_str).unwrap().to_string();
     as_object_mut(state, "structured_outputs").insert(parse_id, record.clone());
     Ok(json!({
         "ok": true,
@@ -307,12 +258,7 @@ fn checkpoint_run(
     if chain_id.is_empty() {
         return Err("workflow_chain_checkpoint_chain_id_required".to_string());
     }
-    let chain = state
-        .get("chains")
-        .and_then(Value::as_object)
-        .and_then(|rows| rows.get(&chain_id))
-        .cloned()
-        .ok_or_else(|| format!("unknown_workflow_chain_chain:{chain_id}"))?;
+    let chain = state.get("chains").and_then(Value::as_object).and_then(|rows| rows.get(&chain_id)).cloned().ok_or_else(|| format!("unknown_workflow_chain_chain:{chain_id}"))?;
     let runnables = chain
         .get("runnables")
         .and_then(Value::as_array)
@@ -325,10 +271,7 @@ fn checkpoint_run(
         .count();
     let degraded = matches!(profile.as_str(), "pure" | "tiny-max") && parallel_count > 1;
     let swarm_state_path = swarm_state_path(root, argv, payload);
-    let root_session_id = if runnables
-        .iter()
-        .any(|row| row.get("spawn").and_then(Value::as_bool) == Some(true))
-    {
+    let root_session_id = if runnables.iter().any(|row| row.get("spawn").and_then(Value::as_bool) == Some(true)) {
         Some(ensure_session_for_task(
             root,
             &swarm_state_path,
@@ -341,10 +284,7 @@ fn checkpoint_run(
     } else {
         None
     };
-    let state_snapshot = payload
-        .get("state_snapshot")
-        .cloned()
-        .unwrap_or_else(|| json!({}));
+    let state_snapshot = payload.get("state_snapshot").cloned().unwrap_or_else(|| json!({}));
     let record = json!({
         "checkpoint_id": stable_id("langcheckpoint", &json!({"chain_id": chain_id, "profile": profile})),
         "chain_id": chain_id,
@@ -375,15 +315,8 @@ fn record_trace(
     state: &mut Value,
     payload: &Map<String, Value>,
 ) -> Result<Value, String> {
-    let trace_id = clean_token(
-        payload.get("trace_id").and_then(Value::as_str),
-        "workflow_chain-trace",
-    );
-    let steps = payload
-        .get("steps")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default();
+    let trace_id = clean_token(payload.get("trace_id").and_then(Value::as_str), "workflow_chain-trace");
+    let steps = payload.get("steps").and_then(Value::as_array).cloned().unwrap_or_default();
     if steps.is_empty() {
         return Err("workflow_chain_trace_steps_required".to_string());
     }
@@ -409,17 +342,8 @@ fn import_integration(
     state: &mut Value,
     payload: &Map<String, Value>,
 ) -> Result<Value, String> {
-    let name = clean_token(
-        payload.get("name").and_then(Value::as_str),
-        "workflow_chain-integration",
-    );
-    let connector_type = clean_token(
-        payload
-            .get("integration_type")
-            .and_then(Value::as_str)
-            .or_else(|| payload.get("connector_type").and_then(Value::as_str)),
-        "tool",
-    );
+    let name = clean_token(payload.get("name").and_then(Value::as_str), "workflow_chain-integration");
+    let connector_type = clean_token(payload.get("integration_type").and_then(Value::as_str).or_else(|| payload.get("connector_type").and_then(Value::as_str)), "tool");
     if !allowed_connector_type(&connector_type) {
         return Err(format!(
             "workflow_chain_connector_type_unsupported:{connector_type}"
@@ -458,13 +382,7 @@ fn assimilate_intake(
     state: &mut Value,
     payload: &Map<String, Value>,
 ) -> Result<Value, String> {
-    let output_dir = normalize_shell_path(
-        root,
-        payload
-            .get("output_dir")
-            .and_then(Value::as_str)
-            .unwrap_or("client/runtime/local/state/workflow_chain-shell"),
-    )?;
+    let output_dir = normalize_shell_path(root, payload.get("output_dir").and_then(Value::as_str).unwrap_or("client/runtime/local/state/workflow_chain-shell"))?;
     let full = repo_path(root, &output_dir);
     let src_dir = full.join("src");
     let template_dir = full.join("templates");
