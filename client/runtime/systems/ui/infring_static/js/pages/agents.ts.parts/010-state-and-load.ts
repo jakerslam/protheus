@@ -476,7 +476,6 @@ function agentsPage() {
       }
       return null;
     },
-
     formatDurationMs(ms) {
       var raw = Number(ms || 0);
       if (!Number.isFinite(raw) || raw <= 0) return '0m';

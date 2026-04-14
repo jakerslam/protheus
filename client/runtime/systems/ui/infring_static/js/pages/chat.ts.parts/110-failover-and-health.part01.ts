@@ -179,7 +179,6 @@
 
       step();
     },
-
     _reconcileSendingState: function() {
       if (!this.sending) return false;
       var rows = Array.isArray(this.messages) ? this.messages : [];
@@ -191,8 +190,6 @@
         if (row.thinking || row.streaming || (row.terminal && row.thinking)) {
           var activityAt = Number(row._stream_updated_at || row.ts || 0);
           var ageMs = activityAt > 0 ? Math.max(0, now - activityAt) : 0;
-          // Keep pending rows pending while transport recovers; do not emit
-          // premature fallback assistant messages for long-running thoughts.
           hasVisiblePending = true;
         }
       }
@@ -225,8 +222,6 @@
           if (!this._pendingWsRecovering) {
             this._recoverPendingWsRequest('stale_pending');
           }
-          // Keep long-running tasks in pending state; do not clear visible thinking
-          // unless we crossed a true hard-stale boundary.
           if (pendingAgeMs >= 900000) {
             this._clearPendingWsRequest();
             hasPendingWs = false;
@@ -234,8 +229,6 @@
         }
       }
       if (hasVisiblePending || hasPendingWs) {
-        // Keep sidebar/profile working indicators alive while a visible thinking
-        // row still exists. This prevents spinner/pulse dropout on long steps.
         var keepBusyAgentId = '';
         if (pending && pending.agent_id) keepBusyAgentId = String(pending.agent_id || '').trim();
         if (!keepBusyAgentId) keepBusyAgentId = String(this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '').trim();
@@ -249,7 +242,6 @@
       this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '', 'idle');
       return true;
     },
-
     _setPendingWsRequest: function(agentId, messageText) {
       var id = String(agentId || '').trim();
       if (!id) return;
@@ -328,7 +320,6 @@
           return true;
         }
       }
-
       return false;
     },
 
@@ -346,7 +337,6 @@
         var hasToolPayload = Array.isArray(msg.tools) && msg.tools.length > 0;
         if (!text && !hasToolPayload) continue;
         if (msg._auto_fallback) continue;
-        // Ignore placeholder-style recoveries that are effectively empty.
         if (text && /^thinking\.\.\.$/i.test(text)) continue;
         var ts = Number(msg.ts || 0);
         if (started > 0 && ts > 0 && (ts + skewToleranceMs) < started) continue;
@@ -462,7 +452,6 @@
           resolved = true;
         }
         if (!resolved && this._recentAgentReplyObserved(localRows, Math.max(0, startedAt - 120000))) {
-          // Guard against timestamp skew between WS drop detection and session replay.
           resolved = true;
         }
         if (!resolved && this._hasAgentReplyAfterLatestUser(localRows)) {

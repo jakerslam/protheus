@@ -12,7 +12,7 @@
     "core_rust": 500,
     "other_rust": 1000
   },
-  "exception_count_ceiling": 203,
+  "exception_count_ceiling": 192,
   "generated_at": "2026-03-27T02:13:14.058Z",
   "exceptions": [
     {
@@ -46,14 +46,6 @@
       "expires": "2026-05-15",
       "task_id": "TD-SIZE-UI-CLASSIC",
       "planned_batch_date": "2026-05-15"
-    },
-    {
-      "path": "client/runtime/systems/ui/infring_static/vendor/highlight.min.ts",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-05-15",
-      "task_id": "TD-SIZE-VENDORED",
-      "planned_batch_date": "2026-04-23"
     },
     {
       "path": "core/layer0/memory_runtime/src/db.rs",
@@ -1328,62 +1320,6 @@
       "planned_batch_date": "2026-04-23"
     },
     {
-      "path": "client/runtime/systems/ui/infring_static/css/components.css",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-05-15",
-      "task_id": "TD-SIZE-UI-CLASSIC",
-      "planned_batch_date": "2026-05-15"
-    },
-    {
-      "path": "client/runtime/systems/ui/infring_static/css/components.css.parts/0002-components-part.part01.css",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-05-15",
-      "task_id": "TD-SIZE-UI-CLASSIC",
-      "planned_batch_date": "2026-05-15"
-    },
-    {
-      "path": "client/runtime/systems/ui/infring_static/css/layout.css",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-05-15",
-      "task_id": "TD-SIZE-UI-CLASSIC",
-      "planned_batch_date": "2026-05-15"
-    },
-    {
-      "path": "client/runtime/systems/ui/infring_static/css/layout.css.parts/0001-layout-part.part01.css",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-05-15",
-      "task_id": "TD-SIZE-UI-CLASSIC",
-      "planned_batch_date": "2026-05-15"
-    },
-    {
-      "path": "client/runtime/systems/ui/infring_static/index_body.html",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-05-15",
-      "task_id": "TD-SIZE-UI-CLASSIC",
-      "planned_batch_date": "2026-05-15"
-    },
-    {
-      "path": "client/runtime/systems/ui/infring_static/index_body.html.parts/0001-body-part.part01.html",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-05-15",
-      "task_id": "TD-SIZE-UI-CLASSIC",
-      "planned_batch_date": "2026-05-15"
-    },
-    {
-      "path": "client/runtime/systems/ui/infring_static/js/pages/agents.ts.parts/010-state-and-load.ts",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-05-15",
-      "task_id": "TD-SIZE-UI-CLASSIC",
-      "planned_batch_date": "2026-05-15"
-    },
-    {
       "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/020-init-roles-and-vibes.part01.ts",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
@@ -1400,14 +1336,6 @@
       "planned_batch_date": "2026-05-15"
     },
     {
-      "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/040-models-and-cache.part02.ts",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-05-15",
-      "task_id": "TD-SIZE-UI-CLASSIC",
-      "planned_batch_date": "2026-05-15"
-    },
-    {
       "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/050-conversation-cache.ts",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
@@ -1417,14 +1345,6 @@
     },
     {
       "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/090-init-hooks-and-shortcuts.part01.ts",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-05-15",
-      "task_id": "TD-SIZE-UI-CLASSIC",
-      "planned_batch_date": "2026-05-15"
-    },
-    {
-      "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/110-failover-and-health.part01.ts",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
       "expires": "2026-05-15",
@@ -1481,14 +1401,6 @@
     },
     {
       "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/200-send-pipeline.part01.ts",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-05-15",
-      "task_id": "TD-SIZE-UI-CLASSIC",
-      "planned_batch_date": "2026-05-15"
-    },
-    {
-      "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/210-scroll-hover-sanitize.part01.ts",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
       "expires": "2026-05-15",
