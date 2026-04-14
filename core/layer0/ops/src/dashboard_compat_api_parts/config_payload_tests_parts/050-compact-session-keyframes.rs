@@ -240,3 +240,63 @@ fn session_compaction_can_persist_when_explicitly_enabled() {
     let after_count = all_session_messages(&after).len();
     assert_eq!(after_count < before_count, true);
 }
+
+#[test]
+fn comms_events_endpoint_supports_kind_filter_and_contract_metadata() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let snapshot = json!({"ok": true});
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/comms/task",
+        br#"{"title":"Emit event","description":"for event filtering"}"#,
+        &snapshot,
+    )
+    .expect("create task");
+    assert_eq!(created.status, 200);
+    let task_id = created
+        .payload
+        .pointer("/task/id")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    assert!(!task_id.is_empty());
+
+    let events = handle(
+        root.path(),
+        "GET",
+        &format!("/api/comms/events?kind=task_posted&task_id={task_id}"),
+        &[],
+        &snapshot,
+    )
+    .expect("events");
+    assert_eq!(events.status, 200);
+    assert_eq!(
+        events
+            .payload
+            .get("contract_version")
+            .and_then(Value::as_str),
+        Some("dashboard_comms_v1")
+    );
+    let rows = events
+        .payload
+        .get("events")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    assert!(!rows.is_empty());
+    assert!(rows.iter().all(|row| {
+        row.get("kind")
+            .and_then(Value::as_str)
+            .map(|kind| kind.eq_ignore_ascii_case("task_posted"))
+            .unwrap_or(false)
+    }));
+    assert_eq!(
+        events
+            .payload
+            .get("total_count")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+            >= rows.len() as u64,
+        true
+    );
+}
