@@ -1,9 +1,6 @@
 fn set_config_payload(root: &Path, snapshot: &Value, request: &Value) -> Value {
-    let path = clean_text(
-        request.get("path").and_then(Value::as_str).unwrap_or(""),
-        120,
-    )
-    .to_ascii_lowercase();
+    let path =
+        clean_text(request.get("path").and_then(Value::as_str).unwrap_or(""), 120).to_ascii_lowercase();
     let string_value = clean_text(
         request
             .get("value")
@@ -58,10 +55,8 @@ fn extract_profiles(root: &Path) -> Vec<Value> {
         .map(|obj| obj.values().map(|v| v.clone()).collect::<Vec<Value>>())
         .unwrap_or_default();
     rows.sort_by(|a, b| {
-        clean_text(a.get("agent_id").and_then(Value::as_str).unwrap_or(""), 120).cmp(&clean_text(
-            b.get("agent_id").and_then(Value::as_str).unwrap_or(""),
-            120,
-        ))
+        clean_text(a.get("agent_id").and_then(Value::as_str).unwrap_or(""), 120)
+            .cmp(&clean_text(b.get("agent_id").and_then(Value::as_str).unwrap_or(""), 120))
     });
     rows
 }
@@ -265,19 +260,7 @@ fn attach_tool_pipeline(payload: &mut Value, pipeline: &Value) {
 }
 
 fn tool_pipeline_supported_tool(tool_name: &str) -> bool {
-    matches!(
-        normalize_tool_name(tool_name).as_str(),
-        "web_search"
-            | "web_fetch"
-            | "batch_query"
-            | "file_read"
-            | "file_read_many"
-            | "folder_export"
-            | "manage_agent"
-            | "spawn_subagents"
-            | "terminal_exec"
-            | "workspace_analyze"
-    )
+    matches!(normalize_tool_name(tool_name).as_str(), "web_search" | "web_fetch" | "batch_query" | "file_read" | "file_read_many" | "folder_export" | "manage_agent" | "spawn_subagents" | "terminal_exec" | "workspace_analyze")
 }
 
 fn parse_json_loose(raw: &str) -> Option<Value> {
@@ -377,10 +360,7 @@ fn agent_instinct_prompt_context(root: &Path, max_chars: usize) -> String {
 }
 
 fn requester_agent_id(headers: &[(&str, &str)]) -> String {
-    let primary = header_value(headers, "X-Actor-Agent-Id")
-        .or_else(|| header_value(headers, "X-Agent-Id"))
-        .or_else(|| header_value(headers, "X-Requester-Agent-Id"))
-        .unwrap_or_default();
+    let primary = header_value(headers, "X-Actor-Agent-Id").or_else(|| header_value(headers, "X-Agent-Id")).or_else(|| header_value(headers, "X-Requester-Agent-Id")).unwrap_or_default();
     clean_agent_id(&primary)
 }
 
@@ -388,10 +368,7 @@ fn parent_agent_id_from_row(row: &Value) -> String {
     clean_agent_id(
         row.get("parent_agent_id")
             .and_then(Value::as_str)
-            .or_else(|| {
-                row.pointer("/contract/parent_agent_id")
-                    .and_then(Value::as_str)
-            })
+            .or_else(|| row.pointer("/contract/parent_agent_id").and_then(Value::as_str))
             .unwrap_or(""),
     )
 }
@@ -437,10 +414,7 @@ fn message_timestamp_iso(row: &Value) -> String {
             return parsed.to_rfc3339();
         }
     }
-    clean_text(
-        row.get("created_at").and_then(Value::as_str).unwrap_or(""),
-        80,
-    )
+    clean_text(row.get("created_at").and_then(Value::as_str).unwrap_or(""), 80)
 }
 
 fn humanize_agent_name(agent_id: &str) -> String {
@@ -496,15 +470,7 @@ fn default_session_state(agent_id: &str) -> Value {
         "type": "infring_dashboard_agent_session",
         "agent_id": clean_agent_id(agent_id),
         "active_session_id": "default",
-        "sessions": [
-            {
-                "session_id": "default",
-                "label": "Session",
-                "created_at": now,
-                "updated_at": now,
-                "messages": []
-            }
-        ],
+        "sessions": [{"session_id": "default", "label": "Session", "created_at": now, "updated_at": now, "messages": []}],
         "memory_kv": {}
     })
 }
