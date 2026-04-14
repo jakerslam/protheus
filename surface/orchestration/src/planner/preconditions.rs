@@ -42,6 +42,24 @@ fn traverse_bool(value: &Value, path: &[&str]) -> Option<bool> {
     cursor.as_bool()
 }
 
+fn fail_closed_on_missing_probe_for_adapted_surface(
+    request: &TypedOrchestrationRequest,
+    capability: &Capability,
+    probe_name: &str,
+) -> Option<(bool, String)> {
+    if request.adapted && !matches!(request.surface, crate::contracts::RequestSurface::Legacy) {
+        return Some((
+            false,
+            format!(
+                "probe.required_for_adapted_surface.{}.{}",
+                capability_key(capability),
+                probe_name
+            ),
+        ));
+    }
+    None
+}
+
 fn tool_available(request: &TypedOrchestrationRequest, capability: &Capability) -> (bool, String) {
     let key = capability_key(capability);
     if let Some(value) = probe_bool(request, &[key, "tool_available"], "tool_available") {
@@ -139,6 +157,11 @@ fn policy_allows(request: &TypedOrchestrationRequest, capability: &Capability) -
             format!("probe.capability_probes.{key}.policy_allows"),
         );
     }
+    if let Some(required) =
+        fail_closed_on_missing_probe_for_adapted_surface(request, capability, "policy_allows")
+    {
+        return required;
+    }
     (true, "heuristic.policy_default_allow".to_string())
 }
 
@@ -156,6 +179,11 @@ fn transport_available(
             value,
             format!("probe.capability_probes.{key}.transport_available"),
         );
+    }
+    if let Some(required) =
+        fail_closed_on_missing_probe_for_adapted_surface(request, capability, "transport_available")
+    {
+        return required;
     }
     (true, "heuristic.transport_default_available".to_string())
 }
