@@ -212,16 +212,16 @@ fn policy_allows(request: &TypedOrchestrationRequest, capability: &Capability) -
     if let Some(value) = envelope_probe_bool(request, key, Some("policy_allows")) {
         return (value, envelope_probe_source(key, "policy_allows"));
     }
+    if let Some(required) =
+        fail_closed_on_missing_probe_for_adapted_surface(request, capability, "policy_allows")
+    {
+        return required;
+    }
     if let Some(value) = probe_bool(request, &[key, "policy_allows"], "policy_allows") {
         return (
             value,
             format!("probe.capability_probes.{key}.policy_allows"),
         );
-    }
-    if let Some(required) =
-        fail_closed_on_missing_probe_for_adapted_surface(request, capability, "policy_allows")
-    {
-        return required;
     }
     (true, "heuristic.policy_default_allow".to_string())
 }
@@ -234,6 +234,11 @@ fn transport_available(
     if let Some(value) = envelope_probe_bool(request, key, Some("transport_available")) {
         return (value, envelope_probe_source(key, "transport_available"));
     }
+    if let Some(required) =
+        fail_closed_on_missing_probe_for_adapted_surface(request, capability, "transport_available")
+    {
+        return required;
+    }
     if let Some(value) = probe_bool(
         request,
         &[key, "transport_available"],
@@ -243,11 +248,6 @@ fn transport_available(
             value,
             format!("probe.capability_probes.{key}.transport_available"),
         );
-    }
-    if let Some(required) =
-        fail_closed_on_missing_probe_for_adapted_surface(request, capability, "transport_available")
-    {
-        return required;
     }
     (true, "heuristic.transport_default_available".to_string())
 }

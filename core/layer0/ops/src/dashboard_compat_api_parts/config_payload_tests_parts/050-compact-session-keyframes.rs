@@ -300,3 +300,44 @@ fn comms_events_endpoint_supports_kind_filter_and_contract_metadata() {
         true
     );
 }
+
+#[test]
+fn templates_listing_includes_new_starter_roles() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let payload = handle(root.path(), "GET", "/api/templates", &[], &json!({"ok": true}))
+        .expect("templates list");
+    assert_eq!(payload.status, 200);
+    let rows = payload
+        .payload
+        .get("templates")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    assert!(rows
+        .iter()
+        .any(|row| row.get("id").and_then(Value::as_str) == Some("travel-assistant")));
+    assert!(rows
+        .iter()
+        .any(|row| row.get("id").and_then(Value::as_str) == Some("real-estate-agent")));
+}
+
+#[test]
+fn template_detail_returns_manifest_toml_for_spawn_flow() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let payload = handle(
+        root.path(),
+        "GET",
+        "/api/templates/travel-assistant",
+        &[],
+        &json!({"ok": true}),
+    )
+    .expect("template detail");
+    assert_eq!(payload.status, 200);
+    let manifest = payload
+        .payload
+        .get("manifest_toml")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    assert!(manifest.contains("role = \"travel_assistant\""));
+    assert!(manifest.contains("[model]"));
+}

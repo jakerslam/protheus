@@ -353,6 +353,53 @@ fn chain_for_variant(
         }
     }
 
+    match variant {
+        PlanVariant::Fastest => match capability {
+            Capability::ReadMemory => {
+                return (
+                    filter_steps_by_contract(
+                        spec.primary_steps.as_slice(),
+                        &[CoreContractCall::ContextTopologyMaterialize],
+                    ),
+                    false,
+                    false,
+                );
+            }
+            Capability::VerifyClaim => {
+                return (
+                    filter_steps_by_contract(
+                        spec.primary_steps.as_slice(),
+                        &[CoreContractCall::VerifierRequest],
+                    ),
+                    false,
+                    false,
+                );
+            }
+            _ => {}
+        },
+        PlanVariant::DegradedFallback => match capability {
+            Capability::ExecuteTool | Capability::VerifyClaim
+                if !spec.degraded_steps.is_empty() =>
+            {
+                if request.adapted
+                    && !matches!(request.surface, crate::contracts::RequestSurface::Legacy)
+                {
+                    return (spec.degraded_steps.clone(), true, false);
+                }
+            }
+            _ => {}
+        },
+        PlanVariant::ClarificationFirst => {
+            if matches!(
+                capability,
+                Capability::ExecuteTool | Capability::MutateTask | Capability::PlanAssimilation
+            ) {
+                return (Vec::new(), false, true);
+            }
+        }
+        PlanVariant::Safest => {}
+    }
+
     let using_degraded = !probe.blocked_on.is_empty()
         && probe.can_degrade
         && !spec.degraded_steps.is_empty()

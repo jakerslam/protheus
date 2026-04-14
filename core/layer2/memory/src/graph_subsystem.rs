@@ -307,7 +307,11 @@ impl KnowledgeGraph {
         node.metadata = metadata;
         node.updated_at_ms = now;
         for version_id in evidence_version_ids {
-            if !node.evidence_version_ids.iter().any(|row| row == &version_id) {
+            if !node
+                .evidence_version_ids
+                .iter()
+                .any(|row| row == &version_id)
+            {
                 node.evidence_version_ids.push(version_id);
             }
         }
@@ -391,7 +395,10 @@ impl KnowledgeGraph {
                 Some((score, node.clone()))
             })
             .collect::<Vec<(i64, KnowledgeGraphNode)>>();
-        scored.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.entity_id.cmp(&b.1.entity_id)));
+        scored.sort_by(|a, b| {
+            b.0.cmp(&a.0)
+                .then_with(|| a.1.entity_id.cmp(&b.1.entity_id))
+        });
         scored
             .into_iter()
             .take(8)
@@ -437,9 +444,11 @@ impl KnowledgeGraph {
         if let Some(node) = self.nodes.get(entity_id) {
             out.extend(node.evidence_version_ids.clone());
         }
-        for edge in self.edges.iter().filter(|edge| {
-            edge.source_entity_id == entity_id || edge.target_entity_id == entity_id
-        }) {
+        for edge in self
+            .edges
+            .iter()
+            .filter(|edge| edge.source_entity_id == entity_id || edge.target_entity_id == entity_id)
+        {
             out.extend(edge.evidence_version_ids.clone());
         }
         let mut deduped = BTreeSet::new();

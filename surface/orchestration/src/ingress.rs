@@ -75,8 +75,8 @@ pub fn normalize_request(input: OrchestrationRequest) -> ParseResult {
         .as_ref()
         .map(|row| row.reasons.clone())
         .unwrap_or_default();
-    let core_probe_envelope = extract_core_probe_envelope(&payload);
-    let core_execution_observation = extract_core_execution_observation(&payload);
+    let core_probe_envelope = extract_core_probe_envelope(&payload, surface);
+    let core_execution_observation = extract_core_execution_observation(&payload, surface);
 
     classifier::parse_diagnostics(
         TypedOrchestrationRequest {
@@ -329,13 +329,16 @@ fn extract_tool_hints_from_object(obj: &Map<String, Value>) -> Vec<String> {
     hints
 }
 
-fn extract_core_probe_envelope(payload: &Value) -> Option<CoreProbeEnvelope> {
+fn extract_core_probe_envelope(
+    payload: &Value,
+    surface: RequestSurface,
+) -> Option<CoreProbeEnvelope> {
     let mut probes = if let Some(explicit) = payload.get("core_probe_envelope") {
         parse_capability_probe_rows(explicit)
     } else {
         Vec::new()
     };
-    if probes.is_empty() {
+    if probes.is_empty() && matches!(surface, RequestSurface::Legacy) {
         if let Some(compat) = payload
             .get("capability_probes")
             .or_else(|| payload.get("probes"))
@@ -418,10 +421,17 @@ fn parse_capability_name(value: &str) -> Option<Capability> {
     }
 }
 
-fn extract_core_execution_observation(payload: &Value) -> Option<CoreExecutionObservation> {
-    let value = payload
-        .get("core_execution_observation")
-        .or_else(|| payload.get("core_execution"))?;
+fn extract_core_execution_observation(
+    payload: &Value,
+    surface: RequestSurface,
+) -> Option<CoreExecutionObservation> {
+    let value = if matches!(surface, RequestSurface::Legacy) {
+        payload
+            .get("core_execution_observation")
+            .or_else(|| payload.get("core_execution"))?
+    } else {
+        payload.get("core_execution_observation")?
+    };
     let status = value
         .get("status")
         .and_then(Value::as_str)
@@ -440,6 +450,11 @@ fn extract_core_execution_observation(payload: &Value) -> Option<CoreExecutionOb
         .get("step_statuses")
         .map(parse_step_observations)
         .unwrap_or_default();
+    let has_provenance =
+        !receipt_ids.is_empty() || !outcome_refs.is_empty() || !step_statuses.is_empty();
+    if !matches!(surface, RequestSurface::Legacy) && status.is_some() && !has_provenance {
+        return None;
+    }
     if status.is_none()
         && receipt_ids.is_empty()
         && outcome_refs.is_empty()
@@ -574,5 +589,100 @@ mod tests {
             .reasons
             .iter()
             .any(|row| row == "surface_adapter:sdk"));
+    }
+
+    #[test]
+    fn legacy_surface_accepts_core_execution_compat_alias() {
+        let observed = extract_core_execution_observation(
+            &json!({
+                "core_execution": {
+                    "status": "completed",
+                    "receipt_ids": ["r1"]
+                }
+            }),
+            RequestSurface::Legacy,
+        )
+        .expect("legacy surface should keep compat alias");
+        assert_eq!(observed.plan_status, Some(PlanStatus::Completed));
+        assert_eq!(observed.receipt_ids, vec!["r1".to_string()]);
+    }
+
+    #[test]
+    fn non_legacy_surface_rejects_core_execution_compat_alias() {
+        let observed = extract_core_execution_observation(
+            &json!({
+                "core_execution": {
+                    "status": "completed",
+                    "receipt_ids": ["r1"]
+                }
+            }),
+            RequestSurface::Sdk,
+        );
+        assert!(observed.is_none());
+    }
+
+    #[test]
+    fn non_legacy_surface_rejects_status_only_observation_shortcut() {
+        let observed = extract_core_execution_observation(
+            &json!({
+                "core_execution_observation": {
+                    "status": "running"
+                }
+            }),
+            RequestSurface::Sdk,
+        );
+        assert!(
+            observed.is_none(),
+            "non-legacy execution observation must include provenance signals"
+        );
+    }
+
+    #[test]
+    fn non_legacy_surface_accepts_observation_with_provenance() {
+        let observed = extract_core_execution_observation(
+            &json!({
+                "core_execution_observation": {
+                    "status": "running",
+                    "receipt_ids": ["r1"]
+                }
+            }),
+            RequestSurface::Sdk,
+        )
+        .expect("typed observation with provenance should be accepted");
+        assert_eq!(observed.plan_status, Some(PlanStatus::Running));
+        assert_eq!(observed.receipt_ids, vec!["r1".to_string()]);
+    }
+
+    #[test]
+    fn non_legacy_surface_rejects_capability_probe_compat_shortcut() {
+        let envelope = extract_core_probe_envelope(
+            &json!({
+                "capability_probes": {
+                    "execute_tool": {
+                        "transport_available": true
+                    }
+                }
+            }),
+            RequestSurface::Sdk,
+        );
+        assert!(envelope.is_none());
+    }
+
+    #[test]
+    fn legacy_surface_accepts_capability_probe_compat_shortcut() {
+        let envelope = extract_core_probe_envelope(
+            &json!({
+                "capability_probes": {
+                    "execute_tool": {
+                        "transport_available": true
+                    }
+                }
+            }),
+            RequestSurface::Legacy,
+        )
+        .expect("legacy probe compatibility path should remain available");
+        assert_eq!(envelope.probes.len(), 1);
+        assert_eq!(envelope.probes[0].capability, Capability::ExecuteTool);
+        assert_eq!(envelope.probes[0].transport_available, Some(true));
     }
 }

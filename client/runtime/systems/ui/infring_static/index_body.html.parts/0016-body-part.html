@@ -136,6 +136,7 @@
                     <div class="comms-topo-node" :title="root.id">
                       <span :class="stateBadgeClass(root.state)" style="font-size:10px;padding:1px 6px" x-text="root.state"></span>
                       <strong x-text="root.name" style="margin:0 4px"></strong>
+                      <span class="badge badge-info" x-show="isFairyNode(root)" style="font-size:9px;padding:1px 6px;margin-right:4px">FAIRY</span>
                       <span class="text-dim" x-text="root.model"></span>
                       <template x-for="peer in peersOf(root.id)" :key="peer.id">
                         <span class="text-dim" style="margin-left:8px" x-text="'\u2194 ' + peer.name"></span>
@@ -146,6 +147,7 @@
                         <span class="comms-topo-branch" x-text="ci < childrenOf(root.id).length - 1 ? '\u251c\u2500\u2500 ' : '\u2514\u2500\u2500 '"></span>
                         <span :class="stateBadgeClass(child.state)" style="font-size:10px;padding:1px 6px" x-text="child.state"></span>
                         <strong x-text="child.name" style="margin:0 4px"></strong>
+                        <span class="badge badge-info" x-show="isFairyNode(child)" style="font-size:9px;padding:1px 6px;margin-right:4px">FAIRY</span>
                         <span class="text-dim" x-text="child.model"></span>
                       </div>
                     </template>

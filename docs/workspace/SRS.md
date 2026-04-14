@@ -15461,13 +15461,15 @@ Source summary:
   - Capability planning uses explicit per-capability probe results instead of one global blocked/degraded mood.
   - Orchestration normalization accepts a typed `core_probe_envelope` and planning prefers that explicit probe contract over raw payload-shaped probe conventions.
   - Adapted `Cli` / `Gateway` / `Sdk` / `Dashboard` requests fail closed on missing `policy_allows` and `transport_available` probes instead of defaulting those preconditions to success; legacy compatibility requests may still use heuristic fallback.
+  - Adapted `Cli` / `Gateway` / `Sdk` / `Dashboard` requests fail closed on missing governed probe fields (`policy_allows`, `transport_available`) and must source these from `core_probe_envelope`, not payload-level probe shims.
   - `VerifyClaim` routes through a first-class verifier contract instead of collapsing to memory read only.
   - Result packaging exposes `ExecutionState` with `plan_status`, per-step status, structured recovery/degradation data, and core-correlation fields while retaining `progress_message` only as a rendered projection.
-  - Execution progress consumes a typed `core_execution_observation` contract instead of reading execution status, receipts, and outcomes from arbitrary payload keys.
+  - Execution progress consumes a typed `core_execution_observation` contract by default; when an observation exists, step status projection does not infer success/failure from plan status alone.
   - Shared merged steps preserve multiple `expected_contract_refs` when capabilities collapse onto the same core contract.
-  - Comparative plan variants must preserve at least two structurally distinct step sequences across `selected_plan` plus `alternative_plans`.
+  - Plan variants must preserve at least two structurally distinct step sequences for both comparative and direct tool-call requests across `selected_plan` plus `alternative_plans`.
+  - For explicit live-web intent, if the initial model draft omits inline tool calls, orchestration still executes latent web candidates (`batch_query`) so final synthesis is grounded in actual tool outcomes.
   - Recovery distinguishes missing target, invalid target syntax, and target-not-found instead of flattening all target issues into one reason.
-  - Execution correlation accepts typed `core_execution_observation` payloads (`status`, receipt ids, outcome refs, and per-step status maps), with nested `core_execution` retained only as compatibility input to normalization.
+  - Execution correlation accepts typed `core_execution_observation` payloads (`status`, receipt ids, outcome refs, and per-step status maps); nested `core_execution` compatibility input is legacy-surface only, and non-legacy surfaces must not accept status-only observation shortcuts without provenance fields.
   - The same comparative request can produce different plans when transport/tool availability changes.
 - Regression evidence pointers:
   - `surface/orchestration/src/contracts.rs`
@@ -15501,6 +15503,36 @@ Source summary:
   - `npm run -s ops:orchestration:hidden-state:guard`
   - `npm run -s ops:orchestration:ts-boundary:guard`
   - `npm run -s ops:orchestration:contract:guard`
+
+### V11-MEMORY-010 — Topology Materialization Background Compaction Tick
+
+- Intent:
+  - Ensure hierarchical context topology can compact sealed spans during materialization cycles (not only append-time), while preserving receipt-first lineage semantics.
+- Acceptance criteria:
+  - Context topology exposes a sealed-span compaction tick that never compacts active spans.
+  - Topology materialization runs the compaction tick before frontier assembly.
+  - Materialization-emitted rollups produce `context_span_rollup` receipts with span coverage metadata.
+- Regression evidence pointers:
+  - `core/layer2/memory/src/context_topology.rs`
+  - `core/layer2/memory/src/heap_workflows.rs`
+  - `core/layer2/memory/src/context_topology_heap_tests.rs`
+  - `cargo test --manifest-path core/layer2/memory/Cargo.toml context_topology_heap_tests -- --nocapture`
+
+### V11-DASH-004 — Dashboard Template Contract + Comms Topology Rendering Coherence
+
+- Intent:
+  - Stabilize dashboard starter-template flows and comms topology rendering so template spawning and coordination view behavior are contract-consistent.
+- Acceptance criteria:
+  - `/api/templates` returns an authoritative starter catalog that includes travel and real-estate starters.
+  - `/api/templates/{id}` returns `manifest_toml` and template metadata for spawn flows.
+  - Comms UI normalizes topology/event payload contracts (`{nodes,edges}` and `{events:[...]}`) before rendering.
+  - Comms topology marks fairy agents explicitly via a deterministic badge heuristic.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/late_b.rs`
+  - `core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/050-compact-session-keyframes.rs`
+  - `client/runtime/systems/ui/infring_static/js/pages/comms.ts`
+  - `client/runtime/systems/ui/infring_static/index_body.html.parts/0016-body-part.html`
+  - `client/runtime/systems/ui/infring_static/js/pages/agents.ts.parts/030-actions-and-ops.ts`
 
 ### V11-SDK-003 — Resident IPC Only Production SDK Transport Surface
 
