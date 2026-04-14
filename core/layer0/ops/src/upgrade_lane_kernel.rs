@@ -61,8 +61,7 @@ fn print_json_line(value: &Value) {
 
 fn payload_json(argv: &[String]) -> Result<Value, String> {
     if let Some(raw) = lane_utils::parse_flag(argv, "payload", false) {
-        return serde_json::from_str::<Value>(&raw)
-            .map_err(|err| format!("upgrade_lane_kernel_payload_decode_failed:{err}"));
+        return serde_json::from_str::<Value>(&raw).map_err(|err| format!("upgrade_lane_kernel_payload_decode_failed:{err}"));
     }
     if let Some(raw_b64) = lane_utils::parse_flag(argv, "payload-base64", false) {
         let bytes = BASE64_STANDARD
@@ -70,8 +69,7 @@ fn payload_json(argv: &[String]) -> Result<Value, String> {
             .map_err(|err| format!("upgrade_lane_kernel_payload_base64_decode_failed:{err}"))?;
         let text = String::from_utf8(bytes)
             .map_err(|err| format!("upgrade_lane_kernel_payload_utf8_decode_failed:{err}"))?;
-        return serde_json::from_str::<Value>(&text)
-            .map_err(|err| format!("upgrade_lane_kernel_payload_decode_failed:{err}"));
+        return serde_json::from_str::<Value>(&text).map_err(|err| format!("upgrade_lane_kernel_payload_decode_failed:{err}"));
     }
     Ok(json!({}))
 }
@@ -209,9 +207,7 @@ fn normalized_policy_value(root: &Path, payload: &Map<String, Value>) -> Normali
     let raw_policy_obj = payload_obj(&raw_policy);
     let payload_paths = as_object(payload.get("paths")).cloned().unwrap_or_default();
     let base_paths = as_object(opts.get("paths")).cloned().unwrap_or_default();
-    let raw_paths = as_object(raw_policy_obj.get("paths"))
-        .cloned()
-        .unwrap_or_default();
+    let raw_paths = as_object(raw_policy_obj.get("paths")).cloned().unwrap_or_default();
     let default_paths = [
         ("memory_dir", DEFAULT_MEMORY_DIR),
         ("adaptive_index_path", DEFAULT_ADAPTIVE_INDEX_PATH),
@@ -229,9 +225,7 @@ fn normalized_policy_value(root: &Path, payload: &Map<String, Value>) -> Normali
         resolve_path(root, &as_str(Some(&selected)))
     };
 
-    let event_stream_obj = as_object(raw_policy_obj.get("event_stream"))
-        .cloned()
-        .unwrap_or_default();
+    let event_stream_obj = as_object(raw_policy_obj.get("event_stream")).cloned().unwrap_or_default();
     NormalizedPolicy {
         enabled: raw_policy_obj
             .get("enabled")
@@ -241,15 +235,7 @@ fn normalized_policy_value(root: &Path, payload: &Map<String, Value>) -> Normali
             .get("strict_default")
             .map(|v| to_bool(Some(v), true))
             .unwrap_or(true),
-        owner_id: normalize_token(
-            &clean_text(
-                raw_policy_obj
-                    .get("owner_id")
-                    .or_else(|| opts.get("owner_id")),
-                120,
-            ),
-            120,
-        ),
+        owner_id: normalize_token(&clean_text(raw_policy_obj.get("owner_id").or_else(|| opts.get("owner_id")), 120), 120),
         event_stream_enabled: event_stream_obj
             .get("enabled")
             .map(|v| to_bool(Some(v), true))
@@ -337,13 +323,7 @@ fn status_value(root: &Path, payload: &Map<String, Value>) -> Value {
         "ts": now_iso(),
         "latest": lane_utils::read_json(&policy.latest_path).unwrap_or_else(|| json!({})),
         "policy_path": rel(root, &policy.policy_path),
-        "artifacts": {
-            "memory_dir": rel(root, &policy.memory_dir),
-            "adaptive_index_path": rel(root, &policy.adaptive_index_path),
-            "events_path": rel(root, &policy.events_path),
-            "latest_path": rel(root, &policy.latest_path),
-            "receipts_path": rel(root, &policy.receipts_path)
-        }
+        "artifacts": {"memory_dir": rel(root, &policy.memory_dir), "adaptive_index_path": rel(root, &policy.adaptive_index_path), "events_path": rel(root, &policy.events_path), "latest_path": rel(root, &policy.latest_path), "receipts_path": rel(root, &policy.receipts_path)}
     })
 }
 
@@ -371,16 +351,9 @@ fn record_value(root: &Path, payload: &Map<String, Value>) -> Result<Value, Stri
         .get("apply")
         .map(|v| to_bool(Some(v), true))
         .unwrap_or(true);
-    let record_args = as_object(payload.get("record_args"))
-        .cloned()
-        .unwrap_or_default();
+    let record_args = as_object(payload.get("record_args")).cloned().unwrap_or_default();
     let payload_value = parse_json_loose(record_args.get("payload_json"));
-    let owner_raw = record_args
-        .get("owner")
-        .or_else(|| payload.get("owner"))
-        .map(|value| clean_text(Some(value), 120))
-        .filter(|value| !value.is_empty())
-        .unwrap_or_else(|| policy.owner_id.clone());
+    let owner_raw = record_args.get("owner").or_else(|| payload.get("owner")).map(|value| clean_text(Some(value), 120)).filter(|value| !value.is_empty()).unwrap_or_else(|| policy.owner_id.clone());
     let owner = normalize_token(&owner_raw, 120);
     let owner = if owner.is_empty() {
         "system".to_string()
@@ -388,13 +361,7 @@ fn record_value(root: &Path, payload: &Map<String, Value>) -> Result<Value, Stri
         owner
     };
     let event = {
-        let token = normalize_token(
-            &clean_text(
-                record_args.get("event").or_else(|| payload.get("event")),
-                160,
-            ),
-            160,
-        );
+        let token = normalize_token(&clean_text(record_args.get("event").or_else(|| payload.get("event")), 160), 160);
         if token.is_empty() {
             format!("{}_{}", lane_type, action)
         } else {
@@ -443,17 +410,7 @@ fn record_value(root: &Path, payload: &Map<String, Value>) -> Result<Value, Stri
         "script": script_value,
         "payload": payload_value
     });
-    out["receipt_hash"] = Value::String(stable_hash(
-        &serde_json::to_string(&json!({
-            "lane_id": out.get("lane_id").cloned().unwrap_or(Value::Null),
-            "event": out.get("event").cloned().unwrap_or(Value::Null),
-            "ts": out.get("ts").cloned().unwrap_or(Value::Null),
-            "owner": out.get("owner").cloned().unwrap_or(Value::Null),
-            "payload": out.get("payload").cloned().unwrap_or(Value::Null)
-        }))
-        .unwrap_or_default(),
-        32,
-    ));
+    out["receipt_hash"] = Value::String(stable_hash(&serde_json::to_string(&json!({"lane_id": out.get("lane_id").cloned().unwrap_or(Value::Null), "event": out.get("event").cloned().unwrap_or(Value::Null), "ts": out.get("ts").cloned().unwrap_or(Value::Null), "owner": out.get("owner").cloned().unwrap_or(Value::Null), "payload": out.get("payload").cloned().unwrap_or(Value::Null)})).unwrap_or_default(), 32));
     if apply {
         persist_row(&policy, &out)?;
     }
