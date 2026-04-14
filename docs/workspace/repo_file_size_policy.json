@@ -136,14 +136,6 @@
       "planned_batch_date": "2026-04-23"
     },
     {
-      "path": "core/layer0/ops/src/autonomy_controller_parts/051-speculation-and-regression-tests.rs",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-04-23",
-      "task_id": "TD-SIZE-OPS-L0",
-      "planned_batch_date": "2026-04-23"
-    },
-    {
       "path": "core/layer0/ops/src/autonomy_receipt_schema_kernel.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
