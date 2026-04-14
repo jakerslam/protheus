@@ -61,6 +61,9 @@ fn run_git_authority(root: &Path, flags: &Flags, argv: &[String]) -> i32 {
             0
         }
         "list-tracked-files" => {
+            let limit = arg_usize(argv, "--limit=", 500, 20, 10_000);
+            let path_prefix =
+                clean_text(&arg_value(argv, "--path-prefix=").unwrap_or_default(), 1024);
             let mut rows = Vec::<String>::new();
             if let Ok(output) = run_git(root, &["ls-files"]) {
                 if output.status.success() {
@@ -71,10 +74,21 @@ fn run_git_authority(root: &Path, flags: &Flags, argv: &[String]) -> i32 {
                         .collect();
                 }
             }
+            if !path_prefix.is_empty() {
+                rows.retain(|line| line.starts_with(&path_prefix));
+            }
+            let total_count = rows.len();
+            let truncated = total_count > limit;
+            if truncated {
+                rows.truncate(limit);
+            }
             write_json_stdout(
                 &json!({
                     "ok": true,
-                    "files": rows
+                    "files": rows,
+                    "count": total_count,
+                    "truncated": truncated,
+                    "path_prefix": path_prefix
                 }),
                 flags.pretty,
             );
