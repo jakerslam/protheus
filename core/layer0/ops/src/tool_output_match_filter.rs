@@ -187,11 +187,22 @@ fn looks_like_speculative_web_blocker_explanation(raw: &str) -> bool {
         || lowered.contains("search function isn't currently operational")
         || lowered.contains("search function is not currently operational")
         || lowered.contains("blocking tool execution attempts")
-        || lowered.contains("tool execution attempts");
+        || lowered.contains("tool execution attempts")
+        || lowered.contains("function call format")
+        || lowered.contains("ack_only")
+        || lowered.contains("external tool execution")
+        || lowered.contains("recognized function");
     if !mentions_blocked_search_lane {
         return false;
     }
-    lowered.contains("likely reasons")
+    let mentions_execution_denial = lowered.contains("didn't execute")
+        || lowered.contains("did not execute")
+        || lowered.contains("couldn't execute")
+        || lowered.contains("could not execute")
+        || lowered.contains("execution permissions are currently restricted")
+        || lowered.contains("execution permissions are restricted");
+    mentions_execution_denial
+        || lowered.contains("likely reasons")
         || lowered.contains("configuration restrictions")
         || lowered.contains("authentication issues")
         || lowered.contains("rate limiting")
@@ -362,6 +373,12 @@ mod tests {
     #[test]
     fn detects_speculative_web_blocker_explanation_as_ack_placeholder() {
         let raw = "I understand you're looking for a comparison between this platform and OpenClaw, but I'm currently unable to access web search functionality to gather the necessary information. The system is blocking tool execution attempts, which prevents me from retrieving current details.\n\nBased on system behavior, likely reasons include Configuration Restrictions, Authentication Issues, or Rate Limiting.";
+        assert!(matches_ack_placeholder(raw));
+    }
+
+    #[test]
+    fn detects_ack_only_function_call_format_blocker_as_ack_placeholder() {
+        let raw = "I attempted the web search again with the exact function call format, but the system rejected it with an \"ack_only\" response, meaning it recognized the function but didn't execute it. The platform is actively blocking external tool execution. The rejection appears to be a deliberate system policy rather than a technical failure.";
         assert!(matches_ack_placeholder(raw));
     }
 
