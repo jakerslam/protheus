@@ -257,15 +257,15 @@
         "local/workspace/reports/ORCHESTRATION_ADAPTER_FALLBACK_GUARD_CURRENT.md"
       ]
     },
-    "ops:dashboard-classic:debt:report": {
+    "ops:dashboard:surface:guard": {
       "owner": "ops",
-      "description": "Classic dashboard debt inventory.",
+      "description": "Authoritative dashboard surface guard.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
-      "script": "ops:dashboard-classic:debt:report",
+      "script": "ops:dashboard:surface:guard",
       "artifact_paths": [
-        "core/local/artifacts/classic_dashboard_debt_inventory_current.json",
-        "local/workspace/reports/CLASSIC_DASHBOARD_DEBT_INVENTORY_CURRENT.md"
+        "core/local/artifacts/dashboard_surface_authority_guard_current.json",
+        "local/workspace/reports/DASHBOARD_SURFACE_AUTHORITY_GUARD_CURRENT.md"
       ]
     },
     "ops:tech-debt:report": {

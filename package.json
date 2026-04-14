@@ -67,7 +67,7 @@
     "ops:sdk:surface:build": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/public_sdk_surface_guard.ts --strict=1",
     "ops:client-import-integrity:audit": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/client_import_integrity_audit.ts --strict=1",
     "ops:client-legacy-debt:report": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/client_legacy_debt_report.ts --out=core/local/artifacts/client_legacy_debt_report_current.json",
-    "ops:dashboard-classic:debt:report": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/classic_dashboard_debt_inventory.ts --strict=1 --out-json=core/local/artifacts/classic_dashboard_debt_inventory_current.json --out-markdown=local/workspace/reports/CLASSIC_DASHBOARD_DEBT_INVENTORY_CURRENT.md",
+    "ops:dashboard:surface:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/dashboard_surface_authority_guard.ts --strict=1 --out-json=core/local/artifacts/dashboard_surface_authority_guard_current.json --out-markdown=local/workspace/reports/DASHBOARD_SURFACE_AUTHORITY_GUARD_CURRENT.md",
     "ops:legacy-memory-wrapper:audit": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/legacy_client_memory_wrapper_audit.ts --strict=1",
     "ops:client-scope:inventory": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/client_scope_inventory.ts --out=core/local/artifacts/client_scope_inventory_current.json",
     "ops:backlog:actionable-report": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/backlog_actionable_report.ts",
