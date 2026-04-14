@@ -17,10 +17,8 @@ use sysinfo::System;
 use walkdir::WalkDir;
 
 const LANE_ID: &str = "benchmark_matrix";
-const DEFAULT_SNAPSHOT_REL: &str =
-    "client/runtime/config/competitive_benchmark_snapshot_2026_02.json";
-const TOP1_BENCHMARK_SNAPSHOT_REL: &str =
-    "docs/client/reports/runtime_snapshots/ops/proof_pack/top1_benchmark_snapshot.json";
+const DEFAULT_SNAPSHOT_REL: &str = "client/runtime/config/competitive_benchmark_snapshot_2026_02.json";
+const TOP1_BENCHMARK_SNAPSHOT_REL: &str = "docs/client/reports/runtime_snapshots/ops/proof_pack/top1_benchmark_snapshot.json";
 const STATE_LATEST_REL: &str = "local/state/ops/competitive_benchmark_matrix/latest.json";
 const STATE_HISTORY_REL: &str = "local/state/ops/competitive_benchmark_matrix/history.jsonl";
 const MIN_BAR_WIDTH: usize = 10;
@@ -39,12 +37,10 @@ const BENCHMARK_PREFLIGHT_NOISE_SAMPLE_MS_DEFAULT: u64 = 250;
 const BENCHMARK_PREFLIGHT_NOISE_ROUNDS_DEFAULT: usize = 3;
 const SECURITY_MERGE_GUARD_SOURCE_REL: &str = "client/runtime/config/guard_check_registry.json";
 const PLATFORM_ADAPTER_SOURCE_REL: &str = "client/runtime/config/platform_adaptation_channels.json";
-const PROVIDER_ONBOARDING_SOURCE_REL: &str =
-    "client/runtime/config/provider_onboarding_manifest.json";
+const PROVIDER_ONBOARDING_SOURCE_REL: &str = "client/runtime/config/provider_onboarding_manifest.json";
 const MODEL_RECOVERY_SOURCE_REL: &str = "client/runtime/config/model_health_auto_recovery_policy.json";
 const DATA_CHANNELS_SOURCE_REL: &str = "client/runtime/config/data_channels_policy.json";
-const PLUGIN_TRUST_POLICY_SOURCE_REL: &str =
-    "client/runtime/config/signed_plugin_trust_marketplace_policy.json";
+const PLUGIN_TRUST_POLICY_SOURCE_REL: &str = "client/runtime/config/signed_plugin_trust_marketplace_policy.json";
 
 #[derive(Clone)]
 struct ThroughputSampling {
@@ -76,58 +72,19 @@ struct Category {
 }
 
 const CATEGORIES: [Category; 7] = [
-    Category {
-        key: "cold_start_ms",
-        label: "Cold Start Time (lower is better)",
-        lower_is_better: true,
-        unit: "ms",
-    },
-    Category {
-        key: "idle_memory_mb",
-        label: "Idle Memory Usage (lower is better)",
-        lower_is_better: true,
-        unit: "MB",
-    },
-    Category {
-        key: "install_size_mb",
-        label: "Install Size (lower is better)",
-        lower_is_better: true,
-        unit: "MB",
-    },
-    Category {
-        key: "tasks_per_sec",
-        label: "Throughput (ops/sec, higher is better)",
-        lower_is_better: false,
-        unit: "ops/sec",
-    },
-    Category {
-        key: "security_systems",
-        label: "Security Checks (merge guard, higher is better)",
-        lower_is_better: false,
-        unit: "count",
-    },
-    Category {
-        key: "channel_adapters",
-        label: "Platform Adapters (higher is better)",
-        lower_is_better: false,
-        unit: "count",
-    },
-    Category {
-        key: "llm_providers",
-        label: "LLM Providers (onboarded, higher is better)",
-        lower_is_better: false,
-        unit: "count",
-    },
+    Category { key: "cold_start_ms", label: "Cold Start Time (lower is better)", lower_is_better: true, unit: "ms" },
+    Category { key: "idle_memory_mb", label: "Idle Memory Usage (lower is better)", lower_is_better: true, unit: "MB" },
+    Category { key: "install_size_mb", label: "Install Size (lower is better)", lower_is_better: true, unit: "MB" },
+    Category { key: "tasks_per_sec", label: "Throughput (ops/sec, higher is better)", lower_is_better: false, unit: "ops/sec" },
+    Category { key: "security_systems", label: "Security Checks (merge guard, higher is better)", lower_is_better: false, unit: "count" },
+    Category { key: "channel_adapters", label: "Platform Adapters (higher is better)", lower_is_better: false, unit: "count" },
+    Category { key: "llm_providers", label: "LLM Providers (onboarded, higher is better)", lower_is_better: false, unit: "count" },
 ];
 
 fn usage() {
     println!("Usage:");
-    println!(
-        "  protheus-ops benchmark-matrix run [--snapshot=<path>] [--refresh-runtime=1|0] [--bar-width=44] [--throughput-uncached=1|0] [--benchmark-preflight=1|0] [--preflight-max-load-per-core=0.90] [--preflight-max-noise-cv-pct=12.5] [--preflight-noise-sample-ms=250] [--preflight-noise-rounds=3]"
-    );
-    println!(
-        "  protheus-ops benchmark-matrix status [--snapshot=<path>] [--refresh-runtime=1|0] [--bar-width=44] [--throughput-uncached=1|0] [--benchmark-preflight=1|0] [--preflight-max-load-per-core=0.90] [--preflight-max-noise-cv-pct=12.5] [--preflight-noise-sample-ms=250] [--preflight-noise-rounds=3]"
-    );
+    println!("  protheus-ops benchmark-matrix run [--snapshot=<path>] [--refresh-runtime=1|0] [--bar-width=44] [--throughput-uncached=1|0] [--benchmark-preflight=1|0] [--preflight-max-load-per-core=0.90] [--preflight-max-noise-cv-pct=12.5] [--preflight-noise-sample-ms=250] [--preflight-noise-rounds=3]");
+    println!("  protheus-ops benchmark-matrix status [--snapshot=<path>] [--refresh-runtime=1|0] [--bar-width=44] [--throughput-uncached=1|0] [--benchmark-preflight=1|0] [--preflight-max-load-per-core=0.90] [--preflight-max-noise-cv-pct=12.5] [--preflight-noise-sample-ms=250] [--preflight-noise-rounds=3]");
 }
 
 fn parse_bool_flag(raw: Option<&str>, fallback: bool) -> bool {
@@ -139,9 +96,7 @@ fn parse_bool_flag(raw: Option<&str>, fallback: bool) -> bool {
 }
 
 fn parse_bar_width(raw: Option<&str>) -> usize {
-    let n = raw
-        .and_then(|v| v.trim().parse::<usize>().ok())
-        .unwrap_or(DEFAULT_BAR_WIDTH);
+    let n = raw.and_then(|v| v.trim().parse::<usize>().ok()).unwrap_or(DEFAULT_BAR_WIDTH);
     n.clamp(MIN_BAR_WIDTH, MAX_BAR_WIDTH)
 }
 
@@ -176,14 +131,11 @@ fn get_f64(value: &Value, key: &str) -> Option<f64> {
 
 fn write_json_atomic(path: &Path, value: &Value) -> Result<(), String> {
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)
-            .map_err(|err| format!("create_dir_failed:{}:{err}", parent.display()))?;
+        fs::create_dir_all(parent).map_err(|err| format!("create_dir_failed:{}:{err}", parent.display()))?;
     }
     let tmp = path.with_extension("tmp");
-    let payload = serde_json::to_string_pretty(value)
-        .map_err(|err| format!("encode_json_failed:{}:{err}", path.display()))?;
-    fs::write(&tmp, format!("{payload}\n"))
-        .map_err(|err| format!("write_tmp_failed:{}:{err}", tmp.display()))?;
+    let payload = serde_json::to_string_pretty(value).map_err(|err| format!("encode_json_failed:{}:{err}", path.display()))?;
+    fs::write(&tmp, format!("{payload}\n")).map_err(|err| format!("write_tmp_failed:{}:{err}", tmp.display()))?;
     fs::rename(&tmp, path).map_err(|err| format!("rename_tmp_failed:{}:{err}", path.display()))
 }
 
@@ -204,22 +156,13 @@ fn append_jsonl(path: &Path, value: &Value) -> Result<(), String> {
 
 fn count_guard_checks(root: &Path) -> Result<f64, String> {
     let payload = read_json(&root.join(SECURITY_MERGE_GUARD_SOURCE_REL))?;
-    let count = payload
-        .get("merge_guard")
-        .and_then(|v| v.get("checks"))
-        .and_then(Value::as_array)
-        .map(|rows| rows.len() as f64)
-        .unwrap_or(0.0);
+    let count = payload.get("merge_guard").and_then(|v| v.get("checks")).and_then(Value::as_array).map(|rows| rows.len() as f64).unwrap_or(0.0);
     Ok(count)
 }
 
 fn count_channel_adapters(root: &Path) -> Result<f64, String> {
     let payload = read_json(&root.join(PLATFORM_ADAPTER_SOURCE_REL))?;
-    let count = payload
-        .get("channels")
-        .and_then(Value::as_array)
-        .map(|rows| rows.len() as f64)
-        .unwrap_or(0.0);
+    let count = payload.get("channels").and_then(Value::as_array).map(|rows| rows.len() as f64).unwrap_or(0.0);
     Ok(count)
 }
 

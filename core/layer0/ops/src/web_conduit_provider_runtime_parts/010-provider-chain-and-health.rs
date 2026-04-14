@@ -13,8 +13,7 @@ const SEARCH_CACHE_MAX_ENTRIES: usize = 256;
 const SEARCH_CACHE_TTL_SUCCESS_SECS: i64 = 8 * 60;
 const SEARCH_CACHE_TTL_NO_RESULTS_SECS: i64 = 90;
 
-const DEFAULT_SEARCH_PROVIDER_CHAIN: &[&str] =
-    &["serperdev", "duckduckgo", "duckduckgo_lite", "bing_rss"];
+const DEFAULT_SEARCH_PROVIDER_CHAIN: &[&str] = &["serperdev", "duckduckgo", "duckduckgo_lite", "bing_rss"];
 const DEFAULT_FETCH_PROVIDER_CHAIN: &[&str] = &["direct_http"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -54,53 +53,12 @@ fn runtime_state_path(root: &Path, rel: &str) -> PathBuf {
 
 fn builtin_provider_descriptors(family: WebProviderFamily) -> &'static [WebProviderDescriptor] {
     const SEARCH: &[WebProviderDescriptor] = &[
-        WebProviderDescriptor {
-            family: WebProviderFamily::Search,
-            provider: "serperdev",
-            aliases: &["serper", "serperdev"],
-            source_kind: "structured_api",
-            env_keys: &[
-                "INFRING_SERPERDEV_API_KEY",
-                "SERPERDEV_API_KEY",
-                "INFRING_SERPER_API_KEY",
-                "SERPER_API_KEY",
-            ],
-        },
-        WebProviderDescriptor {
-            family: WebProviderFamily::Search,
-            provider: "duckduckgo",
-            aliases: &["duckduckgo", "ddg"],
-            source_kind: "html_search",
-            env_keys: &[],
-        },
-        WebProviderDescriptor {
-            family: WebProviderFamily::Search,
-            provider: "duckduckgo_lite",
-            aliases: &[
-                "duckduckgo_lite",
-                "ddg_lite",
-                "duckduckgo-lite",
-                "ddg-lite",
-                "lite",
-            ],
-            source_kind: "html_search",
-            env_keys: &[],
-        },
-        WebProviderDescriptor {
-            family: WebProviderFamily::Search,
-            provider: "bing_rss",
-            aliases: &["bing", "bing_rss"],
-            source_kind: "rss_feed",
-            env_keys: &[],
-        },
+        WebProviderDescriptor { family: WebProviderFamily::Search, provider: "serperdev", aliases: &["serper", "serperdev"], source_kind: "structured_api", env_keys: &["INFRING_SERPERDEV_API_KEY", "SERPERDEV_API_KEY", "INFRING_SERPER_API_KEY", "SERPER_API_KEY"] },
+        WebProviderDescriptor { family: WebProviderFamily::Search, provider: "duckduckgo", aliases: &["duckduckgo", "ddg"], source_kind: "html_search", env_keys: &[] },
+        WebProviderDescriptor { family: WebProviderFamily::Search, provider: "duckduckgo_lite", aliases: &["duckduckgo_lite", "ddg_lite", "duckduckgo-lite", "ddg-lite", "lite"], source_kind: "html_search", env_keys: &[] },
+        WebProviderDescriptor { family: WebProviderFamily::Search, provider: "bing_rss", aliases: &["bing", "bing_rss"], source_kind: "rss_feed", env_keys: &[] },
     ];
-    const FETCH: &[WebProviderDescriptor] = &[WebProviderDescriptor {
-        family: WebProviderFamily::Fetch,
-        provider: "direct_http",
-        aliases: &["direct_http", "direct-http", "curl", "http", "fetch"],
-        source_kind: "http_get",
-        env_keys: &[],
-    }];
+    const FETCH: &[WebProviderDescriptor] = &[WebProviderDescriptor { family: WebProviderFamily::Fetch, provider: "direct_http", aliases: &["direct_http", "direct-http", "curl", "http", "fetch"], source_kind: "http_get", env_keys: &[] }];
     match family {
         WebProviderFamily::Search => SEARCH,
         WebProviderFamily::Fetch => FETCH,
@@ -115,10 +73,7 @@ fn provider_family_name(family: WebProviderFamily) -> &'static str {
 }
 
 fn default_provider_chain_vec(family: WebProviderFamily) -> Vec<String> {
-    let defaults = match family {
-        WebProviderFamily::Search => DEFAULT_SEARCH_PROVIDER_CHAIN,
-        WebProviderFamily::Fetch => DEFAULT_FETCH_PROVIDER_CHAIN,
-    };
+    let defaults = match family { WebProviderFamily::Search => DEFAULT_SEARCH_PROVIDER_CHAIN, WebProviderFamily::Fetch => DEFAULT_FETCH_PROVIDER_CHAIN };
     defaults.iter().map(|row| row.to_string()).collect::<Vec<_>>()
 }
 
@@ -158,8 +113,7 @@ fn write_json_atomic(path: &Path, value: &Value) -> Result<(), String> {
 fn normalize_provider_token_for_family(raw: &str, family: WebProviderFamily) -> Option<String> {
     let lowered = clean_text(raw, 60).to_ascii_lowercase();
     for descriptor in builtin_provider_descriptors(family) {
-        if descriptor.provider == lowered || descriptor.aliases.iter().any(|alias| *alias == lowered)
-        {
+        if descriptor.provider == lowered || descriptor.aliases.iter().any(|alias| *alias == lowered) {
             return Some(descriptor.provider.to_string());
         }
     }
@@ -267,28 +221,14 @@ where
         .or_else(|| policy.get("search_provider_order"))
         .map(|raw| parse_provider_list_for_family(raw, WebProviderFamily::Search))
         .unwrap_or_default();
-    let configured = if request_chain.is_empty() {
-        policy_chain
-    } else {
-        request_chain
-    };
-    let configured = if configured.is_empty() {
-        default_provider_chain_vec(WebProviderFamily::Search)
-    } else {
-        configured
-    };
+    let configured = if request_chain.is_empty() { policy_chain } else { request_chain };
+    let configured = if configured.is_empty() { default_provider_chain_vec(WebProviderFamily::Search) } else { configured };
 
     let mut prefix = Vec::<String>::new();
     match hint.as_str() {
         "bing" | "bing_rss" => return vec!["bing_rss".to_string()],
-        "duckduckgo" | "ddg" => {
-            prefix.push("duckduckgo".to_string());
-            prefix.push("duckduckgo_lite".to_string());
-            prefix.push("bing_rss".to_string());
-        }
-        "serper" | "serperdev" => {
-            prefix.push("serperdev".to_string());
-        }
+        "duckduckgo" | "ddg" => prefix.extend(["duckduckgo", "duckduckgo_lite", "bing_rss"].into_iter().map(str::to_string)),
+        "serper" | "serperdev" => prefix.push("serperdev".to_string()),
         _ => {}
     }
     let mut merged = prefix;
@@ -305,11 +245,7 @@ where
     let mut credential_ready = Vec::<String>::new();
     let mut missing_credential = Vec::<String>::new();
     for provider in deduped {
-        if provider_has_runtime_credential_with(&provider, WebProviderFamily::Search, resolve_env) {
-            credential_ready.push(provider);
-        } else {
-            missing_credential.push(provider);
-        }
+        if provider_has_runtime_credential_with(&provider, WebProviderFamily::Search, resolve_env) { credential_ready.push(provider); } else { missing_credential.push(provider); }
     }
     credential_ready.extend(missing_credential);
     credential_ready
@@ -335,16 +271,8 @@ where
         .or_else(|| policy.get("fetch_provider_order"))
         .map(|raw| parse_provider_list_for_family(raw, WebProviderFamily::Fetch))
         .unwrap_or_default();
-    let configured = if request_chain.is_empty() {
-        policy_chain
-    } else {
-        request_chain
-    };
-    let configured = if configured.is_empty() {
-        default_provider_chain_vec(WebProviderFamily::Fetch)
-    } else {
-        configured
-    };
+    let configured = if request_chain.is_empty() { policy_chain } else { request_chain };
+    let configured = if configured.is_empty() { default_provider_chain_vec(WebProviderFamily::Fetch) } else { configured };
 
     let mut merged = Vec::<String>::new();
     if let Some(provider) = explicit {
@@ -356,11 +284,7 @@ where
     let mut credential_ready = Vec::<String>::new();
     let mut missing_credential = Vec::<String>::new();
     for provider in deduped {
-        if provider_has_runtime_credential_with(&provider, WebProviderFamily::Fetch, resolve_env) {
-            credential_ready.push(provider);
-        } else {
-            missing_credential.push(provider);
-        }
+        if provider_has_runtime_credential_with(&provider, WebProviderFamily::Fetch, resolve_env) { credential_ready.push(provider); } else { missing_credential.push(provider); }
     }
     credential_ready.extend(missing_credential);
     credential_ready
@@ -371,9 +295,7 @@ pub(crate) fn provider_chain_from_request(
     request: &Value,
     policy: &Value,
 ) -> Vec<String> {
-    provider_chain_from_request_with_env(provider_hint, request, policy, |key| {
-        std::env::var(key).ok()
-    })
+    provider_chain_from_request_with_env(provider_hint, request, policy, |key| std::env::var(key).ok())
 }
 
 pub(crate) fn fetch_provider_chain_from_request(
@@ -381,9 +303,7 @@ pub(crate) fn fetch_provider_chain_from_request(
     request: &Value,
     policy: &Value,
 ) -> Vec<String> {
-    fetch_provider_chain_from_request_with_env(provider_hint, request, policy, |key| {
-        std::env::var(key).ok()
-    })
+    fetch_provider_chain_from_request_with_env(provider_hint, request, policy, |key| std::env::var(key).ok())
 }
 
 fn validate_explicit_provider_hint_for_family(
@@ -410,30 +330,11 @@ pub(crate) fn validate_explicit_fetch_provider_hint(provider_hint: &str) -> Opti
 }
 
 pub(crate) fn circuit_policy(policy: &Value) -> CircuitPolicy {
-    let scope = policy
-        .pointer("/web_conduit/provider_circuit_breaker")
-        .or_else(|| policy.get("provider_circuit_breaker"))
-        .cloned()
-        .unwrap_or_else(|| json!({}));
-    let enabled = scope
-        .get("enabled")
-        .and_then(Value::as_bool)
-        .unwrap_or(true);
-    let failure_threshold = scope
-        .get("failure_threshold")
-        .and_then(Value::as_u64)
-        .unwrap_or(3)
-        .clamp(1, 12);
-    let open_for_secs = scope
-        .get("open_for_secs")
-        .and_then(Value::as_i64)
-        .unwrap_or(5 * 60)
-        .clamp(30, 4 * 60 * 60);
-    CircuitPolicy {
-        enabled,
-        failure_threshold,
-        open_for_secs,
-    }
+    let scope = policy.pointer("/web_conduit/provider_circuit_breaker").or_else(|| policy.get("provider_circuit_breaker")).cloned().unwrap_or_else(|| json!({}));
+    let enabled = scope.get("enabled").and_then(Value::as_bool).unwrap_or(true);
+    let failure_threshold = scope.get("failure_threshold").and_then(Value::as_u64).unwrap_or(3).clamp(1, 12);
+    let open_for_secs = scope.get("open_for_secs").and_then(Value::as_i64).unwrap_or(5 * 60).clamp(30, 4 * 60 * 60);
+    CircuitPolicy { enabled, failure_threshold, open_for_secs }
 }
 
 fn provider_health_path(root: &Path) -> PathBuf {

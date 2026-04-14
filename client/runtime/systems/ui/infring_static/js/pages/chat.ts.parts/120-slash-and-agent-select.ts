@@ -11,22 +11,19 @@
           if (self.currentAgent && InfringAPI.isWsConnected()) {
             InfringAPI.wsSend({ type: 'command', command: 'verbose', args: cmdArgs });
           } else {
-            self.messages.push({ id: ++msgId, role: 'system', text: 'Not connected. Connect to an agent first.', meta: '', tools: [], system_origin: 'slash:verbose' });
-            self.scrollToBottom();
+            self.pushSystemMessage({ id: ++msgId, role: 'system', text: 'Not connected. Connect to an agent first.', meta: '', tools: [], system_origin: 'slash:verbose' });
           }
           break;
         case '/queue':
           if (self.currentAgent && InfringAPI.isWsConnected()) {
             InfringAPI.wsSend({ type: 'command', command: 'queue', args: '' });
           } else {
-            self.messages.push({ id: ++msgId, role: 'system', text: 'Not connected.', meta: '', tools: [], system_origin: 'slash:queue' });
-            self.scrollToBottom();
+            self.pushSystemMessage({ id: ++msgId, role: 'system', text: 'Not connected.', meta: '', tools: [], system_origin: 'slash:queue' });
           }
           break;
         case '/status':
           InfringAPI.get('/api/status').then(function(s) {
-            self.messages.push({ id: ++msgId, role: 'system', text: '**System Status**\n- Agents: ' + (s.agent_count || 0) + '\n- Uptime: ' + (s.uptime_seconds || 0) + 's\n- Version: ' + (s.version || '?'), meta: '', tools: [], system_origin: 'slash:status' });
-            self.scrollToBottom();
+            self.pushSystemMessage({ id: ++msgId, role: 'system', text: '**System Status**\n- Agents: ' + (s.agent_count || 0) + '\n- Uptime: ' + (s.uptime_seconds || 0) + 's\n- Version: ' + (s.version || '?'), meta: '', tools: [], system_origin: 'slash:status' });
           }).catch(function() {});
           break;
         case '/alerts':
@@ -90,11 +87,10 @@
               var availableCount = Array.isArray(catalogRows)
                 ? catalogRows.filter(function(row) { return row && row.available !== false; }).length
                 : 0;
-              self.messages.push({
+              self.pushSystemMessage({
                 id: ++msgId,
                 role: 'system',
-                text:
-                  '**Current Model**\n' +
+                text: '**Current Model**\n' +
                   '- Provider: `' + (self.currentAgent.model_provider || '?') + '`\n' +
                   '- Selected: `' + (selectedDisplay || selectedModelRef || '?') + '`\n' +
                   '- Runtime: `' + (runtimeDisplay || runtimeModelRef || '?') + '`\n' +
@@ -104,11 +100,9 @@
                 tools: [],
                 system_origin: 'slash:model'
               });
-              self.scrollToBottom();
             }
           } else {
-            self.messages.push({ id: ++msgId, role: 'system', text: 'No agent selected.', meta: '', tools: [], system_origin: 'slash:model' });
-            self.scrollToBottom();
+            self.pushSystemMessage({ id: ++msgId, role: 'system', text: 'No agent selected.', meta: '', tools: [], system_origin: 'slash:model' });
           }
           break;
         case '/apikey':
@@ -116,13 +110,11 @@
           break;
         case '/file':
           if (!self.currentAgent) {
-            self.messages.push({ id: ++msgId, role: 'system', text: 'No agent selected.', meta: '', tools: [], system_origin: 'slash:file' });
-            self.scrollToBottom();
+            self.pushSystemMessage({ id: ++msgId, role: 'system', text: 'No agent selected.', meta: '', tools: [], system_origin: 'slash:file' });
             break;
           }
           if (!cmdArgs || !String(cmdArgs).trim()) {
-            self.messages.push({ id: ++msgId, role: 'system', text: 'Usage: `/file <path>`', meta: '', tools: [], system_origin: 'slash:file' });
-            self.scrollToBottom();
+            self.pushSystemMessage({ id: ++msgId, role: 'system', text: 'Usage: `/file <path>`', meta: '', tools: [], system_origin: 'slash:file' });
             break;
           }
           try {
@@ -131,15 +123,7 @@
             });
             var fileMeta = fileRes && fileRes.file ? fileRes.file : null;
             if (!fileMeta || !fileMeta.ok) {
-              self.messages.push({
-                id: ++msgId,
-                role: 'system',
-                text: 'Error: failed to read file output.',
-                meta: '',
-                tools: [],
-                system_origin: 'slash:file',
-                ts: Date.now()
-              });
+              self.pushSystemMessage({ id: ++msgId, role: 'system', text: 'Error: failed to read file output.', meta: '', tools: [], system_origin: 'slash:file', ts: Date.now() });
             } else {
               var bytes = Number(fileMeta.bytes || 0);
               var fileMetaText = (bytes > 0 ? (bytes + ' bytes') : '');
@@ -148,43 +132,22 @@
                 fileMetaText += (fileMetaText ? ' | ' : '') + 'truncated to ' + (maxBytes > 0 ? maxBytes : 'limit') + ' bytes';
               }
               self.messages.push({
-                id: ++msgId,
-                role: 'agent',
-                text: '',
-                meta: fileMetaText,
-                tools: [],
-                ts: Date.now(),
-                file_output: {
-                  path: String(fileMeta.path || cmdArgs || ''),
-                  content: String(fileMeta.content || ''),
-                  truncated: !!fileMeta.truncated,
-                  bytes: bytes
-                }
+                id: ++msgId, role: 'agent', text: '', meta: fileMetaText, tools: [], ts: Date.now(),
+                file_output: { path: String(fileMeta.path || cmdArgs || ''), content: String(fileMeta.content || ''), truncated: !!fileMeta.truncated, bytes: bytes }
               });
             }
             self.scrollToBottom();
           } catch (e) {
-            self.messages.push({
-              id: ++msgId,
-              role: 'system',
-              text: 'Error: ' + (e && e.message ? e.message : 'file read failed'),
-              meta: '',
-              tools: [],
-              system_origin: 'slash:file',
-              ts: Date.now()
-            });
-            self.scrollToBottom();
+            self.pushSystemMessage({ id: ++msgId, role: 'system', text: 'Error: ' + (e && e.message ? e.message : 'file read failed'), meta: '', tools: [], system_origin: 'slash:file', ts: Date.now() });
           }
           break;
         case '/folder':
           if (!self.currentAgent) {
-            self.messages.push({ id: ++msgId, role: 'system', text: 'No agent selected.', meta: '', tools: [], system_origin: 'slash:folder' });
-            self.scrollToBottom();
+            self.pushSystemMessage({ id: ++msgId, role: 'system', text: 'No agent selected.', meta: '', tools: [], system_origin: 'slash:folder' });
             break;
           }
           if (!cmdArgs || !String(cmdArgs).trim()) {
-            self.messages.push({ id: ++msgId, role: 'system', text: 'Usage: `/folder <path>`', meta: '', tools: [], system_origin: 'slash:folder' });
-            self.scrollToBottom();
+            self.pushSystemMessage({ id: ++msgId, role: 'system', text: 'Usage: `/folder <path>`', meta: '', tools: [], system_origin: 'slash:folder' });
             break;
           }
           try {
@@ -194,52 +157,24 @@
             var folderMeta = folderRes && folderRes.folder ? folderRes.folder : null;
             var archiveMeta = folderRes && folderRes.archive ? folderRes.archive : null;
             if (!folderMeta || !folderMeta.ok) {
-              self.messages.push({
-                id: ++msgId,
-                role: 'system',
-                text: 'Error: failed to export folder output.',
-                meta: '',
-                tools: [],
-                system_origin: 'slash:folder',
-                ts: Date.now()
-              });
+              self.pushSystemMessage({ id: ++msgId, role: 'system', text: 'Error: failed to export folder output.', meta: '', tools: [], system_origin: 'slash:folder', ts: Date.now() });
             } else {
               var entryCount = Number(folderMeta.entries || 0);
               var folderMetaText = (entryCount > 0 ? (entryCount + ' entries') : '');
               if (folderMeta.truncated) folderMetaText += (folderMetaText ? ' | ' : '') + 'tree truncated';
-              if (archiveMeta && archiveMeta.file_name) {
-                folderMetaText += (folderMetaText ? ' | ' : '') + archiveMeta.file_name;
-              }
+              if (archiveMeta && archiveMeta.file_name) folderMetaText += (folderMetaText ? ' | ' : '') + archiveMeta.file_name;
               self.messages.push({
-                id: ++msgId,
-                role: 'agent',
-                text: '',
-                meta: folderMetaText,
-                tools: [],
-                ts: Date.now(),
+                id: ++msgId, role: 'agent', text: '', meta: folderMetaText, tools: [], ts: Date.now(),
                 folder_output: {
-                  path: String(folderMeta.path || cmdArgs || ''),
-                  tree: String(folderMeta.tree || ''),
-                  entries: entryCount,
-                  truncated: !!folderMeta.truncated,
-                  download_url: archiveMeta && archiveMeta.download_url ? String(archiveMeta.download_url) : '',
-                  archive_name: archiveMeta && archiveMeta.file_name ? String(archiveMeta.file_name) : '',
+                  path: String(folderMeta.path || cmdArgs || ''), tree: String(folderMeta.tree || ''), entries: entryCount, truncated: !!folderMeta.truncated,
+                  download_url: archiveMeta && archiveMeta.download_url ? String(archiveMeta.download_url) : '', archive_name: archiveMeta && archiveMeta.file_name ? String(archiveMeta.file_name) : '',
                   archive_bytes: Number(archiveMeta && archiveMeta.bytes ? archiveMeta.bytes : 0)
                 }
               });
             }
             self.scrollToBottom();
           } catch (e2) {
-            self.messages.push({
-              id: ++msgId,
-              role: 'system',
-              text: 'Error: ' + (e2 && e2.message ? e2.message : 'folder export failed'),
-              meta: '',
-              tools: [],
-              system_origin: 'slash:folder',
-              ts: Date.now()
-            });
-            self.scrollToBottom();
+            self.pushSystemMessage({ id: ++msgId, role: 'system', text: 'Error: ' + (e2 && e2.message ? e2.message : 'folder export failed'), meta: '', tools: [], system_origin: 'slash:folder', ts: Date.now() });
           }
           break;
         case '/clear':
@@ -256,31 +191,28 @@
         case '/budget':
           InfringAPI.get('/api/budget').then(function(b) {
             var fmt = function(v) { return v > 0 ? '$' + v.toFixed(2) : 'unlimited'; };
-            self.messages.push({ id: ++msgId, role: 'system', text: '**Budget Status**\n' +
+            self.pushSystemMessage({ id: ++msgId, role: 'system', text: '**Budget Status**\n' +
               '- Hourly: $' + (b.hourly_spend||0).toFixed(4) + ' / ' + fmt(b.hourly_limit) + '\n' +
               '- Daily: $' + (b.daily_spend||0).toFixed(4) + ' / ' + fmt(b.daily_limit) + '\n' +
               '- Monthly: $' + (b.monthly_spend||0).toFixed(4) + ' / ' + fmt(b.monthly_limit), meta: '', tools: [], system_origin: 'slash:budget' });
-            self.scrollToBottom();
           }).catch(function() {});
           break;
         case '/peers':
           InfringAPI.get('/api/network/status').then(function(ns) {
-            self.messages.push({ id: ++msgId, role: 'system', text: '**OFP Network**\n' +
+            self.pushSystemMessage({ id: ++msgId, role: 'system', text: '**OFP Network**\n' +
               '- Status: ' + (ns.enabled ? 'Enabled' : 'Disabled') + '\n' +
               '- Connected peers: ' + (ns.connected_peers||0) + ' / ' + (ns.total_peers||0), meta: '', tools: [], system_origin: 'slash:peers' });
-            self.scrollToBottom();
           }).catch(function() {});
           break;
         case '/a2a':
           InfringAPI.get('/api/a2a/agents').then(function(res) {
             var agents = res.agents || [];
             if (!agents.length) {
-              self.messages.push({ id: ++msgId, role: 'system', text: 'No external A2A agents discovered.', meta: '', tools: [], system_origin: 'slash:a2a' });
+              self.pushSystemMessage({ id: ++msgId, role: 'system', text: 'No external A2A agents discovered.', meta: '', tools: [], system_origin: 'slash:a2a' });
             } else {
               var lines = agents.map(function(a) { return '- **' + a.name + '** — ' + a.url; });
-              self.messages.push({ id: ++msgId, role: 'system', text: '**A2A Agents (' + agents.length + ')**\n' + lines.join('\n'), meta: '', tools: [], system_origin: 'slash:a2a' });
+              self.pushSystemMessage({ id: ++msgId, role: 'system', text: '**A2A Agents (' + agents.length + ')**\n' + lines.join('\n'), meta: '', tools: [], system_origin: 'slash:a2a' });
             }
-            self.scrollToBottom();
           }).catch(function() {});
           break;
       }
