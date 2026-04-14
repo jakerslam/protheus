@@ -135,6 +135,60 @@ function startStubBackend() {
       });
       return;
     }
+    if (req.method === 'GET' && pathname === '/api/logs/stream') {
+      sendJson(res, {
+        ok: true,
+        stream: 'logs',
+        events: [
+          {
+            type: 'dashboard_tool_result',
+            ts: '2026-04-13T20:05:02.000Z',
+            receipt_hash: 'receipt-stub-1',
+            payload: {
+              tool_pipeline: {
+                normalized_result: {
+                  result_id: 'result-stub-1',
+                  task_id: 'task-stub-1',
+                  trace_id: 'trace-stub-1',
+                  tool_name: 'web_search',
+                },
+                evidence_cards: [
+                  {
+                    evidence_id: 'evidence-stub-1',
+                    task_id: 'task-stub-1',
+                    trace_id: 'trace-stub-1',
+                    summary: 'stub evidence summary',
+                  },
+                ],
+                claim_bundle: {
+                  task_id: 'task-stub-1',
+                  claims: [
+                    {
+                      claim_id: 'claim-stub-1',
+                      text: 'stub claim',
+                      evidence_ids: ['evidence-stub-1'],
+                      status: 'supported',
+                    },
+                  ],
+                },
+                tool_attempt_receipt: {
+                  attempt_id: 'attempt-stub-1',
+                  tool_name: 'web_search',
+                  status: 'ok',
+                },
+              },
+              execution_correlation: {
+                orchestration_trace_id: 'trace-stub-1',
+                observed_core_receipt_ids: ['core-receipt-1'],
+                observed_core_outcome_refs: ['core-outcome-1'],
+              },
+            },
+          },
+        ],
+        count: 1,
+      });
+      return;
+    }
     if (req.method === 'GET' && pathname === '/api/agents') {
       sendJson(res, state.agents);
       return;
@@ -349,6 +403,7 @@ async function run() {
     const mcp = await fetchJson(`${BASE_URL}/api/mcp/servers`);
     const webStatus = await fetchJson(`${BASE_URL}/api/web/status`);
     const webReceipts = await fetchJson(`${BASE_URL}/api/web/receipts?limit=5`);
+    const orchestrationReceipts = await fetchJson(`${BASE_URL}/api/runtime/orchestration-receipts?limit=5`);
 
     summary.checks.runtime_policy_debt_surface = Boolean(
       policyDebt.status === 200
@@ -387,6 +442,18 @@ async function run() {
       && Array.isArray(orchestration.body.correlation_fields)
       && orchestration.body.correlation_fields.includes('orchestration_trace_id')
     );
+    summary.checks.runtime_orchestration_receipt_stream = Boolean(
+      orchestrationReceipts.status === 200
+      && orchestrationReceipts.body
+      && orchestrationReceipts.body.ok
+      && Array.isArray(orchestrationReceipts.body.receipts)
+      && orchestrationReceipts.body.receipts.length >= 1
+      && orchestrationReceipts.body.receipts[0]
+      && orchestrationReceipts.body.receipts[0].task_id === 'task-stub-1'
+      && orchestrationReceipts.body.receipts[0].trace_id === 'trace-stub-1'
+      && Number(orchestrationReceipts.body.receipts[0].claim_count || 0) >= 1
+      && Number(orchestrationReceipts.body.receipts[0].evidence_count || 0) >= 1
+    );
     summary.checks.settings_provider_and_model_surfaces = Boolean(
       providers.status === 200
       && Array.isArray(providers.body && providers.body.providers)
@@ -417,6 +484,7 @@ async function run() {
     summary.evidence = {
       policy_debt: policyDebt.body,
       orchestration_surface: orchestration.body,
+      orchestration_receipts: orchestrationReceipts.body,
       chat_flow: {
         agents_before: agentsBefore.body,
         created_agent: createdAgent.body,

@@ -153,9 +153,9 @@
     {
       "id": "TD-ORCH-FOLLOWTHROUGH-001",
       "category": "orchestration",
-      "status": "in_progress",
+      "status": "done",
       "owner": "jay",
-      "summary": "Push orchestration probes, alternative plans, verifier receipts, and execution correlation into operator-facing surfaces; native runtime now exposes contract health and correlation fields, while live per-request receipt capture still needs a dedicated operator stream.",
+      "summary": "Native runtime now exposes orchestration contract health plus a bounded recent receipt stream with task, trace, evidence, claim, and core-correlation counts for operator follow-through.",
       "planned_batch_date": "2026-04-20",
       "paths": [
         "surface/orchestration/src",

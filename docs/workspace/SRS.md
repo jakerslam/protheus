@@ -15551,8 +15551,9 @@ Source summary:
 - Acceptance criteria:
   - The dashboard host exposes a native route-telemetry feed that reports current native vs legacy page counts, classic asset counts, classic-link references, embedded fallback references, and the largest remaining classic files.
   - The dashboard host exposes a native orchestration audit feed that reports whether capability probes, alternative plans, verifier requests, nested core execution projection, and receipt/outcome correlation fields are present in the orchestration surface contract.
+  - The dashboard host exposes a bounded orchestration receipt stream that surfaces recent task/trace/tool rows with evidence, claim, and core-correlation counts from the real operator receipt history.
   - `/dashboard/runtime` renders both feeds in operator-facing cards without adding new authority to the client.
-  - The runtime helper reads the new bounded dashboard-host feeds instead of scraping classic HTML or inventing static copy.
+  - The runtime helper reads the new bounded dashboard-host feeds, including recent orchestration receipts, instead of scraping classic HTML or inventing static copy.
   - Native operator-flow coverage proves chat, runtime debt/orchestration audit, settings, skills/MCP, and web-tooling receipts through a live dashboard-host roundtrip against a bounded stub backend.
   - Native Svelte pages stop advertising explicit classic escape-hatch links once their routes are already authoritative in the Svelte shell, and the dead per-page legacy frame path is removed when no dashboard pages remain in legacy mode.
   - Dashboard regression coverage proves the runtime page and dashboard host both keep these telemetry lanes wired.
