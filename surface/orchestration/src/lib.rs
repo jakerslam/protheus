@@ -1,3 +1,4 @@
+// Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 pub mod clarification;
 pub mod contracts;
 pub mod ingress;
@@ -12,9 +13,9 @@ pub mod sequencing;
 pub mod transient_context;
 
 use contracts::{
-    DegradationReason, ExecutionState, OrchestrationPlan, OrchestrationRequest,
-    OrchestrationResultPackage, PlanCandidate, PlanStatus, RecoveryDecision, RecoveryReason,
-    RecoveryState,
+    DegradationReason, ExecutionCorrelation, ExecutionState, OrchestrationPlan,
+    OrchestrationRequest, OrchestrationResultPackage, PlanCandidate, PlanScore, PlanStatus,
+    PlanVariant, RecoveryDecision, RecoveryReason, RecoveryState,
 };
 use transient_context::TransientContextStore;
 
@@ -56,6 +57,15 @@ impl OrchestrationSurfaceRuntime {
                         note: "transient context unavailable".to_string(),
                     }),
                     degradation: None,
+                    correlation: ExecutionCorrelation {
+                        orchestration_trace_id: format!(
+                            "orch_{}_transient",
+                            normalized.typed_request.session_id
+                        ),
+                        expected_core_contract_ids: Vec::new(),
+                        observed_core_receipt_ids: Vec::new(),
+                        observed_core_outcome_refs: Vec::new(),
+                    },
                 },
                 recovery_applied: true,
                 fallback_actions: Vec::new(),
@@ -64,14 +74,25 @@ impl OrchestrationSurfaceRuntime {
                 classification,
                 selected_plan: PlanCandidate {
                     plan_id: "plan_transient_context_failed".to_string(),
+                    variant: PlanVariant::ClarificationFirst,
                     steps: Vec::new(),
                     confidence: 0.0,
+                    score: PlanScore {
+                        overall: 0.0,
+                        authority_cost: 0.0,
+                        transport_dependency: 0.0,
+                        mutation_risk: 0.0,
+                        fallback_quality: 0.0,
+                        target_specificity: 0.0,
+                    },
                     requires_clarification: true,
                     blocked_on: Vec::new(),
-                    degradation: Some(DegradationReason::TransportFailure),
+                    degradation: vec![DegradationReason::TransportFailure],
                     capabilities: Vec::new(),
+                    capability_probes: Vec::new(),
                     reasons: vec!["transient_context_unavailable".to_string()],
                 },
+                alternative_plans: Vec::new(),
             };
         }
 
@@ -81,9 +102,21 @@ impl OrchestrationSurfaceRuntime {
             classification.needs_clarification || clarification_prompt.is_some();
         let posture =
             posture::choose_posture(classification.request_class.clone(), needs_clarification);
-        let selected_plan =
-            sequencing::build_plan_candidate(&normalized.typed_request, &classification);
-        let execution_state = progress::execution_state_for(&selected_plan, needs_clarification);
+        let mut plan_candidates =
+            sequencing::build_plan_candidates(&normalized.typed_request, &classification);
+        let selected_plan = plan_candidates.first().cloned().unwrap_or_else(|| {
+            sequencing::build_plan_candidate(&normalized.typed_request, &classification)
+        });
+        let alternative_plans = if plan_candidates.len() > 1 {
+            plan_candidates.drain(1..).collect::<Vec<_>>()
+        } else {
+            Vec::new()
+        };
+        let execution_state = progress::execution_state_for(
+            &normalized.typed_request,
+            &selected_plan,
+            needs_clarification,
+        );
 
         let plan = OrchestrationPlan {
             request_class: classification.request_class.clone(),
@@ -92,6 +125,7 @@ impl OrchestrationSurfaceRuntime {
             needs_clarification,
             clarification_prompt,
             selected_plan,
+            alternative_plans,
             execution_state,
         };
         let (plan, recovery_applied) =

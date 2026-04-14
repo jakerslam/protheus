@@ -65,14 +65,6 @@ export function dashboardPageHref(key: DashboardPageKey): string {
   return key === 'overview' ? '/dashboard/overview' : `/dashboard/${key}`;
 }
 
-export function dashboardClassicHref(key?: DashboardPageKey | null): string {
-  return key ? `/dashboard-classic#${encodeURIComponent(key)}` : '/dashboard-classic';
-}
-
-export function dashboardEmbeddedFallbackHref(key: DashboardPageKey): string {
-  return `/dashboard-classic?embed=1&page=${encodeURIComponent(key)}#${encodeURIComponent(key)}`;
-}
-
 export function resolveDashboardPageFromPathname(pathname: string | null | undefined): DashboardPage {
   const normalized = String(pathname || '').replace(/\/+$/, '') || '/dashboard';
   if (normalized === '/' || normalized === '/dashboard' || normalized === '/dashboard/') {

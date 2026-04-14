@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { dashboardClassicHref } from '$lib/dashboard';
   import { readAuditVerification, readLogEntries, type DashboardAuditVerification, type DashboardLogEntry } from '$lib/logs';
   import { onDestroy, onMount } from 'svelte';
 
@@ -76,7 +75,6 @@
         <option value="warn">Warn</option>
         <option value="error">Error</option>
       </select>
-      <a class="ghost" href={dashboardClassicHref('logs')}>Open classic logs</a>
     </div>
   </div>
 

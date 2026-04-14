@@ -1,3 +1,4 @@
+// Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 use crate::contracts::{
     OrchestrationFallbackAction, PlanCandidate, RequestClass, RequestClassification, ResourceKind,
     ToolFallbackContext, TypedOrchestrationRequest,
@@ -10,6 +11,13 @@ pub fn build_plan_candidate(
     classification: &RequestClassification,
 ) -> PlanCandidate {
     crate::planner::build_plan_candidate(request, classification)
+}
+
+pub fn build_plan_candidates(
+    request: &TypedOrchestrationRequest,
+    classification: &RequestClassification,
+) -> Vec<PlanCandidate> {
+    crate::planner::build_plan_candidates(request, classification)
 }
 
 pub fn fallback_actions(

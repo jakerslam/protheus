@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { dashboardClassicHref } from '$lib/dashboard';
   import { readEyes, saveEye, type DashboardEyeRow } from '$lib/eyes';
   import { onMount } from 'svelte';
 
@@ -56,7 +55,6 @@
     </div>
     <div class="hero-actions">
       <button class="ghost" type="button" on:click={() => void refresh()} disabled={loading}>{loading ? 'Refreshing…' : 'Refresh'}</button>
-      <a class="ghost" href={dashboardClassicHref('eyes')}>Open classic eyes</a>
     </div>
   </div>
   {#if error}<div class="banner error">{error}</div>{:else if notice}<div class="banner notice">{notice}</div>{/if}

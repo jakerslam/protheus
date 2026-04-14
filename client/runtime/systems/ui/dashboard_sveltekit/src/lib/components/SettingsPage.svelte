@@ -1,6 +1,5 @@
 <script lang="ts">
   import type { DashboardModelRow } from '$lib/chat';
-  import { dashboardClassicHref } from '$lib/dashboard';
   import type { DashboardProviderRow, DashboardSystemInfo } from '$lib/settings';
   import {
     addCustomModel,
@@ -153,7 +152,7 @@
   <div class="hero">
     <div>
       <p class="eyebrow">Native settings</p>
-      <h2>Provider setup, model catalog, and runtime defaults without the classic fallback.</h2>
+      <h2>Provider setup, model catalog, and runtime defaults without the legacy host detour.</h2>
       <p class="hero-copy">
         This first native settings slice covers the everyday setup path. Advanced config, security, network, and migration tabs still live behind the classic escape hatch for now.
       </p>
@@ -162,7 +161,6 @@
       <button class="ghost" type="button" on:click={() => void refreshAll()} disabled={loading}>
         {loading ? 'Refreshing…' : 'Refresh'}
       </button>
-      <a class="ghost" href={dashboardClassicHref('settings')}>Open classic settings</a>
     </div>
   </div>
 

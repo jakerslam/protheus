@@ -7,7 +7,7 @@ import { execSync } from 'node:child_process';
 const ROOT = process.cwd();
 const LEGACY_RE = /\.(js|py|sh|ps1)$/;
 const SOURCE_CACHE = new Map();
-const SKIP_DIRS = new Set(['.git', 'node_modules', 'dist', 'coverage', 'state']);
+const SKIP_DIRS = new Set(['.git', '.svelte-kit', 'node_modules', 'dist', 'coverage', 'state']);
 
 function parseArgs(argv) {
   const out = {

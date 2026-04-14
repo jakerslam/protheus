@@ -368,3 +368,109 @@ fn summarize_web_search_framework_payload_prefers_locator_domain_over_noisy_titl
     assert!(!lowered.contains("academy.langchain.com"), "{summary}");
     assert!(!lowered.contains("watsonx.ai"), "{summary}");
 }
+
+#[test]
+fn direct_batch_query_get_endpoint_emits_nexus_audit_and_tracking_metadata() {
+    let _guard = WEB_ENDPOINT_ENV_MUTEX.lock().expect("lock");
+    std::env::remove_var("PROTHEUS_HIERARCHICAL_NEXUS_BLOCK_CLIENT_INGRESS_ROUTE");
+    let root = governance_temp_root();
+    let snapshot = governance_ok_snapshot();
+    let out = handle(
+        root.path(),
+        "GET",
+        "/api/batch-query?q=",
+        &[],
+        &snapshot,
+    )
+    .expect("batch query get");
+    assert!(matches!(out.status, 200 | 400));
+    assert_eq!(
+        out.payload.pointer("/nexus_connection/source")
+            .and_then(Value::as_str),
+        Some("client_ingress")
+    );
+    assert!(out.payload.get("decision_audit_receipt").is_some());
+    assert!(out.payload.get("turn_loop_tracking").is_some());
+    assert_eq!(
+        out.payload
+            .pointer("/recovery_strategy")
+            .and_then(Value::as_str),
+        Some("none")
+    );
+}
+
+#[test]
+fn direct_batch_query_post_endpoint_emits_nexus_audit_and_tracking_metadata() {
+    let _guard = WEB_ENDPOINT_ENV_MUTEX.lock().expect("lock");
+    std::env::remove_var("PROTHEUS_HIERARCHICAL_NEXUS_BLOCK_CLIENT_INGRESS_ROUTE");
+    let root = governance_temp_root();
+    let snapshot = governance_ok_snapshot();
+    let out = handle(
+        root.path(),
+        "POST",
+        "/api/batch-query",
+        br#"{"query":""}"#,
+        &snapshot,
+    )
+    .expect("batch query post");
+    assert!(matches!(out.status, 200 | 400));
+    assert_eq!(
+        out.payload.pointer("/nexus_connection/source")
+            .and_then(Value::as_str),
+        Some("client_ingress")
+    );
+    assert!(out.payload.get("decision_audit_receipt").is_some());
+    assert!(out.payload.get("turn_loop_tracking").is_some());
+    assert_eq!(
+        out.payload
+            .pointer("/recovery_strategy")
+            .and_then(Value::as_str),
+        Some("none")
+    );
+}
+
+#[test]
+fn direct_file_read_endpoint_emits_decision_audit_and_tracking_metadata() {
+    let root = governance_temp_root();
+    init_git_repo(root.path());
+    std::fs::create_dir_all(root.path().join("notes")).expect("mkdir");
+    std::fs::write(root.path().join("notes/plan.txt"), "ship it").expect("write");
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"name":"File Audit Agent","role":"operator"}"#,
+        &governance_ok_snapshot(),
+    )
+    .expect("create");
+    let agent_id = clean_agent_id(
+        created
+            .payload
+            .get("agent_id")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+    );
+    assert!(!agent_id.is_empty());
+    let out = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/file/read"),
+        br#"{"path":"notes/plan.txt"}"#,
+        &governance_ok_snapshot(),
+    )
+    .expect("file read");
+    assert_eq!(out.status, 200);
+    assert_eq!(
+        out.payload.pointer("/nexus_connection/source")
+            .and_then(Value::as_str),
+        Some("client_ingress")
+    );
+    assert!(out.payload.get("decision_audit_receipt").is_some());
+    assert!(out.payload.get("turn_loop_tracking").is_some());
+    assert_eq!(
+        out.payload
+            .pointer("/recovery_strategy")
+            .and_then(Value::as_str),
+        Some("none")
+    );
+}

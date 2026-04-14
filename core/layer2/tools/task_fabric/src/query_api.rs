@@ -1,3 +1,4 @@
+// Layer ownership: core/layer2/tools/task_fabric (authoritative task graph primitive).
 use crate::task_graph::{ReadinessStatus, Task, TaskGraph};
 use serde_json::{json, Value};
 
@@ -138,6 +139,12 @@ pub fn stale_tasks(graph: &TaskGraph, scope_id: &str, age_ms: u64, now_ms: u64) 
         .values()
         .filter(|task| matches_scope(task, scope_id))
         .filter(|task| {
+            !matches!(
+                graph.derive_readiness(&task.id, now_ms, age_ms),
+                Some(ReadinessStatus::Terminal)
+            )
+        })
+        .filter(|task| {
             task.last_heartbeat_at
                 .map(|ts| now_ms.saturating_sub(ts) > age_ms)
                 .unwrap_or(false)
@@ -158,6 +165,7 @@ pub fn summary(graph: &TaskGraph, scope_id: &str, now_ms: u64, stale_after_ms: u
     let mut readiness = json!({
         "runnable": 0u64,
         "blocked": 0u64,
+        "terminal": 0u64,
         "leased": 0u64,
         "stale": 0u64
     });

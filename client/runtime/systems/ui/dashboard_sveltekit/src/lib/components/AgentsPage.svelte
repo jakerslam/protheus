@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { dashboardClassicHref, dashboardPageHref } from '$lib/dashboard';
+  import { dashboardPageHref } from '$lib/dashboard';
   import type { DashboardAgentRow, DashboardModelRow } from '$lib/chat';
   import { createDraftAgent, readModels, readSidebarAgents, updateAgentConfig, updateAgentModel } from '$lib/chat';
   import type { DashboardTemplateRow, DashboardTerminatedAgentRow } from '$lib/agents';
@@ -223,7 +223,7 @@
   <div class="hero">
     <div>
       <p class="eyebrow">Native agents</p>
-      <h2>Roster, lifecycle, and spawning without the classic fallback.</h2>
+      <h2>Roster, lifecycle, and spawning without the legacy host detour.</h2>
       <p class="hero-copy">
         This first native agents slice covers the authoritative roster, archived-agent lifecycle, template spawning, and the highest-value detail controls.
       </p>
@@ -232,7 +232,6 @@
       <button class="primary" type="button" on:click={() => void handleCreateDraft()} disabled={busyKey === 'draft'}>
         {busyKey === 'draft' ? 'Creating…' : 'New draft chat'}
       </button>
-      <a class="ghost" href={dashboardClassicHref('agents')}>Open classic agents</a>
     </div>
   </div>
 

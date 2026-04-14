@@ -1,3 +1,40 @@
+fn finalize_global_post_tool_payload(
+    root: &Path,
+    tool_name: &str,
+    tool_input: &Value,
+    payload: &mut Value,
+    nexus_connection: Option<Value>,
+) {
+    crate::dashboard_tool_turn_loop::annotate_tool_payload_tracking(
+        root,
+        "dashboard-api",
+        tool_name,
+        payload,
+    );
+    let audit_receipt = append_tool_decision_audit(
+        root,
+        "dashboard-api",
+        tool_name,
+        tool_input,
+        payload,
+        "none",
+    );
+    if let Some(obj) = payload.as_object_mut() {
+        obj.insert(
+            "recovery_strategy".to_string(),
+            Value::String("none".to_string()),
+        );
+        obj.insert("recovery_attempts".to_string(), json!(0));
+        obj.insert(
+            "decision_audit_receipt".to_string(),
+            Value::String(audit_receipt),
+        );
+        if let Some(meta) = nexus_connection {
+            obj.insert("nexus_connection".to_string(), meta);
+        }
+    }
+}
+
 fn handle_global_post_delete_routes(
     root: &Path,
     method: &str,
@@ -197,11 +234,13 @@ fn handle_global_post_delete_routes(
             if pipeline.get("ok").and_then(Value::as_bool).unwrap_or(false) {
                 attach_tool_pipeline(&mut payload, &pipeline);
             }
-            if let Some(meta) = nexus_connection {
-                if let Some(obj) = payload.as_object_mut() {
-                    obj.insert("nexus_connection".to_string(), meta);
-                }
-            }
+            finalize_global_post_tool_payload(
+                root,
+                "web_fetch",
+                &request,
+                &mut payload,
+                nexus_connection,
+            );
             return Some(CompatApiResponse {
                 status: if payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
                     200
@@ -265,11 +304,13 @@ fn handle_global_post_delete_routes(
             if pipeline.get("ok").and_then(Value::as_bool).unwrap_or(false) {
                 attach_tool_pipeline(&mut payload, &pipeline);
             }
-            if let Some(meta) = nexus_connection {
-                if let Some(obj) = payload.as_object_mut() {
-                    obj.insert("nexus_connection".to_string(), meta);
-                }
-            }
+            finalize_global_post_tool_payload(
+                root,
+                "web_search",
+                &request,
+                &mut payload,
+                nexus_connection,
+            );
             return Some(CompatApiResponse {
                 status: if payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
                     200
@@ -281,6 +322,23 @@ fn handle_global_post_delete_routes(
         }
         if path_only == "/api/batch-query" {
             let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+            let nexus_connection =
+                match crate::dashboard_tool_turn_loop::authorize_ingress_tool_call_with_nexus(
+                    "batch_query",
+                ) {
+                    Ok(meta) => meta,
+                    Err(err) => {
+                        return Some(CompatApiResponse {
+                            status: 403,
+                            payload: json!({
+                                "ok": false,
+                                "error": "batch_query_nexus_delivery_denied",
+                                "message": "Batch query blocked by hierarchical nexus ingress policy.",
+                                "nexus_error": clean_text(&err, 240)
+                            }),
+                        })
+                    }
+                };
             let trace_id = crate::deterministic_receipt_hash(&json!({
                 "tool": "batch_query",
                 "request": request,
@@ -309,6 +367,13 @@ fn handle_global_post_delete_routes(
             if pipeline.get("ok").and_then(Value::as_bool).unwrap_or(false) {
                 attach_tool_pipeline(&mut payload, &pipeline);
             }
+            finalize_global_post_tool_payload(
+                root,
+                "batch_query",
+                &request,
+                &mut payload,
+                nexus_connection,
+            );
             return Some(CompatApiResponse {
                 status: if payload.get("status").and_then(Value::as_str) == Some("blocked") {
                     400
