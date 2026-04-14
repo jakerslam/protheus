@@ -1,5 +1,7 @@
 use crate::context_atoms::ContextAtom;
-use crate::context_topology::{ContextFrontier, ContextPressureState, ContextSpan, ContextSpanStatus};
+use crate::context_topology::{
+    ContextFrontier, ContextPressureState, ContextSpan, ContextSpanStatus,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -110,7 +112,8 @@ pub fn build_frontier(
         }
     }
 
-    let fidelity_score = weighted_fidelity(spans, &warm_span_refs, &cool_span_refs, &cold_span_refs);
+    let fidelity_score =
+        weighted_fidelity(spans, &warm_span_refs, &cool_span_refs, &cold_span_refs);
     let pressure_state = pressure_state(budget, used_tokens);
     let frontier = ContextFrontier {
         session_id: request.session_id.clone(),
@@ -257,7 +260,13 @@ mod tests {
             budget_tokens: 180,
             pinned_anchor_refs: vec!["pin".to_string()],
         };
-        let atoms = vec![atom(1, 20), atom(2, 20), atom(3, 20), atom(4, 20), atom(5, 20)];
+        let atoms = vec![
+            atom(1, 20),
+            atom(2, 20),
+            atom(3, 20),
+            atom(4, 20),
+            atom(5, 20),
+        ];
         let spans = vec![span("w1", 0, 40, 0.8), span("c1", 1, 60, 0.7)];
         let (frontier, report) = build_frontier(&req, &atoms, &spans, None);
         assert!(!frontier.hot_atom_refs.is_empty());
