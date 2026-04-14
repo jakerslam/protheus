@@ -4,12 +4,9 @@ use chrono::{Duration, Utc};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::path::Path;
-
 use super::CompatApiResponse;
-
 #[path = "dashboard_compat_api_comms_store.rs"]
 mod dashboard_compat_api_comms_store;
-
 const COMMS_CONTRACT_VERSION: &str = "dashboard_comms_v1";
 
 fn agent_name_map(root: &Path, snapshot: &Value) -> HashMap<String, String> {
@@ -28,11 +25,10 @@ fn agent_name_map(root: &Path, snapshot: &Value) -> HashMap<String, String> {
     }
     out
 }
-
-fn agent_name_from_map(map: &HashMap<String, String>, agent_id: &str, fallback: &str) -> String {
+fn agent_name_from_map(map: &HashMap<String, String>, agent_id: &str) -> String {
     let id = super::clean_agent_id(agent_id);
     if id.is_empty() {
-        return fallback.to_string();
+        return "Agent".to_string();
     }
     map.get(&id)
         .cloned()
@@ -48,7 +44,6 @@ fn request_swarm_agent_ids(request: &Value) -> Vec<String> {
     }
     Vec::new()
 }
-
 fn topology_payload(root: &Path, snapshot: &Value) -> Value {
     let roster = super::build_agent_roster(root, snapshot, false);
     let mut nodes = Vec::<Value>::new();
@@ -158,7 +153,11 @@ pub fn handle(
             if cleaned.is_empty() {
                 None
             } else {
-                Some(cleaned)
+                Some(match cleaned.as_str() {
+                    "done" => "completed".to_string(),
+                    "in-progress" | "in_progress" => "running".to_string(),
+                    other => other.to_string(),
+                })
             }
         });
         if let Some(status) = status_filter.as_deref() {
@@ -217,8 +216,8 @@ pub fn handle(
         dashboard_compat_api_comms_store::append_event(
             root,
             "agent_message",
-            &agent_name_from_map(&names, &from_id, "Agent"),
-            &agent_name_from_map(&names, &to_id, "Agent"),
+            &agent_name_from_map(&names, &from_id),
+            &agent_name_from_map(&names, &to_id),
             &message,
             None,
         );

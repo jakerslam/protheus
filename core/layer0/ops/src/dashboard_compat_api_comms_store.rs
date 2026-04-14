@@ -400,7 +400,7 @@ pub fn apply_task_lifecycle(root: &Path, tasks: &mut Vec<Value>) -> bool {
 
     for row in tasks.iter_mut() {
         let status = parse_task_status(row);
-        if status == "completed" || status == "failed" || status == "timed_out" {
+        if matches!(status.as_str(), "completed" | "failed" | "timed_out" | "paused" | "cancelled" | "canceled" | "aborted") {
             continue;
         }
         if row.get("timeout_secs").is_none() {
