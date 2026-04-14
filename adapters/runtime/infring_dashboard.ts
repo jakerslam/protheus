@@ -16,9 +16,6 @@ const { createAgentWsBridge } = require('./agent_ws_bridge.ts');
 
 const DASHBOARD_DIR = path.resolve(ROOT, 'client/runtime/systems/ui');
 const CANONICAL_STATIC_DIR = path.resolve(DASHBOARD_DIR, 'infring_static');
-const SVELTEKIT_MODULE_DIR = path.resolve(DASHBOARD_DIR, 'dashboard_sveltekit');
-const SVELTEKIT_BUILD_DIR = path.resolve(SVELTEKIT_MODULE_DIR, 'build');
-const SVELTEKIT_INDEX_PATH = path.resolve(SVELTEKIT_BUILD_DIR, 'index.html');
 const STATIC_DIR = CANONICAL_STATIC_DIR;
 const FORBIDDEN_ALT_DASHBOARD_DIRS = [
   path.resolve(DASHBOARD_DIR, 'legacy_dashboard'),
@@ -30,25 +27,6 @@ const FORBIDDEN_ALT_DASHBOARD_DIRS = [
 const SIBLING_ALT_DASHBOARD_PATTERN = /(legacy|reference_runtime|control_runtime|deprecated)/i;
 const STATUS_DIR = path.resolve(ROOT, 'client/runtime/local/state/ui/infring_dashboard');
 const STATUS_PATH = path.resolve(STATUS_DIR, 'server_status.json');
-const ACTION_HISTORY_PATH = path.resolve(
-  ROOT,
-  'client/runtime/local/state/ui/infring_dashboard/actions/history.jsonl'
-);
-const ARTIFACT_DIR = path.resolve(ROOT, 'core/local/artifacts');
-const POLICY_DEBT_ARTIFACT_PATH = path.resolve(ARTIFACT_DIR, 'policy_debt_summary_current.json');
-const CLASSIC_DASHBOARD_DEBT_ARTIFACT_PATH = path.resolve(ARTIFACT_DIR, 'classic_dashboard_debt_inventory_current.json');
-const ORCHESTRATION_ADAPTER_FALLBACK_ARTIFACT_PATH = path.resolve(ARTIFACT_DIR, 'orchestration_adapter_fallback_guard_current.json');
-const ORCHESTRATION_HIDDEN_STATE_ARTIFACT_PATH = path.resolve(ARTIFACT_DIR, 'orchestration_hidden_state_guard_current.json');
-const DASHBOARD_REGISTRY_PATH = path.resolve(
-  ROOT,
-  'client/runtime/systems/ui/dashboard_sveltekit/src/lib/dashboard.ts'
-);
-const ORCHESTRATION_CONTRACTS_PATH = path.resolve(ROOT, 'surface/orchestration/src/contracts.rs');
-const ORCHESTRATION_PROGRESS_PATH = path.resolve(ROOT, 'surface/orchestration/src/progress.rs');
-const ORCHESTRATION_CAPABILITY_REGISTRY_PATH = path.resolve(
-  ROOT,
-  'surface/orchestration/src/planner/capability_registry.rs'
-);
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 4173;
 const DEFAULT_TEAM = 'ops';
@@ -57,48 +35,6 @@ const DEFAULT_BACKEND_READY_TIMEOUT_MS = 120000;
 const BACKEND_PORT_OFFSET = 1000;
 const HOP_BY_HOP = new Set(['connection', 'host', 'keep-alive', 'proxy-authenticate', 'proxy-authorization', 'te', 'trailers', 'transfer-encoding', 'upgrade']);
 
-function hasSvelteKitBuild() {
-  try {
-    return fs.statSync(SVELTEKIT_INDEX_PATH).isFile();
-  } catch {
-    return false;
-  }
-}
-function svelteKitContentType(filePath) {
-  const ext = path.extname(String(filePath || '')).toLowerCase();
-  if (ext === '.html') return 'text/html; charset=utf-8';
-  if (ext === '.js' || ext === '.mjs') return 'text/javascript; charset=utf-8';
-  if (ext === '.css') return 'text/css; charset=utf-8';
-  if (ext === '.svg') return 'image/svg+xml; charset=utf-8';
-  if (ext === '.json' || ext === '.map') return 'application/json; charset=utf-8';
-  if (ext === '.txt') return 'text/plain; charset=utf-8';
-  if (ext === '.ico') return 'image/x-icon';
-  if (ext === '.png') return 'image/png';
-  if (ext === '.jpg' || ext === '.jpeg') return 'image/jpeg';
-  if (ext === '.webp') return 'image/webp';
-  if (ext === '.woff') return 'font/woff';
-  if (ext === '.woff2') return 'font/woff2';
-  return 'application/octet-stream';
-}
-function readSvelteKitAsset(pathname) {
-  if (!hasSvelteKitBuild()) return null;
-  const rawPath = String(pathname || '/');
-  const fromDashboardPrefix = rawPath.startsWith('/dashboard/') ? rawPath.slice('/dashboard'.length) : rawPath;
-  const normalized = rawPath === '/' || rawPath === '/dashboard' || rawPath === '/dashboard/' ? '/index.html' : (fromDashboardPrefix || '/');
-  const relPath = String(normalized || '/').replace(/^\/+/, '');
-  const candidate = path.resolve(SVELTEKIT_BUILD_DIR, relPath);
-  if (candidate.startsWith(SVELTEKIT_BUILD_DIR)) {
-    try {
-      if (fs.statSync(candidate).isFile()) {
-        return { body: fs.readFileSync(candidate), contentType: svelteKitContentType(candidate) };
-      }
-    } catch {}
-  }
-  if (rawPath === '/' || rawPath === '/dashboard' || rawPath.startsWith('/dashboard/')) {
-    return { body: fs.readFileSync(SVELTEKIT_INDEX_PATH), contentType: 'text/html; charset=utf-8' };
-  }
-  return null;
-}
 function nowIso() { return new Date().toISOString(); }
 function cleanText(value, maxLen = 200) { return String(value == null ? '' : value).replace(/\s+/g, ' ').trim().slice(0, maxLen); }
 function isTransientSocketError(error) {
@@ -133,7 +69,7 @@ function parseFlags(argv = []) {
     apiHost: '',
     apiPort: 0,
     apiReadyTimeoutMs: DEFAULT_BACKEND_READY_TIMEOUT_MS,
-    uiMode: cleanText(process.env.INFRING_DASHBOARD_UI || 'sveltekit', 24).toLowerCase(),
+    uiMode: cleanText(process.env.INFRING_DASHBOARD_UI || 'classic', 24).toLowerCase(),
   };
   let modeSet = false;
   for (const token of argv) {
@@ -152,7 +88,7 @@ function parseFlags(argv = []) {
     else if (value.startsWith('--ui=')) out.uiMode = cleanText(value.slice(5), 24).toLowerCase();
     else if (value === '--pretty=0' || value === '--pretty=false') out.pretty = false;
   }
-  if (out.uiMode !== 'sveltekit') out.uiMode = 'classic';
+  out.uiMode = 'classic';
   out.apiHost = out.apiHost || out.host;
   out.apiPort = out.apiPort || defaultApiPort(out.port);
   if (out.apiPort === out.port) out.apiPort = defaultApiPort(out.port + 1);
@@ -160,386 +96,6 @@ function parseFlags(argv = []) {
 }
 function ensureDir(dirPath) { fs.mkdirSync(dirPath, { recursive: true }); }
 function writeJson(filePath, value) { ensureDir(path.dirname(filePath)); fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8'); }
-function readJsonMaybe(filePath, fallback = null) {
-  try {
-    if (!fs.existsSync(filePath)) return fallback;
-    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-  } catch {
-    return fallback;
-  }
-}
-function readTextMaybe(filePath, fallback = '') {
-  try {
-    if (!fs.existsSync(filePath)) return fallback;
-    return fs.readFileSync(filePath, 'utf8');
-  } catch {
-    return fallback;
-  }
-}
-function readRecentJsonl(filePath, limit = 12) {
-  const raw = readTextMaybe(filePath, '');
-  if (!raw.trim()) return [];
-  const out = [];
-  const lines = raw.trim().split(/\r?\n/);
-  for (let index = lines.length - 1; index >= 0 && out.length < Math.max(1, limit); index -= 1) {
-    const line = String(lines[index] || '').trim();
-    if (!line) continue;
-    try {
-      out.push(JSON.parse(line));
-    } catch {}
-  }
-  return out;
-}
-function asArray(value) {
-  return Array.isArray(value) ? value : [];
-}
-function firstNonEmptyString(values, maxLen = 160) {
-  for (const value of values) {
-    const text = cleanText(value, maxLen);
-    if (text) return text;
-  }
-  return '';
-}
-function collectStringValuesByKey(value, key, out, cap = 24, depth = 0) {
-  if (out.length >= cap || depth > 6 || value == null) return;
-  if (Array.isArray(value)) {
-    for (const row of value) {
-      if (out.length >= cap) break;
-      collectStringValuesByKey(row, key, out, cap, depth + 1);
-    }
-    return;
-  }
-  if (typeof value !== 'object') return;
-  const record = value;
-  if (Object.prototype.hasOwnProperty.call(record, key)) {
-    const candidate = record[key];
-    if (Array.isArray(candidate)) {
-      for (const row of candidate) {
-        const text = cleanText(row, 220);
-        if (!text || out.includes(text)) continue;
-        out.push(text);
-        if (out.length >= cap) return;
-      }
-    } else {
-      const text = cleanText(candidate, 220);
-      if (text && !out.includes(text)) out.push(text);
-    }
-  }
-  for (const child of Object.values(record)) {
-    if (out.length >= cap) break;
-    collectStringValuesByKey(child, key, out, cap, depth + 1);
-  }
-}
-function findToolPipeline(value, depth = 0) {
-  if (!value || typeof value !== 'object' || depth > 6) return null;
-  if (
-    value.normalized_result
-    && (
-      Array.isArray(value.evidence_cards)
-      || value.claim_bundle
-      || value.worker_output
-      || value.tool_attempt_receipt
-    )
-  ) {
-    return value;
-  }
-  if (Array.isArray(value)) {
-    for (const row of value) {
-      const found = findToolPipeline(row, depth + 1);
-      if (found) return found;
-    }
-    return null;
-  }
-  for (const child of Object.values(value)) {
-    const found = findToolPipeline(child, depth + 1);
-    if (found) return found;
-  }
-  return null;
-}
-function normalizeOrchestrationReceiptRow(row, source) {
-  const payload = row && typeof row.payload === 'object' ? row.payload : {};
-  const pipeline = findToolPipeline(row) || findToolPipeline(payload);
-  const normalized = pipeline && typeof pipeline.normalized_result === 'object' ? pipeline.normalized_result : {};
-  const claimBundle = pipeline && typeof pipeline.claim_bundle === 'object' ? pipeline.claim_bundle : {};
-  const attempt = pipeline && typeof pipeline.tool_attempt_receipt === 'object'
-    ? pipeline.tool_attempt_receipt
-    : (payload && typeof payload.tool_attempt_receipt === 'object' ? payload.tool_attempt_receipt : {});
-  const taskIds = [];
-  const traceIds = [];
-  const coreReceiptIds = [];
-  const coreOutcomeRefs = [];
-  collectStringValuesByKey(row, 'task_id', taskIds, 12);
-  collectStringValuesByKey(row, 'trace_id', traceIds, 12);
-  collectStringValuesByKey(row, 'observed_core_receipt_ids', coreReceiptIds, 24);
-  collectStringValuesByKey(row, 'receipt_ids', coreReceiptIds, 24);
-  collectStringValuesByKey(row, 'observed_core_outcome_refs', coreOutcomeRefs, 24);
-  collectStringValuesByKey(row, 'outcome_refs', coreOutcomeRefs, 24);
-  const evidenceCards = asArray(pipeline && pipeline.evidence_cards);
-  const claims = asArray(claimBundle && claimBundle.claims);
-  const toolName = firstNonEmptyString(
-    [
-      normalized.tool_name,
-      attempt.tool_name,
-      payload.tool_name,
-      row.tool_name,
-      row.type,
-    ],
-    120
-  );
-  const status = firstNonEmptyString(
-    [
-      attempt.status,
-      payload.status,
-      row.status,
-      row.ok === false ? 'error' : 'ok',
-    ],
-    80
-  ).toLowerCase() || 'ok';
-  const createdAt = firstNonEmptyString(
-    [
-      row.ts,
-      row.created_at,
-      payload.ts,
-      payload.created_at,
-      attempt.ts,
-    ],
-    80
-  );
-  const taskId = taskIds[0] || '';
-  const traceId = traceIds[0] || '';
-  const receiptHash = firstNonEmptyString([row.receipt_hash, payload.receipt_hash], 160);
-  if (!toolName && !taskId && !traceId && evidenceCards.length === 0 && claims.length === 0) {
-    return null;
-  }
-  return {
-    source,
-    type: firstNonEmptyString([row.type, payload.type, 'dashboard_tool_result'], 120) || 'dashboard_tool_result',
-    created_at: createdAt,
-    receipt_hash: receiptHash,
-    status,
-    tool_name: toolName,
-    task_id: taskId,
-    trace_id: traceId,
-    evidence_count: evidenceCards.length,
-    claim_count: claims.length,
-    core_receipt_count: coreReceiptIds.length,
-    core_outcome_count: coreOutcomeRefs.length,
-    lineage_ready: Boolean(taskId),
-  };
-}
-function normalizeOrchestrationReceiptRows(rows, source, limit = 8) {
-  const out = [];
-  const seen = new Set();
-  for (const row of Array.isArray(rows) ? rows : []) {
-    const normalized = normalizeOrchestrationReceiptRow(row, source);
-    if (!normalized) continue;
-    const key = normalized.trace_id
-      || normalized.receipt_hash
-      || `${normalized.task_id}|${normalized.tool_name}|${normalized.created_at}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push(normalized);
-    if (out.length >= Math.max(1, limit)) break;
-  }
-  return out;
-}
-function walkFiles(rootDir, predicate) {
-  if (!rootDir || !fs.existsSync(rootDir)) return [];
-  const out = [];
-  const stack = [rootDir];
-  while (stack.length > 0) {
-    const current = stack.pop();
-    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
-      const abs = path.join(current, entry.name);
-      if (entry.isDirectory()) {
-        stack.push(abs);
-        continue;
-      }
-      if (entry.isFile() && (!predicate || predicate(abs))) out.push(abs);
-    }
-  }
-  return out.sort();
-}
-function lineCount(filePath) {
-  return readTextMaybe(filePath, '').split(/\r?\n/).length;
-}
-function collectSourceFiles(targets, matcher) {
-  const out = [];
-  for (const target of targets) {
-    if (!target || !fs.existsSync(target)) continue;
-    const stat = fs.statSync(target);
-    if (stat.isDirectory()) {
-      out.push(...walkFiles(target, matcher));
-      continue;
-    }
-    if (stat.isFile() && (!matcher || matcher(target))) out.push(target);
-  }
-  return Array.from(new Set(out)).sort();
-}
-function countMatchesAcrossFiles(targets, matcher, flags = 'g') {
-  const sourceFiles = collectSourceFiles(targets, (candidate) => /\.(svelte|ts|tsx|rs|json|html|css)$/i.test(candidate));
-  let count = 0;
-  for (const filePath of sourceFiles) {
-    const source = readTextMaybe(filePath, '');
-    if (!source) continue;
-    const pattern = matcher instanceof RegExp ? new RegExp(matcher.source, flags) : new RegExp(String(matcher), flags);
-    count += (source.match(pattern) || []).length;
-  }
-  return count;
-}
-function parseDashboardModes(source) {
-  return [...String(source || '').matchAll(/\{\s*key:\s*'([^']+)'[\s\S]*?mode:\s*'([^']+)'/g)].map((row) => ({
-    key: row[1],
-    mode: row[2],
-  }));
-}
-function extractRustEnumVariants(source, enumName) {
-  const match = String(source || '').match(new RegExp(`pub enum ${enumName}\\s*\\{([\\s\\S]*?)\\n\\}`, 'm'));
-  if (!match) return [];
-  return match[1]
-    .split('\n')
-    .map((line) => line.replace(/\/\/.*$/, '').trim())
-    .filter((line) => line && !line.startsWith('#['))
-    .map((line) => line.replace(/,$/, '').trim())
-    .filter((line) => /^[A-Za-z0-9_]+$/.test(line));
-}
-function extractRustStructFields(source, structName) {
-  const match = String(source || '').match(new RegExp(`pub struct ${structName}\\s*\\{([\\s\\S]*?)\\n\\}`, 'm'));
-  if (!match) return [];
-  return match[1]
-    .split('\n')
-    .map((line) => line.replace(/\/\/.*$/, '').trim())
-    .filter((line) => line.startsWith('pub '))
-    .map((line) => line.replace(/^pub\s+/, '').split(':')[0].trim())
-    .filter(Boolean);
-}
-function dashboardTelemetrySnapshot() {
-  const artifact = readJsonMaybe(CLASSIC_DASHBOARD_DEBT_ARTIFACT_PATH, null);
-  const dashboardSource = readTextMaybe(DASHBOARD_REGISTRY_PATH, '');
-  const pageModes = parseDashboardModes(dashboardSource);
-  const classicRoot = path.resolve(DASHBOARD_DIR, 'infring_static');
-  const classicFiles = walkFiles(classicRoot, (candidate) => /\.(ts|css|html)$/i.test(candidate));
-  const scanTargets = [
-    path.resolve(SVELTEKIT_MODULE_DIR, 'src'),
-    path.resolve(DASHBOARD_DIR, 'infring_dashboard.ts'),
-  ];
-  const topClassicFiles = classicFiles
-    .map((filePath) => ({
-      path: path.relative(ROOT, filePath).replace(/\\/g, '/'),
-      lines: lineCount(filePath),
-    }))
-    .sort((left, right) => right.lines - left.lines || left.path.localeCompare(right.path, 'en'))
-    .slice(0, 5);
-
-  return {
-    ok: true,
-    type: 'dashboard_route_telemetry',
-    generated_at: nowIso(),
-    artifact_generated_at: artifact && artifact.generated_at ? artifact.generated_at : null,
-    summary: {
-      native_pages: pageModes.filter((row) => row.mode === 'native').length,
-      legacy_pages: pageModes.filter((row) => row.mode === 'legacy').length,
-      classic_asset_files: classicFiles.length,
-      classic_href_references: countMatchesAcrossFiles(scanTargets, /dashboardClassicHref/g),
-      embedded_fallback_references: countMatchesAcrossFiles(
-        scanTargets,
-        /dashboardEmbeddedFallbackHref|dashboard-classic\?embed=1|classic fallback/g,
-      ),
-    },
-    top_classic_files: topClassicFiles,
-  };
-}
-function policyDebtRuntimeSnapshot() {
-  const policy = readJsonMaybe(POLICY_DEBT_ARTIFACT_PATH, null);
-  const dashboard = dashboardTelemetrySnapshot();
-  const debt = policy && policy.debt && typeof policy.debt === 'object' ? policy.debt : {};
-  const size = debt && debt.size && typeof debt.size === 'object' ? debt.size : {};
-  const nonSize = debt && debt.non_size && typeof debt.non_size === 'object' ? debt.non_size : {};
-  return {
-    ok: true,
-    type: 'runtime_policy_debt',
-    generated_at: nowIso(),
-    policy_generated_at: policy && policy.generated_at ? policy.generated_at : null,
-    dashboard_generated_at: dashboard.generated_at,
-    summary: {
-      open_items: Number(nonSize.open_items || 0) || 0,
-      blocked_items: Number(nonSize.blocked_items || 0) || 0,
-      policy_green_but_debt_remaining: nonSize.policy_green_but_debt_remaining === true,
-      size_exception_count: Number(size.exception_count || 0) || 0,
-      oversized_files: Number(size.oversized || 0) || 0,
-      native_pages: dashboard.summary.native_pages,
-      legacy_pages: dashboard.summary.legacy_pages,
-      classic_asset_files: dashboard.summary.classic_asset_files,
-      classic_href_references: dashboard.summary.classic_href_references,
-      embedded_fallback_references: dashboard.summary.embedded_fallback_references,
-    },
-    top_classic_files: dashboard.top_classic_files,
-  };
-}
-function orchestrationSurfaceRuntimeSnapshot() {
-  const contractsSource = readTextMaybe(ORCHESTRATION_CONTRACTS_PATH, '');
-  const progressSource = readTextMaybe(ORCHESTRATION_PROGRESS_PATH, '');
-  const registrySource = readTextMaybe(ORCHESTRATION_CAPABILITY_REGISTRY_PATH, '');
-  const adapterFallback = readJsonMaybe(ORCHESTRATION_ADAPTER_FALLBACK_ARTIFACT_PATH, null);
-  const hiddenState = readJsonMaybe(ORCHESTRATION_HIDDEN_STATE_ARTIFACT_PATH, null);
-  const correlationFields = extractRustStructFields(contractsSource, 'ExecutionCorrelation');
-  const hasReceiptCorrelation =
-    correlationFields.includes('observed_core_receipt_ids') &&
-    correlationFields.includes('observed_core_outcome_refs');
-  const hasNestedCoreProjection =
-    progressSource.includes('["core_execution", "status"]') &&
-    progressSource.includes('["core_execution", "receipt_ids"]') &&
-    progressSource.includes('["core_execution", "outcome_refs"]');
-
-  return {
-    ok: true,
-    type: 'runtime_orchestration_surface',
-    generated_at: nowIso(),
-    summary: {
-      capability_probes: /pub struct CapabilityProbeResult/.test(contractsSource) &&
-        /capability_probes:\s*Vec<CapabilityProbeResult>/.test(contractsSource),
-      alternative_plans: (contractsSource.match(/pub alternative_plans:\s*Vec<PlanCandidate>/g) || []).length >= 2,
-      verifier_request: /\bVerifierRequest\b/.test(contractsSource),
-      verifier_registry_mapping: /Capability::VerifyClaim[\s\S]*CoreContractCall::VerifierRequest/.test(registrySource),
-      nested_core_projection: hasNestedCoreProjection,
-      receipt_correlation: hasReceiptCorrelation,
-    },
-    plan_variants: extractRustEnumVariants(contractsSource, 'PlanVariant'),
-    plan_statuses: extractRustEnumVariants(contractsSource, 'PlanStatus'),
-    step_statuses: extractRustEnumVariants(contractsSource, 'StepStatus'),
-    correlation_fields: correlationFields,
-    guardrails: {
-      adapter_fallback_pass: adapterFallback ? adapterFallback.ok === true : null,
-      adapter_fallback_threshold: adapterFallback && Number.isFinite(Number(adapterFallback.threshold))
-        ? Number(adapterFallback.threshold)
-        : null,
-      hidden_state_pass: hiddenState && hiddenState.summary ? hiddenState.summary.pass === true : null,
-      hidden_state_violations: hiddenState && hiddenState.summary
-        ? Number(hiddenState.summary.violation_count || 0) || 0
-        : null,
-    },
-  };
-}
-async function orchestrationReceiptsRuntimeSnapshot(flags, limit = 8) {
-  const boundedLimit = parsePositiveInt(limit, 8, 1, 20);
-  const localRows = readRecentJsonl(ACTION_HISTORY_PATH, Math.max(24, boundedLimit * 6));
-  let source = 'local_action_history';
-  let receipts = normalizeOrchestrationReceiptRows(localRows, source, boundedLimit);
-  if (!receipts.length) {
-    const backendLogs = await fetchBackendJson(flags, '/api/logs/stream', 6000).catch(() => ({}));
-    source = 'backend_logs_stream';
-    receipts = normalizeOrchestrationReceiptRows(asArray(backendLogs && backendLogs.events), source, boundedLimit);
-  }
-  return {
-    ok: true,
-    type: 'runtime_orchestration_receipts',
-    generated_at: nowIso(),
-    source,
-    action_history_path: path.relative(ROOT, ACTION_HISTORY_PATH).replace(/\\/g, '/'),
-    receipts,
-    count: receipts.length,
-  };
-}
 function discoverSiblingAltDashboardSurfaces() {
   const out = [];
   let rows = [];
@@ -904,12 +460,8 @@ function proxyUpgrade(req, socket, head, flags) {
 }
 async function runServe(flags) {
   assertDashboardSurfaceLocked();
-  const svelteKitUiEnabled = flags.uiMode === 'sveltekit' && hasSvelteKitBuild();
   let dashboardHtml = buildPrimaryDashboardHtml(STATIC_DIR);
   if (!dashboardHtml.trim()) throw new Error('primary_dashboard_html_empty');
-  if (flags.uiMode === 'sveltekit' && !svelteKitUiEnabled) {
-    console.warn('dashboard_sveltekit_build_missing_using_primary_static_ui');
-  }
   const backend = await ensureBackend(flags);
   const wsBridge = createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson });
   const status = {
@@ -923,13 +475,12 @@ async function runServe(flags) {
     team: flags.team,
     authority: 'primary_dashboard_ui_over_rust_core_api',
     dashboard_ui_mode_requested: flags.uiMode,
-    dashboard_ui_mode_active: svelteKitUiEnabled ? 'sveltekit' : 'classic',
+    dashboard_ui_mode_active: 'classic',
     backend_url: backendBase(flags),
     backend_reused: backend.reused,
     ws_bridge_enabled: !!wsBridge.ws_enabled,
     ws_bridge_error: cleanText(wsBridge.ws_error || '', 120),
     dashboard_static_dir: path.basename(STATIC_DIR),
-    dashboard_sveltekit_module: fs.existsSync(SVELTEKIT_MODULE_DIR),
     status_path: path.relative(ROOT, STATUS_PATH),
   };
   const server = http.createServer(async (req, res) => {
@@ -937,30 +488,23 @@ async function runServe(flags) {
     const pathname = requestUrl.pathname;
     try {
       if (req.method === 'GET' && (pathname === '/dashboard-classic' || pathname === '/dashboard-shell')) {
+        const search = String(requestUrl.search || '');
+        res.writeHead(302, { location: `/dashboard${search}`, 'cache-control': 'no-store' });
+        return;
+      }
+      if (req.method === 'GET' && pathname === '/') {
+        res.writeHead(302, { location: '/dashboard', 'cache-control': 'no-store' });
+        res.end();
+        return;
+      }
+      if (
+        req.method === 'GET' &&
+        (pathname === '/dashboard' || pathname === '/dashboard/' || (pathname.startsWith('/dashboard/') && !path.extname(pathname)))
+      ) {
         dashboardHtml = buildPrimaryDashboardHtml(STATIC_DIR) || dashboardHtml;
         res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
         res.end(dashboardHtml);
         return;
-      }
-      if (req.method === 'GET' && (pathname === '/' || pathname === '/dashboard')) {
-        if (svelteKitUiEnabled) {
-          if (pathname === '/') {
-            res.writeHead(302, { location: '/dashboard', 'cache-control': 'no-store' });
-            res.end();
-            return;
-          }
-          const asset = readSvelteKitAsset(pathname);
-          if (asset) {
-            res.writeHead(200, { 'content-type': asset.contentType, 'cache-control': 'no-store' });
-            res.end(asset.body);
-            return;
-          }
-        } else {
-          dashboardHtml = buildPrimaryDashboardHtml(STATIC_DIR) || dashboardHtml;
-          res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
-          res.end(dashboardHtml);
-          return;
-        }
       }
       if (req.method === 'GET' && pathname === '/api/status') {
         const status = mergeDashboardVersionPayload(await statusPayloadWithBootStage(flags));
@@ -977,16 +521,6 @@ async function runServe(flags) {
       if (req.method === 'GET' && pathname === '/api/config/schema') {
         const schema = await fetchBackendJson(flags, '/api/config/schema', 8000).catch(() => ({ ok: true, sections: {} }));
         return void sendJson(res, 200, schema);
-      }
-      if (req.method === 'GET' && pathname === '/api/runtime/policy-debt') {
-        return void sendJson(res, 200, policyDebtRuntimeSnapshot());
-      }
-      if (req.method === 'GET' && pathname === '/api/runtime/orchestration-surface') {
-        return void sendJson(res, 200, orchestrationSurfaceRuntimeSnapshot());
-      }
-      if (req.method === 'GET' && pathname === '/api/runtime/orchestration-receipts') {
-        const limit = parsePositiveInt(requestUrl.searchParams.get('limit') || '8', 8, 1, 20);
-        return void sendJson(res, 200, await orchestrationReceiptsRuntimeSnapshot(flags, limit));
       }
       if (req.method === 'GET' && pathname === '/api/auth/check') {
         const auth = await fetchBackendJson(flags, '/api/auth/check', 8000).catch(() => ({ ok: true, mode: 'none', authenticated: true, user: 'operator' }));
@@ -1032,14 +566,6 @@ async function runServe(flags) {
         return;
       }
       if (req.method === 'GET') {
-        if (svelteKitUiEnabled) {
-          const svelteAsset = readSvelteKitAsset(pathname);
-          if (svelteAsset) {
-            res.writeHead(200, { 'content-type': svelteAsset.contentType, 'cache-control': 'no-store' });
-            res.end(svelteAsset.body);
-            return;
-          }
-        }
         const asset = readPrimaryDashboardAsset(STATIC_DIR, pathname);
         if (asset) {
           res.writeHead(200, { 'content-type': asset.contentType, 'cache-control': 'no-store' });

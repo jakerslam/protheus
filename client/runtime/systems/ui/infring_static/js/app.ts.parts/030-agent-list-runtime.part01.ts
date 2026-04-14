@@ -1,4 +1,3 @@
-// Layer ownership: client/runtime/systems/ui (dashboard static UX surface only; no runtime authority).
     updateSidebarScrollIndicators() {
       var refs = this.$refs || {};
       var navState = this._computeScrollHintState(refs.sidebarNav);
@@ -350,11 +349,18 @@
       var searchParams = new URLSearchParams(window.location.search || '');
       var embeddedDashboardMode = searchParams.get('embed') === '1';
       var embeddedPage = String(searchParams.get('page') || '').trim().toLowerCase();
+      var pathnamePage = '';
+      try {
+        var pathname = String(window.location.pathname || '').trim();
+        if (pathname.indexOf('/dashboard/') === 0) {
+          pathnamePage = pathname.slice('/dashboard/'.length).split('/')[0].trim().toLowerCase();
+        }
+      } catch (_) {}
       if (embeddedDashboardMode && document && document.body && document.body.classList) {
         document.body.classList.add('dashboard-embedded-shell');
       }
       function handleHash() {
-        var hash = window.location.hash.replace('#', '') || embeddedPage || 'chat';
+        var hash = window.location.hash.replace('#', '') || embeddedPage || pathnamePage || 'chat';
         if (pageRedirects[hash]) {
           hash = pageRedirects[hash];
           window.location.hash = hash;
