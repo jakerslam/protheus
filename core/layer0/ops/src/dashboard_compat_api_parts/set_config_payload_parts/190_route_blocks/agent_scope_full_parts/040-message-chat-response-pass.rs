@@ -112,13 +112,17 @@ fn handle_message_chat_response_pass(
                 inline_tools_allowed,
             );
             response_text = tool_adjusted_response;
-            let supplemental_comparison_tools = if inline_tools_allowed {
+            let latent_retry_from_failed_web_draft =
+                draft_response_implies_retryable_web_failure(&response_text);
+            let supplemental_comparison_tools =
+                if inline_tools_allowed || latent_retry_from_failed_web_draft {
                 latent_tool_candidate_completion_cards(
                     root,
                     snapshot,
                     agent_id,
                     Some(row),
                     message,
+                    &response_text,
                     &latent_tool_candidates,
                     &response_tools,
                 )

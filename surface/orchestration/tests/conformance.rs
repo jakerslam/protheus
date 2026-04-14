@@ -150,6 +150,34 @@ fn orchestration_sleep_cycle_cleanup_wipes_transient_ephemeral_state() {
 }
 
 #[test]
+fn orchestration_auto_sleep_cycle_cleanup_runs_on_idle_gap() {
+    let mut runtime = OrchestrationSurfaceRuntime::new().with_sleep_cycle_idle_gap_ms(10_000);
+    let _ = runtime.orchestrate(
+        OrchestrationRequest {
+            session_id: "auto-sleep-1".to_string(),
+            intent: "hold short-term context".to_string(),
+            surface: RequestSurface::Legacy,
+            payload: json!({}),
+        },
+        10_000,
+    );
+    assert_eq!(runtime.transient_entry_count(), 1);
+    assert_eq!(runtime.transient_ephemeral_count(), 1);
+
+    let _ = runtime.orchestrate(
+        OrchestrationRequest {
+            session_id: "auto-sleep-2".to_string(),
+            intent: "continue after idle period".to_string(),
+            surface: RequestSurface::Legacy,
+            payload: json!({}),
+        },
+        25_000,
+    );
+    assert_eq!(runtime.transient_entry_count(), 1);
+    assert_eq!(runtime.transient_ephemeral_count(), 1);
+}
+
+#[test]
 fn orchestration_legacy_intent_path_still_produces_typed_tool_plan() {
     let mut runtime = OrchestrationSurfaceRuntime::new();
     let package = runtime.orchestrate(
@@ -303,6 +331,7 @@ fn sdk_surface_adapter_bypasses_legacy_intent_shim() {
                 },
                 "core_probe_envelope": {
                     "execute_tool": {
+                        "tool_available": true,
                         "transport_available": true
                     }
                 }
@@ -344,6 +373,7 @@ fn sdk_and_gateway_adapters_converge_on_same_tool_plan() {
                 },
                 "core_probe_envelope": {
                     "execute_tool": {
+                        "tool_available": true,
                         "transport_available": true
                     },
                     "verify_claim": {
@@ -370,6 +400,7 @@ fn sdk_and_gateway_adapters_converge_on_same_tool_plan() {
                 },
                 "core_probe_envelope": {
                     "execute_tool": {
+                        "tool_available": true,
                         "transport_available": true
                     },
                     "verify_claim": {
@@ -463,6 +494,56 @@ fn adapted_tool_request_requires_explicit_transport_probe() {
 }
 
 #[test]
+fn adapted_tool_request_requires_explicit_tool_probe() {
+    let mut runtime = OrchestrationSurfaceRuntime::new();
+    let package = runtime.orchestrate(
+        OrchestrationRequest {
+            session_id: "sdk-missing-tool-probe".to_string(),
+            intent: "opaque".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "search",
+                    "resource_kind": "web",
+                    "request_kind": "direct",
+                    "tool_hints": ["web_search"],
+                    "targets": [{ "kind": "url", "value": "https://example.com/releases" }]
+                },
+                "core_probe_envelope": {
+                    "execute_tool": {
+                        "transport_available": true
+                    }
+                }
+            }),
+        },
+        4_329,
+    );
+
+    assert_eq!(
+        package.execution_state.plan_status,
+        infring_orchestration_surface_v1::contracts::PlanStatus::Blocked
+    );
+    assert_eq!(
+        package
+            .execution_state
+            .recovery
+            .as_ref()
+            .and_then(|row| row.reason.clone()),
+        Some(infring_orchestration_surface_v1::contracts::RecoveryReason::PlannerContradiction)
+    );
+    assert!(package
+        .selected_plan
+        .blocked_on
+        .contains(&infring_orchestration_surface_v1::contracts::Precondition::ToolAvailable));
+    assert!(package.selected_plan.capability_probes.iter().any(|row| {
+        row.capability == infring_orchestration_surface_v1::contracts::Capability::ExecuteTool
+            && row.probe_sources.iter().any(|source| {
+                source == "probe.required_for_adapted_surface.execute_tool.tool_available"
+            })
+    }));
+}
+
+#[test]
 fn adapted_assimilation_request_requires_explicit_policy_probe() {
     let mut runtime = OrchestrationSurfaceRuntime::new();
     let package = runtime.orchestrate(
@@ -475,6 +556,11 @@ fn adapted_assimilation_request_requires_explicit_policy_probe() {
                     "operation_kind": "assimilate",
                     "resource_kind": "workspace",
                     "targets": [{ "kind": "workspace_path", "value": "README.md" }]
+                },
+                "core_probe_envelope": {
+                    "mutate_task": {
+                        "authorization_valid": true
+                    }
                 }
             }),
         },
@@ -542,6 +628,56 @@ fn adapted_assimilation_rejects_payload_policy_shortcut_without_probe_envelope()
 }
 
 #[test]
+fn adapted_mutation_request_requires_explicit_authorization_probe() {
+    let mut runtime = OrchestrationSurfaceRuntime::new();
+    let package = runtime.orchestrate(
+        OrchestrationRequest {
+            session_id: "sdk-missing-authorization-probe".to_string(),
+            intent: "opaque".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "mutate",
+                    "resource_kind": "task_graph",
+                    "request_kind": "direct",
+                    "mutability": "mutation",
+                    "targets": [{ "kind": "task_id", "value": "task-42" }]
+                },
+                "core_probe_envelope": {
+                    "mutate_task": {
+                        "policy_allows": true
+                    }
+                }
+            }),
+        },
+        4_332,
+    );
+
+    assert_eq!(
+        package.execution_state.plan_status,
+        infring_orchestration_surface_v1::contracts::PlanStatus::Blocked
+    );
+    assert_eq!(
+        package
+            .execution_state
+            .recovery
+            .as_ref()
+            .and_then(|row| row.reason.clone()),
+        Some(infring_orchestration_surface_v1::contracts::RecoveryReason::AuthorizationFailure)
+    );
+    assert!(package
+        .selected_plan
+        .blocked_on
+        .contains(&infring_orchestration_surface_v1::contracts::Precondition::AuthorizationValid));
+    assert!(package.selected_plan.capability_probes.iter().any(|row| {
+        row.capability == infring_orchestration_surface_v1::contracts::Capability::MutateTask
+            && row.probe_sources.iter().any(|source| {
+                source == "probe.required_for_adapted_surface.mutate_task.authorization_valid"
+            })
+    }));
+}
+
+#[test]
 fn non_legacy_surface_fixture_fallback_rate_stays_below_threshold() {
     let fixtures = vec![
         OrchestrationRequest {
@@ -557,6 +693,7 @@ fn non_legacy_surface_fixture_fallback_rate_stays_below_threshold() {
                 },
                 "core_probe_envelope": {
                     "execute_tool": {
+                        "tool_available": true,
                         "transport_available": true
                     }
                 }
@@ -577,6 +714,7 @@ fn non_legacy_surface_fixture_fallback_rate_stays_below_threshold() {
                 },
                 "core_probe_envelope": {
                     "execute_tool": {
+                        "tool_available": true,
                         "transport_available": true
                     },
                     "verify_claim": {
@@ -645,6 +783,7 @@ fn direct_tool_request_plan_variants_are_structurally_distinct() {
                 },
                 "core_probe_envelope": {
                     "execute_tool": {
+                        "tool_available": true,
                         "transport_available": true
                     }
                 }
@@ -696,6 +835,7 @@ fn comparative_request_exposes_verifier_and_alternative_plan_provenance() {
                 },
                 "core_probe_envelope": {
                     "execute_tool": {
+                        "tool_available": true,
                         "transport_available": true
                     },
                     "verify_claim": {

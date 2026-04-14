@@ -15574,3 +15574,28 @@ Source summary:
   - `core/layer2/tools/task_fabric/src/query_api.rs`
   - `core/layer2/tools/task_fabric/tests/task_fabric.rs`
   - `cargo test --manifest-path core/layer2/tools/task_fabric/Cargo.toml`
+
+### 2026-04-14 Hardening Addendum (V6-MEMORY-043, V11-TURNLOOP-009, V6-MEMORY-009, V6-ARCH-004)
+
+- Intent:
+  - Close reliability gaps observed in live usage where adapted orchestration requests could still infer probe truth heuristically, retry/debug web prompts could bypass latent web execution, context frontier hysteresis did not preserve pinned anchors across pressure transitions, and federation policy still permitted broad client-ingress cross-domain lease attempts.
+- Acceptance criteria:
+  - Adapted non-legacy orchestration surfaces fail closed when `execute_tool.tool_available` or `mutate_task.authorization_valid` probes are missing.
+  - Orchestration runtime auto-triggers sleep-cycle transient cleanup after an idle gap (without requiring manual repair command flows).
+  - Retry/debug prompts that follow failed web-tool drafts can still trigger latent web execution and produce workflow-authored final responses without leaking ack-only failure copy.
+  - Context frontier keeps pinned anchors across consecutive materializations, dedupes pinned-anchor budgeting, and applies pressure-state hysteresis thresholds for cold-span descent.
+  - Nexus policy denies `client_ingress` non-control-plane leases to non-allowlisted domain targets by default.
+- Regression evidence pointers:
+  - `surface/orchestration/src/planner/preconditions.rs`
+  - `surface/orchestration/src/lib.rs`
+  - `surface/orchestration/tests/conformance.rs`
+  - `core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/161-part.rs`
+  - `core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/agent_scope_full_parts/040-message-chat-response-pass.rs`
+  - `core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/050-part.rs`
+  - `core/layer2/memory/src/context_budget.rs`
+  - `core/layer2/nexus/src/policy.rs`
+  - `core/layer2/nexus/src/tests.rs`
+  - `cargo test --manifest-path surface/orchestration/Cargo.toml`
+  - `cargo test --manifest-path core/layer2/memory/Cargo.toml`
+  - `cargo test --manifest-path core/layer2/nexus/Cargo.toml`
+  - `cargo test --manifest-path core/layer0/ops/Cargo.toml --lib dashboard_compat_api::tests::workflow_retry_debug_prompt_executes_latent_web_candidate_from_failed_draft -- --exact --nocapture`
