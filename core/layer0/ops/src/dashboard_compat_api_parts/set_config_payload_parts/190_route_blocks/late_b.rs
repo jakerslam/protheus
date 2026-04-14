@@ -1,3 +1,40 @@
+fn finalize_global_status_tool_payload(
+    root: &Path,
+    tool_name: &str,
+    tool_input: &Value,
+    payload: &mut Value,
+    nexus_connection: Option<Value>,
+) {
+    crate::dashboard_tool_turn_loop::annotate_tool_payload_tracking(
+        root,
+        "dashboard-api",
+        tool_name,
+        payload,
+    );
+    let audit_receipt = append_tool_decision_audit(
+        root,
+        "dashboard-api",
+        tool_name,
+        tool_input,
+        payload,
+        "none",
+    );
+    if let Some(obj) = payload.as_object_mut() {
+        obj.insert(
+            "recovery_strategy".to_string(),
+            Value::String("none".to_string()),
+        );
+        obj.insert("recovery_attempts".to_string(), json!(0));
+        obj.insert(
+            "decision_audit_receipt".to_string(),
+            Value::String(audit_receipt),
+        );
+        if let Some(meta) = nexus_connection {
+            obj.insert("nexus_connection".to_string(), meta);
+        }
+    }
+}
+
 fn handle_global_status_get_routes(
     root: &Path,
     method: &str,
@@ -98,14 +135,33 @@ fn handle_global_status_get_routes(
                 if pipeline.get("ok").and_then(Value::as_bool).unwrap_or(false) {
                     attach_tool_pipeline(&mut payload, &pipeline);
                 }
-                if let Some(meta) = nexus_connection {
-                    if let Some(obj) = payload.as_object_mut() {
-                        obj.insert("nexus_connection".to_string(), meta);
-                    }
-                }
+                finalize_global_status_tool_payload(
+                    root,
+                    "web_search",
+                    &args,
+                    &mut payload,
+                    nexus_connection,
+                );
                 payload
             }
             "/api/batch-query" => {
+                let nexus_connection =
+                    match crate::dashboard_tool_turn_loop::authorize_ingress_tool_call_with_nexus(
+                        "batch_query",
+                    ) {
+                        Ok(meta) => meta,
+                        Err(err) => {
+                            return Some(CompatApiResponse {
+                                status: 403,
+                                payload: json!({
+                                    "ok": false,
+                                    "error": "batch_query_nexus_delivery_denied",
+                                    "message": "Batch query blocked by hierarchical nexus ingress policy.",
+                                    "nexus_error": clean_text(&err, 240)
+                                }),
+                            })
+                        }
+                    };
                 let source =
                     clean_text(query_value(path, "source").as_deref().unwrap_or("web"), 40);
                 let query = clean_text(
@@ -152,6 +208,13 @@ fn handle_global_status_get_routes(
                 if pipeline.get("ok").and_then(Value::as_bool).unwrap_or(false) {
                     attach_tool_pipeline(&mut payload, &pipeline);
                 }
+                finalize_global_status_tool_payload(
+                    root,
+                    "batch_query",
+                    &args,
+                    &mut payload,
+                    nexus_connection,
+                );
                 payload
             }
             "/api/telemetry/alerts" => proactive_telemetry_alerts_payload(root, snapshot),
