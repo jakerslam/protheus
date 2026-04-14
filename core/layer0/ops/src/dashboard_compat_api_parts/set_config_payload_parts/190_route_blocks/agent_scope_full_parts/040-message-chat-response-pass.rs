@@ -112,15 +112,19 @@ fn handle_message_chat_response_pass(
                 inline_tools_allowed,
             );
             response_text = tool_adjusted_response;
-            let supplemental_comparison_tools = latent_tool_candidate_completion_cards(
-                root,
-                snapshot,
-                agent_id,
-                Some(row),
-                message,
-                &latent_tool_candidates,
-                &response_tools,
-            );
+            let supplemental_comparison_tools = if inline_tools_allowed {
+                latent_tool_candidate_completion_cards(
+                    root,
+                    snapshot,
+                    agent_id,
+                    Some(row),
+                    message,
+                    &latent_tool_candidates,
+                    &response_tools,
+                )
+            } else {
+                Vec::new()
+            };
             if !supplemental_comparison_tools.is_empty() {
                 response_tools.extend(supplemental_comparison_tools);
                 let supplemented_summary =

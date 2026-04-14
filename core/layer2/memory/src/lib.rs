@@ -21,7 +21,7 @@ pub mod vector_index;
 pub mod version_ledger;
 
 pub use blob_store::BlobStore;
-pub use consolidation::{ConsolidationReport, ConsolidatedMemoryDraft};
+pub use consolidation::{ConsolidatedMemoryDraft, ConsolidationReport};
 pub use context_atoms::{ContextAtom, ContextAtomSourceKind};
 pub use context_budget::{ContextBudgetReport, ContextBudgetRequest};
 pub use context_materializer::{
@@ -33,8 +33,8 @@ pub use context_topology::{
     ContextSpanStatus, ContextTopology, ContextTopologyConfig, ContextTopologyRebuildReport,
 };
 pub use graph_subsystem::{
-    GraphEdge, GraphNode, GraphSubsystem, KnowledgeEntityKind, KnowledgeGraph,
-    KnowledgeGraphEdge, KnowledgeGraphNode, KnowledgeRelationKind, TaskFabricLease,
+    GraphEdge, GraphNode, GraphSubsystem, KnowledgeEntityKind, KnowledgeGraph, KnowledgeGraphEdge,
+    KnowledgeGraphNode, KnowledgeRelationKind, TaskFabricLease,
 };
 pub use heap_interface::{NexusRouteContext, UnifiedMemoryHeap, UnifiedMemoryHeapConfig};
 pub use policy::{
@@ -52,8 +52,8 @@ pub use schemas::{
     Classification, ContextManifest, ContextManifestEntryRef, DerivationKind, MemoryDerivation,
     MemoryInvalidationReason, MemoryInvalidationRecord, MemoryKind, MemoryMutationReplayRow,
     MemoryObject, MemoryPurgeRecord, MemoryReceipt, MemoryRetentionPolicy, MemorySalience,
-    MemoryScope, MemoryVersion, OwnerExportRedactionPolicy, OwnerScopeSettings,
-    PurgeRelationType, RetentionPurgeReport, TrustState,
+    MemoryScope, MemoryVersion, OwnerExportRedactionPolicy, OwnerScopeSettings, PurgeRelationType,
+    RetentionPurgeReport, TrustState,
 };
 pub use vector_index::{
     embed_text, InMemoryVectorStore, VectorIndex, VectorMetadata, VectorQueryFilter,

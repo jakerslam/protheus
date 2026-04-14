@@ -473,6 +473,42 @@ fn adapted_assimilation_request_requires_explicit_policy_probe() {
 }
 
 #[test]
+fn adapted_assimilation_rejects_payload_policy_shortcut_without_probe_envelope() {
+    let mut runtime = OrchestrationSurfaceRuntime::new();
+    let package = runtime.orchestrate(
+        OrchestrationRequest {
+            session_id: "sdk-policy-shortcut-rejected".to_string(),
+            intent: "opaque".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "assimilate",
+                    "resource_kind": "workspace",
+                    "targets": [{ "kind": "workspace_path", "value": "README.md" }]
+                },
+                "capability_probes": {
+                    "plan_assimilation": {
+                        "policy_allows": true
+                    }
+                }
+            }),
+        },
+        4_331,
+    );
+
+    assert!(package
+        .selected_plan
+        .blocked_on
+        .contains(&infring_orchestration_surface_v1::contracts::Precondition::PolicyAllows));
+    assert!(package.selected_plan.capability_probes.iter().any(|row| {
+        row.capability == infring_orchestration_surface_v1::contracts::Capability::PlanAssimilation
+            && row.probe_sources.iter().any(|source| {
+                source == "probe.required_for_adapted_surface.plan_assimilation.policy_allows"
+            })
+    }));
+}
+
+#[test]
 fn non_legacy_surface_fixture_fallback_rate_stays_below_threshold() {
     let fixtures = vec![
         OrchestrationRequest {
@@ -557,6 +593,55 @@ fn non_legacy_surface_fixture_fallback_rate_stays_below_threshold() {
         "fallback rate should stay below threshold"
     );
     assert_eq!(fallback_count, 1);
+}
+
+#[test]
+fn direct_tool_request_plan_variants_are_structurally_distinct() {
+    let mut runtime = OrchestrationSurfaceRuntime::new();
+    let package = runtime.orchestrate(
+        OrchestrationRequest {
+            session_id: "sdk-tool-variants".to_string(),
+            intent: "search release notes".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "search",
+                    "resource_kind": "web",
+                    "request_kind": "direct",
+                    "targets": [{ "kind": "url", "value": "https://example.com/releases" }]
+                },
+                "core_probe_envelope": {
+                    "execute_tool": {
+                        "transport_available": true
+                    }
+                }
+            }),
+        },
+        4_399,
+    );
+
+    let mut signatures = std::iter::once(&package.selected_plan)
+        .chain(package.alternative_plans.iter())
+        .map(|plan| {
+            plan.steps
+                .iter()
+                .map(|row| row.step_id.clone())
+                .collect::<Vec<_>>()
+                .join("->")
+        })
+        .collect::<Vec<_>>();
+    signatures.sort();
+    signatures.dedup();
+    assert!(
+        signatures.len() >= 2,
+        "direct tool plans should preserve structurally distinct variants"
+    );
+    assert!(std::iter::once(&package.selected_plan)
+        .chain(package.alternative_plans.iter())
+        .any(|plan| plan
+            .steps
+            .iter()
+            .any(|row| row.step_id == "step_memory_fallback")));
 }
 
 #[test]

@@ -6,7 +6,11 @@ pub fn contiguous_coverage(children: &[ContextSpan]) -> bool {
         return false;
     }
     let mut sorted = children.to_vec();
-    sorted.sort_by(|a, b| a.start_seq.cmp(&b.start_seq).then(a.end_seq.cmp(&b.end_seq)));
+    sorted.sort_by(|a, b| {
+        a.start_seq
+            .cmp(&b.start_seq)
+            .then(a.end_seq.cmp(&b.end_seq))
+    });
     for pair in sorted.windows(2) {
         let left = &pair[0];
         let right = &pair[1];
@@ -21,7 +25,11 @@ pub fn rollup_fidelity_score(parent: &ContextSpan, children: &[ContextSpan]) -> 
     if children.is_empty() {
         return 0.0;
     }
-    let contiguous = if contiguous_coverage(children) { 1.0 } else { 0.0 };
+    let contiguous = if contiguous_coverage(children) {
+        1.0
+    } else {
+        0.0
+    };
     let child_start = children.iter().map(|row| row.start_seq).min().unwrap_or(0);
     let child_end = children.iter().map(|row| row.end_seq).max().unwrap_or(0);
     let exact_bounds = if parent.start_seq == child_start && parent.end_seq == child_end {
@@ -69,15 +77,14 @@ pub fn rollup_fidelity_score(parent: &ContextSpan, children: &[ContextSpan]) -> 
             .collect::<BTreeSet<_>>(),
     );
 
-    (
-        contiguous
-            + exact_bounds
-            + task_survival
-            + open_loop_survival
-            + decision_survival
-            + constraint_survival
-            + memory_ref_survival
-    ) / 7.0
+    (contiguous
+        + exact_bounds
+        + task_survival
+        + open_loop_survival
+        + decision_survival
+        + constraint_survival
+        + memory_ref_survival)
+        / 7.0
 }
 
 fn set_survival(required: &BTreeSet<String>, present: &BTreeSet<String>) -> f32 {
@@ -136,4 +143,3 @@ mod tests {
         assert!(reduced < full);
     }
 }
-
