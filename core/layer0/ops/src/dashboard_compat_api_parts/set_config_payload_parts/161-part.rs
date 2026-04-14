@@ -291,7 +291,10 @@ fn latent_tool_candidate_completion_cards(
     latent_tool_candidates: &Value,
     response_tools: &[Value],
 ) -> Vec<Value> {
-    if workspace_plus_web_comparison_queries_from_message(user_message).is_none() {
+    let requires_workspace_plus_web =
+        workspace_plus_web_comparison_queries_from_message(user_message).is_some();
+    let requires_live_web = natural_web_intent_from_user_message(user_message).is_some();
+    if !requires_workspace_plus_web && !requires_live_web {
         return Vec::new();
     }
     let mut workspace_done = response_tools
@@ -300,7 +303,9 @@ fn latent_tool_candidate_completion_cards(
     let mut web_done = response_tools
         .iter()
         .any(|row| response_tool_row_has_workspace_plus_web_leg(row, "web"));
-    if workspace_done && web_done {
+    if (requires_workspace_plus_web && workspace_done && web_done)
+        || (requires_live_web && !requires_workspace_plus_web && web_done)
+    {
         return Vec::new();
     }
     let mut extra_cards = Vec::<Value>::new();
@@ -316,11 +321,17 @@ fn latent_tool_candidate_completion_cards(
             continue;
         }
         let leg = workspace_plus_web_tool_leg_for_name(&normalized_name);
-        if leg.is_empty()
-            || (leg == "workspace" && workspace_done)
-            || (leg == "web" && web_done)
-        {
-            continue;
+        if requires_workspace_plus_web {
+            if leg.is_empty()
+                || (leg == "workspace" && workspace_done)
+                || (leg == "web" && web_done)
+            {
+                continue;
+            }
+        } else if requires_live_web {
+            if leg != "web" || web_done {
+                continue;
+            }
         }
         let proposed_input = row
             .get("proposed_input")
@@ -357,8 +368,51 @@ fn latent_tool_candidate_completion_cards(
         } else if leg == "web" {
             web_done = true;
         }
-        if workspace_done && web_done {
+        if requires_workspace_plus_web && workspace_done && web_done {
             break;
+        }
+        if requires_live_web && web_done {
+            break;
+        }
+    }
+    if requires_live_web && !requires_workspace_plus_web && !web_done {
+        if let Some((fallback_tool, fallback_input)) =
+            natural_web_intent_from_user_message(user_message)
+        {
+            let normalized_name = normalize_tool_name(&fallback_tool);
+            if !normalized_name.is_empty()
+                && workspace_plus_web_tool_leg_for_name(&normalized_name) == "web"
+            {
+                let input_for_call = normalize_inline_tool_execution_input(
+                    &normalized_name,
+                    &fallback_input,
+                    user_message,
+                );
+                let payload = execute_tool_call_with_recovery(
+                    root,
+                    snapshot,
+                    actor_agent_id,
+                    existing,
+                    &normalized_name,
+                    &input_for_call,
+                );
+                let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(false);
+                let result_text = summarize_tool_payload(&normalized_name, &payload);
+                let card_status = tool_card_status_from_payload(&payload);
+                extra_cards.push(json!({
+                    "id": format!("tool-{}-latent-{}", normalized_name, extra_cards.len()),
+                    "name": normalized_name,
+                    "input": trim_text(&input_for_call.to_string(), 4000),
+                    "result": trim_text(&result_text, 24_000),
+                    "is_error": !ok,
+                    "blocked": card_status == "blocked" || card_status == "policy_denied",
+                    "status": card_status,
+                    "tool_attempt_receipt": payload
+                        .pointer("/tool_pipeline/tool_attempt_receipt")
+                        .cloned()
+                        .unwrap_or(Value::Null)
+                }));
+            }
         }
     }
     extra_cards

@@ -30,7 +30,11 @@ pub fn build_rollup_parent(
         return Err("context_rollup_requires_children".to_string());
     }
     let mut ordered = children.to_vec();
-    ordered.sort_by(|a, b| a.start_seq.cmp(&b.start_seq).then(a.end_seq.cmp(&b.end_seq)));
+    ordered.sort_by(|a, b| {
+        a.start_seq
+            .cmp(&b.start_seq)
+            .then(a.end_seq.cmp(&b.end_seq))
+    });
     let start_seq = ordered.first().map(|row| row.start_seq).unwrap_or(0);
     let end_seq = ordered.last().map(|row| row.end_seq).unwrap_or(0);
     let child_refs = ordered
@@ -38,8 +42,16 @@ pub fn build_rollup_parent(
         .map(|row| row.span_id.clone())
         .collect::<Vec<_>>();
     let decisions = dedupe_sorted(ordered.iter().flat_map(|row| row.decisions.iter().cloned()));
-    let constraints = dedupe_sorted(ordered.iter().flat_map(|row| row.constraints.iter().cloned()));
-    let open_loops = dedupe_sorted(ordered.iter().flat_map(|row| row.open_loops.iter().cloned()));
+    let constraints = dedupe_sorted(
+        ordered
+            .iter()
+            .flat_map(|row| row.constraints.iter().cloned()),
+    );
+    let open_loops = dedupe_sorted(
+        ordered
+            .iter()
+            .flat_map(|row| row.open_loops.iter().cloned()),
+    );
     let entities = dedupe_sorted(ordered.iter().flat_map(|row| row.entities.iter().cloned()));
     let task_refs = dedupe_sorted(ordered.iter().flat_map(|row| row.task_refs.iter().cloned()));
     let memory_version_refs = dedupe_sorted(
@@ -47,7 +59,11 @@ pub fn build_rollup_parent(
             .iter()
             .flat_map(|row| row.memory_version_refs.iter().cloned()),
     );
-    let lineage_refs = dedupe_sorted(ordered.iter().flat_map(|row| row.lineage_refs.iter().cloned()));
+    let lineage_refs = dedupe_sorted(
+        ordered
+            .iter()
+            .flat_map(|row| row.lineage_refs.iter().cloned()),
+    );
     let token_count = ordered.iter().map(|row| row.token_count).sum::<u32>();
     let heat_score =
         ordered.iter().map(|row| row.heat_score).sum::<f32>() / ordered.len() as f32 * 0.88;
@@ -103,7 +119,11 @@ pub fn contiguous_exact_coverage(parent: &ContextSpan, children: &[ContextSpan])
         return false;
     }
     let mut sorted = children.to_vec();
-    sorted.sort_by(|a, b| a.start_seq.cmp(&b.start_seq).then(a.end_seq.cmp(&b.end_seq)));
+    sorted.sort_by(|a, b| {
+        a.start_seq
+            .cmp(&b.start_seq)
+            .then(a.end_seq.cmp(&b.end_seq))
+    });
     let start_ok = sorted.first().map(|row| row.start_seq) == Some(parent.start_seq);
     let end_ok = sorted.last().map(|row| row.end_seq) == Some(parent.end_seq);
     if !(start_ok && end_ok) {
@@ -177,4 +197,3 @@ mod tests {
         assert!(parent.fidelity_score >= MIN_ROLLUP_FIDELITY);
     }
 }
-

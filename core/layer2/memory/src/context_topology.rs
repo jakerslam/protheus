@@ -1,6 +1,8 @@
 use crate::context_atoms::{ContextAtom, ContextAtomSourceKind};
-use crate::context_compaction::{build_rollup_parent, contiguous_exact_coverage, should_seal_level0};
 use crate::context_budget::{build_frontier, ContextBudgetReport, ContextBudgetRequest};
+use crate::context_compaction::{
+    build_rollup_parent, contiguous_exact_coverage, should_seal_level0,
+};
 use crate::deterministic_hash;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -110,7 +112,10 @@ pub struct ContextTopology {
 }
 
 impl ContextTopology {
-    pub fn append_atom(&mut self, input: ContextAppendInput) -> Result<ContextAppendOutcome, String> {
+    pub fn append_atom(
+        &mut self,
+        input: ContextAppendInput,
+    ) -> Result<ContextAppendOutcome, String> {
         let sequence_no = self
             .next_sequence_by_session
             .entry(input.session_id.clone())
@@ -126,10 +131,16 @@ impl ContextTopology {
             dedupe(input.memory_version_refs),
             dedupe(input.lineage_refs.clone()),
         );
-        let session_atoms = self.atoms_by_session.entry(input.session_id.clone()).or_default();
+        let session_atoms = self
+            .atoms_by_session
+            .entry(input.session_id.clone())
+            .or_default();
         session_atoms.push(atom.clone());
 
-        let session_spans = self.spans_by_session.entry(input.session_id.clone()).or_default();
+        let session_spans = self
+            .spans_by_session
+            .entry(input.session_id.clone())
+            .or_default();
         let active_idx = session_spans
             .iter()
             .position(|row| row.level == 0 && matches!(row.status, ContextSpanStatus::Active));
@@ -192,8 +203,16 @@ impl ContextTopology {
             .get(request.session_id.as_str())
             .cloned()
             .unwrap_or_default();
-        let previous = self.frontiers_by_session.get(request.session_id.as_str()).cloned();
-        let (frontier, report) = build_frontier(&request, atoms.as_slice(), spans.as_slice(), previous.as_ref());
+        let previous = self
+            .frontiers_by_session
+            .get(request.session_id.as_str())
+            .cloned();
+        let (frontier, report) = build_frontier(
+            &request,
+            atoms.as_slice(),
+            spans.as_slice(),
+            previous.as_ref(),
+        );
         self.frontiers_by_session
             .insert(request.session_id.clone(), frontier.clone());
         (frontier, report)
@@ -232,7 +251,13 @@ impl ContextTopology {
             spans.push(ContextSpan {
                 span_id: format!(
                     "ctx_span_{}",
-                    &deterministic_hash(&(session_id.to_string(), 0u32, start, end, status.clone()))[..24]
+                    &deterministic_hash(&(
+                        session_id.to_string(),
+                        0u32,
+                        start,
+                        end,
+                        status.clone()
+                    ))[..24]
                 ),
                 session_id: session_id.to_string(),
                 level: 0,
@@ -256,7 +281,12 @@ impl ContextTopology {
                 heat_score: 0.55,
                 fidelity_score: 1.0,
                 receipt_id: String::new(),
-                lineage_refs: dedupe(chunk.iter().flat_map(|row| row.lineage_refs.clone()).collect()),
+                lineage_refs: dedupe(
+                    chunk
+                        .iter()
+                        .flat_map(|row| row.lineage_refs.clone())
+                        .collect(),
+                ),
             });
         }
         self.spans_by_session.insert(session_id.to_string(), spans);
@@ -299,6 +329,10 @@ impl ContextTopology {
         self.frontiers_by_session.get(session_id).cloned()
     }
 
+    pub fn compact_sealed_session(&mut self, session_id: &str) -> Result<Vec<ContextSpan>, String> {
+        self.rollup_eligible_sealed(session_id)
+    }
+
     fn rollup_eligible_sealed(&mut self, session_id: &str) -> Result<Vec<ContextSpan>, String> {
         let mut rolled = Vec::<ContextSpan>::new();
         loop {
@@ -311,20 +345,23 @@ impl ContextTopology {
                 .cloned()
                 .unwrap_or_default()
                 .into_iter()
-                .filter(|row| {
-                    row.level == level && matches!(row.status, ContextSpanStatus::Sealed)
-                })
+                .filter(|row| row.level == level && matches!(row.status, ContextSpanStatus::Sealed))
                 .collect::<Vec<_>>();
             if candidates.len() < self.config.fanout_target.max(1) {
                 break;
             }
             let mut sorted = candidates;
-            sorted.sort_by(|a, b| a.start_seq.cmp(&b.start_seq).then(a.end_seq.cmp(&b.end_seq)));
+            sorted.sort_by(|a, b| {
+                a.start_seq
+                    .cmp(&b.start_seq)
+                    .then(a.end_seq.cmp(&b.end_seq))
+            });
             let chunk = sorted
                 .into_iter()
                 .take(self.config.fanout_target.max(1))
                 .collect::<Vec<_>>();
-            let mut parent = build_rollup_parent(session_id, level.saturating_add(1), chunk.as_slice())?;
+            let mut parent =
+                build_rollup_parent(session_id, level.saturating_add(1), chunk.as_slice())?;
             if !contiguous_exact_coverage(&parent, chunk.as_slice()) {
                 return Err("context_rollup_contiguity_violation".to_string());
             }
@@ -365,7 +402,8 @@ fn new_active_span(session_id: &str, start_seq: u64, end_seq: u64) -> ContextSpa
     ContextSpan {
         span_id: format!(
             "ctx_span_{}",
-            &deterministic_hash(&(session_id.to_string(), 0u32, start_seq, end_seq, "active"))[..24]
+            &deterministic_hash(&(session_id.to_string(), 0u32, start_seq, end_seq, "active"))
+                [..24]
         ),
         session_id: session_id.to_string(),
         level: 0,
@@ -463,4 +501,3 @@ mod tests {
         assert_eq!(before_range, after_range);
     }
 }
-
