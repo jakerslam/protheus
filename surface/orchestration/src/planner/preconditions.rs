@@ -105,16 +105,16 @@ fn tool_available(request: &TypedOrchestrationRequest, capability: &Capability) 
     if let Some(value) = envelope_probe_bool(request, key, Some("tool_available")) {
         return (value, envelope_probe_source(key, "tool_available"));
     }
+    if let Some(required) =
+        fail_closed_on_missing_probe_for_adapted_surface(request, capability, "tool_available")
+    {
+        return required;
+    }
     if let Some(value) = probe_bool(request, &[key, "tool_available"], "tool_available") {
         return (
             value,
             format!("probe.capability_probes.{key}.tool_available"),
         );
-    }
-    if let Some(required) =
-        fail_closed_on_missing_probe_for_adapted_surface(request, capability, "tool_available")
-    {
-        return required;
     }
     (
         !request.tool_hints.is_empty()
@@ -195,6 +195,11 @@ fn authorization_valid(
     if let Some(value) = envelope_probe_bool(request, key, Some("authorization_valid")) {
         return (value, envelope_probe_source(key, "authorization_valid"));
     }
+    if let Some(required) =
+        fail_closed_on_missing_probe_for_adapted_surface(request, capability, "authorization_valid")
+    {
+        return required;
+    }
     if let Some(value) = probe_bool(
         request,
         &[key, "authorization_valid"],
@@ -204,11 +209,6 @@ fn authorization_valid(
             value,
             format!("probe.capability_probes.{key}.authorization_valid"),
         );
-    }
-    if let Some(required) =
-        fail_closed_on_missing_probe_for_adapted_surface(request, capability, "authorization_valid")
-    {
-        return required;
     }
     (
         !(request.mutability == Mutability::Mutation
