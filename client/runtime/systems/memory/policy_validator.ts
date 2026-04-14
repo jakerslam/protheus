@@ -5,6 +5,18 @@
 // Thin TypeScript wrapper only.
 
 const { invokeKernelPayload } = require('../../lib/protheus_kernel_bridge.ts');
+
+const KNOWN_COMMANDS = new Set([
+  'status',
+  'parse-cli',
+  'command-name',
+  'validate',
+  'validate-ranking',
+  'validate-lensmap',
+  'severity-rank',
+  'guard-failure',
+]);
+
 function invoke(command, payload = {}, opts = {}) {
   return invokeKernelPayload(
     'memory-policy-kernel',
@@ -15,6 +27,69 @@ function invoke(command, payload = {}, opts = {}) {
       fallbackError: 'memory_policy_kernel_bridge_failed',
     }
   );
+}
+
+function cleanText(raw, maxLen = 160) {
+  return String(raw || '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .slice(0, maxLen);
+}
+
+function parseFlag(args = [], key) {
+  const list = Array.isArray(args) ? args.map((token) => String(token || '')) : [];
+  const inline = list.find((token) => token.startsWith(`${key}=`));
+  if (inline) return inline.slice(key.length + 1).trim();
+  const idx = list.findIndex((token) => token === key);
+  if (idx >= 0 && idx + 1 < list.length) return list[idx + 1].trim();
+  return '';
+}
+
+function parseJson(value, fallback) {
+  const raw = String(value || '').trim();
+  if (!raw) return fallback;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return fallback;
+  }
+}
+
+function statusCodeForPayload(payload, fallback = 1) {
+  if (payload && Number.isFinite(Number(payload.status))) {
+    return Number(payload.status);
+  }
+  if (payload && typeof payload.ok === 'boolean') {
+    return payload.ok ? 0 : fallback;
+  }
+  return fallback;
+}
+
+function printPayload(payload) {
+  if (payload && typeof payload.stdout === 'string' && payload.stdout.length > 0) {
+    process.stdout.write(payload.stdout.endsWith('\n') ? payload.stdout : `${payload.stdout}\n`);
+  }
+  if (payload && typeof payload.stderr === 'string' && payload.stderr.length > 0) {
+    process.stderr.write(payload.stderr.endsWith('\n') ? payload.stderr : `${payload.stderr}\n`);
+  }
+  if (
+    payload
+    && payload.payload
+    && typeof payload.payload === 'object'
+    && !(typeof payload.stdout === 'string' && payload.stdout.length > 0)
+  ) {
+    process.stdout.write(`${JSON.stringify(payload.payload)}\n`);
+    return;
+  }
+  if (
+    payload
+    && typeof payload === 'object'
+    && !Array.isArray(payload)
+    && typeof payload.stdout !== 'string'
+    && typeof payload.stderr !== 'string'
+  ) {
+    process.stdout.write(`${JSON.stringify(payload)}\n`);
+  }
 }
 
 function parseCliArgs(args = [], options = {}) {
@@ -110,6 +185,103 @@ function guardFailureResult(validation, context = {}) {
       };
 }
 
+function usagePayload(command) {
+  return {
+    ok: false,
+    type: 'memory_policy_validator_usage',
+    error: 'unknown_command',
+    command: cleanText(command || 'status', 80),
+    usage: [
+      'policy_validator.ts status',
+      'policy_validator.ts parse-cli [flags]',
+      'policy_validator.ts command-name [flags]',
+      'policy_validator.ts validate [flags]',
+      'policy_validator.ts validate-ranking --scores-json=[...] --ids-json=[...]',
+      'policy_validator.ts validate-lensmap --annotation-json={...}',
+      'policy_validator.ts severity-rank --value=<critical|high|medium|low>',
+      'policy_validator.ts guard-failure [validate flags] [--validation-json={...}] [--context-json={...}]'
+    ]
+  };
+}
+
+function run(argv = process.argv.slice(2)) {
+  const args = Array.isArray(argv) ? argv.map((token) => String(token || '').trim()).filter(Boolean) : [];
+  const command = commandNameFromArgs(args, 'status');
+  const rest = args.length > 0 ? args.slice(1) : [];
+  if (!KNOWN_COMMANDS.has(command)) {
+    const payload = usagePayload(command);
+    printPayload(payload);
+    return 2;
+  }
+
+  let payload;
+  switch (command) {
+    case 'status':
+      payload = invoke('status', {}, { throwOnError: false });
+      break;
+    case 'parse-cli':
+      payload = {
+        ok: true,
+        type: 'memory_policy_parse_cli',
+        parsed: parseCliArgs(rest, {})
+      };
+      break;
+    case 'command-name':
+      payload = {
+        ok: true,
+        type: 'memory_policy_command_name',
+        command: commandNameFromArgs(rest, 'status')
+      };
+      break;
+    case 'validate':
+      payload = validateMemoryPolicy(rest, {});
+      break;
+    case 'validate-ranking': {
+      const scores = parseJson(parseFlag(rest, '--scores-json'), []);
+      const ids = parseJson(parseFlag(rest, '--ids-json'), []);
+      payload = validateDescendingRanking(
+        Array.isArray(scores) ? scores : [],
+        Array.isArray(ids) ? ids : []
+      );
+      break;
+    }
+    case 'validate-lensmap': {
+      const annotation = parseJson(parseFlag(rest, '--annotation-json'), {});
+      payload = validateLensMapAnnotation(annotation);
+      break;
+    }
+    case 'severity-rank': {
+      const raw = parseFlag(rest, '--value') || (rest[0] || '');
+      payload = {
+        ok: true,
+        type: 'memory_policy_severity_rank',
+        value: cleanText(raw, 80),
+        rank: severityRank(raw)
+      };
+      break;
+    }
+    case 'guard-failure': {
+      const validationArg = parseJson(parseFlag(rest, '--validation-json'), null);
+      const context = parseJson(parseFlag(rest, '--context-json'), {});
+      const validation =
+        validationArg && typeof validationArg === 'object'
+          ? validationArg
+          : validateMemoryPolicy(rest.filter((token) => !token.startsWith('--validation-json=')), {});
+      payload = guardFailureResult(validation, context);
+      break;
+    }
+    default:
+      payload = usagePayload(command);
+      break;
+  }
+
+  printPayload(payload);
+  if (command === 'validate' || command === 'validate-ranking' || command === 'validate-lensmap') {
+    return statusCodeForPayload(payload, 2);
+  }
+  return statusCodeForPayload(payload, 1);
+}
+
 const DEFAULT_POLICY = (() => {
   const status = invoke('status', {}, { throwOnError: false });
   const candidate = status.default_policy && typeof status.default_policy === 'object'
@@ -136,8 +308,13 @@ const DEFAULT_POLICY = (() => {
   });
 })();
 
+if (require.main === module) {
+  process.exit(run(process.argv.slice(2)));
+}
+
 module.exports = {
   DEFAULT_POLICY,
+  run,
   parseCliArgs,
   commandNameFromArgs,
   validateMemoryPolicy,
