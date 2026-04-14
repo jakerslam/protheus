@@ -1,4 +1,3 @@
-// Layer ownership: core/layer2/tooling (authoritative canonical tool/evidence substrate).
 use crate::capability::{ToolCapabilityStatus, ToolReasonCode};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -127,12 +126,6 @@ fn override_dashboard_state_root() -> Option<PathBuf> {
     None
 }
 
-fn looks_like_workspace_root(candidate: &Path) -> bool {
-    candidate.join("client").exists()
-        && candidate.join("core").exists()
-        && candidate.join("docs/workspace").exists()
-}
-
 fn find_workspace_root() -> Option<PathBuf> {
     let mut candidates = Vec::<PathBuf>::new();
     if let Ok(cwd) = env::current_dir() {
@@ -143,9 +136,6 @@ fn find_workspace_root() -> Option<PathBuf> {
     }
     for candidate in candidates {
         for ancestor in candidate.ancestors() {
-            if looks_like_workspace_root(ancestor) {
-                return Some(ancestor.to_path_buf());
-            }
             if ancestor
                 .join("client/runtime/local/state/ui/infring_dashboard")
                 .exists()

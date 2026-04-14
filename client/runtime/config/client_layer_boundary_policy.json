@@ -35,8 +35,7 @@
   ],
   "allowed_non_wrapper_paths": [],
   "allowed_non_wrapper_roots": [
-    "client/runtime/systems/ui/infring_static/",
-    "client/runtime/systems/ui/dashboard_sveltekit/"
+    "client/runtime/systems/ui/infring_static/"
   ],
-  "max_allowed_non_wrapper_count": 140
+  "max_allowed_non_wrapper_count": 96
 }

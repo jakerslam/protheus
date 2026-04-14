@@ -1,32 +1,3 @@
-fn finalize_agent_scope_tool_payload(
-    root: &Path,
-    agent_id: &str,
-    tool_name: &str,
-    tool_input: &Value,
-    payload: &mut Value,
-    nexus_connection: Option<Value>,
-) {
-    crate::dashboard_tool_turn_loop::annotate_tool_payload_tracking(
-        root, agent_id, tool_name, payload,
-    );
-    let audit_receipt =
-        append_tool_decision_audit(root, agent_id, tool_name, tool_input, payload, "none");
-    if let Some(obj) = payload.as_object_mut() {
-        obj.insert(
-            "recovery_strategy".to_string(),
-            Value::String("none".to_string()),
-        );
-        obj.insert("recovery_attempts".to_string(), json!(0));
-        obj.insert(
-            "decision_audit_receipt".to_string(),
-            Value::String(audit_receipt),
-        );
-        if let Some(meta) = nexus_connection {
-            obj.insert("nexus_connection".to_string(), meta);
-        }
-    }
-}
-
 fn handle_agent_scope_file_read_routes(
     root: &Path,
     method: &str,
@@ -170,11 +141,9 @@ fn handle_agent_scope_file_read_routes(
                 "content_type": content_type
             }
         });
-        let tool_input = json!({
-            "path": requested_path,
-            "full": full,
-            "allow_binary": allow_binary
-        });
+        if let Some(meta) = nexus_connection {
+            payload["nexus_connection"] = meta;
+        }
         let trace_id = crate::deterministic_receipt_hash(&json!({
             "agent_id": agent_id,
             "tool": "file_read",
@@ -188,20 +157,16 @@ fn handle_agent_scope_file_read_routes(
             &trace_id,
             &task_id,
             "file_read",
-            &tool_input,
+            &json!({
+                "path": requested_path,
+                "full": full,
+                "allow_binary": allow_binary
+            }),
             |_| Ok(payload.clone()),
         );
         if pipeline.get("ok").and_then(Value::as_bool).unwrap_or(false) {
             attach_tool_pipeline(&mut payload, &pipeline);
         }
-        finalize_agent_scope_tool_payload(
-            root,
-            agent_id,
-            "file_read",
-            &tool_input,
-            &mut payload,
-            nexus_connection,
-        );
         return Some(CompatApiResponse {
             status: 200,
             payload,
@@ -396,11 +361,9 @@ fn handle_agent_scope_file_read_routes(
                 "group_unclassified": grouped_unclassified.len()
             }
         });
-        let tool_input = json!({
-            "paths": paths,
-            "full": full,
-            "allow_binary": allow_binary
-        });
+        if let Some(meta) = nexus_connection {
+            payload["nexus_connection"] = meta;
+        }
         let trace_id = crate::deterministic_receipt_hash(&json!({
             "agent_id": agent_id,
             "tool": "file_read_many",
@@ -414,20 +377,16 @@ fn handle_agent_scope_file_read_routes(
             &trace_id,
             &task_id,
             "file_read_many",
-            &tool_input,
+            &json!({
+                "paths": paths,
+                "full": full,
+                "allow_binary": allow_binary
+            }),
             |_| Ok(payload.clone()),
         );
         if pipeline.get("ok").and_then(Value::as_bool).unwrap_or(false) {
             attach_tool_pipeline(&mut payload, &pipeline);
         }
-        finalize_agent_scope_tool_payload(
-            root,
-            agent_id,
-            "file_read_many",
-            &tool_input,
-            &mut payload,
-            nexus_connection,
-        );
         return Some(CompatApiResponse { status, payload });
     }
     None

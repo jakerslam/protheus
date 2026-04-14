@@ -1,4 +1,3 @@
-// Layer ownership: core/layer2/tools/task_fabric (authoritative task graph primitive).
 use crate::task_graph::{LifecycleStatus, Task};
 
 pub fn can_transition(from: LifecycleStatus, to: LifecycleStatus) -> bool {

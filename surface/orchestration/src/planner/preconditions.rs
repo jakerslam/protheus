@@ -1,4 +1,3 @@
-// Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 use crate::contracts::{
     Capability, CapabilityProbeResult, DegradationReason, Mutability, OperationKind, PolicyScope,
     Precondition, ResourceKind, TargetDescriptor, TypedOrchestrationRequest,
@@ -25,12 +24,7 @@ fn probe_bool(request: &TypedOrchestrationRequest, path: &[&str], top_level: &st
     }
     cursor
         .and_then(Value::as_bool)
-        .or_else(|| {
-            request
-                .payload
-                .get("probes")
-                .and_then(|row| traverse_bool(row, path))
-        })
+        .or_else(|| request.payload.get("probes").and_then(|row| traverse_bool(row, path)))
         .or_else(|| request.payload.get(top_level).and_then(Value::as_bool))
 }
 
@@ -45,10 +39,7 @@ fn traverse_bool(value: &Value, path: &[&str]) -> Option<bool> {
 fn tool_available(request: &TypedOrchestrationRequest, capability: &Capability) -> (bool, String) {
     let key = capability_key(capability);
     if let Some(value) = probe_bool(request, &[key, "tool_available"], "tool_available") {
-        return (
-            value,
-            format!("probe.capability_probes.{key}.tool_available"),
-        );
+        return (value, format!("probe.capability_probes.{key}.tool_available"));
     }
     (
         !request.tool_hints.is_empty()
@@ -60,13 +51,13 @@ fn tool_available(request: &TypedOrchestrationRequest, capability: &Capability) 
     )
 }
 
-fn target_supplied(request: &TypedOrchestrationRequest, capability: &Capability) -> (bool, String) {
+fn target_supplied(
+    request: &TypedOrchestrationRequest,
+    capability: &Capability,
+) -> (bool, String) {
     let key = capability_key(capability);
     if let Some(value) = probe_bool(request, &[key, "target_supplied"], "target_supplied") {
-        return (
-            value,
-            format!("probe.capability_probes.{key}.target_supplied"),
-        );
+        return (value, format!("probe.capability_probes.{key}.target_supplied"));
     }
     let supplied = !request.target_descriptors.is_empty();
     (supplied, "heuristic.target_descriptors_present".to_string())
@@ -97,10 +88,7 @@ fn target_syntax_valid(
 fn target_exists(request: &TypedOrchestrationRequest, capability: &Capability) -> (bool, String) {
     let key = capability_key(capability);
     if let Some(value) = probe_bool(request, &[key, "target_exists"], "target_exists") {
-        return (
-            value,
-            format!("probe.capability_probes.{key}.target_exists"),
-        );
+        return (value, format!("probe.capability_probes.{key}.target_exists"));
     }
     let exists = match request.mutability {
         Mutability::ReadOnly => true,
@@ -119,10 +107,7 @@ fn authorization_valid(
         &[key, "authorization_valid"],
         "authorization_valid",
     ) {
-        return (
-            value,
-            format!("probe.capability_probes.{key}.authorization_valid"),
-        );
+        return (value, format!("probe.capability_probes.{key}.authorization_valid"));
     }
     (
         !(request.mutability == Mutability::Mutation
@@ -134,10 +119,7 @@ fn authorization_valid(
 fn policy_allows(request: &TypedOrchestrationRequest, capability: &Capability) -> (bool, String) {
     let key = capability_key(capability);
     if let Some(value) = probe_bool(request, &[key, "policy_allows"], "policy_allows") {
-        return (
-            value,
-            format!("probe.capability_probes.{key}.policy_allows"),
-        );
+        return (value, format!("probe.capability_probes.{key}.policy_allows"));
     }
     (true, "heuristic.policy_default_allow".to_string())
 }
@@ -152,10 +134,7 @@ fn transport_available(
         &[key, "transport_available"],
         "transport_available",
     ) {
-        return (
-            value,
-            format!("probe.capability_probes.{key}.transport_available"),
-        );
+        return (value, format!("probe.capability_probes.{key}.transport_available"));
     }
     (true, "heuristic.transport_default_available".to_string())
 }
@@ -173,10 +152,8 @@ pub fn probe_capability(
     let mut degradation_reasons = Vec::new();
     let mut probe_sources = Vec::new();
 
-    let requires_target = matches!(
-        capability,
-        Capability::PlanAssimilation | Capability::MutateTask
-    ) || request.mutability == Mutability::Mutation;
+    let requires_target = matches!(capability, Capability::PlanAssimilation | Capability::MutateTask)
+        || request.mutability == Mutability::Mutation;
     if requires_target {
         let (supplied, source) = target_supplied(request, capability);
         probe_sources.push(source);
@@ -209,10 +186,7 @@ pub fn probe_capability(
         }
     }
 
-    if matches!(
-        capability,
-        Capability::ExecuteTool | Capability::VerifyClaim
-    ) {
+    if matches!(capability, Capability::ExecuteTool | Capability::VerifyClaim) {
         let (available, source) = transport_available(request, capability);
         probe_sources.push(source);
         if !available {
@@ -230,10 +204,8 @@ pub fn probe_capability(
         }
     }
 
-    if matches!(
-        capability,
-        Capability::MutateTask | Capability::PlanAssimilation
-    ) || request.operation_kind == OperationKind::Assimilate
+    if matches!(capability, Capability::MutateTask | Capability::PlanAssimilation)
+        || request.operation_kind == OperationKind::Assimilate
     {
         let (allowed, source) = policy_allows(request, capability);
         probe_sources.push(source);

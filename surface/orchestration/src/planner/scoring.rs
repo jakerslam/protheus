@@ -1,4 +1,3 @@
-// Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 use crate::contracts::{
     CoreContractCall, Mutability, PlanScore, RequestClassification, TypedOrchestrationRequest,
 };
@@ -16,12 +15,10 @@ pub fn score_candidate(
         .any(|row| matches!(row, CoreContractCall::TaskFabricProposal))
     {
         0.85
-    } else if contracts.iter().any(|row| {
-        matches!(
-            row,
-            CoreContractCall::ToolBrokerRequest | CoreContractCall::VerifierRequest
-        )
-    }) {
+    } else if contracts
+        .iter()
+        .any(|row| matches!(row, CoreContractCall::ToolBrokerRequest | CoreContractCall::VerifierRequest))
+    {
         0.45
     } else {
         0.15

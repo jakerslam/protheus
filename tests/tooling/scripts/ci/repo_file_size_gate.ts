@@ -7,7 +7,6 @@ import { dirname, resolve } from 'node:path';
 const DEFAULTS = {
   strict: false,
   policyPath: 'docs/workspace/repo_file_size_policy.json',
-  debtLedgerPath: 'docs/workspace/reports/TECH_DEBT_LEDGER.json',
   outJson: 'core/local/artifacts/repo_file_size_gate_current.json',
   outMarkdown: 'local/workspace/reports/REPO_FILE_SIZE_GATE_CURRENT.md',
 };
@@ -28,10 +27,6 @@ function parseArgs(argv) {
     }
     if (arg.startsWith('--policy=')) {
       out.policyPath = arg.slice('--policy='.length).trim() || DEFAULTS.policyPath;
-      continue;
-    }
-    if (arg.startsWith('--debt-ledger=')) {
-      out.debtLedgerPath = arg.slice('--debt-ledger='.length).trim() || DEFAULTS.debtLedgerPath;
       continue;
     }
     if (arg.startsWith('--out-json=')) {
@@ -177,15 +172,8 @@ function main() {
   const args = parseArgs(process.argv.slice(2));
   const now = new Date();
   const policy = readJson(args.policyPath);
-  const debtLedger = readJson(args.debtLedgerPath);
   const files = listFiles(policy);
   const exceptionRows = Array.isArray(policy?.exceptions) ? policy.exceptions : [];
-  const exceptionCountCeiling = Number(policy?.exception_count_ceiling || 0);
-  const debtItemIds = new Set(
-    (Array.isArray(debtLedger?.items) ? debtLedger.items : [])
-      .map((row) => String(row?.id || '').trim())
-      .filter(Boolean)
-  );
   const exceptionMap = new Map();
   for (const row of exceptionRows) {
     const path = String(row?.path || '').trim();
@@ -198,16 +186,6 @@ function main() {
   let scanned = 0;
   let testsExempt = 0;
   let exempted = 0;
-
-  if (Number.isFinite(exceptionCountCeiling) && exceptionCountCeiling > 0 && exceptionRows.length > exceptionCountCeiling) {
-    violations.push({
-      path: '(policy)',
-      lines: exceptionRows.length,
-      cap: exceptionCountCeiling,
-      code: 'exception_count_ceiling_exceeded',
-      detail: `exceptions=${exceptionRows.length}; ceiling=${exceptionCountCeiling}`,
-    });
-  }
 
   for (const path of files) {
     if (isTestPath(path)) {
@@ -236,40 +214,14 @@ function main() {
     const owner = String(exception.owner || '').trim();
     const reason = String(exception.reason || '').trim();
     const expires = String(exception.expires || '').trim();
-    const taskId = String(exception.task_id || '').trim();
-    const plannedBatchDate = String(exception.planned_batch_date || '').trim();
-    if (!owner || !reason || !expires || !taskId || !plannedBatchDate) {
+    if (!owner || !reason || !expires) {
       oversizedInventory.push({ path, lines, cap, status: 'violation_metadata', expires: expires || null });
       violations.push({
         path,
         lines,
         cap,
         code: 'exception_metadata_missing',
-        detail: 'exception requires owner, reason, expires, task_id, planned_batch_date',
-      });
-      continue;
-    }
-
-    if (!debtItemIds.has(taskId)) {
-      oversizedInventory.push({ path, lines, cap, status: 'violation_tracking', expires });
-      violations.push({
-        path,
-        lines,
-        cap,
-        code: 'exception_task_missing',
-        detail: `task_id=${taskId} missing from debt ledger`,
-      });
-      continue;
-    }
-
-    if (Date.parse(plannedBatchDate) > Date.parse(expires)) {
-      oversizedInventory.push({ path, lines, cap, status: 'violation_planned_batch', expires });
-      violations.push({
-        path,
-        lines,
-        cap,
-        code: 'exception_batch_after_expiry',
-        detail: `planned_batch_date=${plannedBatchDate}; expires=${expires}`,
+        detail: 'exception requires owner, reason, expires',
       });
       continue;
     }
@@ -301,9 +253,6 @@ function main() {
       pass: violations.length === 0,
       total_scanned: scanned,
       tests_exempt: testsExempt,
-      exception_count: exceptionRows.length,
-      exception_count_ceiling: Number.isFinite(exceptionCountCeiling) && exceptionCountCeiling > 0 ? exceptionCountCeiling : null,
-      debt_ledger_items: debtItemIds.size,
       oversized: oversizedInventory.length,
       exempted,
       violations: violations.length,

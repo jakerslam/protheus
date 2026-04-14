@@ -190,23 +190,23 @@ function assertDashboardFileSizeCaps() {
   );
 }
 
-function assertSvelteKitPrimaryDashboardContract() {
+function assertPrimaryDashboardAuthorityContract() {
   const hostSource = readUtf8(ADAPTER_DASHBOARD_HOST_TS_PATH);
   const distBuildSource = readUtf8(path.resolve(ROOT, 'tests/tooling/scripts/ci/build_dashboard_dist.ts'));
   assertContains(
     hostSource,
-    "process.env.INFRING_DASHBOARD_UI || 'classic'",
-    'dashboard host should default to the authoritative classic dashboard surface'
+    "process.env.INFRING_DASHBOARD_UI || 'primary'",
+    'dashboard host should default to the authoritative primary dashboard surface'
   );
   assertContains(
     hostSource,
     "pathname === '/dashboard-classic' || pathname === '/dashboard-shell'",
-    'dashboard host should preserve compatibility aliases for old classic URLs'
+    'dashboard host should preserve compatibility aliases for retired dashboard URLs'
   );
   assertContains(
     hostSource,
     "pathname.startsWith('/dashboard/') && !path.extname(pathname)",
-    'dashboard host should treat /dashboard/<page> as authoritative classic dashboard entrypoints'
+    'dashboard host should treat /dashboard/<page> as authoritative dashboard entrypoints'
   );
   assert.ok(
     !distBuildSource.includes('dashboard_sveltekit'),
