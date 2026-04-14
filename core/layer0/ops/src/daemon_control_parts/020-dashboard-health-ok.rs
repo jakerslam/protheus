@@ -36,7 +36,7 @@ fn dashboard_health_probe_once(host: &str, port: u16) -> bool {
                 if collected.len() > DASHBOARD_HEALTH_MAX_BYTES {
                     collected.truncate(DASHBOARD_HEALTH_MAX_BYTES);
                 }
-                if String::from_utf8_lossy(&collected).contains("200 OK") {
+                if dashboard_health_response_ok(&collected) {
                     return true;
                 }
             }
@@ -48,7 +48,24 @@ fn dashboard_health_probe_once(host: &str, port: u16) -> bool {
             Err(_) => return false,
         }
     }
-    String::from_utf8_lossy(&collected).contains("200 OK")
+    dashboard_health_response_ok(&collected)
+}
+
+fn dashboard_health_response_ok(bytes: &[u8]) -> bool {
+    let raw = String::from_utf8_lossy(bytes);
+    if let Some(first_line) = raw.lines().next() {
+        let mut parts = first_line.split_whitespace();
+        let _protocol = parts.next().unwrap_or("");
+        if let Some(code_raw) = parts.next() {
+            if let Ok(code) = code_raw.parse::<u16>() {
+                if (200..300).contains(&code) {
+                    return true;
+                }
+                return false;
+            }
+        }
+    }
+    raw.contains("200 OK")
 }
 
 fn dashboard_health_ok_with_retry(
@@ -305,6 +322,28 @@ fn restart_dashboard_for_watchdog(root: &Path, cfg: &DashboardLaunchConfig) -> V
         }
     }
     out
+}
+
+#[cfg(test)]
+mod health_tests {
+    use super::*;
+
+    #[test]
+    fn dashboard_health_response_ok_accepts_2xx_status_codes() {
+        assert!(dashboard_health_response_ok(
+            b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{}"
+        ));
+        assert!(dashboard_health_response_ok(
+            b"HTTP/1.1 204 No Content\r\nContent-Type: application/json\r\n\r\n"
+        ));
+    }
+
+    #[test]
+    fn dashboard_health_response_ok_rejects_non_2xx_status_codes() {
+        assert!(!dashboard_health_response_ok(
+            b"HTTP/1.1 503 Service Unavailable\r\nContent-Type: text/plain\r\n\r\noffline"
+        ));
+    }
 }
 
 fn spawn_dashboard(root: &Path, cfg: &DashboardLaunchConfig) -> Result<u32, String> {

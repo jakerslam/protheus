@@ -93,25 +93,31 @@ fn latest_remote_tag(root: &Path) -> Result<String, String> {
     Ok(tags.last().cloned().unwrap_or_else(|| "v0.0.0".to_string()))
 }
 
+fn release_check_base(current_version: &str) -> Value {
+    json!({
+        "type": "dashboard_release_check",
+        "current_version": current_version,
+        "release_url": REPO_RELEASE_URL,
+        "update_channel": "git_semver_tags"
+    })
+}
+
 pub fn check_update(root: &Path) -> Value {
     let local = read_package_version(root);
+    let mut payload = release_check_base(&local);
     match latest_remote_tag(root) {
         Ok(remote) => {
             let has_update = semver_cmp(&remote, &local).is_gt();
-            json!({
-                "ok": true,
-                "type": "dashboard_release_check",
-                "current_version": local,
-                "latest_version": remote,
-                "has_update": has_update
-            })
+            payload["ok"] = json!(true);
+            payload["latest_version"] = json!(remote);
+            payload["has_update"] = json!(has_update);
+            payload
         }
-        Err(error) => json!({
-            "ok": false,
-            "type": "dashboard_release_check",
-            "current_version": local,
-            "error": error
-        }),
+        Err(error) => {
+            payload["ok"] = json!(false);
+            payload["error"] = json!(error);
+            payload
+        }
     }
 }
 
@@ -174,10 +180,12 @@ pub fn apply_update(root: &Path) -> Value {
 fn update_apply_spawn_spec() -> (String, Vec<String>) {
     if cfg!(windows) {
         (
-            "cmd".to_string(),
+            "powershell".to_string(),
             vec![
-                "/C".to_string(),
-                "git fetch --all --tags && git pull --ff-only".to_string(),
+                "-NoProfile".to_string(),
+                "-NonInteractive".to_string(),
+                "-Command".to_string(),
+                "git fetch --all --tags; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; git pull --ff-only".to_string(),
             ],
         )
     } else {
@@ -277,7 +285,7 @@ fn dashboard_system_action_executables() -> Vec<PathBuf> {
     candidates
 }
 
-pub fn dispatch_system_action(root: &Path, action: &str) -> Value {
+    pub fn dispatch_system_action(root: &Path, action: &str) -> Value {
     let normalized = clean_text(action, 40).to_ascii_lowercase();
     let mut last_error = String::new();
     for exe in dashboard_system_action_executables() {
@@ -400,6 +408,19 @@ mod tests {
         assert_eq!(
             payload.get("error").and_then(Value::as_str),
             Some("worktree_not_clean")
+        );
+    }
+
+    #[test]
+    fn release_check_base_includes_release_contract_fields() {
+        let payload = release_check_base("0.0.0");
+        assert_eq!(
+            payload.get("release_url").and_then(Value::as_str),
+            Some(REPO_RELEASE_URL)
+        );
+        assert_eq!(
+            payload.get("update_channel").and_then(Value::as_str),
+            Some("git_semver_tags")
         );
     }
 }
