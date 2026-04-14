@@ -2,9 +2,12 @@
 /* eslint-disable no-console */
 import fs from 'node:fs';
 import path from 'node:path';
-import { execSync } from 'node:child_process';
+import { cleanText, hasFlag, parseBool, readFlag } from '../../lib/cli.ts';
+import { currentRevision } from '../../lib/git.ts';
+import { emitStructuredResult } from '../../lib/result.ts';
 
 const ROOT = process.cwd();
+const SCRIPT_PATH = 'tests/tooling/scripts/ci/client_target_contract_audit.ts';
 
 function parseArgs(argv) {
   const out = {
@@ -15,15 +18,12 @@ function parseArgs(argv) {
     out: 'core/local/artifacts/client_target_contract_audit_current.json',
     strict: false,
   };
-  for (const arg of argv) {
-    if (arg.startsWith('--policy=')) out.policy = arg.slice('--policy='.length);
-    else if (arg.startsWith('--scope=')) out.scope = arg.slice('--scope='.length);
-    else if (arg.startsWith('--disposition=')) out.disposition = arg.slice('--disposition='.length);
-    else if (arg.startsWith('--boundary=')) out.boundary = arg.slice('--boundary='.length);
-    else if (arg.startsWith('--out=')) out.out = arg.slice('--out='.length);
-    else if (arg === '--strict') out.strict = true;
-    else if (arg.startsWith('--strict=')) out.strict = ['1', 'true', 'yes', 'on'].includes(String(arg.slice('--strict='.length)).toLowerCase());
-  }
+  out.policy = cleanText(readFlag(argv, 'policy') || out.policy, 400);
+  out.scope = cleanText(readFlag(argv, 'scope') || out.scope, 400);
+  out.disposition = cleanText(readFlag(argv, 'disposition') || out.disposition, 400);
+  out.boundary = cleanText(readFlag(argv, 'boundary') || out.boundary, 400);
+  out.out = cleanText(readFlag(argv, 'out') || out.out, 400);
+  out.strict = hasFlag(argv, 'strict') || parseBool(readFlag(argv, 'strict'), false);
   return out;
 }
 
@@ -58,20 +58,16 @@ function countBy(entries, keyFn) {
   return counts;
 }
 
-function main() {
-  const args = parseArgs(process.argv.slice(2));
-  const policyPath = path.resolve(ROOT, args.policy);
+function buildReport(args, root = ROOT) {
+  const policyPath = path.resolve(root, args.policy);
   const policy = JSON.parse(fs.readFileSync(policyPath, 'utf8'));
-  const scope = JSON.parse(fs.readFileSync(path.resolve(ROOT, args.scope), 'utf8'));
-  const disposition = JSON.parse(fs.readFileSync(path.resolve(ROOT, args.disposition), 'utf8'));
-  const boundary = JSON.parse(fs.readFileSync(path.resolve(ROOT, args.boundary), 'utf8'));
-
-  let revision = 'unknown';
-  try {
-    revision = execSync('git rev-parse HEAD', { cwd: ROOT, encoding: 'utf8' }).trim();
-  } catch {}
-
-  const clientFiles = walk(path.resolve(ROOT, 'client')).map(rel);
+  const scope = JSON.parse(fs.readFileSync(path.resolve(root, args.scope), 'utf8'));
+  const disposition = JSON.parse(fs.readFileSync(path.resolve(root, args.disposition), 'utf8'));
+  const boundary = JSON.parse(fs.readFileSync(path.resolve(root, args.boundary), 'utf8'));
+  const revision = currentRevision(root);
+  const clientFiles = walk(path.resolve(root, 'client')).map((file) =>
+    path.relative(root, file).replace(/\\/g, '/')
+  );
   const byExt = countBy(clientFiles, (file) => extOf(file));
   const hardViolations = [];
   const targetGaps = [];
@@ -124,11 +120,11 @@ function main() {
     }
   }
 
-  const payload = {
+  return {
     type: 'client_target_contract_audit',
     generated_at: new Date().toISOString(),
     revision,
-    policy_path: rel(policyPath),
+    policy_path: path.relative(root, policyPath).replace(/\\/g, '/'),
     summary: {
       hard_violation_count: hardViolations.length,
       target_gap_count: targetGaps.length,
@@ -139,12 +135,30 @@ function main() {
     target_gaps: targetGaps,
     hard_violations: hardViolations,
   };
-
-  const outPath = path.resolve(ROOT, args.out);
-  fs.mkdirSync(path.dirname(outPath), { recursive: true });
-  fs.writeFileSync(outPath, `${JSON.stringify(payload, null, 2)}\n`);
-  console.log(JSON.stringify(payload, null, 2));
-  if (args.strict && hardViolations.length > 0) process.exit(1);
 }
 
-main();
+function run(argv = process.argv.slice(2)) {
+  const args = parseArgs(argv);
+  const payload = buildReport(args, ROOT);
+  return emitStructuredResult(payload, {
+    outPath: path.resolve(ROOT, args.out),
+    strict: args.strict,
+    ok: payload.hard_violations.length === 0,
+    history: false,
+  });
+}
+
+if (require.main === module) {
+  process.exit(run(process.argv.slice(2)));
+}
+
+module.exports = {
+  SCRIPT_PATH,
+  parseArgs,
+  rel,
+  walk,
+  extOf,
+  countBy,
+  buildReport,
+  run,
+};
