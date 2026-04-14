@@ -30,6 +30,10 @@ const FORBIDDEN_ALT_DASHBOARD_DIRS = [
 const SIBLING_ALT_DASHBOARD_PATTERN = /(legacy|reference_runtime|control_runtime|deprecated)/i;
 const STATUS_DIR = path.resolve(ROOT, 'client/runtime/local/state/ui/infring_dashboard');
 const STATUS_PATH = path.resolve(STATUS_DIR, 'server_status.json');
+const ACTION_HISTORY_PATH = path.resolve(
+  ROOT,
+  'client/runtime/local/state/ui/infring_dashboard/actions/history.jsonl'
+);
 const ARTIFACT_DIR = path.resolve(ROOT, 'core/local/artifacts');
 const POLICY_DEBT_ARTIFACT_PATH = path.resolve(ARTIFACT_DIR, 'policy_debt_summary_current.json');
 const CLASSIC_DASHBOARD_DEBT_ARTIFACT_PATH = path.resolve(ARTIFACT_DIR, 'classic_dashboard_debt_inventory_current.json');
@@ -171,6 +175,173 @@ function readTextMaybe(filePath, fallback = '') {
   } catch {
     return fallback;
   }
+}
+function readRecentJsonl(filePath, limit = 12) {
+  const raw = readTextMaybe(filePath, '');
+  if (!raw.trim()) return [];
+  const out = [];
+  const lines = raw.trim().split(/\r?\n/);
+  for (let index = lines.length - 1; index >= 0 && out.length < Math.max(1, limit); index -= 1) {
+    const line = String(lines[index] || '').trim();
+    if (!line) continue;
+    try {
+      out.push(JSON.parse(line));
+    } catch {}
+  }
+  return out;
+}
+function asArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+function firstNonEmptyString(values, maxLen = 160) {
+  for (const value of values) {
+    const text = cleanText(value, maxLen);
+    if (text) return text;
+  }
+  return '';
+}
+function collectStringValuesByKey(value, key, out, cap = 24, depth = 0) {
+  if (out.length >= cap || depth > 6 || value == null) return;
+  if (Array.isArray(value)) {
+    for (const row of value) {
+      if (out.length >= cap) break;
+      collectStringValuesByKey(row, key, out, cap, depth + 1);
+    }
+    return;
+  }
+  if (typeof value !== 'object') return;
+  const record = value;
+  if (Object.prototype.hasOwnProperty.call(record, key)) {
+    const candidate = record[key];
+    if (Array.isArray(candidate)) {
+      for (const row of candidate) {
+        const text = cleanText(row, 220);
+        if (!text || out.includes(text)) continue;
+        out.push(text);
+        if (out.length >= cap) return;
+      }
+    } else {
+      const text = cleanText(candidate, 220);
+      if (text && !out.includes(text)) out.push(text);
+    }
+  }
+  for (const child of Object.values(record)) {
+    if (out.length >= cap) break;
+    collectStringValuesByKey(child, key, out, cap, depth + 1);
+  }
+}
+function findToolPipeline(value, depth = 0) {
+  if (!value || typeof value !== 'object' || depth > 6) return null;
+  if (
+    value.normalized_result
+    && (
+      Array.isArray(value.evidence_cards)
+      || value.claim_bundle
+      || value.worker_output
+      || value.tool_attempt_receipt
+    )
+  ) {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    for (const row of value) {
+      const found = findToolPipeline(row, depth + 1);
+      if (found) return found;
+    }
+    return null;
+  }
+  for (const child of Object.values(value)) {
+    const found = findToolPipeline(child, depth + 1);
+    if (found) return found;
+  }
+  return null;
+}
+function normalizeOrchestrationReceiptRow(row, source) {
+  const payload = row && typeof row.payload === 'object' ? row.payload : {};
+  const pipeline = findToolPipeline(row) || findToolPipeline(payload);
+  const normalized = pipeline && typeof pipeline.normalized_result === 'object' ? pipeline.normalized_result : {};
+  const claimBundle = pipeline && typeof pipeline.claim_bundle === 'object' ? pipeline.claim_bundle : {};
+  const attempt = pipeline && typeof pipeline.tool_attempt_receipt === 'object'
+    ? pipeline.tool_attempt_receipt
+    : (payload && typeof payload.tool_attempt_receipt === 'object' ? payload.tool_attempt_receipt : {});
+  const taskIds = [];
+  const traceIds = [];
+  const coreReceiptIds = [];
+  const coreOutcomeRefs = [];
+  collectStringValuesByKey(row, 'task_id', taskIds, 12);
+  collectStringValuesByKey(row, 'trace_id', traceIds, 12);
+  collectStringValuesByKey(row, 'observed_core_receipt_ids', coreReceiptIds, 24);
+  collectStringValuesByKey(row, 'receipt_ids', coreReceiptIds, 24);
+  collectStringValuesByKey(row, 'observed_core_outcome_refs', coreOutcomeRefs, 24);
+  collectStringValuesByKey(row, 'outcome_refs', coreOutcomeRefs, 24);
+  const evidenceCards = asArray(pipeline && pipeline.evidence_cards);
+  const claims = asArray(claimBundle && claimBundle.claims);
+  const toolName = firstNonEmptyString(
+    [
+      normalized.tool_name,
+      attempt.tool_name,
+      payload.tool_name,
+      row.tool_name,
+      row.type,
+    ],
+    120
+  );
+  const status = firstNonEmptyString(
+    [
+      attempt.status,
+      payload.status,
+      row.status,
+      row.ok === false ? 'error' : 'ok',
+    ],
+    80
+  ).toLowerCase() || 'ok';
+  const createdAt = firstNonEmptyString(
+    [
+      row.ts,
+      row.created_at,
+      payload.ts,
+      payload.created_at,
+      attempt.ts,
+    ],
+    80
+  );
+  const taskId = taskIds[0] || '';
+  const traceId = traceIds[0] || '';
+  const receiptHash = firstNonEmptyString([row.receipt_hash, payload.receipt_hash], 160);
+  if (!toolName && !taskId && !traceId && evidenceCards.length === 0 && claims.length === 0) {
+    return null;
+  }
+  return {
+    source,
+    type: firstNonEmptyString([row.type, payload.type, 'dashboard_tool_result'], 120) || 'dashboard_tool_result',
+    created_at: createdAt,
+    receipt_hash: receiptHash,
+    status,
+    tool_name: toolName,
+    task_id: taskId,
+    trace_id: traceId,
+    evidence_count: evidenceCards.length,
+    claim_count: claims.length,
+    core_receipt_count: coreReceiptIds.length,
+    core_outcome_count: coreOutcomeRefs.length,
+    lineage_ready: Boolean(taskId),
+  };
+}
+function normalizeOrchestrationReceiptRows(rows, source, limit = 8) {
+  const out = [];
+  const seen = new Set();
+  for (const row of Array.isArray(rows) ? rows : []) {
+    const normalized = normalizeOrchestrationReceiptRow(row, source);
+    if (!normalized) continue;
+    const key = normalized.trace_id
+      || normalized.receipt_hash
+      || `${normalized.task_id}|${normalized.tool_name}|${normalized.created_at}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(normalized);
+    if (out.length >= Math.max(1, limit)) break;
+  }
+  return out;
 }
 function walkFiles(rootDir, predicate) {
   if (!rootDir || !fs.existsSync(rootDir)) return [];
@@ -347,6 +518,26 @@ function orchestrationSurfaceRuntimeSnapshot() {
         ? Number(hiddenState.summary.violation_count || 0) || 0
         : null,
     },
+  };
+}
+async function orchestrationReceiptsRuntimeSnapshot(flags, limit = 8) {
+  const boundedLimit = parsePositiveInt(limit, 8, 1, 20);
+  const localRows = readRecentJsonl(ACTION_HISTORY_PATH, Math.max(24, boundedLimit * 6));
+  let source = 'local_action_history';
+  let receipts = normalizeOrchestrationReceiptRows(localRows, source, boundedLimit);
+  if (!receipts.length) {
+    const backendLogs = await fetchBackendJson(flags, '/api/logs/stream', 6000).catch(() => ({}));
+    source = 'backend_logs_stream';
+    receipts = normalizeOrchestrationReceiptRows(asArray(backendLogs && backendLogs.events), source, boundedLimit);
+  }
+  return {
+    ok: true,
+    type: 'runtime_orchestration_receipts',
+    generated_at: nowIso(),
+    source,
+    action_history_path: path.relative(ROOT, ACTION_HISTORY_PATH).replace(/\\/g, '/'),
+    receipts,
+    count: receipts.length,
   };
 }
 function discoverSiblingAltDashboardSurfaces() {
@@ -742,7 +933,8 @@ async function runServe(flags) {
     status_path: path.relative(ROOT, STATUS_PATH),
   };
   const server = http.createServer(async (req, res) => {
-    const pathname = new URL(req.url || '/', `http://${flags.host}:${flags.port}`).pathname;
+    const requestUrl = new URL(req.url || '/', `http://${flags.host}:${flags.port}`);
+    const pathname = requestUrl.pathname;
     try {
       if (req.method === 'GET' && (pathname === '/dashboard-classic' || pathname === '/dashboard-shell')) {
         dashboardHtml = buildPrimaryDashboardHtml(STATIC_DIR) || dashboardHtml;
@@ -791,6 +983,10 @@ async function runServe(flags) {
       }
       if (req.method === 'GET' && pathname === '/api/runtime/orchestration-surface') {
         return void sendJson(res, 200, orchestrationSurfaceRuntimeSnapshot());
+      }
+      if (req.method === 'GET' && pathname === '/api/runtime/orchestration-receipts') {
+        const limit = parsePositiveInt(requestUrl.searchParams.get('limit') || '8', 8, 1, 20);
+        return void sendJson(res, 200, await orchestrationReceiptsRuntimeSnapshot(flags, limit));
       }
       if (req.method === 'GET' && pathname === '/api/auth/check') {
         const auth = await fetchBackendJson(flags, '/api/auth/check', 8000).catch(() => ({ ok: true, mode: 'none', authenticated: true, user: 'operator' }));

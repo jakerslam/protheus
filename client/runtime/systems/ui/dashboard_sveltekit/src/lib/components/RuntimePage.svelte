@@ -2,7 +2,7 @@
   import RuntimeOverviewPanel from '$lib/components/RuntimeOverviewPanel.svelte';
   import RuntimeProvidersPanel from '$lib/components/RuntimeProvidersPanel.svelte';
   import RuntimeWebToolingPanel from '$lib/components/RuntimeWebToolingPanel.svelte';
-  import { readRuntimePageData, type RuntimePageData } from '$lib/runtime';
+  import { formatRelativeTime, readRuntimePageData, type RuntimePageData } from '$lib/runtime';
   import { onMount } from 'svelte';
 
   let data: RuntimePageData | null = null;
@@ -133,6 +133,38 @@
           {/each}
         </div>
       </div>
+
+      <div class="list-card">
+        <p class="list-label">
+          Recent orchestration receipts
+          {#if data?.orchestration.receipt_stream_source}
+            <span class="source-pill">{data.orchestration.receipt_stream_source}</span>
+          {/if}
+        </p>
+        {#if data?.orchestration.recent_receipts?.length}
+          {#each data.orchestration.recent_receipts as row}
+            <div class="receipt-row">
+              <div class="receipt-head">
+                <strong>{row.tool_name}</strong>
+                <span class:warn={row.status !== 'ok'}>{row.status}</span>
+              </div>
+              <div class="receipt-meta">
+                <code>{row.task_id}</code>
+                <code>{row.trace_id}</code>
+              </div>
+              <div class="receipt-metrics">
+                <span>{row.evidence_count} evidence</span>
+                <span>{row.claim_count} claims</span>
+                <span>{row.core_receipt_count} core receipts</span>
+                <span>{row.core_outcome_count} outcomes</span>
+                <span>{formatRelativeTime(row.created_at)}</span>
+              </div>
+            </div>
+          {/each}
+        {:else}
+          <div class="receipt-empty">No recent orchestration receipts yet.</div>
+        {/if}
+      </div>
     </article>
   </div>
 </section>
@@ -219,6 +251,32 @@
   .list-card {
     display: grid;
     gap: 10px;
+  }
+  .receipt-row {
+    display: grid;
+    gap: 8px;
+    border-radius: 18px;
+    border: 1px solid rgba(158, 188, 255, 0.12);
+    background: rgba(255, 255, 255, 0.03);
+    padding: 12px;
+  }
+  .receipt-head,
+  .receipt-meta,
+  .receipt-metrics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    justify-content: space-between;
+  }
+  .receipt-meta code,
+  .receipt-metrics span,
+  .source-pill,
+  .receipt-empty {
+    color: #8aa4cf;
+  }
+  .source-pill {
+    margin-left: 8px;
+    font-size: 0.85rem;
   }
   .list-label {
     color: #8aa4cf;

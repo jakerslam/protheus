@@ -119,6 +119,24 @@ export type RuntimeOrchestrationSurface = {
   adapter_fallback_threshold: number | null;
   hidden_state_pass: boolean | null;
   hidden_state_violations: number | null;
+  receipt_stream_source: string;
+  recent_receipts: RuntimeOrchestrationReceipt[];
+};
+
+export type RuntimeOrchestrationReceipt = {
+  source: string;
+  type: string;
+  created_at: string;
+  receipt_hash: string;
+  status: string;
+  tool_name: string;
+  task_id: string;
+  trace_id: string;
+  evidence_count: number;
+  claim_count: number;
+  core_receipt_count: number;
+  core_outcome_count: number;
+  lineage_ready: boolean;
 };
 
 export type RuntimePageData = {
@@ -287,6 +305,36 @@ function normalizeOrchestrationSurface(payload: JsonRecord): RuntimeOrchestratio
       guardrails.hidden_state_pass === true ? true : guardrails.hidden_state_pass === false ? false : null,
     hidden_state_violations:
       guardrails.hidden_state_violations == null ? null : Number(guardrails.hidden_state_violations || 0) || 0,
+    receipt_stream_source: '',
+    recent_receipts: [],
+  };
+}
+
+function normalizeOrchestrationReceipts(payload: JsonRecord): {
+  source: string;
+  receipts: RuntimeOrchestrationReceipt[];
+} {
+  const receipts = Array.isArray(payload.receipts) ? payload.receipts : [];
+  return {
+    source: String(payload.source || '').trim(),
+    receipts: receipts.slice(0, 6).map((row) => {
+      const receipt = asRecord(row);
+      return {
+        source: String(receipt.source || '').trim() || '-',
+        type: String(receipt.type || '').trim() || '-',
+        created_at: String(receipt.created_at || '').trim(),
+        receipt_hash: String(receipt.receipt_hash || '').trim(),
+        status: String(receipt.status || 'unknown').trim() || 'unknown',
+        tool_name: String(receipt.tool_name || '').trim() || '-',
+        task_id: String(receipt.task_id || '').trim() || '-',
+        trace_id: String(receipt.trace_id || '').trim() || '-',
+        evidence_count: Number(receipt.evidence_count || 0) || 0,
+        claim_count: Number(receipt.claim_count || 0) || 0,
+        core_receipt_count: Number(receipt.core_receipt_count || 0) || 0,
+        core_outcome_count: Number(receipt.core_outcome_count || 0) || 0,
+        lineage_ready: receipt.lineage_ready === true,
+      };
+    }),
   };
 }
 
@@ -326,7 +374,7 @@ export async function readOverviewSnapshot(): Promise<DashboardOverviewSnapshot>
 }
 
 export async function readRuntimePageData(): Promise<RuntimePageData> {
-  const [status, version, providers, agents, webStatus, webReceipts, policyDebt, orchestrationSurface] = await Promise.all([
+  const [status, version, providers, agents, webStatus, webReceipts, policyDebt, orchestrationSurface, orchestrationReceipts] = await Promise.all([
     requestJson<JsonRecord>('/api/status'),
     requestJson<JsonRecord>('/api/version'),
     requestJson<JsonRecord>('/api/providers'),
@@ -335,13 +383,20 @@ export async function readRuntimePageData(): Promise<RuntimePageData> {
     readJson<JsonRecord>('/api/web/receipts?limit=5', { receipts: [] }),
     readJson<JsonRecord>('/api/runtime/policy-debt', {}),
     readJson<JsonRecord>('/api/runtime/orchestration-surface', {}),
+    readJson<JsonRecord>('/api/runtime/orchestration-receipts?limit=6', { receipts: [] }),
   ]);
+  const orchestration = normalizeOrchestrationSurface(asRecord(orchestrationSurface));
+  const receiptStream = normalizeOrchestrationReceipts(asRecord(orchestrationReceipts));
   return {
     overview: normalizeOverview(asRecord(status), asRecord(version), Array.isArray(agents) ? agents : []),
     providers: normalizeProviders(asRecord(providers)),
     web: normalizeWebStatus(asRecord(webStatus), asRecord(webReceipts)),
     debt: normalizePolicyDebt(asRecord(policyDebt)),
-    orchestration: normalizeOrchestrationSurface(asRecord(orchestrationSurface)),
+    orchestration: {
+      ...orchestration,
+      receipt_stream_source: receiptStream.source,
+      recent_receipts: receiptStream.receipts,
+    },
   };
 }
 
