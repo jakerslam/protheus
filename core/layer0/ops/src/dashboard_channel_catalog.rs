@@ -2,6 +2,31 @@
 // SPDX-License-Identifier: Apache-2.0
 use serde_json::{json, Value};
 
+fn transport_contract(
+    runtime_adapter: &str,
+    setup_type: &str,
+    requires_token: bool,
+    probe_method: &str,
+) -> (&'static str, &'static str, bool) {
+    if runtime_adapter == "webchat_internal" || probe_method == "internal" {
+        return ("internal", "none", false);
+    }
+    if runtime_adapter == "webhook_http" {
+        return (
+            "webhook",
+            if requires_token { "token_optional" } else { "none" },
+            true,
+        );
+    }
+    if setup_type == "oauth" {
+        return ("api", "oauth", true);
+    }
+    if requires_token {
+        return ("api", "token", true);
+    }
+    ("api", "none", true)
+}
+
 fn entry(name: &str, display_name: &str, category: &str, setup_type: &str) -> Value {
     if let Some(row) = crate::reference_parity_catalog::channel_catalog_entry(
         name,
@@ -196,6 +221,9 @@ fn entry(name: &str, display_name: &str, category: &str, setup_type: &str) -> Va
             "TOKEN=...\\nENDPOINT=https://api.example.com".to_string(),
         )
     };
+    let (transport_kind, auth_mode, external_network_required) =
+        transport_contract(runtime_adapter, setup_type, requires_token, probe_method);
+
     json!({
         "name": name,
         "icon": icon,
@@ -211,6 +239,10 @@ fn entry(name: &str, display_name: &str, category: &str, setup_type: &str) -> Va
         "channel_tier": channel_tier,
         "real_channel": channel_tier == "native",
         "runtime_supported": true,
+        "transport_kind": transport_kind,
+        "auth_mode": auth_mode,
+        "external_network_required": external_network_required,
+        "web_tooling_ready": true,
         "requires_token": requires_token,
         "supports_send": supports_send,
         "probe_method": probe_method,
@@ -415,6 +447,46 @@ mod tests {
         assert!(
             template >= 10,
             "expected template channels to remain available"
+        );
+    }
+
+    #[test]
+    fn catalog_includes_transport_contract_metadata() {
+        let rows = catalog();
+        let webchat = rows
+            .iter()
+            .find(|row| row.get("name").and_then(Value::as_str) == Some("webchat"))
+            .cloned()
+            .unwrap_or_else(|| json!({}));
+        assert_eq!(
+            webchat.get("transport_kind").and_then(Value::as_str),
+            Some("internal")
+        );
+        assert_eq!(
+            webchat.get("auth_mode").and_then(Value::as_str),
+            Some("none")
+        );
+        assert_eq!(
+            webchat
+                .get("external_network_required")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+
+        let slack_webhook = rows
+            .iter()
+            .find(|row| row.get("name").and_then(Value::as_str) == Some("slack_webhook"))
+            .cloned()
+            .unwrap_or_else(|| json!({}));
+        assert_eq!(
+            slack_webhook.get("transport_kind").and_then(Value::as_str),
+            Some("webhook")
+        );
+        assert_eq!(
+            slack_webhook
+                .get("external_network_required")
+                .and_then(Value::as_bool),
+            Some(true)
         );
     }
 }

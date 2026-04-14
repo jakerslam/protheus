@@ -101,3 +101,74 @@ fn cron_command_endpoint_schedules_agent_owned_job() {
         agent_id
     );
 }
+
+#[test]
+fn comms_tasks_endpoint_supports_status_filter_and_summary() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let snapshot = json!({"ok": true});
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/comms/task",
+        br#"{"title":"Ship web tooling contract","description":"run queued wave"}"#,
+        &snapshot,
+    )
+    .expect("create task");
+    assert_eq!(created.status, 200);
+    let task_id = created
+        .payload
+        .pointer("/task/id")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
+    assert!(!task_id.is_empty());
+
+    let complete = handle(
+        root.path(),
+        "POST",
+        &format!("/api/comms/task/{task_id}/complete"),
+        br#"{"result_summary":"done"}"#,
+        &snapshot,
+    )
+    .expect("complete task");
+    assert_eq!(complete.status, 200);
+
+    let filtered = handle(
+        root.path(),
+        "GET",
+        "/api/comms/tasks?status=completed&limit=10",
+        &[],
+        &snapshot,
+    )
+    .expect("filtered tasks");
+    assert_eq!(filtered.status, 200);
+    assert_eq!(
+        filtered
+            .payload
+            .get("contract_version")
+            .and_then(Value::as_str),
+        Some("dashboard_comms_v1")
+    );
+    let rows = filtered
+        .payload
+        .get("tasks")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    assert!(!rows.is_empty());
+    assert!(rows.iter().all(|row| {
+        row.get("status")
+            .and_then(Value::as_str)
+            .map(|status| status.eq_ignore_ascii_case("completed"))
+            .unwrap_or(false)
+    }));
+    assert_eq!(
+        filtered
+            .payload
+            .get("total_count")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+            >= rows.len() as u64,
+        true
+    );
+}

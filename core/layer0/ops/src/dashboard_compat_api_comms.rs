@@ -10,6 +10,8 @@ use super::CompatApiResponse;
 #[path = "dashboard_compat_api_comms_store.rs"]
 mod dashboard_compat_api_comms_store;
 
+const COMMS_CONTRACT_VERSION: &str = "dashboard_comms_v1";
+
 fn agent_name_map(root: &Path, snapshot: &Value) -> HashMap<String, String> {
     let mut out = HashMap::<String, String>::new();
     for row in super::build_agent_roster(root, snapshot, true) {
@@ -110,6 +112,22 @@ pub fn handle(
 
     if method == "GET" && path_only == "/api/comms/events" {
         let mut events = dashboard_compat_api_comms_store::read_events(root);
+        let kind_filter = super::query_value(path, "kind").and_then(|raw| {
+            let cleaned = super::clean_text(&raw, 40).to_ascii_lowercase();
+            if cleaned.is_empty() {
+                None
+            } else {
+                Some(cleaned)
+            }
+        });
+        if let Some(kind) = kind_filter.as_deref() {
+            events.retain(|row| {
+                super::clean_text(row.get("kind").and_then(Value::as_str).unwrap_or(""), 40)
+                    .to_ascii_lowercase()
+                    == kind
+            });
+        }
+        let total_count = events.len();
         let limit = super::query_value(path, "limit")
             .and_then(|v| v.parse::<usize>().ok())
             .unwrap_or(200)
@@ -119,7 +137,14 @@ pub fn handle(
         }
         return Some(CompatApiResponse {
             status: 200,
-            payload: json!({"ok": true, "events": events}),
+            payload: json!({
+                "ok": true,
+                "contract_version": COMMS_CONTRACT_VERSION,
+                "events": events,
+                "count": events.len(),
+                "total_count": total_count,
+                "filters": {"kind": kind_filter}
+            }),
         });
     }
 
@@ -128,6 +153,22 @@ pub fn handle(
         if dashboard_compat_api_comms_store::apply_task_lifecycle(root, &mut tasks) {
             dashboard_compat_api_comms_store::write_tasks(root, &tasks);
         }
+        let status_filter = super::query_value(path, "status").and_then(|raw| {
+            let cleaned = super::clean_text(&raw, 40).to_ascii_lowercase();
+            if cleaned.is_empty() {
+                None
+            } else {
+                Some(cleaned)
+            }
+        });
+        if let Some(status) = status_filter.as_deref() {
+            tasks.retain(|row| {
+                super::clean_text(row.get("status").and_then(Value::as_str).unwrap_or(""), 40)
+                    .to_ascii_lowercase()
+                    == status
+            });
+        }
+        let total_count = tasks.len();
         let limit = super::query_value(path, "limit")
             .and_then(|v| v.parse::<usize>().ok())
             .unwrap_or(200)
@@ -137,7 +178,14 @@ pub fn handle(
         }
         return Some(CompatApiResponse {
             status: 200,
-            payload: json!({"ok": true, "tasks": tasks}),
+            payload: json!({
+                "ok": true,
+                "contract_version": COMMS_CONTRACT_VERSION,
+                "tasks": tasks,
+                "count": tasks.len(),
+                "total_count": total_count,
+                "filters": {"status": status_filter}
+            }),
         });
     }
 
