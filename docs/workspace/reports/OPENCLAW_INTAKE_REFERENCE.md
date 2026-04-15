@@ -120,7 +120,7 @@
     - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/210-scroll-hover-sanitize.part01.ts`
     - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/220-artifacts-voice-search.part02.ts`
 ## Current Intake State
-- Imported rows in this wave: `55`
+- Imported rows in this wave: `60`
 - Pending rows in this wave: `0`
 
 - `OPENCLAW-TOOLING-APP-013`:
@@ -179,6 +179,18 @@
     - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime.rs`
     - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration.rs`
     - `core/layer0/ops/src/web_conduit_parts/095-openclaw-search-tool-tests.rs`
+    - `core/layer0/ops/src/web_conduit_parts/096-openclaw-fetch-runtime-resolution-tests.rs`
+    - `core/layer0/ops/src/web_conduit_parts/105-openclaw-search-runtime-resolution-tests.rs`
+- `OPENCLAW-TOOLING-WEB-018`:
+  - Imported runtime web-tools contract fallback/shared/type/artifact/manifest patterns from:
+    - `src/secrets/runtime-web-tools-fallback.runtime.ts`
+    - `src/secrets/runtime-web-tools.shared.ts`
+    - `src/secrets/runtime-web-tools.types.ts`
+    - `src/secrets/runtime-web-tools-public-artifacts.runtime.ts`
+    - `src/secrets/runtime-web-tools-manifest.runtime.ts`
+  - Landed in:
+    - `core/layer0/ops/src/web_conduit_provider_runtime_parts/019-fetch-runtime-resolution.rs`
+    - `core/layer0/ops/src/web_conduit_provider_runtime_parts/021-search-runtime-resolution.rs`
     - `core/layer0/ops/src/web_conduit_parts/096-openclaw-fetch-runtime-resolution-tests.rs`
     - `core/layer0/ops/src/web_conduit_parts/105-openclaw-search-runtime-resolution-tests.rs`
 - `OPENCLAW-TOOLING-CHAT-017`:

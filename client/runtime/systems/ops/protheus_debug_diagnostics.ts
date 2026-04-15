@@ -4,28 +4,102 @@
 // Layer ownership: core/layer0/ops::protheus-control-plane (authoritative)
 // Thin TypeScript launcher wrapper only.
 
-const { runProtheusOps } = require('./run_protheus_ops.ts');
+const { runProtheusOps, invokeProtheusOpsViaBridge } = require('./run_protheus_ops.ts');
 
-function run(argv = process.argv.slice(2)) {
-  const args = Array.isArray(argv)
+function normalizeArgs(argv = process.argv.slice(2)) {
+  return Array.isArray(argv)
     ? argv.map((token) => String(token || '').trim()).filter(Boolean)
     : [];
-  const sub = argv[0] ? String(argv[0]).toLowerCase() : 'status';
-  const mapped =
-    sub === 'status' || sub === 'health'
-      ? ['status'].concat(args.slice(1))
-      : ['run'].concat(args);
-  return runProtheusOps(['protheus-control-plane', ...mapped], {
+}
+
+function normalizeSubcommand(args = []) {
+  const sub = String(args[0] || 'status').trim().toLowerCase();
+  if (sub === 'status' || sub === 'health') return 'status';
+  if (sub === 'run' || sub === 'diagnose' || sub === 'diag') return 'run';
+  return 'run';
+}
+
+function mappedOpsArgs(args = []) {
+  const sub = normalizeSubcommand(args);
+  return sub === 'status'
+    ? ['protheus-control-plane', 'status', ...args.slice(1)]
+    : ['protheus-control-plane', 'run', ...args];
+}
+
+function normalizeBridgePayload(out, command) {
+  const payload = out && out.payload && typeof out.payload === 'object' ? out.payload : null;
+  if (payload && payload.payload && typeof payload.payload === 'object') {
+    return {
+      status: Number.isFinite(Number(out && out.status)) ? Number(out.status) : 1,
+      command,
+      ...payload.payload,
+    };
+  }
+  if (payload && typeof payload === 'object') {
+    return {
+      status: Number.isFinite(Number(out && out.status)) ? Number(out.status) : 1,
+      command,
+      ...payload,
+    };
+  }
+  const status = Number.isFinite(Number(out && out.status)) ? Number(out.status) : 1;
+  return {
+    ok: status === 0,
+    type: 'protheus_debug_diagnostics',
+    command,
+    status,
+    error:
+      out && out.stderr
+        ? String(out.stderr).trim() || 'protheus_debug_diagnostics_bridge_failed'
+        : 'protheus_debug_diagnostics_bridge_failed'
+  };
+}
+
+function runDetailed(argv = process.argv.slice(2)) {
+  const args = normalizeArgs(argv);
+  const mapped = mappedOpsArgs(args);
+  const command = String(mapped[1] || 'run');
+  const options = {
     env: {
       PROTHEUS_OPS_USE_PREBUILT: '0',
       PROTHEUS_OPS_LOCAL_TIMEOUT_MS: '120000',
     },
     unknownDomainFallback: false,
-  });
+  };
+  const bridgeOut = invokeProtheusOpsViaBridge(mapped, options);
+  if (bridgeOut && typeof bridgeOut === 'object') {
+    return normalizeBridgePayload(bridgeOut, command);
+  }
+  const status = Number(runProtheusOps(mapped, options));
+  return {
+    ok: status === 0,
+    type: 'protheus_debug_diagnostics',
+    command,
+    status,
+  };
+}
+
+function run(argv = process.argv.slice(2)) {
+  const result = runDetailed(argv);
+  const status = Number(result && result.status);
+  return Number.isFinite(status) ? status : (result && result.ok ? 0 : 1);
+}
+
+function runCli(argv = process.argv.slice(2)) {
+  const result = runDetailed(argv);
+  process.stdout.write(`${JSON.stringify(result)}\n`);
+  const status = Number(result && result.status);
+  return Number.isFinite(status) ? status : (result && result.ok ? 0 : 1);
 }
 
 if (require.main === module) {
-  process.exit(run(process.argv.slice(2)));
+  process.exit(runCli(process.argv.slice(2)));
 }
 
-module.exports = { run };
+module.exports = {
+  run,
+  runCli,
+  runDetailed,
+  normalizeArgs,
+  normalizeSubcommand,
+};

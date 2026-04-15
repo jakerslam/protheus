@@ -1,3 +1,22 @@
+fn fetch_runtime_diagnostic_code_contract() -> Value {
+    json!([
+        "WEB_FETCH_PROVIDER_INVALID_AUTODETECT",
+        "WEB_FETCH_AUTODETECT_SELECTED",
+        "WEB_FETCH_PROVIDER_KEY_UNRESOLVED_FALLBACK_USED",
+        "WEB_FETCH_PROVIDER_KEY_UNRESOLVED_NO_FALLBACK"
+    ])
+}
+
+fn fetch_runtime_resolution_contract() -> Value {
+    json!({
+        "origin": "openclaw_runtime_web_tools_contract",
+        "fallback_runtime_resolver": "resolvePluginWebFetchProviders",
+        "public_artifact_runtime_resolver": "resolveBundledWebFetchProvidersFromPublicArtifacts",
+        "manifest_contract_owner_resolver": "resolveManifestContractOwnerPluginId",
+        "diagnostic_code_contract": fetch_runtime_diagnostic_code_contract()
+    })
+}
+
 pub(crate) fn fetch_provider_resolution_snapshot(
     root: &Path,
     policy: &Value,
@@ -55,6 +74,10 @@ pub(crate) fn fetch_provider_resolution_snapshot(
             json!(prefer_runtime_provider),
         );
         obj.insert("selection_scope".to_string(), json!(selection_scope));
+        obj.insert(
+            "openclaw_runtime_contract".to_string(),
+            fetch_runtime_resolution_contract(),
+        );
     }
     runtime
 }
