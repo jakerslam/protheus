@@ -1138,7 +1138,7 @@ order	status	file	language	loc	authority_risk_score	migration_potential_score	co
 1137	done	client/runtime/systems/ops/protheus_control_plane.ts	ts	27	4	5	3	4.1
 1138	done	client/runtime/systems/ops/backlog_registry.ts	ts	26	4	5	3	4.1
 1139	done	client/runtime/systems/ops/system_health_audit_runner.ts	ts	26	4	5	3	4.1
-1140	queued	client/runtime/systems/security/venom_containment_layer.ts	ts	26	4	5	3	4.1
+1140	done	client/runtime/systems/security/venom_containment_layer.ts	ts	26	4	5	3	4.1
 1141	done	client/runtime/systems/ops/backlog_github_sync.ts	ts	25	4	5	3	4.1
 1142	done	client/runtime/systems/ops/protheus_command_list.ts	ts	25	4	5	3	4.1
 1143	done	client/runtime/systems/ops/rust50_migration_program.ts	ts	25	4	5	3	4.1
@@ -1179,7 +1179,7 @@ order	status	file	language	loc	authority_risk_score	migration_potential_score	co
 1178	done	client/runtime/systems/security/delegated_authority_branching.ts	ts	3	4	5	3	4.1
 1179	done	client/runtime/systems/security/execution_sandbox_envelope.ts	ts	3	4	5	3	4.1
 1180	done	client/runtime/systems/security/formal_invariant_engine.ts	ts	3	4	5	3	4.1
-1181	queued	client/runtime/systems/security/integrity_kernel.ts	ts	3	4	5	3	4.1
+1181	done	client/runtime/systems/security/integrity_kernel.ts	ts	3	4	5	3	4.1
 1182	done	client/runtime/systems/security/operator_terms_ack.ts	ts	3	4	5	3	4.1
 1183	done	client/runtime/systems/security/organ_state_encryption_plane.ts	ts	3	4	5	3	4.1
 1184	done	client/runtime/systems/security/post_quantum_migration_lane.ts	ts	3	4	5	3	4.1
@@ -1190,13 +1190,13 @@ order	status	file	language	loc	authority_risk_score	migration_potential_score	co
 1189	done	client/runtime/systems/security/secret_rotation_migration_auditor.ts	ts	3	4	5	3	4.1
 1190	done	client/runtime/systems/security/secure_heartbeat_endpoint.ts	ts	3	4	5	3	4.1
 1191	done	client/runtime/systems/security/skin_protection_layer.ts	ts	3	4	5	3	4.1
-1192	queued	client/runtime/systems/security/supply_chain_trust_plane.ts	ts	3	4	5	3	4.1
-1193	queued	client/runtime/systems/security/workspace_dump_guard.ts	ts	3	4	5	3	4.1
+1192	done	client/runtime/systems/security/supply_chain_trust_plane.ts	ts	3	4	5	3	4.1
+1193	done	client/runtime/systems/security/workspace_dump_guard.ts	ts	3	4	5	3	4.1
 1194	queued	client/runtime/systems/sensory/adaptive_layer_guard.ts	ts	3	4	5	3	4.1
 1195	done	client/runtime/lib/spine_conduit_bridge.ts	ts	161	4	4	4	4
 1196	done	client/runtime/lib/direct_conduit_lane_bridge.ts	ts	140	4	4	4	4
 1197	done	client/runtime/lib/security_plane_bridge.ts	ts	27	4	4	4	4
-1198	queued	client/runtime/lib/rust_lane_bridge.ts	ts	824	4	4	3	3.8
+1198	done	client/runtime/lib/rust_lane_bridge.ts	ts	824	4	4	3	3.8
 1199	queued	client/runtime/lib/queued_backlog_runtime.ts	ts	267	4	4	3	3.8
 1200	done	client/runtime/lib/test_compactor_benchmark.ts	ts	265	4	4	3	3.8
 1201	queued	client/runtime/lib/backlog_lane_cli.ts	ts	226	4	4	3	3.8

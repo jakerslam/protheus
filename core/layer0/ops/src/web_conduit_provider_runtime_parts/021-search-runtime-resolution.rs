@@ -70,6 +70,7 @@ fn search_credential_presence_contract() -> Value {
 
 fn search_provider_contract_suite_contract() -> Value {
     json!({
+        "suite_helper_module": "test/helpers/plugins/web-search-provider-contract.ts",
         "registry_source": "pluginRegistrationContractRegistry",
         "registry_entry_resolver": "resolveWebSearchProviderContractEntriesForPluginId",
         "provider_id_source": "entry.webSearchProviderIds",
@@ -234,7 +235,7 @@ fn search_bundled_fast_path_contract_suite_contract() -> Value {
     json!({
         "suite_entrypoint": "describeBundledWebSearchFastPathContract",
         "suite_helper_module": "test/helpers/plugins/bundled-web-search-fast-path-contract.ts",
-        "suite_target_plugin_ids": ["moonshot", "xai", "searxng", "brave", "duckduckgo", "exa", "firecrawl", "google"],
+        "suite_target_plugin_ids": ["moonshot", "xai", "searxng", "brave", "duckduckgo", "exa", "firecrawl", "google", "minimax", "perplexity", "tavily"],
         "suite_contract_test_files": [
             "bundled-web-search.moonshot.contract.test.ts",
             "bundled-web-search.xai.contract.test.ts",
@@ -243,7 +244,10 @@ fn search_bundled_fast_path_contract_suite_contract() -> Value {
             "bundled-web-search.duckduckgo.contract.test.ts",
             "bundled-web-search.exa.contract.test.ts",
             "bundled-web-search.firecrawl.contract.test.ts",
-            "bundled-web-search.google.contract.test.ts"
+            "bundled-web-search.google.contract.test.ts",
+            "bundled-web-search.minimax.contract.test.ts",
+            "bundled-web-search.perplexity.contract.test.ts",
+            "bundled-web-search.tavily.contract.test.ts"
         ],
         "explicit_provider_resolver": "resolveBundledExplicitWebSearchProvidersFromPublicArtifacts",
         "runtime_provider_resolver": "resolvePluginWebSearchProviders",
@@ -275,7 +279,12 @@ fn search_bundled_fast_path_contract_suite_contract() -> Value {
             "configured_getter_optional": "provider.getConfiguredCredentialValue"
         },
         "selection_config_parity_optional": true,
-        "runtime_metadata_parity_optional": true
+        "runtime_metadata_parity_optional": true,
+        "runtime_metadata_parity_case_matrix": [
+            "credential_resolved_via_secret_ref",
+            "credential_resolved_via_env_fallback",
+            "provider_specific_model_override"
+        ]
     })
 }
 
