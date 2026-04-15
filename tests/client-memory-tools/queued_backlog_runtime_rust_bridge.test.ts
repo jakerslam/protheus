@@ -48,6 +48,9 @@ function main() {
   assert.equal(latest.ok, true);
 
   const historyPath = mod.resolvePath('local/state/demo/history.jsonl', 'local/state/demo/history.jsonl');
+  if (fs.existsSync(historyPath)) {
+    fs.unlinkSync(historyPath);
+  }
   mod.appendJsonl(historyPath, { seq: 1 });
   mod.appendJsonl(historyPath, { seq: 2 });
   const rows = mod.readJsonl(historyPath);

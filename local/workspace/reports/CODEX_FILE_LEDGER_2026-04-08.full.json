@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-15T08:42:13.969Z",
+  "generated_at": "2026-04-15T08:53:15.722Z",
   "scope": [
     "core",
     "client/runtime",
@@ -13191,7 +13191,7 @@
       "order": 1198
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/lib/queued_backlog_runtime.ts",
       "language": "ts",
       "loc": 267,
@@ -13213,7 +13213,7 @@
       "order": 1200
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/lib/backlog_lane_cli.ts",
       "language": "ts",
       "loc": 226,
@@ -13224,7 +13224,7 @@
       "order": 1201
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/lib/ts_bootstrap.ts",
       "language": "ts",
       "loc": 212,
@@ -13235,7 +13235,7 @@
       "order": 1202
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/lib/exec_compacted.ts",
       "language": "ts",
       "loc": 211,
@@ -13246,7 +13246,7 @@
       "order": 1203
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/lib/strategy_resolver.ts",
       "language": "ts",
       "loc": 195,
