@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-15T08:53:15.722Z",
+  "generated_at": "2026-04-15T09:19:18.552Z",
   "scope": [
     "core",
     "client/runtime",
@@ -13433,7 +13433,7 @@
       "order": 1220
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/lib/action_receipts.ts",
       "language": "ts",
       "loc": 85,
@@ -13466,7 +13466,7 @@
       "order": 1223
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/lib/legacy_retired_wrapper.ts",
       "language": "ts",
       "loc": 76,
@@ -13499,7 +13499,7 @@
       "order": 1226
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/lib/uid.ts",
       "language": "ts",
       "loc": 75,
@@ -13554,7 +13554,7 @@
       "order": 1231
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/lib/runtime_path_registry.ts",
       "language": "ts",
       "loc": 71,
@@ -13565,7 +13565,7 @@
       "order": 1232
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/lib/success_criteria_compiler.ts",
       "language": "ts",
       "loc": 71,
