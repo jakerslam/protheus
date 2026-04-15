@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-15T07:20:49.702Z",
+  "generated_at": "2026-04-15T07:36:31.107Z",
   "scope": [
     "core",
     "client/runtime",
@@ -12597,7 +12597,7 @@
       "order": 1144
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ops/protheus_completion.ts",
       "language": "ts",
       "loc": 21,
@@ -12608,7 +12608,7 @@
       "order": 1145
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ops/protheus_version_cli.ts",
       "language": "ts",
       "loc": 21,
@@ -12619,7 +12619,7 @@
       "order": 1146
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ops/personal_infring_installer.ts",
       "language": "ts",
       "loc": 18,
@@ -12630,7 +12630,7 @@
       "order": 1147
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ops/visualizer/app.ts",
       "language": "ts",
       "loc": 9,
@@ -12663,7 +12663,7 @@
       "order": 1150
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ops/infring_setup_wizard.ts",
       "language": "ts",
       "loc": 4,

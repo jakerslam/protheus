@@ -44,6 +44,28 @@ fn fetch_credential_presence_contract() -> Value {
     })
 }
 
+fn fetch_visibility_sanitization_contract() -> Value {
+    json!({
+        "sanitizer_entrypoint": "sanitizeHtml",
+        "strip_invisible_unicode_entrypoint": "stripInvisibleUnicode",
+        "always_remove_tags": ["meta", "template", "svg", "canvas", "iframe", "object", "embed"],
+        "hidden_class_name_contract": ["sr-only", "visually-hidden", "d-none", "hidden", "invisible", "screen-reader-only", "offscreen"],
+        "hidden_style_pattern_contract": [
+            "display:none",
+            "visibility:hidden",
+            "opacity:0",
+            "font-size:0",
+            "text-indent:-1000px+",
+            "transparent_color",
+            "clip_path_inset_percent",
+            "transform_scale_0_or_far_negative_translate",
+            "width0_height0_overflow_hidden"
+        ],
+        "hidden_attr_contract": ["aria-hidden=true", "hidden_attribute", "input[type=hidden]"],
+        "comment_stripping": true
+    })
+}
+
 fn fetch_runtime_provider_sort_contract() -> Value {
     json!({
         "alphabetical_sorter": "sortPluginProviders",
@@ -88,6 +110,7 @@ fn fetch_runtime_resolution_contract() -> Value {
         "diagnostic_code_contract": fetch_runtime_diagnostic_code_contract(),
         "provider_type_contract": fetch_runtime_provider_type_contract(),
         "credential_presence_contract": fetch_credential_presence_contract(),
+        "visibility_sanitization_contract": fetch_visibility_sanitization_contract(),
         "provider_sort_contract": fetch_runtime_provider_sort_contract(),
         "candidate_plugin_contract": fetch_runtime_candidate_plugin_contract(),
         "public_artifact_resolution_contract": fetch_public_artifact_resolution_contract(),
