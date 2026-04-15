@@ -19,9 +19,24 @@ function canonicalCatalogPath(workspaceDir: unknown): string {
   return path.resolve(String(workspaceDir || ''), 'adaptive', 'sensory', 'eyes', 'catalog.json');
 }
 
+function resolveCatalogEnvValue(envValue: unknown): string {
+  const explicit = String(envValue || '').trim();
+  if (explicit) return explicit;
+  const preferred = String(process.env.INFRING_EYES_CATALOG_PATH || '').trim();
+  const legacy = String(process.env.PROTHEUS_EYES_CATALOG_PATH || '').trim();
+  if (!preferred && legacy) {
+    process.env.INFRING_EYES_CATALOG_PATH = legacy;
+    return legacy;
+  }
+  if (preferred && !legacy) {
+    process.env.PROTHEUS_EYES_CATALOG_PATH = preferred;
+  }
+  return preferred;
+}
+
 function resolveCatalogPath(workspaceDir: unknown, envValue: unknown): string {
   const canonical = canonicalCatalogPath(workspaceDir);
-  const requested = String(envValue || '').trim();
+  const requested = resolveCatalogEnvValue(envValue);
   if (!requested) return canonical;
   const requestedAbs = path.resolve(requested);
   if (requestedAbs !== canonical) {

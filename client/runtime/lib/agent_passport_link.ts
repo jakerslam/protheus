@@ -10,8 +10,20 @@ function cleanText(value, maxLen = 240) {
   return String(value == null ? '' : value).replace(/\s+/g, ' ').trim().slice(0, maxLen);
 }
 
+function resolveAutoLinkEnabled() {
+  const preferred = String(process.env.INFRING_AGENT_PASSPORT_AUTOLINK || '').trim();
+  const legacy = String(process.env.PROTHEUS_AGENT_PASSPORT_AUTOLINK || '').trim();
+  if (!preferred && legacy) {
+    process.env.INFRING_AGENT_PASSPORT_AUTOLINK = legacy;
+  } else if (preferred && !legacy) {
+    process.env.PROTHEUS_AGENT_PASSPORT_AUTOLINK = preferred;
+  }
+  const finalValue = preferred || legacy || String(process.env.AGENT_PASSPORT_AUTOLINK || '1').trim();
+  return finalValue !== '0';
+}
+
 function linkReceiptToPassport(filePath, receiptRecord) {
-  const autoLink = String(process.env.AGENT_PASSPORT_AUTOLINK || '1').trim() !== '0';
+  const autoLink = resolveAutoLinkEnabled();
   if (!autoLink) return null;
   try {
     return recordIterationStep({
