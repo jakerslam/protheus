@@ -12,6 +12,18 @@ const bridge = createOpsLaneBridge(
   'coverage-badge-kernel',
   { preferLocalCore: true }
 );
+const DEFAULT_COMMAND = 'run';
+const ALLOWED_COMMANDS = new Set(['run', 'status']);
+
+function normalizeArgs(argv = []) {
+  return Array.isArray(argv) ? argv.map((token) => String(token || '').trim()).filter(Boolean) : [];
+}
+
+function normalizeCommand(raw) {
+  const token = String(raw || '').trim().toLowerCase();
+  if (!token || token.startsWith('--')) return DEFAULT_COMMAND;
+  return ALLOWED_COMMANDS.has(token) ? token : DEFAULT_COMMAND;
+}
 
 function parseLastJson(stdout) {
   const lines = String(stdout || '')
@@ -41,25 +53,34 @@ function normalizePayload(out) {
 }
 
 function runKernel(args = []) {
-  const passArgs = (Array.isArray(args) ? args : [])
-    .map((token) => String(token || '').trim())
-    .filter(Boolean);
+  const passArgs = normalizeArgs(args);
   return bridge.run(passArgs);
 }
 
 function run(argv = process.argv.slice(2)) {
-  const args = Array.isArray(argv) ? argv.map((token) => String(token || '').trim()).filter(Boolean) : [];
-  const first = args[0] || '';
-  const command = first && !first.startsWith('--') ? first.toLowerCase() : 'run';
-  const rest = command === 'run' && first.startsWith('--') ? args : args.slice(1);
-  const normalizedCommand = command === 'run' ? 'run' : command;
-  const out = runKernel([normalizedCommand, ...rest]);
+  const args = normalizeArgs(argv);
+  const command = normalizeCommand(args[0]);
+  const rest =
+    command === DEFAULT_COMMAND && (args[0] || '').startsWith('--') ? args : args.slice(1);
+  const normalizedRest =
+    command === DEFAULT_COMMAND && !ALLOWED_COMMANDS.has(String(args[0] || '').toLowerCase())
+      ? args
+      : rest;
+  const out = runKernel([command, ...normalizedRest]);
+  const payload = normalizePayload(out);
 
-  if (out && typeof out.stdout === 'string' && out.stdout.trim()) {
+  if (payload && typeof payload === 'object') {
+    process.stdout.write(`${JSON.stringify(payload)}\n`);
+  } else if (out && typeof out.stdout === 'string' && out.stdout.trim()) {
     process.stdout.write(out.stdout.endsWith('\n') ? out.stdout : `${out.stdout}\n`);
   } else {
-    const payload = normalizePayload(out);
-    process.stdout.write(`${JSON.stringify(payload)}\n`);
+    process.stdout.write(
+      `${JSON.stringify({
+        ok: false,
+        type: 'coverage_merge_summary',
+        error: 'empty_kernel_response',
+      })}\n`,
+    );
   }
 
   if (out && typeof out.stderr === 'string' && out.stderr.trim()) {
@@ -74,4 +95,8 @@ if (require.main === module) {
   process.exit(run(process.argv.slice(2)));
 }
 
-module.exports = { run };
+module.exports = {
+  normalizeArgs,
+  normalizeCommand,
+  run,
+};

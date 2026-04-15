@@ -1,20 +1,20 @@
 # CODEX File Ledger
 
-Generated: 2026-04-15T06:24:00.007Z
+Generated: 2026-04-15T06:41:00.000Z
 
 ## Status Counts
 
-- done: 883
-- queued: 2023
+- done: 888
+- queued: 2018
 - blocked: 0
 - in_progress: 0
 - existing-coverage-validated: 0
 
 ## Active Wave
 
-- `2026-04-14-codex-tooling-wave-014`
-- `420` `core/layer0/ops/src/metakernel_parts/058-hybrid-digital-dna-v2.rs`
-- `445` `core/layer0/ops/src/ternary_belief_kernel.rs`
-- `446` `core/layer0/ops/src/outcome_fitness_kernel.rs`
-- `501` `core/layer0/ops/tests/v6_flow_batch10_integration.rs`
-- `504` `core/layer0/ops/src/identity_federation.rs`
+- `2026-04-15-codex-tooling-wave-015`
+- `1086` `client/runtime/systems/ops/top50_roi_sweep.ts`
+- `1087` `client/runtime/systems/ops/generate_coverage_badge.ts`
+- `1088` `client/runtime/systems/ops/protheusd.ts`
+- `1090` `client/runtime/systems/ops/protheus_unknown_guard.ts`
+- `1100` `client/runtime/systems/ops/f100_readiness_remediation.ts`

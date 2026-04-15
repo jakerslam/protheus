@@ -30,13 +30,48 @@ fn search_runtime_diagnostic_code_contract() -> Value {
     ])
 }
 
+fn search_web_provider_snapshot_cache_contract() -> Value {
+    json!({
+        "cache_key_builder": "buildWebProviderSnapshotCacheKey",
+        "cache_owner_scope": "OpenClawConfig+NodeJS.ProcessEnv",
+        "cache_enable_predicate": "activate!=true && cache!=true && shouldUsePluginSnapshotCache(env)",
+        "snapshot_cache_ttl_resolver": "resolvePluginSnapshotCacheTtlMs",
+        "runtime_registry_fast_path": "resolveRuntimePluginRegistry",
+        "in_flight_registry_behavior": "returns_empty_provider_set"
+    })
+}
+
+fn search_runtime_provider_sort_contract() -> Value {
+    json!({
+        "alphabetical_sorter": "sortPluginProviders",
+        "auto_detect_sorter": "sortPluginProvidersForAutoDetect",
+        "registry_mapper": "mapRegistryProviders"
+    })
+}
+
+fn search_runtime_candidate_plugin_contract() -> Value {
+    json!({
+        "candidate_plugin_id_resolver": "resolveManifestDeclaredWebProviderCandidatePluginIds",
+        "contract": "webSearchProviders",
+        "config_key": "webSearch",
+        "public_artifact_explicit_resolver": "resolveBundledExplicitWebSearchProvidersFromPublicArtifacts",
+        "manifest_declared_provider_fallback": "pluginManifestDeclaresProviderConfig"
+    })
+}
+
 fn search_runtime_resolution_contract() -> Value {
     json!({
         "origin": "openclaw_runtime_web_tools_contract",
         "fallback_runtime_resolver": "resolvePluginWebSearchProviders",
+        "runtime_registry_resolver": "resolveRuntimeWebSearchProviders",
+        "loader_mode_contract": ["runtime", "setup"],
+        "loader_activation_flags": ["activate", "cache"],
         "public_artifact_runtime_resolver": "resolveBundledWebSearchProvidersFromPublicArtifacts",
         "manifest_contract_owner_resolver": "resolveManifestContractOwnerPluginId",
-        "diagnostic_code_contract": search_runtime_diagnostic_code_contract()
+        "diagnostic_code_contract": search_runtime_diagnostic_code_contract(),
+        "provider_sort_contract": search_runtime_provider_sort_contract(),
+        "candidate_plugin_contract": search_runtime_candidate_plugin_contract(),
+        "snapshot_cache_contract": search_web_provider_snapshot_cache_contract()
     })
 }
 
