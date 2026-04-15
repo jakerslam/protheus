@@ -1,20 +1,20 @@
 # CODEX File Ledger
 
-Generated: 2026-04-15T05:08:30.000Z
+Generated: 2026-04-15T05:10:55.000Z
 
 ## Status Counts
 
-- done: 853
-- queued: 2053
+- done: 858
+- queued: 2048
 - blocked: 0
 - in_progress: 0
 - existing-coverage-validated: 0
 
 ## Active Wave
 
-- `2026-04-15-codex-tooling-wave-010`
-- `481` `core/layer0/ops/src/rag_cli.rs`
-- `487` `core/layer0/ops/src/mutation_provenance_kernel.rs`
-- `491` `core/layer0/ops/src/daemon_control_parts/010-print-json-line.rs`
-- `492` `core/layer0/ops/src/approval_gate_kernel.rs`
-- `495` `core/layer0/ops/src/local_state_digest_kernel.rs`
+- `2026-04-15-openclaw-ui-wave-011`
+- `1865` `client/runtime/systems/ui/infring_static/js/pages/hands.ts.parts/020-render-and-select.ts`
+- `1866` `client/runtime/systems/ui/infring_static/js/pages/settings.ts.parts/010-provider-settings.ts`
+- `1871` `client/runtime/systems/ui/infring_static/js/pages/workflow-builder.ts.parts/020-builder-actions.ts`
+- `1880` `client/runtime/systems/ui/infring_static/js/pages/settings.ts.parts/020-keys-and-tests.ts`
+- `1921` `client/runtime/systems/ui/infring_static/js/pages/wizard.ts.parts/020-actions-and-finish.ts`

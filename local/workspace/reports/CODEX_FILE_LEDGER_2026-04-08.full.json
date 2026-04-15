@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-15T05:08:30.000Z",
+  "generated_at": "2026-04-15T05:10:55.000Z",
   "scope": [
     "core",
     "client/runtime",
@@ -20532,10 +20532,10 @@
       "order": 1864
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/hands.ts.parts/020-render-and-select.ts",
       "language": "ts",
-      "loc": 400,
+      "loc": 152,
       "authority_risk_score": 2,
       "migration_potential_score": 2,
       "concept_opportunity_score": 3,
@@ -20543,10 +20543,10 @@
       "order": 1865
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/settings.ts.parts/010-provider-settings.ts",
       "language": "ts",
-      "loc": 400,
+      "loc": 153,
       "authority_risk_score": 2,
       "migration_potential_score": 2,
       "concept_opportunity_score": 3,
@@ -20598,10 +20598,10 @@
       "order": 1870
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/workflow-builder.ts.parts/020-builder-actions.ts",
       "language": "ts",
-      "loc": 375,
+      "loc": 142,
       "authority_risk_score": 2,
       "migration_potential_score": 2,
       "concept_opportunity_score": 3,
@@ -20700,10 +20700,10 @@
       "order": 1879
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/settings.ts.parts/020-keys-and-tests.ts",
       "language": "ts",
-      "loc": 328,
+      "loc": 155,
       "authority_risk_score": 2,
       "migration_potential_score": 2,
       "concept_opportunity_score": 3,
@@ -21160,10 +21160,10 @@
       "order": 1920
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/wizard.ts.parts/020-actions-and-finish.ts",
       "language": "ts",
-      "loc": 181,
+      "loc": 160,
       "authority_risk_score": 2,
       "migration_potential_score": 2,
       "concept_opportunity_score": 3,
