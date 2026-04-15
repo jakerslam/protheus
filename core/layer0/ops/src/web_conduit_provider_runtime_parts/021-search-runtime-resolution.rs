@@ -21,6 +21,25 @@ fn reorder_search_providers_by_credential_availability(rows: Vec<String>) -> Vec
     credential_ready
 }
 
+fn search_runtime_diagnostic_code_contract() -> Value {
+    json!([
+        "WEB_SEARCH_PROVIDER_INVALID_AUTODETECT",
+        "WEB_SEARCH_AUTODETECT_SELECTED",
+        "WEB_SEARCH_KEY_UNRESOLVED_FALLBACK_USED",
+        "WEB_SEARCH_KEY_UNRESOLVED_NO_FALLBACK"
+    ])
+}
+
+fn search_runtime_resolution_contract() -> Value {
+    json!({
+        "origin": "openclaw_runtime_web_tools_contract",
+        "fallback_runtime_resolver": "resolvePluginWebSearchProviders",
+        "public_artifact_runtime_resolver": "resolveBundledWebSearchProvidersFromPublicArtifacts",
+        "manifest_contract_owner_resolver": "resolveManifestContractOwnerPluginId",
+        "diagnostic_code_contract": search_runtime_diagnostic_code_contract()
+    })
+}
+
 pub(crate) fn resolved_search_provider_chain(
     provider_hint: &str,
     request: &Value,
@@ -124,6 +143,10 @@ pub(crate) fn search_provider_resolution_snapshot(
         );
         obj.insert("selection_scope".to_string(), json!(selection_scope));
         obj.insert("allow_fallback".to_string(), json!(allow_fallback));
+        obj.insert(
+            "openclaw_runtime_contract".to_string(),
+            search_runtime_resolution_contract(),
+        );
     }
     runtime
 }

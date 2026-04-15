@@ -124,6 +124,28 @@ mod openclaw_search_runtime_resolution_tests {
                 .and_then(Value::as_bool),
             Some(false)
         );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/fallback_runtime_resolver")
+                .and_then(Value::as_str),
+            Some("resolvePluginWebSearchProviders")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/public_artifact_runtime_resolver")
+                .and_then(Value::as_str),
+            Some("resolveBundledWebSearchProvidersFromPublicArtifacts")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/manifest_contract_owner_resolver")
+                .and_then(Value::as_str),
+            Some("resolveManifestContractOwnerPluginId")
+        );
+        assert!(out
+            .pointer("/openclaw_runtime_contract/diagnostic_code_contract")
+            .and_then(Value::as_array)
+            .map(|rows| rows.iter().any(|row| {
+                row.as_str() == Some("WEB_SEARCH_KEY_UNRESOLVED_NO_FALLBACK")
+            }))
+            .unwrap_or(false));
     }
 
     #[test]
