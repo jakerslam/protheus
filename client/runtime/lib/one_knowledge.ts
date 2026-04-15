@@ -5,9 +5,15 @@ export {};
 // Layer ownership: client/runtime/lib (thin bridge over core/layer2/ops public-api-catalog)
 
 const { createOpsLaneBridge } = require('./rust_lane_bridge.ts');
+const { normalizeOpsBridgeEnvAliases } = require('./queued_backlog_runtime.ts');
 
-process.env.PROTHEUS_OPS_USE_PREBUILT = process.env.PROTHEUS_OPS_USE_PREBUILT || '0';
-process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '120000';
+normalizeOpsBridgeEnvAliases();
+process.env.INFRING_OPS_USE_PREBUILT = process.env.INFRING_OPS_USE_PREBUILT || '0';
+process.env.PROTHEUS_OPS_USE_PREBUILT =
+  process.env.PROTHEUS_OPS_USE_PREBUILT || process.env.INFRING_OPS_USE_PREBUILT || '0';
+process.env.INFRING_OPS_LOCAL_TIMEOUT_MS = process.env.INFRING_OPS_LOCAL_TIMEOUT_MS || '120000';
+process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS =
+  process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || process.env.INFRING_OPS_LOCAL_TIMEOUT_MS || '120000';
 const bridge = createOpsLaneBridge(__dirname, 'one_knowledge', 'public-api-catalog', {
   preferLocalCore: true
 });
