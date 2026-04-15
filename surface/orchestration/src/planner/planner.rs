@@ -99,21 +99,35 @@ fn build_candidate_for_variant(
     let mut variant_used_degraded = false;
     let strategy_family = strategy_family_for(request, classification, &variant);
     reasons.push(format!("strategy_family:{strategy_family:?}").to_lowercase());
-    let ordered_capabilities =
-        ordered_capabilities_for_variant(request, capabilities, &variant, &strategy_family);
+    let strategy_capabilities = strategy_capabilities_for_variant(
+        request,
+        classification,
+        capabilities,
+        probes,
+        &variant,
+        &strategy_family,
+    );
+    reasons.push(format!(
+        "strategy_capability_graph:{}",
+        strategy_capabilities
+            .iter()
+            .map(|row| format!("{row:?}").to_lowercase())
+            .collect::<Vec<_>>()
+            .join(",")
+    ));
+    let strategy_probes = strategy_capabilities
+        .iter()
+        .map(|capability| probe_for_capability(capability, probes))
+        .collect::<Vec<_>>();
+    let ordered_capabilities = ordered_capabilities_for_variant(
+        request,
+        &strategy_capabilities,
+        &variant,
+        &strategy_family,
+    );
 
     for capability in &ordered_capabilities {
-        let probe = probes
-            .iter()
-            .find(|row| row.capability == *capability)
-            .cloned()
-            .unwrap_or_else(|| CapabilityProbeResult {
-                capability: capability.clone(),
-                blocked_on: Vec::new(),
-                degradation_reasons: Vec::new(),
-                can_degrade: false,
-                probe_sources: vec!["probe.missing".to_string()],
-            });
+        let probe = probe_for_capability(capability, strategy_probes.as_slice());
         let spec = capability_registry::spec_for(capability);
         let blocked = !probe.blocked_on.is_empty();
         let wants_clarification = matches!(variant, PlanVariant::ClarificationFirst)
@@ -142,6 +156,15 @@ fn build_candidate_for_variant(
             &strategy_family,
             &spec,
         );
+        chain = maybe_prepend_context_preparation_step(
+            request,
+            classification,
+            capability,
+            &variant,
+            &strategy_family,
+            chain,
+            structurally_deferred,
+        );
         if structurally_deferred {
             reasons.push(format!("capability_structurally_deferred:{capability:?}").to_lowercase());
         }
@@ -168,8 +191,8 @@ fn build_candidate_for_variant(
 
     dedupe_steps(&mut steps);
 
-    let blocked_on = preconditions::blocked_preconditions(probes);
-    let degradation = preconditions::degradation_reasons(probes);
+    let blocked_on = preconditions::blocked_preconditions(strategy_probes.as_slice());
+    let degradation = preconditions::degradation_reasons(strategy_probes.as_slice());
     let requires_clarification = classification.needs_clarification
         || blocked_on.iter().any(|row| {
             matches!(
@@ -212,8 +235,8 @@ fn build_candidate_for_variant(
         requires_clarification,
         blocked_on,
         degradation,
-        capabilities: capabilities.to_vec(),
-        capability_probes: probes.to_vec(),
+        capabilities: strategy_capabilities,
+        capability_probes: strategy_probes,
         reasons,
     }
 }
@@ -278,6 +301,196 @@ fn dedupe_steps(steps: &mut Vec<OrchestrationPlanStep>) {
     *steps = merged;
 }
 
+fn probe_for_capability(
+    capability: &Capability,
+    probes: &[CapabilityProbeResult],
+) -> CapabilityProbeResult {
+    probes
+        .iter()
+        .find(|row| row.capability == *capability)
+        .cloned()
+        .unwrap_or_else(|| CapabilityProbeResult {
+            capability: capability.clone(),
+            blocked_on: Vec::new(),
+            degradation_reasons: Vec::new(),
+            can_degrade: false,
+            probe_sources: vec!["probe.missing".to_string()],
+        })
+}
+
+fn has_capability(capabilities: &[Capability], capability: Capability) -> bool {
+    capabilities.iter().any(|row| row == &capability)
+}
+
+fn capability_blocked(capability: Capability, probes: &[CapabilityProbeResult]) -> bool {
+    probes
+        .iter()
+        .find(|row| row.capability == capability)
+        .map(|row| !row.blocked_on.is_empty())
+        .unwrap_or(false)
+}
+
+fn strategy_capabilities_for_variant(
+    request: &TypedOrchestrationRequest,
+    classification: &RequestClassification,
+    capabilities: &[Capability],
+    probes: &[CapabilityProbeResult],
+    variant: &PlanVariant,
+    strategy_family: &StrategyFamily,
+) -> Vec<Capability> {
+    let comparative = is_structural_comparative_request(request);
+    let mut selected = if comparative {
+        match strategy_family {
+            StrategyFamily::ToolFirst => {
+                let mut out = Vec::new();
+                if has_capability(capabilities, Capability::ExecuteTool) {
+                    out.push(Capability::ExecuteTool);
+                }
+                if has_capability(capabilities, Capability::VerifyClaim) {
+                    out.push(Capability::VerifyClaim);
+                }
+                if has_capability(capabilities, Capability::ReadMemory)
+                    && (transport_explicitly_unavailable(request)
+                        || capability_blocked(Capability::ExecuteTool, probes)
+                        || capability_blocked(Capability::VerifyClaim, probes))
+                {
+                    out.push(Capability::ReadMemory);
+                }
+                out
+            }
+            StrategyFamily::TopologyFirst => {
+                let mut out = Vec::new();
+                if has_capability(capabilities, Capability::ReadMemory) {
+                    out.push(Capability::ReadMemory);
+                }
+                if has_capability(capabilities, Capability::VerifyClaim) {
+                    out.push(Capability::VerifyClaim);
+                }
+                out
+            }
+            StrategyFamily::MemoryFirst => {
+                let mut out = Vec::new();
+                if has_capability(capabilities, Capability::ReadMemory) {
+                    out.push(Capability::ReadMemory);
+                }
+                if has_capability(capabilities, Capability::ExecuteTool)
+                    && !capability_blocked(Capability::ExecuteTool, probes)
+                    && !transport_explicitly_unavailable(request)
+                {
+                    out.push(Capability::ExecuteTool);
+                }
+                if has_capability(capabilities, Capability::VerifyClaim)
+                    && !capability_blocked(Capability::VerifyClaim, probes)
+                    && !transport_explicitly_unavailable(request)
+                {
+                    out.push(Capability::VerifyClaim);
+                }
+                out
+            }
+            StrategyFamily::Balanced => capabilities.to_vec(),
+        }
+    } else {
+        capabilities.to_vec()
+    };
+
+    match classification.request_class {
+        RequestClass::Assimilation => {
+            if has_capability(capabilities, Capability::PlanAssimilation)
+                && !has_capability(&selected, Capability::PlanAssimilation)
+            {
+                selected.push(Capability::PlanAssimilation);
+            }
+            if has_capability(capabilities, Capability::MutateTask)
+                && !has_capability(&selected, Capability::MutateTask)
+            {
+                selected.push(Capability::MutateTask);
+            }
+        }
+        RequestClass::TaskProposal | RequestClass::Mutation => {
+            if has_capability(capabilities, Capability::MutateTask)
+                && !has_capability(&selected, Capability::MutateTask)
+            {
+                selected.push(Capability::MutateTask);
+            }
+        }
+        RequestClass::ReadOnly | RequestClass::ToolCall => {}
+    }
+
+    if matches!(variant, PlanVariant::ClarificationFirst)
+        && has_capability(&selected, Capability::ExecuteTool)
+    {
+        selected.retain(|row| row != &Capability::ExecuteTool);
+    }
+
+    selected.retain(|row| capabilities.iter().any(|capability| capability == row));
+    selected.sort_by_key(|row| format!("{row:?}"));
+    selected.dedup();
+    if selected.is_empty() {
+        return capabilities.to_vec();
+    }
+    selected
+}
+
+fn should_prepare_session_context(
+    request: &TypedOrchestrationRequest,
+    classification: &RequestClassification,
+    variant: &PlanVariant,
+    strategy_family: &StrategyFamily,
+) -> bool {
+    if matches!(variant, PlanVariant::Fastest) {
+        return false;
+    }
+    if matches!(strategy_family, StrategyFamily::ToolFirst) {
+        return false;
+    }
+    if classification.needs_clarification {
+        return true;
+    }
+    if !request.user_constraints.is_empty() {
+        return true;
+    }
+    if matches!(
+        request.operation_kind,
+        crate::contracts::OperationKind::Plan
+            | crate::contracts::OperationKind::Assimilate
+            | crate::contracts::OperationKind::Mutate
+            | crate::contracts::OperationKind::Compare
+    ) {
+        return true;
+    }
+    matches!(
+        request.request_kind,
+        RequestKind::Workflow | RequestKind::Comparative
+    ) || matches!(request.surface, crate::contracts::RequestSurface::Legacy)
+}
+
+fn maybe_prepend_context_preparation_step(
+    request: &TypedOrchestrationRequest,
+    classification: &RequestClassification,
+    capability: &Capability,
+    variant: &PlanVariant,
+    strategy_family: &StrategyFamily,
+    mut chain: Vec<OrchestrationPlanStep>,
+    structurally_deferred: bool,
+) -> Vec<OrchestrationPlanStep> {
+    if structurally_deferred
+        || chain.is_empty()
+        || !matches!(capability, Capability::ReadMemory)
+        || !should_prepare_session_context(request, classification, variant, strategy_family)
+    {
+        return chain;
+    }
+    if chain
+        .iter()
+        .any(|row| row.target_contract == CoreContractCall::ContextAtomAppend)
+    {
+        return chain;
+    }
+    let mut prefixed = vec![capability_registry::context_preparation_step()];
+    prefixed.append(&mut chain);
+    prefixed
+}
+
 fn ordered_capabilities_for_variant(
     request: &TypedOrchestrationRequest,
     capabilities: &[Capability],
@@ -313,6 +526,22 @@ fn chain_for_variant(
             _ => {}
         },
         StrategyFamily::TopologyFirst => {
+            if is_structural_comparative_request(request)
+                && matches!(capability, Capability::ReadMemory)
+                && matches!(
+                    variant,
+                    PlanVariant::ClarificationFirst | PlanVariant::Fastest
+                )
+            {
+                return (
+                    filter_steps_by_contract(
+                        spec.primary_steps.as_slice(),
+                        &[CoreContractCall::ContextTopologyInspect],
+                    ),
+                    false,
+                    false,
+                );
+            }
             if is_structural_comparative_request(request)
                 && matches!(capability, Capability::ExecuteTool)
                 && matches!(variant, PlanVariant::ClarificationFirst)
@@ -375,7 +604,7 @@ fn chain_for_variant(
                 return (
                     filter_steps_by_contract(
                         spec.primary_steps.as_slice(),
-                        &[CoreContractCall::ContextTopologyMaterialize],
+                        &[CoreContractCall::ContextTopologyInspect],
                     ),
                     false,
                     false,
@@ -397,9 +626,7 @@ fn chain_for_variant(
             Capability::ExecuteTool | Capability::VerifyClaim
                 if !spec.degraded_steps.is_empty() =>
             {
-                if request.adapted
-                    && !matches!(request.surface, crate::contracts::RequestSurface::Legacy)
-                {
+                if !matches!(request.surface, crate::contracts::RequestSurface::Legacy) {
                     return (spec.degraded_steps.clone(), true, false);
                 }
             }

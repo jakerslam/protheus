@@ -428,6 +428,89 @@ fn sdk_and_gateway_adapters_converge_on_same_tool_plan() {
 }
 
 #[test]
+fn typed_read_request_avoids_context_append_by_default() {
+    let mut runtime = OrchestrationSurfaceRuntime::new();
+    let package = runtime.orchestrate(
+        OrchestrationRequest {
+            session_id: "typed-read-no-append".to_string(),
+            intent: "opaque".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "read",
+                    "resource_kind": "workspace",
+                    "request_kind": "direct",
+                    "targets": [{ "kind": "workspace_path", "value": "README.md" }]
+                }
+            }),
+        },
+        4_250,
+    );
+
+    assert!(!package
+        .selected_plan
+        .steps
+        .iter()
+        .any(|row| row.target_contract == CoreContractCall::ContextAtomAppend));
+    assert!(package.selected_plan.steps.iter().any(|row| {
+        row.target_contract == CoreContractCall::ContextTopologyInspect
+            || row.target_contract == CoreContractCall::ContextTopologyMaterialize
+    }));
+}
+
+#[test]
+fn comparative_variants_expose_structurally_distinct_capability_graphs() {
+    let mut runtime = OrchestrationSurfaceRuntime::new();
+    let package = runtime.orchestrate(
+        OrchestrationRequest {
+            session_id: "comparative-capability-graphs".to_string(),
+            intent: "compare this workspace state to web references".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "compare",
+                    "resource_kind": "mixed",
+                    "targets": [
+                        { "kind": "workspace_path", "value": "README.md" },
+                        { "kind": "url", "value": "https://example.com/docs" }
+                    ]
+                },
+                "core_probe_envelope": {
+                    "execute_tool": {
+                        "tool_available": true,
+                        "transport_available": true
+                    },
+                    "verify_claim": {
+                        "transport_available": true
+                    }
+                }
+            }),
+        },
+        4_255,
+    );
+
+    let all_capability_graphs = std::iter::once(&package.selected_plan)
+        .chain(package.alternative_plans.iter())
+        .map(|plan| {
+            let mut names = plan
+                .capabilities
+                .iter()
+                .map(|row| format!("{row:?}"))
+                .collect::<Vec<_>>();
+            names.sort();
+            names.join(",")
+        })
+        .collect::<Vec<_>>();
+
+    assert!(all_capability_graphs
+        .iter()
+        .any(|row| row.contains("ExecuteTool")));
+    assert!(all_capability_graphs
+        .iter()
+        .any(|row| !row.contains("ExecuteTool")));
+}
+
+#[test]
 fn surface_adapter_fallback_requires_clarification() {
     let mut runtime = OrchestrationSurfaceRuntime::new();
     let package = runtime.orchestrate(
@@ -451,6 +534,35 @@ fn surface_adapter_fallback_requires_clarification() {
         .reasons
         .iter()
         .any(|row| row == "surface_adapter_fallback:dashboard"));
+}
+
+#[test]
+fn non_legacy_surface_adapter_fallback_requires_authoritative_tool_probes() {
+    let mut runtime = OrchestrationSurfaceRuntime::new();
+    let package = runtime.orchestrate(
+        OrchestrationRequest {
+            session_id: "dashboard-fallback-strict-probe".to_string(),
+            intent: "search web for release notes".to_string(),
+            surface: RequestSurface::Dashboard,
+            payload: json!({
+                "dashboard": {
+                    "selection_mode": "panel"
+                }
+            }),
+        },
+        4_305,
+    );
+
+    assert!(package
+        .selected_plan
+        .blocked_on
+        .contains(&infring_orchestration_surface_v1::contracts::Precondition::ToolAvailable));
+    assert!(package.selected_plan.capability_probes.iter().any(|row| {
+        row.capability == infring_orchestration_surface_v1::contracts::Capability::ExecuteTool
+            && row.probe_sources.iter().any(|source| {
+                source == "probe.required_for_typed_surface.execute_tool.tool_available"
+            })
+    }));
 }
 
 #[test]
@@ -493,7 +605,7 @@ fn adapted_tool_request_requires_explicit_transport_probe() {
     assert!(package.selected_plan.capability_probes.iter().any(|row| {
         row.capability == infring_orchestration_surface_v1::contracts::Capability::ExecuteTool
             && row.probe_sources.iter().any(|source| {
-                source == "probe.required_for_adapted_surface.execute_tool.transport_available"
+                source == "probe.required_for_typed_surface.execute_tool.transport_available"
             })
     }));
 }
@@ -543,7 +655,7 @@ fn adapted_tool_request_requires_explicit_tool_probe() {
     assert!(package.selected_plan.capability_probes.iter().any(|row| {
         row.capability == infring_orchestration_surface_v1::contracts::Capability::ExecuteTool
             && row.probe_sources.iter().any(|source| {
-                source == "probe.required_for_adapted_surface.execute_tool.tool_available"
+                source == "probe.required_for_typed_surface.execute_tool.tool_available"
             })
     }));
 }
@@ -586,7 +698,7 @@ fn adapted_tool_request_rejects_payload_tool_probe_shortcut() {
     assert!(package.selected_plan.capability_probes.iter().any(|row| {
         row.capability == infring_orchestration_surface_v1::contracts::Capability::ExecuteTool
             && row.probe_sources.iter().any(|source| {
-                source == "probe.required_for_adapted_surface.execute_tool.tool_available"
+                source == "probe.required_for_typed_surface.execute_tool.tool_available"
             })
     }));
 }
@@ -643,7 +755,7 @@ fn adapted_assimilation_request_requires_explicit_policy_probe() {
     assert!(package.selected_plan.capability_probes.iter().any(|row| {
         row.capability == infring_orchestration_surface_v1::contracts::Capability::PlanAssimilation
             && row.probe_sources.iter().any(|source| {
-                source == "probe.required_for_adapted_surface.plan_assimilation.policy_allows"
+                source == "probe.required_for_typed_surface.plan_assimilation.policy_allows"
             })
     }));
 }
@@ -679,7 +791,7 @@ fn adapted_assimilation_rejects_payload_policy_shortcut_without_probe_envelope()
     assert!(package.selected_plan.capability_probes.iter().any(|row| {
         row.capability == infring_orchestration_surface_v1::contracts::Capability::PlanAssimilation
             && row.probe_sources.iter().any(|source| {
-                source == "probe.required_for_adapted_surface.plan_assimilation.policy_allows"
+                source == "probe.required_for_typed_surface.plan_assimilation.policy_allows"
             })
     }));
 }
@@ -732,7 +844,7 @@ fn adapted_mutation_request_requires_explicit_authorization_probe() {
     assert!(package.selected_plan.capability_probes.iter().any(|row| {
         row.capability == infring_orchestration_surface_v1::contracts::Capability::MutateTask
             && row.probe_sources.iter().any(|source| {
-                source == "probe.required_for_adapted_surface.mutate_task.authorization_valid"
+                source == "probe.required_for_typed_surface.mutate_task.authorization_valid"
             })
     }));
 }
@@ -775,7 +887,7 @@ fn adapted_mutation_rejects_payload_authorization_shortcut_without_probe_envelop
     assert!(package.selected_plan.capability_probes.iter().any(|row| {
         row.capability == infring_orchestration_surface_v1::contracts::Capability::MutateTask
             && row.probe_sources.iter().any(|source| {
-                source == "probe.required_for_adapted_surface.mutate_task.authorization_valid"
+                source == "probe.required_for_typed_surface.mutate_task.authorization_valid"
             })
     }));
 }
@@ -1276,7 +1388,7 @@ fn adapted_mutation_request_requires_explicit_target_probe_envelope_fields() {
     assert!(package.selected_plan.capability_probes.iter().any(|row| {
         row.capability == infring_orchestration_surface_v1::contracts::Capability::MutateTask
             && row.probe_sources.iter().any(|source| {
-                source == "probe.required_for_adapted_surface.mutate_task.target_supplied"
+                source == "probe.required_for_typed_surface.mutate_task.target_supplied"
             })
     }));
 }
