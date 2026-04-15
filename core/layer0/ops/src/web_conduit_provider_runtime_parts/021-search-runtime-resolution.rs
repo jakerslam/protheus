@@ -45,7 +45,9 @@ fn search_runtime_provider_sort_contract() -> Value {
     json!({
         "alphabetical_sorter": "sortPluginProviders",
         "auto_detect_sorter": "sortPluginProvidersForAutoDetect",
-        "registry_mapper": "mapRegistryProviders"
+        "registry_mapper": "mapRegistryProviders",
+        "shared_sort_entrypoint": "sortWebSearchProviders",
+        "shared_autodetect_sort_entrypoint": "sortWebSearchProvidersForAutoDetect"
     })
 }
 
@@ -56,6 +58,18 @@ fn search_runtime_candidate_plugin_contract() -> Value {
         "config_key": "webSearch",
         "public_artifact_explicit_resolver": "resolveBundledExplicitWebSearchProvidersFromPublicArtifacts",
         "manifest_declared_provider_fallback": "pluginManifestDeclaresProviderConfig"
+    })
+}
+
+fn search_public_artifact_resolution_contract() -> Value {
+    json!({
+        "bundled_resolution_config_resolver": "resolveBundledWebSearchResolutionConfig",
+        "bundled_candidate_plugin_id_resolver": "resolveBundledCandidatePluginIds",
+        "explicit_fast_path_resolver": "resolveBundledExplicitWebSearchProvidersFromPublicArtifacts",
+        "manifest_records_fallback_resolver": "resolveBundledManifestRecordsByPluginId",
+        "root_dir_loader": "loadBundledWebSearchProviderEntriesFromDir(path.basename(record.rootDir))",
+        "fast_path_skips_manifest_scans_when_only_plugin_ids": true,
+        "requires_public_artifact_for_each_bundled_manifest_contract_provider": true
     })
 }
 
@@ -71,6 +85,7 @@ fn search_runtime_resolution_contract() -> Value {
         "diagnostic_code_contract": search_runtime_diagnostic_code_contract(),
         "provider_sort_contract": search_runtime_provider_sort_contract(),
         "candidate_plugin_contract": search_runtime_candidate_plugin_contract(),
+        "public_artifact_resolution_contract": search_public_artifact_resolution_contract(),
         "snapshot_cache_contract": search_web_provider_snapshot_cache_contract()
     })
 }

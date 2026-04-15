@@ -159,6 +159,26 @@ mod openclaw_search_runtime_resolution_tests {
                 .and_then(Value::as_str),
             Some("buildWebProviderSnapshotCacheKey")
         );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_sort_contract/shared_sort_entrypoint")
+                .and_then(Value::as_str),
+            Some("sortWebSearchProviders")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/public_artifact_resolution_contract/bundled_resolution_config_resolver")
+                .and_then(Value::as_str),
+            Some("resolveBundledWebSearchResolutionConfig")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/public_artifact_resolution_contract/fast_path_skips_manifest_scans_when_only_plugin_ids")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/public_artifact_resolution_contract/requires_public_artifact_for_each_bundled_manifest_contract_provider")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
         assert!(out
             .pointer("/openclaw_runtime_contract/diagnostic_code_contract")
             .and_then(Value::as_array)
