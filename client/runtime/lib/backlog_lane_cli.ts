@@ -96,10 +96,15 @@ function loadState(policy) {
 }
 
 function parseList(raw) {
-  if (Array.isArray(raw)) return raw.map((row) => normalizeToken(row, 120)).filter(Boolean);
+  if (Array.isArray(raw)) {
+    return raw
+      .flatMap((row) => String(row == null ? '' : row).split(/[,\s]+/g))
+      .map((row) => normalizeToken(row, 120))
+      .filter(Boolean);
+  }
   const txt = cleanText(raw || '', 5000);
   if (!txt) return [];
-  return txt.split(',').map((row) => normalizeToken(row, 120)).filter(Boolean);
+  return txt.split(/[,\s]+/g).map((row) => normalizeToken(row, 120)).filter(Boolean);
 }
 
 function evaluateChecks(policy, failSet) {
