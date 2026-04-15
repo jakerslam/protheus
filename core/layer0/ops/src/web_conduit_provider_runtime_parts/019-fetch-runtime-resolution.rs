@@ -14,7 +14,33 @@ fn fetch_web_provider_snapshot_cache_contract() -> Value {
         "cache_enable_predicate": "activate!=true && cache!=true && shouldUsePluginSnapshotCache(env)",
         "snapshot_cache_ttl_resolver": "resolvePluginSnapshotCacheTtlMs",
         "runtime_registry_fast_path": "resolveRuntimePluginRegistry",
-        "in_flight_registry_behavior": "returns_empty_provider_set"
+        "in_flight_registry_behavior": "returns_empty_provider_set",
+        "in_flight_registry_load_guard": "does_not_force_fresh_snapshot_load",
+        "active_registry_compatibility_fast_path": true,
+        "active_registry_workspace_inheritance": true,
+        "workspace_change_invalidation": true,
+        "cache_key_dimensions": ["config", "env", "workspace_dir", "candidate_plugin_ids"]
+    })
+}
+
+fn fetch_runtime_provider_type_contract() -> Value {
+    json!({
+        "provider_context_type": "WebFetchProviderContext",
+        "runtime_metadata_context_type": "WebFetchRuntimeMetadataContext",
+        "provider_plugin_type": "WebFetchProviderPlugin",
+        "provider_entry_type": "PluginWebFetchProviderEntry",
+        "tool_definition_type": "WebFetchProviderToolDefinition",
+        "credential_resolution_sources": ["config", "secretRef", "env", "missing", "not_required"]
+    })
+}
+
+fn fetch_credential_presence_contract() -> Value {
+    json!({
+        "resolver": "hasConfiguredWebFetchCredential",
+        "provider_set_resolver": "resolvePluginWebFetchProviders",
+        "configured_credential_probe": "provider.getConfiguredCredentialValue || provider.getCredentialValue(fetchConfig)",
+        "fallback_env_probe": "provider.envVars",
+        "truthy_semantics": "non_empty_string_or_non_null"
     })
 }
 
@@ -60,6 +86,8 @@ fn fetch_runtime_resolution_contract() -> Value {
         "public_artifact_runtime_resolver": "resolveBundledWebFetchProvidersFromPublicArtifacts",
         "manifest_contract_owner_resolver": "resolveManifestContractOwnerPluginId",
         "diagnostic_code_contract": fetch_runtime_diagnostic_code_contract(),
+        "provider_type_contract": fetch_runtime_provider_type_contract(),
+        "credential_presence_contract": fetch_credential_presence_contract(),
         "provider_sort_contract": fetch_runtime_provider_sort_contract(),
         "candidate_plugin_contract": fetch_runtime_candidate_plugin_contract(),
         "public_artifact_resolution_contract": fetch_public_artifact_resolution_contract(),
