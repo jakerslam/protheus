@@ -68,6 +68,34 @@ fn search_credential_presence_contract() -> Value {
     })
 }
 
+fn search_provider_contract_suite_contract() -> Value {
+    json!({
+        "registry_source": "pluginRegistrationContractRegistry",
+        "registry_entry_resolver": "resolveWebSearchProviderContractEntriesForPluginId",
+        "provider_id_source": "entry.webSearchProviderIds",
+        "provider_lookup_contract": "entry.provider.id == providerId",
+        "provider_specific_contract_targets": ["brave", "duckduckgo"],
+        "base_provider_contract": {
+            "provider_id_regex": "^[a-z0-9][a-z0-9-]*$",
+            "required_non_empty_fields": ["label", "hint", "placeholder"],
+            "signup_url_scheme": "https",
+            "docs_url_scheme_if_present": "http_or_https",
+            "env_vars_unique_and_non_empty": true
+        },
+        "credential_roundtrip_contract": {
+            "setter": "provider.setCredentialValue(searchConfigTarget, credentialValue)",
+            "getter": "provider.getCredentialValue(searchConfigTarget)"
+        },
+        "tool_definition_contract": {
+            "factory": "provider.createTool({ config, searchConfig })",
+            "description_non_empty": true,
+            "parameters_object_required": true,
+            "execute_function_required": true,
+            "run_setup_optional_function": true
+        }
+    })
+}
+
 fn search_provider_config_contract() -> Value {
     json!({
         "forced_provider_wrapper": "withForcedProvider",
@@ -202,6 +230,7 @@ fn search_runtime_resolution_contract() -> Value {
         "diagnostic_code_contract": search_runtime_diagnostic_code_contract(),
         "provider_type_contract": search_runtime_provider_type_contract(),
         "credential_presence_contract": search_credential_presence_contract(),
+        "provider_contract_suite_contract": search_provider_contract_suite_contract(),
         "provider_config_contract": search_provider_config_contract(),
         "provider_credential_resolution_contract": search_provider_credential_resolution_contract(),
         "provider_common_runtime_contract": search_provider_common_runtime_contract(),

@@ -1169,11 +1169,11 @@ order	status	file	language	loc	authority_risk_score	migration_potential_score	co
 1168	done	client/runtime/systems/ops/predictive_capacity_forecast.ts	ts	3	4	5	3	4.1
 1169	done	client/runtime/systems/ops/profile_compatibility_gate.ts	ts	3	4	5	3	4.1
 1170	done	client/runtime/systems/ops/schema_evolution_contract.ts	ts	3	4	5	3	4.1
-1171	queued	client/runtime/systems/ops/self_hosted_bootstrap_compiler.ts	ts	3	4	5	3	4.1
-1172	queued	client/runtime/systems/ops/simplicity_budget_gate.ts	ts	3	4	5	3	4.1
-1173	queued	client/runtime/systems/ops/soc2_type2_track.ts	ts	3	4	5	3	4.1
-1174	queued	client/runtime/systems/ops/state_kernel.ts	ts	3	4	5	3	4.1
-1175	queued	client/runtime/systems/ops/state_kernel_cutover.ts	ts	3	4	5	3	4.1
+1171	done	client/runtime/systems/ops/self_hosted_bootstrap_compiler.ts	ts	3	4	5	3	4.1
+1172	done	client/runtime/systems/ops/simplicity_budget_gate.ts	ts	3	4	5	3	4.1
+1173	done	client/runtime/systems/ops/soc2_type2_track.ts	ts	3	4	5	3	4.1
+1174	done	client/runtime/systems/ops/state_kernel.ts	ts	3	4	5	3	4.1
+1175	done	client/runtime/systems/ops/state_kernel_cutover.ts	ts	3	4	5	3	4.1
 1176	queued	client/runtime/systems/ops/state_kernel_dual_write.ts	ts	3	4	5	3	4.1
 1177	queued	client/runtime/systems/security/conflict_marker_guard.ts	ts	3	4	5	3	4.1
 1178	queued	client/runtime/systems/security/delegated_authority_branching.ts	ts	3	4	5	3	4.1

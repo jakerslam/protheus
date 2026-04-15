@@ -148,6 +148,26 @@ mod openclaw_fetch_runtime_resolution_tests {
             Some("hasConfiguredWebFetchCredential")
         );
         assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_contract_suite_contract/registry_plugin_filter")
+                .and_then(Value::as_str),
+            Some("entry.webFetchProviderIds.length > 0")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_contract_suite_contract/base_provider_contract/provider_id_regex")
+                .and_then(Value::as_str),
+            Some("^[a-z0-9][a-z0-9-]*$")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_contract_suite_contract/credential_roundtrip_contract/configured_roundtrip_optional")
+                .and_then(Value::as_str),
+            Some("provider.setConfiguredCredentialValue/getConfiguredCredentialValue")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_contract_suite_contract/tool_definition_contract/execute_function_required")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
             out.pointer("/openclaw_runtime_contract/visibility_sanitization_contract/sanitizer_entrypoint")
                 .and_then(Value::as_str),
             Some("sanitizeHtml")

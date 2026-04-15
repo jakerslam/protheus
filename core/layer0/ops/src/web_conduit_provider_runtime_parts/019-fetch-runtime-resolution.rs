@@ -44,6 +44,36 @@ fn fetch_credential_presence_contract() -> Value {
     })
 }
 
+fn fetch_provider_contract_suite_contract() -> Value {
+    json!({
+        "registry_source": "pluginRegistrationContractRegistry",
+        "registry_plugin_filter": "entry.webFetchProviderIds.length > 0",
+        "registry_entry_resolver": "resolveWebFetchProviderContractEntriesForPluginId",
+        "provider_id_source": "entry.webFetchProviderIds",
+        "provider_lookup_contract": "entry.provider.id == providerId",
+        "base_provider_contract": {
+            "provider_id_regex": "^[a-z0-9][a-z0-9-]*$",
+            "required_non_empty_fields": ["label", "hint", "placeholder", "credentialPath"],
+            "signup_url_scheme": "https",
+            "docs_url_scheme_if_present": "http_or_https",
+            "env_vars_unique_and_non_empty": true,
+            "inactive_secret_paths_include_credential_path_when_present": true
+        },
+        "credential_roundtrip_contract": {
+            "setter": "provider.setCredentialValue(fetchConfigTarget, credentialValue)",
+            "getter": "provider.getCredentialValue(fetchConfigTarget)",
+            "configured_roundtrip_optional": "provider.setConfiguredCredentialValue/getConfiguredCredentialValue",
+            "apply_selection_config_enables_plugin_entry": "provider.applySelectionConfig(config).plugins.entries[pluginId].enabled == true"
+        },
+        "tool_definition_contract": {
+            "factory": "provider.createTool({ config, fetchConfig })",
+            "description_non_empty": true,
+            "parameters_object_required": true,
+            "execute_function_required": true
+        }
+    })
+}
+
 fn fetch_visibility_sanitization_contract() -> Value {
     json!({
         "sanitizer_entrypoint": "sanitizeHtml",
@@ -223,6 +253,7 @@ fn fetch_runtime_resolution_contract() -> Value {
         "diagnostic_code_contract": fetch_runtime_diagnostic_code_contract(),
         "provider_type_contract": fetch_runtime_provider_type_contract(),
         "credential_presence_contract": fetch_credential_presence_contract(),
+        "provider_contract_suite_contract": fetch_provider_contract_suite_contract(),
         "visibility_sanitization_contract": fetch_visibility_sanitization_contract(),
         "shared_runtime_contract": fetch_shared_runtime_contract(),
         "content_extraction_contract": fetch_content_extraction_contract(),

@@ -175,6 +175,26 @@ mod openclaw_search_runtime_resolution_tests {
             Some("hasConfiguredWebSearchCredential")
         );
         assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_contract_suite_contract/provider_specific_contract_targets/0")
+                .and_then(Value::as_str),
+            Some("brave")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_contract_suite_contract/provider_specific_contract_targets/1")
+                .and_then(Value::as_str),
+            Some("duckduckgo")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_contract_suite_contract/base_provider_contract/provider_id_regex")
+                .and_then(Value::as_str),
+            Some("^[a-z0-9][a-z0-9-]*$")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_contract_suite_contract/tool_definition_contract/run_setup_optional_function")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
             out.pointer("/openclaw_runtime_contract/provider_config_contract/forced_provider_wrapper")
                 .and_then(Value::as_str),
             Some("withForcedProvider")
