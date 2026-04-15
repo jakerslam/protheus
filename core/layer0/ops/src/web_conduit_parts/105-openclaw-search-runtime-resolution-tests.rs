@@ -200,6 +200,18 @@ mod openclaw_search_runtime_resolution_tests {
                 "auth_doctor_hint_generation_parity",
             ),
             (
+                "/openclaw_runtime_contract/provider_runtime_module_contract/runtime_module_targets/0",
+                "src/plugins/provider-runtime.test.ts",
+            ),
+            (
+                "/openclaw_runtime_contract/provider_runtime_module_contract/runtime_module_targets/4",
+                "src/plugins/provider-runtime.test-support.ts",
+            ),
+            (
+                "/openclaw_runtime_contract/provider_runtime_module_contract/module_runtime_entrypoints/1",
+                "resolveProviderRuntimeModels",
+            ),
+            (
                 "/openclaw_runtime_contract/provider_family_contract_suite_contract/contract_targets/0",
                 "src/plugins/contracts/memory-embedding-provider.contract.test.ts",
             ),

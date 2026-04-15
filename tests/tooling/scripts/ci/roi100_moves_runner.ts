@@ -6,13 +6,45 @@ import os from 'node:os';
 import { spawnSync } from 'node:child_process';
 
 const ROOT = process.cwd();
-const OUT_DIR = path.join(ROOT, 'local', 'state', 'ops', 'roi100_moves');
+const OUT_DIR = path.join(
+  ROOT,
+  readAliasedEnv('INFRING_ROI100_OUT_DIR', 'PROTHEUS_ROI100_OUT_DIR') || 'local/state/ops/roi100_moves'
+);
 const LATEST_JSON = path.join(OUT_DIR, 'latest.json');
 const LATEST_MD = path.join(OUT_DIR, 'latest.md');
 const STATE = path.join(
   os.tmpdir(),
   `swarm-runtime-roi100-${Date.now()}-${Math.floor(Math.random() * 1e6)}.json`
 );
+
+function readAliasedEnv(primary, legacy) {
+  const preferred = String(process.env[primary] || '').trim();
+  const legacyValue = String(process.env[legacy] || '').trim();
+  if (!preferred && legacyValue) {
+    process.env[primary] = legacyValue;
+    return legacyValue;
+  }
+  if (preferred && !legacyValue) {
+    process.env[legacy] = preferred;
+  }
+  return preferred;
+}
+
+function readAliasedInt(primary, legacy, fallback) {
+  const raw = readAliasedEnv(primary, legacy);
+  const value = Number(raw);
+  if (!raw || !Number.isFinite(value)) return fallback;
+  return Math.floor(value);
+}
+
+function readAliasedBool(primary, legacy, fallback = null) {
+  const raw = readAliasedEnv(primary, legacy);
+  if (!raw) return fallback;
+  const normalized = String(raw).trim().toLowerCase();
+  if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
+  if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
+  return fallback;
+}
 
 function nowIso() {
   return new Date().toISOString();
@@ -23,11 +55,19 @@ function mkId(n) {
 }
 
 function parseArgs(argv) {
+  const defaultCount = Math.max(
+    1,
+    readAliasedInt('INFRING_ROI100_COUNT', 'PROTHEUS_ROI100_COUNT', 100)
+  );
+  const defaultLaneTimeoutMs = Math.max(
+    1000,
+    readAliasedInt('INFRING_ROI100_LANE_TIMEOUT_MS', 'PROTHEUS_ROI100_LANE_TIMEOUT_MS', 120000)
+  );
   const out = {
-    count: 100,
-    extendLanes: null,
-    laneOnly: null,
-    laneTimeoutMs: 120000,
+    count: defaultCount,
+    extendLanes: readAliasedBool('INFRING_ROI100_EXTEND_LANES', 'PROTHEUS_ROI100_EXTEND_LANES', null),
+    laneOnly: readAliasedBool('INFRING_ROI100_LANE_ONLY', 'PROTHEUS_ROI100_LANE_ONLY', null),
+    laneTimeoutMs: defaultLaneTimeoutMs,
   };
   for (const rawArg of argv || []) {
     const arg = String(rawArg || '').trim();

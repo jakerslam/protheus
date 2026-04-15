@@ -1,20 +1,20 @@
 # CODEX File Ledger
 
-Generated: 2026-04-15T09:22:19.789Z
+Generated: 2026-04-15T09:25:19.328Z
 
 ## Status Counts
 
-- done: 968
-- queued: 1938
+- done: 973
+- queued: 1933
 - blocked: 0
 - in_progress: 0
 - existing-coverage-validated: 0
 
 ## Active Wave
 
-- `2026-04-15-codex-tooling-wave-031`
-- `1235` `client/runtime/lib/success_criteria_verifier.ts`
-- `1238` `client/runtime/lib/integrity_hash_utility.ts`
-- `1242` `client/runtime/lib/quorum_validator.ts`
-- `1244` `client/runtime/lib/ternary_belief_engine.ts`
-- `1246` `client/runtime/lib/backlog_runtime_anchor_bridge.ts`
+- `2026-04-15-codex-tooling-wave-032`
+- `1248` `client/runtime/lib/eyes_catalog.ts`
+- `1250` `client/runtime/lib/ts_entrypoint.ts`
+- `1251` `client/runtime/lib/agent_passport_link.ts`
+- `1827` `tests/tooling/scripts/ci/srs_full_regression.ts`
+- `1828` `tests/tooling/scripts/ci/roi100_moves_runner.ts`
