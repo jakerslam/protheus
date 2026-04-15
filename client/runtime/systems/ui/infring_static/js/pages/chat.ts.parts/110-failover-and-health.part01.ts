@@ -181,6 +181,11 @@
     },
     _reconcileSendingState: function() {
       if (!this.sending) return false;
+      var pending = this._pendingWsRequest && this._pendingWsRequest.agent_id ? this._pendingWsRequest : null;
+      var hasPendingWs = !!pending;
+      var pendingStatusText = pending && String(pending.status_text || '').trim()
+        ? String(pending.status_text || '').trim()
+        : 'Waiting for workflow completion...';
       var rows = Array.isArray(this.messages) ? this.messages : [];
       var hasVisiblePending = false;
       var now = Date.now();
@@ -188,17 +193,24 @@
         var row = rows[i];
         if (!row) continue;
         if (row.thinking || row.streaming || (row.terminal && row.thinking)) {
-          var activityAt = Number(row._stream_updated_at || row.ts || 0);
-          var ageMs = activityAt > 0 ? Math.max(0, now - activityAt) : 0;
+          if (
+            (!String(row.thinking_status || '').trim() ||
+              (
+                typeof this.isThinkingPlaceholderText === 'function' &&
+                this.isThinkingPlaceholderText(row.thinking_status)
+              )) &&
+            (!pending || !pending.agent_id || !String(row.agent_id || '').trim() || String(row.agent_id || '').trim() === String(pending.agent_id || '').trim())
+          ) {
+            row.thinking_status = pendingStatusText;
+          }
           hasVisiblePending = true;
         }
       }
-      var pending = this._pendingWsRequest && this._pendingWsRequest.agent_id ? this._pendingWsRequest : null;
-      var hasPendingWs = !!pending;
       if (!hasVisiblePending && hasPendingWs && typeof this.ensureLiveThinkingRow === 'function') {
         var keepRow = this.ensureLiveThinkingRow({
           agent_id: String(pending.agent_id || ''),
-          agent_name: this.currentAgent && this.currentAgent.name ? String(this.currentAgent.name) : ''
+          agent_name: this.currentAgent && this.currentAgent.name ? String(this.currentAgent.name) : '',
+          status_text: pendingStatusText
         });
         if (keepRow) {
           keepRow.thinking = true;
@@ -206,6 +218,15 @@
           if (!Number.isFinite(Number(keepRow._stream_started_at))) keepRow._stream_started_at = now;
           keepRow._stream_updated_at = now;
           if (!String(keepRow.text || '').trim()) keepRow.text = '';
+          if (
+            !String(keepRow.thinking_status || '').trim() ||
+            (
+              typeof this.isThinkingPlaceholderText === 'function' &&
+              this.isThinkingPlaceholderText(keepRow.thinking_status)
+            )
+          ) {
+            keepRow.thinking_status = pendingStatusText;
+          }
           hasVisiblePending = true;
         }
       }
@@ -248,6 +269,7 @@
       this._pendingWsRequest = {
         agent_id: id,
         message_text: String(messageText || '').trim(),
+        status_text: 'Waiting for workflow completion...',
         started_at: Date.now(),
       };
       this._pendingWsRecovering = false;
@@ -345,34 +367,6 @@
       return false;
     },
 
-    _hasAgentReplyAfterLatestUser: function(rows) {
-      var list = Array.isArray(rows) ? rows : [];
-      if (!list.length) return false;
-      var lastUserIndex = -1;
-      for (var i = list.length - 1; i >= 0; i -= 1) {
-        var user = list[i] || {};
-        var userRole = String(user.role || '').toLowerCase();
-        if (userRole !== 'user') continue;
-        var userText = String(user.text || '').trim();
-        if (!userText) continue;
-        lastUserIndex = i;
-        break;
-      }
-      if (lastUserIndex < 0) return false;
-      for (var j = lastUserIndex + 1; j < list.length; j += 1) {
-        var msg = list[j] || {};
-        if (msg.thinking || msg.streaming || msg._auto_fallback) continue;
-        var role = String(msg.role || '').toLowerCase();
-        if (role !== 'agent' && role !== 'assistant') continue;
-        var text = String(msg.text || '').trim();
-        var hasToolPayload = Array.isArray(msg.tools) && msg.tools.length > 0;
-        if (!text && !hasToolPayload) continue;
-        if (text && /^thinking\.\.\.$/i.test(text)) continue;
-        return true;
-      }
-      return false;
-    },
-
     _recoverPendingWsRequest: async function(reason) {
       if (this._pendingWsRecovering) return;
       var pending = this._pendingWsRequest;
@@ -404,8 +398,7 @@
           var normalized = this.normalizeSessionMessages(sessionData);
           var hasFreshAgentReply =
             this._pendingRequestReplyObserved(normalized, pending, startedAt) ||
-            this._recentAgentReplyObserved(normalized, startedAt) ||
-            this._hasAgentReplyAfterLatestUser(normalized);
+            this._recentAgentReplyObserved(normalized, startedAt);
           if (!hasFreshAgentReply) {
             await new Promise(function(resolve) { setTimeout(resolve, 650); });
             continue;
@@ -452,9 +445,6 @@
           resolved = true;
         }
         if (!resolved && this._recentAgentReplyObserved(localRows, Math.max(0, startedAt - 120000))) {
-          resolved = true;
-        }
-        if (!resolved && this._hasAgentReplyAfterLatestUser(localRows)) {
           resolved = true;
         }
       }

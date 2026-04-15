@@ -52,11 +52,11 @@
   </div>
 </div>
 
-<div class="app-layout" :class="{ 'focus-mode': $store.app.focusMode, 'topbar-bottom': topbarDockEdge === 'bottom' }">
+<div class="app-layout" :class="{ 'focus-mode': $store.app.focusMode, 'taskbar-bottom': taskbarDockEdge === 'bottom' }">
   <!-- Sidebar -->
-  <nav class="sidebar" :class="{ collapsed: sidebarCollapsed, 'mobile-open': mobileMenuOpen, 'chat-only-hidden': page !== 'chat' }">
-    <div class="sidebar-nav-shell">
-    <div class="sidebar-nav" role="navigation" aria-label="Main navigation" x-ref="sidebarNav" @scroll.passive="scheduleSidebarScrollIndicators(); hideDashboardPopupBySource('sidebar')">
+  <nav class="sidebar drag-bar overlay-shared-surface" :class="{ collapsed: sidebarCollapsed, 'mobile-open': mobileMenuOpen, 'chat-only-hidden': page !== 'chat', 'chat-sidebar-dynamic': page === 'chat' }" :style="chatSidebarContainerStyle()" @pointerdown.capture="startChatSidebarPointerDrag($event)" @mousedown.capture="startChatSidebarPointerDrag($event)">
+    <div class="sidebar-nav-shell" :style="chatSidebarNavShellStyle()">
+    <div class="sidebar-nav" role="navigation" aria-label="Main navigation" x-ref="sidebarNav" :style="chatSidebarNavStyle()" @scroll.passive="scheduleSidebarScrollIndicators(); hideDashboardPopupBySource('sidebar')">
       <div class="sidebar-top-ghost" aria-hidden="true"></div>
       <!-- Agents conversations — primary action -->
       <div class="nav-section" aria-label="Agent conversations">

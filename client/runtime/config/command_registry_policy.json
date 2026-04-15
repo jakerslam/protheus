@@ -32,6 +32,7 @@
     "ops:path-contract:check",
     "ops:docs-surface:check",
     "ops:root-surface:check",
+    "ops:repo-health:check",
     "ops:legal-language:check",
     "ops:package-manifest:check"
   ],

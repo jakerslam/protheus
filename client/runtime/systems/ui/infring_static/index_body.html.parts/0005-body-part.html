@@ -360,10 +360,14 @@
                 <span style="font-size:16px;color:var(--accent);font-weight:600">Drop files here</span>
               </div>
             </div>
-            <div class="chat-map" x-show="currentAgent && filteredMessages && filteredMessages.length > 0" aria-label="Message map">
+            <div class="chat-map" x-show="currentAgent && filteredMessages && filteredMessages.length > 0" :style="chatMapContainerStyle()" aria-label="Message map">
+              <div class="chat-map-surface drag-bar overlay-shared-surface" @pointerdown.capture="startChatMapPointerDrag($event)" @mousedown.capture="startChatMapPointerDrag($event)">
+              <div class="chat-map-rail">
               <button class="chat-map-jump chat-map-jump-up" type="button" @click="stepMessageMap(filteredMessages, -1)" title="Previous message" aria-label="Previous message">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"></path></svg>
               </button>
+              <div class="chat-map-items-wrap">
+              <div class="chat-map-viewport">
               <div class="chat-map-scroll" @scroll.passive="hideDashboardPopupBySource('chat-map')">
               <div class="chat-map-spacer" aria-hidden="true"></div>
               <template x-for="(msg, idx) in filteredMessages" :key="'map-filtered-' + messageRenderKey(msg, idx)">
@@ -403,9 +407,13 @@
               </template>
               <div class="chat-map-spacer" aria-hidden="true"></div>
               </div>
+              </div>
+              </div>
               <button class="chat-map-jump chat-map-jump-down" type="button" @click="stepMessageMap(filteredMessages, 1)" title="Next message" aria-label="Next message">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
               </button>
+              </div>
+              </div>
             </div>
             <!-- Input area -->
             <div class="input-area" x-show="currentAgent && !(isCurrentAgentArchived && isCurrentAgentArchived())" style="position:relative" :class="{ 'terminal-mode': terminalMode }">

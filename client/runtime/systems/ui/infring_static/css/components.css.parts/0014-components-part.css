@@ -143,12 +143,12 @@ body[data-theme='dark'] .agent-activity-spinner {
 }
 
 @media (max-width: 768px) {
-  .global-topbar {
+  .global-taskbar {
     padding: 8px 12px;
     gap: 8px;
   }
 
-  .global-topbar-controls .btn-sm {
+  .global-taskbar-controls .btn-sm {
     padding: 4px 8px;
     font-size: 11px;
   }

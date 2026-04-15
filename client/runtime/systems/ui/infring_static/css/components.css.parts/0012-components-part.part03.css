@@ -1,22 +1,38 @@
+.overlay-shared-surface,
 .dashboard-preview-trigger,
 .dashboard-dropdown-surface,
 .dashboard-popup-surface,
 .dashboard-preview-surface,
-.topbar-search-popup {
+.taskbar-search-popup {
   --dashboard-preview-surface-max-width: min(88vw, 24ch);
   --dashboard-preview-surface-min-height: 28px;
   --dashboard-preview-surface-padding: 7px 12px;
-  --dashboard-preview-surface-radius: 18px;
-  --dashboard-preview-surface-border: var(--overlay-surface-border, color-mix(in srgb, #fff 24%, transparent));
-  --dashboard-preview-surface-background: var(--overlay-surface-background, transparent);
+  --dashboard-preview-surface-radius: var(--overlay-shared-surface-radius, var(--overlay-surface-radius, 18px));
+  --dashboard-preview-surface-border: var(--overlay-shared-surface-border, var(--overlay-surface-border, color-mix(in srgb, #fff 24%, transparent)));
+  --dashboard-preview-surface-background: var(--overlay-shared-surface-background, var(--overlay-surface-background, transparent));
   --dashboard-preview-surface-color: var(--text);
   --dashboard-preview-surface-font-size: 13px;
   --dashboard-preview-surface-font-weight: 500;
   --dashboard-preview-surface-line-height: 1.2;
   --dashboard-preview-surface-letter-spacing: 0.01em;
-  --dashboard-preview-surface-shadow: var(--overlay-surface-shadow, -6px 0 12px -14px rgba(0, 0, 0, 0.32), 6px 0 12px -14px rgba(0, 0, 0, 0.32), 0 10px 18px -18px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.2));
-  --dashboard-preview-surface-blur: 6px;
-  --dashboard-preview-surface-saturate: 1.05;
+  --dashboard-preview-surface-shadow: var(--overlay-shared-surface-shadow, var(--overlay-surface-shadow, -6px 0 12px -14px rgba(0, 0, 0, 0.32), 6px 0 12px -14px rgba(0, 0, 0, 0.32), 0 10px 18px -18px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.2)));
+  --dashboard-preview-surface-blur: var(--overlay-shared-surface-blur, var(--overlay-surface-blur, 6px));
+  --dashboard-preview-surface-saturate: var(--overlay-shared-surface-saturate, var(--overlay-surface-saturate, 1.05));
+}
+
+.overlay-shared-surface,
+.dashboard-dropdown-surface,
+.dashboard-preview-trigger::after,
+.dashboard-popup-surface,
+.dashboard-preview-surface,
+.taskbar-search-popup {
+  border: 1px solid var(--dashboard-preview-surface-border);
+  border-radius: var(--dashboard-preview-surface-radius);
+  background: var(--dashboard-preview-surface-background);
+  box-shadow: var(--dashboard-preview-surface-shadow);
+  backdrop-filter: blur(var(--dashboard-preview-surface-blur)) saturate(var(--dashboard-preview-surface-saturate));
+  -webkit-backdrop-filter: blur(var(--dashboard-preview-surface-blur)) saturate(var(--dashboard-preview-surface-saturate));
+  background-clip: padding-box;
 }
 
 .dashboard-preview-trigger {
@@ -36,18 +52,11 @@
 .dashboard-dropdown-surface {
   position: var(--dashboard-dropdown-position, relative);
   color: var(--dashboard-preview-surface-color);
-  border: 1px solid var(--overlay-surface-border, var(--dashboard-preview-surface-border));
-  border-radius: var(--dashboard-preview-surface-radius);
-  background: var(--overlay-surface-background, var(--dashboard-preview-surface-background));
-  box-shadow: var(--dashboard-preview-surface-shadow);
-  backdrop-filter: blur(var(--dashboard-preview-surface-blur)) saturate(var(--dashboard-preview-surface-saturate));
-  -webkit-backdrop-filter: blur(var(--dashboard-preview-surface-blur)) saturate(var(--dashboard-preview-surface-saturate));
-  background-clip: padding-box;
   overflow: hidden;
 }
 
 .dashboard-dropdown-header {
-  border-bottom: 1px solid var(--overlay-surface-border, var(--dashboard-preview-surface-border));
+  border-bottom: 1px solid var(--dashboard-preview-surface-border);
 }
 
 /* Anchored menus must stay out of layout flow so their trigger icons never move. */
@@ -59,13 +68,10 @@
 .dashboard-preview-trigger::after,
 .dashboard-popup-surface,
 .dashboard-preview-surface,
-.topbar-search-popup {
+.taskbar-search-popup {
   max-width: var(--dashboard-preview-surface-max-width);
   min-height: var(--dashboard-preview-surface-min-height);
   padding: var(--dashboard-preview-padding, var(--dashboard-preview-surface-padding));
-  border-radius: var(--dashboard-preview-surface-radius);
-  border: 1px solid var(--overlay-surface-border, var(--dashboard-preview-surface-border));
-  background: var(--overlay-surface-background, var(--dashboard-preview-surface-background));
   color: var(--dashboard-preview-surface-color);
   font-size: var(--dashboard-preview-surface-font-size);
   font-weight: var(--dashboard-preview-surface-font-weight);
@@ -74,9 +80,6 @@
   font-family: var(--font-sans);
   text-align: var(--dashboard-preview-text-align, center);
   white-space: var(--dashboard-preview-white-space, nowrap);
-  box-shadow: var(--dashboard-preview-surface-shadow);
-  backdrop-filter: blur(var(--dashboard-preview-surface-blur)) saturate(var(--dashboard-preview-surface-saturate));
-  -webkit-backdrop-filter: blur(var(--dashboard-preview-surface-blur)) saturate(var(--dashboard-preview-surface-saturate));
 }
 
 .dashboard-preview-trigger::after {
@@ -238,7 +241,212 @@
   --dashboard-preview-white-space: pre-line;
 }
 
-.topbar-hero-menu-anchor {
+.taskbar-text-menus {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  margin-right: 2px;
+}
+
+.taskbar-text-menu-anchor {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.taskbar-text-menu-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  padding: 7px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.taskbar-text-menu-btn:hover,
+.taskbar-text-menu-btn:focus-visible,
+.taskbar-text-menu-btn[aria-expanded='true'] {
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  outline: none;
+}
+
+.taskbar-text-menu-dropdown {
+  position: absolute;
+  --taskbar-overlay-gap: 10px;
+  --taskbar-overlay-left: 0;
+  --taskbar-overlay-right: auto;
+  left: var(--taskbar-overlay-left);
+  right: var(--taskbar-overlay-right);
+  top: var(--taskbar-overlay-top);
+  bottom: var(--taskbar-overlay-bottom);
+  transform: var(--taskbar-overlay-transform);
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  z-index: 19420;
+}
+
+.taskbar-text-menu-item {
+  width: 100%;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.25;
+  padding: 9px 11px;
+  cursor: pointer;
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.taskbar-text-menu-item:hover,
+.taskbar-text-menu-item:focus-visible {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+  outline: none;
+}
+
+.popup-window {
+  position: fixed;
+  width: min(92vw, 760px);
+  max-height: min(82vh, 760px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 19440;
+}
+
+.popup-window-manual {
+  min-height: min(74vh, 560px);
+}
+
+.popup-window-report {
+  width: min(92vw, 560px);
+  min-height: 320px;
+}
+
+.popup-window-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--dashboard-preview-surface-border);
+  cursor: grab;
+  user-select: none;
+}
+
+.popup-window-header:active {
+  cursor: grabbing;
+}
+
+.popup-window-close {
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  color: color-mix(in srgb, #fff 92%, #140708 8%);
+  background: linear-gradient(180deg, #ff7f75 0%, #ff4f45 100%);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, #2f0b0b 46%, transparent),
+    0 1px 3px color-mix(in srgb, #000 24%, transparent);
+  padding: 0;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.popup-window-close:hover,
+.popup-window-close:focus-visible {
+  filter: brightness(1.05);
+  outline: none;
+}
+
+.popup-window-close span {
+  transform: translateY(-0.25px);
+}
+
+.popup-window-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--text);
+}
+
+.popup-window-body {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+}
+
+.popup-window-body-markdown {
+  overflow: auto;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.popup-window-body-markdown h1 {
+  font-size: 18px;
+  margin: 0 0 10px;
+}
+
+.popup-window-body-markdown h2 {
+  font-size: 14px;
+  margin: 14px 0 6px;
+}
+
+.popup-window-body-markdown p,
+.popup-window-body-markdown ul,
+.popup-window-body-markdown ol {
+  margin: 0 0 8px;
+}
+
+.popup-window-subtitle {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--text-dim);
+}
+
+.popup-window-textarea {
+  width: 100%;
+  min-height: 220px;
+  resize: vertical;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface2) 76%, transparent);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.35;
+  padding: 10px 11px;
+}
+
+.popup-window-textarea:focus-visible {
+  outline: none;
+  border-color: color-mix(in srgb, var(--accent) 56%, var(--border));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 26%, transparent);
+}
+
+.taskbar-hero-menu-anchor {
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -246,18 +454,59 @@
   z-index: 1;
 }
 
-.topbar-brand-trigger {
+.taskbar-anchored-dropdown {
+  --taskbar-overlay-gap: 8px;
+  --taskbar-overlay-top: calc(100% + var(--taskbar-overlay-gap));
+  --taskbar-overlay-bottom: auto;
+  --taskbar-overlay-left: auto;
+  --taskbar-overlay-right: auto;
+  --taskbar-overlay-transform: none;
+}
+
+.taskbar-anchored-dropdown.is-side-top {
+  --taskbar-overlay-top: auto;
+  --taskbar-overlay-bottom: calc(100% + var(--taskbar-overlay-gap));
+}
+
+.taskbar-anchored-dropdown.is-side-bottom {
+  --taskbar-overlay-top: calc(100% + var(--taskbar-overlay-gap));
+  --taskbar-overlay-bottom: auto;
+}
+
+.taskbar-anchored-dropdown.is-side-left {
+  --taskbar-overlay-left: auto;
+  --taskbar-overlay-right: calc(100% + var(--taskbar-overlay-gap));
+  --taskbar-overlay-top: 50%;
+  --taskbar-overlay-bottom: auto;
+  --taskbar-overlay-transform: translateY(-50%);
+}
+
+.taskbar-anchored-dropdown.is-side-right {
+  --taskbar-overlay-left: calc(100% + var(--taskbar-overlay-gap));
+  --taskbar-overlay-right: auto;
+  --taskbar-overlay-top: 50%;
+  --taskbar-overlay-bottom: auto;
+  --taskbar-overlay-transform: translateY(-50%);
+}
+
+.taskbar-brand-trigger {
   cursor: pointer;
 }
 
-.topbar-brand-trigger:focus-visible {
+.taskbar-brand-trigger:focus-visible {
   outline: none;
 }
 
-.topbar-hero-menu {
+.taskbar-hero-menu {
   position: absolute;
-  left: 0;
-  top: calc(100% + 10px);
+  --taskbar-overlay-gap: 10px;
+  --taskbar-overlay-left: 0;
+  --taskbar-overlay-right: auto;
+  left: var(--taskbar-overlay-left);
+  right: var(--taskbar-overlay-right);
+  top: var(--taskbar-overlay-top);
+  bottom: var(--taskbar-overlay-bottom);
+  transform: var(--taskbar-overlay-transform);
   min-width: 196px;
   display: flex;
   flex-direction: column;
@@ -266,7 +515,7 @@
   z-index: 19420;
 }
 
-.topbar-hero-menu-item {
+.taskbar-hero-menu-item {
   width: 100%;
   display: inline-flex;
   align-items: center;
@@ -282,33 +531,33 @@
   transition: background var(--transition-fast), color var(--transition-fast), transform 0.18s var(--ease-smooth);
 }
 
-.topbar-hero-menu-item:hover,
-.topbar-hero-menu-item:focus-visible {
+.taskbar-hero-menu-item:hover,
+.taskbar-hero-menu-item:focus-visible {
   background: color-mix(in srgb, var(--accent) 12%, transparent);
   color: var(--accent);
   transform: translateX(1px);
   outline: none;
 }
 
-.topbar-hero-menu-item:disabled {
+.taskbar-hero-menu-item:disabled {
   opacity: 0.58;
   cursor: progress;
   transform: none;
 }
 
-.topbar-hero-menu-icon {
+.taskbar-hero-menu-icon {
   width: 16px;
   height: 16px;
   flex: 0 0 auto;
   color: var(--text-dim);
 }
 
-.topbar-hero-menu-item:hover .topbar-hero-menu-icon,
-.topbar-hero-menu-item:focus-visible .topbar-hero-menu-icon {
+.taskbar-hero-menu-item:hover .taskbar-hero-menu-icon,
+.taskbar-hero-menu-item:focus-visible .taskbar-hero-menu-icon {
   color: currentColor;
 }
 
-.topbar-hero-menu-version {
+.taskbar-hero-menu-version {
   margin-top: 4px;
   padding: 9px 12px 2px;
   border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);

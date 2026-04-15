@@ -212,11 +212,11 @@
 }
 
 .sidebar + .main-content .chat-wrapper {
-  --chat-column-shift: -18px;
+  --chat-column-shift: 0px;
 }
 
 .sidebar.collapsed + .main-content .chat-wrapper {
-  --chat-column-shift: -10px;
+  --chat-column-shift: 0px;
 }
 
 .input-area textarea {

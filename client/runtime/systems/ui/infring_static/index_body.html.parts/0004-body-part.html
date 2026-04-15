@@ -117,7 +117,8 @@
             <span style="font-size:16px;color:var(--accent);font-weight:600">Drop files here</span>
           </div>
         </div>
-        <div class="chat-map" x-show="currentAgent && messages && messages.length > 0" aria-label="Message map">
+        <div class="chat-map" x-show="currentAgent && messages && messages.length > 0" :style="chatMapContainerStyle()" aria-label="Message map">
+          <div class="chat-map-surface drag-bar overlay-shared-surface" @pointerdown.capture="startChatMapPointerDrag($event)" @mousedown.capture="startChatMapPointerDrag($event)">
           <button class="chat-map-jump chat-map-jump-up" type="button" @click="stepMessageMap(messages, -1)" title="Previous message" aria-label="Previous message">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"></path></svg>
           </button>
@@ -163,6 +164,7 @@
           <button class="chat-map-jump chat-map-jump-down" type="button" @click="stepMessageMap(messages, 1)" title="Next message" aria-label="Next message">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
           </button>
+          </div>
         </div>
         <div class="chat-archived-banner chat-archived-banner-bottom-center" x-show="currentAgent && isCurrentAgentArchived && isCurrentAgentArchived()">
           <button type="button" class="btn btn-primary btn-sm" @click="reviveCurrentArchivedAgent()">Revive Agent</button>

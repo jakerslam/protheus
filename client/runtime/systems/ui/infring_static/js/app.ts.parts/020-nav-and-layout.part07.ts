@@ -48,16 +48,8 @@
     },
     chatSidebarResolvedLeft() {
       if (this.chatSidebarDragActive) return this.chatSidebarClampLeft(this.chatSidebarDragLeft);
-      var ratio = 0;
-      try {
-        var raw = Number(localStorage.getItem('infring-chat-sidebar-placement-x'));
-        if (Number.isFinite(raw)) ratio = Math.max(0, Math.min(1, raw));
-      } catch(_) {}
-      var wallGap = this.overlayWallGapPx();
-      var minLeft = wallGap;
-      var maxLeft = this.chatOverlayViewportWidth() - wallGap - this.readChatSidebarWidth() - this.readChatSidebarPulltabWidth();
-      if (!Number.isFinite(maxLeft) || maxLeft < minLeft) maxLeft = minLeft;
-      return this.chatSidebarClampLeft(minLeft + ((maxLeft - minLeft) * ratio));
+      var anchor = this.chatSidebarAnchorForSnapId(this.chatSidebarActiveSnapId());
+      return this.chatSidebarClampLeft(anchor.left);
     },
     chatSidebarPersistPlacementFromLeft(leftRaw) {
       var wallGap = this.overlayWallGapPx();
@@ -67,6 +59,7 @@
       var left = this.chatSidebarClampLeft(leftRaw);
       var ratio = maxLeft > minLeft ? (left - minLeft) / (maxLeft - minLeft) : 0;
       ratio = Math.max(0, Math.min(1, ratio));
+      this.chatSidebarPlacementX = ratio;
       try {
         localStorage.setItem('infring-chat-sidebar-placement-x', String(ratio));
       } catch(_) {}
@@ -83,15 +76,8 @@
     },
     chatSidebarResolvedTop() {
       if (this.chatSidebarDragActive) return this.chatSidebarClampTop(this.chatSidebarDragTop);
-      var bounds = this.chatOverlayVerticalBounds();
-      var height = this.readChatSidebarHeight();
-      var minTop = Number(bounds.minTop || 0);
-      var maxTop = Number(bounds.maxBottom || 0) - height;
-      if (!Number.isFinite(maxTop) || maxTop < minTop) maxTop = minTop;
-      var ratio = Number(this.chatSidebarPlacementY);
-      if (!Number.isFinite(ratio)) ratio = 0.5;
-      ratio = Math.max(0, Math.min(1, ratio));
-      return this.chatSidebarClampTop(minTop + ((maxTop - minTop) * ratio));
+      var anchor = this.chatSidebarAnchorForSnapId(this.chatSidebarActiveSnapId());
+      return this.chatSidebarClampTop(anchor.top);
     },
     chatSidebarPersistPlacementFromTop(topRaw) {
       var bounds = this.chatOverlayVerticalBounds();
@@ -146,9 +132,13 @@
       ].join('');
     },
     shouldIgnoreChatSidebarDragTarget(target) {
-      if (!target || typeof target.closest !== 'function') return true;
-      if (target.closest('.sidebar-pulltab')) return false;
-      return Boolean(target.closest('input,textarea,select,[contenteditable="true"]'));
+      var node = target;
+      if (node && typeof node.closest !== 'function' && node.parentElement) {
+        node = node.parentElement;
+      }
+      if (!node || typeof node.closest !== 'function') return false;
+      if (node.closest('.sidebar-pulltab')) return false;
+      return Boolean(node.closest('input,textarea,select,[contenteditable="true"]'));
     },
 
     bindChatSidebarPointerListeners() {
@@ -192,6 +182,7 @@
       this._chatSidebarPointerOriginTop = this.chatSidebarResolvedTop();
       this.chatSidebarDragLeft = this._chatSidebarPointerOriginLeft;
       this.chatSidebarDragTop = this._chatSidebarPointerOriginTop;
+      this.suspendChatSidebarNativeDraggableNodes();
       this.bindChatSidebarPointerListeners();
       try {
         if (ev.currentTarget && typeof ev.currentTarget.setPointerCapture === 'function' && Number.isFinite(ev.pointerId)) {
@@ -223,6 +214,7 @@
       if (!this._chatSidebarPointerActive) return;
       this._chatSidebarPointerActive = false;
       this.unbindChatSidebarPointerListeners();
+      this.restoreChatSidebarNativeDraggableNodes();
       if (!this._chatSidebarPointerMoved) {
         this.chatSidebarDragActive = false;
         this._chatSidebarPointerFromPulltab = false;
@@ -231,10 +223,13 @@
       this._chatSidebarPointerMoved = false;
       var finalLeft = this.chatSidebarClampLeft(this.chatSidebarDragLeft);
       var finalTop = this.chatSidebarClampTop(this.chatSidebarDragTop);
-      this.chatSidebarDragLeft = finalLeft;
-      this.chatSidebarDragTop = finalTop;
-      this.chatSidebarPersistPlacementFromLeft(finalLeft);
-      this.chatSidebarPersistPlacementFromTop(finalTop);
+      var snapId = this.chatSidebarNearestSnapId(finalLeft, finalTop);
+      var snap = this.chatSidebarAnchorForSnapId(snapId);
+      this.chatSidebarDragLeft = this.chatSidebarClampLeft(snap.left);
+      this.chatSidebarDragTop = this.chatSidebarClampTop(snap.top);
+      this.chatSidebarPersistPlacementFromLeft(this.chatSidebarDragLeft);
+      this.chatSidebarPersistPlacementFromTop(this.chatSidebarDragTop);
+      this.chatSidebarPersistSnapId(snapId);
       this.chatSidebarDragActive = false;
       if (this._chatSidebarPointerFromPulltab) {
         this._sidebarToggleSuppressUntil = Date.now() + 260;
@@ -245,6 +240,278 @@
     shouldSuppressSidebarToggle() {
       var until = Number(this._sidebarToggleSuppressUntil || 0);
       return Number.isFinite(until) && until > Date.now();
+    },
+
+    popupWindowStorageKey(kind, axis) {
+      var key = String(kind || '').trim().toLowerCase();
+      var lane = String(axis || '').trim().toLowerCase() === 'top' ? 'top' : 'left';
+      return 'infring-popup-window-' + (key || 'manual') + '-' + lane;
+    },
+
+    popupWindowOpenState(kind) {
+      var key = String(kind || '').trim().toLowerCase();
+      if (key === 'report') return !!this.reportIssueWindowOpen;
+      return !!this.helpManualWindowOpen;
+    },
+
+    popupWindowSetOpenState(kind, open) {
+      var key = String(kind || '').trim().toLowerCase();
+      var nextOpen = open !== false;
+      if (key === 'report') {
+        this.reportIssueWindowOpen = nextOpen;
+        return;
+      }
+      this.helpManualWindowOpen = nextOpen;
+    },
+
+    readPopupWindowElement(kind) {
+      if (typeof document === 'undefined' || typeof document.querySelector !== 'function') return null;
+      var key = String(kind || '').trim().toLowerCase();
+      if (!key) return null;
+      try {
+        return document.querySelector('.popup-window[data-popup-window-kind="' + key + '"]');
+      } catch(_) {}
+      return null;
+    },
+
+    popupWindowDefaultSize(kind) {
+      var key = String(kind || '').trim().toLowerCase();
+      if (key === 'report') return { width: 540, height: 360 };
+      return { width: 760, height: 560 };
+    },
+
+    readPopupWindowSize(kind) {
+      var node = this.readPopupWindowElement(kind);
+      var fallback = this.popupWindowDefaultSize(kind);
+      var width = Number(node && node.offsetWidth || 0);
+      var height = Number(node && node.offsetHeight || 0);
+      if (!Number.isFinite(width) || width <= 0) width = Number(fallback.width || 640);
+      if (!Number.isFinite(height) || height <= 0) height = Number(fallback.height || 420);
+      return {
+        width: Math.max(280, Math.round(width)),
+        height: Math.max(180, Math.round(height))
+      };
+    },
+
+    popupWindowBounds(kind, widthRaw, heightRaw) {
+      void kind;
+      var wallGap = this.overlayWallGapPx();
+      var width = Number(widthRaw || 0);
+      var height = Number(heightRaw || 0);
+      if (!Number.isFinite(width) || width <= 0) width = 640;
+      if (!Number.isFinite(height) || height <= 0) height = 420;
+      var minLeft = wallGap;
+      var maxLeft = this.chatOverlayViewportWidth() - wallGap - width;
+      if (!Number.isFinite(maxLeft) || maxLeft < minLeft) maxLeft = minLeft;
+      var vertical = this.chatOverlayVerticalBounds();
+      var minTop = Number(vertical && vertical.minTop || wallGap) + 2;
+      var maxTop = Number(vertical && vertical.maxBottom || this.taskbarReadViewportHeight()) - wallGap - height;
+      if (!Number.isFinite(maxTop) || maxTop < minTop) maxTop = minTop;
+      return {
+        minLeft: minLeft,
+        maxLeft: maxLeft,
+        minTop: minTop,
+        maxTop: maxTop
+      };
+    },
+
+    popupWindowClampPlacement(kind, leftRaw, topRaw) {
+      var size = this.readPopupWindowSize(kind);
+      var bounds = this.popupWindowBounds(kind, size.width, size.height);
+      var left = Number(leftRaw);
+      var top = Number(topRaw);
+      if (!Number.isFinite(left)) left = bounds.minLeft + ((bounds.maxLeft - bounds.minLeft) * 0.5);
+      if (!Number.isFinite(top)) top = bounds.minTop + ((bounds.maxTop - bounds.minTop) * 0.48);
+      return {
+        left: Math.max(bounds.minLeft, Math.min(bounds.maxLeft, left)),
+        top: Math.max(bounds.minTop, Math.min(bounds.maxTop, top))
+      };
+    },
+
+    popupWindowEnsurePlacement(kind) {
+      var key = String(kind || '').trim().toLowerCase();
+      if (!key) return { left: 0, top: 0 };
+      var map = (this.popupWindowPlacements && typeof this.popupWindowPlacements === 'object')
+        ? this.popupWindowPlacements
+        : {};
+      var row = map[key] && typeof map[key] === 'object' ? map[key] : { left: null, top: null };
+      var left = Number(row.left);
+      var top = Number(row.top);
+      var hasStored = Number.isFinite(left) && Number.isFinite(top);
+      if (!hasStored) {
+        try {
+          left = Number(localStorage.getItem(this.popupWindowStorageKey(key, 'left')));
+          top = Number(localStorage.getItem(this.popupWindowStorageKey(key, 'top')));
+        } catch(_) {}
+      }
+      if (!Number.isFinite(left) || !Number.isFinite(top)) {
+        var size = this.readPopupWindowSize(key);
+        var bounds = this.popupWindowBounds(key, size.width, size.height);
+        left = bounds.minLeft + ((bounds.maxLeft - bounds.minLeft) * 0.5);
+        top = bounds.minTop + ((bounds.maxTop - bounds.minTop) * (key === 'report' ? 0.56 : 0.44));
+      }
+      var clamped = this.popupWindowClampPlacement(key, left, top);
+      if (!this.popupWindowPlacements || typeof this.popupWindowPlacements !== 'object') {
+        this.popupWindowPlacements = {};
+      }
+      this.popupWindowPlacements[key] = { left: clamped.left, top: clamped.top };
+      return clamped;
+    },
+
+    popupWindowPersistPlacement(kind, leftRaw, topRaw) {
+      var key = String(kind || '').trim().toLowerCase();
+      if (!key) return;
+      var clamped = this.popupWindowClampPlacement(key, leftRaw, topRaw);
+      if (!this.popupWindowPlacements || typeof this.popupWindowPlacements !== 'object') {
+        this.popupWindowPlacements = {};
+      }
+      this.popupWindowPlacements[key] = { left: clamped.left, top: clamped.top };
+      try {
+        localStorage.setItem(this.popupWindowStorageKey(key, 'left'), String(clamped.left));
+        localStorage.setItem(this.popupWindowStorageKey(key, 'top'), String(clamped.top));
+      } catch(_) {}
+    },
+
+    popupWindowResolvedLeft(kind) {
+      var key = String(kind || '').trim().toLowerCase();
+      if (!key) return this.overlayWallGapPx();
+      if (this.popupWindowDragActive && this.popupWindowDragKind === key) {
+        return this.popupWindowClampPlacement(key, this.popupWindowDragLeft, this.popupWindowDragTop).left;
+      }
+      var base = this.popupWindowEnsurePlacement(key);
+      return this.popupWindowClampPlacement(key, base.left, base.top).left;
+    },
+
+    popupWindowResolvedTop(kind) {
+      var key = String(kind || '').trim().toLowerCase();
+      if (!key) return this.overlayWallGapPx();
+      if (this.popupWindowDragActive && this.popupWindowDragKind === key) {
+        return this.popupWindowClampPlacement(key, this.popupWindowDragLeft, this.popupWindowDragTop).top;
+      }
+      var base = this.popupWindowEnsurePlacement(key);
+      return this.popupWindowClampPlacement(key, base.left, base.top).top;
+    },
+
+    popupWindowStyle(kind) {
+      var key = String(kind || '').trim().toLowerCase();
+      if (!key || !this.popupWindowOpenState(key)) return 'display:none;';
+      var left = this.popupWindowResolvedLeft(key);
+      var top = this.popupWindowResolvedTop(key);
+      var durationMs = (this.popupWindowDragActive && this.popupWindowDragKind === key)
+        ? 0
+        : this.dragSurfaceMoveDurationMs(this._popupWindowMoveDurationMs, 260);
+      return (
+        'left:' + Math.round(left) + 'px;' +
+        'top:' + Math.round(top) + 'px;' +
+        'transition:left ' + Math.max(0, Math.round(durationMs)) + 'ms var(--ease-smooth), top ' + Math.max(0, Math.round(durationMs)) + 'ms var(--ease-smooth);'
+      );
+    },
+
+    openPopupWindow(kind) {
+      var key = String(kind || '').trim().toLowerCase();
+      if (!key) return;
+      this.popupWindowSetOpenState(key, true);
+      this.popupWindowEnsurePlacement(key);
+      var self = this;
+      this.$nextTick(function() {
+        self.popupWindowEnsurePlacement(key);
+      });
+    },
+
+    closePopupWindow(kind) {
+      var key = String(kind || '').trim().toLowerCase();
+      if (!key) return;
+      if (this._popupWindowPointerActive && this.popupWindowDragKind === key) {
+        this.endPopupWindowPointerDrag();
+      }
+      this.popupWindowSetOpenState(key, false);
+    },
+
+    bindPopupWindowPointerListeners() {
+      if (this._popupWindowPointerMoveHandler || this._popupWindowPointerUpHandler) return;
+      var self = this;
+      this._popupWindowPointerMoveHandler = function(ev) { self.handlePopupWindowPointerMove(ev); };
+      this._popupWindowPointerUpHandler = function() { self.endPopupWindowPointerDrag(); };
+      window.addEventListener('pointermove', this._popupWindowPointerMoveHandler, true);
+      window.addEventListener('pointerup', this._popupWindowPointerUpHandler, true);
+      window.addEventListener('pointercancel', this._popupWindowPointerUpHandler, true);
+      window.addEventListener('mousemove', this._popupWindowPointerMoveHandler, true);
+      window.addEventListener('mouseup', this._popupWindowPointerUpHandler, true);
+    },
+
+    unbindPopupWindowPointerListeners() {
+      if (this._popupWindowPointerMoveHandler) {
+        try { window.removeEventListener('pointermove', this._popupWindowPointerMoveHandler, true); } catch(_) {}
+        try { window.removeEventListener('mousemove', this._popupWindowPointerMoveHandler, true); } catch(_) {}
+      }
+      if (this._popupWindowPointerUpHandler) {
+        try { window.removeEventListener('pointerup', this._popupWindowPointerUpHandler, true); } catch(_) {}
+        try { window.removeEventListener('pointercancel', this._popupWindowPointerUpHandler, true); } catch(_) {}
+        try { window.removeEventListener('mouseup', this._popupWindowPointerUpHandler, true); } catch(_) {}
+      }
+      this._popupWindowPointerMoveHandler = null;
+      this._popupWindowPointerUpHandler = null;
+    },
+
+    startPopupWindowPointerDrag(kind, ev) {
+      var key = String(kind || '').trim().toLowerCase();
+      if (!ev || !key || !this.popupWindowOpenState(key)) return;
+      var button = Number(ev.button);
+      if (Number.isFinite(button) && button !== 0) return;
+      var target = ev && ev.target ? ev.target : null;
+      if (target && typeof target.closest === 'function') {
+        if (target.closest('button, input, textarea, select, a, [contenteditable="true"]')) return;
+      }
+      this._popupWindowPointerActive = true;
+      this._popupWindowPointerMoved = false;
+      this.popupWindowDragKind = key;
+      this._popupWindowPointerStartX = Number(ev.clientX || 0);
+      this._popupWindowPointerStartY = Number(ev.clientY || 0);
+      this._popupWindowPointerOriginLeft = this.popupWindowResolvedLeft(key);
+      this._popupWindowPointerOriginTop = this.popupWindowResolvedTop(key);
+      this.popupWindowDragLeft = this._popupWindowPointerOriginLeft;
+      this.popupWindowDragTop = this._popupWindowPointerOriginTop;
+      this.bindPopupWindowPointerListeners();
+      try {
+        if (ev.currentTarget && typeof ev.currentTarget.setPointerCapture === 'function' && Number.isFinite(ev.pointerId)) {
+          ev.currentTarget.setPointerCapture(ev.pointerId);
+        }
+      } catch(_) {}
+    },
+
+    handlePopupWindowPointerMove(ev) {
+      if (!this._popupWindowPointerActive) return;
+      var key = String(this.popupWindowDragKind || '').trim().toLowerCase();
+      if (!key || !this.popupWindowOpenState(key)) return;
+      var nextX = Number(ev.clientX || 0);
+      var nextY = Number(ev.clientY || 0);
+      var movedX = Math.abs(nextX - Number(this._popupWindowPointerStartX || 0));
+      var movedY = Math.abs(nextY - Number(this._popupWindowPointerStartY || 0));
+      if (!this._popupWindowPointerMoved) {
+        if (movedX < 4 && movedY < 4) return;
+        this._popupWindowPointerMoved = true;
+        this.popupWindowDragActive = true;
+      }
+      var candidateLeft = Number(this._popupWindowPointerOriginLeft || 0) + (nextX - Number(this._popupWindowPointerStartX || 0));
+      var candidateTop = Number(this._popupWindowPointerOriginTop || 0) + (nextY - Number(this._popupWindowPointerStartY || 0));
+      var clamped = this.popupWindowClampPlacement(key, candidateLeft, candidateTop);
+      this.popupWindowDragLeft = clamped.left;
+      this.popupWindowDragTop = clamped.top;
+      if (ev.cancelable && typeof ev.preventDefault === 'function') ev.preventDefault();
+    },
+
+    endPopupWindowPointerDrag() {
+      if (!this._popupWindowPointerActive) return;
+      var key = String(this.popupWindowDragKind || '').trim().toLowerCase();
+      var moved = !!this._popupWindowPointerMoved;
+      this._popupWindowPointerActive = false;
+      this._popupWindowPointerMoved = false;
+      this.unbindPopupWindowPointerListeners();
+      if (key && moved) {
+        this.popupWindowPersistPlacement(key, this.popupWindowDragLeft, this.popupWindowDragTop);
+      }
+      this.popupWindowDragActive = false;
+      this.popupWindowDragKind = '';
     },
 
     bottomDockDefaultOrder() {

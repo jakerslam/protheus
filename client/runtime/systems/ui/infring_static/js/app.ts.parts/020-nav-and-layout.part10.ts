@@ -179,21 +179,153 @@
       };
     },
 
-    dashboardPopupAnchorPoint(ev, sideOverride) {
-      var side = String(sideOverride || 'bottom').trim().toLowerCase();
+    normalizeDashboardPopupSide(sideValue, fallbackSide) {
+      var fallback = String(fallbackSide || 'bottom').trim().toLowerCase();
+      if (fallback !== 'top' && fallback !== 'left' && fallback !== 'right') fallback = 'bottom';
+      var side = String(sideValue || fallback).trim().toLowerCase();
       if (side !== 'top' && side !== 'left' && side !== 'right') side = 'bottom';
+      return side;
+    },
+
+    dashboardOppositeSide(sideValue) {
+      var side = this.normalizeDashboardPopupSide(sideValue, 'bottom');
+      if (side === 'top') return 'bottom';
+      if (side === 'left') return 'right';
+      if (side === 'right') return 'left';
+      return 'top';
+    },
+
+    dashboardPopupWallAffinity(rect) {
+      if (!rect || typeof window === 'undefined') return null;
+      var viewportWidth = Number(window.innerWidth || 0);
+      var viewportHeight = Number(window.innerHeight || 0);
+      if (!Number.isFinite(viewportWidth) || viewportWidth <= 0) viewportWidth = 1;
+      if (!Number.isFinite(viewportHeight) || viewportHeight <= 0) viewportHeight = 1;
+      var left = Number(rect.left || 0);
+      var right = Number(rect.right || 0);
+      var top = Number(rect.top || 0);
+      var bottom = Number(rect.bottom || 0);
+      if (!Number.isFinite(left) || !Number.isFinite(right) || !Number.isFinite(top) || !Number.isFinite(bottom)) {
+        return null;
+      }
+      var width = Math.max(1, Math.abs(right - left));
+      var height = Math.max(1, Math.abs(bottom - top));
+      var distanceToLeft = Math.max(0, left);
+      var distanceToRight = Math.max(0, viewportWidth - right);
+      var distanceToTop = Math.max(0, top);
+      var distanceToBottom = Math.max(0, viewportHeight - bottom);
+      var proximityScore = function(distance) {
+        var normalized = Number(distance || 0);
+        if (!Number.isFinite(normalized) || normalized < 0) normalized = 0;
+        return 1 / (1 + normalized);
+      };
+      return {
+        scores: {
+          top: width * proximityScore(distanceToTop),
+          bottom: width * proximityScore(distanceToBottom),
+          left: height * proximityScore(distanceToLeft),
+          right: height * proximityScore(distanceToRight)
+        },
+        distances: {
+          top: distanceToTop,
+          bottom: distanceToBottom,
+          left: distanceToLeft,
+          right: distanceToRight
+        }
+      };
+    },
+
+    dashboardPopupWallAnchorNode(node) {
+      if (!node || typeof node.closest !== 'function') return null;
+      try {
+        return node.closest(
+          '[data-popup-wall-anchor], .global-taskbar, .sidebar, .bottom-dock, .doc-window, .chat-window'
+        );
+      } catch(_) {
+        return null;
+      }
+    },
+
+    dashboardPopupWallRectForNode(node) {
+      var anchor = this.dashboardPopupWallAnchorNode(node);
+      if (!anchor || typeof anchor.getBoundingClientRect !== 'function') return null;
+      try {
+        return anchor.getBoundingClientRect();
+      } catch(_) {
+        return null;
+      }
+    },
+
+    dashboardPopupSideAwayFromNearestWall(rect, fallbackSide) {
+      var fallback = this.normalizeDashboardPopupSide('', fallbackSide);
+      var affinity = this.dashboardPopupWallAffinity(rect);
+      if (!affinity || !affinity.scores || !affinity.distances) return fallback;
+      var scores = affinity.scores;
+      var distances = affinity.distances;
+      var walls = ['top', 'bottom', 'left', 'right'];
+      var fallbackWall = this.dashboardOppositeSide(fallback);
+      var winner = walls[0];
+      var winnerScore = Number(scores[winner] || 0);
+      var epsilon = 0.000001;
+      var i;
+      for (i = 1; i < walls.length; i += 1) {
+        var wall = walls[i];
+        var score = Number(scores[wall] || 0);
+        if (score > winnerScore + epsilon) {
+          winner = wall;
+          winnerScore = score;
+          continue;
+        }
+        if (Math.abs(score - winnerScore) <= epsilon) {
+          if (wall === fallbackWall && winner !== fallbackWall) {
+            winner = wall;
+            winnerScore = score;
+            continue;
+          }
+          var wallDistance = Number(distances[wall] || 0);
+          var winnerDistance = Number(distances[winner] || 0);
+          if (wallDistance < winnerDistance) {
+            winner = wall;
+            winnerScore = score;
+          }
+        }
+      }
+      return this.dashboardOppositeSide(winner);
+    },
+
+    taskbarAnchoredDropdownClass(anchorNode, fallbackSide) {
+      var fallback = this.normalizeDashboardPopupSide('', fallbackSide || 'bottom');
+      var side = fallback;
+      if (anchorNode && typeof anchorNode.getBoundingClientRect === 'function') {
+        var wallRect = this.dashboardPopupWallRectForNode(anchorNode);
+        var sideRect = wallRect || anchorNode.getBoundingClientRect();
+        side = this.dashboardPopupSideAwayFromNearestWall(sideRect, fallback);
+      }
+      return {
+        'taskbar-anchored-dropdown': true,
+        'is-side-top': side === 'top',
+        'is-side-bottom': side === 'bottom',
+        'is-side-left': side === 'left',
+        'is-side-right': side === 'right'
+      };
+    },
+
+    dashboardPopupAnchorPoint(ev, sideOverride) {
+      var preferredSide = this.normalizeDashboardPopupSide(sideOverride, 'bottom');
       var node = ev && ev.currentTarget ? ev.currentTarget : null;
       if (!node && ev && ev.target && typeof ev.target.closest === 'function') {
         try {
-          node = ev.target.closest('button,[role="button"],.topbar-reorder-item');
+          node = ev.target.closest('button,[role="button"],.taskbar-reorder-item');
         } catch(_) {
           node = null;
         }
       }
       if (!node || typeof node.getBoundingClientRect !== 'function') {
-        return { left: 0, top: 0, side: side };
+        return { left: 0, top: 0, side: preferredSide };
       }
       var rect = node.getBoundingClientRect();
+      var wallRect = this.dashboardPopupWallRectForNode(node);
+      var side = this.dashboardPopupSideAwayFromNearestWall(wallRect || rect, preferredSide);
       var width = Number(rect.width || 0);
       var height = Number(rect.height || 0);
       var left = Math.round(Number(rect.left || 0) + (width / 2));
@@ -241,7 +373,7 @@
         source: String(config.source || '').trim(),
         title: title,
         body: body,
-        meta_origin: String(config.meta_origin || 'Topbar').trim(),
+        meta_origin: String(config.meta_origin || 'Taskbar').trim(),
         meta_time: String(config.meta_time || '').trim(),
         unread: !!config.unread,
         left: anchor.left,
@@ -251,7 +383,7 @@
       };
     },
 
-    showTopbarNavPopup(label, ev) {
+    showTaskbarNavPopup(label, ev) {
       var navLabel = String(label || '').trim();
       if (!navLabel) {
         this.hideDashboardPopup();
@@ -261,8 +393,8 @@
       var body = navKey === 'back'
         ? (this.canNavigateBack() ? 'Go to the previous page in this session' : 'No earlier page in this session')
         : (this.canNavigateForward() ? 'Go to the next page in this session' : 'No later page in this session');
-      this.showDashboardPopup('topbar-nav:' + navKey, navLabel, ev, {
-        source: 'topbar',
+      this.showDashboardPopup('taskbar-nav:' + navKey, navLabel, ev, {
+        source: 'taskbar',
         side: 'bottom',
         compact: false,
         body: body,
@@ -270,22 +402,22 @@
       });
     },
 
-    showTopbarUtilityPopup(label, body, ev) {
+    showTaskbarUtilityPopup(label, body, ev) {
       var utilityLabel = String(label || '').trim();
       if (!utilityLabel) {
         this.hideDashboardPopup();
         return;
       }
       this.showDashboardPopup(
-        'topbar-utility:' + utilityLabel.toLowerCase().replace(/[^a-z0-9_-]+/g, '-'),
+        'taskbar-utility:' + utilityLabel.toLowerCase().replace(/[^a-z0-9_-]+/g, '-'),
         utilityLabel,
         ev,
         {
-          source: 'topbar',
+          source: 'taskbar',
           side: 'bottom',
           compact: false,
           body: String(body || '').trim(),
-          meta_origin: 'Topbar'
+          meta_origin: 'Taskbar'
         }
       );
     },
