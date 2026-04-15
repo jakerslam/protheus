@@ -147,6 +147,24 @@ fn search_provider_runtime_contract() -> Value {
     })
 }
 
+fn search_provider_family_contract_suite_contract() -> Value {
+    json!({
+        "suite_scope": "provider_family_contracts",
+        "contract_targets": [
+            "src/plugins/contracts/memory-embedding-provider.contract.test.ts",
+            "src/plugins/contracts/provider.anthropic.contract.test.ts",
+            "src/plugins/contracts/provider.fal.contract.test.ts",
+            "src/plugins/contracts/provider.google.contract.test.ts",
+            "src/plugins/contracts/provider.minimax.contract.test.ts"
+        ],
+        "runtime_invariants": [
+            "provider_family_contract_matrix",
+            "model_catalog_compatibility_contract",
+            "credential_boundary_contract"
+        ]
+    })
+}
+
 fn search_provider_auth_contract() -> Value {
     json!({
         "auth_contract_test_file": "src/plugins/contracts/provider-auth.contract.test.ts",
@@ -354,6 +372,7 @@ fn search_runtime_resolution_contract() -> Value {
         "provider_contract_suite_contract": search_provider_contract_suite_contract(),
         "provider_registry_contract": search_provider_registry_contract(),
         "provider_runtime_contract": search_provider_runtime_contract(),
+        "provider_family_contract_suite_contract": search_provider_family_contract_suite_contract(),
         "provider_auth_contract": search_provider_auth_contract(),
         "provider_config_contract": search_provider_config_contract(),
         "provider_credential_resolution_contract": search_provider_credential_resolution_contract(),

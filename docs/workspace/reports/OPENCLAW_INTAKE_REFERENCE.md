@@ -120,7 +120,7 @@
     - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/210-scroll-hover-sanitize.part01.ts`
     - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/220-artifacts-voice-search.part02.ts`
 ## Current Intake State
-- Imported rows in this wave: `135`
+- Imported rows in this wave: `140`
 - Pending rows in this wave: `0`
 
 - `OPENCLAW-TOOLING-APP-013`:
@@ -364,6 +364,16 @@
   - Landed in:
     - `core/layer0/ops/src/web_conduit_provider_runtime_parts/019-fetch-runtime-resolution.rs`
     - `core/layer0/ops/src/web_conduit_parts/096-openclaw-fetch-runtime-resolution-tests.rs`
+- `OPENCLAW-TOOLING-WEB-034`:
+  - Imported provider-family contract-suite semantics from:
+    - `src/plugins/contracts/memory-embedding-provider.contract.test.ts`
+    - `src/plugins/contracts/provider.anthropic.contract.test.ts`
+    - `src/plugins/contracts/provider.fal.contract.test.ts`
+    - `src/plugins/contracts/provider.google.contract.test.ts`
+    - `src/plugins/contracts/provider.minimax.contract.test.ts`
+  - Landed in:
+    - `core/layer0/ops/src/web_conduit_provider_runtime_parts/021-search-runtime-resolution.rs`
+    - `core/layer0/ops/src/web_conduit_parts/105-openclaw-search-runtime-resolution-tests.rs`
 - `OPENCLAW-TOOLING-CHAT-017`:
   - Imported agent-tool panel parity, tool display shaping, external URL confirmation, gateway auth-close handling, and model-ref type normalization patterns from:
     - `ui/src/ui/views/agents-panels-tools-skills.ts`
