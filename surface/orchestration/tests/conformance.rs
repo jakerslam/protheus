@@ -993,6 +993,24 @@ fn comparative_request_exposes_verifier_and_alternative_plan_provenance() {
 #[test]
 fn observed_core_execution_is_projected_into_execution_state_correlation() {
     let mut runtime = OrchestrationSurfaceRuntime::new();
+    runtime.record_execution_observation(
+        "core-running",
+        infring_orchestration_surface_v1::contracts::CoreExecutionObservation {
+            plan_status: Some(infring_orchestration_surface_v1::contracts::PlanStatus::Completed),
+            receipt_ids: vec!["receipt-1".to_string(), "receipt-2".to_string()],
+            outcome_refs: vec!["outcome-1".to_string()],
+            step_statuses: vec![
+                infring_orchestration_surface_v1::contracts::CoreExecutionStepObservation {
+                    step_id: "step_tool_capability_probe".to_string(),
+                    status: infring_orchestration_surface_v1::contracts::StepStatus::Succeeded,
+                },
+                infring_orchestration_surface_v1::contracts::CoreExecutionStepObservation {
+                    step_id: "step_claim_verifier_request".to_string(),
+                    status: infring_orchestration_surface_v1::contracts::StepStatus::Failed,
+                },
+            ],
+        },
+    );
     let package = runtime.orchestrate(
         OrchestrationRequest {
             session_id: "core-running".to_string(),
@@ -1000,16 +1018,7 @@ fn observed_core_execution_is_projected_into_execution_state_correlation() {
             surface: RequestSurface::Legacy,
             payload: json!({
                 "path": "README.md",
-                "url": "https://example.com",
-                "core_execution_observation": {
-                    "status": "completed",
-                    "receipt_ids": ["receipt-1", "receipt-2"],
-                    "outcome_refs": ["outcome-1"],
-                    "step_statuses": {
-                        "step_tool_capability_probe": "succeeded",
-                        "step_claim_verifier_request": "failed"
-                    }
-                }
+                "url": "https://example.com"
             }),
         },
         4_500,
@@ -1051,6 +1060,24 @@ fn observed_core_execution_is_projected_into_execution_state_correlation() {
 #[test]
 fn typed_execution_observation_derives_plan_status_from_step_outcomes() {
     let mut runtime = OrchestrationSurfaceRuntime::new();
+    runtime.record_execution_observation(
+        "typed-observation-derived-status",
+        infring_orchestration_surface_v1::contracts::CoreExecutionObservation {
+            plan_status: None,
+            receipt_ids: vec!["receipt-typed-1".to_string()],
+            outcome_refs: Vec::new(),
+            step_statuses: vec![
+                infring_orchestration_surface_v1::contracts::CoreExecutionStepObservation {
+                    step_id: "step_tool_capability_probe".to_string(),
+                    status: infring_orchestration_surface_v1::contracts::StepStatus::Succeeded,
+                },
+                infring_orchestration_surface_v1::contracts::CoreExecutionStepObservation {
+                    step_id: "step_tool_broker_request".to_string(),
+                    status: infring_orchestration_surface_v1::contracts::StepStatus::Failed,
+                },
+            ],
+        },
+    );
     let package = runtime.orchestrate(
         OrchestrationRequest {
             session_id: "typed-observation-derived-status".to_string(),
@@ -1071,11 +1098,8 @@ fn typed_execution_observation_derives_plan_status_from_step_outcomes() {
                     }
                 },
                 "core_execution_observation": {
-                    "receipt_ids": ["receipt-typed-1"],
-                    "step_statuses": {
-                        "step_tool_capability_probe": "succeeded",
-                        "step_tool_broker_request": "failed"
-                    }
+                    "receipt_ids": ["request-payload-should-be-ignored"],
+                    "status": "running"
                 }
             }),
         },
@@ -1085,6 +1109,13 @@ fn typed_execution_observation_derives_plan_status_from_step_outcomes() {
     assert_eq!(
         package.execution_state.plan_status,
         infring_orchestration_surface_v1::contracts::PlanStatus::Failed
+    );
+    assert_eq!(
+        package
+            .execution_state
+            .correlation
+            .observed_core_receipt_ids,
+        vec!["receipt-typed-1".to_string()]
     );
 }
 
@@ -1556,18 +1587,20 @@ fn planner_quality_fixture_metrics_stay_within_thresholds() {
 #[test]
 fn runtime_execution_observation_channel_projects_into_execution_state() {
     let mut runtime = OrchestrationSurfaceRuntime::new();
-    runtime.record_execution_observation(
-        "observation-channel",
-        infring_orchestration_surface_v1::contracts::CoreExecutionObservation {
-            plan_status: Some(infring_orchestration_surface_v1::contracts::PlanStatus::Running),
-            receipt_ids: vec!["receipt-channel-1".to_string()],
-            outcome_refs: Vec::new(),
-            step_statuses: vec![
-                infring_orchestration_surface_v1::contracts::CoreExecutionStepObservation {
-                    step_id: "step_tool_broker_request".to_string(),
-                    status: infring_orchestration_surface_v1::contracts::StepStatus::Running,
-                },
-            ],
+    runtime.apply_execution_observation_update(
+        infring_orchestration_surface_v1::contracts::OrchestrationExecutionObservationUpdate {
+            session_id: "observation-channel".to_string(),
+            observation: infring_orchestration_surface_v1::contracts::CoreExecutionObservation {
+                plan_status: Some(infring_orchestration_surface_v1::contracts::PlanStatus::Running),
+                receipt_ids: vec!["receipt-channel-1".to_string()],
+                outcome_refs: Vec::new(),
+                step_statuses: vec![
+                    infring_orchestration_surface_v1::contracts::CoreExecutionStepObservation {
+                        step_id: "step_tool_broker_request".to_string(),
+                        status: infring_orchestration_surface_v1::contracts::StepStatus::Running,
+                    },
+                ],
+            },
         },
     );
 
