@@ -77,10 +77,6 @@ function failureEnvelope<TData extends JsonValue>(
 
 export interface InMemoryTransportOptions {
   unseeded_behavior?: 'error';
-  /**
-   * @deprecated Synthetic fallback moved to `@infring/sdk/testing`.
-   */
-  allow_unseeded_fallback?: boolean;
 }
 
 export type InMemorySeed = Partial<Record<InfringOperation, JsonValue>>;
@@ -96,13 +92,6 @@ export function createInMemoryTransport(
       const hasSeed = Object.prototype.hasOwnProperty.call(seed, request.operation);
       const seeded = hasSeed ? seed[request.operation] : undefined;
       if (!hasSeed) {
-        if (options.allow_unseeded_fallback === true) {
-          return failureEnvelope<TData>(
-            request,
-            'testing_transport_required',
-            "Synthetic unseeded fallback moved to '@infring/sdk/testing'."
-          );
-        }
         return failureEnvelope<TData>(
           request,
           'in_memory_seed_required',

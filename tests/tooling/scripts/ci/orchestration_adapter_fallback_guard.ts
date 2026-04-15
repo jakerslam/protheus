@@ -10,7 +10,10 @@ import { emitStructuredResult, writeTextArtifact } from '../../lib/result.ts';
 const ROOT = process.cwd();
 const DEFAULT_OUT_JSON = 'core/local/artifacts/orchestration_adapter_fallback_guard_current.json';
 const DEFAULT_OUT_MD = 'local/workspace/reports/ORCHESTRATION_ADAPTER_FALLBACK_GUARD_CURRENT.md';
-const TEST_NAME = 'non_legacy_surface_fixture_fallback_rate_stays_below_threshold';
+const TEST_NAMES = [
+  'non_legacy_surface_fixture_fallback_rate_stays_below_threshold',
+  'non_legacy_surface_fixture_quality_stays_within_surface_thresholds',
+] as const;
 
 type ScriptArgs = {
   strict: boolean;
@@ -29,9 +32,24 @@ function resolveArgs(argv: string[]): ScriptArgs {
 function thresholdFromSource(): number | null {
   const sourcePath = path.resolve(ROOT, 'surface/orchestration/tests/conformance.rs');
   const source = fs.readFileSync(sourcePath, 'utf8');
-  const marker = new RegExp(`${TEST_NAME}[\\s\\S]*?fallback_rate\\s*<=\\s*([0-9.]+)`, 'm');
+  const marker = new RegExp(
+    `${TEST_NAMES[0]}[\\s\\S]*?fallback_rate\\s*<=\\s*([0-9.]+)`,
+    'm'
+  );
   const match = source.match(marker);
   return match ? Number(match[1]) : null;
+}
+
+function parseSurfaceMetrics(output: string): unknown | null {
+  const marker = output.match(/surface_quality_metrics=(\{.*\})/m);
+  if (!marker) {
+    return null;
+  }
+  try {
+    return JSON.parse(marker[1]);
+  } catch {
+    return null;
+  }
 }
 
 function toMarkdown(payload: any): string {
@@ -43,12 +61,21 @@ function toMarkdown(payload: any): string {
   lines.push(`Threshold: ${payload.threshold ?? 'unknown'}`);
   lines.push(`Pass: ${payload.ok}`);
   lines.push('');
-  lines.push('## Command');
-  lines.push(`- ${payload.command.join(' ')}`);
+  lines.push('## Commands');
+  for (const row of payload.tests) {
+    lines.push(`- ${row.command.join(' ')}`);
+  }
+  if (payload.surface_metrics) {
+    lines.push('');
+    lines.push('## Surface Metrics');
+    lines.push('```json');
+    lines.push(JSON.stringify(payload.surface_metrics, null, 2));
+    lines.push('```');
+  }
   lines.push('');
   lines.push('## Output');
   lines.push('```text');
-  lines.push(String(payload.stdout || payload.stderr || '').trim().slice(0, 4000));
+  lines.push(String(payload.output_excerpt || '').trim().slice(0, 6000));
   lines.push('```');
   return `${lines.join('\n')}\n`;
 }
@@ -56,21 +83,37 @@ function toMarkdown(payload: any): string {
 function run(argv: string[]): number {
   const args = resolveArgs(argv);
   const threshold = thresholdFromSource();
-  const command = [
-    'cargo',
-    'test',
-    '--manifest-path',
-    'surface/orchestration/Cargo.toml',
-    TEST_NAME,
-    '--',
-    '--exact',
-  ];
-  const result = spawnSync(command[0], command.slice(1), {
-    cwd: ROOT,
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
+  const runs = TEST_NAMES.map((name) => {
+    const command = [
+      'cargo',
+      'test',
+      '--manifest-path',
+      'surface/orchestration/Cargo.toml',
+      name,
+      '--',
+      '--exact',
+      '--nocapture',
+    ];
+    const result = spawnSync(command[0], command.slice(1), {
+      cwd: ROOT,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    return {
+      name,
+      command,
+      status: result.status ?? 1,
+      signal: result.signal ?? null,
+      stdout: String(result.stdout || ''),
+      stderr: String(result.stderr || ''),
+    };
   });
-  const ok = result.status === 0;
+  const ok = runs.every((row) => row.status === 0);
+  const combinedOutput = runs
+    .map((row) => [row.stdout, row.stderr].filter(Boolean).join('\n').trim())
+    .filter(Boolean)
+    .join('\n\n');
+  const surfaceMetrics = parseSurfaceMetrics(combinedOutput);
   const payload = {
     ok,
     type: 'orchestration_adapter_fallback_guard',
@@ -81,16 +124,20 @@ function run(argv: string[]): number {
       out_json: args.outJson,
       out_markdown: args.outMarkdown,
     },
-    test_name: TEST_NAME,
+    test_names: TEST_NAMES,
     threshold,
-    command,
+    tests: runs.map((row) => ({
+      test_name: row.name,
+      command: row.command,
+      exit_code: row.status,
+      signal: row.signal,
+    })),
+    surface_metrics: surfaceMetrics,
     summary: {
       pass: ok,
-      exit_code: result.status ?? 1,
-      signal: result.signal ?? null,
+      failed_tests: runs.filter((row) => row.status !== 0).map((row) => row.name),
     },
-    stdout: String(result.stdout || ''),
-    stderr: String(result.stderr || ''),
+    output_excerpt: combinedOutput,
   };
 
   writeTextArtifact(args.outMarkdown, toMarkdown(payload));

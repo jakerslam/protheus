@@ -1,11 +1,19 @@
 // Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 use crate::contracts::{
     Capability, CapabilityProbeResult, CoreContractCall, OrchestrationPlanStep, PlanCandidate,
-    PlanScore, PlanVariant, Precondition, RequestClassification, RequestKind, ResourceKind,
-    TypedOrchestrationRequest,
+    PlanScore, PlanVariant, Precondition, RequestClass, RequestClassification, RequestKind,
+    ResourceKind, TypedOrchestrationRequest,
 };
 
 use super::{capability_registry, preconditions, scoring};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum StrategyFamily {
+    Balanced,
+    ToolFirst,
+    TopologyFirst,
+    MemoryFirst,
+}
 
 pub fn build_plan_candidates(
     request: &TypedOrchestrationRequest,
@@ -89,7 +97,10 @@ fn build_candidate_for_variant(
     let mut steps = Vec::new();
     let mut reasons = classification.reasons.clone();
     let mut variant_used_degraded = false;
-    let ordered_capabilities = ordered_capabilities_for_variant(request, capabilities, &variant);
+    let strategy_family = strategy_family_for(request, classification, &variant);
+    reasons.push(format!("strategy_family:{strategy_family:?}").to_lowercase());
+    let ordered_capabilities =
+        ordered_capabilities_for_variant(request, capabilities, &variant, &strategy_family);
 
     for capability in &ordered_capabilities {
         let probe = probes
@@ -123,8 +134,14 @@ fn build_candidate_for_variant(
             }
         }
 
-        let (mut chain, using_degraded, structurally_deferred) =
-            chain_for_variant(request, capability, &probe, &variant, &spec);
+        let (mut chain, using_degraded, structurally_deferred) = chain_for_variant(
+            request,
+            capability,
+            &probe,
+            &variant,
+            &strategy_family,
+            &spec,
+        );
         if structurally_deferred {
             reasons.push(format!("capability_structurally_deferred:{capability:?}").to_lowercase());
         }
@@ -140,6 +157,8 @@ fn build_candidate_for_variant(
             }
             step.rationale
                 .push(format!("variant:{variant:?}").to_lowercase());
+            step.rationale
+                .push(format!("strategy_family:{strategy_family:?}").to_lowercase());
             step.rationale.extend(probe.probe_sources.iter().cloned());
             step.rationale.sort();
             step.rationale.dedup();
@@ -263,50 +282,12 @@ fn ordered_capabilities_for_variant(
     request: &TypedOrchestrationRequest,
     capabilities: &[Capability],
     variant: &PlanVariant,
+    strategy_family: &StrategyFamily,
 ) -> Vec<Capability> {
     let comparative = is_structural_comparative_request(request);
     let mut out = capabilities.to_vec();
     out.sort_by_key(|capability| {
-        if comparative {
-            match variant {
-                PlanVariant::Safest => match capability {
-                    Capability::ReadMemory => 0,
-                    Capability::ExecuteTool => 1,
-                    Capability::VerifyClaim => 2,
-                    Capability::PlanAssimilation => 3,
-                    Capability::MutateTask => 4,
-                },
-                PlanVariant::Fastest => match capability {
-                    Capability::ExecuteTool => 0,
-                    Capability::VerifyClaim => 1,
-                    Capability::ReadMemory => 2,
-                    Capability::PlanAssimilation => 3,
-                    Capability::MutateTask => 4,
-                },
-                PlanVariant::DegradedFallback => match capability {
-                    Capability::ReadMemory => 0,
-                    Capability::VerifyClaim => 1,
-                    Capability::ExecuteTool => 2,
-                    Capability::PlanAssimilation => 3,
-                    Capability::MutateTask => 4,
-                },
-                PlanVariant::ClarificationFirst => match capability {
-                    Capability::ReadMemory => 0,
-                    Capability::ExecuteTool => 1,
-                    Capability::VerifyClaim => 2,
-                    Capability::PlanAssimilation => 3,
-                    Capability::MutateTask => 4,
-                },
-            }
-        } else {
-            match capability {
-                Capability::ReadMemory => 0,
-                Capability::ExecuteTool => 1,
-                Capability::VerifyClaim => 2,
-                Capability::PlanAssimilation => 3,
-                Capability::MutateTask => 4,
-            }
-        }
+        capability_priority(strategy_family, comparative, variant, capability)
     });
     out
 }
@@ -316,8 +297,41 @@ fn chain_for_variant(
     capability: &Capability,
     probe: &CapabilityProbeResult,
     variant: &PlanVariant,
+    strategy_family: &StrategyFamily,
     spec: &capability_registry::CapabilitySpec,
 ) -> (Vec<OrchestrationPlanStep>, bool, bool) {
+    match strategy_family {
+        StrategyFamily::MemoryFirst => match capability {
+            Capability::ReadMemory => return (spec.primary_steps.clone(), false, false),
+            Capability::ExecuteTool | Capability::VerifyClaim
+                if !spec.degraded_steps.is_empty()
+                    && (!probe.blocked_on.is_empty()
+                        || transport_explicitly_unavailable(request)) =>
+            {
+                return (spec.degraded_steps.clone(), true, false);
+            }
+            _ => {}
+        },
+        StrategyFamily::TopologyFirst => {
+            if is_structural_comparative_request(request)
+                && matches!(capability, Capability::ExecuteTool)
+                && matches!(variant, PlanVariant::ClarificationFirst)
+                && !transport_explicitly_unavailable(request)
+            {
+                return (Vec::new(), false, true);
+            }
+        }
+        StrategyFamily::ToolFirst => {
+            if is_structural_comparative_request(request)
+                && matches!(capability, Capability::ReadMemory)
+                && !transport_explicitly_unavailable(request)
+            {
+                return (Vec::new(), false, true);
+            }
+        }
+        StrategyFamily::Balanced => {}
+    }
+
     if is_structural_comparative_request(request) {
         match variant {
             PlanVariant::Fastest => match capability {
@@ -415,6 +429,125 @@ fn chain_for_variant(
         spec.primary_steps.clone()
     };
     (chain, using_degraded, false)
+}
+
+fn strategy_family_for(
+    request: &TypedOrchestrationRequest,
+    classification: &RequestClassification,
+    variant: &PlanVariant,
+) -> StrategyFamily {
+    let comparative = is_structural_comparative_request(request);
+    match variant {
+        PlanVariant::Fastest => {
+            if comparative
+                || matches!(
+                    classification.request_class,
+                    RequestClass::ToolCall | RequestClass::Assimilation
+                )
+                || matches!(
+                    request.resource_kind,
+                    ResourceKind::Web | ResourceKind::Tooling | ResourceKind::Mixed
+                )
+            {
+                StrategyFamily::ToolFirst
+            } else {
+                StrategyFamily::Balanced
+            }
+        }
+        PlanVariant::Safest => StrategyFamily::Balanced,
+        PlanVariant::DegradedFallback => {
+            if comparative
+                || matches!(
+                    request.resource_kind,
+                    ResourceKind::Web | ResourceKind::Tooling | ResourceKind::Mixed
+                )
+            {
+                StrategyFamily::MemoryFirst
+            } else {
+                StrategyFamily::Balanced
+            }
+        }
+        PlanVariant::ClarificationFirst => {
+            if comparative {
+                StrategyFamily::TopologyFirst
+            } else {
+                StrategyFamily::Balanced
+            }
+        }
+    }
+}
+
+fn capability_priority(
+    strategy_family: &StrategyFamily,
+    comparative: bool,
+    variant: &PlanVariant,
+    capability: &Capability,
+) -> usize {
+    match strategy_family {
+        StrategyFamily::ToolFirst => match capability {
+            Capability::ExecuteTool => 0,
+            Capability::VerifyClaim => 1,
+            Capability::ReadMemory => 2,
+            Capability::PlanAssimilation => 3,
+            Capability::MutateTask => 4,
+        },
+        StrategyFamily::TopologyFirst => match capability {
+            Capability::ReadMemory => 0,
+            Capability::VerifyClaim => 1,
+            Capability::ExecuteTool => 2,
+            Capability::PlanAssimilation => 3,
+            Capability::MutateTask => 4,
+        },
+        StrategyFamily::MemoryFirst => match capability {
+            Capability::ReadMemory => 0,
+            Capability::VerifyClaim => 1,
+            Capability::ExecuteTool => 2,
+            Capability::PlanAssimilation => 3,
+            Capability::MutateTask => 4,
+        },
+        StrategyFamily::Balanced => {
+            if comparative {
+                match variant {
+                    PlanVariant::Safest => match capability {
+                        Capability::ReadMemory => 0,
+                        Capability::ExecuteTool => 1,
+                        Capability::VerifyClaim => 2,
+                        Capability::PlanAssimilation => 3,
+                        Capability::MutateTask => 4,
+                    },
+                    PlanVariant::Fastest => match capability {
+                        Capability::ExecuteTool => 0,
+                        Capability::VerifyClaim => 1,
+                        Capability::ReadMemory => 2,
+                        Capability::PlanAssimilation => 3,
+                        Capability::MutateTask => 4,
+                    },
+                    PlanVariant::DegradedFallback => match capability {
+                        Capability::ReadMemory => 0,
+                        Capability::VerifyClaim => 1,
+                        Capability::ExecuteTool => 2,
+                        Capability::PlanAssimilation => 3,
+                        Capability::MutateTask => 4,
+                    },
+                    PlanVariant::ClarificationFirst => match capability {
+                        Capability::ReadMemory => 0,
+                        Capability::ExecuteTool => 1,
+                        Capability::VerifyClaim => 2,
+                        Capability::PlanAssimilation => 3,
+                        Capability::MutateTask => 4,
+                    },
+                }
+            } else {
+                match capability {
+                    Capability::ReadMemory => 0,
+                    Capability::ExecuteTool => 1,
+                    Capability::VerifyClaim => 2,
+                    Capability::PlanAssimilation => 3,
+                    Capability::MutateTask => 4,
+                }
+            }
+        }
+    }
 }
 
 fn filter_steps_by_contract(

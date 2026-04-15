@@ -100,14 +100,20 @@ fn fail_closed_on_missing_probe_for_adapted_surface(
     None
 }
 
+fn authoritative_probe_required(
+    request: &TypedOrchestrationRequest,
+    capability: &Capability,
+    probe_name: &str,
+) -> Option<(bool, String)> {
+    fail_closed_on_missing_probe_for_adapted_surface(request, capability, probe_name)
+}
+
 fn tool_available(request: &TypedOrchestrationRequest, capability: &Capability) -> (bool, String) {
     let key = capability_key(capability);
     if let Some(value) = envelope_probe_bool(request, key, Some("tool_available")) {
         return (value, envelope_probe_source(key, "tool_available"));
     }
-    if let Some(required) =
-        fail_closed_on_missing_probe_for_adapted_surface(request, capability, "tool_available")
-    {
+    if let Some(required) = authoritative_probe_required(request, capability, "tool_available") {
         return required;
     }
     if let Some(value) = probe_bool(request, &[key, "tool_available"], "tool_available") {
@@ -131,6 +137,9 @@ fn target_supplied(request: &TypedOrchestrationRequest, capability: &Capability)
     if let Some(value) = envelope_probe_bool(request, key, Some("target_supplied")) {
         return (value, envelope_probe_source(key, "target_supplied"));
     }
+    if let Some(required) = authoritative_probe_required(request, capability, "target_supplied") {
+        return required;
+    }
     if let Some(value) = probe_bool(request, &[key, "target_supplied"], "target_supplied") {
         return (
             value,
@@ -151,6 +160,11 @@ fn target_syntax_valid(
             value,
             envelope_probe_source(key, "target_syntactically_valid"),
         );
+    }
+    if let Some(required) =
+        authoritative_probe_required(request, capability, "target_syntactically_valid")
+    {
+        return required;
     }
     if let Some(value) = probe_bool(
         request,
@@ -174,6 +188,9 @@ fn target_exists(request: &TypedOrchestrationRequest, capability: &Capability) -
     if let Some(value) = envelope_probe_bool(request, key, Some("target_exists")) {
         return (value, envelope_probe_source(key, "target_exists"));
     }
+    if let Some(required) = authoritative_probe_required(request, capability, "target_exists") {
+        return required;
+    }
     if let Some(value) = probe_bool(request, &[key, "target_exists"], "target_exists") {
         return (
             value,
@@ -195,8 +212,7 @@ fn authorization_valid(
     if let Some(value) = envelope_probe_bool(request, key, Some("authorization_valid")) {
         return (value, envelope_probe_source(key, "authorization_valid"));
     }
-    if let Some(required) =
-        fail_closed_on_missing_probe_for_adapted_surface(request, capability, "authorization_valid")
+    if let Some(required) = authoritative_probe_required(request, capability, "authorization_valid")
     {
         return required;
     }
@@ -222,9 +238,7 @@ fn policy_allows(request: &TypedOrchestrationRequest, capability: &Capability) -
     if let Some(value) = envelope_probe_bool(request, key, Some("policy_allows")) {
         return (value, envelope_probe_source(key, "policy_allows"));
     }
-    if let Some(required) =
-        fail_closed_on_missing_probe_for_adapted_surface(request, capability, "policy_allows")
-    {
+    if let Some(required) = authoritative_probe_required(request, capability, "policy_allows") {
         return required;
     }
     if let Some(value) = probe_bool(request, &[key, "policy_allows"], "policy_allows") {
@@ -244,8 +258,7 @@ fn transport_available(
     if let Some(value) = envelope_probe_bool(request, key, Some("transport_available")) {
         return (value, envelope_probe_source(key, "transport_available"));
     }
-    if let Some(required) =
-        fail_closed_on_missing_probe_for_adapted_surface(request, capability, "transport_available")
+    if let Some(required) = authoritative_probe_required(request, capability, "transport_available")
     {
         return required;
     }
