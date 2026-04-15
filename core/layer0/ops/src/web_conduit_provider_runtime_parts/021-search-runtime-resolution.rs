@@ -155,7 +155,14 @@ fn search_provider_family_contract_suite_contract() -> Value {
             "src/plugins/contracts/provider.anthropic.contract.test.ts",
             "src/plugins/contracts/provider.fal.contract.test.ts",
             "src/plugins/contracts/provider.google.contract.test.ts",
-            "src/plugins/contracts/provider.minimax.contract.test.ts"
+            "src/plugins/contracts/provider.minimax.contract.test.ts",
+            "src/plugins/contracts/provider.moonshot.contract.test.ts",
+            "src/plugins/contracts/provider.openai.contract.test.ts",
+            "src/plugins/contracts/provider.openrouter.contract.test.ts",
+            "src/plugins/contracts/provider.xai.contract.test.ts"
+        ],
+        "suite_validation_tests": [
+            "src/plugins/contracts/provider-family-plugin-tests.test.ts"
         ],
         "runtime_invariants": [
             "provider_family_contract_matrix",
