@@ -120,7 +120,7 @@
     - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/210-scroll-hover-sanitize.part01.ts`
     - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/220-artifacts-voice-search.part02.ts`
 ## Current Intake State
-- Imported rows in this wave: `45`
+- Imported rows in this wave: `50`
 - Pending rows in this wave: `0`
 
 - `OPENCLAW-TOOLING-APP-013`:
@@ -164,3 +164,20 @@
     - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/070-init-sequences-and-pointer.part02.ts`
     - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/110-failover-and-health.part02.ts`
     - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/200-send-pipeline.part02.ts`
+- `OPENCLAW-TOOLING-WEB-016`:
+  - Imported runtime-provider preference and web-tool metadata lifecycle patterns from:
+    - `src/secrets/runtime-web-tools.ts`
+    - `src/secrets/runtime-web-tools-state.ts`
+    - `src/agents/tools/web-search.ts`
+    - `src/agents/tools/web-fetch.ts`
+    - `src/agents/tools/web-guarded-fetch.ts`
+  - Landed in:
+    - `core/layer0/ops/src/web_conduit_provider_runtime_parts/010-provider-chain-and-health.rs`
+    - `core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state.rs`
+    - `core/layer0/ops/src/web_conduit_provider_runtime_parts/019-fetch-runtime-resolution.rs`
+    - `core/layer0/ops/src/web_conduit_provider_runtime_parts/021-search-runtime-resolution.rs`
+    - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime.rs`
+    - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration.rs`
+    - `core/layer0/ops/src/web_conduit_parts/095-openclaw-search-tool-tests.rs`
+    - `core/layer0/ops/src/web_conduit_parts/096-openclaw-fetch-runtime-resolution-tests.rs`
+    - `core/layer0/ops/src/web_conduit_parts/105-openclaw-search-runtime-resolution-tests.rs`
