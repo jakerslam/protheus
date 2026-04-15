@@ -109,6 +109,57 @@ fn search_provider_contract_suite_contract() -> Value {
     })
 }
 
+fn search_provider_registry_contract() -> Value {
+    json!({
+        "registry_contract_test_file": "src/plugins/contracts/registry.contract.test.ts",
+        "plugin_registration_registry": "pluginRegistrationContractRegistry",
+        "provider_contract_plugin_ids": "providerContractPluginIds",
+        "provider_contract_load_error_field": "providerContractLoadError",
+        "manifest_contract_plugin_id_resolver": "resolveManifestContractPluginIds",
+        "web_fetch_provider_entry_resolver": "resolveWebFetchProviderContractEntriesForPluginId",
+        "web_search_provider_entry_resolver": "resolveWebSearchProviderContractEntriesForPluginId",
+        "unique_provider_id_invariant": true,
+        "bundled_manifest_coverage_invariant": true,
+        "shared_resolver_coverage_invariant": true
+    })
+}
+
+fn search_provider_runtime_contract() -> Value {
+    json!({
+        "runtime_contract_test_file": "src/plugins/contracts/provider-runtime.contract.test.ts",
+        "runtime_contract_helper_module": "test/helpers/plugins/provider-runtime-contract.ts",
+        "runtime_contract_provider_targets": [
+            "anthropic",
+            "github-copilot",
+            "google",
+            "openai",
+            "openrouter",
+            "venice",
+            "xai",
+            "zai"
+        ],
+        "runtime_contract_invariants": [
+            "dynamic_model_resolution_parity",
+            "usage_auth_resolution_parity",
+            "auth_doctor_hint_generation_parity",
+            "usage_snapshot_fetch_contract"
+        ]
+    })
+}
+
+fn search_provider_auth_contract() -> Value {
+    json!({
+        "auth_contract_test_file": "src/plugins/contracts/provider-auth.contract.test.ts",
+        "auth_contract_helper_module": "test/helpers/plugins/provider-auth-contract.ts",
+        "auth_contract_provider_targets": ["openai-codex", "github-copilot"],
+        "auth_contract_invariants": [
+            "oauth_profile_resolution",
+            "token_refresh_or_prompt_guidance",
+            "auth_mode_diagnostic_consistency"
+        ]
+    })
+}
+
 fn search_provider_config_contract() -> Value {
     json!({
         "forced_provider_wrapper": "withForcedProvider",
@@ -301,6 +352,9 @@ fn search_runtime_resolution_contract() -> Value {
         "provider_type_contract": search_runtime_provider_type_contract(),
         "credential_presence_contract": search_credential_presence_contract(),
         "provider_contract_suite_contract": search_provider_contract_suite_contract(),
+        "provider_registry_contract": search_provider_registry_contract(),
+        "provider_runtime_contract": search_provider_runtime_contract(),
+        "provider_auth_contract": search_provider_auth_contract(),
         "provider_config_contract": search_provider_config_contract(),
         "provider_credential_resolution_contract": search_provider_credential_resolution_contract(),
         "provider_common_runtime_contract": search_provider_common_runtime_contract(),

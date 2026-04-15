@@ -5,6 +5,27 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // Shared CLI helper surface. Pure string/number helpers remain local; file/path authority moved into Rust.
 const path = require('path');
 const { createOpsLaneBridge } = require('./rust_lane_bridge.ts');
+function mirrorLegacyEnvAlias(targetKey, legacyKey, fallback = '') {
+    const target = String(process.env[targetKey] || '').trim();
+    const legacy = String(process.env[legacyKey] || '').trim();
+    if (!target && legacy) {
+        process.env[targetKey] = legacy;
+    }
+    else if (!legacy && target) {
+        process.env[legacyKey] = target;
+    }
+    else if (!target && !legacy && fallback) {
+        process.env[targetKey] = fallback;
+        process.env[legacyKey] = fallback;
+    }
+}
+function normalizeOpsBridgeEnvAliases() {
+    mirrorLegacyEnvAlias('INFRING_WORKSPACE', 'PROTHEUS_WORKSPACE');
+    mirrorLegacyEnvAlias('INFRING_NOW_ISO', 'PROTHEUS_NOW_ISO');
+    mirrorLegacyEnvAlias('INFRING_OPS_USE_PREBUILT', 'PROTHEUS_OPS_USE_PREBUILT', '0');
+    mirrorLegacyEnvAlias('INFRING_OPS_LOCAL_TIMEOUT_MS', 'PROTHEUS_OPS_LOCAL_TIMEOUT_MS', '120000');
+}
+normalizeOpsBridgeEnvAliases();
 function hasWorkspaceMarkers(absPath) {
     const fs = require('fs');
     try {
@@ -49,7 +70,7 @@ function resolveWorkspaceRoot() {
 }
 const ROOT = resolveWorkspaceRoot();
 function nowIso() {
-    const override = cleanText(process.env.PROTHEUS_NOW_ISO || '', 80);
+    const override = cleanText(process.env.INFRING_NOW_ISO || process.env.PROTHEUS_NOW_ISO || '', 80);
     if (override) {
         const ms = Date.parse(override);
         if (Number.isFinite(ms))
@@ -130,8 +151,6 @@ function parseArgs(argv) {
     }
     return out;
 }
-process.env.PROTHEUS_OPS_USE_PREBUILT = process.env.PROTHEUS_OPS_USE_PREBUILT || '0';
-process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '120000';
 const bridge = createOpsLaneBridge(__dirname, 'queued_backlog_runtime', 'queued-backlog-kernel');
 function encodeBase64(value) {
     return Buffer.from(String(value == null ? '' : value), 'utf8').toString('base64');
@@ -242,6 +261,7 @@ function emit(payload, exitCode = 0) {
 }
 module.exports = {
     ROOT,
+    normalizeOpsBridgeEnvAliases,
     resolveWorkspaceRoot,
     nowIso,
     cleanText,

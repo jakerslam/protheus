@@ -20,6 +20,25 @@ const TS_COMPILER_OPTIONS = {
 
 let TS_REQUIRE_HOOK_INSTALLED = false;
 
+function envAlias(primaryKey, legacyKey, fallback = '') {
+  const primary = String(process.env[primaryKey] || '').trim();
+  const legacy = String(process.env[legacyKey] || '').trim();
+  if (!primary && legacy) {
+    process.env[primaryKey] = legacy;
+    return legacy;
+  }
+  if (!legacy && primary) {
+    process.env[legacyKey] = primary;
+    return primary;
+  }
+  if (!primary && !legacy && fallback) {
+    process.env[primaryKey] = fallback;
+    process.env[legacyKey] = fallback;
+    return fallback;
+  }
+  return primary || legacy || '';
+}
+
 function transpileTsSource(source, tsPath) {
   return ts.transpileModule(source, {
     compilerOptions: TS_COMPILER_OPTIONS,
@@ -56,8 +75,13 @@ function resolveRepoRoot(startDir = __dirname) {
 
 function readRuntimeModeFromState(repoRoot) {
   try {
-    const statePath = process.env.PROTHEUS_RUNTIME_MODE_STATE_PATH
-      ? path.resolve(process.env.PROTHEUS_RUNTIME_MODE_STATE_PATH)
+    const statePathOverride = envAlias(
+      'INFRING_RUNTIME_MODE_STATE_PATH',
+      'PROTHEUS_RUNTIME_MODE_STATE_PATH',
+      ''
+    );
+    const statePath = statePathOverride
+      ? path.resolve(statePathOverride)
       : path.join(repoRoot, 'local', 'state', 'ops', 'runtime_mode.json');
     if (!fs.existsSync(statePath)) return null;
     const payload = JSON.parse(fs.readFileSync(statePath, 'utf8'));
@@ -70,7 +94,7 @@ function readRuntimeModeFromState(repoRoot) {
 }
 
 function resolveRuntimeMode(repoRoot) {
-  const envMode = String(process.env.PROTHEUS_RUNTIME_MODE || '').trim().toLowerCase();
+  const envMode = envAlias('INFRING_RUNTIME_MODE', 'PROTHEUS_RUNTIME_MODE', '').toLowerCase();
   if (envMode === 'dist' || envMode === 'source') return envMode;
   return readRuntimeModeFromState(repoRoot) || 'source';
 }
@@ -97,7 +121,7 @@ function parseJsonPayload(raw) {
 }
 
 function securityBinaryCandidates(repoRoot) {
-  const explicit = cleanText(process.env.PROTHEUS_SECURITY_CORE_BIN || '', 500);
+  const explicit = cleanText(envAlias('INFRING_SECURITY_CORE_BIN', 'PROTHEUS_SECURITY_CORE_BIN', ''), 500);
   const out = [
     explicit,
     path.join(repoRoot, 'target', 'release', 'security_core'),
@@ -133,7 +157,7 @@ function securityRequestFor(jsPath, repoRoot) {
 }
 
 function securityGateTimeoutMs() {
-  const raw = Number(process.env.PROTHEUS_SECURITY_GATE_TIMEOUT_MS || 8000);
+  const raw = Number(envAlias('INFRING_SECURITY_GATE_TIMEOUT_MS', 'PROTHEUS_SECURITY_GATE_TIMEOUT_MS', '8000'));
   if (!Number.isFinite(raw)) return 8000;
   return Math.max(1000, Math.min(120000, Math.floor(raw)));
 }
@@ -148,7 +172,7 @@ function securitySpawnOptions(repoRoot) {
 }
 
 function runGlobalSecurityGate(jsPath, repoRoot) {
-  if (String(process.env.PROTHEUS_SECURITY_GLOBAL_GATE || '0') === '0') {
+  if (envAlias('INFRING_SECURITY_GLOBAL_GATE', 'PROTHEUS_SECURITY_GLOBAL_GATE', '0') === '0') {
     return;
   }
   if (global.__protheus_security_global_gate_ok === true) {

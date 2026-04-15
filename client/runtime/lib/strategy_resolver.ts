@@ -18,16 +18,22 @@ const THRESHOLD_KEYS = new Set([
     'min_eye_score_ema',
     'min_composite_eligibility'
 ]);
+function resolveBridgePayload(out, op) {
+    const payload = out && typeof out === 'object' && out.payload && typeof out.payload === 'object'
+        ? out.payload
+        : null;
+    if (out && out.ok === true && payload && payload.ok === true) {
+        return payload;
+    }
+    const reason = payload && (payload.error || payload.reason)
+        ? String(payload.error || payload.reason)
+        : (out && out.stderr ? String(out.stderr).trim() : `strategy_resolver_bridge_failed:${String(op || 'unknown_op')}`);
+    throw new Error(reason || `strategy_resolver_bridge_failed:${String(op || 'unknown_op')}`);
+}
 function invokeStrategyResolver(op, args = {}) {
     const payload = Buffer.from(JSON.stringify({ op, args: args && typeof args === 'object' ? args : {} }), 'utf8').toString('base64');
     const out = bridge.run(['invoke', `--payload-base64=${payload}`]);
-    if (!out || out.ok !== true || !out.payload || out.payload.ok !== true) {
-        const reason = out && out.payload && (out.payload.error || out.payload.reason)
-            ? String(out.payload.error || out.payload.reason)
-            : 'strategy_resolver_bridge_failed';
-        throw new Error(reason);
-    }
-    return out.payload;
+    return resolveBridgePayload(out, op);
 }
 function listStrategies(options = {}) {
     const result = invokeStrategyResolver('listStrategies', { ...(options || {}) }).result;

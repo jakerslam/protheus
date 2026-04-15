@@ -12,7 +12,7 @@ const { processToolOutput } = require('./tool_compactor_integration.ts');
 const { redactSecretsOnly } = require('./tool_response_compactor.ts');
 
 // NEW: Tiered Directives enforcement
-const { autoClassifyAndCreate, ACTION_TYPES } = require('./action_envelope.ts');
+const { autoClassifyAndCreate } = require('./action_envelope.ts');
 const { validateAction } = require('./directive_resolver.ts');
 const { queueForApproval, formatBlockedResponse, formatApprovalRequiredResponse, wasApproved } = require('./approval_gate.ts');
 
@@ -21,6 +21,50 @@ const { queueForApproval, formatBlockedResponse, formatApprovalRequiredResponse,
  */
 function isAlreadyCompacted(text) {
   return text && text.includes('📦 [TOOL OUTPUT COMPACTED]');
+}
+
+function evaluateDirectiveGate(params: {
+  toolName: string;
+  commandText: string;
+  summary: string;
+  skipDirectiveCheck?: boolean;
+}) {
+  if (params.skipDirectiveCheck === true) return null;
+  const actionEnvelope = autoClassifyAndCreate({
+    toolName: params.toolName,
+    commandText: params.commandText,
+    summary: params.summary
+  });
+  const validation = validateAction(actionEnvelope);
+  if (!validation.allowed) {
+    return {
+      blocked: true,
+      payload: {
+        ok: false,
+        toolName: params.toolName,
+        text: formatBlockedResponse(validation),
+        raw_path: null,
+        exit_code: 1,
+        blocked: true
+      }
+    };
+  }
+  if (validation.requires_approval && !wasApproved(actionEnvelope.action_id)) {
+    const queueResult = queueForApproval(actionEnvelope, validation.approval_reason);
+    return {
+      blocked: true,
+      payload: {
+        ok: false,
+        toolName: params.toolName,
+        text: formatApprovalRequiredResponse(queueResult),
+        raw_path: null,
+        exit_code: 0,
+        approval_required: true,
+        action_id: actionEnvelope.action_id
+      }
+    };
+  }
+  return null;
 }
 
 /**
@@ -40,39 +84,14 @@ async function execCompacted(command, options = {}) {
     skipDirectiveCheck = false  // For internal/bootstrap use
   } = opts;
 
-  // NEW: Tiered Directives enforcement (unless skipped)
-  if (!skipDirectiveCheck) {
-    const actionEnvelope = autoClassifyAndCreate({
-      toolName: toolName,
-      commandText: command,
-      summary: `Execute: ${command.substring(0, 80)}${command.length > 80 ? '...' : ''}`
-    });
-    
-    const validation = validateAction(actionEnvelope);
-    
-    if (!validation.allowed) {
-      return {
-        ok: false,
-        toolName,
-        text: formatBlockedResponse(validation),
-        raw_path: null,
-        exit_code: 1,
-        blocked: true
-      };
-    }
-    
-    if (validation.requires_approval && !wasApproved(actionEnvelope.action_id)) {
-      const queueResult = queueForApproval(actionEnvelope, validation.approval_reason);
-      return {
-        ok: false,
-        toolName,
-        text: formatApprovalRequiredResponse(queueResult),
-        raw_path: null,
-        exit_code: 0, // Not an error, just needs approval
-        approval_required: true,
-        action_id: actionEnvelope.action_id
-      };
-    }
+  const directiveGate = evaluateDirectiveGate({
+    toolName,
+    commandText: String(command || ''),
+    summary: `Execute: ${String(command || '').substring(0, 80)}${String(command || '').length > 80 ? '...' : ''}`,
+    skipDirectiveCheck
+  });
+  if (directiveGate) {
+    return directiveGate.payload;
   }
 
   return new Promise((resolve) => {
@@ -147,11 +166,23 @@ function execFileCompacted(file, args = [], options = {}) {
   const opts = (options && typeof options === 'object' ? options : {}) as Record<string, any>;
   const {
     toolName = `exec:${require('path').basename(file)}`,
-    execOptions = {}
+    execOptions = {},
+    skipDirectiveCheck = false
   } = opts;
 
+  const normalizedArgs = Array.isArray(args) ? args.map((arg) => String(arg)) : [];
+  const directiveGate = evaluateDirectiveGate({
+    toolName,
+    commandText: [String(file || ''), ...normalizedArgs].join(' ').trim(),
+    summary: `ExecuteFile: ${String(file || '')}`,
+    skipDirectiveCheck
+  });
+  if (directiveGate) {
+    return Promise.resolve(directiveGate.payload);
+  }
+
   return new Promise((resolve) => {
-    execFile(file, args, {
+    execFile(file, normalizedArgs, {
       encoding: 'utf8',
       maxBuffer: 10 * 1024 * 1024,
       ...execOptions
