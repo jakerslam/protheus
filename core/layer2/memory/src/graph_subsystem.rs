@@ -3,6 +3,26 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
+#[path = "graph_query_acceleration_paths.rs"]
+mod graph_query_acceleration_paths;
+#[path = "graph_query_acceleration_query.rs"]
+mod graph_query_acceleration_query;
+#[path = "graph_query_acceleration_runtime.rs"]
+mod graph_query_acceleration_runtime;
+#[path = "graph_query_acceleration_state.rs"]
+mod graph_query_acceleration_state;
+#[path = "graph_query_acceleration_types.rs"]
+pub mod graph_query_acceleration_types;
+
+pub use graph_query_acceleration_types::{
+    EntityEmbeddingHit, FederatedDispatchStep, FederatedQueryPlan, FederatedServiceProfile,
+    GraphPartitionPlan, GraphPartitionStrategy, GraphPathQuery, GraphPathResult, GraphQueryPlan,
+    GraphQueryPlanStep, GraphQueryResult, GraphQueryTerm, GraphSample, GraphSamplingQuery,
+    GraphSamplingStrategy, GraphTraversalAlgorithm, KnowledgeTriplePattern, NeighborhoodSummary,
+};
+
+use graph_query_acceleration_state::KnowledgeGraphAccelerationState;
+
 pub const TASK_FABRIC_NAMESPACE: &str = "task_fabric";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -243,6 +263,8 @@ pub struct KnowledgeGraphEdge {
 pub struct KnowledgeGraph {
     nodes: BTreeMap<String, KnowledgeGraphNode>,
     edges: Vec<KnowledgeGraphEdge>,
+    adjacency: BTreeMap<String, Vec<String>>,
+    acceleration: KnowledgeGraphAccelerationState,
 }
 
 fn knowledge_edge_id(source: &str, target: &str, relation: &KnowledgeRelationKind) -> String {
@@ -273,6 +295,13 @@ fn tokenize_query(text: &str) -> Vec<String> {
 }
 
 impl KnowledgeGraph {
+    fn link_adjacency(&mut self, source: &str, target: &str) {
+        let neighbours = self.adjacency.entry(source.to_string()).or_default();
+        if !neighbours.iter().any(|row| row == target) {
+            neighbours.push(target.to_string());
+        }
+    }
+
     pub fn upsert_entity(
         &mut self,
         entity_id: impl Into<String>,
@@ -315,7 +344,10 @@ impl KnowledgeGraph {
                 node.evidence_version_ids.push(version_id);
             }
         }
-        node.clone()
+        let out = node.clone();
+        self.adjacency.entry(entity_id).or_default();
+        self.acceleration.register_node(out.entity_id.as_str());
+        out
     }
 
     pub fn connect(
@@ -358,6 +390,10 @@ impl KnowledgeGraph {
             updated_at_ms: now,
         };
         self.edges.push(edge.clone());
+        self.link_adjacency(source_entity_id, target_entity_id);
+        self.link_adjacency(target_entity_id, source_entity_id);
+        self.acceleration
+            .register_edge(source_entity_id, target_entity_id, &edge.relation);
         Ok(edge)
     }
 
@@ -423,14 +459,7 @@ impl KnowledgeGraph {
             if depth >= max_depth || seen.len() >= max_entities.max(1) {
                 continue;
             }
-            for edge in self.edges.iter().filter(|edge| {
-                edge.source_entity_id == entity_id || edge.target_entity_id == entity_id
-            }) {
-                let next = if edge.source_entity_id == entity_id {
-                    edge.target_entity_id.clone()
-                } else {
-                    edge.source_entity_id.clone()
-                };
+            for next in self.adjacency.get(&entity_id).cloned().unwrap_or_default() {
                 if seen.insert(next.clone()) {
                     queue.push_back((next, depth + 1));
                 }
@@ -459,6 +488,9 @@ impl KnowledgeGraph {
     }
 }
 
+#[cfg(test)]
+#[path = "graph_query_acceleration_tests.rs"]
+mod graph_acceleration_tests;
 #[cfg(test)]
 #[path = "graph_subsystem_tests.rs"]
 mod knowledge_tests;
