@@ -50,6 +50,50 @@
       return !!(msg && msg.notice_action && msg.notice_action.busy === true);
     },
 
+    isTrustedExternalActionUrl: function(value) {
+      var raw = String(value || '').trim();
+      if (!raw) return false;
+      try {
+        var target = new URL(raw, window.location.href);
+        var host = String(target.hostname || '').trim().toLowerCase();
+        var sameHost = false;
+        try {
+          var local = new URL(window.location.href);
+          sameHost = String(target.host || '').trim().toLowerCase() === String(local.host || '').trim().toLowerCase();
+        } catch (_) {}
+        if (sameHost) return true;
+        return (
+          host === 'localhost' ||
+          host === '127.0.0.1' ||
+          host === '::1' ||
+          host === '[::1]' ||
+          host.indexOf('127.') === 0
+        );
+      } catch (_) {
+        return false;
+      }
+    },
+
+    openNoticeActionUrl: function(url) {
+      var target = String(url || '').trim();
+      if (!target) return false;
+      if (typeof window === 'undefined' || typeof window.open !== 'function') return false;
+      if (this.isTrustedExternalActionUrl(target)) {
+        window.open(target, '_blank', 'noopener,noreferrer');
+        return true;
+      }
+      InfringToast.confirm(
+        'Open External Link',
+        'Open this external URL?\n' + target,
+        function() {
+          try {
+            window.open(target, '_blank', 'noopener,noreferrer');
+          } catch (_) {}
+        }
+      );
+      return true;
+    },
+
     async triggerNoticeAction(msg) {
       var action = this.normalizeNoticeAction(msg && msg.notice_action ? msg.notice_action : null);
       if (!action) return;
@@ -111,10 +155,8 @@
             }
           }
         } else if (action.kind === 'open_url') {
-          if (typeof window !== 'undefined' && typeof window.open === 'function') {
-            window.open(action.url, '_blank', 'noopener,noreferrer');
-          }
-          if (msg) msg.notice_action = null;
+          var opened = this.openNoticeActionUrl(action.url);
+          if (opened && msg) msg.notice_action = null;
         }
       } catch (e) {
         var reason = e && e.message ? String(e.message) : 'unknown_error';

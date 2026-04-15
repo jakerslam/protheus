@@ -52,6 +52,7 @@ function agentsPage() {
     _agentFileContentSeq: 0,
     // -- Tool filters --
     toolFilters: { tool_allowlist: [], tool_blocklist: [] },
+    toolCatalog: [],
     toolFiltersLoading: false,
     _toolFiltersLoadSeq: 0,
     newAllowTool: '',

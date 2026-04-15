@@ -66,15 +66,45 @@
       return 0;
     },
 
+    prettifyToolLabel: function(value) {
+      var raw = String(value || '').trim();
+      if (!raw) return 'tool';
+      var normalized = raw
+        .replace(/[_-]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (!normalized) return 'tool';
+      return normalized
+        .split(' ')
+        .map(function(token) {
+          return token ? token.charAt(0).toUpperCase() + token.slice(1) : token;
+        })
+        .join(' ');
+    },
+
+    toolActionName: function(tool) {
+      var payload = this.toolInputPayload(tool);
+      if (!payload || typeof payload !== 'object') return '';
+      return String(
+        payload.action ||
+        payload.method ||
+        payload.operation ||
+        payload.op ||
+        ''
+      ).trim();
+    },
+
     toolDisplayName: function(tool) {
       if (!tool) return 'tool';
       if (this.isThoughtTool(tool)) return 'thought';
       var key = this.toolNameKey(tool);
+      var actionName = this.toolActionName(tool);
       switch (key) {
         case 'web_search':
         case 'search_web':
         case 'search':
         case 'web_query':
+        case 'batch_query':
           return 'Web search';
         case 'web_fetch':
         case 'browse':
@@ -109,8 +139,16 @@
           return 'List schedules';
         case 'session_rollback_last_turn':
           return 'Undo last turn';
+        case 'slack':
+          return actionName ? ('Slack ' + this.prettifyToolLabel(actionName)) : 'Slack';
+        case 'gmail':
+          return actionName ? ('Gmail ' + this.prettifyToolLabel(actionName)) : 'Gmail';
+        case 'github':
+          return actionName ? ('GitHub ' + this.prettifyToolLabel(actionName)) : 'GitHub';
+        case 'notion':
+          return actionName ? ('Notion ' + this.prettifyToolLabel(actionName)) : 'Notion';
         default:
-          return String(tool.name || 'tool');
+          return this.prettifyToolLabel(String(tool.name || 'tool'));
       }
     },
 

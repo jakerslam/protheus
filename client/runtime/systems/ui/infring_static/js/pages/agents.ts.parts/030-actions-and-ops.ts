@@ -261,6 +261,52 @@
     },
 
     // ── Tool filters ──
+    normalizeToolFilterName(value) {
+      var raw = String(value || '').trim().toLowerCase();
+      if (!raw) return '';
+      return raw.replace(/[\s-]+/g, '_');
+    },
+
+    normalizeToolFilterList(list) {
+      var rows = Array.isArray(list) ? list : [];
+      var out = [];
+      var seen = {};
+      for (var i = 0; i < rows.length; i += 1) {
+        var key = this.normalizeToolFilterName(rows[i]);
+        if (!key || seen[key]) continue;
+        seen[key] = true;
+        out.push(key);
+      }
+      return out;
+    },
+
+    catalogToolIdsFromFilters(filters) {
+      var payload = filters && typeof filters === 'object' ? filters : {};
+      var variants = [];
+      if (Array.isArray(payload.available_tools)) variants = variants.concat(payload.available_tools);
+      if (Array.isArray(payload.tools)) variants = variants.concat(payload.tools);
+      if (Array.isArray(payload.catalog)) variants = variants.concat(payload.catalog);
+      var out = [];
+      for (var i = 0; i < variants.length; i += 1) {
+        var row = variants[i];
+        if (typeof row === 'string') {
+          out.push(row);
+          continue;
+        }
+        if (!row || typeof row !== 'object') continue;
+        out.push(
+          row.id,
+          row.name,
+          row.tool,
+          row.tool_name
+        );
+      }
+      if (!out.length && this.detailAgent && Array.isArray(this.detailAgent.tools)) {
+        out = out.concat(this.detailAgent.tools);
+      }
+      return this.normalizeToolFilterList(out);
+    },
+
     async loadToolFilters() {
       var agentId = this.activeDetailAgentId();
       if (!agentId) return;
@@ -270,43 +316,79 @@
       try {
         var filters = await InfringAPI.get('/api/agents/' + agentId + '/tools');
         if (seq !== Number(this._toolFiltersLoadSeq || 0) || agentId !== this.activeDetailAgentId()) return;
+        var allowList = this.normalizeToolFilterList(filters && filters.tool_allowlist);
+        var blockList = this.normalizeToolFilterList(filters && filters.tool_blocklist);
         this.toolFilters = {
-          tool_allowlist: Array.isArray(filters && filters.tool_allowlist) ? filters.tool_allowlist.slice() : [],
-          tool_blocklist: Array.isArray(filters && filters.tool_blocklist) ? filters.tool_blocklist.slice() : []
+          tool_allowlist: allowList,
+          tool_blocklist: blockList
         };
+        this.toolCatalog = this.catalogToolIdsFromFilters(filters);
       } catch(e) {
         if (seq !== Number(this._toolFiltersLoadSeq || 0)) return;
         this.toolFilters = { tool_allowlist: [], tool_blocklist: [] };
+        this.toolCatalog = [];
       } finally {
         if (seq === Number(this._toolFiltersLoadSeq || 0)) this.toolFiltersLoading = false;
       }
     },
 
     addAllowTool() {
-      var t = this.newAllowTool.trim();
+      var t = this.normalizeToolFilterName(this.newAllowTool);
       if (t && this.toolFilters.tool_allowlist.indexOf(t) === -1) {
         this.toolFilters.tool_allowlist.push(t);
+        this.toolFilters.tool_blocklist = this.toolFilters.tool_blocklist.filter(function(item) { return item !== t; });
         this.newAllowTool = '';
         this.saveToolFilters();
       }
     },
 
     removeAllowTool(tool) {
-      this.toolFilters.tool_allowlist = this.toolFilters.tool_allowlist.filter(function(t) { return t !== tool; });
+      var normalized = this.normalizeToolFilterName(tool);
+      this.toolFilters.tool_allowlist = this.toolFilters.tool_allowlist.filter(function(t) { return t !== normalized; });
       this.saveToolFilters();
     },
 
     addBlockTool() {
-      var t = this.newBlockTool.trim();
+      var t = this.normalizeToolFilterName(this.newBlockTool);
       if (t && this.toolFilters.tool_blocklist.indexOf(t) === -1) {
         this.toolFilters.tool_blocklist.push(t);
+        this.toolFilters.tool_allowlist = this.toolFilters.tool_allowlist.filter(function(item) { return item !== t; });
         this.newBlockTool = '';
         this.saveToolFilters();
       }
     },
 
     removeBlockTool(tool) {
-      this.toolFilters.tool_blocklist = this.toolFilters.tool_blocklist.filter(function(t) { return t !== tool; });
+      var normalized = this.normalizeToolFilterName(tool);
+      this.toolFilters.tool_blocklist = this.toolFilters.tool_blocklist.filter(function(t) { return t !== normalized; });
+      this.saveToolFilters();
+    },
+
+    enableAllCatalogTools() {
+      var catalog = this.normalizeToolFilterList(this.toolCatalog);
+      if (!catalog.length) {
+        InfringToast.warn('No runtime tool catalog is available yet.');
+        return;
+      }
+      this.toolFilters.tool_allowlist = catalog.slice();
+      this.toolFilters.tool_blocklist = [];
+      this.saveToolFilters();
+    },
+
+    disableAllCatalogTools() {
+      var catalog = this.normalizeToolFilterList(this.toolCatalog);
+      if (!catalog.length) {
+        InfringToast.warn('No runtime tool catalog is available yet.');
+        return;
+      }
+      this.toolFilters.tool_allowlist = [];
+      this.toolFilters.tool_blocklist = catalog.slice();
+      this.saveToolFilters();
+    },
+
+    resetToolFilters() {
+      this.toolFilters.tool_allowlist = [];
+      this.toolFilters.tool_blocklist = [];
       this.saveToolFilters();
     },
 

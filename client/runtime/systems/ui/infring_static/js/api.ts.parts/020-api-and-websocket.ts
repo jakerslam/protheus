@@ -30,6 +30,19 @@
     return true;
   }
 
+  function isTerminalAuthCloseEvent(evt) {
+    var code = Number(evt && evt.code ? evt.code : 0);
+    var reason = String(evt && evt.reason ? evt.reason : '').toLowerCase();
+    if (code === 1008 || code === 4008 || code === 4401 || code === 4403) return true;
+    return (
+      reason.indexOf('unauthorized') >= 0 ||
+      reason.indexOf('auth') >= 0 ||
+      reason.indexOf('token') >= 0 ||
+      reason.indexOf('pairing') >= 0 ||
+      reason.indexOf('forbidden') >= 0
+    );
+  }
+
   function wsConnect(agentId, callbacks) {
     wsDisconnect(false);
     _wsCallbacks = callbacks || {};
@@ -67,6 +80,20 @@
         _ws = null;
         if (_wsManualDisconnect) {
           if (_wsCallbacks.onClose && shouldEmitWsSignal('close:manual:' + String(e.code || 0), 1200)) {
+            _wsCallbacks.onClose();
+          }
+          return;
+        }
+        if (isTerminalAuthCloseEvent(e)) {
+          _wsAgentId = null;
+          setConnectionState('disconnected');
+          if (_wsCallbacks.onError && shouldEmitWsSignal('authclose:' + String(e.code || 0), 1200)) {
+            _wsCallbacks.onError({
+              code: Number(e && e.code ? e.code : 0),
+              reason: String(e && e.reason ? e.reason : '')
+            });
+          }
+          if (_wsCallbacks.onClose && shouldEmitWsSignal('close:auth:' + String(e.code || 0), 1200)) {
             _wsCallbacks.onClose();
           }
           return;
