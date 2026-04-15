@@ -116,36 +116,36 @@
       if (typeof allowExternal === 'boolean') this.allowExternalEmbedUrls = allowExternal;
     },
 
-    focusTopbarSearchInput() {
+    focusTaskbarSearchInput() {
       var self = this;
-      if (this._topbarSearchFocusTimer) {
-        clearTimeout(this._topbarSearchFocusTimer);
-        this._topbarSearchFocusTimer = 0;
+      if (this._taskbarSearchFocusTimer) {
+        clearTimeout(this._taskbarSearchFocusTimer);
+        this._taskbarSearchFocusTimer = 0;
       }
-      this._topbarSearchFocusTimer = window.setTimeout(function() {
-        var input = document.getElementById('topbar-search-input');
+      this._taskbarSearchFocusTimer = window.setTimeout(function() {
+        var input = document.getElementById('taskbar-search-input');
         if (input && typeof input.focus === 'function') {
           input.focus({ preventScroll: true });
           if (typeof input.select === 'function') input.select();
         }
-        self._topbarSearchFocusTimer = 0;
+        self._taskbarSearchFocusTimer = 0;
       }, 40);
     },
 
-    openTopbarSearch() {
-      this.topbarSearchOpen = false;
+    openTaskbarSearch() {
+      this.taskbarSearchOpen = false;
     },
 
-    closeTopbarSearch() {
-      this.topbarSearchOpen = false;
-      if (this._topbarSearchFocusTimer) {
-        clearTimeout(this._topbarSearchFocusTimer);
-        this._topbarSearchFocusTimer = 0;
+    closeTaskbarSearch() {
+      this.taskbarSearchOpen = false;
+      if (this._taskbarSearchFocusTimer) {
+        clearTimeout(this._taskbarSearchFocusTimer);
+        this._taskbarSearchFocusTimer = 0;
       }
     },
 
-    toggleTopbarSearch() {
-      this.topbarSearchOpen = false;
+    toggleTaskbarSearch() {
+      this.taskbarSearchOpen = false;
     },
 
     async checkOnboarding() {

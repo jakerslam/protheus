@@ -31,6 +31,7 @@
       this.setTheme(next);
     },
     toggleSidebar() {
+      if (typeof this.shouldSuppressSidebarToggle === 'function' && this.shouldSuppressSidebarToggle()) return;
       var nextCollapsed = !this.sidebarCollapsed;
       var resolveMessagesHost = function() {
         var nodes = document.querySelectorAll('#messages');
@@ -230,7 +231,7 @@
     runtimeFacadeTitle() {
       return this.runtimeFacadeLabel();
     },
-    topbarClockParts() {
+    taskbarClockParts() {
       var tick = Number(this.clockTick || Date.now());
       var dt = new Date(tick);
       if (!Number.isFinite(dt.getTime())) dt = new Date();
@@ -250,14 +251,14 @@
         meridiem: suffix
       };
     },
-    topbarClockMainLabel() {
-      return this.topbarClockParts().main;
+    taskbarClockMainLabel() {
+      return this.taskbarClockParts().main;
     },
-    topbarClockMeridiemLabel() {
-      return this.topbarClockParts().meridiem;
+    taskbarClockMeridiemLabel() {
+      return this.taskbarClockParts().meridiem;
     },
-    topbarClockLabel() {
-      var parts = this.topbarClockParts();
+    taskbarClockLabel() {
+      var parts = this.taskbarClockParts();
       return parts.main + ' ' + parts.meridiem;
     },
     toggleAgentChatsSidebar() {

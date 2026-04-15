@@ -21,7 +21,6 @@
       if (beforeRects) this.animateTaskbarReorderFromRects(key, beforeRects);
       return true;
     },
-
     handleTaskbarReorderPointerDown(group, ev) {
       if (String(this.taskbarDragGroup || '').trim()) return;
       if (!ev || Number(ev.button) !== 0) return;
@@ -44,7 +43,6 @@
         }, 180);
       }
     },
-
     cancelTaskbarDragHold() {
       if (this._taskbarDragHoldTimer) {
         try { clearTimeout(this._taskbarDragHoldTimer); } catch(_) {}
@@ -57,13 +55,11 @@
         this._taskbarDragArmedItem = '';
       }
     },
-
     forceTaskbarMoveDragEffect(ev) {
       if (!ev || !ev.dataTransfer) return;
       try { ev.dataTransfer.effectAllowed = 'move'; } catch(_) {}
       try { ev.dataTransfer.dropEffect = 'move'; } catch(_) {}
     },
-
     setTaskbarDragBodyActive(active) {
       if (typeof document === 'undefined' || !document.body || !document.body.classList) return;
       if (active) {
@@ -72,7 +68,6 @@
         document.body.classList.remove('taskbar-drag-active');
       }
     },
-
     handleTaskbarReorderDragStart(group, ev) {
       var key = String(group || '').trim().toLowerCase();
       if (key !== 'right') key = 'left';
@@ -145,11 +140,9 @@
       if (target && target.classList) target.classList.add('dragging');
       this.setTaskbarDragBodyActive(true);
     },
-
     handleTaskbarReorderDragMove(ev) {
       this.forceTaskbarMoveDragEffect(ev);
     },
-
     handleTaskbarReorderDragEnter(group, ev) {
       var key = String(group || '').trim().toLowerCase();
       if (key !== 'right') key = 'left';
@@ -157,7 +150,6 @@
       if (ev && typeof ev.preventDefault === 'function') ev.preventDefault();
       this.forceTaskbarMoveDragEffect(ev);
     },
-
     handleTaskbarReorderDragOver(group, ev) {
       var key = String(group || '').trim().toLowerCase();
       if (key !== 'right') key = 'left';
@@ -179,7 +171,6 @@
       }
       this.applyTaskbarReorder(key, dragItem, targetItem, preferAfter, true);
     },
-
     handleTaskbarReorderDrop(group, ev) {
       var key = String(group || '').trim().toLowerCase();
       if (key !== 'right') key = 'left';
@@ -200,7 +191,6 @@
         } catch(_) {}
       }
     },
-
     handleTaskbarDragEnd() {
       var key = String(this.taskbarDragGroup || '').trim();
       if (key) this.persistTaskbarReorder(key);
@@ -218,14 +208,247 @@
         } catch(_) {}
       }
     },
-
+    chatSidebarSnapDefinitions() {
+      return [
+        { id: 'left-top', x: 0, y: 0 },
+        { id: 'left-middle', x: 0, y: 0.5 },
+        { id: 'left-bottom', x: 0, y: 1 }
+      ];
+    },
+    chatSidebarSnapDefinitionById(id) {
+      var key = String(id || '').trim().toLowerCase();
+      var defs = this.chatSidebarSnapDefinitions();
+      for (var i = 0; i < defs.length; i += 1) {
+        var row = defs[i];
+        if (!row || row.id !== key) continue;
+        return row;
+      }
+      return defs[1] || defs[0] || { id: 'left-middle', x: 0, y: 0.5 };
+    },
+    chatSidebarAnchorForSnapId(id) {
+      var snap = this.chatSidebarSnapDefinitionById(id);
+      var wallGap = this.overlayWallGapPx();
+      var minLeft = wallGap;
+      var maxLeft = this.chatOverlayViewportWidth() - wallGap - this.readChatSidebarWidth() - this.readChatSidebarPulltabWidth();
+      if (!Number.isFinite(maxLeft) || maxLeft < minLeft) maxLeft = minLeft;
+      var bounds = this.chatOverlayVerticalBounds();
+      var height = this.readChatSidebarHeight();
+      var minTop = Number(bounds.minTop || 0);
+      var maxTop = Number(bounds.maxBottom || 0) - height;
+      if (!Number.isFinite(maxTop) || maxTop < minTop) maxTop = minTop;
+      var nx = Number(snap && snap.x);
+      var ny = Number(snap && snap.y);
+      if (!Number.isFinite(nx)) nx = 0;
+      if (!Number.isFinite(ny)) ny = 0.5;
+      nx = Math.max(0, Math.min(1, nx));
+      ny = Math.max(0, Math.min(1, ny));
+      return {
+        id: String(snap && snap.id || 'left-middle'),
+        left: this.chatSidebarClampLeft(minLeft + ((maxLeft - minLeft) * nx)),
+        top: this.chatSidebarClampTop(minTop + ((maxTop - minTop) * ny))
+      };
+    },
+    chatSidebarNearestSnapId(leftRaw, topRaw) {
+      var defs = this.chatSidebarSnapDefinitions();
+      if (!defs.length) return 'left-middle';
+      var left = this.chatSidebarClampLeft(leftRaw);
+      var top = this.chatSidebarClampTop(topRaw);
+      var bestId = String(defs[0].id || 'left-middle');
+      var bestDist = Number.POSITIVE_INFINITY;
+      for (var i = 0; i < defs.length; i += 1) {
+        var row = defs[i];
+        if (!row) continue;
+        var anchor = this.chatSidebarAnchorForSnapId(row.id);
+        var dx = Number(left || 0) - Number(anchor.left || 0);
+        var dy = Number(top || 0) - Number(anchor.top || 0);
+        var dist = (dx * dx) + (dy * dy);
+        if (!Number.isFinite(dist) || dist >= bestDist) continue;
+        bestDist = dist;
+        bestId = String(row.id || bestId);
+      }
+      return bestId || 'left-middle';
+    },
+    chatSidebarResolvedLeftFromRatio() {
+      var ratio = 0;
+      try {
+        var raw = Number(localStorage.getItem('infring-chat-sidebar-placement-x'));
+        if (Number.isFinite(raw)) ratio = Math.max(0, Math.min(1, raw));
+      } catch(_) {}
+      if (Number.isFinite(this.chatSidebarPlacementX)) ratio = Math.max(0, Math.min(1, Number(this.chatSidebarPlacementX)));
+      var wallGap = this.overlayWallGapPx();
+      var minLeft = wallGap;
+      var maxLeft = this.chatOverlayViewportWidth() - wallGap - this.readChatSidebarWidth() - this.readChatSidebarPulltabWidth();
+      if (!Number.isFinite(maxLeft) || maxLeft < minLeft) maxLeft = minLeft;
+      return this.chatSidebarClampLeft(minLeft + ((maxLeft - minLeft) * ratio));
+    },
+    chatSidebarResolvedTopFromRatio() {
+      var bounds = this.chatOverlayVerticalBounds();
+      var height = this.readChatSidebarHeight();
+      var minTop = Number(bounds.minTop || 0);
+      var maxTop = Number(bounds.maxBottom || 0) - height;
+      if (!Number.isFinite(maxTop) || maxTop < minTop) maxTop = minTop;
+      var ratio = Number(this.chatSidebarPlacementY);
+      if (!Number.isFinite(ratio)) ratio = 0.5;
+      ratio = Math.max(0, Math.min(1, ratio));
+      return this.chatSidebarClampTop(minTop + ((maxTop - minTop) * ratio));
+    },
+    chatSidebarActiveSnapId() {
+      if (this.chatSidebarDragActive) {
+        return this.chatSidebarNearestSnapId(this.chatSidebarDragLeft, this.chatSidebarDragTop);
+      }
+      var storedId = String(this.chatSidebarPlacementAnchorId || '').trim().toLowerCase();
+      if (!storedId) {
+        try {
+          var raw = String(localStorage.getItem('infring-chat-sidebar-placement-anchor') || '').trim().toLowerCase();
+          if (raw) storedId = raw;
+        } catch(_) {}
+      }
+      if (storedId) return this.chatSidebarSnapDefinitionById(storedId).id;
+      var fallbackLeft = this.chatSidebarClampLeft(this.chatSidebarResolvedLeftFromRatio());
+      var fallbackTop = this.chatSidebarClampTop(this.chatSidebarResolvedTopFromRatio());
+      return this.chatSidebarNearestSnapId(fallbackLeft, fallbackTop);
+    },
+    chatSidebarPersistSnapId(id) {
+      var snap = this.chatSidebarSnapDefinitionById(id);
+      this.chatSidebarPlacementAnchorId = String(snap && snap.id || 'left-middle');
+      try {
+        localStorage.setItem('infring-chat-sidebar-placement-anchor', this.chatSidebarPlacementAnchorId);
+      } catch(_) {}
+    },
+    suspendChatSidebarNativeDraggableNodes() {
+      this._chatSidebarSuppressedDraggables = [];
+      var root = this.readChatSidebarElement();
+      if (!root || typeof root.querySelectorAll !== 'function') return;
+      var nodes = root.querySelectorAll('[draggable="true"]');
+      for (var i = 0; i < nodes.length; i += 1) {
+        var node = nodes[i];
+        if (!node || typeof node.getAttribute !== 'function' || typeof node.setAttribute !== 'function') continue;
+        this._chatSidebarSuppressedDraggables.push({ node: node, value: String(node.getAttribute('draggable') || '') });
+        try { node.setAttribute('draggable', 'false'); } catch(_) {}
+      }
+    },
+    restoreChatSidebarNativeDraggableNodes() {
+      var list = Array.isArray(this._chatSidebarSuppressedDraggables) ? this._chatSidebarSuppressedDraggables : [];
+      for (var i = 0; i < list.length; i += 1) {
+        var row = list[i];
+        if (!row || !row.node || typeof row.node.setAttribute !== 'function') continue;
+        try { row.node.setAttribute('draggable', row.value || 'true'); } catch(_) {}
+      }
+      this._chatSidebarSuppressedDraggables = [];
+    },
     readChatMapWidth() {
       var node = this.readChatMapElement();
       var width = Number(node && node.offsetWidth || 0);
       if (Number.isFinite(width) && width > 0) return width;
       return 76;
     },
-
+    chatMapSnapDefinitions() {
+      return [
+        { id: 'right-top', x: 1, y: 0 },
+        { id: 'right-middle', x: 1, y: 0.5 },
+        { id: 'right-bottom', x: 1, y: 1 }
+      ];
+    },
+    chatMapSnapDefinitionById(id) {
+      var key = String(id || '').trim().toLowerCase();
+      var defs = this.chatMapSnapDefinitions();
+      for (var i = 0; i < defs.length; i += 1) {
+        var row = defs[i];
+        if (!row || row.id !== key) continue;
+        return row;
+      }
+      return defs[1] || defs[0] || { id: 'right-middle', x: 1, y: 0.5 };
+    },
+    chatMapAnchorForSnapId(id) {
+      var snap = this.chatMapSnapDefinitionById(id);
+      var wallGap = this.overlayWallGapPx();
+      var minLeft = wallGap;
+      var maxLeft = this.chatOverlayViewportWidth() - wallGap - this.readChatMapWidth();
+      if (!Number.isFinite(maxLeft) || maxLeft < minLeft) maxLeft = minLeft;
+      var bounds = this.chatOverlayVerticalBounds();
+      var height = this.readChatMapHeight();
+      var minTop = Number(bounds.minTop || 0);
+      var maxTop = Number(bounds.maxBottom || 0) - height;
+      if (!Number.isFinite(maxTop) || maxTop < minTop) maxTop = minTop;
+      var nx = Number(snap && snap.x);
+      var ny = Number(snap && snap.y);
+      if (!Number.isFinite(nx)) nx = 1;
+      if (!Number.isFinite(ny)) ny = 0.5;
+      nx = Math.max(0, Math.min(1, nx));
+      ny = Math.max(0, Math.min(1, ny));
+      return {
+        id: String(snap && snap.id || 'right-middle'),
+        left: this.chatMapClampLeft(minLeft + ((maxLeft - minLeft) * nx)),
+        top: this.chatMapClampTop(minTop + ((maxTop - minTop) * ny))
+      };
+    },
+    chatMapNearestSnapId(leftRaw, topRaw) {
+      var defs = this.chatMapSnapDefinitions();
+      if (!defs.length) return 'right-middle';
+      var left = this.chatMapClampLeft(leftRaw);
+      var top = this.chatMapClampTop(topRaw);
+      var bestId = String(defs[0].id || 'right-middle');
+      var bestDist = Number.POSITIVE_INFINITY;
+      for (var i = 0; i < defs.length; i += 1) {
+        var row = defs[i];
+        if (!row) continue;
+        var anchor = this.chatMapAnchorForSnapId(row.id);
+        var dx = Number(left || 0) - Number(anchor.left || 0);
+        var dy = Number(top || 0) - Number(anchor.top || 0);
+        var dist = (dx * dx) + (dy * dy);
+        if (!Number.isFinite(dist) || dist >= bestDist) continue;
+        bestDist = dist;
+        bestId = String(row.id || bestId);
+      }
+      return bestId || 'right-middle';
+    },
+    chatMapResolvedLeftFromRatio() {
+      var ratio = 1;
+      try {
+        var raw = Number(localStorage.getItem('infring-chat-map-placement-x'));
+        if (Number.isFinite(raw)) ratio = Math.max(0, Math.min(1, raw));
+      } catch(_) {}
+      if (Number.isFinite(this.chatMapPlacementX)) ratio = Math.max(0, Math.min(1, Number(this.chatMapPlacementX)));
+      var wallGap = this.overlayWallGapPx();
+      var minLeft = wallGap;
+      var maxLeft = this.chatOverlayViewportWidth() - wallGap - this.readChatMapWidth();
+      if (!Number.isFinite(maxLeft) || maxLeft < minLeft) maxLeft = minLeft;
+      return this.chatMapClampLeft(minLeft + ((maxLeft - minLeft) * ratio));
+    },
+    chatMapResolvedTopFromRatio() {
+      var bounds = this.chatOverlayVerticalBounds();
+      var height = this.readChatMapHeight();
+      var minTop = Number(bounds.minTop || 0);
+      var maxTop = Number(bounds.maxBottom || 0) - height;
+      if (!Number.isFinite(maxTop) || maxTop < minTop) maxTop = minTop;
+      var ratio = Number(this.chatMapPlacementY);
+      if (!Number.isFinite(ratio)) ratio = 0.38;
+      ratio = Math.max(0, Math.min(1, ratio));
+      return this.chatMapClampTop(minTop + ((maxTop - minTop) * ratio));
+    },
+    chatMapActiveSnapId() {
+      if (this.chatMapDragActive) {
+        return this.chatMapNearestSnapId(this.chatMapDragLeft, this.chatMapDragTop);
+      }
+      var storedId = String(this.chatMapPlacementAnchorId || '').trim().toLowerCase();
+      if (!storedId) {
+        try {
+          var raw = String(localStorage.getItem('infring-chat-map-placement-anchor') || '').trim().toLowerCase();
+          if (raw) storedId = raw;
+        } catch(_) {}
+      }
+      if (storedId) return this.chatMapSnapDefinitionById(storedId).id;
+      var fallbackLeft = this.chatMapClampLeft(this.chatMapResolvedLeftFromRatio());
+      var fallbackTop = this.chatMapClampTop(this.chatMapResolvedTopFromRatio());
+      return this.chatMapNearestSnapId(fallbackLeft, fallbackTop);
+    },
+    chatMapPersistSnapId(id) {
+      var snap = this.chatMapSnapDefinitionById(id);
+      this.chatMapPlacementAnchorId = String(snap && snap.id || 'right-middle');
+      try {
+        localStorage.setItem('infring-chat-map-placement-anchor', this.chatMapPlacementAnchorId);
+      } catch(_) {}
+    },
     chatMapClampLeft(leftRaw) {
       var wallGap = this.overlayWallGapPx();
       var minLeft = wallGap;
@@ -235,21 +458,16 @@
       if (!Number.isFinite(left)) left = maxLeft;
       return Math.max(minLeft, Math.min(maxLeft, left));
     },
-
     chatMapResolvedLeft() {
       if (this.chatMapDragActive) return this.chatMapClampLeft(this.chatMapDragLeft);
-      var ratio = 1;
-      try {
-        var raw = Number(localStorage.getItem('infring-chat-map-placement-x'));
-        if (Number.isFinite(raw)) ratio = Math.max(0, Math.min(1, raw));
-      } catch(_) {}
-      var wallGap = this.overlayWallGapPx();
-      var minLeft = wallGap;
-      var maxLeft = this.chatOverlayViewportWidth() - wallGap - this.readChatMapWidth();
-      if (!Number.isFinite(maxLeft) || maxLeft < minLeft) maxLeft = minLeft;
-      return this.chatMapClampLeft(minLeft + ((maxLeft - minLeft) * ratio));
+      var anchor = this.chatMapAnchorForSnapId(this.chatMapActiveSnapId());
+      return this.chatMapClampLeft(anchor.left);
     },
-
+    chatMapResolvedTop() {
+      if (this.chatMapDragActive) return this.chatMapClampTop(this.chatMapDragTop);
+      var anchor = this.chatMapAnchorForSnapId(this.chatMapActiveSnapId());
+      return this.chatMapClampTop(anchor.top);
+    },
     chatMapPersistPlacementFromLeft(leftRaw) {
       var wallGap = this.overlayWallGapPx();
       var minLeft = wallGap;
@@ -258,13 +476,13 @@
       var left = this.chatMapClampLeft(leftRaw);
       var ratio = maxLeft > minLeft ? (left - minLeft) / (maxLeft - minLeft) : 1;
       ratio = Math.max(0, Math.min(1, ratio));
+      this.chatMapPlacementX = ratio;
       try {
         localStorage.setItem('infring-chat-map-placement-x', String(ratio));
       } catch(_) {}
     },
-
     chatMapContainerStyle() {
-      if (this.page !== 'chat') return '';
+      if (!this.chatMapPlacementEnabled()) return '';
       var top = this.chatMapResolvedTop();
       var left = this.chatMapResolvedLeft();
       var height = this.readChatMapHeight();
@@ -278,9 +496,8 @@
         'transition:top ' + Math.max(0, Math.round(durationMs)) + 'ms var(--ease-smooth), left ' + Math.max(0, Math.round(durationMs)) + 'ms var(--ease-smooth);'
       );
     },
-
     startChatMapPointerDrag(ev) {
-      if (!ev) return;
+      if (!ev || !this.chatMapPlacementEnabled()) return;
       var button = Number(ev.button);
       if (Number.isFinite(button) && button > 0) return;
       var target = ev && ev.target ? ev.target : null;
@@ -300,9 +517,8 @@
         }
       } catch(_) {}
     },
-
     handleChatMapPointerMove(ev) {
-      if (!this._chatMapPointerActive) return;
+      if (!this._chatMapPointerActive || !this.chatMapPlacementEnabled()) return;
       var nextX = Number(ev.clientX || 0);
       var nextY = Number(ev.clientY || 0);
       var movedX = Math.abs(nextX - Number(this._chatMapPointerStartX || 0));
@@ -319,7 +535,6 @@
       this.chatMapDragTop = this.chatMapClampTop(candidateTop);
       if (ev.cancelable && typeof ev.preventDefault === 'function') ev.preventDefault();
     },
-
     endChatMapPointerDrag() {
       if (!this._chatMapPointerActive) return;
       this._chatMapPointerActive = false;
@@ -331,9 +546,12 @@
       this._chatMapPointerMoved = false;
       var finalLeft = this.chatMapClampLeft(this.chatMapDragLeft);
       var finalTop = this.chatMapClampTop(this.chatMapDragTop);
-      this.chatMapDragLeft = finalLeft;
-      this.chatMapDragTop = finalTop;
-      this.chatMapPersistPlacementFromLeft(finalLeft);
-      this.chatMapPersistPlacementFromTop(finalTop);
+      var snapId = this.chatMapNearestSnapId(finalLeft, finalTop);
+      var snap = this.chatMapAnchorForSnapId(snapId);
+      this.chatMapDragLeft = this.chatMapClampLeft(snap.left);
+      this.chatMapDragTop = this.chatMapClampTop(snap.top);
+      this.chatMapPersistSnapId(snapId);
+      this.chatMapPersistPlacementFromLeft(this.chatMapDragLeft);
+      this.chatMapPersistPlacementFromTop(this.chatMapDragTop);
       this.chatMapDragActive = false;
     },

@@ -1,16 +1,20 @@
-  top: calc(100% - var(--sidebar-pulltab-cut));
+  top: calc(100% - var(--pulltab-cut));
   transform: translate(-45%, -50%);
 }
 
-.sidebar-pulltab:hover {
-  color: var(--text);
-  background: var(--sidebar-bg, var(--chrome-bg));
-}
-
-.sidebar-pulltab {
+.overlay-pulltab-object:hover,
+.sidebar-pulltab:hover,
+.drag-bar-pulltab:hover {
   color: var(--text);
 }
 
+.overlay-pulltab-object,
+.sidebar-pulltab,
+.drag-bar-pulltab {
+  color: var(--text);
+}
+
+.overlay-pulltab-object-icon,
 .sidebar-pulltab-icon {
   width: 14px;
   height: 14px;
@@ -37,7 +41,7 @@
 
 /* Page wrapper divs (rendered by x-if) must fill the column
    and be flex containers so .page-body can scroll. */
-.main-content > div:not(.global-topbar):not(.main-pointer-fx-layer) {
+.main-content > div:not(.global-taskbar):not(.main-pointer-fx-layer) {
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -235,8 +239,8 @@ body[data-theme='dark'] .dock-tile.second-neighbor-hover {
       color-mix(in srgb, #000 58%, transparent);
 }
 
-/* Universal topbar should always stay standard height. */
-.main-content > .global-topbar {
+/* Universal taskbar should always stay standard height. */
+.main-content > .global-taskbar {
   flex: 0 0 auto;
   min-height: 46px;
   overflow: visible;

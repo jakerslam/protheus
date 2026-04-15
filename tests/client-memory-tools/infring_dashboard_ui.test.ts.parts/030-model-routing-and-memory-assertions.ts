@@ -275,7 +275,7 @@ if (parseOnly) {
   assertDashboardInlineScriptsParse();
   assertDashboardBuildVersionFresh();
   assertDashboardVersionRefreshUsesApiVersion();
-  assertTopbarHeroSystemMenu();
+  assertTaskbarHeroSystemMenu();
   assertDashboardHostOverlaysLiveVersion();
 } else if (contract) {
   runContract(contract);

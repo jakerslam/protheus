@@ -266,13 +266,23 @@
   --bottom-dock-z-index: 2147483000;
   --bottom-dock-ghost-z-index: 2147483600;
   --bottom-dock-preview-z-index: 2147483500;
-  --overlay-surface-border: color-mix(in srgb, #fff 24%, transparent);
-  --overlay-surface-background: transparent;
-  --overlay-surface-shadow:
+  --overlay-shared-surface-border: color-mix(in srgb, #fff 24%, transparent);
+  --overlay-shared-surface-background: transparent;
+  --overlay-shared-surface-radius: 18px;
+  --overlay-wall-gap: 16px;
+  --overlay-shared-surface-shadow:
     -6px 0 12px -14px rgba(0, 0, 0, 0.32),
     6px 0 12px -14px rgba(0, 0, 0, 0.32),
     0 10px 18px -18px rgba(0, 0, 0, 0.55),
     0 2px 6px rgba(0, 0, 0, 0.2);
+  --overlay-shared-surface-blur: 6px;
+  --overlay-shared-surface-saturate: 1.05;
+  --overlay-surface-border: var(--overlay-shared-surface-border);
+  --overlay-surface-background: var(--overlay-shared-surface-background);
+  --overlay-surface-radius: var(--overlay-shared-surface-radius);
+  --overlay-surface-shadow: var(--overlay-shared-surface-shadow);
+  --overlay-surface-blur: var(--overlay-shared-surface-blur);
+  --overlay-surface-saturate: var(--overlay-shared-surface-saturate);
   --bottom-dock-icon-emphasis-main: 0.15;
   --bottom-dock-icon-emphasis-neighbor: calc(var(--bottom-dock-icon-emphasis-main) / 3);
   --bottom-dock-icon-emphasis-second-neighbor: calc(var(--bottom-dock-icon-emphasis-main) / 9);

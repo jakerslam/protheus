@@ -83,7 +83,7 @@
   transition: all var(--transition-fast);
 }
 
-.topbar-agent-indicator {
+.taskbar-agent-indicator {
   height: 30px;
   min-height: 30px;
   box-sizing: border-box;
@@ -95,15 +95,15 @@
   border-color: transparent !important;
 }
 
-.topbar-agent-indicator:hover {
+.taskbar-agent-indicator:hover {
   border-color: transparent !important;
 }
 
-.topbar-agent-indicator::before {
+.taskbar-agent-indicator::before {
   display: none;
 }
 
-.topbar-agent-indicator-icon {
+.taskbar-agent-indicator-icon {
   width: 14px;
   height: 14px;
   display: inline-flex;
@@ -113,7 +113,7 @@
   flex-shrink: 0;
 }
 
-.topbar-agent-indicator-icon svg {
+.taskbar-agent-indicator-icon svg {
   width: 14px;
   height: 14px;
   fill: none;
@@ -123,7 +123,7 @@
   stroke-linejoin: round;
 }
 
-.topbar-agent-indicator-text {
+.taskbar-agent-indicator-text {
   display: inline-flex;
   align-items: center;
   font-variant-numeric: tabular-nums;

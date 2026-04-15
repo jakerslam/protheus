@@ -59,6 +59,47 @@
     _chatSidebarFlipDurationMs: 240,
     _chatSidebarFlipRaf: 0,
     _chatSidebarLastSnapshot: null,
+    chatSidebarDragActive: false,
+    chatSidebarDragLeft: 0,
+    chatSidebarDragTop: 0,
+    chatSidebarPlacementY: (() => {
+      try {
+        var raw = Number(localStorage.getItem('infring-chat-sidebar-placement-y'));
+        if (Number.isFinite(raw)) return Math.max(0, Math.min(1, raw));
+      } catch(_) {}
+      return 0.5;
+    })(),
+    _chatSidebarMoveDurationMs: 280,
+    _chatSidebarPointerActive: false,
+    _chatSidebarPointerMoved: false,
+    _chatSidebarPointerFromPulltab: false,
+    _chatSidebarPointerStartX: 0,
+    _chatSidebarPointerStartY: 0,
+    _chatSidebarPointerOriginLeft: 0,
+    _chatSidebarPointerOriginTop: 0,
+    _chatSidebarPointerMoveHandler: null,
+    _chatSidebarPointerUpHandler: null,
+    _chatSidebarSuppressedDraggables: [],
+    _sidebarToggleSuppressUntil: 0,
+    chatMapDragActive: false,
+    chatMapDragLeft: 0,
+    chatMapDragTop: 0,
+    chatMapPlacementY: (() => {
+      try {
+        var raw = Number(localStorage.getItem('infring-chat-map-placement-y'));
+        if (Number.isFinite(raw)) return Math.max(0, Math.min(1, raw));
+      } catch(_) {}
+      return 0.38;
+    })(),
+    _chatMapMoveDurationMs: 280,
+    _chatMapPointerActive: false,
+    _chatMapPointerMoved: false,
+    _chatMapPointerStartX: 0,
+    _chatMapPointerStartY: 0,
+    _chatMapPointerOriginLeft: 0,
+    _chatMapPointerOriginTop: 0,
+    _chatMapPointerMoveHandler: null,
+    _chatMapPointerUpHandler: null,
     bootSplashVisible: true,
     _bootSplashStartedAt: Date.now(),
     _bootSplashMinMs: 850,
@@ -68,30 +109,51 @@
     bootProgressPercent: 6,
     bootProgressEvent: 'splash_visible',
     _bootProgressUpdatedAt: Date.now(),
-    _topbarRefreshOverlayTimer: 0,
-    _topbarRefreshReloadTimer: 0,
-    topbarHeroMenuOpen: false,
-    topbarHeroActionPending: '',
-    topbarDockEdge: (() => {
+    _taskbarRefreshOverlayTimer: 0,
+    _taskbarRefreshReloadTimer: 0,
+    taskbarHeroMenuOpen: false,
+    taskbarTextMenuOpen: '',
+    helpManualWindowOpen: false,
+    reportIssueWindowOpen: false,
+    reportIssueDraft: '',
+    popupWindowPlacements: {
+      manual: { left: null, top: null },
+      report: { left: null, top: null }
+    },
+    popupWindowDragActive: false,
+    popupWindowDragKind: '',
+    popupWindowDragLeft: 0,
+    popupWindowDragTop: 0,
+    _popupWindowMoveDurationMs: 260,
+    _popupWindowPointerActive: false,
+    _popupWindowPointerMoved: false,
+    _popupWindowPointerStartX: 0,
+    _popupWindowPointerStartY: 0,
+    _popupWindowPointerOriginLeft: 0,
+    _popupWindowPointerOriginTop: 0,
+    _popupWindowPointerMoveHandler: null,
+    _popupWindowPointerUpHandler: null,
+    taskbarHeroActionPending: '',
+    taskbarDockEdge: (() => {
       try {
-        var raw = String(localStorage.getItem('infring-topbar-dock-edge') || '').trim().toLowerCase();
+        var raw = String(localStorage.getItem('infring-taskbar-dock-edge') || '').trim().toLowerCase();
         if (raw === 'bottom') return 'bottom';
       } catch(_) {}
       return 'top';
     })(),
-    topbarDockDragActive: false,
-    topbarDockDragY: 0,
-    _topbarDockPointerActive: false,
-    _topbarDockPointerMoved: false,
-    _topbarDockPointerStartX: 0,
-    _topbarDockPointerStartY: 0,
-    _topbarDockOriginY: 0,
-    _topbarDockPointerMoveHandler: null,
-    _topbarDockPointerUpHandler: null,
-    topbarReorderLeft: (() => {
+    taskbarDockDragActive: false,
+    taskbarDockDragY: 0,
+    _taskbarDockPointerActive: false,
+    _taskbarDockPointerMoved: false,
+    _taskbarDockPointerStartX: 0,
+    _taskbarDockPointerStartY: 0,
+    _taskbarDockOriginY: 0,
+    _taskbarDockPointerMoveHandler: null,
+    _taskbarDockPointerUpHandler: null,
+    taskbarReorderLeft: (() => {
       var defaults = ['nav_cluster'];
       try {
-        var raw = localStorage.getItem('infring-topbar-order-left');
+        var raw = localStorage.getItem('infring-taskbar-order-left');
         var parsed = raw ? JSON.parse(raw) : [];
         if (!Array.isArray(parsed)) return defaults.slice();
         var seen = {};
@@ -113,10 +175,10 @@
         return defaults.slice();
       }
     })(),
-    topbarReorderRight: (() => {
+    taskbarReorderRight: (() => {
       var defaults = ['connectivity', 'theme', 'notifications', 'search', 'auth'];
       try {
-        var raw = localStorage.getItem('infring-topbar-order-right');
+        var raw = localStorage.getItem('infring-taskbar-order-right');
         var parsed = raw ? JSON.parse(raw) : [];
         if (!Array.isArray(parsed)) return defaults.slice();
         var seen = {};
@@ -138,14 +200,14 @@
         return defaults.slice();
       }
     })(),
-    topbarDragGroup: '',
-    topbarDragItem: '',
-    topbarDragStartOrder: [],
-    _topbarDragHoldTimer: 0,
-    _topbarDragHoldGroup: '',
-    _topbarDragHoldItem: '',
-    _topbarDragArmedGroup: '',
-    _topbarDragArmedItem: '',
+    taskbarDragGroup: '',
+    taskbarDragItem: '',
+    taskbarDragStartOrder: [],
+    _taskbarDragHoldTimer: 0,
+    _taskbarDragHoldGroup: '',
+    _taskbarDragHoldItem: '',
+    _taskbarDragArmedGroup: '',
+    _taskbarDragArmedItem: '',
     navBackStack: [],
     navForwardStack: [],
     _navCurrentPage: '',

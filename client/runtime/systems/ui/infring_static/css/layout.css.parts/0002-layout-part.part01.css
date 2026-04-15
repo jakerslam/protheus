@@ -370,7 +370,7 @@
   transition: color var(--transition-fast), background var(--transition-fast);
 }
 
-.sidebar-pulltab {
+.overlay-pulltab-object.sidebar-pulltab, .sidebar-pulltab {
   --pulltab-edge-left: var(--pulltab-border-inactive);
   --pulltab-surface-shadow: var(--pulltab-surface-shadow-right-only);
   position: absolute;

@@ -45,45 +45,45 @@
   background: color-mix(in srgb, var(--user-bg) 74%, transparent);
 }
 
-/* ── Topbar Icon + Shared Pill Toggle Normalization ── */
-.global-topbar {
+/* ── Taskbar Icon + Shared Pill Toggle Normalization ── */
+.global-taskbar {
   gap: 0;
 }
 
-.global-topbar-left {
+.global-taskbar-left {
   gap: 0;
 }
 
-.global-topbar-page-slot {
+.global-taskbar-page-slot {
   gap: 0;
 }
 
-.global-topbar-right {
+.global-taskbar-right {
   gap: 0;
 }
 
-.global-topbar-controls {
+.global-taskbar-controls {
   gap: 0;
 }
 
-.topbar-brand {
+.taskbar-brand {
   gap: 6px;
   margin: 0;
 }
 
-.global-topbar .topbar-icon-btn,
-.global-topbar .theme-switcher,
-.global-topbar .health-indicator,
-.global-topbar .notif-wrap,
-.global-topbar .topbar-clock {
+.global-taskbar .taskbar-icon-btn,
+.global-taskbar .theme-switcher,
+.global-taskbar .health-indicator,
+.global-taskbar .notif-wrap,
+.global-taskbar .taskbar-clock {
   margin: 0 !important;
 }
 
-.global-topbar-left .topbar-icon-btn + .topbar-icon-btn {
+.global-taskbar-left .taskbar-icon-btn + .taskbar-icon-btn {
   margin-left: 0 !important;
 }
 
-.topbar-clock {
+.taskbar-clock {
   display: inline-flex;
   align-items: baseline;
   white-space: nowrap;
@@ -95,43 +95,43 @@
   letter-spacing: 0.01em;
 }
 
-.topbar-clock-meridiem {
+.taskbar-clock-meridiem {
   margin-left: 0;
   font-size: 0.9em;
   letter-spacing: 0.02em;
   opacity: 0.92;
 }
 
-body[data-theme='light'] .global-topbar .topbar-icon-btn,
-body[data-theme='light'] .global-topbar .topbar-icon-btn svg,
-body[data-theme='light'] .global-topbar .topbar-icon-btn svg * {
+body[data-theme='light'] .global-taskbar .taskbar-icon-btn,
+body[data-theme='light'] .global-taskbar .taskbar-icon-btn svg,
+body[data-theme='light'] .global-taskbar .taskbar-icon-btn svg * {
   color: #000 !important;
   stroke: #000;
 }
 
-body[data-theme='light'] .global-topbar .theme-opt,
-body[data-theme='light'] .global-topbar .theme-opt svg,
-body[data-theme='light'] .global-topbar .theme-opt svg * {
+body[data-theme='light'] .global-taskbar .theme-opt,
+body[data-theme='light'] .global-taskbar .theme-opt svg,
+body[data-theme='light'] .global-taskbar .theme-opt svg * {
   color: #000 !important;
   stroke: #000;
 }
 
-body[data-theme='light'] .global-topbar .theme-opt.active,
-body[data-theme='light'] .global-topbar .theme-opt.active svg,
-body[data-theme='light'] .global-topbar .theme-opt.active svg * {
+body[data-theme='light'] .global-taskbar .theme-opt.active,
+body[data-theme='light'] .global-taskbar .theme-opt.active svg,
+body[data-theme='light'] .global-taskbar .theme-opt.active svg * {
   color: #fff !important;
   stroke: #fff !important;
 }
 
-.global-topbar .theme-opt.active,
-.global-topbar .theme-opt.active svg,
-.global-topbar .theme-opt.active svg * {
+.global-taskbar .theme-opt.active,
+.global-taskbar .theme-opt.active svg,
+.global-taskbar .theme-opt.active svg * {
   color: #fff !important;
   stroke: #fff !important;
 }
 
 
-.global-topbar .topbar-icon-btn svg, .global-topbar .theme-opt svg { width: 16px !important; height: 16px !important; stroke-width: 2.15; display: block; flex-shrink: 0; }
+.global-taskbar .taskbar-icon-btn svg, .global-taskbar .theme-opt svg { width: 16px !important; height: 16px !important; stroke-width: 2.15; display: block; flex-shrink: 0; }
 
 .icon-pill-toggle {
   --pill-opt-size: 24px;
@@ -179,21 +179,21 @@ body[data-theme='light'] .global-topbar .theme-opt.active svg * {
   color: var(--text);
 }
 
-.global-topbar .theme-switcher {
+.global-taskbar .theme-switcher {
   --pill-opt-size: 24px;
   --theme-opt-size: var(--pill-opt-size);
   --pill-track-color: color-mix(in srgb, var(--text-muted) 76%, transparent);
 }
 
-.global-topbar .theme-switcher::before {
+.global-taskbar .theme-switcher::before {
   width: var(--pill-opt-size);
   transform: translateX(0);
 }
 
-.global-topbar .theme-switcher[data-mode='system']::before { transform: translateX(calc(var(--pill-opt-size) * 1)); }
-.global-topbar .theme-switcher[data-mode='dark']::before { transform: translateX(calc(var(--pill-opt-size) * 2)); }
+.global-taskbar .theme-switcher[data-mode='system']::before { transform: translateX(calc(var(--pill-opt-size) * 1)); }
+.global-taskbar .theme-switcher[data-mode='dark']::before { transform: translateX(calc(var(--pill-opt-size) * 2)); }
 
-.global-topbar .theme-opt {
+.global-taskbar .theme-opt {
   width: var(--pill-opt-size);
   height: var(--pill-opt-size);
 }

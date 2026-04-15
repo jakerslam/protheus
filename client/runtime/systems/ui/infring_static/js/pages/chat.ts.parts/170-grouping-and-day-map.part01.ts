@@ -265,13 +265,27 @@
     jumpToMessage: function(msg, idx) {
       var id = this.messageDomId(msg, idx);
       this.forceMessageRender(msg, idx, 9000);
-      var target = document.getElementById(id);
-      if (!target) return;
       this.selectedMessageDomId = id;
       this.hoveredMessageDomId = id;
-      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
       this.mapStepIndex = idx;
       this.centerChatMapOnMessage(id);
+      var self = this;
+      var attempts = 0;
+      var scrollToTarget = function() {
+        var target = document.getElementById(id);
+        if (!target) {
+          attempts += 1;
+          if (attempts <= 4) {
+            setTimeout(scrollToTarget, 28);
+          }
+          return;
+        }
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (typeof self.scheduleMessageRenderWindowUpdate === 'function') {
+          self.scheduleMessageRenderWindowUpdate();
+        }
+      };
+      scrollToTarget();
     },
 
     jumpToMessageDay: function(msg) {

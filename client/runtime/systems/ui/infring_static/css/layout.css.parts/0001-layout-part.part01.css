@@ -1,6 +1,8 @@
 /* Infring Layout — Grid + Sidebar + Responsive */
 
 .app-layout {
+  --shell-top-offset: 46px;
+  --shell-bottom-offset: 0px;
   display: flex;
   height: 100vh;
   box-sizing: border-box;
@@ -9,7 +11,9 @@
   overflow: hidden;
 }
 
-.app-layout.topbar-bottom {
+.app-layout.taskbar-bottom {
+  --shell-top-offset: 0px;
+  --shell-bottom-offset: 46px;
   padding-top: 0;
   padding-bottom: 46px;
 }
@@ -24,7 +28,7 @@ body.dashboard-embedded-shell .sidebar,
 body.dashboard-embedded-shell .sidebar-overlay,
 body.dashboard-embedded-shell .sidebar-pulltab,
 body.dashboard-embedded-shell .mobile-menu-btn,
-body.dashboard-embedded-shell .global-topbar {
+body.dashboard-embedded-shell .global-taskbar {
   display: none !important;
 }
 
@@ -34,24 +38,52 @@ body.dashboard-embedded-shell .main-content {
   padding: 0;
 }
 
-body.dashboard-embedded-shell .main-content > div:not(.global-topbar):not(.main-pointer-fx-layer) {
+body.dashboard-embedded-shell .main-content > div:not(.global-taskbar):not(.main-pointer-fx-layer) {
   padding-top: 0;
 }
 
 /* Sidebar */
+.drag-bar {
+  --drag-bar-border: var(--overlay-shared-surface-border, var(--overlay-surface-border, color-mix(in srgb, #fff 24%, transparent)));
+  --drag-bar-background: var(--overlay-shared-surface-background, var(--overlay-surface-background, transparent));
+  --drag-bar-radius: var(--overlay-shared-surface-radius, var(--overlay-surface-radius, 18px));
+  --drag-bar-shadow: var(--overlay-shared-surface-shadow, var(--overlay-surface-shadow, -6px 0 12px -14px rgba(0, 0, 0, 0.32), 6px 0 12px -14px rgba(0, 0, 0, 0.32), 0 10px 18px -18px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.2)));
+  --drag-bar-blur: var(--overlay-shared-surface-blur, var(--overlay-surface-blur, 6px));
+  --drag-bar-saturate: var(--overlay-shared-surface-saturate, var(--overlay-surface-saturate, 1.05));
+}
+
 .sidebar {
-  position: relative;
+  position: fixed;
+  top: var(--shell-top-offset);
+  bottom: var(--shell-bottom-offset);
+  left: 0;
   width: var(--sidebar-width);
-  height: calc(100vh - 46px);
-  background: var(--sidebar-bg, var(--chrome-bg));
-  border-top: none;
-  border-right: none;
+  height: auto;
+  --sidebar-surface-background: var(--drag-bar-background, var(--overlay-shared-surface-background, var(--overlay-surface-background, var(--sidebar-bg, var(--chrome-bg)))));
+  --sidebar-surface-border: var(--drag-bar-border, var(--overlay-shared-surface-border, var(--overlay-surface-border, color-mix(in srgb, #fff 24%, transparent))));
+  --sidebar-surface-shadow: var(--drag-bar-shadow, var(--overlay-shared-surface-shadow, var(--overlay-surface-shadow, -6px 0 12px -14px rgba(0, 0, 0, 0.32), 6px 0 12px -14px rgba(0, 0, 0, 0.32), 0 10px 18px -18px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.2))));
+  --sidebar-surface-radius: var(--drag-bar-radius, var(--overlay-shared-surface-radius, var(--overlay-surface-radius, 18px)));
+  background: var(--sidebar-surface-background);
+  border: 1px solid var(--sidebar-surface-border);
+  border-radius: var(--sidebar-surface-radius);
+  box-shadow: var(--sidebar-surface-shadow);
+  backdrop-filter: blur(var(--drag-bar-blur, var(--overlay-shared-surface-blur, var(--overlay-surface-blur, 6px)))) saturate(var(--drag-bar-saturate, var(--overlay-shared-surface-saturate, var(--overlay-surface-saturate, 1.05))));
+  -webkit-backdrop-filter: blur(var(--drag-bar-blur, var(--overlay-shared-surface-blur, var(--overlay-surface-blur, 6px)))) saturate(var(--drag-bar-saturate, var(--overlay-shared-surface-saturate, var(--overlay-surface-saturate, 1.05))));
+  background-clip: padding-box;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  transition: width var(--transition-normal);
-  z-index: 19200;
+  --sidebar-position-transition: var(--transition-normal);
+  transition:
+    width var(--sidebar-position-transition),
+    left var(--sidebar-position-transition),
+    top var(--sidebar-position-transition),
+    transform var(--sidebar-position-transition);
+  --sidebar-layer: 19200;
+  --sidebar-pulltab-layer: calc(var(--sidebar-layer) + 150);
+  z-index: var(--sidebar-layer);
   --sidebar-edge-fade-size: 22px;
+  --chat-sidebar-profile-row-height: 56px;
 }
 
 /* Top fade: blend sidebar into page background tone at the very top edge. */
@@ -64,6 +96,8 @@ body.dashboard-embedded-shell .main-content > div:not(.global-topbar):not(.main-
   height: 22px;
   pointer-events: none;
   z-index: 30;
+  border-top-left-radius: var(--sidebar-surface-radius);
+  border-top-right-radius: var(--sidebar-surface-radius);
   background: linear-gradient(
     to bottom,
     color-mix(in srgb, var(--bg) 98%, transparent) 0%,
@@ -85,9 +119,9 @@ body.dashboard-embedded-shell .main-content > div:not(.global-topbar):not(.main-
   z-index: 19210;
   background: linear-gradient(
     to right,
-    color-mix(in srgb, var(--sidebar-bg, var(--chrome-bg)) 99%, transparent) 0%,
-    color-mix(in srgb, var(--sidebar-bg, var(--chrome-bg)) 86%, transparent) 34%,
-    color-mix(in srgb, var(--sidebar-bg, var(--chrome-bg)) 54%, transparent) 68%,
+    color-mix(in srgb, var(--sidebar-surface-background) 99%, transparent) 0%,
+    color-mix(in srgb, var(--sidebar-surface-background) 86%, transparent) 34%,
+    color-mix(in srgb, var(--sidebar-surface-background) 54%, transparent) 68%,
     transparent 100%
   );
   -webkit-mask-image: linear-gradient(
@@ -117,9 +151,8 @@ body.dashboard-embedded-shell .main-content > div:not(.global-topbar):not(.main-
 .sidebar-settings-anchor {
   flex-shrink: 0;
   padding: 8px;
-  border-top: none;
-  box-shadow: 0 -8px 14px -14px rgba(0, 0, 0, 0.32);
-  background: var(--sidebar-bg, var(--chrome-bg));
+  box-shadow: none;
+  background: var(--sidebar-surface-background);
   position: relative;
   z-index: 5;
 }
@@ -270,7 +303,7 @@ body.dashboard-embedded-shell .main-content > div:not(.global-topbar):not(.main-
   height: 20px;
   border-radius: 999px;
   border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
-  background: color-mix(in srgb, var(--sidebar-bg, var(--chrome-bg)) 94%, transparent);
+  background: color-mix(in srgb, var(--sidebar-surface-background) 94%, transparent);
   color: var(--text-muted);
   display: inline-flex;
   align-items: center;
@@ -429,4 +462,3 @@ button.nav-item.nav-sub-item.nav-sub-item-action {
   padding: 0 8px;
   transition: border-color var(--transition-fast), background var(--transition-fast), box-shadow var(--transition-fast);
 }
-
