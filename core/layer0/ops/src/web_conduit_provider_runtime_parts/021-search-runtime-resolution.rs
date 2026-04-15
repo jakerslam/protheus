@@ -116,7 +116,24 @@ fn search_provider_common_runtime_contract() -> Value {
         "date_range_parser": "parseIsoDateRange",
         "trusted_endpoint_wrapper": "withTrustedWebSearchEndpoint",
         "trusted_json_post_wrapper": "postTrustedWebToolsJson",
-        "site_name_resolver": "resolveSiteName"
+        "site_name_resolver": "resolveSiteName",
+        "module_local_cache_required": true,
+        "global_symbol_cache_forbidden": "openclaw.web-search.cache",
+        "freshness_normalization_supported": true,
+        "freshness_cross_provider_mapping_supported": {
+            "brave_shortcuts": ["pd", "pw"],
+            "perplexity_values": ["day", "week"]
+        },
+        "date_range_contract": {
+            "iso_date_normalizer": "normalizeToIsoDate",
+            "perplexity_date_converter": "isoToPerplexityDate",
+            "brave_date_range_validator": "YYYY-MM-DDtoYYYY-MM-DD"
+        },
+        "unsupported_filter_contract": {
+            "builder": "buildUnsupportedSearchFilterResponse",
+            "date_filter_error_code": "unsupported_date_filter",
+            "non_date_filter_error_prefix": "unsupported_"
+        }
     })
 }
 
