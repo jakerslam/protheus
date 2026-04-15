@@ -1,20 +1,20 @@
 # CODEX File Ledger
 
-Generated: 2026-04-15T14:20:00.000Z
+Generated: 2026-04-15T14:45:00.000Z
 
 ## Status Counts
 
-- done: 923
-- queued: 1983
+- done: 928
+- queued: 1978
 - blocked: 0
 - in_progress: 0
 - existing-coverage-validated: 0
 
 ## Active Wave
 
-- `2026-04-15-codex-tooling-wave-022`
-- `1171` `client/runtime/systems/ops/self_hosted_bootstrap_compiler.ts`
-- `1172` `client/runtime/systems/ops/simplicity_budget_gate.ts`
-- `1173` `client/runtime/systems/ops/soc2_type2_track.ts`
-- `1174` `client/runtime/systems/ops/state_kernel.ts`
-- `1175` `client/runtime/systems/ops/state_kernel_cutover.ts`
+- `2026-04-15-codex-tooling-wave-023`
+- `1176` `client/runtime/systems/ops/state_kernel_dual_write.ts`
+- `1177` `client/runtime/systems/security/conflict_marker_guard.ts`
+- `1178` `client/runtime/systems/security/delegated_authority_branching.ts`
+- `1179` `client/runtime/systems/security/execution_sandbox_envelope.ts`
+- `1180` `client/runtime/systems/security/formal_invariant_engine.ts`
