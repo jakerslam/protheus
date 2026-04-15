@@ -8,10 +8,10 @@ import { currentRevision } from '../../lib/git.ts';
 import { appendJsonLine, emitStructuredResult, writeJsonArtifact, writeTextArtifact } from '../../lib/result.ts';
 
 const ROOT = process.cwd();
-const DEFAULT_OUT_JSON = 'core/local/artifacts/orchestration_planner_quality_guard_current.json';
-const DEFAULT_OUT_MD = 'local/workspace/reports/ORCHESTRATION_PLANNER_QUALITY_GUARD_CURRENT.md';
+const DEFAULT_OUT_JSON = 'core/local/artifacts/orchestration_runtime_quality_guard_current.json';
+const DEFAULT_OUT_MD = 'local/workspace/reports/ORCHESTRATION_RUNTIME_QUALITY_GUARD_CURRENT.md';
 const DEFAULT_POLICY_PATH = 'client/runtime/config/orchestration_quality_policy.json';
-const TEST_NAME = 'planner_quality_fixture_metrics_stay_within_thresholds';
+const TEST_NAME = 'runtime_quality_telemetry_metrics_stay_within_thresholds';
 
 type ScriptArgs = {
   strict: boolean;
@@ -20,19 +20,20 @@ type ScriptArgs = {
   policyPath: string;
 };
 
-type PlannerMetrics = {
-  request_count?: number;
+type RuntimeQualityMetrics = {
+  sample_size_non_legacy?: number;
+  fallback_rate_non_legacy?: number;
+  heuristic_probe_rate_non_legacy?: number;
+  clarification_rate_non_legacy?: number;
   average_candidate_count?: number;
-  clarification_first_rate?: number;
-  degraded_rate?: number;
-  heuristic_probe_rate?: number;
 };
 
-type PlannerPolicy = {
+type RuntimeQualityPolicy = {
+  min_sample_size?: number;
   min_average_candidate_count?: number;
-  max_clarification_first_rate?: number;
-  max_degraded_rate?: number;
-  max_heuristic_probe_rate?: number;
+  max_non_legacy_fallback_rate?: number;
+  max_non_legacy_heuristic_probe_rate?: number;
+  max_non_legacy_clarification_rate?: number;
   ratchet?: {
     max_regression_delta?: number;
   };
@@ -43,7 +44,7 @@ type PlannerPolicy = {
 };
 
 type OrchestrationQualityPolicy = {
-  planner_quality?: PlannerPolicy;
+  runtime_quality?: RuntimeQualityPolicy;
 };
 
 function resolveArgs(argv: string[]): ScriptArgs {
@@ -63,13 +64,13 @@ function readJsonMaybe<T>(filePath: string): T | null {
   }
 }
 
-function parsePlannerMetrics(output: string): PlannerMetrics | null {
-  const marker = output.match(/planner_quality_metrics=(\{.*\})/m);
+function parseRuntimeMetrics(output: string): RuntimeQualityMetrics | null {
+  const marker = output.match(/runtime_quality_metrics=(\{.*\})/m);
   if (!marker) {
     return null;
   }
   try {
-    return JSON.parse(marker[1]) as PlannerMetrics;
+    return JSON.parse(marker[1]) as RuntimeQualityMetrics;
   } catch {
     return null;
   }
@@ -79,21 +80,30 @@ function numberOrNull(value: unknown): number | null {
   return Number.isFinite(Number(value)) ? Number(value) : null;
 }
 
-function evaluateThresholds(metrics: PlannerMetrics | null, policy: PlannerPolicy): string[] {
+function evaluateThresholds(metrics: RuntimeQualityMetrics | null, policy: RuntimeQualityPolicy): string[] {
   const failures: string[] = [];
   if (!metrics) {
-    failures.push('planner_metrics_missing');
+    failures.push('runtime_quality_metrics_missing');
     return failures;
   }
-  const averageCandidateCount = numberOrNull(metrics.average_candidate_count);
-  const clarificationFirstRate = numberOrNull(metrics.clarification_first_rate);
-  const degradedRate = numberOrNull(metrics.degraded_rate);
-  const heuristicProbeRate = numberOrNull(metrics.heuristic_probe_rate);
 
+  const sampleSize = numberOrNull(metrics.sample_size_non_legacy);
+  const averageCandidateCount = numberOrNull(metrics.average_candidate_count);
+  const fallbackRate = numberOrNull(metrics.fallback_rate_non_legacy);
+  const heuristicProbeRate = numberOrNull(metrics.heuristic_probe_rate_non_legacy);
+  const clarificationRate = numberOrNull(metrics.clarification_rate_non_legacy);
+
+  const minSampleSize = numberOrNull(policy.min_sample_size);
   const minAverageCandidateCount = numberOrNull(policy.min_average_candidate_count);
-  const maxClarificationFirstRate = numberOrNull(policy.max_clarification_first_rate);
-  const maxDegradedRate = numberOrNull(policy.max_degraded_rate);
-  const maxHeuristicProbeRate = numberOrNull(policy.max_heuristic_probe_rate);
+  const maxFallbackRate = numberOrNull(policy.max_non_legacy_fallback_rate);
+  const maxHeuristicProbeRate = numberOrNull(policy.max_non_legacy_heuristic_probe_rate);
+  const maxClarificationRate = numberOrNull(policy.max_non_legacy_clarification_rate);
+
+  if (sampleSize == null) {
+    failures.push('missing_sample_size_non_legacy');
+  } else if (minSampleSize != null && sampleSize < minSampleSize) {
+    failures.push(`sample_size_below_min:actual=${sampleSize.toFixed(4)}:min=${minSampleSize.toFixed(4)}`);
+  }
 
   if (averageCandidateCount == null) {
     failures.push('missing_average_candidate_count');
@@ -103,37 +113,51 @@ function evaluateThresholds(metrics: PlannerMetrics | null, policy: PlannerPolic
     );
   }
 
-  if (clarificationFirstRate == null) {
-    failures.push('missing_clarification_first_rate');
-  } else if (maxClarificationFirstRate != null && clarificationFirstRate > maxClarificationFirstRate) {
+  if (fallbackRate == null) {
+    failures.push('missing_fallback_rate_non_legacy');
+  } else if (maxFallbackRate != null && fallbackRate > maxFallbackRate) {
     failures.push(
-      `clarification_first_rate_exceeded:actual=${clarificationFirstRate.toFixed(4)}:max=${maxClarificationFirstRate.toFixed(4)}`,
+      `fallback_rate_non_legacy_exceeded:actual=${fallbackRate.toFixed(4)}:max=${maxFallbackRate.toFixed(4)}`,
     );
   }
 
-  if (degradedRate == null) {
-    failures.push('missing_degraded_rate');
-  } else if (maxDegradedRate != null && degradedRate > maxDegradedRate) {
-    failures.push(`degraded_rate_exceeded:actual=${degradedRate.toFixed(4)}:max=${maxDegradedRate.toFixed(4)}`);
-  }
-
   if (heuristicProbeRate == null) {
-    failures.push('missing_heuristic_probe_rate');
+    failures.push('missing_heuristic_probe_rate_non_legacy');
   } else if (maxHeuristicProbeRate != null && heuristicProbeRate > maxHeuristicProbeRate) {
     failures.push(
-      `heuristic_probe_rate_exceeded:actual=${heuristicProbeRate.toFixed(4)}:max=${maxHeuristicProbeRate.toFixed(4)}`,
+      `heuristic_probe_rate_non_legacy_exceeded:actual=${heuristicProbeRate.toFixed(4)}:max=${maxHeuristicProbeRate.toFixed(4)}`,
+    );
+  }
+
+  if (clarificationRate == null) {
+    failures.push('missing_clarification_rate_non_legacy');
+  } else if (maxClarificationRate != null && clarificationRate > maxClarificationRate) {
+    failures.push(
+      `clarification_rate_non_legacy_exceeded:actual=${clarificationRate.toFixed(4)}:max=${maxClarificationRate.toFixed(4)}`,
     );
   }
 
   return failures;
 }
 
-function evaluateRatchet(metrics: PlannerMetrics | null, policy: PlannerPolicy, previous: any): string[] {
+function evaluateRatchet(
+  metrics: RuntimeQualityMetrics | null,
+  policy: RuntimeQualityPolicy,
+  previous: any,
+): string[] {
   const failures: string[] = [];
   if (!metrics) return failures;
   const previousMetrics = previous?.metrics;
   if (!previousMetrics || typeof previousMetrics !== 'object') return failures;
   const delta = Math.max(0, Number(policy.ratchet?.max_regression_delta || 0));
+
+  const currentSampleSize = numberOrNull(metrics.sample_size_non_legacy);
+  const previousSampleSize = numberOrNull(previousMetrics.sample_size_non_legacy);
+  if (currentSampleSize != null && previousSampleSize != null && currentSampleSize < previousSampleSize - delta) {
+    failures.push(
+      `ratchet_sample_size_non_legacy_regression:current=${currentSampleSize.toFixed(4)}:previous=${previousSampleSize.toFixed(4)}:delta=${delta.toFixed(4)}`,
+    );
+  }
 
   const currentAverage = numberOrNull(metrics.average_candidate_count);
   const previousAverage = numberOrNull(previousMetrics.average_candidate_count);
@@ -143,10 +167,10 @@ function evaluateRatchet(metrics: PlannerMetrics | null, policy: PlannerPolicy, 
     );
   }
 
-  const maxFields: Array<keyof PlannerMetrics> = [
-    'clarification_first_rate',
-    'degraded_rate',
-    'heuristic_probe_rate',
+  const maxFields: Array<keyof RuntimeQualityMetrics> = [
+    'fallback_rate_non_legacy',
+    'heuristic_probe_rate_non_legacy',
+    'clarification_rate_non_legacy',
   ];
   for (const field of maxFields) {
     const current = numberOrNull(metrics[field]);
@@ -161,7 +185,7 @@ function evaluateRatchet(metrics: PlannerMetrics | null, policy: PlannerPolicy, 
   return failures;
 }
 
-function persistRatchet(policy: PlannerPolicy, snapshot: any): void {
+function persistRatchet(policy: RuntimeQualityPolicy, snapshot: any): void {
   const latest = policy.paths?.latest || '';
   const history = policy.paths?.history || '';
   if (latest) writeJsonArtifact(latest, snapshot);
@@ -170,7 +194,7 @@ function persistRatchet(policy: PlannerPolicy, snapshot: any): void {
 
 function toMarkdown(payload: any): string {
   const lines: string[] = [];
-  lines.push('# Orchestration Planner Quality Guard');
+  lines.push('# Orchestration Runtime Quality Guard');
   lines.push('');
   lines.push(`Generated: ${payload.generated_at}`);
   lines.push(`Revision: ${payload.revision}`);
@@ -181,7 +205,7 @@ function toMarkdown(payload: any): string {
   lines.push(`- ${payload.command.join(' ')}`);
   if (payload.metrics) {
     lines.push('');
-    lines.push('## Planner Metrics');
+    lines.push('## Runtime Quality Metrics');
     lines.push('```json');
     lines.push(JSON.stringify(payload.metrics, null, 2));
     lines.push('```');
@@ -207,7 +231,7 @@ function toMarkdown(payload: any): string {
 function run(argv: string[]): number {
   const args = resolveArgs(argv);
   const qualityPolicy = readJsonMaybe<OrchestrationQualityPolicy>(args.policyPath) || {};
-  const plannerPolicy = qualityPolicy.planner_quality || {};
+  const runtimePolicy = qualityPolicy.runtime_quality || {};
 
   const command = [
     'cargo',
@@ -230,17 +254,17 @@ function run(argv: string[]): number {
     .filter(Boolean)
     .join('\n')
     .trim();
-  const metrics = parsePlannerMetrics(output);
-  const previousLatest = plannerPolicy.paths?.latest
-    ? readJsonMaybe<any>(plannerPolicy.paths.latest)
+  const metrics = parseRuntimeMetrics(output);
+  const previousLatest = runtimePolicy.paths?.latest
+    ? readJsonMaybe<any>(runtimePolicy.paths.latest)
     : null;
-  const policyFailures = evaluateThresholds(metrics, plannerPolicy);
-  const ratchetFailures = evaluateRatchet(metrics, plannerPolicy, previousLatest);
+  const policyFailures = evaluateThresholds(metrics, runtimePolicy);
+  const ratchetFailures = evaluateRatchet(metrics, runtimePolicy, previousLatest);
   const ok = testsOk && policyFailures.length === 0 && ratchetFailures.length === 0;
 
   const payload = {
     ok,
-    type: 'orchestration_planner_quality_guard',
+    type: 'orchestration_runtime_quality_guard',
     generated_at: new Date().toISOString(),
     revision: currentRevision(ROOT),
     inputs: {
@@ -251,7 +275,7 @@ function run(argv: string[]): number {
     },
     test_name: TEST_NAME,
     command,
-    policy: plannerPolicy,
+    policy: runtimePolicy,
     summary: {
       pass: ok,
       tests_pass: testsOk,
@@ -267,7 +291,7 @@ function run(argv: string[]): number {
   };
 
   if (ok && metrics) {
-    persistRatchet(plannerPolicy, {
+    persistRatchet(runtimePolicy, {
       generated_at: payload.generated_at,
       revision: payload.revision,
       metrics,

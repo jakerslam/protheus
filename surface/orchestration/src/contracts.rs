@@ -474,6 +474,16 @@ pub struct OrchestrationFallbackAction {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RuntimeQualitySignals {
+    pub candidate_count: u32,
+    pub selected_variant: PlanVariant,
+    pub selected_plan_degraded: bool,
+    pub selected_plan_requires_clarification: bool,
+    pub used_heuristic_probe: bool,
+    pub surface_adapter_fallback: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct OrchestrationResultPackage {
     pub summary: String,
     pub progress_message: String,
@@ -485,4 +495,5 @@ pub struct OrchestrationResultPackage {
     pub classification: RequestClassification,
     pub selected_plan: PlanCandidate,
     pub alternative_plans: Vec<PlanCandidate>,
+    pub runtime_quality: RuntimeQualitySignals,
 }

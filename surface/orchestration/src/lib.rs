@@ -16,7 +16,7 @@ use contracts::{
     CoreExecutionObservation, DegradationReason, ExecutionCorrelation, ExecutionState,
     OrchestrationExecutionObservationUpdate, OrchestrationPlan, OrchestrationRequest,
     OrchestrationResultPackage, PlanCandidate, PlanScore, PlanStatus, PlanVariant,
-    RecoveryDecision, RecoveryReason, RecoveryState,
+    RecoveryDecision, RecoveryReason, RecoveryState, RuntimeQualitySignals,
 };
 use std::time::{SystemTime, UNIX_EPOCH};
 use transient_context::{TransientContextStore, TransientSleepCleanupReport};
@@ -81,6 +81,7 @@ impl OrchestrationSurfaceRuntime {
             30_000,
         ) {
             self.last_activity_ms = Some(now_ms);
+            let surface_adapter_fallback = classification.surface_adapter_fallback;
             return OrchestrationResultPackage {
                 summary: format!("orchestration_degraded:{err}"),
                 progress_message:
@@ -132,6 +133,14 @@ impl OrchestrationSurfaceRuntime {
                     reasons: vec!["transient_context_unavailable".to_string()],
                 },
                 alternative_plans: Vec::new(),
+                runtime_quality: RuntimeQualitySignals {
+                    candidate_count: 1,
+                    selected_variant: PlanVariant::ClarificationFirst,
+                    selected_plan_degraded: false,
+                    selected_plan_requires_clarification: true,
+                    used_heuristic_probe: false,
+                    surface_adapter_fallback,
+                },
             };
         }
         let execution_observation = self
