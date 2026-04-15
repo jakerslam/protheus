@@ -74,7 +74,7 @@ fn search_provider_contract_suite_contract() -> Value {
         "registry_entry_resolver": "resolveWebSearchProviderContractEntriesForPluginId",
         "provider_id_source": "entry.webSearchProviderIds",
         "provider_lookup_contract": "entry.provider.id == providerId",
-        "provider_specific_contract_targets": ["brave", "duckduckgo", "exa", "firecrawl", "google", "perplexity", "tavily"],
+        "provider_specific_contract_targets": ["brave", "duckduckgo", "exa", "firecrawl", "google", "perplexity", "tavily", "moonshot", "xai"],
         "registry_contract_test_files": [
             "web-search-provider.brave.contract.test.ts",
             "web-search-provider.duckduckgo.contract.test.ts",
@@ -82,7 +82,9 @@ fn search_provider_contract_suite_contract() -> Value {
             "web-search-provider.firecrawl.contract.test.ts",
             "web-search-provider.google.contract.test.ts",
             "web-search-provider.perplexity.contract.test.ts",
-            "web-search-provider.tavily.contract.test.ts"
+            "web-search-provider.tavily.contract.test.ts",
+            "web-search-provider.moonshot.contract.test.ts",
+            "web-search-provider.xai.contract.test.ts"
         ],
         "provider_specific_contract_invocation": "describeWebSearchProviderContracts(providerId)",
         "base_provider_contract": {
@@ -228,6 +230,50 @@ fn search_public_artifact_resolution_contract() -> Value {
     })
 }
 
+fn search_bundled_fast_path_contract_suite_contract() -> Value {
+    json!({
+        "suite_entrypoint": "describeBundledWebSearchFastPathContract",
+        "suite_helper_module": "test/helpers/plugins/bundled-web-search-fast-path-contract.ts",
+        "suite_target_plugin_ids": ["moonshot", "xai", "searxng"],
+        "suite_contract_test_files": [
+            "bundled-web-search.moonshot.contract.test.ts",
+            "bundled-web-search.xai.contract.test.ts",
+            "bundled-web-search.searxng.contract.test.ts"
+        ],
+        "explicit_provider_resolver": "resolveBundledExplicitWebSearchProvidersFromPublicArtifacts",
+        "runtime_provider_resolver": "resolvePluginWebSearchProviders",
+        "runtime_registry_loader": "loadBundledCapabilityRuntimeRegistry",
+        "manifest_contract_owner_resolver": "resolveManifestContractOwnerPluginId",
+        "origin_filter": "bundled",
+        "plugin_sdk_resolution": "dist",
+        "provider_metadata_parity_sort_key": "autoDetectOrder,id,pluginId",
+        "provider_metadata_parity_required_fields": [
+            "id",
+            "label",
+            "hint",
+            "envVars",
+            "placeholder",
+            "signupUrl",
+            "docsUrl",
+            "autoDetectOrder",
+            "requiresCredential",
+            "credentialPath",
+            "inactiveSecretPaths",
+            "hasConfiguredCredentialAccessors",
+            "hasApplySelectionConfig",
+            "hasResolveRuntimeMetadata"
+        ],
+        "credential_roundtrip_contract": {
+            "setter": "provider.setCredentialValue",
+            "getter": "provider.getCredentialValue",
+            "configured_setter_optional": "provider.setConfiguredCredentialValue",
+            "configured_getter_optional": "provider.getConfiguredCredentialValue"
+        },
+        "selection_config_parity_optional": true,
+        "runtime_metadata_parity_optional": true
+    })
+}
+
 fn search_runtime_resolution_contract() -> Value {
     json!({
         "origin": "openclaw_runtime_web_tools_contract",
@@ -249,6 +295,7 @@ fn search_runtime_resolution_contract() -> Value {
         "provider_sort_contract": search_runtime_provider_sort_contract(),
         "candidate_plugin_contract": search_runtime_candidate_plugin_contract(),
         "public_artifact_resolution_contract": search_public_artifact_resolution_contract(),
+        "bundled_fast_path_contract_suite_contract": search_bundled_fast_path_contract_suite_contract(),
         "snapshot_cache_contract": search_web_provider_snapshot_cache_contract()
     })
 }
