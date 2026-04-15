@@ -1,0 +1,138 @@
+# Protheus Trading Configuration - Example File
+#
+# This is an EXAMPLE configuration file for documentation purposes.
+# It shows the structure and available options for trading configuration.
+#
+# NOTE: Production configs are managed separately via the secrets management system.
+#       DO NOT commit real credentials or production settings to this repository.
+#
+# Created: April 8, 2026
+# Author: Rohan Kapoor
+#
+
+# =============================================================================
+# GENERAL SETTINGS
+# =============================================================================
+
+# Trading mode affects behavior and risk limits
+# Valid values: paper (simulated), shadow (parallel tracking), live (real execution)
+trading.mode=paper
+
+# Timezone for all timestamp operations
+trading.timezone=America/New_York
+
+# Logging level
+# Valid values: DEBUG, INFO, WARN, ERROR
+trading.log_level=INFO
+
+# =============================================================================
+# RISK MANAGEMENT SETTINGS
+# =============================================================================
+
+# Maximum position size as percentage of capital
+# This is a hard limit that triggers automatic position reduction
+# NOTE: This is enforced at the position ENTRY level, not continuously monitored.
+# Positions may exceed this temporarily due to market movement - see risk.position_monitor_interval
+risk.max_position_pct=0.05
+
+# Daily loss limit before trading halt (in USD)
+risk.daily_loss_limit=50000
+
+# Maximum number of concurrent positions
+risk.max_concurrent_positions=10
+
+# =============================================================================
+# EXCHANGE CONNECTIONS
+# =============================================================================
+
+# Connection timeout in milliseconds
+exchange.connection_timeout_ms=30000
+
+# Reconnection attempts before alerting
+exchange.max_reconnect_attempts=5
+
+# Rate limiting (requests per second)
+exchange.rate_limit=10
+
+# =============================================================================
+# PERFORMANCE SETTINGS
+# =============================================================================
+
+# Order book refresh interval (milliseconds)
+performance.orderbook_refresh_ms=100
+
+# Position reconciliation interval (minutes)
+# Controls how frequently the system validates internal position records against
+# exchange-reported positions. This is a critical safety mechanism that ensures
+# our view of positions matches reality on the exchange.
+#
+# How it works:
+#   1. System queries exchange API for current position states
+#   2. Compares against internal position tracking database
+#   3. Flags any discrepancies for manual review
+#   4. Alerts are generated if drift exceeds threshold
+#
+# Recommended values:
+#   - Development: 15-30 minutes (lower overhead)
+#   - Staging: 10 minutes (balanced)
+#   - Production: 5 minutes (higher safety)
+#
+# NOTE: Setting this too low may hit API rate limits on some exchanges.
+#       Setting too high increases risk of undetected position drift.
+performance.reconciliation_interval_min=5
+
+# Health check endpoint
+performance.health_check_url=http://localhost:8080/health
+
+# =============================================================================
+# NOTIFICATION SETTINGS
+# =============================================================================
+
+# Alert channels (comma-separated)
+# Options: email, slack, pagerduty
+notifications.channels=slack
+
+# Critical alert routing
+notifications.critical_channel=pagerduty
+
+# Alert cooldown period (minutes) to prevent spam
+notifications.cooldown_min=15
+
+# =============================================================================
+# MONITORING & ALERTING
+# =============================================================================
+
+# Position monitoring interval (seconds)
+# How frequently to check position sizes against limits
+# Lower values = faster detection but more computation overhead
+risk.position_monitor_interval_sec=30
+
+# Liquidity threshold warning (as percentage of average daily volume)
+# Triggers warning when position exceeds this % of ADV
+# Note: ADV (Average Daily Volume) values are computed over a rolling 30-day window
+# and sourced from the market data service. Adjust based on asset class:
+#   - Large-cap equities: 2-5%
+#   - Mid-cap equities: 1-2%
+#   - Small-cap/illiquid: 0.5-1%
+#   - Crypto majors: 5-10%
+#   - Crypto alts: 1-2%
+# TODO(rkapoor): Make this threshold configurable per-symbol in INFRA-2848
+risk.liquidity_warning_threshold_pct=2.0
+
+# =============================================================================
+# NOTES
+# =============================================================================
+
+# TODO(rkapoor): Add circuit breaker configuration section once new API is stabilized
+# Tracked in: INFRA-2847
+#
+# Configuration Precedence:
+# 1. Environment variables (highest priority)
+# 2. Production config file (from secrets management)
+# 3. This example file (lowest priority - documentation only)
+#
+# For production deployments, configurations are applied via the deployment
+# pipeline and are not version-controlled in this repository.
+#
+# Questions? Contact the Infrastructure team via #infrastructure-support
+#
