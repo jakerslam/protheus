@@ -120,7 +120,7 @@
     - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/210-scroll-hover-sanitize.part01.ts`
     - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/220-artifacts-voice-search.part02.ts`
 ## Current Intake State
-- Imported rows in this wave: `50`
+- Imported rows in this wave: `55`
 - Pending rows in this wave: `0`
 
 - `OPENCLAW-TOOLING-APP-013`:
@@ -181,3 +181,19 @@
     - `core/layer0/ops/src/web_conduit_parts/095-openclaw-search-tool-tests.rs`
     - `core/layer0/ops/src/web_conduit_parts/096-openclaw-fetch-runtime-resolution-tests.rs`
     - `core/layer0/ops/src/web_conduit_parts/105-openclaw-search-runtime-resolution-tests.rs`
+- `OPENCLAW-TOOLING-CHAT-017`:
+  - Imported agent-tool panel parity, tool display shaping, external URL confirmation, gateway auth-close handling, and model-ref type normalization patterns from:
+    - `ui/src/ui/views/agents-panels-tools-skills.ts`
+    - `ui/src/ui/tool-display.ts`
+    - `ui/src/ui/views/gateway-url-confirmation.ts`
+    - `ui/src/ui/gateway.ts`
+    - `ui/src/ui/chat-model-ref.types.ts`
+  - Landed in:
+    - `client/runtime/systems/ui/infring_static/index_body.html.parts/0007-body-part.html`
+    - `client/runtime/systems/ui/infring_static/js/api.ts.parts/020-api-and-websocket.ts`
+    - `client/runtime/systems/ui/infring_static/js/pages/agents.ts.parts/010-state-and-load.ts`
+    - `client/runtime/systems/ui/infring_static/js/pages/agents.ts.parts/030-actions-and-ops.ts`
+    - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/030-init-selection-helpers.ts`
+    - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/170-grouping-and-day-map.part02.ts`
+    - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/190-drawer-and-queue.zz-part02.ts`
+    - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/195-structured-tool-cards.ts`

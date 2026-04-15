@@ -284,12 +284,23 @@
     toolMetaCandidates: function(tool) {
       var input = this.parseStructuredToolInput(tool);
       var out = [];
+      var action = String(input.action || input.method || input.operation || input.op || '').trim();
+      if (action) out.push(this.prettifyToolLabel(action));
       var query = String(input.query || input.q || '').trim();
       if (query) out.push('"' + query + '"');
       var url = String(input.url || input.link || '').trim();
       if (url) out.push(url);
-      var filePath = String(input.path || '').trim();
-      if (filePath) out.push(filePath);
+      var filePath = String(input.path || input.file || '').trim();
+      if (filePath) {
+        if (/^\/Users\/[^/]+(\/|$)/.test(filePath)) {
+          filePath = filePath.replace(/^\/Users\/[^/]+(\/|$)/, '~$1');
+        } else if (/^\/home\/[^/]+(\/|$)/.test(filePath)) {
+          filePath = filePath.replace(/^\/home\/[^/]+(\/|$)/, '~$1');
+        } else if (/^C:\\Users\\[^\\]+(\\|$)/i.test(filePath)) {
+          filePath = filePath.replace(/^C:\\Users\\[^\\]+(\\|$)/i, '~$1');
+        }
+        out.push(filePath);
+      }
       return out.slice(0, 3);
     },
     formatToolAggregateMeta: function(tool) {
