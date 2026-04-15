@@ -1185,11 +1185,11 @@ order	status	file	language	loc	authority_risk_score	migration_potential_score	co
 1184	done	client/runtime/systems/security/post_quantum_migration_lane.ts	ts	3	4	5	3	4.1
 1185	done	client/runtime/systems/security/remote_tamper_heartbeat.ts	ts	3	4	5	3	4.1
 1186	done	client/runtime/systems/security/repo_hygiene_guard.ts	ts	3	4	5	3	4.1
-1187	queued	client/runtime/systems/security/repository_access_auditor.ts	ts	3	4	5	3	4.1
-1188	queued	client/runtime/systems/security/schema_contract_check.ts	ts	3	4	5	3	4.1
-1189	queued	client/runtime/systems/security/secret_rotation_migration_auditor.ts	ts	3	4	5	3	4.1
-1190	queued	client/runtime/systems/security/secure_heartbeat_endpoint.ts	ts	3	4	5	3	4.1
-1191	queued	client/runtime/systems/security/skin_protection_layer.ts	ts	3	4	5	3	4.1
+1187	done	client/runtime/systems/security/repository_access_auditor.ts	ts	3	4	5	3	4.1
+1188	done	client/runtime/systems/security/schema_contract_check.ts	ts	3	4	5	3	4.1
+1189	done	client/runtime/systems/security/secret_rotation_migration_auditor.ts	ts	3	4	5	3	4.1
+1190	done	client/runtime/systems/security/secure_heartbeat_endpoint.ts	ts	3	4	5	3	4.1
+1191	done	client/runtime/systems/security/skin_protection_layer.ts	ts	3	4	5	3	4.1
 1192	queued	client/runtime/systems/security/supply_chain_trust_plane.ts	ts	3	4	5	3	4.1
 1193	queued	client/runtime/systems/security/workspace_dump_guard.ts	ts	3	4	5	3	4.1
 1194	queued	client/runtime/systems/sensory/adaptive_layer_guard.ts	ts	3	4	5	3	4.1
