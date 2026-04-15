@@ -7,7 +7,8 @@ import type {
   ReceiptPointer,
   SdkEnvelope,
 } from './types';
-import type { InMemorySeed } from './transports';
+
+export type InMemorySeed = Partial<Record<InfringOperation, JsonValue>>;
 
 function nowIso(): string {
   return new Date().toISOString();

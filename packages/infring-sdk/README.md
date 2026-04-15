@@ -14,17 +14,18 @@ Stable TypeScript SDK contract for the public InfRing surface.
 ## Design
 
 - Boring by default: one client, typed request/response envelopes.
-- Transport is pluggable: resident IPC or seeded in-memory transport.
+- Transport is pluggable: resident IPC in production, testing-only seeded in-memory in `@infring/sdk/testing`.
 - Policy refs are first-class and automatically attached to all calls.
 - No internal `client/**` or `core/**` imports required by SDK consumers.
 
 ## Quick start
 
 ```ts
-import { InfringSdkClient, createInMemoryTransport } from '@infring/sdk';
+import { InfringSdkClient } from '@infring/sdk';
+import { createTestingInMemoryTransport } from '@infring/sdk/testing';
 
 const sdk = new InfringSdkClient({
-  transport: createInMemoryTransport({
+  transport: createTestingInMemoryTransport({
     submit_task: { accepted: true, status: 'queued' },
   }),
   default_policy_refs: ['policy.runtime.default'],

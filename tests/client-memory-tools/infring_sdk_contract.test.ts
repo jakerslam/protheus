@@ -6,7 +6,6 @@ import fs from 'node:fs';
 import {
   InfringSdkClient,
   PRODUCTION_TRANSPORT_SURFACE,
-  createInMemoryTransport,
   createResidentIpcTransport,
   type InfringTransport,
   type InfringTransportRequest,
@@ -38,7 +37,7 @@ async function run(): Promise<void> {
   );
 
   const sdk = new InfringSdkClient({
-    transport: createInMemoryTransport({
+    transport: createTestingInMemoryTransport({
       submit_task: {
         task_id: 'task_seeded_submit',
         accepted: true,

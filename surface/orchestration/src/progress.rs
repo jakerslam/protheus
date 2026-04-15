@@ -1,18 +1,20 @@
 // Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 use crate::contracts::{
-    DegradationState, ExecutionCorrelation, ExecutionState, OrchestrationPlan, PlanCandidate,
-    PlanStatus, StepState, StepStatus, TypedOrchestrationRequest,
+    CoreExecutionObservation, DegradationState, ExecutionCorrelation, ExecutionState,
+    OrchestrationPlan, PlanCandidate, PlanStatus, StepState, StepStatus, TypedOrchestrationRequest,
 };
 
 pub fn execution_state_for(
     request: &TypedOrchestrationRequest,
+    execution_observation: Option<&CoreExecutionObservation>,
     plan: &PlanCandidate,
     needs_clarification: bool,
 ) -> ExecutionState {
-    let correlation = correlation_for(request, plan);
-    let step_statuses = observed_step_statuses(request);
-    let observed_plan = observed_or_derived_plan_status(request, step_statuses.as_slice());
-    let has_observation = request.core_execution_observation.is_some();
+    let correlation = correlation_for(request, execution_observation, plan);
+    let step_statuses = observed_step_statuses(execution_observation);
+    let observed_plan =
+        observed_or_derived_plan_status(execution_observation, step_statuses.as_slice());
+    let has_observation = execution_observation.is_some();
     if !plan.degradation.is_empty() {
         let alternate_path = plan
             .steps
@@ -108,21 +110,20 @@ pub fn progress_message(plan: &OrchestrationPlan) -> String {
     )
 }
 
-fn observed_plan_status(request: &TypedOrchestrationRequest) -> Option<PlanStatus> {
-    request
-        .core_execution_observation
-        .as_ref()
-        .and_then(|row| row.plan_status.clone())
+fn observed_plan_status(
+    execution_observation: Option<&CoreExecutionObservation>,
+) -> Option<PlanStatus> {
+    execution_observation.and_then(|row| row.plan_status.clone())
 }
 
 fn observed_or_derived_plan_status(
-    request: &TypedOrchestrationRequest,
+    execution_observation: Option<&CoreExecutionObservation>,
     observed_step_statuses: &[(String, StepStatus)],
 ) -> Option<PlanStatus> {
-    if let Some(observed) = observed_plan_status(request) {
+    if let Some(observed) = observed_plan_status(execution_observation) {
         return Some(observed);
     }
-    let observation = request.core_execution_observation.as_ref()?;
+    let observation = execution_observation?;
     if observed_step_statuses
         .iter()
         .any(|(_, status)| matches!(status, StepStatus::Failed))
@@ -163,10 +164,10 @@ fn observed_or_derived_plan_status(
     None
 }
 
-fn observed_step_statuses(request: &TypedOrchestrationRequest) -> Vec<(String, StepStatus)> {
-    request
-        .core_execution_observation
-        .as_ref()
+fn observed_step_statuses(
+    execution_observation: Option<&CoreExecutionObservation>,
+) -> Vec<(String, StepStatus)> {
+    execution_observation
         .map(|row| {
             row.step_statuses
                 .iter()
@@ -188,9 +189,9 @@ fn observed_step_status_for(
 
 fn correlation_for(
     request: &TypedOrchestrationRequest,
+    execution_observation: Option<&CoreExecutionObservation>,
     plan: &PlanCandidate,
 ) -> ExecutionCorrelation {
-    let observation = request.core_execution_observation.as_ref();
     ExecutionCorrelation {
         orchestration_trace_id: format!(
             "orch_{}_{}",
@@ -208,10 +209,10 @@ fn correlation_for(
             ids.dedup();
             ids
         },
-        observed_core_receipt_ids: observation
+        observed_core_receipt_ids: execution_observation
             .map(|row| row.receipt_ids.clone())
             .unwrap_or_default(),
-        observed_core_outcome_refs: observation
+        observed_core_outcome_refs: execution_observation
             .map(|row| row.outcome_refs.clone())
             .unwrap_or_default(),
     }

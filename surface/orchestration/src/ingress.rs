@@ -93,7 +93,6 @@ pub fn normalize_request(input: OrchestrationRequest) -> ParseResult {
             policy_scope,
             user_constraints,
             core_probe_envelope,
-            core_execution_observation: None,
         },
         &operation_candidates,
         &resource_candidates,
@@ -494,10 +493,8 @@ mod tests {
                 }
             }),
         });
-        assert!(
-            parsed.typed_request.core_execution_observation.is_none(),
-            "execution observation must be ingested via runtime observation channel"
-        );
+        assert_eq!(parsed.typed_request.surface, RequestSurface::Legacy);
+        assert_eq!(parsed.typed_request.operation_kind, OperationKind::Read);
     }
 
     #[test]
@@ -518,10 +515,8 @@ mod tests {
                 }
             }),
         });
-        assert!(
-            parsed.typed_request.core_execution_observation.is_none(),
-            "execution observation must be ingested via runtime observation channel"
-        );
+        assert_eq!(parsed.typed_request.surface, RequestSurface::Sdk);
+        assert_eq!(parsed.typed_request.operation_kind, OperationKind::Search);
     }
 
     #[test]
