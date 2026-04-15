@@ -120,7 +120,7 @@
     - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/210-scroll-hover-sanitize.part01.ts`
     - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/220-artifacts-voice-search.part02.ts`
 ## Current Intake State
-- Imported rows in this wave: `130`
+- Imported rows in this wave: `135`
 - Pending rows in this wave: `0`
 
 - `OPENCLAW-TOOLING-APP-013`:
@@ -351,6 +351,16 @@
     - `src/plugins/provider-discovery.runtime.ts`
     - `src/plugins/contracts/provider-discovery.contract.test.ts`
     - `test/helpers/plugins/provider-discovery-contract.ts`
+  - Landed in:
+    - `core/layer0/ops/src/web_conduit_provider_runtime_parts/019-fetch-runtime-resolution.rs`
+    - `core/layer0/ops/src/web_conduit_parts/096-openclaw-fetch-runtime-resolution-tests.rs`
+- `OPENCLAW-TOOLING-WEB-033`:
+  - Imported provider-runtime capability and embedding runtime contract semantics from:
+    - `src/plugins/contracts/tts.provider-runtime.contract.test.ts`
+    - `src/plugins/capability-provider-runtime.test.ts`
+    - `src/plugins/capability-provider-runtime.ts`
+    - `src/plugins/memory-embedding-provider-runtime.test.ts`
+    - `src/plugins/memory-embedding-provider-runtime.ts`
   - Landed in:
     - `core/layer0/ops/src/web_conduit_provider_runtime_parts/019-fetch-runtime-resolution.rs`
     - `core/layer0/ops/src/web_conduit_parts/096-openclaw-fetch-runtime-resolution-tests.rs`

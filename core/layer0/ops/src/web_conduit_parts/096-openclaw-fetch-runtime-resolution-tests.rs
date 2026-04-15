@@ -208,6 +208,16 @@ mod openclaw_fetch_runtime_resolution_tests {
             Some("runtime-api")
         );
         assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_runtime_core_contract/core_runtime_contract_targets/0")
+                .and_then(Value::as_str),
+            Some("src/plugins/contracts/tts.provider-runtime.contract.test.ts")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_runtime_core_contract/capability_runtime_entrypoints/1")
+                .and_then(Value::as_str),
+            Some("resolveMemoryEmbeddingProviderRuntime")
+        );
+        assert_eq!(
             out.pointer("/openclaw_runtime_contract/visibility_sanitization_contract/sanitizer_entrypoint")
                 .and_then(Value::as_str),
             Some("sanitizeHtml")

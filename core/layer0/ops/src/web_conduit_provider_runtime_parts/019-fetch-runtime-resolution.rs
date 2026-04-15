@@ -131,6 +131,27 @@ fn fetch_runtime_web_channel_plugin_contract() -> Value {
     })
 }
 
+fn fetch_provider_runtime_core_contract() -> Value {
+    json!({
+        "core_runtime_contract_targets": [
+            "src/plugins/contracts/tts.provider-runtime.contract.test.ts",
+            "src/plugins/capability-provider-runtime.test.ts",
+            "src/plugins/capability-provider-runtime.ts",
+            "src/plugins/memory-embedding-provider-runtime.test.ts",
+            "src/plugins/memory-embedding-provider-runtime.ts"
+        ],
+        "capability_runtime_entrypoints": [
+            "resolveCapabilityProviderRuntime",
+            "resolveMemoryEmbeddingProviderRuntime"
+        ],
+        "runtime_invariants": [
+            "provider_runtime_resolution_contract",
+            "credential_presence_contract",
+            "runtime_model_catalog_contract"
+        ]
+    })
+}
+
 fn fetch_visibility_sanitization_contract() -> Value {
     json!({
         "sanitizer_entrypoint": "sanitizeHtml",
@@ -315,6 +336,7 @@ fn fetch_runtime_resolution_contract() -> Value {
         "provider_discovery_contract_suite_contract": fetch_provider_discovery_contract_suite_contract(),
         "provider_helper_contract": fetch_web_provider_helper_contract(),
         "runtime_web_channel_plugin_contract": fetch_runtime_web_channel_plugin_contract(),
+        "provider_runtime_core_contract": fetch_provider_runtime_core_contract(),
         "visibility_sanitization_contract": fetch_visibility_sanitization_contract(),
         "shared_runtime_contract": fetch_shared_runtime_contract(),
         "content_extraction_contract": fetch_content_extraction_contract(),
