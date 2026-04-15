@@ -165,7 +165,6 @@ pub struct TypedOrchestrationRequest {
     pub policy_scope: PolicyScope,
     pub user_constraints: Vec<UserConstraint>,
     pub core_probe_envelope: Option<CoreProbeEnvelope>,
-    pub core_execution_observation: Option<CoreExecutionObservation>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

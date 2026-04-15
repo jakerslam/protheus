@@ -994,16 +994,16 @@ function Show-DashboardFailureLogs {
 function Test-DashboardHealthSmoke {
   param(
     [string]$InstallDir,
-    [string]$Host = "127.0.0.1",
+    [string]$DashboardHost = "127.0.0.1",
     [int]$Port = 4173
   )
 
   $workspaceRoot = Resolve-WorkspaceRootForSmoke
   $healthLog = Join-Path ([System.IO.Path]::GetTempPath()) ("infring-dashboard-health-" + [guid]::NewGuid().ToString("N") + ".log")
 
-  $null = Invoke-InfringCmdWithTimeout -InstallDir $InstallDir -Arguments @("gateway", "stop", "--dashboard-host=$Host", "--dashboard-port=$Port", "--dashboard-open=0") -TimeoutSec 20
+  $null = Invoke-InfringCmdWithTimeout -InstallDir $InstallDir -Arguments @("gateway", "stop", "--dashboard-host=$DashboardHost", "--dashboard-port=$Port", "--dashboard-open=0") -TimeoutSec 20
 
-  $startResult = Invoke-InfringCmdWithTimeout -InstallDir $InstallDir -Arguments @("gateway", "start", "--dashboard-host=$Host", "--dashboard-port=$Port", "--dashboard-open=0", "--gateway-persist=0") -TimeoutSec 45 -LogPath $healthLog
+  $startResult = Invoke-InfringCmdWithTimeout -InstallDir $InstallDir -Arguments @("gateway", "start", "--dashboard-host=$DashboardHost", "--dashboard-port=$Port", "--dashboard-open=0", "--gateway-persist=0") -TimeoutSec 45 -LogPath $healthLog
   if (-not [bool]$startResult.Ok) {
     if ([bool]$startResult.TimedOut) {
       Write-Host "[infring install] smoke dashboard_health: failed (gateway start timeout)"
@@ -1023,14 +1023,14 @@ function Test-DashboardHealthSmoke {
   $ready = $false
   for ($i = 0; $i -lt 45; $i++) {
     try {
-      Invoke-WebRequest -Uri "http://$Host`:$Port/healthz" -UseBasicParsing -TimeoutSec 2 | Out-Null
+      Invoke-WebRequest -Uri "http://$DashboardHost`:$Port/healthz" -UseBasicParsing -TimeoutSec 2 | Out-Null
       $ready = $true
       break
     } catch {}
     Start-Sleep -Seconds 1
   }
 
-  $null = Invoke-InfringCmdWithTimeout -InstallDir $InstallDir -Arguments @("gateway", "stop", "--dashboard-host=$Host", "--dashboard-port=$Port", "--dashboard-open=0") -TimeoutSec 20
+  $null = Invoke-InfringCmdWithTimeout -InstallDir $InstallDir -Arguments @("gateway", "stop", "--dashboard-host=$DashboardHost", "--dashboard-port=$Port", "--dashboard-open=0") -TimeoutSec 20
 
   if (-not $ready) {
     Write-Host "[infring install] smoke dashboard_health: failed (healthz timeout)"
@@ -1074,13 +1074,13 @@ function Invoke-InfringCmdWithTimeout {
     $escaped = $escaped.Replace('"', '""')
     $quotedArgs += "`"$escaped`""
   }
-  $commandLine = "`"$cmdPath`""
+  $commandLine = "call `"$cmdPath`""
   if ($quotedArgs.Count -gt 0) {
     $commandLine = "$commandLine " + ($quotedArgs -join " ")
   }
 
   try {
-    $proc = Start-Process -FilePath "cmd.exe" -ArgumentList @("/d", "/c", $commandLine) -PassThru -WindowStyle Hidden -RedirectStandardOutput $LogPath -RedirectStandardError $errPath
+    $proc = Start-Process -FilePath "cmd.exe" -ArgumentList @("/d", "/s", "/c", $commandLine) -PassThru -WindowStyle Hidden -RedirectStandardOutput $LogPath -RedirectStandardError $errPath
   } catch {
     return @{
       Ok = $false
@@ -1118,14 +1118,14 @@ function Invoke-InfringCmdWithTimeout {
 $powerShellShimTemplate = @'
 param(
   [Parameter(ValueFromRemainingArguments = $true)]
-  [string[]]$Args
+  [string[]]$CommandArgs
 )
 $target = Join-Path $PSScriptRoot "__TARGET__"
 if (-not (Test-Path $target)) {
   throw "Missing command wrapper: $target"
 }
 __DEPRECATION__
-& $target @Args
+& $target @CommandArgs
 exit $LASTEXITCODE
 '@
 
@@ -1253,7 +1253,7 @@ if ($env:INFRING_INSTALL_STRICT_SMOKE -and @("1", "true", "yes", "on") -contains
 }
 if ($dashboardSmokeRequired) {
   $smokePort = 4400 + (Get-Random -Minimum 0 -Maximum 1000)
-  if (-not (Test-DashboardHealthSmoke -InstallDir $InstallDir -Host "127.0.0.1" -Port $smokePort)) {
+  if (-not (Test-DashboardHealthSmoke -InstallDir $InstallDir -DashboardHost "127.0.0.1" -Port $smokePort)) {
     throw "Full install failed dashboard health smoke."
   }
 } else {

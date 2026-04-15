@@ -1,8 +1,9 @@
-import { InfringSdkClient, createInMemoryTransport } from '@infring/sdk';
+import { InfringSdkClient } from '@infring/sdk';
+import { createTestingInMemoryTransport } from '@infring/sdk/testing';
 
 async function main(): Promise<void> {
   const sdk = new InfringSdkClient({
-    transport: createInMemoryTransport({
+    transport: createTestingInMemoryTransport({
       inspect_receipts: { receipts: [] },
       query_memory: { records: [] },
       review_evidence: { evidence: [] },

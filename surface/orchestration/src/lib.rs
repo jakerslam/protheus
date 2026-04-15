@@ -74,14 +74,10 @@ impl OrchestrationSurfaceRuntime {
     ) -> OrchestrationResultPackage {
         self.maybe_run_sleep_cycle_cleanup(now_ms);
         let normalized = ingress::normalize_request(request);
-        let mut typed_request = normalized.typed_request.clone();
-        if let Some(update) = self
+        let typed_request = normalized.typed_request.clone();
+        let execution_observation = self
             .execution_observations
-            .get(typed_request.session_id.as_str())
-            .cloned()
-        {
-            typed_request.core_execution_observation = Some(update);
-        }
+            .get(typed_request.session_id.as_str());
         let classification = request_classification::classify_request(&normalized);
         if let Err(err) = self.transient.upsert(
             typed_request.session_id.as_str(),
@@ -161,8 +157,12 @@ impl OrchestrationSurfaceRuntime {
         } else {
             Vec::new()
         };
-        let execution_state =
-            progress::execution_state_for(&typed_request, &selected_plan, needs_clarification);
+        let execution_state = progress::execution_state_for(
+            &typed_request,
+            execution_observation,
+            &selected_plan,
+            needs_clarification,
+        );
 
         let plan = OrchestrationPlan {
             request_class: classification.request_class.clone(),
