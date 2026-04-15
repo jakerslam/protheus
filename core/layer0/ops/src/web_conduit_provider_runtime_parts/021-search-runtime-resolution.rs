@@ -234,11 +234,16 @@ fn search_bundled_fast_path_contract_suite_contract() -> Value {
     json!({
         "suite_entrypoint": "describeBundledWebSearchFastPathContract",
         "suite_helper_module": "test/helpers/plugins/bundled-web-search-fast-path-contract.ts",
-        "suite_target_plugin_ids": ["moonshot", "xai", "searxng"],
+        "suite_target_plugin_ids": ["moonshot", "xai", "searxng", "brave", "duckduckgo", "exa", "firecrawl", "google"],
         "suite_contract_test_files": [
             "bundled-web-search.moonshot.contract.test.ts",
             "bundled-web-search.xai.contract.test.ts",
-            "bundled-web-search.searxng.contract.test.ts"
+            "bundled-web-search.searxng.contract.test.ts",
+            "bundled-web-search.brave.contract.test.ts",
+            "bundled-web-search.duckduckgo.contract.test.ts",
+            "bundled-web-search.exa.contract.test.ts",
+            "bundled-web-search.firecrawl.contract.test.ts",
+            "bundled-web-search.google.contract.test.ts"
         ],
         "explicit_provider_resolver": "resolveBundledExplicitWebSearchProvidersFromPublicArtifacts",
         "runtime_provider_resolver": "resolvePluginWebSearchProviders",
