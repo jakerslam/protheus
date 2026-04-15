@@ -12883,7 +12883,7 @@
       "order": 1170
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ops/self_hosted_bootstrap_compiler.ts",
       "language": "ts",
       "loc": 3,
@@ -12894,7 +12894,7 @@
       "order": 1171
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ops/simplicity_budget_gate.ts",
       "language": "ts",
       "loc": 3,
@@ -12905,7 +12905,7 @@
       "order": 1172
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ops/soc2_type2_track.ts",
       "language": "ts",
       "loc": 3,
@@ -12916,7 +12916,7 @@
       "order": 1173
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ops/state_kernel.ts",
       "language": "ts",
       "loc": 3,
@@ -12927,7 +12927,7 @@
       "order": 1174
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ops/state_kernel_cutover.ts",
       "language": "ts",
       "loc": 3,

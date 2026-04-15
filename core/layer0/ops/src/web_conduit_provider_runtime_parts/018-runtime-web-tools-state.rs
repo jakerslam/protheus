@@ -37,6 +37,29 @@ fn runtime_web_tools_default_enablement_contract() -> Value {
     })
 }
 
+fn runtime_web_fetch_unit_test_harness_contract() -> Value {
+    json!({
+        "headers_factory_entrypoint": "makeFetchHeaders",
+        "headers_key_normalizer": "normalizeLowercaseStringOrEmpty",
+        "headers_lookup_contract": "map[normalizeLowercaseStringOrEmpty(key)] ?? null",
+        "base_test_config_entrypoint": "createBaseWebFetchToolConfig",
+        "base_test_opts_supported": ["maxResponseBytes", "lookupFn"],
+        "base_test_defaults": {
+            "cache_ttl_minutes": 0,
+            "firecrawl_enabled": false
+        },
+        "base_test_optional_overrides": {
+            "max_response_bytes_config_path": "config.tools.web.fetch.maxResponseBytes",
+            "lookup_fn_passthrough_field": "lookupFn",
+            "max_response_bytes_added_only_when_truthy": true,
+            "lookup_fn_added_only_when_present": true
+        },
+        "max_response_bytes_override_supported": true,
+        "readability_test_mock_entrypoint": "web-fetch.test-mocks.ts",
+        "readability_test_mock_behavior": "extractReadableContent returns deterministic title/text to avoid heavy dynamic imports"
+    })
+}
+
 fn default_runtime_web_tools_metadata() -> Value {
     json!({
         "search": {
@@ -64,7 +87,8 @@ fn default_runtime_web_tools_metadata() -> Value {
         "image_tool": default_image_tool_runtime_metadata(),
         "openclaw_web_tools_contract": {
             "exports": runtime_web_tools_exports_contract(),
-            "default_enablement": runtime_web_tools_default_enablement_contract()
+            "default_enablement": runtime_web_tools_default_enablement_contract(),
+            "fetch_unit_test_harness": runtime_web_fetch_unit_test_harness_contract()
         },
         "diagnostics": []
     })
@@ -426,7 +450,8 @@ pub(crate) fn runtime_web_tools_snapshot(root: &Path, policy: &Value) -> Value {
         "image_tool": image_tool,
         "openclaw_web_tools_contract": {
             "exports": runtime_web_tools_exports_contract(),
-            "default_enablement": runtime_web_tools_default_enablement_contract()
+            "default_enablement": runtime_web_tools_default_enablement_contract(),
+            "fetch_unit_test_harness": runtime_web_fetch_unit_test_harness_contract()
         },
         "diagnostics": diagnostics
     });
@@ -562,6 +587,36 @@ mod openclaw_runtime_web_tools_tests {
                 .pointer("/openclaw_web_tools_contract/default_enablement/runtime_metadata_provider_override_field")
                 .and_then(Value::as_str),
             Some("runtimeWebSearch.selectedProvider")
+        );
+        assert_eq!(
+            metadata
+                .pointer("/openclaw_web_tools_contract/fetch_unit_test_harness/headers_factory_entrypoint")
+                .and_then(Value::as_str),
+            Some("makeFetchHeaders")
+        );
+        assert_eq!(
+            metadata
+                .pointer("/openclaw_web_tools_contract/fetch_unit_test_harness/headers_lookup_contract")
+                .and_then(Value::as_str),
+            Some("map[normalizeLowercaseStringOrEmpty(key)] ?? null")
+        );
+        assert_eq!(
+            metadata
+                .pointer("/openclaw_web_tools_contract/fetch_unit_test_harness/base_test_defaults/cache_ttl_minutes")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            metadata
+                .pointer("/openclaw_web_tools_contract/fetch_unit_test_harness/base_test_optional_overrides/max_response_bytes_added_only_when_truthy")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            metadata
+                .pointer("/openclaw_web_tools_contract/fetch_unit_test_harness/readability_test_mock_entrypoint")
+                .and_then(Value::as_str),
+            Some("web-fetch.test-mocks.ts")
         );
         assert!(metadata
             .pointer("/diagnostics")
