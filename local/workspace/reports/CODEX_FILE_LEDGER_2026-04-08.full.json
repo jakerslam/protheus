@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-13T19:20:24.452Z",
+  "generated_at": "2026-04-15T05:08:30.000Z",
   "scope": [
     "core",
     "client/runtime",
@@ -5293,10 +5293,10 @@
       "order": 480
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/rag_cli.rs",
       "language": "rs",
-      "loc": 663,
+      "loc": 3,
       "authority_risk_score": 5,
       "migration_potential_score": 1,
       "concept_opportunity_score": 2,
@@ -5359,10 +5359,10 @@
       "order": 486
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/mutation_provenance_kernel.rs",
       "language": "rs",
-      "loc": 621,
+      "loc": 3,
       "authority_risk_score": 5,
       "migration_potential_score": 1,
       "concept_opportunity_score": 2,
@@ -5403,10 +5403,10 @@
       "order": 490
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/daemon_control_parts/010-print-json-line.rs",
       "language": "rs",
-      "loc": 609,
+      "loc": 2,
       "authority_risk_score": 5,
       "migration_potential_score": 1,
       "concept_opportunity_score": 2,
@@ -5414,10 +5414,10 @@
       "order": 491
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/approval_gate_kernel.rs",
       "language": "rs",
-      "loc": 608,
+      "loc": 2,
       "authority_risk_score": 5,
       "migration_potential_score": 1,
       "concept_opportunity_score": 2,
@@ -5447,10 +5447,10 @@
       "order": 494
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/local_state_digest_kernel.rs",
       "language": "rs",
-      "loc": 602,
+      "loc": 2,
       "authority_risk_score": 5,
       "migration_potential_score": 1,
       "concept_opportunity_score": 2,
