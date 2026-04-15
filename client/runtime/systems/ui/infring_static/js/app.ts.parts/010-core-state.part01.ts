@@ -131,10 +131,10 @@ document.addEventListener('alpine:init', function() {
     _notificationBellPulseSeq: 0,
     _notificationBubbleTimer: null,
     _notificationSeq: 0,
-    topbarRefreshTurns: 0,
-    topbarSearchOpen: false,
-    topbarSearchQuery: '',
-    _topbarSearchFocusTimer: 0,
+    taskbarRefreshTurns: 0,
+    taskbarSearchOpen: false,
+    taskbarSearchQuery: '',
+    _taskbarSearchFocusTimer: 0,
     agentChatPreviews: {},
     agentLiveActivity: {},
     agentsEmptyResponseStreak: 0,
@@ -155,10 +155,10 @@ document.addEventListener('alpine:init', function() {
       localStorage.setItem('infring-focus', this.focusMode);
     },
 
-    bumpTopbarRefreshTurn() {
-      var current = Number(this.topbarRefreshTurns || 0);
+    bumpTaskbarRefreshTurn() {
+      var current = Number(this.taskbarRefreshTurns || 0);
       if (!Number.isFinite(current) || current < 0) current = 0;
-      this.topbarRefreshTurns = (current + 1) % 4096;
+      this.taskbarRefreshTurns = (current + 1) % 4096;
     },
 
     setActiveAgentId(agentId) {

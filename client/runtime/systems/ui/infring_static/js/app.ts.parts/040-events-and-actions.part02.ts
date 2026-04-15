@@ -91,39 +91,130 @@
       return 'Time limit active';
     },
 
-    closeTopbarHeroMenu() {
-      this.topbarHeroMenuOpen = false;
+    closeTaskbarHeroMenu() {
+      this.taskbarHeroMenuOpen = false;
     },
 
-    toggleTopbarHeroMenu() {
-      if (this.topbarHeroActionPending) return;
-      this.topbarHeroMenuOpen = !this.topbarHeroMenuOpen;
+    closeTaskbarTextMenu() {
+      this.taskbarTextMenuOpen = '';
     },
 
-    requestTopbarRefresh() {
-      this.closeTopbarHeroMenu();
+    taskbarTextMenuIsOpen(menuName) {
+      var key = String(menuName || '').trim().toLowerCase();
+      if (!key) return false;
+      return String(this.taskbarTextMenuOpen || '').trim().toLowerCase() === key;
+    },
+
+    toggleTaskbarTextMenu(menuName) {
+      var key = String(menuName || '').trim().toLowerCase();
+      if (!key) {
+        this.closeTaskbarTextMenu();
+        return;
+      }
+      this.closeTaskbarHeroMenu();
+      this.taskbarTextMenuOpen = this.taskbarTextMenuIsOpen(key) ? '' : key;
+    },
+
+    handleTaskbarHelpManual() {
+      this.closeTaskbarTextMenu();
+      this.openPopupWindow('manual');
+    },
+
+    handleTaskbarHelpReportIssue() {
+      this.closeTaskbarTextMenu();
+      this.openPopupWindow('report');
+    },
+
+    submitReportIssueDraft() {
+      var draft = String(this.reportIssueDraft || '').trim();
+      if (!draft) {
+        InfringToast.error('Please add issue details before submitting.');
+        return;
+      }
+      var entry = {
+        id: 'issue-' + String(Date.now()),
+        ts: Date.now(),
+        text: draft,
+        page: String(this.page || '').trim(),
+        agent_id: String((this.currentAgent && this.currentAgent.id) || '').trim()
+      };
+      try {
+        var raw = localStorage.getItem('infring-issue-report-drafts');
+        var list = raw ? JSON.parse(raw) : [];
+        if (!Array.isArray(list)) list = [];
+        list.unshift(entry);
+        if (list.length > 25) list = list.slice(0, 25);
+        localStorage.setItem('infring-issue-report-drafts', JSON.stringify(list));
+      } catch(_) {}
+      this.reportIssueDraft = '';
+      this.closePopupWindow('report');
+      InfringToast.success('Issue report saved. GitHub issue wiring is next.');
+    },
+
+    manualDocumentMarkdown() {
+      return [
+        '# Infring Manual',
+        '',
+        '## Table of Contents\n1. [What Infring Is](#what-infring-is)\n2. [Install + Start](#install--start)\n3. [CLI Guide](#cli-guide)\n4. [UI Guide](#ui-guide)\n5. [Tools + Evidence](#tools--evidence)\n6. [Memory + Sessions](#memory--sessions)\n7. [Safety Model](#safety-model)\n8. [Troubleshooting](#troubleshooting)\n9. [Reporting Issues](#reporting-issues)',
+        '',
+        '## What Infring Is\nInfring is a governed agent runtime with a CLI and dashboard UI. It is built for auditable execution: requests, tool outcomes, and runtime state should be observable and explainable.',
+        '',
+        '## Install + Start\nWindows: run installer with `-Repair -Full` when shims drift.\nGeneral flow: start runtime, open dashboard, select/create an agent, send prompts, review outputs.',
+        '',
+        '## CLI Guide\n- `infring gateway` launches gateway/runtime controls.\n- `infring gateway status` checks health and readiness.\n- Use `Get-Command infring` (PowerShell) or `which infring` (POSIX) to confirm PATH resolution.',
+        '',
+        '## UI Guide\n- Taskbar: system actions, help, notifications, utility menus.\n- Sidebar: agent conversations + live previews.\n- Chat Map: fast navigation across long threads.\n- Chat Surface: prompts, tools, receipts, and runtime feedback.',
+        '',
+        '## Tools + Evidence\nTool calls produce structured cards and outcomes. Prefer evidence-backed responses: check tool status, outputs, and receipts before concluding.',
+        '',
+        '## Memory + Sessions\nAgents maintain session context; branches and sessions can diverge by task. Keep work scoped per session to avoid cross-thread confusion.',
+        '',
+        '## Safety Model\nInfring aims for fail-closed behavior in risky paths: explicit checks, policy-aware actions, and governed mutation paths.',
+        '',
+        '## Troubleshooting\nIf UI appears stalled: verify runtime health, refresh taskbar/runtime, then retry. If installs fail: rerun installer repair/full and validate command resolution.',
+        '',
+        '## Reporting Issues\nUse Help -> Report an issue. Include expected behavior, actual behavior, reproduction steps, and any relevant screenshots/log lines.',
+      ].join('\n');
+    },
+
+    manualDocumentHtml() {
+      var markdown = this.manualDocumentMarkdown();
+      if (typeof renderMarkdown === 'function') {
+        return renderMarkdown(markdown);
+      }
+      return escapeHtml(markdown);
+    },
+
+    toggleTaskbarHeroMenu() {
+      if (this.taskbarHeroActionPending) return;
+      if (!this.taskbarHeroMenuOpen) this.closeTaskbarTextMenu();
+      this.taskbarHeroMenuOpen = !this.taskbarHeroMenuOpen;
+    },
+
+    requestTaskbarRefresh() {
+      this.closeTaskbarHeroMenu();
       var appStore = this.getAppStore ? this.getAppStore() : null;
-      if (appStore && typeof appStore.bumpTopbarRefreshTurn === 'function') {
-        appStore.bumpTopbarRefreshTurn();
+      if (appStore && typeof appStore.bumpTaskbarRefreshTurn === 'function') {
+        appStore.bumpTaskbarRefreshTurn();
       }
-      if (this._topbarRefreshOverlayTimer) {
-        clearTimeout(this._topbarRefreshOverlayTimer);
-        this._topbarRefreshOverlayTimer = 0;
+      if (this._taskbarRefreshOverlayTimer) {
+        clearTimeout(this._taskbarRefreshOverlayTimer);
+        this._taskbarRefreshOverlayTimer = 0;
       }
-      if (this._topbarRefreshReloadTimer) {
-        clearTimeout(this._topbarRefreshReloadTimer);
-        this._topbarRefreshReloadTimer = 0;
+      if (this._taskbarRefreshReloadTimer) {
+        clearTimeout(this._taskbarRefreshReloadTimer);
+        this._taskbarRefreshReloadTimer = 0;
       }
       var self = this;
-      this._topbarRefreshOverlayTimer = window.setTimeout(function() {
+      this._taskbarRefreshOverlayTimer = window.setTimeout(function() {
         self.bootSplashVisible = true;
         self._bootSplashStartedAt = Date.now();
         if (typeof self.resetBootProgress === 'function') self.resetBootProgress();
         if (typeof self.setBootProgressEvent === 'function') self.setBootProgressEvent('status_requesting');
-        self._topbarRefreshOverlayTimer = 0;
+        self._taskbarRefreshOverlayTimer = 0;
       }, 1000);
-      this._topbarRefreshReloadTimer = window.setTimeout(function() {
-        self._topbarRefreshReloadTimer = 0;
+      this._taskbarRefreshReloadTimer = window.setTimeout(function() {
+        self._taskbarRefreshReloadTimer = 0;
         try {
           window.location.reload();
         } catch (_) {
@@ -134,7 +225,7 @@
       }, 1100);
     },
 
-    async postTopbarHeroSystemRoute(route, body, options) {
+    async postTaskbarHeroSystemRoute(route, body, options) {
       var opts = (options && typeof options === 'object') ? options : {};
       var timeoutMs = Number(opts.timeoutMs);
       if (!Number.isFinite(timeoutMs) || timeoutMs < 250) timeoutMs = 1800;
@@ -208,9 +299,9 @@
       }
     },
 
-    async runTopbarHeroCommand(action) {
+    async runTaskbarHeroCommand(action) {
       var actionKey = String(action || '').trim().toLowerCase();
-      if (!actionKey || this.topbarHeroActionPending) return;
+      if (!actionKey || this.taskbarHeroActionPending) return;
       var dashboardAction = '';
       var legacyRoute = '';
       var body = {};
@@ -229,11 +320,11 @@
       } else {
         return;
       }
-      this.topbarHeroActionPending = actionKey;
+      this.taskbarHeroActionPending = actionKey;
       try {
         var result = null;
         try {
-          result = await this.postTopbarHeroSystemRoute(legacyRoute, body, {
+          result = await this.postTaskbarHeroSystemRoute(legacyRoute, body, {
             timeoutMs: actionKey === 'update' ? 12000 : 1400,
             allowTransientSuccess: actionKey === 'restart' || actionKey === 'shutdown'
           });
@@ -265,10 +356,10 @@
         if (result && result.ok === false) {
           throw new Error(String(result.error || payload.error || (actionKey + '_failed')));
         }
-        this.closeTopbarHeroMenu();
+        this.closeTaskbarHeroMenu();
         if (actionKey === 'restart') {
           InfringToast.success('Restart requested');
-          this.requestTopbarRefresh();
+          this.requestTaskbarRefresh();
         } else if (actionKey === 'shutdown') {
           InfringToast.success('Shut down requested');
           this.connected = false;
@@ -284,12 +375,12 @@
           } else {
             InfringToast.success('Update requested');
           }
-          this.requestTopbarRefresh();
+          this.requestTaskbarRefresh();
         }
       } catch (e) {
         InfringToast.error('Failed to ' + actionKey.replace(/_/g, ' ') + ': ' + (e && e.message ? e.message : 'unknown error'));
       } finally {
-        this.topbarHeroActionPending = '';
+        this.taskbarHeroActionPending = '';
       }
     },
 

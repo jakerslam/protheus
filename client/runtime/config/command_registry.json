@@ -1,7 +1,7 @@
 {
   "schema_id": "command_registry",
   "schema_version": "1.0",
-  "updated_at": "2026-03-02T00:00:00.000Z",
+  "updated_at": "2026-04-15T00:00:00.000Z",
   "owners": {
     "platform": "Core runtime + entrypoint contracts",
     "ops": "Operational lanes and governance checks",
@@ -33,6 +33,7 @@
     "ops:path-contract:check",
     "ops:docs-surface:check",
     "ops:root-surface:check",
+    "ops:repo-health:check",
     "ops:legal-language:check",
     "ops:package-manifest:check"
   ],

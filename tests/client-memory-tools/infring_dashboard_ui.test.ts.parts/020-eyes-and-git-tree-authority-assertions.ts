@@ -296,12 +296,12 @@ function assertInterfaceSafetyGuards() {
   assertContains(
     appSource,
     'dashboardPopupStateOrigin() {',
-    'chat-nav and topbar popups must route through the shared popup state origin helper'
+    'chat-nav and taskbar popups must route through the shared popup state origin helper'
   );
   assertContains(
     appSource,
-    'showTopbarNavPopup(label, ev) {',
-    'topbar chat-nav hover should be authored through the shared popup state'
+    'showTaskbarNavPopup(label, ev) {',
+    'taskbar chat-nav hover should be authored through the shared popup state'
   );
   assertContains(
     appSource,
@@ -353,8 +353,8 @@ function assertInterfaceSafetyGuards() {
   );
   assertContains(
     appSource,
-    'showTopbarUtilityPopup(label, body, ev) {',
-    'topbar utility hover should be authored through the shared popup state'
+    'showTaskbarUtilityPopup(label, body, ev) {',
+    'taskbar utility hover should be authored through the shared popup state'
   );
   assert.ok(
     !appSource.includes('showChatNavStatusPopup('),
@@ -398,28 +398,28 @@ function assertInterfaceSafetyGuards() {
   );
   assertContains(
     htmlSource,
-    "@mouseenter=\"showTopbarNavPopup('Back', $event)\"",
-    'topbar back button should inherit the shared popup object'
+    "@mouseenter=\"showTaskbarNavPopup('Back', $event)\"",
+    'taskbar back button should inherit the shared popup object'
   );
   assertContains(
     htmlSource,
     ":aria-disabled=\"!canNavigateBack() ? 'true' : 'false'\"",
-    'topbar back button should still allow shared popup hover when navigation is unavailable'
+    'taskbar back button should still allow shared popup hover when navigation is unavailable'
   );
   assertContains(
     htmlSource,
-    "@mouseenter=\"showTopbarNavPopup('Forward', $event)\"",
-    'topbar forward button should inherit the shared popup object'
+    "@mouseenter=\"showTaskbarNavPopup('Forward', $event)\"",
+    'taskbar forward button should inherit the shared popup object'
   );
   assertContains(
     htmlSource,
     ":aria-disabled=\"!canNavigateForward() ? 'true' : 'false'\"",
-    'topbar forward button should still allow shared popup hover when navigation is unavailable'
+    'taskbar forward button should still allow shared popup hover when navigation is unavailable'
   );
   assertContains(
     htmlSource,
-    "@mouseenter=\"showTopbarUtilityPopup('Search', 'Search coming soon', $event)\"",
-    'topbar search preview should inherit the shared popup object'
+    "@mouseenter=\"showTaskbarUtilityPopup('Search', 'Search coming soon', $event)\"",
+    'taskbar search preview should inherit the shared popup object'
   );
   assertContains(
     htmlSource,
@@ -465,7 +465,7 @@ function assertInterfaceSafetyGuards() {
   );
   assertContains(
     htmlSource,
-    'class="topbar-hero-menu dashboard-dropdown-surface"',
+    'class="taskbar-hero-menu dashboard-dropdown-surface"',
     'hero dropdown should share the popup/dropdown surface styling'
   );
   assertContains(
@@ -750,7 +750,7 @@ function runSnapshotAssertions() {
   assertDashboardInlineScriptsParse();
   assertDashboardBuildVersionFresh();
   assertDashboardVersionRefreshUsesApiVersion();
-  assertTopbarHeroSystemMenu();
+  assertTaskbarHeroSystemMenu();
   assertDashboardHostOverlaysLiveVersion();
   assertChatEnhancementFeatures();
   assertMemoryApiWired();

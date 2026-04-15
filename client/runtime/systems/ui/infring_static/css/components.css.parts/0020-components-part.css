@@ -76,7 +76,7 @@
   color: #fff;
 }
 
-.topbar-search-popup-anchor {
+.taskbar-search-popup-anchor {
   position: fixed;
   top: 52px;
   left: 50vw;
@@ -89,7 +89,7 @@
   padding: 0;
 }
 
-.topbar-search-popup {
+.taskbar-search-popup {
   width: 100%;
   max-width: 640px;
   min-height: 30px;
@@ -100,16 +100,16 @@
   padding: 0 12px;
   --dashboard-preview-surface-max-width: min(640px, calc(100vw - 32px));
   --dashboard-preview-surface-padding: 0 12px;
-  --dashboard-preview-surface-radius: 18px;
+  --dashboard-preview-surface-radius: var(--overlay-surface-radius, 18px);
   transition: border-color var(--transition-fast), background var(--transition-fast), box-shadow var(--transition-fast);
 }
 
-.topbar-search-popup.is-active {
+.taskbar-search-popup.is-active {
   border-color: color-mix(in srgb, var(--accent) 46%, transparent);
   background: color-mix(in srgb, var(--accent-subtle) 56%, transparent);
 }
 
-.topbar-search-icon {
+.taskbar-search-icon {
   width: 14px;
   height: 14px;
   color: var(--text-muted);
@@ -119,12 +119,12 @@
   flex: 0 0 auto;
 }
 
-.topbar-search-icon svg {
+.taskbar-search-icon svg {
   width: 14px;
   height: 14px;
 }
 
-.topbar-search-input {
+.taskbar-search-input {
   width: 100%;
   margin: 0;
   padding: 0;
@@ -141,62 +141,62 @@
   line-height: 1.2;
 }
 
-.topbar-search-input:focus,
-.topbar-search-input:focus-visible {
+.taskbar-search-input:focus,
+.taskbar-search-input:focus-visible {
   outline: none !important;
   box-shadow: none !important;
   border: none !important;
 }
 
-.topbar-search-input::placeholder {
+.taskbar-search-input::placeholder {
   color: color-mix(in srgb, var(--text-dim) 88%, transparent);
 }
 
-.topbar-nav-btn.is-disabled,
-.topbar-nav-btn[disabled] {
+.taskbar-nav-btn.is-disabled,
+.taskbar-nav-btn[disabled] {
   opacity: 0.42;
   cursor: default;
 }
 
-.topbar-reorder-box {
+.taskbar-reorder-box {
   display: inline-flex;
   align-items: center;
   gap: 0;
   flex: 0 0 auto;
 }
 
-.topbar-reorder-item {
+.taskbar-reorder-item {
   display: inline-flex;
   align-items: center;
   transition: transform 220ms var(--ease-smooth), opacity 140ms var(--ease-smooth);
   will-change: transform;
 }
 
-.topbar-reorder-item.dragging {
+.taskbar-reorder-item.dragging {
   opacity: 0;
   cursor: grab;
 }
 
-.topbar-reorder-box .topbar-reorder-item {
+.taskbar-reorder-box .taskbar-reorder-item {
   cursor: grab;
 }
 
-.topbar-reorder-box .topbar-reorder-item:active {
+.taskbar-reorder-box .taskbar-reorder-item:active {
   cursor: grab;
 }
 
-.topbar-reorder-box .topbar-reorder-item *,
-.topbar-reorder-item.dragging * {
+.taskbar-reorder-box .taskbar-reorder-item *,
+.taskbar-reorder-item.dragging * {
   cursor: grab;
 }
 
-.topbar-reorder-nav-cluster {
+.taskbar-reorder-nav-cluster {
   display: inline-flex;
   align-items: center;
   gap: 0;
 }
 
-.topbar-nav-pill {
+.taskbar-nav-pill {
   --pill-track-color: color-mix(in srgb, var(--text-muted) 76%, transparent);
   padding: 0;
   border: none;
@@ -205,7 +205,7 @@
   overflow: hidden;
 }
 
-.topbar-nav-pill .topbar-nav-btn {
+.taskbar-nav-pill .taskbar-nav-btn {
   width: 24px;
   height: 24px;
   border: none !important;
@@ -213,36 +213,36 @@
   background: transparent;
 }
 
-.global-topbar .topbar-reorder-box,
-.global-topbar .topbar-reorder-box *,
-.global-topbar .topbar-icon-btn,
-.global-topbar .topbar-icon-btn *,
-.global-topbar .theme-switcher,
-.global-topbar .theme-switcher *,
-.global-topbar .health-indicator,
-.global-topbar .health-indicator *,
-.global-topbar .topbar-clock,
-.global-topbar .topbar-clock * {
+.global-taskbar .taskbar-reorder-box,
+.global-taskbar .taskbar-reorder-box *,
+.global-taskbar .taskbar-icon-btn,
+.global-taskbar .taskbar-icon-btn *,
+.global-taskbar .theme-switcher,
+.global-taskbar .theme-switcher *,
+.global-taskbar .health-indicator,
+.global-taskbar .health-indicator *,
+.global-taskbar .taskbar-clock,
+.global-taskbar .taskbar-clock * {
   cursor: default !important;
 }
 
-.global-topbar .topbar-reorder-item.dragging,
-.global-topbar .topbar-reorder-item.dragging * {
+.global-taskbar .taskbar-reorder-item.dragging,
+.global-taskbar .taskbar-reorder-item.dragging * {
   cursor: grab !important;
 }
 
-body:has(.global-topbar .topbar-reorder-item.dragging),
-body:has(.global-topbar .topbar-reorder-item.dragging) * {
+body:has(.global-taskbar .taskbar-reorder-item.dragging),
+body:has(.global-taskbar .taskbar-reorder-item.dragging) * {
   cursor: grab !important;
 }
 
-body.topbar-drag-active,
-body.topbar-drag-active * {
+body.taskbar-drag-active,
+body.taskbar-drag-active * {
   cursor: grab !important;
 }
 
-.global-topbar .topbar-clock,
-.global-topbar .topbar-clock * {
+.global-taskbar .taskbar-clock,
+.global-taskbar .taskbar-clock * {
   -webkit-user-select: none;
   user-select: none;
 }

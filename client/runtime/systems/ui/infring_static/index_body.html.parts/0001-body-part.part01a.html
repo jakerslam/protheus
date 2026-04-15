@@ -19,19 +19,24 @@
         <button @click="$store.app.sessionLogout()" class="btn btn-ghost btn-sm" style="font-size:11px;padding:2px 8px;opacity:0.7" title="Sign out">Logout</button>
       </div>
     </div>
+
     <button
-      class="sidebar-pulltab"
+      x-show="page === 'chat'"
+      class="overlay-pulltab-object sidebar-pulltab drag-bar drag-bar-pulltab overlay-shared-surface pulltab-border-top-active pulltab-border-right-active pulltab-border-bottom-active pulltab-border-left-inactive"
+      :style="chatSidebarPulltabStyle()"
       @click="toggleSidebar()"
+      @pointerdown.capture="startChatSidebarPointerDrag($event)"
+      @mousedown.capture="startChatSidebarPointerDrag($event)"
       @mouseenter="showDashboardPopup('sidebar-utility:' + ((sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar').toLowerCase().replace(/[^a-z0-9_-]+/g, '-')), sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar', $event, { source: 'sidebar', side: 'left', body: sidebarCollapsed ? 'Open the chat navigation rail' : 'Hide the chat navigation rail', meta_origin: 'Sidebar' })"
       @mousemove="showDashboardPopup('sidebar-utility:' + ((sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar').toLowerCase().replace(/[^a-z0-9_-]+/g, '-')), sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar', $event, { source: 'sidebar', side: 'left', body: sidebarCollapsed ? 'Open the chat navigation rail' : 'Hide the chat navigation rail', meta_origin: 'Sidebar' })"
       @mouseleave="hideDashboardPopup('sidebar-utility:' + ((sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar').toLowerCase().replace(/[^a-z0-9_-]+/g, '-')))"
       aria-label="Toggle sidebar"
     >
-      <span class="sidebar-pulltab-joint sidebar-pulltab-joint-top-left" aria-hidden="true"></span>
-      <span class="sidebar-pulltab-joint sidebar-pulltab-joint-top-right" aria-hidden="true"></span>
-      <span class="sidebar-pulltab-joint sidebar-pulltab-joint-bottom-left" aria-hidden="true"></span>
-      <span class="sidebar-pulltab-joint sidebar-pulltab-joint-bottom-right" aria-hidden="true"></span>
-      <svg class="sidebar-pulltab-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <span class="overlay-pulltab-object-joint sidebar-pulltab-joint sidebar-pulltab-joint-top-left" aria-hidden="true"></span>
+      <span class="overlay-pulltab-object-joint sidebar-pulltab-joint sidebar-pulltab-joint-top-right" aria-hidden="true"></span>
+      <span class="overlay-pulltab-object-joint sidebar-pulltab-joint sidebar-pulltab-joint-bottom-left" aria-hidden="true"></span>
+      <span class="overlay-pulltab-object-joint sidebar-pulltab-joint sidebar-pulltab-joint-bottom-right" aria-hidden="true"></span>
+      <svg class="overlay-pulltab-object-icon sidebar-pulltab-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path x-show="!sidebarCollapsed" d="m15 6-6 6 6 6"></path>
         <path x-show="sidebarCollapsed" d="m9 6 6 6-6 6"></path>
       </svg>
@@ -47,47 +52,47 @@
       <div class="chat-grid-overlay global-grid-overlay"></div>
     </section>
     <div
-      class="global-topbar"
-      :class="{ 'is-dock-dragging': !!topbarDockDragActive, 'is-docked-bottom': topbarDockEdge === 'bottom', 'is-docked-top': topbarDockEdge !== 'bottom' }"
-      :style="topbarContainerStyle()"
-      @pointerdown.capture="startTopbarDockPointerDrag($event)"
+      class="global-taskbar"
+      :class="{ 'is-dock-dragging': !!taskbarDockDragActive, 'is-docked-bottom': taskbarDockEdge === 'bottom', 'is-docked-top': taskbarDockEdge !== 'bottom' }"
+      :style="taskbarContainerStyle()"
+      @pointerdown.capture="startTaskbarDockPointerDrag($event)"
     >
-      <div class="global-topbar-left">
-        <div class="topbar-hero-menu-anchor" @click.outside="closeTopbarHeroMenu()">
-          <button class="topbar-brand topbar-brand-trigger" type="button" @click.stop="toggleTopbarHeroMenu()" :aria-expanded="topbarHeroMenuOpen ? 'true' : 'false'" aria-haspopup="menu" title="System actions">
+      <div class="global-taskbar-left">
+        <div class="taskbar-hero-menu-anchor" x-ref="taskbarHeroMenuAnchor" @click.outside="closeTaskbarHeroMenu()">
+          <button class="taskbar-brand taskbar-brand-trigger" type="button" @click.stop="toggleTaskbarHeroMenu()" :aria-expanded="taskbarHeroMenuOpen ? 'true' : 'false'" aria-haspopup="menu" title="System actions">
             <div class="brand-mark" aria-hidden="true"><span class="brand-mark-glyph">&infin;</span></div>
-            <div><div class="topbar-brand-title">INFRING</div></div>
+            <div><div class="taskbar-brand-title">INFRING</div></div>
           </button>
-          <div class="topbar-hero-menu dashboard-dropdown-surface" x-cloak x-show="topbarHeroMenuOpen" x-transition:enter="transition ease-out duration-120" x-transition:enter-start="opacity-0 -translate-y-1" x-transition:enter-end="opacity-100 translate-y-0" x-transition:leave="transition ease-in duration-90" x-transition:leave-start="opacity-100 translate-y-0" x-transition:leave-end="opacity-0 -translate-y-1">
-            <button class="topbar-hero-menu-item" type="button" @click="runTopbarHeroCommand('restart')" :disabled="!!topbarHeroActionPending"><span>Restart</span><svg class="topbar-refresh-icon topbar-hero-menu-icon" :style="'transform: rotate(' + (($store.app.topbarRefreshTurns || 0) * 360) + 'deg)'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path></svg></button>
-            <button class="topbar-hero-menu-item" type="button" @click="runTopbarHeroCommand('update')" :disabled="!!topbarHeroActionPending"><span>Update</span><svg class="topbar-hero-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M12 16V8"></path><path d="m8.5 11.5 3.5-3.5 3.5 3.5"></path></svg></button>
-            <button class="topbar-hero-menu-item" type="button" @click="runTopbarHeroCommand('shutdown')" :disabled="!!topbarHeroActionPending"><span>Shut down</span><svg class="topbar-hero-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v8"></path><path d="M8.2 5.8A8 8 0 1 0 15.8 5.8"></path></svg></button>
-            <div class="topbar-hero-menu-version" x-text="'v' + version"></div>
+          <div class="taskbar-hero-menu dashboard-dropdown-surface" :class="taskbarAnchoredDropdownClass($refs.taskbarHeroMenuAnchor, 'bottom')" x-cloak x-show="taskbarHeroMenuOpen" x-transition:enter="transition ease-out duration-120" x-transition:enter-start="opacity-0 -translate-y-1" x-transition:enter-end="opacity-100 translate-y-0" x-transition:leave="transition ease-in duration-90" x-transition:leave-start="opacity-100 translate-y-0" x-transition:leave-end="opacity-0 -translate-y-1">
+            <button class="taskbar-hero-menu-item" type="button" @click="runTaskbarHeroCommand('restart')" :disabled="!!taskbarHeroActionPending"><span>Restart</span><svg class="taskbar-refresh-icon taskbar-hero-menu-icon" :style="'transform: rotate(' + (($store.app.taskbarRefreshTurns || 0) * 360) + 'deg)'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path></svg></button>
+            <button class="taskbar-hero-menu-item" type="button" @click="runTaskbarHeroCommand('update')" :disabled="!!taskbarHeroActionPending"><span>Update</span><svg class="taskbar-hero-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M12 16V8"></path><path d="m8.5 11.5 3.5-3.5 3.5 3.5"></path></svg></button>
+            <button class="taskbar-hero-menu-item" type="button" @click="runTaskbarHeroCommand('shutdown')" :disabled="!!taskbarHeroActionPending"><span>Shut down</span><svg class="taskbar-hero-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v8"></path><path d="M8.2 5.8A8 8 0 1 0 15.8 5.8"></path></svg></button>
+            <div class="taskbar-hero-menu-version" x-text="'v' + version"></div>
           </div>
         </div>
         <div
-          class="topbar-reorder-box topbar-reorder-box-left"
-          @pointerdown="handleTopbarReorderPointerDown('left', $event)"
-          @pointerup="cancelTopbarDragHold()"
-          @pointercancel="cancelTopbarDragHold()"
-          @pointerleave="cancelTopbarDragHold()"
-          @dragstart="handleTopbarReorderDragStart('left', $event)"
-          @drag="handleTopbarReorderDragMove($event)"
-          @dragenter="handleTopbarReorderDragEnter('left', $event)"
-          @dragover="handleTopbarReorderDragOver('left', $event)"
-          @drop="handleTopbarReorderDrop('left', $event)"
-          @dragend="handleTopbarDragEnd()"
+          class="taskbar-reorder-box taskbar-reorder-box-left"
+          @pointerdown="handleTaskbarReorderPointerDown('left', $event)"
+          @pointerup="cancelTaskbarDragHold()"
+          @pointercancel="cancelTaskbarDragHold()"
+          @pointerleave="cancelTaskbarDragHold()"
+          @dragstart="handleTaskbarReorderDragStart('left', $event)"
+          @drag="handleTaskbarReorderDragMove($event)"
+          @dragenter="handleTaskbarReorderDragEnter('left', $event)"
+          @dragover="handleTaskbarReorderDragOver('left', $event)"
+          @drop="handleTaskbarReorderDrop('left', $event)"
+          @dragend="handleTaskbarDragEnd()"
         >
-          <div class="topbar-reorder-item topbar-reorder-nav-cluster topbar-nav-pill" data-topbar-item="nav_cluster" :style="topbarReorderItemStyle('left', 'nav_cluster')" draggable="true">
+          <div class="taskbar-reorder-item taskbar-reorder-nav-cluster taskbar-nav-pill" data-taskbar-item="nav_cluster" :style="taskbarReorderItemStyle('left', 'nav_cluster')" draggable="true">
             <button
-              class="btn btn-ghost btn-sm topbar-icon-btn topbar-nav-btn topbar-back-btn"
+              class="btn btn-ghost btn-sm taskbar-icon-btn taskbar-nav-btn taskbar-back-btn"
               :class="{ 'is-disabled': !canNavigateBack() }"
               @click="navigateBackPage()"
-              @mouseenter="showTopbarNavPopup('Back', $event)"
-              @mousemove="showTopbarNavPopup('Back', $event)"
-              @mouseleave="hideDashboardPopup('topbar-nav:back')"
-              @focus="showTopbarNavPopup('Back', $event)"
-              @blur="hideDashboardPopup('topbar-nav:back')"
+              @mouseenter="showTaskbarNavPopup('Back', $event)"
+              @mousemove="showTaskbarNavPopup('Back', $event)"
+              @mouseleave="hideDashboardPopup('taskbar-nav:back')"
+              @focus="showTaskbarNavPopup('Back', $event)"
+              @blur="hideDashboardPopup('taskbar-nav:back')"
               :aria-disabled="!canNavigateBack() ? 'true' : 'false'"
               aria-label="Back"
             >
@@ -96,14 +101,14 @@
               </svg>
             </button>
             <button
-              class="btn btn-ghost btn-sm topbar-icon-btn topbar-nav-btn topbar-forward-btn"
+              class="btn btn-ghost btn-sm taskbar-icon-btn taskbar-nav-btn taskbar-forward-btn"
               :class="{ 'is-disabled': !canNavigateForward() }"
               @click="navigateForwardPage()"
-              @mouseenter="showTopbarNavPopup('Forward', $event)"
-              @mousemove="showTopbarNavPopup('Forward', $event)"
-              @mouseleave="hideDashboardPopup('topbar-nav:forward')"
-              @focus="showTopbarNavPopup('Forward', $event)"
-              @blur="hideDashboardPopup('topbar-nav:forward')"
+              @mouseenter="showTaskbarNavPopup('Forward', $event)"
+              @mousemove="showTaskbarNavPopup('Forward', $event)"
+              @mouseleave="hideDashboardPopup('taskbar-nav:forward')"
+              @focus="showTaskbarNavPopup('Forward', $event)"
+              @blur="hideDashboardPopup('taskbar-nav:forward')"
               :aria-disabled="!canNavigateForward() ? 'true' : 'false'"
               aria-label="Forward"
             >
@@ -111,5 +116,32 @@
                 <path d="m9 18 6-6-6-6"></path>
               </svg>
             </button>
+          </div>
+        </div>
+        <div class="taskbar-text-menus">
+          <div class="taskbar-text-menu-anchor" x-ref="taskbarHelpMenuAnchor" @click.outside="closeTaskbarTextMenu()">
+            <button
+              class="taskbar-text-menu-btn"
+              type="button"
+              @click.stop="toggleTaskbarTextMenu('help')"
+              :aria-expanded="taskbarTextMenuIsOpen('help') ? 'true' : 'false'"
+              aria-haspopup="menu"
+              aria-label="Help menu"
+            >Help</button>
+            <div
+              class="taskbar-text-menu-dropdown dashboard-dropdown-surface"
+              :class="taskbarAnchoredDropdownClass($refs.taskbarHelpMenuAnchor, 'bottom')"
+              x-cloak
+              x-show="taskbarTextMenuIsOpen('help')"
+              x-transition:enter="transition ease-out duration-120"
+              x-transition:enter-start="opacity-0 -translate-y-1"
+              x-transition:enter-end="opacity-100 translate-y-0"
+              x-transition:leave="transition ease-in duration-90"
+              x-transition:leave-start="opacity-100 translate-y-0"
+              x-transition:leave-end="opacity-0 -translate-y-1"
+            >
+              <button class="taskbar-text-menu-item" type="button" @click="handleTaskbarHelpManual()">Manual</button>
+              <button class="taskbar-text-menu-item" type="button" @click="handleTaskbarHelpReportIssue()">Report an issue</button>
+            </div>
           </div>
         </div>

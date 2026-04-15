@@ -327,12 +327,12 @@ function assertHeroMenuIsNotClipped() {
   const cssSource = readUtf8(TOPBAR_COMPONENTS_CSS_PATH);
   assertContains(
     cssSource,
-    '.global-topbar-left {\n  min-width: 0;\n  flex: 1 1 auto;\n  display: flex;\n  align-items: center;\n  gap: 14px;\n  overflow: visible;',
-    'topbar hero dropdown must not be clipped by the left topbar flex container'
+    '.global-taskbar-left {\n  min-width: 0;\n  flex: 1 1 auto;\n  display: flex;\n  align-items: center;\n  gap: 14px;\n  overflow: visible;',
+    'taskbar hero dropdown must not be clipped by the left taskbar flex container'
   );
   assertContains(
     cssSource,
-    '.global-topbar-page-slot {\n  display: inline-flex;\n  align-items: center;\n  gap: 8px;\n  min-width: 0;\n  overflow: hidden;',
+    '.global-taskbar-page-slot {\n  display: inline-flex;\n  align-items: center;\n  gap: 8px;\n  min-width: 0;\n  overflow: hidden;',
     'page slot should retain clipping after hero dropdown overflow is restored'
   );
 }
@@ -472,35 +472,35 @@ function assertDashboardVersionRefreshUsesApiVersion() {
   assertContains(
     appSource,
     "this.version = liveVersion || statusObj.version || this.version || window.__INFRING_APP_VERSION || '0.0.0';",
-    'dashboard topbar version should prefer the live /api/version payload over stale bootstrap state'
+    'dashboard taskbar version should prefer the live /api/version payload over stale bootstrap state'
   );
 }
 
-function assertTopbarHeroSystemMenu() {
+function assertTaskbarHeroSystemMenu() {
   const appSource = readUtf8(APP_STATIC_TS_PATH);
   const htmlSource = readUtf8(path.resolve(ROOT, 'client/runtime/systems/ui/infring_static/index_body.html'));
   const hostSource = readUtf8(ADAPTER_DASHBOARD_HOST_TS_PATH);
   assertHeroMenuIsNotClipped();
-  assertContains(htmlSource, 'class="topbar-hero-menu dashboard-dropdown-surface"', 'topbar hero dropdown container missing');
-  assertContains(htmlSource, "runTopbarHeroCommand('restart')", 'topbar hero restart action missing');
-  assertContains(htmlSource, "runTopbarHeroCommand('update')", 'topbar hero update action missing');
-  assertContains(htmlSource, "runTopbarHeroCommand('shutdown')", 'topbar hero shutdown action missing');
-  assertContains(htmlSource, 'class="topbar-hero-menu-version"', 'topbar hero dropdown should render the version footer');
-  assert.ok(!htmlSource.includes('topbar-brand-version'), 'hero should no longer render inline version text');
-  assertContains(appSource, 'topbarHeroMenuOpen: false,', 'topbar hero dropdown state missing');
-  assertContains(appSource, "topbarHeroActionPending: '',", 'topbar hero pending-action state missing');
-  assertContains(appSource, 'toggleTopbarHeroMenu()', 'topbar hero dropdown toggle handler missing');
-  assertContains(appSource, 'async runTopbarHeroCommand(action)', 'topbar hero command runner missing');
-  assertContains(appSource, 'async postTopbarHeroSystemRoute(route, body, options)', 'topbar hero direct system-route helper missing');
-  assertContains(appSource, "dashboardAction = 'dashboard.system.restart';", 'topbar hero restart action bus route missing');
-  assertContains(appSource, "dashboardAction = 'dashboard.update.apply';", 'topbar hero update action bus route missing');
-  assertContains(appSource, "dashboardAction = 'dashboard.system.shutdown';", 'topbar hero shutdown action bus route missing');
-  assertContains(appSource, "result = await this.postTopbarHeroSystemRoute(legacyRoute, body, {", 'topbar hero should prefer the direct system route');
-  assertContains(appSource, "result = await InfringAPI.post('/api/dashboard/action', {", 'topbar hero should still support dashboard action bus fallback');
-  assertContains(appSource, "allowTransientSuccess: actionKey === 'restart' || actionKey === 'shutdown'", 'topbar hero restart/shutdown should tolerate transient disconnect during lifecycle actions');
-  assertContains(appSource, "legacyRoute = '/api/system/restart';", 'topbar hero restart legacy fallback missing');
-  assertContains(appSource, "legacyRoute = '/api/system/update';", 'topbar hero update legacy fallback missing');
-  assertContains(appSource, "legacyRoute = '/api/system/shutdown';", 'topbar hero shutdown legacy fallback missing');
+  assertContains(htmlSource, 'class="taskbar-hero-menu dashboard-dropdown-surface"', 'taskbar hero dropdown container missing');
+  assertContains(htmlSource, "runTaskbarHeroCommand('restart')", 'taskbar hero restart action missing');
+  assertContains(htmlSource, "runTaskbarHeroCommand('update')", 'taskbar hero update action missing');
+  assertContains(htmlSource, "runTaskbarHeroCommand('shutdown')", 'taskbar hero shutdown action missing');
+  assertContains(htmlSource, 'class="taskbar-hero-menu-version"', 'taskbar hero dropdown should render the version footer');
+  assert.ok(!htmlSource.includes('taskbar-brand-version'), 'hero should no longer render inline version text');
+  assertContains(appSource, 'taskbarHeroMenuOpen: false,', 'taskbar hero dropdown state missing');
+  assertContains(appSource, "taskbarHeroActionPending: '',", 'taskbar hero pending-action state missing');
+  assertContains(appSource, 'toggleTaskbarHeroMenu()', 'taskbar hero dropdown toggle handler missing');
+  assertContains(appSource, 'async runTaskbarHeroCommand(action)', 'taskbar hero command runner missing');
+  assertContains(appSource, 'async postTaskbarHeroSystemRoute(route, body, options)', 'taskbar hero direct system-route helper missing');
+  assertContains(appSource, "dashboardAction = 'dashboard.system.restart';", 'taskbar hero restart action bus route missing');
+  assertContains(appSource, "dashboardAction = 'dashboard.update.apply';", 'taskbar hero update action bus route missing');
+  assertContains(appSource, "dashboardAction = 'dashboard.system.shutdown';", 'taskbar hero shutdown action bus route missing');
+  assertContains(appSource, "result = await this.postTaskbarHeroSystemRoute(legacyRoute, body, {", 'taskbar hero should prefer the direct system route');
+  assertContains(appSource, "result = await InfringAPI.post('/api/dashboard/action', {", 'taskbar hero should still support dashboard action bus fallback');
+  assertContains(appSource, "allowTransientSuccess: actionKey === 'restart' || actionKey === 'shutdown'", 'taskbar hero restart/shutdown should tolerate transient disconnect during lifecycle actions');
+  assertContains(appSource, "legacyRoute = '/api/system/restart';", 'taskbar hero restart legacy fallback missing');
+  assertContains(appSource, "legacyRoute = '/api/system/update';", 'taskbar hero update legacy fallback missing');
+  assertContains(appSource, "legacyRoute = '/api/system/shutdown';", 'taskbar hero shutdown legacy fallback missing');
   assertContains(hostSource, "pathname === '/api/system/restart'", 'dashboard host restart endpoint missing');
   assertContains(hostSource, "pathname === '/api/system/update'", 'dashboard host update endpoint missing');
   assertContains(hostSource, "pathname === '/api/system/shutdown'", 'dashboard host shutdown endpoint missing');

@@ -110,8 +110,8 @@
   background: var(--accent-glow);
 }
 /* Stable universal top bar for all pages */
-.global-topbar {
-  --topbar-dock-transition: 220ms;
+.global-taskbar {
+  --taskbar-dock-transition: 220ms;
   min-height: 46px;
   height: 46px;
   display: flex;
@@ -131,29 +131,29 @@
   right: 0;
   top: 0;
   bottom: auto;
-  /* Keep topbar above sidebar/pulltab so seam shadow renders consistently. */
+  /* Keep taskbar above sidebar/pulltab so seam shadow renders consistently. */
   z-index: 19300;
   transition:
-    top var(--topbar-dock-transition) var(--ease-smooth),
-    bottom var(--topbar-dock-transition) var(--ease-smooth);
+    top var(--taskbar-dock-transition) var(--ease-smooth),
+    bottom var(--taskbar-dock-transition) var(--ease-smooth);
 }
 
-.global-topbar.is-dock-dragging {
-  --topbar-dock-transition: 0ms;
+.global-taskbar.is-dock-dragging {
+  --taskbar-dock-transition: 0ms;
   cursor: grabbing;
 }
 
-.global-topbar.is-docked-bottom {
+.global-taskbar.is-docked-bottom {
   top: auto;
   bottom: 0;
 }
 
-.global-topbar.is-docked-top {
+.global-taskbar.is-docked-top {
   top: 0;
   bottom: auto;
 }
 
-.global-topbar-left {
+.global-taskbar-left {
   min-width: 0;
   flex: 1 1 auto;
   display: flex;
@@ -162,12 +162,12 @@
   overflow: visible;
 }
 
-.topbar-brand {
+.taskbar-brand {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   flex: 0 0 auto;
-  padding: 0;
+  padding: 0 12px 0 0;
   border-radius: 0;
   border: none;
   background: transparent;
@@ -178,7 +178,7 @@
   user-select: none;
 }
 
-.topbar-brand-title {
+.taskbar-brand-title {
   font-size: 14px;
   font-weight: 700;
   color: var(--accent);
@@ -187,7 +187,7 @@
   line-height: 1;
 }
 
-.topbar-brand-version {
+.taskbar-brand-version {
   font-size: 8px;
   line-height: 1;
   letter-spacing: 0.02em;
@@ -195,7 +195,7 @@
   margin-top: 1px;
 }
 
-.global-topbar-page-slot {
+.global-taskbar-page-slot {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -203,7 +203,7 @@
   overflow: hidden;
 }
 
-.global-topbar-controls {
+.global-taskbar-controls {
   display: inline-flex;
   align-items: center;
   gap: 0;
@@ -216,7 +216,7 @@
   backdrop-filter: none;
 }
 
-.topbar-icon-btn {
+.taskbar-icon-btn {
   width: 34px;
   height: 34px;
   padding: 0;
@@ -227,34 +227,34 @@
   border: none !important;
 }
 
-.topbar-icon-btn svg {
+.taskbar-icon-btn svg {
   width: 17px;
   height: 17px;
 }
 
-.topbar-icon-btn.is-active {
+.taskbar-icon-btn.is-active {
   color: var(--text);
   border-color: transparent;
   background: color-mix(in srgb, var(--accent) 14%, transparent);
 }
 
-.topbar-refresh-icon {
+.taskbar-refresh-icon {
   transition: transform 0.2s var(--ease-smooth);
   transform-origin: 50% 50%;
 }
 
-.topbar-refresh-icon.spinning {
-  animation: topbar-refresh-spin-cw 0.8s linear infinite;
+.taskbar-refresh-icon.spinning {
+  animation: taskbar-refresh-spin-cw 0.8s linear infinite;
   transition: none;
 }
 
-@keyframes topbar-refresh-spin-cw {
+@keyframes taskbar-refresh-spin-cw {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
 
 /* Unified preview popup object used across dashboard tooltip-like previews. */
-.global-topbar-right {
+.global-taskbar-right {
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
@@ -265,15 +265,7 @@
 .notif-wrap {
   position: relative;
   display: inline-flex;
-  --notif-overlay-gap: 8px;
-  --notif-overlay-top: calc(100% + var(--notif-overlay-gap));
-  --notif-overlay-bottom: auto;
   z-index: 18040;
-}
-
-.global-topbar.is-docked-bottom .notif-wrap {
-  --notif-overlay-top: auto;
-  --notif-overlay-bottom: calc(100% + var(--notif-overlay-gap));
 }
 
 .notif-btn {
@@ -338,9 +330,14 @@
 
 .notif-dropdown {
   position: absolute;
-  top: var(--notif-overlay-top);
-  bottom: var(--notif-overlay-bottom);
-  right: 0;
+  --taskbar-overlay-gap: 8px;
+  --taskbar-overlay-left: auto;
+  --taskbar-overlay-right: 0;
+  left: var(--taskbar-overlay-left);
+  right: var(--taskbar-overlay-right);
+  top: var(--taskbar-overlay-top);
+  bottom: var(--taskbar-overlay-bottom);
+  transform: var(--taskbar-overlay-transform);
   width: 330px;
   max-width: min(92vw, 330px);
   overflow: hidden;

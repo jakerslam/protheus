@@ -469,7 +469,7 @@ body:not([data-theme='dark']) .message.system .message-bubble {
 }
 
 /* Theme switcher: when mode=system, highlight spans system + resolved light/dark icon. */
-.global-topbar .theme-switcher[data-mode='light']::before { width: var(--theme-opt-size); transform: translateX(0); }
-.global-topbar .theme-switcher[data-mode='dark']::before { width: var(--theme-opt-size); transform: translateX(calc(var(--theme-opt-size) * 2)); }
-.global-topbar .theme-switcher[data-mode='system'][data-resolved='light']::before { width: calc(var(--theme-opt-size) * 2); transform: translateX(0); }
-.global-topbar .theme-switcher[data-mode='system'][data-resolved='dark']::before { width: calc(var(--theme-opt-size) * 2); transform: translateX(var(--theme-opt-size)); }
+.global-taskbar .theme-switcher[data-mode='light']::before { width: var(--theme-opt-size); transform: translateX(0); }
+.global-taskbar .theme-switcher[data-mode='dark']::before { width: var(--theme-opt-size); transform: translateX(calc(var(--theme-opt-size) * 2)); }
+.global-taskbar .theme-switcher[data-mode='system'][data-resolved='light']::before { width: calc(var(--theme-opt-size) * 2); transform: translateX(0); }
+.global-taskbar .theme-switcher[data-mode='system'][data-resolved='dark']::before { width: calc(var(--theme-opt-size) * 2); transform: translateX(var(--theme-opt-size)); }

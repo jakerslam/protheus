@@ -1,26 +1,26 @@
-    topbarDockEdgeNormalized(raw) {
+    taskbarDockEdgeNormalized(raw) {
       var key = String(raw || '').trim().toLowerCase();
       return key === 'bottom' ? 'bottom' : 'top';
     },
 
-    topbarPersistDockEdge() {
-      this.topbarDockEdge = this.topbarDockEdgeNormalized(this.topbarDockEdge);
+    taskbarPersistDockEdge() {
+      this.taskbarDockEdge = this.taskbarDockEdgeNormalized(this.taskbarDockEdge);
       try {
-        localStorage.setItem('infring-topbar-dock-edge', this.topbarDockEdge);
+        localStorage.setItem('infring-taskbar-dock-edge', this.taskbarDockEdge);
       } catch(_) {}
     },
 
-    topbarReadHeight() {
+    taskbarReadHeight() {
       if (typeof document === 'undefined') return 46;
       try {
-        var node = document.querySelector('.global-topbar');
+        var node = document.querySelector('.global-taskbar');
         var height = Number(node && node.offsetHeight || 0);
         if (Number.isFinite(height) && height > 0) return height;
       } catch(_) {}
       return 46;
     },
 
-    topbarReadViewportHeight() {
+    taskbarReadViewportHeight() {
       var h = 0;
       try { h = Number(window && window.innerHeight || 0); } catch(_) { h = 0; }
       if (!Number.isFinite(h) || h <= 0) {
@@ -30,41 +30,51 @@
       return h;
     },
 
-    topbarAnchorForDockEdge(edgeRaw) {
-      var edge = this.topbarDockEdgeNormalized(edgeRaw);
+    chatOverlayViewportWidth() {
+      var w = 0;
+      try { w = Number(window && window.innerWidth || 0); } catch(_) { w = 0; }
+      if (!Number.isFinite(w) || w <= 0) {
+        w = Number(document && document.documentElement && document.documentElement.clientWidth || 1440);
+      }
+      if (!Number.isFinite(w) || w <= 0) w = 1440;
+      return w;
+    },
+
+    taskbarAnchorForDockEdge(edgeRaw) {
+      var edge = this.taskbarDockEdgeNormalized(edgeRaw);
       if (edge === 'bottom') {
-        return Math.max(0, this.topbarReadViewportHeight() - this.topbarReadHeight());
+        return Math.max(0, this.taskbarReadViewportHeight() - this.taskbarReadHeight());
       }
       return 0;
     },
 
-    topbarClampDragY(yRaw) {
+    taskbarClampDragY(yRaw) {
       var y = Number(yRaw);
-      if (!Number.isFinite(y)) y = this.topbarAnchorForDockEdge(this.topbarDockEdge);
-      var maxY = Math.max(0, this.topbarReadViewportHeight() - this.topbarReadHeight());
+      if (!Number.isFinite(y)) y = this.taskbarAnchorForDockEdge(this.taskbarDockEdge);
+      var maxY = Math.max(0, this.taskbarReadViewportHeight() - this.taskbarReadHeight());
       return Math.max(0, Math.min(maxY, y));
     },
 
-    topbarNearestDockEdge(yRaw) {
-      var y = this.topbarClampDragY(yRaw);
-      var topY = this.topbarAnchorForDockEdge('top');
-      var bottomY = this.topbarAnchorForDockEdge('bottom');
+    taskbarNearestDockEdge(yRaw) {
+      var y = this.taskbarClampDragY(yRaw);
+      var topY = this.taskbarAnchorForDockEdge('top');
+      var bottomY = this.taskbarAnchorForDockEdge('bottom');
       var topDist = Math.abs(y - topY);
       var bottomDist = Math.abs(y - bottomY);
       return bottomDist < topDist ? 'bottom' : 'top';
     },
 
-    topbarContainerStyle() {
+    taskbarContainerStyle() {
       var styles = [];
       if (this.page !== 'chat') {
         styles.push('background:transparent;border-bottom:none;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none;');
       }
-      var transitionMs = this.topbarDockDragActive ? 0 : 220;
-      styles.push('--topbar-dock-transition:' + Math.max(0, Math.round(Number(transitionMs || 0))) + 'ms;');
-      if (this.topbarDockDragActive) {
-        var y = this.topbarClampDragY(this.topbarDockDragY);
+      var transitionMs = this.taskbarDockDragActive ? 0 : 220;
+      styles.push('--taskbar-dock-transition:' + Math.max(0, Math.round(Number(transitionMs || 0))) + 'ms;');
+      if (this.taskbarDockDragActive) {
+        var y = this.taskbarClampDragY(this.taskbarDockDragY);
         styles.push('top:' + Math.round(Number(y || 0)) + 'px;bottom:auto;');
-      } else if (this.topbarDockEdgeNormalized(this.topbarDockEdge) === 'bottom') {
+      } else if (this.taskbarDockEdgeNormalized(this.taskbarDockEdge) === 'bottom') {
         styles.push('top:auto;bottom:0;');
       } else {
         styles.push('top:0;bottom:auto;');
@@ -72,53 +82,53 @@
       return styles.join('');
     },
 
-    shouldIgnoreTopbarDockDragTarget(target) {
+    shouldIgnoreTaskbarDockDragTarget(target) {
       if (!target || typeof target.closest !== 'function') return false;
       return Boolean(
         target.closest(
-          'button, a, input, textarea, select, [role="button"], [draggable="true"], .topbar-reorder-item, .topbar-hero-menu-anchor, .topbar-hero-menu, .theme-switcher, .notif-wrap, .topbar-search-popup, .topbar-search-popup-anchor, .topbar-clock'
+          'button, a, input, textarea, select, [role="button"], [draggable="true"], .taskbar-reorder-item, .taskbar-hero-menu-anchor, .taskbar-hero-menu, .theme-switcher, .notif-wrap, .taskbar-search-popup, .taskbar-search-popup-anchor, .taskbar-clock'
         )
       );
     },
 
-    bindTopbarDockPointerListeners() {
-      if (this._topbarDockPointerMoveHandler || this._topbarDockPointerUpHandler) return;
+    bindTaskbarDockPointerListeners() {
+      if (this._taskbarDockPointerMoveHandler || this._taskbarDockPointerUpHandler) return;
       var self = this;
-      this._topbarDockPointerMoveHandler = function(ev) { self.handleTopbarDockPointerMove(ev); };
-      this._topbarDockPointerUpHandler = function(ev) { self.endTopbarDockPointerDrag(ev); };
-      window.addEventListener('pointermove', this._topbarDockPointerMoveHandler, true);
-      window.addEventListener('pointerup', this._topbarDockPointerUpHandler, true);
-      window.addEventListener('pointercancel', this._topbarDockPointerUpHandler, true);
-      window.addEventListener('mousemove', this._topbarDockPointerMoveHandler, true);
-      window.addEventListener('mouseup', this._topbarDockPointerUpHandler, true);
+      this._taskbarDockPointerMoveHandler = function(ev) { self.handleTaskbarDockPointerMove(ev); };
+      this._taskbarDockPointerUpHandler = function(ev) { self.endTaskbarDockPointerDrag(ev); };
+      window.addEventListener('pointermove', this._taskbarDockPointerMoveHandler, true);
+      window.addEventListener('pointerup', this._taskbarDockPointerUpHandler, true);
+      window.addEventListener('pointercancel', this._taskbarDockPointerUpHandler, true);
+      window.addEventListener('mousemove', this._taskbarDockPointerMoveHandler, true);
+      window.addEventListener('mouseup', this._taskbarDockPointerUpHandler, true);
     },
 
-    unbindTopbarDockPointerListeners() {
-      if (this._topbarDockPointerMoveHandler) {
-        try { window.removeEventListener('pointermove', this._topbarDockPointerMoveHandler, true); } catch(_) {}
-        try { window.removeEventListener('mousemove', this._topbarDockPointerMoveHandler, true); } catch(_) {}
+    unbindTaskbarDockPointerListeners() {
+      if (this._taskbarDockPointerMoveHandler) {
+        try { window.removeEventListener('pointermove', this._taskbarDockPointerMoveHandler, true); } catch(_) {}
+        try { window.removeEventListener('mousemove', this._taskbarDockPointerMoveHandler, true); } catch(_) {}
       }
-      if (this._topbarDockPointerUpHandler) {
-        try { window.removeEventListener('pointerup', this._topbarDockPointerUpHandler, true); } catch(_) {}
-        try { window.removeEventListener('pointercancel', this._topbarDockPointerUpHandler, true); } catch(_) {}
-        try { window.removeEventListener('mouseup', this._topbarDockPointerUpHandler, true); } catch(_) {}
+      if (this._taskbarDockPointerUpHandler) {
+        try { window.removeEventListener('pointerup', this._taskbarDockPointerUpHandler, true); } catch(_) {}
+        try { window.removeEventListener('pointercancel', this._taskbarDockPointerUpHandler, true); } catch(_) {}
+        try { window.removeEventListener('mouseup', this._taskbarDockPointerUpHandler, true); } catch(_) {}
       }
-      this._topbarDockPointerMoveHandler = null;
-      this._topbarDockPointerUpHandler = null;
+      this._taskbarDockPointerMoveHandler = null;
+      this._taskbarDockPointerUpHandler = null;
     },
 
-    startTopbarDockPointerDrag(ev) {
+    startTaskbarDockPointerDrag(ev) {
       if (!ev || Number(ev.button) !== 0) return;
-      if (String(this.topbarDragGroup || '').trim()) return;
+      if (String(this.taskbarDragGroup || '').trim()) return;
       var target = ev && ev.target ? ev.target : null;
-      if (this.shouldIgnoreTopbarDockDragTarget(target)) return;
-      this._topbarDockPointerActive = true;
-      this._topbarDockPointerMoved = false;
-      this._topbarDockPointerStartX = Number(ev.clientX || 0);
-      this._topbarDockPointerStartY = Number(ev.clientY || 0);
-      this._topbarDockOriginY = this.topbarAnchorForDockEdge(this.topbarDockEdge);
-      this.topbarDockDragY = this._topbarDockOriginY;
-      this.bindTopbarDockPointerListeners();
+      if (this.shouldIgnoreTaskbarDockDragTarget(target)) return;
+      this._taskbarDockPointerActive = true;
+      this._taskbarDockPointerMoved = false;
+      this._taskbarDockPointerStartX = Number(ev.clientX || 0);
+      this._taskbarDockPointerStartY = Number(ev.clientY || 0);
+      this._taskbarDockOriginY = this.taskbarAnchorForDockEdge(this.taskbarDockEdge);
+      this.taskbarDockDragY = this._taskbarDockOriginY;
+      this.bindTaskbarDockPointerListeners();
       try {
         if (ev.currentTarget && typeof ev.currentTarget.setPointerCapture === 'function' && Number.isFinite(ev.pointerId)) {
           ev.currentTarget.setPointerCapture(ev.pointerId);
@@ -127,63 +137,174 @@
       if (ev.cancelable && typeof ev.preventDefault === 'function') ev.preventDefault();
     },
 
-    handleTopbarDockPointerMove(ev) {
-      if (!this._topbarDockPointerActive) return;
+    handleTaskbarDockPointerMove(ev) {
+      if (!this._taskbarDockPointerActive) return;
       var x = Number(ev.clientX || 0);
       var y = Number(ev.clientY || 0);
-      var movedX = Math.abs(x - Number(this._topbarDockPointerStartX || 0));
-      var movedY = Math.abs(y - Number(this._topbarDockPointerStartY || 0));
-      if (!this._topbarDockPointerMoved) {
+      var movedX = Math.abs(x - Number(this._taskbarDockPointerStartX || 0));
+      var movedY = Math.abs(y - Number(this._taskbarDockPointerStartY || 0));
+      if (!this._taskbarDockPointerMoved) {
         if (movedX < 4 && movedY < 4) return;
-        this._topbarDockPointerMoved = true;
-        this.topbarDockDragActive = true;
+        this._taskbarDockPointerMoved = true;
+        this.taskbarDockDragActive = true;
       }
-      var candidateY = Number(this._topbarDockOriginY || 0) + (y - Number(this._topbarDockPointerStartY || 0));
-      this.topbarDockDragY = this.topbarClampDragY(candidateY);
+      var candidateY = Number(this._taskbarDockOriginY || 0) + (y - Number(this._taskbarDockPointerStartY || 0));
+      this.taskbarDockDragY = this.taskbarClampDragY(candidateY);
       if (ev.cancelable && typeof ev.preventDefault === 'function') ev.preventDefault();
     },
 
-    endTopbarDockPointerDrag() {
-      if (!this._topbarDockPointerActive) return;
-      this._topbarDockPointerActive = false;
-      this.unbindTopbarDockPointerListeners();
-      if (!this._topbarDockPointerMoved) {
-        this.topbarDockDragActive = false;
+    endTaskbarDockPointerDrag() {
+      if (!this._taskbarDockPointerActive) return;
+      this._taskbarDockPointerActive = false;
+      this.unbindTaskbarDockPointerListeners();
+      if (!this._taskbarDockPointerMoved) {
+        this.taskbarDockDragActive = false;
         return;
       }
-      this._topbarDockPointerMoved = false;
-      this.topbarDockEdge = this.topbarNearestDockEdge(this.topbarDockDragY);
-      this.topbarDockDragActive = false;
-      this.topbarPersistDockEdge();
+      this._taskbarDockPointerMoved = false;
+      this.taskbarDockEdge = this.taskbarNearestDockEdge(this.taskbarDockDragY);
+      this.taskbarDockDragActive = false;
+      this.taskbarPersistDockEdge();
     },
 
-    topbarReorderDefaults(group) {
+    overlayWallGapPx() {
+      var fallback = 16;
+      if (typeof window !== 'undefined' && typeof window.getComputedStyle === 'function' && document && document.documentElement) {
+        try {
+          var raw = String(window.getComputedStyle(document.documentElement).getPropertyValue('--overlay-wall-gap') || '').trim();
+          var parsed = parseFloat(raw);
+          if (Number.isFinite(parsed) && parsed >= 0) fallback = parsed;
+        } catch(_) {}
+      }
+      return Math.max(0, Math.round(fallback));
+    },
+
+    chatOverlayVerticalBounds() {
+      var viewportHeight = this.taskbarReadViewportHeight();
+      var wallGap = this.overlayWallGapPx();
+      var edge = this.taskbarDockEdgeNormalized(this.taskbarDockEdge);
+      var taskbarH = this.taskbarReadHeight();
+      var topInset = edge === 'top' ? taskbarH : 0;
+      var bottomInset = edge === 'bottom' ? taskbarH : 0;
+      return {
+        minTop: topInset + wallGap,
+        maxBottom: viewportHeight - bottomInset - wallGap,
+        viewportHeight: viewportHeight,
+        wallGap: wallGap
+      };
+    },
+
+    readChatMapElement() {
+      if (typeof document === 'undefined' || typeof document.querySelector !== 'function') return null;
+      try { return document.querySelector('.chat-map'); } catch(_) {}
+      return null;
+    },
+
+    readChatMapHeight() {
+      var node = this.readChatMapElement();
+      var height = Number(node && node.offsetHeight || 0);
+      if (!Number.isFinite(height) || height <= 0) {
+        height = Math.max(180, this.taskbarReadViewportHeight() - 276);
+      }
+      return height;
+    },
+
+    chatMapPlacementEnabled() {
+      return this.page === 'chat' || (this.page === 'agents' && !!this.activeChatAgent);
+    },
+
+    chatMapClampTop(topRaw) {
+      var bounds = this.chatOverlayVerticalBounds();
+      var height = this.readChatMapHeight();
+      var minTop = Number(bounds.minTop || 0);
+      var maxTop = Number(bounds.maxBottom || 0) - height;
+      if (!Number.isFinite(maxTop) || maxTop < minTop) maxTop = minTop;
+      var top = Number(topRaw);
+      if (!Number.isFinite(top)) top = minTop + ((maxTop - minTop) * 0.38);
+      return Math.max(minTop, Math.min(maxTop, top));
+    },
+
+    chatMapPersistPlacementFromTop(topRaw) {
+      var bounds = this.chatOverlayVerticalBounds();
+      var height = this.readChatMapHeight();
+      var minTop = Number(bounds.minTop || 0);
+      var maxTop = Number(bounds.maxBottom || 0) - height;
+      if (!Number.isFinite(maxTop) || maxTop < minTop) maxTop = minTop;
+      var top = this.chatMapClampTop(topRaw);
+      var ratio = maxTop > minTop ? (top - minTop) / (maxTop - minTop) : 0.38;
+      ratio = Math.max(0, Math.min(1, ratio));
+      this.chatMapPlacementY = ratio;
+      try {
+        localStorage.setItem('infring-chat-map-placement-y', String(ratio));
+      } catch(_) {}
+    },
+
+    shouldIgnoreChatMapDragTarget(target) {
+      var node = target;
+      if (node && typeof node.closest !== 'function' && node.parentElement) {
+        node = node.parentElement;
+      }
+      if (!node || typeof node.closest !== 'function') return false;
+      return Boolean(
+        node.closest(
+          'button, a, input, textarea, select, [role="button"], [contenteditable="true"], .chat-map-item, .chat-map-day, .chat-map-jump'
+        )
+      );
+    },
+
+    bindChatMapPointerListeners() {
+      if (this._chatMapPointerMoveHandler || this._chatMapPointerUpHandler) return;
+      var self = this;
+      this._chatMapPointerMoveHandler = function(ev) { self.handleChatMapPointerMove(ev); };
+      this._chatMapPointerUpHandler = function() { self.endChatMapPointerDrag(); };
+      window.addEventListener('pointermove', this._chatMapPointerMoveHandler, true);
+      window.addEventListener('pointerup', this._chatMapPointerUpHandler, true);
+      window.addEventListener('pointercancel', this._chatMapPointerUpHandler, true);
+      window.addEventListener('mousemove', this._chatMapPointerMoveHandler, true);
+      window.addEventListener('mouseup', this._chatMapPointerUpHandler, true);
+    },
+
+    unbindChatMapPointerListeners() {
+      if (this._chatMapPointerMoveHandler) {
+        try { window.removeEventListener('pointermove', this._chatMapPointerMoveHandler, true); } catch(_) {}
+        try { window.removeEventListener('mousemove', this._chatMapPointerMoveHandler, true); } catch(_) {}
+      }
+      if (this._chatMapPointerUpHandler) {
+        try { window.removeEventListener('pointerup', this._chatMapPointerUpHandler, true); } catch(_) {}
+        try { window.removeEventListener('pointercancel', this._chatMapPointerUpHandler, true); } catch(_) {}
+        try { window.removeEventListener('mouseup', this._chatMapPointerUpHandler, true); } catch(_) {}
+      }
+      this._chatMapPointerMoveHandler = null;
+      this._chatMapPointerUpHandler = null;
+    },
+
+    taskbarReorderDefaults(group) {
       var key = String(group || '').trim().toLowerCase();
       if (key === 'right') return ['connectivity', 'theme', 'notifications', 'search', 'auth'];
       return ['nav_cluster'];
     },
 
-    topbarReorderStorageKey(group) {
+    taskbarReorderStorageKey(group) {
       var key = String(group || '').trim().toLowerCase();
-      return key === 'right' ? 'infring-topbar-order-right' : 'infring-topbar-order-left';
+      return key === 'right' ? 'infring-taskbar-order-right' : 'infring-taskbar-order-left';
     },
 
-    topbarReorderOrderForGroup(group) {
+    taskbarReorderOrderForGroup(group) {
       var key = String(group || '').trim().toLowerCase();
-      return key === 'right' ? this.topbarReorderRight : this.topbarReorderLeft;
+      return key === 'right' ? this.taskbarReorderRight : this.taskbarReorderLeft;
     },
 
-    setTopbarReorderOrderForGroup(group, nextOrder) {
+    setTaskbarReorderOrderForGroup(group, nextOrder) {
       var key = String(group || '').trim().toLowerCase();
       if (key === 'right') {
-        this.topbarReorderRight = nextOrder;
+        this.taskbarReorderRight = nextOrder;
         return;
       }
-      this.topbarReorderLeft = nextOrder;
+      this.taskbarReorderLeft = nextOrder;
     },
 
-    normalizeTopbarReorder(group, rawOrder) {
-      var defaults = this.topbarReorderDefaults(group);
+    normalizeTaskbarReorder(group, rawOrder) {
+      var defaults = this.taskbarReorderDefaults(group);
       var source = Array.isArray(rawOrder) ? rawOrder : [];
       var seen = {};
       var ordered = [];
@@ -202,49 +323,49 @@
       return ordered;
     },
 
-    persistTopbarReorder(group) {
+    persistTaskbarReorder(group) {
       var key = String(group || '').trim().toLowerCase();
       if (key !== 'right') key = 'left';
-      var normalized = this.normalizeTopbarReorder(key, this.topbarReorderOrderForGroup(key));
-      this.setTopbarReorderOrderForGroup(key, normalized);
+      var normalized = this.normalizeTaskbarReorder(key, this.taskbarReorderOrderForGroup(key));
+      this.setTaskbarReorderOrderForGroup(key, normalized);
       try {
-        localStorage.setItem(this.topbarReorderStorageKey(key), JSON.stringify(normalized));
+        localStorage.setItem(this.taskbarReorderStorageKey(key), JSON.stringify(normalized));
       } catch(_) {}
     },
 
-    topbarReorderOrderIndex(group, item) {
+    taskbarReorderOrderIndex(group, item) {
       var key = String(group || '').trim().toLowerCase();
       if (key !== 'right') key = 'left';
       var itemId = String(item || '').trim();
       if (!itemId) return 999;
-      var order = this.normalizeTopbarReorder(key, this.topbarReorderOrderForGroup(key));
+      var order = this.normalizeTaskbarReorder(key, this.taskbarReorderOrderForGroup(key));
       var idx = order.indexOf(itemId);
       if (idx >= 0) return idx;
-      var fallback = this.topbarReorderDefaults(key).indexOf(itemId);
+      var fallback = this.taskbarReorderDefaults(key).indexOf(itemId);
       return fallback >= 0 ? fallback : 999;
     },
 
-    topbarReorderItemStyle(group, item) {
-      return 'order:' + this.topbarReorderOrderIndex(group, item);
+    taskbarReorderItemStyle(group, item) {
+      return 'order:' + this.taskbarReorderOrderIndex(group, item);
     },
 
-    topbarReorderItemRects(group) {
+    taskbarReorderItemRects(group) {
       if (typeof document === 'undefined') return {};
       var key = String(group || '').trim().toLowerCase();
       if (key !== 'right') key = 'left';
       var out = {};
       var box = null;
       try {
-        box = document.querySelector('.topbar-reorder-box-' + key);
+        box = document.querySelector('.taskbar-reorder-box-' + key);
       } catch(_) {
         box = null;
       }
       if (!box || typeof box.querySelectorAll !== 'function') return out;
-      var nodes = box.querySelectorAll('.topbar-reorder-item[data-topbar-item]');
+      var nodes = box.querySelectorAll('.taskbar-reorder-item[data-taskbar-item]');
       for (var i = 0; i < nodes.length; i += 1) {
         var node = nodes[i];
         if (!node || typeof node.getBoundingClientRect !== 'function') continue;
-        var id = String(node.getAttribute('data-topbar-item') || '').trim();
+        var id = String(node.getAttribute('data-taskbar-item') || '').trim();
         if (!id || Object.prototype.hasOwnProperty.call(out, id)) continue;
         var rect = node.getBoundingClientRect();
         out[id] = { left: Number(rect.left || 0), top: Number(rect.top || 0) };
@@ -252,7 +373,7 @@
       return out;
     },
 
-    animateTopbarReorderFromRects(group, beforeRects) {
+    animateTaskbarReorderFromRects(group, beforeRects) {
       if (!beforeRects || typeof beforeRects !== 'object') return;
       if (typeof requestAnimationFrame !== 'function' || typeof document === 'undefined') return;
       var key = String(group || '').trim().toLowerCase();
@@ -260,16 +381,16 @@
       requestAnimationFrame(function() {
         var box = null;
         try {
-          box = document.querySelector('.topbar-reorder-box-' + key);
+          box = document.querySelector('.taskbar-reorder-box-' + key);
         } catch(_) {
           box = null;
         }
         if (!box || typeof box.querySelectorAll !== 'function') return;
-        var nodes = box.querySelectorAll('.topbar-reorder-item[data-topbar-item]');
+        var nodes = box.querySelectorAll('.taskbar-reorder-item[data-taskbar-item]');
         for (var i = 0; i < nodes.length; i += 1) {
           var node = nodes[i];
           if (!node || node.classList.contains('dragging')) continue;
-          var id = String(node.getAttribute('data-topbar-item') || '').trim();
+          var id = String(node.getAttribute('data-taskbar-item') || '').trim();
           if (!id || !Object.prototype.hasOwnProperty.call(beforeRects, id)) continue;
           var from = beforeRects[id] || {};
           var rect = node.getBoundingClientRect();

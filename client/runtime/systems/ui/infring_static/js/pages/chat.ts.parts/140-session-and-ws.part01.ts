@@ -117,8 +117,30 @@
     },
 
     ensureLiveThinkingRow: function(data) {
+      var incomingStatus = String(
+        data && (data.thinking_status || data.status_text) ? (data.thinking_status || data.status_text) : ''
+      ).trim();
+      if (incomingStatus && typeof this.normalizeThinkingStatusCandidate === 'function') {
+        incomingStatus = this.normalizeThinkingStatusCandidate(incomingStatus);
+      }
       var row = this.messages.length ? this.messages[this.messages.length - 1] : null;
       if (row && (row.thinking || row.streaming)) {
+        row.thinking = true;
+        row.streaming = true;
+        if (!Number.isFinite(Number(row._stream_started_at))) row._stream_started_at = Date.now();
+        row._stream_updated_at = Date.now();
+        if (
+          incomingStatus &&
+          (
+            !String(row.thinking_status || '').trim() ||
+            (
+              typeof this.isThinkingPlaceholderText === 'function' &&
+              this.isThinkingPlaceholderText(row.thinking_status)
+            )
+          )
+        ) {
+          row.thinking_status = incomingStatus;
+        }
         return row;
       }
       row = {
@@ -128,7 +150,7 @@
         meta: '',
         thinking: true,
         streaming: true,
-        thinking_status: '',
+        thinking_status: incomingStatus,
         tools: [],
         _stream_started_at: Date.now(),
         _stream_updated_at: Date.now(),

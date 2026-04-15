@@ -107,8 +107,8 @@
   .sidebar {
     position: fixed;
     left: -300px;
-    top: 46px;
-    bottom: 0;
+    top: var(--shell-top-offset, 46px);
+    bottom: var(--shell-bottom-offset, 0px);
     transition: left var(--transition-normal);
   }
   .sidebar.mobile-open {

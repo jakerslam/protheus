@@ -1,30 +1,30 @@
-        <div class="global-topbar-page-slot"></div>
+        <div class="global-taskbar-page-slot"></div>
       </div>
-      <div class="global-topbar-right">
+      <div class="global-taskbar-right">
         <div
-          class="topbar-reorder-box topbar-reorder-box-right"
-          @pointerdown="handleTopbarReorderPointerDown('right', $event)"
-          @pointerup="cancelTopbarDragHold()"
-          @pointercancel="cancelTopbarDragHold()"
-          @pointerleave="cancelTopbarDragHold()"
-          @dragstart="handleTopbarReorderDragStart('right', $event)"
-          @drag="handleTopbarReorderDragMove($event)"
-          @dragenter="handleTopbarReorderDragEnter('right', $event)"
-          @dragover="handleTopbarReorderDragOver('right', $event)"
-          @drop="handleTopbarReorderDrop('right', $event)"
-          @dragend="handleTopbarDragEnd()"
+          class="taskbar-reorder-box taskbar-reorder-box-right"
+          @pointerdown="handleTaskbarReorderPointerDown('right', $event)"
+          @pointerup="cancelTaskbarDragHold()"
+          @pointercancel="cancelTaskbarDragHold()"
+          @pointerleave="cancelTaskbarDragHold()"
+          @dragstart="handleTaskbarReorderDragStart('right', $event)"
+          @drag="handleTaskbarReorderDragMove($event)"
+          @dragenter="handleTaskbarReorderDragEnter('right', $event)"
+          @dragover="handleTaskbarReorderDragOver('right', $event)"
+          @drop="handleTaskbarReorderDrop('right', $event)"
+          @dragend="handleTaskbarDragEnd()"
         >
-          <div class="topbar-reorder-item" data-topbar-item="connectivity" :style="topbarReorderItemStyle('right', 'connectivity')" draggable="true">
-            <div class="global-topbar-controls">
+          <div class="taskbar-reorder-item" data-taskbar-item="connectivity" :style="taskbarReorderItemStyle('right', 'connectivity')" draggable="true">
+            <div class="global-taskbar-controls">
               <button
-                class="health-indicator topbar-agent-indicator"
+                class="health-indicator taskbar-agent-indicator"
                 type="button"
                 :class="runtimeFacadeClass()"
                 @click="location.hash='agents'"
                 :title="runtimeFacadeTitle()"
                 aria-label="Open agents"
               >
-                <span class="topbar-agent-indicator-icon" aria-hidden="true">
+                <span class="taskbar-agent-indicator-icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24">
                     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
                     <circle cx="9" cy="7" r="4"/>
@@ -32,11 +32,11 @@
                     <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
                   </svg>
                 </span>
-                <span class="topbar-agent-indicator-text" x-text="runtimeFacadeDisplayLabel()"></span>
+                <span class="taskbar-agent-indicator-text" x-text="runtimeFacadeDisplayLabel()"></span>
               </button>
             </div>
           </div>
-          <div class="topbar-reorder-item" data-topbar-item="theme" :style="topbarReorderItemStyle('right', 'theme')" draggable="true">
+          <div class="taskbar-reorder-item" data-taskbar-item="theme" :style="taskbarReorderItemStyle('right', 'theme')" draggable="true">
             <div class="theme-switcher icon-pill-toggle" :data-mode="themeMode" :data-resolved="theme">
               <button class="theme-opt" :class="{ active: themeMode === 'light' }" @click="setTheme('light')" title="Light" aria-label="Light theme">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -64,16 +64,16 @@
               </button>
             </div>
           </div>
-          <div class="topbar-reorder-item" data-topbar-item="notifications" :style="topbarReorderItemStyle('right', 'notifications')" draggable="true">
-            <div class="notif-wrap" @click.outside="$store.app.notificationsOpen = false">
-              <button class="btn btn-ghost btn-sm topbar-icon-btn notif-btn" :class="{ 'notif-btn-auto-ring': $store.app.notificationBellPulse }" @click="$store.app.toggleNotifications()" title="Notifications" aria-label="Notifications">
+          <div class="taskbar-reorder-item" data-taskbar-item="notifications" :style="taskbarReorderItemStyle('right', 'notifications')" draggable="true">
+            <div class="notif-wrap" x-ref="taskbarNotifAnchor" @click.outside="$store.app.notificationsOpen = false">
+              <button class="btn btn-ghost btn-sm taskbar-icon-btn notif-btn" :class="{ 'notif-btn-auto-ring': $store.app.notificationBellPulse }" @click="$store.app.toggleNotifications()" title="Notifications" aria-label="Notifications">
                 <svg class="notif-bell-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5"></path>
                   <path d="M9 17a3 3 0 0 0 6 0"></path>
                 </svg>
                 <span class="notif-badge" x-show="$store.app.unreadNotifications > 0" x-text="$store.app.unreadNotifications > 99 ? '99+' : $store.app.unreadNotifications"></span>
               </button>
-              <div class="notif-dropdown dashboard-dropdown-surface" x-show="$store.app.notificationsOpen" x-transition:enter="transition ease-out duration-120" x-transition:enter-start="opacity-0 transform translate-y-1" x-transition:enter-end="opacity-100 transform translate-y-0">
+              <div class="notif-dropdown dashboard-dropdown-surface" :class="taskbarAnchoredDropdownClass($refs.taskbarNotifAnchor, 'bottom')" x-show="$store.app.notificationsOpen" x-transition:enter="transition ease-out duration-120" x-transition:enter-start="opacity-0 transform translate-y-1" x-transition:enter-end="opacity-100 transform translate-y-0">
                 <div class="notif-dropdown-head dashboard-dropdown-header">
                   <span>Notifications</span>
                   <button class="notif-clear-btn" @click="$store.app.clearNotifications()">Clear</button>
@@ -109,16 +109,16 @@
               </div>
             </div>
           </div>
-          <div class="topbar-reorder-item" data-topbar-item="search" :style="topbarReorderItemStyle('right', 'search')" draggable="true">
+          <div class="taskbar-reorder-item" data-taskbar-item="search" :style="taskbarReorderItemStyle('right', 'search')" draggable="true">
             <button
-              class="btn btn-ghost btn-sm topbar-icon-btn topbar-search-btn"
+              class="btn btn-ghost btn-sm taskbar-icon-btn taskbar-search-btn"
               type="button"
               @click.prevent.stop
-              @mouseenter="showTopbarUtilityPopup('Search', 'Search coming soon', $event)"
-              @mousemove="showTopbarUtilityPopup('Search', 'Search coming soon', $event)"
-              @mouseleave="hideDashboardPopup('topbar-utility:search')"
-              @focus="showTopbarUtilityPopup('Search', 'Search coming soon', $event)"
-              @blur="hideDashboardPopup('topbar-utility:search')"
+              @mouseenter="showTaskbarUtilityPopup('Search', 'Search coming soon', $event)"
+              @mousemove="showTaskbarUtilityPopup('Search', 'Search coming soon', $event)"
+              @mouseleave="hideDashboardPopup('taskbar-utility:search')"
+              @focus="showTaskbarUtilityPopup('Search', 'Search coming soon', $event)"
+              @blur="hideDashboardPopup('taskbar-utility:search')"
               aria-label="Search"
               aria-disabled="true"
             >
@@ -128,16 +128,16 @@
               </svg>
             </button>
           </div>
-          <div class="topbar-reorder-item" data-topbar-item="auth" :style="topbarReorderItemStyle('right', 'auth')" draggable="true">
+          <div class="taskbar-reorder-item" data-taskbar-item="auth" :style="taskbarReorderItemStyle('right', 'auth')" draggable="true">
             <button
-              class="btn btn-ghost btn-sm topbar-icon-btn auth-key-btn"
+              class="btn btn-ghost btn-sm taskbar-icon-btn auth-key-btn"
               type="button"
               @click.prevent
-              @mouseenter="showTopbarUtilityPopup('Authentication', 'Auth coming soon', $event)"
-              @mousemove="showTopbarUtilityPopup('Authentication', 'Auth coming soon', $event)"
-              @mouseleave="hideDashboardPopup('topbar-utility:authentication')"
-              @focus="showTopbarUtilityPopup('Authentication', 'Auth coming soon', $event)"
-              @blur="hideDashboardPopup('topbar-utility:authentication')"
+              @mouseenter="showTaskbarUtilityPopup('Authentication', 'Auth coming soon', $event)"
+              @mousemove="showTaskbarUtilityPopup('Authentication', 'Auth coming soon', $event)"
+              @mouseleave="hideDashboardPopup('taskbar-utility:authentication')"
+              @focus="showTaskbarUtilityPopup('Authentication', 'Auth coming soon', $event)"
+              @blur="hideDashboardPopup('taskbar-utility:authentication')"
               aria-label="Authentication"
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -148,15 +148,15 @@
             </button>
           </div>
         </div>
-        <div class="topbar-clock" :title="topbarClockLabel()" aria-label="System clock">
-          <span class="topbar-clock-main" x-text="topbarClockMainLabel()"></span>
-          <span class="topbar-clock-meridiem" x-text="topbarClockMeridiemLabel()"></span>
+        <div class="taskbar-clock" :title="taskbarClockLabel()" aria-label="System clock">
+          <span class="taskbar-clock-main" x-text="taskbarClockMainLabel()"></span>
+          <span class="taskbar-clock-meridiem" x-text="taskbarClockMeridiemLabel()"></span>
         </div>
       </div>
     </div>
     <div
-      id="topbar-search-popup"
-      class="topbar-search-popup-anchor"
+      id="taskbar-search-popup"
+      class="taskbar-search-popup-anchor"
       x-cloak
       x-show="false"
       x-transition:enter="transition ease-out duration-180"
@@ -165,24 +165,75 @@
       x-transition:leave="transition ease-in duration-130"
       x-transition:leave-start="opacity-100 transform translate-y-0"
       x-transition:leave-end="opacity-0 transform -translate-y-2"
-      @keydown.escape.window="$store.app.closeTopbarSearch()"
+      @keydown.escape.window="$store.app.closeTaskbarSearch()"
     >
-      <div class="topbar-search-popup dashboard-popup-surface dashboard-popup-surface--interactive" :class="{ 'is-active': !!$store.app.topbarSearchOpen }" @click.outside="$store.app.closeTopbarSearch()">
-        <span class="topbar-search-icon" aria-hidden="true">
+      <div class="taskbar-search-popup dashboard-popup-surface dashboard-popup-surface--interactive" :class="{ 'is-active': !!$store.app.taskbarSearchOpen }" @click.outside="$store.app.closeTaskbarSearch()">
+        <span class="taskbar-search-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="11" cy="11" r="6"></circle>
             <path d="m20 20-3.7-3.7"></path>
           </svg>
         </span>
         <input
-          id="topbar-search-input"
+          id="taskbar-search-input"
           type="text"
-          class="topbar-search-input"
-          x-model="$store.app.topbarSearchQuery"
+          class="taskbar-search-input"
+          x-model="$store.app.taskbarSearchQuery"
           placeholder="Search conversations..."
           autocomplete="off"
           spellcheck="false"
           aria-label="Search"
         />
+      </div>
+    </div>
+    <div
+      class="popup-window popup-window-manual drag-bar overlay-shared-surface"
+      data-popup-window-kind="manual"
+      x-cloak
+      x-show="helpManualWindowOpen"
+      :style="popupWindowStyle('manual')"
+      @keydown.escape.window="closePopupWindow('manual')"
+    >
+      <div
+        class="popup-window-header"
+        @pointerdown.capture="startPopupWindowPointerDrag('manual', $event)"
+        @mousedown.capture="startPopupWindowPointerDrag('manual', $event)"
+      >
+        <button class="popup-window-close" type="button" @click="closePopupWindow('manual')" aria-label="Close Manual window">
+          <span aria-hidden="true">×</span>
+        </button>
+        <h3 class="popup-window-title">Infring Manual</h3>
+      </div>
+      <div class="popup-window-body popup-window-body-markdown markdown-body" x-html="manualDocumentHtml()"></div>
+    </div>
+    <div
+      class="popup-window popup-window-report drag-bar overlay-shared-surface"
+      data-popup-window-kind="report"
+      x-cloak
+      x-show="reportIssueWindowOpen"
+      :style="popupWindowStyle('report')"
+      @keydown.escape.window="closePopupWindow('report')"
+    >
+      <div
+        class="popup-window-header"
+        @pointerdown.capture="startPopupWindowPointerDrag('report', $event)"
+        @mousedown.capture="startPopupWindowPointerDrag('report', $event)"
+      >
+        <button class="popup-window-close" type="button" @click="closePopupWindow('report')" aria-label="Close Report issue window">
+          <span aria-hidden="true">×</span>
+        </button>
+        <h3 class="popup-window-title">Report an Issue</h3>
+      </div>
+      <div class="popup-window-body">
+        <p class="popup-window-subtitle">Describe what happened and what you expected. GitHub issue wiring comes next.</p>
+        <textarea
+          class="popup-window-textarea"
+          x-model="reportIssueDraft"
+          placeholder="Issue summary, steps to reproduce, screenshots, expected behavior..."
+          spellcheck="true"
+        ></textarea>
+        <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;padding-top:4px">
+          <button class="btn btn-primary btn-sm" type="button" :disabled="!String(reportIssueDraft || '').trim()" @click="submitReportIssueDraft()">Submit issue</button>
+        </div>
       </div>
     </div>
