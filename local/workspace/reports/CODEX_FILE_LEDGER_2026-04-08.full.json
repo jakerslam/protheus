@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-15T09:19:18.552Z",
+  "generated_at": "2026-04-15T09:22:19.789Z",
   "scope": [
     "core",
     "client/runtime",
@@ -13587,7 +13587,7 @@
       "order": 1234
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/lib/success_criteria_verifier.ts",
       "language": "ts",
       "loc": 68,
@@ -13620,7 +13620,7 @@
       "order": 1237
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/lib/integrity_hash_utility.ts",
       "language": "ts",
       "loc": 66,
@@ -13664,7 +13664,7 @@
       "order": 1241
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/lib/quorum_validator.ts",
       "language": "ts",
       "loc": 61,
@@ -13686,7 +13686,7 @@
       "order": 1243
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/lib/ternary_belief_engine.ts",
       "language": "ts",
       "loc": 56,
@@ -13708,7 +13708,7 @@
       "order": 1245
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/lib/backlog_runtime_anchor_bridge.ts",
       "language": "ts",
       "loc": 49,
