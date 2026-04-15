@@ -4578,10 +4578,10 @@
       "order": 415
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/protheusctl_parts/015-cli-domains.rs",
       "language": "rs",
-      "loc": 1577,
+      "loc": 8,
       "authority_risk_score": 5,
       "migration_potential_score": 1,
       "concept_opportunity_score": 2,
@@ -4919,10 +4919,10 @@
       "order": 446
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/protheusctl_parts/010-bool-env.rs",
       "language": "rs",
-      "loc": 832,
+      "loc": 6,
       "authority_risk_score": 5,
       "migration_potential_score": 1,
       "concept_opportunity_score": 2,
@@ -5315,10 +5315,10 @@
       "order": 482
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/dashboard_compat_api_settings_ops.rs",
       "language": "rs",
-      "loc": 658,
+      "loc": 5,
       "authority_risk_score": 5,
       "migration_potential_score": 1,
       "concept_opportunity_score": 2,
@@ -5436,10 +5436,10 @@
       "order": 493
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/010-init-git-repo.rs",
       "language": "rs",
-      "loc": 604,
+      "loc": 5,
       "authority_risk_score": 5,
       "migration_potential_score": 1,
       "concept_opportunity_score": 2,
@@ -5557,10 +5557,10 @@
       "order": 504
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/dashboard_compat_api_comms_store.rs",
       "language": "rs",
-      "loc": 557,
+      "loc": 5,
       "authority_risk_score": 5,
       "migration_potential_score": 1,
       "concept_opportunity_score": 2,
@@ -20165,10 +20165,10 @@
       "order": 1832
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/app.ts.parts/020-nav-and-layout.part01.ts",
       "language": "ts",
-      "loc": 499,
+      "loc": 250,
       "authority_risk_score": 2,
       "migration_potential_score": 2,
       "concept_opportunity_score": 3,
@@ -20367,10 +20367,10 @@
       "order": 1849
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/080-normalize-and-context.part01.ts",
       "language": "ts",
-      "loc": 456,
+      "loc": 240,
       "authority_risk_score": 2,
       "migration_potential_score": 2,
       "concept_opportunity_score": 3,
@@ -20488,10 +20488,10 @@
       "order": 1860
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/workflow-builder.ts.parts/010-builder-state.ts",
       "language": "ts",
-      "loc": 406,
+      "loc": 220,
       "authority_risk_score": 2,
       "migration_potential_score": 2,
       "concept_opportunity_score": 3,
@@ -20510,10 +20510,10 @@
       "order": 1862
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/wizard.ts.parts/010-state-and-steps.ts",
       "language": "ts",
-      "loc": 401,
+      "loc": 220,
       "authority_risk_score": 2,
       "migration_potential_score": 2,
       "concept_opportunity_score": 3,
@@ -20521,10 +20521,10 @@
       "order": 1863
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/hands.ts.parts/010-state-and-load.ts",
       "language": "ts",
-      "loc": 400,
+      "loc": 220,
       "authority_risk_score": 2,
       "migration_potential_score": 2,
       "concept_opportunity_score": 3,
