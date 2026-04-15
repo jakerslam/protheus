@@ -173,6 +173,16 @@ mod openclaw_fetch_runtime_resolution_tests {
             Some(true)
         );
         assert_eq!(
+            out.pointer("/openclaw_runtime_contract/visibility_sanitization_contract/hidden_class_token_boundary_match_required")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/visibility_sanitization_contract/invisible_unicode_codepoint_contract/0")
+                .and_then(Value::as_str),
+            Some("U+200B")
+        );
+        assert_eq!(
             out.pointer("/openclaw_runtime_contract/shared_runtime_contract/timeout_default_seconds")
                 .and_then(Value::as_u64),
             Some(30)
@@ -244,6 +254,31 @@ mod openclaw_fetch_runtime_resolution_tests {
         );
         assert_eq!(
             out.pointer("/openclaw_runtime_contract/response_and_wrapping_contract/response_bytes_cap_enforced")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/cf_markdown_contract/accept_header_preference")
+                .and_then(Value::as_str),
+            Some("text/markdown, text/html;q=0.9, */*;q=0.1")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/cf_markdown_contract/markdown_extractor_id")
+                .and_then(Value::as_str),
+            Some("cf-markdown")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/cf_markdown_contract/markdown_tokens_logging_requires_url_redaction")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/guarded_endpoint_contract/strict_endpoint_wrapper")
+                .and_then(Value::as_str),
+            Some("withStrictWebToolsEndpoint")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/guarded_endpoint_contract/trusted_policy/allow_rfc2544_benchmark_range")
                 .and_then(Value::as_bool),
             Some(true)
         );

@@ -50,6 +50,7 @@ fn fetch_visibility_sanitization_contract() -> Value {
         "strip_invisible_unicode_entrypoint": "stripInvisibleUnicode",
         "always_remove_tags": ["meta", "template", "svg", "canvas", "iframe", "object", "embed"],
         "hidden_class_name_contract": ["sr-only", "visually-hidden", "d-none", "hidden", "invisible", "screen-reader-only", "offscreen"],
+        "hidden_class_token_boundary_match_required": true,
         "hidden_style_pattern_contract": [
             "display:none",
             "visibility:hidden",
@@ -62,7 +63,17 @@ fn fetch_visibility_sanitization_contract() -> Value {
             "width0_height0_overflow_hidden"
         ],
         "hidden_attr_contract": ["aria-hidden=true", "hidden_attribute", "input[type=hidden]"],
-        "comment_stripping": true
+        "comment_stripping": true,
+        "invisible_unicode_codepoint_contract": [
+            "U+200B",
+            "U+200C",
+            "U+200D",
+            "U+200E",
+            "U+200F",
+            "U+202A-U+202E",
+            "U+2060",
+            "U+FEFF"
+        ]
     })
 }
 
@@ -141,6 +152,33 @@ fn fetch_response_and_wrapping_contract() -> Value {
     })
 }
 
+fn fetch_cf_markdown_contract() -> Value {
+    json!({
+        "accept_header_preference": "text/markdown, text/html;q=0.9, */*;q=0.1",
+        "markdown_content_type_contract": "text/markdown",
+        "markdown_extractor_id": "cf-markdown",
+        "markdown_text_mode_conversion_required": true,
+        "html_fallback_extractor": "readability",
+        "runtime_firecrawl_inactive_bypasses_provider_network_call": true,
+        "markdown_tokens_header": "x-markdown-tokens",
+        "markdown_tokens_logging_requires_url_redaction": true
+    })
+}
+
+fn fetch_guarded_endpoint_contract() -> Value {
+    json!({
+        "strict_endpoint_wrapper": "withStrictWebToolsEndpoint",
+        "trusted_endpoint_wrapper": "withTrustedWebToolsEndpoint",
+        "strict_mode": "strict",
+        "trusted_mode": "trusted_env_proxy",
+        "trusted_policy": {
+            "dangerously_allow_private_network": true,
+            "allow_rfc2544_benchmark_range": true
+        },
+        "strict_policy_override": "none"
+    })
+}
+
 fn fetch_runtime_provider_sort_contract() -> Value {
     json!({
         "alphabetical_sorter": "sortPluginProviders",
@@ -191,6 +229,8 @@ fn fetch_runtime_resolution_contract() -> Value {
         "provider_fallback_contract": fetch_provider_fallback_contract(),
         "ssrf_guard_contract": fetch_ssrf_guard_contract(),
         "response_and_wrapping_contract": fetch_response_and_wrapping_contract(),
+        "cf_markdown_contract": fetch_cf_markdown_contract(),
+        "guarded_endpoint_contract": fetch_guarded_endpoint_contract(),
         "provider_sort_contract": fetch_runtime_provider_sort_contract(),
         "candidate_plugin_contract": fetch_runtime_candidate_plugin_contract(),
         "public_artifact_resolution_contract": fetch_public_artifact_resolution_contract(),

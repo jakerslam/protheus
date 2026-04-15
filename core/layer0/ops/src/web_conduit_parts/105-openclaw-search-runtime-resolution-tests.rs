@@ -225,6 +225,31 @@ mod openclaw_search_runtime_resolution_tests {
             Some("postTrustedWebToolsJson")
         );
         assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_common_runtime_contract/module_local_cache_required")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_common_runtime_contract/global_symbol_cache_forbidden")
+                .and_then(Value::as_str),
+            Some("openclaw.web-search.cache")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_common_runtime_contract/freshness_cross_provider_mapping_supported/brave_shortcuts/1")
+                .and_then(Value::as_str),
+            Some("pw")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_common_runtime_contract/date_range_contract/perplexity_date_converter")
+                .and_then(Value::as_str),
+            Some("isoToPerplexityDate")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_common_runtime_contract/unsupported_filter_contract/date_filter_error_code")
+                .and_then(Value::as_str),
+            Some("unsupported_date_filter")
+        );
+        assert_eq!(
             out.pointer("/openclaw_runtime_contract/citation_redirect_contract/resolver_entrypoint")
                 .and_then(Value::as_str),
             Some("resolveCitationRedirectUrl")
