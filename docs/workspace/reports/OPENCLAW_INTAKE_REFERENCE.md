@@ -120,7 +120,7 @@
     - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/210-scroll-hover-sanitize.part01.ts`
     - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/220-artifacts-voice-search.part02.ts`
 ## Current Intake State
-- Imported rows in this wave: `140`
+- Imported rows in this wave: `145`
 - Pending rows in this wave: `0`
 
 - `OPENCLAW-TOOLING-APP-013`:
@@ -371,6 +371,16 @@
     - `src/plugins/contracts/provider.fal.contract.test.ts`
     - `src/plugins/contracts/provider.google.contract.test.ts`
     - `src/plugins/contracts/provider.minimax.contract.test.ts`
+  - Landed in:
+    - `core/layer0/ops/src/web_conduit_provider_runtime_parts/021-search-runtime-resolution.rs`
+    - `core/layer0/ops/src/web_conduit_parts/105-openclaw-search-runtime-resolution-tests.rs`
+- `OPENCLAW-TOOLING-WEB-035`:
+  - Imported extended provider-family contract matrix semantics from:
+    - `src/plugins/contracts/provider.moonshot.contract.test.ts`
+    - `src/plugins/contracts/provider.openai.contract.test.ts`
+    - `src/plugins/contracts/provider.openrouter.contract.test.ts`
+    - `src/plugins/contracts/provider.xai.contract.test.ts`
+    - `src/plugins/contracts/provider-family-plugin-tests.test.ts`
   - Landed in:
     - `core/layer0/ops/src/web_conduit_provider_runtime_parts/021-search-runtime-resolution.rs`
     - `core/layer0/ops/src/web_conduit_parts/105-openclaw-search-runtime-resolution-tests.rs`

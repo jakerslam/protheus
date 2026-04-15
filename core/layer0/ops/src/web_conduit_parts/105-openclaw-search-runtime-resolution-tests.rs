@@ -208,6 +208,18 @@ mod openclaw_search_runtime_resolution_tests {
                 "src/plugins/contracts/provider.minimax.contract.test.ts",
             ),
             (
+                "/openclaw_runtime_contract/provider_family_contract_suite_contract/contract_targets/7",
+                "src/plugins/contracts/provider.openrouter.contract.test.ts",
+            ),
+            (
+                "/openclaw_runtime_contract/provider_family_contract_suite_contract/contract_targets/8",
+                "src/plugins/contracts/provider.xai.contract.test.ts",
+            ),
+            (
+                "/openclaw_runtime_contract/provider_family_contract_suite_contract/suite_validation_tests/0",
+                "src/plugins/contracts/provider-family-plugin-tests.test.ts",
+            ),
+            (
                 "/openclaw_runtime_contract/provider_family_contract_suite_contract/runtime_invariants/1",
                 "model_catalog_compatibility_contract",
             ),
