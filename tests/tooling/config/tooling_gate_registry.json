@@ -6,14 +6,24 @@
       "description": "Rust runtime proof regression for Layer 0 ops.",
       "timeout_env": "VERIFY_RUST_TIMEOUT_SEC",
       "timeout_sec": 180,
-      "command": ["cargo", "test", "--manifest-path", "core/layer0/ops/Cargo.toml", "--test", "v8_runtime_proof"]
+      "command": [
+        "cargo",
+        "test",
+        "--manifest-path",
+        "core/layer0/ops/Cargo.toml",
+        "--test",
+        "v8_runtime_proof"
+      ]
     },
     "proofs:layer0:verify": {
       "owner": "ops",
       "description": "Layer 0 proof bundle verification.",
       "timeout_env": "VERIFY_RUST_TIMEOUT_SEC",
       "timeout_sec": 180,
-      "command": ["bash", "proofs/layer0/verify.sh"]
+      "command": [
+        "bash",
+        "proofs/layer0/verify.sh"
+      ]
     },
     "ops:top1:proof-coverage": {
       "owner": "ops",
@@ -29,7 +39,19 @@
       "timeout_env": "VERIFY_TIMEOUT_SEC",
       "timeout_sec": 45,
       "defer_host_stall": true,
-      "command": ["cargo", "run", "--quiet", "--manifest-path", "core/layer0/ops/Cargo.toml", "--bin", "infring-ops", "--", "origin-integrity", "run", "--strict=1"]
+      "command": [
+        "cargo",
+        "run",
+        "--quiet",
+        "--manifest-path",
+        "core/layer0/ops/Cargo.toml",
+        "--bin",
+        "infring-ops",
+        "--",
+        "origin-integrity",
+        "run",
+        "--strict=1"
+      ]
     },
     "ops:origin-integrity:certificate": {
       "owner": "ops",
@@ -37,7 +59,19 @@
       "timeout_env": "VERIFY_TIMEOUT_SEC",
       "timeout_sec": 45,
       "defer_host_stall": true,
-      "command": ["cargo", "run", "--quiet", "--manifest-path", "core/layer0/ops/Cargo.toml", "--bin", "infring-ops", "--", "origin-integrity", "certificate", "--strict=1"]
+      "command": [
+        "cargo",
+        "run",
+        "--quiet",
+        "--manifest-path",
+        "core/layer0/ops/Cargo.toml",
+        "--bin",
+        "infring-ops",
+        "--",
+        "origin-integrity",
+        "certificate",
+        "--strict=1"
+      ]
     },
     "ops:dependency-boundary:check": {
       "owner": "ops",
@@ -58,15 +92,28 @@
       "description": "Runtime dependency contract gate.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
-      "command": ["node", "client/runtime/lib/ts_entrypoint.ts", "tests/tooling/scripts/ci/runtime_dependency_contract_gate.ts", "--strict=1"]
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/runtime_dependency_contract_gate.ts",
+        "--strict=1"
+      ]
     },
     "audit:client-layer-boundary": {
       "owner": "ops",
       "description": "Client layer boundary audit with explicit artifact output.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
-      "command": ["node", "client/runtime/lib/ts_entrypoint.ts", "tests/tooling/scripts/ci/client_layer_boundary_audit.ts", "--strict=1", "--out=core/local/artifacts/client_layer_boundary_audit_current.json"],
-      "artifact_paths": ["core/local/artifacts/client_layer_boundary_audit_current.json"]
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/client_layer_boundary_audit.ts",
+        "--strict=1",
+        "--out=core/local/artifacts/client_layer_boundary_audit_current.json"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/client_layer_boundary_audit_current.json"
+      ]
     },
     "ops:arch:conformance": {
       "owner": "ops",
@@ -74,7 +121,19 @@
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
       "script": "ops:arch:conformance",
-      "artifact_paths": ["core/local/artifacts/arch_boundary_conformance_current.json"]
+      "artifact_paths": [
+        "core/local/artifacts/arch_boundary_conformance_current.json"
+      ]
+    },
+    "ops:repo-health:check": {
+      "owner": "ops",
+      "description": "Repo health gate for package-script budget, file-size exception debt, shared tooling adoption, and root-surface drift.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:repo-health:check",
+      "artifact_paths": [
+        "core/local/artifacts/repo_health_gate_current.json"
+      ]
     },
     "ops:transport:convergence:guard": {
       "owner": "ops",
@@ -82,7 +141,9 @@
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
       "script": "ops:transport:convergence:guard",
-      "artifact_paths": ["core/local/artifacts/transport_convergence_guard_current.json"]
+      "artifact_paths": [
+        "core/local/artifacts/transport_convergence_guard_current.json"
+      ]
     },
     "ops:legacy-runner:release-guard": {
       "owner": "ops",
@@ -90,7 +151,9 @@
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
       "script": "ops:legacy-runner:release-guard",
-      "artifact_paths": ["core/local/artifacts/legacy_process_runner_release_guard_current.json"]
+      "artifact_paths": [
+        "core/local/artifacts/legacy_process_runner_release_guard_current.json"
+      ]
     },
     "ops:transport:topology:gate": {
       "owner": "ops",
@@ -98,7 +161,9 @@
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
       "script": "ops:transport:topology:gate",
-      "artifact_paths": ["core/local/artifacts/production_topology_diagnostic_current.json"]
+      "artifact_paths": [
+        "core/local/artifacts/production_topology_diagnostic_current.json"
+      ]
     },
     "ops:production-topology:status": {
       "owner": "ops",
@@ -106,7 +171,9 @@
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
       "script": "ops:production-topology:status",
-      "artifact_paths": ["core/local/artifacts/production_topology_diagnostic_current.json"]
+      "artifact_paths": [
+        "core/local/artifacts/production_topology_diagnostic_current.json"
+      ]
     },
     "ops:transport:spawn-audit": {
       "owner": "ops",
@@ -114,15 +181,25 @@
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
       "script": "ops:transport:spawn-audit",
-      "artifact_paths": ["core/local/artifacts/transport_spawn_audit_current.json"]
+      "artifact_paths": [
+        "core/local/artifacts/transport_spawn_audit_current.json"
+      ]
     },
     "release_policy_gate": {
       "owner": "ops",
       "description": "Release policy gate.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
-      "command": ["node", "client/runtime/lib/ts_entrypoint.ts", "tests/tooling/scripts/ci/release_policy_gate.ts", "--strict=1", "--out=core/local/artifacts/release_policy_gate_current.json"],
-      "artifact_paths": ["core/local/artifacts/release_policy_gate_current.json"]
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/release_policy_gate.ts",
+        "--strict=1",
+        "--out=core/local/artifacts/release_policy_gate_current.json"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/release_policy_gate_current.json"
+      ]
     },
     "chaos:continuous:gate": {
       "owner": "ops",
@@ -130,7 +207,9 @@
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
       "script": "chaos:continuous:gate",
-      "artifact_paths": ["client/local/state/runtime_systems/RUNTIME-SYSTEMS-OPS-CONTINUOUS_CHAOS_RESILIENCE/latest.json"]
+      "artifact_paths": [
+        "client/local/state/runtime_systems/RUNTIME-SYSTEMS-OPS-CONTINUOUS_CHAOS_RESILIENCE/latest.json"
+      ]
     },
     "state:kernel:replay": {
       "owner": "ops",
@@ -138,7 +217,9 @@
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
       "script": "state:kernel:replay",
-      "artifact_paths": ["client/local/state/runtime_systems/RUNTIME-SYSTEMS-OPS-STATE_KERNEL/latest.json"]
+      "artifact_paths": [
+        "client/local/state/runtime_systems/RUNTIME-SYSTEMS-OPS-STATE_KERNEL/latest.json"
+      ]
     },
     "ops:stateful-upgrade-rollback:gate": {
       "owner": "ops",
@@ -146,7 +227,9 @@
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 180,
       "script": "ops:stateful-upgrade-rollback:gate",
-      "artifact_paths": ["core/local/artifacts/stateful_upgrade_rollback_gate_current.json"]
+      "artifact_paths": [
+        "core/local/artifacts/stateful_upgrade_rollback_gate_current.json"
+      ]
     },
     "ops:assimilation:v1:support:guard": {
       "owner": "ops",
@@ -154,7 +237,9 @@
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
       "script": "ops:assimilation:v1:support:guard",
-      "artifact_paths": ["core/local/artifacts/assimilation_v1_support_guard_current.json"]
+      "artifact_paths": [
+        "core/local/artifacts/assimilation_v1_support_guard_current.json"
+      ]
     },
     "ops:release-blockers:gate": {
       "owner": "ops",
@@ -162,7 +247,9 @@
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
       "script": "ops:release-blockers:gate",
-      "artifact_paths": ["core/local/artifacts/release_blocker_rubric_current.json"]
+      "artifact_paths": [
+        "core/local/artifacts/release_blocker_rubric_current.json"
+      ]
     },
     "ops:release-hardening-window:guard": {
       "owner": "ops",
@@ -170,7 +257,9 @@
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
       "script": "ops:release-hardening-window:guard",
-      "artifact_paths": ["core/local/artifacts/release_hardening_window_guard_current.json"]
+      "artifact_paths": [
+        "core/local/artifacts/release_hardening_window_guard_current.json"
+      ]
     },
     "ops:ipc-bridge:soak": {
       "owner": "ops",
@@ -189,7 +278,9 @@
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
       "script": "ops:production-closure:gate",
-      "artifact_paths": ["core/local/artifacts/production_readiness_closure_gate_current.json"]
+      "artifact_paths": [
+        "core/local/artifacts/production_readiness_closure_gate_current.json"
+      ]
     },
     "ops:orchestration:contract:guard": {
       "owner": "ops",
@@ -197,7 +288,9 @@
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
       "script": "ops:orchestration:contract:guard",
-      "artifact_paths": ["core/local/artifacts/orchestration_boundary_contract_compile_current.json"]
+      "artifact_paths": [
+        "core/local/artifacts/orchestration_boundary_contract_compile_current.json"
+      ]
     },
     "ops:orchestration:hidden-state:guard": {
       "owner": "ops",
@@ -205,7 +298,9 @@
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
       "script": "ops:orchestration:hidden-state:guard",
-      "artifact_paths": ["core/local/artifacts/orchestration_hidden_state_guard_current.json"]
+      "artifact_paths": [
+        "core/local/artifacts/orchestration_hidden_state_guard_current.json"
+      ]
     },
     "ops:orchestration:ts-boundary:guard": {
       "owner": "ops",
@@ -213,7 +308,9 @@
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
       "script": "ops:orchestration:ts-boundary:guard",
-      "artifact_paths": ["core/local/artifacts/orchestration_ts_boundary_audit_current.json"]
+      "artifact_paths": [
+        "core/local/artifacts/orchestration_ts_boundary_audit_current.json"
+      ]
     },
     "ops:debt:expiry:guard": {
       "owner": "ops",
@@ -221,7 +318,9 @@
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
       "script": "ops:debt:expiry:guard",
-      "artifact_paths": ["core/local/artifacts/debt_expiry_guard_current.json"]
+      "artifact_paths": [
+        "core/local/artifacts/debt_expiry_guard_current.json"
+      ]
     },
     "ops:ci-workflow:check": {
       "owner": "ops",
@@ -307,15 +406,27 @@
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
       "script": "ops:system:fitness:gate",
-      "artifact_paths": ["core/local/artifacts/system_fitness_gate_current.json"]
+      "artifact_paths": [
+        "core/local/artifacts/system_fitness_gate_current.json"
+      ]
     },
     "audit:module-cohesion": {
       "owner": "ops",
       "description": "Module cohesion policy audit with explicit output paths.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
-      "command": ["node", "client/runtime/lib/ts_entrypoint.ts", "tests/tooling/scripts/ci/module_cohesion_policy_audit.ts", "--strict=1", "--out-json=core/local/artifacts/module_cohesion_audit_current.json", "--out-markdown=local/workspace/reports/MODULE_COHESION_AUDIT_CURRENT.md"],
-      "artifact_paths": ["core/local/artifacts/module_cohesion_audit_current.json", "local/workspace/reports/MODULE_COHESION_AUDIT_CURRENT.md"]
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/module_cohesion_policy_audit.ts",
+        "--strict=1",
+        "--out-json=core/local/artifacts/module_cohesion_audit_current.json",
+        "--out-markdown=local/workspace/reports/MODULE_COHESION_AUDIT_CURRENT.md"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/module_cohesion_audit_current.json",
+        "local/workspace/reports/MODULE_COHESION_AUDIT_CURRENT.md"
+      ]
     },
     "ops:legacy-alias:guard": {
       "owner": "ops",
@@ -357,23 +468,52 @@
       "description": "Architecture boundary audit.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
-      "command": ["node", "client/runtime/lib/ts_entrypoint.ts", "tests/tooling/scripts/ci/architecture_boundary_audit.ts", "--strict=1", "--out-json=core/local/artifacts/architecture_boundary_audit_current.json", "--out-md=local/workspace/reports/ARCHITECTURE_BOUNDARY_AUDIT_CURRENT.md"],
-      "artifact_paths": ["core/local/artifacts/architecture_boundary_audit_current.json", "local/workspace/reports/ARCHITECTURE_BOUNDARY_AUDIT_CURRENT.md"]
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/architecture_boundary_audit.ts",
+        "--strict=1",
+        "--out-json=core/local/artifacts/architecture_boundary_audit_current.json",
+        "--out-md=local/workspace/reports/ARCHITECTURE_BOUNDARY_AUDIT_CURRENT.md"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/architecture_boundary_audit_current.json",
+        "local/workspace/reports/ARCHITECTURE_BOUNDARY_AUDIT_CURRENT.md"
+      ]
     },
     "ops:public-platform:contract": {
       "owner": "ops",
       "description": "Public platform contract gate.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
-      "script": "ops:public-platform:contract"
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/public_platform_contract_audit.ts",
+        "--strict=1",
+        "--out=core/local/artifacts/public_platform_contract_audit_current.json"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/public_platform_contract_audit_current.json"
+      ]
     },
     "ops:benchmark:sanity": {
       "owner": "ops",
       "description": "Benchmark sanity gate.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
-      "command": ["node", "client/runtime/lib/ts_entrypoint.ts", "tests/tooling/scripts/ci/benchmark_sanity_gate.ts", "--strict=1", "--out-json=core/local/artifacts/benchmark_sanity_gate_current.json", "--out-markdown=local/workspace/reports/BENCHMARK_SANITY_GATE_CURRENT.md"],
-      "artifact_paths": ["core/local/artifacts/benchmark_sanity_gate_current.json", "local/workspace/reports/BENCHMARK_SANITY_GATE_CURRENT.md"]
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/benchmark_sanity_gate.ts",
+        "--strict=1",
+        "--out-json=core/local/artifacts/benchmark_sanity_gate_current.json",
+        "--out-markdown=local/workspace/reports/BENCHMARK_SANITY_GATE_CURRENT.md"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/benchmark_sanity_gate_current.json",
+        "local/workspace/reports/BENCHMARK_SANITY_GATE_CURRENT.md"
+      ]
     },
     "ops:benchmark:public-audit": {
       "owner": "ops",
@@ -387,14 +527,36 @@
       "description": "Flaky quarantine audit.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
-      "script": "ops:flaky:quarantine:audit"
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/flaky_quarantine_audit.ts",
+        "--strict=1",
+        "--out-json=core/local/artifacts/flaky_quarantine_audit_current.json",
+        "--out-markdown=local/workspace/reports/FLAKY_QUARANTINE_AUDIT_CURRENT.md"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/flaky_quarantine_audit_current.json",
+        "local/workspace/reports/FLAKY_QUARANTINE_AUDIT_CURRENT.md"
+      ]
     },
     "ops:test-priority:audit": {
       "owner": "ops",
       "description": "Test priority manifest audit.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
-      "script": "ops:test-priority:audit"
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/test_priority_manifest_audit.ts",
+        "--strict=1",
+        "--out-json=core/local/artifacts/test_priority_manifest_audit_current.json",
+        "--out-markdown=local/workspace/reports/TEST_PRIORITY_MANIFEST_AUDIT_CURRENT.md"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/test_priority_manifest_audit_current.json",
+        "local/workspace/reports/TEST_PRIORITY_MANIFEST_AUDIT_CURRENT.md"
+      ]
     },
     "ops:strategic-contracts:audit": {
       "owner": "ops",
@@ -408,7 +570,18 @@
       "description": "Rust core file size gate.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
-      "script": "ops:rust-core-file-size:gate"
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/rust_core_file_size_gate.ts",
+        "--strict=1",
+        "--out-json=core/local/artifacts/rust_core_file_size_gate_current.json",
+        "--out-markdown=local/workspace/reports/RUST_CORE_FILE_SIZE_GATE_CURRENT.md"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/rust_core_file_size_gate_current.json",
+        "local/workspace/reports/RUST_CORE_FILE_SIZE_GATE_CURRENT.md"
+      ]
     },
     "ops:file-size:gate": {
       "owner": "ops",
@@ -429,32 +602,65 @@
       "description": "Client import integrity audit.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
-      "command": ["node", "client/runtime/lib/ts_entrypoint.ts", "tests/tooling/scripts/ci/client_import_integrity_audit.ts", "--strict=1", "--out=core/local/artifacts/client_import_integrity_audit_current.json"],
-      "artifact_paths": ["core/local/artifacts/client_import_integrity_audit_current.json"]
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/client_import_integrity_audit.ts",
+        "--strict=1",
+        "--out=core/local/artifacts/client_import_integrity_audit_current.json"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/client_import_integrity_audit_current.json"
+      ]
     },
     "audit:client-scope-inventory": {
       "owner": "ops",
       "description": "Client scope inventory.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
-      "command": ["node", "client/runtime/lib/ts_entrypoint.ts", "tests/tooling/scripts/ci/client_scope_inventory.ts", "--out=core/local/artifacts/client_scope_inventory_current.json"],
-      "artifact_paths": ["core/local/artifacts/client_scope_inventory_current.json"]
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/client_scope_inventory.ts",
+        "--out=core/local/artifacts/client_scope_inventory_current.json"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/client_scope_inventory_current.json"
+      ]
     },
     "audit:client-surface-disposition": {
       "owner": "ops",
       "description": "Client surface disposition inventory.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
-      "command": ["node", "client/runtime/lib/ts_entrypoint.ts", "tests/tooling/scripts/ci/client_surface_disposition.ts", "--out=core/local/artifacts/client_surface_disposition_current.json"],
-      "artifact_paths": ["core/local/artifacts/client_surface_disposition_current.json"]
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/client_surface_disposition.ts",
+        "--out=core/local/artifacts/client_surface_disposition_current.json"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/client_surface_disposition_current.json"
+      ]
     },
     "audit:client-target-contract": {
       "owner": "ops",
       "description": "Client target contract audit.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
-      "command": ["node", "client/runtime/lib/ts_entrypoint.ts", "tests/tooling/scripts/ci/client_target_contract_audit.ts", "--strict=1", "--scope=core/local/artifacts/client_scope_inventory_current.json", "--boundary=core/local/artifacts/client_layer_boundary_audit_current.json", "--disposition=core/local/artifacts/client_surface_disposition_current.json", "--out=core/local/artifacts/client_target_contract_audit_current.json"],
-      "artifact_paths": ["core/local/artifacts/client_target_contract_audit_current.json"]
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/client_target_contract_audit.ts",
+        "--strict=1",
+        "--scope=core/local/artifacts/client_scope_inventory_current.json",
+        "--boundary=core/local/artifacts/client_layer_boundary_audit_current.json",
+        "--disposition=core/local/artifacts/client_surface_disposition_current.json",
+        "--out=core/local/artifacts/client_target_contract_audit_current.json"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/client_target_contract_audit_current.json"
+      ]
     },
     "ops:v8:runtime-proof:gate": {
       "owner": "ops",
@@ -468,24 +674,51 @@
       "description": "Full SRS gate.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
-      "command": ["node", "client/runtime/lib/ts_entrypoint.ts", "tests/tooling/scripts/ci/srs_full_regression.ts", "--strict=1", "--out-json=core/local/artifacts/srs_full_regression_current.json", "--out-markdown=local/workspace/reports/SRS_FULL_REGRESSION_CURRENT.md"],
-      "artifact_paths": ["core/local/artifacts/srs_full_regression_current.json", "local/workspace/reports/SRS_FULL_REGRESSION_CURRENT.md"]
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/srs_full_regression.ts",
+        "--strict=1",
+        "--out-json=core/local/artifacts/srs_full_regression_current.json",
+        "--out-markdown=local/workspace/reports/SRS_FULL_REGRESSION_CURRENT.md"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/srs_full_regression_current.json",
+        "local/workspace/reports/SRS_FULL_REGRESSION_CURRENT.md"
+      ]
     },
     "ops:tooling-registry:contract:guard": {
       "owner": "ops",
       "description": "Tooling registry contract guard for concrete artifact paths.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
-      "command": ["node", "client/runtime/lib/ts_entrypoint.ts", "tests/tooling/scripts/ci/tooling_registry_contract_guard.ts", "--strict=1", "--out=core/local/artifacts/tooling_registry_contract_guard_current.json"],
-      "artifact_paths": ["core/local/artifacts/tooling_registry_contract_guard_current.json"]
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/tooling_registry_contract_guard.ts",
+        "--strict=1",
+        "--out=core/local/artifacts/tooling_registry_contract_guard_current.json"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/tooling_registry_contract_guard_current.json"
+      ]
     },
     "ops:srs:full:regression": {
       "owner": "ops",
       "description": "Full SRS regression report.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
-      "command": ["node", "client/runtime/lib/ts_entrypoint.ts", "tests/tooling/scripts/ci/srs_full_regression.ts", "--out-json=core/local/artifacts/srs_full_regression_current.json", "--out-markdown=local/workspace/reports/SRS_FULL_REGRESSION_CURRENT.md"],
-      "artifact_paths": ["core/local/artifacts/srs_full_regression_current.json", "local/workspace/reports/SRS_FULL_REGRESSION_CURRENT.md"]
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/srs_full_regression.ts",
+        "--out-json=core/local/artifacts/srs_full_regression_current.json",
+        "--out-markdown=local/workspace/reports/SRS_FULL_REGRESSION_CURRENT.md"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/srs_full_regression_current.json",
+        "local/workspace/reports/SRS_FULL_REGRESSION_CURRENT.md"
+      ]
     },
     "ops:dod:gate": {
       "owner": "ops",
@@ -506,16 +739,37 @@
       "description": "Repository churn guard.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
-      "command": ["node", "client/runtime/lib/ts_entrypoint.ts", "tests/tooling/scripts/ci/churn_guard.ts", "--strict=1", "--out-json=core/local/artifacts/churn_guard_current.json", "--out-markdown=local/workspace/reports/CHURN_GUARD_CURRENT.md"],
-      "artifact_paths": ["core/local/artifacts/churn_guard_current.json", "local/workspace/reports/CHURN_GUARD_CURRENT.md"]
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/churn_guard.ts",
+        "--strict=1",
+        "--out-json=core/local/artifacts/churn_guard_current.json",
+        "--out-markdown=local/workspace/reports/CHURN_GUARD_CURRENT.md"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/churn_guard_current.json",
+        "local/workspace/reports/CHURN_GUARD_CURRENT.md"
+      ]
     },
     "ops:churn:commit-gate": {
       "owner": "ops",
       "description": "Repository churn commit gate.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
-      "command": ["node", "client/runtime/lib/ts_entrypoint.ts", "tests/tooling/scripts/ci/churn_guard.ts", "--strict=1", "--commit-gate=1", "--out-json=core/local/artifacts/churn_guard_current.json", "--out-markdown=local/workspace/reports/CHURN_GUARD_CURRENT.md"],
-      "artifact_paths": ["core/local/artifacts/churn_guard_current.json", "local/workspace/reports/CHURN_GUARD_CURRENT.md"]
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/churn_guard.ts",
+        "--strict=1",
+        "--commit-gate=1",
+        "--out-json=core/local/artifacts/churn_guard_current.json",
+        "--out-markdown=local/workspace/reports/CHURN_GUARD_CURRENT.md"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/churn_guard_current.json",
+        "local/workspace/reports/CHURN_GUARD_CURRENT.md"
+      ]
     },
     "ops:command-registry:check": {
       "owner": "ops",
@@ -537,7 +791,9 @@
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
       "script": "ops:release-contract:gate",
-      "artifact_paths": ["core/local/artifacts/release_contract_gate_current.json"]
+      "artifact_paths": [
+        "core/local/artifacts/release_contract_gate_current.json"
+      ]
     },
     "ops:production-topology:gate": {
       "owner": "ops",
@@ -545,7 +801,9 @@
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
       "script": "ops:production-topology:gate",
-      "artifact_paths": ["core/local/artifacts/production_topology_diagnostic_current.json"]
+      "artifact_paths": [
+        "core/local/artifacts/production_topology_diagnostic_current.json"
+      ]
     },
     "ops:support-bundle:export": {
       "owner": "ops",
@@ -553,7 +811,9 @@
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
       "script": "ops:support-bundle:export",
-      "artifact_paths": ["core/local/artifacts/support_bundle_latest.json"]
+      "artifact_paths": [
+        "core/local/artifacts/support_bundle_latest.json"
+      ]
     },
     "ops:release:scorecard:gate": {
       "owner": "ops",
@@ -561,7 +821,9 @@
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
       "script": "ops:release:scorecard:gate",
-      "artifact_paths": ["client/runtime/local/state/release/scorecard/release_scorecard.json"]
+      "artifact_paths": [
+        "client/runtime/local/state/release/scorecard/release_scorecard.json"
+      ]
     },
     "ops:release:verdict": {
       "owner": "ops",
@@ -569,7 +831,9 @@
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
       "script": "ops:release:verdict",
-      "artifact_paths": ["core/local/artifacts/release_verdict_current.json"]
+      "artifact_paths": [
+        "core/local/artifacts/release_verdict_current.json"
+      ]
     },
     "ops:release:rc-rehearsal": {
       "owner": "ops",
@@ -577,7 +841,9 @@
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 120,
       "script": "ops:release:rc-rehearsal",
-      "artifact_paths": ["core/local/artifacts/release_candidate_dress_rehearsal_current.json"]
+      "artifact_paths": [
+        "core/local/artifacts/release_candidate_dress_rehearsal_current.json"
+      ]
     },
     "dr:gameday": {
       "owner": "ops",
@@ -592,6 +858,16 @@
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
       "script": "dr:gameday:gate"
+    },
+    "ops:orchestration:runtime-quality:guard": {
+      "owner": "ops",
+      "description": "Orchestration runtime quality telemetry guard.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 120,
+      "script": "ops:orchestration:runtime-quality:guard",
+      "artifact_paths": [
+        "core/local/artifacts/orchestration_runtime_quality_guard_current.json"
+      ]
     }
   }
 }

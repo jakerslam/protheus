@@ -1,0 +1,49 @@
+{
+  "version": "2026-04-15",
+  "adapter_fallback": {
+    "max_fallback_rate": {
+      "sdk": 0.05,
+      "gateway": 0.05,
+      "dashboard": 0.5
+    },
+    "max_low_confidence_rate": {
+      "sdk": 0.05,
+      "gateway": 0.05,
+      "dashboard": 0.5
+    },
+    "ratchet": {
+      "max_regression_delta": 0.0
+    },
+    "paths": {
+      "latest": "core/local/artifacts/orchestration_adapter_fallback_metrics_latest.json",
+      "history": "local/state/ops/orchestration_quality/adapter_fallback_history.jsonl"
+    }
+  },
+  "planner_quality": {
+    "min_average_candidate_count": 2.0,
+    "max_clarification_first_rate": 0.5,
+    "max_degraded_rate": 0.6,
+    "max_heuristic_probe_rate": 0.6,
+    "ratchet": {
+      "max_regression_delta": 0.0
+    },
+    "paths": {
+      "latest": "core/local/artifacts/orchestration_planner_quality_metrics_latest.json",
+      "history": "local/state/ops/orchestration_quality/planner_quality_history.jsonl"
+    }
+  },
+  "runtime_quality": {
+    "min_sample_size": 3,
+    "min_average_candidate_count": 1.5,
+    "max_non_legacy_fallback_rate": 0.5,
+    "max_non_legacy_heuristic_probe_rate": 0.75,
+    "max_non_legacy_clarification_rate": 0.6,
+    "ratchet": {
+      "max_regression_delta": 0.0
+    },
+    "paths": {
+      "latest": "core/local/artifacts/orchestration_runtime_quality_metrics_latest.json",
+      "history": "local/state/ops/orchestration_quality/runtime_quality_history.jsonl"
+    }
+  }
+}
