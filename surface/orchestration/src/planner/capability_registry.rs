@@ -15,9 +15,9 @@ pub fn spec_for(capability: &Capability) -> CapabilitySpec {
             primary_steps: vec![
                 step(
                     Capability::ReadMemory,
-                    "step_context_atom_append",
-                    "append_context_atom",
-                    CoreContractCall::ContextAtomAppend,
+                    "step_context_topology_inspect",
+                    "inspect_context_topology",
+                    CoreContractCall::ContextTopologyInspect,
                 ),
                 step(
                     Capability::ReadMemory,
@@ -111,6 +111,15 @@ pub fn spec_for(capability: &Capability) -> CapabilitySpec {
             ],
         },
     }
+}
+
+pub fn context_preparation_step() -> OrchestrationPlanStep {
+    step(
+        Capability::ReadMemory,
+        "step_context_atom_append_prepare",
+        "append_context_atom",
+        CoreContractCall::ContextAtomAppend,
+    )
 }
 
 fn step(
