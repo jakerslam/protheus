@@ -33,8 +33,13 @@ pub use context_topology::{
     ContextSpanStatus, ContextTopology, ContextTopologyConfig, ContextTopologyRebuildReport,
 };
 pub use graph_subsystem::{
-    GraphEdge, GraphNode, GraphSubsystem, KnowledgeEntityKind, KnowledgeGraph, KnowledgeGraphEdge,
-    KnowledgeGraphNode, KnowledgeRelationKind, TaskFabricLease,
+    EntityEmbeddingHit, FederatedDispatchStep, FederatedQueryPlan, FederatedServiceProfile,
+    GraphEdge, GraphNode, GraphPartitionPlan, GraphPartitionStrategy, GraphPathQuery,
+    GraphPathResult, GraphQueryPlan, GraphQueryPlanStep, GraphQueryResult, GraphQueryTerm,
+    GraphSample, GraphSamplingQuery, GraphSamplingStrategy, GraphSubsystem,
+    GraphTraversalAlgorithm, KnowledgeEntityKind, KnowledgeGraph, KnowledgeGraphEdge,
+    KnowledgeGraphNode, KnowledgeRelationKind, KnowledgeTriplePattern, NeighborhoodSummary,
+    TaskFabricLease,
 };
 pub use heap_interface::{NexusRouteContext, UnifiedMemoryHeap, UnifiedMemoryHeapConfig};
 pub use policy::{
