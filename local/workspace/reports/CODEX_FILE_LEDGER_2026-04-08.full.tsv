@@ -418,7 +418,7 @@ order	status	file	language	loc	authority_risk_score	migration_potential_score	co
 417	queued	core/layer0/ops/src/autotest_controller_parts/040-is-spine-hot.rs	rs	1505	5	1	2	3.2
 418	queued	core/layer2/execution/src/inversion_parts/210-run-inversion-json.rs	rs	1460	5	1	2	3.2
 419	queued	core/layer0/ops/src/network_protocol_run_parts/010-contribution-history-path.rs	rs	1334	5	1	2	3.2
-420	queued	core/layer0/ops/src/metakernel_parts/058-hybrid-digital-dna-v2.rs	rs	1216	5	1	2	3.2
+420	done	core/layer0/ops/src/metakernel_parts/058-hybrid-digital-dna-v2.rs	rs	1216	5	1	2	3.2
 421	done	core/layer0/ops/src/batch_query_primitive_parts/010-core.rs	rs	1097	5	1	2	3.2
 422	done	core/layer0/ops/src/dashboard_compat_api_parts/020-usage-from-state.rs	rs	1091	5	1	2	3.2
 423	done	core/layer0/ops/src/stock_market_collector_kernel.rs	rs	1029	5	1	2	3.2
@@ -443,8 +443,8 @@ order	status	file	language	loc	authority_risk_score	migration_potential_score	co
 442	done	core/layer0/ops/src/autonomy_controller_parts/050-proactive-daemon-dream-speculation.rs	rs	872	5	1	2	3.2
 443	done	core/layer0/ops/src/github_repo_collector_kernel.rs	rs	871	5	1	2	3.2
 444	done	core/layer0/ops/src/persona_ambient.rs	rs	846	5	1	2	3.2
-445	queued	core/layer0/ops/src/ternary_belief_kernel.rs	rs	840	5	1	2	3.2
-446	queued	core/layer0/ops/src/outcome_fitness_kernel.rs	rs	838	5	1	2	3.2
+445	done	core/layer0/ops/src/ternary_belief_kernel.rs	rs	840	5	1	2	3.2
+446	done	core/layer0/ops/src/outcome_fitness_kernel.rs	rs	838	5	1	2	3.2
 447	done	core/layer0/ops/src/protheusctl_parts/010-bool-env.rs	rs	6	5	1	2	3.2
 448	done	core/layer0/ops/src/vbrowser_plane_parts/040-run.rs	rs	832	5	1	2	3.2
 449	done	core/layer0/ops/src/dashboard_compat_api_sidebar_ops_parts/010-state-helpers.rs	rs	830	5	1	2	3.2
@@ -499,10 +499,10 @@ order	status	file	language	loc	authority_risk_score	migration_potential_score	co
 498	done	core/layer0/ops/tests/v8_blob_directive_batch23_integration.rs	rs	591	5	1	2	3.2
 499	done	core/layer0/ops/src/baremetal_substrate.rs	rs	579	5	1	2	3.2
 500	done	core/layer0/ops/src/autonomy_controller_parts/010-prelude-and-state.rs	rs	576	5	1	2	3.2
-501	queued	core/layer0/ops/tests/v6_flow_batch10_integration.rs	rs	571	5	1	2	3.2
+501	done	core/layer0/ops/tests/v6_flow_batch10_integration.rs	rs	571	5	1	2	3.2
 502	done	core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/140-part.rs	rs	570	5	1	2	3.2
 503	queued	core/layer0/ops/src/autonomy_controller_parts/051-speculation-and-regression-tests.rs	rs	563	5	1	2	3.2
-504	queued	core/layer0/ops/src/identity_federation.rs	rs	558	5	1	2	3.2
+504	done	core/layer0/ops/src/identity_federation.rs	rs	558	5	1	2	3.2
 505	done	core/layer0/ops/src/dashboard_compat_api_comms_store.rs	rs	5	5	1	2	3.2
 506	queued	core/layer0/ops/src/benchmark_matrix_parts/010-usage.rs	rs	549	5	1	2	3.2
 507	queued	core/layer0/ops/src/action_envelope_kernel.rs	rs	545	5	1	2	3.2

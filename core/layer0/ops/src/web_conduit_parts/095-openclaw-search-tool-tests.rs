@@ -26,6 +26,27 @@ mod openclaw_search_tool_tests {
     }
 
     #[test]
+    fn api_search_accepts_camel_case_search_provider_hint_alias() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let out = api_search(
+            tmp.path(),
+            &json!({
+                "query": "agent reliability benchmarks",
+                "searchProvider": "firecrawl"
+            }),
+        );
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            out.get("error").and_then(Value::as_str),
+            Some("unknown_search_provider")
+        );
+        assert_eq!(
+            out.get("requested_provider").and_then(Value::as_str),
+            Some("firecrawl")
+        );
+    }
+
+    #[test]
     fn api_search_count_alias_hits_cached_response() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let request = json!({

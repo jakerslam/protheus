@@ -127,6 +127,78 @@ mod openclaw_search_runtime_resolution_tests {
     }
 
     #[test]
+    fn openclaw_search_runtime_resolution_prefers_runtime_metadata_provider_when_present() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let policy = json!({
+            "web_conduit": {
+                "enabled": true,
+                "search_provider_order": ["duckduckgo", "bing_rss"]
+            }
+        });
+
+        let out = crate::web_conduit_provider_runtime::search_provider_resolution_snapshot(
+            tmp.path(),
+            &policy,
+            &json!({
+                "runtimeWebSearch": {
+                    "selectedProvider": "bing_rss"
+                }
+            }),
+            "auto",
+        );
+        assert_eq!(
+            out.pointer("/selection_scope").and_then(Value::as_str),
+            Some("runtime_metadata")
+        );
+        assert_eq!(
+            out.pointer("/runtime_selected_provider")
+                .and_then(Value::as_str),
+            Some("bing_rss")
+        );
+        assert_eq!(
+            out.pointer("/runtime_provider_preferred")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/provider_chain/0").and_then(Value::as_str),
+            Some("bing_rss")
+        );
+        assert_eq!(
+            out.pointer("/allow_fallback").and_then(Value::as_bool),
+            Some(false)
+        );
+    }
+
+    #[test]
+    fn openclaw_search_runtime_resolution_accepts_camel_case_provider_chain_alias() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let policy = json!({
+            "web_conduit": {
+                "enabled": true,
+                "search_provider_order": ["duckduckgo", "bing_rss"]
+            }
+        });
+
+        let out = crate::web_conduit_provider_runtime::search_provider_resolution_snapshot(
+            tmp.path(),
+            &policy,
+            &json!({
+                "providerChain": ["duckduckgo_lite", "bing_rss"]
+            }),
+            "auto",
+        );
+        assert_eq!(
+            out.pointer("/selection_scope").and_then(Value::as_str),
+            Some("request_provider_chain")
+        );
+        assert_eq!(
+            out.pointer("/provider_chain/0").and_then(Value::as_str),
+            Some("duckduckgo_lite")
+        );
+    }
+
+    #[test]
     fn api_search_does_not_fallback_when_policy_provider_is_explicit_and_circuit_open() {
         let tmp = tempfile::tempdir().expect("tempdir");
         write_json_atomic(

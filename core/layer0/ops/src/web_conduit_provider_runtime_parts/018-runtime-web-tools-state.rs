@@ -49,6 +49,10 @@ fn store_active_runtime_web_tools_metadata(root: &Path, metadata: &Value) {
     let _ = write_json_atomic(&runtime_web_tools_metadata_path(root), metadata);
 }
 
+pub(crate) fn clear_active_runtime_web_tools_metadata(root: &Path) {
+    let _ = std::fs::remove_file(runtime_web_tools_metadata_path(root));
+}
+
 fn raw_provider_tokens_from_value(raw: &Value) -> Vec<String> {
     let rows = if let Some(array) = raw.as_array() {
         array
@@ -447,6 +451,28 @@ mod openclaw_runtime_web_tools_tests {
                 .any(|row| row.get("code").and_then(Value::as_str)
                     == Some("WEB_SEARCH_PROVIDER_INVALID_AUTODETECT")))
             .unwrap_or(false));
+    }
+
+    #[test]
+    fn clear_active_runtime_web_tools_metadata_removes_persisted_snapshot() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let policy = json!({
+            "web_conduit": {
+                "search_provider_order": ["duckduckgo"],
+                "fetch_provider_order": ["direct_http"]
+            }
+        });
+        let _metadata = runtime_web_tools_snapshot(tmp.path(), &policy);
+        assert!(runtime_web_tools_state_path(tmp.path()).exists());
+        clear_active_runtime_web_tools_metadata(tmp.path());
+        assert!(!runtime_web_tools_state_path(tmp.path()).exists());
+        let loaded = load_active_runtime_web_tools_metadata(tmp.path());
+        assert_eq!(
+            loaded
+                .pointer("/search/provider_source")
+                .and_then(Value::as_str),
+            Some("none")
+        );
     }
 
     #[test]

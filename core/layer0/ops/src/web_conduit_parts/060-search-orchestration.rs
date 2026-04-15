@@ -38,6 +38,7 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
             .get("provider")
             .or_else(|| request.get("source"))
             .or_else(|| request.get("search_provider"))
+            .or_else(|| request.get("searchProvider"))
             .and_then(Value::as_str)
             .unwrap_or("auto"),
         40,

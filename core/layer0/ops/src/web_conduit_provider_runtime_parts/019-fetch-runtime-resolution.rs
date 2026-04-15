@@ -6,11 +6,11 @@ pub(crate) fn fetch_provider_resolution_snapshot(
 ) -> Value {
     let mut runtime = runtime_web_family_metadata(root, policy, WebProviderFamily::Fetch);
     let requested_provider_hint = clean_text(provider_hint, 60).to_ascii_lowercase();
-    let request_provider_chain = request
-        .get("fetch_provider_chain")
-        .or_else(|| request.get("provider_chain"))
-        .map(|raw| parse_provider_list_for_family(raw, WebProviderFamily::Fetch))
-        .unwrap_or_default();
+    let request_provider_chain = request_provider_chain_for_family(request, WebProviderFamily::Fetch);
+    let runtime_selected_provider =
+        runtime_selected_provider_from_request(request, WebProviderFamily::Fetch);
+    let prefer_runtime_provider =
+        request_prefers_runtime_provider(request) || runtime_selected_provider.is_some();
     let provider_chain = fetch_provider_chain_from_request(provider_hint, request, policy);
     let selected_provider = provider_chain
         .first()
@@ -21,6 +21,12 @@ pub(crate) fn fetch_provider_resolution_snapshot(
             .is_some()
     {
         "request_provider_hint"
+    } else if runtime_selected_provider
+        .as_deref()
+        .map(|provider| provider == selected_provider.as_str())
+        .unwrap_or(false)
+    {
+        "runtime_metadata"
     } else if !request_provider_chain.is_empty() {
         "request_provider_chain"
     } else if runtime
@@ -40,6 +46,14 @@ pub(crate) fn fetch_provider_resolution_snapshot(
         obj.insert("request_provider_chain".to_string(), json!(request_provider_chain));
         obj.insert("provider_chain".to_string(), json!(provider_chain));
         obj.insert("selected_provider".to_string(), json!(selected_provider));
+        obj.insert(
+            "runtime_selected_provider".to_string(),
+            runtime_selected_provider.map(Value::String).unwrap_or(Value::Null),
+        );
+        obj.insert(
+            "runtime_provider_preferred".to_string(),
+            json!(prefer_runtime_provider),
+        );
         obj.insert("selection_scope".to_string(), json!(selection_scope));
     }
     runtime
