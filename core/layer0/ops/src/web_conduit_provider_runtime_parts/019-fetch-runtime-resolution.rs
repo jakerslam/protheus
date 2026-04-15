@@ -66,6 +66,36 @@ fn fetch_visibility_sanitization_contract() -> Value {
     })
 }
 
+fn fetch_shared_runtime_contract() -> Value {
+    json!({
+        "timeout_default_seconds": 30,
+        "cache_ttl_default_minutes": 15,
+        "cache_default_max_entries": 100,
+        "timeout_resolver": "resolveTimeoutSeconds",
+        "cache_ttl_resolver": "resolveCacheTtlMs",
+        "cache_key_normalizer": "normalizeCacheKey",
+        "cache_read_helper": "readCache",
+        "cache_write_helper": "writeCache",
+        "response_reader": "readResponseText",
+        "timeout_signal_wrapper": "withTimeout"
+    })
+}
+
+fn fetch_content_extraction_contract() -> Value {
+    json!({
+        "extract_modes": ["markdown", "text"],
+        "html_to_markdown_entrypoint": "htmlToMarkdown",
+        "markdown_to_text_entrypoint": "markdownToText",
+        "readable_extraction_entrypoint": "extractReadableContent",
+        "basic_extraction_entrypoint": "extractBasicHtmlContent",
+        "truncate_entrypoint": "truncateText",
+        "readability_html_char_guard": 1_000_000,
+        "readability_depth_guard": 3_000,
+        "visibility_sanitization_required": true,
+        "invisible_unicode_stripping_required": true
+    })
+}
+
 fn fetch_runtime_provider_sort_contract() -> Value {
     json!({
         "alphabetical_sorter": "sortPluginProviders",
@@ -111,6 +141,8 @@ fn fetch_runtime_resolution_contract() -> Value {
         "provider_type_contract": fetch_runtime_provider_type_contract(),
         "credential_presence_contract": fetch_credential_presence_contract(),
         "visibility_sanitization_contract": fetch_visibility_sanitization_contract(),
+        "shared_runtime_contract": fetch_shared_runtime_contract(),
+        "content_extraction_contract": fetch_content_extraction_contract(),
         "provider_sort_contract": fetch_runtime_provider_sort_contract(),
         "candidate_plugin_contract": fetch_runtime_candidate_plugin_contract(),
         "public_artifact_resolution_contract": fetch_public_artifact_resolution_contract(),
