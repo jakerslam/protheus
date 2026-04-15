@@ -13004,7 +13004,7 @@
       "order": 1181
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/security/operator_terms_ack.ts",
       "language": "ts",
       "loc": 3,
@@ -13015,7 +13015,7 @@
       "order": 1182
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/security/organ_state_encryption_plane.ts",
       "language": "ts",
       "loc": 3,
@@ -13026,7 +13026,7 @@
       "order": 1183
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/security/post_quantum_migration_lane.ts",
       "language": "ts",
       "loc": 3,
@@ -13037,7 +13037,7 @@
       "order": 1184
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/security/remote_tamper_heartbeat.ts",
       "language": "ts",
       "loc": 3,
@@ -13048,7 +13048,7 @@
       "order": 1185
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/security/repo_hygiene_guard.ts",
       "language": "ts",
       "loc": 3,

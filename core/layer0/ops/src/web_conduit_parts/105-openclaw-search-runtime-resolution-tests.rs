@@ -195,9 +195,24 @@ mod openclaw_search_runtime_resolution_tests {
             Some("tavily")
         );
         assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_contract_suite_contract/provider_specific_contract_targets/7")
+                .and_then(Value::as_str),
+            Some("moonshot")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_contract_suite_contract/provider_specific_contract_targets/8")
+                .and_then(Value::as_str),
+            Some("xai")
+        );
+        assert_eq!(
             out.pointer("/openclaw_runtime_contract/provider_contract_suite_contract/registry_contract_test_files/4")
                 .and_then(Value::as_str),
             Some("web-search-provider.google.contract.test.ts")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_contract_suite_contract/registry_contract_test_files/7")
+                .and_then(Value::as_str),
+            Some("web-search-provider.moonshot.contract.test.ts")
         );
         assert_eq!(
             out.pointer("/openclaw_runtime_contract/provider_contract_suite_contract/provider_specific_contract_invocation")
@@ -366,6 +381,36 @@ mod openclaw_search_runtime_resolution_tests {
         );
         assert_eq!(
             out.pointer("/openclaw_runtime_contract/public_artifact_resolution_contract/requires_public_artifact_for_each_bundled_manifest_contract_provider")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/bundled_fast_path_contract_suite_contract/suite_entrypoint")
+                .and_then(Value::as_str),
+            Some("describeBundledWebSearchFastPathContract")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/bundled_fast_path_contract_suite_contract/suite_target_plugin_ids/1")
+                .and_then(Value::as_str),
+            Some("xai")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/bundled_fast_path_contract_suite_contract/suite_contract_test_files/2")
+                .and_then(Value::as_str),
+            Some("bundled-web-search.searxng.contract.test.ts")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/bundled_fast_path_contract_suite_contract/runtime_registry_loader")
+                .and_then(Value::as_str),
+            Some("loadBundledCapabilityRuntimeRegistry")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/bundled_fast_path_contract_suite_contract/provider_metadata_parity_required_fields/10")
+                .and_then(Value::as_str),
+            Some("inactiveSecretPaths")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/bundled_fast_path_contract_suite_contract/runtime_metadata_parity_optional")
                 .and_then(Value::as_bool),
             Some(true)
         );

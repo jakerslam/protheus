@@ -120,7 +120,7 @@
     - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/210-scroll-hover-sanitize.part01.ts`
     - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/220-artifacts-voice-search.part02.ts`
 ## Current Intake State
-- Imported rows in this wave: `105`
+- Imported rows in this wave: `110`
 - Pending rows in this wave: `0`
 
 - `OPENCLAW-TOOLING-APP-013`:
@@ -301,6 +301,16 @@
     - `src/plugins/contracts/web-search-provider.google.contract.test.ts`
     - `src/plugins/contracts/web-search-provider.perplexity.contract.test.ts`
     - `src/plugins/contracts/web-search-provider.tavily.contract.test.ts`
+  - Landed in:
+    - `core/layer0/ops/src/web_conduit_provider_runtime_parts/021-search-runtime-resolution.rs`
+    - `core/layer0/ops/src/web_conduit_parts/105-openclaw-search-runtime-resolution-tests.rs`
+- `OPENCLAW-TOOLING-WEB-028`:
+  - Imported remaining provider and bundled-fast-path web-search contract targets from:
+    - `src/plugins/contracts/web-search-provider.moonshot.contract.test.ts`
+    - `src/plugins/contracts/web-search-provider.xai.contract.test.ts`
+    - `src/plugins/contracts/bundled-web-search.moonshot.contract.test.ts`
+    - `src/plugins/contracts/bundled-web-search.xai.contract.test.ts`
+    - `src/plugins/contracts/bundled-web-search.searxng.contract.test.ts`
   - Landed in:
     - `core/layer0/ops/src/web_conduit_provider_runtime_parts/021-search-runtime-resolution.rs`
     - `core/layer0/ops/src/web_conduit_parts/105-openclaw-search-runtime-resolution-tests.rs`
