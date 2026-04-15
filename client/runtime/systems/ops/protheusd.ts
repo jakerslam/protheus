@@ -9,6 +9,10 @@ const gateBridge = createOpsLaneBridge(__dirname, 'protheusd', 'protheusd-launch
   preferLocalCore: true,
 });
 
+function normalizeArgs(argv: string[] = process.argv.slice(2)): string[] {
+  return Array.isArray(argv) ? argv.map((token) => String(token || '').trim()).filter(Boolean) : [];
+}
+
 function parseLastJson(stdout: string): Record<string, unknown> | null {
   const lines = String(stdout || '')
     .trim()
@@ -29,25 +33,34 @@ function hasFlag(argv: string[], flag: string): boolean {
   return argv.includes(flag);
 }
 
+function resolveGatePayload(gateOut: { payload?: unknown; stdout?: string }): Record<string, unknown> {
+  if (gateOut && typeof gateOut.payload === 'object' && gateOut.payload) {
+    return gateOut.payload as Record<string, unknown>;
+  }
+  return parseLastJson(gateOut?.stdout || '') || {};
+}
+
 export function run(argv: string[] = process.argv.slice(2)): number {
-  const gatePayload = Buffer.from(JSON.stringify({ argv }), 'utf8').toString('base64');
+  const args = normalizeArgs(argv);
+  const gatePayload = Buffer.from(JSON.stringify({ argv: args }), 'utf8').toString('base64');
   const gateOut = gateBridge.run(['gate', `--payload-base64=${gatePayload}`]);
-  const gate = (gateOut && typeof gateOut.payload === 'object' && gateOut.payload)
-    ? (gateOut.payload as Record<string, unknown>)
-    : (parseLastJson(gateOut?.stdout || '') || {});
+  const gate = resolveGatePayload(gateOut);
   const gateOk = gate?.ok === true;
   const passArgs = Array.isArray(gate?.pass_args)
     ? gate.pass_args.map((item) => String(item || ''))
-    : argv;
+    : args;
   const gateExitCode = Number.isFinite(Number(gate?.exit_code)) ? Number(gate?.exit_code) : 1;
   const strict = PROTHEUS_CONDUIT_STRICT !== '0';
   const legacyConduitMissing = process.env.PROTHEUS_CONDUIT_AVAILABLE === '0';
-  const legacyAllowFallback = hasFlag(argv, '--allow-legacy-fallback');
+  const legacyAllowFallback = hasFlag(args, '--allow-legacy-fallback');
 
   // If kernel routing is unavailable, preserve previous fail-closed behavior.
   if (!gateOk && strict && legacyConduitMissing && !legacyAllowFallback) {
     console.error('conduit_required_strict');
     return 2;
+  }
+  if (!gateOk && gate && typeof gate.error === 'string' && gate.error.trim()) {
+    console.error(gate.error);
   }
   if (!gateOk) return gateExitCode;
 
