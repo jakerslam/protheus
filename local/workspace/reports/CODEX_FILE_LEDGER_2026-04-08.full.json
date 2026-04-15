@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-15T11:35:00.000Z",
+  "generated_at": "2026-04-15T08:42:13.969Z",
   "scope": [
     "core",
     "client/runtime",
@@ -12542,7 +12542,7 @@
       "order": 1139
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/security/venom_containment_layer.ts",
       "language": "ts",
       "loc": 26,
@@ -12993,7 +12993,7 @@
       "order": 1180
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/security/integrity_kernel.ts",
       "language": "ts",
       "loc": 3,
@@ -13114,7 +13114,7 @@
       "order": 1191
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/security/supply_chain_trust_plane.ts",
       "language": "ts",
       "loc": 3,
@@ -13125,7 +13125,7 @@
       "order": 1192
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/security/workspace_dump_guard.ts",
       "language": "ts",
       "loc": 3,
@@ -13180,7 +13180,7 @@
       "order": 1197
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/lib/rust_lane_bridge.ts",
       "language": "ts",
       "loc": 824,
