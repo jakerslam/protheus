@@ -255,6 +255,12 @@
                   <div class="mt-4" style="border-top:1px solid var(--border);padding-top:16px">
                     <h4 style="margin-bottom:8px;font-size:13px">Tool Filters</h4>
                     <p class="text-xs text-dim" style="margin-bottom:12px">Allowlist: only these tools available (empty = all). Blocklist: these tools excluded.</p>
+                    <div class="flex gap-1 mb-2" x-show="toolCatalog && toolCatalog.length > 0">
+                      <button class="btn btn-ghost btn-sm" @click="enableAllCatalogTools()">Enable All</button>
+                      <button class="btn btn-ghost btn-sm" @click="disableAllCatalogTools()">Disable All</button>
+                      <button class="btn btn-ghost btn-sm" @click="resetToolFilters()">Reset</button>
+                      <span class="text-xs text-dim" x-text="toolCatalog.length + ' catalog tools'" style="align-self:center;margin-left:4px"></span>
+                    </div>
                     <div class="form-group">
                       <label style="font-size:12px">Allowlist <span class="text-dim" x-text="'(' + toolFilters.tool_allowlist.length + ')'"></span></label>
                       <div class="flex flex-wrap gap-1 mb-1">

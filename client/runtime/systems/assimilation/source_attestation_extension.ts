@@ -8,24 +8,37 @@ const bridge = createOpsLaneBridge(__dirname, 'source_attestation_extension', 'r
   inheritStdio: true
 });
 
-function run(args = process.argv.slice(2)) {
-  const normalizedArgs = Array.isArray(args) ? args.map((row) => String(row)) : [];
-  const out = bridge.run([`--system-id=${SYSTEM_ID}`].concat(normalizedArgs));
+function normalizeArgs(args) {
+  return Array.isArray(args) ? args.map((row) => String(row == null ? '' : row)) : [];
+}
+
+function emitBridgeOutput(out) {
   if (out && out.stdout) process.stdout.write(out.stdout);
   if (out && out.stderr) process.stderr.write(out.stderr);
   if (out && out.payload && !out.stdout) {
     process.stdout.write(`${JSON.stringify(out.payload)}\n`);
   }
+}
+
+function run(args = process.argv.slice(2)) {
+  const normalizedArgs = normalizeArgs(args);
+  const out = bridge.run([`--system-id=${SYSTEM_ID}`].concat(normalizedArgs));
+  emitBridgeOutput(out);
   return out;
 }
 
+function runCli(args = process.argv.slice(2)) {
+  const out = run(args);
+  return Number.isFinite(Number(out && out.status)) ? Number(out && out.status) : 1;
+}
+
 if (require.main === module) {
-  const out = run(process.argv.slice(2));
-  process.exit(Number.isFinite(Number(out && out.status)) ? Number(out && out.status) : 1);
+  process.exit(runCli(process.argv.slice(2)));
 }
 
 module.exports = {
   lane: bridge.lane,
   systemId: SYSTEM_ID,
-  run
+  run,
+  runCli
 };

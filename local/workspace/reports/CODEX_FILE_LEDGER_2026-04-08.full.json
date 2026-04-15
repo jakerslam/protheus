@@ -12179,7 +12179,7 @@
       "order": 1106
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/assimilation/source_attestation_extension.ts",
       "language": "ts",
       "loc": 31,
@@ -12190,7 +12190,7 @@
       "order": 1107
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/assimilation/trajectory_skill_distiller.ts",
       "language": "ts",
       "loc": 31,
@@ -12245,7 +12245,7 @@
       "order": 1112
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/assimilation/world_model_freshness.ts",
       "language": "ts",
       "loc": 29,
@@ -13400,7 +13400,7 @@
       "order": 1217
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/lib/secret_broker.ts",
       "language": "ts",
       "loc": 105,
@@ -15897,7 +15897,7 @@
       "order": 1444
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/hardware/attested_assimilation_plane.ts",
       "language": "ts",
       "loc": 29,

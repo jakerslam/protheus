@@ -374,9 +374,30 @@
       if (model.indexOf('/') >= 0) return model;
       return provider + '/' + model;
     },
+    normalizeModelOverrideValue: function(modelValue) {
+      if (!modelValue || typeof modelValue !== 'object') {
+        return {
+          kind: '',
+          value: String(modelValue || '').trim()
+        };
+      }
+      var kind = String(modelValue.kind || '').trim().toLowerCase();
+      var value = String(
+        modelValue.value ||
+        modelValue.model ||
+        modelValue.id ||
+        ''
+      ).trim();
+      return {
+        kind: kind === 'qualified' || kind === 'raw' ? kind : '',
+        value: value
+      };
+    },
     normalizeQualifiedModelRef: function(modelValue, providerValue, rows) {
-      var raw = String(modelValue || '').trim();
+      var override = this.normalizeModelOverrideValue(modelValue);
+      var raw = String(override.value || '').trim();
       if (!raw || this.isPlaceholderModelRef(raw)) return '';
+      if (override.kind === 'qualified') return raw;
       if (typeof this.resolveModelCatalogOption === 'function') {
         var resolved = this.resolveModelCatalogOption(raw, providerValue || '', rows);
         var resolvedId = String(resolved && resolved.id ? resolved.id : '').trim();

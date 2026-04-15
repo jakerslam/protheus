@@ -1105,13 +1105,13 @@ order	status	file	language	loc	authority_risk_score	migration_potential_score	co
 1104	queued	client/runtime/systems/ops/system_visualizer_server.ts	ts	40	4	5	3	4.1
 1105	queued	client/runtime/systems/ops/security_layer_inventory_gate.ts	ts	37	4	5	3	4.1
 1106	done	client/runtime/systems/ops/readiness_bridge_pack.ts	ts	36	4	5	3	4.1
-1107	queued	client/runtime/systems/assimilation/source_attestation_extension.ts	ts	31	4	5	3	4.1
-1108	queued	client/runtime/systems/assimilation/trajectory_skill_distiller.ts	ts	31	4	5	3	4.1
+1107	done	client/runtime/systems/assimilation/source_attestation_extension.ts	ts	31	4	5	3	4.1
+1108	done	client/runtime/systems/assimilation/trajectory_skill_distiller.ts	ts	31	4	5	3	4.1
 1109	queued	client/runtime/systems/ops/protheus_debug_diagnostics.ts	ts	31	4	5	3	4.1
 1110	queued	client/runtime/systems/ops/dependency_boundary_guard.ts	ts	30	4	5	3	4.1
 1111	queued	client/runtime/systems/ops/formal_spec_guard.ts	ts	30	4	5	3	4.1
 1112	queued	client/runtime/systems/ops/protheus_repl.ts	ts	30	4	5	3	4.1
-1113	queued	client/runtime/systems/assimilation/world_model_freshness.ts	ts	29	4	5	3	4.1
+1113	done	client/runtime/systems/assimilation/world_model_freshness.ts	ts	29	4	5	3	4.1
 1114	queued	client/runtime/systems/autonomy/gated_self_improvement_loop.ts	ts	29	4	5	3	4.1
 1115	queued	client/runtime/systems/autonomy/genuine_creative_breakthrough_organ.ts	ts	29	4	5	3	4.1
 1116	queued	client/runtime/systems/autonomy/hold_remediation_engine.ts	ts	29	4	5	3	4.1
@@ -1216,7 +1216,7 @@ order	status	file	language	loc	authority_risk_score	migration_potential_score	co
 1215	queued	client/runtime/lib/policy_runtime.ts	ts	128	4	4	3	3.8
 1216	queued	client/runtime/lib/action_envelope.ts	ts	121	4	4	3	3.8
 1217	done	client/runtime/lib/tool_response_compactor.ts	ts	107	4	4	3	3.8
-1218	queued	client/runtime/lib/secret_broker.ts	ts	105	4	4	3	3.8
+1218	done	client/runtime/lib/secret_broker.ts	ts	105	4	4	3	3.8
 1219	queued	client/runtime/lib/state_artifact_contract.ts	ts	102	4	4	3	3.8
 1220	done	client/runtime/lib/moltbook_api.ts	ts	101	4	4	3	3.8
 1221	queued	client/runtime/lib/action_receipts.ts	ts	85	4	4	3	3.8
@@ -1443,7 +1443,7 @@ order	status	file	language	loc	authority_risk_score	migration_potential_score	co
 1442	queued	client/runtime/systems/fractal/regime_organ.ts	ts	29	3	3	3	3
 1443	queued	client/runtime/systems/fractal/symbiotic_fusion_chamber.ts	ts	29	3	3	3	3
 1444	queued	client/runtime/systems/fractal/warden/complexity_warden_meta_organ.ts	ts	29	3	3	3	3
-1445	queued	client/runtime/systems/hardware/attested_assimilation_plane.ts	ts	29	3	3	3	3
+1445	done	client/runtime/systems/hardware/attested_assimilation_plane.ts	ts	29	3	3	3	3
 1446	queued	client/runtime/systems/hardware/compression_transfer_plane.ts	ts	29	3	3	3	3
 1447	queued	client/runtime/systems/hardware/embodiment_layer.ts	ts	29	3	3	3	3
 1448	queued	client/runtime/systems/hardware/surface_budget_controller.ts	ts	29	3	3	3	3
