@@ -1,20 +1,20 @@
 # CODEX File Ledger
 
-Generated: 2026-04-15T05:22:33Z
+Generated: 2026-04-15T05:25:49Z
 
 ## Status Counts
 
-- done: 863
-- queued: 2043
+- done: 868
+- queued: 2038
 - blocked: 0
 - in_progress: 0
 - existing-coverage-validated: 0
 
 ## Active Wave
 
-- `2026-04-14-codex-tooling-wave-012`
-- `462` `core/layer0/ops/tests/v6_skills_batch10_integration.rs`
-- `493` `core/layer0/ops/tests/v7_canyon_batch2_integration.rs`
-- `498` `core/layer0/ops/tests/v8_blob_directive_batch23_integration.rs`
-- `499` `core/layer0/ops/src/baremetal_substrate.rs`
-- `500` `core/layer0/ops/src/autonomy_controller_parts/010-prelude-and-state.rs`
+- `2026-04-14-openclaw-tooling-wave-013`
+- `1868` `client/runtime/systems/ui/infring_static/js/pages/scheduler.ts`
+- `1869` `client/runtime/systems/ui/infring_static/js/api.ts`
+- `1877` `client/runtime/systems/ui/infring_static/js/pages/channels.ts`
+- `1879` `client/runtime/systems/ui/infring_static/js/pages/skills.ts`
+- `1889` `client/runtime/systems/ui/infring_static/js/pages/overview.ts`

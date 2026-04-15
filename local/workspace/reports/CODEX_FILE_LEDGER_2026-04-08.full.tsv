@@ -1866,8 +1866,8 @@ order	status	file	language	loc	authority_risk_score	migration_potential_score	co
 1865	done	client/runtime/systems/ui/infring_static/js/pages/hands.ts.parts/020-render-and-select.ts	ts	152	2	2	3	2.2
 1866	done	client/runtime/systems/ui/infring_static/js/pages/settings.ts.parts/010-provider-settings.ts	ts	153	2	2	3	2.2
 1867	done	client/runtime/systems/ui/infring_static/js/pages/agents.ts.parts/010-state-and-load.ts	ts	395	2	2	3	2.2
-1868	queued	client/runtime/systems/ui/infring_static/js/pages/scheduler.ts	ts	393	2	2	3	2.2
-1869	queued	client/runtime/systems/ui/infring_static/js/api.ts	ts	386	2	2	3	2.2
+1868	done	client/runtime/systems/ui/infring_static/js/pages/scheduler.ts	ts	393	2	2	3	2.2
+1869	done	client/runtime/systems/ui/infring_static/js/api.ts	ts	386	2	2	3	2.2
 1870	queued	tests/tooling/scripts/ci/benchmark_public_surface.ts	ts	376	2	2	3	2.2
 1871	done	client/runtime/systems/ui/infring_static/js/pages/workflow-builder.ts.parts/020-builder-actions.ts	ts	142	2	2	3	2.2
 1872	done	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/080-normalize-and-context.part02.ts	ts	370	2	2	3	2.2
@@ -1875,9 +1875,9 @@ order	status	file	language	loc	authority_risk_score	migration_potential_score	co
 1874	done	client/runtime/systems/ui/infring_static/js/pages/agents.ts.parts/020-list-and-filters.ts	ts	365	2	2	3	2.2
 1875	done	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/040-models-and-cache.part02.ts	ts	352	2	2	3	2.2
 1876	queued	tests/tooling/scripts/ci/v6_app_023_governance_lane.ts	ts	351	2	2	3	2.2
-1877	queued	client/runtime/systems/ui/infring_static/js/pages/channels.ts	ts	345	2	2	3	2.2
+1877	done	client/runtime/systems/ui/infring_static/js/pages/channels.ts	ts	345	2	2	3	2.2
 1878	done	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/192-slash-alias-and-alerts.ts	ts	339	2	2	3	2.2
-1879	queued	client/runtime/systems/ui/infring_static/js/pages/skills.ts	ts	333	2	2	3	2.2
+1879	done	client/runtime/systems/ui/infring_static/js/pages/skills.ts	ts	333	2	2	3	2.2
 1880	done	client/runtime/systems/ui/infring_static/js/pages/settings.ts.parts/020-keys-and-tests.ts	ts	155	2	2	3	2.2
 1881	done	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/060-suggestions-and-hints.ts	ts	327	2	2	3	2.2
 1882	done	client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/170-grouping-and-day-map.part02.ts	ts	325	2	2	3	2.2
@@ -1887,7 +1887,7 @@ order	status	file	language	loc	authority_risk_score	migration_potential_score	co
 1886	queued	tests/tooling/scripts/ci/nightly_turn_loop_analytics.ts	ts	305	2	2	3	2.2
 1887	queued	tests/tooling/scripts/ci/license_spdx_story_gate.ts	ts	301	2	2	3	2.2
 1888	queued	tests/tooling/scripts/ops/f100_readiness_remediation_impl.ts	ts	300	2	2	3	2.2
-1889	queued	client/runtime/systems/ui/infring_static/js/pages/overview.ts	ts	292	2	2	3	2.2
+1889	done	client/runtime/systems/ui/infring_static/js/pages/overview.ts	ts	292	2	2	3	2.2
 1890	done	tests/client-memory-tools/ollama_search_collector.test.ts	ts	290	2	2	3	2.2
 1891	queued	client/runtime/systems/ui/infring_static/js/pages/usage.ts	ts	289	2	2	3	2.2
 1892	queued	tests/tooling/scripts/ci/repo_surface_policy_audit.ts	ts	286	2	2	3	2.2
