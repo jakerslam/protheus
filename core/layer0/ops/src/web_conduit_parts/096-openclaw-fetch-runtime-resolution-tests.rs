@@ -203,7 +203,47 @@ mod openclaw_fetch_runtime_resolution_tests {
             Some(1_000_000)
         );
         assert_eq!(
+            out.pointer("/openclaw_runtime_contract/content_extraction_contract/max_chars_enforced_after_wrapping")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/content_extraction_contract/extract_readable_mode_parity/1")
+                .and_then(Value::as_str),
+            Some("markdown")
+        );
+        assert_eq!(
             out.pointer("/openclaw_runtime_contract/content_extraction_contract/invisible_unicode_stripping_required")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_fallback_contract/provider_fallback_payload_rewrap_required")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_fallback_contract/safe_final_url_contract")
+                .and_then(Value::as_str),
+            Some("unsafe_provider_final_url_replaced_with_requested_url")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/ssrf_guard_contract/redirect_target_revalidation_required")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/ssrf_guard_contract/rfc2544_benchmark_range_opt_in_flag")
+                .and_then(Value::as_str),
+            Some("ssrfPolicy.allowRfc2544BenchmarkRange")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/response_and_wrapping_contract/external_content_wrapper_marker_regex")
+                .and_then(Value::as_str),
+            Some("<<<EXTERNAL_UNTRUSTED_CONTENT id=\\\"[a-f0-9]{16}\\\">>>")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/response_and_wrapping_contract/response_bytes_cap_enforced")
                 .and_then(Value::as_bool),
             Some(true)
         );
