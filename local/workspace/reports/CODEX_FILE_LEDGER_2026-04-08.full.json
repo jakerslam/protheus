@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-15T05:41:53Z",
+  "generated_at": "2026-04-15T07:20:49.702Z",
   "scope": [
     "core",
     "client/runtime",
@@ -12520,7 +12520,7 @@
       "order": 1137
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ops/backlog_registry.ts",
       "language": "ts",
       "loc": 26,
@@ -12531,7 +12531,7 @@
       "order": 1138
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ops/system_health_audit_runner.ts",
       "language": "ts",
       "loc": 26,
@@ -12564,7 +12564,7 @@
       "order": 1141
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ops/protheus_command_list.ts",
       "language": "ts",
       "loc": 25,
@@ -12575,7 +12575,7 @@
       "order": 1142
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ops/rust50_migration_program.ts",
       "language": "ts",
       "loc": 25,
@@ -12586,7 +12586,7 @@
       "order": 1143
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ops/rust_enterprise_productivity_program.ts",
       "language": "ts",
       "loc": 25,

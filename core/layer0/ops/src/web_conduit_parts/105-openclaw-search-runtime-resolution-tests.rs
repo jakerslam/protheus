@@ -155,9 +155,49 @@ mod openclaw_search_runtime_resolution_tests {
             Some("sortPluginProvidersForAutoDetect")
         );
         assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_type_contract/provider_context_type")
+                .and_then(Value::as_str),
+            Some("WebSearchProviderContext")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_type_contract/runtime_metadata_context_type")
+                .and_then(Value::as_str),
+            Some("WebSearchRuntimeMetadataContext")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_type_contract/provider_entry_type")
+                .and_then(Value::as_str),
+            Some("PluginWebSearchProviderEntry")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/credential_presence_contract/resolver")
+                .and_then(Value::as_str),
+            Some("hasConfiguredWebSearchCredential")
+        );
+        assert_eq!(
             out.pointer("/openclaw_runtime_contract/snapshot_cache_contract/cache_key_builder")
                 .and_then(Value::as_str),
             Some("buildWebProviderSnapshotCacheKey")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/snapshot_cache_contract/in_flight_registry_load_guard")
+                .and_then(Value::as_str),
+            Some("does_not_force_fresh_snapshot_load")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/snapshot_cache_contract/active_registry_workspace_inheritance")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/snapshot_cache_contract/workspace_change_invalidation")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/snapshot_cache_contract/cache_key_dimensions/2")
+                .and_then(Value::as_str),
+            Some("workspace_dir")
         );
         assert_eq!(
             out.pointer("/openclaw_runtime_contract/provider_sort_contract/shared_sort_entrypoint")

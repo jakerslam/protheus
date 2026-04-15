@@ -428,6 +428,36 @@ mod openclaw_runtime_web_tools_tests {
     }
 
     #[test]
+    fn runtime_web_tools_snapshot_load_is_defensive_clone() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let policy = json!({
+            "web_conduit": {
+                "search_provider_order": ["duckduckgo", "bing_rss"],
+                "fetch_provider_order": ["direct_http"]
+            }
+        });
+        let _snapshot = runtime_web_tools_snapshot(tmp.path(), &policy);
+        let mut loaded = load_active_runtime_web_tools_metadata(tmp.path());
+        if let Some(search) = loaded.pointer_mut("/search").and_then(Value::as_object_mut) {
+            search.insert("selected_provider".to_string(), json!("brave"));
+            search.insert("provider_configured".to_string(), json!("brave"));
+        }
+        let reloaded = load_active_runtime_web_tools_metadata(tmp.path());
+        assert_eq!(
+            reloaded
+                .pointer("/search/selected_provider")
+                .and_then(Value::as_str),
+            Some("duckduckgo")
+        );
+        assert_eq!(
+            reloaded
+                .pointer("/search/provider_configured")
+                .and_then(Value::as_str),
+            Some("duckduckgo")
+        );
+    }
+
+    #[test]
     fn runtime_web_tools_snapshot_flags_invalid_search_provider_tokens() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let policy = json!({
