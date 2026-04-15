@@ -49,6 +49,7 @@ jobs:
           npm run -s ops:ci-quality:check
           npm run -s ops:dashboard:surface:guard
           npm run -s ops:orchestration:adapter-fallback:guard
+          npm run -s ops:orchestration:planner-quality:guard
           npm run -s ops:system:fitness:gate
 
       - name: Setup Rust

@@ -82,16 +82,16 @@ fn traverse_bool(value: &Value, path: &[&str]) -> Option<bool> {
     cursor.as_bool()
 }
 
-fn fail_closed_on_missing_probe_for_adapted_surface(
+fn fail_closed_on_missing_probe_for_typed_surface(
     request: &TypedOrchestrationRequest,
     capability: &Capability,
     probe_name: &str,
 ) -> Option<(bool, String)> {
-    if request.adapted && !matches!(request.surface, crate::contracts::RequestSurface::Legacy) {
+    if !matches!(request.surface, crate::contracts::RequestSurface::Legacy) {
         return Some((
             false,
             format!(
-                "probe.required_for_adapted_surface.{}.{}",
+                "probe.required_for_typed_surface.{}.{}",
                 capability_key(capability),
                 probe_name
             ),
@@ -105,7 +105,7 @@ fn authoritative_probe_required(
     capability: &Capability,
     probe_name: &str,
 ) -> Option<(bool, String)> {
-    fail_closed_on_missing_probe_for_adapted_surface(request, capability, probe_name)
+    fail_closed_on_missing_probe_for_typed_surface(request, capability, probe_name)
 }
 
 fn tool_available(request: &TypedOrchestrationRequest, capability: &Capability) -> (bool, String) {

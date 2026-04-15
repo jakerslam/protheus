@@ -1,4 +1,5 @@
 // Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
+use crate::contracts::CoreExecutionObservation;
 use infring_layer1_memory::{
     Classification, EphemeralMemoryHeap, TerminalOutcome, TrustState, VerityEphemeralPolicy,
 };
@@ -24,9 +25,18 @@ pub struct TransientSleepCleanupReport {
     pub removed_session_count: usize,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TransientExecutionObservationEntry {
+    pub object_id: String,
+    pub session_id: String,
+    pub observation: CoreExecutionObservation,
+    pub updated_at_ms: u64,
+}
+
 #[derive(Debug)]
 pub struct TransientContextStore {
     entries: BTreeMap<String, TransientContextEntry>,
+    execution_observations: BTreeMap<String, TransientExecutionObservationEntry>,
     heap: EphemeralMemoryHeap,
 }
 
@@ -36,6 +46,7 @@ impl Default for TransientContextStore {
         heap.grant_debug_principal("orchestration_surface");
         Self {
             entries: BTreeMap::new(),
+            execution_observations: BTreeMap::new(),
             heap,
         }
     }
@@ -46,6 +57,7 @@ impl TransientContextStore {
     pub(crate) fn with_heap(heap: EphemeralMemoryHeap) -> Self {
         Self {
             entries: BTreeMap::new(),
+            execution_observations: BTreeMap::new(),
             heap,
         }
     }
@@ -93,6 +105,81 @@ impl TransientContextStore {
         Ok(entry)
     }
 
+    pub fn upsert_execution_observation(
+        &mut self,
+        session_id: &str,
+        observation: CoreExecutionObservation,
+        now_ms: u64,
+    ) -> Result<(), String> {
+        let session_id = session_id.trim();
+        if session_id.is_empty() {
+            return Ok(());
+        }
+        let payload = serde_json::json!({
+            "session_id": session_id,
+            "observation": observation,
+            "updated_at_ms": now_ms,
+            "surface": "orchestration"
+        });
+        let object_id = self
+            .heap
+            .write_ephemeral(
+                "orchestration_surface",
+                format!("execution_observation:{session_id}:{now_ms}").as_str(),
+                payload.clone(),
+                Classification::Internal,
+                TrustState::Proposed,
+                "cap:orchestration_execution_observation",
+            )
+            .map(|(object, _)| object.object_id)
+            .map_err(|err| format!("transient_execution_observation_write_failed:{err}"))?;
+        let observation = payload
+            .get("observation")
+            .cloned()
+            .and_then(|value| serde_json::from_value::<CoreExecutionObservation>(value).ok())
+            .unwrap_or(CoreExecutionObservation {
+                plan_status: None,
+                receipt_ids: Vec::new(),
+                outcome_refs: Vec::new(),
+                step_statuses: Vec::new(),
+            });
+        let entry = TransientExecutionObservationEntry {
+            object_id,
+            session_id: session_id.to_string(),
+            observation,
+            updated_at_ms: now_ms,
+        };
+        if let Some(previous) = self
+            .execution_observations
+            .insert(session_id.to_string(), entry)
+        {
+            self.cleanup_ephemeral_object(
+                previous.object_id.as_str(),
+                "orchestration_observation_replace",
+                "observation_replaced",
+            );
+        }
+        Ok(())
+    }
+
+    pub fn execution_observation(&self, session_id: &str) -> Option<&CoreExecutionObservation> {
+        self.execution_observations
+            .get(session_id)
+            .map(|entry| &entry.observation)
+    }
+
+    pub fn clear_execution_observation(&mut self, session_id: &str) -> bool {
+        let Some(entry) = self.execution_observations.remove(session_id) else {
+            return false;
+        };
+        self.cleanup_ephemeral_object(
+            entry.object_id.as_str(),
+            "orchestration_observation_clear",
+            "observation_cleared",
+        );
+        true
+    }
+
     pub fn get(&self, session_id: &str) -> Option<&TransientContextEntry> {
         self.entries.get(session_id)
     }
@@ -105,21 +192,14 @@ impl TransientContextStore {
             .cloned()
             .collect::<Vec<_>>();
         for entry in &expired {
-            if let Some(object) = self.heap.ephemeral_object(entry.object_id.as_str()) {
-                let expected_revision = object.revision_id;
-                let _ = self
-                    .heap
-                    .cleanup_with_cas(
-                        entry.object_id.as_str(),
-                        expected_revision,
-                        "orchestration_transient_sweep",
-                        "session_expired",
-                        "orchestration_surface",
-                    )
-                    .ok();
-            }
+            self.cleanup_ephemeral_object(
+                entry.object_id.as_str(),
+                "orchestration_transient_sweep",
+                "session_expired",
+            );
             self.entries.remove(entry.session_id.as_str());
         }
+        self.prune_inactive_execution_observations();
         let _ = self.heap.reclaim_cleaned_payloads();
         expired.len()
     }
@@ -134,6 +214,12 @@ impl TransientContextStore {
             .map_err(|err| format!("transient_context_sleep_cleanup_failed:{err}"))?;
         let entry_count_before = self.entries.len();
         self.entries.retain(|_, entry| {
+            self.heap
+                .ephemeral_object(entry.object_id.as_str())
+                .map(|object| object.terminal_outcome == TerminalOutcome::Active)
+                .unwrap_or(false)
+        });
+        self.execution_observations.retain(|_, entry| {
             self.heap
                 .ephemeral_object(entry.object_id.as_str())
                 .map(|object| object.terminal_outcome == TerminalOutcome::Active)
@@ -174,6 +260,8 @@ impl TransientContextStore {
             .collect::<BTreeSet<_>>();
         self.entries
             .retain(|_, entry| !cleaned_ids.contains(entry.object_id.as_str()));
+        self.execution_observations
+            .retain(|_, entry| !cleaned_ids.contains(entry.object_id.as_str()));
         let _ = self.heap.reclaim_cleaned_payloads();
         Ok(receipts.len())
     }
@@ -190,6 +278,31 @@ impl TransientContextStore {
 
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
+    }
+
+    fn cleanup_ephemeral_object(&mut self, object_id: &str, lane: &str, reason: &str) {
+        if let Some(object) = self.heap.ephemeral_object(object_id) {
+            let expected_revision = object.revision_id;
+            let _ = self
+                .heap
+                .cleanup_with_cas(
+                    object_id,
+                    expected_revision,
+                    lane,
+                    reason,
+                    "orchestration_surface",
+                )
+                .ok();
+        }
+    }
+
+    fn prune_inactive_execution_observations(&mut self) {
+        self.execution_observations.retain(|_, entry| {
+            self.heap
+                .ephemeral_object(entry.object_id.as_str())
+                .map(|object| object.terminal_outcome == TerminalOutcome::Active)
+                .unwrap_or(false)
+        });
     }
 }
 

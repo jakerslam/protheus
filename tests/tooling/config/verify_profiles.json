@@ -61,6 +61,8 @@
         "ops:dashboard:surface:guard",
         "ops:orchestration:contract:guard",
         "ops:orchestration:hidden-state:guard",
+        "ops:orchestration:adapter-fallback:guard",
+        "ops:orchestration:planner-quality:guard",
         "ops:orchestration:ts-boundary:guard",
         "ops:debt:expiry:guard",
         "ops:system:fitness:gate",

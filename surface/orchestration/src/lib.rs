@@ -18,7 +18,7 @@ use contracts::{
     OrchestrationResultPackage, PlanCandidate, PlanScore, PlanStatus, PlanVariant,
     RecoveryDecision, RecoveryReason, RecoveryState,
 };
-use std::collections::BTreeMap;
+use std::time::{SystemTime, UNIX_EPOCH};
 use transient_context::{TransientContextStore, TransientSleepCleanupReport};
 
 const DEFAULT_SLEEP_CYCLE_IDLE_GAP_MS: u64 = 8 * 60 * 60 * 1000;
@@ -26,7 +26,6 @@ const DEFAULT_SLEEP_CYCLE_IDLE_GAP_MS: u64 = 8 * 60 * 60 * 1000;
 #[derive(Debug)]
 pub struct OrchestrationSurfaceRuntime {
     transient: TransientContextStore,
-    execution_observations: BTreeMap<String, CoreExecutionObservation>,
     last_activity_ms: Option<u64>,
     sleep_cycle_idle_gap_ms: u64,
 }
@@ -35,7 +34,6 @@ impl Default for OrchestrationSurfaceRuntime {
     fn default() -> Self {
         Self {
             transient: TransientContextStore::default(),
-            execution_observations: BTreeMap::new(),
             last_activity_ms: None,
             sleep_cycle_idle_gap_ms: DEFAULT_SLEEP_CYCLE_IDLE_GAP_MS,
         }
@@ -75,9 +73,6 @@ impl OrchestrationSurfaceRuntime {
         self.maybe_run_sleep_cycle_cleanup(now_ms);
         let normalized = ingress::normalize_request(request);
         let typed_request = normalized.typed_request.clone();
-        let execution_observation = self
-            .execution_observations
-            .get(typed_request.session_id.as_str());
         let classification = request_classification::classify_request(&normalized);
         if let Err(err) = self.transient.upsert(
             typed_request.session_id.as_str(),
@@ -139,6 +134,10 @@ impl OrchestrationSurfaceRuntime {
                 alternative_plans: Vec::new(),
             };
         }
+        let execution_observation = self
+            .transient
+            .execution_observation(typed_request.session_id.as_str())
+            .cloned();
 
         let clarification_prompt =
             clarification::clarification_prompt_for(&typed_request, &classification);
@@ -159,7 +158,7 @@ impl OrchestrationSurfaceRuntime {
         };
         let execution_state = progress::execution_state_for(
             &typed_request,
-            execution_observation,
+            execution_observation.as_ref(),
             &selected_plan,
             needs_clarification,
         );
@@ -226,8 +225,11 @@ impl OrchestrationSurfaceRuntime {
         if session_id.is_empty() {
             return;
         }
-        self.execution_observations
-            .insert(session_id, update.observation);
+        let _ = self.transient.upsert_execution_observation(
+            session_id.as_str(),
+            update.observation,
+            runtime_now_ms(),
+        );
     }
 
     pub fn record_execution_observation(
@@ -242,7 +244,7 @@ impl OrchestrationSurfaceRuntime {
     }
 
     pub fn clear_execution_observation(&mut self, session_id: &str) {
-        self.execution_observations.remove(session_id);
+        let _ = self.transient.clear_execution_observation(session_id);
     }
 }
 
@@ -252,4 +254,11 @@ fn transient_summary(request: &crate::contracts::TypedOrchestrationRequest) -> S
         request.request_kind, request.operation_kind, request.resource_kind, request.legacy_intent
     )
     .to_lowercase()
+}
+
+fn runtime_now_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_millis() as u64)
+        .unwrap_or(0)
 }
