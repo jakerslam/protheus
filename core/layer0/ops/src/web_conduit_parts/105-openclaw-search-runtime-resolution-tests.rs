@@ -245,6 +245,21 @@ mod openclaw_search_runtime_resolution_tests {
             Some("returns_original_url")
         );
         assert_eq!(
+            out.pointer("/openclaw_runtime_contract/redirect_hardening_contract/guarded_head_resolution_required")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/redirect_hardening_contract/guarded_endpoint_entrypoint")
+                .and_then(Value::as_str),
+            Some("withStrictWebToolsEndpoint")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/redirect_hardening_contract/failure_mode_contract")
+                .and_then(Value::as_str),
+            Some("never_throws_returns_original_url")
+        );
+        assert_eq!(
             out.pointer("/openclaw_runtime_contract/snapshot_cache_contract/cache_key_builder")
                 .and_then(Value::as_str),
             Some("buildWebProviderSnapshotCacheKey")
