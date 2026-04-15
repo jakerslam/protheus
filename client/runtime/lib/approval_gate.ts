@@ -2,16 +2,49 @@
 'use strict';
 // Layer ownership: core/layer0/ops (authoritative)
 // Thin TypeScript wrapper only. User-facing formatting stays local.
-const os = require('os');
 const path = require('path');
 const { createOpsLaneBridge } = require('./rust_lane_bridge.ts');
-const REPO_ROOT = path.resolve(__dirname, '..');
+
+function mirrorEnvAlias(primaryKey, legacyKey, fallback = '') {
+    const primary = String(process.env[primaryKey] || '').trim();
+    const legacy = String(process.env[legacyKey] || '').trim();
+    if (!primary && legacy) {
+        process.env[primaryKey] = legacy;
+    }
+    else if (!legacy && primary) {
+        process.env[legacyKey] = primary;
+    }
+    else if (!primary && !legacy && fallback) {
+        process.env[primaryKey] = fallback;
+        process.env[legacyKey] = fallback;
+    }
+}
+function resolveWorkspaceRoot() {
+    const explicit = String(process.env.INFRING_WORKSPACE || process.env.PROTHEUS_WORKSPACE || '').trim();
+    if (explicit)
+        return path.resolve(explicit);
+    return path.resolve(__dirname, '..', '..', '..');
+}
+function normalizeApprovalGateEnvAliases() {
+    mirrorEnvAlias('INFRING_WORKSPACE', 'PROTHEUS_WORKSPACE');
+    mirrorEnvAlias('INFRING_APPROVAL_GATE_QUEUE_PATH', 'APPROVAL_GATE_QUEUE_PATH');
+    mirrorEnvAlias('APPROVAL_GATE_QUEUE_PATH', 'PROTHEUS_APPROVAL_GATE_QUEUE_PATH');
+    mirrorEnvAlias('INFRING_OPS_USE_PREBUILT', 'PROTHEUS_OPS_USE_PREBUILT', '0');
+    mirrorEnvAlias('INFRING_OPS_LOCAL_TIMEOUT_MS', 'PROTHEUS_OPS_LOCAL_TIMEOUT_MS', '120000');
+}
+normalizeApprovalGateEnvAliases();
+const WORKSPACE_ROOT = resolveWorkspaceRoot();
 const QUEUE_FILE = process.env.APPROVAL_GATE_QUEUE_PATH
     ? path.resolve(process.env.APPROVAL_GATE_QUEUE_PATH)
+    : process.env.INFRING_APPROVAL_GATE_QUEUE_PATH
+        ? path.resolve(process.env.INFRING_APPROVAL_GATE_QUEUE_PATH)
     : process.env.PROTHEUS_APPROVAL_GATE_QUEUE_PATH
         ? path.resolve(process.env.PROTHEUS_APPROVAL_GATE_QUEUE_PATH)
-        : path.join(REPO_ROOT, 'local', 'state', 'approvals_queue.yaml');
-process.env.PROTHEUS_OPS_USE_PREBUILT = process.env.PROTHEUS_OPS_USE_PREBUILT || '0';
+        : path.join(WORKSPACE_ROOT, 'client', 'runtime', 'local', 'state', 'approvals_queue.yaml');
+process.env.INFRING_OPS_USE_PREBUILT = process.env.INFRING_OPS_USE_PREBUILT || '0';
+process.env.PROTHEUS_OPS_USE_PREBUILT = process.env.PROTHEUS_OPS_USE_PREBUILT || process.env.INFRING_OPS_USE_PREBUILT || '0';
+process.env.INFRING_OPS_LOCAL_TIMEOUT_MS = process.env.INFRING_OPS_LOCAL_TIMEOUT_MS || '120000';
+process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || process.env.INFRING_OPS_LOCAL_TIMEOUT_MS || '120000';
 const bridge = createOpsLaneBridge(__dirname, 'approval_gate', 'approval-gate-kernel');
 function defaultQueue() {
     return { pending: [], approved: [], denied: [], history: [] };
