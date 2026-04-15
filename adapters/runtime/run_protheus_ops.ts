@@ -117,12 +117,20 @@ function invokeProtheusOpsViaBridge(args, options = {}) {
     envOverrides.PROTHEUS_OPS_ALLOW_PROCESS_FALLBACK = '0';
   }
 
+  const optionEnv =
+    options && options.env && typeof options.env === 'object' ? options.env : {};
+  const scopedEnv = { ...optionEnv, ...envOverrides };
+
   try {
-    const bridge = createOpsLaneBridge(__dirname, 'run_protheus_ops', domain, {
+    const bridgeOpts = {
       inheritStdio: true,
       preferLocalCore: true,
-    });
-    return withScopedEnv(envOverrides, () => bridge.run(passArgs));
+    };
+    if (options.preferLocalCore === false) {
+      bridgeOpts.preferLocalCore = false;
+    }
+    const bridge = createOpsLaneBridge(__dirname, 'run_protheus_ops', domain, bridgeOpts);
+    return withScopedEnv(scopedEnv, () => bridge.run(passArgs));
   } catch {
     return null;
   }

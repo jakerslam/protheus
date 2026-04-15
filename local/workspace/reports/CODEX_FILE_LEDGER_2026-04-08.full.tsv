@@ -1099,10 +1099,10 @@ order	status	file	language	loc	authority_risk_score	migration_potential_score	co
 1098	queued	client/runtime/systems/memory/uid_connections.ts	ts	45	4	5	3	4.1
 1099	queued	client/runtime/systems/memory/causal_temporal_graph/tests/causal_temporal_graph.spec.ts	ts	43	4	5	3	4.1
 1100	done	client/runtime/systems/ops/f100_readiness_remediation.ts	ts	43	4	5	3	4.1
-1101	queued	client/runtime/systems/ops/protheus_status_dashboard.ts	ts	43	4	5	3	4.1
+1101	done	client/runtime/systems/ops/protheus_status_dashboard.ts	ts	43	4	5	3	4.1
 1102	queued	client/runtime/systems/memory/memory_federation_plane/tests/memory_federation_plane.spec.ts	ts	41	4	5	3	4.1
-1103	queued	client/runtime/systems/ops/benchmark_autonomy_gate.ts	ts	41	4	5	3	4.1
-1104	queued	client/runtime/systems/ops/system_visualizer_server.ts	ts	40	4	5	3	4.1
+1103	done	client/runtime/systems/ops/benchmark_autonomy_gate.ts	ts	41	4	5	3	4.1
+1104	done	client/runtime/systems/ops/system_visualizer_server.ts	ts	40	4	5	3	4.1
 1105	done	client/runtime/systems/ops/security_layer_inventory_gate.ts	ts	37	4	5	3	4.1
 1106	done	client/runtime/systems/ops/readiness_bridge_pack.ts	ts	36	4	5	3	4.1
 1107	done	client/runtime/systems/assimilation/source_attestation_extension.ts	ts	31	4	5	3	4.1
@@ -1134,8 +1134,8 @@ order	status	file	language	loc	authority_risk_score	migration_potential_score	co
 1133	queued	client/runtime/systems/sensory/multimodal_signal_adapter_plane.ts	ts	29	4	5	3	4.1
 1134	queued	client/runtime/systems/sensory/novelty_saturation_prioritization_engine.ts	ts	29	4	5	3	4.1
 1135	queued	client/runtime/systems/sensory/value_of_information_collection_planner.ts	ts	29	4	5	3	4.1
-1136	queued	client/runtime/systems/ops/release_semver_contract.ts	ts	28	4	5	3	4.1
-1137	queued	client/runtime/systems/ops/protheus_control_plane.ts	ts	27	4	5	3	4.1
+1136	done	client/runtime/systems/ops/release_semver_contract.ts	ts	28	4	5	3	4.1
+1137	done	client/runtime/systems/ops/protheus_control_plane.ts	ts	27	4	5	3	4.1
 1138	queued	client/runtime/systems/ops/backlog_registry.ts	ts	26	4	5	3	4.1
 1139	queued	client/runtime/systems/ops/system_health_audit_runner.ts	ts	26	4	5	3	4.1
 1140	queued	client/runtime/systems/security/venom_containment_layer.ts	ts	26	4	5	3	4.1
