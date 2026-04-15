@@ -23,8 +23,19 @@ const target = path.resolve(
 installTsRequireHook();
 const impl = require(target);
 
+function normalizeArgs(argv = process.argv.slice(2)) {
+  return Array.isArray(argv) ? argv.map((token) => String(token || '').trim()).filter(Boolean) : [];
+}
+
 function run(argv = process.argv.slice(2)) {
-  return Number(impl.run(Array.isArray(argv) ? argv : [])) || 0;
+  try {
+    const status = Number(impl.run(normalizeArgs(argv)));
+    return Number.isFinite(status) ? status : 1;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error || 'unknown_error');
+    process.stderr.write(`[infring f100] remediation bridge failed: ${message}\n`);
+    return 1;
+  }
 }
 
 if (require.main === module) {
@@ -33,5 +44,6 @@ if (require.main === module) {
 
 module.exports = {
   ...impl,
+  normalizeArgs,
   run,
 };

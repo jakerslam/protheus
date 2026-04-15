@@ -6,8 +6,21 @@
 
 const mod = require('../../../../adapters/runtime/protheus_cli_modules.ts').protheusUnknownGuard;
 
-if (require.main === module) {
-  process.exit(mod.run(process.argv.slice(2)));
+function normalizeArgs(argv = process.argv.slice(2)) {
+  return Array.isArray(argv) ? argv.map((token) => String(token || '').trim()).filter(Boolean) : [];
 }
 
-module.exports = mod;
+function run(argv = process.argv.slice(2)) {
+  const status = Number(mod.run(normalizeArgs(argv)));
+  return Number.isFinite(status) ? status : 1;
+}
+
+if (require.main === module) {
+  process.exit(run(process.argv.slice(2)));
+}
+
+module.exports = {
+  ...mod,
+  normalizeArgs,
+  run,
+};

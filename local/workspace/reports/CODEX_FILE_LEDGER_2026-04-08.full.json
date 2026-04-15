@@ -11948,7 +11948,7 @@
       "order": 1085
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ops/top50_roi_sweep.ts",
       "language": "ts",
       "loc": 82,
@@ -11959,7 +11959,7 @@
       "order": 1086
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ops/generate_coverage_badge.ts",
       "language": "ts",
       "loc": 77,
@@ -11970,7 +11970,7 @@
       "order": 1087
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ops/protheusd.ts",
       "language": "ts",
       "loc": 59,
@@ -11992,7 +11992,7 @@
       "order": 1089
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ops/protheus_unknown_guard.ts",
       "language": "ts",
       "loc": 55,
@@ -12102,7 +12102,7 @@
       "order": 1099
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ops/f100_readiness_remediation.ts",
       "language": "ts",
       "loc": 43,

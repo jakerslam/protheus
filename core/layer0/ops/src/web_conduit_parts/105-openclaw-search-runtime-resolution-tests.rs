@@ -139,6 +139,26 @@ mod openclaw_search_runtime_resolution_tests {
                 .and_then(Value::as_str),
             Some("resolveManifestContractOwnerPluginId")
         );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/runtime_registry_resolver")
+                .and_then(Value::as_str),
+            Some("resolveRuntimeWebSearchProviders")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/candidate_plugin_contract/contract")
+                .and_then(Value::as_str),
+            Some("webSearchProviders")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_sort_contract/auto_detect_sorter")
+                .and_then(Value::as_str),
+            Some("sortPluginProvidersForAutoDetect")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/snapshot_cache_contract/cache_key_builder")
+                .and_then(Value::as_str),
+            Some("buildWebProviderSnapshotCacheKey")
+        );
         assert!(out
             .pointer("/openclaw_runtime_contract/diagnostic_code_contract")
             .and_then(Value::as_array)

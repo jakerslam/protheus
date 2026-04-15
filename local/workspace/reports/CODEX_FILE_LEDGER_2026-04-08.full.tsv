@@ -1084,11 +1084,11 @@ order	status	file	language	loc	authority_risk_score	migration_potential_score	co
 1083	done	client/runtime/systems/memory/memory_federation_plane.ts	ts	116	4	5	3	4.1
 1084	done	client/runtime/systems/ops/local_runtime_partitioner.ts	ts	101	4	5	3	4.1
 1085	done	client/runtime/systems/ops/rust_hotpath_inventory.ts	ts	86	4	5	3	4.1
-1086	queued	client/runtime/systems/ops/top50_roi_sweep.ts	ts	82	4	5	3	4.1
-1087	queued	client/runtime/systems/ops/generate_coverage_badge.ts	ts	77	4	5	3	4.1
-1088	queued	client/runtime/systems/ops/protheusd.ts	ts	59	4	5	3	4.1
+1086	done	client/runtime/systems/ops/top50_roi_sweep.ts	ts	82	4	5	3	4.1
+1087	done	client/runtime/systems/ops/generate_coverage_badge.ts	ts	77	4	5	3	4.1
+1088	done	client/runtime/systems/ops/protheusd.ts	ts	59	4	5	3	4.1
 1089	queued	client/runtime/systems/memory/rust_memory_transition_lane.ts	ts	57	4	5	3	4.1
-1090	queued	client/runtime/systems/ops/protheus_unknown_guard.ts	ts	55	4	5	3	4.1
+1090	done	client/runtime/systems/ops/protheus_unknown_guard.ts	ts	55	4	5	3	4.1
 1091	done	client/runtime/systems/sensory/conversation_eye_synthesizer.ts	ts	50	4	5	3	4.1
 1092	queued	client/runtime/systems/memory/creative_links.ts	ts	45	4	5	3	4.1
 1093	queued	client/runtime/systems/memory/memory_efficiency_plane.ts	ts	45	4	5	3	4.1
@@ -1098,7 +1098,7 @@ order	status	file	language	loc	authority_risk_score	migration_potential_score	co
 1097	queued	client/runtime/systems/memory/rust_memory_daemon_supervisor.ts	ts	45	4	5	3	4.1
 1098	queued	client/runtime/systems/memory/uid_connections.ts	ts	45	4	5	3	4.1
 1099	queued	client/runtime/systems/memory/causal_temporal_graph/tests/causal_temporal_graph.spec.ts	ts	43	4	5	3	4.1
-1100	queued	client/runtime/systems/ops/f100_readiness_remediation.ts	ts	43	4	5	3	4.1
+1100	done	client/runtime/systems/ops/f100_readiness_remediation.ts	ts	43	4	5	3	4.1
 1101	queued	client/runtime/systems/ops/protheus_status_dashboard.ts	ts	43	4	5	3	4.1
 1102	queued	client/runtime/systems/memory/memory_federation_plane/tests/memory_federation_plane.spec.ts	ts	41	4	5	3	4.1
 1103	queued	client/runtime/systems/ops/benchmark_autonomy_gate.ts	ts	41	4	5	3	4.1
