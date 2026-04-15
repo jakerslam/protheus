@@ -5,9 +5,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // Thin TypeScript wrapper only.
 const path = require('path');
 const { createOpsLaneBridge } = require('./rust_lane_bridge.ts');
-const { ROOT, nowIso, parseArgs, cleanText, normalizeToken, toBool, emit } = require('./queued_backlog_runtime.ts');
-process.env.PROTHEUS_OPS_USE_PREBUILT = process.env.PROTHEUS_OPS_USE_PREBUILT || '0';
-process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '120000';
+const { ROOT, nowIso, parseArgs, cleanText, normalizeToken, toBool, emit, normalizeOpsBridgeEnvAliases } = require('./queued_backlog_runtime.ts');
+normalizeOpsBridgeEnvAliases();
+process.env.INFRING_OPS_USE_PREBUILT = process.env.INFRING_OPS_USE_PREBUILT || '0';
+process.env.PROTHEUS_OPS_USE_PREBUILT = process.env.PROTHEUS_OPS_USE_PREBUILT || process.env.INFRING_OPS_USE_PREBUILT || '0';
+process.env.INFRING_OPS_LOCAL_TIMEOUT_MS = process.env.INFRING_OPS_LOCAL_TIMEOUT_MS || '120000';
+process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || process.env.INFRING_OPS_LOCAL_TIMEOUT_MS || '120000';
 const bridge = createOpsLaneBridge(__dirname, 'upgrade_lane_runtime', 'upgrade-lane-kernel');
 function encodeBase64(value) {
     return Buffer.from(String(value == null ? '' : value), 'utf8').toString('base64');

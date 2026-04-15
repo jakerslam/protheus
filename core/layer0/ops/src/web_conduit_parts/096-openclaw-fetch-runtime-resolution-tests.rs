@@ -168,6 +168,46 @@ mod openclaw_fetch_runtime_resolution_tests {
             Some(true)
         );
         assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_discovery_runtime_contract/runtime_module")
+                .and_then(Value::as_str),
+            Some("src/plugins/provider-discovery.runtime.ts")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_discovery_runtime_contract/entry_fast_path_resolver")
+                .and_then(Value::as_str),
+            Some("resolveProviderDiscoveryEntryPlugins")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_discovery_contract_suite_contract/helper_module")
+                .and_then(Value::as_str),
+            Some("test/helpers/plugins/provider-discovery-contract.ts")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_discovery_contract_suite_contract/contract_targets/0")
+                .and_then(Value::as_str),
+            Some("cloudflare-ai-gateway")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_helper_contract/helper_module")
+                .and_then(Value::as_str),
+            Some("test/helpers/plugins/web-fetch-provider-contract.ts")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_helper_contract/contract_suite_installer")
+                .and_then(Value::as_str),
+            Some("installWebFetchProviderContractSuite")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/runtime_web_channel_plugin_contract/runtime_module")
+                .and_then(Value::as_str),
+            Some("src/plugins/runtime/runtime-web-channel-plugin.ts")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/runtime_web_channel_plugin_contract/entry_base_names/1")
+                .and_then(Value::as_str),
+            Some("runtime-api")
+        );
+        assert_eq!(
             out.pointer("/openclaw_runtime_contract/visibility_sanitization_contract/sanitizer_entrypoint")
                 .and_then(Value::as_str),
             Some("sanitizeHtml")

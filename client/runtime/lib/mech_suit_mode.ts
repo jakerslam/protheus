@@ -11,8 +11,32 @@ const { createOpsLaneBridge } = require('./rust_lane_bridge.ts');
 
 const DEFAULT_POLICY_REL = path.join('client', 'runtime', 'config', 'mech_suit_mode_policy.json');
 
+function mirrorEnvAlias(primaryKey, legacyKey, fallback = '') {
+  const primary = String(process.env[primaryKey] || '').trim();
+  const legacy = String(process.env[legacyKey] || '').trim();
+  if (!primary && legacy) {
+    process.env[primaryKey] = legacy;
+  } else if (!legacy && primary) {
+    process.env[legacyKey] = primary;
+  } else if (!primary && !legacy && fallback) {
+    process.env[primaryKey] = fallback;
+    process.env[legacyKey] = fallback;
+  }
+}
+
+function normalizeMechSuitEnvAliases() {
+  mirrorEnvAlias('INFRING_WORKSPACE', 'PROTHEUS_WORKSPACE');
+  mirrorEnvAlias('INFRING_OPS_USE_PREBUILT', 'PROTHEUS_OPS_USE_PREBUILT', '0');
+  mirrorEnvAlias('INFRING_OPS_LOCAL_TIMEOUT_MS', 'PROTHEUS_OPS_LOCAL_TIMEOUT_MS', '120000');
+  mirrorEnvAlias('MECH_SUIT_MODE_POLICY_PATH', 'PROTHEUS_MECH_SUIT_MODE_POLICY_PATH');
+}
+
+normalizeMechSuitEnvAliases();
+
 function repoRoot(rootOverride = null) {
   if (rootOverride) return path.resolve(String(rootOverride));
+  const envRoot = text(process.env.INFRING_WORKSPACE || process.env.PROTHEUS_WORKSPACE || '', 400);
+  if (envRoot) return path.resolve(envRoot);
   return path.resolve(__dirname, '..', '..', '..');
 }
 
@@ -27,7 +51,10 @@ function normalizeRelPath(value, fallback) {
 
 function resolvePolicyPath(rootOverride = null) {
   const root = repoRoot(rootOverride);
-  const explicit = text(process.env.MECH_SUIT_MODE_POLICY_PATH, 400);
+  const explicit = text(
+    process.env.MECH_SUIT_MODE_POLICY_PATH || process.env.PROTHEUS_MECH_SUIT_MODE_POLICY_PATH || '',
+    400
+  );
   if (!explicit) return path.join(root, DEFAULT_POLICY_REL);
   return path.resolve(explicit);
 }
@@ -47,8 +74,12 @@ function resolveStatePath(policy, relPath) {
   return path.join(root, normalized);
 }
 
-process.env.PROTHEUS_OPS_USE_PREBUILT = process.env.PROTHEUS_OPS_USE_PREBUILT || '0';
-process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '120000';
+process.env.INFRING_OPS_USE_PREBUILT = process.env.INFRING_OPS_USE_PREBUILT || '0';
+process.env.PROTHEUS_OPS_USE_PREBUILT =
+  process.env.PROTHEUS_OPS_USE_PREBUILT || process.env.INFRING_OPS_USE_PREBUILT || '0';
+process.env.INFRING_OPS_LOCAL_TIMEOUT_MS = process.env.INFRING_OPS_LOCAL_TIMEOUT_MS || '120000';
+process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS =
+  process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || process.env.INFRING_OPS_LOCAL_TIMEOUT_MS || '120000';
 const bridge = createOpsLaneBridge(__dirname, 'mech_suit_mode', 'mech-suit-mode-kernel');
 
 function encodeBase64(value) {

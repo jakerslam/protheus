@@ -74,6 +74,63 @@ fn fetch_provider_contract_suite_contract() -> Value {
     })
 }
 
+fn fetch_provider_discovery_runtime_contract() -> Value {
+    json!({
+        "runtime_module": "src/plugins/provider-discovery.runtime.ts",
+        "discovered_plugin_id_resolver": "resolveDiscoveredProviderPluginIds",
+        "manifest_registry_loader": "loadPluginManifestRegistry",
+        "entry_fast_path_resolver": "resolveProviderDiscoveryEntryPlugins",
+        "entry_fast_path_module_normalizer": "normalizeDiscoveryModule",
+        "entry_fast_path_source_loader": "createPluginSourceLoader",
+        "entry_fast_path_manifest_field": "providerDiscoverySource",
+        "entry_fast_path_optional": true,
+        "fallback_provider_runtime_resolver": "resolvePluginProviders",
+        "fallback_bundled_allowlist_compat": true
+    })
+}
+
+fn fetch_provider_discovery_contract_suite_contract() -> Value {
+    json!({
+        "contract_test_file": "src/plugins/contracts/provider-discovery.contract.test.ts",
+        "helper_module": "test/helpers/plugins/provider-discovery-contract.ts",
+        "contract_targets": [
+            "cloudflare-ai-gateway",
+            "github-copilot",
+            "minimax",
+            "modelstudio",
+            "ollama",
+            "sglang",
+            "vllm"
+        ],
+        "contract_invocation_pattern": "describe<Provider>ProviderDiscoveryContract()",
+        "catalog_entrypoint": "runProviderCatalog"
+    })
+}
+
+fn fetch_web_provider_helper_contract() -> Value {
+    json!({
+        "helper_module": "test/helpers/plugins/web-fetch-provider-contract.ts",
+        "registry_source": "pluginRegistrationContractRegistry",
+        "provider_entry_resolver": "resolveWebFetchProviderContractEntriesForPluginId",
+        "provider_id_source": "entry.webFetchProviderIds",
+        "contract_suite_installer": "installWebFetchProviderContractSuite",
+        "missing_provider_entry_failure_mode": "web fetch provider contract entry missing"
+    })
+}
+
+fn fetch_runtime_web_channel_plugin_contract() -> Value {
+    json!({
+        "runtime_module": "src/plugins/runtime/runtime-web-channel-plugin.ts",
+        "runtime_record_resolver": "resolvePluginRuntimeRecordByEntryBaseNames",
+        "runtime_module_path_resolver": "resolvePluginRuntimeModulePath",
+        "plugin_boundary_loader": "loadPluginBoundaryModuleWithJiti",
+        "entry_base_names": ["light-runtime-api", "runtime-api"],
+        "light_runtime_cache_behavior": "cache_by_module_path",
+        "heavy_runtime_cache_behavior": "cache_by_module_path",
+        "missing_export_behavior": "throws_web_channel_plugin_runtime_missing_export_error"
+    })
+}
+
 fn fetch_visibility_sanitization_contract() -> Value {
     json!({
         "sanitizer_entrypoint": "sanitizeHtml",
@@ -254,6 +311,10 @@ fn fetch_runtime_resolution_contract() -> Value {
         "provider_type_contract": fetch_runtime_provider_type_contract(),
         "credential_presence_contract": fetch_credential_presence_contract(),
         "provider_contract_suite_contract": fetch_provider_contract_suite_contract(),
+        "provider_discovery_runtime_contract": fetch_provider_discovery_runtime_contract(),
+        "provider_discovery_contract_suite_contract": fetch_provider_discovery_contract_suite_contract(),
+        "provider_helper_contract": fetch_web_provider_helper_contract(),
+        "runtime_web_channel_plugin_contract": fetch_runtime_web_channel_plugin_contract(),
         "visibility_sanitization_contract": fetch_visibility_sanitization_contract(),
         "shared_runtime_contract": fetch_shared_runtime_contract(),
         "content_extraction_contract": fetch_content_extraction_contract(),

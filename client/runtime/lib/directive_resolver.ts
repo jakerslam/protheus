@@ -5,8 +5,22 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // Thin TypeScript wrapper only.
 const path = require('path');
 const { createOpsLaneBridge } = require('./rust_lane_bridge.ts');
-const DIRECTIVES_DIR = path.join(__dirname, '..', 'config', 'directives');
-process.env.PROTHEUS_OPS_USE_PREBUILT = process.env.PROTHEUS_OPS_USE_PREBUILT || '0';
+const { normalizeOpsBridgeEnvAliases } = require('./queued_backlog_runtime.ts');
+normalizeOpsBridgeEnvAliases();
+function resolveDirectivesDir() {
+    const explicit = String(process.env.DIRECTIVE_RESOLVER_DIRECTIVES_DIR
+        || process.env.INFRING_DIRECTIVE_RESOLVER_DIRECTIVES_DIR
+        || process.env.PROTHEUS_DIRECTIVE_RESOLVER_DIRECTIVES_DIR
+        || '').trim();
+    if (explicit)
+        return path.resolve(explicit);
+    return path.join(__dirname, '..', 'config', 'directives');
+}
+const DIRECTIVES_DIR = resolveDirectivesDir();
+process.env.INFRING_OPS_USE_PREBUILT = process.env.INFRING_OPS_USE_PREBUILT || '0';
+process.env.PROTHEUS_OPS_USE_PREBUILT = process.env.PROTHEUS_OPS_USE_PREBUILT || process.env.INFRING_OPS_USE_PREBUILT || '0';
+process.env.INFRING_OPS_LOCAL_TIMEOUT_MS = process.env.INFRING_OPS_LOCAL_TIMEOUT_MS || '120000';
+process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || process.env.INFRING_OPS_LOCAL_TIMEOUT_MS || '120000';
 const bridge = createOpsLaneBridge(__dirname, 'directive_resolver', 'directive-kernel');
 function encodeBase64(value) {
     return Buffer.from(String(value == null ? '' : value), 'utf8').toString('base64');
