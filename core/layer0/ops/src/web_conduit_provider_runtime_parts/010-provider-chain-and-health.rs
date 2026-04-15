@@ -192,6 +192,102 @@ fn parse_provider_list_for_family(raw: &Value, family: WebProviderFamily) -> Vec
         .collect::<Vec<_>>()
 }
 
+pub(crate) fn request_prefers_runtime_provider(request: &Value) -> bool {
+    request
+        .get("prefer_runtime_provider")
+        .and_then(Value::as_bool)
+        .or_else(|| {
+            request
+                .get("prefer_runtime_providers")
+                .and_then(Value::as_bool)
+        })
+        .or_else(|| request.get("preferRuntimeProvider").and_then(Value::as_bool))
+        .or_else(|| request.get("preferRuntimeProviders").and_then(Value::as_bool))
+        .or_else(|| {
+            request
+                .pointer("/runtime_web_search/prefer_runtime_provider")
+                .and_then(Value::as_bool)
+        })
+        .or_else(|| {
+            request
+                .pointer("/runtime_web_search/prefer_runtime_providers")
+                .and_then(Value::as_bool)
+        })
+        .or_else(|| {
+            request
+                .pointer("/runtimeWebSearch/preferRuntimeProvider")
+                .and_then(Value::as_bool)
+        })
+        .or_else(|| {
+            request
+                .pointer("/runtimeWebSearch/preferRuntimeProviders")
+                .and_then(Value::as_bool)
+        })
+        .or_else(|| {
+            request
+                .pointer("/runtime_web_fetch/prefer_runtime_provider")
+                .and_then(Value::as_bool)
+        })
+        .or_else(|| {
+            request
+                .pointer("/runtimeWebFetch/preferRuntimeProvider")
+                .and_then(Value::as_bool)
+        })
+        .unwrap_or(false)
+}
+
+fn request_provider_chain_value<'a>(
+    request: &'a Value,
+    family: WebProviderFamily,
+) -> Option<&'a Value> {
+    match family {
+        WebProviderFamily::Search => request
+            .get("provider_chain")
+            .or_else(|| request.get("search_provider_chain"))
+            .or_else(|| request.get("providerChain"))
+            .or_else(|| request.get("searchProviderChain")),
+        WebProviderFamily::Fetch => request
+            .get("fetch_provider_chain")
+            .or_else(|| request.get("provider_chain"))
+            .or_else(|| request.get("fetchProviderChain"))
+            .or_else(|| request.get("providerChain")),
+    }
+}
+
+pub(crate) fn request_provider_chain_for_family(
+    request: &Value,
+    family: WebProviderFamily,
+) -> Vec<String> {
+    request_provider_chain_value(request, family)
+        .map(|raw| parse_provider_list_for_family(raw, family))
+        .unwrap_or_default()
+}
+
+pub(crate) fn runtime_selected_provider_from_request(
+    request: &Value,
+    family: WebProviderFamily,
+) -> Option<String> {
+    let raw = match family {
+        WebProviderFamily::Search => request
+            .pointer("/runtime_web_search/selected_provider")
+            .or_else(|| request.pointer("/runtime_web_search/provider_configured"))
+            .or_else(|| request.pointer("/runtimeWebSearch/selectedProvider"))
+            .or_else(|| request.pointer("/runtimeWebSearch/providerConfigured"))
+            .or_else(|| request.get("runtime_search_provider"))
+            .or_else(|| request.get("runtimeSearchProvider"))
+            .and_then(Value::as_str),
+        WebProviderFamily::Fetch => request
+            .pointer("/runtime_web_fetch/selected_provider")
+            .or_else(|| request.pointer("/runtime_web_fetch/provider_configured"))
+            .or_else(|| request.pointer("/runtimeWebFetch/selectedProvider"))
+            .or_else(|| request.pointer("/runtimeWebFetch/providerConfigured"))
+            .or_else(|| request.get("runtime_fetch_provider"))
+            .or_else(|| request.get("runtimeFetchProvider"))
+            .and_then(Value::as_str),
+    };
+    raw.and_then(|value| normalize_provider_token_for_family(value, family))
+}
+
 fn dedupe_preserve(rows: Vec<String>) -> Vec<String> {
     rows.into_iter().fold(Vec::<String>::new(), |mut acc, row| {
         if !acc.iter().any(|existing| existing == &row) {
@@ -211,11 +307,12 @@ where
     F: Fn(&str) -> Option<String> + Copy,
 {
     let hint = clean_text(provider_hint, 60).to_ascii_lowercase();
-    let request_chain = request
-        .get("provider_chain")
-        .map(|raw| parse_provider_list_for_family(raw, WebProviderFamily::Search))
-        .unwrap_or_default();
+    let request_chain = request_provider_chain_for_family(request, WebProviderFamily::Search);
     let request_chain_explicit = !request_chain.is_empty();
+    let runtime_selected_provider =
+        runtime_selected_provider_from_request(request, WebProviderFamily::Search);
+    let prefer_runtime_provider =
+        request_prefers_runtime_provider(request) || runtime_selected_provider.is_some();
     let policy_chain = policy
         .pointer("/web_conduit/search_provider_order")
         .or_else(|| policy.get("search_provider_order"))
@@ -231,15 +328,20 @@ where
         "serper" | "serperdev" => prefix.push("serperdev".to_string()),
         _ => {}
     }
-    let mut merged = prefix;
-    merged.extend(configured);
-    merged.extend(default_provider_chain_vec(WebProviderFamily::Search));
-    let deduped = dedupe_preserve(merged);
     let hint_explicit = matches!(
         hint.as_str(),
         "bing" | "bing_rss" | "duckduckgo" | "ddg" | "serper" | "serperdev"
     );
-    if hint_explicit || request_chain_explicit {
+    let mut merged = prefix;
+    if prefer_runtime_provider && !hint_explicit {
+        if let Some(runtime_provider) = runtime_selected_provider {
+            merged.push(runtime_provider);
+        }
+    }
+    merged.extend(configured);
+    merged.extend(default_provider_chain_vec(WebProviderFamily::Search));
+    let deduped = dedupe_preserve(merged);
+    if hint_explicit || (request_chain_explicit && !prefer_runtime_provider) {
         return deduped;
     }
     let mut credential_ready = Vec::<String>::new();
@@ -261,11 +363,11 @@ where
     F: Fn(&str) -> Option<String> + Copy,
 {
     let explicit = normalize_provider_token_for_family(provider_hint, WebProviderFamily::Fetch);
-    let request_chain = request
-        .get("fetch_provider_chain")
-        .or_else(|| request.get("provider_chain"))
-        .map(|raw| parse_provider_list_for_family(raw, WebProviderFamily::Fetch))
-        .unwrap_or_default();
+    let request_chain = request_provider_chain_for_family(request, WebProviderFamily::Fetch);
+    let runtime_selected_provider =
+        runtime_selected_provider_from_request(request, WebProviderFamily::Fetch);
+    let prefer_runtime_provider =
+        request_prefers_runtime_provider(request) || runtime_selected_provider.is_some();
     let policy_chain = policy
         .pointer("/web_conduit/fetch_provider_order")
         .or_else(|| policy.get("fetch_provider_order"))
@@ -277,6 +379,10 @@ where
     let mut merged = Vec::<String>::new();
     if let Some(provider) = explicit {
         merged.push(provider);
+    } else if prefer_runtime_provider {
+        if let Some(runtime_provider) = runtime_selected_provider {
+            merged.push(runtime_provider);
+        }
     }
     merged.extend(configured);
     merged.extend(default_provider_chain_vec(WebProviderFamily::Fetch));

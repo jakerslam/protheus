@@ -26,16 +26,26 @@ pub(crate) fn resolved_search_provider_chain(
     request: &Value,
     policy: &Value,
 ) -> Vec<String> {
-    let request_chain = request
-        .get("provider_chain")
-        .map(|raw| parse_provider_list_for_family(raw, WebProviderFamily::Search))
-        .unwrap_or_default();
+    let request_chain = request_provider_chain_for_family(request, WebProviderFamily::Search);
+    let runtime_selected_provider =
+        runtime_selected_provider_from_request(request, WebProviderFamily::Search);
+    let prefer_runtime_provider =
+        request_prefers_runtime_provider(request) || runtime_selected_provider.is_some();
     let base = provider_chain_from_request(provider_hint, request, policy);
     if base.is_empty()
         || search_provider_hint_is_explicit(provider_hint)
-        || !request_chain.is_empty()
+        || (!request_chain.is_empty() && !prefer_runtime_provider)
     {
         return base;
+    }
+    let mut preferred_providers = Vec::<String>::new();
+    if let Some(runtime_provider) = runtime_selected_provider {
+        preferred_providers.push(runtime_provider);
+    }
+    if !preferred_providers.is_empty() {
+        let mut merged = preferred_providers;
+        merged.extend(base);
+        return reorder_search_providers_by_credential_availability(dedupe_preserve(merged));
     }
     let configured_provider =
         configured_provider_input_from_policy(policy, WebProviderFamily::Search)
@@ -57,10 +67,11 @@ pub(crate) fn search_provider_resolution_snapshot(
 ) -> Value {
     let mut runtime = runtime_web_family_metadata(root, policy, WebProviderFamily::Search);
     let requested_provider_hint = clean_text(provider_hint, 60).to_ascii_lowercase();
-    let request_provider_chain = request
-        .get("provider_chain")
-        .map(|raw| parse_provider_list_for_family(raw, WebProviderFamily::Search))
-        .unwrap_or_default();
+    let request_provider_chain = request_provider_chain_for_family(request, WebProviderFamily::Search);
+    let runtime_selected_provider =
+        runtime_selected_provider_from_request(request, WebProviderFamily::Search);
+    let prefer_runtime_provider =
+        request_prefers_runtime_provider(request) || runtime_selected_provider.is_some();
     let provider_chain = resolved_search_provider_chain(provider_hint, request, policy);
     let selected_provider = provider_chain
         .first()
@@ -68,6 +79,12 @@ pub(crate) fn search_provider_resolution_snapshot(
         .unwrap_or_else(|| "none".to_string());
     let selection_scope = if search_provider_hint_is_explicit(&requested_provider_hint) {
         "request_provider_hint"
+    } else if runtime_selected_provider
+        .as_deref()
+        .map(|provider| provider == selected_provider.as_str())
+        .unwrap_or(false)
+    {
+        "runtime_metadata"
     } else if !request_provider_chain.is_empty() {
         "request_provider_chain"
     } else if runtime
@@ -84,7 +101,7 @@ pub(crate) fn search_provider_resolution_snapshot(
     };
     let allow_fallback = !matches!(
         selection_scope,
-        "request_provider_hint" | "policy_configured"
+        "request_provider_hint" | "policy_configured" | "runtime_metadata"
     );
     if let Some(obj) = runtime.as_object_mut() {
         obj.insert(
@@ -97,6 +114,14 @@ pub(crate) fn search_provider_resolution_snapshot(
         );
         obj.insert("provider_chain".to_string(), json!(provider_chain));
         obj.insert("selected_provider".to_string(), json!(selected_provider));
+        obj.insert(
+            "runtime_selected_provider".to_string(),
+            runtime_selected_provider.map(Value::String).unwrap_or(Value::Null),
+        );
+        obj.insert(
+            "runtime_provider_preferred".to_string(),
+            json!(prefer_runtime_provider),
+        );
         obj.insert("selection_scope".to_string(), json!(selection_scope));
         obj.insert("allow_fallback".to_string(), json!(allow_fallback));
     }

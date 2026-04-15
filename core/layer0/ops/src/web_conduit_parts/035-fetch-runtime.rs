@@ -49,6 +49,7 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
             .get("provider")
             .or_else(|| request.get("source"))
             .or_else(|| request.get("fetch_provider"))
+            .or_else(|| request.get("fetchProvider"))
             .and_then(Value::as_str)
             .unwrap_or("auto"),
         40,
@@ -77,10 +78,14 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
         resolved_fetch_provider_selection(root, &policy, request, &provider_hint);
     let allow_rfc2544_benchmark_range = request
         .pointer("/ssrf_policy/allow_rfc2544_benchmark_range")
+        .or_else(|| request.pointer("/ssrfPolicy/allowRfc2544BenchmarkRange"))
         .and_then(Value::as_bool)
         .or_else(|| {
             policy
                 .pointer("/web_conduit/ssrf_policy/allow_rfc2544_benchmark_range")
+                .or_else(|| {
+                    policy.pointer("/web_conduit/ssrfPolicy/allowRfc2544BenchmarkRange")
+                })
                 .and_then(Value::as_bool)
         })
         .unwrap_or(false);

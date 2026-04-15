@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod openclaw_fetch_runtime_resolution_tests {
     use super::*;
+    use crate::web_conduit::api_fetch;
 
     #[test]
     fn openclaw_fetch_runtime_resolution_contract_is_bundled_only() {
@@ -95,6 +96,91 @@ mod openclaw_fetch_runtime_resolution_tests {
             out.pointer("/resolution_contract/prefer_runtime_providers")
                 .and_then(Value::as_bool),
             Some(false)
+        );
+    }
+
+    #[test]
+    fn openclaw_fetch_runtime_resolution_prefers_runtime_metadata_provider_when_present() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let policy = json!({
+            "web_conduit": {
+                "enabled": true,
+                "fetch_provider_order": ["direct_http"]
+            }
+        });
+
+        let out = crate::web_conduit_provider_runtime::fetch_provider_resolution_snapshot(
+            tmp.path(),
+            &policy,
+            &json!({
+                "runtimeWebFetch": {
+                    "selectedProvider": "curl"
+                }
+            }),
+            "auto",
+        );
+        assert_eq!(
+            out.pointer("/selection_scope").and_then(Value::as_str),
+            Some("runtime_metadata")
+        );
+        assert_eq!(
+            out.pointer("/runtime_selected_provider")
+                .and_then(Value::as_str),
+            Some("direct_http")
+        );
+        assert_eq!(
+            out.pointer("/runtime_provider_preferred")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+    }
+
+    #[test]
+    fn openclaw_fetch_runtime_resolution_accepts_camel_case_provider_chain_alias() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let policy = json!({
+            "web_conduit": {
+                "enabled": true,
+                "fetch_provider_order": ["direct_http"]
+            }
+        });
+
+        let out = crate::web_conduit_provider_runtime::fetch_provider_resolution_snapshot(
+            tmp.path(),
+            &policy,
+            &json!({
+                "fetchProviderChain": ["curl"]
+            }),
+            "auto",
+        );
+        assert_eq!(
+            out.pointer("/selection_scope").and_then(Value::as_str),
+            Some("request_provider_chain")
+        );
+        assert_eq!(
+            out.pointer("/provider_chain/0").and_then(Value::as_str),
+            Some("direct_http")
+        );
+    }
+
+    #[test]
+    fn api_fetch_accepts_camel_case_fetch_provider_hint_alias() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let out = api_fetch(
+            tmp.path(),
+            &json!({
+                "url": "https://example.com",
+                "fetchProvider": "firecrawl"
+            }),
+        );
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            out.get("error").and_then(Value::as_str),
+            Some("unknown_fetch_provider")
+        );
+        assert_eq!(
+            out.get("requested_provider").and_then(Value::as_str),
+            Some("firecrawl")
         );
     }
 }

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-15T05:25:49Z",
+  "generated_at": "2026-04-15T05:41:53Z",
   "scope": [
     "core",
     "client/runtime",
@@ -4622,7 +4622,7 @@
       "order": 419
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/metakernel_parts/058-hybrid-digital-dna-v2.rs",
       "language": "rs",
       "loc": 1216,
@@ -4897,7 +4897,7 @@
       "order": 444
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/ternary_belief_kernel.rs",
       "language": "rs",
       "loc": 840,
@@ -4908,7 +4908,7 @@
       "order": 445
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/outcome_fitness_kernel.rs",
       "language": "rs",
       "loc": 838,
@@ -5513,7 +5513,7 @@
       "order": 500
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/tests/v6_flow_batch10_integration.rs",
       "language": "rs",
       "loc": 571,
@@ -5546,7 +5546,7 @@
       "order": 503
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/identity_federation.rs",
       "language": "rs",
       "loc": 558,
