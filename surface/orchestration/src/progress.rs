@@ -148,9 +148,9 @@ fn observed_or_derived_plan_status(
         return Some(PlanStatus::Degraded);
     }
     if !observed_step_statuses.is_empty()
-        && observed_step_statuses.iter().all(|(_, status)| {
-            matches!(status, StepStatus::Succeeded | StepStatus::Skipped)
-        })
+        && observed_step_statuses
+            .iter()
+            .all(|(_, status)| matches!(status, StepStatus::Succeeded | StepStatus::Skipped))
     {
         return Some(PlanStatus::Completed);
     }

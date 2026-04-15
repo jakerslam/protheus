@@ -13,10 +13,11 @@ pub mod sequencing;
 pub mod transient_context;
 
 use contracts::{
-    DegradationReason, ExecutionCorrelation, ExecutionState, OrchestrationPlan,
-    OrchestrationRequest, OrchestrationResultPackage, PlanCandidate, PlanScore, PlanStatus,
-    PlanVariant, RecoveryDecision, RecoveryReason, RecoveryState,
+    CoreExecutionObservation, DegradationReason, ExecutionCorrelation, ExecutionState,
+    OrchestrationPlan, OrchestrationRequest, OrchestrationResultPackage, PlanCandidate, PlanScore,
+    PlanStatus, PlanVariant, RecoveryDecision, RecoveryReason, RecoveryState,
 };
+use std::collections::BTreeMap;
 use transient_context::{TransientContextStore, TransientSleepCleanupReport};
 
 const DEFAULT_SLEEP_CYCLE_IDLE_GAP_MS: u64 = 8 * 60 * 60 * 1000;
@@ -24,6 +25,7 @@ const DEFAULT_SLEEP_CYCLE_IDLE_GAP_MS: u64 = 8 * 60 * 60 * 1000;
 #[derive(Debug)]
 pub struct OrchestrationSurfaceRuntime {
     transient: TransientContextStore,
+    execution_observations: BTreeMap<String, CoreExecutionObservation>,
     last_activity_ms: Option<u64>,
     sleep_cycle_idle_gap_ms: u64,
 }
@@ -32,6 +34,7 @@ impl Default for OrchestrationSurfaceRuntime {
     fn default() -> Self {
         Self {
             transient: TransientContextStore::default(),
+            execution_observations: BTreeMap::new(),
             last_activity_ms: None,
             sleep_cycle_idle_gap_ms: DEFAULT_SLEEP_CYCLE_IDLE_GAP_MS,
         }
@@ -70,10 +73,18 @@ impl OrchestrationSurfaceRuntime {
     ) -> OrchestrationResultPackage {
         self.maybe_run_sleep_cycle_cleanup(now_ms);
         let normalized = ingress::normalize_request(request);
+        let mut typed_request = normalized.typed_request.clone();
+        if let Some(update) = self
+            .execution_observations
+            .get(typed_request.session_id.as_str())
+            .cloned()
+        {
+            typed_request.core_execution_observation = Some(update);
+        }
         let classification = request_classification::classify_request(&normalized);
         if let Err(err) = self.transient.upsert(
-            normalized.typed_request.session_id.as_str(),
-            transient_summary(&normalized.typed_request),
+            typed_request.session_id.as_str(),
+            transient_summary(&typed_request),
             now_ms,
             30_000,
         ) {
@@ -96,7 +107,7 @@ impl OrchestrationSurfaceRuntime {
                     correlation: ExecutionCorrelation {
                         orchestration_trace_id: format!(
                             "orch_{}_transient",
-                            normalized.typed_request.session_id
+                            typed_request.session_id
                         ),
                         expected_core_contract_ids: Vec::new(),
                         observed_core_receipt_ids: Vec::new(),
@@ -133,26 +144,24 @@ impl OrchestrationSurfaceRuntime {
         }
 
         let clarification_prompt =
-            clarification::clarification_prompt_for(&normalized.typed_request, &classification);
+            clarification::clarification_prompt_for(&typed_request, &classification);
         let needs_clarification =
             classification.needs_clarification || clarification_prompt.is_some();
         let posture =
             posture::choose_posture(classification.request_class.clone(), needs_clarification);
         let mut plan_candidates =
-            sequencing::build_plan_candidates(&normalized.typed_request, &classification);
-        let selected_plan = plan_candidates.first().cloned().unwrap_or_else(|| {
-            sequencing::build_plan_candidate(&normalized.typed_request, &classification)
-        });
+            sequencing::build_plan_candidates(&typed_request, &classification);
+        let selected_plan = plan_candidates
+            .first()
+            .cloned()
+            .unwrap_or_else(|| sequencing::build_plan_candidate(&typed_request, &classification));
         let alternative_plans = if plan_candidates.len() > 1 {
             plan_candidates.drain(1..).collect::<Vec<_>>()
         } else {
             Vec::new()
         };
-        let execution_state = progress::execution_state_for(
-            &normalized.typed_request,
-            &selected_plan,
-            needs_clarification,
-        );
+        let execution_state =
+            progress::execution_state_for(&typed_request, &selected_plan, needs_clarification);
 
         let plan = OrchestrationPlan {
             request_class: classification.request_class.clone(),
@@ -164,13 +173,12 @@ impl OrchestrationSurfaceRuntime {
             alternative_plans,
             execution_state,
         };
-        let (plan, recovery_applied) =
-            recovery::apply_recovery_policy(&normalized.typed_request, plan);
+        let (plan, recovery_applied) = recovery::apply_recovery_policy(&typed_request, plan);
         let progress = progress::progress_message(&plan);
         let tool_fallback_context =
-            sequencing::tool_fallback_context_from_payload(&normalized.typed_request.payload);
+            sequencing::tool_fallback_context_from_payload(&typed_request.payload);
         let fallback_actions = sequencing::fallback_actions(
-            &normalized.typed_request,
+            &typed_request,
             plan.request_class.clone(),
             tool_fallback_context.as_ref(),
         );
@@ -207,6 +215,22 @@ impl OrchestrationSurfaceRuntime {
         sleep_cycle_id: &str,
     ) -> Result<TransientSleepCleanupReport, String> {
         self.transient.run_sleep_cycle_cleanup(sleep_cycle_id)
+    }
+
+    pub fn record_execution_observation(
+        &mut self,
+        session_id: impl Into<String>,
+        observation: CoreExecutionObservation,
+    ) {
+        let session_id = session_id.into();
+        if session_id.trim().is_empty() {
+            return;
+        }
+        self.execution_observations.insert(session_id, observation);
+    }
+
+    pub fn clear_execution_observation(&mut self, session_id: &str) {
+        self.execution_observations.remove(session_id);
     }
 }
 

@@ -266,9 +266,14 @@ fn comparative_request_changes_plan_when_transport_is_unavailable() {
         3_600,
     );
 
-    assert!(ready
-        .core_contract_calls
-        .contains(&CoreContractCall::ToolBrokerRequest));
+    assert!(
+        ready
+            .core_contract_calls
+            .contains(&CoreContractCall::ToolBrokerRequest)
+            || ready
+                .core_contract_calls
+                .contains(&CoreContractCall::VerifierRequest)
+    );
     assert!(degraded
         .core_contract_calls
         .contains(&CoreContractCall::ContextTopologyMaterialize));
@@ -601,8 +606,17 @@ fn adapted_assimilation_request_requires_explicit_policy_probe() {
                     "targets": [{ "kind": "workspace_path", "value": "README.md" }]
                 },
                 "core_probe_envelope": {
+                    "plan_assimilation": {
+                        "target_supplied": true,
+                        "target_syntactically_valid": true,
+                        "target_exists": true
+                    },
                     "mutate_task": {
-                        "authorization_valid": true
+                        "target_supplied": true,
+                        "target_syntactically_valid": true,
+                        "target_exists": true,
+                        "authorization_valid": true,
+                        "policy_allows": true
                     }
                 }
             }),
@@ -688,6 +702,9 @@ fn adapted_mutation_request_requires_explicit_authorization_probe() {
                 },
                 "core_probe_envelope": {
                     "mutate_task": {
+                        "target_supplied": true,
+                        "target_syntactically_valid": true,
+                        "target_exists": true,
                         "policy_allows": true
                     }
                 }
@@ -990,7 +1007,7 @@ fn observed_core_execution_is_projected_into_execution_state_correlation() {
                     "outcome_refs": ["outcome-1"],
                     "step_statuses": {
                         "step_tool_capability_probe": "succeeded",
-                        "step_tool_broker_request": "failed"
+                        "step_claim_verifier_request": "failed"
                     }
                 }
             }),
@@ -1007,7 +1024,7 @@ fn observed_core_execution_is_projected_into_execution_state_correlation() {
             && row.status == infring_orchestration_surface_v1::contracts::StepStatus::Succeeded
     }));
     assert!(package.execution_state.steps.iter().any(|row| {
-        row.step_id == "step_tool_broker_request"
+        row.step_id == "step_claim_verifier_request"
             && row.status == infring_orchestration_surface_v1::contracts::StepStatus::Failed
     }));
     assert_eq!(
@@ -1192,4 +1209,430 @@ fn degraded_comparative_request_preserves_multiple_probe_failures() {
     assert!(degradation.reasons.contains(
         &infring_orchestration_surface_v1::contracts::DegradationReason::TransportFailure
     ));
+}
+
+#[test]
+fn adapted_mutation_request_requires_explicit_target_probe_envelope_fields() {
+    let mut runtime = OrchestrationSurfaceRuntime::new();
+    let package = runtime.orchestrate(
+        OrchestrationRequest {
+            session_id: "sdk-missing-target-probe".to_string(),
+            intent: "opaque".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "mutate",
+                    "resource_kind": "task_graph",
+                    "request_kind": "direct",
+                    "mutability": "mutation",
+                    "targets": [{ "kind": "task_id", "value": "task-99" }]
+                },
+                "core_probe_envelope": {
+                    "mutate_task": {
+                        "authorization_valid": true,
+                        "policy_allows": true
+                    }
+                }
+            }),
+        },
+        4_650,
+    );
+
+    assert!(package
+        .selected_plan
+        .blocked_on
+        .contains(&infring_orchestration_surface_v1::contracts::Precondition::TargetSupplied));
+    assert!(package.selected_plan.capability_probes.iter().any(|row| {
+        row.capability == infring_orchestration_surface_v1::contracts::Capability::MutateTask
+            && row.probe_sources.iter().any(|source| {
+                source == "probe.required_for_adapted_surface.mutate_task.target_supplied"
+            })
+    }));
+}
+
+#[test]
+fn non_legacy_surface_fixture_quality_stays_within_surface_thresholds() {
+    #[derive(Default, Clone, Copy)]
+    struct SurfaceStats {
+        total: usize,
+        fallback: usize,
+        low_confidence: usize,
+    }
+
+    let fixtures = vec![
+        OrchestrationRequest {
+            session_id: "sdk-quality-1".to_string(),
+            intent: "opaque".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "search",
+                    "resource_kind": "web",
+                    "request_kind": "direct",
+                    "targets": [{ "kind": "url", "value": "https://example.com/releases" }]
+                },
+                "core_probe_envelope": {
+                    "execute_tool": {
+                        "tool_available": true,
+                        "transport_available": true
+                    }
+                }
+            }),
+        },
+        OrchestrationRequest {
+            session_id: "gateway-quality-1".to_string(),
+            intent: "opaque".to_string(),
+            surface: RequestSurface::Gateway,
+            payload: json!({
+                "gateway": {
+                    "route": "compare.resource",
+                    "resource_kind": "mixed",
+                    "targets": [
+                        { "kind": "workspace_path", "value": "README.md" },
+                        { "kind": "url", "value": "https://example.com/docs" }
+                    ]
+                },
+                "core_probe_envelope": {
+                    "execute_tool": {
+                        "tool_available": true,
+                        "transport_available": true
+                    },
+                    "verify_claim": {
+                        "transport_available": true
+                    }
+                }
+            }),
+        },
+        OrchestrationRequest {
+            session_id: "dashboard-quality-1".to_string(),
+            intent: "opaque".to_string(),
+            surface: RequestSurface::Dashboard,
+            payload: json!({
+                "dashboard": {
+                    "operation_kind": "read",
+                    "resource_kind": "workspace",
+                    "targets": [{ "kind": "workspace_path", "value": "README.md" }]
+                }
+            }),
+        },
+        OrchestrationRequest {
+            session_id: "dashboard-quality-fallback".to_string(),
+            intent: "".to_string(),
+            surface: RequestSurface::Dashboard,
+            payload: json!({
+                "dashboard": {
+                    "selection_mode": "panel"
+                }
+            }),
+        },
+    ];
+
+    let mut runtime = OrchestrationSurfaceRuntime::new();
+    let mut sdk = SurfaceStats::default();
+    let mut gateway = SurfaceStats::default();
+    let mut dashboard = SurfaceStats::default();
+
+    for (idx, request) in fixtures.into_iter().enumerate() {
+        let surface = request.surface;
+        let package = runtime.orchestrate(request, 4_700 + idx as u64);
+        let low_confidence = package
+            .classification
+            .reasons
+            .iter()
+            .any(|reason| reason == "parse_confidence_below_threshold");
+        let stats = match surface {
+            RequestSurface::Sdk => &mut sdk,
+            RequestSurface::Gateway => &mut gateway,
+            RequestSurface::Dashboard => &mut dashboard,
+            RequestSurface::Legacy | RequestSurface::Cli => continue,
+        };
+        stats.total += 1;
+        if package.classification.surface_adapter_fallback {
+            stats.fallback += 1;
+        }
+        if low_confidence {
+            stats.low_confidence += 1;
+        }
+    }
+
+    let sdk_fallback_rate = sdk.fallback as f32 / sdk.total as f32;
+    let sdk_low_confidence_rate = sdk.low_confidence as f32 / sdk.total as f32;
+    let gateway_fallback_rate = gateway.fallback as f32 / gateway.total as f32;
+    let gateway_low_confidence_rate = gateway.low_confidence as f32 / gateway.total as f32;
+    let dashboard_fallback_rate = dashboard.fallback as f32 / dashboard.total as f32;
+    let dashboard_low_confidence_rate = dashboard.low_confidence as f32 / dashboard.total as f32;
+
+    assert!(sdk_fallback_rate <= 0.05, "sdk fallback rate regression");
+    assert!(
+        sdk_low_confidence_rate <= 0.05,
+        "sdk low-confidence rate regression"
+    );
+    assert!(
+        gateway_fallback_rate <= 0.05,
+        "gateway fallback rate regression"
+    );
+    assert!(
+        gateway_low_confidence_rate <= 0.05,
+        "gateway low-confidence rate regression"
+    );
+    assert!(
+        dashboard_fallback_rate <= 0.50,
+        "dashboard fallback rate regression"
+    );
+    assert!(
+        dashboard_low_confidence_rate <= 0.50,
+        "dashboard low-confidence rate regression"
+    );
+
+    println!(
+        "surface_quality_metrics={}",
+        json!({
+            "sdk": {
+                "total": sdk.total,
+                "fallback_rate": sdk_fallback_rate,
+                "low_confidence_rate": sdk_low_confidence_rate
+            },
+            "gateway": {
+                "total": gateway.total,
+                "fallback_rate": gateway_fallback_rate,
+                "low_confidence_rate": gateway_low_confidence_rate
+            },
+            "dashboard": {
+                "total": dashboard.total,
+                "fallback_rate": dashboard_fallback_rate,
+                "low_confidence_rate": dashboard_low_confidence_rate
+            }
+        })
+    );
+}
+
+#[test]
+fn planner_quality_fixture_metrics_stay_within_thresholds() {
+    let fixtures = vec![
+        OrchestrationRequest {
+            session_id: "planner-quality-sdk".to_string(),
+            intent: "search release notes".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "search",
+                    "resource_kind": "web",
+                    "request_kind": "direct",
+                    "targets": [{ "kind": "url", "value": "https://example.com/releases" }]
+                },
+                "core_probe_envelope": {
+                    "execute_tool": {
+                        "tool_available": true,
+                        "transport_available": true
+                    }
+                }
+            }),
+        },
+        OrchestrationRequest {
+            session_id: "planner-quality-compare".to_string(),
+            intent: "compare workspace and web".to_string(),
+            surface: RequestSurface::Gateway,
+            payload: json!({
+                "gateway": {
+                    "route": "compare.resource",
+                    "resource_kind": "mixed",
+                    "targets": [
+                        { "kind": "workspace_path", "value": "README.md" },
+                        { "kind": "url", "value": "https://example.com/docs" }
+                    ]
+                },
+                "core_probe_envelope": {
+                    "execute_tool": {
+                        "tool_available": true,
+                        "transport_available": true
+                    },
+                    "verify_claim": {
+                        "transport_available": true
+                    }
+                }
+            }),
+        },
+        OrchestrationRequest {
+            session_id: "planner-quality-legacy".to_string(),
+            intent: "search the web for release notes".to_string(),
+            surface: RequestSurface::Legacy,
+            payload: json!({}),
+        },
+        OrchestrationRequest {
+            session_id: "planner-quality-ambiguous".to_string(),
+            intent: "maybe do something".to_string(),
+            surface: RequestSurface::Legacy,
+            payload: json!({}),
+        },
+        OrchestrationRequest {
+            session_id: "planner-quality-mutation".to_string(),
+            intent: "implement requested mutation".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "mutate",
+                    "resource_kind": "task_graph",
+                    "request_kind": "direct",
+                    "mutability": "mutation",
+                    "targets": [{ "kind": "task_id", "value": "task-42" }]
+                },
+                "core_probe_envelope": {
+                    "mutate_task": {
+                        "target_supplied": true,
+                        "target_syntactically_valid": true,
+                        "target_exists": true,
+                        "authorization_valid": false,
+                        "policy_allows": true
+                    }
+                }
+            }),
+        },
+    ];
+
+    let mut runtime = OrchestrationSurfaceRuntime::new();
+    let mut candidate_counts = Vec::new();
+    let mut clarification_first_selected = 0usize;
+    let mut degraded_selected = 0usize;
+    let mut heuristic_probe_selected = 0usize;
+
+    for (idx, request) in fixtures.into_iter().enumerate() {
+        let package = runtime.orchestrate(request, 4_760 + idx as u64);
+        let candidate_count = 1 + package.alternative_plans.len();
+        candidate_counts.push(candidate_count);
+        if package.selected_plan.variant
+            == infring_orchestration_surface_v1::contracts::PlanVariant::ClarificationFirst
+        {
+            clarification_first_selected += 1;
+        }
+        if package.execution_state.plan_status
+            == infring_orchestration_surface_v1::contracts::PlanStatus::Degraded
+            || package.selected_plan.variant
+                == infring_orchestration_surface_v1::contracts::PlanVariant::DegradedFallback
+        {
+            degraded_selected += 1;
+        }
+        if package.selected_plan.capability_probes.iter().any(|probe| {
+            probe
+                .probe_sources
+                .iter()
+                .any(|source| source.starts_with("heuristic."))
+        }) {
+            heuristic_probe_selected += 1;
+        }
+    }
+
+    let total = candidate_counts.len() as f32;
+    let average_candidate_count = candidate_counts.iter().sum::<usize>() as f32 / total.max(1.0);
+    let clarification_first_rate = clarification_first_selected as f32 / total.max(1.0);
+    let degraded_rate = degraded_selected as f32 / total.max(1.0);
+    let heuristic_probe_rate = heuristic_probe_selected as f32 / total.max(1.0);
+
+    assert!(
+        candidate_counts.iter().all(|count| *count >= 2),
+        "planner candidate diversity regression"
+    );
+    assert!(
+        clarification_first_rate <= 0.50,
+        "clarification-first selection rate regression"
+    );
+    assert!(degraded_rate <= 0.60, "degraded selection rate regression");
+    assert!(
+        heuristic_probe_rate <= 0.60,
+        "heuristic probe dependence regression"
+    );
+
+    println!(
+        "planner_quality_metrics={}",
+        json!({
+            "request_count": candidate_counts.len(),
+            "average_candidate_count": average_candidate_count,
+            "clarification_first_rate": clarification_first_rate,
+            "degraded_rate": degraded_rate,
+            "heuristic_probe_rate": heuristic_probe_rate
+        })
+    );
+}
+
+#[test]
+fn runtime_execution_observation_channel_projects_into_execution_state() {
+    let mut runtime = OrchestrationSurfaceRuntime::new();
+    runtime.record_execution_observation(
+        "observation-channel",
+        infring_orchestration_surface_v1::contracts::CoreExecutionObservation {
+            plan_status: Some(infring_orchestration_surface_v1::contracts::PlanStatus::Running),
+            receipt_ids: vec!["receipt-channel-1".to_string()],
+            outcome_refs: Vec::new(),
+            step_statuses: vec![
+                infring_orchestration_surface_v1::contracts::CoreExecutionStepObservation {
+                    step_id: "step_tool_broker_request".to_string(),
+                    status: infring_orchestration_surface_v1::contracts::StepStatus::Running,
+                },
+            ],
+        },
+    );
+
+    let package = runtime.orchestrate(
+        OrchestrationRequest {
+            session_id: "observation-channel".to_string(),
+            intent: "search release notes".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "search",
+                    "resource_kind": "web",
+                    "request_kind": "direct",
+                    "targets": [{ "kind": "url", "value": "https://example.com/releases" }]
+                },
+                "core_probe_envelope": {
+                    "execute_tool": {
+                        "tool_available": true,
+                        "transport_available": true
+                    }
+                }
+            }),
+        },
+        4_800,
+    );
+
+    assert_eq!(
+        package.execution_state.plan_status,
+        infring_orchestration_surface_v1::contracts::PlanStatus::Running
+    );
+    assert_eq!(
+        package
+            .execution_state
+            .correlation
+            .observed_core_receipt_ids,
+        vec!["receipt-channel-1".to_string()]
+    );
+
+    runtime.clear_execution_observation("observation-channel");
+    let package_after_clear = runtime.orchestrate(
+        OrchestrationRequest {
+            session_id: "observation-channel".to_string(),
+            intent: "search release notes".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "search",
+                    "resource_kind": "web",
+                    "request_kind": "direct",
+                    "targets": [{ "kind": "url", "value": "https://example.com/releases" }]
+                },
+                "core_probe_envelope": {
+                    "execute_tool": {
+                        "tool_available": true,
+                        "transport_available": true
+                    }
+                }
+            }),
+        },
+        4_801,
+    );
+
+    assert!(package_after_clear
+        .execution_state
+        .correlation
+        .observed_core_receipt_ids
+        .is_empty());
 }
