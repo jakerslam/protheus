@@ -12938,7 +12938,7 @@
       "order": 1175
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ops/state_kernel_dual_write.ts",
       "language": "ts",
       "loc": 3,
@@ -12949,7 +12949,7 @@
       "order": 1176
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/security/conflict_marker_guard.ts",
       "language": "ts",
       "loc": 3,
@@ -12960,7 +12960,7 @@
       "order": 1177
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/security/delegated_authority_branching.ts",
       "language": "ts",
       "loc": 3,
@@ -12971,7 +12971,7 @@
       "order": 1178
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/security/execution_sandbox_envelope.ts",
       "language": "ts",
       "loc": 3,
@@ -12982,7 +12982,7 @@
       "order": 1179
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/security/formal_invariant_engine.ts",
       "language": "ts",
       "loc": 3,

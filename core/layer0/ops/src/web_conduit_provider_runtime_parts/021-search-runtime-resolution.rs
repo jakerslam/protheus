@@ -74,7 +74,17 @@ fn search_provider_contract_suite_contract() -> Value {
         "registry_entry_resolver": "resolveWebSearchProviderContractEntriesForPluginId",
         "provider_id_source": "entry.webSearchProviderIds",
         "provider_lookup_contract": "entry.provider.id == providerId",
-        "provider_specific_contract_targets": ["brave", "duckduckgo"],
+        "provider_specific_contract_targets": ["brave", "duckduckgo", "exa", "firecrawl", "google", "perplexity", "tavily"],
+        "registry_contract_test_files": [
+            "web-search-provider.brave.contract.test.ts",
+            "web-search-provider.duckduckgo.contract.test.ts",
+            "web-search-provider.exa.contract.test.ts",
+            "web-search-provider.firecrawl.contract.test.ts",
+            "web-search-provider.google.contract.test.ts",
+            "web-search-provider.perplexity.contract.test.ts",
+            "web-search-provider.tavily.contract.test.ts"
+        ],
+        "provider_specific_contract_invocation": "describeWebSearchProviderContracts(providerId)",
         "base_provider_contract": {
             "provider_id_regex": "^[a-z0-9][a-z0-9-]*$",
             "required_non_empty_fields": ["label", "hint", "placeholder"],

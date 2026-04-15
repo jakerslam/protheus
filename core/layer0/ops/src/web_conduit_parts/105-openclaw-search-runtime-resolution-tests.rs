@@ -185,6 +185,26 @@ mod openclaw_search_runtime_resolution_tests {
             Some("duckduckgo")
         );
         assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_contract_suite_contract/provider_specific_contract_targets/2")
+                .and_then(Value::as_str),
+            Some("exa")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_contract_suite_contract/provider_specific_contract_targets/6")
+                .and_then(Value::as_str),
+            Some("tavily")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_contract_suite_contract/registry_contract_test_files/4")
+                .and_then(Value::as_str),
+            Some("web-search-provider.google.contract.test.ts")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_contract_suite_contract/provider_specific_contract_invocation")
+                .and_then(Value::as_str),
+            Some("describeWebSearchProviderContracts(providerId)")
+        );
+        assert_eq!(
             out.pointer("/openclaw_runtime_contract/provider_contract_suite_contract/base_provider_contract/provider_id_regex")
                 .and_then(Value::as_str),
             Some("^[a-z0-9][a-z0-9-]*$")
