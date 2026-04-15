@@ -247,7 +247,16 @@ fn policy_allows(request: &TypedOrchestrationRequest, capability: &Capability) -
             format!("probe.capability_probes.{key}.policy_allows"),
         );
     }
-    (true, "heuristic.policy_default_allow".to_string())
+    let allows = if request.mutability == Mutability::ReadOnly {
+        true
+    } else {
+        !matches!(request.policy_scope, PolicyScope::CrossBoundary)
+            && !matches!(
+                request.operation_kind,
+                OperationKind::Mutate | OperationKind::Assimilate
+            )
+    };
+    (allows, "heuristic.policy_scope_and_mutability".to_string())
 }
 
 fn transport_available(
@@ -272,7 +281,19 @@ fn transport_available(
             format!("probe.capability_probes.{key}.transport_available"),
         );
     }
-    (true, "heuristic.transport_default_available".to_string())
+    let likely_transport = !request.tool_hints.is_empty()
+        || matches!(
+            request.resource_kind,
+            ResourceKind::Web | ResourceKind::Tooling | ResourceKind::Mixed
+        )
+        || matches!(
+            request.operation_kind,
+            OperationKind::Search
+                | OperationKind::Fetch
+                | OperationKind::Compare
+                | OperationKind::InspectTooling
+        );
+    (likely_transport, "heuristic.transport_hints_or_operation".to_string())
 }
 
 fn dedupe<T: Ord>(rows: &mut Vec<T>) {

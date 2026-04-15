@@ -390,7 +390,71 @@ fn strategy_capabilities_for_variant(
             StrategyFamily::Balanced => capabilities.to_vec(),
         }
     } else {
-        capabilities.to_vec()
+        match strategy_family {
+            StrategyFamily::ToolFirst => {
+                let mut out = Vec::new();
+                if has_capability(capabilities, Capability::ExecuteTool) {
+                    out.push(Capability::ExecuteTool);
+                }
+                if has_capability(capabilities, Capability::VerifyClaim) {
+                    out.push(Capability::VerifyClaim);
+                }
+                if has_capability(capabilities, Capability::ReadMemory)
+                    && (out.is_empty()
+                        || capability_blocked(Capability::ExecuteTool, probes)
+                        || capability_blocked(Capability::VerifyClaim, probes))
+                {
+                    out.push(Capability::ReadMemory);
+                }
+                out
+            }
+            StrategyFamily::TopologyFirst => {
+                let mut out = Vec::new();
+                if has_capability(capabilities, Capability::ReadMemory) {
+                    out.push(Capability::ReadMemory);
+                }
+                if has_capability(capabilities, Capability::VerifyClaim) {
+                    out.push(Capability::VerifyClaim);
+                }
+                if has_capability(capabilities, Capability::ExecuteTool) && out.is_empty() {
+                    out.push(Capability::ExecuteTool);
+                }
+                out
+            }
+            StrategyFamily::MemoryFirst => {
+                let mut out = Vec::new();
+                if has_capability(capabilities, Capability::ReadMemory) {
+                    out.push(Capability::ReadMemory);
+                }
+                if has_capability(capabilities, Capability::MutateTask)
+                    && matches!(
+                        classification.request_class,
+                        RequestClass::TaskProposal | RequestClass::Mutation
+                    )
+                {
+                    out.push(Capability::MutateTask);
+                }
+                if has_capability(capabilities, Capability::PlanAssimilation)
+                    && classification.request_class == RequestClass::Assimilation
+                {
+                    out.push(Capability::PlanAssimilation);
+                }
+                if has_capability(capabilities, Capability::VerifyClaim)
+                    && !capability_blocked(Capability::VerifyClaim, probes)
+                {
+                    out.push(Capability::VerifyClaim);
+                }
+                if has_capability(capabilities, Capability::ExecuteTool)
+                    && !capability_blocked(Capability::ExecuteTool, probes)
+                    && !transport_explicitly_unavailable(request)
+                    && out.is_empty()
+                {
+                    out.push(Capability::ExecuteTool);
+                }
+                out
+            }
+            StrategyFamily::Balanced => capabilities.to_vec(),
+        }
     };
 
     match classification.request_class {
@@ -681,7 +745,18 @@ fn strategy_family_for(
                 StrategyFamily::Balanced
             }
         }
-        PlanVariant::Safest => StrategyFamily::Balanced,
+        PlanVariant::Safest => {
+            if !comparative
+                && matches!(
+                    classification.request_class,
+                    RequestClass::ReadOnly | RequestClass::ToolCall
+                )
+            {
+                StrategyFamily::TopologyFirst
+            } else {
+                StrategyFamily::Balanced
+            }
+        }
         PlanVariant::DegradedFallback => {
             if comparative
                 || matches!(
@@ -690,12 +765,22 @@ fn strategy_family_for(
                 )
             {
                 StrategyFamily::MemoryFirst
+            } else if matches!(
+                classification.request_class,
+                RequestClass::ReadOnly | RequestClass::ToolCall
+            ) {
+                StrategyFamily::TopologyFirst
             } else {
                 StrategyFamily::Balanced
             }
         }
         PlanVariant::ClarificationFirst => {
-            if comparative {
+            if comparative
+                || matches!(
+                    classification.request_class,
+                    RequestClass::ReadOnly | RequestClass::ToolCall
+                )
+            {
                 StrategyFamily::TopologyFirst
             } else {
                 StrategyFamily::Balanced

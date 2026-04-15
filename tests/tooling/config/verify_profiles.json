@@ -5,6 +5,7 @@
       "description": "Fast tooling profile for local policy/boundary sanity checks.",
       "gate_ids": [
         "ops:command-registry:check",
+        "ops:repo-health:check",
         "ops:layer0-ops:authority:audit",
         "ops:orchestration:ts-boundary:guard",
         "ops:root-surface:audit",
@@ -63,6 +64,7 @@
         "ops:orchestration:hidden-state:guard",
         "ops:orchestration:adapter-fallback:guard",
         "ops:orchestration:planner-quality:guard",
+        "ops:orchestration:runtime-quality:guard",
         "ops:orchestration:ts-boundary:guard",
         "ops:debt:expiry:guard",
         "ops:system:fitness:gate",

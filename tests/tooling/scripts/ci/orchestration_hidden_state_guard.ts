@@ -45,6 +45,16 @@ const PRESENTATION_FILES = new Set([
   'surface/orchestration/src/result_packaging.rs',
 ]);
 
+const REQUIRED_TRANSIENT_CONTEXT_PATTERNS: Array<{ re: RegExp; detail: string }> = [
+  { re: /\bstruct\s+TransientContextStore\s*\{[\s\S]*entries:\s*BTreeMap<[\s\S]*execution_observations:\s*BTreeMap</m, detail: 'transient_store_struct_fields' },
+  { re: /\bfn\s+upsert_execution_observation\s*\(/, detail: 'upsert_execution_observation' },
+  { re: /\bfn\s+execution_observation\s*\(/, detail: 'execution_observation_accessor' },
+  { re: /\bfn\s+clear_execution_observation\s*\(/, detail: 'clear_execution_observation' },
+  { re: /\bfn\s+prune_inactive_execution_observations\s*\(/, detail: 'prune_inactive_execution_observations' },
+  { re: /\bwrite_ephemeral\b/, detail: 'write_ephemeral_usage' },
+  { re: /\bcleanup_with_cas\b/, detail: 'cleanup_with_cas_usage' },
+];
+
 function parseArgs(argv: string[]): Args {
   const out: Args = {
     strict: false,
@@ -150,6 +160,14 @@ function run(args: Args): number {
           file: normalized,
           reason: 'transient_domain_violation',
           detail: 'transient context must remain isolated from planner and self_maintenance domains',
+        });
+      }
+      for (const pattern of REQUIRED_TRANSIENT_CONTEXT_PATTERNS) {
+        if (pattern.re.test(source)) continue;
+        violations.push({
+          file: normalized,
+          reason: 'transient_context_contract_missing',
+          detail: pattern.detail,
         });
       }
     }
