@@ -175,6 +175,41 @@ mod openclaw_search_runtime_resolution_tests {
             Some("hasConfiguredWebSearchCredential")
         );
         assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_config_contract/forced_provider_wrapper")
+                .and_then(Value::as_str),
+            Some("withForcedProvider")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_config_contract/scoped_credential_accessors/0")
+                .and_then(Value::as_str),
+            Some("getScopedCredentialValue")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_credential_resolution_contract/resolver")
+                .and_then(Value::as_str),
+            Some("resolveWebSearchProviderCredential")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_credential_resolution_contract/resolution_order/1")
+                .and_then(Value::as_str),
+            Some("config_secret_ref_env_value")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_common_runtime_contract/default_search_count")
+                .and_then(Value::as_u64),
+            Some(5)
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_common_runtime_contract/max_search_count")
+                .and_then(Value::as_u64),
+            Some(10)
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_common_runtime_contract/trusted_json_post_wrapper")
+                .and_then(Value::as_str),
+            Some("postTrustedWebToolsJson")
+        );
+        assert_eq!(
             out.pointer("/openclaw_runtime_contract/snapshot_cache_contract/cache_key_builder")
                 .and_then(Value::as_str),
             Some("buildWebProviderSnapshotCacheKey")

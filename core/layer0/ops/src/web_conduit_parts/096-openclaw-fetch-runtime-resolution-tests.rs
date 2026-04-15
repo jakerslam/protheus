@@ -148,6 +148,31 @@ mod openclaw_fetch_runtime_resolution_tests {
             Some("hasConfiguredWebFetchCredential")
         );
         assert_eq!(
+            out.pointer("/openclaw_runtime_contract/visibility_sanitization_contract/sanitizer_entrypoint")
+                .and_then(Value::as_str),
+            Some("sanitizeHtml")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/visibility_sanitization_contract/strip_invisible_unicode_entrypoint")
+                .and_then(Value::as_str),
+            Some("stripInvisibleUnicode")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/visibility_sanitization_contract/always_remove_tags/3")
+                .and_then(Value::as_str),
+            Some("canvas")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/visibility_sanitization_contract/hidden_class_name_contract/0")
+                .and_then(Value::as_str),
+            Some("sr-only")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/visibility_sanitization_contract/comment_stripping")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
             out.pointer("/openclaw_runtime_contract/snapshot_cache_contract/cache_key_builder")
                 .and_then(Value::as_str),
             Some("buildWebProviderSnapshotCacheKey")

@@ -68,6 +68,48 @@ fn search_credential_presence_contract() -> Value {
     })
 }
 
+fn search_provider_config_contract() -> Value {
+    json!({
+        "forced_provider_wrapper": "withForcedProvider",
+        "search_config_resolver": "resolveSearchConfig",
+        "provider_plugin_config_resolver": "resolveProviderWebSearchPluginConfig",
+        "provider_plugin_config_mutator": "setProviderWebSearchPluginConfigValue",
+        "scoped_config_merger": "mergeScopedSearchConfig",
+        "top_level_credential_accessors": ["getTopLevelCredentialValue", "setTopLevelCredentialValue"],
+        "scoped_credential_accessors": ["getScopedCredentialValue", "setScopedCredentialValue"],
+        "search_enabled_resolver": "resolveSearchEnabled",
+        "mirror_api_key_to_top_level_supported": true
+    })
+}
+
+fn search_provider_credential_resolution_contract() -> Value {
+    json!({
+        "resolver": "resolveWebSearchProviderCredential",
+        "resolution_order": [
+            "config_inline_value",
+            "config_secret_ref_env_value",
+            "fallback_env_vars"
+        ],
+        "secret_input_normalizers": ["normalizeSecretInputString", "normalizeSecretInput"],
+        "secret_ref_resolver": "resolveSecretInputRef",
+        "empty_or_whitespace_credentials_rejected": true
+    })
+}
+
+fn search_provider_common_runtime_contract() -> Value {
+    json!({
+        "default_search_count": 5,
+        "max_search_count": 10,
+        "timeout_resolver": "resolveSearchTimeoutSeconds",
+        "cache_ttl_resolver": "resolveSearchCacheTtlMs",
+        "count_clamper": "resolveSearchCount",
+        "date_range_parser": "parseIsoDateRange",
+        "trusted_endpoint_wrapper": "withTrustedWebSearchEndpoint",
+        "trusted_json_post_wrapper": "postTrustedWebToolsJson",
+        "site_name_resolver": "resolveSiteName"
+    })
+}
+
 fn search_runtime_provider_sort_contract() -> Value {
     json!({
         "alphabetical_sorter": "sortPluginProviders",
@@ -112,6 +154,9 @@ fn search_runtime_resolution_contract() -> Value {
         "diagnostic_code_contract": search_runtime_diagnostic_code_contract(),
         "provider_type_contract": search_runtime_provider_type_contract(),
         "credential_presence_contract": search_credential_presence_contract(),
+        "provider_config_contract": search_provider_config_contract(),
+        "provider_credential_resolution_contract": search_provider_credential_resolution_contract(),
+        "provider_common_runtime_contract": search_provider_common_runtime_contract(),
         "provider_sort_contract": search_runtime_provider_sort_contract(),
         "candidate_plugin_contract": search_runtime_candidate_plugin_contract(),
         "public_artifact_resolution_contract": search_public_artifact_resolution_contract(),

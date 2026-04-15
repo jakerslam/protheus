@@ -458,6 +458,34 @@ mod openclaw_runtime_web_tools_tests {
     }
 
     #[test]
+    fn runtime_web_tools_snapshot_exposes_openclaw_contract_markers() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let policy = json!({
+            "web_conduit": {
+                "search_provider_order": ["duckduckgo", "bing_rss"],
+                "fetch_provider_order": ["direct_http"]
+            }
+        });
+        let metadata = runtime_web_tools_snapshot(tmp.path(), &policy);
+        assert_eq!(
+            metadata
+                .pointer("/search/resolution_contract/runtime_mode")
+                .and_then(Value::as_str),
+            Some("built_in_only")
+        );
+        assert_eq!(
+            metadata
+                .pointer("/fetch/resolution_contract/runtime_mode")
+                .and_then(Value::as_str),
+            Some("built_in_only")
+        );
+        assert!(metadata
+            .pointer("/diagnostics")
+            .and_then(Value::as_array)
+            .is_some());
+    }
+
+    #[test]
     fn runtime_web_tools_snapshot_flags_invalid_search_provider_tokens() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let policy = json!({

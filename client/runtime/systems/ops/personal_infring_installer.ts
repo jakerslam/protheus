@@ -12,8 +12,12 @@ const target = path.resolve(__dirname, 'infring_setup_wizard.ts');
 installTsRequireHook();
 const impl = require(target);
 
+function normalizeArgs(argv = process.argv.slice(2)) {
+  return Array.isArray(argv) ? argv.map((token) => String(token || '').trim()).filter(Boolean) : [];
+}
+
 async function main(argv = process.argv.slice(2)) {
-  const outcome = await Promise.resolve(impl.main(Array.isArray(argv) ? argv : []));
+  const outcome = await Promise.resolve(impl.main(normalizeArgs(argv)));
   return Number.isFinite(Number(outcome)) ? Number(outcome) : 1;
 }
 
@@ -34,5 +38,6 @@ if (require.main === module) {
 
 module.exports = {
   ...impl,
+  normalizeArgs,
   main,
 };
