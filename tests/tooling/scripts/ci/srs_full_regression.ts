@@ -10,13 +10,54 @@ import { emitStructuredResult, writeJsonArtifact, writeTextArtifact } from '../.
 
 const SRS_PATH = 'docs/workspace/SRS.md';
 const TODO_PATH = 'docs/workspace/TODO.md';
-const OUT_JSON = 'core/local/artifacts/srs_full_regression_current.json';
-const OUT_MD = 'local/workspace/reports/SRS_FULL_REGRESSION_CURRENT.md';
+const OUT_JSON =
+  readAliasedEnv('INFRING_SRS_FULL_REGRESSION_OUT_JSON', 'PROTHEUS_SRS_FULL_REGRESSION_OUT_JSON')
+  || 'core/local/artifacts/srs_full_regression_current.json';
+const OUT_MD =
+  readAliasedEnv('INFRING_SRS_FULL_REGRESSION_OUT_MD', 'PROTHEUS_SRS_FULL_REGRESSION_OUT_MD')
+  || 'local/workspace/reports/SRS_FULL_REGRESSION_CURRENT.md';
+
+function readAliasedEnv(primary, legacy) {
+  const preferred = String(process.env[primary] || '').trim();
+  const legacyValue = String(process.env[legacy] || '').trim();
+  if (!preferred && legacyValue) {
+    process.env[primary] = legacyValue;
+    return legacyValue;
+  }
+  if (preferred && !legacyValue) {
+    process.env[legacy] = preferred;
+  }
+  return preferred;
+}
+
+function readAliasedBool(primary, legacy, fallback) {
+  const value = readAliasedEnv(primary, legacy);
+  if (!value) return fallback;
+  return parseBool(value, fallback);
+}
 
 function parseCliFlags(argv = process.argv.slice(2)) {
   return {
-    strict: hasFlag(argv, 'strict') || parseBool(readFlag(argv, 'strict'), false),
-    failOnWarn: hasFlag(argv, 'fail-on-warn') || parseBool(readFlag(argv, 'fail-on-warn'), false),
+    strict:
+      hasFlag(argv, 'strict')
+      || parseBool(
+        readFlag(argv, 'strict'),
+        readAliasedBool(
+          'INFRING_SRS_FULL_REGRESSION_STRICT',
+          'PROTHEUS_SRS_FULL_REGRESSION_STRICT',
+          false
+        )
+      ),
+    failOnWarn:
+      hasFlag(argv, 'fail-on-warn')
+      || parseBool(
+        readFlag(argv, 'fail-on-warn'),
+        readAliasedBool(
+          'INFRING_SRS_FULL_REGRESSION_FAIL_ON_WARN',
+          'PROTHEUS_SRS_FULL_REGRESSION_FAIL_ON_WARN',
+          false
+        )
+      ),
     outJson: String(readFlag(argv, 'out-json') || OUT_JSON),
     outMarkdown: String(readFlag(argv, 'out-markdown') || OUT_MD),
   };

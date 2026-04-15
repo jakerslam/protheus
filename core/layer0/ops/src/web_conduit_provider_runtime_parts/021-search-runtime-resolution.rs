@@ -147,6 +147,28 @@ fn search_provider_runtime_contract() -> Value {
     })
 }
 
+fn search_provider_runtime_module_contract() -> Value {
+    json!({
+        "runtime_module_targets": [
+            "src/plugins/provider-runtime.test.ts",
+            "src/plugins/provider-runtime.ts",
+            "src/plugins/provider-runtime.runtime.ts",
+            "src/plugins/provider-runtime-model.types.ts",
+            "src/plugins/provider-runtime.test-support.ts"
+        ],
+        "module_runtime_entrypoints": [
+            "resolveProviderRuntime",
+            "resolveProviderRuntimeModels",
+            "resolveProviderRuntimeMetadata"
+        ],
+        "module_runtime_invariants": [
+            "runtime_module_resolution_contract",
+            "runtime_model_alias_contract",
+            "runtime_test_support_contract"
+        ]
+    })
+}
+
 fn search_provider_family_contract_suite_contract() -> Value {
     json!({
         "suite_scope": "provider_family_contracts",
@@ -379,6 +401,7 @@ fn search_runtime_resolution_contract() -> Value {
         "provider_contract_suite_contract": search_provider_contract_suite_contract(),
         "provider_registry_contract": search_provider_registry_contract(),
         "provider_runtime_contract": search_provider_runtime_contract(),
+        "provider_runtime_module_contract": search_provider_runtime_module_contract(),
         "provider_family_contract_suite_contract": search_provider_family_contract_suite_contract(),
         "provider_auth_contract": search_provider_auth_contract(),
         "provider_config_contract": search_provider_config_contract(),

@@ -8,10 +8,26 @@ const { bootstrap } = require('./ts_bootstrap.ts');
 
 function usage() {
   process.stderr.write('Usage: node client/runtime/lib/ts_entrypoint.ts <target.ts> [args...]\n');
+  process.stderr.write('   or set INFRING_TS_ENTRY_TARGET / PROTHEUS_TS_ENTRY_TARGET\n');
+}
+
+function resolveEntrypointTarget(rawTarget) {
+  const cliTarget = String(rawTarget || '').trim();
+  if (cliTarget) return cliTarget;
+  const preferred = String(process.env.INFRING_TS_ENTRY_TARGET || '').trim();
+  const legacy = String(process.env.PROTHEUS_TS_ENTRY_TARGET || '').trim();
+  if (!preferred && legacy) {
+    process.env.INFRING_TS_ENTRY_TARGET = legacy;
+    return legacy;
+  }
+  if (preferred && !legacy) {
+    process.env.PROTHEUS_TS_ENTRY_TARGET = preferred;
+  }
+  return preferred;
 }
 
 function main() {
-  const target = String(process.argv[2] || '').trim();
+  const target = resolveEntrypointTarget(process.argv[2]);
   if (!target) {
     usage();
     process.exit(2);
