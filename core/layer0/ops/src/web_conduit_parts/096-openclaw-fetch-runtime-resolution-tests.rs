@@ -173,6 +173,41 @@ mod openclaw_fetch_runtime_resolution_tests {
             Some(true)
         );
         assert_eq!(
+            out.pointer("/openclaw_runtime_contract/shared_runtime_contract/timeout_default_seconds")
+                .and_then(Value::as_u64),
+            Some(30)
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/shared_runtime_contract/cache_ttl_default_minutes")
+                .and_then(Value::as_u64),
+            Some(15)
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/shared_runtime_contract/cache_write_helper")
+                .and_then(Value::as_str),
+            Some("writeCache")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/content_extraction_contract/html_to_markdown_entrypoint")
+                .and_then(Value::as_str),
+            Some("htmlToMarkdown")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/content_extraction_contract/readable_extraction_entrypoint")
+                .and_then(Value::as_str),
+            Some("extractReadableContent")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/content_extraction_contract/readability_html_char_guard")
+                .and_then(Value::as_u64),
+            Some(1_000_000)
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/content_extraction_contract/invisible_unicode_stripping_required")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
             out.pointer("/openclaw_runtime_contract/snapshot_cache_contract/cache_key_builder")
                 .and_then(Value::as_str),
             Some("buildWebProviderSnapshotCacheKey")

@@ -205,9 +205,44 @@ mod openclaw_search_runtime_resolution_tests {
             Some(10)
         );
         assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_common_runtime_contract/timeout_default_seconds")
+                .and_then(Value::as_u64),
+            Some(30)
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_common_runtime_contract/cache_ttl_default_minutes")
+                .and_then(Value::as_u64),
+            Some(15)
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/provider_common_runtime_contract/cache_write_helper")
+                .and_then(Value::as_str),
+            Some("writeCache")
+        );
+        assert_eq!(
             out.pointer("/openclaw_runtime_contract/provider_common_runtime_contract/trusted_json_post_wrapper")
                 .and_then(Value::as_str),
             Some("postTrustedWebToolsJson")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/citation_redirect_contract/resolver_entrypoint")
+                .and_then(Value::as_str),
+            Some("resolveCitationRedirectUrl")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/citation_redirect_contract/request_method")
+                .and_then(Value::as_str),
+            Some("HEAD")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/citation_redirect_contract/timeout_ms")
+                .and_then(Value::as_u64),
+            Some(5000)
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/citation_redirect_contract/failure_fallback")
+                .and_then(Value::as_str),
+            Some("returns_original_url")
         );
         assert_eq!(
             out.pointer("/openclaw_runtime_contract/snapshot_cache_contract/cache_key_builder")

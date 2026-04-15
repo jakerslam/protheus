@@ -9,6 +9,24 @@ pub(crate) fn runtime_web_tools_state_path(root: &Path) -> PathBuf {
     runtime_web_tools_metadata_path(root)
 }
 
+fn runtime_web_tools_exports_contract() -> Value {
+    json!({
+        "module_entrypoint": "src/agents/tools/web-tools.ts",
+        "exports": ["createWebFetchTool", "createWebSearchTool"],
+        "web_fetch_factory": "createWebFetchTool",
+        "web_search_factory": "createWebSearchTool"
+    })
+}
+
+fn runtime_web_tools_default_enablement_contract() -> Value {
+    json!({
+        "web_fetch_enabled_by_default_non_sandbox": true,
+        "web_fetch_explicit_disable_supported": true,
+        "runtime_metadata_provider_override_supported": true,
+        "runtime_metadata_provider_override_field": "runtimeWebSearch.selectedProvider"
+    })
+}
+
 fn default_runtime_web_tools_metadata() -> Value {
     json!({
         "search": {
@@ -34,6 +52,10 @@ fn default_runtime_web_tools_metadata() -> Value {
             "diagnostics": []
         },
         "image_tool": default_image_tool_runtime_metadata(),
+        "openclaw_web_tools_contract": {
+            "exports": runtime_web_tools_exports_contract(),
+            "default_enablement": runtime_web_tools_default_enablement_contract()
+        },
         "diagnostics": []
     })
 }
@@ -392,6 +414,10 @@ pub(crate) fn runtime_web_tools_snapshot(root: &Path, policy: &Value) -> Value {
         "search": search,
         "fetch": fetch,
         "image_tool": image_tool,
+        "openclaw_web_tools_contract": {
+            "exports": runtime_web_tools_exports_contract(),
+            "default_enablement": runtime_web_tools_default_enablement_contract()
+        },
         "diagnostics": diagnostics
     });
     store_active_runtime_web_tools_metadata(root, &metadata);
@@ -478,6 +504,30 @@ mod openclaw_runtime_web_tools_tests {
                 .pointer("/fetch/resolution_contract/runtime_mode")
                 .and_then(Value::as_str),
             Some("built_in_only")
+        );
+        assert_eq!(
+            metadata
+                .pointer("/openclaw_web_tools_contract/exports/module_entrypoint")
+                .and_then(Value::as_str),
+            Some("src/agents/tools/web-tools.ts")
+        );
+        assert_eq!(
+            metadata
+                .pointer("/openclaw_web_tools_contract/exports/exports/0")
+                .and_then(Value::as_str),
+            Some("createWebFetchTool")
+        );
+        assert_eq!(
+            metadata
+                .pointer("/openclaw_web_tools_contract/default_enablement/web_fetch_enabled_by_default_non_sandbox")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            metadata
+                .pointer("/openclaw_web_tools_contract/default_enablement/runtime_metadata_provider_override_field")
+                .and_then(Value::as_str),
+            Some("runtimeWebSearch.selectedProvider")
         );
         assert!(metadata
             .pointer("/diagnostics")

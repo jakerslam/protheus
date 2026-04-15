@@ -100,13 +100,33 @@ fn search_provider_common_runtime_contract() -> Value {
     json!({
         "default_search_count": 5,
         "max_search_count": 10,
+        "timeout_default_seconds": 30,
+        "cache_ttl_default_minutes": 15,
+        "cache_default_max_entries": 100,
         "timeout_resolver": "resolveSearchTimeoutSeconds",
         "cache_ttl_resolver": "resolveSearchCacheTtlMs",
+        "shared_timeout_resolver": "resolveTimeoutSeconds",
+        "shared_cache_ttl_resolver": "resolveCacheTtlMs",
+        "cache_key_normalizer": "normalizeCacheKey",
+        "cache_read_helper": "readCache",
+        "cache_write_helper": "writeCache",
+        "response_reader": "readResponseText",
+        "timeout_signal_wrapper": "withTimeout",
         "count_clamper": "resolveSearchCount",
         "date_range_parser": "parseIsoDateRange",
         "trusted_endpoint_wrapper": "withTrustedWebSearchEndpoint",
         "trusted_json_post_wrapper": "postTrustedWebToolsJson",
         "site_name_resolver": "resolveSiteName"
+    })
+}
+
+fn search_citation_redirect_contract() -> Value {
+    json!({
+        "resolver_entrypoint": "resolveCitationRedirectUrl",
+        "transport_wrapper": "withStrictWebToolsEndpoint",
+        "request_method": "HEAD",
+        "timeout_ms": 5000,
+        "failure_fallback": "returns_original_url"
     })
 }
 
@@ -157,6 +177,7 @@ fn search_runtime_resolution_contract() -> Value {
         "provider_config_contract": search_provider_config_contract(),
         "provider_credential_resolution_contract": search_provider_credential_resolution_contract(),
         "provider_common_runtime_contract": search_provider_common_runtime_contract(),
+        "citation_redirect_contract": search_citation_redirect_contract(),
         "provider_sort_contract": search_runtime_provider_sort_contract(),
         "candidate_plugin_contract": search_runtime_candidate_plugin_contract(),
         "public_artifact_resolution_contract": search_public_artifact_resolution_contract(),

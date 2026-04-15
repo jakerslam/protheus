@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-15T07:36:31.107Z",
+  "generated_at": "2026-04-15T10:42:00.000Z",
   "scope": [
     "core",
     "client/runtime",
@@ -12674,7 +12674,7 @@
       "order": 1151
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ops/run_infring_ops.ts",
       "language": "ts",
       "loc": 4,
@@ -12729,7 +12729,7 @@
       "order": 1156
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ops/backlog_intake_quality_gate.ts",
       "language": "ts",
       "loc": 3,
@@ -12740,7 +12740,7 @@
       "order": 1157
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ops/composite_disaster_gameday.ts",
       "language": "ts",
       "loc": 3,
@@ -12751,7 +12751,7 @@
       "order": 1158
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ops/continuous_chaos_resilience.ts",
       "language": "ts",
       "loc": 3,
@@ -12762,7 +12762,7 @@
       "order": 1159
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ops/critical_path_policy_coverage.ts",
       "language": "ts",
       "loc": 3,
