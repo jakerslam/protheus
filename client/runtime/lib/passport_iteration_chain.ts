@@ -7,10 +7,20 @@ export {};
 
 const path = require('path');
 const { createOpsLaneBridge } = require('./rust_lane_bridge.ts');
+const { normalizeOpsBridgeEnvAliases } = require('./queued_backlog_runtime.ts');
+
+normalizeOpsBridgeEnvAliases();
 
 function runtimeRoot() {
-  if (process.env.PROTHEUS_RUNTIME_ROOT) {
-    return path.resolve(String(process.env.PROTHEUS_RUNTIME_ROOT));
+  if (process.env.INFRING_RUNTIME_ROOT || process.env.PROTHEUS_RUNTIME_ROOT) {
+    return path.resolve(String(process.env.INFRING_RUNTIME_ROOT || process.env.PROTHEUS_RUNTIME_ROOT));
+  }
+  if (process.env.INFRING_WORKSPACE_ROOT || process.env.PROTHEUS_WORKSPACE_ROOT) {
+    return path.join(
+      path.resolve(String(process.env.INFRING_WORKSPACE_ROOT || process.env.PROTHEUS_WORKSPACE_ROOT)),
+      'client',
+      'runtime'
+    );
   }
   return path.resolve(__dirname, '..');
 }
@@ -28,15 +38,23 @@ function normalizeToken(v, maxLen = 160) {
 }
 
 const ROOT = runtimeRoot();
-const CHAIN_PATH = process.env.PASSPORT_ITERATION_CHAIN_PATH
+const CHAIN_PATH = process.env.INFRING_PASSPORT_ITERATION_CHAIN_PATH
+  ? path.resolve(String(process.env.INFRING_PASSPORT_ITERATION_CHAIN_PATH))
+  : process.env.PASSPORT_ITERATION_CHAIN_PATH
   ? path.resolve(String(process.env.PASSPORT_ITERATION_CHAIN_PATH))
   : path.join(ROOT, 'local', 'state', 'security', 'passport_iteration_chain.jsonl');
-const LATEST_PATH = process.env.PASSPORT_ITERATION_CHAIN_LATEST_PATH
+const LATEST_PATH = process.env.INFRING_PASSPORT_ITERATION_CHAIN_LATEST_PATH
+  ? path.resolve(String(process.env.INFRING_PASSPORT_ITERATION_CHAIN_LATEST_PATH))
+  : process.env.PASSPORT_ITERATION_CHAIN_LATEST_PATH
   ? path.resolve(String(process.env.PASSPORT_ITERATION_CHAIN_LATEST_PATH))
   : path.join(ROOT, 'local', 'state', 'security', 'passport_iteration_chain.latest.json');
 
-process.env.PROTHEUS_OPS_USE_PREBUILT = process.env.PROTHEUS_OPS_USE_PREBUILT || '0';
-process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '120000';
+process.env.INFRING_OPS_USE_PREBUILT = process.env.INFRING_OPS_USE_PREBUILT || '0';
+process.env.PROTHEUS_OPS_USE_PREBUILT =
+  process.env.PROTHEUS_OPS_USE_PREBUILT || process.env.INFRING_OPS_USE_PREBUILT || '0';
+process.env.INFRING_OPS_LOCAL_TIMEOUT_MS = process.env.INFRING_OPS_LOCAL_TIMEOUT_MS || '120000';
+process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS =
+  process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || process.env.INFRING_OPS_LOCAL_TIMEOUT_MS || '120000';
 const bridge = createOpsLaneBridge(__dirname, 'passport_iteration_chain', 'passport-iteration-chain-kernel');
 
 function encodeBase64(value) {
