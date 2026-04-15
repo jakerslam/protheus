@@ -1,20 +1,20 @@
 # CODEX File Ledger
 
-Generated: 2026-04-13T19:20:24.452Z
+Generated: 2026-04-15T05:08:30.000Z
 
 ## Status Counts
 
-- done: 778
-- queued: 2128
+- done: 853
+- queued: 2053
 - blocked: 0
 - in_progress: 0
 - existing-coverage-validated: 0
 
 ## Active Wave
 
-- `2026-04-13-openclaw-tooling-wave-009`
-- `1829` `client/runtime/systems/ui/infring_static/js/app.ts.parts/040-events-and-actions.part01.ts`
-- `1881` `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/060-suggestions-and-hints.ts`
-- `1926` `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/070-init-sequences-and-pointer.part02.ts`
-- `2016` `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/200-send-pipeline.part02.ts`
-- `2018` `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/110-failover-and-health.part02.ts`
+- `2026-04-15-codex-tooling-wave-010`
+- `481` `core/layer0/ops/src/rag_cli.rs`
+- `487` `core/layer0/ops/src/mutation_provenance_kernel.rs`
+- `491` `core/layer0/ops/src/daemon_control_parts/010-print-json-line.rs`
+- `492` `core/layer0/ops/src/approval_gate_kernel.rs`
+- `495` `core/layer0/ops/src/local_state_digest_kernel.rs`
