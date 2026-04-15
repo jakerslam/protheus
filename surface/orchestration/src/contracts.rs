@@ -199,6 +199,12 @@ pub struct CoreExecutionObservation {
     pub step_statuses: Vec<CoreExecutionStepObservation>,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct OrchestrationExecutionObservationUpdate {
+    pub session_id: String,
+    pub observation: CoreExecutionObservation,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ContextAtomAppendSourceKind {

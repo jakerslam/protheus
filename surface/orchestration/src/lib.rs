@@ -14,8 +14,9 @@ pub mod transient_context;
 
 use contracts::{
     CoreExecutionObservation, DegradationReason, ExecutionCorrelation, ExecutionState,
-    OrchestrationPlan, OrchestrationRequest, OrchestrationResultPackage, PlanCandidate, PlanScore,
-    PlanStatus, PlanVariant, RecoveryDecision, RecoveryReason, RecoveryState,
+    OrchestrationExecutionObservationUpdate, OrchestrationPlan, OrchestrationRequest,
+    OrchestrationResultPackage, PlanCandidate, PlanScore, PlanStatus, PlanVariant,
+    RecoveryDecision, RecoveryReason, RecoveryState,
 };
 use std::collections::BTreeMap;
 use transient_context::{TransientContextStore, TransientSleepCleanupReport};
@@ -217,16 +218,27 @@ impl OrchestrationSurfaceRuntime {
         self.transient.run_sleep_cycle_cleanup(sleep_cycle_id)
     }
 
+    pub fn apply_execution_observation_update(
+        &mut self,
+        update: OrchestrationExecutionObservationUpdate,
+    ) {
+        let session_id = update.session_id.trim().to_string();
+        if session_id.is_empty() {
+            return;
+        }
+        self.execution_observations
+            .insert(session_id, update.observation);
+    }
+
     pub fn record_execution_observation(
         &mut self,
         session_id: impl Into<String>,
         observation: CoreExecutionObservation,
     ) {
-        let session_id = session_id.into();
-        if session_id.trim().is_empty() {
-            return;
-        }
-        self.execution_observations.insert(session_id, observation);
+        self.apply_execution_observation_update(OrchestrationExecutionObservationUpdate {
+            session_id: session_id.into(),
+            observation,
+        });
     }
 
     pub fn clear_execution_observation(&mut self, session_id: &str) {

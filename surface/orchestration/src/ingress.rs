@@ -3,9 +3,8 @@ mod classifier;
 mod parser;
 
 use crate::contracts::{
-    Capability, CapabilityProbeSnapshot, CoreExecutionObservation, CoreExecutionStepObservation,
-    CoreProbeEnvelope, Mutability, OperationKind, OrchestrationRequest, ParseResult, PlanStatus,
-    RequestKind, RequestSurface, ResourceKind, StepStatus, TargetDescriptor,
+    Capability, CapabilityProbeSnapshot, CoreProbeEnvelope, Mutability, OperationKind,
+    OrchestrationRequest, ParseResult, RequestKind, RequestSurface, ResourceKind, TargetDescriptor,
     TypedOrchestrationRequest,
 };
 use serde_json::{Map, Value};
@@ -76,7 +75,6 @@ pub fn normalize_request(input: OrchestrationRequest) -> ParseResult {
         .map(|row| row.reasons.clone())
         .unwrap_or_default();
     let core_probe_envelope = extract_core_probe_envelope(&payload, surface);
-    let core_execution_observation = extract_core_execution_observation(&payload, surface);
 
     classifier::parse_diagnostics(
         TypedOrchestrationRequest {
@@ -95,7 +93,7 @@ pub fn normalize_request(input: OrchestrationRequest) -> ParseResult {
             policy_scope,
             user_constraints,
             core_probe_envelope,
-            core_execution_observation,
+            core_execution_observation: None,
         },
         &operation_candidates,
         &resource_candidates,
@@ -421,118 +419,6 @@ fn parse_capability_name(value: &str) -> Option<Capability> {
     }
 }
 
-fn extract_core_execution_observation(
-    payload: &Value,
-    surface: RequestSurface,
-) -> Option<CoreExecutionObservation> {
-    let value = if matches!(surface, RequestSurface::Legacy) {
-        payload
-            .get("core_execution_observation")
-            .or_else(|| payload.get("core_execution"))?
-    } else {
-        payload.get("core_execution_observation")?
-    };
-    let status = value
-        .get("status")
-        .and_then(Value::as_str)
-        .and_then(parse_plan_status);
-    let receipt_ids: Vec<String> = value
-        .get("receipt_ids")
-        .and_then(Value::as_array)
-        .map(|rows| parse_string_array(rows.as_slice()))
-        .unwrap_or_default();
-    let outcome_refs: Vec<String> = value
-        .get("outcome_refs")
-        .and_then(Value::as_array)
-        .map(|rows| parse_string_array(rows.as_slice()))
-        .unwrap_or_default();
-    let step_statuses = value
-        .get("step_statuses")
-        .map(parse_step_observations)
-        .unwrap_or_default();
-    let has_provenance =
-        !receipt_ids.is_empty() || !outcome_refs.is_empty() || !step_statuses.is_empty();
-    if !matches!(surface, RequestSurface::Legacy) && status.is_some() && !has_provenance {
-        return None;
-    }
-    if status.is_none()
-        && receipt_ids.is_empty()
-        && outcome_refs.is_empty()
-        && step_statuses.is_empty()
-    {
-        return None;
-    }
-    Some(CoreExecutionObservation {
-        plan_status: status,
-        receipt_ids,
-        outcome_refs,
-        step_statuses,
-    })
-}
-
-fn parse_string_array(value: &[Value]) -> Vec<String> {
-    let mut out = value
-        .iter()
-        .filter_map(Value::as_str)
-        .map(str::trim)
-        .filter(|row| !row.is_empty())
-        .map(ToString::to_string)
-        .collect::<Vec<_>>();
-    out.sort();
-    out.dedup();
-    out
-}
-
-fn parse_step_observations(value: &Value) -> Vec<CoreExecutionStepObservation> {
-    let Some(map) = value.as_object() else {
-        return Vec::new();
-    };
-    let mut out = Vec::new();
-    for (step_id, raw_status) in map {
-        let normalized = step_id.trim();
-        if normalized.is_empty() {
-            continue;
-        }
-        let Some(status) = raw_status.as_str().and_then(parse_step_status) else {
-            continue;
-        };
-        out.push(CoreExecutionStepObservation {
-            step_id: normalized.to_string(),
-            status,
-        });
-    }
-    out.sort_by(|left, right| left.step_id.cmp(&right.step_id));
-    out
-}
-
-fn parse_plan_status(value: &str) -> Option<PlanStatus> {
-    match value.trim().to_ascii_lowercase().as_str() {
-        "planned" => Some(PlanStatus::Planned),
-        "clarification_required" => Some(PlanStatus::ClarificationRequired),
-        "blocked" => Some(PlanStatus::Blocked),
-        "degraded" => Some(PlanStatus::Degraded),
-        "ready" => Some(PlanStatus::Ready),
-        "running" => Some(PlanStatus::Running),
-        "completed" | "succeeded" => Some(PlanStatus::Completed),
-        "failed" => Some(PlanStatus::Failed),
-        _ => None,
-    }
-}
-
-fn parse_step_status(value: &str) -> Option<StepStatus> {
-    match value.trim().to_ascii_lowercase().as_str() {
-        "pending" => Some(StepStatus::Pending),
-        "ready" => Some(StepStatus::Ready),
-        "blocked" => Some(StepStatus::Blocked),
-        "degraded" => Some(StepStatus::Degraded),
-        "skipped" => Some(StepStatus::Skipped),
-        "running" => Some(StepStatus::Running),
-        "completed" | "succeeded" => Some(StepStatus::Succeeded),
-        "failed" => Some(StepStatus::Failed),
-        _ => None,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -592,65 +478,50 @@ mod tests {
     }
 
     #[test]
-    fn legacy_surface_accepts_core_execution_compat_alias() {
-        let observed = extract_core_execution_observation(
-            &json!({
+    fn request_payload_execution_observation_is_ignored_for_legacy_surface() {
+        let parsed = normalize_request(OrchestrationRequest {
+            session_id: "legacy-observation".to_string(),
+            intent: "read status".to_string(),
+            surface: RequestSurface::Legacy,
+            payload: json!({
                 "core_execution": {
                     "status": "completed",
                     "receipt_ids": ["r1"]
-                }
-            }),
-            RequestSurface::Legacy,
-        )
-        .expect("legacy surface should keep compat alias");
-        assert_eq!(observed.plan_status, Some(PlanStatus::Completed));
-        assert_eq!(observed.receipt_ids, vec!["r1".to_string()]);
-    }
-
-    #[test]
-    fn non_legacy_surface_rejects_core_execution_compat_alias() {
-        let observed = extract_core_execution_observation(
-            &json!({
-                "core_execution": {
-                    "status": "completed",
-                    "receipt_ids": ["r1"]
-                }
-            }),
-            RequestSurface::Sdk,
-        );
-        assert!(observed.is_none());
-    }
-
-    #[test]
-    fn non_legacy_surface_rejects_status_only_observation_shortcut() {
-        let observed = extract_core_execution_observation(
-            &json!({
+                },
                 "core_execution_observation": {
-                    "status": "running"
+                    "status": "running",
+                    "receipt_ids": ["r2"]
                 }
             }),
-            RequestSurface::Sdk,
-        );
+        });
         assert!(
-            observed.is_none(),
-            "non-legacy execution observation must include provenance signals"
+            parsed.typed_request.core_execution_observation.is_none(),
+            "execution observation must be ingested via runtime observation channel"
         );
     }
 
     #[test]
-    fn non_legacy_surface_accepts_observation_with_provenance() {
-        let observed = extract_core_execution_observation(
-            &json!({
+    fn request_payload_execution_observation_is_ignored_for_typed_surface() {
+        let parsed = normalize_request(OrchestrationRequest {
+            session_id: "sdk-observation".to_string(),
+            intent: "search".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "search",
+                    "resource_kind": "web",
+                    "request_kind": "direct"
+                },
                 "core_execution_observation": {
                     "status": "running",
                     "receipt_ids": ["r1"]
                 }
             }),
-            RequestSurface::Sdk,
-        )
-        .expect("typed observation with provenance should be accepted");
-        assert_eq!(observed.plan_status, Some(PlanStatus::Running));
-        assert_eq!(observed.receipt_ids, vec!["r1".to_string()]);
+        });
+        assert!(
+            parsed.typed_request.core_execution_observation.is_none(),
+            "execution observation must be ingested via runtime observation channel"
+        );
     }
 
     #[test]
