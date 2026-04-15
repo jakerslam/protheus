@@ -89,10 +89,55 @@ fn fetch_content_extraction_contract() -> Value {
         "readable_extraction_entrypoint": "extractReadableContent",
         "basic_extraction_entrypoint": "extractBasicHtmlContent",
         "truncate_entrypoint": "truncateText",
+        "max_chars_enforced_after_wrapping": true,
+        "extract_readable_title_required": true,
+        "extract_readable_mode_parity": ["text", "markdown"],
         "readability_html_char_guard": 1_000_000,
         "readability_depth_guard": 3_000,
         "visibility_sanitization_required": true,
         "invisible_unicode_stripping_required": true
+    })
+}
+
+fn fetch_provider_fallback_contract() -> Value {
+    json!({
+        "fallback_trigger_contract": [
+            "direct_fetch_network_failure",
+            "direct_fetch_http_failure",
+            "readability_no_content"
+        ],
+        "provider_fallback_payload_rewrap_required": true,
+        "provider_fallback_payload_truncation_required": true,
+        "fallback_error_surface_contract": "provider_fallback_error_propagated",
+        "safe_final_url_contract": "unsafe_provider_final_url_replaced_with_requested_url"
+    })
+}
+
+fn fetch_ssrf_guard_contract() -> Value {
+    json!({
+        "blocked_before_fetch_contract": [
+            "localhost_hostname",
+            "private_ip_literal",
+            "dns_resolves_private_ip"
+        ],
+        "redirect_target_revalidation_required": true,
+        "rfc2544_benchmark_range_default": "deny",
+        "rfc2544_benchmark_range_opt_in_flag": "ssrfPolicy.allowRfc2544BenchmarkRange",
+        "public_host_allow_path": true,
+        "proxy_dns_pinning_required": true
+    })
+}
+
+fn fetch_response_and_wrapping_contract() -> Value {
+    json!({
+        "external_content_wrapper_required": true,
+        "external_content_wrapper_marker_regex": "<<<EXTERNAL_UNTRUSTED_CONTENT id=\\\"[a-f0-9]{16}\\\">>>",
+        "external_content_source_label": "web_fetch",
+        "content_type_not_wrapped": true,
+        "response_bytes_cap_enforced": true,
+        "response_stream_truncation_warning_contains": "Response body truncated",
+        "html_error_stripping_required": true,
+        "html_error_message_max_chars": 5000
     })
 }
 
@@ -143,6 +188,9 @@ fn fetch_runtime_resolution_contract() -> Value {
         "visibility_sanitization_contract": fetch_visibility_sanitization_contract(),
         "shared_runtime_contract": fetch_shared_runtime_contract(),
         "content_extraction_contract": fetch_content_extraction_contract(),
+        "provider_fallback_contract": fetch_provider_fallback_contract(),
+        "ssrf_guard_contract": fetch_ssrf_guard_contract(),
+        "response_and_wrapping_contract": fetch_response_and_wrapping_contract(),
         "provider_sort_contract": fetch_runtime_provider_sort_contract(),
         "candidate_plugin_contract": fetch_runtime_candidate_plugin_contract(),
         "public_artifact_resolution_contract": fetch_public_artifact_resolution_contract(),

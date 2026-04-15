@@ -130,6 +130,17 @@ fn search_citation_redirect_contract() -> Value {
     })
 }
 
+fn search_redirect_hardening_contract() -> Value {
+    json!({
+        "guarded_head_resolution_required": true,
+        "guarded_endpoint_entrypoint": "withStrictWebToolsEndpoint",
+        "final_url_resolution_field": "finalUrl",
+        "resolved_url_fallback": "original_url",
+        "failure_mode_contract": "never_throws_returns_original_url",
+        "ssrf_guard_applies_to_redirect_resolution": true
+    })
+}
+
 fn search_runtime_provider_sort_contract() -> Value {
     json!({
         "alphabetical_sorter": "sortPluginProviders",
@@ -178,6 +189,7 @@ fn search_runtime_resolution_contract() -> Value {
         "provider_credential_resolution_contract": search_provider_credential_resolution_contract(),
         "provider_common_runtime_contract": search_provider_common_runtime_contract(),
         "citation_redirect_contract": search_citation_redirect_contract(),
+        "redirect_hardening_contract": search_redirect_hardening_contract(),
         "provider_sort_contract": search_runtime_provider_sort_contract(),
         "candidate_plugin_contract": search_runtime_candidate_plugin_contract(),
         "public_artifact_resolution_contract": search_public_artifact_resolution_contract(),

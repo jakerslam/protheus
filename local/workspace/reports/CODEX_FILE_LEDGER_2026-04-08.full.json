@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-15T10:42:00.000Z",
+  "generated_at": "2026-04-15T11:10:00.000Z",
   "scope": [
     "core",
     "client/runtime",
@@ -12773,7 +12773,7 @@
       "order": 1160
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ops/dist_runtime_cutover.ts",
       "language": "ts",
       "loc": 3,
@@ -12784,7 +12784,7 @@
       "order": 1161
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ops/docs_coverage_gate.ts",
       "language": "ts",
       "loc": 3,
@@ -12795,7 +12795,7 @@
       "order": 1162
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ops/dr_gameday_gate.ts",
       "language": "ts",
       "loc": 3,
@@ -12806,7 +12806,7 @@
       "order": 1163
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ops/dynamic_burn_budget_oracle.ts",
       "language": "ts",
       "loc": 3,
@@ -12817,7 +12817,7 @@
       "order": 1164
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ops/error_budget_release_gate.ts",
       "language": "ts",
       "loc": 3,

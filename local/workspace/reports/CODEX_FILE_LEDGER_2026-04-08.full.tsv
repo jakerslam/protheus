@@ -1159,11 +1159,11 @@ order	status	file	language	loc	authority_risk_score	migration_potential_score	co
 1158	done	client/runtime/systems/ops/composite_disaster_gameday.ts	ts	3	4	5	3	4.1
 1159	done	client/runtime/systems/ops/continuous_chaos_resilience.ts	ts	3	4	5	3	4.1
 1160	done	client/runtime/systems/ops/critical_path_policy_coverage.ts	ts	3	4	5	3	4.1
-1161	queued	client/runtime/systems/ops/dist_runtime_cutover.ts	ts	3	4	5	3	4.1
-1162	queued	client/runtime/systems/ops/docs_coverage_gate.ts	ts	3	4	5	3	4.1
-1163	queued	client/runtime/systems/ops/dr_gameday_gate.ts	ts	3	4	5	3	4.1
-1164	queued	client/runtime/systems/ops/dynamic_burn_budget_oracle.ts	ts	3	4	5	3	4.1
-1165	queued	client/runtime/systems/ops/error_budget_release_gate.ts	ts	3	4	5	3	4.1
+1161	done	client/runtime/systems/ops/dist_runtime_cutover.ts	ts	3	4	5	3	4.1
+1162	done	client/runtime/systems/ops/docs_coverage_gate.ts	ts	3	4	5	3	4.1
+1163	done	client/runtime/systems/ops/dr_gameday_gate.ts	ts	3	4	5	3	4.1
+1164	done	client/runtime/systems/ops/dynamic_burn_budget_oracle.ts	ts	3	4	5	3	4.1
+1165	done	client/runtime/systems/ops/error_budget_release_gate.ts	ts	3	4	5	3	4.1
 1166	queued	client/runtime/systems/ops/js_holdout_audit.ts	ts	3	4	5	3	4.1
 1167	queued	client/runtime/systems/ops/phone_seed_profile.ts	ts	3	4	5	3	4.1
 1168	queued	client/runtime/systems/ops/predictive_capacity_forecast.ts	ts	3	4	5	3	4.1

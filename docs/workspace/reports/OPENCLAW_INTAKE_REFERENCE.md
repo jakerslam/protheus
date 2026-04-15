@@ -120,7 +120,7 @@
     - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/210-scroll-hover-sanitize.part01.ts`
     - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/220-artifacts-voice-search.part02.ts`
 ## Current Intake State
-- Imported rows in this wave: `85`
+- Imported rows in this wave: `90`
 - Pending rows in this wave: `0`
 
 - `OPENCLAW-TOOLING-APP-013`:
@@ -250,6 +250,19 @@
     - `src/agents/tools/web-fetch-utils.ts`
     - `src/agents/tools/web-tools.ts`
     - `src/agents/tools/web-tools.enabled-defaults.test.ts`
+  - Landed in:
+    - `core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state.rs`
+    - `core/layer0/ops/src/web_conduit_provider_runtime_parts/019-fetch-runtime-resolution.rs`
+    - `core/layer0/ops/src/web_conduit_provider_runtime_parts/021-search-runtime-resolution.rs`
+    - `core/layer0/ops/src/web_conduit_parts/096-openclaw-fetch-runtime-resolution-tests.rs`
+    - `core/layer0/ops/src/web_conduit_parts/105-openclaw-search-runtime-resolution-tests.rs`
+- `OPENCLAW-TOOLING-WEB-024`:
+  - Imported fallback/SSRF/redirect/readability hardening semantics from:
+    - `src/agents/tools/web-fetch.provider-fallback.test.ts`
+    - `src/agents/tools/web-fetch.ssrf.test.ts`
+    - `src/agents/tools/web-search.redirect.test.ts`
+    - `src/agents/tools/web-tools.fetch.test.ts`
+    - `src/agents/tools/web-tools.readability.test.ts`
   - Landed in:
     - `core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state.rs`
     - `core/layer0/ops/src/web_conduit_provider_runtime_parts/019-fetch-runtime-resolution.rs`

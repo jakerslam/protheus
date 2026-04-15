@@ -12,8 +12,9 @@ pub(crate) fn runtime_web_tools_state_path(root: &Path) -> PathBuf {
 fn runtime_web_tools_exports_contract() -> Value {
     json!({
         "module_entrypoint": "src/agents/tools/web-tools.ts",
-        "exports": ["createWebFetchTool", "createWebSearchTool"],
+        "exports": ["createWebFetchTool", "extractReadableContent", "createWebSearchTool"],
         "web_fetch_factory": "createWebFetchTool",
+        "readability_helper": "extractReadableContent",
         "web_search_factory": "createWebSearchTool"
     })
 }
@@ -22,6 +23,15 @@ fn runtime_web_tools_default_enablement_contract() -> Value {
     json!({
         "web_fetch_enabled_by_default_non_sandbox": true,
         "web_fetch_explicit_disable_supported": true,
+        "web_search_runtime_provider_override_supported": true,
+        "web_search_runtime_only_provider_hydration": true,
+        "runtime_web_search_metadata_fields": [
+            "providerConfigured",
+            "providerSource",
+            "selectedProvider",
+            "selectedProviderKeySource",
+            "diagnostics"
+        ],
         "runtime_metadata_provider_override_supported": true,
         "runtime_metadata_provider_override_field": "runtimeWebSearch.selectedProvider"
     })
@@ -519,9 +529,33 @@ mod openclaw_runtime_web_tools_tests {
         );
         assert_eq!(
             metadata
+                .pointer("/openclaw_web_tools_contract/exports/exports/1")
+                .and_then(Value::as_str),
+            Some("extractReadableContent")
+        );
+        assert_eq!(
+            metadata
+                .pointer("/openclaw_web_tools_contract/exports/readability_helper")
+                .and_then(Value::as_str),
+            Some("extractReadableContent")
+        );
+        assert_eq!(
+            metadata
                 .pointer("/openclaw_web_tools_contract/default_enablement/web_fetch_enabled_by_default_non_sandbox")
                 .and_then(Value::as_bool),
             Some(true)
+        );
+        assert_eq!(
+            metadata
+                .pointer("/openclaw_web_tools_contract/default_enablement/web_search_runtime_provider_override_supported")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            metadata
+                .pointer("/openclaw_web_tools_contract/default_enablement/runtime_web_search_metadata_fields/2")
+                .and_then(Value::as_str),
+            Some("selectedProvider")
         );
         assert_eq!(
             metadata
