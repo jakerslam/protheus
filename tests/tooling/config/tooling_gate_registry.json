@@ -257,6 +257,17 @@
         "local/workspace/reports/ORCHESTRATION_ADAPTER_FALLBACK_GUARD_CURRENT.md"
       ]
     },
+    "ops:orchestration:planner-quality:guard": {
+      "owner": "ops",
+      "description": "Planner quality evidence guard.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 180,
+      "script": "ops:orchestration:planner-quality:guard",
+      "artifact_paths": [
+        "core/local/artifacts/orchestration_planner_quality_guard_current.json",
+        "local/workspace/reports/ORCHESTRATION_PLANNER_QUALITY_GUARD_CURRENT.md"
+      ]
+    },
     "ops:dashboard:surface:guard": {
       "owner": "ops",
       "description": "Authoritative dashboard surface guard.",
