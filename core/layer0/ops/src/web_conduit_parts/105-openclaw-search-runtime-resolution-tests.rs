@@ -395,9 +395,29 @@ mod openclaw_search_runtime_resolution_tests {
             Some("xai")
         );
         assert_eq!(
+            out.pointer("/openclaw_runtime_contract/bundled_fast_path_contract_suite_contract/suite_target_plugin_ids/3")
+                .and_then(Value::as_str),
+            Some("brave")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/bundled_fast_path_contract_suite_contract/suite_target_plugin_ids/7")
+                .and_then(Value::as_str),
+            Some("google")
+        );
+        assert_eq!(
             out.pointer("/openclaw_runtime_contract/bundled_fast_path_contract_suite_contract/suite_contract_test_files/2")
                 .and_then(Value::as_str),
             Some("bundled-web-search.searxng.contract.test.ts")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/bundled_fast_path_contract_suite_contract/suite_contract_test_files/3")
+                .and_then(Value::as_str),
+            Some("bundled-web-search.brave.contract.test.ts")
+        );
+        assert_eq!(
+            out.pointer("/openclaw_runtime_contract/bundled_fast_path_contract_suite_contract/suite_contract_test_files/7")
+                .and_then(Value::as_str),
+            Some("bundled-web-search.google.contract.test.ts")
         );
         assert_eq!(
             out.pointer("/openclaw_runtime_contract/bundled_fast_path_contract_suite_contract/runtime_registry_loader")
