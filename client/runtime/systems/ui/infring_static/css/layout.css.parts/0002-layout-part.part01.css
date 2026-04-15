@@ -307,101 +307,259 @@
   height: 24px;
 }
 
-/* Sidebar pulltab toggle */
-.sidebar-pulltab {
-  --sidebar-pulltab-width: 22px;
-  --sidebar-pulltab-height: 54px;
-  --sidebar-pulltab-cut: 8px;
-  --sidebar-pulltab-joint-size: 7px;
-  --sidebar-pulltab-border-color: color-mix(in srgb, var(--sidebar-bg, var(--chrome-bg)) 90%, var(--border) 10%);
-  --sidebar-pulltab-angle-top-color: var(--sidebar-pulltab-border-color);
-  --sidebar-pulltab-angle-bottom-color: var(--sidebar-pulltab-border-color);
-  position: absolute;
-  right: calc(-1 * var(--sidebar-pulltab-width));
-  top: 50%;
-  width: var(--sidebar-pulltab-width);
-  height: var(--sidebar-pulltab-height);
-  transform: translateY(-50%);
+/* Pulltab object contract (reusable): active vs inactive border channels */
+.overlay-pulltab-object,
+.sidebar-pulltab,
+.drag-bar-pulltab {
+  --pulltab-width: var(--sidebar-pulltab-width, 22px);
+  --pulltab-height: var(--sidebar-pulltab-height, 54px);
+  --pulltab-cut: var(--sidebar-pulltab-cut, 8px);
+  --pulltab-joint-size: var(--sidebar-pulltab-joint-size, 7px);
+  --pulltab-surface-background: var(--drag-bar-background, var(--overlay-shared-surface-background, var(--overlay-surface-background, transparent)));
+  --dashboard-preview-surface-background: var(--drag-bar-background, var(--overlay-shared-surface-background, var(--overlay-surface-background, transparent)));
+  --dashboard-preview-surface-shadow: var(--drag-bar-shadow, var(--overlay-shared-surface-shadow, var(--overlay-surface-shadow, -6px 0 12px -14px rgba(0, 0, 0, 0.32), 6px 0 12px -14px rgba(0, 0, 0, 0.32), 0 10px 18px -18px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.2))));
+  --dashboard-preview-surface-blur: var(--drag-bar-blur, var(--overlay-shared-surface-blur, var(--overlay-surface-blur, 6px)));
+  --dashboard-preview-surface-saturate: var(--drag-bar-saturate, var(--overlay-shared-surface-saturate, var(--overlay-surface-saturate, 1.05)));
+  --pulltab-surface-shadow-inherited: var(--dashboard-preview-surface-shadow);
+  --pulltab-surface-shadow-right-only:
+    6px 0 12px -14px rgba(0, 0, 0, 0.32),
+    1px 10px 18px -18px rgba(0, 0, 0, 0.55),
+    1px 2px 6px rgba(0, 0, 0, 0.2);
+  --pulltab-surface-shadow: var(--pulltab-surface-shadow-inherited);
+  --pulltab-border-active: var(--drag-bar-border, var(--overlay-shared-surface-border, var(--overlay-surface-border, color-mix(in srgb, #fff 24%, transparent))));
+  --pulltab-border-inactive: transparent;
+  --pulltab-edge-top: var(--pulltab-border-inactive);
+  --pulltab-edge-right: var(--pulltab-border-inactive);
+  --pulltab-edge-bottom: var(--pulltab-border-inactive);
+  --pulltab-edge-left: var(--pulltab-border-inactive);
+  --pulltab-right-radius: 13px;
+  --pulltab-corner-top: var(--pulltab-border-inactive);
+  --pulltab-corner-bottom: var(--pulltab-border-inactive);
+  --pulltab-corner-stroke: var(--pulltab-border-inactive);
+  --pulltab-joint-ring-top-left: var(--pulltab-border-inactive);
+  --pulltab-joint-ring-top-right: var(--pulltab-border-inactive);
+  --pulltab-joint-ring-bottom-left: var(--pulltab-border-inactive);
+  --pulltab-joint-ring-bottom-right: var(--pulltab-border-inactive);
+  width: var(--pulltab-width);
+  height: var(--pulltab-height);
+  appearance: none;
+  -webkit-appearance: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--sidebar-bg, var(--chrome-bg));
+  padding: 0;
+  background: var(--pulltab-surface-background);
   color: var(--text-muted);
   border: 1px solid transparent;
-  border-top-color: var(--sidebar-pulltab-border-color);
-  border-right-color: var(--sidebar-pulltab-border-color);
-  border-bottom-color: var(--sidebar-pulltab-border-color);
-  border-left-color: var(--sidebar-pulltab-border-color);
-  border-top-right-radius: 13px;
-  border-bottom-right-radius: 13px;
-  clip-path: polygon(
-    0 0,
-    calc(100% - var(--sidebar-pulltab-cut)) 0,
-    100% var(--sidebar-pulltab-cut),
-    100% calc(100% - var(--sidebar-pulltab-cut)),
-    calc(100% - var(--sidebar-pulltab-cut)) 100%,
-    0 100%
-  );
+  border-top-color: var(--pulltab-edge-top);
+  border-right-color: var(--pulltab-edge-right);
+  border-bottom-color: var(--pulltab-edge-bottom);
+  border-left-color: var(--pulltab-edge-left);
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-top-right-radius: var(--pulltab-right-radius);
+  border-bottom-right-radius: var(--pulltab-right-radius);
   cursor: pointer;
-  z-index: 19220;
   overflow: hidden;
+  box-shadow: var(--pulltab-surface-shadow);
+  filter: none;
+  background-clip: padding-box;
+  backdrop-filter: blur(var(--dashboard-preview-surface-blur)) saturate(var(--dashboard-preview-surface-saturate));
+  -webkit-backdrop-filter: blur(var(--dashboard-preview-surface-blur)) saturate(var(--dashboard-preview-surface-saturate));
+  will-change: backdrop-filter;
   transition: color var(--transition-fast), background var(--transition-fast);
 }
 
+.sidebar-pulltab {
+  --pulltab-edge-left: var(--pulltab-border-inactive);
+  --pulltab-surface-shadow: var(--pulltab-surface-shadow-right-only);
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+  border-top-right-radius: var(--pulltab-right-radius);
+  border-bottom-right-radius: var(--pulltab-right-radius);
+  border-left-width: 0;
+  border-left-color: transparent !important;
+  z-index: var(--sidebar-pulltab-layer, 19350);
+  transition:
+    left var(--sidebar-position-transition, var(--transition-normal)),
+    top var(--sidebar-position-transition, var(--transition-normal)),
+    transform var(--sidebar-position-transition, var(--transition-normal)),
+    color var(--transition-fast),
+    background var(--transition-fast);
+}
+
+/* Pulltab border channel utilities (active/inactive) */
+.overlay-pulltab-object.pulltab-border-top-active {
+  --pulltab-edge-top: var(--pulltab-border-active);
+}
+
+.overlay-pulltab-object.pulltab-border-right-active {
+  --pulltab-edge-right: var(--pulltab-border-active);
+}
+
+.overlay-pulltab-object.pulltab-border-bottom-active {
+  --pulltab-edge-bottom: var(--pulltab-border-active);
+}
+
+.overlay-pulltab-object.pulltab-border-left-active {
+  --pulltab-edge-left: var(--pulltab-border-active);
+}
+
+.overlay-pulltab-object.pulltab-border-top-inactive {
+  --pulltab-edge-top: var(--pulltab-border-inactive);
+}
+
+.overlay-pulltab-object.pulltab-border-right-inactive {
+  --pulltab-edge-right: var(--pulltab-border-inactive);
+}
+
+.overlay-pulltab-object.pulltab-border-bottom-inactive {
+  --pulltab-edge-bottom: var(--pulltab-border-inactive);
+}
+
+.overlay-pulltab-object.pulltab-border-left-inactive {
+  --pulltab-edge-left: var(--pulltab-border-inactive);
+}
+
+.overlay-pulltab-object.pulltab-corner-top-active {
+  --pulltab-corner-top: var(--pulltab-border-active);
+  --pulltab-corner-stroke: var(--pulltab-border-active);
+}
+
+.overlay-pulltab-object.pulltab-corner-bottom-active {
+  --pulltab-corner-bottom: var(--pulltab-border-active);
+  --pulltab-corner-stroke: var(--pulltab-border-active);
+}
+
+.overlay-pulltab-object.pulltab-corner-top-inactive {
+  --pulltab-corner-top: var(--pulltab-border-inactive);
+}
+
+.overlay-pulltab-object.pulltab-corner-bottom-inactive {
+  --pulltab-corner-bottom: var(--pulltab-border-inactive);
+}
+
+.overlay-pulltab-object.pulltab-joint-top-left-active {
+  --pulltab-joint-ring-top-left: var(--pulltab-border-active);
+}
+
+.overlay-pulltab-object.pulltab-joint-top-right-active {
+  --pulltab-joint-ring-top-right: var(--pulltab-border-active);
+}
+
+.overlay-pulltab-object.pulltab-joint-bottom-left-active {
+  --pulltab-joint-ring-bottom-left: var(--pulltab-border-active);
+}
+
+.overlay-pulltab-object.pulltab-joint-bottom-right-active {
+  --pulltab-joint-ring-bottom-right: var(--pulltab-border-active);
+}
+
+.overlay-pulltab-object.pulltab-joint-top-left-inactive {
+  --pulltab-joint-ring-top-left: var(--pulltab-border-inactive);
+}
+
+.overlay-pulltab-object.pulltab-joint-top-right-inactive {
+  --pulltab-joint-ring-top-right: var(--pulltab-border-inactive);
+}
+
+.overlay-pulltab-object.pulltab-joint-bottom-left-inactive {
+  --pulltab-joint-ring-bottom-left: var(--pulltab-border-inactive);
+}
+
+.overlay-pulltab-object.pulltab-joint-bottom-right-inactive {
+  --pulltab-joint-ring-bottom-right: var(--pulltab-border-inactive);
+}
+
+.overlay-pulltab-object::before,
+.overlay-pulltab-object::after,
 .sidebar-pulltab::before,
 .sidebar-pulltab::after {
+  display: none;
   content: '';
   position: absolute;
-  right: calc(var(--sidebar-pulltab-cut) * -0.21);
-  width: calc(var(--sidebar-pulltab-cut) * 1.42);
+  right: calc(var(--pulltab-cut) * -0.21);
+  width: calc(var(--pulltab-cut) * 1.42);
   height: 2.4px;
   border-radius: 999px;
   pointer-events: none;
   transform-origin: center center;
   z-index: 2;
-  box-shadow: 0 0 0 0.5px var(--sidebar-pulltab-border-color);
+  box-shadow: 0 0 0 0.5px var(--pulltab-corner-stroke);
 }
 
+.overlay-pulltab-object::before,
 .sidebar-pulltab::before {
-  top: calc(var(--sidebar-pulltab-cut) * 0.5 - 0.5px);
+  top: calc(var(--pulltab-cut) * 0.5 - 0.5px);
   transform: rotate(45deg);
-  background: var(--sidebar-pulltab-angle-top-color);
+  background: var(--pulltab-corner-top);
 }
 
+.overlay-pulltab-object::after,
 .sidebar-pulltab::after {
-  bottom: calc(var(--sidebar-pulltab-cut) * 0.5 - 0.5px);
+  bottom: calc(var(--pulltab-cut) * 0.5 - 0.5px);
   transform: rotate(-45deg);
-  background: var(--sidebar-pulltab-angle-bottom-color);
+  background: var(--pulltab-corner-bottom);
 }
 
+.overlay-pulltab-object-joint,
 .sidebar-pulltab-joint {
+  display: none;
+  --pulltab-joint-ring-color: var(--pulltab-border-inactive);
   position: absolute;
-  width: var(--sidebar-pulltab-joint-size);
-  height: var(--sidebar-pulltab-joint-size);
+  width: var(--pulltab-joint-size);
+  height: var(--pulltab-joint-size);
   border-radius: 999px;
   pointer-events: none;
   z-index: 3;
-  background: var(--sidebar-bg, var(--chrome-bg));
-  box-shadow: 0 0 0 1px var(--sidebar-pulltab-border-color);
+  background: var(--pulltab-surface-background);
+  box-shadow: 0 0 0 1px var(--pulltab-joint-ring-color);
 }
 
+.overlay-pulltab-object.pulltab-corner-top-active::before {
+  display: block;
+}
+
+.overlay-pulltab-object.pulltab-corner-bottom-active::after {
+  display: block;
+}
+
+.overlay-pulltab-object.pulltab-joint-top-left-active .overlay-pulltab-object-joint-top-left,
+.overlay-pulltab-object.pulltab-joint-top-right-active .overlay-pulltab-object-joint-top-right,
+.overlay-pulltab-object.pulltab-joint-bottom-left-active .overlay-pulltab-object-joint-bottom-left,
+.overlay-pulltab-object.pulltab-joint-bottom-right-active .overlay-pulltab-object-joint-bottom-right {
+  display: block;
+}
+
+.overlay-pulltab-object-joint-top-left,
 .sidebar-pulltab-joint-top-left {
-  left: calc(100% - var(--sidebar-pulltab-cut));
+  --pulltab-joint-ring-color: var(--pulltab-joint-ring-top-left);
+  left: calc(100% - var(--pulltab-cut));
   top: 0;
   transform: translate(-50%, -42%);
 }
 
+.overlay-pulltab-object-joint-top-right,
 .sidebar-pulltab-joint-top-right {
+  --pulltab-joint-ring-color: var(--pulltab-joint-ring-top-right);
   left: 100%;
-  top: var(--sidebar-pulltab-cut);
+  top: var(--pulltab-cut);
   transform: translate(-45%, -50%);
 }
 
+.overlay-pulltab-object-joint-bottom-left,
 .sidebar-pulltab-joint-bottom-left {
-  left: calc(100% - var(--sidebar-pulltab-cut));
+  --pulltab-joint-ring-color: var(--pulltab-joint-ring-bottom-left);
+  left: calc(100% - var(--pulltab-cut));
   top: 100%;
   transform: translate(-50%, -58%);
 }
 
+.overlay-pulltab-object-joint-bottom-right,
 .sidebar-pulltab-joint-bottom-right {
+  --pulltab-joint-ring-color: var(--pulltab-joint-ring-bottom-right);
   left: 100%;
