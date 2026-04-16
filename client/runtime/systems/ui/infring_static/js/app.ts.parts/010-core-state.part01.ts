@@ -265,85 +265,16 @@ document.addEventListener('alpine:init', function() {
             }
           }
 
+          var isSidebarArchivedRow = function(row) {
+            if (!row || typeof row !== 'object') return false;
+            if (Object.prototype.hasOwnProperty.call(row, 'sidebar_archived')) return !!row.sidebar_archived;
+            return false;
+          };
           var nextAgents = (Array.isArray(agents) ? agents : []).filter(function(row) {
             if (!row || !row.id) return false;
-            if (typeof store.isArchivedLikeAgent === 'function') return !store.isArchivedLikeAgent(row);
-            if (row.archived === true) return false;
-            var state = String(row.state || '').trim().toLowerCase();
-            var contract = row.contract && typeof row.contract === 'object' ? row.contract : null;
-            var contractStatus = String(contract && contract.status ? contract.status : '').trim().toLowerCase();
-            return !(
-              state.indexOf('archived') >= 0 ||
-              state.indexOf('inactive') >= 0 ||
-              state.indexOf('terminated') >= 0 ||
-              contractStatus.indexOf('archived') >= 0 ||
-              contractStatus.indexOf('inactive') >= 0 ||
-              contractStatus.indexOf('terminated') >= 0
-            );
+            return !isSidebarArchivedRow(row);
           });
-          var nextById = {};
-          for (var ni = 0; ni < nextAgents.length; ni++) {
-            var nextRow = nextAgents[ni];
-            if (!nextRow || !nextRow.id) continue;
-            nextById[String(nextRow.id)] = true;
-          }
-          if (hadPriorAgents) {
-            for (var pi = 0; pi < priorAgents.length; pi++) {
-              var prior = priorAgents[pi];
-              if (!prior || !prior.id) continue;
-              var priorId = String(prior.id || '').trim();
-              if (!priorId || nextById[priorId]) continue;
-              if (priorId.toLowerCase() === 'system') continue;
-              if (prior.archived === true) continue;
-              var priorState = String(prior.state || '').toLowerCase();
-              if (priorState.indexOf('archived') >= 0) continue;
-              var priorContract = (prior.contract && typeof prior.contract === 'object') ? prior.contract : null;
-              var priorAutoAllowed = !(prior.auto_terminate_allowed === false || (priorContract && priorContract.auto_terminate_allowed === false));
-              var priorRemainingMs = Number(prior.contract_remaining_ms != null ? prior.contract_remaining_ms : (priorContract && priorContract.remaining_ms));
-              var priorExpiresAt = String(
-                prior.contract_expires_at ||
-                (priorContract && priorContract.expires_at ? priorContract.expires_at : '') ||
-                ''
-              ).trim();
-              var priorExpiryTs = priorExpiresAt ? Number(new Date(priorExpiresAt).getTime()) : NaN;
-              var reachedTimeout = (Number.isFinite(priorRemainingMs) && priorRemainingMs <= 0)
-                || (Number.isFinite(priorExpiryTs) && priorExpiryTs > 0 && priorExpiryTs <= (Date.now() + 1500));
-              var timeoutHint = priorState.indexOf('terminated') >= 0
-                || priorState.indexOf('timed out') >= 0
-                || priorState.indexOf('timeout') >= 0
-                || String((priorContract && priorContract.termination_reason) || '').toLowerCase().indexOf('timeout') >= 0;
-              if (!(priorAutoAllowed && (reachedTimeout || timeoutHint))) continue;
-              var ghost = Object.assign({}, prior, {
-                state: 'Timed out',
-                archived: false,
-                _timed_out_local: true,
-                _sidebar_timed_out_at: Date.now()
-              });
-              var ghostContract = (ghost.contract && typeof ghost.contract === 'object') ? ghost.contract : {};
-              ghost.contract = Object.assign({}, ghostContract, {
-                status: 'terminated',
-                termination_reason: String(ghostContract.termination_reason || 'idle_timeout'),
-                auto_terminate_allowed: true,
-                idle_terminate_allowed: true,
-                remaining_ms: 0
-              });
-              ghost.contract_remaining_ms = 0;
-              if (!ghost.contract_expires_at && ghost.contract && ghost.contract.expires_at) {
-                ghost.contract_expires_at = ghost.contract.expires_at;
-              }
-              nextAgents.push(ghost);
-              nextById[priorId] = true;
-            }
-          }
           store.agents = nextAgents;
-          var cache = null;
-          try { cache = JSON.parse(localStorage.getItem('of-chat-conversation-cache-v1') || 'null'); } catch(_) {}
-          if (cache && typeof store.saveAgentChatPreview === 'function') nextAgents.forEach(function(row) {
-            var id = row && row.id ? String(row.id) : '';
-            var existing = id && store.agentChatPreviews && store.agentChatPreviews[id];
-            var cached = id && cache[id] && Array.isArray(cache[id].messages) ? cache[id].messages : null;
-            if ((!existing || !String(existing.text || '').trim()) && cached && cached.length) store.saveAgentChatPreview(id, cached);
-          });
           store.agentsHydrated = true;
           store.agentsLoading = false;
           store.agentsLastError = '';

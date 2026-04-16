@@ -13,35 +13,15 @@
     },
     sidebarAgentSortTs(agent) {
       if (!agent) return 0;
-      var store = this.getAppStore();
-      var preview = store && typeof store.getAgentChatPreview === 'function'
-        ? store.getAgentChatPreview(agent.id)
-        : null;
-      if (preview && preview.ts) return Number(preview.ts) || 0;
-      if (agent.updated_at) return Number(new Date(agent.updated_at).getTime()) || 0;
-      if (agent.created_at) return Number(new Date(agent.created_at).getTime()) || 0;
+      var serverTs = Number(agent.sidebar_sort_ts);
+      if (Number.isFinite(serverTs) && serverTs > 0) return Math.round(serverTs);
       return 0;
     },
     chatSidebarTopologyKey(agent) {
       if (!agent || !agent.id) return 'z|~~~~|';
-      var treeKind = String(agent.git_tree_kind || '').trim().toLowerCase();
-      var branch = String(
-        agent.git_branch ||
-        agent.branch ||
-        agent.git_tree ||
-        agent.tree ||
-        ''
-      ).trim().toLowerCase();
-      var root = treeKind === 'main' || treeKind === 'master' || branch === 'main' || branch === 'master';
-      var depthRaw = Number(
-        agent.topology_depth != null
-          ? agent.topology_depth
-          : (agent.depth != null ? agent.depth : (root ? 0 : 1))
-      );
-      var depth = Number.isFinite(depthRaw) ? Math.max(0, Math.floor(depthRaw)) : (root ? 0 : 1);
-      var depthKey = String(depth).padStart(4, '0');
-      var branchKey = branch || String(agent.parent_agent_id || '').trim().toLowerCase() || String(agent.id || '').trim().toLowerCase();
-      return (root ? '0' : '1') + '|' + depthKey + '|' + branchKey;
+      var serverKey = String(agent.sidebar_topology_key || '').trim().toLowerCase();
+      if (serverKey) return serverKey;
+      return 'z|' + String(agent.id || '').trim().toLowerCase();
     },
     chatSidebarSortComparator(a, b) {
       var mode = String(this.chatSidebarSortMode || '').toLowerCase();
@@ -61,10 +41,9 @@
     },
     syncChatSidebarTopologyOrderFromAgents() {
       var self = this;
-      var archivedSet = new Set((this.archivedAgentIds || []).map(function(id) { return String(id || ''); }));
       var pool = (this.agents || []).filter(function(agent) {
         if (!agent || !agent.id) return false;
-        return !archivedSet.has(String(agent.id));
+        return !(typeof self.isSidebarArchivedAgent === 'function' && self.isSidebarArchivedAgent(agent));
       });
       pool.sort(function(a, b) {
         return self.chatSidebarSortComparator(a, b);
@@ -107,7 +86,7 @@
     },
     chatSidebarPreview(agent) {
       if (!agent) return { text: 'No messages yet', ts: 0, role: 'agent', has_tools: false, tool_state: '', tool_label: '', unread_response: false };
-      if (agent._timed_out_local === true || agent.revive_recommended === true) {
+      if (agent.revive_recommended === true) {
         return {
           text: 'Open chat to revive',
           ts: this.sidebarAgentSortTs(agent),
@@ -119,14 +98,25 @@
         };
       }
       var isSystemThread = agent.is_system_thread === true || String(agent.id || '').toLowerCase() === 'system';
-      var fallbackText = isSystemThread ? '' : 'No messages yet';
-      if (typeof this._isCollapsedHoverStatePlaceholderText === 'function' && this._isCollapsedHoverStatePlaceholderText(fallbackText)) {
-        fallbackText = '';
-      }
+      var fallbackText = isSystemThread ? '' : 'No messages yet'; if (typeof this._isCollapsedHoverStatePlaceholderText === 'function' && this._isCollapsedHoverStatePlaceholderText(fallbackText)) fallbackText = '';
       var store = this.getAppStore();
-      var preview = store && typeof store.getAgentChatPreview === 'function'
-        ? store.getAgentChatPreview(agent.id)
-        : null;
+      var preview = store && typeof store.getAgentChatPreview === 'function' ? store.getAgentChatPreview(agent.id) : null;
+      var serverPreview = agent && agent.sidebar_preview && typeof agent.sidebar_preview === 'object' ? agent.sidebar_preview : null;
+      if (serverPreview && typeof serverPreview === 'object') {
+        var serverText = String(serverPreview.text || '').trim();
+        if (!serverText && agent._sidebar_search_result) {
+          serverText = 'No matching text';
+        }
+        return {
+          text: serverText || fallbackText,
+          ts: Number(serverPreview.ts || this.sidebarAgentSortTs(agent)) || this.sidebarAgentSortTs(agent),
+          role: String(serverPreview.role || 'assistant'),
+          has_tools: !!serverPreview.has_tools,
+          tool_state: String(serverPreview.tool_state || ''),
+          tool_label: String(serverPreview.tool_label || ''),
+          unread_response: !!(preview && preview.unread_response)
+        };
+      }
       if (isSystemThread) {
         return {
           text: '',
@@ -138,20 +128,7 @@
           unread_response: !!(preview && preview.unread_response)
         };
       }
-      if (agent._sidebar_search_result) {
-        var snippet = String(agent._sidebar_preview_text || '').trim();
-        return {
-          text: snippet || 'No matching text',
-          ts: this.sidebarAgentSortTs(agent),
-          role: 'agent',
-          has_tools: false,
-          tool_state: '',
-          tool_label: '',
-          unread_response: false
-        };
-      }
-      if (!preview || !preview.text) return { text: fallbackText, ts: this.sidebarAgentSortTs(agent), role: 'agent', has_tools: false, tool_state: '', tool_label: '', unread_response: false };
-      return preview;
+      return { text: fallbackText, ts: this.sidebarAgentSortTs(agent), role: 'agent', has_tools: false, tool_state: '', tool_label: '', unread_response: false };
     },
     sidebarDisplayEmoji(agent) {
       if (!agent) return '';
@@ -160,38 +137,6 @@
       var emoji = String((agent.identity && agent.identity.emoji) || '').trim();
       if (this.isReservedSystemEmoji && this.isReservedSystemEmoji(emoji)) return '';
       return emoji;
-    },
-    persistArchivedAgentIds() {
-      var seen = {};
-      var out = [];
-      (this.archivedAgentIds || []).forEach(function(id) {
-        var key = String(id || '').trim();
-        if (!key || seen[key]) return;
-        seen[key] = true;
-        out.push(key);
-      });
-      this.archivedAgentIds = out;
-      try {
-        localStorage.setItem('infring-archived-agent-ids', JSON.stringify(out));
-      } catch(_) {}
-    },
-    reconcileArchivedAgentIdsWithLiveAgents() {
-      var activeLiveSet = new Set((this.agents || []).map(function(agent) {
-        if (!agent || !agent.id) return '';
-        if (typeof this.isArchivedLikeAgent === 'function' && this.isArchivedLikeAgent(agent)) return '';
-        if (agent.archived === true) return '';
-        var state = String(agent.state || '').trim().toLowerCase();
-        if (state.indexOf('archived') >= 0 || state.indexOf('inactive') >= 0 || state.indexOf('terminated') >= 0) return '';
-        return String(agent.id || '');
-      }, this).filter(Boolean));
-      if (!activeLiveSet.size || !Array.isArray(this.archivedAgentIds) || this.archivedAgentIds.length === 0) return;
-      var next = this.archivedAgentIds.filter(function(id) {
-        return !activeLiveSet.has(String(id || ''));
-      });
-      if (next.length !== this.archivedAgentIds.length) {
-        this.archivedAgentIds = next;
-        this.persistArchivedAgentIds();
-      }
     },
     mostRecentModelFromUsageCache() {
       try {
@@ -219,7 +164,7 @@
     async archiveAgentFromSidebar(agent) {
       if (!agent || !agent.id) return;
       var agentId = String(agent.id);
-      if ((this.archivedAgentIds || []).indexOf(agentId) >= 0) return;
+      if (typeof this.isSidebarArchivedAgent === 'function' && this.isSidebarArchivedAgent(agent)) return;
       this.confirmArchiveAgentId = '';
       var missingPurged = false;
       try {
@@ -233,8 +178,6 @@
           return;
         }
       }
-      this.archivedAgentIds = (this.archivedAgentIds || []).concat([agentId]);
-      this.persistArchivedAgentIds();
       this.syncChatSidebarTopologyOrderFromAgents();
       var store = this.getAppStore();
       if (store.activeAgentId === agent.id) {
@@ -285,8 +228,6 @@
         };
         var store = this.getAppStore();
         if (!store || typeof store.refreshAgents !== 'function') throw new Error('app_store_unavailable');
-        this.archivedAgentIds = (this.archivedAgentIds || []).filter(function(id) { return String(id) !== createdId; });
-        this.persistArchivedAgentIds();
         this.syncChatSidebarTopologyOrderFromAgents();
         store.pendingAgent = created;
         store.pendingFreshAgentId = created.id;
@@ -333,10 +274,7 @@
         return;
       }
       var store = this.getAppStore();
-      var archived = agent.archived === true;
-      if (!archived && store && typeof store.isArchivedLikeAgent === 'function') {
-        archived = store.isArchivedLikeAgent(agent);
-      }
+      var archived = typeof this.isSidebarArchivedAgent === 'function' && this.isSidebarArchivedAgent(agent);
       if (store && archived) {
         var pending = {
           id: String(agent.id),
@@ -355,11 +293,11 @@
       this.navigate('chat');
       this.closeAgentChatsSidebar();
       this.scheduleSidebarScrollIndicators();
-      if (agent._timed_out_local === true || agent.revive_recommended === true) {
+      if (agent.revive_recommended === true) {
         var reviveId = String(agent.id || '').trim();
         if (reviveId) {
           InfringAPI.post('/api/agents/' + encodeURIComponent(reviveId) + '/revive', {
-            reason: agent._timed_out_local === true ? 'sidebar_timeout_revival' : 'sidebar_contract_revival'
+            reason: 'sidebar_contract_revival'
           }).then(function() {
             if (store && typeof store.refreshAgents === 'function') {
               store.refreshAgents({ force: true }).catch(function() {});
@@ -480,12 +418,12 @@
     },
     shouldShowInfinityLifespan(agent) {
       if (!agent || typeof agent !== 'object') return false;
-      if (agent._timed_out_local === true) return false;
+      if (agent.revive_recommended === true) return false;
       if (!this.agentAutoTerminateEnabled(agent)) return true;
       return !this.agentContractHasFiniteExpiry(agent);
     },
     shouldShowExpiryCountdown(agent) {
-      if (agent && agent._timed_out_local === true) return true;
+      if (agent && agent.revive_recommended === true) return true;
       if (!this.agentAutoTerminateEnabled(agent)) return false;
       if (!this.agentContractHasFiniteExpiry(agent)) return false;
       var remainingMs = this.agentContractRemainingMs(agent);
@@ -494,6 +432,6 @@
       return true;
     },
     expiryCountdownLabel(agent) {
-      if (agent && agent._timed_out_local === true) return 'timed out';
+      if (agent && agent.revive_recommended === true) return 'timed out';
       var remainingMs = this.agentContractRemainingMs(agent);
       if (remainingMs == null) return '';
