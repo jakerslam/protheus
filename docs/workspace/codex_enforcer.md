@@ -38,6 +38,8 @@ Required execution behavior:
 4. Do not run benchmark refresh loops by default unless the change is explicitly performance/benchmark/report focused.
 5. Keep behavior changes and artifact/report churn in separate commits whenever possible.
 6. Escalate immediately if work drifts from expected class (for example docs-only work turning into benchmark/runtime churn).
+7. Do not emit "action-item lists" as the primary output when the scoped request can be fully executed in one go.
+8. Action-item lists are allowed only when the scope is too large/risky to execute in one pass; in those cases, each list item must include an explicit execution wave plan.
 
 ## Standard Implementation Rules (Mandatory)
 - Implement all requested items as production code, not receipt scaffolds.

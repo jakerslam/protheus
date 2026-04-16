@@ -25,6 +25,8 @@ type RuntimeQualityMetrics = {
   fallback_rate_non_legacy?: number;
   heuristic_probe_rate_non_legacy?: number;
   clarification_rate_non_legacy?: number;
+  zero_executable_rate_non_legacy?: number;
+  all_candidates_degraded_rate_non_legacy?: number;
   average_candidate_count?: number;
 };
 
@@ -34,6 +36,8 @@ type RuntimeQualityPolicy = {
   max_non_legacy_fallback_rate?: number;
   max_non_legacy_heuristic_probe_rate?: number;
   max_non_legacy_clarification_rate?: number;
+  max_non_legacy_zero_executable_rate?: number;
+  max_non_legacy_all_candidates_degraded_rate?: number;
   ratchet?: {
     max_regression_delta?: number;
   };
@@ -92,12 +96,18 @@ function evaluateThresholds(metrics: RuntimeQualityMetrics | null, policy: Runti
   const fallbackRate = numberOrNull(metrics.fallback_rate_non_legacy);
   const heuristicProbeRate = numberOrNull(metrics.heuristic_probe_rate_non_legacy);
   const clarificationRate = numberOrNull(metrics.clarification_rate_non_legacy);
+  const zeroExecutableRate = numberOrNull(metrics.zero_executable_rate_non_legacy);
+  const allCandidatesDegradedRate = numberOrNull(metrics.all_candidates_degraded_rate_non_legacy);
 
   const minSampleSize = numberOrNull(policy.min_sample_size);
   const minAverageCandidateCount = numberOrNull(policy.min_average_candidate_count);
   const maxFallbackRate = numberOrNull(policy.max_non_legacy_fallback_rate);
   const maxHeuristicProbeRate = numberOrNull(policy.max_non_legacy_heuristic_probe_rate);
   const maxClarificationRate = numberOrNull(policy.max_non_legacy_clarification_rate);
+  const maxZeroExecutableRate = numberOrNull(policy.max_non_legacy_zero_executable_rate);
+  const maxAllCandidatesDegradedRate = numberOrNull(
+    policy.max_non_legacy_all_candidates_degraded_rate,
+  );
 
   if (sampleSize == null) {
     failures.push('missing_sample_size_non_legacy');
@@ -137,6 +147,25 @@ function evaluateThresholds(metrics: RuntimeQualityMetrics | null, policy: Runti
     );
   }
 
+  if (zeroExecutableRate == null) {
+    failures.push('missing_zero_executable_rate_non_legacy');
+  } else if (maxZeroExecutableRate != null && zeroExecutableRate > maxZeroExecutableRate) {
+    failures.push(
+      `zero_executable_rate_non_legacy_exceeded:actual=${zeroExecutableRate.toFixed(4)}:max=${maxZeroExecutableRate.toFixed(4)}`,
+    );
+  }
+
+  if (allCandidatesDegradedRate == null) {
+    failures.push('missing_all_candidates_degraded_rate_non_legacy');
+  } else if (
+    maxAllCandidatesDegradedRate != null
+    && allCandidatesDegradedRate > maxAllCandidatesDegradedRate
+  ) {
+    failures.push(
+      `all_candidates_degraded_rate_non_legacy_exceeded:actual=${allCandidatesDegradedRate.toFixed(4)}:max=${maxAllCandidatesDegradedRate.toFixed(4)}`,
+    );
+  }
+
   return failures;
 }
 
@@ -171,6 +200,8 @@ function evaluateRatchet(
     'fallback_rate_non_legacy',
     'heuristic_probe_rate_non_legacy',
     'clarification_rate_non_legacy',
+    'zero_executable_rate_non_legacy',
+    'all_candidates_degraded_rate_non_legacy',
   ];
   for (const field of maxFields) {
     const current = numberOrNull(metrics[field]);

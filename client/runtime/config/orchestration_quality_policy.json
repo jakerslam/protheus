@@ -24,6 +24,9 @@
     "max_clarification_first_rate": 0.5,
     "max_degraded_rate": 0.6,
     "max_heuristic_probe_rate": 0.6,
+    "max_zero_executable_candidate_rate": 0.6,
+    "max_all_candidates_require_clarification_rate": 0.6,
+    "max_all_candidates_degraded_rate": 0.6,
     "ratchet": {
       "max_regression_delta": 0.0
     },
@@ -38,6 +41,8 @@
     "max_non_legacy_fallback_rate": 0.5,
     "max_non_legacy_heuristic_probe_rate": 0.75,
     "max_non_legacy_clarification_rate": 0.6,
+    "max_non_legacy_zero_executable_rate": 0.6,
+    "max_non_legacy_all_candidates_degraded_rate": 0.6,
     "ratchet": {
       "max_regression_delta": 0.0
     },
