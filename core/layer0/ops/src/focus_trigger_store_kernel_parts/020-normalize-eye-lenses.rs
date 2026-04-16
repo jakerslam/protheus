@@ -1,3 +1,14 @@
+fn normalize_ts_or_now(raw: Option<&Value>, fallback: &str) -> String {
+    let value = as_str(raw);
+    if value.is_empty() {
+        return fallback.to_string();
+    }
+    chrono::DateTime::parse_from_rfc3339(value.as_str())
+        .ok()
+        .map(|dt| dt.with_timezone(&Utc).to_rfc3339())
+        .unwrap_or_else(|| fallback.to_string())
+}
+
 fn normalize_eye_lenses(raw: Option<&Value>, policy: &Map<String, Value>) -> Value {
     let max_terms = clamp_i64(policy.get("lens_max_terms"), 4, 64, 16) as usize;
     let max_exclude = clamp_i64(policy.get("lens_max_exclude_terms"), 0, 32, 6) as usize;
@@ -12,12 +23,17 @@ fn normalize_eye_lenses(raw: Option<&Value>, policy: &Map<String, Value>) -> Val
             let lens = as_object(Some(lens_raw));
             let include_terms =
                 normalize_terms_array(lens.and_then(|v| v.get("include_terms")), max_terms);
+            let include_lookup = include_terms
+                .iter()
+                .map(|term| term.to_ascii_lowercase())
+                .collect::<BTreeSet<_>>();
             let exclude_terms =
                 normalize_terms_array(lens.and_then(|v| v.get("exclude_terms")), max_exclude)
                     .into_iter()
-                    .filter(|term| !include_terms.contains(term))
+                    .filter(|term| !include_lookup.contains(&term.to_ascii_lowercase()))
                     .take(max_exclude)
                     .collect::<Vec<_>>();
+            let now_ts = now_iso();
             let mut merged = Map::new();
             merged.insert("eye_id".to_string(), Value::String(eye_id.clone()));
             merged.insert(
@@ -65,17 +81,11 @@ fn normalize_eye_lenses(raw: Option<&Value>, policy: &Map<String, Value>) -> Val
             );
             merged.insert(
                 "created_ts".to_string(),
-                Value::String(as_str(
-                    lens.and_then(|v| v.get("created_ts"))
-                        .or(Some(&Value::String(now_iso()))),
-                )),
+                Value::String(normalize_ts_or_now(lens.and_then(|v| v.get("created_ts")), &now_ts)),
             );
             merged.insert(
                 "updated_ts".to_string(),
-                Value::String(as_str(
-                    lens.and_then(|v| v.get("updated_ts"))
-                        .or(Some(&Value::String(now_iso()))),
-                )),
+                Value::String(normalize_ts_or_now(lens.and_then(|v| v.get("updated_ts")), &now_ts)),
             );
             out.insert(eye_id, Value::Object(merged));
         }
@@ -450,4 +460,3 @@ fn append_mutation_log(
     });
     append_jsonl(&mutation_log_path(root), &row)
 }
-

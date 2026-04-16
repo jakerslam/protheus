@@ -128,9 +128,20 @@ fn normalize_adaptive_rel(raw: &str) -> String {
         .trim_start_matches('/')
         .trim_start_matches("adaptive/")
         .split('/')
-        .filter(|segment| !segment.is_empty())
+        .filter(|segment| !segment.is_empty() && *segment != "." && *segment != "..")
         .collect::<Vec<_>>()
         .join("/")
+}
+
+fn has_invalid_adaptive_target(raw: &str) -> bool {
+    if raw.contains('\0') {
+        return true;
+    }
+    let normalized = normalize_path_string(raw);
+    normalized.split('/').any(|segment| {
+        let trimmed = segment.trim();
+        trimmed == ".." || trimmed.chars().any(|ch| ch.is_control())
+    })
 }
 
 fn relative_within(root_path: &Path, target_path: &Path) -> Option<String> {
@@ -227,6 +238,9 @@ pub(crate) fn resolve_adaptive_path(
     let raw = target_path.trim();
     if raw.is_empty() {
         return Err("adaptive_store: target must be file path under adaptive/".to_string());
+    }
+    if has_invalid_adaptive_target(raw) {
+        return Err("adaptive_store: target path invalid".to_string());
     }
     let adaptive_root = adaptive_root(root, payload);
     let adaptive_runtime_root = adaptive_runtime_root(root, payload);
@@ -451,4 +465,3 @@ fn stable_uid(seed: &str, prefix: &str, length: usize) -> String {
     out.truncate(length.max(8).min(48));
     out
 }
-

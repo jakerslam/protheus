@@ -67,6 +67,22 @@ fn normalize_rulepack_name(raw: &str) -> String {
     }
 }
 
+fn sanitize_path_input(raw: &str) -> Option<String> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() || trimmed.contains('\0') {
+        return None;
+    }
+    let normalized = trimmed.replace('\\', "/");
+    let invalid_segment = normalized.split('/').any(|segment| {
+        let piece = segment.trim();
+        piece == ".." || piece.chars().any(|ch| ch.is_control())
+    });
+    if invalid_segment {
+        return None;
+    }
+    Some(normalized)
+}
+
 fn rulepack_root(root: &Path) -> PathBuf {
     state_root(root).join("rulepacks")
 }
@@ -203,10 +219,13 @@ fn conduit_enforcement(
 }
 
 fn resolve_rel_or_abs(root: &Path, rel_or_abs: &str) -> PathBuf {
-    if Path::new(rel_or_abs).is_absolute() {
-        PathBuf::from(rel_or_abs)
+    let Some(sanitized) = sanitize_path_input(rel_or_abs) else {
+        return root.join("__invalid_binary_vuln_path__");
+    };
+    if Path::new(&sanitized).is_absolute() {
+        PathBuf::from(&sanitized)
     } else {
-        root.join(rel_or_abs)
+        root.join(&sanitized)
     }
 }
 
@@ -450,4 +469,3 @@ fn normalize_findings(findings: Vec<Value>) -> Vec<Value> {
         })
         .collect()
 }
-

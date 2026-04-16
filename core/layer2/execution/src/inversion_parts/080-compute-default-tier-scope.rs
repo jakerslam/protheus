@@ -99,12 +99,8 @@ pub fn compute_normalize_tier_scope(input: &NormalizeTierScopeInput) -> Normaliz
 pub fn compute_default_tier_governance_state(
     input: &DefaultTierGovernanceStateInput,
 ) -> DefaultTierGovernanceStateOutput {
-    let version = clean_text_runtime(input.policy_version.as_deref().unwrap_or("1.0"), 24);
-    let safe_version = if version.is_empty() {
-        "1.0".to_string()
-    } else {
-        version
-    };
+    let safe_version =
+        normalize_policy_version_runtime(input.policy_version.as_deref().unwrap_or("1.0"));
     let scope = default_tier_scope_value(None, &now_iso_runtime());
     DefaultTierGovernanceStateOutput {
         state: json!({
@@ -219,7 +215,7 @@ pub fn compute_to_date(input: &ToDateInput) -> ToDateOutput {
         .ok()
         .map(|re| re.is_match(&raw))
         .unwrap_or(false);
-    if valid {
+    if valid && NaiveDate::parse_from_str(&raw, "%Y-%m-%d").is_ok() {
         return ToDateOutput { value: raw };
     }
     ToDateOutput {
@@ -447,5 +443,22 @@ pub fn compute_default_tier_event_map(
 ) -> DefaultTierEventMapOutput {
     DefaultTierEventMapOutput {
         map: default_tier_event_map_value(),
+    }
+}
+fn normalize_policy_version_runtime(raw: &str) -> String {
+    let mut out = String::new();
+    for ch in clean_text_runtime(raw, 24).chars() {
+        if ch.is_ascii_alphanumeric() || matches!(ch, '.' | '_' | '-') {
+            out.push(ch);
+        }
+        if out.len() >= 24 {
+            break;
+        }
+    }
+    let trimmed = out.trim_matches(|ch: char| matches!(ch, '.' | '_' | '-'));
+    if trimmed.is_empty() {
+        "1.0".to_string()
+    } else {
+        trimmed.to_string()
     }
 }

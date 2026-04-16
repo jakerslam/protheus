@@ -1,12 +1,12 @@
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RecentProposalKeyCountEventInput {
-    #[serde(default)]
+    #[serde(default, alias = "proposalKey")]
     pub proposal_key: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "tsMs")]
     pub ts_ms: Option<f64>,
     #[serde(default)]
     pub result: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "attempt")]
     pub is_attempt: bool,
 }
 
@@ -14,7 +14,7 @@ pub struct RecentProposalKeyCountEventInput {
 pub struct RecentProposalKeyCountsInput {
     #[serde(default)]
     pub events: Vec<RecentProposalKeyCountEventInput>,
-    #[serde(default)]
+    #[serde(default, alias = "cutoffMs")]
     pub cutoff_ms: Option<f64>,
 }
 
@@ -25,11 +25,11 @@ pub struct RecentProposalKeyCountsOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CapabilityAttemptCountEventInput {
-    #[serde(default)]
+    #[serde(default, alias = "eventType")]
     pub event_type: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "capabilityKey")]
     pub capability_key: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "attempt")]
     pub is_attempt: bool,
 }
 
@@ -48,11 +48,11 @@ pub struct CapabilityAttemptCountForDateOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CapabilityOutcomeStatsEventInput {
-    #[serde(default)]
+    #[serde(default, alias = "eventType")]
     pub event_type: Option<String>,
     #[serde(default)]
     pub result: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "capabilityKey")]
     pub capability_key: Option<String>,
     #[serde(default)]
     pub outcome: Option<String>,
@@ -85,10 +85,11 @@ pub struct ExecuteConfidenceHistoryEventInput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ExecuteConfidenceHistoryInput {
+    #[serde(alias = "windowDays")]
     pub window_days: f64,
-    #[serde(default)]
+    #[serde(default, alias = "proposalType")]
     pub proposal_type: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "capabilityKey")]
     pub capability_key: Option<String>,
     #[serde(default)]
     pub events: Vec<ExecuteConfidenceHistoryEventInput>,
@@ -114,27 +115,41 @@ pub struct ExecuteConfidenceHistoryOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ExecuteConfidencePolicyInput {
-    #[serde(default)]
+    #[serde(default, alias = "proposalType")]
     pub proposal_type: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "capabilityKey")]
     pub capability_key: Option<String>,
     #[serde(default)]
     pub risk: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "executionMode")]
     pub execution_mode: Option<String>,
+    #[serde(alias = "adaptiveEnabled")]
     pub adaptive_enabled: bool,
+    #[serde(alias = "baseCompositeMargin")]
     pub base_composite_margin: f64,
+    #[serde(alias = "baseValueMargin")]
     pub base_value_margin: f64,
+    #[serde(alias = "lowRiskRelaxComposite")]
     pub low_risk_relax_composite: f64,
+    #[serde(alias = "lowRiskRelaxValue")]
     pub low_risk_relax_value: f64,
+    #[serde(alias = "fallbackRelaxEvery")]
     pub fallback_relax_every: f64,
+    #[serde(alias = "fallbackRelaxStep")]
     pub fallback_relax_step: f64,
+    #[serde(alias = "fallbackRelaxMax")]
     pub fallback_relax_max: f64,
+    #[serde(alias = "fallbackRelaxMinExecuted")]
     pub fallback_relax_min_executed: f64,
+    #[serde(alias = "fallbackRelaxMinShipped")]
     pub fallback_relax_min_shipped: f64,
+    #[serde(alias = "fallbackRelaxMinShipRate")]
     pub fallback_relax_min_ship_rate: f64,
+    #[serde(alias = "noChangeTightenMinExecuted")]
     pub no_change_tighten_min_executed: f64,
+    #[serde(alias = "noChangeTightenThreshold")]
     pub no_change_tighten_threshold: f64,
+    #[serde(alias = "noChangeTightenStep")]
     pub no_change_tighten_step: f64,
     #[serde(default)]
     pub history: Option<serde_json::Value>,
@@ -147,20 +162,23 @@ pub struct ExecuteConfidencePolicyOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct DirectiveFitAssessmentInput {
+    #[serde(alias = "minDirectiveFit")]
     pub min_directive_fit: f64,
+    #[serde(alias = "profileAvailable")]
     pub profile_available: bool,
-    #[serde(default)]
+    #[serde(default, alias = "activeDirectiveIds")]
     pub active_directive_ids: Vec<String>,
-    #[serde(default)]
+    #[serde(default, alias = "positivePhraseHits")]
     pub positive_phrase_hits: Vec<String>,
-    #[serde(default)]
+    #[serde(default, alias = "positiveTokenHits")]
     pub positive_token_hits: Vec<String>,
-    #[serde(default)]
+    #[serde(default, alias = "strategyHits")]
     pub strategy_hits: Vec<String>,
-    #[serde(default)]
+    #[serde(default, alias = "negativePhraseHits")]
     pub negative_phrase_hits: Vec<String>,
-    #[serde(default)]
+    #[serde(default, alias = "negativeTokenHits")]
     pub negative_token_hits: Vec<String>,
+    #[serde(alias = "strategyTokenCount")]
     pub strategy_token_count: f64,
     #[serde(default)]
     pub impact: Option<String>,
@@ -182,9 +200,13 @@ pub struct DirectiveFitAssessmentOutput {
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct SignalQualityAssessmentInput {
+    #[serde(alias = "minSignalQuality")]
     pub min_signal_quality: f64,
+    #[serde(alias = "minSensorySignal")]
     pub min_sensory_signal: f64,
+    #[serde(alias = "minSensoryRelevance")]
     pub min_sensory_relevance: f64,
+    #[serde(alias = "minEyeScoreEma")]
     pub min_eye_score_ema: f64,
     #[serde(default)]
     pub eye_id: Option<String>,

@@ -165,6 +165,119 @@
     - `core/layer0/ops/src/workflow_executor.rs`
     - `core/layer0/ops/src/workflow_controller.rs`
 
+- `OPENCLAW-TOOLING-WEB-043`:
+  - Re-assimilated provider-runtime/public-artifact snapshot and in-flight guard semantics from:
+    - `src/plugins/web-fetch-providers.runtime.ts`
+    - `src/plugins/web-provider-public-artifacts.explicit.ts`
+    - `src/plugins/web-search-providers.shared.ts`
+    - `src/plugins/web-provider-public-artifacts.ts`
+    - `src/plugins/web-fetch-providers.runtime.test.ts`
+  - Landed in:
+    - `core/layer0/ops/src/metakernel_parts/030-run-budget-admission.rs`
+    - `core/layer0/ops/src/company_plane_parts/030-run-ticket.rs`
+    - `core/layer0/ops/src/health_status_parts/030-collect-dopamine-ambient-dashboard-metric.rs`
+    - `core/layer0/ops/src/app_plane_parts/050-run-code-engineer-ingress.rs`
+    - `core/layer0/ops/src/health_status_parts/020-audit-cron-delivery.rs`
+
+- `OPENCLAW-TOOLING-WEB-044`:
+  - Re-assimilated fallback/ssrf/guarded/readability envelope semantics from:
+    - `src/agents/tools/web-fetch.provider-fallback.test.ts`
+    - `src/agents/tools/web-fetch.ssrf.test.ts`
+    - `src/agents/tools/web-tools.fetch.test.ts`
+    - `src/agents/tools/web-tools.readability.test.ts`
+    - `src/agents/tools/web-guarded-fetch.test.ts`
+  - Landed in:
+    - `core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/030-part.rs`
+    - `core/layer0/ops/src/dashboard_ui_parts/010-prelude-and-constants.rs`
+    - `core/layer0/ops/src/canyon_plane_parts/060-workflow-command.rs`
+    - `core/layer0/ops/src/health_status_parts/060-collect-dashboard-metrics.rs`
+    - `core/layer0/ops/src/dashboard_release_update.rs`
+
+- `OPENCLAW-TOOLING-WEB-045`:
+  - Re-assimilated provider-contract target matrix semantics from:
+    - `src/plugins/contracts/web-search-provider.firecrawl.contract.test.ts`
+    - `src/plugins/contracts/web-search-provider.google.contract.test.ts`
+    - `src/plugins/contracts/web-search-provider.perplexity.contract.test.ts`
+    - `src/plugins/contracts/web-search-provider.exa.contract.test.ts`
+    - `src/plugins/contracts/web-search-provider.tavily.contract.test.ts`
+  - Landed in:
+    - `core/layer0/ops/src/directive_kernel_parts/020-payload-contains-authorization-bearer.rs`
+    - `core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/200-part.rs`
+    - `core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/050-compact-session-keyframes.rs`
+    - `core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/070-cron-command-routing.rs`
+    - `core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/080-conversation-search-includes-archived.rs`
+
+- `OPENCLAW-TOOLING-WEB-046`:
+  - Re-assimilated provider-contract suite and bundled fast-path semantics from:
+    - `src/plugins/contracts/web-search-provider.brave.contract.test.ts`
+    - `src/plugins/contracts/web-search-provider.duckduckgo.contract.test.ts`
+    - `src/plugins/contracts/web-search-provider.moonshot.contract.test.ts`
+    - `src/plugins/contracts/web-search-provider.xai.contract.test.ts`
+    - `src/plugins/contracts/bundled-web-search.searxng.contract.test.ts`
+  - Landed in:
+    - `core/layer0/ops/src/directive_kernel_parts/050-env-guard.rs`
+    - `core/layer0/ops/src/metakernel_parts/050-run-execution-profiles.rs`
+    - `core/layer0/ops/src/metakernel_parts/020-validate-world-registry-payload.rs`
+    - `core/layer0/ops/src/health_status_parts/070-write-text.rs`
+    - `core/layer0/ops/src/company_plane_parts/020-run-budget-enforce.rs`
+
+- `OPENCLAW-TOOLING-WEB-047`:
+  - Re-assimilated bundled fast-path and provider-contract harness semantics from:
+    - `src/plugins/contracts/web-fetch-provider.contract.test.ts`
+    - `src/plugins/contracts/bundled-web-search.moonshot.contract.test.ts`
+    - `src/plugins/contracts/bundled-web-search.xai.contract.test.ts`
+    - `src/plugins/contracts/bundled-web-search.brave.contract.test.ts`
+    - `src/plugins/contracts/bundled-web-search.duckduckgo.contract.test.ts`
+  - Landed in:
+    - `core/layer0/ops/src/observability_plane_parts/030-run-incident.rs`
+    - `core/layer0/ops/src/directive_kernel_parts/010-state-root.rs`
+    - `core/layer0/ops/src/contract_check_parts/020-check-rust-source-of-truth-contract.rs`
+    - `core/layer0/ops/src/contract_check_parts/030-is-ts-bootstrap-wrapper.rs`
+    - `core/layer0/ops/src/company_plane_parts/010-usage.rs`
+    - `client/runtime/config/rust_source_of_truth_policy.json`
+
+- `OPENCLAW-TOOLING-WEB-048`:
+  - Re-assimilated bundled provider fast-path matrix semantics from:
+    - `src/plugins/contracts/bundled-web-search.exa.contract.test.ts`
+    - `src/plugins/contracts/bundled-web-search.firecrawl.contract.test.ts`
+    - `src/plugins/contracts/bundled-web-search.google.contract.test.ts`
+    - `src/plugins/contracts/bundled-web-search.minimax.contract.test.ts`
+    - `src/plugins/contracts/bundled-web-search.perplexity.contract.test.ts`
+  - Landed in:
+    - `core/layer0/ops/src/observability_plane_parts/040-run-acp-provenance.rs`
+    - `core/layer0/ops/src/audit_log_export.rs`
+    - `core/layer0/ops/src/skills_plane_parts/030-run-chain-validate.rs`
+    - `core/layer0/ops/src/directive_kernel_parts/030-directive-vault-hash.rs`
+    - `core/layer0/ops/src/framework_adapter_contract.rs`
+
+- `OPENCLAW-TOOLING-WEB-049`:
+  - Re-assimilated provider runtime/auth/registry/discovery plus bundled tavily fast-path semantics from:
+    - `src/plugins/contracts/bundled-web-search.tavily.contract.test.ts`
+    - `src/plugins/contracts/provider-runtime.contract.test.ts`
+    - `src/plugins/contracts/provider-auth.contract.test.ts`
+    - `src/plugins/contracts/registry.contract.test.ts`
+    - `src/plugins/contracts/provider-discovery.contract.test.ts`
+  - Landed in:
+    - `core/layer0/ops/src/strategy_store_kernel_parts/040-set-state.rs`
+    - `core/layer0/ops/src/quorum_validator_kernel.rs`
+    - `core/layer0/ops/src/metakernel_parts/010-state-root.rs`
+    - `core/layer0/ops/src/system_health_audit_runner_kernel.rs`
+    - `core/layer0/ops/src/protheusd_parts/030-embedded-minimal-core-status.rs`
+
+- `OPENCLAW-TOOLING-WEB-050`:
+  - Re-assimilated provider-family contract semantics from:
+    - `src/plugins/contracts/provider.anthropic.contract.test.ts`
+    - `src/plugins/contracts/provider.fal.contract.test.ts`
+    - `src/plugins/contracts/provider.google.contract.test.ts`
+    - `src/plugins/contracts/provider.minimax.contract.test.ts`
+    - `src/plugins/contracts/provider.moonshot.contract.test.ts`
+  - Landed in:
+    - `core/layer0/ops/src/t0_invariants_kernel.rs`
+    - `core/layer0/ops/src/dynamic_burn_budget_signal_kernel.rs`
+    - `core/layer0/ops/src/seed_protocol_parts/010-state-root.rs`
+    - `core/layer0/ops/src/supply_chain_provenance_v2_parts/010-usage.rs`
+    - `core/layer0/ops/src/top1_assurance_parts/010-usage.rs`
+
 ## Current Intake State
 - Imported rows in this wave: `150`
 - Pending rows in this wave: `0`
@@ -486,3 +599,332 @@
     - `core/layer0/ops/src/request_envelope_kernel.rs`
     - `core/layer0/ops/src/contract_lane_utils.rs`
   - Burned source snapshot: `openclaw-20260415-222821`
+
+- `OPENCLAW-TOOLING-WEB-041`:
+  - Re-assimilated provider-runtime canonicalization and readiness semantics from:
+    - `src/plugins/provider-runtime.test.ts`
+    - `src/plugins/provider-runtime.ts`
+    - `src/plugins/provider-runtime.runtime.ts`
+    - `src/plugins/provider-runtime-model.types.ts`
+    - `src/plugins/provider-runtime.test-support.ts`
+  - Landed in:
+    - `core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/020-part.rs`
+    - `core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/040-part.rs`
+    - `core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/060-part.rs`
+    - `core/layer0/ops/src/daemon_control_parts/020-dashboard-health-ok.rs`
+    - `core/layer0/ops/src/dashboard_channel_catalog.rs`
+  - Burned source snapshot: `openclaw-20260415-223628`
+
+- `OPENCLAW-TOOLING-WEB-042`:
+  - Re-assimilated runtime web tooling contract surfaces from:
+    - `src/secrets/runtime-web-tools.ts`
+    - `src/secrets/runtime-web-tools-state.ts`
+    - `src/agents/tools/web-guarded-fetch.ts`
+    - `src/secrets/runtime-web-tools.shared.ts`
+    - `src/secrets/runtime-web-tools.types.ts`
+  - Landed in:
+    - `core/layer0/ops/src/company_plane_parts/040-run-heartbeat.rs`
+    - `core/layer0/ops/src/observability_plane_parts/020-run-monitor.rs`
+    - `core/layer0/ops/src/strategy_resolver_parts/020-normalize-strategy.rs`
+    - `core/layer0/ops/src/substrate_plane_parts/020-run-csi-module.rs`
+    - `core/layer0/ops/src/origin_integrity_parts/010-default.rs`
+  - Burned source snapshot: `openclaw-20260415-224130`
+
+- `OPENCLAW-TOOLING-WEB-051`:
+  - Re-assimilated provider-family wrapper and boundary-inventory contract semantics from:
+    - `src/plugins/contracts/provider.openai.contract.test.ts`
+    - `src/plugins/contracts/provider.openrouter.contract.test.ts`
+    - `src/plugins/contracts/provider.xai.contract.test.ts`
+    - `src/plugins/contracts/provider-family-plugin-tests.test.ts`
+    - `src/plugins/contracts/tts.provider-runtime.contract.test.ts`
+  - Landed in:
+    - `core/layer0/ops/src/top1_assurance_parts/040-run.rs`
+    - `core/layer0/ops/src/catalog_store_kernel.rs`
+    - `core/layer0/ops/src/persist_plane_cowork.rs`
+    - `core/layer0/ops/src/coverage_badge_kernel.rs`
+    - `core/layer0/ops/src/canyon_plane_parts/070-benchmark-gate-command.rs`
+    - Burned to: `local/state/assimilation/burned/openclaw-20260415-234820`
+
+- `OPENCLAW-TOOLING-WEB-052`:
+  - Re-assimilated capability-provider runtime fallback and memory-embedding contract semantics from:
+    - `src/plugins/capability-provider-runtime.test.ts`
+    - `src/plugins/capability-provider-runtime.ts`
+    - `src/plugins/memory-embedding-provider-runtime.test.ts`
+    - `src/plugins/memory-embedding-provider-runtime.ts`
+    - `src/plugins/contracts/memory-embedding-provider.contract.test.ts`
+  - Landed in:
+    - `core/layer0/ops/src/hermes_plane_parts/030-collect-recent-ops-latest.rs`
+    - `core/layer0/ops/src/organism_layer.rs`
+    - `core/layer0/ops/src/adaptive_layer_store_kernel_parts/020-append-jsonl.rs`
+    - `core/layer0/ops/src/canyon_plane_parts/040-sandbox-command.rs`
+    - `core/layer0/ops/src/proposal_type_classifier_kernel.rs`
+  - Burned to: `local/state/assimilation/burned/openclaw-20260415-235401`
+
+- `OPENCLAW-TOOLING-WEB-053`:
+  - Re-assimilated fetch-provider ordering, public-artifact fast-path, runtime web-channel boundary, and provider-discovery fallback semantics from:
+    - `src/plugins/web-fetch-providers.shared.ts`
+    - `src/plugins/web-provider-public-artifacts.explicit-fast-path.test.ts`
+    - `src/plugins/web-provider-public-artifacts.test.ts`
+    - `src/plugins/runtime/runtime-web-channel-plugin.ts`
+    - `src/plugins/provider-discovery.runtime.ts`
+  - Landed in:
+    - `core/layer0/ops/src/protheusctl_tests_parts/060-persona-blocked-path-fails-closed.rs`
+    - `core/layer0/ops/src/fixed_microbenchmark.rs`
+    - `core/layer0/ops/src/strategy_resolver_parts/010-print-json-line.rs`
+    - `core/layer0/ops/src/contract_check_parts/010-run.rs`
+    - `core/layer0/ops/src/adaptive_layer_store_kernel_parts/030-resolve-path-command.rs`
+  - Burned to: `local/state/assimilation/burned/openclaw-20260415-235912`
+
+- `OPENCLAW-TOOLING-WEB-054`:
+  - Re-assimilated provider/web-search/web-fetch helper contract-suite semantics from:
+    - `test/helpers/plugins/bundled-web-search-fast-path-contract.ts`
+    - `test/helpers/plugins/web-search-provider-contract.ts`
+    - `test/helpers/plugins/provider-runtime-contract.ts`
+    - `test/helpers/plugins/provider-contract.ts`
+    - `test/helpers/plugins/web-fetch-provider-contract.ts`
+  - Landed in:
+    - `core/layer0/ops/src/persist_plane_connector.rs`
+    - `core/layer0/ops/src/ops_main_usage.rs`
+    - `core/layer0/ops/src/uid_kernel.rs`
+    - `core/layer0/ops/src/hermes_plane_parts/010-usage.rs`
+    - `core/layer0/ops/src/foundation_contract_gate.rs`
+  - Burned to: `local/state/assimilation/burned/openclaw-20260416-000321`
+
+- `OPENCLAW-TOOLING-WEB-055`:
+  - Re-assimilated gateway reconnect + queue/stream + model-select/tool-card semantics from:
+    - `ui/src/ui/app-gateway.ts`
+    - `ui/src/ui/app-chat.ts`
+    - `ui/src/ui/app-tool-stream.ts`
+    - `ui/src/ui/chat-model-select-state.ts`
+    - `ui/src/ui/chat/tool-cards.ts`
+  - Landed in:
+    - `core/layer0/ops/src/finance_plane_parts/030-availability-command.rs`
+    - `core/layer0/ops/src/collab_plane_parts/030-run-terminate-role.rs`
+    - `core/layer0/ops/src/adaptive_intelligence_parts/030-run-shadow-train.rs`
+    - `core/layer0/ops/src/fluxlattice_program_parts/030-usage.rs`
+    - `core/layer0/ops/src/integrity_hash_utility_kernel.rs`
+  - Burned to: `local/state/assimilation/burned/openclaw-20260416-000818`
+
+
+- `OPENCLAW-TOOLING-WEB-056`:
+  - Re-assimilated backend web-tooling runtime diagnostics from:
+    - `src/secrets/runtime-web-tools-fallback.runtime.ts`
+    - `src/secrets/runtime-web-tools-manifest.runtime.ts`
+    - `src/secrets/runtime-web-tools-public-artifacts.runtime.ts`
+    - `src/secrets/runtime-web-tools-state.test.ts`
+    - `src/plugins/web-fetch-providers.runtime.ts`
+  - Landed in:
+    - `core/layer0/ops/src/network_protocol.rs`
+    - `core/layer0/ops/src/network_protocol_run_parts/010-contribution-history-path.rs`
+    - `core/layer0/ops/src/metakernel_parts/055-run-microkernel-safety.rs`
+    - `core/layer0/ops/src/app_plane_parts/020-run-chat-starter.rs`
+    - `core/layer0/ops/src/directive_kernel_parts/040-run.rs`
+  - Burned source snapshot: `openclaw-20260416-061829`
+
+
+- `OPENCLAW-TOOLING-WEB-057`:
+  - Re-assimilated web tooling policy/runtime contract patterns from:
+    - `src/plugins/web-provider-public-artifacts.explicit.ts`
+    - `src/plugins/web-provider-public-artifacts.ts`
+    - `src/plugins/web-search-providers.shared.ts`
+    - `src/secrets/runtime-web-tools.test.ts`
+    - `src/plugins/web-fetch-providers.runtime.test.ts`
+  - Landed in:
+    - `core/layer0/ops/src/directive_kernel_parts/060-placeholder.rs`
+    - `core/layer0/ops/src/directive_kernel.rs`
+    - `core/layer0/ops/src/network_protocol_run.rs`
+    - `core/layer0/ops/src/autotest_controller.rs`
+    - `core/layer0/ops/src/autotest_doctor.rs`
+  - Burned source snapshot: `openclaw-20260416-062508`
+
+
+- `OPENCLAW-TOOLING-WEB-058`:
+  - Re-assimilated web tooling failure-contract patterns from:
+    - `src/agents/tools/web-fetch.provider-fallback.test.ts`
+    - `src/agents/tools/web-fetch.ssrf.test.ts`
+    - `src/agents/tools/web-tools.fetch.test.ts`
+    - `src/agents/tools/web-guarded-fetch.test.ts`
+    - `src/agents/tools/web-tools.readability.test.ts`
+  - Landed in:
+    - `core/layer2/execution/src/importers.rs`
+    - `core/layer2/execution/src/lib.rs`
+    - `core/layer2/execution/src/main.rs`
+    - `core/layer0/ops/src/network_protocol_run_parts/020-placeholder.rs`
+    - `core/layer2/nexus/src/main_nexus.rs`
+  - Burned source snapshot: `openclaw-20260416-062956`
+
+
+- `OPENCLAW-TOOLING-WEB-059`:
+  - Re-assimilated web tooling content/visibility harness patterns from:
+    - `src/agents/tools/web-fetch.cf-markdown.test.ts`
+    - `src/agents/tools/web-fetch-visibility.test.ts`
+    - `src/agents/tools/web-fetch.test-harness.ts`
+    - `src/agents/tools/web-fetch.test-mocks.ts`
+    - `src/secrets/runtime-web-tools-state.test.ts`
+  - Landed in:
+    - `core/layer0/ops/src/autotest_controller_parts/040-is-spine-hot.rs`
+    - `core/layer0/ops/src/autonomy_controller_parts/051-speculation-and-regression-tests.rs`
+    - `core/layer0/ops/src/benchmark_matrix_parts/010-usage.rs`
+    - `core/layer0/ops/src/duality_seed_parts/010-print-json-line.rs`
+    - `core/layer0/ops/src/organism_layer_phase1.rs`
+  - Burned source snapshot: `openclaw-20260416-063455`
+
+
+- `OPENCLAW-TOOLING-WEB-060`:
+  - Re-assimilated web tooling fetch/readability/fallback guard patterns from:
+    - `src/agents/tools/web-tools.fetch.test.ts`
+    - `src/agents/tools/web-tools.readability.test.ts`
+    - `src/agents/tools/web-fetch.provider-fallback.test.ts`
+    - `src/agents/tools/web-fetch.ssrf.test.ts`
+    - `src/agents/tools/web-guarded-fetch.test.ts`
+  - Landed in:
+    - `core/layer0/ops/src/top50_roi_sweep_kernel.rs`
+    - `core/layer0/ops/src/ab_lane_eval.rs`
+    - `core/layer0/ops/src/reflex_store_kernel.rs`
+    - `core/layer0/ops/src/habit_store_kernel.rs`
+    - `core/layer0/ops/src/flow_plane_parts/020-playground-and-marketplace.rs`
+  - Burned source snapshot: `openclaw-20260416-063908`
+
+
+- `OPENCLAW-TOOLING-WEB-061`:
+  - Re-assimilated web tooling visibility/harness readiness semantics from:
+    - `src/agents/tools/web-fetch.cf-markdown.test.ts`
+    - `src/agents/tools/web-fetch-visibility.test.ts`
+    - `src/agents/tools/web-fetch.test-harness.ts`
+    - `src/agents/tools/web-fetch.test-mocks.ts`
+    - `src/secrets/runtime-web-tools-state.test.ts`
+  - Landed in:
+    - `core/layer0/ops/src/autonomy_controller_parts/030-ephemeral-and-trunk.rs`
+    - `core/layer0/ops/src/collab_plane_parts/050-run-continuity.rs`
+    - `core/layer0/ops/src/success_criteria_kernel_parts/030-evaluate-row.rs`
+    - `core/layer0/ops/src/alpha_readiness.rs`
+    - `core/layer0/ops/src/supply_chain_provenance_v2_parts/030-prepare-cmd.rs`
+  - Burned source snapshot: `openclaw-20260416-064251`
+
+
+- `OPENCLAW-TOOLING-WEB-062`:
+  - Re-assimilated plugin-sdk/native web-search runtime semantics from:
+    - `packages/plugin-sdk/src/provider-web-search.ts`
+    - `src/plugin-sdk/provider-web-search.ts`
+    - `src/agents/codex-native-web-search.ts`
+    - `extensions/xai/web-search.ts`
+    - `src/commands/doctor/shared/legacy-config-migrations.web-search.ts`
+  - Landed in:
+    - `core/layer0/ops/src/protheusctl_tests_parts/010-env-guard.rs`
+    - `core/layer0/ops/src/state_kernel.rs`
+    - `core/layer0/ops/src/rust_hotpath_inventory_kernel.rs`
+    - `core/layer0/ops/src/autonomy_controller_parts/052-autoreason.rs`
+    - `core/layer0/ops/src/asm_plane_parts/010-usage.rs`
+  - Burned source snapshot: `openclaw-20260416-005400`
+
+
+- `OPENCLAW-TOOLING-WEB-063`:
+  - Re-assimilated web-search contract/config field semantics from:
+    - `src/plugin-sdk/provider-web-search-contract.ts`
+    - `src/plugin-sdk/provider-web-search-contract.test.ts`
+    - `src/plugin-sdk/provider-web-search-contract-fields.ts`
+    - `src/plugin-sdk/provider-web-search-config-contract.ts`
+    - `packages/plugin-sdk/src/provider-web-search-config-contract.ts`
+  - Landed in:
+    - `core/layer0/ops/src/benchmark_matrix_parts/040-run-impl.rs`
+    - `core/layer0/ops/src/f100_readiness_program_parts/010-usage.rs`
+    - `core/layer0/ops/src/passport_iteration_chain_kernel.rs`
+    - `core/layer0/ops/src/mech_suit_mode_kernel_parts/010-usage.rs`
+    - `core/layer0/ops/src/protheusd_parts/010-print-json.rs`
+  - Burned source snapshot: `openclaw-20260416-005919`
+
+
+- `OPENCLAW-TOOLING-WEB-064`:
+  - Re-assimilated web-search config/runtime contract semantics from:
+    - `src/config/plugin-web-search-config.ts`
+    - `src/config/plugin-web-search-config.test.ts`
+    - `src/config/config.web-search-provider.test.ts`
+    - `src/config/web-search-codex-config.test.ts`
+    - `src/plugins/contracts/web-search-provider.exa.contract.test.ts`
+  - Landed in:
+    - `core/layer0/ops/src/trit_shadow_kernel_parts/040-save-influence-guard.rs`
+    - `core/layer2/execution/src/autoscale_parts/050-composite-eligibility-min-output.rs`
+    - `core/layer2/execution/src/inversion_parts/010-normalize-impact-input.rs`
+    - `core/layer2/execution/src/autoscale_parts/060-unknown-type-quarantine-decision-input.rs`
+    - `core/layer2/execution/src/inversion_parts/040-normalize-library-row-input.rs`
+  - Burned source snapshot: `openclaw-20260416-010344`
+
+
+- `OPENCLAW-TOOLING-WEB-065`:
+  - Re-assimilated web-search provider-contract compatibility semantics from:
+    - `src/plugins/contracts/web-search-provider.google.contract.test.ts`
+    - `src/plugins/contracts/web-search-provider.firecrawl.contract.test.ts`
+    - `src/plugins/contracts/web-search-provider.tavily.contract.test.ts`
+    - `src/plugins/contracts/web-search-provider.perplexity.contract.test.ts`
+    - `src/plugins/contracts/web-search-provider.brave.contract.test.ts`
+  - Landed in:
+    - `core/layer0/ops/src/collab_plane_parts/010-usage.rs`
+    - `core/layer0/ops/src/skills_plane_parts/040-verify-gallery-signature.rs`
+    - `core/layer0/ops/src/trit_shadow_kernel_parts/030-evaluate-productivity.rs`
+    - `core/layer2/execution/src/autoscale_parts/030-strategy-rank-score-output.rs`
+    - `core/layer2/execution/src/inversion_parts/030-rel-path-input.rs`
+  - Burned source snapshot: `openclaw-20260416-010817`
+
+
+- `OPENCLAW-TOOLING-WEB-066`:
+  - Re-assimilated bundled web-search provider contract semantics from:
+    - `src/plugins/contracts/bundled-web-search.google.contract.test.ts`
+    - `src/plugins/contracts/bundled-web-search.firecrawl.contract.test.ts`
+    - `src/plugins/contracts/bundled-web-search.exa.contract.test.ts`
+    - `src/plugins/contracts/bundled-web-search.tavily.contract.test.ts`
+    - `src/plugins/contracts/bundled-web-search.perplexity.contract.test.ts`
+  - Landed in:
+    - `core/layer2/spine/src/authority.rs`
+    - `core/layer2/execution/src/autoscale_parts/020-run-result-tally-output.rs`
+    - `core/layer0/ops/src/enterprise_hardening_parts/050-run-genesis-thin-wrapper-audit.rs`
+    - `core/layer0/ops/src/fluxlattice_program_parts/010-normalize-id.rs`
+    - `core/layer2/execution/src/autoscale_parts/120-recent-proposal-key-count-event-input.rs`
+  - Burned source snapshot: `openclaw-20260416-011204`
+
+
+- `OPENCLAW-TOOLING-WEB-067`:
+  - Re-assimilated runtime web provider contract semantics from:
+    - `src/web-search/runtime.ts`
+    - `src/web-search/runtime-types.ts`
+    - `src/web-fetch/runtime.ts`
+    - `src/plugin-sdk/provider-web-fetch-contract.ts`
+    - `src/test-utils/web-provider-runtime.test-helpers.ts`
+  - Landed in:
+    - `core/layer2/execution/src/autoscale_parts/280-compute-sanitized-directive-id-list.rs`
+    - `core/layer0/ops/src/adaptive_layer_store_kernel_parts/010-usage.rs`
+    - `core/layer0/ops/src/enterprise_moat_extensions_parts/020-run-deploy-modules.rs`
+    - `core/layer0/ops/src/snowball_plane_parts/020-build-fitness-review.rs`
+    - `core/layer0/ops/src/binary_vuln_plane_parts/010-usage.rs`
+  - Burned source snapshot: `openclaw-20260416-011925`
+
+
+- `OPENCLAW-TOOLING-WEB-068`:
+  - Re-assimilated provider-runtime web tooling semantics from:
+    - `extensions/brave/src/brave-web-search-provider.runtime.ts`
+    - `extensions/brave/src/brave-web-search-provider.shared.ts`
+    - `extensions/voice-call/src/provider-runtime-resolution.ts`
+    - `extensions/perplexity/src/perplexity-web-search-provider.ts`
+    - `extensions/google/src/gemini-web-search-provider.ts`
+  - Landed in:
+    - `core/layer0/ops/src/focus_trigger_store_kernel_parts/020-normalize-eye-lenses.rs`
+    - `core/layer2/execution/src/autoscale_parts/080-recent-directive-pulse-cooldown-count-input.rs`
+    - `core/layer2/execution/src/autoscale_parts/170-compute-proposal-semantic-fingerprint.rs`
+    - `core/layer2/execution/src/inversion_parts/050-compute-normalize-impact.rs`
+    - `core/layer2/execution/src/inversion_parts/090-compute-coerce-tier-event-map.rs`
+  - Burned source snapshot: `openclaw-20260416-012424`
+
+
+- `OPENCLAW-TOOLING-WEB-069`:
+  - Re-assimilated provider runtime/migration semantics from:
+    - `src/web/provider-runtime-shared.ts`
+    - `src/plugin-sdk/provider-web-fetch.ts`
+    - `src/plugin-sdk/models-provider-runtime.ts`
+    - `src/commands/doctor/shared/legacy-web-search-migrate.ts`
+    - `src/commands/doctor/shared/legacy-web-fetch-migrate.ts`
+  - Landed in:
+    - `core/layer2/execution/src/inversion_parts/120-compute-build-output-interfaces.rs`
+    - `core/layer2/execution/src/inversion_parts/150-compute-load-active-sessions.rs`
+    - `core/layer2/execution/src/inversion_parts/080-compute-default-tier-scope.rs`
+    - `core/layer2/execution/src/autoscale_parts/200-compute-list-value-currencies.rs`
+    - `core/layer2/execution/src/inversion_parts/160-compute-trim-library.rs`
+  - Burned source snapshot: `openclaw-20260416-012854`
