@@ -5,7 +5,7 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::process::Command;
 
 const IDS: [&str; 16] = [
@@ -121,15 +121,27 @@ fn resolve_path(root: &Path, raw: Option<&Value>, fallback_rel: &str) -> PathBuf
     let Some(raw) = raw.and_then(Value::as_str) else {
         return fallback;
     };
-    let text = clean(raw, 400);
+    let text = clean(raw, 400).replace('\\', "/");
+    let text = text.trim().to_string();
     if text.is_empty() {
         return fallback;
     }
-    let pb = PathBuf::from(text);
+    let pb = PathBuf::from(&text);
     if pb.is_absolute() {
-        pb
+        if pb.starts_with(root) {
+            pb
+        } else {
+            fallback
+        }
     } else {
-        root.join(pb)
+        let safe_rel = pb.components().all(|component| {
+            matches!(component, Component::Normal(_) | Component::CurDir)
+        });
+        if safe_rel {
+            root.join(pb)
+        } else {
+            fallback
+        }
     }
 }
 
@@ -452,4 +464,3 @@ fn append_flux_event(policy: &Policy, row: &Value, apply: bool) -> Result<(), St
     }
     append_jsonl(&policy.paths.flux_events_path, row)
 }
-

@@ -1,13 +1,13 @@
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RecentDirectivePulseCooldownCountInput {
-    #[serde(default)]
+    #[serde(default, alias = "objectiveId")]
     pub objective_id: Option<String>,
     #[serde(default)]
     pub hours: Option<f64>,
-    #[serde(default)]
+    #[serde(default, alias = "nowMs")]
     pub now_ms: Option<f64>,
-    #[serde(default)]
+    #[serde(default, alias = "recentEvents")]
     pub events: Vec<RecentDirectivePulseCooldownEventInput>,
 }
 
@@ -31,9 +31,9 @@ pub struct ProposalDirectiveTextOutput {
 pub struct ObjectiveIdsFromPulseContextInput {
     #[serde(default)]
     pub objectives: Vec<serde_json::Value>,
-    #[serde(default)]
+    #[serde(default, alias = "fallbackEnabled")]
     pub fallback_enabled: bool,
-    #[serde(default)]
+    #[serde(default, alias = "fallbackIds")]
     pub fallback_ids: Vec<String>,
 }
 
@@ -44,21 +44,21 @@ pub struct ObjectiveIdsFromPulseContextOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PolicyHoldObjectiveContextInput {
-    #[serde(default)]
+    #[serde(default, alias = "candidateObjectiveIds")]
     pub candidate_objective_ids: Vec<String>,
-    #[serde(default)]
+    #[serde(default, alias = "poolObjectiveIds")]
     pub pool_objective_ids: Vec<String>,
-    #[serde(default)]
+    #[serde(default, alias = "dominantObjectiveId")]
     pub dominant_objective_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PolicyHoldObjectiveContextOutput {
-    #[serde(default)]
+    #[serde(default, alias = "objectiveId")]
     pub objective_id: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "objectiveSource")]
     pub objective_source: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "objectiveIds")]
     pub objective_ids: Option<Vec<String>>,
 }
 
@@ -96,13 +96,13 @@ pub struct CriteriaPatternKeysOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct SuccessCriteriaRequirementInput {
-    #[serde(default)]
+    #[serde(default, alias = "requireSuccessCriteria")]
     pub require_success_criteria: Option<bool>,
-    #[serde(default)]
+    #[serde(default, alias = "minSuccessCriteriaCount")]
     pub min_success_criteria_count: Option<f64>,
-    #[serde(default)]
+    #[serde(default, alias = "policyExemptTypes")]
     pub policy_exempt_types: Vec<String>,
-    #[serde(default)]
+    #[serde(default, alias = "envExemptTypes")]
     pub env_exempt_types: Vec<String>,
 }
 
@@ -133,9 +133,9 @@ pub struct SuccessCriteriaPolicyForProposalOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CapabilityDescriptorInput {
-    #[serde(default)]
+    #[serde(default, alias = "actuationKind")]
     pub actuation_kind: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "proposalType")]
     pub proposal_type: Option<String>,
 }
 
@@ -147,17 +147,17 @@ pub struct CapabilityDescriptorOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct NormalizeTokenUsageShapeInput {
-    #[serde(default)]
+    #[serde(default, alias = "promptTokens")]
     pub prompt_tokens: Option<f64>,
-    #[serde(default)]
+    #[serde(default, alias = "inputTokens")]
     pub input_tokens: Option<f64>,
-    #[serde(default)]
+    #[serde(default, alias = "completionTokens")]
     pub completion_tokens: Option<f64>,
-    #[serde(default)]
+    #[serde(default, alias = "outputTokens")]
     pub output_tokens: Option<f64>,
-    #[serde(default)]
+    #[serde(default, alias = "totalTokens")]
     pub total_tokens: Option<f64>,
-    #[serde(default)]
+    #[serde(default, alias = "tokensUsed")]
     pub tokens_used: Option<f64>,
     #[serde(default)]
     pub source: Option<String>,
@@ -205,7 +205,7 @@ pub struct IsDirectiveDecompositionProposalOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct SanitizeDirectiveObjectiveIdInput {
-    #[serde(default)]
+    #[serde(default, alias = "objectiveId")]
     pub value: Option<String>,
 }
 

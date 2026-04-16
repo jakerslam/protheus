@@ -3,10 +3,29 @@ pub(super) fn run_deploy_modules(
     strict: bool,
     flags: &std::collections::HashMap<String, String>,
 ) -> Result<Value, String> {
-    let profile = flags
+    let requested_profile = flags
         .get("profile")
         .cloned()
         .unwrap_or_else(|| "enterprise".to_string());
+    let mut profile = String::new();
+    for ch in requested_profile.trim().chars() {
+        if profile.len() >= 64 {
+            break;
+        }
+        if ch.is_ascii_alphanumeric() {
+            profile.push(ch.to_ascii_lowercase());
+        } else if matches!(ch, '-' | '_' | '.') {
+            profile.push(ch);
+        }
+    }
+    let profile = profile
+        .trim_matches(|ch: char| matches!(ch, '-' | '_' | '.'))
+        .to_string();
+    let profile = if profile.is_empty() {
+        "enterprise".to_string()
+    } else {
+        profile
+    };
     let base = enterprise_state_root(root).join("f100/deploy_modules");
     let operator_yaml = base.join("operator.yaml");
     let helm_values = base.join("helm/values-airgap.yaml");
@@ -30,6 +49,10 @@ pub(super) fn run_deploy_modules(
         && terraform_main.exists()
         && ansible_site.exists();
     let mut errors = Vec::<String>::new();
+    let requested_profile_lower = requested_profile.trim().to_ascii_lowercase();
+    if strict && !requested_profile_lower.is_empty() && requested_profile_lower != profile {
+        errors.push("deployment_module_profile_invalid".to_string());
+    }
     if strict && !ok {
         errors.push("deployment_module_generation_failed".to_string());
     }

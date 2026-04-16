@@ -3,11 +3,41 @@ fn run_genesis_thin_wrapper_audit(
     strict: bool,
     flags: &std::collections::HashMap<String, String>,
 ) -> Result<Value, String> {
-    let scan_root_rel = flags
+    let scan_root_rel_raw = flags
         .get("scan-root")
         .map(|v| v.trim().to_string())
         .filter(|v| !v.is_empty())
         .unwrap_or_else(|| DEFAULT_THIN_WRAPPER_SCAN_ROOT_REL.to_string());
+    let scan_root_rel_normalized = scan_root_rel_raw.replace('\\', "/");
+    let scan_root_rel_invalid = scan_root_rel_normalized.starts_with('/')
+        || scan_root_rel_normalized.starts_with("../")
+        || scan_root_rel_normalized.contains("/../")
+        || scan_root_rel_normalized.ends_with("/..")
+        || scan_root_rel_normalized.contains('\0');
+    if strict && scan_root_rel_invalid {
+        return Ok(with_receipt_hash(json!({
+            "ok": false,
+            "type": "enterprise_hardening_genesis_thin_wrapper_audit",
+            "lane": "enterprise_hardening",
+            "mode": "genesis-thin-wrapper-audit",
+            "strict": strict,
+            "scan_root": scan_root_rel_raw,
+            "violations": [],
+            "errors": ["thin_wrapper_scan_root_invalid"],
+            "claim_evidence": [
+                {
+                    "id": "V7-GENESIS-001.2",
+                    "claim": "client_surface_boundary_audit_proves_thin_wrapper_paths_without_unauthorized_authority_calls",
+                    "evidence": {"scan_root": scan_root_rel_raw}
+                }
+            ]
+        })));
+    }
+    let scan_root_rel = if scan_root_rel_invalid {
+        DEFAULT_THIN_WRAPPER_SCAN_ROOT_REL.to_string()
+    } else {
+        scan_root_rel_normalized
+    };
     let scan_root = root.join(&scan_root_rel);
     let mut files = Vec::<PathBuf>::new();
     collect_files_with_extension(&scan_root, "ts", &mut files)?;
@@ -452,4 +482,3 @@ fn requires_cross_plane_jwt_guard(cmd: &str) -> bool {
             | "assistant_mode"
     )
 }
-

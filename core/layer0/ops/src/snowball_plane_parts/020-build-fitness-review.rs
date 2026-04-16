@@ -1,3 +1,26 @@
+fn sort_review_rows(rows: &mut [Value]) {
+    rows.sort_by(|a, b| {
+        let a_score = a.get("review_score").and_then(Value::as_f64).unwrap_or(0.0);
+        let b_score = b.get("review_score").and_then(Value::as_f64).unwrap_or(0.0);
+        let a_id = a
+            .get("id")
+            .and_then(Value::as_str)
+            .or_else(|| a.get("idea").and_then(Value::as_str))
+            .unwrap_or("")
+            .to_ascii_lowercase();
+        let b_id = b
+            .get("id")
+            .and_then(Value::as_str)
+            .or_else(|| b.get("idea").and_then(Value::as_str))
+            .unwrap_or("")
+            .to_ascii_lowercase();
+        b_score
+            .partial_cmp(&a_score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| a_id.cmp(&b_id))
+    });
+}
+
 fn build_fitness_review(
     _root: &Path,
     cycle_id: &str,
@@ -112,6 +135,9 @@ fn build_fitness_review(
             _ => rejected.push(normalized),
         }
     }
+    sort_review_rows(&mut survivors);
+    sort_review_rows(&mut demoted);
+    sort_review_rows(&mut rejected);
 
     json!({
         "version": "v1",
@@ -451,4 +477,3 @@ struct BacklogItem {
     payload: Value,
     original_index: usize,
 }
-

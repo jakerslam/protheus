@@ -2,15 +2,32 @@ pub fn compute_coerce_tier_event_map(input: &CoerceTierEventMapInput) -> CoerceT
     let src = input.map.as_ref().and_then(|v| v.as_object()).cloned();
     let mut map = serde_json::Map::new();
     for target in TIER_TARGETS {
-        let rows = src
-            .as_ref()
-            .and_then(|obj| obj.get(target))
-            .and_then(|v| v.as_array())
-            .cloned()
-            .unwrap_or_default()
-            .iter()
-            .map(|row| value_to_string(Some(row)))
-            .collect::<Vec<_>>();
+        let legacy_suffix = format!("{target}_events");
+        let mut rows = Vec::<String>::new();
+        let mut seen = std::collections::BTreeSet::<String>::new();
+        for key in [target.to_string(), legacy_suffix] {
+            let source_rows = src
+                .as_ref()
+                .and_then(|obj| obj.get(&key))
+                .and_then(|v| v.as_array())
+                .cloned()
+                .unwrap_or_default();
+            for row in source_rows {
+                let normalized = value_to_string(Some(&row)).trim().to_string();
+                if normalized.is_empty() {
+                    continue;
+                }
+                if seen.insert(normalized.clone()) {
+                    rows.push(normalized);
+                }
+                if rows.len() >= 10_000 {
+                    break;
+                }
+            }
+            if rows.len() >= 10_000 {
+                break;
+            }
+        }
         map.insert(
             target.to_string(),
             Value::Array(rows.into_iter().map(Value::String).collect::<Vec<_>>()),

@@ -1,3 +1,17 @@
+fn canonical_value_currency_alias(raw: &str) -> String {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "money" | "cash" | "profit" | "pricing" | "billing" => "revenue".to_string(),
+        "customer" | "user" | "customer_value" | "retention" => "user_value".to_string(),
+        "reliability" | "stability" | "resilience" => "quality".to_string(),
+        "time" | "speed" | "latency" | "hours_saved" | "time_to_value" => {
+            "time_savings".to_string()
+        }
+        "throughput" | "velocity" | "cycle_time" => "delivery".to_string(),
+        "insight" | "discovery" => "learning".to_string(),
+        other => other.to_string(),
+    }
+}
+
 pub fn compute_list_value_currencies(
     input: &ListValueCurrenciesInput,
 ) -> ListValueCurrenciesOutput {
@@ -6,7 +20,7 @@ pub fn compute_list_value_currencies(
         rows.extend(input.value_list.iter().map(|v| v.to_string()));
     } else if let Some(csv) = input.value_csv.as_deref() {
         rows.extend(
-            csv.split(',')
+            csv.split(|ch| matches!(ch, ',' | ';' | '|' | '\n'))
                 .map(|row| row.trim().to_string())
                 .filter(|row| !row.is_empty()),
         );
@@ -14,11 +28,14 @@ pub fn compute_list_value_currencies(
     let mut out: Vec<String> = Vec::new();
     let mut seen = std::collections::BTreeSet::new();
     for row in rows {
-        let token = normalize_value_currency_token_with_allowed(&row, &input.allowed_keys);
+        let token_base = normalize_value_currency_token_with_allowed(&row, &input.allowed_keys);
+        let token_alias = canonical_value_currency_alias(&token_base);
+        let token = normalize_value_currency_token_with_allowed(&token_alias, &input.allowed_keys);
         if token.is_empty() {
             continue;
         }
-        if seen.insert(token.clone()) {
+        let dedupe_key = token.to_ascii_lowercase();
+        if seen.insert(dedupe_key) {
             out.push(token);
         }
     }
@@ -50,7 +67,7 @@ pub fn compute_infer_value_currencies_from_directive_bits(
     )
     .expect("valid quality regex");
     let time_re = Regex::new(
-        r"\b(time[\s_-]*to[\s_-]*(?:value|cash|revenue)|hours?\s+saved|latency|faster|payback)\b",
+        r"\b(time[\s_-]*to[\s_-]*(?:value|cash|revenue)|hours?\s+saved|latency|faster|payback|speed|cycle[\s_-]?time)\b",
     )
     .expect("valid time regex");
     let learning_re =

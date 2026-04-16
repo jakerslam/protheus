@@ -205,6 +205,9 @@ fn normalize_token(raw: &str, max_len: usize) -> String {
 pub fn compute_normalize_impact(input: &NormalizeImpactInput) -> NormalizeImpactOutput {
     let raw = normalize_token(input.value.as_deref().unwrap_or("medium"), 24);
     let value = match raw.as_str() {
+        "minor" => "low".to_string(),
+        "med" | "moderate" => "medium".to_string(),
+        "severe" | "urgent" => "critical".to_string(),
         "low" | "medium" | "high" | "critical" => raw,
         _ => "medium".to_string(),
     };
@@ -213,10 +216,9 @@ pub fn compute_normalize_impact(input: &NormalizeImpactInput) -> NormalizeImpact
 
 pub fn compute_normalize_mode(input: &NormalizeModeInput) -> NormalizeModeOutput {
     let raw = normalize_token(input.value.as_deref().unwrap_or("live"), 16);
-    let value = if raw == "test" {
-        "test".to_string()
-    } else {
-        "live".to_string()
+    let value = match raw.as_str() {
+        "test" | "sandbox" | "shadow" | "dry-run" => "test".to_string(),
+        _ => "live".to_string(),
     };
     NormalizeModeOutput { value }
 }
@@ -224,6 +226,9 @@ pub fn compute_normalize_mode(input: &NormalizeModeInput) -> NormalizeModeOutput
 pub fn compute_normalize_target(input: &NormalizeTargetInput) -> NormalizeTargetOutput {
     let raw = normalize_token(input.value.as_deref().unwrap_or("tactical"), 24);
     let value = match raw.as_str() {
+        "tactic" => "tactical".to_string(),
+        "beliefs" => "belief".to_string(),
+        "directives" => "directive".to_string(),
         "tactical" | "belief" | "identity" | "directive" | "constitution" => raw,
         _ => "tactical".to_string(),
     };
@@ -233,6 +238,9 @@ pub fn compute_normalize_target(input: &NormalizeTargetInput) -> NormalizeTarget
 pub fn compute_normalize_result(input: &NormalizeResultInput) -> NormalizeResultOutput {
     let raw = normalize_token(input.value.as_deref().unwrap_or(""), 24);
     let value = match raw.as_str() {
+        "ok" | "pass" | "passed" => "success".to_string(),
+        "failure" | "failed" | "error" => "fail".to_string(),
+        "unsafe" => "destructive".to_string(),
         "success" | "neutral" | "fail" | "destructive" => raw,
         _ => String::new(),
     };
