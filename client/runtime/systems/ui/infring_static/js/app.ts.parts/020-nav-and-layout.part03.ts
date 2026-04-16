@@ -299,6 +299,71 @@
       return this.bottomDockSideForSnapId(this.bottomDockActiveSnapId());
     },
 
+    bottomDockWallLockNormalized() {
+      return this.dragSurfaceNormalizeWall(this.bottomDockContainerWallLock);
+    },
+
+    bottomDockSetWallLock(wallRaw) {
+      var wall = this.dragSurfaceNormalizeWall(wallRaw);
+      this.bottomDockContainerWallLock = wall;
+      try {
+        if (wall) localStorage.setItem('infring-bottom-dock-wall-lock', wall);
+        else localStorage.removeItem('infring-bottom-dock-wall-lock');
+        localStorage.removeItem('infring-bottom-dock-smash-wall');
+      } catch(_) {}
+      return wall;
+    },
+
+    bottomDockVisualSizeForSide(sideHint) {
+      var side = this.bottomDockNormalizeSide(sideHint || this.bottomDockActiveSide());
+      var dock = this.bottomDockReadBaseSize();
+      var hoverScale = this.bottomDockExpandedScale();
+      if (!Number.isFinite(hoverScale) || hoverScale < 1) hoverScale = 1;
+      if (side === 'left' || side === 'right') hoverScale = 1;
+      var baseWidth = Math.max(20, Number(dock.width || 0) * hoverScale);
+      var baseHeight = Math.max(20, Number(dock.height || 0) * hoverScale);
+      var visualWidth = this.bottomDockIsVerticalSide(side) ? baseHeight : baseWidth;
+      var visualHeight = this.bottomDockIsVerticalSide(side) ? baseWidth : baseHeight;
+      return { side: side, width: visualWidth, height: visualHeight };
+    },
+
+    bottomDockHardBoundsForSide(sideHint) {
+      var size = this.bottomDockVisualSizeForSide(sideHint);
+      return this.dragSurfaceHardBounds(size.width, size.height);
+    },
+
+    bottomDockTopLeftFromAnchor(anchorX, anchorY, sideHint) {
+      var size = this.bottomDockVisualSizeForSide(sideHint);
+      var x = Number(anchorX);
+      var y = Number(anchorY);
+      if (!Number.isFinite(x)) x = Number(this.bottomDockReadViewportSize().width || 0) * 0.5;
+      if (!Number.isFinite(y)) y = Number(this.bottomDockReadViewportSize().height || 0) * 0.5;
+      return {
+        left: x - (Number(size.width || 0) / 2),
+        top: y - (Number(size.height || 0) / 2),
+        side: size.side
+      };
+    },
+
+    bottomDockAnchorFromTopLeft(leftRaw, topRaw, sideHint) {
+      var size = this.bottomDockVisualSizeForSide(sideHint);
+      var left = Number(leftRaw);
+      var top = Number(topRaw);
+      if (!Number.isFinite(left)) left = Number(size.width || 0) / -2;
+      if (!Number.isFinite(top)) top = Number(size.height || 0) / -2;
+      return {
+        x: left + (Number(size.width || 0) / 2),
+        y: top + (Number(size.height || 0) / 2),
+        side: size.side
+      };
+    },
+
+    bottomDockLockRadiusCssVars(wallRaw) {
+      var wall = this.dragSurfaceNormalizeWall(wallRaw);
+      if (!wall) return '';
+      return '--bottom-dock-radius-override:' + this.dragSurfaceRadiusByWall(wall) + ';';
+    },
+
     bottomDockClampDragAnchor(anchorX, anchorY) {
       var view = this.bottomDockReadViewportSize();
       var margin = 8;
