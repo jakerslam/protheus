@@ -14,41 +14,21 @@
     },
 
     expiryCountdownCritical(agent) {
-      if (agent && agent._timed_out_local === true) return false;
+      if (agent && agent.revive_recommended === true) return false;
       if (this.isAgentPendingTermination(agent)) return true;
       var remainingMs = this.agentContractRemainingMs(agent);
       if (remainingMs == null) return false;
       var totalMs = this.agentContractTotalMs(agent);
-      var thresholdMs = 3600000;
-      if (Number.isFinite(totalMs) && totalMs > 0) {
-        thresholdMs = Math.min(3600000, Math.max(1, Math.floor(totalMs * 0.2)));
-      }
+      if (!Number.isFinite(totalMs) || totalMs <= 0) return false;
+      var thresholdMs = Math.min(3600000, Math.max(1, Math.floor(totalMs * 0.2)));
       return remainingMs > 0 && remainingMs <= thresholdMs;
     },
 
     agentContractTotalMs(agent) {
       if (!agent || typeof agent !== 'object') return null;
-      var contract = (agent.contract && typeof agent.contract === 'object') ? agent.contract : null;
-      var durationMs = Number(agent.contract_duration_ms != null ? agent.contract_duration_ms : (contract && contract.duration_ms));
+      var durationMs = Number(agent.contract_total_ms);
       if (Number.isFinite(durationMs) && durationMs > 0) return Math.floor(durationMs);
-      var durationSeconds = Number(agent.contract_duration_seconds != null ? agent.contract_duration_seconds : (contract && contract.duration_seconds));
-      if (Number.isFinite(durationSeconds) && durationSeconds > 0) return Math.floor(durationSeconds * 1000);
-      var expiryMs = this.agentContractExpiryMs(agent);
-      if (expiryMs <= 0) return null;
-      var startedAt = String(
-        agent.contract_started_at ||
-        (contract && contract.started_at ? contract.started_at : '') ||
-        agent.created_at ||
-        (contract && contract.created_at ? contract.created_at : '') ||
-        ''
-      ).trim();
-      var startedTs = Number(new Date(startedAt).getTime());
-      if (Number.isFinite(startedTs) && startedTs > 0 && expiryMs > startedTs) {
-        return Math.max(1000, Math.floor(expiryMs - startedTs));
-      }
-      var remainingMs = this.agentContractRemainingMs(agent);
-      if (remainingMs == null || remainingMs <= 0) return null;
-      return Math.max(remainingMs, 3600000);
+      return null;
     },
 
     agentHeartStates(agent) {
@@ -56,12 +36,13 @@
       var hearts = [true, true, true, true, true];
       if (!agent || typeof agent !== 'object') return hearts;
       if (agent.is_system_thread) return hearts;
-      if (agent._timed_out_local === true) return [false, false, false, false, false];
+      if (agent.revive_recommended === true) return [false, false, false, false, false];
       if (!this.agentAutoTerminateEnabled(agent) || !this.agentContractHasFiniteExpiry(agent)) return [true];
       var remainingMs = this.agentContractRemainingMs(agent);
-      if (remainingMs == null) return hearts;
+      if (remainingMs == null) return [true];
+      if (remainingMs <= 0 && this.isAgentPendingTermination(agent)) return [false, false, false, false, false];
       var totalMs = this.agentContractTotalMs(agent);
-      if (!Number.isFinite(totalMs) || totalMs <= 0) totalMs = Math.max(1, remainingMs);
+      if (!Number.isFinite(totalMs) || totalMs <= 0) return [true];
       var ratio = Math.max(0, Math.min(1, remainingMs / totalMs));
       var filled = Math.ceil(ratio * totalHearts);
       if (remainingMs <= 0 && this.isAgentPendingTermination(agent)) filled = 0;
@@ -76,13 +57,13 @@
     agentHeartShowsInfinity(agent) {
       if (!agent || typeof agent !== 'object') return false;
       if (agent.is_system_thread) return false;
-      if (agent._timed_out_local === true) return false;
+      if (agent.revive_recommended === true) return false;
       return !this.agentAutoTerminateEnabled(agent) || !this.agentContractHasFiniteExpiry(agent);
     },
 
     agentHeartMeterLabel(agent) {
       if (!agent || typeof agent !== 'object' || agent.is_system_thread) return '';
-      if (agent._timed_out_local === true) return 'Time limit: timed out';
+      if (agent.revive_recommended === true) return 'Time limit: timed out';
       if (!this.agentAutoTerminateEnabled(agent) || !this.agentContractHasFiniteExpiry(agent)) {
         return 'Time limit: unlimited';
       }
@@ -119,13 +100,11 @@
       this.closeTaskbarTextMenu();
       this.openPopupWindow('manual');
     },
-
     handleTaskbarHelpReportIssue() {
       this.closeTaskbarTextMenu();
       this.openPopupWindow('report');
     },
-
-    submitReportIssueDraft() {
+    async submitReportIssueDraft() {
       var draft = String(this.reportIssueDraft || '').trim();
       if (!draft) {
         InfringToast.error('Please add issue details before submitting.');
@@ -143,38 +122,40 @@
         var list = raw ? JSON.parse(raw) : [];
         if (!Array.isArray(list)) list = [];
         list.unshift(entry);
-        if (list.length > 25) list = list.slice(0, 25);
-        localStorage.setItem('infring-issue-report-drafts', JSON.stringify(list));
+        localStorage.setItem('infring-issue-report-drafts', JSON.stringify(list.slice(0, 25)));
       } catch(_) {}
-      this.reportIssueDraft = '';
-      this.closePopupWindow('report');
-      InfringToast.success('Issue report saved. GitHub issue wiring is next.');
+      var title = ((draft.split(/\r?\n/).find(function(line) { return String(line || '').trim(); }) || draft).replace(/\s+/g, ' ').trim().slice(0, 120) || 'Dashboard issue report');
+      var issueBody = '## User Report\n\n' + draft + '\n\n## Runtime Context\n- page: ' + (entry.page || 'unknown') + '\n- agent_id: ' + (entry.agent_id || 'none') + '\n- reported_at: ' + new Date(entry.ts || Date.now()).toISOString() + '\n- client_version: ' + String(this.version || 'unknown');
+      try {
+        var result = await InfringAPI.post('/api/dashboard/action', {
+          action: 'dashboard.github.issue.create',
+          payload: { title: title, body: issueBody, source: 'dashboard_report_popup' }
+        });
+        var lane = result && typeof result === 'object' ? (result.lane || result.payload || result) : {};
+        if ((result && result.ok === false) || (lane && lane.ok === false)) {
+          throw new Error(String((lane && (lane.error || lane.message)) || (result && (result.error || result.message)) || 'issue_submit_failed'));
+        }
+        var issueUrl = String((lane && (lane.html_url || lane.issue_url)) || '').trim();
+        this.reportIssueDraft = ''; this.closePopupWindow('report');
+        InfringToast.success(issueUrl ? ('Issue submitted: ' + issueUrl) : 'Issue submitted.');
+      } catch (e) {
+        InfringToast.error('Issue submit failed (saved locally): ' + String(e && e.message ? e.message : 'unknown error'));
+      }
     },
-
     manualDocumentMarkdown() {
       return [
         '# Infring Manual',
-        '',
         '## Table of Contents\n1. [What Infring Is](#what-infring-is)\n2. [Install + Start](#install--start)\n3. [CLI Guide](#cli-guide)\n4. [UI Guide](#ui-guide)\n5. [Tools + Evidence](#tools--evidence)\n6. [Memory + Sessions](#memory--sessions)\n7. [Safety Model](#safety-model)\n8. [Troubleshooting](#troubleshooting)\n9. [Reporting Issues](#reporting-issues)',
-        '',
         '## What Infring Is\nInfring is a governed agent runtime with a CLI and dashboard UI. It is built for auditable execution: requests, tool outcomes, and runtime state should be observable and explainable.',
-        '',
         '## Install + Start\nWindows: run installer with `-Repair -Full` when shims drift.\nGeneral flow: start runtime, open dashboard, select/create an agent, send prompts, review outputs.',
-        '',
         '## CLI Guide\n- `infring gateway` launches gateway/runtime controls.\n- `infring gateway status` checks health and readiness.\n- Use `Get-Command infring` (PowerShell) or `which infring` (POSIX) to confirm PATH resolution.',
-        '',
         '## UI Guide\n- Taskbar: system actions, help, notifications, utility menus.\n- Sidebar: agent conversations + live previews.\n- Chat Map: fast navigation across long threads.\n- Chat Surface: prompts, tools, receipts, and runtime feedback.',
-        '',
         '## Tools + Evidence\nTool calls produce structured cards and outcomes. Prefer evidence-backed responses: check tool status, outputs, and receipts before concluding.',
-        '',
         '## Memory + Sessions\nAgents maintain session context; branches and sessions can diverge by task. Keep work scoped per session to avoid cross-thread confusion.',
-        '',
         '## Safety Model\nInfring aims for fail-closed behavior in risky paths: explicit checks, policy-aware actions, and governed mutation paths.',
-        '',
         '## Troubleshooting\nIf UI appears stalled: verify runtime health, refresh taskbar/runtime, then retry. If installs fail: rerun installer repair/full and validate command resolution.',
-        '',
         '## Reporting Issues\nUse Help -> Report an issue. Include expected behavior, actual behavior, reproduction steps, and any relevant screenshots/log lines.',
-      ].join('\n');
+      ].join('\n\n');
     },
 
     manualDocumentHtml() {
@@ -466,7 +447,6 @@
         if (store.agentsHydrated && !store.agentsLoading) {
           if (typeof self.setBootProgressEvent === 'function') self.setBootProgressEvent('agents_hydrated');
         }
-        self.reconcileArchivedAgentIdsWithLiveAgents();
         if (typeof self.syncChatSidebarTopologyOrderFromAgents === 'function') {
           self.syncChatSidebarTopologyOrderFromAgents();
         }
