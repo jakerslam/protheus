@@ -171,6 +171,15 @@
       }
       this.applyTaskbarReorder(key, dragItem, targetItem, preferAfter, true);
     },
+    clearTaskbarReorderDraggingClass() {
+      if (typeof document === 'undefined') return;
+      try {
+        var draggingNodes = document.querySelectorAll('.taskbar-reorder-item.dragging');
+        for (var i = 0; i < draggingNodes.length; i += 1) {
+          draggingNodes[i].classList.remove('dragging');
+        }
+      } catch(_) {}
+    },
     handleTaskbarReorderDrop(group, ev) {
       var key = String(group || '').trim().toLowerCase();
       if (key !== 'right') key = 'left';
@@ -182,14 +191,7 @@
       this.taskbarDragStartOrder = [];
       this.cancelTaskbarDragHold();
       this.setTaskbarDragBodyActive(false);
-      if (typeof document !== 'undefined') {
-        try {
-          var draggingNodes = document.querySelectorAll('.taskbar-reorder-item.dragging');
-          for (var i = 0; i < draggingNodes.length; i += 1) {
-            draggingNodes[i].classList.remove('dragging');
-          }
-        } catch(_) {}
-      }
+      this.clearTaskbarReorderDraggingClass();
     },
     handleTaskbarDragEnd() {
       var key = String(this.taskbarDragGroup || '').trim();
@@ -199,14 +201,7 @@
       this.taskbarDragStartOrder = [];
       this.cancelTaskbarDragHold();
       this.setTaskbarDragBodyActive(false);
-      if (typeof document !== 'undefined') {
-        try {
-          var draggingNodes = document.querySelectorAll('.taskbar-reorder-item.dragging');
-          for (var i = 0; i < draggingNodes.length; i += 1) {
-            draggingNodes[i].classList.remove('dragging');
-          }
-        } catch(_) {}
-      }
+      this.clearTaskbarReorderDraggingClass();
     },
     chatSidebarSnapDefinitions() {
       return [
@@ -458,15 +453,37 @@
       if (!Number.isFinite(left)) left = maxLeft;
       return Math.max(minLeft, Math.min(maxLeft, left));
     },
+    chatMapHardBounds() {
+      return this.dragSurfaceHardBounds(this.readChatMapWidth(), this.readChatMapHeight());
+    },
+    chatMapWallLockNormalized() {
+      return this.dragSurfaceNormalizeWall(this.chatMapWallLock);
+    },
+    chatMapSetWallLock(wallRaw) {
+      var wall = this.dragSurfaceNormalizeWall(wallRaw);
+      this.chatMapWallLock = wall;
+      try {
+        if (wall) localStorage.setItem('infring-chat-map-wall-lock', wall);
+        else localStorage.removeItem('infring-chat-map-wall-lock');
+        localStorage.removeItem('infring-chat-map-smash-wall');
+      } catch(_) {}
+      return wall;
+    },
     chatMapResolvedLeft() {
-      if (this.chatMapDragActive) return this.chatMapClampLeft(this.chatMapDragLeft);
-      var anchor = this.chatMapAnchorForSnapId(this.chatMapActiveSnapId());
-      return this.chatMapClampLeft(anchor.left);
+      if (this.chatMapDragActive) return Number(this.chatMapDragLeft || 0);
+      var left = this.chatMapClampLeft(this.chatMapResolvedLeftFromRatio());
+      var top = this.chatMapClampTop(this.chatMapResolvedTopFromRatio());
+      var wall = this.chatMapWallLockNormalized();
+      if (!wall) return left;
+      return this.dragSurfaceApplyWallLock(this.chatMapHardBounds(), left, top, wall).left;
     },
     chatMapResolvedTop() {
-      if (this.chatMapDragActive) return this.chatMapClampTop(this.chatMapDragTop);
-      var anchor = this.chatMapAnchorForSnapId(this.chatMapActiveSnapId());
-      return this.chatMapClampTop(anchor.top);
+      if (this.chatMapDragActive) return Number(this.chatMapDragTop || 0);
+      var left = this.chatMapClampLeft(this.chatMapResolvedLeftFromRatio());
+      var top = this.chatMapClampTop(this.chatMapResolvedTopFromRatio());
+      var wall = this.chatMapWallLockNormalized();
+      if (!wall) return top;
+      return this.dragSurfaceApplyWallLock(this.chatMapHardBounds(), left, top, wall).top;
     },
     chatMapPersistPlacementFromLeft(leftRaw) {
       var wallGap = this.overlayWallGapPx();
@@ -487,12 +504,21 @@
       var left = this.chatMapResolvedLeft();
       var height = this.readChatMapHeight();
       var durationMs = this.chatMapDragActive ? 0 : this.dragSurfaceMoveDurationMs(this._chatMapMoveDurationMs, 280);
+      var wall = this.chatMapWallLockNormalized();
+      var radiusCss = this.dragSurfaceLockRadiusCssVars(wall);
+      var wallFlushCss = '';
+      if (wall === 'left') wallFlushCss = 'padding:0;align-items:flex-start;--chat-map-surface-margin-inline:0;';
+      else if (wall === 'right') wallFlushCss = 'padding:0;align-items:flex-end;--chat-map-surface-margin-inline:0;';
+      else if (wall === 'top') wallFlushCss = 'padding:0;--chat-map-surface-margin-inline:0;';
+      else if (wall === 'bottom') wallFlushCss = 'padding:0;--chat-map-surface-margin-inline:0;';
       return (
         'left:' + Math.round(left) + 'px;' +
         'top:' + Math.round(top) + 'px;' +
         'right:auto;' +
         'bottom:auto;' +
         'height:' + Math.round(height) + 'px;' +
+        radiusCss +
+        wallFlushCss +
         'transition:top ' + Math.max(0, Math.round(durationMs)) + 'ms var(--ease-smooth), left ' + Math.max(0, Math.round(durationMs)) + 'ms var(--ease-smooth);'
       );
     },
@@ -508,6 +534,10 @@
       this._chatMapPointerStartY = Number(ev.clientY || 0);
       this._chatMapPointerOriginLeft = this.chatMapResolvedLeft();
       this._chatMapPointerOriginTop = this.chatMapResolvedTop();
+      this._chatMapPointerLastX = this._chatMapPointerStartX;
+      this._chatMapPointerLastY = this._chatMapPointerStartY;
+      this._chatMapPointerLastAt = Date.now();
+      this._chatMapPointerVelocity = 0;
       this.chatMapDragLeft = this._chatMapPointerOriginLeft;
       this.chatMapDragTop = this._chatMapPointerOriginTop;
       this.bindChatMapPointerListeners();
@@ -521,6 +551,17 @@
       if (!this._chatMapPointerActive || !this.chatMapPlacementEnabled()) return;
       var nextX = Number(ev.clientX || 0);
       var nextY = Number(ev.clientY || 0);
+      var now = Date.now();
+      var prevX = Number(this._chatMapPointerLastX || nextX);
+      var prevY = Number(this._chatMapPointerLastY || nextY);
+      var prevAt = Number(this._chatMapPointerLastAt || now);
+      var dt = Math.max(1, now - prevAt);
+      var stepDx = nextX - prevX;
+      var stepDy = nextY - prevY;
+      this._chatMapPointerVelocity = Math.sqrt((stepDx * stepDx) + (stepDy * stepDy)) / dt;
+      this._chatMapPointerLastX = nextX;
+      this._chatMapPointerLastY = nextY;
+      this._chatMapPointerLastAt = now;
       var movedX = Math.abs(nextX - Number(this._chatMapPointerStartX || 0));
       var movedY = Math.abs(nextY - Number(this._chatMapPointerStartY || 0));
       if (!this._chatMapPointerMoved) {
@@ -529,10 +570,49 @@
         this.chatMapDragActive = true;
         this.hideDashboardPopupBySource('chat-map');
       }
-      var candidateLeft = Number(this._chatMapPointerOriginLeft || 0) + (nextX - Number(this._chatMapPointerStartX || 0));
-      var candidateTop = Number(this._chatMapPointerOriginTop || 0) + (nextY - Number(this._chatMapPointerStartY || 0));
-      this.chatMapDragLeft = this.chatMapClampLeft(candidateLeft);
-      this.chatMapDragTop = this.chatMapClampTop(candidateTop);
+      var dragDx = nextX - Number(this._chatMapPointerStartX || 0);
+      var dragDy = nextY - Number(this._chatMapPointerStartY || 0);
+      var candidateLeft = Number(this._chatMapPointerOriginLeft || 0) + dragDx;
+      var candidateTop = Number(this._chatMapPointerOriginTop || 0) + dragDy;
+      var hardBounds = this.chatMapHardBounds();
+      var lockedWall = this.chatMapWallLockNormalized();
+      if (lockedWall) {
+        var unlockDistance = this.dragSurfaceDistanceFromWall(hardBounds, candidateLeft, candidateTop, lockedWall);
+        if (unlockDistance >= this.dragSurfaceWallUnlockDistanceThreshold()) {
+          lockedWall = this.chatMapSetWallLock('');
+        } else {
+          var holdLeft = Number.isFinite(Number(this.chatMapDragLeft))
+            ? Number(this.chatMapDragLeft)
+            : Number(this._chatMapPointerOriginLeft || 0);
+          var holdTop = Number.isFinite(Number(this.chatMapDragTop))
+            ? Number(this.chatMapDragTop)
+            : Number(this._chatMapPointerOriginTop || 0);
+          var stayLocked = this.dragSurfaceApplyWallLock(hardBounds, holdLeft, holdTop, lockedWall);
+          this.chatMapDragLeft = stayLocked.left;
+          this.chatMapDragTop = stayLocked.top;
+          if (ev.cancelable && typeof ev.preventDefault === 'function') ev.preventDefault();
+          return;
+        }
+      }
+      var clamped = this.dragSurfaceClampWithBounds(hardBounds, candidateLeft, candidateTop);
+      var nearest = this.dragSurfaceNearestWall(hardBounds, clamped.left, clamped.top);
+      var lockWall = this.dragSurfaceResolveWallLock(
+        hardBounds,
+        candidateLeft,
+        candidateTop,
+        nearest,
+        dragDx,
+        dragDy
+      );
+      if (lockWall) {
+        var persistedLockWall = this.chatMapSetWallLock(lockWall);
+        var snapped = this.dragSurfaceApplyWallLock(hardBounds, clamped.left, clamped.top, persistedLockWall);
+        this.chatMapDragLeft = snapped.left;
+        this.chatMapDragTop = snapped.top;
+      } else {
+        this.chatMapDragLeft = clamped.left;
+        this.chatMapDragTop = clamped.top;
+      }
       if (ev.cancelable && typeof ev.preventDefault === 'function') ev.preventDefault();
     },
     endChatMapPointerDrag() {
@@ -544,13 +624,22 @@
         return;
       }
       this._chatMapPointerMoved = false;
-      var finalLeft = this.chatMapClampLeft(this.chatMapDragLeft);
-      var finalTop = this.chatMapClampTop(this.chatMapDragTop);
-      var snapId = this.chatMapNearestSnapId(finalLeft, finalTop);
-      var snap = this.chatMapAnchorForSnapId(snapId);
-      this.chatMapDragLeft = this.chatMapClampLeft(snap.left);
-      this.chatMapDragTop = this.chatMapClampTop(snap.top);
-      this.chatMapPersistSnapId(snapId);
+      var hardBounds = this.chatMapHardBounds();
+      var lockedWall = this.chatMapWallLockNormalized();
+      var final;
+      if (lockedWall) {
+        final = this.dragSurfaceApplyWallLock(hardBounds, this.chatMapDragLeft, this.chatMapDragTop, lockedWall);
+        this.chatMapPlacementAnchorId = '';
+        try { localStorage.removeItem('infring-chat-map-placement-anchor'); } catch(_) {}
+      } else {
+        var clamped = this.dragSurfaceClampWithBounds(hardBounds, this.chatMapDragLeft, this.chatMapDragTop);
+        var snapId = this.chatMapNearestSnapId(clamped.left, clamped.top);
+        var snap = this.chatMapAnchorForSnapId(snapId);
+        final = this.dragSurfaceClampWithBounds(hardBounds, snap.left, snap.top);
+        this.chatMapPersistSnapId(snapId);
+      }
+      this.chatMapDragLeft = final.left;
+      this.chatMapDragTop = final.top;
       this.chatMapPersistPlacementFromLeft(this.chatMapDragLeft);
       this.chatMapPersistPlacementFromTop(this.chatMapDragTop);
       this.chatMapDragActive = false;
