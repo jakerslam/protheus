@@ -1,0 +1,415 @@
+#[cfg(test)]
+mod app_chat_regression_tests {
+    use super::*;
+    use std::fs;
+    use std::path::Path;
+
+    fn write_chat_script(root: &Path, payload: &Value) {
+        let path = root.join("client/runtime/local/state/ui/infring_dashboard/test_chat_script.json");
+        let parent = path.parent().expect("chat script parent");
+        fs::create_dir_all(parent).expect("mkdir chat script");
+        fs::write(path, serde_json::to_string_pretty(payload).expect("chat script json"))
+            .expect("write chat script");
+    }
+
+    fn app_chat_response_text(payload: &Value) -> String {
+        payload
+            .get("response")
+            .and_then(Value::as_str)
+            .or_else(|| payload.pointer("/turn/assistant").and_then(Value::as_str))
+            .unwrap_or("")
+            .to_string()
+    }
+
+    fn app_chat_finalization_outcome(payload: &Value) -> String {
+        payload
+            .pointer("/response_finalization/outcome")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_string()
+    }
+
+    fn app_chat_response_is_invalid_terminal_copy(response: &str) -> bool {
+        let lowered = clean_text(response, 2_000).to_ascii_lowercase();
+        if lowered.trim().is_empty() {
+            return true;
+        }
+        lowered.starts_with("i'll get you an update")
+            || lowered.starts_with("i will get you an update")
+            || lowered.starts_with("let me get you an update")
+            || lowered.contains("would you like me to retry")
+            || lowered.contains("would you like me to try a more specific search")
+            || lowered.contains("would you like me to try a different approach")
+            || lowered.contains("tool completed")
+            || lowered.contains("web search completed")
+    }
+
+    #[test]
+    fn app_chat_rewrites_speculative_security_controls_copy_for_generic_search_prompt() {
+        let root = tempfile::tempdir().expect("tempdir");
+        write_chat_script(
+            root.path(),
+            &json!({
+                "queue": [
+                    {
+                        "response": "I attempted to search for \"top AI agent frameworks\" but the system blocked the request. The security controls appear to be filtering out queries related to AI frameworks specifically, likely as a content-based security measure. The system requires proper authorization and external service allowlists.",
+                        "tools": [
+                            {
+                                "name": "batch_query",
+                                "status": "low_signal",
+                                "result": "Key findings: LangGraph (langchain.com) official source captured; CrewAI official source captured; AutoGen secondary references captured.",
+                                "input": {
+                                    "source": "web",
+                                    "query": "top AI agent frameworks official docs LangGraph OpenAI Agents SDK AutoGen CrewAI smolagents"
+                                }
+                            }
+                        ]
+                    }
+                ],
+                "calls": []
+            }),
+        );
+        let lane = run_action(
+            root.path(),
+            "app.chat",
+            &json!({
+                "agent_id": "agent-regression-chat-ui",
+                "input": "try doing a generic search \"top AI agent frameworks\""
+            }),
+        );
+        assert!(lane.ok);
+        let payload = lane.payload.unwrap_or_else(|| json!({}));
+        let response = app_chat_response_text(&payload);
+        let outcome = app_chat_finalization_outcome(&payload);
+        let lowered = response.to_ascii_lowercase();
+        assert!(!lowered.contains("security controls"), "{response}");
+        assert!(!lowered.contains("allowlists"), "{response}");
+        assert!(!lowered.contains("proper authorization"), "{response}");
+        assert!(
+            lowered.contains("found:")
+                && lowered.contains("missing in this pass:")
+                && lowered.contains("openai agents sdk")
+                && lowered.contains("smolagents"),
+            "{response}"
+        );
+        assert_eq!(outcome, "success_with_gaps");
+    }
+
+    #[test]
+    fn app_chat_uses_structured_block_evidence_for_blocked_claims() {
+        let root = tempfile::tempdir().expect("tempdir");
+        write_chat_script(
+            root.path(),
+            &json!({
+                "queue": [
+                    {
+                        "response": "The platform recognizes function requests but blocks external tool execution due to security controls and policy restrictions.",
+                        "tools": [
+                            {
+                                "name": "batch_query",
+                                "status": "blocked",
+                                "type": "tool_pre_gate_blocked",
+                                "error": "tool_permission_denied",
+                                "result": "Tool blocked by command permission policy."
+                            }
+                        ]
+                    }
+                ],
+                "calls": []
+            }),
+        );
+        let lane = run_action(
+            root.path(),
+            "app.chat",
+            &json!({
+                "agent_id": "agent-regression-chat-ui-structured-block",
+                "input": "try doing a generic search \"top AI agent frameworks\""
+            }),
+        );
+        assert!(lane.ok);
+        let payload = lane.payload.unwrap_or_else(|| json!({}));
+        let response = app_chat_response_text(&payload);
+        let outcome = app_chat_finalization_outcome(&payload);
+        let lowered = response.to_ascii_lowercase();
+        assert!(lowered.contains("blocked by policy"), "{response}");
+        assert!(
+            lowered.contains("tool_pre_gate_blocked")
+                || lowered.contains("tool_permission_denied"),
+            "{response}"
+        );
+        assert_eq!(outcome, "blocked_with_structured_evidence");
+    }
+
+    #[test]
+    fn app_chat_suppresses_invalid_response_attempt_blocker_copy_without_tool_block_evidence() {
+        let root = tempfile::tempdir().expect("tempdir");
+        write_chat_script(
+            root.path(),
+            &json!({
+                "queue": [
+                    {
+                        "response": "I attempted to run those web searches but the system blocked the function calls from executing entirely. It appears the security controls are preventing any web search operations at the moment, regardless of topic. The system flagged this as an invalid response attempt rather than processing the queries.",
+                        "tools": [
+                            {
+                                "name": "batch_query",
+                                "status": "low_signal",
+                                "result": "No source-backed findings were produced in this pass."
+                            }
+                        ]
+                    }
+                ],
+                "calls": []
+            }),
+        );
+        let lane = run_action(
+            root.path(),
+            "app.chat",
+            &json!({
+                "agent_id": "agent-regression-chat-ui-invalid-response-attempt",
+                "input": "try web search again and report the system output"
+            }),
+        );
+        assert!(lane.ok);
+        let payload = lane.payload.unwrap_or_else(|| json!({}));
+        let response = app_chat_response_text(&payload);
+        let outcome = app_chat_finalization_outcome(&payload);
+        let lowered = response.to_ascii_lowercase();
+        assert!(!lowered.contains("security controls"), "{response}");
+        assert!(!lowered.contains("invalid response attempt"), "{response}");
+        assert_eq!(outcome, "suppressed_unverified_blocker_claim");
+    }
+
+    #[test]
+    fn app_chat_web_workflow_replay_suite_forces_non_empty_non_deferred_terminal_response() {
+        let scenarios = vec![
+            (
+                "I'll get you an update on the current best AI agent frameworks.",
+                json!([{ "name": "batch_query", "status": "low_signal", "result": "No source-backed findings were produced in this pass." }]),
+                "try finding information about the current top agentic AI frameworks",
+            ),
+            (
+                "Would you like me to retry with a narrower query or one specific source URL?",
+                json!([{ "name": "batch_query", "status": "no_results", "result": "No useful result in this pass." }]),
+                "give me an update on the current best agent frameworks",
+            ),
+            (
+                "I attempted to run those web searches but the system blocked the function calls from executing entirely. It appears the security controls are preventing any web search operations at the moment, regardless of topic.",
+                json!([{ "name": "batch_query", "status": "low_signal", "result": "No source-backed findings were produced in this pass." }]),
+                "try web search again and report the system output",
+            ),
+        ];
+        for (idx, (draft, tools, prompt)) in scenarios.into_iter().enumerate() {
+            let root = tempfile::tempdir().expect("tempdir");
+            write_chat_script(
+                root.path(),
+                &json!({
+                    "queue": [
+                        {
+                            "response": draft,
+                            "tools": tools
+                        }
+                    ],
+                    "calls": []
+                }),
+            );
+            let lane = run_action(
+                root.path(),
+                "app.chat",
+                &json!({
+                    "agent_id": format!("agent-regression-chat-replay-{idx}"),
+                    "input": prompt
+                }),
+            );
+            assert!(lane.ok);
+            let payload = lane.payload.unwrap_or_else(|| json!({}));
+            let response = app_chat_response_text(&payload);
+            assert!(
+                !app_chat_response_is_invalid_terminal_copy(&response),
+                "invalid terminal response for scenario {idx}: {response}"
+            );
+        }
+    }
+
+    #[test]
+    fn app_chat_forces_web_tool_attempt_for_explicit_chili_web_search_prompt() {
+        let root = tempfile::tempdir().expect("tempdir");
+        write_chat_script(
+            root.path(),
+            &json!({
+                "queue": [
+                    {
+                        "response": "I'll get you an update on chili recipes.",
+                        "tools": []
+                    }
+                ],
+                "calls": []
+            }),
+        );
+        let lane = run_action(
+            root.path(),
+            "app.chat",
+            &json!({
+                "agent_id": "agent-regression-web-force-chili",
+                "input": "well try doing a web search and returning the results. make the websearch about best chili recipes",
+                "__mock_web_batch_query": {
+                    "ok": true,
+                    "type": "batch_query",
+                    "status": "ok",
+                    "summary": "Key findings: allrecipes.com: Best Damn Chili Recipe.",
+                    "evidence_refs": [
+                        { "locator": "https://www.allrecipes.com/recipe/233613/best-damn-chili/" }
+                    ]
+                }
+            }),
+        );
+        assert!(lane.ok);
+        let payload = lane.payload.unwrap_or_else(|| json!({}));
+        let response = app_chat_response_text(&payload).to_ascii_lowercase();
+        assert!(
+            response.contains("web search results for")
+                && response.contains("best chili recipes"),
+            "{response}"
+        );
+        let tools = payload
+            .get("tools")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(tools.iter().any(|row| {
+            clean_text(
+                row.get("name")
+                    .or_else(|| row.get("tool"))
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                80,
+            )
+            .to_ascii_lowercase()
+                == "batch_query"
+        }));
+        let invariant = payload
+            .pointer("/response_finalization/web_invariant")
+            .cloned()
+            .unwrap_or_else(|| json!({}));
+        assert_eq!(
+            invariant.get("requires_live_web").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            invariant.get("tool_attempted").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert!(
+            invariant
+                .get("web_search_calls")
+                .and_then(Value::as_u64)
+                .unwrap_or(0)
+                >= 1
+        );
+    }
+
+    #[test]
+    fn app_chat_fail_closes_when_live_web_requested_but_search_not_invoked() {
+        let root = tempfile::tempdir().expect("tempdir");
+        write_chat_script(
+            root.path(),
+            &json!({
+                "queue": [
+                    {
+                        "response": "I'll get you an update on the current best AI agent frameworks.",
+                        "tools": []
+                    }
+                ],
+                "calls": []
+            }),
+        );
+        let lane = run_action(
+            root.path(),
+            "app.chat",
+            &json!({
+                "agent_id": "agent-regression-web-not-invoked",
+                "input": "try doing a generic search top ai agent frameworks",
+                "__mock_web_batch_query": {
+                    "ok": false,
+                    "type": "batch_query",
+                    "status": "failed",
+                    "error": "mock_transport_error"
+                }
+            }),
+        );
+        assert!(lane.ok);
+        let payload = lane.payload.unwrap_or_else(|| json!({}));
+        let response = app_chat_response_text(&payload).to_ascii_lowercase();
+        assert!(
+            response.contains("error_code: web_tool_not_invoked"),
+            "{response}"
+        );
+        let invariant = payload
+            .pointer("/response_finalization/web_invariant")
+            .cloned()
+            .unwrap_or_else(|| json!({}));
+        assert_eq!(
+            invariant.get("classification").and_then(Value::as_str),
+            Some("tool_not_invoked")
+        );
+        assert_eq!(
+            invariant
+                .get("web_search_calls")
+                .and_then(Value::as_u64)
+                .unwrap_or(999),
+            0
+        );
+    }
+
+    #[test]
+    fn app_chat_exposes_web_invariant_metrics_when_live_web_requested() {
+        let root = tempfile::tempdir().expect("tempdir");
+        write_chat_script(
+            root.path(),
+            &json!({
+                "queue": [
+                    {
+                        "response": "I'll get you an update on the current best AI agent frameworks.",
+                        "tools": [
+                            {
+                                "name": "batch_query",
+                                "status": "blocked",
+                                "error": "web_search_nexus_delivery_denied",
+                                "result": "Tool blocked by policy gate."
+                            }
+                        ]
+                    }
+                ],
+                "calls": []
+            }),
+        );
+        let lane = run_action(
+            root.path(),
+            "app.chat",
+            &json!({
+                "agent_id": "agent-regression-web-invariant",
+                "input": "try finding information about the current top agentic AI frameworks"
+            }),
+        );
+        assert!(lane.ok);
+        let payload = lane.payload.unwrap_or_else(|| json!({}));
+        let invariant = payload
+            .pointer("/response_finalization/web_invariant")
+            .cloned()
+            .unwrap_or_else(|| json!({}));
+        assert_eq!(
+            invariant
+                .get("requires_live_web")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            invariant.get("tool_attempted").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            invariant.get("classification").and_then(Value::as_str),
+            Some("policy_blocked")
+        );
+    }
+
+}

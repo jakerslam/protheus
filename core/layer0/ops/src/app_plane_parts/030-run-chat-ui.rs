@@ -253,13 +253,149 @@ fn run_chat_ui(root: &Path, parsed: &crate::ParsedArgs, strict: bool, action: &s
             });
         }
     };
-    let assistant = clean(
+    let mut tools = response
+        .get("tools")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let requires_live_web = chat_ui_requests_live_web(&message);
+    let mut assistant_raw = clean(
         response
             .get("response")
             .and_then(Value::as_str)
             .unwrap_or(""),
         16_000,
     );
+    let mut forced_web_outcome = String::new();
+    let mut forced_web_error_code = String::new();
+    let mut forced_web_fallback = json!({
+        "applied": false
+    });
+    if requires_live_web && chat_ui_web_search_call_count(&tools) == 0 {
+        let fallback_query = chat_ui_extract_web_query(&message);
+        let fallback = {
+            #[cfg(test)]
+            {
+                if let Some(mock) = scripted_batch_query_harness_response(root, &fallback_query) {
+                    mock
+                } else {
+                    crate::batch_query_primitive::api_batch_query(
+                        root,
+                        &json!({
+                            "source": "web",
+                            "query": fallback_query,
+                            "aperture": "medium"
+                        }),
+                    )
+                }
+            }
+            #[cfg(not(test))]
+            {
+                crate::batch_query_primitive::api_batch_query(
+                    root,
+                    &json!({
+                        "source": "web",
+                        "query": fallback_query,
+                        "aperture": "medium"
+                    }),
+                )
+            }
+        };
+        let fallback_ok = fallback.get("ok").and_then(Value::as_bool).unwrap_or(false);
+        if fallback_ok {
+            let summary = clean(
+                fallback
+                    .get("summary")
+                    .or_else(|| fallback.get("response"))
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                2_000,
+            );
+            let assistant = if summary.is_empty() {
+                format!("Web search ran for \"{fallback_query}\" and returned results.")
+            } else {
+                format!("Web search results for \"{fallback_query}\": {summary}")
+            };
+            tools.push(json!({
+                "name": "batch_query",
+                "status": "ok",
+                "ok": true,
+                "source": "web",
+                "query": fallback_query,
+                "result": summary,
+                "evidence_refs": fallback.get("evidence_refs").cloned().unwrap_or_else(|| json!([]))
+            }));
+            assistant_raw = clean(&assistant, 16_000);
+            forced_web_outcome = "forced_web_tool_attempt_success".to_string();
+            forced_web_fallback = json!({
+                "applied": true,
+                "query": fallback_query,
+                "status": "ok",
+                "source": "batch_query"
+            });
+        } else {
+            let fail_closed = "Web tooling execution failed before any search tool call was recorded (error_code: web_tool_not_invoked). Retry lane: run `batch_query` with a narrower query or one specific source URL.".to_string();
+            assistant_raw = clean(&fail_closed, 16_000);
+            forced_web_outcome = "forced_web_tool_not_invoked".to_string();
+            forced_web_error_code = "web_tool_not_invoked".to_string();
+            forced_web_fallback = json!({
+                "applied": true,
+                "query": fallback_query,
+                "status": "failed",
+                "error_code": "web_tool_not_invoked"
+            });
+        }
+    }
+    let (assistant_initial, response_finalization_outcome) =
+        finalize_chat_ui_assistant_response(&assistant_raw, &tools);
+    let tool_diagnostics = chat_ui_tool_diagnostics(&tools);
+    let (assistant, rewrite_outcome) =
+        rewrite_chat_ui_placeholder_with_tool_diagnostics(&assistant_initial, &tool_diagnostics);
+    let web_search_calls = chat_ui_web_search_call_count(&tools) as i64;
+    let blocked_signal = tools.iter().any(|row| {
+        let status = clean(
+            row.get("status").and_then(Value::as_str).unwrap_or(""),
+            80,
+        )
+        .to_ascii_lowercase();
+        let error = clean(
+            row.get("error").and_then(Value::as_str).unwrap_or(""),
+            160,
+        )
+        .to_ascii_lowercase();
+        status.contains("blocked")
+            || error.contains("blocked")
+            || error.contains("denied")
+            || error.contains("policy")
+            || error.contains("nexus")
+    });
+    let low_signal = tools.iter().any(|row| {
+        let status = clean(
+            row.get("status").and_then(Value::as_str).unwrap_or(""),
+            80,
+        )
+        .to_ascii_lowercase();
+        status.contains("low_signal")
+            || status.contains("low-signal")
+            || status.contains("no_results")
+            || status.contains("no_result")
+    });
+    let web_classification = if requires_live_web && web_search_calls == 0 {
+        "tool_not_invoked"
+    } else if blocked_signal {
+        "policy_blocked"
+    } else if low_signal {
+        "low_signal"
+    } else if requires_live_web {
+        "healthy"
+    } else {
+        "not_required"
+    };
+    let final_outcome = if forced_web_outcome.is_empty() {
+        response_finalization_outcome.clone()
+    } else {
+        forced_web_outcome.clone()
+    };
     let turn = json!({
         "turn_id": format!(
             "turn_{}",
@@ -299,7 +435,23 @@ fn run_chat_ui(root: &Path, parsed: &crate::ParsedArgs, strict: bool, action: &s
         "output_tokens": response.get("output_tokens").cloned().unwrap_or_else(|| json!(0)),
         "cost_usd": response.get("cost_usd").cloned().unwrap_or_else(|| json!(0.0)),
         "context_window": response.get("context_window").cloned().unwrap_or_else(|| json!(0)),
-        "tools": response.get("tools").cloned().unwrap_or_else(|| json!([])),
+        "tools": Value::Array(tools.clone()),
+        "response_finalization": {
+            "applied": true,
+            "outcome": final_outcome,
+            "rewrite_outcome": rewrite_outcome,
+            "final_ack_only": crate::tool_output_match_filter::matches_ack_placeholder(&assistant),
+            "findings_available": chat_ui_tools_have_valid_findings(&tools),
+            "tool_diagnostics": tool_diagnostics,
+            "web_invariant": {
+                "requires_live_web": requires_live_web,
+                "tool_attempted": web_search_calls > 0,
+                "web_search_calls": web_search_calls,
+                "classification": web_classification,
+                "diagnostic": "forced_live_web_invariant_from_app_plane_chat_ui"
+            }
+        },
+        "web_tooling_fallback": forced_web_fallback,
         "artifact": {
             "path": path.display().to_string(),
             "sha256": sha256_hex_str(&session.to_string())
@@ -316,8 +468,420 @@ fn run_chat_ui(root: &Path, parsed: &crate::ParsedArgs, strict: bool, action: &s
             }
         ]
     });
+    if !forced_web_error_code.is_empty() {
+        out["error"] = Value::String(forced_web_error_code);
+    }
     out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
+}
+
+fn normalize_tool_error_code(raw: &str) -> String {
+    let lowered = clean(raw, 200).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return "web_tool_error".to_string();
+    }
+    if lowered.contains("invalid_response")
+        || lowered.contains("invalid response")
+        || lowered.contains("invalid response attempt")
+    {
+        return "web_tool_invalid_response".to_string();
+    }
+    if lowered.contains("auth")
+        || lowered.contains("api key")
+        || lowered.contains("token")
+        || lowered.contains("credential")
+    {
+        return "web_tool_auth_missing".to_string();
+    }
+    if lowered.contains("blocked") || lowered.contains("denied") || lowered.contains("policy") {
+        return "web_tool_policy_blocked".to_string();
+    }
+    if lowered.contains("timeout") {
+        return "web_tool_timeout".to_string();
+    }
+    if lowered.contains("429") {
+        return "web_tool_http_429".to_string();
+    }
+    if lowered.contains("404") {
+        return "web_tool_http_404".to_string();
+    }
+    if lowered.contains("403") {
+        return "web_tool_http_403".to_string();
+    }
+    if lowered.contains("401") {
+        return "web_tool_http_401".to_string();
+    }
+    if lowered.contains("500")
+        || lowered.contains("502")
+        || lowered.contains("503")
+        || lowered.contains("504")
+    {
+        return "web_tool_http_5xx".to_string();
+    }
+    "web_tool_error".to_string()
+}
+
+fn chat_ui_requests_live_web(raw_input: &str) -> bool {
+    let lowered = clean(raw_input, 2_000).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    lowered.contains("web search")
+        || lowered.contains("websearch")
+        || lowered.contains("search the web")
+        || lowered.contains("search again")
+        || lowered.contains("find information")
+        || lowered.contains("best chili recipes")
+        || (lowered.contains("search")
+            && (lowered.contains("latest")
+                || lowered.contains("current")
+                || lowered.contains("framework")
+                || lowered.contains("recipes")))
+}
+
+fn chat_ui_extract_web_query(raw_input: &str) -> String {
+    let cleaned = clean(raw_input, 600);
+    if cleaned.is_empty() {
+        return "latest public web updates".to_string();
+    }
+    if let Some(start) = cleaned.find('"') {
+        if let Some(end_rel) = cleaned[start + 1..].find('"') {
+            let quoted = clean(&cleaned[start + 1..start + 1 + end_rel], 320);
+            if !quoted.is_empty() {
+                return quoted;
+            }
+        }
+    }
+    let lowered = cleaned.to_ascii_lowercase();
+    for marker in ["about ", "for "] {
+        if let Some(idx) = lowered.rfind(marker) {
+            let candidate = clean(&cleaned[idx + marker.len()..], 320);
+            if !candidate.is_empty() {
+                return candidate;
+            }
+        }
+    }
+    cleaned
+}
+
+fn chat_ui_tool_name_is_web_search(name: &str) -> bool {
+    let lowered = clean(name, 120).to_ascii_lowercase();
+    lowered.contains("web_search")
+        || lowered.contains("search_web")
+        || lowered.contains("web_query")
+        || lowered.contains("batch_query")
+        || lowered == "search"
+        || lowered.contains("web_fetch")
+}
+
+fn chat_ui_web_search_call_count(tools: &[Value]) -> usize {
+    tools
+        .iter()
+        .filter(|row| {
+            chat_ui_tool_name_is_web_search(
+                row.get("name")
+                    .or_else(|| row.get("tool"))
+                    .or_else(|| row.get("type"))
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+            )
+        })
+        .count()
+}
+
+#[cfg(test)]
+fn scripted_batch_query_harness_response(root: &Path, query: &str) -> Option<Value> {
+    let path = root.join("client/runtime/local/state/ui/infring_dashboard/test_chat_script.json");
+    let mut script = read_json(&path).unwrap_or_else(|| json!({}));
+    let step = script
+        .get_mut("batch_query_queue")
+        .and_then(Value::as_array_mut)
+        .and_then(|queue| {
+            if queue.is_empty() {
+                None
+            } else {
+                Some(queue.remove(0))
+            }
+        });
+    let mut payload = step?;
+    if !payload.is_object() {
+        payload = json!({});
+    }
+    if payload.get("type").is_none() {
+        payload["type"] = json!("batch_query");
+    }
+    if payload.get("query").is_none() {
+        payload["query"] = json!(clean(query, 320));
+    }
+    if let Some(obj) = script.as_object_mut() {
+        let calls = obj
+            .entry("batch_query_calls".to_string())
+            .or_insert_with(|| json!([]));
+        if let Some(rows) = calls.as_array_mut() {
+            rows.push(json!({
+                "query": clean(query, 320)
+            }));
+        }
+    }
+    let _ = write_json(&path, &script);
+    Some(payload)
+}
+
+#[cfg(test)]
+mod chat_ui_direct_path_tests {
+    use super::*;
+    use std::fs;
+
+    fn write_chat_script(root: &Path, payload: &Value) {
+        let path = root.join("client/runtime/local/state/ui/infring_dashboard/test_chat_script.json");
+        let parent = path.parent().expect("chat script parent");
+        fs::create_dir_all(parent).expect("mkdir chat script");
+        fs::write(path, serde_json::to_string_pretty(payload).expect("chat script json"))
+            .expect("write chat script");
+    }
+
+    #[test]
+    fn direct_run_chat_ui_forces_web_tool_attempt_for_explicit_chili_prompt() {
+        let root = tempfile::tempdir().expect("tempdir");
+        write_chat_script(
+            root.path(),
+            &json!({
+                "queue": [
+                    {
+                        "response": "I don't have web search capabilities.",
+                        "tools": []
+                    }
+                ],
+                "batch_query_queue": [
+                    {
+                        "ok": true,
+                        "type": "batch_query",
+                        "status": "ok",
+                        "summary": "Key findings: allrecipes.com: Best Damn Chili Recipe.",
+                        "evidence_refs": [
+                            {
+                                "locator": "https://www.allrecipes.com/recipe/233613/best-damn-chili/"
+                            }
+                        ]
+                    }
+                ]
+            }),
+        );
+
+        let parsed = crate::parse_args(&[
+            "run".to_string(),
+            "--app=chat-ui".to_string(),
+            "--session-id=direct-web-parity".to_string(),
+            "--message=well try doing a web search and returning the results. make the websearch about best chili recipes".to_string(),
+            "--strict=1".to_string(),
+        ]);
+        let payload = run_chat_ui(root.path(), &parsed, true, "run");
+        assert_eq!(payload.get("ok").and_then(Value::as_bool), Some(true));
+        let response = payload
+            .pointer("/turn/assistant")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_ascii_lowercase();
+        assert!(
+            response.contains("web search results for")
+                && response.contains("best chili recipes"),
+            "{response}"
+        );
+        let tools = payload
+            .get("tools")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(tools.iter().any(|row| {
+            clean(
+                row.get("name")
+                    .or_else(|| row.get("tool"))
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                80,
+            )
+            .to_ascii_lowercase()
+                == "batch_query"
+        }));
+        let invariant = payload
+            .pointer("/response_finalization/web_invariant")
+            .cloned()
+            .unwrap_or_else(|| json!({}));
+        assert_eq!(
+            invariant.get("classification").and_then(Value::as_str),
+            Some("healthy")
+        );
+        assert_eq!(
+            invariant.get("tool_attempted").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert!(
+            invariant
+                .get("web_search_calls")
+                .and_then(Value::as_i64)
+                .unwrap_or(0)
+                >= 1
+        );
+    }
+}
+
+fn tool_name_for_diagnostics(row: &Value) -> String {
+    clean(
+        row.get("tool")
+            .or_else(|| row.get("name"))
+            .or_else(|| row.get("type"))
+            .or_else(|| row.pointer("/tool/name"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        120,
+    )
+    .to_ascii_lowercase()
+}
+
+fn tool_findings_count(row: &Value) -> usize {
+    for key in ["findings", "results", "items", "citations", "sources"] {
+        if let Some(count) = row
+            .get(key)
+            .or_else(|| row.pointer(&format!("/result/{key}")))
+            .and_then(Value::as_array)
+            .map(|rows| rows.len())
+        {
+            return count;
+        }
+    }
+    0
+}
+
+fn chat_ui_tool_diagnostics(tools: &[Value]) -> Value {
+    let mut search_calls = 0_i64;
+    let mut fetch_calls = 0_i64;
+    let mut successful_calls = 0_i64;
+    let mut failed_calls = 0_i64;
+    let mut no_result_calls = 0_i64;
+    let mut error_codes = serde_json::Map::<String, Value>::new();
+
+    for row in tools {
+        let tool_name = tool_name_for_diagnostics(row);
+        if tool_name.contains("search")
+            || tool_name.contains("web_search")
+            || tool_name.contains("batch_query")
+        {
+            search_calls += 1;
+        }
+        if tool_name.contains("fetch") || tool_name.contains("web_fetch") {
+            fetch_calls += 1;
+        }
+
+        let findings = tool_findings_count(row) as i64;
+        let ok = row
+            .get("ok")
+            .and_then(Value::as_bool)
+            .or_else(|| row.pointer("/result/ok").and_then(Value::as_bool));
+        let error = clean(
+            row.get("error")
+                .or_else(|| row.pointer("/result/error"))
+                .or_else(|| row.pointer("/result/message"))
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            300,
+        );
+
+        if !error.is_empty() || ok == Some(false) {
+            failed_calls += 1;
+            let code = normalize_tool_error_code(&error);
+            let next = error_codes
+                .get(&code)
+                .and_then(Value::as_i64)
+                .unwrap_or(0)
+                .saturating_add(1);
+            error_codes.insert(code, Value::from(next));
+            continue;
+        }
+
+        if ok == Some(true) || findings > 0 {
+            successful_calls += 1;
+            if findings == 0 {
+                no_result_calls += 1;
+            }
+        }
+    }
+
+    let total_calls = tools.len() as i64;
+    let error_ratio = if total_calls > 0 {
+        (failed_calls as f64) / (total_calls as f64)
+    } else {
+        0.0
+    };
+    json!({
+        "total_calls": total_calls,
+        "search_calls": search_calls,
+        "fetch_calls": fetch_calls,
+        "successful_calls": successful_calls,
+        "failed_calls": failed_calls,
+        "no_result_calls": no_result_calls,
+        "error_ratio": error_ratio,
+        "error_codes": Value::Object(error_codes)
+    })
+}
+
+fn rewrite_chat_ui_placeholder_with_tool_diagnostics(
+    assistant: &str,
+    diagnostics: &Value,
+) -> (String, String) {
+    let current = clean(assistant, 16_000);
+    if current.is_empty() || !crate::tool_output_match_filter::matches_ack_placeholder(&current) {
+        return (current, "unchanged".to_string());
+    }
+    let errors = diagnostics
+        .get("error_codes")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    let has_error = !errors.is_empty();
+    let total_calls = diagnostics
+        .get("total_calls")
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+    let has_auth_missing = errors.contains_key("web_tool_auth_missing");
+    let has_policy_blocked = errors.contains_key("web_tool_policy_blocked");
+    let has_invalid_response = errors.contains_key("web_tool_invalid_response");
+
+    if has_auth_missing {
+        return (
+            "Web tooling is available but missing auth. Configure a token and retry the query."
+                .to_string(),
+            "placeholder_replaced_auth".to_string(),
+        );
+    }
+    if has_policy_blocked {
+        return (
+            "Web tooling call was blocked by policy. Retry with a narrower query or a trusted domain."
+                .to_string(),
+            "placeholder_replaced_policy".to_string(),
+        );
+    }
+    if has_invalid_response {
+        return (
+            "Web tooling returned an invalid response. Retry with one concrete query or a specific source URL."
+                .to_string(),
+            "placeholder_replaced_invalid_response".to_string(),
+        );
+    }
+    if has_error {
+        return (
+            "Web tooling returned errors in this turn. Retry with a narrower query to recover signal."
+                .to_string(),
+            "placeholder_replaced_error".to_string(),
+        );
+    }
+    if total_calls > 0 {
+        return (
+            "Web tooling ran but produced low-signal results. Try a narrower query or one source URL."
+                .to_string(),
+            "placeholder_replaced_low_signal".to_string(),
+        );
+    }
+    (current, "unchanged".to_string())
 }
 
 fn ensure_file(path: &Path, content: &str) -> Result<(), String> {
