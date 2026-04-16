@@ -1,8 +1,9 @@
           if (typeof this.addNotification !== 'function') continue;
 
           var label = agentId === 'system' ? 'System' : ('Agent ' + agentId);
+          var agent = null;
           if (Array.isArray(this.agents)) {
-            var agent = this.agents.find(function(entry) {
+            agent = this.agents.find(function(entry) {
               return entry && String(entry.id || '').trim() === agentId;
             });
             if (agent) {
@@ -10,12 +11,19 @@
               if (agentName) label = agentName;
             }
           }
+          var serverPreview = agent && agent.sidebar_preview && typeof agent.sidebar_preview === 'object'
+            ? agent.sidebar_preview
+            : null;
           var preview = this.agentChatPreviews && this.agentChatPreviews[agentId]
             ? this.agentChatPreviews[agentId]
             : null;
-          var previewText = preview && typeof preview.text === 'string'
-            ? preview.text.replace(/\s+/g, ' ').trim()
-            : '';
+          var previewText = '';
+          if (serverPreview && typeof serverPreview.text === 'string') {
+            previewText = serverPreview.text.replace(/\s+/g, ' ').trim();
+          }
+          if (!previewText && preview && typeof preview.text === 'string') {
+            previewText = preview.text.replace(/\s+/g, ' ').trim();
+          }
           if (previewText.length > 120) previewText = previewText.slice(0, 117) + '...';
           var summary = previewText || 'posted a new update.';
           var message = previewText ? (label + ': ' + previewText) : (label + ' posted a new update.');
