@@ -1,6 +1,8 @@
 // Layer ownership: tests (regression proof for orchestration surface contracts).
 use infring_orchestration_surface_v1::contracts::{
-    ClarificationReason, CoreContractCall, OrchestrationRequest, RequestClass, RequestSurface,
+    Capability, CapabilityProbeSnapshot, ClarificationReason, CoreContractCall, CoreProbeEnvelope,
+    Mutability, OperationKind, OrchestrationRequest, PolicyScope, Precondition, RequestClass,
+    RequestKind, RequestSurface, ResourceKind, TargetDescriptor, TypedOrchestrationRequest,
 };
 use infring_orchestration_surface_v1::OrchestrationSurfaceRuntime;
 use serde_json::json;
@@ -537,7 +539,7 @@ fn surface_adapter_fallback_requires_clarification() {
 }
 
 #[test]
-fn non_legacy_surface_adapter_fallback_requires_authoritative_tool_probes() {
+fn non_legacy_surface_adapter_fallback_uses_heuristics_and_stays_clarification_first() {
     let mut runtime = OrchestrationSurfaceRuntime::new();
     let package = runtime.orchestrate(
         OrchestrationRequest {
@@ -553,15 +555,20 @@ fn non_legacy_surface_adapter_fallback_requires_authoritative_tool_probes() {
         4_305,
     );
 
-    assert!(package
-        .selected_plan
-        .blocked_on
-        .contains(&infring_orchestration_surface_v1::contracts::Precondition::ToolAvailable));
+    assert!(package.classification.needs_clarification);
+    assert!(package.classification.surface_adapter_fallback);
     assert!(package.selected_plan.capability_probes.iter().any(|row| {
         row.capability == infring_orchestration_surface_v1::contracts::Capability::ExecuteTool
             && row.probe_sources.iter().any(|source| {
-                source == "probe.required_for_typed_surface.execute_tool.tool_available"
+                source == "heuristic.tool_hints_or_resource_kind"
             })
+    }));
+    assert!(!package.selected_plan.capability_probes.iter().any(|row| {
+        row.capability == infring_orchestration_surface_v1::contracts::Capability::ExecuteTool
+            && row
+                .probe_sources
+                .iter()
+                .any(|source| source.starts_with("probe.required_for_typed_surface"))
     }));
 }
 
@@ -1634,6 +1641,9 @@ fn planner_quality_fixture_metrics_stay_within_thresholds() {
     let mut clarification_first_selected = 0usize;
     let mut degraded_selected = 0usize;
     let mut heuristic_probe_selected = 0usize;
+    let mut zero_executable_selected = 0usize;
+    let mut all_candidates_clarification_selected = 0usize;
+    let mut all_candidates_degraded_selected = 0usize;
 
     for (idx, request) in fixtures.into_iter().enumerate() {
         let package = runtime.orchestrate(request, 4_760 + idx as u64);
@@ -1659,6 +1669,15 @@ fn planner_quality_fixture_metrics_stay_within_thresholds() {
         }) {
             heuristic_probe_selected += 1;
         }
+        if package.runtime_quality.zero_executable_candidates {
+            zero_executable_selected += 1;
+        }
+        if package.runtime_quality.all_candidates_require_clarification {
+            all_candidates_clarification_selected += 1;
+        }
+        if package.runtime_quality.all_candidates_degraded {
+            all_candidates_degraded_selected += 1;
+        }
     }
 
     let total = candidate_counts.len() as f32;
@@ -1666,6 +1685,10 @@ fn planner_quality_fixture_metrics_stay_within_thresholds() {
     let clarification_first_rate = clarification_first_selected as f32 / total.max(1.0);
     let degraded_rate = degraded_selected as f32 / total.max(1.0);
     let heuristic_probe_rate = heuristic_probe_selected as f32 / total.max(1.0);
+    let zero_executable_candidate_rate = zero_executable_selected as f32 / total.max(1.0);
+    let all_candidates_require_clarification_rate =
+        all_candidates_clarification_selected as f32 / total.max(1.0);
+    let all_candidates_degraded_rate = all_candidates_degraded_selected as f32 / total.max(1.0);
 
     assert!(
         candidate_counts.iter().all(|count| *count >= 2),
@@ -1680,6 +1703,18 @@ fn planner_quality_fixture_metrics_stay_within_thresholds() {
         heuristic_probe_rate <= 0.60,
         "heuristic probe dependence regression"
     );
+    assert!(
+        zero_executable_candidate_rate <= 0.60,
+        "zero-executable candidate rate regression"
+    );
+    assert!(
+        all_candidates_require_clarification_rate <= 0.60,
+        "all-candidates-clarification rate regression"
+    );
+    assert!(
+        all_candidates_degraded_rate <= 0.60,
+        "all-candidates-degraded rate regression"
+    );
 
     println!(
         "planner_quality_metrics={}",
@@ -1688,7 +1723,10 @@ fn planner_quality_fixture_metrics_stay_within_thresholds() {
             "average_candidate_count": average_candidate_count,
             "clarification_first_rate": clarification_first_rate,
             "degraded_rate": degraded_rate,
-            "heuristic_probe_rate": heuristic_probe_rate
+            "heuristic_probe_rate": heuristic_probe_rate,
+            "zero_executable_candidate_rate": zero_executable_candidate_rate,
+            "all_candidates_require_clarification_rate": all_candidates_require_clarification_rate,
+            "all_candidates_degraded_rate": all_candidates_degraded_rate
         })
     );
 }
@@ -1763,6 +1801,8 @@ fn runtime_quality_telemetry_metrics_stay_within_thresholds() {
     let mut non_legacy_fallback = 0usize;
     let mut non_legacy_heuristic = 0usize;
     let mut non_legacy_clarification = 0usize;
+    let mut non_legacy_zero_executable = 0usize;
+    let mut non_legacy_all_candidates_degraded = 0usize;
     let mut candidate_total = 0usize;
 
     for (idx, request) in fixtures.into_iter().enumerate() {
@@ -1814,6 +1854,25 @@ fn runtime_quality_telemetry_metrics_stay_within_thresholds() {
             if package.runtime_quality.selected_plan_requires_clarification {
                 non_legacy_clarification += 1;
             }
+            if package.runtime_quality.zero_executable_candidates {
+                non_legacy_zero_executable += 1;
+            }
+            if package.runtime_quality.all_candidates_degraded {
+                non_legacy_all_candidates_degraded += 1;
+            }
+            if package.runtime_quality.zero_executable_candidates {
+                assert_eq!(
+                    package.runtime_quality.executable_candidate_count, 0,
+                    "zero executable flag must align with executable count"
+                );
+            }
+            if package.runtime_quality.all_candidates_degraded {
+                assert_eq!(
+                    package.runtime_quality.degraded_candidate_count,
+                    package.runtime_quality.candidate_count,
+                    "all-candidates-degraded flag must align with counts"
+                );
+            }
         }
     }
 
@@ -1821,6 +1880,8 @@ fn runtime_quality_telemetry_metrics_stay_within_thresholds() {
     let fallback_rate = non_legacy_fallback as f32 / total;
     let heuristic_probe_rate = non_legacy_heuristic as f32 / total;
     let clarification_rate = non_legacy_clarification as f32 / total;
+    let zero_executable_rate = non_legacy_zero_executable as f32 / total;
+    let all_candidates_degraded_rate = non_legacy_all_candidates_degraded as f32 / total;
     let average_candidate_count = candidate_total as f32 / fixture_count as f32;
 
     assert!(fallback_rate <= 0.50, "runtime fallback rate regression");
@@ -1831,6 +1892,14 @@ fn runtime_quality_telemetry_metrics_stay_within_thresholds() {
     assert!(
         clarification_rate <= 0.60,
         "runtime clarification rate regression"
+    );
+    assert!(
+        zero_executable_rate <= 0.60,
+        "runtime zero-executable rate regression"
+    );
+    assert!(
+        all_candidates_degraded_rate <= 0.60,
+        "runtime all-candidates-degraded rate regression"
     );
     assert!(
         average_candidate_count >= 1.5,
@@ -1844,6 +1913,8 @@ fn runtime_quality_telemetry_metrics_stay_within_thresholds() {
             "fallback_rate_non_legacy": fallback_rate,
             "heuristic_probe_rate_non_legacy": heuristic_probe_rate,
             "clarification_rate_non_legacy": clarification_rate,
+            "zero_executable_rate_non_legacy": zero_executable_rate,
+            "all_candidates_degraded_rate_non_legacy": all_candidates_degraded_rate,
             "average_candidate_count": average_candidate_count
         })
     );
@@ -1933,4 +2004,338 @@ fn runtime_execution_observation_channel_projects_into_execution_state() {
         .correlation
         .observed_core_receipt_ids
         .is_empty());
+}
+
+#[test]
+fn adapted_probe_authority_matrix_executes_50_real_cases() {
+    #[derive(Clone)]
+    struct MatrixCase {
+        capability: Capability,
+        missing_field: &'static str,
+        expected_precondition: Precondition,
+    }
+
+    fn capability_key(capability: Capability) -> &'static str {
+        match capability {
+            Capability::ReadMemory => "read_memory",
+            Capability::MutateTask => "mutate_task",
+            Capability::ExecuteTool => "execute_tool",
+            Capability::PlanAssimilation => "plan_assimilation",
+            Capability::VerifyClaim => "verify_claim",
+        }
+    }
+
+    fn probe_snapshot_with_missing_field(
+        capability: Capability,
+        missing_field: &str,
+    ) -> CapabilityProbeSnapshot {
+        let mut snapshot = CapabilityProbeSnapshot {
+            capability,
+            tool_available: Some(true),
+            target_supplied: Some(true),
+            target_syntactically_valid: Some(true),
+            target_exists: Some(true),
+            authorization_valid: Some(true),
+            policy_allows: Some(true),
+            transport_available: Some(true),
+        };
+        match missing_field {
+            "tool_available" => snapshot.tool_available = None,
+            "target_supplied" => snapshot.target_supplied = None,
+            "target_syntactically_valid" => snapshot.target_syntactically_valid = None,
+            "target_exists" => snapshot.target_exists = None,
+            "authorization_valid" => snapshot.authorization_valid = None,
+            "policy_allows" => snapshot.policy_allows = None,
+            "transport_available" => snapshot.transport_available = None,
+            _ => {}
+        }
+        snapshot
+    }
+
+    fn adapted_typed_request(
+        surface: RequestSurface,
+        capability: Capability,
+        missing_field: &str,
+    ) -> TypedOrchestrationRequest {
+        let (request_kind, operation_kind, resource_kind, mutability, policy_scope, targets, refs, tool_hints) =
+            match capability {
+                Capability::ExecuteTool => (
+                    RequestKind::Direct,
+                    OperationKind::Search,
+                    ResourceKind::Web,
+                    Mutability::ReadOnly,
+                    PolicyScope::WebOnly,
+                    vec![TargetDescriptor::Url {
+                        value: "https://example.com/releases".to_string(),
+                    }],
+                    vec!["https://example.com/releases".to_string()],
+                    vec!["web_search".to_string()],
+                ),
+                Capability::VerifyClaim => (
+                    RequestKind::Comparative,
+                    OperationKind::Compare,
+                    ResourceKind::Mixed,
+                    Mutability::ReadOnly,
+                    PolicyScope::Default,
+                    vec![
+                        TargetDescriptor::WorkspacePath {
+                            value: "README.md".to_string(),
+                        },
+                        TargetDescriptor::Url {
+                            value: "https://example.com/reference".to_string(),
+                        },
+                    ],
+                    vec![
+                        "README.md".to_string(),
+                        "https://example.com/reference".to_string(),
+                    ],
+                    vec![],
+                ),
+                Capability::MutateTask => (
+                    RequestKind::Direct,
+                    OperationKind::Mutate,
+                    ResourceKind::TaskGraph,
+                    Mutability::Mutation,
+                    PolicyScope::CoreProposal,
+                    vec![TargetDescriptor::TaskId {
+                        value: "task-42".to_string(),
+                    }],
+                    vec!["task-42".to_string()],
+                    vec![],
+                ),
+                Capability::PlanAssimilation => (
+                    RequestKind::Workflow,
+                    OperationKind::Assimilate,
+                    ResourceKind::Workspace,
+                    Mutability::Mutation,
+                    PolicyScope::CoreProposal,
+                    vec![TargetDescriptor::WorkspacePath {
+                        value: "README.md".to_string(),
+                    }],
+                    vec!["README.md".to_string()],
+                    vec![],
+                ),
+                Capability::ReadMemory => (
+                    RequestKind::Direct,
+                    OperationKind::Read,
+                    ResourceKind::Memory,
+                    Mutability::ReadOnly,
+                    PolicyScope::Default,
+                    vec![TargetDescriptor::MemoryRef {
+                        scope: "session".to_string(),
+                        object_id: None,
+                    }],
+                    vec!["memory:session".to_string()],
+                    vec![],
+                ),
+            };
+
+        TypedOrchestrationRequest {
+            session_id: format!("matrix-{surface:?}-{capability:?}-{missing_field}")
+                .to_lowercase()
+                .replace(':', "_"),
+            surface,
+            legacy_intent: "synthetic".to_string(),
+            adapted: true,
+            payload: json!({}),
+            request_kind,
+            operation_kind,
+            resource_kind,
+            mutability,
+            target_descriptors: targets,
+            target_refs: refs,
+            tool_hints,
+            policy_scope,
+            user_constraints: Vec::new(),
+            core_probe_envelope: Some(CoreProbeEnvelope {
+                probes: vec![probe_snapshot_with_missing_field(capability, missing_field)],
+            }),
+        }
+    }
+
+    fn legacy_tool_request_without_probe_envelope() -> TypedOrchestrationRequest {
+        TypedOrchestrationRequest {
+            session_id: "legacy-tool-no-envelope".to_string(),
+            surface: RequestSurface::Legacy,
+            legacy_intent: "search web".to_string(),
+            adapted: false,
+            payload: json!({}),
+            request_kind: RequestKind::Direct,
+            operation_kind: OperationKind::Search,
+            resource_kind: ResourceKind::Web,
+            mutability: Mutability::ReadOnly,
+            target_descriptors: vec![TargetDescriptor::Url {
+                value: "https://example.com/releases".to_string(),
+            }],
+            target_refs: vec!["https://example.com/releases".to_string()],
+            tool_hints: Vec::new(),
+            policy_scope: PolicyScope::WebOnly,
+            user_constraints: Vec::new(),
+            core_probe_envelope: None,
+        }
+    }
+
+    fn legacy_assimilation_request_without_probe_envelope() -> TypedOrchestrationRequest {
+        TypedOrchestrationRequest {
+            session_id: "legacy-assimilation-no-envelope".to_string(),
+            surface: RequestSurface::Legacy,
+            legacy_intent: "assimilate workspace".to_string(),
+            adapted: false,
+            payload: json!({}),
+            request_kind: RequestKind::Workflow,
+            operation_kind: OperationKind::Assimilate,
+            resource_kind: ResourceKind::Workspace,
+            mutability: Mutability::Mutation,
+            target_descriptors: vec![TargetDescriptor::WorkspacePath {
+                value: "README.md".to_string(),
+            }],
+            target_refs: vec!["README.md".to_string()],
+            tool_hints: Vec::new(),
+            policy_scope: PolicyScope::CrossBoundary,
+            user_constraints: Vec::new(),
+            core_probe_envelope: None,
+        }
+    }
+
+    let matrix = vec![
+        MatrixCase {
+            capability: Capability::ExecuteTool,
+            missing_field: "tool_available",
+            expected_precondition: Precondition::ToolAvailable,
+        },
+        MatrixCase {
+            capability: Capability::ExecuteTool,
+            missing_field: "transport_available",
+            expected_precondition: Precondition::TransportAvailable,
+        },
+        MatrixCase {
+            capability: Capability::VerifyClaim,
+            missing_field: "transport_available",
+            expected_precondition: Precondition::TransportAvailable,
+        },
+        MatrixCase {
+            capability: Capability::MutateTask,
+            missing_field: "target_supplied",
+            expected_precondition: Precondition::TargetSupplied,
+        },
+        MatrixCase {
+            capability: Capability::MutateTask,
+            missing_field: "target_syntactically_valid",
+            expected_precondition: Precondition::TargetSyntacticallyValid,
+        },
+        MatrixCase {
+            capability: Capability::MutateTask,
+            missing_field: "target_exists",
+            expected_precondition: Precondition::TargetExists,
+        },
+        MatrixCase {
+            capability: Capability::MutateTask,
+            missing_field: "authorization_valid",
+            expected_precondition: Precondition::AuthorizationValid,
+        },
+        MatrixCase {
+            capability: Capability::MutateTask,
+            missing_field: "policy_allows",
+            expected_precondition: Precondition::PolicyAllows,
+        },
+        MatrixCase {
+            capability: Capability::PlanAssimilation,
+            missing_field: "target_supplied",
+            expected_precondition: Precondition::TargetSupplied,
+        },
+        MatrixCase {
+            capability: Capability::PlanAssimilation,
+            missing_field: "target_syntactically_valid",
+            expected_precondition: Precondition::TargetSyntacticallyValid,
+        },
+        MatrixCase {
+            capability: Capability::PlanAssimilation,
+            missing_field: "target_exists",
+            expected_precondition: Precondition::TargetExists,
+        },
+        MatrixCase {
+            capability: Capability::PlanAssimilation,
+            missing_field: "policy_allows",
+            expected_precondition: Precondition::PolicyAllows,
+        },
+    ];
+    let strict_surfaces = [
+        RequestSurface::Sdk,
+        RequestSurface::Gateway,
+        RequestSurface::Dashboard,
+        RequestSurface::Cli,
+    ];
+
+    let mut executed_cases = 0usize;
+    for surface in strict_surfaces {
+        for case in &matrix {
+            let request = adapted_typed_request(surface, case.capability.clone(), case.missing_field);
+            let probe = infring_orchestration_surface_v1::planner::preconditions::probe_capability(
+                &request,
+                &case.capability,
+            );
+            let expected_source = format!(
+                "probe.required_for_typed_surface.{}.{}",
+                capability_key(case.capability.clone()),
+                case.missing_field
+            );
+            assert!(
+                probe.blocked_on.contains(&case.expected_precondition),
+                "missing precondition for surface={surface:?} capability={:?} field={}",
+                case.capability,
+                case.missing_field
+            );
+            assert!(
+                probe.probe_sources.iter().any(|source| source == &expected_source),
+                "missing strict probe source for surface={surface:?} capability={:?} field={}",
+                case.capability,
+                case.missing_field
+            );
+            assert!(
+                !probe
+                    .probe_sources
+                    .iter()
+                    .any(|source| source.starts_with("heuristic.")),
+                "strict adapted surfaces must not consume heuristic probes"
+            );
+            executed_cases += 1;
+        }
+    }
+
+    let legacy_tool_probe = infring_orchestration_surface_v1::planner::preconditions::probe_capability(
+        &legacy_tool_request_without_probe_envelope(),
+        &Capability::ExecuteTool,
+    );
+    assert!(
+        !legacy_tool_probe
+            .blocked_on
+            .contains(&Precondition::ToolAvailable)
+    );
+    assert!(legacy_tool_probe
+        .probe_sources
+        .iter()
+        .any(|source| source.starts_with("heuristic.")));
+    assert!(!legacy_tool_probe.probe_sources.iter().any(|source| {
+        source.starts_with("probe.required_for_typed_surface.execute_tool.")
+    }));
+    executed_cases += 1;
+
+    let legacy_assimilation_probe =
+        infring_orchestration_surface_v1::planner::preconditions::probe_capability(
+            &legacy_assimilation_request_without_probe_envelope(),
+            &Capability::PlanAssimilation,
+        );
+    assert!(legacy_assimilation_probe
+        .blocked_on
+        .contains(&Precondition::PolicyAllows));
+    assert!(legacy_assimilation_probe
+        .probe_sources
+        .iter()
+        .any(|source| source == "heuristic.policy_scope_and_mutability"));
+    assert!(!legacy_assimilation_probe.probe_sources.iter().any(|source| {
+        source.starts_with("probe.required_for_typed_surface.plan_assimilation.")
+    }));
+    executed_cases += 1;
+
+    assert_eq!(executed_cases, 50, "probe authority matrix must execute 50 cases");
 }

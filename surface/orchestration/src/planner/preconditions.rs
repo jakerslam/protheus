@@ -1,7 +1,7 @@
 // Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 use crate::contracts::{
     Capability, CapabilityProbeResult, DegradationReason, Mutability, OperationKind, PolicyScope,
-    Precondition, ResourceKind, TargetDescriptor, TypedOrchestrationRequest,
+    Precondition, RequestSurface, ResourceKind, TargetDescriptor, TypedOrchestrationRequest,
 };
 use serde_json::Value;
 
@@ -87,7 +87,7 @@ fn fail_closed_on_missing_probe_for_typed_surface(
     capability: &Capability,
     probe_name: &str,
 ) -> Option<(bool, String)> {
-    if !matches!(request.surface, crate::contracts::RequestSurface::Legacy) {
+    if request.adapted && !matches!(request.surface, RequestSurface::Legacy) {
         return Some((
             false,
             format!(

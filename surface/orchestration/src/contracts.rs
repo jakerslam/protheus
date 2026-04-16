@@ -480,6 +480,14 @@ pub struct RuntimeQualitySignals {
     pub selected_plan_degraded: bool,
     pub selected_plan_requires_clarification: bool,
     pub used_heuristic_probe: bool,
+    pub heuristic_probe_source_count: u32,
+    pub blocked_precondition_count: u32,
+    pub executable_candidate_count: u32,
+    pub degraded_candidate_count: u32,
+    pub clarification_candidate_count: u32,
+    pub zero_executable_candidates: bool,
+    pub all_candidates_degraded: bool,
+    pub all_candidates_require_clarification: bool,
     pub surface_adapter_fallback: bool,
 }
 

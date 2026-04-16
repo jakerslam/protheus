@@ -50,7 +50,10 @@ pub fn package_result(
 }
 
 fn runtime_quality_signals(plan: &OrchestrationPlan) -> RuntimeQualitySignals {
-    let candidate_count = 1u32.saturating_add(plan.alternative_plans.len() as u32);
+    let candidates = std::iter::once(&plan.selected_plan)
+        .chain(plan.alternative_plans.iter())
+        .collect::<Vec<_>>();
+    let candidate_count = candidates.len() as u32;
     let selected_plan_degraded = matches!(
         plan.selected_plan.variant,
         PlanVariant::DegradedFallback
@@ -58,12 +61,39 @@ fn runtime_quality_signals(plan: &OrchestrationPlan) -> RuntimeQualitySignals {
         || matches!(plan.execution_state.plan_status, PlanStatus::Degraded);
     let selected_plan_requires_clarification =
         plan.needs_clarification || plan.selected_plan.requires_clarification;
-    let used_heuristic_probe = plan.selected_plan.capability_probes.iter().any(|probe| {
-        probe
-            .probe_sources
-            .iter()
-            .any(|source| source.starts_with("heuristic."))
-    });
+    let heuristic_probe_source_count = plan
+        .selected_plan
+        .capability_probes
+        .iter()
+        .flat_map(|probe| probe.probe_sources.iter())
+        .filter(|source| source.starts_with("heuristic."))
+        .count() as u32;
+    let used_heuristic_probe = heuristic_probe_source_count > 0;
+    let blocked_precondition_count = plan.selected_plan.blocked_on.len() as u32;
+    let executable_candidate_count = candidates
+        .iter()
+        .filter(|candidate| {
+            !candidate.steps.is_empty()
+                && candidate.blocked_on.is_empty()
+                && !candidate.requires_clarification
+        })
+        .count() as u32;
+    let degraded_candidate_count = candidates
+        .iter()
+        .filter(|candidate| {
+            matches!(candidate.variant, PlanVariant::DegradedFallback)
+                || !candidate.degradation.is_empty()
+        })
+        .count() as u32;
+    let clarification_candidate_count = candidates
+        .iter()
+        .filter(|candidate| candidate.requires_clarification)
+        .count() as u32;
+    let zero_executable_candidates = executable_candidate_count == 0;
+    let all_candidates_degraded =
+        candidate_count > 0 && degraded_candidate_count == candidate_count;
+    let all_candidates_require_clarification =
+        candidate_count > 0 && clarification_candidate_count == candidate_count;
 
     RuntimeQualitySignals {
         candidate_count,
@@ -71,6 +101,14 @@ fn runtime_quality_signals(plan: &OrchestrationPlan) -> RuntimeQualitySignals {
         selected_plan_degraded,
         selected_plan_requires_clarification,
         used_heuristic_probe,
+        heuristic_probe_source_count,
+        blocked_precondition_count,
+        executable_candidate_count,
+        degraded_candidate_count,
+        clarification_candidate_count,
+        zero_executable_candidates,
+        all_candidates_degraded,
+        all_candidates_require_clarification,
         surface_adapter_fallback: plan.classification.surface_adapter_fallback,
     }
 }
