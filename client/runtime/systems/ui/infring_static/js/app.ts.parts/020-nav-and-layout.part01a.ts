@@ -110,48 +110,16 @@
       return latest;
     },
 
-    isArchivedLikeAgent(agent) {
-      if (!agent || typeof agent !== 'object') return false;
-      if (agent.archived === true) return true;
-      var matchesArchivedState = function(raw) {
-        var value = String(raw || '').trim().toLowerCase();
-        if (!value) return false;
-        return value.indexOf('archived') >= 0 ||
-          value.indexOf('inactive') >= 0 ||
-          value.indexOf('terminated') >= 0 ||
-          value.indexOf('retired') >= 0;
-      };
-      if (matchesArchivedState(agent.state)) return true;
-      if (matchesArchivedState(agent.status)) return true;
-      if (matchesArchivedState(agent.lifecycle_state)) return true;
-      if (matchesArchivedState(agent.lifecycle_status)) return true;
-      var contract = agent.contract && typeof agent.contract === 'object' ? agent.contract : null;
-      return matchesArchivedState(contract && contract.status ? contract.status : '');
-    },
-
     agentStatusState(agent) {
       if (!agent) return 'offline';
-      if (this.isArchivedLikeAgent && this.isArchivedLikeAgent(agent)) return 'offline';
-      var state = String(agent.state || '').toLowerCase();
-      var offlineHints = ['offline', 'inactive', 'archived', 'archive', 'terminated', 'timed out', 'timeout', 'stopped', 'crashed', 'error', 'failed', 'dead', 'disabled'];
-      for (var i = 0; i < offlineHints.length; i++) {
-        if (state.indexOf(offlineHints[i]) >= 0) return 'offline';
-      }
-      var ts = this.agentLastActivityTs(agent);
-      if (ts > 0) {
-        var ageMinutes = (Date.now() - ts) / 60000;
-        if (ageMinutes <= 10) return 'active';
-        if (ageMinutes <= 90) return 'idle';
-      }
-      var activeHints = ['running', 'active', 'connected', 'online'];
-      for (var j = 0; j < activeHints.length; j++) {
-        if (state.indexOf(activeHints[j]) >= 0) return 'idle';
-      }
-      if (state.indexOf('idle') >= 0 || state.indexOf('paused') >= 0 || state.indexOf('suspend') >= 0) return 'idle';
+      var serverState = String(agent.sidebar_status_state || '').trim().toLowerCase();
+      if (serverState === 'active' || serverState === 'idle' || serverState === 'offline') return serverState;
       return 'offline';
     },
 
     agentStatusLabel(agent) {
+      var serverLabel = String(agent && agent.sidebar_status_label ? agent.sidebar_status_label : '').trim().toLowerCase();
+      if (serverLabel === 'active' || serverLabel === 'idle' || serverLabel === 'offline') return serverLabel;
       var status = this.agentStatusState(agent);
       if (status === 'active') return 'active';
       if (status === 'idle') return 'idle';
@@ -190,8 +158,7 @@
         // the avatar pulse visible until completion events clear the state.
         if (busyState && Number.isFinite(ts) && (Date.now() - ts) <= 180000) return true;
       }
-      var agentState = String(agent.state || '').toLowerCase();
-      return agentState.indexOf('typing') >= 0 || agentState.indexOf('working') >= 0 || agentState.indexOf('processing') >= 0;
+      return false;
     },
 
     formatNotificationTime(ts) {
@@ -213,6 +180,7 @@ function app() {
   return {
     page: 'agents',
     themeMode: localStorage.getItem('infring-theme-mode') || 'system',
+    overlayGlassTemplate: 'fogged-glass',
     theme: (() => {
       var mode = localStorage.getItem('infring-theme-mode') || 'system';
       if (mode === 'system') return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
@@ -247,4 +215,3 @@ function app() {
       }
     })(),
     chatSidebarDragAgentId: '',
-

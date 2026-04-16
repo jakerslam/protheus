@@ -104,9 +104,6 @@
       var serverPreview = agent && agent.sidebar_preview && typeof agent.sidebar_preview === 'object' ? agent.sidebar_preview : null;
       if (serverPreview && typeof serverPreview === 'object') {
         var serverText = String(serverPreview.text || '').trim();
-        if (!serverText && agent._sidebar_search_result) {
-          serverText = 'No matching text';
-        }
         return {
           text: serverText || fallbackText,
           ts: Number(serverPreview.ts || this.sidebarAgentSortTs(agent)) || this.sidebarAgentSortTs(agent),
@@ -137,29 +134,6 @@
       var emoji = String((agent.identity && agent.identity.emoji) || '').trim();
       if (this.isReservedSystemEmoji && this.isReservedSystemEmoji(emoji)) return '';
       return emoji;
-    },
-    mostRecentModelFromUsageCache() {
-      try {
-        var raw = localStorage.getItem('of-chat-model-usage-v1');
-        if (!raw) return '';
-        var parsed = JSON.parse(raw);
-        if (!parsed || typeof parsed !== 'object') return '';
-        var bestModel = '';
-        var bestTs = 0;
-        Object.keys(parsed).forEach(function(key) {
-          var modelId = String(key || '').trim();
-          if (!modelId) return;
-          var ts = Number(parsed[key] || 0);
-          if (!Number.isFinite(ts) || ts <= 0) return;
-          if (ts > bestTs) {
-            bestTs = ts;
-            bestModel = modelId;
-          }
-        });
-        return bestModel;
-      } catch(_) {
-        return '';
-      }
     },
     async archiveAgentFromSidebar(agent) {
       if (!agent || !agent.id) return;
@@ -204,23 +178,15 @@
       this.sidebarSpawningAgent = true;
       try {
         var res = await InfringAPI.post('/api/agents', {
-          role: 'analyst',
-          contract: {
-            mission: 'Fresh chat initialization',
-            termination_condition: 'task_or_timeout',
-            expiry_seconds: 3600,
-            auto_terminate_allowed: false,
-            idle_terminate_allowed: false,
-            conversation_hold: true
-          }
+          role: 'analyst'
         });
         var createdId = String((res && (res.id || res.agent_id)) || '').trim();
         if (!createdId) throw new Error('spawn_failed');
         var created = {
           id: createdId,
-          name: createdId,
-          identity: { emoji: '∞' },
-          state: String((res && res.state) || 'running'),
+          name: String((res && res.name) || createdId),
+          identity: (res && res.identity && typeof res.identity === 'object') ? res.identity : {},
+          state: String((res && res.sidebar_status_label) || 'pending'),
           model_name: String((res && (res.model_name || res.runtime_model || '')) || ''),
           model_provider: String((res && res.model_provider) || ''),
           runtime_model: String((res && res.runtime_model) || ''),
@@ -237,19 +203,7 @@
         this.closeAgentChatsSidebar();
         InfringToast.success('Agent draft created. Complete initialization to launch.');
         this.scheduleSidebarScrollIndicators();
-        var preferredModel = this.mostRecentModelFromUsageCache();
-        (async function() {
-          if (preferredModel) {
-            try {
-              await InfringAPI.put('/api/agents/' + encodeURIComponent(createdId) + '/model', {
-                model: preferredModel
-              });
-            } catch(_) {
-              // Keep default server model if model handoff fails.
-            }
-          }
-          // Keep draft agent hidden from rosters until launch completes.
-        })();
+        // Keep draft agent hidden from rosters until launch completes.
       } catch(e) {
         InfringToast.error('Failed to create agent: ' + (e && e.message ? e.message : 'unknown error'));
       }
@@ -276,10 +230,12 @@
       var store = this.getAppStore();
       var archived = typeof this.isSidebarArchivedAgent === 'function' && this.isSidebarArchivedAgent(agent);
       if (store && archived) {
+        var pendingState = String(agent.sidebar_status_label || '').trim().toLowerCase();
+        if (!pendingState) pendingState = 'archived';
         var pending = {
           id: String(agent.id),
           name: String(agent.name || agent.id),
-          state: String(agent.state || 'archived'),
+          state: pendingState,
           archived: true,
           avatar_url: String(agent.avatar_url || '').trim(),
           identity: { emoji: String((agent.identity && agent.identity.emoji) || '') },
@@ -320,29 +276,11 @@
     },
     agentAutoTerminateEnabled(agent) {
       if (!agent || typeof agent !== 'object') return false;
-      var contract = (agent.contract && typeof agent.contract === 'object') ? agent.contract : null;
-      var terminationCondition = String(
-        (contract && contract.termination_condition) ||
-        agent.termination_condition ||
-        ''
-      ).trim().toLowerCase();
-      if (terminationCondition === 'manual' || terminationCondition === 'task_complete') return false;
-      // Finite lifespan contracts should remain visible and active even on master/main
-      // agents so the UI reflects explicit user-selected time limits.
-      if (this.agentContractHasFiniteExpiry(agent)) {
-        if (agent.auto_terminate_allowed === false) return false;
-        if (contract && contract.auto_terminate_allowed === false) return false;
-        return true;
+      if (typeof agent.auto_terminate_allowed === 'boolean') {
+        return agent.auto_terminate_allowed;
       }
-      if (agent.auto_terminate_allowed === false) return false;
-      if (agent.is_master_agent === true) return false;
-      var treeKind = String(agent.git_tree_kind || '').trim().toLowerCase();
-      if (treeKind === 'master' || treeKind === 'main') return false;
-      var branch = String(agent.git_branch || agent.branch || '').trim().toLowerCase();
-      if (branch === 'main' || branch === 'master') return false;
-      if (contract && contract.auto_terminate_allowed === false) return false;
-      if (contract && contract.idle_terminate_allowed === false && contract.auto_terminate_allowed === false) return false;
-      return true;
+      // Server contract should provide explicit policy; default fail-closed.
+      return false;
     },
     agentContractRemainingMs(agent) {
       // Force recompute every second for live countdown updates.
@@ -351,76 +289,52 @@
       if (!this.agentAutoTerminateEnabled(agent)) return null;
       var store = this.getAppStore();
       var lastRefreshAt = Number((store && store._lastAgentsRefreshAt) || 0);
-      var ageDriftMs = Math.max(0, Date.now() - lastRefreshAt);
+      var ageDriftMs =
+        Number.isFinite(lastRefreshAt) && lastRefreshAt > 0
+          ? Math.max(0, Date.now() - lastRefreshAt)
+          : 0;
       if (!agent || typeof agent !== 'object') return null;
       var directRemaining = Number(agent.contract_remaining_ms);
       if (Number.isFinite(directRemaining) && directRemaining >= 0) {
         return Math.max(0, Math.floor(directRemaining - ageDriftMs));
       }
-      var contract = (agent.contract && typeof agent.contract === 'object') ? agent.contract : null;
-      if (contract && contract.remaining_ms != null) {
-        var remainingFromContract = Number(contract.remaining_ms);
-        if (Number.isFinite(remainingFromContract) && remainingFromContract >= 0) {
-          return Math.max(0, Math.floor(remainingFromContract - ageDriftMs));
-        }
-      }
-      var expiresAt = String(
-        agent.contract_expires_at ||
-        (contract && contract.expires_at ? contract.expires_at : '') ||
-        ''
-      ).trim();
-      if (!expiresAt) return null;
-      var expiryTs = Number(new Date(expiresAt).getTime());
-      if (!Number.isFinite(expiryTs) || expiryTs <= 0) return null;
-      return Math.max(0, expiryTs - Date.now());
-    },
-    agentContractExpiryMs(agent) {
-      if (!agent || typeof agent !== 'object') return 0;
-      var contract = (agent.contract && typeof agent.contract === 'object') ? agent.contract : null;
-      var expiresAt = String(
-        agent.contract_expires_at ||
-        (contract && contract.expires_at ? contract.expires_at : '') ||
-        ''
-      ).trim();
-      if (!expiresAt) return 0;
-      var expiryTs = Number(new Date(expiresAt).getTime());
-      if (!Number.isFinite(expiryTs) || expiryTs <= 0) return 0;
-      return expiryTs;
+      return null;
     },
     agentContractHasFiniteExpiry(agent) {
       if (!agent || typeof agent !== 'object') return false;
-      var contract = (agent.contract && typeof agent.contract === 'object') ? agent.contract : null;
+      if (agent.revive_recommended === true) return true;
+      if (typeof agent.contract_finite_expiry === 'boolean') {
+        return agent.contract_finite_expiry;
+      }
       var directRemaining = Number(agent.contract_remaining_ms);
       if (Number.isFinite(directRemaining) && directRemaining >= 0) return true;
-      if (contract && contract.remaining_ms != null) {
-        var remainingFromContract = Number(contract.remaining_ms);
-        if (Number.isFinite(remainingFromContract) && remainingFromContract >= 0) return true;
-      }
-      return this.agentContractExpiryMs(agent) > 0;
+      var totalMs = Number(agent.contract_total_ms);
+      return Number.isFinite(totalMs) && totalMs > 0;
     },
     agentContractTerminationGraceMs() {
       return 10000;
-    },
-    agentContractOverdueMs(agent) {
-      if (!this.agentAutoTerminateEnabled(agent)) return null;
-      var expiryTs = this.agentContractExpiryMs(agent);
-      if (!expiryTs) return null;
-      return Math.max(0, Date.now() - expiryTs);
     },
     isAgentPendingTermination(agent) {
       if (!this.agentAutoTerminateEnabled(agent)) return false;
       if (!this.agentContractHasFiniteExpiry(agent)) return false;
       var remainingMs = this.agentContractRemainingMs(agent);
       if (remainingMs == null || remainingMs > 0) return false;
-      var overdueMs = this.agentContractOverdueMs(agent);
-      if (overdueMs == null) return false;
-      return overdueMs < this.agentContractTerminationGraceMs();
+      var store = this.getAppStore();
+      var lastRefreshAt = Number((store && store._lastAgentsRefreshAt) || 0);
+      if (!Number.isFinite(lastRefreshAt) || lastRefreshAt <= 0) return true;
+      var refreshAgeMs = Math.max(0, Date.now() - lastRefreshAt);
+      return refreshAgeMs < this.agentContractTerminationGraceMs();
     },
     shouldShowInfinityLifespan(agent) {
       if (!agent || typeof agent !== 'object') return false;
       if (agent.revive_recommended === true) return false;
+      if (typeof agent.contract_finite_expiry === 'boolean') {
+        if (agent.contract_finite_expiry) return false;
+        return !this.agentAutoTerminateEnabled(agent);
+      }
       if (!this.agentAutoTerminateEnabled(agent)) return true;
-      return !this.agentContractHasFiniteExpiry(agent);
+      // Unknown contract timing should not be rendered as explicit infinity.
+      return false;
     },
     shouldShowExpiryCountdown(agent) {
       if (agent && agent.revive_recommended === true) return true;

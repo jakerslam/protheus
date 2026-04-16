@@ -77,17 +77,6 @@ fn build_agent_roster(root: &Path, snapshot: &Value, include_terminated: bool) -
             80,
         )
         .to_ascii_lowercase();
-        let contract_auto_terminate_allowed = contract
-            .get("auto_terminate_allowed")
-            .and_then(Value::as_bool)
-            .unwrap_or(true);
-        let contract_idle_terminate_allowed = contract
-            .get("idle_terminate_allowed")
-            .and_then(Value::as_bool)
-            .unwrap_or(true);
-        let non_expiring_contract = termination_condition.starts_with("manual")
-            || termination_condition == "task_complete"
-            || (!contract_auto_terminate_allowed && !contract_idle_terminate_allowed);
         let termination_reason = clean_text(
             contract
                 .get("termination_reason")
@@ -97,10 +86,19 @@ fn build_agent_roster(root: &Path, snapshot: &Value, include_terminated: bool) -
         )
         .to_ascii_lowercase();
         let revive_recommended = contract_terminated
-            && non_expiring_contract
-            && (termination_reason.contains("timeout")
-                || termination_reason.contains("expired")
-                || termination_reason.contains("terminated"));
+            && ((termination_reason.contains("timeout")
+                || termination_reason.contains("expired"))
+                || ((termination_condition.starts_with("manual")
+                    || termination_condition == "task_complete"
+                    || (!contract
+                        .get("auto_terminate_allowed")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(true)
+                        && !contract
+                            .get("idle_terminate_allowed")
+                            .and_then(Value::as_bool)
+                            .unwrap_or(true)))
+                    && termination_reason.contains("terminated")));
         if !include_terminated && contract_terminated && !revive_recommended {
             continue;
         }
@@ -247,11 +245,14 @@ fn build_agent_roster(root: &Path, snapshot: &Value, include_terminated: bool) -
             .get("auto_terminate_allowed")
             .and_then(Value::as_bool)
             .unwrap_or(!is_master);
+        let contract_total_ms = if auto_terminate_allowed { contract.get("expiry_seconds").and_then(Value::as_i64).map(|seconds| seconds.clamp(1, 31 * 24 * 60 * 60).saturating_mul(1000)) } else { None };
         let contract_remaining_ms = if auto_terminate_allowed {
             contract.get("remaining_ms").and_then(Value::as_i64)
         } else {
             None
         };
+        let contract_finite_expiry =
+            auto_terminate_allowed && (contract_remaining_ms.is_some() || contract_total_ms.is_some());
         let created_at = clean_text(
             profile
                 .get("created_at")
@@ -293,6 +294,7 @@ fn build_agent_roster(root: &Path, snapshot: &Value, include_terminated: bool) -
             "role": role,
             "state": state,
             "model_provider": model_provider,
+            "model_provider_aliases": match model_provider.as_str() { "gemini" => json!(["google"]), "grok" => json!(["xai"]), "kimi" => json!(["moonshot"]), _ => json!([]) },
             "model_name": model_name,
             "runtime_model": model_runtime,
             "context_window": profile.get("context_window").cloned().unwrap_or(Value::Null),
@@ -317,7 +319,9 @@ fn build_agent_roster(root: &Path, snapshot: &Value, include_terminated: bool) -
             "message_count": session_message_count,
             "contract": contract.clone(),
             "contract_expires_at": contract.get("expires_at").cloned().unwrap_or(Value::Null),
+            "contract_total_ms": contract_total_ms.map(Value::from).unwrap_or(Value::Null),
             "contract_remaining_ms": contract_remaining_ms.map(Value::from).unwrap_or(Value::Null),
+            "contract_finite_expiry": contract_finite_expiry,
             "parent_agent_id": parent_agent_id_from_row(&json!({
                 "parent_agent_id": profile.get("parent_agent_id").cloned().unwrap_or(Value::Null),
                 "contract": {"parent_agent_id": contract.get("parent_agent_id").cloned().unwrap_or(Value::Null)}
@@ -346,7 +350,6 @@ fn build_agent_roster(root: &Path, snapshot: &Value, include_terminated: bool) -
     });
     rows
 }
-
 fn archive_all_visible_agents(root: &Path, snapshot: &Value, reason: &str) -> Value {
     let archive_reason = {
         let cleaned = clean_text(reason, 120);
@@ -460,7 +463,6 @@ fn upsert_contract_patch(root: &Path, agent_id: &str, patch: &Value) -> Value {
     }
     crate::dashboard_agent_state::upsert_contract(root, &id, patch)
 }
-
 fn session_payload(root: &Path, agent_id: &str) -> Value {
     let id = clean_agent_id(agent_id);
     if id.is_empty() {
@@ -478,7 +480,6 @@ fn session_payload(root: &Path, agent_id: &str) -> Value {
         "session": state
     })
 }
-
 fn append_jsonl_row(path: &Path, row: &Value) {
     if let Some(parent) = path.parent() {
         let _ = fs::create_dir_all(parent);
@@ -493,7 +494,6 @@ fn append_jsonl_row(path: &Path, row: &Value) {
             });
     }
 }
-
 fn attention_queue_fallback_path(root: &Path) -> PathBuf {
     root.join("client/runtime/local/state/attention/pending_memory_events.jsonl")
 }
