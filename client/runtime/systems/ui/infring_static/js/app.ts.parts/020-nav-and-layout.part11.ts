@@ -195,6 +195,26 @@
       if (doAnimate && beforeRects) this.animateBottomDockFromRects(beforeRects);
       return true;
     },
+    persistBottomDockOrderIfChangedFromDragStart() {
+      var current = this.normalizeBottomDockOrder(this.bottomDockOrder);
+      var start = this.normalizeBottomDockOrder(this.bottomDockDragStartOrder);
+      if (JSON.stringify(current) !== JSON.stringify(start)) {
+        this.bottomDockOrder = current;
+        this.persistBottomDockOrder();
+        this.bottomDockDragCommitted = true;
+      }
+    },
+    completeBottomDockDropCleanup(ev) {
+      this.bottomDockDragId = '';
+      this.bottomDockDragStartOrder = [];
+      this._bottomDockSuppressClickUntil = Date.now() + 220;
+      this.cleanupBottomDockDragGhost();
+      this.reviveBottomDockHoverFromPoint(
+        Number(ev && ev.clientX || 0),
+        Number(ev && ev.clientY || 0)
+      );
+      if (ev && typeof ev.preventDefault === 'function') ev.preventDefault();
+    },
 
     handleBottomDockContainerDragOver(ev) {
       if (ev && ev.dataTransfer) {
@@ -246,22 +266,8 @@
           return;
         }
       }
-      var current = this.normalizeBottomDockOrder(this.bottomDockOrder);
-      var start = this.normalizeBottomDockOrder(this.bottomDockDragStartOrder);
-      if (JSON.stringify(current) !== JSON.stringify(start)) {
-        this.bottomDockOrder = current;
-        this.persistBottomDockOrder();
-        this.bottomDockDragCommitted = true;
-      }
-      this.bottomDockDragId = '';
-      this.bottomDockDragStartOrder = [];
-      this._bottomDockSuppressClickUntil = Date.now() + 220;
-      this.cleanupBottomDockDragGhost();
-      this.reviveBottomDockHoverFromPoint(
-        Number(ev && ev.clientX || 0),
-        Number(ev && ev.clientY || 0)
-      );
-      if (ev && typeof ev.preventDefault === 'function') ev.preventDefault();
+      this.persistBottomDockOrderIfChangedFromDragStart();
+      this.completeBottomDockDropCleanup(ev);
     },
 
     handleBottomDockDragOver(id, ev, preferAfter) {
@@ -311,22 +317,8 @@
         return;
       }
       if (targetId === dragId) {
-        var current = this.normalizeBottomDockOrder(this.bottomDockOrder);
-        var start = this.normalizeBottomDockOrder(this.bottomDockDragStartOrder);
-        if (JSON.stringify(current) !== JSON.stringify(start)) {
-          this.bottomDockOrder = current;
-          this.persistBottomDockOrder();
-          this.bottomDockDragCommitted = true;
-        }
-        this.bottomDockDragId = '';
-        this.bottomDockDragStartOrder = [];
-        this._bottomDockSuppressClickUntil = Date.now() + 220;
-        this.cleanupBottomDockDragGhost();
-        this.reviveBottomDockHoverFromPoint(
-          Number(ev && ev.clientX || 0),
-          Number(ev && ev.clientY || 0)
-        );
-        if (ev && typeof ev.preventDefault === 'function') ev.preventDefault();
+        this.persistBottomDockOrderIfChangedFromDragStart();
+        this.completeBottomDockDropCleanup(ev);
         return;
       }
       var next = this.normalizeBottomDockOrder(this.bottomDockOrder);
@@ -352,15 +344,7 @@
       this.bottomDockOrder = next;
       this.persistBottomDockOrder();
       this.bottomDockDragCommitted = true;
-      this.bottomDockDragId = '';
-      this.bottomDockDragStartOrder = [];
-      this._bottomDockSuppressClickUntil = Date.now() + 220;
-      this.cleanupBottomDockDragGhost();
-      this.reviveBottomDockHoverFromPoint(
-        Number(ev && ev.clientX || 0),
-        Number(ev && ev.clientY || 0)
-      );
-      if (ev && typeof ev.preventDefault === 'function') ev.preventDefault();
+      this.completeBottomDockDropCleanup(ev);
     },
 
     endBottomDockDrag() {
