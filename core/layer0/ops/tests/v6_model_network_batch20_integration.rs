@@ -43,6 +43,18 @@ fn has_infring_receipt(receipt: &Value) -> bool {
         && has_ts
 }
 
+fn assert_infring_receipt_contract(receipt: &Value) {
+    assert!(has_infring_receipt(receipt), "missing standard receipt fields");
+    let hash = receipt
+        .get("receipt_hash")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    assert!(
+        hash.len() >= 16 && hash.chars().all(|ch| ch.is_ascii_hexdigit()),
+        "receipt hash should look like a deterministic hex digest"
+    );
+}
+
 fn read_jsonl(path: &Path) -> Vec<Value> {
     fs::read_to_string(path)
         .ok()
@@ -71,6 +83,7 @@ fn v6_batch20_model_and_network_lanes_are_receipted() {
     );
     let model_latest = root.path().join("local/state/ops/model_router/latest.json");
     let adapt = read_json(&model_latest);
+    assert_infring_receipt_contract(&adapt);
     assert_eq!(
         adapt.get("type").and_then(Value::as_str),
         Some("model_router_adapt_repo")
@@ -95,6 +108,7 @@ fn v6_batch20_model_and_network_lanes_are_receipted() {
         0
     );
     let reset = read_json(&model_latest);
+    assert_infring_receipt_contract(&reset);
     assert_eq!(
         reset.get("type").and_then(Value::as_str),
         Some("model_router_agent_reset")
@@ -125,6 +139,7 @@ fn v6_batch20_model_and_network_lanes_are_receipted() {
         0
     );
     let optimize = read_json(&model_latest);
+    assert_infring_receipt_contract(&optimize);
     assert_eq!(
         optimize.get("type").and_then(Value::as_str),
         Some("model_router_optimize_cheap")
@@ -150,6 +165,7 @@ fn v6_batch20_model_and_network_lanes_are_receipted() {
         0
     );
     let night = read_json(&model_latest);
+    assert_infring_receipt_contract(&night);
     assert_eq!(
         night.get("type").and_then(Value::as_str),
         Some("model_router_night_schedule")
@@ -183,6 +199,7 @@ fn v6_batch20_model_and_network_lanes_are_receipted() {
         .path()
         .join("local/state/ops/p2p_gossip_seed/latest.json");
     let join = read_json(&network_latest);
+    assert_infring_receipt_contract(&join);
     assert_eq!(
         join.get("type").and_then(Value::as_str),
         Some("p2p_gossip_seed_join")
@@ -205,6 +222,7 @@ fn v6_batch20_model_and_network_lanes_are_receipted() {
         0
     );
     let compute = read_json(&network_latest);
+    assert_infring_receipt_contract(&compute);
     assert_eq!(
         compute.get("type").and_then(Value::as_str),
         Some("p2p_gossip_seed_compute_proof")
@@ -231,6 +249,7 @@ fn v6_batch20_model_and_network_lanes_are_receipted() {
         0
     );
     let gossip = read_json(&network_latest);
+    assert_infring_receipt_contract(&gossip);
     assert_eq!(
         gossip.get("type").and_then(Value::as_str),
         Some("p2p_gossip_seed_breakthrough")
@@ -255,6 +274,7 @@ fn v6_batch20_model_and_network_lanes_are_receipted() {
         0
     );
     let rss = read_json(&network_latest);
+    assert_infring_receipt_contract(&rss);
     assert_eq!(
         rss.get("type").and_then(Value::as_str),
         Some("p2p_gossip_seed_idle_rss")
@@ -279,6 +299,7 @@ fn v6_batch20_model_and_network_lanes_are_receipted() {
         0
     );
     let ranking = read_json(&network_latest);
+    assert_infring_receipt_contract(&ranking);
     assert_eq!(
         ranking.get("type").and_then(Value::as_str),
         Some("p2p_gossip_seed_ranking_evolve")
@@ -296,6 +317,7 @@ fn v6_batch20_model_and_network_lanes_are_receipted() {
         0
     );
     let dashboard = read_json(&network_latest);
+    assert_infring_receipt_contract(&dashboard);
     assert_eq!(
         dashboard.get("type").and_then(Value::as_str),
         Some("p2p_gossip_seed_dashboard")

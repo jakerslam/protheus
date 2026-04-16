@@ -5,7 +5,7 @@ use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::Engine;
 use serde_json::{json, Map, Value};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 use crate::contract_lane_utils as lane_utils;
 use crate::{deterministic_receipt_hash, now_iso};
@@ -104,7 +104,16 @@ fn resolve_path(root: &Path, value: Option<&Value>) -> Option<PathBuf> {
     if raw.is_empty() {
         return None;
     }
+    if raw.chars().any(char::is_control) {
+        return None;
+    }
     let candidate = PathBuf::from(&raw);
+    if candidate
+        .components()
+        .any(|segment| matches!(segment, Component::ParentDir | Component::Prefix(_)))
+    {
+        return None;
+    }
     if candidate.is_absolute() {
         Some(candidate)
     } else {

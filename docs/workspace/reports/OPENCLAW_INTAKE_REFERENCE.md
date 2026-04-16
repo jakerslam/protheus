@@ -279,8 +279,8 @@
     - `core/layer0/ops/src/top1_assurance_parts/010-usage.rs`
 
 ## Current Intake State
-- Imported rows in this wave: `150`
-- Pending rows in this wave: `0`
+- `
+- `
 
 - `OPENCLAW-TOOLING-APP-013`:
   - Imported app/runtime lifecycle, polling, health, agent-refresh, and agent-file controller patterns from:
@@ -928,3 +928,338 @@
     - `core/layer2/execution/src/autoscale_parts/200-compute-list-value-currencies.rs`
     - `core/layer2/execution/src/inversion_parts/160-compute-trim-library.rs`
   - Burned source snapshot: `openclaw-20260416-012854`
+
+- `OPENCLAW-TOOLING-WEB-070`:
+  - Re-assimilated runtime provider ordering + explicit/fallback selection boundaries from:
+    - `src/web-search/runtime.ts`
+    - `src/web-search/runtime-types.ts`
+    - `src/web-fetch/runtime.ts`
+    - `src/plugin-sdk/provider-web-fetch-contract.ts`
+    - `src/test-utils/web-provider-runtime.test-helpers.ts`
+  - Landed in:
+    - `core/layer2/execution/src/autoscale_parts/070-all-decision-events-output.rs`
+    - `core/layer2/execution/src/autoscale_parts/140-compute-plan.rs`
+    - `core/layer2/execution/src/autoscale_parts/330-compute-non-yield-category.rs`
+    - `core/layer2/execution/src/inversion_parts/020-normalize-band-map-output.rs`
+    - `core/layer2/execution/src/inversion_parts/140-compute-normalize-harness-suite.rs`
+  - Burned source snapshot: `openclaw-20260416-145809`
+
+- `OPENCLAW-TOOLING-WEB-071`:
+  - Re-assimilated guarded transport/auth fallback/runtime provider-choice semantics from:
+    - `src/infra/net/fetch-guard.ts`
+    - `src/infra/net/runtime-fetch.ts`
+    - `src/infra/provider-usage.auth.ts`
+    - `src/infra/provider-usage.fetch.shared.ts`
+    - `src/plugins/provider-auth-choice.runtime.ts`
+  - Landed in:
+    - `core/layer0/ops/src/benchmark_matrix_parts/020-sample-child-rss-quantiles-mb.rs`
+    - `core/layer0/ops/src/strategy_store_kernel_parts/010-usage.rs`
+    - `core/layer2/autonomy/src/simulation_parts/010-to-int.rs`
+    - `core/layer0/ops/src/asm_plane_parts/020-merge-crdt.rs`
+    - `core/layer0/ops/src/collab_plane_parts/020-continuity-reconstruct-path.rs`
+  - Burned source snapshot: `openclaw-20260416-150338`
+
+- `OPENCLAW-TOOLING-WEB-072`:
+  - Re-assimilated guarded proxy/ssrf/provider-usage runtime semantics from:
+    - `src/infra/net/proxy-fetch.ts`
+    - `src/infra/net/proxy-fetch.test.ts`
+    - `src/infra/net/fetch-guard.ssrf.test.ts`
+    - `src/infra/provider-usage.load.ts`
+    - `src/infra/provider-usage.fetch.ts`
+  - Landed in:
+    - `core/layer2/execution/src/autoscale_parts/100-budget-pacing-gate-input.rs`
+    - `core/layer2/execution/src/inversion_parts/100-compute-default-first-principle-lock-state.rs`
+    - `core/layer0/ops/src/business_plane_parts/020-continuity-command.rs`
+    - `core/layer0/ops/src/trit_kernel.rs`
+    - `core/layer2/execution/src/autoscale_parts/090-clamp-number-input.rs`
+  - Burned source snapshot: `openclaw-20260416-150855`
+
+- `OPENCLAW-TOOLING-WEB-073`:
+  - Re-assimilated provider-usage canonical format/type and fetch-shared test semantics from:
+    - `src/infra/provider-usage.shared.ts`
+    - `src/infra/provider-usage.types.ts`
+    - `src/infra/provider-usage.format.ts`
+    - `src/infra/provider-usage.shared.test.ts`
+    - `src/infra/provider-usage.fetch.shared.test.ts`
+  - Landed in:
+    - `core/layer0/ops/src/finance_plane_parts/020-kyc-command.rs`
+    - `core/layer0/ops/src/trainability_matrix_kernel.rs`
+    - `core/layer2/execution/src/autoscale_parts/270-compute-recent-directive-pulse-cooldown-count.rs`
+    - `core/layer0/ops/src/finance_plane_parts/010-usage.rs`
+    - `core/layer2/execution/src/autoscale_parts/310-compute-objective-id-for-execution.rs`
+  - Burned source snapshot: `openclaw-20260416-091633`
+
+- `OPENCLAW-TOOLING-WEB-074`:
+  - Re-assimilated provider-usage runtime/fetch semantics from:
+    - `src/infra/provider-usage.ts`
+    - `src/infra/provider-usage.fetch.codex.ts`
+    - `src/infra/provider-usage.fetch.gemini.ts`
+    - `src/infra/provider-usage.fetch.claude.ts`
+    - `src/infra/provider-usage.fetch.minimax.ts`
+  - Landed in:
+    - `core/layer2/execution/src/autoscale_parts/300-compute-directive-clarification-exec-spec.rs`
+    - `core/layer0/ops/src/enterprise_moat_extensions_parts/010-read-jsonl.rs`
+    - `core/layer2/execution/src/autoscale_parts/190-compute-directive-tier-reservation-need.rs`
+    - `core/layer0/ops/src/backlog_delivery_plane_parts/030-run-v8-skill-graph.rs`
+    - `core/layer0/ops/src/benchmark_matrix_parts/030-attach-shared-throughput-sampling.rs`
+  - Burned source snapshot: `openclaw-20260416-092108`
+
+- `OPENCLAW-TOOLING-WEB-075`:
+  - Re-assimilated provider-usage auth/fetch and plugin-boundary test semantics from:
+    - `src/infra/provider-usage.fetch.zai.ts`
+    - `src/infra/provider-usage.fetch.codex.test.ts`
+    - `src/infra/provider-usage.fetch.gemini.test.ts`
+    - `src/infra/provider-usage.auth.normalizes-keys.test.ts`
+    - `src/infra/provider-usage.load.plugin.test.ts`
+  - Landed in:
+    - `core/layer2/execution/src/autoscale_parts/210-compute-capability-cooldown-key.rs`
+    - `core/layer0/ops/src/hermes_plane_parts/020-run-continuity.rs`
+    - `core/layer2/execution/src/autoscale_parts/230-compute-unknown-type-quarantine-decision.rs`
+    - `core/layer0/ops/src/persona_schema_contract.rs`
+    - `core/layer0/ops/src/symbiosis_coherence_kernel_parts/020-compute-identity-component.rs`
+  - Burned source snapshot: `openclaw-20260416-092452`
+
+- `OPENCLAW-TOOLING-WEB-076`:
+  - Re-assimilated provider-usage plugin/fetch/format test semantics from:
+    - `src/infra/provider-usage.auth.plugin.test.ts`
+    - `src/infra/provider-usage.fetch.claude.test.ts`
+    - `src/infra/provider-usage.fetch.minimax.test.ts`
+    - `src/infra/provider-usage.fetch.zai.test.ts`
+    - `src/infra/provider-usage.format.test.ts`
+  - Landed in:
+    - `core/layer2/execution/src/inversion_parts/130-compute-read-json.rs`
+    - `core/layer0/ops/src/backlog_registry_parts/020-resolve-rows.rs`
+    - `core/layer0/ops/src/importance.rs`
+    - `core/layer0/ops/src/backlog_delivery_plane_parts/020-run-v8-moat.rs`
+    - `core/layer0/ops/src/enterprise_hardening_parts/040-run-moat-license.rs`
+  - Burned source snapshot: `openclaw-20260416-092830`
+
+- `OPENCLAW-TOOLING-WEB-077`:
+  - Re-assimilated provider-usage test + net hostname/ssrf semantics from:
+    - `src/infra/provider-usage.load.test.ts`
+    - `src/infra/provider-usage.test-support.ts`
+    - `src/infra/provider-usage.test.ts`
+    - `src/infra/net/ssrf.ts`
+    - `src/infra/net/hostname.ts`
+  - Landed in:
+    - `core/layer0/ops/src/source_comment_filter_kernel.rs`
+    - `core/layer2/execution/src/autoscale_parts/180-compute-shadow-scope-matches.rs`
+    - `core/layer2/execution/src/inversion_parts/190-compute-extract-failure-cluster-principle.rs`
+    - `core/layer0/ops/src/symbiosis_coherence_kernel_parts/010-usage.rs`
+    - `core/layer0/ops/src/trit_shadow_kernel_parts/010-usage.rs`
+  - Burned source snapshot: `openclaw-20260416-093236`
+
+- `OPENCLAW-TOOLING-WEB-078`:
+  - Re-assimilated abort-signal and backoff runtime semantics from:
+    - `src/infra/abort-signal.ts`
+    - `src/infra/abort-signal.test.ts`
+    - `src/infra/abort-pattern.test.ts`
+    - `src/infra/backoff.ts`
+    - `src/infra/backoff.test.ts`
+  - Landed in:
+    - `core/layer0/ops/src/mech_suit_mode_kernel_parts/020-if-empty-then.rs`
+    - `core/layer2/execution/src/autoscale_parts/360-compute-success-criteria-quality-audit.rs`
+    - `core/layer0/ops/src/skills_plane_parts/070-run-quarantine.rs`
+    - `core/layer0/ops/src/success_criteria_kernel_parts/020-classify-metric.rs`
+    - `core/layer2/execution/src/autoscale_parts/350-compute-inversion-maturity-score.rs`
+  - Burned source snapshot: `openclaw-20260416-094102`
+
+- `OPENCLAW-TOOLING-WEB-079`:
+  - Re-assimilated retry and timeout-abort runtime semantics from:
+    - `src/infra/retry.ts`
+    - `src/infra/retry.test.ts`
+    - `src/infra/retry-policy.ts`
+    - `src/infra/retry-policy.test.ts`
+    - `src/utils/fetch-timeout.ts`
+  - Landed in:
+    - `core/layer0/ops/src/skills_plane_parts/060-run-install.rs`
+    - `core/layer0/ops/src/autotest_controller_parts/030-score-module-test-pair.rs`
+    - `core/layer2/execution/src/autoscale_parts/260-compute-directive-pulse-stats.rs`
+    - `core/layer0/ops/src/benchmark_autonomy_gate.rs`
+    - `core/layer0/ops/src/success_criteria_kernel_parts/010-print-json-line.rs`
+  - Burned source snapshot: `openclaw-20260416-094636`
+
+- `OPENCLAW-TOOLING-WEB-080`:
+  - Re-assimilated outbound channel-resolution and timeout deferral semantics from:
+    - `src/infra/outbound/channel-selection.ts`
+    - `src/infra/outbound/channel-resolution.ts`
+    - `src/infra/outbound/target-errors.test.ts`
+    - `src/infra/restart.deferral-timeout.test.ts`
+    - `src/utils/with-timeout.ts`
+  - Landed in:
+    - `core/layer2/execution/src/autoscale_parts/320-compute-execute-confidence-cooldown-key.rs`
+    - `core/layer2/execution/src/inversion_parts/200-compute-conclave-high-risk-flags.rs`
+    - `core/layer2/execution/src/autoscale_parts/220-compute-strategy-selection.rs`
+    - `core/layer2/execution/src/autoscale_parts/240-compute-medium-risk-thresholds.rs`
+    - `core/layer2/execution/src/inversion_parts/110-compute-resolve-parity-confidence.rs`
+  - Burned source snapshot: `openclaw-20260416-095050`
+
+- `OPENCLAW-TOOLING-WEB-081`:
+  - Re-assimilated outbound channel bootstrap/selection/target semantics from:
+    - `src/infra/outbound/channel-selection.runtime.ts`
+    - `src/infra/outbound/channel-bootstrap.runtime.ts`
+    - `src/infra/outbound/channel-target.ts`
+    - `src/infra/outbound/target-normalization.test.ts`
+    - `src/infra/outbound/targets-loaded.ts`
+  - Landed in:
+    - `core/layer0/ops/src/adaptive_intelligence_parts/010-usage.rs`
+    - `core/layer0/ops/src/strategy_store_kernel_parts/020-emit-strategy-pointer.rs`
+    - `core/layer0/ops/src/vertical_plane.rs`
+    - `core/layer2/execution/src/autoscale_parts/160-compute-consecutive-no-progress-runs.rs`
+    - `core/layer0/ops/src/snowball_plane_parts/040-run-compact.rs`
+  - Burned source snapshot: `openclaw-20260416-095553`
+
+- `OPENCLAW-TOOLING-WEB-082`:
+  - Re-assimilated outbound abort and channel-adapter/resolution semantics from:
+    - `src/infra/outbound/abort.ts`
+    - `src/infra/outbound/abort.test.ts`
+    - `src/infra/outbound/channel-adapters.ts`
+    - `src/infra/outbound/channel-resolution.test.ts`
+    - `src/infra/outbound/channel-selection.test.ts`
+  - Landed in:
+    - `core/layer2/execution/src/autoscale_parts/380-compute-actionability-assessment.rs`
+    - `core/layer0/ops/src/canyon_plane_extensions_parts/040-package-release-command.rs`
+    - `core/layer0/ops/src/canyon_plane_parts/050-ecosystem-command.rs`
+    - `core/layer0/ops/src/origin_integrity_parts/020-resolve-local-spec.rs`
+    - `core/layer0/ops/src/collab_plane_parts/040-run-schedule.rs`
+  - Burned source snapshot: `openclaw-20260416-160356`
+
+- OPENCLAW-TOOLING-WEB-083:
+  - Re-assimilated agent event sequencing and approval error/fallback semantics from:
+    - src/infra/agent-events.ts
+    - src/infra/agent-events.test.ts
+    - src/infra/approval-errors.ts
+    - src/infra/approval-errors.test.ts
+    - src/infra/approval-gateway-resolver.ts
+  - Landed in:
+    - core/layer2/execution/src/autoscale_parts/400-run-autoscale-json.rs
+    - core/layer2/execution/src/inversion_parts/210-run-inversion-json.rs
+    - core/layer2/autonomy/src/simulation_parts/020-run-autonomy-simulation.rs
+    - core/layer0/ops/src/backlog_registry_parts/010-usage.rs
+    - core/layer0/ops/src/personas_core.rs
+  - Burned source snapshot: openclaw-20260416-161051
+
+- OPENCLAW-TOOLING-WEB-084:
+  - Re-assimilated approval fallback and outbound action normalization semantics from:
+    - src/infra/approval-gateway-resolver.test.ts
+    - src/infra/approval-handler-runtime.ts
+    - src/infra/outbound/message-action-normalization.ts
+    - src/infra/outbound/message-action-normalization.test.ts
+    - src/infra/outbound/outbound-policy.ts
+  - Landed in:
+    - core/layer2/execution/src/autoscale_parts/410-critical-pressure-scales-up.rs
+    - core/layer2/execution/src/inversion_parts/220-normalize-impact-matches-expected-set.rs
+    - core/layer0/ops/src/snowball_plane_parts/010-usage.rs
+    - core/layer0/ops/src/snowball_plane_parts/050-run-publish-benchmarks.rs
+    - core/layer0/ops/src/canyon_plane_extensions_parts/010-footprint-path.rs
+  - Burned source snapshot: openclaw-20260416-161444
+
+- OPENCLAW-TOOLING-WEB-085:
+  - Re-assimilated approval route-coordinator and outbound target adapter semantics from:
+    - src/infra/approval-handler-runtime.test.ts
+    - src/infra/approval-native-route-coordinator.ts
+    - src/infra/approval-native-route-coordinator.test.ts
+    - src/infra/outbound/channel-adapters.test.ts
+    - src/infra/outbound/channel-target.test.ts
+  - Landed in:
+    - core/layer2/execution/src/autoscale_parts/410-critical-pressure-scales-up.rs
+    - core/layer2/execution/src/inversion_parts/220-normalize-impact-matches-expected-set.rs
+    - core/layer0/ops/src/top1_assurance_parts/030-run-proof-vm.rs
+    - core/layer0/ops/src/strategy_store_kernel_parts/050-evaluate-gc-candidates-value.rs
+    - core/layer0/ops/src/seed_protocol_parts/030-command-select.rs
+    - core/layer0/ops/src/persist_plane_continuity.rs
+    - core/layer0/ops/src/snowball_plane_parts/030-dependency-ordered-backlog.rs
+  - Burned source snapshot: openclaw-20260416-162043
+
+- OPENCLAW-TOOLING-WEB-086:
+  - Re-assimilated approval route coordination and outbound target-adapter semantics from:
+    - src/infra/approval-handler-runtime.test.ts
+    - src/infra/approval-native-route-coordinator.ts
+    - src/infra/approval-native-route-coordinator.test.ts
+    - src/infra/outbound/channel-adapters.test.ts
+    - src/infra/outbound/channel-target.test.ts
+  - Landed in:
+    - core/layer0/ops/src/organism_layer_phase2.rs
+    - core/layer0/ops/src/backlog_delivery_plane_parts/010-usage.rs
+    - core/layer0/ops/src/f100_readiness_program_parts/040-run.rs
+    - core/layer0/ops/src/focus_trigger_store_kernel_parts/010-usage.rs
+    - core/layer0/ops/src/snowball_plane_parts/060-run-control.rs
+  - Burned source snapshot: openclaw-20260416-162423
+
+
+- OPENCLAW-TOOLING-WEB-087:
+  - Re-assimilated approval runtime, outbound action normalization, outbound policy, gateway resolve fallback, and agent event stream semantics from:
+    - src/infra/approval-handler-runtime.ts
+    - src/infra/outbound/message-action-normalization.ts
+    - src/infra/outbound/outbound-policy.ts
+    - src/infra/approval-gateway-resolver.ts
+    - src/infra/agent-events.ts
+  - Landed in:
+    - core/layer0/ops/src/backlog_registry_parts/030-compile-backlog.rs
+    - core/layer0/ops/src/business_plane_parts/010-usage.rs
+    - core/layer2/execution/src/initiative.rs
+    - core/layer0/ops/src/enterprise_hardening_parts/030-run-scale-certification.rs
+    - core/layer0/ops/src/canyon_plane_extensions_parts/030-release-pipeline-command.rs
+  - Burned source snapshot: openclaw-20260416-163410
+
+
+- OPENCLAW-TOOLING-WEB-088:
+  - Re-assimilated backoff/retry policy, retry executor, approval error normalization, and channel selection semantics from:
+    - src/infra/backoff.ts
+    - src/infra/retry-policy.ts
+    - src/infra/retry.ts
+    - src/infra/approval-errors.ts
+    - src/infra/outbound/channel-selection.ts
+  - Landed in:
+    - core/layer0/ops/src/enterprise_hardening_parts/010-usage.rs
+    - core/layer2/execution/src/autoscale_parts/250-compute-assess-success-criteria-quality.rs
+    - core/layer0/ops/src/origin_integrity_parts/030-run.rs
+    - core/layer0/ops/src/autonomy_controller_parts/020-hand-operations.rs
+    - core/layer0/ops/src/redaction_classification_kernel.rs
+  - Burned source snapshot: openclaw-20260416-164009
+
+
+- OPENCLAW-TOOLING-WEB-089:
+  - Re-assimilated channel bootstrap/selection runtime, channel target normalization, timeout-abort wrapper, and abort-signal helper semantics from:
+    - src/infra/outbound/channel-selection.runtime.ts
+    - src/infra/outbound/channel-bootstrap.runtime.ts
+    - src/infra/outbound/channel-target.ts
+    - src/utils/fetch-timeout.ts
+    - src/infra/abort-signal.ts
+  - Landed in:
+    - core/layer0/ops/src/skills_plane_parts/010-usage.rs
+    - core/layer0/ops/src/canyon_plane_parts/010-footprint-no-std-ready.rs
+    - core/layer0/ops/src/substrate_plane_parts/010-usage.rs
+    - core/layer2/execution/src/sprint_contract.rs
+    - core/layer0/ops/src/f100_readiness_program_parts/030-lane-035-spdx.rs
+  - Burned source snapshot: openclaw-20260416-164357
+
+- OPENCLAW-TOOLING-WEB-090:
+  - Re-assimilated channel runtime selection/bootstrap, target normalization, timeout wrapper, and abort-signal semantics from:
+    - src/infra/outbound/channel-selection.runtime.ts
+    - src/infra/outbound/channel-bootstrap.runtime.ts
+    - src/infra/outbound/channel-target.ts
+    - src/utils/fetch-timeout.ts
+    - src/infra/abort-signal.ts
+  - Landed in:
+    - core/layer0/ops/src/state_artifact_contract_kernel.rs
+    - core/layer0/ops/src/success_criteria_kernel_parts/040-evaluate-success-criteria-value.rs
+    - core/layer0/ops/src/verity_plane_parts/020-config-and-io.rs
+    - core/layer0/ops/src/psycheforge_kernel.rs
+    - core/layer0/ops/src/binary_vuln_plane_parts/020-scan-payload.rs
+  - Burned source snapshot: openclaw-20260416-105120
+
+- OPENCLAW-TOOLING-WEB-091:
+  - Re-assimilated channel runtime selection/bootstrap, target normalization, timeout wrapper, and abort-signal semantics from:
+    - src/infra/outbound/channel-selection.runtime.ts
+    - src/infra/outbound/channel-bootstrap.runtime.ts
+    - src/infra/outbound/channel-target.ts
+    - src/utils/fetch-timeout.ts
+    - src/infra/abort-signal.ts
+  - Landed in:
+    - core/layer0/ops/tests/v7_meta_lanes_integration.rs
+    - core/layer0/ops/tests/v6_model_network_batch20_integration.rs
+    - core/layer0/ops/tests/v6_workflow_001_integration.rs
+    - core/layer0/ops/tests/v8_network_enterprise_batch25_integration.rs
+    - core/layer0/ops/tests/v6_workflow_010_integration.rs
+  - Burned source snapshot: openclaw-20260416-105521

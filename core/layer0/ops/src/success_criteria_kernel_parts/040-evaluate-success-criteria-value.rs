@@ -28,6 +28,16 @@ pub fn evaluate_success_criteria_value(
         .map(|v| v.floor() as i64)
         .unwrap_or(1)
         .clamp(0, 10);
+    let max_unknown_count = policy_obj
+        .and_then(|map| map.get("max_unknown_count"))
+        .and_then(|v| as_f64(Some(v)))
+        .map(|v| v.floor() as i64)
+        .unwrap_or(i64::MAX)
+        .clamp(0, 10_000);
+    let max_unknown_ratio = policy_obj
+        .and_then(|map| map.get("max_unknown_ratio"))
+        .and_then(|v| as_f64(Some(v)))
+        .map(|v| v.clamp(0.0, 1.0));
     let contract = capability_metric_contract(&capability_key);
     let enable_contract_backfill = policy_obj
         .and_then(|map| map.get("enable_contract_backfill"))
@@ -101,6 +111,11 @@ pub fn evaluate_success_criteria_value(
         .collect::<Vec<_>>();
     let failed_count = failed_rows.len() as i64;
     let unknown_count = results.len() as i64 - evaluated_count;
+    let unknown_ratio = if results.is_empty() {
+        0.0
+    } else {
+        unknown_count as f64 / results.len() as f64
+    };
     let unsupported_count = results
         .iter()
         .filter(|row| row.reason == "unsupported_metric")
@@ -147,6 +162,20 @@ pub fn evaluate_success_criteria_value(
         primary_failure =
             Some("success_criteria_failed:insufficient_supported_metrics".to_string());
     }
+    if passed && required && unknown_count > max_unknown_count {
+        passed = false;
+        primary_failure = Some("success_criteria_failed:unknown_metric_budget_exceeded".to_string());
+    }
+    if passed
+        && required
+        && max_unknown_ratio
+            .map(|budget| unknown_ratio > budget)
+            .unwrap_or(false)
+    {
+        passed = false;
+        primary_failure =
+            Some("success_criteria_failed:unknown_metric_ratio_budget_exceeded".to_string());
+    }
 
     let violation_rows = results
         .iter()
@@ -181,6 +210,7 @@ pub fn evaluate_success_criteria_value(
         "passed_count": passed_count,
         "failed_count": failed_count,
         "unknown_count": unknown_count,
+        "unknown_ratio": round3(unknown_ratio),
         "unsupported_count": unsupported_count,
         "contract_not_allowed_count": contract_not_allowed_count,
         "structurally_supported_count": structurally_supported_count,
@@ -199,6 +229,10 @@ pub fn evaluate_success_criteria_value(
             "unsupported_count": unsupported_count,
             "not_allowed_count": contract_not_allowed_count,
             "structurally_supported_count": structurally_supported_count,
+            "unknown_count": unknown_count,
+            "unknown_ratio": round3(unknown_ratio),
+            "unknown_budget_count": if max_unknown_count == i64::MAX { Value::Null } else { Value::from(max_unknown_count) },
+            "unknown_budget_ratio": max_unknown_ratio.map(round3),
             "violation_count": violation_rows.len(),
             "violations": violation_rows,
         },
@@ -353,4 +387,3 @@ mod tests {
         assert_eq!(out.get("passed_count").and_then(Value::as_i64), Some(1));
     }
 }
-

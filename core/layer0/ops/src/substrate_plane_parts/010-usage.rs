@@ -67,6 +67,25 @@ fn usage() {
     );
 }
 
+fn normalize_substrate_action(action: &str) -> String {
+    let token = action.trim().to_ascii_lowercase().replace('_', "-");
+    match token.as_str() {
+        "capture" | "csi-capture" => "csi-capture".to_string(),
+        "module" | "csi-module" => "csi-module".to_string(),
+        "embedded" | "embedded-profile" | "csi-embedded-profile" => {
+            "csi-embedded-profile".to_string()
+        }
+        "policy" | "csi-policy" => "csi-policy".to_string(),
+        "eye-bind" | "eye-bindings" | "bind-eye" => "eye-bind".to_string(),
+        "bio-interface" | "interface" => "bio-interface".to_string(),
+        "bio-feedback" | "feedback" => "bio-feedback".to_string(),
+        "bio-adapter-template" | "adapter-template" => "bio-adapter-template".to_string(),
+        "bioethics-policy" | "bio-ethics-policy" | "ethics-policy" => "bioethics-policy".to_string(),
+        "bio-enable" | "enable" => "bio-enable".to_string(),
+        _ => token,
+    }
+}
+
 fn state_root(root: &Path) -> PathBuf {
     scoped_state_root(root, STATE_ENV, STATE_SCOPE)
 }
@@ -86,7 +105,7 @@ fn status(root: &Path) -> Value {
 }
 
 fn claim_ids_for_action(action: &str) -> Vec<&'static str> {
-    match action {
+    match normalize_substrate_action(action).as_str() {
         "csi-capture" => vec!["V6-SUBSTRATE-001.1", "V6-SUBSTRATE-001.4"],
         "csi-module" => vec!["V6-SUBSTRATE-001.2", "V6-SUBSTRATE-001.4"],
         "csi-embedded-profile" => vec!["V6-SUBSTRATE-001.3", "V6-SUBSTRATE-001.4"],
@@ -107,14 +126,15 @@ fn conduit_enforcement(
     strict: bool,
     action: &str,
 ) -> Value {
+    let canonical_action = normalize_substrate_action(action);
     let bypass_requested = conduit_bypass_requested(&parsed.flags);
-    let claim_ids = claim_ids_for_action(action);
+    let claim_ids = claim_ids_for_action(&canonical_action);
     build_plane_conduit_enforcement(
         root,
         STATE_ENV,
         STATE_SCOPE,
         strict,
-        action,
+        &canonical_action,
         "substrate_conduit_enforcement",
         "core/layer0/ops/substrate_plane",
         bypass_requested,
@@ -360,4 +380,3 @@ fn run_csi_capture(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Val
     out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
-

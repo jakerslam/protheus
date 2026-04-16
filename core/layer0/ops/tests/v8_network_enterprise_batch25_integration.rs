@@ -49,6 +49,25 @@ fn assert_claim(payload: &Value, claim_id: &str) {
     );
 }
 
+fn assert_receipt_contract_shape(payload: &Value) {
+    assert!(
+        payload
+            .get("receipt_hash")
+            .and_then(Value::as_str)
+            .map(|value| !value.trim().is_empty() && value.chars().all(|ch| ch.is_ascii_hexdigit()))
+            .unwrap_or(false),
+        "receipt hash should be non-empty hex"
+    );
+    assert!(payload.get("ok").and_then(Value::as_bool).is_some());
+    assert!(
+        payload
+            .get("type")
+            .and_then(Value::as_str)
+            .map(|value| !value.trim().is_empty())
+            .unwrap_or(false)
+    );
+}
+
 fn allow(root: &Path, directive: &str) {
     assert_eq!(
         directive_kernel::run(
@@ -230,6 +249,7 @@ fn v8_batch25_organism_network_and_enterprise_contracts_are_behavior_proven() {
         0
     );
     let oracle = latest("network_protocol", root);
+    assert_receipt_contract_shape(&oracle);
     assert_eq!(
         oracle.get("type").and_then(Value::as_str),
         Some("network_protocol_oracle_query")
@@ -254,6 +274,7 @@ fn v8_batch25_organism_network_and_enterprise_contracts_are_behavior_proven() {
         0
     );
     let truth = latest("network_protocol", root);
+    assert_receipt_contract_shape(&truth);
     assert_eq!(
         truth.get("type").and_then(Value::as_str),
         Some("network_protocol_truth_weight")
@@ -270,6 +291,7 @@ fn v8_batch25_organism_network_and_enterprise_contracts_are_behavior_proven() {
 
     assert_eq!(network_protocol::run(root, &["dashboard".to_string()]), 0);
     let dashboard_with_oracle = latest("network_protocol", root);
+    assert_receipt_contract_shape(&dashboard_with_oracle);
     assert_claim(&dashboard_with_oracle, "V8-NETWORK-003.5");
     assert_eq!(
         dashboard_with_oracle

@@ -45,6 +45,33 @@ fn read_json(path: &Path) -> Value {
     serde_json::from_str(&raw).expect("parse")
 }
 
+fn assert_receipt_contract_shape(receipt: &Value) {
+    assert!(
+        receipt
+            .get("receipt_hash")
+            .and_then(Value::as_str)
+            .map(|value| !value.trim().is_empty() && value.chars().all(|ch| ch.is_ascii_hexdigit()))
+            .unwrap_or(false),
+        "receipt hash must be non-empty hex"
+    );
+    assert!(receipt.get("ok").and_then(Value::as_bool).is_some());
+    assert!(
+        receipt
+            .get("type")
+            .and_then(Value::as_str)
+            .map(|value| !value.trim().is_empty())
+            .unwrap_or(false),
+        "receipt type must be present"
+    );
+    let has_ts = receipt
+        .get("ts")
+        .and_then(Value::as_str)
+        .map(|value| !value.trim().is_empty())
+        .unwrap_or(false)
+        || receipt.get("ts_epoch_ms").and_then(Value::as_u64).is_some();
+    assert!(has_ts, "receipt must include ts or ts_epoch_ms");
+}
+
 fn latest_path(root: &Path) -> PathBuf {
     root.join("core")
         .join("local")
@@ -161,6 +188,7 @@ fn v7_meta_001_to_010_strict_lanes_execute_with_receipts() {
         let exit = metakernel::run(root, &argv);
         assert_eq!(exit, 0, "lane should pass in strict mode: {lane}");
         let latest = read_json(&latest_path(root));
+        assert_receipt_contract_shape(&latest);
         assert_eq!(
             latest.get("command").and_then(Value::as_str),
             Some(lane),
@@ -224,6 +252,7 @@ fn v7_meta_registry_fails_closed_when_unknown_primitive_is_used() {
     assert_eq!(exit, 1);
 
     let latest = read_json(&latest_path(root));
+    assert_receipt_contract_shape(&latest);
     assert_eq!(latest.get("ok").and_then(Value::as_bool), Some(false));
     assert_eq!(
         latest.get("command").and_then(Value::as_str),
