@@ -9,9 +9,21 @@ fn lane_035_spdx(root: &Path, policy: &Policy, apply: bool) -> Value {
             arr.iter()
                 .filter_map(Value::as_str)
                 .map(|v| resolve_path(root, Some(v), v))
+                .filter(|v| !v.as_os_str().is_empty())
                 .collect::<Vec<_>>()
         })
         .unwrap_or_else(|| vec![root.join("crates")]);
+    let mut seen_roots = BTreeSet::<String>::new();
+    let roots = roots
+        .into_iter()
+        .filter(|path| {
+            let key = path.to_string_lossy().to_string();
+            if key.contains("/../") || key.ends_with("/..") {
+                return false;
+            }
+            seen_roots.insert(key)
+        })
+        .collect::<Vec<_>>();
 
     let exts = lane_policy
         .get("extensions")
@@ -19,10 +31,16 @@ fn lane_035_spdx(root: &Path, policy: &Policy, apply: bool) -> Value {
         .map(|arr| {
             arr.iter()
                 .filter_map(Value::as_str)
-                .map(|v| v.to_string())
+                .map(|v| v.trim().trim_start_matches('.').to_ascii_lowercase())
+                .filter(|v| !v.is_empty())
                 .collect::<Vec<_>>()
         })
         .unwrap_or_else(|| vec!["rs".to_string()]);
+    let mut seen_exts = BTreeSet::<String>::new();
+    let exts = exts
+        .into_iter()
+        .filter(|ext| seen_exts.insert(ext.clone()))
+        .collect::<Vec<_>>();
 
     let excludes = lane_policy
         .get("exclude_paths")
@@ -30,7 +48,8 @@ fn lane_035_spdx(root: &Path, policy: &Policy, apply: bool) -> Value {
         .map(|arr| {
             arr.iter()
                 .filter_map(Value::as_str)
-                .map(|v| v.to_string())
+                .map(|v| v.replace('\\', "/").trim().trim_start_matches("./").to_string())
+                .filter(|v| !v.is_empty())
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default();
@@ -45,8 +64,21 @@ fn lane_035_spdx(root: &Path, policy: &Policy, apply: bool) -> Value {
 
     let mut scanned = 0usize;
     let mut missing = Vec::<String>::new();
+    let has_spdx = |body: &str| -> bool {
+        body.lines()
+            .take(8)
+            .filter_map(|line| {
+                let trimmed = line.trim();
+                if trimmed.is_empty() {
+                    None
+                } else {
+                    Some(trimmed)
+                }
+            })
+            .any(|line| line.contains("SPDX-License-Identifier: Apache-2.0"))
+    };
 
-    for scan_root in roots {
+    for scan_root in &roots {
         if !scan_root.exists() {
             continue;
         }
@@ -61,7 +93,10 @@ fn lane_035_spdx(root: &Path, policy: &Policy, apply: bool) -> Value {
                 .unwrap_or(p)
                 .to_string_lossy()
                 .replace('\\', "/");
-            if excludes.iter().any(|e| rel.starts_with(e)) {
+            if excludes
+                .iter()
+                .any(|e| rel == *e || rel.starts_with(&format!("{e}/")))
+            {
                 continue;
             }
             let ext = p
@@ -74,11 +109,7 @@ fn lane_035_spdx(root: &Path, policy: &Policy, apply: bool) -> Value {
 
             scanned += 1;
             let body = fs::read_to_string(p).unwrap_or_default();
-            let has_spdx = body
-                .lines()
-                .take(5)
-                .any(|line| line.contains("SPDX-License-Identifier: Apache-2.0"));
-            if !has_spdx {
+            if !has_spdx(&body) {
                 if apply {
                     let mut new_body = String::new();
                     let comment = "// SPDX-License-Identifier: Apache-2.0\n";
@@ -107,17 +138,7 @@ fn lane_035_spdx(root: &Path, policy: &Policy, apply: bool) -> Value {
 
     if apply {
         missing.clear();
-        for scan_root in lane_policy
-            .get("roots")
-            .and_then(Value::as_array)
-            .map(|arr| {
-                arr.iter()
-                    .filter_map(Value::as_str)
-                    .map(|v| resolve_path(root, Some(v), v))
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_else(|| vec![root.join("crates")])
-        {
+        for scan_root in &roots {
             if !scan_root.exists() {
                 continue;
             }
@@ -132,7 +153,10 @@ fn lane_035_spdx(root: &Path, policy: &Policy, apply: bool) -> Value {
                     .unwrap_or(p)
                     .to_string_lossy()
                     .replace('\\', "/");
-                if excludes.iter().any(|e| rel.starts_with(e)) {
+                if excludes
+                    .iter()
+                    .any(|e| rel == *e || rel.starts_with(&format!("{e}/")))
+                {
                     continue;
                 }
                 let ext = p
@@ -143,11 +167,7 @@ fn lane_035_spdx(root: &Path, policy: &Policy, apply: bool) -> Value {
                     continue;
                 }
                 let body = fs::read_to_string(p).unwrap_or_default();
-                let has_spdx = body
-                    .lines()
-                    .take(5)
-                    .any(|line| line.contains("SPDX-License-Identifier: Apache-2.0"));
-                if !has_spdx {
+                if !has_spdx(&body) {
                     missing.push(rel);
                 }
             }
@@ -356,4 +376,3 @@ fn cli_error(argv: &[String], err: &str, code: i32) -> Value {
     out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
     out
 }
-

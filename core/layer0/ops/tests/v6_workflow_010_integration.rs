@@ -23,6 +23,29 @@ fn latest_receipt(state_path: &Path) -> Value {
         .expect("last receipt")
 }
 
+fn assert_receipt_contract_shape(receipt: &Value) {
+    assert!(receipt.get("ok").and_then(Value::as_bool).is_some());
+    assert!(
+        receipt
+            .get("type")
+            .and_then(Value::as_str)
+            .map(|value| !value.trim().is_empty())
+            .unwrap_or(false)
+    );
+    assert!(
+        receipt
+            .get("receipt_hash")
+            .and_then(Value::as_str)
+            .map(|value| value.len() >= 16)
+            .unwrap_or(false)
+    );
+}
+
+fn assert_clean_identifier(value: &str) {
+    assert!(!value.trim().is_empty());
+    assert!(!value.chars().any(char::is_control));
+}
+
 #[test]
 fn workflow_010_a2a_agents_tools_hierarchy_approval_rewind_sandbox_deploy_and_polyglot_emit_receipts(
 ) {
@@ -59,6 +82,7 @@ fn workflow_010_a2a_agents_tools_hierarchy_approval_rewind_sandbox_deploy_and_po
         .and_then(Value::as_object)
         .and_then(|rows| rows.keys().next().cloned())
         .expect("a2a id");
+    assert_clean_identifier(&agent_id);
     assert_eq!(
         latest_receipt(&state_path)["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-010.1")
@@ -86,6 +110,7 @@ fn workflow_010_a2a_agents_tools_hierarchy_approval_rewind_sandbox_deploy_and_po
         0
     );
     let runtime_bridge_receipt = latest_receipt(&state_path);
+    assert_receipt_contract_shape(&runtime_bridge_receipt);
     assert_eq!(
         runtime_bridge_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-010.9")
@@ -94,6 +119,7 @@ fn workflow_010_a2a_agents_tools_hierarchy_approval_rewind_sandbox_deploy_and_po
         .as_str()
         .expect("runtime bridge id")
         .to_string();
+    assert_clean_identifier(&runtime_bridge_id);
 
     let route_payload = json!({
         "bridge_id": runtime_bridge_id,
@@ -115,6 +141,7 @@ fn workflow_010_a2a_agents_tools_hierarchy_approval_rewind_sandbox_deploy_and_po
         0
     );
     let route_receipt = latest_receipt(&state_path);
+    assert_receipt_contract_shape(&route_receipt);
     assert_eq!(
         route_receipt["payload"]["route"]["reason_code"].as_str(),
         Some("polyglot_runtime_requires_rich_profile")
@@ -142,6 +169,7 @@ fn workflow_010_a2a_agents_tools_hierarchy_approval_rewind_sandbox_deploy_and_po
         0
     );
     let send_receipt = latest_receipt(&state_path);
+    assert_receipt_contract_shape(&send_receipt);
     assert!(send_receipt["payload"]["a2a_message"]["remote_session_id"]
         .as_str()
         .is_some());
@@ -175,6 +203,7 @@ fn workflow_010_a2a_agents_tools_hierarchy_approval_rewind_sandbox_deploy_and_po
         0
     );
     let llm_receipt = latest_receipt(&state_path);
+    assert_receipt_contract_shape(&llm_receipt);
     assert_eq!(
         llm_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-010.2")
@@ -183,6 +212,7 @@ fn workflow_010_a2a_agents_tools_hierarchy_approval_rewind_sandbox_deploy_and_po
         .as_str()
         .expect("primary session")
         .to_string();
+    assert_clean_identifier(&primary_session_id);
     assert_eq!(
         llm_receipt["payload"]["agent"]["child_sessions"]
             .as_array()
@@ -211,10 +241,12 @@ fn workflow_010_a2a_agents_tools_hierarchy_approval_rewind_sandbox_deploy_and_po
         0
     );
     let tool_receipt = latest_receipt(&state_path);
+    assert_receipt_contract_shape(&tool_receipt);
     let tool_id = tool_receipt["payload"]["tool"]["tool_id"]
         .as_str()
         .expect("tool id")
         .to_string();
+    assert_clean_identifier(&tool_id);
 
     let approval_queue_payload = json!({
         "tool_id": tool_id,
@@ -236,10 +268,12 @@ fn workflow_010_a2a_agents_tools_hierarchy_approval_rewind_sandbox_deploy_and_po
         0
     );
     let queued_approval = latest_receipt(&state_path);
+    assert_receipt_contract_shape(&queued_approval);
     let approval_action_id = queued_approval["payload"]["approval"]["action_id"]
         .as_str()
         .expect("approval action id")
         .to_string();
+    assert_clean_identifier(&approval_action_id);
     assert_eq!(
         queued_approval["payload"]["approval"]["status"].as_str(),
         Some("pending")
@@ -264,6 +298,7 @@ fn workflow_010_a2a_agents_tools_hierarchy_approval_rewind_sandbox_deploy_and_po
         0
     );
     let approval_receipt = latest_receipt(&state_path);
+    assert_receipt_contract_shape(&approval_receipt);
     assert_eq!(
         approval_receipt["payload"]["approval"]["status"].as_str(),
         Some("approved")
@@ -289,6 +324,7 @@ fn workflow_010_a2a_agents_tools_hierarchy_approval_rewind_sandbox_deploy_and_po
         0
     );
     let invoke_receipt = latest_receipt(&state_path);
+    assert_receipt_contract_shape(&invoke_receipt);
     assert_eq!(
         invoke_receipt["payload"]["invocation"]["mode"].as_str(),
         Some("custom_function")
@@ -317,6 +353,7 @@ fn workflow_010_a2a_agents_tools_hierarchy_approval_rewind_sandbox_deploy_and_po
         0
     );
     let hierarchy_receipt = latest_receipt(&state_path);
+    assert_receipt_contract_shape(&hierarchy_receipt);
     assert_eq!(
         hierarchy_receipt["payload"]["hierarchy"]["degraded"].as_bool(),
         Some(true)

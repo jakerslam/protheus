@@ -93,10 +93,16 @@ fn scan_payload(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Result
         .get("max_findings")
         .and_then(Value::as_u64)
         .unwrap_or(4000) as usize;
-    let max_scan_millis = sandbox
+    let contract_scan_millis = sandbox
         .get("max_scan_millis")
         .and_then(Value::as_u64)
         .unwrap_or(30000);
+    let max_scan_millis = parsed
+        .flags
+        .get("scan-timeout-ms")
+        .and_then(|raw| raw.trim().parse::<u64>().ok())
+        .unwrap_or(contract_scan_millis)
+        .clamp(250, 300_000);
     let redact_input_path = sandbox
         .get("privacy")
         .and_then(Value::as_object)
@@ -109,7 +115,7 @@ fn scan_payload(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Result
         .and_then(|row| row.get("enabled"))
         .and_then(Value::as_bool)
         .unwrap_or(true);
-    let degrade_mode = clean(
+    let degrade_mode = match clean(
         sandbox
             .get("degrade")
             .and_then(Value::as_object)
@@ -117,7 +123,22 @@ fn scan_payload(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Result
             .and_then(Value::as_str)
             .unwrap_or("truncate_findings"),
         80,
-    );
+    )
+    .to_ascii_lowercase()
+    .as_str()
+    {
+        "truncate_findings" | "pass_through" | "fail_closed" => clean(
+            sandbox
+                .get("degrade")
+                .and_then(Value::as_object)
+                .and_then(|row| row.get("mode"))
+                .and_then(Value::as_str)
+                .unwrap_or("truncate_findings"),
+            80,
+        )
+        .to_ascii_lowercase(),
+        _ => "truncate_findings".to_string(),
+    };
     let allow_raw_path = parse_bool(parsed.flags.get("allow-raw-path"), false);
     if strict && bytes.len() > max_input {
         return Err(json!({
@@ -183,13 +204,19 @@ fn scan_payload(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Result
         degrade_reason = "finding_budget_exceeded".to_string();
     }
     let scan_millis = scan_started.elapsed().as_millis() as u64;
-    if strict && scan_millis > max_scan_millis {
-        return Err(json!({
-            "ok": false,
-            "strict": strict,
-            "type": "binary_vuln_plane_scan",
-            "errors": ["sandbox_scan_time_budget_exceeded"]
-        }));
+    if scan_millis > max_scan_millis {
+        if strict || !degrade_enabled {
+            return Err(json!({
+                "ok": false,
+                "strict": strict,
+                "type": "binary_vuln_plane_scan",
+                "errors": ["sandbox_scan_time_budget_exceeded"]
+            }));
+        }
+        degraded = true;
+        if degrade_reason.is_empty() {
+            degrade_reason = "scan_time_budget_exceeded".to_string();
+        }
     }
 
     let format = clean(
@@ -230,22 +257,52 @@ fn scan_payload(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Result
 
     if format == "jsonl" {
         if let Some(parent) = artifact_path.parent() {
-            let _ = fs::create_dir_all(parent);
+            if fs::create_dir_all(parent).is_err() {
+                return Err(json!({
+                    "ok": false,
+                    "strict": strict,
+                    "type": "binary_vuln_plane_scan",
+                    "errors": ["artifact_parent_create_failed"]
+                }));
+            }
         }
         let mut lines = Vec::<String>::new();
         for finding in &findings {
             lines.push(serde_json::to_string(finding).unwrap_or_else(|_| "{}".to_string()));
         }
-        let _ = fs::write(&artifact_path, format!("{}\n", lines.join("\n")));
+        if fs::write(&artifact_path, format!("{}\n", lines.join("\n"))).is_err() {
+            return Err(json!({
+                "ok": false,
+                "strict": strict,
+                "type": "binary_vuln_plane_scan",
+                "errors": ["artifact_write_failed"]
+            }));
+        }
     } else {
-        let _ = write_json(
-            &artifact_path,
-            &json!({
-                "version": "v1",
-                "kind": "binary_vuln_scan_artifact",
-                "findings": findings
-            }),
-        );
+        if let Some(parent) = artifact_path.parent() {
+            if fs::create_dir_all(parent).is_err() {
+                return Err(json!({
+                    "ok": false,
+                    "strict": strict,
+                    "type": "binary_vuln_plane_scan",
+                    "errors": ["artifact_parent_create_failed"]
+                }));
+            }
+        }
+        let encoded = serde_json::to_string_pretty(&json!({
+            "version": "v1",
+            "kind": "binary_vuln_scan_artifact",
+            "findings": findings
+        }))
+        .unwrap_or_else(|_| "{}".to_string());
+        if fs::write(&artifact_path, encoded).is_err() {
+            return Err(json!({
+                "ok": false,
+                "strict": strict,
+                "type": "binary_vuln_plane_scan",
+                "errors": ["artifact_write_failed"]
+            }));
+        }
     }
 
     let output_path = if redact_input_path && !allow_raw_path {
@@ -349,4 +406,3 @@ fn run_scan(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
         Err(err) => err,
     }
 }
-

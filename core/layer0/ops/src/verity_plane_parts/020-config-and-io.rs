@@ -1,16 +1,37 @@
 fn resolve_verity_path(root: &Path, env_key: &str, fallback_rel: &str) -> PathBuf {
+    fn path_has_forbidden_controls(raw: &str) -> bool {
+        raw.chars().any(char::is_control)
+    }
+    fn path_has_parent_segment(path: &Path) -> bool {
+        path.components()
+            .any(|segment| matches!(segment, std::path::Component::ParentDir))
+    }
+    fn sanitize_path(root: &Path, raw: &str) -> Option<PathBuf> {
+        let trimmed = raw.trim();
+        if trimmed.is_empty() || trimmed.len() > 2048 || path_has_forbidden_controls(trimmed) {
+            return None;
+        }
+        let candidate = PathBuf::from(trimmed);
+        if path_has_parent_segment(&candidate) {
+            return None;
+        }
+        if candidate.is_absolute() {
+            Some(candidate)
+        } else {
+            Some(root.join(candidate))
+        }
+    }
+
     let explicit = std::env::var(env_key)
         .ok()
         .map(|raw| raw.trim().to_string())
         .filter(|raw| !raw.is_empty());
     if let Some(raw) = explicit {
-        let candidate = PathBuf::from(raw);
-        if candidate.is_absolute() {
+        if let Some(candidate) = sanitize_path(root, &raw) {
             return candidate;
         }
-        return root.join(candidate);
     }
-    root.join(fallback_rel)
+    sanitize_path(root, fallback_rel).unwrap_or_else(|| root.join(fallback_rel))
 }
 
 fn verity_plane_config_path(root: &Path) -> PathBuf {
