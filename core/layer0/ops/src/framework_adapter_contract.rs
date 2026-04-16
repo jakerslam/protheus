@@ -59,6 +59,15 @@ pub fn execute_governed_workflow(
         .filter(|v| !v.is_empty())
         .unwrap_or_else(|| "batch_query".to_string());
     let tool_args = normalized_tool_args(payload, tool_name.as_str());
+    let adapter_contract = resolved_adapter_contract_kit(
+        framework_id.as_str(),
+        payload,
+        tool_name.as_str(),
+    );
+    if let Some(chaos_error) = chaos_error_code(payload.get("chaos_scenario").and_then(Value::as_str))
+    {
+        return Err(chaos_error);
+    }
 
     let mut broker = ToolBroker::default();
     let _ = broker.recover_from_ledger();
@@ -136,6 +145,7 @@ pub fn execute_governed_workflow(
             output_tokens: estimate_tokens(&execution.raw_payload),
         },
     };
+    let adapter_contract_runtime = hydrate_adapter_contract_runtime(&adapter_contract, &worker_output);
 
     let memory = persist_to_unified_memory(
         framework_id.as_str(),
@@ -169,6 +179,7 @@ pub fn execute_governed_workflow(
             "evidence_cards": cards,
             "evidence_store_records": store.records(),
             "worker_output": worker_output,
+            "adapter_contract_kit": adapter_contract_runtime,
             "claim_bundle": bundle,
             "synthesis_input": {
                 "claims": supported_claims
@@ -284,6 +295,38 @@ fn persist_to_unified_memory(
     }))
 }
 
+fn web_tooling_provider_contract_targets() -> [&'static str; 10] {
+    [
+        "brave",
+        "duckduckgo",
+        "exa",
+        "firecrawl",
+        "google",
+        "minimax",
+        "moonshot",
+        "perplexity",
+        "tavily",
+        "xai",
+    ]
+}
+
+fn normalize_web_tooling_provider(raw: Option<&str>) -> Option<String> {
+    let normalized = raw
+        .map(|value| value.trim().to_ascii_lowercase())
+        .unwrap_or_default();
+    if normalized.is_empty() {
+        return None;
+    }
+    let canonical = match normalized.as_str() {
+        "kimi" | "moonshot" => "moonshot",
+        "grok" | "xai" => "xai",
+        "duck_duck_go" | "duckduckgo" => "duckduckgo",
+        "brave_search" | "brave" => "brave",
+        _ => normalized.as_str(),
+    };
+    Some(canonical.to_string())
+}
+
 fn normalized_tool_args(payload: &Map<String, Value>, tool_name: &str) -> Value {
     let mut args = payload
         .get("tool_args")
@@ -312,7 +355,173 @@ fn normalized_tool_args(payload: &Map<String, Value>, tool_name: &str) -> Value 
             args.insert("paths".to_string(), Value::Array(paths.clone()));
         }
     }
+    if matches!(tool_name, "web_search" | "batch_query") {
+        let provider = normalize_web_tooling_provider(
+            args.get("provider")
+                .and_then(Value::as_str)
+                .or_else(|| payload.get("web_provider").and_then(Value::as_str))
+                .or_else(|| payload.get("provider").and_then(Value::as_str)),
+        );
+        if let Some(provider) = provider {
+            args.insert("provider".to_string(), Value::String(provider));
+        }
+        if !args.contains_key("provider_contract_targets") {
+            args.insert(
+                "provider_contract_targets".to_string(),
+                Value::Array(
+                    web_tooling_provider_contract_targets()
+                        .iter()
+                        .map(|target| Value::String((*target).to_string()))
+                        .collect(),
+                ),
+            );
+        }
+    }
     Value::Object(args)
+}
+
+fn resolved_adapter_contract_kit(
+    framework_id: &str,
+    payload: &Map<String, Value>,
+    tool_name: &str,
+) -> Value {
+    let startup_timeout_ms = parse_timeout_ms(
+        payload,
+        &["startup_timeout_ms", "adapter_startup_timeout_ms"],
+        30_000,
+        1_000,
+        120_000,
+    );
+    let request_timeout_ms = parse_timeout_ms(
+        payload,
+        &["request_timeout_ms", "adapter_request_timeout_ms"],
+        45_000,
+        2_000,
+        180_000,
+    );
+    let breaker_threshold = payload
+        .get("circuit_breaker_threshold")
+        .and_then(Value::as_u64)
+        .unwrap_or(3)
+        .clamp(1, 20);
+    let breaker_cooldown_ms = payload
+        .get("circuit_breaker_cooldown_ms")
+        .and_then(Value::as_u64)
+        .unwrap_or(30_000)
+        .clamp(1_000, 600_000);
+    let quarantine_reason = clean_text(
+        payload
+            .get("quarantine_reason")
+            .and_then(Value::as_str)
+            .unwrap_or("none"),
+        160,
+    );
+    let declared_runtime = clean_token(
+        payload
+            .get("adapter_runtime")
+            .and_then(Value::as_str)
+            .unwrap_or(framework_id),
+        120,
+    );
+    let runtime = if declared_runtime.is_empty() {
+        framework_id.to_string()
+    } else {
+        declared_runtime
+    };
+    json!({
+        "contract_version": "adapter_contract_kit_v1",
+        "framework": framework_id,
+        "runtime": runtime,
+        "tool_name": tool_name,
+        "health_check": {
+            "kind": "receipt_and_claim_bundle",
+            "required_fields": ["normalized_result", "claim_bundle", "memory.context_manifest"]
+        },
+        "timeouts": {
+            "startup_timeout_ms": startup_timeout_ms,
+            "request_timeout_ms": request_timeout_ms
+        },
+        "fail_closed": {
+            "enabled": true,
+            "missing_runtime_action": "deny",
+            "timeout_action": "deny",
+            "schema_error_action": "deny"
+        },
+        "circuit_breaker": {
+            "threshold": breaker_threshold,
+            "cooldown_ms": breaker_cooldown_ms
+        },
+        "quarantine": {
+            "enabled": !quarantine_reason.is_empty() && quarantine_reason != "none",
+            "reason": quarantine_reason
+        },
+        "hooks": {
+            "startup": "adapter_startup_preflight",
+            "request": "adapter_request_guard",
+            "timeout": "adapter_timeout_fail_closed",
+            "quarantine": "adapter_quarantine_guard",
+            "receipt": "adapter_receipt_emit"
+        }
+    })
+}
+
+fn hydrate_adapter_contract_runtime(contract: &Value, worker_output: &WorkerOutput) -> Value {
+    let completed = matches!(worker_output.status, WorkerTaskStatus::Completed);
+    let blocked = matches!(worker_output.status, WorkerTaskStatus::Blocked);
+    let failed = matches!(worker_output.status, WorkerTaskStatus::Failed);
+    let blocker_count = worker_output.blockers.len() as i64;
+    let circuit_state = if failed || blocker_count > 0 {
+        "open"
+    } else {
+        "closed"
+    };
+    let health_status = if completed && blocker_count == 0 {
+        "healthy"
+    } else if blocked || failed {
+        "degraded"
+    } else {
+        "unknown"
+    };
+    let quarantine_active = failed || blocker_count > 0;
+    let mut runtime = contract.clone();
+    runtime["health"] = json!({
+        "status": health_status,
+        "blocker_count": blocker_count,
+        "open_questions": worker_output.open_questions.clone()
+    });
+    runtime["circuit_breaker"]["state"] = Value::String(circuit_state.to_string());
+    runtime["quarantine"]["active"] = Value::Bool(quarantine_active);
+    runtime
+}
+
+fn parse_timeout_ms(
+    payload: &Map<String, Value>,
+    keys: &[&str],
+    default_value: u64,
+    min_value: u64,
+    max_value: u64,
+) -> u64 {
+    for key in keys {
+        if let Some(raw) = payload.get(*key).and_then(Value::as_u64) {
+            return raw.clamp(min_value, max_value);
+        }
+    }
+    default_value.clamp(min_value, max_value)
+}
+
+fn chaos_error_code(raw: Option<&str>) -> Option<String> {
+    let scenario = clean_token(raw.unwrap_or_default(), 80).to_ascii_lowercase();
+    if scenario.is_empty() {
+        return None;
+    }
+    match scenario.as_str() {
+        "process_never_starts" | "startup_hang" => Some("adapter_startup_timeout".to_string()),
+        "starts_then_hangs" | "request_hang" => Some("adapter_request_timeout".to_string()),
+        "invalid_schema_response" => Some("adapter_invalid_schema".to_string()),
+        "response_too_large" => Some("adapter_response_too_large".to_string()),
+        "repeated_flapping" | "flapping" => Some("adapter_circuit_open".to_string()),
+        _ => Some("adapter_chaos_scenario_unknown".to_string()),
+    }
 }
 
 fn default_raw_payload(framework_id: &str, tool_name: &str, args: &Value) -> Value {
@@ -407,6 +616,12 @@ mod tests {
             .pointer("/memory/memory_receipts")
             .and_then(Value::as_array)
             .is_some_and(|rows| !rows.is_empty()));
+        assert_eq!(
+            out.payload
+                .pointer("/adapter_contract_kit/fail_closed/enabled")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
     }
 
     #[test]
@@ -420,5 +635,18 @@ mod tests {
         let err = execute_governed_workflow("openai_agents", payload.as_object().expect("obj"))
             .expect_err("unauthorized");
         assert!(err.contains("unauthorized_tool_request"));
+    }
+
+    #[test]
+    fn governed_workflow_chaos_scenarios_fail_closed() {
+        let payload = json!({
+            "task_id": "task_chaos",
+            "trace_id": "trace_chaos",
+            "tool_name": "web_search",
+            "chaos_scenario": "process_never_starts"
+        });
+        let err = execute_governed_workflow("mastra", payload.as_object().expect("obj"))
+            .expect_err("fail_closed");
+        assert!(err.contains("adapter_startup_timeout"));
     }
 }

@@ -69,6 +69,19 @@ fn invoke_dotnet_bridge(state: &mut Value, payload: &Map<String, Value>) -> Resu
     }))
 }
 
+fn run_governed_workflow(state: &mut Value, payload: &Map<String, Value>) -> Result<Value, String> {
+    let governed =
+        crate::framework_adapter_contract::execute_governed_workflow("semantic_kernel", payload)?;
+    let workflow_id = governed.workflow_id.clone();
+    as_object_mut(state, "governed_workflows").insert(workflow_id.clone(), governed.payload.clone());
+    Ok(json!({
+        "ok": true,
+        "workflow_id": workflow_id,
+        "governed_workflow": governed.payload,
+        "claim_evidence": default_claim_evidence("V6-WORKFLOW-008.10", semantic_claim("V6-WORKFLOW-008.10")),
+    }))
+}
+
 fn emit_semantic_kernel_error(err: &str) -> i32 {
     print_json_line(&cli_error("semantic_kernel_bridge_error", err));
     1
@@ -117,6 +130,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "structured_processes": as_object_mut(&mut state, "structured_processes").len(),
             "enterprise_events": as_array_mut(&mut state, "enterprise_events").len(),
             "dotnet_bridges": as_object_mut(&mut state, "dotnet_bridges").len(),
+            "governed_workflows": as_object_mut(&mut state, "governed_workflows").len(),
             "last_receipt": state.get("last_receipt").cloned().unwrap_or(Value::Null),
         })),
         "register-service" => register_service(&mut state, input),
@@ -132,6 +146,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "emit-enterprise-event" => emit_enterprise_event(&mut state, input),
         "register-dotnet-bridge" => register_dotnet_bridge(root, &mut state, input),
         "invoke-dotnet-bridge" => invoke_dotnet_bridge(&mut state, input),
+        "run-governed-workflow" => run_governed_workflow(&mut state, input),
         _ => Err(format!("unknown_command:{command}")),
     };
 

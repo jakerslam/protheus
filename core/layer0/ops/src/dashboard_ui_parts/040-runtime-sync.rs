@@ -49,6 +49,34 @@ fn build_runtime_sync(root: &Path, flags: &Flags) -> Value {
         cockpit_metrics.get("stale_block_threshold_ms"),
         RUNTIME_SYNC_STALE_BLOCK_MS,
     );
+    let blocks = blocks
+        .into_iter()
+        .map(|mut row| {
+            let duration = i64_from_value(row.get("duration_ms"), 0);
+            let stale = row
+                .get("is_stale")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+                || duration >= stale_threshold_ms;
+            let sequence = clean_text(
+                row.get("receipt_hash")
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                160,
+            );
+            row["freshness"] = json!({
+                "source": "cockpit_block_receipt",
+                "sequence": if sequence.is_empty() {
+                    Value::String(crate::deterministic_receipt_hash(&row))
+                } else {
+                    Value::String(sequence)
+                },
+                "age_ms": duration.max(0),
+                "stale": stale
+            });
+            row
+        })
+        .collect::<Vec<_>>();
     let stale_dormant_threshold_ms = 6 * 60 * 60 * 1000;
     let mut duration_values = Vec::<i64>::new();
     let mut status_counts = HashMap::<String, i64>::new();
@@ -364,6 +392,64 @@ fn build_runtime_sync(root: &Path, flags: &Flags) -> Value {
     let priority_preempt = queue_depth >= RUNTIME_SYNC_WARN_DEPTH
         || pressure_level == "high"
         || pressure_level == "critical";
+    let cockpit_receipt_hash = clean_text(
+        cockpit_payload
+            .get("receipt_hash")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        160,
+    );
+    let attention_status_receipt_hash = clean_text(
+        attention_status_payload
+            .get("receipt_hash")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        160,
+    );
+    let attention_next_receipt_hash = clean_text(
+        attention_next_payload
+            .get("receipt_hash")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        160,
+    );
+    let cockpit_freshness_stale = stale_block_count > 0 || !cockpit.ok || cockpit_receipt_hash.is_empty();
+    let attention_status_freshness_stale = !attention_status.ok || attention_status_receipt_hash.is_empty();
+    let attention_next_freshness_stale = !attention_next.ok
+        || attention_next_receipt_hash.is_empty()
+        || (pressure_level == "critical" && critical_total_count > 0);
+    let stale_surface_count = [cockpit_freshness_stale, attention_status_freshness_stale, attention_next_freshness_stale]
+        .iter()
+        .filter(|row| **row)
+        .count() as i64;
+    let freshness_row = |source: &str, sequence_raw: &str, age_ms: i64, stale: bool| -> Value {
+        let sequence = clean_text(sequence_raw, 160);
+        let sequence_missing = sequence.is_empty();
+        json!({
+            "source": source,
+            "sequence": if sequence_missing { Value::Null } else { Value::String(sequence) },
+            "age_ms": age_ms.max(0),
+            "stale": stale || sequence_missing
+        })
+    };
+    let cockpit_freshness = freshness_row(
+        "cockpit_receipt",
+        cockpit_receipt_hash.as_str(),
+        duration_p95.max(duration_avg),
+        cockpit_freshness_stale,
+    );
+    let attention_status_freshness = freshness_row(
+        "attention_status_receipt",
+        attention_status_receipt_hash.as_str(),
+        i64_from_value(attention_status_payload.get("queue_latency_ms"), 0),
+        attention_status_freshness_stale,
+    );
+    let attention_next_freshness = freshness_row(
+        "attention_next_receipt",
+        attention_next_receipt_hash.as_str(),
+        i64_from_value(attention_next_payload.get("wait_ms"), 0),
+        attention_next_freshness_stale,
+    );
 
     let mut out = json!({
         "ok": cockpit.ok && attention_status.ok && attention_next.ok,
@@ -484,7 +570,19 @@ fn build_runtime_sync(root: &Path, flags: &Flags) -> Value {
             "critical_attention_total": critical_total_count,
             "conduit_signals_raw": conduit_channels_total,
             "sync_mode": sync_mode,
-            "backpressure_level": pressure_level
+            "backpressure_level": pressure_level,
+            "freshness_stale_surfaces": stale_surface_count,
+            "freshness_stale": stale_surface_count > 0
+        },
+        "freshness": {
+            "cockpit": cockpit_freshness,
+            "attention_status": attention_status_freshness,
+            "attention_next": attention_next_freshness,
+            "summary": {
+                "surface_count": 3,
+                "stale_surfaces": stale_surface_count,
+                "stale": stale_surface_count > 0
+            }
         }
     });
     out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));

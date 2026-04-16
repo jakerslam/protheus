@@ -32,6 +32,7 @@ fn usage() {
     println!("  protheus-ops semantic-kernel-bridge emit-enterprise-event [--payload-base64=<json>] [--state-path=<path>]");
     println!("  protheus-ops semantic-kernel-bridge register-dotnet-bridge [--payload-base64=<json>] [--state-path=<path>]");
     println!("  protheus-ops semantic-kernel-bridge invoke-dotnet-bridge [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  protheus-ops semantic-kernel-bridge run-governed-workflow [--payload-base64=<json>] [--state-path=<path>]");
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {
@@ -160,6 +161,7 @@ fn default_state() -> Value {
         "structured_processes": {},
         "enterprise_events": [],
         "dotnet_bridges": {},
+        "governed_workflows": {},
         "last_receipt": null,
     })
 }
@@ -178,6 +180,7 @@ fn ensure_state_shape(value: &mut Value) {
         "llm_connectors",
         "structured_processes",
         "dotnet_bridges",
+        "governed_workflows",
     ] {
         if !value.get(key).map(is_plain_object).unwrap_or(false) {
             value[key] = json!({});
@@ -428,4 +431,3 @@ fn allowed_service_surface(surface: &str) -> bool {
             | "policy-runtime-kernel"
     )
 }
-

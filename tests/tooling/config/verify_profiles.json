@@ -87,11 +87,41 @@
         "audit:client-scope-inventory",
         "audit:client-surface-disposition",
         "audit:client-target-contract",
+        "ops:runtime-proof:verify",
+        "ops:adapter-runtime-chaos:gate",
         "ops:v8:runtime-proof:gate",
         "ops:srs:full:gate",
         "ops:dod:gate",
         "test:ops:srs-contract-runtime-evidence",
-        "ops:churn:guard"
+        "ops:churn:guard",
+        "ops:layer2:parity:guard",
+        "ops:layer2:receipt:replay",
+        "ops:boundedness:inspect",
+        "ops:trusted-core:report",
+        "ops:release:proof-pack",
+        "ops:benchmark:public-harness"
+      ]
+    },
+    "runtime-proof": {
+      "description": "Deterministic runtime proof and release-threshold validation for boundedness, queue pressure, recovery, and stale-surface incidents.",
+      "gate_ids": [
+        "ops:runtime-proof:verify",
+        "ops:adapter-runtime-chaos:gate",
+        "ops:v8:runtime-proof:gate",
+        "ops:layer2:parity:guard",
+        "ops:layer2:receipt:replay",
+        "ops:boundedness:inspect",
+        "ops:trusted-core:report"
+      ]
+    },
+    "backend-hardening": {
+      "description": "Backend hardening slice: parity, replay, boundedness, trusted core, proof pack.",
+      "gate_ids": [
+        "ops:layer2:parity:guard",
+        "ops:layer2:receipt:replay",
+        "ops:boundedness:inspect",
+        "ops:trusted-core:report",
+        "ops:release:proof-pack"
       ]
     }
   }

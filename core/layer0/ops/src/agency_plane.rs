@@ -8,6 +8,7 @@ use crate::v8_kernel::{
 };
 use crate::{clean, parse_args};
 use serde_json::{json, Value};
+use std::fs;
 use std::path::{Path, PathBuf};
 
 const STATE_ENV: &str = "AGENCY_PLANE_STATE_ROOT";
@@ -45,7 +46,9 @@ fn emit(root: &Path, payload: Value) -> i32 {
 }
 
 fn status(root: &Path) -> Value {
-    plane_status(root, STATE_ENV, STATE_SCOPE, "agency_plane_status")
+    let mut out = plane_status(root, STATE_ENV, STATE_SCOPE, "agency_plane_status");
+    out["conduit_lifecycle"] = load_conduit_lifecycle(root);
+    out
 }
 
 fn conduit_enforcement(
@@ -74,6 +77,122 @@ fn conduit_enforcement(
         "agency_surface_routes_through_layer0_conduit_with_fail_closed_policy",
         &claim_ids,
     )
+}
+
+fn conduit_lifecycle_paths(root: &Path) -> (PathBuf, PathBuf) {
+    let base = state_root(root).join("conduit");
+    (base.join("lifecycle.json"), base.join("history.jsonl"))
+}
+
+fn load_conduit_lifecycle(root: &Path) -> Value {
+    let (path, _) = conduit_lifecycle_paths(root);
+    fs::read_to_string(&path)
+        .ok()
+        .and_then(|raw| serde_json::from_str::<Value>(&raw).ok())
+        .unwrap_or_else(|| {
+            json!({
+                "version": "v1",
+                "state": "healthy",
+                "transition_count": 0,
+                "degraded_count": 0,
+                "recovered_count": 0,
+                "failed_closed_count": 0,
+                "last_command": "status",
+                "updated_at": crate::now_iso()
+            })
+        })
+}
+
+fn next_conduit_state(previous: &str, enforcement_ok: bool, strict: bool, bypass_requested: bool) -> &'static str {
+    if !enforcement_ok {
+        if strict && bypass_requested {
+            "failed_closed"
+        } else if strict {
+            "quarantined"
+        } else {
+            "degraded"
+        }
+    } else if matches!(previous, "degraded" | "quarantined" | "failed_closed") {
+        "reconnecting"
+    } else {
+        "healthy"
+    }
+}
+
+fn record_conduit_lifecycle(root: &Path, command: &str, strict: bool, conduit: Option<&Value>) -> Value {
+    let previous = load_conduit_lifecycle(root);
+    let previous_state = clean(
+        previous
+            .get("state")
+            .and_then(Value::as_str)
+            .unwrap_or("healthy"),
+        40,
+    )
+    .to_ascii_lowercase();
+    let enforcement_ok = conduit
+        .and_then(|row| row.get("ok"))
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let bypass_requested = conduit
+        .and_then(|row| row.get("bypass_requested"))
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let mut state = next_conduit_state(&previous_state, enforcement_ok, strict, bypass_requested);
+    if previous_state == "reconnecting" && enforcement_ok {
+        state = "healthy";
+    }
+    let transitioned = previous_state != state;
+    let transition_count = previous
+        .get("transition_count")
+        .and_then(Value::as_u64)
+        .unwrap_or(0)
+        + if transitioned { 1 } else { 0 };
+    let degraded_count = previous
+        .get("degraded_count")
+        .and_then(Value::as_u64)
+        .unwrap_or(0)
+        + if state == "degraded" { 1 } else { 0 };
+    let failed_closed_count = previous
+        .get("failed_closed_count")
+        .and_then(Value::as_u64)
+        .unwrap_or(0)
+        + if state == "failed_closed" { 1 } else { 0 };
+    let recovered_count = previous
+        .get("recovered_count")
+        .and_then(Value::as_u64)
+        .unwrap_or(0)
+        + if previous_state == "reconnecting" && state == "healthy" {
+            1
+        } else {
+            0
+        };
+
+    let entry = json!({
+        "version": "v1",
+        "state": state,
+        "previous_state": previous_state,
+        "transitioned": transitioned,
+        "transition_count": transition_count,
+        "degraded_count": degraded_count,
+        "recovered_count": recovered_count,
+        "failed_closed_count": failed_closed_count,
+        "strict": strict,
+        "enforcement_ok": enforcement_ok,
+        "bypass_requested": bypass_requested,
+        "last_command": clean(command, 80),
+        "updated_at": crate::now_iso(),
+        "sequence": format!(
+            "acl_{}",
+            &sha256_hex_str(&format!(
+                "{}:{}:{}:{}",
+                command, state, transition_count, enforcement_ok
+            ))[..16]
+        )
+    });
+    let (lifecycle_path, history_path) = conduit_lifecycle_paths(root);
+    let _ = write_json(&lifecycle_path, &entry);
+    let _ = append_jsonl(&history_path, &entry);
+    entry
 }
 
 fn validate_contract(
@@ -732,6 +851,11 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     } else {
         None
     };
+    let conduit_lifecycle = if command == "status" {
+        load_conduit_lifecycle(root)
+    } else {
+        record_conduit_lifecycle(root, &command, strict, conduit.as_ref())
+    };
     if strict
         && conduit
             .as_ref()
@@ -746,12 +870,13 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "strict": strict,
                 "type": "agency_plane_conduit_gate",
                 "errors": ["conduit_bypass_rejected"],
-                "conduit_enforcement": conduit
+                "conduit_enforcement": conduit,
+                "conduit_lifecycle": conduit_lifecycle
             }),
         );
     }
 
-    let payload = match command.as_str() {
+    let mut payload = match command.as_str() {
         "status" => status(root),
         "create-shadow" | "create" => run_create_shadow(root, &parsed, strict),
         "topology" => run_topology(root, &parsed, strict),
@@ -764,6 +889,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "command": command
         }),
     };
+    payload["conduit_lifecycle"] = conduit_lifecycle;
     if command == "status" {
         crate::v8_kernel::print_json(&payload);
         return 0;

@@ -51,6 +51,26 @@ fn build_snapshot(root: &Path, flags: &Flags) -> Value {
         .get("summary")
         .cloned()
         .unwrap_or_else(|| json!({}));
+    let runtime_freshness = runtime_sync_payload
+        .get("freshness")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
+    let runtime_freshness_stale_surfaces =
+        i64_from_value(runtime_freshness.pointer("/summary/stale_surfaces"), 0);
+    let runtime_freshness_stale = runtime_freshness
+        .pointer("/summary/stale")
+        .and_then(Value::as_bool)
+        .unwrap_or(runtime_freshness_stale_surfaces > 0);
+    let runtime_backpressure_level = clean_text(
+        runtime_summary
+            .get("backpressure_level")
+            .and_then(Value::as_str)
+            .unwrap_or("normal"),
+        24,
+    )
+    .to_ascii_lowercase();
+    let runtime_backpressure_degraded =
+        runtime_backpressure_level == "high" || runtime_backpressure_level == "critical";
     let memory_entries = collect_memory_artifacts(root);
     let memory_seq = memory_entries.len() as i64;
     let queue_depth = i64_from_value(attention_runtime.get("queue_depth"), 0);
@@ -127,12 +147,34 @@ fn build_snapshot(root: &Path, flags: &Flags) -> Value {
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
-    let cockpit_stale_actionable =
-        i64_from_value(cockpit_runtime.pointer("/metrics/stale_block_count"), 0);
+    let web_tooling_runtime_status = clean_text(
+        web_tooling_summary
+            .pointer("/runtime/status")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        40,
+    )
+    .to_ascii_lowercase();
+    let web_tooling_degraded =
+        web_tooling_runtime_status == "degraded" || web_tooling_runtime_status == "blocked_auth";
     let runtime_stall_detected =
-        queue_depth >= RUNTIME_SYNC_WARN_DEPTH || cockpit_stale_actionable > 0;
+        runtime_freshness_stale || runtime_backpressure_degraded || web_tooling_degraded;
     let normal_cadence_ms = flags.refresh_ms.max(500);
     let emergency_cadence_ms = (flags.refresh_ms / 2).max(500);
+    let runtime_autoheal_result = if web_tooling_degraded {
+        "web_tooling_degraded"
+    } else if runtime_stall_detected {
+        "watching_backpressure"
+    } else {
+        "healthy"
+    };
+    let runtime_autoheal_stage = if web_tooling_degraded {
+        "web_tooling_recovery"
+    } else if runtime_stall_detected {
+        "monitor"
+    } else {
+        "steady"
+    };
 
     let mut out = json!({
         "ok": true,
@@ -173,9 +215,15 @@ fn build_snapshot(root: &Path, flags: &Flags) -> Value {
             "terminated_recent": terminated_recent
         },
         "runtime_autoheal": {
-            "last_result": if runtime_stall_detected { "watching_backpressure" } else { "healthy" },
-            "last_stage": if runtime_stall_detected { "monitor" } else { "steady" },
+            "last_result": runtime_autoheal_result,
+            "last_stage": runtime_autoheal_stage,
             "stall_detected": runtime_stall_detected,
+            "web_tooling_degraded": web_tooling_degraded,
+            "web_tooling_runtime_status": web_tooling_runtime_status,
+            "freshness": runtime_freshness,
+            "stale_surfaces": runtime_freshness_stale_surfaces,
+            "freshness_stale": runtime_freshness_stale,
+            "backpressure_level": runtime_backpressure_level,
             "cadence_ms": {
                 "normal": normal_cadence_ms,
                 "emergency": emergency_cadence_ms

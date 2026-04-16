@@ -662,6 +662,32 @@
         "core/local/artifacts/client_target_contract_audit_current.json"
       ]
     },
+    "ops:runtime-proof:verify": {
+      "owner": "ops",
+      "description": "Runtime proof harness plus release-gate enforcement for one runtime profile.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 240,
+      "script": "ops:runtime-proof:verify",
+      "artifact_paths": [
+        "core/local/artifacts/runtime_proof_verify_current.json",
+        "core/local/artifacts/runtime_proof_harness_rich_current.json",
+        "core/local/artifacts/runtime_proof_metrics_rich_current.json",
+        "core/local/artifacts/runtime_proof_release_gate_rich_current.json",
+        "core/local/artifacts/runtime_proof_release_metrics_rich_current.json",
+        "core/local/artifacts/adapter_runtime_chaos_gate_rich_current.json",
+        "local/workspace/reports/RUNTIME_PROOF_RELEASE_GATE_RICH_CURRENT.md"
+      ]
+    },
+    "ops:adapter-runtime-chaos:gate": {
+      "owner": "ops",
+      "description": "Adapter runtime chaos gate across governed production adapters.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 180,
+      "script": "ops:adapter-runtime-chaos:gate",
+      "artifact_paths": [
+        "core/local/artifacts/adapter_runtime_chaos_gate_current.json"
+      ]
+    },
     "ops:v8:runtime-proof:gate": {
       "owner": "ops",
       "description": "V8 runtime proof gate.",
@@ -867,6 +893,71 @@
       "script": "ops:orchestration:runtime-quality:guard",
       "artifact_paths": [
         "core/local/artifacts/orchestration_runtime_quality_guard_current.json"
+      ]
+    },
+    "ops:layer2:parity:guard": {
+      "owner": "ops",
+      "description": "Layer2 execution lane parity matrix guard.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 90,
+      "script": "ops:layer2:parity:guard",
+      "artifact_paths": [
+        "core/local/artifacts/layer2_lane_parity_guard_current.json",
+        "local/workspace/reports/LAYER2_LANE_PARITY_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:layer2:receipt:replay": {
+      "owner": "ops",
+      "description": "Deterministic replay validation for Layer2 receipt bundles.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 90,
+      "script": "ops:layer2:receipt:replay",
+      "artifact_paths": [
+        "core/local/artifacts/layer2_receipt_replay_current.json",
+        "local/workspace/reports/LAYER2_RECEIPT_REPLAY_CURRENT.md"
+      ]
+    },
+    "ops:boundedness:inspect": {
+      "owner": "ops",
+      "description": "Boundedness controller inspect command and artifact generation.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:boundedness:inspect",
+      "artifact_paths": [
+        "core/local/artifacts/runtime_boundedness_inspect_current.json",
+        "local/workspace/reports/RUNTIME_BOUNDEDNESS_INSPECT_CURRENT.md"
+      ]
+    },
+    "ops:trusted-core:report": {
+      "owner": "ops",
+      "description": "Trusted-core boundary and drift report.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:trusted-core:report",
+      "artifact_paths": [
+        "core/local/artifacts/runtime_trusted_core_report_current.json",
+        "local/workspace/reports/RUNTIME_TRUSTED_CORE_REPORT_CURRENT.md"
+      ]
+    },
+    "ops:release:proof-pack": {
+      "owner": "ops",
+      "description": "Release proof-pack assembly gate.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 120,
+      "script": "ops:release:proof-pack",
+      "artifact_paths": [
+        "core/local/artifacts/release_proof_pack_current.json"
+      ]
+    },
+    "ops:benchmark:public-harness": {
+      "owner": "ops",
+      "description": "Public benchmark harness reproducibility artifact.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 90,
+      "script": "ops:benchmark:public-harness",
+      "artifact_paths": [
+        "core/local/artifacts/public_benchmark_harness_current.json",
+        "local/workspace/reports/PUBLIC_BENCHMARK_HARNESS_CURRENT.md"
       ]
     }
   }
