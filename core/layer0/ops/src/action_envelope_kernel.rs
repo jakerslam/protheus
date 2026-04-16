@@ -38,6 +38,8 @@ fn usage() {
         "  protheus-ops action-envelope-kernel requires-approval [--payload-base64=<base64_json>]"
     );
     println!("  protheus-ops action-envelope-kernel detect-irreversible [--payload-base64=<base64_json>]");
+    println!("  protheus-ops action-envelope-kernel web-query-shape [--payload-base64=<base64_json>]");
+    println!("  protheus-ops action-envelope-kernel web-auth-presence");
     println!("  protheus-ops action-envelope-kernel generate-id");
 }
 
@@ -413,6 +415,41 @@ fn run_command(command: &str, payload: &Map<String, Value>) -> Result<Value, Str
             Ok(json!({
                 "ok": true,
                 "result": detect_irreversible_value(&command_text)
+            }))
+        }
+        "web-query-shape" => {
+            let query = as_str(payload.get("query").or_else(|| payload.get("q")));
+            if query.is_empty() {
+                return Ok(json!({
+                    "ok": false,
+                    "error": "query_required"
+                }));
+            }
+            let domain = as_str(payload.get("domain").or_else(|| payload.get("domain_hint")));
+            let provider = clean_text(&as_str(payload.get("provider").or_else(|| payload.get("provider_hint"))), 80)
+                .to_ascii_lowercase();
+            let sanitized = lane_utils::sanitize_web_tooling_query(&query);
+            let canonical = lane_utils::canonicalize_web_tooling_query(
+                &query,
+                if domain.is_empty() { None } else { Some(domain.as_str()) },
+            );
+            Ok(json!({
+                "ok": true,
+                "query": {
+                    "input": query,
+                    "sanitized": sanitized,
+                    "canonical": canonical
+                },
+                "provider_hint": if provider.is_empty() { "auto" } else { &provider }
+            }))
+        }
+        "web-auth-presence" => {
+            let env_map = std::env::vars().collect::<std::collections::HashMap<String, String>>();
+            let sources = lane_utils::web_tooling_auth_sources_from_env(&env_map);
+            Ok(json!({
+                "ok": true,
+                "sources": sources,
+                "any_present": !sources.is_empty()
             }))
         }
         "auto-classify" => {

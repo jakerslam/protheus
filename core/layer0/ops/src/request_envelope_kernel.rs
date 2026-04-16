@@ -23,6 +23,11 @@ fn usage() {
     println!("  protheus-ops request-envelope-kernel verify-from-env --payload-base64=<json>");
     println!("  protheus-ops request-envelope-kernel normalize-files --payload-base64=<json>");
     println!("  protheus-ops request-envelope-kernel normalize-key-id --payload-base64=<json>");
+    println!("  protheus-ops request-envelope-kernel normalize-web-query --payload-base64=<json>");
+    println!("  protheus-ops request-envelope-kernel normalize-web-date --payload-base64=<json>");
+    println!(
+        "  protheus-ops request-envelope-kernel normalize-web-freshness --payload-base64=<json>"
+    );
     println!(
         "  protheus-ops request-envelope-kernel secret-key-env-var-name --payload-base64=<json>"
     );
@@ -116,6 +121,86 @@ fn secret_key_env_var_name_text(kid: &str) -> String {
             .map(|ch| if ch.is_ascii_alphanumeric() { ch } else { '_' })
             .collect::<String>()
     )
+}
+fn normalize_web_provider(raw: &str) -> String {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "google" => "gemini".to_string(),
+        "xai" => "grok".to_string(),
+        "moonshot" => "kimi".to_string(),
+        other => other.to_string(),
+    }
+}
+fn normalize_web_date_to_iso(raw: &str) -> Option<String> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    chrono::NaiveDate::parse_from_str(trimmed, "%Y-%m-%d")
+        .or_else(|_| chrono::NaiveDate::parse_from_str(trimmed, "%m/%d/%Y"))
+        .ok()
+        .map(|date| date.format("%Y-%m-%d").to_string())
+}
+fn iso_to_perplexity_date(raw: &str) -> Option<String> {
+    use chrono::Datelike;
+    chrono::NaiveDate::parse_from_str(raw.trim(), "%Y-%m-%d")
+        .ok()
+        .map(|date| format!("{}/{}/{}", date.month(), date.day(), date.year()))
+}
+fn normalize_web_freshness(raw: &str, provider: &str) -> Option<String> {
+    let value = raw.trim().to_ascii_lowercase();
+    if value.is_empty() {
+        return None;
+    }
+    let provider = normalize_web_provider(provider);
+    if provider == "brave" && value.contains("to") {
+        let (lhs, rhs) = value.split_once("to")?;
+        let start = normalize_web_date_to_iso(lhs)?;
+        let end = normalize_web_date_to_iso(rhs)?;
+        if start > end {
+            return None;
+        }
+        return Some(format!("{start}to{end}"));
+    }
+    match provider.as_str() {
+        "brave" => match value.as_str() {
+            "pd" | "day" => Some("pd".to_string()),
+            "pw" | "week" => Some("pw".to_string()),
+            _ => None,
+        },
+        "perplexity" => match value.as_str() {
+            "pd" | "day" => Some("day".to_string()),
+            "pw" | "week" => Some("week".to_string()),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+fn normalize_web_query_shape(input: &Map<String, Value>) -> Value {
+    let query = as_text(input.get("query").or_else(|| input.get("q")));
+    if query.is_empty() {
+        return json!({ "ok": false, "error": "query_required" });
+    }
+    let domain = as_text(
+        input
+            .get("domain")
+            .or_else(|| input.get("domain_hint"))
+            .or_else(|| input.get("site")),
+    );
+    let provider = normalize_web_provider(&as_text(
+        input
+            .get("provider")
+            .or_else(|| input.get("provider_hint"))
+            .or_else(|| input.get("engine")),
+    ));
+    json!({
+        "ok": true,
+        "query": {
+            "input": query,
+            "sanitized": lane_utils::sanitize_web_tooling_query(&query),
+            "canonical": lane_utils::canonicalize_web_tooling_query(&query, if domain.is_empty() { None } else { Some(domain.as_str()) })
+        },
+        "provider_hint": if provider.is_empty() { "auto" } else { provider.as_str() }
+    })
 }
 fn normalize_files(value: Option<&Value>) -> Vec<String> {
     let mut out = value
@@ -446,6 +531,30 @@ pub fn run(_root: &std::path::Path, argv: &[String]) -> i32 {
                 "normalize-key-id" => {
                     json!({ "kid": normalize_key_id(obj.get("value").or_else(|| obj.get("kid"))) })
                 }
+                "normalize-web-query" => normalize_web_query_shape(obj),
+                "normalize-web-date" => {
+                    let raw = as_text(obj.get("value").or_else(|| obj.get("date")));
+                    let iso = normalize_web_date_to_iso(&raw);
+                    json!({
+                        "ok": iso.is_some(),
+                        "input": raw,
+                        "iso": iso,
+                        "perplexity": iso.as_deref().and_then(iso_to_perplexity_date)
+                    })
+                }
+                "normalize-web-freshness" => {
+                    let raw = as_text(obj.get("value").or_else(|| obj.get("freshness")));
+                    let provider = normalize_web_provider(&as_text(
+                        obj.get("provider").or_else(|| obj.get("provider_hint")),
+                    ));
+                    let normalized = normalize_web_freshness(&raw, &provider);
+                    json!({
+                        "ok": normalized.is_some(),
+                        "provider": provider,
+                        "input": raw,
+                        "normalized": normalized
+                    })
+                }
                 "secret-key-env-var-name" => {
                     json!({ "env_var": secret_key_env_var_name_text(&normalize_key_id(obj.get("value").or_else(|| obj.get("kid")))) })
                 }
@@ -490,5 +599,27 @@ mod tests {
             "nowSec": 1000
         })));
         assert_eq!(verify.get("ok").and_then(Value::as_bool), Some(true));
+    }
+
+    #[test]
+    fn normalize_web_freshness_maps_shortcuts() {
+        assert_eq!(normalize_web_freshness("day", "brave"), Some("pd".to_string()));
+        assert_eq!(
+            normalize_web_freshness("pw", "perplexity"),
+            Some("week".to_string())
+        );
+        assert_eq!(normalize_web_freshness("yesterday", "brave"), None);
+    }
+
+    #[test]
+    fn normalize_web_freshness_validates_brave_range() {
+        assert_eq!(
+            normalize_web_freshness("2024-01-01to2024-01-31", "brave"),
+            Some("2024-01-01to2024-01-31".to_string())
+        );
+        assert_eq!(
+            normalize_web_freshness("2024-03-10to2024-03-01", "brave"),
+            None
+        );
     }
 }

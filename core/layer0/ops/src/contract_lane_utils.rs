@@ -450,6 +450,93 @@ pub fn stable_id(prefix: &str, basis: &Value) -> String {
     let digest = deterministic_receipt_hash(basis);
     format!("{prefix}_{}_{}", to_base36(now_millis()), &digest[..12])
 }
+
+fn is_invisible_unicode(ch: char) -> bool {
+    let code = ch as u32;
+    matches!(
+        code,
+        0x200B..=0x200F
+            | 0x202A..=0x202E
+            | 0x2060..=0x2064
+            | 0x206A..=0x206F
+            | 0xFEFF
+            | 0xE0000..=0xE007F
+    )
+}
+
+pub fn sanitize_web_tooling_query(raw: &str) -> String {
+    let mut out = String::with_capacity(raw.len());
+    for ch in raw.chars() {
+        if is_invisible_unicode(ch) {
+            continue;
+        }
+        let control = ch.is_control() && ch != '\n' && ch != '\t';
+        if control {
+            continue;
+        }
+        out.push(ch);
+    }
+    clean_text(Some(out.as_str()), 1200)
+}
+
+pub fn normalize_web_tooling_domain_hint(raw: &str) -> String {
+    let lowered = sanitize_web_tooling_query(raw).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return String::new();
+    }
+    let without_scheme = lowered
+        .strip_prefix("https://")
+        .or_else(|| lowered.strip_prefix("http://"))
+        .unwrap_or(&lowered)
+        .to_string();
+    clean_text(
+        Some(without_scheme.split('/').next().unwrap_or("")),
+        200,
+    )
+    .trim_matches('.')
+    .to_string()
+}
+
+pub fn canonicalize_web_tooling_query(query: &str, domain_hint: Option<&str>) -> String {
+    let sanitized = sanitize_web_tooling_query(query);
+    if sanitized.is_empty() {
+        return sanitized;
+    }
+    if sanitized.to_ascii_lowercase().contains("site:") {
+        return sanitized;
+    }
+    if let Some(domain) = domain_hint
+        .map(normalize_web_tooling_domain_hint)
+        .filter(|value| !value.is_empty())
+    {
+        return format!("site:{domain} {sanitized}");
+    }
+    sanitized
+}
+
+pub fn web_tooling_auth_sources_from_env(env: &std::collections::HashMap<String, String>) -> Vec<String> {
+    let mut out = Vec::<String>::new();
+    for (label, key) in [
+        ("openai", "OPENAI_API_KEY"),
+        ("github", "GITHUB_TOKEN"),
+        ("github_app", "GITHUB_APP_INSTALLATION_TOKEN"),
+        ("brave", "BRAVE_API_KEY"),
+        ("tavily", "TAVILY_API_KEY"),
+        ("perplexity", "PERPLEXITY_API_KEY"),
+        ("exa", "EXA_API_KEY"),
+    ] {
+        let present = env
+            .get(key)
+            .map(|raw| !sanitize_web_tooling_query(raw).is_empty())
+            .unwrap_or(false);
+        if present {
+            out.push(label.to_string());
+        }
+    }
+    out.sort();
+    out.dedup();
+    out
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -474,5 +561,15 @@ mod tests {
     fn string_set_dedupes_and_sanitizes() {
         let payload = json!(["Alpha", "Alpha", "beta!", ""]);
         assert_eq!(string_set(Some(&payload)), vec!["Alpha", "beta"]);
+    }
+
+    #[test]
+    fn canonicalize_web_tooling_query_applies_site_prefix() {
+        let query = canonicalize_web_tooling_query(
+            "top ai agent frameworks\u{200b}",
+            Some("https://langchain.com/docs"),
+        );
+        assert!(query.starts_with("site:langchain.com "));
+        assert!(!query.contains('\u{200b}'));
     }
 }

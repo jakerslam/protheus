@@ -21,6 +21,7 @@ fn usage() {
     println!("upgrade-lane-kernel commands:");
     println!("  protheus-ops upgrade-lane-kernel status --payload-base64=<json>");
     println!("  protheus-ops upgrade-lane-kernel record --payload-base64=<json>");
+    println!("  protheus-ops upgrade-lane-kernel web-tooling-status --payload-base64=<json>");
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {
@@ -417,10 +418,82 @@ fn record_value(root: &Path, payload: &Map<String, Value>) -> Result<Value, Stri
     Ok(out)
 }
 
+const OPENCLAW_DEFAULT_WEB_PROVIDER_ORDER: &[&str] = &[
+    "brave",
+    "gemini",
+    "grok",
+    "kimi",
+    "perplexity",
+    "firecrawl",
+    "exa",
+    "tavily",
+    "duckduckgo",
+];
+
+fn web_tooling_status_value(
+    payload: &Map<String, Value>,
+    env_map: &std::collections::HashMap<String, String>,
+) -> Value {
+    let query = clean_text(payload.get("query").or_else(|| payload.get("q")), 1200);
+    let domain = clean_text(
+        payload
+            .get("domain")
+            .or_else(|| payload.get("domain_hint"))
+            .or_else(|| payload.get("site")),
+        180,
+    );
+    let provider = clean_text(
+        payload
+            .get("provider")
+            .or_else(|| payload.get("provider_hint"))
+            .or_else(|| payload.get("engine")),
+        80,
+    )
+    .to_ascii_lowercase();
+    let canonical = if query.is_empty() {
+        String::new()
+    } else {
+        lane_utils::canonicalize_web_tooling_query(
+            &query,
+            if domain.is_empty() {
+                None
+            } else {
+                Some(domain.as_str())
+            },
+        )
+    };
+    let auth_sources = lane_utils::web_tooling_auth_sources_from_env(env_map);
+    let readiness = if auth_sources.is_empty() {
+        "auth_missing"
+    } else if !query.is_empty() && canonical.is_empty() {
+        "query_invalid"
+    } else {
+        "ready"
+    };
+    json!({
+        "ok": readiness == "ready",
+        "type": "web_tooling_status",
+        "readiness": readiness,
+        "query": {
+            "input": query,
+            "sanitized": lane_utils::sanitize_web_tooling_query(&query),
+            "canonical": canonical
+        },
+        "provider_hint": if provider.is_empty() { "auto" } else { provider.as_str() },
+        "providers": OPENCLAW_DEFAULT_WEB_PROVIDER_ORDER,
+        "auth_sources": auth_sources,
+        "auth_any_present": !auth_sources.is_empty(),
+    })
+}
+
 fn run_command(root: &Path, command: &str, payload: &Map<String, Value>) -> Result<Value, String> {
     match command {
         "status" => Ok(status_value(root, payload)),
         "record" => record_value(root, payload),
+        "web-tooling-status" => {
+            let env_map = std::env::vars().collect::<std::collections::HashMap<String, String>>();
+            Ok(web_tooling_status_value(payload, &env_map))
+        }
         _ => Err("upgrade_lane_kernel_unknown_command".to_string()),
     }
 }
@@ -488,5 +561,25 @@ mod tests {
         assert!(root.join("state/latest.json").exists());
         assert!(root.join("adaptive/index.json").exists());
         let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn web_tooling_status_reports_auth_gap_and_query_shape() {
+        let payload = json!({
+            "query": "top AI agent frameworks",
+            "domain": "langchain.com",
+            "provider": "brave"
+        });
+        let env = std::collections::HashMap::new();
+        let out = web_tooling_status_value(payload_obj(&payload), &env);
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            out.get("readiness").and_then(Value::as_str),
+            Some("auth_missing")
+        );
+        assert_eq!(
+            out.pointer("/query/canonical").and_then(Value::as_str),
+            Some("site:langchain.com top AI agent frameworks")
+        );
     }
 }
