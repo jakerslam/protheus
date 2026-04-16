@@ -29,13 +29,22 @@
     },
 
     bottomDockContainerStyle() {
+      var lockWall = this.bottomDockWallLockNormalized();
       var activeSnapId = this.bottomDockContainerDragActive
         ? this.bottomDockNearestSnapId(this.bottomDockContainerDragX, this.bottomDockContainerDragY)
         : this.bottomDockPlacementId;
       var side = this.bottomDockSideForSnapId(activeSnapId);
+      if (lockWall) side = lockWall;
       var anchor = this.bottomDockContainerDragActive
         ? this.bottomDockClampAnchor(this.bottomDockContainerDragX, this.bottomDockContainerDragY, side)
         : this.bottomDockAnchorForSnapId(this.bottomDockPlacementId);
+      if (lockWall) {
+        var topLeft = this.bottomDockTopLeftFromAnchor(anchor.x, anchor.y, side);
+        var hardBounds = this.bottomDockHardBoundsForSide(side);
+        var snapped = this.dragSurfaceApplyWallLock(hardBounds, topLeft.left, topLeft.top, lockWall);
+        var lockedAnchor = this.bottomDockAnchorFromTopLeft(snapped.left, snapped.top, side);
+        anchor = { x: Number(lockedAnchor.x || 0), y: Number(lockedAnchor.y || 0) };
+      }
       var rotationDeg = Number(this.bottomDockRotationDeg);
       if (!Number.isFinite(rotationDeg)) {
         rotationDeg = this.bottomDockResolveRotationForSide(side, anchor.x, anchor.y);
@@ -45,7 +54,9 @@
       var tileRotationDeg = upDeg - Number(rotationDeg || 0);
       var iconRotationDeg = 0;
       var durationMs = this.bottomDockContainerDragActive ? 0 : this.bottomDockMoveDurationMs();
+      var radiusCss = this.bottomDockLockRadiusCssVars(lockWall);
       return (
+        radiusCss +
         '--bottom-dock-anchor-x:' + Math.round(Number(anchor.x || 0)) + 'px;' +
         '--bottom-dock-anchor-y:' + Math.round(Number(anchor.y || 0)) + 'px;' +
         '--bottom-dock-position-transition:' + Math.max(0, Math.round(Number(durationMs || 0))) + 'ms;' +
@@ -106,6 +117,7 @@
       this._bottomDockContainerOriginY = Number(anchor.y || 0);
       this.bottomDockContainerDragX = Number(anchor.x || 0);
       this.bottomDockContainerDragY = Number(anchor.y || 0);
+      this._bottomDockContainerDragWallLock = this.bottomDockWallLockNormalized();
       this.bindBottomDockContainerPointerListeners();
       try {
         if (ev.currentTarget && typeof ev.currentTarget.setPointerCapture === 'function' && Number.isFinite(ev.pointerId)) {
@@ -140,12 +152,79 @@
       }
       var candidateX = Number(this._bottomDockContainerOriginX || 0) + (nextX - Number(this._bottomDockContainerPointerStartX || 0));
       var candidateY = Number(this._bottomDockContainerOriginY || 0) + (nextY - Number(this._bottomDockContainerPointerStartY || 0));
+      var lockedWall = this.dragSurfaceNormalizeWall(this._bottomDockContainerDragWallLock || this.bottomDockWallLockNormalized());
+      if (lockedWall) {
+        var lockedTopLeft = this.bottomDockTopLeftFromAnchor(candidateX, candidateY, lockedWall);
+        var lockedHardBounds = this.bottomDockHardBoundsForSide(lockedWall);
+        var unlockDistance = this.dragSurfaceDistanceFromWall(
+          lockedHardBounds,
+          lockedTopLeft.left,
+          lockedTopLeft.top,
+          lockedWall
+        );
+        if (unlockDistance >= this.dragSurfaceWallUnlockDistanceThreshold()) {
+          lockedWall = '';
+          this._bottomDockContainerDragWallLock = '';
+          this.bottomDockSetWallLock('');
+        } else {
+          var holdTopLeft = this.bottomDockTopLeftFromAnchor(
+            this.bottomDockContainerDragX,
+            this.bottomDockContainerDragY,
+            lockedWall
+          );
+          var holdLocked = this.dragSurfaceApplyWallLock(
+            lockedHardBounds,
+            holdTopLeft.left,
+            holdTopLeft.top,
+            lockedWall
+          );
+          var holdAnchor = this.bottomDockAnchorFromTopLeft(holdLocked.left, holdLocked.top, lockedWall);
+          this.bottomDockContainerDragX = Number(holdAnchor.x || 0);
+          this.bottomDockContainerDragY = Number(holdAnchor.y || 0);
+          this.bottomDockRotationDeg = this.bottomDockResolveRotationForSide(
+            lockedWall,
+            this.bottomDockContainerDragX,
+            this.bottomDockContainerDragY
+          );
+          if (ev.cancelable && typeof ev.preventDefault === 'function') ev.preventDefault();
+          return;
+        }
+      }
       var anchor = this.bottomDockClampDragAnchor(candidateX, candidateY);
-      this.bottomDockContainerDragX = Number(anchor.x || 0);
-      this.bottomDockContainerDragY = Number(anchor.y || 0);
       var nearestId = this.bottomDockNearestSnapId(anchor.x, anchor.y);
       var side = this.bottomDockSideForSnapId(nearestId);
-      this.bottomDockRotationDeg = this.bottomDockResolveRotationForSide(side, anchor.x, anchor.y);
+      var candidateTopLeft = this.bottomDockTopLeftFromAnchor(anchor.x, anchor.y, side);
+      var hardBounds = this.bottomDockHardBoundsForSide(side);
+      var clampedTopLeft = this.dragSurfaceClampWithBounds(hardBounds, candidateTopLeft.left, candidateTopLeft.top);
+      var nearestWall = this.dragSurfaceNearestWall(hardBounds, clampedTopLeft.left, clampedTopLeft.top);
+      var lockWall = this.dragSurfaceResolveWallLock(
+        hardBounds,
+        candidateTopLeft.left,
+        candidateTopLeft.top,
+        nearestWall,
+        nextX - Number(this._bottomDockContainerPointerStartX || 0),
+        nextY - Number(this._bottomDockContainerPointerStartY || 0)
+      );
+      if (lockWall) {
+        this._bottomDockContainerDragWallLock = this.bottomDockSetWallLock(lockWall);
+        var lockTopLeft = this.bottomDockTopLeftFromAnchor(anchor.x, anchor.y, lockWall);
+        var lockHardBounds = this.bottomDockHardBoundsForSide(lockWall);
+        var lockClamped = this.dragSurfaceClampWithBounds(lockHardBounds, lockTopLeft.left, lockTopLeft.top);
+        var snapped = this.dragSurfaceApplyWallLock(lockHardBounds, lockClamped.left, lockClamped.top, lockWall);
+        var snappedAnchor = this.bottomDockAnchorFromTopLeft(snapped.left, snapped.top, lockWall);
+        this.bottomDockContainerDragX = Number(snappedAnchor.x || 0);
+        this.bottomDockContainerDragY = Number(snappedAnchor.y || 0);
+        side = lockWall;
+      } else {
+        var freeAnchor = this.bottomDockAnchorFromTopLeft(clampedTopLeft.left, clampedTopLeft.top, side);
+        this.bottomDockContainerDragX = Number(freeAnchor.x || 0);
+        this.bottomDockContainerDragY = Number(freeAnchor.y || 0);
+      }
+      this.bottomDockRotationDeg = this.bottomDockResolveRotationForSide(
+        side,
+        this.bottomDockContainerDragX,
+        this.bottomDockContainerDragY
+      );
       if (ev.cancelable && typeof ev.preventDefault === 'function') ev.preventDefault();
     },
 
@@ -156,9 +235,34 @@
       if (!this._bottomDockContainerPointerMoved) {
         this.bottomDockContainerDragActive = false;
         this._bottomDockContainerPointerMoved = false;
+        this._bottomDockContainerDragWallLock = '';
         return;
       }
+      var lockWall = this.dragSurfaceNormalizeWall(this._bottomDockContainerDragWallLock || this.bottomDockWallLockNormalized());
       var anchor = this.bottomDockClampDragAnchor(this.bottomDockContainerDragX, this.bottomDockContainerDragY);
+      if (!lockWall) {
+        var freeNearest = this.bottomDockNearestSnapId(anchor.x, anchor.y);
+        var freeSide = this.bottomDockSideForSnapId(freeNearest);
+        var freeTopLeft = this.bottomDockTopLeftFromAnchor(anchor.x, anchor.y, freeSide);
+        var freeHardBounds = this.bottomDockHardBoundsForSide(freeSide);
+        var freeNearestWall = this.dragSurfaceNearestWall(freeHardBounds, freeTopLeft.left, freeTopLeft.top);
+        if (Number(freeNearestWall.distance || 0) <= this.dragSurfaceWallLockDistanceThreshold()) {
+          lockWall = this.bottomDockSetWallLock(freeNearestWall.wall);
+          this._bottomDockContainerDragWallLock = lockWall;
+        }
+      }
+      if (lockWall) {
+        var lockedTopLeft = this.bottomDockTopLeftFromAnchor(anchor.x, anchor.y, lockWall);
+        var lockedHardBounds = this.bottomDockHardBoundsForSide(lockWall);
+        var finalLocked = this.dragSurfaceApplyWallLock(
+          lockedHardBounds,
+          lockedTopLeft.left,
+          lockedTopLeft.top,
+          lockWall
+        );
+        var finalAnchor = this.bottomDockAnchorFromTopLeft(finalLocked.left, finalLocked.top, lockWall);
+        anchor = { x: Number(finalAnchor.x || 0), y: Number(finalAnchor.y || 0) };
+      }
       var nearestId = this.bottomDockNearestSnapId(anchor.x, anchor.y);
       this.bottomDockPlacementId = nearestId;
       this.bottomDockRotationDeg = this.bottomDockResolveRotationForSide(this.bottomDockSideForSnapId(nearestId), anchor.x, anchor.y);
@@ -166,6 +270,7 @@
       this.bottomDockContainerDragActive = false;
       this.bottomDockContainerSettling = true;
       this._bottomDockContainerPointerMoved = false;
+      this._bottomDockContainerDragWallLock = '';
       if (this._bottomDockContainerSettleTimer) {
         try { clearTimeout(this._bottomDockContainerSettleTimer); } catch(_) {}
       }
