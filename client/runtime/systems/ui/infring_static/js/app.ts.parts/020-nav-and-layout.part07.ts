@@ -46,10 +46,29 @@
       if (!Number.isFinite(left)) left = minLeft;
       return Math.max(minLeft, Math.min(maxLeft, left));
     },
+    chatSidebarHardBounds() {
+      return this.dragSurfaceHardBounds(this.readChatSidebarWidth(), this.readChatSidebarHeight());
+    },
+    chatSidebarWallLockNormalized() {
+      return this.dragSurfaceNormalizeWall(this.chatSidebarWallLock);
+    },
+    chatSidebarSetWallLock(wallRaw) {
+      var wall = this.dragSurfaceNormalizeWall(wallRaw);
+      this.chatSidebarWallLock = wall;
+      try {
+        if (wall) localStorage.setItem('infring-chat-sidebar-wall-lock', wall);
+        else localStorage.removeItem('infring-chat-sidebar-wall-lock');
+        localStorage.removeItem('infring-chat-sidebar-smash-wall');
+      } catch(_) {}
+      return wall;
+    },
     chatSidebarResolvedLeft() {
-      if (this.chatSidebarDragActive) return this.chatSidebarClampLeft(this.chatSidebarDragLeft);
-      var anchor = this.chatSidebarAnchorForSnapId(this.chatSidebarActiveSnapId());
-      return this.chatSidebarClampLeft(anchor.left);
+      if (this.chatSidebarDragActive) return Number(this.chatSidebarDragLeft || 0);
+      var left = this.chatSidebarClampLeft(this.chatSidebarResolvedLeftFromRatio());
+      var top = this.chatSidebarClampTop(this.chatSidebarResolvedTopFromRatio());
+      var wall = this.chatSidebarWallLockNormalized();
+      if (!wall) return left;
+      return this.dragSurfaceApplyWallLock(this.chatSidebarHardBounds(), left, top, wall).left;
     },
     chatSidebarPersistPlacementFromLeft(leftRaw) {
       var wallGap = this.overlayWallGapPx();
@@ -75,9 +94,12 @@
       return Math.max(minTop, Math.min(maxTop, top));
     },
     chatSidebarResolvedTop() {
-      if (this.chatSidebarDragActive) return this.chatSidebarClampTop(this.chatSidebarDragTop);
-      var anchor = this.chatSidebarAnchorForSnapId(this.chatSidebarActiveSnapId());
-      return this.chatSidebarClampTop(anchor.top);
+      if (this.chatSidebarDragActive) return Number(this.chatSidebarDragTop || 0);
+      var left = this.chatSidebarClampLeft(this.chatSidebarResolvedLeftFromRatio());
+      var top = this.chatSidebarClampTop(this.chatSidebarResolvedTopFromRatio());
+      var wall = this.chatSidebarWallLockNormalized();
+      if (!wall) return top;
+      return this.dragSurfaceApplyWallLock(this.chatSidebarHardBounds(), left, top, wall).top;
     },
     chatSidebarPersistPlacementFromTop(topRaw) {
       var bounds = this.chatOverlayVerticalBounds();
@@ -98,6 +120,8 @@
       var top = this.chatSidebarResolvedTop();
       var left = this.chatSidebarResolvedLeft();
       var durationMs = this.chatSidebarDragActive ? 0 : this.dragSurfaceMoveDurationMs(this._chatSidebarMoveDurationMs, 280);
+      var wall = this.chatSidebarWallLockNormalized();
+      var radiusCss = this.dragSurfaceLockRadiusCssVars(wall);
       return (
         'left:' + Math.round(left) + 'px;' +
         'top:' + Math.round(top) + 'px;' +
@@ -106,7 +130,8 @@
         'min-height:calc(56px * 3);' +
         'max-height:80vh;' +
         'transform:none;' +
-        '--sidebar-position-transition:' + Math.max(0, Math.round(durationMs)) + 'ms;'
+        '--sidebar-position-transition:' + Math.max(0, Math.round(durationMs)) + 'ms;' +
+        radiusCss
       );
     },
     chatSidebarNavShellStyle() {
@@ -122,10 +147,12 @@
     chatSidebarPulltabStyle() {
       if (this.page !== 'chat') return '';
       var durationMs = this.chatSidebarDragActive ? 0 : this.dragSurfaceMoveDurationMs(this._chatSidebarMoveDurationMs, 280);
+      var wall = this.chatSidebarWallLockNormalized();
+      var dockRight = wall === 'right';
       return [
         'position:absolute;',
-        'left:100%;',
-        'right:auto;',
+        'left:' + (dockRight ? 'auto' : '100%') + ';',
+        'right:' + (dockRight ? '100%' : 'auto') + ';',
         'top:50%;',
         'transform:translateY(-50%);',
         '--sidebar-position-transition:' + Math.max(0, Math.round(durationMs)) + 'ms;'
@@ -180,6 +207,10 @@
       this._chatSidebarPointerStartY = Number(ev.clientY || 0);
       this._chatSidebarPointerOriginLeft = this.chatSidebarResolvedLeft();
       this._chatSidebarPointerOriginTop = this.chatSidebarResolvedTop();
+      this._chatSidebarPointerLastX = this._chatSidebarPointerStartX;
+      this._chatSidebarPointerLastY = this._chatSidebarPointerStartY;
+      this._chatSidebarPointerLastAt = Date.now();
+      this._chatSidebarPointerVelocity = 0;
       this.chatSidebarDragLeft = this._chatSidebarPointerOriginLeft;
       this.chatSidebarDragTop = this._chatSidebarPointerOriginTop;
       this.suspendChatSidebarNativeDraggableNodes();
@@ -195,6 +226,17 @@
       if (!this._chatSidebarPointerActive || this.page !== 'chat') return;
       var nextX = Number(ev.clientX || 0);
       var nextY = Number(ev.clientY || 0);
+      var now = Date.now();
+      var prevX = Number(this._chatSidebarPointerLastX || nextX);
+      var prevY = Number(this._chatSidebarPointerLastY || nextY);
+      var prevAt = Number(this._chatSidebarPointerLastAt || now);
+      var dt = Math.max(1, now - prevAt);
+      var stepDx = nextX - prevX;
+      var stepDy = nextY - prevY;
+      this._chatSidebarPointerVelocity = Math.sqrt((stepDx * stepDx) + (stepDy * stepDy)) / dt;
+      this._chatSidebarPointerLastX = nextX;
+      this._chatSidebarPointerLastY = nextY;
+      this._chatSidebarPointerLastAt = now;
       var movedX = Math.abs(nextX - Number(this._chatSidebarPointerStartX || 0));
       var movedY = Math.abs(nextY - Number(this._chatSidebarPointerStartY || 0));
       if (!this._chatSidebarPointerMoved) {
@@ -203,10 +245,49 @@
         this.chatSidebarDragActive = true;
         this.hideDashboardPopupBySource('sidebar');
       }
-      var candidateLeft = Number(this._chatSidebarPointerOriginLeft || 0) + (nextX - Number(this._chatSidebarPointerStartX || 0));
-      var candidateTop = Number(this._chatSidebarPointerOriginTop || 0) + (nextY - Number(this._chatSidebarPointerStartY || 0));
-      this.chatSidebarDragLeft = this.chatSidebarClampLeft(candidateLeft);
-      this.chatSidebarDragTop = this.chatSidebarClampTop(candidateTop);
+      var dragDx = nextX - Number(this._chatSidebarPointerStartX || 0);
+      var dragDy = nextY - Number(this._chatSidebarPointerStartY || 0);
+      var candidateLeft = Number(this._chatSidebarPointerOriginLeft || 0) + dragDx;
+      var candidateTop = Number(this._chatSidebarPointerOriginTop || 0) + dragDy;
+      var hardBounds = this.chatSidebarHardBounds();
+      var lockedWall = this.chatSidebarWallLockNormalized();
+      if (lockedWall) {
+        var unlockDistance = this.dragSurfaceDistanceFromWall(hardBounds, candidateLeft, candidateTop, lockedWall);
+        if (unlockDistance >= this.dragSurfaceWallUnlockDistanceThreshold()) {
+          lockedWall = this.chatSidebarSetWallLock('');
+        } else {
+          var holdLeft = Number.isFinite(Number(this.chatSidebarDragLeft))
+            ? Number(this.chatSidebarDragLeft)
+            : Number(this._chatSidebarPointerOriginLeft || 0);
+          var holdTop = Number.isFinite(Number(this.chatSidebarDragTop))
+            ? Number(this.chatSidebarDragTop)
+            : Number(this._chatSidebarPointerOriginTop || 0);
+          var stayLocked = this.dragSurfaceApplyWallLock(hardBounds, holdLeft, holdTop, lockedWall);
+          this.chatSidebarDragLeft = stayLocked.left;
+          this.chatSidebarDragTop = stayLocked.top;
+          if (ev.cancelable && typeof ev.preventDefault === 'function') ev.preventDefault();
+          return;
+        }
+      }
+      var clamped = this.dragSurfaceClampWithBounds(hardBounds, candidateLeft, candidateTop);
+      var nearest = this.dragSurfaceNearestWall(hardBounds, clamped.left, clamped.top);
+      var lockWall = this.dragSurfaceResolveWallLock(
+        hardBounds,
+        candidateLeft,
+        candidateTop,
+        nearest,
+        dragDx,
+        dragDy
+      );
+      if (lockWall) {
+        var persistedLockWall = this.chatSidebarSetWallLock(lockWall);
+        var snapped = this.dragSurfaceApplyWallLock(hardBounds, clamped.left, clamped.top, persistedLockWall);
+        this.chatSidebarDragLeft = snapped.left;
+        this.chatSidebarDragTop = snapped.top;
+      } else {
+        this.chatSidebarDragLeft = clamped.left;
+        this.chatSidebarDragTop = clamped.top;
+      }
       if (ev.cancelable && typeof ev.preventDefault === 'function') ev.preventDefault();
     },
 
@@ -221,15 +302,24 @@
         return;
       }
       this._chatSidebarPointerMoved = false;
-      var finalLeft = this.chatSidebarClampLeft(this.chatSidebarDragLeft);
-      var finalTop = this.chatSidebarClampTop(this.chatSidebarDragTop);
-      var snapId = this.chatSidebarNearestSnapId(finalLeft, finalTop);
-      var snap = this.chatSidebarAnchorForSnapId(snapId);
-      this.chatSidebarDragLeft = this.chatSidebarClampLeft(snap.left);
-      this.chatSidebarDragTop = this.chatSidebarClampTop(snap.top);
+      var hardBounds = this.chatSidebarHardBounds();
+      var lockedWall = this.chatSidebarWallLockNormalized();
+      var final;
+      if (lockedWall) {
+        final = this.dragSurfaceApplyWallLock(hardBounds, this.chatSidebarDragLeft, this.chatSidebarDragTop, lockedWall);
+        this.chatSidebarPlacementAnchorId = '';
+        try { localStorage.removeItem('infring-chat-sidebar-placement-anchor'); } catch(_) {}
+      } else {
+        var clamped = this.dragSurfaceClampWithBounds(hardBounds, this.chatSidebarDragLeft, this.chatSidebarDragTop);
+        var snapId = this.chatSidebarNearestSnapId(clamped.left, clamped.top);
+        var snap = this.chatSidebarAnchorForSnapId(snapId);
+        final = this.dragSurfaceClampWithBounds(hardBounds, snap.left, snap.top);
+        this.chatSidebarPersistSnapId(snapId);
+      }
+      this.chatSidebarDragLeft = final.left;
+      this.chatSidebarDragTop = final.top;
       this.chatSidebarPersistPlacementFromLeft(this.chatSidebarDragLeft);
       this.chatSidebarPersistPlacementFromTop(this.chatSidebarDragTop);
-      this.chatSidebarPersistSnapId(snapId);
       this.chatSidebarDragActive = false;
       if (this._chatSidebarPointerFromPulltab) {
         this._sidebarToggleSuppressUntil = Date.now() + 260;
@@ -246,6 +336,28 @@
       var key = String(kind || '').trim().toLowerCase();
       var lane = String(axis || '').trim().toLowerCase() === 'top' ? 'top' : 'left';
       return 'infring-popup-window-' + (key || 'manual') + '-' + lane;
+    },
+    popupWindowWallLockStorageKey(kind) {
+      var key = String(kind || '').trim().toLowerCase() || 'manual';
+      return 'infring-popup-window-' + key + '-wall-lock';
+    },
+    popupWindowWallLock(kind) {
+      void kind;
+      return '';
+    },
+    popupWindowSetWallLock(kind, wallRaw) {
+      var key = String(kind || '').trim().toLowerCase();
+      void wallRaw;
+      if (!key) return '';
+      if (!this.popupWindowWallLocks || typeof this.popupWindowWallLocks !== 'object') {
+        this.popupWindowWallLocks = {};
+      }
+      this.popupWindowWallLocks[key] = '';
+      try {
+        localStorage.removeItem(this.popupWindowWallLockStorageKey(key));
+        localStorage.removeItem('infring-popup-window-' + key + '-smash-wall');
+      } catch(_) {}
+      return '';
     },
 
     popupWindowOpenState(kind) {
@@ -327,10 +439,25 @@
         top: Math.max(bounds.minTop, Math.min(bounds.maxTop, top))
       };
     },
+    popupWindowHardBounds(kind) {
+      var size = this.readPopupWindowSize(kind);
+      return this.dragSurfaceHardBounds(size.width, size.height);
+    },
 
-    popupWindowEnsurePlacement(kind) {
+    popupWindowEnsurePlacement(kind, forceCenter) {
       var key = String(kind || '').trim().toLowerCase();
       if (!key) return { left: 0, top: 0 };
+      if (forceCenter) {
+        var centerSize = this.readPopupWindowSize(key);
+        var centerBounds = this.popupWindowBounds(key, centerSize.width, centerSize.height);
+        var centerPoint = this.dragSurfaceCenteredPoint(centerBounds);
+        var centered = this.popupWindowClampPlacement(key, centerPoint.left, centerPoint.top);
+        if (!this.popupWindowPlacements || typeof this.popupWindowPlacements !== 'object') {
+          this.popupWindowPlacements = {};
+        }
+        this.popupWindowPlacements[key] = { left: centered.left, top: centered.top };
+        return centered;
+      }
       var map = (this.popupWindowPlacements && typeof this.popupWindowPlacements === 'object')
         ? this.popupWindowPlacements
         : {};
@@ -376,7 +503,7 @@
       var key = String(kind || '').trim().toLowerCase();
       if (!key) return this.overlayWallGapPx();
       if (this.popupWindowDragActive && this.popupWindowDragKind === key) {
-        return this.popupWindowClampPlacement(key, this.popupWindowDragLeft, this.popupWindowDragTop).left;
+        return Number(this.popupWindowDragLeft || 0);
       }
       var base = this.popupWindowEnsurePlacement(key);
       return this.popupWindowClampPlacement(key, base.left, base.top).left;
@@ -386,7 +513,7 @@
       var key = String(kind || '').trim().toLowerCase();
       if (!key) return this.overlayWallGapPx();
       if (this.popupWindowDragActive && this.popupWindowDragKind === key) {
-        return this.popupWindowClampPlacement(key, this.popupWindowDragLeft, this.popupWindowDragTop).top;
+        return Number(this.popupWindowDragTop || 0);
       }
       var base = this.popupWindowEnsurePlacement(key);
       return this.popupWindowClampPlacement(key, base.left, base.top).top;
@@ -411,10 +538,11 @@
       var key = String(kind || '').trim().toLowerCase();
       if (!key) return;
       this.popupWindowSetOpenState(key, true);
-      this.popupWindowEnsurePlacement(key);
+      this.popupWindowSetWallLock(key, '');
+      this.popupWindowEnsurePlacement(key, true);
       var self = this;
       this.$nextTick(function() {
-        self.popupWindowEnsurePlacement(key);
+        self.popupWindowEnsurePlacement(key, true);
       });
     },
 
@@ -469,8 +597,13 @@
       this._popupWindowPointerStartY = Number(ev.clientY || 0);
       this._popupWindowPointerOriginLeft = this.popupWindowResolvedLeft(key);
       this._popupWindowPointerOriginTop = this.popupWindowResolvedTop(key);
+      this._popupWindowPointerLastX = this._popupWindowPointerStartX;
+      this._popupWindowPointerLastY = this._popupWindowPointerStartY;
+      this._popupWindowPointerLastAt = Date.now();
+      this._popupWindowPointerVelocity = 0;
       this.popupWindowDragLeft = this._popupWindowPointerOriginLeft;
       this.popupWindowDragTop = this._popupWindowPointerOriginTop;
+      this.popupWindowDragWallLock = '';
       this.bindPopupWindowPointerListeners();
       try {
         if (ev.currentTarget && typeof ev.currentTarget.setPointerCapture === 'function' && Number.isFinite(ev.pointerId)) {
@@ -485,6 +618,17 @@
       if (!key || !this.popupWindowOpenState(key)) return;
       var nextX = Number(ev.clientX || 0);
       var nextY = Number(ev.clientY || 0);
+      var now = Date.now();
+      var prevX = Number(this._popupWindowPointerLastX || nextX);
+      var prevY = Number(this._popupWindowPointerLastY || nextY);
+      var prevAt = Number(this._popupWindowPointerLastAt || now);
+      var dt = Math.max(1, now - prevAt);
+      var stepDx = nextX - prevX;
+      var stepDy = nextY - prevY;
+      this._popupWindowPointerVelocity = Math.sqrt((stepDx * stepDx) + (stepDy * stepDy)) / dt;
+      this._popupWindowPointerLastX = nextX;
+      this._popupWindowPointerLastY = nextY;
+      this._popupWindowPointerLastAt = now;
       var movedX = Math.abs(nextX - Number(this._popupWindowPointerStartX || 0));
       var movedY = Math.abs(nextY - Number(this._popupWindowPointerStartY || 0));
       if (!this._popupWindowPointerMoved) {
@@ -492,9 +636,12 @@
         this._popupWindowPointerMoved = true;
         this.popupWindowDragActive = true;
       }
-      var candidateLeft = Number(this._popupWindowPointerOriginLeft || 0) + (nextX - Number(this._popupWindowPointerStartX || 0));
-      var candidateTop = Number(this._popupWindowPointerOriginTop || 0) + (nextY - Number(this._popupWindowPointerStartY || 0));
-      var clamped = this.popupWindowClampPlacement(key, candidateLeft, candidateTop);
+      var dragDx = nextX - Number(this._popupWindowPointerStartX || 0);
+      var dragDy = nextY - Number(this._popupWindowPointerStartY || 0);
+      var candidateLeft = Number(this._popupWindowPointerOriginLeft || 0) + dragDx;
+      var candidateTop = Number(this._popupWindowPointerOriginTop || 0) + dragDy;
+      var hardBounds = this.popupWindowHardBounds(key);
+      var clamped = this.dragSurfaceClampWithBounds(hardBounds, candidateLeft, candidateTop);
       this.popupWindowDragLeft = clamped.left;
       this.popupWindowDragTop = clamped.top;
       if (ev.cancelable && typeof ev.preventDefault === 'function') ev.preventDefault();
@@ -508,9 +655,14 @@
       this._popupWindowPointerMoved = false;
       this.unbindPopupWindowPointerListeners();
       if (key && moved) {
+        var hardBounds = this.popupWindowHardBounds(key);
+        var finalPlacement = this.dragSurfaceClampWithBounds(hardBounds, this.popupWindowDragLeft, this.popupWindowDragTop);
+        this.popupWindowDragLeft = finalPlacement.left;
+        this.popupWindowDragTop = finalPlacement.top;
         this.popupWindowPersistPlacement(key, this.popupWindowDragLeft, this.popupWindowDragTop);
       }
       this.popupWindowDragActive = false;
+      this.popupWindowDragWallLock = '';
       this.popupWindowDragKind = '';
     },
 

@@ -12,6 +12,7 @@
   --bottom-dock-tile-rotation-deg: 0deg;
   --bottom-dock-icon-rotation-deg: 0deg;
   --bottom-dock-transform-origin: center bottom;
+  --bottom-dock-radius: var(--bottom-dock-radius-override, var(--overlay-shared-surface-radius, var(--overlay-surface-radius, 16px)));
   --bottom-dock-scale: 0.95;
   --bottom-dock-expanded-scale: 1.54;
   position: fixed;
@@ -28,10 +29,7 @@
   gap: 8px;
   cursor: grab;
   padding: 9px 12px;
-  border-top-left-radius: 16px;
-  border-top-right-radius: 16px;
-  border-bottom-left-radius: 16px;
-  border-bottom-right-radius: 16px;
+  border-radius: var(--bottom-dock-radius);
   border: 1px solid var(--overlay-surface-border, color-mix(in srgb, #fff 24%, transparent));
   background: var(--overlay-surface-background, transparent);
   box-shadow: var(--overlay-surface-shadow, -6px 0 12px -14px rgba(0, 0, 0, 0.32), 6px 0 12px -14px rgba(0, 0, 0, 0.32), 0 10px 18px -18px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.2));

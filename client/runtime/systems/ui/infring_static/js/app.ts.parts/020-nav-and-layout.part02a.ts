@@ -131,6 +131,18 @@
     bottomDockContainerSettling: false,
     bottomDockContainerDragX: 0,
     bottomDockContainerDragY: 0,
+    bottomDockContainerWallLock: (() => {
+      try {
+        var raw = String(
+          localStorage.getItem('infring-bottom-dock-wall-lock')
+          || localStorage.getItem('infring-bottom-dock-smash-wall')
+          || ''
+        ).trim().toLowerCase();
+        if (raw === 'left' || raw === 'right' || raw === 'top' || raw === 'bottom') return raw;
+      } catch(_) {}
+      return '';
+    })(),
+    _bottomDockContainerDragWallLock: '',
     _bottomDockContainerPointerActive: false,
     _bottomDockContainerPointerMoved: false,
     _bottomDockContainerPointerStartX: 0,
