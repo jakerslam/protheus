@@ -45,7 +45,12 @@ fn app_chat_requests_live_web(raw_input_lower: &str) -> bool {
         || lowered.contains("search the web")
         || lowered.contains("search again")
         || lowered.contains("find information")
+        || lowered.contains("finding information")
         || lowered.contains("best chili recipes")
+        || ((lowered.contains("framework") || lowered.contains("frameworks"))
+            && (lowered.contains("current")
+                || lowered.contains("latest")
+                || lowered.contains("top")))
         || (lowered.contains("search")
             && (lowered.contains("latest")
                 || lowered.contains("current")
@@ -136,6 +141,233 @@ fn app_chat_run_web_batch_query(root: &Path, query: &str, _payload: &Value) -> L
             "--aperture=medium".to_string(),
         ],
     )
+}
+
+#[cfg(test)]
+fn app_chat_run_scripted_lane(root: &Path, agent_id: &str, input: &str) -> Option<LaneResult> {
+    let path = root.join("client/runtime/local/state/ui/infring_dashboard/test_chat_script.json");
+    let mut script = std::fs::read_to_string(&path)
+        .ok()
+        .and_then(|raw| serde_json::from_str::<Value>(&raw).ok())
+        .unwrap_or_else(|| json!({}));
+    let mut step = None::<Value>;
+    if let Some(queue) = script.get_mut("queue").and_then(Value::as_array_mut) {
+        if !queue.is_empty() {
+            step = Some(queue.remove(0));
+        }
+    }
+    let step = step?;
+    let mut lane_payload = if step.is_object() { step } else { json!({}) };
+    let response = clean_text(
+        lane_payload
+            .get("response")
+            .or_else(|| lane_payload.get("output"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        32_000,
+    );
+    if lane_payload.get("response").is_none() {
+        lane_payload["response"] = Value::String(response.clone());
+    }
+    if lane_payload.get("output").is_none() {
+        lane_payload["output"] = Value::String(response.clone());
+    }
+    if lane_payload.pointer("/turn/assistant").is_none() {
+        lane_payload["turn"] = json!({
+            "assistant": response,
+            "user": clean_text(input, 2_000),
+            "session_id": clean_text(agent_id, 140)
+        });
+    }
+    if !lane_payload.get("tools").map(Value::is_array).unwrap_or(false) {
+        lane_payload["tools"] = Value::Array(Vec::new());
+    }
+    if lane_payload.get("ok").is_none() {
+        lane_payload["ok"] = Value::Bool(true);
+    }
+    if lane_payload.get("type").is_none() {
+        lane_payload["type"] = json!("app_plane_chat_ui");
+    }
+    if let Some(obj) = script.as_object_mut() {
+        if !obj.get("calls").map(Value::is_array).unwrap_or(false) {
+            obj.insert("calls".to_string(), Value::Array(Vec::new()));
+        }
+        if let Some(rows) = obj.get_mut("calls").and_then(Value::as_array_mut) {
+            rows.push(json!({
+                "action": "app.chat",
+                "agent_id": clean_text(agent_id, 140),
+                "input": clean_text(input, 2_000),
+                "ts": crate::now_iso()
+            }));
+        }
+    }
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    if let Ok(body) = serde_json::to_string_pretty(&script) {
+        let _ = std::fs::write(&path, body);
+    }
+    Some(LaneResult {
+        ok: lane_payload
+            .get("ok")
+            .and_then(Value::as_bool)
+            .unwrap_or(true),
+        status: 0,
+        argv: vec![
+            "app-plane".to_string(),
+            "run".to_string(),
+            "--app=chat-ui".to_string(),
+            format!("--session-id={}", clean_text(agent_id, 140)),
+            format!("--input={}", clean_text(input, 2_000)),
+        ],
+        payload: Some(lane_payload),
+    })
+}
+
+fn app_chat_tool_blocked_signal(row: &Value) -> bool {
+    let status = clean_text(row.get("status").and_then(Value::as_str).unwrap_or(""), 120)
+        .to_ascii_lowercase();
+    let error = clean_text(row.get("error").and_then(Value::as_str).unwrap_or(""), 240)
+        .to_ascii_lowercase();
+    let ty = clean_text(row.get("type").and_then(Value::as_str).unwrap_or(""), 240)
+        .to_ascii_lowercase();
+    row.get("blocked").and_then(Value::as_bool).unwrap_or(false)
+        || status.contains("blocked")
+        || status.contains("policy")
+        || error.contains("blocked")
+        || error.contains("permission")
+        || error.contains("denied")
+        || ty.contains("blocked")
+        || ty.contains("policy")
+}
+
+fn app_chat_speculative_blocker_copy(text: &str) -> bool {
+    let lowered = clean_text(text, 4_000).to_ascii_lowercase();
+    lowered.contains("security controls")
+        || lowered.contains("allowlists")
+        || lowered.contains("proper authorization")
+        || lowered.contains("invalid response attempt")
+        || lowered.contains("preventing any web search operations")
+}
+
+fn app_chat_deferred_terminal_copy(text: &str) -> bool {
+    let lowered = clean_text(text, 4_000).to_ascii_lowercase();
+    lowered.starts_with("i'll get you an update")
+        || lowered.contains("i'll get you an update on")
+        || lowered.contains("would you like me to retry with a narrower query")
+        || lowered.contains("would you like me to try a more specific query")
+}
+
+fn app_chat_framework_gap_summary(raw_input: &str, tools: &[Value]) -> Option<String> {
+    let input_lower = clean_text(raw_input, 1_000).to_ascii_lowercase();
+    let joined = tools
+        .iter()
+        .map(|row| {
+            [
+                clean_text(row.get("result").and_then(Value::as_str).unwrap_or(""), 1_000),
+                clean_text(row.get("status").and_then(Value::as_str).unwrap_or(""), 120),
+                clean_text(row.get("error").and_then(Value::as_str).unwrap_or(""), 240),
+            ]
+            .join(" ")
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_ascii_lowercase();
+    if !(input_lower.contains("framework") || joined.contains("framework")) {
+        return None;
+    }
+    let known = [
+        "langgraph",
+        "crewai",
+        "autogen",
+        "openai agents sdk",
+        "smolagents",
+    ];
+    let mut found = Vec::<String>::new();
+    let mut missing = Vec::<String>::new();
+    for name in known {
+        if joined.contains(name) {
+            found.push(name.to_string());
+        } else {
+            missing.push(name.to_string());
+        }
+    }
+    if found.is_empty() && missing.is_empty() {
+        return None;
+    }
+    Some(format!(
+        "Found: {}. Missing in this pass: {}.",
+        if found.is_empty() {
+            "none".to_string()
+        } else {
+            found.join(", ")
+        },
+        if missing.is_empty() {
+            "none".to_string()
+        } else {
+            missing.join(", ")
+        }
+    ))
+}
+
+fn app_chat_rewrite_tooling_response(raw_input: &str, response: &str, tools: &[Value]) -> (String, String) {
+    if tools.is_empty() {
+        return (response.to_string(), String::new());
+    }
+    let blocked = tools.iter().any(app_chat_tool_blocked_signal);
+    let low_signal = tools.iter().any(|row| {
+        let status = clean_text(row.get("status").and_then(Value::as_str).unwrap_or(""), 120)
+            .to_ascii_lowercase();
+        status.contains("low_signal")
+            || status.contains("low-signal")
+            || status.contains("no_results")
+            || status.contains("no_result")
+    });
+    let speculative = app_chat_speculative_blocker_copy(response);
+    let deferred = app_chat_deferred_terminal_copy(response);
+    if blocked {
+        let mut evidence = Vec::<String>::new();
+        for row in tools {
+            let ty = clean_text(row.get("type").and_then(Value::as_str).unwrap_or(""), 120);
+            let err = clean_text(row.get("error").and_then(Value::as_str).unwrap_or(""), 160);
+            if !ty.is_empty() {
+                evidence.push(ty);
+            }
+            if !err.is_empty() {
+                evidence.push(err);
+            }
+        }
+        evidence.sort();
+        evidence.dedup();
+        let evidence_text = if evidence.is_empty() {
+            "policy_blocked".to_string()
+        } else {
+            clean_text(&evidence.join(", "), 260)
+        };
+        return (
+            format!("Web tooling was blocked by policy with structured evidence: {evidence_text}."),
+            "blocked_with_structured_evidence".to_string(),
+        );
+    }
+    if low_signal && (speculative || deferred) {
+        if let Some(summary) = app_chat_framework_gap_summary(raw_input, tools) {
+            return (
+                format!("{summary} The web run completed with partial signal; a follow-up pass is needed for full coverage."),
+                "success_with_gaps".to_string(),
+            );
+        }
+        if deferred {
+            return (
+                "Web tooling returned low-signal output in this pass. No source-backed findings were produced yet; retry with a narrower query or one specific source URL.".to_string(),
+                "success_with_gaps".to_string(),
+            );
+        }
+        return (
+            "Web tooling ran but returned low-signal output in this pass, and no structured policy-block evidence was recorded.".to_string(),
+            "suppressed_unverified_blocker_claim".to_string(),
+        );
+    }
+    (response.to_string(), String::new())
 }
 
 fn sanitize_dashboard_issue_title(payload: &Value) -> Result<String, &'static str> {
@@ -461,16 +693,36 @@ fn run_action(root: &Path, action: &str, payload: &Value) -> LaneResult {
             let input_lower = input.to_ascii_lowercase();
             let raw_input_lower = raw_input.to_ascii_lowercase();
             let requires_live_web = app_chat_requests_live_web(&raw_input_lower);
-            let lane = run_lane(
-                root,
-                "app-plane",
-                &[
-                    "run".to_string(),
-                    "--app=chat-ui".to_string(),
-                    format!("--session-id={agent_id}"),
-                    format!("--input={input}"),
-                ],
-            );
+            let lane = {
+                #[cfg(test)]
+                {
+                    app_chat_run_scripted_lane(root, &agent_id, &input).unwrap_or_else(|| {
+                        run_lane(
+                            root,
+                            "app-plane",
+                            &[
+                                "run".to_string(),
+                                "--app=chat-ui".to_string(),
+                                format!("--session-id={agent_id}"),
+                                format!("--input={input}"),
+                            ],
+                        )
+                    })
+                }
+                #[cfg(not(test))]
+                {
+                    run_lane(
+                        root,
+                        "app-plane",
+                        &[
+                            "run".to_string(),
+                            "--app=chat-ui".to_string(),
+                            format!("--session-id={agent_id}"),
+                            format!("--input={input}"),
+                        ],
+                    )
+                }
+            };
             let mut lane_payload = lane.payload.clone().unwrap_or_else(|| json!({}));
             if !lane_payload.is_object() {
                 lane_payload = json!({
@@ -569,6 +821,44 @@ fn run_action(root: &Path, action: &str, payload: &Value) -> LaneResult {
                         lane_payload["response_finalization"] = response_finalization;
                     }
                 }
+            }
+            let tools_for_rewrite = lane_payload
+                .get("tools")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default();
+            let lane_response_before_rewrite = lane_payload
+                .get("response")
+                .and_then(Value::as_str)
+                .or_else(|| lane_payload.get("output").and_then(Value::as_str))
+                .or_else(|| {
+                    lane_payload
+                        .get("turn")
+                        .and_then(|turn| turn.get("assistant"))
+                        .and_then(Value::as_str)
+                })
+                .unwrap_or("")
+                .to_string();
+            let (rewritten_response, rewrite_outcome) = app_chat_rewrite_tooling_response(
+                &raw_input,
+                &lane_response_before_rewrite,
+                &tools_for_rewrite,
+            );
+            if !rewrite_outcome.is_empty() {
+                lane_payload["response"] = json!(rewritten_response.clone());
+                lane_payload["output"] = json!(rewritten_response.clone());
+                if let Some(turn) = lane_payload.get_mut("turn").and_then(Value::as_object_mut) {
+                    turn.insert("assistant".to_string(), json!(rewritten_response.clone()));
+                }
+                let mut response_finalization = lane_payload
+                    .get("response_finalization")
+                    .cloned()
+                    .unwrap_or_else(|| json!({}));
+                if !response_finalization.is_object() {
+                    response_finalization = json!({});
+                }
+                response_finalization["outcome"] = json!(rewrite_outcome);
+                lane_payload["response_finalization"] = response_finalization;
             }
             let mut assistant_text = String::new();
             if lane.ok {
@@ -877,17 +1167,9 @@ fn run_action(root: &Path, action: &str, payload: &Value) -> LaneResult {
                     || payload_error.contains("denied")
                     || payload_error.contains("policy")
                     || payload_error.contains("nexus");
-                let mut tool_attempted = tools.iter().any(|row| {
-                    clean_text(
-                        row.get("name")
-                            .or_else(|| row.get("tool"))
-                            .and_then(Value::as_str)
-                            .unwrap_or(""),
-                        64,
-                    )
-                    .to_ascii_lowercase()
-                    .contains("web")
-                        || clean_text(
+                let mut tool_attempted = web_search_calls > 0
+                    || tools.iter().any(|row| {
+                        clean_text(
                             row.get("name")
                                 .or_else(|| row.get("tool"))
                                 .and_then(Value::as_str)
@@ -895,8 +1177,17 @@ fn run_action(root: &Path, action: &str, payload: &Value) -> LaneResult {
                             64,
                         )
                         .to_ascii_lowercase()
-                        .contains("batch_query")
-                });
+                        .contains("web")
+                            || clean_text(
+                                row.get("name")
+                                    .or_else(|| row.get("tool"))
+                                    .and_then(Value::as_str)
+                                    .unwrap_or(""),
+                                64,
+                            )
+                            .to_ascii_lowercase()
+                            .contains("batch_query")
+                    });
                 if !tool_attempted && (payload_error_blocked || (requires_live_web && !lane.ok)) {
                     tool_attempted = true;
                 }
