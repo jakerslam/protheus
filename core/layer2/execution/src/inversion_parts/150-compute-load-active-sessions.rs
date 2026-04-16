@@ -1,4 +1,40 @@
 
+fn normalize_active_session_rows(rows: &[Value], max_rows: usize) -> Vec<Value> {
+    let mut out = Vec::<Value>::new();
+    let mut seen_ids = std::collections::BTreeSet::<String>::new();
+    for row in rows {
+        if out.len() >= max_rows {
+            break;
+        }
+        let Some(mut obj) = row.as_object().cloned() else {
+            continue;
+        };
+        let session_id = clean_text_runtime(
+            &value_to_string(
+                obj.get("session_id")
+                    .or_else(|| obj.get("sessionId"))
+                    .or_else(|| obj.get("id")),
+            ),
+            120,
+        );
+        if !session_id.is_empty() {
+            let dedupe_key = session_id.to_ascii_lowercase();
+            if !seen_ids.insert(dedupe_key) {
+                continue;
+            }
+            obj.insert("session_id".to_string(), Value::String(session_id));
+        }
+        let status = clean_text_runtime(&value_to_string(obj.get("status")), 32).to_ascii_lowercase();
+        if status.is_empty() {
+            obj.insert("status".to_string(), Value::String("active".to_string()));
+        } else {
+            obj.insert("status".to_string(), Value::String(status));
+        }
+        out.push(Value::Object(obj));
+    }
+    out
+}
+
 pub fn compute_load_active_sessions(input: &LoadActiveSessionsInput) -> LoadActiveSessionsOutput {
     let now_iso = input.now_iso.clone().unwrap_or_else(now_iso_runtime);
     let payload = compute_read_json(&ReadJsonInput {
@@ -6,20 +42,16 @@ pub fn compute_load_active_sessions(input: &LoadActiveSessionsInput) -> LoadActi
         fallback: Some(Value::Null),
     })
     .value;
-    let sessions = payload
+    let sessions_raw = payload
         .as_object()
         .and_then(|m| m.get("sessions"))
         .and_then(|v| v.as_array())
-        .map(|rows| {
-            rows.iter()
-                .filter(|row| row.is_object())
-                .cloned()
-                .collect::<Vec<_>>()
-        })
+        .cloned()
         .unwrap_or_default();
+    let sessions = normalize_active_session_rows(&sessions_raw, 5000);
     let updated_at = {
         let value = value_to_string(payload.as_object().and_then(|m| m.get("updated_at")));
-        if value.is_empty() {
+        if value.is_empty() || chrono::DateTime::parse_from_rfc3339(value.as_str()).is_err() {
             now_iso
         } else {
             clean_text_runtime(&value, 64)
@@ -37,19 +69,15 @@ pub fn compute_load_active_sessions(input: &LoadActiveSessionsInput) -> LoadActi
 
 pub fn compute_save_active_sessions(input: &SaveActiveSessionsInput) -> SaveActiveSessionsOutput {
     let now_iso = input.now_iso.clone().unwrap_or_else(now_iso_runtime);
-    let sessions = input
+    let sessions_raw = input
         .store
         .as_ref()
         .and_then(|v| v.as_object())
         .and_then(|m| m.get("sessions"))
         .and_then(|v| v.as_array())
-        .map(|rows| {
-            rows.iter()
-                .filter(|row| row.is_object())
-                .cloned()
-                .collect::<Vec<_>>()
-        })
+        .cloned()
         .unwrap_or_default();
+    let sessions = normalize_active_session_rows(&sessions_raw, 5000);
     let out = json!({
         "schema_id": "inversion_active_sessions",
         "schema_version": "1.0",

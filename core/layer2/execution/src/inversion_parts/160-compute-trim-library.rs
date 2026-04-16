@@ -1,3 +1,37 @@
+fn library_row_sort_ts(row: &Value) -> i64 {
+    let ts = value_to_string(
+        row.as_object()
+            .and_then(|m| m.get("ts"))
+            .or_else(|| row.as_object().and_then(|m| m.get("updated_at"))),
+    );
+    parse_ts_ms_runtime(&ts)
+}
+
+fn library_row_dedupe_key(row: &Value) -> String {
+    let signature = clean_text_runtime(
+        &value_to_string(
+            row.as_object()
+                .and_then(|m| m.get("signature"))
+                .or_else(|| row.as_object().and_then(|m| m.get("entry_hash")))
+                .or_else(|| row.as_object().and_then(|m| m.get("proposal_id"))),
+        ),
+        180,
+    );
+    if !signature.is_empty() {
+        return signature.to_ascii_lowercase();
+    }
+    let objective = clean_text_runtime(
+        &value_to_string(row.as_object().and_then(|m| m.get("objective_id"))),
+        140,
+    );
+    let ts = value_to_string(row.as_object().and_then(|m| m.get("ts")));
+    if objective.is_empty() && ts.is_empty() {
+        String::new()
+    } else {
+        format!("{}|{}", objective.to_ascii_lowercase(), ts)
+    }
+}
+
 pub fn compute_trim_library(input: &TrimLibraryInput) -> TrimLibraryOutput {
     let rows = compute_read_jsonl(&ReadJsonlInput {
         file_path: input.file_path.clone(),
@@ -22,15 +56,33 @@ pub fn compute_trim_library(input: &TrimLibraryInput) -> TrimLibraryOutput {
     let cap = parse_number_like(input.max_entries.as_ref())
         .unwrap_or(4000.0)
         .floor() as i64;
-    let cap = cap.max(100) as usize;
-    if rows.len() <= cap {
-        return TrimLibraryOutput { rows };
+    let cap = cap.clamp(100, 20000) as usize;
+
+    let mut deduped = Vec::<Value>::new();
+    let mut seen = std::collections::BTreeSet::<String>::new();
+    for row in rows {
+        let key = library_row_dedupe_key(&row);
+        if key.is_empty() {
+            deduped.push(row);
+            continue;
+        }
+        if seen.insert(key) {
+            deduped.push(row);
+        }
     }
-    let mut sorted = rows;
+
+    if deduped.len() <= cap {
+        return TrimLibraryOutput { rows: deduped };
+    }
+    let mut sorted = deduped;
     sorted.sort_by(|a, b| {
-        let a_ts = value_to_string(a.as_object().and_then(|m| m.get("ts")));
-        let b_ts = value_to_string(b.as_object().and_then(|m| m.get("ts")));
-        a_ts.cmp(&b_ts)
+        let a_ts = library_row_sort_ts(a);
+        let b_ts = library_row_sort_ts(b);
+        a_ts.cmp(&b_ts).then_with(|| {
+            library_row_dedupe_key(a)
+                .to_ascii_lowercase()
+                .cmp(&library_row_dedupe_key(b).to_ascii_lowercase())
+        })
     });
     let keep = sorted.split_off(sorted.len().saturating_sub(cap));
     let path = input.file_path.as_deref().unwrap_or("").trim();

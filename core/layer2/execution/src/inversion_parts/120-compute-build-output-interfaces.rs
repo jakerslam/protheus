@@ -1,3 +1,37 @@
+fn canonical_interface_channel(raw: &str) -> Option<&'static str> {
+    let token = normalize_token_runtime(raw, 80);
+    match token.as_str() {
+        "belief_update" | "belief-update" | "belief" => Some("belief_update"),
+        "strategy_hint" | "strategy-hint" | "strategy" => Some("strategy_hint"),
+        "workflow_hint" | "workflow-hint" | "workflow" => Some("workflow_hint"),
+        "code_change_proposal"
+        | "code-change-proposal"
+        | "codechangeproposal"
+        | "code_change"
+        | "code-change" => Some("code_change_proposal"),
+        _ => None,
+    }
+}
+
+fn resolve_interface_channel_value<'a>(
+    map: Option<&'a serde_json::Map<String, Value>>,
+    channel: &str,
+) -> Option<&'a Value> {
+    if let Some(direct) = map.and_then(|m| m.get(channel)) {
+        return Some(direct);
+    }
+    map.and_then(|m| {
+        m.iter().find_map(|(key, value)| {
+            let canonical = canonical_interface_channel(key.as_str())?;
+            if canonical == channel {
+                Some(value)
+            } else {
+                None
+            }
+        })
+    })
+}
+
 pub fn compute_build_output_interfaces(
     input: &BuildOutputInterfacesInput,
 ) -> BuildOutputInterfacesOutput {
@@ -20,7 +54,7 @@ pub fn compute_build_output_interfaces(
 
     let mut channels = serde_json::Map::new();
     for name in channel_names {
-        let cfg = outputs.and_then(|m| m.get(name));
+        let cfg = resolve_interface_channel_value(outputs, name);
         let cfg_enabled = map_bool_key(cfg, "enabled", false);
         let test_enabled = map_bool_key(cfg, "test_enabled", false);
         let live_enabled = map_bool_key(cfg, "live_enabled", false);
@@ -67,7 +101,7 @@ pub fn compute_build_output_interfaces(
         }
 
         let payload = if enabled {
-            let candidate = channel_payloads.and_then(|m| m.get(name));
+            let candidate = resolve_interface_channel_value(channel_payloads, name);
             if js_truthy(candidate) {
                 candidate.cloned().unwrap_or_else(|| base_payload.clone())
             } else {
@@ -87,13 +121,19 @@ pub fn compute_build_output_interfaces(
         );
     }
 
-    let default_channel = normalize_token_runtime(
-        outputs
-            .and_then(|m| m.get("default_channel"))
-            .and_then(|v| v.as_str())
-            .unwrap_or("strategy_hint"),
-        64,
-    );
+    let default_channel_raw = value_to_string(resolve_interface_channel_value(
+        outputs,
+        "default_channel",
+    ));
+    let default_channel = canonical_interface_channel(default_channel_raw.as_str())
+        .map(|v| v.to_string())
+        .unwrap_or_else(|| {
+            canonical_interface_channel(
+                value_to_string(outputs.and_then(|m| m.get("defaultChannel"))).as_str(),
+            )
+            .map(|v| v.to_string())
+            .unwrap_or_default()
+        });
     let default_channel = if default_channel.is_empty() {
         "strategy_hint".to_string()
     } else {

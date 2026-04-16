@@ -1,3 +1,31 @@
+fn normalize_directive_id(raw: &str) -> Option<String> {
+    let mut out = String::with_capacity(raw.len());
+    let mut previous_was_space = false;
+    for ch in raw.chars() {
+        if ch.is_control() {
+            continue;
+        }
+        if ch.is_whitespace() {
+            if !previous_was_space {
+                out.push(' ');
+                previous_was_space = true;
+            }
+            continue;
+        }
+        previous_was_space = false;
+        out.push(ch);
+        if out.len() >= 120 {
+            break;
+        }
+    }
+    let trimmed = out.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
+    }
+}
+
 pub fn compute_sanitized_directive_id_list(
     input: &SanitizedDirectiveIdListInput,
 ) -> SanitizedDirectiveIdListOutput {
@@ -16,12 +44,16 @@ pub fn compute_sanitized_directive_id_list(
         if out.len() >= limit {
             break;
         }
-        let sanitized =
+        let sanitized_raw =
             compute_sanitize_directive_objective_id(&SanitizeDirectiveObjectiveIdInput {
                 value: Some(row.clone()),
             })
             .objective_id;
-        if sanitized.is_empty() || !seen.insert(sanitized.clone()) {
+        let Some(sanitized) = normalize_directive_id(&sanitized_raw) else {
+            continue;
+        };
+        let dedupe_key = sanitized.to_ascii_lowercase();
+        if !seen.insert(dedupe_key) {
             continue;
         }
         out.push(sanitized);

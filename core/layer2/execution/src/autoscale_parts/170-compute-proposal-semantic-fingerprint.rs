@@ -42,7 +42,12 @@ pub fn compute_proposal_semantic_fingerprint(
     }
     let token_stems: Vec<String> = stems.into_iter().collect();
     let token_count = token_stems.len() as u32;
-    let min_tokens = input.min_tokens.unwrap_or(4.0).max(0.0);
+    let min_tokens_raw = input.min_tokens.unwrap_or(4.0);
+    let min_tokens = if min_tokens_raw.is_finite() {
+        min_tokens_raw.max(0.0)
+    } else {
+        4.0
+    };
     let eligible = (token_count as f64) >= min_tokens;
 
     ProposalSemanticFingerprintOutput {
@@ -64,7 +69,7 @@ pub fn compute_semantic_token_similarity(
         if token.is_empty() {
             return None;
         }
-        Some(token.to_string())
+        Some(token.to_ascii_lowercase())
     };
     let left: std::collections::HashSet<String> =
         input.left_tokens.iter().filter_map(norm).collect();
@@ -125,7 +130,13 @@ pub fn compute_semantic_context_comparable(
         return SemanticContextComparableOutput { comparable: true };
     }
     let left_objective = input.left_objective_id.as_deref().unwrap_or("").trim();
-    let right_objective = input.right_objective_id.as_deref().unwrap_or("").trim();
+    let left_objective = left_objective.to_ascii_lowercase();
+    let right_objective = input
+        .right_objective_id
+        .as_deref()
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
     if !left_objective.is_empty()
         && !right_objective.is_empty()
         && left_objective == right_objective
@@ -140,7 +151,7 @@ fn semantic_token_set(tokens: &[String]) -> std::collections::HashSet<String> {
         .iter()
         .map(|token| token.trim())
         .filter(|token| !token.is_empty())
-        .map(|token| token.to_string())
+        .map(|token| token.to_ascii_lowercase())
         .collect()
 }
 
@@ -187,7 +198,7 @@ pub fn compute_semantic_near_duplicate_match(
     input: &SemanticNearDuplicateMatchInput,
 ) -> SemanticNearDuplicateMatchOutput {
     let min_similarity = if input.min_similarity.is_finite() {
-        input.min_similarity
+        input.min_similarity.clamp(0.0, 1.0)
     } else {
         0.0
     };
@@ -220,18 +231,39 @@ pub fn compute_semantic_near_duplicate_match(
         if similarity < min_similarity {
             continue;
         }
-        match &best {
-            Some(existing) if similarity <= existing.similarity => {}
-            _ => {
-                best = Some(SemanticNearDuplicateMatchOutput {
-                    matched: true,
-                    similarity,
-                    proposal_id: candidate.proposal_id.clone(),
-                    proposal_type: candidate.proposal_type.clone(),
-                    source_eye: candidate.source_eye.clone(),
-                    objective_id: candidate.objective_id.clone(),
-                });
+        let candidate_id = candidate
+            .proposal_id
+            .as_deref()
+            .unwrap_or("")
+            .trim()
+            .to_ascii_lowercase();
+        let should_replace = match &best {
+            None => true,
+            Some(existing) if similarity > existing.similarity => true,
+            Some(existing) if (similarity - existing.similarity).abs() <= f64::EPSILON => {
+                let existing_id = existing
+                    .proposal_id
+                    .as_deref()
+                    .unwrap_or("")
+                    .trim()
+                    .to_ascii_lowercase();
+                if existing_id.is_empty() {
+                    !candidate_id.is_empty()
+                } else {
+                    !candidate_id.is_empty() && candidate_id < existing_id
+                }
             }
+            _ => false,
+        };
+        if should_replace {
+            best = Some(SemanticNearDuplicateMatchOutput {
+                matched: true,
+                similarity,
+                proposal_id: candidate.proposal_id.clone(),
+                proposal_type: candidate.proposal_type.clone(),
+                source_eye: candidate.source_eye.clone(),
+                objective_id: candidate.objective_id.clone(),
+            });
         }
     }
 

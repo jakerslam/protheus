@@ -6,7 +6,7 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 fn now_iso() -> String {
     Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true)
@@ -106,9 +106,18 @@ fn resolve_path(root: &Path, raw: Option<&Value>, default_rel: &str) -> PathBuf 
         if !trimmed.is_empty() {
             let as_path = PathBuf::from(trimmed);
             if as_path.is_absolute() {
-                return as_path;
+                return if as_path.starts_with(root) {
+                    as_path
+                } else {
+                    root.join(default_rel)
+                };
             }
-            return root.join(as_path);
+            let safe_rel = as_path.components().all(|component| {
+                matches!(component, Component::Normal(_) | Component::CurDir)
+            });
+            if safe_rel {
+                return root.join(as_path);
+            }
         }
     }
     root.join(default_rel)

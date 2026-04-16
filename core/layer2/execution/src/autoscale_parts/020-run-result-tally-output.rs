@@ -22,7 +22,7 @@ pub struct SortedCountsOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct NormalizeProposalStatusInput {
-    #[serde(default)]
+    #[serde(default, alias = "status")]
     pub raw_status: Option<String>,
     #[serde(default)]
     pub fallback: Option<String>,
@@ -35,9 +35,9 @@ pub struct NormalizeProposalStatusOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ProposalStatusForQueuePressureInput {
-    #[serde(default)]
+    #[serde(default, alias = "overlayDecision")]
     pub overlay_decision: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "proposalStatus")]
     pub proposal_status: Option<String>,
 }
 
@@ -48,7 +48,7 @@ pub struct ProposalStatusForQueuePressureOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ProposalStatusInput {
-    #[serde(default)]
+    #[serde(default, alias = "overlayDecision")]
     pub overlay_decision: Option<String>,
 }
 
@@ -73,7 +73,7 @@ pub struct MinutesSinceTsOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct DateWindowInput {
-    #[serde(default)]
+    #[serde(default, alias = "endDate")]
     pub end_date_str: Option<String>,
     #[serde(default)]
     pub days: Option<f64>,
@@ -89,7 +89,7 @@ pub struct DateWindowOutput {
 pub struct InWindowInput {
     #[serde(default)]
     pub ts: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "endDate")]
     pub end_date_str: Option<String>,
     #[serde(default)]
     pub days: Option<f64>,
@@ -143,15 +143,15 @@ pub struct IsoAfterMinutesOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ExecuteConfidenceHistoryMatchInput {
-    #[serde(default)]
+    #[serde(default, alias = "eventType")]
     pub event_type: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "eventCapabilityKey")]
     pub event_capability_key: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "eventProposalType")]
     pub event_proposal_type: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "proposalType")]
     pub proposal_type: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "capabilityKey")]
     pub capability_key: Option<String>,
 }
 
@@ -162,11 +162,11 @@ pub struct ExecuteConfidenceHistoryMatchOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ExecuteConfidenceCooldownKeyInput {
-    #[serde(default)]
+    #[serde(default, alias = "capabilityKey")]
     pub capability_key: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "objectiveId")]
     pub objective_id: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "proposalType")]
     pub proposal_type: Option<String>,
 }
 
@@ -221,7 +221,7 @@ pub struct QueueUnderflowBackfillOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ProposalRiskScoreInput {
-    #[serde(default)]
+    #[serde(default, alias = "explicitRiskScore")]
     pub explicit_risk_score: Option<f64>,
     #[serde(default)]
     pub risk: Option<String>,
@@ -307,9 +307,9 @@ pub struct ProposalRemediationDepthOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ProposalDedupKeyInput {
-    #[serde(default)]
+    #[serde(default, alias = "proposalType")]
     pub proposal_type: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "sourceEyeId")]
     pub source_eye_id: Option<String>,
     #[serde(default)]
     pub remediation_kind: Option<String>,
@@ -324,15 +324,15 @@ pub struct ProposalDedupKeyOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ProposalSemanticFingerprintInput {
-    #[serde(default)]
+    #[serde(default, alias = "proposalId")]
     pub proposal_id: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "proposalType")]
     pub proposal_type: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "sourceEye")]
     pub source_eye: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "objectiveId")]
     pub objective_id: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "textBlob")]
     pub text_blob: Option<String>,
     #[serde(default)]
     pub stopwords: Vec<String>,
@@ -434,23 +434,40 @@ pub struct SemanticNearDuplicateMatchOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct StrategyRankScoreInput {
+    #[serde(alias = "compositeWeight")]
     pub composite_weight: f64,
+    #[serde(alias = "actionabilityWeight")]
     pub actionability_weight: f64,
+    #[serde(alias = "directiveFitWeight")]
     pub directive_fit_weight: f64,
+    #[serde(alias = "signalQualityWeight")]
     pub signal_quality_weight: f64,
+    #[serde(alias = "expectedValueWeight")]
     pub expected_value_weight: f64,
+    #[serde(alias = "valueDensityWeight")]
     pub value_density_weight: f64,
+    #[serde(alias = "riskPenaltyWeight")]
     pub risk_penalty_weight: f64,
+    #[serde(alias = "timeToValueWeight")]
     pub time_to_value_weight: f64,
     pub composite: f64,
     pub actionability: f64,
+    #[serde(alias = "directiveFit")]
     pub directive_fit: f64,
+    #[serde(alias = "signalQuality")]
     pub signal_quality: f64,
+    #[serde(alias = "expectedValue")]
     pub expected_value: f64,
+    #[serde(alias = "valueDensity")]
     pub value_density: f64,
+    #[serde(alias = "riskPenalty")]
     pub risk_penalty: f64,
+    #[serde(alias = "timeToValue")]
     pub time_to_value: f64,
+    #[serde(alias = "nonYieldPenalty")]
     pub non_yield_penalty: f64,
+    #[serde(alias = "collectiveShadowPenalty")]
     pub collective_shadow_penalty: f64,
+    #[serde(alias = "collectiveShadowBonus")]
     pub collective_shadow_bonus: f64,
 }

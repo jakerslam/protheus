@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-16T04:27:52.214Z",
+  "generated_at": "2026-04-16T07:28:54.346100Z",
   "scope": [
     "core",
     "client/runtime",
@@ -4424,7 +4424,7 @@
       "order": 401
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer2/nexus/src/main_nexus.rs",
       "language": "rs",
       "loc": 4,
@@ -4589,7 +4589,7 @@
       "order": 416
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/autotest_controller_parts/040-is-spine-hot.rs",
       "language": "rs",
       "loc": 1505,
@@ -4611,7 +4611,7 @@
       "order": 418
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/network_protocol_run_parts/010-contribution-history-path.rs",
       "language": "rs",
       "loc": 1334,
@@ -5469,7 +5469,7 @@
       "order": 496
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer2/execution/src/main.rs",
       "language": "rs",
       "loc": 596,
@@ -5535,7 +5535,7 @@
       "order": 502
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/autonomy_controller_parts/051-speculation-and-regression-tests.rs",
       "language": "rs",
       "loc": 563,
@@ -5568,7 +5568,7 @@
       "order": 505
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/benchmark_matrix_parts/010-usage.rs",
       "language": "rs",
       "loc": 549,
@@ -5601,7 +5601,7 @@
       "order": 508
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer2/execution/src/lib.rs",
       "language": "rs",
       "loc": 532,
@@ -5612,7 +5612,7 @@
       "order": 509
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/duality_seed_parts/010-print-json-line.rs",
       "language": "rs",
       "loc": 525,
@@ -5645,7 +5645,7 @@
       "order": 512
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer2/execution/src/importers.rs",
       "language": "rs",
       "loc": 517,
@@ -5667,7 +5667,7 @@
       "order": 514
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/organism_layer_phase1.rs",
       "language": "rs",
       "loc": 514,
@@ -5678,7 +5678,7 @@
       "order": 515
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/top50_roi_sweep_kernel.rs",
       "language": "rs",
       "loc": 514,
@@ -5689,7 +5689,7 @@
       "order": 516
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/ab_lane_eval.rs",
       "language": "rs",
       "loc": 512,
@@ -5700,7 +5700,7 @@
       "order": 517
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/reflex_store_kernel.rs",
       "language": "rs",
       "loc": 511,
@@ -5722,7 +5722,7 @@
       "order": 519
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/habit_store_kernel.rs",
       "language": "rs",
       "loc": 509,
@@ -5777,7 +5777,7 @@
       "order": 524
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/flow_plane_parts/020-playground-and-marketplace.rs",
       "language": "rs",
       "loc": 499,
@@ -5799,7 +5799,7 @@
       "order": 526
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/autonomy_controller_parts/030-ephemeral-and-trunk.rs",
       "language": "rs",
       "loc": 495,
@@ -5810,7 +5810,7 @@
       "order": 527
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/collab_plane_parts/050-run-continuity.rs",
       "language": "rs",
       "loc": 495,
@@ -5865,7 +5865,7 @@
       "order": 532
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/040-part.rs",
       "language": "rs",
       "loc": 489,
@@ -5876,7 +5876,7 @@
       "order": 533
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/directive_kernel_parts/050-env-guard.rs",
       "language": "rs",
       "loc": 488,
@@ -5887,7 +5887,7 @@
       "order": 534
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/success_criteria_kernel_parts/030-evaluate-row.rs",
       "language": "rs",
       "loc": 487,
@@ -5898,7 +5898,7 @@
       "order": 535
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/alpha_readiness.rs",
       "language": "rs",
       "loc": 484,
@@ -5909,7 +5909,7 @@
       "order": 536
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/supply_chain_provenance_v2_parts/030-prepare-cmd.rs",
       "language": "rs",
       "loc": 484,
@@ -5920,7 +5920,7 @@
       "order": 537
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/protheusctl_tests_parts/010-env-guard.rs",
       "language": "rs",
       "loc": 477,
@@ -5942,7 +5942,7 @@
       "order": 539
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/state_kernel.rs",
       "language": "rs",
       "loc": 475,
@@ -5975,7 +5975,7 @@
       "order": 542
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/rust_hotpath_inventory_kernel.rs",
       "language": "rs",
       "loc": 466,
@@ -6019,7 +6019,7 @@
       "order": 546
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/autonomy_controller_parts/052-autoreason.rs",
       "language": "rs",
       "loc": 462,
@@ -6041,7 +6041,7 @@
       "order": 548
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/asm_plane_parts/010-usage.rs",
       "language": "rs",
       "loc": 460,
@@ -6052,7 +6052,7 @@
       "order": 549
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/benchmark_matrix_parts/040-run-impl.rs",
       "language": "rs",
       "loc": 460,
@@ -6074,7 +6074,7 @@
       "order": 551
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/f100_readiness_program_parts/010-usage.rs",
       "language": "rs",
       "loc": 460,
@@ -6085,7 +6085,7 @@
       "order": 552
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/passport_iteration_chain_kernel.rs",
       "language": "rs",
       "loc": 460,
@@ -6162,7 +6162,7 @@
       "order": 559
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/mech_suit_mode_kernel_parts/010-usage.rs",
       "language": "rs",
       "loc": 459,
@@ -6173,7 +6173,7 @@
       "order": 560
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/observability_plane_parts/030-run-incident.rs",
       "language": "rs",
       "loc": 459,
@@ -6184,7 +6184,7 @@
       "order": 561
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/protheusd_parts/010-print-json.rs",
       "language": "rs",
       "loc": 459,
@@ -6206,7 +6206,7 @@
       "order": 563
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/trit_shadow_kernel_parts/040-save-influence-guard.rs",
       "language": "rs",
       "loc": 459,
@@ -6217,7 +6217,7 @@
       "order": 564
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer2/execution/src/autoscale_parts/050-composite-eligibility-min-output.rs",
       "language": "rs",
       "loc": 459,
@@ -6228,7 +6228,7 @@
       "order": 565
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer2/execution/src/inversion_parts/010-normalize-impact-input.rs",
       "language": "rs",
       "loc": 459,
@@ -6239,7 +6239,7 @@
       "order": 566
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer2/execution/src/autoscale_parts/060-unknown-type-quarantine-decision-input.rs",
       "language": "rs",
       "loc": 458,
@@ -6250,7 +6250,7 @@
       "order": 567
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer2/execution/src/inversion_parts/040-normalize-library-row-input.rs",
       "language": "rs",
       "loc": 458,
@@ -6261,7 +6261,7 @@
       "order": 568
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/collab_plane_parts/010-usage.rs",
       "language": "rs",
       "loc": 457,
@@ -6272,7 +6272,7 @@
       "order": 569
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/directive_kernel_parts/010-state-root.rs",
       "language": "rs",
       "loc": 457,
@@ -6294,7 +6294,7 @@
       "order": 571
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/skills_plane_parts/040-verify-gallery-signature.rs",
       "language": "rs",
       "loc": 457,
@@ -6316,7 +6316,7 @@
       "order": 573
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/trit_shadow_kernel_parts/030-evaluate-productivity.rs",
       "language": "rs",
       "loc": 457,
@@ -6327,7 +6327,7 @@
       "order": 574
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer2/execution/src/autoscale_parts/030-strategy-rank-score-output.rs",
       "language": "rs",
       "loc": 457,
@@ -6338,7 +6338,7 @@
       "order": 575
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer2/execution/src/inversion_parts/030-rel-path-input.rs",
       "language": "rs",
       "loc": 457,
@@ -6349,7 +6349,7 @@
       "order": 576
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer2/spine/src/authority.rs",
       "language": "rs",
       "loc": 457,
@@ -6371,7 +6371,7 @@
       "order": 578
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer2/execution/src/autoscale_parts/020-run-result-tally-output.rs",
       "language": "rs",
       "loc": 456,
@@ -6393,7 +6393,7 @@
       "order": 580
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/enterprise_hardening_parts/050-run-genesis-thin-wrapper-audit.rs",
       "language": "rs",
       "loc": 455,
@@ -6404,7 +6404,7 @@
       "order": 581
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/fluxlattice_program_parts/010-normalize-id.rs",
       "language": "rs",
       "loc": 455,
@@ -6415,7 +6415,7 @@
       "order": 582
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/metakernel_parts/050-run-execution-profiles.rs",
       "language": "rs",
       "loc": 455,
@@ -6426,7 +6426,7 @@
       "order": 583
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer2/execution/src/autoscale_parts/120-recent-proposal-key-count-event-input.rs",
       "language": "rs",
       "loc": 455,
@@ -6437,7 +6437,7 @@
       "order": 584
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer2/execution/src/autoscale_parts/280-compute-sanitized-directive-id-list.rs",
       "language": "rs",
       "loc": 455,
@@ -6448,7 +6448,7 @@
       "order": 585
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/adaptive_layer_store_kernel_parts/010-usage.rs",
       "language": "rs",
       "loc": 454,
@@ -6459,7 +6459,7 @@
       "order": 586
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/enterprise_moat_extensions_parts/020-run-deploy-modules.rs",
       "language": "rs",
       "loc": 454,
@@ -6470,7 +6470,7 @@
       "order": 587
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/snowball_plane_parts/020-build-fitness-review.rs",
       "language": "rs",
       "loc": 454,
@@ -6481,7 +6481,7 @@
       "order": 588
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/binary_vuln_plane_parts/010-usage.rs",
       "language": "rs",
       "loc": 453,
@@ -6492,7 +6492,7 @@
       "order": 589
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/contract_check_parts/020-check-rust-source-of-truth-contract.rs",
       "language": "rs",
       "loc": 453,
@@ -6503,7 +6503,7 @@
       "order": 590
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/focus_trigger_store_kernel_parts/020-normalize-eye-lenses.rs",
       "language": "rs",
       "loc": 453,
@@ -6525,7 +6525,7 @@
       "order": 592
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer2/execution/src/autoscale_parts/080-recent-directive-pulse-cooldown-count-input.rs",
       "language": "rs",
       "loc": 453,
@@ -6536,7 +6536,7 @@
       "order": 593
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer2/execution/src/autoscale_parts/170-compute-proposal-semantic-fingerprint.rs",
       "language": "rs",
       "loc": 453,
@@ -6547,7 +6547,7 @@
       "order": 594
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer2/execution/src/inversion_parts/050-compute-normalize-impact.rs",
       "language": "rs",
       "loc": 453,
@@ -6558,7 +6558,7 @@
       "order": 595
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer2/execution/src/inversion_parts/090-compute-coerce-tier-event-map.rs",
       "language": "rs",
       "loc": 453,
@@ -6591,7 +6591,7 @@
       "order": 598
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer2/execution/src/inversion_parts/120-compute-build-output-interfaces.rs",
       "language": "rs",
       "loc": 452,
@@ -6602,7 +6602,7 @@
       "order": 599
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer2/execution/src/inversion_parts/150-compute-load-active-sessions.rs",
       "language": "rs",
       "loc": 452,
@@ -6624,7 +6624,7 @@
       "order": 601
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/020-part.rs",
       "language": "rs",
       "loc": 451,
@@ -6668,7 +6668,7 @@
       "order": 605
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer2/execution/src/inversion_parts/080-compute-default-tier-scope.rs",
       "language": "rs",
       "loc": 451,
@@ -6701,7 +6701,7 @@
       "order": 608
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer2/execution/src/autoscale_parts/200-compute-list-value-currencies.rs",
       "language": "rs",
       "loc": 450,
@@ -6712,7 +6712,7 @@
       "order": 609
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer2/execution/src/inversion_parts/160-compute-trim-library.rs",
       "language": "rs",
       "loc": 450,
@@ -6833,7 +6833,7 @@
       "order": 620
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/company_plane_parts/010-usage.rs",
       "language": "rs",
       "loc": 446,
@@ -6921,7 +6921,7 @@
       "order": 628
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/network_protocol.rs",
       "language": "rs",
       "loc": 443,
@@ -6954,7 +6954,7 @@
       "order": 631
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/observability_plane_parts/040-run-acp-provenance.rs",
       "language": "rs",
       "loc": 442,
@@ -6998,7 +6998,7 @@
       "order": 635
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/audit_log_export.rs",
       "language": "rs",
       "loc": 441,
@@ -7075,7 +7075,7 @@
       "order": 642
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/daemon_control_parts/020-dashboard-health-ok.rs",
       "language": "rs",
       "loc": 440,
@@ -7130,7 +7130,7 @@
       "order": 647
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/skills_plane_parts/030-run-chain-validate.rs",
       "language": "rs",
       "loc": 438,
@@ -7163,7 +7163,7 @@
       "order": 650
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/metakernel_parts/020-validate-world-registry-payload.rs",
       "language": "rs",
       "loc": 436,
@@ -7185,7 +7185,7 @@
       "order": 652
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/contract_check_parts/030-is-ts-bootstrap-wrapper.rs",
       "language": "rs",
       "loc": 435,
@@ -7251,7 +7251,7 @@
       "order": 658
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/060-part.rs",
       "language": "rs",
       "loc": 433,
@@ -7372,7 +7372,7 @@
       "order": 669
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/directive_kernel_parts/030-directive-vault-hash.rs",
       "language": "rs",
       "loc": 428,
@@ -7405,7 +7405,7 @@
       "order": 672
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/directive_kernel_parts/020-payload-contains-authorization-bearer.rs",
       "language": "rs",
       "loc": 426,
@@ -7482,7 +7482,7 @@
       "order": 679
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/framework_adapter_contract.rs",
       "language": "rs",
       "loc": 421,
@@ -7493,7 +7493,7 @@
       "order": 680
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/health_status_parts/070-write-text.rs",
       "language": "rs",
       "loc": 421,
@@ -7537,7 +7537,7 @@
       "order": 684
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/dashboard_channel_catalog.rs",
       "language": "rs",
       "loc": 420,
@@ -7570,7 +7570,7 @@
       "order": 687
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/company_plane_parts/040-run-heartbeat.rs",
       "language": "rs",
       "loc": 419,
@@ -7581,7 +7581,7 @@
       "order": 688
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/observability_plane_parts/020-run-monitor.rs",
       "language": "rs",
       "loc": 419,
@@ -7603,7 +7603,7 @@
       "order": 690
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/strategy_resolver_parts/020-normalize-strategy.rs",
       "language": "rs",
       "loc": 419,
@@ -7614,7 +7614,7 @@
       "order": 691
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/substrate_plane_parts/020-run-csi-module.rs",
       "language": "rs",
       "loc": 418,
@@ -7625,7 +7625,7 @@
       "order": 692
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/origin_integrity_parts/010-default.rs",
       "language": "rs",
       "loc": 417,
@@ -7636,7 +7636,7 @@
       "order": 693
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/strategy_store_kernel_parts/040-set-state.rs",
       "language": "rs",
       "loc": 416,
@@ -7658,7 +7658,7 @@
       "order": 695
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/metakernel_parts/030-run-budget-admission.rs",
       "language": "rs",
       "loc": 415,
@@ -7702,7 +7702,7 @@
       "order": 699
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/quorum_validator_kernel.rs",
       "language": "rs",
       "loc": 411,
@@ -7955,7 +7955,7 @@
       "order": 722
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/metakernel_parts/010-state-root.rs",
       "language": "rs",
       "loc": 400,
@@ -7988,7 +7988,7 @@
       "order": 725
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/company_plane_parts/030-run-ticket.rs",
       "language": "rs",
       "loc": 398,
@@ -8010,7 +8010,7 @@
       "order": 727
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/health_status_parts/030-collect-dopamine-ambient-dashboard-metric.rs",
       "language": "rs",
       "loc": 397,
@@ -8241,7 +8241,7 @@
       "order": 748
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/app_plane_parts/050-run-code-engineer-ingress.rs",
       "language": "rs",
       "loc": 381,
@@ -8329,7 +8329,7 @@
       "order": 756
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/health_status_parts/020-audit-cron-delivery.rs",
       "language": "rs",
       "loc": 376,
@@ -8428,7 +8428,7 @@
       "order": 765
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/030-part.rs",
       "language": "rs",
       "loc": 368,
@@ -8461,7 +8461,7 @@
       "order": 768
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/dashboard_ui_parts/010-prelude-and-constants.rs",
       "language": "rs",
       "loc": 367,
@@ -8637,7 +8637,7 @@
       "order": 784
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/canyon_plane_parts/060-workflow-command.rs",
       "language": "rs",
       "loc": 351,
@@ -8747,7 +8747,7 @@
       "order": 794
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/system_health_audit_runner_kernel.rs",
       "language": "rs",
       "loc": 343,
@@ -8857,7 +8857,7 @@
       "order": 804
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/health_status_parts/060-collect-dashboard-metrics.rs",
       "language": "rs",
       "loc": 336,
@@ -8901,7 +8901,7 @@
       "order": 808
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/protheusd_parts/030-embedded-minimal-core-status.rs",
       "language": "rs",
       "loc": 330,
@@ -8912,7 +8912,7 @@
       "order": 809
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/t0_invariants_kernel.rs",
       "language": "rs",
       "loc": 329,
@@ -8945,7 +8945,7 @@
       "order": 812
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/dynamic_burn_budget_signal_kernel.rs",
       "language": "rs",
       "loc": 328,
@@ -8956,7 +8956,7 @@
       "order": 813
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/seed_protocol_parts/010-state-root.rs",
       "language": "rs",
       "loc": 327,
@@ -8967,7 +8967,7 @@
       "order": 814
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/supply_chain_provenance_v2_parts/010-usage.rs",
       "language": "rs",
       "loc": 327,
@@ -8989,7 +8989,7 @@
       "order": 816
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/top1_assurance_parts/010-usage.rs",
       "language": "rs",
       "loc": 324,
@@ -9000,7 +9000,7 @@
       "order": 817
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/top1_assurance_parts/040-run.rs",
       "language": "rs",
       "loc": 324,
@@ -9022,7 +9022,7 @@
       "order": 819
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/catalog_store_kernel.rs",
       "language": "rs",
       "loc": 321,
@@ -9033,7 +9033,7 @@
       "order": 820
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/persist_plane_cowork.rs",
       "language": "rs",
       "loc": 321,
@@ -9044,7 +9044,7 @@
       "order": 821
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/coverage_badge_kernel.rs",
       "language": "rs",
       "loc": 316,
@@ -9066,7 +9066,7 @@
       "order": 823
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/canyon_plane_parts/070-benchmark-gate-command.rs",
       "language": "rs",
       "loc": 315,
@@ -9088,7 +9088,7 @@
       "order": 825
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/hermes_plane_parts/030-collect-recent-ops-latest.rs",
       "language": "rs",
       "loc": 314,
@@ -9099,7 +9099,7 @@
       "order": 826
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/organism_layer.rs",
       "language": "rs",
       "loc": 314,
@@ -9132,7 +9132,7 @@
       "order": 829
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/adaptive_layer_store_kernel_parts/020-append-jsonl.rs",
       "language": "rs",
       "loc": 306,
@@ -9143,7 +9143,7 @@
       "order": 830
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/canyon_plane_parts/040-sandbox-command.rs",
       "language": "rs",
       "loc": 306,
@@ -9198,7 +9198,7 @@
       "order": 835
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/proposal_type_classifier_kernel.rs",
       "language": "rs",
       "loc": 298,
@@ -9264,7 +9264,7 @@
       "order": 841
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/protheusctl_tests_parts/060-persona-blocked-path-fails-closed.rs",
       "language": "rs",
       "loc": 286,
@@ -9341,7 +9341,7 @@
       "order": 848
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/fixed_microbenchmark.rs",
       "language": "rs",
       "loc": 276,
@@ -9363,7 +9363,7 @@
       "order": 850
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/strategy_resolver_parts/010-print-json-line.rs",
       "language": "rs",
       "loc": 273,
@@ -9374,7 +9374,7 @@
       "order": 851
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/contract_check_parts/010-run.rs",
       "language": "rs",
       "loc": 271,
@@ -9385,7 +9385,7 @@
       "order": 852
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/adaptive_layer_store_kernel_parts/030-resolve-path-command.rs",
       "language": "rs",
       "loc": 270,
@@ -9440,7 +9440,7 @@
       "order": 857
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/persist_plane_connector.rs",
       "language": "rs",
       "loc": 268,
@@ -9473,7 +9473,7 @@
       "order": 860
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/ops_main_usage.rs",
       "language": "rs",
       "loc": 260,
@@ -9495,7 +9495,7 @@
       "order": 862
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/uid_kernel.rs",
       "language": "rs",
       "loc": 254,
@@ -9517,7 +9517,7 @@
       "order": 864
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/hermes_plane_parts/010-usage.rs",
       "language": "rs",
       "loc": 250,
@@ -9539,7 +9539,7 @@
       "order": 866
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/foundation_contract_gate.rs",
       "language": "rs",
       "loc": 249,
@@ -9561,7 +9561,7 @@
       "order": 868
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/finance_plane_parts/030-availability-command.rs",
       "language": "rs",
       "loc": 247,
@@ -9583,7 +9583,7 @@
       "order": 870
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/collab_plane_parts/030-run-terminate-role.rs",
       "language": "rs",
       "loc": 245,
@@ -9594,7 +9594,7 @@
       "order": 871
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/fluxlattice_program_parts/030-usage.rs",
       "language": "rs",
       "loc": 244,
@@ -9616,7 +9616,7 @@
       "order": 873
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/050-compact-session-keyframes.rs",
       "language": "rs",
       "loc": 242,
@@ -9638,7 +9638,7 @@
       "order": 875
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/integrity_hash_utility_kernel.rs",
       "language": "rs",
       "loc": 237,
@@ -9671,7 +9671,7 @@
       "order": 878
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/adaptive_intelligence_parts/030-run-shadow-train.rs",
       "language": "rs",
       "loc": 235,
@@ -9836,7 +9836,7 @@
       "order": 893
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/company_plane_parts/020-run-budget-enforce.rs",
       "language": "rs",
       "loc": 206,
@@ -9891,7 +9891,7 @@
       "order": 898
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/metakernel_parts/055-run-microkernel-safety.rs",
       "language": "rs",
       "loc": 196,
@@ -9924,7 +9924,7 @@
       "order": 901
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/dashboard_release_update.rs",
       "language": "rs",
       "loc": 193,
@@ -9968,7 +9968,7 @@
       "order": 905
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/app_plane_parts/020-run-chat-starter.rs",
       "language": "rs",
       "loc": 186,
@@ -10276,7 +10276,7 @@
       "order": 933
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/directive_kernel_parts/040-run.rs",
       "language": "rs",
       "loc": 132,
@@ -10353,7 +10353,7 @@
       "order": 940
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/070-cron-command-routing.rs",
       "language": "rs",
       "loc": 103,
@@ -10551,7 +10551,7 @@
       "order": 958
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/200-part.rs",
       "language": "rs",
       "loc": 50,
@@ -10562,7 +10562,7 @@
       "order": 959
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/080-conversation-search-includes-archived.rs",
       "language": "rs",
       "loc": 49,
@@ -11101,7 +11101,7 @@
       "order": 1008
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/directive_kernel.rs",
       "language": "rs",
       "loc": 6,
@@ -11387,7 +11387,7 @@
       "order": 1034
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/autotest_controller.rs",
       "language": "rs",
       "loc": 4,
@@ -11629,7 +11629,7 @@
       "order": 1056
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/autotest_doctor.rs",
       "language": "rs",
       "loc": 3,
@@ -11684,7 +11684,7 @@
       "order": 1061
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/network_protocol_run.rs",
       "language": "rs",
       "loc": 2,
@@ -11706,7 +11706,7 @@
       "order": 1063
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/directive_kernel_parts/060-placeholder.rs",
       "language": "rs",
       "loc": 1,
@@ -11717,7 +11717,7 @@
       "order": 1064
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/network_protocol_run_parts/020-placeholder.rs",
       "language": "rs",
       "loc": 1,
