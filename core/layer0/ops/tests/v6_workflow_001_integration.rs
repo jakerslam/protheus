@@ -24,6 +24,24 @@ fn latest_receipt(state_path: &Path) -> Value {
         .expect("last receipt")
 }
 
+fn assert_receipt_contract_shape(receipt: &Value) {
+    assert!(receipt.get("ok").and_then(Value::as_bool).is_some());
+    assert!(
+        receipt
+            .get("type")
+            .and_then(Value::as_str)
+            .map(|value| !value.trim().is_empty())
+            .unwrap_or(false)
+    );
+    assert!(
+        receipt
+            .get("receipt_hash")
+            .and_then(Value::as_str)
+            .map(|value| value.len() >= 16)
+            .unwrap_or(false)
+    );
+}
+
 #[test]
 fn workflow_001_shannon_bridge_emits_receipted_patterns_budget_memory_replay_hitl_sandbox_observability_gateway_tools_schedule_desktop_and_p2p(
 ) {
@@ -58,6 +76,7 @@ fn workflow_001_shannon_bridge_emits_receipted_patterns_budget_memory_replay_hit
         0
     );
     let pattern_receipt = latest_receipt(&state_path);
+    assert_receipt_contract_shape(&pattern_receipt);
     assert_eq!(
         pattern_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-001.1")
@@ -89,6 +108,7 @@ fn workflow_001_shannon_bridge_emits_receipted_patterns_budget_memory_replay_hit
         0
     );
     let budget_receipt = latest_receipt(&state_path);
+    assert_receipt_contract_shape(&budget_receipt);
     assert_eq!(
         budget_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-001.2")
@@ -128,6 +148,7 @@ fn workflow_001_shannon_bridge_emits_receipted_patterns_budget_memory_replay_hit
         0
     );
     let memory_receipt = latest_receipt(&state_path);
+    assert_receipt_contract_shape(&memory_receipt);
     assert_eq!(
         memory_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-001.3")
@@ -164,6 +185,7 @@ fn workflow_001_shannon_bridge_emits_receipted_patterns_budget_memory_replay_hit
         0
     );
     let replay_receipt = latest_receipt(&state_path);
+    assert_receipt_contract_shape(&replay_receipt);
     assert_eq!(
         replay_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-001.4")
@@ -193,6 +215,7 @@ fn workflow_001_shannon_bridge_emits_receipted_patterns_budget_memory_replay_hit
         0
     );
     let approval_receipt = latest_receipt(&state_path);
+    assert_receipt_contract_shape(&approval_receipt);
     assert_eq!(
         approval_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-001.5")
@@ -221,6 +244,7 @@ fn workflow_001_shannon_bridge_emits_receipted_patterns_budget_memory_replay_hit
         0
     );
     let sandbox_receipt = latest_receipt(&state_path);
+    assert_receipt_contract_shape(&sandbox_receipt);
     assert_eq!(
         sandbox_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-001.6")
@@ -253,6 +277,7 @@ fn workflow_001_shannon_bridge_emits_receipted_patterns_budget_memory_replay_hit
         0
     );
     let observability_receipt = latest_receipt(&state_path);
+    assert_receipt_contract_shape(&observability_receipt);
     assert_eq!(
         observability_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-001.7")
@@ -284,6 +309,7 @@ fn workflow_001_shannon_bridge_emits_receipted_patterns_budget_memory_replay_hit
         0
     );
     let gateway_receipt = latest_receipt(&state_path);
+    assert_receipt_contract_shape(&gateway_receipt);
     assert_eq!(
         gateway_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-001.8")
@@ -316,6 +342,7 @@ fn workflow_001_shannon_bridge_emits_receipted_patterns_budget_memory_replay_hit
         0
     );
     let tooling_receipt = latest_receipt(&state_path);
+    assert_receipt_contract_shape(&tooling_receipt);
     assert_eq!(
         tooling_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-001.9")

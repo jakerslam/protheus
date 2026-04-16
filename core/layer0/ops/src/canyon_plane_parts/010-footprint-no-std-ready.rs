@@ -19,9 +19,41 @@ const LANE_ID: &str = "canyon_plane";
 const ENV_KEY: &str = "PROTHEUS_CANYON_PLANE_STATE_ROOT";
 
 pub(crate) fn footprint_no_std_ready(default_empty: bool, source_body: &str) -> bool {
-    let has_no_std_attr = source_body.contains("#![no_std]");
-    let has_cfg_no_std = source_body.contains("cfg_attr") && source_body.contains("no_std");
-    default_empty || has_no_std_attr || has_cfg_no_std
+    if default_empty {
+        return true;
+    }
+    let mut in_block_comment = false;
+    for line in source_body.lines().take(80) {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        if in_block_comment {
+            if trimmed.contains("*/") {
+                in_block_comment = false;
+            }
+            continue;
+        }
+        if trimmed.starts_with("/*") {
+            if !trimmed.contains("*/") {
+                in_block_comment = true;
+            }
+            continue;
+        }
+        if trimmed.starts_with("//") {
+            continue;
+        }
+        if trimmed.starts_with("#![no_std]") {
+            return true;
+        }
+        if trimmed.starts_with("#![")
+            && trimmed.contains("cfg_attr")
+            && trimmed.contains("no_std")
+        {
+            return true;
+        }
+    }
+    false
 }
 
 fn usage() {

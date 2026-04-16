@@ -44,6 +44,22 @@ fn score_keywords(haystack: &str, needles: &[&str]) -> f64 {
     }
 }
 
+fn sanitize_text(raw: &str, max_len: usize) -> String {
+    raw.chars()
+        .filter(|ch| !ch.is_control() || *ch == '\n' || *ch == '\t')
+        .take(max_len)
+        .collect::<String>()
+        .trim()
+        .to_string()
+}
+
+fn sanitize_token(raw: &str, max_len: usize) -> String {
+    sanitize_text(raw, max_len)
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
 fn classify_profiles(
     text: &str,
     anomaly_score: f64,
@@ -161,10 +177,19 @@ fn classify_profiles(
         })
         .collect::<Vec<_>>();
     rows.sort_by(|a, b| {
-        b.get("score")
+        let score_order = b
+            .get("score")
             .and_then(Value::as_f64)
             .partial_cmp(&a.get("score").and_then(Value::as_f64))
-            .unwrap_or(std::cmp::Ordering::Equal)
+            .unwrap_or(std::cmp::Ordering::Equal);
+        if score_order == std::cmp::Ordering::Equal {
+            a.get("profile")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .cmp(b.get("profile").and_then(Value::as_str).unwrap_or_default())
+        } else {
+            score_order
+        }
     });
     rows
 }
@@ -235,13 +260,32 @@ pub fn run(root: &Path, argv: &[String]) -> (Value, i32) {
             })
         }
         "profile" => {
-            let actor = lane_utils::parse_flag(argv, "actor", false)
-                .unwrap_or_else(|| "unknown_actor".to_string());
-            let session_id = lane_utils::parse_flag(argv, "session-id", false);
-            let prompt = lane_utils::parse_flag(argv, "prompt", false).unwrap_or_default();
-            let tool_input = lane_utils::parse_flag(argv, "tool-input", false).unwrap_or_default();
+            let actor = sanitize_token(
+                &lane_utils::parse_flag(argv, "actor", false)
+                    .unwrap_or_else(|| "unknown_actor".to_string()),
+                120,
+            );
+            let actor = if actor.is_empty() {
+                "unknown_actor".to_string()
+            } else {
+                actor
+            };
+            let session_id = lane_utils::parse_flag(argv, "session-id", false)
+                .map(|value| sanitize_token(&value, 180))
+                .filter(|value| !value.is_empty());
+            let prompt = sanitize_text(
+                &lane_utils::parse_flag(argv, "prompt", false).unwrap_or_default(),
+                12_000,
+            );
+            let tool_input = sanitize_text(
+                &lane_utils::parse_flag(argv, "tool-input", false).unwrap_or_default(),
+                12_000,
+            );
             let handoff_pattern =
-                lane_utils::parse_flag(argv, "handoff-pattern", false).unwrap_or_default();
+                sanitize_text(
+                    &lane_utils::parse_flag(argv, "handoff-pattern", false).unwrap_or_default(),
+                    4_000,
+                );
             let anomaly_score = lane_utils::parse_f64_clamped(
                 lane_utils::parse_flag(argv, "anomaly-score", false).as_deref(),
                 0.0,

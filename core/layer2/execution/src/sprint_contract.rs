@@ -104,23 +104,42 @@ fn normalize_token(v: &str, max_len: usize) -> String {
 
 fn normalize_status(v: &str) -> String {
     let token = normalize_token(v, 40);
-    if token == "done" {
-        return "completed".to_string();
+    match token.as_str() {
+        "done" | "completed" | "complete" | "finished" => "completed".to_string(),
+        "in_progress" | "inprogress" | "active" | "working" => "in_progress".to_string(),
+        "queued" | "todo" => "queued".to_string(),
+        "blocked" | "block" => "blocked".to_string(),
+        "paused" | "pause" => "paused".to_string(),
+        "cancelled" | "canceled" => "cancelled".to_string(),
+        "" => "in_progress".to_string(),
+        _ => token,
     }
-    if token.is_empty() {
-        "in_progress".to_string()
-    } else {
-        token
+}
+
+fn normalize_requested_status(v: &str) -> String {
+    let token = normalize_token(v, 40);
+    match token.as_str() {
+        "done" | "completed" | "complete" | "finished" => "done".to_string(),
+        "in_progress" | "inprogress" | "active" | "working" => "in_progress".to_string(),
+        "paused" | "pause" => "paused".to_string(),
+        "" => "in_progress".to_string(),
+        _ => token,
     }
 }
 
 fn normalize_list(input: Option<Vec<String>>) -> Vec<String> {
-    input
-        .unwrap_or_default()
-        .into_iter()
-        .map(|v| clean_text(&v, 320))
-        .filter(|v| !v.is_empty())
-        .collect()
+    let mut out = Vec::<String>::new();
+    let mut seen = std::collections::BTreeSet::<String>::new();
+    for row in input.unwrap_or_default() {
+        let cleaned = clean_text(&row, 320);
+        if cleaned.is_empty() {
+            continue;
+        }
+        if seen.insert(cleaned.clone()) {
+            out.push(cleaned);
+        }
+    }
+    out
 }
 
 fn stable_hash(seed: &str, len: usize) -> String {
@@ -168,9 +187,8 @@ pub fn run_sprint_contract_json(payload: &str) -> Result<String, String> {
         80,
     );
     let batch_id = normalize_token(parsed.batch_id.as_deref().unwrap_or(""), 120);
-    let requested_status = normalize_token(
+    let requested_status = normalize_requested_status(
         parsed.requested_status.as_deref().unwrap_or("in_progress"),
-        40,
     );
     let approval_recorded = parsed.approval_recorded.unwrap_or(false);
     let enforcer_active = parsed.enforcer_active.unwrap_or(false);
@@ -357,6 +375,38 @@ mod tests {
         assert_eq!(
             out["effective_status"],
             Value::String("DONE_READY_FOR_HUMAN_AUDIT".to_string())
+        );
+    }
+
+    #[test]
+    fn status_aliases_normalize_for_requested_and_tasks() {
+        let payload = json!({
+            "batch_id": "batch_aliases",
+            "requested_status": "Completed",
+            "enforcer_active": true,
+            "approval_recorded": true,
+            "preamble_text": "ENFORCER RULES ACTIVE — READ docs/workspace/codex_enforcer.md FIRST.",
+            "accepted_preamble": "ENFORCER RULES ACTIVE — READ docs/workspace/codex_enforcer.md FIRST.",
+            "proof_refs": ["proof://a", "proof://a", "proof://b"],
+            "plan": {
+                "batch_mode": true,
+                "tasks": [
+                    {"id": "t1", "status": "done"},
+                    {"id": "t2", "status": "finished"}
+                ]
+            }
+        })
+        .to_string();
+        let out: Value =
+            serde_json::from_str(&run_sprint_contract_json(&payload).unwrap()).unwrap();
+        assert_eq!(out["ok"], Value::Bool(true));
+        assert_eq!(out["requested_status"], Value::String("done".to_string()));
+        assert_eq!(
+            out["proof_refs"]
+                .as_array()
+                .map(|rows| rows.len())
+                .unwrap_or(0),
+            2
         );
     }
 }

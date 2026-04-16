@@ -26,6 +26,7 @@ const REACT_MINIMAL_CONTRACT_PATH: &str =
     "planes/contracts/skills/react_minimal_profile_contract_v1.json";
 const TOT_DELIBERATE_CONTRACT_PATH: &str =
     "planes/contracts/skills/tot_deliberate_profile_contract_v1.json";
+const DEFAULT_SKILLS_ROOT: &str = "client/runtime/systems/skills/packages";
 
 fn usage() {
     println!("Usage:");
@@ -45,6 +46,15 @@ fn usage() {
         "  protheus-ops skills-plane react-minimal --task=<text> [--max-steps=<n>] [--strict=1|0]"
     );
     println!("  protheus-ops skills-plane tot-deliberate --task=<text> [--strategy=<bfs|dfs>] [--max-depth=<n>] [--branching=<n>] [--strict=1|0]");
+}
+
+fn path_has_disallowed_tokens(raw: &str) -> bool {
+    let token = raw.trim();
+    token.is_empty()
+        || token.chars().any(|ch| ch == '\0' || ch.is_control())
+        || Path::new(token)
+            .components()
+            .any(|part| matches!(part, std::path::Component::ParentDir))
 }
 
 fn state_root(root: &Path) -> PathBuf {
@@ -339,11 +349,16 @@ fn load_jsonl(path: &Path) -> Vec<Value> {
 }
 
 fn skills_root_default(parsed: &crate::ParsedArgs) -> String {
-    parsed
+    let raw = parsed
         .flags
         .get("skills-root")
         .cloned()
-        .unwrap_or_else(|| "client/runtime/systems/skills/packages".to_string())
+        .unwrap_or_else(|| DEFAULT_SKILLS_ROOT.to_string());
+    if path_has_disallowed_tokens(&raw) {
+        DEFAULT_SKILLS_ROOT.to_string()
+    } else {
+        raw
+    }
 }
 
 fn skills_root(root: &Path, parsed: &crate::ParsedArgs) -> PathBuf {
@@ -351,7 +366,10 @@ fn skills_root(root: &Path, parsed: &crate::ParsedArgs) -> PathBuf {
         .flags
         .get("skills-root")
         .cloned()
-        .unwrap_or_else(|| "client/runtime/systems/skills/packages".to_string());
+        .unwrap_or_else(|| DEFAULT_SKILLS_ROOT.to_string());
+    if path_has_disallowed_tokens(&rel_or_abs) {
+        return root.join(DEFAULT_SKILLS_ROOT);
+    }
     if Path::new(&rel_or_abs).is_absolute() {
         PathBuf::from(rel_or_abs)
     } else {
