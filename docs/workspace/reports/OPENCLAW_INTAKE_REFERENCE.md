@@ -119,6 +119,52 @@
     - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/121-slash-apikey-discovery.ts`
     - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/210-scroll-hover-sanitize.part01.ts`
     - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/220-artifacts-voice-search.part02.ts`
+
+- `OPENCLAW-TOOLING-WEB-037`:
+  - Re-assimilated dashboard-facing web-tooling resilience patterns from:
+    - `src/agents/tools/web-search-provider-common.ts`
+    - `src/agents/tools/web-search-citation-redirect.ts`
+    - `src/agents/tools/web-fetch-utils.ts`
+    - `src/plugins/web-provider-resolution-shared.ts`
+    - `src/plugins/web-provider-runtime-shared.ts`
+  - Landed in:
+    - `core/layer0/ops/src/app_plane_parts/030-run-chat-ui.rs`
+    - `core/layer0/ops/src/dashboard_ui_parts/030-file-discovery.rs`
+    - `core/layer0/ops/src/dashboard_ui_parts/050-snapshot-builder.rs`
+    - `core/layer0/ops/src/dashboard_compat_api_comms.rs`
+    - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+
+
+- `OPENCLAW-TOOLING-WEB-038`:
+  - Re-assimilated compat-surface web tooling contract patterns from:
+    - `src/agents/tools/web-tools.ts`
+    - `src/agents/tools/web-search-provider-config.ts`
+    - `src/agents/tools/web-search-provider-credentials.ts`
+    - `src/agents/tools/web-fetch-visibility.ts`
+    - `src/plugins/web-search-providers.runtime.ts`
+  - Landed in:
+    - `core/layer0/ops/src/dashboard_compat_api_sidebar_ops_parts/020-cron-and-trigger-store.rs`
+    - `core/layer0/ops/src/dashboard_compat_api_sidebar_ops_parts/900-placeholder.rs`
+    - `core/layer0/ops/src/dashboard_compat_api_sidebar_ops.rs`
+    - `core/layer0/ops/src/dashboard_compat_api_reference_gap_closure.rs`
+    - `core/layer0/ops/src/dashboard_compat_api_reference_gap_closure.rs.inc`
+    - `core/layer0/ops/src/dashboard_compat_api.rs`
+
+
+- `OPENCLAW-TOOLING-WEB-039`:
+  - Re-assimilated web tooling operator/runtime shaping patterns from:
+    - `src/agents/tools/web-search.ts`
+    - `src/agents/tools/web-fetch.ts`
+    - `src/agents/tools/web-shared.ts`
+    - `src/plugins/web-search-credential-presence.ts`
+    - `src/plugins/web-provider-types.ts`
+  - Landed in:
+    - `core/layer0/ops/src/dashboard_ui_parts/020-git-authority-lane.rs`
+    - `core/layer0/ops/src/app_plane_parts/010-usage.rs`
+    - `core/layer0/ops/src/app_plane_parts/060-normalize-ids.rs`
+    - `core/layer0/ops/src/workflow_executor.rs`
+    - `core/layer0/ops/src/workflow_controller.rs`
+
 ## Current Intake State
 - Imported rows in this wave: `150`
 - Pending rows in this wave: `0`
@@ -410,3 +456,33 @@
     - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/170-grouping-and-day-map.part02.ts`
     - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/190-drawer-and-queue.zz-part02.ts`
     - `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/195-structured-tool-cards.ts`
+
+- :
+  - Re-assimilated operator-lane web tooling normalization and readiness semantics from:
+    - 
+    - 
+    - 
+    - 
+    - 
+  - Landed in:
+    - 
+    - 
+    - 
+    - 
+    - 
+  - Burned source snapshot: 
+
+- `OPENCLAW-TOOLING-WEB-040`:
+  - Re-assimilated operator-lane web tooling normalization and readiness semantics from:
+    - `src/agents/tools/web-search-provider-common.test.ts`
+    - `src/agents/tools/web-search.redirect.test.ts`
+    - `src/agents/tools/web-search.test.ts`
+    - `src/agents/tools/web-tools.enabled-defaults.test.ts`
+    - `src/plugins/web-search-providers.runtime.test.ts`
+  - Landed in:
+    - `core/layer0/ops/src/protheusctl_plane_shortcuts.rs`
+    - `core/layer0/ops/src/action_envelope_kernel.rs`
+    - `core/layer0/ops/src/upgrade_lane_kernel.rs`
+    - `core/layer0/ops/src/request_envelope_kernel.rs`
+    - `core/layer0/ops/src/contract_lane_utils.rs`
+  - Burned source snapshot: `openclaw-20260415-222821`

@@ -226,6 +226,42 @@ pub(super) fn resolve_plane_shortcuts(cmd: &str, rest: &[String]) -> Option<Rout
                 forward_stdin: false,
             })
         }
+        "web" | "web-tooling" => {
+            let sub = rest
+                .first()
+                .map(|v| v.trim().to_ascii_lowercase())
+                .unwrap_or_else(|| "status".to_string());
+            let (script_rel, mut args) = match sub.as_str() {
+                "auth" | "auth-presence" => (
+                    "core://action-envelope-kernel",
+                    vec!["web-auth-presence".to_string()],
+                ),
+                "query" | "query-shape" => (
+                    "core://action-envelope-kernel",
+                    vec!["web-query-shape".to_string()],
+                ),
+                "freshness" => (
+                    "core://request-envelope-kernel",
+                    vec!["normalize-web-freshness".to_string()],
+                ),
+                "date" => (
+                    "core://request-envelope-kernel",
+                    vec!["normalize-web-date".to_string()],
+                ),
+                _ => (
+                    "core://upgrade-lane-kernel",
+                    vec!["web-tooling-status".to_string()],
+                ),
+            };
+            if !rest.is_empty() {
+                args.extend(rest.iter().skip(1).cloned());
+            }
+            Some(Route {
+                script_rel: script_rel.to_string(),
+                args,
+                forward_stdin: false,
+            })
+        }
         "app" => {
             let sub = rest
                 .first()

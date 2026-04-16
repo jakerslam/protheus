@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-15T09:25:19.328Z",
+  "generated_at": "2026-04-16T04:27:52.214Z",
   "scope": [
     "core",
     "client/runtime",
@@ -5304,7 +5304,7 @@
       "order": 481
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/protheusctl_plane_shortcuts.rs",
       "language": "rs",
       "loc": 659,
@@ -5579,7 +5579,7 @@
       "order": 506
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/action_envelope_kernel.rs",
       "language": "rs",
       "loc": 545,
@@ -5590,7 +5590,7 @@
       "order": 507
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/upgrade_lane_kernel.rs",
       "language": "rs",
       "loc": 535,
@@ -5634,7 +5634,7 @@
       "order": 511
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/contract_lane_utils.rs",
       "language": "rs",
       "loc": 519,
@@ -5656,7 +5656,7 @@
       "order": 513
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/request_envelope_kernel.rs",
       "language": "rs",
       "loc": 516,
@@ -6063,7 +6063,7 @@
       "order": 550
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/dashboard_ui_parts/020-git-authority-lane.rs",
       "language": "rs",
       "loc": 460,
@@ -6580,7 +6580,7 @@
       "order": 597
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/dashboard_compat_api_comms.rs",
       "language": "rs",
       "loc": 452,
@@ -7515,7 +7515,7 @@
       "order": 682
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/app_plane_parts/030-run-chat-ui.rs",
       "language": "rs",
       "loc": 420,
@@ -7669,7 +7669,7 @@
       "order": 696
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/dashboard_ui_parts/900-tests.rs",
       "language": "rs",
       "loc": 413,
@@ -8406,7 +8406,7 @@
       "order": 763
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/dashboard_ui_parts/050-snapshot-builder.rs",
       "language": "rs",
       "loc": 369,
@@ -8648,7 +8648,7 @@
       "order": 785
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/dashboard_compat_api_sidebar_ops_parts/020-cron-and-trigger-store.rs",
       "language": "rs",
       "loc": 351,
@@ -8791,7 +8791,7 @@
       "order": 798
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/dashboard_ui_parts/030-file-discovery.rs",
       "language": "rs",
       "loc": 340,
@@ -9286,7 +9286,7 @@
       "order": 843
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/app_plane_parts/010-usage.rs",
       "language": "rs",
       "loc": 282,
@@ -10199,7 +10199,7 @@
       "order": 926
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/workflow_executor.rs",
       "language": "rs",
       "loc": 144,
@@ -10298,7 +10298,7 @@
       "order": 935
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/app_plane_parts/060-normalize-ids.rs",
       "language": "rs",
       "loc": 127,
@@ -10375,7 +10375,7 @@
       "order": 942
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/workflow_controller.rs",
       "language": "rs",
       "loc": 101,
@@ -11453,7 +11453,7 @@
       "order": 1040
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/dashboard_compat_api_reference_gap_closure.rs",
       "language": "rs",
       "loc": 4,
@@ -11464,7 +11464,7 @@
       "order": 1041
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/dashboard_compat_api_sidebar_ops.rs",
       "language": "rs",
       "loc": 4,
@@ -11640,7 +11640,7 @@
       "order": 1057
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/dashboard_compat_api.rs",
       "language": "rs",
       "loc": 3,
@@ -11695,7 +11695,7 @@
       "order": 1062
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/ops/src/dashboard_compat_api_sidebar_ops_parts/900-placeholder.rs",
       "language": "rs",
       "loc": 1,
