@@ -642,10 +642,8 @@ fn run_turn_workflow_final_response(
                     "detail_style": detail_style
                 });
                 let attempt_count = attempt as f64;
-                let off_topic_reject = workflow
-                    .pointer("/quality_telemetry/off_topic_reject")
-                    .and_then(Value::as_f64)
-                    .unwrap_or(0.0);
+                let off_topic_reject =
+                    response_workflow_quality_rate(&workflow, "off_topic_reject");
                 let direct_answer_rate = if direct_answer_in_first_two_sentences {
                     1.0
                 } else {
