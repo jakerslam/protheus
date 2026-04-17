@@ -220,6 +220,155 @@ fn tool_failure_code_from_response_tools(response_tools: &[Value]) -> String {
     String::new()
 }
 
+fn process_summary_tool_rows(response_tools: &[Value], limit: usize) -> Value {
+    let mut rows = Vec::<Value>::new();
+    for row in response_tools.iter().take(limit.clamp(1, 8)) {
+        let name = clean_text(row.get("name").and_then(Value::as_str).unwrap_or("tool"), 80);
+        let status = clean_text(row.get("status").and_then(Value::as_str).unwrap_or(""), 80);
+        let error = clean_text(row.get("error").and_then(Value::as_str).unwrap_or(""), 160);
+        let result_excerpt = clean_text(
+            &first_sentence(
+                row.get("result").and_then(Value::as_str).unwrap_or(""),
+                240,
+            ),
+            240,
+        );
+        rows.push(json!({
+            "tool": if name.is_empty() { "tool" } else { &name },
+            "status": status,
+            "error": error,
+            "is_error": row.get("is_error").and_then(Value::as_bool).unwrap_or(false),
+            "blocked": row.get("blocked").and_then(Value::as_bool).unwrap_or(false),
+            "result_excerpt": result_excerpt
+        }));
+    }
+    Value::Array(rows)
+}
+
+fn build_turn_process_summary(
+    message: &str,
+    response_tools: &[Value],
+    response_workflow: &Value,
+    response_finalization: &Value,
+) -> Value {
+    json!({
+        "contract": "turn_process_summary_v1",
+        "generated_at": crate::now_iso(),
+        "request_excerpt": clean_text(message, 240),
+        "tool_gate": response_workflow
+            .get("tool_gate")
+            .cloned()
+            .unwrap_or_else(|| json!({})),
+        "final_llm_status": clean_text(
+            response_workflow
+                .pointer("/final_llm_response/status")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            80
+        ),
+        "finalization_outcome": clean_text(
+            response_finalization
+                .get("outcome")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            220
+        ),
+        "final_answer_contract": response_finalization
+            .get("final_answer_contract")
+            .cloned()
+            .unwrap_or_else(|| json!({})),
+        "quality_telemetry": response_workflow
+            .get("quality_telemetry")
+            .cloned()
+            .unwrap_or_else(|| json!({})),
+        "tooling_invariant": response_finalization
+            .get("tooling_invariant")
+            .cloned()
+            .unwrap_or_else(|| json!({})),
+        "web_invariant": response_finalization
+            .get("web_invariant")
+            .cloned()
+            .unwrap_or_else(|| json!({})),
+        "tools": {
+            "attempted_count": response_tools.len(),
+            "attempts": process_summary_tool_rows(response_tools, 5)
+        }
+    })
+}
+
+fn response_message_is_actionable_for_next_steps(message: &str) -> bool {
+    let lowered = clean_text(message, 1_000).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    lowered.contains("next step")
+        || lowered.contains("what next")
+        || lowered.contains("what should")
+        || lowered.contains("how should")
+        || lowered.contains("how can we")
+        || lowered.contains("plan")
+        || lowered.contains("improve")
+        || lowered.contains("fix")
+        || lowered.contains("implement")
+        || lowered.contains("harden")
+}
+
+fn next_action_options_for_message(message: &str, response_tools: &[Value]) -> Vec<String> {
+    let lowered = clean_text(message, 1_000).to_ascii_lowercase();
+    if lowered.contains("web")
+        || response_tools.iter().any(|row| {
+            let name = clean_text(row.get("name").and_then(Value::as_str).unwrap_or(""), 80);
+            web_tool_name_for_invariant(&name)
+        })
+    {
+        return vec![
+            "retry with a narrower web query".to_string(),
+            "target one trusted source URL".to_string(),
+            "switch to local/workspace evidence only".to_string(),
+        ];
+    }
+    if lowered.contains("implement") || lowered.contains("patch") || lowered.contains("fix") {
+        return vec![
+            "confirm exact acceptance criteria".to_string(),
+            "apply the minimal code patch".to_string(),
+            "run a targeted regression check".to_string(),
+        ];
+    }
+    vec![
+        "clarify the exact outcome you want".to_string(),
+        "run one targeted tool call".to_string(),
+        "return a concise answer from current context".to_string(),
+    ]
+}
+
+fn append_next_actions_line_if_actionable(
+    message: &str,
+    response_text: &str,
+    response_tools: &[Value],
+) -> String {
+    let cleaned = clean_chat_text(response_text, 32_000);
+    if cleaned.is_empty() || !response_message_is_actionable_for_next_steps(message) {
+        return cleaned;
+    }
+    if cleaned.to_ascii_lowercase().contains("next actions:") {
+        return cleaned;
+    }
+    let options = next_action_options_for_message(message, response_tools);
+    if options.is_empty() {
+        return cleaned;
+    }
+    trim_text(
+        &format!(
+            "{}\n\nNext actions: 1) {} 2) {} 3) {}",
+            cleaned,
+            options.first().cloned().unwrap_or_default(),
+            options.get(1).cloned().unwrap_or_default(),
+            options.get(2).cloned().unwrap_or_default()
+        ),
+        32_000,
+    )
+}
+
 fn response_requires_visible_repair(text: &str) -> bool {
     let cleaned = clean_chat_text(text, 32_000);
     cleaned.trim().is_empty()
@@ -445,7 +594,7 @@ fn finalize_message_invoke_failure_and_payload(
             None,
         );
     let (finalized_response, tool_completion, contract_outcome) =
-        enforce_user_facing_finalization_contract(repaired_response, &[]);
+        enforce_user_facing_finalization_contract(message, repaired_response, &[]);
     finalization_outcome = merge_response_outcomes(&finalization_outcome, &repair_outcome, 220);
     finalization_outcome = merge_response_outcomes(&finalization_outcome, &contract_outcome, 220);
     let response_finalization = json!({
@@ -465,6 +614,8 @@ fn finalize_message_invoke_failure_and_payload(
         "visible_response_repaired": repair_outcome != "unchanged",
         "initial_model_invoke_failed": true
     });
+    let process_summary =
+        build_turn_process_summary(message, &[], &response_workflow, &response_finalization);
     let turn_transaction = crate::dashboard_tool_turn_loop::turn_transaction_payload(
         "complete",
         "none",
@@ -481,10 +632,12 @@ fn finalize_message_invoke_failure_and_payload(
             "tools": [],
             "response_workflow": response_workflow.clone(),
             "response_finalization": response_finalization.clone(),
+            "process_summary": process_summary.clone(),
             "turn_transaction": turn_transaction.clone(),
             "terminal_transcript": terminal_transcript.clone()
         }),
     );
+    turn_receipt["process_summary"] = process_summary.clone();
     turn_receipt["response_finalization"] = response_finalization.clone();
     CompatApiResponse {
         status: 200,
@@ -499,6 +652,7 @@ fn finalize_message_invoke_failure_and_payload(
             "tools": [],
             "response_workflow": response_workflow,
             "response_finalization": response_finalization,
+            "process_summary": process_summary,
             "turn_transaction": turn_transaction,
             "terminal_transcript": terminal_transcript,
             "workspace_hints": workspace_hints,
@@ -563,7 +717,29 @@ fn finalize_message_finalization_and_payload(
     let initial_ack_only = response_looks_like_tool_ack_without_findings(&initial_draft_response)
         || response_is_no_findings_placeholder(&initial_draft_response);
     let web_intent = natural_web_intent_from_user_message(message);
-    let draft_retry_web_signal = draft_response_implies_retryable_web_failure(&initial_draft_response);
+    let finalization_tool_gate = workflow_turn_tool_decision_tree(message);
+    let finalization_meta_control = finalization_tool_gate
+        .get("meta_control_message")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let finalization_status_check = finalization_tool_gate
+        .get("status_check_message")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let finalization_requires_live_web = finalization_tool_gate
+        .get("requires_live_web")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let finalization_should_call_tools = finalization_tool_gate
+        .get("should_call_tools")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let draft_retry_web_signal = draft_response_implies_retryable_web_failure(&initial_draft_response)
+        && finalization_requires_live_web
+        && finalization_should_call_tools
+        && !finalization_meta_control
+        && !finalization_status_check
+        && !message_explicitly_disallows_tool_calls(message);
     let web_intent_route = web_intent
         .as_ref()
         .map(|(tool, _)| clean_text(tool, 80))
@@ -737,7 +913,7 @@ fn finalize_message_finalization_and_payload(
             200,
         );
         let (contract_finalized, contract_report, contract_outcome) =
-            enforce_user_facing_finalization_contract(fallback_response, &response_tools);
+            enforce_user_facing_finalization_contract(message, fallback_response, &response_tools);
         finalized_response = contract_finalized;
         tool_completion = contract_report;
         finalization_outcome =
@@ -752,6 +928,7 @@ fn finalize_message_finalization_and_payload(
         );
         let (contract_finalized, contract_report, contract_outcome) =
             enforce_user_facing_finalization_contract(
+                message,
                 "I completed the workflow gate, but the final workflow state was unexpected. Please retry so I can rerun the chain cleanly."
                     .to_string(),
                 &response_tools,
@@ -777,7 +954,7 @@ fn finalize_message_finalization_and_payload(
         tooling_fallback_used |= repair_tooling_used;
         comparative_fallback_used |= repair_comparative_used;
         let (contract_finalized, contract_report, contract_outcome) =
-            enforce_user_facing_finalization_contract(repaired_response, &response_tools);
+            enforce_user_facing_finalization_contract(message, repaired_response, &response_tools);
         finalized_response = contract_finalized;
         tool_completion = contract_report;
         finalization_outcome = merge_response_outcomes(&finalization_outcome, &repair_outcome, 200);
@@ -895,14 +1072,14 @@ fn finalize_message_finalization_and_payload(
                 web_failure_code.clone()
             };
             deterministic_fallback = format!(
-                "Web retrieval did not produce a usable final answer in this turn. web_status: {}. error_code: {}.",
+                "Web retrieval did not produce a usable final answer in this turn. web_status: {}. error_code: {}. Next step: retry with a narrower query or provide one trusted source URL.",
                 web_turn_classification, stable_error
             );
         }
         if deterministic_fallback.is_empty() && tooling_attempted && !tooling_failure_code.is_empty()
         {
             deterministic_fallback = format!(
-                "Tool execution did not produce a usable final answer in this turn. tool_status: {}. error_code: {}.",
+                "Tool execution did not produce a usable final answer in this turn. tool_status: {}. error_code: {}. Next step: run one targeted tool call with explicit scope.",
                 tooling_turn_classification, tooling_failure_code
             );
         }
@@ -921,6 +1098,46 @@ fn finalize_message_finalization_and_payload(
             200,
         );
     }
+    response_text = append_next_actions_line_if_actionable(message, &response_text, &response_tools);
+    let tool_gate_should_call_tools = response_workflow
+        .pointer("/tool_gate/should_call_tools")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let direct_answer_rate = response_workflow
+        .pointer("/quality_telemetry/direct_answer_rate")
+        .and_then(Value::as_f64)
+        .or_else(|| {
+            response_workflow
+                .pointer("/quality_telemetry/direct_answer_rate")
+                .and_then(Value::as_u64)
+                .map(|value| value as f64)
+        })
+        .unwrap_or(0.0);
+    let retry_rate = response_workflow
+        .pointer("/quality_telemetry/retry_rate")
+        .and_then(Value::as_f64)
+        .or_else(|| {
+            response_workflow
+                .pointer("/quality_telemetry/retry_rate")
+                .and_then(Value::as_u64)
+                .map(|value| value as f64)
+        })
+        .unwrap_or(0.0);
+    let off_topic_reject_rate = response_workflow
+        .pointer("/quality_telemetry/off_topic_reject_rate")
+        .and_then(Value::as_f64)
+        .or_else(|| {
+            response_workflow
+                .pointer("/quality_telemetry/off_topic_reject_rate")
+                .and_then(Value::as_u64)
+                .map(|value| value as f64)
+        })
+        .unwrap_or(0.0);
+    let tool_overcall_rate = if !tool_gate_should_call_tools && tooling_attempted {
+        1.0
+    } else {
+        0.0
+    };
     response_workflow["quality_telemetry"]["final_fallback_used"] = Value::Bool(final_fallback_used);
     let off_topic_reject = response_workflow
         .pointer("/quality_telemetry/off_topic_reject")
@@ -943,10 +1160,26 @@ fn finalize_message_finalization_and_payload(
         "off_topic_reject": off_topic_reject,
         "deferred_reply_reject": deferred_reply_reject,
         "alignment_reject": alignment_reject,
+        "prompt_echo_reject": response_workflow
+            .pointer("/quality_telemetry/prompt_echo_reject")
+            .and_then(Value::as_u64)
+            .unwrap_or(0),
+        "unsourced_claim_reject": response_workflow
+            .pointer("/quality_telemetry/unsourced_claim_reject")
+            .and_then(Value::as_u64)
+            .unwrap_or(0),
+        "direct_answer_reject": response_workflow
+            .pointer("/quality_telemetry/direct_answer_reject")
+            .and_then(Value::as_u64)
+            .unwrap_or(0),
         "meta_control_tool_block": meta_control_tool_block,
         "final_fallback_used": final_fallback_used,
         "tooling_contract_repair_used": tooling_invariant_repair_used,
-        "tooling_failure_code_present": !tooling_failure_code.is_empty()
+        "tooling_failure_code_present": !tooling_failure_code.is_empty(),
+        "direct_answer_rate": direct_answer_rate,
+        "retry_rate": retry_rate,
+        "tool_overcall_rate": tool_overcall_rate,
+        "off_topic_reject_rate": off_topic_reject_rate
     });
     let response_finalization = json!({
         "applied": finalization_outcome != "unchanged",
@@ -958,6 +1191,10 @@ fn finalize_message_finalization_and_payload(
             .and_then(Value::as_bool)
             .unwrap_or(false),
         "tool_completion": tool_completion,
+        "final_answer_contract": tool_completion
+            .get("final_answer_contract")
+            .cloned()
+            .unwrap_or_else(|| json!({})),
         "retry_attempted": false,
         "retry_used": false,
         "tool_synthesis_retry_used": false,
@@ -989,6 +1226,8 @@ fn finalize_message_finalization_and_payload(
             "invariant_repair_used": web_invariant_repair_used
         }
     });
+    let process_summary =
+        build_turn_process_summary(message, &response_tools, &response_workflow, &response_finalization);
     let turn_transaction = crate::dashboard_tool_turn_loop::turn_transaction_payload(
         "complete",
         if response_tools.is_empty() {
@@ -1009,10 +1248,12 @@ fn finalize_message_finalization_and_payload(
             "tools": response_tools.clone(),
             "response_workflow": response_workflow.clone(),
             "response_finalization": response_finalization.clone(),
+            "process_summary": process_summary.clone(),
             "turn_transaction": turn_transaction.clone(),
             "terminal_transcript": terminal_transcript.clone()
         }),
     );
+    turn_receipt["process_summary"] = process_summary.clone();
     turn_receipt["response_finalization"] = response_finalization.clone();
     let runtime_model = clean_text(
         result
@@ -1051,6 +1292,7 @@ fn finalize_message_finalization_and_payload(
     payload["response_workflow"] = response_workflow;
     payload["terminal_transcript"] = Value::Array(terminal_transcript);
     payload["response_finalization"] = response_finalization;
+    payload["process_summary"] = process_summary;
     payload["response_quality_telemetry"] = response_quality_telemetry;
     payload["web_intent"] = json!({
         "detected": web_intent_detected,

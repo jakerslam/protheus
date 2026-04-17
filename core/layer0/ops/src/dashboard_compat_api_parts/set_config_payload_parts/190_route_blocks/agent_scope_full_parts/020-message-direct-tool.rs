@@ -162,7 +162,11 @@ fn handle_agent_scope_message_route(
                 response_text = tool_failure_reason;
             }
             let (finalized_response, tool_completion, finalization_seed) =
-                enforce_user_facing_finalization_contract(response_text, &response_tools);
+                enforce_user_facing_finalization_contract(
+                    &message,
+                    response_text,
+                    &response_tools,
+                );
             let initial_ack_only = tool_completion
                 .get("initial_ack_only")
                 .and_then(Value::as_bool)
@@ -268,7 +272,11 @@ fn handle_agent_scope_message_route(
                     180,
                 );
                 let (contracted, report, retry_outcome) =
-                    enforce_user_facing_finalization_contract(fallback_response, &response_tools);
+                    enforce_user_facing_finalization_contract(
+                        &message,
+                        fallback_response,
+                        &response_tools,
+                    );
                 finalized_response = contracted;
                 tool_completion = report;
                 finalization_outcome =
@@ -281,6 +289,7 @@ fn handle_agent_scope_message_route(
                     180,
                 );
                 let (contracted, report, retry_outcome) = enforce_user_facing_finalization_contract(
+                    &message,
                     "I completed the workflow gate, but the final workflow state was unexpected. Please retry so I can rerun the chain cleanly."
                         .to_string(),
                     &response_tools,
@@ -305,7 +314,11 @@ fn handle_agent_scope_message_route(
                 tooling_fallback_used |= repair_tooling_used;
                 comparative_fallback_used |= repair_comparative_used;
                 let (contracted, report, retry_outcome) =
-                    enforce_user_facing_finalization_contract(repaired_response, &response_tools);
+                    enforce_user_facing_finalization_contract(
+                        &message,
+                        repaired_response,
+                        &response_tools,
+                    );
                 finalized_response = contracted;
                 tool_completion = report;
                 finalization_outcome =
