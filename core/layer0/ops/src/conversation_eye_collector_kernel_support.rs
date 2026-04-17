@@ -165,3 +165,85 @@ pub(crate) fn sha16(seed: &str) -> String {
     let digest = Sha256::digest(seed.as_bytes());
     hex::encode(digest)[..16].to_string()
 }
+
+pub(crate) fn now_iso() -> String {
+    Utc::now().to_rfc3339()
+}
+
+pub(crate) fn clamp_u64(
+    payload: &Map<String, Value>,
+    key: &str,
+    fallback: u64,
+    lo: u64,
+    hi: u64,
+) -> u64 {
+    payload
+        .get(key)
+        .and_then(Value::as_u64)
+        .unwrap_or(fallback)
+        .clamp(lo, hi)
+}
+
+pub(crate) fn resolve_path(
+    root: &Path,
+    payload: &Map<String, Value>,
+    key: &str,
+    fallback_rel: &str,
+) -> PathBuf {
+    if let Some(raw) = payload.get(key).and_then(Value::as_str) {
+        let clean = clean_text(Some(raw), 260);
+        if !clean.is_empty() {
+            let candidate = PathBuf::from(&clean);
+            return if candidate.is_absolute() {
+                candidate
+            } else {
+                root.join(candidate)
+            };
+        }
+    }
+    root.join(fallback_rel)
+}
+
+pub(crate) fn read_json(path: &Path, fallback: Value) -> Value {
+    match fs::read_to_string(path) {
+        Ok(raw) => serde_json::from_str::<Value>(&raw).unwrap_or(fallback),
+        Err(_) => fallback,
+    }
+}
+
+pub(crate) fn read_jsonl_tail(path: &Path, max_rows: usize) -> Vec<Value> {
+    if max_rows == 0 {
+        return Vec::new();
+    }
+    let Ok(raw) = fs::read_to_string(path) else {
+        return Vec::new();
+    };
+    let lines: Vec<&str> = raw.lines().filter(|line| !line.trim().is_empty()).collect();
+    let start = lines.len().saturating_sub(max_rows);
+    let mut out = Vec::new();
+    for line in &lines[start..] {
+        if let Ok(parsed) = serde_json::from_str::<Value>(line) {
+            out.push(parsed);
+        }
+    }
+    out
+}
+
+pub(crate) fn write_json_atomic(path: &Path, value: &Value) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|err| format!("conversation_eye_create_dir_failed:{err}"))?;
+    }
+    let tmp = path.with_extension(format!("tmp-{}-{}", std::process::id(), Utc::now().timestamp_millis()));
+    let body = format!(
+        "{}\n",
+        serde_json::to_string_pretty(value)
+            .map_err(|err| format!("conversation_eye_encode_failed:{err}"))?
+    );
+    fs::write(&tmp, body).map_err(|err| format!("conversation_eye_write_failed:{err}"))?;
+    fs::rename(&tmp, path).map_err(|err| format!("conversation_eye_rename_failed:{err}"))
+}
+
+pub(crate) fn append_jsonl(path: &Path, row: &Value) -> Result<(), String> {
+    lane_utils::append_jsonl(path, row)
+}

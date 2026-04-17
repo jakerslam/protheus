@@ -305,16 +305,16 @@ Current measured rows in that artifact:
 
 | Metric | Rich | Pure (`InfRing (pure)`) | Tiny-Max (`InfRing (tiny-max)`) |
 |---|---:|---:|---:|
-| Readiness latency (status-path; not zero-boot) | 0.004 ms | 1.471 ms | 1.474 ms |
-| Cold start (engine init micro) | 0.004 ms | n/a | n/a |
+| Readiness latency (status-path; not zero-boot) | 0.005 ms | 2.262 ms | 2.197 ms |
+| Cold start (engine init micro) | 0.005 ms | n/a | n/a |
 | Cold start (orchestration component) | 0.000 ms | n/a | n/a |
-| Kernel ready | 0.004 ms | n/a | n/a |
-| Gateway ready | 0.004 ms | n/a | n/a |
-| Dashboard interactive | 0.004 ms | n/a | n/a |
-| Idle memory | 8.359 MB | 1.516 MB | 1.516 MB |
-| Install artifact size | 28.116 MB | 3.837 MB | 0.631 MB |
-| Throughput (kernel/shared workload) | 16,502.74 ops/sec | 16,502.74 ops/sec | 16,502.74 ops/sec |
-| Throughput (rich end-to-end command path) | 5.03 ops/sec | n/a | n/a |
+| Kernel ready | 0.005 ms | n/a | n/a |
+| Gateway ready | 0.005 ms | n/a | n/a |
+| Dashboard interactive | 0.005 ms | n/a | n/a |
+| Idle memory | 7.156 MB | 1.516 MB | 1.516 MB |
+| Install artifact size | 29.027 MB | 12.039 MB | 0.631 MB |
+| Throughput (kernel/shared workload) | 247,748.44 ops/sec | 247,748.44 ops/sec | 247,748.44 ops/sec |
+| Throughput (rich end-to-end command path) | 3.72 ops/sec | n/a | n/a |
 | Security systems | 83 | 83 | 83 |
 | Channel adapters | 6 | 0 | 0 |
 | LLM providers | 3 | 0 | 0 |
@@ -325,8 +325,8 @@ Preflight metadata in the same artifact:
 
 - `benchmark_preflight.enabled = true`
 - `benchmark_validation.ok = true`
-- `sample_cv_pct = 1.66` (tolerance `150`)
-- Artifact timestamp: `2026-04-14T22:09:08.952Z`
+- `sample_cv_pct = 1.85` (tolerance `18.75`)
+- Artifact timestamp: `2026-04-17T21:12:21.784Z`
 
 Current nuance:
 
@@ -342,7 +342,7 @@ Source: [`docs/client/reports/benchmark_matrix_run_latest.json`](docs/client/rep
 
 | Project | Cold Start (ms) | Idle Memory (MB) | Install Size (MB) | Throughput (ops/sec) |
 |---|---:|---:|---:|---:|
-| Infring | 0.004 | 8.359 | 28.116 | 16,502.74 |
+| Infring | 0.005 | 7.156 | 29.027 | 247,748.44 |
 | AutoGen | 4000.000 | 250.000 | 200.000 | 0.00 |
 | CrewAI | 3000.000 | 200.000 | 100.000 | 0.00 |
 | OpenHands | 1300.000 | 150.000 | 95.500 | 0.00 |
@@ -357,6 +357,7 @@ npm run -s ops:benchmark:public-audit
 npm run -s ops:benchmark:repro
 ```
 <!-- END: benchmark-snapshot -->
+
 
 
 

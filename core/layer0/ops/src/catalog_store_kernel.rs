@@ -9,6 +9,7 @@ use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use crate::contract_lane_utils as lane_utils;
+use crate::contract_lane_utils::{cli_error, print_json_line};
 use crate::{deterministic_receipt_hash, now_iso};
 
 const DEFAULT_REL_PATH: &str = "sensory/eyes/catalog.json";

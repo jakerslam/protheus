@@ -112,7 +112,7 @@ fn clean_token(raw: Option<&str>, fallback: &str) -> String {
 }
 
 fn clean_text(raw: Option<&str>, max_len: usize) -> String {
-    crate::contract_lane_utils::clean_text(raw, max_len)
+    protheus_ops_core::contract_lane_utils::clean_text(raw, max_len)
 }
 
 fn parse_usize(raw: Option<&str>, fallback: usize, min: usize, max: usize) -> usize {

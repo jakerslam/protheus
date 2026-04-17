@@ -7,6 +7,7 @@ use serde_json::{json, Map, Value};
 use std::path::{Path, PathBuf};
 
 use crate::contract_lane_utils as lane_utils;
+use crate::contract_lane_utils::{cli_error, print_json_line};
 use crate::{deterministic_receipt_hash, now_iso};
 
 fn usage() {
