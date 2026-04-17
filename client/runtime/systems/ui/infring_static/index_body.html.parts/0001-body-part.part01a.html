@@ -42,7 +42,7 @@
         <path x-show="sidebarCollapsed" d="m9 6 6 6-6 6"></path>
       </svg>
     </button>
-  </nav>
+  </infring-sidebar-rail-shell>
 
   <div class="sidebar-overlay" @click="mobileMenuOpen = false"></div>
 
@@ -119,7 +119,7 @@
             </button>
           </div>
         </div>
-        <div class="taskbar-text-menus">
+        <infring-taskbar-menu-shell class="taskbar-text-menus" menu="help" :open="taskbarTextMenuIsOpen('help')">
           <div class="taskbar-text-menu-anchor" x-ref="taskbarHelpMenuAnchor" @click.outside="closeTaskbarTextMenu()">
             <button
               class="taskbar-text-menu-btn"
@@ -145,4 +145,4 @@
               <button class="taskbar-text-menu-item" type="button" @click="handleTaskbarHelpReportIssue()">Report an issue</button>
             </div>
           </div>
-        </div>
+        </infring-taskbar-menu-shell>

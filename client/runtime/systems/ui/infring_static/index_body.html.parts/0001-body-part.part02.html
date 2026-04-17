@@ -186,10 +186,13 @@
         />
       </div>
     </div>
-    <div
+    <infring-popup-window-shell
       class="popup-window popup-window-manual drag-bar"
       :class="{ 'is-container-dragging': popupWindowDragActive && popupWindowDragKind === 'manual' }"
       data-popup-window-kind="manual"
+      kind="manual"
+      :open="helpManualWindowOpen"
+      :dragging="popupWindowDragActive && popupWindowDragKind === 'manual'"
       x-cloak
       x-show="helpManualWindowOpen"
       :style="popupWindowStyle('manual')"
@@ -206,11 +209,14 @@
         <h3 class="popup-window-title">Infring Manual</h3>
       </div>
       <div class="popup-window-body popup-window-body-markdown markdown-body" x-html="manualDocumentHtml()"></div>
-    </div>
-    <div
+    </infring-popup-window-shell>
+    <infring-popup-window-shell
       class="popup-window popup-window-report drag-bar"
       :class="{ 'is-container-dragging': popupWindowDragActive && popupWindowDragKind === 'report' }"
       data-popup-window-kind="report"
+      kind="report"
+      :open="reportIssueWindowOpen"
+      :dragging="popupWindowDragActive && popupWindowDragKind === 'report'"
       x-cloak
       x-show="reportIssueWindowOpen"
       :style="popupWindowStyle('report')"
@@ -238,4 +244,4 @@
           <button class="btn btn-primary btn-sm" type="button" :disabled="!String(reportIssueDraft || '').trim()" @click="submitReportIssueDraft()">Submit issue</button>
         </div>
       </div>
-    </div>
+    </infring-popup-window-shell>
