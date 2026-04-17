@@ -24,7 +24,6 @@ type GauntletResult = {
 };
 
 const ROOT = process.cwd();
-const MANIFEST = 'core/layer0/ops/Cargo.toml';
 const ARTIFACT_DIR = path.join(ROOT, 'artifacts');
 const STATE_DIR = path.join(ROOT, 'local', 'state', 'ops', 'reliability_turn_loop_gauntlet');
 const STATE_LATEST_PATH = path.join(STATE_DIR, 'latest.json');
@@ -60,6 +59,24 @@ const CHECKS: GauntletCheck[] = [
     test: 'web_search_request_read_failed_summary_is_actionable',
   },
   {
+    id: 'tool_completion_actionable_steps_no_off_topic_dump',
+    lane: 'tool_completion',
+    name: 'Actionable-step prompts reject unrelated programming dump output',
+    test: 'workflow_actionable_steps_request_rejects_unrelated_programming_dump',
+  },
+  {
+    id: 'tool_completion_meta_control_blocks_web_tools',
+    lane: 'tool_completion',
+    name: 'Meta-control turns do not trigger web tool execution',
+    test: 'meta_control_turn_does_not_trigger_web_tool_execution',
+  },
+  {
+    id: 'tool_completion_web_failure_still_returns_final_response',
+    lane: 'tool_completion',
+    name: 'Web tool failures still return deterministic final user response',
+    test: 'workflow_web_tool_failure_still_returns_final_user_response',
+  },
+  {
     id: 'liveness_active_agent_not_hidden',
     lane: 'liveness',
     name: 'Active collab agent remains visible despite stale terminated contract',
@@ -82,6 +99,12 @@ const CHECKS: GauntletCheck[] = [
     lane: 'e2e',
     name: 'Capability gauntlet executes full 20-task reliability sweep',
     test: 'agent_capability_gauntlet_20_difficult_tasks',
+  },
+  {
+    id: 'e2e_web_tooling_context_soak',
+    lane: 'e2e',
+    name: '32-turn mixed web/meta soak preserves terminal response contract',
+    test: 'workflow_web_tooling_context_soak_32_turns_reports_zero_terminal_failures',
   },
 ];
 
@@ -124,7 +147,7 @@ function runCheck(check: GauntletCheck): GauntletResult {
   const started = Date.now();
   const out = spawnSync(
     'cargo',
-    ['test', '--quiet', '--manifest-path', MANIFEST, check.test, '--', '--nocapture'],
+    ['test', '-p', 'protheus-ops-core', '--lib', check.test, '--quiet', '--', '--nocapture'],
     {
       cwd: ROOT,
       encoding: 'utf8',
@@ -229,7 +252,7 @@ const report = {
   checks: results,
   failures,
   recovery_hints: recoveryHints(results),
-  command: `cargo test --manifest-path ${MANIFEST} <test-name> -- --nocapture`,
+  command: 'cargo test -p protheus-ops-core --lib <test-name> -- --nocapture',
 };
 
 fs.mkdirSync(ARTIFACT_DIR, { recursive: true });
