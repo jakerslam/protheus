@@ -578,6 +578,7 @@ fn run_turn_workflow_final_response(
                     && !receipt_mapped_sources
                     && !response_has_evidence_tags(&retried_text);
                 let missing_direct_answer = !response_answers_user_early(message, &retried_text);
+                let direct_answer_in_first_two_sentences = !missing_direct_answer;
                 if retried_text.is_empty()
                     || response_is_no_findings_placeholder(&retried_text)
                     || response_looks_like_tool_ack_without_findings(&retried_text)
@@ -631,7 +632,7 @@ fn run_turn_workflow_final_response(
                     Value::String("synthesized".to_string());
                 set_turn_workflow_final_stage_status(&mut workflow, "synthesized");
                 workflow["final_llm_response"]["helpfulness"] = json!({
-                    "direct_answer_in_first_two_sentences": response_answers_user_early(message, &retried_text),
+                    "direct_answer_in_first_two_sentences": direct_answer_in_first_two_sentences,
                     "prompt_echo_detected": response_prompt_echo_detected(message, &retried_text),
                     "has_evidence_tags": response_has_evidence_tags(&retried_text)
                         || receipt_mapped_sources
@@ -645,7 +646,7 @@ fn run_turn_workflow_final_response(
                     .pointer("/quality_telemetry/off_topic_reject")
                     .and_then(Value::as_f64)
                     .unwrap_or(0.0);
-                let direct_answer_rate = if response_answers_user_early(message, &retried_text) {
+                let direct_answer_rate = if direct_answer_in_first_two_sentences {
                     1.0
                 } else {
                     0.0
