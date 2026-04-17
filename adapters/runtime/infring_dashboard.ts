@@ -14,7 +14,7 @@ const {
 const { buildPrimaryDashboardHtml, hasPrimaryDashboardUi, readBuildVersionInfo, readPrimaryDashboardAsset } = require('./dashboard_asset_router.ts');
 const { createAgentWsBridge } = require('./agent_ws_bridge.ts');
 
-const DASHBOARD_DIR = path.resolve(ROOT, 'client/runtime/systems/ui');
+const DASHBOARD_DIR = path.resolve(ROOT, 'client', 'runtime', 'systems', 'ui');
 const CANONICAL_STATIC_DIR = path.resolve(DASHBOARD_DIR, 'infring_static');
 const STATIC_DIR = CANONICAL_STATIC_DIR;
 const FORBIDDEN_ALT_DASHBOARD_DIRS = [
@@ -25,7 +25,15 @@ const FORBIDDEN_ALT_DASHBOARD_DIRS = [
   path.resolve(DASHBOARD_DIR, 'deprecated_dashboard'),
 ];
 const SIBLING_ALT_DASHBOARD_PATTERN = /(legacy|reference_runtime|control_runtime|deprecated)/i;
-const STATUS_DIR = path.resolve(ROOT, 'client/runtime/local/state/ui/infring_dashboard');
+const STATUS_DIR = path.resolve(
+  ROOT,
+  'client',
+  'runtime',
+  'local',
+  'state',
+  'ui',
+  'infring_dashboard',
+);
 const STATUS_PATH = path.resolve(STATUS_DIR, 'server_status.json');
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 4173;

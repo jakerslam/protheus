@@ -21,6 +21,32 @@ pub use blob::{
 pub use crdt::{merge as crdt_merge, CrdtCell, CrdtMap};
 pub use sqlite_store::MemoryRow;
 
+const MAX_FFI_TEXT_BYTES: usize = 256 * 1024;
+const MAX_RECALL_LIMIT: u32 = 2000;
+
+fn sanitize_ffi_text(raw: &str) -> String {
+    raw.chars()
+        .filter(|ch| {
+            !matches!(
+                *ch,
+                '\u{200B}'
+                    | '\u{200C}'
+                    | '\u{200D}'
+                    | '\u{2060}'
+                    | '\u{FEFF}'
+                    | '\u{202A}'
+                    | '\u{202B}'
+                    | '\u{202C}'
+                    | '\u{202D}'
+                    | '\u{202E}'
+            ) && (!ch.is_control() || ch.is_ascii_whitespace())
+        })
+        .take(MAX_FFI_TEXT_BYTES)
+        .collect::<String>()
+        .trim()
+        .to_string()
+}
+
 fn c_str_to_string(ptr: *const c_char) -> Result<String, String> {
     if ptr.is_null() {
         return Err("null_pointer".to_string());
@@ -29,7 +55,7 @@ fn c_str_to_string(ptr: *const c_char) -> Result<String, String> {
     let s = unsafe { CStr::from_ptr(ptr) }
         .to_str()
         .map_err(|_| "invalid_utf8".to_string())?;
-    Ok(s.to_string())
+    Ok(sanitize_ffi_text(s))
 }
 
 fn into_c_string_ptr(payload: String) -> *mut c_char {
@@ -47,8 +73,9 @@ fn into_c_string_ptr(payload: String) -> *mut c_char {
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
 #[no_mangle]
 pub extern "C" fn recall(query: *const c_char, limit: u32) -> *mut c_char {
+    let safe_limit = limit.min(MAX_RECALL_LIMIT);
     let response = match c_str_to_string(query) {
-        Ok(q) => recall::recall_json(&q, limit),
+        Ok(q) => recall::recall_json(&q, safe_limit),
         Err(err) => serde_json::json!({
             "ok": false,
             "error": err

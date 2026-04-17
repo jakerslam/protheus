@@ -4,7 +4,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
-const path = require('node:path');
+const path = require('node:path');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 require.extensions['.ts'] = function compileTsAsJs(module, filename) {
   const source = fs.readFileSync(filename, 'utf8');
@@ -116,7 +116,7 @@ function main() {
   testInitMigratesRootAndGeneratesMissing();
   testResetArchivesExistingAssistantAndRestoresTemplates();
   testInitPromotesRootContinuityWhenAssistantStillTemplate();
-  testInitMigratesRootMemoryAndArchivesConflicts();
+  testInitMigratesRootMemoryAndArchivesConflicts();\n\n  const probeWorkspace = makeWorkspace();\n  templateSeed(probeWorkspace);\n  const initProbe = mod.run(['init'], { workspaceRoot: probeWorkspace });\n  assertNoPlaceholderOrPromptLeak(initProbe, 'local_runtime_partitioner_test');\n  assertStableToolingEnvelope(initProbe, 'local_runtime_partitioner_test');
   console.log(JSON.stringify({ ok: true, type: 'local_runtime_partitioner_test' }));
 }
 

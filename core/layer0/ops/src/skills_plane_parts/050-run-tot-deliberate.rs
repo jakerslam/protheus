@@ -66,7 +66,14 @@ fn run_tot_deliberate(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> 
             "ok": false,
             "strict": strict,
             "type": "skills_plane_tot_deliberate",
-            "errors": errors
+            "errors": errors,
+            "execution_receipt": {
+                "lane": "skills_plane_tot_deliberate",
+                "command": "tot-deliberate",
+                "status": "error",
+                "source": "OPENCLAW-TOOLING-WEB-100",
+                "tool_runtime_class": "receipt_wrapped"
+            }
         });
     }
 
@@ -127,6 +134,13 @@ fn run_tot_deliberate(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> 
         "strict": strict,
         "type": "skills_plane_tot_deliberate",
         "lane": "core/layer0/ops",
+        "execution_receipt": {
+            "lane": "skills_plane_tot_deliberate",
+            "command": "tot-deliberate",
+            "status": "success",
+            "source": "OPENCLAW-TOOLING-WEB-100",
+            "tool_runtime_class": "receipt_wrapped"
+        },
         "artifact": {
             "path": artifact_path.display().to_string(),
             "sha256": sha256_hex_str(&artifact.to_string())

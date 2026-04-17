@@ -46,6 +46,7 @@ function main() {
   mod.writeJsonAtomic(latestPath, { ok: true, ts: mod.nowIso() });
   const latest = mod.readJson(latestPath, null);
   assert.equal(latest.ok, true);
+  assert.equal(typeof latest.ts, 'string');
 
   const historyPath = mod.resolvePath('local/state/demo/history.jsonl', 'local/state/demo/history.jsonl');
   if (fs.existsSync(historyPath)) {
@@ -61,6 +62,7 @@ function main() {
   fs.writeFileSync(policyPath, JSON.stringify({ enabled: false, strict_default: false }, null, 2));
   const policy = mod.loadPolicy(policyPath, { version: '1.0', enabled: true });
   assert.equal(policy.enabled, false);
+  assert.equal(typeof policy.version, 'string');
   assert.equal(mod.rollingAverage([1, 2, 3]), 2);
   assert.equal(mod.median([1, 9, 3]), 3);
 

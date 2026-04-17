@@ -17,6 +17,32 @@ fn run_shadow_train(
     let cycles = parse_u64(parsed.flags.get("cycles"), 1).clamp(1, 16);
     let context = collect_context_bundle(root, &parsed.flags);
     let resources = resource_snapshot(&parsed.flags, policy);
+    let provider = clean(
+        parsed
+            .flags
+            .get("provider")
+            .cloned()
+            .unwrap_or_else(|| "default".to_string()),
+        64,
+    )
+    .to_ascii_lowercase();
+    let model = clean(
+        parsed
+            .flags
+            .get("model")
+            .cloned()
+            .unwrap_or_else(|| policy.seed_model.clone()),
+        120,
+    );
+    let reconnect_reason = clean(
+        parsed
+            .flags
+            .get("reconnect-reason")
+            .cloned()
+            .unwrap_or_default(),
+        120,
+    );
+    let pending_queue_depth = parse_u64(parsed.flags.get("pending-queue-depth"), 0);
     let mut state = load_state(root, policy);
     let mut cycle_rows = Vec::<Value>::new();
     let mut logical_score = state.logical.specialization_score_pct;
@@ -32,7 +58,9 @@ fn run_shadow_train(
             "creative_gain": creative_gain,
             "trainer_adapter": policy.trainer_adapter,
             "local_only": policy.local_only,
-            "context_digest": context.interaction_digest
+            "context_digest": context.interaction_digest,
+            "provider": provider,
+            "model": model
         }));
     }
     let job_id = sha256_hex_str(&format!(
@@ -58,6 +86,10 @@ fn run_shadow_train(
         "job_id": job_id,
         "cycles": cycles,
         "mode": resources.mode,
+        "provider": provider,
+        "model": model,
+        "reconnect_reason": if reconnect_reason.is_empty() { Value::Null } else { Value::String(reconnect_reason.clone()) },
+        "pending_queue_depth": pending_queue_depth,
         "context_digest": context.interaction_digest,
         "logical_score_pct": logical_score,
         "creative_score_pct": creative_score,
@@ -80,6 +112,13 @@ fn run_shadow_train(
             "seed_model": policy.seed_model,
             "fine_tune_mode": "qlora_or_equivalent"
         },
+        "runtime_session": {
+            "provider": provider,
+            "model": model,
+            "reconnect_reason": if reconnect_reason.is_empty() { Value::Null } else { Value::String(reconnect_reason.clone()) },
+            "pending_queue_depth": pending_queue_depth,
+            "queue_flush_required": pending_queue_depth > 0
+        },
         "cycle_rows": cycle_rows,
         "specialization": {
             "logical_score_pct": logical_score,
@@ -94,7 +133,10 @@ fn run_shadow_train(
                 "cycles": cycles,
                 "context_digest": context.interaction_digest,
                 "trainer_adapter": policy.trainer_adapter,
-                "local_only": policy.local_only
+                "local_only": policy.local_only,
+                "provider": provider,
+                "model": model,
+                "pending_queue_depth": pending_queue_depth
             }
         }],
         "conduit": conduit
@@ -232,4 +274,3 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         }
     }
 }
-

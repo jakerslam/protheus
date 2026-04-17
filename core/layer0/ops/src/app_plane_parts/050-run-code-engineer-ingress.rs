@@ -18,6 +18,24 @@ fn run_code_engineer_ingress(root: &Path, parsed: &crate::ParsedArgs, strict: bo
             "errors": ["builder_ingress_provider_unsupported"]
         });
     }
+    let runtime_web_tooling_auth_sources = code_engineer_ingress_runtime_web_tooling_auth_sources();
+    let runtime_web_tooling_auth_present = !runtime_web_tooling_auth_sources.is_empty();
+    let runtime_web_tooling_auth_required = parse_bool(parsed.flags.get("require-web-auth"), strict);
+    if strict && runtime_web_tooling_auth_required && !runtime_web_tooling_auth_present {
+        return json!({
+            "ok": false,
+            "strict": true,
+            "type": "app_plane_code_engineer_ingress",
+            "action": "ingress",
+            "errors": ["code_engineer_ingress_web_tooling_auth_missing"],
+            "provider": provider,
+            "runtime_web_tooling": {
+                "auth_required": runtime_web_tooling_auth_required,
+                "auth_present": runtime_web_tooling_auth_present,
+                "auth_sources": runtime_web_tooling_auth_sources
+            }
+        });
+    }
     let mut payload = run_code_engineer_build_internal(
         root,
         parsed,
@@ -25,7 +43,12 @@ fn run_code_engineer_ingress(root: &Path, parsed: &crate::ParsedArgs, strict: bo
         Some(json!({
             "provider": provider,
             "channel": clean(parsed.flags.get("channel-id").cloned().unwrap_or_else(|| "default".to_string()), 120),
-            "goal_source": "chat_ingress"
+            "goal_source": "chat_ingress",
+            "runtime_web_tooling": {
+                "auth_required": runtime_web_tooling_auth_required,
+                "auth_present": runtime_web_tooling_auth_present,
+                "auth_sources": runtime_web_tooling_auth_sources
+            }
         })),
     );
     let mut claims = payload
@@ -37,7 +60,9 @@ fn run_code_engineer_ingress(root: &Path, parsed: &crate::ParsedArgs, strict: bo
         "id": "V6-APP-006.6",
         "claim": "builder_chat_ingress_maps_slack_telegram_goals_into_governed_build_runs",
         "evidence": {
-            "provider": provider
+            "provider": provider,
+            "runtime_web_tooling_auth_present": runtime_web_tooling_auth_present,
+            "runtime_web_tooling_auth_required": runtime_web_tooling_auth_required
         }
     }));
     payload["claim_evidence"] = Value::Array(claims);
@@ -45,6 +70,33 @@ fn run_code_engineer_ingress(root: &Path, parsed: &crate::ParsedArgs, strict: bo
     payload["action"] = Value::String("ingress".to_string());
     payload["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&payload));
     payload
+}
+
+fn code_engineer_ingress_runtime_web_tooling_auth_sources() -> Vec<String> {
+    let env_candidates = [
+        "BRAVE_API_KEY",
+        "EXA_API_KEY",
+        "TAVILY_API_KEY",
+        "PERPLEXITY_API_KEY",
+        "SERPAPI_API_KEY",
+        "GOOGLE_SEARCH_API_KEY",
+        "GOOGLE_CSE_ID",
+        "FIRECRAWL_API_KEY",
+        "XAI_API_KEY",
+        "MOONSHOT_API_KEY",
+        "OPENAI_API_KEY",
+    ];
+    let mut sources = Vec::<String>::new();
+    for env_name in env_candidates {
+        let present = std::env::var(env_name)
+            .ok()
+            .map(|value| !value.trim().is_empty())
+            .unwrap_or(false);
+        if present {
+            sources.push(format!("env:{env_name}"));
+        }
+    }
+    sources
 }
 
 fn run_code_engineer(root: &Path, parsed: &crate::ParsedArgs, strict: bool, action: &str) -> Value {

@@ -49,12 +49,22 @@ fn run_playground(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Valu
     if !allowed.iter().any(|row| row == &op) {
         errors.push("playground_op_not_allowed".to_string());
     }
+    let require_web_tooling_ready = parse_bool(parsed.flags.get("require-web-tooling-ready"), false);
+    let web_tooling_health = crate::network_protocol::web_tooling_health_report(root, strict);
+    let web_tooling_ready = web_tooling_health
+        .get("ok")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    if strict && require_web_tooling_ready && !web_tooling_ready {
+        errors.push("playground_web_tooling_not_ready".to_string());
+    }
     if !errors.is_empty() {
         return json!({
             "ok": false,
             "strict": strict,
             "type": "flow_plane_playground",
-            "errors": errors
+            "errors": errors,
+            "web_tooling_health": web_tooling_health
         });
     }
 
@@ -180,6 +190,7 @@ fn run_playground(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Valu
         "run_id": run_id,
         "op": op,
         "state_path": state_path.display().to_string(),
+        "web_tooling_health": web_tooling_health,
         "run_state": run,
         "event": event,
         "claim_evidence": [
@@ -496,4 +507,3 @@ fn run_component_marketplace(root: &Path, parsed: &crate::ParsedArgs, strict: bo
     out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
-

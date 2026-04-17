@@ -139,6 +139,10 @@ pub fn directive_vault_integrity(root: &Path) -> Value {
     let mut signature_valid_count = 0u64;
     let mut hash_valid_count = 0u64;
     let mut errors: Vec<String> = Vec::new();
+    let mut warnings: Vec<String> = Vec::new();
+    let mut web_tooling_directive_count = 0u64;
+    let mut web_tooling_covered_directive_count = 0u64;
+    let mut web_tooling_provider_targets = HashSet::<String>::new();
     let mut by_hash: HashMap<String, Value> = HashMap::new();
     for (idx, row) in rows.iter().enumerate() {
         if verify_entry_signature(row) {
@@ -160,6 +164,18 @@ pub fn directive_vault_integrity(root: &Path) -> Value {
             }
         } else {
             errors.push(format!("entry_hash_mismatch_at:{idx}"));
+        }
+        if vault_directive_mentions_web_tooling(row) {
+            web_tooling_directive_count += 1;
+            let targets = vault_directive_web_tooling_provider_targets(row);
+            if targets.is_empty() {
+                warnings.push(format!("web_tooling_provider_target_missing_at:{idx}"));
+            } else {
+                web_tooling_covered_directive_count += 1;
+                for target in targets {
+                    web_tooling_provider_targets.insert(target);
+                }
+            }
         }
     }
 
@@ -214,7 +230,13 @@ pub fn directive_vault_integrity(root: &Path) -> Value {
         "hash_valid_count": hash_valid_count,
         "chain_valid": chain_valid,
         "chain_head": chain_head,
-        "errors": errors
+        "errors": errors,
+        "warnings": warnings,
+        "web_tooling_directive_count": web_tooling_directive_count,
+        "web_tooling_covered_directive_count": web_tooling_covered_directive_count,
+        "web_tooling_provider_target_coverage_ok": web_tooling_directive_count == web_tooling_covered_directive_count,
+        "web_tooling_provider_targets": web_tooling_provider_targets.into_iter().collect::<Vec<_>>(),
+        "web_tooling_provider_contract_targets": web_tooling_provider_contract_targets()
     })
 }
 
@@ -257,7 +279,11 @@ pub fn evaluate_action(root: &Path, action: &str) -> Value {
     let mut deny_hits = Vec::new();
     let mut allow_hits = Vec::new();
     let mut invalid_signature_hits = Vec::new();
+    let mut web_tooling_policy_targets = HashSet::<String>::new();
     for row in rules {
+        for target in vault_directive_web_tooling_provider_targets(&row) {
+            web_tooling_policy_targets.insert(target);
+        }
         let row_id = row
             .get("id")
             .and_then(Value::as_str)
@@ -308,6 +334,8 @@ pub fn evaluate_action(root: &Path, action: &str) -> Value {
         "allow_hits": allow_hits,
         "invalid_signature_hits": invalid_signature_hits,
         "superseded_ids": superseded_ids.into_iter().collect::<Vec<_>>(),
+        "web_tooling_policy_targets": web_tooling_policy_targets.into_iter().collect::<Vec<_>>(),
+        "web_tooling_provider_contract_targets": web_tooling_provider_contract_targets(),
         "integrity": integrity,
         "policy_hash": directive_vault_hash(root)
     })

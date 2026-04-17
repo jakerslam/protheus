@@ -1,7 +1,40 @@
+fn attach_test_harness_execution_receipt(
+    mut payload: Value,
+    subcmd: &str,
+    stage: &str,
+    started: std::time::Instant,
+) -> Value {
+    let ok = payload.get("ok").and_then(|v| v.as_bool()).unwrap_or(false);
+    let error = payload.get("error").and_then(|v| v.as_str());
+    if let Some(obj) = payload.as_object_mut() {
+        obj.entry("execution_receipt".to_string()).or_insert_with(|| {
+            json!({
+              "status": if ok { "ok" } else { "error" },
+              "subcmd": subcmd,
+              "stage": stage,
+              "duration_ms": started.elapsed().as_millis() as u64,
+              "ts": now_iso(),
+              "error": error
+            })
+        });
+    }
+    payload
+}
+
 fn cmd_test_harness(root: &Path, subcmd: &str) -> Value {
+    let started = std::time::Instant::now();
     let p = harness_policy(root);
     if p.get("enabled").and_then(|v| v.as_bool()) != Some(true) {
-        return json!({"ok": false, "error": "memory_abstraction_test_harness_disabled"});
+        return attach_test_harness_execution_receipt(
+            json!({
+              "ok": false,
+              "type": "memory_abstraction_test_harness_error",
+              "error": "memory_abstraction_test_harness_disabled"
+            }),
+            subcmd,
+            "policy_gate",
+            started,
+        );
     }
     let latest_path = PathBuf::from(p.get("latest_path").and_then(|v| v.as_str()).unwrap_or(""));
     let receipts_path = PathBuf::from(
@@ -221,27 +254,61 @@ fn cmd_test_harness(root: &Path, subcmd: &str) -> Value {
             });
             write_json_atomic(&latest_path, &receipt);
             append_jsonl(&receipts_path, &receipt);
-            receipt
+            attach_test_harness_execution_receipt(receipt, subcmd, "run", started)
         }
         "baseline-capture" => {
             let latest = read_json(&latest_path);
             if !latest.is_object() || latest.get("metrics").is_none() {
-                return json!({"ok": false, "error": "test_harness_latest_missing"});
+                return attach_test_harness_execution_receipt(
+                    json!({
+                      "ok": false,
+                      "type": "memory_abstraction_test_harness_error",
+                      "error": "test_harness_latest_missing"
+                    }),
+                    subcmd,
+                    "baseline_capture",
+                    started,
+                );
             }
             let baseline = json!({
               "ts": now_iso(),
               "metrics": latest.get("metrics").cloned().unwrap_or(Value::Null)
             });
             write_json_atomic(&baseline_path, &baseline);
-            json!({"ok": true, "type": "memory_abstraction_test_harness_baseline_capture", "baseline": baseline})
+            attach_test_harness_execution_receipt(
+                json!({
+                  "ok": true,
+                  "type": "memory_abstraction_test_harness_baseline_capture",
+                  "baseline": baseline
+                }),
+                subcmd,
+                "baseline_capture",
+                started,
+            )
         }
-        "status" => json!({
-          "ok": true,
-          "type": "memory_abstraction_test_harness_status",
-          "latest": read_json(&latest_path),
-          "baseline": read_json(&baseline_path)
-        }),
-        _ => json!({"ok": false, "error": "unsupported_command", "cmd": subcmd}),
+        "status" => attach_test_harness_execution_receipt(
+            json!({
+              "ok": true,
+              "type": "memory_abstraction_test_harness_status",
+              "latest": read_json(&latest_path),
+              "baseline": read_json(&baseline_path)
+            }),
+            subcmd,
+            "status",
+            started,
+        ),
+        _ => attach_test_harness_execution_receipt(
+            json!({
+              "ok": false,
+              "type": "memory_abstraction_test_harness_error",
+              "error": "unsupported_command",
+              "cmd": subcmd,
+              "supported_subcommands": ["run", "baseline-capture", "status"]
+            }),
+            subcmd,
+            "dispatch",
+            started,
+        ),
     }
 }
 
@@ -283,4 +350,3 @@ fn main() {
     let exit_ok = payload.get("ok").and_then(|v| v.as_bool()).unwrap_or(false);
     std::process::exit(if exit_ok { 0 } else { 1 });
 }
-

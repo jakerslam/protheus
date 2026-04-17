@@ -1,3 +1,7 @@
+fn round3(value: f64) -> f64 {
+    ((value * 1000.0).round() / 1000.0).max(0.0)
+}
+
 pub fn evaluate_success_criteria_value(
     proposal: Option<&Value>,
     context: Option<&Value>,

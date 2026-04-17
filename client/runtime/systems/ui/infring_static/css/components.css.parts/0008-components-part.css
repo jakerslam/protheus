@@ -167,7 +167,7 @@
   flex-direction: column;
   gap: 0;
   position: relative;
-  margin-top: -26px;
+  margin-top: 0;
   z-index: 11000;
   width: 100% !important;
   align-self: stretch;
@@ -211,11 +211,8 @@
   user-select: none;
 }
 
-.sidebar + .main-content .chat-wrapper {
-  --chat-column-shift: 0px;
-}
-
-.sidebar.collapsed + .main-content .chat-wrapper {
+/* Sidebar is an overlay surface; chat column must not shift with sidebar state. */
+.app-layout > .main-content > .chat-wrapper {
   --chat-column-shift: 0px;
 }
 
@@ -259,22 +256,7 @@
 
 /* Bottom fade locks to the composer row itself (follows input box, not suggestions parent). */
 .input-row::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  /* Anchor at the input box bottom edge so messages can't leak past underneath. */
-  bottom: calc(var(--chat-fade-size) * -0.5);
-  height: calc((var(--chat-fade-size) * 2) + 8px);
-  pointer-events: none;
-  z-index: 0;
-  background: linear-gradient(
-    to top,
-    color-mix(in srgb, var(--bg) 99%, transparent) 0%,
-    color-mix(in srgb, var(--bg) 92%, transparent) 28%,
-    color-mix(in srgb, var(--bg) 66%, transparent) 60%,
-    transparent 100%
-  );
+  content: none;
 }
 
 /* Keep dropdown blur sampling the real chat backdrop when the model menu is open. */

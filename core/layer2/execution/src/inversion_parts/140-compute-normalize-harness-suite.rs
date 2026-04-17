@@ -1,3 +1,14 @@
+fn normalize_harness_difficulty(value: &str) -> String {
+    let token = normalize_token_runtime(value, 24);
+    match token.as_str() {
+        "" => "medium".to_string(),
+        "low" | "easy" | "novice" => "low".to_string(),
+        "medium" | "med" | "mid" | "developing" => "medium".to_string(),
+        "high" | "hard" | "advanced" | "expert" => "high".to_string(),
+        _ => token,
+    }
+}
+
 pub fn compute_normalize_harness_suite(
     input: &NormalizeHarnessSuiteInput,
 ) -> NormalizeHarnessSuiteOutput {
@@ -15,6 +26,8 @@ pub fn compute_normalize_harness_suite(
         .unwrap_or_default();
     let rows = if src.is_empty() { fallback } else { src };
     let mut out = Vec::new();
+    let mut seen_ids: HashSet<String> = HashSet::new();
+    let mut seen_objectives: HashSet<String> = HashSet::new();
     for (idx, row) in rows.iter().enumerate() {
         let item = row.as_object();
         let default_id = format!("imh_{}", idx + 1);
@@ -35,6 +48,13 @@ pub fn compute_normalize_harness_suite(
         if objective.is_empty() {
             continue;
         }
+        if !seen_ids.insert(id.clone()) {
+            continue;
+        }
+        let objective_key = normalize_token_runtime(objective.as_str(), 120);
+        if !objective_key.is_empty() && !seen_objectives.insert(objective_key) {
+            continue;
+        }
         let impact = compute_normalize_impact(&NormalizeImpactInput {
             value: Some(value_to_string(item.and_then(|m| m.get("impact")))),
         })
@@ -43,11 +63,8 @@ pub fn compute_normalize_harness_suite(
             value: Some(value_to_string(item.and_then(|m| m.get("target")))),
         })
         .value;
-        let mut difficulty =
-            normalize_token_runtime(&value_to_string(item.and_then(|m| m.get("difficulty"))), 24);
-        if difficulty.is_empty() {
-            difficulty = "medium".to_string();
-        }
+        let difficulty =
+            normalize_harness_difficulty(&value_to_string(item.and_then(|m| m.get("difficulty"))));
         out.push(json!({
             "id": id,
             "objective": objective,
@@ -183,7 +200,8 @@ pub fn compute_save_first_principle_lock_state(
 pub fn compute_load_observer_approvals(
     input: &LoadObserverApprovalsInput,
 ) -> LoadObserverApprovalsOutput {
-    let rows = compute_read_jsonl(&ReadJsonlInput {
+    let mut seen: HashSet<String> = HashSet::new();
+    let mut rows = compute_read_jsonl(&ReadJsonlInput {
         file_path: input.file_path.clone(),
     })
     .rows
@@ -207,6 +225,10 @@ pub fn compute_load_observer_approvals(
         if ts.is_empty() || observer_id.is_empty() {
             return None;
         }
+        let dedupe_key = format!("{ts}|{target}|{observer_id}");
+        if !seen.insert(dedupe_key) {
+            return None;
+        }
         Some(json!({
             "ts": ts,
             "target": target,
@@ -215,6 +237,19 @@ pub fn compute_load_observer_approvals(
         }))
     })
     .collect::<Vec<_>>();
+    rows.sort_by(|a, b| {
+        let a_obj = a.as_object();
+        let b_obj = b.as_object();
+        let a_ts = value_to_string(a_obj.and_then(|m| m.get("ts")));
+        let b_ts = value_to_string(b_obj.and_then(|m| m.get("ts")));
+        let a_observer = value_to_string(a_obj.and_then(|m| m.get("observer_id")));
+        let b_observer = value_to_string(b_obj.and_then(|m| m.get("observer_id")));
+        let a_target = value_to_string(a_obj.and_then(|m| m.get("target")));
+        let b_target = value_to_string(b_obj.and_then(|m| m.get("target")));
+        a_ts.cmp(&b_ts)
+            .then_with(|| a_observer.cmp(&b_observer))
+            .then_with(|| a_target.cmp(&b_target))
+    });
     LoadObserverApprovalsOutput { rows }
 }
 

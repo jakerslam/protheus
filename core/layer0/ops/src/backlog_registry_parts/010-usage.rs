@@ -91,6 +91,18 @@ fn normalize_token(raw: &str, max_len: usize) -> String {
     squashed.trim_matches('_').to_string()
 }
 
+fn canonical_status_token(raw: &str) -> String {
+    let token = normalize_token(raw, 40);
+    match token.as_str() {
+        "open" | "todo" | "new" => "queued".to_string(),
+        "running" | "active" | "working" => "in_progress".to_string(),
+        "paused" | "waiting" | "hold" => "blocked".to_string(),
+        "complete" | "completed" | "success" => "done".to_string(),
+        "cancelled" | "canceled" => "archived".to_string(),
+        _ => token,
+    }
+}
+
 fn clean_text(raw: &str, max_len: usize) -> String {
     raw.split_whitespace()
         .collect::<Vec<_>>()
@@ -177,10 +189,15 @@ fn load_policy(root: &Path, policy_override: Option<&String>) -> Policy {
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| "1.0".to_string());
 
-    let strict_default = raw
-        .get("strict_default")
-        .and_then(Value::as_bool)
-        .unwrap_or(true);
+    let strict_default = match raw.get("strict_default") {
+        Some(Value::Bool(v)) => *v,
+        Some(Value::String(v)) => matches!(
+            v.trim().to_ascii_lowercase().as_str(),
+            "1" | "true" | "yes" | "on"
+        ),
+        Some(Value::Number(v)) => v.as_i64().map(|n| n != 0).unwrap_or(true),
+        _ => true,
+    };
 
     let active_statuses = raw
         .get("active_statuses")
@@ -188,7 +205,7 @@ fn load_policy(root: &Path, policy_override: Option<&String>) -> Policy {
         .map(|arr| {
             arr.iter()
                 .filter_map(Value::as_str)
-                .map(|v| normalize_token(v, 40))
+                .map(canonical_status_token)
                 .filter(|v| !v.is_empty())
                 .collect::<BTreeSet<_>>()
         })
@@ -206,7 +223,7 @@ fn load_policy(root: &Path, policy_override: Option<&String>) -> Policy {
         .map(|arr| {
             arr.iter()
                 .filter_map(Value::as_str)
-                .map(|v| normalize_token(v, 40))
+                .map(canonical_status_token)
                 .filter(|v| !v.is_empty())
                 .collect::<BTreeSet<_>>()
         })
@@ -444,4 +461,3 @@ fn parse_backlog_rows(markdown: &str) -> Vec<ParsedRow> {
     }
     parsed
 }
-

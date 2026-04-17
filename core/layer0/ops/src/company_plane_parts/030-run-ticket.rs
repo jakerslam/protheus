@@ -48,6 +48,15 @@ fn run_ticket(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
     if strict && !allowed {
         errors.push("company_ticket_op_invalid".to_string());
     }
+    let runtime_web_tooling = company_ticket_runtime_web_tooling_snapshot();
+    let runtime_web_tooling_auth_present = runtime_web_tooling
+        .get("auth_present")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let requires_web_tooling = parse_bool(parsed.flags.get("requires-web-tooling"), false);
+    if strict && requires_web_tooling && !runtime_web_tooling_auth_present {
+        errors.push("company_ticket_runtime_web_tooling_auth_missing".to_string());
+    }
 
     let team = team_slug(
         parsed
@@ -118,6 +127,7 @@ fn run_ticket(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
             "op": op,
             "ticket_id": if ticket_id.is_empty() { Value::Null } else { Value::String(ticket_id) },
             "ticket": ticket,
+            "runtime_web_tooling": runtime_web_tooling.clone(),
             "claim_evidence": [
                 {
                     "id": "V6-COMPANY-001.3",
@@ -371,6 +381,7 @@ fn run_ticket(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
         "op": op,
         "ticket_id": resolved_ticket_id,
         "ticket": ticket,
+        "runtime_web_tooling": runtime_web_tooling.clone(),
         "audit_event": event,
         "artifact": {
             "ledger_path": ledger_path.display().to_string(),
@@ -390,9 +401,51 @@ fn run_ticket(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
                     "chain_length": chain_len,
                     "chain_valid": chain_valid
                 }
+            },
+            {
+                "id": "V6-COMPANY-001.4",
+                "claim": "ticket_ops_surface_runtime_web_tooling_auth_readiness_for_operator_triage",
+                "evidence": {
+                    "auth_present": runtime_web_tooling_auth_present,
+                    "auth_sources_count": runtime_web_tooling.get("auth_sources").and_then(Value::as_array).map(|v| v.len()).unwrap_or(0)
+                }
             }
         ]
     });
     out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
+}
+
+fn company_ticket_runtime_web_tooling_snapshot() -> Value {
+    let env_candidates = [
+        "BRAVE_API_KEY",
+        "EXA_API_KEY",
+        "TAVILY_API_KEY",
+        "PERPLEXITY_API_KEY",
+        "SERPAPI_API_KEY",
+        "GOOGLE_SEARCH_API_KEY",
+        "GOOGLE_CSE_ID",
+        "FIRECRAWL_API_KEY",
+        "XAI_API_KEY",
+        "MOONSHOT_API_KEY",
+        "OPENAI_API_KEY",
+    ];
+    let mut auth_sources = Vec::<String>::new();
+    for env_name in env_candidates {
+        let present = std::env::var(env_name)
+            .ok()
+            .map(|value| !value.trim().is_empty())
+            .unwrap_or(false);
+        if present {
+            auth_sources.push(format!("env:{env_name}"));
+        }
+    }
+    json!({
+        "strict_auth_required": std::env::var("INFRING_WEB_TOOLING_STRICT_AUTH")
+            .ok()
+            .map(|value| matches!(value.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "y" | "on"))
+            .unwrap_or(true),
+        "auth_present": !auth_sources.is_empty(),
+        "auth_sources": auth_sources
+    })
 }

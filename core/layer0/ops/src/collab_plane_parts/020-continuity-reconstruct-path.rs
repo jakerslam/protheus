@@ -1,4 +1,41 @@
+fn canonical_team_segment(raw: &str) -> String {
+    let mut out = String::new();
+    let mut prev_sep = false;
+    for ch in raw.trim().chars() {
+        let next = if ch.is_ascii_alphanumeric() || matches!(ch, '_' | '-') {
+            ch.to_ascii_lowercase()
+        } else {
+            '-'
+        };
+        if next == '-' {
+            if prev_sep {
+                continue;
+            }
+            prev_sep = true;
+        } else {
+            prev_sep = false;
+        }
+        out.push(next);
+        if out.len() >= 80 {
+            break;
+        }
+    }
+    let out = out.trim_matches('-').to_string();
+    if out.is_empty() {
+        "default-team".to_string()
+    } else {
+        out
+    }
+}
+
+fn canonical_refresh_ms(requested: u64, default_refresh: u64, max_refresh: u64) -> u64 {
+    let lower = 100_u64;
+    let max_allowed = max_refresh.max(default_refresh).max(lower);
+    requested.max(lower).min(max_allowed)
+}
+
 fn continuity_reconstruct_path(root: &Path, team: &str) -> PathBuf {
+    let team = canonical_team_segment(team);
     state_root(root)
         .join("continuity")
         .join("reconstructed")
@@ -6,6 +43,7 @@ fn continuity_reconstruct_path(root: &Path, team: &str) -> PathBuf {
 }
 
 fn throttle_state_path(root: &Path, team: &str) -> PathBuf {
+    let team = canonical_team_segment(team);
     state_root(root)
         .join("throttle")
         .join(format!("{team}.json"))
@@ -54,10 +92,11 @@ fn run_dashboard(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value
         .get("max_refresh_ms")
         .and_then(Value::as_u64)
         .unwrap_or(2000);
-    let refresh_ms = parse_u64(parsed.flags.get("refresh-ms"), default_refresh);
-    if strict && refresh_ms > max_refresh {
+    let requested_refresh_ms = parse_u64(parsed.flags.get("refresh-ms"), default_refresh);
+    if strict && requested_refresh_ms > max_refresh {
         errors.push("collab_dashboard_refresh_exceeds_contract".to_string());
     }
+    let refresh_ms = canonical_refresh_ms(requested_refresh_ms, default_refresh, max_refresh);
     if !errors.is_empty() {
         return json!({
             "ok": false,
@@ -130,6 +169,8 @@ fn run_dashboard(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value
         "version": "v1",
         "team": team,
         "refresh_ms": refresh_ms,
+        "requested_refresh_ms": requested_refresh_ms,
+        "refresh_normalized": requested_refresh_ms != refresh_ms,
         "target_refresh_ms": max_refresh,
         "agents": agents,
         "tasks": tasks,
@@ -445,4 +486,3 @@ fn run_launch_role(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Val
     out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
-

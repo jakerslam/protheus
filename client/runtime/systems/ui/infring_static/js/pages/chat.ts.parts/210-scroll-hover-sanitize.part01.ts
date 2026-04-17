@@ -138,11 +138,6 @@
       }
       this._stickToBottom = true;
       this.showScrollDown = false;
-      if (typeof this.triggerChatResizeBlurPulse === 'function') {
-        this.triggerChatResizeBlurPulse(1000);
-      } else {
-        this.chatResizeBlurActive = true;
-      }
       var self = this;
       var duration = 1000;
       var startedAt = 0;

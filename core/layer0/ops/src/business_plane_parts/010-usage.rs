@@ -174,6 +174,17 @@ fn require_business(parsed: &crate::ParsedArgs) -> Result<String, String> {
     Ok(business)
 }
 
+fn normalize_persona_op(raw: &str) -> String {
+    let token = clean(raw, 24).to_ascii_lowercase().replace('_', "-");
+    match token.as_str() {
+        "issue" | "grant" | "create" => "issue".to_string(),
+        "renew" | "extend" | "refresh" => "renew".to_string(),
+        "revoke" | "disable" | "suspend" => "revoke".to_string(),
+        "status" | "get" | "inspect" => "status".to_string(),
+        _ => token,
+    }
+}
+
 fn load_personas(root: &Path) -> Map<String, Value> {
     read_object(&personas_path(root))
 }
@@ -268,31 +279,40 @@ fn taxonomy_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Value, St
 }
 
 fn persona_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Value, String> {
-    let op = clean(
+    let op = normalize_persona_op(
         parsed
             .flags
             .get("op")
             .map(String::as_str)
             .unwrap_or("status"),
-        16,
-    )
-    .to_ascii_lowercase();
+    );
     let persona = clean(
         parsed
             .flags
             .get("persona")
             .map(String::as_str)
-            .unwrap_or("shadow-alpha"),
+            .unwrap_or(""),
         80,
     );
-    let business = clean(
+    if persona.is_empty() {
+        return Err("persona_required".to_string());
+    }
+    let business_input = clean(
         parsed
             .flags
             .get("business-context")
             .map(String::as_str)
-            .unwrap_or("default"),
+            .unwrap_or(""),
         80,
     );
+    if op != "status" && business_input.is_empty() {
+        return Err("business_context_required".to_string());
+    }
+    let business = if business_input.is_empty() {
+        "default".to_string()
+    } else {
+        business_input
+    };
     let lease_hours = parse_i64(parsed.flags.get("lease-hours"), 24).clamp(1, 168) as u64;
     ensure_business_registered(root, &business)?;
     let mut personas = load_personas(root);
@@ -378,4 +398,3 @@ fn continuity_chain_path(root: &Path) -> PathBuf {
 fn load_chain(root: &Path) -> Map<String, Value> {
     read_object(&continuity_chain_path(root))
 }
-

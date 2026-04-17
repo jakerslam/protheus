@@ -62,6 +62,17 @@ fn default_state() -> Value {
             "signature": "unsigned",
             "updated_at": now_iso()
         },
+        "provider_runtime": {
+            "resolution_mode": "registered_first_capability_fallback",
+            "required_contracts": [
+                "memoryEmbeddingProviders",
+                "speechProviders",
+                "realtimeTranscriptionProviders",
+                "realtimeVoiceProviders"
+            ],
+            "provider_families": ["openai", "openrouter", "xai"],
+            "last_contract_probe": "never"
+        },
         "symbiosis": {
             "nodes": 0,
             "memory_share_rate": 0.0,

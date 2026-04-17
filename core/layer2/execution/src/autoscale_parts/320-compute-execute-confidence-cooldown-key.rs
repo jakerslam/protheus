@@ -315,27 +315,31 @@ pub fn compute_no_progress_result(input: &NoProgressResultInput) -> NoProgressRe
     let result = input
         .result
         .as_ref()
-        .map(|v| v.trim().to_string())
+        .map(|v| v.trim().to_ascii_lowercase())
         .unwrap_or_default();
     if result == "executed" {
         let outcome = input
             .outcome
             .as_ref()
-            .map(|v| v.trim().to_string())
+            .map(|v| v.trim().to_ascii_lowercase())
             .unwrap_or_default();
         return NoProgressResultOutput {
-            is_no_progress: outcome != "shipped",
+            is_no_progress: outcome != "shipped" && outcome != "success" && outcome != "applied",
         };
     }
 
     let is_no_progress = result == "init_gate_stub"
         || result == "init_gate_low_score"
         || result == "init_gate_blocked_route"
+        || result == "score_only_preview"
+        || result == "score_only_fallback_route_block"
+        || result == "score_only_fallback_low_execution_confidence"
         || result == "stop_repeat_gate_capability_cap"
         || result == "stop_repeat_gate_directive_pulse_cooldown"
         || result == "stop_repeat_gate_directive_pulse_tier_reservation"
         || result == "stop_repeat_gate_human_escalation_pending"
         || result == "stop_repeat_gate_stale_signal"
+        || result == "stop_repeat_gate_circuit_breaker"
         || result == "stop_init_gate_quality_exhausted"
         || result == "stop_init_gate_directive_fit_exhausted"
         || result == "stop_init_gate_actionability_exhausted"
@@ -369,17 +373,21 @@ pub fn compute_attempt_run_event(input: &AttemptRunEventInput) -> AttemptRunEven
     let result = input
         .result
         .as_ref()
-        .map(|v| v.trim().to_string())
+        .map(|v| v.trim().to_ascii_lowercase())
         .unwrap_or_default();
     let is_attempt = result == "executed"
         || result == "init_gate_stub"
         || result == "init_gate_low_score"
         || result == "init_gate_blocked_route"
+        || result == "score_only_preview"
+        || result == "score_only_fallback_route_block"
+        || result == "score_only_fallback_low_execution_confidence"
         || result == "stop_repeat_gate_directive_pulse_cooldown"
         || result == "stop_repeat_gate_directive_pulse_tier_reservation"
         || result == "stop_repeat_gate_human_escalation_pending"
         || result == "stop_repeat_gate_capability_cap"
         || result == "stop_repeat_gate_stale_signal"
+        || result == "stop_repeat_gate_circuit_breaker"
         || result == "stop_init_gate_quality_exhausted"
         || result == "stop_init_gate_directive_fit_exhausted"
         || result == "stop_init_gate_actionability_exhausted"
@@ -409,7 +417,7 @@ pub fn compute_safety_stop_run_event(input: &SafetyStopRunEventInput) -> SafetyS
     let result = input
         .result
         .as_ref()
-        .map(|v| v.trim().to_string())
+        .map(|v| v.trim().to_ascii_lowercase())
         .unwrap_or_default();
     let is_safety_stop = result.contains("human_escalation")
         || result.contains("tier1_governance")

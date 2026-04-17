@@ -19,7 +19,9 @@
             } else {
               if (last.isHtml) last.isHtml = false;
               last.thoughtStreaming = false;
-              this._queueStreamTypingRender(last, visibleText);
+              this._clearMessageTypewriter(last);
+              last._typingVisual = false;
+              last.text = visibleText;
             }
             var toolScanText = String(last._cleanText || '');
             var fcIdx = toolScanText.search(/\w+<\/function[=,>]/);
@@ -69,7 +71,9 @@
             }
             this.messages.push(firstMessage);
             if (!firstMessage.isHtml) {
-              this._queueStreamTypingRender(firstMessage, firstVisible);
+              this._clearMessageTypewriter(firstMessage);
+              firstMessage._typingVisual = false;
+              firstMessage.text = firstVisible;
             }
           }
           this.scrollToBottom();
@@ -152,8 +156,23 @@
           this.scrollToBottom();
           break;
         case 'response':
-          this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'idle');
-          this._clearPendingWsRequest(this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '');
+          var responsePendingRequest = this._pendingWsRequest && this._pendingWsRequest.agent_id
+            ? this._pendingWsRequest
+            : null;
+          var responseAgentId = String(
+            (data && data.agent_id) ||
+            (responsePendingRequest && responsePendingRequest.agent_id) ||
+            (this.currentAgent && this.currentAgent.id) ||
+            ''
+          ).trim();
+          var responseTurnStartedAt = Number(
+            this._responseStartedAt ||
+            (responsePendingRequest && responsePendingRequest.started_at) ||
+            Date.now()
+          );
+          if (!Number.isFinite(responseTurnStartedAt) || responseTurnStartedAt <= 0) {
+            responseTurnStartedAt = Date.now();
+          }
           this._clearTypingTimeout();
           this._clearStreamingTypewriters();
           this.applyContextTelemetry(data);
@@ -180,7 +199,6 @@
               t.is_error = true;
             }
           });
-          typeof this.clearTransientThinkingRows === 'function' ? this.clearTransientThinkingRows({ force: true }) : (this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; }));
           var meta = (data.input_tokens || 0) + ' in / ' + (data.output_tokens || 0) + ' out';
           if (data.cost_usd != null) meta += ' | $' + data.cost_usd.toFixed(4);
           if (data.iterations) meta += ' | ' + data.iterations + ' iter';
@@ -251,6 +269,7 @@
             meta: meta,
             tools: streamedTools,
             ts: Date.now(),
+            _turn_started_at: responseTurnStartedAt,
             _auto_fallback: usedFallback,
             agent_id: data && data.agent_id ? String(data.agent_id) : (this.currentAgent && this.currentAgent.id ? String(this.currentAgent.id) : ''),
             agent_name: data && data.agent_name ? String(data.agent_name) : (this.currentAgent && this.currentAgent.name ? String(this.currentAgent.name) : '')
@@ -263,8 +282,15 @@
           } else {
             renderedFinalMessage = this.pushAgentMessageDeduped(finalMessage, { dedupe_window_ms: 90000 }) || finalMessage;
           }
+          typeof this.clearTransientThinkingRows === 'function' ? this.clearTransientThinkingRows({ force: true }) : (this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; }));
           this.markAgentMessageComplete(renderedFinalMessage);
+          if (renderedFinalMessage && typeof this._queueFinalWordTypingRender === 'function') {
+            this._queueFinalWordTypingRender(renderedFinalMessage, String(renderedFinalMessage.text || ''), 10);
+          }
           var wsFailure = responseHasToolCompletion ? null : this.extractRecoverableBackendFailure(finalText);
+          if (responseAgentId) this._clearPendingWsRequest(responseAgentId);
+          else this._clearPendingWsRequest();
+          this.setAgentLiveActivity(responseAgentId || (this.currentAgent && this.currentAgent.id), 'idle');
           this.sending = false;
           this._responseStartedAt = 0;
           this.tokenCount = 0;
@@ -353,6 +379,9 @@
             agent_name: data && data.agent_name ? String(data.agent_name) : (this.currentAgent && this.currentAgent.name ? String(this.currentAgent.name) : '')
           });
           this.markAgentMessageComplete(this.messages[this.messages.length - 1]);
+          if (typeof this._queueFinalWordTypingRender === 'function') {
+            this._queueFinalWordTypingRender(this.messages[this.messages.length - 1], String(this.messages[this.messages.length - 1].text || ''), 10);
+          }
           this.sending = false;
           this._responseStartedAt = 0;
           this.tokenCount = 0;

@@ -7,7 +7,7 @@ const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const ts = require('typescript');
+const ts = require('typescript');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 if (!require.extensions['.ts']) {
   require.extensions['.ts'] = function compileTs(module, filename) {
@@ -49,7 +49,7 @@ function run() {
     history_path: historyPath,
   });
 
-  assert.strictEqual(invoked.invocation.mode, 'dry_run');
+  assertNoPlaceholderOrPromptLeak({ registered, invoked }, 'semantic_kernel_dotnet_bridge_test');\n  assertStableToolingEnvelope(invoked, 'semantic_kernel_dotnet_bridge_test');\n  assert.strictEqual(invoked.invocation.mode, 'dry_run');
   assert.strictEqual(invoked.invocation.simulated, true);
   console.log(JSON.stringify({ ok: true, type: 'semantic_kernel_dotnet_bridge_test' }));
 }

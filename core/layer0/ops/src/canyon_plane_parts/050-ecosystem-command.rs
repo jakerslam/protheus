@@ -68,7 +68,7 @@ fn ecosystem_command(
                 }
             }));
         }
-        let target = parsed
+        let target_input = parsed
             .flags
             .get("target-dir")
             .map(PathBuf::from)
@@ -97,7 +97,7 @@ fn ecosystem_command(
         let tiny_max_requested = parse_bool(parsed.flags.get("tiny-max"), false)
             || parse_bool(parsed.flags.get("tiny_max"), false);
         let pure_requested = parse_bool(parsed.flags.get("pure"), false);
-        let workspace_mode = clean(
+        let workspace_mode_raw = clean(
             parsed
                 .flags
                 .get("workspace-mode")
@@ -111,6 +111,25 @@ fn ecosystem_command(
             24,
         )
         .to_ascii_lowercase();
+        let workspace_mode = match workspace_mode_raw.replace('_', "-").as_str() {
+            "pure" | "tiny-max" => "pure".to_string(),
+            "infring" | "default" | "standard" => "infring".to_string(),
+            _ => workspace_mode_raw,
+        };
+        if strict && workspace_mode != "pure" && workspace_mode != "infring" {
+            return Err("ecosystem_init_workspace_mode_invalid".to_string());
+        }
+        if strict
+            && target_input.is_relative()
+            && target_input.to_string_lossy().contains("..")
+        {
+            return Err("ecosystem_init_target_dir_parent_traversal_denied".to_string());
+        }
+        let target = if target_input.is_absolute() {
+            target_input
+        } else {
+            root.join(target_input)
+        };
 
         let mut files = Vec::<String>::new();
         if workspace_mode == "pure" {

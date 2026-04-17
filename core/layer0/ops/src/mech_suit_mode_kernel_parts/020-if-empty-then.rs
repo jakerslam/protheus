@@ -57,8 +57,42 @@ fn classify_severity_value(message: &str, patterns: &[String]) -> String {
         "integrity",
         "outage",
         "fatal",
+        "unauthorized",
+        "forbidden",
+        "rate limit",
+        "timeout",
+        "unreachable",
+        "auth missing",
+        "ssrf",
+        "invalid response",
+    ];
+    let critical_status_markers = [
+        "http 401",
+        "http 403",
+        "http 404",
+        "http 422",
+        "http 429",
+        "http 500",
+        "http 502",
+        "http 503",
+        "http 504",
+        "status=401",
+        "status=403",
+        "status=404",
+        "status=422",
+        "status=429",
+        "status=500",
+        "status=502",
+        "status=503",
+        "status=504",
     ];
     if critical_terms.iter().any(|needle| line.contains(needle)) {
+        return "critical".to_string();
+    }
+    if critical_status_markers
+        .iter()
+        .any(|needle| line.contains(needle))
+    {
         return "critical".to_string();
     }
     if patterns
@@ -76,6 +110,12 @@ fn classify_severity_value(message: &str, patterns: &[String]) -> String {
         "dormant",
         "slow",
         "parked",
+        "backoff",
+        "retry",
+        "retrying",
+        "aborted",
+        "transient",
+        "throttle",
     ];
     if warn_terms.iter().any(|needle| line.contains(needle)) {
         return "warn".to_string();
@@ -425,4 +465,3 @@ fn append_attention_event_value(
         "status": status
     }))
 }
-

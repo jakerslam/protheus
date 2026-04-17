@@ -26,6 +26,65 @@ const WRAPPER_TARGETS = [
     dir: path.join(EDGE_PACKAGE_DIR, 'wrappers', 'ios_tauri'),
   },
 ];
+const MAX_ARG_COUNT = 64;
+const MAX_ARG_LENGTH = 512;
+const MAX_FLAG_COUNT = 48;
+
+function sanitizeCliToken(value: unknown, fallback = '') {
+  const normalized = String(value == null ? fallback : value)
+    .replace(/[\u0000-\u001f\u007f]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!normalized) return String(fallback || '');
+  if (normalized.length <= MAX_ARG_LENGTH) return normalized;
+  return normalized.slice(0, MAX_ARG_LENGTH);
+}
+
+function sanitizeFlagKey(value: unknown) {
+  const normalized = String(value == null ? '' : value)
+    .replace(/[\u0000-\u001f\u007f]/g, '')
+    .replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`)
+    .replace(/[^a-z0-9_-]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .trim();
+  return normalized;
+}
+
+function sanitizeArgv(args: string[] = []) {
+  if (!Array.isArray(args)) return [];
+  const out: string[] = [];
+  for (const item of args) {
+    if (out.length >= MAX_ARG_COUNT) break;
+    const token = sanitizeCliToken(item, '');
+    if (!token) continue;
+    out.push(token);
+  }
+  return out;
+}
+
+function isPathInsideRoot(absPath: string) {
+  const rel = path.relative(ROOT, absPath);
+  return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
+}
+
+function bridgeFailure(scriptAbs: string, exportName: string, code: string, detail = '') {
+  const payload = {
+    ok: false,
+    type: 'protheus_edge_bridge_error',
+    error: code,
+    script: path.relative(ROOT, scriptAbs).replace(/\\/g, '/'),
+    export_name: exportName,
+    detail,
+  };
+  return {
+    ok: false,
+    status: 1,
+    stdout: '',
+    stderr: `${code}\n`,
+    payload,
+  };
+}
 
 function parseJson(stdout: string) {
   const text = String(stdout || '').trim();
@@ -64,14 +123,30 @@ function normalizeDelegateResult(out: any) {
 }
 
 function runTsExport(scriptAbs: string, exportName: string, args: string[] = []) {
-  const out = invokeTsModuleSync(scriptAbs, {
-    argv: Array.isArray(args) ? args.map((value) => String(value)) : [],
-    cwd: ROOT,
-    exportName,
-    teeStdout: false,
-    teeStderr: false,
-  });
-  return normalizeDelegateResult(out);
+  if (!isPathInsideRoot(scriptAbs)) {
+    return bridgeFailure(scriptAbs, exportName, 'bridge_script_outside_root');
+  }
+  const safeExportName = sanitizeCliToken(exportName, '').replace(/[^A-Za-z0-9_]/g, '');
+  if (!safeExportName) {
+    return bridgeFailure(scriptAbs, exportName, 'bridge_export_invalid');
+  }
+  try {
+    const out = invokeTsModuleSync(scriptAbs, {
+      argv: sanitizeArgv(args),
+      cwd: ROOT,
+      exportName: safeExportName,
+      teeStdout: false,
+      teeStderr: false,
+    });
+    return normalizeDelegateResult(out);
+  } catch (error: any) {
+    return bridgeFailure(
+      scriptAbs,
+      safeExportName,
+      'bridge_invoke_failed',
+      sanitizeCliToken(error && error.message ? error.message : 'unknown_bridge_error', ''),
+    );
+  }
 }
 
 function runOps(args: string[] = []) {
@@ -85,9 +160,13 @@ function runMobileAdapter(args: string[] = []) {
 function toFlags(options: Record<string, any> = {}) {
   const out: string[] = [];
   for (const [k, v] of Object.entries(options || {})) {
+    if (out.length >= MAX_FLAG_COUNT) break;
     if (v == null) continue;
-    const key = String(k).replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
-    out.push(`--${key}=${String(v)}`);
+    const key = sanitizeFlagKey(k);
+    if (!key) continue;
+    const value = sanitizeCliToken(v, '');
+    if (!value) continue;
+    out.push(`--${key}=${value}`);
   }
   return out;
 }
@@ -172,7 +251,23 @@ function edgeWrapper(command: string, options: Record<string, any> = {}) {
       'packages/protheus-edge/wrappers/* + packages/protheus-edge/starter.ts --mode=status',
     );
   }
-  const requestedTarget = String(options.target || '').trim().toLowerCase();
+  const requestedTarget = sanitizeCliToken(options.target || '', '').toLowerCase();
+  if (options.target != null && !requestedTarget) {
+    const payload = {
+      ok: false,
+      type: 'protheus_edge_wrapper_status',
+      supported: true,
+      error: 'edge_wrapper_target_invalid',
+      targets: [],
+    };
+    return {
+      ok: false,
+      status: 1,
+      stdout: `${JSON.stringify(payload)}\n`,
+      stderr: 'edge_wrapper_target_invalid\n',
+      payload,
+    };
+  }
   const targets = WRAPPER_TARGETS
     .filter((target) => !requestedTarget || target.id === requestedTarget)
     .map(inspectWrapperTarget);

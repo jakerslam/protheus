@@ -2,7 +2,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const path = require('node:path');
+const path = require('node:path');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 const ROOT = path.resolve(__dirname, '../..');
 
@@ -38,7 +38,7 @@ function main() {
 
   const criteria = mod.successCriteriaFromReceipt(normalized);
   assert.equal(criteria.required, true);
-  console.log(JSON.stringify({ ok: true, type: 'autonomy_receipt_schema_rust_bridge_test' }));
+  assertNoPlaceholderOrPromptLeak({ record, verification, normalized, criteria }, 'autonomy_receipt_schema_rust_bridge_test');\n  assertStableToolingEnvelope(verification, 'autonomy_receipt_schema_rust_bridge_test');\n  console.log(JSON.stringify({ ok: true, type: 'autonomy_receipt_schema_rust_bridge_test' }));
 }
 
 try {

@@ -131,12 +131,40 @@ function chatPage() {
     freshInitModelSelection: '',
     freshInitModelManual: false,
     freshInitModelSuggestLoading: false,
+    freshInitPermissionOverrides: {},
+    freshInitPermissionCatalog: [
+      { category: 'web', name: 'Web', permissions: [
+        { key: 'web.search.basic', label: 'Basic web search', default_checked: true },
+        { key: 'web.fetch.url', label: 'Fetch URL content', default_checked: false }
+      ]},
+      { category: 'agent', name: 'Agent', permissions: [
+        { key: 'agent.spawn', label: 'Spawn child agents', default_checked: false },
+        { key: 'agent.permissions.manage', label: 'Manage permissions', default_checked: false }
+      ]},
+      { category: 'file', name: 'File', permissions: [
+        { key: 'file.read.workspace', label: 'Read workspace files', default_checked: false },
+        { key: 'file.write.workspace', label: 'Write workspace files', default_checked: false },
+        { key: 'file.delete.workspace', label: 'Delete workspace files', default_checked: false }
+      ]},
+      { category: 'github', name: 'GitHub', permissions: [
+        { key: 'github.issue.create', label: 'Create GitHub issues', default_checked: false }
+      ]},
+      { category: 'terminal', name: 'Terminal', permissions: [
+        { key: 'terminal.exec', label: 'Execute terminal commands', default_checked: false }
+      ]},
+      { category: 'memory', name: 'Memory', permissions: [
+        { key: 'memory.write', label: 'Write durable memory', default_checked: false }
+      ]}
+    ],
     conversationCache: {},
     conversationCacheKey: 'of-chat-conversation-cache-v1',
     conversationCacheVersionKey: 'of-chat-conversation-cache-version',
     conversationCacheVersion: 'v2-source-runs-20260325',
+    messageLineExpandState: {},
+    messageLineExpandStep: 20,
     _persistTimer: null,
     _responseStartedAt: 0,
+    typingWordCadenceMs: 1,
     _pointerGridHideTimer: null,
     _pointerTrailMouseHeld: false,
     _pointerTrailHoldHost: null,

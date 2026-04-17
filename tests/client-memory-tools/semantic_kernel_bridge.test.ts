@@ -9,7 +9,7 @@ const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const ts = require('typescript');
+const ts = require('typescript');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 if (!require.extensions['.ts']) {
   require.extensions['.ts'] = function compileTs(module, filename) {
@@ -175,9 +175,7 @@ function run() {
   assert.strictEqual(status.vector_connectors, 1);
   assert.strictEqual(status.llm_connectors, 1);
   assert.strictEqual(status.structured_processes, 1);
-  assert.strictEqual(status.enterprise_events, 1);
-
-  console.log(JSON.stringify({ ok: true, type: 'semantic_kernel_bridge_test' }));
+  assert.strictEqual(status.enterprise_events, 1);\n  assertNoPlaceholderOrPromptLeak(status, 'semantic_kernel_bridge_test');\n  assertStableToolingEnvelope(status, 'semantic_kernel_bridge_test');\n  console.log(JSON.stringify({ ok: true, type: 'semantic_kernel_bridge_test' }));
 }
 
 run();

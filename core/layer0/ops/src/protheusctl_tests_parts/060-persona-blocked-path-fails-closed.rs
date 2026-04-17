@@ -275,12 +275,29 @@ fn core_domain_nexus_tool_label_routes_web_domains_to_web_search() {
         core_domain_nexus_tool_label("web-conduit", &[]),
         "web_search"
     );
+    assert_eq!(
+        core_domain_nexus_tool_label(
+            "web-conduit",
+            &[
+                "--provider-plugin-id=brave".to_string(),
+                "--contract=webSearchProviders".to_string(),
+            ],
+        ),
+        "web_search"
+    );
 }
 
 #[test]
 fn core_domain_nexus_tool_label_routes_memory_domains_to_memory_lane() {
     assert_eq!(
         core_domain_nexus_tool_label("continuity-runtime", &[]),
+        "batch_query"
+    );
+    assert_eq!(
+        core_domain_nexus_tool_label(
+            "continuity-runtime",
+            &["--contract=memoryEmbeddingProviders".to_string()],
+        ),
         "batch_query"
     );
 }

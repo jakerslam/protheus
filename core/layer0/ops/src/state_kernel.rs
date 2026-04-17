@@ -12,6 +12,7 @@ use std::path::PathBuf;
 const LANE_ID: &str = "state_kernel";
 const REPLACEMENT: &str = "protheus-ops state-kernel";
 const SETUP_WIZARD_STATE_REL: &str = "local/state/ops/protheus_setup_wizard/latest.json";
+const MAX_SETUP_WIZARD_PAYLOAD_BYTES: usize = 64 * 1024;
 
 #[derive(Debug, Clone, Deserialize, Default)]
 struct SetupWizardPayload {
@@ -129,21 +130,46 @@ fn setup_wizard_state_path(root: &Path) -> PathBuf {
     root.join(SETUP_WIZARD_STATE_REL)
 }
 
+fn normalize_setup_wizard_command(raw: &str) -> String {
+    let normalized = clean_text(raw, 40).to_ascii_lowercase();
+    match normalized.as_str() {
+        "" | "run" | "start" => "run".to_string(),
+        "status" | "state" => "status".to_string(),
+        "reset" | "clear" => "reset".to_string(),
+        "complete" => "complete".to_string(),
+        "help" | "--help" | "-h" => "help".to_string(),
+        _ => normalized,
+    }
+}
+
+fn decode_setup_wizard_payload(raw: &str) -> Result<SetupWizardPayload, String> {
+    if raw.len() > MAX_SETUP_WIZARD_PAYLOAD_BYTES {
+        return Err(format!("setup_wizard_payload_too_large:{}", raw.len()));
+    }
+    let mut payload = serde_json::from_str::<SetupWizardPayload>(raw)
+        .map_err(|err| format!("setup_wizard_payload_decode_failed:{err}"))?;
+    payload.command = normalize_setup_wizard_command(&payload.command);
+    Ok(payload)
+}
+
 fn parse_setup_wizard_payload(argv: &[String]) -> Result<SetupWizardPayload, String> {
     if let Some(payload) = lane_utils::parse_flag(argv, "payload", false) {
-        return serde_json::from_str::<SetupWizardPayload>(&payload)
-            .map_err(|err| format!("setup_wizard_payload_decode_failed:{err}"));
+        return decode_setup_wizard_payload(&payload);
     }
     if let Some(payload_b64) = lane_utils::parse_flag(argv, "payload-base64", false) {
         let bytes = BASE64_STANDARD
             .decode(payload_b64.as_bytes())
             .map_err(|err| format!("setup_wizard_payload_base64_decode_failed:{err}"))?;
+        if bytes.len() > MAX_SETUP_WIZARD_PAYLOAD_BYTES {
+            return Err(format!("setup_wizard_payload_too_large:{}", bytes.len()));
+        }
         let text = String::from_utf8(bytes)
             .map_err(|err| format!("setup_wizard_payload_utf8_decode_failed:{err}"))?;
-        return serde_json::from_str::<SetupWizardPayload>(&text)
-            .map_err(|err| format!("setup_wizard_payload_decode_failed:{err}"));
+        return decode_setup_wizard_payload(&text);
     }
-    Ok(SetupWizardPayload::default())
+    let mut payload = SetupWizardPayload::default();
+    payload.command = normalize_setup_wizard_command(&payload.command);
+    Ok(payload)
 }
 
 fn read_json(path: &Path) -> Option<Value> {
@@ -299,14 +325,7 @@ fn setup_wizard_help() -> Value {
 
 fn setup_wizard_command(root: &Path, argv: &[String]) -> Result<Value, String> {
     let mut payload = parse_setup_wizard_payload(argv)?;
-    let command = {
-        let normalized = clean_text(&payload.command, 40).to_ascii_lowercase();
-        if normalized.is_empty() {
-            "run".to_string()
-        } else {
-            normalized
-        }
-    };
+    let command = normalize_setup_wizard_command(&payload.command);
     match command.as_str() {
         "help" | "--help" | "-h" => Ok(setup_wizard_help()),
         "status" => Ok(setup_wizard_status(root)),
@@ -471,5 +490,42 @@ mod tests {
         assert_eq!(reset.get("ok").and_then(Value::as_bool), Some(true));
         assert_eq!(reset.get("command").and_then(Value::as_str), Some("reset"));
         assert_eq!(reset.get("removed").and_then(Value::as_bool), Some(true));
+    }
+
+    #[test]
+    fn setup_wizard_payload_rejects_oversized_payload() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let huge = "x".repeat(MAX_SETUP_WIZARD_PAYLOAD_BYTES + 32);
+        let payload = json!({
+            "command": "run",
+            "interaction": huge
+        })
+        .to_string();
+        let err = setup_wizard_command(root.path(), &[format!("--payload={payload}")]).expect_err("reject");
+        assert!(err.contains("setup_wizard_payload_too_large"));
+    }
+
+    #[test]
+    fn setup_wizard_command_aliases_normalize_to_supported_commands() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let run = setup_wizard_command(
+            root.path(),
+            &[format!(
+                "--payload-base64={}",
+                payload_b64(json!({"command":"start","yes":true,"defaults":true}))
+            )],
+        )
+        .expect("run");
+        assert_eq!(run.get("command").and_then(Value::as_str), Some("run"));
+
+        let reset = setup_wizard_command(
+            root.path(),
+            &[format!(
+                "--payload-base64={}",
+                payload_b64(json!({"command":"clear"}))
+            )],
+        )
+        .expect("reset");
+        assert_eq!(reset.get("command").and_then(Value::as_str), Some("reset"));
     }
 }

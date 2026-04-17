@@ -3,3 +3,16 @@ include!("duality_seed_parts/010-print-json-line.rs");
 include!("duality_seed_parts/020-parse-codex-text.rs");
 include!("duality_seed_parts/030-evaluate-signal.rs");
 include!("duality_seed_parts/040-op-dispatch.rs");
+
+#[allow(dead_code)]
+pub(crate) fn contains_forbidden_runtime_context_marker(raw: &str) -> bool {
+    const FORBIDDEN: [&str; 6] = [
+        "You are an expert Python programmer.",
+        "[PATCH v2",
+        "List Leaves (25",
+        "BEGIN_OPENCLAW_INTERNAL_CONTEXT",
+        "END_OPENCLAW_INTERNAL_CONTEXT",
+        "UNTRUSTED_CHILD_RESULT_DELIMITER",
+    ];
+    FORBIDDEN.iter().any(|marker| raw.contains(marker))
+}

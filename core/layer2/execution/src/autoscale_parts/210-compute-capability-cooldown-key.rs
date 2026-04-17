@@ -1,44 +1,74 @@
+fn normalize_cooldown_segment(raw: &str) -> String {
+    let lowered = normalize_spaces(raw).to_ascii_lowercase();
+    let replaced = Regex::new(r"[^a-z0-9:_-]")
+        .expect("valid cooldown segment regex")
+        .replace_all(&lowered, "_")
+        .to_string();
+    let mut out = String::new();
+    let mut prev_sep = false;
+    for ch in replaced.chars() {
+        let is_sep = ch == '_' || ch == '-';
+        if is_sep {
+            if prev_sep || out.is_empty() {
+                continue;
+            }
+            prev_sep = true;
+            out.push('_');
+        } else {
+            prev_sep = false;
+            out.push(ch);
+        }
+    }
+    out.trim_matches('_').to_string()
+}
+
+fn canonical_capability_key(raw: &str) -> String {
+    let token = normalize_cooldown_segment(raw);
+    match token.as_str() {
+        "web_search_tool" | "websearch" | "search_web" => "web_search".to_string(),
+        "web_fetch_tool" | "webfetch" | "fetch_web" => "web_fetch".to_string(),
+        "github_issue_create" | "issue_create" => "github_issue_create".to_string(),
+        _ => token,
+    }
+}
+
+fn canonical_execution_mode(raw: &str) -> String {
+    let token = normalize_cooldown_segment(raw);
+    match token.as_str() {
+        "canaryexecute" => "canary_execute".to_string(),
+        "dryrun" => "dry_run".to_string(),
+        _ => token,
+    }
+}
+
 pub fn compute_capability_cooldown_key(
     input: &CapabilityCooldownKeyInput,
 ) -> CapabilityCooldownKeyOutput {
     let raw = input
         .capability_key
         .as_deref()
-        .unwrap_or("")
-        .trim()
-        .to_ascii_lowercase();
+        .map(canonical_capability_key)
+        .unwrap_or_default();
     if raw.is_empty() {
         return CapabilityCooldownKeyOutput {
             cooldown_key: String::new(),
         };
     }
-    let normalized = Regex::new(r"[^a-z0-9:_-]")
-        .expect("valid capability cooldown key regex")
-        .replace_all(&raw, "_")
-        .to_string();
     CapabilityCooldownKeyOutput {
-        cooldown_key: format!("capability:{normalized}"),
+        cooldown_key: format!("capability:{raw}"),
     }
 }
 
 pub fn compute_readiness_retry_cooldown_key(
     input: &ReadinessRetryCooldownKeyInput,
 ) -> ReadinessRetryCooldownKeyOutput {
-    let sid = normalize_spaces(input.strategy_id.as_deref().unwrap_or("")).to_ascii_lowercase();
-    let sid = Regex::new(r"[^a-z0-9:_-]")
-        .expect("valid readiness strategy regex")
-        .replace_all(&sid, "_")
-        .to_string();
+    let sid = normalize_cooldown_segment(input.strategy_id.as_deref().unwrap_or(""));
     if sid.is_empty() {
         return ReadinessRetryCooldownKeyOutput {
             cooldown_key: String::new(),
         };
     }
-    let mode = normalize_spaces(input.execution_mode.as_deref().unwrap_or("")).to_ascii_lowercase();
-    let mode = Regex::new(r"[^a-z0-9:_-]")
-        .expect("valid readiness mode regex")
-        .replace_all(&mode, "_")
-        .to_string();
+    let mode = canonical_execution_mode(input.execution_mode.as_deref().unwrap_or(""));
     if mode.is_empty() {
         return ReadinessRetryCooldownKeyOutput {
             cooldown_key: format!("readiness:strategy:{sid}"),
@@ -51,7 +81,11 @@ pub fn compute_readiness_retry_cooldown_key(
 
 pub fn compute_source_eye_id(input: &SourceEyeIdInput) -> SourceEyeIdOutput {
     let eye_ref = input.eye_ref.as_deref().unwrap_or("").trim();
-    let eye_id = eye_ref.strip_prefix("eye:").unwrap_or(eye_ref).to_string();
+    let eye_id_raw = eye_ref
+        .strip_prefix("eye:")
+        .or_else(|| eye_ref.strip_prefix("eye/"))
+        .unwrap_or(eye_ref);
+    let eye_id = normalize_cooldown_segment(eye_id_raw);
     SourceEyeIdOutput { eye_id }
 }
 

@@ -1,3 +1,33 @@
+fn canonical_registry_status(raw: &str) -> String {
+    let token = raw.trim().to_ascii_lowercase().replace('-', "_");
+    match token.as_str() {
+        "inprogress" => "in_progress".to_string(),
+        "blocked_pending" => "blocked".to_string(),
+        "ready" | "todo" => "queued".to_string(),
+        _ => token,
+    }
+}
+
+fn canonical_registry_class(raw: &str) -> String {
+    raw.trim().to_ascii_lowercase().replace(' ', "-")
+}
+
+fn normalize_dependencies(deps: &[String]) -> Vec<String> {
+    let mut out = Vec::<String>::new();
+    for dep in deps {
+        let id = dep.trim();
+        if id.is_empty() {
+            continue;
+        }
+        let normalized = id.to_ascii_uppercase();
+        if !out.contains(&normalized) {
+            out.push(normalized);
+        }
+    }
+    out.sort();
+    out
+}
+
 fn resolve_rows(parsed: Vec<ParsedRow>) -> (Vec<RegistryRow>, Vec<Value>) {
     let mut by_id: BTreeMap<String, Vec<ParsedRow>> = BTreeMap::new();
     for row in parsed {
@@ -16,7 +46,8 @@ fn resolve_rows(parsed: Vec<ParsedRow>) -> (Vec<RegistryRow>, Vec<Value>) {
         let pick = rows
             .iter()
             .max_by_key(|r| {
-                let mut score = status_weight(&r.row.status) * 10_000;
+                let mut score =
+                    status_weight(&canonical_registry_status(&r.row.status)) * 10_000;
                 if r.canonical {
                     score += 200;
                 }
@@ -35,7 +66,11 @@ fn resolve_rows(parsed: Vec<ParsedRow>) -> (Vec<RegistryRow>, Vec<Value>) {
             }));
         }
 
-        out.push(pick.row.clone());
+        let mut chosen = pick.row.clone();
+        chosen.status = canonical_registry_status(&chosen.status);
+        chosen.class = canonical_registry_class(&chosen.class);
+        chosen.dependencies = normalize_dependencies(&chosen.dependencies);
+        out.push(chosen);
     }
 
     (out, conflicts)
@@ -431,4 +466,3 @@ fn normalize_text_compare(text: &str) -> String {
         .trim_end()
         .to_string()
 }
-

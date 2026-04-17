@@ -11,6 +11,20 @@ fn run_control(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
         20,
     )
     .to_ascii_lowercase();
+    let op = match op.as_str() {
+        "stop" | "cancel" => "abort".to_string(),
+        "continue" | "unpause" => "resume".to_string(),
+        "hold" => "pause".to_string(),
+        _ => op,
+    };
+    let reason = clean(
+        parsed
+            .flags
+            .get("reason")
+            .cloned()
+            .unwrap_or_default(),
+        240,
+    );
     if strict && !matches!(op.as_str(), "pause" | "resume" | "abort") {
         return json!({
             "ok": false,
@@ -18,6 +32,16 @@ fn run_control(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
             "type": "snowball_plane_control",
             "action": "control",
             "errors": ["snowball_control_op_invalid"],
+            "op": op
+        });
+    }
+    if strict && op == "abort" && reason.is_empty() {
+        return json!({
+            "ok": false,
+            "strict": strict,
+            "type": "snowball_plane_control",
+            "action": "control",
+            "errors": ["snowball_control_abort_reason_required"],
             "op": op
         });
     }
@@ -33,6 +57,7 @@ fn run_control(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
         .unwrap_or_else(|| json!({"cycle_id": cycle_id, "stage":"running"}));
     cycle["control"] = json!({
         "op": op,
+        "reason": if reason.is_empty() { Value::Null } else { Value::String(reason.clone()) },
         "ts": crate::now_iso()
     });
     cycle["stage"] = Value::String(match op.as_str() {
@@ -63,7 +88,8 @@ fn run_control(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
                 "claim": "snowball_status_and_controls_are_live_and_receipted_through_conduit",
                 "evidence": {
                     "cycle_id": cycle_id,
-                    "op": op
+                    "op": op,
+                    "reason": if reason.is_empty() { Value::Null } else { Value::String(reason.clone()) }
                 }
             },
             {
@@ -72,6 +98,7 @@ fn run_control(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
                 "evidence": {
                     "cycle_id": cycle_id,
                     "op": op,
+                    "reason": if reason.is_empty() { Value::Null } else { Value::String(reason.clone()) },
                     "stage": cycle.get("stage").cloned().unwrap_or(Value::Null)
                 }
             }
@@ -379,4 +406,3 @@ mod tests {
         assert_eq!(blob_rows.len(), 1);
     }
 }
-

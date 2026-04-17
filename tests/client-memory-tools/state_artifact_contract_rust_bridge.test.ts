@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const ts = require('typescript');
+const ts = require('typescript');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 if (!require.extensions['.ts']) {
   require.extensions['.ts'] = function compileTs(module, filename) {
@@ -46,4 +46,4 @@ assert.equal(fs.existsSync(latestPath), true);
 assert.equal(fs.readFileSync(receiptsPath, 'utf8').trim().split('\n').length, 2);
 assert.equal(fs.readFileSync(historyPath, 'utf8').trim().split('\n').length >= 2, true);
 assert.match(mod.nowIso(), /^20\d\d-/);
-console.log(JSON.stringify({ ok: true, type: 'state_artifact_contract_rust_bridge_test' }));
+assertNoPlaceholderOrPromptLeak({ row, written }, 'state_artifact_contract_rust_bridge_test');\nassertStableToolingEnvelope(written, 'state_artifact_contract_rust_bridge_test');\nconsole.log(JSON.stringify({ ok: true, type: 'state_artifact_contract_rust_bridge_test' }));

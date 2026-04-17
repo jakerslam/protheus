@@ -9,6 +9,36 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+const MAX_CMD_LEN: usize = 48;
+const MAX_BLOB_ID_LEN: usize = 128;
+const MAX_HASH_LEN: usize = 192;
+
+fn strip_invisible_unicode(raw: &str) -> String {
+    raw.chars()
+        .filter(|ch| {
+            !matches!(
+                ch,
+                '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}'
+            )
+        })
+        .collect()
+}
+
+fn sanitize_cli_token(raw: &str, max_len: usize, lowercase: bool) -> String {
+    let mut value: String = strip_invisible_unicode(raw)
+        .chars()
+        .filter(|ch| !ch.is_control())
+        .collect();
+    value = value.trim().to_string();
+    if lowercase {
+        value = value.to_ascii_lowercase();
+    }
+    if value.len() > max_len {
+        value.truncate(max_len);
+    }
+    value
+}
+
 fn usage() {
     eprintln!("Usage:");
     eprintln!("  blob_test pack-demo");
@@ -26,23 +56,29 @@ fn main() {
 
 fn run() -> Result<(), BlobError> {
     let args: Vec<String> = env::args().skip(1).collect();
-    let cmd = args.first().map(String::as_str).unwrap_or("demo");
+    let cmd = args
+        .first()
+        .map(|value| sanitize_cli_token(value, MAX_CMD_LEN, true))
+        .unwrap_or_else(|| "demo".to_string());
     match cmd {
-        "pack-demo" => pack_demo_assets()?,
-        "manifest" => print_manifest()?,
-        "unfold" => {
+        ref token if token == "pack-demo" => pack_demo_assets()?,
+        ref token if token == "manifest" => print_manifest()?,
+        ref token if token == "unfold" => {
             if args.len() < 3 {
                 usage();
                 return Err(BlobError::InvalidBlobId);
             }
-            let blob_id = &args[1];
-            let expected_hash = &args[2];
-            unfold_and_print(blob_id, expected_hash)?;
+            let blob_id = sanitize_cli_token(&args[1], MAX_BLOB_ID_LEN, false);
+            let expected_hash = sanitize_cli_token(&args[2], MAX_HASH_LEN, true);
+            if blob_id.is_empty() || expected_hash.is_empty() {
+                return Err(BlobError::InvalidBlobId);
+            }
+            unfold_and_print(&blob_id, &expected_hash)?;
         }
-        "demo" => run_demo()?,
+        ref token if token == "demo" => run_demo()?,
         _ => {
             usage();
-            return Err(BlobError::UnknownBlob(cmd.to_string()));
+            return Err(BlobError::UnknownBlob(cmd));
         }
     }
     Ok(())

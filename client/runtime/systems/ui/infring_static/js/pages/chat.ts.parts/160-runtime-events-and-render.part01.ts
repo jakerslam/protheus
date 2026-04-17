@@ -362,7 +362,7 @@
       var tsPart = (msg && msg.ts != null) ? String(msg.ts) : '';
       var rolePart = String((msg && msg.role) || '');
       var noticePart = msg && msg.is_notice ? 'notice' : 'message';
-      if (msg && (msg.thinking || msg.streaming)) {
+      if (msg && (msg.thinking || msg.streaming || msg._typingVisual || msg._typewriterRunning)) {
         return noticePart + '|' + idPart + '|' + tsPart + '|' + rolePart + '|' + String(idx || 0) + '|live';
       }
       var textLen = (msg && typeof msg.text === 'string') ? msg.text.length : 0;

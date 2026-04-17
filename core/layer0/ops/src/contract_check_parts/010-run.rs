@@ -21,8 +21,24 @@ const PROBE_EYES_INTAKE_HELP_TOKENS: &[&str] =
     &["eyes_intake.js", "create", "validate", "list-directives"];
 const PROBE_CONFLICT_MARKER_HELP_TOKENS: &[&str] = &["conflict_marker_guard.js", "run", "status"];
 const CHECK_ID_RUST_SOURCE_OF_TRUTH: &str = "rust_source_of_truth_contract";
+const CHECK_ID_PROVIDER_DISCOVERY_RUNTIME: &str = "provider_discovery_runtime_contract";
+const CHECK_ID_WEB_PROVIDER_FAST_PATH_ARTIFACTS: &str =
+    "web_provider_public_artifacts_fast_path_contract";
+const FETCH_RUNTIME_CONTRACT_SOURCE_REL: &str =
+    "core/layer0/ops/src/web_conduit_provider_runtime_parts/019-fetch-runtime-resolution.rs";
+const SEARCH_RUNTIME_CONTRACT_SOURCE_REL: &str =
+    "core/layer0/ops/src/web_conduit_provider_runtime_parts/021-search-runtime-resolution.rs";
 pub const GUARD_REGISTRY_REQUIRED_TOKENS: &[&str] =
     &["guard_check_registry", "required_merge_guard_ids"];
+const PROVIDER_DISCOVERY_RUNTIME_REQUIRED_TOKENS: &[&str] = &[
+    "provider_discovery_runtime_contract",
+    "provider_discovery_contract_suite_contract",
+    "provider_runtime_core_contract",
+];
+const WEB_PROVIDER_FAST_PATH_REQUIRED_TOKENS: &[&str] = &[
+    "bundled_fast_path_contract_suite_contract",
+    "provider_family_contract_suite_contract",
+];
 pub const FOUNDATION_HOOK_REQUIRED_TOKENS: &[&str] = &[
     "foundation_contract_gate.js",
     "scale_envelope_baseline.js",
@@ -158,6 +174,10 @@ fn should_run_rust_subcheck(selected: &HashSet<String>, id: &str) -> bool {
     selected.is_empty() || selected.contains(CHECK_ID_RUST_SOURCE_OF_TRUTH) || selected.contains(id)
 }
 
+fn should_run_contract_check(selected: &HashSet<String>, id: &str) -> bool {
+    selected.is_empty() || selected.contains(id)
+}
+
 fn execute_contract_checks(root: &Path, args: &[String]) -> Result<Value, String> {
     let status_only = args.iter().any(|arg| arg == "status");
     let deep_probes = env_flag("CONTRACT_CHECK_DEEP_PROBES", false);
@@ -181,6 +201,22 @@ fn execute_contract_checks(root: &Path, args: &[String]) -> Result<Value, String
             CHECK_ID_FOUNDATION_HOOKS,
         )?,
     ];
+    if should_run_contract_check(&selected_ids, CHECK_ID_PROVIDER_DISCOVERY_RUNTIME) {
+        checks.push(check_source_tokens(
+            root,
+            FETCH_RUNTIME_CONTRACT_SOURCE_REL,
+            PROVIDER_DISCOVERY_RUNTIME_REQUIRED_TOKENS,
+            CHECK_ID_PROVIDER_DISCOVERY_RUNTIME,
+        )?);
+    }
+    if should_run_contract_check(&selected_ids, CHECK_ID_WEB_PROVIDER_FAST_PATH_ARTIFACTS) {
+        checks.push(check_source_tokens(
+            root,
+            SEARCH_RUNTIME_CONTRACT_SOURCE_REL,
+            WEB_PROVIDER_FAST_PATH_REQUIRED_TOKENS,
+            CHECK_ID_WEB_PROVIDER_FAST_PATH_ARTIFACTS,
+        )?);
+    }
 
     if !status_only && deep_probes {
         checks.push(check_script_help_tokens(
@@ -268,4 +304,3 @@ fn check_required_tokens_at_path(
     }
     Ok(())
 }
-

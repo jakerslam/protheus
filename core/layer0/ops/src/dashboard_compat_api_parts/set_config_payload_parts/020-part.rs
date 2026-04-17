@@ -413,10 +413,23 @@ fn split_model_ref(
     fallback_provider: &str,
     fallback_model: &str,
 ) -> (String, String) {
+    fn normalize_runtime_provider_id(raw: &str) -> String {
+        let lowered = clean_text(raw, 80)
+            .replace('_', "-")
+            .to_ascii_lowercase();
+        match lowered.as_str() {
+            "google" => "gemini".to_string(),
+            "xai" => "grok".to_string(),
+            "moonshot" => "kimi".to_string(),
+            "azure-openai-responses" => "openai".to_string(),
+            _ => lowered,
+        }
+    }
+
     let cleaned = clean_text(model_ref, 200);
     if cleaned.contains('/') {
         let mut parts = cleaned.splitn(2, '/');
-        let provider = clean_text(parts.next().unwrap_or(""), 80);
+        let provider = normalize_runtime_provider_id(parts.next().unwrap_or(""));
         let model = clean_text(parts.next().unwrap_or(""), 120);
         if !provider.is_empty() && !model.is_empty() {
             return (provider, model);
@@ -425,7 +438,7 @@ fn split_model_ref(
     let provider = if fallback_provider.is_empty() {
         "auto".to_string()
     } else {
-        clean_text(fallback_provider, 80)
+        normalize_runtime_provider_id(fallback_provider)
     };
     let model = if cleaned.is_empty() {
         clean_text(fallback_model, 120)
@@ -448,4 +461,3 @@ fn parse_i64_loose(value: Option<&Value>) -> i64 {
         .unwrap_or(0)
         .max(0)
 }
-

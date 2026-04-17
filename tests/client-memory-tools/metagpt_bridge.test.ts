@@ -9,7 +9,7 @@ const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const ts = require('typescript');
+const ts = require('typescript');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 if (!require.extensions['.ts']) {
   require.extensions['.ts'] = function compileTs(module, filename) {
@@ -144,9 +144,7 @@ function run() {
   assert.strictEqual(status.requirements, 1);
   assert.strictEqual(status.oversight, 1);
   assert.strictEqual(status.traces, 1);
-  assert.strictEqual(status.configs, 1);
-
-  console.log(JSON.stringify({ ok: true, type: 'metagpt_bridge_test' }));
+  assert.strictEqual(status.configs, 1);\n  assertNoPlaceholderOrPromptLeak(status, 'metagpt_bridge_test');\n  assertStableToolingEnvelope(status, 'metagpt_bridge_test');\n  console.log(JSON.stringify({ ok: true, type: 'metagpt_bridge_test' }));
 }
 
 run();

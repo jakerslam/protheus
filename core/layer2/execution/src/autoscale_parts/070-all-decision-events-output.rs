@@ -6,9 +6,9 @@ pub struct AllDecisionEventsOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CooldownActiveStateInput {
-    #[serde(default)]
+    #[serde(default, alias = "untilMs", alias = "until")]
     pub until_ms: Option<f64>,
-    #[serde(default)]
+    #[serde(default, alias = "nowMs", alias = "now")]
     pub now_ms: Option<f64>,
 }
 
@@ -20,7 +20,7 @@ pub struct CooldownActiveStateOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct BumpCountInput {
-    #[serde(default)]
+    #[serde(default, alias = "currentCount", alias = "count")]
     pub current_count: Option<f64>,
 }
 
@@ -31,9 +31,9 @@ pub struct BumpCountOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct LockAgeMinutesInput {
-    #[serde(default)]
+    #[serde(default, alias = "lockTs", alias = "lockTimestamp")]
     pub lock_ts: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "nowMs", alias = "now")]
     pub now_ms: Option<f64>,
 }
 
@@ -67,11 +67,11 @@ pub struct AssessSuccessCriteriaQualityCheckInput {
 pub struct AssessSuccessCriteriaQualityInput {
     #[serde(default)]
     pub checks: Vec<AssessSuccessCriteriaQualityCheckInput>,
-    #[serde(default)]
+    #[serde(default, alias = "totalCount")]
     pub total_count: f64,
-    #[serde(default)]
+    #[serde(default, alias = "unknownCount")]
     pub unknown_count: f64,
-    #[serde(default)]
+    #[serde(default, alias = "isSynthesized")]
     pub synthesized: bool,
 }
 
@@ -93,21 +93,21 @@ pub struct AssessSuccessCriteriaQualityOutput {
 pub struct ManualGatePrefilterInput {
     #[serde(default)]
     pub enabled: bool,
-    #[serde(default)]
+    #[serde(default, alias = "capabilityKey", alias = "capability")]
     pub capability_key: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "windowHours")]
     pub window_hours: f64,
-    #[serde(default)]
+    #[serde(default, alias = "minObservations")]
     pub min_observations: f64,
-    #[serde(default)]
+    #[serde(default, alias = "maxManualBlockRate")]
     pub max_manual_block_rate: f64,
-    #[serde(default)]
+    #[serde(default, alias = "rowPresent")]
     pub row_present: bool,
     #[serde(default)]
     pub attempts: f64,
-    #[serde(default)]
+    #[serde(default, alias = "manualBlocked")]
     pub manual_blocked: f64,
-    #[serde(default)]
+    #[serde(default, alias = "manualBlockRate")]
     pub manual_block_rate: f64,
 }
 
@@ -159,7 +159,7 @@ pub struct TopBiasSummaryEntryInput {
 pub struct TopBiasesSummaryInput {
     #[serde(default)]
     pub entries: Vec<TopBiasSummaryEntryInput>,
-    #[serde(default)]
+    #[serde(default, alias = "maxRows", alias = "topN")]
     pub limit: u32,
 }
 
@@ -195,15 +195,15 @@ pub struct CriteriaPatternPenaltyInput {
     pub keys: Vec<String>,
     #[serde(default)]
     pub patterns: Vec<CriteriaPatternPenaltyPatternInput>,
-    #[serde(default)]
+    #[serde(default, alias = "failThreshold")]
     pub fail_threshold: f64,
-    #[serde(default)]
+    #[serde(default, alias = "penaltyPerHit")]
     pub penalty_per_hit: f64,
-    #[serde(default)]
+    #[serde(default, alias = "maxPenalty")]
     pub max_penalty: f64,
-    #[serde(default)]
+    #[serde(default, alias = "windowDays")]
     pub window_days: f64,
-    #[serde(default)]
+    #[serde(default, alias = "nowMs")]
     pub now_ms: f64,
 }
 

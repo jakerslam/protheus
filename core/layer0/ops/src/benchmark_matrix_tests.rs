@@ -20,6 +20,15 @@ fn bar_fill_prefers_higher_when_higher_is_better() {
 }
 
 #[test]
+fn bar_fill_clamps_out_of_range_inputs() {
+    let width = 12;
+    let above = bar_fill(500.0, 0.0, 100.0, width, false);
+    let below = bar_fill(-500.0, 0.0, 100.0, width, false);
+    assert_eq!(above, width);
+    assert_eq!(below, 1);
+}
+
+#[test]
 fn merge_projects_replaces_infring_entry() {
     let snapshot = json!({
         "projects": {

@@ -90,6 +90,26 @@ fn topology_payload(root: &Path, snapshot: &Value) -> Value {
     })
 }
 
+fn web_tooling_diagnostics_payload(root: &Path) -> Value {
+    let snapshot_path = root.join("client/runtime/local/state/ui/infring_dashboard/latest_snapshot.json");
+    let snapshot = super::read_json_loose(&snapshot_path).unwrap_or_else(|| json!({}));
+    let web_tooling = snapshot.get("web_tooling").cloned().unwrap_or(Value::Null);
+    if web_tooling.is_null() {
+        return json!({
+            "ok": false,
+            "contract_version": COMMS_CONTRACT_VERSION,
+            "error": "web_tooling_snapshot_missing",
+            "snapshot_path": snapshot_path.to_string_lossy().to_string()
+        });
+    }
+    json!({
+        "ok": true,
+        "contract_version": COMMS_CONTRACT_VERSION,
+        "snapshot_path": snapshot_path.to_string_lossy().to_string(),
+        "web_tooling": web_tooling
+    })
+}
+
 pub fn handle(
     root: &Path,
     method: &str,
@@ -98,6 +118,18 @@ pub fn handle(
     body: &[u8],
     snapshot: &Value,
 ) -> Option<CompatApiResponse> {
+    if method == "GET"
+        && (path_only == "/api/comms/web-tooling/diagnostics"
+            || path_only == "/api/comms/web-tooling/status")
+    {
+        let payload = web_tooling_diagnostics_payload(root);
+        let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(false);
+        return Some(CompatApiResponse {
+            status: if ok { 200 } else { 503 },
+            payload,
+        });
+    }
+
     if method == "GET" && path_only == "/api/comms/topology" {
         return Some(CompatApiResponse {
             status: 200,

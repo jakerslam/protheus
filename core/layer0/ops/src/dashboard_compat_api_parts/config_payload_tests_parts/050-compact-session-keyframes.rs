@@ -341,3 +341,39 @@ fn template_detail_returns_manifest_toml_for_spawn_flow() {
     assert!(manifest.contains("role = \"travel_assistant\""));
     assert!(manifest.contains("[model]"));
 }
+
+#[test]
+fn compat_response_wraps_runtime_web_tooling_contract_metadata() {
+    let wrapped = compat_api_response_with_nexus(
+        "dashboard.comms.events",
+        CompatApiResponse {
+            status: 200,
+            payload: json!({
+                "ok": true,
+                "events": []
+            }),
+        },
+    );
+    assert_eq!(wrapped.status, 200);
+    let contract = wrapped
+        .payload
+        .get("runtime_web_tooling_contract")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
+    assert_eq!(
+        contract
+            .get("contract_version")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        "dashboard_web_tooling_contract_v1"
+    );
+    assert_eq!(
+        contract
+            .get("provider_contract_targets")
+            .and_then(Value::as_array)
+            .map(|rows| rows.len())
+            .unwrap_or(0)
+            >= 5,
+        true
+    );
+}

@@ -46,6 +46,37 @@ fn enforce_user_facing_finalization_contract(
             obj.insert("reasoning".to_string(), Value::String(first_sentence(&finalized, 220)));
         }
     }
+    let deferred_execution = response_is_deferred_execution_preamble(&finalized)
+        || response_is_deferred_retry_prompt(&finalized);
+    if deferred_execution
+        && report
+            .get("completion_state")
+            .and_then(Value::as_str)
+            != Some("reported_findings")
+    {
+        finalized = no_findings_user_facing_response();
+        if let Some(obj) = report.as_object_mut() {
+            obj.insert(
+                "completion_state".to_string(),
+                Value::String("reported_no_findings".to_string()),
+            );
+            obj.insert("final_ack_only".to_string(), Value::Bool(false));
+            obj.insert("final_no_findings".to_string(), Value::Bool(true));
+            obj.insert("final_deferred_execution".to_string(), Value::Bool(false));
+            obj.insert(
+                "reasoning".to_string(),
+                Value::String(first_sentence(&finalized, 220)),
+            );
+            let prior = clean_text(obj.get("outcome").and_then(Value::as_str).unwrap_or(""), 200);
+            obj.insert(
+                "outcome".to_string(),
+                Value::String(append_tool_completion_outcome(
+                    &prior,
+                    "tool_completion_replaced_deferred_execution",
+                )),
+            );
+        }
+    }
     let contract_outcome = clean_text(report.get("outcome").and_then(Value::as_str).unwrap_or("unchanged"), 200);
     let merged_outcome = merge_response_outcomes(&pre_outcome, &contract_outcome, 220);
     (finalized, report, merged_outcome)
@@ -120,6 +151,9 @@ fn response_tools_summary_for_user(response_tools: &[Value], max_items: usize) -
         if raw_result.is_empty() {
             continue;
         }
+        if response_looks_like_tool_ack_without_findings(&raw_result) {
+            continue;
+        }
         let user_result =
             rewrite_tool_result_for_user_summary(&name, &raw_result).unwrap_or(raw_result);
         let lowered = user_result.to_ascii_lowercase();
@@ -127,6 +161,9 @@ fn response_tools_summary_for_user(response_tools: &[Value], max_items: usize) -
             continue;
         }
         if response_looks_like_tool_ack_without_findings(&user_result) {
+            continue;
+        }
+        if response_is_no_findings_placeholder(&user_result) {
             continue;
         }
         if response_looks_like_unsynthesized_web_snippet_dump(&user_result)

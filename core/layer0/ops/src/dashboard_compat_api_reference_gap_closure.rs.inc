@@ -1171,6 +1171,100 @@ pub fn handle(
 
     let mut state = load_state(root);
 
+    if method == "GET"
+        && (path_only == "/api/web-tooling/status" || path_only == "/api/sidebar/web-tooling/status")
+    {
+        let mut payload = super::dashboard_compat_api_sidebar_ops::web_tooling_status_payload(root);
+        let last_error = clean_text(
+            payload
+                .pointer("/diagnostics/last_error_code")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            120,
+        );
+        if let Some(obj) = payload.as_object_mut() {
+            obj.insert(
+                "guidance".to_string(),
+                crate::dashboard_compat_api::dashboard_compat_api_reference_gap_closure::web_tooling_error_guidance(&last_error),
+            );
+            obj.insert(
+                "contract".to_string(),
+                json!({
+                    "version": crate::dashboard_compat_api::DASHBOARD_COMPAT_API_CONTRACT_VERSION,
+                    "route_family": crate::dashboard_compat_api::DASHBOARD_WEB_TOOLING_ROUTE_FAMILY,
+                    "sidebar_contract_version": super::dashboard_compat_api_sidebar_ops::SIDEBAR_OPS_CONTRACT_VERSION
+                }),
+            );
+        }
+        return Some(CompatApiResponse {
+            status: 200,
+            payload,
+        });
+    }
+    if method == "GET"
+        && (path_only == "/api/web-tooling/errors" || path_only == "/api/sidebar/web-tooling/errors")
+    {
+        let mut payload = super::dashboard_compat_api_sidebar_ops::web_tooling_errors_payload(root);
+        let last_error = clean_text(
+            payload
+                .get("last_error_code")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            120,
+        );
+        if let Some(obj) = payload.as_object_mut() {
+            obj.insert(
+                "guidance".to_string(),
+                crate::dashboard_compat_api::dashboard_compat_api_reference_gap_closure::web_tooling_error_guidance(&last_error),
+            );
+        }
+        return Some(CompatApiResponse {
+            status: 200,
+            payload,
+        });
+    }
+    if method == "POST"
+        && (path_only == "/api/web-tooling/preferences"
+            || path_only == "/api/sidebar/web-tooling/preferences")
+    {
+        let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+        let payload =
+            super::dashboard_compat_api_sidebar_ops::web_tooling_preferences_upsert_payload(
+                root, &request,
+            );
+        return Some(CompatApiResponse {
+            status: 200,
+            payload,
+        });
+    }
+    if method == "POST"
+        && (path_only == "/api/web-tooling/probe" || path_only == "/api/sidebar/web-tooling/probe")
+    {
+        let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+        let mut payload = super::dashboard_compat_api_sidebar_ops::web_tooling_probe_payload(
+            root, &request,
+        );
+        let candidate_error = clean_text(
+            payload
+                .get("error")
+                .or_else(|| payload.get("error_code"))
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            120,
+        );
+        if let Some(obj) = payload.as_object_mut() {
+            obj.insert(
+                "guidance".to_string(),
+                crate::dashboard_compat_api::dashboard_compat_api_reference_gap_closure::web_tooling_error_guidance(&candidate_error),
+            );
+        }
+        let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(false);
+        return Some(CompatApiResponse {
+            status: if ok { 200 } else { 400 },
+            payload,
+        });
+    }
+
     if method == "GET" && path_only == "/api/a2a/agents" {
         return Some(a2a_agents_payload(root, &mut state));
     }

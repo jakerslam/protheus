@@ -166,7 +166,14 @@ fn now_date() -> String {
 }
 
 fn absolutize(root: &Path, raw: &str) -> PathBuf {
-    let candidate = PathBuf::from(raw.trim());
+    let normalized = raw.trim().replace('\\', "/");
+    let candidate = PathBuf::from(&normalized);
+    if candidate
+        .components()
+        .any(|part| matches!(part, std::path::Component::ParentDir))
+    {
+        return root.to_path_buf();
+    }
     if candidate.is_absolute() {
         candidate
     } else {
@@ -206,23 +213,38 @@ fn resolve_path(
     env_name: &str,
     fallback_rel: &str,
 ) -> PathBuf {
+    let absolutize_guarded = |raw: &str| {
+        let normalized = raw.trim().replace('\\', "/");
+        let candidate = PathBuf::from(&normalized);
+        if candidate
+            .components()
+            .any(|part| matches!(part, std::path::Component::ParentDir))
+        {
+            return root.join(fallback_rel);
+        }
+        if candidate.is_absolute() {
+            candidate
+        } else {
+            root.join(candidate)
+        }
+    };
     if let Some(paths) = as_object(payload.get("paths")) {
         if let Some(raw) = paths.get(key) {
             let s = as_str(Some(raw));
             if !s.is_empty() {
-                return absolutize(root, &s);
+                return absolutize_guarded(&s);
             }
         }
     }
     if let Some(raw) = payload.get("file_path") {
         let s = as_str(Some(raw));
         if !s.is_empty() {
-            return absolutize(root, &s);
+            return absolutize_guarded(&s);
         }
     }
     if let Ok(raw) = std::env::var(env_name) {
         if !raw.trim().is_empty() {
-            return absolutize(root, &raw);
+            return absolutize_guarded(&raw);
         }
     }
     root.join(fallback_rel)
@@ -426,4 +448,3 @@ fn default_policy() -> Value {
         }
     })
 }
-

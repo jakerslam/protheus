@@ -4,7 +4,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const ts = require('typescript');
+const ts = require('typescript');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 if (!require.extensions['.ts']) {
@@ -91,4 +91,4 @@ const approval = validateAction({
 assert.strictEqual(approval.allowed, true);
 assert.strictEqual(approval.requires_approval, true);
 
-console.log('directive_resolver_rust_bridge.test.ts: OK');
+assertNoPlaceholderOrPromptLeak({ directives, merged, parsed, weakTier1, blocked, approval }, 'directive_resolver_rust_bridge_test');\nassertStableToolingEnvelope({ blocked, approval }, 'directive_resolver_rust_bridge_test');\nconsole.log('directive_resolver_rust_bridge.test.ts: OK');

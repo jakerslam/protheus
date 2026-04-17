@@ -6,6 +6,7 @@ const USAGE: &[&str] = &[
     "Usage:",
     "  protheus-ops execution-yield-recovery run [--apply=1|0] [--strict=1|0] [--policy=<path>]",
     "  protheus-ops execution-yield-recovery status [--policy=<path>]",
+    "  Optional telemetry flags: --trace-id=<id> --call-id=<id> --request-id=<id> --source=<tag>",
 ];
 
 pub fn run(root: &Path, argv: &[String]) -> i32 {
@@ -25,6 +26,10 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "max-tests",
                 "id",
                 "limit",
+                "trace-id",
+                "call-id",
+                "request-id",
+                "source",
             ],
         },
     )

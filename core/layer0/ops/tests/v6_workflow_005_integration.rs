@@ -22,6 +22,13 @@ fn latest_receipt(state_path: &Path) -> Value {
         .expect("last receipt")
 }
 
+fn assert_receipt_tooling_hygiene(receipt: &Value) {
+    let blob = receipt.to_string().to_ascii_lowercase();
+    assert!(!blob.contains("<function="));
+    assert!(!blob.contains("</function>"));
+    assert!(!blob.contains("i couldn't produce source-backed findings in this turn"));
+}
+
 #[test]
 fn workflow_005_dify_bridge_emits_receipted_canvas_rag_app_dashboard_provider_flow_and_audit_trace()
 {
@@ -60,6 +67,7 @@ fn workflow_005_dify_bridge_emits_receipted_canvas_rag_app_dashboard_provider_fl
         0
     );
     let canvas_receipt = latest_receipt(&state_path);
+    assert_receipt_tooling_hygiene(&canvas_receipt);
     assert_eq!(
         canvas_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-005.1")
@@ -272,6 +280,7 @@ fn workflow_005_dify_bridge_emits_receipted_canvas_rag_app_dashboard_provider_fl
         0
     );
     let trace_receipt = latest_receipt(&state_path);
+    assert_receipt_tooling_hygiene(&trace_receipt);
     assert_eq!(
         trace_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-005.7")

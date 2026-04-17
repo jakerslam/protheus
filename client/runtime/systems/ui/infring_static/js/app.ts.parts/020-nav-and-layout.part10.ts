@@ -293,20 +293,52 @@
       return this.dashboardOppositeSide(winner);
     },
 
+    dashboardPopupHorizontalAwayFromNearestWall(rect, fallbackSide) {
+      var fallback = String(fallbackSide || 'right').trim().toLowerCase();
+      if (fallback !== 'left') fallback = 'right';
+      var affinity = this.dashboardPopupWallAffinity(rect);
+      if (!affinity || !affinity.distances) return fallback;
+      var distances = affinity.distances;
+      var nearest = Number(distances.left || 0) <= Number(distances.right || 0)
+        ? 'left'
+        : 'right';
+      return nearest === 'left' ? 'right' : 'left';
+    },
+
+    dashboardPopupVerticalAwayFromNearestWall(rect, fallbackSide) {
+      var fallback = String(fallbackSide || 'bottom').trim().toLowerCase();
+      if (fallback !== 'top') fallback = 'bottom';
+      var affinity = this.dashboardPopupWallAffinity(rect);
+      if (!affinity || !affinity.distances) return fallback;
+      var distances = affinity.distances;
+      var nearest = Number(distances.top || 0) <= Number(distances.bottom || 0)
+        ? 'top'
+        : 'bottom';
+      return nearest === 'top' ? 'bottom' : 'top';
+    },
+
     taskbarAnchoredDropdownClass(anchorNode, fallbackSide) {
       var fallback = this.normalizeDashboardPopupSide('', fallbackSide || 'bottom');
       var side = fallback;
+      var inlineAway = 'right';
+      var blockAway = 'bottom';
       if (anchorNode && typeof anchorNode.getBoundingClientRect === 'function') {
         var wallRect = this.dashboardPopupWallRectForNode(anchorNode);
         var sideRect = wallRect || anchorNode.getBoundingClientRect();
         side = this.dashboardPopupSideAwayFromNearestWall(sideRect, fallback);
+        inlineAway = this.dashboardPopupHorizontalAwayFromNearestWall(sideRect, 'right');
+        blockAway = this.dashboardPopupVerticalAwayFromNearestWall(sideRect, 'bottom');
       }
       return {
         'taskbar-anchored-dropdown': true,
         'is-side-top': side === 'top',
         'is-side-bottom': side === 'bottom',
         'is-side-left': side === 'left',
-        'is-side-right': side === 'right'
+        'is-side-right': side === 'right',
+        'is-inline-away-left': inlineAway === 'left',
+        'is-inline-away-right': inlineAway === 'right',
+        'is-block-away-top': blockAway === 'top',
+        'is-block-away-bottom': blockAway === 'bottom'
       };
     },
 

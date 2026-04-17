@@ -297,6 +297,7 @@ fn prepare_message_route_context(
     }
     prompt_parts.push(AGENT_RUNTIME_SYSTEM_PROMPT.to_string());
     let workflow_prompt_context = workflow_library_prompt_context(
+        message,
         latent_tool_candidates
             .as_array()
             .map(Vec::as_slice)

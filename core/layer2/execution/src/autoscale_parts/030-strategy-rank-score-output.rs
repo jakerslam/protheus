@@ -5,21 +5,29 @@ pub struct StrategyRankScoreOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ExpectedValueSignalInput {
-    #[serde(default)]
+    #[serde(default, alias = "explicitScore")]
     pub explicit_score: Option<f64>,
-    #[serde(default)]
+    #[serde(default, alias = "expectedValueUsd", alias = "expected_value")]
     pub expected_value_usd: Option<f64>,
-    #[serde(default)]
+    #[serde(default, alias = "oraclePriorityScore")]
     pub oracle_priority_score: Option<f64>,
+    #[serde(alias = "impactWeight")]
     pub impact_weight: f64,
-    #[serde(default)]
+    #[serde(default, alias = "selectedCurrency")]
     pub selected_currency: Option<String>,
+    #[serde(alias = "currencyMultiplier")]
     pub currency_multiplier: f64,
+    #[serde(alias = "matchedFirstSentenceContainsSelected")]
     pub matched_first_sentence_contains_selected: bool,
+    #[serde(alias = "currencyRankingEnabled")]
     pub currency_ranking_enabled: bool,
+    #[serde(alias = "oracleApplies")]
     pub oracle_applies: bool,
+    #[serde(alias = "oraclePass")]
     pub oracle_pass: bool,
+    #[serde(alias = "rankBlend")]
     pub rank_blend: f64,
+    #[serde(alias = "bonusCap")]
     pub bonus_cap: f64,
 }
 
@@ -37,9 +45,12 @@ pub struct ExpectedValueSignalOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ValueSignalScoreInput {
+    #[serde(alias = "expectedValue")]
     pub expected_value: f64,
+    #[serde(alias = "timeToValue")]
     pub time_to_value: f64,
     pub actionability: f64,
+    #[serde(alias = "directiveFit")]
     pub directive_fit: f64,
 }
 
@@ -50,11 +61,17 @@ pub struct ValueSignalScoreOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct StrategyRankAdjustedInput {
+    #[serde(alias = "baseScore")]
     pub base: f64,
+    #[serde(alias = "pulseScore")]
     pub pulse_score: f64,
+    #[serde(alias = "pulseWeight")]
     pub pulse_weight: f64,
+    #[serde(alias = "objectiveAllocationScore")]
     pub objective_allocation_score: f64,
+    #[serde(alias = "baseObjectiveWeight")]
     pub base_objective_weight: f64,
+    #[serde(alias = "canaryMode")]
     pub canary_mode: bool,
 }
 
@@ -148,12 +165,17 @@ pub struct CollectiveShadowAdjustmentsOutput {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct StrategyTritShadowRankRowInput {
     pub index: u32,
+    #[serde(alias = "proposalId")]
     pub proposal_id: String,
+    #[serde(alias = "legacyScore", alias = "legacy_rank_score")]
     pub legacy_rank: f64,
+    #[serde(alias = "tritScore", alias = "trit_rank_score")]
     pub trit_rank: f64,
+    #[serde(alias = "tritLabel")]
     pub trit_label: String,
+    #[serde(alias = "tritConfidence")]
     pub trit_confidence: f64,
-    #[serde(default)]
+    #[serde(default, alias = "tritTopSources")]
     pub trit_top_sources: Vec<String>,
 }
 
@@ -161,10 +183,11 @@ pub struct StrategyTritShadowRankRowInput {
 pub struct StrategyTritShadowRankingSummaryInput {
     #[serde(default)]
     pub rows: Vec<StrategyTritShadowRankRowInput>,
-    #[serde(default)]
+    #[serde(default, alias = "selectedProposalId")]
     pub selected_proposal_id: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "selectionMode")]
     pub selection_mode: Option<String>,
+    #[serde(alias = "topK")]
     pub top_k: u32,
 }
 

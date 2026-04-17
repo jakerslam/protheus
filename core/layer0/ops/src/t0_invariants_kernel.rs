@@ -10,6 +10,8 @@ use std::path::{Path, PathBuf};
 
 const DIRECTIVE_PATH: &str = "client/runtime/config/directives/T0_invariants.yaml";
 const STATE_ROOT: &str = "core/local/state/ops/security_plane/t0_invariants";
+const PROVIDER_FAMILY_CONTRACT_TARGETS: &[&str] =
+    &["anthropic", "fal", "google", "minimax", "moonshot"];
 
 fn state_root(root: &Path) -> PathBuf {
     root.join(STATE_ROOT)
@@ -32,6 +34,17 @@ fn load_directive_doc(root: &Path) -> Value {
         .unwrap_or_else(|| json!({}))
 }
 
+fn normalize_provider_family(raw: Option<&str>) -> String {
+    match raw.unwrap_or("").trim().to_ascii_lowercase().as_str() {
+        "kimi" | "moonshot" => "moonshot".to_string(),
+        "gemini" | "google" => "google".to_string(),
+        "claude" | "anthropic" => "anthropic".to_string(),
+        "fal_ai" | "fal" => "fal".to_string(),
+        "minimax" => "minimax".to_string(),
+        other => other.to_string(),
+    }
+}
+
 fn invariant_catalog() -> Vec<Value> {
     vec![
         json!({"id":"no_disable_receipts","description":"No agent can disable receipts"}),
@@ -42,6 +55,11 @@ fn invariant_catalog() -> Vec<Value> {
         json!({"id":"external_calls_receipted","description":"All external calls must be receipted"}),
         json!({"id":"budget_overrun_terminates","description":"Budget overruns trigger immediate termination"}),
         json!({"id":"human_veto_overrides_all","description":"Human veto overrides all"}),
+        json!({"id":"provider_runtime_contract_required","description":"Provider runtime contract must hold for web tooling paths"}),
+        json!({"id":"provider_auth_contract_required","description":"Provider auth contract must hold for web tooling paths"}),
+        json!({"id":"provider_registry_contract_required","description":"Provider registry contract must hold for web tooling paths"}),
+        json!({"id":"provider_discovery_contract_required","description":"Provider discovery contract must hold for web tooling paths"}),
+        json!({"id":"provider_family_contract_targets_enforced","description":"Provider family must be in approved contract target set"}),
     ]
 }
 
@@ -77,6 +95,31 @@ fn evaluate_attempt(argv: &[String]) -> Value {
     let human_veto = lane_utils::parse_bool_extended(
         lane_utils::parse_flag(argv, "human-veto", false).as_deref(),
         false,
+    );
+    let web_tooling_surface = lane_utils::parse_bool_extended(
+        lane_utils::parse_flag(argv, "web-tooling-surface", false).as_deref(),
+        false,
+    );
+    let provider_runtime_contract = lane_utils::parse_bool_extended(
+        lane_utils::parse_flag(argv, "provider-runtime-contract", false).as_deref(),
+        true,
+    );
+    let provider_auth_contract = lane_utils::parse_bool_extended(
+        lane_utils::parse_flag(argv, "provider-auth-contract", false).as_deref(),
+        true,
+    );
+    let provider_registry_contract = lane_utils::parse_bool_extended(
+        lane_utils::parse_flag(argv, "provider-registry-contract", false).as_deref(),
+        true,
+    );
+    let provider_discovery_contract = lane_utils::parse_bool_extended(
+        lane_utils::parse_flag(argv, "provider-discovery-contract", false).as_deref(),
+        true,
+    );
+    let provider_family = normalize_provider_family(
+        lane_utils::parse_flag(argv, "provider-family", false)
+            .or_else(|| lane_utils::parse_flag(argv, "provider", false))
+            .as_deref(),
     );
 
     let mut violations = Vec::<Value>::new();
@@ -125,6 +168,37 @@ fn evaluate_attempt(argv: &[String]) -> Value {
     if human_veto {
         violations.push(json!({"id":"human_veto_overrides_all","reason":"human_veto_asserted"}));
     }
+    if web_tooling_surface && !provider_runtime_contract {
+        violations.push(
+            json!({"id":"provider_runtime_contract_required","reason":"provider_runtime_contract_missing"}),
+        );
+    }
+    if web_tooling_surface && !provider_auth_contract {
+        violations.push(
+            json!({"id":"provider_auth_contract_required","reason":"provider_auth_contract_missing"}),
+        );
+    }
+    if web_tooling_surface && !provider_registry_contract {
+        violations.push(
+            json!({"id":"provider_registry_contract_required","reason":"provider_registry_contract_missing"}),
+        );
+    }
+    if web_tooling_surface && !provider_discovery_contract {
+        violations.push(
+            json!({"id":"provider_discovery_contract_required","reason":"provider_discovery_contract_missing"}),
+        );
+    }
+    if !provider_family.is_empty()
+        && !PROVIDER_FAMILY_CONTRACT_TARGETS
+            .iter()
+            .any(|target| target == &provider_family.as_str())
+    {
+        violations.push(json!({
+            "id":"provider_family_contract_targets_enforced",
+            "reason":"provider_family_not_in_contract_targets",
+            "provider_family": provider_family
+        }));
+    }
 
     json!({
         "receipts_enabled": receipts_enabled,
@@ -135,6 +209,13 @@ fn evaluate_attempt(argv: &[String]) -> Value {
         "external_call_receipted": external_call_receipted,
         "budget_overrun": budget_overrun,
         "human_veto": human_veto,
+        "web_tooling_surface": web_tooling_surface,
+        "provider_runtime_contract": provider_runtime_contract,
+        "provider_auth_contract": provider_auth_contract,
+        "provider_registry_contract": provider_registry_contract,
+        "provider_discovery_contract": provider_discovery_contract,
+        "provider_family": provider_family,
+        "provider_family_contract_targets": PROVIDER_FAMILY_CONTRACT_TARGETS,
         "violations": violations,
     })
 }

@@ -1,10 +1,78 @@
+fn web_tooling_provider_contract_targets() -> [&'static str; 10] {
+    [
+        "brave",
+        "duckduckgo",
+        "exa",
+        "firecrawl",
+        "google",
+        "minimax",
+        "moonshot",
+        "perplexity",
+        "tavily",
+        "xai",
+    ]
+}
+
+fn normalize_web_tooling_provider(raw: &str) -> String {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "kimi" | "moonshot" => "moonshot".to_string(),
+        "grok" | "xai" => "xai".to_string(),
+        "duck_duck_go" | "duckduckgo" => "duckduckgo".to_string(),
+        "brave_search" | "brave" => "brave".to_string(),
+        other => other.to_string(),
+    }
+}
+
+fn normalize_strategy_web_tooling_state(state: &mut Value) {
+    if !state.is_object() {
+        return;
+    }
+    if !state.get("web_tooling").map(Value::is_object).unwrap_or(false) {
+        state["web_tooling"] = json!({});
+    }
+    let targets = web_tooling_provider_contract_targets();
+    let configured = state["web_tooling"]
+        .get("provider_priority")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|row| row.as_str().map(normalize_web_tooling_provider))
+        .filter(|row| targets.iter().any(|target| target == row))
+        .collect::<Vec<_>>();
+    let mut deduped = Vec::<String>::new();
+    for provider in configured {
+        if !provider.is_empty() && !deduped.iter().any(|existing| existing == &provider) {
+            deduped.push(provider);
+        }
+    }
+    if deduped.is_empty() {
+        deduped = targets.iter().map(|row| row.to_string()).collect::<Vec<_>>();
+    }
+    state["web_tooling"]["provider_priority"] =
+        Value::Array(deduped.iter().map(|row| Value::String(row.clone())).collect());
+    state["web_tooling"]["provider_contract_targets"] = Value::Array(
+        targets
+            .iter()
+            .map(|target| Value::String((*target).to_string()))
+            .collect(),
+    );
+    state["web_tooling"]["provider_runtime_contract"] = json!({
+        "registry_coverage_required": true,
+        "discovery_contract_required": true,
+        "auth_contract_providers": ["openai_codex", "github_copilot"],
+        "updated_ts": now_iso()
+    });
+}
+
 fn set_state(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> {
     let path = as_store_path(root, payload)?;
     let state = payload
         .get("state")
         .cloned()
         .unwrap_or_else(|| Value::Object(payload.clone()));
-    let normalized = normalize_state(Some(&state), Some(&default_strategy_state()));
+    let mut normalized = normalize_state(Some(&state), Some(&default_strategy_state()));
+    normalize_strategy_web_tooling_state(&mut normalized);
     write_json_atomic(&path, &normalized)?;
     let meta = as_object(payload.get("meta"));
     append_mutation_log(
@@ -29,7 +97,8 @@ fn mutate_state(
     let raw = read_json(&path);
     let mut state = normalize_state(Some(&raw), Some(&default_strategy_state()));
     mutator(&mut state)?;
-    let normalized = normalize_state(Some(&state), Some(&default_strategy_state()));
+    let mut normalized = normalize_state(Some(&state), Some(&default_strategy_state()));
+    normalize_strategy_web_tooling_state(&mut normalized);
     write_json_atomic(&path, &normalized)?;
     let meta = as_object(payload.get("meta"));
     append_mutation_log(
@@ -413,4 +482,3 @@ fn touch_profile_usage(root: &Path, payload: &Map<String, Value>) -> Result<Valu
     })?;
     Ok(json!({"state": state, "profile": profile_out}))
 }
-

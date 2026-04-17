@@ -102,6 +102,29 @@
                         </button>
                       </template>
                     </div>
+
+                    <div class="chat-init-section-title">Permissions <span class="chat-init-section-optional">Optional</span></div>
+                    <div class="chat-init-permissions-panel">
+                      <template x-for="section in freshInitPermissionCatalog" :key="'chat-permissions-' + section.category">
+                        <div class="chat-init-permissions-category">
+                          <div class="chat-init-permissions-category-head">
+                            <span class="chat-archetype-name" x-text="section.name"></span>
+                            <div class="chat-init-permissions-category-actions">
+                              <button class="btn btn-ghost btn-xs" type="button" :disabled="freshInitLaunching" @click="setFreshInitPermissionCategory(section.category, true)">Allow all</button>
+                              <button class="btn btn-ghost btn-xs" type="button" :disabled="freshInitLaunching" @click="setFreshInitPermissionCategory(section.category, false)">Inherit all</button>
+                            </div>
+                          </div>
+                          <div class="chat-init-permissions-list">
+                            <template x-for="p in section.permissions" :key="'chat-permission-' + p.key">
+                              <label class="chat-init-permissions-item">
+                                <input type="checkbox" :disabled="freshInitLaunching" :checked="isFreshInitPermissionChecked(p)" @change="setFreshInitPermissionChecked(p, $event.target.checked)">
+                                <span x-text="p.label"></span>
+                              </label>
+                            </template>
+                          </div>
+                        </div>
+                      </template>
+                    </div>
                   </div>
 
                   <div class="chat-init-launch-row" data-init-anchor="launch">
@@ -118,7 +141,7 @@
           </div>
         </div>
         <div class="chat-map" x-show="currentAgent && messages && messages.length > 0" :style="chatMapContainerStyle()" aria-label="Message map">
-          <div class="chat-map-surface drag-bar overlay-shared-surface" @pointerdown.capture="startChatMapPointerDrag($event)" @mousedown.capture="startChatMapPointerDrag($event)">
+          <div class="chat-map-surface drag-bar overlay-shared-surface" :class="{ 'is-container-dragging': !!chatMapDragActive }" @pointerdown.capture="startChatMapPointerDrag($event)" @mousedown.capture="startChatMapPointerDrag($event)">
           <button class="chat-map-jump chat-map-jump-up" type="button" @click="stepMessageMap(messages, -1)" title="Previous message" aria-label="Previous message">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"></path></svg>
           </button>

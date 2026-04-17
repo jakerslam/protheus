@@ -309,7 +309,42 @@ fn save_influence_budget(budget: &Value, path: &Path) -> Result<Value, String> {
     Ok(next)
 }
 
+fn normalized_budget_date_key(date_str: &str) -> String {
+    let candidate = date_str.trim();
+    let valid = candidate.len() == 10
+        && candidate
+            .chars()
+            .enumerate()
+            .all(|(idx, ch)| match idx {
+                4 | 7 => ch == '-',
+                _ => ch.is_ascii_digit(),
+            });
+    if valid {
+        candidate.to_string()
+    } else {
+        now_date()
+    }
+}
+
+fn normalized_budget_source_key(source: &str) -> String {
+    let mut out = String::new();
+    for ch in source.trim().chars() {
+        if out.len() >= 80 {
+            break;
+        }
+        if ch.is_ascii_alphanumeric() || matches!(ch, '_' | '-' | '.') {
+            out.push(ch.to_ascii_lowercase());
+        }
+    }
+    if out.is_empty() {
+        "unknown".to_string()
+    } else {
+        out
+    }
+}
+
 fn can_consume_override(policy: &Value, date_str: &str, path: &Path) -> Value {
+    let date_key = normalized_budget_date_key(date_str);
     let max_per_day = clamp_int(
         policy.pointer("/influence/max_overrides_per_day"),
         0,
@@ -321,7 +356,7 @@ fn can_consume_override(policy: &Value, date_str: &str, path: &Path) -> Value {
     }
     let budget = load_influence_budget(path);
     let row = budget
-        .pointer(&format!("/by_date/{date_str}"))
+        .pointer(&format!("/by_date/{date_key}"))
         .cloned()
         .unwrap_or_else(|| json!({"overrides": 0}));
     let used = clamp_int(row.get("overrides"), 0, 1_000_000, 0);
@@ -330,6 +365,7 @@ fn can_consume_override(policy: &Value, date_str: &str, path: &Path) -> Value {
         return json!({
             "allowed": false,
             "reason": "daily_override_budget_exhausted",
+            "date": date_key,
             "remaining": 0,
             "used": used,
             "max_per_day": max_per_day,
@@ -338,6 +374,7 @@ fn can_consume_override(policy: &Value, date_str: &str, path: &Path) -> Value {
     json!({
         "allowed": true,
         "reason": "ok",
+        "date": date_key,
         "remaining": remaining,
         "used": used,
         "max_per_day": max_per_day,
@@ -350,6 +387,7 @@ fn consume_override(
     date_str: &str,
     path: &Path,
 ) -> Result<Value, String> {
+    let date_key = normalized_budget_date_key(date_str);
     let check = can_consume_override(policy, date_str, path);
     if check.get("allowed").and_then(Value::as_bool) != Some(true) {
         return Ok(json!({
@@ -365,40 +403,38 @@ fn consume_override(
     if !budget.get("by_date").map(Value::is_object).unwrap_or(false) {
         budget["by_date"] = json!({});
     }
-    if budget.pointer(&format!("/by_date/{date_str}")).is_none() {
-        budget["by_date"][date_str] = json!({"overrides": 0, "by_source": {}});
+    if budget.pointer(&format!("/by_date/{date_key}")).is_none() {
+        budget["by_date"][&date_key] = json!({"overrides": 0, "by_source": {}});
     }
     let used = clamp_int(
-        budget.pointer(&format!("/by_date/{date_str}/overrides")),
+        budget.pointer(&format!("/by_date/{date_key}/overrides")),
         0,
         1_000_000,
         0,
     ) + 1;
-    budget["by_date"][date_str]["overrides"] = Value::from(used);
+    budget["by_date"][&date_key]["overrides"] = Value::from(used);
     if !budget
-        .pointer(&format!("/by_date/{date_str}/by_source"))
+        .pointer(&format!("/by_date/{date_key}/by_source"))
         .map(Value::is_object)
         .unwrap_or(false)
     {
-        budget["by_date"][date_str]["by_source"] = json!({});
+        budget["by_date"][&date_key]["by_source"] = json!({});
     }
-    let source_key = if source.trim().is_empty() {
-        "unknown"
-    } else {
-        source.trim()
-    };
+    let source_key = normalized_budget_source_key(source);
     let by_source_used = clamp_int(
-        budget.pointer(&format!("/by_date/{date_str}/by_source/{source_key}")),
+        budget.pointer(&format!("/by_date/{date_key}/by_source/{source_key}")),
         0,
         1_000_000,
         0,
     ) + 1;
-    budget["by_date"][date_str]["by_source"][source_key] = Value::from(by_source_used);
+    budget["by_date"][&date_key]["by_source"][&source_key] = Value::from(by_source_used);
     let saved = save_influence_budget(&budget, path)?;
     Ok(json!({
         "consumed": true,
         "allowed": true,
         "reason": "ok",
+        "date": date_key,
+        "source": source_key,
         "remaining": clamp_int(check.get("remaining"), 0, 10_000, 0).saturating_sub(1),
         "used": used,
         "max_per_day": check.get("max_per_day").cloned().unwrap_or(Value::from(0)),
@@ -454,4 +490,3 @@ fn load_influence_guard(path: &Path) -> Value {
         "updated_at": raw.get("updated_at").cloned().unwrap_or(Value::Null),
     })
 }
-

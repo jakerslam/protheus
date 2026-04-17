@@ -14,6 +14,19 @@ fn run_speculation_overlay(root: &Path, argv: &[String]) -> i32 {
     let mut state = read_json(&speculation_state_path(root)).unwrap_or_else(
         || json!({"type":"autonomy_speculation_state","overlays":{},"updated_at":now_iso()}),
     );
+    let require_web_tooling_ready =
+        parse_bool(parse_flag(argv, "require-web-tooling-ready").as_deref(), false);
+    let web_tooling_health = crate::network_protocol::web_tooling_health_report(root, strict);
+    let web_tooling_ready = web_tooling_health
+        .get("ok")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    if strict && require_web_tooling_ready && !web_tooling_ready {
+        let mut out = cli_error_receipt(argv, "speculation_web_tooling_not_ready", 2);
+        out["type"] = json!("autonomy_speculation");
+        out["web_tooling_health"] = web_tooling_health;
+        return emit_receipt(root, &mut out);
+    }
     if !state.get("overlays").map(Value::is_object).unwrap_or(false) {
         state["overlays"] = json!({});
     }
@@ -82,6 +95,7 @@ fn run_speculation_overlay(root: &Path, argv: &[String]) -> i32 {
         "lane": LANE_ID,
         "strict": strict,
         "action": action,
+        "web_tooling_health": web_tooling_health,
         "state": state,
         "claim_evidence": [
             {"id":"V6-EXEC-002.1","claim":"speculative_execution_runs_in_overlay_state_until_verified"},

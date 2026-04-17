@@ -1,7 +1,52 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::BTreeSet;
 
 pub const INFRING_DETACH_CONTRACT_ID_NURSERY_RUNTIME: &str = "V6-INFRING-DETACH-001.5";
+
+fn strip_invisible_unicode(raw: &str) -> String {
+    raw.chars()
+        .filter(|ch| {
+            !ch.is_control()
+                && !matches!(
+                    ch,
+                    '\u{200B}'
+                        | '\u{200C}'
+                        | '\u{200D}'
+                        | '\u{200E}'
+                        | '\u{200F}'
+                        | '\u{202A}'
+                        | '\u{202B}'
+                        | '\u{202C}'
+                        | '\u{202D}'
+                        | '\u{202E}'
+                        | '\u{2060}'
+                        | '\u{FEFF}'
+                )
+        })
+        .collect::<String>()
+}
+
+fn clean_scalar(raw: &str, max_len: usize) -> String {
+    strip_invisible_unicode(raw)
+        .split_whitespace()
+        .collect::<Vec<&str>>()
+        .join(" ")
+        .chars()
+        .take(max_len)
+        .collect::<String>()
+        .trim()
+        .to_string()
+}
+
+fn normalize_provider_token(raw: &str) -> String {
+    let v = clean_scalar(raw, 80).to_ascii_lowercase();
+    match v.as_str() {
+        "llama.cpp" | "llamacpp" => "llama_cpp".to_string(),
+        "local" => "ollama".to_string(),
+        _ => v,
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -113,12 +158,14 @@ pub fn containment_permissions_from_value(raw: &Value) -> ContainmentPermissions
         out.require_human_signoff_for_full_integration = v;
     }
     if let Some(rows) = raw.get("allowed_providers").and_then(Value::as_array) {
-        out.allowed_providers = rows
-            .iter()
-            .filter_map(Value::as_str)
-            .map(|s| s.trim().to_lowercase())
-            .filter(|s| !s.is_empty())
-            .collect::<Vec<_>>();
+        let mut dedup = BTreeSet::new();
+        for provider in rows.iter().filter_map(Value::as_str) {
+            let normalized = normalize_provider_token(provider);
+            if !normalized.is_empty() {
+                dedup.insert(normalized);
+            }
+        }
+        out.allowed_providers = dedup.into_iter().collect::<Vec<_>>();
     }
     out
 }
@@ -132,21 +179,29 @@ pub fn policy_gates_from_value(raw: &Value) -> PolicyGates {
         }
     }
     if let Some(rows) = raw.get("gates").and_then(Value::as_array) {
+        let mut seen_ids = BTreeSet::new();
         out.gates = rows
             .iter()
             .filter_map(|row| {
-                let id = row.get("id").and_then(Value::as_str)?.trim();
+                let id = clean_scalar(row.get("id").and_then(Value::as_str)?, 120);
                 if id.is_empty() {
                     return None;
                 }
-                let action = row
-                    .get("action")
+                if !seen_ids.insert(id.clone()) {
+                    return None;
+                }
+                let mut action = clean_scalar(
+                    row.get("action")
                     .and_then(Value::as_str)
-                    .unwrap_or("deny")
-                    .trim()
-                    .to_lowercase();
+                    .unwrap_or("deny"),
+                    40,
+                )
+                .to_lowercase();
+                if !matches!(action.as_str(), "deny" | "allow" | "warn" | "audit") {
+                    action = "deny".to_string();
+                }
                 Some(PolicyGate {
-                    id: id.to_string(),
+                    id,
                     enabled: row.get("enabled").and_then(Value::as_bool).unwrap_or(true),
                     action,
                 })
@@ -163,16 +218,17 @@ pub fn seed_manifest_from_value(raw: &Value) -> SeedManifest {
         .map(|rows| {
             rows.iter()
                 .filter_map(|row| {
-                    let id = row.get("id").and_then(Value::as_str)?.trim();
-                    let provider = row.get("provider").and_then(Value::as_str)?.trim();
-                    let model = row.get("model").and_then(Value::as_str)?.trim();
+                    let id = clean_scalar(row.get("id").and_then(Value::as_str)?, 120);
+                    let provider =
+                        normalize_provider_token(row.get("provider").and_then(Value::as_str)?);
+                    let model = clean_scalar(row.get("model").and_then(Value::as_str)?, 200);
                     if id.is_empty() || provider.is_empty() || model.is_empty() {
                         return None;
                     }
                     Some(SeedModelArtifact {
-                        id: id.to_string(),
-                        provider: provider.to_lowercase(),
-                        model: model.to_string(),
+                        id,
+                        provider,
+                        model,
                         required: row
                             .get("required")
                             .and_then(Value::as_bool)
@@ -185,7 +241,7 @@ pub fn seed_manifest_from_value(raw: &Value) -> SeedManifest {
                         specialty: row
                             .get("specialty")
                             .and_then(Value::as_str)
-                            .map(|v| v.trim().to_string())
+                            .map(|v| clean_scalar(v, 160))
                             .filter(|v| !v.is_empty()),
                     })
                 })
@@ -245,8 +301,9 @@ pub fn evaluate_quarantine(
         .artifacts
         .iter()
         .map(|artifact| {
+            let provider = normalize_provider_token(&artifact.provider);
             let mut reasons = Vec::<String>::new();
-            if !allowlist.is_empty() && !allowlist.contains(&artifact.provider.to_lowercase()) {
+            if !allowlist.is_empty() && !allowlist.contains(&provider) {
                 reasons.push("provider_not_in_allowlist".to_string());
             }
             if artifact.model.trim().is_empty() {
@@ -259,8 +316,8 @@ pub fn evaluate_quarantine(
             }
             if gates.execution_mode == "sandboxed"
                 && !permissions.allow_network
-                && artifact.provider != "ollama"
-                && artifact.provider != "llama_cpp"
+                && provider != "ollama"
+                && provider != "llama_cpp"
             {
                 reasons.push("network_provider_blocked_in_sandbox_mode".to_string());
             }

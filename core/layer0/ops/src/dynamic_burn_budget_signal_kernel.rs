@@ -10,6 +10,8 @@ use crate::contract_lane_utils as lane_utils;
 use crate::{deterministic_receipt_hash, now_iso};
 
 const DEFAULT_LATEST_REL: &str = "local/state/ops/dynamic_burn_budget_oracle/latest.json";
+const PROVIDER_FAMILY_CONTRACT_TARGETS: &[&str] =
+    &["anthropic", "fal", "google", "minimax", "moonshot"];
 
 fn usage() {
     println!("dynamic-burn-budget-signal-kernel commands:");
@@ -133,6 +135,32 @@ fn normalize_burn_pressure(value: Option<&Value>) -> &'static str {
     }
 }
 
+fn normalize_provider_family(value: Option<&Value>) -> String {
+    let normalized = clean_text(value, 64).to_ascii_lowercase();
+    match normalized.as_str() {
+        "claude" | "anthropic" => "anthropic".to_string(),
+        "fal_ai" | "fal" => "fal".to_string(),
+        "gemini" | "google" => "google".to_string(),
+        "minimax" => "minimax".to_string(),
+        "kimi" | "moonshot" => "moonshot".to_string(),
+        _ => normalized,
+    }
+}
+
+fn signal_enabled(value: Option<&Value>) -> bool {
+    match value {
+        Some(Value::Bool(v)) => *v,
+        Some(Value::Number(v)) => v.as_u64().unwrap_or(0) > 0,
+        Some(Value::Array(rows)) => !rows.is_empty(),
+        Some(Value::Object(map)) => !map.is_empty(),
+        Some(Value::String(raw)) => {
+            let token = raw.trim().to_ascii_lowercase();
+            matches!(token.as_str(), "1" | "true" | "yes" | "on" | "ready")
+        }
+        _ => false,
+    }
+}
+
 fn pressure_rank(value: &str) -> i64 {
     match value {
         "critical" => 4,
@@ -222,6 +250,45 @@ fn load_signal(root: &Path, payload: &Map<String, Value>) -> Value {
         .filter(|row| !row.is_empty())
         .take(24)
         .collect::<Vec<_>>();
+    let provider_family = normalize_provider_family(
+        payload
+            .get("provider_family")
+            .or_else(|| projection.get("provider_family"))
+            .or_else(|| loaded.get("provider_family")),
+    );
+    let provider_family_contract_ok = provider_family.is_empty()
+        || PROVIDER_FAMILY_CONTRACT_TARGETS
+            .iter()
+            .any(|target| target == &provider_family.as_str());
+    let provider_runtime_contract = signal_enabled(
+        payload
+            .get("provider_runtime_contract")
+            .or_else(|| projection.get("provider_runtime_contract"))
+            .or_else(|| loaded.get("provider_runtime_contract")),
+    );
+    let provider_auth_contract = signal_enabled(
+        payload
+            .get("provider_auth_contract")
+            .or_else(|| projection.get("provider_auth_contract"))
+            .or_else(|| loaded.get("provider_auth_contract")),
+    );
+    let provider_registry_contract = signal_enabled(
+        payload
+            .get("provider_registry_contract")
+            .or_else(|| projection.get("provider_registry_contract"))
+            .or_else(|| loaded.get("provider_registry_contract")),
+    );
+    let provider_discovery_contract = signal_enabled(
+        payload
+            .get("provider_discovery_contract")
+            .or_else(|| projection.get("provider_discovery_contract"))
+            .or_else(|| loaded.get("provider_discovery_contract")),
+    );
+    let provider_contract_ready = provider_runtime_contract
+        && provider_auth_contract
+        && provider_registry_contract
+        && provider_discovery_contract
+        && provider_family_contract_ok;
     let available = loaded.is_object()
         && (loaded.get("ok").and_then(Value::as_bool).unwrap_or(false) || !projection.is_empty());
     let ts_value = {
@@ -247,6 +314,14 @@ fn load_signal(root: &Path, payload: &Map<String, Value>) -> Value {
         "projected_days_to_reset": projected_days_to_reset,
         "providers_available": projection.get("providers_available").and_then(Value::as_i64).unwrap_or(0),
         "reason_codes": normalized_reasons,
+        "provider_family": provider_family,
+        "provider_family_contract_targets": PROVIDER_FAMILY_CONTRACT_TARGETS,
+        "provider_family_contract_ok": provider_family_contract_ok,
+        "provider_runtime_contract": provider_runtime_contract,
+        "provider_auth_contract": provider_auth_contract,
+        "provider_registry_contract": provider_registry_contract,
+        "provider_discovery_contract": provider_discovery_contract,
+        "provider_contract_ready": provider_contract_ready,
         "latest_path": latest_path,
         "latest_path_rel": lane_utils::rel_path(root, &latest_path),
         "ts": ts_value,

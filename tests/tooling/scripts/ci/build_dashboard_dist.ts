@@ -5,6 +5,7 @@ import path from 'node:path';
 import esbuild from 'esbuild';
 import { cleanText, hasFlag, parseBool, readFlag } from '../../lib/cli.ts';
 import { emitStructuredResult } from '../../lib/result.ts';
+const { buildDashboardSvelteIslands } = require('./build_dashboard_svelte_islands.ts');
 
 const SCRIPT_PATH = 'tests/tooling/scripts/ci/build_dashboard_dist.ts';
 
@@ -49,6 +50,7 @@ function copyDirRecursive(src, dest) {
 
 async function buildDashboardDist(options = {}, root = repoRoot(__dirname)) {
   const minify = Boolean(options && options.minify);
+  await buildDashboardSvelteIslands({ minify: true }, root);
   const entry = path.join(root, 'client', 'runtime', 'systems', 'ui', 'infring_dashboard.ts');
   const outfile = path.join(root, 'dist', 'client', 'runtime', 'systems', 'ui', 'infring_dashboard.js');
   const staticSrc = path.join(root, 'client', 'runtime', 'systems', 'ui', 'infring_static');

@@ -1,4 +1,12 @@
 fn resolve_local_spec(from_file: &Path, spec: &str) -> Option<PathBuf> {
+    let spec = spec
+        .split(['?', '#'])
+        .next()
+        .map(str::trim)
+        .unwrap_or("");
+    if spec.is_empty() || spec.starts_with('/') || spec.starts_with("file:") {
+        return None;
+    }
     let base = from_file
         .parent()
         .unwrap_or_else(|| Path::new(""))
@@ -8,22 +16,51 @@ fn resolve_local_spec(from_file: &Path, spec: &str) -> Option<PathBuf> {
         if let Some(stem) = raw_name.strip_suffix(".js") {
             stem_candidates.push(base.with_file_name(stem));
         }
+        if let Some(stem) = raw_name.strip_suffix(".ts") {
+            stem_candidates.push(base.with_file_name(stem));
+        }
         if let Some(stem) = raw_name.strip_suffix(".mjs") {
             stem_candidates.push(base.with_file_name(stem));
         }
         if let Some(stem) = raw_name.strip_suffix(".cjs") {
             stem_candidates.push(base.with_file_name(stem));
         }
+        if let Some(stem) = raw_name.strip_suffix(".mts") {
+            stem_candidates.push(base.with_file_name(stem));
+        }
+        if let Some(stem) = raw_name.strip_suffix(".cts") {
+            stem_candidates.push(base.with_file_name(stem));
+        }
+        if let Some(stem) = raw_name.strip_suffix(".tsx") {
+            stem_candidates.push(base.with_file_name(stem));
+        }
+        if let Some(stem) = raw_name.strip_suffix(".jsx") {
+            stem_candidates.push(base.with_file_name(stem));
+        }
     }
-    let candidates = [
+    let mut candidates = vec![
         base.clone(),
         PathBuf::from(format!("{}.ts", base.display())),
+        PathBuf::from(format!("{}.tsx", base.display())),
+        PathBuf::from(format!("{}.mts", base.display())),
+        PathBuf::from(format!("{}.cts", base.display())),
         PathBuf::from(format!("{}.js", base.display())),
+        PathBuf::from(format!("{}.jsx", base.display())),
         PathBuf::from(format!("{}.mjs", base.display())),
-        base.join("index.ts"),
-        base.join("index.js"),
-        base.join("index.mjs"),
+        PathBuf::from(format!("{}.cjs", base.display())),
     ];
+    for index_name in [
+        "index.ts",
+        "index.tsx",
+        "index.mts",
+        "index.cts",
+        "index.js",
+        "index.jsx",
+        "index.mjs",
+        "index.cjs",
+    ] {
+        candidates.push(base.join(index_name));
+    }
     for candidate in candidates {
         if candidate.is_file() {
             return Some(candidate);
@@ -33,11 +70,21 @@ fn resolve_local_spec(from_file: &Path, spec: &str) -> Option<PathBuf> {
         let stem_checks = [
             stem.clone(),
             PathBuf::from(format!("{}.ts", stem.display())),
+            PathBuf::from(format!("{}.tsx", stem.display())),
+            PathBuf::from(format!("{}.mts", stem.display())),
+            PathBuf::from(format!("{}.cts", stem.display())),
             PathBuf::from(format!("{}.js", stem.display())),
+            PathBuf::from(format!("{}.jsx", stem.display())),
             PathBuf::from(format!("{}.mjs", stem.display())),
+            PathBuf::from(format!("{}.cjs", stem.display())),
             stem.join("index.ts"),
+            stem.join("index.tsx"),
+            stem.join("index.mts"),
+            stem.join("index.cts"),
             stem.join("index.js"),
+            stem.join("index.jsx"),
             stem.join("index.mjs"),
+            stem.join("index.cjs"),
         ];
         for candidate in stem_checks {
             if candidate.is_file() {
@@ -391,4 +438,3 @@ fn build_certificate(root: &Path, policy: &OriginIntegrityPolicy, run_receipt: &
     out["certificate_hash"] = Value::String(deterministic_receipt_hash(&out));
     out
 }
-

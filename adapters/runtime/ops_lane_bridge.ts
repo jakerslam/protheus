@@ -7,6 +7,7 @@ const {
     runLocalOpsDomainProcessFallback,
     shouldRetryProcessFallbackWithCargo
 } = require('./dev_only/ops_lane_process_fallback.ts');
+const OPS_LAYER0_OPS_MANIFEST = ['core', 'layer0', 'ops', 'Cargo.toml'].join('/');
 function repoRoot(scriptDir) {
     let dir = path.resolve(scriptDir || process.cwd());
     while (true) {
@@ -596,7 +597,7 @@ function resolveProtheusOpsCommand(root, domain) {
             'run',
             '--quiet',
             '--manifest-path',
-            'core/layer0/ops/Cargo.toml',
+            OPS_LAYER0_OPS_MANIFEST,
             '--bin',
             'infring-ops',
             '--',
@@ -724,7 +725,7 @@ function runLocalOpsDomain(root, domain, passArgs, cliMode, inheritStdio) {
             'run',
             '--quiet',
             '--manifest-path',
-            'core/layer0/ops/Cargo.toml',
+            OPS_LAYER0_OPS_MANIFEST,
             '--bin',
             'infring-ops',
             '--',
@@ -754,7 +755,7 @@ function runBridge(config, args = [], cliMode = false) {
                             'run',
                             '--quiet',
                             '--manifest-path',
-                            'core/layer0/ops/Cargo.toml',
+                            OPS_LAYER0_OPS_MANIFEST,
                             '--bin',
                             'infring-ops',
                             '--',

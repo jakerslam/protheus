@@ -688,6 +688,13 @@
         "core/local/artifacts/adapter_runtime_chaos_gate_current.json"
       ]
     },
+    "ops:adapter-chaos:rust": {
+      "owner": "ops",
+      "description": "Rust-authoritative adapter chaos contract integration test.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 180,
+      "script": "test:ops:adapter-chaos:rust"
+    },
     "ops:v8:runtime-proof:gate": {
       "owner": "ops",
       "description": "V8 runtime proof gate.",

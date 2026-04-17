@@ -48,6 +48,7 @@ fn write_text(root: &Path, rel: &str, body: &str) {
 }
 
 fn assert_claim(payload: &Value, id: &str) {
+    assert_no_runtime_context_leak(&payload.to_string());
     let claims = payload
         .get("claim_evidence")
         .and_then(Value::as_array)
@@ -58,6 +59,23 @@ fn assert_claim(payload: &Value, id: &str) {
             .any(|row| row.get("id").and_then(Value::as_str) == Some(id)),
         "missing claim evidence {id}: {payload}"
     );
+}
+
+fn assert_no_runtime_context_leak(raw: &str) {
+    const FORBIDDEN: [&str; 6] = [
+        "You are an expert Python programmer.",
+        "[PATCH v2",
+        "List Leaves (25",
+        "BEGIN_OPENCLAW_INTERNAL_CONTEXT",
+        "END_OPENCLAW_INTERNAL_CONTEXT",
+        "UNTRUSTED_CHILD_RESULT_DELIMITER",
+    ];
+    for marker in FORBIDDEN {
+        assert!(
+            !raw.contains(marker),
+            "runtime payload leaked forbidden marker `{marker}`: {raw}"
+        );
+    }
 }
 
 #[test]

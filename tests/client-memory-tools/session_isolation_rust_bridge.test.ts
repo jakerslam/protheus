@@ -4,7 +4,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
-const path = require('node:path');
+const path = require('node:path');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 const ROOT = path.resolve(__dirname, '../..');
 
@@ -49,7 +49,7 @@ function main() {
   assert.equal(rejection.status, 2);
   assert.match(String(rejection.stderr), /cross_session_leak_blocked/);
 
-  if (fs.existsSync(statePath)) fs.unlinkSync(statePath);
+  assertNoPlaceholderOrPromptLeak({ empty, missing, allowed, saved, blocked, rejection }, 'session_isolation_rust_bridge_test');\n  assertStableToolingEnvelope({ missing, allowed, blocked }, 'session_isolation_rust_bridge_test');\n  if (fs.existsSync(statePath)) fs.unlinkSync(statePath);
   console.log(JSON.stringify({ ok: true, type: 'session_isolation_rust_bridge_test' }));
 }
 

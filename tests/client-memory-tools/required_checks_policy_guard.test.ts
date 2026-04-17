@@ -4,6 +4,7 @@
 const assert = require('assert');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..');
 const SCRIPT = path.join(ROOT, 'systems', 'security', 'required_checks_policy_guard.js');
@@ -26,6 +27,8 @@ function main() {
   const out = parseJson(r.stdout);
   assert.ok(out && out.ok === true, 'payload should pass');
   assert.ok(Array.isArray(out.checked.required_checks) && out.checked.required_checks.includes('ci_suite'), 'required checks list should include ci_suite');
+  assertNoPlaceholderOrPromptLeak(out, 'required_checks_policy_guard_test');
+  assertStableToolingEnvelope(out, 'required_checks_policy_guard_test');
   console.log('required_checks_policy_guard.test.ts: OK');
 }
 

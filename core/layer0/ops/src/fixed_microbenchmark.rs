@@ -11,16 +11,18 @@ use std::time::{Duration, Instant};
 
 const DEFAULT_LATEST_REL: &str = "local/state/ops/fixed_microbenchmark/latest.json";
 const DEFAULT_HISTORY_REL: &str = "local/state/ops/fixed_microbenchmark/history.jsonl";
+const DEFAULT_RUNTIME_SNAPSHOT_REL: &str = "local/state/ops/web_tooling/runtime_snapshot/latest.json";
 const DEFAULT_SAMPLE_MS: u64 = 800;
 const DEFAULT_WARMUP_RUNS: usize = 2;
 const DEFAULT_ROUNDS: usize = 9;
 const DEFAULT_WORK_FACTOR: u32 = 16;
 const DEFAULT_WORKLOAD_ID: &str = "sha256_fixed_workload_v1";
+const DEFAULT_PROVIDER_CONTRACT: &str = "webFetchProviders";
 
 fn usage() {
     println!("fixed-microbenchmark commands:");
     println!(
-        "  protheus-ops fixed-microbenchmark run [--rounds=9] [--warmup-runs=2] [--sample-ms=800] [--work-factor=16] [--workload-id=sha256_fixed_workload_v1]"
+        "  protheus-ops fixed-microbenchmark run [--rounds=9] [--warmup-runs=2] [--sample-ms=800] [--work-factor=16] [--workload-id=sha256_fixed_workload_v1] [--provider-contract=webFetchProviders] [--provider-plugin-id=<id>]"
     );
     println!("  protheus-ops fixed-microbenchmark status");
 }
@@ -100,6 +102,65 @@ fn history_path(root: &Path) -> std::path::PathBuf {
     root.join(DEFAULT_HISTORY_REL)
 }
 
+fn runtime_snapshot_path(root: &Path) -> std::path::PathBuf {
+    root.join(DEFAULT_RUNTIME_SNAPSHOT_REL)
+}
+
+fn provider_contract(argv: &[String]) -> String {
+    let candidate = lane_utils::clean_token(
+        lane_utils::parse_flag(argv, "provider-contract", false).as_deref(),
+        DEFAULT_PROVIDER_CONTRACT,
+    );
+    match candidate.as_str() {
+        "webFetchProviders" | "webSearchProviders" | "memoryEmbeddingProviders" => candidate,
+        _ => DEFAULT_PROVIDER_CONTRACT.to_string(),
+    }
+}
+
+fn provider_plugin_id(argv: &[String]) -> String {
+    lane_utils::clean_token(
+        lane_utils::parse_flag(argv, "provider-plugin-id", false).as_deref(),
+        "",
+    )
+}
+
+fn explicit_fast_path_probe(root: &Path, contract: &str, provider_plugin_id: &str) -> Value {
+    if provider_plugin_id.is_empty() {
+        return json!({
+            "mode": "manifest_scan_fallback",
+            "explicit_fast_path_candidate": false,
+            "reason": "provider_plugin_id_missing",
+            "snapshot_path": runtime_snapshot_path(root).to_string_lossy().to_string()
+        });
+    }
+    let snapshot_path = runtime_snapshot_path(root);
+    let snapshot = lane_utils::read_json(&snapshot_path).unwrap_or(Value::Null);
+    if snapshot.is_null() {
+        return json!({
+            "mode": "manifest_scan_fallback",
+            "explicit_fast_path_candidate": false,
+            "reason": "runtime_snapshot_missing",
+            "provider_plugin_id": provider_plugin_id,
+            "contract": contract,
+            "snapshot_path": snapshot_path.to_string_lossy().to_string()
+        });
+    }
+    let compact = snapshot.to_string().to_ascii_lowercase();
+    let provider_present =
+        compact.contains(&format!("\"{}\"", provider_plugin_id.to_ascii_lowercase()));
+    let contract_present = compact.contains(&contract.to_ascii_lowercase());
+    let ok = provider_present && contract_present;
+    json!({
+        "mode": if ok { "explicit_plugin_id_fast_path" } else { "manifest_scan_fallback" },
+        "explicit_fast_path_candidate": ok,
+        "provider_plugin_id": provider_plugin_id,
+        "contract": contract,
+        "provider_present": provider_present,
+        "contract_present": contract_present,
+        "snapshot_path": snapshot_path.to_string_lossy().to_string()
+    })
+}
+
 fn fixed_workload_ops_per_sec(sample_ms: u64, work_factor: u32, workload_id: &str) -> f64 {
     let target = Duration::from_millis(sample_ms.max(100));
     let started = Instant::now();
@@ -120,12 +181,15 @@ fn fixed_workload_ops_per_sec(sample_ms: u64, work_factor: u32, workload_id: &st
     }
 }
 
-fn run_payload(argv: &[String]) -> Value {
+fn run_payload(root: &Path, argv: &[String]) -> Value {
     let rounds = parse_usize(argv, "rounds", DEFAULT_ROUNDS, 1, 64);
     let warmup_runs = parse_usize(argv, "warmup-runs", DEFAULT_WARMUP_RUNS, 0, 32);
     let sample_ms = parse_u64(argv, "sample-ms", DEFAULT_SAMPLE_MS, 100, 10_000);
     let work_factor = parse_u64(argv, "work-factor", DEFAULT_WORK_FACTOR as u64, 1, 1_024) as u32;
     let workload_id = workload_id(argv);
+    let provider_contract = provider_contract(argv);
+    let provider_plugin_id = provider_plugin_id(argv);
+    let runtime_resolution = explicit_fast_path_probe(root, &provider_contract, &provider_plugin_id);
 
     for _ in 0..warmup_runs {
         let _ = fixed_workload_ops_per_sec(sample_ms, work_factor, &workload_id);
@@ -172,13 +236,14 @@ fn run_payload(argv: &[String]) -> Value {
             "purpose": "host_baseline_and_harness_drift_detection",
             "separate_from_benchmark_matrix": true,
             "product_runtime_excluded": [
-                "cold_start_probe",
-                "runtime_efficiency_floor",
-                "install_size_probe",
-                "idle_rss_probe"
-            ],
+            "cold_start_probe",
+            "runtime_efficiency_floor",
+            "install_size_probe",
+            "idle_rss_probe"
+        ],
             "note": "This measures only the fixed SHA-256 workload so throughput drift can be compared against benchmark-matrix without product-path confounders."
-        }
+        },
+        "runtime_resolution": runtime_resolution
     })
 }
 
@@ -204,7 +269,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
     let payload = match command.as_str() {
         "run" => {
-            let payload = run_payload(argv);
+            let payload = run_payload(root, argv);
             if let Err(err) = write_artifacts(root, &payload) {
                 print_json_line(&cli_error("fixed_microbenchmark_error", &err));
                 return 1;
@@ -251,13 +316,15 @@ mod tests {
 
     #[test]
     fn run_payload_records_expected_metrics() {
-        let payload = run_payload(&[
+        let payload = run_payload(Path::new("."), &[
             "run".to_string(),
             "--rounds=3".to_string(),
             "--warmup-runs=0".to_string(),
             "--sample-ms=100".to_string(),
             "--work-factor=2".to_string(),
             "--workload-id=test-fixed".to_string(),
+            "--provider-contract=webFetchProviders".to_string(),
+            "--provider-plugin-id=firecrawl".to_string(),
         ]);
         assert_eq!(payload.get("ok").and_then(Value::as_bool), Some(true));
         assert_eq!(
@@ -271,6 +338,14 @@ mod tests {
         assert_eq!(
             payload["interpretation"]["separate_from_benchmark_matrix"].as_bool(),
             Some(true)
+        );
+        assert_eq!(
+            payload["runtime_resolution"]["contract"].as_str(),
+            Some("webFetchProviders")
+        );
+        assert_eq!(
+            payload["runtime_resolution"]["provider_plugin_id"].as_str(),
+            Some("firecrawl")
         );
     }
 }

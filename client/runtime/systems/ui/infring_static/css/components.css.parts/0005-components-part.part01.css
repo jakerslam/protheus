@@ -355,14 +355,14 @@
   letter-spacing: 0.03em;
 }
 
-.message-agent-name,
-.message-bubble,
-.message-bubble p,
-.message-bubble li,
-.message-bubble span,
-.message-bubble code,
-.message-bubble pre,
-.message-bubble blockquote {
+.message-bubble-content,
+.message-bubble-content *,
+.chat-artifact-pre,
+.chat-artifact-pre *,
+.chat-artifact-path,
+.chat-artifact-path *,
+.chat-artifact-title,
+.chat-artifact-title * {
   cursor: text;
 }
 
@@ -376,6 +376,31 @@
   display: block;
   transition: opacity 0.1s var(--ease-smooth), filter 0.1s var(--ease-smooth);
   filter: blur(0);
+}
+
+.message-bubble-content-typing {
+  white-space: pre-wrap;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+
+.message-bubble-content-typing .typing-word-active,
+.message-bubble-content-typing .typing-word-fade {
+  display: inline-block;
+  white-space: nowrap;
+  opacity: 0;
+  animation: chatTypingWordFadeIn var(--typing-word-fade-ms, 125ms) linear forwards;
+}
+
+.message-bubble-content-typing .typing-word-static {
+  display: inline;
+  white-space: nowrap;
+  opacity: 1;
+}
+
+@keyframes chatTypingWordFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes chatMessageResizeTextBlur {

@@ -15,14 +15,16 @@ pub fn compute_consecutive_no_progress_runs(
         let result = evt
             .result
             .as_ref()
-            .map(|v| v.trim().to_string())
+            .map(|v| v.trim().to_ascii_lowercase())
             .unwrap_or_default();
         let outcome = evt
             .outcome
             .as_ref()
-            .map(|v| v.trim().to_string())
+            .map(|v| v.trim().to_ascii_lowercase())
             .unwrap_or_default();
-        if result == "executed" && outcome == "shipped" {
+        if result == "executed"
+            && (outcome == "shipped" || outcome == "success" || outcome == "applied")
+        {
             break;
         }
         let is_no_progress = compute_no_progress_result(&NoProgressResultInput {
@@ -121,7 +123,7 @@ pub fn compute_run_result_tally(input: &RunResultTallyInput) -> RunResultTallyOu
         let key = evt
             .result
             .as_ref()
-            .map(|v| v.trim().to_string())
+            .map(|v| v.trim().to_ascii_lowercase())
             .filter(|v| !v.is_empty())
             .unwrap_or_else(|| "unknown".to_string());
         let next = counts.get(&key).copied().unwrap_or(0).saturating_add(1);
@@ -175,8 +177,16 @@ pub fn compute_normalize_proposal_status(
         || status == "admitted"
     {
         base
+    } else if status == "accepted" || status == "in_progress" || status == "running" {
+        "accepted".to_string()
+    } else if status == "rejected" || status == "declined" {
+        "rejected".to_string()
+    } else if status == "parked" || status == "deferred" || status == "on_hold" {
+        "parked".to_string()
     } else if status == "closed_won" || status == "won" || status == "paid" || status == "verified"
     {
+        "closed".to_string()
+    } else if status == "closed_lost" || status == "lost" || status == "abandoned" {
         "closed".to_string()
     } else {
         status

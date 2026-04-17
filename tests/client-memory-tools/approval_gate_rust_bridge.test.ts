@@ -1,10 +1,30 @@
 #!/usr/bin/env node
 'use strict';
 
+const ts = require('typescript');
+
+if (!require.extensions['.ts']) {
+  require.extensions['.ts'] = function compileTs(module, filename) {
+    const source = require('fs').readFileSync(filename, 'utf8');
+    const transpiled = ts.transpileModule(source, {
+      compilerOptions: {
+        module: ts.ModuleKind.CommonJS,
+        target: ts.ScriptTarget.ES2022,
+        moduleResolution: ts.ModuleResolutionKind.NodeJs,
+        esModuleInterop: true,
+        allowSyntheticDefaultImports: true
+      },
+      fileName: filename,
+      reportDiagnostics: false
+    }).outputText;
+    module._compile(transpiled, filename);
+  };
+}
+
 const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
-const path = require('path');
+const path = require('path');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const queueDir = fs.mkdtempSync(path.join(os.tmpdir(), 'approval-gate-'));
@@ -79,4 +99,4 @@ assert(parsedCommand, 'expected parsed approval command');
 assert.strictEqual(parsedCommand.action, 'approve');
 assert.strictEqual(parsedCommand.action_id, 'act_yaml');
 
-console.log('approval_gate_rust_bridge.test.ts: OK');
+assertNoPlaceholderOrPromptLeak({ emptyQueue, queued, approved, queue, parsedYaml, parsedCommand }, 'approval_gate_rust_bridge_test');\nassertStableToolingEnvelope(queued, 'approval_gate_rust_bridge_test');\nconsole.log('approval_gate_rust_bridge.test.ts: OK');

@@ -14,6 +14,8 @@ fn workflow_command(
     .to_ascii_lowercase();
     if op == "status" {
         let rows = read_jsonl(&workflow_history_path(root));
+        let runtime_web_tooling_auth_sources = workflow_runtime_web_tooling_auth_sources();
+        let runtime_web_tooling_auth_present = !runtime_web_tooling_auth_sources.is_empty();
         return Ok(json!({
             "ok": true,
             "type": "canyon_plane_workflow",
@@ -23,10 +25,18 @@ fn workflow_command(
             "op": op,
             "run_count": rows.len(),
             "runs": rows,
+            "runtime_web_tooling": {
+                "strict_auth_required": strict,
+                "auth_present": runtime_web_tooling_auth_present,
+                "auth_sources": runtime_web_tooling_auth_sources
+            },
             "claim_evidence": [{
                 "id": "V7-CANYON-001.6",
                 "claim": "computer_use_and_coding_workflow_records_terminal_browser_file_network_actions_with_replay_metadata",
-                "evidence": {"run_count": rows.len()}
+                "evidence": {
+                    "run_count": rows.len(),
+                    "runtime_web_tooling_auth_present": runtime_web_tooling_auth_present
+                }
             }]
         }));
     }
@@ -58,13 +68,25 @@ fn workflow_command(
     if strict && actions.len() < 5 {
         errors.push("workflow_action_coverage_incomplete".to_string());
     }
+    let runtime_web_tooling_auth_sources = workflow_runtime_web_tooling_auth_sources();
+    let runtime_web_tooling_auth_present = !runtime_web_tooling_auth_sources.is_empty();
+    let requires_web_tooling = workflow_goal_requires_web_tooling(&goal);
+    if strict && requires_web_tooling && !runtime_web_tooling_auth_present {
+        errors.push("workflow_web_tooling_auth_missing".to_string());
+    }
 
     let row = json!({
         "ts": now_iso(),
         "goal": goal,
         "workspace": workspace,
         "actions": actions,
-        "run_hash": sha256_hex_str(&format!("{}:{}", now_iso(), goal))
+        "run_hash": sha256_hex_str(&format!("{}:{}", now_iso(), goal)),
+        "runtime_web_tooling": {
+            "requires_web_tooling": requires_web_tooling,
+            "strict_auth_required": strict,
+            "auth_present": runtime_web_tooling_auth_present,
+            "auth_sources": runtime_web_tooling_auth_sources
+        }
     });
     append_jsonl(&workflow_history_path(root), &row)?;
 
@@ -77,12 +99,64 @@ fn workflow_command(
         "op": op,
         "run": row,
         "errors": errors,
+        "runtime_web_tooling": {
+            "requires_web_tooling": requires_web_tooling,
+            "strict_auth_required": strict,
+            "auth_present": runtime_web_tooling_auth_present,
+            "auth_sources": workflow_runtime_web_tooling_auth_sources()
+        },
         "claim_evidence": [{
             "id": "V7-CANYON-001.6",
             "claim": "computer_use_and_coding_workflow_records_terminal_browser_file_network_actions_with_replay_metadata",
-            "evidence": {"action_count": 5}
+            "evidence": {
+                "action_count": 5,
+                "requires_web_tooling": requires_web_tooling,
+                "runtime_web_tooling_auth_present": runtime_web_tooling_auth_present
+            }
         }]
     }))
+}
+
+fn workflow_runtime_web_tooling_auth_sources() -> Vec<String> {
+    let env_candidates = [
+        "BRAVE_API_KEY",
+        "EXA_API_KEY",
+        "TAVILY_API_KEY",
+        "PERPLEXITY_API_KEY",
+        "SERPAPI_API_KEY",
+        "GOOGLE_SEARCH_API_KEY",
+        "GOOGLE_CSE_ID",
+        "FIRECRAWL_API_KEY",
+        "XAI_API_KEY",
+        "MOONSHOT_API_KEY",
+        "OPENAI_API_KEY",
+    ];
+    let mut sources = Vec::<String>::new();
+    for env_name in env_candidates {
+        let present = std::env::var(env_name)
+            .ok()
+            .map(|value| !value.trim().is_empty())
+            .unwrap_or(false);
+        if present {
+            sources.push(format!("env:{env_name}"));
+        }
+    }
+    sources
+}
+
+fn workflow_goal_requires_web_tooling(goal: &str) -> bool {
+    let normalized = clean(goal, 240).to_ascii_lowercase();
+    let markers = [
+        "web",
+        "search",
+        "fetch",
+        "crawl",
+        "browser",
+        "research",
+        "docs",
+        "citation",
+    ];
+    markers.iter().any(|marker| normalized.contains(marker))
 }
 
 fn scheduler_command(

@@ -4,7 +4,7 @@
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
-const path = require('node:path');
+const path = require('node:path');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 const ROOT = path.resolve(__dirname, '../..');
 
@@ -128,9 +128,7 @@ function main() {
   assert.ok(policy.secrets.moltbook_api_key);
 
   assert.ok(fs.existsSync(statePath));
-  assert.ok(fs.existsSync(auditPath));
-
-  console.log(JSON.stringify({ ok: true, type: 'secret_broker_rust_bridge_test' }));
+  assert.ok(fs.existsSync(auditPath));\n  assertNoPlaceholderOrPromptLeak(status, 'secret_broker_rust_bridge_test');\n  assertStableToolingEnvelope(status, 'secret_broker_rust_bridge_test');\n  console.log(JSON.stringify({ ok: true, type: 'secret_broker_rust_bridge_test' }));
 }
 
 if (require.main === module) {

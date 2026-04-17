@@ -92,6 +92,7 @@
     "ops:runtime-proof:release-gate": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/runtime_proof_release_gate.ts --strict=1",
     "ops:adapter-runtime-chaos:gate": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/adapter_runtime_chaos_gate.ts --strict=1",
     "ops:runtime-proof:verify": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/runtime_proof_verify.ts --strict=1",
+    "test:ops:adapter-chaos:rust": "cargo test --manifest-path core/layer0/ops/Cargo.toml --test v11_adapter_contract_chaos_integration",
     "infring:verify:runtime-proof": "npm run -s ops:runtime-proof:verify --",
     "test:ops:v8-runtime-proof": "cargo test --manifest-path core/layer0/ops/Cargo.toml --test v8_runtime_proof",
     "metrics:heartbeat-kpi": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/metrics/heartbeat_kpi_report.ts",
@@ -107,6 +108,7 @@
     "runtime:dist:verify": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/dist_runtime_cutover.ts verify --build=1 --strict=1",
     "runtime:dist:legacy": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/dist_runtime_cutover.ts legacy-pairs --strict=1",
     "runtime:dist:dashboard:build": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/build_dashboard_dist.ts --minify=1",
+    "runtime:dashboard:svelte:build": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/build_dashboard_svelte_islands.ts --minify=1",
     "runtime:mode:dist": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/dist_runtime_cutover.ts set-mode --mode=dist",
     "runtime:mode:source": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/dist_runtime_cutover.ts set-mode --mode=source",
     "dr:gameday": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/dr_gameday.ts run --strict=1",
@@ -948,6 +950,7 @@
   "devDependencies": {
     "@vitest/coverage-istanbul": "^2.1.9",
     "@vitest/coverage-v8": "^2.1.8",
+    "svelte": "^4.2.20",
     "vitest": "^2.1.8"
   },
   "dependencies": {

@@ -5,6 +5,7 @@
 
 use protheus_ops_core::crewai_bridge;
 use serde_json::{json, Value};
+use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 
@@ -23,6 +24,20 @@ fn latest_receipt(state_path: &Path) -> Value {
         .expect("last receipt")
 }
 
+fn extend_claim_ids(claim_ids: &mut BTreeSet<String>, receipt: &Value) {
+    let rows = receipt
+        .get("payload")
+        .and_then(|v| v.get("claim_evidence"))
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    for row in rows {
+        if let Some(id) = row.get("id").and_then(Value::as_str) {
+            claim_ids.insert(id.to_string());
+        }
+    }
+}
+
 #[test]
 fn workflow_004_crewai_bridge_emits_receipted_crew_process_flow_memory_config_delegation_review_trace_benchmark_and_model_route(
 ) {
@@ -32,6 +47,7 @@ fn workflow_004_crewai_bridge_emits_receipted_crew_process_flow_memory_config_de
     let swarm_state_path = root.path().join("state/crewai/swarm.json");
     let approval_queue_path = root.path().join("state/crewai/reviews.yaml");
     let trace_path = root.path().join("state/crewai/amp_trace.jsonl");
+    let mut claim_ids = BTreeSet::<String>::new();
 
     assert_eq!(
         run_bridge(
@@ -59,6 +75,7 @@ fn workflow_004_crewai_bridge_emits_receipted_crew_process_flow_memory_config_de
         0
     );
     let crew_receipt = latest_receipt(&state_path);
+    extend_claim_ids(&mut claim_ids, &crew_receipt);
     assert_eq!(
         crew_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-004.1")
@@ -94,6 +111,7 @@ fn workflow_004_crewai_bridge_emits_receipted_crew_process_flow_memory_config_de
         0
     );
     let process_receipt = latest_receipt(&state_path);
+    extend_claim_ids(&mut claim_ids, &process_receipt);
     assert_eq!(
         process_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-004.2")
@@ -134,6 +152,7 @@ fn workflow_004_crewai_bridge_emits_receipted_crew_process_flow_memory_config_de
         0
     );
     let flow_receipt = latest_receipt(&state_path);
+    extend_claim_ids(&mut claim_ids, &flow_receipt);
     assert_eq!(
         flow_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-004.3")
@@ -164,6 +183,7 @@ fn workflow_004_crewai_bridge_emits_receipted_crew_process_flow_memory_config_de
         0
     );
     let memory_receipt = latest_receipt(&state_path);
+    extend_claim_ids(&mut claim_ids, &memory_receipt);
     assert_eq!(
         memory_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-004.4")
@@ -187,6 +207,7 @@ fn workflow_004_crewai_bridge_emits_receipted_crew_process_flow_memory_config_de
         0
     );
     let config_receipt = latest_receipt(&state_path);
+    extend_claim_ids(&mut claim_ids, &config_receipt);
     assert_eq!(
         config_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-004.5")
@@ -215,6 +236,7 @@ fn workflow_004_crewai_bridge_emits_receipted_crew_process_flow_memory_config_de
         0
     );
     let delegation_receipt = latest_receipt(&state_path);
+    extend_claim_ids(&mut claim_ids, &delegation_receipt);
     assert_eq!(
         delegation_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-004.6")
@@ -243,6 +265,7 @@ fn workflow_004_crewai_bridge_emits_receipted_crew_process_flow_memory_config_de
         0
     );
     let review_receipt = latest_receipt(&state_path);
+    extend_claim_ids(&mut claim_ids, &review_receipt);
     assert_eq!(
         review_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-004.7")
@@ -273,6 +296,7 @@ fn workflow_004_crewai_bridge_emits_receipted_crew_process_flow_memory_config_de
         0
     );
     let trace_receipt = latest_receipt(&state_path);
+    extend_claim_ids(&mut claim_ids, &trace_receipt);
     assert_eq!(
         trace_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-004.8")
@@ -298,6 +322,7 @@ fn workflow_004_crewai_bridge_emits_receipted_crew_process_flow_memory_config_de
         0
     );
     let benchmark_receipt = latest_receipt(&state_path);
+    extend_claim_ids(&mut claim_ids, &benchmark_receipt);
     assert_eq!(
         benchmark_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-004.9")
@@ -329,6 +354,7 @@ fn workflow_004_crewai_bridge_emits_receipted_crew_process_flow_memory_config_de
         0
     );
     let route_receipt = latest_receipt(&state_path);
+    extend_claim_ids(&mut claim_ids, &route_receipt);
     assert_eq!(
         route_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-004.10")
@@ -337,4 +363,23 @@ fn workflow_004_crewai_bridge_emits_receipted_crew_process_flow_memory_config_de
         route_receipt["payload"]["model_route"]["degraded"],
         json!(false)
     );
+    assert!(route_receipt["payload"]["model_route"]["provider"]
+        .as_str()
+        .map(|v| !v.trim().is_empty())
+        .unwrap_or(false));
+
+    for claim in [
+        "V6-WORKFLOW-004.1",
+        "V6-WORKFLOW-004.2",
+        "V6-WORKFLOW-004.3",
+        "V6-WORKFLOW-004.4",
+        "V6-WORKFLOW-004.5",
+        "V6-WORKFLOW-004.6",
+        "V6-WORKFLOW-004.7",
+        "V6-WORKFLOW-004.8",
+        "V6-WORKFLOW-004.9",
+        "V6-WORKFLOW-004.10",
+    ] {
+        assert!(claim_ids.contains(claim), "missing workflow claim id={claim}");
+    }
 }

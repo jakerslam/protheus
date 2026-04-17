@@ -57,19 +57,13 @@ function renderMarkdown(text) {
     for (var i = 0; i < latexBlocks.length; i++) {
       html = html.replace('\x00LATEX' + i + '\x00', latexBlocks[i]);
     }
-    // Wrap fenced code blocks in a dedicated chat code card with per-block copy.
-    html = html.replace(/<pre><code([^>]*)>([\s\S]*?)<\/code><\/pre>/g, function(_, attrs, body) {
-      var codeAttrs = attrs || '';
-      return (
-        '<div class="chat-codeblock">' +
-          '<button class="message-stat-btn chat-codeblock-copy" type="button" onclick="copyCode(this)" title="Copy code" aria-label="Copy code">' +
-            '<svg class="copy-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>' +
-            '<svg class="copied-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M20 6L9 17l-5-5"></path></svg>' +
-          '</button>' +
-          '<pre><code' + codeAttrs + '>' + body + '</code></pre>' +
-        '</div>'
-      );
-    });
+    // Upgrade markdown render cards for richer code/table ergonomics.
+    if (typeof dashboardWrapMarkdownCodeBlocks === 'function') {
+      html = dashboardWrapMarkdownCodeBlocks(html);
+    }
+    if (typeof dashboardWrapMarkdownTables === 'function') {
+      html = dashboardWrapMarkdownTables(html);
+    }
     // Open external links in new tab
     html = html.replace(/<a\s+href="(https?:\/\/[^"]*)"(?![^>]*target=)([^>]*)>/gi, '<a href="$1" target="_blank" rel="noopener"$2>');
     return html;
@@ -172,6 +166,54 @@ document.addEventListener('alpine:init', function() {
       } catch(_) {}
     },
 
+    isArchivedLikeAgent(agent) {
+      if (!agent || typeof agent !== 'object') return false;
+      var truthy = function(value) {
+        if (value === true || value === 1) return true;
+        var text = String(value || '').trim().toLowerCase();
+        return text === 'true' || text === '1' || text === 'yes';
+      };
+      if (truthy(agent.archived) || truthy(agent.sidebar_archived)) return true;
+      if (truthy(agent.contract_terminated) || truthy(agent.revive_recommended)) return true;
+      if (truthy(agent.is_terminated) || truthy(agent.terminated) || truthy(agent.is_archived) || truthy(agent.inactive)) return true;
+      var hardInactivePattern = /\b(archived|inactive|terminated|termed|contract[_\s-]*terminated|expired|revoked|timed[_\s-]*out|timeout|stopped|killed|dead)\b/;
+      var lifecycleText = [
+        agent.status,
+        agent.state,
+        agent.lifecycle_state,
+        agent.agent_state,
+        agent.runtime_state
+      ]
+        .map(function(value) { return String(value || '').trim().toLowerCase(); })
+        .filter(Boolean)
+        .join(' ');
+      var hasLiveActiveSignal = /\b(active|running|ready|connected)\b/.test(lifecycleText);
+      var hasLiveInactiveSignal = hardInactivePattern.test(lifecycleText);
+      if (hasLiveInactiveSignal && !hasLiveActiveSignal) return true;
+      var reasonText = [
+        agent.termination_reason,
+        agent.archive_reason,
+        agent.inactive_reason
+      ]
+        .map(function(value) { return String(value || '').trim().toLowerCase(); })
+        .filter(Boolean)
+        .join(' ');
+      if (hardInactivePattern.test(reasonText)) return true;
+      var contract = agent.contract && typeof agent.contract === 'object' ? agent.contract : null;
+      var contractStatus = String(contract && (contract.status || contract.state) ? (contract.status || contract.state) : '').trim().toLowerCase();
+      if (hardInactivePattern.test(contractStatus)) return true;
+      var contractRemaining = Number(
+        (contract && (contract.remaining_ms != null ? contract.remaining_ms : contract.contract_remaining_ms)) != null
+          ? (contract.remaining_ms != null ? contract.remaining_ms : contract.contract_remaining_ms)
+          : (agent.contract_remaining_ms != null ? agent.contract_remaining_ms : NaN)
+      );
+      var contractFiniteExpiry = (contract && contract.finite_expiry != null)
+        ? truthy(contract.finite_expiry)
+        : truthy(agent.contract_finite_expiry);
+      if (contractFiniteExpiry && Number.isFinite(contractRemaining) && contractRemaining <= 0) return true;
+      return false;
+    },
+
     markAgentPreviewUnread(agentId, unread) {
       var id = String(agentId || '').trim();
       if (!id) return;
@@ -267,8 +309,7 @@ document.addEventListener('alpine:init', function() {
 
           var isSidebarArchivedRow = function(row) {
             if (!row || typeof row !== 'object') return false;
-            if (Object.prototype.hasOwnProperty.call(row, 'sidebar_archived')) return !!row.sidebar_archived;
-            return false;
+            return typeof store.isArchivedLikeAgent === 'function' ? store.isArchivedLikeAgent(row) : false;
           };
           var nextAgents = (Array.isArray(agents) ? agents : []).filter(function(row) {
             if (!row || !row.id) return false;

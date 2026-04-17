@@ -39,6 +39,16 @@
           <stop offset="0%" stop-color="#000000" stop-opacity="0.16"></stop>
           <stop offset="100%" stop-color="#ffffff" stop-opacity="0.24"></stop>
         </linearGradient>
+        <filter id="infring-overlay-glass-pass" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="0"></feGaussianBlur>
+        </filter>
+        <filter id="infring-overlay-liquid-glass-distortion" x="-24%" y="-24%" width="148%" height="148%" color-interpolation-filters="sRGB">
+          <feTurbulence type="fractalNoise" baseFrequency="0.0085 0.021" numOctaves="2" seed="13" stitchTiles="stitch" result="noiseA"></feTurbulence>
+          <feTurbulence type="fractalNoise" baseFrequency="0.0026 0.0062" numOctaves="1" seed="31" stitchTiles="stitch" result="noiseB"></feTurbulence>
+          <feBlend in="noiseA" in2="noiseB" mode="screen" result="noise"></feBlend>
+          <feDisplacementMap in="SourceGraphic" in2="noise" scale="14" xChannelSelector="R" yChannelSelector="G" result="displaced"></feDisplacementMap>
+          <feGaussianBlur in="displaced" stdDeviation="0.08"></feGaussianBlur>
+        </filter>
         <symbol id="dock-icon-gear" viewBox="0 0 24 24">
           <circle cx="12" cy="12" r="3"></circle>
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.33 1V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-.33-1 1.65 1.65 0 0 0-1-.6 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1-.33H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1-.33 1.65 1.65 0 0 0 .6-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 1 1 7.13 3.6l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .33-1V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 .33 1 1.65 1.65 0 0 0 1 .6 1.65 1.65 0 0 0 1.82-.33l.06-.06A2 2 0 1 1 20.4 7.13l-.06.06A1.65 1.65 0 0 0 19.4 9c0 .38.13.74.36 1.03.23.29.57.5.94.57H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1 .4c-.29.24-.5.57-.57.94z"></path>
@@ -72,7 +82,7 @@
       </defs>
     </svg>
     <nav
-      class="bottom-dock"
+      class="bottom-dock drag-bar"
       :class="{
         'is-dragging': !!bottomDockDragId,
         'is-settling': !!_bottomDockRevealTargetDuringSettle,

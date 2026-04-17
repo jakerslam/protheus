@@ -314,14 +314,26 @@
       return wall;
     },
 
+    bottomDockBoundsScaleForSide(sideHint) {
+      var side = this.bottomDockNormalizeSide(sideHint || this.bottomDockActiveSide());
+      if (side === 'left' || side === 'right') return 1;
+      var expandedScale = this.bottomDockExpandedScale();
+      var baseScale = 0.95;
+      var dragging = !!this.bottomDockContainerDragActive
+        || !!this.bottomDockContainerSettling
+        || !!String(this.bottomDockDragId || '').trim();
+      var hovering = !!String(this.bottomDockHoverId || '').trim();
+      if (dragging || hovering) baseScale = expandedScale;
+      if (!Number.isFinite(baseScale) || baseScale <= 0.01) baseScale = 0.95;
+      return baseScale;
+    },
+
     bottomDockVisualSizeForSide(sideHint) {
       var side = this.bottomDockNormalizeSide(sideHint || this.bottomDockActiveSide());
       var dock = this.bottomDockReadBaseSize();
-      var hoverScale = this.bottomDockExpandedScale();
-      if (!Number.isFinite(hoverScale) || hoverScale < 1) hoverScale = 1;
-      if (side === 'left' || side === 'right') hoverScale = 1;
-      var baseWidth = Math.max(20, Number(dock.width || 0) * hoverScale);
-      var baseHeight = Math.max(20, Number(dock.height || 0) * hoverScale);
+      var scale = this.bottomDockBoundsScaleForSide(side);
+      var baseWidth = Math.max(20, Number(dock.width || 0) * scale);
+      var baseHeight = Math.max(20, Number(dock.height || 0) * scale);
       var visualWidth = this.bottomDockIsVerticalSide(side) ? baseHeight : baseWidth;
       var visualHeight = this.bottomDockIsVerticalSide(side) ? baseWidth : baseHeight;
       return { side: side, width: visualWidth, height: visualHeight };
@@ -329,7 +341,21 @@
 
     bottomDockHardBoundsForSide(sideHint) {
       var size = this.bottomDockVisualSizeForSide(sideHint);
-      return this.dragSurfaceHardBounds(size.width, size.height);
+      var view = this.bottomDockReadViewportSize();
+      var width = Number(size && size.width || 0);
+      var height = Number(size && size.height || 0);
+      if (!Number.isFinite(width) || width < 1) width = 1;
+      if (!Number.isFinite(height) || height < 1) height = 1;
+      var viewportWidth = Number(view && view.width || 0);
+      var viewportHeight = Number(view && view.height || 0);
+      if (!Number.isFinite(viewportWidth) || viewportWidth <= 0) viewportWidth = 1440;
+      if (!Number.isFinite(viewportHeight) || viewportHeight <= 0) viewportHeight = 900;
+      return {
+        minLeft: 0,
+        maxLeft: Math.max(0, viewportWidth - width),
+        minTop: 0,
+        maxTop: Math.max(0, viewportHeight - height)
+      };
     },
 
     bottomDockTopLeftFromAnchor(anchorX, anchorY, sideHint) {
@@ -338,10 +364,14 @@
       var y = Number(anchorY);
       if (!Number.isFinite(x)) x = Number(this.bottomDockReadViewportSize().width || 0) * 0.5;
       if (!Number.isFinite(y)) y = Number(this.bottomDockReadViewportSize().height || 0) * 0.5;
+      var side = this.bottomDockNormalizeSide(size && size.side);
+      var top = y - (Number(size.height || 0) / 2);
+      if (side === 'top') top = y;
+      else if (side === 'bottom') top = y - Number(size.height || 0);
       return {
         left: x - (Number(size.width || 0) / 2),
-        top: y - (Number(size.height || 0) / 2),
-        side: size.side
+        top: top,
+        side: side
       };
     },
 
@@ -351,17 +381,42 @@
       var top = Number(topRaw);
       if (!Number.isFinite(left)) left = Number(size.width || 0) / -2;
       if (!Number.isFinite(top)) top = Number(size.height || 0) / -2;
+      var side = this.bottomDockNormalizeSide(size && size.side);
+      var y = top + (Number(size.height || 0) / 2);
+      if (side === 'top') y = top;
+      else if (side === 'bottom') y = top + Number(size.height || 0);
       return {
         x: left + (Number(size.width || 0) / 2),
-        y: top + (Number(size.height || 0) / 2),
-        side: size.side
+        y: y,
+        side: side
       };
     },
 
-    bottomDockLockRadiusCssVars(wallRaw) {
+    bottomDockLocalWallForRotation(wallRaw, rotationDegRaw) {
       var wall = this.dragSurfaceNormalizeWall(wallRaw);
       if (!wall) return '';
-      return '--bottom-dock-radius-override:' + this.dragSurfaceRadiusByWall(wall) + ';';
+      var rotationDeg = Number(rotationDegRaw);
+      if (!Number.isFinite(rotationDeg)) rotationDeg = 0;
+      var theta = (this.bottomDockNormalizeRotationDeg(rotationDeg) * Math.PI) / 180;
+      var vx = 0;
+      var vy = 0;
+      if (wall === 'left') vx = -1;
+      else if (wall === 'right') vx = 1;
+      else if (wall === 'top') vy = -1;
+      else vy = 1;
+      var localX = (vx * Math.cos(theta)) + (vy * Math.sin(theta));
+      var localY = (-vx * Math.sin(theta)) + (vy * Math.cos(theta));
+      if (Math.abs(localX) >= Math.abs(localY)) {
+        return localX >= 0 ? 'right' : 'left';
+      }
+      return localY >= 0 ? 'bottom' : 'top';
+    },
+
+    bottomDockLockRadiusCssVars(wallRaw, rotationDegRaw) {
+      var wall = this.dragSurfaceNormalizeWall(wallRaw);
+      if (!wall) return '';
+      var localWall = this.bottomDockLocalWallForRotation(wall, rotationDegRaw);
+      return '--bottom-dock-radius-override:' + this.dragSurfaceRadiusByWall(localWall) + ';';
     },
 
     bottomDockClampDragAnchor(anchorX, anchorY) {
@@ -381,67 +436,8 @@
     },
 
     bottomDockClampAnchor(anchorX, anchorY, sideOverride) {
-      var view = this.bottomDockReadViewportSize();
-      var dock = this.bottomDockReadBaseSize();
-      var side = this.bottomDockNormalizeSide(sideOverride);
-      var hoverScale = this.bottomDockExpandedScale();
-      if (!Number.isFinite(hoverScale) || hoverScale < 1) hoverScale = 1;
-      if (side === 'left' || side === 'right') hoverScale = 1;
-      var margin = 8;
-      var baseWidth = Math.max(20, Number(dock.width || 0) * hoverScale);
-      var baseHeight = Math.max(20, Number(dock.height || 0) * hoverScale);
-      var visualWidth = this.bottomDockIsVerticalSide(side) ? baseHeight : baseWidth;
-      var visualHeight = this.bottomDockIsVerticalSide(side) ? baseWidth : baseHeight;
-      var halfWidth = visualWidth / 2;
-      var halfHeight = visualHeight / 2;
-      var minX = margin;
-      var maxX = Number(view.width || 0) - margin;
-      var minY = margin;
-      var maxY = Number(view.height || 0) - margin;
-      if (side === 'bottom') {
-        minX = halfWidth + margin;
-        maxX = Number(view.width || 0) - halfWidth - margin;
-        minY = visualHeight + margin;
-        maxY = Number(view.height || 0) - margin;
-      } else if (side === 'top') {
-        minX = halfWidth + margin;
-        maxX = Number(view.width || 0) - halfWidth - margin;
-        minY = margin;
-        maxY = Number(view.height || 0) - visualHeight - margin;
-      } else if (side === 'left') {
-        minX = halfWidth + margin;
-        maxX = Number(view.width || 0) - halfWidth - margin;
-        minY = halfHeight + margin;
-        maxY = Number(view.height || 0) - halfHeight - margin;
-      } else if (side === 'right') {
-        minX = halfWidth + margin;
-        maxX = Number(view.width || 0) - halfWidth - margin;
-        minY = halfHeight + margin;
-        maxY = Number(view.height || 0) - halfHeight - margin;
-      }
-      if (!Number.isFinite(minX) || !Number.isFinite(maxX) || maxX <= minX) {
-        minX = margin;
-        maxX = Number(view.width || 0) - margin;
-      }
-      if (!Number.isFinite(minY) || !Number.isFinite(maxY) || maxY <= minY) {
-        minY = margin;
-        maxY = Number(view.height || 0) - margin;
-      }
-      var x = Number(anchorX);
-      var y = Number(anchorY);
-      if (!Number.isFinite(x)) {
-        if (side === 'left') x = minX;
-        else if (side === 'right') x = maxX;
-        else x = Number(view.width || 0) * 0.5;
-      }
-      if (!Number.isFinite(y)) {
-        if (side === 'top') y = margin;
-        else if (side === 'left' || side === 'right') y = Number(view.height || 0) * 0.5;
-        else y = Number(view.height || 0) - margin;
-      }
-      x = Math.max(minX, Math.min(maxX, x));
-      y = Math.max(minY, Math.min(maxY, y));
-      return { x: x, y: y };
+      void sideOverride;
+      return this.bottomDockClampDragAnchor(anchorX, anchorY);
     },
 
     bottomDockAnchorForSnapId(id) {

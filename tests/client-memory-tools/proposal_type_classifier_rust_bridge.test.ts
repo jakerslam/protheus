@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const ts = require('typescript');
+const { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 if (!require.extensions['.ts']) {
   require.extensions['.ts'] = function compileTs(module, filename) {
@@ -31,4 +32,6 @@ assert.equal(mod.extractSourceEyeId({ evidence: [{ evidence_ref: 'node|eye:direc
 const classification = mod.classifyProposalType({ summary: 'campaign roadmap sequencing' });
 assert.equal(classification.type, 'strategy');
 assert.equal(classification.inferred, true);
+assertNoPlaceholderOrPromptLeak(classification, 'proposal_type_classifier_rust_bridge_test');
+assertStableToolingEnvelope({ status: 'ok', classification }, 'proposal_type_classifier_rust_bridge_test');
 console.log(JSON.stringify({ ok: true, type: 'proposal_type_classifier_rust_bridge_test' }));

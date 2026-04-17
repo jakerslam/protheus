@@ -67,6 +67,43 @@ fn execute_spawn_subagents_tool(
             .unwrap_or("Parallel child task requested by parent directive."),
         800,
     );
+    let explicit_initial_prompt = clean_text(
+        input
+            .get("initial_prompt")
+            .or_else(|| input.get("system_prompt"))
+            .or_else(|| input.get("prompt"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        12_000,
+    );
+    let contract_lifespan = match clean_text(
+        input
+            .get("lifespan")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        40,
+    )
+    .to_ascii_lowercase()
+    .as_str()
+    {
+        "task" => "task",
+        "permanent" | "indefinite" => "permanent",
+        _ => "ephemeral",
+    }
+    .to_string();
+    let parent_row = agent_row_by_id(root, snapshot, actor);
+    let parent_permissions_manifest = parent_row
+        .as_ref()
+        .and_then(permissions_manifest_from_agent_row)
+        .unwrap_or_else(default_permissions_manifest);
+    let requested_permissions_manifest = input
+        .get("permissions")
+        .or_else(|| input.get("permissions_manifest"))
+        .and_then(parse_permissions_payload)
+        .map(|value| normalize_permissions_manifest(&value));
+    let child_permissions_manifest = requested_permissions_manifest
+        .map(|requested| clamp_child_permissions_manifest(&parent_permissions_manifest, &requested))
+        .unwrap_or_else(|| parent_permissions_manifest.clone());
     let merge_strategy = match clean_text(
         input
             .get("merge_strategy")
@@ -178,9 +215,20 @@ fn execute_spawn_subagents_tool(
             .get(idx % role_plan.len())
             .cloned()
             .unwrap_or_else(|| "analyst".to_string());
+        let child_initial_prompt = if explicit_initial_prompt.is_empty() {
+            clean_text(
+                &format!(
+                    "You are a delegated subagent for parent {actor}. Objective: {objective}. Keep updates concise, evidence-backed, and escalate blockers early."
+                ),
+                12_000,
+            )
+        } else {
+            explicit_initial_prompt.clone()
+        };
         let mut request_body = json!({
             "role": role,
             "parent_agent_id": actor,
+            "system_prompt": child_initial_prompt.clone(),
             "contract": {
                 "owner": "descendant_auto_spawn",
                 "mission": if objective.is_empty() {
@@ -188,6 +236,9 @@ fn execute_spawn_subagents_tool(
                 } else {
                     format!("Parallel subtask for parent {}: {}", actor, objective)
                 },
+                "initial_prompt": child_initial_prompt,
+                "permissions_manifest": child_permissions_manifest.clone(),
+                "lifespan": contract_lifespan.clone(),
                 "termination_condition": "task_or_timeout",
                 "expiry_seconds": expiry_seconds,
                 "auto_terminate_allowed": true,

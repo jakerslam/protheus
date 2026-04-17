@@ -20,6 +20,9 @@ fn usage() {
     println!(
         "  protheus-ops integrity-hash-utility-kernel hash-file-sha256 [--payload-base64=<json>]"
     );
+    println!(
+        "  protheus-ops integrity-hash-utility-kernel hash-contract-entry [--payload-base64=<json>]"
+    );
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {
@@ -141,6 +144,34 @@ fn sha256_hex_string(text: &str) -> String {
     format!("{:x}", hasher.finalize())
 }
 
+fn hash_contract_entry(payload: &Map<String, Value>) -> Result<Value, String> {
+    let plugin_id = clean_text(payload.get("plugin_id"), 120).to_ascii_lowercase();
+    let provider_id = clean_text(payload.get("provider_id"), 120).to_ascii_lowercase();
+    let contract = clean_text(payload.get("contract"), 120);
+    if plugin_id.is_empty() {
+        return Err("integrity_hash_utility_kernel_plugin_id_required".to_string());
+    }
+    if provider_id.is_empty() {
+        return Err("integrity_hash_utility_kernel_provider_id_required".to_string());
+    }
+    if contract.is_empty() {
+        return Err("integrity_hash_utility_kernel_contract_required".to_string());
+    }
+    let normalized = json!({
+        "plugin_id": plugin_id,
+        "provider_id": provider_id,
+        "contract": contract,
+        "metadata": payload.get("metadata").cloned().unwrap_or(Value::Null)
+    });
+    let serialized = stable_stringify(&normalized);
+    Ok(json!({
+        "ok": true,
+        "normalized_entry": normalized,
+        "serialized": serialized,
+        "value": sha256_hex_string(&serialized)
+    }))
+}
+
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     let command = argv
         .first()
@@ -200,6 +231,13 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 ),
             },
             Err(err) => cli_error("integrity_hash_utility_kernel_error", &err),
+            },
+        "hash-contract-entry" => match hash_contract_entry(input) {
+            Ok(value) => cli_receipt(
+                "integrity_hash_utility_kernel_hash_contract_entry",
+                value,
+            ),
+            Err(err) => cli_error("integrity_hash_utility_kernel_error", &err),
         },
         _ => cli_error(
             "integrity_hash_utility_kernel_error",
@@ -233,5 +271,19 @@ mod tests {
             sha256_hex_string(&serialized),
             sha256_hex_string(&serialized)
         );
+    }
+
+    #[test]
+    fn hash_contract_entry_is_deterministic() {
+        let payload = serde_json::from_value::<Map<String, Value>>(json!({
+            "plugin_id": "openrouter",
+            "provider_id": "openrouter",
+            "contract": "webSearchProviders",
+            "metadata": {"mode":"explicit_fast_path"}
+        }))
+        .expect("payload");
+        let one = hash_contract_entry(&payload).expect("hash");
+        let two = hash_contract_entry(&payload).expect("hash");
+        assert_eq!(one.get("value"), two.get("value"));
     }
 }

@@ -44,12 +44,35 @@ body.dashboard-embedded-shell .main-content > div:not(.global-taskbar):not(.main
 
 /* Sidebar */
 .drag-bar {
-  --drag-bar-border: var(--overlay-shared-surface-border, var(--overlay-surface-border, color-mix(in srgb, #fff 24%, transparent)));
-  --drag-bar-background: var(--overlay-shared-surface-background, var(--overlay-surface-background, transparent));
-  --drag-bar-radius: var(--overlay-shared-surface-radius, var(--overlay-surface-radius, 18px));
-  --drag-bar-shadow: var(--overlay-shared-surface-shadow, var(--overlay-surface-shadow, -6px 0 12px -14px rgba(0, 0, 0, 0.32), 6px 0 12px -14px rgba(0, 0, 0, 0.32), 0 10px 18px -18px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.2)));
-  --drag-bar-blur: var(--overlay-shared-surface-blur, var(--overlay-surface-blur, 6px));
-  --drag-bar-saturate: var(--overlay-shared-surface-saturate, var(--overlay-surface-saturate, 1.05));
+  --drag-bar-border: var(--drag-bar-border-override, var(--overlay-shared-surface-border, var(--overlay-surface-border, color-mix(in srgb, #fff 24%, transparent))));
+  --drag-bar-background: var(--drag-bar-background-override, var(--overlay-shared-surface-background, var(--overlay-surface-background, transparent)));
+  --drag-bar-radius: var(--drag-bar-radius-override, var(--overlay-shared-surface-radius, var(--overlay-surface-radius, 18px)));
+  --drag-bar-shadow: var(--drag-bar-shadow-override, var(--overlay-shared-surface-shadow, var(--overlay-surface-shadow, -6px 0 12px -14px rgba(0, 0, 0, 0.32), 6px 0 12px -14px rgba(0, 0, 0, 0.32), 0 10px 18px -18px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.2))));
+  --drag-bar-blur: var(--drag-bar-blur-override, var(--overlay-shared-surface-blur, var(--overlay-surface-blur, 6px)));
+  --drag-bar-saturate: var(--drag-bar-saturate-override, var(--overlay-shared-surface-saturate, var(--overlay-surface-saturate, 1.05)));
+  --drag-bar-brightness: var(--drag-bar-brightness-override, var(--overlay-shared-surface-brightness, var(--overlay-surface-brightness, 1)));
+  --drag-bar-contrast: var(--drag-bar-contrast-override, var(--overlay-shared-surface-contrast, var(--overlay-surface-contrast, 1)));
+  --drag-bar-distortion: var(--drag-bar-distortion-override, var(--overlay-shared-surface-distortion, var(--overlay-surface-distortion, url(#infring-overlay-glass-pass))));
+  --drag-bar-specular: var(--drag-bar-specular-override, var(--overlay-shared-surface-specular, var(--overlay-surface-specular, none)));
+  --drag-bar-specular-opacity: var(--drag-bar-specular-opacity-override, var(--overlay-shared-surface-specular-opacity, var(--overlay-surface-specular-opacity, 0)));
+  --drag-bar-caustic: var(--drag-bar-caustic-override, var(--overlay-shared-surface-caustic, var(--overlay-surface-caustic, none)));
+  --drag-bar-caustic-opacity: var(--drag-bar-caustic-opacity-override, var(--overlay-shared-surface-caustic-opacity, var(--overlay-surface-caustic-opacity, 0)));
+  --drag-bar-transform-time: 500ms;
+  --drag-bar-radius-transition: var(--drag-bar-transform-time) var(--ease-smooth);
+  --drag-bar-border-top-color: var(--drag-bar-border);
+  --drag-bar-border-right-color: var(--drag-bar-border);
+  --drag-bar-border-bottom-color: var(--drag-bar-border);
+  --drag-bar-border-left-color: var(--drag-bar-border);
+  --drag-bar-border-transition-duration: 0ms;
+  --drag-bar-border-transition-delay: 0ms;
+  --drag-bar-cursor-idle: grab;
+  --drag-bar-cursor-active: grabbing;
+  cursor: var(--drag-bar-cursor-idle);
+}
+
+.drag-bar.is-container-dragging,
+.drag-bar.is-dragging {
+  cursor: var(--drag-bar-cursor-active);
 }
 
 .sidebar {
@@ -64,11 +87,26 @@ body.dashboard-embedded-shell .main-content > div:not(.global-taskbar):not(.main
   --sidebar-surface-shadow: var(--drag-bar-shadow, var(--overlay-shared-surface-shadow, var(--overlay-surface-shadow, -6px 0 12px -14px rgba(0, 0, 0, 0.32), 6px 0 12px -14px rgba(0, 0, 0, 0.32), 0 10px 18px -18px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.2))));
   --sidebar-surface-radius: var(--drag-bar-radius, var(--overlay-shared-surface-radius, var(--overlay-surface-radius, 18px)));
   background: var(--sidebar-surface-background);
-  border: 1px solid var(--sidebar-surface-border);
+  border-width: 1px;
+  border-style: solid;
+  border-top-color: var(--drag-bar-border-top-color, var(--sidebar-surface-border));
+  border-right-color: var(--drag-bar-border-right-color, var(--sidebar-surface-border));
+  border-bottom-color: var(--drag-bar-border-bottom-color, var(--sidebar-surface-border));
+  border-left-color: var(--drag-bar-border-left-color, var(--sidebar-surface-border));
   border-radius: var(--sidebar-surface-radius);
   box-shadow: var(--sidebar-surface-shadow);
-  backdrop-filter: blur(var(--drag-bar-blur, var(--overlay-shared-surface-blur, var(--overlay-surface-blur, 6px)))) saturate(var(--drag-bar-saturate, var(--overlay-shared-surface-saturate, var(--overlay-surface-saturate, 1.05))));
-  -webkit-backdrop-filter: blur(var(--drag-bar-blur, var(--overlay-shared-surface-blur, var(--overlay-surface-blur, 6px)))) saturate(var(--drag-bar-saturate, var(--overlay-shared-surface-saturate, var(--overlay-surface-saturate, 1.05))));
+  backdrop-filter:
+    var(--drag-bar-distortion)
+    blur(var(--drag-bar-blur, var(--overlay-shared-surface-blur, var(--overlay-surface-blur, 6px))))
+    saturate(var(--drag-bar-saturate, var(--overlay-shared-surface-saturate, var(--overlay-surface-saturate, 1.05))))
+    brightness(var(--drag-bar-brightness, var(--overlay-shared-surface-brightness, var(--overlay-surface-brightness, 1))))
+    contrast(var(--drag-bar-contrast, var(--overlay-shared-surface-contrast, var(--overlay-surface-contrast, 1))));
+  -webkit-backdrop-filter:
+    var(--drag-bar-distortion)
+    blur(var(--drag-bar-blur, var(--overlay-shared-surface-blur, var(--overlay-surface-blur, 6px))))
+    saturate(var(--drag-bar-saturate, var(--overlay-shared-surface-saturate, var(--overlay-surface-saturate, 1.05))))
+    brightness(var(--drag-bar-brightness, var(--overlay-shared-surface-brightness, var(--overlay-surface-brightness, 1))))
+    contrast(var(--drag-bar-contrast, var(--overlay-shared-surface-contrast, var(--overlay-surface-contrast, 1))));
   background-clip: padding-box;
   display: flex;
   flex-direction: column;
@@ -78,7 +116,9 @@ body.dashboard-embedded-shell .main-content > div:not(.global-taskbar):not(.main
     width var(--sidebar-position-transition),
     left var(--sidebar-position-transition),
     top var(--sidebar-position-transition),
-    transform var(--sidebar-position-transition);
+    transform var(--sidebar-position-transition),
+    border-radius var(--drag-bar-radius-transition),
+    border-color var(--drag-bar-border-transition-duration) linear var(--drag-bar-border-transition-delay);
   --sidebar-layer: 19200;
   --sidebar-pulltab-layer: calc(var(--sidebar-layer) + 150);
   z-index: var(--sidebar-layer);
@@ -213,29 +253,64 @@ body.dashboard-embedded-shell .main-content > div:not(.global-taskbar):not(.main
   gap: 10px;
 }
 
-.brand-mark {
-  width: 28px;
-  height: 28px;
+.infring-logo,
+.brand-mark,
+.agent-mark,
+.nav-agent-avatar-fallback {
+  --infring-logo-size: 28px;
+  --infring-logo-font-size: 17px;
+  --infring-logo-font-family: var(--font-sans);
+  width: var(--infring-logo-size);
+  height: var(--infring-logo-size);
   border-radius: 9999px;
   background: var(--accent-subtle);
   border: 1px solid var(--accent);
   color: var(--accent);
-  font-size: 17px;
+  font-size: var(--infring-logo-font-size);
   font-weight: 700;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--font-sans);
+  font-family: var(--infring-logo-font-family);
   line-height: 1;
   overflow: hidden;
+  flex-shrink: 0;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  pointer-events: none;
 }
 
+.infring-logo-glyph,
 .brand-mark-glyph {
   display: inline-block;
   width: 100%;
   text-align: center;
   transform: scaleX(1.55);
   transform-origin: center center;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  pointer-events: none;
+}
+
+.brand-mark {
+  --infring-logo-size: 28px;
+  --infring-logo-font-size: 17px;
+  --infring-logo-font-family: var(--font-sans);
+}
+
+.infring-logo--agent-default,
+.nav-agent-avatar-fallback,
+.agent-mark {
+  --infring-logo-size: 18px;
+  --infring-logo-font-size: 10px;
+  --infring-logo-font-family: var(--font-mono);
+}
+
+.brand-mark {
+  width: 28px;
+  height: 28px;
 }
 
 .sidebar-header h1 {

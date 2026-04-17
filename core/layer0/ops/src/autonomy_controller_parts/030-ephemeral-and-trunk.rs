@@ -3,6 +3,24 @@ fn run_ephemeral(root: &Path, argv: &[String]) -> i32 {
     if let Some(mut denied) = conduit_guard(argv, strict) {
         return emit_receipt(root, &mut denied);
     }
+    let require_web_tooling_ready =
+        parse_bool(parse_flag(argv, "require-web-tooling-ready").as_deref(), false);
+    let web_tooling_health = crate::network_protocol::web_tooling_health_report(root, strict);
+    let web_tooling_ready = web_tooling_health
+        .get("ok")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    if strict && require_web_tooling_ready && !web_tooling_ready {
+        let mut out = json!({
+            "ok": false,
+            "type": "autonomy_ephemeral_run",
+            "lane": LANE_ID,
+            "strict": strict,
+            "error": "web_tooling_not_ready",
+            "web_tooling_health": web_tooling_health
+        });
+        return emit_receipt(root, &mut out);
+    }
     let goal = parse_flag(argv, "goal")
         .or_else(|| parse_positional(argv, 1))
         .unwrap_or_else(|| "deliver request".to_string());
@@ -134,6 +152,7 @@ fn run_ephemeral(root: &Path, argv: &[String]) -> i32 {
         "lane": LANE_ID,
         "strict": strict,
         "run": run,
+        "web_tooling_health": web_tooling_health,
         "duality": duality,
         "trunk": trunk,
         "artifact": {
@@ -163,7 +182,7 @@ fn run_ephemeral(root: &Path, argv: &[String]) -> i32 {
             {
                 "id": "V8-AGENT-ERA-001.5",
                 "claim": "ephemeral_execution_paths_remain_conduit_only_with_thin_client_boundaries",
-                "evidence": {"strict": strict}
+                "evidence": {"strict": strict, "web_tooling_ready": web_tooling_ready}
             }
         ]
     });
@@ -183,12 +202,14 @@ fn run_trunk_status(root: &Path, argv: &[String]) -> i32 {
         })
     });
     let events = read_jsonl(&trunk_events_path(root));
+    let web_tooling_health = crate::network_protocol::web_tooling_health_report(root, false);
     let mut out = json!({
         "ok": true,
         "type": "autonomy_trunk_status",
         "lane": LANE_ID,
         "strict": strict,
         "trunk": trunk,
+        "web_tooling_health": web_tooling_health,
         "events": {
             "count": events.len(),
             "latest": events.last().cloned().unwrap_or(Value::Null)

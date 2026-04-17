@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // Layer ownership: core/layer1/memory_runtime::recall_policy (authoritative)
 
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
+
 pub const DEFAULT_RECALL_TOP: usize = 5;
 pub const MAX_RECALL_TOP: usize = 50;
 pub const DEFAULT_MAX_FILES: usize = 1;
@@ -10,6 +13,63 @@ pub const MAX_EXPAND_LINES: usize = 300;
 pub const DEFAULT_INDEX_MAX_AGE_MS: u64 = 1_200_000;
 pub const DEFAULT_BOOTSTRAP_HYDRATION_TOKEN_CAP: u32 = 48;
 pub const DEFAULT_BURN_THRESHOLD_TOKENS: u32 = 200;
+
+pub fn normalize_recall_execution_status(raw: &str) -> &'static str {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "ok" | "success" | "succeeded" | "ready" => "success",
+        "timeout" | "timed_out" | "timed-out" => "timeout",
+        "throttled" | "rate_limited" | "rate-limited" | "429" => "throttled",
+        _ => "error",
+    }
+}
+
+fn normalize_recall_error_kind(raw: Option<&str>) -> Option<String> {
+    raw.map(|value| {
+        value
+            .trim()
+            .to_ascii_lowercase()
+            .chars()
+            .map(|ch| {
+                if ch.is_ascii_alphanumeric() || matches!(ch, '_' | '-' | ':' | '.') {
+                    ch
+                } else {
+                    '_'
+                }
+            })
+            .collect::<String>()
+            .split('_')
+            .filter(|row| !row.is_empty())
+            .collect::<Vec<_>>()
+            .join("_")
+    })
+    .filter(|value| !value.is_empty())
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RecallExecutionReceipt {
+    pub call_id: String,
+    pub status: &'static str,
+    pub error_kind: Option<String>,
+}
+
+pub fn recall_execution_receipt(
+    scope: &str,
+    status: &str,
+    error_kind: Option<&str>,
+) -> RecallExecutionReceipt {
+    let normalized_status = normalize_recall_execution_status(status);
+    let normalized_error_kind = normalize_recall_error_kind(error_kind);
+    let mut hasher = DefaultHasher::new();
+    scope.trim().to_ascii_lowercase().hash(&mut hasher);
+    normalized_status.hash(&mut hasher);
+    normalized_error_kind.hash(&mut hasher);
+    let digest = hasher.finish();
+    RecallExecutionReceipt {
+        call_id: format!("recall-{digest:016x}"),
+        status: normalized_status,
+        error_kind: normalized_error_kind,
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FailClosedMode {
@@ -316,6 +376,21 @@ mod tests {
         assert!(!enforce_index_first(&[], 3).ok);
         assert!(!enforce_index_first(&["sqlite:ok".to_string()], 0).ok);
         assert!(enforce_index_first(&["sqlite:ok".to_string()], 3).ok);
+    }
+
+    #[test]
+    fn recall_execution_receipt_is_stable() {
+        assert_eq!(normalize_recall_execution_status("ok"), "success");
+        assert_eq!(normalize_recall_execution_status("rate_limited"), "throttled");
+        assert_eq!(normalize_recall_execution_status("timed-out"), "timeout");
+        assert_eq!(normalize_recall_execution_status("unknown"), "error");
+
+        let left = recall_execution_receipt("bootstrap_hydration", "ok", Some("Policy Denied"));
+        let right =
+            recall_execution_receipt("bootstrap_hydration", "success", Some("policy_denied"));
+        assert_eq!(left.call_id, right.call_id);
+        assert_eq!(left.status, "success");
+        assert_eq!(left.error_kind.as_deref(), Some("policy_denied"));
     }
 
     #[test]

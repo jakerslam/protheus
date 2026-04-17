@@ -1,3 +1,54 @@
+fn normalize_queue_status(raw: &str) -> String {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "queued" | "todo" | "new" => "pending".to_string(),
+        "running" | "in_progress" | "opened" => "open".to_string(),
+        other => other.to_string(),
+    }
+}
+
+fn parse_row_timestamp_ms(row: &Value) -> Option<i64> {
+    for key in ["created_at", "createdAt", "ts", "timestamp", "created_ms"] {
+        let Some(raw) = row.get(key) else {
+            continue;
+        };
+        if let Some(v) = raw.as_i64() {
+            if v > 1_000_000_000_000 {
+                return Some(v);
+            }
+            if v > 1_000_000_000 {
+                return Some(v * 1000);
+            }
+        }
+        if let Some(v) = raw.as_u64() {
+            let as_i64 = i64::try_from(v).ok()?;
+            if as_i64 > 1_000_000_000_000 {
+                return Some(as_i64);
+            }
+            if as_i64 > 1_000_000_000 {
+                return Some(as_i64 * 1000);
+            }
+        }
+        if let Some(text) = raw.as_str() {
+            let trimmed = text.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(trimmed) {
+                return Some(dt.timestamp_millis());
+            }
+            if let Ok(parsed) = trimmed.parse::<i64>() {
+                if parsed > 1_000_000_000_000 {
+                    return Some(parsed);
+                }
+                if parsed > 1_000_000_000 {
+                    return Some(parsed * 1000);
+                }
+            }
+        }
+    }
+    None
+}
+
 fn queue_snapshot(dates: &[String], proposals_dir: &Path) -> Value {
     let mut total = 0i64;
     let mut pending = 0i64;
@@ -21,20 +72,22 @@ fn queue_snapshot(dates: &[String], proposals_dir: &Path) -> Value {
                 continue;
             }
             total += 1;
-            let status = row
+            let status = normalize_queue_status(
+                row
                 .get("status")
                 .or_else(|| row.get("state"))
                 .and_then(Value::as_str)
-                .unwrap_or("pending")
-                .to_ascii_lowercase();
+                .unwrap_or("pending"),
+            );
             if status == "pending" || status == "open" {
                 pending += 1;
-                let created_ms =
+                let day_floor_ms =
                     chrono::DateTime::parse_from_rfc3339(&format!("{day}T00:00:00.000Z"))
                         .ok()
                         .map(|dt| dt.timestamp_millis())
                         .unwrap_or(now_ms);
-                if now_ms - created_ms >= 72 * 3600 * 1000 {
+                let created_ms = parse_row_timestamp_ms(&row).unwrap_or(day_floor_ms);
+                if now_ms.saturating_sub(created_ms) >= 72 * 3600 * 1000 {
                     stale += 1;
                 }
             }
@@ -490,4 +543,3 @@ pub fn run_autonomy_simulation(
 
     payload
 }
-

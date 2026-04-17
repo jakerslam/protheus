@@ -50,6 +50,36 @@ impl LayerTopology {
             None
         }
     }
+
+    pub const fn is_monotonic(&self) -> bool {
+        if self.layer0 && !self.layer_minus_one {
+            return false;
+        }
+        if self.layer1 && !self.layer0 {
+            return false;
+        }
+        if self.layer2 && !self.layer1 {
+            return false;
+        }
+        if self.layer3 && !self.layer2 {
+            return false;
+        }
+        true
+    }
+
+    pub const fn should_fail_closed(&self) -> bool {
+        !self.is_monotonic()
+    }
+
+    pub const fn integrity_state(&self) -> &'static str {
+        if self.should_fail_closed() {
+            "topology_invalid_non_monotonic"
+        } else if self.highest_enabled_layer().is_none() {
+            "topology_empty"
+        } else {
+            "topology_consistent"
+        }
+    }
 }
 
 #[cfg(feature = "layer_minus_one")]
@@ -98,21 +128,9 @@ mod tests {
     #[test]
     fn topology_is_monotonic() {
         let topology = LayerTopology::active();
-        if topology.layer0 {
-            assert!(topology.layer_minus_one);
-        }
-        if topology.layer3 {
-            assert!(topology.layer2);
-            assert!(topology.layer1);
-            assert!(topology.layer0);
-        }
-        if topology.layer2 {
-            assert!(topology.layer1);
-            assert!(topology.layer0);
-        }
-        if topology.layer1 {
-            assert!(topology.layer0);
-        }
+        assert!(topology.is_monotonic());
+        assert!(!topology.should_fail_closed());
+        assert_ne!(topology.integrity_state(), "topology_invalid_non_monotonic");
     }
 
     #[cfg(feature = "layer_minus_one")]

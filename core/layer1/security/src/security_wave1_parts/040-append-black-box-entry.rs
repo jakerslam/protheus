@@ -1,5 +1,15 @@
 
 fn append_black_box_entry(repo_root: &Path, args: &CliArgs, ledger_dir: &Path) -> (Value, i32) {
+    let started = std::time::Instant::now();
+    let execution_receipt = |status: &str, stage: &str, error: Option<&str>| {
+        json!({
+            "status": status,
+            "stage": stage,
+            "duration_ms": started.elapsed().as_millis(),
+            "ts": now_iso(),
+            "error": error.map(|v| clean_text(v, 220))
+        })
+    };
     let actor = clean_text(
         args.flags
             .get("actor")
@@ -21,6 +31,9 @@ fn append_black_box_entry(repo_root: &Path, args: &CliArgs, ledger_dir: &Path) -
             .unwrap_or_else(|| "security_plane".to_string()),
         120,
     );
+    let actor_clean = actor.clone();
+    let action_clean = action.clone();
+    let source_clean = source.clone();
     let details = args
         .flags
         .get("details-json")
@@ -34,7 +47,8 @@ fn append_black_box_entry(repo_root: &Path, args: &CliArgs, ledger_dir: &Path) -
                 json!({
                     "ok": false,
                     "type": "black_box_ledger_append",
-                    "error": err
+                    "error": clean_text(&err, 220),
+                    "execution_receipt": execution_receipt("error", "open_db", Some(&err))
                 }),
                 1,
             )
@@ -47,7 +61,8 @@ fn append_black_box_entry(repo_root: &Path, args: &CliArgs, ledger_dir: &Path) -
                 json!({
                     "ok": false,
                     "type": "black_box_ledger_append",
-                    "error": err
+                    "error": clean_text(&err, 220),
+                    "execution_receipt": execution_receipt("error", "load_key", Some(&err))
                 }),
                 1,
             )
@@ -60,7 +75,8 @@ fn append_black_box_entry(repo_root: &Path, args: &CliArgs, ledger_dir: &Path) -
                 json!({
                     "ok": false,
                     "type": "black_box_ledger_append",
-                    "error": err
+                    "error": clean_text(&err, 220),
+                    "execution_receipt": execution_receipt("error", "encrypt_details", Some(&err))
                 }),
                 1,
             )
@@ -104,11 +120,13 @@ fn append_black_box_entry(repo_root: &Path, args: &CliArgs, ledger_dir: &Path) -
             ciphertext
         ],
     ) {
+        let err_msg = format!("sqlite_insert_failed:{err}");
         return (
             json!({
                 "ok": false,
                 "type": "black_box_ledger_append",
-                "error": format!("sqlite_insert_failed:{err}")
+                "error": err_msg,
+                "execution_receipt": execution_receipt("error", "sqlite_insert", Some(&format!("{err}")))
             }),
             1,
         );
@@ -152,11 +170,14 @@ fn append_black_box_entry(repo_root: &Path, args: &CliArgs, ledger_dir: &Path) -
             "ok": true,
             "type": "black_box_ledger_append",
             "seq": seq,
-            "actor": args.flags.get("actor").cloned().unwrap_or_else(|| "unknown_actor".to_string()),
-            "action": args.flags.get("action").cloned().unwrap_or_else(|| "unknown_action".to_string()),
+            "actor": actor_clean,
+            "action": action_clean,
+            "source": source_clean,
             "entry_hash": conn.query_row("SELECT entry_hash FROM ledger_entries WHERE seq = ?1", params![seq], |row| row.get::<_, String>(0)).unwrap_or_default(),
             "sqlite_path": normalize_rel_path(black_box_sqlite_path(ledger_dir).to_string_lossy()),
             "encrypted_at_rest": true,
+            "root_publish_attempted": should_publish,
+            "execution_receipt": execution_receipt("ok", "append_committed", None),
             "claim_evidence": [{
                 "id": "V6-SEC-LEDGER-001",
                 "claim": "black_box_ledger_appends_tamper_evident_encrypted_sqlite_entries_with_hash_chain_signatures_and_published_roots",

@@ -1,3 +1,30 @@
+fn normalize_objective_seed(raw: &str) -> String {
+    let mut out = String::new();
+    let mut prev_ws = false;
+    for ch in clean_text_runtime(raw, 240).chars() {
+        if ch.is_whitespace() {
+            if prev_ws {
+                continue;
+            }
+            prev_ws = true;
+            out.push(' ');
+        } else {
+            prev_ws = false;
+            out.push(ch.to_ascii_lowercase());
+        }
+    }
+    let out = out.trim().to_string();
+    if out.is_empty() {
+        "unknown_objective".to_string()
+    } else {
+        out
+    }
+}
+
+fn has_nonempty_flag(value: Option<&str>) -> bool {
+    value.map(|v| !v.trim().is_empty()).unwrap_or(false)
+}
+
 pub fn compute_default_first_principle_lock_state(
     _input: &DefaultFirstPrincipleLockStateInput,
 ) -> DefaultFirstPrincipleLockStateOutput {
@@ -36,15 +63,13 @@ pub fn compute_default_maturity_state(
 pub fn compute_principle_key_for_session(
     input: &PrincipleKeyForSessionInput,
 ) -> PrincipleKeyForSessionOutput {
-    let objective_part = clean_text_runtime(
+    let objective_part = normalize_objective_seed(
         input
             .objective_id
             .as_deref()
             .or(input.objective.as_deref())
             .unwrap_or(""),
-        240,
-    )
-    .to_lowercase();
+    );
     let mut hasher = Sha256::new();
     hasher.update(objective_part.as_bytes());
     let digest = format!("{:x}", hasher.finalize());
@@ -354,19 +379,14 @@ pub fn compute_current_runtime_mode(input: &CurrentRuntimeModeInput) -> CurrentR
         value: input.env_mode.clone(),
     })
     .value;
-    if input
-        .env_mode
-        .as_deref()
-        .map(|row| !row.is_empty())
-        .unwrap_or(false)
-    {
+    if has_nonempty_flag(input.env_mode.as_deref()) {
         return CurrentRuntimeModeOutput { mode: env_mode };
     }
     let args_mode = compute_normalize_mode(&NormalizeModeInput {
         value: input.args_mode.clone(),
     })
     .value;
-    if input.args_mode.is_some() {
+    if has_nonempty_flag(input.args_mode.as_deref()) {
         return CurrentRuntimeModeOutput { mode: args_mode };
     }
     let mode = compute_normalize_mode(&NormalizeModeInput {

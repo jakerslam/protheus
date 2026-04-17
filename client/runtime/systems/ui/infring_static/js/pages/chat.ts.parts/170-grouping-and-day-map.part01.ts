@@ -348,12 +348,27 @@
       return (text || '') + '||' + toolParts.join('||');
     },
 
+    assistantTurnStartTimestamp: function(message) {
+      if (!message || typeof message !== 'object') return 0;
+      var turn = message.turn_transaction && typeof message.turn_transaction === 'object'
+        ? message.turn_transaction
+        : null;
+      var raw = Number(
+        message._turn_started_at ||
+        (turn && (turn.started_at || turn.request_started_at || turn.created_at || turn.ts)) ||
+        0
+      );
+      if (!Number.isFinite(raw) || raw <= 0) return 0;
+      return raw;
+    },
+
     findRecentDuplicateAgentMessage: function(candidate, dedupeWindowMs) {
       if (!candidate || typeof candidate !== 'object') return null;
       var rows = Array.isArray(this.messages) ? this.messages : [];
       if (!rows.length) return null;
       var signature = this.agentMessageSignature(candidate);
       if (!signature) return null;
+      var candidateTurnStart = this.assistantTurnStartTimestamp(candidate);
       var nowTs = Number(candidate.ts || Date.now());
       var maxAge = Number(dedupeWindowMs || 70000);
       if (!Number.isFinite(maxAge) || maxAge < 5000) maxAge = 70000;
@@ -367,6 +382,12 @@
         var rowTs = Number(row.ts || 0);
         var ageMs = rowTs > 0 ? Math.abs(nowTs - rowTs) : 0;
         if (ageMs > maxAge && checked > 3) break;
+        if (candidateTurnStart > 0) {
+          var rowTurnStart = this.assistantTurnStartTimestamp(row);
+          if (!(rowTurnStart > 0 && Math.abs(rowTurnStart - candidateTurnStart) <= 1200)) {
+            continue;
+          }
+        }
         if (this.agentMessageSignature(row) === signature) return row;
         if (checked >= 16) break;
       }

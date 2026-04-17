@@ -1,5 +1,47 @@
+fn kyc_canonical_token(raw: &str, max_len: usize, fallback: &str) -> String {
+    let mut out = String::new();
+    let mut prev_sep = false;
+    for ch in raw.trim().chars() {
+        let mapped = if ch.is_ascii_alphanumeric() || ch == '_' || ch == '-' {
+            ch.to_ascii_lowercase()
+        } else {
+            '-'
+        };
+        if mapped == '-' {
+            if prev_sep {
+                continue;
+            }
+            prev_sep = true;
+        } else {
+            prev_sep = false;
+        }
+        out.push(mapped);
+        if out.len() >= max_len {
+            break;
+        }
+    }
+    let out = out.trim_matches('-').to_string();
+    if out.is_empty() {
+        fallback.to_string()
+    } else {
+        out
+    }
+}
+
+fn kyc_canonical_upper_token(raw: &str, max_len: usize, fallback: &str) -> String {
+    kyc_canonical_token(raw, max_len, fallback).to_ascii_uppercase()
+}
+
+fn kyc_canonical_risk(raw: &str) -> String {
+    match kyc_canonical_token(raw, 24, "medium").as_str() {
+        "l" | "low" | "safe" | "green" => "low".to_string(),
+        "h" | "high" | "critical" | "red" | "high_risk" | "high-risk" => "high".to_string(),
+        _ => "medium".to_string(),
+    }
+}
+
 fn kyc_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Value, String> {
-    let op = clean(
+    let op_raw = clean(
         parsed
             .flags
             .get("op")
@@ -8,23 +50,27 @@ fn kyc_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Value, String>
         16,
     )
     .to_ascii_lowercase();
-    let customer = clean(
+    let op = match op_raw.as_str() {
+        "create" | "onboard_customer" => "onboard".to_string(),
+        "update" | "reverify" => "refresh".to_string(),
+        _ => op_raw,
+    };
+    let customer = kyc_canonical_token(
         parsed
             .flags
             .get("customer")
             .map(String::as_str)
             .unwrap_or("customer"),
         120,
+        "customer",
     );
-    let risk = clean(
+    let risk = kyc_canonical_risk(
         parsed
             .flags
             .get("risk")
             .map(String::as_str)
             .unwrap_or("medium"),
-        16,
-    )
-    .to_ascii_lowercase();
+    );
     let pii = parse_json_or_empty(parsed.flags.get("pii-json"));
     let mut state = read_object(&kyc_state_path(root));
     if op == "status" {
@@ -98,15 +144,15 @@ fn finance_eye_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Value,
     if op != "ingest" {
         return Err("finance_eye_op_invalid".to_string());
     }
-    let symbol = clean(
+    let symbol = kyc_canonical_upper_token(
         parsed
             .flags
             .get("symbol")
             .map(String::as_str)
             .unwrap_or("SPY"),
         40,
-    )
-    .to_ascii_uppercase();
+        "SPY",
+    );
     let price = parse_f64(parsed.flags.get("price"), 0.0);
     let position = parse_f64(parsed.flags.get("position"), 0.0);
     let pnl = price * position;
@@ -188,14 +234,15 @@ fn risk_warehouse_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Val
             json!({"alerts": read_jsonl(&aml_state_path(root)).len(), "updated_at": now_iso(), "lineage": "aml"}),
         );
     } else if op == "stress" {
-        let scenario = clean(
-            parsed
-                .flags
-                .get("scenario")
-                .map(String::as_str)
-                .unwrap_or("base"),
-            80,
-        );
+    let scenario = kyc_canonical_token(
+        parsed
+            .flags
+            .get("scenario")
+            .map(String::as_str)
+            .unwrap_or("base"),
+        80,
+        "base",
+    );
         let loss = parse_f64(parsed.flags.get("loss"), 0.0);
         state.insert(
             "stress_test".to_string(),
@@ -246,13 +293,14 @@ fn custody_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Value, Str
             }]
         }));
     }
-    let wallet = clean(
+    let wallet = kyc_canonical_token(
         parsed
             .flags
             .get("wallet")
             .map(String::as_str)
             .unwrap_or("hot-main"),
         120,
+        "hot-main",
     );
     if op == "create-wallet" {
         state.insert(
@@ -260,13 +308,14 @@ fn custody_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Value, Str
             json!({"wallet": wallet, "balance": 0.0, "asset": "USDC", "type": "hot", "updated_at": now_iso()}),
         );
     } else if op == "move" {
-        let to_wallet = clean(
+        let to_wallet = kyc_canonical_token(
             parsed
                 .flags
                 .get("to-wallet")
                 .map(String::as_str)
                 .unwrap_or("cold-main"),
             120,
+            "cold-main",
         );
         let amount = parse_f64(parsed.flags.get("amount"), 0.0);
         let from_bal = state
@@ -344,21 +393,23 @@ fn zero_trust_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Value, 
         }));
     }
     if op == "issue-grant" {
-        let principal = clean(
+        let principal = kyc_canonical_token(
             parsed
                 .flags
                 .get("principal")
                 .map(String::as_str)
                 .unwrap_or("principal"),
             120,
+            "principal",
         );
-        let service = clean(
+        let service = kyc_canonical_token(
             parsed
                 .flags
                 .get("service")
                 .map(String::as_str)
                 .unwrap_or("service"),
             120,
+            "service",
         );
         let fp = clean(
             parsed
@@ -377,21 +428,23 @@ fn zero_trust_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Value, 
             json!({"principal": principal, "service": service, "mtls_fingerprint": fp, "issued_at": now_iso(), "ttl_seconds": 3600}),
         );
     } else if op == "verify" {
-        let principal = clean(
+        let principal = kyc_canonical_token(
             parsed
                 .flags
                 .get("principal")
                 .map(String::as_str)
                 .unwrap_or("principal"),
             120,
+            "principal",
         );
-        let service = clean(
+        let service = kyc_canonical_token(
             parsed
                 .flags
                 .get("service")
                 .map(String::as_str)
                 .unwrap_or("service"),
             120,
+            "service",
         );
         let fp = clean(
             parsed
@@ -441,4 +494,3 @@ fn zero_trust_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Value, 
         }]
     }))
 }
-

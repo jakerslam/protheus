@@ -108,7 +108,26 @@ fn resolve_policy_path(root: &Path, value: Option<&Value>) -> PathBuf {
     }
 }
 
+fn policy_path_has_forbidden_tokens(raw: &str) -> bool {
+    let token = raw.trim();
+    token.chars().any(|ch| ch == '\0' || ch.is_control())
+        || token.split(['/', '\\']).any(|part| part == "..")
+}
+
+fn normalize_rule_action(raw: &str) -> String {
+    let token = clean_text(Some(&Value::String(raw.to_string())), 32).to_ascii_lowercase();
+    match token.as_str() {
+        "mask" | "block" | "remove" | "replace" | "delete" | "redact" => "redact".to_string(),
+        "allow" | "pass" => "allow".to_string(),
+        _ => "redact".to_string(),
+    }
+}
+
 fn read_policy(root: &Path, value: Option<&Value>) -> Result<(PathBuf, Value), String> {
+    let raw_policy_path = clean_text(value, 4096);
+    if !raw_policy_path.is_empty() && policy_path_has_forbidden_tokens(&raw_policy_path) {
+        return Err("redaction_classification_kernel_policy_path_invalid".to_string());
+    }
     let policy_path = resolve_policy_path(root, value);
     if !policy_path.exists() {
         return Ok((
@@ -153,11 +172,7 @@ fn compile_rules(policy: &Value) -> Vec<CompiledRule> {
                     } else {
                         label.clone()
                     },
-                    action: clean_text(row.get("action"), 32)
-                        .to_ascii_lowercase()
-                        .chars()
-                        .take(16)
-                        .collect::<String>(),
+                    action: normalize_rule_action(&clean_text(row.get("action"), 32)),
                     rule_id: clean_text(row.get("id"), 80),
                 });
             }
@@ -185,11 +200,7 @@ fn compile_rules(policy: &Value) -> Vec<CompiledRule> {
                     } else {
                         label
                     },
-                    action: if action.is_empty() {
-                        "redact".to_string()
-                    } else {
-                        action
-                    },
+                    action: normalize_rule_action(&action),
                     rule_id,
                 });
             }
@@ -200,12 +211,10 @@ fn compile_rules(policy: &Value) -> Vec<CompiledRule> {
 
 fn classify_text(text: &str, rules: &[CompiledRule]) -> Value {
     let mut findings = Vec::new();
-    let mut labels = Vec::<String>::new();
+    let mut labels = std::collections::BTreeSet::<String>::new();
     for rule in rules {
         for mat in rule.regex.find_iter(text) {
-            if !labels.contains(&rule.label) {
-                labels.push(rule.label.clone());
-            }
+            labels.insert(rule.label.clone());
             findings.push(json!({
                 "label": rule.label,
                 "action": rule.action,
@@ -215,7 +224,32 @@ fn classify_text(text: &str, rules: &[CompiledRule]) -> Value {
             }));
         }
     }
-    json!({"ok": true, "findings": findings, "labels": labels})
+    findings.sort_by(|a, b| {
+        let a_idx = a.get("index").and_then(Value::as_u64).unwrap_or(0);
+        let b_idx = b.get("index").and_then(Value::as_u64).unwrap_or(0);
+        let a_label = a.get("label").and_then(Value::as_str).unwrap_or("");
+        let b_label = b.get("label").and_then(Value::as_str).unwrap_or("");
+        let a_rule = a.get("rule_id").and_then(Value::as_str).unwrap_or("");
+        let b_rule = b.get("rule_id").and_then(Value::as_str).unwrap_or("");
+        let a_match = a.get("match").and_then(Value::as_str).unwrap_or("");
+        let b_match = b.get("match").and_then(Value::as_str).unwrap_or("");
+        a_idx
+            .cmp(&b_idx)
+            .then_with(|| a_label.cmp(b_label))
+            .then_with(|| a_rule.cmp(b_rule))
+            .then_with(|| a_match.cmp(b_match))
+    });
+    findings.dedup_by(|a, b| {
+        a.get("index").and_then(Value::as_u64).unwrap_or(0)
+            == b.get("index").and_then(Value::as_u64).unwrap_or(0)
+            && a.get("label").and_then(Value::as_str).unwrap_or("")
+                == b.get("label").and_then(Value::as_str).unwrap_or("")
+            && a.get("rule_id").and_then(Value::as_str).unwrap_or("")
+                == b.get("rule_id").and_then(Value::as_str).unwrap_or("")
+            && a.get("match").and_then(Value::as_str).unwrap_or("")
+                == b.get("match").and_then(Value::as_str).unwrap_or("")
+    });
+    json!({"ok": true, "findings": findings, "labels": labels.into_iter().collect::<Vec<_>>()})
 }
 
 fn redact_text(text: &str, rules: &[CompiledRule], replacement: &str) -> Value {

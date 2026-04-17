@@ -12,6 +12,19 @@ use crate::{deterministic_receipt_hash, now_iso};
 const DEFAULT_POLICY_REL: &str = "client/runtime/config/system_health_audit_runner_policy.json";
 const DEFAULT_LATEST_REL: &str = "local/state/ops/system_health_audit/latest.json";
 const DEFAULT_RECEIPTS_REL: &str = "local/state/ops/system_health_audit/receipts.jsonl";
+const RUST_SOURCE_OF_TRUTH_POLICY_REL: &str = "client/runtime/config/rust_source_of_truth_policy.json";
+const WEB_PROVIDER_CONTRACT_TARGETS: &[&str] = &[
+    "brave",
+    "duckduckgo",
+    "exa",
+    "firecrawl",
+    "google",
+    "minimax",
+    "moonshot",
+    "perplexity",
+    "tavily",
+    "xai",
+];
 
 #[derive(Clone, Debug)]
 struct HealthPolicy {
@@ -206,11 +219,52 @@ fn run_ops_capture(domain: &str, args: &[&str], timeout_ms: u64) -> CheckRun {
     }
 }
 
-fn build_health_snapshot_with_runner<F>(strict: bool, mut runner: F) -> Value
+fn web_tooling_contract_check(root: &Path) -> Value {
+    let policy_path = resolve_path(root, RUST_SOURCE_OF_TRUTH_POLICY_REL, RUST_SOURCE_OF_TRUTH_POLICY_REL);
+    let policy = read_json(&policy_path).unwrap_or_else(|| json!({}));
+    let entries = policy
+        .pointer("/web_tooling_contract_targets_gate/entries")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let mut collected = Vec::<String>::new();
+    for entry in &entries {
+        for provider in entry
+            .get("provider_targets")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default()
+            .iter()
+            .filter_map(Value::as_str)
+            .map(|row| row.trim().to_ascii_lowercase())
+            .filter(|row| !row.is_empty())
+        {
+            if !collected.iter().any(|existing| existing == &provider) {
+                collected.push(provider);
+            }
+        }
+    }
+    let missing_targets = WEB_PROVIDER_CONTRACT_TARGETS
+        .iter()
+        .filter(|target| !collected.iter().any(|row| row == *target))
+        .map(|row| row.to_string())
+        .collect::<Vec<_>>();
+    json!({
+        "id": "web_tooling_contract_targets_gate",
+        "ok": !entries.is_empty() && missing_targets.is_empty(),
+        "policy_path": policy_path.display().to_string(),
+        "entry_count": entries.len(),
+        "provider_targets_found": collected,
+        "provider_targets_expected": WEB_PROVIDER_CONTRACT_TARGETS,
+        "missing_provider_targets": missing_targets
+    })
+}
+
+fn build_health_snapshot_with_runner<F>(root: &Path, strict: bool, mut runner: F) -> Value
 where
     F: FnMut(&str, &[&str]) -> CheckRun,
 {
-    let checks = [
+    let mut checks = [
         (
             "control_plane",
             "protheus-control-plane",
@@ -236,6 +290,7 @@ where
         })
     })
     .collect::<Vec<_>>();
+    checks.push(web_tooling_contract_check(root));
     let failed = checks
         .iter()
         .filter(|row| row.get("ok").and_then(Value::as_bool) != Some(true))
@@ -251,8 +306,8 @@ where
     })
 }
 
-fn build_health_snapshot(policy: &HealthPolicy, strict: bool) -> Value {
-    build_health_snapshot_with_runner(strict, |domain, args| {
+fn build_health_snapshot(root: &Path, policy: &HealthPolicy, strict: bool) -> Value {
+    build_health_snapshot_with_runner(root, strict, |domain, args| {
         run_ops_capture(domain, args, policy.check_timeout_ms)
     })
 }
@@ -286,7 +341,7 @@ fn run_command(root: &Path, argv: &[String]) -> Result<(Value, i32), String> {
     match command {
         "status" => Ok((status_payload(root, &policy)?, 0)),
         "run" => {
-            let out = build_health_snapshot(&policy, strict);
+            let out = build_health_snapshot(root, &policy, strict);
             let latest_path = resolve_path(root, &policy.latest_path, DEFAULT_LATEST_REL);
             let receipts_path = resolve_path(root, &policy.receipts_path, DEFAULT_RECEIPTS_REL);
             write_json(&latest_path, &out)?;
@@ -329,7 +384,8 @@ mod tests {
 
     #[test]
     fn build_health_snapshot_marks_failed_checks() {
-        let snapshot = build_health_snapshot_with_runner(true, |domain, _args| CheckRun {
+        let snapshot =
+            build_health_snapshot_with_runner(Path::new("."), true, |domain, _args| CheckRun {
             status: if domain == "swarm-runtime" { 1 } else { 0 },
             payload_type: Some(format!("{domain}_status")),
             stderr: String::new(),

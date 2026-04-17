@@ -8,6 +8,43 @@ pub struct Metric {
     pub value: f64,
 }
 
+fn normalize_metric_name(name: &str) -> String {
+    let mut out = String::new();
+    let mut last_was_separator = false;
+    for ch in name.trim().chars() {
+        let mapped = if ch.is_ascii_alphanumeric() {
+            ch.to_ascii_lowercase()
+        } else {
+            '_'
+        };
+        if mapped == '_' {
+            if last_was_separator {
+                continue;
+            }
+            last_was_separator = true;
+            out.push(mapped);
+            continue;
+        }
+        last_was_separator = false;
+        out.push(mapped);
+    }
+    out.trim_matches('_').to_string()
+}
+
+fn is_latency_metric(name: &str) -> bool {
+    matches!(
+        name,
+        "latency_ms" | "latency" | "duration_ms" | "response_time_ms"
+    )
+}
+
+fn is_error_metric(name: &str) -> bool {
+    matches!(
+        name,
+        "error" | "errors" | "error_count" | "failure" | "failures" | "tool_error" | "tool_failed"
+    )
+}
+
 fn percentile(values: &[f64], pct: f64) -> f64 {
     if values.is_empty() {
         return 0.0;
@@ -30,27 +67,44 @@ pub fn aggregate(metrics: &[Metric]) -> serde_json::Value {
     let mut latencies = Vec::new();
     let mut errors = 0usize;
     let mut total = 0usize;
+    let mut ignored_non_finite = 0usize;
     for m in metrics {
         total += 1;
-        if m.name == "latency_ms" {
-            latencies.push(m.value);
+        if !m.value.is_finite() {
+            ignored_non_finite += 1;
+            continue;
         }
-        if m.name == "error" && m.value >= 1.0 {
+        let name = normalize_metric_name(&m.name);
+        if is_latency_metric(&name) {
+            latencies.push(m.value.max(0.0));
+        }
+        if is_error_metric(&name) && m.value > 0.0 {
             errors += 1;
         }
     }
+    let processed = total.saturating_sub(ignored_non_finite);
     let p95 = percentile(&latencies, 0.95);
     let p99 = percentile(&latencies, 0.99);
-    let error_rate = if total == 0 {
+    let error_rate = if processed == 0 {
         0.0
     } else {
-        errors as f64 / total as f64
+        errors as f64 / processed as f64
+    };
+    let status = if processed == 0 {
+        "empty"
+    } else if error_rate > 0.0 {
+        "degraded"
+    } else {
+        "ok"
     };
     json!({
         "sample_count": total,
+        "processed_sample_count": processed,
+        "ignored_non_finite": ignored_non_finite,
         "latency_p95_ms": p95,
         "latency_p99_ms": p99,
-        "error_rate": error_rate
+        "error_rate": error_rate,
+        "status": status
     })
 }
 
@@ -123,6 +177,25 @@ mod tests {
                 .and_then(|v| v.as_f64())
                 .unwrap_or(0.0)
                 > 0.0
+        );
+    }
+
+    #[test]
+    fn aggregate_accepts_alias_metric_names() {
+        let data = vec![
+            Metric {
+                name: "Duration-MS".into(),
+                value: 12.0,
+            },
+            Metric {
+                name: "TOOL_ERROR".into(),
+                value: 1.0,
+            },
+        ];
+        let out = aggregate(&data);
+        assert_eq!(
+            out.get("status").and_then(|v| v.as_str()),
+            Some("degraded")
         );
     }
 }

@@ -289,7 +289,113 @@ fn response_contains_competitive_programming_template_dump(
     !user_requested_programming
 }
 
+fn response_contains_kernel_patch_thread_dump(
+    user_message: &str,
+    response_text: &str,
+) -> bool {
+    let lowered = clean_text(response_text, 20_000).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    let marker_hits = [
+        "[patch",
+        "subject:",
+        "from:",
+        "to:",
+        "in-reply-to:",
+        "references:",
+        "signed-off-by:",
+        "diff --git",
+        "@@ -",
+        "index ",
+        "[date prev]",
+        "[thread index]",
+    ]
+    .iter()
+    .filter(|marker| lowered.contains(**marker))
+    .count();
+    if marker_hits < 4 {
+        return false;
+    }
+    let user_lowered = clean_text(user_message, 600).to_ascii_lowercase();
+    let user_requested_patch_context = user_lowered.contains("linux kernel")
+        || user_lowered.contains("patch review")
+        || user_lowered.contains("git diff")
+        || user_lowered.contains("signed-off-by")
+        || user_lowered.contains("mailing list patch");
+    !user_requested_patch_context
+}
+
+fn response_contains_role_preamble_prompt_dump(
+    user_message: &str,
+    response_text: &str,
+) -> bool {
+    let lowered = clean_text(response_text, 12_000).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    let marker_hits = [
+        "i am an expert in the field",
+        "my role is to",
+        "the user has provided",
+        "my task is to refine",
+        "workflow metadata",
+        "source: the model's training data",
+        "mechanism: faulty pattern retrieval",
+        "the error: context collapse",
+    ]
+    .iter()
+    .filter(|marker| lowered.contains(**marker))
+    .count();
+    if marker_hits < 2 {
+        return false;
+    }
+    let user_lowered = clean_text(user_message, 600).to_ascii_lowercase();
+    let user_requested_prompting_context = user_lowered.contains("write a prompt")
+        || user_lowered.contains("system prompt")
+        || user_lowered.contains("role prompt")
+        || user_lowered.contains("persona prompt");
+    !user_requested_prompting_context
+}
+
+fn response_matches_previous_message_self_check(user_message: &str, response_text: &str) -> bool {
+    let ignored_terms = [
+        "the", "a", "an", "and", "or", "to", "for", "of", "in", "on", "is", "are", "was",
+        "were", "it", "this", "that", "with", "from", "as", "by", "you", "your", "we", "our",
+        "can", "could", "should", "would", "do", "did", "does", "system", "agent", "llm",
+        "tool", "tools", "message", "response",
+    ]
+    .into_iter()
+    .collect::<HashSet<_>>();
+    let user_terms = important_memory_terms(user_message, 28)
+        .into_iter()
+        .map(|term| clean_text(&term, 80).to_ascii_lowercase())
+        .filter(|term| !term.is_empty() && !ignored_terms.contains(term.as_str()))
+        .collect::<HashSet<_>>();
+    if user_terms.len() < 2 {
+        return true;
+    }
+    let response_terms = important_memory_terms(response_text, 72)
+        .into_iter()
+        .map(|term| clean_text(&term, 80).to_ascii_lowercase())
+        .filter(|term| !term.is_empty())
+        .collect::<HashSet<_>>();
+    if response_terms.is_empty() {
+        return false;
+    }
+    user_terms
+        .intersection(&response_terms)
+        .next()
+        .is_some()
+}
+
 fn response_is_unrelated_context_dump(user_message: &str, response_text: &str) -> bool {
+    if response_contains_kernel_patch_thread_dump(user_message, response_text) {
+        return true;
+    }
+    if response_contains_role_preamble_prompt_dump(user_message, response_text) {
+        return true;
+    }
     if response_text.contains("<function=") || response_text.contains("</function>") {
         if response_contains_tool_telemetry_dump(response_text)
             || response_contains_peer_review_template_dump(response_text)
@@ -338,6 +444,11 @@ fn response_low_alignment_with_turn_context(
         return true;
     }
     if response_is_unrelated_context_dump(user_message, &cleaned_response) {
+        return true;
+    }
+    if cleaned_response.len() > 220
+        && !response_matches_previous_message_self_check(user_message, &cleaned_response)
+    {
         return true;
     }
     let contextual_seed = clean_text(

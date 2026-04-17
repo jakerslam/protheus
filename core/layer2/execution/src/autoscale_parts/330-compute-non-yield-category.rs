@@ -1,8 +1,40 @@
+fn normalize_result_token(raw: &str) -> String {
+    let mut out = String::with_capacity(raw.len());
+    let mut prev_sep = false;
+    for ch in normalize_spaces(raw).chars() {
+        let next = if ch.is_ascii_alphanumeric() {
+            ch.to_ascii_lowercase()
+        } else {
+            '_'
+        };
+        if next == '_' {
+            if prev_sep {
+                continue;
+            }
+            prev_sep = true;
+        } else {
+            prev_sep = false;
+        }
+        out.push(next);
+    }
+    out.trim_matches('_').to_string()
+}
+
+fn canonical_autonomy_result(raw: &str) -> String {
+    match normalize_result_token(raw).as_str() {
+        "lockbusy" | "lock_busy" => "lock_busy".to_string(),
+        "stop_repeat_gate" | "stop_repeat_gate_interval" | "repeat_gate_stop"
+        | "repeat_gate_interval_stop" => "stop_repeat_gate_interval".to_string(),
+        "execute" | "executed_ok" | "executed_success" | "ran" => "executed".to_string(),
+        other => other.to_string(),
+    }
+}
+
 pub fn compute_non_yield_category(input: &NonYieldCategoryInput) -> NonYieldCategoryOutput {
     let event_type = input
         .event_type
         .as_ref()
-        .map(|v| v.trim().to_ascii_lowercase())
+        .map(|v| normalize_result_token(v))
         .unwrap_or_default();
     if event_type != "autonomy_run" {
         return NonYieldCategoryOutput { category: None };
@@ -10,8 +42,8 @@ pub fn compute_non_yield_category(input: &NonYieldCategoryInput) -> NonYieldCate
 
     let result = input
         .result
-        .as_ref()
-        .map(|v| v.trim().to_string())
+        .as_deref()
+        .map(canonical_autonomy_result)
         .unwrap_or_default();
     if result.is_empty() || result == "lock_busy" || result == "stop_repeat_gate_interval" {
         return NonYieldCategoryOutput { category: None };
@@ -24,8 +56,8 @@ pub fn compute_non_yield_category(input: &NonYieldCategoryInput) -> NonYieldCate
             .or(input.route_block_reason.as_ref())
             .map(|v| v.as_str())
             .unwrap_or(result.as_str());
-        let reason = normalize_spaces(reason_raw).to_ascii_lowercase();
-        let result_lc = result.to_ascii_lowercase();
+        let reason = normalize_result_token(reason_raw);
+        let result_lc = canonical_autonomy_result(&result);
         if result_lc.contains("budget") || reason.contains("budget") || reason.contains("autopause")
         {
             return NonYieldCategoryOutput {
@@ -69,14 +101,14 @@ pub fn compute_non_yield_reason(input: &NonYieldReasonInput) -> NonYieldReasonOu
         .or(input.reason.as_ref())
         .map(|v| v.as_str())
         .unwrap_or("");
-    let explicit = normalize_spaces(explicit_raw).to_ascii_lowercase();
+    let explicit = normalize_result_token(explicit_raw);
     if !explicit.is_empty() {
         return NonYieldReasonOutput { reason: explicit };
     }
 
-    let result = normalize_spaces(input.result.as_deref().unwrap_or("")).to_ascii_lowercase();
-    let outcome = normalize_spaces(input.outcome.as_deref().unwrap_or("")).to_ascii_lowercase();
-    let category = normalize_spaces(input.category.as_deref().unwrap_or("")).to_ascii_lowercase();
+    let result = canonical_autonomy_result(input.result.as_deref().unwrap_or(""));
+    let outcome = normalize_result_token(input.outcome.as_deref().unwrap_or(""));
+    let category = normalize_result_token(input.category.as_deref().unwrap_or(""));
 
     if category == "no_progress" && result == "executed" {
         return NonYieldReasonOutput {
@@ -110,7 +142,7 @@ pub fn compute_proposal_type_from_run_event(
     let event_type = input
         .event_type
         .as_ref()
-        .map(|v| v.trim().to_ascii_lowercase())
+        .map(|v| normalize_result_token(v))
         .unwrap_or_default();
     if event_type != "autonomy_run" {
         return ProposalTypeFromRunEventOutput {
@@ -121,7 +153,7 @@ pub fn compute_proposal_type_from_run_event(
     let direct = input
         .proposal_type
         .as_ref()
-        .map(|v| v.trim().to_ascii_lowercase())
+        .map(|v| normalize_result_token(v))
         .unwrap_or_default();
     if !direct.is_empty() {
         return ProposalTypeFromRunEventOutput {
@@ -132,11 +164,21 @@ pub fn compute_proposal_type_from_run_event(
     let capability = input
         .capability_key
         .as_ref()
-        .map(|v| v.trim().to_ascii_lowercase())
+        .map(|v| normalize_result_token(v))
         .unwrap_or_default();
     if capability.starts_with("proposal:") && capability.len() > "proposal:".len() {
         return ProposalTypeFromRunEventOutput {
             proposal_type: capability["proposal:".len()..].to_string(),
+        };
+    }
+    if capability.starts_with("proposal/") && capability.len() > "proposal/".len() {
+        return ProposalTypeFromRunEventOutput {
+            proposal_type: capability["proposal/".len()..].to_string(),
+        };
+    }
+    if capability.starts_with("proposal_") && capability.len() > "proposal_".len() {
+        return ProposalTypeFromRunEventOutput {
+            proposal_type: capability["proposal_".len()..].to_string(),
         };
     }
 
@@ -197,7 +239,7 @@ pub fn compute_capacity_counted_attempt_event(
     let event_type = input
         .event_type
         .as_ref()
-        .map(|v| v.trim().to_ascii_lowercase())
+        .map(|v| normalize_result_token(v))
         .unwrap_or_default();
     if event_type != "autonomy_run" {
         return CapacityCountedAttemptEventOutput {
@@ -207,8 +249,8 @@ pub fn compute_capacity_counted_attempt_event(
 
     let result = input
         .result
-        .as_ref()
-        .map(|v| v.trim().to_string())
+        .as_deref()
+        .map(canonical_autonomy_result)
         .unwrap_or_default();
     if result.is_empty() {
         return CapacityCountedAttemptEventOutput {
@@ -300,15 +342,15 @@ pub fn compute_policy_hold_pressure(input: &PolicyHoldPressureInput) -> PolicyHo
         let event_type = evt
             .event_type
             .as_ref()
-            .map(|v| v.trim().to_ascii_lowercase())
+            .map(|v| normalize_result_token(v))
             .unwrap_or_default();
         if event_type != "autonomy_run" {
             continue;
         }
         let result = evt
             .result
-            .as_ref()
-            .map(|v| v.trim().to_string())
+            .as_deref()
+            .map(canonical_autonomy_result)
             .unwrap_or_default();
         if result.is_empty() || result == "lock_busy" || result == "stop_repeat_gate_interval" {
             continue;
@@ -354,18 +396,17 @@ pub fn compute_policy_hold_pressure(input: &PolicyHoldPressureInput) -> PolicyHo
 }
 
 fn policy_hold_reason_from_event_input(evt: &PolicyHoldPatternEventInput) -> String {
-    let explicit = normalize_spaces(
+    let explicit = normalize_result_token(
         evt.hold_reason
             .as_ref()
             .or(evt.route_block_reason.as_ref())
             .map(|v| v.as_str())
             .unwrap_or(""),
-    )
-    .to_ascii_lowercase();
+    );
     if !explicit.is_empty() {
         return explicit;
     }
-    normalize_spaces(evt.result.as_deref().unwrap_or("")).to_ascii_lowercase()
+    canonical_autonomy_result(evt.result.as_deref().unwrap_or(""))
 }
 
 pub fn compute_policy_hold_pattern(input: &PolicyHoldPatternInput) -> PolicyHoldPatternOutput {
@@ -386,15 +427,15 @@ pub fn compute_policy_hold_pattern(input: &PolicyHoldPatternInput) -> PolicyHold
         let event_type = evt
             .event_type
             .as_ref()
-            .map(|v| v.trim().to_ascii_lowercase())
+            .map(|v| normalize_result_token(v))
             .unwrap_or_default();
         if event_type != "autonomy_run" {
             continue;
         }
         let result = evt
             .result
-            .as_ref()
-            .map(|v| v.trim().to_string())
+            .as_deref()
+            .map(canonical_autonomy_result)
             .unwrap_or_default();
         let evt_objective = normalize_spaces(evt.objective_id.as_deref().unwrap_or(""));
         if objective_id.is_empty() || evt_objective != objective_id {

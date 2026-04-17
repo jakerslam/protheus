@@ -36,6 +36,19 @@
       "--dashboard"
     ]
   },
+  "web_tooling_contract_targets_gate": {
+    "entries": [
+      {
+        "path": "core/layer0/ops/src/metakernel_parts/050-run-execution-profiles.rs",
+        "provider_targets": [
+          "brave",
+          "duckduckgo",
+          "moonshot",
+          "xai"
+        ]
+      }
+    ]
+  },
   "js_wrapper_contract": {
     "required_wrapper_paths": [
       "client/runtime/systems/ops/protheusd.ts"

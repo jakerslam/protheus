@@ -5,9 +5,9 @@ pub struct CompositeEligibilityMinOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ClampThresholdInput {
-    #[serde(default)]
+    #[serde(default, alias = "threshold_name", alias = "metric_name")]
     pub name: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "threshold_value", alias = "metric_value")]
     pub value: f64,
 }
 
@@ -18,9 +18,9 @@ pub struct ClampThresholdOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AppliedThresholdsInput {
-    #[serde(default)]
+    #[serde(default, alias = "base_thresholds")]
     pub base: std::collections::BTreeMap<String, f64>,
-    #[serde(default)]
+    #[serde(default, alias = "delta_thresholds")]
     pub deltas: std::collections::BTreeMap<String, f64>,
 }
 
@@ -32,7 +32,7 @@ pub struct AppliedThresholdsOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ExtractEyeFromEvidenceRefInput {
-    #[serde(default)]
+    #[serde(default, alias = "evidence_ref", alias = "evidenceRef")]
     pub reference: Option<String>,
 }
 
@@ -44,11 +44,11 @@ pub struct ExtractEyeFromEvidenceRefOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TotalOutcomesInput {
-    #[serde(default)]
+    #[serde(default, alias = "shipped_count")]
     pub shipped: f64,
-    #[serde(default)]
+    #[serde(default, alias = "no_change_count")]
     pub no_change: f64,
-    #[serde(default)]
+    #[serde(default, alias = "reverted_count")]
     pub reverted: f64,
 }
 
@@ -59,13 +59,13 @@ pub struct TotalOutcomesOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct DeriveEntityBiasInput {
-    #[serde(default)]
+    #[serde(default, alias = "shipped_count")]
     pub shipped: f64,
-    #[serde(default)]
+    #[serde(default, alias = "no_change_count")]
     pub no_change: f64,
-    #[serde(default)]
+    #[serde(default, alias = "reverted_count")]
     pub reverted: f64,
-    #[serde(default)]
+    #[serde(default, alias = "min_samples")]
     pub min_total: f64,
 }
 
@@ -76,19 +76,19 @@ pub struct DeriveEntityBiasOutput {
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct BuildOverlayEventInput {
-    #[serde(default)]
+    #[serde(default, alias = "proposalId")]
     pub proposal_id: Option<String>,
-    #[serde(default, rename = "type")]
+    #[serde(default, rename = "type", alias = "event_type", alias = "eventType")]
     pub event_type: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "decisionReason")]
     pub decision: Option<String>,
     #[serde(default)]
     pub ts: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "decision_reason")]
     pub reason: Option<String>,
     #[serde(default)]
     pub outcome: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "evidenceRef")]
     pub evidence_ref: Option<String>,
 }
 
@@ -131,17 +131,17 @@ pub struct BuildOverlayOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct HasAdaptiveMutationSignalInput {
-    #[serde(default)]
+    #[serde(default, alias = "proposalType")]
     pub proposal_type: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "adaptiveMutation")]
     pub adaptive_mutation: bool,
-    #[serde(default)]
+    #[serde(default, alias = "mutationProposal")]
     pub mutation_proposal: bool,
-    #[serde(default)]
+    #[serde(default, alias = "topologyMutation")]
     pub topology_mutation: bool,
-    #[serde(default)]
+    #[serde(default, alias = "selfImprovementChange")]
     pub self_improvement_change: bool,
-    #[serde(default)]
+    #[serde(default, alias = "signalBlob")]
     pub signal_blob: Option<String>,
 }
 
@@ -200,7 +200,7 @@ pub struct AdaptiveMutationExecutionGuardOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct StrategySelectionVariantInput {
-    #[serde(default)]
+    #[serde(default, alias = "strategyId")]
     pub strategy_id: Option<String>,
     #[serde(default)]
     pub score: f64,
@@ -208,25 +208,25 @@ pub struct StrategySelectionVariantInput {
     pub confidence: f64,
     #[serde(default)]
     pub stage: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "executionMode")]
     pub execution_mode: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct StrategySelectionInput {
-    #[serde(default)]
+    #[serde(default, alias = "date")]
     pub date_str: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "attemptIndex")]
     pub attempt_index: f64,
     #[serde(default)]
     pub canary_enabled: bool,
-    #[serde(default)]
+    #[serde(default, alias = "canaryAllowExecute")]
     pub canary_allow_execute: bool,
     #[serde(default)]
     pub canary_fraction: f64,
-    #[serde(default)]
+    #[serde(default, alias = "maxActive")]
     pub max_active: f64,
-    #[serde(default)]
+    #[serde(default, alias = "fallbackStrategyId")]
     pub fallback_strategy_id: Option<String>,
     #[serde(default)]
     pub variants: Vec<StrategySelectionVariantInput>,

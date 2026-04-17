@@ -8,6 +8,19 @@ const SYSTEM_ID = 'SYSTEMS-MEMORY-RUST_MEMORY_DAEMON_SUPERVISOR';
 const bridge = createOpsLaneBridge(__dirname, 'rust_memory_daemon_supervisor', 'runtime-systems', {
   inheritStdio: true
 });
+const FORBIDDEN_RUNTIME_CONTEXT_MARKERS = [
+  'You are an expert Python programmer.',
+  '[PATCH v2',
+  'List Leaves (25',
+  'BEGIN_OPENCLAW_INTERNAL_CONTEXT',
+  'END_OPENCLAW_INTERNAL_CONTEXT',
+  'UNTRUSTED_CHILD_RESULT_DELIMITER'
+];
+
+function containsForbiddenRuntimeContextMarker(raw = '') {
+  const text = String(raw);
+  return FORBIDDEN_RUNTIME_CONTEXT_MARKERS.some((marker) => text.includes(marker));
+}
 
 function run(args = process.argv.slice(2)) {
   const normalizedArgs = Array.isArray(args) ? args.map((row) => String(row)) : [];
@@ -41,5 +54,7 @@ if (require.main === module) {
 module.exports = {
   lane: bridge.lane,
   systemId: SYSTEM_ID,
-  run
+  run,
+  forbiddenRuntimeContextMarkers: FORBIDDEN_RUNTIME_CONTEXT_MARKERS,
+  containsForbiddenRuntimeContextMarker
 };

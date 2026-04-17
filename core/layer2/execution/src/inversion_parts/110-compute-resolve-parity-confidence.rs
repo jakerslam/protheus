@@ -1,13 +1,21 @@
 pub fn compute_resolve_parity_confidence(
     input: &ResolveParityConfidenceInput,
 ) -> ResolveParityConfidenceOutput {
+    let normalize_confidence = |raw: f64| -> f64 {
+        let normalized = if raw.is_finite() && raw > 1.0 && raw <= 100.0 {
+            raw / 100.0
+        } else {
+            raw
+        };
+        round6(clamp_number(normalized, 0.0, 1.0))
+    };
     let arg_value = input
         .arg_candidates
         .iter()
         .find_map(|row| compute_extract_numeric(&ExtractNumericInput { value: row.clone() }).value);
     if let Some(value) = arg_value {
         return ResolveParityConfidenceOutput {
-            value: round6(clamp_number(value, 0.0, 1.0)),
+            value: normalize_confidence(value),
             source: "arg".to_string(),
         };
     }
@@ -36,6 +44,8 @@ pub fn compute_resolve_parity_confidence(
     let value = [
         value_path(payload_value, &["confidence"]),
         value_path(payload_value, &["parity_confidence"]),
+        value_path(payload_value, &["confidence_percent"]),
+        value_path(payload_value, &["parity_confidence_percent"]),
         value_path(payload_value, &["pass_rate"]),
         value_path(payload_value, &["score"]),
     ]
@@ -43,7 +53,7 @@ pub fn compute_resolve_parity_confidence(
     .find_map(|row| parse_number_like(*row))
     .unwrap_or(0.0);
     ResolveParityConfidenceOutput {
-        value: round6(clamp_number(value, 0.0, 1.0)),
+        value: normalize_confidence(value),
         source: clean_text_runtime(
             input
                 .path_source

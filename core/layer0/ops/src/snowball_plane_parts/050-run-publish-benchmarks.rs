@@ -19,6 +19,7 @@ fn run_publish_benchmarks(root: &Path, parsed: &crate::ParsedArgs, strict: bool)
     }
     let benchmark_path = benchmark_report_path(root, parsed);
     let report = read_json(&benchmark_path).unwrap_or(Value::Null);
+    let report_present = report.is_object();
     let benchmark_after = benchmark_modes_from_report(&report);
     let benchmark_before = cycle
         .as_ref()
@@ -40,7 +41,30 @@ fn run_publish_benchmarks(root: &Path, parsed: &crate::ParsedArgs, strict: bool)
         "delta": delta,
         "readme_sync": sync
     });
-    let _ = write_json(&publication_path, &summary);
+    let publish_write = write_json(&publication_path, &summary);
+    let mut strict_errors = Vec::<String>::new();
+    if strict && !report_present {
+        strict_errors.push("snowball_benchmark_report_missing".to_string());
+    }
+    if strict && !synced {
+        strict_errors.push("snowball_readme_sync_stale".to_string());
+    }
+    if strict && publish_write.is_err() {
+        strict_errors.push("snowball_publication_write_failed".to_string());
+    }
+    if strict && !strict_errors.is_empty() {
+        return json!({
+            "ok": false,
+            "strict": true,
+            "type": "snowball_plane_publish_benchmarks",
+            "action": "publish-benchmarks",
+            "errors": strict_errors,
+            "cycle_id": cycle_id,
+            "benchmark_report_path": benchmark_path.display().to_string(),
+            "readme_path": readme_path.display().to_string(),
+            "readme_synced": synced
+        });
+    }
 
     let mut next_cycle =
         cycle.unwrap_or_else(|| json!({"cycle_id": cycle_id, "stage":"published"}));
@@ -444,4 +468,3 @@ fn run_backlog_pack(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Va
     out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
-

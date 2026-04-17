@@ -197,11 +197,50 @@ fn normalize_campaigns(raw: Option<&Value>, active_only: bool) -> Value {
                     Value::String(primary)
                 }
             };
+            let provider_plugin_ids = {
+                let mut ids = BTreeSet::<String>::new();
+                for raw_id in as_string_array(obj.get("provider_plugin_ids")) {
+                    let token = clean(raw_id.as_str(), 64).to_ascii_lowercase();
+                    if !token.is_empty() {
+                        ids.insert(token);
+                    }
+                }
+                ids.into_iter().collect::<Vec<_>>()
+            };
+            let provider_contract = {
+                let contract = clean(as_str(obj.get("provider_contract")).as_str(), 80);
+                if contract.is_empty() {
+                    "webSearchProviders".to_string()
+                } else {
+                    contract
+                }
+            };
 
             let mut next = obj.clone();
             next.insert("id".to_string(), Value::String(id));
             next.insert("status".to_string(), Value::String(status));
             next.insert("objective_id".to_string(), objective_id);
+            next.insert(
+                "provider_plugin_ids".to_string(),
+                Value::Array(
+                    provider_plugin_ids
+                        .iter()
+                        .map(|value| Value::String(value.clone()))
+                        .collect(),
+                ),
+            );
+            next.insert(
+                "provider_contract".to_string(),
+                Value::String(provider_contract),
+            );
+            next.insert(
+                "provider_resolution_mode".to_string(),
+                Value::String(if provider_plugin_ids.is_empty() {
+                    "manifest_fallback".to_string()
+                } else {
+                    "explicit_fast_path".to_string()
+                }),
+            );
             out.push(Value::Object(next));
         }
     }
@@ -270,4 +309,3 @@ fn normalize_promotion_policy(raw: Option<&Value>) -> Value {
         "max_success_criteria_quality_insufficient_rate": ((max_success_criteria_quality_insufficient_rate * 1000.0).round() / 1000.0)
     })
 }
-

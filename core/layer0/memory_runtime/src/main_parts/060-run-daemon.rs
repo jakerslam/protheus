@@ -1,3 +1,64 @@
+fn normalize_daemon_command(raw: &str) -> String {
+    raw.trim()
+        .chars()
+        .filter(|ch| ch.is_ascii_alphanumeric() || *ch == '-' || *ch == '_')
+        .collect::<String>()
+        .to_ascii_lowercase()
+}
+
+fn daemon_execution_receipt(
+    cmd: &str,
+    stage: &str,
+    ok: bool,
+    error: Option<&str>,
+    started: std::time::Instant,
+) -> Value {
+    json!({
+        "status": if ok { "ok" } else { "error" },
+        "cmd": cmd,
+        "stage": stage,
+        "duration_ms": started.elapsed().as_millis() as u64,
+        "ts": now_iso(),
+        "error": error
+    })
+}
+
+fn daemon_error_response(
+    cmd: &str,
+    stage: &str,
+    error: &str,
+    started: std::time::Instant,
+) -> Value {
+    json!({
+        "ok": false,
+        "type": "memory_daemon_error",
+        "cmd": cmd,
+        "error": error,
+        "execution_receipt": daemon_execution_receipt(cmd, stage, false, Some(error), started)
+    })
+}
+
+fn daemon_write_response(stream: &mut impl Write, payload: &Value) {
+    let body = serde_json::to_string(payload)
+        .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"serialize_failed\"}".to_string());
+    let _ = stream.write_all(format!("{body}\n").as_bytes());
+    let _ = stream.flush();
+}
+
+fn finalize_daemon_response(mut payload: Value, cmd: &str, started: std::time::Instant) -> Value {
+    if let Some(obj) = payload.as_object_mut() {
+        let ok = obj.get("ok").and_then(|v| v.as_bool()).unwrap_or(false);
+        let error = obj.get("error").and_then(|v| v.as_str());
+        obj.entry("type".to_string())
+            .or_insert_with(|| Value::String("memory_daemon_response".to_string()));
+        obj.entry("cmd".to_string())
+            .or_insert_with(|| Value::String(cmd.to_string()));
+        obj.entry("execution_receipt".to_string())
+            .or_insert_with(|| daemon_execution_receipt(cmd, "dispatch", ok, error, started));
+    }
+    payload
+}
+
 fn run_daemon(args: &HashMap<String, String>) {
     let host = arg_or_default(args, "host", "127.0.0.1");
     let port_raw = arg_or_default(args, "port", "34127");
@@ -14,12 +75,21 @@ fn run_daemon(args: &HashMap<String, String>) {
         let Ok(mut stream) = stream else {
             continue;
         };
+        let request_started = std::time::Instant::now();
 
         let mut line = String::new();
         {
             let mut reader = BufReader::new(&mut stream);
             if reader.read_line(&mut line).is_err() {
-                let _ = stream.write_all(b"{\"ok\":false,\"error\":\"invalid_request\"}\n");
+                daemon_write_response(
+                    &mut stream,
+                    &daemon_error_response(
+                        "unknown",
+                        "read_line",
+                        "invalid_request",
+                        request_started,
+                    ),
+                );
                 continue;
             }
         }
@@ -28,12 +98,20 @@ fn run_daemon(args: &HashMap<String, String>) {
         let req = match parsed {
             Ok(v) => v,
             Err(_) => {
-                let _ = stream.write_all(b"{\"ok\":false,\"error\":\"invalid_json\"}\n");
+                daemon_write_response(
+                    &mut stream,
+                    &daemon_error_response(
+                        "unknown",
+                        "parse_json",
+                        "invalid_json",
+                        request_started,
+                    ),
+                );
                 continue;
             }
         };
 
-        let cmd = req.cmd.trim().to_lowercase();
+        let cmd = normalize_daemon_command(&req.cmd);
         let req_args = req.args;
 
         let (response, should_shutdown) = match cmd.as_str() {
@@ -290,17 +368,17 @@ fn run_daemon(args: &HashMap<String, String>) {
             _ => (
                 json!({
                     "ok": false,
+                    "type": "memory_daemon_error",
                     "error": "unsupported_command",
-                    "cmd": cmd
+                    "cmd": cmd,
+                    "supported_core_commands": ["ping", "probe", "stable-status", "shutdown"]
                 }),
                 false,
             ),
         };
 
-        let body = serde_json::to_string(&response)
-            .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"serialize_failed\"}".to_string());
-        let _ = stream.write_all(format!("{body}\n").as_bytes());
-        let _ = stream.flush();
+        let response = finalize_daemon_response(response, &cmd, request_started);
+        daemon_write_response(&mut stream, &response);
         if should_shutdown {
             break;
         }

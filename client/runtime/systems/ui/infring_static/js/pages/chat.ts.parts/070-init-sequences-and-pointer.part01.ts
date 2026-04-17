@@ -177,7 +177,7 @@
       this.freshInitModelSuggestions = [];
       this.freshInitModelSelection = '';
       this.freshInitModelManual = false;
-      this.freshInitModelSuggestLoading = false;
+      this.freshInitModelSuggestLoading = false; if (typeof this.resetFreshInitPermissions === 'function') this.resetFreshInitPermissions();
     },
 
     focusChatComposerFromInit: function(seedText) {
@@ -293,6 +293,22 @@
       return false;
     },
 
+    agentHasInitialContract: function(agentRef) {
+      var agent = agentRef && typeof agentRef === 'object' ? agentRef : null;
+      if (!agent) return false;
+      var systemPrompt = String(agent.system_prompt || '').trim();
+      if (systemPrompt) return true;
+      var contract = agent.contract && typeof agent.contract === 'object' ? agent.contract : null;
+      if (!contract) return false;
+      var initialPrompt = String(
+        contract.initial_prompt ||
+        contract.initialPrompt ||
+        contract.prompt ||
+        ''
+      ).trim();
+      return !!initialPrompt;
+    },
+
     recoverEmptySessionRender: function(agentId, sessionPayload) {
       var targetId = String(agentId || '').trim();
       if (!targetId) return;
@@ -300,7 +316,12 @@
       var resolved =
         this.resolveAgent(targetId) ||
         (this.currentAgent && String(this.currentAgent.id || '') === targetId ? this.currentAgent : null);
-      if (!this.sessionHasAnyHistory(sessionPayload) && resolved && resolved.id) {
+      if (
+        !this.sessionHasAnyHistory(sessionPayload) &&
+        resolved &&
+        resolved.id &&
+        !this.agentHasInitialContract(resolved)
+      ) {
         this.ensureFreshInitThread(resolved);
         return;
       }
@@ -328,6 +349,17 @@
       if (!targetId) return false;
       var currentId = String(this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '').trim();
       if (!currentId || currentId !== targetId) return false;
+      var resolved =
+        this.resolveAgent(targetId) ||
+        (this.currentAgent && String(this.currentAgent.id || '') === targetId ? this.currentAgent : null);
+      if (resolved && this.agentHasInitialContract(resolved)) {
+        try {
+          var appStore = Alpine.store('app');
+          var pendingForResolved = String(appStore && appStore.pendingFreshAgentId ? appStore.pendingFreshAgentId : '').trim();
+          if (pendingForResolved === targetId) appStore.pendingFreshAgentId = '';
+        } catch(_) {}
+        return false;
+      }
       if (
         this.showFreshArchetypeTiles ||
         this.freshInitRevealMenu ||

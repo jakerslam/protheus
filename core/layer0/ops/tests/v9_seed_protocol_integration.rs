@@ -222,3 +222,30 @@ fn seed_protocol_end_to_end_profiles_and_dashboard_state() {
     std::env::remove_var("DIRECTIVE_KERNEL_SIGNING_KEY");
     let _ = fs::remove_dir_all(root);
 }
+
+fn assert_no_runtime_context_leak_text(raw: &str) {
+    const FORBIDDEN: [&str; 6] = [
+        "You are an expert Python programmer.",
+        "[PATCH v2",
+        "List Leaves (25",
+        "BEGIN_OPENCLAW_INTERNAL_CONTEXT",
+        "END_OPENCLAW_INTERNAL_CONTEXT",
+        "UNTRUSTED_CHILD_RESULT_DELIMITER",
+    ];
+    for marker in FORBIDDEN {
+        assert!(
+            !raw.contains(marker),
+            "runtime payload leaked forbidden marker `{marker}`: {raw}"
+        );
+    }
+}
+
+#[test]
+fn v9_seed_protocol_runtime_receipt_guard_rejects_foreign_prompt_markers() {
+    assert_no_runtime_context_leak_text("seed protocol receipt ok");
+    let panicked = std::panic::catch_unwind(|| {
+        assert_no_runtime_context_leak_text("List Leaves (25 分) unexpected dump")
+    })
+    .is_err();
+    assert!(panicked, "expected foreign prompt marker guard to trigger");
+}

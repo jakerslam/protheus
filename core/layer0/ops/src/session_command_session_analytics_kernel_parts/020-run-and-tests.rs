@@ -1,3 +1,16 @@
+fn with_execution_receipt(command: &str, status: &str, payload: Value) -> Value {
+    json!({
+        "execution_receipt": {
+            "lane": "session_command_session_analytics_kernel",
+            "command": command,
+            "status": status,
+            "source": "OPENCLAW-TOOLING-WEB-099",
+            "tool_runtime_class": "receipt_wrapped"
+        },
+        "payload": payload
+    })
+}
+
 pub fn run(_root: &Path, argv: &[String]) -> i32 {
     let command = argv
         .first()
@@ -37,7 +50,7 @@ pub fn run(_root: &Path, argv: &[String]) -> i32 {
             let rows = extract_commands_from_jsonl(&session_id, &jsonl);
             cli_receipt(
                 "session_command_session_analytics_kernel_extract_jsonl",
-                json!({
+                with_execution_receipt(&command, "success", json!({
                   "ok": true,
                   "session_id": session_id,
                   "extracted_count": rows.len(),
@@ -48,7 +61,7 @@ pub fn run(_root: &Path, argv: &[String]) -> i32 {
                     "is_error": row.is_error,
                     "sequence_index": row.sequence_index
                   })).collect::<Vec<_>>()
-                }),
+                })),
             )
         }
         "classify-jsonl" => {
@@ -73,13 +86,16 @@ pub fn run(_root: &Path, argv: &[String]) -> i32 {
             report["extracted_count"] = Value::from(rows.len() as u64);
             cli_receipt(
                 "session_command_session_analytics_kernel_classify_jsonl",
-                report,
+                with_execution_receipt(&command, "success", report),
             )
         }
-        "adoption-report" => cli_receipt(
-            "session_command_session_analytics_kernel_adoption_report",
-            build_adoption_report(input, limit),
-        ),
+        "adoption-report" => {
+            let report = build_adoption_report(input, limit);
+            cli_receipt(
+                "session_command_session_analytics_kernel_adoption_report",
+                with_execution_receipt(&command, "success", report),
+            )
+        }
         _ => cli_error(
             "session_command_session_analytics_kernel_error",
             "session_command_session_analytics_kernel_unknown_command",

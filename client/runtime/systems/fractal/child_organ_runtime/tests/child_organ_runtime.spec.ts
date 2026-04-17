@@ -32,10 +32,17 @@ assert.deepStrictEqual(
   mod.mapArgs(['prepare', '--organ-id=a']),
   ['plan', '--organ-id=a']
 );
+assert.deepStrictEqual(
+  mod.mapArgs(['\u200Bunknown', '--organ-id=a']),
+  ['status', '--organ-id=a']
+);
 assert.deepStrictEqual(mod.mapArgs([]), ['status']);
 
 const out = mod.ensureMutationReceipt({ payload: { ok: true, type: 'child_organ_runtime_plan' } }, 'plan');
 assert.ok(typeof out.payload.receipt_hash === 'string');
 assert.equal(out.payload.receipt_hash.length >= 64, true);
+
+const nonMut = mod.ensureMutationReceipt({ payload: { ok: true, type: 'child_organ_runtime_status' } }, 'status');
+assert.equal(nonMut.payload.receipt_hash, undefined);
 
 console.log('child_organ_runtime wrapper checks passed');

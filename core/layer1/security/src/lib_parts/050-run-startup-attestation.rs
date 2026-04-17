@@ -1,9 +1,68 @@
+fn sanitize_startup_token(raw: &str, max_len: usize) -> String {
+    raw.chars()
+        .filter(|ch| {
+            !matches!(
+                *ch,
+                '\u{200B}'
+                    | '\u{200C}'
+                    | '\u{200D}'
+                    | '\u{2060}'
+                    | '\u{FEFF}'
+                    | '\u{202A}'
+                    | '\u{202B}'
+                    | '\u{202C}'
+                    | '\u{202D}'
+                    | '\u{202E}'
+            ) && (!ch.is_control() || ch.is_ascii_whitespace())
+        })
+        .take(max_len)
+        .collect::<String>()
+        .trim()
+        .to_string()
+}
+
+fn normalize_startup_cmd(raw: &str) -> String {
+    sanitize_startup_token(raw, 64)
+        .chars()
+        .filter(|ch| ch.is_ascii_alphanumeric() || *ch == '-' || *ch == '_')
+        .collect::<String>()
+        .to_ascii_lowercase()
+}
+
+fn with_startup_execution_receipt(
+    mut payload: Value,
+    cmd: &str,
+    stage: &str,
+    started: std::time::Instant,
+) -> Value {
+    let ok = payload.get("ok").and_then(|v| v.as_bool()).unwrap_or(false);
+    let reason = payload
+        .get("reason")
+        .and_then(|v| v.as_str())
+        .or_else(|| payload.get("error").and_then(|v| v.as_str()))
+        .map(|v| sanitize_startup_token(v, 240));
+    if let Some(obj) = payload.as_object_mut() {
+        obj.entry("execution_receipt".to_string()).or_insert_with(|| {
+            json!({
+                "status": if ok { "ok" } else { "error" },
+                "cmd": sanitize_startup_token(cmd, 64),
+                "stage": sanitize_startup_token(stage, 64),
+                "duration_ms": started.elapsed().as_millis() as u64,
+                "ts": now_iso(),
+                "reason": reason
+            })
+        });
+    }
+    payload
+}
+
 pub fn run_startup_attestation(repo_root: &Path, argv: &[String]) -> (Value, i32) {
+    let started = std::time::Instant::now();
     let parsed = parse_args(argv);
     let cmd = parsed
         .positional
         .first()
-        .map(|v| v.to_ascii_lowercase())
+        .map(|v| normalize_startup_cmd(v))
         .unwrap_or_else(|| "help".to_string());
     let strict = bool_flag(&parsed, "strict", false);
     let policy_path = startup_policy_path(repo_root);
@@ -11,7 +70,7 @@ pub fn run_startup_attestation(repo_root: &Path, argv: &[String]) -> (Value, i32
     let audit_path = startup_audit_path(repo_root);
     let policy = load_startup_policy(&policy_path);
 
-    match cmd.as_str() {
+    let (out, code) = match cmd.as_str() {
         "issue" => {
             let Some(secret) = startup_resolve_secret(repo_root) else {
                 let out = json!({"ok": false, "reason": "attestation_key_missing"});
@@ -229,7 +288,9 @@ pub fn run_startup_attestation(repo_root: &Path, argv: &[String]) -> (Value, i32
         _ => (
             json!({
                 "ok": false,
+                "type": "startup_attestation_error",
                 "error": "unknown_command",
+                "cmd": cmd.clone(),
                 "usage": [
                     "startup-attestation issue [--ttl-hours=<n>] [--strict=1|0]",
                     "startup-attestation verify [--strict=1|0]",
@@ -238,6 +299,9 @@ pub fn run_startup_attestation(repo_root: &Path, argv: &[String]) -> (Value, i32
             }),
             2,
         ),
-    }
+    };
+    (
+        with_startup_execution_receipt(out, &cmd, "startup_attestation", started),
+        code,
+    )
 }
-

@@ -3,8 +3,9 @@ use crate::contract_check::{foundation_hook_coverage_receipt, guard_registry_con
 use crate::{deterministic_receipt_hash, now_iso};
 use burn_oracle_budget_gate::CHECK_ID as BURN_ORACLE_BUDGET_GATE_CHECK_ID;
 use foundation_hook_enforcer::{
-    evaluate_required_hook_completeness, HookCoverageReceipt, CHECK_ID_FOUNDATION_HOOKS,
-    CHECK_ID_GUARD_REGISTRY_CONSUMPTION, CHECK_ID_MERGE_GUARD_HOOK_COVERAGE,
+    evaluate_required_hook_completeness, evaluate_source_hook_coverage, HookCoverageReceipt,
+    CHECK_ID_FOUNDATION_HOOKS, CHECK_ID_GUARD_REGISTRY_CONSUMPTION,
+    CHECK_ID_MERGE_GUARD_HOOK_COVERAGE,
 };
 use persona_dispatch_security_gate::CHECK_ID as PERSONA_DISPATCH_SECURITY_GATE_CHECK_ID;
 use serde_json::{json, Value};
@@ -35,6 +36,24 @@ fn with_foundation_check_ids(args: &[String]) -> Vec<String> {
 pub const REQUIRED_HOOK_COVERAGE_CHECK_IDS: &[&str] = &[
     CHECK_ID_GUARD_REGISTRY_CONSUMPTION,
     CHECK_ID_FOUNDATION_HOOKS,
+];
+const CHECK_ID_PROVIDER_DISCOVERY_RUNTIME: &str = "provider_discovery_runtime_contract";
+const CHECK_ID_WEB_PROVIDER_FAST_PATH: &str = "web_provider_public_artifacts_fast_path_contract";
+const FETCH_RUNTIME_CONTRACT_SOURCE_REL: &str =
+    "core/layer0/ops/src/web_conduit_provider_runtime_parts/019-fetch-runtime-resolution.rs";
+const SEARCH_RUNTIME_CONTRACT_SOURCE_REL: &str =
+    "core/layer0/ops/src/web_conduit_provider_runtime_parts/021-search-runtime-resolution.rs";
+const PROVIDER_DISCOVERY_RUNTIME_REQUIRED_TOKENS: &[&str] = &[
+    "provider_discovery_runtime_contract",
+    "provider_discovery_contract_suite_contract",
+    "provider_runtime_core_contract",
+    "provider_helper_contract",
+];
+const WEB_PROVIDER_FAST_PATH_REQUIRED_TOKENS: &[&str] = &[
+    "bundled_fast_path_contract_suite_contract",
+    "provider_family_contract_suite_contract",
+    "provider_registry_contract",
+    "provider_auth_contract",
 ];
 
 fn receipt_hash(v: &Value) -> String {
@@ -115,6 +134,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     let source_path = root.join("core/layer0/ops/src/contract_check.rs");
     let source = fs::read_to_string(&source_path).unwrap_or_default();
     let contract_receipts = contract_check_hook_coverage_receipts(&source);
+    let runtime_provider_receipts = runtime_provider_contract_receipts(root);
 
     let merge_guard_ids = parse_merge_guard_check_ids(&args);
     let merge_guard_refs = merge_guard_ids
@@ -124,9 +144,14 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     let merge_guard_receipt = merge_guard_hook_coverage_receipt(&merge_guard_refs);
 
     let contract_ok = contract_receipts.iter().all(|r| r.ok);
+    let runtime_provider_ok = runtime_provider_receipts.iter().all(|r| r.ok);
     let merge_ok = merge_guard_receipt.ok;
-    let ok = contract_ok && merge_ok;
+    let ok = contract_ok && merge_ok && runtime_provider_ok;
     let contract_receipt_values = contract_receipts
+        .iter()
+        .map(hook_receipt_to_value)
+        .collect::<Vec<_>>();
+    let runtime_provider_receipt_values = runtime_provider_receipts
         .iter()
         .map(hook_receipt_to_value)
         .collect::<Vec<_>>();
@@ -140,6 +165,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "argv": args,
         "contract_check_source": source_path.to_string_lossy(),
         "contract_check_receipts": contract_receipt_values,
+        "runtime_provider_contract_receipts": runtime_provider_receipt_values,
         "merge_guard_receipt": merge_guard_value,
         "merge_guard_check_ids": merge_guard_ids,
         "claim_evidence": [
@@ -148,6 +174,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "claim": "foundation hooks and guard registry checks are enforced",
                 "evidence": {
                     "contract_ok": contract_ok,
+                    "runtime_provider_ok": runtime_provider_ok,
                     "merge_guard_ok": merge_ok
                 }
             }
@@ -181,6 +208,25 @@ pub fn contract_check_hook_coverage_receipts(
     vec![
         guard_registry_contract_receipt(contract_check_source),
         foundation_hook_coverage_receipt(contract_check_source),
+    ]
+}
+
+fn runtime_provider_contract_receipts(root: &Path) -> Vec<HookCoverageReceipt> {
+    let fetch_source = fs::read_to_string(root.join(FETCH_RUNTIME_CONTRACT_SOURCE_REL))
+        .unwrap_or_default();
+    let search_source = fs::read_to_string(root.join(SEARCH_RUNTIME_CONTRACT_SOURCE_REL))
+        .unwrap_or_default();
+    vec![
+        evaluate_source_hook_coverage(
+            CHECK_ID_PROVIDER_DISCOVERY_RUNTIME,
+            PROVIDER_DISCOVERY_RUNTIME_REQUIRED_TOKENS,
+            &fetch_source,
+        ),
+        evaluate_source_hook_coverage(
+            CHECK_ID_WEB_PROVIDER_FAST_PATH,
+            WEB_PROVIDER_FAST_PATH_REQUIRED_TOKENS,
+            &search_source,
+        ),
     ]
 }
 
@@ -245,5 +291,15 @@ mod tests {
             ids,
             vec!["foo".to_string(), "bar".to_string(), "baz".to_string()]
         );
+    }
+
+    #[test]
+    fn runtime_provider_contract_receipts_require_expected_tokens() {
+        let receipt = evaluate_source_hook_coverage(
+            CHECK_ID_PROVIDER_DISCOVERY_RUNTIME,
+            PROVIDER_DISCOVERY_RUNTIME_REQUIRED_TOKENS,
+            "provider_discovery_runtime_contract provider_discovery_contract_suite_contract provider_runtime_core_contract provider_helper_contract",
+        );
+        assert!(receipt.ok);
     }
 }

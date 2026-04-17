@@ -65,6 +65,7 @@
         this.drawerNewFallbackValue = '';
         InfringToast.success('Agent settings saved');
         await this.syncDrawerAgentAfterChange();
+        this.closeAgentDrawer();
       } catch (e) {
         if (appendedFallback) {
           this.agentDrawer._fallbacks = previousFallbacks;
@@ -92,6 +93,7 @@
         }
         InfringToast.success('Config updated');
         await this.syncDrawerAgentAfterChange();
+        this.closeAgentDrawer();
       } catch(e) {
         InfringToast.error('Failed to save config: ' + e.message);
       }
@@ -147,6 +149,7 @@
             : (part === 'emoji' ? 'Emoji updated' : 'Avatar updated')
         );
         await this.syncDrawerAgentAfterChange();
+        this.closeAgentDrawer();
       } catch(e) {
         InfringToast.error('Failed to save ' + part + ': ' + e.message);
       }

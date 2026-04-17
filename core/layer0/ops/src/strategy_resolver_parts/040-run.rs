@@ -1,3 +1,14 @@
+fn attach_execution_receipt(out: &mut Value, command: &str, status: &str, op: Option<&str>) {
+    out["execution_receipt"] = json!({
+        "lane": "strategy_resolver",
+        "command": command,
+        "op": op.unwrap_or(""),
+        "status": status,
+        "source": "OPENCLAW-TOOLING-WEB-101",
+        "tool_runtime_class": "receipt_wrapped"
+    });
+}
+
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     let cmd = argv
         .first()
@@ -22,6 +33,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "ts": now_iso(),
             "root": clean(root.display(), 280)
         });
+        attach_execution_receipt(&mut out, "status", "success", None);
         out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
         print_json_line(&out);
         return 0;
@@ -37,6 +49,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "ts": now_iso(),
             "exit_code": 2
         });
+        attach_execution_receipt(&mut out, &cmd, "error", None);
         out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
         print_json_line(&out);
         return 2;
@@ -54,6 +67,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "ts": now_iso(),
                 "exit_code": 2
             });
+            attach_execution_receipt(&mut out, "invoke", "error", None);
             out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
             print_json_line(&out);
             return 2;
@@ -79,6 +93,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "ts": now_iso(),
                 "root": clean(root.display(), 280)
             });
+            attach_execution_receipt(&mut out, "invoke", "success", Some(op.as_str()));
             out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
             print_json_line(&out);
             0
@@ -94,10 +109,10 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "ts": now_iso(),
                 "exit_code": 2
             });
+            attach_execution_receipt(&mut out, "invoke", "error", Some(op.as_str()));
             out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
             print_json_line(&out);
             2
         }
     }
 }
-

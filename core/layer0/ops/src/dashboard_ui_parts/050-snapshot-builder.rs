@@ -1,3 +1,88 @@
+fn web_tooling_ops_from_receipts(receipts: &[Value]) -> Value {
+    let mut turn_count = 0i64;
+    let mut intent_detected = 0i64;
+    let mut tool_attempted = 0i64;
+    let mut tool_blocked = 0i64;
+    let mut low_signal = 0i64;
+    let mut final_repaired = 0i64;
+    let mut no_response = 0i64;
+    for row in receipts {
+        let response = clean_text(
+            row.get("response")
+                .or_else(|| row.pointer("/turn/assistant"))
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            4_000,
+        );
+        let web_invariant = row
+            .pointer("/response_finalization/web_invariant")
+            .cloned()
+            .unwrap_or_else(|| json!({}));
+        let detected = web_invariant
+            .get("requires_live_web")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let attempted = web_invariant
+            .get("tool_attempted")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let blocked = web_invariant
+            .get("tool_blocked")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let low = web_invariant
+            .get("low_signal")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let repaired = row
+            .pointer("/response_finalization/visible_response_repaired")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+            || web_invariant
+                .get("invariant_repair_used")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+        let no_resp = response.trim().is_empty()
+            || row
+                .pointer("/response_finalization/final_ack_only")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+        if detected || attempted || blocked || low || repaired || no_resp || !response.is_empty() {
+            turn_count += 1;
+        }
+        if detected {
+            intent_detected += 1;
+        }
+        if attempted {
+            tool_attempted += 1;
+        }
+        if blocked {
+            tool_blocked += 1;
+        }
+        if low {
+            low_signal += 1;
+        }
+        if repaired {
+            final_repaired += 1;
+        }
+        if no_resp {
+            no_response += 1;
+        }
+    }
+    let denominator = if turn_count > 0 { turn_count as f64 } else { 1.0 };
+    let no_response_rate = (no_response as f64) / denominator;
+    json!({
+        "window_turns": turn_count,
+        "intent_detected": intent_detected,
+        "tool_attempted": tool_attempted,
+        "tool_blocked": tool_blocked,
+        "low_signal": low_signal,
+        "final_repaired": final_repaired,
+        "no_response": no_response,
+        "no_response_rate": no_response_rate
+    })
+}
+
 fn build_snapshot(root: &Path, flags: &Flags) -> Value {
     let team = if flags.team.trim().is_empty() {
         DEFAULT_TEAM.to_string()
@@ -71,6 +156,30 @@ fn build_snapshot(root: &Path, flags: &Flags) -> Value {
     .to_ascii_lowercase();
     let runtime_backpressure_degraded =
         runtime_backpressure_level == "high" || runtime_backpressure_level == "critical";
+    let conduit_lifecycle = read_json_file(
+        &root.join("core/local/state/ops/agency_plane/conduit/lifecycle.json"),
+    )
+    .or_else(|| read_json_file(&root.join("local/state/ops/agency_plane/conduit/lifecycle.json")))
+    .or_else(|| read_json_file(&root.join("local/state/agency_plane/conduit/lifecycle.json")))
+    .unwrap_or_else(|| {
+        json!({
+            "state": "healthy",
+            "transition_count": 0,
+            "updated_at": now_iso()
+        })
+    });
+    let conduit_lifecycle_state = clean_text(
+        conduit_lifecycle
+            .get("state")
+            .and_then(Value::as_str)
+            .unwrap_or("healthy"),
+        40,
+    )
+    .to_ascii_lowercase();
+    let conduit_lifecycle_degraded = matches!(
+        conduit_lifecycle_state.as_str(),
+        "degraded" | "reconnecting" | "quarantined" | "failed_closed"
+    );
     let memory_entries = collect_memory_artifacts(root);
     let memory_seq = memory_entries.len() as i64;
     let queue_depth = i64_from_value(attention_runtime.get("queue_depth"), 0);
@@ -157,6 +266,15 @@ fn build_snapshot(root: &Path, flags: &Flags) -> Value {
     .to_ascii_lowercase();
     let web_tooling_degraded =
         web_tooling_runtime_status == "degraded" || web_tooling_runtime_status == "blocked_auth";
+    let receipt_rows = collect_receipts(root);
+    let web_tooling_ops = web_tooling_ops_from_receipts(&receipt_rows);
+    let web_ops_no_response_rate = web_tooling_ops
+        .get("no_response_rate")
+        .and_then(Value::as_f64)
+        .unwrap_or(0.0);
+    let web_ops_blocked = i64_from_value(web_tooling_ops.get("tool_blocked"), 0);
+    let web_ops_low_signal = i64_from_value(web_tooling_ops.get("low_signal"), 0);
+    let web_ops_degraded = web_ops_no_response_rate > 0.05 || web_ops_blocked > 0 || web_ops_low_signal > 0;
     let runtime_stall_detected =
         runtime_freshness_stale || runtime_backpressure_degraded || web_tooling_degraded;
     let normal_cadence_ms = flags.refresh_ms.max(500);
@@ -175,6 +293,45 @@ fn build_snapshot(root: &Path, flags: &Flags) -> Value {
     } else {
         "steady"
     };
+    let mut runtime_blocks = vec![
+        json!({
+            "id": "runtime_freshness",
+            "title": "Runtime Freshness",
+            "state": if runtime_freshness_stale { "degraded" } else { "healthy" },
+            "degraded": runtime_freshness_stale,
+            "source": "runtime_sync.freshness",
+            "details": {
+                "stale_surfaces": runtime_freshness_stale_surfaces,
+                "backpressure_level": runtime_backpressure_level.clone()
+            }
+        }),
+        json!({
+            "id": "conduit_lifecycle",
+            "title": "Conduit Lifecycle",
+            "state": conduit_lifecycle_state.clone(),
+            "degraded": conduit_lifecycle_degraded,
+            "source": "agency_plane.conduit.lifecycle",
+            "details": conduit_lifecycle.clone()
+        }),
+        json!({
+            "id": "web_tooling_runtime",
+            "title": "Web Tooling Runtime",
+            "state": if web_tooling_degraded { "degraded" } else { "healthy" },
+            "degraded": web_tooling_degraded,
+            "source": "web_tooling.runtime.status",
+            "details": {
+                "runtime_status": web_tooling_runtime_status.clone()
+            }
+        }),
+    ];
+    runtime_blocks.push(json!({
+        "id": "web_tooling_ops",
+        "title": "Web Tooling Ops",
+        "state": if web_ops_degraded { "degraded" } else { "healthy" },
+        "degraded": web_ops_degraded,
+        "source": "receipts.recent.response_finalization.web_invariant",
+        "details": web_tooling_ops.clone()
+    }));
 
     let mut out = json!({
         "ok": true,
@@ -224,10 +381,16 @@ fn build_snapshot(root: &Path, flags: &Flags) -> Value {
             "stale_surfaces": runtime_freshness_stale_surfaces,
             "freshness_stale": runtime_freshness_stale,
             "backpressure_level": runtime_backpressure_level,
+            "conduit_lifecycle": conduit_lifecycle,
+            "conduit_lifecycle_state": conduit_lifecycle_state,
+            "conduit_lifecycle_degraded": conduit_lifecycle_degraded,
             "cadence_ms": {
                 "normal": normal_cadence_ms,
                 "emergency": emergency_cadence_ms
             }
+        },
+        "dashboard_blocks": {
+            "runtime": runtime_blocks
         },
         "memory": {
             "entries": memory_entries,
@@ -245,7 +408,7 @@ fn build_snapshot(root: &Path, flags: &Flags) -> Value {
             }
         },
         "receipts": {
-            "recent": collect_receipts(root),
+            "recent": receipt_rows,
             "action_history_path": ACTION_HISTORY_REL
         },
         "logs": {
@@ -266,6 +429,7 @@ fn build_snapshot(root: &Path, flags: &Flags) -> Value {
         .get("alerts")
         .cloned()
         .unwrap_or_else(|| json!({}));
+    out["web_tooling"]["ops"] = web_tooling_ops;
     let component_checksums = json!({
         "app": crate::deterministic_receipt_hash(&app_payload),
         "collab": crate::deterministic_receipt_hash(&collab_payload),

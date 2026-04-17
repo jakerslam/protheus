@@ -1,3 +1,31 @@
+fn normalize_seed_target_alias(raw: &str) -> String {
+    let token = clean(raw, 120)
+        .to_ascii_lowercase()
+        .replace('-', "_")
+        .replace(' ', "_");
+    match token.as_str() {
+        "" => String::new(),
+        "mainnet" | "primary" | "origin" | "home" => "main".to_string(),
+        "dr" | "recovery" | "disaster_recovery" => "disaster_recovery".to_string(),
+        "edge_node" => "edge".to_string(),
+        _ => token,
+    }
+}
+
+fn normalize_seed_operation_alias(raw: &str) -> String {
+    let token = clean(raw, 64)
+        .to_ascii_lowercase()
+        .replace('-', "_")
+        .replace(' ', "_");
+    match token.as_str() {
+        "replication" | "replicate_packet" => "replicate".to_string(),
+        "mutation" | "mutate_packet" => "mutate".to_string(),
+        "enforcement" => "enforce".to_string(),
+        "" => "replicate".to_string(),
+        _ => token,
+    }
+}
+
 fn command_deploy(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
     let profile = selected_profile(parsed);
     let apply = parse_bool(parsed.flags.get("apply"), true);
@@ -32,7 +60,21 @@ fn command_deploy(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
         .get("root_head")
         .cloned()
         .unwrap_or(Value::String("genesis".to_string()));
-    let targets = parse_targets(parsed.flags.get("targets"), &profile, cap);
+    let raw_targets = parse_targets(parsed.flags.get("targets"), &profile, cap);
+    let mut targets = Vec::<String>::new();
+    for raw in raw_targets {
+        let normalized = normalize_seed_target_alias(&raw);
+        if normalized.is_empty() || targets.iter().any(|row| row == &normalized) {
+            continue;
+        }
+        targets.push(normalized);
+        if targets.len() >= cap {
+            break;
+        }
+    }
+    if targets.is_empty() {
+        targets.push("main".to_string());
+    }
     let packet_basis = json!({
         "profile": profile,
         "directive_hash": directive_hash,
@@ -266,15 +308,13 @@ fn command_migrate(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
 fn command_enforce(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
     let profile = selected_profile(parsed);
     let apply = parse_bool(parsed.flags.get("apply"), true);
-    let operation = clean(
+    let operation = normalize_seed_operation_alias(
         parsed
             .flags
             .get("operation")
-            .cloned()
-            .unwrap_or_else(|| "replicate".to_string()),
-        64,
-    )
-    .to_ascii_lowercase();
+            .map(String::as_str)
+            .unwrap_or("replicate"),
+    );
     let node = clean(
         parsed
             .flags
@@ -346,4 +386,3 @@ fn command_enforce(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
         }),
     )
 }
-

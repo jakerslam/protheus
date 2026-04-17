@@ -1,15 +1,56 @@
 use super::*;
 
+fn normalize_organism_token(raw: &str, max_len: usize) -> String {
+    let mut out = String::new();
+    let mut prev_dash = false;
+    for ch in raw.chars() {
+        let lower = ch.to_ascii_lowercase();
+        if lower.is_ascii_alphanumeric() {
+            out.push(lower);
+            prev_dash = false;
+        } else if !prev_dash {
+            out.push('-');
+            prev_dash = true;
+        }
+        if out.len() >= max_len {
+            break;
+        }
+    }
+    out.trim_matches('-').to_string()
+}
+
+fn normalize_mutation_module(raw: &str) -> Option<String> {
+    let token = normalize_organism_token(raw, 120);
+    let canonical = match token.as_str() {
+        "mem" | "memory" => "memory",
+        "conduit-core" | "conduit-runtime" => "conduit",
+        "identity" | "persona" => "personality",
+        "security-core" | "security-hardening" => "security",
+        "ops" | "operations" => "ops",
+        "autonomy" | "autoscale" => "autonomy",
+        _ => token.as_str(),
+    };
+    if matches!(
+        canonical,
+        "conduit" | "memory" | "personality" | "security" | "ops" | "autonomy"
+    ) {
+        Some(canonical.to_string())
+    } else {
+        None
+    }
+}
+
 pub(super) fn command_crystallize(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
     let allowed = gate(root, "organism:crystallize");
     let apply = parse_bool(parsed.flags.get("apply"), true);
-    let persona = clean(
+    let persona = normalize_organism_token(
         parsed
             .flags
             .get("persona")
             .cloned()
-            .unwrap_or_else(|| "default".to_string()),
-        80,
+            .unwrap_or_else(|| "default".to_string())
+            .as_str(),
+        64,
     );
     let delta = clean(
         parsed
@@ -52,14 +93,39 @@ pub(super) fn command_crystallize(root: &Path, parsed: &crate::ParsedArgs) -> i3
             let obj = state_obj_mut(&mut state);
             obj.insert("personality".to_string(), personality.clone());
         }
-        let _ = append_jsonl(
+        let history_write = append_jsonl(
             &personality_history_path(root),
             &json!({
                 "ts": now_iso(),
                 "personality": personality
             }),
         );
-        let _ = store_state(root, &state);
+        if history_write.is_err() {
+            return emit(
+                root,
+                json!({
+                    "ok": false,
+                    "type": "organism_layer_crystallize",
+                    "lane": "core/layer0/ops",
+                    "apply": apply,
+                    "persona": persona,
+                    "error": "organism_crystallize_history_write_failed"
+                }),
+            );
+        }
+        if let Err(err) = store_state(root, &state) {
+            return emit(
+                root,
+                json!({
+                    "ok": false,
+                    "type": "organism_layer_crystallize",
+                    "lane": "core/layer0/ops",
+                    "apply": apply,
+                    "persona": persona,
+                    "error": clean(err, 240)
+                }),
+            );
+        }
     }
 
     emit(
@@ -157,7 +223,7 @@ pub(super) fn command_mutate(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
             .unwrap_or_else(|| "try adaptive workflow compression pattern".to_string()),
         260,
     );
-    let module = clean(
+    let module_raw = clean(
         parsed
             .flags
             .get("module")
@@ -166,6 +232,18 @@ pub(super) fn command_mutate(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
         120,
     )
     .to_ascii_lowercase();
+    let Some(module) = normalize_mutation_module(&module_raw) else {
+        return emit(
+            root,
+            json!({
+                "ok": false,
+                "type": "organism_layer_mutation",
+                "lane": "core/layer0/ops",
+                "error": "organism_mutation_module_invalid",
+                "module": module_raw
+            }),
+        );
+    };
     let apply = parse_bool(parsed.flags.get("apply"), true);
     let gate_eval = directive_kernel::evaluate_action(root, "organism:mutate");
     let allowed = gate_eval

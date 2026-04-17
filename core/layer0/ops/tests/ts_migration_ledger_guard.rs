@@ -116,6 +116,17 @@ fn runtime_system_ts_files(root: &Path) -> Vec<String> {
         .collect()
 }
 
+fn forbidden_runtime_context_markers() -> [&'static str; 6] {
+    [
+        "You are an expert Python programmer.",
+        "[PATCH v2",
+        "List Leaves (25",
+        "BEGIN_OPENCLAW_INTERNAL_CONTEXT",
+        "END_OPENCLAW_INTERNAL_CONTEXT",
+        "UNTRUSTED_CHILD_RESULT_DELIMITER",
+    ]
+}
+
 #[test]
 fn authority_prefix_ts_count_is_bounded() {
     let root = workspace_root();
@@ -213,6 +224,26 @@ fn runtime_systems_lanes_do_not_use_manifest_lane_bridge() {
     assert!(
         offenders.is_empty(),
         "runtime-system lanes must route through ops/conduit authority (no manifest bridge): {:?}",
+        &offenders[..offenders.len().min(20)]
+    );
+}
+
+#[test]
+fn runtime_systems_ts_do_not_embed_foreign_prompt_or_context_dump_markers() {
+    let root = workspace_root();
+    let markers = forbidden_runtime_context_markers();
+    let mut offenders: Vec<String> = Vec::new();
+    for rel in runtime_system_ts_files(&root) {
+        let abs = root.join(&rel);
+        let raw = fs::read_to_string(&abs).unwrap_or_default();
+        if markers.iter().any(|marker| raw.contains(marker)) {
+            offenders.push(rel);
+        }
+    }
+
+    assert!(
+        offenders.is_empty(),
+        "runtime-system TS files contain foreign prompt/context dump markers: {:?}",
         &offenders[..offenders.len().min(20)]
     );
 }

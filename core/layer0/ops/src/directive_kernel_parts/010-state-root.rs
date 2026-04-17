@@ -90,6 +90,61 @@ fn yaml_timebound_signal_present(parsed: &Value, raw_text: &str) -> bool {
     scan(parsed, &keywords)
 }
 
+fn canonical_web_tooling_provider_targets() -> [&'static str; 4] {
+    ["brave", "duckduckgo", "moonshot", "xai"]
+}
+
+fn directive_mentions_web_tooling(parsed: &Value, raw_text: &str) -> bool {
+    let keywords = [
+        "web",
+        "search",
+        "fetch",
+        "crawler",
+        "browser",
+        "internet",
+        "citation",
+        "source-backed",
+        "web_tooling",
+    ];
+    let raw = raw_text.to_ascii_lowercase();
+    if keywords.iter().any(|keyword| raw.contains(keyword)) {
+        return true;
+    }
+
+    fn scan(value: &Value, keywords: &[&str]) -> bool {
+        match value {
+            Value::Object(map) => map.iter().any(|(key, value)| {
+                let key_norm = key.to_ascii_lowercase();
+                keywords.iter().any(|keyword| key_norm.contains(keyword)) || scan(value, keywords)
+            }),
+            Value::Array(rows) => rows.iter().any(|row| scan(row, keywords)),
+            Value::String(text) => {
+                let norm = text.to_ascii_lowercase();
+                keywords.iter().any(|keyword| norm.contains(keyword))
+            }
+            _ => false,
+        }
+    }
+
+    scan(parsed, &keywords)
+}
+
+fn directive_web_tooling_provider_targets(constraints: &Map<String, Value>) -> HashSet<String> {
+    constraints
+        .get("web_tooling")
+        .and_then(Value::as_object)
+        .and_then(|web| web.get("approved_providers"))
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter()
+                .filter_map(Value::as_str)
+                .map(|value| value.trim().to_ascii_lowercase())
+                .filter(|value| !value.is_empty())
+                .collect::<HashSet<String>>()
+        })
+        .unwrap_or_default()
+}
+
 fn validate_tier1_directive_quality(content: &str, directive_id: &str) -> Value {
     let parsed = yaml_to_json(content).unwrap_or_else(|_| Value::Object(Map::new()));
     let obj = parsed.as_object();
@@ -171,6 +226,38 @@ fn validate_tier1_directive_quality(content: &str, directive_id: &str) -> Value 
         questions.push(
             "What quantitative risk limits apply (drawdown, burn, position size)?".to_string(),
         );
+    }
+
+    if directive_mentions_web_tooling(&parsed, content) {
+        let web_mode = constraints
+            .get("web_tooling")
+            .and_then(Value::as_object)
+            .and_then(|web| web.get("mode"))
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .trim()
+            .to_ascii_lowercase();
+        if web_mode != "authoritative" && web_mode != "fail_closed" {
+            missing.push("constraints.web_tooling.mode".to_string());
+            questions.push(
+                "What authoritative/fail-closed web tooling mode is required?".to_string(),
+            );
+        }
+
+        let approved_targets = directive_web_tooling_provider_targets(constraints);
+        if approved_targets.is_empty() {
+            missing.push("constraints.web_tooling.approved_providers".to_string());
+            questions.push("Which web tooling providers are approved for this directive?".to_string());
+        } else if !canonical_web_tooling_provider_targets()
+            .iter()
+            .any(|provider| approved_targets.contains(*provider))
+        {
+            let targets = canonical_web_tooling_provider_targets().as_slice().join(",");
+            missing.push("constraints.web_tooling.provider_contract_targets".to_string());
+            questions.push(format!(
+                "Which contract-aligned provider target is approved ({targets})?"
+            ));
+        }
     }
 
     let leading = success

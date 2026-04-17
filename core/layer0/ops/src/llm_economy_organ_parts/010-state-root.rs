@@ -166,6 +166,7 @@ fn conduit_enforcement(parsed: &crate::ParsedArgs, strict: bool, command: &str) 
         || parse_bool(parsed.flags.get("unsafe-client-route"), false)
         || parse_bool(parsed.flags.get("client-bypass"), false);
     let ok = !bypass_requested;
+    let status = if strict && !ok { "error" } else { "success" };
     let claim_rows = claim_ids_for_command(command)
         .iter()
         .map(|id| {
@@ -186,6 +187,14 @@ fn conduit_enforcement(parsed: &crate::ParsedArgs, strict: bool, command: &str) 
         "command": clean(command, 80),
         "bypass_requested": bypass_requested,
         "errors": if ok { Value::Array(Vec::new()) } else { json!(["conduit_bypass_rejected"]) },
+        "execution_receipt": {
+            "lane": "llm_economy_organ",
+            "command": clean(command, 80),
+            "strict": strict,
+            "status": status,
+            "source": "OPENCLAW-TOOLING-WEB-098",
+            "tool_runtime_class": "receipt_wrapped"
+        },
         "claim_evidence": claim_rows
     });
     out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));

@@ -10,7 +10,40 @@ pub struct Task {
     pub eta_ms: u64,
 }
 
+fn sanitize_task_id(raw: &str) -> String {
+    let cleaned = raw
+        .chars()
+        .filter(|ch| {
+            !matches!(
+                *ch,
+                '\u{200B}'
+                    | '\u{200C}'
+                    | '\u{200D}'
+                    | '\u{2060}'
+                    | '\u{FEFF}'
+                    | '\u{202A}'
+                    | '\u{202B}'
+                    | '\u{202C}'
+                    | '\u{202D}'
+                    | '\u{202E}'
+            ) && (!ch.is_control() || ch.is_ascii_whitespace())
+        })
+        .collect::<String>()
+        .trim()
+        .chars()
+        .take(120)
+        .collect::<String>();
+    if cleaned.is_empty() {
+        "task".to_string()
+    } else {
+        cleaned
+    }
+}
+
 pub fn schedule(mut tasks: Vec<Task>) -> Vec<Task> {
+    for task in &mut tasks {
+        task.id = sanitize_task_id(&task.id);
+    }
     tasks.sort_by(|a, b| {
         b.priority
             .cmp(&a.priority)
@@ -64,6 +97,7 @@ fn percentile(values: &[f64], pct: f64) -> f64 {
 }
 
 fn benchmark_hotpath(iterations: usize) -> (f64, f64, f64) {
+    let iterations = iterations.clamp(1, 10_000);
     let mut recall_ms = Vec::with_capacity(iterations);
     let mut call_ms = Vec::with_capacity(iterations);
     for i in 0..iterations {

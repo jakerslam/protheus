@@ -11,6 +11,9 @@ fn is_framework_catalog_intent(query: &str) -> bool {
     ]
     .iter()
     .any(|marker| lowered.contains(marker));
+    let explicit_catalog_marker = ["best ", "leading ", "popular ", "ranking", "rankings", "landscape"]
+        .iter()
+        .any(|marker| lowered.contains(marker));
     let framework_marker = [
         "agent framework",
         "agent frameworks",
@@ -22,6 +25,20 @@ fn is_framework_catalog_intent(query: &str) -> bool {
     ]
     .iter()
     .any(|marker| lowered.contains(marker));
+    let benchmark_marker = [
+        "benchmark",
+        "benchmarks",
+        "performance metric",
+        "performance metrics",
+        "latency",
+        "throughput",
+        "success rate",
+    ]
+    .iter()
+    .any(|marker| lowered.contains(marker));
+    if benchmark_marker && !explicit_catalog_marker {
+        return false;
+    }
     ranking_marker && framework_marker
 }
 

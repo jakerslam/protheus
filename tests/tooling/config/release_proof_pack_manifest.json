@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "required_artifacts": [
+    "core/local/artifacts/runtime_proof_verify_current.json",
+    "core/local/artifacts/runtime_proof_release_metrics_rich_current.json",
+    "core/local/artifacts/layer2_lane_parity_guard_current.json",
+    "core/local/artifacts/layer2_receipt_replay_current.json",
+    "core/local/artifacts/runtime_boundedness_inspect_current.json",
+    "core/local/artifacts/runtime_trusted_core_report_current.json"
+  ],
+  "optional_artifacts": [
+    "local/workspace/reports/RUNTIME_PROOF_RELEASE_GATE_RICH_CURRENT.md",
+    "local/workspace/reports/LAYER2_LANE_PARITY_GUARD_CURRENT.md",
+    "local/workspace/reports/LAYER2_RECEIPT_REPLAY_CURRENT.md",
+    "local/workspace/reports/RUNTIME_BOUNDEDNESS_INSPECT_CURRENT.md",
+    "local/workspace/reports/RUNTIME_TRUSTED_CORE_REPORT_CURRENT.md"
+  ]
+}

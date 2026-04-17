@@ -1,3 +1,35 @@
+fn web_tooling_provider_contract_targets() -> [&'static str; 10] {
+    [
+        "brave",
+        "duckduckgo",
+        "exa",
+        "firecrawl",
+        "google",
+        "minimax",
+        "moonshot",
+        "perplexity",
+        "tavily",
+        "xai",
+    ]
+}
+
+fn normalize_web_tooling_provider(raw: Option<&str>) -> Option<String> {
+    let normalized = raw
+        .map(|value| value.trim().to_ascii_lowercase())
+        .unwrap_or_default();
+    if normalized.is_empty() {
+        return None;
+    }
+    let canonical = match normalized.as_str() {
+        "kimi" | "moonshot" => "moonshot",
+        "grok" | "xai" => "xai",
+        "duck_duck_go" | "duckduckgo" => "duckduckgo",
+        "brave_search" | "brave" => "brave",
+        _ => normalized.as_str(),
+    };
+    Some(canonical.to_string())
+}
+
 fn run_chain_validate(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
     let contract = load_json_or(
         root,
@@ -76,6 +108,7 @@ fn run_chain_validate(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> 
 
     let root_dir = skills_root(root, parsed);
     let mut test_receipts = Vec::<Value>::new();
+    let mut web_chain_step_count = 0usize;
     for (idx, step) in steps.iter().enumerate() {
         let id = clean(
             step.get("id").and_then(Value::as_str).unwrap_or_default(),
@@ -99,12 +132,56 @@ fn run_chain_validate(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> 
         if strict && require_smoke_tests && !smoke.exists() {
             errors.push(format!("chain_skill_smoke_missing:{id}"));
         }
+        let step_id_norm = id.to_ascii_lowercase();
+        let web_step_detected = step_id_norm.contains("web")
+            || step_id_norm.contains("search")
+            || step_id_norm.contains("fetch")
+            || step
+                .get("web_tooling")
+                .map(Value::is_object)
+                .unwrap_or(false);
+        let web_provider = normalize_web_tooling_provider(
+            step.get("web_provider")
+                .and_then(Value::as_str)
+                .or_else(|| {
+                    step.get("web_tooling")
+                        .and_then(Value::as_object)
+                        .and_then(|web| web.get("provider"))
+                        .and_then(Value::as_str)
+                }),
+        );
+        if web_step_detected {
+            web_chain_step_count += 1;
+            if strict && web_provider.is_none() {
+                errors.push(format!("chain_skill_web_provider_required:{id}"));
+            }
+            if strict
+                && web_provider
+                    .as_ref()
+                    .map(|provider| {
+                        !web_tooling_provider_contract_targets()
+                            .iter()
+                            .any(|target| target == provider)
+                    })
+                    .unwrap_or(false)
+            {
+                errors.push(format!(
+                    "chain_skill_web_provider_invalid:{id}:{}",
+                    web_provider.clone().unwrap_or_default()
+                ));
+            }
+        }
         test_receipts.push(json!({
             "index": idx,
             "id": id,
             "version": version,
             "skill_dir": skill_dir.display().to_string(),
             "smoke_test_present": smoke.exists(),
+            "web_tooling": {
+                "detected": web_step_detected,
+                "provider": web_provider,
+                "provider_contract_targets": web_tooling_provider_contract_targets()
+            },
             "receipt_hash": sha256_hex_str(&format!("{}:{}:{}", id, version, idx))
         }));
     }
@@ -140,7 +217,8 @@ fn run_chain_validate(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> 
                 "id": "V6-SKILLS-001.3",
                 "claim": "versioned_composable_skill_chaining_validates_contracts_and_runs_deterministic_chain_test_receipts",
                 "evidence": {
-                    "steps": steps.len()
+                    "steps": steps.len(),
+                    "web_chain_step_count": web_chain_step_count
                 }
             }
         ]

@@ -32,6 +32,13 @@ fn find_session_id_by_task(state: &Value, task: &str) -> String {
         .expect("session id by task")
 }
 
+fn assert_state_object_field(state: &Value, field: &str) {
+    assert!(
+        state.get(field).and_then(Value::as_object).is_some(),
+        "state field `{field}` must be an object"
+    );
+}
+
 #[test]
 fn workflow_007_handoff_registry_and_context_propagation_are_receipted() {
     let root = tempfile::tempdir().expect("tempdir");
@@ -101,6 +108,8 @@ fn workflow_007_handoff_registry_and_context_propagation_are_receipted() {
     );
 
     let state_after = read_state(&state_path);
+    assert_state_object_field(&state_after, "sessions");
+    assert_state_object_field(&state_after, "handoff_registry");
     let coordinator_row = state_after
         .get("sessions")
         .and_then(|rows| rows.get(&coordinator))
@@ -230,6 +239,8 @@ fn workflow_007_tool_bridge_registers_invokes_and_denies_unsafe_paths() {
     );
 
     let state_after = read_state(&state_path);
+    assert_state_object_field(&state_after, "sessions");
+    assert_state_object_field(&state_after, "tool_registry");
     let tool_registry = state_after
         .get("tool_registry")
         .and_then(Value::as_object)
@@ -317,6 +328,9 @@ fn workflow_007_stream_turns_and_networks_emit_receipts() {
     );
 
     let state_after = read_state(&state_path);
+    assert_state_object_field(&state_after, "stream_registry");
+    assert_state_object_field(&state_after, "turn_registry");
+    assert_state_object_field(&state_after, "network_registry");
     let stream_rows = state_after
         .get("stream_registry")
         .and_then(Value::as_object)
