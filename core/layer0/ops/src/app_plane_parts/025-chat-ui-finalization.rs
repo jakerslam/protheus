@@ -1,4 +1,4 @@
-const CHAT_UI_TOOLING_RETRY_GUIDANCE: &str = "I couldn't produce source-backed findings in this turn. Please retry with a narrower query or provide a specific source URL.";
+const CHAT_UI_TOOLING_RETRY_GUIDANCE: &str = "Tool execution did not produce a usable final answer in this turn. web_status: provider_low_signal. error_code: web_tool_low_signal.";
 const CHAT_UI_FRAMEWORK_TARGETS: [&str; 5] = [
     "LangGraph",
     "OpenAI Agents SDK",
@@ -509,7 +509,8 @@ fn finalize_chat_ui_assistant_response(
     let has_block_evidence = chat_ui_tools_have_structured_block_evidence(tools);
     let partial_framework_coverage = chat_ui_partial_framework_coverage_summary(tools);
     let unrelated_context_dump = chat_ui_contains_kernel_patch_thread_dump(user_message, &cleaned)
-        || chat_ui_contains_role_preamble_prompt_dump(user_message, &cleaned);
+        || chat_ui_contains_role_preamble_prompt_dump(user_message, &cleaned)
+        || crate::tool_output_match_filter::contains_forbidden_runtime_context_markers(&cleaned);
     if unrelated_context_dump {
         if let Some(summary) = partial_framework_coverage.clone() {
             return (summary, "repaired_unrelated_context_dump".to_string());
@@ -522,20 +523,26 @@ fn finalize_chat_ui_assistant_response(
             );
         }
         return (
-            CHAT_UI_TOOLING_RETRY_GUIDANCE.to_string(),
+            crate::tool_output_match_filter::canonical_tooling_fallback_copy(
+                "parse_failed",
+                "web_tool_context_mismatch",
+                None,
+            ),
             "repaired_unrelated_context_dump".to_string(),
         );
     }
     if speculative_blocker_copy && has_block_evidence {
         let codes = chat_ui_structured_block_evidence_codes(tools);
-        let code_suffix = if codes.is_empty() {
-            String::new()
+        let detail = if codes.is_empty() {
+            None
         } else {
-            format!(" ({})", codes.join(", "))
+            Some(codes.join(", "))
         };
         return (
-            format!(
-                "The web/tool run was blocked by policy in this turn{code_suffix}. Retry after policy/auth changes, or run a narrower allowed query."
+            crate::tool_output_match_filter::canonical_tooling_fallback_copy(
+                "policy_blocked",
+                "web_tool_policy_blocked",
+                detail.as_deref(),
             ),
             "blocked_with_structured_evidence".to_string(),
         );
@@ -545,7 +552,11 @@ fn finalize_chat_ui_assistant_response(
             return (summary, "success_with_gaps".to_string());
         }
         return (
-            CHAT_UI_TOOLING_RETRY_GUIDANCE.to_string(),
+            crate::tool_output_match_filter::canonical_tooling_fallback_copy(
+                "parse_failed",
+                "web_tool_unverified_blocker_claim",
+                None,
+            ),
             "suppressed_unverified_blocker_claim".to_string(),
         );
     }

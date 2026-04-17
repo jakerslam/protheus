@@ -426,8 +426,40 @@ fn run_chat_ui(root: &Path, parsed: &crate::ParsedArgs, strict: bool, action: &s
     let tool_diagnostics = chat_ui_tool_diagnostics(&tools);
     let receipt_summary =
         chat_ui_semantic_receipt_summary(&tool_diagnostics, requires_live_web, &message);
-    let (assistant, rewrite_outcome) =
+    let (assistant_rewritten, rewrite_outcome) =
         rewrite_chat_ui_placeholder_with_tool_diagnostics(&assistant_initial, &tool_diagnostics);
+    let mut assistant = assistant_rewritten;
+    let mut hard_guard = json!({
+        "applied": false
+    });
+    if assistant.trim().is_empty()
+        || crate::tool_output_match_filter::matches_ack_placeholder(&assistant)
+        || crate::tool_output_match_filter::contains_forbidden_runtime_context_markers(&assistant)
+    {
+        let fallback_status = if requires_live_web && chat_ui_web_search_call_count(&tools) == 0 {
+            "tool_not_invoked"
+        } else {
+            "parse_failed"
+        };
+        let fallback_error_code = if fallback_status == "tool_not_invoked" {
+            "web_tool_not_invoked"
+        } else {
+            "web_tool_invalid_response"
+        };
+        assistant = crate::tool_output_match_filter::canonical_tooling_fallback_copy(
+            fallback_status,
+            fallback_error_code,
+            None,
+        );
+        hard_guard = json!({
+            "applied": true,
+            "status": fallback_status,
+            "error_code": fallback_error_code
+        });
+        if forced_web_error_code.is_empty() {
+            forced_web_error_code = fallback_error_code.to_string();
+        }
+    }
     let web_search_calls = chat_ui_web_search_call_count(&tools) as i64;
     let blocked_signal = tools.iter().any(|row| {
         let status = clean(
@@ -468,11 +500,18 @@ fn run_chat_ui(root: &Path, parsed: &crate::ParsedArgs, strict: bool, action: &s
     } else {
         "not_required"
     };
-    let final_outcome = if forced_web_outcome.is_empty() {
+    let mut final_outcome = if forced_web_outcome.is_empty() {
         response_finalization_outcome.clone()
     } else {
         forced_web_outcome.clone()
     };
+    let hard_guard_applied = hard_guard
+        .get("applied")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    if hard_guard_applied {
+        final_outcome = "hard_guard_fallback".to_string();
+    }
     let trace_id = format!(
         "trace_{}",
         &sha256_hex_str(&format!(
@@ -495,13 +534,14 @@ fn run_chat_ui(root: &Path, parsed: &crate::ParsedArgs, strict: bool, action: &s
     if requires_live_web && !discovered_tools.iter().any(|tool| tool == "batch_query") {
         discovered_tools.push("batch_query".to_string());
     }
-    let transaction_complete = !requires_live_web || matches!(web_classification, "healthy");
+    let transaction_complete =
+        (!requires_live_web || matches!(web_classification, "healthy")) && !hard_guard_applied;
     let transaction_status = if transaction_complete {
         "complete"
-    } else if matches!(web_classification, "tool_not_invoked" | "policy_blocked") {
-        "failed"
-    } else {
+    } else if matches!(web_classification, "low_signal") {
         "degraded"
+    } else {
+        "failed"
     };
     let transaction_id = format!(
         "txn_{}",
@@ -581,6 +621,7 @@ fn run_chat_ui(root: &Path, parsed: &crate::ParsedArgs, strict: bool, action: &s
                 "classification": web_classification,
                 "closed_at": crate::now_iso()
             },
+            "hard_guard": hard_guard,
             "tool_diagnostics": tool_diagnostics,
             "tool_gate": tool_gate,
             "capability_discovery": {
@@ -625,59 +666,6 @@ fn run_chat_ui(root: &Path, parsed: &crate::ParsedArgs, strict: bool, action: &s
     }
     out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
-}
-
-fn normalize_tool_error_code(raw: &str) -> String {
-    let lowered = clean(raw, 200).to_ascii_lowercase();
-    if lowered.is_empty() {
-        return "web_tool_error".to_string();
-    }
-    if lowered.contains("not found")
-        || lowered.contains("tool_not_found")
-        || lowered.contains("unknown tool")
-        || lowered.contains("unrecognized tool")
-    {
-        return "web_tool_not_found".to_string();
-    }
-    if lowered.contains("invalid_response")
-        || lowered.contains("invalid response")
-        || lowered.contains("invalid response attempt")
-    {
-        return "web_tool_invalid_response".to_string();
-    }
-    if lowered.contains("auth")
-        || lowered.contains("api key")
-        || lowered.contains("token")
-        || lowered.contains("credential")
-    {
-        return "web_tool_auth_missing".to_string();
-    }
-    if lowered.contains("blocked") || lowered.contains("denied") || lowered.contains("policy") {
-        return "web_tool_policy_blocked".to_string();
-    }
-    if lowered.contains("timeout") {
-        return "web_tool_timeout".to_string();
-    }
-    if lowered.contains("429") {
-        return "web_tool_http_429".to_string();
-    }
-    if lowered.contains("404") {
-        return "web_tool_http_404".to_string();
-    }
-    if lowered.contains("403") {
-        return "web_tool_http_403".to_string();
-    }
-    if lowered.contains("401") {
-        return "web_tool_http_401".to_string();
-    }
-    if lowered.contains("500")
-        || lowered.contains("502")
-        || lowered.contains("503")
-        || lowered.contains("504")
-    {
-        return "web_tool_http_5xx".to_string();
-    }
-    "web_tool_error".to_string()
 }
 
 fn chat_ui_contains_any(lowered: &str, markers: &[&str]) -> bool {
@@ -1046,7 +1034,9 @@ fn chat_ui_semantic_receipt_summary(
         .get("silent_failure_calls")
         .and_then(Value::as_i64)
         .unwrap_or(0);
-    let status = if failed_calls == 0 && silent_failure_calls == 0 {
+    let status = if requires_live_web && total_calls <= 0 {
+        "failed"
+    } else if failed_calls == 0 && silent_failure_calls == 0 {
         "complete"
     } else if successful_calls > 0 {
         "degraded"
@@ -1284,6 +1274,44 @@ mod chat_ui_direct_path_tests {
     }
 
     #[test]
+    fn chat_ui_receipt_summary_marks_missing_required_web_calls_as_failed() {
+        let summary = chat_ui_semantic_receipt_summary(
+            &json!({
+                "total_calls": 0,
+                "successful_calls": 0,
+                "failed_calls": 0,
+                "blocked_calls": 0,
+                "not_found_calls": 0,
+                "low_signal_calls": 0,
+                "silent_failure_calls": 0
+            }),
+            true,
+            "latest agent frameworks",
+        );
+        assert!(
+            summary.to_ascii_lowercase().contains("tool transaction failed"),
+            "{summary}"
+        );
+    }
+
+    #[test]
+    fn chat_ui_placeholder_rewrite_returns_canonical_error_copy() {
+        let (rewritten, outcome) = rewrite_chat_ui_placeholder_with_tool_diagnostics(
+            "Web search completed.",
+            &json!({
+                "total_calls": 1,
+                "error_codes": {
+                    "web_tool_auth_missing": 1
+                }
+            }),
+        );
+        assert_eq!(outcome, "placeholder_replaced_auth");
+        let lowered = rewritten.to_ascii_lowercase();
+        assert!(lowered.contains("web_status: auth_missing"), "{rewritten}");
+        assert!(lowered.contains("error_code: web_tool_auth_missing"), "{rewritten}");
+    }
+
+    #[test]
     fn chat_ui_view_logs_returns_trace_matches_for_request_id() {
         let root = tempfile::tempdir().expect("tempdir");
         write_chat_script(
@@ -1456,44 +1484,24 @@ fn chat_ui_tool_diagnostics(tools: &[Value]) -> Value {
             "toolcall_{}",
             &sha256_hex_str(&format!("{}:{}:{}", idx, tool_name, raw_status))[..12]
         );
-        let mut status = if raw_status.contains("blocked")
-            || raw_status.contains("policy")
-            || raw_status.contains("denied")
-        {
-            "blocked".to_string()
-        } else if raw_status.contains("not_found")
-            || raw_status.contains("no_result")
-            || raw_status.contains("no-results")
-        {
-            "not_found".to_string()
-        } else if raw_status.contains("low_signal") || raw_status.contains("low-signal") {
-            "low_signal".to_string()
-        } else if raw_status.contains("ok") || raw_status.contains("success") {
-            "ok".to_string()
-        } else if raw_status.contains("failed")
-            || raw_status.contains("error")
-            || raw_status.contains("timeout")
-        {
-            "error".to_string()
-        } else {
-            "unknown".to_string()
-        };
-        if status == "unknown" {
-            if !error.is_empty() || ok == Some(false) {
-                status = if normalize_tool_error_code(&error) == "web_tool_not_found" {
-                    "not_found".to_string()
-                } else {
-                    "error".to_string()
-                };
-            } else if ok == Some(true) || findings > 0 {
-                status = "ok".to_string();
-            } else if !result.is_empty() {
-                status = "low_signal".to_string();
+        let status = crate::tool_output_match_filter::canonical_tool_status(
+            &raw_status,
+            ok,
+            &error,
+            findings,
+            !result.is_empty(),
+        );
+        let error_code = if error.is_empty() {
+            match status.as_str() {
+                "blocked" => "web_tool_policy_blocked".to_string(),
+                "not_found" => "web_tool_not_found".to_string(),
+                "low_signal" => "web_tool_low_signal".to_string(),
+                "unknown" => "web_tool_silent_failure".to_string(),
+                _ => "web_tool_error".to_string(),
             }
-        }
-        if status == "error" && normalize_tool_error_code(&error) == "web_tool_not_found" {
-            status = "not_found".to_string();
-        }
+        } else {
+            crate::tool_output_match_filter::normalize_web_tooling_error_code(&error)
+        };
 
         match status.as_str() {
             "ok" => {
@@ -1505,28 +1513,22 @@ fn chat_ui_tool_diagnostics(tools: &[Value]) -> Value {
             "blocked" => {
                 failed_calls += 1;
                 blocked_calls += 1;
-                let code = "web_tool_policy_blocked".to_string();
                 let next = error_codes
-                    .get(&code)
+                    .get(&error_code)
                     .and_then(Value::as_i64)
                     .unwrap_or(0)
                     .saturating_add(1);
-                error_codes.insert(code, Value::from(next));
+                error_codes.insert(error_code.clone(), Value::from(next));
             }
             "not_found" => {
                 failed_calls += 1;
                 not_found_calls += 1;
-                let code = if error.is_empty() {
-                    "web_tool_not_found".to_string()
-                } else {
-                    normalize_tool_error_code(&error)
-                };
                 let next = error_codes
-                    .get(&code)
+                    .get(&error_code)
                     .and_then(Value::as_i64)
                     .unwrap_or(0)
                     .saturating_add(1);
-                error_codes.insert(code, Value::from(next));
+                error_codes.insert(error_code.clone(), Value::from(next));
             }
             "low_signal" => {
                 low_signal_calls += 1;
@@ -1534,17 +1536,12 @@ fn chat_ui_tool_diagnostics(tools: &[Value]) -> Value {
             }
             "error" => {
                 failed_calls += 1;
-                let code = if error.is_empty() {
-                    "web_tool_error".to_string()
-                } else {
-                    normalize_tool_error_code(&error)
-                };
                 let next = error_codes
-                    .get(&code)
+                    .get(&error_code)
                     .and_then(Value::as_i64)
                     .unwrap_or(0)
                     .saturating_add(1);
-                error_codes.insert(code, Value::from(next));
+                error_codes.insert(error_code.clone(), Value::from(next));
             }
             _ => {
                 failed_calls += 1;
@@ -1558,19 +1555,17 @@ fn chat_ui_tool_diagnostics(tools: &[Value]) -> Value {
                 error_codes.insert(code, Value::from(next));
             }
         }
-        execution_receipts.push(json!({
-            "call_id": call_id,
-            "tool": tool_name,
-            "status": status,
-            "ok": ok.unwrap_or(false),
-            "findings_count": findings,
-            "error": error,
-            "has_result": !result.is_empty(),
-            "telemetry": {
-                "duration_ms": duration_ms,
-                "tokens_used": tokens_used
-            }
-        }));
+        execution_receipts.push(crate::tool_output_match_filter::canonical_tool_execution_receipt(
+            &call_id,
+            &tool_name,
+            &status,
+            ok,
+            &error,
+            findings,
+            duration_ms,
+            tokens_used,
+            !result.is_empty(),
+        ));
     }
 
     let total_calls = tools.len() as i64;
@@ -1622,50 +1617,71 @@ fn rewrite_chat_ui_placeholder_with_tool_diagnostics(
 
     if has_auth_missing {
         return (
-            "Web tooling is available but missing auth. Configure a token and retry the query."
-                .to_string(),
+            crate::tool_output_match_filter::canonical_tooling_fallback_copy(
+                "auth_missing",
+                "web_tool_auth_missing",
+                None,
+            ),
             "placeholder_replaced_auth".to_string(),
         );
     }
     if has_policy_blocked {
         return (
-            "Web tooling call was blocked by policy. Retry with a narrower query or a trusted domain."
-                .to_string(),
+            crate::tool_output_match_filter::canonical_tooling_fallback_copy(
+                "policy_blocked",
+                "web_tool_policy_blocked",
+                None,
+            ),
             "placeholder_replaced_policy".to_string(),
         );
     }
     if has_invalid_response {
         return (
-            "Web tooling returned an invalid response. Retry with one concrete query or a specific source URL."
-                .to_string(),
+            crate::tool_output_match_filter::canonical_tooling_fallback_copy(
+                "parse_failed",
+                "web_tool_invalid_response",
+                None,
+            ),
             "placeholder_replaced_invalid_response".to_string(),
         );
     }
     if has_not_found {
         return (
-            "A required tool was not available in this turn. Check capability mapping and wiring, then retry."
-                .to_string(),
+            crate::tool_output_match_filter::canonical_tooling_fallback_copy(
+                "failed",
+                "web_tool_not_found",
+                None,
+            ),
             "placeholder_replaced_not_found".to_string(),
         );
     }
     if has_silent_failure {
         return (
-            "A tool execution returned no usable receipt. Treating this as failure; retry after runtime/tool health check."
-                .to_string(),
+            crate::tool_output_match_filter::canonical_tooling_fallback_copy(
+                "failed",
+                "web_tool_silent_failure",
+                None,
+            ),
             "placeholder_replaced_silent_failure".to_string(),
         );
     }
     if has_error {
         return (
-            "Web tooling returned errors in this turn. Retry with a narrower query to recover signal."
-                .to_string(),
+            crate::tool_output_match_filter::canonical_tooling_fallback_copy(
+                "failed",
+                "web_tool_error",
+                None,
+            ),
             "placeholder_replaced_error".to_string(),
         );
     }
     if total_calls > 0 {
         return (
-            "Web tooling ran but produced low-signal results. Try a narrower query or one source URL."
-                .to_string(),
+            crate::tool_output_match_filter::canonical_tooling_fallback_copy(
+                "provider_low_signal",
+                "web_tool_low_signal",
+                None,
+            ),
             "placeholder_replaced_low_signal".to_string(),
         );
     }

@@ -258,6 +258,45 @@ fn app_chat_deferred_terminal_copy(text: &str) -> bool {
         || lowered.contains("would you like me to try a more specific query")
 }
 
+fn canonical_web_tooling_error_code(raw: &str) -> String {
+    let cleaned = clean_text(raw, 140).to_ascii_lowercase();
+    if cleaned.is_empty() {
+        return "web_tool_error".to_string();
+    }
+    if cleaned.starts_with("web_tool_") {
+        return cleaned;
+    }
+    crate::tool_output_match_filter::normalize_web_tooling_error_code(&cleaned)
+}
+
+fn canonical_action_error_payload(
+    kind: &str,
+    error_code: &str,
+    status: i32,
+    message: Option<&str>,
+) -> Value {
+    let code = clean_text(error_code, 140);
+    let code = if code.is_empty() {
+        "action_error".to_string()
+    } else {
+        code
+    };
+    let mut payload = json!({
+        "ok": false,
+        "type": kind,
+        "error": code,
+        "error_code": code,
+        "status": status.max(0)
+    });
+    if let Some(message) = message {
+        let cleaned = clean_chat_text_preserve_layout(message, 400);
+        if !cleaned.is_empty() {
+            payload["message"] = Value::String(cleaned);
+        }
+    }
+    payload
+}
+
 fn app_chat_framework_gap_summary(raw_input: &str, tools: &[Value]) -> Option<String> {
     let input_lower = clean_text(raw_input, 1_000).to_ascii_lowercase();
     let joined = tools
@@ -314,6 +353,16 @@ fn app_chat_rewrite_tooling_response(raw_input: &str, response: &str, tools: &[V
     if tools.is_empty() {
         return (response.to_string(), String::new());
     }
+    if crate::tool_output_match_filter::contains_forbidden_runtime_context_markers(response) {
+        return (
+            crate::tool_output_match_filter::canonical_tooling_fallback_copy(
+                "parse_failed",
+                "web_tool_context_mismatch",
+                None,
+            ),
+            "suppressed_context_leak_dump".to_string(),
+        );
+    }
     let blocked = tools.iter().any(app_chat_tool_blocked_signal);
     let low_signal = tools.iter().any(|row| {
         let status = clean_text(row.get("status").and_then(Value::as_str).unwrap_or(""), 120)
@@ -345,7 +394,11 @@ fn app_chat_rewrite_tooling_response(raw_input: &str, response: &str, tools: &[V
             clean_text(&evidence.join(", "), 260)
         };
         return (
-            format!("Web tooling was blocked by policy with structured evidence: {evidence_text}."),
+            crate::tool_output_match_filter::canonical_tooling_fallback_copy(
+                "policy_blocked",
+                "web_tool_policy_blocked",
+                Some(&evidence_text),
+            ),
             "blocked_with_structured_evidence".to_string(),
         );
     }
@@ -358,12 +411,20 @@ fn app_chat_rewrite_tooling_response(raw_input: &str, response: &str, tools: &[V
         }
         if deferred {
             return (
-                "Web tooling returned low-signal output in this pass. No source-backed findings were produced yet; retry with a narrower query or one specific source URL.".to_string(),
+                crate::tool_output_match_filter::canonical_tooling_fallback_copy(
+                    "provider_low_signal",
+                    "web_tool_low_signal",
+                    None,
+                ),
                 "success_with_gaps".to_string(),
             );
         }
         return (
-            "Web tooling ran but returned low-signal output in this pass, and no structured policy-block evidence was recorded.".to_string(),
+            crate::tool_output_match_filter::canonical_tooling_fallback_copy(
+                "parse_failed",
+                "web_tool_unverified_blocker_claim",
+                None,
+            ),
             "suppressed_unverified_blocker_claim".to_string(),
         );
     }
@@ -1111,7 +1172,7 @@ fn run_action(root: &Path, action: &str, payload: &Value) -> LaneResult {
                 .unwrap_or("")
                 .to_string();
             if terminal_response.trim().is_empty() {
-                let error_code = clean_text(
+                let error_code = canonical_web_tooling_error_code(
                     lane_payload
                         .get("error")
                         .and_then(Value::as_str)
@@ -1120,11 +1181,12 @@ fn run_action(root: &Path, action: &str, payload: &Value) -> LaneResult {
                                 .pointer("/response_finalization/error_code")
                                 .and_then(Value::as_str)
                         })
-                        .unwrap_or("app_chat_lane_failed"),
-                    120,
+                        .unwrap_or("web_tool_error"),
                 );
-                terminal_response = format!(
-                    "Web tooling execution failed in this turn (error: {error_code}). No source-backed findings were produced."
+                terminal_response = crate::tool_output_match_filter::canonical_tooling_fallback_copy(
+                    "failed",
+                    &error_code,
+                    None,
                 );
                 lane_payload["response"] = Value::String(terminal_response.clone());
                 lane_payload["output"] = Value::String(terminal_response.clone());
@@ -1144,7 +1206,11 @@ fn run_action(root: &Path, action: &str, payload: &Value) -> LaneResult {
                     .unwrap_or_default();
                 let web_search_calls = app_chat_web_search_call_count(&tools);
                 if requires_live_web && web_search_calls == 0 {
-                    let forced = "Web tooling execution failed before any search tool call was recorded (error_code: web_tool_not_invoked). Retry lane: run `batch_query` with a narrower query or one specific source URL.".to_string();
+                    let forced = crate::tool_output_match_filter::canonical_tooling_fallback_copy(
+                        "tool_not_invoked",
+                        "web_tool_not_invoked",
+                        None,
+                    );
                     lane_payload["response"] = json!(forced.clone());
                     lane_payload["output"] = json!(forced.clone());
                     if let Some(turn) = lane_payload.get_mut("turn").and_then(Value::as_object_mut)
@@ -1244,8 +1310,102 @@ fn run_action(root: &Path, action: &str, payload: &Value) -> LaneResult {
                     "diagnostic": "forced_live_web_invariant_from_dashboard_action_bus"
                 });
             }
+            if response_finalization.get("tool_transaction").is_none() {
+                let classification = clean_text(
+                    response_finalization
+                        .pointer("/web_invariant/classification")
+                        .and_then(Value::as_str)
+                        .unwrap_or("not_required"),
+                    80,
+                )
+                .to_ascii_lowercase();
+                let complete = !requires_live_web || classification == "healthy";
+                let status = if complete {
+                    "complete"
+                } else if matches!(classification.as_str(), "low_signal" | "attempted_no_findings")
+                {
+                    "degraded"
+                } else {
+                    "failed"
+                };
+                response_finalization["tool_transaction"] = json!({
+                    "id": format!("txn_{}", &crate::sha256_hex_str(&format!("{}:{}:{}", normalized, classification, now_iso()))[..12]),
+                    "intent": app_chat_extract_web_query(&raw_input),
+                    "status": status,
+                    "complete": complete,
+                    "classification": classification,
+                    "closed_at": now_iso()
+                });
+            }
+            let assistant_candidate = lane_payload
+                .get("response")
+                .and_then(Value::as_str)
+                .or_else(|| lane_payload.get("output").and_then(Value::as_str))
+                .or_else(|| lane_payload.pointer("/turn/assistant").and_then(Value::as_str))
+                .unwrap_or("");
+            let mut hard_guard = json!({
+                "applied": false
+            });
+            if assistant_candidate.trim().is_empty()
+                || crate::tool_output_match_filter::matches_ack_placeholder(assistant_candidate)
+                || crate::tool_output_match_filter::contains_forbidden_runtime_context_markers(
+                    assistant_candidate,
+                )
+            {
+                let classification = clean_text(
+                    response_finalization
+                        .pointer("/web_invariant/classification")
+                        .and_then(Value::as_str)
+                        .unwrap_or("parse_failed"),
+                    80,
+                )
+                .to_ascii_lowercase();
+                let guard_status = if classification == "tool_not_invoked" {
+                    "tool_not_invoked"
+                } else {
+                    "parse_failed"
+                };
+                let guard_error_code = if guard_status == "tool_not_invoked" {
+                    "web_tool_not_invoked"
+                } else if classification == "policy_blocked" {
+                    "web_tool_policy_blocked"
+                } else if classification == "low_signal" {
+                    "web_tool_low_signal"
+                } else {
+                    "web_tool_invalid_response"
+                };
+                let fallback = crate::tool_output_match_filter::canonical_tooling_fallback_copy(
+                    guard_status,
+                    guard_error_code,
+                    None,
+                );
+                lane_payload["response"] = json!(fallback.clone());
+                lane_payload["output"] = json!(fallback.clone());
+                if let Some(turn) = lane_payload.get_mut("turn").and_then(Value::as_object_mut) {
+                    turn.insert("assistant".to_string(), json!(fallback));
+                }
+                hard_guard = json!({
+                    "applied": true,
+                    "status": guard_status,
+                    "error_code": guard_error_code
+                });
+                if let Some(txn) = response_finalization
+                    .get_mut("tool_transaction")
+                    .and_then(Value::as_object_mut)
+                {
+                    txn.insert("status".to_string(), json!("failed"));
+                    txn.insert("complete".to_string(), json!(false));
+                }
+            }
+            response_finalization["hard_guard"] = hard_guard;
             lane_payload["response_finalization"] = response_finalization;
-            let forced_ok = lane.ok || !terminal_response.trim().is_empty();
+            let final_response = lane_payload
+                .get("response")
+                .and_then(Value::as_str)
+                .or_else(|| lane_payload.get("output").and_then(Value::as_str))
+                .or_else(|| lane_payload.pointer("/turn/assistant").and_then(Value::as_str))
+                .unwrap_or("");
+            let forced_ok = lane.ok || !final_response.trim().is_empty();
             LaneResult {
                 ok: forced_ok,
                 status: if forced_ok { 0 } else { lane.status },
@@ -1374,12 +1534,12 @@ fn run_action(root: &Path, action: &str, payload: &Value) -> LaneResult {
                         ok: false,
                         status: 400,
                         argv: vec!["dashboard.github.issue.create".to_string()],
-                        payload: Some(json!({
-                            "ok": false,
-                            "type": "github_issue_create",
-                            "error": error,
-                            "status": 400
-                        })),
+                        payload: Some(canonical_action_error_payload(
+                            "github_issue_create",
+                            error,
+                            400,
+                            None,
+                        )),
                     };
                 }
             };
@@ -1390,12 +1550,12 @@ fn run_action(root: &Path, action: &str, payload: &Value) -> LaneResult {
                         ok: false,
                         status: 400,
                         argv: vec!["dashboard.github.issue.create".to_string()],
-                        payload: Some(json!({
-                            "ok": false,
-                            "type": "github_issue_create",
-                            "error": error,
-                            "status": 400
-                        })),
+                        payload: Some(canonical_action_error_payload(
+                            "github_issue_create",
+                            error,
+                            400,
+                            None,
+                        )),
                     };
                 }
             };
@@ -1406,12 +1566,12 @@ fn run_action(root: &Path, action: &str, payload: &Value) -> LaneResult {
                         ok: false,
                         status: 400,
                         argv: vec!["dashboard.github.issue.create".to_string()],
-                        payload: Some(json!({
-                            "ok": false,
-                            "type": "github_issue_create",
-                            "error": error,
-                            "status": 400
-                        })),
+                        payload: Some(canonical_action_error_payload(
+                            "github_issue_create",
+                            error,
+                            400,
+                            None,
+                        )),
                     };
                 }
             };
@@ -1422,13 +1582,12 @@ fn run_action(root: &Path, action: &str, payload: &Value) -> LaneResult {
                         ok: false,
                         status: 401,
                         argv: vec!["dashboard.github.issue.create".to_string()],
-                        payload: Some(json!({
-                            "ok": false,
-                            "type": "github_issue_create",
-                            "error": "github_issue_auth_missing",
-                            "message": "no github auth token, please input your token first",
-                            "status": 401
-                        })),
+                        payload: Some(canonical_action_error_payload(
+                            "github_issue_create",
+                            "github_issue_auth_missing",
+                            401,
+                            Some("no github auth token, please input your token first"),
+                        )),
                     };
                 }
             };
@@ -1476,12 +1635,12 @@ fn run_action(root: &Path, action: &str, payload: &Value) -> LaneResult {
                             ok: false,
                             status: 502,
                             argv: vec!["dashboard.github.issue.create".to_string()],
-                            payload: Some(json!({
-                                "ok": false,
-                                "type": "github_issue_create",
-                                "error": "github_issue_transport_error",
-                                "status": 502
-                            })),
+                            payload: Some(canonical_action_error_payload(
+                                "github_issue_create",
+                                "github_issue_transport_error",
+                                502,
+                                None,
+                            )),
                         }
                     }
                 }
@@ -1491,24 +1650,24 @@ fn run_action(root: &Path, action: &str, payload: &Value) -> LaneResult {
                         ok: false,
                         status: status as i32,
                         argv: vec!["dashboard.github.issue.create".to_string()],
-                        payload: Some(json!({
-                            "ok": false,
-                            "type": "github_issue_create",
-                            "error": code,
-                            "status": status
-                        })),
+                        payload: Some(canonical_action_error_payload(
+                            "github_issue_create",
+                            code,
+                            status as i32,
+                            None,
+                        )),
                     }
                 }
                 Err((error, status)) => LaneResult {
                     ok: false,
                     status: status as i32,
                     argv: vec!["dashboard.github.issue.create".to_string()],
-                    payload: Some(json!({
-                        "ok": false,
-                        "type": "github_issue_create",
-                        "error": error,
-                        "status": status
-                    })),
+                    payload: Some(canonical_action_error_payload(
+                        "github_issue_create",
+                        &error,
+                        status as i32,
+                        None,
+                    )),
                 },
             }
         }
