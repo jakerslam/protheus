@@ -1103,75 +1103,37 @@ fn finalize_message_finalization_and_payload(
         .pointer("/tool_gate/should_call_tools")
         .and_then(Value::as_bool)
         .unwrap_or(false);
-    let direct_answer_rate = response_workflow
-        .pointer("/quality_telemetry/direct_answer_rate")
-        .and_then(Value::as_f64)
-        .or_else(|| {
-            response_workflow
-                .pointer("/quality_telemetry/direct_answer_rate")
-                .and_then(Value::as_u64)
-                .map(|value| value as f64)
-        })
-        .unwrap_or(0.0);
-    let retry_rate = response_workflow
-        .pointer("/quality_telemetry/retry_rate")
-        .and_then(Value::as_f64)
-        .or_else(|| {
-            response_workflow
-                .pointer("/quality_telemetry/retry_rate")
-                .and_then(Value::as_u64)
-                .map(|value| value as f64)
-        })
-        .unwrap_or(0.0);
-    let off_topic_reject_rate = response_workflow
-        .pointer("/quality_telemetry/off_topic_reject_rate")
-        .and_then(Value::as_f64)
-        .or_else(|| {
-            response_workflow
-                .pointer("/quality_telemetry/off_topic_reject_rate")
-                .and_then(Value::as_u64)
-                .map(|value| value as f64)
-        })
-        .unwrap_or(0.0);
+    let direct_answer_rate =
+        response_workflow_quality_rate(&response_workflow, "direct_answer_rate");
+    let retry_rate = response_workflow_quality_rate(&response_workflow, "retry_rate");
+    let off_topic_reject_rate =
+        response_workflow_quality_rate(&response_workflow, "off_topic_reject_rate");
     let tool_overcall_rate = if !tool_gate_should_call_tools && tooling_attempted {
         1.0
     } else {
         0.0
     };
     response_workflow["quality_telemetry"]["final_fallback_used"] = Value::Bool(final_fallback_used);
-    let off_topic_reject = response_workflow
-        .pointer("/quality_telemetry/off_topic_reject")
-        .and_then(Value::as_u64)
-        .unwrap_or(0);
-    let deferred_reply_reject = response_workflow
-        .pointer("/quality_telemetry/deferred_reply_reject")
-        .and_then(Value::as_u64)
-        .unwrap_or(0);
-    let alignment_reject = response_workflow
-        .pointer("/quality_telemetry/alignment_reject")
-        .and_then(Value::as_u64)
-        .unwrap_or(0);
-    let meta_control_tool_block = response_workflow
-        .pointer("/quality_telemetry/meta_control_tool_block")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
+    let off_topic_reject = response_workflow_quality_count(&response_workflow, "off_topic_reject");
+    let deferred_reply_reject =
+        response_workflow_quality_count(&response_workflow, "deferred_reply_reject");
+    let alignment_reject = response_workflow_quality_count(&response_workflow, "alignment_reject");
+    let prompt_echo_reject =
+        response_workflow_quality_count(&response_workflow, "prompt_echo_reject");
+    let unsourced_claim_reject =
+        response_workflow_quality_count(&response_workflow, "unsourced_claim_reject");
+    let direct_answer_reject =
+        response_workflow_quality_count(&response_workflow, "direct_answer_reject");
+    let meta_control_tool_block =
+        response_workflow_quality_flag(&response_workflow, "meta_control_tool_block");
     let final_ack_only = response_looks_like_tool_ack_without_findings(&response_text);
     let response_quality_telemetry = json!({
         "off_topic_reject": off_topic_reject,
         "deferred_reply_reject": deferred_reply_reject,
         "alignment_reject": alignment_reject,
-        "prompt_echo_reject": response_workflow
-            .pointer("/quality_telemetry/prompt_echo_reject")
-            .and_then(Value::as_u64)
-            .unwrap_or(0),
-        "unsourced_claim_reject": response_workflow
-            .pointer("/quality_telemetry/unsourced_claim_reject")
-            .and_then(Value::as_u64)
-            .unwrap_or(0),
-        "direct_answer_reject": response_workflow
-            .pointer("/quality_telemetry/direct_answer_reject")
-            .and_then(Value::as_u64)
-            .unwrap_or(0),
+        "prompt_echo_reject": prompt_echo_reject,
+        "unsourced_claim_reject": unsourced_claim_reject,
+        "direct_answer_reject": direct_answer_reject,
         "meta_control_tool_block": meta_control_tool_block,
         "final_fallback_used": final_fallback_used,
         "tooling_contract_repair_used": tooling_invariant_repair_used,
