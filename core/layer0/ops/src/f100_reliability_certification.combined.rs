@@ -48,7 +48,7 @@ fn usage() {
 }
 
 fn print_json_line(value: &Value) {
-    lane_utils::print_json_line(value);
+    crate::contract_lane_utils::print_json_line(value);
 }
 
 fn bool_flag(raw: Option<&String>, fallback: bool) -> bool {

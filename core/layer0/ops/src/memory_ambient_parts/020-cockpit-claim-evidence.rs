@@ -354,42 +354,7 @@ fn resolve_memory_command(root: &PathBuf) -> (String, Vec<String>) {
 }
 
 fn resolve_protheus_ops_command(root: &PathBuf, domain: &str) -> (String, Vec<String>) {
-    let explicit = std::env::var("PROTHEUS_OPS_BIN").ok();
-    if let Some(bin) = explicit {
-        let trimmed = bin.trim();
-        if !trimmed.is_empty() {
-            return (trimmed.to_string(), vec![domain.to_string()]);
-        }
-    }
-
-    let release = root.join("target").join("release").join("protheus-ops");
-    if release.exists() {
-        return (
-            release.to_string_lossy().to_string(),
-            vec![domain.to_string()],
-        );
-    }
-    let debug = root.join("target").join("debug").join("protheus-ops");
-    if debug.exists() {
-        return (
-            debug.to_string_lossy().to_string(),
-            vec![domain.to_string()],
-        );
-    }
-
-    (
-        "cargo".to_string(),
-        vec![
-            "run".to_string(),
-            "--quiet".to_string(),
-            "--manifest-path".to_string(),
-            "core/layer0/ops/Cargo.toml".to_string(),
-            "--bin".to_string(),
-            "protheus-ops".to_string(),
-            "--".to_string(),
-            domain.to_string(),
-        ],
-    )
+    crate::contract_lane_utils::resolve_protheus_ops_command(root.as_path(), domain)
 }
 
 fn is_allowed_memory_command(command: &str) -> bool {

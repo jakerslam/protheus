@@ -17,7 +17,7 @@ fn usage() {
 }
 
 fn clean_text(raw: Option<&str>, max_len: usize) -> String {
-    lane_utils::clean_text(raw, max_len)
+    crate::contract_lane_utils::clean_text(raw, max_len)
 }
 
 fn sha16(value: &str) -> String {

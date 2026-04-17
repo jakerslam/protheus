@@ -45,39 +45,15 @@ fn usage() {
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {
-    let ts = now_iso();
-    let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(true);
-    let mut out = json!({
-        "ok": ok,
-        "type": kind,
-        "ts": ts,
-        "date": ts[..10].to_string(),
-        "payload": payload,
-    });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
-    out
+    crate::contract_lane_utils::cli_receipt(kind, payload)
 }
 
 fn cli_error(kind: &str, error: &str) -> Value {
-    let ts = now_iso();
-    let mut out = json!({
-        "ok": false,
-        "type": kind,
-        "ts": ts,
-        "date": ts[..10].to_string(),
-        "error": error,
-        "fail_closed": true,
-    });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
-    out
+    crate::contract_lane_utils::cli_error(kind, error)
 }
 
 fn print_json_line(value: &Value) {
-    println!(
-        "{}",
-        serde_json::to_string(value)
-            .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
-    );
+    crate::contract_lane_utils::print_json_line(value);
 }
 
 fn payload_json(argv: &[String]) -> Result<Value, String> {

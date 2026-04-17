@@ -36,11 +36,7 @@ fn usage() {
 }
 
 fn print_json_line(value: &Value) {
-    println!(
-        "{}",
-        serde_json::to_string(value)
-            .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
-    );
+    crate::contract_lane_utils::print_json_line(value);
 }
 
 fn receipt_hash(v: &Value) -> String {
@@ -60,7 +56,7 @@ fn clean_id(raw: Option<&str>, fallback: &str) -> String {
 }
 
 fn clean_text(raw: Option<&str>, max_len: usize) -> String {
-    lane_utils::clean_text(raw, max_len)
+    crate::contract_lane_utils::clean_text(raw, max_len)
 }
 
 fn parse_csv(raw: Option<&str>, max_items: usize) -> Vec<String> {

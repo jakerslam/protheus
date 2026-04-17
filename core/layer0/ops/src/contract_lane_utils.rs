@@ -4,7 +4,7 @@
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::Engine;
 use serde_json::{json, Map, Value};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -12,6 +12,37 @@ use std::process::{Command, Stdio};
 use std::sync::OnceLock;
 
 use crate::{deterministic_receipt_hash, now_iso};
+
+fn now_millis() -> u128 {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|row| row.as_millis())
+        .unwrap_or(0)
+}
+
+fn to_base36(mut value: u128) -> String {
+    if value == 0 {
+        return "0".to_string();
+    }
+    let mut out = Vec::new();
+    while value > 0 {
+        let digit = (value % 36) as u8;
+        out.push(if digit < 10 {
+            (b'0' + digit) as char
+        } else {
+            (b'a' + (digit - 10)) as char
+        });
+        value /= 36;
+    }
+    out.iter().rev().collect()
+}
+
+pub fn stable_id(prefix: &str, basis: &Value) -> String {
+    let digest = deterministic_receipt_hash(basis);
+    format!("{prefix}_{}_{}", to_base36(now_millis()), &digest[..12])
+}
+
 pub fn parse_flag(argv: &[String], key: &str, allow_switch_true: bool) -> Option<String> {
     let with_eq = format!("--{key}=");
     let plain = format!("--{key}");
@@ -35,6 +66,33 @@ pub fn parse_flag(argv: &[String], key: &str, allow_switch_true: bool) -> Option
         i += 1;
     }
     None
+}
+pub fn parse_cli_flags(argv: &[String]) -> BTreeMap<String, String> {
+    let mut out = BTreeMap::new();
+    let mut i = 0usize;
+    while i < argv.len() {
+        let token = argv[i].trim();
+        if !token.starts_with("--") {
+            i += 1;
+            continue;
+        }
+        if let Some((k, v)) = token.split_once('=') {
+            out.insert(k.trim_start_matches("--").to_string(), v.to_string());
+            i += 1;
+            continue;
+        }
+        let key = token.trim_start_matches("--").to_string();
+        if let Some(next) = argv.get(i + 1) {
+            if !next.starts_with("--") {
+                out.insert(key, next.clone());
+                i += 2;
+                continue;
+            }
+        }
+        out.insert(key, "true".to_string());
+        i += 1;
+    }
+    out
 }
 pub fn parse_bool(raw: Option<&str>, fallback: bool) -> bool {
     let Some(v) = raw else {
@@ -183,6 +241,44 @@ pub fn resolve_preferred_node_binary() -> String {
         }
     }
     "node".to_string()
+}
+pub fn resolve_protheus_ops_command(root: &Path, domain: &str) -> (String, Vec<String>) {
+    let explicit = env::var("PROTHEUS_OPS_BIN").ok();
+    if let Some(bin) = explicit {
+        let trimmed = bin.trim();
+        if !trimmed.is_empty() {
+            return (trimmed.to_string(), vec![domain.to_string()]);
+        }
+    }
+
+    let release = root.join("target").join("release").join("protheus-ops");
+    if release.exists() {
+        return (
+            release.to_string_lossy().to_string(),
+            vec![domain.to_string()],
+        );
+    }
+    let debug = root.join("target").join("debug").join("protheus-ops");
+    if debug.exists() {
+        return (
+            debug.to_string_lossy().to_string(),
+            vec![domain.to_string()],
+        );
+    }
+
+    (
+        "cargo".to_string(),
+        vec![
+            "run".to_string(),
+            "--quiet".to_string(),
+            "--manifest-path".to_string(),
+            "core/layer0/ops/Cargo.toml".to_string(),
+            "--bin".to_string(),
+            "protheus-ops".to_string(),
+            "--".to_string(),
+            domain.to_string(),
+        ],
+    )
 }
 pub fn clean_token(raw: Option<&str>, fallback: &str) -> String {
     let mut out = String::new();
@@ -345,6 +441,21 @@ pub fn json_string_list(raw: Option<&Value>) -> Vec<String> {
         .filter(|value| !value.is_empty())
         .collect()
 }
+pub fn find_swarm_session_id_by_task(state: &Value, task: &str) -> Option<String> {
+    state
+        .get("sessions")
+        .and_then(Value::as_object)
+        .and_then(|rows| {
+            rows.iter().find_map(|(session_id, row)| {
+                let row_task = row.get("task").and_then(Value::as_str);
+                let report_task = row
+                    .get("report")
+                    .and_then(|value| value.get("task"))
+                    .and_then(Value::as_str);
+                (row_task == Some(task) || report_task == Some(task)).then(|| session_id.clone())
+            })
+        })
+}
 pub fn string_set(raw: Option<&Value>) -> Vec<String> {
     let mut out = BTreeSet::new();
     if let Some(items) = raw.and_then(Value::as_array) {
@@ -362,6 +473,33 @@ pub fn bridge_surface_prefix_allowed(path: &str) -> bool {
         .iter()
         .any(|prefix| path.starts_with(prefix))
 }
+
+pub fn prefix_allowed(path: &str, prefixes: &[&str]) -> bool {
+    prefixes.iter().any(|prefix| path.starts_with(prefix))
+}
+
+pub fn normalize_prefixed_path(
+    root: &Path,
+    raw: &str,
+    required_error: &str,
+    parent_reference_error: &str,
+    unsupported_error: &str,
+    prefixes: &[&str],
+) -> Result<String, String> {
+    let candidate = raw.trim();
+    if candidate.is_empty() {
+        return Err(required_error.to_string());
+    }
+    if candidate.contains("..") {
+        return Err(parent_reference_error.to_string());
+    }
+    let rel = rel_path(root, &repo_path(root, candidate));
+    if !prefix_allowed(&rel, prefixes) {
+        return Err(unsupported_error.to_string());
+    }
+    Ok(rel)
+}
+
 pub fn normalize_bridge_path(root: &Path, raw: &str) -> Result<String, String> {
     let candidate = raw.trim();
     if candidate.is_empty() {
@@ -423,34 +561,6 @@ pub fn rel_path(root: &Path, path: &Path) -> String {
         .map(|p| p.to_string_lossy().replace('\\', "/"))
         .unwrap_or_else(|| path.to_string_lossy().replace('\\', "/"))
 }
-fn now_millis() -> u128 {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|row| row.as_millis())
-        .unwrap_or(0)
-}
-fn to_base36(mut value: u128) -> String {
-    if value == 0 {
-        return "0".to_string();
-    }
-    let mut out = Vec::new();
-    while value > 0 {
-        let digit = (value % 36) as u8;
-        out.push(if digit < 10 {
-            (b'0' + digit) as char
-        } else {
-            (b'a' + digit - 10) as char
-        });
-        value /= 36;
-    }
-    out.iter().rev().collect()
-}
-pub fn stable_id(prefix: &str, basis: &Value) -> String {
-    let digest = deterministic_receipt_hash(basis);
-    format!("{prefix}_{}_{}", to_base36(now_millis()), &digest[..12])
-}
-
 fn is_invisible_unicode(ch: char) -> bool {
     let code = ch as u32;
     matches!(
@@ -463,13 +573,14 @@ fn is_invisible_unicode(ch: char) -> bool {
             | 0xE0000..=0xE007F
     )
 }
+pub fn strip_invisible_unicode(raw: &str) -> String {
+    raw.chars().filter(|ch| !is_invisible_unicode(*ch)).collect()
+}
 
 pub fn sanitize_web_tooling_query(raw: &str) -> String {
-    let mut out = String::with_capacity(raw.len());
-    for ch in raw.chars() {
-        if is_invisible_unicode(ch) {
-            continue;
-        }
+    let cleaned = strip_invisible_unicode(raw);
+    let mut out = String::with_capacity(cleaned.len());
+    for ch in cleaned.chars() {
         let control = ch.is_control() && ch != '\n' && ch != '\t';
         if control {
             continue;
@@ -512,6 +623,40 @@ pub fn canonicalize_web_tooling_query(query: &str, domain_hint: Option<&str>) ->
         return format!("site:{domain} {sanitized}");
     }
     sanitized
+}
+pub fn classify_curl_transport_error(stderr: &str) -> String {
+    let lower = stderr.to_ascii_lowercase();
+    if lower.contains("could not resolve host")
+        || lower.contains("name or service not known")
+        || lower.contains("temporary failure in name resolution")
+    {
+        return "dns_unreachable".to_string();
+    }
+    if lower.contains("connection refused") {
+        return "connection_refused".to_string();
+    }
+    if lower.contains("operation timed out")
+        || lower.contains("connection timed out")
+        || lower.contains("timed out")
+    {
+        return "timeout".to_string();
+    }
+    if lower.contains("ssl") || lower.contains("tls") || lower.contains("certificate") {
+        return "tls_error".to_string();
+    }
+    "collector_error".to_string()
+}
+pub fn http_status_to_code(status: u64) -> &'static str {
+    match status {
+        401 => "auth_unauthorized",
+        403 => "auth_forbidden",
+        404 => "http_404",
+        408 => "timeout",
+        429 => "rate_limited",
+        500..=u64::MAX => "http_5xx",
+        400..=499 => "http_4xx",
+        _ => "http_error",
+    }
 }
 
 pub fn web_tooling_auth_sources_from_env(env: &std::collections::HashMap<String, String>) -> Vec<String> {

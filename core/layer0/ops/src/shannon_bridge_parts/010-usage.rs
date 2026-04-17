@@ -1,13 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // Layer ownership: core/layer0/ops (authoritative)
 
-use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
-use base64::Engine;
 use serde_json::{json, Map, Value};
 use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
 
 use crate::contract_lane_utils as lane_utils;
 use crate::{deterministic_receipt_hash, now_iso};
@@ -39,72 +36,27 @@ fn usage() {
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {
-    let ts = now_iso();
-    let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(true);
-    let mut out = json!({
-        "ok": ok,
-        "type": kind,
-        "ts": ts,
-        "date": ts[..10].to_string(),
-        "payload": payload,
-    });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
-    out
+    crate::contract_lane_utils::cli_receipt(kind, payload)
 }
 
 fn cli_error(kind: &str, error: &str) -> Value {
-    let ts = now_iso();
-    let mut out = json!({
-        "ok": false,
-        "type": kind,
-        "ts": ts,
-        "date": ts[..10].to_string(),
-        "error": error,
-        "fail_closed": true,
-    });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
-    out
+    crate::contract_lane_utils::cli_error(kind, error)
 }
 
 fn print_json_line(value: &Value) {
-    println!(
-        "{}",
-        serde_json::to_string(value)
-            .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
-    );
+    crate::contract_lane_utils::print_json_line(value);
 }
 
 fn payload_json(argv: &[String]) -> Result<Value, String> {
-    if let Some(raw) = lane_utils::parse_flag(argv, "payload", false) {
-        return serde_json::from_str::<Value>(&raw)
-            .map_err(|err| format!("shannon_bridge_payload_decode_failed:{err}"));
-    }
-    if let Some(raw_b64) = lane_utils::parse_flag(argv, "payload-base64", false) {
-        let bytes = BASE64_STANDARD
-            .decode(raw_b64.as_bytes())
-            .map_err(|err| format!("shannon_bridge_payload_base64_decode_failed:{err}"))?;
-        let text = String::from_utf8(bytes)
-            .map_err(|err| format!("shannon_bridge_payload_utf8_decode_failed:{err}"))?;
-        return serde_json::from_str::<Value>(&text)
-            .map_err(|err| format!("shannon_bridge_payload_decode_failed:{err}"));
-    }
-    Ok(json!({}))
+    lane_utils::payload_json(argv, "shannon_bridge")
 }
 
 fn payload_obj<'a>(value: &'a Value) -> &'a Map<String, Value> {
-    value.as_object().unwrap_or_else(|| {
-        static EMPTY: OnceLock<Map<String, Value>> = OnceLock::new();
-        EMPTY.get_or_init(Map::new)
-    })
+    lane_utils::payload_obj(value)
 }
 
 fn repo_path(root: &Path, rel: &str) -> PathBuf {
-    let candidate = PathBuf::from(rel.trim());
-    if candidate.is_absolute() {
-        candidate
-    } else {
-        root.join(candidate)
-    }
+    lane_utils::repo_path(root, rel)
 }
 
 fn rel(root: &Path, path: &Path) -> String {
@@ -119,15 +71,7 @@ fn path_flag(
     payload_key: &str,
     default_rel: &str,
 ) -> PathBuf {
-    lane_utils::parse_flag(argv, flag, false)
-        .or_else(|| {
-            payload
-                .get(payload_key)
-                .and_then(Value::as_str)
-                .map(ToString::to_string)
-        })
-        .map(|raw| repo_path(root, &raw))
-        .unwrap_or_else(|| root.join(default_rel))
+    lane_utils::path_flag(root, argv, payload, flag, payload_key, default_rel)
 }
 
 fn state_path(root: &Path, argv: &[String], payload: &Map<String, Value>) -> PathBuf {
@@ -287,57 +231,20 @@ fn as_object_mut<'a>(value: &'a mut Value, key: &str) -> &'a mut Map<String, Val
         .expect("object")
 }
 
-fn now_millis() -> u128 {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_millis())
-        .unwrap_or(0)
-}
-
-fn to_base36(mut value: u128) -> String {
-    if value == 0 {
-        return "0".to_string();
-    }
-    let mut out = Vec::new();
-    while value > 0 {
-        let digit = (value % 36) as u8;
-        out.push(if digit < 10 {
-            (b'0' + digit) as char
-        } else {
-            (b'a' + digit - 10) as char
-        });
-        value /= 36;
-    }
-    out.iter().rev().collect()
-}
-
 fn stable_id(prefix: &str, basis: &Value) -> String {
-    let digest = deterministic_receipt_hash(basis);
-    format!("{prefix}_{}_{}", to_base36(now_millis()), &digest[..12])
+    lane_utils::stable_id(prefix, basis)
 }
 
 fn clean_text(raw: Option<&str>, max_len: usize) -> String {
-    lane_utils::clean_text(raw, max_len)
-}
-fn clean_token(raw: Option<&str>, fallback: &str) -> String {
-    lane_utils::clean_token(raw, fallback)
-}
-fn profile(raw: Option<&Value>) -> String {
-    clean_token(raw.and_then(Value::as_str), "rich")
-}
-fn claim(id: &str, claim: &str) -> Value {
-    json!([{"id": id, "claim": claim}])
+    crate::contract_lane_utils::clean_text(raw, max_len)
 }
 
 fn parse_u64(raw: Option<&Value>, fallback: u64, min: u64, max: u64) -> u64 {
-    raw.and_then(Value::as_u64)
-        .unwrap_or(fallback)
-        .clamp(min, max)
+    lane_utils::json_u64(raw, fallback, min, max)
 }
 
 fn parse_bool(raw: Option<&Value>, fallback: bool) -> bool {
-    raw.and_then(Value::as_bool).unwrap_or(fallback)
+    lane_utils::json_bool(raw, fallback)
 }
 
 fn normalize_surface_path(
@@ -407,4 +314,3 @@ fn record_pattern(state: &mut Value, payload: &Map<String, Value>) -> Result<Val
         "claim_evidence": claim("V6-WORKFLOW-001.1", "shannon_orchestration_patterns_register_on_governed_workflow_and_swarm_lanes")
     }))
 }
-

@@ -51,6 +51,41 @@ const ISLAND_SPECS = [
     fallbackTag: 'infring-chat-map-shell',
     filename: 'chat_map_shell.svelte',
   },
+  {
+    id: 'agent_details_shell',
+    sourcePath: 'client/runtime/systems/ui/infring_static/js/svelte/agent_details_shell_svelte_source.ts',
+    bundlePath: 'client/runtime/systems/ui/infring_static/js/svelte/agent_details_shell.bundle.ts',
+    fallbackTag: 'infring-agent-details-shell',
+    filename: 'agent_details_shell.svelte',
+  },
+  {
+    id: 'tool_card_stack_shell',
+    sourcePath: 'client/runtime/systems/ui/infring_static/js/svelte/tool_card_stack_shell_svelte_source.ts',
+    bundlePath: 'client/runtime/systems/ui/infring_static/js/svelte/tool_card_stack_shell.bundle.ts',
+    fallbackTag: 'infring-tool-card-stack-shell',
+    filename: 'tool_card_stack_shell.svelte',
+  },
+  {
+    id: 'composer_lane_shell',
+    sourcePath: 'client/runtime/systems/ui/infring_static/js/svelte/composer_lane_shell_svelte_source.ts',
+    bundlePath: 'client/runtime/systems/ui/infring_static/js/svelte/composer_lane_shell.bundle.ts',
+    fallbackTag: 'infring-composer-lane-shell',
+    filename: 'composer_lane_shell.svelte',
+  },
+  {
+    id: 'taskbar_dropdown_cluster_shell',
+    sourcePath: 'client/runtime/systems/ui/infring_static/js/svelte/taskbar_dropdown_cluster_shell_svelte_source.ts',
+    bundlePath: 'client/runtime/systems/ui/infring_static/js/svelte/taskbar_dropdown_cluster_shell.bundle.ts',
+    fallbackTag: 'infring-taskbar-dropdown-cluster-shell',
+    filename: 'taskbar_dropdown_cluster_shell.svelte',
+  },
+  {
+    id: 'workspace_panel_shell',
+    sourcePath: 'client/runtime/systems/ui/infring_static/js/svelte/workspace_panel_shell_svelte_source.ts',
+    bundlePath: 'client/runtime/systems/ui/infring_static/js/svelte/workspace_panel_shell.bundle.ts',
+    fallbackTag: 'infring-workspace-panel-shell',
+    filename: 'workspace_panel_shell.svelte',
+  },
 ];
 
 function repoRoot(startDir = __dirname) {

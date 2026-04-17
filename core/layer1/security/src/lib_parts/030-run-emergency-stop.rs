@@ -109,8 +109,8 @@ pub fn run_emergency_stop(repo_root: &Path, argv: &[String]) -> (Value, i32) {
                     json!({
                         "ok": false,
                         "type": "emergency_stop_engage",
-                        "error": clean(err, 220),
-                        "execution_receipt": execution_receipt("error", "persist_engage_state", Some(err))
+                        "error": clean(&err, 220),
+                        "execution_receipt": execution_receipt("error", "persist_engage_state", Some(&err))
                     }),
                     1,
                 );
@@ -168,8 +168,8 @@ pub fn run_emergency_stop(repo_root: &Path, argv: &[String]) -> (Value, i32) {
                     json!({
                         "ok": false,
                         "type": "emergency_stop_release",
-                        "error": clean(err, 220),
-                        "execution_receipt": execution_receipt("error", "persist_release_state", Some(err))
+                        "error": clean(&err, 220),
+                        "execution_receipt": execution_receipt("error", "persist_release_state", Some(&err))
                     }),
                     1,
                 );
