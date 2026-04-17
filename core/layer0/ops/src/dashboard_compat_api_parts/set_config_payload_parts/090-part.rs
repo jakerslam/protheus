@@ -17,6 +17,36 @@ fn merge_response_outcomes(primary: &str, secondary: &str, max_len: usize) -> St
     clean_text(&format!("{left}+{right}"), max_len.max(1))
 }
 
+fn response_workflow_quality_value<'a>(workflow: &'a Value, key: &str) -> Option<&'a Value> {
+    workflow
+        .get("quality_telemetry")
+        .and_then(Value::as_object)
+        .and_then(|telemetry| telemetry.get(key))
+}
+
+fn response_workflow_quality_rate(workflow: &Value, key: &str) -> f64 {
+    match response_workflow_quality_value(workflow, key) {
+        Some(Value::Number(number)) => number
+            .as_f64()
+            .or_else(|| number.as_u64().map(|value| value as f64))
+            .unwrap_or(0.0),
+        _ => 0.0,
+    }
+}
+
+fn response_workflow_quality_count(workflow: &Value, key: &str) -> u64 {
+    match response_workflow_quality_value(workflow, key) {
+        Some(Value::Number(number)) => number.as_u64().unwrap_or(0),
+        _ => 0,
+    }
+}
+
+fn response_workflow_quality_flag(workflow: &Value, key: &str) -> bool {
+    response_workflow_quality_value(workflow, key)
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+}
+
 fn claim_source_tags_for_report(response_tools: &[Value], max_items: usize) -> Vec<String> {
     let mut tags = Vec::<String>::new();
     let mut seen = HashSet::<String>::new();
