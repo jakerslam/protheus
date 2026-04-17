@@ -1,44 +1,145 @@
+#[derive(Clone, Copy)]
+struct WorkflowDefinition {
+    name: &'static str,
+    workflow_type: &'static str,
+    default_workflow: bool,
+    description: &'static str,
+    stages: &'static [&'static str],
+    final_response_policy: &'static str,
+    gate_contract: &'static str,
+}
+
+const COMPLEX_PROMPT_CHAIN_V1_STAGES: &[&str] = &[
+    "gate_1_route_classification",
+    "gate_2_info_or_task_analysis",
+    "gate_3_minimal_tool_selection",
+    "gate_4_execute_and_wait_if_needed",
+    "gate_5_result_collection_and_synthesis",
+    "gate_6_previous_turn_coherence_check",
+    "gate_7_final_output_or_grounded_failure",
+];
+
+const SIMPLE_CONVERSATION_V1_STAGES: &[&str] = &[
+    "gate_1_route_classification",
+    "gate_2_info_analysis",
+    "gate_7_final_output_or_grounded_failure",
+];
+
+const WORKFLOW_LIBRARY: &[WorkflowDefinition] = &[
+    WorkflowDefinition {
+        name: "complex_prompt_chain_v1",
+        workflow_type: "hard_agent_workflow",
+        default_workflow: true,
+        description: "Default workflow with deterministic gate checks: classify info vs task, decide whether tool calls are truly needed, execute only selected tools, synthesize evidence, and run coherence validation before final output.",
+        stages: COMPLEX_PROMPT_CHAIN_V1_STAGES,
+        final_response_policy: "llm_authored_when_online",
+        gate_contract: "workflow_gate_v2",
+    },
+    WorkflowDefinition {
+        name: "simple_conversation_v1",
+        workflow_type: "hard_agent_workflow",
+        default_workflow: false,
+        description: "Reserved lightweight workflow slot for direct conversation. It still passes through workflow gate checks so turn control remains centralized.",
+        stages: SIMPLE_CONVERSATION_V1_STAGES,
+        final_response_policy: "llm_authored_when_online",
+        gate_contract: "workflow_gate_v1",
+    },
+];
+
+fn workflow_definition_to_json(definition: WorkflowDefinition) -> Value {
+    json!({
+        "name": definition.name,
+        "workflow_type": definition.workflow_type,
+        "default": definition.default_workflow,
+        "description": definition.description,
+        "stages": definition.stages,
+        "final_response_policy": definition.final_response_policy,
+        "gate_contract": definition.gate_contract
+    })
+}
+
+fn workflow_definition_by_name(name: &str) -> Option<WorkflowDefinition> {
+    let cleaned = clean_text(name, 80);
+    if cleaned.is_empty() {
+        return None;
+    }
+    WORKFLOW_LIBRARY
+        .iter()
+        .copied()
+        .find(|row| row.name.eq_ignore_ascii_case(&cleaned))
+}
+
+fn default_workflow_definition() -> WorkflowDefinition {
+    WORKFLOW_LIBRARY
+        .iter()
+        .copied()
+        .find(|row| row.default_workflow)
+        .unwrap_or(WORKFLOW_LIBRARY[0])
+}
+
 fn turn_workflow_library_catalog() -> Vec<Value> {
-    vec![
-        json!({
-            "name": "complex_prompt_chain_v1",
-            "workflow_type": "hard_agent_workflow",
-            "default": true,
-            "description": "Model-first workflow: the LLM interprets the user prompt, decides whether tools are needed, the system collects tool and workflow outputs, and the final user-facing reply is LLM-authored when the model is online.",
-            "stages": [
-                "workflow_gate",
-                "initial_model_interpretation",
-                "tool_and_system_collection",
-                "final_llm_response"
-            ],
-            "final_response_policy": "llm_authored_when_online"
-        }),
-        json!({
-            "name": "simple_conversation_v1",
-            "workflow_type": "hard_agent_workflow",
-            "default": false,
-            "description": "Reserved lightweight workflow slot for direct conversation. It still passes through the workflow gate so turn control remains centralized.",
-            "stages": [
-                "workflow_gate",
-                "initial_model_interpretation",
-                "final_llm_response"
-            ],
-            "final_response_policy": "llm_authored_when_online"
-        }),
-    ]
+    WORKFLOW_LIBRARY
+        .iter()
+        .copied()
+        .map(workflow_definition_to_json)
+        .collect::<Vec<_>>()
 }
 
 fn default_turn_workflow_name() -> &'static str {
-    "complex_prompt_chain_v1"
+    default_workflow_definition().name
+}
+
+fn workflow_name_hint_from_mode(workflow_mode: &str) -> String {
+    let cleaned = clean_text(workflow_mode, 120);
+    if cleaned.is_empty() {
+        return String::new();
+    }
+    let lowered = cleaned.to_ascii_lowercase();
+    for marker in ["workflow=", "workflow:", "workflow/"] {
+        if let Some(idx) = lowered.find(marker) {
+            let start = idx + marker.len();
+            if start >= cleaned.len() {
+                continue;
+            }
+            let tail = clean_text(&cleaned[start..], 80);
+            if tail.is_empty() {
+                continue;
+            }
+            let token = tail
+                .split(|ch: char| ch.is_whitespace() || ch == ',' || ch == ';' || ch == '|')
+                .next()
+                .unwrap_or("")
+                .to_string();
+            if !token.is_empty() {
+                return token;
+            }
+        }
+    }
+    String::new()
 }
 
 fn selected_turn_workflow(workflow_mode: &str) -> Value {
+    let hint = workflow_name_hint_from_mode(workflow_mode);
+    let selected = if hint.is_empty() {
+        workflow_definition_by_name(default_turn_workflow_name())
+            .unwrap_or_else(default_workflow_definition)
+    } else {
+        workflow_definition_by_name(&hint).unwrap_or_else(default_workflow_definition)
+    };
+    let selection_reason = if hint.is_empty() {
+        "default_library_workflow".to_string()
+    } else if workflow_definition_by_name(&hint).is_some() {
+        "mode_hint_workflow".to_string()
+    } else {
+        "mode_hint_unknown_fallback_default".to_string()
+    };
     json!({
-        "name": default_turn_workflow_name(),
-        "workflow_type": "hard_agent_workflow",
+        "name": selected.name,
+        "workflow_type": selected.workflow_type,
         "mode": clean_text(workflow_mode, 80),
-        "selection_reason": "default_library_workflow",
-        "final_response_policy": "llm_authored_when_online"
+        "selection_reason": selection_reason,
+        "final_response_policy": selected.final_response_policy,
+        "gate_contract": selected.gate_contract
     })
 }
 
@@ -159,6 +260,76 @@ fn workflow_turn_requires_live_web(message: &str) -> bool {
     )
 }
 
+fn workflow_turn_route_classification(
+    message: &str,
+    requires_file_mutation: bool,
+    requires_local_lookup: bool,
+    requires_live_web: bool,
+) -> &'static str {
+    let lowered = clean_text(message, 1_200).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return "info";
+    }
+    let explicit_task_language = workflow_turn_contains_any(
+        &lowered,
+        &[
+            "implement",
+            "patch",
+            "fix",
+            "build",
+            "create",
+            "add",
+            "delete",
+            "remove",
+            "update",
+            "refactor",
+            "execute",
+            "run",
+            "wire",
+            "integrate",
+        ],
+    ) || lowered.starts_with("tool::")
+        || lowered.starts_with("/file ")
+        || lowered.starts_with("/exec ")
+        || lowered.starts_with("/tool ");
+    if explicit_task_language || requires_file_mutation {
+        return "task";
+    }
+    if requires_local_lookup || requires_live_web {
+        return "info";
+    }
+    "info"
+}
+
+fn workflow_turn_task_decomposition(
+    requires_file_mutation: bool,
+    requires_local_lookup: bool,
+    requires_live_web: bool,
+) -> Vec<&'static str> {
+    if requires_file_mutation {
+        return vec![
+            "confirm mutation target and acceptance goal",
+            "apply minimal file changes for the requested outcome",
+            "summarize what changed and why",
+        ];
+    }
+    if requires_live_web {
+        return vec![
+            "run targeted live-web retrieval for missing facts",
+            "extract actionable findings from tool receipts",
+            "deliver concise source-backed answer",
+        ];
+    }
+    if requires_local_lookup {
+        return vec![
+            "inspect local memory/workspace evidence",
+            "collect only relevant facts for the request",
+            "return grounded answer without unnecessary tooling",
+        ];
+    }
+    vec!["answer directly from present context"]
+}
+
 fn workflow_turn_tool_decision_tree(message: &str) -> Value {
     let meta_control = workflow_turn_is_meta_control_message(message);
     let status_check = if meta_control {
@@ -181,10 +352,19 @@ fn workflow_turn_tool_decision_tree(message: &str) -> Value {
     } else {
         workflow_turn_requires_live_web(message)
     };
-    let has_sufficient_information =
-        meta_control
-            || status_check
-            || (!requires_file_mutation && !requires_local_lookup && !requires_live_web);
+    let route_class = workflow_turn_route_classification(
+        message,
+        requires_file_mutation,
+        requires_local_lookup,
+        requires_live_web,
+    );
+    let has_sufficient_information = if meta_control || status_check {
+        true
+    } else if route_class == "task" {
+        !requires_file_mutation && !requires_local_lookup && !requires_live_web
+    } else {
+        !requires_local_lookup && !requires_live_web
+    };
     let info_source = if requires_live_web {
         "web"
     } else if requires_local_lookup || requires_file_mutation {
@@ -201,10 +381,20 @@ fn workflow_turn_tool_decision_tree(message: &str) -> Value {
     } else {
         "none"
     };
-    let should_call_tools =
-        !has_sufficient_information && (requires_file_mutation || requires_live_web || requires_local_lookup);
+    let should_call_tools = !meta_control
+        && !status_check
+        && !message_explicitly_disallows_tool_calls(message)
+        && !has_sufficient_information
+        && (requires_file_mutation || requires_live_web || requires_local_lookup);
+    let decomposition_steps = workflow_turn_task_decomposition(
+        requires_file_mutation,
+        requires_local_lookup,
+        requires_live_web,
+    );
     json!({
-        "contract": "tool_decision_tree_v1",
+        "contract": "tool_decision_tree_v2",
+        "workflow_gate_contract": "workflow_gate_v2",
+        "route_classification": route_class,
         "requires_file_mutation": requires_file_mutation,
         "requires_local_lookup": requires_local_lookup,
         "requires_live_web": requires_live_web,
@@ -213,7 +403,48 @@ fn workflow_turn_tool_decision_tree(message: &str) -> Value {
         "info_source": info_source,
         "recommended_tool_family": recommended_tool_family,
         "meta_control_message": meta_control,
-        "status_check_message": status_check
+        "status_check_message": status_check,
+        "gates": {
+            "gate_1": {
+                "name": "task_or_info_route",
+                "route": route_class
+            },
+            "gate_2": {
+                "name": "analysis",
+                "analysis_type": if route_class == "task" {
+                    "task_decomposition"
+                } else {
+                    "info_sufficiency"
+                },
+                "task_steps": decomposition_steps,
+                "requires_more_information": !has_sufficient_information
+            },
+            "gate_3": {
+                "name": "tool_selection",
+                "tooling_default": "disabled",
+                "selected_family": recommended_tool_family,
+                "selected_minimal": should_call_tools
+            },
+            "gate_4": {
+                "name": "tool_execution_wait",
+                "wait_for_tools": should_call_tools,
+                "skip_when_no_tools": !should_call_tools
+            },
+            "gate_5": {
+                "name": "result_synthesis",
+                "source_contract": "current_request_plus_recorded_tool_receipts"
+            },
+            "gate_6": {
+                "name": "coherence_check",
+                "recent_messages_window": 2,
+                "retry_limit": 1,
+                "failure_mode": "retry_once_then_grounded_failure"
+            },
+            "gate_7": {
+                "name": "final_output",
+                "output_contract": "final_answer_or_explicit_failure"
+            }
+        }
     })
 }
 
@@ -263,9 +494,10 @@ fn workflow_library_prompt_context(message: &str, latent_tool_candidates: &[Valu
             should_call_tools,
             recommended_tool_family
         ),
-        "Decision tree: (1) If local file manipulation is required, call file tools. (2) If enough information is already available, answer directly without tools. (3) If information is missing, choose local memory/workspace tools for local facts and web tools only for online/current facts.".to_string(),
+        "Decision tree v2: (1) classify route as `task` or `info`; (2) analyze sufficiency/decompose task; (3) select minimal tool family only when required; (4) wait for tool receipts if selected; (5) synthesize from recorded evidence; (6) run coherence check against the latest 2 messages with one retry; (7) return final answer or explicit grounded failure.".to_string(),
+        "Tooling is never default. Do not call web/file/memory tools unless the gate explicitly requires them for this turn.".to_string(),
         "Meta/control turns (for example: `that was just a test`) are direct-answer turns. Do not call web tools for those turns.".to_string(),
-        "Enforcement: if `should_call_tools` is false, do not emit `<function=...>` calls. If true, emit at least one tool call in the recommended family before the final response.".to_string(),
+        "Enforcement: if `should_call_tools` is false, do not emit `<function=...>` calls. If true, emit at least one tool call in the selected minimal family before final synthesis.".to_string(),
     ];
     if !grouped_catalog.is_empty() {
         lines.push("Modular tool catalog by domain:".to_string());

@@ -508,6 +508,104 @@ fn inline_tool_policy_requires_explicit_tooling_request() {
 }
 
 #[test]
+fn workflow_decision_tree_v2_defaults_simple_questions_to_info_without_tools() {
+    let decision = workflow_turn_tool_decision_tree("what do you think about this idea?");
+    assert_eq!(
+        decision.get("contract").and_then(Value::as_str),
+        Some("tool_decision_tree_v2")
+    );
+    assert_eq!(
+        decision.get("route_classification").and_then(Value::as_str),
+        Some("info")
+    );
+    assert_eq!(
+        decision.get("should_call_tools").and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        decision
+            .pointer("/gates/gate_6/retry_limit")
+            .and_then(Value::as_i64),
+        Some(1)
+    );
+}
+
+#[test]
+fn workflow_decision_tree_v2_selects_minimal_web_tools_only_when_needed() {
+    let decision = workflow_turn_tool_decision_tree(
+        "try to web search \"top ai agentic frameworks\" and return the results",
+    );
+    assert_eq!(
+        decision.get("route_classification").and_then(Value::as_str),
+        Some("info")
+    );
+    assert_eq!(
+        decision
+            .get("requires_live_web")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        decision.get("should_call_tools").and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        decision
+            .get("recommended_tool_family")
+            .and_then(Value::as_str),
+        Some("web_tools")
+    );
+}
+
+#[test]
+fn workflow_decision_tree_v2_classifies_file_edits_as_task_route() {
+    let decision = workflow_turn_tool_decision_tree(
+        "patch core/layer0/ops/src/main.rs to fix the gate",
+    );
+    assert_eq!(
+        decision.get("route_classification").and_then(Value::as_str),
+        Some("task")
+    );
+    assert_eq!(
+        decision
+            .get("requires_file_mutation")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        decision.get("should_call_tools").and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        decision
+            .get("recommended_tool_family")
+            .and_then(Value::as_str),
+        Some("file_tools")
+    );
+}
+
+#[test]
+fn workflow_decision_tree_blocks_status_check_turns_from_tool_calls() {
+    let decision = workflow_turn_tool_decision_tree("did you do the web request??");
+    assert_eq!(
+        decision
+            .get("status_check_message")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        decision.get("should_call_tools").and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        decision
+            .get("requires_live_web")
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+}
+
+#[test]
 fn inline_spawn_tool_calls_autoconfirm_without_user_swarm_phrase() {
     let root = governance_temp_root();
     let snapshot = governance_ok_snapshot();
@@ -801,6 +899,56 @@ fn unrelated_dump_detector_flags_role_preamble_prompt_dumps() {
 }
 
 #[test]
+fn unrelated_dump_detector_flags_reddit_goldbach_thread_dump() {
+    let dump = "[Request] Is this even possible? How?\n9k Upvotes\nThere is a mathematical proof that shows that all even numbers >=4 can be expressed as the sum of two primes. This is known as the Goldbach Conjecture.";
+    assert!(response_is_unrelated_context_dump(
+        "try searching for information about the top agentic frameworks for me",
+        dump
+    ));
+}
+
+#[test]
+fn unrelated_dump_detector_flags_dataframe_instruction_template_dump() {
+    let dump = "1. Find the 10 countries with most projects #The information about the countries is contained in the 'countryname' column of the dataframe\ndf_json['countryname'].value_counts().head(10)";
+    assert!(response_is_unrelated_context_dump(
+        "how can we find out if it was an actual tool call error or llm error",
+        dump
+    ));
+}
+
+#[test]
+fn helpfulness_detector_flags_prompt_echo_and_accepts_direct_answer() {
+    assert!(response_prompt_echo_detected(
+        "try searching for top agentic frameworks",
+        "try searching for top agentic frameworks"
+    ));
+    assert!(!response_prompt_echo_detected(
+        "try searching for top agentic frameworks",
+        "Top agentic frameworks today include LangGraph, OpenAI Agents SDK, and AutoGen."
+    ));
+    assert!(response_answers_user_early(
+        "what happened with the web tooling?",
+        "The web tooling call failed because the provider returned low-signal results. We should retry with one narrower query."
+    ));
+}
+
+#[test]
+fn actionable_response_gets_next_actions_line() {
+    let out = append_next_actions_line_if_actionable(
+        "what should we do next to improve web tooling?",
+        "The latest run showed low-signal results from web retrieval.",
+        &[],
+    );
+    assert!(out.contains("Next actions:"), "{out}");
+    let non_actionable = append_next_actions_line_if_actionable(
+        "thanks",
+        "Glad to help.",
+        &[],
+    );
+    assert!(!non_actionable.contains("Next actions:"), "{non_actionable}");
+}
+
+#[test]
 fn low_alignment_detector_flags_long_response_without_previous_message_overlap() {
     let user_message =
         "Well give me some actionable steps cause those were really broad. Give 10 steps";
@@ -977,6 +1125,42 @@ fn finalize_user_facing_response_replaces_ack_with_findings() {
     assert!(!lowered.contains("web search completed"));
     assert!(lowered.contains("here's what i found"));
     assert!(!response_looks_like_tool_ack_without_findings(&finalized));
+}
+
+#[test]
+fn final_answer_contract_reports_claim_sources_from_tool_receipts() {
+    let (finalized, report, _outcome) = enforce_user_facing_finalization_contract(
+        "what happened with the web tooling",
+        "The web run returned low-signal snippets in this turn.".to_string(),
+        &[json!({
+            "name": "batch_query",
+            "status": "no_results",
+            "is_error": true,
+            "result": "low-signal snippets",
+            "tool_attempt_receipt": {"receipt_hash": "abc123"}
+        })],
+    );
+    assert!(!finalized.trim().is_empty());
+    let claim_sources = report
+        .pointer("/final_answer_contract/claim_sources")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|row| row.as_str().map(ToString::to_string))
+        .collect::<Vec<_>>();
+    assert!(
+        claim_sources
+            .iter()
+            .any(|row| row.contains("tool_receipt:abc123")),
+        "{claim_sources:?}"
+    );
+    assert_eq!(
+        report
+            .pointer("/final_answer_contract/no_unsourced_claims")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
 }
 
 #[test]
@@ -1626,6 +1810,13 @@ fn workflow_library_owns_direct_answer_final_response() {
             .and_then(Value::as_bool),
         Some(false)
     );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/response_workflow/selected_workflow/gate_contract")
+            .and_then(Value::as_str),
+        Some("workflow_gate_v2")
+    );
 }
 
 #[test]
@@ -1779,6 +1970,158 @@ fn natural_web_prompt_stays_off_direct_tool_route_when_models_are_available() {
         Some(
             "Based on the fetched results, LangGraph, OpenAI Agents SDK, and AutoGen are the clearest agentic framework hits."
         )
+    );
+}
+
+#[test]
+fn status_check_turn_does_not_trigger_latent_web_retry_from_failed_draft() {
+    let root = governance_temp_root();
+    let snapshot = governance_ok_snapshot();
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"name":"status-check-no-latent-retry-agent","role":"researcher"}"#,
+        &snapshot,
+    )
+    .expect("agent create");
+    let agent_id = clean_agent_id(
+        created
+            .payload
+            .get("agent_id")
+            .or_else(|| created.payload.get("id"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+    );
+    assert!(!agent_id.is_empty());
+    write_json(
+        &governance_test_chat_script_path(root.path()),
+        &json!({
+            "queue": [
+                {
+                    "response": "I attempted that, but web search isn't currently operational because of configuration restrictions and rate limiting."
+                }
+            ],
+            "calls": []
+        }),
+    );
+    write_json(
+        &governance_test_tool_script_path(root.path()),
+        &json!({
+            "queue": [
+                {
+                    "tool": "batch_query",
+                    "payload": {
+                        "ok": true,
+                        "status": "ok",
+                        "summary": "Unexpected latent retry should not run for status checks."
+                    }
+                }
+            ],
+            "calls": []
+        }),
+    );
+    let response = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/message"),
+        br#"{"message":"did you do the web request??"}"#,
+        &snapshot,
+    )
+    .expect("message response");
+    assert_eq!(response.status, 200);
+    let tool_calls = read_json(&governance_test_tool_script_path(root.path()))
+        .and_then(|value| value.get("calls").cloned())
+        .and_then(|value| value.as_array().cloned())
+        .unwrap_or_default();
+    assert!(tool_calls.is_empty(), "{tool_calls:?}");
+    assert!(response
+        .payload
+        .get("tools")
+        .and_then(Value::as_array)
+        .map(|rows| rows.is_empty())
+        .unwrap_or(true));
+}
+
+#[test]
+fn previous_turn_process_summary_is_persisted_and_injected_into_next_prompt() {
+    let root = governance_temp_root();
+    let snapshot = governance_ok_snapshot();
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"name":"process-summary-memory-agent","role":"assistant"}"#,
+        &snapshot,
+    )
+    .expect("agent create");
+    let agent_id = clean_agent_id(
+        created
+            .payload
+            .get("agent_id")
+            .or_else(|| created.payload.get("id"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+    );
+    assert!(!agent_id.is_empty());
+    write_json(
+        &governance_test_chat_script_path(root.path()),
+        &json!({
+            "queue": [
+                {"response": "First turn answer."},
+                {"response": "Second turn answer."}
+            ],
+            "calls": []
+        }),
+    );
+    let first = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/message"),
+        br#"{"message":"Give me a short direct answer."}"#,
+        &snapshot,
+    )
+    .expect("first message response");
+    assert_eq!(first.status, 200);
+    assert_eq!(
+        first.payload
+            .pointer("/process_summary/contract")
+            .and_then(Value::as_str),
+        Some("turn_process_summary_v1")
+    );
+    let second = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/message"),
+        br#"{"message":"Now continue from that."}"#,
+        &snapshot,
+    )
+    .expect("second message response");
+    assert_eq!(second.status, 200);
+    assert_eq!(
+        second
+            .payload
+            .pointer("/process_summary/contract")
+            .and_then(Value::as_str),
+        Some("turn_process_summary_v1")
+    );
+    let chat_calls = read_json(&governance_test_chat_script_path(root.path()))
+        .and_then(|value| value.get("calls").cloned())
+        .and_then(|value| value.as_array().cloned())
+        .unwrap_or_default();
+    assert!(chat_calls.len() >= 2, "{chat_calls:?}");
+    let second_system_prompt = clean_text(
+        chat_calls[1]
+            .get("system_prompt")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        4_000,
+    );
+    assert!(
+        second_system_prompt
+            .to_ascii_lowercase()
+            .contains("previous-turn process summary"),
+        "{second_system_prompt}"
     );
 }
 

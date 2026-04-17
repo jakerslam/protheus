@@ -17,7 +17,31 @@ fn merge_response_outcomes(primary: &str, secondary: &str, max_len: usize) -> St
     clean_text(&format!("{left}+{right}"), max_len.max(1))
 }
 
+fn claim_source_tags_for_report(response_tools: &[Value], max_items: usize) -> Vec<String> {
+    let mut tags = Vec::<String>::new();
+    let mut seen = HashSet::<String>::new();
+    for row in response_tools.iter().take(max_items.clamp(1, 8)) {
+        let receipt = clean_text(
+            row.pointer("/tool_attempt_receipt/receipt_hash")
+                .or_else(|| row.pointer("/tool_attempt_receipt/receipt_id"))
+                .or_else(|| row.pointer("/tool_attempt_receipt/id"))
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            80,
+        );
+        if receipt.is_empty() {
+            continue;
+        }
+        let tag = format!("tool_receipt:{receipt}");
+        if seen.insert(tag.clone()) {
+            tags.push(tag);
+        }
+    }
+    tags
+}
+
 fn enforce_user_facing_finalization_contract(
+    user_message: &str,
     output: String,
     response_tools: &[Value],
 ) -> (String, Value, String) {
@@ -76,6 +100,24 @@ fn enforce_user_facing_finalization_contract(
                 )),
             );
         }
+    }
+    let claim_sources = if response_tools.is_empty() {
+        vec!["local_context".to_string()]
+    } else {
+        claim_source_tags_for_report(response_tools, 4)
+    };
+    let final_answer_contract = json!({
+        "contract": "final_answer_contract_v1",
+        "direct_answer_required": true,
+        "direct_answer_in_first_two_sentences": response_answers_user_early(user_message, &finalized),
+        "no_prompt_echo": !response_prompt_echo_detected(user_message, &finalized),
+        "no_placeholder_copy": !response_is_no_findings_placeholder(&finalized)
+            && !response_looks_like_tool_ack_without_findings(&finalized),
+        "no_unsourced_claims": !claim_sources.is_empty() || response_has_evidence_tags(&finalized),
+        "claim_sources": claim_sources
+    });
+    if let Some(obj) = report.as_object_mut() {
+        obj.insert("final_answer_contract".to_string(), final_answer_contract);
     }
     let contract_outcome = clean_text(report.get("outcome").and_then(Value::as_str).unwrap_or("unchanged"), 200);
     let merged_outcome = merge_response_outcomes(&pre_outcome, &contract_outcome, 220);

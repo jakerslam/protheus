@@ -303,6 +303,70 @@ fn workflow_test_llm_enabled(_root: &Path) -> bool {
     false
 }
 
+fn workflow_response_template_label(message: &str) -> &'static str {
+    let lowered = clean_text(message, 1_200).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return "quick_qa";
+    }
+    if message_is_tooling_status_check(message) || lowered.starts_with("did you") {
+        return "status_check";
+    }
+    if lowered.contains("debug")
+        || lowered.contains("root cause")
+        || lowered.contains("why")
+        || lowered.contains("diagnos")
+    {
+        return "debug_diagnosis";
+    }
+    if message_requests_comparative_answer(message) || lowered.contains("compare") {
+        return "compare";
+    }
+    if lowered.contains("implement")
+        || lowered.contains("patch")
+        || lowered.contains("fix")
+        || lowered.contains("build")
+        || lowered.contains("create")
+        || lowered.contains("wire")
+    {
+        return "implement_request";
+    }
+    "quick_qa"
+}
+
+fn workflow_template_instruction_for_label(label: &str) -> &'static str {
+    match label {
+        "status_check" => {
+            "Template: Start with a direct status line in the first sentence, then explain evidence in 1-3 concise bullets."
+        }
+        "debug_diagnosis" => {
+            "Template: First sentence should state the likely root cause. Then provide the top 1-3 fixes in priority order."
+        }
+        "compare" => {
+            "Template: Give a concise side-by-side comparison with 2-4 bullets and call out practical tradeoffs."
+        }
+        "implement_request" => {
+            "Template: State what was done in sentence one, then summarize impact and any important caveats."
+        }
+        _ => {
+            "Template: Answer directly in plain language first, then add only necessary supporting detail."
+        }
+    }
+}
+
+fn workflow_user_prefers_deep_dive(message: &str) -> bool {
+    let lowered = clean_text(message, 1_000).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    lowered.contains("deep dive")
+        || lowered.contains("in depth")
+        || lowered.contains("in-depth")
+        || lowered.contains("detailed")
+        || lowered.contains("thorough")
+        || lowered.contains("full analysis")
+        || lowered.contains("step by step")
+}
+
 fn run_turn_workflow_final_response(
     root: &Path,
     provider: &str,
@@ -360,10 +424,17 @@ fn run_turn_workflow_final_response(
         .unwrap_or_else(|_| "[]".to_string());
     let workflow_metadata_json =
         serde_json::to_string(&workflow).unwrap_or_else(|_| "{}".to_string());
+    let template_label = workflow_response_template_label(message);
+    let template_instruction = workflow_template_instruction_for_label(template_label);
+    let detail_style = if workflow_user_prefers_deep_dive(message) {
+        "detailed"
+    } else {
+        "concise"
+    };
     let system_prompt = clean_text(
         &format!(
-            "{}\n\nHardcoded agent workflow: you are writing the final assistant response after the system collected tool outcomes and workflow events. Use the recorded evidence. If a tool failed, timed out, was blocked, or returned low-signal output, say that plainly in your own words. Never emit raw telemetry, placeholder copy, inline `<function=...>` markup, or pretend a failed tool succeeded.",
-            AGENT_RUNTIME_SYSTEM_PROMPT
+            "{}\n\nHardcoded agent workflow: you are writing the final assistant response after the system collected tool outcomes and workflow events. Use the recorded evidence. If a tool failed, timed out, was blocked, or returned low-signal output, say that plainly in your own words. Never emit raw telemetry, placeholder copy, inline `<function=...>` markup, or pretend a failed tool succeeded.\n\nFinal-answer contract (final_answer_contract_v1): (1) answer the user's request in the first 1-2 sentences, (2) do not echo/restate the user prompt as your response, (3) do not include placeholder copy, (4) include source tags for key claims using `[source:local_context]` or `[source:tool_receipt:<id>]`.\n\nResponse template class: {}. {} Style: {} by default unless user requested a deep dive.",
+            AGENT_RUNTIME_SYSTEM_PROMPT, template_label, template_instruction, detail_style
         ),
         12_000,
     );
@@ -378,10 +449,11 @@ fn run_turn_workflow_final_response(
         ),
         20_000,
     );
+    let coherence_window_messages = 2usize;
     let recent_context = active_messages
         .iter()
         .rev()
-        .take(7)
+        .take(coherence_window_messages)
         .filter_map(|row| {
             let text = clean_text(
                 row.get("text")
@@ -430,6 +502,9 @@ fn run_turn_workflow_final_response(
         "off_topic_reject": 0,
         "deferred_reply_reject": 0,
         "alignment_reject": 0,
+        "prompt_echo_reject": 0,
+        "unsourced_claim_reject": 0,
+        "direct_answer_reject": 0,
         "meta_control_tool_block": workflow
             .pointer("/tool_gate/meta_control_message")
             .and_then(Value::as_bool)
@@ -439,6 +514,8 @@ fn run_turn_workflow_final_response(
     });
     workflow["final_llm_response"]["attempted"] = Value::Bool(true);
     workflow["final_llm_response"]["max_attempts"] = json!(max_attempts);
+    workflow["final_llm_response"]["coherence_window_messages"] =
+        json!(coherence_window_messages);
     for attempt in 1..=max_attempts {
         workflow["final_llm_response"]["attempt_count"] = json!(attempt);
         let attempt_user_prompt = if attempt > 1 {
@@ -485,6 +562,22 @@ fn run_turn_workflow_final_response(
                     &recent_context,
                     &retried_text,
                 );
+                let prompt_echo_reply = response_prompt_echo_detected(message, &retried_text);
+                let receipt_mapped_sources = response_tools.iter().any(|row| {
+                    !clean_text(
+                        row.pointer("/tool_attempt_receipt/receipt_hash")
+                            .or_else(|| row.pointer("/tool_attempt_receipt/receipt_id"))
+                            .or_else(|| row.pointer("/tool_attempt_receipt/id"))
+                            .and_then(Value::as_str)
+                            .unwrap_or(""),
+                        80,
+                    )
+                    .is_empty()
+                });
+                let missing_evidence_tags = !response_tools.is_empty()
+                    && !receipt_mapped_sources
+                    && !response_has_evidence_tags(&retried_text);
+                let missing_direct_answer = !response_answers_user_early(message, &retried_text);
                 if retried_text.is_empty()
                     || response_is_no_findings_placeholder(&retried_text)
                     || response_looks_like_tool_ack_without_findings(&retried_text)
@@ -493,6 +586,8 @@ fn run_turn_workflow_final_response(
                         && !has_structured_block_evidence)
                     || off_topic_reply
                     || low_alignment_reply
+                    || prompt_echo_reply
+                    || missing_direct_answer
                 {
                     if deferred_reply {
                         bump_workflow_quality_counter(&mut workflow, "deferred_reply_reject");
@@ -503,12 +598,22 @@ fn run_turn_workflow_final_response(
                     if low_alignment_reply {
                         bump_workflow_quality_counter(&mut workflow, "alignment_reject");
                     }
+                    if prompt_echo_reply {
+                        bump_workflow_quality_counter(&mut workflow, "prompt_echo_reject");
+                    }
+                    if missing_direct_answer {
+                        bump_workflow_quality_counter(&mut workflow, "direct_answer_reject");
+                    }
                     last_reject_reason = if deferred_reply {
                         "deferred_reply".to_string()
                     } else if off_topic_reply {
                         "off_topic_reply".to_string()
                     } else if low_alignment_reply {
                         "low_alignment_reply".to_string()
+                    } else if prompt_echo_reply {
+                        "prompt_echo_reply".to_string()
+                    } else if missing_direct_answer {
+                        "missing_direct_answer_reply".to_string()
                     } else if retried_text.is_empty() {
                         "empty_reply".to_string()
                     } else if response_is_no_findings_placeholder(&retried_text) {
@@ -525,6 +630,40 @@ fn run_turn_workflow_final_response(
                 workflow["final_llm_response"]["status"] =
                     Value::String("synthesized".to_string());
                 set_turn_workflow_final_stage_status(&mut workflow, "synthesized");
+                workflow["final_llm_response"]["helpfulness"] = json!({
+                    "direct_answer_in_first_two_sentences": response_answers_user_early(message, &retried_text),
+                    "prompt_echo_detected": response_prompt_echo_detected(message, &retried_text),
+                    "has_evidence_tags": response_has_evidence_tags(&retried_text)
+                        || receipt_mapped_sources
+                        || response_tools.is_empty(),
+                    "missing_evidence_mapping": missing_evidence_tags,
+                    "template_label": template_label,
+                    "detail_style": detail_style
+                });
+                let attempt_count = attempt as f64;
+                let off_topic_reject = workflow
+                    .pointer("/quality_telemetry/off_topic_reject")
+                    .and_then(Value::as_f64)
+                    .unwrap_or(0.0);
+                let direct_answer_rate = if response_answers_user_early(message, &retried_text) {
+                    1.0
+                } else {
+                    0.0
+                };
+                let retry_rate = if max_attempts > 1 {
+                    ((attempt.saturating_sub(1)) as f64 / (max_attempts.saturating_sub(1)) as f64)
+                        .clamp(0.0, 1.0)
+                } else {
+                    0.0
+                };
+                let off_topic_reject_rate = if attempt_count > 0.0 {
+                    (off_topic_reject / attempt_count).clamp(0.0, 1.0)
+                } else {
+                    0.0
+                };
+                workflow["quality_telemetry"]["direct_answer_rate"] = json!(direct_answer_rate);
+                workflow["quality_telemetry"]["retry_rate"] = json!(retry_rate);
+                workflow["quality_telemetry"]["off_topic_reject_rate"] = json!(off_topic_reject_rate);
                 workflow["response"] = Value::String(retried_text);
                 return workflow;
             }

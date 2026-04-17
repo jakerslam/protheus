@@ -112,10 +112,33 @@ fn handle_message_chat_response_pass(
                 inline_tools_allowed,
             );
             response_text = tool_adjusted_response;
+            let tool_gate = workflow_turn_tool_decision_tree(message);
+            let gate_meta_control = tool_gate
+                .get("meta_control_message")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+            let gate_status_check = tool_gate
+                .get("status_check_message")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+            let gate_requires_live_web = tool_gate
+                .get("requires_live_web")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+            let gate_should_call_tools = tool_gate
+                .get("should_call_tools")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
             let latent_retry_from_failed_web_draft =
                 draft_response_implies_retryable_web_failure(&response_text);
+            let allow_draft_retry_fallback = latent_retry_from_failed_web_draft
+                && gate_requires_live_web
+                && gate_should_call_tools
+                && !gate_meta_control
+                && !gate_status_check
+                && !message_explicitly_disallows_tool_calls(message);
             let supplemental_comparison_tools =
-                if inline_tools_allowed || latent_retry_from_failed_web_draft {
+                if inline_tools_allowed || allow_draft_retry_fallback {
                 latent_tool_candidate_completion_cards(
                     root,
                     snapshot,
@@ -123,6 +146,7 @@ fn handle_message_chat_response_pass(
                     Some(row),
                     message,
                     &response_text,
+                    allow_draft_retry_fallback,
                     &latent_tool_candidates,
                     &response_tools,
                 )

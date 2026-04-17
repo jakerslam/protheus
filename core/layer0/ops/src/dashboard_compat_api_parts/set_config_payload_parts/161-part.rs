@@ -430,13 +430,15 @@ fn latent_tool_candidate_completion_cards(
     existing: Option<&Value>,
     user_message: &str,
     draft_response: &str,
+    allow_draft_retry_fallback: bool,
     latent_tool_candidates: &Value,
     response_tools: &[Value],
 ) -> Vec<Value> {
     let requires_workspace_plus_web =
         workspace_plus_web_comparison_queries_from_message(user_message).is_some();
     let requires_live_web = natural_web_intent_from_user_message(user_message).is_some()
-        || draft_response_implies_retryable_web_failure(draft_response);
+        || (allow_draft_retry_fallback
+            && draft_response_implies_retryable_web_failure(draft_response));
     if !requires_workspace_plus_web && !requires_live_web {
         return Vec::new();
     }
@@ -519,8 +521,13 @@ fn latent_tool_candidate_completion_cards(
         }
     }
     if requires_live_web && !requires_workspace_plus_web && !web_done {
-        let fallback_intent = natural_web_intent_from_user_message(user_message)
-            .or_else(|| fallback_live_web_intent_from_failed_draft(user_message, draft_response));
+        let fallback_intent = natural_web_intent_from_user_message(user_message).or_else(|| {
+            if allow_draft_retry_fallback {
+                fallback_live_web_intent_from_failed_draft(user_message, draft_response)
+            } else {
+                None
+            }
+        });
         if let Some((fallback_tool, fallback_input)) = fallback_intent {
             let normalized_name = normalize_tool_name(&fallback_tool);
             if !normalized_name.is_empty()

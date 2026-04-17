@@ -349,6 +349,7 @@ fn enforce_user_facing_finalization_contract_uses_tool_failure_reason_when_paylo
         "result": "provider timeout after 30s"
     })];
     let (finalized, report, outcome) = enforce_user_facing_finalization_contract(
+        "what happened with the web tooling",
         "I completed the tool call, but no synthesized response was available yet. Check the tool details below.".to_string(),
         &cards,
     );
