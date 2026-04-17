@@ -13,11 +13,31 @@ fn run_install(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
             "errors": ["skill_path_required"]
         });
     }
+    let skill_path_is_absolute = Path::new(&skill_path).is_absolute();
+    let skill_path_has_parent = Path::new(&skill_path)
+        .components()
+        .any(|component| matches!(component, std::path::Component::ParentDir));
+    if strict && !skill_path_is_absolute && skill_path_has_parent {
+        return json!({
+            "ok": false,
+            "strict": strict,
+            "type": "skills_plane_install",
+            "errors": ["skill_path_parent_traversal_denied"]
+        });
+    }
     let path = if Path::new(&skill_path).is_absolute() {
         PathBuf::from(&skill_path)
     } else {
         root.join(&skill_path)
     };
+    if strict && !path.is_dir() {
+        return json!({
+            "ok": false,
+            "strict": strict,
+            "type": "skills_plane_install",
+            "errors": [format!("skill_path_not_directory:{}", path.display())]
+        });
+    }
     let yaml_path = path.join("skill.yaml");
     if strict && !yaml_path.exists() {
         return json!({

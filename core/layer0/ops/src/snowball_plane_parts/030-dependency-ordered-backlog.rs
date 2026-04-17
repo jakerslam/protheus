@@ -8,7 +8,16 @@ fn dependency_ordered_backlog(rows: Vec<Value>) -> Vec<Value> {
                 .or(Some(fallback_id.as_str())),
             fallback_id.as_str(),
         );
-        let priority = row.get("priority").and_then(Value::as_i64).unwrap_or(99);
+        let priority = row
+            .get("priority")
+            .and_then(Value::as_i64)
+            .or_else(|| {
+                row.get("priority")
+                    .and_then(Value::as_str)
+                    .and_then(|raw| raw.trim().parse::<i64>().ok())
+            })
+            .unwrap_or(99)
+            .clamp(-1000, 1000);
         normalized.push(BacklogItem {
             id,
             priority,
@@ -28,18 +37,25 @@ fn dependency_ordered_backlog(rows: Vec<Value>) -> Vec<Value> {
         if let Some(row_deps) = item.payload.get("depends_on") {
             if let Some(arr) = row_deps.as_array() {
                 for dep in arr {
-                    if let Some(dep_id) = dep.as_str() {
-                        let clean_dep = clean_id(Some(dep_id), "dep");
+                    let dep_id = dep
+                        .as_str()
+                        .map(ToString::to_string)
+                        .or_else(|| dep.as_i64().map(|v| v.to_string()));
+                    if let Some(dep_id) = dep_id {
+                        let clean_dep = clean_id(Some(dep_id.as_str()), "dep");
                         if clean_dep != item.id
                             && known_ids.contains(clean_dep.as_str())
                             && !deps.iter().any(|v| v == &clean_dep)
                         {
                             deps.push(clean_dep);
                         }
+                        if deps.len() >= 32 {
+                            break;
+                        }
                     }
                 }
             } else if let Some(csv) = row_deps.as_str() {
-                for dep_id in csv.split(',') {
+                for dep_id in csv.split(|ch| ch == ',' || ch == ';') {
                     let clean_dep = clean_id(Some(dep_id), "dep");
                     if clean_dep != item.id
                         && known_ids.contains(clean_dep.as_str())
@@ -47,9 +63,13 @@ fn dependency_ordered_backlog(rows: Vec<Value>) -> Vec<Value> {
                     {
                         deps.push(clean_dep);
                     }
+                    if deps.len() >= 32 {
+                        break;
+                    }
                 }
             }
         }
+        deps.sort();
         item.depends_on = deps;
     }
 
@@ -383,4 +403,3 @@ fn run_melt_refine(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Val
     out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
-

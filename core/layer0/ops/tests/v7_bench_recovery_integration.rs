@@ -2,6 +2,23 @@ use protheus_ops_core::{parse_args, run_runtime_efficiency_floor};
 use serde_json::json;
 use std::fs;
 
+fn assert_no_runtime_context_leak(raw: &str) {
+    const FORBIDDEN: [&str; 6] = [
+        "You are an expert Python programmer.",
+        "[PATCH v2",
+        "List Leaves (25",
+        "BEGIN_OPENCLAW_INTERNAL_CONTEXT",
+        "END_OPENCLAW_INTERNAL_CONTEXT",
+        "UNTRUSTED_CHILD_RESULT_DELIMITER",
+    ];
+    for marker in FORBIDDEN {
+        assert!(
+            !raw.contains(marker),
+            "runtime payload leaked forbidden marker `{marker}`: {raw}"
+        );
+    }
+}
+
 #[test]
 fn runtime_efficiency_core_lazy_path_stays_receipted_and_live() {
     let root = tempfile::tempdir().expect("tempdir");
@@ -48,6 +65,7 @@ fn runtime_efficiency_core_lazy_path_stays_receipted_and_live() {
         "--strict=0".to_string(),
     ]);
     let out = run_runtime_efficiency_floor(root.path(), &parsed).expect("runtime floor run");
+    assert_no_runtime_context_leak(&out.json.to_string());
     assert_eq!(
         out.exit_code, 0,
         "runtime floor should run in non-strict mode"

@@ -13,6 +13,8 @@ use std::time::{Duration, Instant};
 
 const LANE_ID: &str = "top1_assurance";
 const DEFAULT_POLICY_REL: &str = "client/runtime/config/top1_assurance_policy.json";
+const PROVIDER_FAMILY_CONTRACT_TARGETS: &[&str] =
+    &["anthropic", "fal", "google", "minimax", "moonshot"];
 
 #[derive(Debug, Clone)]
 struct ProofCoveragePolicy {
@@ -78,6 +80,10 @@ fn usage() {
     println!("  protheus-ops top1-assurance benchmark-thresholds [--strict=1|0] [--benchmark-path=<path>] [--sample-ms=<n>] [--refresh=1|0]");
     println!("  protheus-ops top1-assurance comparison-matrix [--strict=1|0] [--snapshot-path=<path>] [--output-path=<path>] [--apply=1|0]");
     println!("  protheus-ops top1-assurance run-all [--strict=1|0]");
+    println!(
+        "  provider-family contract targets: {}",
+        PROVIDER_FAMILY_CONTRACT_TARGETS.join(",")
+    );
 }
 
 fn parse_bool(raw: Option<&String>, fallback: bool) -> bool {
@@ -321,4 +327,3 @@ fn default_policy() -> Top1Policy {
         },
     }
 }
-

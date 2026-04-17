@@ -8,8 +8,26 @@ fn latest_path(state_root: &Path) -> std::path::PathBuf {
     state_root.join("latest.json")
 }
 
+fn assert_no_runtime_context_leak(raw: &str) {
+    const FORBIDDEN: [&str; 6] = [
+        "You are an expert Python programmer.",
+        "[PATCH v2",
+        "List Leaves (25",
+        "BEGIN_OPENCLAW_INTERNAL_CONTEXT",
+        "END_OPENCLAW_INTERNAL_CONTEXT",
+        "UNTRUSTED_CHILD_RESULT_DELIMITER",
+    ];
+    for marker in FORBIDDEN {
+        assert!(
+            !raw.contains(marker),
+            "runtime payload leaked forbidden marker `{marker}`: {raw}"
+        );
+    }
+}
+
 fn read_json(path: &Path) -> Value {
     let raw = fs::read_to_string(path).expect("read json");
+    assert_no_runtime_context_leak(&raw);
     serde_json::from_str(&raw).expect("parse json")
 }
 

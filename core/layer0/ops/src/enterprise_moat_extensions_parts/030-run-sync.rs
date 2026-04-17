@@ -3,7 +3,25 @@ pub(super) fn run_sync(
     strict: bool,
     flags: &std::collections::HashMap<String, String>,
 ) -> Result<Value, String> {
-    let peers = split_csv(flags.get("peer-roots").map(String::as_str).unwrap_or(""));
+    let raw_peers = split_csv(flags.get("peer-roots").map(String::as_str).unwrap_or(""));
+    let mut peers = Vec::<String>::new();
+    let mut ignored_peers = Vec::<String>::new();
+    for peer in raw_peers {
+        let normalized = clean(peer.replace('\\', "/"), 320);
+        if normalized.is_empty() {
+            continue;
+        }
+        if peers.iter().any(|existing| existing == &normalized)
+            || ignored_peers.iter().any(|existing| existing == &normalized)
+        {
+            continue;
+        }
+        if !PathBuf::from(&normalized).exists() {
+            ignored_peers.push(normalized);
+            continue;
+        }
+        peers.push(normalized);
+    }
     let mut all_rows = BTreeMap::<String, Value>::new();
     let mut roots = Vec::<String>::new();
     let mut synced_nodes = 1usize;
@@ -50,7 +68,7 @@ pub(super) fn run_sync(
             .and_then(|_| file.write_all(b"\n"))
             .map_err(|err| format!("write_sync_file_failed:{}:{err}", merged_path.display()))?;
     }
-    let divergence_alarm = strict && peers.is_empty();
+    let divergence_alarm = strict && (peers.is_empty() || !ignored_peers.is_empty());
     Ok(with_receipt_hash(json!({
         "ok": !divergence_alarm,
         "type": "enterprise_hardening_sync",
@@ -58,6 +76,8 @@ pub(super) fn run_sync(
         "mode": "sync",
         "ts": now_iso(),
         "strict": strict,
+        "peer_count": peers.len(),
+        "ignored_peers": ignored_peers,
         "synced_nodes": synced_nodes,
         "merged_entries": all_rows.len(),
         "merged_root": merged_root,
@@ -66,7 +86,7 @@ pub(super) fn run_sync(
         "claim_evidence": [{
             "id": "V7-MOAT-002.4",
             "claim": "distributed_evidence_sync_merges_receipts_and_emits_deterministic_root",
-            "evidence": {"merged_path": rel(root, &merged_path), "merged_entries": all_rows.len(), "merged_root": merged_root}
+            "evidence": {"merged_path": rel(root, &merged_path), "merged_entries": all_rows.len(), "merged_root": merged_root, "peer_count": peers.len()}
         }]
     })))
 }

@@ -13,6 +13,7 @@ use crate::{deterministic_receipt_hash, now_iso};
 
 const DEFAULT_CHAIN_REL: &str = "local/state/security/passport_iteration_chain.jsonl";
 const DEFAULT_LATEST_REL: &str = "local/state/security/passport_iteration_chain.latest.json";
+const MAX_PAYLOAD_BYTES: usize = 128 * 1024;
 
 fn usage() {
     println!("passport-iteration-chain-kernel commands:");
@@ -58,6 +59,12 @@ fn print_json_line(value: &Value) {
 
 fn payload_json(argv: &[String]) -> Result<Value, String> {
     if let Some(raw) = lane_utils::parse_flag(argv, "payload", false) {
+        if raw.len() > MAX_PAYLOAD_BYTES {
+            return Err(format!(
+                "passport_iteration_chain_kernel_payload_too_large:{}",
+                raw.len()
+            ));
+        }
         return serde_json::from_str::<Value>(&raw)
             .map_err(|err| format!("passport_iteration_chain_kernel_payload_decode_failed:{err}"));
     }
@@ -65,6 +72,12 @@ fn payload_json(argv: &[String]) -> Result<Value, String> {
         let bytes = BASE64_STANDARD.decode(raw_b64.as_bytes()).map_err(|err| {
             format!("passport_iteration_chain_kernel_payload_base64_decode_failed:{err}")
         })?;
+        if bytes.len() > MAX_PAYLOAD_BYTES {
+            return Err(format!(
+                "passport_iteration_chain_kernel_payload_too_large:{}",
+                bytes.len()
+            ));
+        }
         let text = String::from_utf8(bytes).map_err(|err| {
             format!("passport_iteration_chain_kernel_payload_utf8_decode_failed:{err}")
         })?;
@@ -98,6 +111,24 @@ fn clean_text(value: Option<&Value>, max_len: usize) -> String {
         out.truncate(max_len);
     }
     out
+}
+
+fn safe_rel_path(value: Option<&Value>, max_len: usize) -> String {
+    let raw = clean_text(value, max_len);
+    if raw.is_empty() {
+        return String::new();
+    }
+    let normalized = raw.replace('\\', "/");
+    if normalized.starts_with('/')
+        || normalized.contains('\0')
+        || normalized.starts_with("../")
+        || normalized.contains("/../")
+        || normalized.ends_with("/..")
+        || normalized.split('/').any(|segment| segment == "..")
+    {
+        return String::new();
+    }
+    normalized
 }
 
 fn normalize_token(raw: &str, max_len: usize) -> String {
@@ -246,12 +277,12 @@ fn record(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> {
     let runtime = runtime_root(root, payload);
     let chain_path = resolve_path(
         &runtime,
-        &clean_text(payload.get("chain_path"), 520),
+        &safe_rel_path(payload.get("chain_path"), 520),
         DEFAULT_CHAIN_REL,
     );
     let latest_path = resolve_path(
         &runtime,
-        &clean_text(payload.get("latest_path"), 520),
+        &safe_rel_path(payload.get("latest_path"), 520),
         DEFAULT_LATEST_REL,
     );
     let lane = {
@@ -375,12 +406,12 @@ fn status(root: &Path, payload: &Map<String, Value>) -> Value {
     let runtime = runtime_root(root, payload);
     let chain_path = resolve_path(
         &runtime,
-        &clean_text(payload.get("chain_path"), 520),
+        &safe_rel_path(payload.get("chain_path"), 520),
         DEFAULT_CHAIN_REL,
     );
     let latest_path = resolve_path(
         &runtime,
-        &clean_text(payload.get("latest_path"), 520),
+        &safe_rel_path(payload.get("latest_path"), 520),
         DEFAULT_LATEST_REL,
     );
     let rows = read_rows(&chain_path);

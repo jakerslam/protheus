@@ -8,6 +8,42 @@ fn resolve_path_command(root: &Path, payload: &Map<String, Value>) -> Result<Val
     }))
 }
 
+fn resolve_provider_artifact_path_command(
+    root: &Path,
+    payload: &Map<String, Value>,
+) -> Result<Value, String> {
+    let plugin_id = clean_text(
+        payload
+            .get("plugin_id")
+            .or_else(|| payload.get("provider_plugin_id")),
+        96,
+    )
+    .to_ascii_lowercase()
+    .chars()
+    .filter(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | '.'))
+    .collect::<String>();
+    if plugin_id.is_empty() {
+        return Err("adaptive_layer_store_kernel_provider_plugin_id_required".to_string());
+    }
+    let contract = clean_text(payload.get("contract"), 64);
+    let contract_dir = match contract.as_str() {
+        "webSearchProviders" => "web_search",
+        "memoryEmbeddingProviders" => "memory_embedding",
+        _ => "web_fetch",
+    };
+    let target = format!("tooling/public_artifacts/{contract_dir}/{plugin_id}.json");
+    let (abs, rel) = resolve_adaptive_path(root, payload, &target)?;
+    Ok(json!({
+        "ok": true,
+        "explicit_fast_path": true,
+        "contract": if contract.is_empty() { "webFetchProviders".to_string() } else { contract },
+        "plugin_id": plugin_id,
+        "abs": abs.to_string_lossy(),
+        "rel": rel,
+        "exists": abs.exists()
+    }))
+}
+
 pub(crate) fn read_json_command(
     root: &Path,
     payload: &Map<String, Value>,
@@ -234,6 +270,14 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             Ok(value) => cli_receipt("adaptive_layer_store_kernel_resolve_path", value),
             Err(err) => cli_error("adaptive_layer_store_kernel_error", err.as_str()),
         },
+        "resolve-provider-artifact-path" => match resolve_provider_artifact_path_command(root, payload)
+        {
+            Ok(value) => cli_receipt(
+                "adaptive_layer_store_kernel_resolve_provider_artifact_path",
+                value,
+            ),
+            Err(err) => cli_error("adaptive_layer_store_kernel_error", err.as_str()),
+        },
         "read-json" => match read_json_command(root, payload) {
             Ok(value) => cli_receipt("adaptive_layer_store_kernel_read_json", value),
             Err(err) => cli_error("adaptive_layer_store_kernel_error", err.as_str()),
@@ -267,4 +311,3 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     print_json_line(&receipt);
     exit_code
 }
-

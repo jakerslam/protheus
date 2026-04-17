@@ -8,6 +8,7 @@ use crate::v8_kernel::{
 };
 use crate::{clean, parse_args};
 use serde_json::{json, Value};
+use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -111,8 +112,93 @@ fn normalize_app_id(raw: &str) -> String {
         "chat" | "chatstarter" | "chat-starter" => "chat-starter".to_string(),
         "chat-ui" | "chatui" => "chat-ui".to_string(),
         "code-engineer" | "codeengineer" | "code-engineer-app" => "code-engineer".to_string(),
+        "web-tooling" | "webtooling" | "web-tools" | "webtools" => "web-tooling".to_string(),
         _ => lower,
     }
+}
+
+fn is_invisible_unicode(ch: char) -> bool {
+    let code = ch as u32;
+    matches!(
+        code,
+        0x200B..=0x200F
+            | 0x202A..=0x202E
+            | 0x2060..=0x2064
+            | 0x206A..=0x206F
+            | 0xFEFF
+            | 0xE0000..=0xE007F
+    )
+}
+
+pub(crate) fn sanitize_web_tooling_query(raw: &str) -> String {
+    let mut cleaned = String::with_capacity(raw.len());
+    for ch in raw.chars() {
+        if is_invisible_unicode(ch) {
+            continue;
+        }
+        let control = ch.is_control() && ch != '\n' && ch != '\t';
+        if control {
+            continue;
+        }
+        cleaned.push(ch);
+    }
+    clean(cleaned, 1200)
+}
+
+fn normalize_domain_hint(raw: &str) -> String {
+    let lowered = clean(raw, 240).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return String::new();
+    }
+    let without_scheme = lowered
+        .strip_prefix("https://")
+        .or_else(|| lowered.strip_prefix("http://"))
+        .unwrap_or(&lowered)
+        .to_string();
+    clean(without_scheme.split('/').next().unwrap_or(""), 160)
+        .trim_matches('.')
+        .to_string()
+}
+
+pub(crate) fn canonicalize_web_tooling_query(query: &str, domain_hint: Option<&str>) -> String {
+    let sanitized = sanitize_web_tooling_query(query);
+    if sanitized.is_empty() {
+        return sanitized;
+    }
+    if sanitized.to_ascii_lowercase().contains("site:") {
+        return sanitized;
+    }
+    let normalized_domain = domain_hint
+        .map(normalize_domain_hint)
+        .filter(|domain| !domain.is_empty());
+    if let Some(domain) = normalized_domain {
+        return format!("site:{domain} {sanitized}");
+    }
+    sanitized
+}
+
+pub(crate) fn web_tooling_auth_sources() -> Vec<String> {
+    let mut out = Vec::<String>::new();
+    for (label, env_var) in [
+        ("openai", "OPENAI_API_KEY"),
+        ("github", "GITHUB_TOKEN"),
+        ("github_app", "GITHUB_APP_INSTALLATION_TOKEN"),
+        ("brave", "BRAVE_API_KEY"),
+        ("tavily", "TAVILY_API_KEY"),
+        ("perplexity", "PERPLEXITY_API_KEY"),
+        ("exa", "EXA_API_KEY"),
+    ] {
+        let present = env::var(env_var)
+            .ok()
+            .map(|raw| !clean(raw, 4000).is_empty())
+            .unwrap_or(false);
+        if present {
+            out.push(label.to_string());
+        }
+    }
+    out.sort();
+    out.dedup();
+    out
 }
 
 fn parse_app_id(parsed: &crate::ParsedArgs) -> String {
@@ -275,6 +361,18 @@ fn chat_ui_history_messages(session: &Value) -> Vec<Value> {
             );
             if !assistant.is_empty() {
                 rows.push(json!({"role": "assistant", "text": assistant}));
+            }
+            let tool_summary = clean(
+                turn.get("tool_summary")
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                1_200,
+            );
+            if !tool_summary.is_empty() {
+                rows.push(json!({
+                    "role": "assistant",
+                    "text": format!("Tool receipt summary: {tool_summary}")
+                }));
             }
             rows
         })

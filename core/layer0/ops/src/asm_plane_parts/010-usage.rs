@@ -56,6 +56,41 @@ fn history_path(root: &Path) -> PathBuf {
     state_root(root).join("history.jsonl")
 }
 
+fn strip_control_chars(raw: &str, max_len: usize) -> String {
+    raw.chars()
+        .filter(|ch| !ch.is_control() || matches!(*ch, '\n' | '\t'))
+        .take(max_len)
+        .collect::<String>()
+        .trim()
+        .to_string()
+}
+
+fn sanitize_manifest_key(raw: &str) -> Option<String> {
+    let key = raw.trim().to_ascii_lowercase();
+    if key.is_empty() || key.len() > 64 {
+        return None;
+    }
+    if key
+        .chars()
+        .all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || matches!(ch, '_' | '-' | '.'))
+    {
+        Some(key)
+    } else {
+        None
+    }
+}
+
+fn normalize_hands_op(raw: &str) -> String {
+    let op = clean(raw, 48).to_ascii_lowercase();
+    match op.as_str() {
+        "" => "status".to_string(),
+        "resume" => "start".to_string(),
+        "stop" => "pause".to_string(),
+        "state" => "status".to_string(),
+        _ => op,
+    }
+}
+
 fn print_payload(payload: &Value) {
     println!(
         "{}",
@@ -98,20 +133,22 @@ fn load_hand_manifest(path: &Path) -> Result<Value, String> {
         let Some((key_raw, value_raw)) = line.split_once('=') else {
             continue;
         };
-        let key = key_raw.trim().to_ascii_lowercase();
+        let Some(key) = sanitize_manifest_key(key_raw) else {
+            continue;
+        };
         let value = value_raw.trim();
         if value.starts_with('[') && value.ends_with(']') {
             let inner = &value[1..value.len().saturating_sub(1)];
             let values = inner
                 .split(',')
-                .map(|part| part.trim().trim_matches('"').trim_matches('\'').to_string())
+                .map(|part| strip_control_chars(part.trim().trim_matches('"').trim_matches('\''), 120))
                 .filter(|part| !part.is_empty())
                 .map(Value::String)
                 .collect::<Vec<_>>();
             out.insert(key, Value::Array(values));
             continue;
         }
-        let clean_str = value.trim_matches('"').trim_matches('\'').to_string();
+        let clean_str = strip_control_chars(value.trim_matches('"').trim_matches('\''), 256);
         if let Ok(parsed) = clean_str.parse::<u64>() {
             out.insert(key, Value::Number(parsed.into()));
             continue;
@@ -284,12 +321,14 @@ fn run_hands_runtime(root: &Path, parsed: &ParsedArgs, strict: bool) -> Value {
         .get("manifest")
         .map(String::as_str)
         .unwrap_or(HAND_MANIFEST_PATH);
-    let op = parsed
-        .flags
-        .get("op")
-        .map(|v| v.to_ascii_lowercase())
-        .or_else(|| parsed.positional.get(1).map(|v| v.to_ascii_lowercase()))
-        .unwrap_or_else(|| "status".to_string());
+    let op = normalize_hands_op(
+        parsed
+            .flags
+            .get("op")
+            .map(String::as_str)
+            .or_else(|| parsed.positional.get(1).map(String::as_str))
+            .unwrap_or("status"),
+    );
     let manifest_path = root.join(manifest_rel);
     let manifest = load_hand_manifest(&manifest_path).unwrap_or_else(|_| Value::Null);
     let state_path = state_root(root).join("hands_runtime").join("state.json");
@@ -457,4 +496,3 @@ fn parse_crdt_map(raw: Option<&String>) -> Result<Map<String, Value>, String> {
         .cloned()
         .ok_or_else(|| "crdt_payload_must_be_object".to_string())
 }
-

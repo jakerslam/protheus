@@ -527,7 +527,12 @@
         case 'typing':
           if (typeof this.shouldReloadHistoryForFinalEventPayload === 'function' && this.shouldReloadHistoryForFinalEventPayload(data)) {
             var finalAgentId = String((data && data.agent_id) || (this.currentAgent && this.currentAgent.id) || '').trim();
-            if (finalAgentId) {
+            var canReloadFinalSnapshot =
+              !!finalAgentId &&
+              !this.sending &&
+              !(typeof this.hasLivePendingResponse === 'function' && this.hasLivePendingResponse()) &&
+              !(typeof this._hasActiveTypewriterVisual === 'function' && this._hasActiveTypewriterVisual());
+            if (canReloadFinalSnapshot) {
               var selfFinal = this;
               Promise.resolve()
                 .then(function() { return selfFinal.loadSessions(finalAgentId); })

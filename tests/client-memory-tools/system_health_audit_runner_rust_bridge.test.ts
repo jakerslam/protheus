@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const ts = require('typescript');
+const ts = require('typescript');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 if (!require.extensions['.ts']) {
   require.extensions['.ts'] = function compileTs(module, filename) {
@@ -73,7 +73,7 @@ function main() {
   assert.equal(status.code, 0);
   assert.equal(status.payload.type, 'system_health_audit_runner_kernel');
 
-  const latestPath = path.join(workspace, 'local', 'state', 'ops', 'system_health_audit', 'latest.json');
+  assertNoPlaceholderOrPromptLeak({ run, status }, 'system_health_audit_runner_rust_bridge_test');\n  assertStableToolingEnvelope(run.payload, 'system_health_audit_runner_rust_bridge_test');\n  const latestPath = path.join(workspace, 'local', 'state', 'ops', 'system_health_audit', 'latest.json');
   assert.equal(fs.existsSync(latestPath), true);
 
   console.log(JSON.stringify({ ok: true, type: 'system_health_audit_runner_rust_bridge_test' }));

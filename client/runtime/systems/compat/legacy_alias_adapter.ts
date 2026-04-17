@@ -5,20 +5,31 @@ const path = require('path');
 const { createOpsLaneBridge } = require('../../lib/rust_lane_bridge.ts');
 
 const DEFAULT_LANE = 'RUNTIME-LEGACY-ALIAS';
+const MAX_LANE_LEN = 128;
+const MAX_ARG_LEN = 512;
 const bridge = createOpsLaneBridge(__dirname, 'legacy_alias_adapter', 'runtime-systems', {
   inheritStdio: true
 });
 
+function sanitizeArg(value) {
+  return String(value == null ? '' : value)
+    .replace(/[\u200B\u200C\u200D\u2060\uFEFF]/g, '')
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/[^\x20-\x7E]+/g, '')
+    .trim()
+    .slice(0, MAX_ARG_LEN);
+}
+
 function normalizeLaneId(raw, fallback = DEFAULT_LANE) {
-  const v = String(raw || '')
+  const v = sanitizeArg(raw || '')
     .toUpperCase()
     .replace(/[^A-Z0-9_.-]+/g, '-')
     .replace(/^-+|-+$/g, '');
-  return v || fallback;
+  return (v.slice(0, MAX_LANE_LEN) || fallback).slice(0, MAX_LANE_LEN);
 }
 
 function parseArgs(argv = []) {
-  const args = Array.isArray(argv) ? [...argv] : [];
+  const args = Array.isArray(argv) ? argv.map((row) => sanitizeArg(row)).filter(Boolean) : [];
   let laneId = '';
   let scriptPath = '';
   const passthrough = [];
@@ -50,7 +61,7 @@ function parseArgs(argv = []) {
 }
 
 function laneFromScript(scriptPath) {
-  const raw = String(scriptPath || '').trim();
+  const raw = sanitizeArg(scriptPath || '');
   if (!raw) return '';
   const runtimeRoot = path.resolve(__dirname, '..', '..');
   const abs = path.resolve(raw);
@@ -60,8 +71,7 @@ function laneFromScript(scriptPath) {
 }
 
 function laneFromAliasRel(aliasRel) {
-  const rel = String(aliasRel || '')
-    .trim()
+  const rel = sanitizeArg(aliasRel || '')
     .replace(/\\/g, '/')
     .replace(/^\.\//, '')
     .replace(/\.[^.]+$/, '');
@@ -78,12 +88,22 @@ function resolveLane(inputLaneId, scriptPath) {
 }
 
 function runBridge(laneId, argv = []) {
-  const args = Array.isArray(argv) ? argv.map((v) => String(v)) : [];
+  const args = Array.isArray(argv) ? argv.map((v) => sanitizeArg(v)).filter(Boolean) : [];
   const out = bridge.run([`--lane-id=${laneId}`].concat(args));
   if (out && out.stdout) process.stdout.write(out.stdout);
   if (out && out.stderr) process.stderr.write(out.stderr);
   if (out && out.payload && !out.stdout) {
     process.stdout.write(`${JSON.stringify(out.payload)}\n`);
+  } else if (!out || (!out.stdout && !out.stderr)) {
+    process.stdout.write(
+      `${JSON.stringify({
+        ok: false,
+        type: 'legacy_alias_adapter',
+        error: 'bridge_no_output',
+        lane_id: laneId,
+        status: Number.isFinite(Number(out && out.status)) ? Number(out.status) : 1
+      })}\n`
+    );
   }
   return out;
 }

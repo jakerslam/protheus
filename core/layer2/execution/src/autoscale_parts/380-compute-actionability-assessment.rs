@@ -6,17 +6,30 @@ pub fn compute_actionability_assessment(
         .as_ref()
         .map(|value| value.trim().to_ascii_lowercase())
         .unwrap_or_default();
+    let risk = match risk.as_str() {
+        "med" | "moderate" => "medium".to_string(),
+        "critical" | "severe" => "high".to_string(),
+        "low" | "medium" | "high" => risk,
+        _ => "low".to_string(),
+    };
     let impact = input
         .impact
         .as_ref()
         .map(|value| value.trim().to_ascii_lowercase())
         .unwrap_or_default();
+    let impact = match impact.as_str() {
+        "critical" | "urgent" => "critical".to_string(),
+        "high" | "medium" | "low" => impact,
+        _ => "low".to_string(),
+    };
 
     let mut reasons = Vec::<String>::new();
     let mut score = 0.0;
     let mut hard_block = false;
 
-    if impact == "high" {
+    if impact == "critical" {
+        score += 28.0;
+    } else if impact == "high" {
         score += 24.0;
     } else if impact == "medium" {
         score += 16.0;
@@ -114,6 +127,10 @@ pub fn compute_actionability_assessment(
         score -= 18.0;
         reasons.push("boilerplate_execution_path".to_string());
     }
+    if input.generic_route_task && !input.next_cmd_has_dry_run {
+        score -= 8.0;
+        reasons.push("generic_path_missing_dry_run".to_string());
+    }
 
     if input.looks_like_discovery_cmd && impact == "low" && !input.has_action_verb {
         hard_block = true;
@@ -137,6 +154,18 @@ pub fn compute_actionability_assessment(
         score -= 28.0;
         reasons.push("medium_risk_missing_rollback_path".to_string());
         hard_block = true;
+    }
+    if risk == "high" && input.is_executable_proposal {
+        if !input.has_rollback_signal {
+            score -= 34.0;
+            reasons.push("high_risk_missing_rollback_path".to_string());
+            hard_block = true;
+        }
+        if !input.next_cmd_has_dry_run {
+            score -= 12.0;
+            reasons.push("high_risk_missing_dry_run".to_string());
+            hard_block = true;
+        }
     }
 
     if input.subdirective_required {

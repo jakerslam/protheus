@@ -32,6 +32,18 @@ fn dispatch_security_gate_exempt_rejects_non_help_surface() {
 }
 
 #[test]
+fn dispatch_security_gate_exempt_rejects_path_tricks() {
+    assert!(!dispatch_security_gate_exempt(
+        "../client/runtime/systems/ops/protheus_command_list.ts",
+        &[]
+    ));
+    assert!(!dispatch_security_gate_exempt(
+        "client/runtime/systems/ops/protheus_command_list.ts.bak",
+        &[]
+    ));
+}
+
+#[test]
 fn resolve_workspace_root_walks_up_to_repo_marker() {
     let nonce = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -50,6 +62,21 @@ fn resolve_workspace_root_walks_up_to_repo_marker() {
 
     let resolved = resolve_workspace_root(&nested).expect("resolved");
     assert_eq!(resolved, base);
+    let _ = fs::remove_dir_all(base);
+}
+
+#[test]
+fn resolve_workspace_root_returns_none_without_repo_markers() {
+    let _guard = env_guard();
+    let nonce = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("clock")
+        .as_nanos();
+    let base = std::env::temp_dir().join(format!("protheusctl_root_missing_markers_{nonce}"));
+    let nested = base.join("tmp").join("nested").join("cwd");
+    fs::create_dir_all(&nested).expect("nested dir");
+    let resolved = resolve_workspace_root(&nested);
+    assert!(resolved.is_none());
     let _ = fs::remove_dir_all(base);
 }
 
@@ -136,7 +163,7 @@ fn core_shortcut_routes_start_to_daemon_control() {
 fn core_shortcut_routes_gateway_default_to_daemon_start() {
     let route = resolve_core_shortcuts("gateway", &[]).expect("route");
     assert_eq!(route.script_rel, "core://daemon-control");
-    assert_eq!(route.args, vec!["start"]);
+    assert_eq!(route.args, vec!["start", "--gateway-banner=1"]);
 }
 
 #[test]
@@ -151,7 +178,10 @@ fn core_shortcut_routes_gateway_preserves_start_flags() {
     let route =
         resolve_core_shortcuts("gateway", &["--dashboard-open=0".to_string()]).expect("route");
     assert_eq!(route.script_rel, "core://daemon-control");
-    assert_eq!(route.args, vec!["start", "--dashboard-open=0"]);
+    assert_eq!(
+        route.args,
+        vec!["start", "--dashboard-open=0", "--gateway-banner=1"]
+    );
 }
 
 #[test]
@@ -159,7 +189,10 @@ fn core_shortcut_routes_gateway_preserves_persistence_flag() {
     let route =
         resolve_core_shortcuts("gateway", &["--gateway-persist=0".to_string()]).expect("route");
     assert_eq!(route.script_rel, "core://daemon-control");
-    assert_eq!(route.args, vec!["start", "--gateway-persist=0"]);
+    assert_eq!(
+        route.args,
+        vec!["start", "--gateway-persist=0", "--gateway-banner=1"]
+    );
 }
 
 #[test]

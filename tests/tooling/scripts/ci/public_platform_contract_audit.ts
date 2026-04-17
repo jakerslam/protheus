@@ -2,35 +2,25 @@
 /* eslint-disable no-console */
 import fs from 'node:fs';
 import path from 'node:path';
-import { execSync } from 'node:child_process';
+import { cleanText, hasFlag, parseBool, parseStrictOutArgs, readFlag } from '../../lib/cli.ts';
+import { currentRevision } from '../../lib/git.ts';
+import { emitStructuredResult } from '../../lib/result.ts';
 
 const ROOT = process.cwd();
 const SOURCE_RE = /\.(js|jsx|ts|tsx|py|sh|rs)$/;
+const DEFAULT_POLICY_PATH = 'client/runtime/config/public_platform_contract_policy.json';
+const DEFAULT_OUT_PATH = 'core/local/artifacts/public_platform_contract_audit_current.json';
 
-function parseArgs(argv) {
-  const out = {
-    policy: 'client/runtime/config/public_platform_contract_policy.json',
-    out: '',
-    docsSurfacePolicy: '',
-    skipPublic: false,
-    strict: false,
+function parseArgs(argv: string[]) {
+  const common = parseStrictOutArgs(argv, { strict: false });
+  const skipPublicRaw = readFlag(argv, 'skip-public');
+  return {
+    policy: cleanText(readFlag(argv, 'policy') || DEFAULT_POLICY_PATH, 260),
+    out: cleanText(readFlag(argv, 'out') || DEFAULT_OUT_PATH, 400),
+    docsSurfacePolicy: cleanText(readFlag(argv, 'docs-surface-policy') || '', 260),
+    skipPublic: hasFlag(argv, 'skip-public') || parseBool(skipPublicRaw, false),
+    strict: common.strict,
   };
-  for (const arg of argv) {
-    if (arg.startsWith('--policy=')) out.policy = arg.slice('--policy='.length);
-    else if (arg.startsWith('--out=')) out.out = arg.slice('--out='.length);
-    else if (arg.startsWith('--docs-surface-policy=')) {
-      out.docsSurfacePolicy = arg.slice('--docs-surface-policy='.length);
-    } else if (arg === '--skip-public') out.skipPublic = true;
-    else if (arg.startsWith('--skip-public=')) {
-      const v = String(arg.slice('--skip-public='.length)).toLowerCase();
-      out.skipPublic = ['1', 'true', 'yes', 'on'].includes(v);
-    }
-    else if (arg.startsWith('--strict=')) {
-      const v = String(arg.slice('--strict='.length)).toLowerCase();
-      out.strict = ['1', 'true', 'yes', 'on'].includes(v);
-    } else if (arg === '--strict') out.strict = true;
-  }
-  return out;
 }
 
 function rel(p) {
@@ -136,16 +126,15 @@ function buildDocsSurfaceReport(policyPath, revision) {
 
 function main() {
   const args = parseArgs(process.argv.slice(2));
-
-  let revision = 'unknown';
-  try {
-    revision = execSync('git rev-parse HEAD', { cwd: ROOT, encoding: 'utf8' }).trim();
-  } catch {}
+  const revision = currentRevision(ROOT);
 
   if (args.skipPublic && args.docsSurfacePolicy) {
     const payload = buildDocsSurfaceReport(args.docsSurfacePolicy, revision);
-    console.log(JSON.stringify(payload, null, 2));
-    if (args.strict && !payload.summary.pass) process.exit(1);
+    process.exitCode = emitStructuredResult(payload, {
+      outPath: args.out,
+      strict: args.strict,
+      ok: payload.summary.pass,
+    });
     return;
   }
 
@@ -193,6 +182,7 @@ function main() {
       violation_count: violations.length,
       pass: violations.length === 0,
     },
+    artifact_paths: [args.out].filter(Boolean),
     violations,
   };
 
@@ -202,14 +192,11 @@ function main() {
       payload.summary.pass && payload.docs_surface_contract.summary.pass;
   }
 
-  if (args.out) {
-    const outPath = path.resolve(ROOT, args.out);
-    fs.mkdirSync(path.dirname(outPath), { recursive: true });
-    fs.writeFileSync(outPath, `${JSON.stringify(payload, null, 2)}\n`);
-  }
-
-  console.log(JSON.stringify(payload, null, 2));
-  if (args.strict && !payload.summary.pass) process.exit(1);
+  process.exitCode = emitStructuredResult(payload, {
+    outPath: args.out,
+    strict: args.strict,
+    ok: payload.summary.pass,
+  });
 }
 
 main();

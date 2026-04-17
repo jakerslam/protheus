@@ -122,6 +122,67 @@ fn normalize_token_list(value: Option<&Value>, max_len: usize) -> Vec<String> {
     out
 }
 
+fn normalize_provider_key(raw: &str) -> String {
+    let token = normalize_token(raw, 120);
+    match token.as_str() {
+        "gh" | "github_com" | "github_enterprise" => "github".to_string(),
+        "open_ai" | "openai_api" | "openai_platform" => "openai".to_string(),
+        "internal_default" | "internal_system" | "first_party_internal" => {
+            "internal".to_string()
+        }
+        _ => token,
+    }
+}
+
+fn merge_unique_tokens(existing: Option<&Value>, incoming: Option<&Value>, max_len: usize) -> Vec<String> {
+    let mut merged = normalize_token_list(existing, max_len);
+    for token in normalize_token_list(incoming, max_len) {
+        if !merged.contains(&token) {
+            merged.push(token);
+        }
+    }
+    merged
+}
+
+fn merge_provider_rule(existing: Value, incoming: Value) -> Value {
+    let existing_obj = existing.as_object().cloned().unwrap_or_default();
+    let incoming_obj = incoming.as_object().cloned().unwrap_or_default();
+    let allow = existing_obj
+        .get("allow")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+        || incoming_obj
+            .get("allow")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+    let note = incoming_obj
+        .get("note")
+        .and_then(Value::as_str)
+        .map(|v| clean_text(v, 220))
+        .filter(|v| !v.is_empty())
+        .or_else(|| {
+            existing_obj
+                .get("note")
+                .and_then(Value::as_str)
+                .map(|v| clean_text(v, 220))
+                .filter(|v| !v.is_empty())
+        });
+    json!({
+        "allow": allow,
+        "allowed_license_ids": merge_unique_tokens(
+            existing_obj.get("allowed_license_ids"),
+            incoming_obj.get("allowed_license_ids"),
+            160
+        ),
+        "allowed_consent_modes": merge_unique_tokens(
+            existing_obj.get("allowed_consent_modes"),
+            incoming_obj.get("allowed_consent_modes"),
+            120
+        ),
+        "note": note.map(Value::String).unwrap_or(Value::Null)
+    })
+}
+
 fn default_policy() -> Value {
     json!({
         "version": "1.0",
@@ -167,11 +228,16 @@ fn normalize_policy(raw: Option<&Value>) -> Value {
         });
     let mut provider_rules = Map::new();
     for (provider, rule) in provider_rules_raw {
-        let key = normalize_token(&provider, 120);
+        let key = normalize_provider_key(&provider);
         if key.is_empty() {
             continue;
         }
-        provider_rules.insert(key, normalize_rule(Some(&rule)));
+        let normalized_rule = normalize_rule(Some(&rule));
+        if let Some(existing) = provider_rules.get(&key).cloned() {
+            provider_rules.insert(key, merge_provider_rule(existing, normalized_rule));
+        } else {
+            provider_rules.insert(key, normalized_rule);
+        }
     }
     let version = clean_text(
         obj.get("version").and_then(Value::as_str).unwrap_or("1.0"),

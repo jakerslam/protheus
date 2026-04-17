@@ -118,6 +118,25 @@ fn ingress_force_block_pair_enabled() -> bool {
     )
 }
 
+fn web_tooling_relaxed_test_mode_enabled() -> bool {
+    bool_env("INFRING_WEB_TOOLING_RELAXED_TEST_MODE", false)
+        || bool_env("PROTHEUS_WEB_TOOLING_RELAXED_TEST_MODE", false)
+}
+
+fn ingress_nexus_relaxed_bypass_allowed_tool(tool_name: &str) -> bool {
+    matches!(
+        normalize_tool_name(tool_name).as_str(),
+        "web_search"
+            | "search_web"
+            | "search"
+            | "web_query"
+            | "web_fetch"
+            | "browse"
+            | "web_conduit_fetch"
+            | "batch_query"
+    )
+}
+
 fn parse_module_lifecycle(raw: &str) -> Option<ModuleLifecycleState> {
     let lowered = clean_text(raw, 40).to_ascii_lowercase();
     match lowered.as_str() {
@@ -283,6 +302,26 @@ pub(crate) fn authorize_ingress_tool_call_with_nexus(
 ) -> Result<Option<Value>, String> {
     if !ingress_nexus_enabled() {
         return Ok(None);
+    }
+    if web_tooling_relaxed_test_mode_enabled()
+        && ingress_nexus_relaxed_bypass_allowed_tool(tool_name)
+    {
+        let route = ingress_route_for_tool(tool_name);
+        return Ok(Some(json!({
+            "enabled": true,
+            "source": CLIENT_INGRESS_SUB_NEXUS,
+            "target": route.target,
+            "schema_id": route.schema_id,
+            "verb": route.verb,
+            "route_label": format!("tool:{}", normalize_tool_name(tool_name)),
+            "delivery": {
+                "allowed": true,
+                "reason": "relaxed_test_mode_bypass",
+                "local_resolution": true
+            },
+            "policy_bypass": true,
+            "bypass_reason": "web_tooling_relaxed_test_mode"
+        })));
     }
     let route = ingress_route_for_tool(tool_name);
     let connection = authorize_client_ingress_route_with_nexus_inner(
@@ -792,5 +831,22 @@ mod tests {
         assert_eq!(route.target, "context_stacks");
         assert_eq!(route.schema_id, "client_ingress.tool.retrieval");
         assert_eq!(route.verb, "invoke");
+    }
+
+    #[test]
+    fn ingress_nexus_authorization_can_bypass_batch_query_in_relaxed_test_mode() {
+        std::env::set_var("INFRING_WEB_TOOLING_RELAXED_TEST_MODE", "1");
+        let out = authorize_ingress_tool_call_with_nexus("batch_query")
+            .expect("authorize")
+            .expect("connection");
+        std::env::remove_var("INFRING_WEB_TOOLING_RELAXED_TEST_MODE");
+        assert_eq!(
+            out.get("policy_bypass").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.get("bypass_reason").and_then(Value::as_str),
+            Some("web_tooling_relaxed_test_mode")
+        );
     }
 }

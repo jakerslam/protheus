@@ -1,8 +1,29 @@
+fn normalize_directive_proposal_type(raw: &str) -> String {
+    normalize_spaces(raw)
+        .to_ascii_lowercase()
+        .replace('-', "_")
+        .replace(' ', "_")
+}
+
+fn canonical_directive_rel_file(raw: &str) -> String {
+    let mut file = normalize_spaces(raw).replace('\\', "/");
+    while file.starts_with("./") {
+        file = file[2..].to_string();
+    }
+    file = file.trim_start_matches('/').to_string();
+    if file.to_ascii_lowercase().ends_with(".yml") {
+        let mut trimmed = file[..file.len().saturating_sub(4)].to_string();
+        trimmed.push_str(".yaml");
+        return trimmed;
+    }
+    file
+}
+
 pub fn compute_directive_clarification_exec_spec(
     input: &DirectiveClarificationExecSpecInput,
 ) -> DirectiveClarificationExecSpecOutput {
     let proposal_type =
-        normalize_spaces(input.proposal_type.as_deref().unwrap_or("")).to_ascii_lowercase();
+        normalize_directive_proposal_type(input.proposal_type.as_deref().unwrap_or(""));
     if proposal_type != "directive_clarification" {
         return DirectiveClarificationExecSpecOutput {
             applicable: false,
@@ -33,9 +54,12 @@ pub fn compute_directive_clarification_exec_spec(
             command: input.suggested_next_command.clone(),
         });
         if !parsed.file.is_empty() {
-            rel_file = parsed.file;
+            rel_file = canonical_directive_rel_file(&parsed.file);
             source = "suggested_next_command".to_string();
         }
+    }
+    if !rel_file.is_empty() {
+        rel_file = canonical_directive_rel_file(&rel_file);
     }
 
     if rel_file.is_empty() {
@@ -64,6 +88,7 @@ pub fn compute_directive_clarification_exec_spec(
     } else {
         file_name
     };
+    let file_objective_id = sanitize_directive_objective_id(&file_objective_id);
     let chosen_objective_id = if objective_id.is_empty() {
         file_objective_id
     } else {
@@ -90,7 +115,7 @@ pub fn compute_directive_decomposition_exec_spec(
     input: &DirectiveDecompositionExecSpecInput,
 ) -> DirectiveDecompositionExecSpecOutput {
     let proposal_type =
-        normalize_spaces(input.proposal_type.as_deref().unwrap_or("")).to_ascii_lowercase();
+        normalize_directive_proposal_type(input.proposal_type.as_deref().unwrap_or(""));
     if proposal_type != "directive_decomposition" {
         return DirectiveDecompositionExecSpecOutput {
             applicable: false,

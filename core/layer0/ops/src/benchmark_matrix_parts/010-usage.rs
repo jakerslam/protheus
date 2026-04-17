@@ -243,7 +243,17 @@ fn count_policy_checks_total(root: &Path) -> Result<f64, String> {
             total = total.saturating_add(count);
         }
     }
-    Ok(total as f64)
+    let web_tooling = crate::network_protocol::web_tooling_health_report(root, false);
+    let web_auth = web_tooling
+        .get("auth_present")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let web_policy = web_tooling
+        .get("policy_ready")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let web_bonus = (if web_auth { 1usize } else { 0usize }) + (if web_policy { 1usize } else { 0usize });
+    Ok((total + web_bonus) as f64)
 }
 
 fn benchmark_counter_definitions() -> Value {
@@ -280,6 +290,16 @@ fn benchmark_counter_definitions() -> Value {
             "label": "total_policy_checks",
             "source_glob": "client/runtime/config/*.json",
             "path": "sum(top_level.checks.length)"
+        },
+        "web_tooling_auth_present": {
+            "label": "network_web_tooling_auth_present",
+            "source": "core/layer0/ops::network_protocol::web_tooling_health_report",
+            "path": "auth_present"
+        },
+        "web_tooling_policy_ready": {
+            "label": "network_web_tooling_policy_ready",
+            "source": "core/layer0/ops::network_protocol::web_tooling_health_report",
+            "path": "policy_ready"
         }
     })
 }

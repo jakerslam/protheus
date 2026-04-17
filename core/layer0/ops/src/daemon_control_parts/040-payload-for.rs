@@ -3,6 +3,20 @@ mod tests {
     use super::*;
     use serde_json::Value;
 
+    fn assert_non_silent_outcome(payload: &Value, expected_type: &str) {
+        assert_eq!(
+            payload.get("type").and_then(Value::as_str),
+            Some(expected_type)
+        );
+        assert!(payload.get("ok").and_then(Value::as_bool).is_some());
+        assert!(
+            payload.get("receipt_hash").and_then(Value::as_str).is_some()
+                || payload.get("claim_evidence").and_then(Value::as_array).is_some()
+                || payload.get("error").is_some()
+                || payload.get("reason").is_some()
+        );
+    }
+
     fn payload_for(command: &str) -> Value {
         success_receipt(
             command,
@@ -16,6 +30,7 @@ mod tests {
     fn daemon_control_supports_attach_subscribe_and_diagnostics() {
         for command in ["attach", "subscribe", "diagnostics"] {
             let payload = payload_for(command);
+            assert_non_silent_outcome(&payload, "daemon_control_receipt");
             assert_eq!(
                 payload.get("command").and_then(Value::as_str),
                 Some(command),
@@ -28,11 +43,6 @@ mod tests {
                     .map(|value| !value.trim().is_empty())
                     .unwrap_or(false),
                 "receipt hash should be present"
-            );
-            assert_eq!(
-                payload.get("type").and_then(Value::as_str),
-                Some("daemon_control_receipt"),
-                "core lane type should remain authoritative"
             );
         }
     }
@@ -49,6 +59,7 @@ mod tests {
         let temp = tempfile::tempdir().expect("tempdir");
         let root = temp.path();
         let payload = verity_drift_status_receipt(root, &["drift-status".to_string()]);
+        assert_non_silent_outcome(&payload, "verity_drift_status");
         assert_eq!(
             payload.get("type").and_then(Value::as_str),
             Some("verity_drift_status")

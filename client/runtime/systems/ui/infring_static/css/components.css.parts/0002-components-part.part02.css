@@ -145,6 +145,8 @@ body:not([data-theme='dark']) .chat-loading-fairy-avatar .agent-mark {
   overflow: hidden;
   font-size: 16px;
   line-height: 1;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .chat-init-avatar-preview img {

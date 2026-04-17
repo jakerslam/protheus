@@ -210,6 +210,10 @@ fn message_is_meta_control_turn(message: &str) -> bool {
         "did you try it",
         "did you do it",
         "what happened",
+        "give 10 steps",
+        "give me 10 steps",
+        "actionable steps",
+        "those were broad",
     ]
     .iter()
     .any(|marker| lowered.contains(marker));
@@ -219,6 +223,43 @@ fn message_is_meta_control_turn(message: &str) -> bool {
     !["search", "web", "online", "internet", "file", "memory", "repo", "codebase"]
         .iter()
         .any(|marker| lowered.contains(marker))
+}
+
+fn message_requests_local_file_mutation(message: &str) -> bool {
+    let lowered = clean_text(message, 800).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    lowered.contains("edit ")
+        || lowered.contains("patch ")
+        || lowered.contains("update file")
+        || lowered.contains("change file")
+        || lowered.contains("modify ")
+        || lowered.contains("rewrite ")
+        || lowered.contains("create file")
+        || lowered.contains("delete file")
+}
+
+fn message_requires_information_search(message: &str) -> bool {
+    let lowered = clean_text(message, 1_000).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    let online_intent = lowered.contains("latest ")
+        || lowered.contains("most recent")
+        || lowered.contains("today")
+        || lowered.contains("current ")
+        || lowered.contains("online")
+        || lowered.contains("on the web")
+        || lowered.contains("search for")
+        || lowered.contains("look up")
+        || lowered.contains("web search");
+    let local_intent = lowered.contains("in this repo")
+        || lowered.contains("in this codebase")
+        || lowered.contains("workspace")
+        || lowered.contains("local files")
+        || lowered.contains("project files");
+    online_intent || local_intent
 }
 
 fn inline_tool_calls_allowed_for_user_message(message: &str) -> bool {
@@ -235,8 +276,12 @@ fn inline_tool_calls_allowed_for_user_message(message: &str) -> bool {
     if message_explicitly_disallows_tool_calls(&cleaned) {
         return false;
     }
-    if !chat_workflow_tool_hints_for_message(&cleaned).is_empty() {
+    if message_requests_local_file_mutation(&cleaned) {
         return true;
+    }
+    let requires_information_search = message_requires_information_search(&cleaned);
+    if !chat_workflow_tool_hints_for_message(&cleaned).is_empty() {
+        return requires_information_search;
     }
     let lowered = cleaned.to_ascii_lowercase();
     let asks_file_read = lowered.contains("read file")
@@ -252,6 +297,9 @@ fn inline_tool_calls_allowed_for_user_message(message: &str) -> bool {
     let asks_live_web = natural_web_intent_from_user_message(&cleaned).is_some();
     let asks_mixed_compare =
         workspace_plus_web_comparison_queries_from_message(&cleaned).is_some();
+    if (asks_live_web || asks_mixed_compare) && !requires_information_search {
+        return false;
+    }
     swarm_intent_requested(&cleaned)
         || asks_file_read
         || asks_memory

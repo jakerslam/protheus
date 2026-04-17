@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const ts = require('typescript');
+const ts = require('typescript');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 if (!require.extensions['.ts']) {
   require.extensions['.ts'] = function compileTs(module, filename) {
@@ -37,4 +37,4 @@ const chainPath = path.join(runtimeRoot, 'local', 'state', 'security', 'passport
 assert.equal(fs.existsSync(chainPath), true);
 const raw = fs.readFileSync(chainPath, 'utf8');
 assert.match(raw, /receipt_link/);
-console.log(JSON.stringify({ ok: true, type: 'agent_passport_link_rust_bridge_test' }));
+assertNoPlaceholderOrPromptLeak({ out, raw }, 'agent_passport_link_rust_bridge_test');\nassertStableToolingEnvelope(out, 'agent_passport_link_rust_bridge_test');\nconsole.log(JSON.stringify({ ok: true, type: 'agent_passport_link_rust_bridge_test' }));

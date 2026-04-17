@@ -223,6 +223,18 @@ fn validate_profile_shape(profile: &Value) -> Vec<String> {
     missing
 }
 
+fn canonical_domain(raw: &str) -> String {
+    let normalized = raw.trim().to_ascii_lowercase().replace('_', "-");
+    match normalized.as_str() {
+        "energy" | "utility" | "utilities" => "grid".to_string(),
+        "aviation" | "aerospace" => "avionics".to_string(),
+        "auto" | "vehicle" => "automotive".to_string(),
+        "telco" | "communications" => "telecom".to_string(),
+        "supply-chain" => "logistics".to_string(),
+        _ => normalized,
+    }
+}
+
 fn default_profile(domain: &str, spec: &DomainSpec) -> Value {
     json!({
         "domain": domain,
@@ -238,11 +250,12 @@ fn default_profile(domain: &str, spec: &DomainSpec) -> Value {
 }
 
 fn activate_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Value, String> {
-    let domain = clean(
+    let requested_domain = clean(
         parsed.flags.get("domain").map(String::as_str).unwrap_or(""),
         40,
     )
     .to_ascii_lowercase();
+    let domain = canonical_domain(&requested_domain);
     let specs = domain_specs();
     let spec = specs
         .get(domain.as_str())
@@ -273,6 +286,7 @@ fn activate_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Value, St
         "type": "vertical_plane_activate",
         "lane": LANE_ID,
         "ts": now_iso(),
+        "requested_domain": requested_domain,
         "domain": domain,
         "profile": resolved,
         "profile_hash": sha256_hex_str(&serde_json::to_string(&profiles.get(domain.as_str()).cloned().unwrap_or(Value::Null)).unwrap_or_default()),
@@ -285,13 +299,18 @@ fn activate_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Value, St
 }
 
 fn compile_profile_command(parsed: &crate::ParsedArgs) -> Result<Value, String> {
-    let domain = clean(
+    let requested_domain = clean(
         parsed.flags.get("domain").map(String::as_str).unwrap_or(""),
         40,
     )
     .to_ascii_lowercase();
+    let domain = canonical_domain(&requested_domain);
     if domain.is_empty() {
         return Err("compile_domain_required".to_string());
+    }
+    let specs = domain_specs();
+    if specs.get(domain.as_str()).is_none() {
+        return Err("domain_not_supported".to_string());
     }
     let profile = parse_json_or_empty(parsed.flags.get("profile-json"));
     let missing = validate_profile_shape(&profile);
@@ -314,6 +333,7 @@ fn compile_profile_command(parsed: &crate::ParsedArgs) -> Result<Value, String> 
         "type": "vertical_plane_compile_profile",
         "lane": LANE_ID,
         "ts": now_iso(),
+        "requested_domain": requested_domain,
         "domain": domain,
         "missing_fields": missing,
         "compiled": compiled,

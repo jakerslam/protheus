@@ -1,3 +1,26 @@
+fn safe_weight(value: Option<f64>, fallback: f64) -> f64 {
+    let weight = value.unwrap_or(fallback);
+    if weight.is_finite() && weight >= 0.0 {
+        weight
+    } else {
+        fallback.max(0.0)
+    }
+}
+
+fn dedupe_reasons(reasons: Vec<String>) -> Vec<String> {
+    let mut out = Vec::<String>::new();
+    for reason in reasons {
+        if reason.trim().is_empty() || out.iter().any(|existing| existing == &reason) {
+            continue;
+        }
+        out.push(reason);
+        if out.len() >= 12 {
+            break;
+        }
+    }
+    out
+}
+
 pub fn compute_evaluate_impossibility_trigger(
     input: &EvaluateImpossibilityTriggerInput,
 ) -> EvaluateImpossibilityTriggerOutput {
@@ -134,12 +157,12 @@ pub fn compute_evaluate_impossibility_trigger(
     } else {
         0.0
     };
-    let w_trit = js_number_for_extract(weights.get("trit_pain")).unwrap_or(0.2);
-    let w_mirror = js_number_for_extract(weights.get("mirror_pressure")).unwrap_or(0.2);
-    let w_drift = js_number_for_extract(weights.get("predicted_drift")).unwrap_or(0.18);
-    let w_yield = js_number_for_extract(weights.get("predicted_yield_gap")).unwrap_or(0.18);
-    let w_red = js_number_for_extract(weights.get("red_team_critical")).unwrap_or(0.14);
-    let w_regime = js_number_for_extract(weights.get("regime_constrained")).unwrap_or(0.1);
+    let w_trit = safe_weight(js_number_for_extract(weights.get("trit_pain")), 0.2);
+    let w_mirror = safe_weight(js_number_for_extract(weights.get("mirror_pressure")), 0.2);
+    let w_drift = safe_weight(js_number_for_extract(weights.get("predicted_drift")), 0.18);
+    let w_yield = safe_weight(js_number_for_extract(weights.get("predicted_yield_gap")), 0.18);
+    let w_red = safe_weight(js_number_for_extract(weights.get("red_team_critical")), 0.14);
+    let w_regime = safe_weight(js_number_for_extract(weights.get("regime_constrained")), 0.1);
     let weight_total = (w_trit + w_mirror + w_drift + w_yield + w_red + w_regime).max(0.0001);
     let score = clamp_number(
         ((trit_pain_signal * w_trit)
@@ -185,6 +208,7 @@ pub fn compute_evaluate_impossibility_trigger(
     if regime_constrained > 0.0 {
         reasons.push("regime_constrained".to_string());
     }
+    let reasons = dedupe_reasons(reasons);
     let triggered = force || (score >= threshold && signal_count >= min_signal_count);
     EvaluateImpossibilityTriggerOutput {
         triggered,
@@ -194,14 +218,16 @@ pub fn compute_evaluate_impossibility_trigger(
         threshold: (threshold * 1_000_000.0).round() / 1_000_000.0,
         signal_count,
         min_signal_count,
-        reasons: reasons.into_iter().take(12).collect::<Vec<_>>(),
+        reasons,
         components: json!({
             "trit_pain": (trit_pain_signal * 1_000_000.0).round() / 1_000_000.0,
             "mirror_pressure": (mirror_pressure * 1_000_000.0).round() / 1_000_000.0,
             "predicted_drift": (drift_score * 1_000_000.0).round() / 1_000_000.0,
             "predicted_yield_gap": (yield_gap_score * 1_000_000.0).round() / 1_000_000.0,
             "red_team_critical": red_team_critical,
-            "regime_constrained": regime_constrained
+            "regime_constrained": regime_constrained,
+            "weight_total": (weight_total * 1_000_000.0).round() / 1_000_000.0,
+            "trigger_margin": ((score - threshold) * 1_000_000.0).round() / 1_000_000.0
         }),
     }
 }

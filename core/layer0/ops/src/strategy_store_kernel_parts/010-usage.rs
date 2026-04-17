@@ -116,11 +116,34 @@ fn as_object<'a>(value: Option<&'a Value>) -> Option<&'a Map<String, Value>> {
     value.and_then(Value::as_object)
 }
 
+fn normalize_control_whitespace(raw: &str) -> String {
+    let mut out = String::with_capacity(raw.len());
+    let mut prev_ws = false;
+    for ch in raw.chars() {
+        let normalized = if ch.is_ascii_control() && ch != '\n' && ch != '\t' {
+            ' '
+        } else {
+            ch
+        };
+        if normalized.is_whitespace() {
+            if prev_ws {
+                continue;
+            }
+            prev_ws = true;
+            out.push(' ');
+        } else {
+            prev_ws = false;
+            out.push(normalized);
+        }
+    }
+    out.trim().to_string()
+}
+
 fn as_str(value: Option<&Value>) -> String {
     match value {
-        Some(Value::String(v)) => v.trim().to_string(),
+        Some(Value::String(v)) => normalize_control_whitespace(v),
         Some(Value::Null) | None => String::new(),
-        Some(v) => v.to_string().trim_matches('"').trim().to_string(),
+        Some(v) => normalize_control_whitespace(v.to_string().trim_matches('"')),
     }
 }
 
@@ -162,7 +185,7 @@ fn clean_text(value: Option<&Value>, max_len: usize) -> String {
 fn normalize_key(raw: &str, max_len: usize) -> String {
     let mut out = String::new();
     let mut prev_us = false;
-    for ch in raw.chars() {
+    for ch in normalize_control_whitespace(raw).chars() {
         let lower = ch.to_ascii_lowercase();
         let keep = matches!(lower, 'a'..='z' | '0'..='9' | ':' | '_' | '-');
         if keep {
@@ -182,7 +205,7 @@ fn normalize_key(raw: &str, max_len: usize) -> String {
 fn normalize_tag(raw: &str) -> String {
     let mut out = String::new();
     let mut prev_dash = false;
-    for ch in raw.chars() {
+    for ch in normalize_control_whitespace(raw).chars() {
         let lower = ch.to_ascii_lowercase();
         let keep = matches!(lower, 'a'..='z' | '0'..='9' | '_' | '-');
         if keep {
@@ -448,4 +471,3 @@ fn pointer_index_save(root: &Path, index: &Value) -> Result<(), String> {
         }),
     )
 }
-

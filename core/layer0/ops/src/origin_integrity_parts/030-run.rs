@@ -67,13 +67,36 @@ fn check_seed_certificate(
     out
 }
 
+fn normalize_origin_integrity_command(raw: &str) -> String {
+    let token = raw.trim().to_ascii_lowercase().replace('_', "-");
+    match token.as_str() {
+        "run" | "verify" | "check" => "run".to_string(),
+        "status" | "state" | "show" => "status".to_string(),
+        "certificate" | "cert" | "issue-certificate" => "certificate".to_string(),
+        "seed-bootstrap-verify" | "seed-bootstrap-check" | "seed-verify" => {
+            "seed-bootstrap-verify".to_string()
+        }
+        _ => token,
+    }
+}
+
+fn invalid_certificate_arg(raw: &str) -> bool {
+    let token = raw.trim();
+    token.is_empty()
+        || token.chars().any(|ch| ch == '\0' || ch.is_control())
+        || token.split(['/', '\\']).any(|part| part == "..")
+}
+
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     let parsed = parse_args(argv);
-    let command = parsed
+    let command = normalize_origin_integrity_command(
+        parsed
         .positional
         .first()
         .map(|v| v.trim().to_ascii_lowercase())
-        .unwrap_or_else(|| "status".to_string());
+            .unwrap_or_else(|| "status".to_string())
+            .as_str(),
+    );
 
     if matches!(command.as_str(), "help" | "--help" | "-h") {
         usage();
@@ -177,7 +200,11 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             }
         }
         "seed-bootstrap-verify" => {
-            let certificate = parsed.flags.get("certificate").map(String::as_str);
+            let certificate = parsed
+                .flags
+                .get("certificate")
+                .or_else(|| parsed.flags.get("certificate-path"))
+                .map(String::as_str);
             let Some(certificate_raw) = certificate else {
                 let mut out = json!({
                     "ok": false,
@@ -192,6 +219,34 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 );
                 return 1;
             };
+            if invalid_certificate_arg(certificate_raw) {
+                let mut out = json!({
+                    "ok": false,
+                    "type": "seed_bootstrap_verify",
+                    "ts": now_iso(),
+                    "error": "certificate_path_invalid"
+                });
+                out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&out).unwrap_or_else(|_| "{}".to_string())
+                );
+                return 1;
+            }
+            if strict && !certificate_raw.trim().to_ascii_lowercase().ends_with(".json") {
+                let mut out = json!({
+                    "ok": false,
+                    "type": "seed_bootstrap_verify",
+                    "ts": now_iso(),
+                    "error": "certificate_path_must_be_json"
+                });
+                out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&out).unwrap_or_else(|_| "{}".to_string())
+                );
+                return 1;
+            }
             let cert_path = resolve_path(root, certificate_raw);
             let out = check_seed_certificate(root, &policy, &cert_path);
             let _ = write_json_atomic(&latest_path, &out);
@@ -370,4 +425,3 @@ mod tests {
         );
     }
 }
-

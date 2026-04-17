@@ -196,8 +196,28 @@ fn main() {
         },
         "daemon" => run_daemon(&kv),
         _ => {
-            eprintln!("unsupported command: {}", cmd);
-            std::process::exit(1);
+            run_value_payload(json!({
+                "ok": false,
+                "type": "memory_cli_error",
+                "error": "unsupported_command",
+                "command": cmd,
+                "execution_receipt": {
+                    "status": "error",
+                    "stage": "dispatch",
+                    "command": cmd
+                },
+                "hint": "run stable-status for command surface",
+                "usage": [
+                    "probe",
+                    "query-index",
+                    "get-node",
+                    "build-index",
+                    "rag-ingest",
+                    "rag-search",
+                    "rag-chat",
+                    "stable-status"
+                ]
+            });
         }
     }
 }

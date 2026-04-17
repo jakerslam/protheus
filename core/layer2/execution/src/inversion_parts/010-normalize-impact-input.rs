@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-use chrono::{SecondsFormat, TimeZone, Utc};
+use chrono::{NaiveDate, SecondsFormat, TimeZone, Utc};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct NormalizeImpactInput {
-    #[serde(default)]
+    #[serde(default, alias = "impact")]
     pub value: Option<String>,
 }
 
@@ -21,7 +21,7 @@ pub struct NormalizeImpactOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct NormalizeModeInput {
-    #[serde(default)]
+    #[serde(default, alias = "mode")]
     pub value: Option<String>,
 }
 
@@ -32,7 +32,7 @@ pub struct NormalizeModeOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct NormalizeTargetInput {
-    #[serde(default)]
+    #[serde(default, alias = "target")]
     pub value: Option<String>,
 }
 
@@ -43,7 +43,7 @@ pub struct NormalizeTargetOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct NormalizeResultInput {
-    #[serde(default)]
+    #[serde(default, alias = "result")]
     pub value: Option<String>,
 }
 
@@ -54,7 +54,7 @@ pub struct NormalizeResultOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct ObjectiveIdValidInput {
-    #[serde(default)]
+    #[serde(default, alias = "objective_id", alias = "objectiveId")]
     pub value: Option<String>,
 }
 
@@ -65,9 +65,9 @@ pub struct ObjectiveIdValidOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct TritVectorFromInputInput {
-    #[serde(default)]
+    #[serde(default, alias = "tritVector")]
     pub trit_vector: Option<Vec<Value>>,
-    #[serde(default)]
+    #[serde(default, alias = "tritVectorCsv")]
     pub trit_vector_csv: Option<String>,
 }
 
@@ -185,7 +185,7 @@ pub struct ExtractListItemsOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct ParseSystemInternalPermissionInput {
-    #[serde(default)]
+    #[serde(default, alias = "text")]
     pub markdown: Option<String>,
 }
 
@@ -197,7 +197,7 @@ pub struct ParseSystemInternalPermissionOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct ParseSoulTokenDataPassRulesInput {
-    #[serde(default)]
+    #[serde(default, alias = "text")]
     pub markdown: Option<String>,
 }
 
@@ -208,7 +208,7 @@ pub struct ParseSoulTokenDataPassRulesOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct EnsureSystemPassedSectionInput {
-    #[serde(default)]
+    #[serde(default, alias = "source_text", alias = "text")]
     pub feed_text: Option<String>,
 }
 
@@ -219,11 +219,11 @@ pub struct EnsureSystemPassedSectionOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct SystemPassedPayloadHashInput {
-    #[serde(default)]
+    #[serde(default, alias = "source_id")]
     pub source: Option<String>,
     #[serde(default)]
     pub tags: Vec<String>,
-    #[serde(default)]
+    #[serde(default, alias = "body")]
     pub payload: Option<String>,
 }
 
@@ -234,7 +234,7 @@ pub struct SystemPassedPayloadHashOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct BuildLensPositionInput {
-    #[serde(default)]
+    #[serde(default, alias = "objective_text")]
     pub objective: Option<String>,
     #[serde(default)]
     pub target: Option<String>,
@@ -249,9 +249,9 @@ pub struct BuildLensPositionOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct BuildConclaveProposalSummaryInput {
-    #[serde(default)]
+    #[serde(default, alias = "objective_text")]
     pub objective: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "objectiveId")]
     pub objective_id: Option<String>,
     #[serde(default)]
     pub target: Option<String>,
@@ -274,9 +274,9 @@ pub struct ConclaveHighRiskFlagsInput {
     pub query: Option<String>,
     #[serde(default)]
     pub summary: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "maxDivergence")]
     pub max_divergence: Option<f64>,
-    #[serde(default)]
+    #[serde(default, alias = "minConfidence")]
     pub min_confidence: Option<f64>,
     #[serde(default)]
     pub high_risk_keywords: Vec<String>,
@@ -289,7 +289,7 @@ pub struct ConclaveHighRiskFlagsOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct TokenizeTextInput {
-    #[serde(default)]
+    #[serde(default, alias = "text")]
     pub value: Option<String>,
     #[serde(default)]
     pub max_tokens: Option<i64>,
@@ -356,13 +356,13 @@ pub struct LibraryMatchScoreInput {
     pub query_signature_tokens: Vec<String>,
     #[serde(default)]
     pub query_trit_vector: Vec<Value>,
-    #[serde(default)]
+    #[serde(default, alias = "query_target_id")]
     pub query_target: Option<String>,
     #[serde(default)]
     pub row_signature_tokens: Vec<String>,
     #[serde(default)]
     pub row_outcome_trit: Option<i64>,
-    #[serde(default)]
+    #[serde(default, alias = "row_target_id")]
     pub row_target: Option<String>,
     #[serde(default)]
     pub token_weight: Option<f64>,
@@ -381,7 +381,7 @@ pub struct LibraryMatchScoreOutput {
 pub struct KnownFailurePressureInput {
     #[serde(default)]
     pub candidates: Vec<Value>,
-    #[serde(default)]
+    #[serde(default, alias = "similarity_block")]
     pub failed_repetition_similarity_block: Option<f64>,
 }
 
@@ -433,7 +433,7 @@ pub struct CountAxiomSignalGroupsOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct EffectiveFirstNHumanVetoUsesInput {
-    #[serde(default)]
+    #[serde(default, alias = "minimum_uses_by_target")]
     pub first_live_uses_require_human_veto: Option<Value>,
     #[serde(default)]
     pub minimum_first_live_uses_require_human_veto: Option<Value>,

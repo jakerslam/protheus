@@ -23,6 +23,13 @@ fn latest_receipt(state_path: &Path) -> Value {
         .expect("last receipt")
 }
 
+fn assert_tooling_receipt_payload(receipt: &Value) {
+    assert!(
+        receipt.get("payload").and_then(Value::as_object).is_some(),
+        "receipt payload must be an object"
+    );
+}
+
 #[test]
 fn workflow_011_graph_agent_memory_hitl_mcp_eval_route_shell_and_intake_emit_receipts() {
     let root = tempfile::tempdir().expect("tempdir");
@@ -53,6 +60,7 @@ fn workflow_011_graph_agent_memory_hitl_mcp_eval_route_shell_and_intake_emit_rec
         0
     );
     let runtime_bridge_receipt = latest_receipt(&state_path);
+    assert_tooling_receipt_payload(&runtime_bridge_receipt);
     assert_eq!(
         runtime_bridge_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-011.7")
@@ -169,6 +177,7 @@ fn workflow_011_graph_agent_memory_hitl_mcp_eval_route_shell_and_intake_emit_rec
         0
     );
     let mcp_receipt = latest_receipt(&state_path);
+    assert_tooling_receipt_payload(&mcp_receipt);
     let bridge_id = mcp_receipt["payload"]["mcp_bridge"]["tool_id"]
         .as_str()
         .expect("mcp bridge id")
@@ -319,6 +328,7 @@ fn workflow_011_graph_agent_memory_hitl_mcp_eval_route_shell_and_intake_emit_rec
         0
     );
     let invoke_receipt = latest_receipt(&state_path);
+    assert_tooling_receipt_payload(&invoke_receipt);
     assert_eq!(
         invoke_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-011.5")

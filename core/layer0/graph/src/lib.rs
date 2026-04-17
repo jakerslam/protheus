@@ -49,13 +49,99 @@ pub struct GraphReceipt {
     pub warnings: Vec<String>,
 }
 
-fn normalize_id(raw: &str) -> String {
-    let trimmed = raw.trim();
-    if trimmed.is_empty() {
-        "unnamed_node".to_string()
-    } else {
-        trimmed.to_string()
+const MAX_WORKFLOW_ID_LEN: usize = 96;
+const MAX_NODE_ID_LEN: usize = 96;
+const MAX_NODE_KIND_LEN: usize = 64;
+const MAX_EDGE_CONDITION_LEN: usize = 96;
+const MAX_METADATA_KEY_LEN: usize = 64;
+const MAX_METADATA_VALUE_LEN: usize = 192;
+
+fn strip_invisible_unicode(raw: &str) -> String {
+    raw.chars()
+        .filter(|ch| {
+            !matches!(
+                ch,
+                '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}'
+            )
+        })
+        .collect()
+}
+
+fn normalize_token(raw: &str, max_len: usize, fallback: &str) -> String {
+    let mut normalized: String = strip_invisible_unicode(raw)
+        .chars()
+        .filter(|ch| !ch.is_control())
+        .collect();
+    normalized = normalized.trim().to_string();
+    if normalized.len() > max_len {
+        normalized.truncate(max_len);
     }
+    if normalized.is_empty() {
+        fallback.to_string()
+    } else {
+        normalized
+    }
+}
+
+fn normalize_id(raw: &str) -> String {
+    normalize_token(raw, MAX_NODE_ID_LEN, "unnamed_node")
+}
+
+fn normalize_workflow(mut workflow: GraphWorkflow) -> GraphWorkflow {
+    workflow.workflow_id = normalize_token(
+        &workflow.workflow_id,
+        MAX_WORKFLOW_ID_LEN,
+        "graph_workflow",
+    );
+
+    let mut seen_nodes = BTreeSet::<String>::new();
+    let mut normalized_nodes = Vec::<GraphNode>::new();
+    for node in workflow.nodes {
+        let id = normalize_id(&node.id);
+        if !seen_nodes.insert(id.clone()) {
+            continue;
+        }
+        let kind = normalize_token(&node.kind, MAX_NODE_KIND_LEN, "task");
+        let mut metadata = BTreeMap::<String, String>::new();
+        for (raw_key, raw_value) in node.metadata {
+            let key = normalize_token(&raw_key, MAX_METADATA_KEY_LEN, "");
+            if key.is_empty() {
+                continue;
+            }
+            let value = normalize_token(&raw_value, MAX_METADATA_VALUE_LEN, "");
+            metadata.insert(key, value);
+        }
+        normalized_nodes.push(GraphNode { id, kind, metadata });
+    }
+    workflow.nodes = normalized_nodes;
+
+    let node_ids = workflow
+        .nodes
+        .iter()
+        .map(|node| node.id.clone())
+        .collect::<BTreeSet<_>>();
+    let mut seen_edges = BTreeSet::<String>::new();
+    let mut normalized_edges = Vec::<GraphEdge>::new();
+    for edge in workflow.edges {
+        let from = normalize_id(&edge.from);
+        let to = normalize_id(&edge.to);
+        if from == to || !node_ids.contains(&from) || !node_ids.contains(&to) {
+            continue;
+        }
+        let condition = normalize_token(&edge.condition, MAX_EDGE_CONDITION_LEN, "");
+        let edge_key = format!("{from}->{to}|{condition}");
+        if !seen_edges.insert(edge_key) {
+            continue;
+        }
+        normalized_edges.push(GraphEdge {
+            from,
+            to,
+            condition,
+        });
+    }
+    workflow.edges = normalized_edges;
+
+    workflow
 }
 
 fn topo_order(nodes: &[GraphNode], edges: &[GraphEdge]) -> (Vec<String>, bool) {
@@ -141,6 +227,7 @@ pub fn run_workflow(yaml: &str) -> Result<GraphReceipt, String> {
     let policy = load_embedded_graph_policy().map_err(|e| e.to_string())?;
     let workflow: GraphWorkflow =
         serde_yaml::from_str(yaml).map_err(|e| format!("workflow_parse_failed:{e}"))?;
+    let workflow = normalize_workflow(workflow);
 
     let mut warnings = Vec::<String>::new();
     if workflow.nodes.len() > policy.max_nodes {
@@ -148,6 +235,9 @@ pub fn run_workflow(yaml: &str) -> Result<GraphReceipt, String> {
     }
     if workflow.edges.len() > policy.max_edges {
         warnings.push("edge_count_above_policy_cap".to_string());
+    }
+    if workflow.nodes.is_empty() {
+        warnings.push("workflow_nodes_empty_after_normalization".to_string());
     }
 
     let (ordered_nodes, cyclic) = topo_order(&workflow.nodes, &workflow.edges);
@@ -176,6 +266,7 @@ pub fn run_workflow_json(yaml: &str) -> Result<String, String> {
 pub fn viz_dot(yaml: &str) -> Result<String, String> {
     let workflow: GraphWorkflow =
         serde_yaml::from_str(yaml).map_err(|e| format!("workflow_parse_failed:{e}"))?;
+    let workflow = normalize_workflow(workflow);
     let mut lines = Vec::<String>::new();
     lines.push(format!(
         "digraph {} {{",

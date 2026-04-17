@@ -2,7 +2,7 @@
 'use strict';
 
 const assert = require('node:assert');
-const path = require('node:path');
+const path = require('node:path');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 const ROOT = path.resolve(__dirname, '../..');
 const policyValidator = require(path.join(
@@ -41,7 +41,7 @@ function main() {
   ]);
   assert.strictEqual(budgetWithinLimits.ok, true);
 
-  console.log(
+  assertNoPlaceholderOrPromptLeak({ burnViolation, budgetViolation, budgetWithinLimits }, 'memory_recall_context_budget_test');\n  assertStableToolingEnvelope({ burnViolation, budgetViolation, budgetWithinLimits }, 'memory_recall_context_budget_test');\n  console.log(
     JSON.stringify({
       ok: true,
       type: 'memory_recall_context_budget_test'

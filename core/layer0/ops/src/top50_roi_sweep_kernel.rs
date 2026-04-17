@@ -215,6 +215,10 @@ fn is_cognition_orchestration_thin_surface(record: &Record) -> bool {
 }
 fn route_weight(rel_path: &str) -> f64 {
     let weighted = [
+        ("client/runtime/systems/web/", 4.5),
+        ("client/runtime/systems/tooling/", 4.4),
+        ("client/runtime/systems/search/", 4.2),
+        ("client/runtime/systems/gateway/", 4.1),
         ("client/runtime/systems/autonomy/", 4.3),
         ("client/runtime/systems/security/", 4.3),
         ("client/runtime/systems/ops/", 4.3),

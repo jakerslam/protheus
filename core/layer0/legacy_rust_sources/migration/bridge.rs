@@ -35,7 +35,50 @@ pub struct SignedReceipt {
 }
 
 fn sanitize(s: &str) -> String {
-    s.trim().replace('\n', " ").replace('\r', " ")
+    s.chars()
+        .filter(|ch| {
+            !matches!(
+                *ch,
+                '\u{200B}'
+                    | '\u{200C}'
+                    | '\u{200D}'
+                    | '\u{2060}'
+                    | '\u{FEFF}'
+                    | '\u{202A}'
+                    | '\u{202B}'
+                    | '\u{202C}'
+                    | '\u{202D}'
+                    | '\u{202E}'
+            ) && (!ch.is_control() || ch.is_ascii_whitespace())
+        })
+        .collect::<String>()
+        .trim()
+        .replace('\n', " ")
+        .replace('\r', " ")
+        .chars()
+        .take(320)
+        .collect::<String>()
+}
+
+fn normalize_slug(raw: &str) -> Option<String> {
+    let cleaned = sanitize(raw).trim_end_matches(".git").trim().to_ascii_lowercase();
+    let mut parts = cleaned.split('/');
+    let owner = parts.next()?.trim();
+    let repo = parts.next()?.trim();
+    if parts.next().is_some() {
+        return None;
+    }
+    let is_valid = |value: &str| {
+        !value.is_empty()
+            && value
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_' | b'.'))
+    };
+    if is_valid(owner) && is_valid(repo) {
+        Some(format!("{owner}/{repo}"))
+    } else {
+        None
+    }
 }
 
 pub fn normalize_repo_target(raw: &str) -> NormalizedTarget {
@@ -44,21 +87,12 @@ pub fn normalize_repo_target(raw: &str) -> NormalizedTarget {
 
     let slug = if let Some(idx) = cleaned.find("github.com/") {
         let tail = &cleaned[idx + "github.com/".len()..];
-        let parts: Vec<&str> = tail.split('/').collect();
-        if parts.len() >= 2 {
-            Some(format!("{}/{}", parts[0], parts[1]))
-        } else {
-            None
-        }
+        normalize_slug(tail)
     } else if cleaned.starts_with("git@") && cleaned.contains(':') {
         let tail = cleaned.split(':').nth(1).unwrap_or_default();
-        if tail.split('/').count() == 2 {
-            Some(tail.to_string())
-        } else {
-            None
-        }
+        normalize_slug(tail)
     } else if cleaned.split('/').count() == 2 && !cleaned.contains("://") {
-        Some(cleaned.to_string())
+        normalize_slug(cleaned)
     } else {
         None
     };
@@ -103,15 +137,16 @@ pub fn workspace_name_from_target(raw: &str) -> String {
 }
 
 pub fn sign_receipt(migration_id: &str, event_type: &str, key_material: &str) -> SignedReceipt {
-    let key = if key_material.trim().is_empty() {
-        "migration_dev_key"
+    let sanitized_key = sanitize(key_material);
+    let key = if sanitized_key.is_empty() {
+        "migration_dev_key".to_string()
     } else {
-        key_material.trim()
+        sanitized_key
     };
     let key_id = short_hash(&format!("key:{}", key), 12);
     let signature = short_hash(
         &format!(
-            "migration_id={}|event_type={}|key={} ",
+            "migration_id={}|event_type={}|key={}",
             sanitize(migration_id),
             sanitize(event_type),
             key
@@ -131,6 +166,7 @@ pub fn short_hash(value: &str, width: usize) -> String {
     let mut hasher = DefaultHasher::new();
     value.hash(&mut hasher);
     let raw = format!("{:016x}", hasher.finish());
+    let width = width.min(256);
     if width == 0 {
         return raw;
     }

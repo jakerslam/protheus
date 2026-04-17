@@ -2,14 +2,23 @@
 pub fn run_inversion_json(payload_json: &str) -> Result<String, String> {
     let payload: Value = serde_json::from_str(payload_json)
         .map_err(|e| format!("inversion_payload_parse_failed:{e}"))?;
-    let mode = payload
+    let mode_raw = payload
         .get("mode")
         .and_then(|v| v.as_str())
         .map(|s| s.trim().to_lowercase())
         .unwrap_or_default();
-    if mode.is_empty() {
+    if mode_raw.is_empty() {
         return Err("inversion_mode_missing".to_string());
     }
+    let mode = mode_raw.replace('-', "_").replace(' ', "_");
+    let mode = match mode.as_str() {
+        "impact" => "normalize_impact".to_string(),
+        "target" => "normalize_target".to_string(),
+        "result" => "normalize_result".to_string(),
+        "parse_stdout_json" => "parse_json_from_stdout".to_string(),
+        "first_principle_extract" => "extract_first_principle".to_string(),
+        _ => mode,
+    };
     if mode == "normalize_impact" {
         let input: NormalizeImpactInput = decode_input(&payload, "normalize_impact_input")?;
         let out = compute_normalize_impact(&input);
@@ -1456,5 +1465,7 @@ pub fn run_inversion_json(payload_json: &str) -> Result<String, String> {
         }))
         .map_err(|e| format!("inversion_encode_persist_first_principle_failed:{e}"));
     }
-    Err(format!("inversion_mode_unsupported:{mode}"))
+    Err(format!(
+        "inversion_mode_unsupported:raw={mode_raw}:normalized={mode}"
+    ))
 }

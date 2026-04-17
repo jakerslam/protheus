@@ -485,4 +485,48 @@ approval_policy:
 
         let _ = fs::remove_dir_all(root);
     }
+
+    #[test]
+    fn web_tooling_secret_detector_matches_provider_key_material() {
+        let payload = r#"{"payload":{"firecrawl_api_key":"fc_test_abcdefghijklmnopqrstuvwxyz012345"}}"#;
+        let matched = payload_contains_web_tooling_secret(payload, 20);
+        assert_eq!(matched, Some("firecrawl"));
+    }
+
+    #[test]
+    fn validate_action_envelope_blocks_unredacted_web_tooling_credentials() {
+        let root = temp_root("validate_web_tooling_secret");
+        write_active_directive_fixture(&root);
+
+        let blocked = validate_action_envelope(
+            &root,
+            &json!({
+                "action_id": "act_web_secret",
+                "tier": 2,
+                "type": "web_search",
+                "summary": "Investigate provider output",
+                "risk": "low",
+                "payload": {
+                    "firecrawl_api_key": "fc_test_abcdefghijklmnopqrstuvwxyz012345"
+                }
+            }),
+        )
+        .expect("blocked result");
+        assert_eq!(blocked.get("allowed").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            blocked
+                .get("blocked_reason")
+                .and_then(Value::as_str)
+                .map(|text| text.contains("runtime web-tooling credential")),
+            Some(true)
+        );
+        assert_eq!(
+            blocked
+                .pointer("/runtime_web_tooling/required_for_action")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+
+        let _ = fs::remove_dir_all(root);
+    }
 }

@@ -260,10 +260,26 @@ fn looks_like_cron(expr: &str) -> bool {
 }
 
 fn split_actions(raw: &str) -> Vec<String> {
-    raw.split(['+', ','])
-        .map(|row| clean(row, 80).to_ascii_lowercase())
-        .filter(|row| !row.is_empty())
-        .collect()
+    fn canonical_action_token(raw: String) -> String {
+        let compact = raw.replace('_', "-");
+        match compact.as_str() {
+            "page-on-call" | "page" | "pageoncall" => "page-oncall".to_string(),
+            "logcapture" | "logs" => "log-capture".to_string(),
+            "pager-duty" | "pagerduty-events" | "pd" => "pagerduty".to_string(),
+            "data-dog" | "dd" | "ddog" => "datadog".to_string(),
+            _ => compact,
+        }
+    }
+
+    let mut out = Vec::<String>::new();
+    for row in raw.split(['+', ',', ';']) {
+        let token = canonical_action_token(clean(row, 80).to_ascii_lowercase());
+        if token.is_empty() || out.iter().any(|existing| existing == &token) {
+            continue;
+        }
+        out.push(token);
+    }
+    out
 }
 
 fn compile_steps_graph(step_names: &[String]) -> Value {

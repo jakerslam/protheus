@@ -18,6 +18,7 @@ const DEFAULT_HISTORY_REL: &str = "client/runtime/local/state/ops/mech_suit_mode
 const DEFAULT_ATTENTION_QUEUE_REL: &str = "client/runtime/local/state/attention/queue.jsonl";
 const DEFAULT_ATTENTION_RECEIPTS_REL: &str = "client/runtime/local/state/attention/receipts.jsonl";
 const DEFAULT_ATTENTION_LATEST_REL: &str = "client/runtime/local/state/attention/latest.json";
+const MAX_PAYLOAD_BYTES: usize = 256 * 1024;
 
 fn usage() {
     println!("mech-suit-mode-kernel commands:");
@@ -67,6 +68,9 @@ fn print_json_line(value: &Value) {
 
 fn payload_json(argv: &[String]) -> Result<Value, String> {
     if let Some(raw) = lane_utils::parse_flag(argv, "payload", false) {
+        if raw.len() > MAX_PAYLOAD_BYTES {
+            return Err(format!("mech_suit_mode_kernel_payload_too_large:{}", raw.len()));
+        }
         return serde_json::from_str::<Value>(&raw)
             .map_err(|err| format!("mech_suit_mode_kernel_payload_decode_failed:{err}"));
     }
@@ -74,6 +78,12 @@ fn payload_json(argv: &[String]) -> Result<Value, String> {
         let bytes = BASE64_STANDARD
             .decode(raw_b64.as_bytes())
             .map_err(|err| format!("mech_suit_mode_kernel_payload_base64_decode_failed:{err}"))?;
+        if bytes.len() > MAX_PAYLOAD_BYTES {
+            return Err(format!(
+                "mech_suit_mode_kernel_payload_too_large:{}",
+                bytes.len()
+            ));
+        }
         let text = String::from_utf8(bytes)
             .map_err(|err| format!("mech_suit_mode_kernel_payload_utf8_decode_failed:{err}"))?;
         return serde_json::from_str::<Value>(&text)
@@ -243,6 +253,16 @@ fn rewrite_runtime_relative(rel: &str) -> String {
     rel
 }
 
+fn relative_path_safe(rel: &str) -> bool {
+    let normalized = normalize_relative_token(rel);
+    if normalized.is_empty() || normalized.contains('\0') {
+        return false;
+    }
+    !normalized
+        .split('/')
+        .any(|segment| segment.is_empty() || segment == "..")
+}
+
 fn resolve_path(root: &Path, raw: &str, fallback_rel: &str) -> PathBuf {
     let expanded = raw
         .replace("${INFRING_WORKSPACE}", &root.to_string_lossy())
@@ -250,10 +270,17 @@ fn resolve_path(root: &Path, raw: &str, fallback_rel: &str) -> PathBuf {
     let candidate = if expanded.trim().is_empty() {
         rewrite_runtime_relative(fallback_rel)
     } else if Path::new(expanded.trim()).is_absolute() {
-        return PathBuf::from(expanded.trim());
+        let absolute = PathBuf::from(expanded.trim());
+        if absolute.starts_with(root) {
+            return absolute;
+        }
+        return root.join(rewrite_runtime_relative(fallback_rel));
     } else {
         rewrite_runtime_relative(expanded.trim())
     };
+    if !relative_path_safe(&candidate) {
+        return root.join(rewrite_runtime_relative(fallback_rel));
+    }
     root.join(candidate)
 }
 
@@ -456,4 +483,3 @@ fn normalize_policy(raw: Option<&Map<String, Value>>, root: &Path, policy_path: 
 trait StringExt {
     fn if_empty_then(self, fallback: String) -> String;
 }
-

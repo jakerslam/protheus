@@ -119,8 +119,7 @@
   object-fit: cover;
 }
 
-.nav-agent-avatar-emoji,
-.nav-agent-avatar-fallback {
+.nav-agent-avatar-emoji {
   font-size: 14px;
   line-height: 1;
 }
@@ -320,6 +319,9 @@
   --dashboard-preview-surface-shadow: var(--drag-bar-shadow, var(--overlay-shared-surface-shadow, var(--overlay-surface-shadow, -6px 0 12px -14px rgba(0, 0, 0, 0.32), 6px 0 12px -14px rgba(0, 0, 0, 0.32), 0 10px 18px -18px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.2))));
   --dashboard-preview-surface-blur: var(--drag-bar-blur, var(--overlay-shared-surface-blur, var(--overlay-surface-blur, 6px)));
   --dashboard-preview-surface-saturate: var(--drag-bar-saturate, var(--overlay-shared-surface-saturate, var(--overlay-surface-saturate, 1.05)));
+  --dashboard-preview-surface-brightness: var(--drag-bar-brightness, var(--overlay-shared-surface-brightness, var(--overlay-surface-brightness, 1)));
+  --dashboard-preview-surface-contrast: var(--drag-bar-contrast, var(--overlay-shared-surface-contrast, var(--overlay-surface-contrast, 1)));
+  --dashboard-preview-surface-distortion: var(--drag-bar-distortion, var(--overlay-shared-surface-distortion, var(--overlay-surface-distortion, url(#infring-overlay-glass-pass))));
   --pulltab-surface-shadow-inherited: var(--dashboard-preview-surface-shadow);
   --pulltab-surface-shadow-right-only:
     6px 0 12px -14px rgba(0, 0, 0, 0.32),
@@ -364,10 +366,23 @@
   box-shadow: var(--pulltab-surface-shadow);
   filter: none;
   background-clip: padding-box;
-  backdrop-filter: blur(var(--dashboard-preview-surface-blur)) saturate(var(--dashboard-preview-surface-saturate));
-  -webkit-backdrop-filter: blur(var(--dashboard-preview-surface-blur)) saturate(var(--dashboard-preview-surface-saturate));
+  backdrop-filter:
+    var(--dashboard-preview-surface-distortion)
+    blur(var(--dashboard-preview-surface-blur))
+    saturate(var(--dashboard-preview-surface-saturate))
+    brightness(var(--dashboard-preview-surface-brightness))
+    contrast(var(--dashboard-preview-surface-contrast));
+  -webkit-backdrop-filter:
+    var(--dashboard-preview-surface-distortion)
+    blur(var(--dashboard-preview-surface-blur))
+    saturate(var(--dashboard-preview-surface-saturate))
+    brightness(var(--dashboard-preview-surface-brightness))
+    contrast(var(--dashboard-preview-surface-contrast));
   will-change: backdrop-filter;
-  transition: color var(--transition-fast), background var(--transition-fast);
+  transition:
+    color var(--transition-fast),
+    background var(--transition-fast),
+    border-radius var(--drag-bar-radius-transition, 500ms var(--ease-smooth));
 }
 
 .overlay-pulltab-object.sidebar-pulltab, .sidebar-pulltab {
@@ -388,6 +403,7 @@
     left var(--sidebar-position-transition, var(--transition-normal)),
     top var(--sidebar-position-transition, var(--transition-normal)),
     transform var(--sidebar-position-transition, var(--transition-normal)),
+    border-radius var(--drag-bar-radius-transition, 500ms var(--ease-smooth)),
     color var(--transition-fast),
     background var(--transition-fast);
 }

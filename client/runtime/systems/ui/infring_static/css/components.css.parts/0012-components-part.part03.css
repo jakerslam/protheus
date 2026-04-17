@@ -7,17 +7,24 @@
   --dashboard-preview-surface-max-width: min(88vw, 24ch);
   --dashboard-preview-surface-min-height: 28px;
   --dashboard-preview-surface-padding: 7px 12px;
-  --dashboard-preview-surface-radius: var(--overlay-shared-surface-radius, var(--overlay-surface-radius, 18px));
-  --dashboard-preview-surface-border: var(--overlay-shared-surface-border, var(--overlay-surface-border, color-mix(in srgb, #fff 24%, transparent)));
-  --dashboard-preview-surface-background: var(--overlay-shared-surface-background, var(--overlay-surface-background, transparent));
+  --dashboard-preview-surface-radius: var(--drag-bar-radius, var(--overlay-shared-surface-radius, var(--overlay-surface-radius, 18px)));
+  --dashboard-preview-surface-border: var(--drag-bar-border, var(--overlay-shared-surface-border, var(--overlay-surface-border, color-mix(in srgb, #fff 24%, transparent))));
+  --dashboard-preview-surface-background: var(--drag-bar-background, var(--overlay-shared-surface-background, var(--overlay-surface-background, transparent)));
   --dashboard-preview-surface-color: var(--text);
   --dashboard-preview-surface-font-size: 13px;
   --dashboard-preview-surface-font-weight: 500;
   --dashboard-preview-surface-line-height: 1.2;
   --dashboard-preview-surface-letter-spacing: 0.01em;
-  --dashboard-preview-surface-shadow: var(--overlay-shared-surface-shadow, var(--overlay-surface-shadow, -6px 0 12px -14px rgba(0, 0, 0, 0.32), 6px 0 12px -14px rgba(0, 0, 0, 0.32), 0 10px 18px -18px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.2)));
-  --dashboard-preview-surface-blur: var(--overlay-shared-surface-blur, var(--overlay-surface-blur, 6px));
-  --dashboard-preview-surface-saturate: var(--overlay-shared-surface-saturate, var(--overlay-surface-saturate, 1.05));
+  --dashboard-preview-surface-shadow: var(--drag-bar-shadow, var(--overlay-shared-surface-shadow, var(--overlay-surface-shadow, -6px 0 12px -14px rgba(0, 0, 0, 0.32), 6px 0 12px -14px rgba(0, 0, 0, 0.32), 0 10px 18px -18px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.2))));
+  --dashboard-preview-surface-blur: var(--drag-bar-blur, var(--overlay-shared-surface-blur, var(--overlay-surface-blur, 6px)));
+  --dashboard-preview-surface-saturate: var(--drag-bar-saturate, var(--overlay-shared-surface-saturate, var(--overlay-surface-saturate, 1.05)));
+  --dashboard-preview-surface-brightness: var(--drag-bar-brightness, var(--overlay-shared-surface-brightness, var(--overlay-surface-brightness, 1)));
+  --dashboard-preview-surface-contrast: var(--drag-bar-contrast, var(--overlay-shared-surface-contrast, var(--overlay-surface-contrast, 1)));
+  --dashboard-preview-surface-distortion: var(--drag-bar-distortion, var(--overlay-shared-surface-distortion, var(--overlay-surface-distortion, url(#infring-overlay-glass-pass))));
+  --dashboard-preview-surface-specular: var(--drag-bar-specular, var(--overlay-shared-surface-specular, var(--overlay-surface-specular, none)));
+  --dashboard-preview-surface-specular-opacity: var(--drag-bar-specular-opacity, var(--overlay-shared-surface-specular-opacity, var(--overlay-surface-specular-opacity, 0)));
+  --dashboard-preview-surface-caustic: var(--drag-bar-caustic, var(--overlay-shared-surface-caustic, var(--overlay-surface-caustic, none)));
+  --dashboard-preview-surface-caustic-opacity: var(--drag-bar-caustic-opacity, var(--overlay-shared-surface-caustic-opacity, var(--overlay-surface-caustic-opacity, 0)));
 }
 
 .overlay-shared-surface,
@@ -30,9 +37,70 @@
   border-radius: var(--dashboard-preview-surface-radius);
   background: var(--dashboard-preview-surface-background);
   box-shadow: var(--dashboard-preview-surface-shadow);
-  backdrop-filter: blur(var(--dashboard-preview-surface-blur)) saturate(var(--dashboard-preview-surface-saturate));
-  -webkit-backdrop-filter: blur(var(--dashboard-preview-surface-blur)) saturate(var(--dashboard-preview-surface-saturate));
+  backdrop-filter:
+    var(--dashboard-preview-surface-distortion)
+    blur(var(--dashboard-preview-surface-blur))
+    saturate(var(--dashboard-preview-surface-saturate))
+    brightness(var(--dashboard-preview-surface-brightness))
+    contrast(var(--dashboard-preview-surface-contrast));
+  -webkit-backdrop-filter:
+    var(--dashboard-preview-surface-distortion)
+    blur(var(--dashboard-preview-surface-blur))
+    saturate(var(--dashboard-preview-surface-saturate))
+    brightness(var(--dashboard-preview-surface-brightness))
+    contrast(var(--dashboard-preview-surface-contrast));
   background-clip: padding-box;
+}
+
+.overlay-shared-surface,
+.dashboard-dropdown-surface,
+.dashboard-popup-surface,
+.dashboard-preview-surface,
+.taskbar-search-popup {
+  position: relative;
+  isolation: isolate;
+}
+
+.overlay-shared-surface::before,
+.dashboard-dropdown-surface::before,
+.dashboard-popup-surface::before,
+.dashboard-preview-surface::before,
+.taskbar-search-popup::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--dashboard-preview-surface-specular);
+  opacity: var(--dashboard-preview-surface-specular-opacity);
+  mix-blend-mode: screen;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.overlay-shared-surface::after,
+.dashboard-dropdown-surface::after,
+.dashboard-popup-surface::after,
+.dashboard-preview-surface::after,
+.taskbar-search-popup::after {
+  content: '';
+  position: absolute;
+  inset: -22%;
+  border-radius: inherit;
+  background: var(--dashboard-preview-surface-caustic);
+  opacity: var(--dashboard-preview-surface-caustic-opacity);
+  mix-blend-mode: soft-light;
+  filter: blur(12px) saturate(1.25);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.overlay-shared-surface > *,
+.dashboard-dropdown-surface > *,
+.dashboard-popup-surface > *,
+.dashboard-preview-surface > *,
+.taskbar-search-popup > * {
+  position: relative;
+  z-index: 1;
 }
 
 .dashboard-preview-trigger {
@@ -266,6 +334,9 @@
   padding: 7px 10px;
   border-radius: 10px;
   cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
   transition: color var(--transition-fast), background var(--transition-fast);
 }
 
@@ -307,6 +378,9 @@
   line-height: 1.25;
   padding: 9px 11px;
   cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
   transition: color var(--transition-fast), background var(--transition-fast);
 }
 
@@ -325,6 +399,34 @@
   flex-direction: column;
   overflow: hidden;
   z-index: 19440;
+}
+
+.popup-window.drag-bar {
+  border-width: 1px;
+  border-style: solid;
+  border-top-color: var(--drag-bar-border-top-color, var(--drag-bar-border, var(--overlay-shared-surface-border, var(--overlay-surface-border, color-mix(in srgb, #fff 24%, transparent)))));
+  border-right-color: var(--drag-bar-border-right-color, var(--drag-bar-border, var(--overlay-shared-surface-border, var(--overlay-surface-border, color-mix(in srgb, #fff 24%, transparent)))));
+  border-bottom-color: var(--drag-bar-border-bottom-color, var(--drag-bar-border, var(--overlay-shared-surface-border, var(--overlay-surface-border, color-mix(in srgb, #fff 24%, transparent)))));
+  border-left-color: var(--drag-bar-border-left-color, var(--drag-bar-border, var(--overlay-shared-surface-border, var(--overlay-surface-border, color-mix(in srgb, #fff 24%, transparent)))));
+  border-radius: var(--drag-bar-radius, var(--overlay-shared-surface-radius, var(--overlay-surface-radius, 18px)));
+  background: var(--drag-bar-background, var(--overlay-shared-surface-background, var(--overlay-surface-background, transparent)));
+  box-shadow: var(--drag-bar-shadow, var(--overlay-shared-surface-shadow, var(--overlay-surface-shadow, -6px 0 12px -14px rgba(0, 0, 0, 0.32), 6px 0 12px -14px rgba(0, 0, 0, 0.32), 0 10px 18px -18px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.2))));
+  transition:
+    border-radius var(--drag-bar-radius-transition),
+    border-color var(--drag-bar-border-transition-duration, 0ms) linear var(--drag-bar-border-transition-delay, 0ms);
+  backdrop-filter:
+    var(--drag-bar-distortion, var(--overlay-shared-surface-distortion, var(--overlay-surface-distortion, url(#infring-overlay-glass-pass))))
+    blur(var(--drag-bar-blur, var(--overlay-shared-surface-blur, var(--overlay-surface-blur, 6px))))
+    saturate(var(--drag-bar-saturate, var(--overlay-shared-surface-saturate, var(--overlay-surface-saturate, 1.05))))
+    brightness(var(--drag-bar-brightness, var(--overlay-shared-surface-brightness, var(--overlay-surface-brightness, 1))))
+    contrast(var(--drag-bar-contrast, var(--overlay-shared-surface-contrast, var(--overlay-surface-contrast, 1))));
+  -webkit-backdrop-filter:
+    var(--drag-bar-distortion, var(--overlay-shared-surface-distortion, var(--overlay-surface-distortion, url(#infring-overlay-glass-pass))))
+    blur(var(--drag-bar-blur, var(--overlay-shared-surface-blur, var(--overlay-surface-blur, 6px))))
+    saturate(var(--drag-bar-saturate, var(--overlay-shared-surface-saturate, var(--overlay-surface-saturate, 1.05))))
+    brightness(var(--drag-bar-brightness, var(--overlay-shared-surface-brightness, var(--overlay-surface-brightness, 1))))
+    contrast(var(--drag-bar-contrast, var(--overlay-shared-surface-contrast, var(--overlay-surface-contrast, 1))));
+  background-clip: padding-box;
 }
 
 .popup-window-manual {
@@ -458,9 +560,29 @@
   --taskbar-overlay-gap: 8px;
   --taskbar-overlay-top: calc(100% + var(--taskbar-overlay-gap));
   --taskbar-overlay-bottom: auto;
-  --taskbar-overlay-left: auto;
+  --taskbar-overlay-left: 0;
   --taskbar-overlay-right: auto;
   --taskbar-overlay-transform: none;
+}
+
+.taskbar-anchored-dropdown.is-inline-away-right {
+  --taskbar-overlay-left: 0;
+  --taskbar-overlay-right: auto;
+}
+
+.taskbar-anchored-dropdown.is-inline-away-left {
+  --taskbar-overlay-left: auto;
+  --taskbar-overlay-right: 0;
+}
+
+.taskbar-anchored-dropdown.is-block-away-bottom {
+  --taskbar-overlay-top: 0;
+  --taskbar-overlay-bottom: auto;
+}
+
+.taskbar-anchored-dropdown.is-block-away-top {
+  --taskbar-overlay-top: auto;
+  --taskbar-overlay-bottom: 0;
 }
 
 .taskbar-anchored-dropdown.is-side-top {
@@ -476,17 +598,13 @@
 .taskbar-anchored-dropdown.is-side-left {
   --taskbar-overlay-left: auto;
   --taskbar-overlay-right: calc(100% + var(--taskbar-overlay-gap));
-  --taskbar-overlay-top: 50%;
-  --taskbar-overlay-bottom: auto;
-  --taskbar-overlay-transform: translateY(-50%);
+  --taskbar-overlay-transform: none;
 }
 
 .taskbar-anchored-dropdown.is-side-right {
   --taskbar-overlay-left: calc(100% + var(--taskbar-overlay-gap));
   --taskbar-overlay-right: auto;
-  --taskbar-overlay-top: 50%;
-  --taskbar-overlay-bottom: auto;
-  --taskbar-overlay-transform: translateY(-50%);
+  --taskbar-overlay-transform: none;
 }
 
 .taskbar-brand-trigger {
@@ -519,7 +637,7 @@
   width: 100%;
   display: inline-flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 12px;
   padding: 10px 12px;
   border: none;

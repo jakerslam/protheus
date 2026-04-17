@@ -1,3 +1,34 @@
+fn runtime_web_tooling_provider_defaults() -> &'static [&'static str] {
+    &[
+        "brave",
+        "gemini",
+        "grok",
+        "kimi",
+        "perplexity",
+        "firecrawl",
+        "exa",
+        "tavily",
+        "duckduckgo",
+    ]
+}
+
+fn runtime_web_tooling_snapshot() -> Value {
+    let env_map = std::env::vars().collect::<std::collections::HashMap<String, String>>();
+    let auth_sources = crate::contract_lane_utils::web_tooling_auth_sources_from_env(&env_map);
+    let auth_any_present = !auth_sources.is_empty();
+    let readiness = if auth_sources.is_empty() {
+        "auth_missing"
+    } else {
+        "ready"
+    };
+    json!({
+        "provider_order": runtime_web_tooling_provider_defaults(),
+        "auth_sources": auth_sources,
+        "auth_any_present": auth_any_present,
+        "readiness": readiness
+    })
+}
+
 fn run_heartbeat(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
     let contract = load_json_or(
         root,
@@ -88,6 +119,7 @@ fn run_heartbeat(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value
 
     if op == "status" {
         let duality_state = load_duality_state_snapshot(root);
+        let web_tooling = runtime_web_tooling_snapshot();
         let mut out = json!({
             "ok": true,
             "strict": strict,
@@ -97,6 +129,7 @@ fn run_heartbeat(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value
             "op": op,
             "state": state,
             "duality_state": duality_state,
+            "web_tooling": web_tooling,
             "remote_feed_path": heartbeat_remote_feed_path(root).display().to_string(),
             "claim_evidence": [
                 {
@@ -114,6 +147,7 @@ fn run_heartbeat(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value
 
     if op == "remote-feed" {
         let duality_state = load_duality_state_snapshot(root);
+        let web_tooling = runtime_web_tooling_snapshot();
         let mut out = json!({
             "ok": true,
             "strict": strict,
@@ -123,6 +157,7 @@ fn run_heartbeat(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value
             "op": op,
             "remote_feed": remote_feed,
             "duality_state": duality_state,
+            "web_tooling": web_tooling,
             "artifact": {
                 "path": heartbeat_remote_feed_path(root).display().to_string()
             },
@@ -180,6 +215,11 @@ fn run_heartbeat(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value
         .get("max_queue_depth_warn")
         .and_then(Value::as_u64)
         .unwrap_or(50);
+    let web_tooling = runtime_web_tooling_snapshot();
+    let web_tooling_missing_auth = !web_tooling
+        .get("auth_any_present")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
     let duality = company_heartbeat_duality_snapshot(
         root,
         &team,
@@ -200,7 +240,8 @@ fn run_heartbeat(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value
     let degraded = effective_status == "degraded"
         || effective_status == "critical"
         || queue_depth > warn_queue
-        || duality_hard_block;
+        || duality_hard_block
+        || (strict && web_tooling_missing_auth);
     let recommended_clearance_tier = duality
         .get("recommended_clearance_tier")
         .and_then(Value::as_i64)
@@ -213,6 +254,7 @@ fn run_heartbeat(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value
     state["agents_online"] = Value::Number(serde_json::Number::from(agents_online));
     state["queue_depth"] = Value::Number(serde_json::Number::from(queue_depth));
     state["degraded"] = Value::Bool(degraded);
+    state["web_tooling"] = web_tooling.clone();
     state["duality"] = duality.clone();
     state["recommended_clearance_tier"] = Value::Number(serde_json::Number::from(
         recommended_clearance_tier.clamp(1, 5),
@@ -234,6 +276,7 @@ fn run_heartbeat(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value
         "degraded": degraded,
         "sequence": sequence,
         "last_beat_ts": state.get("last_beat_ts").cloned().unwrap_or(Value::Null),
+        "web_tooling": web_tooling,
         "duality": {
             "hard_block": duality_hard_block,
             "recommended_clearance_tier": recommended_clearance_tier,

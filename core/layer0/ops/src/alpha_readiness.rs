@@ -160,6 +160,25 @@ fn check_assistant_templates(root: &Path) -> Value {
     })
 }
 
+fn check_web_tooling_health(root: &Path) -> Value {
+    let report = crate::network_protocol::web_tooling_health_report(root, false);
+    let auth_present = report
+        .get("auth_present")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let policy_ready = report
+        .get("policy_ready")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    json!({
+        "id": "web_tooling_health",
+        "ok": auth_present && policy_ready,
+        "auth_present": auth_present,
+        "policy_ready": policy_ready,
+        "errors": report.get("errors").cloned().unwrap_or_else(|| json!([]))
+    })
+}
+
 fn check_git_clean(root: &Path) -> Value {
     if !root.join(".git").exists() {
         return json!({
@@ -256,6 +275,7 @@ fn evaluate(root: &Path, run_gates: bool) -> Value {
         check_assistant_templates(root),
         check_package_bins(root),
         check_git_clean(root),
+        check_web_tooling_health(root),
     ];
 
     let gate_commands = [

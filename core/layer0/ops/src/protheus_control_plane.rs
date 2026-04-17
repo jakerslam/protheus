@@ -6,6 +6,7 @@ const USAGE: &[&str] = &[
     "Usage:",
     "  protheus-ops protheus-control-plane <command> [flags]",
     "  protheus-ops protheus-control-plane status",
+    "  Optional telemetry flags: --trace-id=<id> --call-id=<id> --request-id=<id> --source=<tag>",
 ];
 
 pub fn run(root: &Path, argv: &[String]) -> i32 {
@@ -19,6 +20,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             usage: USAGE,
             passthrough_flags: &[
                 "apply", "strict", "policy", "id", "limit", "statuses", "max", "action", "to",
+                "trace-id", "call-id", "request-id", "source",
             ],
         },
     )

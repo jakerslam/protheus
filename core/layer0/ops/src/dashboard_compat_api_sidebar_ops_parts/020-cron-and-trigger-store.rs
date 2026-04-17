@@ -349,3 +349,198 @@ fn workflow_path_segments(path_only: &str) -> Option<Vec<String>> {
     }
     None
 }
+
+const WEB_TOOLING_PROFILE_REL: &str =
+    "client/runtime/local/state/ui/infring_dashboard/web_tooling_profile.json";
+
+fn normalize_web_provider_id(raw: &str) -> String {
+    clean_text(raw, 80)
+        .chars()
+        .map(|ch| {
+            if ch.is_ascii_alphanumeric() || ch == '-' || ch == '_' || ch == '.' {
+                ch.to_ascii_lowercase()
+            } else {
+                '-'
+            }
+        })
+        .collect::<String>()
+        .trim_matches('-')
+        .to_string()
+}
+
+fn normalize_domain_value(raw: &str) -> String {
+    let lowered = clean_text(raw, 200).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return String::new();
+    }
+    let without_scheme = lowered
+        .strip_prefix("https://")
+        .or_else(|| lowered.strip_prefix("http://"))
+        .unwrap_or(&lowered)
+        .to_string();
+    clean_text(without_scheme.split('/').next().unwrap_or(""), 140)
+        .trim_matches('.')
+        .to_string()
+}
+
+fn normalized_string_list(
+    value: Option<&Value>,
+    max_items: usize,
+    max_len: usize,
+    id_mode: bool,
+) -> Vec<String> {
+    let mut set = BTreeSet::<String>::new();
+    let mut ingest = |raw: &str| {
+        let mut item = if id_mode {
+            normalize_web_provider_id(raw)
+        } else {
+            clean_text(raw, max_len)
+        };
+        if item.is_empty() {
+            return;
+        }
+        if !id_mode {
+            item = item.to_ascii_lowercase();
+        }
+        if set.len() < max_items {
+            set.insert(item);
+        }
+    };
+    if let Some(rows) = value.and_then(Value::as_array) {
+        for row in rows {
+            ingest(row.as_str().unwrap_or(""));
+        }
+    } else if let Some(raw) = value.and_then(Value::as_str) {
+        for part in raw.split(',') {
+            ingest(part);
+        }
+    }
+    set.into_iter().collect()
+}
+
+fn default_web_tooling_profile() -> Value {
+    json!({
+        "type": "infring_dashboard_web_tooling_profile",
+        "version": "v1",
+        "provider_order": ["auto"],
+        "query_policy": {
+            "mode": "balanced",
+            "max_queries": 4,
+            "prefer_official_docs": true
+        },
+        "allowed_domains": [],
+        "blocked_terms": [],
+        "updated_at": crate::now_iso()
+    })
+}
+
+fn web_tooling_profile_path(root: &Path) -> PathBuf {
+    state_path(root, WEB_TOOLING_PROFILE_REL)
+}
+
+fn normalize_web_tooling_profile(profile: &Value) -> Value {
+    let mut provider_order = normalized_string_list(profile.get("provider_order"), 8, 80, true);
+    if provider_order.is_empty() {
+        provider_order.push("auto".to_string());
+    }
+    let mut allowed_domains = normalized_string_list(profile.get("allowed_domains"), 24, 140, false)
+        .into_iter()
+        .map(|domain| normalize_domain_value(&domain))
+        .filter(|domain| !domain.is_empty())
+        .collect::<Vec<_>>();
+    allowed_domains.sort();
+    allowed_domains.dedup();
+
+    let blocked_terms = normalized_string_list(profile.get("blocked_terms"), 32, 100, false);
+    let mode = clean_text(
+        profile
+            .pointer("/query_policy/mode")
+            .and_then(Value::as_str)
+            .unwrap_or("balanced"),
+        40,
+    )
+    .to_ascii_lowercase();
+    let normalized_mode = match mode.as_str() {
+        "domain_first" | "narrow_first" | "balanced" => mode,
+        _ => "balanced".to_string(),
+    };
+    let max_queries = as_i64(profile.pointer("/query_policy/max_queries"), 4).clamp(1, 8);
+    let prefer_official_docs =
+        as_bool(profile.pointer("/query_policy/prefer_official_docs"), true);
+
+    json!({
+        "type": "infring_dashboard_web_tooling_profile",
+        "version": "v1",
+        "provider_order": provider_order,
+        "query_policy": {
+            "mode": normalized_mode,
+            "max_queries": max_queries,
+            "prefer_official_docs": prefer_official_docs
+        },
+        "allowed_domains": allowed_domains,
+        "blocked_terms": blocked_terms,
+        "updated_at": crate::now_iso()
+    })
+}
+
+pub(crate) fn load_web_tooling_profile(root: &Path) -> Value {
+    let raw = read_json(&web_tooling_profile_path(root)).unwrap_or_else(default_web_tooling_profile);
+    normalize_web_tooling_profile(&raw)
+}
+
+pub(crate) fn save_web_tooling_profile(root: &Path, profile: &Value) {
+    write_json(
+        &web_tooling_profile_path(root),
+        &normalize_web_tooling_profile(profile),
+    );
+}
+
+pub(crate) fn merge_web_tooling_profile(existing: &Value, patch: &Value) -> Value {
+    let merged = json!({
+        "provider_order": patch.get("provider_order").cloned().unwrap_or_else(|| existing.get("provider_order").cloned().unwrap_or(Value::Null)),
+        "allowed_domains": patch.get("allowed_domains").cloned().unwrap_or_else(|| existing.get("allowed_domains").cloned().unwrap_or(Value::Null)),
+        "blocked_terms": patch.get("blocked_terms").cloned().unwrap_or_else(|| existing.get("blocked_terms").cloned().unwrap_or(Value::Null)),
+        "query_policy": {
+            "mode": patch.pointer("/query_policy/mode").cloned().unwrap_or_else(|| existing.pointer("/query_policy/mode").cloned().unwrap_or_else(|| json!("balanced"))),
+            "max_queries": patch.pointer("/query_policy/max_queries").cloned().unwrap_or_else(|| existing.pointer("/query_policy/max_queries").cloned().unwrap_or_else(|| json!(4))),
+            "prefer_official_docs": patch.pointer("/query_policy/prefer_official_docs").cloned().unwrap_or_else(|| existing.pointer("/query_policy/prefer_official_docs").cloned().unwrap_or_else(|| json!(true)))
+        }
+    });
+    normalize_web_tooling_profile(&merged)
+}
+
+pub(crate) fn preferred_web_tooling_provider(profile: &Value) -> String {
+    profile
+        .get("provider_order")
+        .and_then(Value::as_array)
+        .and_then(|rows| rows.first())
+        .and_then(Value::as_str)
+        .map(|raw| normalize_web_provider_id(raw))
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| "auto".to_string())
+}
+
+pub(crate) fn web_tooling_auth_presence(profile: &Value) -> Value {
+    let mut sources = BTreeSet::<String>::new();
+    for (label, env_var) in [
+        ("openai", "OPENAI_API_KEY"),
+        ("github", "GITHUB_TOKEN"),
+        ("github_app", "GITHUB_APP_INSTALLATION_TOKEN"),
+        ("brave", "BRAVE_API_KEY"),
+        ("tavily", "TAVILY_API_KEY"),
+        ("perplexity", "PERPLEXITY_API_KEY"),
+        ("exa", "EXA_API_KEY"),
+    ] {
+        if !clean_text(&std::env::var(env_var).unwrap_or_default(), 4000).is_empty() {
+            sources.insert(label.to_string());
+        }
+    }
+    if as_bool(profile.pointer("/auth/token_present"), false) {
+        sources.insert("profile_token".to_string());
+    }
+    let source_rows = sources.into_iter().collect::<Vec<_>>();
+    json!({
+        "any_present": !source_rows.is_empty(),
+        "sources": source_rows
+    })
+}

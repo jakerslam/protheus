@@ -99,9 +99,8 @@ fn build_agent_roster(root: &Path, snapshot: &Value, include_terminated: bool) -
                             .and_then(Value::as_bool)
                             .unwrap_or(true)))
                     && termination_reason.contains("terminated")));
-        if !include_terminated && contract_terminated && !revive_recommended {
-            continue;
-        }
+        let timeout_terminated = contract_terminated && (termination_reason.contains("timeout") || termination_reason.contains("expired"));
+        if !include_terminated && (timeout_terminated || (contract_terminated && !revive_recommended)) { continue; }
         let profile_name = clean_text(
             profile.get("name").and_then(Value::as_str).unwrap_or(""),
             120,

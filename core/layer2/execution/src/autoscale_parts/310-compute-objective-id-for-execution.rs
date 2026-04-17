@@ -1,3 +1,38 @@
+fn normalize_capability_key(raw: &str) -> String {
+    let mut out = String::new();
+    let mut prev_sep = false;
+    for ch in raw.trim().to_ascii_lowercase().chars() {
+        let mapped = if ch.is_ascii_alphanumeric() || ch == '_' {
+            ch
+        } else if ch.is_ascii_whitespace() || matches!(ch, '-' | '.' | ':' | '/') {
+            '_'
+        } else {
+            continue;
+        };
+        if mapped == '_' {
+            if prev_sep || out.is_empty() {
+                continue;
+            }
+            prev_sep = true;
+            out.push('_');
+            continue;
+        }
+        prev_sep = false;
+        out.push(mapped);
+    }
+    out.trim_matches('_').to_string()
+}
+
+fn canonical_signal_status(raw: &str) -> String {
+    let token = normalize_capability_key(raw);
+    match token.as_str() {
+        "pass" | "ok" | "success" | "green" | "healthy" => "pass".to_string(),
+        "warn" | "warning" | "caution" | "degraded" | "yellow" => "warn".to_string(),
+        "fail" | "failed" | "error" | "critical" | "blocked" | "red" => "fail".to_string(),
+        _ => token,
+    }
+}
+
 pub fn compute_objective_id_for_execution(
     input: &ObjectiveIdForExecutionInput,
 ) -> ObjectiveIdForExecutionOutput {
@@ -10,13 +45,26 @@ pub fn compute_objective_id_for_execution(
         input.action_spec_objective_id.as_deref().unwrap_or(""),
     ];
     for candidate in candidates {
+        let trimmed = candidate.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
         let sanitized =
             compute_sanitize_directive_objective_id(&SanitizeDirectiveObjectiveIdInput {
-                value: Some(candidate.to_string()),
+                value: Some(trimmed.to_string()),
             });
         if !sanitized.objective_id.is_empty() {
             return ObjectiveIdForExecutionOutput {
                 objective_id: Some(sanitized.objective_id),
+            };
+        }
+        let parsed = compute_parse_directive_objective_arg(&ParseDirectiveObjectiveArgInput {
+            command: Some(trimmed.to_string()),
+        })
+        .objective_id;
+        if !parsed.is_empty() {
+            return ObjectiveIdForExecutionOutput {
+                objective_id: Some(parsed),
             };
         }
     }
@@ -47,11 +95,11 @@ pub fn compute_short_text(input: &ShortTextInput) -> ShortTextOutput {
 pub fn compute_normalized_signal_status(
     input: &NormalizedSignalStatusInput,
 ) -> NormalizedSignalStatusOutput {
-    let raw = normalize_spaces(input.value.as_deref().unwrap_or("")).to_ascii_lowercase();
+    let raw = canonical_signal_status(&normalize_spaces(input.value.as_deref().unwrap_or("")));
     if raw == "pass" || raw == "warn" || raw == "fail" {
         return NormalizedSignalStatusOutput { status: raw };
     }
-    let fallback = input.fallback.as_deref().unwrap_or("unknown").to_string();
+    let fallback = canonical_signal_status(input.fallback.as_deref().unwrap_or("unknown"));
     NormalizedSignalStatusOutput { status: fallback }
 }
 
@@ -176,8 +224,20 @@ pub fn compute_capability_cap(input: &CapabilityCapInput) -> CapabilityCapOutput
         }
     }
     for key in keys {
-        if let Some(raw) = input.caps.get(&key) {
-            if raw.is_finite() && *raw >= 0.0 {
+        if let Some(raw) = input.caps.get(&key).copied().or_else(|| {
+            let normalized = normalize_capability_key(&key);
+            if normalized.is_empty() {
+                return None;
+            }
+            input.caps.iter().find_map(|(existing, value)| {
+                if normalize_capability_key(existing) == normalized {
+                    Some(*value)
+                } else {
+                    None
+                }
+            })
+        }) {
+            if raw.is_finite() && raw >= 0.0 {
                 return CapabilityCapOutput {
                     cap: Some(raw.round().clamp(0.0, u32::MAX as f64) as u32),
                 };

@@ -141,6 +141,27 @@ fn save_archived_state(root: &Path, mut state: Value) {
 
 fn default_contract(agent_id: &str) -> Value {
     let now = now_iso();
+    let permissions_manifest = json!({
+        "version": 1,
+        "trit": { "deny": -1, "inherit": 0, "allow": 1 },
+        "category_defaults": {
+            "agent": "inherit",
+            "web": "inherit",
+            "file": "inherit",
+            "github": "inherit",
+            "terminal": "inherit",
+            "memory": "inherit"
+        },
+        "grants": {
+            "web.search.basic": "allow"
+        }
+    });
+    let permissions_receipt = crate::deterministic_receipt_hash(&json!({
+        "type": "agent_permissions_manifest_init",
+        "agent_id": agent_id,
+        "permissions_manifest": permissions_manifest,
+        "updated_at": now
+    }));
     json!({
         "contract_id": format!(
             "contract-{}",
@@ -160,7 +181,11 @@ fn default_contract(agent_id: &str) -> Value {
         "expires_at": "",
         "auto_terminate_allowed": true,
         "idle_terminate_allowed": true,
-        "idle_timeout_seconds": DEFAULT_IDLE_TIMEOUT_SECONDS
+        "idle_timeout_seconds": DEFAULT_IDLE_TIMEOUT_SECONDS,
+        "permissions_manifest": permissions_manifest,
+        "permissions_receipt": permissions_receipt,
+        "permissions_revision": 1,
+        "permissions_updated_at": now
     })
 }
 

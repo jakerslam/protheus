@@ -4,6 +4,39 @@ use std::collections::BTreeMap;
 
 pub const INFRING_DETACH_CONTRACT_ID_INFRING_TYPES: &str = "V6-INFRING-DETACH-001.6";
 
+const MAX_AGENT_ID_LEN: usize = 96;
+const MAX_AGENT_NAME_LEN: usize = 120;
+const MAX_PROVIDER_TOKEN_LEN: usize = 64;
+const MAX_MODEL_TOKEN_LEN: usize = 128;
+const MAX_METADATA_KEY_LEN: usize = 64;
+const MAX_METADATA_VALUE_LEN: usize = 512;
+
+fn strip_invisible_unicode(raw: &str) -> String {
+    raw.chars()
+        .filter(|ch| {
+            !matches!(
+                ch,
+                '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}'
+            )
+        })
+        .collect()
+}
+
+fn is_valid_manifest_token(raw: &str, max_len: usize, allow_spaces: bool) -> bool {
+    let normalized: String = strip_invisible_unicode(raw)
+        .chars()
+        .filter(|ch| !ch.is_control())
+        .collect();
+    let normalized = normalized.trim();
+    if normalized.is_empty() || normalized.len() > max_len {
+        return false;
+    }
+    if !allow_spaces && normalized.chars().any(char::is_whitespace) {
+        return false;
+    }
+    true
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum AgentState {
@@ -124,7 +157,8 @@ pub struct SessionLabel(String);
 
 impl SessionLabel {
     pub fn new(raw: &str) -> Result<Self, String> {
-        let trimmed = raw.trim();
+        let normalized = strip_invisible_unicode(raw);
+        let trimmed = normalized.trim();
         if trimmed.is_empty() {
             return Err("session_label_empty".to_string());
         }
@@ -163,19 +197,54 @@ pub struct AgentManifest {
 
 impl AgentManifest {
     pub fn validate(&self) -> Result<(), String> {
-        if self.agent_id.trim().is_empty() {
-            return Err("agent_manifest_missing_agent_id".to_string());
+        if !is_valid_manifest_token(&self.agent_id, MAX_AGENT_ID_LEN, false) {
+            return Err("agent_manifest_invalid_agent_id".to_string());
         }
-        if self.identity.name.trim().is_empty() {
-            return Err("agent_manifest_missing_name".to_string());
+        if !is_valid_manifest_token(&self.identity.name, MAX_AGENT_NAME_LEN, true) {
+            return Err("agent_manifest_invalid_name".to_string());
         }
         if self.models.is_empty() {
             return Err("agent_manifest_missing_models".to_string());
         }
-        if self.routing.default_model.provider.trim().is_empty()
-            || self.routing.default_model.model.trim().is_empty()
+        if !is_valid_manifest_token(
+            &self.routing.default_model.provider,
+            MAX_PROVIDER_TOKEN_LEN,
+            false,
+        ) || !is_valid_manifest_token(&self.routing.default_model.model, MAX_MODEL_TOKEN_LEN, false)
         {
             return Err("agent_manifest_invalid_default_model".to_string());
+        }
+        for model in &self.models {
+            if !is_valid_manifest_token(&model.provider, MAX_PROVIDER_TOKEN_LEN, false)
+                || !is_valid_manifest_token(&model.model, MAX_MODEL_TOKEN_LEN, false)
+            {
+                return Err("agent_manifest_invalid_model_entry".to_string());
+            }
+        }
+        for fallback in &self.routing.fallback_models {
+            if !is_valid_manifest_token(&fallback.provider, MAX_PROVIDER_TOKEN_LEN, false)
+                || !is_valid_manifest_token(&fallback.model, MAX_MODEL_TOKEN_LEN, false)
+            {
+                return Err("agent_manifest_invalid_fallback_model".to_string());
+            }
+        }
+        for (workload, model) in &self.routing.by_workload {
+            if !is_valid_manifest_token(workload, MAX_METADATA_KEY_LEN, false) {
+                return Err("agent_manifest_invalid_workload_key".to_string());
+            }
+            if !is_valid_manifest_token(&model.provider, MAX_PROVIDER_TOKEN_LEN, false)
+                || !is_valid_manifest_token(&model.model, MAX_MODEL_TOKEN_LEN, false)
+            {
+                return Err("agent_manifest_invalid_workload_model".to_string());
+            }
+        }
+        for (key, value) in &self.metadata {
+            if !is_valid_manifest_token(key, MAX_METADATA_KEY_LEN, false) {
+                return Err("agent_manifest_invalid_metadata_key".to_string());
+            }
+            if !is_valid_manifest_token(value, MAX_METADATA_VALUE_LEN, true) {
+                return Err("agent_manifest_invalid_metadata_value".to_string());
+            }
         }
         if self.quota.max_context_tokens == 0 {
             return Err("agent_manifest_invalid_context_quota".to_string());

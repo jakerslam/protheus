@@ -1,3 +1,51 @@
+fn normalize_cockpit_lane_alias(raw: &str) -> String {
+    let token = clean(raw, 120)
+        .to_ascii_lowercase()
+        .replace('-', "_")
+        .replace(' ', "_");
+    match token.as_str() {
+        "dashboard_compat_api" => "dashboard".to_string(),
+        "batch_query_primitive" => "batch_query".to_string(),
+        "session_status_tool" => "session_status".to_string(),
+        "" => "unknown".to_string(),
+        _ => token,
+    }
+}
+
+fn resolve_cockpit_tool_display_hint(event_type: &str, payload: &Value) -> Value {
+    let tool_name = clean(
+        payload
+            .get("tool_name")
+            .or_else(|| payload.get("tool"))
+            .or_else(|| payload.get("name"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        120,
+    );
+    let title = if !tool_name.is_empty() {
+        tool_name.replace('_', " ")
+    } else {
+        event_type.replace('_', " ")
+    };
+    let detail = clean(
+        payload
+            .get("summary")
+            .or_else(|| payload.get("message"))
+            .or_else(|| payload.get("reason"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        200,
+    );
+    json!({
+        "title": title,
+        "detail": if detail.is_empty() {
+            Value::Null
+        } else {
+            Value::String(detail)
+        }
+    })
+}
+
 fn run_cockpit(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
     let contract = load_json_or(
         root,
@@ -114,10 +162,10 @@ fn run_cockpit(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
     let mut conduit_signals_total: usize = 0;
     let mut conduit_signals_active: usize = 0;
     for (idx, row) in latest_rows.iter().enumerate() {
-        let lane = clean(
+        let lane = normalize_cockpit_lane_alias(&clean(
             row.get("lane").and_then(Value::as_str).unwrap_or("unknown"),
             120,
-        );
+        ));
         let ty = clean(
             row.get("type").and_then(Value::as_str).unwrap_or("unknown"),
             120,
@@ -168,6 +216,7 @@ fn run_cockpit(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
             "lane": lane,
             "event_type": ty,
             "tool_call_class": class,
+            "tool_display": resolve_cockpit_tool_display_hint(&ty, &payload),
             "status": if ok { "ok" } else { "fail" },
             "status_color": status_color(ok, classify_tool_call(&ty)),
             "conduit_enforced": conduit_enforced,

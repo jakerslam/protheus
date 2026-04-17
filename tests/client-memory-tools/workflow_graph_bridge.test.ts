@@ -8,7 +8,7 @@ const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const ts = require('typescript');
+const ts = require('typescript');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 if (!require.extensions['.ts']) {
   require.extensions['.ts'] = function compileTs(module, filename) {
@@ -145,9 +145,7 @@ function run() {
   assert.strictEqual(status.interrupts, 1);
   assert.strictEqual(status.subgraphs, 1);
   assert.strictEqual(status.traces, 1);
-  assert.strictEqual(status.streams, 1);
-
-  console.log(JSON.stringify({ ok: true, type: 'workflow_graph_bridge_test' }));
+  assert.strictEqual(status.streams, 1);\n  assertNoPlaceholderOrPromptLeak(status, 'workflow_graph_bridge_test');\n  assertStableToolingEnvelope(status, 'workflow_graph_bridge_test');\n  console.log(JSON.stringify({ ok: true, type: 'workflow_graph_bridge_test' }));
 }
 
 run();

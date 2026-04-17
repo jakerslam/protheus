@@ -51,6 +51,19 @@ const RUNTIME_SYNC_DELTA_DEPTH: i64 = 50;
 const RUNTIME_SYNC_SOFT_SCALE_DEPTH: i64 = 20;
 const RUNTIME_SYNC_DRAIN_TRIGGER_DEPTH: i64 = 60;
 const RUNTIME_SYNC_STALE_BLOCK_MS: i64 = 30_000;
+const WEB_TOOLING_AUTH_ENV_CANDIDATES: [&str; 11] = [
+    "BRAVE_API_KEY",
+    "EXA_API_KEY",
+    "TAVILY_API_KEY",
+    "PERPLEXITY_API_KEY",
+    "SERPAPI_API_KEY",
+    "GOOGLE_SEARCH_API_KEY",
+    "GOOGLE_CSE_ID",
+    "FIRECRAWL_API_KEY",
+    "XAI_API_KEY",
+    "MOONSHOT_API_KEY",
+    "OPENAI_API_KEY",
+];
 
 #[derive(Debug, Clone)]
 struct Flags {
@@ -107,6 +120,36 @@ fn clean_text(value: &str, max_len: usize) -> String {
         .chars()
         .take(max_len)
         .collect::<String>()
+}
+
+fn dashboard_runtime_web_provider_alias(raw: &str) -> String {
+    let provider = clean_text(raw, 80).to_ascii_lowercase();
+    match provider.as_str() {
+        "google" => "google_search".to_string(),
+        "xai" => "grok".to_string(),
+        "moonshot" => "kimi".to_string(),
+        "serp" => "serpapi".to_string(),
+        "none" | "default" => String::new(),
+        _ => provider,
+    }
+}
+
+fn dashboard_runtime_web_tooling_auth_sources() -> Vec<String> {
+    let mut sources = Vec::<String>::new();
+    for env_name in WEB_TOOLING_AUTH_ENV_CANDIDATES {
+        let present = env::var(env_name)
+            .ok()
+            .map(|value| !value.trim().is_empty())
+            .unwrap_or(false);
+        if present {
+            sources.push(format!("env:{env_name}"));
+        }
+    }
+    sources
+}
+
+fn dashboard_runtime_web_tooling_auth_present() -> bool {
+    !dashboard_runtime_web_tooling_auth_sources().is_empty()
 }
 
 fn parse_positive_u16(raw: &str, fallback: u16) -> u16 {

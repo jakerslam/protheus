@@ -113,6 +113,27 @@ fn parse_semver(raw: &str) -> Option<(u64, u64, u64)> {
     Some((major, minor, patch))
 }
 
+fn lane_is_executable(lane: &str) -> bool {
+    EXECUTABLE_LANES
+        .iter()
+        .any(|candidate| candidate.eq_ignore_ascii_case(lane.trim()))
+}
+
+fn sanitize_lane_state_key(raw: &str) -> String {
+    let mut out = String::new();
+    for ch in raw.chars() {
+        if ch.is_ascii_alphanumeric() {
+            out.push(ch.to_ascii_lowercase());
+        } else if matches!(ch, '-' | '_') && !out.ends_with('_') {
+            out.push('_');
+        }
+        if out.len() >= 96 {
+            break;
+        }
+    }
+    out.trim_matches('_').to_string()
+}
+
 fn get_lane_policy<'a>(policy: &'a Policy, lane: &str) -> Option<&'a Value> {
     policy
         .raw
@@ -122,7 +143,12 @@ fn get_lane_policy<'a>(policy: &'a Policy, lane: &str) -> Option<&'a Value> {
 }
 
 fn lane_state_paths(policy: &Policy, lane: &str) -> (PathBuf, PathBuf) {
-    let clean = lane.to_ascii_lowercase().replace('-', "_");
+    let clean = sanitize_lane_state_key(lane);
+    let clean = if clean.is_empty() {
+        "unknown_lane".to_string()
+    } else {
+        clean
+    };
     (
         policy.state_root.join(&clean).join("latest.json"),
         policy.state_root.join(&clean).join("history.jsonl"),
@@ -130,6 +156,9 @@ fn lane_state_paths(policy: &Policy, lane: &str) -> (PathBuf, PathBuf) {
 }
 
 fn persist_lane(policy: &Policy, lane: &str, payload: &Value) -> Result<(), String> {
+    if !lane_is_executable(lane) {
+        return Err(format!("f100_lane_not_executable:{lane}"));
+    }
     let (latest, history) = lane_state_paths(policy, lane);
     write_text_atomic(
         &latest,
@@ -457,4 +486,3 @@ fn lane_007_interface_lifecycle_with_id(root: &Path, policy: &Policy, lane: &str
         "checks": checks
     })
 }
-

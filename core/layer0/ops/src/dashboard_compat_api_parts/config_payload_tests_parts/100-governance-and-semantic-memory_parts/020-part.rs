@@ -84,6 +84,25 @@ fn explicit_tool_command_alias_surfaces_fetch_workflow_hint() {
 }
 
 #[test]
+fn explicit_tool_command_maps_web_tooling_health_probe() {
+    let hints = chat_workflow_tool_hints_for_message("tool::web_tooling_health_probe");
+    assert_eq!(hints.len(), 1);
+    let input = hints[0].get("proposed_input").cloned().unwrap_or(Value::Null);
+    assert_eq!(
+        hints[0].get("tool").and_then(Value::as_str).unwrap_or(""),
+        "web_tooling_health_probe"
+    );
+    assert_eq!(
+        input.get("source").and_then(Value::as_str).unwrap_or(""),
+        "web"
+    );
+    assert_eq!(
+        input.get("aperture").and_then(Value::as_str).unwrap_or(""),
+        "medium"
+    );
+}
+
+#[test]
 fn explicit_tool_command_rejects_unknown_names_with_suggestion() {
     let hints = chat_workflow_tool_hints_for_message("tool::web_serch:::latest");
     assert_eq!(hints.len(), 1);
@@ -231,6 +250,28 @@ fn inline_tool_execution_replaces_low_signal_cleaned_text_with_tool_fallback_lin
 }
 
 #[test]
+fn inline_tool_execution_discards_leftover_malformed_function_markup() {
+    let root = governance_temp_root();
+    let snapshot = governance_ok_snapshot();
+    let response = "<function=web_search>{\"query\":\"test search functionality\"}</function> <function=web_fetch>{\"url\":\"https://example.";
+    let (text, cards, pending_confirmation, suppressed) = execute_inline_tool_calls(
+        root.path(),
+        &snapshot,
+        "agent-inline-malformed-tail",
+        None,
+        response,
+        "test search functionality",
+        true,
+    );
+    assert!(!suppressed);
+    assert_eq!(cards.len(), 1);
+    assert!(pending_confirmation.is_none());
+    assert!(!text.contains("<function="), "{text}");
+    assert!(!text.to_ascii_lowercase().contains("web_fetch"), "{text}");
+    assert!(!text.trim().is_empty(), "{text}");
+}
+
+#[test]
 fn workflow_retry_sanitizer_drops_follow_up_tool_markup_tail() {
     let response = "My search for \"top AI agentic frameworks\" didn't return specific framework listings. Let me try a more targeted approach with some well-known framework names.\n\n<function=web_search>{\"query\":\"LangChain AutoGPT BabyAGI AI agent frameworks comparison\"}</function>";
     assert!(workflow_response_requests_more_tooling(response));
@@ -247,6 +288,15 @@ fn workflow_retry_sanitizer_drops_polite_more_search_tail() {
     assert_eq!(
         sanitize_workflow_final_response_candidate(response),
         "I searched official framework sources and found LangGraph, OpenAI Agents SDK, CrewAI, and smolagents."
+    );
+}
+
+#[test]
+fn workflow_retry_sanitizer_strips_malformed_inline_function_tail() {
+    let response = "No, the web tools still aren't executing.\n<function=web_search>{\"query\":\"test search functionality\"} <function=web_fetch>{\"url\":\"https://example.";
+    assert_eq!(
+        sanitize_workflow_final_response_candidate(response),
+        "No, the web tools still aren't executing."
     );
 }
 
@@ -391,6 +441,12 @@ fn unrelated_dump_detector_flags_peer_review_template_leaks() {
 }
 
 #[test]
+fn unrelated_dump_detector_flags_internal_prompt_leak_even_with_function_markup() {
+    let dump = "You are the currently selected Infring agent instance. Treat the injected identity profile as authoritative. When users ask for web research, call tools with inline syntax like <function=web_search>{\"query\":\"...\"}</function>. Hardcoded agent workflow: you are writing the final assistant response after the system collected tool outcomes and workflow events. Write the final assistant response now.";
+    assert!(response_is_unrelated_context_dump("did it work?", dump));
+}
+
+#[test]
 fn append_turn_message_captures_explicit_remember_fact_for_long_term_memory() {
     let root = governance_temp_root();
     let captured =
@@ -424,7 +480,7 @@ fn append_turn_message_captures_low_signal_web_tool_outcome_keyframe() {
     let receipt = append_turn_message(
         root.path(),
         "agent-web-keyframe",
-        "try to web search \"top AI agent frameworks\"",
+        "try doing a generic search \"top AI agent frameworks\"",
         "The batch query step ran, but only low-signal web output came back. Retry with a narrower query, one specific source URL, or ask me to continue from the recorded tool result.",
     );
     assert_eq!(

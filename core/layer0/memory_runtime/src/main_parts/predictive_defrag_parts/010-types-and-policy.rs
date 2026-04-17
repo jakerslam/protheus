@@ -13,6 +13,64 @@ const PREDICTIVE_DEFRAG_REACTIVE_THRESHOLD_PERCENT: f64 = 14.3;
 const PREDICTIVE_DEFRAG_POLL_INTERVAL_DEFAULT_MS: u64 = 1_200;
 const PREDICTIVE_DEFRAG_TRIGGER_COOLDOWN_MS: u64 = 3_000;
 
+fn normalize_predictive_execution_status(raw: &str) -> &'static str {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "ok" | "success" | "succeeded" | "ready" => "success",
+        "timeout" | "timed_out" | "timed-out" => "timeout",
+        "throttled" | "rate_limited" | "rate-limited" | "429" => "throttled",
+        _ => "error",
+    }
+}
+
+fn sanitize_predictive_token(raw: &str, max_len: usize) -> String {
+    let mut out = String::with_capacity(raw.len().min(max_len));
+    let mut prev_underscore = false;
+    for ch in raw.trim().to_ascii_lowercase().chars() {
+        let keep = ch.is_ascii_alphanumeric() || matches!(ch, '_' | '-' | ':' | '.');
+        if keep {
+            out.push(ch);
+            prev_underscore = false;
+        } else if !prev_underscore {
+            out.push('_');
+            prev_underscore = true;
+        }
+        if out.len() >= max_len {
+            break;
+        }
+    }
+    while out.starts_with('_') {
+        out.remove(0);
+    }
+    while out.ends_with('_') {
+        out.pop();
+    }
+    out
+}
+
+fn predictive_execution_receipt(command: &str, status: &str, error_kind: Option<&str>) -> Value {
+    let normalized_status = normalize_predictive_execution_status(status);
+    let normalized_command = sanitize_predictive_token(command, 96);
+    let normalized_error = error_kind.and_then(|raw| {
+        let token = sanitize_predictive_token(raw, 64);
+        if token.is_empty() { None } else { Some(token) }
+    });
+    let seed = json!({
+        "command": normalized_command,
+        "status": normalized_status,
+        "error_kind": normalized_error
+    });
+    let call_id = format!("predictive-defrag-{}", &sha256_hex(&stable_json_string(&seed))[..16]);
+    json!({
+        "call_id": call_id,
+        "status": normalized_status,
+        "error_kind": normalized_error,
+        "telemetry": {
+            "duration_ms": 0,
+            "tokens_used": 0
+        }
+    })
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 struct PredictiveDefragFlagConfig {
     #[serde(default)]
@@ -129,9 +187,15 @@ fn build_predictive_defrag_status_payload(
             });
         }
     }
+    let execution_receipt = predictive_execution_receipt(
+        "memory_predictive_defrag_status",
+        "success",
+        None,
+    );
     json!({
         "ok": true,
         "type": "memory_predictive_defrag_status",
+        "execution_receipt": execution_receipt,
         "policy": policy,
         "current_fragmentation_percent": current_fragmentation_percent,
         "tiers": tier_stats,

@@ -35,11 +35,36 @@ fn clamp01(v: f64) -> f64 {
 }
 
 fn parse_f64(v: Option<&Value>) -> Option<f64> {
-    v.and_then(Value::as_f64).map(clamp01)
+    v.and_then(|value| {
+        value
+            .as_f64()
+            .or_else(|| value.as_str().and_then(|raw| raw.trim().parse::<f64>().ok()))
+    })
+    .map(clamp01)
 }
 
 fn parse_bool(v: Option<&Value>) -> bool {
-    v.and_then(Value::as_bool).unwrap_or(false)
+    v.and_then(|value| {
+        value.as_bool().or_else(|| {
+            value.as_str().map(|raw| {
+                matches!(
+                    raw.trim().to_ascii_lowercase().as_str(),
+                    "1" | "true" | "yes" | "on"
+                )
+            })
+        })
+    })
+    .unwrap_or(false)
+}
+
+fn canonical_severity(raw: &str) -> String {
+    let token = raw.trim().to_ascii_lowercase();
+    match token.as_str() {
+        "error" | "fatal" | "sev0" | "sev1" => "critical".to_string(),
+        "warning" | "degraded" | "sev2" => "warn".to_string(),
+        "notice" | "debug" | "sev3" => "info".to_string(),
+        _ => token,
+    }
 }
 
 fn severity_criticality(severity: &str) -> f64 {
@@ -72,6 +97,7 @@ pub fn infer_from_event(
     severity: &str,
     priority_map: &BTreeMap<String, i64>,
 ) -> ImportanceDecision {
+    let severity = canonical_severity(severity);
     let source = event
         .get("source")
         .and_then(Value::as_str)
@@ -112,7 +138,7 @@ pub fn infer_from_event(
             .and_then(|v| v.get("criticality"))
             .or_else(|| event.get("criticality")),
     )
-    .unwrap_or_else(|| severity_criticality(severity));
+    .unwrap_or_else(|| severity_criticality(&severity));
     let urgency = parse_f64(
         importance_obj
             .and_then(|v| v.get("urgency"))
@@ -245,7 +271,7 @@ pub fn infer_from_event(
     score = clamp01(score);
 
     let band = initiative_band_for_score(score).to_string();
-    let severity_priority = *priority_map.get(severity).unwrap_or(&20);
+    let severity_priority = *priority_map.get(&severity).unwrap_or(&20);
     let derived_priority = ((score * 1000.0).round() as i64).clamp(1, 1000);
     let priority = explicit_priority
         .unwrap_or(derived_priority)

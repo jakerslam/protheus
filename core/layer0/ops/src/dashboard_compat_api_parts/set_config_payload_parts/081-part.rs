@@ -74,6 +74,106 @@ fn rewrite_workspace_analyze_result_for_user_summary(raw_result: &str) -> Option
     None
 }
 
+fn compact_web_finding_line(row: &Value) -> Option<String> {
+    match row {
+        Value::String(raw) => {
+            let text = first_sentence(&clean_text(raw, 240), 200);
+            if text.is_empty() { None } else { Some(text) }
+        }
+        Value::Object(obj) => {
+            let title = clean_text(
+                obj.get("title")
+                    .or_else(|| obj.get("name"))
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                120,
+            );
+            let snippet = clean_text(
+                obj.get("snippet")
+                    .or_else(|| obj.get("summary"))
+                    .or_else(|| obj.get("text"))
+                    .or_else(|| obj.get("content"))
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                200,
+            );
+            let url = clean_text(
+                obj.get("url")
+                    .or_else(|| obj.get("link"))
+                    .or_else(|| obj.get("source"))
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                180,
+            );
+            let mut line = if !title.is_empty() && !snippet.is_empty() {
+                format!("{title}: {snippet}")
+            } else if !snippet.is_empty() {
+                snippet
+            } else if !title.is_empty() {
+                title
+            } else {
+                clean_text(obj.get("message").and_then(Value::as_str).unwrap_or(""), 220)
+            };
+            if line.is_empty() {
+                return None;
+            }
+            if !url.is_empty() && !line.contains("http://") && !line.contains("https://") {
+                line = format!("{line} ({url})");
+            }
+            Some(trim_text(&line, 220))
+        }
+        _ => None,
+    }
+}
+
+fn rewrite_web_tool_result_from_json_payload(raw_result: &str) -> Option<String> {
+    let payload = parse_json_payload_dump(&strip_redundant_key_findings_prefix(raw_result))?;
+    let key_findings = clean_text(
+        payload
+            .get("key_findings")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        320,
+    );
+    if !key_findings.is_empty() {
+        return Some(trim_text(&format!("Web findings: {key_findings}"), 420));
+    }
+    let summary = clean_text(
+        payload
+            .get("summary")
+            .or_else(|| payload.get("tool_summary"))
+            .or_else(|| payload.get("message"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        320,
+    );
+    if !summary.is_empty() {
+        return Some(trim_text(&format!("Web findings: {summary}"), 420));
+    }
+
+    let findings = payload
+        .get("key_findings")
+        .or_else(|| payload.get("results"))
+        .or_else(|| payload.get("items"))
+        .or_else(|| payload.get("snippets"))
+        .or_else(|| payload.get("sources"))
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter()
+                .filter_map(compact_web_finding_line)
+                .take(3)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    if !findings.is_empty() {
+        return Some(trim_text(
+            &format!("Web findings: {}", findings.join(" | ")),
+            420,
+        ));
+    }
+    None
+}
+
 fn rewrite_tool_result_for_user_summary(tool_name: &str, raw_result: &str) -> Option<String> {
     let cleaned = clean_text(raw_result, 2_400);
     if cleaned.is_empty() {
@@ -123,6 +223,9 @@ fn rewrite_tool_result_for_user_summary(tool_name: &str, raw_result: &str) -> Op
     }
     if response_mentions_context_guard(&cleaned) {
         return Some(web_tool_context_guard_fallback("Live web retrieval"));
+    }
+    if let Some(rewritten) = rewrite_web_tool_result_from_json_payload(&cleaned_without_prefix) {
+        return Some(rewritten);
     }
     if let Some((rewritten, _)) =
         crate::tool_output_match_filter::rewrite_unsynthesized_web_dump(&cleaned_without_prefix)

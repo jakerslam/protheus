@@ -1,20 +1,67 @@
+fn canonical_backlog_status(status: &str) -> String {
+    status
+        .trim()
+        .to_ascii_lowercase()
+        .chars()
+        .filter_map(|ch| {
+            if ch.is_ascii_alphanumeric() {
+                Some(ch)
+            } else if ch == '-' || ch == '_' {
+                Some('-')
+            } else {
+                None
+            }
+        })
+        .collect::<String>()
+}
+
+fn status_allowed(status: &str, allowed: &std::collections::BTreeSet<String>) -> bool {
+    let token = canonical_backlog_status(status);
+    !token.is_empty() && allowed.contains(&token)
+}
+
 fn compile_backlog(policy: &Policy) -> Result<CompiledBacklog, String> {
     let raw = fs::read_to_string(&policy.paths.backlog_path)
         .map_err(|e| format!("read_backlog_failed:{}", e))?;
     let parsed = parse_backlog_rows(&raw);
-    let (rows, conflicts) = resolve_rows(parsed);
+    let (rows, mut conflicts) = resolve_rows(parsed);
     let generated_at = now_iso();
+
+    let active_statuses = policy
+        .active_statuses
+        .iter()
+        .map(|status| canonical_backlog_status(status))
+        .filter(|status| !status.is_empty())
+        .collect::<std::collections::BTreeSet<_>>();
+    let archive_statuses = policy
+        .archive_statuses
+        .iter()
+        .map(|status| canonical_backlog_status(status))
+        .filter(|status| !status.is_empty())
+        .collect::<std::collections::BTreeSet<_>>();
+    let mut known_statuses = active_statuses.clone();
+    known_statuses.extend(archive_statuses.iter().cloned());
 
     let active_rows = rows
         .iter()
-        .filter(|r| policy.active_statuses.contains(&r.status))
+        .filter(|r| status_allowed(&r.status, &active_statuses))
         .cloned()
         .collect::<Vec<_>>();
     let archive_rows = rows
         .iter()
-        .filter(|r| policy.archive_statuses.contains(&r.status))
+        .filter(|r| status_allowed(&r.status, &archive_statuses))
         .cloned()
         .collect::<Vec<_>>();
+    for row in &rows {
+        let status = canonical_backlog_status(&row.status);
+        if status.is_empty() || !known_statuses.contains(&status) {
+            conflicts.push(json!({
+                "row_id": row.id,
+                "reason": "status_not_in_policy",
+                "status": row.status
+            }));
+        }
+    }
 
     Ok(CompiledBacklog {
         generated_at: generated_at.clone(),
@@ -378,4 +425,3 @@ mod tests {
         assert_eq!(deps, vec!["V6-AAA-001", "V6-BBB-010", "V6-CCC-999"]);
     }
 }
-

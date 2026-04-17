@@ -2,7 +2,7 @@
 'use strict';
 
 const assert = require('node:assert');
-const path = require('node:path');
+const path = require('node:path');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 const ROOT = path.resolve(__dirname, '../..');
 
@@ -39,7 +39,7 @@ function main() {
   assert.strictEqual(serialized.schema_id, 'ternary_belief_serialized');
   assert.strictEqual(serialized.vector.digits.length, 3);
 
-  console.log(JSON.stringify({ ok: true, type: 'ternary_belief_engine_rust_bridge_test' }));
+  assertNoPlaceholderOrPromptLeak({ evaluated, merged, serialized }, 'ternary_belief_engine_rust_bridge_test');\n  assertStableToolingEnvelope(evaluated, 'ternary_belief_engine_rust_bridge_test');\n  console.log(JSON.stringify({ ok: true, type: 'ternary_belief_engine_rust_bridge_test' }));
 }
 
 if (require.main === module) {

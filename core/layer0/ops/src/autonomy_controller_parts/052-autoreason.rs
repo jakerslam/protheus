@@ -59,6 +59,7 @@ fn autoreason_score(text: &str) -> f64 {
         .collect::<std::collections::BTreeSet<_>>()
         .len() as f64;
     let uniq_ratio = (unique / words.len() as f64).clamp(0.0, 1.0);
+    let repetition_ratio = (1.0 - uniq_ratio).clamp(0.0, 1.0);
     let action_hits = words
         .iter()
         .filter(|w| {
@@ -80,16 +81,24 @@ fn autoreason_score(text: &str) -> f64 {
     let action_score = (action_hits / 8.0).clamp(0.0, 1.0);
     let has_tradeoff = normalized.contains("trade-off") || normalized.contains("tradeoff");
     let has_recommendation = normalized.contains("recommend") || normalized.contains("next step");
-    let structure_score = if has_tradeoff && has_recommendation {
+    let has_measure = normalized.contains("measure")
+        || normalized.contains("metric")
+        || normalized.contains("baseline");
+    let structure_score = if has_tradeoff && has_recommendation && has_measure {
         1.0
-    } else if has_tradeoff || has_recommendation {
+    } else if (has_tradeoff && has_recommendation) || has_measure {
         0.6
     } else {
         0.25
     };
     let length_score = ((words.len() as f64) / 120.0).clamp(0.1, 1.0);
-    (0.34 * uniq_ratio + 0.22 * action_score + 0.24 * structure_score + 0.20 * length_score)
-        .clamp(0.0, 1.0)
+    let redundancy_penalty = if repetition_ratio > 0.45 {
+        (repetition_ratio - 0.45).clamp(0.0, 0.35)
+    } else {
+        0.0
+    };
+    let raw = 0.33 * uniq_ratio + 0.22 * action_score + 0.26 * structure_score + 0.19 * length_score;
+    (raw - (0.35 * redundancy_penalty)).clamp(0.0, 1.0)
 }
 
 fn autoreason_critique(task: &str, candidate: &str) -> Value {
@@ -183,7 +192,7 @@ fn autoreason_blind_evaluate(
         })
         .collect::<Vec<_>>();
 
-    let mut tallies = std::collections::BTreeMap::<String, u64>::new();
+    let mut tallies = std::collections::BTreeMap::<String, (u64, f64)>::new();
     let mut votes = Vec::new();
     for judge in 0..judges {
         let mut scored = blinded_index
@@ -204,7 +213,9 @@ fn autoreason_blind_evaluate(
                 .then_with(|| a.0.cmp(&b.0))
         });
         if let Some((alias, candidate_id, score)) = scored.first().cloned() {
-            *tallies.entry(candidate_id.clone()).or_insert(0) += 1;
+            let entry = tallies.entry(candidate_id.clone()).or_insert((0, 0.0));
+            entry.0 = entry.0.saturating_add(1);
+            entry.1 += score;
             votes.push(json!({
                 "judge": format!("j{:02}", judge + 1),
                 "selected_alias": alias,
@@ -216,22 +227,37 @@ fn autoreason_blind_evaluate(
 
     let mut tally_rows = tallies
         .iter()
-        .map(|(candidate_id, votes)| json!({"candidate_id": candidate_id, "votes": votes}))
+        .map(|(candidate_id, (votes, cumulative_score))| {
+            let mean_score = if *votes == 0 {
+                0.0
+            } else {
+                *cumulative_score / (*votes as f64)
+            };
+            json!({
+                "candidate_id": candidate_id,
+                "votes": votes,
+                "mean_score": ((mean_score * 1_000_000.0).round() / 1_000_000.0)
+            })
+        })
         .collect::<Vec<_>>();
     tally_rows.sort_by(|a, b| {
         let av = a.get("votes").and_then(Value::as_u64).unwrap_or(0);
         let bv = b.get("votes").and_then(Value::as_u64).unwrap_or(0);
-        bv.cmp(&av).then_with(|| {
-            let aid = a
-                .get("candidate_id")
-                .and_then(Value::as_str)
-                .unwrap_or_default();
-            let bid = b
-                .get("candidate_id")
-                .and_then(Value::as_str)
-                .unwrap_or_default();
-            aid.cmp(bid)
-        })
+        let am = a.get("mean_score").and_then(Value::as_f64).unwrap_or(0.0);
+        let bm = b.get("mean_score").and_then(Value::as_f64).unwrap_or(0.0);
+        bv.cmp(&av)
+            .then_with(|| bm.partial_cmp(&am).unwrap_or(std::cmp::Ordering::Equal))
+            .then_with(|| {
+                let aid = a
+                    .get("candidate_id")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default();
+                let bid = b
+                    .get("candidate_id")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default();
+                aid.cmp(bid)
+            })
     });
     let winner_id = tally_rows
         .first()
@@ -239,6 +265,17 @@ fn autoreason_blind_evaluate(
         .and_then(Value::as_str)
         .unwrap_or("ab_synth")
         .to_string();
+    let winner_votes = tally_rows
+        .first()
+        .and_then(|row| row.get("votes"))
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let second_votes = tally_rows
+        .get(1)
+        .and_then(|row| row.get("votes"))
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let winner_vote_margin = winner_votes.saturating_sub(second_votes);
 
     json!({
         "blinded_candidates": blinded_index
@@ -247,7 +284,8 @@ fn autoreason_blind_evaluate(
             .collect::<Vec<_>>(),
         "votes": votes,
         "tally": tally_rows,
-        "winner_id": winner_id
+        "winner_id": winner_id,
+        "winner_vote_margin": winner_vote_margin
     })
 }
 

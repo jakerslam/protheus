@@ -174,6 +174,29 @@ fn workload_fit_bonus(model: &ModelMetadata, workload: WorkloadClass) -> f32 {
     }
 }
 
+fn prefer_candidate_on_tie(candidate: &ModelMetadata, incumbent: &ModelMetadata) -> bool {
+    let candidate_local = !matches!(candidate.runtime_kind, ModelRuntimeKind::CloudApi);
+    let incumbent_local = !matches!(incumbent.runtime_kind, ModelRuntimeKind::CloudApi);
+    if candidate_local != incumbent_local {
+        return candidate_local;
+    }
+
+    let candidate_ctx = candidate.context_tokens.unwrap_or(0);
+    let incumbent_ctx = incumbent.context_tokens.unwrap_or(0);
+    if candidate_ctx != incumbent_ctx {
+        return candidate_ctx > incumbent_ctx;
+    }
+
+    if candidate.cost_score_1_to_5 != incumbent.cost_score_1_to_5 {
+        return candidate.cost_score_1_to_5 < incumbent.cost_score_1_to_5;
+    }
+
+    if candidate.provider != incumbent.provider {
+        return candidate.provider < incumbent.provider;
+    }
+    candidate.id < incumbent.id
+}
+
 pub fn choose_best_model(
     models: &[ModelMetadata],
     request: &RoutingRequest,
@@ -193,8 +216,16 @@ pub fn choose_best_model(
         let base = model.power_score_1_to_5 as f32 - (model.cost_score_1_to_5 as f32 * 0.35);
         let score = base + workload_fit_bonus(model, request.workload);
         match best {
-            Some((best_score, _)) if score <= best_score => {}
-            _ => best = Some((score, idx)),
+            Some((best_score, best_idx)) => {
+                if score > best_score {
+                    best = Some((score, idx));
+                } else if (score - best_score).abs() <= f32::EPSILON
+                    && prefer_candidate_on_tie(model, &models[best_idx])
+                {
+                    best = Some((score, idx));
+                }
+            }
+            None => best = Some((score, idx)),
         }
     }
     best.map(|(_, idx)| models[idx].clone())
@@ -295,5 +326,38 @@ mod tests {
         assert_eq!(plan.available_tokens, 7168);
         assert_eq!(plan.tokens_to_compact, 4832);
         assert!(plan.compaction_ratio > 0.3);
+    }
+
+    #[test]
+    fn routing_tie_break_prefers_local_and_stable_id_ordering() {
+        let mut cloud = ModelMetadata::new("z-cloud", "cloud", "cloud-fast", ModelRuntimeKind::CloudApi);
+        cloud.context_tokens = Some(32000);
+        cloud.specialties = vec![ModelSpecialty::Coding];
+        cloud.power_score_1_to_5 = 4;
+        cloud.cost_score_1_to_5 = 2;
+
+        let mut local_b =
+            ModelMetadata::new("b-local", "local", "local-b", ModelRuntimeKind::LocalApi);
+        local_b.context_tokens = Some(32000);
+        local_b.specialties = vec![ModelSpecialty::Coding];
+        local_b.power_score_1_to_5 = 4;
+        local_b.cost_score_1_to_5 = 2;
+
+        let mut local_a =
+            ModelMetadata::new("a-local", "local", "local-a", ModelRuntimeKind::LocalApi);
+        local_a.context_tokens = Some(32000);
+        local_a.specialties = vec![ModelSpecialty::Coding];
+        local_a.power_score_1_to_5 = 4;
+        local_a.cost_score_1_to_5 = 2;
+
+        let request = RoutingRequest {
+            workload: WorkloadClass::Coding,
+            min_context_tokens: 4096,
+            max_cost_score_1_to_5: 5,
+            local_only: false,
+        };
+        let selected =
+            choose_best_model(&[cloud, local_b, local_a.clone()], &request).expect("model");
+        assert_eq!(selected.id, local_a.id);
     }
 }

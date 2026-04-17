@@ -54,6 +54,69 @@ fn round3(value: f64) -> f64 {
     (value * 1000.0).round() / 1000.0
 }
 
+const MAX_MISSION_ID_LEN: usize = 96;
+const MAX_HOOK_LEN: usize = 96;
+const MAX_CYCLES: u32 = 2_000_000;
+
+fn strip_invisible_unicode(raw: &str) -> String {
+    raw.chars()
+        .filter(|ch| {
+            !matches!(
+                ch,
+                '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}'
+            )
+        })
+        .collect()
+}
+
+fn sanitize_token(raw: &str, max_len: usize) -> String {
+    let mut token: String = strip_invisible_unicode(raw)
+        .chars()
+        .filter(|ch| !ch.is_control())
+        .collect();
+    token = token
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join("_")
+        .trim()
+        .to_ascii_lowercase();
+    if token.len() > max_len {
+        token.truncate(max_len);
+    }
+    token
+}
+
+fn normalize_request(request: &ChaosGameRequest) -> Result<ChaosGameRequest, String> {
+    let mission_id = sanitize_token(&request.mission_id, MAX_MISSION_ID_LEN);
+    if mission_id.is_empty() {
+        return Err("mission_id_invalid".to_string());
+    }
+    let cycles = request.cycles.clamp(1, MAX_CYCLES);
+    let inject_fault_every = if request.inject_fault_every == 0 {
+        0
+    } else {
+        request.inject_fault_every.min(cycles)
+    };
+    Ok(ChaosGameRequest {
+        mission_id,
+        cycles,
+        inject_fault_every,
+        enforce_fail_closed: request.enforce_fail_closed,
+        event_seed: request.event_seed,
+    })
+}
+
+fn normalize_hooks(raw_hooks: &[String]) -> Vec<String> {
+    let mut hooks = raw_hooks
+        .iter()
+        .map(|hook| sanitize_token(hook, MAX_HOOK_LEN))
+        .filter(|hook| !hook.is_empty())
+        .collect::<Vec<_>>();
+    hooks.sort();
+    hooks.dedup();
+    hooks
+}
+
 fn synthesize_events(request: &ChaosGameRequest) -> Vec<TraceEvent> {
     let mut events = Vec::new();
     let count = usize::min(12, usize::max(4, (request.cycles / 25000) as usize));
@@ -157,10 +220,11 @@ fn receipt_digest(receipt: &ChaosGameReceipt) -> String {
 }
 
 pub fn run_chaos_game(request: &ChaosGameRequest) -> Result<ChaosGameReceipt, String> {
+    let request = normalize_request(request)?;
     let doctrine = load_embedded_red_legion_doctrine().map_err(|e| e.to_string())?;
     let scenario = ChaosScenarioRequest {
         scenario_id: request.mission_id.clone(),
-        events: synthesize_events(request),
+        events: synthesize_events(&request),
         cycles: request.cycles,
         inject_fault_every: request.inject_fault_every,
         enforce_fail_closed: request.enforce_fail_closed,
@@ -171,6 +235,7 @@ pub fn run_chaos_game(request: &ChaosGameRequest) -> Result<ChaosGameReceipt, St
     if report.sovereignty.fail_closed {
         fail_closed = true;
     }
+    let hooks_fired = normalize_hooks(&report.hooks_fired);
 
     let mut receipt = ChaosGameReceipt {
         mission_id: request.mission_id.clone(),
@@ -182,7 +247,7 @@ pub fn run_chaos_game(request: &ChaosGameRequest) -> Result<ChaosGameReceipt, St
         drift_score_pct: round3(report.trace_report.drift_score_pct),
         telemetry_overhead_ms: round3(report.telemetry_overhead_ms),
         battery_pct_24h: round3(report.chaos_battery_pct_24h),
-        hooks_fired: report.hooks_fired.clone(),
+        hooks_fired,
         report,
         receipt_digest: String::new(),
     };

@@ -99,6 +99,8 @@
   box-shadow: var(--shadow-xs);
   position: relative;
   isolation: isolate;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .chat-thread-profile-avatar img {
@@ -361,16 +363,8 @@ body[data-theme='dark'] .chat-event-divider .chat-event-info-icon {
   object-fit: contain;
 }
 .agent-mark {
-  width: 18px;
-  height: 18px;
-  border-radius: 9999px;
-  background: var(--accent-subtle);
-  color: var(--accent);
-  font-size: 10px;
-  font-weight: 700;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  --infring-logo-size: 18px;
+  --infring-logo-font-size: 10px;
   font-family: var(--font-mono);
 }
 

@@ -319,6 +319,18 @@ fn resolve_agent_id_alias(root: &Path, requested: &str) -> String {
     normalized
 }
 
+fn normalize_provider_route_id(raw: &str) -> String {
+    let lowered = clean_text(raw, 120)
+        .replace('_', "-")
+        .to_ascii_lowercase();
+    match lowered.as_str() {
+        "google" => "gemini".to_string(),
+        "xai" => "grok".to_string(),
+        "moonshot" => "kimi".to_string(),
+        _ => lowered,
+    }
+}
+
 fn parse_provider_route(path_only: &str) -> Option<(String, Vec<String>)> {
     let prefix = "/api/providers/";
     if !path_only.starts_with(prefix) {
@@ -335,7 +347,7 @@ fn parse_provider_route(path_only: &str) -> Option<(String, Vec<String>)> {
     if parts.is_empty() {
         return None;
     }
-    let provider_id = decode_path_segment(&parts.remove(0));
+    let provider_id = normalize_provider_route_id(&decode_path_segment(&parts.remove(0)));
     if provider_id.is_empty() {
         return None;
     }
@@ -430,4 +442,3 @@ fn resolve_workspace_path(base: &Path, requested_path: &str) -> Option<PathBuf> 
     }
     Some(candidate_norm)
 }
-

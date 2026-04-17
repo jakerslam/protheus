@@ -12,6 +12,13 @@ use crate::contract_lane_utils as lane_utils;
 use crate::{deterministic_receipt_hash, now_iso};
 
 const DEFAULT_REL_PATH: &str = "sensory/eyes/catalog.json";
+const DEFAULT_PROVIDER_FAMILIES: [&str; 4] = ["openai", "openrouter", "xai", "tts"];
+const DEFAULT_PROVIDER_AUTH_ENV_KEYS: [&str; 4] = [
+    "OPENAI_API_KEY",
+    "OPENROUTER_API_KEY",
+    "XAI_API_KEY",
+    "ELEVENLABS_API_KEY",
+];
 
 fn usage() {
     println!("catalog-store-kernel commands:");
@@ -149,7 +156,13 @@ fn default_catalog() -> Value {
             "score_ema": 50
         }],
         "global_limits": {"max_concurrent_runs": 3, "global_max_requests_per_day": 50, "global_max_bytes_per_day": 5242880},
-        "scoring": {"ema_alpha": 0.3, "score_threshold_high": 70, "score_threshold_low": 30, "score_threshold_dormant": 20, "cadence_min_hours": 1, "cadence_max_hours": 168}
+        "scoring": {"ema_alpha": 0.3, "score_threshold_high": 70, "score_threshold_low": 30, "score_threshold_dormant": 20, "cadence_min_hours": 1, "cadence_max_hours": 168},
+        "tooling_contracts": {
+            "source": "openclaw_provider_family_contract_inventory_v1",
+            "provider_families": DEFAULT_PROVIDER_FAMILIES,
+            "auth_env_keys": DEFAULT_PROVIDER_AUTH_ENV_KEYS,
+            "plugin_boundary_required": true
+        }
     })
 }
 
@@ -211,7 +224,71 @@ fn normalize_catalog(catalog: Option<&Value>) -> Value {
         eyes.push(Value::Object(eye));
     }
     out.insert("eyes".to_string(), Value::Array(eyes));
+    out.insert(
+        "tooling_contracts".to_string(),
+        normalize_tooling_contracts(src.get("tooling_contracts")),
+    );
     Value::Object(out)
+}
+
+fn normalize_tooling_contracts(value: Option<&Value>) -> Value {
+    let source = value.and_then(Value::as_object).cloned().unwrap_or_default();
+    let mut families = BTreeSet::<String>::new();
+    for row in source
+        .get("provider_families")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+    {
+        if let Some(raw) = row.as_str() {
+            let clean = raw.trim().to_ascii_lowercase();
+            if DEFAULT_PROVIDER_FAMILIES
+                .iter()
+                .any(|expected| expected == &clean)
+            {
+                families.insert(clean);
+            }
+        }
+    }
+    if families.is_empty() {
+        for default in DEFAULT_PROVIDER_FAMILIES {
+            families.insert(default.to_string());
+        }
+    }
+
+    let mut auth_env_keys = BTreeSet::<String>::new();
+    for row in source
+        .get("auth_env_keys")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+    {
+        if let Some(raw) = row.as_str() {
+            let clean = raw.trim().to_ascii_uppercase();
+            if !clean.is_empty() && clean.chars().all(|ch| ch.is_ascii_alphanumeric() || ch == '_')
+            {
+                auth_env_keys.insert(clean);
+            }
+        }
+    }
+    if auth_env_keys.is_empty() {
+        for key in DEFAULT_PROVIDER_AUTH_ENV_KEYS {
+            auth_env_keys.insert(key.to_string());
+        }
+    }
+
+    let source_name = clean_text(source.get("source"), 80);
+    let source_value = if source_name.is_empty() {
+        "openclaw_provider_family_contract_inventory_v1".to_string()
+    } else {
+        source_name
+    };
+    json!({
+        "source": source_value,
+        "provider_families": families.into_iter().collect::<Vec<_>>(),
+        "auth_env_keys": auth_env_keys.into_iter().collect::<Vec<_>>(),
+        "plugin_boundary_required": source.get("plugin_boundary_required").and_then(Value::as_bool).unwrap_or(true)
+    })
 }
 
 fn read_state(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> {

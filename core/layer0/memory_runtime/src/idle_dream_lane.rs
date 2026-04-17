@@ -35,13 +35,57 @@ fn today_utc() -> String {
     format!("{:04}-{:02}-{:02}", now.year(), month, now.day())
 }
 
+fn strip_invisible_unicode(raw: &str) -> String {
+    raw.chars()
+        .filter(|ch| {
+            !ch.is_control()
+                && !matches!(
+                    ch,
+                    '\u{200B}'
+                        | '\u{200C}'
+                        | '\u{200D}'
+                        | '\u{200E}'
+                        | '\u{200F}'
+                        | '\u{202A}'
+                        | '\u{202B}'
+                        | '\u{202C}'
+                        | '\u{202D}'
+                        | '\u{202E}'
+                        | '\u{2060}'
+                        | '\u{FEFF}'
+                )
+        })
+        .collect::<String>()
+}
+
 fn normalize_model_name(raw: &str) -> String {
-    raw.to_lowercase()
+    strip_invisible_unicode(raw)
+        .to_lowercase()
         .chars()
         .filter(|ch| {
             ch.is_ascii_alphanumeric() || *ch == ':' || *ch == '.' || *ch == '-' || *ch == '_'
         })
         .collect::<String>()
+}
+
+fn resolve_safe_override(base: &Path, raw: Option<String>, fallback: PathBuf) -> PathBuf {
+    let Some(raw) = raw else { return fallback };
+    let cleaned = strip_invisible_unicode(raw.trim()).trim().to_string();
+    if cleaned.is_empty() || cleaned.contains("://") {
+        return fallback;
+    }
+    let path = PathBuf::from(cleaned);
+    if path
+        .components()
+        .any(|part| matches!(part, std::path::Component::ParentDir))
+    {
+        return fallback;
+    }
+    if path.is_absolute() {
+        if path.starts_with(base) { path } else { fallback }
+    } else {
+        base.join(path)
+    }
 }
 
 fn resolve_client_root(root: &Path) -> PathBuf {
@@ -61,26 +105,27 @@ fn resolve_client_root(root: &Path) -> PathBuf {
 
 fn resolve_paths(root: &Path) -> IdlePaths {
     let client_root = resolve_client_root(root);
-    let dreams_dir = std::env::var("IDLE_DREAM_DREAMS_DIR")
-        .ok()
-        .filter(|v| !v.trim().is_empty())
-        .map(PathBuf::from)
-        .unwrap_or_else(|| client_root.join("local/state/memory/dreams"));
-    let idle_dir = std::env::var("IDLE_DREAM_IDLE_DIR")
-        .ok()
-        .filter(|v| !v.trim().is_empty())
-        .map(PathBuf::from)
-        .unwrap_or_else(|| dreams_dir.join("idle"));
-    let rem_dir = std::env::var("IDLE_DREAM_REM_DIR")
-        .ok()
-        .filter(|v| !v.trim().is_empty())
-        .map(PathBuf::from)
-        .unwrap_or_else(|| dreams_dir.join("rem"));
-    let state_path = std::env::var("IDLE_DREAM_STATE_PATH")
-        .ok()
-        .filter(|v| !v.trim().is_empty())
-        .map(PathBuf::from)
-        .unwrap_or_else(|| dreams_dir.join("idle_state.json"));
+    let base_root = client_root.join("local/state");
+    let dreams_dir = resolve_safe_override(
+        &base_root,
+        std::env::var("IDLE_DREAM_DREAMS_DIR").ok(),
+        client_root.join("local/state/memory/dreams"),
+    );
+    let idle_dir = resolve_safe_override(
+        &base_root,
+        std::env::var("IDLE_DREAM_IDLE_DIR").ok(),
+        dreams_dir.join("idle"),
+    );
+    let rem_dir = resolve_safe_override(
+        &base_root,
+        std::env::var("IDLE_DREAM_REM_DIR").ok(),
+        dreams_dir.join("rem"),
+    );
+    let state_path = resolve_safe_override(
+        &base_root,
+        std::env::var("IDLE_DREAM_STATE_PATH").ok(),
+        dreams_dir.join("idle_state.json"),
+    );
     IdlePaths {
         dreams_dir,
         idle_dir,

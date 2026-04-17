@@ -12,18 +12,102 @@ pub struct Register {
 
 pub type CrdtState = BTreeMap<String, Register>;
 
+const MAX_REGISTER_VALUE_CHARS: usize = 2048;
+const MAX_REGISTER_KEY_CHARS: usize = 192;
+const MAX_NODE_CHARS: usize = 96;
+
+fn strip_controls_except_layout(raw: &str) -> String {
+    raw.chars()
+        .filter(|ch| !ch.is_control() || *ch == '\n' || *ch == '\t')
+        .collect::<String>()
+}
+
+fn normalize_key(raw: &str) -> Option<String> {
+    let sanitized = strip_controls_except_layout(raw);
+    let trimmed = sanitized.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    let normalized = trimmed.chars().take(MAX_REGISTER_KEY_CHARS).collect::<String>();
+    if normalized.is_empty() {
+        None
+    } else {
+        Some(normalized)
+    }
+}
+
+fn normalize_node(raw: &str) -> String {
+    let mut out = String::new();
+    for ch in raw.chars() {
+        if out.len() >= MAX_NODE_CHARS {
+            break;
+        }
+        let normalized = if ch.is_ascii_alphanumeric() || matches!(ch, '.' | '_' | '-') {
+            ch.to_ascii_lowercase()
+        } else if ch.is_whitespace() {
+            '-'
+        } else {
+            continue;
+        };
+        if normalized == '-' && out.ends_with('-') {
+            continue;
+        }
+        out.push(normalized);
+    }
+    let trimmed = out.trim_matches('-').to_string();
+    if trimmed.is_empty() {
+        "unknown-node".to_string()
+    } else {
+        trimmed
+    }
+}
+
+fn normalize_value(raw: &str) -> String {
+    let sanitized = strip_controls_except_layout(raw);
+    sanitized
+        .trim()
+        .chars()
+        .take(MAX_REGISTER_VALUE_CHARS)
+        .collect::<String>()
+}
+
+fn normalize_register(register: &Register) -> Register {
+    Register {
+        value: normalize_value(&register.value),
+        clock: register.clock,
+        node: normalize_node(&register.node),
+    }
+}
+
+fn register_needs_sanitization(key: &str, register: &Register) -> bool {
+    match normalize_key(key) {
+        Some(normalized_key) if normalized_key == key => normalize_register(register) != *register,
+        _ => true,
+    }
+}
+
 pub fn merge_state(left: &CrdtState, right: &CrdtState) -> CrdtState {
-    let mut out = left.clone();
-    for (key, incoming) in right {
-        match out.get(key) {
+    let mut out = CrdtState::new();
+    for (key, existing) in left {
+        if let Some(normalized_key) = normalize_key(key) {
+            out.insert(normalized_key, normalize_register(existing));
+        }
+    }
+
+    for (key, incoming_raw) in right {
+        let Some(normalized_key) = normalize_key(key) else {
+            continue;
+        };
+        let incoming = normalize_register(incoming_raw);
+        match out.get(&normalized_key) {
             None => {
-                out.insert(key.clone(), incoming.clone());
+                out.insert(normalized_key, incoming);
             }
             Some(existing) => {
                 let take_incoming = incoming.clock > existing.clock
                     || (incoming.clock == existing.clock && incoming.node > existing.node);
                 if take_incoming {
-                    out.insert(key.clone(), incoming.clone());
+                    out.insert(normalized_key, incoming);
                 }
             }
         }
@@ -67,9 +151,22 @@ pub fn sample_report() -> serde_json::Value {
             node: "n2".into(),
         },
     );
+    b.insert(
+        " unsafe\x00-key ".into(),
+        Register {
+            value: "line1\x00line2\n".repeat(500),
+            clock: 7,
+            node: "N2/unsafe".into(),
+        },
+    );
 
     let merged_ab = merge_state(&a, &b);
     let merged_ba = merge_state(&b, &a);
+    let sanitized_registers = a
+        .iter()
+        .chain(b.iter())
+        .filter(|(key, register)| register_needs_sanitization(key, register))
+        .count();
     let mut samples = Vec::with_capacity(1600);
     for _ in 0..1600 {
         let started = Instant::now();
@@ -92,6 +189,10 @@ pub fn sample_report() -> serde_json::Value {
         "convergent": merged_ab == merged_ba,
         "merged_keys": merged_ab.keys().cloned().collect::<Vec<String>>(),
         "state": merged_ab,
+        "hygiene": {
+            "sanitized_registers": sanitized_registers,
+            "max_register_value_chars": MAX_REGISTER_VALUE_CHARS
+        },
         "benchmarks": {
             "merge_ms_p95": merge_ms_p95,
             "idle_battery_pct_24h": idle_battery_pct_24h,
@@ -135,5 +236,22 @@ mod tests {
         );
         let merged = merge_state(&l, &r);
         assert_eq!(merged.get("k").map(|v| v.value.clone()), Some("new".into()));
+    }
+
+    #[test]
+    fn merge_sanitizes_untrusted_register_fields() {
+        let mut l = CrdtState::new();
+        l.insert(
+            " unsafe\x00-key ".into(),
+            Register {
+                value: "A\x00".repeat(4000),
+                clock: 1,
+                node: "Node / unsafe".into(),
+            },
+        );
+        let merged = merge_state(&l, &CrdtState::new());
+        let register = merged.get("unsafe-key").expect("normalized key");
+        assert!(register.value.len() <= MAX_REGISTER_VALUE_CHARS);
+        assert_eq!(register.node, "node-unsafe");
     }
 }

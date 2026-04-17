@@ -563,6 +563,11 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             | "tick"
             | "diagnostics"
     ) {
+        let gateway_banner_enabled =
+            parse_bool(parse_flag(argv, "gateway-banner").as_deref(), false);
+        if matches!(command.as_str(), "start" | "restart") && gateway_banner_enabled {
+            println!("P o w e r  T o  T h e  U s e r s");
+        }
         let mut receipt = success_receipt(command.as_str(), mode.as_deref(), argv, root);
         let dashboard = match command.as_str() {
             "start" => {

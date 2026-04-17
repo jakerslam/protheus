@@ -1,26 +1,68 @@
 
+fn is_leap_year(year: u32) -> bool {
+    (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)
+}
+
+fn max_day_for_month(year: u32, month: u32) -> u32 {
+    match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if is_leap_year(year) => 29,
+        2 => 28,
+        _ => 0,
+    }
+}
+
+fn parse_ascii_u32(chars: &[char]) -> Option<u32> {
+    let mut value = 0u32;
+    for ch in chars {
+        if !ch.is_ascii_digit() {
+            return None;
+        }
+        value = value.checked_mul(10)?.checked_add((*ch as u32) - ('0' as u32))?;
+    }
+    Some(value)
+}
+
 fn extract_date_from_path(path_value: &str) -> String {
     let chars = path_value.chars().collect::<Vec<char>>();
     if chars.len() < 10 {
         return String::new();
     }
+
     for idx in 0..=(chars.len() - 10) {
-        let mut ok = true;
-        for off in 0..10 {
-            let ch = chars[idx + off];
-            let expected_dash = off == 4 || off == 7;
-            if expected_dash {
-                if ch != '-' {
-                    ok = false;
+        for sep in ['-', '/', '_'] {
+            let mut pattern_ok = true;
+            for off in 0..10 {
+                let ch = chars[idx + off];
+                let expected_sep = off == 4 || off == 7;
+                if expected_sep {
+                    if ch != sep {
+                        pattern_ok = false;
+                        break;
+                    }
+                } else if !ch.is_ascii_digit() {
+                    pattern_ok = false;
                     break;
                 }
-            } else if !ch.is_ascii_digit() {
-                ok = false;
-                break;
             }
-        }
-        if ok {
-            return chars[idx..idx + 10].iter().collect::<String>();
+            if !pattern_ok {
+                continue;
+            }
+
+            let before_is_digit = idx > 0 && chars[idx - 1].is_ascii_digit();
+            let after_is_digit = idx + 10 < chars.len() && chars[idx + 10].is_ascii_digit();
+            if before_is_digit || after_is_digit {
+                continue;
+            }
+
+            let year = parse_ascii_u32(&chars[idx..idx + 4]).unwrap_or(0);
+            let month = parse_ascii_u32(&chars[idx + 5..idx + 7]).unwrap_or(0);
+            let day = parse_ascii_u32(&chars[idx + 8..idx + 10]).unwrap_or(0);
+            let max_day = max_day_for_month(year, month);
+            if year >= 1970 && month >= 1 && month <= 12 && day >= 1 && day <= max_day {
+                return format!("{year:04}-{month:02}-{day:02}");
+            }
         }
     }
     String::new()

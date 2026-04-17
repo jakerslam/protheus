@@ -25,6 +25,23 @@ fn now_iso() -> String {
 
 fn clean(v: impl ToString, max_len: usize) -> String {
     v.to_string()
+        .chars()
+        .filter(|ch| {
+            !matches!(
+                *ch,
+                '\u{200B}'
+                    | '\u{200C}'
+                    | '\u{200D}'
+                    | '\u{2060}'
+                    | '\u{FEFF}'
+                    | '\u{202A}'
+                    | '\u{202B}'
+                    | '\u{202C}'
+                    | '\u{202D}'
+                    | '\u{202E}'
+            ) && (!ch.is_control() || ch.is_ascii_whitespace())
+        })
+        .collect::<String>()
         .trim()
         .chars()
         .take(max_len)
@@ -134,11 +151,21 @@ fn bool_flag(parsed: &ParsedArgs, key: &str, fallback: bool) -> bool {
 }
 
 fn split_csv(raw: &str, max: usize) -> Vec<String> {
-    raw.split(',')
-        .map(|v| normalize_rel(v))
-        .filter(|v| !v.is_empty())
-        .take(max)
-        .collect::<Vec<_>>()
+    let mut out = Vec::new();
+    let mut seen = BTreeSet::new();
+    for token in raw.split(',') {
+        if out.len() >= max {
+            break;
+        }
+        let value = normalize_rel(clean(token, 240));
+        if value.is_empty() {
+            continue;
+        }
+        if seen.insert(value.clone()) {
+            out.push(value);
+        }
+    }
+    out
 }
 
 fn sha256_hex_bytes(input: &[u8]) -> String {

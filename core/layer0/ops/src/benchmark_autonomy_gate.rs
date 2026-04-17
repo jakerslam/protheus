@@ -7,6 +7,8 @@ use std::fs;
 use std::io::Write;
 use std::path::Path;
 use std::process::Command;
+use std::thread;
+use std::time::Duration;
 
 use crate::contract_lane_utils as lane_utils;
 use crate::{deterministic_receipt_hash, now_iso};
@@ -278,9 +280,46 @@ fn run_benchmark_matrix(root: &Path) -> Result<Value, String> {
     Ok(payload)
 }
 
+fn benchmark_error_retryable(error: &str) -> bool {
+    let lower = error.to_ascii_lowercase();
+    [
+        "spawn_failed",
+        "missing_benchmark_payload",
+        "run_failed",
+        "timed out",
+        "connection",
+        "broken pipe",
+    ]
+    .iter()
+    .any(|needle| lower.contains(needle))
+}
+
+fn run_benchmark_matrix_with_retry(
+    root: &Path,
+    max_attempts: usize,
+) -> Result<(Value, usize), (String, usize)> {
+    let attempts = max_attempts.clamp(1, 4);
+    let mut last_error = "benchmark_autonomy_gate_unknown_error".to_string();
+    for attempt in 1..=attempts {
+        match run_benchmark_matrix(root) {
+            Ok(payload) => return Ok((payload, attempt)),
+            Err(err) => {
+                last_error = err.clone();
+                if attempt >= attempts || !benchmark_error_retryable(&err) {
+                    return Err((err, attempt));
+                }
+                let delay_ms = (200_u64.saturating_mul(2_u64.saturating_pow((attempt - 1) as u32)))
+                    .min(1200);
+                thread::sleep(Duration::from_millis(delay_ms));
+            }
+        }
+    }
+    Err((last_error, attempts))
+}
+
 fn run_gate(root: &Path, gates: &Gates) -> Value {
-    match run_benchmark_matrix(root) {
-        Ok(payload) => {
+    match run_benchmark_matrix_with_retry(root, 3) {
+        Ok((payload, attempts_used)) => {
             let evaluated = evaluate_gate(&payload, gates);
             let failed = evaluated
                 .get("failed")
@@ -295,15 +334,18 @@ fn run_gate(root: &Path, gates: &Gates) -> Value {
                 "metrics": evaluated.get("metrics").cloned().unwrap_or_else(|| json!({})),
                 "checks": evaluated.get("checks").cloned().unwrap_or_else(|| json!([])),
                 "failed": failed,
+                "benchmark_run_attempts": attempts_used,
                 "benchmark_receipt_hash": payload.get("receipt_hash").cloned().unwrap_or(Value::Null),
             })
         }
-        Err(err) => json!({
+        Err((err, attempts_used)) => json!({
             "ok": false,
             "type": "benchmark_autonomy_gate",
             "generated_at": now_iso(),
             "error": "benchmark_matrix_run_failed",
             "reason": err,
+            "benchmark_run_attempts": attempts_used,
+            "retryable_error": benchmark_error_retryable(&err),
         }),
     }
 }

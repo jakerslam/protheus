@@ -4,6 +4,9 @@
 // Layer ownership: core/layer1/memory_runtime + core/layer0/ops::legacy-retired-lane (authoritative)
 // Legacy JS test surface retired; authoritative checks are Rust-side.
 const { createTestModule, runAsMain } = require('./_legacy_retired_test_wrapper.ts');
+const { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 const mod = createTestModule(__dirname, 'attested_assimilation_plane.test', 'MEMORY-TEST-ATTESTED_ASSIMILATION_PLANE.TEST');
+assertNoPlaceholderOrPromptLeak(mod, 'attested_assimilation_plane_test');
+assertStableToolingEnvelope({ status: 'ok', module: 'attested_assimilation_plane' }, 'attested_assimilation_plane_test');
 if (require.main === module) runAsMain(mod, process.argv.slice(2));
 module.exports = mod;

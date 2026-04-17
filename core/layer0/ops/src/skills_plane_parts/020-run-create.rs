@@ -1,3 +1,46 @@
+fn normalize_skill_tool_profile(raw: &str) -> String {
+    let token = clean(raw, 40)
+        .to_ascii_lowercase()
+        .replace('-', "_")
+        .replace(' ', "_");
+    match token.as_str() {
+        "minimal" | "min" => "minimal".to_string(),
+        "messaging" | "message" | "msg" => "messaging".to_string(),
+        "full" | "all" => "full".to_string(),
+        "coding" | "code" | "dev" => "coding".to_string(),
+        _ => "coding".to_string(),
+    }
+}
+
+fn parse_skill_tool_groups(raw: Option<&String>) -> Vec<String> {
+    let mut groups = Vec::<String>::new();
+    let source = raw.map(|value| clean(value, 512)).unwrap_or_default();
+    for token in source.split(|ch: char| ch == ',' || ch == ';' || ch.is_whitespace()) {
+        let normalized = clean(token, 80)
+            .to_ascii_lowercase()
+            .replace('-', "_")
+            .replace(' ', "_");
+        if normalized.is_empty() {
+            continue;
+        }
+        let canonical = if normalized.starts_with("group:") {
+            normalized
+        } else {
+            format!("group:{normalized}")
+        };
+        if !groups.iter().any(|row| row == &canonical) {
+            groups.push(canonical);
+        }
+        if groups.len() >= 24 {
+            break;
+        }
+    }
+    if groups.is_empty() {
+        groups.push("group:openclaw".to_string());
+    }
+    groups
+}
+
 fn run_create(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
     let contract = load_json_or(
         root,
@@ -60,12 +103,24 @@ fn run_create(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
             .unwrap_or("v1"),
         20,
     );
+    let tool_profile = normalize_skill_tool_profile(
+        parsed
+            .flags
+            .get("tool-profile")
+            .map(String::as_str)
+            .unwrap_or("coding"),
+    );
+    let tool_groups = parse_skill_tool_groups(parsed.flags.get("tool-groups"));
+    let tool_groups_yaml = tool_groups
+        .iter()
+        .map(|group| format!("  - {group}\n"))
+        .collect::<String>();
     let root_path = skills_root(root, parsed).join(&id);
     let skill_md = format!(
         "# {name}\n\nGenerated skill package.\n\n## Trigger\n- mention:{id}\n\n## Run\nUse `scripts/run.sh`.\n"
     );
     let skill_yaml = format!(
-        "name: {id}\nversion: {version}\ndescription: Generated skill scaffold\ntriggers:\n  - mention:{id}\nentrypoint: scripts/run.sh\n"
+        "name: {id}\nversion: {version}\ndescription: Generated skill scaffold\ntriggers:\n  - mention:{id}\nentrypoint: scripts/run.sh\ntool_profile: {tool_profile}\ntool_groups:\n{tool_groups_yaml}"
     );
     let run_sh = "#!/usr/bin/env bash\nset -euo pipefail\necho \"skill_run_ok\"\n";
     let smoke_sh = "#!/usr/bin/env bash\nset -euo pipefail\nbash \"$(dirname \"$0\")/../scripts/run.sh\" >/dev/null\n";
@@ -110,6 +165,8 @@ fn run_create(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
             "deterministic_id": deterministic_skill_id,
             "name": name,
             "version": version,
+            "tool_profile": tool_profile,
+            "tool_groups": tool_groups,
             "root": root_path.display().to_string()
         },
         "generated_files": generated,
@@ -118,7 +175,8 @@ fn run_create(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
                 "id": "V6-SKILLS-001.1",
                 "claim": "skill_create_generates_markdown_yaml_scripts_assets_scaffold_package",
                 "evidence": {
-                    "file_count": generated.len()
+                    "file_count": generated.len(),
+                    "tool_group_count": tool_groups.len()
                 }
             },
             {

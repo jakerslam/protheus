@@ -147,6 +147,27 @@ fn split_csv(raw: &str) -> Vec<String> {
         .collect()
 }
 
+fn normalize_delivery_mode(raw: &str) -> String {
+    let token = raw.trim().to_ascii_lowercase();
+    match token.as_str() {
+        "announce" | "broadcast" | "notify" | "push" => "announce".to_string(),
+        "direct" | "inline" | "reply" => "direct".to_string(),
+        "none" | "off" | "disabled" => "none".to_string(),
+        _ => token,
+    }
+}
+
+fn normalize_delivery_channel(raw: &str) -> String {
+    let token = raw.trim().to_ascii_lowercase();
+    match token.as_str() {
+        "mail" => "email".to_string(),
+        "pd" | "pager-duty" | "pager_duty" => "pagerduty".to_string(),
+        "std-out" | "std_out" => "stdout".to_string(),
+        "std-err" | "std_err" => "stderr".to_string(),
+        _ => token,
+    }
+}
+
 fn enterprise_state_root(root: &Path) -> PathBuf {
     crate::core_state_root(root)
         .join("ops")
@@ -314,18 +335,39 @@ fn check_cron_delivery_integrity(root: &Path, path_rel: &str) -> Result<(bool, V
             continue;
         };
 
-        let mode = delivery
-            .get("mode")
-            .and_then(Value::as_str)
-            .unwrap_or("")
-            .trim()
-            .to_ascii_lowercase();
-        let channel = delivery
-            .get("channel")
-            .and_then(Value::as_str)
-            .unwrap_or("")
-            .trim()
-            .to_ascii_lowercase();
+        let mode = normalize_delivery_mode(
+            delivery
+                .get("mode")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .trim(),
+        );
+        let channel = normalize_delivery_channel(
+            delivery
+                .get("channel")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .trim(),
+        );
+
+        if mode.is_empty() {
+            issues.push(json!({
+                "id": id,
+                "name": name,
+                "reason": "delivery_mode_missing"
+            }));
+            continue;
+        }
+
+        if mode != "announce" && mode != "direct" && mode != "none" {
+            issues.push(json!({
+                "id": id,
+                "name": name,
+                "reason": "delivery_mode_invalid",
+                "mode": mode
+            }));
+            continue;
+        }
 
         if mode == "none" {
             issues.push(json!({

@@ -1,36 +1,79 @@
+fn normalize_action_token(raw: &str) -> String {
+    raw.chars()
+        .filter(|ch| {
+            !matches!(
+                *ch,
+                '\u{200B}'
+                    | '\u{200C}'
+                    | '\u{200D}'
+                    | '\u{2060}'
+                    | '\u{FEFF}'
+                    | '\u{202A}'
+                    | '\u{202B}'
+                    | '\u{202C}'
+                    | '\u{202D}'
+                    | '\u{202E}'
+            ) && (!ch.is_control() || ch.is_ascii_whitespace())
+        })
+        .collect::<String>()
+        .trim()
+        .chars()
+        .filter(|ch| ch.is_ascii_alphanumeric() || *ch == '-' || *ch == '_')
+        .collect::<String>()
+        .to_ascii_lowercase()
+}
+
 pub fn memory_matrix_payload(args: &HashMap<String, String>) -> Value {
     let action = args
         .get("action")
-        .map(|v| v.trim().to_ascii_lowercase())
+        .map(|v| normalize_action_token(v))
         .unwrap_or_else(|| "run".to_string());
-    if action == "status" {
-        matrix_status_payload(args)
-    } else {
-        build_matrix_payload(args)
+    match action.as_str() {
+        "status" => matrix_status_payload(args),
+        "run" | "build" => build_matrix_payload(args),
+        _ => json!({
+            "ok": false,
+            "type": "tag_memory_matrix",
+            "error": "unsupported_action",
+            "action": action,
+            "supported_actions": ["run", "build", "status"]
+        }),
     }
 }
 
 pub fn memory_auto_recall_payload(args: &HashMap<String, String>) -> Value {
     let action = args
         .get("action")
-        .map(|v| v.trim().to_ascii_lowercase())
+        .map(|v| normalize_action_token(v))
         .unwrap_or_else(|| "status".to_string());
-    if action == "status" {
-        auto_recall_status_payload(args)
-    } else {
-        auto_recall_filed_payload(args)
+    match action.as_str() {
+        "status" => auto_recall_status_payload(args),
+        "filed" | "run" => auto_recall_filed_payload(args),
+        _ => json!({
+            "ok": false,
+            "type": "memory_auto_recall",
+            "error": "unsupported_action",
+            "action": action,
+            "supported_actions": ["run", "filed", "status"]
+        }),
     }
 }
 
 pub fn dream_sequencer_payload(args: &HashMap<String, String>) -> Value {
     let action = args
         .get("action")
-        .map(|v| v.trim().to_ascii_lowercase())
+        .map(|v| normalize_action_token(v))
         .unwrap_or_else(|| "run".to_string());
-    if action == "status" {
-        dream_status_payload(args)
-    } else {
-        dream_run_payload(args)
+    match action.as_str() {
+        "status" => dream_status_payload(args),
+        "run" => dream_run_payload(args),
+        _ => json!({
+            "ok": false,
+            "type": "dream_sequencer",
+            "error": "unsupported_action",
+            "action": action,
+            "supported_actions": ["run", "status"]
+        }),
     }
 }
 
@@ -154,4 +197,3 @@ mod tests {
         assert_eq!(out["matches"][0]["node_id"], "node.high");
     }
 }
-

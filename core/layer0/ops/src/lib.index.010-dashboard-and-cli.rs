@@ -8,6 +8,8 @@ pub mod dashboard_internal_search;
 pub mod dashboard_model_catalog;
 pub mod dashboard_provider_runtime;
 pub mod dashboard_release_update;
+pub mod dashboard_sidebar_preview_model;
+pub mod dashboard_sidebar_view_model;
 pub mod dashboard_terminal_broker;
 pub mod dashboard_tool_turn_loop;
 pub mod dashboard_ui;

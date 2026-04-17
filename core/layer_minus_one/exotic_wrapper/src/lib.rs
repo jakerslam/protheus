@@ -3,6 +3,11 @@
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
+const MAX_ID_LEN: usize = 96;
+const MAX_CLASS_LEN: usize = 96;
+const MAX_PAYLOAD_REF_LEN: usize = 192;
+const MAX_TS_MS: i64 = 9_999_999_999_999;
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ExoticDomain {
     Ternary,
@@ -37,19 +42,74 @@ pub struct DegradationContract {
     pub reason: String,
 }
 
+fn strip_invisible_unicode(raw: &str) -> String {
+    raw.chars()
+        .filter(|ch| {
+            !matches!(
+                ch,
+                '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}'
+            )
+        })
+        .collect()
+}
+
+fn sanitize_token(raw: &str, max_len: usize, fallback: &str, lowercase: bool) -> String {
+    let mut value: String = strip_invisible_unicode(raw)
+        .chars()
+        .filter(|ch| !ch.is_control())
+        .collect();
+    value = value.trim().to_string();
+    if lowercase {
+        value = value.to_ascii_lowercase();
+    }
+    if value.len() > max_len {
+        value.truncate(max_len);
+    }
+    if value.is_empty() {
+        fallback.to_string()
+    } else {
+        value
+    }
+}
+
+fn normalize_timestamp(ts_ms: i64) -> i64 {
+    ts_ms.clamp(0, MAX_TS_MS)
+}
+
+fn domain_tag(domain: &ExoticDomain) -> &'static str {
+    match domain {
+        ExoticDomain::Ternary => "ternary",
+        ExoticDomain::Quantum => "quantum",
+        ExoticDomain::Neural => "neural",
+        ExoticDomain::Analog => "analog",
+        ExoticDomain::Unknown => "unknown",
+    }
+}
+
 pub fn wrap_exotic_signal(env: &ExoticEnvelope, capability_class: &str) -> Layer0Envelope {
+    let adapter_id = sanitize_token(&env.adapter_id, MAX_ID_LEN, "unknown_adapter", false);
+    let signal_type = sanitize_token(&env.signal_type, MAX_ID_LEN, "unknown_signal", true);
+    let payload_ref = sanitize_token(&env.payload_ref, MAX_PAYLOAD_REF_LEN, "blob://unknown", false);
+    let capability_class = sanitize_token(capability_class, MAX_CLASS_LEN, "exotic.unknown", true);
+    let ts_ms = normalize_timestamp(env.ts_ms);
+
     let mut hasher = Sha256::new();
     hasher.update(format!(
-        "{:?}|{}|{}|{}|{}|{}",
-        env.domain, env.adapter_id, env.signal_type, env.payload_ref, env.ts_ms, capability_class
+        "{}|{}|{}|{}|{}|{}",
+        domain_tag(&env.domain),
+        adapter_id,
+        signal_type,
+        payload_ref,
+        ts_ms,
+        capability_class
     ));
     let digest = format!("{:x}", hasher.finalize());
     Layer0Envelope {
         source_layer: "layer_minus_one".to_string(),
-        adapter_id: env.adapter_id.clone(),
-        capability_class: capability_class.trim().to_string(),
+        adapter_id,
+        capability_class,
         deterministic_digest: digest,
-        ts_ms: env.ts_ms,
+        ts_ms,
     }
 }
 

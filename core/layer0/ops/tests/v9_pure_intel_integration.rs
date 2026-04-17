@@ -3,6 +3,23 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
+fn assert_no_runtime_context_leak(raw: &str) {
+    const FORBIDDEN: [&str; 6] = [
+        "You are an expert Python programmer.",
+        "[PATCH v2",
+        "List Leaves (25",
+        "BEGIN_OPENCLAW_INTERNAL_CONTEXT",
+        "END_OPENCLAW_INTERNAL_CONTEXT",
+        "UNTRUSTED_CHILD_RESULT_DELIMITER",
+    ];
+    for marker in FORBIDDEN {
+        assert!(
+            !raw.contains(marker),
+            "runtime payload leaked forbidden marker `{marker}`: {raw}"
+        );
+    }
+}
+
 fn run_protheusd(root: &Path, args: &[&str]) -> Value {
     let output = Command::new(env!("CARGO_BIN_EXE_protheusd"))
         .current_dir(root)
@@ -14,7 +31,9 @@ fn run_protheusd(root: &Path, args: &[&str]) -> Value {
         "stderr: {}",
         String::from_utf8_lossy(&output.stderr)
     );
-    serde_json::from_slice(&output.stdout).expect("parse json output")
+    let raw = String::from_utf8_lossy(&output.stdout).to_string();
+    assert_no_runtime_context_leak(&raw);
+    serde_json::from_str(&raw).expect("parse json output")
 }
 
 #[test]

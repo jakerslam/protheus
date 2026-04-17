@@ -11,7 +11,7 @@ use crate::{clean, parse_args};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, HashSet};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 const STATE_ENV: &str = "SNOWBALL_PLANE_STATE_ROOT";
 const STATE_SCOPE: &str = "snowball_plane";
@@ -130,31 +130,55 @@ fn benchmark_publication_path(root: &Path, cycle_id: &str) -> PathBuf {
 }
 
 fn readme_path(root: &Path, parsed: &crate::ParsedArgs) -> PathBuf {
-    let configured = parsed
-        .flags
-        .get("readme-path")
-        .map(String::as_str)
-        .unwrap_or("README.md");
-    let candidate = PathBuf::from(configured);
-    if candidate.is_absolute() {
-        candidate
+    resolve_arg_path(
+        root,
+        parsed.flags.get("readme-path"),
+        "README.md",
+        "README.md",
+    )
+}
+
+fn resolve_arg_path(
+    root: &Path,
+    raw: Option<&String>,
+    fallback: &str,
+    allowed_root_prefix: &str,
+) -> PathBuf {
+    let configured = clean(raw.map(String::as_str).unwrap_or(fallback), 240);
+    let candidate = PathBuf::from(if configured.is_empty() {
+        fallback.to_string()
     } else {
-        root.join(candidate)
+        configured
+    });
+    if candidate
+        .components()
+        .any(|c| matches!(c, Component::ParentDir))
+    {
+        return root.join(fallback);
+    }
+    if candidate.is_absolute() {
+        if candidate.starts_with(root) {
+            candidate
+        } else {
+            root.join(fallback)
+        }
+    } else {
+        let prefixed = root.join(&candidate);
+        if prefixed.starts_with(root.join(allowed_root_prefix)) || prefixed.starts_with(root) {
+            prefixed
+        } else {
+            root.join(fallback)
+        }
     }
 }
 
 fn benchmark_report_path(root: &Path, parsed: &crate::ParsedArgs) -> PathBuf {
-    let configured = parsed
-        .flags
-        .get("benchmark-report")
-        .map(String::as_str)
-        .unwrap_or(DEFAULT_BENCHMARK_REPORT_PATH);
-    let candidate = PathBuf::from(configured);
-    if candidate.is_absolute() {
-        candidate
-    } else {
-        root.join(candidate)
-    }
+    resolve_arg_path(
+        root,
+        parsed.flags.get("benchmark-report"),
+        DEFAULT_BENCHMARK_REPORT_PATH,
+        "docs/client/reports",
+    )
 }
 
 fn print_payload(payload: &Value) {
@@ -224,12 +248,27 @@ fn parse_csv_unique(raw: Option<&String>, fallback: &[&str]) -> Vec<String> {
         .map(|v| v.split(',').map(str::to_string).collect::<Vec<_>>())
         .unwrap_or_else(|| fallback.iter().map(|v| v.to_string()).collect::<Vec<_>>());
     for row in rows {
-        let item = clean(row, 80).to_ascii_lowercase();
+        let item = clean(row, 80)
+            .to_ascii_lowercase()
+            .chars()
+            .map(|ch| {
+                if ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_') {
+                    ch
+                } else {
+                    '-'
+                }
+            })
+            .collect::<String>()
+            .trim_matches('-')
+            .to_string();
         if item.is_empty() {
             continue;
         }
         if seen.insert(item.clone()) {
             out.push(item);
+        }
+        if out.len() >= 24 {
+            break;
         }
     }
     if out.is_empty() {
@@ -444,4 +483,3 @@ fn score_candidate(gates: &Value, bench_delta: &Value) -> f64 {
     .count() as f64;
     ((gate_score / 5.0) * 70.0) + improved.min(10.0) * 3.0
 }
-

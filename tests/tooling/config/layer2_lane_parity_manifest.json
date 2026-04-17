@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "lanes": [
+    {
+      "id": "lane_task_submission",
+      "requested_action": "task_submission",
+      "expected_receipt_type": "layer2_task_submission_receipt",
+      "runtime_path": "core/layer0/ops/src/workflow-executor",
+      "fallback_path": "core/layer0/ops/src/workflow-controller/conduit_fallback",
+      "fallback_conduit_only": true,
+      "invariants": [
+        "receipt_emission",
+        "cancellation_semantics",
+        "timeout_semantics",
+        "fail_closed"
+      ],
+      "contract_test_id": "L2-CONTRACT-001"
+    },
+    {
+      "id": "lane_queue_routing",
+      "requested_action": "queue_routing",
+      "expected_receipt_type": "layer2_queue_routing_receipt",
+      "runtime_path": "core/layer0/ops/src/queue_sqlite_kernel",
+      "fallback_path": "core/layer0/ops/src/queued-backlog-kernel/conduit_requeue",
+      "fallback_conduit_only": true,
+      "invariants": [
+        "receipt_emission",
+        "cancellation_semantics",
+        "timeout_semantics",
+        "fail_closed"
+      ],
+      "contract_test_id": "L2-CONTRACT-002"
+    },
+    {
+      "id": "lane_adapter_invocation",
+      "requested_action": "adapter_invocation_envelope",
+      "expected_receipt_type": "layer2_adapter_invocation_receipt",
+      "runtime_path": "core/layer0/ops/src/web_conduit",
+      "fallback_path": "core/layer0/ops/src/web_conduit/conduit_degraded_fallback",
+      "fallback_conduit_only": true,
+      "invariants": [
+        "receipt_emission",
+        "cancellation_semantics",
+        "timeout_semantics",
+        "fail_closed"
+      ],
+      "contract_test_id": "L2-CONTRACT-003"
+    },
+    {
+      "id": "lane_failure_classification",
+      "requested_action": "failure_classification",
+      "expected_receipt_type": "layer2_failure_classification_receipt",
+      "runtime_path": "core/layer0/ops/src/orchestration",
+      "fallback_path": "core/layer0/ops/src/orchestration/conduit_failure_fallback",
+      "fallback_conduit_only": true,
+      "invariants": [
+        "receipt_emission",
+        "cancellation_semantics",
+        "timeout_semantics",
+        "fail_closed"
+      ],
+      "contract_test_id": "L2-CONTRACT-004"
+    },
+    {
+      "id": "lane_cancellation",
+      "requested_action": "task_cancellation",
+      "expected_receipt_type": "layer2_task_cancellation_receipt",
+      "runtime_path": "core/layer0/ops/src/workflow-controller",
+      "fallback_path": "core/layer0/ops/src/workflow-controller/conduit_cancel_fallback",
+      "fallback_conduit_only": true,
+      "invariants": [
+        "receipt_emission",
+        "cancellation_semantics",
+        "timeout_semantics",
+        "fail_closed"
+      ],
+      "contract_test_id": "L2-CONTRACT-005"
+    },
+    {
+      "id": "lane_timeout",
+      "requested_action": "task_timeout",
+      "expected_receipt_type": "layer2_task_timeout_receipt",
+      "runtime_path": "core/layer0/ops/src/workflow-executor",
+      "fallback_path": "core/layer0/ops/src/workflow-executor/conduit_timeout_fallback",
+      "fallback_conduit_only": true,
+      "invariants": [
+        "receipt_emission",
+        "cancellation_semantics",
+        "timeout_semantics",
+        "fail_closed"
+      ],
+      "contract_test_id": "L2-CONTRACT-006"
+    }
+  ]
+}

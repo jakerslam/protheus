@@ -41,6 +41,28 @@ fn to_f64(raw: Option<String>, fallback: f64) -> f64 {
         .unwrap_or(fallback)
 }
 
+fn canonical_phase_token(raw: &str) -> String {
+    let normalized = raw
+        .trim()
+        .to_ascii_lowercase()
+        .replace(['-', ' '], "_");
+    match normalized.as_str() {
+        "canary5pct" => "canary_5pct".to_string(),
+        "canary25pct" => "canary_25pct".to_string(),
+        "canary50pct" => "canary_50pct".to_string(),
+        "production" | "prod" => "default".to_string(),
+        _ => normalized,
+    }
+}
+
+fn to_probability(raw: Option<String>, fallback: f64) -> f64 {
+    let mut value = to_f64(raw, fallback);
+    if value > 1.0 && value <= 100.0 {
+        value /= 100.0;
+    }
+    value.clamp(0.0, 1.0)
+}
+
 fn read_json(path: &Path) -> Result<Value, String> {
     let raw = fs::read_to_string(path)
         .map_err(|err| format!("read_policy_failed:{}:{err}", path.display()))?;
@@ -85,11 +107,15 @@ fn rollout_phases(policy: &Value) -> Vec<String> {
         .get("rollout_phases")
         .and_then(Value::as_array)
         .map(|rows| {
-            rows.iter()
-                .filter_map(Value::as_str)
-                .map(|row| row.trim().to_string())
-                .filter(|row| !row.is_empty())
-                .collect::<Vec<_>>()
+            let mut out = Vec::<String>::new();
+            for row in rows.iter().filter_map(Value::as_str) {
+                let normalized = canonical_phase_token(row);
+                if normalized.is_empty() || out.iter().any(|existing| existing == &normalized) {
+                    continue;
+                }
+                out.push(normalized);
+            }
+            out
         })
         .filter(|rows| !rows.is_empty())
         .unwrap_or_else(|| {
@@ -116,11 +142,15 @@ fn requirement_f64(policy: &Value, key: &str, fallback: f64) -> f64 {
 fn evaluate_receipt(root: &Path, args: &[String]) -> Value {
     let policy = policy_with_defaults(root);
     let phases = rollout_phases(&policy);
-    let current_phase = flag_value(args, "phase").unwrap_or_else(|| phases[0].clone());
-    let success_rate = to_f64(flag_value(args, "success-rate"), 1.0);
-    let error_rate = to_f64(flag_value(args, "error-rate"), 0.0);
-    let p95_regression_pct = to_f64(flag_value(args, "p95-regression-pct"), 0.0);
-    let crash_count = to_f64(flag_value(args, "crash-count"), 0.0);
+    let current_phase_input = flag_value(args, "phase").unwrap_or_else(|| phases[0].clone());
+    let mut current_phase = canonical_phase_token(&current_phase_input);
+    if current_phase.is_empty() {
+        current_phase = phases[0].clone();
+    }
+    let success_rate = to_probability(flag_value(args, "success-rate"), 1.0);
+    let error_rate = to_probability(flag_value(args, "error-rate"), 0.0);
+    let p95_regression_pct = to_f64(flag_value(args, "p95-regression-pct"), 0.0).max(0.0);
+    let crash_count = to_f64(flag_value(args, "crash-count"), 0.0).max(0.0);
 
     let min_success_rate = requirement_f64(&policy, "min_success_rate", 0.98);
     let max_error_rate = requirement_f64(&policy, "max_error_rate", 0.02);
@@ -171,6 +201,7 @@ fn evaluate_receipt(root: &Path, args: &[String]) -> Value {
     } else {
         "hold"
     };
+    let phase_alias_used = current_phase != canonical_phase_token(&current_phase_input);
 
     let mut out = json!({
         "ok": blockers.is_empty(),
@@ -178,8 +209,10 @@ fn evaluate_receipt(root: &Path, args: &[String]) -> Value {
         "lane": LANE_ID,
         "ts": now_iso(),
         "policy_path": POLICY_REL,
+        "current_phase_input": current_phase_input,
         "current_phase": current_phase,
         "next_phase": next_phase,
+        "phase_alias_used": phase_alias_used,
         "action": action,
         "rollback_target": if action == "rollback" { Value::String(rollback_target) } else { Value::Null },
         "signals": {

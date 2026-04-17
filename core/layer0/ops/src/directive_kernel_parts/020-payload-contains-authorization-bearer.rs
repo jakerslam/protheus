@@ -28,6 +28,106 @@ fn payload_contains_authorization_bearer(payload: &str, min_len: usize) -> bool 
     false
 }
 
+fn payload_contains_web_tooling_secret(payload: &str, min_len: usize) -> Option<&'static str> {
+    fn contains_marker_token(payload: &str, marker: &str, min_len: usize) -> bool {
+        let lowered = payload.to_ascii_lowercase();
+        let bytes = lowered.as_bytes();
+        let marker_bytes = marker.as_bytes();
+        let mut idx = 0usize;
+        while idx + marker_bytes.len() <= bytes.len() {
+            if &bytes[idx..idx + marker_bytes.len()] != marker_bytes {
+                idx += 1;
+                continue;
+            }
+            let mut count = 0usize;
+            let mut cursor = idx + marker_bytes.len();
+            while cursor < bytes.len() {
+                let ch = bytes[cursor] as char;
+                if ch.is_ascii_alphanumeric() || ch == '_' || ch == '-' || ch == '.' {
+                    count += 1;
+                    cursor += 1;
+                    continue;
+                }
+                break;
+            }
+            if count >= min_len {
+                return true;
+            }
+            idx = cursor;
+        }
+        false
+    }
+
+    let markers = [
+        ("firecrawl", "\"firecrawl_api_key\":\""),
+        ("exa", "\"exa_api_key\":\""),
+        ("tavily", "\"tavily_api_key\":\""),
+        ("perplexity", "\"perplexity_api_key\":\""),
+        ("serpapi", "\"serpapi_api_key\":\""),
+        ("google_search", "\"google_search_api_key\":\""),
+        ("brave", "\"brave_api_key\":\""),
+        ("grok", "\"xai_api_key\":\""),
+        ("kimi", "\"moonshot_api_key\":\""),
+        ("openai", "\"openai_api_key\":\""),
+        ("firecrawl_env", "\"firecrawl_api_key\":\""),
+        ("exa_env", "\"exa_api_key\":\""),
+        ("tavily_env", "\"tavily_api_key\":\""),
+        ("perplexity_env", "\"perplexity_api_key\":\""),
+        ("serpapi_env", "\"serpapi_api_key\":\""),
+        ("google_search_env", "\"google_search_api_key\":\""),
+        ("brave_env", "\"brave_api_key\":\""),
+        ("grok_env", "\"xai_api_key\":\""),
+        ("kimi_env", "\"moonshot_api_key\":\""),
+    ];
+    for (provider, marker) in markers {
+        if contains_marker_token(payload, marker, min_len) {
+            return Some(provider);
+        }
+    }
+    None
+}
+
+fn directive_runtime_web_tooling_auth_sources() -> Vec<String> {
+    let env_candidates = [
+        "BRAVE_API_KEY",
+        "EXA_API_KEY",
+        "TAVILY_API_KEY",
+        "PERPLEXITY_API_KEY",
+        "SERPAPI_API_KEY",
+        "GOOGLE_SEARCH_API_KEY",
+        "GOOGLE_CSE_ID",
+        "FIRECRAWL_API_KEY",
+        "XAI_API_KEY",
+        "MOONSHOT_API_KEY",
+        "OPENAI_API_KEY",
+    ];
+    let mut sources = Vec::<String>::new();
+    for env_name in env_candidates {
+        let present = std::env::var(env_name)
+            .ok()
+            .map(|value| !value.trim().is_empty())
+            .unwrap_or(false);
+        if present {
+            sources.push(format!("env:{env_name}"));
+        }
+    }
+    sources
+}
+
+fn action_requires_runtime_web_tooling(action_type: &str, summary: &str) -> bool {
+    let markers = [
+        "web",
+        "search",
+        "fetch",
+        "crawl",
+        "browser",
+        "citation",
+        "docs",
+    ];
+    let merged = format!("{action_type} {summary}");
+    markers.iter().any(|marker| merged.contains(marker))
+}
+
 fn approval_required_by_default(action_type: &str) -> bool {
     matches!(
         action_type,
@@ -84,6 +184,9 @@ fn validate_action_envelope(root: &Path, envelope: &Value) -> Result<Value, Stri
         .unwrap_or_else(|| "low".to_string());
     let payload_json = serde_json::to_string(envelope.get("payload").unwrap_or(&Value::Null))
         .unwrap_or_else(|_| "{}".to_string());
+    let runtime_web_tooling_auth_sources = directive_runtime_web_tooling_auth_sources();
+    let runtime_web_tooling_auth_present = !runtime_web_tooling_auth_sources.is_empty();
+    let runtime_web_tooling_required = action_requires_runtime_web_tooling(&action_type, &summary);
 
     let mut out = json!({
         "allowed": true,
@@ -92,7 +195,13 @@ fn validate_action_envelope(root: &Path, envelope: &Value) -> Result<Value, Stri
         "approval_reason": Value::Null,
         "effective_constraints": constraints.clone(),
         "action_id": action_id,
-        "tier": tier
+        "tier": tier,
+        "runtime_web_tooling": {
+            "strict_auth_required": true,
+            "required_for_action": runtime_web_tooling_required,
+            "auth_present": runtime_web_tooling_auth_present,
+            "auth_sources": runtime_web_tooling_auth_sources
+        }
     });
 
     if constraints
@@ -115,6 +224,13 @@ fn validate_action_envelope(root: &Path, envelope: &Value) -> Result<Value, Stri
                 "T0 INVARIANT VIOLATION: Secrets must always be redacted. Unredacted authorization header detected in payload"
                     .to_string(),
             );
+            return Ok(out);
+        }
+        if let Some(provider) = payload_contains_web_tooling_secret(&payload_json, 20) {
+            out["allowed"] = Value::Bool(false);
+            out["blocked_reason"] = Value::String(format!(
+                "T0 INVARIANT VIOLATION: Secrets must always be redacted. Unredacted runtime web-tooling credential detected ({provider})"
+            ));
             return Ok(out);
         }
     }
@@ -217,6 +333,18 @@ fn validate_action_envelope(root: &Path, envelope: &Value) -> Result<Value, Stri
         out["requires_approval"] = Value::Bool(true);
         out["approval_reason"] =
             Value::String("High-risk action at Tier < 2 requires approval".to_string());
+    }
+    if runtime_web_tooling_required
+        && !runtime_web_tooling_auth_present
+        && !out
+            .get("requires_approval")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+    {
+        out["requires_approval"] = Value::Bool(true);
+        out["approval_reason"] = Value::String(
+            "Runtime web-tooling auth missing for web-sensitive action".to_string(),
+        );
     }
 
     Ok(out)

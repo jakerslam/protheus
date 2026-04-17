@@ -201,6 +201,23 @@ fn sandbox_command(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Res
     let epoch = parse_u64(parsed.flags.get("epoch"), 1_000);
     let escape_attempt = parse_bool(parsed.flags.get("escape-attempt"), false);
     let logical_only = parse_bool(parsed.flags.get("logical-only"), false);
+    let provider_family = clean(
+        parsed
+            .flags
+            .get("provider-family")
+            .map(String::as_str)
+            .unwrap_or("openai"),
+        24,
+    )
+    .to_ascii_lowercase();
+    let capability_contract = clean(
+        parsed
+            .flags
+            .get("capability-contract")
+            .map(String::as_str)
+            .unwrap_or(""),
+        80,
+    );
 
     let allowed_tiers = ["native", "wasm", "firecracker"];
     if !allowed_tiers.contains(&tier.as_str()) {
@@ -209,6 +226,10 @@ fn sandbox_command(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Res
     let allowed_languages = ["python", "ts", "go", "rust"];
     if !allowed_languages.contains(&language.as_str()) {
         return Err("sandbox_language_invalid".to_string());
+    }
+    let allowed_provider_families = ["openai", "openrouter", "xai", "memory"];
+    if !allowed_provider_families.contains(&provider_family.as_str()) {
+        return Err("sandbox_provider_family_invalid".to_string());
     }
 
     let mut errors = Vec::<String>::new();
@@ -242,6 +263,12 @@ fn sandbox_command(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Res
     if strict && logical_only && overhead_mb > 4.0 {
         errors.push("sandbox_logical_only_overhead_budget_exceeded".to_string());
     }
+    if strict && logical_only && capability_contract.is_empty() {
+        errors.push("sandbox_capability_contract_required".to_string());
+    }
+    if strict && provider_family == "memory" && !matches!(language.as_str(), "rust" | "python") {
+        errors.push("sandbox_memory_provider_language_invalid".to_string());
+    }
     if strict && tier == "firecracker" {
         let firecracker_ok = Command::new("sh")
             .arg("-lc")
@@ -262,6 +289,8 @@ fn sandbox_command(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Res
         "fuel": fuel,
         "epoch": epoch,
         "logical_only": logical_only,
+        "provider_family": provider_family,
+        "capability_contract": if capability_contract.is_empty() { Value::Null } else { Value::String(capability_contract.clone()) },
         "overhead_mb": overhead_mb,
         "escape_attempt": escape_attempt,
         "ok": !strict || errors.is_empty(),
@@ -275,6 +304,8 @@ fn sandbox_command(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Res
         "fuel": fuel,
         "epoch": epoch,
         "logical_only": logical_only,
+        "provider_family": event.get("provider_family").cloned().unwrap_or_else(|| Value::String("openai".to_string())),
+        "capability_contract": event.get("capability_contract").cloned().unwrap_or(Value::Null),
         "overhead_mb": overhead_mb,
         "last_event_hash": event.get("event_hash").cloned().unwrap_or_else(|| Value::String(String::new())),
         "updated_at": now_iso()
@@ -296,11 +327,11 @@ fn sandbox_command(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Res
         "claim_evidence": [{
             "id": "V7-CANYON-001.4",
             "claim": "tiered_isolation_enforces_native_wasm_and_optional_firecracker_modes_with_escape_denial_receipts",
-            "evidence": {"tier": tier, "language": language, "fuel": fuel, "epoch": epoch}
+            "evidence": {"tier": tier, "language": language, "fuel": fuel, "epoch": epoch, "provider_family": provider_family, "capability_contract": capability_contract}
         },{
             "id": "V7-CANYON-003.3",
             "claim": "logical_only_isolated_mode_keeps_edge_overhead_within_budgeted_wasm_limits",
-            "evidence": {"logical_only": logical_only, "tier": tier, "overhead_mb": overhead_mb}
+            "evidence": {"logical_only": logical_only, "tier": tier, "overhead_mb": overhead_mb, "provider_family": provider_family}
         }]
     }))
 }

@@ -1,8 +1,28 @@
 #!/usr/bin/env node
 'use strict';
 
+const ts = require('typescript');
+
+if (!require.extensions['.ts']) {
+  require.extensions['.ts'] = function compileTs(module, filename) {
+    const source = require('fs').readFileSync(filename, 'utf8');
+    const transpiled = ts.transpileModule(source, {
+      compilerOptions: {
+        module: ts.ModuleKind.CommonJS,
+        target: ts.ScriptTarget.ES2022,
+        moduleResolution: ts.ModuleResolutionKind.NodeJs,
+        esModuleInterop: true,
+        allowSyntheticDefaultImports: true
+      },
+      fileName: filename,
+      reportDiagnostics: false
+    }).outputText;
+    module._compile(transpiled, filename);
+  };
+}
+
 const assert = require('assert');
-const path = require('path');
+const path = require('path');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 const { spawnSync } = require('child_process');
 
 const root = path.resolve(__dirname, '..', '..');
@@ -87,4 +107,4 @@ assert.ok(runtimeJson.metrics);
 assert.ok(typeof runtimeJson.metrics.p50_ms === 'number');
 assert.ok(typeof runtimeJson.metrics.p95_ms === 'number');
 
-process.stdout.write('ok\n');
+assertNoPlaceholderOrPromptLeak({ scaffoldJson, simulationJson, runtimeJson }, 'assimilate_runtime_contract_test');\nassertStableToolingEnvelope(runtimeJson, 'assimilate_runtime_contract_test');\nprocess.stdout.write('ok\n');

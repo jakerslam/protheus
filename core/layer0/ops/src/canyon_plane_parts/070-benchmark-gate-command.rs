@@ -1,3 +1,60 @@
+fn tooling_contract_snapshot_path(root: &Path) -> std::path::PathBuf {
+    core_state_root(root)
+        .join("ops")
+        .join("web_tooling")
+        .join("runtime_snapshot")
+        .join("latest.json")
+}
+
+fn tooling_contract_provider_present(snapshot: &Value, provider: &str) -> bool {
+    snapshot
+        .to_string()
+        .to_ascii_lowercase()
+        .contains(&format!("\"{}\"", provider.to_ascii_lowercase()))
+}
+
+fn tooling_contract_gate(root: &Path) -> (bool, Option<String>, Value) {
+    let snapshot_path = tooling_contract_snapshot_path(root);
+    let snapshot = read_json(&snapshot_path).unwrap_or(Value::Null);
+    if snapshot.is_null() {
+        return (
+            false,
+            None,
+            json!({
+                "ok": false,
+                "error": "tooling_contract_snapshot_missing"
+            }),
+        );
+    }
+
+    let required = ["openai", "openrouter", "xai", "tts"];
+    let mut missing = Vec::<String>::new();
+    let providers = required
+        .into_iter()
+        .map(|provider| {
+            let present = tooling_contract_provider_present(&snapshot, provider);
+            if !present {
+                missing.push(provider.to_string());
+            }
+            json!({
+                "provider": provider,
+                "present": present
+            })
+        })
+        .collect::<Vec<_>>();
+
+    (
+        missing.is_empty(),
+        Some(snapshot_path.to_string_lossy().to_string()),
+        json!({
+            "ok": missing.is_empty(),
+            "required_count": providers.len(),
+            "missing": missing,
+            "providers": providers
+        }),
+    )
+}
+
 fn benchmark_gate_command(
     root: &Path,
     parsed: &crate::ParsedArgs,
@@ -117,6 +174,8 @@ fn benchmark_gate_command(
     } else {
         ensure_benchmark_adoption_evidence(root)
     };
+    let (tooling_contracts_ok, tooling_contracts_source, tooling_contracts) =
+        tooling_contract_gate(root);
 
     let categories = vec![
         ("cold_start", cold_start_ms <= 80),
@@ -131,6 +190,7 @@ fn benchmark_gate_command(
             latest_path(root, ENV_KEY, LANE_ID).exists(),
         ),
         ("adoption_demo", adoption_source.is_some()),
+        ("tooling_contracts", tooling_contracts_ok),
     ];
 
     let mut failed = categories
@@ -147,6 +207,7 @@ fn benchmark_gate_command(
         "ts": now_iso(),
         "milestone": milestone,
         "categories": categories.iter().map(|(k,v)| json!({"name": k, "ok": v})).collect::<Vec<_>>(),
+        "tooling_contracts": tooling_contracts,
         "failed": failed,
         "release_blocked": strict && !failed.is_empty()
     });
@@ -172,7 +233,8 @@ fn benchmark_gate_command(
                 "audit_source": audit_source,
                 "workflow_source": workflow_source,
                 "orchestration_source": orchestration_source,
-                "adoption_source": adoption_source
+                "adoption_source": adoption_source,
+                "tooling_contracts_source": tooling_contracts_source
             }
         }]
     }))

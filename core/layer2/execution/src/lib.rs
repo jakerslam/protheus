@@ -131,7 +131,7 @@ pub use decompose::{
 };
 pub use importers::{
     run_importer_generic_json_json, run_importer_generic_yaml_json, run_importer_infring_json,
-    run_importer_workflow_graph_json,
+    run_importer_web_tooling_signal_json, run_importer_workflow_graph_json,
 };
 pub use initiative::{
     band_for_score, evaluate_importance, evaluate_importance_json, evaluate_initiative_json,

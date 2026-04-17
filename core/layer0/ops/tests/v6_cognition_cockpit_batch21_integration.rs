@@ -304,3 +304,30 @@ fn v6_batch21_cognition_and_cockpit_reject_strict_bypass() {
     );
     assert!(has_claim(&gate, "V6-COCKPIT-026.4"));
 }
+
+fn assert_no_runtime_context_leak_text(raw: &str) {
+    const FORBIDDEN: [&str; 6] = [
+        "You are an expert Python programmer.",
+        "[PATCH v2",
+        "List Leaves (25",
+        "BEGIN_OPENCLAW_INTERNAL_CONTEXT",
+        "END_OPENCLAW_INTERNAL_CONTEXT",
+        "UNTRUSTED_CHILD_RESULT_DELIMITER",
+    ];
+    for marker in FORBIDDEN {
+        assert!(
+            !raw.contains(marker),
+            "runtime payload leaked forbidden marker `{marker}`: {raw}"
+        );
+    }
+}
+
+#[test]
+fn v6_cognition_cockpit_runtime_receipt_guard_rejects_prompt_leak_markers() {
+    assert_no_runtime_context_leak_text("safe cockpit receipt");
+    let panicked = std::panic::catch_unwind(|| {
+        assert_no_runtime_context_leak_text("You are an expert Python programmer. unexpected")
+    })
+    .is_err();
+    assert!(panicked, "expected prompt-leak marker guard to trigger");
+}

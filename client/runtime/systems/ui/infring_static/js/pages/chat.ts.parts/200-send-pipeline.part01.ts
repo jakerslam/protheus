@@ -405,6 +405,9 @@
         }, httpMessageMetadata || {});
         var pushedHttpMessage = this.pushAgentMessageDeduped(httpMessage, { dedupe_window_ms: 90000 }) || httpMessage;
         this.markAgentMessageComplete(pushedHttpMessage);
+        if (pushedHttpMessage && typeof this._queueFinalWordTypingRender === 'function') {
+          this._queueFinalWordTypingRender(pushedHttpMessage, String(pushedHttpMessage.text || ''), 10);
+        }
         this.maybeAddAutoModelSwitchNotice(httpAutoSwitchPrevious, httpRoute || preflightRoute);
         this._pendingAutoModelSwitchBaseline = '';
         this._clearPendingWsRequest(targetAgentId);

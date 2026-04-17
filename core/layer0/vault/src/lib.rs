@@ -73,8 +73,34 @@ impl Display for VaultError {
 
 impl std::error::Error for VaultError {}
 
-fn normalize_text(input: &str, max: usize) -> String {
+fn strip_invisible_unicode(input: &str) -> String {
     input
+        .chars()
+        .filter(|ch| {
+            !matches!(
+                *ch,
+                '\u{200B}'
+                    | '\u{200C}'
+                    | '\u{200D}'
+                    | '\u{200E}'
+                    | '\u{200F}'
+                    | '\u{202A}'
+                    | '\u{202B}'
+                    | '\u{202C}'
+                    | '\u{202D}'
+                    | '\u{202E}'
+                    | '\u{2060}'
+                    | '\u{FEFF}'
+            )
+        })
+        .collect::<String>()
+}
+
+fn normalize_text(input: &str, max: usize) -> String {
+    strip_invisible_unicode(input)
+        .chars()
+        .filter(|ch| !ch.is_control() || *ch == '\n' || *ch == '\t')
+        .collect::<String>()
         .trim()
         .split_whitespace()
         .collect::<Vec<_>>()

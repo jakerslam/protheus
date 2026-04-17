@@ -4,6 +4,7 @@
 const assert = require('assert');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const SCRIPT = path.join(ROOT, 'client', 'runtime', 'systems', 'ops', 'rust50_migration_program.ts');
@@ -29,4 +30,6 @@ assert(payload, 'expected JSON payload');
 assert.strictEqual(payload.ok, true);
 assert.strictEqual(payload.type, 'rust50_migration_program');
 assert.strictEqual(payload.command, 'status');
+assertNoPlaceholderOrPromptLeak(payload, 'rust50_migration_program_cli_bridge_test');
+assertStableToolingEnvelope(payload, 'rust50_migration_program_cli_bridge_test');
 console.log('rust50_migration_program_cli_bridge.test.ts: OK');

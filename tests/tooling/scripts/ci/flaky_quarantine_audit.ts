@@ -1,39 +1,27 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, extname, join, relative, resolve } from 'node:path';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { extname, join, relative, resolve } from 'node:path';
+import { cleanText, parseStrictOutArgs, readFlag } from '../../lib/cli.ts';
+import { currentRevision } from '../../lib/git.ts';
+import { emitStructuredResult, writeTextArtifact } from '../../lib/result.ts';
 
 const DEFAULT_POLICY_PATH = 'client/runtime/config/flaky_quarantine_allowlist.json';
 const OUT_JSON = 'core/local/artifacts/flaky_quarantine_audit_current.json';
 const OUT_MD = 'local/workspace/reports/FLAKY_QUARANTINE_AUDIT_CURRENT.md';
 
-function parseArgs(argv) {
-  const out = { strict: false, policyPath: DEFAULT_POLICY_PATH };
-  for (const raw of argv) {
-    const arg = String(raw ?? '').trim();
-    if (!arg) continue;
-    if (arg === '--strict' || arg === '--strict=1') {
-      out.strict = true;
-      continue;
-    }
-    if (arg.startsWith('--strict=')) {
-      out.strict = ['1', 'true', 'yes', 'on'].includes(arg.slice('--strict='.length).toLowerCase());
-      continue;
-    }
-    if (arg.startsWith('--policy=')) {
-      out.policyPath = arg.slice('--policy='.length).trim() || DEFAULT_POLICY_PATH;
-      continue;
-    }
-  }
-  return out;
+function parseArgs(argv: string[]) {
+  const common = parseStrictOutArgs(argv, { strict: false });
+  return {
+    strict: common.strict,
+    policyPath: cleanText(readFlag(argv, 'policy') || DEFAULT_POLICY_PATH, 260),
+    outJson: cleanText(readFlag(argv, 'out-json') || OUT_JSON, 400),
+    outMarkdown: cleanText(readFlag(argv, 'out-markdown') || OUT_MD, 400),
+  };
 }
 
-function readJson(path) {
-  return JSON.parse(readFileSync(resolve(path), 'utf8'));
-}
-
-function ensureParent(path) {
-  mkdirSync(dirname(resolve(path)), { recursive: true });
+function readJson(filePath: string) {
+  return JSON.parse(readFileSync(resolve(filePath), 'utf8'));
 }
 
 function listFiles(root) {
@@ -139,9 +127,10 @@ function main() {
   }
 
   const payload = {
-    ok: true,
+    ok: violations.length === 0,
     type: 'flaky_quarantine_audit',
     generated_at: new Date().toISOString(),
+    revision: currentRevision(),
     policy_path: args.policyPath,
     summary: {
       strict: args.strict,
@@ -151,45 +140,17 @@ function main() {
       violations: violations.length,
       pass: violations.length === 0,
     },
+    artifact_paths: [args.outJson, args.outMarkdown],
     skip_rows: skipRows,
     violations,
   };
 
-  ensureParent(OUT_JSON);
-  ensureParent(OUT_MD);
-  writeFileSync(resolve(OUT_JSON), `${JSON.stringify(payload, null, 2)}\n`);
-  writeFileSync(resolve(OUT_MD), toMarkdown(payload));
-
-  if (args.strict && violations.length > 0) {
-    console.error(
-      JSON.stringify(
-        {
-          ok: false,
-          type: payload.type,
-          out_json: OUT_JSON,
-          summary: payload.summary,
-          violations,
-        },
-        null,
-        2,
-      ),
-    );
-    process.exit(1);
-  }
-
-  console.log(
-    JSON.stringify(
-      {
-        ok: true,
-        type: payload.type,
-        out_json: OUT_JSON,
-        out_markdown: OUT_MD,
-        summary: payload.summary,
-      },
-      null,
-      2,
-    ),
-  );
+  writeTextArtifact(args.outMarkdown, toMarkdown(payload));
+  process.exitCode = emitStructuredResult(payload, {
+    outPath: args.outJson,
+    strict: args.strict,
+    ok: violations.length === 0,
+  });
 }
 
 main();

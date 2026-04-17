@@ -62,19 +62,20 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     `--out=${harnessOut}`,
     `--metrics-out=${harnessMetricsOut}`,
   ]);
-  const gateExit = runReleaseGate([
-    '--strict=1',
-    `--profile=${args.profile}`,
-    `--harness=${harnessOut}`,
-    '--policy=tests/tooling/config/release_gates.yaml',
-    `--out=${gateOut}`,
-    `--metrics-out=${gateMetricsOut}`,
-    `--table-out=${gateTableOut}`,
-  ]);
   const adapterChaosExit = runAdapterChaosGate([
     '--strict=1',
     `--profile=${args.profile}`,
     `--out=${adapterChaosOut}`,
+  ]);
+  const gateExit = runReleaseGate([
+    '--strict=1',
+    `--profile=${args.profile}`,
+    `--harness=${harnessOut}`,
+    `--adapter-chaos=${adapterChaosOut}`,
+    '--policy=tests/tooling/config/release_gates.yaml',
+    `--out=${gateOut}`,
+    `--metrics-out=${gateMetricsOut}`,
+    `--table-out=${gateTableOut}`,
   ]);
 
   const ok = harnessExit === 0 && gateExit === 0 && adapterChaosExit === 0;

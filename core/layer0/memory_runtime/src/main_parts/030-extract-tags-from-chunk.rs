@@ -1,9 +1,33 @@
 
+fn strip_invisible_and_controls(raw: &str) -> String {
+    raw.chars()
+        .filter(|ch| {
+            !matches!(
+                *ch,
+                '\u{200B}'
+                    | '\u{200C}'
+                    | '\u{200D}'
+                    | '\u{2060}'
+                    | '\u{FEFF}'
+                    | '\u{202A}'
+                    | '\u{202B}'
+                    | '\u{202C}'
+                    | '\u{202D}'
+                    | '\u{202E}'
+            ) && (!ch.is_control() || ch.is_ascii_whitespace())
+        })
+        .collect::<String>()
+}
+
 fn extract_tags_from_chunk(chunk: &str) -> Vec<String> {
     for line in chunk.lines() {
-        let trimmed = line.trim();
+        let normalized = strip_invisible_and_controls(line);
+        let trimmed = normalized.trim();
         if let Some(rest) = trimmed.strip_prefix("tags:") {
-            return parse_tags_line(rest);
+            let mut tags = parse_tags_line(rest);
+            tags.sort();
+            tags.dedup();
+            return tags;
         }
     }
     vec![]
@@ -11,7 +35,8 @@ fn extract_tags_from_chunk(chunk: &str) -> Vec<String> {
 
 fn extract_summary_from_chunk(chunk: &str, node_id: &str) -> String {
     for line in chunk.lines() {
-        let trimmed = line.trim();
+        let normalized = strip_invisible_and_controls(line);
+        let trimmed = normalized.trim();
         if let Some(rest) = trimmed.strip_prefix("# ") {
             let summary = sanitize_table_cell(rest);
             if !summary.is_empty() {

@@ -164,7 +164,26 @@ struct DaemonRequest {
 }
 
 fn strip_ticks(s: &str) -> String {
-    s.replace('`', "").trim().to_string()
+    s.chars()
+        .filter(|ch| {
+            !matches!(
+                *ch,
+                '\u{200B}'
+                    | '\u{200C}'
+                    | '\u{200D}'
+                    | '\u{2060}'
+                    | '\u{FEFF}'
+                    | '\u{202A}'
+                    | '\u{202B}'
+                    | '\u{202C}'
+                    | '\u{202D}'
+                    | '\u{202E}'
+            ) && (!ch.is_control() || ch.is_ascii_whitespace())
+        })
+        .collect::<String>()
+        .replace('`', "")
+        .trim()
+        .to_string()
 }
 
 fn clean_cell(s: &str) -> String {

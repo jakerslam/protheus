@@ -15,11 +15,57 @@ pub enum RecallCommand {
     Probe,
 }
 
+fn strip_invisible_unicode(raw: &str) -> String {
+    raw.chars()
+        .filter(|ch| {
+            !matches!(
+                *ch,
+                '\u{200B}'
+                    | '\u{200C}'
+                    | '\u{200D}'
+                    | '\u{200E}'
+                    | '\u{200F}'
+                    | '\u{202A}'
+                    | '\u{202B}'
+                    | '\u{202C}'
+                    | '\u{202D}'
+                    | '\u{202E}'
+                    | '\u{2060}'
+                    | '\u{FEFF}'
+            )
+        })
+        .collect::<String>()
+}
+
+fn sanitize_command_token(raw: &str) -> String {
+    strip_invisible_unicode(raw)
+        .chars()
+        .map(|ch| {
+            if ch.is_ascii_alphanumeric() || ch == '-' || ch == '_' {
+                ch.to_ascii_lowercase()
+            } else if ch.is_whitespace() {
+                '-'
+            } else {
+                '\0'
+            }
+        })
+        .filter(|ch| *ch != '\0')
+        .collect::<String>()
+        .trim_matches('-')
+        .chars()
+        .take(64)
+        .collect::<String>()
+}
+
+pub fn normalize_recall_command_token(cmd: &str) -> String {
+    sanitize_command_token(cmd)
+}
+
 pub fn map_memory_recall_command(cmd: &str) -> RecallCommand {
-    match cmd.trim().to_ascii_lowercase().as_str() {
+    match normalize_recall_command_token(cmd).as_str() {
         "get" | "get-node" => RecallCommand::GetNode,
-        "build-index" => RecallCommand::BuildIndex,
-        "verify-envelope" => RecallCommand::VerifyEnvelope,
+        "build-index" | "build" | "index-build" => RecallCommand::BuildIndex,
+        "verify-envelope" | "verify" => RecallCommand::VerifyEnvelope,
         "probe" => RecallCommand::Probe,
         _ => RecallCommand::QueryIndex,
     }
@@ -52,6 +98,26 @@ mod tests {
         assert_eq!(
             map_memory_recall_command("get-node"),
             RecallCommand::GetNode
+        );
+    }
+
+    #[test]
+    fn strips_invisible_unicode_from_command_token() {
+        assert_eq!(
+            normalize_recall_command_token("ver\u{200B}ify-envelope"),
+            "verify-envelope"
+        );
+        assert_eq!(
+            map_memory_recall_command("ver\u{200B}ify-envelope"),
+            RecallCommand::VerifyEnvelope
+        );
+    }
+
+    #[test]
+    fn unknown_or_control_token_falls_back_to_query_index() {
+        assert_eq!(
+            map_memory_recall_command(" \u{0000}\u{0008} "),
+            RecallCommand::QueryIndex
         );
     }
 

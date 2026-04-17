@@ -53,6 +53,82 @@ pub struct MergeResult {
     pub profile_id: String,
 }
 
+const MAX_CRDT_NODE_ID_LEN: usize = 96;
+const MAX_CRDT_KEY_LEN: usize = 240;
+
+fn strip_invisible_unicode(raw: &str) -> String {
+    raw.chars()
+        .filter(|ch| {
+            !matches!(
+                ch,
+                '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}'
+            )
+        })
+        .collect()
+}
+
+fn sanitize_crdt_token(raw: &str, max_len: usize) -> String {
+    let mut value: String = strip_invisible_unicode(raw)
+        .chars()
+        .filter(|ch| !ch.is_control())
+        .collect();
+    value = value.trim().to_string();
+    if value.len() > max_len {
+        value.truncate(max_len);
+    }
+    value
+}
+
+fn normalize_delta(mut delta: CrdtDelta, side: &str) -> Result<CrdtDelta, String> {
+    let node_id = sanitize_crdt_token(&delta.node_id, MAX_CRDT_NODE_ID_LEN);
+    if node_id.is_empty() {
+        return Err(format!("{side}_node_id_invalid"));
+    }
+    delta.node_id = node_id.clone();
+
+    let mut normalized = BTreeMap::<String, CrdtValue>::new();
+    for (raw_key, mut value) in delta.changes {
+        let key = sanitize_crdt_token(&raw_key, MAX_CRDT_KEY_LEN);
+        if key.is_empty() {
+            continue;
+        }
+
+        let mut normalized_clock = BTreeMap::<String, u64>::new();
+        for (clock_key, clock_value) in value.vector_clock {
+            let normalized_key = sanitize_crdt_token(&clock_key, MAX_CRDT_NODE_ID_LEN);
+            if normalized_key.is_empty() {
+                continue;
+            }
+            let current = normalized_clock.get(&normalized_key).copied().unwrap_or(0);
+            if clock_value > current {
+                normalized_clock.insert(normalized_key, clock_value);
+            }
+        }
+        if normalized_clock.is_empty() {
+            normalized_clock.insert(node_id.clone(), 0);
+        }
+        value.vector_clock = normalized_clock;
+
+        match normalized.get(&key) {
+            Some(existing) => {
+                let existing_hash = deterministic_hash_key(&key, existing);
+                let incoming_hash = deterministic_hash_key(&key, &value);
+                if incoming_hash > existing_hash {
+                    normalized.insert(key, value);
+                }
+            }
+            None => {
+                normalized.insert(key, value);
+            }
+        }
+    }
+    if normalized.is_empty() {
+        return Err(format!("{side}_changes_empty_after_normalization"));
+    }
+    delta.changes = normalized;
+    Ok(delta)
+}
+
 fn vector_clock_cmp(left: &BTreeMap<String, u64>, right: &BTreeMap<String, u64>) -> Ordering {
     let keys: BTreeSet<String> = left
         .keys()
@@ -176,6 +252,8 @@ pub fn merge_delta(left_json: &str, right_json: &str) -> Result<MergeResult, Str
         serde_json::from_str(left_json).map_err(|e| format!("left_parse_failed:{e}"))?;
     let right: CrdtDelta =
         serde_json::from_str(right_json).map_err(|e| format!("right_parse_failed:{e}"))?;
+    let left = normalize_delta(left, "left")?;
+    let right = normalize_delta(right, "right")?;
     let profile = load_embedded_pinnacle_profile().map_err(|e| e.to_string())?;
 
     let mut merged = BTreeMap::<String, CrdtValue>::new();

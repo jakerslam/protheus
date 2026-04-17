@@ -55,10 +55,15 @@ pub(super) fn package_release_command(
     };
     let minimal_artifact_path = minimal_dir.join("protheusd");
     let full_artifact_path = full_dir.join("protheusd");
+    let mut copy_errors = Vec::<String>::new();
     if let Some(ref source) = artifact {
         if source.exists() {
-            let _ = fs::copy(source, &minimal_artifact_path);
-            let _ = fs::copy(source, &full_artifact_path);
+            if let Err(err) = fs::copy(source, &minimal_artifact_path) {
+                copy_errors.push(format!("minimal_artifact_copy_failed:{err}"));
+            }
+            if let Err(err) = fs::copy(source, &full_artifact_path) {
+                copy_errors.push(format!("full_artifact_copy_failed:{err}"));
+            }
         }
     }
     let minimal_manifest = json!({
@@ -84,6 +89,8 @@ pub(super) fn package_release_command(
     let full_manifest_hash = sha256_file(&full_manifest_path).unwrap_or_default();
     let minimal_artifact_hash = sha256_file(&minimal_artifact_path).unwrap_or_default();
     let full_artifact_hash = sha256_file(&full_artifact_path).unwrap_or_default();
+    let minimal_artifact_exists = minimal_artifact_path.exists();
+    let full_artifact_exists = full_artifact_path.exists();
     let reproducible = !minimal_manifest_hash.is_empty()
         && !full_manifest_hash.is_empty()
         && !minimal_artifact_hash.is_empty()
@@ -148,8 +155,12 @@ pub(super) fn package_release_command(
     write_json(&provenance_bundle_path, &provenance_bundle)?;
 
     let mut errors = Vec::<String>::new();
+    errors.extend(copy_errors.clone());
     if strict && artifact.as_ref().map(|p| p.exists()).unwrap_or(false) == false {
         errors.push("release_artifact_missing".to_string());
+    }
+    if strict && (!minimal_artifact_exists || !full_artifact_exists) {
+        errors.push("release_artifact_copy_missing".to_string());
     }
     if strict && !reproducible {
         errors.push("reproducible_release_artifacts_missing".to_string());
@@ -169,6 +180,15 @@ pub(super) fn package_release_command(
         "strict": strict,
         "minimal_manifest": minimal_manifest_path.display().to_string(),
         "full_manifest": full_manifest_path.display().to_string(),
+        "artifact_paths": {
+            "minimal": minimal_artifact_path.display().to_string(),
+            "full": full_artifact_path.display().to_string()
+        },
+        "artifact_exists": {
+            "minimal": minimal_artifact_exists,
+            "full": full_artifact_exists
+        },
+        "artifact_copy_errors": copy_errors,
         "provenance_bundle_path": provenance_bundle_path.display().to_string(),
         "signatures": {
             "minimal_signature": minimal_sig_path.display().to_string(),

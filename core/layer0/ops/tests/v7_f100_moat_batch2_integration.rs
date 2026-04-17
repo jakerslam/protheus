@@ -59,6 +59,21 @@ fn assert_claim(payload: &Value, id: &str) {
     );
 }
 
+fn assert_receipt_shape(latest: &Value) {
+    assert!(
+        latest.get("payload").and_then(Value::as_object).is_some(),
+        "latest receipt payload must be object"
+    );
+    assert!(
+        latest
+            .get("receipt_hash")
+            .and_then(Value::as_str)
+            .map(|row| !row.is_empty())
+            .unwrap_or(false),
+        "latest receipt hash must exist"
+    );
+}
+
 fn install_ollama_stub(root: &Path) -> PathBuf {
     let dir = root.join("toolbin");
     fs::create_dir_all(&dir).expect("mkdir toolbin");
@@ -144,6 +159,7 @@ fn v7_f100_and_moat_batch2_contracts_are_behavior_proven() {
         0
     );
     let zero_latest = read_json(&latest_path(root));
+    assert_receipt_shape(&zero_latest);
     assert_claim(&zero_latest, "V7-F100-002.3");
     let replay_hash = zero_latest
         .get("receipt_hash")
@@ -162,7 +178,9 @@ fn v7_f100_and_moat_batch2_contracts_are_behavior_proven() {
         ),
         0
     );
-    assert_claim(&read_json(&latest_path(root)), "V7-F100-002.4");
+    let ops_bridge_latest = read_json(&latest_path(root));
+    assert_receipt_shape(&ops_bridge_latest);
+    assert_claim(&ops_bridge_latest, "V7-F100-002.4");
 
     assert_eq!(
         enterprise_hardening::run(
@@ -219,7 +237,9 @@ fn v7_f100_and_moat_batch2_contracts_are_behavior_proven() {
     assert_claim(&read_json(&latest_path(root)), "V7-MOAT-002.1");
 
     assert_eq!(enterprise_hardening::run(root, &["explore".to_string()]), 0);
-    assert_claim(&read_json(&latest_path(root)), "V7-MOAT-002.2");
+    let explore_latest = read_json(&latest_path(root));
+    assert_receipt_shape(&explore_latest);
+    assert_claim(&explore_latest, "V7-MOAT-002.2");
 
     assert_eq!(
         enterprise_hardening::run(
@@ -372,6 +392,7 @@ fn v7_f100_and_moat_batch2_contracts_are_behavior_proven() {
         0
     );
     let super_gate = read_json(&latest_path(root));
+    assert_receipt_shape(&super_gate);
     assert_eq!(
         super_gate
             .pointer("/gate/formal/scheduler_proven")

@@ -4,7 +4,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const ts = require('typescript');
+const ts = require('typescript');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 if (!require.extensions['.ts']) {
   require.extensions['.ts'] = function compileTs(module, filename) {
@@ -41,7 +41,7 @@ try {
   assert.equal(engaged.engaged, true);
   assert.deepEqual(mod.normalizeScopes(['routing,autonomy', 'autonomy']), ['autonomy', 'routing']);
   assert.equal(mod.isEmergencyStopEngaged('routing').engaged, true);
-  const released = mod.releaseEmergencyStop({
+  assertNoPlaceholderOrPromptLeak({ engaged }, 'emergency_stop_rust_bridge_test');\n  assertStableToolingEnvelope(engaged, 'emergency_stop_rust_bridge_test');\n  const released = mod.releaseEmergencyStop({
     approval_note: 'approved release integration',
     actor: 'tester',
     reason: 'done'

@@ -1,8 +1,28 @@
 #!/usr/bin/env node
 'use strict';
 
+const ts = require('typescript');
+
+if (!require.extensions['.ts']) {
+  require.extensions['.ts'] = function compileTs(module, filename) {
+    const source = require('fs').readFileSync(filename, 'utf8');
+    const transpiled = ts.transpileModule(source, {
+      compilerOptions: {
+        module: ts.ModuleKind.CommonJS,
+        target: ts.ScriptTarget.ES2022,
+        moduleResolution: ts.ModuleResolutionKind.NodeJs,
+        esModuleInterop: true,
+        allowSyntheticDefaultImports: true
+      },
+      fileName: filename,
+      reportDiagnostics: false
+    }).outputText;
+    module._compile(transpiled, filename);
+  };
+}
+
 const assert = require('node:assert');
-const path = require('node:path');
+const path = require('node:path');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 const Module = require('node:module');
 
 const ROOT = path.resolve(__dirname, '../..');
@@ -59,7 +79,7 @@ function main() {
     );
 
     const result = bridge.run(['status']);
-    assert.equal(result.status, 0);
+    assertNoPlaceholderOrPromptLeak(result, 'rust_lane_bridge_fallback_test');\n    assertStableToolingEnvelope(result.payload, 'rust_lane_bridge_fallback_test');\n    assert.equal(result.status, 0);
     assert.equal(result.payload.type, 'cargo_retry_success');
     assert.equal(result.fallback_reason, 'stale_prebuilt_retry');
     assert.equal(spawnCalls.length, 2);

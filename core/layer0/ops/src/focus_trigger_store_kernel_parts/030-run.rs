@@ -90,6 +90,19 @@ fn run_set_state(root: &Path, payload: &Map<String, Value>) -> Result<Value, Str
     }))
 }
 
+fn with_execution_receipt(command: &str, status: &str, payload: Value) -> Value {
+    json!({
+        "execution_receipt": {
+            "lane": "focus_trigger_store_kernel",
+            "command": command,
+            "status": status,
+            "source": "OPENCLAW-TOOLING-WEB-099",
+            "tool_runtime_class": "receipt_wrapped"
+        },
+        "payload": payload
+    })
+}
+
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     let command = argv
         .first()
@@ -121,11 +134,26 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
     match result {
         Ok(payload) => {
-            print_json_line(&cli_receipt("focus_trigger_store_kernel", payload));
+            print_json_line(&cli_receipt(
+                "focus_trigger_store_kernel",
+                with_execution_receipt(command.as_str(), "success", payload),
+            ));
             0
         }
         Err(err) => {
-            print_json_line(&cli_error("focus_trigger_store_kernel_error", err.as_str()));
+            print_json_line(&cli_receipt(
+                "focus_trigger_store_kernel",
+                with_execution_receipt(
+                    command.as_str(),
+                    "error",
+                    json!({
+                        "ok": false,
+                        "error": err,
+                        "error_kind": "command_failed",
+                        "retryable": false
+                    }),
+                ),
+            ));
             1
         }
     }
@@ -170,4 +198,3 @@ mod tests {
         assert!(err.contains("path override denied"));
     }
 }
-

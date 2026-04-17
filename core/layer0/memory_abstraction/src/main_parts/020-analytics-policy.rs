@@ -1,3 +1,25 @@
+fn bounded_policy_pct(raw: Option<&Value>, default: f64) -> f64 {
+    let value = raw.and_then(|v| v.as_f64()).unwrap_or(default);
+    if !value.is_finite() {
+        return default.clamp(0.0, 100.0);
+    }
+    value.clamp(0.0, 100.0)
+}
+
+fn normalize_drift_thresholds(warn: f64, fail: f64) -> (f64, f64) {
+    let normalized_fail = if fail.is_finite() {
+        fail.clamp(0.0, 100.0)
+    } else {
+        2.0
+    };
+    let normalized_warn = if warn.is_finite() {
+        warn.clamp(0.0, normalized_fail)
+    } else {
+        normalized_fail.min(1.0)
+    };
+    (normalized_warn, normalized_fail)
+}
+
 fn analytics_policy(root: &Path) -> Value {
     let policy_path = env::var("MEMORY_ABSTRACTION_ANALYTICS_POLICY_PATH")
         .ok()
@@ -7,10 +29,14 @@ fn analytics_policy(root: &Path) -> Value {
         });
     let raw = read_json(&policy_path);
     let paths = raw.get("paths").cloned().unwrap_or(Value::Null);
+    let (drift_warn_pct, drift_fail_pct) = normalize_drift_thresholds(
+        bounded_policy_pct(raw.get("drift_warn_pct"), 1.0),
+        bounded_policy_pct(raw.get("drift_fail_pct"), 2.0),
+    );
     json!({
       "enabled": raw.get("enabled").and_then(|v| v.as_bool()).unwrap_or(true),
-      "drift_warn_pct": raw.get("drift_warn_pct").and_then(|v| v.as_f64()).unwrap_or(1.0).max(0.0),
-      "drift_fail_pct": raw.get("drift_fail_pct").and_then(|v| v.as_f64()).unwrap_or(2.0).max(0.0),
+      "drift_warn_pct": drift_warn_pct,
+      "drift_fail_pct": drift_fail_pct,
       "latest_path": resolve_path(root, paths.get("latest_path").and_then(|v| v.as_str()), "local/state/client/memory/abstraction/analytics_latest.json"),
       "history_path": resolve_path(root, paths.get("history_path").and_then(|v| v.as_str()), "local/state/client/memory/abstraction/analytics_history.jsonl"),
       "baseline_path": resolve_path(root, paths.get("baseline_path").and_then(|v| v.as_str()), "local/state/client/memory/abstraction/analytics_baseline.json"),
@@ -57,14 +83,10 @@ fn cmd_analytics(root: &Path, subcmd: &str) -> Value {
             .and_then(|v| v.as_str())
             .unwrap_or(""),
     );
-    let drift_warn = p
-        .get("drift_warn_pct")
-        .and_then(|v| v.as_f64())
-        .unwrap_or(1.0);
-    let drift_fail = p
-        .get("drift_fail_pct")
-        .and_then(|v| v.as_f64())
-        .unwrap_or(2.0);
+    let (drift_warn, drift_fail) = normalize_drift_thresholds(
+        p.get("drift_warn_pct").and_then(|v| v.as_f64()).unwrap_or(1.0),
+        p.get("drift_fail_pct").and_then(|v| v.as_f64()).unwrap_or(2.0),
+    );
 
     match subcmd {
         "run" => {
@@ -281,4 +303,3 @@ fn harness_policy(root: &Path) -> Value {
       "baseline_path": resolve_path(root, paths.get("baseline_path").and_then(|v| v.as_str()), "local/state/client/memory/abstraction/test_harness_baseline.json")
     })
 }
-

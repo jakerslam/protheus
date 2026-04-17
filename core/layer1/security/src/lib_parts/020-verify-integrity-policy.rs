@@ -1,3 +1,31 @@
+fn integrity_execution_receipt(scope: &str, status: &str, error_kind: Option<&str>) -> Value {
+    let normalized_status = match status.trim().to_ascii_lowercase().as_str() {
+        "ok" | "success" | "succeeded" | "ready" => "success",
+        "timeout" | "timed_out" | "timed-out" => "timeout",
+        "throttled" | "rate_limited" | "rate-limited" | "429" => "throttled",
+        _ => "error",
+    };
+    let normalized_error = error_kind.map(|raw| normalize_token(raw, 96));
+    let seed = json!({
+        "scope": clean(scope, 96),
+        "status": normalized_status,
+        "error_kind": normalized_error
+    });
+    let call_id = format!(
+        "integrity-{}",
+        &sha256_hex(&stable_json_string(&seed))[..16]
+    );
+    json!({
+        "call_id": call_id,
+        "status": normalized_status,
+        "error_kind": normalized_error,
+        "telemetry": {
+            "duration_ms": 0,
+            "tokens_used": 0
+        }
+    })
+}
+
 fn verify_integrity_policy(repo_root: &Path, policy_path: &Path) -> Value {
     let runtime = runtime_root(repo_root);
     let policy = load_integrity_policy(policy_path);
@@ -64,15 +92,21 @@ fn verify_integrity_policy(repo_root: &Path, policy_path: &Path) -> Value {
     }
 
     let counts = summarize_violation_counts(&violations);
+    let ok = violations.is_empty();
     json!({
-        "ok": violations.is_empty(),
+        "ok": ok,
         "ts": now_iso(),
         "policy_path": policy_path.to_string_lossy(),
         "policy_version": policy.version,
         "checked_present_files": present_files.len(),
         "expected_files": policy.hashes.len(),
         "violations": violations,
-        "violation_counts": counts
+        "violation_counts": counts,
+        "execution_receipt": integrity_execution_receipt(
+            "verify_integrity_policy",
+            if ok { "success" } else { "error" },
+            if ok { None } else { Some("integrity_policy_violation") }
+        )
     })
 }
 
@@ -201,7 +235,12 @@ pub fn run_integrity_reseal(repo_root: &Path, argv: &[String]) -> (Value, i32) {
                     .get("violations")
                     .and_then(Value::as_array)
                     .map(|rows| rows.iter().take(12).cloned().collect::<Vec<_>>())
-                    .unwrap_or_default()
+                    .unwrap_or_default(),
+                "execution_receipt": integrity_execution_receipt(
+                    "integrity_reseal_check",
+                    if ok { "success" } else { "error" },
+                    if ok { None } else { Some("integrity_reseal_required") }
+                )
             });
             let code = if ok { 0 } else { 1 };
             (out, code)
@@ -454,4 +493,3 @@ fn emergency_stop_normalize_scopes(raw: Option<&str>) -> Vec<String> {
     out.sort();
     out
 }
-

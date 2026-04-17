@@ -2,6 +2,7 @@
 use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
+use std::collections::BTreeSet;
 use std::env;
 
 fn collapse_whitespace(input: &str) -> String {
@@ -111,24 +112,28 @@ fn primitive_sha256_hex(input: &Value) -> Value {
 }
 
 fn primitive_short_query_hash(input: &Value) -> Value {
-    let query = value_as_string(input.get("query"));
+    let query = clean_text(&value_as_string(input.get("query")), 2000);
     let digest = sha256_hex(&query);
     let short = digest.chars().take(16).collect::<String>();
     json!({ "value": short })
 }
 
+fn normalize_tags_csv(tags_value: Option<&Value>) -> String {
+    let mut set = BTreeSet::<String>::new();
+    if let Some(Value::Array(rows)) = tags_value {
+        for row in rows {
+            let token = normalize_token_cli(&value_as_string(Some(row)), 80);
+            if !token.is_empty() {
+                set.insert(token);
+            }
+        }
+    }
+    set.into_iter().collect::<Vec<_>>().join(",")
+}
+
 fn primitive_system_passed_payload_hash(input: &Value) -> Value {
     let source = normalize_token_cli(&value_as_string(input.get("source")), 80);
-    let tags = input
-        .get("tags")
-        .and_then(Value::as_array)
-        .map(|rows| {
-            rows.iter()
-                .map(|row| value_as_string(Some(row)))
-                .collect::<Vec<_>>()
-                .join(",")
-        })
-        .unwrap_or_default();
+    let tags = normalize_tags_csv(input.get("tags"));
     let snippet = clean_text(&value_as_string(input.get("snippet")), 2000);
     let payload = format!("v1|{source}|{tags}|{snippet}");
     json!({ "hash": sha256_hex(&payload) })
@@ -372,6 +377,18 @@ mod tests {
             "source": "Master LLM",
             "tags": ["drift", "security"],
             "snippet": "  Keep   deterministic receipts. "
+        });
+        let out = primitive_system_passed_payload_hash(&input);
+        let expected = sha256_hex("v1|master_llm|drift,security|Keep deterministic receipts.");
+        assert_eq!(out["hash"].as_str().unwrap_or(""), expected);
+    }
+
+    #[test]
+    fn system_passed_payload_hash_normalizes_tag_order_and_dupes() {
+        let input = json!({
+            "source": "Master LLM",
+            "tags": ["security", "drift", "security", "  "],
+            "snippet": "Keep deterministic receipts."
         });
         let out = primitive_system_passed_payload_hash(&input);
         let expected = sha256_hex("v1|master_llm|drift,security|Keep deterministic receipts.");

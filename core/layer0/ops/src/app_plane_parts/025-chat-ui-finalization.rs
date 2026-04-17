@@ -1,0 +1,586 @@
+const CHAT_UI_TOOLING_RETRY_GUIDANCE: &str = "I couldn't produce source-backed findings in this turn. Please retry with a narrower query or provide a specific source URL.";
+const CHAT_UI_FRAMEWORK_TARGETS: [&str; 5] = [
+    "LangGraph",
+    "OpenAI Agents SDK",
+    "AutoGen",
+    "CrewAI",
+    "smolagents",
+];
+const CHAT_UI_SPECULATIVE_BLOCKER_MARKERS: [&str; 22] = [
+    "security controls",
+    "content filtering",
+    "allowlists",
+    "requires proper authorization",
+    "policy restrictions",
+    "api gateway",
+    "intentional design",
+    "blocked by security",
+    "blocking external tool execution",
+    "system blocked the request",
+    "blocked the function calls",
+    "function calls from executing entirely",
+    "invalid response attempt",
+    "processing the queries",
+    "preventing any web search operations",
+    "wouldn't even attempt to execute",
+    "would not even attempt to execute",
+    "limiting web tool access",
+    "temporary system restriction",
+    "broader policy change",
+    "would you like me to try a different approach",
+    "would you like to try a different approach",
+];
+const CHAT_UI_ALIGNMENT_IGNORED_TERMS: [&str; 44] = [
+    "the",
+    "a",
+    "an",
+    "and",
+    "or",
+    "to",
+    "for",
+    "of",
+    "in",
+    "on",
+    "is",
+    "are",
+    "was",
+    "were",
+    "it",
+    "this",
+    "that",
+    "with",
+    "from",
+    "as",
+    "by",
+    "you",
+    "your",
+    "we",
+    "our",
+    "can",
+    "could",
+    "should",
+    "would",
+    "do",
+    "did",
+    "does",
+    "system",
+    "agent",
+    "llm",
+    "tool",
+    "tools",
+    "message",
+    "response",
+    "search",
+    "web",
+    "result",
+    "results",
+    "query",
+];
+
+fn chat_ui_alignment_terms(text: &str, max_terms: usize) -> Vec<String> {
+    let mut terms = Vec::<String>::new();
+    for token in clean(text, 4_000)
+        .to_ascii_lowercase()
+        .split(|ch: char| !ch.is_ascii_alphanumeric())
+    {
+        if token.len() < 3 {
+            continue;
+        }
+        if CHAT_UI_ALIGNMENT_IGNORED_TERMS.contains(&token) {
+            continue;
+        }
+        if terms.iter().any(|existing| existing == token) {
+            continue;
+        }
+        terms.push(token.to_string());
+        if terms.len() >= max_terms {
+            break;
+        }
+    }
+    terms
+}
+
+fn chat_ui_response_matches_previous_message(user_message: &str, response_text: &str) -> bool {
+    let user_terms = chat_ui_alignment_terms(user_message, 24);
+    if user_terms.len() < 2 {
+        return true;
+    }
+    let response_terms = chat_ui_alignment_terms(response_text, 72);
+    if response_terms.is_empty() {
+        return false;
+    }
+    user_terms
+        .iter()
+        .any(|term| response_terms.iter().any(|candidate| candidate == term))
+}
+
+fn chat_ui_contains_kernel_patch_thread_dump(user_message: &str, response_text: &str) -> bool {
+    let lowered = clean(response_text, 16_000).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    let marker_hits = [
+        "[patch",
+        "subject:",
+        "from:",
+        "to:",
+        "in-reply-to:",
+        "references:",
+        "signed-off-by:",
+        "diff --git",
+        "@@ -",
+        "[thread index]",
+    ]
+    .iter()
+    .filter(|marker| lowered.contains(**marker))
+    .count();
+    if marker_hits < 4 {
+        return false;
+    }
+    let user_lowered = clean(user_message, 1_200).to_ascii_lowercase();
+    let user_requested_patch_context = user_lowered.contains("linux kernel")
+        || user_lowered.contains("patch review")
+        || user_lowered.contains("git diff")
+        || user_lowered.contains("signed-off-by")
+        || user_lowered.contains("mailing list patch");
+    !user_requested_patch_context
+}
+
+fn chat_ui_contains_role_preamble_prompt_dump(user_message: &str, response_text: &str) -> bool {
+    let lowered = clean(response_text, 10_000).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    let marker_hits = [
+        "i am an expert in the field",
+        "my role is to",
+        "the user has provided",
+        "my task is to refine",
+        "workflow metadata",
+        "source: the model's training data",
+        "mechanism: faulty pattern retrieval",
+        "the error: context collapse",
+    ]
+    .iter()
+    .filter(|marker| lowered.contains(**marker))
+    .count();
+    if marker_hits < 2 {
+        return false;
+    }
+    let user_lowered = clean(user_message, 1_200).to_ascii_lowercase();
+    let user_requested_prompting_context = user_lowered.contains("write a prompt")
+        || user_lowered.contains("system prompt")
+        || user_lowered.contains("role prompt")
+        || user_lowered.contains("persona prompt");
+    !user_requested_prompting_context
+}
+
+fn chat_ui_tool_text_blob(row: &Value) -> String {
+    let input_blob = row
+        .get("input")
+        .map(|input| clean(&input.to_string(), 1_200))
+        .unwrap_or_default();
+    clean(
+        &format!(
+            "{} {} {} {} {} {} {}",
+            clean(row.get("name").and_then(Value::as_str).unwrap_or(""), 120),
+            clean(row.get("status").and_then(Value::as_str).unwrap_or(""), 120),
+            clean(row.get("type").and_then(Value::as_str).unwrap_or(""), 120),
+            clean(row.get("error").and_then(Value::as_str).unwrap_or(""), 220),
+            clean(row.get("query").and_then(Value::as_str).unwrap_or(""), 600),
+            clean(row.get("result").and_then(Value::as_str).unwrap_or(""), 2_200),
+            input_blob
+        ),
+        4_000,
+    )
+}
+
+fn chat_ui_tools_have_structured_block_evidence(rows: &[Value]) -> bool {
+    rows.iter().any(|row| {
+        let status = clean(row.get("status").and_then(Value::as_str).unwrap_or(""), 120)
+            .to_ascii_lowercase();
+        if matches!(
+            status.as_str(),
+            "blocked" | "policy_denied" | "permission_denied"
+        ) {
+            return true;
+        }
+        let tool_type = clean(row.get("type").and_then(Value::as_str).unwrap_or(""), 120)
+            .to_ascii_lowercase();
+        if tool_type == "tool_pre_gate_blocked" {
+            return true;
+        }
+        let error = clean(row.get("error").and_then(Value::as_str).unwrap_or(""), 220)
+            .to_ascii_lowercase();
+        if matches!(
+            error.as_str(),
+            "tool_permission_denied" | "tool_confirmation_required"
+        ) {
+            return true;
+        }
+        row.get("status_code")
+            .and_then(Value::as_i64)
+            .or_else(|| row.get("http_status").and_then(Value::as_i64))
+            .map(|code| matches!(code, 401 | 403 | 404 | 422 | 429))
+            .unwrap_or(false)
+    })
+}
+
+fn chat_ui_structured_block_evidence_codes(rows: &[Value]) -> Vec<String> {
+    let mut codes = Vec::<String>::new();
+    for row in rows {
+        for code in [
+            clean(row.get("type").and_then(Value::as_str).unwrap_or(""), 120),
+            clean(row.get("error").and_then(Value::as_str).unwrap_or(""), 220),
+        ] {
+            if code.is_empty() || codes.iter().any(|existing| existing == &code) {
+                continue;
+            }
+            codes.push(code);
+            if codes.len() >= 4 {
+                return codes;
+            }
+        }
+        let status = clean(row.get("status").and_then(Value::as_str).unwrap_or(""), 120);
+        if !status.is_empty() {
+            let status_code = format!("status:{status}");
+            if !codes.iter().any(|existing| existing == &status_code) {
+                codes.push(status_code);
+                if codes.len() >= 4 {
+                    return codes;
+                }
+            }
+        }
+        if let Some(http_status) = row
+            .get("status_code")
+            .and_then(Value::as_i64)
+            .or_else(|| row.get("http_status").and_then(Value::as_i64))
+        {
+            let status_code = format!("http:{http_status}");
+            if !codes.iter().any(|existing| existing == &status_code) {
+                codes.push(status_code);
+                if codes.len() >= 4 {
+                    return codes;
+                }
+            }
+        }
+    }
+    codes
+}
+
+fn chat_ui_contains_speculative_blocker_language(text: &str) -> bool {
+    let lowered = clean(text, 4_000).to_ascii_lowercase();
+    let marker_hit = CHAT_UI_SPECULATIVE_BLOCKER_MARKERS
+        .iter()
+        .any(|marker| lowered.contains(marker));
+    if marker_hit {
+        return true;
+    }
+    let structured_ack_hit = crate::tool_output_match_filter::matches_ack_placeholder(&lowered)
+        && (lowered.contains("web search")
+            || lowered.contains("web tool")
+            || lowered.contains("tool execution")
+            || lowered.contains("function call"));
+    structured_ack_hit
+}
+
+fn chat_ui_looks_like_deferred_execution_preamble(text: &str) -> bool {
+    let lowered = clean(text, 2_000).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    let token_count = lowered.split_whitespace().count();
+    if token_count > 64 {
+        return false;
+    }
+    let has_rich_findings = lowered.contains("http://")
+        || lowered.contains("https://")
+        || lowered.contains("according to")
+        || lowered.contains("1.")
+        || lowered.contains("2.");
+    if has_rich_findings {
+        return false;
+    }
+    lowered.starts_with("i'll get you an update")
+        || lowered.starts_with("i will get you an update")
+        || lowered.starts_with("let me get you an update")
+        || lowered.starts_with("i'll look into")
+        || lowered.starts_with("i will look into")
+        || lowered.starts_with("let me look into")
+        || lowered.starts_with("i'll check")
+        || lowered.starts_with("i will check")
+        || lowered.starts_with("let me check")
+        || lowered.starts_with("i'm going to check")
+        || lowered.starts_with("i am going to check")
+        || lowered.starts_with("working on it")
+        || lowered.starts_with("one moment")
+        || lowered.starts_with("just a moment")
+        || lowered.starts_with("stand by")
+        || lowered.starts_with("i'll report back")
+        || lowered.starts_with("i will report back")
+}
+
+fn chat_ui_looks_like_deferred_retry_prompt(text: &str) -> bool {
+    let lowered = clean(text, 2_000).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    let has_rich_findings = lowered.contains("http://")
+        || lowered.contains("https://")
+        || lowered.contains("according to")
+        || lowered.contains("1.")
+        || lowered.contains("2.");
+    if has_rich_findings {
+        return false;
+    }
+    let retry_marker_hit = [
+        "would you like me to try",
+        "would you like me to retry",
+        "would you like me to run",
+        "should i retry",
+        "should i rerun",
+        "i can retry with",
+        "i can rerun with",
+        "if you'd like, i can retry",
+        "if you would like, i can retry",
+        "if you'd like, i can rerun",
+        "if you would like, i can rerun",
+        "i can try a narrower query",
+        "i can run a narrower query",
+        "i can try a more specific query",
+        "i can search again",
+    ]
+    .iter()
+    .any(|marker| lowered.contains(marker));
+    if !retry_marker_hit {
+        return false;
+    }
+    lowered.contains("search")
+        || lowered.contains("web")
+        || lowered.contains("tool")
+        || lowered.contains("query")
+        || lowered.contains("source url")
+}
+
+fn chat_ui_looks_like_unrelated_programming_dump(text: &str) -> bool {
+    let lowered = clean(text, 12_000).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    let marker_hits = [
+        "<|begin_of_sentence|>",
+        "<｜begin▁of▁sentence｜>",
+        "you are an expert python programmer",
+        "translate the following java code to python",
+        "input specification:",
+        "output specification:",
+        "sample input:",
+        "sample output:",
+        "智能推荐",
+        "猜你喜欢",
+    ]
+    .iter()
+    .filter(|marker| lowered.contains(**marker))
+    .count();
+    marker_hits >= 2
+}
+
+fn chat_ui_partial_framework_coverage_summary(rows: &[Value]) -> Option<String> {
+    let aggregated = rows
+        .iter()
+        .map(chat_ui_tool_text_blob)
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_ascii_lowercase();
+    if aggregated.is_empty() || !aggregated.contains("framework") {
+        return None;
+    }
+
+    let found = [
+        aggregated.contains("langgraph"),
+        aggregated.contains("openai agents sdk") || aggregated.contains("openai agents"),
+        aggregated.contains("autogen"),
+        aggregated.contains("crewai"),
+        aggregated.contains("smolagents"),
+    ];
+    let found_labels = CHAT_UI_FRAMEWORK_TARGETS
+        .iter()
+        .enumerate()
+        .filter_map(|(idx, label)| found[idx].then_some(*label))
+        .collect::<Vec<_>>();
+    if found_labels.is_empty() {
+        return None;
+    }
+    let missing_labels = CHAT_UI_FRAMEWORK_TARGETS
+        .iter()
+        .enumerate()
+        .filter_map(|(idx, label)| (!found[idx]).then_some(*label))
+        .collect::<Vec<_>>();
+    if missing_labels.is_empty() {
+        return None;
+    }
+
+    Some(format!(
+        "Web search ran and returned partial framework coverage. Found: {}. Missing in this pass: {}. I can retry with targeted queries for the missing frameworks.",
+        found_labels.join(", "),
+        missing_labels.join(", ")
+    ))
+}
+
+fn chat_ui_tool_row_has_valid_findings(row: &Value) -> bool {
+    let status = clean(row.get("status").and_then(Value::as_str).unwrap_or(""), 80)
+        .to_ascii_lowercase();
+    if matches!(
+        status.as_str(),
+        "error"
+            | "failed"
+            | "blocked"
+            | "policy_denied"
+            | "no_results"
+            | "low_signal"
+            | "partial_no_results"
+            | "timeout"
+            | "execution_error"
+    ) {
+        return false;
+    }
+    let result = clean(row.get("result").and_then(Value::as_str).unwrap_or(""), 2_000);
+    if result.is_empty() || result.contains("<function=") {
+        return false;
+    }
+    !crate::tool_output_match_filter::matches_ack_placeholder(&result)
+}
+
+fn chat_ui_tools_have_valid_findings(rows: &[Value]) -> bool {
+    rows.iter().any(chat_ui_tool_row_has_valid_findings)
+}
+
+fn chat_ui_tool_findings_summary(rows: &[Value], max_rows: usize) -> String {
+    let mut summaries = Vec::<String>::new();
+    for row in rows
+        .iter()
+        .filter(|row| chat_ui_tool_row_has_valid_findings(row))
+        .take(max_rows)
+    {
+        let tool_name = clean(row.get("name").and_then(Value::as_str).unwrap_or("tool"), 80);
+        let result = clean(row.get("result").and_then(Value::as_str).unwrap_or(""), 260);
+        if result.is_empty() {
+            continue;
+        }
+        summaries.push(format!(
+            "{}: {}",
+            if tool_name.is_empty() {
+                "tool"
+            } else {
+                &tool_name
+            },
+            result
+        ));
+    }
+    clean(&summaries.join(" "), 2_000)
+}
+
+fn finalize_chat_ui_assistant_response(
+    user_message: &str,
+    assistant_raw: &str,
+    tools: &[Value],
+) -> (String, String) {
+    let mut cleaned = clean(assistant_raw, 16_000);
+    let mut outcome = "unchanged".to_string();
+    if let Some((rewritten, rule_id)) =
+        crate::tool_output_match_filter::rewrite_raw_payload_dump(&cleaned)
+    {
+        cleaned = rewritten;
+        outcome = format!("rewrote:{rule_id}");
+    }
+    if let Some((rewritten, rule_id)) =
+        crate::tool_output_match_filter::rewrite_unsynthesized_web_dump(&cleaned)
+    {
+        cleaned = rewritten;
+        outcome = format!("rewrote:{rule_id}");
+    }
+    if let Some((rewritten, rule_id)) =
+        crate::tool_output_match_filter::rewrite_failure_placeholder(&cleaned)
+    {
+        cleaned = rewritten;
+        outcome = format!("rewrote_failure:{rule_id}");
+    }
+    let speculative_blocker_copy = chat_ui_contains_speculative_blocker_language(&cleaned);
+    let has_block_evidence = chat_ui_tools_have_structured_block_evidence(tools);
+    let partial_framework_coverage = chat_ui_partial_framework_coverage_summary(tools);
+    let unrelated_context_dump = chat_ui_contains_kernel_patch_thread_dump(user_message, &cleaned)
+        || chat_ui_contains_role_preamble_prompt_dump(user_message, &cleaned);
+    if unrelated_context_dump {
+        if let Some(summary) = partial_framework_coverage.clone() {
+            return (summary, "repaired_unrelated_context_dump".to_string());
+        }
+        let findings_summary = chat_ui_tool_findings_summary(tools, 3);
+        if !findings_summary.is_empty() {
+            return (
+                findings_summary,
+                "repaired_unrelated_context_dump".to_string(),
+            );
+        }
+        return (
+            CHAT_UI_TOOLING_RETRY_GUIDANCE.to_string(),
+            "repaired_unrelated_context_dump".to_string(),
+        );
+    }
+    if speculative_blocker_copy && has_block_evidence {
+        let codes = chat_ui_structured_block_evidence_codes(tools);
+        let code_suffix = if codes.is_empty() {
+            String::new()
+        } else {
+            format!(" ({})", codes.join(", "))
+        };
+        return (
+            format!(
+                "The web/tool run was blocked by policy in this turn{code_suffix}. Retry after policy/auth changes, or run a narrower allowed query."
+            ),
+            "blocked_with_structured_evidence".to_string(),
+        );
+    }
+    if speculative_blocker_copy && !has_block_evidence {
+        if let Some(summary) = partial_framework_coverage.clone() {
+            return (summary, "success_with_gaps".to_string());
+        }
+        return (
+            CHAT_UI_TOOLING_RETRY_GUIDANCE.to_string(),
+            "suppressed_unverified_blocker_claim".to_string(),
+        );
+    }
+    let low_signal = cleaned.trim().is_empty()
+        || cleaned.contains("<function=")
+        || crate::tool_output_match_filter::matches_ack_placeholder(&cleaned)
+        || chat_ui_looks_like_deferred_execution_preamble(&cleaned)
+        || chat_ui_looks_like_deferred_retry_prompt(&cleaned)
+        || chat_ui_looks_like_unrelated_programming_dump(&cleaned)
+        || (cleaned.len() > 220
+            && !chat_ui_response_matches_previous_message(user_message, &cleaned));
+    if !low_signal {
+        let lowered = cleaned.to_ascii_lowercase();
+        if let Some(summary) = partial_framework_coverage {
+            if lowered.contains("low signal")
+                || lowered.contains("low-signal")
+                || lowered.contains("partial")
+            {
+                return (summary, "success_with_gaps".to_string());
+            }
+        }
+        return (cleaned, outcome);
+    }
+    if let Some(summary) = partial_framework_coverage {
+        return (summary, "success_with_gaps".to_string());
+    }
+    let findings_summary = chat_ui_tool_findings_summary(tools, 3);
+    if !findings_summary.is_empty() {
+        return (
+            findings_summary,
+            "repaired_with_tool_findings_summary".to_string(),
+        );
+    }
+    (
+        CHAT_UI_TOOLING_RETRY_GUIDANCE.to_string(),
+        "repaired_with_retry_guidance".to_string(),
+    )
+}

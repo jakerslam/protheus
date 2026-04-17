@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 use std::collections::BTreeMap;
 
+const MAX_STORAGE_KEY_LEN: usize = 240;
+const MAX_STORAGE_VALUE_LEN: usize = 16 * 1024;
+const MAX_STORAGE_TIMESTAMP_MS: u64 = 9_999_999_999_999;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StorageRecord {
     pub key: String,
@@ -12,6 +16,8 @@ pub struct StorageRecord {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StorageError {
     InvalidKey,
+    InvalidValue,
+    InvalidTimestamp,
     NotFound,
     VersionConflict,
 }
@@ -23,7 +29,11 @@ pub struct StorageEngine {
 
 impl StorageEngine {
     pub fn get(&self, key: &str) -> Result<StorageRecord, StorageError> {
-        self.records.get(key).cloned().ok_or(StorageError::NotFound)
+        let normalized_key = sanitize_key(key).ok_or(StorageError::InvalidKey)?;
+        self.records
+            .get(&normalized_key)
+            .cloned()
+            .ok_or(StorageError::NotFound)
     }
 
     pub fn put(
@@ -33,11 +43,13 @@ impl StorageEngine {
         expected_version: Option<u64>,
         now_ms: u64,
     ) -> Result<StorageRecord, StorageError> {
-        if !valid_key(key) {
-            return Err(StorageError::InvalidKey);
+        let normalized_key = sanitize_key(key).ok_or(StorageError::InvalidKey)?;
+        let normalized_value = sanitize_value(value).ok_or(StorageError::InvalidValue)?;
+        if !valid_timestamp(now_ms) {
+            return Err(StorageError::InvalidTimestamp);
         }
 
-        let previous = self.records.get(key).cloned();
+        let previous = self.records.get(&normalized_key).cloned();
         if let Some(expected) = expected_version {
             let current = previous.as_ref().map(|row| row.version).unwrap_or(0);
             if expected != current {
@@ -45,28 +57,70 @@ impl StorageEngine {
             }
         }
 
-        let next_version = previous.map(|row| row.version + 1).unwrap_or(1);
+        let next_version = previous.map(|row| row.version.saturating_add(1)).unwrap_or(1);
         let record = StorageRecord {
-            key: key.to_string(),
-            value: value.to_string(),
+            key: normalized_key.clone(),
+            value: normalized_value,
             version: next_version,
             updated_ms: now_ms,
         };
-        self.records.insert(key.to_string(), record.clone());
+        self.records.insert(normalized_key, record.clone());
         Ok(record)
     }
 
     pub fn delete(&mut self, key: &str) -> Result<StorageRecord, StorageError> {
-        self.records.remove(key).ok_or(StorageError::NotFound)
+        let normalized_key = sanitize_key(key).ok_or(StorageError::InvalidKey)?;
+        self.records
+            .remove(&normalized_key)
+            .ok_or(StorageError::NotFound)
     }
 }
 
-fn valid_key(key: &str) -> bool {
-    if key.trim().is_empty() {
-        return false;
+fn strip_invisible_unicode(raw: &str) -> String {
+    raw.chars()
+        .filter(|ch| {
+            !matches!(
+                ch,
+                '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}'
+            )
+        })
+        .collect()
+}
+
+fn sanitize_key(raw_key: &str) -> Option<String> {
+    let mut normalized: String = strip_invisible_unicode(raw_key)
+        .chars()
+        .filter(|ch| !ch.is_control())
+        .collect();
+    normalized = normalized.trim().to_string();
+    if normalized.is_empty() || normalized.len() > MAX_STORAGE_KEY_LEN {
+        return None;
     }
-    key.chars()
+    if !normalized
+        .chars()
         .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '_' | '-' | '.' | '/'))
+    {
+        return None;
+    }
+    Some(normalized)
+}
+
+fn sanitize_value(raw_value: &str) -> Option<String> {
+    let mut normalized: String = strip_invisible_unicode(raw_value)
+        .chars()
+        .filter(|ch| *ch == '\n' || *ch == '\t' || !ch.is_control())
+        .collect();
+    if normalized.len() > MAX_STORAGE_VALUE_LEN {
+        normalized.truncate(MAX_STORAGE_VALUE_LEN);
+    }
+    if normalized.trim().is_empty() {
+        return None;
+    }
+    Some(normalized)
+}
+
+fn valid_timestamp(now_ms: u64) -> bool {
+    now_ms > 0 && now_ms <= MAX_STORAGE_TIMESTAMP_MS
 }
 
 #[cfg(test)]

@@ -33,6 +33,17 @@ mod tests {
         );
     }
 
+    fn assert_non_silent_outcome(payload: &Value) {
+        assert!(payload.get("type").and_then(Value::as_str).is_some());
+        assert!(payload.get("ok").and_then(Value::as_bool).is_some());
+        assert!(
+            payload.get("receipt_hash").and_then(Value::as_str).is_some()
+                || payload.get("claim_evidence").and_then(Value::as_array).is_some()
+                || payload.get("error").is_some()
+                || payload.get("reason").is_some()
+        );
+    }
+
     #[test]
     fn deploy_viral_writes_packet_and_replications() {
         let _guard = env_guard();
@@ -49,6 +60,7 @@ mod tests {
         );
         assert_eq!(exit, 0);
         let latest = read_json(&latest_path(&root)).expect("latest");
+        assert_non_silent_outcome(&latest);
         assert_eq!(latest.get("profile").and_then(Value::as_str), Some("viral"));
         assert!(latest
             .get("packet_path")
@@ -77,6 +89,7 @@ mod tests {
         );
         assert_eq!(exit, 0);
         let latest = read_json(&latest_path(&root)).expect("latest");
+        assert_non_silent_outcome(&latest);
         assert_eq!(
             latest
                 .get("migration")
@@ -104,6 +117,7 @@ mod tests {
         );
         assert_eq!(exit, 2);
         let latest = read_json(&latest_path(&root)).expect("latest");
+        assert_non_silent_outcome(&latest);
         assert_eq!(latest.get("ok").and_then(Value::as_bool), Some(false));
         let state = load_state(&root);
         let q = state
@@ -197,5 +211,4 @@ mod tests {
         let _ = fs::remove_dir_all(root);
     }
 }
-
 

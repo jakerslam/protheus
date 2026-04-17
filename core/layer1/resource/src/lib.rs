@@ -15,6 +15,9 @@ pub struct ResourceUsage {
 
 pub const EDGE_MEMORY_THRESHOLD_BYTES: u64 = 512 * 1024 * 1024;
 pub const EDGE_CPU_CORE_THRESHOLD: u16 = 1;
+pub const MAX_RESOURCE_QUOTA_CPU_MILLIS: u64 = 86_400_000;
+pub const MAX_RESOURCE_QUOTA_MEMORY_BYTES: u64 = 8 * 1024 * 1024 * 1024 * 1024;
+pub const MAX_RESOURCE_QUOTA_IO_BYTES: u64 = 16 * 1024 * 1024 * 1024 * 1024;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct HardwareProfile {
@@ -42,15 +45,49 @@ pub struct BackendSelectionReceipt {
     pub reason: &'static str,
 }
 
+fn normalize_budget(budget: ResourceBudget) -> Option<ResourceBudget> {
+    if budget.cpu_quota_millis == 0 || budget.memory_quota_bytes == 0 || budget.io_quota_bytes == 0
+    {
+        return None;
+    }
+    if budget.cpu_quota_millis > MAX_RESOURCE_QUOTA_CPU_MILLIS
+        || budget.memory_quota_bytes > MAX_RESOURCE_QUOTA_MEMORY_BYTES
+        || budget.io_quota_bytes > MAX_RESOURCE_QUOTA_IO_BYTES
+    {
+        return None;
+    }
+    Some(budget)
+}
+
+fn normalize_hardware_profile(profile: HardwareProfile) -> HardwareProfile {
+    let normalized_memory = profile
+        .total_memory_bytes
+        .min(MAX_RESOURCE_QUOTA_MEMORY_BYTES);
+    let normalized_cpu = profile.cpu_cores.max(1);
+    HardwareProfile {
+        total_memory_bytes: normalized_memory,
+        cpu_cores: normalized_cpu,
+        has_mmu: profile.has_mmu && normalized_memory > 0,
+    }
+}
+
 impl ResourceBudget {
     pub fn allows(&self, usage: ResourceUsage) -> bool {
-        usage.cpu_used_millis <= self.cpu_quota_millis
-            && usage.memory_used_bytes <= self.memory_quota_bytes
-            && usage.io_used_bytes <= self.io_quota_bytes
+        let Some(normalized_budget) = normalize_budget(*self) else {
+            return false;
+        };
+
+        usage.cpu_used_millis <= normalized_budget.cpu_quota_millis
+            && usage.memory_used_bytes <= normalized_budget.memory_quota_bytes
+            && usage.io_used_bytes <= normalized_budget.io_quota_bytes
+            && usage.cpu_used_millis <= MAX_RESOURCE_QUOTA_CPU_MILLIS
+            && usage.memory_used_bytes <= MAX_RESOURCE_QUOTA_MEMORY_BYTES
+            && usage.io_used_bytes <= MAX_RESOURCE_QUOTA_IO_BYTES
     }
 }
 
 pub fn is_constrained_hardware(profile: HardwareProfile) -> bool {
+    let profile = normalize_hardware_profile(profile);
     !profile.has_mmu
         || profile.total_memory_bytes < EDGE_MEMORY_THRESHOLD_BYTES
         || profile.cpu_cores <= EDGE_CPU_CORE_THRESHOLD
@@ -60,7 +97,8 @@ pub fn select_inference_backend(
     profile: HardwareProfile,
     backend_override: Option<BackendOverride>,
 ) -> BackendSelectionReceipt {
-    let constrained = is_constrained_hardware(profile);
+    let normalized_profile = normalize_hardware_profile(profile);
+    let constrained = is_constrained_hardware(normalized_profile);
     if let Some(requested) = backend_override {
         return match requested {
             BackendOverride::ForcePrimary => BackendSelectionReceipt {

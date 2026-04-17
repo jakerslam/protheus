@@ -23,6 +23,110 @@ fn normalize_token(input: &str) -> String {
     }
     out.trim_matches('_').to_string()
 }
+
+pub fn run_importer_web_tooling_signal_json(payload: &str) -> Result<String, String> {
+    let parsed: Value =
+        serde_json::from_str(payload).map_err(|err| format!("payload_json_parse_failed:{err}"))?;
+    let obj = parsed.as_object().cloned().unwrap_or_default();
+
+    let tool = normalize_token(&value_to_plain_string(obj.get("tool")));
+    let provider = normalize_token(&value_to_plain_string(obj.get("provider")));
+    let source = normalize_token(&value_to_plain_string(obj.get("source")));
+    let status = normalize_token(&value_to_plain_string(obj.get("status")));
+    let error = value_to_plain_string(obj.get("error"));
+    let query = value_to_plain_string(obj.get("query"));
+    let http_status = obj.get("http_status").and_then(Value::as_u64).unwrap_or(0);
+
+    let lowered = format!(
+        "{} {} {}",
+        status.to_ascii_lowercase(),
+        error.to_ascii_lowercase(),
+        query.to_ascii_lowercase()
+    );
+    let function_execution_blocked = lowered.contains("blocked the function calls")
+        || lowered.contains("blocked the request")
+        || lowered.contains("preventing any web search operations")
+        || lowered.contains("invalid response attempt");
+    let low_signal = lowered.contains("low-signal")
+        || lowered.contains("low signal")
+        || lowered.contains("no-result")
+        || lowered.contains("no result")
+        || lowered.contains("incomplete");
+    let auth_missing = lowered.contains("auth_missing")
+        || lowered.contains("auth missing")
+        || lowered.contains("token missing")
+        || lowered.contains("credentials missing");
+    let http_rate_limited = http_status == 429 || lowered.contains("429");
+    let policy_filtered =
+        lowered.contains("security controls") || lowered.contains("content filtering");
+
+    let classification = if function_execution_blocked {
+        "function_execution_blocked"
+    } else if auth_missing {
+        "auth_missing"
+    } else if http_rate_limited {
+        "provider_rate_limited"
+    } else if policy_filtered {
+        "policy_filtered"
+    } else if low_signal {
+        "low_signal"
+    } else {
+        "healthy_or_unknown"
+    };
+
+    let mut recommendations = Vec::new();
+    recommendations.push(json!({
+        "id": "narrow_query",
+        "priority": "high",
+        "action": "narrow query scope to one provider/doc source and retry"
+    }));
+    if function_execution_blocked || policy_filtered {
+        recommendations.push(json!({
+            "id": "runtime_gate_diagnostics",
+            "priority": "high",
+            "action": "inspect runtime gate + policy lane receipts before retry"
+        }));
+    }
+    if auth_missing {
+        recommendations.push(json!({
+            "id": "auth_token",
+            "priority": "high",
+            "action": "provide or rotate server-side web tooling token and refresh runtime snapshot"
+        }));
+    }
+    if http_rate_limited {
+        recommendations.push(json!({
+            "id": "provider_fallback",
+            "priority": "medium",
+            "action": "switch provider or add retry cooldown budget"
+        }));
+    }
+
+    let result = json!({
+        "ok": true,
+        "payload": {
+            "type": "web_tooling_signal_diagnostic",
+            "tool": if tool.is_empty() { "web_search".to_string() } else { tool },
+            "provider": if provider.is_empty() { "auto".to_string() } else { provider },
+            "source": if source.is_empty() { "runtime".to_string() } else { source },
+            "status": if status.is_empty() { "unknown".to_string() } else { status },
+            "classification": classification,
+            "flags": {
+                "function_execution_blocked": function_execution_blocked,
+                "auth_missing": auth_missing,
+                "policy_filtered": policy_filtered,
+                "http_rate_limited": http_rate_limited,
+                "low_signal": low_signal
+            },
+            "http_status": http_status,
+            "query": query,
+            "error": error,
+            "recommendations": recommendations
+        }
+    });
+    serde_json::to_string(&result).map_err(|err| format!("result_json_serialize_failed:{err}"))
+}
+
 pub fn run_importer_generic_json_json(payload: &str) -> Result<String, String> {
     let parsed: Value =
         serde_json::from_str(payload).map_err(|err| format!("payload_json_parse_failed:{err}"))?;

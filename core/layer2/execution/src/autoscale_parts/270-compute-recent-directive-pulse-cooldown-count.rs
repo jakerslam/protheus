@@ -1,10 +1,68 @@
+fn normalize_pulse_token(raw: &str) -> String {
+    let mut out = String::new();
+    let mut prev_sep = false;
+    for ch in raw.trim().to_ascii_lowercase().chars() {
+        let mapped = if ch.is_ascii_alphanumeric() || ch == '_' {
+            ch
+        } else if ch.is_ascii_whitespace() || matches!(ch, '-' | '.' | '/' | ':') {
+            '_'
+        } else {
+            continue;
+        };
+        if mapped == '_' {
+            if prev_sep || out.is_empty() {
+                continue;
+            }
+            prev_sep = true;
+            out.push('_');
+            continue;
+        }
+        prev_sep = false;
+        out.push(mapped);
+    }
+    out.trim_matches('_').to_string()
+}
+
+fn canonical_directive_pulse_event_type(raw: &str) -> String {
+    let token = normalize_pulse_token(raw);
+    match token.as_str() {
+        "autonomyrun" | "autonomy_run_event" | "directive_pulse_autonomy_run" => {
+            "autonomy_run".to_string()
+        }
+        _ => token,
+    }
+}
+
+fn canonical_directive_pulse_result(raw: &str) -> String {
+    let token = normalize_pulse_token(raw);
+    match token.as_str() {
+        "stop_repeat_gate_directive_pulse_cooldown_gate"
+        | "directive_pulse_cooldown"
+        | "stop_repeat_gate_directive_pulse" => {
+            "stop_repeat_gate_directive_pulse_cooldown".to_string()
+        }
+        _ => token,
+    }
+}
+
+fn canonical_directive_pulse_objective_id(raw: &str) -> String {
+    let id = compute_sanitize_directive_objective_id(&SanitizeDirectiveObjectiveIdInput {
+        value: Some(raw.to_string()),
+    })
+    .objective_id;
+    if !id.is_empty() {
+        return id;
+    }
+    normalize_pulse_token(raw)
+}
+
 pub fn compute_recent_directive_pulse_cooldown_count(
     input: &RecentDirectivePulseCooldownCountInput,
 ) -> RecentDirectivePulseCooldownCountOutput {
     let objective_id = input
         .objective_id
         .as_ref()
-        .map(|v| v.trim().to_string())
+        .map(|v| canonical_directive_pulse_objective_id(v))
         .unwrap_or_default();
     if objective_id.is_empty() {
         return RecentDirectivePulseCooldownCountOutput { count: 0 };
@@ -23,7 +81,7 @@ pub fn compute_recent_directive_pulse_cooldown_count(
         let event_type = evt
             .event_type
             .as_ref()
-            .map(|v| v.trim().to_string())
+            .map(|v| canonical_directive_pulse_event_type(v))
             .unwrap_or_default();
         if event_type != "autonomy_run" {
             continue;
@@ -31,7 +89,7 @@ pub fn compute_recent_directive_pulse_cooldown_count(
         let result = evt
             .result
             .as_ref()
-            .map(|v| v.trim().to_string())
+            .map(|v| canonical_directive_pulse_result(v))
             .unwrap_or_default();
         if result != "stop_repeat_gate_directive_pulse_cooldown" {
             continue;
@@ -54,12 +112,12 @@ pub fn compute_recent_directive_pulse_cooldown_count(
         let event_objective = evt
             .objective_id
             .as_ref()
-            .map(|v| v.trim().to_string())
+            .map(|v| canonical_directive_pulse_objective_id(v))
             .filter(|v| !v.is_empty())
             .or_else(|| {
                 evt.sample_objective_id
                     .as_ref()
-                    .map(|v| v.trim().to_string())
+                    .map(|v| canonical_directive_pulse_objective_id(v))
                     .filter(|v| !v.is_empty())
             })
             .unwrap_or_default();

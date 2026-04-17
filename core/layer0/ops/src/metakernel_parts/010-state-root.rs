@@ -45,6 +45,18 @@ const EXPECTED_PRIMITIVES: &[&str] = &[
     "supervisor",
     "attestation",
 ];
+const WEB_PROVIDER_CONTRACT_TARGETS: &[&str] = &[
+    "brave",
+    "duckduckgo",
+    "exa",
+    "firecrawl",
+    "google",
+    "minimax",
+    "moonshot",
+    "perplexity",
+    "tavily",
+    "xai",
+];
 
 fn state_root(root: &Path) -> PathBuf {
     if let Ok(v) = std::env::var("METAKERNEL_STATE_ROOT") {
@@ -99,6 +111,33 @@ fn is_token_id(raw: &str) -> bool {
     !t.is_empty()
         && t.chars()
             .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.' | ':'))
+}
+
+fn normalize_web_provider_target(raw: &str) -> String {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "kimi" | "moonshot" => "moonshot".to_string(),
+        "grok" | "xai" => "xai".to_string(),
+        "duck_duck_go" | "duckduckgo" => "duckduckgo".to_string(),
+        "brave_search" | "brave" => "brave".to_string(),
+        other => other.to_string(),
+    }
+}
+
+fn manifest_requires_web_contract(manifest: &Value) -> bool {
+    manifest
+        .get("capabilities")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .iter()
+        .filter_map(Value::as_str)
+        .map(|row| row.trim().to_ascii_lowercase())
+        .any(|cap| {
+            cap == "web_search"
+                || cap == "web_fetch"
+                || cap.contains("web")
+                || cap.contains("search")
+        })
 }
 
 fn print_receipt(value: &Value) {
@@ -333,6 +372,39 @@ fn validate_manifest_payload(
         errors.push("capabilities_include_unknown_primitive");
     }
 
+    let requires_web_contract = manifest_requires_web_contract(manifest);
+    let web_provider = manifest
+        .pointer("/web_tooling/provider")
+        .and_then(Value::as_str)
+        .or_else(|| manifest.get("web_provider").and_then(Value::as_str))
+        .map(normalize_web_provider_target)
+        .unwrap_or_default();
+    let web_discovery_contract = manifest
+        .pointer("/web_tooling/discovery_contract")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let web_auth_contract_count = manifest
+        .pointer("/web_tooling/auth_contract")
+        .and_then(Value::as_array)
+        .map(|rows| rows.len())
+        .unwrap_or(0);
+    if strict && requires_web_contract && web_provider.is_empty() {
+        errors.push("web_tooling_provider_required");
+    }
+    if !web_provider.is_empty()
+        && !WEB_PROVIDER_CONTRACT_TARGETS
+            .iter()
+            .any(|target| target == &web_provider.as_str())
+    {
+        errors.push("web_tooling_provider_invalid");
+    }
+    if strict && requires_web_contract && !web_discovery_contract {
+        errors.push("web_tooling_discovery_contract_required");
+    }
+    if strict && requires_web_contract && web_auth_contract_count == 0 {
+        errors.push("web_tooling_auth_contract_required");
+    }
+
     let budgets = manifest
         .get("budgets")
         .and_then(Value::as_object)
@@ -397,4 +469,3 @@ fn validate_manifest_payload(
         }),
     )
 }
-

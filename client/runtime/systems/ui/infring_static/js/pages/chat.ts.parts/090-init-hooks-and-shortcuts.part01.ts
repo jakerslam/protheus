@@ -123,7 +123,7 @@
         }
         if (hasTyping) {
           self._agentTrailListening = true;
-          if (self._agentTrailOrbEl && self._agentTrailOrbEl.classList) self._agentTrailOrbEl.classList.add('agent-listening');
+          self.setAgentTrailBlinkState(true);
           if (self._agentTrailRaf) {
             try { cancelAnimationFrame(self._agentTrailRaf); } catch(_) {}
             self._agentTrailRaf = 0;
@@ -131,7 +131,7 @@
           self._agentTrailListenTimer = setTimeout(function() {
             self._agentTrailListenTimer = 0;
             self._agentTrailListening = false;
-            if (self._agentTrailOrbEl && self._agentTrailOrbEl.classList) self._agentTrailOrbEl.classList.remove('agent-listening');
+            self.setAgentTrailBlinkState(false);
             self.startAgentTrailLoop();
           }, 1000);
         } else if (self._agentTrailListening) {
@@ -140,7 +140,7 @@
           self._agentTrailListenTimer = setTimeout(function() {
             self._agentTrailListenTimer = 0;
             self._agentTrailListening = false;
-            if (self._agentTrailOrbEl && self._agentTrailOrbEl.classList) self._agentTrailOrbEl.classList.remove('agent-listening');
+            self.setAgentTrailBlinkState(false);
             if (!self._agentTrailRaf) self.startAgentTrailLoop();
           }, 1000);
         }
@@ -330,7 +330,7 @@
         s.x = x; s.y = y; s.vx = 0; s.vy = 0; s.trailX = x; s.trailY = y; s.anchorLastAt = now;
         self._agentTrailState = s;
         self.ensureAgentTrailOrb(host, x, y);
-        if (self._agentTrailOrbEl && self._agentTrailOrbEl.classList) self._agentTrailOrbEl.classList.add('agent-listening');
+        self.setAgentTrailBlinkState(true);
         host.style.setProperty('--chat-agent-grid-active', '1');
         host.style.setProperty('--chat-agent-grid-x', Math.round(x) + 'px');
         host.style.setProperty('--chat-agent-grid-y', Math.round(y) + 'px');
@@ -339,7 +339,7 @@
       var bubbles = host.querySelectorAll('.message.thinking .message-bubble.message-bubble-thinking');
       if (!bubbles || !bubbles.length) {
         if (pinToLastThinkingAnchor()) return true;
-        if (this._agentTrailOrbEl && this._agentTrailOrbEl.classList && !this._agentTrailListening) this._agentTrailOrbEl.classList.remove('agent-listening');
+        if (!this._agentTrailListening) this.setAgentTrailBlinkState(false);
         return false;
       }
       var rect = hostRect && Number.isFinite(Number(hostRect.width || 0)) ? hostRect : host.getBoundingClientRect();
@@ -367,12 +367,13 @@
       }
       if (!anchor) {
         if (pinToLastThinkingAnchor()) return true;
-        if (this._agentTrailOrbEl && this._agentTrailOrbEl.classList && !this._agentTrailListening) this._agentTrailOrbEl.classList.remove('agent-listening');
+        if (!this._agentTrailListening) this.setAgentTrailBlinkState(false);
         return false;
       }
       var targetX = Math.max(pad + 1, Math.min(w - (pad + 1), Number(anchor.x || 0)));
       var targetY = Math.max(pad + 1, Math.min(h - (pad + 1), Number(anchor.y || 0)));
       var s = this._agentTrailState;
+      var enteredThinking = !s || String(s.anchorMode || '') !== 'thinking';
       var x = NaN;
       var y = NaN;
       if (s && Number.isFinite(Number(s.x)) && Number.isFinite(Number(s.y))) {
@@ -396,6 +397,7 @@
       var dx = targetX - x;
       var dy = targetY - y;
       var dist = Math.sqrt((dx * dx) + (dy * dy));
+      if (enteredThinking) dist = 0;
       if (dist > 0.001) {
         // Move in a straight line into the thinking anchor, never teleport.
         var maxStep = 1480 * dt;

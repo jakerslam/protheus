@@ -4,7 +4,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
-const path = require('node:path');
+const path = require('node:path');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 const ROOT = path.resolve(__dirname, '../..');
 
@@ -59,7 +59,7 @@ function main() {
   assert.equal(appended.ok, true);
   assert.equal(fs.existsSync(mod.DEFAULT_LOG_PATH), true);
 
-  console.log(JSON.stringify({ ok: true, type: 'security_integrity_rust_bridge_test' }));
+  assertNoPlaceholderOrPromptLeak({ policy, files, sealed, verified, broken, appended }, 'security_integrity_rust_bridge_test');\n  assertStableToolingEnvelope(sealed, 'security_integrity_rust_bridge_test');\n  console.log(JSON.stringify({ ok: true, type: 'security_integrity_rust_bridge_test' }));
 }
 
 try {

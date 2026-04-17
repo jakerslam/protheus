@@ -2,6 +2,23 @@ fn lane_008_oncall(root: &Path, policy: &Policy) -> Value {
     lane_008_oncall_with_id(root, policy, "V6-F100-008")
 }
 
+fn attach_execution_receipt(mut payload: Value, lane: &str) -> Value {
+    let status = if payload.get("ok").and_then(Value::as_bool) == Some(true) {
+        "success"
+    } else {
+        "error"
+    };
+    payload["execution_receipt"] = json!({
+        "lane": "f100_readiness_program",
+        "command": "lane_audit",
+        "target_lane": lane,
+        "status": status,
+        "source": "OPENCLAW-TOOLING-WEB-104",
+        "tool_runtime_class": "receipt_wrapped"
+    });
+    payload
+}
+
 fn lane_008_oncall_with_id(root: &Path, policy: &Policy, lane: &str) -> Value {
     let lane_policy = get_lane_policy(policy, lane)
         .or_else(|| get_lane_policy(policy, "V6-F100-008"))
@@ -52,14 +69,14 @@ fn lane_008_oncall_with_id(root: &Path, policy: &Policy, lane: &str) -> Value {
         .iter()
         .all(|r| r.get("ok").and_then(Value::as_bool).unwrap_or(false));
 
-    json!({
+    attach_execution_receipt(json!({
         "ok": ok,
         "lane": lane,
         "type": "f100_oncall_incident_command",
         "checks": checks,
         "incident_policy_path": policy_path,
         "gameday_path": gameday_path
-    })
+    }), lane)
 }
 
 fn lane_009_onboarding(root: &Path, policy: &Policy) -> Value {
@@ -102,14 +119,14 @@ fn lane_009_onboarding(root: &Path, policy: &Policy) -> Value {
         .iter()
         .all(|r| r.get("ok").and_then(Value::as_bool).unwrap_or(false));
 
-    json!({
+    attach_execution_receipt(json!({
         "ok": ok,
         "lane": "V6-F100-009",
         "type": "f100_onboarding_portal",
         "checks": checks,
         "bootstrap_script": bootstrap_script,
         "metrics_path": metrics_path
-    })
+    }), "V6-F100-009")
 }
 
 fn lane_010_architecture_pack(root: &Path, policy: &Policy) -> Value {
@@ -327,4 +344,3 @@ fn lane_012_scorecard(root: &Path, policy: &Policy) -> Value {
 
     out
 }
-

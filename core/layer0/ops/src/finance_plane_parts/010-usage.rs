@@ -102,6 +102,57 @@ fn read_object(path: &Path) -> Map<String, Value> {
         .unwrap_or_default()
 }
 
+fn finance_token(raw: &str, max_len: usize) -> String {
+    let mut out = String::new();
+    let mut prev_sep = false;
+    for ch in clean(raw, max_len).to_ascii_lowercase().chars() {
+        let mapped = if ch.is_ascii_alphanumeric() || matches!(ch, '_' | '-' | '.' | ':') {
+            ch
+        } else {
+            '_'
+        };
+        if mapped == '_' {
+            if prev_sep || out.is_empty() {
+                continue;
+            }
+            prev_sep = true;
+            out.push('_');
+            continue;
+        }
+        prev_sep = false;
+        out.push(mapped);
+        if out.len() >= max_len {
+            break;
+        }
+    }
+    out.trim_matches('_').to_string()
+}
+
+fn canonical_currency(raw: &str) -> String {
+    let trimmed = raw.trim();
+    if trimmed == "$" {
+        return "USD".to_string();
+    }
+    let token = finance_token(trimmed, 16).to_ascii_uppercase();
+    match token.as_str() {
+        "" | "US_DOLLAR" | "USDOLLAR" | "US_D" => "USD".to_string(),
+        "USDCOIN" => "USDC".to_string(),
+        "USDTETHER" => "USDT".to_string(),
+        _ => token,
+    }
+}
+
+fn canonical_rail(raw: &str) -> String {
+    let token = finance_token(raw, 24);
+    match token.as_str() {
+        "wire" | "fed_wire" | "federal_wire" => "fedwire".to_string(),
+        "real_time_payments" | "rtp_network" => "rtp".to_string(),
+        "automated_clearing_house" | "ach_network" => "ach".to_string(),
+        "" => "ach".to_string(),
+        _ => token,
+    }
+}
+
 fn emit(root: &Path, _command: &str, strict: bool, payload: Value, conduit: Option<&Value>) -> i32 {
     emit_attached_plane_receipt(root, ENV_KEY, LANE_ID, strict, payload, conduit)
 }
@@ -116,6 +167,11 @@ fn transaction_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Value,
         12,
     )
     .to_ascii_lowercase();
+    let op = match op.as_str() {
+        "create" | "submit" => "post".to_string(),
+        "summary" => "status".to_string(),
+        _ => op,
+    };
     if op == "status" {
         return Ok(json!({
             "ok": true,
@@ -135,7 +191,7 @@ fn transaction_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Value,
     if op != "post" {
         return Err("transaction_op_invalid".to_string());
     }
-    let tx_id = clean(
+    let tx_id = finance_token(
         parsed
             .flags
             .get("tx-id")
@@ -143,17 +199,20 @@ fn transaction_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Value,
             .unwrap_or("tx"),
         120,
     );
+    let tx_id = if tx_id.is_empty() {
+        "tx".to_string()
+    } else {
+        tx_id
+    };
     let amount = parse_f64(parsed.flags.get("amount"), 0.0);
-    let currency = clean(
+    let currency = canonical_currency(
         parsed
             .flags
             .get("currency")
             .map(String::as_str)
             .unwrap_or("USD"),
-        12,
-    )
-    .to_ascii_uppercase();
-    let debit = clean(
+    );
+    let debit = finance_token(
         parsed
             .flags
             .get("debit")
@@ -161,7 +220,12 @@ fn transaction_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Value,
             .unwrap_or("cash"),
         120,
     );
-    let credit = clean(
+    let debit = if debit.is_empty() {
+        "cash".to_string()
+    } else {
+        debit
+    };
+    let credit = finance_token(
         parsed
             .flags
             .get("credit")
@@ -169,15 +233,18 @@ fn transaction_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Value,
             .unwrap_or("revenue"),
         120,
     );
-    let rail = clean(
+    let credit = if credit.is_empty() {
+        "revenue".to_string()
+    } else {
+        credit
+    };
+    let rail = canonical_rail(
         parsed
             .flags
             .get("rail")
             .map(String::as_str)
             .unwrap_or("ach"),
-        16,
-    )
-    .to_ascii_lowercase();
+    );
     if amount <= 0.0 {
         return Err("transaction_amount_invalid".to_string());
     }

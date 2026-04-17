@@ -8,6 +8,11 @@ fn prepare_cmd(
     last_known_good_override: Option<&String>,
 ) -> Result<(Value, i32), String> {
     let mut errors = Vec::<String>::new();
+    let web_tooling_health = crate::network_protocol::web_tooling_health_report(root, false);
+    let web_tooling_ready = web_tooling_health
+        .get("ok")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
     if !policy.rollback_policy_path.exists() {
         write_text_atomic(
             &policy.rollback_policy_path,
@@ -146,6 +151,7 @@ fn prepare_cmd(
             .and_then(Value::as_array)
             .map(|rows| rows.len())
             .unwrap_or(0),
+        "web_tooling_health": web_tooling_health,
         "validation": validation,
         "errors": errors,
         "claim_evidence": [{
@@ -158,7 +164,8 @@ fn prepare_cmd(
                     .and_then(Value::as_array)
                     .map(|rows| rows.len())
                     .unwrap_or(0),
-                "validation_ok": ok
+                "validation_ok": ok,
+                "web_tooling_ready": web_tooling_ready
             }
         }]
     });
@@ -481,4 +488,3 @@ mod tests {
             .unwrap_or(false));
     }
 }
-

@@ -36,7 +36,17 @@ fn run_compact(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
     });
     let snapshot_path =
         snapshot_dir(root, &cycle_id).join(format!("sphere_of_ice_{}.json", ts.replace(':', "-")));
-    let _ = write_json(&snapshot_path, &snapshot);
+    if let Err(err) = write_json(&snapshot_path, &snapshot) {
+        return json!({
+            "ok": false,
+            "strict": strict,
+            "type": "snowball_plane_compact",
+            "action": "compact",
+            "errors": [format!("snapshot_write_failed:{err}")],
+            "cycle_id": cycle_id,
+            "snapshot_path": snapshot_path.display().to_string()
+        });
+    }
     let snapshot_hash =
         sha256_hex_str(&read_json(&snapshot_path).unwrap_or(Value::Null).to_string());
 
@@ -78,8 +88,17 @@ fn run_compact(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
             .cloned()
             .unwrap_or_default(),
     );
-    let _ = write_json(&fitness_review_path(root, &cycle_id), &review);
-    let _ = write_json(
+    if let Err(err) = write_json(&fitness_review_path(root, &cycle_id), &review) {
+        return json!({
+            "ok": false,
+            "strict": strict,
+            "type": "snowball_plane_compact",
+            "action": "compact",
+            "errors": [format!("fitness_review_write_failed:{err}")],
+            "cycle_id": cycle_id
+        });
+    }
+    if let Err(err) = write_json(
         &kept_path(root, &cycle_id),
         &json!({
             "version": "v1",
@@ -87,8 +106,17 @@ fn run_compact(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
             "generated_at": crate::now_iso(),
             "items": kept
         }),
-    );
-    let _ = write_json(
+    ) {
+        return json!({
+            "ok": false,
+            "strict": strict,
+            "type": "snowball_plane_compact",
+            "action": "compact",
+            "errors": [format!("kept_manifest_write_failed:{err}")],
+            "cycle_id": cycle_id
+        });
+    }
+    if let Err(err) = write_json(
         &discarded_path(root, &cycle_id),
         &json!({
             "version": "v1",
@@ -96,7 +124,16 @@ fn run_compact(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
             "generated_at": crate::now_iso(),
             "items": discarded
         }),
-    );
+    ) {
+        return json!({
+            "ok": false,
+            "strict": strict,
+            "type": "snowball_plane_compact",
+            "action": "compact",
+            "errors": [format!("discarded_manifest_write_failed:{err}")],
+            "cycle_id": cycle_id
+        });
+    }
     let (discarded_blob_rows, discarded_blob_index) =
         archive_discarded_blobs(root, &cycle_id, &discarded);
     let prime_state = json!({
@@ -120,7 +157,16 @@ fn run_compact(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
             "pass": reliability_gate_pass
         }
     });
-    let _ = write_json(&prime_directive_compacted_state_path(root), &prime_state);
+    if let Err(err) = write_json(&prime_directive_compacted_state_path(root), &prime_state) {
+        return json!({
+            "ok": false,
+            "strict": strict,
+            "type": "snowball_plane_compact",
+            "action": "compact",
+            "errors": [format!("prime_directive_compacted_state_write_failed:{err}")],
+            "cycle_id": cycle_id
+        });
+    }
 
     let mut next_cycle = cycle.unwrap_or_else(|| json!({"cycle_id": cycle_id, "stage":"running"}));
     next_cycle["snapshot"] = json!({
@@ -403,4 +449,3 @@ fn run_archive_discarded(root: &Path, parsed: &crate::ParsedArgs, strict: bool) 
     out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
-

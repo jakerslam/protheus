@@ -75,14 +75,17 @@ fn latest_path(root: &Path) -> PathBuf {
 
 fn team_slug(raw: &str) -> String {
     let mut out = String::new();
+    let mut prev_dash = false;
     for ch in raw.trim().chars() {
         if out.len() >= 80 {
             break;
         }
         if ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_') {
             out.push(ch.to_ascii_lowercase());
-        } else {
+            prev_dash = false;
+        } else if !prev_dash {
             out.push('-');
+            prev_dash = true;
         }
     }
     let trimmed = out.trim_matches('-');
@@ -454,4 +457,3 @@ fn continuity_checkpoint_path(root: &Path, team: &str) -> PathBuf {
         .join("checkpoint")
         .join(format!("{team}.json"))
 }
-

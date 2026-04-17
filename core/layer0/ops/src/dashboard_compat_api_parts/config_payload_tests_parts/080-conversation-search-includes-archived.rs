@@ -100,3 +100,31 @@ fn channels_endpoint_exposes_transport_contract_metadata() {
         Some(true)
     );
 }
+
+#[test]
+fn compat_runtime_web_tooling_contract_always_exposes_auth_posture() {
+    let wrapped = compat_api_response_with_nexus(
+        "dashboard.search.conversations",
+        CompatApiResponse {
+            status: 200,
+            payload: json!({
+                "ok": true,
+                "results": []
+            }),
+        },
+    );
+    let contract = wrapped
+        .payload
+        .get("runtime_web_tooling_contract")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
+    assert_eq!(contract.get("strict_auth_required").is_some(), true);
+    assert_eq!(contract.get("auth_present").is_some(), true);
+    assert_eq!(
+        contract
+            .get("auth_sources")
+            .and_then(Value::as_array)
+            .is_some(),
+        true
+    );
+}

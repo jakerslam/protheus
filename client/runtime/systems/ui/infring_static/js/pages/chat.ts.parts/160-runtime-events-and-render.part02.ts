@@ -4,6 +4,33 @@
       return String(msg.role || '');
     },
 
+    messageOriginKind: function(msg) {
+      if (!msg || typeof msg !== 'object') return 'other';
+      if (msg.terminal) {
+        var terminalSource = typeof this.terminalMessageSource === 'function'
+          ? this.terminalMessageSource(msg)
+          : String(msg.terminal_source || '').trim().toLowerCase();
+        if (terminalSource === 'user') return 'human';
+        if (terminalSource === 'agent' || terminalSource === 'assistant') return 'agent';
+        return 'system';
+      }
+      var role = String(msg.role || '').trim().toLowerCase();
+      if (!role) return 'other';
+      if (role === 'assistant') role = 'agent';
+      if (role === 'user' || role === 'human') return 'human';
+      if (role === 'agent') return 'agent';
+      if (role === 'system') return 'system';
+      return 'other';
+    },
+
+    messageIsAgentOrigin: function(msg) {
+      return this.messageOriginKind(msg) === 'agent';
+    },
+
+    messageIsHumanOrigin: function(msg) {
+      return this.messageOriginKind(msg) === 'human';
+    },
+
     shouldReloadHistoryForFinalEventPayload: function(payload) {
       return !!(
         payload &&

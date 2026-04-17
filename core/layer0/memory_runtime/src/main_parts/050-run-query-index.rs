@@ -1,4 +1,45 @@
 
+fn memory_query_execution_receipt(scope: &str, status: &str, error_kind: Option<&str>) -> Value {
+    let normalized_status = match status.trim().to_ascii_lowercase().as_str() {
+        "ok" | "success" | "succeeded" | "ready" => "success",
+        "timeout" | "timed_out" | "timed-out" => "timeout",
+        "throttled" | "rate_limited" | "rate-limited" | "429" => "throttled",
+        _ => "error",
+    };
+    let normalized_error = error_kind.map(|raw| {
+        raw.trim()
+            .to_ascii_lowercase()
+            .chars()
+            .map(|ch| {
+                if ch.is_ascii_alphanumeric() || matches!(ch, '_' | '-' | ':' | '.') {
+                    ch
+                } else {
+                    '_'
+                }
+            })
+            .collect::<String>()
+            .split('_')
+            .filter(|row| !row.is_empty())
+            .collect::<Vec<_>>()
+            .join("_")
+    });
+    let seed = format!(
+        "{}|{}|{}",
+        clean_text(scope, 120),
+        normalized_status,
+        normalized_error.clone().unwrap_or_default()
+    );
+    json!({
+        "call_id": format!("memory-query-{}", &sha256_hex(&seed)[..16]),
+        "status": normalized_status,
+        "error_kind": normalized_error,
+        "telemetry": {
+            "duration_ms": 0,
+            "tokens_used": 0
+        }
+    })
+}
+
 fn run_query_index(args: &HashMap<String, String>) {
     let out = query_index_payload(args);
     println!(
@@ -22,10 +63,13 @@ fn get_node_payload(args: &HashMap<String, String>) -> (serde_json::Value, i32) 
 
     let node_guard = enforce_node_only(&node_id, &uid);
     if !node_guard.ok {
+        let error = node_guard.reason_code;
         return (
             json!({
                 "ok": false,
-                "error": node_guard.reason_code
+                "type": "memory_get_node",
+                "error": error,
+                "execution_receipt": memory_query_execution_receipt("get_node", "error", Some(error))
             }),
             2,
         );
@@ -35,10 +79,13 @@ fn get_node_payload(args: &HashMap<String, String>) -> (serde_json::Value, i32) 
     let index_guard =
         enforce_index_first(&runtime_index.index_sources, runtime_index.entries.len());
     if !index_guard.ok {
+        let error = index_guard.reason_code;
         return (
             json!({
                 "ok": false,
-                "error": index_guard.reason_code
+                "type": "memory_get_node",
+                "error": error,
+                "execution_receipt": memory_query_execution_receipt("get_node", "error", Some(error))
             }),
             2,
         );
@@ -55,15 +102,18 @@ fn get_node_payload(args: &HashMap<String, String>) -> (serde_json::Value, i32) 
         parse_bool_arg(&arg_any(args, &["allow-stale", "allow_stale"]), false),
     );
     if !freshness.ok {
+        let error = freshness.reason_code;
         return (
             json!({
                 "ok": false,
-                "error": freshness.reason_code,
+                "type": "memory_get_node",
+                "error": error,
                 "freshness": {
                     "stale": freshness.stale,
                     "age_ms": freshness.age_ms,
                     "threshold_ms": freshness.threshold_ms
-                }
+                },
+                "execution_receipt": memory_query_execution_receipt("get_node", "error", Some(error))
             }),
             2,
         );
@@ -149,10 +199,9 @@ fn get_node_payload(args: &HashMap<String, String>) -> (serde_json::Value, i32) 
         section_hash,
         section,
     };
-    (
-        serde_json::to_value(&out).expect("serialize get-node value"),
-        0,
-    )
+    let mut payload = serde_json::to_value(&out).expect("serialize get-node value");
+    payload["execution_receipt"] = memory_query_execution_receipt("get_node", "success", None);
+    (payload, 0)
 }
 
 fn run_get_node(args: &HashMap<String, String>) {

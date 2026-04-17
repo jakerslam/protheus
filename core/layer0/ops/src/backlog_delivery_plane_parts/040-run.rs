@@ -1,3 +1,14 @@
+fn attach_execution_receipt(mut payload: Value, command: &str, status: &str) -> Value {
+    payload["execution_receipt"] = json!({
+        "lane": "backlog_delivery_plane",
+        "command": command,
+        "status": status,
+        "source": "OPENCLAW-TOOLING-WEB-101",
+        "tool_runtime_class": "receipt_wrapped"
+    });
+    payload
+}
+
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     let parsed = parse_args(argv);
     let command = parsed
@@ -12,11 +23,15 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     }
 
     if command == "status" {
-        let payload = plane_status(
-            root,
-            STATE_ENV,
-            STATE_SCOPE,
-            "backlog_delivery_plane_status",
+        let payload = attach_execution_receipt(
+            plane_status(
+                root,
+                STATE_ENV,
+                STATE_SCOPE,
+                "backlog_delivery_plane_status",
+            ),
+            "status",
+            "success",
         );
         return emit_attached_plane_receipt(root, STATE_ENV, STATE_SCOPE, false, payload, None);
     }
@@ -27,12 +42,16 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             STATE_ENV,
             STATE_SCOPE,
             true,
-            json!({
-                "ok": false,
-                "type": "backlog_delivery_plane_error",
-                "error": "unknown_command",
-                "command": command
-            }),
+            attach_execution_receipt(
+                json!({
+                    "ok": false,
+                    "type": "backlog_delivery_plane_error",
+                    "error": "unknown_command",
+                    "command": command
+                }),
+                "run",
+                "error",
+            ),
             None,
         );
     }
@@ -45,11 +64,15 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             STATE_ENV,
             STATE_SCOPE,
             strict,
-            json!({
-                "ok": false,
-                "type": "backlog_delivery_plane_run",
-                "error": "missing_or_invalid_id"
-            }),
+            attach_execution_receipt(
+                json!({
+                    "ok": false,
+                    "type": "backlog_delivery_plane_run",
+                    "error": "missing_or_invalid_id"
+                }),
+                "run",
+                "error",
+            ),
             None,
         );
     }
@@ -76,7 +99,14 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             }),
             Some(&conduit),
         );
-        return emit_attached_plane_receipt(root, STATE_ENV, STATE_SCOPE, strict, payload, None);
+        return emit_attached_plane_receipt(
+            root,
+            STATE_ENV,
+            STATE_SCOPE,
+            strict,
+            attach_execution_receipt(payload, "run", "error"),
+            None,
+        );
     }
 
     let mut payload = run_id(root, &id, &parsed);
@@ -87,7 +117,12 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     payload["lane"] = Value::String("core/layer0/ops".to_string());
     payload["strict"] = Value::Bool(strict);
     payload = attach_conduit(payload, Some(&conduit));
+    let status = if payload.get("ok").and_then(Value::as_bool) == Some(false) {
+        "error"
+    } else {
+        "success"
+    };
+    payload = attach_execution_receipt(payload, "run", status);
 
     emit_attached_plane_receipt(root, STATE_ENV, STATE_SCOPE, strict, payload, None)
 }
-

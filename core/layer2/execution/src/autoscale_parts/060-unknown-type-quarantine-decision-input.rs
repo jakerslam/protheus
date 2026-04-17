@@ -2,17 +2,17 @@
 pub struct UnknownTypeQuarantineDecisionInput {
     #[serde(default)]
     pub enabled: bool,
-    #[serde(default)]
+    #[serde(default, alias = "proposalType", alias = "type")]
     pub proposal_type: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "in_quarantine_set")]
     pub type_in_quarantine_set: bool,
-    #[serde(default)]
+    #[serde(default, alias = "allowDirective")]
     pub allow_directive: bool,
-    #[serde(default)]
+    #[serde(default, alias = "allowTier1")]
     pub allow_tier1: bool,
-    #[serde(default)]
+    #[serde(default, alias = "objectiveId")]
     pub objective_id: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "tier1Objective")]
     pub tier1_objective: bool,
 }
 
@@ -26,17 +26,17 @@ pub struct UnknownTypeQuarantineDecisionOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct InferOptimizationDeltaInput {
-    #[serde(default)]
+    #[serde(default, alias = "optimizationDeltaPercent")]
     pub optimization_delta_percent: Option<f64>,
-    #[serde(default)]
+    #[serde(default, alias = "expectedOptimizationPercent")]
     pub expected_optimization_percent: Option<f64>,
-    #[serde(default)]
+    #[serde(default, alias = "expectedDeltaPercent")]
     pub expected_delta_percent: Option<f64>,
-    #[serde(default)]
+    #[serde(default, alias = "estimatedImprovementPercent")]
     pub estimated_improvement_percent: Option<f64>,
-    #[serde(default)]
+    #[serde(default, alias = "targetImprovementPercent")]
     pub target_improvement_percent: Option<f64>,
-    #[serde(default)]
+    #[serde(default, alias = "performanceGainPercent")]
     pub performance_gain_percent: Option<f64>,
     #[serde(default)]
     pub text_blob: Option<String>,
@@ -50,11 +50,11 @@ pub struct InferOptimizationDeltaOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct OptimizationIntentProposalInput {
-    #[serde(default)]
+    #[serde(default, alias = "proposalType", alias = "type")]
     pub proposal_type: Option<String>,
     #[serde(default)]
     pub blob: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "hasActuationMeta")]
     pub has_actuation_meta: bool,
 }
 
@@ -67,15 +67,15 @@ pub struct OptimizationIntentProposalOutput {
 pub struct UnlinkedOptimizationAdmissionInput {
     #[serde(default)]
     pub optimization_intent: bool,
-    #[serde(default)]
+    #[serde(default, alias = "proposalType", alias = "type")]
     pub proposal_type: Option<String>,
     #[serde(default)]
     pub exempt_types: Vec<String>,
     #[serde(default)]
     pub linked: bool,
-    #[serde(default)]
+    #[serde(default, alias = "normalizedRisk")]
     pub normalized_risk: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "hardBlockHighRisk")]
     pub hard_block_high_risk: bool,
     #[serde(default)]
     pub penalty: f64,
@@ -93,17 +93,17 @@ pub struct UnlinkedOptimizationAdmissionOutput {
 pub struct OptimizationGoodEnoughInput {
     #[serde(default)]
     pub applies: bool,
-    #[serde(default)]
+    #[serde(default, alias = "minDeltaPercent")]
     pub min_delta_percent: f64,
-    #[serde(default)]
+    #[serde(default, alias = "requireDelta")]
     pub require_delta: bool,
-    #[serde(default)]
+    #[serde(default, alias = "highAccuracyMode")]
     pub high_accuracy_mode: bool,
-    #[serde(default)]
+    #[serde(default, alias = "normalizedRisk")]
     pub normalized_risk: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "deltaPercent")]
     pub delta_percent: Option<f64>,
-    #[serde(default)]
+    #[serde(default, alias = "deltaSource")]
     pub delta_source: Option<String>,
 }
 
@@ -122,15 +122,15 @@ pub struct OptimizationGoodEnoughOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ProposalDependencySummaryInput {
-    #[serde(default)]
+    #[serde(default, alias = "proposalId")]
     pub proposal_id: Option<String>,
     #[serde(default)]
     pub decision: Option<String>,
     #[serde(default)]
     pub source: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "parentObjectiveId")]
     pub parent_objective_id: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "createdIds")]
     pub created_ids: Vec<String>,
     #[serde(default)]
     pub dry_run: bool,

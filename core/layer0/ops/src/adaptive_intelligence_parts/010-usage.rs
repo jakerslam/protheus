@@ -354,15 +354,22 @@ fn detect_ram_gb() -> f64 {
 }
 
 fn resource_snapshot(flags: &HashMap<String, String>, policy: &AdaptivePolicy) -> ResourceSnapshot {
-    let vram_gb = parse_f64(flags.get("vram-gb"), 0.0);
-    let ram_gb = parse_f64(flags.get("ram-gb"), detect_ram_gb());
+    let default_ram = detect_ram_gb();
+    let vram_gb = parse_f64(flags.get("vram-gb"), 0.0)
+        .max(0.0)
+        .clamp(0.0, 4096.0);
+    let ram_gb = parse_f64(flags.get("ram-gb"), default_ram)
+        .max(0.0)
+        .clamp(0.0, 4096.0);
     let cpu_cores = parse_u64(
         flags.get("cpu-cores"),
         std::thread::available_parallelism()
             .map(|v| v.get() as u64)
-            .unwrap_or(4),
-    );
-    let mode = if vram_gb >= policy.resource_thresholds.dual_vram_gb
+            .unwrap_or(4)
+            .max(1),
+    )
+    .max(1);
+    let mut mode = if vram_gb >= policy.resource_thresholds.dual_vram_gb
         && ram_gb >= policy.resource_thresholds.dual_ram_gb
         && cpu_cores >= policy.resource_thresholds.dual_cpu_cores
     {
@@ -374,6 +381,10 @@ fn resource_snapshot(flags: &HashMap<String, String>, policy: &AdaptivePolicy) -
     } else {
         "tiny_logical_only".to_string()
     };
+    let local_runtime_available = command_exists("ollama") || command_exists("llama-server");
+    if !local_runtime_available && mode != "tiny_logical_only" {
+        mode = "tiny_logical_only".to_string();
+    }
     let degraded = mode != "dual";
     ResourceSnapshot {
         vram_gb,
@@ -405,4 +416,3 @@ fn ollama_model_name(model_id: &str) -> String {
         .trim_start_matches("local/")
         .to_string()
 }
-

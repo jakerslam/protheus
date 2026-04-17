@@ -11,7 +11,7 @@ pub fn compute_strategy_selection(input: &StrategySelectionInput) -> StrategySel
                 0.0
             },
             confidence: if row.confidence.is_finite() {
-                row.confidence
+                row.confidence.clamp(0.0, 1.0)
             } else {
                 0.0
             },
@@ -22,6 +22,14 @@ pub fn compute_strategy_selection(input: &StrategySelectionInput) -> StrategySel
                 .filter(|v| !v.is_empty()),
             execution_mode: normalize_spaces(row.execution_mode.as_deref().unwrap_or("")),
         })
+        .filter(|row| {
+            let stage = row
+                .stage
+                .as_ref()
+                .map(|v| v.to_ascii_lowercase())
+                .unwrap_or_default();
+            !stage.contains("blocked") && !stage.contains("disabled") && !stage.contains("error")
+        })
         .filter(|row| !row.strategy_id.is_empty())
         .collect();
 
@@ -29,6 +37,11 @@ pub fn compute_strategy_selection(input: &StrategySelectionInput) -> StrategySel
         b.score
             .partial_cmp(&a.score)
             .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| {
+                b.confidence
+                    .partial_cmp(&a.confidence)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
             .then_with(|| a.strategy_id.cmp(&b.strategy_id))
     });
     let max_active = input.max_active.max(1.0).round() as usize;

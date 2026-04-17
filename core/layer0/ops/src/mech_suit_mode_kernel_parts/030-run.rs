@@ -71,6 +71,19 @@ fn run_command(root: &Path, command: &str, payload: &Map<String, Value>) -> Resu
     }
 }
 
+fn with_execution_receipt(command: &str, status: &str, payload: Value) -> Value {
+    json!({
+        "execution_receipt": {
+            "lane": "mech_suit_mode_kernel",
+            "command": command,
+            "status": status,
+            "source": "OPENCLAW-TOOLING-WEB-099",
+            "tool_runtime_class": "receipt_wrapped"
+        },
+        "payload": payload
+    })
+}
+
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     let Some(command) = argv.first().map(|v| v.as_str()) else {
         usage();
@@ -90,11 +103,26 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     let payload = payload_obj(&payload).clone();
     match run_command(root, command, &payload) {
         Ok(out) => {
-            print_json_line(&cli_receipt("mech_suit_mode_kernel", out));
+            print_json_line(&cli_receipt(
+                "mech_suit_mode_kernel",
+                with_execution_receipt(command, "success", out),
+            ));
             0
         }
         Err(err) => {
-            print_json_line(&cli_error("mech_suit_mode_kernel", &err));
+            print_json_line(&cli_receipt(
+                "mech_suit_mode_kernel",
+                with_execution_receipt(
+                    command,
+                    "error",
+                    json!({
+                        "ok": false,
+                        "error": err,
+                        "error_kind": "command_failed",
+                        "retryable": false
+                    }),
+                ),
+            ));
             1
         }
     }
@@ -163,4 +191,3 @@ mod tests {
         assert!(root.join(DEFAULT_STATUS_REL).exists());
     }
 }
-

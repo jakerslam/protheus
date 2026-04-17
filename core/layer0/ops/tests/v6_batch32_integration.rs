@@ -46,6 +46,17 @@ fn read_json(path: &Path) -> Value {
     serde_json::from_str(&raw).expect("parse")
 }
 
+fn assert_claim(payload: &Value, claim_id: &str) {
+    let has = payload
+        .get("claim_evidence")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .iter()
+        .any(|row| row.get("id").and_then(Value::as_str) == Some(claim_id));
+    assert!(has, "missing claim evidence id={claim_id}");
+}
+
 fn latest_path(root: &Path, lane: &str) -> PathBuf {
     root.join("core")
         .join("local")
@@ -310,6 +321,7 @@ fn v6_batch32_observability_workflow_validates_schedule_and_compiles_step_traces
         .map(|rows| rows.len())
         .unwrap_or(0);
     assert_eq!(node_count, 3);
+    assert_claim(&upsert_latest, "V6-OBSERVABILITY-001.2");
 
     let run_exit = observability_plane::run(
         root,
@@ -329,6 +341,66 @@ fn v6_batch32_observability_workflow_validates_schedule_and_compiles_step_traces
         .map(|rows| rows.len())
         .unwrap_or(0);
     assert_eq!(step_trace_len, 3);
+    assert_claim(&run_latest, "V6-OBSERVABILITY-001.2");
+
+    let incident_exit = observability_plane::run(
+        root,
+        &[
+            "incident".to_string(),
+            "--strict=1".to_string(),
+            "--op=trigger".to_string(),
+            "--incident-id=web-tooling-b32".to_string(),
+            "--runbook=web-tooling-recovery".to_string(),
+            "--provider=duck_duck_go".to_string(),
+            "--message=blocked the function calls entirely".to_string(),
+            "--action=snapshot+page_oncall+page-oncall".to_string(),
+            "--dispatch-providers=pager_duty+datadog+dd".to_string(),
+            "--external-dispatch-mode=off".to_string(),
+        ],
+    );
+    assert_eq!(incident_exit, 0);
+    let incident_latest = read_json(&latest_path(root, "observability_plane"));
+    assert_eq!(
+        incident_latest.get("type").and_then(Value::as_str),
+        Some("observability_plane_incident")
+    );
+    assert_eq!(
+        incident_latest
+            .pointer("/incident/web_tooling/provider")
+            .and_then(Value::as_str),
+        Some("duckduckgo")
+    );
+    assert_eq!(
+        incident_latest
+            .pointer("/incident/web_tooling/error")
+            .and_then(Value::as_str),
+        Some("web_search_function_execution_blocked")
+    );
+    let response_actions = incident_latest
+        .pointer("/incident/response_actions")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let page_oncall_count = response_actions
+        .iter()
+        .filter(|row| row.as_str() == Some("page-oncall"))
+        .count();
+    assert_eq!(page_oncall_count, 1);
+    assert!(response_actions
+        .iter()
+        .all(|row| row.as_str() != Some("page_oncall")));
+    let dispatched_providers = incident_latest
+        .pointer("/incident/external_dispatch/receipts")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .iter()
+        .filter_map(|row| row.get("provider").and_then(Value::as_str))
+        .collect::<Vec<_>>();
+    assert_eq!(dispatched_providers.len(), 2);
+    assert!(dispatched_providers.iter().any(|row| *row == "pagerduty"));
+    assert!(dispatched_providers.iter().any(|row| *row == "datadog"));
+    assert_claim(&incident_latest, "V6-OBSERVABILITY-001.3");
 
     let bypass_exit = observability_plane::run(
         root,

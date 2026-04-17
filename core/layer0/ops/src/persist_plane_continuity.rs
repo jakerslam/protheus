@@ -121,6 +121,12 @@ pub(super) fn run_continuity(root: &Path, parsed: &crate::ParsedArgs, strict: bo
         20,
     )
     .to_ascii_lowercase();
+    let op = match op.as_str() {
+        "check" | "integrity" => "validate".to_string(),
+        "snapshot" => "checkpoint".to_string(),
+        "restore" | "resume" => "reconstruct".to_string(),
+        _ => op,
+    };
     let allowed_ops = contract
         .get("allowed_ops")
         .and_then(Value::as_array)
@@ -220,7 +226,7 @@ pub(super) fn run_continuity(root: &Path, parsed: &crate::ParsedArgs, strict: bo
                 }
             })
             .collect::<Vec<Value>>();
-        let _ = append_jsonl(
+        let history_append = append_jsonl(
             &continuity_dir(root).join("history.jsonl"),
             &json!({
                 "type": "continuity_validate",
@@ -230,6 +236,17 @@ pub(super) fn run_continuity(root: &Path, parsed: &crate::ParsedArgs, strict: bo
                 "ts": crate::now_iso()
             }),
         );
+        if strict && history_append.is_err() {
+            return json!({
+                "ok": false,
+                "strict": true,
+                "type": "persist_plane_continuity",
+                "lane": "core/layer0/ops",
+                "op": "validate",
+                "session_id": session_id,
+                "errors": ["persist_continuity_history_append_failed"]
+            });
+        }
         let mut out = json!({
             "ok": ok,
             "strict": strict,
@@ -287,8 +304,19 @@ pub(super) fn run_continuity(root: &Path, parsed: &crate::ParsedArgs, strict: bo
             "context_hash": sha256_hex_str(&context.to_string()),
             "lane": "core/layer0/ops/persist_plane"
         });
-        let _ = write_json(&snapshot_path, &snapshot);
-        let _ = append_jsonl(
+        let checkpoint_write = write_json(&snapshot_path, &snapshot);
+        if strict && checkpoint_write.is_err() {
+            return json!({
+                "ok": false,
+                "strict": true,
+                "type": "persist_plane_continuity",
+                "lane": "core/layer0/ops",
+                "op": "checkpoint",
+                "session_id": session_id,
+                "errors": ["persist_continuity_checkpoint_write_failed"]
+            });
+        }
+        let history_append = append_jsonl(
             &continuity_dir(root).join("history.jsonl"),
             &json!({
                 "type": "continuity_checkpoint",
@@ -298,6 +326,17 @@ pub(super) fn run_continuity(root: &Path, parsed: &crate::ParsedArgs, strict: bo
                 "ts": crate::now_iso()
             }),
         );
+        if strict && history_append.is_err() {
+            return json!({
+                "ok": false,
+                "strict": true,
+                "type": "persist_plane_continuity",
+                "lane": "core/layer0/ops",
+                "op": "checkpoint",
+                "session_id": session_id,
+                "errors": ["persist_continuity_history_append_failed"]
+            });
+        }
 
         let mut out = json!({
             "ok": true,
@@ -346,8 +385,19 @@ pub(super) fn run_continuity(root: &Path, parsed: &crate::ParsedArgs, strict: bo
         "source_context_hash": snapshot.get("context_hash").cloned().unwrap_or(Value::Null),
         "reconstruction_hash": sha256_hex_str(&format!("{}:{}", session_id, snapshot.get("context_hash").and_then(Value::as_str).unwrap_or("")))
     });
-    let _ = write_json(&reconstruct_path, &reconstructed);
-    let _ = append_jsonl(
+    let reconstruct_write = write_json(&reconstruct_path, &reconstructed);
+    if strict && reconstruct_write.is_err() {
+        return json!({
+            "ok": false,
+            "strict": true,
+            "type": "persist_plane_continuity",
+            "lane": "core/layer0/ops",
+            "op": "reconstruct",
+            "session_id": session_id,
+            "errors": ["persist_continuity_reconstruct_write_failed"]
+        });
+    }
+    let history_append = append_jsonl(
         &continuity_dir(root).join("history.jsonl"),
         &json!({
             "type": "continuity_reconstruct",
@@ -357,6 +407,17 @@ pub(super) fn run_continuity(root: &Path, parsed: &crate::ParsedArgs, strict: bo
             "ts": crate::now_iso()
         }),
     );
+    if strict && history_append.is_err() {
+        return json!({
+            "ok": false,
+            "strict": true,
+            "type": "persist_plane_continuity",
+            "lane": "core/layer0/ops",
+            "op": "reconstruct",
+            "session_id": session_id,
+            "errors": ["persist_continuity_history_append_failed"]
+        });
+    }
 
     let mut out = json!({
         "ok": true,

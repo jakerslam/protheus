@@ -14,6 +14,8 @@ use std::path::{Path, PathBuf};
 const STATE_ENV: &str = "SEED_PROTOCOL_STATE_ROOT";
 const STATE_SCOPE: &str = "seed_protocol";
 const PACKETS_DIR: &str = "packets";
+const PROVIDER_FAMILY_CONTRACT_TARGETS: &[&str] =
+    &["anthropic", "fal", "google", "minimax", "moonshot"];
 
 fn state_root(root: &Path) -> PathBuf {
     scoped_state_root(root, STATE_ENV, STATE_SCOPE)
@@ -44,6 +46,14 @@ fn default_state() -> Value {
         "archive_count": 0u64,
         "archive_merkle_root": sha256_hex_str("seed_archive_empty"),
         "defense_event_count": 0u64,
+        "provider_family_contract": {
+            "active_provider_family": "moonshot",
+            "provider_family_contract_targets": PROVIDER_FAMILY_CONTRACT_TARGETS,
+            "provider_runtime_contract": true,
+            "provider_auth_contract": true,
+            "provider_registry_contract": true,
+            "provider_discovery_contract": true
+        },
         "quarantine": {},
         "packets": [],
         "replications": [],
@@ -141,6 +151,17 @@ fn gate_allowed(root: &Path, action: &str) -> bool {
     directive_kernel::action_allowed(root, action)
         || directive_kernel::action_allowed(root, "seed:*")
         || directive_kernel::action_allowed(root, "seed")
+}
+
+fn normalize_provider_family(raw: Option<&str>) -> String {
+    match raw.unwrap_or("").trim().to_ascii_lowercase().as_str() {
+        "claude" | "anthropic" => "anthropic".to_string(),
+        "fal_ai" | "fal" => "fal".to_string(),
+        "gemini" | "google" => "google".to_string(),
+        "minimax" => "minimax".to_string(),
+        "kimi" | "moonshot" => "moonshot".to_string(),
+        other => other.to_string(),
+    }
 }
 
 fn profile_claim_id(prefix: &str, profile: &str) -> String {
@@ -282,6 +303,28 @@ fn command_status(root: &Path) -> i32 {
         .get("defense_event_count")
         .and_then(Value::as_u64)
         .unwrap_or(0);
+    let provider_family_contract = obj
+        .get("provider_family_contract")
+        .cloned()
+        .unwrap_or_else(|| {
+            json!({
+                "active_provider_family": "moonshot",
+                "provider_family_contract_targets": PROVIDER_FAMILY_CONTRACT_TARGETS,
+                "provider_runtime_contract": true,
+                "provider_auth_contract": true,
+                "provider_registry_contract": true,
+                "provider_discovery_contract": true
+            })
+        });
+    let provider_family = normalize_provider_family(
+        provider_family_contract
+            .get("active_provider_family")
+            .and_then(Value::as_str),
+    );
+    let provider_family_contract_ok = !provider_family.is_empty()
+        && PROVIDER_FAMILY_CONTRACT_TARGETS
+            .iter()
+            .any(|target| target == &provider_family.as_str());
 
     let compliance_rate = if compliance_checks == 0 {
         1.0
@@ -306,8 +349,11 @@ fn command_status(root: &Path) -> i32 {
                 "survival_fitness": survival_fitness,
                 "compliance_rate": compliance_rate,
                 "archive_merkle_root": obj.get("archive_merkle_root").cloned().unwrap_or(Value::Null),
-                "quarantined_nodes": obj.get("quarantine").and_then(Value::as_object).map(|m| m.len()).unwrap_or(0)
+                "quarantined_nodes": obj.get("quarantine").and_then(Value::as_object).map(|m| m.len()).unwrap_or(0),
+                "provider_family_contract_ok": provider_family_contract_ok,
+                "provider_family": provider_family
             },
+            "provider_family_contract": provider_family_contract,
             "latest": read_json(&latest_path(root)),
             "claim_evidence": [
                 {
@@ -319,9 +365,13 @@ fn command_status(root: &Path) -> i32 {
                     "id": "V9-IMMORTAL-001.6",
                     "claim": "millennia_dashboard_surfaces_survival_fitness_and_archive_health",
                     "evidence": {"survival_fitness": survival_fitness, "archive_count": archive_count}
+                },
+                {
+                    "id": "V9-IMMORTAL-001.7",
+                    "claim": "seed_protocol_status_surfaces_provider_family_contract_posture",
+                    "evidence": {"provider_family": provider_family, "provider_family_contract_ok": provider_family_contract_ok}
                 }
             ]
         }),
     )
 }
-

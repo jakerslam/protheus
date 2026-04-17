@@ -98,7 +98,47 @@ fn release_check_base(current_version: &str) -> Value {
         "type": "dashboard_release_check",
         "current_version": current_version,
         "release_url": REPO_RELEASE_URL,
-        "update_channel": "git_semver_tags"
+        "update_channel": "git_semver_tags",
+        "runtime_web_tooling": release_runtime_web_tooling_snapshot()
+    })
+}
+
+fn release_runtime_web_tooling_auth_sources() -> Vec<String> {
+    let env_candidates = [
+        "BRAVE_API_KEY",
+        "EXA_API_KEY",
+        "TAVILY_API_KEY",
+        "PERPLEXITY_API_KEY",
+        "SERPAPI_API_KEY",
+        "GOOGLE_SEARCH_API_KEY",
+        "GOOGLE_CSE_ID",
+        "FIRECRAWL_API_KEY",
+        "XAI_API_KEY",
+        "MOONSHOT_API_KEY",
+        "OPENAI_API_KEY",
+    ];
+    let mut sources = Vec::<String>::new();
+    for env_name in env_candidates {
+        let present = std::env::var(env_name)
+            .ok()
+            .map(|value| !value.trim().is_empty())
+            .unwrap_or(false);
+        if present {
+            sources.push(format!("env:{env_name}"));
+        }
+    }
+    sources
+}
+
+fn release_runtime_web_tooling_snapshot() -> Value {
+    let auth_sources = release_runtime_web_tooling_auth_sources();
+    json!({
+        "strict_auth_required": std::env::var("INFRING_WEB_TOOLING_STRICT_AUTH")
+            .ok()
+            .map(|value| matches!(value.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "y" | "on"))
+            .unwrap_or(true),
+        "auth_present": !auth_sources.is_empty(),
+        "auth_sources": auth_sources
     })
 }
 
@@ -116,6 +156,7 @@ pub fn check_update(root: &Path) -> Value {
         Err(error) => {
             payload["ok"] = json!(false);
             payload["error"] = json!(error);
+            payload["diagnostic_code"] = json!("release_remote_tag_unavailable");
             payload
         }
     }
@@ -139,7 +180,8 @@ pub fn apply_update(root: &Path) -> Value {
             "ok": false,
             "type": "dashboard_release_apply",
             "error": "worktree_not_clean",
-            "message": "Refusing update apply on dirty workspace."
+            "message": "Refusing update apply on dirty workspace.",
+            "runtime_web_tooling": release_runtime_web_tooling_snapshot()
         });
     }
 
@@ -148,14 +190,20 @@ pub fn apply_update(root: &Path) -> Value {
         .current_dir(root)
         .output();
     let Ok(fetch) = fetch else {
-        return json!({"ok": false, "type":"dashboard_release_apply", "error":"git_fetch_failed"});
+        return json!({
+            "ok": false,
+            "type":"dashboard_release_apply",
+            "error":"git_fetch_failed",
+            "runtime_web_tooling": release_runtime_web_tooling_snapshot()
+        });
     };
     if !fetch.status.success() {
         return json!({
             "ok": false,
             "type": "dashboard_release_apply",
             "error": "git_fetch_status_nonzero",
-            "exit_code": fetch.status.code().unwrap_or(1)
+            "exit_code": fetch.status.code().unwrap_or(1),
+            "runtime_web_tooling": release_runtime_web_tooling_snapshot()
         });
     }
 
@@ -164,7 +212,12 @@ pub fn apply_update(root: &Path) -> Value {
         .current_dir(root)
         .output();
     let Ok(pull) = pull else {
-        return json!({"ok": false, "type":"dashboard_release_apply", "error":"git_pull_failed"});
+        return json!({
+            "ok": false,
+            "type":"dashboard_release_apply",
+            "error":"git_pull_failed",
+            "runtime_web_tooling": release_runtime_web_tooling_snapshot()
+        });
     };
     let ok = pull.status.success();
     json!({
@@ -173,7 +226,8 @@ pub fn apply_update(root: &Path) -> Value {
         "exit_code": pull.status.code().unwrap_or(if ok {0} else {1}),
         "stdout": clean_text(&String::from_utf8_lossy(&pull.stdout), 4000),
         "stderr": clean_text(&String::from_utf8_lossy(&pull.stderr), 4000),
-        "post_check": check_update(root)
+        "post_check": check_update(root),
+        "runtime_web_tooling": release_runtime_web_tooling_snapshot()
     })
 }
 
@@ -205,7 +259,8 @@ pub fn dispatch_update_apply(root: &Path) -> Value {
             "ok": false,
             "type": "dashboard_release_apply",
             "error": "worktree_not_clean",
-            "message": "Refusing update apply on dirty workspace."
+            "message": "Refusing update apply on dirty workspace.",
+            "runtime_web_tooling": release_runtime_web_tooling_snapshot()
         });
     }
     let current_version = read_package_version(root);
@@ -226,12 +281,14 @@ pub fn dispatch_update_apply(root: &Path) -> Value {
             "pid": child.id(),
             "command": program,
             "argv": args,
-            "current_version": current_version
+            "current_version": current_version,
+            "runtime_web_tooling": release_runtime_web_tooling_snapshot()
         }),
         Err(err) => json!({
             "ok": false,
             "type": "dashboard_release_apply",
-            "error": format!("update_apply_spawn_failed:{}", clean_text(&err.to_string(), 200))
+            "error": format!("update_apply_spawn_failed:{}", clean_text(&err.to_string(), 200)),
+            "runtime_web_tooling": release_runtime_web_tooling_snapshot()
         }),
     }
 }
@@ -285,7 +342,7 @@ fn dashboard_system_action_executables() -> Vec<PathBuf> {
     candidates
 }
 
-    pub fn dispatch_system_action(root: &Path, action: &str) -> Value {
+pub fn dispatch_system_action(root: &Path, action: &str) -> Value {
     let normalized = clean_text(action, 40).to_ascii_lowercase();
     let mut last_error = String::new();
     for exe in dashboard_system_action_executables() {
@@ -402,7 +459,11 @@ mod tests {
     #[test]
     fn dispatch_update_apply_rejects_dirty_worktree() {
         let root = tempfile::tempdir().expect("tempdir");
-        fs::write(root.path().join("package.json"), r#"{"version":"0.3.10-alpha"}"#).expect("package");
+        fs::write(
+            root.path().join("package.json"),
+            r#"{"version":"0.3.10-alpha"}"#,
+        )
+        .expect("package");
         let payload = dispatch_update_apply(root.path());
         assert_eq!(payload.get("ok").and_then(Value::as_bool), Some(false));
         assert_eq!(

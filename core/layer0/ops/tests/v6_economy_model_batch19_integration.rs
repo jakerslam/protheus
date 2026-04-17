@@ -74,6 +74,11 @@ fn assert_claim(payload: &Value, claim_id: &str) {
     assert!(has, "missing claim evidence id={claim_id}");
 }
 
+fn assert_receipt_type(payload: &Value, expected_type: &str) {
+    assert_eq!(payload.get("ok").and_then(Value::as_bool), Some(true));
+    assert_eq!(payload.get("type").and_then(Value::as_str), Some(expected_type));
+}
+
 #[test]
 fn v6_batch19_economy_and_model_lanes_are_receipted() {
     let fixture = stage_fixture_root();
@@ -90,19 +95,13 @@ fn v6_batch19_economy_and_model_lanes_are_receipted() {
     );
     assert_eq!(enable_exit, 0);
     let enable_latest = read_json(&economy_latest_path(root));
-    assert_eq!(
-        enable_latest.get("type").and_then(Value::as_str),
-        Some("llm_economy_organ_enable")
-    );
+    assert_receipt_type(&enable_latest, "llm_economy_organ_enable");
     assert_claim(&enable_latest, "V6-ECONOMY-001.8");
 
     let dashboard_exit = llm_economy_organ::run(root, &["dashboard".to_string()]);
     assert_eq!(dashboard_exit, 0);
     let dashboard_latest = read_json(&economy_latest_path(root));
-    assert_eq!(
-        dashboard_latest.get("type").and_then(Value::as_str),
-        Some("llm_economy_organ_dashboard")
-    );
+    assert_receipt_type(&dashboard_latest, "llm_economy_organ_dashboard");
     assert_claim(&dashboard_latest, "V6-ECONOMY-001.8");
 
     let fairscale_exit = llm_economy_organ::run(
@@ -116,10 +115,7 @@ fn v6_batch19_economy_and_model_lanes_are_receipted() {
     );
     assert_eq!(fairscale_exit, 0);
     let fairscale_latest = read_json(&economy_latest_path(root));
-    assert_eq!(
-        fairscale_latest.get("type").and_then(Value::as_str),
-        Some("llm_economy_fairscale_credit")
-    );
+    assert_receipt_type(&fairscale_latest, "llm_economy_fairscale_credit");
     assert_claim(&fairscale_latest, "V6-ECONOMY-001.5");
 
     let mining_exit = llm_economy_organ::run(
@@ -280,15 +276,12 @@ fn v6_batch19_economy_and_model_lanes_are_receipted() {
         &[
             "compact-context".to_string(),
             "--max-lines=16".to_string(),
-            "--source=soul,memory,task,receipts".to_string(),
+            "--source=soul,memory;task,receipts,soul".to_string(),
         ],
     );
     assert_eq!(compact_exit, 0);
     let compact_latest = read_json(&model_latest_path(root));
-    assert_eq!(
-        compact_latest.get("type").and_then(Value::as_str),
-        Some("model_router_compact_context")
-    );
+    assert_receipt_type(&compact_latest, "model_router_compact_context");
     assert_claim(&compact_latest, "V6-MODEL-003.1");
     assert!(compact_latest
         .get("compacted_text")
@@ -300,6 +293,28 @@ fn v6_batch19_economy_and_model_lanes_are_receipted() {
         .and_then(Value::as_f64)
         .map(|v| v > 0.0 && v <= 1.0)
         .unwrap_or(false));
+    let selected_lines = compact_latest
+        .get("selected_lines")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .iter()
+        .filter_map(Value::as_str)
+        .map(str::to_string)
+        .collect::<Vec<_>>();
+    assert_eq!(selected_lines, vec!["memory", "receipts", "soul", "task"]);
+    assert!(compact_latest
+        .get("receipt_hash")
+        .and_then(Value::as_str)
+        .map(|v| !v.is_empty())
+        .unwrap_or(false));
+    assert_eq!(
+        compact_latest
+            .get("source_line_count")
+            .and_then(Value::as_u64)
+            .unwrap_or(0),
+        5
+    );
 
     let decompose_exit = model_router::run(
         root,
@@ -310,10 +325,7 @@ fn v6_batch19_economy_and_model_lanes_are_receipted() {
     );
     assert_eq!(decompose_exit, 0);
     let decompose_latest = read_json(&model_latest_path(root));
-    assert_eq!(
-        decompose_latest.get("type").and_then(Value::as_str),
-        Some("model_router_decompose_task")
-    );
+    assert_receipt_type(&decompose_latest, "model_router_decompose_task");
     assert_claim(&decompose_latest, "V6-MODEL-003.2");
     assert!(decompose_latest
         .get("subtasks")

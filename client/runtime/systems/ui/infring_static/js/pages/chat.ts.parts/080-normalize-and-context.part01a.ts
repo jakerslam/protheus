@@ -17,6 +17,7 @@
         }
         this._agentTrailOrbEl = null;
         this._agentFairyOwnerId = '';
+        this._agentTrailOrbElevated = false;
         var staleHosts = scope.querySelectorAll('#messages');
         for (var shi = 0; shi < staleHosts.length; shi++) {
           try { staleHosts[shi].style.setProperty('--chat-agent-grid-active', '0'); } catch(_) {}
@@ -71,6 +72,14 @@
           try { orb.remove(); } catch(_) {}
         }
         this._agentTrailOrbEl = keepOrb || null;
+        if (this._agentTrailOrbEl) this.wireAgentTrailOrbBehavior(this._agentTrailOrbEl);
+        else {
+          this._agentTrailOrbElevated = false;
+          if (keptActiveOverlay) {
+            keptActiveOverlay.style.zIndex = '';
+            keptActiveOverlay.classList.remove('fairy-z-top');
+          }
+        }
       }
       var hosts = scope.querySelectorAll('#messages');
       for (var hi = 0; hi < hosts.length; hi++) {
@@ -80,6 +89,14 @@
       }
       if (this._agentTrailOrbEl && (!activeHost || !activeHost.contains(this._agentTrailOrbEl))) {
         this._agentTrailOrbEl = null;
+        this._agentTrailOrbElevated = false;
+        if (activeHost && typeof activeHost.querySelector === 'function') {
+          var activeOverlay = activeHost.querySelector('.chat-agent-overlay');
+          if (activeOverlay) {
+            activeOverlay.style.zIndex = '';
+            activeOverlay.classList.remove('fairy-z-top');
+          }
+        }
       }
     },
     startAgentTrailLoop(container) {
@@ -230,4 +247,3 @@
     },
     markAgentMessageComplete(msg) {
       if (!msg || msg.role !== 'agent') return;
-

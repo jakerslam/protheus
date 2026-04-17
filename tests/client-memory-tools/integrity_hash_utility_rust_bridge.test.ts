@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 const mod = require('../../client/runtime/lib/integrity_hash_utility.ts');
 
@@ -24,5 +25,7 @@ assert.strictEqual(
   crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex')
 );
 fs.rmSync(tempDir, { recursive: true, force: true });
+assertNoPlaceholderOrPromptLeak({ serialized, digest }, 'integrity_hash_utility_rust_bridge_test');
+assertStableToolingEnvelope({ status: 'ok', digest }, 'integrity_hash_utility_rust_bridge_test');
 
 console.log(JSON.stringify({ ok: true, type: 'integrity_hash_utility_rust_bridge_test' }));

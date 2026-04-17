@@ -313,3 +313,30 @@ fn baremetal_001_runtime_lane_fail_closes_on_airgap_egress_and_human_veto() {
         1
     );
 }
+
+fn assert_no_runtime_context_leak_text(raw: &str) {
+    const FORBIDDEN: [&str; 6] = [
+        "You are an expert Python programmer.",
+        "[PATCH v2",
+        "List Leaves (25",
+        "BEGIN_OPENCLAW_INTERNAL_CONTEXT",
+        "END_OPENCLAW_INTERNAL_CONTEXT",
+        "UNTRUSTED_CHILD_RESULT_DELIMITER",
+    ];
+    for marker in FORBIDDEN {
+        assert!(
+            !raw.contains(marker),
+            "runtime payload leaked forbidden marker `{marker}`: {raw}"
+        );
+    }
+}
+
+#[test]
+fn v10_baremetal_runtime_receipt_guard_rejects_prompt_leak_markers() {
+    assert_no_runtime_context_leak_text("safe receipt summary");
+    let panicked = std::panic::catch_unwind(|| {
+        assert_no_runtime_context_leak_text("[PATCH v2 1/2] drm/msm/dpu unexpected dump")
+    })
+    .is_err();
+    assert!(panicked, "expected prompt-leak marker guard to trigger");
+}

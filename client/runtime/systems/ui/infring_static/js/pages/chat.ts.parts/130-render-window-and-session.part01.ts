@@ -316,6 +316,8 @@
       var selectedVibe = this.selectedFreshInitVibe();
       var resolvedSystemPrompt = this.resolveFreshInitSystemPrompt(templateDef, launchName, selectedPersonality, selectedVibe);
       var resolvedContract = this.resolveFreshInitContractPayload(launchName);
+      var resolvedPermissions = this.resolveFreshInitPermissionManifest ? this.resolveFreshInitPermissionManifest() : null;
+      if (resolvedPermissions && typeof resolvedPermissions === 'object') resolvedContract.permissions_manifest = resolvedPermissions;
       this.freshInitLaunching = true;
       this.freshInitRevealMenu = false;
       this.freshInitEmojiPickerOpen = false;
@@ -380,10 +382,8 @@
         this.showFreshArchetypeTiles = false;
         this.freshInitTemplateDef = null;
         this.freshInitTemplateName = '';
-        this.freshInitLaunching = false;
-        var launchedRole = String(
-          (templateDef && (templateDef.name || templateDef.profile || templateDef.archetype)) || 'agent'
-        ).trim() || 'agent';
+        this.freshInitLaunching = false; if (typeof this.resetFreshInitPermissions === 'function') this.resetFreshInitPermissions();
+        var launchedRole = String((templateDef && (templateDef.name || templateDef.profile || templateDef.archetype)) || 'agent').trim() || 'agent';
         InfringToast.success('Launched ' + String(appliedAgentName || 'agent') + ' as ' + launchedRole);
       } catch (e) {
         this.freshInitLaunching = false;

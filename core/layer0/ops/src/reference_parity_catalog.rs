@@ -26,8 +26,29 @@ fn category_style(category: &str) -> (&'static str, &'static str, &'static str) 
     }
 }
 
-fn reference_runtime_adapter(name: &str) -> Option<&'static str> {
+fn canonical_channel_name(name: &str) -> String {
+    let normalized = clean_text(name, 120).to_ascii_lowercase().replace('-', "_");
+    match normalized.as_str() {
+        "rocket_chat" | "rocketchat" => "rocketchat".to_string(),
+        "facebook_messenger" | "messenger" => "messenger".to_string(),
+        "googlechat" | "google_chat" => "google_chat".to_string(),
+        "dingtalk_stream" | "dingtalkstream" => "dingtalk_stream".to_string(),
+        _ => normalized,
+    }
+}
+
+fn channel_aliases(name: &str) -> &'static [&'static str] {
     match name {
+        "rocketchat" => &["rocketchat", "rocket_chat", "rocket-chat"],
+        "messenger" => &["messenger", "facebook_messenger", "facebook-messenger"],
+        "google_chat" => &["google_chat", "googlechat", "google-chat"],
+        "dingtalk_stream" => &["dingtalk_stream", "dingtalkstream", "dingtalk-stream"],
+        _ => &[],
+    }
+}
+
+fn reference_runtime_adapter(name: &str) -> Option<&'static str> {
+    match canonical_channel_name(name).as_str() {
         "signal" => Some("reference_runtime_signal"),
         "teams" => Some("reference_runtime_teams"),
         "matrix" => Some("reference_runtime_matrix"),
@@ -72,11 +93,9 @@ fn reference_runtime_adapter(name: &str) -> Option<&'static str> {
 }
 
 fn adapter_label(name: &str, display_name: &str) -> String {
-    match name {
+    match canonical_channel_name(name).as_str() {
         "rocketchat" => "Rocket.Chat".to_string(),
-        "rocket_chat" => "Rocket.Chat".to_string(),
         "messenger" => "Messenger".to_string(),
-        "facebook_messenger" => "Messenger".to_string(),
         _ => clean_text(display_name, 120),
     }
 }
@@ -131,31 +150,34 @@ pub fn channel_catalog_entry(
     category: &str,
     setup_type: &str,
 ) -> Option<Value> {
-    let adapter = reference_runtime_adapter(name)?;
+    let canonical_name = canonical_channel_name(name);
+    let adapter = reference_runtime_adapter(&canonical_name)?;
     let (icon, difficulty, setup_time) = category_style(category);
-    let label = adapter_label(name, display_name);
-    let requires_token = !matches!(name, "mqtt");
+    let label = adapter_label(&canonical_name, display_name);
+    let requires_token = !matches!(canonical_name.as_str(), "mqtt");
     let quick = if requires_token {
         format!("Connect {label} credentials, then run live test.")
     } else {
         format!("Configure {label} endpoint and run live test.")
     };
-    let token_label = if name == "email" {
+    let token_label = if canonical_name == "email" {
         "App Password / OAuth Token"
-    } else if name == "mqtt" {
+    } else if canonical_name == "mqtt" {
         "Optional Password"
     } else {
         "Bot Token / API Token"
     };
-    let endpoint_label = if name == "email" {
+    let endpoint_label = if canonical_name == "email" {
         "Server / Domain"
-    } else if name == "mqtt" {
+    } else if canonical_name == "mqtt" {
         "Broker URL"
     } else {
         "Endpoint / Room / Channel"
     };
     Some(json!({
-        "name": name,
+        "name": canonical_name,
+        "source_name": name,
+        "aliases": channel_aliases(&canonical_name),
         "icon": icon,
         "display_name": display_name,
         "description": format!("Reference Runtime-native {} adapter with governed live probe and receipts.", label),
@@ -339,5 +361,25 @@ mod tests {
                 .unwrap_or(""),
             "reference_runtime_dingtalk_stream"
         );
+    }
+
+    #[test]
+    fn alias_channel_name_resolves_to_canonical_adapter_and_aliases() {
+        let entry =
+            channel_catalog_entry("rocket-chat", "Rocket Chat", "messaging", "oauth")
+                .expect("channel entry");
+        assert_eq!(entry.get("name").and_then(Value::as_str), Some("rocketchat"));
+        assert_eq!(
+            entry.get("runtime_adapter").and_then(Value::as_str),
+            Some("reference_runtime_rocketchat")
+        );
+        assert!(entry
+            .get("aliases")
+            .and_then(Value::as_array)
+            .map(|rows| {
+                rows.iter()
+                    .any(|row| row.as_str().map(|v| v == "rocket_chat").unwrap_or(false))
+            })
+            .unwrap_or(false));
     }
 }

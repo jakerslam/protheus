@@ -1,3 +1,37 @@
+fn canonical_moat_token(raw: impl AsRef<str>, fallback: &str, max_len: usize) -> String {
+    let mut out = String::new();
+    let mut prev_sep = false;
+    for ch in clean(raw.as_ref(), max_len).to_ascii_lowercase().chars() {
+        let mapped = if ch.is_ascii_alphanumeric() { ch } else { '_' };
+        if mapped == '_' {
+            if prev_sep || out.is_empty() {
+                continue;
+            }
+            prev_sep = true;
+            out.push('_');
+            continue;
+        }
+        prev_sep = false;
+        out.push(mapped);
+    }
+    let token = out.trim_matches('_').to_string();
+    if token.is_empty() {
+        fallback.to_string()
+    } else {
+        token
+    }
+}
+
+fn canonical_accelerator(raw: impl AsRef<str>) -> String {
+    let token = canonical_moat_token(raw, "auto", 64);
+    match token.as_str() {
+        "cuda" | "nvidia" | "gpu_auto" => "gpu".to_string(),
+        "cpu_only" | "host_cpu" => "cpu".to_string(),
+        "metal" | "apple_gpu" => "gpu".to_string(),
+        _ => token,
+    }
+}
+
 fn run_v8_moat(root: &Path, id: &str, parsed: &crate::ParsedArgs) -> Value {
     let path = state_path(root, "v8_moat/state.json");
     let mut state = load_json_or(&path, default_family_state("v8_moat"));
@@ -6,12 +40,13 @@ fn run_v8_moat(root: &Path, id: &str, parsed: &crate::ParsedArgs) -> Value {
 
     let payload = match step {
         "1" => {
-            let claim_id = clean(
+            let claim_id = canonical_moat_token(
                 parsed
                     .flags
                     .get("claim-id")
                     .cloned()
                     .unwrap_or_else(|| "policy_compliance".to_string()),
+                "policy_compliance",
                 120,
             );
             let commitment = sha256_hex_str(&format!("{}:{}", claim_id, now_iso()));
@@ -28,20 +63,22 @@ fn run_v8_moat(root: &Path, id: &str, parsed: &crate::ParsedArgs) -> Value {
             json!({"proof": proof})
         }
         "2" => {
-            let node = clean(
+            let node = canonical_moat_token(
                 parsed
                     .flags
                     .get("node")
                     .cloned()
                     .unwrap_or_else(|| "node-local".to_string()),
+                "node_local",
                 120,
             );
-            let trust_group = clean(
+            let trust_group = canonical_moat_token(
                 parsed
                     .flags
                     .get("trust-group")
                     .cloned()
                     .unwrap_or_else(|| "default".to_string()),
+                "default",
                 120,
             );
             let mut mesh = state
@@ -53,7 +90,11 @@ fn run_v8_moat(root: &Path, id: &str, parsed: &crate::ParsedArgs) -> Value {
                 .and_then(Value::as_array)
                 .cloned()
                 .unwrap_or_default();
-            if !nodes.iter().any(|v| v.as_str() == Some(node.as_str())) {
+            if !nodes.iter().any(|v| {
+                v.as_str()
+                    .map(|existing| canonical_moat_token(existing, "", 120) == node)
+                    .unwrap_or(false)
+            }) {
                 nodes.push(Value::String(node.clone()));
             }
             let root_hash = sha256_hex_str(&format!("{}:{}:{}", trust_group, node, now_iso()));
@@ -66,20 +107,22 @@ fn run_v8_moat(root: &Path, id: &str, parsed: &crate::ParsedArgs) -> Value {
             json!({"mesh": mesh, "root_hash": root_hash})
         }
         "3" => {
-            let concept = clean(
+            let concept = canonical_moat_token(
                 parsed
                     .flags
                     .get("concept")
                     .cloned()
                     .unwrap_or_else(|| "adaptive_memory".to_string()),
+                "adaptive_memory",
                 160,
             );
-            let parent = clean(
+            let parent = canonical_moat_token(
                 parsed
                     .flags
                     .get("parent")
                     .cloned()
                     .unwrap_or_else(|| "genesis".to_string()),
+                "genesis",
                 160,
             );
             let node_id = format!(
@@ -107,21 +150,21 @@ fn run_v8_moat(root: &Path, id: &str, parsed: &crate::ParsedArgs) -> Value {
             json!({"knowledge_graph": graph, "entry": entry})
         }
         "4" => {
-            let workload = clean(
+            let workload = canonical_moat_token(
                 parsed
                     .flags
                     .get("workload")
                     .cloned()
                     .unwrap_or_else(|| "dual-llm".to_string()),
+                "dual_llm",
                 120,
             );
-            let preferred = clean(
+            let preferred = canonical_accelerator(
                 parsed
                     .flags
                     .get("accelerator")
                     .cloned()
                     .unwrap_or_else(|| "auto".to_string()),
-                64,
             )
             .to_ascii_lowercase();
             let selection = if preferred == "auto" {
@@ -136,20 +179,22 @@ fn run_v8_moat(root: &Path, id: &str, parsed: &crate::ParsedArgs) -> Value {
             json!({"accelerator_route": route})
         }
         "5" => {
-            let operator = clean(
+            let operator = canonical_moat_token(
                 parsed
                     .flags
                     .get("operator")
                     .cloned()
                     .unwrap_or_else(|| "operator-main".to_string()),
+                "operator_main",
                 120,
             );
-            let role = clean(
+            let role = canonical_moat_token(
                 parsed
                     .flags
                     .get("role")
                     .cloned()
                     .unwrap_or_else(|| "owner".to_string()),
+                "owner",
                 120,
             );
             let approval =
@@ -160,12 +205,13 @@ fn run_v8_moat(root: &Path, id: &str, parsed: &crate::ParsedArgs) -> Value {
             json!({"operator_approval": approval})
         }
         "6" => {
-            let agent = clean(
+            let agent = canonical_moat_token(
                 parsed
                     .flags
                     .get("agent")
                     .cloned()
                     .unwrap_or_else(|| "hand-alpha".to_string()),
+                "hand_alpha",
                 120,
             );
             let amount = parsed
@@ -429,4 +475,3 @@ fn extract_wikilinks(text: &str) -> Vec<String> {
     }
     out
 }
-

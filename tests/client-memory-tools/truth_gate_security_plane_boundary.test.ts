@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
 const { spawnSync } = require('node:child_process');
-const path = require('node:path');
+const path = require('node:path');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 const ROOT = path.resolve(__dirname, '../..');
 
@@ -42,7 +42,7 @@ function main() {
     const payload = parseJson(deny.stdout);
     assert(payload && payload.type === 'truth_seeking_gate_evaluate', 'deny type mismatch');
     assert(payload.decision === 'deny', 'deny decision mismatch');
-    const reasons = Array.isArray(payload.deny_reasons) ? payload.deny_reasons : [];
+    assertNoPlaceholderOrPromptLeak(payload, 'truth_gate_security_plane_boundary_test:deny');\n    assertStableToolingEnvelope(payload, 'truth_gate_security_plane_boundary_test:deny');\n    const reasons = Array.isArray(payload.deny_reasons) ? payload.deny_reasons : [];
     assert(reasons.includes('agreement_without_verification_denied'), 'missing deny reason');
   } catch (error) {
     failures.push({ case: 'deny_without_evidence', error: String(error && error.message ? error.message : error) });
@@ -59,7 +59,7 @@ function main() {
     const payload = parseJson(allow.stdout);
     assert(payload && payload.type === 'truth_seeking_gate_evaluate', 'allow type mismatch');
     assert(payload.decision === 'allow', 'allow decision mismatch');
-    assert(payload.ok === true, 'allow ok mismatch');
+    assert(payload.ok === true, 'allow ok mismatch');\n    assertNoPlaceholderOrPromptLeak(payload, 'truth_gate_security_plane_boundary_test:allow');\n    assertStableToolingEnvelope(payload, 'truth_gate_security_plane_boundary_test:allow');
   } catch (error) {
     failures.push({ case: 'allow_with_evidence', error: String(error && error.message ? error.message : error) });
   }

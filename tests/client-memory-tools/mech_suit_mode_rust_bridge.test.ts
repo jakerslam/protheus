@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const ts = require('typescript');
+const ts = require('typescript');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 if (!require.extensions['.ts']) {
   require.extensions['.ts'] = function compileTs(module, filename) {
@@ -70,7 +70,7 @@ async function main() {
   assert.equal(event.ok, true);
   assert.equal(event.queued, true);
 
-  const queuePath = path.join(workspace, 'client', 'runtime', 'local', 'state', 'attention', 'queue.jsonl');
+  assertNoPlaceholderOrPromptLeak({ policy, status, event }, 'mech_suit_mode_rust_bridge_test');\n  assertStableToolingEnvelope(event, 'mech_suit_mode_rust_bridge_test');\n  const queuePath = path.join(workspace, 'client', 'runtime', 'local', 'state', 'attention', 'queue.jsonl');
   const latestPath = path.join(workspace, 'client', 'runtime', 'local', 'state', 'ops', 'mech_suit_mode', 'latest.json');
   assert.equal(fs.existsSync(queuePath), true);
   assert.equal(fs.existsSync(latestPath), true);

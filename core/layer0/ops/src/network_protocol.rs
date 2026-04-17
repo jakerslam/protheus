@@ -13,6 +13,18 @@ use std::path::{Path, PathBuf};
 
 const STATE_ENV: &str = "NETWORK_PROTOCOL_STATE_ROOT";
 const STATE_SCOPE: &str = "network_protocol";
+const WEB_SEARCH_AUTH_ENV_KEYS: &[&str] = &[
+    "WEB_SEARCH_API_KEY",
+    "TAVILY_API_KEY",
+    "EXA_API_KEY",
+    "PERPLEXITY_API_KEY",
+    "BRAVE_API_KEY",
+    "FIRECRAWL_API_KEY",
+    "GOOGLE_SEARCH_API_KEY",
+    "MOONSHOT_API_KEY",
+    "XAI_API_KEY",
+];
+const WEB_FETCH_AUTH_ENV_KEYS: &[&str] = &["WEB_FETCH_API_KEY", "FIRECRAWL_API_KEY"];
 #[path = "network_protocol_run.rs"]
 mod network_protocol_run;
 
@@ -30,6 +42,51 @@ fn ledger_path(root: &Path) -> PathBuf {
 
 fn events_path(root: &Path) -> PathBuf {
     state_root(root).join("events.jsonl")
+}
+
+fn web_tooling_runtime_path(root: &Path) -> PathBuf {
+    state_root(root).join("web_tooling_runtime.json")
+}
+
+fn first_present_env_key(keys: &[&str]) -> Option<String> {
+    keys.iter().find_map(|key| {
+        std::env::var(key)
+            .ok()
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty())
+            .map(|_| (*key).to_string())
+    })
+}
+
+fn detect_web_tooling_auth_presence() -> Value {
+    let search_key = first_present_env_key(WEB_SEARCH_AUTH_ENV_KEYS);
+    let fetch_key = first_present_env_key(WEB_FETCH_AUTH_ENV_KEYS);
+    json!({
+        "search": {
+            "present": search_key.is_some(),
+            "source_env": search_key.unwrap_or_default()
+        },
+        "fetch": {
+            "present": fetch_key.is_some(),
+            "source_env": fetch_key.unwrap_or_default()
+        }
+    })
+}
+
+fn normalize_web_provider_token(raw: Option<&str>, fallback: &str) -> String {
+    let candidate = raw
+        .map(|value| clean(value.to_string(), 64))
+        .unwrap_or_else(|| fallback.to_string())
+        .trim()
+        .to_ascii_lowercase()
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.'))
+        .collect::<String>();
+    if candidate.is_empty() {
+        fallback.to_string()
+    } else {
+        candidate
+    }
 }
 
 fn default_ledger() -> Value {
@@ -266,6 +323,10 @@ fn gate_action(root: &Path, action: &str) -> bool {
 
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     network_protocol_run::run(root, argv)
+}
+
+pub fn web_tooling_health_report(root: &Path, strict: bool) -> Value {
+    network_protocol_run::web_tooling_health_report(root, strict)
 }
 
 #[cfg(test)]

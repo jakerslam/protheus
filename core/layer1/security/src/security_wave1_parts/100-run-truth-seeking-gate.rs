@@ -1,5 +1,15 @@
 
 pub fn run_truth_seeking_gate(repo_root: &Path, argv: &[String]) -> (Value, i32) {
+    let started = std::time::Instant::now();
+    let execution_receipt = |status: &str, stage: &str, reason: Option<&str>| {
+        json!({
+            "status": status,
+            "stage": stage,
+            "duration_ms": started.elapsed().as_millis(),
+            "ts": now_iso(),
+            "reason": reason.map(|v| clean_text(v, 200))
+        })
+    };
     let args = parse_cli_args(argv);
     let cmd = args
         .positional
@@ -20,7 +30,8 @@ pub fn run_truth_seeking_gate(repo_root: &Path, argv: &[String]) -> (Value, i32)
             "latest_path": normalize_rel_path(latest_path.display().to_string()),
             "history_path": normalize_rel_path(history_path.display().to_string()),
             "policy": policy_json,
-            "latest": latest
+            "latest": latest,
+            "execution_receipt": execution_receipt("ok", "status", None)
         });
         out["receipt_hash"] = Value::String(truth_gate_receipt_hash(&out));
         return (out, 0);
@@ -33,7 +44,8 @@ pub fn run_truth_seeking_gate(repo_root: &Path, argv: &[String]) -> (Value, i32)
                 json!({
                     "ok": false,
                     "type": "truth_seeking_gate_ingest_rule",
-                    "reason": "missing_rule_id"
+                    "reason": "missing_rule_id",
+                    "execution_receipt": execution_receipt("error", "ingest_rule_validate", Some("missing_rule_id"))
                 }),
                 2,
             );
@@ -49,7 +61,8 @@ pub fn run_truth_seeking_gate(repo_root: &Path, argv: &[String]) -> (Value, i32)
                 json!({
                     "ok": false,
                     "type": "truth_seeking_gate_ingest_rule",
-                    "reason": "missing_trigger_tokens"
+                    "reason": "missing_trigger_tokens",
+                    "execution_receipt": execution_receipt("error", "ingest_rule_validate", Some("missing_trigger_tokens"))
                 }),
                 2,
             );
@@ -84,11 +97,13 @@ pub fn run_truth_seeking_gate(repo_root: &Path, argv: &[String]) -> (Value, i32)
         let next_json = serde_json::to_value(&next_policy)
             .unwrap_or_else(|_| json!(TruthGatePolicy::default()));
         if let Err(err) = write_json_atomic(&policy_path, &next_json) {
+            let err_text = err.to_string();
             return (
                 json!({
                     "ok": false,
                     "type": "truth_seeking_gate_ingest_rule",
-                    "reason": err
+                    "reason": err_text.clone(),
+                    "execution_receipt": execution_receipt("error", "ingest_rule_persist", Some(&err_text))
                 }),
                 1,
             );
@@ -99,7 +114,8 @@ pub fn run_truth_seeking_gate(repo_root: &Path, argv: &[String]) -> (Value, i32)
             "ts": now_iso(),
             "rule_id": rule_id,
             "rules_count": next_policy.rules.len(),
-            "policy_path": normalize_rel_path(policy_path.display().to_string())
+            "policy_path": normalize_rel_path(policy_path.display().to_string()),
+            "execution_receipt": execution_receipt("ok", "ingest_rule", None)
         });
         out["receipt_hash"] = Value::String(truth_gate_receipt_hash(&out));
         let _ = append_jsonl(&history_path, &out);
@@ -112,7 +128,8 @@ pub fn run_truth_seeking_gate(repo_root: &Path, argv: &[String]) -> (Value, i32)
             json!({
                 "ok": false,
                 "type": "truth_seeking_gate_error",
-                "reason": format!("unknown_command:{cmd}")
+                "reason": format!("unknown_command:{cmd}"),
+                "execution_receipt": execution_receipt("error", "dispatch", Some("unknown_command"))
             }),
             2,
         );
@@ -124,12 +141,23 @@ pub fn run_truth_seeking_gate(repo_root: &Path, argv: &[String]) -> (Value, i32)
             json!({
                 "ok": false,
                 "type": "truth_seeking_gate_evaluate",
-                "reason": "missing_claim"
+                "reason": "missing_claim",
+                "execution_receipt": execution_receipt("error", "evaluate_validate", Some("missing_claim"))
             }),
             2,
         );
     }
     let claim_lc = claim.to_ascii_lowercase();
+    let previous_message = clean_text(
+        args.flags
+            .get("previous-message")
+            .or_else(|| args.flags.get("previous_message"))
+            .cloned()
+            .unwrap_or_default(),
+        600,
+    );
+    let previous_lc = previous_message.to_ascii_lowercase();
+    let claim_echo_detected = !previous_lc.is_empty() && previous_lc == claim_lc;
     let claim_id = normalize_token(
         args.flags
             .get("claim-id")
@@ -162,6 +190,9 @@ pub fn run_truth_seeking_gate(repo_root: &Path, argv: &[String]) -> (Value, i32)
     {
         deny_reasons.push("agreement_without_verification_denied".to_string());
     }
+    if policy.enabled && claim_echo_detected && evidence_count == 0 {
+        deny_reasons.push("claim_echo_without_evidence".to_string());
+    }
 
     if policy.enabled {
         for rule in &policy.rules {
@@ -192,12 +223,19 @@ pub fn run_truth_seeking_gate(repo_root: &Path, argv: &[String]) -> (Value, i32)
         "evidence": evidence_items,
         "evidence_count": evidence_count,
         "agreement_signal": agreement_signal,
+        "claim_echo_detected": claim_echo_detected,
+        "previous_message_hash": if previous_message.is_empty() {
+            Value::Null
+        } else {
+            Value::String(sha256_hex(previous_message.as_bytes()))
+        },
         "policy_enabled": policy.enabled,
         "decision": if allowed { "allow" } else { "deny" },
         "deny_reasons": deny_reasons,
         "policy_path": normalize_rel_path(policy_path.display().to_string()),
         "latest_path": normalize_rel_path(latest_path.display().to_string()),
-        "history_path": normalize_rel_path(history_path.display().to_string())
+        "history_path": normalize_rel_path(history_path.display().to_string()),
+        "execution_receipt": execution_receipt(if allowed { "ok" } else { "deny" }, "evaluate", None)
     });
     out["receipt_hash"] = Value::String(truth_gate_receipt_hash(&out));
     let _ = append_jsonl(&history_path, &out);

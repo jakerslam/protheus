@@ -1,3 +1,14 @@
+fn normalize_gc_status(raw: &str) -> String {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "enabled" | "running" => "active".to_string(),
+        "pause" | "paused" | "hold" => "blocked".to_string(),
+        "retired" | "archive" | "archived" => "inactive".to_string(),
+        "pin" => "pinned".to_string(),
+        "protect" => "protected".to_string(),
+        other => other.to_string(),
+    }
+}
+
 fn evaluate_gc_candidates_value(state: &Value, opts: Option<&Map<String, Value>>) -> Value {
     let policy = state
         .get("policy")
@@ -42,22 +53,27 @@ fn evaluate_gc_candidates_value(state: &Value, opts: Option<&Map<String, Value>>
         let created = profile
             .get("created_ts")
             .and_then(|v| parse_ts_ms(&as_str(Some(v))));
-        let age_days = last_used.map(|ms| (now_ms - ms) as f64 / (24.0 * 60.0 * 60.0 * 1000.0));
-        let new_age_days = created.map(|ms| (now_ms - ms) as f64 / (24.0 * 60.0 * 60.0 * 1000.0));
+        let age_days = last_used
+            .map(|ms| (now_ms - ms) as f64 / (24.0 * 60.0 * 60.0 * 1000.0))
+            .map(|days| if days.is_finite() { days.max(0.0) } else { 0.0 });
+        let new_age_days = created
+            .map(|ms| (now_ms - ms) as f64 / (24.0 * 60.0 * 60.0 * 1000.0))
+            .map(|days| if days.is_finite() { days.max(0.0) } else { 0.0 });
         let uses_30 = clamp_i64(usage.get("uses_30d"), 0, 1000, 0);
         let stale = age_days
             .map(|days| days > inactive_days as f64)
             .unwrap_or(true);
         let low_use = uses_30 < min_uses_30d;
+        let status = normalize_gc_status(&as_str(profile.get("status")));
+        let protected_status = matches!(status.as_str(), "active" | "pinned" | "protected");
         let protected_new = new_age_days
             .map(|days| days < protect_new_days as f64)
             .unwrap_or(false);
-        let removable =
-            stale && low_use && !protected_new && as_str(profile.get("status")) != "active";
+        let removable = stale && low_use && !protected_new && !protected_status;
         let row = json!({
             "id": profile.get("id").cloned().unwrap_or(Value::Null),
             "uid": profile.get("uid").cloned().unwrap_or(Value::Null),
-            "status": profile.get("status").cloned().unwrap_or(Value::Null),
+            "status": status,
             "stage": profile.get("stage").cloned().unwrap_or(Value::Null),
             "age_days_since_last_use": age_days.map(|days| (days * 1000.0).round() / 1000.0),
             "age_days_since_created": new_age_days.map(|days| (days * 1000.0).round() / 1000.0),
@@ -65,6 +81,8 @@ fn evaluate_gc_candidates_value(state: &Value, opts: Option<&Map<String, Value>>
             "removable": removable,
             "reason": if removable {
                 format!("stale>{inactive_days}d and uses_30d<{min_uses_30d}")
+            } else if protected_status {
+                "status_protected".to_string()
             } else if protected_new {
                 format!("protected_new<{protect_new_days}d")
             } else if stale {
@@ -79,6 +97,21 @@ fn evaluate_gc_candidates_value(state: &Value, opts: Option<&Map<String, Value>>
             keepers.push(row);
         }
     }
+    candidates.sort_by(|a, b| {
+        let age_a = a
+            .get("age_days_since_last_use")
+            .and_then(Value::as_f64)
+            .unwrap_or(-1.0);
+        let age_b = b
+            .get("age_days_since_last_use")
+            .and_then(Value::as_f64)
+            .unwrap_or(-1.0);
+        age_b
+            .partial_cmp(&age_a)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| as_str(a.get("id")).cmp(&as_str(b.get("id"))))
+    });
+    keepers.sort_by(|a, b| as_str(a.get("id")).cmp(&as_str(b.get("id"))));
     json!({
         "policy": {
             "inactive_days": inactive_days,
@@ -385,4 +418,3 @@ mod tests {
         assert!(pointer_index_path(&root).exists());
     }
 }
-

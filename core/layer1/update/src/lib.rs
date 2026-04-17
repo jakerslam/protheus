@@ -1,4 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
+use std::collections::BTreeSet;
+
+const MAX_VERSION_LEN: usize = 64;
+const MAX_CAPABILITY_LEN: usize = 64;
+const MAX_CAPABILITY_COUNT: usize = 128;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UpdatePackage {
     pub version: String,
@@ -20,25 +26,81 @@ pub enum UpdateDecision {
     Rejected(String),
 }
 
+fn strip_invisible_unicode(raw: &str) -> String {
+    raw.chars()
+        .filter(|ch| {
+            !matches!(
+                ch,
+                '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}'
+            )
+        })
+        .collect()
+}
+
+fn sanitize_token(raw: &str, max_len: usize, lowercase: bool) -> String {
+    let mut token: String = strip_invisible_unicode(raw)
+        .chars()
+        .filter(|ch| !ch.is_control())
+        .collect();
+    token = token.trim().to_string();
+    if lowercase {
+        token = token.to_ascii_lowercase();
+    }
+    if token.len() > max_len {
+        token.truncate(max_len);
+    }
+    token
+}
+
+fn valid_version(version: &str) -> bool {
+    if version.is_empty() || version.len() > MAX_VERSION_LEN {
+        return false;
+    }
+    version
+        .chars()
+        .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '.' | '-' | '_'))
+}
+
+fn normalize_capabilities(values: &[String]) -> Vec<String> {
+    let mut deduped = BTreeSet::<String>::new();
+    for value in values {
+        let normalized = sanitize_token(value, MAX_CAPABILITY_LEN, true);
+        if !normalized.is_empty() {
+            deduped.insert(normalized);
+        }
+    }
+    deduped.into_iter().take(MAX_CAPABILITY_COUNT).collect()
+}
+
 impl UpdatePolicy {
     pub fn evaluate(&self, package: &UpdatePackage) -> UpdateDecision {
-        if package.version.trim().is_empty() {
+        let version = sanitize_token(&package.version, MAX_VERSION_LEN, false);
+        let required_capability = sanitize_token(&self.required_capability, MAX_CAPABILITY_LEN, true);
+        let capabilities = normalize_capabilities(&package.capabilities);
+        let artifact_sha = sanitize_token(&package.artifact_sha256, 64, true);
+
+        if self.max_size_bytes == 0 {
+            return UpdateDecision::Rejected("policy_invalid_max_size".to_string());
+        }
+        if required_capability.is_empty() {
+            return UpdateDecision::Rejected("policy_invalid_required_capability".to_string());
+        }
+        if !valid_version(&version) {
             return UpdateDecision::Rejected("version_missing".to_string());
         }
-        if !self.allow_prerelease && package.version.contains('-') {
+        if !self.allow_prerelease && version.contains('-') {
             return UpdateDecision::Rejected("prerelease_blocked".to_string());
+        }
+        if package.size_bytes == 0 {
+            return UpdateDecision::Rejected("artifact_size_invalid".to_string());
         }
         if package.size_bytes > self.max_size_bytes {
             return UpdateDecision::Rejected("artifact_size_exceeds_policy".to_string());
         }
-        if !valid_sha256(&package.artifact_sha256) {
+        if !valid_sha256(&artifact_sha) {
             return UpdateDecision::Rejected("artifact_sha256_invalid".to_string());
         }
-        if !package
-            .capabilities
-            .iter()
-            .any(|cap| cap == &self.required_capability)
-        {
+        if !capabilities.iter().any(|cap| cap == &required_capability) {
             return UpdateDecision::Rejected("missing_required_capability".to_string());
         }
         UpdateDecision::Approved

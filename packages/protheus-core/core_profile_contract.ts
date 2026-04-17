@@ -11,9 +11,25 @@ const path = require('path');
 const { normalizeToken } = require('../../client/runtime/lib/queued_backlog_runtime');
 const { runStandardLane } = require('../../client/runtime/lib/upgrade_lane_runtime');
 
-const POLICY_PATH = process.env.PROTHEUS_CORE_PROFILE_POLICY_PATH
-  ? path.resolve(process.env.PROTHEUS_CORE_PROFILE_POLICY_PATH)
-  : path.join(__dirname, '..', '..', 'client', 'runtime', 'config', 'protheus_core_profile_policy.json');
+const ROOT = path.join(__dirname, '..', '..');
+const DEFAULT_POLICY_PATH = path.join(ROOT, 'client', 'runtime', 'config', 'protheus_core_profile_policy.json');
+
+function isPathInsideRoot(candidate, root) {
+  const resolvedRoot = path.resolve(root);
+  const resolvedTarget = path.resolve(candidate);
+  const relative = path.relative(resolvedRoot, resolvedTarget);
+  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+}
+
+function resolvePolicyPath() {
+  const envPath = String(process.env.PROTHEUS_CORE_PROFILE_POLICY_PATH || '').trim();
+  if (!envPath) return DEFAULT_POLICY_PATH;
+  const resolved = path.resolve(envPath);
+  if (!isPathInsideRoot(resolved, ROOT)) return DEFAULT_POLICY_PATH;
+  return resolved;
+}
+
+const POLICY_PATH = resolvePolicyPath();
 
 function usage() {
   console.log('Usage:');
@@ -41,11 +57,7 @@ runStandardLane({
       return ctx.cmdRecord(policy, {
         ...args,
         event: 'core_profile_bootstrap',
-        payload_json: JSON.stringify({
-          mode,
-          one_command_starter: true,
-          optional_heavy_layers: false
-        })
+        payload_json: JSON.stringify({ mode, one_command_starter: true, optional_heavy_layers: false })
       });
     }
   }

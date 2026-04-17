@@ -11,7 +11,26 @@ pub struct ClaimEvidenceRow {
 }
 
 fn clean_line(raw: &str, max_len: usize) -> String {
-    raw.split_whitespace()
+    let sanitized = raw
+        .chars()
+        .filter(|ch| {
+            !matches!(
+                *ch,
+                '\u{200B}'
+                    | '\u{200C}'
+                    | '\u{200D}'
+                    | '\u{2060}'
+                    | '\u{FEFF}'
+                    | '\u{202A}'
+                    | '\u{202B}'
+                    | '\u{202C}'
+                    | '\u{202D}'
+                    | '\u{202E}'
+            ) && (!ch.is_control() || ch.is_ascii_whitespace())
+        })
+        .collect::<String>();
+    sanitized
+        .split_whitespace()
         .collect::<Vec<&str>>()
         .join(" ")
         .trim()
@@ -193,7 +212,10 @@ pub fn build_receipt_row(
 
 #[cfg(test)]
 mod tests {
-    use super::{build_receipt_row, stable_hash_hex, validate_claim_evidence, ClaimEvidenceRow};
+    use super::{
+        build_receipt_row, normalize_claim_evidence, stable_hash_hex, validate_claim_evidence,
+        ClaimEvidenceRow,
+    };
     use serde_json::json;
 
     fn sample_claim_rows() -> Vec<ClaimEvidenceRow> {
@@ -283,5 +305,19 @@ mod tests {
             .and_then(|v| v.as_str())
             .unwrap_or("");
         assert_eq!(hash_a, hash_b);
+    }
+
+    #[test]
+    fn normalize_claim_evidence_strips_invisible_and_control_noise() {
+        let rows = vec![ClaimEvidenceRow {
+            claim: "determin\u{200B}istic \u{202E}\u{0007} decision".to_string(),
+            evidence: vec![" local/state/\u{FEFF}receipt.json ".to_string()],
+            persona_lenses: vec!["Ops_\u{2060}Guard".to_string()],
+        }];
+        let normalized = normalize_claim_evidence(&rows);
+        assert_eq!(normalized.len(), 1);
+        assert_eq!(normalized[0].claim, "deterministic decision");
+        assert_eq!(normalized[0].evidence, vec!["local/state/receipt.json".to_string()]);
+        assert_eq!(normalized[0].persona_lenses, vec!["ops_guard".to_string()]);
     }
 }

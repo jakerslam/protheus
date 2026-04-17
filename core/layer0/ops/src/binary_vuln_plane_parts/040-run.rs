@@ -1,3 +1,19 @@
+fn attach_execution_receipt(mut payload: Value, command: &str) -> Value {
+    let status = if payload.get("ok").and_then(Value::as_bool) == Some(true) {
+        "success"
+    } else {
+        "error"
+    };
+    payload["execution_receipt"] = json!({
+        "lane": "binary_vuln_plane",
+        "command": command,
+        "status": status,
+        "source": "OPENCLAW-TOOLING-WEB-102",
+        "tool_runtime_class": "receipt_wrapped"
+    });
+    payload
+}
+
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     let parsed = parse_args(argv);
     let command = parsed
@@ -25,13 +41,13 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     {
         return emit(
             root,
-            json!({
+            attach_execution_receipt(json!({
                 "ok": false,
                 "strict": strict,
                 "type": "binary_vuln_plane_conduit_gate",
                 "errors": ["conduit_bypass_rejected"],
                 "conduit_enforcement": conduit
-            }),
+            }), command.as_str()),
         );
     }
 
@@ -49,10 +65,12 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         }),
     };
     if command == "status" {
+        let payload = attach_execution_receipt(payload, "status");
         print_payload(&payload);
         return 0;
     }
-    emit(root, attach_conduit(payload, conduit.as_ref()))
+    let payload = attach_conduit(payload, conduit.as_ref());
+    emit(root, attach_execution_receipt(payload, command.as_str()))
 }
 
 #[cfg(test)]
@@ -78,4 +96,3 @@ mod tests {
         assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
     }
 }
-

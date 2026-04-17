@@ -26,6 +26,43 @@ fn run_budget_admission(root: &Path, strict: bool, manifest_rel: &str) -> Value 
         .get("fail_closed")
         .and_then(Value::as_bool)
         .unwrap_or(false);
+    let web_tooling_policy = policy
+        .pointer("/runtime/web_tooling")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    let web_tooling_auth_required = web_tooling_policy
+        .get("strict_auth_required")
+        .and_then(Value::as_bool)
+        .or_else(|| {
+            policy
+                .get("runtime_web_tooling_auth_required")
+                .and_then(Value::as_bool)
+        })
+        .unwrap_or(false);
+    let web_tooling_auth_env_candidates = [
+        "BRAVE_API_KEY",
+        "EXA_API_KEY",
+        "TAVILY_API_KEY",
+        "PERPLEXITY_API_KEY",
+        "SERPAPI_API_KEY",
+        "GOOGLE_SEARCH_API_KEY",
+        "GOOGLE_CSE_ID",
+        "FIRECRAWL_API_KEY",
+        "XAI_API_KEY",
+        "MOONSHOT_API_KEY",
+        "OPENAI_API_KEY",
+    ];
+    let mut web_tooling_auth_sources = Vec::<String>::new();
+    for env_name in web_tooling_auth_env_candidates {
+        let present = std::env::var(env_name)
+            .ok()
+            .map(|value| !value.trim().is_empty())
+            .unwrap_or(false);
+        if present {
+            web_tooling_auth_sources.push(format!("env:{env_name}"));
+        }
+    }
     let policy_ok = policy_missing.is_empty() && fail_closed;
 
     let manifest_path = root.join(manifest_rel);
@@ -48,6 +85,9 @@ fn run_budget_admission(root: &Path, strict: bool, manifest_rel: &str) -> Value 
             reason_codes.push(format!("budget_exceeded::{field}"));
         }
     }
+    if web_tooling_auth_required && web_tooling_auth_sources.is_empty() {
+        reason_codes.push("runtime_web_tooling_auth_missing".to_string());
+    }
     let admitted = policy_ok && reason_codes.is_empty();
     json!({
         "ok": if strict { admitted } else { true },
@@ -56,6 +96,9 @@ fn run_budget_admission(root: &Path, strict: bool, manifest_rel: &str) -> Value 
         "policy_ok": policy_ok,
         "fail_closed": fail_closed,
         "policy_missing_fields": policy_missing,
+        "web_tooling_auth_required": web_tooling_auth_required,
+        "web_tooling_auth_present": !web_tooling_auth_sources.is_empty(),
+        "web_tooling_auth_sources": web_tooling_auth_sources,
         "manifest_path": manifest_rel,
         "admitted": admitted,
         "reason_codes": reason_codes
@@ -412,4 +455,3 @@ fn run_radix_guard(root: &Path, strict: bool) -> Value {
         "errors": errors
     })
 }
-

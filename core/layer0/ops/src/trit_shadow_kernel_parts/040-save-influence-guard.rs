@@ -76,6 +76,7 @@ fn apply_influence_guard(
         } else {
             "shadow_status_critical".to_string()
         };
+        let reason = reason.chars().take(180).collect::<String>();
         next["reason"] = Value::String(reason);
         next["disabled_until"] = Value::String(
             (Utc::now() + Duration::hours(disable_hours.round() as i64)).to_rfc3339(),
@@ -238,11 +239,12 @@ fn run_command(root: &Path, command: &str, payload: &Map<String, Value>) -> Resu
 }
 
 pub fn run(root: &Path, argv: &[String]) -> i32 {
-    let Some(command) = argv.first().map(|v| v.as_str()) else {
+    let Some(command_raw) = argv.first().map(|v| v.as_str()) else {
         usage();
         return 1;
     };
-    if matches!(command, "help" | "--help" | "-h") {
+    let command = command_raw.trim().to_ascii_lowercase();
+    if matches!(command.as_str(), "help" | "--help" | "-h") {
         usage();
         return 0;
     }
@@ -254,7 +256,14 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         }
     };
     let payload = payload_obj(&payload).clone();
-    match run_command(root, command, &payload) {
+    if payload.len() > 256 {
+        print_json_line(&cli_error(
+            "trit_shadow_kernel",
+            "trit_shadow_kernel_payload_too_large",
+        ));
+        return 1;
+    }
+    match run_command(root, command.as_str(), &payload) {
         Ok(out) => {
             print_json_line(&cli_receipt("trit_shadow_kernel", out));
             0
@@ -456,4 +465,3 @@ mod tests {
         assert_eq!(blocked.get("blocked").and_then(Value::as_bool), Some(true));
     }
 }
-

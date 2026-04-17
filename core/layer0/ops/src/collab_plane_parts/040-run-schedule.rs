@@ -42,6 +42,10 @@ fn run_schedule(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value 
         40,
     )
     .to_ascii_lowercase();
+    let op = match op.as_str() {
+        "kick-off" | "kick_off" => "kickoff".to_string(),
+        _ => op,
+    };
     let allowed_ops = contract
         .get("allowed_ops")
         .and_then(Value::as_array)
@@ -101,6 +105,42 @@ fn run_schedule(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value 
         .map(|raw| split_csv_clean(raw, 80))
         .filter(|rows| !rows.is_empty())
         .unwrap_or_else(|| vec!["default-shadow".to_string()]);
+    let mut normalized_shadows = Vec::<String>::new();
+    for raw in shadows {
+        let normalized = clean(&raw, 80)
+            .to_ascii_lowercase()
+            .replace(' ', "-")
+            .replace('_', "-");
+        if normalized.is_empty() {
+            continue;
+        }
+        if !normalized_shadows.iter().any(|v| v == &normalized) {
+            normalized_shadows.push(normalized);
+        }
+        if normalized_shadows.len() >= 16 {
+            break;
+        }
+    }
+    let shadows = if normalized_shadows.is_empty() {
+        vec!["default-shadow".to_string()]
+    } else {
+        normalized_shadows
+    };
+
+    if strict
+        && op == "upsert"
+        && (cron.split_whitespace().count() != 5 || cron.split_whitespace().any(str::is_empty))
+    {
+        errors.push("collab_scheduler_cron_invalid".to_string());
+    }
+    if !errors.is_empty() {
+        return json!({
+            "ok": false,
+            "strict": strict,
+            "type": "collab_plane_schedule",
+            "errors": errors
+        });
+    }
 
     let mut kickoff_receipts = Vec::<Value>::new();
     match op.as_str() {
@@ -133,6 +173,23 @@ fn run_schedule(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value 
             schedule_state["jobs"] = Value::Array(jobs);
         }
         "kickoff" => {
+            let scheduled = schedule_state
+                .get("jobs")
+                .and_then(Value::as_array)
+                .map(|rows| {
+                    rows.iter().any(|row| {
+                        row.get("job_id").and_then(Value::as_str) == Some(job_id.as_str())
+                    })
+                })
+                .unwrap_or(false);
+            if strict && !scheduled {
+                return json!({
+                    "ok": false,
+                    "strict": strict,
+                    "type": "collab_plane_schedule",
+                    "errors": ["collab_scheduler_kickoff_job_missing"]
+                });
+            }
             kickoff_receipts = shadows
                 .iter()
                 .enumerate()
@@ -390,4 +447,3 @@ fn run_throttle(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value 
     out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
-

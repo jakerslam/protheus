@@ -188,6 +188,11 @@ fn normalize_tag(raw: &str) -> String {
     out.trim_matches('-').to_string()
 }
 
+fn has_disallowed_path_tokens(raw: &str) -> bool {
+    raw.chars()
+        .any(|ch| ch.is_ascii_control() || matches!(ch, '\n' | '\r' | '\t' | '\0'))
+}
+
 fn is_alnum(raw: &str) -> bool {
     !raw.is_empty() && raw.chars().all(|ch| ch.is_ascii_alphanumeric())
 }
@@ -264,20 +269,37 @@ fn adaptive_pointer_index_path(root: &Path) -> PathBuf {
 
 fn store_abs_path(root: &Path, payload: &Map<String, Value>) -> Result<PathBuf, String> {
     let canonical = default_abs_path(root);
-    let raw = clean_text(payload.get("file_path"), 520);
+    let raw = clean_text(
+        payload
+            .get("file_path")
+            .or_else(|| payload.get("path"))
+            .or_else(|| payload.get("store_path")),
+        520,
+    );
     if raw.is_empty() {
         return Ok(canonical);
     }
+    if has_disallowed_path_tokens(&raw) {
+        return Err("focus_trigger_store: path contains disallowed control characters".to_string());
+    }
     let requested = PathBuf::from(raw);
+    if requested
+        .components()
+        .any(|c| matches!(c, std::path::Component::ParentDir))
+    {
+        return Err("focus_trigger_store: path override with parent traversal denied".to_string());
+    }
     let resolved = if requested.is_absolute() {
         requested
     } else {
         workspace_root(root).join(requested)
     };
-    if resolved != canonical {
+    let resolved_canon = fs::canonicalize(&resolved).unwrap_or(resolved.clone());
+    let canonical_canon = fs::canonicalize(&canonical).unwrap_or(canonical.clone());
+    if resolved_canon != canonical_canon {
         return Err(format!(
             "focus_trigger_store: path override denied (requested={})",
-            resolved.display()
+            resolved_canon.display()
         ));
     }
     Ok(canonical)
@@ -379,4 +401,3 @@ fn normalize_term_weights(raw: Option<&Value>, include_terms: &[String], max_wei
     }
     Value::Object(out)
 }
-

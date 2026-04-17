@@ -12,6 +12,8 @@ pub(super) fn run_cowork(root: &Path, parsed: &crate::ParsedArgs, strict: bool) 
             "kind": "persist_cowork_background_contract",
             "allowed_ops": ["delegate", "tick", "status", "list"],
             "allowed_modes": ["co-work", "sub-agent"],
+            "allowed_provider_families": ["openai", "openrouter", "xai", "tts"],
+            "allowed_auth_modes": ["required", "optional"],
             "max_budget_ms": 3600000
         }),
     );
@@ -208,6 +210,69 @@ pub(super) fn run_cowork(root: &Path, parsed: &crate::ParsedArgs, strict: bool) 
             "errors": ["persist_cowork_mode_invalid"]
         });
     }
+    let provider_family = clean(
+        parsed
+            .flags
+            .get("provider-family")
+            .cloned()
+            .unwrap_or_else(|| "openai".to_string()),
+        40,
+    )
+    .to_ascii_lowercase();
+    let allowed_provider_families = contract
+        .get("allowed_provider_families")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_else(|| {
+            vec![
+                json!("openai"),
+                json!("openrouter"),
+                json!("xai"),
+                json!("tts"),
+            ]
+        });
+    if strict
+        && !allowed_provider_families
+            .iter()
+            .filter_map(Value::as_str)
+            .any(|row| row.eq_ignore_ascii_case(provider_family.as_str()))
+    {
+        return json!({
+            "ok": false,
+            "strict": strict,
+            "type": "persist_plane_cowork",
+            "op": "delegate",
+            "errors": ["persist_cowork_provider_family_invalid"]
+        });
+    }
+    let auth_mode = clean(
+        parsed
+            .flags
+            .get("auth-mode")
+            .cloned()
+            .unwrap_or_else(|| "required".to_string()),
+        24,
+    )
+    .to_ascii_lowercase();
+    let allowed_auth_modes = contract
+        .get("allowed_auth_modes")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_else(|| vec![json!("required"), json!("optional")]);
+    if strict
+        && !allowed_auth_modes
+            .iter()
+            .filter_map(Value::as_str)
+            .any(|row| row.eq_ignore_ascii_case(auth_mode.as_str()))
+    {
+        return json!({
+            "ok": false,
+            "strict": strict,
+            "type": "persist_plane_cowork",
+            "op": "delegate",
+            "errors": ["persist_cowork_auth_mode_invalid"]
+        });
+    }
     let max_budget_ms = contract
         .get("max_budget_ms")
         .and_then(Value::as_u64)
@@ -272,6 +337,8 @@ pub(super) fn run_cowork(root: &Path, parsed: &crate::ParsedArgs, strict: bool) 
         "task": task,
         "parent": parent,
         "child": child,
+        "provider_family": provider_family,
+        "auth_mode": auth_mode,
         "status": "running",
         "budget_ms": budget_ms,
         "started_at": crate::now_iso(),
@@ -311,7 +378,9 @@ pub(super) fn run_cowork(root: &Path, parsed: &crate::ParsedArgs, strict: bool) 
                 "evidence": {
                     "run_id": run_id,
                     "receipt_chain_hash": chain_hash,
-                    "budget_ms": budget_ms
+                    "budget_ms": budget_ms,
+                    "provider_family": provider_family,
+                    "auth_mode": auth_mode
                 }
             }
         ]

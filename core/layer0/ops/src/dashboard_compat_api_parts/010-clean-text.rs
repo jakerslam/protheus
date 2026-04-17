@@ -294,9 +294,19 @@ fn internal_context_metadata_phrase(text: &str) -> bool {
         || (has_persistent_memory && has_stored_messages)
 }
 
+fn runtime_prompt_dump_phrase(text: &str) -> bool {
+    let lowered = text.to_ascii_lowercase();
+    lowered.contains("you are the currently selected infring agent instance")
+        || lowered
+            .contains("hardcoded agent workflow: you are writing the final assistant response")
+}
+
 fn strip_internal_context_metadata_prefix(text: &str) -> String {
     let trimmed = text.trim();
     if trimmed.is_empty() {
+        return String::new();
+    }
+    if runtime_prompt_dump_phrase(trimmed) {
         return String::new();
     }
     let lowered = trimmed.to_ascii_lowercase();

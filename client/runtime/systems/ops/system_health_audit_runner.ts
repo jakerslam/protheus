@@ -4,8 +4,6 @@
 // Layer ownership: core/layer0/ops (authoritative)
 // Thin TypeScript wrapper only.
 
-const fs = require('fs');
-const path = require('path');
 const { createOpsLaneBridge } = require('../../lib/rust_lane_bridge.ts');
 
 process.env.PROTHEUS_OPS_USE_PREBUILT = process.env.PROTHEUS_OPS_USE_PREBUILT || '0';
@@ -47,51 +45,11 @@ function unwrapConduitEnvelopePayload(out) {
   return `${JSON.stringify(nested)}\n`;
 }
 
-function resolvePolicyPath(passArgs) {
-  if (!Array.isArray(passArgs)) return '';
-  for (let i = 0; i < passArgs.length; i += 1) {
-    const token = String(passArgs[i] || '').trim();
-    if (!token) continue;
-    if (token.startsWith('--policy=')) return token.slice('--policy='.length).trim();
-    if (token === '--policy') {
-      const next = String(passArgs[i + 1] || '').trim();
-      return next;
-    }
-  }
-  return '';
-}
-
-function persistLatestSnapshotIfConfigured(passArgs, payloadText) {
-  const policyPath = resolvePolicyPath(passArgs);
-  if (!policyPath) return;
-  let policy = null;
-  try {
-    policy = JSON.parse(String(fs.readFileSync(policyPath, 'utf8') || '{}'));
-  } catch {
-    return;
-  }
-  const latestRel = String(policy && policy.latest_path ? policy.latest_path : '').trim();
-  if (!latestRel) return;
-  let parsed = null;
-  try {
-    parsed = JSON.parse(String(payloadText || '').trim());
-  } catch {
-    return;
-  }
-  const workspace = String(process.env.INFRING_WORKSPACE || process.cwd()).trim() || process.cwd();
-  const latestPath = path.resolve(workspace, latestRel);
-  try {
-    fs.mkdirSync(path.dirname(latestPath), { recursive: true });
-    fs.writeFileSync(latestPath, `${JSON.stringify(parsed, null, 2)}\n`, 'utf8');
-  } catch {}
-}
-
 function main(argv = process.argv.slice(2)) {
   const passArgs = resolvePassArgs(argv);
   const out = bridge.run(passArgs);
   const payloadText = unwrapConduitEnvelopePayload(out);
   if (payloadText) process.stdout.write(payloadText);
-  persistLatestSnapshotIfConfigured(passArgs, payloadText);
   if (out.stderr) process.stderr.write(out.stderr);
   return Number.isFinite(Number(out.status)) ? Number(out.status) : 1;
 }
@@ -104,7 +62,5 @@ module.exports = {
   normalizeArgs,
   resolvePassArgs,
   unwrapConduitEnvelopePayload,
-  resolvePolicyPath,
-  persistLatestSnapshotIfConfigured,
   main,
 };

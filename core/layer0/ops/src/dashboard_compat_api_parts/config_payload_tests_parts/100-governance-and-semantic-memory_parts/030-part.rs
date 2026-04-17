@@ -13,6 +13,41 @@ fn ack_only_detector_flags_duckduckgo_findings_placeholder_copy() {
 }
 
 #[test]
+fn ack_only_detector_flags_deferred_update_preamble_copy() {
+    assert!(response_looks_like_tool_ack_without_findings(
+        "I'll get you an update on the current best AI agent frameworks."
+    ));
+}
+
+#[test]
+fn ack_only_detector_flags_deferred_update_preamble_curly_apostrophe_copy() {
+    assert!(response_looks_like_tool_ack_without_findings(
+        "I’ll get you an update on the current best AI agent frameworks."
+    ));
+}
+
+#[test]
+fn ack_only_detector_flags_deferred_retry_prompt_copy() {
+    assert!(response_looks_like_tool_ack_without_findings(
+        "Would you like me to retry with a narrower query and one specific source URL?"
+    ));
+}
+
+#[test]
+fn ack_only_detector_keeps_source_backed_summary_copy() {
+    assert!(!response_looks_like_tool_ack_without_findings(
+        "According to https://example.com, the top frameworks are LangGraph, AutoGen, and CrewAI."
+    ));
+}
+
+#[test]
+fn ack_only_detector_flags_off_topic_ham_radio_web_results() {
+    assert!(response_looks_like_tool_ack_without_findings(
+        "Web search results: forums.qrz.com callsign lookup discussion with ham radio QSO details."
+    ));
+}
+
+#[test]
 fn response_tools_summary_drops_ack_only_tool_rows() {
     let synthesized = response_tools_summary_for_user(
         &[json!({
@@ -60,6 +95,68 @@ fn finalize_user_facing_response_replaces_ack_without_findings() {
 }
 
 #[test]
+fn finalize_user_facing_response_replaces_deferred_update_preamble() {
+    let finalized = finalize_user_facing_response(
+        "I'll get you an update on the current best AI agent frameworks.".to_string(),
+        None,
+    );
+    let lowered = finalized.to_ascii_lowercase();
+    assert!(!lowered.contains("i'll get you an update"));
+    assert!(lowered.contains("usable tool findings"));
+    assert!(!response_looks_like_tool_ack_without_findings(&finalized));
+}
+
+#[test]
+fn finalize_user_facing_response_replaces_deferred_update_preamble_curly_apostrophe() {
+    let finalized = finalize_user_facing_response(
+        "I’ll get you an update on the current best AI agent frameworks.".to_string(),
+        None,
+    );
+    let lowered = finalized.to_ascii_lowercase();
+    assert!(!lowered.contains("i'll get you an update"));
+    assert!(lowered.contains("usable tool findings"));
+    assert!(!response_looks_like_tool_ack_without_findings(&finalized));
+}
+
+#[test]
+fn finalize_user_facing_response_replaces_deferred_retry_prompt_without_findings() {
+    let finalized = finalize_user_facing_response(
+        "Would you like me to retry with a narrower query and one specific source URL?"
+            .to_string(),
+        None,
+    );
+    let lowered = finalized.to_ascii_lowercase();
+    assert!(lowered.contains("usable tool findings"));
+    assert!(!lowered.contains("would you like me to retry"));
+    assert!(!response_looks_like_tool_ack_without_findings(&finalized));
+}
+
+#[test]
+fn finalize_user_facing_response_uses_findings_for_deferred_retry_prompt() {
+    let finalized = finalize_user_facing_response(
+        "Would you like me to retry with a narrower query and one specific source URL?"
+            .to_string(),
+        Some("Here's what I found:\n- https://example.com/frameworks".to_string()),
+    );
+    let lowered = finalized.to_ascii_lowercase();
+    assert!(lowered.contains("here's what i found"));
+    assert!(!lowered.contains("would you like me to retry"));
+    assert!(!response_looks_like_tool_ack_without_findings(&finalized));
+}
+
+#[test]
+fn finalize_user_facing_response_replaces_off_topic_web_results_with_error_code() {
+    let finalized = finalize_user_facing_response(
+        "Web search results: forums.qrz.com callsign lookup discussion with ham radio QSO details."
+            .to_string(),
+        None,
+    );
+    let lowered = finalized.to_ascii_lowercase();
+    assert!(lowered.contains("off-topic"), "{finalized}");
+    assert!(lowered.contains("error_code: web_tool_off_topic_results"), "{finalized}");
+}
+
+#[test]
 fn finalize_user_facing_response_rewrites_generic_tool_failure_placeholder() {
     let finalized = finalize_user_facing_response(
         "I couldn't complete system_diagnostic right now.".to_string(),
@@ -97,17 +194,17 @@ fn comparative_detector_matches_peer_ranking_language() {
 #[test]
 fn comparative_live_web_detector_matches_openclaw_vs_workspace_language() {
     assert!(message_requests_live_web_comparison(
-        "compare this system (infring) to openclaw"
+        "compare this system (infring) to openclaw with web sources"
     ));
     assert!(message_requests_live_web_comparison(
-        "compare openclaw to this system/workspace"
+        "compare openclaw to this system/workspace using web search"
     ));
 }
 
 #[test]
 fn natural_web_intent_routes_openclaw_comparison_to_batch_query() {
     let route = natural_web_intent_from_user_message(
-        "compare openclaw to this system/workspace"
+        "compare openclaw to this system/workspace using web search"
     )
     .expect("route");
     assert_eq!(route.0, "batch_query");
@@ -135,6 +232,42 @@ fn natural_web_intent_normalizes_try_to_web_search_query() {
         route.1.get("query").and_then(Value::as_str),
         Some("top AI agent frameworks")
     );
+}
+
+#[test]
+fn natural_web_intent_normalizes_try_finding_information_about_query() {
+    let route = natural_web_intent_from_user_message(
+        "lets do a test: try finding information about the current top agentic AI frameworks"
+    )
+    .expect("route");
+    assert_eq!(route.0, "batch_query");
+    assert_eq!(
+        route.1.get("source").and_then(Value::as_str),
+        Some("web")
+    );
+    let query = route
+        .1
+        .get("query")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    let lowered = query.to_ascii_lowercase();
+    assert!(lowered.contains("top agentic ai frameworks"), "{query}");
+}
+
+#[test]
+fn user_facing_tool_failure_summary_calls_out_nexus_policy_gate() {
+    let summary = user_facing_tool_failure_summary(
+        "web_search",
+        &json!({
+            "ok": false,
+            "error": "web_search_nexus_delivery_denied",
+            "nexus_error": "policy_ingress_denied"
+        }),
+    )
+    .unwrap_or_default()
+    .to_ascii_lowercase();
+    assert!(summary.contains("blocked by ingress delivery policy"), "{summary}");
+    assert!(summary.contains("policy gate"), "{summary}");
 }
 
 #[test]

@@ -329,3 +329,16 @@
       if (hasToolError && !successfulToolSummary && !toolCompletionSummary) {
         return 'I could not finish the request because a required step failed. Please clarify the goal or try again.';
       }
+      if (successfulToolSummary) {
+        return successfulToolSummary;
+      }
+      if (toolCompletionSummary) {
+        return toolCompletionSummary;
+      }
+      if (thought) {
+        var derived = this.deriveUserFacingFromThought(thought);
+        if (derived) return derived;
+        return 'I need one more clarification before I can finalize a reliable answer. Tell me the exact expected outcome.';
+      }
+      return 'I lost the final response handoff for this turn. Context is still intact, and I can continue from exactly where this left off.';
+    },

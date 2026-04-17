@@ -4,7 +4,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const ts = require('typescript');
+const ts = require('typescript');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 if (!require.extensions['.ts']) {
@@ -105,4 +105,4 @@ assert.strictEqual(blocked.passed, false, 'expected token overrun to fail closed
 assert.strictEqual(blocked.contract_not_allowed_count, 0, 'expected no contract violations after remap');
 assert(/token_limit_check/.test(String(blocked.primary_failure || '')));
 
-console.log('success_criteria_verifier_rust_bridge.test.ts: OK');
+assertNoPlaceholderOrPromptLeak({ parsed, passed, blocked }, 'success_criteria_verifier_rust_bridge_test');\nassertStableToolingEnvelope(passed, 'success_criteria_verifier_rust_bridge_test');\nconsole.log('success_criteria_verifier_rust_bridge.test.ts: OK');

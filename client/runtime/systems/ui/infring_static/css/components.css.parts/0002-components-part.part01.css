@@ -127,6 +127,24 @@
   );
 }
 
+.chat-wrapper::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--chat-fade-size);
+  pointer-events: none;
+  z-index: 11;
+  background: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--bg) 99%, transparent) 0%,
+    color-mix(in srgb, var(--bg) 86%, transparent) 34%,
+    color-mix(in srgb, var(--bg) 54%, transparent) 68%,
+    transparent 100%
+  );
+}
+
 .chat-wrapper > .input-area {
   position: relative;
   z-index: 12;
@@ -233,6 +251,11 @@
     calc(var(--chat-grid-scroll-y, 0px) * -1);
 }
 
+body:not([data-theme='dark']) .chat-agent-overlay {
+  /* Keep the fairy head visible in light mode; no grid mask needed. */
+  opacity: 1;
+}
+
 body[data-theme='dark'] .chat-agent-overlay {
   background-image:
     linear-gradient(to right, color-mix(in srgb, #2aa0ff 72%, transparent) 1px, transparent 1px),
@@ -315,6 +338,7 @@ body[data-theme='dark'] .chat-grid-overlay {
 
 .chat-pointer-orb {
   --chat-pointer-orb-size: 24px;
+  --chat-pointer-orb-pulse-name: chatPointerOrbPulse;
   width: var(--chat-pointer-orb-size);
   height: var(--chat-pointer-orb-size);
   border-radius: 999px;
@@ -328,7 +352,10 @@ body[data-theme='dark'] .chat-grid-overlay {
     0 0 14px color-mix(in srgb, #00d4ff 56%, transparent),
     0 0 28px color-mix(in srgb, var(--accent) 40%, transparent);
   opacity: 0.62;
-  animation: chatPointerOrbPulse 1.15s ease-in-out infinite;
+  animation-name: var(--chat-pointer-orb-pulse-name);
+  animation-duration: 1.15s;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
 }
 
 .chat-pointer-orb.chat-pointer-agent {
@@ -343,6 +370,7 @@ body[data-theme='dark'] .chat-grid-overlay {
 
 body:not([data-theme='dark']) .chat-pointer-orb.chat-pointer-agent {
   --chat-pointer-orb-size: 18px;
+  --chat-pointer-orb-pulse-name: chatPointerOrbPulseLight;
   width: var(--chat-pointer-orb-size);
   height: var(--chat-pointer-orb-size);
   background:
@@ -357,10 +385,10 @@ body:not([data-theme='dark']) .chat-pointer-orb.chat-pointer-agent {
       transparent 90%
     );
   box-shadow:
-    0 10px 20px rgba(0, 0, 0, 0.24),
-    0 0 0 1px rgba(0, 0, 0, 0.16),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.2),
-    0 0 18px rgba(0, 0, 0, 0.18);
+    0 6px 12px rgba(0, 0, 0, 0.28),
+    0 0 0 1px rgba(0, 0, 0, 0.22),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.18),
+    0 0 10px rgba(0, 0, 0, 0.2);
   opacity: 1;
 }
 
@@ -372,6 +400,7 @@ body:not([data-theme='dark']) .chat-pointer-orb.chat-pointer-agent {
     0 0 18px color-mix(in srgb, rgb(var(--chat-agent-orb-rgb)) 44%, transparent);
   opacity: 0.62;
   animation-duration: 0.96s;
+  z-index: 1;
 }
 
 .chat-pointer-trail-segment.chat-pointer-agent {
@@ -386,10 +415,33 @@ body:not([data-theme='dark']) .chat-pointer-orb.chat-pointer-agent {
     0 0 19px color-mix(in srgb, rgb(var(--chat-agent-orb-rgb)) 42%, transparent);
   opacity: 0.5;
   animation-duration: 0.9s;
+  z-index: 1;
+}
+
+body[data-theme='dark'] .chat-pointer-trail-dot.chat-pointer-agent {
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow:
+    0 0 12px rgba(255, 255, 255, 0.86),
+    0 0 22px rgba(255, 255, 255, 0.52);
+  opacity: 0.8;
+}
+
+body[data-theme='dark'] .chat-pointer-trail-segment.chat-pointer-agent {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.16) 0%,
+    rgba(255, 255, 255, 0.86) 52%,
+    rgba(255, 255, 255, 0.16) 100%
+  );
+  box-shadow:
+    0 0 12px rgba(255, 255, 255, 0.74),
+    0 0 20px rgba(255, 255, 255, 0.42);
+  opacity: 0.68;
 }
 
 body[data-theme='dark'] .chat-pointer-orb.chat-pointer-agent {
   --chat-pointer-orb-size: 14px;
+  --chat-pointer-orb-pulse-name: chatPointerOrbPulse;
   width: var(--chat-pointer-orb-size);
   height: var(--chat-pointer-orb-size);
   background: radial-gradient(circle, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0.62) 42%, transparent 74%);
@@ -403,6 +455,7 @@ body[data-theme='dark'] .messages {
 
 body:not([data-theme='dark']) .chat-pointer-orb.chat-pointer-agent.agent-listening {
   --chat-pointer-orb-size: 19px;
+  --chat-pointer-orb-pulse-name: chatPointerOrbPulseLightListening;
   background:
     radial-gradient(
       circle at 34% 30%,
@@ -415,10 +468,10 @@ body:not([data-theme='dark']) .chat-pointer-orb.chat-pointer-agent.agent-listeni
       transparent 100%
     );
   box-shadow:
-    0 12px 24px rgba(0, 0, 0, 0.28),
-    0 0 0 1px rgba(0, 0, 0, 0.2),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.24),
-    0 0 26px rgba(0, 0, 0, 0.22);
+    0 7px 14px rgba(0, 0, 0, 0.32),
+    0 0 0 1px rgba(0, 0, 0, 0.24),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.22),
+    0 0 12px rgba(0, 0, 0, 0.24);
   opacity: 1;
   animation-duration: 0.55s;
 }
@@ -436,4 +489,3 @@ body[data-theme='dark'] .chat-pointer-orb {
   width: var(--chat-pointer-orb-size);
   height: var(--chat-pointer-orb-size);
 }
-

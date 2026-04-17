@@ -9,13 +9,13 @@ pub struct NormalizeBandMapOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct NormalizeImpactMapInput {
-    #[serde(default)]
+    #[serde(default, alias = "src", alias = "impactMap")]
     pub raw: Option<Value>,
-    #[serde(default)]
+    #[serde(default, alias = "fallback", alias = "default")]
     pub base: Option<Value>,
-    #[serde(default)]
+    #[serde(default, alias = "min", alias = "lower")]
     pub lo: Option<f64>,
-    #[serde(default)]
+    #[serde(default, alias = "max", alias = "upper")]
     pub hi: Option<f64>,
 }
 
@@ -29,13 +29,13 @@ pub struct NormalizeImpactMapOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct NormalizeTargetMapInput {
-    #[serde(default)]
+    #[serde(default, alias = "src", alias = "targetMap")]
     pub raw: Option<Value>,
-    #[serde(default)]
+    #[serde(default, alias = "fallback", alias = "default")]
     pub base: Option<Value>,
-    #[serde(default)]
+    #[serde(default, alias = "min", alias = "lower")]
     pub lo: Option<f64>,
-    #[serde(default)]
+    #[serde(default, alias = "max", alias = "upper")]
     pub hi: Option<f64>,
 }
 
@@ -50,9 +50,9 @@ pub struct NormalizeTargetMapOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct NormalizeTargetPolicyInput {
-    #[serde(default)]
+    #[serde(default, alias = "policy", alias = "src")]
     pub raw: Option<Value>,
-    #[serde(default)]
+    #[serde(default, alias = "fallback", alias = "default")]
     pub base: Option<Value>,
 }
 
@@ -67,11 +67,11 @@ pub struct NormalizeTargetPolicyOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct WindowDaysForTargetInput {
-    #[serde(default)]
+    #[serde(default, alias = "windowMap")]
     pub window_map: Option<Value>,
     #[serde(default)]
     pub target: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "defaultDays")]
     pub fallback: Option<i64>,
 }
 
@@ -82,7 +82,7 @@ pub struct WindowDaysForTargetOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct TierRetentionDaysInput {
-    #[serde(default)]
+    #[serde(default, alias = "retentionPolicy")]
     pub policy: Option<Value>,
 }
 
@@ -102,7 +102,7 @@ pub struct InversionCandidateRow {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct ParseCandidateListFromLlmPayloadInput {
-    #[serde(default)]
+    #[serde(default, alias = "llmPayload", alias = "response")]
     pub payload: Option<Value>,
 }
 
@@ -113,7 +113,7 @@ pub struct ParseCandidateListFromLlmPayloadOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct HeuristicFilterCandidatesInput {
-    #[serde(default)]
+    #[serde(default, alias = "objectiveId")]
     pub objective: Option<String>,
 }
 
@@ -130,7 +130,7 @@ pub struct ScoreTrialInput {
     pub candidate: Option<Value>,
     #[serde(default)]
     pub trial_cfg: Option<Value>,
-    #[serde(default)]
+    #[serde(default, alias = "runtimeProbePass")]
     pub runtime_probe_pass: Option<bool>,
 }
 
@@ -141,7 +141,7 @@ pub struct ScoreTrialOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct MutateTrialCandidatesInput {
-    #[serde(default)]
+    #[serde(default, alias = "candidates")]
     pub rows: Vec<Value>,
 }
 
@@ -152,9 +152,9 @@ pub struct MutateTrialCandidatesOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct NormalizeIsoEventsInput {
-    #[serde(default)]
+    #[serde(default, alias = "events")]
     pub src: Vec<Value>,
-    #[serde(default)]
+    #[serde(default, alias = "maxRows")]
     pub max_rows: Option<i64>,
 }
 
@@ -165,7 +165,7 @@ pub struct NormalizeIsoEventsOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct ExpandLegacyCountToEventsInput {
-    #[serde(default)]
+    #[serde(default, alias = "legacyCount")]
     pub count: Option<Value>,
     #[serde(default)]
     pub ts: Option<String>,
@@ -182,9 +182,9 @@ pub struct NormalizeTierEventMapInput {
     pub src: Option<Value>,
     #[serde(default)]
     pub fallback: Option<Value>,
-    #[serde(default)]
+    #[serde(default, alias = "legacyCounts")]
     pub legacy_counts: Option<Value>,
-    #[serde(default)]
+    #[serde(default, alias = "legacyTs")]
     pub legacy_ts: Option<String>,
 }
 
@@ -197,7 +197,7 @@ pub struct NormalizeTierEventMapOutput {
 pub struct DefaultTierScopeInput {
     #[serde(default)]
     pub legacy: Option<Value>,
-    #[serde(default)]
+    #[serde(default, alias = "legacyTs")]
     pub legacy_ts: Option<String>,
 }
 
@@ -212,7 +212,7 @@ pub struct NormalizeTierScopeInput {
     pub scope: Option<Value>,
     #[serde(default)]
     pub legacy: Option<Value>,
-    #[serde(default)]
+    #[serde(default, alias = "legacyTs")]
     pub legacy_ts: Option<String>,
 }
 
@@ -275,13 +275,13 @@ pub struct CountTierEventsOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct EffectiveWindowDaysForTargetInput {
-    #[serde(default)]
+    #[serde(default, alias = "windowMap")]
     pub window_map: Option<Value>,
-    #[serde(default)]
+    #[serde(default, alias = "minimumWindowMap")]
     pub minimum_window_map: Option<Value>,
     #[serde(default)]
     pub target: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "defaultDays")]
     pub fallback: Option<i64>,
 }
 
@@ -303,7 +303,7 @@ pub struct ToDateOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct ParseTsMsInput {
-    #[serde(default)]
+    #[serde(default, alias = "ts", alias = "timestamp")]
     pub value: Option<String>,
 }
 
@@ -314,7 +314,7 @@ pub struct ParseTsMsOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct AddMinutesInput {
-    #[serde(default)]
+    #[serde(default, alias = "isoTs")]
     pub iso_ts: Option<String>,
     #[serde(default)]
     pub minutes: Option<f64>,

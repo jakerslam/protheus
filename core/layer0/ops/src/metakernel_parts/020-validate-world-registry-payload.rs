@@ -183,6 +183,17 @@ fn parse_nonneg_i64_field(map: &serde_json::Map<String, Value>, key: &str) -> Op
     map.get(key).and_then(Value::as_i64).filter(|v| *v >= 0)
 }
 
+fn normalize_world_web_provider(raw: &str) -> String {
+    let provider = raw.trim().to_ascii_lowercase();
+    match provider.as_str() {
+        "google" => "google_search".to_string(),
+        "xai" => "grok".to_string(),
+        "moonshot" => "kimi".to_string(),
+        "serp" => "serpapi".to_string(),
+        _ => provider,
+    }
+}
+
 fn run_registry(root: &Path, strict: bool) -> Value {
     let registry_path = root.join(REGISTRY_PATH);
     let registry = read_json(&registry_path).unwrap_or(Value::Null);
@@ -269,6 +280,36 @@ fn run_worlds(root: &Path, strict: bool, manifest_rel: &str) -> Value {
         .iter()
         .filter_map(Value::as_str)
         .any(|v| v == manifest_component_target);
+    let manifest_web_provider = manifest
+        .get("web_search_provider")
+        .or_else(|| manifest.get("web_provider"))
+        .or_else(|| manifest.get("search_provider"))
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .trim()
+        .to_string();
+    let manifest_web_provider_norm = normalize_world_web_provider(&manifest_web_provider);
+    let supported_web_providers: BTreeSet<String> = world_entry
+        .and_then(|w| w.get("web_search_providers"))
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .iter()
+        .filter_map(Value::as_str)
+        .map(normalize_world_web_provider)
+        .filter(|value| !value.is_empty())
+        .collect();
+    let web_provider_targets: BTreeSet<String> =
+        ["brave", "duckduckgo", "moonshot", "xai", "searxng", "grok", "kimi"]
+            .iter()
+            .map(|value| normalize_world_web_provider(value))
+            .collect();
+    let web_provider_contract_known = manifest_web_provider_norm.is_empty()
+        || web_provider_targets.contains(&manifest_web_provider_norm);
+    let world_requires_web_provider = !supported_web_providers.is_empty();
+    let web_provider_supported = !world_requires_web_provider
+        || manifest_web_provider_norm.is_empty()
+        || supported_web_providers.contains(&manifest_web_provider_norm);
 
     let manifest_caps: BTreeSet<String> = manifest
         .get("capabilities")
@@ -306,7 +347,8 @@ fn run_worlds(root: &Path, strict: bool, manifest_rel: &str) -> Value {
         && abi_semver_ok
         && abi_match
         && target_declared
-        && target_allowed;
+        && target_allowed
+        && web_provider_supported;
     json!({
         "ok": if strict { ok } else { true },
         "strict": strict,
@@ -324,6 +366,13 @@ fn run_worlds(root: &Path, strict: bool, manifest_rel: &str) -> Value {
         "abi_match": abi_match,
         "component_target_declared": target_declared,
         "component_target_allowed": target_allowed,
+        "manifest_web_provider": manifest_web_provider,
+        "manifest_web_provider_normalized": manifest_web_provider_norm,
+        "world_requires_web_provider": world_requires_web_provider,
+        "world_supported_web_providers": supported_web_providers.into_iter().collect::<Vec<_>>(),
+        "web_provider_supported": web_provider_supported,
+        "web_provider_contract_known": web_provider_contract_known,
+        "web_provider_contract_targets": web_provider_targets.into_iter().collect::<Vec<_>>(),
         "compatibility_ok": compatibility_ok,
         "unsupported_capabilities": unsupported_caps
     })
@@ -433,4 +482,3 @@ fn run_capability_taxonomy(root: &Path, strict: bool, manifest_rel: &str) -> Val
         "policy_gate_ok": policy_gate_ok
     })
 }
-

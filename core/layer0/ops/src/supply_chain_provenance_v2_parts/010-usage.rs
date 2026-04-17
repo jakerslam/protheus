@@ -11,6 +11,8 @@ use std::process::Command;
 
 const LANE_ID: &str = "supply_chain_provenance_v2";
 const DEFAULT_POLICY_REL: &str = "client/runtime/config/supply_chain_provenance_v2_policy.json";
+const PROVIDER_FAMILY_CONTRACT_TARGETS: &[&str] =
+    &["anthropic", "fal", "google", "minimax", "moonshot"];
 
 #[derive(Debug, Clone)]
 struct ArtifactRequirement {
@@ -50,6 +52,10 @@ fn usage() {
         "  protheus-ops supply-chain-provenance-v2 run [--strict=1|0] [--policy=<path>] [--bundle-path=<path>] [--vuln-summary-path=<path>]"
     );
     println!("  protheus-ops supply-chain-provenance-v2 status [--policy=<path>]");
+    println!(
+        "  provider-family contract targets: {}",
+        PROVIDER_FAMILY_CONTRACT_TARGETS.join(",")
+    );
 }
 
 fn print_json_line(value: &Value) {
@@ -114,24 +120,36 @@ fn load_json(path: &Path) -> Value {
         .unwrap_or_else(|| json!({}))
 }
 
+fn default_required_artifacts(root: &Path) -> Vec<ArtifactRequirement> {
+    vec![
+        ArtifactRequirement {
+            id: "protheus-ops".to_string(),
+            artifact_path: root.join("target/release/protheus-ops"),
+            sbom_path: root.join("local/state/release/provenance/sbom/protheus-ops.cdx.json"),
+            signature_path: root
+                .join("local/state/release/provenance/signatures/protheus-ops.sig"),
+        },
+        ArtifactRequirement {
+            id: "conduit-daemon".to_string(),
+            artifact_path: root.join("target/release/conduit_daemon"),
+            sbom_path: root.join("local/state/release/provenance/sbom/conduit_daemon.cdx.json"),
+            signature_path: root
+                .join("local/state/release/provenance/signatures/conduit_daemon.sig"),
+        },
+        ArtifactRequirement {
+            id: "provider-family-contract-matrix".to_string(),
+            artifact_path: root.join("client/runtime/config/rust_source_of_truth_policy.json"),
+            sbom_path: root
+                .join("local/state/release/provenance/sbom/provider_family_contract_matrix.cdx.json"),
+            signature_path: root
+                .join("local/state/release/provenance/signatures/provider_family_contract_matrix.sig"),
+        },
+    ]
+}
+
 fn parse_required_artifacts(root: &Path, raw: &Value) -> Vec<ArtifactRequirement> {
     let Some(arr) = raw.get("required_artifacts").and_then(Value::as_array) else {
-        return vec![
-            ArtifactRequirement {
-                id: "protheus-ops".to_string(),
-                artifact_path: root.join("target/release/protheus-ops"),
-                sbom_path: root.join("local/state/release/provenance/sbom/protheus-ops.cdx.json"),
-                signature_path: root
-                    .join("local/state/release/provenance/signatures/protheus-ops.sig"),
-            },
-            ArtifactRequirement {
-                id: "conduit-daemon".to_string(),
-                artifact_path: root.join("target/release/conduit_daemon"),
-                sbom_path: root.join("local/state/release/provenance/sbom/conduit_daemon.cdx.json"),
-                signature_path: root
-                    .join("local/state/release/provenance/signatures/conduit_daemon.sig"),
-            },
-        ];
+        return default_required_artifacts(root);
     };
 
     let mut out = Vec::new();
@@ -174,22 +192,7 @@ fn parse_required_artifacts(root: &Path, raw: &Value) -> Vec<ArtifactRequirement
     }
 
     if out.is_empty() {
-        vec![
-            ArtifactRequirement {
-                id: "protheus-ops".to_string(),
-                artifact_path: root.join("target/release/protheus-ops"),
-                sbom_path: root.join("local/state/release/provenance/sbom/protheus-ops.cdx.json"),
-                signature_path: root
-                    .join("local/state/release/provenance/signatures/protheus-ops.sig"),
-            },
-            ArtifactRequirement {
-                id: "conduit-daemon".to_string(),
-                artifact_path: root.join("target/release/conduit_daemon"),
-                sbom_path: root.join("local/state/release/provenance/sbom/conduit_daemon.cdx.json"),
-                signature_path: root
-                    .join("local/state/release/provenance/signatures/conduit_daemon.sig"),
-            },
-        ]
+        default_required_artifacts(root)
     } else {
         out
     }
@@ -324,4 +327,3 @@ fn report_age_hours(summary: &Value) -> Option<i64> {
     let age = Utc::now().signed_duration_since(parsed.with_timezone(&Utc));
     Some(age.num_hours())
 }
-

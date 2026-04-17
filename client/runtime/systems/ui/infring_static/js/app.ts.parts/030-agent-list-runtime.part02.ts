@@ -10,6 +10,99 @@
         this.theme = mode;
       }
     },
+    isChatSidebarSearchActive() {
+      return String(this.chatSidebarQuery || '').trim().length > 0;
+    },
+    clearChatSidebarSearch() {
+      if (this._chatSidebarSearchTimer) { clearTimeout(this._chatSidebarSearchTimer); this._chatSidebarSearchTimer = 0; }
+      this.chatSidebarSearchSeq = Number(this.chatSidebarSearchSeq || 0) + 1;
+      this.chatSidebarSearchLoading = false;
+      this.chatSidebarSearchError = '';
+      this.chatSidebarSearchResults = [];
+      this.scheduleSidebarScrollIndicators();
+    },
+    onChatSidebarQueryInput(value) {
+      this.chatSidebarQuery = String(value || '');
+      this.chatSidebarVisibleCount = Math.max(1, Math.floor(Number(this.chatSidebarVisibleBase || 7)));
+      var query = String(this.chatSidebarQuery || '').trim();
+      if (!query) {
+        this.clearChatSidebarSearch();
+        return;
+      }
+      this.scheduleChatSidebarSearch();
+    },
+    scheduleChatSidebarSearch() {
+      var query = String(this.chatSidebarQuery || '').trim();
+      if (!query) { this.clearChatSidebarSearch(); return; }
+      if (this._chatSidebarSearchTimer) { clearTimeout(this._chatSidebarSearchTimer); this._chatSidebarSearchTimer = 0; }
+      var self = this;
+      var seq = Number(this.chatSidebarSearchSeq || 0) + 1;
+      this.chatSidebarSearchSeq = seq;
+      this.chatSidebarSearchLoading = true;
+      this.chatSidebarSearchError = '';
+      this._chatSidebarSearchTimer = setTimeout(function() { self._chatSidebarSearchTimer = 0; self.runChatSidebarSearch(seq); }, 140);
+    },
+    async runChatSidebarSearch(seq) {
+      var token = Number(seq || 0);
+      var currentToken = Number(this.chatSidebarSearchSeq || 0);
+      if (token !== currentToken) return;
+      var query = String(this.chatSidebarQuery || '').trim();
+      if (!query) {
+        this.clearChatSidebarSearch();
+        return;
+      }
+      try {
+        var path = '/api/search/conversations?q=' + encodeURIComponent(query) + '&limit=80';
+        var payload = await InfringAPI.get(path);
+        if (token !== Number(this.chatSidebarSearchSeq || 0)) return;
+        var self = this;
+        var serverRows = payload && Array.isArray(payload.sidebar_rows) ? payload.sidebar_rows : null;
+        if (serverRows && serverRows.length) {
+          this.chatSidebarSearchResults = serverRows.filter(function(agent) {
+            return !self.isSidebarArchivedAgent(agent);
+          }).map(function(agent) {
+            return self.sanitizeSidebarAgentRow(agent);
+          });
+          this.chatSidebarSearchError = '';
+          return;
+        }
+        var quickRows = payload && Array.isArray(payload.quick_actions) ? payload.quick_actions : [];
+        this.chatSidebarSearchResults = quickRows.filter(function(agent) {
+          return !self.isSidebarArchivedAgent(agent);
+        }).map(function(agent) {
+          return self.sanitizeSidebarAgentRow(agent);
+        });
+        this.chatSidebarSearchError = '';
+      } catch (e) {
+        if (token !== Number(this.chatSidebarSearchSeq || 0)) return;
+        this.chatSidebarSearchResults = [];
+        this.chatSidebarSearchError = String(e && e.message ? e.message : 'search_failed');
+      } finally {
+        if (token === Number(this.chatSidebarSearchSeq || 0)) {
+          this.chatSidebarSearchLoading = false;
+        }
+        this.scheduleSidebarScrollIndicators();
+      }
+    },
+    overlayGlassTemplateNormalized(modeRaw) {
+      var mode = String(modeRaw || '').trim().toLowerCase();
+      if (mode === 'liquid-glass') return 'fogged-glass';
+      return 'fogged-glass';
+    },
+    applyOverlayGlassTemplate(modeRaw, persistRaw) {
+      var mode = this.overlayGlassTemplateNormalized(modeRaw);
+      this.overlayGlassTemplate = mode;
+      var persist = persistRaw !== false;
+      if (document && document.documentElement) {
+        try {
+          document.documentElement.setAttribute('data-overlay-glass-template', mode);
+        } catch (_) {}
+      }
+      if (persist) {
+        try { localStorage.setItem('infring-overlay-glass-template', mode); } catch (_) {}
+      }
+      return mode;
+    },
     beginInstantThemeFlip() {
       var self = this;
       var body = document && document.body ? document.body : null;

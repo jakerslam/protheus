@@ -99,6 +99,21 @@ fn tooling_pipeline_display_meta(tool_name: &str, tool_args: &Value) -> Value {
                 .unwrap_or(""),
             240,
         ),
+        "web_tooling_health_probe" => clean_text(
+            tool_args
+                .get("query")
+                .and_then(Value::as_str)
+                .or_else(|| {
+                    tool_args
+                        .get("queries")
+                        .and_then(Value::as_array)
+                        .and_then(|rows| rows.first())
+                        .and_then(Value::as_str)
+                })
+                .filter(|raw| !raw.is_empty())
+                .unwrap_or("web tooling health probe"),
+            240,
+        ),
         "web_fetch" | "browse" | "web_conduit_fetch" => clean_text(
             tool_args
                 .get("url")
@@ -260,7 +275,7 @@ fn attach_tool_pipeline(payload: &mut Value, pipeline: &Value) {
 }
 
 fn tool_pipeline_supported_tool(tool_name: &str) -> bool {
-    matches!(normalize_tool_name(tool_name).as_str(), "web_search" | "web_fetch" | "batch_query" | "file_read" | "file_read_many" | "folder_export" | "manage_agent" | "spawn_subagents" | "terminal_exec" | "workspace_analyze")
+    matches!(normalize_tool_name(tool_name).as_str(), "web_search" | "web_fetch" | "batch_query" | "web_tooling_health_probe" | "file_read" | "file_read_many" | "folder_export" | "manage_agent" | "spawn_subagents" | "terminal_exec" | "workspace_analyze")
 }
 
 fn parse_json_loose(raw: &str) -> Option<Value> {

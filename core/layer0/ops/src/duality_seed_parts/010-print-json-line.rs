@@ -231,7 +231,8 @@ fn default_policy(root: &Path) -> Value {
             "assimilation_candidacy": true,
             "task_decomposition": true,
             "weaver_arbitration": true,
-            "heroic_echo_filtering": true
+            "heroic_echo_filtering": true,
+            "web_tooling_truth_signal": true
         },
         "dual_voice": {
             "enabled": true,
@@ -245,7 +246,8 @@ fn default_policy(root: &Path) -> Value {
         },
         "outputs": {
             "persist_shadow_receipts": true,
-            "persist_observations": true
+            "persist_observations": true,
+            "persist_web_tooling_receipts": true
         }
     })
 }
@@ -394,7 +396,8 @@ fn load_policy(root: &Path, policy_path_override: Option<&str>) -> Value {
             "assimilation_candidacy": as_bool(src_integration.get("assimilation_candidacy"), as_bool(base_integration.get("assimilation_candidacy"), true)),
             "task_decomposition": as_bool(src_integration.get("task_decomposition"), as_bool(base_integration.get("task_decomposition"), true)),
             "weaver_arbitration": as_bool(src_integration.get("weaver_arbitration"), as_bool(base_integration.get("weaver_arbitration"), true)),
-            "heroic_echo_filtering": as_bool(src_integration.get("heroic_echo_filtering"), as_bool(base_integration.get("heroic_echo_filtering"), true))
+            "heroic_echo_filtering": as_bool(src_integration.get("heroic_echo_filtering"), as_bool(base_integration.get("heroic_echo_filtering"), true)),
+            "web_tooling_truth_signal": as_bool(src_integration.get("web_tooling_truth_signal"), as_bool(base_integration.get("web_tooling_truth_signal"), true))
         },
         "dual_voice": {
             "enabled": as_bool(src_dual_voice.get("enabled"), as_bool(base_dual_voice.get("enabled"), true)),
@@ -428,7 +431,8 @@ fn load_policy(root: &Path, policy_path_override: Option<&str>) -> Value {
         },
         "outputs": {
             "persist_shadow_receipts": as_bool(src_outputs.get("persist_shadow_receipts"), as_bool(base_outputs.get("persist_shadow_receipts"), true)),
-            "persist_observations": as_bool(src_outputs.get("persist_observations"), as_bool(base_outputs.get("persist_observations"), true))
+            "persist_observations": as_bool(src_outputs.get("persist_observations"), as_bool(base_outputs.get("persist_observations"), true)),
+            "persist_web_tooling_receipts": as_bool(src_outputs.get("persist_web_tooling_receipts"), as_bool(base_outputs.get("persist_web_tooling_receipts"), true))
         }
     })
 }

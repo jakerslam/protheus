@@ -41,6 +41,11 @@ impl Default for OriginIntegrityPolicy {
                 "core/layer0/ops/src/contract_check.rs".to_string(),
                 "core/layer0/ops/src/foundation_contract_gate.rs".to_string(),
                 "core/layer0/ops/src/spine.rs".to_string(),
+                "core/layer0/ops/src/contract_lane_utils.rs".to_string(),
+                "core/layer0/ops/src/web_conduit_provider_runtime_parts/019-fetch-runtime-resolution.rs".to_string(),
+                "core/layer0/ops/src/web_conduit_provider_runtime_parts/021-search-runtime-resolution.rs".to_string(),
+                "core/layer0/ops/src/daemon_control_parts/020-dashboard-health-ok.rs".to_string(),
+                "client/runtime/config/secret_broker_policy.json".to_string(),
             ],
             constitution: ConstitutionContract::default(),
             paths: OriginIntegrityPaths::default(),
@@ -414,4 +419,3 @@ fn detect_layer(rel_path: &str, layers: &BTreeMap<String, Vec<String>>) -> Optio
     }
     None
 }
-

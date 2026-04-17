@@ -1,3 +1,17 @@
+fn round_throughput_sample(value: f64) -> f64 {
+    let finite = if value.is_finite() { value.max(0.0) } else { 0.0 };
+    ((finite * 100.0).round()) / 100.0
+}
+
+fn canonical_workload_seed(raw: &str) -> String {
+    let cleaned = clean(raw, 160);
+    if cleaned.trim().is_empty() {
+        "shared-throughput".to_string()
+    } else {
+        cleaned
+    }
+}
+
 fn attach_shared_throughput_sampling(
     measured: &mut Map<String, Value>,
     sampling: &ThroughputSampling,
@@ -8,7 +22,7 @@ fn attach_shared_throughput_sampling(
             sampling
                 .warmup_samples
                 .iter()
-                .map(|value| json!(((value * 100.0).round()) / 100.0))
+                .map(|value| json!(round_throughput_sample(*value)))
                 .collect(),
         ),
     );
@@ -18,29 +32,37 @@ fn attach_shared_throughput_sampling(
             sampling
                 .measured_samples
                 .iter()
-                .map(|value| json!(((value * 100.0).round()) / 100.0))
+                .map(|value| json!(round_throughput_sample(*value)))
                 .collect(),
         ),
     );
     measured.insert(
         "throughput_sampling_stddev_ops_per_sec".to_string(),
-        json!(((sampling.stddev * 100.0).round()) / 100.0),
+        json!(round_throughput_sample(sampling.stddev)),
     );
     measured.insert(
         "throughput_sampling_min_ops_per_sec".to_string(),
-        json!(((sampling.min * 100.0).round()) / 100.0),
+        json!(round_throughput_sample(sampling.min)),
     );
     measured.insert(
         "throughput_sampling_max_ops_per_sec".to_string(),
-        json!(((sampling.max * 100.0).round()) / 100.0),
+        json!(round_throughput_sample(sampling.max)),
     );
     measured.insert(
         "throughput_uncached".to_string(),
         Value::Bool(sampling.uncached),
     );
     measured.insert(
+        "throughput_sampling_warmup_count".to_string(),
+        json!(sampling.warmup_samples.len()),
+    );
+    measured.insert(
+        "throughput_sampling_measured_count".to_string(),
+        json!(sampling.measured_samples.len()),
+    );
+    measured.insert(
         "throughput_workload_seed".to_string(),
-        Value::String(clean(&sampling.workload_seed, 160)),
+        Value::String(canonical_workload_seed(&sampling.workload_seed)),
     );
 }
 

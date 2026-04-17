@@ -3,17 +3,29 @@
 const { createOpsLaneBridge } = require('../../lib/rust_lane_bridge.ts');
 
 const SYSTEM_ID = 'V6-INFRING-DETACH-001.2';
+const MAX_ARG_LEN = 512;
 const bridge = createOpsLaneBridge(__dirname, 'specialist_training', 'runtime-systems', {
   inheritStdio: true,
   preferLocalCore: true
 });
 
+function sanitizeArg(value) {
+  return String(value == null ? '' : value)
+    .replace(/[\u200B\u200C\u200D\u2060\uFEFF]/g, '')
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/[^\x20-\x7E]+/g, '')
+    .trim()
+    .slice(0, MAX_ARG_LEN);
+}
+
 function run(args = process.argv.slice(2)) {
-  const passthrough = Array.isArray(args) ? args.slice() : [];
+  const passthrough = Array.isArray(args)
+    ? args.map((arg) => sanitizeArg(arg)).filter(Boolean)
+    : [];
   if (!passthrough.some((row) => String(row).startsWith('--strict='))) passthrough.push('--strict=1');
   if (!passthrough.some((row) => String(row).startsWith('--apply='))) passthrough.push('--apply=1');
   if (!passthrough.some((row) => String(row).startsWith('--payload-json='))) {
-    const sourceRoot = process.env.INFRING_INFRING_SOURCE_ROOT || '..';
+    const sourceRoot = sanitizeArg(process.env.INFRING_INFRING_SOURCE_ROOT || '..') || '..';
     passthrough.push(`--payload-json=${JSON.stringify({ source_root: sourceRoot })}`);
   }
   const out = bridge.run(['run', `--system-id=${SYSTEM_ID}`].concat(passthrough));
@@ -21,6 +33,15 @@ function run(args = process.argv.slice(2)) {
   if (out && out.stderr) process.stderr.write(out.stderr);
   if (out && out.payload && !out.stdout) {
     process.stdout.write(`${JSON.stringify(out.payload)}\n`);
+  } else if (!out || (!out.stdout && !out.stderr)) {
+    process.stdout.write(
+      `${JSON.stringify({
+        ok: false,
+        type: 'specialist_training',
+        error: 'bridge_no_output',
+        status: Number.isFinite(Number(out && out.status)) ? Number(out.status) : 1
+      })}\n`
+    );
   }
   return out;
 }

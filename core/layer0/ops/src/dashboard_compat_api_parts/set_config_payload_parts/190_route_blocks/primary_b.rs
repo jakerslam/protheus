@@ -146,9 +146,16 @@ fn handle_primary_dashboard_routes_b(
         let limit = query_value(path, "limit")
             .and_then(|value| value.parse::<usize>().ok())
             .unwrap_or(40);
+        let payload = crate::dashboard_sidebar_view_model::augment_conversation_search_payload(
+            crate::dashboard_internal_search::search_conversations(root, &query, limit),
+            &query,
+        );
+        let payload = crate::dashboard_sidebar_preview_model::augment_search_payload_with_previews(
+            root, payload,
+        );
         return Some(CompatApiResponse {
             status: 200,
-            payload: crate::dashboard_internal_search::search_conversations(root, &query, limit),
+            payload,
         });
     }
     if method == "POST" && path_only == "/api/search/conversations" {
@@ -166,9 +173,16 @@ fn handle_primary_dashboard_routes_b(
             .and_then(Value::as_u64)
             .map(|value| value as usize)
             .unwrap_or(40);
+        let payload = crate::dashboard_sidebar_view_model::augment_conversation_search_payload(
+            crate::dashboard_internal_search::search_conversations(root, &query, limit),
+            &query,
+        );
+        let payload = crate::dashboard_sidebar_preview_model::augment_search_payload_with_previews(
+            root, payload,
+        );
         return Some(CompatApiResponse {
             status: 200,
-            payload: crate::dashboard_internal_search::search_conversations(root, &query, limit),
+            payload,
         });
     }
 
@@ -260,9 +274,14 @@ fn handle_primary_dashboard_routes_b(
         let include_terminated = query_value(path, "include_terminated")
             .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
             .unwrap_or(false);
+        let rows = crate::dashboard_sidebar_view_model::augment_agent_roster_rows(
+            build_agent_roster(root, snapshot, include_terminated),
+        );
+        let rows =
+            crate::dashboard_sidebar_preview_model::augment_agent_roster_with_previews(root, rows);
         return Some(CompatApiResponse {
             status: 200,
-            payload: Value::Array(build_agent_roster(root, snapshot, include_terminated)),
+            payload: Value::Array(rows),
         });
     }
 

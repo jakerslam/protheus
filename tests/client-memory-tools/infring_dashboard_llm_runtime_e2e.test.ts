@@ -3,6 +3,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 // PARTS_LOADER: split oversized file into <=1000-line wrapper + parts.
 const PARTS_DIR = [
@@ -16,5 +17,10 @@ const source = fs
   .sort((a, b) => a.localeCompare(b, 'en'))
   .map((name) => fs.readFileSync(path.join(PARTS_DIR, name), 'utf8'))
   .join('\n');
+assertNoPlaceholderOrPromptLeak({ source }, 'infring_dashboard_llm_runtime_e2e_test');
+assertStableToolingEnvelope(
+  { status: 'ok', source_length: source.length, parts_dir: PARTS_DIR },
+  'infring_dashboard_llm_runtime_e2e_test'
+);
 
 module._compile(source, __filename);

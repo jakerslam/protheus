@@ -151,15 +151,50 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
     hex::encode(hasher.finalize())
 }
 
+fn strip_invisible_unicode(input: &str) -> String {
+    input
+        .chars()
+        .filter(|ch| {
+            !matches!(
+                *ch,
+                '\u{200B}'
+                    | '\u{200C}'
+                    | '\u{200D}'
+                    | '\u{200E}'
+                    | '\u{200F}'
+                    | '\u{202A}'
+                    | '\u{202B}'
+                    | '\u{202C}'
+                    | '\u{202D}'
+                    | '\u{202E}'
+                    | '\u{2060}'
+                    | '\u{FEFF}'
+            )
+        })
+        .collect::<String>()
+}
+
+fn normalize_blob_id(raw: &str) -> String {
+    strip_invisible_unicode(raw)
+        .chars()
+        .filter(|ch| !ch.is_control() || *ch == '\n' || *ch == '\t')
+        .collect::<String>()
+        .trim()
+        .chars()
+        .take(96)
+        .collect::<String>()
+}
+
 pub fn fold_blob<T: Serialize>(data: &T, blob_id: &str) -> Result<(Vec<u8>, String), BlobError> {
-    if blob_id.trim().is_empty() {
+    let normalized_blob_id = normalize_blob_id(blob_id);
+    if normalized_blob_id.is_empty() {
         return Err(BlobError::InvalidBlobId);
     }
 
     let payload =
         bincode::serialize(data).map_err(|e| BlobError::SerializeFailed(e.to_string()))?;
     let folded = FoldedBlob {
-        id: blob_id.to_string(),
+        id: normalized_blob_id,
         version: BLOB_VERSION,
         payload,
     };
@@ -176,10 +211,11 @@ pub fn generate_manifest(blobs: &[(&str, &[u8])]) -> Vec<BlobManifest> {
     blobs
         .iter()
         .map(|(blob_id, blob_bytes)| {
+            let normalized_blob_id = normalize_blob_id(blob_id);
             let hash = sha256_hex(blob_bytes);
-            let signature = manifest_signature(blob_id, &hash, BLOB_VERSION);
+            let signature = manifest_signature(&normalized_blob_id, &hash, BLOB_VERSION);
             BlobManifest {
-                id: (*blob_id).to_string(),
+                id: normalized_blob_id,
                 hash,
                 version: BLOB_VERSION,
                 signature: Some(signature),
@@ -201,11 +237,15 @@ pub fn load_manifest() -> Result<Vec<BlobManifest>, BlobError> {
 }
 
 pub fn unfold_blob(blob_id: &str, expected_hash: &str) -> Result<Vec<u8>, BlobError> {
+    let normalized_blob_id = normalize_blob_id(blob_id);
+    if normalized_blob_id.is_empty() {
+        return Err(BlobError::InvalidBlobId);
+    }
     let manifest = load_manifest()?;
     let entry = manifest
         .iter()
-        .find(|entry| entry.id == blob_id)
-        .ok_or_else(|| BlobError::MissingManifestEntry(blob_id.to_string()))?;
+        .find(|entry| entry.id == normalized_blob_id)
+        .ok_or_else(|| BlobError::MissingManifestEntry(normalized_blob_id.clone()))?;
 
     verify_manifest_entry(entry)?;
 
@@ -218,7 +258,8 @@ pub fn unfold_blob(blob_id: &str, expected_hash: &str) -> Result<Vec<u8>, BlobEr
     }
 
     let blob_bytes =
-        blob_bytes_by_id(blob_id).ok_or_else(|| BlobError::UnknownBlob(blob_id.to_string()))?;
+        blob_bytes_by_id(&normalized_blob_id)
+            .ok_or_else(|| BlobError::UnknownBlob(normalized_blob_id.clone()))?;
     let actual_hash = sha256_hex(blob_bytes);
     if !actual_hash.eq_ignore_ascii_case(&entry.hash) {
         return Err(BlobError::HashMismatch {
@@ -234,9 +275,9 @@ pub fn unfold_blob(blob_id: &str, expected_hash: &str) -> Result<Vec<u8>, BlobEr
     let folded: FoldedBlob = bincode::deserialize(&decompressed)
         .map_err(|e| BlobError::DeserializeFailed(e.to_string()))?;
 
-    if folded.id != blob_id {
+    if folded.id != normalized_blob_id {
         return Err(BlobError::IdMismatch {
-            expected: blob_id.to_string(),
+            expected: normalized_blob_id,
             actual: folded.id,
         });
     }

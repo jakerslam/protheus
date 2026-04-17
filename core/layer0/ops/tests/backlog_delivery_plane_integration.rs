@@ -21,6 +21,23 @@ fn read_json(path: &Path) -> Value {
     serde_json::from_str(&raw).expect("parse json")
 }
 
+fn assert_no_runtime_context_leak(raw: &str) {
+    const FORBIDDEN: [&str; 6] = [
+        "You are an expert Python programmer.",
+        "[PATCH v2",
+        "List Leaves (25",
+        "BEGIN_OPENCLAW_INTERNAL_CONTEXT",
+        "END_OPENCLAW_INTERNAL_CONTEXT",
+        "UNTRUSTED_CHILD_RESULT_DELIMITER",
+    ];
+    for marker in FORBIDDEN {
+        assert!(
+            !raw.contains(marker),
+            "runtime payload leaked forbidden marker `{marker}`: {raw}"
+        );
+    }
+}
+
 fn latest_path(root: &Path) -> PathBuf {
     root.join("core/local/state/ops/backlog_delivery_plane/latest.json")
 }
@@ -118,6 +135,7 @@ fn backlog_delivery_plane_executes_all_actionable_ids_with_receipts() {
         );
         assert_eq!(exit, 0, "id failed: {id}");
         let latest = read_json(&latest_path(&root));
+        assert_no_runtime_context_leak(&latest.to_string());
         assert_eq!(latest.get("id").and_then(Value::as_str), Some(id));
         let has_claim = latest
             .get("claim_evidence")

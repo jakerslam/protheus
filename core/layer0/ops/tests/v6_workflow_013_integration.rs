@@ -23,6 +23,13 @@ fn latest_receipt(state_path: &Path) -> Value {
         .expect("last receipt")
 }
 
+fn assert_tooling_receipt_payload(receipt: &Value) {
+    assert!(
+        receipt.get("payload").and_then(Value::as_object).is_some(),
+        "receipt payload must be an object"
+    );
+}
+
 #[test]
 fn workflow_013_society_world_dataset_conversation_benchmark_tools_and_observability_emit_receipts()
 {
@@ -53,6 +60,7 @@ fn workflow_013_society_world_dataset_conversation_benchmark_tools_and_observabi
         0
     );
     let society_receipt = latest_receipt(&state_path);
+    assert_tooling_receipt_payload(&society_receipt);
     assert_eq!(
         society_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-013.1")
@@ -245,6 +253,7 @@ fn workflow_013_society_world_dataset_conversation_benchmark_tools_and_observabi
         0
     );
     let gateway_receipt = latest_receipt(&state_path);
+    assert_tooling_receipt_payload(&gateway_receipt);
     let gateway_id = gateway_receipt["payload"]["tool_gateway"]["gateway_id"]
         .as_str()
         .expect("gateway id")
@@ -272,6 +281,7 @@ fn workflow_013_society_world_dataset_conversation_benchmark_tools_and_observabi
         0
     );
     let invocation_receipt = latest_receipt(&state_path);
+    assert_tooling_receipt_payload(&invocation_receipt);
     assert_eq!(
         invocation_receipt["payload"]["invocation"]["status"].as_str(),
         Some("denied")

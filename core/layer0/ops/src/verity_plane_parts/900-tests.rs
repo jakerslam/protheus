@@ -74,19 +74,28 @@ mod tests {
     }
 
     #[test]
-    fn vector_check_emits_event_and_receipt() {
+fn vector_check_emits_event_and_receipt() {
         let temp = tempfile::tempdir().expect("tempdir");
         let payload = run_vector_check(
             temp.path(),
             &["vector-check".to_string(), "--target=1.0".to_string()],
         );
-        assert_eq!(
-            payload.get("type").and_then(Value::as_str),
-            Some("verity_vector_check")
-        );
-        assert!(payload.get("event").is_some());
-        assert!(payload.get("receipt").is_some());
-    }
+    assert_eq!(
+        payload.get("type").and_then(Value::as_str),
+        Some("verity_vector_check")
+    );
+    assert!(payload.get("event").is_some());
+    assert!(payload.get("receipt").is_some());
+    assert!(
+        payload
+            .get("receipt")
+            .and_then(Value::as_object)
+            .and_then(|receipt| receipt.get("receipt_hash"))
+            .and_then(Value::as_str)
+            .map(|value| !value.trim().is_empty())
+            .unwrap_or(false)
+    );
+}
 
     #[test]
     fn tampered_policy_fails_closed_to_signed_default() {
@@ -121,6 +130,13 @@ mod tests {
                 .and_then(|policy| policy.get("mode"))
                 .and_then(Value::as_str),
             Some("production")
+        );
+        assert!(
+            payload
+                .get("receipt_hash")
+                .and_then(Value::as_str)
+                .map(|value| !value.trim().is_empty())
+                .unwrap_or(false)
         );
     }
 }

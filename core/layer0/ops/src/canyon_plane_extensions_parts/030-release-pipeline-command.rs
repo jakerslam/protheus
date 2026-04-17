@@ -3,7 +3,7 @@ pub(super) fn release_pipeline_command(
     parsed: &crate::ParsedArgs,
     strict: bool,
 ) -> Result<Value, String> {
-    let op = clean(
+    let op_raw = clean(
         parsed
             .flags
             .get("op")
@@ -12,6 +12,11 @@ pub(super) fn release_pipeline_command(
         24,
     )
     .to_ascii_lowercase();
+    let op = match op_raw.as_str() {
+        "status" | "state" | "show" => "status".to_string(),
+        "run" | "execute" | "start" | "build" => "run".to_string(),
+        _ => op_raw.clone(),
+    };
     if op == "status" {
         return Ok(read_json(&release_pipeline_path(root)).unwrap_or_else(|| {
             json!({
@@ -56,6 +61,22 @@ pub(super) fn release_pipeline_command(
     );
 
     let mut errors = Vec::<String>::new();
+    let token_has_path_risk = |token: &str| {
+        token.is_empty()
+            || token.contains('/')
+            || token.contains('\\')
+            || token.contains("..")
+            || token.chars().any(|ch| ch == '\0' || ch.is_control())
+    };
+    if token_has_path_risk(&binary) {
+        errors.push("binary_token_invalid".to_string());
+    }
+    if token_has_path_risk(&target) {
+        errors.push("target_token_invalid".to_string());
+    }
+    if token_has_path_risk(&profile) {
+        errors.push("profile_token_invalid".to_string());
+    }
     for (label, bin) in [("cargo", cargo_bin.as_str()), ("strip", strip_bin.as_str())] {
         if strict && !command_exists(bin) {
             errors.push(format!("tool_missing:{label}"));
@@ -79,9 +100,15 @@ pub(super) fn release_pipeline_command(
             errors.push(format!("tool_missing:{tool}"));
         }
     }
+    if op_raw != op {
+        warnings.push(format!("op_alias_normalized:{op_raw}->{op}"));
+    }
     let hard_tool_error = errors
         .iter()
         .any(|row| row == "tool_missing:cargo" || row == "tool_missing:strip");
+    let hard_input_error = errors
+        .iter()
+        .any(|row| row.ends_with("_token_invalid"));
 
     let artifact = root
         .join("target")
@@ -127,7 +154,7 @@ pub(super) fn release_pipeline_command(
             *bolt_optimized = command_exists("llvm-strip");
         }
     };
-    if !hard_tool_error && likely_real_binary(&artifact) {
+    if !hard_tool_error && !hard_input_error && likely_real_binary(&artifact) {
         run_status = Some(true);
         optimize_artifact(
             &artifact,
@@ -139,6 +166,7 @@ pub(super) fn release_pipeline_command(
             &mut bolt_optimized,
         );
     } else if !hard_tool_error
+        && !hard_input_error
         && likely_real_binary(&artifact) == false
         && likely_real_binary(&fallback_artifact)
     {
@@ -168,7 +196,7 @@ pub(super) fn release_pipeline_command(
             &mut pgo_profile_merged,
             &mut bolt_optimized,
         );
-    } else if !hard_tool_error {
+    } else if !hard_tool_error && !hard_input_error {
         let mut cmd = Command::new(&cargo_bin);
         cmd.arg("build")
             .arg("--manifest-path")
@@ -225,6 +253,7 @@ pub(super) fn release_pipeline_command(
         "type": "canyon_plane_release_pipeline",
         "lane": LANE_ID,
         "ts": now_iso(),
+        "op": op,
         "strict": strict,
         "binary": binary,
         "target": target,

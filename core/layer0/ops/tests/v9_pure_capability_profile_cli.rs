@@ -1,12 +1,31 @@
 use serde_json::Value;
 use std::process::Command;
 
+fn assert_no_runtime_context_leak(raw: &str) {
+    const FORBIDDEN: [&str; 6] = [
+        "You are an expert Python programmer.",
+        "[PATCH v2",
+        "List Leaves (25",
+        "BEGIN_OPENCLAW_INTERNAL_CONTEXT",
+        "END_OPENCLAW_INTERNAL_CONTEXT",
+        "UNTRUSTED_CHILD_RESULT_DELIMITER",
+    ];
+    for marker in FORBIDDEN {
+        assert!(
+            !raw.contains(marker),
+            "runtime payload leaked forbidden marker `{marker}`: {raw}"
+        );
+    }
+}
+
 fn parse_json_output(stdout: &[u8], stderr: &[u8]) -> Value {
     let stdout_text = String::from_utf8_lossy(stdout);
+    assert_no_runtime_context_leak(stdout_text.as_ref());
     if let Ok(value) = serde_json::from_str::<Value>(stdout_text.trim()) {
         return value;
     }
     let stderr_text = String::from_utf8_lossy(stderr);
+    assert_no_runtime_context_leak(stderr_text.as_ref());
     if let Ok(value) = serde_json::from_str::<Value>(stderr_text.trim()) {
         return value;
     }

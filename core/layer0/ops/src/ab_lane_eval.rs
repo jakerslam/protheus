@@ -68,7 +68,13 @@ fn append_jsonl(path: &Path, value: &Value) -> Result<(), String> {
         .map_err(|err| format!("append_jsonl_failed:{}:{err}", path.display()))
 }
 fn score_variant(quality: f64, drift: f64, escalation: f64, cost: f64) -> f64 {
-    quality - (drift * 2.0) - (escalation * 3.0) - (cost * 0.1)
+    let web_tooling_penalty = std::env::var("AB_LANE_WEB_TOOLING_PENALTY")
+        .ok()
+        .and_then(|v| v.trim().parse::<f64>().ok())
+        .filter(|v| v.is_finite())
+        .unwrap_or(0.0)
+        .clamp(0.0, 5.0);
+    quality - (drift * 2.0) - (escalation * 3.0) - (cost * 0.1) - web_tooling_penalty
 }
 fn state_paths(root: &Path) -> (PathBuf, PathBuf) {
     let state_dir = root.join(STATE_DIR_REL);

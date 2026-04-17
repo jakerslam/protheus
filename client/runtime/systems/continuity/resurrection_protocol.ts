@@ -28,6 +28,9 @@ const bridge = createOpsLaneBridge(
  */
 
 const MUTATION_COMMANDS = new Set(['checkpoint']);
+const ALLOWED_COMMANDS = new Set(['checkpoint', 'restore', 'status']);
+const MAX_ARGS = 64;
+const MAX_ARG_LEN = 512;
 
 function stableStringify(value) {
   if (value === null || typeof value !== 'object') {
@@ -48,6 +51,15 @@ function normalizeReceiptHash(payload) {
   return crypto.createHash('sha256').update(stableStringify(clone)).digest('hex');
 }
 
+function sanitizeArg(value) {
+  return String(value == null ? '' : value)
+    .replace(/[\u200B\u200C\u200D\u2060\uFEFF]/g, '')
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/[^\x20-\x7E]+/g, '')
+    .trim()
+    .slice(0, MAX_ARG_LEN);
+}
+
 function ensureMutationReceipt(result, command) {
   if (!result || !result.payload || typeof result.payload !== 'object') {
     return result;
@@ -66,7 +78,9 @@ function ensureMutationReceipt(result, command) {
 }
 
 function normalizeArgs(args = []) {
-  const rows = Array.isArray(args) ? args.map((v) => String(v).trim()) : [];
+  const rows = Array.isArray(args)
+    ? args.map((v) => sanitizeArg(v)).filter(Boolean).slice(0, MAX_ARGS)
+    : [];
   if (!rows.length) {
     return ['status'];
   }
@@ -89,8 +103,12 @@ function normalizeArgs(args = []) {
   if (head === 'verify') {
     return ['status'];
   }
-  if (head === 'status' || head === 'restore') {
+  if (head === 'status' || head === 'restore' || head === 'checkpoint') {
     return [head].concat(tail);
+  }
+
+  if (!ALLOWED_COMMANDS.has(head)) {
+    return ['status'].concat(tail);
   }
 
   return [head].concat(tail);
@@ -111,6 +129,15 @@ function run(args = process.argv.slice(2)) {
       payload.receipt_hash = normalizeReceiptHash(payload);
     }
     process.stdout.write(`${JSON.stringify(payload)}\n`);
+  } else if (!out || (!out.stdout && !out.stderr)) {
+    process.stdout.write(
+      `${JSON.stringify({
+        ok: false,
+        type: 'resurrection_protocol',
+        error: 'bridge_no_output',
+        status: Number.isFinite(Number(out && out.status)) ? Number(out.status) : 1
+      })}\n`
+    );
   }
   return out;
 }

@@ -23,6 +23,13 @@ fn latest_receipt(state_path: &Path) -> Value {
         .expect("last receipt")
 }
 
+fn assert_tooling_receipt_payload(receipt: &Value) {
+    assert!(
+        receipt.get("payload").and_then(Value::as_object).is_some(),
+        "receipt payload must be an object"
+    );
+}
+
 #[test]
 fn workflow_015_typed_agents_validation_protocol_durable_approval_observability_graph_stream_and_eval_emit_receipts(
 ) {
@@ -55,6 +62,7 @@ fn workflow_015_typed_agents_validation_protocol_durable_approval_observability_
         0
     );
     let agent_receipt = latest_receipt(&state_path);
+    assert_tooling_receipt_payload(&agent_receipt);
     assert_eq!(
         agent_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-015.1")
@@ -122,6 +130,7 @@ fn workflow_015_typed_agents_validation_protocol_durable_approval_observability_
         0
     );
     let tool_receipt = latest_receipt(&state_path);
+    assert_tooling_receipt_payload(&tool_receipt);
     assert_eq!(
         tool_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-015.3")
@@ -202,6 +211,7 @@ fn workflow_015_typed_agents_validation_protocol_durable_approval_observability_
         0
     );
     let invoke_receipt = latest_receipt(&state_path);
+    assert_tooling_receipt_payload(&invoke_receipt);
     assert_eq!(
         invoke_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-015.3")
@@ -378,6 +388,7 @@ fn workflow_015_typed_agents_validation_protocol_durable_approval_observability_
         0
     );
     let stream_receipt = latest_receipt(&state_path);
+    assert_tooling_receipt_payload(&stream_receipt);
     assert_eq!(
         stream_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-015.9")

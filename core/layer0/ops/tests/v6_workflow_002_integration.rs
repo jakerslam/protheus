@@ -22,6 +22,13 @@ fn latest_receipt(state_path: &Path) -> Value {
         .expect("last receipt")
 }
 
+fn assert_receipt_tooling_hygiene(receipt: &Value) {
+    let blob = receipt.to_string().to_ascii_lowercase();
+    assert!(!blob.contains("<function="));
+    assert!(!blob.contains("</function>"));
+    assert!(!blob.contains("i couldn't produce source-backed findings in this turn"));
+}
+
 #[test]
 fn workflow_002_workflow_graph_bridge_emits_receipted_graph_checkpoint_hitl_interrupt_subgraph_trace_and_stream(
 ) {
@@ -60,6 +67,7 @@ fn workflow_002_workflow_graph_bridge_emits_receipted_graph_checkpoint_hitl_inte
         0
     );
     let graph_receipt = latest_receipt(&state_path);
+    assert_receipt_tooling_hygiene(&graph_receipt);
     assert_eq!(
         graph_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-002.1")
@@ -285,6 +293,7 @@ fn workflow_002_workflow_graph_bridge_emits_receipted_graph_checkpoint_hitl_inte
         0
     );
     let stream_receipt = latest_receipt(&state_path);
+    assert_receipt_tooling_hygiene(&stream_receipt);
     assert_eq!(
         stream_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-002.6")

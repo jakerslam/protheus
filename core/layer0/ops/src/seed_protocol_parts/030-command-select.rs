@@ -1,3 +1,33 @@
+fn clean_id(raw: Option<&str>, fallback: &str) -> String {
+    let mut out = String::new();
+    let mut prev_sep = false;
+    for ch in raw.unwrap_or_default().chars() {
+        let next = if ch.is_ascii_alphanumeric() || ch == '_' || ch == '-' {
+            ch.to_ascii_lowercase()
+        } else {
+            '-'
+        };
+        if next == '-' {
+            if prev_sep {
+                continue;
+            }
+            prev_sep = true;
+        } else {
+            prev_sep = false;
+        }
+        out.push(next);
+        if out.len() >= 120 {
+            break;
+        }
+    }
+    let cleaned = out.trim_matches('-').to_string();
+    if cleaned.is_empty() {
+        fallback.to_string()
+    } else {
+        cleaned
+    }
+}
+
 fn command_select(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
     let profile = selected_profile(parsed);
     let apply = parse_bool(parsed.flags.get("apply"), true);
@@ -18,6 +48,12 @@ fn command_select(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
     }
 
     let top_k = parse_u64(parsed.flags.get("top"), 5).clamp(1, 50) as usize;
+    let starved_threshold = parsed
+        .flags
+        .get("starved-threshold")
+        .and_then(|raw| raw.trim().parse::<f64>().ok())
+        .unwrap_or(10.0)
+        .clamp(0.0, 1_000_000.0);
     let ledger = read_network_ledger(root);
     let balances = ledger
         .get("balances")
@@ -30,21 +66,36 @@ fn command_select(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
         .cloned()
         .unwrap_or_default();
 
-    let mut scored = balances
-        .iter()
-        .map(|(node, bal)| {
-            let b = bal.as_f64().unwrap_or(0.0);
-            let s = stakes.get(node).and_then(Value::as_f64).unwrap_or(0.0);
+    let mut totals = std::collections::BTreeMap::<String, (f64, f64)>::new();
+    for (node, bal) in &balances {
+        let node_id = clean_id(Some(node.as_str()), "node-unknown");
+        let entry = totals.entry(node_id).or_insert((0.0, 0.0));
+        entry.0 += bal.as_f64().unwrap_or(0.0);
+    }
+    for (node, stake) in &stakes {
+        let node_id = clean_id(Some(node.as_str()), "node-unknown");
+        let entry = totals.entry(node_id).or_insert((0.0, 0.0));
+        entry.1 += stake.as_f64().unwrap_or(0.0);
+    }
+    let mut scored = totals
+        .into_iter()
+        .map(|(node, (b, s))| {
             let score = b + (s * 2.0);
-            (node.clone(), b, s, score)
+            (node, b, s, score)
         })
         .collect::<Vec<_>>();
-    scored.sort_by(|a, b| b.3.partial_cmp(&a.3).unwrap_or(std::cmp::Ordering::Equal));
+    scored.sort_by(|a, b| {
+        b.3.partial_cmp(&a.3)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| a.0.cmp(&b.0))
+    });
     let selected = scored
         .iter()
         .take(top_k)
-        .map(|(node, b, s, score)| {
+        .enumerate()
+        .map(|(idx, (node, b, s, score))| {
             json!({
+                "rank": idx + 1,
                 "node": node,
                 "balance": b,
                 "staked": s,
@@ -55,8 +106,14 @@ fn command_select(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
     let starved = scored
         .iter()
         .skip(top_k)
-        .filter(|(_, _, _, score)| *score < 10.0)
-        .map(|(node, _, _, score)| json!({"node": node, "score": score}))
+        .filter(|(_, _, _, score)| *score < starved_threshold)
+        .map(|(node, _, _, score)| {
+            json!({
+                "node": node,
+                "score": score,
+                "reason": format!("score<{starved_threshold}")
+            })
+        })
         .collect::<Vec<_>>();
 
     if apply {
@@ -384,4 +441,3 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         ),
     }
 }
-

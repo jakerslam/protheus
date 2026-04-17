@@ -1,8 +1,26 @@
+fn resolve_component_path(policy: &Value, key: &str, fallback_rel: &str, root: &Path) -> PathBuf {
+    let raw = policy["paths"]
+        .get(key)
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .trim();
+    if raw.is_empty() {
+        return root.join(fallback_rel);
+    }
+    let candidate = PathBuf::from(raw);
+    if candidate.is_absolute() {
+        candidate
+    } else {
+        root.join(candidate)
+    }
+}
+
 fn compute_identity_component(policy: &Value, root: &Path) -> Component {
-    let path = PathBuf::from(
-        policy["paths"]["identity_latest_path"]
-            .as_str()
-            .unwrap_or_default(),
+    let path = resolve_component_path(
+        policy,
+        "identity_latest_path",
+        "local/state/ops/identity/latest.json",
+        root,
     );
     let latest = read_json_value(&path, json!({}));
     let summary = latest.get("summary").unwrap_or(&latest);
@@ -55,10 +73,11 @@ fn compute_identity_component(policy: &Value, root: &Path) -> Component {
 }
 
 fn compute_pre_neuralink_component(policy: &Value, root: &Path) -> Component {
-    let path = PathBuf::from(
-        policy["paths"]["pre_neuralink_state_path"]
-            .as_str()
-            .unwrap_or_default(),
+    let path = resolve_component_path(
+        policy,
+        "pre_neuralink_state_path",
+        "local/state/ops/pre_neuralink/state.json",
+        root,
     );
     let state = read_json_value(&path, json!({}));
     let consent_state = {
@@ -106,10 +125,11 @@ fn compute_pre_neuralink_component(policy: &Value, root: &Path) -> Component {
 }
 
 fn compute_behavioral_component(policy: &Value, root: &Path) -> Component {
-    let path = PathBuf::from(
-        policy["paths"]["deep_symbiosis_state_path"]
-            .as_str()
-            .unwrap_or_default(),
+    let path = resolve_component_path(
+        policy,
+        "deep_symbiosis_state_path",
+        "local/state/ops/deep_symbiosis/state.json",
+        root,
     );
     let state = read_json_value(&path, json!({}));
     let style = state.get("style").unwrap_or(&Value::Null);
@@ -137,10 +157,11 @@ fn compute_behavioral_component(policy: &Value, root: &Path) -> Component {
 }
 
 fn compute_mirror_component(policy: &Value, root: &Path) -> Component {
-    let path = PathBuf::from(
-        policy["paths"]["observer_mirror_latest_path"]
-            .as_str()
-            .unwrap_or_default(),
+    let path = resolve_component_path(
+        policy,
+        "observer_mirror_latest_path",
+        "local/state/ops/observer_mirror/latest.json",
+        root,
     );
     let latest = read_json_value(&path, json!({}));
     let mood = {
@@ -433,4 +454,3 @@ fn parse_depth_request(raw: Option<&Value>) -> (Option<i64>, bool) {
         }
     }
 }
-

@@ -14,6 +14,9 @@ fn collect_dopamine_ambient_dashboard_metric(root: &Path) -> Value {
     let mut severity = "unknown".to_string();
     let mut threshold_breached = false;
     let mut last_recorded_date = String::new();
+    let runtime_web_tooling_auth_sources = runtime_web_tooling_auth_sources();
+    let runtime_web_tooling_auth_present = !runtime_web_tooling_auth_sources.is_empty();
+    let runtime_web_tooling_strict_auth_required = runtime_web_tooling_strict_auth_required(root);
 
     if let Some(row) = primary.as_ref() {
         source = primary_path.to_string_lossy().to_string();
@@ -42,7 +45,12 @@ fn collect_dopamine_ambient_dashboard_metric(root: &Path) -> Value {
             .map(|age| age > DOPAMINE_METRICS_FRESH_WINDOW_SECONDS)
             .unwrap_or(true);
         freshness = if stale { "stale" } else { "fresh" }.to_string();
-        status = if stale || threshold_breached || severity == "critical" || severity == "warn" {
+        status = if stale
+            || threshold_breached
+            || severity == "critical"
+            || severity == "warn"
+            || (runtime_web_tooling_strict_auth_required && !runtime_web_tooling_auth_present)
+        {
             "warn".to_string()
         } else {
             "pass".to_string()
@@ -78,7 +86,10 @@ fn collect_dopamine_ambient_dashboard_metric(root: &Path) -> Value {
         } else {
             "info".to_string()
         };
-        status = if stale || score <= 0.0 {
+        status = if stale
+            || score <= 0.0
+            || (runtime_web_tooling_strict_auth_required && !runtime_web_tooling_auth_present)
+        {
             "warn".to_string()
         } else {
             "pass".to_string()
@@ -96,9 +107,59 @@ fn collect_dopamine_ambient_dashboard_metric(root: &Path) -> Value {
             "latest_event_age_seconds": age_sec,
             "fresh_window_seconds": DOPAMINE_METRICS_FRESH_WINDOW_SECONDS,
             "last_recorded_date": if last_recorded_date.is_empty() { Value::Null } else { Value::String(last_recorded_date) },
-            "source": source
+            "source": source,
+            "runtime_web_tooling_auth_present": runtime_web_tooling_auth_present,
+            "runtime_web_tooling_strict_auth_required": runtime_web_tooling_strict_auth_required,
+            "runtime_web_tooling_auth_sources": runtime_web_tooling_auth_sources
         }
     })
+}
+
+fn runtime_web_tooling_auth_sources() -> Vec<String> {
+    let env_candidates = [
+        "BRAVE_API_KEY",
+        "EXA_API_KEY",
+        "TAVILY_API_KEY",
+        "PERPLEXITY_API_KEY",
+        "SERPAPI_API_KEY",
+        "GOOGLE_SEARCH_API_KEY",
+        "GOOGLE_CSE_ID",
+        "FIRECRAWL_API_KEY",
+        "XAI_API_KEY",
+        "MOONSHOT_API_KEY",
+        "OPENAI_API_KEY",
+    ];
+    let mut sources = Vec::<String>::new();
+    for env_name in env_candidates {
+        let present = env::var(env_name)
+            .ok()
+            .map(|value| !value.trim().is_empty())
+            .unwrap_or(false);
+        if present {
+            sources.push(format!("env:{env_name}"));
+        }
+    }
+    sources
+}
+
+fn runtime_web_tooling_strict_auth_required(root: &Path) -> bool {
+    let profile_path = root.join("client/runtime/local/state/dashboard/web_tooling_profile.json");
+    let profile = read_json(&profile_path).ok();
+    profile
+        .as_ref()
+        .and_then(|value| value.get("strict_auth_required"))
+        .and_then(Value::as_bool)
+        .or_else(|| {
+            env::var("INFRING_WEB_TOOLING_STRICT_AUTH")
+                .ok()
+                .map(|raw| {
+                    matches!(
+                        raw.trim().to_ascii_lowercase().as_str(),
+                        "1" | "true" | "yes" | "y" | "on"
+                    )
+                })
+        })
+        .unwrap_or(true)
 }
 
 fn collect_external_eyes_dashboard_metric(root: &Path) -> Value {
@@ -394,4 +455,3 @@ fn pain_severity_score(severity: &str) -> f64 {
         _ => 0.50,
     }
 }
-

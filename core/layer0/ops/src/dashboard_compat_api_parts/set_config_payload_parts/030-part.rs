@@ -1,3 +1,42 @@
+const DASHBOARD_RUNTIME_WEB_TOOLING_AUTH_ENV_CANDIDATES: &[&str] = &[
+    "TAVILY_API_KEY",
+    "BRAVE_SEARCH_API_KEY",
+    "SERPAPI_API_KEY",
+    "GOOGLE_SEARCH_API_KEY",
+    "GOOGLE_CSE_API_KEY",
+    "PERPLEXITY_API_KEY",
+    "EXA_API_KEY",
+    "FIRECRAWL_API_KEY",
+    "XAI_API_KEY",
+    "GROK_API_KEY",
+    "MOONSHOT_API_KEY",
+    "KIMI_API_KEY",
+    "OPENAI_API_KEY",
+];
+
+fn dashboard_runtime_web_provider_alias(raw: &str) -> String {
+    let provider = clean_text(raw, 80).to_ascii_lowercase();
+    match provider.as_str() {
+        "google" => "google_search".to_string(),
+        "xai" => "grok".to_string(),
+        "moonshot" => "kimi".to_string(),
+        "serp" => "serpapi".to_string(),
+        "none" | "default" => String::new(),
+        _ => provider,
+    }
+}
+
+fn dashboard_runtime_web_tooling_auth_present() -> bool {
+    DASHBOARD_RUNTIME_WEB_TOOLING_AUTH_ENV_CANDIDATES
+        .iter()
+        .any(|name| {
+            std::env::var(name)
+                .ok()
+                .map(|value| !value.trim().is_empty())
+                .unwrap_or(false)
+        })
+}
+
 fn selected_model_param_count_billion(
     root: &Path,
     snapshot: &Value,
@@ -11,7 +50,13 @@ fn selected_model_param_count_billion(
     }
     let (resolved_provider, resolved_model) =
         split_model_ref(&model_seed, &provider_seed, &model_seed);
-    let provider_key = clean_text(&resolved_provider, 80).to_ascii_lowercase();
+    let provider_raw = clean_text(&resolved_provider, 80).to_ascii_lowercase();
+    let provider_key = dashboard_runtime_web_provider_alias(&provider_raw);
+    let provider_match_key = if provider_key.is_empty() {
+        provider_raw.clone()
+    } else {
+        provider_key.clone()
+    };
     let model_key = clean_text(&resolved_model, 200).to_ascii_lowercase();
     if model_key.is_empty() {
         return 0;
@@ -31,10 +76,18 @@ fn selected_model_param_count_billion(
             }
         }
     }
+    if !provider_raw.is_empty() && provider_raw != provider_key && provider_raw != "auto" {
+        requested_refs.insert(format!("{provider_raw}/{model_key}"));
+        if let Some(last) = model_key.rsplit('/').next() {
+            if !last.is_empty() {
+                requested_refs.insert(format!("{provider_raw}/{last}"));
+            }
+        }
+    }
 
     let mut best = 0_i64;
     for provider_row in crate::dashboard_provider_runtime::provider_rows(root, snapshot) {
-        let row_provider = clean_text(
+        let row_provider_raw = clean_text(
             provider_row
                 .get("id")
                 .or_else(|| provider_row.get("provider"))
@@ -43,7 +96,12 @@ fn selected_model_param_count_billion(
             80,
         )
         .to_ascii_lowercase();
-        if !provider_key.is_empty() && provider_key != "auto" && row_provider != provider_key {
+        let row_provider = dashboard_runtime_web_provider_alias(&row_provider_raw);
+        if !provider_match_key.is_empty()
+            && provider_match_key != "auto"
+            && row_provider != provider_match_key
+            && row_provider_raw != provider_raw
+        {
             continue;
         }
         let profiles = provider_row
@@ -87,12 +145,17 @@ fn selected_model_param_count_billion(
         .cloned()
         .unwrap_or_default();
     for row in catalog_rows {
-        let row_provider = clean_text(
+        let row_provider_raw = clean_text(
             row.get("provider").and_then(Value::as_str).unwrap_or(""),
             80,
         )
         .to_ascii_lowercase();
-        if !provider_key.is_empty() && provider_key != "auto" && row_provider != provider_key {
+        let row_provider = dashboard_runtime_web_provider_alias(&row_provider_raw);
+        if !provider_match_key.is_empty()
+            && provider_match_key != "auto"
+            && row_provider != provider_match_key
+            && row_provider_raw != provider_raw
+        {
             continue;
         }
         let row_model = clean_text(
@@ -121,6 +184,21 @@ fn selected_model_supports_self_naming(
     provider_hint: &str,
     model_hint: &str,
 ) -> bool {
+    let provider = dashboard_runtime_web_provider_alias(provider_hint);
+    let web_sensitive_provider = matches!(
+        provider.as_str(),
+        "grok"
+            | "google_search"
+            | "serpapi"
+            | "tavily"
+            | "perplexity"
+            | "exa"
+            | "firecrawl"
+            | "kimi"
+    );
+    if web_sensitive_provider && !dashboard_runtime_web_tooling_auth_present() {
+        return false;
+    }
     selected_model_param_count_billion(root, snapshot, provider_hint, model_hint) >= 80
 }
 
@@ -365,4 +443,3 @@ fn first_string(value: Option<&Value>, key: &str) -> String {
         240,
     )
 }
-

@@ -25,6 +25,24 @@ fn run_all(
             }
         })
         .collect::<Vec<_>>();
+    let provider_plugin_id = clean(
+        args.get("provider-plugin-id")
+            .map(String::as_str)
+            .unwrap_or(""),
+        80,
+    )
+    .to_ascii_lowercase();
+    let provider_contract = clean(
+        args.get("provider-contract")
+            .map(String::as_str)
+            .unwrap_or(""),
+        80,
+    );
+    let runtime_resolution = json!({
+        "provider_plugin_id": if provider_plugin_id.is_empty() { Value::Null } else { Value::String(provider_plugin_id.clone()) },
+        "provider_contract": if provider_contract.is_empty() { Value::Null } else { Value::String(provider_contract.clone()) },
+        "mode": if provider_plugin_id.is_empty() { "manifest_fallback" } else { "explicit_fast_path" }
+    });
 
     let out = json!({
         "ok": ok,
@@ -35,7 +53,8 @@ fn run_all(
         "apply": apply,
         "lane_count": lanes.len(),
         "lanes": lanes,
-        "failed_lane_ids": failed
+        "failed_lane_ids": failed,
+        "runtime_resolution": runtime_resolution
     });
 
     if apply {
@@ -52,7 +71,8 @@ fn run_all(
             "apply": out["apply"],
             "lane_count": out["lane_count"],
             "lanes": out["lanes"],
-            "failed_lane_ids": out["failed_lane_ids"]
+            "failed_lane_ids": out["failed_lane_ids"],
+            "runtime_resolution": out["runtime_resolution"]
         });
         write_receipt(policy, &row, true)?;
     }
@@ -64,9 +84,9 @@ pub fn usage() {
     println!("Usage:");
     println!("  node client/runtime/systems/ops/fluxlattice_program.js list");
     println!(
-        "  node client/runtime/systems/ops/fluxlattice_program.js run --id=V4-ETH-001 [--apply=1|0] [--strict=1|0]"
+        "  node client/runtime/systems/ops/fluxlattice_program.js run --id=V4-ETH-001 [--apply=1|0] [--strict=1|0] [--provider-plugin-id=<id>] [--provider-contract=<name>]"
     );
-    println!("  node client/runtime/systems/ops/fluxlattice_program.js run-all [--apply=1|0] [--strict=1|0]");
+    println!("  node client/runtime/systems/ops/fluxlattice_program.js run-all [--apply=1|0] [--strict=1|0] [--provider-plugin-id=<id>] [--provider-contract=<name>]");
     println!("  node client/runtime/systems/ops/fluxlattice_program.js status");
 }
 
@@ -241,4 +261,3 @@ mod tests {
         );
     }
 }
-

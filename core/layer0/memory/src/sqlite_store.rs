@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use crate::ebbinghaus;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -18,6 +19,70 @@ fn now_ts() -> i64 {
         .duration_since(UNIX_EPOCH)
         .map(|v| v.as_secs() as i64)
         .unwrap_or(0)
+}
+
+fn strip_invisible_unicode(raw: &str) -> String {
+    raw.chars()
+        .filter(|ch| {
+            !ch.is_control()
+                && !matches!(
+                    ch,
+                    '\u{200B}'
+                        | '\u{200C}'
+                        | '\u{200D}'
+                        | '\u{200E}'
+                        | '\u{200F}'
+                        | '\u{202A}'
+                        | '\u{202B}'
+                        | '\u{202C}'
+                        | '\u{202D}'
+                        | '\u{202E}'
+                        | '\u{2060}'
+                        | '\u{FEFF}'
+                )
+        })
+        .collect::<String>()
+}
+
+fn sanitize_text(raw: &str, max_len: usize) -> String {
+    strip_invisible_unicode(raw)
+        .split_whitespace()
+        .collect::<Vec<&str>>()
+        .join(" ")
+        .chars()
+        .take(max_len)
+        .collect::<String>()
+        .trim()
+        .to_string()
+}
+
+fn sanitize_id(raw: &str, max_len: usize) -> String {
+    sanitize_text(raw, max_len)
+        .chars()
+        .filter(|ch| {
+            ch.is_ascii_alphanumeric()
+                || matches!(ch, ':' | '/' | '.' | '_' | '-' | '#')
+        })
+        .collect::<String>()
+}
+
+fn normalize_tags(rows: &[String]) -> Vec<String> {
+    let mut set = BTreeSet::new();
+    for tag in rows {
+        let clean = sanitize_text(tag, 80).to_ascii_lowercase();
+        if !clean.is_empty() {
+            set.insert(clean);
+        }
+    }
+    set.into_iter().collect::<Vec<String>>()
+}
+
+fn clamp_retention_score(score: f64) -> f64 {
+    if score.is_finite() {
+        score.clamp(0.0, 1.0)
+    } else {
+        0.0
+    }
 }
 
 #[allow(dead_code)]
@@ -79,6 +144,18 @@ mod native {
     }
 
     pub fn upsert_memory(mut row: MemoryRow) -> Result<(), String> {
+        row.id = sanitize_id(&row.id, 240);
+        if row.id.is_empty() {
+            return Err("invalid_memory_id".to_string());
+        }
+        row.content = sanitize_text(&row.content, 8000);
+        if row.content.is_empty() {
+            return Err("invalid_memory_content".to_string());
+        }
+        row.tags = normalize_tags(&row.tags);
+        row.repetitions = row.repetitions.max(1);
+        row.retention_score = clamp_retention_score(row.retention_score);
+
         let db_path = default_db_path();
         let conn = open(&db_path)?;
         ensure_schema(&conn)?;
@@ -110,6 +187,10 @@ mod native {
     }
 
     pub fn query_recall(query: &str, limit: u32) -> Result<Vec<MemoryRow>, String> {
+        let query = sanitize_text(query, 240);
+        if query.is_empty() {
+            return Ok(Vec::new());
+        }
         let db_path = default_db_path();
         let conn = open(&db_path)?;
         ensure_schema(&conn)?;
@@ -147,6 +228,10 @@ mod native {
     }
 
     pub fn get_by_id(id: &str) -> Result<Option<MemoryRow>, String> {
+        let id = sanitize_id(id, 240);
+        if id.is_empty() {
+            return Ok(None);
+        }
         let db_path = default_db_path();
         let conn = open(&db_path)?;
         ensure_schema(&conn)?;
@@ -195,6 +280,12 @@ mod native {
     }
 
     pub fn set_hot_state(key: &str, payload_json: &str) -> Result<(), String> {
+        let key = sanitize_id(key, 160);
+        if key.is_empty() {
+            return Err("invalid_hot_state_key".to_string());
+        }
+        serde_json::from_str::<serde_json::Value>(payload_json)
+            .map_err(|e| format!("hot_state_payload_invalid_json:{e}"))?;
         let db_path = default_db_path();
         let conn = open(&db_path)?;
         ensure_schema(&conn)?;
@@ -288,6 +379,18 @@ mod native {
     }
 
     pub fn upsert_memory(row: MemoryRow) -> Result<(), String> {
+        let mut row = row;
+        row.id = sanitize_id(&row.id, 240);
+        if row.id.is_empty() {
+            return Err("invalid_memory_id".to_string());
+        }
+        row.content = sanitize_text(&row.content, 8000);
+        if row.content.is_empty() {
+            return Err("invalid_memory_content".to_string());
+        }
+        row.tags = normalize_tags(&row.tags);
+        row.repetitions = row.repetitions.max(1);
+        row.retention_score = clamp_retention_score(row.retention_score);
         let mut lock = mem().lock().map_err(|_| "store_lock_failed".to_string())?;
         if let Some(existing) = lock.iter_mut().find(|it| it.id == row.id) {
             *existing = row;
@@ -355,13 +458,23 @@ pub fn ingest(
     repetitions: u32,
     lambda: f64,
 ) -> Result<MemoryRow, String> {
+    let id = sanitize_id(id, 240);
+    if id.is_empty() {
+        return Err("invalid_memory_id".to_string());
+    }
+    let content = sanitize_text(content, 8000);
+    if content.is_empty() {
+        return Err("invalid_memory_content".to_string());
+    }
+    let tags = normalize_tags(&tags);
+    let repetitions = repetitions.max(1);
     let row = MemoryRow {
-        id: id.to_string(),
-        content: content.to_string(),
+        id,
+        content,
         tags,
         updated_at: now_ts(),
         repetitions,
-        retention_score: ebbinghaus::retention_score(0.0, repetitions, lambda),
+        retention_score: clamp_retention_score(ebbinghaus::retention_score(0.0, repetitions, lambda)),
     };
     native::upsert_memory(row.clone())?;
     Ok(row)

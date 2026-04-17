@@ -5,14 +5,18 @@ fn run_predictive_defrag_cycle(
     state: &Arc<Mutex<PredictiveDefragMonitorState>>,
 ) -> u64 {
     let policy = load_predictive_defrag_policy(root, mode_hint);
+    let active_threshold_percent = policy.active_threshold_percent.clamp(0.0, 100.0);
+    let reactive_threshold_percent = policy
+        .reactive_threshold_percent
+        .clamp(active_threshold_percent, 100.0);
     let checked_at = now_epoch_ms();
     if let Ok(mut guard) = state.lock() {
         guard.checks = guard.checks.saturating_add(1);
         guard.last_checked_at_ms = checked_at;
         guard.mode = policy.mode.clone();
         guard.enabled = policy.enabled;
-        guard.active_threshold_percent = policy.active_threshold_percent;
-        guard.reactive_threshold_percent = policy.reactive_threshold_percent;
+        guard.active_threshold_percent = active_threshold_percent;
+        guard.reactive_threshold_percent = reactive_threshold_percent;
         guard.last_error.clear();
     }
     if !policy.enabled {
@@ -37,7 +41,7 @@ fn run_predictive_defrag_cycle(
         }
     };
     let before_percent = before_stats.fragmentation_ratio * 100.0;
-    if before_percent + f64::EPSILON < policy.active_threshold_percent {
+    if before_percent + f64::EPSILON < active_threshold_percent {
         return policy.poll_interval_ms;
     }
     let last_triggered_at_ms = state
@@ -94,8 +98,8 @@ fn run_predictive_defrag_cycle(
         "policy_version": policy.policy_version,
         "signature_valid": policy.signature_valid,
         "config_path": policy.config_path,
-        "trigger_threshold_percent": policy.active_threshold_percent,
-        "reactive_threshold_percent": policy.reactive_threshold_percent,
+        "trigger_threshold_percent": active_threshold_percent,
+        "reactive_threshold_percent": reactive_threshold_percent,
         "fragmentation_percent_before": round4(before_percent),
         "fragmentation_percent_after": round4(after_percent),
         "before_fidelity_score": before_fidelity,

@@ -64,6 +64,16 @@ fn print_receipt(value: &Value) {
     );
 }
 
+fn attach_execution_receipt(out: &mut Value, command: &str, status: &str) {
+    out["execution_receipt"] = json!({
+        "lane": "settlement_program",
+        "command": command,
+        "status": status,
+        "source": "OPENCLAW-TOOLING-WEB-100",
+        "tool_runtime_class": "receipt_wrapped"
+    });
+}
+
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     let parsed = parse_args(argv);
     let command = parsed
@@ -95,6 +105,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "ts": now_iso(),
             "latest": read_json(&latest)
         });
+        attach_execution_receipt(&mut out, "status", "success");
         out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
         print_receipt(&out);
         return 0;
@@ -108,6 +119,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "ts": now_iso(),
             "program_ids": SETTLE_IDS
         });
+        attach_execution_receipt(&mut out, "list", "success");
         out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
         print_receipt(&out);
         return 0;
@@ -148,6 +160,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "note": "core_authoritative_placeholder"
         }
     });
+    attach_execution_receipt(&mut out, &command, "success");
     out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
     write_json(&latest, &out);
     append_jsonl(&history, &out);

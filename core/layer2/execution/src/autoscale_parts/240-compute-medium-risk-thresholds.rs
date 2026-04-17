@@ -1,9 +1,12 @@
 pub fn compute_medium_risk_thresholds(
     input: &MediumRiskThresholdsInput,
 ) -> MediumRiskThresholdsOutput {
-    let composite_min = input
-        .medium_risk_min_composite_eligibility
-        .max(input.min_composite_eligibility + 6.0);
+    let medium_composite = if input.medium_risk_min_composite_eligibility.is_finite() {
+        input.medium_risk_min_composite_eligibility
+    } else {
+        input.min_composite_eligibility + 6.0
+    };
+    let composite_min = medium_composite.max(input.min_composite_eligibility + 6.0);
     let directive_base = if input.base_min_directive_fit.is_finite() {
         input.base_min_directive_fit
     } else {
@@ -14,12 +17,18 @@ pub fn compute_medium_risk_thresholds(
     } else {
         input.default_min_actionability
     };
-    let directive_fit_min = input
-        .medium_risk_min_directive_fit
-        .max(directive_base + 5.0);
-    let actionability_min = input
-        .medium_risk_min_actionability
-        .max(actionability_base + 6.0);
+    let medium_directive = if input.medium_risk_min_directive_fit.is_finite() {
+        input.medium_risk_min_directive_fit
+    } else {
+        directive_base + 5.0
+    };
+    let medium_actionability = if input.medium_risk_min_actionability.is_finite() {
+        input.medium_risk_min_actionability
+    } else {
+        actionability_base + 6.0
+    };
+    let directive_fit_min = medium_directive.max(directive_base + 5.0);
+    let actionability_min = medium_actionability.max(actionability_base + 6.0);
     MediumRiskThresholdsOutput {
         composite_min,
         directive_fit_min,
@@ -101,8 +110,14 @@ pub fn compute_route_block_prefilter(
         return out;
     }
     out.attempts = input.attempts.max(0.0);
-    out.route_blocked = input.route_blocked.max(0.0);
-    out.route_block_rate = input.route_block_rate.clamp(0.0, 1.0);
+    out.route_blocked = input.route_blocked.max(0.0).min(out.attempts.max(0.0));
+    out.route_block_rate = if input.route_block_rate.is_finite() {
+        input.route_block_rate.clamp(0.0, 1.0)
+    } else if out.attempts > 0.0 {
+        out.route_blocked / out.attempts
+    } else {
+        0.0
+    };
     if out.attempts < input.min_observations {
         out.reason = "insufficient_observations".to_string();
         return out;
@@ -119,19 +134,34 @@ pub fn compute_route_block_prefilter(
 pub fn compute_route_execution_sample_event(
     input: &RouteExecutionSampleEventInput,
 ) -> RouteExecutionSampleEventOutput {
-    let event_type = input.event_type.as_deref().unwrap_or("");
+    let event_type = input
+        .event_type
+        .as_deref()
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
     if event_type != "autonomy_run" {
         return RouteExecutionSampleEventOutput {
             is_sample_event: false,
         };
     }
-    let result = input.result.as_deref().unwrap_or("").trim();
+    let result = input
+        .result
+        .as_deref()
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
     if result.is_empty() {
         return RouteExecutionSampleEventOutput {
             is_sample_event: false,
         };
     }
-    if result == "score_only_fallback_route_block" || result == "init_gate_blocked_route" {
+    if result == "score_only_fallback_route_block"
+        || result == "init_gate_blocked_route"
+        || result.contains("route_block")
+        || result.contains("timeout")
+        || result.contains("temporarily_unavailable")
+    {
         return RouteExecutionSampleEventOutput {
             is_sample_event: true,
         };
@@ -156,6 +186,7 @@ pub fn compute_route_block_telemetry_summary(
     input: &RouteBlockTelemetrySummaryInput,
 ) -> RouteBlockTelemetrySummaryOutput {
     let mut rows = std::collections::HashMap::<String, RouteBlockTelemetryCapabilityOutput>::new();
+    let mut sample_events_total = 0.0;
     for evt in input.events.iter() {
         let sample = compute_route_execution_sample_event(&RouteExecutionSampleEventInput {
             event_type: evt.event_type.clone(),
@@ -166,6 +197,7 @@ pub fn compute_route_block_telemetry_summary(
         if !sample.is_sample_event {
             continue;
         }
+        sample_events_total += 1.0;
         let key = evt
             .capability_key
             .as_deref()
@@ -184,8 +216,18 @@ pub fn compute_route_block_telemetry_summary(
                 route_block_rate: 0.0,
             });
         row.attempts += 1.0;
-        let result = evt.result.as_deref().unwrap_or("").trim();
-        if result == "score_only_fallback_route_block" || result == "init_gate_blocked_route" {
+        let result = evt
+            .result
+            .as_deref()
+            .unwrap_or("")
+            .trim()
+            .to_ascii_lowercase();
+        if result == "score_only_fallback_route_block"
+            || result == "init_gate_blocked_route"
+            || result.contains("route_block")
+            || result.contains("timeout")
+            || result.contains("temporarily_unavailable")
+        {
             row.route_blocked += 1.0;
         }
     }
@@ -202,7 +244,7 @@ pub fn compute_route_block_telemetry_summary(
 
     RouteBlockTelemetrySummaryOutput {
         window_hours: input.window_hours.max(1.0),
-        sample_events: input.events.len() as f64,
+        sample_events: sample_events_total,
         by_capability,
     }
 }

@@ -124,26 +124,88 @@
       }
     },
 
-    _clearMessageTypewriter: function(message) {
-      if (!message || typeof message !== 'object') return;
-      if (message._typewriterTimer) {
+    _resolveLiveMessageRef: function(message) {
+      if (!message || typeof message !== 'object') return null;
+      var msgId = message.id;
+      if (!Array.isArray(this.messages) || !this.messages.length) return message;
+      if (msgId == null) return message;
+      for (var i = this.messages.length - 1; i >= 0; i--) {
+        var row = this.messages[i];
+        if (!row || typeof row !== 'object') continue;
+        if (String(row.id) === String(msgId)) return row;
+      }
+      return message;
+    },
+
+    _clearMessageTypewriter: function(message, options) {
+      var liveMessage = this._resolveLiveMessageRef(message);
+      if (!liveMessage || typeof liveMessage !== 'object') return;
+      var opts = options && typeof options === 'object' ? options : {};
+      var preserveTypingVisual = opts.preserveTypingVisual === true;
+      var preservePartialText = opts.preservePartialText === true;
+      var clearFinalText = opts.clearFinalText !== false;
+      if (liveMessage._typewriterTimer) {
+        clearTimeout(liveMessage._typewriterTimer);
+        liveMessage._typewriterTimer = null;
+      }
+      if (message && message !== liveMessage && message._typewriterTimer) {
         clearTimeout(message._typewriterTimer);
         message._typewriterTimer = null;
       }
-      message._typewriterRunning = false;
+      liveMessage._typewriterRunning = false;
+      if (message && message !== liveMessage) message._typewriterRunning = false;
+      if (!preserveTypingVisual) {
+        if (
+          !preservePartialText &&
+          liveMessage._typingVisual &&
+          typeof liveMessage._typewriterFinalText === 'string'
+        ) {
+          liveMessage.text = String(liveMessage._typewriterFinalText || '');
+        }
+        liveMessage._typingVisual = false;
+        if (message && message !== liveMessage) message._typingVisual = false;
+      }
+      if (clearFinalText && !preserveTypingVisual) {
+        liveMessage._typewriterFinalText = '';
+        if (message && message !== liveMessage) message._typewriterFinalText = '';
+      }
+      if (!preserveTypingVisual) {
+        liveMessage._typingVisualHtml = '';
+        liveMessage._typingVisualHtmlStable = '';
+        liveMessage._typingVisualHtmlActive = '';
+        liveMessage._typingVisualHtmlActiveStable = '';
+        if (message && message !== liveMessage) message._typingVisualHtml = '';
+        if (message && message !== liveMessage) message._typingVisualHtmlStable = '';
+        if (message && message !== liveMessage) message._typingVisualHtmlActive = '';
+        if (message && message !== liveMessage) message._typingVisualHtmlActiveStable = '';
+      }
     },
 
     _clearStreamingTypewriters: function() {
       var rows = Array.isArray(this.messages) ? this.messages : [];
       for (var i = 0; i < rows.length; i++) {
-        this._clearMessageTypewriter(rows[i]);
+        this._clearMessageTypewriter(rows[i], {
+          preserveTypingVisual: false,
+          preservePartialText: false,
+        });
       }
+    },
+
+    _hasActiveTypewriterVisual: function() {
+      var rows = Array.isArray(this.messages) ? this.messages : [];
+      for (var i = 0; i < rows.length; i++) {
+        var row = rows[i];
+        if (!row || typeof row !== 'object') continue;
+        if (row._typingVisual || row._typewriterRunning || row._typewriterTimer) return true;
+      }
+      return false;
     },
 
     _queueStreamTypingRender: function(message, nextText) {
       if (!message || typeof message !== 'object') return;
       var targetText = String(nextText || '');
       message._streamTargetText = targetText;
+      message._typewriterFinalText = '';
       if (message._typewriterRunning) return;
       var self = this;
       message._typewriterRunning = true;
@@ -171,7 +233,7 @@
         message.text = target.slice(0, current.length + take);
         self.scrollToBottom();
         if (message.text.length < target.length) {
-          message._typewriterTimer = setTimeout(step, 14);
+          message._typewriterTimer = setTimeout(step, 1);
           return;
         }
         self._clearMessageTypewriter(message);
@@ -179,16 +241,309 @@
 
       step();
     },
+
+    _typingDelayForToken: function(baseDelay, emittedToken, fullText, emittedIndex) {
+      var base = Number(baseDelay || 1);
+      if (!Number.isFinite(base) || base < 0) base = 1;
+      var token = String(emittedToken || '');
+      if (!/[.!?]/.test(token)) return base;
+      var source = String(fullText || '');
+      var idx = Number(emittedIndex || 0);
+      if (!Number.isFinite(idx) || idx < 0) idx = 0;
+      var next = source.charAt(idx + 1);
+      if (!next || /\s|["')\]]/.test(next)) {
+        return base * 2;
+      }
+      return base;
+    },
+
+    _resolveTypingWordCadenceMs: function(fallbackDelayMs) {
+      var cadenceMs = Number(this.typingWordCadenceMs);
+      if (!Number.isFinite(cadenceMs) || cadenceMs <= 0) cadenceMs = Number(fallbackDelayMs);
+      if (!Number.isFinite(cadenceMs) || cadenceMs <= 0) cadenceMs = 1;
+      cadenceMs = Math.max(1, Math.min(2000, cadenceMs));
+      return cadenceMs;
+    },
+
+    _escapeTypingVisualTokenHtml: function(token) {
+      var raw = String(token == null ? '' : token);
+      var escaped = '';
+      if (typeof this.escapeHtml === 'function') escaped = this.escapeHtml(raw);
+      else escaped = raw
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+      escaped = escaped.replace(/\t/g, '    ');
+      return escaped;
+    },
+
+    _queueFinalWordTypingRender: function(message, finalText, wordDelayMs) {
+      var baseMessage = this._resolveLiveMessageRef(message);
+      if (!baseMessage || typeof baseMessage !== 'object') return;
+      var targetText = String(finalText || '');
+      this._clearMessageTypewriter(baseMessage, {
+        preserveTypingVisual: false,
+        preservePartialText: false,
+      });
+      baseMessage._typingVisual = false;
+      if (!targetText.trim()) {
+        baseMessage._typewriterFinalText = '';
+        baseMessage._typingVisualHtml = '';
+        baseMessage._typingVisualHtmlStable = '';
+        baseMessage._typingVisualHtmlActive = '';
+        baseMessage._typingVisualHtmlActiveStable = '';
+        baseMessage.text = targetText;
+        if (typeof this.scheduleConversationPersist === 'function') this.scheduleConversationPersist();
+        return;
+      }
+      var segments = [];
+      var segmentPattern = /\S+\s*/g;
+      var segmentMatch;
+      while ((segmentMatch = segmentPattern.exec(targetText)) !== null) {
+        segments.push({
+          text: String(segmentMatch[0] || ''),
+          index: Number(segmentMatch.index || 0)
+        });
+      }
+      var leadingWhitespaceMatch = targetText.match(/^\s+/);
+      if (leadingWhitespaceMatch && segments.length) {
+        var leadingWhitespace = String(leadingWhitespaceMatch[0] || '');
+        segments[0].text = leadingWhitespace + String(segments[0].text || '');
+        segments[0].index = 0;
+      }
+      if (!Array.isArray(segments) || !segments.length) {
+        baseMessage._typewriterFinalText = '';
+        baseMessage._typingVisualHtml = '';
+        baseMessage._typingVisualHtmlStable = '';
+        baseMessage._typingVisualHtmlActive = '';
+        baseMessage._typingVisualHtmlActiveStable = '';
+        baseMessage.text = targetText;
+        baseMessage._typingVisual = false;
+        if (typeof this.scheduleConversationPersist === 'function') this.scheduleConversationPersist();
+        return;
+      }
+      baseMessage._typewriterFinalText = targetText;
+      baseMessage.text = '';
+      baseMessage._typingVisualHtml = '';
+      baseMessage._typingVisualHtmlStable = '';
+      baseMessage._typingVisualHtmlActive = '';
+      baseMessage._typingVisualHtmlActiveStable = '';
+      baseMessage._typingVisual = true;
+      baseMessage._typewriterRunning = true;
+      var self = this;
+      var index = 0;
+      var markdownState = { bold: false, italic: false };
+      var cadenceMs = typeof this._resolveTypingWordCadenceMs === 'function'
+        ? this._resolveTypingWordCadenceMs(wordDelayMs)
+        : 1;
+      var maxTokensPerTick = 24;
+      var nextTickAt = Date.now();
+      var keepPinnedToBottom = function() {
+        try {
+          if (typeof self.scrollToBottomImmediate === 'function') {
+            self.scrollToBottomImmediate({ force: false });
+          } else {
+            self.scrollToBottom();
+          }
+        } catch (_) {}
+      };
+      var step = function() {
+        var liveMessage = self._resolveLiveMessageRef(baseMessage);
+        if (!liveMessage) {
+          self._clearMessageTypewriter(baseMessage);
+          return;
+        }
+        if (!liveMessage._typewriterRunning) {
+          self._clearMessageTypewriter(liveMessage, {
+            preserveTypingVisual: false,
+            preservePartialText: false,
+          });
+          if (typeof self.scheduleConversationPersist === 'function') self.scheduleConversationPersist();
+          return;
+        }
+        if (index >= segments.length) {
+          liveMessage.text = targetText;
+          liveMessage._typingVisual = false;
+          liveMessage._typingVisualHtmlStable = '';
+          liveMessage._typingVisualHtmlActive = '';
+          liveMessage._typingVisualHtmlActiveStable = '';
+          liveMessage._typingVisualHtml = '';
+          if (baseMessage !== liveMessage) {
+            baseMessage._typingVisual = false;
+            baseMessage._typingVisualHtmlStable = '';
+            baseMessage._typingVisualHtmlActive = '';
+            baseMessage._typingVisualHtmlActiveStable = '';
+            baseMessage._typingVisualHtml = '';
+          }
+          liveMessage._typewriterRunning = false;
+          liveMessage._typewriterTimer = null;
+          if (baseMessage !== liveMessage) {
+            baseMessage._typewriterRunning = false;
+            baseMessage._typewriterTimer = null;
+          }
+          if (typeof self.scheduleConversationPersist === 'function') self.scheduleConversationPersist();
+          return;
+        }
+        var now = Date.now();
+        if (now < nextTickAt) {
+          var waitMs = Math.max(1, Math.min(2000, Math.round(nextTickAt - now)));
+          var waitTimer = setTimeout(step, waitMs);
+          liveMessage._typewriterTimer = waitTimer;
+          if (baseMessage !== liveMessage) baseMessage._typewriterTimer = waitTimer;
+          return;
+        }
+        var emitted = 0;
+        var stableHtml = String(liveMessage._typingVisualHtmlStable || '') + String(liveMessage._typingVisualHtmlActiveStable || '');
+        var activeHtml = '';
+        var activeStable = '';
+        while (index < segments.length && emitted < maxTokensPerTick) {
+          now = Date.now();
+          if (now < nextTickAt) break;
+          cadenceMs = typeof self._resolveTypingWordCadenceMs === 'function'
+            ? self._resolveTypingWordCadenceMs(wordDelayMs)
+            : cadenceMs;
+          var segment = segments[index] || { text: '', index: 0 };
+          var token = String(segment.text || '');
+          index += 1;
+          emitted += 1;
+          liveMessage.text = String(liveMessage.text || '') + token;
+          var tokenEndIndex = Number(segment.index || 0) + Math.max(0, token.length - 1);
+          var nextDelay = typeof self._typingDelayForToken === 'function'
+            ? self._typingDelayForToken(cadenceMs, token, targetText, tokenEndIndex)
+            : cadenceMs;
+          if (!Number.isFinite(nextDelay) || nextDelay <= 0) nextDelay = cadenceMs;
+          nextDelay = Math.max(1, Math.min(2000, nextDelay));
+          nextTickAt += nextDelay;
+          var tokenHtmlStable = '';
+          var tokenHtmlActive = '';
+          var tokenState = { bold: !!markdownState.bold, italic: !!markdownState.italic };
+          var appendChunk = function(chunk, isActiveChunk) {
+            if (!chunk) return;
+            var chunkHtml = self._escapeTypingVisualTokenHtml(chunk);
+            if (tokenState.bold) chunkHtml = '<strong>' + chunkHtml + '</strong>';
+            if (tokenState.italic) chunkHtml = '<em>' + chunkHtml + '</em>';
+            if (isActiveChunk) {
+              tokenHtmlActive +=
+                '<span class="typing-word-active" style="--typing-word-fade-ms:' +
+                String(Math.max(1, Math.round(nextDelay))) +
+                'ms">' +
+                chunkHtml +
+                '</span>';
+              tokenHtmlStable += chunkHtml;
+              return;
+            }
+            tokenHtmlStable += chunkHtml;
+            tokenHtmlActive += chunkHtml;
+          };
+          var cursor = 0;
+          while (cursor < token.length) {
+            if (token.charAt(cursor) === '\\' && (cursor + 1) < token.length && token.charAt(cursor + 1) === '*') {
+              appendChunk('*', true);
+              cursor += 2;
+              continue;
+            }
+            if ((cursor + 1) < token.length && token.charAt(cursor) === '*' && token.charAt(cursor + 1) === '*') {
+              tokenState.bold = !tokenState.bold;
+              cursor += 2;
+              continue;
+            }
+            if (token.charAt(cursor) === '*') {
+              tokenState.italic = !tokenState.italic;
+              cursor += 1;
+              continue;
+            }
+            var start = cursor;
+            while (cursor < token.length) {
+              if (token.charAt(cursor) === '\\' && (cursor + 1) < token.length && token.charAt(cursor + 1) === '*') break;
+              if ((cursor + 1) < token.length && token.charAt(cursor) === '*' && token.charAt(cursor + 1) === '*') break;
+              if (token.charAt(cursor) === '*') break;
+              cursor += 1;
+            }
+            var chunk = token.slice(start, cursor);
+            if (!chunk) continue;
+            if (!/\S/.test(chunk)) {
+              appendChunk(chunk, false);
+              continue;
+            }
+            var leadMatch = chunk.match(/^\s+/);
+            var trailMatch = chunk.match(/\s+$/);
+            var lead = leadMatch ? String(leadMatch[0] || '') : '';
+            var trail = trailMatch ? String(trailMatch[0] || '') : '';
+            var coreStart = lead.length;
+            var coreEnd = chunk.length - trail.length;
+            if (coreEnd < coreStart) {
+              coreEnd = coreStart;
+              trail = '';
+            }
+            var core = chunk.slice(coreStart, coreEnd);
+            if (lead) appendChunk(lead, false);
+            if (core) appendChunk(core, true);
+            if (trail) appendChunk(trail, false);
+          }
+          markdownState.bold = !!tokenState.bold;
+          markdownState.italic = !!tokenState.italic;
+          if (activeStable) stableHtml += activeStable;
+          activeStable = tokenHtmlStable;
+          activeHtml = tokenHtmlActive;
+        }
+        liveMessage._typingVisualHtmlStable = stableHtml;
+        liveMessage._typingVisualHtmlActive = activeHtml;
+        liveMessage._typingVisualHtmlActiveStable = activeStable;
+        liveMessage._typingVisualHtml = stableHtml + activeHtml;
+        if (baseMessage !== liveMessage) {
+          baseMessage._typingVisualHtmlStable = liveMessage._typingVisualHtmlStable;
+          baseMessage._typingVisualHtmlActive = liveMessage._typingVisualHtmlActive;
+          baseMessage._typingVisualHtmlActiveStable = liveMessage._typingVisualHtmlActiveStable;
+          baseMessage._typingVisualHtml = liveMessage._typingVisualHtml;
+        }
+        if (emitted > 0) keepPinnedToBottom();
+        if (index < segments.length) {
+          var timerDelay = Math.max(1, Math.min(2000, Math.round(nextTickAt - Date.now())));
+          var timerId = setTimeout(step, timerDelay);
+          liveMessage._typewriterTimer = timerId;
+          if (baseMessage !== liveMessage) baseMessage._typewriterTimer = timerId;
+          return;
+        }
+        liveMessage.text = targetText;
+        liveMessage._typingVisual = false;
+        liveMessage._typingVisualHtmlStable = '';
+        liveMessage._typingVisualHtmlActive = '';
+        liveMessage._typingVisualHtmlActiveStable = '';
+        liveMessage._typingVisualHtml = '';
+        if (baseMessage !== liveMessage) {
+          baseMessage._typingVisual = false;
+          baseMessage._typingVisualHtmlStable = '';
+          baseMessage._typingVisualHtmlActive = '';
+          baseMessage._typingVisualHtmlActiveStable = '';
+          baseMessage._typingVisualHtml = '';
+        }
+        liveMessage._typewriterRunning = false;
+        liveMessage._typewriterTimer = null;
+        if (baseMessage !== liveMessage) {
+          baseMessage._typewriterRunning = false;
+          baseMessage._typewriterTimer = null;
+        }
+        keepPinnedToBottom();
+        if (typeof self.scheduleConversationPersist === 'function') self.scheduleConversationPersist();
+      };
+      step();
+    },
     _reconcileSendingState: function() {
       if (!this.sending) return false;
       var pending = this._pendingWsRequest && this._pendingWsRequest.agent_id ? this._pendingWsRequest : null;
       var hasPendingWs = !!pending;
+      var inflight = this._inflightPayload && typeof this._inflightPayload === 'object'
+        ? this._inflightPayload
+        : null;
       var pendingStatusText = pending && String(pending.status_text || '').trim()
         ? String(pending.status_text || '').trim()
         : 'Waiting for workflow completion...';
       var rows = Array.isArray(this.messages) ? this.messages : [];
       var hasVisiblePending = false;
       var now = Date.now();
+      var currentAgentId = String(this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '').trim();
       for (var i = 0; i < rows.length; i++) {
         var row = rows[i];
         if (!row) continue;
@@ -232,7 +587,6 @@
       }
       if (pending) {
         var pendingAgentId = String(pending.agent_id || '');
-        var currentAgentId = String(this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '');
         var pendingAgeMs = Math.max(0, now - Number(pending.started_at || now));
         if (currentAgentId && pendingAgentId && pendingAgentId !== currentAgentId) {
           hasPendingWs = false;
@@ -246,6 +600,60 @@
           if (pendingAgeMs >= 900000) {
             this._clearPendingWsRequest();
             hasPendingWs = false;
+          }
+        }
+      }
+      if (!hasVisiblePending && !hasPendingWs && inflight) {
+        var inflightAgentId = String(inflight.agent_id || currentAgentId || '').trim();
+        var inflightStartedAt = Number(
+          this._responseStartedAt ||
+          (pending && pending.started_at) ||
+          inflight.created_at ||
+          0
+        );
+        var hasRecentInflightReply = false;
+        if (
+          Number.isFinite(inflightStartedAt) &&
+          inflightStartedAt > 0 &&
+          typeof this._recentAgentReplyObserved === 'function'
+        ) {
+          hasRecentInflightReply = this._recentAgentReplyObserved(rows, inflightStartedAt);
+        }
+        if (inflightAgentId && !hasRecentInflightReply) {
+          this._setPendingWsRequest(
+            inflightAgentId,
+            String(inflight.final_text || ''),
+            {
+              started_at: Number.isFinite(inflightStartedAt) && inflightStartedAt > 0
+                ? inflightStartedAt
+                : Date.now(),
+              status_text: pendingStatusText
+            }
+          );
+          pending = this._pendingWsRequest;
+          hasPendingWs = !!pending;
+          if (!Number.isFinite(Number(this._responseStartedAt)) || Number(this._responseStartedAt) <= 0) {
+            this._responseStartedAt = Number(
+              (pending && pending.started_at) ||
+              inflight.created_at ||
+              Date.now()
+            );
+          }
+          if (typeof this.ensureLiveThinkingRow === 'function') {
+            var restoredPending = this.ensureLiveThinkingRow({
+              agent_id: inflightAgentId,
+              agent_name: this.currentAgent && this.currentAgent.name ? String(this.currentAgent.name) : '',
+              status_text: pendingStatusText
+            });
+            if (restoredPending) {
+              restoredPending.thinking = true;
+              restoredPending.streaming = true;
+              restoredPending._stream_updated_at = now;
+              if (!Number.isFinite(Number(restoredPending._stream_started_at))) {
+                restoredPending._stream_started_at = now;
+              }
+              hasVisiblePending = true;
+            }
           }
         }
       }
@@ -263,14 +671,19 @@
       this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '', 'idle');
       return true;
     },
-    _setPendingWsRequest: function(agentId, messageText) {
+    _setPendingWsRequest: function(agentId, messageText, options) {
       var id = String(agentId || '').trim();
       if (!id) return;
+      var opts = options && typeof options === 'object' ? options : {};
+      var startedAt = Number(opts.started_at || 0);
+      if (!Number.isFinite(startedAt) || startedAt <= 0) startedAt = Date.now();
+      var statusText = String(opts.status_text || 'Waiting for workflow completion...').trim();
+      if (!statusText) statusText = 'Waiting for workflow completion...';
       this._pendingWsRequest = {
         agent_id: id,
         message_text: String(messageText || '').trim(),
-        status_text: 'Waiting for workflow completion...',
-        started_at: Date.now(),
+        status_text: statusText,
+        started_at: startedAt,
       };
       this._pendingWsRecovering = false;
     },

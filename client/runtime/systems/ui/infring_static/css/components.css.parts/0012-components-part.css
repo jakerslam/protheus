@@ -330,14 +330,11 @@
 
 .notif-dropdown {
   position: absolute;
-  --taskbar-overlay-gap: 8px;
-  --taskbar-overlay-left: auto;
-  --taskbar-overlay-right: 0;
-  left: var(--taskbar-overlay-left);
-  right: var(--taskbar-overlay-right);
-  top: var(--taskbar-overlay-top);
-  bottom: var(--taskbar-overlay-bottom);
-  transform: var(--taskbar-overlay-transform);
+  left: var(--taskbar-overlay-left, auto);
+  right: var(--taskbar-overlay-right, 0);
+  top: var(--taskbar-overlay-top, calc(100% + 8px));
+  bottom: var(--taskbar-overlay-bottom, auto);
+  transform: var(--taskbar-overlay-transform, none);
   width: 330px;
   max-width: min(92vw, 330px);
   overflow: hidden;

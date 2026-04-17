@@ -186,6 +186,68 @@ fn run_chat_ui(root: &Path, parsed: &crate::ParsedArgs, strict: bool, action: &s
         out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
         return out;
     }
+    if action == "view-logs" {
+        let request_id = clean(
+            parsed
+                .flags
+                .get("request-id")
+                .cloned()
+                .or_else(|| parsed.flags.get("trace-id").cloned())
+                .or_else(|| parsed.flags.get("call-id").cloned())
+                .or_else(|| parsed.positional.get(2).cloned())
+                .unwrap_or_default(),
+            160,
+        );
+        if strict && request_id.is_empty() {
+            return json!({
+                "ok": false,
+                "strict": strict,
+                "type": "app_plane_chat_ui",
+                "action": "view-logs",
+                "errors": ["chat_ui_request_id_required"]
+            });
+        }
+        let history_path = state_root(root).join("chat_ui").join("history.jsonl");
+        let rows = chat_ui_read_jsonl_rows(&history_path, 400);
+        let request_key = request_id.to_ascii_lowercase();
+        let mut matches = Vec::<Value>::new();
+        for row in rows.into_iter().rev() {
+            if request_key.is_empty() {
+                matches.push(row);
+            } else {
+                let row_blob = clean(&row.to_string(), 20_000).to_ascii_lowercase();
+                if row_blob.contains(&request_key) {
+                    matches.push(row);
+                }
+            }
+            if matches.len() >= 24 {
+                break;
+            }
+        }
+        let mut out = json!({
+            "ok": true,
+            "strict": strict,
+            "type": "app_plane_chat_ui",
+            "lane": "core/layer0/ops",
+            "action": "view-logs",
+            "session_id": session_id,
+            "request_id": request_id,
+            "history_path": history_path.display().to_string(),
+            "match_count": matches.len(),
+            "matches": matches,
+            "claim_evidence": [
+                {
+                    "id": "V6-APP-007.1",
+                    "claim": "chat_ui_supports_request_trace_debug_lookup_with_receipted_results",
+                    "evidence": {
+                        "session_id": session_id
+                    }
+                }
+            ]
+        });
+        out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
+        return out;
+    }
     let provider = settings
         .get("provider")
         .and_then(Value::as_str)
@@ -360,8 +422,10 @@ fn run_chat_ui(root: &Path, parsed: &crate::ParsedArgs, strict: bool, action: &s
         }
     }
     let (assistant_initial, response_finalization_outcome) =
-        finalize_chat_ui_assistant_response(&assistant_raw, &tools);
+        finalize_chat_ui_assistant_response(&message, &assistant_raw, &tools);
     let tool_diagnostics = chat_ui_tool_diagnostics(&tools);
+    let receipt_summary =
+        chat_ui_semantic_receipt_summary(&tool_diagnostics, requires_live_web, &message);
     let (assistant, rewrite_outcome) =
         rewrite_chat_ui_placeholder_with_tool_diagnostics(&assistant_initial, &tool_diagnostics);
     let web_search_calls = chat_ui_web_search_call_count(&tools) as i64;
@@ -409,16 +473,68 @@ fn run_chat_ui(root: &Path, parsed: &crate::ParsedArgs, strict: bool, action: &s
     } else {
         forced_web_outcome.clone()
     };
+    let trace_id = format!(
+        "trace_{}",
+        &sha256_hex_str(&format!(
+            "{}:{}:{}:{}:{}",
+            session_id,
+            selected_provider,
+            selected_model,
+            message,
+            crate::now_iso()
+        ))[..12]
+    );
+    let mut discovered_tools = Vec::<String>::new();
+    for row in &tools {
+        let tool_name = tool_name_for_diagnostics(row);
+        if !tool_name.is_empty() && !discovered_tools.iter().any(|existing| existing == &tool_name)
+        {
+            discovered_tools.push(tool_name);
+        }
+    }
+    if requires_live_web && !discovered_tools.iter().any(|tool| tool == "batch_query") {
+        discovered_tools.push("batch_query".to_string());
+    }
+    let transaction_complete = !requires_live_web || matches!(web_classification, "healthy");
+    let transaction_status = if transaction_complete {
+        "complete"
+    } else if matches!(web_classification, "tool_not_invoked" | "policy_blocked") {
+        "failed"
+    } else {
+        "degraded"
+    };
+    let transaction_id = format!(
+        "txn_{}",
+        &sha256_hex_str(&format!(
+            "{}:{}:{}:{}",
+            session_id, trace_id, web_classification, final_outcome
+        ))[..12]
+    );
+    let transaction_intent = if requires_live_web {
+        chat_ui_extract_web_query(&message)
+    } else {
+        clean(&message, 200)
+    };
     let turn = json!({
         "turn_id": format!(
             "turn_{}",
             &sha256_hex_str(&format!("{}:{}:{}:{}", session_id, selected_provider, selected_model, crate::now_iso()))[..10]
         ),
+        "trace_id": trace_id,
         "ts": crate::now_iso(),
         "provider": selected_provider,
         "model": selected_model,
         "user": message,
-        "assistant": assistant
+        "assistant": assistant,
+        "tool_summary": receipt_summary,
+        "transaction": {
+            "id": transaction_id,
+            "intent": transaction_intent,
+            "status": transaction_status,
+            "complete": transaction_complete,
+            "classification": web_classification,
+            "closed_at": crate::now_iso()
+        }
     });
     let mut turns = session
         .get("turns")
@@ -440,6 +556,7 @@ fn run_chat_ui(root: &Path, parsed: &crate::ParsedArgs, strict: bool, action: &s
         "lane": "core/layer0/ops",
         "action": "run",
         "session_id": session_id,
+        "trace_id": trace_id,
         "turn": turn,
         "provider": response.get("provider").cloned().unwrap_or_else(|| json!(provider)),
         "model": response.get("model").cloned().unwrap_or_else(|| json!(model)),
@@ -455,8 +572,29 @@ fn run_chat_ui(root: &Path, parsed: &crate::ParsedArgs, strict: bool, action: &s
             "rewrite_outcome": rewrite_outcome,
             "final_ack_only": crate::tool_output_match_filter::matches_ack_placeholder(&assistant),
             "findings_available": chat_ui_tools_have_valid_findings(&tools),
+            "tool_receipt_summary": receipt_summary,
+            "tool_transaction": {
+                "id": transaction_id,
+                "intent": transaction_intent,
+                "status": transaction_status,
+                "complete": transaction_complete,
+                "classification": web_classification,
+                "closed_at": crate::now_iso()
+            },
             "tool_diagnostics": tool_diagnostics,
             "tool_gate": tool_gate,
+            "capability_discovery": {
+                "contract": "tool_execution_receipt_v1",
+                "execution_statuses": ["ok", "error", "blocked", "not_found", "low_signal", "unknown"],
+                "discovered_tools": discovered_tools,
+                "recommended_tool_family": clean(
+                    tool_gate.get("recommended_tool_family").and_then(Value::as_str).unwrap_or("none"),
+                    80
+                ),
+                "provider_catalog": providers,
+                "selected_provider": selected_provider,
+                "selected_model": selected_model
+            },
             "web_invariant": {
                 "requires_live_web": requires_live_web,
                 "tool_attempted": web_search_calls > 0,
@@ -493,6 +631,13 @@ fn normalize_tool_error_code(raw: &str) -> String {
     let lowered = clean(raw, 200).to_ascii_lowercase();
     if lowered.is_empty() {
         return "web_tool_error".to_string();
+    }
+    if lowered.contains("not found")
+        || lowered.contains("tool_not_found")
+        || lowered.contains("unknown tool")
+        || lowered.contains("unrecognized tool")
+    {
+        return "web_tool_not_found".to_string();
     }
     if lowered.contains("invalid_response")
         || lowered.contains("invalid response")
@@ -846,6 +991,90 @@ fn chat_ui_web_search_call_count(tools: &[Value]) -> usize {
         .count()
 }
 
+fn chat_ui_read_jsonl_rows(path: &Path, max_rows: usize) -> Vec<Value> {
+    let raw = fs::read_to_string(path).unwrap_or_default();
+    if raw.is_empty() {
+        return Vec::new();
+    }
+    let mut rows = Vec::<Value>::new();
+    for line in raw.lines() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        if let Ok(value) = serde_json::from_str::<Value>(line) {
+            rows.push(value);
+        }
+    }
+    if rows.len() > max_rows {
+        rows.split_off(rows.len().saturating_sub(max_rows))
+    } else {
+        rows
+    }
+}
+
+fn chat_ui_semantic_receipt_summary(
+    diagnostics: &Value,
+    requires_live_web: bool,
+    message: &str,
+) -> String {
+    let total_calls = diagnostics
+        .get("total_calls")
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+    let successful_calls = diagnostics
+        .get("successful_calls")
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+    let failed_calls = diagnostics
+        .get("failed_calls")
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+    let blocked_calls = diagnostics
+        .get("blocked_calls")
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+    let not_found_calls = diagnostics
+        .get("not_found_calls")
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+    let low_signal_calls = diagnostics
+        .get("low_signal_calls")
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+    let silent_failure_calls = diagnostics
+        .get("silent_failure_calls")
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+    let status = if failed_calls == 0 && silent_failure_calls == 0 {
+        "complete"
+    } else if successful_calls > 0 {
+        "degraded"
+    } else {
+        "failed"
+    };
+    let intent = if requires_live_web {
+        chat_ui_extract_web_query(message)
+    } else {
+        clean(message, 140)
+    };
+    clean(
+        &format!(
+            "Tool transaction {} for intent \"{}\": total={} success={} failed={} blocked={} not_found={} low_signal={} silent_failure={}.",
+            status,
+            intent,
+            total_calls,
+            successful_calls,
+            failed_calls,
+            blocked_calls,
+            not_found_calls,
+            low_signal_calls,
+            silent_failure_calls
+        ),
+        600,
+    )
+}
+
 #[cfg(test)]
 fn scripted_batch_query_harness_response(root: &Path, query: &str) -> Option<Value> {
     let path = root.join("client/runtime/local/state/ui/infring_dashboard/test_chat_script.json");
@@ -979,6 +1208,160 @@ mod chat_ui_direct_path_tests {
                 .unwrap_or(0)
                 >= 1
         );
+        let discovery = payload
+            .pointer("/response_finalization/capability_discovery")
+            .cloned()
+            .unwrap_or_else(|| json!({}));
+        assert_eq!(
+            discovery.get("contract").and_then(Value::as_str),
+            Some("tool_execution_receipt_v1")
+        );
+        assert!(discovery
+            .get("execution_statuses")
+            .and_then(Value::as_array)
+            .map(|rows| rows.iter().any(|row| row.as_str() == Some("unknown")))
+            .unwrap_or(false));
+        let summary = payload
+            .pointer("/response_finalization/tool_receipt_summary")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        assert!(summary.to_ascii_lowercase().contains("tool transaction complete"));
+        let transaction = payload
+            .pointer("/response_finalization/tool_transaction")
+            .cloned()
+            .unwrap_or_else(|| json!({}));
+        assert_eq!(
+            transaction.get("complete").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            transaction.get("status").and_then(Value::as_str),
+            Some("complete")
+        );
+    }
+
+    #[test]
+    fn chat_ui_tool_diagnostics_emits_explicit_execution_receipts() {
+        let diagnostics = chat_ui_tool_diagnostics(&[
+            json!({"name":"batch_query","status":"ok","ok":true,"result":"found docs"}),
+            json!({"name":"parse_workspace","status":"failed","error":"tool not found"}),
+            json!({"name":"spawn_subagents"}),
+        ]);
+        assert_eq!(
+            diagnostics
+                .get("not_found_calls")
+                .and_then(Value::as_i64)
+                .unwrap_or(0),
+            1
+        );
+        assert_eq!(
+            diagnostics
+                .get("silent_failure_calls")
+                .and_then(Value::as_i64)
+                .unwrap_or(0),
+            1
+        );
+        let receipts = diagnostics
+            .get("execution_receipts")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert_eq!(receipts.len(), 3);
+        assert!(receipts.iter().all(|row| {
+            row.get("call_id")
+                .and_then(Value::as_str)
+                .map(|value| value.starts_with("toolcall_"))
+                .unwrap_or(false)
+        }));
+        assert!(receipts.iter().any(|row| {
+            row.get("tool").and_then(Value::as_str) == Some("parse_workspace")
+                && row.get("status").and_then(Value::as_str) == Some("not_found")
+        }));
+        assert!(receipts.iter().any(|row| {
+            row.get("tool").and_then(Value::as_str) == Some("spawn_subagents")
+                && row.get("status").and_then(Value::as_str) == Some("unknown")
+        }));
+    }
+
+    #[test]
+    fn chat_ui_view_logs_returns_trace_matches_for_request_id() {
+        let root = tempfile::tempdir().expect("tempdir");
+        write_chat_script(
+            root.path(),
+            &json!({
+                "queue": [
+                    {
+                        "response": "done",
+                        "tools": [
+                            {"name":"batch_query","status":"ok","ok":true,"result":"found"}
+                        ]
+                    }
+                ]
+            }),
+        );
+        let run_payload = run_chat_ui(
+            root.path(),
+            &crate::parse_args(&[
+                "run".to_string(),
+                "--app=chat-ui".to_string(),
+                "--session-id=view-logs-demo".to_string(),
+                "--message=search docs".to_string(),
+                "--strict=1".to_string(),
+            ]),
+            true,
+            "run",
+        );
+        let trace_id = run_payload
+            .get("trace_id")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_string();
+        assert!(!trace_id.is_empty());
+        let logs_payload = run_chat_ui(
+            root.path(),
+            &crate::parse_args(&[
+                "run".to_string(),
+                "--app=chat-ui".to_string(),
+                "--session-id=view-logs-demo".to_string(),
+                format!("--request-id={trace_id}"),
+                "--strict=1".to_string(),
+            ]),
+            true,
+            "view-logs",
+        );
+        assert_eq!(logs_payload.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            logs_payload.get("match_count").and_then(Value::as_u64),
+            Some(1)
+        );
+        assert!(logs_payload
+            .get("matches")
+            .and_then(Value::as_array)
+            .map(|rows| !rows.is_empty())
+            .unwrap_or(false));
+    }
+
+    #[test]
+    fn chat_ui_history_includes_semantic_tool_receipt_summary() {
+        let session = json!({
+            "turns": [
+                {
+                    "user": "search rust tracing",
+                    "assistant": "done",
+                    "tool_summary": "Tool transaction complete for intent \"search rust tracing\": total=1 success=1 failed=0 blocked=0 not_found=0 low_signal=0 silent_failure=0."
+                }
+            ]
+        });
+        let history = chat_ui_history_messages(&session);
+        assert!(history.iter().any(|row| {
+            row.get("role").and_then(Value::as_str) == Some("assistant")
+                && row
+                    .get("text")
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .to_ascii_lowercase()
+                    .contains("tool receipt summary")
+        }));
     }
 }
 
@@ -1015,9 +1398,14 @@ fn chat_ui_tool_diagnostics(tools: &[Value]) -> Value {
     let mut successful_calls = 0_i64;
     let mut failed_calls = 0_i64;
     let mut no_result_calls = 0_i64;
+    let mut blocked_calls = 0_i64;
+    let mut not_found_calls = 0_i64;
+    let mut low_signal_calls = 0_i64;
+    let mut silent_failure_calls = 0_i64;
     let mut error_codes = serde_json::Map::<String, Value>::new();
+    let mut execution_receipts = Vec::<Value>::new();
 
-    for row in tools {
+    for (idx, row) in tools.iter().enumerate() {
         let tool_name = tool_name_for_diagnostics(row);
         if tool_name.contains("search")
             || tool_name.contains("web_search")
@@ -1034,6 +1422,8 @@ fn chat_ui_tool_diagnostics(tools: &[Value]) -> Value {
             .get("ok")
             .and_then(Value::as_bool)
             .or_else(|| row.pointer("/result/ok").and_then(Value::as_bool));
+        let raw_status = clean(row.get("status").and_then(Value::as_str).unwrap_or(""), 120)
+            .to_ascii_lowercase();
         let error = clean(
             row.get("error")
                 .or_else(|| row.pointer("/result/error"))
@@ -1042,25 +1432,145 @@ fn chat_ui_tool_diagnostics(tools: &[Value]) -> Value {
                 .unwrap_or(""),
             300,
         );
-
-        if !error.is_empty() || ok == Some(false) {
-            failed_calls += 1;
-            let code = normalize_tool_error_code(&error);
-            let next = error_codes
-                .get(&code)
-                .and_then(Value::as_i64)
-                .unwrap_or(0)
-                .saturating_add(1);
-            error_codes.insert(code, Value::from(next));
-            continue;
-        }
-
-        if ok == Some(true) || findings > 0 {
-            successful_calls += 1;
-            if findings == 0 {
-                no_result_calls += 1;
+        let result = clean(
+            row.get("result")
+                .or_else(|| row.pointer("/result/summary"))
+                .or_else(|| row.pointer("/result/text"))
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            600,
+        );
+        let duration_ms = row
+            .get("duration_ms")
+            .or_else(|| row.pointer("/telemetry/duration_ms"))
+            .or_else(|| row.pointer("/result/telemetry/duration_ms"))
+            .and_then(Value::as_i64)
+            .unwrap_or(0);
+        let tokens_used = row
+            .get("tokens_used")
+            .or_else(|| row.pointer("/telemetry/tokens_used"))
+            .or_else(|| row.pointer("/result/telemetry/tokens_used"))
+            .and_then(Value::as_i64)
+            .unwrap_or(0);
+        let call_id = format!(
+            "toolcall_{}",
+            &sha256_hex_str(&format!("{}:{}:{}", idx, tool_name, raw_status))[..12]
+        );
+        let mut status = if raw_status.contains("blocked")
+            || raw_status.contains("policy")
+            || raw_status.contains("denied")
+        {
+            "blocked".to_string()
+        } else if raw_status.contains("not_found")
+            || raw_status.contains("no_result")
+            || raw_status.contains("no-results")
+        {
+            "not_found".to_string()
+        } else if raw_status.contains("low_signal") || raw_status.contains("low-signal") {
+            "low_signal".to_string()
+        } else if raw_status.contains("ok") || raw_status.contains("success") {
+            "ok".to_string()
+        } else if raw_status.contains("failed")
+            || raw_status.contains("error")
+            || raw_status.contains("timeout")
+        {
+            "error".to_string()
+        } else {
+            "unknown".to_string()
+        };
+        if status == "unknown" {
+            if !error.is_empty() || ok == Some(false) {
+                status = if normalize_tool_error_code(&error) == "web_tool_not_found" {
+                    "not_found".to_string()
+                } else {
+                    "error".to_string()
+                };
+            } else if ok == Some(true) || findings > 0 {
+                status = "ok".to_string();
+            } else if !result.is_empty() {
+                status = "low_signal".to_string();
             }
         }
+        if status == "error" && normalize_tool_error_code(&error) == "web_tool_not_found" {
+            status = "not_found".to_string();
+        }
+
+        match status.as_str() {
+            "ok" => {
+                successful_calls += 1;
+                if findings == 0 {
+                    no_result_calls += 1;
+                }
+            }
+            "blocked" => {
+                failed_calls += 1;
+                blocked_calls += 1;
+                let code = "web_tool_policy_blocked".to_string();
+                let next = error_codes
+                    .get(&code)
+                    .and_then(Value::as_i64)
+                    .unwrap_or(0)
+                    .saturating_add(1);
+                error_codes.insert(code, Value::from(next));
+            }
+            "not_found" => {
+                failed_calls += 1;
+                not_found_calls += 1;
+                let code = if error.is_empty() {
+                    "web_tool_not_found".to_string()
+                } else {
+                    normalize_tool_error_code(&error)
+                };
+                let next = error_codes
+                    .get(&code)
+                    .and_then(Value::as_i64)
+                    .unwrap_or(0)
+                    .saturating_add(1);
+                error_codes.insert(code, Value::from(next));
+            }
+            "low_signal" => {
+                low_signal_calls += 1;
+                no_result_calls += 1;
+            }
+            "error" => {
+                failed_calls += 1;
+                let code = if error.is_empty() {
+                    "web_tool_error".to_string()
+                } else {
+                    normalize_tool_error_code(&error)
+                };
+                let next = error_codes
+                    .get(&code)
+                    .and_then(Value::as_i64)
+                    .unwrap_or(0)
+                    .saturating_add(1);
+                error_codes.insert(code, Value::from(next));
+            }
+            _ => {
+                failed_calls += 1;
+                silent_failure_calls += 1;
+                let code = "web_tool_silent_failure".to_string();
+                let next = error_codes
+                    .get(&code)
+                    .and_then(Value::as_i64)
+                    .unwrap_or(0)
+                    .saturating_add(1);
+                error_codes.insert(code, Value::from(next));
+            }
+        }
+        execution_receipts.push(json!({
+            "call_id": call_id,
+            "tool": tool_name,
+            "status": status,
+            "ok": ok.unwrap_or(false),
+            "findings_count": findings,
+            "error": error,
+            "has_result": !result.is_empty(),
+            "telemetry": {
+                "duration_ms": duration_ms,
+                "tokens_used": tokens_used
+            }
+        }));
     }
 
     let total_calls = tools.len() as i64;
@@ -1076,8 +1586,13 @@ fn chat_ui_tool_diagnostics(tools: &[Value]) -> Value {
         "successful_calls": successful_calls,
         "failed_calls": failed_calls,
         "no_result_calls": no_result_calls,
+        "blocked_calls": blocked_calls,
+        "not_found_calls": not_found_calls,
+        "low_signal_calls": low_signal_calls,
+        "silent_failure_calls": silent_failure_calls,
         "error_ratio": error_ratio,
-        "error_codes": Value::Object(error_codes)
+        "error_codes": Value::Object(error_codes),
+        "execution_receipts": execution_receipts
     })
 }
 
@@ -1102,6 +1617,8 @@ fn rewrite_chat_ui_placeholder_with_tool_diagnostics(
     let has_auth_missing = errors.contains_key("web_tool_auth_missing");
     let has_policy_blocked = errors.contains_key("web_tool_policy_blocked");
     let has_invalid_response = errors.contains_key("web_tool_invalid_response");
+    let has_not_found = errors.contains_key("web_tool_not_found");
+    let has_silent_failure = errors.contains_key("web_tool_silent_failure");
 
     if has_auth_missing {
         return (
@@ -1122,6 +1639,20 @@ fn rewrite_chat_ui_placeholder_with_tool_diagnostics(
             "Web tooling returned an invalid response. Retry with one concrete query or a specific source URL."
                 .to_string(),
             "placeholder_replaced_invalid_response".to_string(),
+        );
+    }
+    if has_not_found {
+        return (
+            "A required tool was not available in this turn. Check capability mapping and wiring, then retry."
+                .to_string(),
+            "placeholder_replaced_not_found".to_string(),
+        );
+    }
+    if has_silent_failure {
+        return (
+            "A tool execution returned no usable receipt. Treating this as failure; retry after runtime/tool health check."
+                .to_string(),
+            "placeholder_replaced_silent_failure".to_string(),
         );
     }
     if has_error {

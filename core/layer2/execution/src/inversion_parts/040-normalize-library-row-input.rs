@@ -1,6 +1,6 @@
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct NormalizeLibraryRowInput {
-    #[serde(default)]
+    #[serde(default, alias = "library_row")]
     pub row: Option<Value>,
 }
 
@@ -11,7 +11,7 @@ pub struct NormalizeLibraryRowOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct EnsureDirInput {
-    #[serde(default)]
+    #[serde(default, alias = "path")]
     pub dir_path: Option<String>,
 }
 
@@ -22,7 +22,7 @@ pub struct EnsureDirOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct ReadJsonInput {
-    #[serde(default)]
+    #[serde(default, alias = "path")]
     pub file_path: Option<String>,
     #[serde(default)]
     pub fallback: Option<Value>,
@@ -35,7 +35,7 @@ pub struct ReadJsonOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct ReadJsonlInput {
-    #[serde(default)]
+    #[serde(default, alias = "path")]
     pub file_path: Option<String>,
 }
 
@@ -46,7 +46,7 @@ pub struct ReadJsonlOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct WriteJsonAtomicInput {
-    #[serde(default)]
+    #[serde(default, alias = "path")]
     pub file_path: Option<String>,
     #[serde(default)]
     pub value: Option<Value>,
@@ -58,7 +58,7 @@ pub struct WriteJsonAtomicOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct AppendJsonlInput {
-    #[serde(default)]
+    #[serde(default, alias = "path")]
     pub file_path: Option<String>,
     #[serde(default)]
     pub row: Option<Value>,
@@ -71,7 +71,7 @@ pub struct AppendJsonlOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct ReadTextInput {
-    #[serde(default)]
+    #[serde(default, alias = "path")]
     pub file_path: Option<String>,
     #[serde(default)]
     pub fallback: Option<String>,
@@ -84,7 +84,7 @@ pub struct ReadTextOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct LatestJsonFileInDirInput {
-    #[serde(default)]
+    #[serde(default, alias = "path")]
     pub dir_path: Option<String>,
 }
 
@@ -116,7 +116,7 @@ pub struct NormalizeRepoPathInput {
     pub value: Option<String>,
     #[serde(default)]
     pub fallback: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "workspace_root")]
     pub root: Option<String>,
 }
 
@@ -127,15 +127,15 @@ pub struct NormalizeRepoPathOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct RuntimePathsInput {
-    #[serde(default)]
+    #[serde(default, alias = "policyPath")]
     pub policy_path: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "inversionStateDirEnv")]
     pub inversion_state_dir_env: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "dualBrainPolicyPathEnv")]
     pub dual_brain_policy_path_env: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "defaultStateDir")]
     pub default_state_dir: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "workspace_root")]
     pub root: Option<String>,
 }
 
@@ -172,7 +172,7 @@ pub struct NormalizeHarnessSuiteOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct LoadHarnessStateInput {
-    #[serde(default)]
+    #[serde(default, alias = "path")]
     pub file_path: Option<String>,
     #[serde(default)]
     pub now_iso: Option<String>,
@@ -185,7 +185,7 @@ pub struct LoadHarnessStateOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct SaveHarnessStateInput {
-    #[serde(default)]
+    #[serde(default, alias = "path")]
     pub file_path: Option<String>,
     #[serde(default)]
     pub state: Option<Value>,
@@ -200,7 +200,7 @@ pub struct SaveHarnessStateOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct LoadFirstPrincipleLockStateInput {
-    #[serde(default)]
+    #[serde(default, alias = "path")]
     pub file_path: Option<String>,
     #[serde(default)]
     pub now_iso: Option<String>,
@@ -213,7 +213,7 @@ pub struct LoadFirstPrincipleLockStateOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct SaveFirstPrincipleLockStateInput {
-    #[serde(default)]
+    #[serde(default, alias = "path")]
     pub file_path: Option<String>,
     #[serde(default)]
     pub state: Option<Value>,
@@ -228,7 +228,7 @@ pub struct SaveFirstPrincipleLockStateOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct CheckFirstPrincipleDowngradeInput {
-    #[serde(default)]
+    #[serde(default, alias = "path")]
     pub file_path: Option<String>,
     #[serde(default)]
     pub policy: Option<Value>,
@@ -250,7 +250,7 @@ pub struct CheckFirstPrincipleDowngradeOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct UpsertFirstPrincipleLockInput {
-    #[serde(default)]
+    #[serde(default, alias = "path")]
     pub file_path: Option<String>,
     #[serde(default)]
     pub session: Option<Value>,
@@ -268,7 +268,7 @@ pub struct UpsertFirstPrincipleLockOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct LoadObserverApprovalsInput {
-    #[serde(default)]
+    #[serde(default, alias = "path")]
     pub file_path: Option<String>,
 }
 
@@ -279,7 +279,7 @@ pub struct LoadObserverApprovalsOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct AppendObserverApprovalInput {
-    #[serde(default)]
+    #[serde(default, alias = "path")]
     pub file_path: Option<String>,
     #[serde(default)]
     pub target: Option<String>,
@@ -298,7 +298,7 @@ pub struct AppendObserverApprovalOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct CountObserverApprovalsInput {
-    #[serde(default)]
+    #[serde(default, alias = "path")]
     pub file_path: Option<String>,
     #[serde(default)]
     pub target: Option<String>,
@@ -313,7 +313,7 @@ pub struct CountObserverApprovalsOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct EnsureCorrespondenceFileInput {
-    #[serde(default)]
+    #[serde(default, alias = "path")]
     pub file_path: Option<String>,
     #[serde(default)]
     pub header: Option<String>,
@@ -326,7 +326,7 @@ pub struct EnsureCorrespondenceFileOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct LoadMaturityStateInput {
-    #[serde(default)]
+    #[serde(default, alias = "path")]
     pub file_path: Option<String>,
     #[serde(default)]
     pub policy: Option<Value>,
@@ -342,7 +342,7 @@ pub struct LoadMaturityStateOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct SaveMaturityStateInput {
-    #[serde(default)]
+    #[serde(default, alias = "path")]
     pub file_path: Option<String>,
     #[serde(default)]
     pub policy: Option<Value>,
@@ -360,7 +360,7 @@ pub struct SaveMaturityStateOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct LoadActiveSessionsInput {
-    #[serde(default)]
+    #[serde(default, alias = "path")]
     pub file_path: Option<String>,
     #[serde(default)]
     pub now_iso: Option<String>,
@@ -373,7 +373,7 @@ pub struct LoadActiveSessionsOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct SaveActiveSessionsInput {
-    #[serde(default)]
+    #[serde(default, alias = "path")]
     pub file_path: Option<String>,
     #[serde(default)]
     pub store: Option<Value>,
@@ -388,7 +388,7 @@ pub struct SaveActiveSessionsOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct EmitEventInput {
-    #[serde(default)]
+    #[serde(default, alias = "eventsDir")]
     pub events_dir: Option<String>,
     #[serde(default)]
     pub date_str: Option<String>,
@@ -410,11 +410,11 @@ pub struct EmitEventOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct AppendPersonaLensGateReceiptInput {
-    #[serde(default)]
+    #[serde(default, alias = "stateDir")]
     pub state_dir: Option<String>,
     #[serde(default)]
     pub root: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "cfgReceiptsPath")]
     pub cfg_receipts_path: Option<String>,
     #[serde(default)]
     pub payload: Option<Value>,
@@ -431,7 +431,7 @@ pub struct AppendPersonaLensGateReceiptOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct AppendConclaveCorrespondenceInput {
-    #[serde(default)]
+    #[serde(default, alias = "path")]
     pub correspondence_path: Option<String>,
     #[serde(default)]
     pub row: Option<Value>,
@@ -444,9 +444,9 @@ pub struct AppendConclaveCorrespondenceOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct PersistDecisionInput {
-    #[serde(default)]
+    #[serde(default, alias = "latestPath")]
     pub latest_path: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "historyPath")]
     pub history_path: Option<String>,
     #[serde(default)]
     pub payload: Option<Value>,

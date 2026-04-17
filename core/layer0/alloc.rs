@@ -19,6 +19,18 @@ static BYTES_REQUESTED: AtomicUsize = AtomicUsize::new(0);
 static BYTES_RELEASED: AtomicUsize = AtomicUsize::new(0);
 static BYTES_OUTSTANDING: AtomicUsize = AtomicUsize::new(0);
 
+fn atomic_saturating_add(counter: &AtomicUsize, value: usize) {
+    let _ = counter.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
+        Some(current.saturating_add(value))
+    });
+}
+
+fn atomic_saturating_sub(counter: &AtomicUsize, value: usize) {
+    let _ = counter.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
+        Some(current.saturating_sub(value))
+    });
+}
+
 impl Layer0CountingAllocator {
     pub fn snapshot() -> AllocatorSnapshot {
         AllocatorSnapshot {
@@ -34,40 +46,40 @@ impl Layer0CountingAllocator {
 unsafe impl GlobalAlloc for Layer0CountingAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         let size = layout.size();
-        ALLOC_CALLS.fetch_add(1, Ordering::Relaxed);
-        BYTES_REQUESTED.fetch_add(size, Ordering::Relaxed);
-        BYTES_OUTSTANDING.fetch_add(size, Ordering::Relaxed);
+        atomic_saturating_add(&ALLOC_CALLS, 1);
+        atomic_saturating_add(&BYTES_REQUESTED, size);
+        atomic_saturating_add(&BYTES_OUTSTANDING, size);
         // SAFETY: delegated to the platform allocator with the same layout.
         unsafe { System.alloc(layout) }
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
         let size = layout.size();
-        DEALLOC_CALLS.fetch_add(1, Ordering::Relaxed);
-        BYTES_RELEASED.fetch_add(size, Ordering::Relaxed);
-        BYTES_OUTSTANDING.fetch_sub(size, Ordering::Relaxed);
+        atomic_saturating_add(&DEALLOC_CALLS, 1);
+        atomic_saturating_add(&BYTES_RELEASED, size);
+        atomic_saturating_sub(&BYTES_OUTSTANDING, size);
         // SAFETY: delegated to the platform allocator with the same layout.
         unsafe { System.dealloc(ptr, layout) }
     }
 
     unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
         let size = layout.size();
-        ALLOC_CALLS.fetch_add(1, Ordering::Relaxed);
-        BYTES_REQUESTED.fetch_add(size, Ordering::Relaxed);
-        BYTES_OUTSTANDING.fetch_add(size, Ordering::Relaxed);
+        atomic_saturating_add(&ALLOC_CALLS, 1);
+        atomic_saturating_add(&BYTES_REQUESTED, size);
+        atomic_saturating_add(&BYTES_OUTSTANDING, size);
         // SAFETY: delegated to the platform allocator with the same layout.
         unsafe { System.alloc_zeroed(layout) }
     }
 
     unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
         let old_size = layout.size();
-        ALLOC_CALLS.fetch_add(1, Ordering::Relaxed);
-        BYTES_REQUESTED.fetch_add(new_size, Ordering::Relaxed);
+        atomic_saturating_add(&ALLOC_CALLS, 1);
+        atomic_saturating_add(&BYTES_REQUESTED, new_size);
         if new_size >= old_size {
-            BYTES_OUTSTANDING.fetch_add(new_size - old_size, Ordering::Relaxed);
+            atomic_saturating_add(&BYTES_OUTSTANDING, new_size - old_size);
         } else {
-            BYTES_RELEASED.fetch_add(old_size - new_size, Ordering::Relaxed);
-            BYTES_OUTSTANDING.fetch_sub(old_size - new_size, Ordering::Relaxed);
+            atomic_saturating_add(&BYTES_RELEASED, old_size - new_size);
+            atomic_saturating_sub(&BYTES_OUTSTANDING, old_size - new_size);
         }
         // SAFETY: delegated to the platform allocator with the same layout.
         unsafe { System.realloc(ptr, layout, new_size) }

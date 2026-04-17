@@ -1,4 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
+mod index_stats;
+
+use index_stats::build_index_stats;
 use protheus_memory_core_v6::{
     clear_cache, compress_store, crdt_exchange_json, ebbinghaus_curve, get_json, ingest_memory,
     load_embedded_execution_replay, load_embedded_heartbeat, load_embedded_observability_profile,
@@ -8,14 +11,24 @@ use protheus_memory_core_v6::{
 use rusqlite::Connection;
 use serde::Deserialize;
 use serde_json::json;
-use std::collections::BTreeSet;
 use std::collections::HashMap;
 use std::env;
-use std::fs;
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpListener;
-use std::path::Path;
 use std::time::Instant;
+
+#[allow(dead_code)]
+pub(crate) fn contains_forbidden_runtime_context_marker(raw: &str) -> bool {
+    const FORBIDDEN: [&str; 6] = [
+        "You are an expert Python programmer.",
+        "[PATCH v2",
+        "List Leaves (25",
+        "BEGIN_OPENCLAW_INTERNAL_CONTEXT",
+        "END_OPENCLAW_INTERNAL_CONTEXT",
+        "UNTRUSTED_CHILD_RESULT_DELIMITER",
+    ];
+    FORBIDDEN.iter().any(|marker| raw.contains(marker))
+}
 
 #[derive(Deserialize, Default)]
 struct DaemonRequest {
@@ -66,150 +79,6 @@ fn print_json(value: serde_json::Value) {
         "{}",
         serde_json::to_string_pretty(&value).unwrap_or_else(|_| "{\"ok\":false}".to_string())
     );
-}
-
-fn is_date_memory_file(name: &str) -> bool {
-    let bytes = name.as_bytes();
-    if bytes.len() != 13 {
-        return false;
-    }
-    for (idx, b) in bytes.iter().enumerate() {
-        match idx {
-            4 | 7 => {
-                if *b != b'-' {
-                    return false;
-                }
-            }
-            10 => {
-                if *b != b'.' {
-                    return false;
-                }
-            }
-            11 => {
-                if *b != b'm' {
-                    return false;
-                }
-            }
-            12 => {
-                if *b != b'd' {
-                    return false;
-                }
-            }
-            _ => {
-                if !b.is_ascii_digit() {
-                    return false;
-                }
-            }
-        }
-    }
-    true
-}
-
-fn parse_node_id(chunk: &str) -> Option<String> {
-    for line in chunk.lines() {
-        let trimmed = line.trim();
-        if !trimmed.starts_with("node_id:") {
-            continue;
-        }
-        let value = trimmed
-            .split_once(':')
-            .map(|(_, rhs)| rhs.trim())
-            .unwrap_or_default();
-        if value.is_empty() {
-            return None;
-        }
-        let candidate: String = value
-            .chars()
-            .filter(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '.' | '_' | '-'))
-            .collect();
-        if candidate.is_empty() {
-            return None;
-        }
-        return Some(candidate);
-    }
-    None
-}
-
-fn parse_tags_inline(raw: &str) -> Vec<String> {
-    let cleaned = raw
-        .replace(['[', ']', '"', '\''], " ")
-        .replace(',', " ")
-        .replace('\t', " ");
-    cleaned
-        .split_whitespace()
-        .map(|token| token.trim_start_matches('#').to_ascii_lowercase())
-        .filter(|token| {
-            !token.is_empty()
-                && token.chars().all(|ch| {
-                    ch.is_ascii_lowercase() || ch.is_ascii_digit() || matches!(ch, '_' | '-')
-                })
-        })
-        .collect()
-}
-
-fn build_index_stats(root: &Path) -> serde_json::Value {
-    let memory_dir = root.join("memory");
-    if !memory_dir.exists() {
-        return json!({
-          "ok": true,
-          "backend_used": "rust",
-          "transport": "cli",
-          "node_count": 0,
-          "tag_count": 0,
-          "files_scanned": 0
-        });
-    }
-
-    let mut files: Vec<String> = Vec::new();
-    if let Ok(entries) = fs::read_dir(&memory_dir) {
-        for entry in entries.flatten() {
-            let name = entry.file_name().to_string_lossy().to_string();
-            if is_date_memory_file(&name) {
-                files.push(name);
-            }
-        }
-    }
-    files.sort();
-
-    let mut seen = BTreeSet::new();
-    let mut tags = BTreeSet::new();
-    let mut files_scanned: u64 = 0;
-
-    for name in &files {
-        let file_path = memory_dir.join(name);
-        let text = match fs::read_to_string(&file_path) {
-            Ok(v) => v,
-            Err(_) => continue,
-        };
-        files_scanned += 1;
-        for chunk in text.split("<!-- NODE -->") {
-            if let Some(node_id) = parse_node_id(chunk) {
-                seen.insert(format!("{node_id}@client/memory/{name}"));
-            }
-            for line in chunk.lines() {
-                let trimmed = line.trim();
-                if !trimmed.starts_with("tags:") {
-                    continue;
-                }
-                let raw = trimmed
-                    .split_once(':')
-                    .map(|(_, rhs)| rhs.trim())
-                    .unwrap_or_default();
-                for tag in parse_tags_inline(raw) {
-                    tags.insert(tag);
-                }
-            }
-        }
-    }
-
-    json!({
-      "ok": true,
-      "backend_used": "rust",
-      "transport": "cli",
-      "node_count": seen.len(),
-      "tag_count": tags.len(),
-      "files_scanned": files_scanned
-    })
 }
 
 fn daemon_response(cmd: &str, args: &HashMap<String, String>) -> serde_json::Value {
@@ -435,7 +304,7 @@ fn main() {
                 .get("root")
                 .cloned()
                 .unwrap_or_else(|| ".".to_string());
-            print_json(build_index_stats(Path::new(&root)));
+            print_json(build_index_stats(&root));
         }
         "daemon" => {
             let host = flags

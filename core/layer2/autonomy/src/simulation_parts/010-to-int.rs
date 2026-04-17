@@ -16,6 +16,46 @@ fn to_int(raw: Option<&str>, fallback: i64, lo: i64, hi: i64) -> i64 {
         .clamp(lo, hi)
 }
 
+fn normalize_signal_token(raw: &str) -> String {
+    let mut out = String::with_capacity(raw.len());
+    let mut prev_sep = false;
+    for ch in raw.trim().chars() {
+        let next = if ch.is_ascii_alphanumeric() {
+            ch.to_ascii_lowercase()
+        } else {
+            '_'
+        };
+        if next == '_' {
+            if prev_sep {
+                continue;
+            }
+            prev_sep = true;
+        } else {
+            prev_sep = false;
+        }
+        out.push(next);
+    }
+    out.trim_matches('_').to_string()
+}
+
+fn canonical_run_result(raw: &str) -> String {
+    match normalize_signal_token(raw).as_str() {
+        "lockbusy" | "lock_busy" => "lock_busy".to_string(),
+        "stop_repeat_gate" | "stop_repeat_gate_interval" | "repeat_gate_stop"
+        | "repeat_gate_interval_stop" => "stop_repeat_gate_interval".to_string(),
+        "stop_init_gate" | "stop_init_gate_interval" => "stop_init_gate_interval".to_string(),
+        "executed_ok" | "executed_success" | "run_executed" | "execute" => "executed".to_string(),
+        other => other.to_string(),
+    }
+}
+
+fn canonical_outcome(raw: &str) -> String {
+    match normalize_signal_token(raw).as_str() {
+        "ship" | "shipped_ok" | "shipped_success" => "shipped".to_string(),
+        other => other.to_string(),
+    }
+}
+
 fn date_window(end_date: &str, days: i64) -> Vec<String> {
     let fallback = chrono::Utc::now().date_naive();
     let end = NaiveDate::parse_from_str(end_date, "%Y-%m-%d").unwrap_or(fallback);
@@ -40,17 +80,14 @@ fn parse_ts_ms(v: Option<&Value>) -> Option<i64> {
 }
 
 fn is_policy_hold_event(row: &Value) -> bool {
-    if row.get("type").and_then(Value::as_str) != Some("autonomy_run") {
+    let event_type = normalize_signal_token(row.get("type").and_then(Value::as_str).unwrap_or(""));
+    if event_type != "autonomy_run" {
         return false;
     }
     if row.get("policy_hold").and_then(Value::as_bool) == Some(true) {
         return true;
     }
-    let result = row
-        .get("result")
-        .and_then(Value::as_str)
-        .unwrap_or("")
-        .to_ascii_lowercase();
+    let result = canonical_run_result(row.get("result").and_then(Value::as_str).unwrap_or(""));
     if result.starts_with("no_candidates_policy_") {
         return true;
     }
@@ -58,33 +95,21 @@ fn is_policy_hold_event(row: &Value) -> bool {
         return true;
     }
 
-    let block_reason = row
-        .get("route_block_reason")
-        .and_then(Value::as_str)
-        .unwrap_or("")
-        .to_ascii_lowercase();
+    let block_reason =
+        normalize_signal_token(row.get("route_block_reason").and_then(Value::as_str).unwrap_or(""));
     block_reason.contains("gate_manual") || block_reason.contains("budget")
 }
 
 fn is_budget_hold_event(row: &Value) -> bool {
-    if row.get("type").and_then(Value::as_str) != Some("autonomy_run") {
+    let event_type = normalize_signal_token(row.get("type").and_then(Value::as_str).unwrap_or(""));
+    if event_type != "autonomy_run" {
         return false;
     }
-    let result = row
-        .get("result")
-        .and_then(Value::as_str)
-        .unwrap_or("")
-        .to_ascii_lowercase();
-    let hold_reason = row
-        .get("policy_hold_reason")
-        .and_then(Value::as_str)
-        .unwrap_or("")
-        .to_ascii_lowercase();
-    let block_reason = row
-        .get("route_block_reason")
-        .and_then(Value::as_str)
-        .unwrap_or("")
-        .to_ascii_lowercase();
+    let result = canonical_run_result(row.get("result").and_then(Value::as_str).unwrap_or(""));
+    let hold_reason =
+        normalize_signal_token(row.get("policy_hold_reason").and_then(Value::as_str).unwrap_or(""));
+    let block_reason =
+        normalize_signal_token(row.get("route_block_reason").and_then(Value::as_str).unwrap_or(""));
 
     result.contains("budget")
         || result.contains("burn_rate")
@@ -95,25 +120,13 @@ fn is_budget_hold_event(row: &Value) -> bool {
 }
 
 fn is_safety_stop(row: &Value) -> bool {
-    let result = row
-        .get("result")
-        .and_then(Value::as_str)
-        .unwrap_or("")
-        .to_ascii_lowercase();
+    let result = canonical_run_result(row.get("result").and_then(Value::as_str).unwrap_or(""));
     result.contains("safety")
 }
 
 fn is_no_progress(row: &Value) -> bool {
-    let result = row
-        .get("result")
-        .and_then(Value::as_str)
-        .unwrap_or("")
-        .to_ascii_lowercase();
-    let outcome = row
-        .get("outcome")
-        .and_then(Value::as_str)
-        .unwrap_or("")
-        .to_ascii_lowercase();
+    let result = canonical_run_result(row.get("result").and_then(Value::as_str).unwrap_or(""));
+    let outcome = canonical_outcome(row.get("outcome").and_then(Value::as_str).unwrap_or(""));
 
     result == "executed" && outcome != "shipped"
 }
@@ -314,13 +327,19 @@ fn reason_counts(rows: &[Value], reason_fn: fn(&Value) -> String) -> Value {
 }
 
 fn hold_reason(row: &Value) -> String {
-    row.get("policy_hold_reason")
+    let reason = row
+        .get("policy_hold_reason")
         .or_else(|| row.get("route_block_reason"))
         .or_else(|| row.get("result"))
         .and_then(Value::as_str)
         .unwrap_or("unknown")
-        .trim()
-        .to_ascii_lowercase()
+        .trim();
+    let normalized = normalize_signal_token(reason);
+    if normalized.is_empty() {
+        "unknown".to_string()
+    } else {
+        normalized
+    }
 }
 
 fn read_budget_snapshot(path: &Path, end_date: &str, run_rows: &[Value]) -> Value {
@@ -447,4 +466,3 @@ fn read_budget_snapshot(path: &Path, end_date: &str, run_rows: &[Value]) -> Valu
         "snapshot_fallback_used": if external_override { false } else { !observed_in_window && snapshot_suggests_active }
     })
 }
-

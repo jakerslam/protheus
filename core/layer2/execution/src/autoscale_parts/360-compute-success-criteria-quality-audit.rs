@@ -29,38 +29,72 @@ pub fn compute_success_criteria_quality_audit(
         .and_then(|value| value.as_array())
         .map(|rows| {
             rows.iter()
-                .map(|row| {
-                    let obj = row.as_object();
-                    AssessSuccessCriteriaQualityCheckInput {
-                        evaluated: obj
-                            .and_then(|map| map.get("evaluated"))
-                            .and_then(|value| value.as_bool())
-                            .unwrap_or(false),
-                        reason: obj.and_then(|map| {
-                            map.get("reason")
-                                .map(js_like_string)
-                                .map(|value| value.trim().to_string())
-                                .filter(|value| !value.is_empty())
-                        }),
+                .filter_map(|row| {
+                    let obj = row.as_object()?;
+                    let reason = [
+                        obj.get("reason"),
+                        obj.get("error"),
+                        obj.get("message"),
+                        obj.get("outcome"),
+                    ]
+                    .into_iter()
+                    .flatten()
+                    .map(js_like_string)
+                    .map(|value| value.trim().to_string())
+                    .find(|value| !value.is_empty());
+                    let evaluated = obj
+                        .get("evaluated")
+                        .and_then(|value| value.as_bool())
+                        .or_else(|| obj.get("pass").and_then(|value| value.as_bool()))
+                        .or_else(|| {
+                            obj.get("status")
+                                .and_then(|value| value.as_str())
+                                .map(|status| {
+                                    matches!(
+                                        status.trim().to_ascii_lowercase().as_str(),
+                                        "pass" | "passed" | "ok" | "success" | "true"
+                                    )
+                                })
+                        })
+                        .unwrap_or(false);
+                    let has_signal = obj.get("evaluated").is_some()
+                        || obj.get("pass").is_some()
+                        || obj.get("status").is_some()
+                        || reason.is_some();
+                    if !has_signal {
+                        return None;
                     }
+                    Some(AssessSuccessCriteriaQualityCheckInput { evaluated, reason })
                 })
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default();
+    let total_count = criteria
+        .get("total_count")
+        .and_then(|value| value.as_f64())
+        .filter(|value| value.is_finite() && *value >= 0.0)
+        .unwrap_or(checks.len() as f64);
+    let unknown_count = criteria
+        .get("unknown_count")
+        .and_then(|value| value.as_f64())
+        .filter(|value| value.is_finite() && *value >= 0.0)
+        .unwrap_or(0.0)
+        .min(total_count.max(0.0));
+    let synthesized = criteria
+        .get("synthesized")
+        .and_then(|value| value.as_bool())
+        .or_else(|| {
+            criteria
+                .get("synthesized")
+                .and_then(|value| value.as_str())
+                .map(|value| matches!(value.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes"))
+        })
+        .unwrap_or(false);
     let quality = compute_assess_success_criteria_quality(&AssessSuccessCriteriaQualityInput {
         checks,
-        total_count: criteria
-            .get("total_count")
-            .and_then(|value| value.as_f64())
-            .unwrap_or(0.0),
-        unknown_count: criteria
-            .get("unknown_count")
-            .and_then(|value| value.as_f64())
-            .unwrap_or(0.0),
-        synthesized: criteria
-            .get("synthesized")
-            .and_then(|value| value.as_bool())
-            .unwrap_or(false),
+        total_count,
+        unknown_count,
+        synthesized,
     });
     let quality_json = serde_json::to_value(&quality).unwrap_or_else(|_| serde_json::json!({}));
     let mut out = base_obj.clone();

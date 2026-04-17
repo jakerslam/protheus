@@ -146,14 +146,6 @@ body[data-theme='dark'] .chat-pointer-ripple {
   display: none;
 }
 
-body:not([data-theme='dark']) .chat-pointer-trail-dot {
-  display: none;
-}
-
-body:not([data-theme='dark']) .chat-pointer-trail-segment {
-  display: none;
-}
-
 .sidebar-nav {
   position: relative;
 }
@@ -310,6 +302,8 @@ body:not([data-theme='dark']) .chat-pointer-trail-segment {
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .chat-sidebar-item-avatar-wrap {

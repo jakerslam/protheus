@@ -27,6 +27,11 @@ fn collect_dashboard_metrics(root: &Path, cron_audit: &Value) -> Value {
             "source": "client/runtime/config/cron_jobs.json"
         }),
     );
+    if let Some(obj) = collect_web_tooling_readiness_dashboard_metric(cron_audit).as_object() {
+        for (k, v) in obj {
+            metrics.insert(k.clone(), v.clone());
+        }
+    }
 
     if let Some(obj) = collect_spine_dashboard_metrics(root).as_object() {
         for (k, v) in obj {
@@ -127,6 +132,49 @@ fn collect_dashboard_metrics(root: &Path, cron_audit: &Value) -> Value {
     Value::Object(metrics)
 }
 
+fn collect_web_tooling_readiness_dashboard_metric(cron_audit: &Value) -> Value {
+    let web_tooling_jobs = cron_audit
+        .get("web_tooling_jobs")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let auth_present = cron_audit
+        .get("web_tooling_auth_present")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let missing_auth_issues = cron_audit
+        .get("issues")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|row| {
+            row.get("reason")
+                .and_then(Value::as_str)
+                .map(|reason| reason == "web_tooling_auth_missing_for_web_job")
+                .unwrap_or(false)
+        })
+        .count() as u64;
+    let readiness = if web_tooling_jobs == 0 {
+        1.0
+    } else if auth_present && missing_auth_issues == 0 {
+        1.0
+    } else {
+        0.0
+    };
+    let status = if readiness >= 1.0 { "pass" } else { "warn" };
+    json!({
+        "web_tooling_auth_readiness": {
+            "value": readiness,
+            "target_min": 1.0,
+            "status": status,
+            "web_tooling_jobs": web_tooling_jobs,
+            "auth_present": auth_present,
+            "missing_auth_issues": missing_auth_issues,
+            "source": "cron_delivery_integrity"
+        }
+    })
+}
+
 fn checks_summary(cron_ok: bool, source_ok: bool) -> Value {
     let verification_ok = cron_ok && source_ok;
     let status = |ok: bool| if ok { "pass" } else { "warn" };
@@ -176,6 +224,12 @@ fn status_receipt(root: &Path, cmd: &str, args: &[String], dashboard: bool) -> V
     } else {
         collect_dashboard_metrics_light(&cron_audit)
     };
+    let web_tooling_ok = dashboard_metrics
+        .get("web_tooling_auth_readiness")
+        .and_then(|metric| metric.get("status"))
+        .and_then(Value::as_str)
+        .map(|status| status == "pass")
+        .unwrap_or(true);
 
     let mut alert_checks = Vec::<String>::new();
     if let Some(map) = checks.as_object() {
@@ -199,7 +253,7 @@ fn status_receipt(root: &Path, cmd: &str, args: &[String], dashboard: bool) -> V
     }
 
     let mut out = json!({
-        "ok": cron_ok && source_ok,
+        "ok": cron_ok && source_ok && web_tooling_ok,
         "type": if dashboard { "health_status_dashboard" } else { "health_status" },
         "lane": LANE_ID,
         "ts": now_iso(),
@@ -227,7 +281,8 @@ fn status_receipt(root: &Path, cmd: &str, args: &[String], dashboard: bool) -> V
                     "command": cmd,
                     "argv_len": args.len(),
                     "cron_delivery_integrity_ok": cron_ok,
-                    "rust_source_of_truth_ok": source_ok
+                    "rust_source_of_truth_ok": source_ok,
+                    "web_tooling_auth_readiness_ok": web_tooling_ok
                 }
             }
         ],
@@ -333,4 +388,3 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         }
     }
 }
-

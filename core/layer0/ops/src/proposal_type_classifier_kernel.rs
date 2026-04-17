@@ -139,6 +139,12 @@ fn extract_source_eye_id(proposal: &Map<String, Value>) -> String {
 fn infer_type_from_signals(source_eye: &str, text_blob: &str) -> &'static str {
     let eye = normalize_type_key(source_eye);
     let text = text_blob.to_ascii_lowercase();
+    if eye.contains("memory_embedding")
+        || eye.contains("capability_provider")
+        || eye.contains("provider_runtime")
+    {
+        return "memory_embedding_provider_contract";
+    }
     if matches!(eye.as_str(), "directive_pulse" | "directive_compiler") {
         return "directive_clarification";
     }
@@ -174,6 +180,12 @@ fn infer_type_from_signals(source_eye: &str, text_blob: &str) -> &'static str {
         .is_match(&text)
     {
         return "strategy";
+    }
+    if regex::Regex::new(r"\b(memory embedding|memory_embedding|capability provider|provider runtime|contracts\.memoryembeddingproviders)\b")
+        .unwrap()
+        .is_match(&text)
+    {
+        return "memory_embedding_provider_contract";
     }
     if regex::Regex::new(r"\b(opportunity|outreach|lead|sales|bizdev|revenue|freelance|contract|gig|client|rfp|reply|interview|proposal draft)\b").unwrap().is_match(&text) { return "external_intel"; }
     if regex::Regex::new(r"\b(governance|routing|autonomy|spine|memory|reflex|spawn|security|integrity|queue|budget|attestation)\b").unwrap().is_match(&text) { return "local_state_fallback"; }
@@ -293,6 +305,19 @@ mod tests {
             &Map::new(),
         );
         assert_eq!(result["type"], json!("strategy"));
+        assert_eq!(result["inferred"], json!(true));
+    }
+
+    #[test]
+    fn classifies_memory_embedding_provider_contract_text() {
+        let result = classify(
+            &serde_json::from_value(json!({
+                "summary":"enforce contracts.memoryEmbeddingProviders parity for provider runtime"
+            }))
+            .unwrap(),
+            &Map::new(),
+        );
+        assert_eq!(result["type"], json!("memory_embedding_provider_contract"));
         assert_eq!(result["inferred"], json!(true));
     }
 }

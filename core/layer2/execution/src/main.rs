@@ -8,8 +8,9 @@ use execution_core::{
     evaluate_route_habit_readiness_json, evaluate_route_json, evaluate_route_match_json,
     evaluate_route_primitives_json, evaluate_route_reflex_match_json, prioritize_attention_json,
     queue_rows_json, run_autoscale_json, run_importer_generic_json_json,
-    run_importer_generic_yaml_json, run_importer_infring_json, run_importer_workflow_graph_json,
-    run_inversion_json, run_sprint_contract_json, run_workflow, run_workflow_json,
+    run_importer_generic_yaml_json, run_importer_infring_json,
+    run_importer_web_tooling_signal_json, run_importer_workflow_graph_json, run_inversion_json,
+    run_sprint_contract_json, run_workflow, run_workflow_json,
     summarize_dispatch_json, summarize_tasks_json,
 };
 use std::env;
@@ -98,6 +99,9 @@ fn usage() {
     eprintln!("  execution_core importer-workflow-graph --payload=<json_payload>");
     eprintln!("  execution_core importer-workflow-graph --payload-base64=<base64_json_payload>");
     eprintln!("  execution_core importer-workflow-graph --payload-file=<path>");
+    eprintln!("  execution_core importer-web-tooling-signal --payload=<json_payload>");
+    eprintln!("  execution_core importer-web-tooling-signal --payload-base64=<base64_json_payload>");
+    eprintln!("  execution_core importer-web-tooling-signal --payload-file=<path>");
     eprintln!("  execution_core demo");
 }
 
@@ -153,6 +157,24 @@ fn load_payload(args: &[String]) -> Result<String, String> {
 fn main() {
     let args: Vec<String> = env::args().skip(1).collect();
     let command = args.first().map(String::as_str).unwrap_or("demo");
+    if command == "importer-web-tooling-signal" {
+        match load_payload(&args[1..]) {
+            Ok(payload) => match run_importer_web_tooling_signal_json(&payload) {
+                Ok(out) => println!("{}", out),
+                Err(err) => {
+                    let payload = serde_json::json!({ "ok": false, "error": err });
+                    eprintln!("{}", payload);
+                    std::process::exit(1);
+                }
+            },
+            Err(err) => {
+                let payload = serde_json::json!({ "ok": false, "error": err });
+                eprintln!("{}", payload);
+                std::process::exit(1);
+            }
+        }
+        return;
+    }
 
     match command {
         "run" => match load_yaml(&args[1..]) {

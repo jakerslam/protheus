@@ -3,23 +3,43 @@
 const { createOpsLaneBridge } = require('../../lib/rust_lane_bridge.ts');
 
 const SYSTEM_ID = 'SYSTEMS-MIGRATION-POST_MIGRATION_VERIFICATION_REPORT';
+const MAX_ARG_LEN = 512;
 const bridge = createOpsLaneBridge(__dirname, 'post_migration_verification_report', 'runtime-systems', {
   inheritStdio: true
 });
 
+function sanitizeArg(value) {
+  return String(value == null ? '' : value)
+    .replace(/[\u200B\u200C\u200D\u2060\uFEFF]/g, '')
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/[^\x20-\x7E]+/g, '')
+    .trim()
+    .slice(0, MAX_ARG_LEN);
+}
+
 function run(args = process.argv.slice(2)) {
-  const out = bridge.run([`--system-id=${SYSTEM_ID}`].concat(Array.isArray(args) ? args : []));
+  const passthrough = Array.isArray(args) ? args.map((arg) => sanitizeArg(arg)).filter(Boolean) : [];
+  const out = bridge.run([`--system-id=${SYSTEM_ID}`].concat(passthrough));
   if (out && out.stdout) process.stdout.write(out.stdout);
   if (out && out.stderr) process.stderr.write(out.stderr);
   if (out && out.payload && !out.stdout) {
     process.stdout.write(`${JSON.stringify(out.payload)}\n`);
+  } else if (!out || (!out.stdout && !out.stderr)) {
+    process.stdout.write(
+      `${JSON.stringify({
+        ok: false,
+        type: 'post_migration_verification_report',
+        error: 'bridge_no_output',
+        status: Number.isFinite(Number(out && out.status)) ? Number(out && out.status) : 1
+      })}\n`
+    );
   }
   return out;
 }
 
 if (require.main === module) {
   const out = run(process.argv.slice(2));
-  process.exit(Number.isFinite(Number(out && out.status)) ? Number(out.status) : 1);
+  process.exit(Number.isFinite(Number(out && out.status)) ? Number(out && out.status) : 1);
 }
 
 module.exports = {

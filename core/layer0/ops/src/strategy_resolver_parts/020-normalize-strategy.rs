@@ -1,3 +1,74 @@
+fn normalize_web_tooling_provider_id(raw: &str) -> String {
+    match as_str(Some(&Value::String(raw.to_string())))
+        .replace('_', "-")
+        .to_ascii_lowercase()
+        .as_str()
+    {
+        "google" => "gemini".to_string(),
+        "xai" => "grok".to_string(),
+        "moonshot" => "kimi".to_string(),
+        other => other.to_string(),
+    }
+}
+
+fn normalize_web_tooling_policy(raw: Option<&Value>) -> Value {
+    let obj = raw.and_then(Value::as_object).cloned().unwrap_or_default();
+    let parse_bool = |key: &str, fallback: bool| {
+        obj.get(key)
+            .and_then(|row| {
+                row.as_bool().or_else(|| {
+                    row.as_str().map(|text| {
+                        matches!(
+                            text.trim().to_ascii_lowercase().as_str(),
+                            "1" | "true" | "yes" | "on"
+                        )
+                    })
+                })
+            })
+            .unwrap_or(fallback)
+    };
+    let mut provider_order = as_string_array(obj.get("provider_order"))
+        .into_iter()
+        .map(|row| normalize_web_tooling_provider_id(&row))
+        .filter(|row| !row.is_empty())
+        .collect::<Vec<_>>();
+    provider_order.retain(|row| {
+        matches!(
+            row.as_str(),
+            "brave"
+                | "gemini"
+                | "grok"
+                | "kimi"
+                | "perplexity"
+                | "firecrawl"
+                | "exa"
+                | "tavily"
+                | "duckduckgo"
+        )
+    });
+    provider_order.sort();
+    provider_order.dedup();
+    if provider_order.is_empty() {
+        provider_order = vec![
+            "brave".to_string(),
+            "gemini".to_string(),
+            "grok".to_string(),
+            "kimi".to_string(),
+            "perplexity".to_string(),
+        ];
+    }
+    json!({
+        "provider_order": provider_order,
+        "strict_auth_required": parse_bool("strict_auth_required", false),
+        "require_auth_for_search": parse_bool("require_auth_for_search", true),
+        "provider_aliases": {
+            "google": "gemini",
+            "xai": "grok",
+            "moonshot": "kimi"
+        }
+    })
+}
+
 fn normalize_strategy(root: &Path, strategy_path: &Path, raw: &Value) -> Value {
     let src = raw.as_object().cloned().unwrap_or_default();
     let file_stem = strategy_path
@@ -177,6 +248,7 @@ fn normalize_strategy(root: &Path, strategy_path: &Path, raw: &Value) -> Value {
         .get("value_currency_policy")
         .cloned()
         .unwrap_or_else(|| json!({}));
+    let web_tooling_policy = normalize_web_tooling_policy(src.get("web_tooling_policy"));
 
     let strategy_rel = strategy_path
         .strip_prefix(root)
@@ -219,6 +291,7 @@ fn normalize_strategy(root: &Path, strategy_path: &Path, raw: &Value) -> Value {
         },
         "threshold_overrides": threshold_overrides,
         "value_currency_policy": value_currency_policy,
+        "web_tooling_policy": web_tooling_policy,
         "validation": {
             "strict_ok": true,
             "errors": [],
@@ -416,4 +489,3 @@ fn load_active_strategy(root: &Path, options: Option<&Value>) -> Result<Value, S
 
     Ok(apply_weaver_overlay(root, pick))
 }
-

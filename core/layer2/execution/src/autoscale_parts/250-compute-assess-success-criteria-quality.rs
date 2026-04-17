@@ -1,16 +1,60 @@
+fn canonical_reason_token(raw: &str) -> String {
+    let mut token = raw
+        .trim()
+        .to_ascii_lowercase()
+        .chars()
+        .filter_map(|ch| {
+            if ch.is_ascii_alphanumeric() {
+                Some(ch)
+            } else if ch == '_' || ch == '-' || ch.is_whitespace() {
+                Some('_')
+            } else {
+                None
+            }
+        })
+        .collect::<String>();
+    while token.contains("__") {
+        token = token.replace("__", "_");
+    }
+    let token = token.trim_matches('_').to_string();
+    match token.as_str() {
+        "metric_not_allowed_for_capabilities" => "metric_not_allowed_for_capability".to_string(),
+        "deferred_pending" | "deferred_window_pending" => "deferred_pending_window".to_string(),
+        "artifact_delta_missing" => "artifact_delta_unavailable".to_string(),
+        "entry_delta_missing" => "entry_delta_unavailable".to_string(),
+        "revenue_delta_missing" => "revenue_delta_unavailable".to_string(),
+        _ => token,
+    }
+}
+
+fn is_unknown_exempt_reason(reason: &str) -> bool {
+    matches!(
+        canonical_reason_token(reason).as_str(),
+        "artifact_delta_unavailable"
+            | "entry_delta_unavailable"
+            | "revenue_delta_unavailable"
+            | "outreach_artifact_unavailable"
+            | "reply_or_interview_count_unavailable"
+            | "deferred_pending_window"
+    )
+}
+
+fn is_unsupported_reason(reason: &str) -> bool {
+    matches!(
+        canonical_reason_token(reason).as_str(),
+        "unsupported_metric" | "metric_not_allowed_for_capability"
+    )
+}
+
 pub fn compute_assess_success_criteria_quality(
     input: &AssessSuccessCriteriaQualityInput,
 ) -> AssessSuccessCriteriaQualityOutput {
     let checks = &input.checks;
-    let total_count = input.total_count;
-    let unknown_exempt_reasons = [
-        "artifact_delta_unavailable",
-        "entry_delta_unavailable",
-        "revenue_delta_unavailable",
-        "outreach_artifact_unavailable",
-        "reply_or_interview_count_unavailable",
-        "deferred_pending_window",
-    ];
+    let total_count = if input.total_count.is_finite() && input.total_count > 0.0 {
+        input.total_count
+    } else {
+        0.0
+    };
     let unknown_exempt_count = checks
         .iter()
         .filter(|row| {
@@ -18,11 +62,15 @@ pub fn compute_assess_success_criteria_quality(
                 return false;
             }
             let reason = row.reason.as_deref().unwrap_or("").trim();
-            unknown_exempt_reasons.contains(&reason)
+            is_unknown_exempt_reason(reason)
         })
         .count() as f64;
 
-    let unknown_count_raw = input.unknown_count;
+    let unknown_count_raw = if input.unknown_count.is_finite() && input.unknown_count > 0.0 {
+        input.unknown_count
+    } else {
+        0.0
+    };
     let unknown_count = (unknown_count_raw - unknown_exempt_count).max(0.0);
     let unknown_rate = if total_count > 0.0 {
         unknown_count / total_count
@@ -31,20 +79,22 @@ pub fn compute_assess_success_criteria_quality(
         (unevaluated - unknown_exempt_count).max(0.0) / (checks.len() as f64)
     } else {
         1.0
-    };
+    }
+    .clamp(0.0, 1.0);
 
     let unsupported_count = checks
         .iter()
         .filter(|row| {
             let reason = row.reason.as_deref().unwrap_or("").trim();
-            reason == "unsupported_metric" || reason == "metric_not_allowed_for_capability"
+            is_unsupported_reason(reason)
         })
         .count() as f64;
     let unsupported_rate = if checks.is_empty() {
         0.0
     } else {
         unsupported_count / (checks.len() as f64)
-    };
+    }
+    .clamp(0.0, 1.0);
 
     let synthesized = input.synthesized;
     let mut reasons = Vec::<String>::new();

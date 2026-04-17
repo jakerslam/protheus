@@ -6,6 +6,18 @@ pub const CHECK_ID_FOUNDATION_HOOKS: &str = "contract_check:foundation_hooks";
 pub const CHECK_ID_GUARD_REGISTRY_CONSUMPTION: &str =
     "guard_check_registry:contract_check_consumes_manifest";
 pub const CHECK_ID_MERGE_GUARD_HOOK_COVERAGE: &str = "foundation_contract_gate:hook_coverage";
+const MAX_HOOK_TOKEN_LEN: usize = 120;
+
+fn strip_invisible_unicode(raw: &str) -> String {
+    raw.chars()
+        .filter(|ch| {
+            !matches!(
+                ch,
+                '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}'
+            )
+        })
+        .collect()
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HookCoverageReceipt {
@@ -22,11 +34,26 @@ pub struct HookCoverageReceipt {
 }
 
 fn normalize_hook(raw: &str) -> Option<String> {
-    let normalized = raw.trim().to_ascii_lowercase();
+    let mut normalized: String = strip_invisible_unicode(raw)
+        .chars()
+        .filter(|ch| !ch.is_control())
+        .collect();
+    normalized = normalized.trim().to_ascii_lowercase();
+    if normalized.len() > MAX_HOOK_TOKEN_LEN {
+        normalized.truncate(MAX_HOOK_TOKEN_LEN);
+    }
     if normalized.is_empty() {
         return None;
     }
     Some(normalized)
+}
+
+fn normalize_source_text(source: &str) -> String {
+    strip_invisible_unicode(source)
+        .chars()
+        .filter(|ch| !ch.is_control())
+        .collect::<String>()
+        .to_ascii_lowercase()
 }
 
 fn sorted_unique<I, S>(values: I) -> Vec<String>
@@ -89,7 +116,7 @@ pub fn evaluate_source_hook_coverage(
     source: &str,
 ) -> HookCoverageReceipt {
     let required_hooks = sorted_unique(required_hooks.iter().copied());
-    let normalized_source = source.to_ascii_lowercase();
+    let normalized_source = normalize_source_text(source);
     let observed_hooks = required_hooks
         .iter()
         .filter(|hook| normalized_source.contains(hook.as_str()))
@@ -100,14 +127,14 @@ pub fn evaluate_source_hook_coverage(
         .filter(|hook| !observed_hooks.contains(*hook))
         .cloned()
         .collect::<Vec<_>>();
-    let fail_closed = required_hooks.is_empty() || source.trim().is_empty();
+    let fail_closed = required_hooks.is_empty() || normalized_source.trim().is_empty();
     let ok = !fail_closed && missing_hooks.is_empty();
     let check_id = normalize_hook(check_id).unwrap_or_else(|| "unknown_check".to_string());
     let evidence = vec![
         format!("required_count={}", required_hooks.len()),
         format!("observed_count={}", observed_hooks.len()),
         format!("missing_count={}", missing_hooks.len()),
-        format!("source_nonempty={}", i32::from(!source.trim().is_empty())),
+        format!("source_nonempty={}", i32::from(!normalized_source.trim().is_empty())),
         format!("required={}", required_hooks.join(",")),
         format!("observed={}", observed_hooks.join(",")),
         format!("missing={}", missing_hooks.join(",")),

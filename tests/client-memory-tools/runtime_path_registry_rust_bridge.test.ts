@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const ts = require('typescript');
+const { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 if (!require.extensions['.ts']) {
   require.extensions['.ts'] = function compileTs(module, filename) {
@@ -34,5 +35,16 @@ assert.equal(mod.normalizeForRoot('/repo/client/runtime', 'client/runtime/local/
 assert.equal(mod.resolveCanonical('/repo/client/runtime', 'client/runtime/local/state'), '/repo/client/runtime/local/state');
 assert.equal(mod.resolveClientState('/repo', 'security/a.json'), '/repo/client/runtime/local/state/security/a.json');
 assert.equal(mod.resolveCoreState('/repo', 'ops/b.json'), '/repo/core/local/state/ops/b.json');
+assertNoPlaceholderOrPromptLeak({
+  client_state_root: mod.CANONICAL_PATHS.client_state_root,
+  normalized: mod.normalizeForRoot('/repo/client/runtime', 'client/runtime/local/state'),
+  canonical: mod.resolveCanonical('/repo/client/runtime', 'client/runtime/local/state'),
+  client_state: mod.resolveClientState('/repo', 'security/a.json'),
+  core_state: mod.resolveCoreState('/repo', 'ops/b.json'),
+}, 'runtime_path_registry_rust_bridge_test');
+assertStableToolingEnvelope({
+  status: 'ok',
+  canonical_path: mod.resolveCanonical('/repo/client/runtime', 'client/runtime/local/state'),
+}, 'runtime_path_registry_rust_bridge_test');
 
 console.log(JSON.stringify({ ok: true, type: 'runtime_path_registry_rust_bridge_test' }));

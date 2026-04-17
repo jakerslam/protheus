@@ -1,3 +1,78 @@
+fn normalize_runtime_web_provider_hint(raw: &str) -> String {
+    match clean(raw.to_ascii_lowercase(), 80).as_str() {
+        "google" => "gemini".to_string(),
+        "xai" => "grok".to_string(),
+        "moonshot" => "kimi".to_string(),
+        other => other.to_string(),
+    }
+}
+
+fn runtime_web_diagnostic_code(alert_class: &str, message: &str) -> Option<&'static str> {
+    if alert_class != "runtime" {
+        return None;
+    }
+    let lowered = clean(message, 260).to_ascii_lowercase();
+    if lowered.contains("fetch") {
+        if lowered.contains("no fallback") || lowered.contains("auth missing") {
+            return Some("WEB_FETCH_PROVIDER_KEY_UNRESOLVED_NO_FALLBACK");
+        }
+        if lowered.contains("fallback") {
+            return Some("WEB_FETCH_PROVIDER_KEY_UNRESOLVED_FALLBACK_USED");
+        }
+        if lowered.contains("autodetect") || lowered.contains("auto-detect") {
+            return Some("WEB_FETCH_AUTODETECT_SELECTED");
+        }
+        if lowered.contains("provider invalid") || lowered.contains("invalid provider") {
+            return Some("WEB_FETCH_PROVIDER_INVALID_AUTODETECT");
+        }
+    }
+    if lowered.contains("search") || lowered.contains("web tooling") || lowered.contains("webtool")
+    {
+        if lowered.contains("no fallback") || lowered.contains("auth missing") {
+            return Some("WEB_SEARCH_KEY_UNRESOLVED_NO_FALLBACK");
+        }
+        if lowered.contains("fallback") {
+            return Some("WEB_SEARCH_KEY_UNRESOLVED_FALLBACK_USED");
+        }
+        if lowered.contains("autodetect") || lowered.contains("auto-detect") {
+            return Some("WEB_SEARCH_AUTODETECT_SELECTED");
+        }
+        if lowered.contains("provider invalid") || lowered.contains("invalid provider") {
+            return Some("WEB_SEARCH_PROVIDER_INVALID_AUTODETECT");
+        }
+    }
+    None
+}
+
+fn runtime_web_monitor_snapshot(
+    parsed: &crate::ParsedArgs,
+    alert_class: &str,
+    message: &str,
+) -> Value {
+    let provider_hint = normalize_runtime_web_provider_hint(
+        parsed
+            .flags
+            .get("provider")
+            .map(String::as_str)
+            .unwrap_or(""),
+    );
+    let env_map = std::env::vars().collect::<std::collections::HashMap<String, String>>();
+    let auth_sources = crate::contract_lane_utils::web_tooling_auth_sources_from_env(&env_map);
+    let auth_any_present = !auth_sources.is_empty();
+    let code = runtime_web_diagnostic_code(alert_class, message);
+    json!({
+        "provider_hint": if provider_hint.is_empty() {
+            "auto"
+        } else {
+            &provider_hint
+        },
+        "auth_sources": auth_sources,
+        "auth_any_present": auth_any_present,
+        "diagnostic_code": code,
+        "runtime_alert": code.is_some()
+    })
+}
+
 fn run_monitor(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
     let contract = load_json_or(
         root,
@@ -91,6 +166,7 @@ fn run_monitor(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
             .unwrap_or_else(|| "runtime anomaly detected".to_string()),
         220,
     );
+    let web_tooling = runtime_web_monitor_snapshot(parsed, &alert_class, &message);
     let alert_id = format!(
         "obs_{}",
         &sha256_hex_str(&format!("{source}:{alert_class}:{severity}:{message}"))[..12]
@@ -104,6 +180,7 @@ fn run_monitor(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
         "severity": severity,
         "message": message,
         "context": context,
+        "web_tooling": web_tooling,
         "ts": crate::now_iso()
     });
     let path = alerts_state_path(root);
@@ -128,7 +205,11 @@ fn run_monitor(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
                 "id": "V6-OBSERVABILITY-001.1",
                 "claim": "realtime_monitoring_emits_alerts_with_intelligent_context_and_deterministic_receipts",
                 "evidence": {
-                    "alert_id": alert_id
+                    "alert_id": alert_id,
+                    "web_tooling_diagnostic_code": alert
+                        .pointer("/web_tooling/diagnostic_code")
+                        .cloned()
+                        .unwrap_or(Value::Null)
                 }
             }
         ]
@@ -416,4 +497,3 @@ fn run_workflow(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value 
     out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
-

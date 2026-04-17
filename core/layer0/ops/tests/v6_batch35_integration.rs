@@ -57,6 +57,21 @@ fn assert_claim(payload: &Value, claim_id: &str) {
     assert!(has, "missing claim evidence id={claim_id}");
 }
 
+fn assert_receipt_shape(latest: &Value) {
+    assert!(
+        latest.get("payload").and_then(Value::as_object).is_some(),
+        "latest receipt payload must be object"
+    );
+    assert!(
+        latest
+            .get("receipt_hash")
+            .and_then(Value::as_str)
+            .map(|row| !row.is_empty())
+            .unwrap_or(false),
+        "latest receipt hash must exist"
+    );
+}
+
 fn snowball_latest_path(root: &Path) -> PathBuf {
     root.join("core")
         .join("local")
@@ -125,6 +140,7 @@ fn v6_batch35_snowball_backlog_pack_is_dependency_ordered_and_receipted() {
     );
     assert_eq!(backlog_exit, 0);
     let backlog_latest = read_json(&snowball_latest_path(root));
+    assert_receipt_shape(&backlog_latest);
     assert_eq!(
         backlog_latest.get("type").and_then(Value::as_str),
         Some("snowball_plane_backlog_pack")
@@ -224,6 +240,7 @@ fn v6_batch35_eval_dashboard_and_conduit_gate_are_receipted() {
         0
     );
     let dashboard_latest = read_json(&eval_latest_path(root));
+    assert_receipt_shape(&dashboard_latest);
     assert_eq!(
         dashboard_latest.get("type").and_then(Value::as_str),
         Some("eval_plane_dashboard")
@@ -269,6 +286,7 @@ fn v6_batch35_infring_v2_rl_upgrade_is_receipted_and_queryable() {
         0
     );
     let rl_latest = read_json(&eval_latest_path(root));
+    assert_receipt_shape(&rl_latest);
     assert_eq!(
         rl_latest.get("type").and_then(Value::as_str),
         Some("eval_plane_rl_upgrade")
@@ -356,6 +374,7 @@ fn v6_batch35_fairscale_credit_updates_identity_bound_scores() {
     );
 
     let latest = read_json(&economy_latest_path(root));
+    assert_receipt_shape(&latest);
     assert_eq!(
         latest.get("type").and_then(Value::as_str),
         Some("llm_economy_fairscale_credit")

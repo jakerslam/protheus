@@ -6,6 +6,7 @@ const USAGE: &[&str] = &[
     "Usage:",
     "  protheus-ops venom-containment-layer evaluate [--session-id=<id>] [--apply=1|0]",
     "  protheus-ops venom-containment-layer status",
+    "  Optional telemetry flags: --trace-id=<id> --call-id=<id> --request-id=<id> --source=<tag>",
 ];
 
 pub fn run(root: &Path, argv: &[String]) -> i32 {
@@ -25,6 +26,9 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "source",
                 "action",
                 "risk",
+                "trace-id",
+                "call-id",
+                "request-id",
             ],
         },
     )

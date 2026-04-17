@@ -1,3 +1,22 @@
+fn normalize_directive_token(raw: &str) -> String {
+    let mut out = String::new();
+    for ch in raw.trim().to_ascii_lowercase().chars() {
+        if ch.is_ascii_alphanumeric() || ch == '_' {
+            out.push(ch);
+        }
+    }
+    out
+}
+
+fn stem_directive_token(raw: &str) -> String {
+    let token = normalize_directive_token(raw);
+    if token.len() <= 5 {
+        token
+    } else {
+        token[..5].to_string()
+    }
+}
+
 pub fn compute_directive_tier_reservation_need(
     input: &DirectiveTierReservationNeedInput,
 ) -> DirectiveTierReservationNeedOutput {
@@ -122,30 +141,27 @@ pub fn compute_directive_token_hits(input: &DirectiveTokenHitsInput) -> Directiv
     let text_tokens = input
         .text_tokens
         .iter()
-        .map(|token| token.trim().to_string())
+        .map(|token| normalize_directive_token(token))
         .filter(|token| !token.is_empty())
         .collect::<std::collections::BTreeSet<_>>();
     let text_stems = input
         .text_stems
         .iter()
-        .map(|token| token.trim().to_string())
+        .map(|token| normalize_directive_token(token))
         .filter(|token| !token.is_empty())
         .collect::<std::collections::BTreeSet<_>>();
+    let mut seen = std::collections::BTreeSet::new();
     let mut hits = Vec::new();
     for token in &input.directive_tokens {
-        let token = token.trim().to_string();
-        if token.is_empty() {
+        let token = normalize_directive_token(token);
+        if token.is_empty() || !seen.insert(token.clone()) {
             continue;
         }
         if text_tokens.contains(&token) {
             hits.push(token);
             continue;
         }
-        let stem = if token.len() <= 5 {
-            token.clone()
-        } else {
-            token[..5].to_string()
-        };
+        let stem = stem_directive_token(&token);
         if !stem.is_empty() && text_stems.contains(&stem) {
             hits.push(token);
         }
@@ -154,16 +170,11 @@ pub fn compute_directive_token_hits(input: &DirectiveTokenHitsInput) -> Directiv
 }
 
 pub fn compute_to_stem(input: &ToStemInput) -> ToStemOutput {
-    let token = input
+    let stem = input
         .token
         .as_ref()
-        .map(|token| token.trim().to_string())
+        .map(|token| stem_directive_token(token))
         .unwrap_or_default();
-    let stem = if token.len() <= 5 {
-        token
-    } else {
-        token[..5].to_string()
-    };
     ToStemOutput { stem }
 }
 

@@ -1,3 +1,118 @@
+fn provider_contract_env_keys(provider: &str) -> &'static [&'static str] {
+    match provider {
+        "openai" => &["OPENAI_API_KEY"],
+        "openrouter" => &["OPENROUTER_API_KEY"],
+        "xai" => &["XAI_API_KEY"],
+        "tts" => &["ELEVENLABS_API_KEY", "OPENAI_API_KEY"],
+        _ => &[],
+    }
+}
+
+fn provider_contract_present(snapshot: &Value, provider: &str) -> bool {
+    let needle = provider.to_ascii_lowercase();
+    let compact = snapshot.to_string().to_ascii_lowercase();
+    if compact.contains(&format!("\"{needle}\"")) {
+        return true;
+    }
+    for pointer in [
+        "/provider_family_contract_suite_contract/providers",
+        "/provider_contract_suite_contract/providers",
+        "/provider_runtime_core_contract/providers",
+        "/providers",
+        "/provider_inventory/providers",
+    ] {
+        let Some(value) = snapshot.pointer(pointer) else {
+            continue;
+        };
+        match value {
+            Value::Array(rows) => {
+                let hit = rows.iter().any(|row| {
+                    row.as_str()
+                        .map(|v| v.eq_ignore_ascii_case(provider))
+                        .or_else(|| {
+                            row.as_object().map(|obj| {
+                                ["id", "provider", "family", "name"]
+                                    .into_iter()
+                                    .filter_map(|key| obj.get(key))
+                                    .filter_map(Value::as_str)
+                                    .any(|v| v.eq_ignore_ascii_case(provider))
+                            })
+                        })
+                        .unwrap_or(false)
+                });
+                if hit {
+                    return true;
+                }
+            }
+            Value::Object(obj) => {
+                if obj.keys().any(|key| key.eq_ignore_ascii_case(provider)) {
+                    return true;
+                }
+            }
+            Value::String(raw) => {
+                if raw.eq_ignore_ascii_case(provider) {
+                    return true;
+                }
+            }
+            _ => {}
+        }
+    }
+    false
+}
+
+fn run_tooling_contracts(
+    root: &Path,
+    _policy: &Top1Policy,
+    strict: bool,
+    parsed: &crate::ParsedArgs,
+) -> Value {
+    let snapshot_rel = parsed
+        .flags
+        .get("runtime-snapshot-path")
+        .map(String::as_str)
+        .filter(|v| !v.trim().is_empty())
+        .unwrap_or("local/state/ops/web_tooling/runtime_snapshot/latest.json");
+    let snapshot_path = root.join(snapshot_rel);
+    let snapshot = read_json(&snapshot_path).unwrap_or(Value::Null);
+
+    let required = ["openai", "openrouter", "xai", "tts"];
+    let mut provider_checks = Vec::<Value>::new();
+    let mut errors = Vec::<String>::new();
+    if snapshot.is_null() {
+        errors.push("tooling_contract_snapshot_missing".to_string());
+    }
+
+    for provider in required {
+        let contract_present = !snapshot.is_null() && provider_contract_present(&snapshot, provider);
+        let env_keys = provider_contract_env_keys(provider);
+        let auth_present = env_keys.iter().any(|key| {
+            std::env::var(key)
+                .ok()
+                .map(|value| !value.trim().is_empty())
+                .unwrap_or(false)
+        });
+        let ok = contract_present && auth_present;
+        if !ok {
+            errors.push(format!("tooling_contract_provider_{provider}_missing"));
+        }
+        provider_checks.push(json!({
+            "provider": provider,
+            "contract_present": contract_present,
+            "auth_present": auth_present,
+            "auth_env_keys": env_keys
+        }));
+    }
+
+    let ok = errors.is_empty();
+    json!({
+        "ok": if strict { ok } else { true },
+        "strict": strict,
+        "snapshot_path": snapshot_rel,
+        "provider_checks": provider_checks,
+        "errors": errors
+    })
+}
+
 fn run_comparison_matrix(
     root: &Path,
     policy: &Top1Policy,
@@ -166,18 +281,21 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "proof-vm" => run_proof_vm(root, &policy, strict, &parsed),
         "size-gate" => run_size_gate(root, &policy, strict, &parsed),
         "benchmark-thresholds" => run_benchmark_thresholds(root, &policy, strict, &parsed),
+        "tooling-contracts" => run_tooling_contracts(root, &policy, strict, &parsed),
         "comparison-matrix" => run_comparison_matrix(root, &policy, strict, &parsed),
         "run-all" => {
             let proof = run_proof_coverage(root, &policy, strict, &parsed);
             let vm = run_proof_vm(root, &policy, strict, &parsed);
             let size = run_size_gate(root, &policy, strict, &parsed);
             let bench = run_benchmark_thresholds(root, &policy, strict, &parsed);
+            let tooling = run_tooling_contracts(root, &policy, strict, &parsed);
             let compare = run_comparison_matrix(root, &policy, strict, &parsed);
             let ok = [
                 proof.get("ok").and_then(Value::as_bool).unwrap_or(false),
                 vm.get("ok").and_then(Value::as_bool).unwrap_or(false),
                 size.get("ok").and_then(Value::as_bool).unwrap_or(false),
                 bench.get("ok").and_then(Value::as_bool).unwrap_or(false),
+                tooling.get("ok").and_then(Value::as_bool).unwrap_or(false),
                 compare.get("ok").and_then(Value::as_bool).unwrap_or(false),
             ]
             .into_iter()
@@ -190,6 +308,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     "proof_vm": vm,
                     "size_gate": size,
                     "benchmark_thresholds": bench,
+                    "tooling_contracts": tooling,
                     "comparison_matrix": compare
                 }
             })
@@ -204,6 +323,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "protheus-ops top1-assurance proof-vm --strict=1",
                 "protheus-ops top1-assurance size-gate --strict=1",
                 "protheus-ops top1-assurance benchmark-thresholds --strict=1",
+                "protheus-ops top1-assurance tooling-contracts --strict=1",
                 "protheus-ops top1-assurance comparison-matrix --strict=1",
                 "protheus-ops top1-assurance run-all --strict=1"
             ]
@@ -321,4 +441,3 @@ mod tests {
             .unwrap_or(false));
     }
 }
-

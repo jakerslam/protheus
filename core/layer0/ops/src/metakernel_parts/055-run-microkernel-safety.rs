@@ -3,7 +3,21 @@ const MICROKERNEL_TYPED_SYSCALLS: &[&str] = &[
     "fork_instance",
     "verify_receipt",
     "halt_on_drift",
+    "web_search",
+    "web_fetch",
 ];
+const WEB_SEARCH_AUTH_ENV_KEYS: &[&str] = &[
+    "WEB_SEARCH_API_KEY",
+    "TAVILY_API_KEY",
+    "EXA_API_KEY",
+    "PERPLEXITY_API_KEY",
+    "BRAVE_API_KEY",
+    "FIRECRAWL_API_KEY",
+    "GOOGLE_SEARCH_API_KEY",
+    "MOONSHOT_API_KEY",
+    "XAI_API_KEY",
+];
+const WEB_FETCH_AUTH_ENV_KEYS: &[&str] = &["WEB_FETCH_API_KEY", "FIRECRAWL_API_KEY"];
 
 fn parse_usize_flag(raw: Option<&String>, fallback: usize, max: usize) -> usize {
     raw.and_then(|v| v.trim().parse::<usize>().ok())
@@ -47,6 +61,33 @@ fn parse_allowlist(raw: Option<&String>, default_item: &str) -> BTreeSet<String>
     out
 }
 
+fn first_present_env_key(keys: &[&str]) -> Option<String> {
+    keys.iter().find_map(|key| {
+        std::env::var(key)
+            .ok()
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty())
+            .map(|_| (*key).to_string())
+    })
+}
+
+fn resolve_web_provider_hint() -> String {
+    let candidate = std::env::var("WEB_SEARCH_PROVIDER")
+        .ok()
+        .unwrap_or_else(|| "auto".to_string());
+    let normalized = candidate
+        .trim()
+        .to_ascii_lowercase()
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.'))
+        .collect::<String>();
+    if normalized.is_empty() {
+        "auto".to_string()
+    } else {
+        normalized
+    }
+}
+
 fn judicial_lock_path(root: &Path) -> PathBuf {
     state_root(root).join("judicial_lock.json")
 }
@@ -87,6 +128,12 @@ fn run_microkernel_safety(
     let drift_threshold = parse_f64_flag(drift_threshold_raw, 0.05, 0.0, 1.0);
     let drift_score = parse_f64_flag(drift_raw, 0.0, 0.0, 1.0);
     let drift_threshold_exceeded = drift_score > drift_threshold;
+    let web_search_auth_env = first_present_env_key(WEB_SEARCH_AUTH_ENV_KEYS);
+    let web_fetch_auth_env = first_present_env_key(WEB_FETCH_AUTH_ENV_KEYS);
+    let web_auth_present = web_search_auth_env.is_some() || web_fetch_auth_env.is_some();
+    let web_syscall = matches!(requested_syscall.as_str(), "web_search" | "web_fetch");
+    let web_auth_missing = web_syscall && !web_auth_present;
+    let web_provider_hint = resolve_web_provider_hint();
 
     let session_id = normalize_token(
         session_raw.map(String::as_str).unwrap_or("session-default"),
@@ -133,6 +180,9 @@ fn run_microkernel_safety(
     if drift_threshold_exceeded {
         violation_codes.push("drift_threshold_exceeded".to_string());
     }
+    if web_auth_missing {
+        violation_codes.push("web_auth_missing".to_string());
+    }
 
     let judicial_lock_triggered = strict && !violation_codes.is_empty();
     let lock_path = judicial_lock_path(root);
@@ -157,7 +207,11 @@ fn run_microkernel_safety(
     write_json(&lock_path, &lock_payload);
 
     let all_checks_ok =
-        typed_syscall_ok && least_privilege_ok && !step_cap_exceeded && !drift_threshold_exceeded;
+        typed_syscall_ok
+            && least_privilege_ok
+            && !step_cap_exceeded
+            && !drift_threshold_exceeded
+            && !web_auth_missing;
     json!({
         "ok": if strict { all_checks_ok } else { true },
         "strict": strict,
@@ -177,6 +231,14 @@ fn run_microkernel_safety(
             "drift_score": drift_score,
             "drift_threshold": drift_threshold,
             "drift_threshold_exceeded": drift_threshold_exceeded,
+        },
+        "web_tooling": {
+            "syscall_requires_web_auth": web_syscall,
+            "web_provider_hint": web_provider_hint,
+            "auth_present": web_auth_present,
+            "search_auth_env": web_search_auth_env.unwrap_or_default(),
+            "fetch_auth_env": web_fetch_auth_env.unwrap_or_default(),
+            "auth_missing": web_auth_missing,
         },
         "session_isolation": {
             "session_id": session_id,

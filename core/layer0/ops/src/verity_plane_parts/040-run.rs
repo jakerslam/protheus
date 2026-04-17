@@ -24,6 +24,23 @@ fn usage() {
     println!("    --after-fidelity=<0..1>     after fidelity for refine-event");
 }
 
+fn attach_execution_receipt(mut payload: Value, cmd: &str) -> Value {
+    let status = if payload.get("ok").and_then(Value::as_bool) == Some(true) {
+        "success"
+    } else {
+        "error"
+    };
+    payload["execution_receipt"] = json!({
+        "lane": "verity_plane",
+        "command": cmd,
+        "status": status,
+        "source": VERITY_EXECUTION_RECEIPT_SOURCE,
+        "tool_runtime_class": "receipt_wrapped"
+    });
+    payload["receipt_hash"] = Value::String(deterministic_receipt_hash(&payload));
+    payload
+}
+
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     let cmd = argv
         .first()
@@ -52,6 +69,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             out
         }
     };
+    let payload = attach_execution_receipt(payload, cmd.as_str());
     print_json(&payload);
     if payload.get("ok").and_then(Value::as_bool) == Some(true) {
         0

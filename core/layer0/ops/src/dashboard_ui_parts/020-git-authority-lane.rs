@@ -60,6 +60,107 @@ fn run_git_authority(root: &Path, flags: &Flags, argv: &[String]) -> i32 {
             );
             0
         }
+        "web-tooling-status" => {
+            let provider_hint = clean_text(
+                &arg_value(argv, "--provider=").unwrap_or_else(|| "auto".to_string()),
+                80,
+            )
+            .to_ascii_lowercase();
+            let profile_path =
+                root.join("client/runtime/local/state/ui/infring_dashboard/web_tooling_profile.json");
+            let history_path = root.join(ACTION_HISTORY_REL);
+            let action_history_lines = fs::read_to_string(&history_path)
+                .ok()
+                .map(|raw| raw.lines().count())
+                .unwrap_or(0);
+            let web_tooling_status = read_json_file(&root.join(SNAPSHOT_LATEST_REL))
+                .and_then(|value| {
+                    value
+                        .pointer("/web_tooling/status")
+                        .and_then(Value::as_str)
+                        .map(|raw| clean_text(raw, 40))
+                })
+                .filter(|value| !value.is_empty());
+            write_json_stdout(
+                &json!({
+                    "ok": true,
+                    "type": "dashboard_git_authority_web_tooling_status",
+                    "provider_hint": provider_hint,
+                    "profile_path": profile_path.to_string_lossy().to_string(),
+                    "profile_exists": profile_path.exists(),
+                    "action_history_path": history_path.to_string_lossy().to_string(),
+                    "action_history_lines": action_history_lines,
+                    "snapshot_web_tooling_status": web_tooling_status,
+                    "auth_sources": web_tooling_auth_sources_git_lane()
+                }),
+                flags.pretty,
+            );
+            0
+        }
+        "web-tooling-errors" => {
+            let limit = arg_usize(argv, "--limit=", 24, 1, 200);
+            let history_path = root.join(ACTION_HISTORY_REL);
+            let rows = fs::read_to_string(&history_path)
+                .ok()
+                .map(|raw| {
+                    raw.lines()
+                        .rev()
+                        .filter(|line| line.contains("error") || line.contains("web_tool_"))
+                        .take(limit)
+                        .map(|line| clean_text(line, 400))
+                        .filter(|line| !line.is_empty())
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+            write_json_stdout(
+                &json!({
+                    "ok": true,
+                    "type": "dashboard_git_authority_web_tooling_errors",
+                    "history_path": history_path.to_string_lossy().to_string(),
+                    "count": rows.len(),
+                    "rows": rows
+                }),
+                flags.pretty,
+            );
+            0
+        }
+        "web-tooling-probe" => {
+            let query = arg_value(argv, "--query=")
+                .or_else(|| arg_value(argv, "--q="))
+                .unwrap_or_default();
+            if query.trim().is_empty() {
+                write_json_stdout(
+                    &json!({
+                        "ok": false,
+                        "error": "query_required"
+                    }),
+                    flags.pretty,
+                );
+                return 2;
+            }
+            let domain = arg_value(argv, "--domain=").unwrap_or_default();
+            let provider_hint = clean_text(
+                &arg_value(argv, "--provider=").unwrap_or_else(|| "auto".to_string()),
+                80,
+            )
+            .to_ascii_lowercase();
+            let sanitized = sanitize_web_query_git_lane(&query);
+            let canonical = canonicalize_web_query_git_lane(&sanitized, &domain);
+            write_json_stdout(
+                &json!({
+                    "ok": true,
+                    "type": "dashboard_git_authority_web_tooling_probe",
+                    "provider_hint": provider_hint,
+                    "query": {
+                        "input": query,
+                        "sanitized": sanitized,
+                        "canonical": canonical
+                    }
+                }),
+                flags.pretty,
+            );
+            0
+        }
         "list-tracked-files" => {
             let limit = arg_usize(argv, "--limit=", 500, 20, 10_000);
             let path_prefix =
@@ -379,6 +480,87 @@ fn run_git_authority(root: &Path, flags: &Flags, argv: &[String]) -> i32 {
             2
         }
     }
+}
+
+fn is_invisible_unicode_git_lane(ch: char) -> bool {
+    let code = ch as u32;
+    matches!(
+        code,
+        0x200B..=0x200F
+            | 0x202A..=0x202E
+            | 0x2060..=0x2064
+            | 0x206A..=0x206F
+            | 0xFEFF
+            | 0xE0000..=0xE007F
+    )
+}
+
+fn sanitize_web_query_git_lane(raw: &str) -> String {
+    let mut cleaned = String::with_capacity(raw.len());
+    for ch in raw.chars() {
+        if is_invisible_unicode_git_lane(ch) {
+            continue;
+        }
+        if ch.is_control() && ch != '\n' && ch != '\t' {
+            continue;
+        }
+        cleaned.push(ch);
+    }
+    clean_text(&cleaned, 1200)
+}
+
+fn normalize_domain_hint_git_lane(raw: &str) -> String {
+    let lowered = sanitize_web_query_git_lane(raw).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return String::new();
+    }
+    let without_scheme = lowered
+        .strip_prefix("https://")
+        .or_else(|| lowered.strip_prefix("http://"))
+        .unwrap_or(&lowered)
+        .to_string();
+    clean_text(without_scheme.split('/').next().unwrap_or(""), 140)
+        .trim_matches('.')
+        .to_string()
+}
+
+fn canonicalize_web_query_git_lane(query: &str, domain_hint: &str) -> String {
+    let sanitized = sanitize_web_query_git_lane(query);
+    if sanitized.is_empty() {
+        return sanitized;
+    }
+    if sanitized.to_ascii_lowercase().contains("site:") {
+        return sanitized;
+    }
+    let domain = normalize_domain_hint_git_lane(domain_hint);
+    if domain.is_empty() {
+        return sanitized;
+    }
+    format!("site:{domain} {sanitized}")
+}
+
+fn web_tooling_auth_sources_git_lane() -> Vec<String> {
+    let mut rows = Vec::<String>::new();
+    for (label, env_var) in [
+        ("openai", "OPENAI_API_KEY"),
+        ("github", "GITHUB_TOKEN"),
+        ("github_app", "GITHUB_APP_INSTALLATION_TOKEN"),
+        ("brave", "BRAVE_API_KEY"),
+        ("tavily", "TAVILY_API_KEY"),
+        ("perplexity", "PERPLEXITY_API_KEY"),
+        ("exa", "EXA_API_KEY"),
+    ] {
+        let present = env::var(env_var)
+            .ok()
+            .map(|raw| !sanitize_web_query_git_lane(&raw).is_empty())
+            .unwrap_or(false);
+        if present {
+            rows.push(label.to_string());
+        }
+    }
+    rows.sort();
+    rows.dedup();
+    rows
 }
 
 fn parse_json_loose(raw: &str) -> Option<Value> {

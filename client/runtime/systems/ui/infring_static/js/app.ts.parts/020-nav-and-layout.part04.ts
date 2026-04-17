@@ -36,7 +36,7 @@
       var side = this.bottomDockSideForSnapId(activeSnapId);
       if (lockWall) side = lockWall;
       var anchor = this.bottomDockContainerDragActive
-        ? this.bottomDockClampAnchor(this.bottomDockContainerDragX, this.bottomDockContainerDragY, side)
+        ? this.bottomDockClampDragAnchor(this.bottomDockContainerDragX, this.bottomDockContainerDragY)
         : this.bottomDockAnchorForSnapId(this.bottomDockPlacementId);
       if (lockWall) {
         var topLeft = this.bottomDockTopLeftFromAnchor(anchor.x, anchor.y, side);
@@ -54,9 +54,12 @@
       var tileRotationDeg = upDeg - Number(rotationDeg || 0);
       var iconRotationDeg = 0;
       var durationMs = this.bottomDockContainerDragActive ? 0 : this.bottomDockMoveDurationMs();
-      var radiusCss = this.bottomDockLockRadiusCssVars(lockWall);
+      var localLockWall = lockWall ? this.bottomDockLocalWallForRotation(lockWall, rotationDeg) : '';
+      var lockCss = this.dragSurfaceLockVisualCssVars('bottom-dock', localLockWall, {
+        transformMs: this._dragSurfaceLockTransformMs
+      });
       return (
-        radiusCss +
+        lockCss +
         '--bottom-dock-anchor-x:' + Math.round(Number(anchor.x || 0)) + 'px;' +
         '--bottom-dock-anchor-y:' + Math.round(Number(anchor.y || 0)) + 'px;' +
         '--bottom-dock-position-transition:' + Math.max(0, Math.round(Number(durationMs || 0))) + 'ms;' +

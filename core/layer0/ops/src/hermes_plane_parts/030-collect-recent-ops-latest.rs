@@ -52,15 +52,19 @@ fn collect_recent_ops_latest(root: &Path, max_blocks: usize) -> Vec<Value> {
                     .unwrap_or(""),
                 80,
             );
+            let tool_class = classify_tool_call(&ty).to_string();
+            let provider_runtime_posture = provider_runtime_contract_posture(&payload);
             rows.push(json!({
                 "lane": lane,
                 "type": ty,
+                "class": tool_class,
                 "ok": ok,
                 "ts": ts,
                 "latest_path": latest.display().to_string(),
                 "latest_mtime_ms": latest_mtime_ms,
                 "has_conduit_history": conduit_history.exists(),
                 "conduit_history_mtime_ms": conduit_history_mtime_ms,
+                "provider_runtime_posture": provider_runtime_posture,
                 "payload": payload
             }));
         }
@@ -251,7 +255,9 @@ fn reclaim_stale_latest(
 
 fn classify_tool_call(ty: &str) -> &'static str {
     let lower = ty.to_ascii_lowercase();
-    if lower.contains("research") {
+    if lower.contains("memory") || lower.contains("embedding") || lower.contains("provider") {
+        "capability_runtime"
+    } else if lower.contains("research") {
         "research"
     } else if lower.contains("parse") {
         "parse"
@@ -266,6 +272,32 @@ fn classify_tool_call(ty: &str) -> &'static str {
     } else {
         "runtime"
     }
+}
+
+fn provider_runtime_contract_posture(payload: &Value) -> Value {
+    let compact = payload.to_string().to_ascii_lowercase();
+    let families = ["openai", "openrouter", "xai"];
+    let family_rows = families
+        .into_iter()
+        .map(|family| {
+            json!({
+                "family": family,
+                "present": compact.contains(&format!("\"{family}\""))
+            })
+        })
+        .collect::<Vec<_>>();
+    json!({
+        "resolution_mode": "registered_first_capability_fallback",
+        "required_contracts": [
+            "memoryEmbeddingProviders",
+            "speechProviders",
+            "realtimeVoiceProviders"
+        ],
+        "memory_embedding_contract_present": compact.contains("memoryembeddingproviders"),
+        "capability_provider_runtime_present": compact.contains("capability-provider-runtime")
+            || compact.contains("capability_provider_runtime"),
+        "provider_families": family_rows
+    })
 }
 
 fn status_color(ok: bool, class: &str) -> &'static str {
@@ -311,4 +343,3 @@ fn duration_from_ts_or_mtime_ms(ts: &str, latest_mtime_ms: u64) -> (u64, &'stati
     }
     (0, "unknown")
 }
-

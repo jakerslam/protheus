@@ -3,18 +3,55 @@ fn run_scale_certification(
     strict: bool,
     flags: &std::collections::HashMap<String, String>,
 ) -> Result<Value, String> {
-    let requested_target_nodes = flags
+    let mut strict_errors = Vec::<String>::new();
+    let target_nodes_token = flags
         .get("target-nodes")
-        .and_then(|v| v.parse::<u64>().ok())
-        .unwrap_or(10_000);
+        .map(|value| value.trim())
+        .filter(|value| !value.is_empty());
+    let requested_target_nodes = match target_nodes_token {
+        Some(raw) => match raw.parse::<u64>() {
+            Ok(value) => value,
+            Err(_) => {
+                if strict {
+                    strict_errors.push("target_nodes_invalid".to_string());
+                }
+                10_000
+            }
+        },
+        None => 10_000,
+    };
     let target_nodes = requested_target_nodes.max(1);
-    let requested_samples = flags
+
+    let samples_token = flags
         .get("samples")
-        .and_then(|v| v.parse::<usize>().ok())
-        .unwrap_or(80);
+        .map(|value| value.trim())
+        .filter(|value| !value.is_empty());
+    let requested_samples = match samples_token {
+        Some(raw) => match raw.parse::<usize>() {
+            Ok(value) => value,
+            Err(_) => {
+                if strict {
+                    strict_errors.push("samples_invalid".to_string());
+                }
+                80
+            }
+        },
+        None => 80,
+    };
     let samples = requested_samples.clamp(20, 400);
 
-    let mut strict_errors = Vec::<String>::new();
+    let scale_policy_path = flags
+        .get("scale-policy")
+        .map(|v| v.as_str())
+        .unwrap_or(DEFAULT_SCALE_POLICY_REL);
+    if strict
+        && (scale_policy_path.contains("..")
+            || scale_policy_path
+                .chars()
+                .any(|ch| ch == '\0' || ch.is_control()))
+    {
+        strict_errors.push("scale_policy_path_invalid".to_string());
+    }
     if strict && target_nodes < 10_000 {
         strict_errors.push("strict_target_nodes_below_10000".to_string());
     }
@@ -26,11 +63,73 @@ fn run_scale_certification(
             "ok": false,
             "type": "enterprise_hardening_scale_certification",
             "lane": "enterprise_hardening",
+                "mode": "certify-scale",
+                "strict": strict,
+                "target_nodes": target_nodes,
+                "samples": samples,
+                "scale_policy_path": scale_policy_path,
+                "errors": strict_errors,
+                "claim_evidence": [
+                    {
+                        "id": "V7-ENTERPRISE-001.3",
+                        "claim": "scale_and_performance_certification_requires_strict_10k_node_minimum_and_reproducible_artifacts",
+                    "evidence": {
+                        "requested_target_nodes": requested_target_nodes,
+                        "requested_samples": requested_samples
+                    }
+                }
+            ]
+        })));
+    }
+    let scale_policy = read_json(&root.join(scale_policy_path))?;
+    let mut budget_warnings = Vec::<String>::new();
+    let max_p95 = match scale_policy
+        .get("budgets")
+        .and_then(|v| v.get("max_p95_latency_ms"))
+        .and_then(Value::as_f64)
+    {
+        Some(value) if value.is_finite() && value > 0.0 => value,
+        _ => {
+            budget_warnings.push("scale_policy_max_p95_invalid".to_string());
+            250.0
+        }
+    };
+    let max_p99 = match scale_policy
+        .get("budgets")
+        .and_then(|v| v.get("max_p99_latency_ms"))
+        .and_then(Value::as_f64)
+    {
+        Some(value) if value.is_finite() && value > 0.0 => value,
+        _ => {
+            budget_warnings.push("scale_policy_max_p99_invalid".to_string());
+            450.0
+        }
+    };
+    let max_cost = match scale_policy
+        .get("budgets")
+        .and_then(|v| v.get("max_cost_per_user_usd"))
+        .and_then(Value::as_f64)
+    {
+        Some(value) if value.is_finite() && value > 0.0 => value,
+        _ => {
+            budget_warnings.push("scale_policy_max_cost_invalid".to_string());
+            0.18
+        }
+    };
+    if strict && !budget_warnings.is_empty() {
+        let mut errors = strict_errors.clone();
+        errors.extend(budget_warnings.clone());
+        return Ok(with_receipt_hash(json!({
+            "ok": false,
+            "type": "enterprise_hardening_scale_certification",
+            "lane": "enterprise_hardening",
             "mode": "certify-scale",
             "strict": strict,
             "target_nodes": target_nodes,
             "samples": samples,
-            "errors": strict_errors,
+            "scale_policy_path": scale_policy_path,
+            "errors": errors,
+            "warnings": budget_warnings,
             "claim_evidence": [
                 {
                     "id": "V7-ENTERPRISE-001.3",
@@ -43,26 +142,6 @@ fn run_scale_certification(
             ]
         })));
     }
-    let scale_policy_path = flags
-        .get("scale-policy")
-        .map(|v| v.as_str())
-        .unwrap_or(DEFAULT_SCALE_POLICY_REL);
-    let scale_policy = read_json(&root.join(scale_policy_path))?;
-    let max_p95 = scale_policy
-        .get("budgets")
-        .and_then(|v| v.get("max_p95_latency_ms"))
-        .and_then(Value::as_f64)
-        .unwrap_or(250.0);
-    let max_p99 = scale_policy
-        .get("budgets")
-        .and_then(|v| v.get("max_p99_latency_ms"))
-        .and_then(Value::as_f64)
-        .unwrap_or(450.0);
-    let max_cost = scale_policy
-        .get("budgets")
-        .and_then(|v| v.get("max_cost_per_user_usd"))
-        .and_then(Value::as_f64)
-        .unwrap_or(0.18);
 
     let mut durations_ms = Vec::<f64>::with_capacity(samples);
     let bench_start = Instant::now();
@@ -76,10 +155,13 @@ fn run_scale_certification(
                 .wrapping_add((step as u64) ^ 0x9e3779b97f4a7c15);
             acc ^= acc.rotate_left((step % 31) as u32);
         }
-        if acc == 0 {
-            durations_ms.push(0.0001);
-        }
-        durations_ms.push(start.elapsed().as_secs_f64() * 1000.0);
+        let elapsed_ms = start.elapsed().as_secs_f64() * 1000.0;
+        let sample_duration = if acc == 0 {
+            elapsed_ms.max(0.0001)
+        } else {
+            elapsed_ms
+        };
+        durations_ms.push(sample_duration);
     }
     let total_secs = bench_start.elapsed().as_secs_f64().max(0.000001);
     let p95 = percentile(&durations_ms, 0.95);
@@ -161,6 +243,7 @@ fn run_scale_certification(
         "strict": strict,
         "target_nodes": target_nodes,
         "samples": samples,
+        "scale_policy_path": scale_policy_path,
         "metrics": {
             "p95_latency_ms": p95,
             "p99_latency_ms": p99,
@@ -172,6 +255,7 @@ fn run_scale_certification(
             "max_p99_latency_ms": max_p99,
             "max_cost_per_user_usd": max_cost
         },
+        "warnings": budget_warnings,
         "certificate_path": cert_rel,
         "whitepaper_path": whitepaper_rel,
         "claim_evidence": [
@@ -374,4 +458,3 @@ fn run_enable_bedrock(
         ]
     })))
 }
-

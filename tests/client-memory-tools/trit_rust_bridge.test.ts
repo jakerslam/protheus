@@ -3,6 +3,7 @@
 
 const assert = require('node:assert/strict');
 const path = require('node:path');
+const { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 const ROOT = path.resolve(__dirname, '../..');
 
@@ -29,6 +30,8 @@ function main() {
   const vector = mod.serializeTritVector(['pain', 'unknown', 'ok']);
   assert.equal(vector.digits, '-0+');
   assert.deepEqual(mod.parseTritVector(vector), [mod.TRIT_PAIN, mod.TRIT_UNKNOWN, mod.TRIT_OK]);
+  assertNoPlaceholderOrPromptLeak({ vector }, 'trit_rust_bridge_test');
+  assertStableToolingEnvelope({ status: 'ok', vector }, 'trit_rust_bridge_test');
   console.log(JSON.stringify({ ok: true, type: 'trit_rust_bridge_test' }));
 }
 

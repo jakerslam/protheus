@@ -172,3 +172,26 @@ fn comms_tasks_endpoint_supports_status_filter_and_summary() {
         true
     );
 }
+
+#[test]
+fn compat_runtime_web_tooling_contract_surfaces_provider_alias_map() {
+    let wrapped = compat_api_response_with_nexus(
+        "dashboard.agent.command",
+        CompatApiResponse {
+            status: 200,
+            payload: json!({
+                "ok": true,
+                "tool": "cron_schedule"
+            }),
+        },
+    );
+    let aliases = wrapped
+        .payload
+        .pointer("/runtime_web_tooling_contract/provider_aliases")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
+    assert_eq!(aliases.get("google").and_then(Value::as_str), Some("google_search"));
+    assert_eq!(aliases.get("xai").and_then(Value::as_str), Some("grok"));
+    assert_eq!(aliases.get("moonshot").and_then(Value::as_str), Some("kimi"));
+    assert_eq!(aliases.get("serp").and_then(Value::as_str), Some("serpapi"));
+}

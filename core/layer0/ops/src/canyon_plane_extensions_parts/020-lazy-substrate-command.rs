@@ -157,14 +157,26 @@ pub(super) fn lazy_substrate_command(
     } else {
         0
     };
+    let runtime_ok = !strict || errors.is_empty();
+    let status = if runtime_ok { "success" } else { "error" };
+    let error_count = errors.len();
 
     let state_value = Value::Object(state.clone());
     let payload = json!({
-        "ok": !strict || errors.is_empty(),
+        "ok": runtime_ok,
         "type": "canyon_plane_lazy_substrate",
         "lane": LANE_ID,
         "ts": now_iso(),
         "strict": strict,
+        "execution_receipt": {
+            "lane": LANE_ID,
+            "command": "lazy_substrate",
+            "op": op.clone(),
+            "strict": strict,
+            "status": status,
+            "source": "OPENCLAW-TOOLING-WEB-099",
+            "tool_runtime_class": "receipt_wrapped"
+        },
         "op": op,
         "state": state_value,
         "adapter_graph": {
@@ -174,6 +186,7 @@ pub(super) fn lazy_substrate_command(
             "errors": graph_errors_for_payload
         },
         "size_saved_bytes": size_saved_bytes,
+        "error_count": error_count,
         "errors": errors,
         "claim_evidence": [{
             "id": "V7-CANYON-002.2",

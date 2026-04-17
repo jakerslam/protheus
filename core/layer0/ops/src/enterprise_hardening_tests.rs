@@ -165,6 +165,20 @@ Exportable Audit Trails"#,
     }
 }
 
+fn assert_non_silent_outcome(payload: &Value, expected_type: &str) {
+    assert_eq!(
+        payload.get("type").and_then(Value::as_str),
+        Some(expected_type)
+    );
+    assert!(payload.get("ok").and_then(Value::as_bool).is_some());
+    assert!(
+        payload.get("receipt_hash").and_then(Value::as_str).is_some()
+            || payload.get("claim_evidence").and_then(Value::as_array).is_some()
+            || payload.get("error").is_some()
+            || payload.get("reason").is_some()
+    );
+}
+
 #[test]
 fn cron_integrity_rejects_none_delivery_mode() {
     let tmp = tempfile::tempdir().expect("tmp");
@@ -249,6 +263,7 @@ fn enable_bedrock_produces_sigv4_private_profile() {
         out.get("type").and_then(Value::as_str),
         Some("enterprise_hardening_enable_bedrock")
     );
+    assert_non_silent_outcome(&out, "enterprise_hardening_enable_bedrock");
     assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
     assert!(out
         .pointer("/profile/auth/mode")

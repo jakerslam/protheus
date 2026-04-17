@@ -46,6 +46,23 @@ fn latest_path(root: &Path) -> PathBuf {
     root.join("local/state/ops/alpha_readiness/latest.json")
 }
 
+fn assert_no_runtime_context_leak(raw: &str) {
+    const FORBIDDEN: [&str; 6] = [
+        "You are an expert Python programmer.",
+        "[PATCH v2",
+        "List Leaves (25",
+        "BEGIN_OPENCLAW_INTERNAL_CONTEXT",
+        "END_OPENCLAW_INTERNAL_CONTEXT",
+        "UNTRUSTED_CHILD_RESULT_DELIMITER",
+    ];
+    for marker in FORBIDDEN {
+        assert!(
+            !raw.contains(marker),
+            "runtime payload leaked forbidden marker `{marker}`: {raw}"
+        );
+    }
+}
+
 #[test]
 fn alpha_readiness_run_persists_latest_snapshot() {
     let temp = tempfile::tempdir().expect("tempdir");
@@ -61,6 +78,8 @@ fn alpha_readiness_run_persists_latest_snapshot() {
     );
     assert_eq!(code, 0);
     assert!(latest_path(temp.path()).exists());
+    let raw = fs::read_to_string(latest_path(temp.path())).expect("read latest snapshot");
+    assert_no_runtime_context_leak(&raw);
 }
 
 #[test]

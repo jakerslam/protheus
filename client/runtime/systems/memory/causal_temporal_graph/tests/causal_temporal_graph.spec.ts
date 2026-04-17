@@ -2,6 +2,19 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const FORBIDDEN_RUNTIME_CONTEXT_MARKERS = [
+  'You are an expert Python programmer.',
+  '[PATCH v2',
+  'List Leaves (25',
+  'BEGIN_OPENCLAW_INTERNAL_CONTEXT',
+  'END_OPENCLAW_INTERNAL_CONTEXT',
+  'UNTRUSTED_CHILD_RESULT_DELIMITER'
+];
+
+function containsForbiddenRuntimeContextMarker(raw = '') {
+  const text = String(raw);
+  return FORBIDDEN_RUNTIME_CONTEXT_MARKERS.some((marker) => text.includes(marker));
+}
 
 if (!require.extensions['.ts']) {
   const ts = require('typescript');
@@ -39,5 +52,6 @@ assert.deepStrictEqual(mod.mapArgs([]), ['status']);
 const out = mod.ensureMutationReceipt({ payload: { ok: true, type: 'causal_temporal_graph_record' } }, 'record');
 assert.ok(typeof out.payload.receipt_hash === 'string');
 assert.equal(out.payload.receipt_hash.length >= 64, true);
+assert.equal(containsForbiddenRuntimeContextMarker(JSON.stringify(out.payload)), false);
 
 console.log('causal_temporal_graph wrapper checks passed');

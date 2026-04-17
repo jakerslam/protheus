@@ -23,6 +23,13 @@ fn latest_receipt(state_path: &Path) -> Value {
         .expect("last receipt")
 }
 
+fn assert_tooling_receipt_payload(receipt: &Value) {
+    assert!(
+        receipt.get("payload").and_then(Value::as_object).is_some(),
+        "receipt payload must be an object"
+    );
+}
+
 #[test]
 fn workflow_014_chains_agents_memory_integrations_prompt_traces_and_checkpoints_emit_receipts() {
     let root = tempfile::tempdir().expect("tempdir");
@@ -53,6 +60,7 @@ fn workflow_014_chains_agents_memory_integrations_prompt_traces_and_checkpoints_
         0
     );
     let chain_receipt = latest_receipt(&state_path);
+    assert_tooling_receipt_payload(&chain_receipt);
     assert_eq!(
         chain_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-014.1")
@@ -145,6 +153,7 @@ fn workflow_014_chains_agents_memory_integrations_prompt_traces_and_checkpoints_
         0
     );
     let agent_receipt = latest_receipt(&state_path);
+    assert_tooling_receipt_payload(&agent_receipt);
     assert_eq!(
         agent_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-014.2")
@@ -262,6 +271,7 @@ fn workflow_014_chains_agents_memory_integrations_prompt_traces_and_checkpoints_
         0
     );
     let prompt_receipt = latest_receipt(&state_path);
+    assert_tooling_receipt_payload(&prompt_receipt);
     assert_eq!(
         prompt_receipt["payload"]["route"]["degraded"].as_bool(),
         Some(true)

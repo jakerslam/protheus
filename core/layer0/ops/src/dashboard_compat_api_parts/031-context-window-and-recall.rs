@@ -479,6 +479,15 @@ fn enforce_tool_completion_contract(
                 "no_tools_rewrote_unverified_tool_execution_claim",
             );
             applied = true;
+        } else if response_is_deferred_execution_preamble(&finalized_cleaned)
+            || response_is_deferred_retry_prompt(&finalized_cleaned)
+        {
+            finalized = no_findings_user_facing_response();
+            outcome = append_tool_completion_outcome(
+                &outcome,
+                "no_tools_rewrote_deferred_execution_claim",
+            );
+            applied = true;
         }
     }
 
@@ -502,7 +511,9 @@ fn enforce_tool_completion_contract(
                 || response_looks_like_tool_ack_without_findings(&finalized_cleaned)
                 || response_is_no_findings_placeholder(&finalized_cleaned))
         {
-            finalized = findings.unwrap_or_else(no_findings_user_facing_response);
+            finalized = findings
+                .clone()
+                .unwrap_or_else(no_findings_user_facing_response);
             outcome =
                 append_tool_completion_outcome(&outcome, "tool_completion_replaced_with_findings");
             applied = true;
@@ -527,10 +538,34 @@ fn enforce_tool_completion_contract(
                 append_tool_completion_outcome(&outcome, "tool_completion_forced_no_findings");
             applied = true;
         }
+        let deferred_execution = response_is_deferred_execution_preamble(&finalized)
+            || response_is_deferred_retry_prompt(&finalized)
+            || workflow_response_requests_more_tooling(&finalized);
+        if deferred_execution && !has_actionable_tool_reason(&finalized) {
+            if findings_available {
+                finalized = findings
+                    .clone()
+                    .unwrap_or_else(no_findings_user_facing_response);
+                outcome = append_tool_completion_outcome(
+                    &outcome,
+                    "tool_completion_replaced_deferred_with_findings",
+                );
+            } else {
+                finalized = no_findings_user_facing_response();
+                outcome = append_tool_completion_outcome(
+                    &outcome,
+                    "tool_completion_replaced_deferred_with_no_findings",
+                );
+            }
+            applied = true;
+        }
     }
 
     let final_ack_only = response_looks_like_tool_ack_without_findings(&finalized);
     let final_no_findings = response_is_no_findings_placeholder(&finalized);
+    let final_deferred_execution = response_is_deferred_execution_preamble(&finalized)
+        || response_is_deferred_retry_prompt(&finalized)
+        || workflow_response_requests_more_tooling(&finalized);
     let final_actionable_reason = has_actionable_tool_reason(&finalized);
     let final_reasoning = first_sentence(&finalized, 220);
     let task_complete = tools_present > 0
@@ -561,6 +596,7 @@ fn enforce_tool_completion_contract(
             "initial_ack_only": initial_ack_only,
             "final_ack_only": final_ack_only,
             "final_no_findings": final_no_findings,
+            "final_deferred_execution": final_deferred_execution,
             "completion_state": completion_state,
             "task_complete": task_complete,
             "reasoning": clean_text(&final_reasoning, 220)

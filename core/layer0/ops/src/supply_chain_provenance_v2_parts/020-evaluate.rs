@@ -1,3 +1,32 @@
+fn canonical_bundle_artifact_id(raw: &str) -> String {
+    raw.trim()
+        .to_ascii_lowercase()
+        .replace('-', "_")
+        .chars()
+        .filter(|ch| ch.is_ascii_alphanumeric() || *ch == '_')
+        .collect::<String>()
+}
+
+fn resolve_bundle_row<'a>(
+    bundle_map: &'a BTreeMap<String, Value>,
+    required_id: &str,
+) -> Option<(&'a str, &'a Value)> {
+    if let Some((id, row)) = bundle_map.get_key_value(required_id) {
+        return Some((id.as_str(), row));
+    }
+    let canonical_required = canonical_bundle_artifact_id(required_id);
+    if canonical_required.is_empty() {
+        return None;
+    }
+    bundle_map.iter().find_map(|(id, row)| {
+        if canonical_bundle_artifact_id(id) == canonical_required {
+            Some((id.as_str(), row))
+        } else {
+            None
+        }
+    })
+}
+
 fn evaluate(root: &Path, policy: &Policy, bundle_path: &Path, vuln_summary_path: &Path) -> Value {
     let bundle = load_json(bundle_path);
     let bundle_map = bundle_artifact_map(&bundle);
@@ -21,7 +50,9 @@ fn evaluate(root: &Path, policy: &Policy, bundle_path: &Path, vuln_summary_path:
         sbom_presence_ok &= sbom_exists;
         signature_presence_ok &= signature_exists;
 
-        let bundle_row = bundle_map.get(&req.id);
+        let resolved_bundle = resolve_bundle_row(&bundle_map, &req.id);
+        let resolved_bundle_id = resolved_bundle.map(|(id, _)| id.to_string());
+        let bundle_row = resolved_bundle.map(|(_, row)| row);
         let in_bundle = bundle_row.is_some();
         bundle_contains_required_ok &= in_bundle;
 
@@ -91,6 +122,8 @@ fn evaluate(root: &Path, policy: &Policy, bundle_path: &Path, vuln_summary_path:
 
         artifact_rows.push(json!({
             "id": req.id,
+            "canonical_id": canonical_bundle_artifact_id(&req.id),
+            "resolved_bundle_id": resolved_bundle_id,
             "artifact_exists": artifact_exists,
             "sbom_exists": sbom_exists,
             "signature_exists": signature_exists,
@@ -141,6 +174,13 @@ fn evaluate(root: &Path, policy: &Policy, bundle_path: &Path, vuln_summary_path:
             .unwrap_or(false)
         && bundle_map.len() >= policy.required_artifacts.len();
 
+    let required_ids = policy
+        .required_artifacts
+        .iter()
+        .map(|a| canonical_bundle_artifact_id(&a.id))
+        .filter(|row| !row.is_empty())
+        .collect::<Vec<_>>();
+
     let mut checks = BTreeMap::<String, Value>::new();
     checks.insert(
         "artifact_presence".to_string(),
@@ -176,7 +216,7 @@ fn evaluate(root: &Path, policy: &Policy, bundle_path: &Path, vuln_summary_path:
         "bundle_contains_required_artifacts".to_string(),
         json!({
             "ok": bundle_contains_required_ok,
-            "required_ids": policy.required_artifacts.iter().map(|a| a.id.clone()).collect::<Vec<_>>()
+            "required_ids": required_ids
         }),
     );
     checks.insert(
@@ -336,4 +376,3 @@ fn default_release_tag(root: &Path) -> String {
     }
     format!("local-{}", now_iso().replace([':', '.'], "-"))
 }
-

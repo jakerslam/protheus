@@ -6,7 +6,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::env;
 use std::fs::{self, OpenOptions};
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
 use protheus_layer1_memory_runtime::recall_policy::{
@@ -66,8 +66,32 @@ fn file_mtime_ms(path: &Path) -> Option<u64> {
     Some(dur.as_millis() as u64)
 }
 
+fn strip_invisible_unicode(raw: &str) -> String {
+    raw.chars()
+        .filter(|ch| {
+            !ch.is_control()
+                && !matches!(
+                    ch,
+                    '\u{200B}'
+                        | '\u{200C}'
+                        | '\u{200D}'
+                        | '\u{200E}'
+                        | '\u{200F}'
+                        | '\u{202A}'
+                        | '\u{202B}'
+                        | '\u{202C}'
+                        | '\u{202D}'
+                        | '\u{202E}'
+                        | '\u{2060}'
+                        | '\u{FEFF}'
+                )
+        })
+        .collect::<String>()
+}
+
 fn clean_text(raw: &str, max_len: usize) -> String {
-    raw.split_whitespace()
+    strip_invisible_unicode(raw)
+        .split_whitespace()
         .collect::<Vec<&str>>()
         .join(" ")
         .chars()
@@ -287,6 +311,11 @@ fn resolve_path(root: &Path, raw: &str) -> PathBuf {
     let path = PathBuf::from(value);
     if path.is_absolute() {
         path
+    } else if path
+        .components()
+        .any(|component| matches!(component, Component::ParentDir))
+    {
+        root.to_path_buf()
     } else {
         root.join(path)
     }
@@ -418,4 +447,3 @@ fn matrix_paths(root: &Path, args: &HashMap<String, String>) -> (PathBuf, PathBu
         resolve_path(root, &md_path),
     )
 }
-

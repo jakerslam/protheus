@@ -1,15 +1,28 @@
+fn normalize_quarantine_token(raw: &str) -> String {
+    raw.split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_lowercase()
+        .replace('-', "_")
+}
+
+fn canonical_proposal_type(raw: &str) -> String {
+    let token = normalize_quarantine_token(raw);
+    match token.as_str() {
+        "directive clarification" => "directive_clarification".to_string(),
+        "directive decomposition" => "directive_decomposition".to_string(),
+        "actuation optimization" => "actuation_optimization".to_string(),
+        _ => token.replace(' ', "_"),
+    }
+}
+
 pub fn compute_unknown_type_quarantine_decision(
     input: &UnknownTypeQuarantineDecisionInput,
 ) -> UnknownTypeQuarantineDecisionOutput {
     let proposal_type = input
         .proposal_type
         .as_ref()
-        .map(|v| {
-            v.split_whitespace()
-                .collect::<Vec<_>>()
-                .join(" ")
-                .to_lowercase()
-        })
+        .map(|v| canonical_proposal_type(v))
         .filter(|v| !v.is_empty());
     if !input.enabled {
         return UnknownTypeQuarantineDecisionOutput {
@@ -42,7 +55,7 @@ pub fn compute_unknown_type_quarantine_decision(
     let objective_id = input
         .objective_id
         .as_ref()
-        .map(|v| v.split_whitespace().collect::<Vec<_>>().join(" "))
+        .map(|v| sanitize_directive_objective_id(v))
         .filter(|v| !v.is_empty());
     if input.allow_tier1 && input.tier1_objective {
         return UnknownTypeQuarantineDecisionOutput {
@@ -122,7 +135,7 @@ pub fn compute_optimization_intent_proposal(
     let proposal_type = input
         .proposal_type
         .as_ref()
-        .map(|v| v.trim().to_lowercase())
+        .map(|v| canonical_proposal_type(v))
         .unwrap_or_default();
     let blob = input.blob.as_deref().unwrap_or("");
     let canary_smoke_re = Regex::new(r"(?i)\bcanary\b|\bsmoke\s*test\b").expect("valid regex");

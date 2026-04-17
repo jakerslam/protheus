@@ -1,10 +1,28 @@
+fn normalize_runtime_file_path(raw: &str) -> Option<String> {
+    let text = raw.trim().replace('\\', "/");
+    if text.is_empty() {
+        return None;
+    }
+    let path = Path::new(&text);
+    if path
+        .components()
+        .any(|part| matches!(part, std::path::Component::ParentDir))
+    {
+        return None;
+    }
+    Some(text)
+}
+
 pub fn compute_read_json(input: &ReadJsonInput) -> ReadJsonOutput {
     let fallback = input.fallback.clone().unwrap_or(Value::Null);
-    let file_path = input.file_path.as_deref().unwrap_or("").trim();
-    if file_path.is_empty() {
+    let Some(file_path) = input
+        .file_path
+        .as_deref()
+        .and_then(normalize_runtime_file_path)
+    else {
         return ReadJsonOutput { value: fallback };
-    }
-    let path = Path::new(file_path);
+    };
+    let path = Path::new(&file_path);
     if !path.exists() {
         return ReadJsonOutput { value: fallback };
     }
@@ -24,11 +42,14 @@ pub fn compute_read_json(input: &ReadJsonInput) -> ReadJsonOutput {
     }
 }
 pub fn compute_read_jsonl(input: &ReadJsonlInput) -> ReadJsonlOutput {
-    let file_path = input.file_path.as_deref().unwrap_or("").trim();
-    if file_path.is_empty() {
+    let Some(file_path) = input
+        .file_path
+        .as_deref()
+        .and_then(normalize_runtime_file_path)
+    else {
         return ReadJsonlOutput { rows: Vec::new() };
-    }
-    let path = Path::new(file_path);
+    };
+    let path = Path::new(&file_path);
     if !path.exists() {
         return ReadJsonlOutput { rows: Vec::new() };
     }
@@ -38,7 +59,8 @@ pub fn compute_read_jsonl(input: &ReadJsonlInput) -> ReadJsonlOutput {
     };
     let rows = text
         .lines()
-        .filter(|line| !line.trim().is_empty())
+        .map(str::trim)
+        .filter(|line| !line.is_empty() && !line.starts_with('#'))
         .filter_map(|line| serde_json::from_str::<Value>(line).ok())
         .filter(|row| row.is_object())
         .collect::<Vec<_>>();
@@ -46,12 +68,15 @@ pub fn compute_read_jsonl(input: &ReadJsonlInput) -> ReadJsonlOutput {
 }
 
 pub fn compute_write_json_atomic(input: &WriteJsonAtomicInput) -> WriteJsonAtomicOutput {
-    let file_path = input.file_path.as_deref().unwrap_or("").trim();
-    if file_path.is_empty() {
+    let Some(file_path) = input
+        .file_path
+        .as_deref()
+        .and_then(normalize_runtime_file_path)
+    else {
         return WriteJsonAtomicOutput { ok: true };
-    }
+    };
     let value = input.value.clone().unwrap_or(Value::Null);
-    let path = Path::new(file_path);
+    let path = Path::new(&file_path);
     if let Some(parent) = path.parent() {
         let _ = fs::create_dir_all(parent);
     }
@@ -65,18 +90,26 @@ pub fn compute_write_json_atomic(input: &WriteJsonAtomicInput) -> WriteJsonAtomi
         "{}\n",
         serde_json::to_string_pretty(&value).unwrap_or_else(|_| "null".to_string())
     );
-    let _ = fs::write(&tmp_path, payload);
-    let _ = fs::rename(&tmp_path, file_path);
+    let Ok(()) = fs::write(&tmp_path, payload) else {
+        return WriteJsonAtomicOutput { ok: false };
+    };
+    let Ok(()) = fs::rename(&tmp_path, &file_path) else {
+        let _ = fs::remove_file(&tmp_path);
+        return WriteJsonAtomicOutput { ok: false };
+    };
     WriteJsonAtomicOutput { ok: true }
 }
 
 pub fn compute_append_jsonl(input: &AppendJsonlInput) -> AppendJsonlOutput {
-    let file_path = input.file_path.as_deref().unwrap_or("").trim();
-    if file_path.is_empty() {
+    let Some(file_path) = input
+        .file_path
+        .as_deref()
+        .and_then(normalize_runtime_file_path)
+    else {
         return AppendJsonlOutput { ok: true };
-    }
+    };
     let row = input.row.clone().unwrap_or(Value::Null);
-    let path = Path::new(file_path);
+    let path = Path::new(&file_path);
     if let Some(parent) = path.parent() {
         let _ = fs::create_dir_all(parent);
     }
@@ -86,19 +119,25 @@ pub fn compute_append_jsonl(input: &AppendJsonlInput) -> AppendJsonlOutput {
     );
     let mut opts = fs::OpenOptions::new();
     opts.create(true).append(true);
-    if let Ok(mut file) = opts.open(path) {
-        let _ = std::io::Write::write_all(&mut file, line.as_bytes());
+    let Ok(mut file) = opts.open(path) else {
+        return AppendJsonlOutput { ok: false };
+    };
+    if std::io::Write::write_all(&mut file, line.as_bytes()).is_err() {
+        return AppendJsonlOutput { ok: false };
     }
     AppendJsonlOutput { ok: true }
 }
 
 pub fn compute_read_text(input: &ReadTextInput) -> ReadTextOutput {
     let fallback = input.fallback.clone().unwrap_or_default();
-    let file_path = input.file_path.as_deref().unwrap_or("").trim();
-    if file_path.is_empty() {
+    let Some(file_path) = input
+        .file_path
+        .as_deref()
+        .and_then(normalize_runtime_file_path)
+    else {
         return ReadTextOutput { text: fallback };
-    }
-    let path = Path::new(file_path);
+    };
+    let path = Path::new(&file_path);
     if !path.exists() {
         return ReadTextOutput { text: fallback };
     }

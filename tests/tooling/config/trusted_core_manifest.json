@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "trusted_modules": [
+    "core/layer0/ops/src/main.rs.inc",
+    "core/layer0/ops/src/protheusctl_parts/020-evaluate-dispatch-security.combined.rs",
+    "core/layer0/ops/src/protheusctl_routes_parts/010-command-routing.rs",
+    "core/layer0/ops/src/queue_sqlite_kernel.combined.rs",
+    "core/layer0/ops/src/dashboard_ui_parts/070-http-and-receipts.rs",
+    "core/layer0/ops/src/orchestration.rs"
+  ],
+  "non_authoritative_surfaces": [
+    "client/runtime",
+    "tests/tooling/scripts",
+    "benchmarks/public_harness"
+  ],
+  "bridge_points": [
+    {
+      "id": "bridge_cli_to_core_domain",
+      "from": "core/layer0/ops/src/protheusctl",
+      "to": "core/layer0/ops/src/main.rs.inc",
+      "policy_choke_point": "evaluate_dispatch_security"
+    },
+    {
+      "id": "bridge_dashboard_action_bus",
+      "from": "core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch.rs",
+      "to": "core/layer0/ops/src/dashboard_ui_parts/070-http-and-receipts.rs",
+      "policy_choke_point": "dashboard_action_receipt_contract"
+    }
+  ],
+  "policy_choke_points": [
+    "evaluate_dispatch_security",
+    "authorize_ingress_tool_call_with_nexus",
+    "fail_closed_cli_receipts"
+  ],
+  "fallback_declarations": [
+    {
+      "id": "install_doctor_fallback",
+      "scope": "protheusctl",
+      "mode": "degraded_allow_read_only",
+      "fail_closed": true
+    },
+    {
+      "id": "queue_backpressure_policy_fallback",
+      "scope": "queue_sqlite_kernel",
+      "mode": "quarantine",
+      "fail_closed": true
+    }
+  ]
+}

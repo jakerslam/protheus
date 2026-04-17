@@ -6,6 +6,19 @@ const SYSTEM_ID = 'SYSTEMS-SENSORY-GOLD_EVAL_BLIND_SCORING_LANE';
 const bridge = createOpsLaneBridge(__dirname, 'gold_eval_blind_scoring_lane', 'runtime-systems', {
   inheritStdio: true
 });
+const FORBIDDEN_RUNTIME_CONTEXT_MARKERS = [
+  'You are an expert Python programmer.',
+  '[PATCH v2',
+  'List Leaves (25',
+  'BEGIN_OPENCLAW_INTERNAL_CONTEXT',
+  'END_OPENCLAW_INTERNAL_CONTEXT',
+  'UNTRUSTED_CHILD_RESULT_DELIMITER'
+];
+
+function containsForbiddenRuntimeContextMarker(raw = '') {
+  const text = String(raw);
+  return FORBIDDEN_RUNTIME_CONTEXT_MARKERS.some((marker) => text.includes(marker));
+}
 
 function run(args = process.argv.slice(2)) {
   const out = bridge.run([`--system-id=${SYSTEM_ID}`].concat(Array.isArray(args) ? args : []));
@@ -25,5 +38,7 @@ if (require.main === module) {
 module.exports = {
   lane: bridge.lane,
   systemId: SYSTEM_ID,
-  run
+  run,
+  forbiddenRuntimeContextMarkers: FORBIDDEN_RUNTIME_CONTEXT_MARKERS,
+  containsForbiddenRuntimeContextMarker
 };

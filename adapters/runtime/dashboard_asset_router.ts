@@ -183,7 +183,10 @@ function readBuildVersionInfo(staticDir) {
   const workspaceRoot = findWorkspaceRoot(staticDir);
   const runtimeVersionPath = path.resolve(
     workspaceRoot,
-    'client/runtime/config/runtime_version.json'
+    'client',
+    'runtime',
+    'config',
+    'runtime_version.json'
   );
   const packagePath = path.resolve(workspaceRoot, 'package.json');
   let best = null;
@@ -358,6 +361,7 @@ function buildPrimaryDashboardHtml(staticDir) {
   const scripts = [
     readForkScript(staticDir, 'vendor/marked.min'),
     readForkScript(staticDir, 'vendor/chart.umd.min'),
+    readForkScript(staticDir, 'js/svelte/chat_bubble.bundle'),
     readForkScript(staticDir, 'js/api'),
     readForkScript(staticDir, 'js/app'),
     PAGE_SCRIPTS.map((name) => readForkScript(staticDir, `js/pages/${name}`)).filter(Boolean).join('\n'),

@@ -1,3 +1,58 @@
+fn normalize_skill_graph_folder(raw: &str) -> String {
+    let mut folder = clean(raw, 240).replace('\\', "/");
+    while folder.contains("//") {
+        folder = folder.replace("//", "/");
+    }
+    while folder.starts_with("./") {
+        folder = folder[2..].to_string();
+    }
+    folder.trim().trim_start_matches('/').to_string()
+}
+
+fn resolve_skill_graph_folder(root: &Path, folder: &str) -> PathBuf {
+    let default_rel = "adapters/cognition/skills/content-skill-graph";
+    let normalized = normalize_skill_graph_folder(folder);
+    let requested = if normalized.is_empty() {
+        default_rel.to_string()
+    } else {
+        normalized
+    };
+    let candidate = if Path::new(&requested).is_absolute() {
+        PathBuf::from(&requested)
+    } else {
+        root.join(&requested)
+    };
+    if candidate.is_absolute() && !candidate.starts_with(root) {
+        root.join(default_rel)
+    } else {
+        candidate
+    }
+}
+
+fn normalize_skill_graph_topic(raw: &str) -> String {
+    let mut out = String::new();
+    let mut prev_sep = false;
+    for ch in clean(raw, 180).to_ascii_lowercase().chars() {
+        let mapped = if ch.is_ascii_alphanumeric() { ch } else { '_' };
+        if mapped == '_' {
+            if prev_sep || out.is_empty() {
+                continue;
+            }
+            prev_sep = true;
+            out.push('_');
+            continue;
+        }
+        prev_sep = false;
+        out.push(mapped);
+    }
+    let topic = out.trim_matches('_').to_string();
+    if topic.is_empty() {
+        "repurpose_topic".to_string()
+    } else {
+        topic
+    }
+}
+
 fn run_v8_skill_graph(root: &Path, id: &str, parsed: &crate::ParsedArgs) -> Value {
     let path = state_path(root, "v8_skill_graph/state.json");
     let mut state = load_json_or(&path, default_family_state("v8_skill_graph"));
@@ -7,11 +62,7 @@ fn run_v8_skill_graph(root: &Path, id: &str, parsed: &crate::ParsedArgs) -> Valu
         .get("folder")
         .cloned()
         .unwrap_or_else(|| "adapters/cognition/skills/content-skill-graph".to_string());
-    let folder_path = if Path::new(&folder).is_absolute() {
-        PathBuf::from(&folder)
-    } else {
-        root.join(&folder)
-    };
+    let folder_path = resolve_skill_graph_folder(root, &folder);
     let step = id.split('.').nth(1).unwrap_or("0");
 
     let details = match step {
@@ -31,7 +82,14 @@ fn run_v8_skill_graph(root: &Path, id: &str, parsed: &crate::ParsedArgs) -> Valu
                     }
                 }
             }
-            json!({"folder": rel(root, &folder_path), "nodes": nodes, "graph_hash": sha256_hex_str(&format!("{}:{}", folder, now_iso()))})
+            nodes.sort_by(|left, right| {
+                left.get("file")
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .cmp(right.get("file").and_then(Value::as_str).unwrap_or(""))
+            });
+            let graph_basis = serde_json::to_string(&nodes).unwrap_or_else(|_| "[]".to_string());
+            json!({"folder": rel(root, &folder_path), "nodes": nodes, "graph_hash": sha256_hex_str(&format!("{}:{}", rel(root, &folder_path), graph_basis))})
         }
         "2" => {
             let topic = clean(
@@ -65,7 +123,7 @@ fn run_v8_skill_graph(root: &Path, id: &str, parsed: &crate::ParsedArgs) -> Valu
             );
             let out_dir = state_path(root, "v8_skill_graph/artifacts");
             let _ = fs::create_dir_all(&out_dir);
-            let artifact = out_dir.join(format!("{}.json", clean(&topic, 80).replace(' ', "_")));
+            let artifact = out_dir.join(format!("{}.json", normalize_skill_graph_topic(&topic)));
             let payload = json!({
                 "topic": topic,
                 "formats": ["thread", "carousel", "script", "long-form"],
@@ -437,4 +495,3 @@ fn normalize_id(parsed: &crate::ParsedArgs) -> String {
         .unwrap_or_default();
     clean(raw.to_ascii_uppercase(), 64)
 }
-

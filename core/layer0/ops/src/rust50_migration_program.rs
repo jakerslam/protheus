@@ -7,6 +7,7 @@ const USAGE: &[&str] = &[
     "  protheus-ops rust50-migration-program list [--policy=<path>]",
     "  protheus-ops rust50-migration-program run --id=<id> [--apply=1|0] [--strict=1|0]",
     "  protheus-ops rust50-migration-program status [--id=<id>]",
+    "  Optional telemetry flags: --trace-id=<id> --call-id=<id> --request-id=<id> --source=<tag>",
 ];
 
 pub fn run(root: &Path, argv: &[String]) -> i32 {
@@ -18,7 +19,17 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             lane_type: "rust50_migration_program",
             replacement: "protheus-ops rust50-migration-program",
             usage: USAGE,
-            passthrough_flags: &["apply", "strict", "policy", "id", "limit"],
+            passthrough_flags: &[
+                "apply",
+                "strict",
+                "policy",
+                "id",
+                "limit",
+                "trace-id",
+                "call-id",
+                "request-id",
+                "source",
+            ],
         },
     )
 }

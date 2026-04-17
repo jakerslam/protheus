@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const ts = require('typescript');
+const ts = require('typescript');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 if (!require.extensions['.ts']) {
   require.extensions['.ts'] = function compileTs(module, filename) {
@@ -110,7 +110,7 @@ function main() {
   assert.equal(status.ok, true);
   assert.equal(status.artifacts.latest_path, 'client/runtime/local/state/core/profiles/latest.json');
 
-  const latestPath = path.join(workspace, 'client', 'runtime', 'local', 'state', 'core', 'profiles', 'latest.json');
+  assertNoPlaceholderOrPromptLeak({ bootstrap, status }, 'upgrade_lane_runtime_rust_bridge_test');\n  assertStableToolingEnvelope(status, 'upgrade_lane_runtime_rust_bridge_test');\n  const latestPath = path.join(workspace, 'client', 'runtime', 'local', 'state', 'core', 'profiles', 'latest.json');
   const adaptiveIndex = path.join(workspace, 'client', 'cognition', 'adaptive', 'core_profiles', 'index.json');
   assert.equal(fs.existsSync(latestPath), true);
   assert.equal(fs.existsSync(adaptiveIndex), true);

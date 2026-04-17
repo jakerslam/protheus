@@ -30,6 +30,17 @@ fn allow(root: &Path, directive: &str) {
     );
 }
 
+fn assert_non_silent_outcome(payload: &Value) {
+    assert!(payload.get("type").and_then(Value::as_str).is_some());
+    assert!(payload.get("ok").and_then(Value::as_bool).is_some());
+    assert!(
+        payload.get("receipt_hash").and_then(Value::as_str).is_some()
+            || payload.get("claim_evidence").and_then(Value::as_array).is_some()
+            || payload.get("error").is_some()
+            || payload.get("reason").is_some()
+    );
+}
+
 #[test]
 fn ignite_requires_directive_gate() {
     let _guard = env_guard();
@@ -43,6 +54,8 @@ fn ignite_requires_directive_gate() {
         ],
     );
     assert_eq!(exit, 2);
+    let latest = read_json(&latest_path(&root)).expect("latest");
+    assert_non_silent_outcome(&latest);
     let _ = fs::remove_dir_all(root);
 }
 
@@ -74,6 +87,7 @@ fn ignite_mutates_when_allowed() {
             >= 1
     );
     let latest = read_json(&latest_path(&root)).expect("latest");
+    assert_non_silent_outcome(&latest);
     assert_eq!(
         latest
             .get("token_reward")
@@ -101,6 +115,7 @@ fn swarm_skips_reward_when_tokenomics_gate_missing() {
     );
     assert_eq!(exit, 0);
     let latest = read_json(&latest_path(&root)).expect("latest");
+    assert_non_silent_outcome(&latest);
     assert_eq!(
         latest
             .get("swarm_reward")

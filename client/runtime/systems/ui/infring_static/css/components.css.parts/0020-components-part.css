@@ -250,3 +250,127 @@ body.taskbar-drag-active * {
 .bottom-dock {
   overflow: visible;
 }
+
+.agent-permissions-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.agent-permissions-note {
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface2) 62%, transparent);
+}
+
+.agent-perm-section {
+  border: 1px solid color-mix(in srgb, var(--border) 88%, transparent);
+  border-radius: 10px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--surface) 74%, transparent);
+}
+
+.agent-perm-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+}
+
+.agent-perm-bulk {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.agent-perm-bulk .btn-sm {
+  padding: 2px 8px;
+  font-size: 10px;
+}
+
+.agent-perm-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
+}
+
+.agent-perm-row:last-child {
+  border-bottom: none;
+}
+
+.agent-perm-meta {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.agent-perm-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.agent-perm-description {
+  line-height: 1.35;
+}
+
+.agent-perm-key {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  opacity: 0.86;
+}
+
+.agent-perm-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex: 0 0 auto;
+}
+
+.agent-perm-state {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  padding: 2px 7px;
+  white-space: nowrap;
+}
+
+.agent-perm-state.perm-state-allow {
+  border-color: color-mix(in srgb, var(--success) 62%, transparent);
+  color: color-mix(in srgb, var(--success) 84%, var(--text) 16%);
+  background: color-mix(in srgb, var(--success) 16%, transparent);
+}
+
+.agent-perm-state.perm-state-deny {
+  border-color: color-mix(in srgb, var(--danger) 64%, transparent);
+  color: color-mix(in srgb, var(--danger) 82%, var(--text) 18%);
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+}
+
+.agent-perm-state.perm-state-inherit {
+  border-color: color-mix(in srgb, var(--border) 96%, transparent);
+  color: var(--text-dim);
+  background: color-mix(in srgb, var(--surface2) 72%, transparent);
+}
+
+.agent-perm-select {
+  min-width: 118px;
+  font-size: 11px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+infring-chat-bubble-render {
+  display: block;
+}

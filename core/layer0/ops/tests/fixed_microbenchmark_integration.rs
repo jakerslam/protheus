@@ -4,6 +4,23 @@ use serde_json::Value;
 use std::fs;
 use std::path::Path;
 
+fn assert_no_runtime_context_leak(raw: &str) {
+    const FORBIDDEN: [&str; 6] = [
+        "You are an expert Python programmer.",
+        "[PATCH v2",
+        "List Leaves (25",
+        "BEGIN_OPENCLAW_INTERNAL_CONTEXT",
+        "END_OPENCLAW_INTERNAL_CONTEXT",
+        "UNTRUSTED_CHILD_RESULT_DELIMITER",
+    ];
+    for marker in FORBIDDEN {
+        assert!(
+            !raw.contains(marker),
+            "runtime payload leaked forbidden marker `{marker}`: {raw}"
+        );
+    }
+}
+
 fn read_json(path: &Path) -> Value {
     serde_json::from_str(&fs::read_to_string(path).expect("read json")).expect("parse json")
 }
@@ -28,6 +45,7 @@ fn fixed_microbenchmark_run_and_status_emit_receipts_and_persist_latest() {
         .path()
         .join("local/state/ops/fixed_microbenchmark/latest.json");
     let latest_json = read_json(&latest);
+    assert_no_runtime_context_leak(&latest_json.to_string());
     assert_eq!(
         latest_json.get("type").and_then(Value::as_str),
         Some("fixed_microbenchmark")

@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "workloads": [
+    {
+      "id": "sovereign_memory_local",
+      "warmup_runs": 3,
+      "measured_runs": 9,
+      "cold_start_ms": 580,
+      "work_units": 1600,
+      "profile": "pure"
+    },
+    {
+      "id": "local_research_pipeline",
+      "warmup_runs": 3,
+      "measured_runs": 9,
+      "cold_start_ms": 740,
+      "work_units": 2400,
+      "profile": "rich"
+    },
+    {
+      "id": "tiny_max_monitoring",
+      "warmup_runs": 3,
+      "measured_runs": 9,
+      "cold_start_ms": 430,
+      "work_units": 1200,
+      "profile": "tiny-max"
+    }
+  ]
+}

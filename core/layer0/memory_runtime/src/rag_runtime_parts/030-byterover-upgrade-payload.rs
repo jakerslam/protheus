@@ -8,8 +8,19 @@ pub fn byterover_upgrade_payload(args: &HashMap<String, String>) -> Value {
     let rules = ctx.join("rules.md");
     let manifest = ctx.join("manifest.json");
 
-    let _ = fs::create_dir_all(&ctx);
+    if let Err(err) = fs::create_dir_all(&ctx) {
+        let out = receipt(json!({
+            "ok": false,
+            "type": "memory_upgrade_byterover",
+            "backend": "protheus_memory_core",
+            "error": format!("context_tree_create_failed:{err}"),
+            "context_tree_path": normalize_rel_path(&root, &ctx)
+        }));
+        append_history(&history_path(&root, args), &out);
+        return out;
+    }
     let mut created = Vec::new();
+    let mut write_failures = Vec::new();
     for (path, title) in [
         (&timeline, "Timeline"),
         (&facts, "Facts"),
@@ -18,8 +29,12 @@ pub fn byterover_upgrade_payload(args: &HashMap<String, String>) -> Value {
     ] {
         if !path.exists() {
             let body = format!("# {title}\n\nInitialized by `memory-upgrade-byterover`.\n");
-            if fs::write(path, body).is_ok() {
-                created.push(normalize_rel_path(&root, path));
+            match fs::write(path, body) {
+                Ok(_) => created.push(normalize_rel_path(&root, path)),
+                Err(err) => write_failures.push(json!({
+                    "path": normalize_rel_path(&root, path),
+                    "error": format!("file_write_failed:{err}")
+                })),
             }
         }
     }
@@ -35,13 +50,34 @@ pub fn byterover_upgrade_payload(args: &HashMap<String, String>) -> Value {
             "rules": normalize_rel_path(&root, &rules)
         }
     });
-    let _ = fs::write(
+    if let Err(err) = fs::write(
         &manifest,
         format!(
             "{}\n",
             serde_json::to_string_pretty(&snapshot).unwrap_or_else(|_| "{}".to_string())
         ),
-    );
+    ) {
+        write_failures.push(json!({
+            "path": normalize_rel_path(&root, &manifest),
+            "error": format!("manifest_write_failed:{err}")
+        }));
+    }
+
+    if !write_failures.is_empty() {
+        let out = receipt(json!({
+            "ok": false,
+            "type": "memory_upgrade_byterover",
+            "backend": "protheus_memory_core",
+            "error": "filesystem_write_failed",
+            "root": normalize_rel_path(&root, &brv),
+            "context_tree_path": normalize_rel_path(&root, &ctx),
+            "files_created": created,
+            "created_count": created.len(),
+            "write_failures": write_failures
+        }));
+        append_history(&history_path(&root, args), &out);
+        return out;
+    }
 
     let out = receipt(json!({
         "ok": true,
@@ -80,15 +116,35 @@ pub fn memory_metacognitive_enable_payload(args: &HashMap<String, String>) -> Va
         "note": note
     });
     if let Some(parent) = cfg_path.parent() {
-        let _ = fs::create_dir_all(parent);
+        if let Err(err) = fs::create_dir_all(parent) {
+            let out = receipt(json!({
+                "ok": false,
+                "type": "memory_metacognitive_enable",
+                "backend": "protheus_memory_core",
+                "error": format!("config_parent_create_failed:{err}"),
+                "config_path": normalize_rel_path(&root, &cfg_path)
+            }));
+            append_history(&history_path(&root, args), &out);
+            return out;
+        }
     }
-    let _ = fs::write(
+    if let Err(err) = fs::write(
         &cfg_path,
         format!(
             "{}\n",
             serde_json::to_string_pretty(&payload).unwrap_or_else(|_| "{}".to_string())
         ),
-    );
+    ) {
+        let out = receipt(json!({
+            "ok": false,
+            "type": "memory_metacognitive_enable",
+            "backend": "protheus_memory_core",
+            "error": format!("config_write_failed:{err}"),
+            "config_path": normalize_rel_path(&root, &cfg_path)
+        }));
+        append_history(&history_path(&root, args), &out);
+        return out;
+    }
     let out = receipt(json!({
         "ok": true,
         "type": "memory_metacognitive_enable",
@@ -170,15 +226,35 @@ pub fn memory_taxonomy_payload(args: &HashMap<String, String>) -> Value {
     );
     let out_path = taxonomy_path(&root, args);
     if let Some(parent) = out_path.parent() {
-        let _ = fs::create_dir_all(parent);
+        if let Err(err) = fs::create_dir_all(parent) {
+            let out = receipt(json!({
+                "ok": false,
+                "type": "memory_taxonomy_4w",
+                "backend": "protheus_memory_core",
+                "error": format!("taxonomy_parent_create_failed:{err}"),
+                "taxonomy_path": normalize_rel_path(&root, &out_path)
+            }));
+            append_history(&history_path(&root, args), &out);
+            return out;
+        }
     }
-    let _ = fs::write(
+    if let Err(err) = fs::write(
         &out_path,
         format!(
             "{}\n",
             serde_json::to_string_pretty(&snapshot).unwrap_or_else(|_| "{}".to_string())
         ),
-    );
+    ) {
+        let out = receipt(json!({
+            "ok": false,
+            "type": "memory_taxonomy_4w",
+            "backend": "protheus_memory_core",
+            "error": format!("taxonomy_write_failed:{err}"),
+            "taxonomy_path": normalize_rel_path(&root, &out_path)
+        }));
+        append_history(&history_path(&root, args), &out);
+        return out;
+    }
     let out = receipt(json!({
         "ok": true,
         "type": "memory_taxonomy_4w",
@@ -434,4 +510,3 @@ pub fn memory_benchmark_ama_payload(args: &HashMap<String, String>) -> Value {
     append_history(&history_path(&root, args), &out);
     out
 }
-

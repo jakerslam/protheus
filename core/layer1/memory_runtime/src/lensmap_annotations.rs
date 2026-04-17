@@ -25,9 +25,32 @@ pub struct LensMapDocumentValidation {
 
 const FIELD_MAX_COUNT: usize = 32;
 const TOKEN_MAX_LEN: usize = 64;
+const DOCUMENT_MAX_ANNOTATIONS: usize = 512;
+
+fn strip_invisible_unicode(raw: &str) -> String {
+    raw.chars()
+        .filter(|ch| {
+            !matches!(
+                *ch,
+                '\u{200B}'
+                    | '\u{200C}'
+                    | '\u{200D}'
+                    | '\u{200E}'
+                    | '\u{200F}'
+                    | '\u{2060}'
+                    | '\u{FEFF}'
+                    | '\u{202A}'
+                    | '\u{202B}'
+                    | '\u{202C}'
+                    | '\u{202D}'
+                    | '\u{202E}'
+            ) && (!ch.is_control() || ch.is_ascii_whitespace())
+        })
+        .collect::<String>()
+}
 
 fn normalize_token(raw: &str) -> String {
-    raw.trim().to_ascii_lowercase()
+    strip_invisible_unicode(raw).trim().to_ascii_lowercase()
 }
 
 fn token_is_valid(raw: &str) -> bool {
@@ -48,9 +71,10 @@ fn parse_field(value: &str) -> Vec<String> {
 }
 
 fn dedupe_ordered(items: Vec<String>) -> Vec<String> {
+    let mut seen = std::collections::BTreeSet::new();
     let mut out = Vec::new();
     for item in items {
-        if !out.contains(&item) {
+        if seen.insert(item.clone()) {
             out.push(item);
         }
     }
@@ -164,6 +188,10 @@ pub fn validate_lensmap_document(raw: &str) -> LensMapDocumentValidation {
         if !line.contains("@lensmap") {
             continue;
         }
+        if annotations.len() >= DOCUMENT_MAX_ANNOTATIONS {
+            errors.push("document_annotations_overflow".to_string());
+            break;
+        }
         let annotation_slice = line
             .find("@lensmap")
             .map(|offset| &line[offset..])
@@ -271,5 +299,15 @@ mod tests {
             .errors
             .iter()
             .any(|row| row.contains("duplicate_node:node.1")));
+    }
+
+    #[test]
+    fn strips_invisible_unicode_from_tokens() {
+        let out = parse_lensmap_annotation("@lensmap tags=me\u{200B}mory nodes=node.\u{2060}1 jot=jo\u{FEFF}t");
+        assert!(out.ok);
+        let ann = out.annotation.expect("annotation");
+        assert_eq!(ann.tags, vec!["memory"]);
+        assert_eq!(ann.nodes, vec!["node.1"]);
+        assert_eq!(ann.jots, vec!["jot"]);
     }
 }

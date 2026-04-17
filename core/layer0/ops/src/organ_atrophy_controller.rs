@@ -4,7 +4,7 @@ use crate::v8_kernel::{
     state_root_from_env_or, write_json, ReceiptJsonExt,
 };
 use crate::{clean, now_iso, parse_args};
-use serde_json::json;
+use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
 
 fn state_root(root: &Path) -> PathBuf {
@@ -21,6 +21,17 @@ fn latest_path(root: &Path) -> PathBuf {
 
 fn history_path(root: &Path) -> PathBuf {
     state_root(root).join("history.jsonl")
+}
+
+fn with_execution_receipt(mut out: Value, command: &str, status: &str) -> Value {
+    out["execution_receipt"] = json!({
+        "lane": "organ_atrophy_controller",
+        "command": command,
+        "status": status,
+        "source": "OPENCLAW-TOOLING-WEB-100",
+        "tool_runtime_class": "receipt_wrapped"
+    });
+    out
 }
 
 pub fn run(root: &Path, argv: &[String]) -> i32 {
@@ -43,13 +54,17 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     let history = history_path(root);
 
     if command == "status" {
-        let out = json!({
-            "ok": true,
-            "type": "organ_atrophy_controller_status",
-            "lane": "core/layer0/ops",
-            "ts": now_iso(),
-            "latest": read_json(&latest)
-        })
+        let out = with_execution_receipt(
+            json!({
+                "ok": true,
+                "type": "organ_atrophy_controller_status",
+                "lane": "core/layer0/ops",
+                "ts": now_iso(),
+                "latest": read_json(&latest)
+            }),
+            "status",
+            "success",
+        )
         .with_receipt_hash();
         print_json(&out);
         return 0;
@@ -66,28 +81,36 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             160,
         );
         if organ_id.is_empty() {
-            let out = json!({
-                "ok": false,
-                "type": "organ_atrophy_controller_error",
-                "error": "missing_organ_id",
-                "lane": "core/layer0/ops",
-                "ts": now_iso()
-            })
+            let out = with_execution_receipt(
+                json!({
+                    "ok": false,
+                    "type": "organ_atrophy_controller_error",
+                    "error": "missing_organ_id",
+                    "lane": "core/layer0/ops",
+                    "ts": now_iso()
+                }),
+                "revive",
+                "error",
+            )
             .with_receipt_hash();
             print_json(&out);
             return 1;
         }
 
         let persist = parse_bool(parsed.flags.get("persist"), true);
-        let out = json!({
-            "ok": true,
-            "type": "organ_atrophy_controller_revive",
-            "lane": "core/layer0/ops",
-            "ts": now_iso(),
-            "organ_id": organ_id,
-            "reason": clean(parsed.flags.get("reason").cloned().unwrap_or_default(), 280),
-            "persist": persist
-        })
+        let out = with_execution_receipt(
+            json!({
+                "ok": true,
+                "type": "organ_atrophy_controller_revive",
+                "lane": "core/layer0/ops",
+                "ts": now_iso(),
+                "organ_id": organ_id,
+                "reason": clean(parsed.flags.get("reason").cloned().unwrap_or_default(), 280),
+                "persist": persist
+            }),
+            "revive",
+            "success",
+        )
         .with_receipt_hash();
         if persist {
             let _ = write_json(&latest, &out);
@@ -125,21 +148,25 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     );
     let persist = parse_bool(parsed.flags.get("persist"), true);
 
-    let out = json!({
-        "ok": true,
-        "type": "organ_atrophy_controller_scan",
-        "lane": "core/layer0/ops",
-        "ts": now_iso(),
-        "date": date,
-        "window_days": window_days,
-        "max_candidates": max_candidates,
-        "persist": persist,
-        "summary": {
-            "candidates": [],
-            "count": 0,
-            "note": "core_authoritative_placeholder"
-        }
-    })
+    let out = with_execution_receipt(
+        json!({
+            "ok": true,
+            "type": "organ_atrophy_controller_scan",
+            "lane": "core/layer0/ops",
+            "ts": now_iso(),
+            "date": date,
+            "window_days": window_days,
+            "max_candidates": max_candidates,
+            "persist": persist,
+            "summary": {
+                "candidates": [],
+                "count": 0,
+                "note": "core_authoritative_placeholder"
+            }
+        }),
+        &command,
+        "success",
+    )
     .with_receipt_hash();
     if persist {
         let _ = write_json(&latest, &out);

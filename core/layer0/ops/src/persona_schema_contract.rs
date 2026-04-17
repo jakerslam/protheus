@@ -23,14 +23,13 @@ pub fn run(root: &Path, args: &[String]) -> i32 {
     match command.as_str() {
         "validate" => {
             let strict = parse_bool(parsed.flags.get("strict").map(String::as_str), true);
-            let schema_mode = clean(
+            let schema_mode = canonical_schema_mode(
                 parsed
                     .flags
                     .get("schema-mode")
                     .or_else(|| parsed.flags.get("schema"))
                     .map(String::as_str)
                     .unwrap_or("persona_lens_v1"),
-                64,
             );
             let payload = match load_payload(root, &parsed) {
                 Ok(value) => value,
@@ -164,12 +163,38 @@ fn parse_bool(raw: Option<&str>, fallback: bool) -> bool {
     }
 }
 
+fn canonical_schema_mode(raw: &str) -> String {
+    let token = clean(raw, 64).to_ascii_lowercase().replace('-', "_");
+    match token.as_str() {
+        "persona_lens" | "persona_lens_v1_0" | "lens_v1" => "persona_lens_v1".to_string(),
+        "" => "persona_lens_v1".to_string(),
+        _ => token,
+    }
+}
+
+fn input_path_within_root(root: &Path, candidate: &Path) -> bool {
+    if candidate
+        .components()
+        .any(|part| matches!(part, std::path::Component::ParentDir))
+    {
+        return false;
+    }
+    if candidate.is_absolute() {
+        candidate.starts_with(root)
+    } else {
+        true
+    }
+}
+
 fn load_payload(root: &Path, parsed: &crate::ParsedArgs) -> Result<Value, String> {
     if let Some(raw) = parsed.flags.get("payload") {
         return serde_json::from_str(raw).map_err(|err| format!("payload_json_invalid:{err}"));
     }
     if let Some(input) = parsed.flags.get("input") {
         let candidate = PathBuf::from(input);
+        if !input_path_within_root(root, &candidate) {
+            return Err("input_path_invalid_or_outside_root".to_string());
+        }
         let path = if candidate.is_absolute() {
             candidate
         } else {

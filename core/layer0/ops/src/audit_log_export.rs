@@ -132,6 +132,45 @@ fn sha256_text(text: &str) -> String {
     format!("{:x}", h.finalize())
 }
 
+fn web_tooling_provider_contract_targets() -> [&'static str; 10] {
+    [
+        "brave",
+        "duckduckgo",
+        "exa",
+        "firecrawl",
+        "google",
+        "minimax",
+        "moonshot",
+        "perplexity",
+        "tavily",
+        "xai",
+    ]
+}
+
+fn normalize_web_tooling_provider(raw: &str) -> Option<String> {
+    let normalized = raw.trim().to_ascii_lowercase();
+    if normalized.is_empty() {
+        return None;
+    }
+    let canonical = match normalized.as_str() {
+        "kimi" | "moonshot" => "moonshot",
+        "grok" | "xai" => "xai",
+        "duck_duck_go" | "duckduckgo" => "duckduckgo",
+        "brave_search" | "brave" => "brave",
+        _ => normalized.as_str(),
+    };
+    Some(canonical.to_string())
+}
+
+fn extract_event_web_tooling_provider(event: &Value) -> Option<String> {
+    event
+        .get("web_provider")
+        .and_then(Value::as_str)
+        .or_else(|| event.pointer("/web_tooling/provider").and_then(Value::as_str))
+        .or_else(|| event.get("provider").and_then(Value::as_str))
+        .and_then(normalize_web_tooling_provider)
+}
+
 fn build_payload(target: &str, events: &[Value]) -> Result<Value, String> {
     match target {
         "splunk" => {
@@ -194,11 +233,35 @@ fn export_run(
     );
 
     let events = parse_input_events(&input_path, policy.max_events_per_export).unwrap_or_default();
+    let provider_targets = web_tooling_provider_contract_targets()
+        .iter()
+        .map(|row| row.to_string())
+        .collect::<Vec<_>>();
+    let mut provider_counts = std::collections::BTreeMap::<String, u64>::new();
+    let mut unknown_provider_count = 0u64;
+    for event in &events {
+        let Some(provider) = extract_event_web_tooling_provider(event) else {
+            continue;
+        };
+        if !provider_targets.iter().any(|target| target == &provider) {
+            unknown_provider_count += 1;
+        }
+        let next = provider_counts.get(&provider).copied().unwrap_or(0) + 1;
+        provider_counts.insert(provider, next);
+    }
+    let provider_counts_json = Value::Object(
+        provider_counts
+            .into_iter()
+            .map(|(provider, count)| (provider, json!(count)))
+            .collect(),
+    );
 
     let mut checks = vec![
         json!({"id":"target_supported","ok": matches!(target.as_str(), "splunk" | "elk" | "datadog"), "target": target}),
         json!({"id":"input_present","ok": input_path.exists(), "input": input_path}),
         json!({"id":"events_present","ok": !events.is_empty(), "event_count": events.len()}),
+        json!({"id":"web_provider_contract_targets_present","ok": !provider_targets.is_empty(), "provider_targets": provider_targets}),
+        json!({"id":"web_provider_unknown_count", "ok": unknown_provider_count == 0, "unknown_provider_count": unknown_provider_count}),
     ];
 
     let payload = build_payload(&target, &events).unwrap_or_else(|_| json!({}));
@@ -245,6 +308,11 @@ fn export_run(
         "export_path": export_path,
         "export_hash": export_hash,
         "replay_receipt_pointers": replay_receipt_pointers,
+        "web_tooling": {
+            "provider_contract_targets": web_tooling_provider_contract_targets(),
+            "provider_counts": provider_counts_json,
+            "unknown_provider_count": unknown_provider_count
+        },
         "claim_evidence": [
             {
                 "id": "siem_export_contract",
@@ -252,7 +320,8 @@ fn export_run(
                 "evidence": {
                     "target": target,
                     "event_count": events.len(),
-                    "pointer_count": replay_receipt_pointers.len()
+                    "pointer_count": replay_receipt_pointers.len(),
+                    "web_provider_unknown_count": unknown_provider_count
                 }
             }
         ]

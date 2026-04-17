@@ -17,6 +17,10 @@ const ALL_KNOWN_METRICS: &[&str] = &[
     "execution_success",
     "postconditions_ok",
     "queue_outcome_logged",
+    "retry_count",
+    "timeout_count",
+    "abort_count",
+    "retry_backoff_ms",
     "artifact_count",
     "entries_count",
     "revenue_actions_count",
@@ -29,6 +33,10 @@ const PROPOSAL_BASE_METRICS: &[&str] = &[
     "execution_success",
     "postconditions_ok",
     "queue_outcome_logged",
+    "retry_count",
+    "timeout_count",
+    "abort_count",
+    "retry_backoff_ms",
     "artifact_count",
     "entries_count",
     "revenue_actions_count",
@@ -344,6 +352,42 @@ fn normalize_target(metric: &str, target_text: &str, horizon_text: &str) -> Stri
         "execution_success" => "execution success".to_string(),
         "postconditions_ok" => "postconditions pass".to_string(),
         "queue_outcome_logged" => "outcome receipt logged".to_string(),
+        "retry_count" => format!(
+            "{}{} retries",
+            if parse_comparator(&text, "gte") == "lte" {
+                "<="
+            } else {
+                ">="
+            },
+            parse_first_int(&text, 1)
+        ),
+        "timeout_count" => format!(
+            "{}{} timeouts",
+            if parse_comparator(&text, "gte") == "lte" {
+                "<="
+            } else {
+                ">="
+            },
+            parse_first_int(&text, 1)
+        ),
+        "abort_count" => format!(
+            "{}{} aborts",
+            if parse_comparator(&text, "gte") == "lte" {
+                "<="
+            } else {
+                ">="
+            },
+            parse_first_int(&text, 1)
+        ),
+        "retry_backoff_ms" => format!(
+            "retry backoff {}{}ms",
+            if parse_comparator(&text, "lte") == "gte" {
+                ">="
+            } else {
+                "<="
+            },
+            parse_duration_limit_ms(&text).unwrap_or(5_000)
+        ),
         "artifact_count" => format!(
             "{}{} artifact",
             if parse_comparator(&text, "gte") == "lte" {
@@ -417,4 +461,3 @@ fn normalize_target(metric: &str, target_text: &str, horizon_text: &str) -> Stri
         }
     }
 }
-

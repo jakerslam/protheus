@@ -332,6 +332,16 @@
       this._chatSidebarSuppressedDraggables = [];
     },
     readChatMapWidth() {
+      var lockedWall = this.chatMapWallLockNormalized();
+      if (lockedWall) {
+        var surface = null;
+        if (typeof document !== 'undefined' && typeof document.querySelector === 'function') {
+          try { surface = document.querySelector('.chat-map .chat-map-surface'); } catch(_) {}
+        }
+        var lockedWidth = Number(surface && surface.offsetWidth || 0);
+        if (Number.isFinite(lockedWidth) && lockedWidth > 0) return lockedWidth;
+        return 60;
+      }
       var node = this.readChatMapElement();
       var width = Number(node && node.offsetWidth || 0);
       if (Number.isFinite(width) && width > 0) return width;
@@ -457,10 +467,12 @@
       return this.dragSurfaceHardBounds(this.readChatMapWidth(), this.readChatMapHeight());
     },
     chatMapWallLockNormalized() {
-      return this.dragSurfaceNormalizeWall(this.chatMapWallLock);
+      var wall = this.dragSurfaceNormalizeWall(this.chatMapWallLock);
+      return wall === 'left' || wall === 'right' ? wall : '';
     },
     chatMapSetWallLock(wallRaw) {
       var wall = this.dragSurfaceNormalizeWall(wallRaw);
+      if (wall !== 'left' && wall !== 'right') wall = '';
       this.chatMapWallLock = wall;
       try {
         if (wall) localStorage.setItem('infring-chat-map-wall-lock', wall);
@@ -505,20 +517,25 @@
       var height = this.readChatMapHeight();
       var durationMs = this.chatMapDragActive ? 0 : this.dragSurfaceMoveDurationMs(this._chatMapMoveDurationMs, 280);
       var wall = this.chatMapWallLockNormalized();
-      var radiusCss = this.dragSurfaceLockRadiusCssVars(wall);
-      var wallFlushCss = '';
-      if (wall === 'left') wallFlushCss = 'padding:0;align-items:flex-start;--chat-map-surface-margin-inline:0;';
-      else if (wall === 'right') wallFlushCss = 'padding:0;align-items:flex-end;--chat-map-surface-margin-inline:0;';
-      else if (wall === 'top') wallFlushCss = 'padding:0;--chat-map-surface-margin-inline:0;';
-      else if (wall === 'bottom') wallFlushCss = 'padding:0;--chat-map-surface-margin-inline:0;';
+      var lockCss = this.dragSurfaceLockVisualCssVars('chat-map', wall, {
+        transformMs: this._dragSurfaceLockTransformMs,
+        shellPaddingInline: '8px',
+        shellPaddingInlineLocked: '0px',
+        shellPaddingBlock: '2px',
+        shellPaddingBlockLocked: '0px',
+        shellAlignItems: 'flex-end',
+        shellAlignItemsLeft: 'flex-start',
+        shellAlignItemsRight: 'flex-end',
+        surfaceMarginInline: 'auto',
+        surfaceMarginInlineLocked: '0'
+      });
       return (
         'left:' + Math.round(left) + 'px;' +
         'top:' + Math.round(top) + 'px;' +
         'right:auto;' +
         'bottom:auto;' +
         'height:' + Math.round(height) + 'px;' +
-        radiusCss +
-        wallFlushCss +
+        lockCss +
         'transition:top ' + Math.max(0, Math.round(durationMs)) + 'ms var(--ease-smooth), left ' + Math.max(0, Math.round(durationMs)) + 'ms var(--ease-smooth);'
       );
     },

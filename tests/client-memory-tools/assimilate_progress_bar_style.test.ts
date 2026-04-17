@@ -4,6 +4,7 @@
 const assert = require('assert');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 const root = path.resolve(__dirname, '..', '..');
 const script = path.join(root, 'client', 'runtime', 'systems', 'tools', 'assimilate.ts');
@@ -29,5 +30,11 @@ assert.ok(output.includes('░'));
 assert.ok(output.includes('Receipt: sha256:'));
 assert.ok(output.includes('Target: codex fully assimilated. Agents online.'));
 assert.ok(output.includes('Power to The Users.'));
+assertNoPlaceholderOrPromptLeak({ output }, 'assimilate_progress_bar_style_test');
+assertStableToolingEnvelope({
+  ok: run.status === 0,
+  status: run.status === 0 ? 'ok' : 'error',
+  reason: run.stderr || run.stdout || 'assimilation_output_missing',
+}, 'assimilate_progress_bar_style_test');
 
 process.stdout.write('ok\n');

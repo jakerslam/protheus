@@ -14,7 +14,11 @@ fn transport_contract(
     if runtime_adapter == "webhook_http" {
         return (
             "webhook",
-            if requires_token { "token_optional" } else { "none" },
+            if requires_token {
+                "token_optional"
+            } else {
+                "none"
+            },
             true,
         );
     }
@@ -199,6 +203,29 @@ fn entry(name: &str, display_name: &str, category: &str, setup_type: &str) -> Va
             json!(["No setup needed."]),
             "No config required.".to_string(),
         )
+    } else if name == "web_tooling" {
+        runtime_adapter = "web_tool_runtime";
+        runtime_mode = "native";
+        channel_tier = "native";
+        requires_token = false;
+        supports_send = false;
+        probe_method = "internal";
+        (
+            "Server-authoritative web tooling runtime for search/fetch with provider fallbacks."
+                .to_string(),
+            "Configure provider order and optional strict auth mode, then verify runtime readiness."
+                .to_string(),
+            json!([
+                {"key": "provider_order", "label": "Provider Order", "type": "text", "advanced": true, "placeholder": "brave,gemini,grok,kimi,perplexity"},
+                {"key": "strict_auth", "label": "Strict Auth Required", "type": "boolean", "advanced": true, "placeholder": "false"}
+            ]),
+            json!([
+                "Set provider order and auth profile strategy.",
+                "Verify /api/comms/web-tooling/status returns readiness.",
+                "Route queries through action bus web-tooling endpoints."
+            ]),
+            "PROVIDER_ORDER=brave,gemini,grok,kimi,perplexity\\nSTRICT_AUTH=false".to_string(),
+        )
     } else {
         (
             format!(
@@ -249,6 +276,8 @@ fn entry(name: &str, display_name: &str, category: &str, setup_type: &str) -> Va
         "live_probe_required_for_ready": true,
         "has_token": false,
         "configured": false,
+        "provider_runtime_defaults": if name == "web_tooling" { json!(["brave","gemini","grok","kimi","perplexity","firecrawl","exa","tavily","duckduckgo"]) } else { Value::Null },
+        "provider_runtime_aliases": if name == "web_tooling" { json!({"google":"gemini","xai":"grok","moonshot":"kimi"}) } else { Value::Null },
         "fields": fields,
         "setup_steps": setup_steps,
         "config_template": config_template
@@ -334,6 +363,7 @@ pub fn catalog() -> Vec<Value> {
         ("mumble", "Mumble", "streaming", "form"),
         ("mqtt", "MQTT", "streaming", "form"),
         ("snapchat", "Snapchat", "social", "oauth"),
+        ("web_tooling", "Web Tooling Runtime", "developer", "form"),
         // Enterprise PM + docs + repos
         ("mattermost", "Mattermost", "enterprise", "form"),
         ("zulip", "Zulip", "enterprise", "form"),
@@ -487,6 +517,31 @@ mod tests {
                 .get("external_network_required")
                 .and_then(Value::as_bool),
             Some(true)
+        );
+    }
+
+    #[test]
+    fn catalog_includes_web_tooling_runtime_metadata() {
+        let rows = catalog();
+        let web_tooling = rows
+            .iter()
+            .find(|row| row.get("name").and_then(Value::as_str) == Some("web_tooling"))
+            .cloned()
+            .unwrap_or_else(|| json!({}));
+        assert_eq!(
+            web_tooling.get("runtime_adapter").and_then(Value::as_str),
+            Some("web_tool_runtime")
+        );
+        assert!(web_tooling
+            .get("provider_runtime_defaults")
+            .and_then(Value::as_array)
+            .map(|rows| !rows.is_empty())
+            .unwrap_or(false));
+        assert_eq!(
+            web_tooling
+                .pointer("/provider_runtime_aliases/google")
+                .and_then(Value::as_str),
+            Some("gemini")
         );
     }
 }

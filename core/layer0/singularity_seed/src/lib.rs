@@ -10,6 +10,8 @@ use std::path::{Path, PathBuf};
 const BLOB_VERSION: u32 = 1;
 const MANIFEST_SIGNING_KEY: &str = "singularity-seed-manifest-signing-key-v1";
 const DRIFT_FAIL_CLOSED_THRESHOLD_PCT: f64 = 2.0;
+const MAX_DRIFT_OVERRIDES: usize = 64;
+const MAX_DRIFT_OVERRIDE_PCT: f64 = 100.0;
 
 pub const AUTOGENESIS_LOOP_ID: &str = "autogenesis_loop";
 pub const DUAL_BRAIN_LOOP_ID: &str = "dual_brain_loop";
@@ -175,6 +177,50 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
 
 fn round3(value: f64) -> f64 {
     (value * 1000.0).round() / 1000.0
+}
+
+fn normalize_loop_id(raw: &str) -> String {
+    raw.trim()
+        .chars()
+        .filter_map(|ch| {
+            if ch.is_ascii_alphanumeric() {
+                Some(ch.to_ascii_lowercase())
+            } else if matches!(ch, '_' | '-' | ' ') {
+                Some('_')
+            } else {
+                None
+            }
+        })
+        .collect::<String>()
+        .trim_matches('_')
+        .chars()
+        .take(96)
+        .collect::<String>()
+}
+
+fn is_known_loop_id(loop_id: &str) -> bool {
+    LOOP_IDS.contains(&loop_id)
+}
+
+fn normalize_cycle_request(request: CycleRequest) -> CycleRequest {
+    let mut deduped: HashMap<String, f64> = HashMap::new();
+    for override_item in request.drift_overrides.into_iter().take(MAX_DRIFT_OVERRIDES) {
+        let loop_id = normalize_loop_id(&override_item.loop_id);
+        if loop_id.is_empty() || !is_known_loop_id(&loop_id) || !override_item.drift_pct.is_finite() {
+            continue;
+        }
+        deduped.insert(loop_id, override_item.drift_pct.clamp(0.0, MAX_DRIFT_OVERRIDE_PCT));
+    }
+
+    let mut drift_overrides = deduped
+        .into_iter()
+        .map(|(loop_id, drift_pct)| DriftOverride {
+            loop_id,
+            drift_pct: round3(drift_pct),
+        })
+        .collect::<Vec<_>>();
+    drift_overrides.sort_by(|left, right| left.loop_id.cmp(&right.loop_id));
+    CycleRequest { drift_overrides }
 }
 
 fn manifest_signature(id: &str, hash: &str, version: u32) -> String {
@@ -400,11 +446,15 @@ fn evolve_state(state: &LoopState) -> LoopState {
 
 fn apply_drift_overrides(states: &mut [LoopState], overrides: &[DriftOverride]) {
     for override_item in overrides {
+        let loop_id = normalize_loop_id(&override_item.loop_id);
+        if loop_id.is_empty() || !is_known_loop_id(&loop_id) {
+            continue;
+        }
         if let Some(state) = states
             .iter_mut()
-            .find(|state| state.loop_id == override_item.loop_id)
+            .find(|state| state.loop_id == loop_id)
         {
-            state.drift_pct = round3(override_item.drift_pct.max(0.0));
+            state.drift_pct = round3(override_item.drift_pct.clamp(0.0, MAX_DRIFT_OVERRIDE_PCT));
             state.insights.push(format!(
                 "override_applied: drift_pct={:.3}",
                 state.drift_pct
@@ -525,11 +575,12 @@ pub fn freeze_seed() -> Result<CycleReport, SeedError> {
 pub fn run_guarded_cycle(request: &CycleRequest) -> Result<CycleReport, SeedError> {
     let root = blob_root();
     ensure_materialized(&root)?;
+    let normalized_request = normalize_cycle_request(request.clone());
 
     let (previous_states, previous_manifest) = load_states(&root)?;
 
     let mut evolved_states = previous_states.iter().map(evolve_state).collect::<Vec<_>>();
-    apply_drift_overrides(&mut evolved_states, &request.drift_overrides);
+    apply_drift_overrides(&mut evolved_states, &normalized_request.drift_overrides);
 
     let evolved_manifest = freeze_states(&evolved_states, &root)?;
     let (unfolded_states, unfolded_manifest) = load_states(&root)?;
@@ -656,8 +707,9 @@ pub fn run_guarded_cycle_json(request_json: &str) -> Result<String, SeedError> {
         serde_json::from_str(request_json)
             .map_err(|err| SeedError::InvalidRequest(format!("request_parse_failed:{err}")))?
     };
+    let normalized_request = normalize_cycle_request(request);
 
-    let report = run_guarded_cycle(&request)?;
+    let report = run_guarded_cycle(&normalized_request)?;
     serde_json::to_string(&report).map_err(|err| SeedError::SerializeFailed(err.to_string()))
 }
 
@@ -757,5 +809,29 @@ mod tests {
 
         std::env::remove_var("PROTHEUS_SINGULARITY_BLOB_DIR");
         let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn cycle_request_normalization_filters_unknown_or_invalid_overrides() {
+        let request = CycleRequest {
+            drift_overrides: vec![
+                DriftOverride {
+                    loop_id: " RED-LEGION LOOP ".to_string(),
+                    drift_pct: 2.4,
+                },
+                DriftOverride {
+                    loop_id: "unknown-loop".to_string(),
+                    drift_pct: 1.2,
+                },
+                DriftOverride {
+                    loop_id: DUAL_BRAIN_LOOP_ID.to_string(),
+                    drift_pct: f64::NAN,
+                },
+            ],
+        };
+        let normalized = normalize_cycle_request(request);
+        assert_eq!(normalized.drift_overrides.len(), 1);
+        assert_eq!(normalized.drift_overrides[0].loop_id, RED_LEGION_LOOP_ID);
+        assert_eq!(normalized.drift_overrides[0].drift_pct, 2.4);
     }
 }

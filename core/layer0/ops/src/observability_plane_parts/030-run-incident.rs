@@ -1,3 +1,71 @@
+fn normalize_web_tooling_provider(raw: Option<&String>) -> Option<String> {
+    let normalized = raw
+        .map(|value| value.trim().to_ascii_lowercase())
+        .unwrap_or_default();
+    if normalized.is_empty() {
+        return None;
+    }
+    let canonical = match normalized.as_str() {
+        "kimi" | "moonshot" => "moonshot",
+        "grok" | "xai" => "xai",
+        "duck_duck_go" | "duckduckgo" => "duckduckgo",
+        "brave_search" | "brave" => "brave",
+        _ => normalized.as_str(),
+    };
+    Some(clean(canonical.to_string(), 48))
+}
+
+fn normalize_web_tooling_incident_error(raw: Option<&String>) -> Option<String> {
+    let normalized = raw
+        .map(|value| value.trim().to_ascii_lowercase())
+        .unwrap_or_default();
+    if normalized.is_empty() {
+        return None;
+    }
+    let stable = if normalized.contains("invalid response attempt")
+        || normalized.contains("blocked the function calls")
+        || normalized.contains("wouldn't even attempt to execute")
+        || normalized.contains("preventing any web search operations")
+    {
+        "web_search_function_execution_blocked"
+    } else if normalized.contains("security") && normalized.contains("block") {
+        "web_search_policy_blocked"
+    } else if normalized.contains("low-signal")
+        || normalized.contains("no-result")
+        || normalized.contains("no result")
+    {
+        "web_search_low_signal"
+    } else if normalized.contains("auth") && normalized.contains("missing") {
+        "web_search_auth_missing"
+    } else {
+        "web_search_transport_or_runtime_error"
+    };
+    Some(stable.to_string())
+}
+
+fn count_web_tooling_incidents(state: &Value) -> usize {
+    state
+        .get("incidents")
+        .and_then(Value::as_object)
+        .map(|rows| {
+            rows.values()
+                .filter(|incident| {
+                    incident
+                        .get("domain")
+                        .and_then(Value::as_str)
+                        .map(|domain| domain == "web_tooling")
+                        .unwrap_or(false)
+                        || incident
+                            .get("web_tooling")
+                            .and_then(|v| v.get("detected"))
+                            .and_then(Value::as_bool)
+                            .unwrap_or(false)
+                })
+                .count()
+        })
+        .unwrap_or(0)
+}
+
 fn run_incident(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
     let contract = load_json_or(
         root,
@@ -56,6 +124,7 @@ fn run_incident(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value 
     }
 
     if op == "status" {
+        let web_tooling_incident_count = count_web_tooling_incidents(&state);
         let mut out = json!({
             "ok": true,
             "strict": strict,
@@ -72,7 +141,8 @@ fn run_incident(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value 
                             .get("incidents")
                             .and_then(Value::as_object)
                             .map(|m| m.len())
-                            .unwrap_or(0)
+                            .unwrap_or(0),
+                        "web_tooling_incident_count": web_tooling_incident_count
                     }
                 }
             ]
@@ -113,7 +183,7 @@ fn run_incident(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value 
             }),
             160,
         );
-        let requested_actions = {
+        let mut requested_actions = {
             let rows = split_actions(&action);
             if rows.is_empty() {
                 contract
@@ -129,6 +199,37 @@ fn run_incident(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value 
                 rows
             }
         };
+        let web_provider = normalize_web_tooling_provider(
+            parsed
+                .flags
+                .get("web-provider")
+                .or_else(|| parsed.flags.get("provider")),
+        );
+        let web_error = normalize_web_tooling_incident_error(
+            parsed
+                .flags
+                .get("web-error")
+                .or_else(|| parsed.flags.get("error"))
+                .or_else(|| parsed.flags.get("message")),
+        );
+        let web_query = parsed.flags.get("query").map(|raw| clean(raw.clone(), 280));
+        let web_incident_detected = web_provider.is_some()
+            || web_error.is_some()
+            || web_query
+                .as_ref()
+                .map(|value| !value.trim().is_empty())
+                .unwrap_or(false)
+            || incident_id.contains("web")
+            || runbook.to_ascii_lowercase().contains("web")
+            || requested_actions.iter().any(|step| step.contains("web"));
+        if web_incident_detected {
+            if !requested_actions.iter().any(|step| step == "snapshot") {
+                requested_actions.insert(0, "snapshot".to_string());
+            }
+            if !requested_actions.iter().any(|step| step == "log-capture") {
+                requested_actions.push("log-capture".to_string());
+            }
+        }
         let mut allowed_actions = contract
             .get("allowed_response_actions")
             .and_then(Value::as_array)
@@ -233,10 +334,17 @@ fn run_incident(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value 
         }
         let incident = json!({
             "incident_id": incident_id,
+            "domain": if web_incident_detected { "web_tooling" } else { "general" },
             "runbook": runbook,
             "action": action,
             "response_actions": requested_actions,
             "response_receipts": response_receipts,
+            "web_tooling": {
+                "detected": web_incident_detected,
+                "provider": web_provider,
+                "error": web_error,
+                "query": web_query
+            },
             "external_dispatch": {
                 "requested": external_dispatch.requested,
                 "mode": external_dispatch.mode,
@@ -280,7 +388,17 @@ fn run_incident(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value 
                         .get("response_actions")
                         .and_then(Value::as_array)
                             .map(|rows| rows.len())
-                            .unwrap_or(0)
+                            .unwrap_or(0),
+                    "web_tooling_detected": incident
+                        .get("web_tooling")
+                        .and_then(|v| v.get("detected"))
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false),
+                    "web_tooling_error": incident
+                        .get("web_tooling")
+                        .and_then(|v| v.get("error"))
+                        .cloned()
+                        .unwrap_or(Value::Null)
                     }
                 }
             ]
