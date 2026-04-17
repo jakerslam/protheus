@@ -5,16 +5,14 @@ fn integrity_execution_receipt(scope: &str, status: &str, error_kind: Option<&st
         "throttled" | "rate_limited" | "rate-limited" | "429" => "throttled",
         _ => "error",
     };
-    let normalized_error = error_kind.map(|raw| normalize_token(raw, 96));
+    let normalized_error = error_kind.map(|raw| clean(raw, 96).to_ascii_lowercase());
     let seed = json!({
         "scope": clean(scope, 96),
         "status": normalized_status,
         "error_kind": normalized_error
     });
-    let call_id = format!(
-        "integrity-{}",
-        &sha256_hex(&stable_json_string(&seed))[..16]
-    );
+    let call_id_seed = sha256_hex_bytes(stable_json_string(&seed).as_bytes());
+    let call_id = format!("integrity-{}", &call_id_seed[..16]);
     json!({
         "call_id": call_id,
         "status": normalized_status,

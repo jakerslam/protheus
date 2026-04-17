@@ -92,13 +92,13 @@ pub fn run_capability_lease(repo_root: &Path, argv: &[String]) -> (Value, i32) {
             let token = match lease_pack_token(&payload, &key) {
                 Ok(v) => v,
                 Err(err) => {
-                    let err_clean = clean(err, 220);
+                    let err_clean = clean(&err, 220);
                     return (
                         json!({
                             "ok": false,
                             "type": "capability_lease_issue",
                             "error": err_clean,
-                            "execution_receipt": execution_receipt("error", "sign_token", Some(err))
+                            "execution_receipt": execution_receipt("error", "sign_token", Some(&err))
                         }),
                         1,
                     );
@@ -127,8 +127,8 @@ pub fn run_capability_lease(repo_root: &Path, argv: &[String]) -> (Value, i32) {
                     json!({
                         "ok": false,
                         "type": "capability_lease_issue",
-                        "error": clean(err, 220),
-                        "execution_receipt": execution_receipt("error", "persist_issue_state", Some(err))
+                        "error": clean(&err, 220),
+                        "execution_receipt": execution_receipt("error", "persist_issue_state", Some(&err))
                     }),
                     1,
                 );
@@ -196,8 +196,8 @@ pub fn run_capability_lease(repo_root: &Path, argv: &[String]) -> (Value, i32) {
                         json!({
                             "ok": false,
                             "type": "capability_lease_verify",
-                            "error": clean(err, 220),
-                            "execution_receipt": execution_receipt("error", "sign_expected_token", Some(err))
+                            "error": clean(&err, 220),
+                            "execution_receipt": execution_receipt("error", "sign_expected_token", Some(&err))
                         }),
                         1,
                     );
@@ -329,8 +329,8 @@ pub fn run_capability_lease(repo_root: &Path, argv: &[String]) -> (Value, i32) {
                         json!({
                             "ok": false,
                             "type": "capability_lease_consume",
-                            "error": clean(err, 220),
-                            "execution_receipt": execution_receipt("error", "persist_consume_state", Some(err))
+                            "error": clean(&err, 220),
+                            "execution_receipt": execution_receipt("error", "persist_consume_state", Some(&err))
                         }),
                         1,
                     );

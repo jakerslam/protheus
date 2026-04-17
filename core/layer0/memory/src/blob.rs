@@ -4,6 +4,10 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use snap::raw::{Decoder, Encoder};
 use std::fmt::{Display, Formatter};
+use infring_types::{
+    compute_blob_manifest_signature, decode_signed_bincode_blob_manifest_with_adapter,
+    normalize_sha256_hash,
+};
 
 #[allow(dead_code)]
 pub(crate) fn contains_forbidden_runtime_context_marker(raw: &str) -> bool {
@@ -270,7 +274,8 @@ pub fn generate_manifest(blobs: &[(&str, &[u8])]) -> Vec<BlobManifest> {
         .iter()
         .map(|(blob_id, blob_bytes)| {
             let hash = sha256_hex(blob_bytes);
-            let signature = manifest_signature(blob_id, &hash, BLOB_VERSION);
+            let signature =
+                compute_blob_manifest_signature(blob_id, &hash, BLOB_VERSION, MANIFEST_SIGNING_KEY);
             BlobManifest {
                 id: (*blob_id).to_string(),
                 hash,
@@ -286,7 +291,18 @@ pub fn encode_manifest(entries: &[BlobManifest]) -> Result<Vec<u8>, BlobError> {
 }
 
 pub fn decode_manifest(bytes: &[u8]) -> Result<Vec<BlobManifest>, BlobError> {
-    bincode::deserialize(bytes).map_err(|e| BlobError::ManifestDecodeFailed(e.to_string()))
+    decode_signed_bincode_blob_manifest_with_adapter(
+        bytes,
+        96,
+        MANIFEST_SIGNING_KEY,
+        |entry| BlobManifest {
+            id: entry.id,
+            hash: entry.hash,
+            version: entry.version,
+            signature: Some(entry.signature),
+        },
+        BlobError::ManifestDecodeFailed,
+    )
 }
 
 pub fn load_embedded_heartbeat() -> Result<String, BlobError> {
@@ -333,11 +349,13 @@ pub fn unfold_blob_from_parts(
 
     verify_manifest_entry(entry)?;
 
-    if !entry.hash.eq_ignore_ascii_case(expected_hash) {
+    let normalized_expected_hash =
+        normalize_sha256_hash(expected_hash).unwrap_or_else(|| expected_hash.to_ascii_lowercase());
+    if entry.hash != normalized_expected_hash {
         return Err(BlobError::HashMismatch {
             scope: "expected_vs_manifest",
             expected: entry.hash.clone(),
-            actual: expected_hash.to_string(),
+            actual: normalized_expected_hash,
         });
     }
 
@@ -669,17 +687,17 @@ fn manifest_hash_for(manifest: &[BlobManifest], blob_id: &str) -> Result<String,
         .ok_or_else(|| BlobError::MissingManifestEntry(blob_id.to_string()))
 }
 
-fn manifest_signature(id: &str, hash: &str, version: u32) -> String {
-    let to_sign = format!("{id}:{hash}:{version}:{MANIFEST_SIGNING_KEY}");
-    sha256_hex(to_sign.as_bytes())
-}
-
 fn verify_manifest_entry(entry: &BlobManifest) -> Result<(), BlobError> {
     let actual = entry
         .signature
         .as_ref()
         .ok_or_else(|| BlobError::MissingSignature(entry.id.clone()))?;
-    let expected = manifest_signature(&entry.id, &entry.hash, entry.version);
+    let expected = compute_blob_manifest_signature(
+        &entry.id,
+        &entry.hash,
+        entry.version,
+        MANIFEST_SIGNING_KEY,
+    );
     if !actual.eq_ignore_ascii_case(&expected) {
         return Err(BlobError::SignatureMismatch {
             id: entry.id.clone(),

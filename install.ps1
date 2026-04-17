@@ -881,6 +881,7 @@ if /I "!_gateway_action!"=="start" (
     if /I "%%~A"=="--no-browser" set "_dashboard_open=0"
   )
   if "!_dashboard_open!"=="1" start "" "!_dashboard_url!" >nul 2>&1
+  echo P o w e r  T o  T h e  U s e r s
   echo [infring gateway] runtime started
   echo [infring gateway] dashboard: !_dashboard_url!
   if defined INFRING_WORKSPACE_ROOT echo [infring gateway] workspace: !INFRING_WORKSPACE_ROOT!
@@ -890,6 +891,7 @@ if /I "!_gateway_action!"=="start" (
   echo [infring gateway] runtime status received
   if defined INFRING_WORKSPACE_ROOT echo [infring gateway] workspace: !INFRING_WORKSPACE_ROOT!
 ) else if /I "!_gateway_action!"=="restart" (
+  echo P o w e r  T o  T h e  U s e r s
   echo [infring gateway] runtime restarted
 ) else (
   echo [infring gateway] action complete: !_gateway_action!

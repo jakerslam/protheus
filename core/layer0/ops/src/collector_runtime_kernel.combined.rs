@@ -101,16 +101,7 @@ fn is_transport_failure_code(code: &str) -> bool {
 }
 
 fn http_status_to_code(status: u64) -> &'static str {
-    match status {
-        401 => "auth_unauthorized",
-        403 => "auth_forbidden",
-        404 => "http_404",
-        408 => "timeout",
-        429 => "rate_limited",
-        500..=u64::MAX => "http_5xx",
-        400..=499 => "http_4xx",
-        _ => "http_error",
-    }
+    lane_utils::http_status_to_code(status)
 }
 
 fn normalize_node_code(raw: &str) -> String {

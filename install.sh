@@ -3922,6 +3922,7 @@ if [ "${1:-}" = "gateway" ]; then
     if [ "$legacy_supervisor_mode" = "1" ] && [ "$dashboard_watchdog_enabled" != "0" ]; then
       infring_gateway_watchdog_start "$dashboard_host" "$dashboard_port" "$dashboard_watchdog_interval" >/dev/null 2>&1 || true
     fi
+    echo "P o w e r  T o  T h e  U s e r s"
     if [ "$gateway_action" = "restart" ]; then
       echo "[infring gateway] runtime restarted"
     else

@@ -46,31 +46,7 @@ fn append_jsonl(path: &Path, row: &Value) {
 }
 
 fn parse_cli_flags(argv: &[String]) -> BTreeMap<String, String> {
-    let mut out = BTreeMap::new();
-    let mut i = 0usize;
-    while i < argv.len() {
-        let token = argv[i].trim();
-        if !token.starts_with("--") {
-            i += 1;
-            continue;
-        }
-        if let Some((k, v)) = token.split_once('=') {
-            out.insert(k.trim_start_matches("--").to_string(), v.to_string());
-            i += 1;
-            continue;
-        }
-        let key = token.trim_start_matches("--").to_string();
-        if let Some(next) = argv.get(i + 1) {
-            if !next.starts_with("--") {
-                out.insert(key, next.clone());
-                i += 2;
-                continue;
-            }
-        }
-        out.insert(key, "true".to_string());
-        i += 1;
-    }
-    out
+    crate::contract_lane_utils::parse_cli_flags(argv)
 }
 
 fn bool_from_env(name: &str) -> Option<bool> {
@@ -255,42 +231,7 @@ fn repo_root_from_current_dir() -> PathBuf {
 }
 
 fn resolve_protheus_ops_command(root: &PathBuf, domain: &str) -> (String, Vec<String>) {
-    let explicit = std::env::var("PROTHEUS_OPS_BIN").ok();
-    if let Some(bin) = explicit {
-        let trimmed = bin.trim();
-        if !trimmed.is_empty() {
-            return (trimmed.to_string(), vec![domain.to_string()]);
-        }
-    }
-
-    let release = root.join("target").join("release").join("protheus-ops");
-    if release.exists() {
-        return (
-            release.to_string_lossy().to_string(),
-            vec![domain.to_string()],
-        );
-    }
-    let debug = root.join("target").join("debug").join("protheus-ops");
-    if debug.exists() {
-        return (
-            debug.to_string_lossy().to_string(),
-            vec![domain.to_string()],
-        );
-    }
-
-    (
-        "cargo".to_string(),
-        vec![
-            "run".to_string(),
-            "--quiet".to_string(),
-            "--manifest-path".to_string(),
-            "core/layer0/ops/Cargo.toml".to_string(),
-            "--bin".to_string(),
-            "protheus-ops".to_string(),
-            "--".to_string(),
-            domain.to_string(),
-        ],
-    )
+    crate::contract_lane_utils::resolve_protheus_ops_command(root.as_path(), domain)
 }
 
 fn enqueue_attention(persona: &str, patch_hash: &str, run_context: &str) -> Result<Value, String> {

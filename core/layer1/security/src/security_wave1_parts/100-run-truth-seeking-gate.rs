@@ -227,7 +227,7 @@ pub fn run_truth_seeking_gate(repo_root: &Path, argv: &[String]) -> (Value, i32)
         "previous_message_hash": if previous_message.is_empty() {
             Value::Null
         } else {
-            Value::String(sha256_hex(previous_message.as_bytes()))
+            Value::String(sha256_hex(&previous_message))
         },
         "policy_enabled": policy.enabled,
         "decision": if allowed { "allow" } else { "deny" },

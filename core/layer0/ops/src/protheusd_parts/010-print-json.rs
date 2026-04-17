@@ -112,17 +112,7 @@ fn clean_token(raw: Option<&str>, fallback: &str) -> String {
 }
 
 fn clean_text(raw: Option<&str>, max_len: usize) -> String {
-    let mut out = String::new();
-    for ch in raw.unwrap_or("").trim().chars() {
-        if ch.is_control() && ch != '\n' && ch != '\t' {
-            continue;
-        }
-        out.push(ch);
-        if out.len() >= max_len {
-            break;
-        }
-    }
-    out
+    crate::contract_lane_utils::clean_text(raw, max_len)
 }
 
 fn parse_usize(raw: Option<&str>, fallback: usize, min: usize, max: usize) -> usize {

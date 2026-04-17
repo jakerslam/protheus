@@ -15,11 +15,7 @@ const TIME_INTERVAL_MS: i64 = 120_000;
 const MAX_AUTO_RETRIES: i64 = 1;
 
 fn print_json_line(value: &Value) {
-    println!(
-        "{}",
-        serde_json::to_string_pretty(value)
-            .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
-    );
+    crate::contract_lane_utils::print_json_line(value);
 }
 
 fn usage() {

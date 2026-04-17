@@ -29,15 +29,15 @@ fn usage() {
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {
-    lane_utils::cli_receipt(kind, payload)
+    crate::contract_lane_utils::cli_receipt(kind, payload)
 }
 
 fn cli_error(kind: &str, error: &str) -> Value {
-    lane_utils::cli_error(kind, error)
+    crate::contract_lane_utils::cli_error(kind, error)
 }
 
 fn print_json_line(value: &Value) {
-    lane_utils::print_json_line(value);
+    crate::contract_lane_utils::print_json_line(value);
 }
 
 fn payload_json(argv: &[String]) -> Result<Value, String> {
@@ -176,7 +176,7 @@ fn stable_id(prefix: &str, basis: &Value) -> String {
 }
 
 fn clean_text(raw: Option<&str>, max_len: usize) -> String {
-    lane_utils::clean_text(raw, max_len)
+    crate::contract_lane_utils::clean_text(raw, max_len)
 }
 
 fn clean_token(raw: Option<&str>, fallback: &str) -> String {

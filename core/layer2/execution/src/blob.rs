@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+#[cfg(test)]
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::fmt::{Display, Formatter};
+use infring_types::decode_normalized_blob_manifest;
 
 pub const EXECUTION_PROFILE_BLOB_ID: &str = "execution_runtime_profile";
 pub const EXECUTION_PROFILE_BLOB: &[u8] = include_bytes!("blobs/execution_runtime_profile.blob");
@@ -54,6 +56,7 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
     hex::encode(hasher.finalize())
 }
 
+#[cfg(test)]
 pub fn normalize_blob_status(raw: &str) -> &'static str {
     match raw.trim().to_ascii_lowercase().as_str() {
         "ok" | "success" | "succeeded" | "loaded" => "success",
@@ -63,6 +66,7 @@ pub fn normalize_blob_status(raw: &str) -> &'static str {
     }
 }
 
+#[cfg(test)]
 fn sanitize_token(raw: &str, max_len: usize) -> String {
     let mut out = String::with_capacity(raw.len().min(max_len));
     let mut prev_underscore = false;
@@ -88,6 +92,7 @@ fn sanitize_token(raw: &str, max_len: usize) -> String {
     out
 }
 
+#[cfg(test)]
 pub fn blob_execution_receipt(blob_id: &str, status: &str, error_kind: Option<&str>) -> Value {
     let normalized_status = normalize_blob_status(status);
     let normalized_blob_id = sanitize_token(blob_id, 80);
@@ -119,7 +124,17 @@ pub fn fold_blob<T: Serialize>(value: &T, _blob_id: &str) -> Result<(Vec<u8>, St
 }
 
 pub fn decode_manifest(bytes: &[u8]) -> Result<Vec<BlobManifest>, BlobError> {
-    serde_json::from_slice(bytes).map_err(|e| BlobError::ManifestDecodeFailed(e.to_string()))
+    decode_normalized_blob_manifest(bytes, 96)
+        .map_err(BlobError::ManifestDecodeFailed)
+        .map(|rows| {
+            rows.into_iter()
+                .map(|entry| BlobManifest {
+                    id: entry.id,
+                    hash: entry.hash,
+                    version: entry.version,
+                })
+                .collect::<Vec<_>>()
+        })
 }
 
 pub fn unfold_blob<T: DeserializeOwned>(bytes: &[u8], expected_hash: &str) -> Result<T, BlobError> {

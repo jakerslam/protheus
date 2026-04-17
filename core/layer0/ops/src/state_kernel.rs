@@ -39,11 +39,7 @@ fn receipt_hash(v: &Value) -> String {
 }
 
 fn print_json_line(value: &Value) {
-    println!(
-        "{}",
-        serde_json::to_string(value)
-            .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
-    );
+    crate::contract_lane_utils::print_json_line(value);
 }
 
 fn usage() {
@@ -104,17 +100,7 @@ fn cli_error_receipt(argv: &[String], err: &str, code: i32) -> Value {
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {
-    let ts = now_iso();
-    let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(true);
-    let mut out = json!({
-        "ok": ok,
-        "type": kind,
-        "ts": ts,
-        "date": ts[..10].to_string(),
-        "payload": payload,
-    });
-    out["receipt_hash"] = Value::String(receipt_hash(&out));
-    out
+    crate::contract_lane_utils::cli_receipt(kind, payload)
 }
 
 fn clean_text(raw: &str, max_len: usize) -> String {

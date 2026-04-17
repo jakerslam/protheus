@@ -563,67 +563,55 @@ fn run_turn_workflow_final_response(
                     &retried_text,
                 );
                 let prompt_echo_reply = response_prompt_echo_detected(message, &retried_text);
-                let receipt_mapped_sources = response_tools.iter().any(|row| {
-                    !clean_text(
-                        row.pointer("/tool_attempt_receipt/receipt_hash")
-                            .or_else(|| row.pointer("/tool_attempt_receipt/receipt_id"))
-                            .or_else(|| row.pointer("/tool_attempt_receipt/id"))
-                            .and_then(Value::as_str)
-                            .unwrap_or(""),
-                        80,
-                    )
-                    .is_empty()
-                });
+                let receipt_mapped_sources = response_tools
+                    .iter()
+                    .any(|row| !response_tool_receipt_id(row).is_empty());
                 let missing_evidence_tags = !response_tools.is_empty()
                     && !receipt_mapped_sources
                     && !response_has_evidence_tags(&retried_text);
                 let missing_direct_answer = !response_answers_user_early(message, &retried_text);
                 let direct_answer_in_first_two_sentences = !missing_direct_answer;
-                if retried_text.is_empty()
-                    || response_is_no_findings_placeholder(&retried_text)
-                    || response_looks_like_tool_ack_without_findings(&retried_text)
-                    || deferred_reply
-                    || (response_contains_speculative_web_blocker_language(&retried_text)
-                        && !has_structured_block_evidence)
-                    || off_topic_reply
-                    || low_alignment_reply
-                    || prompt_echo_reply
-                    || missing_direct_answer
-                {
-                    if deferred_reply {
-                        bump_workflow_quality_counter(&mut workflow, "deferred_reply_reject");
+                let rejects_base_contract = response_fails_base_final_answer_contract(&retried_text);
+                let rejects_speculative_blocker =
+                    response_contains_speculative_web_blocker_language(&retried_text)
+                        && !has_structured_block_evidence;
+                let reject_checks = [
+                    (deferred_reply, "deferred_reply", "deferred_reply_reject"),
+                    (off_topic_reply, "off_topic_reply", "off_topic_reject"),
+                    (low_alignment_reply, "low_alignment_reply", "alignment_reject"),
+                    (prompt_echo_reply, "prompt_echo_reply", "prompt_echo_reject"),
+                    (
+                        missing_direct_answer,
+                        "missing_direct_answer_reply",
+                        "direct_answer_reject",
+                    ),
+                    (retried_text.is_empty(), "empty_reply", ""),
+                    (
+                        response_is_no_findings_placeholder(&retried_text),
+                        "placeholder_reply",
+                        "",
+                    ),
+                    (
+                        response_looks_like_tool_ack_without_findings(&retried_text),
+                        "ack_only_reply",
+                        "",
+                    ),
+                    (
+                        rejects_speculative_blocker || rejects_base_contract,
+                        "invalid_reply",
+                        "",
+                    ),
+                ];
+                let (reject_reason, reject_counter) = reject_checks
+                    .into_iter()
+                    .find(|(should_reject, _, _)| *should_reject)
+                    .map(|(_, reason, counter)| (reason, counter))
+                    .unwrap_or(("", ""));
+                if !reject_reason.is_empty() {
+                    if !reject_counter.is_empty() {
+                        bump_workflow_quality_counter(&mut workflow, reject_counter);
                     }
-                    if off_topic_reply {
-                        bump_workflow_quality_counter(&mut workflow, "off_topic_reject");
-                    }
-                    if low_alignment_reply {
-                        bump_workflow_quality_counter(&mut workflow, "alignment_reject");
-                    }
-                    if prompt_echo_reply {
-                        bump_workflow_quality_counter(&mut workflow, "prompt_echo_reject");
-                    }
-                    if missing_direct_answer {
-                        bump_workflow_quality_counter(&mut workflow, "direct_answer_reject");
-                    }
-                    last_reject_reason = if deferred_reply {
-                        "deferred_reply".to_string()
-                    } else if off_topic_reply {
-                        "off_topic_reply".to_string()
-                    } else if low_alignment_reply {
-                        "low_alignment_reply".to_string()
-                    } else if prompt_echo_reply {
-                        "prompt_echo_reply".to_string()
-                    } else if missing_direct_answer {
-                        "missing_direct_answer_reply".to_string()
-                    } else if retried_text.is_empty() {
-                        "empty_reply".to_string()
-                    } else if response_is_no_findings_placeholder(&retried_text) {
-                        "placeholder_reply".to_string()
-                    } else if response_looks_like_tool_ack_without_findings(&retried_text) {
-                        "ack_only_reply".to_string()
-                    } else {
-                        "invalid_reply".to_string()
-                    };
+                    last_reject_reason = reject_reason.to_string();
                     last_invalid_excerpt = first_sentence(&retried_text, 240);
                     continue;
                 }

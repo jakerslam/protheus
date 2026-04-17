@@ -138,11 +138,7 @@ fn authorize_stomach_command_with_nexus(command: &str) -> Result<Value, String> 
 }
 
 fn print_json_line(value: &Value) {
-    println!(
-        "{}",
-        serde_json::to_string(value)
-            .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
-    );
+    crate::contract_lane_utils::print_json_line(value);
 }
 
 fn receipt_envelope(kind: &str, ok: bool) -> Value {

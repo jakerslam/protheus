@@ -303,11 +303,7 @@ fn status(policy: &Policy) -> Value {
 }
 
 fn print_json_line(value: &Value) {
-    println!(
-        "{}",
-        serde_json::to_string(value)
-            .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
-    );
+    crate::contract_lane_utils::print_json_line(value);
 }
 
 fn cli_error_receipt(argv: &[String], err: &str, code: i32) -> Value {

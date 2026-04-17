@@ -12,49 +12,7 @@ use std::process::Command;
 use crate::contract_lane_utils as lane_utils;
 
 pub fn clean_text(raw: Option<&str>, max_len: usize) -> String {
-    lane_utils::clean_text(raw, max_len)
-}
-
-pub fn clean_token(raw: Option<&str>, fallback: &str) -> String {
-    lane_utils::clean_token(raw, fallback)
-}
-
-pub fn now_iso() -> String {
-    Utc::now().to_rfc3339()
-}
-
-pub fn sha16(value: &str) -> String {
-    let digest = Sha256::digest(value.as_bytes());
-    hex::encode(digest)[..16].to_string()
-}
-
-pub fn as_u64(value: Option<&Value>, fallback: u64) -> u64 {
-    value.and_then(Value::as_u64).unwrap_or(fallback)
-}
-
-pub fn as_f64(value: Option<&Value>, fallback: f64) -> f64 {
-    value.and_then(Value::as_f64).unwrap_or(fallback)
-}
-
-pub fn as_bool(value: Option<&Value>, fallback: bool) -> bool {
-    value.and_then(Value::as_bool).unwrap_or(fallback)
-}
-
-pub fn resolve_state_dir(root: &Path, payload: &Map<String, Value>) -> PathBuf {
-    if let Some(raw) = payload.get("state_dir").and_then(Value::as_str) {
-        let trimmed = raw.trim();
-        if !trimmed.is_empty() {
-            let candidate = PathBuf::from(trimmed);
-            if candidate.is_absolute() {
-                return candidate;
-            }
-            return root.join(candidate);
-        }
-    }
-    root.join("local")
-        .join("state")
-        .join("sensory")
-        .join("eyes")
+    crate::contract_lane_utils::clean_text(raw, max_len)
 }
 
 fn sanitize_cache_key_token(raw: &str) -> String {

@@ -15,7 +15,7 @@ fn is_invisible_unicode(ch: char) -> bool {
 }
 
 fn strip_invisible_unicode(raw: &str) -> String {
-    raw.chars().filter(|ch| !is_invisible_unicode(*ch)).collect()
+    crate::contract_lane_utils::strip_invisible_unicode(raw)
 }
 
 fn parse_i64_loose(value: Option<&Value>) -> i64 {

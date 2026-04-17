@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
 use std::fmt::{Display, Formatter};
+use infring_types::decode_normalized_blob_manifest;
 
 pub const SWARM_STRATEGY_BLOB_ID: &str = "swarm_strategy";
 pub const SWARM_STRATEGY_BLOB: &[u8] = include_bytes!("blobs/swarm_strategy.blob");
@@ -78,13 +79,24 @@ pub fn generate_manifest(blobs: &[(&str, &[u8])]) -> Vec<BlobManifest> {
 }
 
 pub fn decode_manifest(bytes: &[u8]) -> Result<Vec<BlobManifest>, BlobError> {
-    let manifest: Vec<BlobManifest> = serde_json::from_slice(bytes)
-        .map_err(|e| BlobError::ManifestDecodeFailed(e.to_string()))?;
+    let raw_manifest: Vec<BlobManifest> =
+        serde_json::from_slice(bytes).map_err(|e| BlobError::ManifestDecodeFailed(e.to_string()))?;
     let mut seen = BTreeSet::<String>::new();
-    for entry in &manifest {
+    for entry in &raw_manifest {
         if !seen.insert(entry.id.clone()) {
             return Err(BlobError::DuplicateManifestEntry(entry.id.clone()));
         }
+    }
+    let manifest = decode_normalized_blob_manifest(bytes, 96)
+        .map_err(BlobError::ManifestDecodeFailed)?
+        .into_iter()
+        .map(|entry| BlobManifest {
+            id: entry.id,
+            hash: entry.hash,
+            version: entry.version,
+        })
+        .collect::<Vec<_>>();
+    for entry in &manifest {
         if entry.version != 1 {
             return Err(BlobError::UnsupportedManifestVersion {
                 id: entry.id.clone(),

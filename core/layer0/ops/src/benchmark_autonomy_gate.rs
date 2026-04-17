@@ -11,7 +11,7 @@ use std::thread;
 use std::time::Duration;
 
 use crate::contract_lane_utils as lane_utils;
-use crate::{deterministic_receipt_hash, now_iso};
+use crate::now_iso;
 
 const POLICY_REL: &str = "client/runtime/config/benchmark_autonomy_gate_policy.json";
 const LATEST_REL: &str = "local/state/ops/benchmark_autonomy_gate/latest.json";
@@ -54,39 +54,15 @@ impl Default for Policy {
 }
 
 fn print_json_line(value: &Value) {
-    println!(
-        "{}",
-        serde_json::to_string(value)
-            .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
-    );
+    crate::contract_lane_utils::print_json_line(value);
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {
-    let ts = now_iso();
-    let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(true);
-    let mut out = json!({
-        "ok": ok,
-        "type": kind,
-        "ts": ts,
-        "date": ts[..10].to_string(),
-        "payload": payload,
-    });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
-    out
+    crate::contract_lane_utils::cli_receipt(kind, payload)
 }
 
 fn cli_error(kind: &str, error: &str) -> Value {
-    let ts = now_iso();
-    let mut out = json!({
-        "ok": false,
-        "type": kind,
-        "ts": ts,
-        "date": ts[..10].to_string(),
-        "error": error,
-        "fail_closed": true,
-    });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
-    out
+    crate::contract_lane_utils::cli_error(kind, error)
 }
 
 fn parse_bool(raw: Option<&str>, fallback: bool) -> bool {

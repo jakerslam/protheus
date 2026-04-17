@@ -4,6 +4,10 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use snap::raw::{Decoder, Encoder};
 use std::fmt::{Display, Formatter};
+use infring_types::{
+    compute_blob_manifest_signature, decode_signed_bincode_blob_manifest_with_adapter,
+    normalize_blob_id as normalize_blob_id_shared,
+};
 
 pub const MANIFEST: &[u8] = include_bytes!("manifest.blob");
 pub const MOCK_MEMORY_STATE_BLOB: &[u8] = include_bytes!("blobs/mock_memory_state.blob");
@@ -151,38 +155,8 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
     hex::encode(hasher.finalize())
 }
 
-fn strip_invisible_unicode(input: &str) -> String {
-    input
-        .chars()
-        .filter(|ch| {
-            !matches!(
-                *ch,
-                '\u{200B}'
-                    | '\u{200C}'
-                    | '\u{200D}'
-                    | '\u{200E}'
-                    | '\u{200F}'
-                    | '\u{202A}'
-                    | '\u{202B}'
-                    | '\u{202C}'
-                    | '\u{202D}'
-                    | '\u{202E}'
-                    | '\u{2060}'
-                    | '\u{FEFF}'
-            )
-        })
-        .collect::<String>()
-}
-
 fn normalize_blob_id(raw: &str) -> String {
-    strip_invisible_unicode(raw)
-        .chars()
-        .filter(|ch| !ch.is_control() || *ch == '\n' || *ch == '\t')
-        .collect::<String>()
-        .trim()
-        .chars()
-        .take(96)
-        .collect::<String>()
+    normalize_blob_id_shared(raw, 96).unwrap_or_default()
 }
 
 pub fn fold_blob<T: Serialize>(data: &T, blob_id: &str) -> Result<(Vec<u8>, String), BlobError> {
@@ -213,7 +187,12 @@ pub fn generate_manifest(blobs: &[(&str, &[u8])]) -> Vec<BlobManifest> {
         .map(|(blob_id, blob_bytes)| {
             let normalized_blob_id = normalize_blob_id(blob_id);
             let hash = sha256_hex(blob_bytes);
-            let signature = manifest_signature(&normalized_blob_id, &hash, BLOB_VERSION);
+            let signature = compute_blob_manifest_signature(
+                &normalized_blob_id,
+                &hash,
+                BLOB_VERSION,
+                MANIFEST_SIGNING_KEY,
+            );
             BlobManifest {
                 id: normalized_blob_id,
                 hash,
@@ -229,7 +208,18 @@ pub fn encode_manifest(entries: &[BlobManifest]) -> Result<Vec<u8>, BlobError> {
 }
 
 pub fn decode_manifest(bytes: &[u8]) -> Result<Vec<BlobManifest>, BlobError> {
-    bincode::deserialize(bytes).map_err(|e| BlobError::ManifestDecodeFailed(e.to_string()))
+    decode_signed_bincode_blob_manifest_with_adapter(
+        bytes,
+        96,
+        MANIFEST_SIGNING_KEY,
+        |entry| BlobManifest {
+            id: entry.id,
+            hash: entry.hash,
+            version: entry.version,
+            signature: Some(entry.signature),
+        },
+        BlobError::ManifestDecodeFailed,
+    )
 }
 
 pub fn load_manifest() -> Result<Vec<BlobManifest>, BlobError> {
@@ -395,17 +385,17 @@ pub fn build_demo_bundle() -> Result<DemoBundle, BlobError> {
     })
 }
 
-fn manifest_signature(id: &str, hash: &str, version: u32) -> String {
-    let to_sign = format!("{id}:{hash}:{version}:{MANIFEST_SIGNING_KEY}");
-    sha256_hex(to_sign.as_bytes())
-}
-
 fn verify_manifest_entry(entry: &BlobManifest) -> Result<(), BlobError> {
     let actual = entry
         .signature
         .as_ref()
         .ok_or_else(|| BlobError::MissingSignature(entry.id.clone()))?;
-    let expected = manifest_signature(&entry.id, &entry.hash, entry.version);
+    let expected = compute_blob_manifest_signature(
+        &entry.id,
+        &entry.hash,
+        entry.version,
+        MANIFEST_SIGNING_KEY,
+    );
     if !actual.eq_ignore_ascii_case(&expected) {
         return Err(BlobError::SignatureMismatch {
             id: entry.id.clone(),

@@ -597,23 +597,42 @@ fn finalize_message_invoke_failure_and_payload(
         enforce_user_facing_finalization_contract(message, repaired_response, &[]);
     finalization_outcome = merge_response_outcomes(&finalization_outcome, &repair_outcome, 220);
     finalization_outcome = merge_response_outcomes(&finalization_outcome, &contract_outcome, 220);
-    let response_finalization = json!({
-        "applied": true,
-        "outcome": finalization_outcome,
-        "initial_ack_only": false,
-        "final_ack_only": response_looks_like_tool_ack_without_findings(&finalized_response),
-        "findings_available": false,
-        "tool_completion": tool_completion,
-        "retry_attempted": false,
-        "retry_used": false,
-        "tool_synthesis_retry_used": false,
-        "synthesis_retry_used": false,
-        "tooling_fallback_used": false,
-        "comparative_fallback_used": comparative_repair_used,
-        "workflow_system_fallback_used": workflow_system_fallback_used,
-        "visible_response_repaired": repair_outcome != "unchanged",
-        "initial_model_invoke_failed": true
+    let response_quality_telemetry = json!({});
+    let tooling_invariant = json!({
+        "tool_attempted": false,
+        "tool_blocked": false,
+        "low_signal": false,
+        "classification": "no_tooling",
+        "failure_code": "",
+        "invariant_repair_used": false
     });
+    let web_invariant = json!({
+        "requires_live_web": false,
+        "intent_source": "none",
+        "intent_confidence": 0.0,
+        "selected_route": "none",
+        "tool_attempted": false,
+        "tool_blocked": false,
+        "low_signal": false,
+        "classification": "none",
+        "failure_code": "",
+        "forced_fallback_attempted": false,
+        "invariant_repair_used": false
+    });
+    let mut response_finalization = build_response_finalization_payload(
+        &finalization_outcome,
+        false,
+        response_looks_like_tool_ack_without_findings(&finalized_response),
+        &tool_completion,
+        false,
+        comparative_repair_used,
+        workflow_system_fallback_used,
+        repair_outcome != "unchanged",
+        &response_quality_telemetry,
+        &tooling_invariant,
+        &web_invariant,
+    );
+    response_finalization["initial_model_invoke_failed"] = Value::Bool(true);
     let process_summary =
         build_turn_process_summary(message, &[], &response_workflow, &response_finalization);
     let turn_transaction = crate::dashboard_tool_turn_loop::turn_transaction_payload(
@@ -623,22 +642,18 @@ fn finalize_message_invoke_failure_and_payload(
         "complete",
     );
     let terminal_transcript = Vec::<Value>::new();
-    let mut turn_receipt = append_turn_message(root, agent_id, message, &finalized_response);
-    turn_receipt["assistant_turn_patch"] = persist_last_assistant_turn_metadata(
+    let turn_receipt = append_turn_receipt_with_metadata(
         root,
         agent_id,
+        message,
         &finalized_response,
-        &json!({
-            "tools": [],
-            "response_workflow": response_workflow.clone(),
-            "response_finalization": response_finalization.clone(),
-            "process_summary": process_summary.clone(),
-            "turn_transaction": turn_transaction.clone(),
-            "terminal_transcript": terminal_transcript.clone()
-        }),
+        json!([]),
+        &response_workflow,
+        &response_finalization,
+        &process_summary,
+        &turn_transaction,
+        &terminal_transcript,
     );
-    turn_receipt["process_summary"] = process_summary.clone();
-    turn_receipt["response_finalization"] = response_finalization.clone();
     CompatApiResponse {
         status: 200,
         payload: json!({
@@ -1009,88 +1024,55 @@ fn finalize_message_finalization_and_payload(
         );
     } else if web_tool_attempted
         && (web_tool_blocked || web_tool_low_signal || !web_failure_code.is_empty())
-        && !web_failure_code.is_empty()
-        && !response_text
-            .to_ascii_lowercase()
-            .contains(&web_failure_code.to_ascii_lowercase())
     {
-        response_text = trim_text(
-            &format!(
-                "{}\n\nweb_status: {}\nerror_code: {}",
-                response_text, web_turn_classification, web_failure_code
-            ),
-            32_000,
+        let (next_response, repaired) = append_failure_status_line_if_missing(
+            response_text,
+            &web_turn_classification,
+            &web_failure_code,
+            "web_status",
         );
-        web_invariant_repair_used = true;
-        final_fallback_used = true;
-        finalization_outcome = merge_response_outcomes(
-            &finalization_outcome,
-            "web_failure_code_appended",
-            200,
-        );
+        response_text = next_response;
+        if repaired {
+            web_invariant_repair_used = true;
+            final_fallback_used = true;
+            finalization_outcome = merge_response_outcomes(
+                &finalization_outcome,
+                "web_failure_code_appended",
+                200,
+            );
+        }
     }
-    if tooling_attempted
-        && !tooling_failure_code.is_empty()
-        && !response_text
-            .to_ascii_lowercase()
-            .contains(&tooling_failure_code.to_ascii_lowercase())
-    {
-        response_text = trim_text(
-            &format!(
-                "{}\n\ntool_status: {}\nerror_code: {}",
-                response_text, tooling_turn_classification, tooling_failure_code
-            ),
-            32_000,
+    if tooling_attempted {
+        let (next_response, repaired) = append_failure_status_line_if_missing(
+            response_text,
+            &tooling_turn_classification,
+            &tooling_failure_code,
+            "tool_status",
         );
-        tooling_invariant_repair_used = true;
-        final_fallback_used = true;
-        finalization_outcome = merge_response_outcomes(
-            &finalization_outcome,
-            "tooling_failure_code_appended",
-            200,
-        );
+        response_text = next_response;
+        if repaired {
+            tooling_invariant_repair_used = true;
+            final_fallback_used = true;
+            finalization_outcome = merge_response_outcomes(
+                &finalization_outcome,
+                "tooling_failure_code_appended",
+                200,
+            );
+        }
     }
-    let final_contract_violation = response_text.trim().is_empty()
-        || response_is_no_findings_placeholder(&response_text)
-        || response_looks_like_tool_ack_without_findings(&response_text)
-        || response_is_deferred_execution_preamble(&response_text)
-        || response_is_deferred_retry_prompt(&response_text)
+    let final_contract_violation = response_fails_base_final_answer_contract(&response_text)
         || workflow_response_requests_more_tooling(&response_text);
     if final_contract_violation {
-        let mut deterministic_fallback = clean_text(
-            &response_tools_failure_reason_for_user(&response_tools, 4),
-            4_000,
+        response_text = build_deterministic_final_fallback_response(
+            &response_tools,
+            web_intent_detected,
+            &web_turn_classification,
+            &web_failure_code,
+            tooling_attempted,
+            &tooling_turn_classification,
+            &tooling_failure_code,
+            inline_tools_allowed,
         );
-        if deterministic_fallback.is_empty() {
-            deterministic_fallback =
-                clean_text(&response_tools_summary_for_user(&response_tools, 4), 4_000);
-        }
-        if deterministic_fallback.is_empty() && web_intent_detected {
-            let stable_error = if web_failure_code.is_empty() {
-                "web_tool_error".to_string()
-            } else {
-                web_failure_code.clone()
-            };
-            deterministic_fallback = format!(
-                "Web retrieval did not produce a usable final answer in this turn. web_status: {}. error_code: {}. Next step: retry with a narrower query or provide one trusted source URL.",
-                web_turn_classification, stable_error
-            );
-        }
-        if deterministic_fallback.is_empty() && tooling_attempted && !tooling_failure_code.is_empty()
-        {
-            deterministic_fallback = format!(
-                "Tool execution did not produce a usable final answer in this turn. tool_status: {}. error_code: {}. Next step: run one targeted tool call with explicit scope.",
-                tooling_turn_classification, tooling_failure_code
-            );
-        }
-        if deterministic_fallback.is_empty() && response_tools.is_empty() && !inline_tools_allowed {
-            deterministic_fallback =
-                "I can answer directly without tool calls. Ask your question naturally and I’ll respond conversationally unless you explicitly request a tool run.".to_string();
-        }
-        if deterministic_fallback.is_empty() {
-            deterministic_fallback = "I completed the workflow, but synthesis could not produce a valid final response in this turn. Please retry and I’ll rerun the chain with explicit failure details.".to_string();
-        }
-        response_text = clean_chat_text(&deterministic_fallback, 32_000);
         final_fallback_used = true;
         finalization_outcome = merge_response_outcomes(
             &finalization_outcome,
@@ -1114,80 +1096,51 @@ fn finalize_message_finalization_and_payload(
         0.0
     };
     response_workflow["quality_telemetry"]["final_fallback_used"] = Value::Bool(final_fallback_used);
-    let off_topic_reject = response_workflow_quality_count(&response_workflow, "off_topic_reject");
-    let deferred_reply_reject =
-        response_workflow_quality_count(&response_workflow, "deferred_reply_reject");
-    let alignment_reject = response_workflow_quality_count(&response_workflow, "alignment_reject");
-    let prompt_echo_reject =
-        response_workflow_quality_count(&response_workflow, "prompt_echo_reject");
-    let unsourced_claim_reject =
-        response_workflow_quality_count(&response_workflow, "unsourced_claim_reject");
-    let direct_answer_reject =
-        response_workflow_quality_count(&response_workflow, "direct_answer_reject");
-    let meta_control_tool_block =
-        response_workflow_quality_flag(&response_workflow, "meta_control_tool_block");
     let final_ack_only = response_looks_like_tool_ack_without_findings(&response_text);
-    let response_quality_telemetry = json!({
-        "off_topic_reject": off_topic_reject,
-        "deferred_reply_reject": deferred_reply_reject,
-        "alignment_reject": alignment_reject,
-        "prompt_echo_reject": prompt_echo_reject,
-        "unsourced_claim_reject": unsourced_claim_reject,
-        "direct_answer_reject": direct_answer_reject,
-        "meta_control_tool_block": meta_control_tool_block,
-        "final_fallback_used": final_fallback_used,
-        "tooling_contract_repair_used": tooling_invariant_repair_used,
-        "tooling_failure_code_present": !tooling_failure_code.is_empty(),
-        "direct_answer_rate": direct_answer_rate,
-        "retry_rate": retry_rate,
-        "tool_overcall_rate": tool_overcall_rate,
-        "off_topic_reject_rate": off_topic_reject_rate
+    let response_quality_telemetry = build_response_quality_telemetry_payload(
+        &response_workflow,
+        final_fallback_used,
+        tooling_invariant_repair_used,
+        &tooling_failure_code,
+        direct_answer_rate,
+        retry_rate,
+        tool_overcall_rate,
+        off_topic_reject_rate,
+    );
+    let tooling_invariant = json!({
+        "tool_attempted": tooling_attempted,
+        "tool_blocked": tooling_blocked,
+        "low_signal": tooling_low_signal,
+        "classification": tooling_turn_classification,
+        "failure_code": tooling_failure_code,
+        "invariant_repair_used": tooling_invariant_repair_used
     });
-    let response_finalization = json!({
-        "applied": finalization_outcome != "unchanged",
-        "outcome": finalization_outcome,
-        "initial_ack_only": initial_ack_only,
-        "final_ack_only": final_ack_only,
-        "findings_available": tool_completion
-            .get("findings_available")
-            .and_then(Value::as_bool)
-            .unwrap_or(false),
-        "tool_completion": tool_completion,
-        "final_answer_contract": tool_completion
-            .get("final_answer_contract")
-            .cloned()
-            .unwrap_or_else(|| json!({})),
-        "retry_attempted": false,
-        "retry_used": false,
-        "tool_synthesis_retry_used": false,
-        "synthesis_retry_used": false,
-        "tooling_fallback_used": tooling_fallback_used,
-        "comparative_fallback_used": comparative_fallback_used,
-        "workflow_system_fallback_used": workflow_system_fallback_used,
-        "visible_response_repaired": visible_response_repaired,
-        "response_quality_telemetry": response_quality_telemetry.clone(),
-        "tooling_invariant": {
-            "tool_attempted": tooling_attempted,
-            "tool_blocked": tooling_blocked,
-            "low_signal": tooling_low_signal,
-            "classification": tooling_turn_classification,
-            "failure_code": tooling_failure_code,
-            "invariant_repair_used": tooling_invariant_repair_used
-        },
-        "web_invariant": {
-            "requires_live_web": web_intent_detected,
-            "intent_source": web_intent_source,
-            "intent_confidence": web_intent_confidence,
-            "selected_route": web_intent_route.clone(),
-            "tool_attempted": web_tool_attempted,
-            "tool_blocked": web_tool_blocked,
-            "low_signal": web_tool_low_signal,
-            "classification": web_turn_classification,
-            "failure_code": web_failure_code,
-            "forced_fallback_attempted": web_forced_fallback_attempted,
-            "invariant_repair_used": web_invariant_repair_used
-        }
+    let web_invariant = json!({
+        "requires_live_web": web_intent_detected,
+        "intent_source": web_intent_source,
+        "intent_confidence": web_intent_confidence,
+        "selected_route": web_intent_route.clone(),
+        "tool_attempted": web_tool_attempted,
+        "tool_blocked": web_tool_blocked,
+        "low_signal": web_tool_low_signal,
+        "classification": web_turn_classification,
+        "failure_code": web_failure_code,
+        "forced_fallback_attempted": web_forced_fallback_attempted,
+        "invariant_repair_used": web_invariant_repair_used
     });
+    let response_finalization = build_response_finalization_payload(
+        &finalization_outcome,
+        initial_ack_only,
+        final_ack_only,
+        &tool_completion,
+        tooling_fallback_used,
+        comparative_fallback_used,
+        workflow_system_fallback_used,
+        visible_response_repaired,
+        &response_quality_telemetry,
+        &tooling_invariant,
+        &web_invariant,
+    );
     let process_summary =
         build_turn_process_summary(message, &response_tools, &response_workflow, &response_finalization);
     let turn_transaction = crate::dashboard_tool_turn_loop::turn_transaction_payload(
@@ -1201,22 +1154,18 @@ fn finalize_message_finalization_and_payload(
         "complete",
     );
     let terminal_transcript = tool_terminal_transcript(&response_tools);
-    let mut turn_receipt = append_turn_message(root, agent_id, message, &response_text);
-    turn_receipt["assistant_turn_patch"] = persist_last_assistant_turn_metadata(
+    let turn_receipt = append_turn_receipt_with_metadata(
         root,
         agent_id,
+        message,
         &response_text,
-        &json!({
-            "tools": response_tools.clone(),
-            "response_workflow": response_workflow.clone(),
-            "response_finalization": response_finalization.clone(),
-            "process_summary": process_summary.clone(),
-            "turn_transaction": turn_transaction.clone(),
-            "terminal_transcript": terminal_transcript.clone()
-        }),
+        Value::Array(response_tools.clone()),
+        &response_workflow,
+        &response_finalization,
+        &process_summary,
+        &turn_transaction,
+        &terminal_transcript,
     );
-    turn_receipt["process_summary"] = process_summary.clone();
-    turn_receipt["response_finalization"] = response_finalization.clone();
     let runtime_model = clean_text(
         result
             .get("runtime_model")

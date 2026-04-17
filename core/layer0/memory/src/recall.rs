@@ -81,7 +81,9 @@ fn wrap_external_untrusted_content(raw: &str) -> (String, bool) {
         .chars()
         .take(MAX_HIT_CONTENT_CHARS)
         .collect::<String>();
-    (bounded, truncated || wrapped.chars().count() > bounded.chars().count())
+    let wrapped_len = wrapped.chars().count();
+    let bounded_len = bounded.chars().count();
+    (bounded, truncated || wrapped_len > bounded_len)
 }
 
 fn to_hit(row: MemoryRow) -> RecallHit {

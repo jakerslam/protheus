@@ -47,15 +47,7 @@ fn bridge_path_flag(
     payload_key: &str,
     default_rel: &str,
 ) -> PathBuf {
-    lane_utils::parse_flag(argv, flag, false)
-        .or_else(|| {
-            payload
-                .get(payload_key)
-                .and_then(Value::as_str)
-                .map(ToString::to_string)
-        })
-        .map(|raw| repo_path(root, &raw))
-        .unwrap_or_else(|| root.join(default_rel))
+    lane_utils::path_flag(root, argv, payload, flag, payload_key, default_rel)
 }
 
 fn state_path(root: &Path, argv: &[String], payload: &Map<String, Value>) -> PathBuf {

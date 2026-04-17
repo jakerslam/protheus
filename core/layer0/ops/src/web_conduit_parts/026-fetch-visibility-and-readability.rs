@@ -58,20 +58,7 @@ fn regex_style_clip_path_hidden() -> &'static Regex {
 }
 
 fn strip_invisible_unicode(raw: &str) -> String {
-    raw.chars()
-        .filter(|ch| {
-            let value = *ch;
-            !matches!(
-                value,
-                '\u{200B}'..='\u{200F}'
-                    | '\u{202A}'..='\u{202E}'
-                    | '\u{2060}'..='\u{2064}'
-                    | '\u{206A}'..='\u{206F}'
-                    | '\u{FEFF}'
-                    | '\u{E0000}'..='\u{E007F}'
-            ) && (!value.is_control() || matches!(value, '\n' | '\r' | '\t'))
-        })
-        .collect::<String>()
+    crate::contract_lane_utils::strip_invisible_unicode(raw)
 }
 
 fn html_hidden_class_tokens(value: &str) -> bool {

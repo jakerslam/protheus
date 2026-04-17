@@ -125,31 +125,7 @@ fn append_jsonl(path: &Path, row: &Value) {
 }
 
 fn parse_cli_flags(argv: &[String]) -> BTreeMap<String, String> {
-    let mut out = BTreeMap::new();
-    let mut i = 0usize;
-    while i < argv.len() {
-        let token = argv[i].trim();
-        if !token.starts_with("--") {
-            i += 1;
-            continue;
-        }
-        if let Some((k, v)) = token.split_once('=') {
-            out.insert(k.trim_start_matches("--").to_string(), v.to_string());
-            i += 1;
-            continue;
-        }
-        let key = token.trim_start_matches("--").to_string();
-        if let Some(next) = argv.get(i + 1) {
-            if !next.starts_with("--") {
-                out.insert(key, next.clone());
-                i += 2;
-                continue;
-            }
-        }
-        out.insert(key, "true".to_string());
-        i += 1;
-    }
-    out
+    crate::contract_lane_utils::parse_cli_flags(argv)
 }
 
 fn bool_from_env(name: &str) -> Option<bool> {

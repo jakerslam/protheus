@@ -13,11 +13,7 @@ pub struct LaneSpec<'a> {
 }
 
 fn print_json_line(value: &Value) {
-    println!(
-        "{}",
-        serde_json::to_string(value)
-            .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
-    );
+    crate::contract_lane_utils::print_json_line(value);
 }
 
 fn passthrough_flag_map(argv: &[String], keys: &[&str]) -> Value {

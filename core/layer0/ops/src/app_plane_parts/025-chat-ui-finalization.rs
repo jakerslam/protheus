@@ -109,9 +109,17 @@ fn chat_ui_response_matches_previous_message(user_message: &str, response_text: 
     if response_terms.is_empty() {
         return false;
     }
-    user_terms
+    let overlap_count = user_terms
         .iter()
-        .any(|term| response_terms.iter().any(|candidate| candidate == term))
+        .filter(|term| response_terms.iter().any(|candidate| candidate == *term))
+        .count();
+    if overlap_count == 0 {
+        return false;
+    }
+    if user_terms.len() >= 3 && response_terms.len() >= 18 && overlap_count < 2 {
+        return false;
+    }
+    true
 }
 
 fn chat_ui_contains_kernel_patch_thread_dump(user_message: &str, response_text: &str) -> bool {
@@ -362,7 +370,7 @@ fn chat_ui_looks_like_deferred_retry_prompt(text: &str) -> bool {
         || lowered.contains("source url")
 }
 
-fn chat_ui_looks_like_unrelated_programming_dump(text: &str) -> bool {
+fn chat_ui_looks_like_unrelated_programming_dump(user_message: &str, text: &str) -> bool {
     let lowered = clean(text, 12_000).to_ascii_lowercase();
     if lowered.is_empty() {
         return false;
@@ -378,11 +386,33 @@ fn chat_ui_looks_like_unrelated_programming_dump(text: &str) -> bool {
         "sample output:",
         "智能推荐",
         "猜你喜欢",
+        "page id",
+        "convolution theorem",
+        "laplace transform",
+        "hc2017hcc98",
+        "__c 0.0",
+        "implement a supported rust route for `tool::spawn_subagents",
+        "run improve command-to-route mapping for higher supported tool hit rate",
+        "run `infring web search` as the next safe step",
     ]
     .iter()
     .filter(|marker| lowered.contains(**marker))
     .count();
-    marker_hits >= 2
+    if marker_hits < 2 {
+        return false;
+    }
+    let user_lowered = clean(user_message, 1_200).to_ascii_lowercase();
+    let user_requested_content = user_lowered.contains("laplace")
+        || user_lowered.contains("convolution theorem")
+        || user_lowered.contains("input specification")
+        || user_lowered.contains("sample input")
+        || user_lowered.contains("java")
+        || user_lowered.contains("python")
+        || user_lowered.contains("salesforce")
+        || user_lowered.contains("__c")
+        || user_lowered.contains("spawn_subagents")
+        || user_lowered.contains("command-to-route mapping");
+    !user_requested_content
 }
 
 fn chat_ui_partial_framework_coverage_summary(rows: &[Value]) -> Option<String> {
@@ -510,6 +540,7 @@ fn finalize_chat_ui_assistant_response(
     let partial_framework_coverage = chat_ui_partial_framework_coverage_summary(tools);
     let unrelated_context_dump = chat_ui_contains_kernel_patch_thread_dump(user_message, &cleaned)
         || chat_ui_contains_role_preamble_prompt_dump(user_message, &cleaned)
+        || chat_ui_looks_like_unrelated_programming_dump(user_message, &cleaned)
         || crate::tool_output_match_filter::contains_forbidden_runtime_context_markers(&cleaned);
     if unrelated_context_dump {
         if let Some(summary) = partial_framework_coverage.clone() {
@@ -565,8 +596,8 @@ fn finalize_chat_ui_assistant_response(
         || crate::tool_output_match_filter::matches_ack_placeholder(&cleaned)
         || chat_ui_looks_like_deferred_execution_preamble(&cleaned)
         || chat_ui_looks_like_deferred_retry_prompt(&cleaned)
-        || chat_ui_looks_like_unrelated_programming_dump(&cleaned)
-        || (cleaned.len() > 220
+        || chat_ui_looks_like_unrelated_programming_dump(user_message, &cleaned)
+        || (cleaned.len() > 80
             && !chat_ui_response_matches_previous_message(user_message, &cleaned));
     if !low_signal {
         let lowered = cleaned.to_ascii_lowercase();
