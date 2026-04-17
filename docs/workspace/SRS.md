@@ -15766,3 +15766,20 @@ Source summary:
   - `tests/tooling/scripts/ci/reliability_turn_loop_gauntlet.ts`
   - `tests/tooling/scripts/ci/runtime_proof_release_gate.ts`
   - `tests/tooling/config/release_gates.yaml`
+
+### 2026-04-17 Runtime Proof Artifact Refresh + Queue Backpressure Calibration Addendum (V11-WEB-WORKFLOW-005)
+
+- Intent:
+  - Make runtime-proof release gating robust and reproducible by eliminating stale-artifact dependence, hardening adapter chaos baseline execution against state-buffer blowups, and calibrating queue-saturation simulation to reflect bounded backpressure behavior under policy control.
+- Acceptance criteria:
+  - `runtime_proof_release_gate.ts` refreshes harness and adapter-chaos artifacts by default (`refresh-harness=always`, `refresh-adapter-chaos=always`) before threshold evaluation, with explicit support-run telemetry in the final gate report.
+  - Refresh logic supports `always|auto|never` modes and fail-closes with stable refresh error codes when dependency scripts cannot execute.
+  - Adapter chaos gate isolates bridge runs via per-scenario ephemeral `--state-path` files and elevated spawn buffer, preventing false baseline failures from inherited large state payloads (`missing_ok` due spawn buffer saturation).
+  - Queue saturation harness applies deterministic soft/hard ceiling policy and emergency drain behavior so proof metrics remain within configured boundedness thresholds while still exercising burst/backpressure dynamics.
+  - Release-gate checks continue to evaluate strict quality telemetry and adapter chaos pass ratios from refreshed artifacts (no stale snapshot dependence).
+- Regression evidence pointers:
+  - `tests/tooling/scripts/ci/runtime_proof_harness.ts`
+  - `tests/tooling/scripts/ci/adapter_runtime_chaos_gate.ts`
+  - `tests/tooling/scripts/ci/runtime_proof_release_gate.ts`
+  - `tests/tooling/config/release_gates.yaml`
+  - `node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/runtime_proof_release_gate.ts --profile=rich`
