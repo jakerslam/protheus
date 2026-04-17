@@ -1,5 +1,6 @@
 #!/usr/bin/env tsx
 
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { cleanText, parseStrictOutArgs, readFlag } from '../../lib/cli.ts';
@@ -7,6 +8,7 @@ import { currentRevision } from '../../lib/git.ts';
 import { emitStructuredResult, writeJsonArtifact, writeTextArtifact } from '../../lib/result.ts';
 
 type ProfileId = 'rich' | 'pure' | 'tiny-max';
+type RefreshMode = 'auto' | 'always' | 'never';
 
 type ProfileGatePolicy = {
   memory: { peak_rss_mb_max: number };
@@ -57,6 +59,17 @@ function parseProfile(raw: string | undefined): ProfileId | null {
   return null;
 }
 
+function parseRefreshMode(raw: string | undefined, fallback: RefreshMode): RefreshMode {
+  const normalized = cleanText(raw || fallback, 24).toLowerCase();
+  if (normalized === 'always' || normalized === 'force' || normalized === '1' || normalized === 'true') {
+    return 'always';
+  }
+  if (normalized === 'never' || normalized === 'skip' || normalized === '0' || normalized === 'false') {
+    return 'never';
+  }
+  return 'auto';
+}
+
 function parseArgs(argv: string[]) {
   const common = parseStrictOutArgs(argv, {
     out: 'core/local/artifacts/runtime_proof_release_gate_current.json',
@@ -89,6 +102,8 @@ function parseArgs(argv: string[]) {
       readFlag(argv, 'table-out') || 'local/workspace/reports/RUNTIME_PROOF_RELEASE_GATE_CURRENT.md',
       400,
     ),
+    refreshHarness: parseRefreshMode(readFlag(argv, 'refresh-harness'), 'always'),
+    refreshAdapterChaos: parseRefreshMode(readFlag(argv, 'refresh-adapter-chaos'), 'always'),
     profile,
   };
 }
@@ -182,6 +197,93 @@ function readJsonBestEffort(filePath: string): { ok: boolean; payload: any } {
   }
 }
 
+function parseLastJsonLine(raw: string): any {
+  const lines = String(raw || '')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  for (let idx = lines.length - 1; idx >= 0; idx -= 1) {
+    try {
+      return JSON.parse(lines[idx]);
+    } catch {
+      // keep scanning
+    }
+  }
+  return null;
+}
+
+function shouldRefreshArtifact(
+  artifactPath: string,
+  mode: RefreshMode,
+  revision: string,
+): { refresh: boolean; reason: string } {
+  if (mode === 'never') {
+    return {
+      refresh: false,
+      reason: 'refresh_disabled',
+    };
+  }
+
+  if (!fs.existsSync(artifactPath)) {
+    return {
+      refresh: true,
+      reason: 'artifact_missing',
+    };
+  }
+
+  if (mode === 'always') {
+    return {
+      refresh: true,
+      reason: 'forced_refresh',
+    };
+  }
+
+  const parsed = readJsonBestEffort(artifactPath);
+  if (!parsed.ok) {
+    return {
+      refresh: true,
+      reason: 'artifact_parse_error',
+    };
+  }
+
+  const artifactRevision = cleanText(parsed.payload?.revision || '', 80);
+  if (!artifactRevision || artifactRevision !== revision) {
+    return {
+      refresh: true,
+      reason: 'revision_mismatch',
+    };
+  }
+
+  return {
+    refresh: false,
+    reason: 'artifact_fresh',
+  };
+}
+
+function runSupportScript(root: string, scriptPath: string, args: string[]): { status: number; output: any; detail: string } {
+  const entrypoint = path.resolve(root, 'client/runtime/lib/ts_entrypoint.ts');
+  const script = path.resolve(root, scriptPath);
+  const proc = spawnSync('node', [entrypoint, script, ...args], {
+    cwd: root,
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  const output = parseLastJsonLine(String(proc.stdout || ''));
+  const status = proc.status ?? 1;
+  const detail = cleanText(
+    output?.error ||
+      proc.error?.message ||
+      String(proc.stderr || '').slice(0, 280) ||
+      `status=${status}`,
+    320,
+  );
+  return {
+    status,
+    output,
+    detail,
+  };
+}
+
 function buildCheckLe(id: string, actual: number, threshold: number): GateCheck {
   return {
     id,
@@ -227,6 +329,7 @@ function toMarkdownTable(profile: ProfileId, checks: GateCheck[], metricsPath: s
 export function run(argv: string[] = process.argv.slice(2)): number {
   const root = process.cwd();
   const args = parseArgs(argv);
+  const revision = currentRevision(root);
   if (!args.profile) {
     const payload = {
       ok: false,
@@ -239,6 +342,106 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       outPath: args.outPath,
       strict: args.strict,
       ok: false,
+    });
+  }
+
+  const harnessAbsolutePath = path.resolve(root, args.harnessPath);
+  const adapterChaosAbsolutePath = path.resolve(root, args.adapterChaosPath);
+  const supportRuns: Array<{
+    id: string;
+    script: string;
+    refresh_mode: RefreshMode;
+    refreshed: boolean;
+    reason: string;
+    status: number;
+    detail: string;
+  }> = [];
+
+  const harnessRefreshPlan = shouldRefreshArtifact(harnessAbsolutePath, args.refreshHarness, revision);
+  if (harnessRefreshPlan.refresh) {
+    const refresh = runSupportScript(root, 'tests/tooling/scripts/ci/runtime_proof_harness.ts', [
+      `--profile=${args.profile}`,
+      `--out=${args.harnessPath}`,
+    ]);
+    supportRuns.push({
+      id: 'runtime_proof_harness',
+      script: 'tests/tooling/scripts/ci/runtime_proof_harness.ts',
+      refresh_mode: args.refreshHarness,
+      refreshed: true,
+      reason: harnessRefreshPlan.reason,
+      status: refresh.status,
+      detail: refresh.detail,
+    });
+    if (refresh.status !== 0) {
+      const payload = {
+        ok: false,
+        type: 'runtime_proof_release_gate',
+        error: 'runtime_proof_harness_refresh_failed',
+        detail: refresh.detail,
+        profile: args.profile,
+        script: 'tests/tooling/scripts/ci/runtime_proof_harness.ts',
+      };
+      return emitStructuredResult(payload, {
+        outPath: args.outPath,
+        strict: args.strict,
+        ok: false,
+      });
+    }
+  } else {
+    supportRuns.push({
+      id: 'runtime_proof_harness',
+      script: 'tests/tooling/scripts/ci/runtime_proof_harness.ts',
+      refresh_mode: args.refreshHarness,
+      refreshed: false,
+      reason: harnessRefreshPlan.reason,
+      status: 0,
+      detail: 'reused_existing_artifact',
+    });
+  }
+
+  const adapterRefreshPlan = shouldRefreshArtifact(
+    adapterChaosAbsolutePath,
+    args.refreshAdapterChaos,
+    revision,
+  );
+  if (adapterRefreshPlan.refresh) {
+    const refresh = runSupportScript(root, 'tests/tooling/scripts/ci/adapter_runtime_chaos_gate.ts', [
+      `--profile=${args.profile}`,
+      `--out=${args.adapterChaosPath}`,
+    ]);
+    supportRuns.push({
+      id: 'adapter_runtime_chaos_gate',
+      script: 'tests/tooling/scripts/ci/adapter_runtime_chaos_gate.ts',
+      refresh_mode: args.refreshAdapterChaos,
+      refreshed: true,
+      reason: adapterRefreshPlan.reason,
+      status: refresh.status,
+      detail: refresh.detail,
+    });
+    if (refresh.status !== 0) {
+      const payload = {
+        ok: false,
+        type: 'runtime_proof_release_gate',
+        error: 'adapter_runtime_chaos_refresh_failed',
+        detail: refresh.detail,
+        profile: args.profile,
+        script: 'tests/tooling/scripts/ci/adapter_runtime_chaos_gate.ts',
+      };
+      return emitStructuredResult(payload, {
+        outPath: args.outPath,
+        strict: args.strict,
+        ok: false,
+      });
+    }
+  } else {
+    supportRuns.push({
+      id: 'adapter_runtime_chaos_gate',
+      script: 'tests/tooling/scripts/ci/adapter_runtime_chaos_gate.ts',
+      refresh_mode: args.refreshAdapterChaos,
+      refreshed: false,
+      reason: adapterRefreshPlan.reason,
+      status: 0,
+      detail: 'reused_existing_artifact',
     });
   }
 
@@ -260,8 +463,8 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     });
   }
 
-  const harness = readJson(path.resolve(root, args.harnessPath));
-  const adapterChaos = readJson(path.resolve(root, args.adapterChaosPath));
+  const harness = readJson(harnessAbsolutePath);
+  const adapterChaos = readJson(adapterChaosAbsolutePath);
   const qualityRaw = readJsonBestEffort(path.resolve(root, args.qualityPath));
   const metrics = harness?.metrics || {};
   const adapterChaosMetrics = adapterChaos?.metrics || {};
@@ -383,7 +586,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     type: 'runtime_proof_release_gate',
     profile: args.profile,
     generated_at: new Date().toISOString(),
-    revision: currentRevision(root),
+    revision,
     inputs: {
       policy_path: args.policyPath,
       harness_path: args.harnessPath,
@@ -391,7 +594,10 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       quality_path: args.qualityPath,
       metrics_out: args.metricsOutPath,
       table_out: args.tableOutPath,
+      refresh_harness: args.refreshHarness,
+      refresh_adapter_chaos: args.refreshAdapterChaos,
     },
+    support_runs: supportRuns,
     summary: {
       check_count: checks.length,
       failed_count: failures.length,
