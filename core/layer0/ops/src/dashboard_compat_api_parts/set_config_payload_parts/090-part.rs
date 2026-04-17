@@ -196,6 +196,17 @@ fn no_models_available_payload(agent_id: &str) -> Value {
     })
 }
 
+fn response_tool_summary_text_is_rejected(text: &str) -> bool {
+    let lowered = text.to_ascii_lowercase();
+    lowered.contains("model attempted this call as text")
+        || response_looks_like_tool_ack_without_findings(text)
+        || response_is_no_findings_placeholder(text)
+        || response_looks_like_unsynthesized_web_snippet_dump(text)
+        || response_looks_like_raw_web_artifact_dump(text)
+        || response_contains_tool_telemetry_dump(text)
+        || looks_like_search_engine_chrome_summary(&lowered)
+}
+
 fn response_tools_summary_for_user(response_tools: &[Value], max_items: usize) -> String {
     let limit = max_items.clamp(1, 8);
     let mut lines = Vec::<String>::new();
@@ -223,28 +234,12 @@ fn response_tools_summary_for_user(response_tools: &[Value], max_items: usize) -
         if raw_result.is_empty() {
             continue;
         }
-        if response_looks_like_tool_ack_without_findings(&raw_result) {
+        if response_tool_summary_text_is_rejected(&raw_result) {
             continue;
         }
         let user_result =
             rewrite_tool_result_for_user_summary(&name, &raw_result).unwrap_or(raw_result);
-        let lowered = user_result.to_ascii_lowercase();
-        if lowered.contains("model attempted this call as text") {
-            continue;
-        }
-        if response_looks_like_tool_ack_without_findings(&user_result) {
-            continue;
-        }
-        if response_is_no_findings_placeholder(&user_result) {
-            continue;
-        }
-        if response_looks_like_unsynthesized_web_snippet_dump(&user_result)
-            || response_looks_like_raw_web_artifact_dump(&user_result)
-            || response_contains_tool_telemetry_dump(&user_result)
-        {
-            continue;
-        }
-        if looks_like_search_engine_chrome_summary(&lowered) {
+        if response_tool_summary_text_is_rejected(&user_result) {
             continue;
         }
         let snippet = if user_result.starts_with("Key findings:") {
