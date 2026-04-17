@@ -12,7 +12,11 @@ fn enforce_user_facing_finalization_contract_unwraps_internal_payload_dump() {
         "turn_transaction": {"tool_execute": "complete"}
     })
     .to_string();
-    let (finalized, report, outcome) = enforce_user_facing_finalization_contract(raw, &cards);
+    let (finalized, report, outcome) = enforce_user_facing_finalization_contract(
+        "summarize benchmark findings",
+        raw,
+        &cards,
+    );
     let lowered = finalized.to_ascii_lowercase();
     assert!(!finalized.trim_start().starts_with('{'));
     assert!(!lowered.contains("agent_id"));

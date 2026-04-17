@@ -1,35 +1,140 @@
 struct PreparedMessageRouteContext {
-    provider: String,
-    model: String,
-    auto_route: Option<Value>,
-    requested_provider: String,
-    requested_model: String,
-    virtual_key_id: String,
-    virtual_key_gate: Value,
-    state: Value,
-    messages: Vec<Value>,
-    active_messages: Vec<Value>,
-    context_pool_limit_tokens: i64,
-    context_pool_tokens: i64,
-    pooled_messages_len: usize,
-    sessions_total: usize,
-    fallback_window: i64,
-    memory_kv_entries: usize,
-    active_context_target_tokens: i64,
-    active_context_min_recent: usize,
-    include_all_sessions_context: bool,
-    context_active_tokens: i64,
-    context_ratio: f64,
-    context_pressure: String,
-    pre_generation_pruned: bool,
-    recent_floor_enforced: bool,
-    recent_floor_injected: usize,
-    history_trim_confirmed: bool,
-    emergency_compact: Value,
-    workspace_hints: Value,
-    latent_tool_candidates: Value,
-    inline_tools_allowed: bool,
+    provider: String, model: String, auto_route: Option<Value>,
+    requested_provider: String, requested_model: String, virtual_key_id: String, virtual_key_gate: Value,
+    state: Value, messages: Vec<Value>, active_messages: Vec<Value>,
+    context_pool_limit_tokens: i64, context_pool_tokens: i64, pooled_messages_len: usize, sessions_total: usize,
+    fallback_window: i64, memory_kv_entries: usize, active_context_target_tokens: i64, active_context_min_recent: usize,
+    include_all_sessions_context: bool, context_active_tokens: i64, context_ratio: f64, context_pressure: String,
+    pre_generation_pruned: bool, recent_floor_enforced: bool, recent_floor_injected: usize, history_trim_confirmed: bool,
+    emergency_compact: Value, workspace_hints: Value, latent_tool_candidates: Value, inline_tools_allowed: bool,
     system_prompt: String,
+}
+fn latest_assistant_process_summary(active_messages: &[Value]) -> Option<Value> {
+    active_messages.iter().rev().find_map(|row| {
+        let role = clean_text(row.get("role").and_then(Value::as_str).unwrap_or(""), 24);
+        if !role.eq_ignore_ascii_case("assistant") {
+            return None;
+        }
+        let summary = row.get("process_summary")?;
+        if !summary.is_object() {
+            return None;
+        }
+        Some(summary.clone())
+    })
+}
+fn process_summary_prompt_context(active_messages: &[Value]) -> String {
+    let Some(summary) = latest_assistant_process_summary(active_messages) else {
+        return String::new();
+    };
+    let compact_summary =
+        clean_text(&serde_json::to_string(&summary).unwrap_or_else(|_| "{}".to_string()), 1_600);
+    if compact_summary.is_empty() || compact_summary == "{}" {
+        return String::new();
+    }
+    clean_text(
+        &format!(
+            "Previous-turn process summary (short-term debug memory, single-turn only): {compact_summary}\nUse this as continuity context for diagnostics, but prioritize the current user request and current-turn receipts."
+        ),
+        2_000,
+    )
+}
+
+fn reply_scope_messages_from_request(request: &Value) -> Vec<Value> {
+    if !request
+        .get("reply_scope_enabled")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
+        return Vec::new();
+    }
+    let Some(rows) = request.get("reply_scope_messages").and_then(Value::as_array) else {
+        return Vec::new();
+    };
+    let mut out = Vec::<Value>::new();
+    for row in rows.iter().take(32) {
+        let mut role = clean_text(
+            row.get("role").and_then(Value::as_str).unwrap_or("assistant"),
+            24,
+        )
+        .to_ascii_lowercase();
+        if role == "agent" {
+            role = "assistant".to_string();
+        }
+        if role != "assistant" && role != "user" && role != "system" {
+            role = "assistant".to_string();
+        }
+        let text = clean_chat_text(row.get("text").and_then(Value::as_str).unwrap_or(""), 64_000);
+        if text.is_empty() {
+            continue;
+        }
+        out.push(json!({"role": role, "text": text, "ts": row.get("ts").cloned().unwrap_or(Value::Null)}));
+    }
+    out
+}
+
+fn message_timestamp_millis_for_retry(row: &Value) -> i64 {
+    if let Some(ms) = row.get("ts").and_then(Value::as_i64) {
+        return ms;
+    }
+    if let Some(raw) = row.get("ts").and_then(Value::as_str) {
+        let cleaned = clean_text(raw, 120);
+        if let Ok(ms) = cleaned.parse::<i64>() { return ms; }
+        if let Some(parsed) = parse_rfc3339_utc(&cleaned) { return parsed.timestamp_millis(); }
+    }
+    0
+}
+
+fn remove_retry_drop_message_from_state(state: &mut Value, request: &Value) -> Option<Value> {
+    let target_id = clean_text(request.get("retry_drop_message_id").and_then(Value::as_str).unwrap_or(""), 180);
+    let target_ts = request.get("retry_drop_message_ts").and_then(Value::as_i64).unwrap_or(0);
+    let target_text = clean_chat_text(request.get("retry_drop_message_text").and_then(Value::as_str).unwrap_or(""), 64_000);
+    if target_id.is_empty() && target_ts <= 0 && target_text.is_empty() {
+        return None;
+    }
+    let active_id = clean_text(state.get("active_session_id").and_then(Value::as_str).unwrap_or("default"), 120);
+    let mut removed: Option<Value> = None;
+    if let Some(sessions) = state.get_mut("sessions").and_then(Value::as_array_mut) {
+        for session in sessions.iter_mut() {
+            let sid = clean_text(session.get("session_id").and_then(Value::as_str).unwrap_or(""), 120);
+            if sid != active_id {
+                continue;
+            }
+            let Some(messages) = session.get_mut("messages").and_then(Value::as_array_mut) else {
+                break;
+            };
+            let mut remove_idx: Option<usize> = None;
+            for idx in (0..messages.len()).rev() {
+                let probe = &messages[idx];
+                let role = clean_text(probe.get("role").and_then(Value::as_str).unwrap_or(""), 24)
+                    .to_ascii_lowercase();
+                if role != "assistant" && role != "agent" {
+                    continue;
+                }
+                let probe_id = clean_text(probe.get("id").and_then(Value::as_str).unwrap_or(""), 180);
+                let probe_ts = message_timestamp_millis_for_retry(probe);
+                let probe_text = message_text(probe);
+                let id_match = !target_id.is_empty() && !probe_id.is_empty() && probe_id == target_id;
+                let ts_match = target_ts > 0 && probe_ts > 0 && (probe_ts - target_ts).unsigned_abs() <= 2_500;
+                let text_match = !target_text.is_empty() && !probe_text.is_empty() && probe_text == target_text;
+                if id_match || ts_match || text_match {
+                    remove_idx = Some(idx);
+                    break;
+                }
+            }
+            if remove_idx.is_none() {
+                remove_idx = (0..messages.len()).rev().find(|idx| {
+                    let role = clean_text(messages[*idx].get("role").and_then(Value::as_str).unwrap_or(""), 24).to_ascii_lowercase();
+                    role == "assistant" || role == "agent"
+                });
+            }
+            if let Some(idx) = remove_idx {
+                removed = Some(messages.remove(idx));
+                session["updated_at"] = Value::String(crate::now_iso());
+            }
+            break;
+        }
+    }
+    removed
 }
 
 fn prepare_message_route_context(
@@ -111,6 +216,10 @@ fn prepare_message_route_context(
         virtual_key_gate = gate;
     }
     let mut state = load_session_state(root, agent_id);
+    let retry_drop_removed = remove_retry_drop_message_from_state(&mut state, request);
+    if retry_drop_removed.is_some() {
+        save_session_state(root, agent_id, &state);
+    }
     let sessions_total = state
         .get("sessions")
         .and_then(Value::as_array)
@@ -272,6 +381,17 @@ fn prepare_message_route_context(
             }
         }
     }
+    let reply_scope_messages = reply_scope_messages_from_request(request);
+    if !reply_scope_messages.is_empty() {
+        active_messages = reply_scope_messages;
+        context_active_tokens = total_message_tokens(&active_messages);
+        context_ratio = if fallback_window > 0 {
+            (context_active_tokens as f64 / fallback_window as f64).clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
+        context_pressure = context_pressure_label(context_ratio).to_string();
+    }
     let memory_kv_entries = memory_kv_pairs_from_state(&state).len();
     let memory_prompt_context = memory_kv_prompt_context(&state, 24);
     let instinct_prompt_context = agent_instinct_prompt_context(root, 6_000);
@@ -290,7 +410,13 @@ fn prepare_message_route_context(
             .unwrap_or(""),
         12_000,
     );
-    let inline_tools_allowed = inline_tool_calls_allowed_for_user_message(message);
+    let tool_gate = workflow_turn_tool_decision_tree(message);
+    let gate_should_call_tools = tool_gate
+        .get("should_call_tools")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let inline_tools_allowed =
+        inline_tool_calls_allowed_for_user_message(message) && gate_should_call_tools;
     let mut prompt_parts = Vec::<String>::new();
     if !identity_hydration_prompt.is_empty() {
         prompt_parts.push(identity_hydration_prompt);
@@ -305,6 +431,10 @@ fn prepare_message_route_context(
     );
     if !workflow_prompt_context.is_empty() {
         prompt_parts.push(workflow_prompt_context);
+    }
+    let previous_process_summary_context = process_summary_prompt_context(&active_messages);
+    if !previous_process_summary_context.is_empty() {
+        prompt_parts.push(previous_process_summary_context);
     }
     if !inline_tools_allowed {
         prompt_parts.push("Direct-answer guard: default to natural conversational answers. Do not emit `<function=...>` tool calls unless the user explicitly requested web retrieval, file/terminal operations, memory operations, or agent management in this turn.".to_string());

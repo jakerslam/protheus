@@ -893,3 +893,102 @@ fn finalize_user_facing_response_with_outcome(
 fn finalize_user_facing_response(output: String, findings: Option<String>) -> String {
     finalize_user_facing_response_with_outcome(output, findings).0
 }
+
+fn response_prompt_echo_detected(user_message: &str, response_text: &str) -> bool {
+    let message = clean_text(user_message, 1_200).to_ascii_lowercase();
+    let response = clean_text(response_text, 1_200).to_ascii_lowercase();
+    if message.is_empty() || response.is_empty() {
+        return false;
+    }
+    if response == message
+        || response.starts_with(&message)
+        || response.contains(&format!("\"{message}\""))
+    {
+        return true;
+    }
+    let message_terms = important_memory_terms(&message, 24)
+        .into_iter()
+        .collect::<HashSet<_>>();
+    let response_terms = important_memory_terms(&response, 36)
+        .into_iter()
+        .collect::<HashSet<_>>();
+    if message_terms.is_empty() || response_terms.is_empty() {
+        return false;
+    }
+    let overlap = message_terms.intersection(&response_terms).count() as f64;
+    let denominator = message_terms.len().max(1) as f64;
+    let overlap_ratio = overlap / denominator;
+    let response_word_count = response.split_whitespace().count();
+    response_word_count <= 60 && overlap_ratio >= 0.9
+}
+
+fn response_has_evidence_tags(text: &str) -> bool {
+    let lowered = clean_text(text, 2_000).to_ascii_lowercase();
+    lowered.contains("[source:local_context]") || lowered.contains("[source:tool_receipt:")
+}
+
+fn first_two_sentences(text: &str, max_len: usize) -> String {
+    let cleaned = clean_text(text, max_len.max(1));
+    if cleaned.is_empty() {
+        return cleaned;
+    }
+    let mut boundaries = cleaned
+        .char_indices()
+        .filter(|(_, ch)| matches!(ch, '.' | '!' | '?' | '\n'))
+        .map(|(idx, _)| idx)
+        .collect::<Vec<_>>();
+    boundaries.sort_unstable();
+    if boundaries.is_empty() {
+        return cleaned;
+    }
+    let cut_idx = if boundaries.len() >= 2 {
+        boundaries[1].saturating_add(1)
+    } else {
+        boundaries[0].saturating_add(1)
+    };
+    clean_text(&cleaned[..cut_idx.min(cleaned.len())], max_len.max(1))
+}
+
+fn response_answers_user_early(user_message: &str, response_text: &str) -> bool {
+    let early = first_two_sentences(response_text, 800);
+    if early.is_empty() {
+        return false;
+    }
+    let lowered_message = clean_text(user_message, 1_000).to_ascii_lowercase();
+    let strict_question_shape = lowered_message.contains('?')
+        || lowered_message.starts_with("what")
+        || lowered_message.starts_with("why")
+        || lowered_message.starts_with("how")
+        || lowered_message.starts_with("did")
+        || lowered_message.starts_with("can")
+        || lowered_message.starts_with("could")
+        || lowered_message.starts_with("would")
+        || lowered_message.contains("status")
+        || lowered_message.contains("compare");
+    if !strict_question_shape {
+        return true;
+    }
+    let question_terms = important_memory_terms(user_message, 24)
+        .into_iter()
+        .collect::<HashSet<_>>();
+    let early_terms = important_memory_terms(&early, 30)
+        .into_iter()
+        .collect::<HashSet<_>>();
+    if question_terms.is_empty() {
+        return !early.is_empty();
+    }
+    if early_terms.is_empty() {
+        return false;
+    }
+    let overlap = question_terms.intersection(&early_terms).count();
+    overlap >= 1
+        || early
+            .to_ascii_lowercase()
+            .starts_with("yes")
+        || early
+            .to_ascii_lowercase()
+            .starts_with("no")
+        || early
+            .to_ascii_lowercase()
+            .starts_with("based on")
+}
