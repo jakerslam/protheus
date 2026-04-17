@@ -34,6 +34,12 @@ Status legend:
 | --- | --- | --- | --- | --- | --- | --- |
 | V11-AGENT-PERM-001 | in_progress | Tri-state permission manifest (`deny/inherit/allow`) for agent init/update with parent-bounded delegation and advanced-init checklist wiring | Agent authority was implicit and difficult to constrain/audit across user-created and agent-created sessions. | Agent creation/config now persist a receipted `permissions_manifest` contract with `trit` mapping (`-1/0/1`) and baseline `web.search.basic` allow in [`core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/primary_c.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/primary_c.rs), [`core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/agent_scope_full_parts/060-suggestions-command-config-a.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/agent_scope_full_parts/060-suggestions-command-config-a.rs), [`core/layer0/ops/src/dashboard_agent_state_registry_parts/001-part.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/dashboard_agent_state_registry_parts/001-part.rs), and [`core/layer0/ops/src/dashboard_agent_state_registry_parts/002-part.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/dashboard_agent_state_registry_parts/002-part.rs). Spawned agents inherit parent permissions by default and explicit child manifests are clamped to parent authority in [`core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/131-part.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/131-part.rs). Chat fresh-init advanced setup now exposes a permissions checklist and submits manifest JSON in [`client/runtime/systems/ui/infring_static/index_body.html.parts/0004-body-part.html`](/Users/jay/.openclaw/workspace/client/runtime/systems/ui/infring_static/index_body.html.parts/0004-body-part.html), [`client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/010-chat-state.ts`](/Users/jay/.openclaw/workspace/client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/010-chat-state.ts), [`client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/020-init-roles-and-vibes.part02.ts`](/Users/jay/.openclaw/workspace/client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/020-init-roles-and-vibes.part02.ts), and [`client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/130-render-window-and-session.part01.ts`](/Users/jay/.openclaw/workspace/client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/130-render-window-and-session.part01.ts). | 10 | 0/2 |
 
+## Chat Rendering Experience Intake (2026-04-16)
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V11-CHAT-UX-004 | in_progress | Chat rendering upgrades: source chips + workspace side panel + tool-trace summaries + metadata quick-actions + richer thinking-bubble status + markdown code/table ergonomics | Chat turns had strong core/tool evidence, but the UI still hid useful runtime truth (sources, trace state, reuse actions, and working context) and markdown ergonomics lagged modern chat expectations for code-heavy sessions. | Added render/runtime support in [`client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/215-rendering-and-metadata-upgrades.ts`](/Users/jay/.openclaw/workspace/client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/215-rendering-and-metadata-upgrades.ts), updated chat templates in [`client/runtime/systems/ui/infring_static/index_body.html.parts/0003-body-part.html`](/Users/jay/.openclaw/workspace/client/runtime/systems/ui/infring_static/index_body.html.parts/0003-body-part.html) and [`client/runtime/systems/ui/infring_static/index_body.html.parts/0005-body-part.html`](/Users/jay/.openclaw/workspace/client/runtime/systems/ui/infring_static/index_body.html.parts/0005-body-part.html), and expanded markdown/source/trace/workspace styling in [`client/runtime/systems/ui/infring_static/css/components.css.parts/0007-components-part.css`](/Users/jay/.openclaw/workspace/client/runtime/systems/ui/infring_static/css/components.css.parts/0007-components-part.css) plus [`client/runtime/systems/ui/infring_static/css/components.css.parts/0007-components-part.part02.css`](/Users/jay/.openclaw/workspace/client/runtime/systems/ui/infring_static/css/components.css.parts/0007-components-part.part02.css). Markdown code/table wrappers route through [`client/runtime/systems/ui/infring_static/js/app.ts.parts/005-core-rendering-helpers.part01.ts`](/Users/jay/.openclaw/workspace/client/runtime/systems/ui/infring_static/js/app.ts.parts/005-core-rendering-helpers.part01.ts) and [`client/runtime/systems/ui/infring_static/js/app.ts.parts/010-core-state.part01.ts`](/Users/jay/.openclaw/workspace/client/runtime/systems/ui/infring_static/js/app.ts.parts/010-core-state.part01.ts). Regression evidence target for this row: `npm run -s runtime:dist:dashboard:build` and `npm run -s ops:dashboard:surface:guard`. | 8 | 2/client |
+
 ## Production Closure Program Intake (2026-04-10)
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
@@ -15699,3 +15705,64 @@ Source summary:
   - `core/layer0/ops/src/dashboard_ui_parts/910-app-chat-regressions.rs`
   - `core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/020-part.rs`
   - `core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/030-part.rs`
+
+### 2026-04-17 Web Tooling Context-Alignment + Soak Hardening Addendum (V11-WEB-WORKFLOW-003)
+
+- Intent:
+  - Enforce final-response relevance under web-tooling pressure, suppress status-check misroutes, guarantee deterministic final fallback output, and add soak-grade telemetry/regression coverage for mixed meta/web turns.
+- Acceptance criteria:
+  - Final synthesis rejects low-alignment replies against latest user message + recent conversation tail and retries once before failover.
+  - Web-tooling status-check prompts (for example `did you do the web request?`) do not auto-trigger new web tool calls.
+  - Final response contract is fail-closed: empty/deferred/placeholder outputs are replaced with deterministic fallback text derived from tool evidence and stable status/error codes.
+  - Response telemetry includes counters for off-topic rejection, deferred-reply rejection, alignment rejection, meta-control tool blocking, and final-fallback usage.
+  - Regression tests cover: actionable-step prompt protection against unrelated coding dumps, meta-control turn tool suppression, tool-failure final-response guarantee, and a 32-turn mixed meta/web soak with taxonomy assertions.
+  - Reliability gauntlet includes the new workflow cluster tests; soak report script emits artifact + state snapshots.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/080-part.rs`
+  - `core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/160-part.rs`
+  - `core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/180-part.rs`
+  - `core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/agent_scope_full_parts/046-turn-workflow-library.rs`
+  - `core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/agent_scope_full_parts/047-turn-workflow-synthesis.rs`
+  - `core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/agent_scope_full_parts/050-message-finalization-and-payload.rs`
+  - `core/layer0/ops/src/app_plane_parts/030-run-chat-ui.rs`
+  - `core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/050-part.combined.rs`
+  - `tests/tooling/scripts/ci/reliability_turn_loop_gauntlet.ts`
+  - `tests/tooling/scripts/ci/web_tooling_context_soak.ts`
+  - `cargo test -p protheus-ops-core --lib workflow_actionable_steps_request_rejects_unrelated_programming_dump -- --nocapture`
+  - `cargo test -p protheus-ops-core --lib meta_control_turn_does_not_trigger_web_tool_execution -- --nocapture`
+  - `cargo test -p protheus-ops-core --lib workflow_web_tool_failure_still_returns_final_user_response -- --nocapture`
+  - `cargo test -p protheus-ops-core --lib workflow_web_tooling_context_soak_32_turns_reports_zero_terminal_failures -- --nocapture`
+  - `node tests/tooling/scripts/ci/reliability_turn_loop_gauntlet.ts`
+  - `node tests/tooling/scripts/ci/web_tooling_context_soak.ts`
+
+### 2026-04-16 Tooling Contract + Replay Pack + Release-Gate Quality Addendum (V11-WEB-WORKFLOW-004)
+
+- Intent:
+  - Harden tooling execution from request intake through final response by applying bounded retry policy, guarded tool-input ingestion, all-tool final-response invariants, transcript replay pack coverage, and operator-grade readiness telemetry.
+- Acceptance criteria:
+  - Inline tool ingestion fail-closes payloads that exceed size bounds or violate object schema with stable guard error markers.
+  - Runtime tool execution applies deterministic bounded retry policy for web-family tools and records retry policy metadata in tool payloads.
+  - Tooling status-check detection is generalized (not web-only) and blocks unnecessary tool execution across workflow and chat-ui gates.
+  - Final response contract appends stable machine-readable failure classification for non-web tooling failures, and `response_finalization` includes a first-class `tooling_invariant` block.
+  - Web retrieval off-topic detection uses domain/topic mismatch scoring and fail-closes with `web_tool_off_topic_results`.
+  - Web tooling soak script runs a transcript replay pack (soak + replay guards) and emits replay summary metrics.
+  - Runtime release gate enforces quality telemetry thresholds from soak taxonomy in addition to boundedness/adapter chaos metrics.
+  - Operator API exposes `/api/web/tooling/summary` with readiness status, runtime contract snapshot, and latest taxonomy/replay snapshots.
+  - Compile-warning hotspots are cleaned for duplicate-unreachable routing and duplicated mode aliases.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/160-part.rs`
+  - `core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/170-part.rs`
+  - `core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/180-part.rs`
+  - `core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/140-part.rs`
+  - `core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/150-part.rs`
+  - `core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/agent_scope_full_parts/046-turn-workflow-library.rs`
+  - `core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/agent_scope_full_parts/050-message-finalization-and-payload.rs`
+  - `core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/late_b.rs`
+  - `core/layer0/ops/src/app_plane_parts/030-run-chat-ui.rs`
+  - `core/layer0/ops/src/protheusctl_routes_parts/010-command-routing.rs`
+  - `core/layer0/ops/src/strategy_store_kernel_parts/020-emit-strategy-pointer.rs`
+  - `core/layer0/ops/src/finance_plane_parts/030-availability-command.rs`
+  - `tests/tooling/scripts/ci/web_tooling_context_soak.ts`
+  - `tests/tooling/scripts/ci/reliability_turn_loop_gauntlet.ts`
+  - `tests/tooling/scripts/ci/runtime_proof_release_gate.ts`
+  - `tests/tooling/config/release_gates.yaml`

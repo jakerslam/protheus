@@ -136,6 +136,30 @@ fn parse_explicit_tool_command_from_message(message: &str) -> Option<Result<(Str
                 out_input["aperture"] = json!("medium");
             }
         }
+        "web_tooling_health_probe" => {
+            out_tool = "web_tooling_health_probe".to_string();
+            out_input = if let Some(obj) = parsed_object {
+                Value::Object(obj.clone())
+            } else {
+                json!({})
+            };
+            if out_input
+                .get("source")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .is_empty()
+            {
+                out_input["source"] = json!("web");
+            }
+            if out_input
+                .get("aperture")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .is_empty()
+            {
+                out_input["aperture"] = json!("medium");
+            }
+        }
         "web_fetch" | "fetch" | "browse" => {
             let url = clean_text(
                 parsed_object
@@ -318,6 +342,15 @@ fn extract_inline_tool_calls(
     text: &str,
     max_calls: usize,
 ) -> (String, Vec<(String, Value, String)>) {
+    const INLINE_TOOL_CALL_MAX_PAYLOAD_CHARS: usize = 12_000;
+    const INLINE_TOOL_CALL_MAX_SNIPPET_CHARS: usize = 24_000;
+
+    fn inline_tool_payload_error_marker(code: &str) -> Value {
+        json!({
+            "__tool_input_invalid": clean_text(code, 80)
+        })
+    }
+
     let mut calls = Vec::<(String, Value, String)>::new();
     let mut spans = Vec::<(usize, usize)>::new();
     let mut cursor = 0usize;
@@ -354,15 +387,24 @@ fn extract_inline_tool_calls(
                 cursor = payload_start;
                 continue;
             };
-            let Some(input) = serde_json::from_str::<Value>(&text[json_start..json_end]).ok() else {
-                cursor = json_end;
-                continue;
-            };
             let full_end = text[json_end..]
                 .find("</function>")
                 .map(|end| json_end + end + "</function>".len())
                 .unwrap_or(json_end);
-            calls.push((name, input, text[idx..full_end].to_string()));
+            let raw_snippet = trim_text(&text[idx..full_end], INLINE_TOOL_CALL_MAX_SNIPPET_CHARS);
+            let raw_payload = &text[json_start..json_end];
+            let input = if raw_payload.len() > INLINE_TOOL_CALL_MAX_PAYLOAD_CHARS
+                || raw_snippet.len() > INLINE_TOOL_CALL_MAX_SNIPPET_CHARS
+            {
+                inline_tool_payload_error_marker("tool_input_payload_too_large")
+            } else {
+                match serde_json::from_str::<Value>(raw_payload) {
+                    Ok(parsed) if parsed.is_object() => parsed,
+                    Ok(_) => inline_tool_payload_error_marker("tool_input_schema_invalid"),
+                    Err(_) => inline_tool_payload_error_marker("tool_input_json_invalid"),
+                }
+            };
+            calls.push((name, input, raw_snippet));
             spans.push((idx, full_end));
             cursor = full_end;
             continue;
@@ -392,11 +434,20 @@ fn extract_inline_tool_calls(
             cursor = close_end;
             continue;
         };
-        let Some(input) = serde_json::from_str::<Value>(&text[json_start..json_end]).ok() else {
-            cursor = json_end;
-            continue;
+        let raw_snippet = trim_text(&text[back..json_end], INLINE_TOOL_CALL_MAX_SNIPPET_CHARS);
+        let raw_payload = &text[json_start..json_end];
+        let input = if raw_payload.len() > INLINE_TOOL_CALL_MAX_PAYLOAD_CHARS
+            || raw_snippet.len() > INLINE_TOOL_CALL_MAX_SNIPPET_CHARS
+        {
+            inline_tool_payload_error_marker("tool_input_payload_too_large")
+        } else {
+            match serde_json::from_str::<Value>(raw_payload) {
+                Ok(parsed) if parsed.is_object() => parsed,
+                Ok(_) => inline_tool_payload_error_marker("tool_input_schema_invalid"),
+                Err(_) => inline_tool_payload_error_marker("tool_input_json_invalid"),
+            }
         };
-        calls.push((name, input, text[back..json_end].to_string()));
+        calls.push((name, input, raw_snippet));
         spans.push((back, json_end));
         cursor = json_end;
     }
@@ -417,4 +468,15 @@ fn extract_inline_tool_calls(
         cleaned.push_str(&text[last..]);
     }
     (cleaned.trim().to_string(), calls)
+}
+
+fn inline_tool_input_error_code(input: &Value) -> Option<String> {
+    let code = clean_text(
+        input
+            .get("__tool_input_invalid")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        80,
+    );
+    if code.is_empty() { None } else { Some(code) }
 }

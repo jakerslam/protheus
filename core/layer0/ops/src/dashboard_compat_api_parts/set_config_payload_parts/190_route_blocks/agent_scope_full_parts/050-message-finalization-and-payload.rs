@@ -1,8 +1,234 @@
+fn web_tool_name_for_invariant(name: &str) -> bool {
+    matches!(
+        normalize_tool_name(name).as_str(),
+        "web_search"
+            | "search_web"
+            | "search"
+            | "web_query"
+            | "batch_query"
+            | "web_fetch"
+            | "browse"
+            | "web_conduit_fetch"
+            | "web_tooling_health_probe"
+    )
+}
+
+fn response_tools_include_web_attempt(response_tools: &[Value]) -> bool {
+    response_tools.iter().any(|row| {
+        let name = clean_text(row.get("name").and_then(Value::as_str).unwrap_or(""), 80);
+        web_tool_name_for_invariant(&name)
+    })
+}
+
+fn response_tools_web_blocked(response_tools: &[Value]) -> bool {
+    response_tools.iter().any(|row| {
+        let name = clean_text(row.get("name").and_then(Value::as_str).unwrap_or(""), 80);
+        if !web_tool_name_for_invariant(&name) {
+            return false;
+        }
+        let status = clean_text(row.get("status").and_then(Value::as_str).unwrap_or(""), 80)
+            .to_ascii_lowercase();
+        let error = clean_text(row.get("error").and_then(Value::as_str).unwrap_or(""), 160)
+            .to_ascii_lowercase();
+        row.get("blocked").and_then(Value::as_bool).unwrap_or(false)
+            || matches!(status.as_str(), "blocked" | "policy_denied")
+            || error.contains("nexus_delivery_denied")
+            || error.contains("permission_denied")
+    })
+}
+
+fn response_tools_web_low_signal(response_tools: &[Value]) -> bool {
+    response_tools.iter().any(|row| {
+        let name = clean_text(row.get("name").and_then(Value::as_str).unwrap_or(""), 80);
+        if !web_tool_name_for_invariant(&name) {
+            return false;
+        }
+        let status = clean_text(row.get("status").and_then(Value::as_str).unwrap_or(""), 80)
+            .to_ascii_lowercase();
+        let result = clean_text(row.get("result").and_then(Value::as_str).unwrap_or(""), 2000);
+        matches!(status.as_str(), "low_signal" | "no_results")
+            || response_looks_like_tool_ack_without_findings(&result)
+            || response_is_no_findings_placeholder(&result)
+            || response_looks_like_unsynthesized_web_snippet_dump(&result)
+            || response_looks_like_raw_web_artifact_dump(&result)
+    })
+}
+
+fn web_failure_code_from_response_tools(response_tools: &[Value]) -> String {
+    for row in response_tools {
+        let name = clean_text(row.get("name").and_then(Value::as_str).unwrap_or(""), 80);
+        if !web_tool_name_for_invariant(&name) {
+            continue;
+        }
+        let error = clean_text(row.get("error").and_then(Value::as_str).unwrap_or(""), 160)
+            .to_ascii_lowercase();
+        if error.is_empty() {
+            let status = clean_text(row.get("status").and_then(Value::as_str).unwrap_or(""), 80)
+                .to_ascii_lowercase();
+            if matches!(status.as_str(), "blocked" | "policy_denied") {
+                return "web_tool_policy_blocked".to_string();
+            }
+            if status == "timeout" {
+                return "web_tool_timeout".to_string();
+            }
+            if matches!(status.as_str(), "low_signal" | "no_results") {
+                return "web_tool_low_signal".to_string();
+            }
+            continue;
+        }
+        if error.contains("nexus_delivery_denied") || error.contains("permission_denied") {
+            return "web_tool_policy_blocked".to_string();
+        }
+        if error.contains("invalid_response_attempt") {
+            return "web_tool_invalid_response".to_string();
+        }
+        if error.contains("timeout") {
+            return "web_tool_timeout".to_string();
+        }
+        if error.contains("401") {
+            return "web_tool_http_401".to_string();
+        }
+        if error.contains("403") {
+            return "web_tool_http_403".to_string();
+        }
+        if error.contains("404") {
+            return "web_tool_http_404".to_string();
+        }
+        if error.contains("422") {
+            return "web_tool_http_422".to_string();
+        }
+        if error.contains("429") {
+            return "web_tool_http_429".to_string();
+        }
+        if error.contains("500")
+            || error.contains("502")
+            || error.contains("503")
+            || error.contains("504")
+        {
+            return "web_tool_http_5xx".to_string();
+        }
+        return "web_tool_error".to_string();
+    }
+    String::new()
+}
+
+fn classify_web_turn_state(
+    requires_live_web: bool,
+    tool_attempted: bool,
+    blocked: bool,
+    low_signal: bool,
+) -> String {
+    if !requires_live_web {
+        return "not_requested".to_string();
+    }
+    if !tool_attempted {
+        return "parse_failed".to_string();
+    }
+    if blocked {
+        return "policy_blocked".to_string();
+    }
+    if low_signal {
+        return "provider_low_signal".to_string();
+    }
+    "healthy".to_string()
+}
+
+fn response_tools_any_blocked(response_tools: &[Value]) -> bool {
+    response_tools.iter().any(|row| {
+        let status = clean_text(row.get("status").and_then(Value::as_str).unwrap_or(""), 80)
+            .to_ascii_lowercase();
+        let error = clean_text(row.get("error").and_then(Value::as_str).unwrap_or(""), 160)
+            .to_ascii_lowercase();
+        row.get("blocked").and_then(Value::as_bool).unwrap_or(false)
+            || matches!(status.as_str(), "blocked" | "policy_denied")
+            || error.contains("nexus_delivery_denied")
+            || error.contains("permission_denied")
+    })
+}
+
+fn response_tools_any_low_signal(response_tools: &[Value]) -> bool {
+    response_tools.iter().any(|row| {
+        let status = clean_text(row.get("status").and_then(Value::as_str).unwrap_or(""), 80)
+            .to_ascii_lowercase();
+        let result = clean_text(row.get("result").and_then(Value::as_str).unwrap_or(""), 2_000);
+        matches!(status.as_str(), "low_signal" | "no_results" | "partial_no_results")
+            || response_looks_like_tool_ack_without_findings(&result)
+            || response_is_no_findings_placeholder(&result)
+    })
+}
+
+fn tool_failure_code_from_response_tools(response_tools: &[Value]) -> String {
+    for row in response_tools {
+        let normalized_name =
+            normalize_tool_name(row.get("name").and_then(Value::as_str).unwrap_or("tool"));
+        if normalized_name.eq_ignore_ascii_case("thought_process") {
+            continue;
+        }
+        let status = clean_text(row.get("status").and_then(Value::as_str).unwrap_or(""), 80)
+            .to_ascii_lowercase();
+        let error = clean_text(row.get("error").and_then(Value::as_str).unwrap_or(""), 160)
+            .to_ascii_lowercase();
+        let blocked = row.get("blocked").and_then(Value::as_bool).unwrap_or(false)
+            || matches!(status.as_str(), "blocked" | "policy_denied");
+        let token = {
+            let cleaned = clean_text(&normalized_name, 48);
+            if cleaned.is_empty() {
+                "tool".to_string()
+            } else {
+                cleaned
+            }
+        };
+        if blocked {
+            return format!("{token}_policy_blocked");
+        }
+        if status == "timeout" || error.contains("timeout") {
+            return format!("{token}_timeout");
+        }
+        if matches!(status.as_str(), "low_signal" | "no_results" | "partial_no_results") {
+            return format!("{token}_low_signal");
+        }
+        if error.contains("invalid_response_attempt") || error.contains("invalid_response") {
+            return format!("{token}_invalid_response");
+        }
+        if error.contains("401") {
+            return format!("{token}_http_401");
+        }
+        if error.contains("403") {
+            return format!("{token}_http_403");
+        }
+        if error.contains("404") {
+            return format!("{token}_http_404");
+        }
+        if error.contains("422") {
+            return format!("{token}_http_422");
+        }
+        if error.contains("429") {
+            return format!("{token}_http_429");
+        }
+        if error.contains("500")
+            || error.contains("502")
+            || error.contains("503")
+            || error.contains("504")
+        {
+            return format!("{token}_http_5xx");
+        }
+        let errored = row.get("is_error").and_then(Value::as_bool).unwrap_or(false);
+        if errored || matches!(status.as_str(), "error" | "failed" | "execution_error") {
+            return format!("{token}_error");
+        }
+    }
+    String::new()
+}
+
 fn response_requires_visible_repair(text: &str) -> bool {
     let cleaned = clean_chat_text(text, 32_000);
     cleaned.trim().is_empty()
         || response_is_no_findings_placeholder(&cleaned)
         || response_looks_like_tool_ack_without_findings(&cleaned)
+        || response_is_deferred_execution_preamble(&cleaned)
+        || response_is_deferred_retry_prompt(&cleaned)
+        || workflow_response_requests_more_tooling(&cleaned)
+        || response_contains_speculative_web_blocker_language(&cleaned)
         || response_looks_like_unsynthesized_web_snippet_dump(&cleaned)
         || response_looks_like_raw_web_artifact_dump(&cleaned)
 }
@@ -22,7 +248,9 @@ fn repair_visible_response_after_workflow(
     }
 
     let cleaned_initial_draft = clean_chat_text(initial_draft_response, 32_000);
-    if !response_requires_visible_repair(&cleaned_initial_draft) {
+    if !response_requires_visible_repair(&cleaned_initial_draft)
+        && !response_contains_speculative_web_blocker_language(&cleaned_initial_draft)
+    {
         return (
             cleaned_initial_draft,
             "repaired_with_initial_draft".to_string(),
@@ -32,7 +260,9 @@ fn repair_visible_response_after_workflow(
     }
 
     let cleaned_latest_assistant = clean_chat_text(latest_assistant_text, 32_000);
-    if !response_requires_visible_repair(&cleaned_latest_assistant) {
+    if !response_requires_visible_repair(&cleaned_latest_assistant)
+        && !response_contains_speculative_web_blocker_language(&cleaned_latest_assistant)
+    {
         return (
             cleaned_latest_assistant,
             "repaired_with_latest_assistant".to_string(),
@@ -294,7 +524,7 @@ fn finalize_message_finalization_and_payload(
     message: &str,
     result: &Value,
     response_text: String,
-    response_tools: Vec<Value>,
+    mut response_tools: Vec<Value>,
     workflow_mode: String,
     workflow_system_events: Vec<Value>,
     runtime_summary: Value,
@@ -332,13 +562,93 @@ fn finalize_message_finalization_and_payload(
     let initial_draft_response = clean_chat_text(&response_text, 32_000);
     let initial_ack_only = response_looks_like_tool_ack_without_findings(&initial_draft_response)
         || response_is_no_findings_placeholder(&initial_draft_response);
+    let web_intent = natural_web_intent_from_user_message(message);
+    let draft_retry_web_signal = draft_response_implies_retryable_web_failure(&initial_draft_response);
+    let web_intent_route = web_intent
+        .as_ref()
+        .map(|(tool, _)| clean_text(tool, 80))
+        .unwrap_or_default();
+    let web_intent_detected = web_intent.is_some() || draft_retry_web_signal;
+    let web_intent_source = if web_intent.is_some() {
+        "message"
+    } else if draft_retry_web_signal {
+        "draft_retry_signal"
+    } else {
+        "none"
+    };
+    let web_intent_confidence = if web_intent.is_some() {
+        0.92
+    } else if draft_retry_web_signal {
+        0.64
+    } else {
+        0.0
+    };
+    let mut web_forced_fallback_attempted = false;
+    if web_intent_detected && !response_tools_include_web_attempt(&response_tools) {
+        let fallback_query = web_intent
+            .as_ref()
+            .and_then(|(_, payload)| {
+                payload
+                    .get("query")
+                    .or_else(|| payload.get("q"))
+                    .and_then(Value::as_str)
+                    .map(|raw| clean_text(raw, 600))
+            })
+            .filter(|query| !query.is_empty())
+            .unwrap_or_else(|| {
+                fallback_live_web_query_from_failed_draft(message, &initial_draft_response)
+            });
+        if !fallback_query.is_empty() {
+            let forced_payload = execute_tool_call_with_recovery(
+                root,
+                &state,
+                agent_id,
+                None,
+                "batch_query",
+                &json!({
+                    "source": "web",
+                    "query": fallback_query.clone(),
+                    "aperture": "medium",
+                    "diagnostic": "forced_live_web_invariant"
+                }),
+            );
+            let ok = forced_payload
+                .get("ok")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+            let result_text = summarize_tool_payload("batch_query", &forced_payload);
+            let status = tool_card_status_from_payload(&forced_payload);
+            response_tools.push(json!({
+                "id": format!("tool-batch_query-forced-{}", response_tools.len()),
+                "name": "batch_query",
+                "input": trim_text(
+                    &json!({
+                        "source": "web",
+                        "query": fallback_query.clone(),
+                        "aperture": "medium",
+                        "diagnostic": "forced_live_web_invariant"
+                    }).to_string(),
+                    4000
+                ),
+                "result": trim_text(&result_text, 24_000),
+                "is_error": !ok,
+                "blocked": status == "blocked" || status == "policy_denied",
+                "status": status,
+                "tool_attempt_receipt": forced_payload
+                    .pointer("/tool_pipeline/tool_attempt_receipt")
+                    .cloned()
+                    .unwrap_or(Value::Null)
+            }));
+            web_forced_fallback_attempted = true;
+        }
+    }
     let memory_fallback = if memory_recall_requested(message) {
         Some(build_memory_recall_response(&state, &messages, message))
     } else {
         None
     };
     let latest_assistant_text = latest_assistant_message_text(&active_messages);
-    let response_workflow = run_turn_workflow_final_response(
+    let mut response_workflow = run_turn_workflow_final_response(
         root,
         &provider,
         &model,
@@ -377,6 +687,7 @@ fn finalize_message_finalization_and_payload(
     let mut comparative_fallback_used = false;
     let mut workflow_system_fallback_used = false;
     let mut visible_response_repaired = false;
+    let mut final_fallback_used = false;
     if workflow_used {
         tool_completion = tool_completion_report_for_response(
             &finalized_response,
@@ -419,6 +730,7 @@ fn finalize_message_finalization_and_payload(
                 "I hit a response-synthesis failure after collecting this turn. Please retry and I’ll explain what worked or failed directly.".to_string();
         }
         workflow_system_fallback_used = true;
+        final_fallback_used = true;
         finalization_outcome = merge_response_outcomes(
             &finalization_outcome,
             "workflow_system_fallback",
@@ -432,6 +744,7 @@ fn finalize_message_finalization_and_payload(
             merge_response_outcomes(&finalization_outcome, &contract_outcome, 200);
     } else {
         workflow_system_fallback_used = true;
+        final_fallback_used = true;
         finalization_outcome = merge_response_outcomes(
             &finalization_outcome,
             "workflow_unexpected_state",
@@ -460,6 +773,7 @@ fn finalize_message_finalization_and_payload(
         );
     if repair_outcome != "unchanged" {
         visible_response_repaired = true;
+        final_fallback_used = true;
         tooling_fallback_used |= repair_tooling_used;
         comparative_fallback_used |= repair_comparative_used;
         let (contract_finalized, contract_report, contract_outcome) =
@@ -472,7 +786,168 @@ fn finalize_message_finalization_and_payload(
     }
     tool_completion = enrich_tool_completion_receipt(tool_completion, &response_tools);
     response_text = finalized_response;
+    let web_tool_attempted = response_tools_include_web_attempt(&response_tools);
+    let web_tool_blocked = response_tools_web_blocked(&response_tools);
+    let web_tool_low_signal = response_tools_web_low_signal(&response_tools);
+    let web_turn_classification = classify_web_turn_state(
+        web_intent_detected,
+        web_tool_attempted,
+        web_tool_blocked,
+        web_tool_low_signal,
+    );
+    let mut web_failure_code = web_failure_code_from_response_tools(&response_tools);
+    if web_intent_detected && !web_tool_attempted {
+        web_failure_code = "web_route_parse_failed".to_string();
+    } else if web_failure_code.is_empty() && web_tool_low_signal {
+        web_failure_code = "web_tool_low_signal".to_string();
+    }
+    let tooling_attempted = !response_tools.is_empty();
+    let tooling_blocked = response_tools_any_blocked(&response_tools);
+    let tooling_low_signal = response_tools_any_low_signal(&response_tools);
+    let tooling_failure_code = tool_failure_code_from_response_tools(&response_tools);
+    let tooling_turn_classification = if !tooling_attempted {
+        "not_attempted".to_string()
+    } else if tooling_blocked {
+        "policy_blocked".to_string()
+    } else if tooling_low_signal {
+        "low_signal".to_string()
+    } else if !tooling_failure_code.is_empty() {
+        "failed".to_string()
+    } else {
+        "healthy".to_string()
+    };
+    let mut tooling_invariant_repair_used = false;
+    let mut web_invariant_repair_used = false;
+    if web_intent_detected && !web_tool_attempted {
+        response_text = format!(
+            "I detected a live web request, but no web tool lane executed in this turn. web_status: parse_failed. error_code: {}. Retry with `tool::web_search:::<query>` or `tool::web_tooling_health_probe`.",
+            web_failure_code
+        );
+        web_invariant_repair_used = true;
+        final_fallback_used = true;
+        finalization_outcome = merge_response_outcomes(
+            &finalization_outcome,
+            "web_invariant_missing_tool_attempt",
+            200,
+        );
+    } else if web_tool_attempted
+        && (web_tool_blocked || web_tool_low_signal || !web_failure_code.is_empty())
+        && !web_failure_code.is_empty()
+        && !response_text
+            .to_ascii_lowercase()
+            .contains(&web_failure_code.to_ascii_lowercase())
+    {
+        response_text = trim_text(
+            &format!(
+                "{}\n\nweb_status: {}\nerror_code: {}",
+                response_text, web_turn_classification, web_failure_code
+            ),
+            32_000,
+        );
+        web_invariant_repair_used = true;
+        final_fallback_used = true;
+        finalization_outcome = merge_response_outcomes(
+            &finalization_outcome,
+            "web_failure_code_appended",
+            200,
+        );
+    }
+    if tooling_attempted
+        && !tooling_failure_code.is_empty()
+        && !response_text
+            .to_ascii_lowercase()
+            .contains(&tooling_failure_code.to_ascii_lowercase())
+    {
+        response_text = trim_text(
+            &format!(
+                "{}\n\ntool_status: {}\nerror_code: {}",
+                response_text, tooling_turn_classification, tooling_failure_code
+            ),
+            32_000,
+        );
+        tooling_invariant_repair_used = true;
+        final_fallback_used = true;
+        finalization_outcome = merge_response_outcomes(
+            &finalization_outcome,
+            "tooling_failure_code_appended",
+            200,
+        );
+    }
+    let final_contract_violation = response_text.trim().is_empty()
+        || response_is_no_findings_placeholder(&response_text)
+        || response_looks_like_tool_ack_without_findings(&response_text)
+        || response_is_deferred_execution_preamble(&response_text)
+        || response_is_deferred_retry_prompt(&response_text)
+        || workflow_response_requests_more_tooling(&response_text);
+    if final_contract_violation {
+        let mut deterministic_fallback = clean_text(
+            &response_tools_failure_reason_for_user(&response_tools, 4),
+            4_000,
+        );
+        if deterministic_fallback.is_empty() {
+            deterministic_fallback =
+                clean_text(&response_tools_summary_for_user(&response_tools, 4), 4_000);
+        }
+        if deterministic_fallback.is_empty() && web_intent_detected {
+            let stable_error = if web_failure_code.is_empty() {
+                "web_tool_error".to_string()
+            } else {
+                web_failure_code.clone()
+            };
+            deterministic_fallback = format!(
+                "Web retrieval did not produce a usable final answer in this turn. web_status: {}. error_code: {}.",
+                web_turn_classification, stable_error
+            );
+        }
+        if deterministic_fallback.is_empty() && tooling_attempted && !tooling_failure_code.is_empty()
+        {
+            deterministic_fallback = format!(
+                "Tool execution did not produce a usable final answer in this turn. tool_status: {}. error_code: {}.",
+                tooling_turn_classification, tooling_failure_code
+            );
+        }
+        if deterministic_fallback.is_empty() && response_tools.is_empty() && !inline_tools_allowed {
+            deterministic_fallback =
+                "I can answer directly without tool calls. Ask your question naturally and I’ll respond conversationally unless you explicitly request a tool run.".to_string();
+        }
+        if deterministic_fallback.is_empty() {
+            deterministic_fallback = "I completed the workflow, but synthesis could not produce a valid final response in this turn. Please retry and I’ll rerun the chain with explicit failure details.".to_string();
+        }
+        response_text = clean_chat_text(&deterministic_fallback, 32_000);
+        final_fallback_used = true;
+        finalization_outcome = merge_response_outcomes(
+            &finalization_outcome,
+            "deterministic_final_fallback_enforced",
+            200,
+        );
+    }
+    response_workflow["quality_telemetry"]["final_fallback_used"] = Value::Bool(final_fallback_used);
+    let off_topic_reject = response_workflow
+        .pointer("/quality_telemetry/off_topic_reject")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let deferred_reply_reject = response_workflow
+        .pointer("/quality_telemetry/deferred_reply_reject")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let alignment_reject = response_workflow
+        .pointer("/quality_telemetry/alignment_reject")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let meta_control_tool_block = response_workflow
+        .pointer("/quality_telemetry/meta_control_tool_block")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
     let final_ack_only = response_looks_like_tool_ack_without_findings(&response_text);
+    let response_quality_telemetry = json!({
+        "off_topic_reject": off_topic_reject,
+        "deferred_reply_reject": deferred_reply_reject,
+        "alignment_reject": alignment_reject,
+        "meta_control_tool_block": meta_control_tool_block,
+        "final_fallback_used": final_fallback_used,
+        "tooling_contract_repair_used": tooling_invariant_repair_used,
+        "tooling_failure_code_present": !tooling_failure_code.is_empty()
+    });
     let response_finalization = json!({
         "applied": finalization_outcome != "unchanged",
         "outcome": finalization_outcome,
@@ -490,7 +965,29 @@ fn finalize_message_finalization_and_payload(
         "tooling_fallback_used": tooling_fallback_used,
         "comparative_fallback_used": comparative_fallback_used,
         "workflow_system_fallback_used": workflow_system_fallback_used,
-        "visible_response_repaired": visible_response_repaired
+        "visible_response_repaired": visible_response_repaired,
+        "response_quality_telemetry": response_quality_telemetry.clone(),
+        "tooling_invariant": {
+            "tool_attempted": tooling_attempted,
+            "tool_blocked": tooling_blocked,
+            "low_signal": tooling_low_signal,
+            "classification": tooling_turn_classification,
+            "failure_code": tooling_failure_code,
+            "invariant_repair_used": tooling_invariant_repair_used
+        },
+        "web_invariant": {
+            "requires_live_web": web_intent_detected,
+            "intent_source": web_intent_source,
+            "intent_confidence": web_intent_confidence,
+            "selected_route": web_intent_route.clone(),
+            "tool_attempted": web_tool_attempted,
+            "tool_blocked": web_tool_blocked,
+            "low_signal": web_tool_low_signal,
+            "classification": web_turn_classification,
+            "failure_code": web_failure_code,
+            "forced_fallback_attempted": web_forced_fallback_attempted,
+            "invariant_repair_used": web_invariant_repair_used
+        }
     });
     let turn_transaction = crate::dashboard_tool_turn_loop::turn_transaction_payload(
         "complete",
@@ -554,6 +1051,13 @@ fn finalize_message_finalization_and_payload(
     payload["response_workflow"] = response_workflow;
     payload["terminal_transcript"] = Value::Array(terminal_transcript);
     payload["response_finalization"] = response_finalization;
+    payload["response_quality_telemetry"] = response_quality_telemetry;
+    payload["web_intent"] = json!({
+        "detected": web_intent_detected,
+        "source": web_intent_source,
+        "confidence": web_intent_confidence,
+        "selected_route": web_intent_route
+    });
     payload["turn_transaction"] = turn_transaction;
     payload["context_window"] = json!(fallback_window.max(0));
     payload["context_tokens"] = json!(context_active_tokens.max(0));
