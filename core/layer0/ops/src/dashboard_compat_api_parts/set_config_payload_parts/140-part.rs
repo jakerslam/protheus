@@ -1,18 +1,6 @@
 fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
     let normalized = normalize_tool_name(tool_name);
-    let web_tool_payload_prefers_native_summary = matches!(
-        normalized.as_str(),
-        "batch_query"
-            | "batch-query"
-            | "web_search"
-            | "search_web"
-            | "search"
-            | "web_query"
-    ) && (payload.get("summary").and_then(Value::as_str).is_some()
-        || payload.get("query_plan").and_then(Value::as_array).is_some()
-        || payload.get("evidence_refs").and_then(Value::as_array).is_some()
-        || payload.get("type").and_then(Value::as_str) == Some("batch_query"));
-    if normalized != "workspace_analyze" && !web_tool_payload_prefers_native_summary {
+    if normalized != "workspace_analyze" {
         if let Some(claims) = payload
             .pointer("/tool_pipeline/claim_bundle/claims")
             .and_then(Value::as_array)
@@ -45,6 +33,26 @@ fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
                 if !findings.is_empty() {
                     return trim_text(&format!("Key findings: {}", findings.join(" | ")), 24_000);
                 }
+            }
+        }
+    }
+    let web_tool_payload_prefers_native_summary = matches!(
+        normalized.as_str(),
+        "batch_query"
+            | "batch-query"
+            | "web_search"
+            | "search_web"
+            | "search"
+            | "web_query"
+    ) && (payload.get("summary").and_then(Value::as_str).is_some()
+        || payload.get("query_plan").and_then(Value::as_array).is_some()
+        || payload.get("evidence_refs").and_then(Value::as_array).is_some()
+        || payload.get("type").and_then(Value::as_str) == Some("batch_query"));
+    if normalized != "workspace_analyze" && !web_tool_payload_prefers_native_summary {
+        if let Some(summary) = payload.get("summary").and_then(Value::as_str) {
+            let cleaned = clean_text(summary, 24_000);
+            if !cleaned.is_empty() {
+                return cleaned;
             }
         }
     }
@@ -393,6 +401,17 @@ fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
         } else {
             format!("{summary}\n{content}")
         };
+        let evidence_refs_value = payload
+            .get("evidence_refs")
+            .cloned()
+            .unwrap_or_else(|| Value::Array(Vec::new()));
+        let mismatch_score =
+            web_result_domain_topic_mismatch_score(&query, &combined, &evidence_refs_value);
+        if mismatch_score >= 0.72 {
+            let mismatch_domains =
+                filter_framework_search_domains(&query, extract_search_result_domains(&combined, 4));
+            return web_search_off_topic_results_fallback(&query, mismatch_score, &mismatch_domains);
+        }
         if response_mentions_context_guard(&combined) {
             if message_requests_comparative_answer(&query) {
                 return comparative_no_findings_fallback(&query);
@@ -419,9 +438,8 @@ fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
         {
             return trim_text(&sanitized_summary, 1200);
         }
-        let evidence_refs = payload
-            .get("evidence_refs")
-            .and_then(Value::as_array)
+        let evidence_refs = evidence_refs_value
+            .as_array()
             .cloned()
             .unwrap_or_default();
         if !evidence_refs.is_empty() {
@@ -500,6 +518,12 @@ fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
             .get("evidence_refs")
             .cloned()
             .unwrap_or_else(|| Value::Array(Vec::new()));
+        let mismatch_score = web_result_domain_topic_mismatch_score(&query, &combined, &evidence_refs);
+        if mismatch_score >= 0.72 {
+            let mismatch_domains =
+                filter_framework_search_domains(&query, extract_search_result_domains(&combined, 4));
+            return web_search_off_topic_results_fallback(&query, mismatch_score, &mismatch_domains);
+        }
         if response_mentions_context_guard(&combined) {
             if message_requests_comparative_answer(&query) {
                 return comparative_no_findings_fallback(&query);
