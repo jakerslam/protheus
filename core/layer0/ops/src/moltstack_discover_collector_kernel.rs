@@ -28,7 +28,7 @@ fn usage() {
 }
 
 fn clean_text(raw: Option<&str>, max_len: usize) -> String {
-    lane_utils::clean_text(raw, max_len)
+    crate::contract_lane_utils::clean_text(raw, max_len)
 }
 
 fn clamp_u64(payload: &Map<String, Value>, key: &str, fallback: u64, lo: u64, hi: u64) -> u64 {
@@ -177,39 +177,11 @@ fn first_preflight_error(preflight_result: &Value) -> String {
 }
 
 fn classify_curl_transport_error(stderr: &str) -> String {
-    let lower = stderr.to_ascii_lowercase();
-    if lower.contains("could not resolve host")
-        || lower.contains("name or service not known")
-        || lower.contains("temporary failure in name resolution")
-    {
-        return "dns_unreachable".to_string();
-    }
-    if lower.contains("connection refused") {
-        return "connection_refused".to_string();
-    }
-    if lower.contains("operation timed out")
-        || lower.contains("connection timed out")
-        || lower.contains("timed out")
-    {
-        return "timeout".to_string();
-    }
-    if lower.contains("ssl") || lower.contains("tls") || lower.contains("certificate") {
-        return "tls_error".to_string();
-    }
-    "collector_error".to_string()
+    lane_utils::classify_curl_transport_error(stderr)
 }
 
 fn http_status_to_code(status: u64) -> &'static str {
-    match status {
-        401 => "auth_unauthorized",
-        403 => "auth_forbidden",
-        404 => "http_404",
-        408 => "timeout",
-        429 => "rate_limited",
-        500..=u64::MAX => "http_5xx",
-        400..=499 => "http_4xx",
-        _ => "http_error",
-    }
+    lane_utils::http_status_to_code(status)
 }
 
 fn curl_fetch_with_status(

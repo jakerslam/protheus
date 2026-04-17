@@ -81,9 +81,60 @@ fn run_core_domain(root: &Path, domain: &str, args: &[String], forward_stdin: bo
         }
     };
 
+    let mut forwarded_args = args.to_vec();
+    if domain == "daemon-control" {
+        let command = forwarded_args
+            .first()
+            .map(|value| value.trim().to_ascii_lowercase())
+            .unwrap_or_default();
+        let mut gateway_banner_enabled = false;
+        let mut idx = 0usize;
+        while idx < forwarded_args.len() {
+            let token = forwarded_args[idx].trim().to_ascii_lowercase();
+            if token == "--gateway-banner" {
+                gateway_banner_enabled = forwarded_args
+                    .get(idx + 1)
+                    .map(|value| {
+                        matches!(
+                            value.trim().to_ascii_lowercase().as_str(),
+                            "1" | "true" | "yes" | "on"
+                        )
+                    })
+                    .unwrap_or(false);
+                break;
+            }
+            if let Some(value) = token.strip_prefix("--gateway-banner=") {
+                gateway_banner_enabled = matches!(value.trim(), "1" | "true" | "yes" | "on");
+                break;
+            }
+            idx += 1;
+        }
+        if matches!(command.as_str(), "start" | "restart") && gateway_banner_enabled {
+            println!("P o w e r  T o  T h e  U s e r s");
+            let mut cleaned = Vec::<String>::new();
+            let mut skip_next = false;
+            for token in &forwarded_args {
+                if skip_next {
+                    skip_next = false;
+                    continue;
+                }
+                let trimmed = token.trim();
+                if trimmed == "--gateway-banner" {
+                    skip_next = true;
+                    continue;
+                }
+                if trimmed.starts_with("--gateway-banner=") {
+                    continue;
+                }
+                cleaned.push(token.clone());
+            }
+            forwarded_args = cleaned;
+        }
+    }
+
     let mut cmd = Command::new(exe);
     cmd.arg(domain)
-        .args(args)
+        .args(&forwarded_args)
         .current_dir(root)
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit());

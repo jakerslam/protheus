@@ -17,6 +17,26 @@ fn merge_response_outcomes(primary: &str, secondary: &str, max_len: usize) -> St
     clean_text(&format!("{left}+{right}"), max_len.max(1))
 }
 
+fn response_tool_receipt_id(row: &Value) -> String {
+    clean_text(
+        row.pointer("/tool_attempt_receipt/receipt_hash")
+            .or_else(|| row.pointer("/tool_attempt_receipt/receipt_id"))
+            .or_else(|| row.pointer("/tool_attempt_receipt/id"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        80,
+    )
+}
+
+fn response_fails_base_final_answer_contract(text: &str) -> bool {
+    let cleaned = clean_text(text, 32_000);
+    cleaned.trim().is_empty()
+        || response_is_no_findings_placeholder(&cleaned)
+        || response_looks_like_tool_ack_without_findings(&cleaned)
+        || response_is_deferred_execution_preamble(&cleaned)
+        || response_is_deferred_retry_prompt(&cleaned)
+}
+
 fn response_workflow_quality_value<'a>(workflow: &'a Value, key: &str) -> Option<&'a Value> {
     workflow
         .get("quality_telemetry")
@@ -41,24 +61,170 @@ fn response_workflow_quality_count(workflow: &Value, key: &str) -> u64 {
     }
 }
 
-fn response_workflow_quality_flag(workflow: &Value, key: &str) -> bool {
-    response_workflow_quality_value(workflow, key)
-        .and_then(Value::as_bool)
-        .unwrap_or(false)
+fn append_failure_status_line_if_missing(
+    response_text: String,
+    turn_classification: &str,
+    failure_code: &str,
+    status_label: &str,
+) -> (String, bool) {
+    if failure_code.is_empty() {
+        return (response_text, false);
+    }
+    if response_text
+        .to_ascii_lowercase()
+        .contains(&failure_code.to_ascii_lowercase())
+    {
+        return (response_text, false);
+    }
+    (
+        trim_text(
+            &format!(
+                "{}\n\n{}: {}\nerror_code: {}",
+                response_text, status_label, turn_classification, failure_code
+            ),
+            32_000,
+        ),
+        true,
+    )
+}
+
+fn build_deterministic_final_fallback_response(
+    response_tools: &[Value],
+    web_intent_detected: bool,
+    web_turn_classification: &str,
+    web_failure_code: &str,
+    tooling_attempted: bool,
+    tooling_turn_classification: &str,
+    tooling_failure_code: &str,
+    inline_tools_allowed: bool,
+) -> String {
+    let status_failure_fallback =
+        |lane: &str, classification: &str, failure_code: &str, next_step: &str| {
+            format!(
+                "{} did not produce a usable final answer in this turn. {}: {}. error_code: {}. Next step: {}.",
+                lane,
+                if lane.eq_ignore_ascii_case("web retrieval") {
+                    "web_status"
+                } else {
+                    "tool_status"
+                },
+                classification,
+                failure_code,
+                next_step
+            )
+        };
+    let mut deterministic_fallback =
+        clean_text(&response_tools_failure_reason_for_user(response_tools, 4), 4_000);
+    if deterministic_fallback.is_empty() {
+        deterministic_fallback = clean_text(&response_tools_summary_for_user(response_tools, 4), 4_000);
+    }
+    if deterministic_fallback.is_empty() && web_intent_detected {
+        let stable_error = if web_failure_code.is_empty() {
+            "web_tool_error".to_string()
+        } else {
+            web_failure_code.to_string()
+        };
+        deterministic_fallback = status_failure_fallback(
+            "Web retrieval",
+            web_turn_classification,
+            &stable_error,
+            "retry with a narrower query or provide one trusted source URL",
+        );
+    }
+    if deterministic_fallback.is_empty() && tooling_attempted && !tooling_failure_code.is_empty() {
+        deterministic_fallback = status_failure_fallback(
+            "Tool execution",
+            tooling_turn_classification,
+            tooling_failure_code,
+            "run one targeted tool call with explicit scope",
+        );
+    }
+    if deterministic_fallback.is_empty() && response_tools.is_empty() && !inline_tools_allowed {
+        deterministic_fallback =
+            "I can answer directly without tool calls. Ask your question naturally and I’ll respond conversationally unless you explicitly request a tool run.".to_string();
+    }
+    if deterministic_fallback.is_empty() {
+        deterministic_fallback = "I completed the workflow, but synthesis could not produce a valid final response in this turn. Please retry and I’ll rerun the chain with explicit failure details.".to_string();
+    }
+    clean_chat_text(&deterministic_fallback, 32_000)
+}
+
+fn build_response_finalization_payload(
+    finalization_outcome: &str,
+    initial_ack_only: bool,
+    final_ack_only: bool,
+    tool_completion: &Value,
+    tooling_fallback_used: bool,
+    comparative_fallback_used: bool,
+    workflow_system_fallback_used: bool,
+    visible_response_repaired: bool,
+    response_quality_telemetry: &Value,
+    tooling_invariant: &Value,
+    web_invariant: &Value,
+) -> Value {
+    json!({
+        "applied": finalization_outcome != "unchanged",
+        "outcome": finalization_outcome,
+        "initial_ack_only": initial_ack_only,
+        "final_ack_only": final_ack_only,
+        "findings_available": tool_completion
+            .get("findings_available")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
+        "tool_completion": tool_completion,
+        "final_answer_contract": tool_completion
+            .get("final_answer_contract")
+            .cloned()
+            .unwrap_or_else(|| json!({})),
+        "retry_attempted": false,
+        "retry_used": false,
+        "tool_synthesis_retry_used": false,
+        "synthesis_retry_used": false,
+        "tooling_fallback_used": tooling_fallback_used,
+        "comparative_fallback_used": comparative_fallback_used,
+        "workflow_system_fallback_used": workflow_system_fallback_used,
+        "visible_response_repaired": visible_response_repaired,
+        "response_quality_telemetry": response_quality_telemetry,
+        "tooling_invariant": tooling_invariant,
+        "web_invariant": web_invariant
+    })
+}
+
+fn build_response_quality_telemetry_payload(
+    response_workflow: &Value,
+    final_fallback_used: bool,
+    tooling_invariant_repair_used: bool,
+    tooling_failure_code: &str,
+    direct_answer_rate: f64,
+    retry_rate: f64,
+    tool_overcall_rate: f64,
+    off_topic_reject_rate: f64,
+) -> Value {
+    json!({
+        "off_topic_reject": response_workflow_quality_count(response_workflow, "off_topic_reject"),
+        "deferred_reply_reject": response_workflow_quality_count(response_workflow, "deferred_reply_reject"),
+        "alignment_reject": response_workflow_quality_count(response_workflow, "alignment_reject"),
+        "prompt_echo_reject": response_workflow_quality_count(response_workflow, "prompt_echo_reject"),
+        "unsourced_claim_reject": response_workflow_quality_count(response_workflow, "unsourced_claim_reject"),
+        "direct_answer_reject": response_workflow_quality_count(response_workflow, "direct_answer_reject"),
+        "meta_control_tool_block": response_workflow_quality_value(response_workflow, "meta_control_tool_block")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
+        "final_fallback_used": final_fallback_used,
+        "tooling_contract_repair_used": tooling_invariant_repair_used,
+        "tooling_failure_code_present": !tooling_failure_code.is_empty(),
+        "direct_answer_rate": direct_answer_rate,
+        "retry_rate": retry_rate,
+        "tool_overcall_rate": tool_overcall_rate,
+        "off_topic_reject_rate": off_topic_reject_rate
+    })
 }
 
 fn claim_source_tags_for_report(response_tools: &[Value], max_items: usize) -> Vec<String> {
     let mut tags = Vec::<String>::new();
     let mut seen = HashSet::<String>::new();
     for row in response_tools.iter().take(max_items.clamp(1, 8)) {
-        let receipt = clean_text(
-            row.pointer("/tool_attempt_receipt/receipt_hash")
-                .or_else(|| row.pointer("/tool_attempt_receipt/receipt_id"))
-                .or_else(|| row.pointer("/tool_attempt_receipt/id"))
-                .and_then(Value::as_str)
-                .unwrap_or(""),
-            80,
-        );
+        let receipt = response_tool_receipt_id(row);
         if receipt.is_empty() {
             continue;
         }
@@ -467,6 +633,37 @@ fn tool_terminal_transcript(response_tools: &[Value]) -> Vec<Value> {
         }));
     }
     rows
+}
+
+fn append_turn_receipt_with_metadata(
+    root: &Path,
+    agent_id: &str,
+    message: &str,
+    finalized_response: &str,
+    tools_payload: Value,
+    response_workflow: &Value,
+    response_finalization: &Value,
+    process_summary: &Value,
+    turn_transaction: &Value,
+    terminal_transcript: &[Value],
+) -> Value {
+    let mut turn_receipt = append_turn_message(root, agent_id, message, finalized_response);
+    turn_receipt["assistant_turn_patch"] = persist_last_assistant_turn_metadata(
+        root,
+        agent_id,
+        finalized_response,
+        &json!({
+            "tools": tools_payload,
+            "response_workflow": response_workflow.clone(),
+            "response_finalization": response_finalization.clone(),
+            "process_summary": process_summary.clone(),
+            "turn_transaction": turn_transaction.clone(),
+            "terminal_transcript": terminal_transcript.to_vec()
+        }),
+    );
+    turn_receipt["process_summary"] = process_summary.clone();
+    turn_receipt["response_finalization"] = response_finalization.clone();
+    turn_receipt
 }
 
 fn enrich_tool_completion_receipt(tool_completion: Value, response_tools: &[Value]) -> Value {

@@ -32,11 +32,7 @@ const VERITY_DRIFT_PRODUCTION_DEFAULT_MS: i64 = 500;
 const VERITY_DRIFT_SIMULATION_DEFAULT_MS: i64 = 30_000;
 
 fn print_json_line(value: &Value) {
-    println!(
-        "{}",
-        serde_json::to_string(value)
-            .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
-    );
+    crate::contract_lane_utils::print_json_line(value);
 }
 
 fn parse_mode(argv: &[String]) -> Option<String> {

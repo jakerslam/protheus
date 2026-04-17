@@ -1329,7 +1329,7 @@ fn run_action(root: &Path, action: &str, payload: &Value) -> LaneResult {
                     "failed"
                 };
                 response_finalization["tool_transaction"] = json!({
-                    "id": format!("txn_{}", &crate::sha256_hex_str(&format!("{}:{}:{}", normalized, classification, now_iso()))[..12]),
+                    "id": format!("txn_{}", &crate::v8_kernel::sha256_hex_str(&format!("{}:{}:{}", normalized, classification, now_iso()))[..12]),
                     "intent": app_chat_extract_web_query(&raw_input),
                     "status": status,
                     "complete": complete,

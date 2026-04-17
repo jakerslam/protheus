@@ -1,3 +1,7 @@
+const SAFE_STEP_PROMPT_BODY_JSON_040_COMBINED: &[u8] =
+    br#"{"message":"Run `infring web search` as the next safe step."}"#;
+const SAFE_STEP_QUERY_HINT_040_COMBINED: &str = "needs a query";
+
 #[test]
 fn enforce_user_facing_finalization_contract_unwraps_internal_payload_dump() {
     let cards = vec![json!({
@@ -231,7 +235,7 @@ fn direct_message_safe_step_prompt_returns_workflow_metadata() {
         root.path(),
         "POST",
         &format!("/api/agents/{parent_id}/message"),
-        br#"{"message":"Run `infring web search` as the next safe step."}"#,
+        SAFE_STEP_PROMPT_BODY_JSON_040_COMBINED,
         &snapshot,
     )
     .expect("message response");
@@ -413,47 +417,20 @@ fn web_tooling_harness_surfaces_timeout_failure_with_final_llm_synthesis() {
     );
     write_json(
         &governance_test_tool_script_path(root.path()),
-        &json!({
-            "queue": [
-                {
-                    "tool": "batch_query",
-                    "payload": {
-                        "ok": false,
-                        "status": "timeout",
-                        "error": "provider timeout after 30s",
-                        "summary": "provider timeout after 30s"
-                    }
-                },
-                {
-                    "tool": "batch_query",
-                    "payload": {
-                        "ok": false,
-                        "status": "timeout",
-                        "error": "provider timeout after 30s",
-                        "summary": "provider timeout after 30s"
-                    }
-                },
-                {
-                    "tool": "batch_query",
-                    "payload": {
-                        "ok": false,
-                        "status": "timeout",
-                        "error": "provider timeout after 30s",
-                        "summary": "provider timeout after 30s"
-                    }
-                },
-                {
-                    "tool": "batch_query",
-                    "payload": {
-                        "ok": false,
-                        "status": "timeout",
-                        "error": "provider timeout after 30s",
-                        "summary": "provider timeout after 30s"
-                    }
-                }
-            ],
-            "calls": []
-        }),
+        &{
+            let timeout_payload = json!({
+                "ok": false,
+                "status": "timeout",
+                "error": "provider timeout after 30s",
+                "summary": "provider timeout after 30s"
+            });
+            let timeout_queue =
+                vec![json!({"tool": "batch_query", "payload": timeout_payload.clone()}); 4];
+            json!({
+                "queue": timeout_queue,
+                "calls": []
+            })
+        },
     );
 
     let response = handle(
@@ -618,7 +595,10 @@ fn direct_message_safe_step_prompt_returns_actionable_query_required_copy() {
         .get("response")
         .and_then(Value::as_str)
         .unwrap_or("");
-    assert!(response_text.contains("needs a query"), "{response_text}");
+    assert!(
+        response_text.contains(SAFE_STEP_QUERY_HINT_040_COMBINED),
+        "{response_text}"
+    );
     assert!(!response_is_no_findings_placeholder(response_text));
     assert!(
         response

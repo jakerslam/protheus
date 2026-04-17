@@ -16,11 +16,7 @@ const DEFAULT_WEAVER_OVERLAY_REL: &str =
     "client/runtime/local/state/autonomy/weaver/strategy_overlay.json";
 
 fn print_json_line(value: &Value) {
-    println!(
-        "{}",
-        serde_json::to_string(value)
-            .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
-    );
+    crate::contract_lane_utils::print_json_line(value);
 }
 
 fn load_payload(argv: &[String]) -> Result<Value, String> {

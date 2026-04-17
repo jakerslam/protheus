@@ -231,6 +231,9 @@ apps/*
 /client/workspaces/
 /client/runtime/local/
 /client/runtime/state/
+# Explicit churn-guard outputs (generated, non-source)
+/core/local/artifacts/*_current.json
+/local/workspace/reports/*CURRENT*.md
 
 # Persona-local runtime data (never commit personal credentials/notes/projects)
 /client/cognition/personas/*/credentials/

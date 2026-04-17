@@ -21,11 +21,7 @@ fn with_receipt_hash(mut value: Value) -> Value {
 }
 
 fn print_json_line(value: &Value) {
-    println!(
-        "{}",
-        serde_json::to_string(value)
-            .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
-    );
+    crate::contract_lane_utils::print_json_line(value);
 }
 
 fn clean_lane_id(raw: &str) -> String {

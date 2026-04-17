@@ -1287,11 +1287,7 @@ fn cmd_daemon(root: &Path, cli: &CliArgs, policy: &Policy, paths: &RuntimePaths)
 }
 
 fn print_json_line(value: &Value) {
-    println!(
-        "{}",
-        serde_json::to_string(value)
-            .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
-    );
+    crate::contract_lane_utils::print_json_line(value);
 }
 
 fn cli_failure_receipt(cmd: &str, error: &str, code: i32) -> Value {

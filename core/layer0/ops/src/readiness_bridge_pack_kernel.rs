@@ -50,27 +50,15 @@ fn dated_payload(ok: bool, kind: &str) -> Value {
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {
-    let mut out = dated_payload(
-        payload.get("ok").and_then(Value::as_bool).unwrap_or(true),
-        kind,
-    );
-    out["payload"] = payload;
-    with_receipt_hash(out)
+    crate::contract_lane_utils::cli_receipt(kind, payload)
 }
 
 fn cli_error(kind: &str, error: &str) -> Value {
-    let mut out = dated_payload(false, kind);
-    out["error"] = Value::String(error.to_string());
-    out["fail_closed"] = Value::Bool(true);
-    with_receipt_hash(out)
+    crate::contract_lane_utils::cli_error(kind, error)
 }
 
 fn print_json_line(value: &Value) {
-    println!(
-        "{}",
-        serde_json::to_string(value)
-            .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
-    );
+    crate::contract_lane_utils::print_json_line(value);
 }
 
 fn workspace_root(root: &Path) -> PathBuf {

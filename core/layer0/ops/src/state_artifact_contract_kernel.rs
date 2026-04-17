@@ -1,14 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // Layer ownership: core/layer0/ops (authoritative)
 
-use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
-use base64::Engine;
 use serde_json::{json, Map, Value};
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 
 use crate::contract_lane_utils as lane_utils;
-use crate::{deterministic_receipt_hash, now_iso};
+use crate::now_iso;
 
 fn usage() {
     println!("state-artifact-contract-kernel commands:");
@@ -22,52 +20,23 @@ fn usage() {
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {
-    let ts = now_iso();
-    let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(true);
-    let mut out =
-        json!({"ok": ok, "type": kind, "ts": ts, "date": ts[..10].to_string(), "payload": payload});
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
-    out
+    crate::contract_lane_utils::cli_receipt(kind, payload)
 }
 
 fn cli_error(kind: &str, error: &str) -> Value {
-    let ts = now_iso();
-    let mut out = json!({"ok": false, "type": kind, "ts": ts, "date": ts[..10].to_string(), "error": error, "fail_closed": true});
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
-    out
+    crate::contract_lane_utils::cli_error(kind, error)
 }
 
 fn print_json_line(value: &Value) {
-    println!(
-        "{}",
-        serde_json::to_string(value)
-            .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
-    );
+    crate::contract_lane_utils::print_json_line(value);
 }
 
 fn payload_json(argv: &[String]) -> Result<Value, String> {
-    if let Some(raw) = lane_utils::parse_flag(argv, "payload", false) {
-        return serde_json::from_str::<Value>(&raw)
-            .map_err(|err| format!("state_artifact_contract_kernel_payload_decode_failed:{err}"));
-    }
-    if let Some(raw_b64) = lane_utils::parse_flag(argv, "payload-base64", false) {
-        let bytes = BASE64_STANDARD.decode(raw_b64.as_bytes()).map_err(|err| {
-            format!("state_artifact_contract_kernel_payload_base64_decode_failed:{err}")
-        })?;
-        let text = String::from_utf8(bytes).map_err(|err| {
-            format!("state_artifact_contract_kernel_payload_utf8_decode_failed:{err}")
-        })?;
-        return serde_json::from_str::<Value>(&text)
-            .map_err(|err| format!("state_artifact_contract_kernel_payload_decode_failed:{err}"));
-    }
-    Ok(json!({}))
+    lane_utils::payload_json(argv, "state_artifact_contract_kernel")
 }
 
 fn payload_obj<'a>(value: &'a Value) -> &'a Map<String, Value> {
-    value.as_object().unwrap_or_else(|| {
-        static EMPTY: std::sync::OnceLock<Map<String, Value>> = std::sync::OnceLock::new();
-        EMPTY.get_or_init(Map::new)
-    })
+    lane_utils::payload_obj(value)
 }
 
 fn clean_text(value: Option<&Value>, max_len: usize) -> String {
