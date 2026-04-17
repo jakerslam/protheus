@@ -1,0 +1,80 @@
+version: 1
+profiles:
+  rich:
+    memory:
+      peak_rss_mb_max: 1400
+    queue:
+      depth_max: 1800
+      depth_p95_max: 1200
+    receipts:
+      throughput_per_min_min: 150
+      p95_latency_ms_max: 1200
+    recovery:
+      conduit_recovery_ms_max: 14000
+      adapter_restart_count_max: 4
+      adapter_recovery_ms_max: 15000
+    stale_surface:
+      incidents_max: 1
+    adapter_chaos:
+      baseline_pass_ratio_min: 1.0
+      fail_closed_ratio_min: 1.0
+    quality_telemetry:
+      empty_final_max: 0
+      deferred_final_max: 0
+      placeholder_final_max: 0
+      off_topic_final_max: 0
+      meta_status_tool_leak_max: 0
+      web_missing_tool_attempt_max: 0
+      taxonomy_parse_error_max: 0
+  pure:
+    memory:
+      peak_rss_mb_max: 1000
+    queue:
+      depth_max: 1400
+      depth_p95_max: 900
+    receipts:
+      throughput_per_min_min: 110
+      p95_latency_ms_max: 980
+    recovery:
+      conduit_recovery_ms_max: 10000
+      adapter_restart_count_max: 3
+      adapter_recovery_ms_max: 12000
+    stale_surface:
+      incidents_max: 1
+    adapter_chaos:
+      baseline_pass_ratio_min: 1.0
+      fail_closed_ratio_min: 1.0
+    quality_telemetry:
+      empty_final_max: 0
+      deferred_final_max: 0
+      placeholder_final_max: 0
+      off_topic_final_max: 0
+      meta_status_tool_leak_max: 0
+      web_missing_tool_attempt_max: 0
+      taxonomy_parse_error_max: 0
+  tiny-max:
+    memory:
+      peak_rss_mb_max: 720
+    queue:
+      depth_max: 900
+      depth_p95_max: 600
+    receipts:
+      throughput_per_min_min: 80
+      p95_latency_ms_max: 720
+    recovery:
+      conduit_recovery_ms_max: 8000
+      adapter_restart_count_max: 2
+      adapter_recovery_ms_max: 9500
+    stale_surface:
+      incidents_max: 1
+    adapter_chaos:
+      baseline_pass_ratio_min: 1.0
+      fail_closed_ratio_min: 1.0
+    quality_telemetry:
+      empty_final_max: 0
+      deferred_final_max: 0
+      placeholder_final_max: 0
+      off_topic_final_max: 0
+      meta_status_tool_leak_max: 0
+      web_missing_tool_attempt_max: 0
+      taxonomy_parse_error_max: 0

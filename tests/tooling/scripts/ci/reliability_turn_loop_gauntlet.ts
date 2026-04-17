@@ -106,6 +106,18 @@ const CHECKS: GauntletCheck[] = [
     name: '32-turn mixed web/meta soak preserves terminal response contract',
     test: 'workflow_web_tooling_context_soak_32_turns_reports_zero_terminal_failures',
   },
+  {
+    id: 'e2e_web_transcript_replay_guard',
+    lane: 'e2e',
+    name: 'Transcript replay guard prevents speculative blocker copy resurrection',
+    test: 'workflow_repair_does_not_resurrect_prior_speculative_web_blocker_copy',
+  },
+  {
+    id: 'e2e_workflow_system_fallback_contract',
+    lane: 'e2e',
+    name: 'Workflow system fallback only triggers on final-stage synthesis failures',
+    test: 'workflow_system_fallback_requires_final_stage_failure',
+  },
 ];
 
 function selectedChecks(): GauntletCheck[] {
@@ -143,21 +155,35 @@ function writeJson(pathname: string, payload: unknown): void {
   fs.writeFileSync(pathname, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
 }
 
-function runCheck(check: GauntletCheck): GauntletResult {
-  const started = Date.now();
+function runCargoTestWithTimeoutKill(testName: string) {
   const out = spawnSync(
     'cargo',
-    ['test', '-p', 'protheus-ops-core', '--lib', check.test, '--quiet', '--', '--nocapture'],
+    ['test', '-p', 'protheus-ops-core', '--lib', testName, '--quiet', '--', '--nocapture'],
     {
       cwd: ROOT,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
       timeout: CHECK_TIMEOUT_MS,
+      killSignal: 'SIGKILL',
     },
   );
   const timeoutMessage = String(out.error?.message || '').toLowerCase();
   const timedOut =
     !!out.error && (timeoutMessage.includes('timed out') || timeoutMessage.includes('etimedout'));
+  if (timedOut) {
+    const pattern = `cargo test -p protheus-ops-core --lib ${testName}`;
+    spawnSync('pkill', ['-TERM', '-f', pattern], { cwd: ROOT, stdio: 'ignore' });
+    spawnSync('pkill', ['-KILL', '-f', pattern], { cwd: ROOT, stdio: 'ignore' });
+  }
+  return {
+    out,
+    timedOut,
+  };
+}
+
+function runCheck(check: GauntletCheck): GauntletResult {
+  const started = Date.now();
+  const { out, timedOut } = runCargoTestWithTimeoutKill(check.test);
   const status = timedOut ? 124 : Number.isFinite(out.status) ? Number(out.status) : 1;
   const durationMs = Date.now() - started;
   const failureReason = timedOut

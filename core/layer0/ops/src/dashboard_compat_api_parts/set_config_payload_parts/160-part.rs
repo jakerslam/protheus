@@ -105,6 +105,37 @@ fn tool_card_status_from_payload(payload: &Value) -> String {
     }
 }
 
+fn tool_uses_web_retry_policy(tool_name: &str) -> bool {
+    matches!(
+        normalize_tool_name(tool_name).as_str(),
+        "batch_query"
+            | "web_search"
+            | "search_web"
+            | "search"
+            | "web_query"
+            | "web_fetch"
+            | "browse"
+            | "web_conduit_fetch"
+            | "web_tooling_health_probe"
+    )
+}
+
+fn deterministic_tool_retry_backoff_ms(tool_name: &str) -> Vec<u64> {
+    if tool_uses_web_retry_policy(tool_name) {
+        vec![160, 320]
+    } else {
+        vec![180, 360, 720]
+    }
+}
+
+fn deterministic_tool_retry_policy_class(tool_name: &str) -> &'static str {
+    if tool_uses_web_retry_policy(tool_name) {
+        "web_tool_retry_policy_v1"
+    } else {
+        "default_tool_retry_policy_v1"
+    }
+}
+
 fn execute_tool_call_with_recovery(
     root: &Path,
     snapshot: &Value,
@@ -113,6 +144,7 @@ fn execute_tool_call_with_recovery(
     tool_name: &str,
     input: &Value,
 ) -> Value {
+    let normalized_tool = normalize_tool_name(tool_name);
     if let Some(blocked) =
         crate::dashboard_tool_turn_loop::pre_tool_permission_gate(root, tool_name, input)
     {
@@ -126,18 +158,20 @@ fn execute_tool_call_with_recovery(
                     "ok": false,
                     "error": "tool_nexus_delivery_denied",
                     "message": "Tool execution blocked by hierarchical nexus ingress policy.",
-                    "tool": normalize_tool_name(tool_name),
+                    "tool": normalized_tool,
                     "fail_closed": true,
                     "nexus_error": clean_text(&err, 240)
                 })
             }
         };
+    let retry_backoff_ms = deterministic_tool_retry_backoff_ms(tool_name);
+    let retry_policy_class = deterministic_tool_retry_policy_class(tool_name).to_string();
     let mut payload =
         execute_tool_call_by_name(root, snapshot, actor_agent_id, existing, tool_name, input);
     let mut recovery_strategy = "none".to_string();
     let mut recovery_attempts = 0_u64;
     if transient_tool_failure(&payload) {
-        for delay_ms in [180_u64, 360, 720] {
+        for delay_ms in retry_backoff_ms.iter().copied() {
             recovery_attempts += 1;
             std::thread::sleep(std::time::Duration::from_millis(delay_ms));
             let retry = execute_tool_call_by_name(
@@ -193,6 +227,14 @@ fn execute_tool_call_with_recovery(
             Value::String(audit_receipt),
         );
         obj.insert("recovery_attempts".to_string(), json!(recovery_attempts));
+        obj.insert(
+            "retry_policy".to_string(),
+            json!({
+                "class": retry_policy_class,
+                "max_attempts": retry_backoff_ms.len(),
+                "backoff_ms": retry_backoff_ms
+            }),
+        );
         if let Some(meta) = nexus_connection {
             obj.insert("nexus_connection".to_string(), meta);
         }
@@ -241,8 +283,64 @@ fn execute_inline_tool_calls(
     let mut pending_confirmation: Option<Value> = None;
     for (idx, (name, input, _raw)) in calls.into_iter().enumerate() {
         let normalized_name = normalize_tool_name(&name);
+        if let Some(input_error) = inline_tool_input_error_code(&input) {
+            let payload = json!({
+                "ok": false,
+                "status": "blocked",
+                "error": input_error,
+                "message": "Inline tool input was rejected by payload-size/schema guard."
+            });
+            let result_text = user_facing_tool_failure_summary(&name, &payload).unwrap_or_else(|| {
+                format!(
+                    "Inline tool call for `{}` was rejected by input guard. error_code: {}",
+                    if normalized_name.is_empty() { "tool" } else { normalized_name.as_str() },
+                    clean_text(
+                        payload.get("error").and_then(Value::as_str).unwrap_or("tool_input_schema_invalid"),
+                        80
+                    )
+                )
+            });
+            cards.push(json!({
+                "id": format!("tool-{}-{}", if normalized_name.is_empty() { "tool" } else { normalized_name.as_str() }, idx),
+                "name": if normalized_name.is_empty() { "tool" } else { normalized_name.as_str() },
+                "input": "",
+                "result": trim_text(&result_text, 24_000),
+                "is_error": true,
+                "blocked": true,
+                "status": "blocked",
+                "tool_attempt_receipt": Value::Null
+            }));
+            fallback_lines.push(result_text);
+            continue;
+        }
         let mut input_for_call =
             normalize_inline_tool_execution_input(&normalized_name, &input, user_message);
+        if input_for_call.to_string().len() > 12_000 {
+            let payload = json!({
+                "ok": false,
+                "status": "blocked",
+                "error": "tool_input_payload_too_large",
+                "message": "Inline tool input exceeded payload budget after normalization."
+            });
+            let result_text = user_facing_tool_failure_summary(&name, &payload).unwrap_or_else(|| {
+                format!(
+                    "Inline tool call for `{}` exceeded payload budget and was rejected. error_code: tool_input_payload_too_large",
+                    if normalized_name.is_empty() { "tool" } else { normalized_name.as_str() }
+                )
+            });
+            cards.push(json!({
+                "id": format!("tool-{}-{}", if normalized_name.is_empty() { "tool" } else { normalized_name.as_str() }, idx),
+                "name": if normalized_name.is_empty() { "tool" } else { normalized_name.as_str() },
+                "input": "",
+                "result": trim_text(&result_text, 24_000),
+                "is_error": true,
+                "blocked": true,
+                "status": "blocked",
+                "tool_attempt_receipt": Value::Null
+            }));
+            fallback_lines.push(result_text);
+            continue;
+        }
         let user_requested_swarm = swarm_intent_requested(user_message)
             || user_message.to_ascii_lowercase().contains("multi-agent")
             || user_message.to_ascii_lowercase().contains("multi agent");
@@ -319,11 +417,14 @@ fn execute_inline_tool_calls(
         }
     }
     let cleaned_trimmed = cleaned.trim();
+    let cleaned_contains_inline_markup =
+        cleaned_trimmed.contains("<function=") || cleaned_trimmed.contains("</function>");
     let cleaned_is_low_signal = response_looks_like_tool_ack_without_findings(cleaned_trimmed)
         || response_looks_like_unsynthesized_web_snippet_dump(cleaned_trimmed)
         || response_looks_like_raw_web_artifact_dump(cleaned_trimmed)
         || response_is_no_findings_placeholder(cleaned_trimmed)
-        || response_contains_tool_telemetry_dump(cleaned_trimmed);
+        || response_contains_tool_telemetry_dump(cleaned_trimmed)
+        || cleaned_contains_inline_markup;
     let response = if cleaned_trimmed.is_empty() || cleaned_is_low_signal {
         let joined = fallback_lines.join("\n\n");
         if joined.trim().is_empty() {
@@ -464,6 +565,47 @@ fn natural_web_intent_from_user_message(message: &str) -> Option<(String, Value)
         return None;
     }
     let lowered = clean_text(trimmed, 2200).to_ascii_lowercase();
+    if message_is_tooling_status_check(trimmed) {
+        return None;
+    }
+    let meta_control_turn = [
+        "that was just a test",
+        "just a test",
+        "just testing",
+        "test only",
+        "ignore that",
+        "never mind",
+        "nm",
+        "thanks",
+        "thank you",
+        "cool",
+        "sounds good",
+        "did you try it",
+        "did you do it",
+        "what happened",
+    ]
+    .iter()
+    .any(|marker| lowered.contains(marker))
+        && ![
+            "search",
+            "web",
+            "online",
+            "internet",
+            "file",
+            "patch",
+            "edit",
+            "update",
+            "create",
+            "read",
+            "memory",
+            "repo",
+            "codebase",
+        ]
+        .iter()
+        .any(|marker| lowered.contains(marker));
+    if meta_control_turn {
+        return None;
+    }
     let url = first_http_url_in_text(trimmed);
     if !url.is_empty() {
         let asks_browse = lowered.contains("browse") || lowered.contains("fetch") || lowered.contains("read this") || lowered.contains("summarize") || lowered.contains("look at") || lowered.contains("open") || lowered.contains("web");
@@ -509,6 +651,9 @@ fn natural_web_intent_from_user_message(message: &str) -> Option<(String, Value)
             || lowered.starts_with("can you ")
             || lowered.starts_with("could you ")
             || lowered.starts_with("would you ")
+            || lowered.starts_with("run ")
+            || lowered.starts_with("do ")
+            || lowered.starts_with("perform ")
             || lowered.starts_with("search ")
             || lowered.starts_with("look up ")
             || lowered.starts_with("find ");
@@ -525,6 +670,12 @@ fn natural_web_intent_from_user_message(message: &str) -> Option<(String, Value)
                 "try doing ",
                 "try to ",
                 "try ",
+                "run a ",
+                "run ",
+                "do a ",
+                "do ",
+                "perform a ",
+                "perform ",
                 "please ",
                 "can you ",
                 "could you ",
@@ -537,7 +688,7 @@ fn natural_web_intent_from_user_message(message: &str) -> Option<(String, Value)
                 }
             }
             let query = {
-                let cleaned = strip_wrapped_natural_web_query(&candidate, 600);
+                let cleaned = canonicalize_domain_scoped_web_query(&candidate);
                 if cleaned.is_empty() {
                     "latest information".to_string()
                 } else {
@@ -559,10 +710,161 @@ fn natural_web_intent_from_user_message(message: &str) -> Option<(String, Value)
     None
 }
 
+fn message_is_tooling_status_check(message: &str) -> bool {
+    let lowered = clean_text(message, 1_200).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    let status_frame = lowered.starts_with("did you")
+        || lowered.starts_with("can you confirm")
+        || lowered.starts_with("confirm")
+        || lowered.starts_with("what happened")
+        || lowered.starts_with("status")
+        || lowered.contains("did that run")
+        || lowered.contains("did it run")
+        || lowered.contains("did it work")
+        || lowered.contains("is it working")
+        || lowered.contains("why did it fail")
+        || lowered.contains("why it failed");
+    if !status_frame {
+        return false;
+    }
+    let tooling_reference = lowered.contains("web request")
+        || lowered.contains("web tooling")
+        || lowered.contains("web tool")
+        || lowered.contains("web search")
+        || lowered.contains("search request")
+        || lowered.contains("search run")
+        || lowered.contains("tooling workflow")
+        || lowered.contains("tool workflow")
+        || lowered.contains("tool call")
+        || lowered.contains("tool run")
+        || lowered.contains("workflow run")
+        || lowered.contains("last run")
+        || lowered.contains("workspace analyze")
+        || lowered.contains("workspace analysis")
+        || lowered.contains("batch query");
+    if !tooling_reference {
+        return false;
+    }
+    let asks_fresh_action = lowered.contains("search for ")
+        || lowered.contains("look up ")
+        || lowered.contains("find information")
+        || lowered.contains("find sources")
+        || lowered.contains("about ")
+        || lowered.contains("top ")
+        || lowered.contains("best ")
+        || lowered.contains("latest ")
+        || lowered.contains("read file ")
+        || lowered.contains("open file ")
+        || lowered.contains("analyze ");
+    !asks_fresh_action
+}
+
+fn message_is_web_tooling_status_check(message: &str) -> bool {
+    if !message_is_tooling_status_check(message) {
+        return false;
+    }
+    let lowered = clean_text(message, 1_200).to_ascii_lowercase();
+    let web_reference = lowered.contains("web request")
+        || lowered.contains("web tooling")
+        || lowered.contains("web tool")
+        || lowered.contains("web search")
+        || lowered.contains("search request")
+        || lowered.contains("search run")
+        || lowered.contains("tooling workflow")
+        || lowered.contains("tool workflow");
+    if !web_reference {
+        return false;
+    }
+    let asks_fresh_query = lowered.contains("search for ")
+        || lowered.contains("look up ")
+        || lowered.contains("find information")
+        || lowered.contains("find sources")
+        || lowered.contains("about ")
+        || lowered.contains("top ")
+        || lowered.contains("best ")
+        || lowered.contains("latest ");
+    !asks_fresh_query
+}
+
+fn canonicalize_domain_scoped_web_query(raw: &str) -> String {
+    let cleaned = strip_wrapped_natural_web_query(raw, 600);
+    if cleaned.is_empty() {
+        return String::new();
+    }
+    let lowered = cleaned.to_ascii_lowercase();
+    let domain_scoped = lowered
+        .strip_prefix("only on ")
+        .map(|_| 8usize)
+        .or_else(|| lowered.strip_prefix("on ").map(|_| 3usize));
+    let Some(prefix_len) = domain_scoped else {
+        return cleaned;
+    };
+    if cleaned.len() <= prefix_len {
+        return cleaned;
+    }
+    let remainder = clean_text(&cleaned[prefix_len..], 600);
+    if remainder.is_empty() {
+        return cleaned;
+    }
+    let mut pieces = remainder.splitn(2, char::is_whitespace);
+    let domain_raw = pieces.next().unwrap_or("");
+    let domain = domain_raw
+        .trim()
+        .trim_matches(|ch: char| matches!(ch, ',' | ';' | ')' | ']' | '}'))
+        .to_ascii_lowercase();
+    if domain.is_empty() || !domain.contains('.') {
+        return cleaned;
+    }
+    let mut topic = clean_text(pieces.next().unwrap_or(""), 600);
+    let topic_lower = topic.to_ascii_lowercase();
+    if topic_lower.starts_with("for ") && topic.len() > 4 {
+        topic = clean_text(&topic[4..], 600);
+    }
+    let mut topic_lower = topic.to_ascii_lowercase();
+    for marker in [
+        " and provide ",
+        " and include ",
+        " and return ",
+        " with source ",
+        " with url ",
+        " with urls ",
+        " and share ",
+    ] {
+        if let Some(idx) = topic_lower.find(marker) {
+            topic = clean_text(&topic[..idx], 600);
+            topic_lower = topic.to_ascii_lowercase();
+        }
+    }
+    let normalized_topic = strip_wrapped_natural_web_query(&topic, 600);
+    if normalized_topic.is_empty() {
+        format!("site:{domain}")
+    } else {
+        format!("site:{domain} {normalized_topic}")
+    }
+}
+
 fn natural_web_search_query_from_message(message: &str) -> Option<String> {
     let mut trimmed = clean_text(message, 2_200);
     if trimmed.is_empty() {
         return None;
+    }
+    let lead_ins = [
+        "lets do a test:",
+        "let's do a test:",
+        "quick test:",
+        "test:",
+        "for a test,",
+    ];
+    for lead_in in lead_ins {
+        if trimmed.to_ascii_lowercase().starts_with(lead_in) {
+            let stripped = clean_text(&trimmed[lead_in.len()..], 2_200);
+            if !stripped.is_empty() {
+                trimmed = stripped;
+            }
+            break;
+        }
     }
     let polite_prefixes = ["please ", "can you ", "could you ", "would you ", "just "];
     for prefix in polite_prefixes {
@@ -575,6 +877,14 @@ fn natural_web_search_query_from_message(message: &str) -> Option<String> {
     let prefixes = [
         "try to web search ",
         "try web search ",
+        "run a web search for ",
+        "run web search for ",
+        "run a web search ",
+        "run web search ",
+        "do a web search for ",
+        "do a web search ",
+        "perform a web search for ",
+        "perform a web search ",
         "web search for ",
         "web search ",
         "search the web for ",
@@ -583,11 +893,18 @@ fn natural_web_search_query_from_message(message: &str) -> Option<String> {
         "search for ",
         "look up ",
         "find online ",
-        "find on the web ",
+        "try finding information about ",
+        "try finding info about ",
+        "find information about ",
+        "find info about ",
+        "find out about ",
+        "get information about ",
+        "get info about ",
+        "try doing a generic search ",
     ];
     for prefix in prefixes {
         if lowered.starts_with(prefix) {
-            let query = strip_wrapped_natural_web_query(&trimmed[prefix.len()..], 600);
+            let query = canonicalize_domain_scoped_web_query(&trimmed[prefix.len()..]);
             if !query.is_empty() {
                 return Some(query);
             }
@@ -627,6 +944,7 @@ const EXPLICIT_SUPPORTED_TOOL_COMMANDS: &[&str] = &[
     "capabilities",
     "web_search",
     "web_fetch",
+    "web_tooling_health_probe",
     "spawn_subagents",
     "manage_agent",
     "batch_query",

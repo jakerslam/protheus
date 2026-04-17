@@ -15,6 +15,54 @@ fn availability_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Value
             "chaos_last_run".to_string(),
             json!({"ts": now_iso(), "result": "pass"}),
         );
+    } else if op == "gateway-sync" {
+        let channel_state = clean(
+            parsed
+                .flags
+                .get("channel-state")
+                .map(String::as_str)
+                .unwrap_or("connected"),
+            24,
+        )
+        .to_ascii_lowercase();
+        if !matches!(channel_state.as_str(), "connected" | "degraded" | "disconnected") {
+            return Err("availability_gateway_channel_state_invalid".to_string());
+        }
+        let stream_seq = parse_u64(parsed.flags.get("stream-seq"), 0);
+        let pending_queue = parse_u64(parsed.flags.get("pending-queue"), 0);
+        let reconnect_reason = clean(
+            parsed
+                .flags
+                .get("reconnect-reason")
+                .map(String::as_str)
+                .unwrap_or(""),
+            120,
+        );
+        let fallback_provider = clean(
+            parsed
+                .flags
+                .get("fallback-provider")
+                .map(String::as_str)
+                .unwrap_or(""),
+            80,
+        );
+        state.insert(
+            "gateway_channel".to_string(),
+            json!({
+                "state": channel_state,
+                "stream_seq": stream_seq,
+                "pending_queue": pending_queue,
+                "reconnect_reason": if reconnect_reason.is_empty() { Value::Null } else { Value::String(reconnect_reason) },
+                "fallback_provider": if fallback_provider.is_empty() { Value::Null } else { Value::String(fallback_provider) },
+                "updated_at": now_iso()
+            }),
+        );
+        if channel_state == "disconnected" {
+            set_last_failover = true;
+        }
+        if pending_queue > 250 {
+            return Err("availability_gateway_pending_queue_over_budget".to_string());
+        }
     } else {
         {
             let zones = state
@@ -64,9 +112,9 @@ fn availability_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Value
                 return Err("availability_op_invalid".to_string());
             }
         }
-        if set_last_failover {
-            state.insert("last_failover".to_string(), Value::String(now_iso()));
-        }
+    }
+    if set_last_failover {
+        state.insert("last_failover".to_string(), Value::String(now_iso()));
     }
     let zones = state
         .get("zones")
@@ -92,7 +140,13 @@ fn availability_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Value
         "claim_evidence": [{
             "id": "V7-BANK-001.9",
             "claim": "availability_runtime_tracks_active_active_zone_state_failover_and_chaos_validation_receipts",
-            "evidence": {"op": op}
+            "evidence": {
+                "op": op,
+                "gateway_channel_state": state
+                    .get("gateway_channel")
+                    .and_then(|row| row.get("state"))
+                    .and_then(Value::as_str)
+            }
         }]
     }))
 }
@@ -244,4 +298,3 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         ),
     }
 }
-

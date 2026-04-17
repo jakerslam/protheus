@@ -123,6 +123,126 @@ fn filter_framework_search_domains(query: &str, domains: Vec<String>) -> Vec<Str
     filtered
 }
 
+fn web_query_topic_terms(query: &str, max_terms: usize) -> HashSet<String> {
+    let stopwords = [
+        "the",
+        "and",
+        "for",
+        "with",
+        "that",
+        "this",
+        "from",
+        "about",
+        "current",
+        "latest",
+        "best",
+        "top",
+        "find",
+        "search",
+        "information",
+        "online",
+        "web",
+        "framework",
+        "frameworks",
+        "agent",
+        "agents",
+    ]
+    .into_iter()
+    .collect::<HashSet<_>>();
+    clean_text(query, 1_200)
+        .to_ascii_lowercase()
+        .split(|ch: char| !ch.is_ascii_alphanumeric() && ch != '.' && ch != '_')
+        .filter_map(|term| {
+            let cleaned = term.trim().to_string();
+            if cleaned.len() < 3 || stopwords.contains(cleaned.as_str()) {
+                None
+            } else {
+                Some(cleaned)
+            }
+        })
+        .take(max_terms.max(1))
+        .collect::<HashSet<_>>()
+}
+
+fn web_result_domain_topic_mismatch_score(query: &str, summary: &str, evidence_refs: &Value) -> f64 {
+    let terms = web_query_topic_terms(query, 12);
+    if terms.is_empty() {
+        return 0.0;
+    }
+    let mut evidence_blob = clean_text(summary, 8_000);
+    if let Some(rows) = evidence_refs.as_array() {
+        for row in rows.iter().take(8) {
+            let title = clean_text(row.get("title").and_then(Value::as_str).unwrap_or(""), 240);
+            let locator = clean_text(row.get("locator").and_then(Value::as_str).unwrap_or(""), 320);
+            if !title.is_empty() {
+                evidence_blob.push('\n');
+                evidence_blob.push_str(&title);
+            }
+            if !locator.is_empty() {
+                evidence_blob.push('\n');
+                evidence_blob.push_str(&locator);
+            }
+        }
+    }
+    let lowered = evidence_blob.to_ascii_lowercase();
+    let coverage_hits = terms
+        .iter()
+        .filter(|term| lowered.contains(term.as_str()))
+        .count() as f64;
+    let coverage_ratio = if terms.is_empty() {
+        0.0
+    } else {
+        coverage_hits / (terms.len() as f64)
+    };
+    let domains = extract_search_result_domains(&evidence_blob, 8);
+    let strong_off_topic_domain = domains.iter().any(|domain| {
+        let lowered_domain = clean_text(domain, 200).to_ascii_lowercase();
+        lowered_domain.contains("qrz.com")
+            || lowered_domain.contains("ham")
+            || lowered_domain.contains("callsign")
+    });
+    let low_signal_domain_ratio = if domains.is_empty() {
+        0.0
+    } else {
+        domains
+            .iter()
+            .filter(|domain| framework_search_source_is_low_signal(domain))
+            .count() as f64
+            / (domains.len() as f64)
+    };
+    let framework_query = web_search_framework_catalog_intent(query);
+    let framework_hit_count = framework_names_from_web_text(&evidence_blob).len() as f64;
+    let framework_penalty = if framework_query && framework_hit_count == 0.0 {
+        0.18
+    } else {
+        0.0
+    };
+    let mut score = (1.0 - coverage_ratio) * 0.62 + low_signal_domain_ratio * 0.28 + framework_penalty;
+    if strong_off_topic_domain {
+        score += 0.22;
+    }
+    score.clamp(0.0, 1.0)
+}
+
+fn web_search_off_topic_results_fallback(query: &str, mismatch_score: f64, domains: &[String]) -> String {
+    let query_label = if query.trim().is_empty() {
+        "this query".to_string()
+    } else {
+        format!("\"{}\"", trim_text(query, 140))
+    };
+    let domain_hint = if domains.is_empty() {
+        "no reliable topical domains".to_string()
+    } else {
+        trim_text(&domains.join(", "), 180)
+    };
+    format!(
+        "Web search results looked off-topic for {} (mismatch_score={:.2}, domains={}). I did not treat them as valid findings. Retry with a narrower technical query or one trusted source URL. error_code: web_tool_off_topic_results",
+        query_label,
+        mismatch_score,
+        domain_hint
+    )
+}
+
 fn web_search_no_findings_fallback(
     query: &str,
     combined: &str,
@@ -514,6 +634,28 @@ fn looks_like_search_engine_chrome_summary(summary: &str) -> bool {
 fn user_facing_tool_failure_summary(tool_name: &str, payload: &Value) -> Option<String> {
     let normalized = normalize_tool_name(tool_name);
     let lowered = tool_error_text(payload).to_ascii_lowercase();
+    let nexus_error = clean_text(payload.get("nexus_error").and_then(Value::as_str).unwrap_or(""), 220);
+    if lowered.contains("nexus_delivery_denied") || lowered.contains("tool_nexus_delivery_denied")
+    {
+        if nexus_error.is_empty() {
+            return Some(format!(
+                "`{normalized}` was blocked by ingress delivery policy in this runtime lane. This is a policy gate, not a web-provider outage."
+            ));
+        }
+        return Some(format!(
+            "`{normalized}` was blocked by ingress delivery policy in this runtime lane ({nexus_error}). This is a policy gate, not a web-provider outage."
+        ));
+    }
+    if lowered.contains("tool_pre_gate_blocked") || lowered.contains("tool_permission_denied") {
+        return Some(format!(
+            "`{normalized}` was blocked by tool permission policy before execution. This turn did not run that tool."
+        ));
+    }
+    if lowered.contains("invalid_response_attempt") {
+        return Some(format!(
+            "`{normalized}` returned an invalid response shape in this turn. Retry with one concrete query or source URL."
+        ));
+    }
     if lowered.contains("unsupported_tool_command")
         || lowered.contains("tool_command_")
         || lowered == "invalid_tool_command"

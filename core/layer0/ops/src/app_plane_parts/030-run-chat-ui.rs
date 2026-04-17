@@ -229,7 +229,17 @@ fn run_chat_ui(root: &Path, parsed: &crate::ParsedArgs, strict: bool, action: &s
         );
     selected_provider = resolved_provider;
     selected_model = resolved_model;
-    let system_prompt = clean(parsed.flags.get("system").cloned().unwrap_or_else(|| "You are an Infring dashboard runtime agent. You have host-integrated access to runtime telemetry, agent session memory, and approved protheus/infring command surfaces. Never claim you lack system access; if a value is missing, request a runtime sync or the exact command needed and continue.".to_string()), 12_000);
+    let base_system_prompt = clean(parsed.flags.get("system").cloned().unwrap_or_else(|| "You are an Infring dashboard runtime agent. You have host-integrated access to runtime telemetry, agent session memory, and approved protheus/infring command surfaces. Never claim you lack system access; if a value is missing, request a runtime sync or the exact command needed and continue.".to_string()), 12_000);
+    let tool_gate = chat_ui_turn_tool_decision_tree(&message);
+    let tool_gate_prompt = chat_ui_tool_gate_system_prompt(&message);
+    let system_prompt = if tool_gate_prompt.is_empty() {
+        base_system_prompt
+    } else {
+        clean(
+            &format!("{base_system_prompt}\n\n{tool_gate_prompt}"),
+            12_000,
+        )
+    };
     let history_messages = chat_ui_history_messages(&session);
     let invoke = crate::dashboard_provider_runtime::invoke_chat(
         root,
@@ -258,7 +268,10 @@ fn run_chat_ui(root: &Path, parsed: &crate::ParsedArgs, strict: bool, action: &s
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
-    let requires_live_web = chat_ui_requests_live_web(&message);
+    let requires_live_web = tool_gate
+        .get("requires_live_web")
+        .and_then(Value::as_bool)
+        .unwrap_or_else(|| chat_ui_requests_live_web(&message));
     let mut assistant_raw = clean(
         response
             .get("response")
@@ -443,6 +456,7 @@ fn run_chat_ui(root: &Path, parsed: &crate::ParsedArgs, strict: bool, action: &s
             "final_ack_only": crate::tool_output_match_filter::matches_ack_placeholder(&assistant),
             "findings_available": chat_ui_tools_have_valid_findings(&tools),
             "tool_diagnostics": tool_diagnostics,
+            "tool_gate": tool_gate,
             "web_invariant": {
                 "requires_live_web": requires_live_web,
                 "tool_attempted": web_search_calls > 0,
@@ -521,7 +535,245 @@ fn normalize_tool_error_code(raw: &str) -> String {
     "web_tool_error".to_string()
 }
 
+fn chat_ui_contains_any(lowered: &str, markers: &[&str]) -> bool {
+    markers.iter().any(|marker| lowered.contains(marker))
+}
+
+fn chat_ui_turn_is_meta_control_message(raw_input: &str) -> bool {
+    let lowered = clean(raw_input, 1_200).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    chat_ui_contains_any(
+        &lowered,
+        &[
+            "that was just a test",
+            "just a test",
+            "just testing",
+            "test only",
+            "ignore that",
+            "never mind",
+            "nm",
+            "thanks",
+            "thank you",
+            "cool",
+            "sounds good",
+            "did you try it",
+            "did you do it",
+            "what happened",
+        ],
+    ) && !chat_ui_contains_any(
+        &lowered,
+        &[
+            "search",
+            "web",
+            "online",
+            "internet",
+            "file",
+            "patch",
+            "edit",
+            "update",
+            "create",
+            "read",
+            "memory",
+            "repo",
+            "codebase",
+        ],
+    )
+}
+
+fn chat_ui_message_is_tooling_status_check(raw_input: &str) -> bool {
+    let lowered = clean(raw_input, 1_200).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    let status_frame = lowered.starts_with("did you")
+        || lowered.starts_with("what happened")
+        || lowered.starts_with("status")
+        || lowered.contains("did that run")
+        || lowered.contains("did it run")
+        || lowered.contains("did it work")
+        || lowered.contains("is it working");
+    if !status_frame {
+        return false;
+    }
+    let tooling_reference = lowered.contains("web request")
+        || lowered.contains("web tooling")
+        || lowered.contains("web tool")
+        || lowered.contains("web search")
+        || lowered.contains("search request")
+        || lowered.contains("tooling workflow")
+        || lowered.contains("tool workflow")
+        || lowered.contains("tool call")
+        || lowered.contains("tool run")
+        || lowered.contains("workflow run")
+        || lowered.contains("last run")
+        || lowered.contains("workspace analysis")
+        || lowered.contains("workspace analyze")
+        || lowered.contains("batch query");
+    if !tooling_reference {
+        return false;
+    }
+    let asks_fresh_query = lowered.contains("search for ")
+        || lowered.contains("look up ")
+        || lowered.contains("find information")
+        || lowered.contains("about ")
+        || lowered.contains("latest ")
+        || lowered.contains("top ")
+        || lowered.contains("best ")
+        || lowered.contains("read file ")
+        || lowered.contains("open file ")
+        || lowered.contains("analyze ");
+    !asks_fresh_query
+}
+
+fn chat_ui_turn_requires_file_mutation(raw_input: &str) -> bool {
+    let lowered = clean(raw_input, 1_200).to_ascii_lowercase();
+    chat_ui_contains_any(
+        &lowered,
+        &[
+            "edit file",
+            "modify file",
+            "update file",
+            "patch",
+            "write ",
+            "rewrite ",
+            "create file",
+            "add file",
+            "delete file",
+            "remove file",
+            "rename file",
+            "refactor",
+            "implement",
+        ],
+    )
+}
+
+fn chat_ui_turn_requires_local_lookup(raw_input: &str) -> bool {
+    let lowered = clean(raw_input, 1_200).to_ascii_lowercase();
+    chat_ui_contains_any(
+        &lowered,
+        &[
+            "repo",
+            "repository",
+            "workspace",
+            "codebase",
+            "project files",
+            "memory file",
+            "local memory",
+            "logs",
+            "read file",
+            "check file",
+            "inspect file",
+            "in this repo",
+            "in our system",
+        ],
+    )
+}
+
+fn chat_ui_turn_tool_decision_tree(raw_input: &str) -> Value {
+    let meta_control_message = chat_ui_turn_is_meta_control_message(raw_input);
+    let status_check_message = if meta_control_message {
+        false
+    } else {
+        chat_ui_message_is_tooling_status_check(raw_input)
+    };
+    let requires_file_mutation = if meta_control_message || status_check_message {
+        false
+    } else {
+        chat_ui_turn_requires_file_mutation(raw_input)
+    };
+    let requires_live_web = if meta_control_message || status_check_message {
+        false
+    } else {
+        chat_ui_requests_live_web(raw_input)
+    };
+    let requires_local_lookup = if meta_control_message || status_check_message {
+        false
+    } else {
+        chat_ui_turn_requires_local_lookup(raw_input)
+    };
+    let has_sufficient_information =
+        meta_control_message
+            || status_check_message
+            || (!requires_file_mutation && !requires_live_web && !requires_local_lookup);
+    let should_call_tools =
+        !has_sufficient_information && (requires_file_mutation || requires_live_web || requires_local_lookup);
+    let info_source = if requires_live_web {
+        "web"
+    } else if requires_local_lookup || requires_file_mutation {
+        "local"
+    } else {
+        "none"
+    };
+    let recommended_tool_family = if requires_file_mutation {
+        "file_tools"
+    } else if requires_live_web {
+        "web_tools"
+    } else if requires_local_lookup {
+        "memory_or_workspace_tools"
+    } else {
+        "none"
+    };
+    json!({
+        "contract": "tool_decision_tree_v1",
+        "requires_file_mutation": requires_file_mutation,
+        "requires_local_lookup": requires_local_lookup,
+        "requires_live_web": requires_live_web,
+        "has_sufficient_information": has_sufficient_information,
+        "should_call_tools": should_call_tools,
+        "info_source": info_source,
+        "recommended_tool_family": recommended_tool_family,
+        "meta_control_message": meta_control_message,
+        "status_check_message": status_check_message
+    })
+}
+
+fn chat_ui_tool_gate_system_prompt(raw_input: &str) -> String {
+    let gate = chat_ui_turn_tool_decision_tree(raw_input);
+    let requires_file_mutation = gate
+        .get("requires_file_mutation")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let has_sufficient_information = gate
+        .get("has_sufficient_information")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let status_check_message = gate
+        .get("status_check_message")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let info_source = clean(
+        gate.get("info_source")
+            .and_then(Value::as_str)
+            .unwrap_or("none"),
+        40,
+    );
+    let should_call_tools = gate
+        .get("should_call_tools")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let recommended_tool_family = clean(
+        gate.get("recommended_tool_family")
+            .and_then(Value::as_str)
+            .unwrap_or("none"),
+        80,
+    );
+    clean(
+        &format!(
+            "Deterministic tool gate for this turn: requires_file_mutation={requires_file_mutation}, has_sufficient_information={has_sufficient_information}, status_check_message={status_check_message}, info_source={info_source}, should_call_tools={should_call_tools}, recommended_tool_family={recommended_tool_family}. Decision tree: (1) If file mutation is required, use file tools. (2) If enough information is already available, answer directly with no tool calls. (3) If information is missing, use local memory/workspace tools for local facts and web tools only for online/current facts. Meta/control or tooling status-check turns are direct-answer turns and should not trigger web tools.",
+        ),
+        4_000,
+    )
+}
+
 fn chat_ui_requests_live_web(raw_input: &str) -> bool {
+    if chat_ui_turn_is_meta_control_message(raw_input) {
+        return false;
+    }
+    if chat_ui_message_is_tooling_status_check(raw_input) {
+        return false;
+    }
     let lowered = clean(raw_input, 2_000).to_ascii_lowercase();
     if lowered.is_empty() {
         return false;
@@ -531,7 +783,12 @@ fn chat_ui_requests_live_web(raw_input: &str) -> bool {
         || lowered.contains("search the web")
         || lowered.contains("search again")
         || lowered.contains("find information")
+        || lowered.contains("finding information")
         || lowered.contains("best chili recipes")
+        || ((lowered.contains("framework") || lowered.contains("frameworks"))
+            && (lowered.contains("current")
+                || lowered.contains("latest")
+                || lowered.contains("top")))
         || (lowered.contains("search")
             && (lowered.contains("latest")
                 || lowered.contains("current")

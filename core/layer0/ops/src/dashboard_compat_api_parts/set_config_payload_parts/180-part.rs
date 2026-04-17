@@ -37,6 +37,18 @@ fn response_tools_failure_reason_for_user(response_tools: &[Value], max_items: u
         let name = clean_text(&normalized_name, 80).replace('_', " ");
         let status = clean_text(tool.get("status").and_then(Value::as_str).unwrap_or(""), 120)
             .to_ascii_lowercase();
+        let is_web_tool = matches!(
+            normalized_name.as_str(),
+            "batch_query"
+                | "web_search"
+                | "search_web"
+                | "search"
+                | "web_query"
+                | "web_fetch"
+                | "browse"
+                | "web_conduit_fetch"
+                | "web_tooling_health_probe"
+        );
         let blocked = tool.get("blocked").and_then(Value::as_bool).unwrap_or(false);
         let errored = tool.get("is_error").and_then(Value::as_bool).unwrap_or(false);
         if name.eq_ignore_ascii_case("thought_process") {
@@ -68,7 +80,11 @@ fn response_tools_failure_reason_for_user(response_tools: &[Value], max_items: u
         }
         let fallback_reason = match status.as_str() {
             "no_results" | "low_signal" | "partial_no_results" => {
-                "Web retrieval ran, but this turn only produced low-signal or no-results output."
+                if is_web_tool {
+                    "Web retrieval ran, but this turn only produced low-signal or no-results output."
+                } else {
+                    "The tool ran, but this turn only produced low-signal or no-results output."
+                }
             }
             "timeout" => "The tool timed out before it could return usable findings.",
             "policy_denied" | "blocked" => "The tool was blocked by policy before it could run.",
@@ -174,9 +190,46 @@ fn message_explicitly_disallows_tool_calls(message: &str) -> bool {
         || lowered.contains("just answer")
 }
 
+fn message_is_meta_control_turn(message: &str) -> bool {
+    let lowered = clean_text(message, 1_200).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    let meta_marker_hit = [
+        "that was just a test",
+        "just a test",
+        "just testing",
+        "test only",
+        "ignore that",
+        "never mind",
+        "nm",
+        "thanks",
+        "thank you",
+        "cool",
+        "sounds good",
+        "did you try it",
+        "did you do it",
+        "what happened",
+    ]
+    .iter()
+    .any(|marker| lowered.contains(marker));
+    if !meta_marker_hit {
+        return false;
+    }
+    !["search", "web", "online", "internet", "file", "memory", "repo", "codebase"]
+        .iter()
+        .any(|marker| lowered.contains(marker))
+}
+
 fn inline_tool_calls_allowed_for_user_message(message: &str) -> bool {
     let cleaned = clean_text(message, 2_200);
     if cleaned.is_empty() {
+        return false;
+    }
+    if message_is_tooling_status_check(&cleaned) {
+        return false;
+    }
+    if message_is_meta_control_turn(&cleaned) {
         return false;
     }
     if message_explicitly_disallows_tool_calls(&cleaned) {

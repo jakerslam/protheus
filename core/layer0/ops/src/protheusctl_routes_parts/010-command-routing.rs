@@ -126,11 +126,22 @@ pub(super) fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route
                 other => parse_daemon_control_subcommand(other, false)
                     .unwrap_or_else(|| ("start".to_string(), 0usize)),
             };
+            let mut args = std::iter::once(subcommand.clone())
+                .chain(rest.iter().skip(passthrough_start_idx).cloned())
+                .collect::<Vec<_>>();
+            if matches!(subcommand.as_str(), "start" | "restart")
+                && !args.iter().any(|arg| {
+                    let token = arg.trim();
+                    token == "--gateway-banner"
+                        || token == "--gateway-banner=1"
+                        || token.starts_with("--gateway-banner=")
+                })
+            {
+                args.push("--gateway-banner=1".to_string());
+            }
             Some(Route {
                 script_rel: "core://daemon-control".to_string(),
-                args: std::iter::once(subcommand)
-                    .chain(rest.iter().skip(passthrough_start_idx).cloned())
-                    .collect(),
+                args,
                 forward_stdin: false,
             })
         }
@@ -322,6 +333,156 @@ pub(super) fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route
                 args,
                 forward_stdin: false,
             })
+        }
+        "verify" => {
+            let verify_target = rest
+                .first()
+                .map(|value| value.trim().to_ascii_lowercase())
+                .unwrap_or_else(|| "runtime-proof".to_string());
+            if verify_target == "runtime-proof" {
+                let mut args = rest.iter().skip(1).cloned().collect::<Vec<_>>();
+                if !contains_help_flag(&args)
+                    && !args
+                        .iter()
+                        .any(|token| token.trim().starts_with("--strict"))
+                {
+                    args.push("--strict=1".to_string());
+                }
+                Some(Route {
+                    script_rel: "tests/tooling/scripts/ci/runtime_proof_verify.ts".to_string(),
+                    args,
+                    forward_stdin: false,
+                })
+            } else if verify_target == "layer2-parity" || verify_target == "layer2_parity" {
+                let mut args = rest.iter().skip(1).cloned().collect::<Vec<_>>();
+                if !contains_help_flag(&args)
+                    && !args
+                        .iter()
+                        .any(|token| token.trim().starts_with("--strict"))
+                {
+                    args.push("--strict=1".to_string());
+                }
+                Some(Route {
+                    script_rel: "tests/tooling/scripts/ci/layer2_lane_parity_guard.ts".to_string(),
+                    args,
+                    forward_stdin: false,
+                })
+            } else if verify_target == "trusted-core" || verify_target == "trusted_core" {
+                let mut args = rest.iter().skip(1).cloned().collect::<Vec<_>>();
+                if !contains_help_flag(&args)
+                    && !args
+                        .iter()
+                        .any(|token| token.trim().starts_with("--strict"))
+                {
+                    args.push("--strict=1".to_string());
+                }
+                Some(Route {
+                    script_rel: "tests/tooling/scripts/ci/runtime_trusted_core_report.ts"
+                        .to_string(),
+                    args,
+                    forward_stdin: false,
+                })
+            } else if verify_target == "release-proof-pack"
+                || verify_target == "release_proof_pack"
+                || verify_target == "proof-pack"
+                || verify_target == "proof_pack"
+            {
+                let mut args = rest.iter().skip(1).cloned().collect::<Vec<_>>();
+                if !contains_help_flag(&args)
+                    && !args
+                        .iter()
+                        .any(|token| token.trim().starts_with("--strict"))
+                {
+                    args.push("--strict=1".to_string());
+                }
+                Some(Route {
+                    script_rel: "tests/tooling/scripts/ci/release_proof_pack_assemble.ts"
+                        .to_string(),
+                    args,
+                    forward_stdin: false,
+                })
+            } else if verify_target == "public-benchmark" || verify_target == "public_benchmark" {
+                let mut args = rest.iter().skip(1).cloned().collect::<Vec<_>>();
+                if !contains_help_flag(&args)
+                    && !args
+                        .iter()
+                        .any(|token| token.trim().starts_with("--strict"))
+                {
+                    args.push("--strict=1".to_string());
+                }
+                Some(Route {
+                    script_rel: "benchmarks/public_harness/run_public_harness.ts".to_string(),
+                    args,
+                    forward_stdin: false,
+                })
+            } else {
+                let mut args = vec!["verify-install".to_string()];
+                args.extend(rest.iter().cloned());
+                Some(Route {
+                    script_rel: "core://install-doctor".to_string(),
+                    args,
+                    forward_stdin: false,
+                })
+            }
+        }
+        "inspect" => {
+            let inspect_target = rest
+                .first()
+                .map(|value| value.trim().to_ascii_lowercase())
+                .unwrap_or_else(|| "boundedness".to_string());
+            if inspect_target == "boundedness" {
+                let mut args = rest.iter().skip(1).cloned().collect::<Vec<_>>();
+                if !contains_help_flag(&args)
+                    && !args
+                        .iter()
+                        .any(|token| token.trim().starts_with("--strict"))
+                {
+                    args.push("--strict=1".to_string());
+                }
+                Some(Route {
+                    script_rel: "tests/tooling/scripts/ci/runtime_boundedness_inspect.ts"
+                        .to_string(),
+                    args,
+                    forward_stdin: false,
+                })
+            } else {
+                Some(Route {
+                    script_rel: "core://unknown-command".to_string(),
+                    args: std::iter::once("inspect".to_string())
+                        .chain(rest.iter().cloned())
+                        .collect(),
+                    forward_stdin: false,
+                })
+            }
+        }
+        "replay" => {
+            let replay_target = rest
+                .first()
+                .map(|value| value.trim().to_ascii_lowercase())
+                .unwrap_or_else(|| "layer2".to_string());
+            if replay_target == "layer2" || replay_target == "l2" || replay_target == "receipts" {
+                let mut args = rest.iter().skip(1).cloned().collect::<Vec<_>>();
+                if !contains_help_flag(&args)
+                    && !args
+                        .iter()
+                        .any(|token| token.trim().starts_with("--strict"))
+                {
+                    args.push("--strict=1".to_string());
+                }
+                Some(Route {
+                    script_rel: "tests/tooling/scripts/ci/layer2_receipt_replay.ts".to_string(),
+                    args,
+                    forward_stdin: false,
+                })
+            } else {
+                Some(Route {
+                    script_rel: "core://unknown-command".to_string(),
+                    args: std::iter::once("replay".to_string())
+                        .chain(rest.iter().cloned())
+                        .collect(),
+                    forward_stdin: false,
+                })
+            }
         }
         "dream" | "compact" | "proactive_daemon" | "speculate" => {
             let mut args = vec![cmd.to_string()];
@@ -1765,13 +1926,6 @@ pub(super) fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route
                 forward_stdin: false,
             })
         }
-        "replay" => Some(Route {
-            script_rel: "core://enterprise-hardening".to_string(),
-            args: std::iter::once("replay".to_string())
-                .chain(rest.iter().cloned())
-                .collect(),
-            forward_stdin: false,
-        }),
         "explore" => Some(Route {
             script_rel: "core://enterprise-hardening".to_string(),
             args: std::iter::once("explore".to_string())

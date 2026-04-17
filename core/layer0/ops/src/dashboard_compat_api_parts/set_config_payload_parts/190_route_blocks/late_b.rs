@@ -35,6 +35,94 @@ fn finalize_global_status_tool_payload(
     }
 }
 
+fn first_available_json_payload(root: &Path, rel_candidates: &[&str]) -> Value {
+    for rel in rel_candidates {
+        if let Some(payload) = read_json_loose(&root.join(rel)) {
+            return payload;
+        }
+    }
+    Value::Null
+}
+
+fn web_tooling_operator_summary_payload(root: &Path) -> Value {
+    let runtime_status = crate::web_conduit::api_status(root);
+    let runtime_contract = compat_runtime_web_tooling_contract_snapshot("api_web_tooling_summary");
+    let soak_report = first_available_json_payload(
+        root,
+        &[
+            "artifacts/web_tooling_context_soak_report_latest.json",
+            "local/state/ops/web_tooling_context_soak/latest.json",
+            "core/local/artifacts/web_tooling_context_soak_report_latest.json",
+        ],
+    );
+    let taxonomy = soak_report
+        .get("taxonomy")
+        .cloned()
+        .unwrap_or_else(|| json!({"parse_error": "taxonomy_missing"}));
+    let replay_pack = soak_report
+        .get("replay_pack")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
+    let taxonomy_parse_error = clean_text(
+        taxonomy
+            .get("parse_error")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        120,
+    );
+    let unresolved_taxonomy_count =
+        taxonomy.get("empty_final").and_then(Value::as_i64).unwrap_or(0).max(0)
+            + taxonomy
+                .get("deferred_final")
+                .and_then(Value::as_i64)
+                .unwrap_or(0)
+                .max(0)
+            + taxonomy
+                .get("placeholder_final")
+                .and_then(Value::as_i64)
+                .unwrap_or(0)
+                .max(0)
+            + taxonomy
+                .get("off_topic_final")
+                .and_then(Value::as_i64)
+                .unwrap_or(0)
+                .max(0)
+            + taxonomy
+                .get("meta_status_tool_leak")
+                .and_then(Value::as_i64)
+                .unwrap_or(0)
+                .max(0)
+            + taxonomy
+                .get("web_missing_tool_attempt")
+                .and_then(Value::as_i64)
+                .unwrap_or(0)
+                .max(0);
+    let runtime_ok = runtime_status
+        .get("ok")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let auth_present = runtime_contract
+        .get("auth_present")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let readiness = runtime_ok
+        && auth_present
+        && taxonomy_parse_error.is_empty()
+        && unresolved_taxonomy_count == 0;
+    json!({
+        "ok": true,
+        "type": "web_tooling_operator_summary",
+        "readiness": readiness,
+        "runtime_status": runtime_status,
+        "runtime_contract": runtime_contract,
+        "taxonomy_snapshot": taxonomy,
+        "replay_pack": replay_pack,
+        "unresolved_taxonomy_count": unresolved_taxonomy_count,
+        "taxonomy_parse_error": taxonomy_parse_error,
+        "ts": crate::now_iso()
+    })
+}
+
 fn dashboard_agent_template_catalog() -> Vec<Value> {
     vec![
         json!({"id":"general-assistant","name":"General Assistant","description":"Balanced helper for everyday questions and planning.","role":"assistant","provider":"auto","model":"auto","system_prompt":"You are a helpful general assistant. Give direct, practical answers and ask clarifying questions only when needed."}),
@@ -156,6 +244,7 @@ fn handle_global_status_get_routes(
             }),
             "/api/status" => status_payload(root, snapshot, &request_host),
             "/api/web/status" => crate::web_conduit::api_status(root),
+            "/api/web/tooling/summary" => web_tooling_operator_summary_payload(root),
             "/api/web/receipts" => {
                 let limit = query_value(path, "limit")
                     .and_then(|raw| raw.parse::<usize>().ok())

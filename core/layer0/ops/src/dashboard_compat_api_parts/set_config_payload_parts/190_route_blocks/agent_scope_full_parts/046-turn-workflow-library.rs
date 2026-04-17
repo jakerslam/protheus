@@ -42,9 +42,211 @@ fn selected_turn_workflow(workflow_mode: &str) -> Value {
     })
 }
 
-fn workflow_library_prompt_context(latent_tool_candidates: &[Value]) -> String {
+fn workflow_turn_contains_any(lowered: &str, markers: &[&str]) -> bool {
+    markers.iter().any(|marker| lowered.contains(marker))
+}
+
+fn workflow_turn_is_meta_control_message(message: &str) -> bool {
+    let lowered = clean_text(message, 1_200).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    workflow_turn_contains_any(
+        &lowered,
+        &[
+            "that was just a test",
+            "just a test",
+            "just testing",
+            "test only",
+            "ignore that",
+            "never mind",
+            "nm",
+            "thanks",
+            "thank you",
+            "cool",
+            "sounds good",
+            "did you try it",
+            "did you do it",
+            "what happened",
+        ],
+    ) && !workflow_turn_contains_any(
+        &lowered,
+        &[
+            "search",
+            "web",
+            "online",
+            "internet",
+            "file",
+            "patch",
+            "edit",
+            "update",
+            "create",
+            "read",
+            "memory",
+            "repo",
+            "codebase",
+        ],
+    )
+}
+
+fn workflow_turn_requires_file_mutation(message: &str) -> bool {
+    let lowered = clean_text(message, 1_200).to_ascii_lowercase();
+    workflow_turn_contains_any(
+        &lowered,
+        &[
+            "edit file",
+            "modify file",
+            "update file",
+            "patch",
+            "write ",
+            "rewrite ",
+            "create file",
+            "add file",
+            "delete file",
+            "remove file",
+            "rename file",
+            "refactor",
+            "implement",
+        ],
+    )
+}
+
+fn workflow_turn_requires_local_lookup(message: &str) -> bool {
+    let lowered = clean_text(message, 1_200).to_ascii_lowercase();
+    workflow_turn_contains_any(
+        &lowered,
+        &[
+            "repo",
+            "repository",
+            "workspace",
+            "codebase",
+            "project files",
+            "memory file",
+            "local memory",
+            "logs",
+            "read file",
+            "check file",
+            "inspect file",
+            "status of",
+            "in this repo",
+            "in our system",
+        ],
+    )
+}
+
+fn workflow_turn_requires_live_web(message: &str) -> bool {
+    let lowered = clean_text(message, 1_200).to_ascii_lowercase();
+    if message_is_tooling_status_check(message) {
+        return false;
+    }
+    if workflow_turn_is_meta_control_message(message) {
+        return false;
+    }
+    workflow_turn_contains_any(
+        &lowered,
+        &[
+            "web search",
+            "search the web",
+            "search online",
+            "internet search",
+            "look it up",
+            "current",
+            "latest",
+            "today",
+            "recent",
+            "news",
+        ],
+    )
+}
+
+fn workflow_turn_tool_decision_tree(message: &str) -> Value {
+    let meta_control = workflow_turn_is_meta_control_message(message);
+    let status_check = if meta_control {
+        false
+    } else {
+        message_is_tooling_status_check(message)
+    };
+    let requires_file_mutation = if meta_control || status_check {
+        false
+    } else {
+        workflow_turn_requires_file_mutation(message)
+    };
+    let requires_local_lookup = if meta_control || status_check {
+        false
+    } else {
+        workflow_turn_requires_local_lookup(message)
+    };
+    let requires_live_web = if meta_control || status_check {
+        false
+    } else {
+        workflow_turn_requires_live_web(message)
+    };
+    let has_sufficient_information =
+        meta_control
+            || status_check
+            || (!requires_file_mutation && !requires_local_lookup && !requires_live_web);
+    let info_source = if requires_live_web {
+        "web"
+    } else if requires_local_lookup || requires_file_mutation {
+        "local"
+    } else {
+        "none"
+    };
+    let recommended_tool_family = if requires_file_mutation {
+        "file_tools"
+    } else if requires_live_web {
+        "web_tools"
+    } else if requires_local_lookup {
+        "memory_or_workspace_tools"
+    } else {
+        "none"
+    };
+    let should_call_tools =
+        !has_sufficient_information && (requires_file_mutation || requires_live_web || requires_local_lookup);
+    json!({
+        "contract": "tool_decision_tree_v1",
+        "requires_file_mutation": requires_file_mutation,
+        "requires_local_lookup": requires_local_lookup,
+        "requires_live_web": requires_live_web,
+        "has_sufficient_information": has_sufficient_information,
+        "should_call_tools": should_call_tools,
+        "info_source": info_source,
+        "recommended_tool_family": recommended_tool_family,
+        "meta_control_message": meta_control,
+        "status_check_message": status_check
+    })
+}
+
+fn workflow_library_prompt_context(message: &str, latent_tool_candidates: &[Value]) -> String {
     let broker = protheus_tooling_core_v1::ToolBroker::default();
     let grouped_catalog = broker.grouped_capability_catalog();
+    let tool_gate = workflow_turn_tool_decision_tree(message);
+    let requires_file_mutation = tool_gate
+        .get("requires_file_mutation")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let has_sufficient_information = tool_gate
+        .get("has_sufficient_information")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let info_source = clean_text(
+        tool_gate
+            .get("info_source")
+            .and_then(Value::as_str)
+            .unwrap_or("none"),
+        40,
+    );
+    let should_call_tools = tool_gate
+        .get("should_call_tools")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let recommended_tool_family = clean_text(
+        tool_gate
+            .get("recommended_tool_family")
+            .and_then(Value::as_str)
+            .unwrap_or("none"),
+        80,
+    );
     let mut lines = vec![
         format!(
             "Workflow library gate: every chat turn must pass through `{}`. The default selected workflow is `{}`.",
@@ -53,6 +255,17 @@ fn workflow_library_prompt_context(latent_tool_candidates: &[Value]) -> String {
         ),
         "Default workflow contract: read the user request, decide whether tools are needed, emit inline `<function=...>{...}</function>` calls only when justified, wait for tool/system results, and write the final answer using the recorded evidence.".to_string(),
         "Chat operator syntax such as `tool::...` or slash tool requests are workflow hints, not pre-executed results. You still must decide whether to call the hinted tool.".to_string(),
+        format!(
+            "Deterministic tool gate for this turn: requires_file_mutation={}, has_sufficient_information={}, info_source={}, should_call_tools={}, recommended_tool_family={}.",
+            requires_file_mutation,
+            has_sufficient_information,
+            info_source,
+            should_call_tools,
+            recommended_tool_family
+        ),
+        "Decision tree: (1) If local file manipulation is required, call file tools. (2) If enough information is already available, answer directly without tools. (3) If information is missing, choose local memory/workspace tools for local facts and web tools only for online/current facts.".to_string(),
+        "Meta/control turns (for example: `that was just a test`) are direct-answer turns. Do not call web tools for those turns.".to_string(),
+        "Enforcement: if `should_call_tools` is false, do not emit `<function=...>` calls. If true, emit at least one tool call in the recommended family before the final response.".to_string(),
     ];
     if !grouped_catalog.is_empty() {
         lines.push("Modular tool catalog by domain:".to_string());
@@ -183,6 +396,7 @@ fn turn_workflow_metadata(
     response_tools: &[Value],
     workflow_events: &[Value],
     draft_response: &str,
+    message: &str,
 ) -> Value {
     let cleaned_draft = clean_text(draft_response, 4_000);
     let draft_response_state = if cleaned_draft.is_empty() {
@@ -195,12 +409,14 @@ fn turn_workflow_metadata(
         "present"
     };
     let requires_final_llm = turn_workflow_requires_final_llm(response_tools, workflow_events);
+    let tool_gate = workflow_turn_tool_decision_tree(message);
     json!({
         "contract": "agent_workflow_library_v1",
         "workflow_gate": {
             "required": true,
             "status": "enforced"
         },
+        "tool_gate": tool_gate,
         "library": {
             "default_workflow": default_turn_workflow_name(),
             "available_workflows": turn_workflow_library_catalog()
@@ -239,6 +455,20 @@ fn workflow_response_requests_more_tooling(response: &str) -> bool {
     let lowered = clean_text(response, 800).to_ascii_lowercase();
     !lowered.is_empty()
         && [
+            "i'll get you an update",
+            "i will get you an update",
+            "let me get you an update",
+            "i'll look into",
+            "i will look into",
+            "let me look into",
+            "i'll check",
+            "i will check",
+            "let me check",
+            "working on it",
+            "one moment",
+            "stand by",
+            "i'll report back",
+            "i will report back",
             "let me search",
             "i'll search",
             "i will search",
@@ -270,14 +500,37 @@ fn workflow_response_requests_more_tooling(response: &str) -> bool {
         .any(|marker| lowered.contains(marker))
 }
 
+fn strip_dangling_inline_tool_markup(text: &str) -> String {
+    let mut cleaned = text.to_string();
+    loop {
+        let lowered = cleaned.to_ascii_lowercase();
+        let Some(start) = lowered.find("<function=") else {
+            break;
+        };
+        let tail = &cleaned[start..];
+        let end_rel = tail
+            .find("</function>")
+            .map(|idx| idx + "</function>".len())
+            .or_else(|| tail.find('\n'))
+            .unwrap_or(tail.len());
+        let end = start.saturating_add(end_rel).min(cleaned.len());
+        if end <= start {
+            break;
+        }
+        cleaned.replace_range(start..end, "");
+    }
+    cleaned.replace("</function>", "")
+}
+
 fn sanitize_workflow_final_response_candidate(response: &str) -> String {
     let (without_inline_calls, inline_calls) = extract_inline_tool_calls(response, 6);
+    let candidate = if inline_calls.is_empty() {
+        response
+    } else {
+        without_inline_calls.trim()
+    };
     let mut cleaned = clean_chat_text(
-        if inline_calls.is_empty() || without_inline_calls.trim().is_empty() {
-            response
-        } else {
-            without_inline_calls.trim()
-        },
+        strip_dangling_inline_tool_markup(candidate).trim(),
         32_000,
     );
     let lowered = cleaned.to_ascii_lowercase();

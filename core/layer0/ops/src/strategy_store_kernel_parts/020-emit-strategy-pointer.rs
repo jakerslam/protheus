@@ -180,18 +180,29 @@ impl StringExt for String {
 }
 
 fn normalize_mode(value: Option<&Value>, fallback: Option<&str>) -> String {
-    let raw = as_str(value).to_ascii_lowercase();
-    if GENERATION_MODES.contains(&raw.as_str()) {
-        raw
+    let raw = as_str(value).to_ascii_lowercase().replace('_', "-");
+    let normalized = match raw.as_str() {
+        "hypercreative" | "hyper-creative" => "hyper-creative",
+        "deepthinker" | "deep-thinker" => "deep-thinker",
+        _ => "",
+    };
+    if GENERATION_MODES.contains(&normalized) {
+        normalized.to_string()
     } else {
         fallback.unwrap_or("hyper-creative").to_string()
     }
 }
 
 fn normalize_execution_mode(value: Option<&Value>, fallback: Option<&str>) -> String {
-    let raw = as_str(value).to_ascii_lowercase();
-    if EXECUTION_MODES.contains(&raw.as_str()) {
-        raw
+    let raw = as_str(value).to_ascii_lowercase().replace('-', "_");
+    let normalized = match raw.as_str() {
+        "score_only" | "scoreonly" | "preview" => "score_only",
+        "canary_execute" | "canary" => "canary_execute",
+        "execute" | "full_execute" | "run" => "execute",
+        _ => "",
+    };
+    if EXECUTION_MODES.contains(&normalized) {
+        normalized.to_string()
     } else {
         fallback.unwrap_or("score_only").to_string()
     }
@@ -199,15 +210,25 @@ fn normalize_execution_mode(value: Option<&Value>, fallback: Option<&str>) -> St
 
 fn normalize_allowed_risks(raw: Option<&Value>) -> Value {
     let mut out = Vec::new();
-    if let Some(rows) = raw.and_then(Value::as_array) {
-        for row in rows {
-            let value = as_str(Some(row)).to_ascii_lowercase();
-            if !matches!(value.as_str(), "low" | "medium" | "high") {
-                continue;
-            }
-            if !out.iter().any(|existing| existing == &value) {
-                out.push(value);
-            }
+    let values = if let Some(rows) = raw.and_then(Value::as_array) {
+        rows.iter()
+            .map(|row| as_str(Some(row)))
+            .collect::<Vec<_>>()
+    } else {
+        as_str(raw).split(',').map(|row| row.to_string()).collect::<Vec<_>>()
+    };
+    for value in values {
+        let mapped = match value.trim().to_ascii_lowercase().as_str() {
+            "low" | "safe" | "minimal" | "none" => "low",
+            "medium" | "med" | "moderate" => "medium",
+            "high" | "critical" | "severe" => "high",
+            _ => "",
+        };
+        if mapped.is_empty() {
+            continue;
+        }
+        if !out.iter().any(|existing| existing == mapped) {
+            out.push(mapped.to_string());
         }
     }
     if out.is_empty() {
@@ -405,4 +426,3 @@ fn queue_drop_reasons(item: &Value, policy: &Value, now_ms: i64) -> Vec<String> 
     }
     reasons
 }
-
