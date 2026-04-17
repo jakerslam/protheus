@@ -54,7 +54,7 @@
 
 <div class="app-layout" :class="{ 'focus-mode': $store.app.focusMode, 'taskbar-bottom': taskbarDockEdge === 'bottom' }">
   <!-- Sidebar -->
-  <nav class="sidebar drag-bar overlay-shared-surface" :class="{ collapsed: sidebarCollapsed, 'mobile-open': mobileMenuOpen, 'chat-only-hidden': page !== 'chat', 'chat-sidebar-dynamic': page === 'chat', 'is-container-dragging': !!chatSidebarDragActive }" :style="chatSidebarContainerStyle()" @pointerdown.capture="startChatSidebarPointerDrag($event)" @mousedown.capture="startChatSidebarPointerDrag($event)">
+  <infring-sidebar-rail-shell class="sidebar drag-bar overlay-shared-surface" :class="{ collapsed: sidebarCollapsed, 'mobile-open': mobileMenuOpen, 'chat-only-hidden': page !== 'chat', 'chat-sidebar-dynamic': page === 'chat', 'is-container-dragging': !!chatSidebarDragActive }" :style="chatSidebarContainerStyle()" :collapsed="sidebarCollapsed" :mobileopen="mobileMenuOpen" :dragging="!!chatSidebarDragActive" @pointerdown.capture="startChatSidebarPointerDrag($event)" @mousedown.capture="startChatSidebarPointerDrag($event)">
     <div class="sidebar-nav-shell" :style="chatSidebarNavShellStyle()">
     <div class="sidebar-nav" role="navigation" aria-label="Main navigation" x-ref="sidebarNav" :style="chatSidebarNavStyle()" @scroll.passive="scheduleSidebarScrollIndicators(); hideDashboardPopupBySource('sidebar')">
       <div class="sidebar-top-ghost" aria-hidden="true"></div>

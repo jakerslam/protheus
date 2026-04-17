@@ -8,8 +8,50 @@ const { cleanText, hasFlag, parseBool, readFlag } = require('../../lib/cli.ts');
 const { emitStructuredResult } = require('../../lib/result.ts');
 
 const SCRIPT_PATH = 'tests/tooling/scripts/ci/build_dashboard_svelte_islands.ts';
-const CHAT_BUBBLE_SOURCE_PATH = 'client/runtime/systems/ui/infring_static/js/svelte/chat_bubble_svelte_source.ts';
-const CHAT_BUBBLE_BUNDLE_PATH = 'client/runtime/systems/ui/infring_static/js/svelte/chat_bubble.bundle.ts';
+const ISLAND_SPECS = [
+  {
+    id: 'chat_bubble',
+    sourcePath: 'client/runtime/systems/ui/infring_static/js/svelte/chat_bubble_svelte_source.ts',
+    bundlePath: 'client/runtime/systems/ui/infring_static/js/svelte/chat_bubble.bundle.ts',
+    fallbackTag: 'infring-chat-bubble-render',
+    filename: 'chat_bubble.svelte',
+  },
+  {
+    id: 'chat_stream_shell',
+    sourcePath: 'client/runtime/systems/ui/infring_static/js/svelte/chat_stream_shell_svelte_source.ts',
+    bundlePath: 'client/runtime/systems/ui/infring_static/js/svelte/chat_stream_shell.bundle.ts',
+    fallbackTag: 'infring-chat-stream-shell',
+    filename: 'chat_stream_shell.svelte',
+  },
+  {
+    id: 'sidebar_rail_shell',
+    sourcePath: 'client/runtime/systems/ui/infring_static/js/svelte/sidebar_rail_shell_svelte_source.ts',
+    bundlePath: 'client/runtime/systems/ui/infring_static/js/svelte/sidebar_rail_shell.bundle.ts',
+    fallbackTag: 'infring-sidebar-rail-shell',
+    filename: 'sidebar_rail_shell.svelte',
+  },
+  {
+    id: 'popup_window_shell',
+    sourcePath: 'client/runtime/systems/ui/infring_static/js/svelte/popup_window_shell_svelte_source.ts',
+    bundlePath: 'client/runtime/systems/ui/infring_static/js/svelte/popup_window_shell.bundle.ts',
+    fallbackTag: 'infring-popup-window-shell',
+    filename: 'popup_window_shell.svelte',
+  },
+  {
+    id: 'taskbar_menu_shell',
+    sourcePath: 'client/runtime/systems/ui/infring_static/js/svelte/taskbar_menu_shell_svelte_source.ts',
+    bundlePath: 'client/runtime/systems/ui/infring_static/js/svelte/taskbar_menu_shell.bundle.ts',
+    fallbackTag: 'infring-taskbar-menu-shell',
+    filename: 'taskbar_menu_shell.svelte',
+  },
+  {
+    id: 'chat_map_shell',
+    sourcePath: 'client/runtime/systems/ui/infring_static/js/svelte/chat_map_shell_svelte_source.ts',
+    bundlePath: 'client/runtime/systems/ui/infring_static/js/svelte/chat_map_shell.bundle.ts',
+    fallbackTag: 'infring-chat-map-shell',
+    filename: 'chat_map_shell.svelte',
+  },
+];
 
 function repoRoot(startDir = __dirname) {
   let dir = path.resolve(startDir);
@@ -37,67 +79,78 @@ function parseArgs(argv) {
   return out;
 }
 
-function loadChatBubbleSource(root) {
-  const sourceModulePath = path.resolve(root, CHAT_BUBBLE_SOURCE_PATH);
+function loadIslandSource(root, spec) {
+  const sourceModulePath = path.resolve(root, spec.sourcePath);
   const sourceModule = require(sourceModulePath);
-  const sourceText = String(
-    (sourceModule && sourceModule.CHAT_BUBBLE_COMPONENT_SOURCE) || ''
-  ).trim();
+  const sourceText = String([
+    sourceModule && sourceModule.COMPONENT_SOURCE,
+    sourceModule && sourceModule.CHAT_BUBBLE_COMPONENT_SOURCE,
+  ].find((value) => typeof value === 'string' && value.trim()) || '').trim();
   const tag = cleanText(
-    (sourceModule && sourceModule.CHAT_BUBBLE_TAG) || 'infring-chat-bubble-render',
+    (sourceModule && sourceModule.COMPONENT_TAG) || (sourceModule && sourceModule.CHAT_BUBBLE_TAG) || spec.fallbackTag,
     120
-  ) || 'infring-chat-bubble-render';
+  ) || spec.fallbackTag;
   if (!sourceText) {
-    throw new Error(`dashboard_svelte_source_missing:${CHAT_BUBBLE_SOURCE_PATH}`);
+    throw new Error(`dashboard_svelte_source_missing:${spec.sourcePath}`);
   }
   return {
+    id: spec.id,
     tag,
     source_text: sourceText,
     source_module: sourceModulePath,
+    bundle_path: spec.bundlePath,
+    filename: spec.filename || `${spec.id}.svelte`,
   };
 }
 
 async function buildDashboardSvelteIslands(options = {}, root = repoRoot(__dirname)) {
   const minify = options && options.minify !== false;
-  const source = loadChatBubbleSource(root);
-  const outFile = path.resolve(root, CHAT_BUBBLE_BUNDLE_PATH);
-  fs.mkdirSync(path.dirname(outFile), { recursive: true });
-
-  const compiled = compile(source.source_text, {
-    filename: 'chat_bubble.svelte',
-    generate: 'dom',
-    dev: false,
-    customElement: true,
-  });
-
-  await esbuild.build({
-    stdin: {
-      contents: String(compiled && compiled.js && compiled.js.code ? compiled.js.code : ''),
-      loader: 'js',
-      sourcefile: 'chat_bubble.svelte.js',
-      resolveDir: root,
-    },
-    bundle: true,
-    outfile: outFile,
-    platform: 'browser',
-    format: 'iife',
-    target: 'es2020',
-    sourcemap: false,
-    minify,
-    logLevel: 'silent',
-    legalComments: 'none',
-    banner: {
-      js: '/* generated: dashboard svelte island bundle (chat bubble) */',
-    },
-  });
+  const builtIslands = [];
+  for (const spec of ISLAND_SPECS) {
+    const source = loadIslandSource(root, spec);
+    const outFile = path.resolve(root, source.bundle_path);
+    fs.mkdirSync(path.dirname(outFile), { recursive: true });
+    const compiled = compile(source.source_text, {
+      filename: source.filename,
+      generate: 'dom',
+      dev: false,
+      customElement: true,
+    });
+    await esbuild.build({
+      stdin: {
+        contents: String(compiled && compiled.js && compiled.js.code ? compiled.js.code : ''),
+        loader: 'js',
+        sourcefile: `${source.filename}.js`,
+        resolveDir: root,
+      },
+      bundle: true,
+      outfile: outFile,
+      platform: 'browser',
+      format: 'iife',
+      target: 'es2020',
+      sourcemap: false,
+      minify,
+      logLevel: 'silent',
+      legalComments: 'none',
+      banner: {
+        js: `/* generated: dashboard svelte island bundle (${source.id}) */`,
+      },
+    });
+    builtIslands.push({
+      id: source.id,
+      tag: source.tag,
+      source_module: path.relative(root, source.source_module).replace(/\\/g, '/'),
+      out_file: path.relative(root, outFile).replace(/\\/g, '/'),
+      out_bytes: fs.statSync(outFile).size,
+    });
+  }
 
   return {
     ok: true,
     type: 'dashboard_svelte_islands_build',
-    chat_bubble_tag: source.tag,
-    source_module: path.relative(root, source.source_module).replace(/\\/g, '/'),
-    out_file: path.relative(root, outFile).replace(/\\/g, '/'),
-    out_bytes: fs.statSync(outFile).size,
+    islands: builtIslands,
+    island_count: builtIslands.length,
+    chat_bubble_tag: builtIslands.find((item) => item.id === 'chat_bubble')?.tag || 'infring-chat-bubble-render',
     minify: Boolean(minify),
   };
 }
@@ -141,7 +194,8 @@ module.exports = {
   SCRIPT_PATH,
   repoRoot,
   parseArgs,
-  loadChatBubbleSource,
+  loadIslandSource,
+  ISLAND_SPECS,
   buildDashboardSvelteIslands,
   run,
 };
