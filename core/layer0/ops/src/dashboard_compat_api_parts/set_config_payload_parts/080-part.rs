@@ -94,8 +94,21 @@ fn response_contains_project_dump_sections(text: &str) -> bool {
     hits >= 2
 }
 
+fn response_contains_internal_prompt_dump(lowered: &str) -> bool {
+    lowered.contains("you are the currently selected infring agent instance")
+        || lowered.contains("hardcoded agent workflow: you are writing the final assistant response")
+        || (lowered.contains("use tool output as context and synthesize a direct answer")
+            && lowered.contains("never output capability-denial claims"))
+        || (lowered.contains("recorded tool outcomes")
+            && lowered.contains("workflow events")
+            && lowered.contains("write the final assistant response now"))
+}
+
 fn response_contains_tool_telemetry_dump(text: &str) -> bool {
     let lowered = text.to_ascii_lowercase();
+    if response_contains_internal_prompt_dump(&lowered) {
+        return true;
+    }
     let noisy_markers = ["at duckduckgo all regions", "duckduckgo all regions", "all regions argentina", "all regions australia", "spawn_subagents failed:", "tool_explicit_signoff_required", "tool_confirmation_required", "\"decision_audit_receipt\"", "\"turn_loop_tracking\"", "\"turn_transaction\"", "\"response_finalization\"", "\"latent_tool_candidates\"", "\"workspace_hints\"", "\"nexus_connection\""];
     let hits = noisy_markers
         .iter()
@@ -207,7 +220,7 @@ fn response_contains_large_code_dump_with_low_overlap(
     if response_text.len() < 1_400 {
         return false;
     }
-    let import_like_lines = response_text
+    let code_like_lines = response_text
         .lines()
         .filter(|line| {
             let lowered = line.trim_start().to_ascii_lowercase();
@@ -215,9 +228,15 @@ fn response_contains_large_code_dump_with_low_overlap(
                 || lowered.starts_with("from ")
                 || lowered.starts_with("def ")
                 || lowered.starts_with("class ")
+                || lowered.starts_with("#include")
+                || lowered.starts_with("public class ")
+                || lowered.starts_with("int main")
+                || lowered.starts_with("typedef ")
+                || lowered.starts_with("using namespace ")
+                || lowered.starts_with("fn main(")
         })
         .count();
-    if import_like_lines < 5 {
+    if code_like_lines < 4 {
         return false;
     }
     let user_terms = important_memory_terms(user_message, 20)
@@ -232,8 +251,51 @@ fn response_contains_large_code_dump_with_low_overlap(
     user_terms.is_disjoint(&response_terms)
 }
 
+fn response_contains_competitive_programming_template_dump(
+    user_message: &str,
+    response_text: &str,
+) -> bool {
+    let lowered = clean_text(response_text, 12_000).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    let marker_hits = [
+        "<|begin_of_sentence|>",
+        "<｜begin▁of▁sentence｜>",
+        "you are an expert python programmer",
+        "translate the following java code to python",
+        "input specification:",
+        "output specification:",
+        "sample input:",
+        "sample output:",
+        "智能推荐",
+        "猜你喜欢",
+        "03-树2 list leaves",
+    ]
+    .iter()
+    .filter(|marker| lowered.contains(**marker))
+    .count();
+    if marker_hits < 2 {
+        return false;
+    }
+    let user_lowered = clean_text(user_message, 600).to_ascii_lowercase();
+    let user_requested_programming = user_lowered.contains("translate")
+        || user_lowered.contains("java")
+        || user_lowered.contains("python")
+        || user_lowered.contains("coding problem")
+        || user_lowered.contains("algorithm")
+        || user_lowered.contains("list leaves")
+        || user_lowered.contains("competitive");
+    !user_requested_programming
+}
+
 fn response_is_unrelated_context_dump(user_message: &str, response_text: &str) -> bool {
-    if response_text.contains("<function=") {
+    if response_text.contains("<function=") || response_text.contains("</function>") {
+        if response_contains_tool_telemetry_dump(response_text)
+            || response_contains_peer_review_template_dump(response_text)
+        {
+            return true;
+        }
         return false;
     }
     if response_contains_tool_telemetry_dump(response_text) {
@@ -243,6 +305,9 @@ fn response_is_unrelated_context_dump(user_message: &str, response_text: &str) -
         return true;
     }
     if response_contains_large_code_dump_with_low_overlap(user_message, response_text) {
+        return true;
+    }
+    if response_contains_competitive_programming_template_dump(user_message, response_text) {
         return true;
     }
     if response_text.len() < 220 {
@@ -263,9 +328,136 @@ fn response_is_unrelated_context_dump(user_message: &str, response_text: &str) -
     false
 }
 
+fn response_low_alignment_with_turn_context(
+    user_message: &str,
+    recent_context: &str,
+    response_text: &str,
+) -> bool {
+    let cleaned_response = clean_text(response_text, 12_000);
+    if cleaned_response.is_empty() {
+        return true;
+    }
+    if response_is_unrelated_context_dump(user_message, &cleaned_response) {
+        return true;
+    }
+    let contextual_seed = clean_text(
+        &format!("{}\n{}", clean_text(user_message, 1_000), clean_text(recent_context, 2_000)),
+        4_000,
+    );
+    let context_terms = important_memory_terms(&contextual_seed, 48)
+        .into_iter()
+        .collect::<HashSet<_>>();
+    if context_terms.len() < 3 {
+        return false;
+    }
+    let response_terms = important_memory_terms(&cleaned_response, 72)
+        .into_iter()
+        .collect::<HashSet<_>>();
+    if response_terms.is_empty() {
+        return true;
+    }
+    let overlap_count = context_terms.intersection(&response_terms).count();
+    overlap_count == 0 && cleaned_response.len() > 260
+}
+
+fn response_has_rich_findings_markers(lowered: &str) -> bool {
+    lowered.contains("http://")
+        || lowered.contains("https://")
+        || lowered.contains("according to")
+        || lowered.contains("source:")
+        || lowered.contains("sources:")
+        || lowered.contains("1.")
+        || lowered.contains("2.")
+}
+
+fn normalize_ack_detector_text(text: &str, max_len: usize) -> String {
+    clean_text(text, max_len)
+        .to_ascii_lowercase()
+        .replace('’', "'")
+        .replace('‘', "'")
+        .replace('`', "'")
+        .replace('“', "\"")
+        .replace('”', "\"")
+}
+
+fn response_is_deferred_execution_preamble(text: &str) -> bool {
+    let lowered = normalize_ack_detector_text(text, 2_000);
+    if lowered.is_empty() {
+        return false;
+    }
+    let token_count = lowered.split_whitespace().count();
+    if token_count > 80 {
+        return false;
+    }
+    if response_has_rich_findings_markers(&lowered) {
+        return false;
+    }
+    [
+        "i'll get you an update",
+        "i will get you an update",
+        "let me get you an update",
+        "i'll look into",
+        "i will look into",
+        "let me look into",
+        "i'll check",
+        "i will check",
+        "let me check",
+        "i'm going to check",
+        "i am going to check",
+        "i'm checking now",
+        "i am checking now",
+        "getting that now",
+        "working on it",
+        "one moment",
+        "just a moment",
+        "stand by",
+        "i'll report back",
+        "i will report back",
+    ]
+    .iter()
+    .any(|marker| lowered.starts_with(marker))
+}
+
+fn response_is_deferred_retry_prompt(text: &str) -> bool {
+    let lowered = normalize_ack_detector_text(text, 2_000);
+    if lowered.is_empty() {
+        return false;
+    }
+    if response_has_rich_findings_markers(&lowered) {
+        return false;
+    }
+    let mentions_retry_language = [
+        "would you like me to try",
+        "would you like me to retry",
+        "would you like me to run",
+        "should i retry",
+        "should i rerun",
+        "i can retry with",
+        "i can rerun with",
+        "if you'd like, i can retry",
+        "if you would like, i can retry",
+        "if you'd like, i can rerun",
+        "if you would like, i can rerun",
+        "i can try a narrower query",
+        "i can run a narrower query",
+        "i can try a more specific query",
+        "i can search again",
+    ]
+    .iter()
+    .any(|marker| lowered.contains(marker));
+    if !mentions_retry_language {
+        return false;
+    }
+    lowered.contains("search")
+        || lowered.contains("web")
+        || lowered.contains("tool")
+        || lowered.contains("query")
+        || lowered.contains("source url")
+}
+
 fn response_looks_like_tool_ack_without_findings(text: &str) -> bool {
     let cleaned = clean_text(text, 1200);
-    let lowered = cleaned.to_ascii_lowercase();
+    let lowered = normalize_ack_detector_text(&cleaned, 1200);
     let potential_source_mentions = lowered.matches("potential sources:").count();
     if lowered.is_empty() {
         return true;
@@ -307,7 +499,11 @@ fn response_looks_like_tool_ack_without_findings(text: &str) -> bool {
     if crate::tool_output_match_filter::matches_ack_placeholder(&cleaned) {
         return true;
     }
+    if response_looks_like_off_topic_web_results(&cleaned) {
+        return true;
+    }
     let token_count = lowered.split_whitespace().count();
+    let has_rich_findings = response_has_rich_findings_markers(&lowered);
     let mentions_tooling = lowered.contains("search")
         || lowered.contains("web")
         || lowered.contains("tool")
@@ -339,14 +535,14 @@ fn response_looks_like_tool_ack_without_findings(text: &str) -> bool {
     if mentions_tooling && plain_failure_explanation {
         return false;
     }
+    if response_is_deferred_execution_preamble(&cleaned)
+        || response_is_deferred_retry_prompt(&cleaned)
+    {
+        return true;
+    }
     if !mentions_tooling {
         return false;
     }
-    let has_rich_findings = lowered.contains("http://")
-        || lowered.contains("https://")
-        || lowered.contains("1.")
-        || lowered.contains("2.")
-        || lowered.contains("according to");
     mentions_tooling && !has_rich_findings && (token_count <= 80 || mainly_ack_language)
 }
 
@@ -358,6 +554,11 @@ fn response_is_no_findings_placeholder(text: &str) -> bool {
     let lowered = clean_text(text, 600).to_ascii_lowercase();
     if lowered.is_empty() {
         return true;
+    }
+    if lowered.contains("error_code: web_tool_low_signal")
+        || (lowered.contains("error_code:") && lowered.contains("web_status:"))
+    {
+        return false;
     }
     lowered.contains("no relevant results found for that request yet")
         || lowered.contains("couldn't produce source-backed findings in this turn")
@@ -371,6 +572,59 @@ fn response_is_no_findings_placeholder(text: &str) -> bool {
         || lowered.contains("no usable findings yet")
 }
 
+fn response_contains_speculative_web_blocker_language(text: &str) -> bool {
+    let lowered = clean_text(text, 2_000).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    let mentions_blocked_lane = lowered.contains("blocked the function calls")
+        || lowered.contains("function calls from executing entirely")
+        || lowered.contains("function calls entirely")
+        || lowered.contains("wouldn't even attempt to execute")
+        || lowered.contains("would not even attempt to execute")
+        || lowered.contains("web search operations")
+        || lowered.contains("web tool access")
+        || lowered.contains("external tool execution")
+        || lowered.contains("function execution level")
+        || lowered.contains("invalid response attempt")
+        || lowered.contains("processing the queries");
+    if !mentions_blocked_lane {
+        return false;
+    }
+    lowered.contains("security controls")
+        || lowered.contains("policy change")
+        || lowered.contains("policy restrictions")
+        || lowered.contains("temporary system restriction")
+        || lowered.contains("broader policy change")
+        || lowered.contains("would you like me to try a different approach")
+}
+
+fn response_looks_like_off_topic_web_results(text: &str) -> bool {
+    let lowered = clean_text(text, 4_000).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    let has_web_context = lowered.contains("web search")
+        || lowered.contains("search results")
+        || lowered.contains("query")
+        || lowered.contains("framework");
+    if !has_web_context {
+        return false;
+    }
+    let off_topic_markers = lowered.contains("qrz.com")
+        || lowered.contains("callsign")
+        || lowered.contains("ham radio")
+        || lowered.contains("qso");
+    let ai_markers = lowered.contains("agent framework")
+        || lowered.contains("agentic ai")
+        || lowered.contains("openai agents")
+        || lowered.contains("langgraph")
+        || lowered.contains("autogen")
+        || lowered.contains("crewai")
+        || lowered.contains("smolagents");
+    off_topic_markers && !ai_markers
+}
+
 fn sanitize_findings_for_final_response(findings: Option<String>) -> Option<String> {
     let raw = findings.unwrap_or_default();
     let cleaned = clean_text(raw.trim(), 24_000);
@@ -378,6 +632,9 @@ fn sanitize_findings_for_final_response(findings: Option<String>) -> Option<Stri
         return None;
     }
     if response_looks_like_tool_ack_without_findings(&cleaned) {
+        return None;
+    }
+    if response_looks_like_off_topic_web_results(&cleaned) {
         return None;
     }
     Some(cleaned)
@@ -422,8 +679,61 @@ fn finalize_user_facing_response_with_outcome(
             false,
         );
     }
+    if response_looks_like_off_topic_web_results(&cleaned) {
+        return (
+            "Web search returned off-topic or irrelevant results for this request, so I’m not treating them as valid findings. Retry with a narrower technical query or one trusted source URL. error_code: web_tool_off_topic_results".to_string(),
+            with_payload_normalization_outcome(
+                "replaced_off_topic_web_results",
+                payload_normalized,
+            ),
+            true,
+        );
+    }
+    let speculative_blocker_copy = response_contains_speculative_web_blocker_language(&cleaned);
+    let deferred_execution_copy = response_is_deferred_execution_preamble(&cleaned)
+        || response_is_deferred_retry_prompt(&cleaned);
     let input_ack_only = response_looks_like_tool_ack_without_findings(&cleaned);
     let findings_cleaned = sanitize_findings_for_final_response(findings);
+    if speculative_blocker_copy {
+        if let Some(text) = findings_cleaned.clone() {
+            return (
+                text,
+                with_payload_normalization_outcome(
+                    "replaced_speculative_blocker_with_findings",
+                    payload_normalized,
+                ),
+                true,
+            );
+        }
+        return (
+            no_findings_user_facing_response(),
+            with_payload_normalization_outcome(
+                "replaced_speculative_blocker_with_no_findings",
+                payload_normalized,
+            ),
+            true,
+        );
+    }
+    if deferred_execution_copy {
+        if let Some(text) = findings_cleaned.clone() {
+            return (
+                text,
+                with_payload_normalization_outcome(
+                    "replaced_deferred_execution_with_findings",
+                    payload_normalized,
+                ),
+                true,
+            );
+        }
+        return (
+            no_findings_user_facing_response(),
+            with_payload_normalization_outcome(
+                "replaced_deferred_execution_with_no_findings",
+                payload_normalized,
+            ),
+            true,
+        );
+    }
     if cleaned.is_empty() {
         if let Some(text) = findings_cleaned {
             return (

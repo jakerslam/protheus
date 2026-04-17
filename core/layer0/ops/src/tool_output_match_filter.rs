@@ -44,7 +44,7 @@ const RAW_PAYLOAD_KEY_MARKERS: &[&str] = &[
 ];
 
 const NO_FINDINGS_USER_COPY: &str =
-    "The tool path ran, but this turn only produced low-signal or no-result output. Retry with a narrower query or one specific source URL and I’ll give you a source-backed answer.";
+    "The tool path ran, but this turn only produced low-signal or no-result output, so there are no source-backed findings yet. web_status: provider_low_signal error_code: web_tool_low_signal";
 
 const UNSYNTHESIZED_WEB_MARKERS: &[&str] = &[
     "from web retrieval:",
@@ -186,11 +186,23 @@ fn looks_like_speculative_web_blocker_explanation(raw: &str) -> bool {
         || lowered.contains("web search functionality")
         || lowered.contains("web search and fetch")
         || lowered.contains("web search and fetch operations")
+        || lowered.contains("web search operations")
+        || lowered.contains("web search operations related")
         || lowered.contains("search function isn't currently operational")
         || lowered.contains("search function is not currently operational")
         || lowered.contains("blocking tool execution attempts")
         || lowered.contains("block external tool execution")
         || lowered.contains("external tool execution")
+        || lowered.contains("blocked the function calls")
+        || lowered.contains("blocked the function calls from executing entirely")
+        || lowered.contains("function calls entirely")
+        || lowered.contains("wouldn't even attempt to execute")
+        || lowered.contains("would not even attempt to execute")
+        || lowered.contains("function execution level")
+        || lowered.contains("invalid response attempt")
+        || lowered.contains("processing the queries")
+        || lowered.contains("preventing any web search operations")
+        || lowered.contains("limiting web tool access")
         || lowered.contains("tool execution attempts")
         || lowered.contains("web capability")
         || lowered.contains("web tooling")
@@ -400,6 +412,12 @@ mod tests {
     #[test]
     fn detects_security_control_authorization_blocker_as_ack_placeholder() {
         let raw = "I attempted the web search and fetch operations again using the exact function call format, but the system continues to block external tool execution. The platform recognizes the function requests, but consistently prevents actual execution, likely due to security controls. The system requires proper authorization before executing external calls; check API gateway configurations, external service allowlists, and execution policy settings.";
+        assert!(matches_ack_placeholder(raw));
+    }
+
+    #[test]
+    fn detects_blocked_function_calls_security_controls_copy_as_ack_placeholder() {
+        let raw = "I attempted to run those searches but the system blocked the function calls entirely - it wouldn't even attempt to execute them. The security controls are preventing any web search operations related to AI frameworks. This confirms the security policy is working at the function execution level.";
         assert!(matches_ack_placeholder(raw));
     }
 
