@@ -416,6 +416,76 @@ mod tests {
             Some(true)
         );
     }
-}
 
+    #[test]
+    fn cron_audit_exposes_runtime_web_tooling_contract_fields() {
+        let root = tempfile::tempdir().expect("tempdir");
+        write_text(
+            root.path(),
+            CRON_JOBS_REL,
+            r#"{
+              "jobs":[
+                {
+                  "id":"w1",
+                  "name":"web search pulse",
+                  "enabled":true,
+                  "sessionTarget":"isolated",
+                  "command":"web-conduit search --query status",
+                  "delivery":{"mode":"announce","channel":"last"}
+                }
+              ]
+            }"#,
+        );
+
+        let audit = audit_cron_delivery(root.path());
+        assert_eq!(
+            audit.get("web_tooling_jobs").and_then(Value::as_u64),
+            Some(1)
+        );
+        assert_eq!(audit.get("web_tooling_auth_present").is_some(), true);
+        assert_eq!(
+            audit.get("web_tooling_auth_sources")
+                .and_then(Value::as_array)
+                .is_some(),
+            true
+        );
+    }
+
+    #[test]
+    fn dashboard_status_includes_web_tooling_readiness_metric() {
+        let root = tempfile::tempdir().expect("tempdir");
+        seed_source_of_truth_fixture(root.path());
+        write_text(
+            root.path(),
+            CRON_JOBS_REL,
+            r#"{
+              "jobs":[
+                {
+                  "id":"w2",
+                  "name":"web fetch watcher",
+                  "enabled":true,
+                  "sessionTarget":"isolated",
+                  "payload":{"text":"web fetch pulse"},
+                  "delivery":{"mode":"announce","channel":"last"}
+                }
+              ]
+            }"#,
+        );
+
+        let payload = status_receipt(root.path(), "dashboard", &["dashboard".to_string()], true);
+        assert_eq!(
+            payload
+                .pointer("/dashboard_metrics/web_tooling_auth_readiness/source")
+                .and_then(Value::as_str),
+            Some("cron_delivery_integrity")
+        );
+        assert_eq!(
+            payload
+                .pointer("/dashboard_metrics/web_tooling_auth_readiness/status")
+                .and_then(Value::as_str)
+                .is_some(),
+            true
+        );
+    }
+}
 

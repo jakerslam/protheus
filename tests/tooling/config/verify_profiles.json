@@ -89,6 +89,7 @@
         "audit:client-target-contract",
         "ops:runtime-proof:verify",
         "ops:adapter-runtime-chaos:gate",
+        "ops:adapter-chaos:rust",
         "ops:v8:runtime-proof:gate",
         "ops:srs:full:gate",
         "ops:dod:gate",
@@ -107,6 +108,7 @@
       "gate_ids": [
         "ops:runtime-proof:verify",
         "ops:adapter-runtime-chaos:gate",
+        "ops:adapter-chaos:rust",
         "ops:v8:runtime-proof:gate",
         "ops:layer2:parity:guard",
         "ops:layer2:receipt:replay",

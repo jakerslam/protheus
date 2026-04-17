@@ -30,6 +30,7 @@ function main() {
   const db = mod.openQueueDb({ db_path: dbPath, journal_mode: 'wal', synchronous: 'normal' });
   assert.equal(db.__queue_sqlite_kernel, true);
   assert.equal(db.sqlite_cfg.db_path, dbPath);
+  assert.equal(typeof db.sqlite_cfg.journal_mode, 'string');
 
   const schema = mod.ensureQueueSchema(db);
   assert.equal(schema.ok, true);
@@ -62,6 +63,7 @@ function main() {
   assert.equal(stats.items, 1);
   assert.equal(stats.events, 2);
   assert.equal(stats.receipts, 1);
+  assert.equal(Number.isFinite(Number(stats.items)), true);
 
   console.log(JSON.stringify({ ok: true, type: 'queue_sqlite_runtime_rust_bridge_test' }));
 }

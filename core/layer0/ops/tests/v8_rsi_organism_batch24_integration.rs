@@ -42,6 +42,7 @@ fn jsonl_count(path: &Path) -> usize {
 }
 
 fn assert_claim(latest: &Value, id: &str) {
+    assert_no_runtime_context_leak(&latest.to_string());
     assert_eq!(
         latest
             .get("claim_evidence")
@@ -53,6 +54,23 @@ fn assert_claim(latest: &Value, id: &str) {
         Some(true),
         "missing claim_evidence id={id} in latest={latest}"
     );
+}
+
+fn assert_no_runtime_context_leak(raw: &str) {
+    const FORBIDDEN: [&str; 6] = [
+        "You are an expert Python programmer.",
+        "[PATCH v2",
+        "List Leaves (25",
+        "BEGIN_OPENCLAW_INTERNAL_CONTEXT",
+        "END_OPENCLAW_INTERNAL_CONTEXT",
+        "UNTRUSTED_CHILD_RESULT_DELIMITER",
+    ];
+    for marker in FORBIDDEN {
+        assert!(
+            !raw.contains(marker),
+            "runtime payload leaked forbidden marker `{marker}`: {raw}"
+        );
+    }
 }
 
 fn allow(root: &Path, directive: &str) {

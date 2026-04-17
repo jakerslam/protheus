@@ -1,62 +1,83 @@
+fn normalize_shadow_scope_token(raw: &str) -> String {
+    let mut out = String::new();
+    let mut prev_sep = false;
+    for ch in raw.trim().to_ascii_lowercase().chars() {
+        let mapped = if ch.is_ascii_alphanumeric() || ch == '_' {
+            ch
+        } else if ch.is_ascii_whitespace() || matches!(ch, '-' | '.' | ':' | '/') {
+            '_'
+        } else {
+            continue;
+        };
+        if mapped == '_' {
+            if prev_sep || out.is_empty() {
+                continue;
+            }
+            prev_sep = true;
+            out.push('_');
+        } else {
+            prev_sep = false;
+            out.push(mapped);
+        }
+    }
+    out.trim_matches('_').to_string()
+}
+
+fn parse_scope_values(raw: &str) -> Vec<String> {
+    let mut out = Vec::<String>::new();
+    for token in raw.split([',', '|']) {
+        let normalized = normalize_shadow_scope_token(token);
+        if normalized.is_empty() || out.contains(&normalized) {
+            continue;
+        }
+        out.push(normalized);
+    }
+    out
+}
+
+fn canonical_scope_type(raw: &str) -> String {
+    let token = normalize_shadow_scope_token(raw);
+    match token.as_str() {
+        "proposal" => "proposal_type".to_string(),
+        "capability" => "capability_key".to_string(),
+        "objective" => "objective_id".to_string(),
+        "risk" | "risk_level" => "global".to_string(),
+        _ => token,
+    }
+}
+
 pub fn compute_shadow_scope_matches(input: &ShadowScopeMatchesInput) -> ShadowScopeMatchesOutput {
-    let scope_type = input
-        .scope_type
-        .as_deref()
-        .unwrap_or("")
-        .trim()
-        .to_ascii_lowercase();
-    let scope_value = input
-        .scope_value
-        .as_deref()
-        .unwrap_or("")
-        .trim()
-        .to_ascii_lowercase();
+    let scope_type = canonical_scope_type(input.scope_type.as_deref().unwrap_or(""));
+    let scope_values = parse_scope_values(input.scope_value.as_deref().unwrap_or(""));
     let risk_levels = input
         .risk_levels
         .iter()
-        .map(|v| v.trim().to_ascii_lowercase())
+        .map(|v| normalize_shadow_scope_token(v))
         .filter(|v| !v.is_empty())
         .collect::<Vec<_>>();
-    let risk = input
-        .risk
-        .as_deref()
-        .unwrap_or("")
-        .trim()
-        .to_ascii_lowercase();
-    let proposal_type = input
-        .proposal_type
-        .as_deref()
-        .unwrap_or("")
-        .trim()
-        .to_ascii_lowercase();
-    let capability_key = input
-        .capability_key
-        .as_deref()
-        .unwrap_or("")
-        .trim()
-        .to_ascii_lowercase();
-    let objective_id = input
-        .objective_id
-        .as_deref()
-        .unwrap_or("")
-        .trim()
-        .to_ascii_lowercase();
+    let risk = normalize_shadow_scope_token(input.risk.as_deref().unwrap_or(""));
+    let proposal_type = normalize_shadow_scope_token(input.proposal_type.as_deref().unwrap_or(""));
+    let capability_key =
+        normalize_shadow_scope_token(input.capability_key.as_deref().unwrap_or(""));
+    let objective_id = normalize_shadow_scope_token(input.objective_id.as_deref().unwrap_or(""));
 
     let matched = match scope_type.as_str() {
-        "proposal_type" => {
-            !scope_value.is_empty() && !proposal_type.is_empty() && scope_value == proposal_type
-        }
-        "capability_key" => {
-            !scope_value.is_empty() && !capability_key.is_empty() && scope_value == capability_key
-        }
-        "objective_id" => {
-            !scope_value.is_empty() && !objective_id.is_empty() && scope_value == objective_id
-        }
+        "proposal_type" => !proposal_type.is_empty() && scope_values.iter().any(|v| v == &proposal_type),
+        "capability_key" => !capability_key.is_empty() && scope_values.iter().any(|v| v == &capability_key),
+        "objective_id" => !objective_id.is_empty() && scope_values.iter().any(|v| v == &objective_id),
         "global" => {
-            if risk_levels.is_empty() {
+            let mut levels = risk_levels;
+            if !scope_values.is_empty() {
+                for row in scope_values {
+                    if !levels.contains(&row) {
+                        levels.push(row);
+                    }
+                }
+            }
+            if levels.is_empty() {
                 true
             } else {
-                !risk.is_empty() && risk_levels.iter().any(|v| v == &risk)
+                !risk.is_empty() && levels.iter().any(|v| v == &risk)
             }
         }
         _ => false,

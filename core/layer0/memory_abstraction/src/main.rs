@@ -2,3 +2,86 @@
 include!("main_parts/010-now-iso.rs");
 include!("main_parts/020-analytics-policy.rs");
 include!("main_parts/030-cmd-test-harness.rs");
+
+fn normalize_proxy_env_value(raw: Option<&str>) -> Option<String> {
+    let trimmed = raw.unwrap_or("").trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.chars().take(256).collect::<String>())
+    }
+}
+
+pub fn resolve_memory_abstraction_proxy_url(
+    protocol: &str,
+    http_proxy_lower: Option<&str>,
+    https_proxy_lower: Option<&str>,
+    http_proxy_upper: Option<&str>,
+    https_proxy_upper: Option<&str>,
+) -> Option<String> {
+    let lower_http = normalize_proxy_env_value(http_proxy_lower);
+    let lower_https = normalize_proxy_env_value(https_proxy_lower);
+    let upper_http = normalize_proxy_env_value(http_proxy_upper);
+    let upper_https = normalize_proxy_env_value(https_proxy_upper);
+
+    let http_proxy = lower_http.or(upper_http);
+    let https_proxy = lower_https.or(upper_https);
+    if protocol.eq_ignore_ascii_case("https") {
+        https_proxy.or(http_proxy)
+    } else {
+        http_proxy
+    }
+}
+
+pub fn memory_abstraction_has_proxy_for_protocol(
+    protocol: &str,
+    http_proxy_lower: Option<&str>,
+    https_proxy_lower: Option<&str>,
+    http_proxy_upper: Option<&str>,
+    https_proxy_upper: Option<&str>,
+) -> bool {
+    resolve_memory_abstraction_proxy_url(
+        protocol,
+        http_proxy_lower,
+        https_proxy_lower,
+        http_proxy_upper,
+        https_proxy_upper,
+    )
+    .is_some()
+}
+
+#[cfg(test)]
+mod assim120_memory_abstraction_tests {
+    use super::*;
+
+    #[test]
+    fn lowercase_proxy_env_takes_precedence() {
+        let out = resolve_memory_abstraction_proxy_url(
+            "https",
+            Some("http://lower-http:8080"),
+            Some("http://lower-https:8080"),
+            Some("http://upper-http:8080"),
+            Some("http://upper-https:8080"),
+        );
+        assert_eq!(out.as_deref(), Some("http://lower-https:8080"));
+    }
+
+    #[test]
+    fn https_falls_back_to_http_proxy_when_https_missing() {
+        let out = resolve_memory_abstraction_proxy_url(
+            "https",
+            Some("http://lower-http:8080"),
+            None,
+            None,
+            None,
+        );
+        assert_eq!(out.as_deref(), Some("http://lower-http:8080"));
+        assert!(memory_abstraction_has_proxy_for_protocol(
+            "https",
+            Some("http://lower-http:8080"),
+            None,
+            None,
+            None
+        ));
+    }
+}

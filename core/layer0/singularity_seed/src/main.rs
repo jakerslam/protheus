@@ -4,14 +4,46 @@ use base64::Engine;
 use protheus_singularity_seed_core_v1::{
     freeze_seed, run_guarded_cycle, show_seed_state_json, CycleRequest, DriftOverride,
 };
+use std::collections::BTreeMap;
 use std::env;
 use std::fs;
 
+const MAX_ARG_KEY_LEN: usize = 48;
+const MAX_ARG_VALUE_LEN: usize = 32 * 1024;
+const MAX_DRIFT_LOOP_ID_LEN: usize = 96;
+
+fn strip_invisible_unicode(raw: &str) -> String {
+    raw.chars()
+        .filter(|ch| {
+            !matches!(
+                ch,
+                '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}'
+            )
+        })
+        .collect()
+}
+
+fn sanitize_cli_value(raw: &str, max_len: usize) -> String {
+    let mut normalized: String = strip_invisible_unicode(raw)
+        .chars()
+        .filter(|ch| !ch.is_control())
+        .collect();
+    normalized = normalized.trim().to_string();
+    if normalized.len() > max_len {
+        normalized.truncate(max_len);
+    }
+    normalized
+}
+
 fn parse_arg(args: &[String], key: &str) -> Option<String> {
+    let key = sanitize_cli_value(key, MAX_ARG_KEY_LEN);
     for arg in args {
         if let Some((k, v)) = arg.split_once('=') {
-            if k == key {
-                return Some(v.to_string());
+            if sanitize_cli_value(k, MAX_ARG_KEY_LEN) == key {
+                let value = sanitize_cli_value(v, MAX_ARG_VALUE_LEN);
+                if !value.is_empty() {
+                    return Some(value);
+                }
             }
         }
     }
@@ -20,41 +52,57 @@ fn parse_arg(args: &[String], key: &str) -> Option<String> {
 
 fn parse_request(args: &[String]) -> Result<CycleRequest, String> {
     if let Some(v) = parse_arg(args, "--request-json") {
+        if v.len() > MAX_ARG_VALUE_LEN {
+            return Err("request_json_too_large".to_string());
+        }
         return serde_json::from_str(&v).map_err(|err| format!("request_parse_failed:{err}"));
     }
     if let Some(v) = parse_arg(args, "--request-base64") {
         let bytes = BASE64_STANDARD
             .decode(v.as_bytes())
             .map_err(|err| format!("base64_decode_failed:{err}"))?;
+        if bytes.len() > MAX_ARG_VALUE_LEN {
+            return Err("request_base64_too_large".to_string());
+        }
         let text = String::from_utf8(bytes).map_err(|err| format!("utf8_decode_failed:{err}"))?;
         return serde_json::from_str(&text).map_err(|err| format!("request_parse_failed:{err}"));
     }
     if let Some(v) = parse_arg(args, "--request-file") {
-        let text =
-            fs::read_to_string(v).map_err(|err| format!("request_file_read_failed:{err}"))?;
+        let text = fs::read_to_string(v.as_str())
+            .map_err(|err| format!("request_file_read_failed:{err}"))?;
+        if text.len() > MAX_ARG_VALUE_LEN {
+            return Err("request_file_too_large".to_string());
+        }
         return serde_json::from_str(&text).map_err(|err| format!("request_parse_failed:{err}"));
     }
 
     let mut request = CycleRequest::default();
     if let Some(v) = parse_arg(args, "--inject-drift") {
-        let mut overrides = Vec::new();
+        let mut overrides_by_loop = BTreeMap::<String, DriftOverride>::new();
         for part in v.split(',') {
-            let trimmed = part.trim();
+            let trimmed = sanitize_cli_value(part, MAX_ARG_VALUE_LEN);
             if trimmed.is_empty() {
                 continue;
             }
             let (loop_id, drift) = trimmed
                 .split_once(':')
                 .ok_or_else(|| format!("invalid_inject_drift:{trimmed}"))?;
+            let loop_id = sanitize_cli_value(loop_id, MAX_DRIFT_LOOP_ID_LEN);
+            if loop_id.is_empty() {
+                return Err("invalid_drift_loop_id".to_string());
+            }
             let drift_pct = drift
                 .parse::<f64>()
                 .map_err(|_| format!("invalid_drift_value:{drift}"))?;
-            overrides.push(DriftOverride {
-                loop_id: loop_id.trim().to_string(),
+            if !drift_pct.is_finite() {
+                return Err("invalid_drift_value_non_finite".to_string());
+            }
+            overrides_by_loop.insert(loop_id.clone(), DriftOverride {
+                loop_id,
                 drift_pct,
             });
         }
-        request.drift_overrides = overrides;
+        request.drift_overrides = overrides_by_loop.into_values().collect();
     }
 
     Ok(request)

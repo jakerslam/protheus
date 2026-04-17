@@ -3,7 +3,6 @@
       var navState = this._computeScrollHintState(refs.sidebarNav);
       this.sidebarHasOverflowAbove = !!navState.above;
       this.sidebarHasOverflowBelow = !!navState.below;
-
       var chatState = this._computeScrollHintState(refs.chatSidebarList);
       this.chatSidebarHasOverflowAbove = !!chatState.above;
       this.chatSidebarHasOverflowBelow = !!chatState.below;
@@ -42,13 +41,9 @@
     isSidebarArchivedAgent(agent) {
       if (!agent || typeof agent !== 'object') return false;
       var store = this.getAppStore();
-      if (store && typeof store.isArchivedLikeAgent === 'function' && store.isArchivedLikeAgent(agent)) return true;
-      if (agent.archived === true) return true;
-      var state = String(agent.state || '').trim().toLowerCase();
-      var contract = agent.contract && typeof agent.contract === 'object' ? agent.contract : null;
-      var contractStatus = String(contract && contract.status ? contract.status : '').trim().toLowerCase();
-      return state.indexOf('archived') >= 0 || state.indexOf('inactive') >= 0 || state.indexOf('terminated') >= 0 ||
-        contractStatus.indexOf('archived') >= 0 || contractStatus.indexOf('inactive') >= 0 || contractStatus.indexOf('terminated') >= 0;
+      if (store && typeof store.isArchivedLikeAgent === 'function') return store.isArchivedLikeAgent(agent);
+      if (Object.prototype.hasOwnProperty.call(agent, 'sidebar_archived')) return !!agent.sidebar_archived;
+      return !!agent.archived;
     },
     isReservedSystemEmoji(rawEmoji) {
       var normalized = String(rawEmoji || '').replace(/\uFE0F/g, '').trim();
@@ -152,29 +147,13 @@
     get chatSidebarAgents() {
       var list = (this.agents || []).slice();
       var self = this;
-      var archivedSet = new Set((this.archivedAgentIds || []).map(function(id) { return String(id); }));
       var pendingFreshId = String((this.getAppStore() && this.getAppStore().pendingFreshAgentId) || '').trim();
       list = list.filter(function(agent) {
         if (!agent || !agent.id) return false;
         if (pendingFreshId && String(agent.id || '') === pendingFreshId) return false;
         if (self.isSidebarArchivedAgent(agent)) return false;
-        return !archivedSet.has(String(agent.id));
+        return true;
       });
-      var hasSystemThread = list.some(function(agent) {
-        return self.isSystemSidebarThread(agent);
-      });
-      if (!hasSystemThread) {
-        list.push({
-          id: 'system',
-          name: 'System',
-          is_system_thread: true,
-          state: 'running',
-          role: 'system',
-          model_provider: 'system',
-          model_name: 'terminal',
-          identity: { emoji: '\u2699\ufe0f' }
-        });
-      }
       list.sort(function(a, b) {
         return self.chatSidebarSortComparator(a, b);
       });
@@ -201,112 +180,68 @@
       });
     },
     get chatSidebarRows() {
+      if (this.chatSidebarDragActive && Array.isArray(this._chatSidebarDragRowsCache)) {
+        return this._chatSidebarDragRowsCache;
+      }
       var query = String(this.chatSidebarQuery || '').trim();
-      if (!query) return this.chatSidebarAgents || [];
-      if (Array.isArray(this.chatSidebarSearchResults) && this.chatSidebarSearchResults.length) return this.chatSidebarSearchResults;
-      return this.buildChatSidebarQuickActions(query, []);
+      var rows;
+      if (!query) rows = this.chatSidebarAgents || [];
+      else if (Array.isArray(this.chatSidebarSearchResults) && this.chatSidebarSearchResults.length) rows = this.chatSidebarSearchResults;
+      else rows = [];
+      if (this.chatSidebarDragActive) {
+        this._chatSidebarDragRowsCache = Array.isArray(rows) ? rows.slice() : [];
+      } else {
+        this._chatSidebarDragRowsCache = null;
+      }
+      return rows;
     },
-    get chatSidebarVisibleRows() { return Array.isArray(this.chatSidebarRows) ? this.chatSidebarRows : []; },
+    chatSidebarDragRenderWindow(rows) {
+      var sourceRows = Array.isArray(rows) ? rows : [];
+      var total = sourceRows.length;
+      var maxRows = Math.max(1, Math.floor(Number(this._chatSidebarDragRenderMaxRows || 10)));
+      if (!this.chatSidebarDragActive || total <= maxRows) {
+        return { virtualized: false, start: 0, end: total, padTop: 0, padBottom: 0 };
+      }
+      var refs = this.$refs || {};
+      var nav = refs.sidebarNav || null;
+      var rowHeight = Math.max(1, Math.floor(Number(this._chatSidebarDragRenderRowHeight || 56)));
+      var scrollTop = nav ? Math.max(0, Number(nav.scrollTop || 0)) : 0;
+      var start = Math.max(0, Math.floor(scrollTop / rowHeight));
+      if (start > (total - maxRows)) start = Math.max(0, total - maxRows);
+      var end = Math.min(total, start + maxRows);
+      return {
+        virtualized: true,
+        start: start,
+        end: end,
+        padTop: start * rowHeight,
+        padBottom: Math.max(0, (total - end) * rowHeight)
+      };
+    },
+    get chatSidebarVirtualized() {
+      var rows = Array.isArray(this.chatSidebarRows) ? this.chatSidebarRows : [];
+      return this.chatSidebarDragRenderWindow(rows).virtualized;
+    },
+    get chatSidebarVirtualPadTop() {
+      var rows = Array.isArray(this.chatSidebarRows) ? this.chatSidebarRows : [];
+      return this.chatSidebarDragRenderWindow(rows).padTop;
+    },
+    get chatSidebarVirtualPadBottom() {
+      var rows = Array.isArray(this.chatSidebarRows) ? this.chatSidebarRows : [];
+      return this.chatSidebarDragRenderWindow(rows).padBottom;
+    },
+    get chatSidebarVisibleRows() {
+      var rows = Array.isArray(this.chatSidebarRows) ? this.chatSidebarRows : [];
+      var window = this.chatSidebarDragRenderWindow(rows);
+      if (!window.virtualized) return rows;
+      return rows.slice(window.start, window.end);
+    },
     chatSidebarHasMoreRows() { return false; },
     showMoreChatSidebarRows() { this.scheduleSidebarScrollIndicators(); },
-    buildChatSidebarQuickActions(query, rows) {
-      var q = String(query || '').trim().toLowerCase();
-      if (!q) return [];
-      var out = [], seen = {};
-      var hasHits = Array.isArray(rows) && rows.some(function(row) { return !!(row && !row._sidebar_quick_action); });
-      var add = function(id, name, preview, action, emoji) {
-        if (!id || seen[id] || out.length >= 3) return;
-        seen[id] = true;
-        out.push({ id: '_sidebar_action:' + id, name: name, state: 'ready', avatar_url: '', identity: { emoji: emoji || '' }, _sidebar_search_result: true, _sidebar_preview_text: preview, _sidebar_quick_action: action });
-      };
-      var wantsConnect = /(connect|pair|token|auth|secure|identity|gateway)/.test(q);
-      var wantsAgents = /(agent|session|chat|thread|roster)/.test(q);
-      var wantsSettings = /(model|setting|config|token|auth|provider|key)/.test(q);
-      if (wantsSettings) add('settings', 'Open Settings', 'Jump to models, keys, and gateway configuration.', { type: 'navigate', page: 'settings' }, '⚙️');
-      if (wantsAgents || !hasHits) add('agents', 'Open Agents', 'Jump to the agent roster and templates.', { type: 'navigate', page: 'agents' }, '🤖');
-      if (wantsConnect) add('connect', 'Copy connect checklist', 'Copy pairing/auth recovery guidance.', { type: 'copy_connect', page: 'settings' }, '🔐');
-      if (!out.length) { add('chat', 'Open Chat', 'Return to the active chat workspace.', { type: 'navigate', page: 'chat' }, '💬'); add('settings', 'Open Settings', 'Check models, keys, and runtime configuration.', { type: 'navigate', page: 'settings' }, '⚙️'); add('agents', 'Open Agents', 'Jump to the agent roster and templates.', { type: 'navigate', page: 'agents' }, '🤖'); }
-      return out;
-    },
-    isChatSidebarSearchActive() {
-      return String(this.chatSidebarQuery || '').trim().length > 0;
-    },
-    clearChatSidebarSearch() {
-      if (this._chatSidebarSearchTimer) { clearTimeout(this._chatSidebarSearchTimer); this._chatSidebarSearchTimer = 0; }
-      this.chatSidebarSearchSeq = Number(this.chatSidebarSearchSeq || 0) + 1;
-      this.chatSidebarSearchLoading = false;
-      this.chatSidebarSearchError = '';
-      this.chatSidebarSearchResults = [];
-      this.scheduleSidebarScrollIndicators();
-    },
-    onChatSidebarQueryInput(value) {
-      this.chatSidebarQuery = String(value || '');
-      this.chatSidebarVisibleCount = Math.max(1, Math.floor(Number(this.chatSidebarVisibleBase || 7)));
-      var query = String(this.chatSidebarQuery || '').trim();
-      if (!query) {
-        this.clearChatSidebarSearch();
-        return;
-      }
-      this.scheduleChatSidebarSearch();
-    },
-    scheduleChatSidebarSearch() {
-      var query = String(this.chatSidebarQuery || '').trim();
-      if (!query) { this.clearChatSidebarSearch(); return; }
-      if (this._chatSidebarSearchTimer) { clearTimeout(this._chatSidebarSearchTimer); this._chatSidebarSearchTimer = 0; }
-      var self = this;
-      var seq = Number(this.chatSidebarSearchSeq || 0) + 1;
-      this.chatSidebarSearchSeq = seq;
-      this.chatSidebarSearchLoading = true;
-      this.chatSidebarSearchError = '';
-      this._chatSidebarSearchTimer = setTimeout(function() { self._chatSidebarSearchTimer = 0; self.runChatSidebarSearch(seq); }, 140);
-    },
-    async runChatSidebarSearch(seq) {
-      var token = Number(seq || 0);
-      var currentToken = Number(this.chatSidebarSearchSeq || 0);
-      if (token !== currentToken) return;
-      var query = String(this.chatSidebarQuery || '').trim();
-      if (!query) {
-        this.clearChatSidebarSearch();
-        return;
-      }
-      try {
-        var path = '/api/search/conversations?q=' + encodeURIComponent(query) + '&limit=80';
-        var payload = await InfringAPI.get(path);
-        if (token !== Number(this.chatSidebarSearchSeq || 0)) return;
-        var rows = payload && Array.isArray(payload.results) ? payload.results : [];
-        var seen = {};
-        var mapped = [];
-        for (var i = 0; i < rows.length; i++) {
-          var row = rows[i] || {};
-          var id = String(row.agent_id || row.id || '').trim();
-          if (!id) continue;
-          if (String(id).toLowerCase() === 'system' || row.is_system_thread === true || String(row.role || '').toLowerCase() === 'system') {
-            continue;
-          }
-          if (!id || seen[id]) continue;
-          seen[id] = true;
-          mapped.push({ id: id, name: String(row.name || id), state: String(row.state || (row.archived ? 'archived' : 'running')), archived: row.archived === true, avatar_url: String(row.avatar_url || '').trim(), identity: { emoji: String(row.emoji || '').trim() }, updated_at: String(row.updated_at || '').trim(), _sidebar_search_result: true, _sidebar_search_score: Number(row.score || 0), _sidebar_preview_text: String(row.snippet || '') });
-        }
-        var self = this;
-        this.chatSidebarSearchResults = mapped.concat(this.buildChatSidebarQuickActions(query, mapped)).map(function(agent) {
-          return self.sanitizeSidebarAgentRow(agent);
-        });
-        this.chatSidebarSearchError = '';
-      } catch (e) {
-        if (token !== Number(this.chatSidebarSearchSeq || 0)) return;
-        this.chatSidebarSearchResults = this.buildChatSidebarQuickActions(query, []);
-        this.chatSidebarSearchError = String(e && e.message ? e.message : 'search_failed');
-      } finally {
-        if (token === Number(this.chatSidebarSearchSeq || 0)) {
-          this.chatSidebarSearchLoading = false;
-        }
-        this.scheduleSidebarScrollIndicators();
-      }
-    },
     init() {
       var self = this;
       this._bootSplashStartedAt = Date.now();
       this.bootSplashVisible = true;
+      this.applyOverlayGlassTemplate('fogged-glass', true);
       if (typeof this.resetBootProgress === 'function') this.resetBootProgress();
       if (typeof this.setBootProgressEvent === 'function') this.setBootProgressEvent('splash_visible');
       if (typeof this.hideDashboardPopupBySource === 'function') this.hideDashboardPopupBySource('sidebar');
@@ -317,14 +252,12 @@
       this._bootSplashMaxTimer = window.setTimeout(function() {
         self.releaseBootSplash(true);
       }, Number(this._bootSplashMaxMs || 5000));
-
       window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
         if (self.themeMode === 'system') {
           self.beginInstantThemeFlip();
           self.theme = e.matches ? 'dark' : 'light';
         }
       });
-
       var validPages = ['chat','agents','sessions','approvals','comms','workflows','scheduler','channels','eyes','skills','hands','overview','analytics','logs','runtime','settings','wizard'];
       var pageRedirects = {
         'automation': 'scheduler',

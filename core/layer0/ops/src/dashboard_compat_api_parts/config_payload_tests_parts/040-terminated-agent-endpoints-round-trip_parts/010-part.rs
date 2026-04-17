@@ -322,3 +322,51 @@ fn roster_excludes_zombies_and_archived_profiles_surface_in_terminated() {
     }));
 }
 
+#[test]
+fn timeout_terminated_agents_are_hidden_from_active_roster() {
+    let root = terminated_temp_root();
+    let _ = crate::dashboard_agent_state::upsert_profile(
+        root.path(),
+        "agent-timeout",
+        &json!({
+            "name": "Timed out agent",
+            "role": "analyst",
+            "state": "Running"
+        }),
+    );
+    let _ = crate::dashboard_agent_state::upsert_contract(
+        root.path(),
+        "agent-timeout",
+        &json!({
+            "status": "terminated",
+            "termination_reason": "timeout",
+            "termination_condition": "task_or_timeout",
+            "auto_terminate_allowed": true,
+            "idle_terminate_allowed": true,
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z"
+        }),
+    );
+    let snapshot = terminated_ok_snapshot();
+
+    let listed = handle(root.path(), "GET", "/api/agents", &[], &snapshot).expect("agents");
+    let rows = listed.payload.as_array().cloned().unwrap_or_default();
+    assert!(rows.iter().all(|row| {
+        clean_text(row.get("id").and_then(Value::as_str).unwrap_or(""), 180) != "agent-timeout"
+    }));
+
+    let terminated =
+        handle(root.path(), "GET", "/api/agents/terminated", &[], &snapshot).expect("terminated");
+    let entries = terminated
+        .payload
+        .get("entries")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    assert!(entries.iter().any(|row| {
+        clean_text(
+            row.get("agent_id").and_then(Value::as_str).unwrap_or(""),
+            180,
+        ) == "agent-timeout"
+    }));
+}

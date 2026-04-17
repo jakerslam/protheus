@@ -30,6 +30,76 @@ fn run_chat_starter(root: &Path, parsed: &crate::ParsedArgs, strict: bool, actio
     if !session.get("turns").map(Value::is_array).unwrap_or(false) {
         session["turns"] = Value::Array(Vec::new());
     }
+    let web_runtime_path = state_root(root).join("chat_starter").join("web_tooling_runtime.json");
+    let env_search_provider = std::env::var("WEB_SEARCH_PROVIDER")
+        .ok()
+        .filter(|row| !row.trim().is_empty())
+        .unwrap_or_else(|| "auto".to_string());
+    let env_fetch_provider = std::env::var("WEB_FETCH_PROVIDER")
+        .ok()
+        .filter(|row| !row.trim().is_empty())
+        .unwrap_or_else(|| "auto".to_string());
+    let search_provider = clean(
+        parsed
+            .flags
+            .get("web-provider")
+            .cloned()
+            .or_else(|| parsed.flags.get("search-provider").cloned())
+            .unwrap_or(env_search_provider),
+        64,
+    )
+    .trim()
+    .to_ascii_lowercase();
+    let fetch_provider = clean(
+        parsed
+            .flags
+            .get("web-fetch-provider")
+            .cloned()
+            .unwrap_or(env_fetch_provider),
+        64,
+    )
+    .trim()
+    .to_ascii_lowercase();
+    let search_auth_env = [
+        "WEB_SEARCH_API_KEY",
+        "TAVILY_API_KEY",
+        "EXA_API_KEY",
+        "PERPLEXITY_API_KEY",
+        "BRAVE_API_KEY",
+        "FIRECRAWL_API_KEY",
+        "GOOGLE_SEARCH_API_KEY",
+        "MOONSHOT_API_KEY",
+        "XAI_API_KEY",
+    ]
+    .iter()
+    .find_map(|key| {
+        std::env::var(key)
+            .ok()
+            .filter(|value| !value.trim().is_empty())
+            .map(|_| (*key).to_string())
+    });
+    let fetch_auth_env = ["WEB_FETCH_API_KEY", "FIRECRAWL_API_KEY"]
+        .iter()
+        .find_map(|key| {
+            std::env::var(key)
+                .ok()
+                .filter(|value| !value.trim().is_empty())
+                .map(|_| (*key).to_string())
+        });
+    let web_auth_present = search_auth_env.is_some() || fetch_auth_env.is_some();
+    let require_web_auth = parse_u64(parsed.flags.get("require-web-auth"), 0) > 0;
+    let web_runtime = json!({
+        "search_provider": search_provider,
+        "fetch_provider": fetch_provider,
+        "auth_present": web_auth_present,
+        "search_auth_env": search_auth_env.unwrap_or_default(),
+        "fetch_auth_env": fetch_auth_env.unwrap_or_default(),
+        "updated_at": crate::now_iso()
+    });
+    if let Some(parent) = web_runtime_path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let _ = write_json(&web_runtime_path, &web_runtime);
 
     if matches!(action, "history" | "status") {
         let turns = session
@@ -46,6 +116,7 @@ fn run_chat_starter(root: &Path, parsed: &crate::ParsedArgs, strict: bool, actio
             "session_id": session_id,
             "turn_count": turns.len(),
             "turns": if action == "history" { Value::Array(turns) } else { Value::Array(Vec::new()) },
+            "runtime_web_tools": read_json(&web_runtime_path).unwrap_or_else(|| web_runtime.clone()),
             "claim_evidence": [
                 {
                     "id": "V6-APP-008.1",
@@ -93,6 +164,7 @@ fn run_chat_starter(root: &Path, parsed: &crate::ParsedArgs, strict: bool, actio
             "session_id": session_id,
             "turn_index": turn_index,
             "turn": selected,
+            "runtime_web_tools": read_json(&web_runtime_path).unwrap_or_else(|| web_runtime.clone()),
             "claim_evidence": [
                 {
                     "id": "V6-APP-008.1",
@@ -118,6 +190,16 @@ fn run_chat_starter(root: &Path, parsed: &crate::ParsedArgs, strict: bool, actio
             "errors": ["chat_starter_message_required"]
         });
     }
+    if strict && require_web_auth && !web_auth_present {
+        return json!({
+            "ok": false,
+            "strict": strict,
+            "type": "app_plane_chat_starter",
+            "action": "run",
+            "errors": ["chat_starter_web_tool_auth_missing"],
+            "runtime_web_tools": web_runtime
+        });
+    }
     let tool = clean(
         parsed
             .flags
@@ -138,6 +220,7 @@ fn run_chat_starter(root: &Path, parsed: &crate::ParsedArgs, strict: bool, actio
         "user": message,
         "assistant": assistant,
         "stream_chunks": stream_chunks,
+        "runtime_web_tools": web_runtime.clone(),
         "tool_roundtrip": {
             "tool": tool,
             "input": {"query": message},
@@ -166,6 +249,7 @@ fn run_chat_starter(root: &Path, parsed: &crate::ParsedArgs, strict: bool, actio
         "action": "run",
         "session_id": session_id,
         "turn": turn,
+        "runtime_web_tools": read_json(&web_runtime_path).unwrap_or_else(|| web_runtime.clone()),
         "artifact": {
             "path": path.display().to_string(),
             "sha256": sha256_hex_str(&session.to_string())

@@ -79,7 +79,10 @@ fn parse_flag(argv: &[String], key: &str) -> Option<String> {
         }
         if token == key_token {
             if let Some(next) = argv.get(idx + 1) {
-                return Some(next.trim().to_string());
+                let next_trimmed = next.trim();
+                if !next_trimmed.starts_with("--") {
+                    return Some(next_trimmed.to_string());
+                }
             }
         }
         idx += 1;
@@ -126,6 +129,14 @@ fn parse_usize(raw: Option<&str>, fallback: usize, min: usize, max: usize) -> us
     raw.and_then(|v| v.trim().parse::<usize>().ok())
         .unwrap_or(fallback)
         .clamp(min, max)
+}
+
+fn parse_bool_switch(argv: &[String], key: &str, fallback: bool) -> bool {
+    let token = format!("--{key}");
+    if argv.iter().any(|arg| arg.trim() == token) {
+        return true;
+    }
+    parse_bool_str(parse_flag(argv, key).as_deref(), fallback)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -243,8 +254,8 @@ fn parse_u8_flag(argv: &[String], key: &str, default: u8) -> u8 {
 }
 
 fn tiny_max_requested(argv: &[String]) -> bool {
-    parse_bool_str(parse_flag(argv, "tiny-max").as_deref(), false)
-        || parse_bool_str(parse_flag(argv, "tiny_max").as_deref(), false)
+    parse_bool_switch(argv, "tiny-max", false)
+        || parse_bool_switch(argv, "tiny_max", false)
         || parse_bool_str(env::var("PROTHEUS_EMBEDDED_MAX").ok().as_deref(), false)
         || cfg!(feature = "embedded-max")
 }

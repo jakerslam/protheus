@@ -93,3 +93,38 @@ fn required_hook_completeness_must_include_mandatory_hooks() {
         "required_hook_list_missing_mandatory_hooks"
     );
 }
+
+#[test]
+fn source_coverage_normalizes_hidden_and_control_characters() {
+    let source = "foundation_contract_gate.js\u{200B}\nscale_envelope_baseline.js\t";
+    let receipt = evaluate_source_hook_coverage(
+        CHECK_ID_FOUNDATION_HOOKS,
+        &[
+            "foundation_contract_gate.js",
+            "scale_envelope_baseline.js",
+        ],
+        source,
+    );
+    assert!(receipt.ok);
+    assert!(!receipt.fail_closed);
+    assert!(receipt.missing_hooks.is_empty());
+}
+
+#[test]
+fn required_completeness_normalizes_duplicate_and_hidden_tokens() {
+    let receipt = evaluate_required_hook_completeness(
+        CHECK_ID_MERGE_GUARD_HOOK_COVERAGE,
+        &[
+            "contract_check:foundation_hooks",
+            "guard_check_registry:contract_check_consumes_manifest\u{200B}",
+            "contract_check:foundation_hooks",
+        ],
+        &[
+            "guard_check_registry:contract_check_consumes_manifest",
+            "contract_check:foundation_hooks",
+        ],
+    );
+    assert!(receipt.ok);
+    assert!(!receipt.fail_closed);
+    assert!(receipt.missing_hooks.is_empty());
+}

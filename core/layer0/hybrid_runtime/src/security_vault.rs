@@ -9,10 +9,48 @@ pub struct VaultKey {
     pub fingerprint: String,
 }
 
+const MAX_SEED_CHARS: usize = 256;
+
+fn strip_invisible_unicode(raw: &str) -> String {
+    raw.chars()
+        .filter(|ch| {
+            !matches!(
+                *ch,
+                '\u{200B}'
+                    | '\u{200C}'
+                    | '\u{200D}'
+                    | '\u{200E}'
+                    | '\u{200F}'
+                    | '\u{202A}'
+                    | '\u{202B}'
+                    | '\u{202C}'
+                    | '\u{202D}'
+                    | '\u{202E}'
+                    | '\u{2060}'
+                    | '\u{FEFF}'
+            )
+        })
+        .collect::<String>()
+}
+
+fn sanitize_seed(seed: &str) -> String {
+    let cleaned = strip_invisible_unicode(seed)
+        .chars()
+        .filter(|ch| !ch.is_control() || *ch == '\n' || *ch == '\t')
+        .collect::<String>();
+    let trimmed = cleaned.trim();
+    if trimmed.is_empty() {
+        "vault-seed".to_string()
+    } else {
+        trimmed.chars().take(MAX_SEED_CHARS).collect::<String>()
+    }
+}
+
 pub fn rotate_key(seed: &str, current_version: u32) -> VaultKey {
     let version = current_version.saturating_add(1);
+    let normalized_seed = sanitize_seed(seed);
     let mut h = Sha256::new();
-    h.update(seed.as_bytes());
+    h.update(normalized_seed.as_bytes());
     h.update(version.to_le_bytes());
     let digest = format!("{:x}", h.finalize());
     VaultKey {
@@ -26,12 +64,14 @@ pub fn fail_closed_attestation(tampered: bool) -> bool {
 }
 
 pub fn sample_report() -> serde_json::Value {
-    let key = rotate_key("vault-seed", 41);
+    let raw_seed = "vault-seed\u{200B}\u{0000}";
+    let normalized_seed = sanitize_seed(raw_seed);
+    let key = rotate_key(raw_seed, 41);
     let pass = fail_closed_attestation(false);
     let mut samples = Vec::with_capacity(1000);
     for i in 0..1000 {
         let started = Instant::now();
-        let _ = rotate_key("vault-seed", 41 + (i % 3));
+        let _ = rotate_key(raw_seed, 41 + (i % 3));
         samples.push(started.elapsed().as_secs_f64() * 1000.0);
     }
     samples.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
@@ -44,6 +84,8 @@ pub fn sample_report() -> serde_json::Value {
         "rotation": {
             "new_version": key.version,
             "fingerprint": key.fingerprint,
+            "seed_sanitized": normalized_seed != raw_seed,
+            "seed_chars": normalized_seed.chars().count()
         },
         "attestation": {
             "tamper_detected": false,
@@ -71,5 +113,12 @@ mod tests {
     fn fail_closed_denies_tamper() {
         assert!(!fail_closed_attestation(true));
         assert!(fail_closed_attestation(false));
+    }
+
+    #[test]
+    fn seed_sanitization_strips_hidden_or_control_chars() {
+        let a = rotate_key("vault-seed", 7);
+        let b = rotate_key("vault\u{200B}-seed\u{0000}", 7);
+        assert_eq!(a.fingerprint, b.fingerprint);
     }
 }

@@ -1,25 +1,78 @@
 
+fn strip_invisible_path_chars(raw: &str) -> String {
+    raw.chars()
+        .filter(|ch| {
+            !ch.is_control()
+                && !matches!(
+                    ch,
+                    '\u{200B}'
+                        | '\u{200C}'
+                        | '\u{200D}'
+                        | '\u{200E}'
+                        | '\u{200F}'
+                        | '\u{202A}'
+                        | '\u{202B}'
+                        | '\u{202C}'
+                        | '\u{202D}'
+                        | '\u{202E}'
+                        | '\u{2060}'
+                        | '\u{FEFF}'
+                )
+        })
+        .collect::<String>()
+}
+
+fn resolve_runtime_subdir_override(
+    raw: Option<String>,
+    runtime_root: &Path,
+    fallback: PathBuf,
+) -> PathBuf {
+    let Some(raw_value) = raw else { return fallback };
+    let cleaned = strip_invisible_path_chars(raw_value.trim()).trim().to_string();
+    if cleaned.is_empty() || cleaned.contains("://") {
+        return fallback;
+    }
+    let candidate = PathBuf::from(cleaned);
+    if candidate
+        .components()
+        .any(|part| matches!(part, std::path::Component::ParentDir))
+    {
+        return fallback;
+    }
+    if candidate.is_absolute() {
+        if candidate.starts_with(runtime_root) {
+            candidate
+        } else {
+            fallback
+        }
+    } else {
+        runtime_root.join(candidate)
+    }
+}
+
 fn black_box_paths(repo_root: &Path) -> (PathBuf, PathBuf, PathBuf, PathBuf) {
-    let ledger_dir = std::env::var("BLACK_BOX_LEDGER_DIR")
-        .ok()
-        .map(PathBuf::from)
-        .unwrap_or_else(|| {
-            runtime_state_root(repo_root)
-                .join("security")
-                .join("black_box_ledger")
-        });
-    let spine_runs = std::env::var("BLACK_BOX_SPINE_RUNS_DIR")
-        .ok()
-        .map(PathBuf::from)
-        .unwrap_or_else(|| runtime_state_root(repo_root).join("spine").join("runs"));
-    let autonomy_runs = std::env::var("BLACK_BOX_AUTONOMY_RUNS_DIR")
-        .ok()
-        .map(PathBuf::from)
-        .unwrap_or_else(|| runtime_state_root(repo_root).join("autonomy").join("runs"));
-    let attest_dir = std::env::var("BLACK_BOX_EXTERNAL_ATTESTATION_DIR")
-        .ok()
-        .map(PathBuf::from)
-        .unwrap_or_else(|| ledger_dir.join("attestations"));
+    let runtime_root = runtime_state_root(repo_root);
+    let ledger_fallback = runtime_root.join("security").join("black_box_ledger");
+    let ledger_dir = resolve_runtime_subdir_override(
+        std::env::var("BLACK_BOX_LEDGER_DIR").ok(),
+        &runtime_root,
+        ledger_fallback.clone(),
+    );
+    let spine_runs = resolve_runtime_subdir_override(
+        std::env::var("BLACK_BOX_SPINE_RUNS_DIR").ok(),
+        &runtime_root,
+        runtime_root.join("spine").join("runs"),
+    );
+    let autonomy_runs = resolve_runtime_subdir_override(
+        std::env::var("BLACK_BOX_AUTONOMY_RUNS_DIR").ok(),
+        &runtime_root,
+        runtime_root.join("autonomy").join("runs"),
+    );
+    let attest_dir = resolve_runtime_subdir_override(
+        std::env::var("BLACK_BOX_EXTERNAL_ATTESTATION_DIR").ok(),
+        &runtime_root,
+        ledger_dir.join("attestations"),
+    );
     (ledger_dir, spine_runs, autonomy_runs, attest_dir)
 }
 

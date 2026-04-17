@@ -1,3 +1,10 @@
+fn normalize_nonnegative_sample(value: f64) -> Option<f64> {
+    if !value.is_finite() || value < 0.0 {
+        return None;
+    }
+    Some((value * 1000.0).round() / 1000.0)
+}
+
 fn sample_child_rss_quantiles_mb(
     program: &str,
     args: &[&str],
@@ -9,7 +16,12 @@ fn sample_child_rss_quantiles_mb(
     }
     let mut rows = Vec::new();
     for _ in 0..samples.max(1) {
-        rows.push(sample_child_rss_mb(program, args)?);
+        if let Some(sample) = normalize_nonnegative_sample(sample_child_rss_mb(program, args)?) {
+            rows.push(sample);
+        }
+    }
+    if rows.is_empty() {
+        return Err("benchmark_child_rss_no_valid_samples".to_string());
     }
     rows.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     Ok((
@@ -278,12 +290,17 @@ fn benchmark_preflight_report(
     let load_per_core_one = load_one / cpu_parallelism as f64;
     let load_per_core_five = load_five / cpu_parallelism as f64;
     let load_per_core_peak = load_per_core_one.max(load_per_core_five);
-    let mean_noise = if noise_samples.is_empty() {
+    let filtered_noise_samples = noise_samples
+        .iter()
+        .copied()
+        .filter_map(normalize_nonnegative_sample)
+        .collect::<Vec<_>>();
+    let mean_noise = if filtered_noise_samples.is_empty() {
         0.0
     } else {
-        noise_samples.iter().copied().sum::<f64>() / noise_samples.len() as f64
+        filtered_noise_samples.iter().copied().sum::<f64>() / filtered_noise_samples.len() as f64
     };
-    let stddev_noise = stable_stddev(noise_samples);
+    let stddev_noise = stable_stddev(&filtered_noise_samples);
     let noise_cv_pct = if mean_noise <= f64::EPSILON {
         100.0
     } else {
@@ -291,6 +308,9 @@ fn benchmark_preflight_report(
     };
 
     let mut blockers = Vec::<String>::new();
+    if filtered_noise_samples.is_empty() {
+        blockers.push("throughput_noise_samples_unavailable".to_string());
+    }
     if load_per_core_peak > config.max_load_per_core {
         blockers.push(format!(
             "host_load_per_core_exceeded:{}>{}",
@@ -320,7 +340,7 @@ fn benchmark_preflight_report(
         "max_load_per_core": config.max_load_per_core,
         "noise_sample_ms": config.noise_sample_ms,
         "noise_rounds": config.noise_rounds,
-        "noise_samples_ops_per_sec": noise_samples
+        "noise_samples_ops_per_sec": filtered_noise_samples
             .iter()
             .map(|value| json!(((value * 100.0).round()) / 100.0))
             .collect::<Vec<Value>>(),

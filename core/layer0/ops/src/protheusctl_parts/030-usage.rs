@@ -67,6 +67,12 @@ pub fn usage() {
     println!("  infring proactive_daemon");
     println!("  infring speculate");
     println!("  infring dashboard");
+    println!("  infring verify runtime-proof --profile=rich");
+    println!("  infring verify layer2-parity");
+    println!("  infring verify trusted-core");
+    println!("  infring verify release-proof-pack --version=2026-04-16");
+    println!("  infring inspect boundedness --profile=rich");
+    println!("  infring replay layer2 --bundle=tests/tooling/fixtures/layer2_receipt_bundle_golden.json");
     println!("  infring task list");
     println!("  infring list");
     println!("  infring --help");

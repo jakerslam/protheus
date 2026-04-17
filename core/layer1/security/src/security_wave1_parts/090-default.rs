@@ -95,10 +95,34 @@ fn parse_object_map(raw: Option<&String>) -> Result<Map<String, Value>, String> 
     }
     let parsed = serde_json::from_str::<Value>(text)
         .map_err(|err| format!("invalid_json_object_payload:{err}"))?;
-    parsed
+    let obj = parsed
         .as_object()
         .cloned()
-        .ok_or_else(|| "json_object_payload_must_be_object".to_string())
+        .ok_or_else(|| "json_object_payload_must_be_object".to_string())?;
+    Ok(sanitize_object_map(obj))
+}
+
+fn sanitize_json_value(value: &Value) -> Value {
+    match value {
+        Value::String(text) => Value::String(clean_text(text, 512)),
+        Value::Array(items) => Value::Array(items.iter().map(sanitize_json_value).collect()),
+        Value::Object(map) => {
+            let mut out = Map::new();
+            for (key, val) in map {
+                out.insert(clean_text(key, 120), sanitize_json_value(val));
+            }
+            Value::Object(out)
+        }
+        other => other.clone(),
+    }
+}
+
+fn sanitize_object_map(input: Map<String, Value>) -> Map<String, Value> {
+    let mut out = Map::new();
+    for (key, value) in input {
+        out.insert(clean_text(&key, 120), sanitize_json_value(&value));
+    }
+    out
 }
 
 fn normalized_value(raw: Option<&str>) -> Option<String> {
@@ -114,14 +138,17 @@ fn rule_dimension_allows(scope: Option<&Value>, fields: &Map<String, Value>) -> 
         let actual = fields
             .get(key)
             .and_then(Value::as_str)
-            .map(|v| v.to_ascii_lowercase())
+            .map(|v| clean_text(v, 160).to_ascii_lowercase())
             .unwrap_or_default();
         let expected_values = expected
             .as_array()
             .cloned()
             .unwrap_or_default()
             .iter()
-            .filter_map(|v| v.as_str().map(|x| x.to_ascii_lowercase()))
+            .filter_map(|v| {
+                v.as_str()
+                    .map(|x| clean_text(x, 160).to_ascii_lowercase())
+            })
             .collect::<Vec<_>>();
         if expected_values.is_empty() {
             continue;

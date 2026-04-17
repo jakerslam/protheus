@@ -51,6 +51,13 @@ fn native_receipt(root: &Path, cmd: &str, argv: &[String]) -> Value {
         "command": cmd,
         "date": date,
         "dry_run": dry_run,
+        "execution_receipt": {
+            "lane": LANE_ID,
+            "command": cmd,
+            "status": "success",
+            "source": "OPENCLAW-TOOLING-WEB-099",
+            "tool_runtime_class": "receipt_wrapped"
+        },
         "argv": argv,
         "root": root.to_string_lossy(),
         "replacement": REPLACEMENT,
@@ -77,7 +84,14 @@ fn cli_error_receipt(argv: &[String], err: &str, code: i32) -> Value {
         "ts": now_iso(),
         "argv": argv,
         "error": err,
-        "exit_code": code
+        "exit_code": code,
+        "execution_receipt": {
+            "lane": LANE_ID,
+            "command": "invalid",
+            "status": "error",
+            "source": "OPENCLAW-TOOLING-WEB-099",
+            "tool_runtime_class": "receipt_wrapped"
+        }
     });
     out["receipt_hash"] = Value::String(receipt_hash(&out));
     out

@@ -318,6 +318,30 @@ fn benchmark_validation_payload(
     })
 }
 
+fn normalize_snapshot_rel(raw: &str) -> Result<String, String> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Ok(DEFAULT_SNAPSHOT_REL.to_string());
+    }
+    if trimmed.len() > 280 {
+        return Err("snapshot_path_too_long".to_string());
+    }
+    let normalized = trimmed.replace('\\', "/");
+    if normalized.starts_with('/')
+        || normalized.contains('\0')
+        || normalized.starts_with("../")
+        || normalized.contains("/../")
+        || normalized.ends_with("/..")
+        || normalized.split('/').any(|segment| segment == "..")
+    {
+        return Err("snapshot_path_invalid".to_string());
+    }
+    if !normalized.ends_with(".json") {
+        return Err("snapshot_path_must_be_json".to_string());
+    }
+    Ok(normalized)
+}
+
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     if argv
         .iter()
@@ -334,12 +358,34 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         .map(|v| v.trim().to_ascii_lowercase())
         .unwrap_or_else(|| "run".to_string());
 
-    let snapshot_rel = parsed
+    let snapshot_raw = parsed
         .flags
         .get("snapshot")
         .map(|v| v.trim().to_string())
         .filter(|v| !v.is_empty())
         .unwrap_or_else(|| DEFAULT_SNAPSHOT_REL.to_string());
+    let snapshot_rel = match normalize_snapshot_rel(&snapshot_raw) {
+        Ok(path) => path,
+        Err(err) => {
+            let mut out = json!({
+                "ok": false,
+                "type": "competitive_benchmark_matrix",
+                "lane": LANE_ID,
+                "mode": cmd,
+                "ts": now_iso(),
+                "snapshot_path": snapshot_raw,
+                "error": err,
+            });
+            out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&out).unwrap_or_else(|_| {
+                    "{\"ok\":false,\"error\":\"encode_failed\"}".to_string()
+                })
+            );
+            return 1;
+        }
+    };
 
     let refresh_default = false;
     let refresh_runtime = parse_bool_flag(

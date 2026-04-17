@@ -68,6 +68,76 @@ fn dashboard_health_response_ok(bytes: &[u8]) -> bool {
     raw.contains("200 OK")
 }
 
+fn dashboard_web_tooling_response_ready(bytes: &[u8]) -> bool {
+    if !dashboard_health_response_ok(bytes) {
+        return false;
+    }
+    let raw = String::from_utf8_lossy(bytes).to_ascii_lowercase();
+    let body = raw.split("\r\n\r\n").nth(1).unwrap_or("");
+    body.contains("\"any_present\":true")
+        || body.contains("\"auth_any_present\":true")
+        || body.contains("\"readiness\":\"ready\"")
+        || (body.contains("\"auth_sources\":") && !body.contains("\"auth_sources\":[]"))
+}
+
+fn dashboard_web_tooling_status_ok(host: &str, port: u16) -> bool {
+    let addr = format!("{host}:{port}");
+    let mut resolved = match addr.to_socket_addrs() {
+        Ok(addrs) => addrs,
+        Err(_) => return false,
+    };
+    let Some(sock_addr) = resolved.next() else {
+        return false;
+    };
+    let mut stream = match TcpStream::connect_timeout(
+        &sock_addr,
+        Duration::from_millis(DASHBOARD_CONNECT_TIMEOUT_MS),
+    ) {
+        Ok(s) => s,
+        Err(_) => return false,
+    };
+    let _ = stream.set_read_timeout(Some(Duration::from_millis(DASHBOARD_IO_TIMEOUT_MS)));
+    let _ = stream.set_write_timeout(Some(Duration::from_millis(DASHBOARD_IO_TIMEOUT_MS)));
+    if stream
+        .write_all(
+            format!(
+                "GET /api/comms/web-tooling/status HTTP/1.1\r\nHost: {host}:{port}\r\nConnection: close\r\n\r\n"
+            )
+            .as_bytes(),
+        )
+        .is_err()
+    {
+        return false;
+    }
+    let mut collected = Vec::<u8>::new();
+    let mut buf = [0u8; 1024];
+    loop {
+        match stream.read(&mut buf) {
+            Ok(0) => break,
+            Ok(n) => {
+                collected.extend_from_slice(&buf[..n]);
+                if collected.len() > DASHBOARD_HEALTH_MAX_BYTES {
+                    collected.truncate(DASHBOARD_HEALTH_MAX_BYTES);
+                }
+            }
+            Err(err)
+                if err.kind() == ErrorKind::WouldBlock || err.kind() == ErrorKind::TimedOut =>
+            {
+                break;
+            }
+            Err(_) => return false,
+        }
+    }
+    dashboard_web_tooling_response_ready(&collected)
+}
+
+fn dashboard_web_tooling_strict_enabled() -> bool {
+    std::env::var("INFRING_DASHBOARD_WEB_TOOLING_STRICT")
+        .ok()
+        .map(|raw| matches!(raw.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes"))
+        .unwrap_or(false)
+}
+
 fn dashboard_health_ok_with_retry(
     host: &str,
     port: u16,
@@ -87,12 +157,19 @@ fn dashboard_health_ok_with_retry(
 }
 
 fn dashboard_health_ok(host: &str, port: u16) -> bool {
-    dashboard_health_ok_with_retry(
+    let healthy = dashboard_health_ok_with_retry(
         host,
         port,
         DASHBOARD_HEALTH_RETRY_ATTEMPTS,
         DASHBOARD_HEALTH_RETRY_BACKOFF_MS.max(1_000),
-    )
+    );
+    if !healthy {
+        return false;
+    }
+    if dashboard_web_tooling_strict_enabled() {
+        return dashboard_web_tooling_status_ok(host, port);
+    }
+    true
 }
 
 fn dashboard_health_ok_fast(host: &str, port: u16) -> bool {
@@ -342,6 +419,23 @@ mod health_tests {
     fn dashboard_health_response_ok_rejects_non_2xx_status_codes() {
         assert!(!dashboard_health_response_ok(
             b"HTTP/1.1 503 Service Unavailable\r\nContent-Type: text/plain\r\n\r\noffline"
+        ));
+    }
+
+    #[test]
+    fn dashboard_web_tooling_response_ready_accepts_auth_signals() {
+        assert!(dashboard_web_tooling_response_ready(
+            b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{\"ok\":true,\"any_present\":true}"
+        ));
+        assert!(dashboard_web_tooling_response_ready(
+            b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{\"ok\":true,\"readiness\":\"ready\"}"
+        ));
+    }
+
+    #[test]
+    fn dashboard_web_tooling_response_ready_rejects_missing_auth_signals() {
+        assert!(!dashboard_web_tooling_response_ready(
+            b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{\"ok\":true,\"auth_sources\":[]}"
         ));
     }
 }

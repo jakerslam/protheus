@@ -30,7 +30,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             0
         }
         "run" => {
-            let Some(lane) = parsed.flags.get("lane").map(|v| v.trim().to_string()) else {
+            let Some(lane_raw) = parsed.flags.get("lane").map(|v| v.trim().to_string()) else {
                 let out = cli_error(argv, "missing_lane", 2);
                 println!(
                     "{}",
@@ -38,6 +38,12 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 );
                 return 2;
             };
+            let lane = lane_raw
+                .to_ascii_uppercase()
+                .replace('_', "-")
+                .chars()
+                .filter(|ch| ch.is_ascii_alphanumeric() || *ch == '-' || *ch == '.')
+                .collect::<String>();
             let mut lane_payload = run_lane(root, &policy, &lane, apply);
             lane_payload["ts"] = Value::String(now_iso());
             lane_payload["strict"] = Value::Bool(strict);
@@ -84,6 +90,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "run-all" => {
             let mut lane_results = Vec::new();
             let mut all_ok = true;
+            let mut persist_errors = Vec::<Value>::new();
             for lane in EXECUTABLE_LANES {
                 let mut lane_payload = run_lane(root, &policy, lane, apply);
                 lane_payload["ts"] = Value::String(now_iso());
@@ -92,7 +99,13 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     Value::String(policy.policy_path.to_string_lossy().to_string());
                 lane_payload["receipt_hash"] =
                     Value::String(deterministic_receipt_hash(&lane_payload));
-                let _ = persist_lane(&policy, lane, &lane_payload);
+                if let Err(err) = persist_lane(&policy, lane, &lane_payload) {
+                    persist_errors.push(json!({
+                        "lane": lane,
+                        "error": err
+                    }));
+                    all_ok = false;
+                }
                 all_ok &= lane_payload
                     .get("ok")
                     .and_then(Value::as_bool)
@@ -107,7 +120,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "strict": strict,
                 "apply": apply,
                 "ts": now_iso(),
-                "lanes": lane_results
+                "lanes": lane_results,
+                "persist_errors": persist_errors
             });
             receipt["receipt_hash"] = Value::String(deterministic_receipt_hash(&receipt));
             let _ = write_text_atomic(
@@ -379,4 +393,3 @@ mod tests {
         assert_eq!(code, 0);
     }
 }
-

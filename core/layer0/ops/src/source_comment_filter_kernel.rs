@@ -52,8 +52,24 @@ enum Language {
 }
 
 impl Language {
+    fn canonical_extension(ext: &str) -> String {
+        let mut token = ext.trim().trim_start_matches('.').to_ascii_lowercase();
+        if token.is_empty() {
+            return token;
+        }
+        if token.ends_with("rc") && matches!(token.as_str(), "bashrc" | "zshrc" | "profile") {
+            return "sh".to_string();
+        }
+        token = token.replace('-', "");
+        match token.as_str() {
+            "jsx" | "node" => "js".to_string(),
+            "mts" | "cts" => "ts".to_string(),
+            "markdown" => "md".to_string(),
+            _ => token,
+        }
+    }
     fn from_extension(ext: &str) -> Self {
-        match ext.trim().to_ascii_lowercase().as_str() {
+        match Self::canonical_extension(ext).as_str() {
             "rs" => Self::Rust,
             "py" | "pyw" => Self::Python,
             "js" | "mjs" | "cjs" => Self::JavaScript,
@@ -76,6 +92,48 @@ impl Language {
             Self::Unknown => "unknown",
         }
     }
+}
+
+fn infer_extension_from_path(raw: &str) -> String {
+    let candidate = raw.trim();
+    if candidate.is_empty() {
+        return String::new();
+    }
+    let path = Path::new(candidate);
+    path.extension()
+        .and_then(|v| v.to_str())
+        .map(Language::canonical_extension)
+        .unwrap_or_default()
+}
+
+fn resolve_input_language(input: &Map<String, Value>) -> (Language, String, String) {
+    let explicit_ext = clean_text(input.get("extension").and_then(Value::as_str).unwrap_or(""), 24);
+    let explicit_lang = clean_text(input.get("language").and_then(Value::as_str).unwrap_or(""), 32);
+    let file_path = clean_text(input.get("file_path").and_then(Value::as_str).unwrap_or(""), 520);
+
+    if !explicit_lang.is_empty() {
+        let lang = Language::from_extension(&explicit_lang);
+        if lang != Language::Unknown {
+            return (
+                lang,
+                Language::canonical_extension(&explicit_lang),
+                "language".to_string(),
+            );
+        }
+    }
+    if !explicit_ext.is_empty() {
+        let ext = Language::canonical_extension(&explicit_ext);
+        return (Language::from_extension(&ext), ext, "extension".to_string());
+    }
+    let inferred = infer_extension_from_path(&file_path);
+    if !inferred.is_empty() {
+        return (
+            Language::from_extension(&inferred),
+            inferred,
+            "file_path".to_string(),
+        );
+    }
+    (Language::Unknown, String::new(), "default".to_string())
 }
 
 #[derive(Clone, Copy)]
@@ -341,17 +399,14 @@ pub fn run(_root: &Path, argv: &[String]) -> i32 {
         }
     };
     let input = payload_obj(&payload);
-    let extension = clean_text(
-        input.get("extension").and_then(Value::as_str).unwrap_or(""),
-        24,
-    );
-    let lang = Language::from_extension(extension.as_str());
+    let (lang, extension, detected_from) = resolve_input_language(input);
     let response = match command.as_str() {
         "detect-language" => cli_receipt(
             "source_comment_filter_kernel_detect_language",
             json!({
               "ok": true,
               "extension": extension,
+              "detected_from": detected_from,
               "language": lang.as_str()
             }),
         ),

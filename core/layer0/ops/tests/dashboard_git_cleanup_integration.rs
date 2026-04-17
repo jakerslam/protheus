@@ -6,6 +6,23 @@ use serde_json::Value;
 use std::fs;
 use std::process::Command;
 
+fn assert_no_runtime_context_leak(raw: &str) {
+    const FORBIDDEN: [&str; 6] = [
+        "You are an expert Python programmer.",
+        "[PATCH v2",
+        "List Leaves (25",
+        "BEGIN_OPENCLAW_INTERNAL_CONTEXT",
+        "END_OPENCLAW_INTERNAL_CONTEXT",
+        "UNTRUSTED_CHILD_RESULT_DELIMITER",
+    ];
+    for marker in FORBIDDEN {
+        assert!(
+            !raw.contains(marker),
+            "runtime payload leaked forbidden marker `{marker}`: {raw}"
+        );
+    }
+}
+
 fn init_repo() -> tempfile::TempDir {
     let dir = tempfile::tempdir().expect("tempdir");
     let status = Command::new("git")
@@ -44,6 +61,7 @@ fn cleanup_removes_agent_worktree_and_branch() {
     let branch = "agent-test-feature";
     let switched = switch_agent_worktree(root.path(), "agent-test", branch, true);
     assert_eq!(switched.get("ok").and_then(Value::as_bool), Some(true));
+    assert_no_runtime_context_leak(&switched.to_string());
     assert!(git_branch_exists(root.path(), branch));
 
     let workspace = workspace_for_agent_branch(root.path(), "agent-test", branch);
@@ -54,6 +72,7 @@ fn cleanup_removes_agent_worktree_and_branch() {
 
     let cleanup = cleanup_agent_git_artifacts(root.path(), "agent-test", Some(branch));
     assert_eq!(cleanup.get("ok").and_then(Value::as_bool), Some(true));
+    assert_no_runtime_context_leak(&cleanup.to_string());
     assert!(
         !git_branch_exists(root.path(), branch),
         "cleanup should delete the agent branch"
@@ -70,6 +89,7 @@ fn cleanup_preserves_protected_default_branch() {
     let main_branch = git_current_branch(root.path(), "main");
     let cleanup = cleanup_agent_git_artifacts(root.path(), "agent-main", Some(&main_branch));
     assert_eq!(cleanup.get("ok").and_then(Value::as_bool), Some(true));
+    assert_no_runtime_context_leak(&cleanup.to_string());
     assert!(
         git_branch_exists(root.path(), &main_branch),
         "cleanup must not delete default branch"

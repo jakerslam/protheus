@@ -4,7 +4,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
-const path = require('node:path');
+const path = require('node:path');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 const ROOT = path.resolve(__dirname, '../..');
 
@@ -55,10 +55,10 @@ function main() {
   assert.equal(status.code, 0);
   assert.equal(status.payload.type, 'readiness_bridge_pack_kernel');
 
-  const latestPath = path.join(workspace, 'local', 'state', 'ops', 'readiness_bridge_pack', 'latest.json');
+  assertNoPlaceholderOrPromptLeak({ run, status }, 'readiness_bridge_pack_rust_bridge_test');\n  assertStableToolingEnvelope(run.payload, 'readiness_bridge_pack_rust_bridge_test');\n  const latestPath = path.join(workspace, 'local', 'state', 'ops', 'readiness_bridge_pack', 'latest.json');
   assert.equal(fs.existsSync(latestPath), true);
 
-  console.log(JSON.stringify({ ok: true, type: 'readiness_bridge_pack_rust_bridge_test' }));
+  console.log(JSON.stringify({ ok: true, type: 'readiness_bridge_pack_test' }));
 }
 
 try {

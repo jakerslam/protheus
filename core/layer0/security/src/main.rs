@@ -9,11 +9,57 @@ use std::env;
 use std::fs;
 use std::path::Path;
 
+fn sanitize_cli_token(raw: &str, max_len: usize) -> String {
+    raw.chars()
+        .filter(|ch| {
+            !matches!(
+                *ch,
+                '\u{200B}'
+                    | '\u{200C}'
+                    | '\u{200D}'
+                    | '\u{2060}'
+                    | '\u{FEFF}'
+                    | '\u{202A}'
+                    | '\u{202B}'
+                    | '\u{202C}'
+                    | '\u{202D}'
+                    | '\u{202E}'
+            ) && (!ch.is_control() || ch.is_ascii_whitespace())
+        })
+        .take(max_len)
+        .collect::<String>()
+        .trim()
+        .to_string()
+}
+
+fn normalize_command(raw: &str) -> String {
+    sanitize_cli_token(raw, 64)
+        .chars()
+        .filter(|ch| ch.is_ascii_alphanumeric() || *ch == '-' || *ch == '_')
+        .collect::<String>()
+        .to_ascii_lowercase()
+}
+
+fn emit_error(stage: &str, command: &str, error: &str, code: i32) -> ! {
+    eprintln!(
+        "{}",
+        serde_json::json!({
+            "ok": false,
+            "type": "security_core_error",
+            "stage": sanitize_cli_token(stage, 64),
+            "command": sanitize_cli_token(command, 64),
+            "error": sanitize_cli_token(error, 240)
+        })
+    );
+    std::process::exit(code);
+}
+
 fn parse_arg(args: &[String], key: &str) -> Option<String> {
+    let key = sanitize_cli_token(key, 80);
     for arg in args {
         if let Some((k, v)) = arg.split_once('=') {
-            if k == key {
-                return Some(v.to_string());
+            if sanitize_cli_token(k, 80) == key {
+                return Some(sanitize_cli_token(v, 4096));
             }
         }
     }
@@ -32,7 +78,11 @@ fn load_request_json(args: &[String]) -> Result<String, String> {
         return Ok(text);
     }
     if let Some(v) = parse_arg(args, "--request-file") {
-        return fs::read_to_string(v.as_str())
+        let path = sanitize_cli_token(v.as_str(), 1024);
+        if path.is_empty() {
+            return Err("request_file_invalid".to_string());
+        }
+        return fs::read_to_string(path.as_str())
             .map_err(|err| format!("request_file_read_failed:{err}"));
     }
     Err("missing_request_payload".to_string())
@@ -73,33 +123,15 @@ fn usage() {
 
 fn main() {
     let args: Vec<String> = env::args().skip(1).collect();
-    let command = args.first().map(String::as_str).unwrap_or("demo");
+    let command = normalize_command(args.first().map(String::as_str).unwrap_or("demo"));
 
-    match command {
+    match command.as_str() {
         "check" => match load_request_json(&args[1..]) {
             Ok(request_json) => match evaluate_operation_json(&request_json) {
                 Ok(payload) => println!("{}", payload),
-                Err(err) => {
-                    eprintln!(
-                        "{}",
-                        serde_json::json!({
-                            "ok": false,
-                            "error": err.to_string()
-                        })
-                    );
-                    std::process::exit(1);
-                }
+                Err(err) => emit_error("check", &command, &err.to_string(), 1),
             },
-            Err(err) => {
-                eprintln!(
-                    "{}",
-                    serde_json::json!({
-                        "ok": false,
-                        "error": err
-                    })
-                );
-                std::process::exit(1);
-            }
+            Err(err) => emit_error("check", &command, &err, 1),
         },
         "enforce" => match load_request_json(&args[1..]) {
             Ok(request_json) => {
@@ -107,28 +139,10 @@ fn main() {
                     parse_arg(&args[1..], "--state-root").unwrap_or_else(|| ".".to_string());
                 match enforce_operation_json(&request_json, Path::new(&state_root)) {
                     Ok(payload) => println!("{}", payload),
-                    Err(err) => {
-                        eprintln!(
-                            "{}",
-                            serde_json::json!({
-                                "ok": false,
-                                "error": err.to_string()
-                            })
-                        );
-                        std::process::exit(1);
-                    }
+                    Err(err) => emit_error("enforce", &command, &err.to_string(), 1),
                 }
             }
-            Err(err) => {
-                eprintln!(
-                    "{}",
-                    serde_json::json!({
-                        "ok": false,
-                        "error": err
-                    })
-                );
-                std::process::exit(1);
-            }
+            Err(err) => emit_error("enforce", &command, &err, 1),
         },
         "vault-load-policy" => match vault_load_policy_json() {
             Ok(payload) => println!("{}", payload),
@@ -260,21 +274,17 @@ fn main() {
             let request_json = serde_json::to_string(&request).unwrap_or_else(|_| "{}".to_string());
             match evaluate_operation_json(&request_json) {
                 Ok(payload) => println!("{}", payload),
-                Err(err) => {
-                    eprintln!(
-                        "{}",
-                        serde_json::json!({
-                            "ok": false,
-                            "error": err.to_string()
-                        })
-                    );
-                    std::process::exit(1);
-                }
+                Err(err) => emit_error("demo", &command, &err.to_string(), 1),
             }
         }
         _ => {
             usage();
-            std::process::exit(1);
+            emit_error(
+                "dispatch",
+                &command,
+                "unsupported_command",
+                1,
+            );
         }
     }
 }

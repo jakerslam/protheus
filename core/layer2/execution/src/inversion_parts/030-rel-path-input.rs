@@ -1,9 +1,9 @@
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct RelPathInput {
-    #[serde(default)]
+    #[serde(default, alias = "workspace_root")]
     pub root: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "path")]
     pub file_path: Option<String>,
 }
 
@@ -14,7 +14,7 @@ pub struct RelPathOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct NormalizeAxiomPatternInput {
-    #[serde(default)]
+    #[serde(default, alias = "pattern")]
     pub value: Option<String>,
 }
 
@@ -25,7 +25,7 @@ pub struct NormalizeAxiomPatternOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct NormalizeAxiomSignalTermsInput {
-    #[serde(default)]
+    #[serde(default, alias = "signal_terms")]
     pub terms: Vec<Value>,
 }
 
@@ -35,7 +35,7 @@ pub struct NormalizeAxiomSignalTermsOutput {
 }
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct NormalizeObserverIdInput {
-    #[serde(default)]
+    #[serde(default, alias = "observer_id")]
     pub value: Option<String>,
 }
 
@@ -68,9 +68,9 @@ pub struct PickFirstNumericOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct SafeRelPathInput {
-    #[serde(default)]
+    #[serde(default, alias = "workspace_root")]
     pub root: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "path")]
     pub file_path: Option<String>,
 }
 
@@ -122,9 +122,9 @@ pub struct GetTierScopeOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct LoadTierGovernanceStateInput {
-    #[serde(default)]
+    #[serde(default, alias = "path")]
     pub file_path: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "policyVersion")]
     pub policy_version: Option<String>,
     #[serde(default)]
     pub now_iso: Option<String>,
@@ -137,11 +137,11 @@ pub struct LoadTierGovernanceStateOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct SaveTierGovernanceStateInput {
-    #[serde(default)]
+    #[serde(default, alias = "path")]
     pub file_path: Option<String>,
     #[serde(default)]
     pub state: Option<Value>,
-    #[serde(default)]
+    #[serde(default, alias = "policyVersion")]
     pub policy_version: Option<String>,
     #[serde(default)]
     pub retention_days: Option<i64>,
@@ -171,11 +171,11 @@ pub struct PushTierEventOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct AddTierEventInput {
-    #[serde(default)]
+    #[serde(default, alias = "path")]
     pub file_path: Option<String>,
     #[serde(default)]
     pub policy: Option<Value>,
-    #[serde(default)]
+    #[serde(default, alias = "event_metric")]
     pub metric: Option<String>,
     #[serde(default)]
     pub target: Option<String>,
@@ -192,7 +192,7 @@ pub struct AddTierEventOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct IncrementLiveApplyAttemptInput {
-    #[serde(default)]
+    #[serde(default, alias = "path")]
     pub file_path: Option<String>,
     #[serde(default)]
     pub policy: Option<Value>,
@@ -209,7 +209,7 @@ pub struct IncrementLiveApplyAttemptOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct IncrementLiveApplySuccessInput {
-    #[serde(default)]
+    #[serde(default, alias = "path")]
     pub file_path: Option<String>,
     #[serde(default)]
     pub policy: Option<Value>,
@@ -226,7 +226,7 @@ pub struct IncrementLiveApplySuccessOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct IncrementLiveApplySafeAbortInput {
-    #[serde(default)]
+    #[serde(default, alias = "path")]
     pub file_path: Option<String>,
     #[serde(default)]
     pub policy: Option<Value>,
@@ -243,7 +243,7 @@ pub struct IncrementLiveApplySafeAbortOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct UpdateShadowTrialCountersInput {
-    #[serde(default)]
+    #[serde(default, alias = "path")]
     pub file_path: Option<String>,
     #[serde(default)]
     pub policy: Option<Value>,
@@ -355,11 +355,11 @@ pub struct ReadDriftFromStateFileOutput {
 pub struct ResolveLensGateDriftInput {
     #[serde(default)]
     pub arg_candidates: Vec<Value>,
-    #[serde(default)]
+    #[serde(default, alias = "probePath")]
     pub probe_path: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "probeSource")]
     pub probe_source: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "probePayload")]
     pub probe_payload: Option<Value>,
 }
 
@@ -373,9 +373,9 @@ pub struct ResolveLensGateDriftOutput {
 pub struct ResolveParityConfidenceInput {
     #[serde(default)]
     pub arg_candidates: Vec<Value>,
-    #[serde(default)]
+    #[serde(default, alias = "pathHint")]
     pub path_hint: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "pathSource")]
     pub path_source: Option<String>,
     #[serde(default)]
     pub payload: Option<Value>,
@@ -443,11 +443,11 @@ pub struct BuildOutputInterfacesOutput {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct BuildCodeChangeProposalDraftInput {
-    #[serde(default)]
+    #[serde(default, alias = "base_payload")]
     pub base: Option<Value>,
-    #[serde(default)]
+    #[serde(default, alias = "args_payload")]
     pub args: Option<Value>,
-    #[serde(default)]
+    #[serde(default, alias = "opts_payload")]
     pub opts: Option<Value>,
 }
 

@@ -221,6 +221,39 @@ fn project_adaptive_pointers(
         }
     }
 
+    if rel_path.contains("provider-runtime")
+        || rel_path.contains("capability-provider")
+        || rel_path.contains("memory-embedding-provider")
+    {
+        let capability = if rel_path.contains("memory-embedding-provider") {
+            "memory_embedding"
+        } else if rel_path.contains("speech") {
+            "speech"
+        } else {
+            "capability_runtime"
+        };
+        let uid = stable_uid(&format!("provider_contract|{rel_path}|v1"), "p", 24);
+        rows.push(json!({
+            "ts": ts,
+            "op": op,
+            "source": "adaptive_layer_store",
+            "source_path": if source.is_empty() { Value::Null } else { Value::String(source) },
+            "reason": if reason.is_empty() { Value::Null } else { Value::String(reason) },
+            "actor": actor,
+            "kind": "capability_provider_contract",
+            "layer": "adaptive",
+            "uid": uid,
+            "entity_id": Value::Null,
+            "status": "active",
+            "tags": ["adaptive", "provider-runtime", "contract", capability],
+            "summary": clean_text(Some(&Value::String(format!("Provider runtime contract: {rel_path}"))), 160),
+            "path_ref": path_ref,
+            "created_ts": ts,
+            "updated_ts": ts,
+        }));
+        return rows;
+    }
+
     if let Some(obj_map) = obj.as_object() {
         let uid_candidate = clean_text(obj_map.get("uid"), 64);
         let uid = if is_alnum(&uid_candidate) {
@@ -303,4 +336,3 @@ fn is_within_root_command(root: &Path, payload: &Map<String, Value>) -> Value {
         "within": within,
     })
 }
-

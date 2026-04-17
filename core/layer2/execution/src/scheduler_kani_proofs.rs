@@ -19,6 +19,20 @@ fn prove_normalize_step_id_fills_empty_id() {
 }
 
 #[kani::proof]
+fn prove_normalize_step_id_preserves_existing_id() {
+    let step = WorkflowStep {
+        id: "already_set".to_string(),
+        kind: "task".to_string(),
+        action: "noop".to_string(),
+        command: "".to_string(),
+        pause_after: false,
+        params: BTreeMap::new(),
+    };
+    let normalized = crate::normalize_step_id(&step, 2);
+    assert_eq!(normalized, "already_set");
+}
+
+#[kani::proof]
 fn prove_step_fingerprint_is_deterministic_for_same_input() {
     let mut params = BTreeMap::new();
     params.insert("goal".to_string(), "ship".to_string());
@@ -33,6 +47,31 @@ fn prove_step_fingerprint_is_deterministic_for_same_input() {
     let left = crate::step_fingerprint("wf", "seed", 0, "s1", &step);
     let right = crate::step_fingerprint("wf", "seed", 0, "s1", &step);
     assert_eq!(left, right);
+}
+
+#[kani::proof]
+fn prove_step_fingerprint_changes_when_action_changes() {
+    let mut params = BTreeMap::new();
+    params.insert("goal".to_string(), "ship".to_string());
+    let step_a = WorkflowStep {
+        id: "s1".to_string(),
+        kind: "task".to_string(),
+        action: "execute".to_string(),
+        command: "run".to_string(),
+        pause_after: false,
+        params: params.clone(),
+    };
+    let step_b = WorkflowStep {
+        id: "s1".to_string(),
+        kind: "task".to_string(),
+        action: "observe".to_string(),
+        command: "run".to_string(),
+        pause_after: false,
+        params,
+    };
+    let left = crate::step_fingerprint("wf", "seed", 0, "s1", &step_a);
+    let right = crate::step_fingerprint("wf", "seed", 0, "s1", &step_b);
+    assert_ne!(left, right);
 }
 
 #[kani::proof]

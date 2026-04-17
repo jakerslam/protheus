@@ -69,14 +69,73 @@ fn run_execution_profiles(root: &Path, strict: bool) -> Value {
             errors.push(format!("execution_profile_missing::{req}"));
         }
     }
+    let web_profile_ids = ["web_search", "web_fetch"];
+    let web_profiles_present = web_profile_ids.iter().all(|id| ids.contains(*id));
+    let require_web_tooling_profiles = matrix
+        .get("require_web_tooling_profiles")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let runtime_web_tooling_auth_sources = execution_profiles_runtime_web_tooling_auth_sources();
+    let runtime_web_tooling_auth_present = !runtime_web_tooling_auth_sources.is_empty();
+    if strict && require_web_tooling_profiles && !web_profiles_present {
+        errors.push("execution_profile_missing_web_tooling_profiles".to_string());
+    }
+    if strict
+        && require_web_tooling_profiles
+        && web_profiles_present
+        && !runtime_web_tooling_auth_present
+    {
+        errors.push("execution_profile_runtime_web_tooling_auth_missing".to_string());
+    }
     let ok = errors.is_empty();
     json!({
         "ok": if strict { ok } else { true },
         "strict": strict,
         "matrix_path": EXECUTION_PROFILE_MATRIX_PATH,
         "profile_harnesses": profile_harnesses,
+        "runtime_web_tooling": {
+            "require_web_tooling_profiles": require_web_tooling_profiles,
+            "required_profiles": web_profile_ids,
+            "profiles_present": web_profiles_present,
+            "auth_present": runtime_web_tooling_auth_present,
+            "auth_sources": runtime_web_tooling_auth_sources,
+            "provider_contract_targets": [
+                "brave",
+                "duckduckgo",
+                "moonshot",
+                "xai",
+                "searxng"
+            ]
+        },
         "errors": errors
     })
+}
+
+fn execution_profiles_runtime_web_tooling_auth_sources() -> Vec<String> {
+    let env_candidates = [
+        "BRAVE_API_KEY",
+        "EXA_API_KEY",
+        "TAVILY_API_KEY",
+        "PERPLEXITY_API_KEY",
+        "SERPAPI_API_KEY",
+        "GOOGLE_SEARCH_API_KEY",
+        "GOOGLE_CSE_ID",
+        "FIRECRAWL_API_KEY",
+        "XAI_API_KEY",
+        "MOONSHOT_API_KEY",
+        "OPENAI_API_KEY",
+    ];
+    let mut sources = Vec::<String>::new();
+    for env_name in env_candidates {
+        let present = std::env::var(env_name)
+            .ok()
+            .map(|value| !value.trim().is_empty())
+            .unwrap_or(false);
+        if present {
+            sources.push(format!("env:{env_name}"));
+        }
+    }
+    sources
 }
 
 fn run_variant_profiles(root: &Path, strict: bool) -> Value {
@@ -452,4 +511,3 @@ fn run_manifest(root: &Path, strict: bool, manifest_rel: &str) -> Value {
         "manifest_report": manifest_report
     })
 }
-

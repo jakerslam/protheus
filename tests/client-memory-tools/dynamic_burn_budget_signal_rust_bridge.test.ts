@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const ts = require('typescript');
+const { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 if (!require.extensions['.ts']) {
   require.extensions['.ts'] = function compileTs(module, filename) {
@@ -37,4 +38,6 @@ const signal = mod.loadDynamicBurnOracleSignal({ latest_path: latest });
 assert.equal(signal.available, true);
 assert.equal(signal.pressure, 'high');
 assert.equal(signal.providers_available, 2);
+assertNoPlaceholderOrPromptLeak(signal, 'dynamic_burn_budget_signal_rust_bridge_test');
+assertStableToolingEnvelope(signal, 'dynamic_burn_budget_signal_rust_bridge_test');
 console.log(JSON.stringify({ ok: true, type: 'dynamic_burn_budget_signal_rust_bridge_test' }));

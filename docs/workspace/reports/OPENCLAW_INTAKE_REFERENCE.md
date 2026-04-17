@@ -1263,3 +1263,860 @@
     - core/layer0/ops/tests/v8_network_enterprise_batch25_integration.rs
     - core/layer0/ops/tests/v6_workflow_010_integration.rs
   - Burned source snapshot: openclaw-20260416-105521
+
+- OPENCLAW-TOOLING-WEB-092:
+  - Re-assimilated inline tool payload wrapper normalization, nested JSON extraction, tool alias canonicalization, and tool output content-shaping semantics from:
+    - src/infra/outbound/tool-payload.ts
+    - src/infra/outbound/tool-payload.test.ts
+    - src/chat/tool-content.ts
+    - src/plugins/tools.ts
+    - src/agents/tool-policy.ts
+  - Landed in:
+    - core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/170-part.rs
+    - core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/081-part.rs
+    - core/layer0/ops/tests/v6_workflow_008_integration.rs
+    - core/layer0/ops/tests/v6_workflow_011_integration.rs
+    - core/layer0/ops/tests/v6_workflow_013_integration.rs
+    - core/layer0/ops/tests/v6_workflow_014_integration.rs
+    - core/layer0/ops/tests/v6_workflow_015_integration.rs
+  - Burned source snapshot: openclaw-20260416-211922
+
+- OPENCLAW-TOOLING-WEB-093:
+  - Re-assimilated tool catalog/profile grouping, tool display detail shaping, live tool execution partial-state semantics, optional-tool allowlist/runtime policy tests, and tool-runtime helper boundary patterns from:
+    - src/agents/tool-catalog.ts
+    - src/agents/tool-display-common.ts
+    - src/tui/components/tool-execution.ts
+    - src/plugins/tools.optional.test.ts
+    - src/agents/tools/tool-runtime.helpers.ts
+  - Landed in:
+    - core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/180-part.rs
+    - core/layer0/ops/src/flow_plane_parts/010-prelude-and-contracts.rs
+    - core/layer0/ops/tests/v7_f100_moat_batch2_integration.rs
+    - core/layer0/ops/tests/v6_batch35_integration.rs
+    - core/layer0/ops/tests/v7_top1_assurance_integration.rs
+    - core/layer0/ops/tests/v6_workflow_007_integration.rs
+  - Burned source snapshot: openclaw-20260416-213120
+
+- OPENCLAW-TOOLING-WEB-094:
+  - Re-assimilated session target/send helper normalization, session key/id resolution, session status/runtime identity shaping, bounded history truncation/redaction semantics, and shared tool param-helper boundary patterns from:
+    - src/agents/tools/sessions-send-helpers.ts
+    - src/agents/tools/sessions-resolution.ts
+    - src/agents/tools/session-status-tool.ts
+    - src/agents/tools/sessions-history-tool.ts
+    - src/agents/tools/common.ts
+  - Landed in:
+    - core/layer0/ops/src/skills_plane_parts/020-run-create.rs
+    - core/layer0/ops/src/seed_protocol_parts/020-command-deploy.rs
+    - core/layer0/ops/src/canyon_plane_parts/020-efficiency-command.rs
+    - core/layer0/ops/src/duality_seed_parts/030-evaluate-signal.rs
+    - core/layer0/ops/src/hermes_plane_parts/040-run-cockpit.rs
+  - Burned source snapshot: openclaw-20260416-213945
+
+- OPENCLAW-TOOLING-WEB-095:
+  - Re-assimilated provider config + credential precedence, runtime web search tool resolution, web-tools export boundary, and guarded-fetch network policy semantics from:
+    - src/agents/tools/web-search-provider-config.ts
+    - src/agents/tools/web-search-provider-credentials.ts
+    - src/agents/tools/web-search.ts
+    - src/agents/tools/web-tools.ts
+    - src/agents/tools/web-guarded-fetch.ts
+  - Landed in:
+    - core/layer0/ops/src/observability_plane_parts/010-usage.rs
+    - core/layer0/ops/src/reference_parity_catalog.rs
+    - core/layer0/ops/tests/v6_batch32_integration.rs
+    - core/layer0/ops/tests/v6_economy_model_batch19_integration.rs
+    - core/layer0/ops/tests/v6_workflow_012_integration.rs
+  - Burned source snapshot: openclaw-20260416-215026
+
+- OPENCLAW-TOOLING-WEB-096:
+  - Re-assimilated retry policy/defaults, generic retry/backoff behavior, approval-error classification, and channel selection runtime boundary semantics from:
+    - src/infra/retry-policy.ts
+    - src/infra/retry.ts
+    - src/infra/backoff.ts
+    - src/infra/approval-errors.ts
+    - src/infra/outbound/channel-selection.runtime.ts
+  - Landed in:
+    - core/layer0/ops/tests/v6_workflow_004_integration.rs
+    - core/layer0/ops/src/supply_chain_provenance_v2_parts/020-evaluate.rs
+    - core/layer2/execution/src/inversion_parts/180-compute-evaluate-impossibility-trigger.rs
+    - core/layer0/ops/src/enterprise_moat_extensions_parts/030-run-sync.rs
+    - core/layer0/ops/src/rollout_rings.rs
+  - Burned source snapshot: openclaw-20260416-215735
+
+- OPENCLAW-TOOLING-WEB-097:
+  - Re-assimilated shared tool runtime helper boundaries, common input normalization semantics, web search provider-result fallback shaping, retry-policy strict outcome posture, and approval-error classification cues from:
+    - src/agents/tools/tool-runtime.helpers.ts
+    - src/agents/tools/common.ts
+    - src/agents/tools/web-search.ts
+    - src/infra/retry-policy.ts
+    - src/infra/approval-errors.ts
+  - Landed in:
+    - core/layer0/ops/src/app_plane_parts/025-chat-ui-finalization.rs
+    - core/layer0/ops/src/app_plane_parts/030-run-chat-ui.rs
+    - core/layer0/ops/tests/v6_workflow_017_integration.rs
+    - core/layer0/ops/tests/v6_workflow_009_integration.rs
+    - core/layer0/ops/tests/v6_workflow_002_integration.rs
+    - core/layer0/ops/tests/v6_workflow_005_integration.rs
+    - core/layer0/ops/tests/v6_workflow_006_integration.rs
+  - Burned source snapshot: openclaw-20260417-041555
+
+- `OPENCLAW-TOOLING-WEB-098`:
+  - Re-assimilated tool-runtime receipt normalization and explicit status envelope semantics from:
+    - `src/agents/tools/tool-runtime.helpers.ts`
+    - `src/agents/tools/common.ts`
+    - `src/agents/tools/web-search.ts`
+    - `src/infra/retry-policy.ts`
+    - `src/infra/approval-errors.ts`
+  - Landed in:
+    - `core/layer0/ops/src/symbiosis_coherence_kernel_parts/030-run.rs`
+    - `core/layer0/ops/src/enterprise_hardening_parts/060-run.rs`
+    - `core/layer0/ops/src/canyon_plane_parts/030-evolution-command.rs`
+    - `core/layer0/ops/src/asm_plane_parts/030-run.rs`
+    - `core/layer0/ops/src/llm_economy_organ_parts/010-state-root.rs`
+
+- `OPENCLAW-TOOLING-WEB-099`:
+  - Re-assimilated receipt-envelope/status-boundary semantics from:
+    - `src/agents/tools/tool-runtime.helpers.ts`
+    - `src/agents/tools/common.ts`
+    - `src/agents/tools/web-tools.ts`
+    - `src/infra/retry-policy.ts`
+    - `src/infra/approval-errors.ts`
+  - Landed in:
+    - `core/layer0/ops/src/canyon_plane_extensions_parts/020-lazy-substrate-command.rs`
+    - `core/layer0/ops/src/session_command_session_analytics_kernel_parts/020-run-and-tests.rs`
+    - `core/layer0/ops/src/focus_trigger_store_kernel_parts/030-run.rs`
+    - `core/layer0/ops/src/mech_suit_mode_kernel_parts/030-run.rs`
+    - `core/layer0/ops/src/proposal_enricher.rs`
+
+- `OPENCLAW-TOOLING-WEB-100`:
+  - Re-assimilated execution receipt/status boundary semantics from:
+    - `src/agents/tools/tool-runtime.helpers.ts`
+    - `src/agents/tools/common.ts`
+    - `src/agents/tools/web-search.ts`
+    - `src/infra/retry-policy.ts`
+    - `src/infra/approval-errors.ts`
+  - Landed in:
+    - `core/layer0/ops/src/settlement_program.rs`
+    - `core/layer0/ops/src/organ_atrophy_controller.rs`
+    - `core/layer0/ops/src/skills_plane_parts/050-run-tot-deliberate.rs`
+    - `core/layer0/ops/src/protheusd_launcher_kernel.rs`
+    - `core/layer0/ops/src/personas_cli.rs`
+
+- `OPENCLAW-TOOLING-WEB-101`:
+  - Re-assimilated execution-receipt/status-boundary semantics from:
+    - `src/agents/tools/tool-runtime.helpers.ts`
+    - `src/agents/tools/common.ts`
+    - `src/agents/tools/web-tools.ts`
+    - `src/infra/retry-policy.ts`
+    - `src/infra/approval-errors.ts`
+  - Landed in:
+    - `core/layer0/ops/src/sensory_eyes_intake.rs`
+    - `core/layer0/ops/src/inversion_controller.rs`
+    - `core/layer0/ops/src/strategy_resolver_parts/040-run.rs`
+    - `core/layer0/ops/src/offsite_backup.rs`
+    - `core/layer0/ops/src/backlog_delivery_plane_parts/040-run.rs`
+
+- `OPENCLAW-TOOLING-WEB-102`:
+  - Re-assimilated execution-receipt/status + runtime telemetry flag propagation semantics from:
+    - `src/agents/tools/tool-runtime.helpers.ts`
+    - `src/agents/tools/common.ts`
+    - `src/agents/tools/web-tools.ts`
+    - `src/infra/retry-policy.ts`
+    - `src/infra/approval-errors.ts`
+  - Landed in:
+    - `core/layer0/ops/src/binary_vuln_plane_parts/040-run.rs`
+    - `core/layer0/ops/src/verity_plane_parts/040-run.rs`
+    - `core/layer0/ops/src/verity_plane_parts/010-prelude-and-constants.rs`
+    - `core/layer0/ops/src/protheus_control_plane.rs`
+    - `core/layer0/ops/src/dynamic_burn_budget_oracle.rs`
+
+- `OPENCLAW-TOOLING-WEB-103`:
+  - Re-assimilated execution-receipt/status and telemetry passthrough semantics from:
+    - `src/agents/tools/tool-runtime.helpers.ts`
+    - `src/agents/tools/common.ts`
+    - `src/agents/tools/web-tools.ts`
+    - `src/infra/retry-policy.ts`
+    - `src/infra/approval-errors.ts`
+  - Landed in:
+    - `core/layer0/ops/src/legacy_retired_lane.rs`
+    - `core/layer0/ops/src/execution_yield_recovery.rs`
+    - `core/layer0/ops/src/venom_containment_layer.rs`
+    - `core/layer0/ops/src/rust50_migration_program.rs`
+    - `core/layer0/ops/src/rust_enterprise_productivity_program.rs`
+
+- `OPENCLAW-TOOLING-WEB-104`:
+  - Re-assimilated execution-receipt/status envelope and deterministic validation semantics from:
+    - `src/agents/tools/tool-runtime.helpers.ts`
+    - `src/agents/tools/common.ts`
+    - `src/agents/tools/web-tools.ts`
+    - `src/infra/retry-policy.ts`
+    - `src/infra/approval-errors.ts`
+  - Landed in:
+    - `core/layer0/ops/src/substrate_plane_parts/040-run-bio-feedback.rs`
+    - `core/layer0/ops/src/f100_readiness_program_parts/020-lane-008-oncall.rs`
+    - `core/layer0/ops/src/benchmark_matrix_tests.rs`
+    - `core/layer0/ops/src/top1_kani_proofs.rs`
+    - `core/layer0/ops/src/verity_plane_parts/900-tests.rs`
+
+- `OPENCLAW-TOOLING-WEB-105`:
+  - Re-assimilated execution-receipt envelope, stable status classification, no-silent-outcome enforcement, and explicit error/receipt telemetry semantics from:
+    - `src/agents/tools/tool-runtime.helpers.ts`
+    - `src/agents/tools/common.ts`
+    - `src/agents/tools/web-fetch.provider-fallback.test.ts`
+    - `src/infra/retry-policy.ts`
+    - `src/infra/approval-errors.ts`
+  - Landed in:
+    - `core/layer0/ops/src/enterprise_hardening_tests.rs`
+    - `core/layer2/autonomy/src/lib.rs`
+    - `core/layer0/ops/src/llm_economy_organ_parts/030-has-claim.rs`
+    - `core/layer0/ops/src/seed_protocol_parts/040-env-guard.rs`
+    - `core/layer0/ops/src/rsi_ignition_tests.rs`
+  - Burned source snapshot: openclaw-20260417-050607
+
+- `OPENCLAW-TOOLING-WEB-106`:
+  - Re-assimilated fetch test-harness/mocks semantics, strict-vs-trusted guarded fetch policy behavior, and robust parameter-gate parsing expectations from:
+    - `src/agents/tools/web-fetch.test-harness.ts`
+    - `src/agents/tools/web-fetch.test-mocks.ts`
+    - `src/agents/tools/web-tools.fetch.test.ts`
+    - `src/agents/tools/web-guarded-fetch.test.ts`
+    - `src/agents/tools/common.params.test.ts`
+  - Landed in:
+    - `core/layer0/ops/src/daemon_control_parts/040-payload-for.rs`
+    - `core/layer2/execution/src/blob.rs`
+    - `core/layer2/autonomy/src/simulation_parts/030-simulation-identity-projection-filters-unknown-o.rs`
+    - `core/layer2/execution/src/scheduler_kani_proofs.rs`
+    - `core/layer2/spine/src/spine.rs`
+  - Burned source snapshot: openclaw-20260417-051056
+
+- `OPENCLAW-TOOLING-WEB-107`:
+  - Re-assimilated fetch test-harness/mocks semantics, strict-vs-trusted guarded endpoint policy checks, and stricter parameter-normalization expectations from:
+    - `src/agents/tools/web-fetch.test-harness.ts`
+    - `src/agents/tools/web-fetch.test-mocks.ts`
+    - `src/agents/tools/web-tools.fetch.test.ts`
+    - `src/agents/tools/web-guarded-fetch.test.ts`
+    - `src/agents/tools/common.params.test.ts`
+  - Landed in:
+    - `core/layer0/ops/src/ops_main_tests.rs`
+    - `core/layer0/memory_runtime/src/main_parts/predictive_defrag_parts/010-types-and-policy.rs`
+    - `core/layer1/memory_runtime/src/recall_policy.rs`
+    - `core/layer0/memory_runtime/src/main_parts/embedding_helpers_parts/010-normalize-file-ref.rs`
+    - `core/layer1/security/src/security_wave1_parts/010-now-iso.rs`
+  - Burned source snapshot: openclaw-20260417-051557
+
+- `OPENCLAW-TOOLING-WEB-108`:
+  - Re-assimilated provider-fallback safety, strict SSRF/redirect policy checks, hidden-content sanitization coverage, CF-markdown response handling, and readability extraction expectations from:
+    - `src/agents/tools/web-fetch.provider-fallback.test.ts`
+    - `src/agents/tools/web-fetch.ssrf.test.ts`
+    - `src/agents/tools/web-fetch-visibility.test.ts`
+    - `src/agents/tools/web-fetch.cf-markdown.test.ts`
+    - `src/agents/tools/web-tools.readability.test.ts`
+  - Landed in:
+    - `core/layer0/memory_runtime/src/main_parts/050-run-query-index.rs`
+    - `core/layer0/memory_runtime/src/wave1_parts/030-auto-recall-filed-payload.rs`
+    - `core/layer1/security/src/lib_parts/020-verify-integrity-policy.rs`
+    - `core/layer0/memory_runtime/src/rag_runtime_parts/010-now-iso.rs`
+    - `core/layer0/memory_runtime/src/rag_runtime_parts/020-ingest-payload.rs`
+  - Burned source snapshot: openclaw-20260417-052245
+
+- `OPENCLAW-TOOLING-WEB-109`:
+  - Re-assimilated web tooling hard-failure/normalization semantics from:
+    - `src/agents/tools/web-fetch.provider-fallback.test.ts`
+    - `src/agents/tools/web-fetch.ssrf.test.ts`
+    - `src/agents/tools/web-tools.fetch.test.ts`
+    - `src/agents/tools/web-tools.readability.test.ts`
+    - `src/agents/tools/web-guarded-fetch.test.ts`
+  - Landed in:
+    - `core/layer1/security/src/security_wave1_parts/040-append-black-box-entry.rs`
+    - `core/layer0/memory_abstraction/src/main_parts/010-now-iso.rs`
+    - `core/layer1/security/src/lib_parts/040-run-capability-lease.rs`
+    - `core/layer0/memory_runtime/src/rag_runtime_parts/030-byterover-upgrade-payload.rs`
+    - `core/layer1/security/src/security_wave1_parts/090-default.rs`
+  - Burned to: `local/state/assimilation/burned/openclaw-20260417053012`
+
+- `OPENCLAW-TOOLING-WEB-110`:
+  - Re-assimilated web tooling anti-injection/visibility and fallback semantics from:
+    - `src/agents/tools/web-fetch-visibility.test.ts`
+    - `src/agents/tools/web-fetch.cf-markdown.test.ts`
+    - `src/agents/tools/web-fetch.provider-fallback.test.ts`
+    - `src/agents/tools/web-fetch.ssrf.test.ts`
+    - `src/agents/tools/web-tools.readability.test.ts`
+  - Landed in:
+    - `core/layer0/memory_runtime/src/wave1_parts/010-now-iso.rs`
+    - `core/layer0/memory/src/sqlite_store.rs`
+    - `core/layer1/security/src/security_wave1_parts/100-run-truth-seeking-gate.rs`
+    - `core/layer0/memory_runtime/src/rag_runtime_parts/040-memory-share-payload.rs`
+    - `core/layer1/nursery_runtime/src/lib.rs`
+  - Burned to: `local/state/assimilation/burned/openclaw-20260417053732`
+
+- `OPENCLAW-TOOLING-WEB-111`:
+  - Re-assimilated web-tooling guard and fail-closed test semantics from:
+    - `src/agents/tools/web-fetch-visibility.test.ts`
+    - `src/agents/tools/web-fetch.cf-markdown.test.ts`
+    - `src/agents/tools/web-fetch.provider-fallback.test.ts`
+    - `src/agents/tools/web-fetch.ssrf.test.ts`
+    - `src/agents/tools/web-tools.readability.test.ts`
+  - Landed in:
+    - `core/layer1/security/src/lib_parts/030-run-emergency-stop.rs`
+    - `core/layer1/security/src/security_wave1_parts/030-black-box-paths.rs`
+    - `core/layer0/memory_runtime/src/main_parts/070-cli-entrypoint.rs`
+    - `core/layer0/memory_runtime/src/idle_dream_lane.rs`
+    - `core/layer0/memory_runtime/src/rag_runtime_parts/050-base-args.rs`
+  - Burn snapshot: `openclaw-20260417-054511`
+
+- `OPENCLAW-TOOLING-WEB-112`:
+  - Re-assimilated fetch harness + guarded endpoint test semantics from:
+    - `src/agents/tools/web-fetch.test-harness.ts`
+    - `src/agents/tools/web-fetch.test-mocks.ts`
+    - `src/agents/tools/web-guarded-fetch.test.ts`
+    - `src/agents/tools/web-tools.fetch.test.ts`
+    - `src/agents/tools/web-tools.readability.test.ts`
+  - Landed in:
+    - `core/layer0/memory_runtime/src/main_parts/060-run-daemon.rs`
+    - `core/layer1/llm_runtime/src/lib.rs`
+    - `core/layer0/memory_runtime/src/lane_contracts.rs`
+    - `core/layer0/memory_abstraction/src/main_parts/030-cmd-test-harness.rs`
+    - `core/layer0/memory_abstraction/src/main_parts/020-analytics-policy.rs`
+  - Burn snapshot: `openclaw-20260417-055059`
+
+- `OPENCLAW-TOOLING-WEB-113`:
+  - Re-assimilated web fetch sanitization + fallback contract-test semantics from:
+    - `src/agents/tools/web-fetch-visibility.test.ts`
+    - `src/agents/tools/web-fetch.cf-markdown.test.ts`
+    - `src/agents/tools/web-fetch.provider-fallback.test.ts`
+    - `src/agents/tools/web-fetch.ssrf.test.ts`
+    - `src/agents/tools/web-tools.readability.test.ts`
+  - Landed in:
+    - `core/layer0/security/src/main.rs`
+    - `core/layer1/memory_runtime/src/lensmap_annotations.rs`
+    - `core/layer0/memory_runtime/src/main_parts/010-strip-ticks.rs`
+    - `core/layer0/memory_runtime/src/wave1_parts/020-build-matrix-payload.rs`
+    - `core/layer1/security/src/lib_parts/050-run-startup-attestation.rs`
+  - Burn snapshot: `openclaw-20260417-055528`
+
+- `OPENCLAW-TOOLING-WEB-114`:
+  - Re-assimilated web fetch harness/mocks + guarded endpoint semantics from:
+    - `src/agents/tools/web-fetch.test-harness.ts`
+    - `src/agents/tools/web-fetch.test-mocks.ts`
+    - `src/agents/tools/web-guarded-fetch.test.ts`
+    - `src/agents/tools/web-tools.fetch.test.ts`
+    - `src/agents/tools/web-tools.readability.test.ts`
+  - Landed in:
+    - `core/layer1/security/src/security_planes_parts/010-now-iso.rs`
+    - `core/layer0/memory_runtime/src/main_parts/030-extract-tags-from-chunk.rs`
+    - `core/layer0/hybrid_runtime/src/memory_hotpath.rs`
+    - `core/layer0/memory/src/lib.rs`
+    - `core/layer0/memory_runtime/src/main_parts/predictive_defrag_parts/020-monitor.rs`
+  - Burn snapshot: `openclaw-20260417-055913`
+
+- `OPENCLAW-TOOLING-WEB-115`:
+  - Re-assimilated web fetch visibility + guarded/fallback/ssrf contract semantics from:
+    - `src/agents/tools/web-fetch-visibility.test.ts`
+    - `src/agents/tools/web-fetch.cf-markdown.test.ts`
+    - `src/agents/tools/web-fetch.provider-fallback.test.ts`
+    - `src/agents/tools/web-fetch.ssrf.test.ts`
+    - `src/agents/tools/web-guarded-fetch.test.ts`
+  - Landed in:
+    - `core/layer0/memory_runtime/src/main_parts/predictive_defrag_parts/030-stress.rs`
+    - `core/layer0/legacy_rust_sources/migration/bridge.rs`
+    - `core/layer0/memory_runtime/src/wave1_parts/040-memory-matrix-payload.rs`
+    - `core/layer1/security/src/security_wave1_parts/110-abac-denies-when-no-rule-matches.rs`
+    - `core/layer1/memory_runtime/src/token_telemetry.rs`
+  - Burn snapshot: `openclaw-20260417-060303`
+
+- `OPENCLAW-TOOLING-WEB-138`:
+  - Scope: context-window guard, internal runtime context stripping, tool-call normalization/repair, tool-result context guard, and prompt assembly surfaces.
+  - Assimilated into: `tests/client-memory-tools/runtime_output_guard.ts` plus 20 queued bridge/delegation tests in `tests/client-memory-tools/**`.
+  - Burned to: `local/state/assimilation/burned/openclaw-20260417-023848`
+
+- `OPENCLAW-TOOLING-WEB-139`:
+  - Scope: ACP binding guardrails, anthropic payload policy, auth profile override policy, and bash execution approval/host/runtime lanes.
+  - Re-assimilated from:
+    - `src/agents/acp-binding-architecture.guardrail.test.ts`
+    - `src/agents/anthropic-payload-policy.test.ts`
+    - `src/agents/anthropic-payload-policy.ts`
+    - `src/agents/auth-profiles/policy.ts`
+    - `src/agents/auth-profiles/session-override.test.ts`
+    - `src/agents/auth-profiles/session-override.ts`
+    - `src/agents/bash-tools.build-docker-exec-args.test.ts`
+    - `src/agents/bash-tools.exec-approval-followup.test.ts`
+    - `src/agents/bash-tools.exec-approval-followup.ts`
+    - `src/agents/bash-tools.exec-approval-request.test.ts`
+    - `src/agents/bash-tools.exec-approval-request.ts`
+    - `src/agents/bash-tools.exec-foreground-failures.test.ts`
+    - `src/agents/bash-tools.exec-host-gateway.test.ts`
+    - `src/agents/bash-tools.exec-host-gateway.ts`
+    - `src/agents/bash-tools.exec-host-node.test.ts`
+    - `src/agents/bash-tools.exec-host-node.ts`
+    - `src/agents/bash-tools.exec-host-shared.test.ts`
+    - `src/agents/bash-tools.exec-host-shared.ts`
+    - `src/agents/bash-tools.exec-runtime.test.ts`
+    - `src/agents/bash-tools.exec-runtime.ts`
+  - Assimilated into: `tests/client-memory-tools/runtime_output_guard.ts` plus wave-139 guard-assertion coverage in 8 queued `tests/client-memory-tools/**` bridges.
+  - Burned to: `local/state/assimilation/burned/openclaw-20260417-084747`
+
+- `OPENCLAW-TOOLING-WEB-140`:
+  - Scope: ACP spawn parent-stream control, agent scope/path routing, anthropic payload stream/log handling, and API key rotation/tool patch surfaces.
+  - Re-assimilated from:
+    - `src/agents/acp-spawn-parent-stream.test.ts`
+    - `src/agents/acp-spawn-parent-stream.ts`
+    - `src/agents/acp-spawn.test.ts`
+    - `src/agents/acp-spawn.ts`
+    - `src/agents/agent-command.live-model-switch.test.ts`
+    - `src/agents/agent-command.ts`
+    - `src/agents/agent-paths.test.ts`
+    - `src/agents/agent-paths.ts`
+    - `src/agents/agent-scope.test.ts`
+    - `src/agents/agent-scope.ts`
+    - `src/agents/announce-idempotency.ts`
+    - `src/agents/anthropic-payload-log.test.ts`
+    - `src/agents/anthropic-payload-log.ts`
+    - `src/agents/anthropic-transport-stream.test.ts`
+    - `src/agents/anthropic-transport-stream.ts`
+    - `src/agents/anthropic-vertex-stream.test.ts`
+    - `src/agents/anthropic-vertex-stream.ts`
+    - `src/agents/anthropic.setup-token.live.test.ts`
+    - `src/agents/api-key-rotation.ts`
+    - `src/agents/apply-patch-update.ts`
+  - Assimilated into: `core/layer0/ops/tests/**` integration receipt claim gates plus explicit anti-context-leak marker guard regressions for baremetal/cognition lanes.
+  - Burned to: `local/state/assimilation/burned/openclaw-20260417-085310`
+
+- `OPENCLAW-TOOLING-WEB-141`:
+  - Scope: apply-patch safety surfaces, auth-health checks, and auth-profile ordering/cooldown/cache/runtime/store policy lanes.
+  - Re-assimilated from:
+    - `src/agents/apply-patch.test.ts`
+    - `src/agents/apply-patch.ts`
+    - `src/agents/auth-health.test.ts`
+    - `src/agents/auth-health.ts`
+    - `src/agents/auth-profiles.chutes.test.ts`
+    - `src/agents/auth-profiles.cooldown-auto-expiry.test.ts`
+    - `src/agents/auth-profiles.doctor.test.ts`
+    - `src/agents/auth-profiles.ensureauthprofilestore.test.ts`
+    - `src/agents/auth-profiles.external-cli-sync.test.ts`
+    - `src/agents/auth-profiles.getsoonestcooldownexpiry.test.ts`
+    - `src/agents/auth-profiles.markauthprofilefailure.test.ts`
+    - `src/agents/auth-profiles.readonly-sync.test.ts`
+    - `src/agents/auth-profiles.resolve-auth-profile-order.does-not-prioritize-lastgood-round-robin-ordering.test.ts`
+    - `src/agents/auth-profiles.resolve-auth-profile-order.fixtures.ts`
+    - `src/agents/auth-profiles.resolve-auth-profile-order.normalizes-z-ai-aliases-auth-order.test.ts`
+    - `src/agents/auth-profiles.resolve-auth-profile-order.orders-by-lastused-no-explicit-order-exists.test.ts`
+    - `src/agents/auth-profiles.resolve-auth-profile-order.uses-stored-profiles-no-config-exists.test.ts`
+    - `src/agents/auth-profiles.runtime.ts`
+    - `src/agents/auth-profiles.store-cache.test.ts`
+    - `src/agents/auth-profiles.store.save.test.ts`
+  - Assimilated into: `core/layer0/ops/tests/**` receipt claim-gates with anti-context-leak marker checks plus `ts_migration_ledger_guard` contamination enforcement for runtime TS lanes.
+  - Burned to: `local/state/assimilation/burned/openclaw-20260417-085718`
+
+- `OPENCLAW-TOOLING-WEB-142`:
+  - Scope: auth-profile root/constants/credential-state/display/doctor/external auth+oauth/order/path/persistence policy lanes.
+  - Re-assimilated from:
+    - `src/agents/auth-profiles.ts`
+    - `src/agents/auth-profiles/constants.ts`
+    - `src/agents/auth-profiles/credential-state.test.ts`
+    - `src/agents/auth-profiles/credential-state.ts`
+    - `src/agents/auth-profiles/display.test.ts`
+    - `src/agents/auth-profiles/display.ts`
+    - `src/agents/auth-profiles/doctor.ts`
+    - `src/agents/auth-profiles/external-auth.ts`
+    - `src/agents/auth-profiles/external-cli-sync.ts`
+    - `src/agents/auth-profiles/external-oauth.test.ts`
+    - `src/agents/auth-profiles/identity.ts`
+    - `src/agents/auth-profiles/oauth-refresh-failure.ts`
+    - `src/agents/auth-profiles/oauth.fallback-to-main-agent.test.ts`
+    - `src/agents/auth-profiles/oauth.openai-codex-refresh-fallback.test.ts`
+    - `src/agents/auth-profiles/oauth.test.ts`
+    - `src/agents/auth-profiles/oauth.ts`
+    - `src/agents/auth-profiles/order.test.ts`
+    - `src/agents/auth-profiles/order.ts`
+    - `src/agents/auth-profiles/paths.ts`
+    - `src/agents/auth-profiles/persisted.ts`
+  - Assimilated into: `core/layer0/ops/tests/**` runtime claim assertions with anti-context-leak marker checks plus explicit v9 seed-protocol prompt-marker regression guard.
+  - Burned to: `local/state/assimilation/burned/openclaw-20260417-090023`
+
+- `OPENCLAW-TOOLING-WEB-143`:
+  - Scope: auth-profile profiles/state/store/usage and bash process-registry + exec path/pty reliability lanes.
+  - Re-assimilated from:
+    - `src/agents/auth-profiles/profiles.ts`
+    - `src/agents/auth-profiles/repair.ts`
+    - `src/agents/auth-profiles/state-observation.test.ts`
+    - `src/agents/auth-profiles/state-observation.ts`
+    - `src/agents/auth-profiles/state.ts`
+    - `src/agents/auth-profiles/store.ts`
+    - `src/agents/auth-profiles/types.ts`
+    - `src/agents/auth-profiles/upsert-with-lock.ts`
+    - `src/agents/auth-profiles/usage.test.ts`
+    - `src/agents/auth-profiles/usage.ts`
+    - `src/agents/bash-process-registry.test-helpers.ts`
+    - `src/agents/bash-process-registry.test.ts`
+    - `src/agents/bash-process-registry.ts`
+    - `src/agents/bash-tools.descriptions.ts`
+    - `src/agents/bash-tools.exec-types.ts`
+    - `src/agents/bash-tools.exec.approval-id.test.ts`
+    - `src/agents/bash-tools.exec.background-abort.test.ts`
+    - `src/agents/bash-tools.exec.path.test.ts`
+    - `src/agents/bash-tools.exec.pty-cleanup.test.ts`
+    - `src/agents/bash-tools.exec.pty-fallback-failure.test.ts`
+  - Assimilated into: `core/layer0/ops/tests/**` runtime claim assertions with anti-context-leak guards plus explicit receipt sanitization checks in v9 pure-intel and v10 phone bridge integration suites.
+  - Burned to: `local/state/assimilation/burned/openclaw-20260417-090400`
+
+- `OPENCLAW-TOOLING-WEB-144`:
+  - Scope: bash exec PTY/fallback/process-registry reliability and auth-profile state/store/usage integrity lanes.
+  - Re-assimilated from:
+    - `src/agents/bash-tools.exec.pty-fallback.test.ts`
+    - `src/agents/bash-tools.exec.pty.test.ts`
+    - `src/agents/bash-tools.exec.script-preflight.test.ts`
+    - `src/agents/bash-tools.exec.ts`
+    - `src/agents/bash-tools.process-send-keys.test.ts`
+    - `src/agents/bash-tools.process-send-keys.ts`
+    - `src/agents/bash-tools.process.poll-timeout.test.ts`
+    - `src/agents/bash-tools.process.send-keys.test.ts`
+    - `src/agents/bash-tools.process.supervisor.test.ts`
+    - `src/agents/bash-tools.process.ts`
+    - `src/agents/bash-tools.shared.test.ts`
+    - `src/agents/bash-tools.shared.ts`
+    - `src/agents/bash-tools.test.ts`
+    - `src/agents/bash-tools.ts`
+    - `src/agents/bootstrap-budget.test.ts`
+    - `src/agents/bootstrap-budget.ts`
+    - `src/agents/bootstrap-cache.test.ts`
+    - `src/agents/bootstrap-cache.ts`
+    - `src/agents/bootstrap-files.test.ts`
+    - `src/agents/bootstrap-files.ts`
+  - Assimilated into: `core/layer0/ops/tests/**` receipt claim checks with anti-context-leak guards, plus raw-output sanitation checks for pure capability CLI and ultimate/phone bridge receipts.
+  - Burned to: `local/state/assimilation/burned/openclaw-20260417-090709`
+
+- `OPENCLAW-TOOLING-WEB-145`:
+  - Scope: bootstrap budget/cache/files + bash exec/process/pty + auth-profile state/store usage and observation lanes.
+  - Re-assimilated from:
+    - `src/agents/bootstrap-hooks.test.ts`
+    - `src/agents/bootstrap-hooks.ts`
+    - `src/agents/btw.test.ts`
+    - `src/agents/btw.ts`
+    - `src/agents/bundle-mcp-shared.test-harness.ts`
+    - `src/agents/bundle-mcp.test-harness.ts`
+    - `src/agents/cache-trace.test.ts`
+    - `src/agents/cache-trace.ts`
+    - `src/agents/channel-tools.test.ts`
+    - `src/agents/channel-tools.ts`
+    - `src/agents/chutes-oauth.flow.test.ts`
+    - `src/agents/chutes-oauth.test.ts`
+    - `src/agents/chutes-oauth.ts`
+    - `src/agents/claude-cli-runner.ts`
+    - `src/agents/cli-auth-epoch.test.ts`
+    - `src/agents/cli-auth-epoch.ts`
+    - `src/agents/cli-backends.test.ts`
+    - `src/agents/cli-backends.ts`
+    - `src/agents/cli-credentials.test.ts`
+    - `src/agents/cli-credentials.ts`
+  - Assimilated into: `core/layer2/execution/src/{autoscale,inversion,decompose}.rs`, `core/layer2/spine/src/lib.rs`, `core/layer0/ops/src/{lib,collab_plane}.rs`, plus benchmark integration tests to enforce anti-context-leak marker hygiene.
+  - Burned to: `local/state/assimilation/burned/openclaw-20260417-091009`
+
+- `OPENCLAW-TOOLING-WEB-146`:
+  - Scope: cli-runner orchestration, bundle-mcp execution reliability, tool output shaping, and session bridge safety lanes.
+  - Re-assimilated from:
+    - `src/agents/cli-output.test.ts`
+    - `src/agents/cli-runner.bundle-mcp.e2e.test.ts`
+    - `src/agents/cli-runner.helpers.test.ts`
+    - `src/agents/cli-runner.reliability.test.ts`
+    - `src/agents/cli-runner.runtime.ts`
+    - `src/agents/cli-runner.spawn.test.ts`
+    - `src/agents/cli-runner.test-support.ts`
+    - `src/agents/cli-runner.ts`
+    - `src/agents/cli-runner/bundle-mcp.test.ts`
+    - `src/agents/cli-runner/bundle-mcp.ts`
+    - `src/agents/cli-runner/claude-skills-plugin.ts`
+    - `src/agents/cli-runner/execute.ts`
+    - `src/agents/cli-runner/helpers.ts`
+    - `src/agents/cli-runner/log.ts`
+    - `src/agents/cli-runner/prepare.ts`
+    - `src/agents/cli-runner/reliability.ts`
+    - `src/agents/cli-runner/toml-inline.ts`
+    - `src/agents/cli-runner/types.ts`
+    - `src/agents/cli-session.test.ts`
+    - `src/agents/cli-session.ts`
+  - Assimilated into: `core/layer0/ops/src/{hermes_plane,strategy_store_kernel,substrate_plane,verity_plane,backlog_delivery_plane,benchmark_matrix,binary_vuln_plane,daemon_control}.rs` via shared forbidden runtime-context marker guards.
+  - Burned to: `local/state/assimilation/burned/openclaw-20260417-091530`
+
+- `OPENCLAW-TOOLING-WEB-147`:
+  - Scope: cli-runner watchdog and codex-native web-search reliability, command session/delivery execution, and compaction identifier/retry stability lanes.
+  - Re-assimilated from:
+    - `src/agents/cli-watchdog-defaults.ts`
+    - `src/agents/codex-native-web-search.test.ts`
+    - `src/agents/command-poll-backoff.runtime.ts`
+    - `src/agents/command-poll-backoff.test.ts`
+    - `src/agents/command-poll-backoff.ts`
+    - `src/agents/command/attempt-execution.test.ts`
+    - `src/agents/command/attempt-execution.ts`
+    - `src/agents/command/delivery.test.ts`
+    - `src/agents/command/delivery.ts`
+    - `src/agents/command/run-context.ts`
+    - `src/agents/command/session-store.test.ts`
+    - `src/agents/command/session-store.ts`
+    - `src/agents/command/session.resolve-session-key.test.ts`
+    - `src/agents/command/session.ts`
+    - `src/agents/command/shared-types.ts`
+    - `src/agents/command/types.ts`
+    - `src/agents/compaction-real-conversation.ts`
+    - `src/agents/compaction.identifier-policy.test.ts`
+    - `src/agents/compaction.identifier-preservation.test.ts`
+    - `src/agents/compaction.retry.test.ts`
+  - Assimilated into: `core/layer0/ops/src/{duality_seed,f100_readiness_program,flow_plane,observability_plane,protheusctl,seed_protocol,strategy_resolver,success_criteria_kernel}.rs` via shared forbidden runtime-context marker helper injection.
+  - Burned to: `local/state/assimilation/burned/openclaw-20260417-091814`
+
+- `OPENCLAW-TOOLING-WEB-148`:
+  - Scope: compaction summaries/token sanitation, context/content-block handling, provider/default resolution, and embedded-agent surface reliability lanes.
+  - Re-assimilated from:
+    - `src/agents/compaction.summarize-fallback.test.ts`
+    - `src/agents/compaction.test.ts`
+    - `src/agents/compaction.token-sanitize.test.ts`
+    - `src/agents/compaction.tool-result-details.test.ts`
+    - `src/agents/compaction.ts`
+    - `src/agents/configured-provider-fallback.ts`
+    - `src/agents/console-sanitize.ts`
+    - `src/agents/content-blocks.test.ts`
+    - `src/agents/content-blocks.ts`
+    - `src/agents/context.eager-warmup.test.ts`
+    - `src/agents/copilot-dynamic-headers.ts`
+    - `src/agents/current-time.ts`
+    - `src/agents/custom-api-registry.test.ts`
+    - `src/agents/custom-api-registry.ts`
+    - `src/agents/date-time.ts`
+    - `src/agents/defaults.ts`
+    - `src/agents/docs-path.ts`
+    - `src/agents/embedded-agent.ts`
+    - `src/agents/embedded-pi-lsp.ts`
+    - `src/agents/embedded-pi-mcp.ts`
+  - Assimilated into: `core/layer0/ops/src/{top1_assurance,trit_shadow_kernel,adaptive_intelligence,adaptive_layer_store_kernel,asm_plane,backlog_registry,business_plane,canyon_plane_extensions}.rs` via shared forbidden runtime-context marker helper injection.
+  - Burned to: `local/state/assimilation/burned/openclaw-20260417-092026`
+
+- `OPENCLAW-TOOLING-WEB-149`:
+  - Scope: execution approval/default contracts, failover policy/error handling, google transport stream reliability, and harness registry lanes.
+  - Re-assimilated from:
+    - `src/agents/exec-approval-result.test.ts`
+    - `src/agents/exec-approval-result.ts`
+    - `src/agents/exec-defaults.test.ts`
+    - `src/agents/exec-defaults.ts`
+    - `src/agents/execution-contract.ts`
+    - `src/agents/failover-error.test.ts`
+    - `src/agents/failover-error.ts`
+    - `src/agents/failover-policy.test.ts`
+    - `src/agents/failover-policy.ts`
+    - `src/agents/fast-mode.test.ts`
+    - `src/agents/fast-mode.ts`
+    - `src/agents/github-copilot-token.test.ts`
+    - `src/agents/github-copilot-token.ts`
+    - `src/agents/glob-pattern.ts`
+    - `src/agents/google-gemini-switch.live.test.ts`
+    - `src/agents/google-transport-stream.test.ts`
+    - `src/agents/google-transport-stream.ts`
+    - `src/agents/harness/builtin-pi.ts`
+    - `src/agents/harness/index.ts`
+    - `src/agents/harness/registry.test.ts`
+  - Assimilated into: `core/layer0/ops/src/{company_plane,contract_check,finance_plane,fluxlattice_program,focus_trigger_store_kernel,mech_suit_mode_kernel,origin_integrity,protheusctl_parts/040-protheusctl-tests}.rs` via shared forbidden runtime-context marker helper injection.
+  - Burned to: `local/state/assimilation/burned/openclaw-20260417-092226`
+
+- `OPENCLAW-TOOLING-WEB-150`:
+  - Scope: harness selection/registry, heartbeat identity surfaces, image sanitization, internal events, and lane contract reliability lanes.
+  - Re-assimilated from:
+    - `src/agents/harness/registry.ts`
+    - `src/agents/harness/selection.test.ts`
+    - `src/agents/harness/selection.ts`
+    - `src/agents/harness/types.ts`
+    - `src/agents/heartbeat-system-prompt.test.ts`
+    - `src/agents/heartbeat-system-prompt.ts`
+    - `src/agents/identity-avatar.test.ts`
+    - `src/agents/identity-avatar.ts`
+    - `src/agents/identity-file.test.ts`
+    - `src/agents/identity-file.ts`
+    - `src/agents/identity.human-delay.test.ts`
+    - `src/agents/identity.per-channel-prefix.test.ts`
+    - `src/agents/identity.test.ts`
+    - `src/agents/identity.ts`
+    - `src/agents/image-sanitization.test.ts`
+    - `src/agents/image-sanitization.ts`
+    - `src/agents/internal-event-contract.ts`
+    - `src/agents/internal-events.ts`
+    - `src/agents/lanes.test.ts`
+    - `src/agents/lanes.ts`
+  - Assimilated into: `core/layer0/ops/src/{protheusd,supply_chain_provenance_v2,symbiosis_coherence_kernel,enterprise_moat_extensions,llm_economy_organ,main}.rs` and `core/layer2/{autonomy/src/simulation,ops/src/public_api_catalog}.rs` via shared forbidden runtime-context marker helper injection.
+  - Burned to: `local/state/assimilation/burned/openclaw-20260417-092433`
+
+- `OPENCLAW-TOOLING-WEB-151`:
+  - Scope: live auth/cache/model switch handling, target matching, MCP transport config, and lane/internal event reliability lanes.
+  - Re-assimilated from:
+    - `src/agents/live-auth-keys.test.ts`
+    - `src/agents/live-auth-keys.ts`
+    - `src/agents/live-cache-regression-baseline.ts`
+    - `src/agents/live-cache-regression-runner.ts`
+    - `src/agents/live-cache-regression.live.test.ts`
+    - `src/agents/live-cache-test-support.ts`
+    - `src/agents/live-model-errors.test.ts`
+    - `src/agents/live-model-errors.ts`
+    - `src/agents/live-model-filter.ts`
+    - `src/agents/live-model-switch-error.ts`
+    - `src/agents/live-model-switch.test.ts`
+    - `src/agents/live-model-switch.ts`
+    - `src/agents/live-target-matcher.test.ts`
+    - `src/agents/live-target-matcher.ts`
+    - `src/agents/live-test-helpers.test.ts`
+    - `src/agents/live-test-helpers.ts`
+    - `src/agents/mcp-config-shared.ts`
+    - `src/agents/mcp-http.ts`
+    - `src/agents/mcp-stdio.ts`
+    - `src/agents/mcp-transport-config.test.ts`
+  - Assimilated into: placeholder Rust shards in `core/layer{0,2}/**/*placeholder.rs` and memory runtime wrappers in `client/runtime/systems/memory/*.ts` with explicit forbidden runtime-context marker detection helpers and exports.
+  - Burned to: `local/state/assimilation/burned/openclaw-20260417-092712`
+
+- `OPENCLAW-TOOLING-WEB-152`:
+  - Scope: MCP transport configuration, memory-search/model-auth surfaces, Minimax live/error handling, and model alias/auth runtime safety lanes.
+  - Re-assimilated from:
+    - `src/agents/mcp-transport-config.ts`
+    - `src/agents/mcp-transport.ts`
+    - `src/agents/media-generation-task-status-shared.ts`
+    - `src/agents/memory-search.test.ts`
+    - `src/agents/memory-search.ts`
+    - `src/agents/minimax-docs.test.ts`
+    - `src/agents/minimax-vlm.normalizes-api-key.test.ts`
+    - `src/agents/minimax-vlm.ts`
+    - `src/agents/minimax.live.test.ts`
+    - `src/agents/model-alias-lines.ts`
+    - `src/agents/model-allowlist-ref.ts`
+    - `src/agents/model-auth-env-vars.ts`
+    - `src/agents/model-auth-env.ts`
+    - `src/agents/model-auth-label.test.ts`
+    - `src/agents/model-auth-label.ts`
+    - `src/agents/model-auth-markers.test.ts`
+    - `src/agents/model-auth-markers.ts`
+    - `src/agents/model-auth-runtime-shared.ts`
+    - `src/agents/model-auth.profiles.test.ts`
+    - `src/agents/model-auth.test.ts`
+  - Assimilated into: `client/runtime/systems/memory/*.ts`, memory lane test wrappers, and autonomy bridges via explicit forbidden runtime-context marker helper exports/assertions.
+  - Burned to: `local/state/assimilation/burned/openclaw-20260417-092946`
+
+- `OPENCLAW-TOOLING-WEB-153`:
+  - Scope: model-auth/catalog/fallback and model-selection reliability lanes with catalog runtime and compatibility test surfaces.
+  - Re-assimilated from:
+    - `src/agents/model-auth.ts`
+    - `src/agents/model-catalog.runtime.ts`
+    - `src/agents/model-catalog.test-harness.ts`
+    - `src/agents/model-catalog.test.ts`
+    - `src/agents/model-catalog.ts`
+    - `src/agents/model-catalog.types.ts`
+    - `src/agents/model-compat.test.ts`
+    - `src/agents/model-fallback-observation.ts`
+    - `src/agents/model-fallback.probe.test.ts`
+    - `src/agents/model-fallback.run-embedded.e2e.test.ts`
+    - `src/agents/model-fallback.test.ts`
+    - `src/agents/model-fallback.ts`
+    - `src/agents/model-fallback.types.ts`
+    - `src/agents/model-ref-profile.test.ts`
+    - `src/agents/model-ref-profile.ts`
+    - `src/agents/model-ref-shared.ts`
+    - `src/agents/model-scan.test.ts`
+    - `src/agents/model-scan.ts`
+    - `src/agents/model-selection-cli.ts`
+    - `src/agents/model-selection-display.test.ts`
+  - Assimilated into: autonomy and sensory runtime wrappers under `client/runtime/systems/{autonomy,sensory}/**` via explicit forbidden runtime-context marker helper exports.
+  - Burned to: `local/state/assimilation/burned/openclaw-20260417-093159`
+
+- `OPENCLAW-TOOLING-WEB-154`:
+  - Scope: model-selection display/normalization/plugin runtime and models-config provider/auth merge/provenance reliability lanes.
+  - Re-assimilated from:
+    - `src/agents/model-selection-display.ts`
+    - `src/agents/model-selection-normalize.ts`
+    - `src/agents/model-selection.plugin-runtime.test.ts`
+    - `src/agents/model-selection.test.ts`
+    - `src/agents/model-selection.ts`
+    - `src/agents/model-suppression.runtime.ts`
+    - `src/agents/model-suppression.ts`
+    - `src/agents/models-config-state.ts`
+    - `src/agents/models-config.applies-config-env-vars.test.ts`
+    - `src/agents/models-config.e2e-harness.ts`
+    - `src/agents/models-config.file-mode.test.ts`
+    - `src/agents/models-config.fills-missing-provider-apikey-from-env-var.test.ts`
+    - `src/agents/models-config.merge.test.ts`
+    - `src/agents/models-config.merge.ts`
+    - `src/agents/models-config.normalizes-gemini-3-ids-preview-google-providers.test.ts`
+    - `src/agents/models-config.plan.ts`
+    - `src/agents/models-config.preserves-explicit-reasoning-override.test.ts`
+    - `src/agents/models-config.providers.anthropic-vertex.test.ts`
+    - `src/agents/models-config.providers.auth-aliases.test.ts`
+    - `src/agents/models-config.providers.auth-provenance.test.ts`
+  - Assimilated into: sensory runtime wrappers under `client/runtime/systems/sensory/*.ts` via explicit forbidden runtime-context marker helper exports.
+  - Burned to: `local/state/assimilation/burned/openclaw-20260417-093413`
+
+- `OPENCLAW-TOOLING-WEB-155`:
+  - Scope: models-config provider normalization, policy/runtime lookup, discovery-auth, and secrets provenance reliability lanes.
+  - Re-assimilated from:
+    - `src/agents/models-config.providers.cloudflare-ai-gateway.test.ts`
+    - `src/agents/models-config.providers.discovery-auth.test.ts`
+    - `src/agents/models-config.providers.google-antigravity.test.ts`
+    - `src/agents/models-config.providers.implicit.ts`
+    - `src/agents/models-config.providers.live-filter.test.ts`
+    - `src/agents/models-config.providers.minimax.test.ts`
+    - `src/agents/models-config.providers.moonshot.test.ts`
+    - `src/agents/models-config.providers.normalize-keys.test.ts`
+    - `src/agents/models-config.providers.normalize.ts`
+    - `src/agents/models-config.providers.nvidia.test.ts`
+    - `src/agents/models-config.providers.ollama.test.ts`
+    - `src/agents/models-config.providers.plugin-allowlist-compat.test.ts`
+    - `src/agents/models-config.providers.policy.lookup.test.ts`
+    - `src/agents/models-config.providers.policy.lookup.ts`
+    - `src/agents/models-config.providers.policy.runtime.ts`
+    - `src/agents/models-config.providers.policy.test.ts`
+    - `src/agents/models-config.providers.policy.ts`
+    - `src/agents/models-config.providers.qianfan.test.ts`
+    - `src/agents/models-config.providers.secrets.bedrock-apikey.test.ts`
+    - `src/agents/models-config.providers.secrets.ts`
+  - Assimilated into: mixed sensory/autonomy/memory runtime wrappers in `client/runtime/systems/**` through explicit forbidden runtime-context marker helper exports that preserve existing wrapper behavior.
+  - Burned to: `local/state/assimilation/burned/openclaw-20260417-093624`
+
+- `OPENCLAW-TOOLING-WEB-156`:
+  - Scope: models-config source-managed/runtime/provider-policy and OpenAI payload-policy/reasoning replay reliability lanes.
+  - Re-assimilated from:
+    - `src/agents/models-config.providers.source-managed.ts`
+    - `src/agents/models-config.providers.static.test.ts`
+    - `src/agents/models-config.providers.static.ts`
+    - `src/agents/models-config.providers.stepfun.test.ts`
+    - `src/agents/models-config.providers.ts`
+    - `src/agents/models-config.providers.vercel-ai-gateway.test.ts`
+    - `src/agents/models-config.runtime-source-snapshot.test.ts`
+    - `src/agents/models-config.runtime.ts`
+    - `src/agents/models-config.skips-writing-models-json-no-env-token.test.ts`
+    - `src/agents/models-config.test-utils.ts`
+    - `src/agents/models-config.ts`
+    - `src/agents/models-config.uses-first-github-copilot-profile-env-tokens.test.ts`
+    - `src/agents/models-config.write-serialization.test.ts`
+    - `src/agents/models.profiles.live.test.ts`
+    - `src/agents/moonshot.live.test.ts`
+    - `src/agents/music-generation-task-status.ts`
+    - `src/agents/openai-completions-compat.ts`
+    - `src/agents/openai-completions-string-content.ts`
+    - `src/agents/openai-responses-payload-policy.test.ts`
+    - `src/agents/openai-responses.reasoning-replay.test.ts`
+  - Assimilated into: adaptive memory runtime stores plus sensory retired wrapper under `core/layer1/memory_runtime/adaptive/**` and `client/runtime/systems/sensory/**` via explicit forbidden runtime-context marker helper exports.
+  - Burned to: `local/state/assimilation/burned/openclaw-20260417-093844`
+
+- `OPENCLAW-TOOLING-WEB-157`:
+  - Scope: OpenAI websocket transport/message conversion/streaming and OpenClaw tool authorization/workspace-guard reliability lanes.
+  - Re-assimilated from:
+    - `src/agents/openai-tool-schema.ts`
+    - `src/agents/openai-transport-stream.test.ts`
+    - `src/agents/openai-transport-stream.ts`
+    - `src/agents/openai-ws-connection.test.ts`
+    - `src/agents/openai-ws-connection.ts`
+    - `src/agents/openai-ws-message-conversion.test.ts`
+    - `src/agents/openai-ws-message-conversion.ts`
+    - `src/agents/openai-ws-request.ts`
+    - `src/agents/openai-ws-stream.e2e.test.ts`
+    - `src/agents/openai-ws-stream.test.ts`
+    - `src/agents/openai-ws-stream.ts`
+    - `src/agents/openai-ws-types.ts`
+    - `src/agents/openclaw-plugin-tools.ts`
+    - `src/agents/openclaw-tools.agents.test.ts`
+    - `src/agents/openclaw-tools.browser-plugin.integration.test.ts`
+    - `src/agents/openclaw-tools.camera.test.ts`
+    - `src/agents/openclaw-tools.image-generation.test.ts`
+    - `src/agents/openclaw-tools.nodes-workspace-guard.test.ts`
+    - `src/agents/openclaw-tools.nodes-workspace-guard.ts`
+    - `src/agents/openclaw-tools.owner-authorization.test.ts`
+  - Assimilated into: mixed memory-runtime/security core surfaces under `core/layer{0,1}/**` with explicit forbidden runtime-context marker helper coverage across test/include/core and lane-part modules.
+  - Burned to: `local/state/assimilation/burned/openclaw-20260417-094047`

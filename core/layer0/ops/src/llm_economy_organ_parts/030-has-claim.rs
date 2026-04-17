@@ -13,6 +13,20 @@ mod tests {
             .any(|row| row.get("id").and_then(Value::as_str) == Some(claim_id))
     }
 
+    fn assert_non_silent_outcome(payload: &Value, expected_type: &str) {
+        assert_eq!(
+            payload.get("type").and_then(Value::as_str),
+            Some(expected_type)
+        );
+        assert!(payload.get("ok").and_then(Value::as_bool).is_some());
+        assert!(
+            payload.get("receipt_hash").and_then(Value::as_str).is_some()
+                || payload.get("claim_evidence").and_then(Value::as_array).is_some()
+                || payload.get("error").is_some()
+                || payload.get("reason").is_some()
+        );
+    }
+
     #[test]
     fn normalize_target_maps_known_aliases() {
         assert_eq!(normalize_target("virtuals"), "virtuals_acp");
@@ -37,6 +51,7 @@ mod tests {
             latest.get("type").and_then(Value::as_str),
             Some("llm_economy_organ_enable")
         );
+        assert_non_silent_outcome(&latest, "llm_economy_organ_enable");
         assert_eq!(
             latest.get("enabled_count").and_then(Value::as_u64),
             Some(ECONOMY_HANDS.len() as u64)
@@ -62,6 +77,7 @@ mod tests {
             latest.get("type").and_then(Value::as_str),
             Some("llm_economy_organ_trading_hand_upgrade")
         );
+        assert_non_silent_outcome(&latest, "llm_economy_organ_trading_hand_upgrade");
         assert_eq!(latest.get("mode").and_then(Value::as_str), Some("paper"));
         assert!(has_claim(&latest, "V6-ECONOMY-002.1"));
         assert!(has_claim(&latest, "V6-ECONOMY-002.4"));
@@ -85,6 +101,7 @@ mod tests {
             latest.get("type").and_then(Value::as_str),
             Some("llm_economy_organ_bullbear_debate")
         );
+        assert_non_silent_outcome(&latest, "llm_economy_organ_bullbear_debate");
         assert!(has_claim(&latest, "V6-ECONOMY-002.2"));
 
         let exec_exit = run(
@@ -104,6 +121,7 @@ mod tests {
             latest.get("type").and_then(Value::as_str),
             Some("llm_economy_organ_alpaca_execute")
         );
+        assert_non_silent_outcome(&latest, "llm_economy_organ_alpaca_execute");
         assert_eq!(
             latest
                 .get("risk_gate")
@@ -230,6 +248,7 @@ mod tests {
             latest_trade.get("type").and_then(Value::as_str),
             Some("llm_economy_trade_router_error")
         );
+        assert_non_silent_outcome(&latest_trade, "llm_economy_trade_router_error");
 
         let bad_mining = run(
             dir.path(),
@@ -245,5 +264,6 @@ mod tests {
             latest_mining.get("type").and_then(Value::as_str),
             Some("llm_economy_mining_hand_error")
         );
+        assert_non_silent_outcome(&latest_mining, "llm_economy_mining_hand_error");
     }
 }

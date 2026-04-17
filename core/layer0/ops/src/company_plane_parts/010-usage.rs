@@ -18,6 +18,7 @@ const ORG_CONTRACT_PATH: &str = "planes/contracts/company/org_hierarchy_contract
 const BUDGET_CONTRACT_PATH: &str = "planes/contracts/company/per_agent_budget_contract_v1.json";
 const TICKET_CONTRACT_PATH: &str = "planes/contracts/company/ticket_audit_contract_v1.json";
 const HEARTBEAT_CONTRACT_PATH: &str = "planes/contracts/company/team_heartbeat_contract_v1.json";
+const WEB_TOOLING_PROVIDER_TARGETS: [&str; 4] = ["brave", "duckduckgo", "moonshot", "xai"];
 
 fn usage() {
     println!("Usage:");
@@ -26,13 +27,17 @@ fn usage() {
         "  protheus-ops company-plane orchestrate-agency --team=<id> [--org-json=<json>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops company-plane budget-enforce --agent=<id> [--period=daily|weekly] [--tokens=<n>] [--cost-usd=<n>] [--compute-ms=<n>] [--privacy-units=<n>] [--strict=1|0]"
+        "  protheus-ops company-plane budget-enforce --agent=<id> [--period=daily|weekly] [--tokens=<n>] [--cost-usd=<n>] [--compute-ms=<n>] [--privacy-units=<n>] [--web-requests=<n>] [--web-cost-usd=<n>] [--web-provider=<id>] [--strict=1|0]"
     );
     println!(
         "  protheus-ops company-plane ticket --op=<create|assign|transition|handoff|close|status> [--team=<id>] [--ticket-id=<id>] [--title=<text>] [--state=<id>] [--assignee=<id>] [--from=<id>] [--to=<id>] [--tool-call-id=<id>] [--strict=1|0]"
     );
     println!(
         "  protheus-ops company-plane heartbeat --op=<tick|status|remote-feed> [--team=<id>] [--status=<healthy|degraded|critical>] [--agents-online=<n>] [--queue-depth=<n>] [--strict=1|0]"
+    );
+    println!(
+        "  company-plane web tooling provider targets (contract-aligned): {}",
+        WEB_TOOLING_PROVIDER_TARGETS.as_slice().join(",")
     );
 }
 
@@ -206,6 +211,7 @@ fn run_orchestrate_agency(root: &Path, parsed: &crate::ParsedArgs, strict: bool)
             "sha256": sha256_hex_str(&artifact.to_string())
         },
         "hierarchy": artifact,
+        "web_tooling_provider_targets": WEB_TOOLING_PROVIDER_TARGETS,
         "claim_evidence": [
             {
                 "id": "V6-COMPANY-001.1",
@@ -217,7 +223,8 @@ fn run_orchestrate_agency(root: &Path, parsed: &crate::ParsedArgs, strict: bool)
                         .and_then(|v| v.get("reporting_edges"))
                         .and_then(Value::as_array)
                         .map(|rows| rows.len())
-                        .unwrap_or(0)
+                        .unwrap_or(0),
+                    "web_tooling_provider_targets": WEB_TOOLING_PROVIDER_TARGETS
                 }
             }
         ]

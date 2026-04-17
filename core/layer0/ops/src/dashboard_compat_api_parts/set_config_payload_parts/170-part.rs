@@ -338,6 +338,91 @@ fn parse_explicit_tool_command_from_message(message: &str) -> Option<Result<(Str
     Some(Ok((out_tool, out_input)))
 }
 
+fn parse_inline_tool_object_from_text(
+    raw: &str,
+    max_chars: usize,
+) -> Option<serde_json::Map<String, Value>> {
+    let cleaned = clean_text(raw, max_chars);
+    if cleaned.is_empty() {
+        return None;
+    }
+    if let Ok(parsed) = serde_json::from_str::<Value>(&cleaned) {
+        if let Some(obj) = parsed.as_object() {
+            return Some(obj.clone());
+        }
+    }
+    let (json_start, json_end) = find_json_object_span(&cleaned, 0)?;
+    if json_end <= json_start || json_end - json_start > max_chars {
+        return None;
+    }
+    let snippet = &cleaned[json_start..json_end];
+    let parsed = serde_json::from_str::<Value>(snippet).ok()?;
+    parsed.as_object().cloned()
+}
+
+fn inline_tool_object_from_value(
+    value: &Value,
+    max_chars: usize,
+) -> Option<serde_json::Map<String, Value>> {
+    match value {
+        Value::Object(map) => Some(map.clone()),
+        Value::String(raw) => parse_inline_tool_object_from_text(raw, max_chars),
+        Value::Array(rows) => rows
+            .iter()
+            .find_map(|row| inline_tool_object_from_value(row, max_chars)),
+        _ => None,
+    }
+}
+
+fn normalize_inline_tool_input_payload(parsed: Value) -> Value {
+    let Some(root) = parsed.as_object().cloned() else {
+        return parsed;
+    };
+    let mut normalized = [
+        "arguments",
+        "args",
+        "input",
+        "payload",
+        "params",
+        "parameters",
+        "data",
+        "body",
+        "details",
+        "tool_input",
+    ]
+    .iter()
+    .find_map(|key| {
+        root.get(*key)
+            .and_then(|value| inline_tool_object_from_value(value, 12_000))
+    })
+    .unwrap_or_else(|| root.clone());
+
+    for (key, value) in root {
+        if matches!(
+            key.as_str(),
+            "arguments"
+                | "args"
+                | "input"
+                | "payload"
+                | "params"
+                | "parameters"
+                | "data"
+                | "body"
+                | "details"
+                | "tool_input"
+                | "tool"
+                | "name"
+                | "function"
+                | "type"
+        ) {
+            continue;
+        }
+        normalized.entry(key).or_insert(value);
+    }
+
+    Value::Object(normalized)
+}
+
 fn extract_inline_tool_calls(
     text: &str,
     max_calls: usize,
@@ -378,6 +463,7 @@ fn extract_inline_tool_calls(
                 .chars()
                 .take_while(|ch| tool_name_char(*ch))
                 .collect::<String>();
+            let name = normalize_tool_name(&name);
             if name.is_empty() {
                 cursor = name_end.saturating_add(1);
                 continue;
@@ -399,7 +485,7 @@ fn extract_inline_tool_calls(
                 inline_tool_payload_error_marker("tool_input_payload_too_large")
             } else {
                 match serde_json::from_str::<Value>(raw_payload) {
-                    Ok(parsed) if parsed.is_object() => parsed,
+                    Ok(parsed) if parsed.is_object() => normalize_inline_tool_input_payload(parsed),
                     Ok(_) => inline_tool_payload_error_marker("tool_input_schema_invalid"),
                     Err(_) => inline_tool_payload_error_marker("tool_input_json_invalid"),
                 }
@@ -426,6 +512,7 @@ fn extract_inline_tool_calls(
             .chars()
             .filter(|ch| tool_name_char(*ch))
             .collect::<String>();
+        let name = normalize_tool_name(&name);
         if name.is_empty() {
             cursor = close_end;
             continue;
@@ -442,7 +529,7 @@ fn extract_inline_tool_calls(
             inline_tool_payload_error_marker("tool_input_payload_too_large")
         } else {
             match serde_json::from_str::<Value>(raw_payload) {
-                Ok(parsed) if parsed.is_object() => parsed,
+                Ok(parsed) if parsed.is_object() => normalize_inline_tool_input_payload(parsed),
                 Ok(_) => inline_tool_payload_error_marker("tool_input_schema_invalid"),
                 Err(_) => inline_tool_payload_error_marker("tool_input_json_invalid"),
             }

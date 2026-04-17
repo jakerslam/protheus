@@ -21,6 +21,9 @@ const CORE_COMPLETION_COMMANDS: &[&str] = &[
     "status",
     "dashboard",
     "doctor",
+    "verify",
+    "inspect",
+    "replay",
     "verify-install",
     "dream",
     "compact",
@@ -364,4 +367,3 @@ fn write_version_cache(root: &std::path::Path, result: &Value) {
         }),
     );
 }
-

@@ -1,3 +1,35 @@
+fn web_tooling_provider_contract_targets() -> [&'static str; 10] {
+    [
+        "brave",
+        "duckduckgo",
+        "exa",
+        "firecrawl",
+        "google",
+        "minimax",
+        "moonshot",
+        "perplexity",
+        "tavily",
+        "xai",
+    ]
+}
+
+fn normalize_web_tooling_provider_target(raw: Option<&String>) -> Option<String> {
+    let normalized = raw
+        .map(|value| value.trim().to_ascii_lowercase())
+        .unwrap_or_default();
+    if normalized.is_empty() {
+        return None;
+    }
+    let canonical = match normalized.as_str() {
+        "kimi" | "moonshot" => "moonshot",
+        "grok" | "xai" => "xai",
+        "duck_duck_go" | "duckduckgo" => "duckduckgo",
+        "brave_search" | "brave" => "brave",
+        _ => normalized.as_str(),
+    };
+    Some(clean(canonical.to_string(), 48))
+}
+
 fn run_acp_provenance(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
     let contract = load_json_or(
         root,
@@ -59,9 +91,23 @@ fn run_acp_provenance(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> 
 
     if op == "status" {
         let latest = read_json(&provenance_latest_path(root));
-        let history_rows = std::fs::read_to_string(provenance_history_path(root))
+        let trace_history_rows = std::fs::read_to_string(provenance_history_path(root))
             .ok()
             .map(|raw| raw.lines().count())
+            .unwrap_or(0);
+        let web_tooling_trace_rows = std::fs::read_to_string(provenance_history_path(root))
+            .ok()
+            .map(|raw| {
+                raw.lines()
+                    .filter_map(|line| serde_json::from_str::<Value>(line).ok())
+                    .filter(|row| {
+                        row.get("web_tooling")
+                            .and_then(|v| v.get("detected"))
+                            .and_then(Value::as_bool)
+                            .unwrap_or(false)
+                    })
+                    .count()
+            })
             .unwrap_or(0);
         let mut out = json!({
             "ok": true,
@@ -71,12 +117,18 @@ fn run_acp_provenance(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> 
             "op": "status",
             "config": config,
             "latest_trace": latest,
-            "trace_history_rows": history_rows,
+            "trace_history_rows": trace_history_rows,
+            "web_tooling_provider_contract_targets": web_tooling_provider_contract_targets(),
+            "web_tooling_trace_rows": web_tooling_trace_rows,
             "claim_evidence": [
                 {
                     "id": "V6-OBSERVABILITY-005.11",
                     "claim": "acp_provenance_status_surface_reports_end_to_end_activation_and_trace_health",
-                    "evidence": { "history_rows": history_rows }
+                    "evidence": {
+                        "history_rows": trace_history_rows,
+                        "web_tooling_trace_rows": web_tooling_trace_rows,
+                        "web_tooling_provider_contract_targets": web_tooling_provider_contract_targets()
+                    }
                 }
             ]
         });
@@ -224,6 +276,20 @@ fn run_acp_provenance(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> 
                 .and_then(Value::as_str)
                 .map(|s| s.to_string())
         }));
+    let web_tooling_provider = normalize_web_tooling_provider_target(
+        parsed
+            .flags
+            .get("web-provider")
+            .or_else(|| parsed.flags.get("provider")),
+    );
+    let web_tooling_query = parsed.flags.get("query").map(|raw| clean(raw.clone(), 280));
+    let web_tooling_detected = web_tooling_provider.is_some()
+        || web_tooling_query
+            .as_ref()
+            .map(|value| !value.trim().is_empty())
+            .unwrap_or(false)
+        || intent.to_ascii_lowercase().contains("web")
+        || message.to_ascii_lowercase().contains("web");
     let require_source = contract
         .get("require_source_identity")
         .and_then(Value::as_bool)
@@ -303,7 +369,13 @@ fn run_acp_provenance(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> 
         "message": message,
         "ts": hop_meta.get("timestamp").cloned().unwrap_or(Value::Null),
         "previous_hop_hash": previous_hop_hash,
-        "hop_hash": hop_hash
+        "hop_hash": hop_hash,
+        "web_tooling": {
+            "detected": web_tooling_detected,
+            "provider": web_tooling_provider,
+            "query": web_tooling_query,
+            "provider_contract_targets": web_tooling_provider_contract_targets()
+        }
     });
     trace_entry["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&trace_entry));
     let _ = append_jsonl(&provenance_history_path(root), &trace_entry);
@@ -318,6 +390,7 @@ fn run_acp_provenance(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> 
         "trace_id": trace_entry.get("trace_id").cloned().unwrap_or(Value::Null),
         "hop": visible,
         "visibility_mode": visibility_mode,
+        "web_tooling_provider_contract_targets": web_tooling_provider_contract_targets(),
         "artifact": {
             "history_path": provenance_history_path(root).display().to_string(),
             "latest_trace_path": provenance_latest_path(root).display().to_string()
@@ -439,4 +512,3 @@ mod tests {
         assert!(workflows_state_path(root.path()).exists());
     }
 }
-

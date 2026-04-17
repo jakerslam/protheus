@@ -7,6 +7,7 @@ const USAGE: &[&str] = &[
     "  protheus-ops rust-enterprise-productivity-program list [--policy=<path>]",
     "  protheus-ops rust-enterprise-productivity-program run --id=<id> [--apply=1|0]",
     "  protheus-ops rust-enterprise-productivity-program status [--id=<id>]",
+    "  Optional telemetry flags: --trace-id=<id> --call-id=<id> --request-id=<id> --source=<tag>",
 ];
 
 pub fn run(root: &Path, argv: &[String]) -> i32 {
@@ -18,7 +19,17 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             lane_type: "rust_enterprise_productivity_program",
             replacement: "protheus-ops rust-enterprise-productivity-program",
             usage: USAGE,
-            passthrough_flags: &["apply", "strict", "policy", "id", "limit"],
+            passthrough_flags: &[
+                "apply",
+                "strict",
+                "policy",
+                "id",
+                "limit",
+                "trace-id",
+                "call-id",
+                "request-id",
+                "source",
+            ],
         },
     )
 }

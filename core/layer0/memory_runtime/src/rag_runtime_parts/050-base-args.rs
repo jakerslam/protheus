@@ -125,6 +125,43 @@ mod tests {
     }
 
     #[test]
+    fn stable_api_version_gate_defaults_and_canonicalizes_case() {
+        let default_args: HashMap<String, String> = HashMap::new();
+        assert_eq!(
+            ensure_supported_version(&default_args).expect("defaults to stable"),
+            "stable".to_string()
+        );
+
+        let mut stable_args = HashMap::new();
+        stable_args.insert("api-version".to_string(), "STABLE".to_string());
+        assert_eq!(
+            ensure_supported_version(&stable_args).expect("stable case canonicalized"),
+            "stable".to_string()
+        );
+    }
+
+    #[test]
+    fn stable_api_version_gate_reports_normalized_error_shape() {
+        let mut bad_args = HashMap::new();
+        bad_args.insert("api-version".to_string(), "V2".to_string());
+        let err = ensure_supported_version(&bad_args).expect_err("must reject");
+        assert_eq!(
+            err.get("type").and_then(|v| v.as_str()),
+            Some("memory_stable_api_error")
+        );
+        assert_eq!(
+            err.get("requested_version").and_then(|v| v.as_str()),
+            Some("v2")
+        );
+        assert_eq!(
+            err.get("supported_versions")
+                .and_then(|v| v.as_array())
+                .map(|v| v.len()),
+            Some(3)
+        );
+    }
+
+    #[test]
     fn stable_status_reports_expected_commands() {
         let out = stable_status_payload();
         assert!(out.get("ok").and_then(|v| v.as_bool()).unwrap_or(false));
@@ -308,5 +345,4 @@ mod tests {
         assert!(fuse.get("fusion_score").is_some());
     }
 }
-
 

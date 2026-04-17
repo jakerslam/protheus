@@ -228,6 +228,121 @@ fn execute_tool_call_by_name(
             }
             route_with_body("POST", "/api/batch-query", &body)
         }
+        "web_tooling_health_probe" | "web_probe" => {
+            let mut queries = input
+                .get("queries")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default()
+                .into_iter()
+                .filter_map(|row| row.as_str().map(|raw| clean_text(raw, 600)))
+                .filter(|row| !row.is_empty())
+                .collect::<Vec<_>>();
+            if queries.is_empty() {
+                queries = vec![
+                    "latest ai developments".to_string(),
+                    "top agentic ai frameworks official docs".to_string(),
+                    "openai agents sdk official docs overview".to_string(),
+                ];
+            }
+            queries.truncate(3);
+            let aperture = clean_text(
+                input.get("aperture").and_then(Value::as_str).unwrap_or("medium"),
+                40,
+            );
+            let source = clean_text(
+                input.get("source").and_then(Value::as_str).unwrap_or("web"),
+                40,
+            );
+            let mut runs = Vec::<Value>::new();
+            let mut ok_runs = 0i64;
+            let mut blocked_runs = 0i64;
+            let mut low_signal_runs = 0i64;
+            for query in queries {
+                let body = json!({
+                    "source": if source.is_empty() { "web" } else { source.as_str() },
+                    "query": query,
+                    "aperture": if aperture.is_empty() { "medium" } else { aperture.as_str() },
+                    "diagnostic": "web_tooling_health_probe"
+                });
+                let payload = route_with_body("POST", "/api/batch-query", &body);
+                let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(false);
+                let status = clean_text(
+                    payload
+                        .get("status")
+                        .or_else(|| payload.pointer("/tool_pipeline/tool_attempt_receipt/status"))
+                        .and_then(Value::as_str)
+                        .unwrap_or(if ok { "ok" } else { "error" }),
+                    80,
+                )
+                .to_ascii_lowercase();
+                let error = clean_text(payload.get("error").and_then(Value::as_str).unwrap_or(""), 160)
+                    .to_ascii_lowercase();
+                let result_excerpt = first_sentence(
+                    &clean_text(
+                        payload
+                            .get("result")
+                            .or_else(|| payload.get("response"))
+                            .and_then(Value::as_str)
+                            .unwrap_or(""),
+                        2_000,
+                    ),
+                    260,
+                );
+                let blocked = error.contains("nexus_delivery_denied")
+                    || error.contains("permission_denied")
+                    || matches!(status.as_str(), "blocked" | "policy_denied");
+                let low_signal = !blocked
+                    && (matches!(status.as_str(), "low_signal" | "no_results")
+                        || response_looks_like_tool_ack_without_findings(&result_excerpt)
+                        || response_is_no_findings_placeholder(&result_excerpt)
+                        || response_looks_like_unsynthesized_web_snippet_dump(&result_excerpt));
+                if ok {
+                    ok_runs += 1;
+                }
+                if blocked {
+                    blocked_runs += 1;
+                }
+                if low_signal {
+                    low_signal_runs += 1;
+                }
+                let finalization_outcome = if blocked {
+                    "policy_blocked"
+                } else if !ok {
+                    "reported_reason"
+                } else if low_signal {
+                    "provider_low_signal"
+                } else {
+                    "reported_findings"
+                };
+                runs.push(json!({
+                    "route": "api_batch_query_post",
+                    "tool": "batch_query",
+                    "query": body.get("query").cloned().unwrap_or(Value::Null),
+                    "status": status,
+                    "ok": ok,
+                    "error": error,
+                    "result_excerpt": result_excerpt,
+                    "finalization_outcome": finalization_outcome
+                }));
+            }
+            let run_count = runs.len() as i64;
+            let degraded = blocked_runs > 0 || low_signal_runs > 0 || ok_runs < run_count;
+            json!({
+                "ok": true,
+                "type": "web_tooling_health_probe",
+                "contract": "web_tooling_health_probe_v1",
+                "runs": runs,
+                "summary": {
+                    "route": "api_batch_query_post",
+                    "run_count": run_count,
+                    "ok_runs": ok_runs,
+                    "blocked_runs": blocked_runs,
+                    "low_signal_runs": low_signal_runs,
+                    "degraded": degraded
+                }
+            })
+        }
         "cron_list" | "schedule_list" | "cron_jobs" => {
             route_without_body("GET", "/api/cron/jobs")
         }

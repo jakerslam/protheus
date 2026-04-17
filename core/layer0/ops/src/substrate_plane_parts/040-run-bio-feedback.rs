@@ -1,3 +1,15 @@
+fn attach_execution_receipt(mut out: Value, command: &str, status: &str) -> Value {
+    out["execution_receipt"] = json!({
+        "lane": "substrate_plane_bio_feedback",
+        "command": command,
+        "status": status,
+        "source": "OPENCLAW-TOOLING-WEB-104",
+        "tool_runtime_class": "receipt_wrapped"
+    });
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
+    out
+}
+
 fn run_bio_feedback(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
     let contract = load_json_or(
         root,
@@ -40,27 +52,26 @@ fn run_bio_feedback(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Va
                 }
             ]
         });
-        out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
-        return out;
+        return attach_execution_receipt(out, "status", "success");
     }
 
     if op != "stimulate" && op != "degrade" {
-        return json!({
+        return attach_execution_receipt(json!({
             "ok": false,
             "strict": strict,
             "type": "substrate_plane_bio_feedback",
             "errors": ["substrate_bio_feedback_op_invalid"]
-        });
+        }), op.as_str(), "error");
     }
 
     let interface = read_json(&bio_interface_state_path(root)).unwrap_or_else(|| Value::Null);
     if strict && op == "stimulate" && interface.is_null() {
-        return json!({
+        return attach_execution_receipt(json!({
             "ok": false,
             "strict": strict,
             "type": "substrate_plane_bio_feedback",
             "errors": ["substrate_bio_feedback_requires_bio_interface_event"]
-        });
+        }), op.as_str(), "error");
     }
     if strict
         && op == "stimulate"
@@ -70,12 +81,12 @@ fn run_bio_feedback(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Va
             .unwrap_or(true)
         && !parse_bool(parsed.flags.get("consent"), false)
     {
-        return json!({
+        return attach_execution_receipt(json!({
             "ok": false,
             "strict": strict,
             "type": "substrate_plane_bio_feedback",
             "errors": ["substrate_bio_feedback_consent_required"]
-        });
+        }), op.as_str(), "error");
     }
 
     let mode = if op == "degrade" {
@@ -160,8 +171,7 @@ fn run_bio_feedback(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Va
             }
         ]
     });
-    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
-    out
+    attach_execution_receipt(out, op.as_str(), "success")
 }
 
 fn run_bio_adapter_template(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
@@ -204,16 +214,15 @@ fn run_bio_adapter_template(root: &Path, parsed: &crate::ParsedArgs, strict: boo
                 }
             ]
         });
-        out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
-        return out;
+        return attach_execution_receipt(out, "status", "success");
     }
     if op != "emit" {
-        return json!({
+        return attach_execution_receipt(json!({
             "ok": false,
             "strict": strict,
             "type": "substrate_plane_bio_adapter_template",
             "errors": ["substrate_bio_adapter_template_op_invalid"]
-        });
+        }), "emit", "error");
     }
 
     let mut errors = Vec::<String>::new();
@@ -267,12 +276,12 @@ fn run_bio_adapter_template(root: &Path, parsed: &crate::ParsedArgs, strict: boo
         errors.push("substrate_bio_adapter_template_health_telemetry_required".to_string());
     }
     if !errors.is_empty() {
-        return json!({
+        return attach_execution_receipt(json!({
             "ok": false,
             "strict": strict,
             "type": "substrate_plane_bio_adapter_template",
             "errors": errors
-        });
+        }), "emit", "error");
     }
 
     let adapter_id = clean(
@@ -325,7 +334,5 @@ fn run_bio_adapter_template(root: &Path, parsed: &crate::ParsedArgs, strict: boo
             }
         ]
     });
-    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
-    out
+    attach_execution_receipt(out, "emit", "success")
 }
-

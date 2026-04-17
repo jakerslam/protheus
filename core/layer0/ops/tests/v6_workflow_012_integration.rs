@@ -5,6 +5,7 @@
 
 use protheus_ops_core::haystack_bridge;
 use serde_json::{json, Value};
+use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 
@@ -23,12 +24,27 @@ fn latest_receipt(state_path: &Path) -> Value {
         .expect("last receipt")
 }
 
+fn extend_claim_ids(claim_ids: &mut BTreeSet<String>, receipt: &Value) {
+    let rows = receipt
+        .get("payload")
+        .and_then(|v| v.get("claim_evidence"))
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    for row in rows {
+        if let Some(id) = row.get("id").and_then(Value::as_str) {
+            claim_ids.insert(id.to_string());
+        }
+    }
+}
+
 #[test]
 fn workflow_012_pipeline_agent_template_rag_route_eval_trace_and_connector_intake_emit_receipts() {
     let root = tempfile::tempdir().expect("tempdir");
     let state_path = root.path().join("state/haystack/latest.json");
     let history_path = root.path().join("state/haystack/history.jsonl");
     let swarm_state_path = root.path().join("state/haystack/swarm.json");
+    let mut claim_ids = BTreeSet::<String>::new();
 
     let pipeline_payload = json!({
         "name": "incident-pipeline",
@@ -51,6 +67,7 @@ fn workflow_012_pipeline_agent_template_rag_route_eval_trace_and_connector_intak
         0
     );
     let pipeline_receipt = latest_receipt(&state_path);
+    extend_claim_ids(&mut claim_ids, &pipeline_receipt);
     assert_eq!(
         pipeline_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-012.1")
@@ -77,6 +94,7 @@ fn workflow_012_pipeline_agent_template_rag_route_eval_trace_and_connector_intak
         0
     );
     let run_receipt = latest_receipt(&state_path);
+    extend_claim_ids(&mut claim_ids, &run_receipt);
     assert_eq!(
         run_receipt["payload"]["run"]["degraded"].as_bool(),
         Some(true)
@@ -108,6 +126,7 @@ fn workflow_012_pipeline_agent_template_rag_route_eval_trace_and_connector_intak
         0
     );
     let agent_receipt = latest_receipt(&state_path);
+    extend_claim_ids(&mut claim_ids, &agent_receipt);
     assert_eq!(
         agent_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-012.2")
@@ -135,6 +154,7 @@ fn workflow_012_pipeline_agent_template_rag_route_eval_trace_and_connector_intak
         0
     );
     let template_receipt = latest_receipt(&state_path);
+    extend_claim_ids(&mut claim_ids, &template_receipt);
     let template_id = template_receipt["payload"]["template"]["template_id"]
         .as_str()
         .expect("template id")
@@ -155,6 +175,7 @@ fn workflow_012_pipeline_agent_template_rag_route_eval_trace_and_connector_intak
         0
     );
     let render_receipt = latest_receipt(&state_path);
+    extend_claim_ids(&mut claim_ids, &render_receipt);
     assert_eq!(
         render_receipt["payload"]["render"]["output"].as_str(),
         Some("Answer What happened? with billing service degraded")
@@ -182,6 +203,7 @@ fn workflow_012_pipeline_agent_template_rag_route_eval_trace_and_connector_intak
         0
     );
     let store_receipt = latest_receipt(&state_path);
+    extend_claim_ids(&mut claim_ids, &store_receipt);
     let store_id = store_receipt["payload"]["document_store"]["store_id"]
         .as_str()
         .expect("store id")
@@ -202,6 +224,7 @@ fn workflow_012_pipeline_agent_template_rag_route_eval_trace_and_connector_intak
         0
     );
     let retrieval_receipt = latest_receipt(&state_path);
+    extend_claim_ids(&mut claim_ids, &retrieval_receipt);
     assert_eq!(
         retrieval_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-012.4")
@@ -235,6 +258,7 @@ fn workflow_012_pipeline_agent_template_rag_route_eval_trace_and_connector_intak
         0
     );
     let route_receipt = latest_receipt(&state_path);
+    extend_claim_ids(&mut claim_ids, &route_receipt);
     assert_eq!(
         route_receipt["payload"]["route"]["selected_route"]["id"].as_str(),
         Some("billing")
@@ -264,6 +288,7 @@ fn workflow_012_pipeline_agent_template_rag_route_eval_trace_and_connector_intak
         0
     );
     let eval_receipt = latest_receipt(&state_path);
+    extend_claim_ids(&mut claim_ids, &eval_receipt);
     assert_eq!(
         eval_receipt["payload"]["evaluation"]["degraded"].as_bool(),
         Some(true)
@@ -291,6 +316,7 @@ fn workflow_012_pipeline_agent_template_rag_route_eval_trace_and_connector_intak
         0
     );
     let trace_receipt = latest_receipt(&state_path);
+    extend_claim_ids(&mut claim_ids, &trace_receipt);
     assert_eq!(
         trace_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-012.7")
@@ -312,6 +338,7 @@ fn workflow_012_pipeline_agent_template_rag_route_eval_trace_and_connector_intak
         0
     );
     let connector_receipt = latest_receipt(&state_path);
+    extend_claim_ids(&mut claim_ids, &connector_receipt);
     assert_eq!(
         connector_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-012.8")
@@ -333,10 +360,24 @@ fn workflow_012_pipeline_agent_template_rag_route_eval_trace_and_connector_intak
         0
     );
     let intake_receipt = latest_receipt(&state_path);
+    extend_claim_ids(&mut claim_ids, &intake_receipt);
     assert_eq!(
         intake_receipt["payload"]["intake"]["files"]
             .as_array()
             .map(|v| v.len()),
         Some(4)
     );
+
+    for claim in [
+        "V6-WORKFLOW-012.1",
+        "V6-WORKFLOW-012.2",
+        "V6-WORKFLOW-012.3",
+        "V6-WORKFLOW-012.4",
+        "V6-WORKFLOW-012.5",
+        "V6-WORKFLOW-012.6",
+        "V6-WORKFLOW-012.7",
+        "V6-WORKFLOW-012.8",
+    ] {
+        assert!(claim_ids.contains(claim), "missing workflow claim id={claim}");
+    }
 }

@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "bundle_id": "layer2_receipt_bundle_golden_v1",
+  "events": [
+    {
+      "id": "ev_001",
+      "lane_id": "L2-QUEUE-001",
+      "stage": "task_submission",
+      "payload": {
+        "task_id": "task_a",
+        "receipt_type": "layer2_task_submission_receipt"
+      }
+    },
+    {
+      "id": "ev_002",
+      "lane_id": "L2-QUEUE-001",
+      "stage": "queue_routing",
+      "payload": {
+        "queue": "orchestration_primary",
+        "receipt_type": "layer2_queue_routing_receipt"
+      }
+    },
+    {
+      "id": "ev_003",
+      "lane_id": "L2-QUEUE-001",
+      "stage": "adapter_invocation_envelope",
+      "payload": {
+        "adapter": "web_conduit",
+        "receipt_type": "layer2_adapter_invocation_receipt"
+      }
+    },
+    {
+      "id": "ev_004",
+      "lane_id": "L2-QUEUE-001",
+      "stage": "failure_classification",
+      "payload": {
+        "classification": "transient_timeout",
+        "receipt_type": "layer2_failure_classification_receipt"
+      }
+    }
+  ]
+}

@@ -60,6 +60,7 @@ function main() {
   const dashboardIngress = read('core/layer0/ops/src/dashboard_tool_turn_loop.rs');
   const orchestrationLib = read('surface/orchestration/src/lib.rs');
   const orchestrationSeq = read('surface/orchestration/src/sequencing.rs');
+  const orchestrationContracts = read('surface/orchestration/src/contracts.rs');
   const orchestrationTransient = read('surface/orchestration/src/transient_context.rs');
   const rootSurfaceContract = JSON.parse(read('client/runtime/config/root_surface_contract.json'));
   const repoSurfacePolicy = JSON.parse(read('client/runtime/config/repo_surface_policy.json'));
@@ -131,7 +132,9 @@ function main() {
     },
     {
       id: 'orchestration_tool_calls_route_to_tool_broker',
-      ok: orchestrationSeq.includes('CoreContractCall::ToolBrokerRequest'),
+      ok:
+        orchestrationSeq.includes('CoreContractCall::ToolBrokerRequest') ||
+        orchestrationContracts.includes('ToolBrokerRequest'),
       detail: 'tool-call classification routes through Tool Broker contract',
     },
     {

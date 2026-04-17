@@ -108,6 +108,18 @@ fn build_matrix_payload(args: &HashMap<String, String>) -> Value {
         }));
     }
 
+    if tag_rows.is_empty() {
+        return json!({
+            "ok": false,
+            "type": "tag_memory_matrix",
+            "reason": "empty_tag_projection",
+            "index_path": index_path.to_string_lossy().to_string(),
+            "matrix_path": json_path.to_string_lossy().to_string(),
+            "markdown_path": md_path.to_string_lossy().to_string(),
+            "generated_at": now_iso()
+        });
+    }
+
     let payload = json!({
         "ok": true,
         "type": "tag_memory_matrix",
@@ -126,9 +138,29 @@ fn build_matrix_payload(args: &HashMap<String, String>) -> Value {
     if apply {
         write_json(&json_path, &payload);
         if let Some(parent) = md_path.parent() {
-            let _ = fs::create_dir_all(parent);
+            if let Err(err) = fs::create_dir_all(parent) {
+                return json!({
+                    "ok": false,
+                    "type": "tag_memory_matrix",
+                    "reason": format!("markdown_parent_create_failed:{err}"),
+                    "index_path": index_path.to_string_lossy().to_string(),
+                    "matrix_path": json_path.to_string_lossy().to_string(),
+                    "markdown_path": md_path.to_string_lossy().to_string(),
+                    "generated_at": now_iso()
+                });
+            }
         }
-        let _ = fs::write(&md_path, format!("{}\n", matrix_markdown(&payload)));
+        if let Err(err) = fs::write(&md_path, format!("{}\n", matrix_markdown(&payload))) {
+            return json!({
+                "ok": false,
+                "type": "tag_memory_matrix",
+                "reason": format!("markdown_write_failed:{err}"),
+                "index_path": index_path.to_string_lossy().to_string(),
+                "matrix_path": json_path.to_string_lossy().to_string(),
+                "markdown_path": md_path.to_string_lossy().to_string(),
+                "generated_at": now_iso()
+            });
+        }
     }
 
     payload
@@ -265,4 +297,3 @@ fn memory_auto_recall_paths(
         resolve_path(root, &latest_path),
     )
 }
-

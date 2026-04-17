@@ -5,6 +5,7 @@
     "169.254.169.254"
   ],
   "local_first_default": true,
+  "relaxed_test_mode": false,
   "require_explicit_provider_consent": true,
   "telemetry_blocklist_domains": [
     "segment.io",
@@ -16,6 +17,6 @@
   ],
   "telemetry_blocklist_enabled": true,
   "type": "infring_provider_network_policy",
-  "updated_at": "2026-04-02T17:53:28.924Z",
+  "updated_at": "2026-04-16T21:37:00.962Z",
   "version": "v1"
 }

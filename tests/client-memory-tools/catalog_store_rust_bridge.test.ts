@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const ts = require('typescript');
+const ts = require('typescript');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 if (!require.extensions['.ts']) {
   require.extensions['.ts'] = function compileTs(module, filename) {
@@ -38,4 +38,4 @@ const next = mod.mutateCatalog(null, (current) => {
   return current;
 });
 assert.equal(next.eyes.some((row) => row.id === 'test_eye'), true);
-console.log(JSON.stringify({ ok: true, type: 'catalog_store_rust_bridge_test' }));
+assertNoPlaceholderOrPromptLeak({ state, next }, 'catalog_store_rust_bridge_test');\nassertStableToolingEnvelope(next, 'catalog_store_rust_bridge_test');\nconsole.log(JSON.stringify({ ok: true, type: 'catalog_store_rust_bridge_test' }));

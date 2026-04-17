@@ -6,6 +6,7 @@ const USAGE: &[&str] = &[
     "Usage:",
     "  protheus-ops dynamic-burn-budget-oracle run [--policy=<path>] [--mock-file=<path>]",
     "  protheus-ops dynamic-burn-budget-oracle status [--policy=<path>]",
+    "  Optional telemetry flags: --trace-id=<id> --call-id=<id> --request-id=<id> --source=<tag>",
 ];
 
 pub fn run(root: &Path, argv: &[String]) -> i32 {
@@ -17,7 +18,17 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             lane_type: "dynamic_burn_budget_oracle",
             replacement: "protheus-ops dynamic-burn-budget-oracle",
             usage: USAGE,
-            passthrough_flags: &["apply", "strict", "policy", "mock-file", "mock-json"],
+            passthrough_flags: &[
+                "apply",
+                "strict",
+                "policy",
+                "mock-file",
+                "mock-json",
+                "trace-id",
+                "call-id",
+                "request-id",
+                "source",
+            ],
         },
     )
 }

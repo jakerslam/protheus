@@ -142,6 +142,26 @@ fn run_terminate_role(
     let released_task_count = before_tasks.saturating_sub(tasks.len());
     team_state["tasks"] = Value::Array(tasks.clone());
 
+    let mut pending_queue = team_state
+        .get("pending_queue")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let before_pending_queue = pending_queue.len();
+    pending_queue.retain(|row| {
+        if shadow.is_empty() {
+            return true;
+        }
+        let assigned = ["shadow", "agent", "assignee", "owner", "run_owner"]
+            .iter()
+            .any(|key| row.get(key).and_then(Value::as_str) == Some(shadow.as_str()));
+        !assigned
+    });
+    let cleared_pending_queue_count = before_pending_queue.saturating_sub(pending_queue.len());
+    if before_pending_queue > 0 || cleared_pending_queue_count > 0 {
+        team_state["pending_queue"] = Value::Array(pending_queue.clone());
+    }
+
     let mut handoffs = team_state
         .get("handoffs")
         .and_then(Value::as_array)
@@ -157,6 +177,7 @@ fn run_terminate_role(
             "terminated_at": crate::now_iso(),
             "removed_count": removed_count,
             "released_task_count": released_task_count,
+            "cleared_pending_queue_count": cleared_pending_queue_count,
             "orphaned_director_gc": orphaned_director_gc,
             "termination_hash": sha256_hex_str(&format!("{}:{}:{}:{}", team, shadow, action_clean, reason))
         }));
@@ -179,6 +200,7 @@ fn run_terminate_role(
                 "reason": reason,
                 "removed_count": removed_count,
                 "released_task_count": released_task_count,
+                "cleared_pending_queue_count": cleared_pending_queue_count,
                 "orphaned_director_gc": orphaned_director_gc,
                 "ts": crate::now_iso()
             }),
@@ -197,9 +219,12 @@ fn run_terminate_role(
         "removed_count": removed_count,
         "orphaned_director_gc": orphaned_director_gc,
         "released_task_count": released_task_count,
+        "cleared_pending_queue_count": cleared_pending_queue_count,
+        "tool_stream_reset": removed_count > 0,
         "team_state": {
             "agent_count": agents.len(),
             "task_count": tasks.len(),
+            "pending_queue_count": pending_queue.len(),
             "handoff_count": handoffs.len(),
             "topology": team_state.get("topology").cloned().unwrap_or_else(|| json!({}))
         },
@@ -216,6 +241,7 @@ fn run_terminate_role(
                     "shadow": shadow,
                     "removed_count": removed_count,
                     "released_task_count": released_task_count,
+                    "cleared_pending_queue_count": cleared_pending_queue_count,
                     "orphaned_director_gc": orphaned_director_gc
                 }
             },
@@ -242,4 +268,3 @@ fn run_terminate_role(
     out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
-

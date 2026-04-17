@@ -7,4 +7,5 @@ include_parts!(
     "dashboard_ui_parts/060-action-dispatch.rs",
     "dashboard_ui_parts/070-http-and-receipts.rs",
     "dashboard_ui_parts/900-tests.rs",
+    "dashboard_ui_parts/910-app-chat-regressions.rs",
 );

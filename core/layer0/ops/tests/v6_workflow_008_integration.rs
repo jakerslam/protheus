@@ -23,6 +23,13 @@ fn latest_receipt(state_path: &Path) -> Value {
         .expect("last receipt")
 }
 
+fn assert_tooling_receipt_payload(receipt: &Value) {
+    assert!(
+        receipt.get("payload").and_then(Value::as_object).is_some(),
+        "receipt payload must be an object"
+    );
+}
+
 #[test]
 fn workflow_008_service_plugin_planner_and_connectors_emit_receipts() {
     let root = tempfile::tempdir().expect("tempdir");
@@ -55,6 +62,7 @@ fn workflow_008_service_plugin_planner_and_connectors_emit_receipts() {
         .and_then(|rows| rows.keys().next().cloned())
         .expect("service id");
     let service_receipt = latest_receipt(&state_path);
+    assert_tooling_receipt_payload(&service_receipt);
     assert_eq!(
         service_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-008.1")
@@ -104,6 +112,7 @@ fn workflow_008_service_plugin_planner_and_connectors_emit_receipts() {
         0
     );
     let plugin_receipt = latest_receipt(&state_path);
+    assert_tooling_receipt_payload(&plugin_receipt);
     assert!(plugin_receipt["payload"]["invocation"]["rendered"]
         .as_str()
         .unwrap_or_default()
@@ -233,6 +242,7 @@ fn workflow_008_service_plugin_planner_and_connectors_emit_receipts() {
         0
     );
     let route_receipt = latest_receipt(&state_path);
+    assert_tooling_receipt_payload(&route_receipt);
     assert_eq!(
         route_receipt["payload"]["route"]["modality"].as_str(),
         Some("vision")
@@ -288,6 +298,7 @@ fn workflow_008_collaboration_structured_output_enterprise_and_dotnet_are_receip
         0
     );
     let collaboration_receipt = latest_receipt(&state_path);
+    assert_tooling_receipt_payload(&collaboration_receipt);
     assert_eq!(
         collaboration_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-008.3")
@@ -404,6 +415,7 @@ fn workflow_008_collaboration_structured_output_enterprise_and_dotnet_are_receip
         0
     );
     let dotnet_receipt = latest_receipt(&state_path);
+    assert_tooling_receipt_payload(&dotnet_receipt);
     assert_eq!(
         dotnet_receipt["payload"]["invocation"]["mode"].as_str(),
         Some("dry_run")

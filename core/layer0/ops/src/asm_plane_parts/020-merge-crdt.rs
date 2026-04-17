@@ -1,3 +1,37 @@
+fn normalize_crdt_node(raw: &str) -> String {
+    let mut out = String::with_capacity(raw.len());
+    let mut prev_sep = false;
+    for ch in raw.trim().chars() {
+        let next = if ch.is_ascii_alphanumeric() || matches!(ch, '_' | '-' | ':') {
+            ch.to_ascii_lowercase()
+        } else {
+            '_'
+        };
+        if next == '_' {
+            if prev_sep {
+                continue;
+            }
+            prev_sep = true;
+        } else {
+            prev_sep = false;
+        }
+        out.push(next);
+    }
+    out.trim_matches('_').to_string()
+}
+
+fn normalized_clock(value: &Value) -> i64 {
+    value
+        .get("clock")
+        .and_then(Value::as_i64)
+        .unwrap_or(0)
+        .max(0)
+}
+
+fn crdt_entry_digest(value: &Value) -> String {
+    sha256_hex_str(&value.to_string())
+}
+
 fn merge_crdt(
     left: &Map<String, Value>,
     right: &Map<String, Value>,
@@ -11,26 +45,33 @@ fn merge_crdt(
     for key in keys {
         let l = left.get(&key).cloned().unwrap_or(Value::Null);
         let r = right.get(&key).cloned().unwrap_or(Value::Null);
-        let l_clock = l.get("clock").and_then(Value::as_i64).unwrap_or(0);
-        let r_clock = r.get("clock").and_then(Value::as_i64).unwrap_or(0);
-        let l_node = l
-            .get("node")
-            .and_then(Value::as_str)
-            .unwrap_or_default()
-            .to_string();
-        let r_node = r
-            .get("node")
-            .and_then(Value::as_str)
-            .unwrap_or_default()
-            .to_string();
-        let pick_right = r_clock > l_clock || (r_clock == l_clock && r_node > l_node);
+        let l_clock = normalized_clock(&l);
+        let r_clock = normalized_clock(&r);
+        let l_node = normalize_crdt_node(l.get("node").and_then(Value::as_str).unwrap_or_default());
+        let r_node = normalize_crdt_node(r.get("node").and_then(Value::as_str).unwrap_or_default());
+        let l_digest = crdt_entry_digest(&l);
+        let r_digest = crdt_entry_digest(&r);
+        let (pick_right, winner_reason) = if r_clock != l_clock {
+            (r_clock > l_clock, "clock")
+        } else if r_node != l_node {
+            (r_node > l_node, "node")
+        } else {
+            (r_digest > l_digest, "digest")
+        };
         let winner = if pick_right { r.clone() } else { l.clone() };
         if l != r {
             provenance.push(json!({
                 "key": key,
+                "left_clock": l_clock,
+                "right_clock": r_clock,
+                "left_node": l_node,
+                "right_node": r_node,
+                "left_digest": l_digest,
+                "right_digest": r_digest,
                 "left": l,
                 "right": r,
-                "winner": if pick_right { "right" } else { "left" }
+                "winner": if pick_right { "right" } else { "left" },
+                "winner_reason": winner_reason
             }));
         }
         merged.insert(key, winner);
@@ -445,4 +486,3 @@ fn run_fastpath(root: &Path, parsed: &ParsedArgs, strict: bool) -> Value {
         ]
     })
 }
-

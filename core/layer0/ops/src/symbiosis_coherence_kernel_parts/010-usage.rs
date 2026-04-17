@@ -185,7 +185,14 @@ fn resolve_path(root: &Path, raw: Option<&Value>, fallback_rel: &str) -> PathBuf
     } else {
         candidate
     };
-    let as_path = PathBuf::from(&chosen);
+    let normalized = chosen.replace('\\', "/");
+    let as_path = PathBuf::from(&normalized);
+    if as_path
+        .components()
+        .any(|part| matches!(part, std::path::Component::ParentDir))
+    {
+        return root.join(fallback_rel);
+    }
     if as_path.is_absolute() {
         as_path
     } else {
@@ -426,4 +433,3 @@ struct Component {
     detail: Value,
     source_path: String,
 }
-

@@ -191,6 +191,10 @@ pub(crate) fn default_reflex_state() -> Value {
             "scale_down_idle_seconds": 60,
             "routine_ttl_days": 14,
         },
+        "web_tooling": {
+            "require_ready": false,
+            "last_health_receipt": Value::Null
+        },
         "routines": [],
         "metrics": {
             "total_created": 0,

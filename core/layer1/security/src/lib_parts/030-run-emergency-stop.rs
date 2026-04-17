@@ -39,6 +39,16 @@ fn emergency_stop_load_state(repo_root: &Path) -> Value {
 }
 
 pub fn run_emergency_stop(repo_root: &Path, argv: &[String]) -> (Value, i32) {
+    let started = std::time::Instant::now();
+    let execution_receipt = |status: &str, stage: &str, error: Option<&str>| {
+        json!({
+            "status": status,
+            "stage": stage,
+            "duration_ms": started.elapsed().as_millis(),
+            "ts": now_iso(),
+            "error": error.map(|v| clean(v, 220))
+        })
+    };
     let parsed = parse_args(argv);
     let cmd = parsed
         .positional
@@ -53,7 +63,8 @@ pub fn run_emergency_stop(repo_root: &Path, argv: &[String]) -> (Value, i32) {
                 "ok": true,
                 "type": "emergency_stop_status",
                 "ts": now_iso(),
-                "state": emergency_stop_load_state(repo_root)
+                "state": emergency_stop_load_state(repo_root),
+                "execution_receipt": execution_receipt("ok", "status", None)
             }),
             0,
         ),
@@ -66,8 +77,10 @@ pub fn run_emergency_stop(repo_root: &Path, argv: &[String]) -> (Value, i32) {
                 return (
                     json!({
                         "ok": false,
+                        "type": "emergency_stop_engage",
                         "error": "approval_note_too_short",
-                        "min_len": 10
+                        "min_len": 10,
+                        "execution_receipt": execution_receipt("error", "validate_approval_note", Some("approval_note_too_short"))
                     }),
                     2,
                 );
@@ -95,7 +108,9 @@ pub fn run_emergency_stop(repo_root: &Path, argv: &[String]) -> (Value, i32) {
                 return (
                     json!({
                         "ok": false,
-                        "error": clean(err, 220)
+                        "type": "emergency_stop_engage",
+                        "error": clean(err, 220),
+                        "execution_receipt": execution_receipt("error", "persist_engage_state", Some(err))
                     }),
                     1,
                 );
@@ -103,10 +118,12 @@ pub fn run_emergency_stop(repo_root: &Path, argv: &[String]) -> (Value, i32) {
             (
                 json!({
                     "ok": true,
+                    "type": "emergency_stop_engage",
                     "result": "engaged",
                     "ts": now_iso(),
                     "valid_scopes": emergency_stop_valid_scopes(),
-                    "state": next
+                    "state": next,
+                    "execution_receipt": execution_receipt("ok", "engage", None)
                 }),
                 0,
             )
@@ -120,8 +137,10 @@ pub fn run_emergency_stop(repo_root: &Path, argv: &[String]) -> (Value, i32) {
                 return (
                     json!({
                         "ok": false,
+                        "type": "emergency_stop_release",
                         "error": "approval_note_too_short",
-                        "min_len": 10
+                        "min_len": 10,
+                        "execution_receipt": execution_receipt("error", "validate_approval_note", Some("approval_note_too_short"))
                     }),
                     2,
                 );
@@ -148,7 +167,9 @@ pub fn run_emergency_stop(repo_root: &Path, argv: &[String]) -> (Value, i32) {
                 return (
                     json!({
                         "ok": false,
-                        "error": clean(err, 220)
+                        "type": "emergency_stop_release",
+                        "error": clean(err, 220),
+                        "execution_receipt": execution_receipt("error", "persist_release_state", Some(err))
                     }),
                     1,
                 );
@@ -156,9 +177,11 @@ pub fn run_emergency_stop(repo_root: &Path, argv: &[String]) -> (Value, i32) {
             (
                 json!({
                     "ok": true,
+                    "type": "emergency_stop_release",
                     "result": "released",
                     "ts": now_iso(),
-                    "state": next
+                    "state": next,
+                    "execution_receipt": execution_receipt("ok", "release", None)
                 }),
                 0,
             )
@@ -166,12 +189,14 @@ pub fn run_emergency_stop(repo_root: &Path, argv: &[String]) -> (Value, i32) {
         _ => (
             json!({
                 "ok": false,
+                "type": "emergency_stop_error",
                 "error": "unknown_command",
                 "usage": [
                     "emergency-stop status",
                     "emergency-stop engage --scope=<all|autonomy|routing|actuation|spine[,..]> --approval-note=<text>",
                     "emergency-stop release --approval-note=<text>"
-                ]
+                ],
+                "execution_receipt": execution_receipt("error", "dispatch", Some("unknown_command"))
             }),
             2,
         ),
@@ -349,4 +374,3 @@ fn lease_unpack_token(token: &str) -> Result<(String, String, Value), String> {
     }
     Ok((body, sig, payload))
 }
-

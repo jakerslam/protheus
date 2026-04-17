@@ -82,15 +82,30 @@ fn build_receipt_with_ts(lane_id: &str, ts: &str) -> Value {
     })
 }
 
+fn attach_execution_receipt(mut out: Value, command: &str, status: &str) -> Value {
+    out["execution_receipt"] = json!({
+        "lane": "legacy_retired_lane",
+        "command": command,
+        "status": status,
+        "source": "OPENCLAW-TOOLING-WEB-103",
+        "tool_runtime_class": "receipt_wrapped"
+    });
+    out
+}
+
 fn cli_error_receipt(argv: &[String], err: &str, code: i32) -> Value {
-    let mut out = json!({
+    let mut out = attach_execution_receipt(
+        json!({
         "ok": false,
         "type": "legacy_retired_lane_cli_error",
         "ts": now_iso(),
         "argv": argv,
         "error": err,
         "exit_code": code
-    });
+        }),
+        "invalid",
+        "error",
+    );
     out["receipt_hash"] = Value::String(receipt_hash(&out));
     out
 }
@@ -103,12 +118,16 @@ fn run_verify(lane_id: &str) -> Value {
             .and_then(Value::as_str)
             .map(|v| v == lane_id)
             .unwrap_or(false);
-    let mut out = json!({
-        "ok": ok,
-        "type": "legacy_retired_lane_verify",
-        "lane_id": lane_id,
-        "receipt": row
-    });
+    let mut out = attach_execution_receipt(
+        json!({
+            "ok": ok,
+            "type": "legacy_retired_lane_verify",
+            "lane_id": lane_id,
+            "receipt": row
+        }),
+        "verify",
+        if ok { "success" } else { "error" },
+    );
     out["receipt_hash"] = Value::String(receipt_hash(&out));
     out
 }
@@ -138,7 +157,8 @@ pub fn run(_root: &Path, argv: &[String]) -> i32 {
 
     let out = match cmd.as_str() {
         "build" | "run" => {
-            let mut row = build_receipt_with_ts(&lane_id, &now_iso());
+            let mut row =
+                attach_execution_receipt(build_receipt_with_ts(&lane_id, &now_iso()), "build", "success");
             row["receipt_hash"] = Value::String(receipt_hash(&row));
             row
         }

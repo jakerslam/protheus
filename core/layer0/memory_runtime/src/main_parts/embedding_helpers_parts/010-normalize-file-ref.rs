@@ -6,9 +6,21 @@ fn normalize_file_ref(v: &str) -> String {
     if raw.is_empty() {
         return String::new();
     }
+    if raw.chars().any(char::is_control) {
+        return String::new();
+    }
     raw = raw.replace('\\', "/");
     while raw.starts_with("./") {
         raw = raw[2..].to_string();
+    }
+    let lowered = raw.to_ascii_lowercase();
+    if lowered.starts_with("http:")
+        || lowered.starts_with("https:")
+        || lowered.starts_with("javascript:")
+        || lowered.starts_with("data:")
+        || lowered.starts_with("file:")
+    {
+        return String::new();
     }
     if raw.starts_with("client/memory/") {
         return raw;

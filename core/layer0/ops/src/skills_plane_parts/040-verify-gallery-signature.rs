@@ -46,6 +46,16 @@ fn verify_gallery_signature(
     Ok(())
 }
 
+fn gallery_package_rel_safe(raw: &str) -> bool {
+    let normalized = clean(raw, 260).replace('\\', "/");
+    if normalized.is_empty() || normalized.starts_with('/') || normalized.contains('\0') {
+        return false;
+    }
+    !normalized
+        .split('/')
+        .any(|segment| segment.is_empty() || segment == "." || segment == "..")
+}
+
 fn run_gallery(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
     let contract = load_json_or(
         root,
@@ -280,6 +290,14 @@ fn run_gallery(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
                     "strict": strict,
                     "type": "skills_plane_gallery",
                     "errors": ["gallery_package_path_missing"]
+                });
+            }
+            if strict && !gallery_package_rel_safe(&package_rel) {
+                return json!({
+                    "ok": false,
+                    "strict": strict,
+                    "type": "skills_plane_gallery",
+                    "errors": ["gallery_package_path_invalid"]
                 });
             }
             let package_path = resolve_rel_or_abs(root, &package_rel);

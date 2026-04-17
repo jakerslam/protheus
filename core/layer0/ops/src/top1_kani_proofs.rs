@@ -65,6 +65,32 @@ fn prove_receipt_hash_is_invariant_to_object_key_order() {
 }
 
 #[kani::proof]
+fn prove_receipt_hash_is_invariant_for_execution_receipt_key_order() {
+    let left = json!({
+        "ok": true,
+        "execution_receipt": {
+            "lane": "ops",
+            "command": "run",
+            "status": "success",
+            "source": "OPENCLAW-TOOLING-WEB-104"
+        }
+    });
+    let mut exec = Map::new();
+    exec.insert("source".to_string(), json!("OPENCLAW-TOOLING-WEB-104"));
+    exec.insert("status".to_string(), json!("success"));
+    exec.insert("command".to_string(), json!("run"));
+    exec.insert("lane".to_string(), json!("ops"));
+    let mut reordered = Map::new();
+    reordered.insert("execution_receipt".to_string(), Value::Object(exec));
+    reordered.insert("ok".to_string(), json!(true));
+    let right = Value::Object(reordered);
+    assert_eq!(
+        deterministic_receipt_hash(&left),
+        deterministic_receipt_hash(&right)
+    );
+}
+
+#[kani::proof]
 fn prove_clean_respects_max_len_bound() {
     let raw = "  bounded text fixture  ";
     let max_len = 4usize;

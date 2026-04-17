@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
-import { execSync } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { cleanText, parseStrictOutArgs, readFlag } from '../../lib/cli.ts';
+import { currentRevision, trackedFiles } from '../../lib/git.ts';
+import { emitStructuredResult, writeTextArtifact } from '../../lib/result.ts';
 
 const DEFAULTS = {
   strict: false,
@@ -11,65 +13,38 @@ const DEFAULTS = {
   outMarkdown: 'local/workspace/reports/RUST_CORE_FILE_SIZE_GATE_CURRENT.md',
 };
 
-function parseArgs(argv) {
-  const out = { ...DEFAULTS };
-  for (const raw of argv) {
-    const arg = String(raw || '').trim();
-    if (!arg) continue;
-    if (arg === '--strict' || arg === '--strict=1') {
-      out.strict = true;
-      continue;
-    }
-    if (arg.startsWith('--strict=')) {
-      const value = arg.slice('--strict='.length).toLowerCase();
-      out.strict = ['1', 'true', 'yes', 'on'].includes(value);
-      continue;
-    }
-    if (arg.startsWith('--policy=')) {
-      out.policyPath = arg.slice('--policy='.length).trim() || DEFAULTS.policyPath;
-      continue;
-    }
-    if (arg.startsWith('--out-json=')) {
-      out.outJson = arg.slice('--out-json='.length).trim() || DEFAULTS.outJson;
-      continue;
-    }
-    if (arg.startsWith('--out-markdown=')) {
-      out.outMarkdown =
-        arg.slice('--out-markdown='.length).trim() || DEFAULTS.outMarkdown;
-      continue;
-    }
-  }
-  return out;
+function parseArgs(argv: string[]) {
+  const common = parseStrictOutArgs(argv, DEFAULTS);
+  return {
+    strict: common.strict,
+    policyPath: cleanText(readFlag(argv, 'policy') || DEFAULTS.policyPath, 260),
+    outJson: cleanText(readFlag(argv, 'out-json') || DEFAULTS.outJson, 400),
+    outMarkdown: cleanText(readFlag(argv, 'out-markdown') || DEFAULTS.outMarkdown, 400),
+  };
 }
 
-function ensureParent(path) {
-  mkdirSync(dirname(resolve(path)), { recursive: true });
-}
-
-function readJson(path) {
-  return JSON.parse(readFileSync(resolve(path), 'utf8'));
+function readJson(filePath: string) {
+  return JSON.parse(readFileSync(resolve(filePath), 'utf8'));
 }
 
 function listRustCoreFiles() {
-  const output = execSync("rg --files core -g '*.rs'", { encoding: 'utf8' });
-  return output
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .filter((line) => !isTestPath(line))
+  return trackedFiles()
+    .filter((file) => file.startsWith('core/'))
+    .filter((file) => file.endsWith('.rs'))
+    .filter((file) => !isTestPath(file))
     .sort((a, b) => a.localeCompare(b));
 }
 
-function isTestPath(path) {
+function isTestPath(filePath: string) {
   return (
-    /(^|\/)tests\//.test(path) ||
-    /\.test\.(t|j)sx?$/.test(path) ||
-    /(^|\/)__tests__(\/|$)/.test(path)
+    /(^|\/)tests\//.test(filePath) ||
+    /\.test\.(t|j)sx?$/.test(filePath) ||
+    /(^|\/)__tests__(\/|$)/.test(filePath)
   );
 }
 
-function lineCount(path) {
-  const content = readFileSync(resolve(path), 'utf8');
+function lineCount(filePath: string) {
+  const content = readFileSync(resolve(filePath), 'utf8');
   return content.split(/\r?\n/).length;
 }
 
@@ -183,6 +158,7 @@ function main() {
     ok: violations.length === 0,
     type: 'rust_core_file_size_gate',
     generated_at: now.toISOString(),
+    revision: currentRevision(),
     policy_path: args.policyPath,
     summary: {
       strict: args.strict,
@@ -193,19 +169,17 @@ function main() {
       exempt_files: exemptCount,
       violations: violations.length,
     },
+    artifact_paths: [args.outJson, args.outMarkdown],
     violations,
     oversize_inventory: oversizeInventory,
   };
 
-  ensureParent(args.outJson);
-  ensureParent(args.outMarkdown);
-  writeFileSync(resolve(args.outJson), `${JSON.stringify(payload, null, 2)}\n`);
-  writeFileSync(resolve(args.outMarkdown), toMarkdown(payload));
-  console.log(JSON.stringify(payload, null, 2));
-
-  if (args.strict && violations.length > 0) {
-    process.exitCode = 1;
-  }
+  writeTextArtifact(args.outMarkdown, toMarkdown(payload));
+  process.exitCode = emitStructuredResult(payload, {
+    outPath: args.outJson,
+    strict: args.strict,
+    ok: violations.length === 0,
+  });
 }
 
 main();

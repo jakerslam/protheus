@@ -95,6 +95,41 @@ fn parse_canvas_input(root: &Path, parsed: &crate::ParsedArgs) -> Result<(String
     Err("canvas_required".to_string())
 }
 
+fn normalize_tooling_capability_token(raw: &str) -> String {
+    clean(raw, 80)
+        .to_ascii_lowercase()
+        .replace('-', "_")
+        .replace(' ', "_")
+}
+
+fn collect_canvas_tooling_capabilities(nodes: &[Value]) -> Vec<String> {
+    let mut capabilities = BTreeSet::<String>::new();
+    for node in nodes {
+        for key in ["tool", "tool_name", "capability", "lane", "provider"] {
+            let token = node
+                .get(key)
+                .and_then(Value::as_str)
+                .map(normalize_tooling_capability_token)
+                .unwrap_or_default();
+            if !token.is_empty() {
+                capabilities.insert(token);
+            }
+        }
+        if let Some(tags) = node.get("tags").and_then(Value::as_array) {
+            for tag in tags {
+                let token = tag
+                    .as_str()
+                    .map(normalize_tooling_capability_token)
+                    .unwrap_or_default();
+                if !token.is_empty() {
+                    capabilities.insert(token);
+                }
+            }
+        }
+    }
+    capabilities.into_iter().collect()
+}
+
 fn run_compile(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
     let contract = load_json_or(
         root,
@@ -312,6 +347,8 @@ fn run_compile(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
             "order_sha256": sha256_hex_str(&execution_order.join(","))
         }),
     ];
+    let tooling_capabilities = collect_canvas_tooling_capabilities(&nodes);
+    let tooling_capability_count = tooling_capabilities.len();
 
     let compiled = json!({
         "version": "v1",
@@ -320,6 +357,7 @@ fn run_compile(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
         "execution_order": execution_order,
         "nodes": compiled_nodes,
         "edges": edges,
+        "tooling_capabilities": tooling_capabilities,
         "stage_receipts": stage_receipts
     });
     let artifact_path = state_root(root).join("compile").join("latest.json");
@@ -341,7 +379,8 @@ fn run_compile(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
                 "evidence": {
                     "node_count": nodes.len(),
                     "edge_count": edges.len(),
-                    "execution_count": execution_order.len()
+                    "execution_count": execution_order.len(),
+                    "tooling_capability_count": tooling_capability_count
                 }
             }
         ]
@@ -349,4 +388,3 @@ fn run_compile(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
     out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
-

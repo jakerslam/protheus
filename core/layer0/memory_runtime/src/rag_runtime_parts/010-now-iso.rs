@@ -88,8 +88,31 @@ fn now_iso() -> String {
         .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_string())
 }
 
+fn strip_invisible_unicode(raw: &str) -> String {
+    raw.chars()
+        .filter(|ch| {
+            !matches!(
+                *ch,
+                '\u{200B}'
+                    | '\u{200C}'
+                    | '\u{200D}'
+                    | '\u{200E}'
+                    | '\u{200F}'
+                    | '\u{202A}'
+                    | '\u{202B}'
+                    | '\u{202C}'
+                    | '\u{202D}'
+                    | '\u{202E}'
+                    | '\u{2060}'
+                    | '\u{FEFF}'
+            )
+        })
+        .collect::<String>()
+}
+
 fn clean_text(raw: &str, max_len: usize) -> String {
-    raw.split_whitespace()
+    strip_invisible_unicode(raw)
+        .split_whitespace()
         .collect::<Vec<&str>>()
         .join(" ")
         .chars()
@@ -453,4 +476,3 @@ fn metacognitive_enabled(root: &Path, args: &HashMap<String, String>) -> bool {
     };
     v.get("enabled").and_then(Value::as_bool).unwrap_or(false)
 }
-

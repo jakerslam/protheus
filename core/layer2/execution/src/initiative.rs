@@ -64,20 +64,60 @@ fn clamp01(v: f64) -> f64 {
     v.clamp(0.0, 1.0)
 }
 
+fn parse_numeric_token(raw: &str) -> Option<f64> {
+    let token = raw.trim();
+    if token.is_empty() {
+        return None;
+    }
+    if let Some(stripped) = token.strip_suffix('%') {
+        return stripped.trim().parse::<f64>().ok().map(|value| clamp01(value / 100.0));
+    }
+    token.parse::<f64>().ok().map(clamp01)
+}
+
 fn numeric_value(v: Option<&Value>) -> Option<f64> {
-    v.and_then(Value::as_f64).map(clamp01)
+    match v {
+        Some(Value::Number(number)) => number.as_f64().map(clamp01),
+        Some(Value::String(text)) => parse_numeric_token(text),
+        Some(Value::Bool(flag)) => Some(if *flag { 1.0 } else { 0.0 }),
+        _ => None,
+    }
+}
+
+fn metric_aliases(key: &str) -> &'static [&'static str] {
+    match key {
+        "criticality" => &["criticality"],
+        "urgency" => &["urgency"],
+        "impact" => &["impact"],
+        "user_relevance" => &["user_relevance", "userRelevance"],
+        "confidence" => &["confidence"],
+        "core_floor" => &["core_floor", "coreFloor"],
+        "score" => &["score", "importance_score", "importanceScore"],
+        "importance_score" => &["importance_score", "importanceScore", "score"],
+        "inherited_score" => &[
+            "inherited_score",
+            "inheritedScore",
+            "importance_score",
+            "importanceScore",
+            "score",
+        ],
+        _ => &[],
+    }
 }
 
 fn metric_from_event(event: &Value, key: &str) -> Option<f64> {
-    if let Some(v) = numeric_value(event.get(key)) {
-        return Some(v);
+    for alias in metric_aliases(key) {
+        if let Some(value) = numeric_value(event.get(*alias)) {
+            return Some(value);
+        }
     }
-    numeric_value(
-        event
-            .get("importance")
-            .and_then(Value::as_object)
-            .and_then(|m| m.get(key)),
-    )
+    let importance = event.get("importance").and_then(Value::as_object)?;
+    for alias in metric_aliases(key) {
+        if let Some(value) = numeric_value(importance.get(*alias)) {
+            return Some(value);
+        }
+    }
+    None
 }
 
 fn score_from_input(input: &ImportanceInput) -> f64 {
@@ -182,16 +222,7 @@ fn importance_from_event(event: &Value, front_jump_threshold: f64) -> Importance
         user_relevance: metric_from_event(event, "user_relevance"),
         confidence: metric_from_event(event, "confidence"),
         core_floor: metric_from_event(event, "core_floor"),
-        inherited_score: numeric_value(event.get("score"))
-            .or_else(|| numeric_value(event.get("importance_score")))
-            .or_else(|| {
-                numeric_value(
-                    event
-                        .get("importance")
-                        .and_then(Value::as_object)
-                        .and_then(|m| m.get("score")),
-                )
-            }),
+        inherited_score: metric_from_event(event, "inherited_score"),
     };
     evaluate_importance(&input, front_jump_threshold)
 }
@@ -209,8 +240,7 @@ pub fn evaluate_importance_json(payload: &str) -> Result<String, String> {
             user_relevance: metric_from_event(event, "user_relevance"),
             confidence: metric_from_event(event, "confidence"),
             core_floor: metric_from_event(event, "core_floor"),
-            inherited_score: metric_from_event(event, "score")
-                .or_else(|| metric_from_event(event, "importance_score")),
+            inherited_score: metric_from_event(event, "inherited_score"),
         }
     } else {
         serde_json::from_value::<ImportanceInput>(parsed.clone())
@@ -376,5 +406,42 @@ mod tests {
             events[0].get("queue_front").and_then(Value::as_bool),
             Some(true)
         );
+    }
+
+    #[test]
+    fn importance_json_accepts_percent_strings_and_aliases() {
+        let payload = r#"{
+          "front_jump_threshold": "70%",
+          "event": {
+            "criticality": "95%",
+            "urgency": "0.8",
+            "impact": 0.7,
+            "userRelevance": "0.9",
+            "confidence": "1",
+            "coreFloor": "0.6"
+          }
+        }"#;
+        let out = evaluate_importance_json(payload).unwrap();
+        let parsed: Value = serde_json::from_str(&out).unwrap();
+        assert_eq!(parsed.get("front_jump").and_then(Value::as_bool), Some(true));
+        assert!(parsed.get("score").and_then(Value::as_f64).unwrap_or(0.0) >= 0.6);
+    }
+
+    #[test]
+    fn attention_priority_accepts_importance_score_alias() {
+        let payload = r#"{
+          "events": [
+            {"summary":"low","importanceScore":"25%"},
+            {"summary":"high","importanceScore":"97%"}
+          ]
+        }"#;
+        let out = prioritize_attention_json(payload).unwrap();
+        let parsed: Value = serde_json::from_str(&out).unwrap();
+        let events = parsed.get("events").and_then(Value::as_array).unwrap();
+        assert_eq!(
+            events[0].get("summary").and_then(Value::as_str),
+            Some("high")
+        );
+        assert_eq!(events[0].get("band").and_then(Value::as_str), Some("p0"));
     }
 }

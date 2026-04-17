@@ -26,6 +26,7 @@ const VERITY_DRIFT_SIMULATION_DEFAULT_MS: i64 = 30_000;
 const ULTIMATE_VECTOR_ID: &str = "ULTIMATE_VECTOR";
 const ULTIMATE_VECTOR_DESCRIPTION: &str =
     "A computational substrate so deeply integrated with reality that it can edit its own governing rules, with truth as the only invariant.";
+const VERITY_EXECUTION_RECEIPT_SOURCE: &str = "OPENCLAW-TOOLING-WEB-102";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct VerityPlaneSignedConfig {

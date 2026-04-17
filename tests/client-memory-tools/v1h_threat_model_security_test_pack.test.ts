@@ -5,6 +5,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 const ROOT = path.resolve(__dirname, '..', '..', '..');
 const SCRIPT = path.join(ROOT, 'systems', 'security', 'threat_model_security_test_pack.js');
 function writeJson(filePath, payload) { fs.mkdirSync(path.dirname(filePath), { recursive: true }); fs.writeFileSync(filePath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8'); }
@@ -20,6 +21,11 @@ function main() {
   const env = { THREAT_MODEL_PACK_ROOT: tmp, THREAT_MODEL_PACK_POLICY_PATH: policyPath };
   let r = run(['run', '--strict=1'], { ...env, CHECK2_OK: '1' }); assert.strictEqual(r.status, 0, r.stderr || 'all checks pass should succeed');
   r = run(['run', '--strict=1'], env); assert.notStrictEqual(r.status, 0, 'failing check should fail strict'); const out = parseJson(r.stdout); assert.ok(out && out.ok === false && out.failed_checks.includes('two'), 'failed check id should be present');
+  assertNoPlaceholderOrPromptLeak(out, 'v1h_threat_model_security_test_pack_test');
+  assertStableToolingEnvelope(
+    { ok: out.ok, status: out.ok ? 'ok' : 'error', failed_checks: out.failed_checks || [] },
+    'v1h_threat_model_security_test_pack_test'
+  );
   console.log('v1h_threat_model_security_test_pack.test.ts: OK');
 }
 try { main(); } catch (err) { console.error(`v1h_threat_model_security_test_pack.test.ts: FAIL: ${err.message}`); process.exit(1); }

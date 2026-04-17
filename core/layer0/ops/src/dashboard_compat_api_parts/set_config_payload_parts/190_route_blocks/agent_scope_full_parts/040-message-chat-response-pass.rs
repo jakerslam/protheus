@@ -265,12 +265,21 @@ fn handle_message_chat_response_pass(
                     ),
                     12_000,
                 );
+                let relevance_retry_messages = active_messages
+                    .iter()
+                    .rev()
+                    .take(7)
+                    .cloned()
+                    .collect::<Vec<_>>()
+                    .into_iter()
+                    .rev()
+                    .collect::<Vec<_>>();
                 let retried = crate::dashboard_provider_runtime::invoke_chat(
                     root,
                     &provider,
                     &model,
                     &strict_relevance_prompt,
-                    &[],
+                    &relevance_retry_messages,
                     message,
                 )
                 .ok()

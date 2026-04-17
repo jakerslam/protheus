@@ -2,14 +2,31 @@ fn score_module_test_pair(module: &ModuleCandidate, test: &TestCandidate, policy
     let module_base = normalize_token(&module.basename, 120);
     let test_stem = normalize_token(&test.stem, 180);
     let mut score = 0i64;
+    let generic_tokens = [
+        "test",
+        "tests",
+        "spec",
+        "integration",
+        "unit",
+        "module",
+        "runner",
+        "parts",
+        "part",
+    ]
+    .into_iter()
+    .collect::<HashSet<_>>();
 
     if test_stem.contains(&module_base) || module_base.contains(&test_stem) {
         score += policy.basename_contains_score;
     }
 
-    let module_tokens = tokenize_name(&module_base, policy.min_token_len);
+    let module_tokens = tokenize_name(&module_base, policy.min_token_len)
+        .into_iter()
+        .filter(|tok| !generic_tokens.contains(tok.as_str()))
+        .collect::<HashSet<_>>();
     let test_tokens = tokenize_name(&test_stem, policy.min_token_len)
         .into_iter()
+        .filter(|tok| !generic_tokens.contains(tok.as_str()))
         .collect::<HashSet<_>>();
     for tok in module_tokens {
         if test_tokens.contains(&tok) {
@@ -19,6 +36,14 @@ fn score_module_test_pair(module: &ModuleCandidate, test: &TestCandidate, policy
 
     let mod_layer = layer_hint(&module.path);
     if !mod_layer.is_empty() && test_stem.contains(&mod_layer) {
+        score += policy.layer_hint_score;
+    }
+    let module_parent = module
+        .path
+        .rsplit_once('/')
+        .map(|(left, _)| left.rsplit('/').next().unwrap_or_default().to_ascii_lowercase())
+        .unwrap_or_default();
+    if !module_parent.is_empty() && test.path.to_ascii_lowercase().contains(&module_parent) {
         score += policy.layer_hint_score;
     }
 

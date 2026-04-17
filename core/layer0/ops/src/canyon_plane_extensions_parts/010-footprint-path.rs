@@ -44,6 +44,9 @@ fn nightly_size_trust_workflow_path(root: &Path) -> PathBuf {
 }
 
 fn shell_which(bin: &str) -> Option<String> {
+    if !is_safe_command_token(bin) {
+        return None;
+    }
     let output = Command::new("sh")
         .arg("-lc")
         .arg(format!("command -v {}", clean(bin, 128)))
@@ -61,6 +64,9 @@ fn shell_which(bin: &str) -> Option<String> {
 }
 
 fn xcrun_find(bin: &str) -> Option<String> {
+    if !is_safe_command_token(bin) {
+        return None;
+    }
     let output = Command::new("xcrun").arg("--find").arg(bin).output().ok()?;
     if !output.status.success() {
         return None;
@@ -74,24 +80,45 @@ fn xcrun_find(bin: &str) -> Option<String> {
 }
 
 fn command_path(bin: &str, env_key: &str) -> String {
+    let fallback = clean(bin, 128);
     std::env::var(env_key)
         .ok()
+        .map(|v| clean(v, 260))
         .filter(|v| !v.trim().is_empty())
+        .filter(|v| is_safe_command_value(v))
         .or_else(|| shell_which(bin))
         .or_else(|| xcrun_find(bin))
-        .unwrap_or_else(|| bin.to_string())
+        .unwrap_or(fallback)
 }
 
 fn command_exists(name: &str) -> bool {
+    if !is_safe_command_value(name) {
+        return false;
+    }
     if name.contains(std::path::MAIN_SEPARATOR) {
         return Path::new(name).exists();
     }
-    Command::new("sh")
-        .arg("-lc")
-        .arg(format!("command -v {} >/dev/null 2>&1", clean(name, 128)))
-        .status()
-        .map(|s| s.success())
-        .unwrap_or(false)
+    shell_which(name).is_some() || xcrun_find(name).is_some()
+}
+
+fn is_safe_command_token(raw: &str) -> bool {
+    let token = raw.trim();
+    !token.is_empty()
+        && token
+            .chars()
+            .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | '.'))
+}
+
+fn is_safe_command_value(raw: &str) -> bool {
+    let value = raw.trim();
+    !value.is_empty()
+        && !value.chars().any(|ch| {
+            ch.is_ascii_control()
+                || matches!(
+                    ch,
+                    ';' | '&' | '|' | '`' | '$' | '<' | '>' | '\n' | '\r' | '\t'
+                )
+        })
 }
 
 fn likely_real_binary(path: &Path) -> bool {

@@ -2,7 +2,7 @@ use serde::Serialize;
 use serde_json::json;
 use std::collections::HashSet;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 #[derive(Debug, Default, Clone, Serialize)]
 pub struct LanguageStats {
@@ -14,11 +14,28 @@ pub struct LanguageStats {
     pub js_bytes: u64,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct RootResolution {
+    pub requested: String,
+    pub resolved: String,
+    pub accepted: bool,
+    pub reason: String,
+}
+
 fn should_skip(path: &Path, ignore: &HashSet<&str>) -> bool {
     path.file_name()
         .and_then(|v| v.to_str())
         .map(|name| ignore.contains(name))
         .unwrap_or(false)
+}
+
+fn has_control_chars(value: &str) -> bool {
+    value.chars().any(|ch| ch.is_control())
+}
+
+fn has_parent_component(path: &Path) -> bool {
+    path.components()
+        .any(|component| matches!(component, Component::ParentDir))
 }
 
 fn scan_dir(root: &Path, cur: &Path, ignore: &HashSet<&str>, stats: &mut LanguageStats) {
@@ -105,9 +122,43 @@ pub fn scan_language_share(root: &Path, min_pct: f64, max_pct: f64) -> serde_jso
 }
 
 pub fn resolve_root(input: Option<&str>) -> PathBuf {
-    match input {
-        Some(v) if !v.trim().is_empty() => PathBuf::from(v),
-        _ => PathBuf::from("."),
+    PathBuf::from(resolve_root_with_status(input).resolved)
+}
+
+pub fn resolve_root_with_status(input: Option<&str>) -> RootResolution {
+    let requested = input.unwrap_or("").trim().to_string();
+    if requested.is_empty() {
+        return RootResolution {
+            requested,
+            resolved: ".".to_string(),
+            accepted: true,
+            reason: "default_root".to_string(),
+        };
+    }
+    if has_control_chars(&requested) {
+        return RootResolution {
+            requested,
+            resolved: ".".to_string(),
+            accepted: false,
+            reason: "root_contains_control_chars".to_string(),
+        };
+    }
+
+    let candidate = PathBuf::from(&requested);
+    if has_parent_component(&candidate) {
+        return RootResolution {
+            requested,
+            resolved: ".".to_string(),
+            accepted: false,
+            reason: "root_parent_traversal_blocked".to_string(),
+        };
+    }
+
+    RootResolution {
+        requested: requested.clone(),
+        resolved: candidate.to_string_lossy().to_string(),
+        accepted: true,
+        reason: "user_root".to_string(),
     }
 }
 
@@ -124,5 +175,19 @@ mod tests {
             .and_then(|v| v.as_f64())
             .unwrap_or(-1.0);
         assert!(pct >= 0.0);
+    }
+
+    #[test]
+    fn root_resolution_blocks_parent_traversal() {
+        let out = resolve_root_with_status(Some("../danger"));
+        assert!(!out.accepted);
+        assert_eq!(out.resolved, ".");
+    }
+
+    #[test]
+    fn root_resolution_blocks_control_chars() {
+        let out = resolve_root_with_status(Some("tmp/\u{0000}/x"));
+        assert!(!out.accepted);
+        assert_eq!(out.reason, "root_contains_control_chars");
     }
 }

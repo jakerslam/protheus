@@ -1,4 +1,14 @@
 pub fn run_capability_lease(repo_root: &Path, argv: &[String]) -> (Value, i32) {
+    let started = std::time::Instant::now();
+    let execution_receipt = |status: &str, stage: &str, error: Option<&str>| {
+        json!({
+            "status": status,
+            "stage": stage,
+            "duration_ms": started.elapsed().as_millis(),
+            "ts": now_iso(),
+            "error": error.map(|v| clean(v, 220))
+        })
+    };
     let parsed = parse_args(argv);
     let cmd = parsed
         .positional
@@ -9,7 +19,9 @@ pub fn run_capability_lease(repo_root: &Path, argv: &[String]) -> (Value, i32) {
         return (
             json!({
                 "ok": false,
-                "error": "capability_lease_key_missing"
+                "type": "capability_lease",
+                "error": "capability_lease_key_missing",
+                "execution_receipt": execution_receipt("error", "load_key", Some("capability_lease_key_missing"))
             }),
             1,
         );
@@ -33,7 +45,15 @@ pub fn run_capability_lease(repo_root: &Path, argv: &[String]) -> (Value, i32) {
         "issue" => {
             let scope = clean(flag(&parsed, "scope").unwrap_or(""), 180);
             if scope.is_empty() {
-                return (json!({"ok":false,"error":"scope_required"}), 1);
+                return (
+                    json!({
+                        "ok": false,
+                        "type": "capability_lease_issue",
+                        "error": "scope_required",
+                        "execution_receipt": execution_receipt("error", "validate_scope", Some("scope_required"))
+                    }),
+                    1,
+                );
             }
             let target = flag(&parsed, "target")
                 .map(|v| clean(v, 240))
@@ -71,7 +91,18 @@ pub fn run_capability_lease(repo_root: &Path, argv: &[String]) -> (Value, i32) {
             });
             let token = match lease_pack_token(&payload, &key) {
                 Ok(v) => v,
-                Err(err) => return (json!({"ok":false,"error":clean(err,220)}), 1),
+                Err(err) => {
+                    let err_clean = clean(err, 220);
+                    return (
+                        json!({
+                            "ok": false,
+                            "type": "capability_lease_issue",
+                            "error": err_clean,
+                            "execution_receipt": execution_receipt("error", "sign_token", Some(err))
+                        }),
+                        1,
+                    );
+                }
             };
             let id = payload
                 .get("id")
@@ -92,7 +123,15 @@ pub fn run_capability_lease(repo_root: &Path, argv: &[String]) -> (Value, i32) {
                 }),
             );
             if let Err(err) = save_lease_state(&state_path, &state) {
-                return (json!({"ok":false,"error":clean(err,220)}), 1);
+                return (
+                    json!({
+                        "ok": false,
+                        "type": "capability_lease_issue",
+                        "error": clean(err, 220),
+                        "execution_receipt": execution_receipt("error", "persist_issue_state", Some(err))
+                    }),
+                    1,
+                );
             }
             let _ = append_jsonl(
                 &audit_path,
@@ -109,6 +148,7 @@ pub fn run_capability_lease(repo_root: &Path, argv: &[String]) -> (Value, i32) {
             (
                 json!({
                     "ok": true,
+                    "type": "capability_lease_issue",
                     "lease_id": payload.get("id").cloned().unwrap_or(Value::Null),
                     "scope": payload.get("scope").cloned().unwrap_or(Value::Null),
                     "target": payload.get("target").cloned().unwrap_or(Value::Null),
@@ -116,7 +156,8 @@ pub fn run_capability_lease(repo_root: &Path, argv: &[String]) -> (Value, i32) {
                     "ttl_sec": ttl_raw,
                     "token": token,
                     "lease_state_path": state_path.to_string_lossy(),
-                    "lease_audit_path": audit_path.to_string_lossy()
+                    "lease_audit_path": audit_path.to_string_lossy(),
+                    "execution_receipt": execution_receipt("ok", "issue_complete", None)
                 }),
                 0,
             )
@@ -124,23 +165,67 @@ pub fn run_capability_lease(repo_root: &Path, argv: &[String]) -> (Value, i32) {
         "verify" | "consume" => {
             let token = clean(flag(&parsed, "token").unwrap_or(""), 16_384);
             if token.is_empty() {
-                return (json!({"ok":false,"error":"token_required"}), 1);
+                return (
+                    json!({
+                        "ok": false,
+                        "type": "capability_lease_verify",
+                        "error": "token_required",
+                        "execution_receipt": execution_receipt("error", "validate_token_presence", Some("token_required"))
+                    }),
+                    1,
+                );
             }
             let (body, sig, payload) = match lease_unpack_token(&token) {
                 Ok(v) => v,
-                Err(err) => return (json!({"ok":false,"error":err}), 1),
+                Err(err) => {
+                    return (
+                        json!({
+                            "ok": false,
+                            "type": "capability_lease_verify",
+                            "error": err,
+                            "execution_receipt": execution_receipt("error", "decode_token", Some(&err))
+                        }),
+                        1,
+                    );
+                }
             };
             let expected = match lease_sign(&body, &key) {
                 Ok(v) => v,
-                Err(err) => return (json!({"ok":false,"error":clean(err,220)}), 1),
+                Err(err) => {
+                    return (
+                        json!({
+                            "ok": false,
+                            "type": "capability_lease_verify",
+                            "error": clean(err, 220),
+                            "execution_receipt": execution_receipt("error", "sign_expected_token", Some(err))
+                        }),
+                        1,
+                    );
+                }
             };
             if !secure_eq_hex(&sig, &expected) {
-                return (json!({"ok":false,"error":"token_signature_invalid"}), 1);
+                return (
+                    json!({
+                        "ok": false,
+                        "type": "capability_lease_verify",
+                        "error": "token_signature_invalid",
+                        "execution_receipt": execution_receipt("error", "verify_signature", Some("token_signature_invalid"))
+                    }),
+                    1,
+                );
             }
 
             let lease_id = clean(payload.get("id").and_then(Value::as_str).unwrap_or(""), 120);
             if lease_id.is_empty() {
-                return (json!({"ok":false,"error":"token_missing_id"}), 1);
+                return (
+                    json!({
+                        "ok": false,
+                        "type": "capability_lease_verify",
+                        "error": "token_missing_id",
+                        "execution_receipt": execution_receipt("error", "validate_payload", Some("token_missing_id"))
+                    }),
+                    1,
+                );
             }
             let lease_scope = clean(
                 payload.get("scope").and_then(Value::as_str).unwrap_or(""),
@@ -160,9 +245,11 @@ pub fn run_capability_lease(repo_root: &Path, argv: &[String]) -> (Value, i32) {
                 return (
                     json!({
                         "ok": false,
+                        "type": "capability_lease_verify",
                         "error": "lease_expired",
                         "lease_id": lease_id,
-                        "expires_at": payload.get("expires_at").cloned().unwrap_or(Value::Null)
+                        "expires_at": payload.get("expires_at").cloned().unwrap_or(Value::Null),
+                        "execution_receipt": execution_receipt("error", "check_expiry", Some("lease_expired"))
                     }),
                     1,
                 );
@@ -172,10 +259,12 @@ pub fn run_capability_lease(repo_root: &Path, argv: &[String]) -> (Value, i32) {
                     return (
                         json!({
                             "ok": false,
+                            "type": "capability_lease_verify",
                             "error": "scope_mismatch",
                             "lease_scope": lease_scope,
                             "required_scope": clean(want_scope,180),
-                            "lease_id": lease_id
+                            "lease_id": lease_id,
+                            "execution_receipt": execution_receipt("error", "check_scope", Some("scope_mismatch"))
                         }),
                         1,
                     );
@@ -189,10 +278,12 @@ pub fn run_capability_lease(repo_root: &Path, argv: &[String]) -> (Value, i32) {
                     return (
                         json!({
                             "ok": false,
+                            "type": "capability_lease_verify",
                             "error": "target_mismatch",
                             "lease_target": lease_target,
                             "required_target": clean_target,
-                            "lease_id": lease_id
+                            "lease_id": lease_id,
+                            "execution_receipt": execution_receipt("error", "check_target", Some("target_mismatch"))
                         }),
                         1,
                     );
@@ -204,16 +295,24 @@ pub fn run_capability_lease(repo_root: &Path, argv: &[String]) -> (Value, i32) {
                 return (
                     json!({
                         "ok": false,
+                        "type": "capability_lease_verify",
                         "error": "lease_already_consumed",
                         "lease_id": lease_id,
-                        "consumed_at": state.consumed.get(&lease_id).and_then(|v| v.get("ts")).cloned().unwrap_or(Value::Null)
+                        "consumed_at": state.consumed.get(&lease_id).and_then(|v| v.get("ts")).cloned().unwrap_or(Value::Null),
+                        "execution_receipt": execution_receipt("error", "check_consumed", Some("lease_already_consumed"))
                     }),
                     1,
                 );
             }
             if !state.issued.contains_key(&lease_id) {
                 return (
-                    json!({"ok":false,"error":"lease_unknown","lease_id":lease_id}),
+                    json!({
+                        "ok": false,
+                        "type": "capability_lease_verify",
+                        "error": "lease_unknown",
+                        "lease_id": lease_id,
+                        "execution_receipt": execution_receipt("error", "check_issued", Some("lease_unknown"))
+                    }),
                     1,
                 );
             }
@@ -226,7 +325,15 @@ pub fn run_capability_lease(repo_root: &Path, argv: &[String]) -> (Value, i32) {
                     json!({"ts": now_iso(), "reason": reason.clone()}),
                 );
                 if let Err(err) = save_lease_state(&state_path, &state) {
-                    return (json!({"ok":false,"error":clean(err,220)}), 1);
+                    return (
+                        json!({
+                            "ok": false,
+                            "type": "capability_lease_consume",
+                            "error": clean(err, 220),
+                            "execution_receipt": execution_receipt("error", "persist_consume_state", Some(err))
+                        }),
+                        1,
+                    );
                 }
                 let _ = append_jsonl(
                     &audit_path,
@@ -244,11 +351,13 @@ pub fn run_capability_lease(repo_root: &Path, argv: &[String]) -> (Value, i32) {
             (
                 json!({
                     "ok": true,
+                    "type": if consume { "capability_lease_consume" } else { "capability_lease_verify" },
                     "lease_id": lease_id,
                     "scope": lease_scope,
                     "target": lease_target,
                     "expires_at": payload.get("expires_at").cloned().unwrap_or(Value::Null),
-                    "consumed": consume
+                    "consumed": consume,
+                    "execution_receipt": execution_receipt("ok", if consume { "consume_complete" } else { "verify_complete" }, None)
                 }),
                 0,
             )
@@ -256,12 +365,14 @@ pub fn run_capability_lease(repo_root: &Path, argv: &[String]) -> (Value, i32) {
         _ => (
             json!({
                 "ok": false,
+                "type": "capability_lease",
                 "error": "unknown_command",
                 "usage": [
                     "capability-lease issue --scope=<scope> [--target=<target>] [--ttl-sec=<n>] [--issued-by=<id>] [--reason=<text>]",
                     "capability-lease verify --token=<token> [--scope=<scope>] [--target=<target>]",
                     "capability-lease consume --token=<token> [--scope=<scope>] [--target=<target>] [--reason=<text>]"
-                ]
+                ],
+                "execution_receipt": execution_receipt("error", "dispatch_command", Some("unknown_command"))
             }),
             2,
         ),
@@ -441,4 +552,3 @@ fn startup_hash_critical_paths(
     missing.sort();
     (rows, missing)
 }
-

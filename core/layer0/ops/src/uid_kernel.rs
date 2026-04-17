@@ -20,6 +20,7 @@ fn usage() {
     println!("  protheus-ops uid-kernel is-alnum [--payload-base64=<json>]");
     println!("  protheus-ops uid-kernel stable-uid [--payload-base64=<json>]");
     println!("  protheus-ops uid-kernel random-uid [--payload-base64=<json>]");
+    println!("  protheus-ops uid-kernel contract-uid [--payload-base64=<json>]");
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {
@@ -174,6 +175,33 @@ fn random_uid(prefix: &str, length: usize) -> String {
         .collect()
 }
 
+fn contract_uid(payload: &Map<String, Value>) -> Value {
+    let plugin_id = normalize_prefix(&clean_text(payload.get("plugin_id"), 64));
+    let provider_id = normalize_prefix(&clean_text(payload.get("provider_id"), 64));
+    let contract = clean_text(payload.get("contract"), 120)
+        .to_ascii_lowercase()
+        .chars()
+        .filter(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '_' | '-' | '.'))
+        .collect::<String>();
+    let prefix = clean_text(payload.get("prefix"), 32);
+    let seed = format!(
+        "contract_uid|plugin={plugin_id}|provider={provider_id}|contract={contract}"
+    );
+    let uid = stable_uid(
+        &seed,
+        if prefix.is_empty() { "c" } else { prefix.as_str() },
+        parse_length(payload.get("length")),
+    );
+    json!({
+        "ok": true,
+        "uid": uid,
+        "seed": seed,
+        "plugin_id": plugin_id,
+        "provider_id": provider_id,
+        "contract": contract
+    })
+}
+
 pub fn run(_root: &std::path::Path, argv: &[String]) -> i32 {
     let command = argv
         .first()
@@ -227,6 +255,7 @@ pub fn run(_root: &std::path::Path, argv: &[String]) -> i32 {
                 )
             }),
         ),
+        "contract-uid" => cli_receipt("uid_kernel_contract_uid", contract_uid(input)),
         _ => cli_error("uid_kernel_error", &format!("unknown_command:{command}")),
     };
     let exit = if result.get("ok").and_then(Value::as_bool).unwrap_or(false) {
@@ -250,5 +279,20 @@ mod tests {
     #[test]
     fn normalize_prefix_clamps() {
         assert_eq!(normalize_prefix("A-b_c:d?xyz"), "abcd");
+    }
+
+    #[test]
+    fn contract_uid_is_deterministic() {
+        let payload = serde_json::from_value::<Map<String, Value>>(json!({
+            "plugin_id": "openrouter",
+            "provider_id": "openrouter",
+            "contract": "webSearchProviders",
+            "length": 20,
+            "prefix": "pc"
+        }))
+        .expect("payload");
+        let one = contract_uid(&payload);
+        let two = contract_uid(&payload);
+        assert_eq!(one.get("uid"), two.get("uid"));
     }
 }

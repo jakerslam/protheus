@@ -193,13 +193,48 @@ pub fn append_jsonl(path: &Path, value: &Value) -> Result<(), String> {
         .map_err(|e| format!("append_jsonl_failed:{}:{e}", path.display()))
 }
 
+pub fn normalize_execution_status(raw: &str) -> &'static str {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "ok" | "success" | "succeeded" | "complete" | "completed" => "success",
+        "timeout" | "timed_out" | "timed-out" => "timeout",
+        "throttled" | "rate_limited" | "rate-limited" | "429" => "throttled",
+        _ => "error",
+    }
+}
+
+pub fn execution_receipt(command: &str, status: &str, error_kind: Option<&str>) -> Value {
+    let status = normalize_execution_status(status);
+    let command_token = normalize_token(command, 96);
+    let error_kind_token = error_kind.and_then(|row| {
+        let token = normalize_token(row, 64);
+        if token.is_empty() { None } else { Some(token) }
+    });
+    let seed = json!({
+        "authority": "core/layer2/autonomy",
+        "command": command_token,
+        "status": status,
+        "error_kind": error_kind_token
+    });
+    let digest = stable_hash(&seed);
+    json!({
+        "call_id": format!("autonomy-{}", &digest[..16]),
+        "status": status,
+        "error_kind": error_kind_token,
+        "telemetry": {
+            "duration_ms": 0,
+            "tokens_used": 0
+        }
+    })
+}
+
 pub fn autonomy_receipt(command: &str, objective: Option<&str>) -> Value {
     let mut out = json!({
         "ok": true,
         "type": "autonomy_contract_receipt",
         "authority": "core/layer2/autonomy",
         "command": command,
-        "objective": objective
+        "objective": objective,
+        "execution_receipt": execution_receipt(command, "success", None)
     });
     out["receipt_hash"] = Value::String(stable_hash(&out));
     out
@@ -211,7 +246,8 @@ pub fn workflow_receipt(command: &str, scope: Option<&str>) -> Value {
         "type": "workflow_contract_receipt",
         "authority": "core/layer2/autonomy",
         "command": command,
-        "scope": scope
+        "scope": scope,
+        "execution_receipt": execution_receipt(command, "success", None)
     });
     out["receipt_hash"] = Value::String(stable_hash(&out));
     out
@@ -232,7 +268,8 @@ pub fn pain_signal_receipt(
         "source": source,
         "code": code,
         "severity": severity,
-        "risk": risk
+        "risk": risk,
+        "execution_receipt": execution_receipt(action, "success", code)
     });
     out["receipt_hash"] = Value::String(stable_hash(&out));
     out
@@ -253,11 +290,37 @@ mod tests {
             .get("receipt_hash")
             .and_then(Value::as_str)
             .is_some());
+        assert_eq!(
+            payload
+                .pointer("/execution_receipt/status")
+                .and_then(Value::as_str),
+            Some("success")
+        );
     }
 
     #[test]
     fn token_normalization_is_stable() {
         assert_eq!(normalize_token("A/B C:D", 120), "a/b_c:d");
         assert_eq!(normalize_token("  $$$  ", 120), "");
+    }
+
+    #[test]
+    fn execution_receipt_status_normalization_is_stable() {
+        assert_eq!(normalize_execution_status("ok"), "success");
+        assert_eq!(normalize_execution_status("rate_limited"), "throttled");
+        assert_eq!(normalize_execution_status("timed-out"), "timeout");
+        assert_eq!(normalize_execution_status("bogus"), "error");
+
+        let receipt = execution_receipt("gate/check", "OK", Some("Policy Denied"));
+        assert_eq!(receipt.get("status").and_then(Value::as_str), Some("success"));
+        assert_eq!(
+            receipt.get("error_kind").and_then(Value::as_str),
+            Some("policy_denied")
+        );
+        assert!(receipt
+            .get("call_id")
+            .and_then(Value::as_str)
+            .map(|v| v.starts_with("autonomy-"))
+            .unwrap_or(false));
     }
 }

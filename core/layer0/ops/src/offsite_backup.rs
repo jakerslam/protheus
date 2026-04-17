@@ -4,7 +4,7 @@ use crate::v8_kernel::{
     write_json, ReceiptJsonExt,
 };
 use crate::{clean, now_iso, parse_args};
-use serde_json::json;
+use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
 
 fn state_root(root: &Path) -> PathBuf {
@@ -21,6 +21,17 @@ fn latest_path(root: &Path) -> PathBuf {
 
 fn history_path(root: &Path) -> PathBuf {
     state_root(root).join("history.jsonl")
+}
+
+fn with_execution_receipt(mut out: Value, command: &str, status: &str) -> Value {
+    out["execution_receipt"] = json!({
+        "lane": "offsite_backup",
+        "command": command,
+        "status": status,
+        "source": "OPENCLAW-TOOLING-WEB-101",
+        "tool_runtime_class": "receipt_wrapped"
+    });
+    out
 }
 
 pub fn run(root: &Path, argv: &[String]) -> i32 {
@@ -45,13 +56,17 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     let history = history_path(root);
 
     if command == "status" {
-        let out = json!({
-            "ok": true,
-            "type": "offsite_backup_status",
-            "lane": "core/layer0/ops",
-            "ts": now_iso(),
-            "latest": read_json(&latest)
-        })
+        let out = with_execution_receipt(
+            json!({
+                "ok": true,
+                "type": "offsite_backup_status",
+                "lane": "core/layer0/ops",
+                "ts": now_iso(),
+                "latest": read_json(&latest)
+            }),
+            "status",
+            "success",
+        )
         .with_receipt_hash();
         print_json(&out);
         return 0;
@@ -76,22 +91,26 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     let strict = parse_bool(parsed.flags.get("strict"), false);
     let limit = parse_i64_clamped(parsed.flags.get("limit"), 20, 1, 500);
 
-    let out = json!({
-        "ok": true,
-        "type": format!("offsite_backup_{}", command.replace('-', "_")),
-        "lane": "core/layer0/ops",
-        "ts": now_iso(),
-        "command": command,
-        "profile": profile,
-        "snapshot": snapshot,
-        "strict": strict,
-        "limit": limit,
-        "result": {
-            "note": "core_authoritative_placeholder",
-            "synced": command == "sync",
-            "drill_verified": command == "restore-drill"
-        }
-    })
+    let out = with_execution_receipt(
+        json!({
+            "ok": true,
+            "type": format!("offsite_backup_{}", command.replace('-', "_")),
+            "lane": "core/layer0/ops",
+            "ts": now_iso(),
+            "command": command,
+            "profile": profile,
+            "snapshot": snapshot,
+            "strict": strict,
+            "limit": limit,
+            "result": {
+                "note": "core_authoritative_placeholder",
+                "synced": command == "sync",
+                "drill_verified": command == "restore-drill"
+            }
+        }),
+        &command,
+        "success",
+    )
     .with_receipt_hash();
     let _ = write_json(&latest, &out);
     let _ = append_jsonl(&history, &out);

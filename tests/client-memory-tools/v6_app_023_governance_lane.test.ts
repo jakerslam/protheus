@@ -2,7 +2,7 @@
 /* eslint-disable no-console */
 const assert = require('assert');
 const { spawnSync } = require('child_process');
-const path = require('path');
+const path = require('path');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 const ROOT = path.resolve(__dirname, '../..');
 const RUNNER = path.join(ROOT, 'tests/tooling/scripts/ci/v6_app_023_governance_lane.ts');
@@ -46,7 +46,7 @@ for (const id of IDS) {
   assert(payload, `${id} did not emit JSON`);
   assert.strictEqual(payload.ok, true, `${id} not ok`);
   assert.strictEqual(payload.id, id, `${id} id mismatch`);
-  assert.strictEqual(typeof payload.receipt_hash, 'string', `${id} missing receipt_hash`);
+  assertNoPlaceholderOrPromptLeak(payload, `v6_app_023_governance_lane_test:${id}`);\n  assertStableToolingEnvelope(payload, `v6_app_023_governance_lane_test:${id}`);\n  assert.strictEqual(typeof payload.receipt_hash, 'string', `${id} missing receipt_hash`);
 }
 
-console.log(JSON.stringify({ ok: true, type: 'v6_app_023_governance_lane_test', ids: IDS }, null, 2));
+assertNoPlaceholderOrPromptLeak({ ids: IDS }, 'v6_app_023_governance_lane_test');\nassertStableToolingEnvelope({ ids: IDS }, 'v6_app_023_governance_lane_test');\nconsole.log(JSON.stringify({ ok: true, type: 'v6_app_023_governance_lane_test', ids: IDS }, null, 2));

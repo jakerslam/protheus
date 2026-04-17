@@ -23,6 +23,13 @@ fn latest_receipt(state_path: &Path) -> Value {
         .expect("last receipt")
 }
 
+fn assert_receipt_tooling_hygiene(receipt: &Value) {
+    let blob = receipt.to_string().to_ascii_lowercase();
+    assert!(!blob.contains("<function="));
+    assert!(!blob.contains("</function>"));
+    assert!(!blob.contains("i couldn't produce source-backed findings in this turn"));
+}
+
 #[test]
 fn workflow_017_signatures_compile_optimize_assert_multihop_eval_and_intake_emit_receipts() {
     let root = tempfile::tempdir().expect("tempdir");
@@ -51,6 +58,7 @@ fn workflow_017_signatures_compile_optimize_assert_multihop_eval_and_intake_emit
         0
     );
     let signature_receipt = latest_receipt(&state_path);
+    assert_receipt_tooling_hygiene(&signature_receipt);
     assert_eq!(
         signature_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-017.1")
@@ -305,6 +313,7 @@ fn workflow_017_signatures_compile_optimize_assert_multihop_eval_and_intake_emit
         0
     );
     let intake_receipt = latest_receipt(&state_path);
+    assert_receipt_tooling_hygiene(&intake_receipt);
     assert_eq!(
         intake_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-017.7")

@@ -1,3 +1,31 @@
+fn normalize_signal_source_alias(raw: &str) -> String {
+    let token = normalize_token(raw, 120);
+    match token.as_str() {
+        "" => "runtime".to_string(),
+        "search_web" | "websearch" | "batch_query" => "web_search".to_string(),
+        "toolcall" => "tool_call".to_string(),
+        "sessionstatus" => "session_status".to_string(),
+        _ => token,
+    }
+}
+
+fn resolve_signal_tool_context(
+    context_obj: &serde_json::Map<String, Value>,
+    opts_obj: &serde_json::Map<String, Value>,
+) -> String {
+    for key in ["tool", "tool_name", "capability", "event_type"] {
+        let context_value = as_str(context_obj.get(key));
+        if !context_value.is_empty() {
+            return normalize_token(&context_value, 120);
+        }
+        let opts_value = as_str(opts_obj.get(key));
+        if !opts_value.is_empty() {
+            return normalize_token(&opts_value, 120);
+        }
+    }
+    String::new()
+}
+
 fn evaluate_signal(
     policy: &Value,
     codex: &Value,
@@ -44,16 +72,17 @@ fn evaluate_signal(
     let source = {
         let candidate = as_str(context_obj.get("source"));
         if !candidate.is_empty() {
-            normalize_token(&candidate, 120)
+            normalize_signal_source_alias(&candidate)
         } else {
             let opt = as_str(opts_obj.get("source"));
             if opt.is_empty() {
                 "runtime".to_string()
             } else {
-                normalize_token(&opt, 120)
+                normalize_signal_source_alias(&opt)
             }
         }
     };
+    let tool_context = resolve_signal_tool_context(&context_obj, &opts_obj);
 
     let lane_is_enabled = lane_enabled(policy, &lane);
     if !as_bool(policy.get("enabled"), true) || !lane_is_enabled {
@@ -188,7 +217,12 @@ fn evaluate_signal(
             "yin_hits": yin_hits,
             "yang_hits": yang_hits,
             "signal_density": (signal_density * 1_000_000.0).round() / 1_000_000.0,
-            "source": source
+            "source": source,
+            "tool_context": if tool_context.is_empty() {
+                Value::Null
+            } else {
+                Value::String(tool_context)
+            }
         },
         "indicator": {
             "yin_yang_bias": if yin_hits > yang_hits {
@@ -344,4 +378,3 @@ fn maybe_run_self_validation(
     let _ = policy_path;
     Ok(persisted)
 }
-

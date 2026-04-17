@@ -7,6 +7,19 @@ const { createOpsLaneBridge } = require('../../../../client/runtime/lib/rust_lan
 process.env.PROTHEUS_OPS_USE_PREBUILT = process.env.PROTHEUS_OPS_USE_PREBUILT || '0';
 process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '120000';
 const bridge = createOpsLaneBridge(__dirname, 'uid', 'uid-kernel');
+const FORBIDDEN_RUNTIME_CONTEXT_MARKERS = [
+  'You are an expert Python programmer.',
+  '[PATCH v2',
+  'List Leaves (25',
+  'BEGIN_OPENCLAW_INTERNAL_CONTEXT',
+  'END_OPENCLAW_INTERNAL_CONTEXT',
+  'UNTRUSTED_CHILD_RESULT_DELIMITER'
+];
+
+function containsForbiddenRuntimeContextMarker(raw = '') {
+  const text = String(raw);
+  return FORBIDDEN_RUNTIME_CONTEXT_MARKERS.some((marker) => text.includes(marker));
+}
 
 function encodeBase64(value) {
   return Buffer.from(String(value == null ? '' : value), 'utf8').toString('base64');
@@ -62,5 +75,7 @@ function randomUid(opts = {}) {
 module.exports = {
   isAlnum,
   stableUid,
-  randomUid
+  randomUid,
+  forbiddenRuntimeContextMarkers: FORBIDDEN_RUNTIME_CONTEXT_MARKERS,
+  containsForbiddenRuntimeContextMarker
 };

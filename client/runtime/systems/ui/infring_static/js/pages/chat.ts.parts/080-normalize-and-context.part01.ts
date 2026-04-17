@@ -69,6 +69,14 @@
         if (node.matches && node.matches('input,textarea,[contenteditable],[contenteditable=""],[contenteditable="true"],[contenteditable="plaintext-only"]')) {
           return true;
         }
+        if (
+          node.matches &&
+          node.matches(
+            '.message-bubble-content, .message-bubble-content *, .chat-artifact-pre, .chat-artifact-pre *, .chat-artifact-path, .chat-artifact-path *, .chat-artifact-title, .chat-artifact-title *'
+          )
+        ) {
+          return true;
+        }
         try {
           var style = window.getComputedStyle(node);
           var cursor = String(style && style.cursor ? style.cursor : '').toLowerCase();
@@ -151,6 +159,117 @@
       if (scopedRef && scope && scope.contains(scopedRef) && scopedRef.offsetParent !== null) return scopedRef;
       return null;
     },
+    wireAgentTrailOrbBehavior(orb) {
+      if (!orb) return null;
+      var self = this;
+      if (typeof orb.toggleIndex !== 'function') {
+        orb.toggleIndex = function(forceTop) {
+          return self.toggleAgentTrailOrbIndex(forceTop);
+        };
+      }
+      this.applyAgentTrailOrbIndexState(orb);
+      return orb;
+    },
+    resolveAgentTrailOverlay(orbRef) {
+      var orb = orbRef || this._agentTrailOrbEl || null;
+      if (!orb) return null;
+      var layer = orb.parentElement || null;
+      if (!layer || !layer.classList || !layer.classList.contains('chat-agent-overlay')) return null;
+      return layer;
+    },
+    applyAgentTrailOrbIndexState(orbRef) {
+      var orb = orbRef || this._agentTrailOrbEl || null;
+      if (!orb || !orb.style) return;
+      var top = !!this._agentTrailOrbElevated;
+      if (top) {
+        orb.style.zIndex = '2147483000';
+        if (orb.classList) orb.classList.add('fairy-z-top');
+      } else {
+        orb.style.zIndex = '';
+        if (orb.classList) orb.classList.remove('fairy-z-top');
+      }
+      var layer = this.resolveAgentTrailOverlay(orb);
+      if (!layer) return;
+      if (top) {
+        layer.style.zIndex = '2147482999';
+        layer.classList.add('fairy-z-top');
+      } else {
+        layer.style.zIndex = '';
+        layer.classList.remove('fairy-z-top');
+      }
+    },
+    toggleAgentTrailOrbIndex(forceTop) {
+      var orb = this._agentTrailOrbEl;
+      if (!orb || !orb.style) return false;
+      var nextTop = false;
+      if (forceTop === true) nextTop = true;
+      else if (forceTop === false) nextTop = false;
+      else nextTop = !this._agentTrailOrbElevated;
+      this._agentTrailOrbElevated = !!nextTop;
+      this.applyAgentTrailOrbIndexState(orb);
+      return this._agentTrailOrbElevated;
+    },
+    teleportAgentTrailOrb(orbRef, x, y, toggleIndex, onMidpoint) {
+      var orb = this.wireAgentTrailOrbBehavior(orbRef || this._agentTrailOrbEl);
+      if (!orb || !orb.style) return;
+      var shouldToggleIndex = toggleIndex !== false;
+      var targetX = Number(x);
+      var targetY = Number(y);
+      var pendingX = Number(this._agentTrailTeleportTargetX);
+      var pendingY = Number(this._agentTrailTeleportTargetY);
+      var pendingToggle = this._agentTrailTeleportToggleIndex !== false;
+      var hasPendingTeleport = !!this._agentTrailTeleportTimer;
+      var samePendingTeleport = hasPendingTeleport &&
+        Number.isFinite(targetX) &&
+        Number.isFinite(targetY) &&
+        Number.isFinite(pendingX) &&
+        Number.isFinite(pendingY) &&
+        Math.abs(targetX - pendingX) <= 0.5 &&
+        Math.abs(targetY - pendingY) <= 0.5 &&
+        pendingToggle === shouldToggleIndex;
+      if (samePendingTeleport) return;
+      if (hasPendingTeleport) {
+        clearTimeout(this._agentTrailTeleportTimer);
+        this._agentTrailTeleportTimer = 0;
+        orb.style.opacity = '';
+        orb.style.transition = '';
+      }
+      this._agentTrailTeleportTargetX = Number.isFinite(targetX) ? targetX : NaN;
+      this._agentTrailTeleportTargetY = Number.isFinite(targetY) ? targetY : NaN;
+      this._agentTrailTeleportToggleIndex = shouldToggleIndex;
+      var self = this;
+      orb.style.transition = 'opacity 95ms ease';
+      orb.style.opacity = '0';
+      this._agentTrailTeleportTimer = setTimeout(function() {
+        self._agentTrailTeleportTimer = 0;
+        self._agentTrailTeleportTargetX = NaN;
+        self._agentTrailTeleportTargetY = NaN;
+        self._agentTrailTeleportToggleIndex = true;
+        if (!self._agentTrailOrbEl || self._agentTrailOrbEl !== orb) return;
+        if (shouldToggleIndex && typeof orb.toggleIndex === 'function') orb.toggleIndex();
+        if (Number.isFinite(targetX)) orb.style.left = targetX + 'px';
+        if (Number.isFinite(targetY)) orb.style.top = targetY + 'px';
+        if (typeof onMidpoint === 'function') {
+          try { onMidpoint(); } catch(_) {}
+        }
+        requestAnimationFrame(function() {
+          if (!self._agentTrailOrbEl || self._agentTrailOrbEl !== orb) return;
+          orb.style.opacity = '';
+          orb.style.transition = '';
+        });
+      }, 95);
+    },
+    setAgentTrailBlinkState(active, orbRef) {
+      var orb = this.wireAgentTrailOrbBehavior(orbRef || this._agentTrailOrbEl);
+      if (!orb || !orb.classList) return;
+      if (active) {
+        if (typeof orb.toggleIndex === 'function') orb.toggleIndex(true);
+        orb.classList.add('agent-listening');
+        return;
+      }
+      orb.classList.remove('agent-listening');
+      if (typeof orb.toggleIndex === 'function') orb.toggleIndex(false);
+    },
     ensureAgentTrailOrb(container, x, y) {
       var ownerId = this.currentFairyOwnerId();
       if (!ownerId) {
@@ -168,12 +287,24 @@
         layer.appendChild(orb);
         this._agentTrailOrbEl = orb;
       }
+      this.wireAgentTrailOrbBehavior(orb);
       if (ownerId && orb.dataset) {
         orb.dataset.fairyOwner = ownerId;
         this._agentFairyOwnerId = ownerId;
       }
-      orb.style.left = x + 'px';
-      orb.style.top = y + 'px';
+      var currentX = Number(parseFloat(String(orb.style.left || 'NaN')));
+      var currentY = Number(parseFloat(String(orb.style.top || 'NaN')));
+      if (!Number.isFinite(currentX)) currentX = Number(orb.offsetLeft || NaN);
+      if (!Number.isFinite(currentY)) currentY = Number(orb.offsetTop || NaN);
+      var dx = Number.isFinite(currentX) ? Math.abs(Number(x) - currentX) : 0;
+      var dy = Number.isFinite(currentY) ? Math.abs(Number(y) - currentY) : 0;
+      var jumpDistance = Math.sqrt((dx * dx) + (dy * dy));
+      if (orb.classList && orb.classList.contains('agent-listening') && jumpDistance >= 72) {
+        this.teleportAgentTrailOrb(orb, x, y, !this._agentTrailOrbElevated);
+      } else {
+        orb.style.left = x + 'px';
+        orb.style.top = y + 'px';
+      }
       return orb;
     },
     pruneAgentTrailFx(container) {
@@ -204,6 +335,7 @@
         if (!keepOrb) {
           keepOrb = node;
           this._agentTrailOrbEl = node;
+          this.wireAgentTrailOrbBehavior(node);
           continue;
         }
         if (keepOrb === node) continue;
@@ -231,10 +363,23 @@
     },
     removeAgentTrailOrb() {
       var orb = this._agentTrailOrbEl;
+      if (this._agentTrailTeleportTimer) {
+        clearTimeout(this._agentTrailTeleportTimer);
+        this._agentTrailTeleportTimer = 0;
+      }
+      this._agentTrailTeleportTargetX = NaN;
+      this._agentTrailTeleportTargetY = NaN;
+      this._agentTrailTeleportToggleIndex = true;
       if (!orb) return;
+      var layer = this.resolveAgentTrailOverlay(orb);
+      if (layer) {
+        layer.style.zIndex = '';
+        layer.classList.remove('fairy-z-top');
+      }
       try { orb.remove(); } catch(_) {}
       this._agentTrailOrbEl = null;
       this._agentFairyOwnerId = '';
+      this._agentTrailOrbElevated = false;
     },
     clearAgentTrailFx(container) {
       var host = this.resolveFairyHost(container || this._agentTrailHost || null);

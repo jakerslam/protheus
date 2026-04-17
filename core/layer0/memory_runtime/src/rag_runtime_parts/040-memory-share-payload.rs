@@ -1,3 +1,34 @@
+fn write_pretty_json_fail_closed(
+    root: &Path,
+    out_path: &Path,
+    payload: &Value,
+    op_type: &str,
+) -> Result<(), Value> {
+    if let Some(parent) = out_path.parent() {
+        if let Err(err) = fs::create_dir_all(parent) {
+            return Err(receipt(json!({
+                "ok": false,
+                "type": op_type,
+                "error": format!("state_parent_create_failed:{err}"),
+                "state_path": normalize_rel_path(root, out_path)
+            })));
+        }
+    }
+    let pretty = format!(
+        "{}\n",
+        serde_json::to_string_pretty(payload).unwrap_or_else(|_| "{}".to_string())
+    );
+    if let Err(err) = fs::write(out_path, pretty) {
+        return Err(receipt(json!({
+            "ok": false,
+            "type": op_type,
+            "error": format!("state_write_failed:{err}"),
+            "state_path": normalize_rel_path(root, out_path)
+        })));
+    }
+    Ok(())
+}
+
 pub fn memory_share_payload(args: &HashMap<String, String>) -> Value {
     let root = root_from_args(args);
     let persona = clean_text(args.get("persona").map_or("peer", String::as_str), 120);
@@ -72,16 +103,12 @@ pub fn memory_evolve_payload(args: &HashMap<String, String>) -> Value {
         .as_bytes(),
     );
     let out_path = evolution_state_path(&root, args);
-    if let Some(parent) = out_path.parent() {
-        let _ = fs::create_dir_all(parent);
+    if let Err(err_out) =
+        write_pretty_json_fail_closed(&root, &out_path, &snapshot, "memory_evolve")
+    {
+        append_history(&history_path(&root, args), &err_out);
+        return err_out;
     }
-    let _ = fs::write(
-        &out_path,
-        format!(
-            "{}\n",
-            serde_json::to_string_pretty(&snapshot).unwrap_or_else(|_| "{}".to_string())
-        ),
-    );
     let out = receipt(json!({
         "ok": true,
         "type": "memory_evolve",
@@ -204,16 +231,12 @@ pub fn memory_fuse_payload(args: &HashMap<String, String>) -> Value {
         "fusion_score": ((fusion_score * 1000.0).round() / 1000.0)
     });
     let out_path = fusion_state_path(&root, args);
-    if let Some(parent) = out_path.parent() {
-        let _ = fs::create_dir_all(parent);
+    if let Err(err_out) =
+        write_pretty_json_fail_closed(&root, &out_path, &snapshot, "memory_fuse")
+    {
+        append_history(&history_path(&root, args), &err_out);
+        return err_out;
     }
-    let _ = fs::write(
-        &out_path,
-        format!(
-            "{}\n",
-            serde_json::to_string_pretty(&snapshot).unwrap_or_else(|_| "{}".to_string())
-        ),
-    );
     let out = receipt(json!({
         "ok": true,
         "type": "memory_fuse",
@@ -242,16 +265,12 @@ pub fn nano_chat_payload(args: &HashMap<String, String>) -> Value {
         "history_enabled": true,
         "state_path": normalize_rel_path(&root, &latest_path)
     }));
-    if let Some(parent) = latest_path.parent() {
-        let _ = fs::create_dir_all(parent);
+    if let Err(err_out) =
+        write_pretty_json_fail_closed(&root, &latest_path, &out, "nano_chat_mode")
+    {
+        append_history(&history_path(&root, args), &err_out);
+        return err_out;
     }
-    let _ = fs::write(
-        &latest_path,
-        format!(
-            "{}\n",
-            serde_json::to_string_pretty(&out).unwrap_or_else(|_| "{}".to_string())
-        ),
-    );
     append_history(&history_path(&root, args), &out);
     out
 }
@@ -263,20 +282,29 @@ pub fn nano_train_payload(args: &HashMap<String, String>) -> Value {
     let state_dir = nanochat_state_dir(&root, args);
     let checkpoints = state_dir.join("checkpoints");
     let ckpt = checkpoints.join(format!("depth_{depth}.json"));
-    let _ = fs::create_dir_all(&checkpoints);
+    if let Err(err) = fs::create_dir_all(&checkpoints) {
+        let out = receipt(json!({
+            "ok": false,
+            "type": "nano_train_mode",
+            "backend": "protheus_memory_core",
+            "error": format!("checkpoint_dir_create_failed:{err}"),
+            "checkpoint_path": normalize_rel_path(&root, &ckpt)
+        }));
+        append_history(&history_path(&root, args), &out);
+        return out;
+    }
     let pipeline = json!({
         "stages": ["tokenizer", "pretrain", "sft", "rl"],
         "depth": depth,
         "profile": profile,
         "generated_at": now_iso()
     });
-    let _ = fs::write(
-        &ckpt,
-        format!(
-            "{}\n",
-            serde_json::to_string_pretty(&pipeline).unwrap_or_else(|_| "{}".to_string())
-        ),
-    );
+    if let Err(err_out) =
+        write_pretty_json_fail_closed(&root, &ckpt, &pipeline, "nano_train_mode")
+    {
+        append_history(&history_path(&root, args), &err_out);
+        return err_out;
+    }
 
     let out = receipt(json!({
         "ok": true,
@@ -305,13 +333,33 @@ pub fn nano_fork_payload(args: &HashMap<String, String>) -> Value {
             root.join(p)
         }
     };
-    let _ = fs::create_dir_all(&target_path);
+    if let Err(err) = fs::create_dir_all(&target_path) {
+        let out = receipt(json!({
+            "ok": false,
+            "type": "nano_fork_mode",
+            "backend": "protheus_memory_core",
+            "error": format!("target_dir_create_failed:{err}"),
+            "target_path": normalize_rel_path(&root, &target_path)
+        }));
+        append_history(&history_path(&root, args), &out);
+        return out;
+    }
     let readme = target_path.join("README.md");
     if !readme.exists() {
-        let _ = fs::write(
+        if let Err(err) = fs::write(
             &readme,
             "# NanoChat Fork Mode\n\nGenerated by `protheus nano fork`.\n",
-        );
+        ) {
+            let out = receipt(json!({
+                "ok": false,
+                "type": "nano_fork_mode",
+                "backend": "protheus_memory_core",
+                "error": format!("readme_write_failed:{err}"),
+                "readme_path": normalize_rel_path(&root, &readme)
+            }));
+            append_history(&history_path(&root, args), &out);
+            return out;
+        }
     }
 
     let out = receipt(json!({
@@ -378,4 +426,3 @@ pub fn ensure_supported_version(args: &HashMap<String, String>) -> Result<String
         })))
     }
 }
-

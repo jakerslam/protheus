@@ -37,6 +37,10 @@ fn classify_metric(metric_text: &str, target_text: &str, source_text: &str) -> S
         "collector_failure_streak" | "queue_outcome_logged" => {
             return "queue_outcome_logged".to_string()
         }
+        "retry_count" | "timeout_count" | "abort_count" => {
+            return "queue_outcome_logged".to_string()
+        }
+        "backoff_ms" | "retry_backoff_ms" => return "duration_ms".to_string(),
         "entries_count" => return "entries_count".to_string(),
         "revenue_actions_count" => return "revenue_actions_count".to_string(),
         "token_usage" => return "token_usage".to_string(),
@@ -47,6 +51,16 @@ fn classify_metric(metric_text: &str, target_text: &str, source_text: &str) -> S
 
     if contains_any(&["reply", "interview"]) {
         return "reply_or_interview_count".to_string();
+    }
+    if contains_any(&[
+        "backoff ms",
+        "backoff_ms",
+        "retry delay",
+        "cooldown",
+        "wait window",
+        "sleep window",
+    ]) {
+        return "duration_ms".to_string();
     }
     if text.contains("outreach") && contains_any(&["artifact", "draft", "offer", "proposal"]) {
         return "outreach_artifact".to_string();
@@ -71,7 +85,20 @@ fn classify_metric(metric_text: &str, target_text: &str, source_text: &str) -> S
     ]) {
         return "postconditions_ok".to_string();
     }
-    if contains_any(&["receipt", "evidence", "queue outcome", "logged"]) {
+    if contains_any(&[
+        "receipt",
+        "evidence",
+        "queue outcome",
+        "logged",
+        "retry",
+        "backoff",
+        "abort",
+        "aborted",
+        "timeout",
+        "rate limit",
+        "throttle",
+        "circuit breaker",
+    ]) {
         return "queue_outcome_logged".to_string();
     }
     if text.contains("revenue") {
@@ -421,4 +448,3 @@ fn read_numeric_metric(context: &Value, keys: &[&str]) -> Option<f64> {
     }
     None
 }
-

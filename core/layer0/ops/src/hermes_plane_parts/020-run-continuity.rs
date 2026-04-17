@@ -1,3 +1,24 @@
+fn canonical_continuity_op(raw: &str) -> String {
+    let op = clean(raw, 30).to_ascii_lowercase().replace('-', "_");
+    match op.as_str() {
+        "checkpoint_state" | "save" | "snapshot" => "checkpoint".to_string(),
+        "restore" | "resume" | "rebuild" => "reconstruct".to_string(),
+        "state" => "status".to_string(),
+        _ => op,
+    }
+}
+
+fn load_continuity_context(parsed: &crate::ParsedArgs) -> Result<Value, String> {
+    if let Some(raw) = parsed.flags.get("context-json") {
+        return serde_json::from_str::<Value>(raw).map_err(|err| format!("context_json_invalid:{err}"));
+    }
+    Ok(json!({
+        "context": ["session active", "pending tasks"],
+        "user_model": {"style": "direct", "confidence": 0.87},
+        "active_tasks": ["batch12 hardening"]
+    }))
+}
+
 fn run_continuity(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
     let contract = load_json_or(
         root,
@@ -28,16 +49,15 @@ fn run_continuity(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Valu
         errors.push("hermes_continuity_contract_kind_invalid".to_string());
     }
 
-    let op = clean(
+    let op = canonical_continuity_op(
         parsed
             .flags
             .get("op")
             .cloned()
             .or_else(|| parsed.positional.get(1).cloned())
-            .unwrap_or_else(|| "status".to_string()),
-        30,
-    )
-    .to_ascii_lowercase();
+            .unwrap_or_else(|| "status".to_string())
+            .as_str(),
+    );
     if !matches!(op.as_str(), "checkpoint" | "reconstruct" | "status") {
         errors.push("continuity_op_invalid".to_string());
     }
@@ -91,17 +111,18 @@ fn run_continuity(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Valu
             out
         }
         "checkpoint" => {
-            let context = parsed
-                .flags
-                .get("context-json")
-                .and_then(|raw| serde_json::from_str::<Value>(raw).ok())
-                .unwrap_or_else(|| {
-                    json!({
-                        "context": ["session active", "pending tasks"],
-                        "user_model": {"style": "direct", "confidence": 0.87},
-                        "active_tasks": ["batch12 hardening"]
-                    })
-                });
+            let context = match load_continuity_context(parsed) {
+                Ok(value) => value,
+                Err(error) => {
+                    return json!({
+                        "ok": false,
+                        "strict": strict,
+                        "type": "hermes_plane_continuity",
+                        "op": "checkpoint",
+                        "errors": [error]
+                    });
+                }
+            };
             let mut context_map = context.as_object().cloned().unwrap_or_default();
             for required in contract
                 .get("required_context_keys")
@@ -435,4 +456,3 @@ fn run_delegate(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value 
     out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
-

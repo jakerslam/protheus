@@ -101,6 +101,25 @@ fn run_industrial_pack(root: &Path, parsed: &ParsedArgs, strict: bool) -> Value 
     })
 }
 
+fn payload_status(payload: &Value) -> &'static str {
+    if payload.get("ok").and_then(Value::as_bool) == Some(false) {
+        "error"
+    } else {
+        "success"
+    }
+}
+
+fn attach_execution_receipt(payload: &mut Value, command: &str, strict: bool, status: &str) {
+    payload["execution_receipt"] = json!({
+        "lane": "asm_plane",
+        "command": command,
+        "strict": strict,
+        "status": status,
+        "source": "OPENCLAW-TOOLING-WEB-098",
+        "tool_runtime_class": "receipt_wrapped"
+    });
+}
+
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     let parsed = parse_args(argv);
     let command = parsed
@@ -113,7 +132,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         return 0;
     }
     let strict = parse_bool(parsed.flags.get("strict"), true);
-    let payload = match command.as_str() {
+    let mut payload = match command.as_str() {
         "status" => run_status(root),
         "wasm-dual-meter" | "wasm_dual_meter" => run_wasm_dual_meter(root, &parsed, strict),
         "hands-runtime" | "hands_runtime" => run_hands_runtime(root, &parsed, strict),
@@ -128,6 +147,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "command": command
         }),
     };
+    let status = payload_status(&payload);
+    attach_execution_receipt(&mut payload, &command, strict, status);
     if command == "status" {
         print_payload(&payload);
         return 0;
@@ -191,4 +212,3 @@ mod tests {
         assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
     }
 }
-

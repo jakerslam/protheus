@@ -1,10 +1,10 @@
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ClampNumberInput {
-    #[serde(default)]
+    #[serde(default, alias = "raw")]
     pub value: Option<f64>,
-    #[serde(default)]
+    #[serde(default, alias = "lo", alias = "lower")]
     pub min: Option<f64>,
-    #[serde(default)]
+    #[serde(default, alias = "hi", alias = "upper")]
     pub max: Option<f64>,
 }
 
@@ -15,7 +15,7 @@ pub struct ClampNumberOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ListProposalFilesInput {
-    #[serde(default)]
+    #[serde(default, alias = "files")]
     pub entries: Vec<String>,
 }
 
@@ -29,7 +29,7 @@ pub struct ListProposalFilesOutput {
 pub struct LatestProposalDateInput {
     #[serde(default)]
     pub files: Vec<String>,
-    #[serde(default)]
+    #[serde(default, alias = "maxDate")]
     pub max_date: Option<String>,
 }
 
@@ -41,7 +41,7 @@ pub struct LatestProposalDateOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ParseDirectiveFileArgInput {
-    #[serde(default)]
+    #[serde(default, alias = "cmd")]
     pub command: Option<String>,
 }
 
@@ -52,7 +52,7 @@ pub struct ParseDirectiveFileArgOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ParseDirectiveObjectiveArgInput {
-    #[serde(default)]
+    #[serde(default, alias = "cmd")]
     pub command: Option<String>,
 }
 
@@ -63,7 +63,7 @@ pub struct ParseDirectiveObjectiveArgOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct NowIsoInput {
-    #[serde(default)]
+    #[serde(default, alias = "nowIso")]
     pub now_iso: Option<String>,
 }
 
@@ -74,7 +74,7 @@ pub struct NowIsoOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TodayStrInput {
-    #[serde(default)]
+    #[serde(default, alias = "nowIso")]
     pub now_iso: Option<String>,
 }
 
@@ -87,7 +87,7 @@ pub struct TodayStrOutput {
 pub struct HumanCanaryOverrideApprovalPhraseInput {
     #[serde(default)]
     pub prefix: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "date", alias = "dateStr")]
     pub date_str: Option<String>,
     #[serde(default)]
     pub nonce: Option<String>,
@@ -102,7 +102,7 @@ pub struct HumanCanaryOverrideApprovalPhraseOutput {
 pub struct ParseHumanCanaryOverrideStateInput {
     #[serde(default)]
     pub record: Option<serde_json::Value>,
-    #[serde(default)]
+    #[serde(default, alias = "nowMs")]
     pub now_ms: Option<f64>,
 }
 
@@ -128,9 +128,9 @@ pub struct ParseHumanCanaryOverrideStateOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct DailyBudgetPathInput {
-    #[serde(default)]
+    #[serde(default, alias = "stateDir")]
     pub state_dir: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "date", alias = "dateStr")]
     pub date_str: Option<String>,
 }
 
@@ -141,9 +141,9 @@ pub struct DailyBudgetPathOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RunsPathForInput {
-    #[serde(default)]
+    #[serde(default, alias = "runsDir")]
     pub runs_dir: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "date", alias = "dateStr")]
     pub date_str: Option<String>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -153,16 +153,25 @@ pub struct RunsPathForOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct EffectiveTier1PolicyInput {
-    #[serde(default)]
+    #[serde(default, alias = "executionMode")]
     pub execution_mode: Option<String>,
+    #[serde(alias = "tier1BurnRateMultiplier")]
     pub tier1_burn_rate_multiplier: f64,
+    #[serde(alias = "tier1CanaryBurnRateMultiplier")]
     pub tier1_canary_burn_rate_multiplier: f64,
+    #[serde(alias = "tier1MinProjectedTokensForBurnCheck")]
     pub tier1_min_projected_tokens_for_burn_check: f64,
+    #[serde(alias = "tier1CanaryMinProjectedTokensForBurnCheck")]
     pub tier1_canary_min_projected_tokens_for_burn_check: f64,
+    #[serde(alias = "tier1DriftMinSamples")]
     pub tier1_drift_min_samples: f64,
+    #[serde(alias = "tier1CanaryDriftMinSamples")]
     pub tier1_canary_drift_min_samples: f64,
+    #[serde(alias = "tier1AlignmentThreshold")]
     pub tier1_alignment_threshold: f64,
+    #[serde(alias = "tier1CanaryAlignmentThreshold")]
     pub tier1_canary_alignment_threshold: f64,
+    #[serde(alias = "tier1CanarySuppressAlignmentBlocker")]
     pub tier1_canary_suppress_alignment_blocker: bool,
 }
 
@@ -186,7 +195,7 @@ pub struct CompactTier1ExceptionInput {
     pub novel: Option<bool>,
     #[serde(default)]
     pub stage: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "errorCode")]
     pub error_code: Option<String>,
     #[serde(default)]
     pub signature: Option<String>,
@@ -231,11 +240,11 @@ pub struct ModelCatalogCanaryThresholdsOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct DirectiveClarificationExecSpecInput {
-    #[serde(default)]
+    #[serde(default, alias = "proposalType")]
     pub proposal_type: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "metaDirectiveObjectiveId")]
     pub meta_directive_objective_id: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "suggestedNextCommand")]
     pub suggested_next_command: Option<String>,
 }
 
@@ -260,11 +269,11 @@ pub struct DirectiveClarificationExecSpecOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct DirectiveDecompositionExecSpecInput {
-    #[serde(default)]
+    #[serde(default, alias = "proposalType")]
     pub proposal_type: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "metaDirectiveObjectiveId")]
     pub meta_directive_objective_id: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "suggestedNextCommand")]
     pub suggested_next_command: Option<String>,
 }
 
@@ -346,9 +355,9 @@ pub struct TaskFromProposalOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ParseObjectiveIdFromEvidenceRefsInput {
-    #[serde(default)]
+    #[serde(default, alias = "evidenceRefs")]
     pub evidence_refs: Vec<String>,
-    #[serde(default)]
+    #[serde(default, alias = "objectiveIds")]
     pub objective_ids: Vec<String>,
 }
 
@@ -366,7 +375,7 @@ pub struct ParseObjectiveIdFromEvidenceRefsOutput {
 pub struct ParseObjectiveIdFromCommandInput {
     #[serde(default)]
     pub command: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "objectiveIds")]
     pub objective_ids: Vec<String>,
 }
 
@@ -382,17 +391,17 @@ pub struct ParseObjectiveIdFromCommandOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ObjectiveIdForExecutionInput {
-    #[serde(default)]
+    #[serde(default, alias = "objectiveBindingId")]
     pub objective_binding_id: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "directivePulseId")]
     pub directive_pulse_id: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "directiveActionId")]
     pub directive_action_id: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "metaObjectiveId")]
     pub meta_objective_id: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "metaDirectiveObjectiveId")]
     pub meta_directive_objective_id: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "actionSpecObjectiveId")]
     pub action_spec_objective_id: Option<String>,
 }
 
@@ -406,7 +415,7 @@ pub struct ObjectiveIdForExecutionOutput {
 pub struct ShortTextInput {
     #[serde(default)]
     pub value: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "maxLen")]
     pub max_len: Option<f64>,
 }
 

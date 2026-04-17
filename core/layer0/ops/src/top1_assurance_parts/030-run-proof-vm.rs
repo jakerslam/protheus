@@ -1,32 +1,52 @@
+fn sanitize_proof_path_arg(raw: &str, fallback: &str) -> String {
+    let mut value = crate::clean(raw, 240).replace('\\', "/");
+    while value.starts_with("./") {
+        value = value.trim_start_matches("./").to_string();
+    }
+    if value.is_empty() {
+        return fallback.to_string();
+    }
+    if value.starts_with('/') || value.split('/').any(|seg| seg == "..") {
+        return fallback.to_string();
+    }
+    value
+}
+
 fn run_proof_vm(
     root: &Path,
     policy: &Top1Policy,
     strict: bool,
     parsed: &crate::ParsedArgs,
 ) -> Value {
-    let docker_rel = parsed
-        .flags
-        .get("dockerfile-path")
-        .map(String::as_str)
-        .filter(|v| !v.trim().is_empty())
-        .unwrap_or(policy.proof_vm.dockerfile_path.as_str());
-    let replay_rel = parsed
-        .flags
-        .get("replay-script-path")
-        .map(String::as_str)
-        .filter(|v| !v.trim().is_empty())
-        .unwrap_or(policy.proof_vm.replay_script_path.as_str());
-    let manifest_rel = parsed
-        .flags
-        .get("manifest-path")
-        .map(String::as_str)
-        .filter(|v| !v.trim().is_empty())
-        .unwrap_or(policy.proof_vm.manifest_path.as_str());
+    let docker_rel = sanitize_proof_path_arg(
+        parsed
+            .flags
+            .get("dockerfile-path")
+            .map(String::as_str)
+            .unwrap_or(policy.proof_vm.dockerfile_path.as_str()),
+        policy.proof_vm.dockerfile_path.as_str(),
+    );
+    let replay_rel = sanitize_proof_path_arg(
+        parsed
+            .flags
+            .get("replay-script-path")
+            .map(String::as_str)
+            .unwrap_or(policy.proof_vm.replay_script_path.as_str()),
+        policy.proof_vm.replay_script_path.as_str(),
+    );
+    let manifest_rel = sanitize_proof_path_arg(
+        parsed
+            .flags
+            .get("manifest-path")
+            .map(String::as_str)
+            .unwrap_or(policy.proof_vm.manifest_path.as_str()),
+        policy.proof_vm.manifest_path.as_str(),
+    );
     let write_manifest = parse_bool(parsed.flags.get("write-manifest"), true);
 
-    let docker_path = root.join(docker_rel);
-    let replay_path = root.join(replay_rel);
-    let manifest_path = root.join(manifest_rel);
+    let docker_path = root.join(&docker_rel);
+    let replay_path = root.join(&replay_rel);
+    let manifest_path = root.join(&manifest_rel);
 
     let mut errors = Vec::<String>::new();
     if !docker_path.exists() {
@@ -51,12 +71,13 @@ fn run_proof_vm(
     #[cfg(not(unix))]
     let replay_executable = replay_path.exists();
 
-    if !replay_executable {
+    if replay_path.exists() && !replay_executable {
         errors.push("proof_vm_replay_script_not_executable".to_string());
     }
 
-    let ok = errors.is_empty();
-    let manifest = json!({
+    let mut manifest_write_error: Option<String> = None;
+    let mut ok = errors.is_empty();
+    let mut manifest = json!({
         "ok": ok,
         "type": "top1_proof_vm_manifest",
         "ts": now_iso(),
@@ -65,7 +86,8 @@ fn run_proof_vm(
         "replay_script_path": replay_rel,
         "replay_script_sha256": replay_sha,
         "replay_script_executable": replay_executable,
-        "errors": errors,
+        "manifest_write_error": Value::Null,
+        "errors": errors.clone(),
         "claim_evidence": [
             {
                 "id": "proof_vm_replay_contract",
@@ -77,9 +99,19 @@ fn run_proof_vm(
             }
         ]
     });
-
     if write_manifest {
-        let _ = write_json(&manifest_path, &manifest);
+        if let Err(err) = write_json(&manifest_path, &manifest) {
+            manifest_write_error = Some(crate::clean(err, 240));
+        }
+    }
+    if strict && manifest_write_error.is_some() {
+        errors.push("proof_vm_manifest_write_failed".to_string());
+    }
+    ok = errors.is_empty();
+    manifest["ok"] = Value::Bool(ok);
+    manifest["errors"] = Value::Array(errors.iter().cloned().map(Value::String).collect());
+    if let Some(err) = manifest_write_error.clone() {
+        manifest["manifest_write_error"] = Value::String(err);
     }
 
     json!({
@@ -89,6 +121,7 @@ fn run_proof_vm(
         "replay_script_path": replay_rel,
         "manifest_path": manifest_rel,
         "manifest_written": write_manifest,
+        "manifest_write_error": manifest_write_error,
         "dockerfile_sha256": docker_sha,
         "replay_script_sha256": replay_sha,
         "replay_script_executable": replay_executable,
@@ -388,4 +421,3 @@ fn render_matrix_markdown(
 
     lines.join("\n") + "\n"
 }
-

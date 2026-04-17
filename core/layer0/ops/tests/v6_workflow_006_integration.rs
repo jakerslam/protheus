@@ -23,6 +23,13 @@ fn latest_receipt(state_path: &Path) -> Value {
         .expect("last receipt")
 }
 
+fn assert_receipt_tooling_hygiene(receipt: &Value) {
+    let blob = receipt.to_string().to_ascii_lowercase();
+    assert!(!blob.contains("<function="));
+    assert!(!blob.contains("</function>"));
+    assert!(!blob.contains("i couldn't produce source-backed findings in this turn"));
+}
+
 #[test]
 fn workflow_006_metagpt_bridge_emits_receipted_company_sop_pr_debate_requirements_oversight_trace_and_config(
 ) {
@@ -57,6 +64,7 @@ fn workflow_006_metagpt_bridge_emits_receipted_company_sop_pr_debate_requirement
         0
     );
     let company_receipt = latest_receipt(&state_path);
+    assert_receipt_tooling_hygiene(&company_receipt);
     assert_eq!(
         company_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-006.1")
@@ -266,6 +274,7 @@ fn workflow_006_metagpt_bridge_emits_receipted_company_sop_pr_debate_requirement
         0
     );
     let config_receipt = latest_receipt(&state_path);
+    assert_receipt_tooling_hygiene(&config_receipt);
     assert_eq!(
         config_receipt["payload"]["claim_evidence"][0]["id"].as_str(),
         Some("V6-WORKFLOW-006.8")

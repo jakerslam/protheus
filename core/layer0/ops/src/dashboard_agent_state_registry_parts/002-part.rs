@@ -65,9 +65,14 @@ pub fn upsert_contract(root: &Path, agent_id: &str, patch: &Value) -> Value {
                 if lifespan == "permanent" {
                     explicit_indefinite = true;
                     saw_lifecycle_patch = true;
+                    contract["lifespan"] = Value::String("permanent".to_string());
                 } else if lifespan == "task" {
                     contract["termination_condition"] = Value::String("task_complete".to_string());
                     saw_lifecycle_patch = true;
+                    contract["lifespan"] = Value::String("task".to_string());
+                } else if lifespan == "ephemeral" {
+                    saw_lifecycle_patch = true;
+                    contract["lifespan"] = Value::String("ephemeral".to_string());
                 }
             }
             if matches!(
@@ -87,6 +92,8 @@ pub fn upsert_contract(root: &Path, agent_id: &str, patch: &Value) -> Value {
                 key.as_str(),
                 "mission"
                     | "owner"
+                    | "initial_prompt"
+                    | "permissions_manifest" | "permissions_receipt" | "permissions_revision" | "permissions_updated_at"
                     | "termination_condition"
                     | "expires_at"
                     | "parent_agent_id"
@@ -98,9 +105,7 @@ pub fn upsert_contract(root: &Path, agent_id: &str, patch: &Value) -> Value {
             ) {
                 contract[key] = value.clone();
             }
-            if key == "status" {
-                saw_status_patch = true;
-            }
+            if key == "status" { saw_status_patch = true; }
             if key == "expiry_seconds" {
                 contract["expiry_seconds"] = Value::from(parse_expiry_seconds(Some(value)));
             }
@@ -110,13 +115,13 @@ pub fn upsert_contract(root: &Path, agent_id: &str, patch: &Value) -> Value {
             }
             if key == "idle_timeout_seconds" {
                 saw_lifecycle_patch = true;
-                contract["idle_timeout_seconds"] =
-                    Value::from(parse_idle_timeout_seconds(Some(value)));
+                contract["idle_timeout_seconds"] = Value::from(parse_idle_timeout_seconds(Some(value)));
             }
             if key == "idle_terminate_allowed" {
                 saw_lifecycle_patch = true;
                 contract["idle_terminate_allowed"] = Value::Bool(value.as_bool().unwrap_or(true));
             }
+            if key == "permissions_revision" { contract["permissions_revision"] = Value::from(value.as_i64().unwrap_or(1).max(1)); }
         }
     }
     let existing_status = contract

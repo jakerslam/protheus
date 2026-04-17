@@ -1,3 +1,26 @@
+fn normalize_provider_token(raw: &str) -> String {
+    raw.trim()
+        .to_ascii_lowercase()
+        .chars()
+        .filter_map(|ch| {
+            if ch.is_ascii_alphanumeric() {
+                Some(ch)
+            } else if ch == '-' || ch == '_' {
+                Some('-')
+            } else {
+                None
+            }
+        })
+        .collect::<String>()
+}
+
+fn normalize_schedule(raw: &str) -> String {
+    raw.split_whitespace()
+        .filter(|token| !token.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
 fn run_hand_new(root: &Path, argv: &[String]) -> i32 {
     let strict = parse_bool(parse_flag(argv, "strict").as_deref(), true);
     if let Some(mut denied) = conduit_guard(argv, strict) {
@@ -10,9 +33,37 @@ fn run_hand_new(root: &Path, argv: &[String]) -> i32 {
         "hand-default",
     );
     let template = clean_id(parse_flag(argv, "template"), "generalist");
-    let schedule = parse_flag(argv, "schedule").unwrap_or_else(|| "0 * * * *".to_string());
-    let provider = clean_id(parse_flag(argv, "provider"), "bitnet");
-    let fallback = clean_id(parse_flag(argv, "fallback"), "local-moe");
+    let schedule = normalize_schedule(
+        &parse_flag(argv, "schedule").unwrap_or_else(|| "0 * * * *".to_string()),
+    );
+    let schedule_fields = schedule.split_whitespace().count();
+    if strict && schedule_fields != 5 {
+        let mut out = json!({
+            "ok": false,
+            "type": "autonomy_hand_new",
+            "lane": LANE_ID,
+            "strict": strict,
+            "error": "schedule_invalid",
+            "schedule": schedule
+        });
+        return emit_receipt(root, &mut out);
+    }
+    let provider = {
+        let token = normalize_provider_token(&clean_id(parse_flag(argv, "provider"), "bitnet"));
+        if token.is_empty() {
+            "bitnet".to_string()
+        } else {
+            token
+        }
+    };
+    let fallback = {
+        let token = normalize_provider_token(&clean_id(parse_flag(argv, "fallback"), "local-moe"));
+        if token.is_empty() {
+            "local-moe".to_string()
+        } else {
+            token
+        }
+    };
 
     let hand = json!({
         "version": "v1",
@@ -79,27 +130,75 @@ fn run_hand_cycle(root: &Path, argv: &[String]) -> i32 {
         .cloned()
         .unwrap_or_default()
         .into_iter()
-        .filter_map(|v| v.as_str().map(str::to_string))
-        .collect::<Vec<_>>();
-    let preferred = clean_id(
-        parse_flag(argv, "provider").or_else(|| parse_flag(argv, "provider-preferred")),
+        .filter_map(|v| v.as_str().map(normalize_provider_token))
+        .filter(|v| !v.is_empty())
+        .fold(
+            (Vec::<String>::new(), std::collections::BTreeSet::<String>::new()),
+            |(mut rows, mut seen), token| {
+                if seen.insert(token.clone()) {
+                    rows.push(token);
+                }
+                (rows, seen)
+            },
+        )
+        .0;
+    let default_provider = normalize_provider_token(
         provider_policy
             .get("default_provider")
             .and_then(Value::as_str)
             .unwrap_or("bitnet"),
     );
-    let fallback = clean_id(parse_flag(argv, "fallback"), "local-moe");
-    let selected = if allowed.iter().any(|p| p == &preferred) {
-        preferred.clone()
-    } else if allowed.iter().any(|p| p == &fallback) {
-        fallback.clone()
-    } else {
+    let preferred = normalize_provider_token(&clean_id(
+        parse_flag(argv, "provider").or_else(|| parse_flag(argv, "provider-preferred")),
+        if default_provider.is_empty() {
+            "bitnet"
+        } else {
+            default_provider.as_str()
+        },
+    ));
+    let fallback_default = normalize_provider_token(
         provider_policy
-            .get("default_provider")
+            .get("fallback_provider")
             .and_then(Value::as_str)
-            .unwrap_or("bitnet")
-            .to_string()
+            .unwrap_or("local-moe"),
+    );
+    let fallback = normalize_provider_token(&clean_id(
+        parse_flag(argv, "fallback"),
+        if fallback_default.is_empty() {
+            "local-moe"
+        } else {
+            fallback_default.as_str()
+        },
+    ));
+    let (selected, selection_source) = if !preferred.is_empty() && allowed.iter().any(|p| p == &preferred)
+    {
+        (preferred.clone(), "preferred".to_string())
+    } else if !fallback.is_empty() && allowed.iter().any(|p| p == &fallback) {
+        (fallback.clone(), "fallback".to_string())
+    } else if !default_provider.is_empty() && allowed.iter().any(|p| p == &default_provider) {
+        (default_provider.clone(), "policy_default".to_string())
+    } else if let Some(first_allowed) = allowed.first() {
+        (first_allowed.clone(), "first_allowed".to_string())
+    } else {
+        (
+            if default_provider.is_empty() {
+                "bitnet".to_string()
+            } else {
+                default_provider.clone()
+            },
+            "implicit_default".to_string(),
+        )
     };
+    if strict && allowed.is_empty() {
+        let mut out = json!({
+            "ok": false,
+            "type": "autonomy_hand_cycle",
+            "lane": LANE_ID,
+            "strict": strict,
+            "error": "provider_policy_empty"
+        });
+        return emit_receipt(root, &mut out);
+    }
     if strict && !allowed.iter().any(|p| p == &selected) {
         let mut out = json!({
             "ok": false,
@@ -200,7 +299,8 @@ fn run_hand_cycle(root: &Path, argv: &[String]) -> i32 {
         "duality": cycle_duality,
         "routing": {
             "selected_provider": selected,
-            "allowed_providers": allowed
+            "allowed_providers": allowed,
+            "selection_source": selection_source
         },
         "claim_evidence": [
             {

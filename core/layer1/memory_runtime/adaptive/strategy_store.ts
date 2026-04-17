@@ -28,6 +28,19 @@ const STORE_ABS_PATH = process.env.STRATEGY_STORE_PATH
 process.env.PROTHEUS_OPS_USE_PREBUILT = process.env.PROTHEUS_OPS_USE_PREBUILT || '0';
 process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '120000';
 const bridge = createOpsLaneBridge(__dirname, 'strategy_store', 'strategy-store-kernel');
+const FORBIDDEN_RUNTIME_CONTEXT_MARKERS = [
+  'You are an expert Python programmer.',
+  '[PATCH v2',
+  'List Leaves (25',
+  'BEGIN_OPENCLAW_INTERNAL_CONTEXT',
+  'END_OPENCLAW_INTERNAL_CONTEXT',
+  'UNTRUSTED_CHILD_RESULT_DELIMITER'
+];
+
+function containsForbiddenRuntimeContextMarker(raw = '') {
+  const text = String(raw);
+  return FORBIDDEN_RUNTIME_CONTEXT_MARKERS.some((marker) => text.includes(marker));
+}
 
 function encodeBase64(value) {
   return Buffer.from(String(value == null ? '' : value), 'utf8').toString('base64');
@@ -225,5 +238,7 @@ module.exports = {
   materializeFromQueue,
   touchProfileUsage,
   evaluateGcCandidates,
-  gcProfiles
+  gcProfiles,
+  forbiddenRuntimeContextMarkers: FORBIDDEN_RUNTIME_CONTEXT_MARKERS,
+  containsForbiddenRuntimeContextMarker
 };

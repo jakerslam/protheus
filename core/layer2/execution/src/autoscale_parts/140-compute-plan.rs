@@ -3,8 +3,66 @@ fn clamp_ratio(v: f64) -> f64 {
     v.clamp(0.0, 1.0)
 }
 
+fn normalize_runtime_token_label(raw: &str) -> String {
+    let mut out = String::with_capacity(raw.len());
+    let mut prev_sep = false;
+    for ch in raw.trim().chars() {
+        let next = if ch.is_ascii_alphanumeric() {
+            ch.to_ascii_lowercase()
+        } else {
+            '_'
+        };
+        if next == '_' {
+            if prev_sep {
+                continue;
+            }
+            prev_sep = true;
+        } else {
+            prev_sep = false;
+        }
+        out.push(next);
+    }
+    out.trim_matches('_').to_string()
+}
+
+fn classify_pressure_level(raw: &str) -> Option<&'static str> {
+    let token = normalize_runtime_token_label(raw);
+    match token.as_str() {
+        "" => None,
+        "critical" | "crit" | "high" | "backlog_critical" | "queue_critical" | "p1" => {
+            Some("critical")
+        }
+        "warning" | "warn" | "elevated" | "backlog_warning" | "queue_warning" | "p2" => {
+            Some("warning")
+        }
+        "normal" | "none" | "ok" | "stable" | "green" => Some("normal"),
+        _ => None,
+    }
+}
+
+fn normalize_pressure_level(raw: &str) -> &'static str {
+    classify_pressure_level(raw).unwrap_or("normal")
+}
+
+fn normalize_policy_hold_level(raw: &str) -> &'static str {
+    match normalize_runtime_token_label(raw).as_str() {
+        "hard" | "block" | "blocked" | "blocking" => "hard",
+        "warn" | "warning" | "soft_warn" | "softwarn" => "warn",
+        _ => "normal",
+    }
+}
+
+fn normalize_metric_source(raw: &str) -> Option<String> {
+    let token = normalize_runtime_token_label(raw);
+    if token.is_empty() {
+        None
+    } else {
+        Some(token)
+    }
+}
+
 pub fn compute_plan(input: &PlanInput) -> PlanOutput {
-    let pressure = input.queue_pressure.pressure.to_ascii_lowercase();
+    let pressure = normalize_pressure_level(&input.queue_pressure.pressure).to_string();
     let pending = input.queue_pressure.pending.max(0.0);
     let pending_ratio = clamp_ratio(input.queue_pressure.pending_ratio);
     let min_cells = input.min_cells;
@@ -164,7 +222,7 @@ pub fn compute_plan(input: &PlanInput) -> PlanOutput {
 }
 
 pub fn compute_batch_max(input: &BatchMaxInput) -> BatchMaxOutput {
-    let pressure = input.pressure.to_ascii_lowercase();
+    let pressure = normalize_pressure_level(&input.pressure).to_string();
     let max_batch = input.max_batch.max(1);
     let current_cells = input.current_cells;
 
@@ -237,8 +295,8 @@ pub fn compute_dynamic_caps(input: &DynamicCapsInput) -> DynamicCapsOutput {
         low_yield: false,
         high_yield: false,
         spawn_reset_active: false,
-        queue_pressure: input.queue_pressure.to_ascii_lowercase(),
-        policy_hold_level: input.policy_hold_level.to_ascii_lowercase(),
+        queue_pressure: normalize_pressure_level(&input.queue_pressure).to_string(),
+        policy_hold_level: normalize_policy_hold_level(&input.policy_hold_level).to_string(),
         reasons: Vec::new(),
     };
 
@@ -302,6 +360,9 @@ pub fn compute_dynamic_caps(input: &DynamicCapsInput) -> DynamicCapsOutput {
             && input.gate_exhaustion_streak <= 0.0;
     }
 
+    out.reasons.sort();
+    out.reasons.dedup();
+
     out
 }
 
@@ -338,16 +399,13 @@ pub fn compute_token_usage(input: &TokenUsageInput) -> TokenUsageOutput {
 
     let effective_tokens = actual_total.unwrap_or(est_selected);
     let source = if actual_total.is_some() {
-        let raw = input
-            .metrics_source
-            .clone()
-            .unwrap_or_else(|| "route_execute_metrics".to_string());
-        let normalized = raw.trim();
-        if normalized.is_empty() {
-            "route_execute_metrics".to_string()
-        } else {
-            normalized.to_string()
-        }
+        normalize_metric_source(
+            input
+                .metrics_source
+                .as_deref()
+                .unwrap_or("route_execute_metrics"),
+        )
+        .unwrap_or_else(|| "route_execute_metrics".to_string())
     } else {
         "estimated_fallback".to_string()
     };
@@ -380,14 +438,10 @@ pub fn compute_normalize_queue(input: &NormalizeQueueInput) -> NormalizeQueueOut
             }
         });
 
-    let mut pressure = input
-        .pressure
-        .clone()
-        .unwrap_or_default()
-        .trim()
-        .to_ascii_lowercase();
-    if pressure != "critical" && pressure != "warning" && pressure != "normal" {
-        pressure = "normal".to_string();
+    let raw_pressure = input.pressure.clone().unwrap_or_default();
+    let mapped_pressure = classify_pressure_level(&raw_pressure);
+    let mut pressure = mapped_pressure.unwrap_or("normal").to_string();
+    if mapped_pressure.is_none() {
         if pending >= input.critical_pending_count || pending_ratio >= input.critical_pending_ratio
         {
             pressure = "critical".to_string();

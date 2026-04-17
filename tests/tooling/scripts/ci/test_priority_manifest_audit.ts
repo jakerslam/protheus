@@ -1,39 +1,27 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { cleanText, parseStrictOutArgs, readFlag } from '../../lib/cli.ts';
+import { currentRevision } from '../../lib/git.ts';
+import { emitStructuredResult, writeTextArtifact } from '../../lib/result.ts';
 
 const DEFAULT_MANIFEST_PATH = 'client/runtime/config/test_priority_manifest.json';
 const OUT_JSON = 'core/local/artifacts/test_priority_manifest_audit_current.json';
 const OUT_MD = 'local/workspace/reports/TEST_PRIORITY_MANIFEST_AUDIT_CURRENT.md';
 
-function parseArgs(argv) {
-  const out = { strict: false, manifestPath: DEFAULT_MANIFEST_PATH };
-  for (const raw of argv) {
-    const arg = String(raw ?? '').trim();
-    if (!arg) continue;
-    if (arg === '--strict' || arg === '--strict=1') {
-      out.strict = true;
-      continue;
-    }
-    if (arg.startsWith('--strict=')) {
-      out.strict = ['1', 'true', 'yes', 'on'].includes(arg.slice('--strict='.length).toLowerCase());
-      continue;
-    }
-    if (arg.startsWith('--manifest=')) {
-      out.manifestPath = arg.slice('--manifest='.length).trim() || DEFAULT_MANIFEST_PATH;
-      continue;
-    }
-  }
-  return out;
+function parseArgs(argv: string[]) {
+  const common = parseStrictOutArgs(argv, { strict: false });
+  return {
+    strict: common.strict,
+    manifestPath: cleanText(readFlag(argv, 'manifest') || DEFAULT_MANIFEST_PATH, 260),
+    outJson: cleanText(readFlag(argv, 'out-json') || OUT_JSON, 400),
+    outMarkdown: cleanText(readFlag(argv, 'out-markdown') || OUT_MD, 400),
+  };
 }
 
-function readJson(path) {
-  return JSON.parse(readFileSync(resolve(path), 'utf8'));
-}
-
-function ensureParent(path) {
-  mkdirSync(dirname(resolve(path)), { recursive: true });
+function readJson(filePath: string) {
+  return JSON.parse(readFileSync(resolve(filePath), 'utf8'));
 }
 
 function toMarkdown(payload) {
@@ -109,10 +97,12 @@ function main() {
   duplicateAssignments.sort((a, b) => a.script.localeCompare(b.script));
 
   const payload = {
-    ok: true,
+    ok: missingScripts.length === 0 && duplicateAssignments.length === 0,
     type: 'test_priority_manifest_audit',
     generated_at: new Date().toISOString(),
+    revision: currentRevision(),
     manifest_path: args.manifestPath,
+    artifact_paths: [args.outJson, args.outMarkdown],
     tiers,
     missing_scripts: missingScripts.sort(),
     duplicate_assignments: duplicateAssignments,
@@ -126,42 +116,12 @@ function main() {
     },
   };
 
-  ensureParent(OUT_JSON);
-  ensureParent(OUT_MD);
-  writeFileSync(resolve(OUT_JSON), `${JSON.stringify(payload, null, 2)}\n`);
-  writeFileSync(resolve(OUT_MD), toMarkdown(payload));
-
-  if (args.strict && !payload.summary.pass) {
-    console.error(
-      JSON.stringify(
-        {
-          ok: false,
-          type: payload.type,
-          out_json: OUT_JSON,
-          summary: payload.summary,
-          missing_scripts: payload.missing_scripts,
-          duplicate_assignments: payload.duplicate_assignments,
-        },
-        null,
-        2,
-      ),
-    );
-    process.exit(1);
-  }
-
-  console.log(
-    JSON.stringify(
-      {
-        ok: true,
-        type: payload.type,
-        out_json: OUT_JSON,
-        out_markdown: OUT_MD,
-        summary: payload.summary,
-      },
-      null,
-      2,
-    ),
-  );
+  writeTextArtifact(args.outMarkdown, toMarkdown(payload));
+  process.exitCode = emitStructuredResult(payload, {
+    outPath: args.outJson,
+    strict: args.strict,
+    ok: payload.summary.pass,
+  });
 }
 
 main();

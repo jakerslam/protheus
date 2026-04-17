@@ -178,6 +178,21 @@ fn latest(root: &Path) -> Value {
     serde_json::from_str(&raw).expect("parse")
 }
 
+fn assert_receipt_shape(latest: &Value) {
+    assert!(
+        latest.get("payload").and_then(Value::as_object).is_some(),
+        "latest receipt payload must be object"
+    );
+    assert!(
+        latest
+            .get("receipt_hash")
+            .and_then(Value::as_str)
+            .map(|row| !row.is_empty())
+            .unwrap_or(false),
+        "latest receipt hash must exist"
+    );
+}
+
 #[test]
 fn top1_assurance_strict_lanes_emit_receipts() {
     let fixture = stage_top1_fixture();
@@ -208,6 +223,7 @@ fn top1_assurance_strict_lanes_emit_receipts() {
         let exit = top1_assurance::run(root, &argv);
         assert_eq!(exit, 0, "lane must pass: {:?}", argv);
         let latest = latest(root);
+        assert_receipt_shape(&latest);
         assert_eq!(latest.get("ok").and_then(Value::as_bool), Some(true));
         assert!(
             latest
@@ -237,6 +253,7 @@ fn top1_assurance_proof_coverage_runs_declared_commands() {
     );
     assert_eq!(exit, 0);
     let latest = latest(root);
+    assert_receipt_shape(&latest);
     let payload = latest.get("payload").expect("payload");
     assert_eq!(
         payload
@@ -303,6 +320,7 @@ fn top1_assurance_proof_coverage_skips_optional_commands_by_default() {
     assert_eq!(exit, 0);
 
     let latest = latest(root);
+    assert_receipt_shape(&latest);
     let payload = latest.get("payload").expect("payload");
     assert_eq!(
         payload

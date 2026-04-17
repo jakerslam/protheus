@@ -42,6 +42,9 @@ pub fn compute_conclave_high_risk_flags(
     {
         push_unique(&mut flags, "low_confidence".to_string());
     }
+    if !persona_outputs.is_empty() && confidences.is_empty() {
+        push_unique(&mut flags, "confidence_missing".to_string());
+    }
 
     let mut corpus_rows = vec![
         clean_text_runtime(input.query.as_deref().unwrap_or(""), 2400),
@@ -65,12 +68,33 @@ pub fn compute_conclave_high_risk_flags(
         }
     }
     let corpus = corpus_rows.join("\n").to_lowercase();
+    if corpus.contains("timeout")
+        || corpus.contains("connection reset")
+        || corpus.contains("temporarily unavailable")
+        || corpus.contains("rate limit")
+        || corpus.contains("http 429")
+    {
+        push_unique(&mut flags, "upstream_instability".to_string());
+    }
     for keyword in &input.high_risk_keywords {
-        if keyword.is_empty() {
+        let keyword_text = clean_text_runtime(keyword, 160).to_lowercase();
+        if keyword_text.is_empty() {
             continue;
         }
-        if corpus.contains(&keyword.to_lowercase()) {
-            let token = normalize_token_runtime(keyword, 80);
+        let words = keyword_text
+            .split_whitespace()
+            .map(regex::escape)
+            .filter(|row| !row.is_empty())
+            .collect::<Vec<_>>();
+        let keyword_hit = if words.is_empty() {
+            false
+        } else if let Ok(re) = Regex::new(&format!(r"\b{}\b", words.join(r"\s+"))) {
+            re.is_match(&corpus)
+        } else {
+            corpus.contains(&keyword_text)
+        };
+        if keyword_hit {
+            let token = normalize_token_runtime(&keyword_text, 80);
             let flag = if token.is_empty() {
                 "keyword:risk".to_string()
             } else {

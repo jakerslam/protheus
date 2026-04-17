@@ -1,3 +1,41 @@
+fn normalize_web_tooling_provider(raw: &str) -> String {
+    let value = clean(raw, 80).to_ascii_lowercase();
+    match value.as_str() {
+        "google" => "google_search".to_string(),
+        "xai" => "grok".to_string(),
+        "moonshot" => "kimi".to_string(),
+        "serp" => "serpapi".to_string(),
+        _ => value,
+    }
+}
+
+fn company_budget_runtime_web_tooling_auth_sources() -> Vec<String> {
+    let env_candidates = [
+        "BRAVE_API_KEY",
+        "EXA_API_KEY",
+        "TAVILY_API_KEY",
+        "PERPLEXITY_API_KEY",
+        "SERPAPI_API_KEY",
+        "GOOGLE_SEARCH_API_KEY",
+        "GOOGLE_CSE_ID",
+        "FIRECRAWL_API_KEY",
+        "XAI_API_KEY",
+        "MOONSHOT_API_KEY",
+        "OPENAI_API_KEY",
+    ];
+    let mut sources = Vec::<String>::new();
+    for env_name in env_candidates {
+        let present = std::env::var(env_name)
+            .ok()
+            .map(|value| !value.trim().is_empty())
+            .unwrap_or(false);
+        if present {
+            sources.push(format!("env:{env_name}"));
+        }
+    }
+    sources
+}
+
 fn run_budget_enforce(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
     let contract = load_json_or(
         root,
@@ -65,6 +103,18 @@ fn run_budget_enforce(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> 
     let compute_ms = parse_u64(parsed.flags.get("compute-ms"), 0);
     let privacy_units = parse_u64(parsed.flags.get("privacy-units"), 0);
     let cost_usd = parse_f64(parsed.flags.get("cost-usd"), 0.0);
+    let web_requests = parse_u64(parsed.flags.get("web-requests"), 0);
+    let web_cost_usd = parse_f64(parsed.flags.get("web-cost-usd"), 0.0);
+    let web_provider = normalize_web_tooling_provider(
+        parsed
+            .flags
+            .get("web-provider")
+            .or_else(|| parsed.flags.get("web-tooling-provider"))
+            .map(String::as_str)
+            .unwrap_or(""),
+    );
+    let web_auth_sources = company_budget_runtime_web_tooling_auth_sources();
+    let web_auth_present = !web_auth_sources.is_empty();
     let bucket = budget_bucket(&period);
     let period_limits = contract
         .get("period_limits")
@@ -77,6 +127,28 @@ fn run_budget_enforce(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> 
         "cost_usd": period_limits.get("cost_usd").and_then(Value::as_f64).unwrap_or(0.0),
         "compute_ms": period_limits.get("compute_ms").and_then(Value::as_u64).unwrap_or(0),
         "privacy_units": period_limits.get("privacy_units").and_then(Value::as_u64).unwrap_or(0)
+    });
+    let web_limits_by_period = contract
+        .get("web_tooling_limits")
+        .and_then(|value| value.get(&period))
+        .cloned()
+        .unwrap_or_else(|| json!({}));
+    let web_limits_by_provider = web_limits_by_period
+        .get("providers")
+        .and_then(|providers| providers.get(&web_provider))
+        .cloned()
+        .unwrap_or_else(|| json!({}));
+    let web_limits = json!({
+        "requests": web_limits_by_provider
+            .get("requests")
+            .and_then(Value::as_u64)
+            .or_else(|| web_limits_by_period.get("requests").and_then(Value::as_u64))
+            .unwrap_or(0),
+        "cost_usd": web_limits_by_provider
+            .get("cost_usd")
+            .and_then(Value::as_f64)
+            .or_else(|| web_limits_by_period.get("cost_usd").and_then(Value::as_f64))
+            .unwrap_or(0.0)
     });
 
     let ledger_path = state_root(root).join("budgets").join("ledger.json");
@@ -100,7 +172,9 @@ fn run_budget_enforce(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> 
             "tokens": 0,
             "cost_usd": 0.0,
             "compute_ms": 0,
-            "privacy_units": 0
+            "privacy_units": 0,
+            "web_requests": 0,
+            "web_cost_usd": 0.0
         });
     }
 
@@ -109,7 +183,9 @@ fn run_budget_enforce(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> 
         "tokens": current.get("tokens").and_then(Value::as_u64).unwrap_or(0).saturating_add(tokens),
         "cost_usd": current.get("cost_usd").and_then(Value::as_f64).unwrap_or(0.0) + cost_usd,
         "compute_ms": current.get("compute_ms").and_then(Value::as_u64).unwrap_or(0).saturating_add(compute_ms),
-        "privacy_units": current.get("privacy_units").and_then(Value::as_u64).unwrap_or(0).saturating_add(privacy_units)
+        "privacy_units": current.get("privacy_units").and_then(Value::as_u64).unwrap_or(0).saturating_add(privacy_units),
+        "web_requests": current.get("web_requests").and_then(Value::as_u64).unwrap_or(0).saturating_add(web_requests),
+        "web_cost_usd": current.get("web_cost_usd").and_then(Value::as_f64).unwrap_or(0.0) + web_cost_usd
     });
 
     let mut reason_codes = Vec::<String>::new();
@@ -151,6 +227,37 @@ fn run_budget_enforce(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> 
     {
         reason_codes.push("privacy_budget_exceeded".to_string());
     }
+    if web_limits.get("requests").and_then(Value::as_u64).unwrap_or(0) > 0
+        && projected
+            .get("web_requests")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+            > web_limits
+                .get("requests")
+                .and_then(Value::as_u64)
+                .unwrap_or(0)
+    {
+        reason_codes.push("web_tooling_requests_budget_exceeded".to_string());
+    }
+    if web_limits
+        .get("cost_usd")
+        .and_then(Value::as_f64)
+        .unwrap_or(0.0)
+        > 0.0
+        && projected
+            .get("web_cost_usd")
+            .and_then(Value::as_f64)
+            .unwrap_or(0.0)
+            > web_limits
+                .get("cost_usd")
+                .and_then(Value::as_f64)
+                .unwrap_or(0.0)
+    {
+        reason_codes.push("web_tooling_cost_budget_exceeded".to_string());
+    }
+    if strict && (web_requests > 0 || !web_provider.is_empty()) && !web_auth_present {
+        reason_codes.push("web_tooling_auth_missing".to_string());
+    }
     let hard_stop = strict && !reason_codes.is_empty();
     if !hard_stop {
         ledger["agents"][&agent][&period][&bucket] = projected.clone();
@@ -166,10 +273,18 @@ fn run_budget_enforce(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> 
             "tokens": tokens,
             "cost_usd": cost_usd,
             "compute_ms": compute_ms,
-            "privacy_units": privacy_units
+            "privacy_units": privacy_units,
+            "web_requests": web_requests,
+            "web_cost_usd": web_cost_usd
         },
         "projected_usage": projected,
         "limits": limits,
+        "web_tooling": {
+            "provider": web_provider,
+            "limits": web_limits,
+            "auth_present": web_auth_present,
+            "auth_sources": web_auth_sources
+        },
         "hard_stop": hard_stop,
         "reason_codes": reason_codes,
         "ts": crate::now_iso()
@@ -196,7 +311,9 @@ fn run_budget_enforce(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> 
                 "evidence": {
                     "agent": agent,
                     "period": period,
-                    "hard_stop": hard_stop
+                    "hard_stop": hard_stop,
+                    "web_provider": web_provider,
+                    "web_auth_present": web_auth_present
                 }
             }
         ]

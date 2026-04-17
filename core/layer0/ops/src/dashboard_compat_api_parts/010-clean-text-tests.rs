@@ -112,6 +112,16 @@ mod clean_text_memory_phrase_tests {
     }
 
     #[test]
+    fn strip_internal_context_metadata_prefix_drops_runtime_prompt_dump() {
+        assert_eq!(
+            strip_internal_context_metadata_prefix(
+                "You are the currently selected Infring agent instance. Treat the injected identity profile as authoritative for self-identification."
+            ),
+            ""
+        );
+    }
+
+    #[test]
     fn strip_internal_cache_control_markup_removes_cache_tags() {
         let cleaned = strip_internal_cache_control_markup(
             "I see marker <cache_control lane=\"autonomy\" stable_hash=\"abc123\" breakpoint=\"system_instructions\" /> and continue.",

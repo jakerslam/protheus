@@ -1,4 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
+use std::collections::BTreeMap;
+
+const MAX_CAPABILITY_NAME_LEN: usize = 96;
+
+fn sanitize_capability_name(input: &str) -> String {
+    input
+        .chars()
+        .filter(|c| !matches!(*c, '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}'))
+        .filter(|c| !c.is_control())
+        .collect::<String>()
+        .trim()
+        .to_lowercase()
+        .chars()
+        .take(MAX_CAPABILITY_NAME_LEN)
+        .collect()
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CapabilityHandle {
     pub name: String,
@@ -12,20 +29,48 @@ pub struct Sandbox {
 
 impl Sandbox {
     pub fn new(capabilities: Vec<CapabilityHandle>) -> Self {
-        Self { capabilities }
+        let mut by_name = BTreeMap::new();
+        for cap in capabilities {
+            let normalized = sanitize_capability_name(cap.name.as_str());
+            if normalized.is_empty() {
+                continue;
+            }
+            let granted = cap.granted || by_name.get(&normalized).copied().unwrap_or(false);
+            by_name.insert(normalized, granted);
+        }
+        Self {
+            capabilities: by_name
+                .into_iter()
+                .map(|(name, granted)| CapabilityHandle { name, granted })
+                .collect(),
+        }
     }
 
     pub fn can_execute(&self, capability_name: &str) -> bool {
+        let requested = sanitize_capability_name(capability_name);
+        if requested.is_empty() {
+            return false;
+        }
         self.capabilities
             .iter()
-            .any(|cap| cap.granted && cap.name == capability_name)
+            .any(|cap| cap.granted && sanitize_capability_name(cap.name.as_str()) == requested)
     }
 
     pub fn run_stub(&self, capability_name: &str) -> Result<(), &'static str> {
+        let requested = sanitize_capability_name(capability_name);
+        if requested.is_empty() {
+            return Err("capability_invalid");
+        }
         if self.can_execute(capability_name) {
             Ok(())
-        } else {
+        } else if self
+            .capabilities
+            .iter()
+            .any(|cap| sanitize_capability_name(cap.name.as_str()) == requested)
+        {
             Err("capability_denied")
+        } else {
+            Err("capability_unknown")
         }
     }
 }
@@ -43,5 +88,21 @@ mod tests {
 
         assert!(sandbox.run_stub("fs.write").is_err());
         assert!(sandbox.run_stub("net.read").is_ok());
+    }
+
+    #[test]
+    fn capability_names_are_normalized_and_deduped() {
+        let sandbox = Sandbox::new(vec![
+            CapabilityHandle {
+                name: " NET.READ ".to_string(),
+                granted: false,
+            },
+            CapabilityHandle {
+                name: "net.read".to_string(),
+                granted: true,
+            },
+        ]);
+        assert!(sandbox.run_stub(" \u{200B}Net.Read ").is_ok());
+        assert_eq!(sandbox.run_stub("\u{200C}"), Err("capability_invalid"));
     }
 }

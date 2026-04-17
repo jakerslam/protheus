@@ -7,7 +7,7 @@
 
 const assert = require('assert');
 const fs = require('fs');
-const path = require('path');
+const path = require('path');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 // Temp test dir
 const TEST_DIR = path.join(__dirname, '..', '..', 'memory', 'tools', 'tests', 'temp_proposal_queue');
@@ -207,7 +207,7 @@ test('metricsCmd generates correct structure', () => {
   cleanup();
 });
 
-// Summary
+const latestDecisionEvents = readJsonlEventsSafe(pq.decisionsPathFor(new Date().toISOString().slice(0, 10)));\nassertNoPlaceholderOrPromptLeak(latestDecisionEvents, 'proposal_queue_test');\nassertStableToolingEnvelope({ event_count: latestDecisionEvents.length, failed }, 'proposal_queue_test');\n\n// Summary
 console.log('\n═══════════════════════════════════════════════════════════');
 if (failed) {
   console.log('   ❌ PROPOSAL QUEUE TESTS FAILED');

@@ -187,17 +187,18 @@
       </div>
     </div>
     <div
-      class="popup-window popup-window-manual drag-bar overlay-shared-surface"
+      class="popup-window popup-window-manual drag-bar"
+      :class="{ 'is-container-dragging': popupWindowDragActive && popupWindowDragKind === 'manual' }"
       data-popup-window-kind="manual"
       x-cloak
       x-show="helpManualWindowOpen"
       :style="popupWindowStyle('manual')"
       @keydown.escape.window="closePopupWindow('manual')"
+      @pointerdown.capture="startPopupWindowPointerDrag('manual', $event)"
+      @mousedown.capture="startPopupWindowPointerDrag('manual', $event)"
     >
       <div
         class="popup-window-header"
-        @pointerdown.capture="startPopupWindowPointerDrag('manual', $event)"
-        @mousedown.capture="startPopupWindowPointerDrag('manual', $event)"
       >
         <button class="popup-window-close" type="button" @click="closePopupWindow('manual')" aria-label="Close Manual window">
           <span aria-hidden="true">×</span>
@@ -207,17 +208,18 @@
       <div class="popup-window-body popup-window-body-markdown markdown-body" x-html="manualDocumentHtml()"></div>
     </div>
     <div
-      class="popup-window popup-window-report drag-bar overlay-shared-surface"
+      class="popup-window popup-window-report drag-bar"
+      :class="{ 'is-container-dragging': popupWindowDragActive && popupWindowDragKind === 'report' }"
       data-popup-window-kind="report"
       x-cloak
       x-show="reportIssueWindowOpen"
       :style="popupWindowStyle('report')"
       @keydown.escape.window="closePopupWindow('report')"
+      @pointerdown.capture="startPopupWindowPointerDrag('report', $event)"
+      @mousedown.capture="startPopupWindowPointerDrag('report', $event)"
     >
       <div
         class="popup-window-header"
-        @pointerdown.capture="startPopupWindowPointerDrag('report', $event)"
-        @mousedown.capture="startPopupWindowPointerDrag('report', $event)"
       >
         <button class="popup-window-close" type="button" @click="closePopupWindow('report')" aria-label="Close Report issue window">
           <span aria-hidden="true">×</span>
@@ -225,7 +227,7 @@
         <h3 class="popup-window-title">Report an Issue</h3>
       </div>
       <div class="popup-window-body">
-        <p class="popup-window-subtitle">Describe what happened and what you expected. GitHub issue wiring comes next.</p>
+        <p class="popup-window-subtitle">Describe what happened and what you expected. This submits through the dashboard action bus and keeps a local backup if core submission fails.</p>
         <textarea
           class="popup-window-textarea"
           x-model="reportIssueDraft"

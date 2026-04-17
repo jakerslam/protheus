@@ -272,14 +272,44 @@ fn compact_json_spacing(token: &str) -> String {
     out
 }
 
+fn token_provider_alias_variants(token: &str) -> Vec<String> {
+    let mut variants = vec![
+        token.to_ascii_lowercase(),
+        compact_json_spacing(token).to_ascii_lowercase(),
+    ];
+    let alias_pairs: [(&str, [&str; 2]); 4] = [
+        ("moonshot", ["moonshot", "kimi"]),
+        ("xai", ["xai", "grok"]),
+        ("duckduckgo", ["duckduckgo", "duck_duck_go"]),
+        ("brave", ["brave", "brave_search"]),
+    ];
+    let snapshot = variants.clone();
+    for base in snapshot {
+        for (canonical, aliases) in alias_pairs {
+            for alias in aliases {
+                if base.contains(canonical) {
+                    variants.push(base.replace(canonical, alias));
+                }
+                if base.contains(alias) {
+                    variants.push(base.replace(alias, canonical));
+                }
+            }
+        }
+    }
+    variants.sort();
+    variants.dedup();
+    variants
+}
+
 pub fn missing_tokens(text: &str, tokens: &[String]) -> Vec<String> {
     let mut missing = Vec::new();
+    let text_lower = text.to_ascii_lowercase();
     for token in tokens {
-        if text.contains(token) {
-            continue;
-        }
-        let compact_json_token = compact_json_spacing(token);
-        if compact_json_token != *token && text.contains(&compact_json_token) {
+        let variants = token_provider_alias_variants(token);
+        if variants
+            .iter()
+            .any(|candidate| text_lower.contains(candidate.as_str()))
+        {
             continue;
         }
         missing.push(token.clone());
@@ -296,6 +326,25 @@ mod tests {
         let token = r#""schema":   {"id": "x"} value:  keep"#;
         let compacted = compact_json_spacing(token);
         assert_eq!(compacted, r#""schema":{"id":"x"} value:  keep"#);
+    }
+
+    #[test]
+    fn missing_tokens_accepts_provider_alias_for_moonshot_and_xai() {
+        let tokens = vec![
+            r#""provider":"moonshot""#.to_string(),
+            r#""provider":"xai""#.to_string(),
+        ];
+        let source = r#"{"provider":"kimi"} {"provider":"grok"}"#;
+        let missing = missing_tokens(source, &tokens);
+        assert!(missing.is_empty(), "missing={missing:?}");
+    }
+
+    #[test]
+    fn missing_tokens_accepts_provider_alias_for_duckduckgo() {
+        let tokens = vec![r#""provider":"duckduckgo""#.to_string()];
+        let source = r#"{"provider":"duck_duck_go"}"#;
+        let missing = missing_tokens(source, &tokens);
+        assert!(missing.is_empty(), "missing={missing:?}");
     }
 
     #[test]
@@ -432,4 +481,3 @@ mod tests {
         );
     }
 }
-

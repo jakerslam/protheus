@@ -99,13 +99,30 @@ fn as_text(value: &Value) -> String {
     }
 }
 
+fn normalize_token_text(raw: &str) -> String {
+    let mut out = String::new();
+    let mut prev_sep = false;
+    for ch in raw.trim().chars() {
+        let next = if ch.is_ascii_alphanumeric() {
+            ch.to_ascii_lowercase()
+        } else {
+            '_'
+        };
+        if next == '_' {
+            if prev_sep {
+                continue;
+            }
+            prev_sep = true;
+        } else {
+            prev_sep = false;
+        }
+        out.push(next);
+    }
+    out.trim_matches('_').to_string()
+}
+
 fn normalize_token(value: &Value) -> String {
-    as_text(value)
-        .chars()
-        .map(|ch| if ch.is_ascii_alphanumeric() { ch } else { '_' })
-        .collect::<String>()
-        .trim_matches('_')
-        .to_string()
+    normalize_token_text(&as_text(value))
 }
 
 fn normalize_weight(value: Option<&Value>, fallback: f64) -> f64 {
@@ -209,7 +226,7 @@ fn majority_trit(values: &[Value], weights: &[Value], tie_breaker: &str) -> i64 
     if unknown > pain && unknown > ok {
         return TRIT_UNKNOWN;
     }
-    match tie_breaker {
+    match normalize_token_text(tie_breaker).as_str() {
         "pain" => TRIT_PAIN,
         "ok" => TRIT_OK,
         "first_non_zero" => values
@@ -290,9 +307,12 @@ fn serialize_trit(value: i64) -> &'static str {
 }
 
 fn parse_serialized_trit(value: &Value) -> i64 {
-    match as_text(value).as_str() {
+    match normalize_token_text(&as_text(value)).as_str() {
         "-1" | "-" => TRIT_PAIN,
         "1" | "+" => TRIT_OK,
+        "pain" | "fail" | "red" => TRIT_PAIN,
+        "ok" | "pass" | "green" => TRIT_OK,
+        "unknown" | "neutral" => TRIT_UNKNOWN,
         _ => TRIT_UNKNOWN,
     }
 }
@@ -324,7 +344,13 @@ fn parse_trit_vector(payload: &Value) -> Vec<i64> {
     if let Some(rows) = obj.get("values").and_then(Value::as_array) {
         return rows.iter().map(parse_serialized_trit).collect::<Vec<_>>();
     }
-    let digits = obj.get("digits").map(as_text).unwrap_or_default();
+    let digits = obj
+        .get("digits")
+        .map(as_text)
+        .unwrap_or_default()
+        .chars()
+        .filter(|ch| matches!(*ch, '+' | '-' | '0' | '1'))
+        .collect::<String>();
     digits
         .chars()
         .map(|ch| parse_serialized_trit(&Value::String(ch.to_string())))

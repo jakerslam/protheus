@@ -156,10 +156,65 @@ fn handle_agent_scope_suggestions_command_config_routes(
         if !patch.is_object() {
             patch = json!({});
         }
-        let should_seed_intro = patch.get("contract").is_some()
+        let contract_seeds_intro = patch
+            .get("contract")
+            .and_then(Value::as_object)
+            .map(|contract| {
+                [
+                    "mission",
+                    "termination_condition",
+                    "expiry_seconds",
+                    "indefinite",
+                    "lifespan",
+                    "source_user_directive",
+                ]
+                .iter()
+                .any(|key| contract.contains_key(*key))
+            })
+            .unwrap_or(false);
+        let should_seed_intro = contract_seeds_intro
             || patch.get("system_prompt").is_some()
             || patch.get("archetype").is_some()
             || patch.get("profile").is_some();
+        let requested_permissions = patch
+            .get("permissions")
+            .or_else(|| patch.get("permissions_manifest"))
+            .or_else(|| patch.get("contract").and_then(|value| value.get("permissions_manifest")))
+            .or_else(|| patch.get("contract").and_then(|value| value.get("permissions")))
+            .and_then(parse_permissions_payload)
+            .map(|value| normalize_permissions_manifest(&value));
+        if let Some(permissions_manifest) = requested_permissions {
+            let previous_revision = existing
+                .as_ref()
+                .and_then(|row| row.get("contract"))
+                .and_then(|contract| contract.get("permissions_revision"))
+                .and_then(Value::as_i64)
+                .unwrap_or(0)
+                .max(0);
+            let permissions_updated_at = crate::now_iso();
+            let permissions_receipt = crate::deterministic_receipt_hash(&json!({
+                "type": "agent_permissions_manifest_update",
+                "agent_id": agent_id,
+                "permissions_manifest": permissions_manifest,
+                "updated_at": permissions_updated_at
+            }));
+            if !patch.get("contract").map(Value::is_object).unwrap_or(false) {
+                patch["contract"] = json!({});
+            }
+            patch["contract"]["permissions_manifest"] = permissions_manifest;
+            patch["contract"]["permissions_revision"] = json!(previous_revision + 1);
+            patch["contract"]["permissions_updated_at"] = json!(permissions_updated_at);
+            patch["contract"]["permissions_receipt"] = json!(permissions_receipt);
+            if let Some(contract_map) = patch.get_mut("contract").and_then(Value::as_object_mut) {
+                contract_map.remove("permissions");
+                contract_map.remove("permission_template");
+            }
+            if let Some(patch_map) = patch.as_object_mut() {
+                patch_map.remove("permissions");
+                patch_map.remove("permissions_manifest");
+                patch_map.remove("permission_template");
+            }
+        }
         let explicit_role = clean_text(patch.get("role").and_then(Value::as_str).unwrap_or(""), 60);
         let existing_role = clean_text(
             existing

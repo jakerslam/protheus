@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pub const CHECK_ID: &str = "burn_oracle_budget_gate";
 pub const RECEIPT_SCHEMA_ID: &str = "burn_oracle_budget_gate_receipt";
+pub const MAX_BURN_UNITS_CAP: u64 = 1_000_000_000_000;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OracleStatus {
@@ -101,20 +102,55 @@ impl BurnOracleBudgetReceipt {
     }
 }
 
+fn oracle_remaining_from_status(status: OracleStatus) -> Option<u64> {
+    match status {
+        OracleStatus::Available {
+            remaining_burn_units,
+        } => Some(remaining_burn_units),
+        OracleStatus::Unavailable => None,
+    }
+}
+
+fn normalize_request(
+    request: BurnOracleBudgetRequest,
+) -> Result<BurnOracleBudgetRequest, &'static str> {
+    if request.requested_burn_units > MAX_BURN_UNITS_CAP
+        || request.max_allowed_burn_units > MAX_BURN_UNITS_CAP
+    {
+        return Err("budget_value_out_of_bounds");
+    }
+    if let OracleStatus::Available {
+        remaining_burn_units,
+    } = request.oracle_status
+    {
+        if remaining_burn_units > MAX_BURN_UNITS_CAP {
+            return Err("oracle_value_out_of_bounds");
+        }
+    }
+    Ok(request)
+}
+
 pub fn evaluate_burn_oracle_budget_gate(
     request: BurnOracleBudgetRequest,
 ) -> BurnOracleBudgetDecision {
+    let request = match normalize_request(request) {
+        Ok(request) => request,
+        Err(code) => {
+            return BurnOracleBudgetDecision::denied(
+                code,
+                request.requested_burn_units,
+                request.max_allowed_burn_units,
+                oracle_remaining_from_status(request.oracle_status),
+            );
+        }
+    };
+
     if request.max_allowed_burn_units == 0 {
         return BurnOracleBudgetDecision::denied(
             "budget_policy_invalid",
             request.requested_burn_units,
             request.max_allowed_burn_units,
-            match request.oracle_status {
-                OracleStatus::Available {
-                    remaining_burn_units,
-                } => Some(remaining_burn_units),
-                OracleStatus::Unavailable => None,
-            },
+            oracle_remaining_from_status(request.oracle_status),
         );
     }
 
@@ -123,12 +159,7 @@ pub fn evaluate_burn_oracle_budget_gate(
             "request_below_minimum",
             request.requested_burn_units,
             request.max_allowed_burn_units,
-            match request.oracle_status {
-                OracleStatus::Available {
-                    remaining_burn_units,
-                } => Some(remaining_burn_units),
-                OracleStatus::Unavailable => None,
-            },
+            oracle_remaining_from_status(request.oracle_status),
         );
     }
 
@@ -137,12 +168,7 @@ pub fn evaluate_burn_oracle_budget_gate(
             "budget_bound_exceeded",
             request.requested_burn_units,
             request.max_allowed_burn_units,
-            match request.oracle_status {
-                OracleStatus::Available {
-                    remaining_burn_units,
-                } => Some(remaining_burn_units),
-                OracleStatus::Unavailable => None,
-            },
+            oracle_remaining_from_status(request.oracle_status),
         );
     }
 

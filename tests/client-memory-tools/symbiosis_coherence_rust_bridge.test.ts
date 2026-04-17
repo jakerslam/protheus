@@ -1,10 +1,30 @@
 #!/usr/bin/env node
 'use strict';
 
+const ts = require('typescript');
+
+if (!require.extensions['.ts']) {
+  require.extensions['.ts'] = function compileTs(module, filename) {
+    const source = require('fs').readFileSync(filename, 'utf8');
+    const transpiled = ts.transpileModule(source, {
+      compilerOptions: {
+        module: ts.ModuleKind.CommonJS,
+        target: ts.ScriptTarget.ES2022,
+        moduleResolution: ts.ModuleResolutionKind.NodeJs,
+        esModuleInterop: true,
+        allowSyntheticDefaultImports: true
+      },
+      fileName: filename,
+      reportDiagnostics: false
+    }).outputText;
+    module._compile(transpiled, filename);
+  };
+}
+
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
-const path = require('node:path');
+const path = require('node:path');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 const ROOT = path.resolve(__dirname, '../..');
 
@@ -82,7 +102,7 @@ function main() {
   assert.strictEqual(typeof recursion.blocked, 'boolean');
   assert.ok(recursion.allowed_depth == null || recursion.allowed_depth >= 1);
 
-  console.log(JSON.stringify({ ok: true, type: 'symbiosis_coherence_rust_bridge_test' }));
+  assertNoPlaceholderOrPromptLeak({ policy, evaluated, loaded, recursion }, 'symbiosis_coherence_rust_bridge_test');\n  assertStableToolingEnvelope(evaluated, 'symbiosis_coherence_rust_bridge_test');\n  console.log(JSON.stringify({ ok: true, type: 'symbiosis_coherence_rust_bridge_test' }));
 }
 
 if (require.main === module) {

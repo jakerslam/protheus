@@ -170,9 +170,12 @@ fn evolution_command(
     state.insert("versions".to_string(), Value::Array(versions.clone()));
     state.insert("head".to_string(), Value::String(head.clone()));
     write_json(&path, &Value::Object(state.clone()))?;
+    let runtime_ok = !strict || errors.is_empty();
+    let receipt_status = if runtime_ok { "success" } else { "error" };
+    let error_count = errors.len();
 
     Ok(json!({
-        "ok": !strict || errors.is_empty(),
+        "ok": runtime_ok,
         "type": "canyon_plane_evolution",
         "lane": LANE_ID,
         "ts": now_iso(),
@@ -183,7 +186,17 @@ fn evolution_command(
         "proposal_count": proposals.len(),
         "version_count": versions.len(),
         "state_path": path.to_string_lossy().to_string(),
+        "error_count": error_count,
         "errors": errors,
+        "execution_receipt": {
+            "lane": LANE_ID,
+            "command": "evolution",
+            "op": op,
+            "strict": strict,
+            "status": receipt_status,
+            "source": "OPENCLAW-TOOLING-WEB-098",
+            "tool_runtime_class": "receipt_wrapped"
+        },
         "claim_evidence": [{
             "id": "V7-CANYON-001.3",
             "claim": "governed_self_evolution_executes_propose_shadow_review_apply_with_atomic_version_lineage_and_rollback",

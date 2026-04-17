@@ -5,6 +5,15 @@ fn turn_workflow_event(kind: &str, detail: Value) -> Value {
     })
 }
 
+fn bump_workflow_quality_counter(workflow: &mut Value, key: &str) {
+    let pointer = format!("/quality_telemetry/{key}");
+    let current = workflow
+        .pointer(&pointer)
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    workflow["quality_telemetry"][key] = json!(current + 1);
+}
+
 fn response_tool_workflow_events(response_tools: &[Value]) -> Vec<Value> {
     let mut events = Vec::<Value>::new();
     let mut seen = HashSet::<String>::new();
@@ -158,11 +167,15 @@ fn tool_completion_report_for_response(
     } else {
         "reported_no_findings"
     };
+    let deferred_execution = response_is_deferred_execution_preamble(&cleaned)
+        || response_is_deferred_retry_prompt(&cleaned);
     json!({
         "completion_state": completion_state,
         "findings_available": !findings.is_empty(),
         "final_ack_only": response_looks_like_tool_ack_without_findings(&cleaned),
         "final_no_findings": response_is_no_findings_placeholder(&cleaned),
+        "final_deferred_execution": deferred_execution,
+        "final_requests_more_tooling": workflow_response_requests_more_tooling(&cleaned),
         "reasoning": first_sentence(&reasoning_source, 220),
         "outcome": clean_text(outcome, 200)
     })
@@ -190,6 +203,17 @@ fn augment_turn_workflow_events_for_final_response(
             "draft_response_invalid",
             json!({
                 "reason": "ack_only",
+                "draft_excerpt": first_sentence(&cleaned_draft, 220)
+            }),
+        ));
+    } else if response_is_deferred_execution_preamble(&cleaned_draft)
+        || response_is_deferred_retry_prompt(&cleaned_draft)
+        || workflow_response_requests_more_tooling(&cleaned_draft)
+    {
+        events.push(turn_workflow_event(
+            "draft_response_invalid",
+            json!({
+                "reason": "deferred_retry_prompt",
                 "draft_excerpt": first_sentence(&cleaned_draft, 220)
             }),
         ));
@@ -303,6 +327,7 @@ fn run_turn_workflow_final_response(
         response_tools,
         &enriched_workflow_events,
         draft_response,
+        message,
     );
     let required = workflow
         .pointer("/final_llm_response/required")
@@ -353,9 +378,65 @@ fn run_turn_workflow_final_response(
         ),
         20_000,
     );
+    let recent_context = active_messages
+        .iter()
+        .rev()
+        .take(7)
+        .filter_map(|row| {
+            let text = clean_text(
+                row.get("text")
+                    .or_else(|| row.get("content"))
+                    .or_else(|| row.get("message"))
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                320,
+            );
+            if text.is_empty() {
+                None
+            } else {
+                Some(text)
+            }
+        })
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+        .collect::<Vec<_>>()
+        .join("\n");
     let max_attempts = 2;
     let mut last_error = String::new();
     let mut last_invalid_excerpt = String::new();
+    let mut last_reject_reason = String::new();
+    let has_structured_block_evidence = response_tools.iter().any(|row| {
+        let status = clean_text(row.get("status").and_then(Value::as_str).unwrap_or(""), 80)
+            .to_ascii_lowercase();
+        let error = clean_text(row.get("error").and_then(Value::as_str).unwrap_or(""), 160)
+            .to_ascii_lowercase();
+        let tool_type = clean_text(row.get("type").and_then(Value::as_str).unwrap_or(""), 120)
+            .to_ascii_lowercase();
+        let blocked = row.get("blocked").and_then(Value::as_bool).unwrap_or(false);
+        blocked
+            || matches!(status.as_str(), "blocked" | "policy_denied")
+            || tool_type == "tool_pre_gate_blocked"
+            || error.contains("nexus_delivery_denied")
+            || error.contains("tool_permission_denied")
+            || row
+                .get("status_code")
+                .and_then(Value::as_i64)
+                .or_else(|| row.get("http_status").and_then(Value::as_i64))
+                .map(|code| matches!(code, 401 | 403 | 404 | 422 | 429))
+                .unwrap_or(false)
+    });
+    workflow["quality_telemetry"] = json!({
+        "off_topic_reject": 0,
+        "deferred_reply_reject": 0,
+        "alignment_reject": 0,
+        "meta_control_tool_block": workflow
+            .pointer("/tool_gate/meta_control_message")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+            && response_tools.is_empty(),
+        "final_fallback_used": false
+    });
     workflow["final_llm_response"]["attempted"] = Value::Bool(true);
     workflow["final_llm_response"]["max_attempts"] = json!(max_attempts);
     for attempt in 1..=max_attempts {
@@ -363,7 +444,7 @@ fn run_turn_workflow_final_response(
         let attempt_user_prompt = if attempt > 1 {
             clean_text(
                 &format!(
-                    "{}\n\nCorrection for attempt {} of {}: your previous answer did not complete the workflow because it tried to start another search, deferred the answer, or emitted inline tool markup. Do not ask to retry, rerun, narrow the query, fetch another source, or emit `<function=...>` calls. Using only the recorded tool outcomes and workflow events above, explain what happened in your own words and tell the user what the tool actually returned.",
+                    "{}\n\nCorrection for attempt {} of {}: your previous answer did not complete the workflow because it tried to start another search, deferred the answer, emitted inline tool markup, or drifted away from the latest user request. Do not ask to retry, rerun, narrow the query, fetch another source, or emit `<function=...>` calls. Keep high lexical/semantic alignment to the latest user request and recent conversation context. Using only the recorded tool outcomes and workflow events above, explain what happened in your own words and tell the user what the tool actually returned.",
                     user_prompt, attempt, max_attempts
                 ),
                 20_000,
@@ -395,12 +476,48 @@ fn run_turn_workflow_final_response(
                 if !user_requested_internal_runtime_details(message) {
                     retried_text = abstract_runtime_mechanics_terms(&retried_text);
                 }
+                let deferred_reply = response_is_deferred_execution_preamble(&retried_text)
+                    || response_is_deferred_retry_prompt(&retried_text)
+                    || workflow_response_requests_more_tooling(&retried_text);
+                let off_topic_reply = response_is_unrelated_context_dump(message, &retried_text);
+                let low_alignment_reply = response_low_alignment_with_turn_context(
+                    message,
+                    &recent_context,
+                    &retried_text,
+                );
                 if retried_text.is_empty()
                     || response_is_no_findings_placeholder(&retried_text)
                     || response_looks_like_tool_ack_without_findings(&retried_text)
-                    || workflow_response_requests_more_tooling(&retried_text)
-                    || response_is_unrelated_context_dump(message, &retried_text)
+                    || deferred_reply
+                    || (response_contains_speculative_web_blocker_language(&retried_text)
+                        && !has_structured_block_evidence)
+                    || off_topic_reply
+                    || low_alignment_reply
                 {
+                    if deferred_reply {
+                        bump_workflow_quality_counter(&mut workflow, "deferred_reply_reject");
+                    }
+                    if off_topic_reply {
+                        bump_workflow_quality_counter(&mut workflow, "off_topic_reject");
+                    }
+                    if low_alignment_reply {
+                        bump_workflow_quality_counter(&mut workflow, "alignment_reject");
+                    }
+                    last_reject_reason = if deferred_reply {
+                        "deferred_reply".to_string()
+                    } else if off_topic_reply {
+                        "off_topic_reply".to_string()
+                    } else if low_alignment_reply {
+                        "low_alignment_reply".to_string()
+                    } else if retried_text.is_empty() {
+                        "empty_reply".to_string()
+                    } else if response_is_no_findings_placeholder(&retried_text) {
+                        "placeholder_reply".to_string()
+                    } else if response_looks_like_tool_ack_without_findings(&retried_text) {
+                        "ack_only_reply".to_string()
+                    } else {
+                        "invalid_reply".to_string()
+                    };
                     last_invalid_excerpt = first_sentence(&retried_text, 240);
                     continue;
                 }
@@ -421,6 +538,10 @@ fn run_turn_workflow_final_response(
         workflow["final_llm_response"]["status"] = Value::String("synthesis_failed".to_string());
         set_turn_workflow_final_stage_status(&mut workflow, "synthesis_failed");
         workflow["final_llm_response"]["error"] = Value::String(last_invalid_excerpt);
+        if !last_reject_reason.is_empty() {
+            workflow["final_llm_response"]["last_reject_reason"] =
+                Value::String(last_reject_reason);
+        }
     } else {
         workflow["final_llm_response"]["status"] = Value::String("invoke_failed".to_string());
         set_turn_workflow_final_stage_status(&mut workflow, "invoke_failed");

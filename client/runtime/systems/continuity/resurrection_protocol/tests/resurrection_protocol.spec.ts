@@ -32,10 +32,17 @@ assert.deepStrictEqual(
   mod.normalizeArgs(['build', '--session-id=a']),
   ['checkpoint', '--session-id=a']
 );
+assert.deepStrictEqual(
+  mod.normalizeArgs(['\u200Bunknown', '--session-id=a']),
+  ['status', '--session-id=a']
+);
 assert.deepStrictEqual(mod.normalizeArgs([]), ['status']);
 
 const receipt = mod.ensureMutationReceipt({ payload: { ok: true, type: 'resurrection_protocol_checkpoint' } }, 'checkpoint');
 assert.ok(typeof receipt.payload.receipt_hash === 'string');
 assert.equal(receipt.payload.receipt_hash.length >= 64, true);
+
+const noMut = mod.ensureMutationReceipt({ payload: { ok: true, type: 'resurrection_protocol_status' } }, 'status');
+assert.equal(noMut.payload.receipt_hash, undefined);
 
 console.log('resurrection_protocol wrapper checks passed');

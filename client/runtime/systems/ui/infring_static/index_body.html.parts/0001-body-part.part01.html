@@ -8,7 +8,7 @@
   aria-hidden="true"
 >
   <div class="boot-splash-inner">
-    <div class="brand-mark boot-splash-mark"><span class="brand-mark-glyph">&infin;</span></div>
+    <div class="brand-mark boot-splash-mark infring-logo"><span class="brand-mark-glyph infring-logo-glyph">&infin;</span></div>
     <div class="boot-splash-wordmark">INFRING</div>
     <div
       class="boot-splash-progress"
@@ -54,7 +54,7 @@
 
 <div class="app-layout" :class="{ 'focus-mode': $store.app.focusMode, 'taskbar-bottom': taskbarDockEdge === 'bottom' }">
   <!-- Sidebar -->
-  <nav class="sidebar drag-bar overlay-shared-surface" :class="{ collapsed: sidebarCollapsed, 'mobile-open': mobileMenuOpen, 'chat-only-hidden': page !== 'chat', 'chat-sidebar-dynamic': page === 'chat' }" :style="chatSidebarContainerStyle()" @pointerdown.capture="startChatSidebarPointerDrag($event)" @mousedown.capture="startChatSidebarPointerDrag($event)">
+  <nav class="sidebar drag-bar overlay-shared-surface" :class="{ collapsed: sidebarCollapsed, 'mobile-open': mobileMenuOpen, 'chat-only-hidden': page !== 'chat', 'chat-sidebar-dynamic': page === 'chat', 'is-container-dragging': !!chatSidebarDragActive }" :style="chatSidebarContainerStyle()" @pointerdown.capture="startChatSidebarPointerDrag($event)" @mousedown.capture="startChatSidebarPointerDrag($event)">
     <div class="sidebar-nav-shell" :style="chatSidebarNavShellStyle()">
     <div class="sidebar-nav" role="navigation" aria-label="Main navigation" x-ref="sidebarNav" :style="chatSidebarNavStyle()" @scroll.passive="scheduleSidebarScrollIndicators(); hideDashboardPopupBySource('sidebar')">
       <div class="sidebar-top-ghost" aria-hidden="true"></div>
@@ -172,14 +172,20 @@
                 <span class="spinner-sm new-agent-plus-spinner" x-show="sidebarSpawningAgent" aria-hidden="true"></span>
               </span>
             </a>
+            <div
+              class="nav-sub-virtual-spacer"
+              x-show="chatSidebarVirtualized && chatSidebarVirtualPadTop > 0"
+              :style="'height:' + chatSidebarVirtualPadTop + 'px'"
+              aria-hidden="true"
+            ></div>
             <template x-for="agent in chatSidebarVisibleRows" :key="'nav-agent-' + agent.id + '-' + (agent._sidebar_search_result ? 'search' : 'live')">
               <a
                 class="nav-item nav-sub-item nav-agent-row"
                 :data-agent-id="String(agent.id || '')"
                 :class="{
                   active: page === 'chat' && $store.app.activeAgentId === agent.id,
-                  'nav-agent-row-archived': !!agent.archived,
-                  'nav-agent-row-timeout': !!agent._timed_out_local,
+                  'nav-agent-row-archived': !!agent.sidebar_archived,
+                  'nav-agent-row-timeout': !!agent.revive_recommended,
                   'nav-agent-row-with-countdown': shouldShowExpiryCountdown(agent) || shouldShowInfinityLifespan(agent),
                   'nav-agent-row-draggable': chatSidebarCanReorderTopology(),
                   dragging: chatSidebarCanReorderTopology() && chatSidebarDragAgentId === String(agent.id),
@@ -199,7 +205,7 @@
                 @mouseleave="if (sidebarCollapsed) hideDashboardPopupBySource('sidebar')"
               >
                 <span class="nav-icon nav-agent-icon">
-                  <span class="nav-agent-avatar-wrap" :class="{ 'nav-agent-avatar-archived-mask': !!agent.archived, 'nav-agent-avatar-timeout-mask': !!agent._timed_out_local, 'nav-agent-avatar-expiring-critical': expiryCountdownCritical(agent) }">
+                  <span class="nav-agent-avatar-wrap" :class="{ 'nav-agent-avatar-archived-mask': !!agent.sidebar_archived, 'nav-agent-avatar-timeout-mask': !!agent.revive_recommended, 'nav-agent-avatar-expiring-critical': expiryCountdownCritical(agent) }">
                     <span class="agent-activity-spinner" x-show="$store.app.isAgentLiveBusy(agent)" aria-hidden="true"></span>
                     <span class="nav-agent-avatar">
                       <img
@@ -209,7 +215,7 @@
                         loading="lazy"
                       />
                       <span class="nav-agent-avatar-emoji" x-show="!agent.avatar_url && !!sidebarDisplayEmoji(agent)" x-text="sidebarDisplayEmoji(agent)"></span>
-                      <span class="nav-agent-avatar-fallback" x-show="!agent.avatar_url && !sidebarDisplayEmoji(agent)" aria-hidden="true">&infin;</span>
+                      <span class="nav-agent-avatar-fallback infring-logo infring-logo--agent-default" x-show="!agent.avatar_url && !sidebarDisplayEmoji(agent)" aria-hidden="true"><span class="infring-logo-glyph" aria-hidden="true">&infin;</span></span>
                     </span>
                     <span
                       class="agent-expiry-countdown"
@@ -251,12 +257,12 @@
                   <span class="nav-agent-bottom">
                     <span
                       class="nav-agent-preview"
-                      :class="{ 'preview-unread': !!chatSidebarPreview(agent).unread_response, 'nav-agent-preview-timeout': !!agent._timed_out_local }"
+                      :class="{ 'preview-unread': !!chatSidebarPreview(agent).unread_response, 'nav-agent-preview-timeout': !!agent.revive_recommended }"
                       x-text="chatSidebarPreview(agent).text || ((agent.is_system_thread === true || String(agent.id || '').toLowerCase() === 'system') ? '' : 'No messages yet')"
                     ></span>
                     <button
                       class="nav-agent-archive"
-                      x-show="!agent.archived && !(agent.is_system_thread === true || String(agent.id || '').toLowerCase() === 'system') && confirmArchiveAgentId !== String(agent.id)"
+                      x-show="!isSidebarArchivedAgent(agent) && !(agent.is_system_thread === true || String(agent.id || '').toLowerCase() === 'system') && confirmArchiveAgentId !== String(agent.id)"
                       @click.stop="confirmArchiveAgentId = String(agent.id)"
                       @mouseenter="showDashboardPopup('sidebar-utility:archive-chat', 'Archive chat', $event, { source: 'sidebar', side: 'right', body: 'Archive this agent conversation', meta_origin: 'Sidebar' })"
                       @mousemove="showDashboardPopup('sidebar-utility:archive-chat', 'Archive chat', $event, { source: 'sidebar', side: 'right', body: 'Archive this agent conversation', meta_origin: 'Sidebar' })"
@@ -266,7 +272,7 @@
                     </button>
                     <button
                       class="nav-agent-archive nav-agent-archive-confirm"
-                      x-show="!agent.archived && !(agent.is_system_thread === true || String(agent.id || '').toLowerCase() === 'system') && confirmArchiveAgentId === String(agent.id)"
+                      x-show="!isSidebarArchivedAgent(agent) && !(agent.is_system_thread === true || String(agent.id || '').toLowerCase() === 'system') && confirmArchiveAgentId === String(agent.id)"
                       @click.stop="archiveAgentFromSidebar(agent)"
                       @mouseleave="hideDashboardPopup('sidebar-utility:confirm-archive'); if (confirmArchiveAgentId === String(agent.id)) confirmArchiveAgentId = ''"
                       @mouseenter="showDashboardPopup('sidebar-utility:confirm-archive', 'Confirm archive', $event, { source: 'sidebar', side: 'right', body: 'Archive this agent conversation now', meta_origin: 'Sidebar' })"
@@ -278,6 +284,12 @@
                 </span>
               </a>
             </template>
+            <div
+              class="nav-sub-virtual-spacer"
+              x-show="chatSidebarVirtualized && chatSidebarVirtualPadBottom > 0"
+              :style="'height:' + chatSidebarVirtualPadBottom + 'px'"
+              aria-hidden="true"
+            ></div>
             <div class="nav-item nav-sub-item nav-sub-item-empty" x-show="$store.app.agentsLoading || !$store.app.agentsHydrated">
               <span class="nav-icon nav-loading-icon" aria-hidden="true"></span>
               <span class="nav-label">Loading agents...</span>

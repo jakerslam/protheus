@@ -4,13 +4,19 @@
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const MAX_ARG_LEN = 512;
+
+function sanitizeArgToken(value, maxLen = MAX_ARG_LEN) {
+  return String(value == null ? '' : value)
+    .replace(/[\u200B\u200C\u200D\u2060\uFEFF]/g, '')
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/[^\x20-\x7E]+/g, '')
+    .trim()
+    .slice(0, Math.max(1, Number(maxLen) || 1));
+}
 
 function isFile(filePath) {
-  try {
-    return fs.statSync(filePath).isFile();
-  } catch {
-    return false;
-  }
+  try { return fs.statSync(filePath).isFile(); } catch { return false; }
 }
 
 function resolveExecutableName() {
@@ -22,42 +28,28 @@ function findBinary() {
   const pkgRoot = path.resolve(__dirname, '..');
   const vendorPath = path.join(pkgRoot, 'vendor', exe);
   if (isFile(vendorPath)) return vendorPath;
-
-  const envPath = String(process.env.PROTHEUS_NPM_BINARY || '').trim();
+  const envPath = sanitizeArgToken(process.env.PROTHEUS_NPM_BINARY || '', 1024);
   if (envPath && isFile(envPath)) return envPath;
-
-   const repoRoot = path.resolve(pkgRoot, '..', '..');
-   const localCandidates = [
-    path.join(repoRoot, 'target', 'debug', exe),
-    path.join(repoRoot, 'target', 'release', exe)
-   ];
-   for (const candidate of localCandidates) {
+  const repoRoot = path.resolve(pkgRoot, '..', '..');
+  for (const candidate of [path.join(repoRoot, 'target', 'debug', exe), path.join(repoRoot, 'target', 'release', exe)]) {
     if (isFile(candidate)) return candidate;
-   }
+  }
   return null;
 }
 
 function hasRuntimeAssets(rootDir) {
   if (!rootDir) return false;
-  return (
-    isFile(path.join(rootDir, 'client', 'runtime', 'systems', 'ops', 'protheusctl.js')) ||
-    isFile(path.join(rootDir, 'runtime', 'systems', 'ops', 'protheusctl.js'))
-  );
+  return isFile(path.join(rootDir, 'client', 'runtime', 'systems', 'ops', 'protheusctl.js')) || isFile(path.join(rootDir, 'runtime', 'systems', 'ops', 'protheusctl.js'));
 }
 
 function resolveRuntimeRoot(pkgRoot) {
-  const explicit = String(process.env.PROTHEUS_ROOT || '').trim();
+  const explicit = sanitizeArgToken(process.env.PROTHEUS_ROOT || '', 1024);
   if (explicit && hasRuntimeAssets(explicit)) return explicit;
-
   const cwd = process.cwd();
   if (hasRuntimeAssets(cwd)) return cwd;
-
   const repoRootCandidate = path.resolve(pkgRoot, '..', '..');
   if (hasRuntimeAssets(repoRootCandidate)) return repoRootCandidate;
-
-  const bundled = pkgRoot;
-  if (hasRuntimeAssets(bundled)) return bundled;
-
+  if (hasRuntimeAssets(pkgRoot)) return pkgRoot;
   return null;
 }
 
@@ -70,7 +62,7 @@ function run() {
   }
 
   const runtimeRoot = resolveRuntimeRoot(pkgRoot);
-  const args = process.argv.slice(2);
+  const args = (process.argv.slice(2) || []).map((arg) => sanitizeArgToken(arg)).filter(Boolean);
   const env = { ...process.env };
 
   let finalArgs;
@@ -78,8 +70,6 @@ function run() {
     env.PROTHEUS_ROOT = runtimeRoot;
     finalArgs = ['protheusctl', ...args];
   } else {
-    // Fallback for binary-only installations: route directly to protheus-ops domains.
-    // Also disable dispatch security gate because source-only security lane is unavailable.
     env.PROTHEUS_CTL_SECURITY_GATE_DISABLED = '1';
     finalArgs = args.length ? args : ['--help'];
   }
@@ -87,8 +77,13 @@ function run() {
   const out = spawnSync(binPath, finalArgs, {
     stdio: 'inherit',
     env,
-    cwd: runtimeRoot || process.cwd()
+    cwd: runtimeRoot || process.cwd(),
   });
+
+  if (out && out.error) {
+    process.stderr.write(JSON.stringify({ ok: false, type: 'protheus_npm_bin', error: 'spawn_failed', detail: sanitizeArgToken(out.error.message || out.error, 240) }) + '\n');
+  }
+
   process.exit(Number.isFinite(out.status) ? out.status : 1);
 }
 

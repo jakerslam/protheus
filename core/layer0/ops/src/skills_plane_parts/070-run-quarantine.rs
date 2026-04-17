@@ -10,10 +10,13 @@ fn run_quarantine(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Valu
     )
     .to_ascii_lowercase();
     let mut ledger = read_json(&quarantine_path(root)).unwrap_or_else(|| json!({}));
+    let mut rewritten_from_invalid = false;
     if !ledger.is_object() {
         ledger = json!({});
+        rewritten_from_invalid = true;
     }
     let mut rows = ledger.as_object().cloned().unwrap_or_default();
+    let mut state_changed = rewritten_from_invalid;
     if matches!(op.as_str(), "quarantine" | "release") {
         let skill = clean(
             parsed
@@ -41,6 +44,12 @@ fn run_quarantine(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Valu
                     .unwrap_or_else(|| "operator_request".to_string()),
                 220,
             );
+            let existing = rows.get(&skill).and_then(Value::as_object).cloned();
+            let existing_reason = existing
+                .as_ref()
+                .and_then(|row| row.get("reason"))
+                .and_then(Value::as_str)
+                .unwrap_or_default();
             rows.insert(
                 skill.clone(),
                 json!({
@@ -48,8 +57,15 @@ fn run_quarantine(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Valu
                     "ts": crate::now_iso()
                 }),
             );
+            if existing_reason != reason {
+                state_changed = true;
+            } else if existing.is_none() {
+                state_changed = true;
+            }
         } else {
-            rows.remove(&skill);
+            if rows.remove(&skill).is_some() {
+                state_changed = true;
+            }
         }
     } else if op != "status" {
         return json!({
@@ -60,13 +76,17 @@ fn run_quarantine(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Valu
         });
     }
     let persisted = Value::Object(rows.clone());
-    if write_json(&quarantine_path(root), &persisted).is_err() {
-        return json!({
-            "ok": false,
-            "strict": strict,
-            "type": "skills_plane_quarantine",
-            "errors": ["quarantine_state_write_failed"]
-        });
+    let mut state_persisted = false;
+    if state_changed {
+        if write_json(&quarantine_path(root), &persisted).is_err() {
+            return json!({
+                "ok": false,
+                "strict": strict,
+                "type": "skills_plane_quarantine",
+                "errors": ["quarantine_state_write_failed"]
+            });
+        }
+        state_persisted = true;
     }
     let mut out = json!({
         "ok": true,
@@ -77,6 +97,8 @@ fn run_quarantine(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Valu
         "quarantine_path": quarantine_path(root).display().to_string(),
         "quarantined_count": rows.len(),
         "quarantined_skills": Value::Object(rows),
+        "state_changed": state_changed,
+        "state_persisted": state_persisted,
         "claim_evidence": [
             {
                 "id": "V8-SKILL-007",

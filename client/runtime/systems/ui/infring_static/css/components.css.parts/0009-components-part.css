@@ -285,15 +285,17 @@
   gap: 5px;
   max-width: min(48vw, 280px);
   padding: 2px 8px;
+  --dashboard-preview-surface-radius: 999px;
+  --dashboard-preview-surface-padding: 2px 8px;
+  --dashboard-preview-surface-font-size: 11px;
+  --dashboard-preview-surface-font-weight: 500;
+  --dashboard-preview-surface-line-height: 1.2;
+  --dashboard-preview-surface-letter-spacing: 0.01em;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--border) 88%, transparent);
-  background: color-mix(in srgb, var(--surface) 90%, transparent);
   color: var(--text-dim);
   font-size: 11px;
   line-height: 1.2;
   font-family: var(--font-mono);
-  backdrop-filter: blur(8px) saturate(1.05);
-  -webkit-backdrop-filter: blur(8px) saturate(1.05);
 }
 
 .chat-branch-picker {
@@ -334,17 +336,14 @@
 
 .chat-branch-menu {
   position: absolute;
+  --dashboard-dropdown-position: absolute;
+  --dashboard-preview-surface-radius: 12px;
   right: 0;
   bottom: calc(100% + 8px);
   width: min(86vw, 300px);
   max-height: min(58vh, 360px);
+  padding: 0;
   overflow: hidden;
-  border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--border) 94%, transparent);
-  background: color-mix(in srgb, var(--surface) 95%, transparent);
-  box-shadow: var(--shadow-lg);
-  backdrop-filter: blur(12px) saturate(1.08);
-  -webkit-backdrop-filter: blur(12px) saturate(1.08);
   display: flex;
   flex-direction: column;
   z-index: 18140;

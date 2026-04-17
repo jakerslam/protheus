@@ -3,6 +3,16 @@ mod tests {
     use super::*;
     use tempfile::tempdir;
 
+    fn assert_non_silent_outcome(payload: &Value) {
+        assert!(payload.get("ok").and_then(Value::as_bool).is_some());
+        assert!(
+            payload.get("receipt_hash").and_then(Value::as_str).is_some()
+                || payload.get("effective_counters").and_then(Value::as_object).is_some()
+                || payload.get("error").is_some()
+                || payload.get("reason").is_some()
+        );
+    }
+
     #[test]
     fn simulation_identity_projection_filters_unknown_objective() {
         let dir = tempdir().expect("tmp");
@@ -46,6 +56,7 @@ mod tests {
         std::env::set_var("AUTONOMY_SIM_IDENTITY_BLOCK_UNKNOWN_OBJECTIVE", "1");
 
         let out = run_autonomy_simulation(root, Some(day), 1, false);
+        assert_non_silent_outcome(&out);
         assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
         assert_eq!(
             out.get("identity_projection")
@@ -69,4 +80,3 @@ mod tests {
         std::env::remove_var("AUTONOMY_SIM_IDENTITY_BLOCK_UNKNOWN_OBJECTIVE");
     }
 }
-

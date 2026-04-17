@@ -4,7 +4,7 @@
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::cmp::Ordering;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -164,12 +164,48 @@ fn runtime_rel_path(rel_path: &str) -> &str {
     rel_path.strip_prefix("client/runtime/").unwrap_or(rel_path)
 }
 
+fn normalize_scan_root(raw: &str) -> Option<String> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    let runtime = runtime_rel_path(trimmed).trim_matches('/');
+    if runtime.is_empty() {
+        return None;
+    }
+    let segments = runtime.split('/').collect::<Vec<_>>();
+    if segments
+        .iter()
+        .any(|segment| segment.is_empty() || *segment == "." || *segment == "..")
+    {
+        return None;
+    }
+    Some(segments.join("/"))
+}
+
+fn normalize_scan_roots(roots: &[String]) -> (Vec<String>, usize) {
+    let mut normalized = Vec::<String>::new();
+    let mut seen = HashSet::<String>::new();
+    let mut rejected = 0usize;
+    for root in roots {
+        if let Some(candidate) = normalize_scan_root(root) {
+            if seen.insert(candidate.clone()) {
+                normalized.push(candidate);
+            }
+        } else {
+            rejected = rejected.saturating_add(1);
+        }
+    }
+    (normalized, rejected)
+}
+
 fn in_scan_roots(rel_path: &str, roots: &[String]) -> bool {
+    if roots.is_empty() {
+        return rel_path.starts_with("client/runtime/");
+    }
     let runtime = runtime_rel_path(rel_path);
     roots
         .iter()
-        .map(|row| row.trim())
-        .filter(|row| !row.is_empty())
         .any(|root| runtime == root || runtime.starts_with(&format!("{root}/")))
 }
 
@@ -263,9 +299,10 @@ fn build_inventory(root: &Path, policy_path: &Path, policy: &Policy) -> Result<V
     }
 
     let tracked_non_rust_code_lines = tracked_ts_lines + tracked_js_lines;
+    let (scan_roots, rejected_scan_roots) = normalize_scan_roots(&policy.scan.roots);
     let runtime_records = records
         .iter()
-        .filter(|record| in_scan_roots(&record.path, &policy.scan.roots))
+        .filter(|record| in_scan_roots(&record.path, &scan_roots))
         .cloned()
         .collect::<Vec<_>>();
     let runtime_code_records = runtime_records
@@ -336,7 +373,8 @@ fn build_inventory(root: &Path, policy_path: &Path, policy: &Policy) -> Result<V
         "rust_percent_ts_scope": rust_percent_ts_scope,
         "rust_percent_code_scope": rust_percent_code_scope,
         "runtime_scope": {
-            "roots": policy.scan.roots,
+            "roots": scan_roots,
+            "rejected_roots": rejected_scan_roots,
             "ts_files": runtime_records.iter().filter(|record| is_ts_ext(&record.ext)).count(),
             "js_files": runtime_records.iter().filter(|record| is_js_ext(&record.ext)).count(),
             "rs_files": runtime_records.iter().filter(|record| record.ext == "rs").count(),
@@ -462,5 +500,28 @@ mod tests {
             &roots
         ));
         assert!(!in_scan_roots("client/cognition/foo.ts", &roots));
+    }
+
+    #[test]
+    fn normalize_scan_roots_dedupes_and_rejects_invalid_paths() {
+        let (roots, rejected) = normalize_scan_roots(&[
+            "systems".to_string(),
+            "client/runtime/lib".to_string(),
+            "systems".to_string(),
+            "../tmp".to_string(),
+            "/".to_string(),
+        ]);
+        assert_eq!(roots, vec!["systems".to_string(), "lib".to_string()]);
+        assert_eq!(rejected, 2);
+    }
+
+    #[test]
+    fn in_scan_roots_defaults_to_runtime_scope_when_roots_empty() {
+        let roots = Vec::<String>::new();
+        assert!(in_scan_roots(
+            "client/runtime/systems/ops/run_protheus_ops.ts",
+            &roots
+        ));
+        assert!(!in_scan_roots("core/layer0/ops/src/lib.rs", &roots));
     }
 }

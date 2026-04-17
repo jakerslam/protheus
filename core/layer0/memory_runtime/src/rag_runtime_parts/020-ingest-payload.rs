@@ -42,7 +42,73 @@ fn append_history(path: &Path, row: &Value) {
     }
 }
 
+fn normalize_rag_execution_status(raw: &str) -> &'static str {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "ok" | "success" | "succeeded" | "ready" => "success",
+        "timeout" | "timed_out" | "timed-out" => "timeout",
+        "throttled" | "rate_limited" | "rate-limited" | "429" => "throttled",
+        _ => "error",
+    }
+}
+
+fn rag_execution_receipt(scope: &str, status: &str, error_kind: Option<&str>) -> Value {
+    let normalized_status = normalize_rag_execution_status(status);
+    let normalized_error = error_kind.map(|raw| clean_text(raw, 96).replace(' ', "_"));
+    let seed = format!(
+        "{}|{}|{}",
+        clean_text(scope, 96),
+        normalized_status,
+        normalized_error.clone().unwrap_or_default()
+    );
+    json!({
+        "call_id": format!("local-rag-{}", &sha256_hex(seed.as_bytes())[..16]),
+        "status": normalized_status,
+        "error_kind": normalized_error,
+        "telemetry": {
+            "duration_ms": 0,
+            "tokens_used": 0
+        }
+    })
+}
+
+fn invalid_ingest_target(raw: &str) -> bool {
+    if raw.trim().is_empty() || raw.chars().any(char::is_control) {
+        return true;
+    }
+    let lowered = raw.trim().to_ascii_lowercase();
+    lowered.starts_with("http:")
+        || lowered.starts_with("https:")
+        || lowered.starts_with("javascript:")
+        || lowered.starts_with("data:")
+        || lowered.starts_with("file:")
+}
+
+fn safe_ingest_source_path(raw: &str) -> bool {
+    if raw.trim().is_empty() {
+        return false;
+    }
+    let lowered = raw.trim().to_ascii_lowercase();
+    !(lowered.starts_with("http:")
+        || lowered.starts_with("https:")
+        || lowered.starts_with("javascript:")
+        || lowered.starts_with("data:")
+        || lowered.starts_with("file:"))
+}
+
 fn receipt(mut payload: Value) -> Value {
+    let scope = payload
+        .get("type")
+        .and_then(Value::as_str)
+        .unwrap_or("local_rag");
+    let status = if payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+        "success"
+    } else {
+        "error"
+    };
+    let error_kind = payload.get("error").and_then(Value::as_str);
+    if payload.get("execution_receipt").is_none() {
+        payload["execution_receipt"] = rag_execution_receipt(scope, status, error_kind);
+    }
     let digest = sha256_hex(
         serde_json::to_string(&payload)
             .unwrap_or_default()
@@ -56,6 +122,13 @@ fn receipt(mut payload: Value) -> Value {
 pub fn ingest_payload(args: &HashMap<String, String>) -> Value {
     let root = root_from_args(args);
     let target_raw = clean_text(args.get("path").map_or("docs", String::as_str), 600);
+    if invalid_ingest_target(&target_raw) {
+        return receipt(json!({
+            "ok": false,
+            "type": "local_rag_ingest",
+            "error": "invalid_target_path"
+        }));
+    }
     let target = {
         let p = PathBuf::from(target_raw.clone());
         if p.is_absolute() {
@@ -398,6 +471,9 @@ pub fn merge_vault_payload(args: &HashMap<String, String>) -> Value {
     let mut rows = Vec::new();
     let mut added = 0usize;
     for chunk in index.chunks.iter().take(max_merge) {
+        if !safe_ingest_source_path(&chunk.source_path) {
+            continue;
+        }
         let node_id = format!("rag.{}", &chunk.sha256[..12]);
         if existing_ids.contains(&node_id) {
             continue;
@@ -444,4 +520,3 @@ pub fn merge_vault_payload(args: &HashMap<String, String>) -> Value {
     append_history(&history_path(&root, args), &result);
     result
 }
-

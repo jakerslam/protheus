@@ -166,12 +166,43 @@ fn sha256_hex(input: &str) -> String {
     hasher.update(input.as_bytes());
     hex::encode(hasher.finalize())
 }
+
+fn parse_json_code_fence(raw: &str) -> Option<Value> {
+    let mut capturing = false;
+    let mut captured = String::new();
+    for line in raw.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("```") {
+            let fence_lang = trimmed.trim_start_matches('`').trim().to_ascii_lowercase();
+            if capturing {
+                break;
+            }
+            if fence_lang.is_empty() || fence_lang == "json" {
+                capturing = true;
+                captured.clear();
+            }
+            continue;
+        }
+        if capturing {
+            captured.push_str(line);
+            captured.push('\n');
+        }
+    }
+    if captured.trim().is_empty() {
+        return None;
+    }
+    serde_json::from_str::<Value>(captured.trim()).ok()
+}
+
 fn parse_json_from_stdout(raw: &str) -> Option<Value> {
     let trimmed = raw.trim();
     if trimmed.is_empty() {
         return None;
     }
     if let Ok(parsed) = serde_json::from_str::<Value>(trimmed) {
+        return Some(parsed);
+    }
+    if let Some(parsed) = parse_json_code_fence(trimmed) {
         return Some(parsed);
     }
     for line in trimmed.lines().rev() {

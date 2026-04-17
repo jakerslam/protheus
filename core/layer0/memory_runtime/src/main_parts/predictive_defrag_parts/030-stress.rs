@@ -1,3 +1,26 @@
+fn sanitize_stress_token(raw: &str, max_len: usize) -> String {
+    raw.chars()
+        .filter(|ch| {
+            !matches!(
+                *ch,
+                '\u{200B}'
+                    | '\u{200C}'
+                    | '\u{200D}'
+                    | '\u{2060}'
+                    | '\u{FEFF}'
+                    | '\u{202A}'
+                    | '\u{202B}'
+                    | '\u{202C}'
+                    | '\u{202D}'
+                    | '\u{202E}'
+            ) && (!ch.is_control() || ch.is_ascii_whitespace())
+        })
+        .take(max_len)
+        .collect::<String>()
+        .trim()
+        .to_string()
+}
+
 fn build_stress_index_rows(op: usize) -> Vec<DbIndexEntry> {
     let count = 12 + (op % 12);
     (0..count)
@@ -26,9 +49,19 @@ fn build_stress_embedding_rows(op: usize) -> Vec<(String, Vec<f32>, Value)> {
 }
 
 fn resolve_stress_db_path(root: &Path, db_path_raw: &str) -> PathBuf {
-    let candidate = PathBuf::from(db_path_raw);
+    let sanitized = sanitize_stress_token(db_path_raw, 600);
+    if sanitized.is_empty() {
+        return root.join("local/state/memory/runtime_memory_predictive_stress.sqlite");
+    }
+    let candidate = PathBuf::from(&sanitized);
     if candidate.is_absolute() {
         return candidate;
+    }
+    if candidate
+        .components()
+        .any(|component| matches!(component, std::path::Component::ParentDir))
+    {
+        return root.join("local/state/memory/runtime_memory_predictive_stress.sqlite");
     }
     root.join(candidate)
 }
@@ -63,6 +96,7 @@ fn inject_fragmentation_churn(root: &Path, db_path_raw: &str, op: usize) {
 }
 
 fn predictive_defrag_stress_payload(args: &HashMap<String, String>) -> Value {
+    let started = Instant::now();
     let ops =
         parse_u32_clamped(&arg_any(args, &["ops", "operations"]), 100, 50_000, 5_000) as usize;
     let root = PathBuf::from(arg_or_default(
@@ -149,6 +183,8 @@ fn predictive_defrag_stress_payload(args: &HashMap<String, String>) -> Value {
     if snapshot.last_drift_delta <= 0.0 && snapshot.trigger_count > 0 {
         anomalies.push("non_positive_fidelity_drift_delta".to_string());
     }
+    anomalies.sort();
+    anomalies.dedup();
     json!({
         "ok": true,
         "type": "memory_predictive_defrag_stress_report",
@@ -165,6 +201,12 @@ fn predictive_defrag_stress_payload(args: &HashMap<String, String>) -> Value {
             "before_fidelity_score": snapshot.last_before_fidelity_score,
             "after_fidelity_score": snapshot.last_after_fidelity_score,
             "drift_delta": snapshot.last_drift_delta
+        },
+        "execution_receipt": {
+            "status": "ok",
+            "stage": "predictive_defrag_stress",
+            "duration_ms": started.elapsed().as_millis() as u64,
+            "ts": now_iso()
         }
     })
 }

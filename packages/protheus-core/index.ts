@@ -15,6 +15,59 @@ const ROOT = path.join(__dirname, '..', '..');
 const CORE_PACKAGE_DIR = __dirname;
 const OPS_BRIDGE = path.join(ROOT, 'adapters', 'runtime', 'run_protheus_ops.ts');
 const REFLEX_BRIDGE = path.join(ROOT, 'client', 'cognition', 'habits', 'scripts', 'reflex_habit_bridge.ts');
+const MAX_ARG_COUNT = 64;
+const MAX_ARG_LENGTH = 256;
+
+function sanitizeCliToken(value: unknown, fallback = '') {
+  const normalized = String(value == null ? fallback : value)
+    .replace(/[\u0000-\u001f\u007f]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!normalized) return String(fallback || '');
+  if (normalized.length <= MAX_ARG_LENGTH) return normalized;
+  return normalized.slice(0, MAX_ARG_LENGTH);
+}
+
+function sanitizeArgv(args: string[] = []) {
+  if (!Array.isArray(args)) return [];
+  const out: string[] = [];
+  for (const item of args) {
+    if (out.length >= MAX_ARG_COUNT) break;
+    const token = sanitizeCliToken(item, '');
+    if (!token) continue;
+    out.push(token);
+  }
+  return out;
+}
+
+function isPathInsideRoot(absPath: string) {
+  const rel = path.relative(ROOT, absPath);
+  return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
+}
+
+function bridgeFailure(scriptAbs: string, exportName: string, code: string, detail = '') {
+  const payload = {
+    ok: false,
+    type: 'protheus_core_bridge_error',
+    error: code,
+    script: path.relative(ROOT, scriptAbs).replace(/\\/g, '/'),
+    export_name: exportName,
+    detail,
+  };
+  return {
+    ok: false,
+    status: 1,
+    stdout: '',
+    stderr: `${code}\n`,
+    payload,
+  };
+}
+
+function parseFiniteBoundedNumber(value: unknown, fallback: number, min: number, max: number) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
 
 function parseJsonPayload(stdout: string) {
   const text = String(stdout || '').trim();
@@ -57,14 +110,30 @@ function normalizeDelegateResult(out: any) {
 }
 
 function runTsExport(scriptAbs: string, exportName: string, args: string[] = []) {
-  const out = invokeTsModuleSync(scriptAbs, {
-    argv: Array.isArray(args) ? args.map((value) => String(value)) : [],
-    cwd: ROOT,
-    exportName,
-    teeStdout: false,
-    teeStderr: false,
-  });
-  return normalizeDelegateResult(out);
+  if (!isPathInsideRoot(scriptAbs)) {
+    return bridgeFailure(scriptAbs, exportName, 'bridge_script_outside_root');
+  }
+  const safeExportName = sanitizeCliToken(exportName, '').replace(/[^A-Za-z0-9_]/g, '');
+  if (!safeExportName) {
+    return bridgeFailure(scriptAbs, exportName, 'bridge_export_invalid');
+  }
+  try {
+    const out = invokeTsModuleSync(scriptAbs, {
+      argv: sanitizeArgv(args),
+      cwd: ROOT,
+      exportName: safeExportName,
+      teeStdout: false,
+      teeStderr: false,
+    });
+    return normalizeDelegateResult(out);
+  } catch (error: any) {
+    return bridgeFailure(
+      scriptAbs,
+      safeExportName,
+      'bridge_invoke_failed',
+      sanitizeCliToken(error && error.message ? error.message : 'unknown_bridge_error', ''),
+    );
+  }
 }
 
 function runOps(args: string[] = []) {
@@ -144,8 +213,8 @@ function folderSizeBytes(dirPath: string) {
 
 function coldStartContract(options: Record<string, any> = {}) {
   const packageBytes = folderSizeBytes(CORE_PACKAGE_DIR);
-  const budgetMb = Number(options.max_mb || options.maxMb || 5);
-  const budgetMs = Number(options.max_ms || options.maxMs || 200);
+  const budgetMb = parseFiniteBoundedNumber(options.max_mb || options.maxMb, 5, 0.25, 256);
+  const budgetMs = parseFiniteBoundedNumber(options.max_ms || options.maxMs, 200, 20, 60_000);
   const started = process.hrtime.bigint();
   const boot = coreStatus(options);
   const elapsedMs = Number(process.hrtime.bigint() - started) / 1_000_000;

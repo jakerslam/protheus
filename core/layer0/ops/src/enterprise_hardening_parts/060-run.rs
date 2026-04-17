@@ -42,6 +42,25 @@ fn append_claim_evidence(payload: &mut Value, row: Value) {
     payload["claim_evidence"] = Value::Array(rows);
 }
 
+fn execution_status(payload: &Value) -> &'static str {
+    if payload.get("ok").and_then(Value::as_bool) == Some(false) {
+        "error"
+    } else {
+        "success"
+    }
+}
+
+fn attach_execution_receipt(payload: &mut Value, cmd: &str, strict: bool, status: &str) {
+    payload["execution_receipt"] = json!({
+        "lane": "enterprise_hardening",
+        "command": cmd,
+        "strict": strict,
+        "status": status,
+        "source": "OPENCLAW-TOOLING-WEB-098",
+        "tool_runtime_class": "receipt_wrapped"
+    });
+}
+
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     if argv
         .iter()
@@ -174,6 +193,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     }
                 }
             }
+            let status = execution_status(&payload);
+            attach_execution_receipt(&mut payload, &cmd, strict, status);
             if let Err(err) = persist_enterprise_receipt(root, &payload) {
                 let out = with_receipt_hash(json!({
                     "ok": false,
@@ -182,7 +203,15 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     "mode": cmd,
                     "strict": strict,
                     "ts": now_iso(),
-                    "error": format!("persist_failed:{err}")
+                    "error": format!("persist_failed:{err}"),
+                    "execution_receipt": {
+                        "lane": "enterprise_hardening",
+                        "command": cmd,
+                        "strict": strict,
+                        "status": "error",
+                        "source": "OPENCLAW-TOOLING-WEB-098",
+                        "tool_runtime_class": "receipt_wrapped"
+                    }
                 }));
                 print_pretty(&out);
                 return 1;
@@ -204,7 +233,15 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "strict": strict,
                 "ts": now_iso(),
                 "policy_path": policy_path,
-                "error": err
+                "error": err,
+                "execution_receipt": {
+                    "lane": "enterprise_hardening",
+                    "command": cmd,
+                    "strict": strict,
+                    "status": "error",
+                    "source": "OPENCLAW-TOOLING-WEB-098",
+                    "tool_runtime_class": "receipt_wrapped"
+                }
             }));
             let _ = persist_enterprise_receipt(root, &out);
             print_pretty(&out);

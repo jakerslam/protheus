@@ -2,14 +2,28 @@ fn compat_api_response_with_nexus(
     route_label: &str,
     mut response: CompatApiResponse,
 ) -> CompatApiResponse {
+    let runtime_web_tooling_contract =
+        compat_runtime_web_tooling_contract_snapshot(clean_text(route_label, 180).as_str());
     match crate::dashboard_tool_turn_loop::authorize_ingress_tool_call_with_nexus(route_label) {
         Ok(Some(meta)) => {
             if let Some(obj) = response.payload.as_object_mut() {
                 obj.insert("nexus_connection".to_string(), meta);
+                obj.insert(
+                    "runtime_web_tooling_contract".to_string(),
+                    runtime_web_tooling_contract,
+                );
             }
             response
         }
-        Ok(None) => response,
+        Ok(None) => {
+            if let Some(obj) = response.payload.as_object_mut() {
+                obj.insert(
+                    "runtime_web_tooling_contract".to_string(),
+                    runtime_web_tooling_contract,
+                );
+            }
+            response
+        }
         Err(err) => CompatApiResponse {
             status: 403,
             payload: json!({
@@ -17,10 +31,65 @@ fn compat_api_response_with_nexus(
                 "error": "nexus_route_denied",
                 "route_label": clean_text(route_label, 180),
                 "reason": clean_text(&err, 240),
-                "fail_closed": true
+                "fail_closed": true,
+                "runtime_web_tooling_contract": runtime_web_tooling_contract
             }),
         },
     }
+}
+
+fn compat_runtime_web_tooling_auth_sources() -> Vec<String> {
+    let env_candidates = [
+        "BRAVE_API_KEY",
+        "EXA_API_KEY",
+        "TAVILY_API_KEY",
+        "PERPLEXITY_API_KEY",
+        "SERPAPI_API_KEY",
+        "GOOGLE_SEARCH_API_KEY",
+        "GOOGLE_CSE_ID",
+        "FIRECRAWL_API_KEY",
+        "XAI_API_KEY",
+        "MOONSHOT_API_KEY",
+        "OPENAI_API_KEY",
+    ];
+    let mut sources = Vec::<String>::new();
+    for env_name in env_candidates {
+        let present = std::env::var(env_name)
+            .ok()
+            .map(|value| !value.trim().is_empty())
+            .unwrap_or(false);
+        if present {
+            sources.push(format!("env:{env_name}"));
+        }
+    }
+    sources
+}
+
+fn compat_runtime_web_tooling_contract_snapshot(route_label: &str) -> Value {
+    let auth_sources = compat_runtime_web_tooling_auth_sources();
+    json!({
+        "contract_version": "dashboard_web_tooling_contract_v1",
+        "route_label": clean_text(route_label, 180),
+        "strict_auth_required": std::env::var("INFRING_WEB_TOOLING_STRICT_AUTH")
+            .ok()
+            .map(|value| matches!(value.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "y" | "on"))
+            .unwrap_or(true),
+        "auth_present": !auth_sources.is_empty(),
+        "auth_sources": auth_sources,
+        "provider_aliases": {
+            "google": "google_search",
+            "xai": "grok",
+            "moonshot": "kimi",
+            "serp": "serpapi"
+        },
+        "provider_contract_targets": [
+            "exa",
+            "firecrawl",
+            "google",
+            "perplexity",
+            "tavily"
+        ]
+    })
 }
 
 pub fn handle(

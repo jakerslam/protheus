@@ -3,6 +3,40 @@
 
 use super::*;
 
+fn provider_contract_ids(value: Option<&Value>) -> Vec<String> {
+    value
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|row| row.as_str().map(str::to_string))
+        .map(|row| clean_id(Some(row.as_str()), "unknown"))
+        .filter(|row| !row.is_empty() && row != "unknown")
+        .collect::<Vec<_>>()
+}
+
+fn connector_contract_registry(provider_contract: &Value) -> Value {
+    let provider_ids = provider_contract_ids(
+        provider_contract
+            .get("provider_contract_ids")
+            .or_else(|| provider_contract.get("provider_ids")),
+    );
+    let web_search_provider_ids =
+        provider_contract_ids(provider_contract.get("web_search_provider_ids"));
+    let web_fetch_provider_ids =
+        provider_contract_ids(provider_contract.get("web_fetch_provider_ids"));
+    let registry_load_ok = !provider_ids.is_empty()
+        || !web_search_provider_ids.is_empty()
+        || !web_fetch_provider_ids.is_empty();
+    json!({
+        "provider_contract_ids": provider_ids,
+        "web_search_provider_ids": web_search_provider_ids,
+        "web_fetch_provider_ids": web_fetch_provider_ids,
+        "registry_load_ok": registry_load_ok,
+        "resolution_mode": if registry_load_ok { "registry_loaded" } else { "manifest_fallback" }
+    })
+}
+
 pub(super) fn run_connector(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
     let contract = load_json_or(
         root,
@@ -222,12 +256,27 @@ pub(super) fn run_connector(root: &Path, parsed: &crate::ParsedArgs, strict: boo
         .cloned()
         .collect::<Vec<_>>();
     let capability_ok = missing_env.is_empty();
+    let contract_registry = connector_contract_registry(&provider_contract);
+    let registry_load_ok = contract_registry
+        .get("registry_load_ok")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    if strict && !registry_load_ok {
+        return json!({
+            "ok": false,
+            "strict": strict,
+            "type": "persist_plane_connector",
+            "op": "add",
+            "errors": ["persist_connector_contract_registry_missing"]
+        });
+    }
     let connector = json!({
         "provider": provider,
         "policy_template": policy_template,
         "status": if capability_ok { "active" } else { "pending_auth" },
         "required_env": required_env,
         "missing_env": missing_env,
+        "contract_registry": contract_registry,
         "added_at": crate::now_iso(),
         "updated_at": crate::now_iso()
     });
@@ -258,7 +307,8 @@ pub(super) fn run_connector(root: &Path, parsed: &crate::ParsedArgs, strict: boo
                 "evidence": {
                     "provider": provider,
                     "policy_template": policy_template,
-                    "capability_ok": capability_ok
+                    "capability_ok": capability_ok,
+                    "contract_registry_load_ok": registry_load_ok
                 }
             }
         ]

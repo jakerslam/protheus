@@ -7,6 +7,18 @@ mod tests {
         assert_eq!(normalize_app_id("chat_starter"), "chat-starter");
         assert_eq!(normalize_app_id("chatui"), "chat-ui");
         assert_eq!(normalize_app_id("codeengineer"), "code-engineer");
+        assert_eq!(normalize_app_id("webtools"), "web-tooling");
+    }
+
+    #[test]
+    fn web_tooling_query_sanitization_and_canonicalization() {
+        let raw = "top AI agent frameworks\u{200B}\u{2060}\u{0007}";
+        let sanitized = sanitize_web_tooling_query(raw);
+        assert!(!sanitized.contains('\u{200B}'));
+        assert!(!sanitized.contains('\u{2060}'));
+        assert!(!sanitized.contains('\u{0007}'));
+        let canonical = canonicalize_web_tooling_query(&sanitized, Some("https://langchain.com/docs"));
+        assert!(canonical.starts_with("site:langchain.com "));
     }
 
     #[test]

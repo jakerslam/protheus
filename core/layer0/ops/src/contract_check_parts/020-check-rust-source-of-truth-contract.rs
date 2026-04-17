@@ -1,3 +1,26 @@
+fn web_tooling_provider_aliases(provider: &str) -> Vec<String> {
+    let normalized = provider.trim().to_ascii_lowercase();
+    if normalized.is_empty() {
+        return Vec::new();
+    }
+    match normalized.as_str() {
+        "moonshot" | "kimi" => vec!["moonshot".to_string(), "kimi".to_string()],
+        "xai" | "grok" => vec!["xai".to_string(), "grok".to_string()],
+        "duckduckgo" | "duck_duck_go" => {
+            vec!["duckduckgo".to_string(), "duck_duck_go".to_string()]
+        }
+        "brave" | "brave_search" => vec!["brave".to_string(), "brave_search".to_string()],
+        _ => vec![normalized],
+    }
+}
+
+fn source_contains_web_tooling_provider_target(source: &str, provider: &str) -> bool {
+    let source_lower = source.to_ascii_lowercase();
+    web_tooling_provider_aliases(provider)
+        .iter()
+        .any(|alias| source_lower.contains(alias.as_str()))
+}
+
 fn check_rust_source_of_truth_contract(
     root: &Path,
     selected: &HashSet<String>,
@@ -79,6 +102,49 @@ fn check_rust_source_of_truth_contract(
         }
         check_required_tokens_at_path(root, &path, &tokens, "status_dashboard_gate")?;
         status_dashboard_path = Some(path);
+    }
+
+    if let Some(web_tooling_gate) = policy
+        .get("web_tooling_contract_targets_gate")
+        .and_then(Value::as_object)
+    {
+        let entries = web_tooling_gate
+            .get("entries")
+            .and_then(Value::as_array)
+            .ok_or_else(|| {
+                "rust_source_of_truth_policy_missing_array:web_tooling_contract_targets_gate.entries"
+                    .to_string()
+            })?;
+        if entries.is_empty() {
+            return Err(
+                "rust_source_of_truth_policy_empty_array:web_tooling_contract_targets_gate.entries"
+                    .to_string(),
+            );
+        }
+        for entry in entries {
+            let section = entry.as_object().ok_or_else(|| {
+                "rust_source_of_truth_policy_invalid_entry:web_tooling_contract_targets_gate.entries"
+                    .to_string()
+            })?;
+            let path = require_rel_path(section, "path")?;
+            let provider_targets = require_string_array(section, "provider_targets")?;
+            let source = fs::read_to_string(root.join(&path))
+                .map_err(|err| format!("read_source_failed:{}:{err}", root.join(&path).display()))?;
+            let missing_provider_targets = provider_targets
+                .iter()
+                .filter(|provider| {
+                    !source_contains_web_tooling_provider_target(&source, provider.as_str())
+                })
+                .cloned()
+                .collect::<Vec<_>>();
+            if !missing_provider_targets.is_empty() {
+                return Err(format!(
+                    "web_tooling_contract_targets_missing:{}:{}",
+                    path,
+                    missing_provider_targets.join(",")
+                ));
+            }
+        }
     }
 
     let mut wrapper_paths_checked = 0usize;
@@ -450,4 +516,3 @@ fn resolve_contract_source(path: &Path) -> Result<String, String> {
         )
     })
 }
-

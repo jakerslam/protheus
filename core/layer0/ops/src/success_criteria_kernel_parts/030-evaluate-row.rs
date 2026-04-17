@@ -26,6 +26,15 @@ fn evaluate_row(row: &SuccessCriteriaCompiledRow, context: &Value) -> Evaluation
         .and_then(|map| map.get("queue_outcome_logged"))
         .and_then(Value::as_bool)
         .unwrap_or(false);
+    let web_tooling_ready = top
+        .and_then(|map| map.get("web_tooling_ready"))
+        .and_then(Value::as_bool)
+        .or_else(|| {
+            top.and_then(|map| map.get("web_tooling_health"))
+                .and_then(|v| v.get("ok"))
+                .and_then(Value::as_bool)
+        })
+        .unwrap_or(false);
     let duration_ms = read_numeric_metric(context, &["duration_ms"]);
     let token_usage = top
         .and_then(|map| map.get("token_usage"))
@@ -98,6 +107,14 @@ fn evaluate_row(row: &SuccessCriteriaCompiledRow, context: &Value) -> Evaluation
                 "requires_receipt_or_outcome_log",
                 queue_outcome_logged,
                 Value::Bool(queue_outcome_logged),
+                Value::Bool(true),
+            )
+        }
+        "web_tooling_ready" => {
+            return bool_verdict(
+                "requires_web_tooling_ready",
+                web_tooling_ready,
+                Value::Bool(web_tooling_ready),
                 Value::Bool(true),
             )
         }
@@ -259,6 +276,17 @@ fn evaluate_row(row: &SuccessCriteriaCompiledRow, context: &Value) -> Evaluation
             comparator: None,
             value: Some(Value::String(outcome.clone())),
             target: Some(Value::String("no_change".to_string())),
+            unit: None,
+        };
+    }
+    if has_any(&["web tooling ready", "web_tooling_ready", "web search ready"]) {
+        return EvaluationVerdict {
+            evaluated: true,
+            pass: Some(web_tooling_ready),
+            reason: "requires_web_tooling_ready".to_string(),
+            comparator: None,
+            value: Some(Value::Bool(web_tooling_ready)),
+            target: Some(Value::Bool(true)),
             unit: None,
         };
     }
@@ -484,4 +512,3 @@ fn evaluate_row(row: &SuccessCriteriaCompiledRow, context: &Value) -> Evaluation
         unit: None,
     }
 }
-

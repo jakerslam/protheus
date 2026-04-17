@@ -12,10 +12,30 @@ fn now_iso() -> String {
     Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
 }
 
+fn strip_invisible_control(value: &str) -> String {
+    value
+        .chars()
+        .filter(|ch| {
+            *ch == '\n'
+                || *ch == '\t'
+                || (!ch.is_control()
+                    && !matches!(
+                        ch,
+                        '\u{200B}'
+                            | '\u{200C}'
+                            | '\u{200D}'
+                            | '\u{2060}'
+                            | '\u{FEFF}'
+                    ))
+        })
+        .collect()
+}
+
 fn clean_text(v: &str, max_len: usize) -> String {
+    let filtered = strip_invisible_control(v);
     let mut out = String::with_capacity(v.len().min(max_len));
     let mut last_space = false;
-    for ch in v.chars() {
+    for ch in filtered.chars() {
         let mapped = if ch.is_whitespace() { ' ' } else { ch };
         if mapped == ' ' {
             if last_space {
@@ -64,6 +84,23 @@ fn parse_json_payload(raw: &str) -> Option<Value> {
     for line in lines.iter().rev() {
         if let Ok(v) = serde_json::from_str::<Value>(line) {
             return Some(v);
+        }
+    }
+    if text.contains("```") {
+        let mut fenced = text.split("```");
+        while let Some(_prefix) = fenced.next() {
+            let Some(block) = fenced.next() else { break };
+            let normalized = block
+                .trim()
+                .strip_prefix("json")
+                .map(str::trim)
+                .unwrap_or_else(|| block.trim());
+            if normalized.is_empty() {
+                continue;
+            }
+            if let Ok(v) = serde_json::from_str::<Value>(normalized) {
+                return Some(v);
+            }
         }
     }
     None
@@ -136,6 +173,7 @@ struct CommandRun {
 }
 
 fn run_command_json(bin: &str, args: &[String], cwd: &Path) -> Option<CommandRun> {
+    let started = std::time::Instant::now();
     let output = Command::new(bin)
         .args(args)
         .current_dir(cwd)
@@ -143,11 +181,32 @@ fn run_command_json(bin: &str, args: &[String], cwd: &Path) -> Option<CommandRun
         .ok()?;
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-    let payload = parse_json_payload(&stdout).unwrap_or(Value::Null);
+    let payload = parse_json_payload(&stdout)
+        .or_else(|| parse_json_payload(&stderr))
+        .unwrap_or(Value::Null);
+    let status_text = output
+        .status
+        .code()
+        .map(|v| v.to_string())
+        .unwrap_or_else(|| "signal".to_string());
+    let error_basis = if stderr.trim().is_empty() {
+        stdout.clone()
+    } else if stdout.trim().is_empty() {
+        stderr.clone()
+    } else {
+        format!("{stderr}\n{stdout}")
+    };
     Some(CommandRun {
         ok: output.status.success() && payload.is_object(),
         payload,
-        error: clean_text(&(stderr + &stdout), 320),
+        error: clean_text(
+            &format!(
+                "status={status_text}; duration_ms={}; {}",
+                started.elapsed().as_millis(),
+                error_basis
+            ),
+            320,
+        ),
     })
 }
 
@@ -441,4 +500,3 @@ fn cmd_memory_view(root: &Path, subcmd: &str, flags: &HashMap<String, String>) -
     }
     receipt
 }
-

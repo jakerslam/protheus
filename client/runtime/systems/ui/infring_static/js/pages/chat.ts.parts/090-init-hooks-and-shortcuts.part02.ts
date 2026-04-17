@@ -15,8 +15,13 @@
       this._agentTrailState = s;
       this._agentTrailSeeded = true;
       this._agentTrailLastDotAt = now;
+      if (enteredThinking && this._agentTrailOrbEl) {
+        // Promote + mark listening before reposition so ensureAgentTrailOrb
+        // performs the teleport path instead of easing from the last spot.
+        this.setAgentTrailBlinkState(true, this._agentTrailOrbEl);
+      }
       var orb = this.ensureAgentTrailOrb(host, x, y);
-      if (orb && orb.classList) orb.classList.add('agent-listening');
+      this.setAgentTrailBlinkState(true, orb);
       host.style.setProperty('--chat-agent-grid-active', '1');
       host.style.setProperty('--chat-agent-grid-x', Math.round(x) + 'px');
       host.style.setProperty('--chat-agent-grid-y', Math.round(y) + 'px');
@@ -44,7 +49,7 @@
       var x = Math.max(pad + 1, Math.min(w - (pad + 1), Number(anchor.x || 0)));
       var y = Math.max(pad + 1, Math.min(h - (pad + 1), Number(anchor.y || 0)));
       var orb = this.ensureAgentTrailOrb(host, x, y);
-      if (orb && orb.classList) orb.classList.add('agent-listening');
+      this.setAgentTrailBlinkState(true, orb);
       host.style.setProperty('--chat-agent-grid-active', '1');
       host.style.setProperty('--chat-agent-grid-x', Math.round(x) + 'px');
       host.style.setProperty('--chat-agent-grid-y', Math.round(y) + 'px');

@@ -49,6 +49,62 @@ fn round3(value: f64) -> f64 {
     (value * 1000.0).round() / 1000.0
 }
 
+const MAX_CYCLE_ID_LEN: usize = 96;
+const MAX_STATUS_LEN: usize = 160;
+
+fn strip_invisible_unicode(raw: &str) -> String {
+    raw.chars()
+        .filter(|ch| {
+            !matches!(
+                ch,
+                '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}'
+            )
+        })
+        .collect()
+}
+
+fn sanitize_mobile_text(raw: &str, max_len: usize, allow_spaces: bool) -> String {
+    let mut value: String = strip_invisible_unicode(raw)
+        .chars()
+        .filter(|ch| !ch.is_control())
+        .collect();
+    value = if allow_spaces {
+        value.split_whitespace().collect::<Vec<_>>().join(" ")
+    } else {
+        value.split_whitespace().collect::<String>()
+    };
+    value = value.trim().to_string();
+    if value.len() > max_len {
+        value.truncate(max_len);
+    }
+    value
+}
+
+fn normalize_mobile_request(
+    mut request: MobileCycleRequest,
+    profile: &MobileRuntimeProfile,
+) -> MobileCycleRequest {
+    request.cycle_id = sanitize_mobile_text(&request.cycle_id, MAX_CYCLE_ID_LEN, false);
+    if request.cycle_id.is_empty() {
+        request.cycle_id = "mobile_cycle".to_string();
+    }
+    request.cycles = request.cycles.max(1).min(profile.max_cycles);
+    request
+}
+
+fn normalize_subsystem_status(statuses: &mut Vec<String>) {
+    let mut normalized = Vec::<String>::new();
+    for status in statuses.iter() {
+        let next = sanitize_mobile_text(status, MAX_STATUS_LEN, false);
+        if !next.is_empty() {
+            normalized.push(next);
+        }
+    }
+    normalized.sort();
+    normalized.dedup();
+    *statuses = normalized;
+}
+
 fn default_request() -> MobileCycleRequest {
     MobileCycleRequest {
         cycle_id: "mobile_demo_cycle".to_string(),
@@ -76,9 +132,9 @@ fn digest_report(report: &MobileCycleReport) -> String {
 
 pub fn run_mobile_cycle(request: Option<MobileCycleRequest>) -> Result<MobileCycleReport, String> {
     let profile = load_embedded_mobile_profile().map_err(|e| e.to_string())?;
-    let request = request.unwrap_or_else(default_request);
+    let request = normalize_mobile_request(request.unwrap_or_else(default_request), &profile);
 
-    let capped_cycles = request.cycles.min(profile.max_cycles);
+    let capped_cycles = request.cycles;
     let mut subsystem_status = Vec::<String>::new();
     let mut sovereignty_components = Vec::<f64>::new();
 
@@ -125,7 +181,7 @@ pub fn run_mobile_cycle(request: Option<MobileCycleRequest>) -> Result<MobileCyc
             }
         })
         .to_string();
-        let merged = merge_delta(&left, &right)?;
+        let merged = merge_delta(&left, &right).map_err(|e| format!("mobile_pinnacle_failed:{e}"))?;
         subsystem_status.push(format!("pinnacle:conflicts={}", merged.conflicts.len()));
         sovereignty_components.push(merged.sovereignty_index_pct);
     }
@@ -165,7 +221,7 @@ pub fn run_mobile_cycle(request: Option<MobileCycleRequest>) -> Result<MobileCyc
             ]
         })
         .to_string();
-        let receipt = run_graph_workflow(&graph_yaml)?;
+        let receipt = run_graph_workflow(&graph_yaml).map_err(|e| format!("mobile_graph_failed:{e}"))?;
         subsystem_status.push(format!("graph:steps={}", receipt.step_count));
         sovereignty_components.push(if receipt.cyclic { 45.0 } else { 90.0 });
     }
@@ -203,7 +259,7 @@ pub fn run_mobile_cycle(request: Option<MobileCycleRequest>) -> Result<MobileCyc
                 },
             ],
         })
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| format!("mobile_swarm_failed:{e}"))?;
         subsystem_status.push(format!("swarm:assigned={}", swarm.assignments.len()));
         sovereignty_components.push(swarm.sovereignty_index_pct);
     }
@@ -237,7 +293,7 @@ pub fn run_mobile_cycle(request: Option<MobileCycleRequest>) -> Result<MobileCyc
             inject_fault_every: 650,
             enforce_fail_closed: profile.enforce_fail_closed,
         })
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| format!("mobile_observability_failed:{e}"))?;
         subsystem_status.push(format!("observability:{}", report.sovereignty.status));
         sovereignty_components.push(report.sovereignty.score_pct);
     }
@@ -250,10 +306,12 @@ pub fn run_mobile_cycle(request: Option<MobileCycleRequest>) -> Result<MobileCyc
             enforce_fail_closed: profile.enforce_fail_closed,
             event_seed: 500,
         })
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| format!("mobile_red_legion_failed:{e}"))?;
         subsystem_status.push(format!("red_legion:resilient={}", red.resilient));
         sovereignty_components.push(red.sovereignty_index_pct);
     }
+
+    normalize_subsystem_status(&mut subsystem_status);
 
     let sovereignty_index_pct = if sovereignty_components.is_empty() {
         0.0

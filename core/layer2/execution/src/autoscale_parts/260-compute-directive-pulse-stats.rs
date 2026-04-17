@@ -16,23 +16,31 @@ pub fn compute_directive_pulse_stats(
         let event_type = evt
             .event_type
             .as_ref()
-            .map(|v| v.trim().to_string())
+            .map(|v| v.trim().to_ascii_lowercase())
             .unwrap_or_default();
         let result = evt
             .result
             .as_ref()
-            .map(|v| v.trim().to_string())
+            .map(|v| v.trim().to_ascii_lowercase())
             .unwrap_or_default();
         let outcome = evt
             .outcome
             .as_ref()
-            .map(|v| v.trim().to_string())
+            .map(|v| v.trim().to_ascii_lowercase())
             .unwrap_or_default();
-        let day = evt
+        let mut day = evt
             .day
             .as_ref()
             .map(|v| v.trim().to_string())
             .unwrap_or_default();
+        if day.is_empty() {
+            day = evt
+                .ts
+                .as_ref()
+                .map(|v| v.trim().chars().take(10).collect::<String>())
+                .filter(|v| v.len() == 10)
+                .unwrap_or_default();
+        }
         let objective_id = evt
             .objective_id
             .as_ref()
@@ -96,7 +104,8 @@ pub fn compute_directive_pulse_stats(
             entry.last_attempt_ts = Some(ts.clone());
         }
 
-        let shipped = result == "executed" && outcome == "shipped";
+        let shipped = result == "executed"
+            && (outcome == "shipped" || outcome == "success" || outcome == "applied");
         if shipped {
             entry.shipped += 1;
             entry.no_progress_streak = 0;

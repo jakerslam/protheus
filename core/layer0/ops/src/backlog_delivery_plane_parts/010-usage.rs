@@ -197,9 +197,25 @@ fn ensure_v7_super_gate_prereqs(root: &Path) -> Result<(), String> {
     Ok(())
 }
 
+fn canonical_v7_lane_id(raw: &str) -> String {
+    let mut lane = clean(raw, 64).to_ascii_uppercase().replace('_', "-");
+    lane.retain(|ch| ch.is_ascii_alphanumeric() || ch == '-' || ch == '.');
+    if lane.starts_with("V7F100") {
+        lane = lane.replacen("V7F100", "V7-F100", 1);
+    } else if lane.starts_with("V7CANYON") {
+        lane = lane.replacen("V7CANYON", "V7-CANYON", 1);
+    } else if lane.starts_with("V7TOP1") {
+        lane = lane.replacen("V7TOP1", "V7-TOP1", 1);
+    } else if lane.starts_with("V7MOAT") {
+        lane = lane.replacen("V7MOAT", "V7-MOAT", 1);
+    }
+    lane
+}
+
 fn run_v7_lane(root: &Path, id: &str, strict: bool) -> Value {
+    let lane_id = canonical_v7_lane_id(id);
     let strict_arg = format!("--strict={}", if strict { 1 } else { 0 });
-    let (route, args): (&str, Vec<String>) = match id {
+    let (route, args): (&str, Vec<String>) = match lane_id.as_str() {
         "V7-TOP1-002" => (
             "top1-assurance",
             vec!["proof-coverage".to_string(), strict_arg.clone()],
@@ -273,12 +289,12 @@ fn run_v7_lane(root: &Path, id: &str, strict: bool) -> Value {
             let scale_policy_rel = match ensure_v7_scale_policy(root) {
                 Ok(v) => v,
                 Err(err) => {
-                    return json!({
-                        "ok": false,
-                        "id": id,
-                        "error": format!("prepare_scale_policy_failed:{err}")
-                    });
-                }
+                return json!({
+                    "ok": false,
+                    "id": lane_id,
+                    "error": format!("prepare_scale_policy_failed:{err}")
+                });
+            }
             };
             (
                 "enterprise-hardening",
@@ -304,7 +320,7 @@ fn run_v7_lane(root: &Path, id: &str, strict: bool) -> Value {
             if let Err(err) = ensure_v7_super_gate_prereqs(root) {
                 return json!({
                     "ok": false,
-                    "id": id,
+                    "id": lane_id,
                     "error": format!("prepare_super_gate_prereqs_failed:{err}")
                 });
             }
@@ -355,7 +371,7 @@ fn run_v7_lane(root: &Path, id: &str, strict: bool) -> Value {
             return json!({
                 "ok": false,
                 "error": "unsupported_v7_lane",
-                "id": id
+                "id": lane_id
             });
         }
     };
@@ -374,11 +390,10 @@ fn run_v7_lane(root: &Path, id: &str, strict: bool) -> Value {
         "exit_code": exit,
         "claim_evidence": [
             {
-                "id": id,
+                "id": lane_id,
                 "claim": "backlog_delivery_executes_authoritative_v7_lane_with_receipts",
                 "evidence": {"route": route, "exit_code": exit}
             }
         ]
     })
 }
-

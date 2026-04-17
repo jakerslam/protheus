@@ -101,6 +101,7 @@
                       loading="lazy"
                     >
                     <span x-show="!detailAgent.avatar_url && detailAgent.identity && detailAgent.identity.emoji" x-text="detailAgent.identity && detailAgent.identity.emoji" style="margin-right:6px"></span>
+                    <span class="infring-logo infring-logo--agent-default" x-show="!detailAgent.avatar_url && (!detailAgent.identity || !detailAgent.identity.emoji)" aria-hidden="true" style="margin-right:6px;vertical-align:middle"><span class="infring-logo-glyph" aria-hidden="true">&infin;</span></span>
                     <span x-text="detailAgent.name"></span>
                   </h3>
                   <button class="modal-close" @click="showDetailModal = false">&times;</button>

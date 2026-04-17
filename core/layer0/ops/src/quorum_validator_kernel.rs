@@ -42,6 +42,19 @@ const HIGH_TIER_PASS_B_TOKENS: &[&str] = &[
     "integrity",
     "governance",
 ];
+const WEB_PROVIDER_CONTRACT_TARGETS: &[&str] = &[
+    "brave",
+    "duckduckgo",
+    "exa",
+    "firecrawl",
+    "google",
+    "minimax",
+    "moonshot",
+    "perplexity",
+    "tavily",
+    "xai",
+];
+const WEB_PROVIDER_AUTH_TARGETS: &[&str] = &["openai_codex", "github_copilot"];
 
 fn usage() {
     println!("quorum-validator-kernel commands:");
@@ -139,6 +152,53 @@ fn contains_any(haystack: &str, needles: &[&str]) -> bool {
     needles.iter().any(|needle| haystack.contains(needle))
 }
 
+fn normalize_web_provider(raw: &str) -> String {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "kimi" | "moonshot" => "moonshot".to_string(),
+        "grok" | "xai" => "xai".to_string(),
+        "duck_duck_go" | "duckduckgo" => "duckduckgo".to_string(),
+        "brave_search" | "brave" => "brave".to_string(),
+        other => other.to_string(),
+    }
+}
+
+fn proposal_web_provider(proposal: &Map<String, Value>) -> String {
+    let action_spec = as_object(proposal.get("action_spec"));
+    let meta = as_object(proposal.get("meta"));
+    let raw = [
+        proposal.get("web_provider"),
+        proposal.get("provider"),
+        action_spec.and_then(|row| row.get("web_provider")),
+        action_spec.and_then(|row| row.get("provider")),
+        meta.and_then(|row| row.get("web_provider")),
+        meta.and_then(|row| row.get("provider")),
+    ]
+    .into_iter()
+    .map(as_str)
+    .find(|row| !row.is_empty())
+    .unwrap_or_default();
+    normalize_web_provider(&raw)
+}
+
+fn proposal_web_auth_ready(proposal: &Map<String, Value>, blob: &str) -> bool {
+    let meta = as_object(proposal.get("meta"));
+    if meta
+        .and_then(|row| row.get("web_auth_present"))
+        .and_then(Value::as_bool)
+        == Some(true)
+    {
+        return true;
+    }
+    if meta
+        .and_then(|row| row.get("web_auth_resolved"))
+        .and_then(Value::as_bool)
+        == Some(true)
+    {
+        return true;
+    }
+    contains_any(blob, &["auth", "token", "credential"])
+}
+
 fn suggestion_blob(proposal: &Map<String, Value>) -> String {
     let action_spec = as_object(proposal.get("action_spec"));
     let meta = as_object(proposal.get("meta"));
@@ -151,6 +211,10 @@ fn suggestion_blob(proposal: &Map<String, Value>) -> String {
         meta.and_then(|row| row.get("summary")),
         action_spec.and_then(|row| row.get("command")),
         action_spec.and_then(|row| row.get("rollback_command")),
+        proposal.get("provider"),
+        proposal.get("web_provider"),
+        meta.and_then(|row| row.get("provider")),
+        meta.and_then(|row| row.get("web_provider")),
     ]
     .into_iter()
     .map(normalize_text)
@@ -267,7 +331,23 @@ fn pass_b(proposal: &Map<String, Value>) -> Value {
         || blob.contains("--dry_run")
         || blob.contains("preview")
         || blob.contains("score_only");
-    let allow = has_bound_objective && !network_danger && dry_run_or_preview;
+    let web_requested = contains_any(
+        &blob,
+        &["web_search", "web_fetch", "web tooling", "internet", "search provider"],
+    );
+    let provider = proposal_web_provider(proposal);
+    let provider_contract_ok = !web_requested
+        || (!provider.is_empty()
+            && WEB_PROVIDER_CONTRACT_TARGETS
+                .iter()
+                .any(|target| target == &provider.as_str()));
+    let auth_contract_ok = !web_requested || proposal_web_auth_ready(proposal, &blob);
+    let provider_auth_contract_targets = WEB_PROVIDER_AUTH_TARGETS.to_vec();
+    let allow = has_bound_objective
+        && !network_danger
+        && dry_run_or_preview
+        && provider_contract_ok
+        && auth_contract_ok;
 
     json!({
         "name": "secondary",
@@ -277,6 +357,12 @@ fn pass_b(proposal: &Map<String, Value>) -> Value {
             "bound_objective": has_bound_objective,
             "network_danger": network_danger,
             "dry_run_or_preview": dry_run_or_preview,
+            "web_requested": web_requested,
+            "web_provider": provider,
+            "provider_contract_ok": provider_contract_ok,
+            "auth_contract_ok": auth_contract_ok,
+            "provider_contract_targets": WEB_PROVIDER_CONTRACT_TARGETS,
+            "provider_auth_contract_targets": provider_auth_contract_targets,
         }
     })
 }

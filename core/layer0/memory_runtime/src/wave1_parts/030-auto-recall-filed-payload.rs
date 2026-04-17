@@ -1,3 +1,52 @@
+fn auto_recall_execution_receipt(status: &str, reason: Option<&str>) -> Value {
+    let normalized_status = match status.trim().to_ascii_lowercase().as_str() {
+        "ok" | "success" | "succeeded" | "ready" => "success",
+        "timeout" | "timed_out" | "timed-out" => "timeout",
+        "throttled" | "rate_limited" | "rate-limited" | "429" => "throttled",
+        _ => "error",
+    };
+    let normalized_reason = reason.map(|raw| {
+        raw.trim()
+            .to_ascii_lowercase()
+            .chars()
+            .map(|ch| {
+                if ch.is_ascii_alphanumeric() || matches!(ch, '_' | '-' | ':' | '.') {
+                    ch
+                } else {
+                    '_'
+                }
+            })
+            .collect::<String>()
+            .split('_')
+            .filter(|row| !row.is_empty())
+            .collect::<Vec<_>>()
+            .join("_")
+    });
+    let seed = format!(
+        "{}|{}",
+        normalized_status,
+        normalized_reason.clone().unwrap_or_default()
+    );
+    json!({
+        "call_id": format!("auto-recall-{}", &sha256_hex(&seed)[..16]),
+        "status": normalized_status,
+        "error_kind": normalized_reason,
+        "telemetry": {
+            "duration_ms": 0,
+            "tokens_used": 0
+        }
+    })
+}
+
+fn with_auto_recall_execution_receipt(
+    mut payload: Value,
+    status: &str,
+    reason: Option<&str>,
+) -> Value {
+    payload["execution_receipt"] = auto_recall_execution_receipt(status, reason);
+    payload
+}
+
 fn auto_recall_filed_payload(args: &HashMap<String, String>) -> Value {
     let root = default_workspace_root(args);
     let (matrix_path, policy_path, events_path, latest_path) =
@@ -25,14 +74,14 @@ fn auto_recall_filed_payload(args: &HashMap<String, String>) -> Value {
         });
 
     if node_id.is_empty() || tags.is_empty() {
-        let out = json!({
+        let out = with_auto_recall_execution_receipt(json!({
             "ok": false,
             "type": "memory_auto_recall",
             "reason": "missing_node_or_tags",
             "node_id": if node_id.is_empty() { Value::Null } else { Value::String(node_id.clone()) },
             "tags": tags,
             "ts": now_iso()
-        });
+        }), "error", Some("missing_node_or_tags"));
         append_jsonl(&events_path, &out);
         write_json(&latest_path, &out);
         return out;
@@ -43,7 +92,7 @@ fn auto_recall_filed_payload(args: &HashMap<String, String>) -> Value {
         .and_then(Value::as_bool)
         .unwrap_or(true)
     {
-        let out = json!({
+        let out = with_auto_recall_execution_receipt(json!({
             "ok": true,
             "type": "memory_auto_recall",
             "skipped": true,
@@ -51,21 +100,21 @@ fn auto_recall_filed_payload(args: &HashMap<String, String>) -> Value {
             "node_id": node_id,
             "tags": tags,
             "ts": now_iso()
-        });
+        }), "success", Some("disabled"));
         append_jsonl(&events_path, &out);
         write_json(&latest_path, &out);
         return out;
     }
 
     let Some(matrix) = read_json(&matrix_path) else {
-        let out = json!({
+        let out = with_auto_recall_execution_receipt(json!({
             "ok": false,
             "type": "memory_auto_recall",
             "reason": "matrix_unavailable",
             "node_id": node_id,
             "tags": tags,
             "ts": now_iso()
-        });
+        }), "error", Some("matrix_unavailable"));
         append_jsonl(&events_path, &out);
         write_json(&latest_path, &out);
         return out;
@@ -94,7 +143,7 @@ fn auto_recall_filed_payload(args: &HashMap<String, String>) -> Value {
         allow_stale_matrix,
     );
     if !freshness.ok {
-        let out = json!({
+        let out = with_auto_recall_execution_receipt(json!({
             "ok": false,
             "type": "memory_auto_recall",
             "reason": freshness.reason_code,
@@ -105,7 +154,7 @@ fn auto_recall_filed_payload(args: &HashMap<String, String>) -> Value {
             "tags": tags,
             "matrix_path": matrix_path.to_string_lossy().to_string(),
             "ts": now_iso()
-        });
+        }), "error", Some(freshness.reason_code));
         append_jsonl(&events_path, &out);
         write_json(&latest_path, &out);
         return out;
@@ -228,21 +277,21 @@ fn auto_recall_filed_payload(args: &HashMap<String, String>) -> Value {
         .collect::<Vec<String>>();
     let ranking = enforce_descending_ranking(&ranking_scores, &ranking_ids);
     if !ranking.ok {
-        let out = json!({
+        let out = with_auto_recall_execution_receipt(json!({
             "ok": false,
             "type": "memory_auto_recall",
             "reason": ranking.reason_code,
             "node_id": node_id,
             "tags": tags,
             "ts": now_iso()
-        });
+        }), "error", Some(ranking.reason_code));
         append_jsonl(&events_path, &out);
         write_json(&latest_path, &out);
         return out;
     }
 
     if matches.is_empty() {
-        let out = json!({
+        let out = with_auto_recall_execution_receipt(json!({
             "ok": true,
             "type": "memory_auto_recall",
             "skipped": true,
@@ -250,7 +299,7 @@ fn auto_recall_filed_payload(args: &HashMap<String, String>) -> Value {
             "node_id": node_id,
             "tags": tags,
             "ts": now_iso()
-        });
+        }), "success", Some("no_matches"));
         append_jsonl(&events_path, &out);
         write_json(&latest_path, &out);
         return out;
@@ -274,7 +323,7 @@ fn auto_recall_filed_payload(args: &HashMap<String, String>) -> Value {
         })
     };
 
-    let out = json!({
+    let out = with_auto_recall_execution_receipt(json!({
         "ok": true,
         "type": "memory_auto_recall",
         "ts": now_iso(),
@@ -296,7 +345,7 @@ fn auto_recall_filed_payload(args: &HashMap<String, String>) -> Value {
             "reason_code": ranking.reason_code
         },
         "attention": attention
-    });
+    }), "success", None);
     append_jsonl(&events_path, &out);
     write_json(&latest_path, &out);
     out
@@ -455,4 +504,3 @@ fn dream_status_payload(args: &HashMap<String, String>) -> Value {
         "sequencer_ledger_path": ledger_path.to_string_lossy().to_string()
     })
 }
-

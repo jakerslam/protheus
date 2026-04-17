@@ -26,6 +26,9 @@ fn audit_cron_delivery(root: &Path) -> Value {
     let mut isolated_jobs = 0usize;
     let mut jobs_with_delivery = 0usize;
     let mut issues = Vec::<Value>::new();
+    let web_tooling_auth_sources = cron_runtime_web_tooling_auth_sources();
+    let web_tooling_auth_present = !web_tooling_auth_sources.is_empty();
+    let mut web_tooling_jobs = 0usize;
 
     for job in jobs {
         let name = job
@@ -55,6 +58,37 @@ fn audit_cron_delivery(root: &Path) -> Value {
         }
 
         let delivery = job.get("delivery").and_then(Value::as_object);
+        let payload_text = job
+            .get("payload")
+            .and_then(Value::as_object)
+            .and_then(|payload| payload.get("text").or_else(|| payload.get("message")))
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_ascii_lowercase();
+        let command_text = job
+            .get("command")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_ascii_lowercase();
+        let name_lower = name.to_ascii_lowercase();
+        let uses_web_tooling = name_lower.contains("web")
+            || payload_text.contains("web_search")
+            || payload_text.contains("web search")
+            || payload_text.contains("web_fetch")
+            || payload_text.contains("web fetch")
+            || command_text.contains("web-conduit")
+            || command_text.contains("web search")
+            || command_text.contains("web fetch");
+        if uses_web_tooling {
+            web_tooling_jobs += 1;
+            if !web_tooling_auth_present {
+                issues.push(json!({
+                    "id": id,
+                    "name": name,
+                    "reason": "web_tooling_auth_missing_for_web_job"
+                }));
+            }
+        }
         if delivery.is_none() {
             issues.push(json!({
                 "id": id,
@@ -140,8 +174,38 @@ fn audit_cron_delivery(root: &Path) -> Value {
         "enabled_jobs": enabled_jobs,
         "isolated_jobs": isolated_jobs,
         "jobs_with_delivery": jobs_with_delivery,
+        "web_tooling_jobs": web_tooling_jobs,
+        "web_tooling_auth_present": web_tooling_auth_present,
+        "web_tooling_auth_sources": web_tooling_auth_sources,
         "issues": issues
     })
+}
+
+fn cron_runtime_web_tooling_auth_sources() -> Vec<String> {
+    let env_candidates = [
+        "BRAVE_API_KEY",
+        "EXA_API_KEY",
+        "TAVILY_API_KEY",
+        "PERPLEXITY_API_KEY",
+        "SERPAPI_API_KEY",
+        "GOOGLE_SEARCH_API_KEY",
+        "GOOGLE_CSE_ID",
+        "FIRECRAWL_API_KEY",
+        "XAI_API_KEY",
+        "MOONSHOT_API_KEY",
+        "OPENAI_API_KEY",
+    ];
+    let mut sources = Vec::<String>::new();
+    for env_name in env_candidates {
+        let present = env::var(env_name)
+            .ok()
+            .map(|value| !value.trim().is_empty())
+            .unwrap_or(false);
+        if present {
+            sources.push(format!("env:{env_name}"));
+        }
+    }
+    sources
 }
 
 fn percentile(values: &[f64], q: f64) -> Option<f64> {
@@ -373,4 +437,3 @@ fn collect_moltbook_credentials_dashboard_metric(root: &Path) -> Value {
         }
     })
 }
-

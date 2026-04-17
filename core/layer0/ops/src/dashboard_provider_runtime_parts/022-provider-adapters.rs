@@ -20,12 +20,29 @@ fn provider_network_policy_path(root: &Path) -> PathBuf {
     root.join(PROVIDER_NETWORK_POLICY_REL)
 }
 
+fn web_tooling_relaxed_test_mode_env_enabled() -> bool {
+    for name in [
+        "INFRING_WEB_TOOLING_RELAXED_TEST_MODE",
+        "PROTHEUS_WEB_TOOLING_RELAXED_TEST_MODE",
+    ] {
+        if let Ok(raw) = std::env::var(name) {
+            match clean_text(&raw, 40).to_ascii_lowercase().as_str() {
+                "1" | "true" | "yes" | "on" => return true,
+                "0" | "false" | "no" | "off" => return false,
+                _ => {}
+            }
+        }
+    }
+    false
+}
+
 fn default_provider_network_policy() -> Value {
     json!({
         "type": "infring_provider_network_policy",
         "version": "v1",
         "local_first_default": true,
         "require_explicit_provider_consent": true,
+        "relaxed_test_mode": false,
         "telemetry_blocklist_enabled": true,
         "telemetry_blocklist_domains": DEFAULT_TELEMETRY_BLOCKLIST,
         "deny_domains": DEFAULT_DENY_DOMAINS,
@@ -63,6 +80,10 @@ fn provider_network_policy(root: &Path) -> Value {
         .is_none()
     {
         policy["require_explicit_provider_consent"] = json!(true);
+        changed = true;
+    }
+    if policy.get("relaxed_test_mode").and_then(Value::as_bool).is_none() {
+        policy["relaxed_test_mode"] = json!(false);
         changed = true;
     }
     if policy
@@ -225,6 +246,27 @@ fn provider_network_guard(root: &Path, provider_id: &str, base_url: &str) -> Res
     let host = url_host(base_url);
     let host_loopback = host_is_loopback(&host);
     let policy = provider_network_policy(root);
+    let relaxed_test_mode = policy
+        .get("relaxed_test_mode")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+        || web_tooling_relaxed_test_mode_env_enabled();
+    if relaxed_test_mode {
+        let has_provider_key = provider_key(root, &provider).is_some();
+        let decision = json!({
+            "allowed": true,
+            "provider": provider,
+            "host": host,
+            "host_is_loopback": host_loopback,
+            "local_first_default": policy.get("local_first_default").and_then(Value::as_bool).unwrap_or(false),
+            "consent_via_provider_key": has_provider_key,
+            "consent_via_allowlist": true,
+            "policy_bypass": true,
+            "bypass_reason": "web_tooling_relaxed_test_mode"
+        });
+        append_provider_outbound_guard_receipt(root, decision.clone());
+        return Ok(decision);
+    }
     let denied = policy
         .get("deny_domains")
         .and_then(Value::as_array)
@@ -616,6 +658,24 @@ mod provider_adapter_tests {
                 .map(|err| err.contains("denied_domain"))
                 .unwrap_or(false),
             "metadata host should remain fail-closed"
+        );
+    }
+
+    #[test]
+    fn provider_network_guard_allows_cloud_when_relaxed_test_mode_enabled() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let mut policy = default_provider_network_policy();
+        policy["relaxed_test_mode"] = json!(true);
+        write_json_pretty(&provider_network_policy_path(root.path()), &policy);
+        let decision = provider_network_guard(root.path(), "openai", "https://api.openai.com/v1")
+            .expect("relaxed mode should bypass local-first block");
+        assert_eq!(
+            decision.get("policy_bypass").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            decision.get("bypass_reason").and_then(Value::as_str),
+            Some("web_tooling_relaxed_test_mode")
         );
     }
 }

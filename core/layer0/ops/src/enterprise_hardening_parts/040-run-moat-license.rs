@@ -1,9 +1,36 @@
+fn canonical_moat_primitive(raw: &str) -> String {
+    let token = raw.trim().to_ascii_lowercase().replace('-', "_");
+    match token.as_str() {
+        "conduit_runtime" => "conduit".to_string(),
+        "directive" | "directiveengine" => "directive_kernel".to_string(),
+        "binaryblob" | "blob_vault" => "binary_blob".to_string(),
+        "network" | "networking" => "network_protocol".to_string(),
+        _ => token,
+    }
+}
+
+fn canonical_license(raw: &str) -> String {
+    let token = raw.trim();
+    if token.eq_ignore_ascii_case("apache2")
+        || token.eq_ignore_ascii_case("apache_2_0")
+        || token.eq_ignore_ascii_case("apache-2")
+    {
+        "Apache-2.0".to_string()
+    } else if token.eq_ignore_ascii_case("mit") {
+        "MIT".to_string()
+    } else if token.is_empty() {
+        "Apache-2.0".to_string()
+    } else {
+        token.to_string()
+    }
+}
+
 fn run_moat_license(
     root: &Path,
     strict: bool,
     flags: &std::collections::HashMap<String, String>,
 ) -> Result<Value, String> {
-    let primitives = flags
+    let mut primitives = flags
         .get("primitives")
         .map(|raw| split_csv(raw))
         .filter(|rows| !rows.is_empty())
@@ -15,14 +42,24 @@ fn run_moat_license(
                 "network_protocol".to_string(),
             ]
         });
-    let license = flags
+    primitives = primitives
+        .into_iter()
+        .map(|item| canonical_moat_primitive(&item))
+        .filter(|item| !item.is_empty())
+        .collect::<Vec<_>>();
+    primitives.sort();
+    primitives.dedup();
+    let license = canonical_license(
+        flags
         .get("license")
         .map(|v| v.trim().to_string())
         .filter(|v| !v.is_empty())
-        .unwrap_or_else(|| "Apache-2.0".to_string());
+        .unwrap_or_else(|| "Apache-2.0".to_string())
+        .as_str(),
+    );
     let reviewer = flags
         .get("reviewer")
-        .map(|v| v.trim().to_string())
+        .map(|v| v.trim().to_ascii_lowercase().replace(' ', "_"))
         .filter(|v| !v.is_empty())
         .unwrap_or_else(|| "legal-review-bot".to_string());
 
@@ -429,4 +466,3 @@ fn run_genesis_truth_gate(
         ]
     })))
 }
-

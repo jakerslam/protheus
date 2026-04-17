@@ -1,3 +1,12 @@
+fn normalize_web_tooling_provider_id(raw: &str) -> String {
+    match clean(raw.replace('_', "-"), 80).to_ascii_lowercase().as_str() {
+        "google" => "gemini".to_string(),
+        "xai" => "grok".to_string(),
+        "moonshot" => "kimi".to_string(),
+        other => other.to_string(),
+    }
+}
+
 fn run_csi_module(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
     let contract = load_json_or(
         root,
@@ -153,6 +162,25 @@ fn run_csi_module(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Valu
                     .unwrap_or_else(|| "drop-to-presence-only".to_string()),
                 120,
             );
+            let web_tooling_provider = normalize_web_tooling_provider_id(
+                parsed
+                    .flags
+                    .get("web-tooling-provider")
+                    .map(String::as_str)
+                    .or_else(|| parsed.flags.get("web-provider").map(String::as_str))
+                    .unwrap_or(""),
+            );
+            let web_tooling_requires_auth = parsed
+                .flags
+                .get("web-tooling-requires-auth")
+                .or_else(|| parsed.flags.get("web-requires-auth"))
+                .map(|raw| {
+                    matches!(
+                        clean(raw.clone(), 12).to_ascii_lowercase().as_str(),
+                        "1" | "true" | "yes" | "on"
+                    )
+                })
+                .unwrap_or(true);
             let privacy_allowed = contract
                 .get("allowed_privacy_classes")
                 .and_then(Value::as_array)
@@ -195,6 +223,15 @@ fn run_csi_module(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Valu
                 "budget_units": budget_units,
                 "privacy_class": privacy_class,
                 "degrade_behavior": degrade_behavior,
+                "web_tooling": {
+                    "provider": if web_tooling_provider.is_empty() { Value::Null } else { Value::String(web_tooling_provider) },
+                    "requires_auth": web_tooling_requires_auth,
+                    "diagnostic_codes": [
+                        "WEB_SEARCH_PROVIDER_INVALID_AUTODETECT",
+                        "WEB_SEARCH_KEY_UNRESOLVED_NO_FALLBACK",
+                        "WEB_FETCH_PROVIDER_KEY_UNRESOLVED_NO_FALLBACK"
+                    ]
+                },
                 "registered_at": crate::now_iso(),
                 "active": false
             });
@@ -229,6 +266,22 @@ fn run_csi_module(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Valu
                     "type": "substrate_plane_csi_module",
                     "errors": ["substrate_csi_module_not_registered"]
                 });
+            }
+            let web_requires_auth = registry["modules"][&module]
+                .pointer("/web_tooling/requires_auth")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+            if strict && web_requires_auth {
+                let env_map = std::env::vars().collect::<std::collections::HashMap<String, String>>();
+                let auth_sources = crate::contract_lane_utils::web_tooling_auth_sources_from_env(&env_map);
+                if auth_sources.is_empty() {
+                    return json!({
+                        "ok": false,
+                        "strict": strict,
+                        "type": "substrate_plane_csi_module",
+                        "errors": ["substrate_csi_module_web_tooling_auth_missing"]
+                    });
+                }
             }
             registry["modules"][&module]["active"] = Value::Bool(true);
             registry["modules"][&module]["activated_at"] = Value::String(crate::now_iso());
@@ -415,4 +468,3 @@ fn run_csi_embedded_profile(root: &Path, parsed: &crate::ParsedArgs, strict: boo
     out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
-

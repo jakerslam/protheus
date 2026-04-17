@@ -12,6 +12,7 @@ mod wasm_bridge;
 use serde_json::{json, Value};
 use std::env;
 use std::path::Path;
+use std::time::Instant;
 
 fn parse_arg<'a>(args: &'a [String], key: &str) -> Option<&'a str> {
     let prefix = format!("--{}=", key);
@@ -75,17 +76,41 @@ fn help() -> Value {
     })
 }
 
+fn wrap_command_receipt(command: &str, payload: Value, started: Instant) -> Value {
+    let ok = payload.get("ok").and_then(|v| v.as_bool()).unwrap_or(false);
+    let duration_ms = started.elapsed().as_secs_f64() * 1000.0;
+    json!({
+        "ok": ok,
+        "type": "hybrid_runtime_command_receipt",
+        "command": command,
+        "status": if ok { "success" } else { "error" },
+        "payload": payload,
+        "telemetry": {
+            "duration_ms": duration_ms
+        }
+    })
+}
+
 fn main() {
     let args: Vec<String> = env::args().skip(1).collect();
     let cmd = args.get(0).map(String::as_str).unwrap_or("help");
+    let started = Instant::now();
 
-    let out = match cmd {
+    let payload = match cmd {
         "help" | "--help" | "-h" => help(),
         "hybrid-plan" => {
-            let root = hybrid_plan::resolve_root(parse_arg(&args, "root"));
+            let root = hybrid_plan::resolve_root_with_status(parse_arg(&args, "root"));
             let min = parse_f64(parse_arg(&args, "min"), 15.0);
             let max = parse_f64(parse_arg(&args, "max"), 25.0);
-            hybrid_plan::scan_language_share(Path::new(&root), min, max)
+            let mut report = hybrid_plan::scan_language_share(Path::new(&root.resolved), min, max);
+            if let Some(obj) = report.as_object_mut() {
+                obj.insert(
+                    "root_resolution".to_string(),
+                    serde_json::to_value(root)
+                        .unwrap_or_else(|_| json!({"accepted": false, "reason": "root_serialize_failed"})),
+                );
+            }
+            report
         }
         "memory-hotpath" => memory_hotpath::sample_report(),
         "execution-replay" => {
@@ -120,6 +145,7 @@ fn main() {
         }
         other => json!({"ok": false, "error": "unknown_command", "command": other}),
     };
+    let out = wrap_command_receipt(cmd, payload, started);
 
     print_json(&out);
 }

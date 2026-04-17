@@ -55,6 +55,17 @@ fn has_flag(argv: &[String], needle: &str) -> bool {
     argv.iter().any(|token| token == needle)
 }
 
+fn with_execution_receipt(mut out: Value, command: &str, status: &str) -> Value {
+    out["execution_receipt"] = json!({
+        "lane": "protheusd_launcher_kernel",
+        "command": command,
+        "status": status,
+        "source": "OPENCLAW-TOOLING-WEB-100",
+        "tool_runtime_class": "receipt_wrapped"
+    });
+    out
+}
+
 fn run_gate(argv: &[String]) -> Value {
     let payload = parse_payload(argv);
     let args = parse_args_from_payload(&payload);
@@ -77,27 +88,35 @@ fn run_gate(argv: &[String]) -> Value {
     let allow_legacy_fallback = has_flag(&args, "--allow-legacy-fallback");
 
     if strict && conduit_missing && !allow_legacy_fallback {
-        return json!({
-            "ok": false,
+        return with_execution_receipt(
+            json!({
+                "ok": false,
+                "type": "protheusd_launcher_gate",
+                "error": "conduit_required_strict",
+                "strict": strict,
+                "conduit_missing": conduit_missing,
+                "allow_legacy_fallback": allow_legacy_fallback,
+                "pass_args": args,
+                "exit_code": 2,
+            }),
+            "gate",
+            "error",
+        );
+    }
+
+    with_execution_receipt(
+        json!({
+            "ok": true,
             "type": "protheusd_launcher_gate",
-            "error": "conduit_required_strict",
             "strict": strict,
             "conduit_missing": conduit_missing,
             "allow_legacy_fallback": allow_legacy_fallback,
             "pass_args": args,
-            "exit_code": 2,
-        });
-    }
-
-    json!({
-        "ok": true,
-        "type": "protheusd_launcher_gate",
-        "strict": strict,
-        "conduit_missing": conduit_missing,
-        "allow_legacy_fallback": allow_legacy_fallback,
-        "pass_args": args,
-        "exit_code": 0,
-    })
+            "exit_code": 0,
+        }),
+        "gate",
+        "success",
+    )
 }
 
 pub fn run(_root: &Path, argv: &[String]) -> i32 {
@@ -114,12 +133,16 @@ pub fn run(_root: &Path, argv: &[String]) -> i32 {
 
     if cmd != "gate" {
         usage();
-        print_json_line(&json!({
-            "ok": false,
-            "type": "protheusd_launcher_gate",
-            "error": "unknown_command",
-            "command": cmd,
-        }));
+        print_json_line(&with_execution_receipt(
+            json!({
+                "ok": false,
+                "type": "protheusd_launcher_gate",
+                "error": "unknown_command",
+                "command": cmd,
+            }),
+            &cmd,
+            "error",
+        ));
         return 2;
     }
 

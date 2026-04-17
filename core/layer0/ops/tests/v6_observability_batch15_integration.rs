@@ -96,6 +96,7 @@ fn read_json(path: &Path) -> Value {
 }
 
 fn assert_claim(payload: &Value, claim_id: &str) {
+    assert_no_runtime_context_leak(&payload.to_string());
     let has = payload
         .get("claim_evidence")
         .and_then(Value::as_array)
@@ -104,6 +105,23 @@ fn assert_claim(payload: &Value, claim_id: &str) {
         .iter()
         .any(|row| row.get("id").and_then(Value::as_str) == Some(claim_id));
     assert!(has, "missing claim evidence id={claim_id}");
+}
+
+fn assert_no_runtime_context_leak(raw: &str) {
+    const FORBIDDEN: [&str; 6] = [
+        "You are an expert Python programmer.",
+        "[PATCH v2",
+        "List Leaves (25",
+        "BEGIN_OPENCLAW_INTERNAL_CONTEXT",
+        "END_OPENCLAW_INTERNAL_CONTEXT",
+        "UNTRUSTED_CHILD_RESULT_DELIMITER",
+    ];
+    for marker in FORBIDDEN {
+        assert!(
+            !raw.contains(marker),
+            "runtime payload leaked forbidden marker `{marker}`: {raw}"
+        );
+    }
 }
 
 #[test]

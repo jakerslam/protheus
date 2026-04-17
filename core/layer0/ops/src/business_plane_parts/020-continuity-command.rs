@@ -1,3 +1,60 @@
+fn canonical_slug(raw: &str, max_len: usize, fallback: &str) -> String {
+    let mut out = String::new();
+    let mut prev_sep = false;
+    for ch in raw.trim().chars() {
+        let next = if ch.is_ascii_alphanumeric() || ch == '-' {
+            ch.to_ascii_lowercase()
+        } else {
+            '-'
+        };
+        if next == '-' {
+            if prev_sep {
+                continue;
+            }
+            prev_sep = true;
+        } else {
+            prev_sep = false;
+        }
+        out.push(next);
+        if out.len() >= max_len {
+            break;
+        }
+    }
+    let out = out.trim_matches('-').to_string();
+    if out.is_empty() {
+        fallback.to_string()
+    } else {
+        out
+    }
+}
+
+fn canonical_business_context(raw: &str) -> String {
+    canonical_slug(raw, 80, "default")
+}
+
+fn canonical_checkpoint_name(raw: &str) -> String {
+    canonical_slug(raw, 80, "latest")
+}
+
+fn canonical_alert_type(raw: &str) -> String {
+    match canonical_slug(raw, 64, "decision-required").as_str() {
+        "decision-required" | "decision-requireds" => "decision-required".to_string(),
+        "capability-expiry" | "capability-expired" => "capability-expiry".to_string(),
+        "checkpoint-mismatch" | "checkpoint-mis-match" => "checkpoint-mismatch".to_string(),
+        "async-complete" | "async-completed" => "async-complete".to_string(),
+        "dopamine-drop" | "dopamine-dip" => "dopamine-drop".to_string(),
+        other => other.to_string(),
+    }
+}
+
+fn canonical_channel(raw: &str) -> String {
+    match canonical_slug(raw, 32, "dashboard").as_str() {
+        "pager-duty" => "pagerduty".to_string(),
+        "mail" => "email".to_string(),
+        other => other.to_string(),
+    }
+}
+
 fn continuity_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Value, String> {
     let op = clean(
         parsed
@@ -8,13 +65,12 @@ fn continuity_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Value, 
         20,
     )
     .to_ascii_lowercase();
-    let business = clean(
+    let business = canonical_business_context(
         parsed
             .flags
             .get("business-context")
             .map(String::as_str)
             .unwrap_or("default"),
-        80,
     );
     ensure_business_registered(root, &business)?;
     if op == "status" {
@@ -37,13 +93,14 @@ fn continuity_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Value, 
     }
 
     if op == "handoff" {
-        let to = clean(
+        let to = canonical_slug(
             parsed
                 .flags
                 .get("to")
                 .map(String::as_str)
                 .unwrap_or("stakeholder"),
             120,
+            "stakeholder",
         );
         let task = clean(
             parsed
@@ -80,17 +137,16 @@ fn continuity_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Value, 
     if op != "checkpoint" && op != "resume" {
         return Err("continuity_op_invalid".to_string());
     }
-    let name = clean(
+    let name = canonical_checkpoint_name(
         parsed
             .flags
             .get("name")
             .map(String::as_str)
             .unwrap_or("latest"),
-        100,
     );
     let checkpoint_file = checkpoints_dir(root)
-        .join(clean(&business, 80))
-        .join(format!("{}.json", clean(&name, 80)));
+        .join(&business)
+        .join(format!("{name}.json"));
     if op == "checkpoint" {
         let state_json = parse_json_or_empty(parsed.flags.get("state-json"));
         let mut chain = load_chain(root);
@@ -197,23 +253,20 @@ fn alerts_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Value, Stri
             }]
         }));
     }
-    let alert_type = clean(
+    let alert_type = canonical_alert_type(
         parsed
             .flags
             .get("alert-type")
             .map(String::as_str)
             .unwrap_or("decision-required"),
-        64,
     );
-    let channel = clean(
+    let channel = canonical_channel(
         parsed
             .flags
             .get("channel")
             .map(String::as_str)
             .unwrap_or("dashboard"),
-        32,
-    )
-    .to_ascii_lowercase();
+    );
     let allowed = [
         "decision-required",
         "capability-expiry",
@@ -278,15 +331,14 @@ fn switchboard_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Value,
         16,
     )
     .to_ascii_lowercase();
-    let business = require_business(parsed)?;
+    let business = canonical_business_context(&require_business(parsed)?);
     ensure_business_registered(root, &business)?;
-    let target = clean(
+    let target = canonical_business_context(
         parsed
             .flags
             .get("target-business")
             .map(String::as_str)
             .unwrap_or(business.as_str()),
-        80,
     );
     if target != business && (op == "read" || op == "write") {
         return Err("cross_business_access_denied".to_string());
@@ -330,33 +382,32 @@ fn switchboard_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Value,
 }
 
 fn external_sync_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Value, String> {
-    let business = clean(
+    let business = canonical_business_context(
         parsed
             .flags
             .get("business-context")
             .map(String::as_str)
             .unwrap_or("default"),
-        80,
     );
     ensure_business_registered(root, &business)?;
-    let system = clean(
+    let system = canonical_slug(
         parsed
             .flags
             .get("system")
             .map(String::as_str)
             .unwrap_or("notion"),
         32,
-    )
-    .to_ascii_lowercase();
-    let direction = clean(
+        "notion",
+    );
+    let direction = canonical_slug(
         parsed
             .flags
             .get("direction")
             .map(String::as_str)
             .unwrap_or("push"),
         16,
-    )
-    .to_ascii_lowercase();
+        "push",
+    );
     let allowed_systems = ["notion", "confluence", "crm", "calendar", "email", "slack"];
     if !allowed_systems.contains(&system.as_str()) {
         return Err("sync_system_invalid".to_string());
@@ -443,4 +494,3 @@ fn continuity_audit_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<V
         }]
     }))
 }
-

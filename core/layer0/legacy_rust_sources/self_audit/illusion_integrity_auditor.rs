@@ -1,5 +1,5 @@
 use serde::Serialize;
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -50,25 +50,52 @@ struct ScanOutput {
     summary: Summary,
 }
 
+const MAX_ARG_VALUE_LEN: usize = 4096;
+
+fn strip_invisible_unicode(raw: &str) -> String {
+    raw.chars()
+        .filter(|ch| {
+            !matches!(
+                ch,
+                '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}'
+            )
+        })
+        .collect()
+}
+
+fn sanitize_cli_value(raw: &str, max_len: usize) -> String {
+    let mut normalized: String = strip_invisible_unicode(raw)
+        .chars()
+        .filter(|ch| !ch.is_control())
+        .collect();
+    normalized = normalized.trim().to_string();
+    if normalized.len() > max_len {
+        normalized.truncate(max_len);
+    }
+    normalized
+}
+
 fn parse_arg(args: &[String], key: &str, fallback: &str) -> String {
     for arg in args {
         if let Some(v) = arg.strip_prefix(&(String::from("--") + key + "=")) {
-            let trimmed = v.trim();
-            if !trimmed.is_empty() {
-                return trimmed.to_string();
+            let normalized = sanitize_cli_value(v, MAX_ARG_VALUE_LEN);
+            if !normalized.is_empty() {
+                return normalized;
             }
         }
     }
-    fallback.to_string()
+    sanitize_cli_value(fallback, MAX_ARG_VALUE_LEN)
 }
 
 fn tokenize_csv(input: &str) -> Vec<String> {
-    input
-        .split(',')
-        .map(|s| s.trim())
-        .filter(|s| !s.is_empty())
-        .map(|s| s.to_string())
-        .collect()
+    let mut deduped = BTreeSet::new();
+    for entry in input.split(',') {
+        let normalized = sanitize_cli_value(entry, 160);
+        if !normalized.is_empty() {
+            deduped.insert(normalized);
+        }
+    }
+    deduped.into_iter().collect()
 }
 
 fn normalized_rel(root: &Path, path: &Path) -> String {

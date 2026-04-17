@@ -1,6 +1,7 @@
 use super::*;
 pub(super) fn command_status(root: &Path) -> i32 {
     let mut state = load_state(root);
+    let web_tooling_health = crate::network_protocol::web_tooling_health_report(root, false);
     let obj = state_obj_mut(&mut state);
     obj.insert(
         "dream_count".to_string(),
@@ -18,7 +19,8 @@ pub(super) fn command_status(root: &Path) -> i32 {
             "type": "organism_layer_status",
             "lane": "core/layer0/ops",
             "state": state,
-            "latest": read_json(&latest_path(root))
+            "latest": read_json(&latest_path(root)),
+            "web_tooling_health": web_tooling_health
         }),
     )
 }
@@ -33,6 +35,11 @@ pub(super) fn command_ignite(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
         .and_then(Value::as_f64)
         .unwrap_or(0.2)
         .clamp(0.0, 1.0);
+    let web_tooling_health = crate::network_protocol::web_tooling_health_report(root, false);
+    let web_tooling_ready = web_tooling_health
+        .get("ok")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
     let idle_hours = parse_f64(parsed.flags.get("idle-hours"), 6.0).max(0.0);
     let experiments = parse_f64(parsed.flags.get("experiments"), 3.0).max(1.0) as u64;
     let dream_seed = sha256_hex_str(&format!(
@@ -233,6 +240,7 @@ pub(super) fn command_ignite(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
                 },
                 "narrative": narrative
             },
+            "web_tooling_health": web_tooling_health,
             "activated_components": {
                 "dream": apply && allowed,
                 "homeostasis": apply && allowed,
@@ -311,6 +319,7 @@ pub(super) fn command_ignite(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
                     "evidence": {
                         "activation_command": "protheus organism ignite",
                         "status_command": "protheus organism status",
+                        "web_tooling_ready": web_tooling_ready,
                         "activated_components": {
                             "dream": apply && allowed,
                             "homeostasis": apply && allowed,

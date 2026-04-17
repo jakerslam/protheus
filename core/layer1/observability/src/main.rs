@@ -8,11 +8,44 @@ use protheus_observability_core_v1::{
 use std::env;
 use std::fs;
 
+const MAX_ARG_KEY_LEN: usize = 48;
+const MAX_REQUEST_BYTES: usize = 32 * 1024;
+const MAX_SCENARIO_ID_LEN: usize = 96;
+const MAX_TRACE_ID_LEN: usize = 96;
+const MAX_TEXT_TOKEN_LEN: usize = 160;
+
+fn strip_invisible_unicode(raw: &str) -> String {
+    raw.chars()
+        .filter(|ch| {
+            !matches!(
+                ch,
+                '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}'
+            )
+        })
+        .collect()
+}
+
+fn sanitize_text_token(raw: &str, max_len: usize) -> String {
+    let mut token: String = strip_invisible_unicode(raw)
+        .chars()
+        .filter(|ch| !ch.is_control())
+        .collect();
+    token = token.trim().to_string();
+    if token.len() > max_len {
+        token.truncate(max_len);
+    }
+    token
+}
+
 fn parse_arg(args: &[String], key: &str) -> Option<String> {
+    let key = sanitize_text_token(key, MAX_ARG_KEY_LEN);
     for arg in args {
         if let Some((k, v)) = arg.split_once('=') {
-            if k == key {
-                return Some(v.to_string());
+            if sanitize_text_token(k, MAX_ARG_KEY_LEN) == key {
+                let value = sanitize_text_token(v, MAX_REQUEST_BYTES);
+                if !value.is_empty() {
+                    return Some(value);
+                }
             }
         }
     }
@@ -21,20 +54,62 @@ fn parse_arg(args: &[String], key: &str) -> Option<String> {
 
 fn load_request_json(args: &[String]) -> Result<String, String> {
     if let Some(v) = parse_arg(args, "--request-json") {
+        if v.len() > MAX_REQUEST_BYTES {
+            return Err("request_json_too_large".to_string());
+        }
         return Ok(v);
     }
     if let Some(v) = parse_arg(args, "--request-base64") {
         let bytes = BASE64_STANDARD
             .decode(v.as_bytes())
             .map_err(|err| format!("base64_decode_failed:{err}"))?;
+        if bytes.len() > MAX_REQUEST_BYTES {
+            return Err("request_base64_too_large".to_string());
+        }
         let text = String::from_utf8(bytes).map_err(|err| format!("utf8_decode_failed:{err}"))?;
         return Ok(text);
     }
     if let Some(v) = parse_arg(args, "--request-file") {
-        return fs::read_to_string(v.as_str())
-            .map_err(|err| format!("request_file_read_failed:{err}"));
+        let text = fs::read_to_string(v.as_str())
+            .map_err(|err| format!("request_file_read_failed:{err}"))?;
+        if text.len() > MAX_REQUEST_BYTES {
+            return Err("request_file_too_large".to_string());
+        }
+        return Ok(text);
     }
     Err("missing_request_payload".to_string())
+}
+
+fn normalize_request_json(raw_request: &str) -> Result<String, String> {
+    let mut request: ChaosScenarioRequest =
+        serde_json::from_str(raw_request).map_err(|err| format!("request_parse_failed:{err}"))?;
+    request.scenario_id = sanitize_text_token(&request.scenario_id, MAX_SCENARIO_ID_LEN);
+    if request.scenario_id.is_empty() {
+        return Err("request_invalid_scenario_id".to_string());
+    }
+    if request.cycles == 0 {
+        return Err("request_invalid_cycles".to_string());
+    }
+    if request.cycles > 2_000_000 {
+        request.cycles = 2_000_000;
+    }
+    if request.inject_fault_every > request.cycles {
+        request.inject_fault_every = request.cycles;
+    }
+    if request.events.is_empty() {
+        return Err("request_missing_events".to_string());
+    }
+    for event in &mut request.events {
+        event.trace_id = sanitize_text_token(&event.trace_id, MAX_TRACE_ID_LEN);
+        if event.trace_id.is_empty() {
+            return Err("request_invalid_trace_id".to_string());
+        }
+        event.source = sanitize_text_token(&event.source, MAX_TEXT_TOKEN_LEN);
+        event.operation = sanitize_text_token(&event.operation, MAX_TEXT_TOKEN_LEN);
+        event.severity = sanitize_text_token(&event.severity, 16).to_ascii_lowercase();
+        event.payload_digest = sanitize_text_token(&event.payload_digest, MAX_TEXT_TOKEN_LEN);
+    }
+    serde_json::to_string(&request).map_err(|err| format!("request_encode_failed:{err}"))
 }
 
 fn demo_request() -> ChaosScenarioRequest {
@@ -93,13 +168,19 @@ fn main() {
             }
         },
         "run-chaos" => match load_request_json(&args[1..]) {
-            Ok(request_json) => match run_chaos_resilience_json(&request_json) {
-                Ok(payload) => println!("{}", payload),
+            Ok(request_json) => match normalize_request_json(&request_json) {
+                Ok(normalized_request_json) => match run_chaos_resilience_json(&normalized_request_json) {
+                    Ok(payload) => println!("{}", payload),
+                    Err(err) => {
+                        eprintln!(
+                            "{}",
+                            serde_json::json!({ "ok": false, "error": err.to_string() })
+                        );
+                        std::process::exit(1);
+                    }
+                },
                 Err(err) => {
-                    eprintln!(
-                        "{}",
-                        serde_json::json!({ "ok": false, "error": err.to_string() })
-                    );
+                    eprintln!("{}", serde_json::json!({ "ok": false, "error": err }));
                     std::process::exit(1);
                 }
             },

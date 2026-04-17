@@ -2,6 +2,11 @@
 // Layer ownership: core/layer1/memory_runtime (authoritative)
 
 use std::collections::BTreeMap;
+const TOKEN_COMPONENT_CAP: u32 = 10_000_000;
+
+fn bounded_component(value: u32) -> u32 {
+    value.min(TOKEN_COMPONENT_CAP)
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum RetrievalMode {
@@ -31,10 +36,10 @@ pub struct TokenTelemetryEvent {
 
 impl TokenTelemetryEvent {
     pub fn total_tokens(&self) -> u32 {
-        self.startup_tokens
-            .saturating_add(self.hydration_tokens)
-            .saturating_add(self.retrieval_tokens)
-            .saturating_add(self.response_tokens)
+        bounded_component(self.startup_tokens)
+            .saturating_add(bounded_component(self.hydration_tokens))
+            .saturating_add(bounded_component(self.retrieval_tokens))
+            .saturating_add(bounded_component(self.response_tokens))
     }
 }
 
@@ -63,7 +68,7 @@ pub fn summarize(events: &[TokenTelemetryEvent]) -> TokenTelemetrySummary {
         *entry = entry.saturating_add(event.total_tokens());
     }
     TokenTelemetrySummary {
-        event_count: events.len() as u32,
+        event_count: u32::try_from(events.len()).unwrap_or(u32::MAX),
         total_tokens,
         by_mode,
     }
@@ -71,6 +76,7 @@ pub fn summarize(events: &[TokenTelemetryEvent]) -> TokenTelemetrySummary {
 
 pub fn evaluate_burn_slo(event: &TokenTelemetryEvent, threshold_tokens: u32) -> BurnSloDecision {
     let total = event.total_tokens();
+    let threshold_tokens = bounded_component(threshold_tokens).max(1);
     if total <= threshold_tokens {
         BurnSloDecision {
             ok: true,
@@ -144,5 +150,17 @@ mod tests {
         assert!(!decision.ok);
         assert_eq!(decision.reason, "burn_threshold_exceeded");
         assert_eq!(decision.total_tokens, 220);
+    }
+
+    #[test]
+    fn total_tokens_caps_extreme_components() {
+        let event = sample(
+            RetrievalMode::FullFile,
+            u32::MAX,
+            u32::MAX,
+            u32::MAX,
+            u32::MAX,
+        );
+        assert_eq!(event.total_tokens(), TOKEN_COMPONENT_CAP * 4);
     }
 }

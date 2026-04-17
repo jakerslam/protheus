@@ -158,6 +158,117 @@ function copyCode(btn) {
   });
 }
 
+function dashboardExtractCodeLanguage(codeAttrs) {
+  var attrs = String(codeAttrs || '');
+  if (!attrs) return '';
+  var classMatch = attrs.match(/\bclass\s*=\s*"([^"]*)"/i) || attrs.match(/\bclass\s*=\s*'([^']*)'/i);
+  var classText = classMatch ? String(classMatch[1] || '') : '';
+  if (classText) {
+    var classes = classText.split(/\s+/).filter(Boolean);
+    for (var i = 0; i < classes.length; i += 1) {
+      var cls = String(classes[i] || '').trim().toLowerCase();
+      if (!cls) continue;
+      if (cls.indexOf('language-') === 0) return cls.slice('language-'.length);
+      if (cls.indexOf('lang-') === 0) return cls.slice('lang-'.length);
+    }
+  }
+  var directMatch = attrs.match(/\blanguage-([a-z0-9_+-]+)/i) || attrs.match(/\blang-([a-z0-9_+-]+)/i);
+  return directMatch ? String(directMatch[1] || '').trim().toLowerCase() : '';
+}
+
+function dashboardFormatCodeLanguageLabel(languageKey) {
+  var key = String(languageKey || '').trim().toLowerCase();
+  if (!key) return 'Code';
+  var labels = {
+    js: 'JavaScript',
+    jsx: 'JSX',
+    ts: 'TypeScript',
+    tsx: 'TSX',
+    py: 'Python',
+    rs: 'Rust',
+    sh: 'Shell',
+    bash: 'Bash',
+    zsh: 'Zsh',
+    ps1: 'PowerShell',
+    yml: 'YAML',
+    md: 'Markdown',
+    html: 'HTML',
+    css: 'CSS',
+    json: 'JSON',
+    toml: 'TOML',
+    sql: 'SQL',
+    xml: 'XML'
+  };
+  return labels[key] || (key.charAt(0).toUpperCase() + key.slice(1));
+}
+
+function dashboardEscapeInlineHtmlText(value) {
+  var raw = String(value == null ? '' : value);
+  if (typeof escapeHtml === 'function') return escapeHtml(raw);
+  return raw
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function dashboardWrapMarkdownCodeBlocks(html) {
+  var input = String(html || '');
+  if (!input) return '';
+  return input.replace(/<pre><code([^>]*)>([\s\S]*?)<\/code><\/pre>/g, function(_, attrs, body) {
+    var codeAttrs = attrs || '';
+    var languageKey = dashboardExtractCodeLanguage(codeAttrs);
+    var languageLabel = dashboardFormatCodeLanguageLabel(languageKey);
+    var bodyText = String(body || '');
+    var lineCount = bodyText ? bodyText.split('\n').length : 0;
+    var collapsible = lineCount > 30;
+    var collapsedClass = collapsible ? ' chat-codeblock-collapsible is-collapsed' : '';
+    var toggleBtn = collapsible
+      ? (
+        '<button class="message-stat-btn chat-codeblock-toggle" type="button" onclick="toggleCodeFold(this)" title="Expand code" aria-label="Expand code" aria-expanded="false">' +
+          'Expand' +
+        '</button>'
+      )
+      : '';
+    return (
+      '<div class="chat-codeblock' + collapsedClass + '" data-code-language="' + dashboardEscapeInlineHtmlText(languageKey || 'code') + '">' +
+        '<div class="chat-codeblock-toolbar">' +
+          '<span class="chat-codeblock-language">' + dashboardEscapeInlineHtmlText(languageLabel) + '</span>' +
+          '<span class="chat-codeblock-toolbar-actions">' +
+            toggleBtn +
+            '<button class="message-stat-btn chat-codeblock-copy" type="button" onclick="copyCode(this)" title="Copy code" aria-label="Copy code">' +
+              '<svg class="copy-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>' +
+              '<svg class="copied-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M20 6L9 17l-5-5"></path></svg>' +
+            '</button>' +
+          '</span>' +
+        '</div>' +
+        '<pre><code' + codeAttrs + '>' + body + '</code></pre>' +
+      '</div>'
+    );
+  });
+}
+
+function dashboardWrapMarkdownTables(html) {
+  var input = String(html || '');
+  if (!input) return '';
+  return input.replace(/<table>([\s\S]*?)<\/table>/g, function(_, inner) {
+    return '<div class="chat-table-wrap"><table>' + String(inner || '') + '</table></div>';
+  });
+}
+
+function toggleCodeFold(btn) {
+  if (!btn || typeof btn.closest !== 'function') return;
+  var block = btn.closest('.chat-codeblock');
+  if (!block) return;
+  var nextCollapsed = !block.classList.contains('is-collapsed');
+  block.classList.toggle('is-collapsed', nextCollapsed);
+  btn.textContent = nextCollapsed ? 'Expand' : 'Collapse';
+  btn.setAttribute('aria-expanded', nextCollapsed ? 'false' : 'true');
+  btn.setAttribute('title', nextCollapsed ? 'Expand code' : 'Collapse code');
+  btn.setAttribute('aria-label', nextCollapsed ? 'Expand code' : 'Collapse code');
+}
+
 // Tool category icon SVGs — returns inline SVG for each tool category.
 function toolIcon(toolName) {
   if (!toolName) return '';

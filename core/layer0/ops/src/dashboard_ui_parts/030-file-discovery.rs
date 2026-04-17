@@ -312,9 +312,165 @@ fn object_values(path: &Path, key: &str) -> Vec<Value> {
         .unwrap_or_default()
 }
 
+fn normalize_web_tooling_error_code(raw: &str) -> String {
+    let lowered = clean_text(raw, 200).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return "web_tool_error".to_string();
+    }
+    if lowered.contains("auth")
+        || lowered.contains("token")
+        || lowered.contains("api key")
+        || lowered.contains("credential")
+    {
+        return "web_tool_auth_missing".to_string();
+    }
+    if lowered.contains("blocked") || lowered.contains("denied") || lowered.contains("policy") {
+        return "web_tool_policy_blocked".to_string();
+    }
+    if lowered.contains("invalid response") || lowered.contains("invalid_response") {
+        return "web_tool_invalid_response".to_string();
+    }
+    if lowered.contains("timeout") {
+        return "web_tool_timeout".to_string();
+    }
+    if lowered.contains("429") {
+        return "web_tool_http_429".to_string();
+    }
+    if lowered.contains("404") {
+        return "web_tool_http_404".to_string();
+    }
+    if lowered.contains("403") {
+        return "web_tool_http_403".to_string();
+    }
+    if lowered.contains("401") {
+        return "web_tool_http_401".to_string();
+    }
+    if lowered.contains("500")
+        || lowered.contains("502")
+        || lowered.contains("503")
+        || lowered.contains("504")
+    {
+        return "web_tool_http_5xx".to_string();
+    }
+    "web_tool_error".to_string()
+}
+
+fn increment_error_code(
+    map: &mut serde_json::Map<String, Value>,
+    code: &str,
+    last_error_code: &mut String,
+) {
+    let normalized = clean_text(code, 120).to_ascii_lowercase();
+    if normalized.is_empty() {
+        return;
+    }
+    let next = map
+        .get(&normalized)
+        .and_then(Value::as_i64)
+        .unwrap_or(0)
+        .saturating_add(1);
+    map.insert(normalized.clone(), json!(next));
+    *last_error_code = normalized;
+}
+
+fn web_tooling_runtime_diagnostics(root: &Path) -> Value {
+    let action_history_path = root.join(ACTION_HISTORY_REL);
+    let rows = read_tail_lines(&action_history_path, 240);
+    let mut total_calls = 0_i64;
+    let mut search_calls = 0_i64;
+    let mut fetch_calls = 0_i64;
+    let mut successful_calls = 0_i64;
+    let mut failed_calls = 0_i64;
+    let mut no_result_calls = 0_i64;
+    let mut error_codes = serde_json::Map::<String, Value>::new();
+    let mut last_error_code = String::new();
+    let mut last_error_ts = String::new();
+
+    for line in &rows {
+        let parsed = parse_json_loose(line).unwrap_or(Value::Null);
+        let ts = clean_text(parsed.get("ts").and_then(Value::as_str).unwrap_or(""), 80);
+        let diagnostics = parsed
+            .pointer("/payload/response_finalization/tool_diagnostics")
+            .or_else(|| parsed.pointer("/response_finalization/tool_diagnostics"))
+            .or_else(|| parsed.pointer("/payload/tool_diagnostics"))
+            .or_else(|| parsed.get("tool_diagnostics"));
+        if let Some(diag) = diagnostics {
+            total_calls += i64_from_value(diag.get("total_calls"), 0);
+            search_calls += i64_from_value(diag.get("search_calls"), 0);
+            fetch_calls += i64_from_value(diag.get("fetch_calls"), 0);
+            successful_calls += i64_from_value(diag.get("successful_calls"), 0);
+            failed_calls += i64_from_value(diag.get("failed_calls"), 0);
+            no_result_calls += i64_from_value(diag.get("no_result_calls"), 0);
+            if let Some(codes) = diag.get("error_codes").and_then(Value::as_object) {
+                for (raw_code, count) in codes {
+                    let parsed_count = i64_from_value(Some(count), 0).max(1);
+                    for _ in 0..parsed_count {
+                        increment_error_code(&mut error_codes, raw_code, &mut last_error_code);
+                    }
+                    if !raw_code.trim().is_empty() && !ts.is_empty() {
+                        last_error_ts = ts.clone();
+                    }
+                }
+            }
+        }
+        let direct_error = clean_text(
+            parsed
+                .pointer("/payload/error")
+                .or_else(|| parsed.get("error"))
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            240,
+        );
+        if !direct_error.is_empty() {
+            let normalized = normalize_web_tooling_error_code(&direct_error);
+            increment_error_code(&mut error_codes, &normalized, &mut last_error_code);
+            failed_calls = failed_calls.saturating_add(1);
+            if !ts.is_empty() {
+                last_error_ts = ts;
+            }
+        }
+    }
+
+    let auth_missing_errors = error_codes
+        .get("web_tool_auth_missing")
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+    let error_ratio = if total_calls > 0 {
+        (failed_calls as f64) / (total_calls as f64)
+    } else {
+        0.0
+    };
+    let status = if total_calls <= 0 {
+        "no_recent_calls"
+    } else if auth_missing_errors > 0 && successful_calls == 0 {
+        "blocked_auth"
+    } else if failed_calls >= total_calls || error_ratio >= 0.60 {
+        "degraded"
+    } else {
+        "ok"
+    };
+
+    json!({
+        "status": status,
+        "window_events": rows.len() as i64,
+        "history_path": action_history_path.to_string_lossy().to_string(),
+        "total_calls": total_calls,
+        "search_calls": search_calls,
+        "fetch_calls": fetch_calls,
+        "successful_calls": successful_calls,
+        "failed_calls": failed_calls,
+        "no_result_calls": no_result_calls,
+        "error_ratio": error_ratio,
+        "error_codes": Value::Object(error_codes),
+        "last_error_code": if last_error_code.is_empty() { Value::Null } else { Value::String(last_error_code) },
+        "last_error_ts": if last_error_ts.is_empty() { Value::Null } else { Value::String(last_error_ts) }
+    })
+}
+
 fn collect_web_tooling_summary(root: &Path) -> Value {
     let channel_rows = object_values(&root.join(DASHBOARD_CHANNEL_REGISTRY_REL), "channels");
     let provider_rows = object_values(&root.join(DASHBOARD_PROVIDER_REGISTRY_REL), "providers");
+    let runtime = web_tooling_runtime_diagnostics(root);
 
     let mut channels_configured = 0i64;
     let mut channels_connected = 0i64;
@@ -365,10 +521,17 @@ fn collect_web_tooling_summary(root: &Path) -> Value {
 
     let channel_total = channel_rows.len() as i64;
     let provider_total = provider_rows.len() as i64;
+    let runtime_status = clean_text(
+        runtime.get("status").and_then(Value::as_str).unwrap_or(""),
+        40,
+    )
+    .to_ascii_lowercase();
     let status = if channel_total == 0 && provider_total == 0 {
         "empty"
     } else if (channels_configured > 0 && channels_connected == 0)
         || (provider_total > 0 && providers_auth_configured == 0)
+        || runtime_status == "degraded"
+        || runtime_status == "blocked_auth"
     {
         "degraded"
     } else {
@@ -388,7 +551,8 @@ fn collect_web_tooling_summary(root: &Path) -> Value {
             "total": provider_total,
             "reachable": providers_reachable,
             "auth_configured": providers_auth_configured
-        }
+        },
+        "runtime": runtime
     })
 }
 

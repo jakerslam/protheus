@@ -1,4 +1,25 @@
 
+fn web_tooling_runtime_contract_profile() -> Value {
+    json!({
+        "provider_contract_targets": [
+            "brave",
+            "duckduckgo",
+            "exa",
+            "firecrawl",
+            "google",
+            "minimax",
+            "moonshot",
+            "perplexity",
+            "tavily",
+            "xai"
+        ],
+        "provider_runtime_contract": true,
+        "provider_auth_contract": ["openai_codex", "github_copilot"],
+        "provider_registry_contract": true,
+        "provider_discovery_contract": true
+    })
+}
+
 #[cfg(feature = "embedded-minimal-core")]
 fn embedded_minimal_core_status() -> Value {
     let planes = embedded_minimal_core_planes();
@@ -20,6 +41,7 @@ fn embedded_minimal_core_status() -> Value {
         "embedded_feature": "embedded-minimal-core",
         "planes_embedded": lane_entries,
         "runner_ptr_fingerprint": runner_ptr_fingerprint,
+        "web_tooling_runtime_contract": web_tooling_runtime_contract_profile(),
     });
     out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
     out
@@ -42,7 +64,8 @@ fn tiny_status() -> Value {
         "max_concurrent_hands": profile.max_concurrent_hands,
         "supports_hibernation": profile.supports_hibernation,
         "supports_receipt_batching": profile.supports_receipt_batching,
-        "capacity_score": capacity
+        "capacity_score": capacity,
+        "web_tooling_runtime_contract": web_tooling_runtime_contract_profile()
     });
     out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
     out
@@ -60,7 +83,8 @@ fn tiny_max_status() -> Value {
         "allocator_profile": "minimal-alloc",
         "pgo_profile_enabled": cfg!(feature = "pgo-profile"),
         "max_heap_kib": profile.max_heap_kib,
-        "max_concurrent_hands": profile.max_concurrent_hands
+        "max_concurrent_hands": profile.max_concurrent_hands,
+        "web_tooling_runtime_contract": web_tooling_runtime_contract_profile()
     });
     out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
     out

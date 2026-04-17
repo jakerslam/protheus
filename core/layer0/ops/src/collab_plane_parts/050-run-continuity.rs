@@ -45,12 +45,22 @@ fn run_continuity(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Valu
     if !matches!(op.as_str(), "checkpoint" | "reconstruct" | "status") {
         errors.push("collab_continuity_op_invalid".to_string());
     }
+    let require_web_tooling_ready = parse_bool(parsed.flags.get("require-web-tooling-ready"), false);
+    let web_tooling_health = crate::network_protocol::web_tooling_health_report(root, strict);
+    let web_tooling_ready = web_tooling_health
+        .get("ok")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    if strict && require_web_tooling_ready && !web_tooling_ready {
+        errors.push("collab_continuity_web_tooling_not_ready".to_string());
+    }
     if !errors.is_empty() {
         return json!({
             "ok": false,
             "strict": strict,
             "type": "collab_plane_continuity",
-            "errors": errors
+            "errors": errors,
+            "web_tooling_health": web_tooling_health
         });
     }
 
@@ -66,6 +76,7 @@ fn run_continuity(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Valu
                 "type": "collab_plane_continuity",
                 "op": "status",
                 "team": team,
+                "web_tooling_health": web_tooling_health,
                 "checkpoint_present": checkpoint.is_some(),
                 "reconstructed_present": reconstructed.is_some(),
                 "checkpoint_path": checkpoint_path.display().to_string(),
@@ -77,7 +88,8 @@ fn run_continuity(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Valu
                         "evidence": {
                             "team": team,
                             "checkpoint_present": checkpoint.is_some(),
-                            "reconstructed_present": reconstructed.is_some()
+                            "reconstructed_present": reconstructed.is_some(),
+                            "web_tooling_ready": web_tooling_ready
                         }
                     }
                 ]
@@ -122,6 +134,7 @@ fn run_continuity(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Valu
                 "type": "collab_plane_continuity",
                 "op": "checkpoint",
                 "team": team,
+                "web_tooling_health": web_tooling_health,
                 "checkpoint": state,
                 "artifact": {
                     "path": path.display().to_string(),
@@ -163,6 +176,7 @@ fn run_continuity(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Valu
                 "type": "collab_plane_continuity",
                 "op": "reconstruct",
                 "team": team,
+                "web_tooling_health": web_tooling_health,
                 "restored": restored,
                 "artifact": {
                     "path": path.display().to_string(),
@@ -492,4 +506,3 @@ mod tests {
         );
     }
 }
-

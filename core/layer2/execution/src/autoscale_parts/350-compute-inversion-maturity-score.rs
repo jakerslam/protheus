@@ -2,13 +2,19 @@ pub fn compute_inversion_maturity_score(
     input: &InversionMaturityScoreInput,
 ) -> InversionMaturityScoreOutput {
     let total = non_negative_number(Some(input.total_tests)).unwrap_or(0.0);
-    let passed = non_negative_number(Some(input.passed_tests)).unwrap_or(0.0);
-    let destructive = non_negative_number(Some(input.destructive_failures)).unwrap_or(0.0);
+    let passed = non_negative_number(Some(input.passed_tests))
+        .unwrap_or(0.0)
+        .min(total.max(0.0));
+    let destructive = non_negative_number(Some(input.destructive_failures))
+        .unwrap_or(0.0)
+        .min(total.max(0.0));
     let target_test_count = non_negative_number(Some(input.target_test_count)).unwrap_or(40.0);
-    let weight_pass_rate = non_negative_number(Some(input.weight_pass_rate)).unwrap_or(0.0);
-    let weight_non_destructive_rate =
+    let configured_weight_pass_rate =
+        non_negative_number(Some(input.weight_pass_rate)).unwrap_or(0.0);
+    let configured_weight_non_destructive_rate =
         non_negative_number(Some(input.weight_non_destructive_rate)).unwrap_or(0.0);
-    let weight_experience = non_negative_number(Some(input.weight_experience)).unwrap_or(0.0);
+    let configured_weight_experience =
+        non_negative_number(Some(input.weight_experience)).unwrap_or(0.0);
     let band_novice = non_negative_number(Some(input.band_novice)).unwrap_or(0.25);
     let band_developing = non_negative_number(Some(input.band_developing)).unwrap_or(0.45);
     let band_mature = non_negative_number(Some(input.band_mature)).unwrap_or(0.65);
@@ -26,6 +32,19 @@ pub fn compute_inversion_maturity_score(
     };
     let experience = (total / target_test_count.max(1.0)).min(1.0);
 
+    let configured_total =
+        configured_weight_pass_rate + configured_weight_non_destructive_rate + configured_weight_experience;
+    let (weight_pass_rate, weight_non_destructive_rate, weight_experience) = if configured_total
+        <= 0.0
+    {
+        (1.0, 1.0, 0.5)
+    } else {
+        (
+            configured_weight_pass_rate,
+            configured_weight_non_destructive_rate,
+            configured_weight_experience,
+        )
+    };
     let weight_total =
         (weight_pass_rate + weight_non_destructive_rate + weight_experience).max(0.0001);
     let raw_score = ((pass_rate * weight_pass_rate)

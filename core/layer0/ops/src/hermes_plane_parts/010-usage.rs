@@ -124,6 +124,65 @@ fn clean_id(raw: &str, fallback: &str) -> String {
     }
 }
 
+fn provider_contract_snapshot_path(root: &Path) -> PathBuf {
+    crate::core_state_root(root)
+        .join("ops")
+        .join("web_tooling")
+        .join("runtime_snapshot")
+        .join("latest.json")
+}
+
+fn provider_contract_identity_snapshot(root: &Path) -> Value {
+    let snapshot_path = provider_contract_snapshot_path(root);
+    let snapshot = read_json(&snapshot_path).unwrap_or(Value::Null);
+    if snapshot.is_null() {
+        return json!({
+            "mode": "missing",
+            "snapshot_path": snapshot_path.to_string_lossy().to_string(),
+            "required_contracts": [
+                "provider_runtime_core_contract",
+                "provider_discovery_runtime_contract",
+                "provider_family_contract_suite_contract",
+                "bundled_fast_path_contract_suite_contract"
+            ],
+            "present_contracts": []
+        });
+    }
+    let compact = snapshot.to_string().to_ascii_lowercase();
+    let required = [
+        "provider_runtime_core_contract",
+        "provider_discovery_runtime_contract",
+        "provider_family_contract_suite_contract",
+        "bundled_fast_path_contract_suite_contract",
+    ];
+    let present = required
+        .iter()
+        .filter(|name| compact.contains(**name))
+        .map(|name| (*name).to_string())
+        .collect::<Vec<_>>();
+    let provider_families = ["openai", "openrouter", "xai"]
+        .into_iter()
+        .map(|family| {
+            json!({
+                "family": family,
+                "present": compact.contains(&format!("\"{family}\""))
+            })
+        })
+        .collect::<Vec<_>>();
+    let mode = if present.len() == required.len() {
+        "registry_loaded"
+    } else {
+        "partial_fallback"
+    };
+    json!({
+        "mode": mode,
+        "snapshot_path": snapshot_path.to_string_lossy().to_string(),
+        "required_contracts": required,
+        "present_contracts": present,
+        "provider_families": provider_families
+    })
+}
+
 fn run_discover(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
     let contract = load_json_or(
         root,
@@ -177,6 +236,12 @@ fn run_discover(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value 
         std::env::var("PROTHEUS_RUNTIME_MODE").unwrap_or_else(|_| "source".to_string()),
         80,
     );
+    let provider_contract_snapshot = provider_contract_identity_snapshot(root);
+    let provider_registry_loaded = provider_contract_snapshot
+        .get("mode")
+        .and_then(Value::as_str)
+        .map(|mode| mode == "registry_loaded")
+        .unwrap_or(false);
 
     let mut identity = json!({
         "version": "v1",
@@ -196,8 +261,10 @@ fn run_discover(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value 
             "can_research": true,
             "can_parse": true,
             "can_orchestrate": true,
-            "can_use_tools": true
+            "can_use_tools": true,
+            "can_provider_discovery": provider_registry_loaded
         },
+        "provider_contracts": provider_contract_snapshot,
         "generated_at": crate::now_iso(),
         "signature": ""
     });
@@ -247,4 +314,3 @@ fn run_discover(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value 
     out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
-

@@ -18,16 +18,6 @@
       compact: false
     },
     confirmArchiveAgentId: '',
-    archivedAgentIds: (() => {
-      try {
-        var raw = localStorage.getItem('infring-archived-agent-ids');
-        var parsed = raw ? JSON.parse(raw) : [];
-        if (!Array.isArray(parsed)) return [];
-        return parsed.map(function(id) { return String(id); });
-      } catch(_) {
-        return [];
-      }
-    })(),
     sidebarSpawningAgent: false,
     connected: false,
     wsConnected: false,
@@ -59,15 +49,38 @@
     _chatSidebarFlipDurationMs: 240,
     _chatSidebarFlipRaf: 0,
     _chatSidebarLastSnapshot: null,
+    _dragSurfaceLockTransformMs: 500,
+    _dragSurfaceVisualStates: {},
     chatSidebarDragActive: false,
     chatSidebarDragLeft: 0,
     chatSidebarDragTop: 0,
+    _chatSidebarDragRowsCache: null,
+    _chatSidebarDragRenderMaxRows: 10,
+    _chatSidebarDragRenderRowHeight: 56,
+    chatSidebarPlacementX: (() => {
+      try {
+        var raw = Number(localStorage.getItem('infring-chat-sidebar-placement-x'));
+        if (Number.isFinite(raw)) return Math.max(0, Math.min(1, raw));
+      } catch(_) {}
+      return 0;
+    })(),
     chatSidebarPlacementY: (() => {
       try {
         var raw = Number(localStorage.getItem('infring-chat-sidebar-placement-y'));
         if (Number.isFinite(raw)) return Math.max(0, Math.min(1, raw));
       } catch(_) {}
       return 0.5;
+    })(),
+    chatSidebarWallLock: (() => {
+      try {
+        var raw = String(
+          localStorage.getItem('infring-chat-sidebar-wall-lock')
+          || localStorage.getItem('infring-chat-sidebar-smash-wall')
+          || ''
+        ).trim().toLowerCase();
+        if (raw === 'left' || raw === 'right' || raw === 'top' || raw === 'bottom') return raw;
+      } catch(_) {}
+      return '';
     })(),
     _chatSidebarMoveDurationMs: 280,
     _chatSidebarPointerActive: false,
@@ -77,19 +90,42 @@
     _chatSidebarPointerStartY: 0,
     _chatSidebarPointerOriginLeft: 0,
     _chatSidebarPointerOriginTop: 0,
+    _chatSidebarPointerLastX: 0,
+    _chatSidebarPointerLastY: 0,
+    _chatSidebarPointerLastAt: 0,
+    _chatSidebarPointerVelocity: 0,
     _chatSidebarPointerMoveHandler: null,
     _chatSidebarPointerUpHandler: null,
+    _chatSidebarDragHardBounds: null,
     _chatSidebarSuppressedDraggables: [],
     _sidebarToggleSuppressUntil: 0,
     chatMapDragActive: false,
     chatMapDragLeft: 0,
     chatMapDragTop: 0,
+    chatMapPlacementX: (() => {
+      try {
+        var raw = Number(localStorage.getItem('infring-chat-map-placement-x'));
+        if (Number.isFinite(raw)) return Math.max(0, Math.min(1, raw));
+      } catch(_) {}
+      return 1;
+    })(),
     chatMapPlacementY: (() => {
       try {
         var raw = Number(localStorage.getItem('infring-chat-map-placement-y'));
         if (Number.isFinite(raw)) return Math.max(0, Math.min(1, raw));
       } catch(_) {}
       return 0.38;
+    })(),
+    chatMapWallLock: (() => {
+      try {
+        var raw = String(
+          localStorage.getItem('infring-chat-map-wall-lock')
+          || localStorage.getItem('infring-chat-map-smash-wall')
+          || ''
+        ).trim().toLowerCase();
+        if (raw === 'left' || raw === 'right' || raw === 'top' || raw === 'bottom') return raw;
+      } catch(_) {}
+      return '';
     })(),
     _chatMapMoveDurationMs: 280,
     _chatMapPointerActive: false,
@@ -98,6 +134,10 @@
     _chatMapPointerStartY: 0,
     _chatMapPointerOriginLeft: 0,
     _chatMapPointerOriginTop: 0,
+    _chatMapPointerLastX: 0,
+    _chatMapPointerLastY: 0,
+    _chatMapPointerLastAt: 0,
+    _chatMapPointerVelocity: 0,
     _chatMapPointerMoveHandler: null,
     _chatMapPointerUpHandler: null,
     bootSplashVisible: true,
@@ -120,10 +160,35 @@
       manual: { left: null, top: null },
       report: { left: null, top: null }
     },
+    popupWindowWallLocks: {
+      manual: (() => {
+        try {
+          var raw = String(
+            localStorage.getItem('infring-popup-window-manual-wall-lock')
+            || localStorage.getItem('infring-popup-window-manual-smash-wall')
+            || ''
+          ).trim().toLowerCase();
+          if (raw === 'left' || raw === 'right' || raw === 'top' || raw === 'bottom') return raw;
+        } catch(_) {}
+        return '';
+      })(),
+      report: (() => {
+        try {
+          var raw = String(
+            localStorage.getItem('infring-popup-window-report-wall-lock')
+            || localStorage.getItem('infring-popup-window-report-smash-wall')
+            || ''
+          ).trim().toLowerCase();
+          if (raw === 'left' || raw === 'right' || raw === 'top' || raw === 'bottom') return raw;
+        } catch(_) {}
+        return '';
+      })()
+    },
     popupWindowDragActive: false,
     popupWindowDragKind: '',
     popupWindowDragLeft: 0,
     popupWindowDragTop: 0,
+    popupWindowDragWallLock: '',
     _popupWindowMoveDurationMs: 260,
     _popupWindowPointerActive: false,
     _popupWindowPointerMoved: false,
@@ -131,6 +196,10 @@
     _popupWindowPointerStartY: 0,
     _popupWindowPointerOriginLeft: 0,
     _popupWindowPointerOriginTop: 0,
+    _popupWindowPointerLastX: 0,
+    _popupWindowPointerLastY: 0,
+    _popupWindowPointerLastAt: 0,
+    _popupWindowPointerVelocity: 0,
     _popupWindowPointerMoveHandler: null,
     _popupWindowPointerUpHandler: null,
     taskbarHeroActionPending: '',

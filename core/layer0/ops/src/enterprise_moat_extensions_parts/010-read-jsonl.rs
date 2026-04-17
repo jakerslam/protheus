@@ -15,7 +15,9 @@ fn read_jsonl(path: &Path) -> Vec<Value> {
         return Vec::new();
     };
     raw.lines()
-        .filter_map(|line| serde_json::from_str::<Value>(line.trim()).ok())
+        .map(str::trim)
+        .filter(|line| !line.is_empty() && !line.starts_with('#'))
+        .filter_map(|line| serde_json::from_str::<Value>(line).ok())
         .collect()
 }
 
@@ -46,12 +48,44 @@ fn ops_history_files(root: &Path) -> Vec<PathBuf> {
 }
 
 fn lane_name(history_path: &Path) -> String {
-    history_path
+    let raw = history_path
         .parent()
         .and_then(Path::file_name)
         .and_then(|v| v.to_str())
         .unwrap_or("unknown")
-        .to_string()
+        .to_string();
+    let mut out = String::new();
+    let mut prev_sep = false;
+    for ch in raw.to_ascii_lowercase().chars() {
+        let mapped = if ch.is_ascii_alphanumeric() || ch == '_' {
+            ch
+        } else {
+            '_'
+        };
+        if mapped == '_' {
+            if prev_sep || out.is_empty() {
+                continue;
+            }
+            prev_sep = true;
+            out.push('_');
+            continue;
+        }
+        prev_sep = false;
+        out.push(mapped);
+    }
+    let lane = out.trim_matches('_').to_string();
+    if lane.is_empty() {
+        "unknown".to_string()
+    } else {
+        lane
+    }
+}
+
+fn row_ts_ms(row: &Value) -> i64 {
+    row.get("ts")
+        .and_then(Value::as_str)
+        .and_then(parse_ts_millis)
+        .unwrap_or(i64::MIN)
 }
 
 fn load_history_snapshot(root: &Path, target_ms: i64) -> BTreeMap<String, Value> {
@@ -70,7 +104,13 @@ fn load_history_snapshot(root: &Path, target_ms: i64) -> BTreeMap<String, Value>
             }
         }
         if let Some((_, row)) = best {
-            lanes.insert(lane, row);
+            let should_replace = lanes
+                .get(&lane)
+                .map(|existing| row_ts_ms(&row) >= row_ts_ms(existing))
+                .unwrap_or(true);
+            if should_replace {
+                lanes.insert(lane, row);
+            }
         }
     }
     lanes
@@ -84,7 +124,14 @@ fn latest_snapshot(root: &Path) -> BTreeMap<String, Value> {
             let latest = entry.path().join("latest.json");
             if latest.exists() {
                 if let Ok(payload) = read_json(&latest) {
-                    lanes.insert(entry.file_name().to_string_lossy().to_string(), payload);
+                    let lane = lane_name(&entry.path().join("history.jsonl"));
+                    let should_replace = lanes
+                        .get(&lane)
+                        .map(|existing| row_ts_ms(&payload) >= row_ts_ms(existing))
+                        .unwrap_or(true);
+                    if should_replace {
+                        lanes.insert(lane, payload);
+                    }
                 }
             }
         }

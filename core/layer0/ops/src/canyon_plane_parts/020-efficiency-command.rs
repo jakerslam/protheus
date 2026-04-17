@@ -1,3 +1,50 @@
+fn normalize_tooling_surface_token(raw: &str) -> String {
+    let token = clean(raw, 80)
+        .to_ascii_lowercase()
+        .replace('-', "_")
+        .replace(' ', "_");
+    match token.as_str() {
+        "search" | "websearch" | "search_web" => "web_search".to_string(),
+        "fetch" | "browse" | "webfetch" => "web_fetch".to_string(),
+        "session_status" | "status" => "session_status".to_string(),
+        "session_list" | "list_sessions" => "sessions_list".to_string(),
+        "shell" => "exec".to_string(),
+        _ => token,
+    }
+}
+
+fn parse_tooling_surfaces(
+    primary: Option<&String>,
+    secondary: Option<&String>,
+) -> Vec<String> {
+    let source = primary
+        .map(|row| clean(row, 600))
+        .or_else(|| secondary.map(|row| clean(row, 600)))
+        .unwrap_or_default();
+    let mut surfaces = Vec::<String>::new();
+    for token in source.split(|ch: char| ch == ',' || ch == ';' || ch.is_whitespace()) {
+        let normalized = normalize_tooling_surface_token(token);
+        if normalized.is_empty() || surfaces.iter().any(|row| row == &normalized) {
+            continue;
+        }
+        surfaces.push(normalized);
+        if surfaces.len() >= 24 {
+            break;
+        }
+    }
+    if surfaces.is_empty() {
+        return vec![
+            "exec".to_string(),
+            "process".to_string(),
+            "web_search".to_string(),
+            "web_fetch".to_string(),
+            "sessions_list".to_string(),
+            "session_status".to_string(),
+        ];
+    }
+    surfaces
+}
+
 fn efficiency_command(
     root: &Path,
     parsed: &crate::ParsedArgs,
@@ -42,6 +89,10 @@ fn efficiency_command(
         .and_then(|v| v.parse::<f64>().ok())
         .unwrap_or(idle_from_bench);
     let concurrent_agents = parse_u64(parsed.flags.get("concurrent-agents"), 50).max(1);
+    let tooling_surfaces = parse_tooling_surfaces(
+        parsed.flags.get("tool-surfaces"),
+        parsed.flags.get("tools"),
+    );
 
     let mut targets = Vec::<Value>::new();
     for target in [
@@ -90,6 +141,8 @@ fn efficiency_command(
         "cold_start_ms": cold_start_ms,
         "idle_memory_mb": idle_memory_mb,
         "concurrent_agents": concurrent_agents,
+        "tooling_surfaces": tooling_surfaces,
+        "tooling_surface_count": tooling_surfaces.len(),
         "targets": targets,
         "errors": errors,
         "claim_evidence": [{
@@ -99,7 +152,8 @@ fn efficiency_command(
                 "binary_size_mb": size_mb,
                 "cold_start_ms": cold_start_ms,
                 "idle_memory_mb": idle_memory_mb,
-                "concurrent_agents": concurrent_agents
+                "concurrent_agents": concurrent_agents,
+                "tooling_surface_count": tooling_surfaces.len()
             }
         }]
     });

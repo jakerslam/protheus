@@ -1,3 +1,15 @@
+fn normalize_failure_signature_tokens(tokens: Vec<String>) -> Vec<String> {
+    let mut out = Vec::<String>::new();
+    for token in tokens {
+        let normalized = normalize_token_runtime(&token, 120);
+        if normalized.is_empty() || out.contains(&normalized) {
+            continue;
+        }
+        out.push(normalized);
+    }
+    out
+}
+
 pub fn compute_extract_failure_cluster_principle(
     input: &ExtractFailureClusterPrincipleInput,
 ) -> ExtractFailureClusterPrincipleOutput {
@@ -33,7 +45,7 @@ pub fn compute_extract_failure_cluster_principle(
             .map(|v| value_to_string(Some(v)))
             .collect::<Vec<_>>();
         if from_session.is_empty() {
-            compute_tokenize_text(&TokenizeTextInput {
+            normalize_failure_signature_tokens(compute_tokenize_text(&TokenizeTextInput {
                 value: Some({
                     let sig = value_to_string(session.get("signature"));
                     if sig.is_empty() {
@@ -44,9 +56,9 @@ pub fn compute_extract_failure_cluster_principle(
                 }),
                 max_tokens: Some(64),
             })
-            .tokens
+            .tokens)
         } else {
-            from_session
+            normalize_failure_signature_tokens(from_session)
         }
     };
     let query = json!({
@@ -79,7 +91,9 @@ pub fn compute_extract_failure_cluster_principle(
         Some(&policy),
         &["first_principles", "failure_cluster_min"],
     ))
-    .unwrap_or(4.0) as usize;
+    .unwrap_or(4.0)
+    .round()
+    .clamp(1.0, 128.0) as usize;
     if candidates.len() < cluster_min {
         return ExtractFailureClusterPrincipleOutput { principle: None };
     }
@@ -123,7 +137,7 @@ pub fn compute_extract_failure_cluster_principle(
     .items
     .join(", ");
     let objective_id_value = {
-        let v = clean_text_runtime(&value_to_string(session.get("objective_id")), 140);
+        let v = normalize_token_runtime(&value_to_string(session.get("objective_id")), 140);
         if v.is_empty() {
             Value::Null
         } else {

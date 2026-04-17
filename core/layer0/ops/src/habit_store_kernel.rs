@@ -189,6 +189,10 @@ pub(crate) fn default_habit_state() -> Value {
             "max_active_routines": 128,
             "gc_inactive_days": 30,
         },
+        "web_tooling": {
+            "require_ready": false,
+            "last_health_receipt": Value::Null
+        },
         "routines": [],
         "metrics": {
             "total_created": 0,

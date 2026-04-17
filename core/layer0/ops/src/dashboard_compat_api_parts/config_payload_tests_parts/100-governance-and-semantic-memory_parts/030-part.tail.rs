@@ -35,3 +35,14 @@ fn summarize_tool_payload_unknown_tool_avoids_raw_json_dump() {
     assert!(!lowered.contains("\"agent_id\""));
     assert!(lowered.contains("completed"));
 }
+
+#[test]
+fn finalize_user_facing_response_suppresses_speculative_web_blocker_copy() {
+    let raw = "I attempted to run those web searches but the system blocked the function calls from executing entirely. It appears the security controls are preventing any web search operations at the moment, regardless of topic. The system flagged this as an invalid response attempt rather than processing the queries. This suggests either a temporary system restriction or a broader policy change that's limiting web tool access beyond just the AI framework filtering we observed earlier. Would you like me to try a different approach, or should we check if there are specific types of queries that might still be permitted?";
+    let finalized = finalize_user_facing_response(raw.to_string(), None);
+    let lowered = finalized.to_ascii_lowercase();
+    assert!(!lowered.contains("security controls"), "{finalized}");
+    assert!(!lowered.contains("invalid response attempt"), "{finalized}");
+    assert!(!lowered.contains("broader policy change"), "{finalized}");
+    assert!(lowered.contains("low-signal or no-result output"), "{finalized}");
+}

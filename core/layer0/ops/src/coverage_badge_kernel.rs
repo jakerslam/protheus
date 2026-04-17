@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 
 const DEFAULT_TS_PATH: &str = "coverage/ts/coverage-summary.json";
 const DEFAULT_RUST_PATH: &str = "coverage/rust-summary.txt";
+const DEFAULT_CONTRACTS_PATH: &str = "local/state/ops/web_tooling/runtime_snapshot/latest.json";
 const DEFAULT_OUT_JSON: &str = "coverage/combined-summary.json";
 const DEFAULT_OUT_BADGE: &str = "docs/client/badges/coverage.svg";
 
@@ -14,6 +15,7 @@ const DEFAULT_OUT_BADGE: &str = "docs/client/badges/coverage.svg";
 struct Config {
     ts: PathBuf,
     rust: PathBuf,
+    contracts: PathBuf,
     out_json: PathBuf,
     out_badge: PathBuf,
 }
@@ -21,7 +23,7 @@ struct Config {
 fn usage() {
     println!("coverage-badge-kernel commands:");
     println!(
-        "  protheus-ops coverage-badge-kernel [run] [--ts=<path>] [--rust=<path>] [--out-json=<path>] [--out-badge=<path>]"
+        "  protheus-ops coverage-badge-kernel [run] [--ts=<path>] [--rust=<path>] [--contracts=<path>] [--out-json=<path>] [--out-badge=<path>]"
     );
 }
 
@@ -45,6 +47,8 @@ fn parse_flag(argv: &[String], prefix: &str) -> Option<String> {
 fn parse_config(root: &Path, argv: &[String]) -> Config {
     let ts_rel = parse_flag(argv, "--ts=").unwrap_or_else(|| DEFAULT_TS_PATH.to_string());
     let rust_rel = parse_flag(argv, "--rust=").unwrap_or_else(|| DEFAULT_RUST_PATH.to_string());
+    let contracts_rel =
+        parse_flag(argv, "--contracts=").unwrap_or_else(|| DEFAULT_CONTRACTS_PATH.to_string());
     let out_json_rel =
         parse_flag(argv, "--out-json=").unwrap_or_else(|| DEFAULT_OUT_JSON.to_string());
     let out_badge_rel =
@@ -53,6 +57,7 @@ fn parse_config(root: &Path, argv: &[String]) -> Config {
     Config {
         ts: root.join(ts_rel),
         rust: root.join(rust_rel),
+        contracts: root.join(contracts_rel),
         out_json: root.join(out_json_rel),
         out_badge: root.join(out_badge_rel),
     }
@@ -160,6 +165,37 @@ fn parse_rust_coverage(path: &Path) -> Value {
     json!({ "pct": clamp_percent(pct) })
 }
 
+fn parse_tooling_contract_coverage(path: &Path) -> Value {
+    let snapshot = read_json_safe(path);
+    let compact = snapshot.to_string().to_ascii_lowercase();
+    let required = ["openai", "openrouter", "xai", "tts"];
+    let mut present = 0usize;
+    let matrix = required
+        .iter()
+        .map(|provider| {
+            let has_provider = compact.contains(&format!("\"{}\"", provider));
+            if has_provider {
+                present += 1;
+            }
+            json!({
+                "provider": provider,
+                "present": has_provider
+            })
+        })
+        .collect::<Vec<_>>();
+    let pct = if required.is_empty() {
+        0.0
+    } else {
+        (present as f64 / required.len() as f64) * 100.0
+    };
+    json!({
+        "pct": clamp_percent(pct),
+        "required": required.len(),
+        "present": present,
+        "matrix": matrix
+    })
+}
+
 fn pick_color(pct: f64) -> &'static str {
     if pct >= 95.0 {
         "#22c55e"
@@ -215,20 +251,32 @@ fn run_command(root: &Path, argv: &[String]) -> Result<Value, String> {
     let config = parse_config(root, argv);
     let ts = parse_ts_coverage(&config.ts);
     let rust = parse_rust_coverage(&config.rust);
+    let tooling_contracts = parse_tooling_contract_coverage(&config.contracts);
 
     let ts_pct = ts.get("pct").and_then(Value::as_f64).unwrap_or(0.0);
     let rust_pct = rust.get("pct").and_then(Value::as_f64).unwrap_or(0.0);
-    let combined_pct = round2((ts_pct + rust_pct) / 2.0);
+    let tooling_contract_pct = tooling_contracts
+        .get("pct")
+        .and_then(Value::as_f64)
+        .unwrap_or(0.0);
+    let combined_pct = round2((ts_pct + rust_pct + tooling_contract_pct) / 3.0);
 
     let payload = json!({
         "ok": true,
         "type": "coverage_merge_summary",
         "ts": ts,
         "rust": rust,
+        "tooling_contracts": tooling_contracts,
         "combined_pct": combined_pct,
         "threshold_95_ok": combined_pct >= 95.0,
+        "components": {
+            "ts_pct": ts_pct,
+            "rust_pct": rust_pct,
+            "tooling_contract_pct": tooling_contract_pct
+        },
         "ts_path": config.ts.to_string_lossy().to_string(),
         "rust_path": config.rust.to_string_lossy().to_string(),
+        "contracts_path": config.contracts.to_string_lossy().to_string(),
     });
 
     ensure_parent(&config.out_json)?;

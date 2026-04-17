@@ -4,6 +4,9 @@ const crypto = require('node:crypto');
 const { createOpsLaneBridge } = require('../../lib/rust_lane_bridge.ts');
 
 const MUTATION_COMMANDS = new Set(['put', 'archive']);
+const ALLOWED_COMMANDS = new Set(['put', 'get', 'status']);
+const MAX_ARGS = 64;
+const MAX_ARG_LEN = 512;
 
 const bridge = createOpsLaneBridge(
   __dirname,
@@ -31,6 +34,15 @@ function normalizeReceiptHash(payload) {
   return crypto.createHash('sha256').update(stableStringify(clone)).digest('hex');
 }
 
+function sanitizeArg(value) {
+  return String(value == null ? '' : value)
+    .replace(/[\u200B\u200C\u200D\u2060\uFEFF]/g, '')
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/[^\x20-\x7E]+/g, '')
+    .trim()
+    .slice(0, MAX_ARG_LEN);
+}
+
 function ensureMutationReceipt(result, command) {
   if (!result || !result.payload || typeof result.payload !== 'object') {
     return result;
@@ -49,7 +61,9 @@ function ensureMutationReceipt(result, command) {
 }
 
 function normalizeArgs(args = []) {
-  const rows = Array.isArray(args) ? args.map((v) => String(v).trim()) : [];
+  const rows = Array.isArray(args)
+    ? args.map((v) => sanitizeArg(v)).filter(Boolean).slice(0, MAX_ARGS)
+    : [];
   if (!rows.length) {
     return ['status'];
   }
@@ -75,6 +89,10 @@ function normalizeArgs(args = []) {
     return ['status'].concat(tail);
   }
 
+  if (!ALLOWED_COMMANDS.has(head)) {
+    return ['status'].concat(tail);
+  }
+
   return [head].concat(tail);
 }
 
@@ -89,6 +107,15 @@ function run(args = process.argv.slice(2)) {
   if (out && out.stderr) process.stderr.write(out.stderr);
   if (out && out.payload && !out.stdout) {
     process.stdout.write(`${JSON.stringify(out.payload)}\n`);
+  } else if (!out || (!out.stdout && !out.stderr)) {
+    process.stdout.write(
+      `${JSON.stringify({
+        ok: false,
+        type: 'session_continuity_vault',
+        error: 'bridge_no_output',
+        status: Number.isFinite(Number(out && out.status)) ? Number(out.status) : 1
+      })}\n`
+    );
   }
   return out;
 }
