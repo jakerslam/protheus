@@ -73,6 +73,102 @@ fn sanitize_feed_candidates(payload: &Map<String, Value>) -> Vec<Value> {
         .unwrap_or_default()
 }
 
+pub fn parse_headers(payload: &Map<String, Value>) -> Vec<(String, String)> {
+    payload
+        .get("headers")
+        .and_then(Value::as_object)
+        .map(|headers| {
+            headers
+                .iter()
+                .map(|(k, v)| (clean_text(Some(k), 120), clean_text(v.as_str(), 400)))
+                .filter(|(k, v)| !k.is_empty() && !v.is_empty())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default()
+}
+
+fn classify_curl_transport_error(stderr: &str) -> String {
+    let lower = stderr.to_ascii_lowercase();
+    if lower.contains("could not resolve host")
+        || lower.contains("name or service not known")
+        || lower.contains("temporary failure in name resolution")
+    {
+        return "dns_unreachable".to_string();
+    }
+    if lower.contains("connection refused") {
+        return "connection_refused".to_string();
+    }
+    if lower.contains("operation timed out")
+        || lower.contains("connection timed out")
+        || lower.contains("timed out")
+    {
+        return "timeout".to_string();
+    }
+    if lower.contains("ssl") || lower.contains("tls") || lower.contains("certificate") {
+        return "tls_error".to_string();
+    }
+    "collector_error".to_string()
+}
+
+pub fn split_error_code(err: &str) -> String {
+    let trimmed = clean_text(Some(err), 240);
+    let code = trimmed.split(':').next().unwrap_or("").trim();
+    if code.is_empty() {
+        "collector_error".to_string()
+    } else {
+        code.to_string()
+    }
+}
+
+pub fn curl_fetch_with_status(
+    url: &str,
+    timeout_ms: u64,
+    headers: &[(String, String)],
+) -> Result<(u64, String, u64), String> {
+    let timeout_secs = ((timeout_ms.max(1_000) as f64) / 1_000.0).ceil() as u64;
+    let mut cmd = Command::new("curl");
+    cmd.arg("--silent")
+        .arg("--show-error")
+        .arg("--location")
+        .arg("--max-time")
+        .arg(timeout_secs.to_string())
+        .arg("-H")
+        .arg("User-Agent: Infring-Eyes/1.0")
+        .arg("-H")
+        .arg("Accept: */*");
+    for (k, v) in headers {
+        cmd.arg("-H").arg(format!("{k}: {v}"));
+    }
+    cmd.arg("-w")
+        .arg("\n__PROTHEUS_STATUS__:%{http_code}\n")
+        .arg(url);
+
+    let output = cmd
+        .output()
+        .map_err(|err| format!("collector_fetch_spawn_failed:{err}"))?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        let code = classify_curl_transport_error(&stderr);
+        return Err(format!("{code}:{}", clean_text(Some(&stderr), 220)));
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let marker = "\n__PROTHEUS_STATUS__:";
+    let marker_pos = stdout
+        .rfind(marker)
+        .ok_or_else(|| "collector_fetch_missing_status_marker".to_string())?;
+    let body = stdout[..marker_pos].to_string();
+    let status_raw = stdout[(marker_pos + marker.len())..]
+        .lines()
+        .next()
+        .unwrap_or("0")
+        .trim()
+        .to_string();
+    let status = status_raw.parse::<u64>().unwrap_or(0);
+    let bytes = body.as_bytes().len() as u64;
+    Ok((status, body, bytes))
+}
+
 pub fn resolve_controls(payload: &Map<String, Value>) -> Value {
     let collector_id = clean_collector_id(payload);
     let default_scope = format!("sensory.collector.{collector_id}");

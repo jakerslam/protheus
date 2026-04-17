@@ -25,6 +25,18 @@ fn clean_text(raw: Option<&str>, max_len: usize) -> String {
     crate::contract_lane_utils::clean_text(raw, max_len)
 }
 
+fn clamp_u64(payload: &Map<String, Value>, key: &str, fallback: u64, lo: u64, hi: u64) -> u64 {
+    payload
+        .get(key)
+        .and_then(Value::as_u64)
+        .unwrap_or(fallback)
+        .clamp(lo, hi)
+}
+
+fn now_iso() -> String {
+    Utc::now().to_rfc3339()
+}
+
 fn sha16(value: &str) -> String {
     let digest = Sha256::digest(value.as_bytes());
     hex::encode(digest)[..16].to_string()

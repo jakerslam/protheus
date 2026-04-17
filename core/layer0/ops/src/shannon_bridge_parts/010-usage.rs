@@ -239,6 +239,18 @@ fn clean_text(raw: Option<&str>, max_len: usize) -> String {
     crate::contract_lane_utils::clean_text(raw, max_len)
 }
 
+fn clean_token(raw: Option<&str>, fallback: &str) -> String {
+    lane_utils::clean_token(raw, fallback)
+}
+
+fn claim(id: &str, claim: &str) -> Value {
+    json!([{"id": id, "claim": claim}])
+}
+
+fn profile(raw: Option<&Value>) -> String {
+    clean_token(raw.and_then(Value::as_str), "rich")
+}
+
 fn parse_u64(raw: Option<&Value>, fallback: u64, min: u64, max: u64) -> u64 {
     lane_utils::json_u64(raw, fallback, min, max)
 }

@@ -15,6 +15,31 @@ pub fn clean_text(raw: Option<&str>, max_len: usize) -> String {
     crate::contract_lane_utils::clean_text(raw, max_len)
 }
 
+pub fn clean_token(raw: Option<&str>, fallback: &str) -> String {
+    lane_utils::clean_token(raw, fallback)
+}
+
+pub fn now_iso() -> String {
+    Utc::now().to_rfc3339()
+}
+
+pub fn sha16(input: &str) -> String {
+    let digest = Sha256::digest(input.as_bytes());
+    hex::encode(digest)[..16].to_string()
+}
+
+pub fn as_u64(value: Option<&Value>, fallback: u64) -> u64 {
+    value.and_then(Value::as_u64).unwrap_or(fallback)
+}
+
+pub fn as_f64(value: Option<&Value>, fallback: f64) -> f64 {
+    value.and_then(Value::as_f64).unwrap_or(fallback)
+}
+
+pub fn as_bool(value: Option<&Value>, fallback: bool) -> bool {
+    value.and_then(Value::as_bool).unwrap_or(fallback)
+}
+
 fn sanitize_cache_key_token(raw: &str) -> String {
     raw.chars()
         .map(|c| {
@@ -39,6 +64,20 @@ pub fn cache_path(root: &Path, payload: &Map<String, Value>, key: &str) -> PathB
     resolve_state_dir(root, payload)
         .join("github_repo_cache")
         .join(format!("{key}.json"))
+}
+
+fn resolve_state_dir(root: &Path, payload: &Map<String, Value>) -> PathBuf {
+    let raw = clean_text(payload.get("state_dir").and_then(Value::as_str), 320);
+    if raw.is_empty() {
+        root.join("local/workspace/state")
+    } else {
+        let candidate = PathBuf::from(raw);
+        if candidate.is_absolute() {
+            candidate
+        } else {
+            root.join(candidate)
+        }
+    }
 }
 
 pub fn load_cache(path: &Path) -> Value {

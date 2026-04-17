@@ -4,6 +4,7 @@
 use serde_json::{json, Map, Value};
 
 use crate::contract_lane_utils as lane_utils;
+use crate::contract_lane_utils::{cli_error, print_json_line};
 
 const PLACEHOLDER_TYPES: &[&str] = &[
     "", "unknown", "new", "queued", "pending", "proposal", "item", "generic",

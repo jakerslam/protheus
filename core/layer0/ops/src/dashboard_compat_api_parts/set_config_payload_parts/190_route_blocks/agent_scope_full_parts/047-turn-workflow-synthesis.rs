@@ -474,7 +474,7 @@ fn run_turn_workflow_final_response(
         .rev()
         .collect::<Vec<_>>()
         .join("\n");
-    let max_attempts = 2;
+    let max_attempts: u64 = 2;
     let mut last_error = String::new();
     let mut last_invalid_excerpt = String::new();
     let mut last_reject_reason = String::new();
