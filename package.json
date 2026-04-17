@@ -951,7 +951,7 @@
     "@vitest/coverage-istanbul": "^2.1.9",
     "@vitest/coverage-v8": "^2.1.8",
     "svelte": "^4.2.20",
-    "vitest": "^2.1.8"
+    "vitest": "^4.1.4"
   },
   "dependencies": {
     "typescript": "^5.9.3",
