@@ -6,6 +6,7 @@
 // - concept: match_output short-circuit rules with optional "unless" guard.
 
 use regex::Regex;
+use serde_json::{json, Value};
 use std::sync::OnceLock;
 
 struct MatchRule {
@@ -88,6 +89,21 @@ const THINKING_CHATTER_MARKERS: &[&str] = &[
     "working",
 ];
 
+const FORBIDDEN_RUNTIME_CONTEXT_MARKERS: &[&str] = &[
+    "begin_openclaw_internal_context",
+    "end_openclaw_internal_context",
+    "begin_untrusted_child_result",
+    "end_untrusted_child_result",
+    "<|begin_of_sentence|>",
+    "<｜begin▁of▁sentence｜>",
+    "you are an expert python programmer",
+    "translate the following java code to python",
+    "[patch v",
+    "signed-off-by:",
+    "diff --git",
+    "workflow metadata",
+];
+
 fn repeated_line_count(text: &str) -> usize {
     let mut seen = std::collections::HashMap::<String, usize>::new();
     for line in text.lines() {
@@ -168,6 +184,201 @@ fn clean_text(raw: &str, max_len: usize) -> String {
 
 fn contains_any_marker(text: &str, markers: &[&str]) -> bool {
     markers.iter().any(|marker| text.contains(marker))
+}
+
+pub fn normalize_web_tooling_error_code(raw: &str) -> String {
+    let lowered = clean_text(raw, 240).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return "web_tool_error".to_string();
+    }
+    if lowered.contains("not found")
+        || lowered.contains("unknown tool")
+        || lowered.contains("tool_not_found")
+        || lowered.contains("unrecognized tool")
+    {
+        return "web_tool_not_found".to_string();
+    }
+    if lowered.contains("invalid response")
+        || lowered.contains("invalid_response")
+        || lowered.contains("parse_failed")
+    {
+        return "web_tool_invalid_response".to_string();
+    }
+    if lowered.contains("auth")
+        || lowered.contains("token")
+        || lowered.contains("api key")
+        || lowered.contains("credential")
+    {
+        return "web_tool_auth_missing".to_string();
+    }
+    if lowered.contains("blocked") || lowered.contains("policy") || lowered.contains("denied") {
+        return "web_tool_policy_blocked".to_string();
+    }
+    if lowered.contains("timeout") {
+        return "web_tool_timeout".to_string();
+    }
+    if lowered.contains("429") {
+        return "web_tool_http_429".to_string();
+    }
+    if lowered.contains("404") {
+        return "web_tool_http_404".to_string();
+    }
+    if lowered.contains("403") {
+        return "web_tool_http_403".to_string();
+    }
+    if lowered.contains("401") {
+        return "web_tool_http_401".to_string();
+    }
+    if lowered.contains("500")
+        || lowered.contains("502")
+        || lowered.contains("503")
+        || lowered.contains("504")
+    {
+        return "web_tool_http_5xx".to_string();
+    }
+    if lowered.contains("low_signal")
+        || lowered.contains("low-signal")
+        || lowered.contains("no_result")
+        || lowered.contains("no_results")
+    {
+        return "web_tool_low_signal".to_string();
+    }
+    if lowered.starts_with("web_tool_") {
+        return lowered;
+    }
+    "web_tool_error".to_string()
+}
+
+pub fn contains_forbidden_runtime_context_markers(raw: &str) -> bool {
+    let lowered = clean_text(raw, 16_000).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    FORBIDDEN_RUNTIME_CONTEXT_MARKERS
+        .iter()
+        .any(|marker| lowered.contains(marker))
+}
+
+pub fn canonical_tool_status(
+    raw_status: &str,
+    ok: Option<bool>,
+    error: &str,
+    findings_count: i64,
+    has_result_text: bool,
+) -> String {
+    let lowered_status = clean_text(raw_status, 120).to_ascii_lowercase();
+    let error_clean = clean_text(error, 300);
+    let mut status = if lowered_status.contains("blocked")
+        || lowered_status.contains("policy")
+        || lowered_status.contains("denied")
+    {
+        "blocked".to_string()
+    } else if lowered_status.contains("not_found")
+        || lowered_status.contains("no_result")
+        || lowered_status.contains("no-results")
+    {
+        "not_found".to_string()
+    } else if lowered_status.contains("low_signal") || lowered_status.contains("low-signal") {
+        "low_signal".to_string()
+    } else if lowered_status.contains("ok") || lowered_status.contains("success") {
+        "ok".to_string()
+    } else if lowered_status.contains("failed")
+        || lowered_status.contains("error")
+        || lowered_status.contains("timeout")
+    {
+        "error".to_string()
+    } else {
+        "unknown".to_string()
+    };
+    if status == "unknown" {
+        if !error_clean.is_empty() || ok == Some(false) {
+            status = if normalize_web_tooling_error_code(&error_clean) == "web_tool_not_found" {
+                "not_found".to_string()
+            } else {
+                "error".to_string()
+            };
+        } else if ok == Some(true) || findings_count > 0 {
+            status = "ok".to_string();
+        } else if has_result_text {
+            status = "low_signal".to_string();
+        }
+    }
+    if status == "error" && normalize_web_tooling_error_code(&error_clean) == "web_tool_not_found" {
+        return "not_found".to_string();
+    }
+    status
+}
+
+fn default_error_code_for_status(status: &str) -> &'static str {
+    match status {
+        "ok" => "none",
+        "blocked" => "web_tool_policy_blocked",
+        "not_found" => "web_tool_not_found",
+        "low_signal" => "web_tool_low_signal",
+        "unknown" => "web_tool_silent_failure",
+        _ => "web_tool_error",
+    }
+}
+
+pub fn canonical_tool_execution_receipt(
+    call_id: &str,
+    tool: &str,
+    raw_status: &str,
+    ok: Option<bool>,
+    error: &str,
+    findings_count: i64,
+    duration_ms: i64,
+    tokens_used: i64,
+    has_result_text: bool,
+) -> Value {
+    let status = canonical_tool_status(raw_status, ok, error, findings_count, has_result_text);
+    let cleaned_error = clean_text(error, 300);
+    let error_code = if cleaned_error.is_empty() {
+        default_error_code_for_status(&status).to_string()
+    } else {
+        normalize_web_tooling_error_code(&cleaned_error)
+    };
+    json!({
+        "call_id": clean_text(call_id, 120),
+        "tool": clean_text(tool, 120),
+        "status": status,
+        "ok": ok.unwrap_or(false),
+        "findings_count": findings_count.max(0),
+        "error": cleaned_error,
+        "error_code": error_code,
+        "has_result": has_result_text,
+        "telemetry": {
+            "duration_ms": duration_ms.max(0),
+            "tokens_used": tokens_used.max(0)
+        }
+    })
+}
+
+pub fn canonical_tooling_fallback_copy(
+    web_status: &str,
+    error_code: &str,
+    detail: Option<&str>,
+) -> String {
+    let status = clean_text(web_status, 80).to_ascii_lowercase();
+    let status = if status.is_empty() {
+        "failed".to_string()
+    } else {
+        status
+    };
+    let mut normalized_error = clean_text(error_code, 120).to_ascii_lowercase();
+    if normalized_error.is_empty() {
+        normalized_error = default_error_code_for_status(&status).to_string();
+    } else if !normalized_error.starts_with("web_tool_") && normalized_error != "none" {
+        normalized_error = normalize_web_tooling_error_code(&normalized_error);
+    }
+    let mut out = format!(
+        "Tool execution did not produce a usable final answer in this turn. web_status: {status}. error_code: {normalized_error}."
+    );
+    let detail = detail.map(|value| clean_text(value, 260)).unwrap_or_default();
+    if !detail.is_empty() {
+        out.push_str(&format!(" detail: {detail}."));
+    }
+    out
 }
 
 fn looks_like_json_payload_envelope(text: &str) -> bool {
@@ -482,5 +693,51 @@ mod tests {
         let rewritten = rewrite_repetitive_thinking_chatter(raw).expect("rewrite");
         assert_eq!(rewritten.0, "Thinking.");
         assert_eq!(rewritten.1, "thinking_chatter_compacted");
+    }
+
+    #[test]
+    fn normalizes_web_tooling_not_found_error_codes() {
+        assert_eq!(
+            normalize_web_tooling_error_code("unknown tool: web.search"),
+            "web_tool_not_found"
+        );
+    }
+
+    #[test]
+    fn detects_forbidden_runtime_context_markers() {
+        let raw =
+            "Subject: [PATCH v2 1/2]\nSigned-off-by: user\nDiff --git a/file.rs b/file.rs\n";
+        assert!(contains_forbidden_runtime_context_markers(raw));
+        assert!(!contains_forbidden_runtime_context_markers(
+            "source-backed answer with no patch markers"
+        ));
+    }
+
+    #[test]
+    fn canonical_tool_execution_receipt_normalizes_unknown_statuses() {
+        let row = canonical_tool_execution_receipt(
+            "toolcall_123",
+            "parse_workspace",
+            "",
+            Some(false),
+            "unknown tool",
+            0,
+            0,
+            0,
+            false,
+        );
+        assert_eq!(row.get("status").and_then(Value::as_str), Some("not_found"));
+        assert_eq!(
+            row.get("error_code").and_then(Value::as_str),
+            Some("web_tool_not_found")
+        );
+    }
+
+    #[test]
+    fn canonical_tooling_fallback_copy_includes_status_and_error_code() {
+        let copy = canonical_tooling_fallback_copy("parse_failed", "web_tool_invalid_response", None);
+        let lowered = copy.to_ascii_lowercase();
+        assert!(lowered.contains("web_status: parse_failed"));
+        assert!(lowered.contains("error_code: web_tool_invalid_response"));
     }
 }

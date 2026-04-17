@@ -32,46 +32,7 @@ fn parse_i64_loose(value: Option<&Value>) -> i64 {
 }
 
 fn normalize_web_tooling_error_code(raw: &str) -> String {
-    let lowered = clean_text(raw, 240).to_ascii_lowercase();
-    if lowered.is_empty() {
-        return "web_tool_error".to_string();
-    }
-    if lowered.contains("invalid response") || lowered.contains("invalid_response") {
-        return "web_tool_invalid_response".to_string();
-    }
-    if lowered.contains("auth")
-        || lowered.contains("token")
-        || lowered.contains("api key")
-        || lowered.contains("credential")
-    {
-        return "web_tool_auth_missing".to_string();
-    }
-    if lowered.contains("blocked") || lowered.contains("policy") || lowered.contains("denied") {
-        return "web_tool_policy_blocked".to_string();
-    }
-    if lowered.contains("timeout") {
-        return "web_tool_timeout".to_string();
-    }
-    if lowered.contains("429") {
-        return "web_tool_http_429".to_string();
-    }
-    if lowered.contains("404") {
-        return "web_tool_http_404".to_string();
-    }
-    if lowered.contains("403") {
-        return "web_tool_http_403".to_string();
-    }
-    if lowered.contains("401") {
-        return "web_tool_http_401".to_string();
-    }
-    if lowered.contains("500")
-        || lowered.contains("502")
-        || lowered.contains("503")
-        || lowered.contains("504")
-    {
-        return "web_tool_http_5xx".to_string();
-    }
-    "web_tool_error".to_string()
+    crate::tool_output_match_filter::normalize_web_tooling_error_code(raw)
 }
 
 fn add_error_count(error_codes: &mut Map<String, Value>, code: &str, count: i64) {
