@@ -4,6 +4,7 @@ include_parts!(
     "dashboard_ui_parts/030-file-discovery.rs",
     "dashboard_ui_parts/040-runtime-sync.rs",
     "dashboard_ui_parts/050-snapshot-builder.rs",
+    "dashboard_ui_parts/065-troubleshooting-and-eval.rs",
     "dashboard_ui_parts/060-action-dispatch.rs",
     "dashboard_ui_parts/070-http-and-receipts.rs",
     "dashboard_ui_parts/900-tests.rs",
