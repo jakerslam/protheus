@@ -56,7 +56,7 @@ fn print_usage() {
         "  cargo run -p xtask -- infring-new --template=single-agent|swarm|rag|voice --name=<project-name> [--out=<dir>] [--force=1|0]"
     );
     println!(
-        "  cargo run -p xtask -- infring-agent-run --name=<agent> --prompt=<text> [--provider=local-echo] [--pack=research,web-ops] [--tool=web.search,web.fetch] [--lifespan=3600]"
+        "  cargo run -p xtask -- infring-agent-run --name=<agent> --prompt=<text> [--provider=local-echo] [--pack=research,web-ops] [--tool=web.search,web.fetch] [--lifespan=3600] [--permissions=<json|@file>] [--wasm-policy=<json|@file>] [--voice=<json|@file>] [--receipt-merkle=1|0] [--receipt-merkle-seed=<seed>] [--prev-receipt-root=<hash>]"
     );
 }
 
@@ -336,6 +336,18 @@ fn run_infring_agent_run(args: &[String]) -> Result<()> {
     let lifespan_seconds = parse_u64(flags.get("lifespan"), 3600);
     let packs = csv_tokens(flags.get("pack"));
     let tools = csv_tokens(flags.get("tool"));
+    let permissions_manifest = parse_json_flag(flags.get("permissions"))?;
+    let wasm_sandbox = parse_json_flag(flags.get("wasm-policy"))?;
+    let voice_session = parse_json_flag(flags.get("voice"))?;
+    let receipt_merkle = if parse_bool(flags.get("receipt-merkle"), false) {
+        Some(json!({
+            "enabled": true,
+            "seed": flags.get("receipt-merkle-seed").cloned()
+        }))
+    } else {
+        None
+    };
+    let previous_receipt_root = flags.get("prev-receipt-root").cloned();
 
     let response = run_runtime_lane(RuntimeLaneRequest {
         name,
@@ -349,6 +361,11 @@ fn run_infring_agent_run(args: &[String]) -> Result<()> {
         metadata: json!({
             "source": "xtask.infring-agent-run"
         }),
+        permissions_manifest,
+        wasm_sandbox,
+        voice_session,
+        receipt_merkle,
+        previous_receipt_root,
     })
     .map_err(|error| anyhow!("xtask_infring_agent_run_failed:{error}"))?;
 
@@ -368,6 +385,26 @@ fn csv_tokens(raw: Option<&String>) -> Vec<String> {
             .collect::<Vec<_>>()
     })
     .unwrap_or_default()
+}
+
+fn parse_json_flag(raw: Option<&String>) -> Result<Option<Value>> {
+    let Some(value) = raw else {
+        return Ok(None);
+    };
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return Ok(None);
+    }
+    if let Some(path) = trimmed.strip_prefix('@') {
+        let bytes = fs::read(path)
+            .with_context(|| format!("xtask_json_flag_read_failed:{path}"))?;
+        let parsed = serde_json::from_slice::<Value>(&bytes)
+            .with_context(|| format!("xtask_json_flag_parse_failed:{path}"))?;
+        return Ok(Some(parsed));
+    }
+    let parsed = serde_json::from_str::<Value>(trimmed)
+        .with_context(|| format!("xtask_json_flag_parse_failed:inline:{trimmed}"))?;
+    Ok(Some(parsed))
 }
 
 fn read_json_file(path: &Path) -> Result<Value> {

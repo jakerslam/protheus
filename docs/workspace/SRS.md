@@ -15914,3 +15914,24 @@ Source summary:
   - `core/layer2/execution/src/graph_runtime_tests.rs`
   - `core/layer2/execution/src/lib.rs`
   - `cargo test --manifest-path core/layer2/execution/Cargo.toml`
+
+### 2026-04-18 Wave 4 Safety Plane Contracts + Runtime Lane Guards Addendum (V11-ASSIMILATION-SAFETY-004)
+
+- Intent:
+  - Add first-class safety-plane contracts for permission manifests, WASM policy gates, realtime voice envelopes, and tamper-evident receipt chaining in the high-level runtime lane.
+- Acceptance criteria:
+  - Runtime lane request accepts optional permission manifest (`permissions_manifest`) with trit semantics (`-1|0|1`) and fail-closes memory read/write tools when permission is not `Allow`.
+  - Runtime lane request accepts optional WASM sandbox policy (`wasm_sandbox`) and fail-closes when network/module/fuel/watchdog policy checks fail.
+  - Runtime lane request accepts optional realtime voice session contract (`voice_session`) with normalized transport validation and permission-bound enablement.
+  - Runtime lane request accepts optional receipt Merkle options (`receipt_merkle`, `previous_receipt_root`) and emits deterministic Merkle metadata in contract output.
+  - `xtask infring-agent-run` supports new flags for permissions, WASM policy, voice session, and receipt Merkle chaining (`--permissions`, `--wasm-policy`, `--voice`, `--receipt-merkle`, `--receipt-merkle-seed`, `--prev-receipt-root`).
+  - Module-level regressions exist for Merkle determinism, WASM fail-closed policies, permission-trit parsing, and voice transport normalization.
+- Regression evidence pointers:
+  - `core/layer0/infring_agent_surface/src/runtime_lane.rs`
+  - `core/layer0/infring_agent_surface/src/rbac_memory.rs`
+  - `core/layer0/infring_agent_surface/src/wasm_sandbox.rs`
+  - `core/layer0/infring_agent_surface/src/realtime_voice.rs`
+  - `core/layer0/infring_agent_surface/src/merkle_receipt.rs`
+  - `core/layer0/infring_agent_surface/src/lib.rs`
+  - `core/layer0/infring_agent_surface/Cargo.toml`
+  - `xtask/src/main.rs`
