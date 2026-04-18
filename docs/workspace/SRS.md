@@ -335,6 +335,7 @@ Acceptance criteria:
 | V11-WEB-012 | queued | Stagehand-assimilated deterministic batch-query replay cache (query/config signature keyed, bounded TTL, receipt-visible hit/miss) | Repeated search asks in one session were re-paying full retrieval cost and re-exposing anti-bot/noise variance even when a high-signal answer had just been produced. | Added Rust-core batch-query replay cache keyed by normalized source/query/aperture/policy signature with bounded retention + TTL (`ok/partial` longer, `no_results` short), plus deterministic stale-entry pruning and capped entry count. `batch_query` now emits receipt/user payload `cache_status` (`hit|miss`), and regressions prove second-turn replay still returns synthesized evidence when follow-up provider payload degrades. Evidence: [`core/layer0/ops/src/batch_query_primitive_parts/020-pipeline.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/batch_query_primitive_parts/020-pipeline.rs), [`core/layer0/ops/src/batch_query_primitive_parts/040-tests.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/batch_query_primitive_parts/040-tests.rs). | 9 | 0/1/2 |
 | V11-WEB-013 | queued | Search-result locator hygiene (prefer provider result links over search-engine request URL) | `batch_query` relevance/scoring could be poisoned by using the search-engine request URL (`bing.com/search?...query...`) as evidence locator, causing false overlap and noisy synthesis. | `candidate_from_search_payload` now prefers provider-returned result links (`payload.links[]`) and only falls back to `requested_url` when no result link is available; relevance gating and emitted evidence locators now reflect actual sources instead of search-engine query endpoints. Regression coverage added for locator selection precedence (`search_payload_prefers_result_link_locator_over_search_engine_request_url`) and existing batch-query suite remains green. Evidence: [`core/layer0/ops/src/batch_query_primitive_parts/010-core.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/batch_query_primitive_parts/010-core.rs), [`core/layer0/ops/src/batch_query_primitive_parts/040-tests.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/batch_query_primitive_parts/040-tests.rs). | 10 | 0/1/2 |
 | V11-WEB-014 | queued | Multi-stage web retrieval orchestrator + fixture-deterministic failover + synthesis quality floor | Agents still produced occasional low-signal web synthesis when a single provider result passed loosely, and test lanes could become nondeterministic by falling through to live network during fixture runs. | `batch_query` retrieval now uses a Rust-core staged orchestrator (`primary` search -> link-fetch fallback -> `bing_rss` -> `duckduckgo_instant`) that only admits synthesis-eligible candidates (non-search-engine domains, relevance gate, benchmark quality checks), applies a minimum synthesis score floor, and treats low-relevance/no-summary drops as benign so user-facing status remains `ok` when good evidence exists. Fixture mode now fails closed (`fixture_missing`) instead of silently making live network calls for missing stage keys, preserving deterministic regressions. Added tests for benchmark fallback to Bing, low-signal link-fetch recovery, and search-engine-domain fail-closed behavior. Evidence: [`core/layer0/ops/src/batch_query_primitive_parts/020-pipeline.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/batch_query_primitive_parts/020-pipeline.rs), [`core/layer0/ops/src/batch_query_primitive_parts/040-tests.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/batch_query_primitive_parts/040-tests.rs), validation `RUSTFLAGS='-Awarnings' CARGO_TARGET_DIR=/tmp/infring-target-bq-4 cargo test --manifest-path core/layer0/ops/Cargo.toml batch_query_primitive::tests::search_payload_prefers_result_link_locator_over_search_engine_request_url -- --nocapture`. | 10 | 0/1/2 |
+| V11-WEB-015 | in_progress | Runtime web-tooling effective inventory + policy-pipeline + process-summary contracts (tooling-priority assimilation wave) | Tooling diagnosis still required ad hoc field-by-field inspection; operators and eval flows lacked a single canonical runtime object that explains which tools are effectively runnable, why they are blocked/degraded, and what retry lane is expected. | `web-conduit status` and `web-conduit providers` now expose three new runtime-authoritative contracts: `tool_effective_inventory` (row-level normalized tool readiness/error/retry plan), `tool_policy_pipeline` (multi-stage pass/warn/fail policy view), and `tooling_process_summary` (dashboard-friendly aggregate health counters/hints). Implemented in [`core/layer0/ops/src/web_conduit_parts/040-receipts-and-fetch-api.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/040-receipts-and-fetch-api.rs) via canonical helper lanes (`runtime_web_tooling_effective_inventory`, `runtime_web_tooling_policy_pipeline`, `runtime_web_tooling_process_summary`) and wired into `api_status`/`api_providers`. Regression proof target for this row: `cargo test --manifest-path /Users/jay/.openclaw/workspace/core/layer0/ops/Cargo.toml web_conduit::tests:: -- --nocapture` plus focused status/providers contract assertions. | 9 | 0/1/2 |
 
 ## Container Runtime Reliability Intake (2026-04-08)
 
@@ -15792,6 +15793,39 @@ Source summary:
   - `tests/tooling/config/release_gates.yaml`
   - `node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/runtime_proof_release_gate.ts --profile=rich`
 
+### 2026-04-18 Empirical Proof + Adapter Graduation + Layer2 Closure Addendum (V11-RELEASE-HARDENING-007)
+
+- Intent:
+  - Convert release governance from mostly synthetic proof posture to dual-track proof posture, make adapter promotion criteria explicit and enforceable, and make Layer2 parity closure visible at lane level.
+- Acceptance criteria:
+  - Runtime proof harness supports `--proof-track=synthetic|empirical|dual` and emits explicit `proof_tracks` metadata with sample-point accounting and source details.
+  - Release gates enforce per-profile proof-track policy (`synthetic_required`, `empirical_required`, `empirical_min_sample_points`) and include proof-track checks in metrics/report artifacts.
+  - Adapter chaos gate consumes a canonical graduation manifest and computes `adapter_graduation_ratio` from required hook + scenario coverage.
+  - Release gate enforces adapter graduation ratio minimum through `release_gates.yaml`.
+  - Layer2 lane parity manifest carries explicit per-lane status and parity guard fails when any lane is not marked `complete`.
+  - Dashboard runtime blocks expose block-level freshness contract metadata (`source`, `source_sequence`, `age_seconds`, `stale`) and dashboard authority guard fails when freshness metadata is missing.
+  - Node-critical operator scripts are inventoried and tracked as a non-regression artifact to prevent unbounded Node creep in release-critical paths.
+  - Release proof-pack manifest includes runtime-proof + adapter + closure + benchmark artifacts as grouped categories, and proof-pack assembly emits per-artifact checksums.
+  - Release scorecard publishes benchmark classes (`microkernel_shared_workload`, `governed_command_path`, `realistic_user_workload`) plus trend-budget gates.
+  - Legacy runner deletion override requires explicit blocker evidence reference once cutoff date is reached.
+- Regression evidence pointers:
+  - `tests/tooling/scripts/ci/runtime_proof_harness.ts`
+  - `tests/tooling/scripts/ci/runtime_proof_release_gate.ts`
+  - `tests/tooling/scripts/ci/runtime_proof_verify.ts`
+  - `tests/tooling/config/release_gates.yaml`
+  - `tests/tooling/scripts/ci/adapter_runtime_chaos_gate.ts`
+  - `tests/tooling/config/adapter_graduation_manifest.json`
+  - `tests/tooling/config/layer2_lane_parity_manifest.json`
+  - `tests/tooling/scripts/ci/layer2_lane_parity_guard.ts`
+  - `core/layer0/ops/src/dashboard_ui_parts/050-snapshot-builder.rs`
+  - `tests/tooling/scripts/ci/dashboard_surface_authority_guard.ts`
+  - `tests/tooling/scripts/ci/node_critical_path_inventory.ts`
+  - `tests/tooling/config/release_proof_pack_manifest.json`
+  - `tests/tooling/scripts/ci/release_proof_pack_assemble.ts`
+  - `tests/tooling/scripts/ci/release_scorecard_generate.ts`
+  - `tests/tooling/scripts/ci/legacy_process_runner_release_guard.ts`
+  - `README.md`
+
 ### 2026-04-17 Chat Metadata + Scoped Reply + Retry Deletion Addendum (V11-CHAT-META-REPLY-006)
 
 - Intent:
@@ -15818,3 +15852,49 @@ Source summary:
   - `core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/agent_scope_full_parts/030-message-routing-and-context.rs`
   - `cargo test -p protheus-ops-core --lib dashboard_compat_api::clean_text_runtime_access_tests::runtime_access_denied_phrase_catches_monitoring_tools_fallback -- --exact`
   - `cargo test -p protheus-ops-core --lib dashboard_compat_api::dashboard_compat_api_agent_identity::tests::reserved_system_emoji_is_rejected_for_non_system_agents -- --exact`
+
+### 2026-04-18 Wave 1 DX + MCP + OTel + Capability Scheduler Addendum (V11-ASSIMILATION-DX-001)
+
+- Intent:
+  - Deliver a Rust-first high-level agent surface that improves onboarding ergonomics while keeping core authority and fail-closed behavior intact.
+- Acceptance criteria:
+  - New high-level Rust surface crate exposes ergonomic builder + `agent!` macro with initial contract fields (`initial_prompt`, `lifespan_seconds`, provider, tools, capability packs, optional schedule).
+  - Attribute macros `#[infring_tool]` and `#[infring_agent]` auto-generate schema and deterministic receipt hook helpers for tool/agent items.
+  - Provider runtime includes a unified `ProviderClient` trait and registry with `from_env`/process-env selection and built-in fail-closed errors for missing providers.
+  - MCP baseline support exists as a first-class bridge contract (server config registration, env bootstrap, tool descriptor projection, handshake receipts).
+  - OTel-style receipt tracing support exists with JSONL export, OTel-like export shape, and compact/markdown receipt visualization helpers.
+  - Capability pack catalog includes built-in packs (`research`, `web-ops`) and scheduler primitives (`SchedulePlan`, `ScheduleEntry`, due/mark-executed lifecycle) for persistent autonomy loops.
+  - `xtask` exposes template scaffold command (`infring-new`) for `single-agent|swarm|rag|voice` project bootstrap.
+  - `xtask` exposes runtime lane command (`infring-agent-run`) that executes a typed `RuntimeLaneRequest` through provider registry + capability pack resolution and emits deterministic receipt/trace summaries.
+- Regression evidence pointers:
+  - `core/layer0/infring_agent_surface/Cargo.toml`
+  - `core/layer0/infring_agent_surface/src/lib.rs`
+  - `core/layer0/infring_agent_surface/src/agent.rs`
+  - `core/layer0/infring_agent_surface/src/provider.rs`
+  - `core/layer0/infring_agent_surface/src/runtime_lane.rs`
+  - `core/layer0/infring_agent_surface/src/mcp.rs`
+  - `core/layer0/infring_agent_surface/src/telemetry.rs`
+  - `core/layer0/infring_agent_surface/src/capability_pack.rs`
+  - `core/layer0/infring_agent_surface/src/scheduler.rs`
+  - `core/layer0/infring_agent_surface/src/template.rs`
+  - `core/layer0/infring_agent_derive/Cargo.toml`
+  - `core/layer0/infring_agent_derive/src/lib.rs`
+  - `xtask/Cargo.toml`
+  - `xtask/src/main.rs`
+  - `cargo run -p xtask -- infring-agent-run --name=wave1-check --prompt=\"status\" --provider=local-echo --pack=research`
+
+### 2026-04-18 Wave 2 Typed Swarm + A2A Contract Addendum (V11-ASSIMILATION-SWARM-002)
+
+- Intent:
+  - Add type-safe multi-agent handoff primitives and A2A v1 envelope receipts in Rust swarm authority paths.
+- Acceptance criteria:
+  - Swarm core exports typed channel primitives (`TypedChannel`, `TypedHandoffEnvelope`, `SwarmMessage`) with schema-bound publish/drain behavior.
+  - Swarm core exposes compile-time handoff contracts via `HandoffContract` + typed `HandoffToken`, with fail-closed validation before envelope emission.
+  - A2A v1 transport envelope exists as first-class contract (`A2AEnvelope`, `A2AIntent`, `A2AReceipt`) with stable receipt JSON projection.
+  - Unit regressions prove deterministic typed channel drain behavior, compile-time handoff-token contract flow, and A2A envelope/receipt integrity.
+- Regression evidence pointers:
+  - `core/layer0/swarm/src/lib.rs`
+  - `core/layer0/swarm/src/typed_channels.rs`
+  - `core/layer0/swarm/src/handoff_contract.rs`
+  - `core/layer0/swarm/src/a2a_v1.rs`
+  - `cargo test --manifest-path core/layer0/swarm/Cargo.toml`
