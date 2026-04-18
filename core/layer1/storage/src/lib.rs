@@ -4,6 +4,7 @@ use std::collections::BTreeMap;
 const MAX_STORAGE_KEY_LEN: usize = 240;
 const MAX_STORAGE_VALUE_LEN: usize = 16 * 1024;
 const MAX_STORAGE_TIMESTAMP_MS: u64 = 9_999_999_999_999;
+const MAX_STORAGE_RECORDS: usize = 100_000;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StorageRecord {
@@ -18,6 +19,7 @@ pub enum StorageError {
     InvalidKey,
     InvalidValue,
     InvalidTimestamp,
+    CapacityExceeded,
     NotFound,
     VersionConflict,
 }
@@ -50,6 +52,9 @@ impl StorageEngine {
         }
 
         let previous = self.records.get(&normalized_key).cloned();
+        if previous.is_none() && self.records.len() >= MAX_STORAGE_RECORDS {
+            return Err(StorageError::CapacityExceeded);
+        }
         if let Some(expected) = expected_version {
             let current = previous.as_ref().map(|row| row.version).unwrap_or(0);
             if expected != current {
@@ -57,7 +62,9 @@ impl StorageEngine {
             }
         }
 
-        let next_version = previous.map(|row| row.version.saturating_add(1)).unwrap_or(1);
+        let next_version = previous
+            .map(|row| row.version.saturating_add(1))
+            .unwrap_or(1);
         let record = StorageRecord {
             key: normalized_key.clone(),
             value: normalized_value,
@@ -102,6 +109,14 @@ fn sanitize_key(raw_key: &str) -> Option<String> {
     {
         return None;
     }
+    if normalized.contains("//")
+        || normalized.contains("../")
+        || normalized.contains("/..")
+        || normalized.starts_with('/')
+        || normalized.ends_with('/')
+    {
+        return None;
+    }
     Some(normalized)
 }
 
@@ -110,8 +125,8 @@ fn sanitize_value(raw_value: &str) -> Option<String> {
         .chars()
         .filter(|ch| *ch == '\n' || *ch == '\t' || !ch.is_control())
         .collect();
-    if normalized.len() > MAX_STORAGE_VALUE_LEN {
-        normalized.truncate(MAX_STORAGE_VALUE_LEN);
+    if normalized.chars().count() > MAX_STORAGE_VALUE_LEN {
+        normalized = normalized.chars().take(MAX_STORAGE_VALUE_LEN).collect();
     }
     if normalized.trim().is_empty() {
         return None;
@@ -160,6 +175,10 @@ mod tests {
         let mut store = StorageEngine::default();
         assert_eq!(
             store.put("bad key with spaces", "x", None, 1),
+            Err(StorageError::InvalidKey)
+        );
+        assert_eq!(
+            store.put("../escape", "x", None, 1),
             Err(StorageError::InvalidKey)
         );
 

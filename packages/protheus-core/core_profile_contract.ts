@@ -10,6 +10,7 @@ export {};
 const path = require('path');
 const { normalizeToken } = require('../../client/runtime/lib/queued_backlog_runtime');
 const { runStandardLane } = require('../../client/runtime/lib/upgrade_lane_runtime');
+const { sanitizeBridgeArg } = require('../../client/runtime/lib/runtime_system_entrypoint.ts');
 
 const ROOT = path.join(__dirname, '..', '..');
 const DEFAULT_POLICY_PATH = path.join(ROOT, 'client', 'runtime', 'config', 'protheus_core_profile_policy.json');
@@ -22,7 +23,7 @@ function isPathInsideRoot(candidate, root) {
 }
 
 function resolvePolicyPath() {
-  const envPath = String(process.env.PROTHEUS_CORE_PROFILE_POLICY_PATH || '').trim();
+  const envPath = sanitizeBridgeArg(process.env.PROTHEUS_CORE_PROFILE_POLICY_PATH || '', 1024);
   if (!envPath) return DEFAULT_POLICY_PATH;
   const resolved = path.resolve(envPath);
   if (!isPathInsideRoot(resolved, ROOT)) return DEFAULT_POLICY_PATH;

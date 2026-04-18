@@ -8,6 +8,7 @@ import { emitStructuredResult, writeTextArtifact } from '../../lib/result.ts';
 
 type LaneRow = {
   id: string;
+  status?: string;
   requested_action: string;
   expected_receipt_type: string;
   runtime_path: string;
@@ -62,12 +63,12 @@ function toMarkdown(rows: LaneRow[], violations: string[]): string {
   const lines = [
     '# Layer2 Lane Parity Guard',
     '',
-    '| lane | action | expected receipt | runtime path | fallback path | contract test |',
-    '| --- | --- | --- | --- | --- | --- |',
+    '| lane | status | action | expected receipt | runtime path | fallback path | contract test |',
+    '| --- | --- | --- | --- | --- | --- | --- |',
   ];
   for (const row of rows) {
     lines.push(
-      `| ${row.id} | ${row.requested_action} | ${row.expected_receipt_type} | ${row.runtime_path} | ${row.fallback_path} | ${row.contract_test_id} |`,
+      `| ${row.id} | ${cleanText(row.status || 'unknown', 20)} | ${row.requested_action} | ${row.expected_receipt_type} | ${row.runtime_path} | ${row.fallback_path} | ${row.contract_test_id} |`,
     );
   }
   lines.push('');
@@ -110,8 +111,13 @@ export function run(argv: string[] = process.argv.slice(2)): number {
 
   const ids = new Set<string>();
   const tests = new Set<string>();
+  let completeCount = 0;
   for (const row of manifest.lanes || []) {
     if (!row.id) violations.push('lane_missing_id');
+    const status = cleanText(row.status || '', 20).toLowerCase();
+    if (!status) violations.push(`lane_missing_status:${row.id || 'unknown'}`);
+    if (status && status !== 'complete') violations.push(`lane_not_complete:${row.id || 'unknown'}:${status}`);
+    if (status === 'complete') completeCount += 1;
     if (!row.requested_action) violations.push(`lane_missing_action:${row.id || 'unknown'}`);
     if (!row.expected_receipt_type) violations.push(`lane_missing_receipt_type:${row.id || 'unknown'}`);
     if (!row.runtime_path) violations.push(`lane_missing_runtime_path:${row.id || 'unknown'}`);
@@ -148,6 +154,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     markdown_path: args.markdownOutPath,
     summary: {
       lane_count: (manifest.lanes || []).length,
+      complete_lane_count: completeCount,
       violation_count: violations.length,
       pass: violations.length === 0,
     },

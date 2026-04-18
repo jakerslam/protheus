@@ -29,6 +29,10 @@ function chatPage() {
     thinkingMode: 'off', // 'off' | 'on' | 'stream'
     _wsAgent: null,
     showAttachMenu: false,
+    attachPickerSessionActive: false,
+    attachPickerRestoreMode: 'send',
+    _attachPickerFocusListener: null,
+    _attachPickerFocusTimer: 0,
     showSlashMenu: false,
     slashFilter: '',
     slashIdx: 0,

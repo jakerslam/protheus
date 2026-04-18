@@ -29,12 +29,16 @@ assert.deepStrictEqual(
   ['spawn', '--organ-id=a', '--command=true']
 );
 assert.deepStrictEqual(
+  mod.mapArgs(['child-organ-runtime', 'child_organ_runtime', 'prepare', '--organ-id=a']),
+  ['plan', '--organ-id=a']
+);
+assert.deepStrictEqual(
   mod.mapArgs(['prepare', '--organ-id=a']),
   ['plan', '--organ-id=a']
 );
 assert.deepStrictEqual(
   mod.mapArgs(['\u200Bunknown', '--organ-id=a']),
-  ['status', '--organ-id=a']
+  ['status']
 );
 assert.deepStrictEqual(mod.mapArgs([]), ['status']);
 

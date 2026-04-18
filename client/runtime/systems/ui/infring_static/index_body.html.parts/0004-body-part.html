@@ -231,7 +231,7 @@
                   </template>
                 </div>
               </div>
-              <div class="prompt-suggestions-row" x-show="!terminalMode && currentAgent && !showFreshArchetypeTiles && promptQueueItems.length === 0 && hasConversationSuggestionSeed() && promptSuggestions.length > 0">
+              <div class="prompt-suggestions-row" x-show="!terminalMode && currentAgent && !showFreshArchetypeTiles && promptSuggestionsEnabled && promptQueueItems.length === 0 && hasConversationSuggestionSeed() && promptSuggestions.length > 0">
                 <template x-for="(suggestion, sidx) in promptSuggestions" :key="'prompt-suggestion-' + sidx + '-' + suggestion">
                   <button
                     class="prompt-suggestion-chip prompt-suggestion-chip-rise"
@@ -254,38 +254,17 @@
               </div>
               <div class="input-row">
               <input type="file" x-ref="fileInput" multiple accept="image/*,.txt,.pdf,.md,.json,.csv,.mp3,.wav,.ogg,.webm,.m4a,.flac" @change="handleAttachInputChange($event)" style="display:none">
-              <div class="composer-shell" :class="{ 'composer-shell-disabled': isFreshInitComposerLocked(), 'system-thread-active': isSystemThreadActive() }" :style="terminalMode ? ('--terminal-prefix-ch:' + terminalPromptChars) : ''">
+              <div class="composer-shell" :class="{ 'composer-shell-disabled': isFreshInitComposerLocked(), 'system-thread-active': isSystemThreadActive() }">
                 <div class="composer-main-row">
                 <div class="composer-input-pill">
                 <div class="composer-plus-wrap composer-icon-left" x-show="!isSystemThreadActive()" @click.outside="showAttachMenu = false">
                   <button class="composer-icon-btn composer-hamburger-btn" @click="showAttachMenu = !showAttachMenu" title="Add files and more (Ctrl+F)" aria-label="Add files and more" :aria-expanded="showAttachMenu ? 'true' : 'false'">
                     <svg class="composer-hamburger-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
                   </button>
-                  <infring-taskbar-menu-shell class="composer-plus-menu dashboard-dropdown-surface" x-show="showAttachMenu" x-transition:enter="transition ease-out duration-140" x-transition:enter-start="opacity-0 translate-y-1" x-transition:enter-end="opacity-100 translate-y-0" x-transition:leave="transition ease-in duration-100" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">
-                    <button class="composer-plus-menu-item composer-plus-menu-entry" x-show="!terminalMode" @click="beginAttachPickerSession()">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
-                      <span>Add files</span>
-                      <span class="composer-plus-hotkey" aria-hidden="true">Ctrl+F</span>
-                    </button>
-                    <button
-                      class="composer-plus-menu-item composer-plus-menu-item-toggle composer-plus-menu-entry"
-                      @click="if(!isSystemThreadActive()){toggleTerminalMode()}"
-                      :disabled="isSystemThreadActive()"
-                      :title="isSystemThreadActive() ? 'System thread is terminal-only' : 'Switch compose mode'"
-                    >
-                      <span class="composer-plus-toggle-label">
-                        <svg x-show="terminalMode" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                        <svg x-show="!terminalMode" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17 10 11 4 5"/><path d="M12 19h8"/></svg>
-                        <span x-text="isSystemThreadActive() ? 'terminal locked' : (terminalMode ? 'chat mode' : 'terminal mode')"></span>
-                      </span>
-                      <span class="composer-plus-hotkey" aria-hidden="true">Ctrl+T / Ctrl+\</span>
-                      <span class="composer-plus-vtoggle" :class="{ active: terminalMode }" aria-hidden="true">
-                        <span class="composer-plus-vtoggle-knob"></span>
-                      </span>
-                    </button>
+                  <infring-taskbar-menu-shell class="composer-plus-menu dashboard-dropdown-surface" x-show="showAttachMenu || showModelSwitcher || showGitTreeMenu" x-transition:enter="transition ease-out duration-140" x-transition:enter-start="opacity-0 translate-y-1" x-transition:enter-end="opacity-100 translate-y-0" x-transition:leave="transition ease-in duration-0" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">
                     <div
                       class="composer-plus-menu-item composer-plus-menu-context-row"
-                      x-show="currentAgent && !(isCurrentAgentArchived && isCurrentAgentArchived()) && !isSystemThreadActive()"
+                      x-show="showAttachMenu && !terminalMode && currentAgent && !(isCurrentAgentArchived && isCurrentAgentArchived()) && !isSystemThreadActive()"
                     >
                       <span class="context-ring-inline-label" x-text="contextRingCompactLabel"></span>
                       <div class="context-ring context-ring-toggle dashboard-preview-trigger dashboard-preview-wrap" :data-tooltip="contextRingTooltip" tabindex="0">
@@ -295,13 +274,44 @@
                         </svg>
                       </div>
                     </div>
-                    <div class="input-box-column input-box-column-selectors composer-plus-inline-controls" x-show="currentAgent && !terminalMode">
-                      <div class="input-box-selector-row" x-show="activeGitBranchLabel">
+                    <button
+                      class="composer-plus-menu-item composer-plus-menu-item-toggle composer-plus-menu-item-suggestions composer-plus-menu-entry"
+                      x-show="showAttachMenu && !terminalMode"
+                      @click="togglePromptSuggestionsEnabled()"
+                      title="Toggle chat suggestions"
+                    >
+                      <span class="composer-plus-toggle-label">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.75c.63.45 1 1.16 1 1.94V18h6v-1.31c0-.78.37-1.49 1-1.94A7 7 0 0 0 12 2z"/></svg>
+                        <span>Chat suggestions</span>
+                      </span>
+                      <span class="composer-plus-vtoggle" :class="{ active: promptSuggestionsEnabled }" aria-hidden="true">
+                        <span class="composer-plus-vtoggle-knob"></span>
+                      </span>
+                    </button>
+                    <button
+                      class="composer-plus-menu-item composer-plus-menu-item-toggle composer-plus-menu-item-terminal composer-plus-menu-entry"
+                      x-show="showAttachMenu"
+                      @click="if(!isSystemThreadActive()){toggleTerminalMode()}"
+                      :disabled="isSystemThreadActive()"
+                      :title="isSystemThreadActive() ? 'System thread is terminal-only' : 'Switch compose mode'"
+                    >
+                      <span class="composer-plus-toggle-label">
+                        <svg x-show="terminalMode" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                        <svg x-show="!terminalMode" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17 10 11 4 5"/><path d="M12 19h8"/></svg>
+                        <span x-text="isSystemThreadActive() ? 'Terminal locked' : (terminalMode ? 'Chat mode' : 'Terminal mode')"></span>
+                      </span>
+                      <span class="composer-plus-hotkey" aria-hidden="true">Ctrl+T / Ctrl+\</span>
+                      <span class="composer-plus-vtoggle" :class="{ active: terminalMode }" aria-hidden="true">
+                        <span class="composer-plus-vtoggle-knob"></span>
+                      </span>
+                    </button>
+                    <div class="input-box-column input-box-column-selectors composer-plus-inline-controls" x-show="(showAttachMenu || showGitTreeMenu || showModelSwitcher) && currentAgent && !terminalMode">
+                      <div class="input-box-selector-row" x-show="activeGitBranchMenuLabel && (showAttachMenu || showGitTreeMenu)">
                         <div class="chat-branch-picker model-switcher-inline input-box-selector-control" @keydown.escape.prevent.stop="closeGitTreeMenu()" @click.outside="closeGitTreeMenu()">
                           <button
                             type="button"
                             class="input-box-selector-activator composer-plus-menu-entry"
-                            :title="'Active branch: ' + activeGitBranchLabel"
+                            :title="'Active branch: ' + activeGitBranchMenuLabel"
                             :aria-expanded="showGitTreeMenu ? 'true' : 'false'"
                             @click="toggleGitTreeMenu()"
                           >
@@ -313,7 +323,8 @@
                                 <path d="M18 15V9"></path>
                               </svg>
                             </span>
-                            <span class="model-inline-label input-box-selector-label" x-text="activeGitBranchLabel"></span>
+                            <span class="model-inline-label input-box-selector-label">Change git tree</span>
+                            <span class="composer-plus-state-pill" x-text="activeGitBranchMenuLabel"></span>
                           </button>
                           <infring-taskbar-menu-shell class="chat-branch-menu dashboard-dropdown-surface" x-show="showGitTreeMenu" x-cloak>
                             <div class="chat-branch-menu-head">Switch Git Tree</div>
@@ -339,17 +350,14 @@
                           </infring-taskbar-menu-shell>
                         </div>
                       </div>
-                      <div class="input-box-selector-row">
+                      <div class="input-box-selector-row" x-show="showAttachMenu || showModelSwitcher">
                         <div class="model-switcher-inline input-box-selector-control" x-show="currentAgent && !terminalMode" style="position:relative" @click.outside="showModelSwitcher = false" @keydown.escape.window="showModelSwitcher = false">
-                      <button type="button" class="input-box-selector-activator composer-plus-menu-entry" :aria-expanded="showModelSwitcher ? 'true' : 'false'" @click="toggleModelSwitcher()" title="Switch model (Ctrl+M)">
+                      <button type="button" class="input-box-selector-activator composer-plus-menu-entry" :aria-expanded="showModelSwitcher ? 'true' : 'false'" @click="toggleModelSwitcher()" :title="'Active model: ' + modelDisplayName">
                         <span class="composer-icon-btn composer-model-btn input-box-selector-trigger" :class="{ 'active': showModelSwitcher }" aria-hidden="true">
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
                         </span>
-                        <span
-                          class="model-inline-label input-box-selector-label"
-                          x-show="String(modelDisplayName || '').trim().length > 0"
-                          x-text="modelDisplayName"
-                        ></span>
+                        <span class="model-inline-label input-box-selector-label">Active LLM</span>
+                        <span class="composer-plus-state-pill composer-plus-state-pill-model" x-text="menuModelLabel"></span>
                       </button>
                       <infring-taskbar-menu-shell class="model-switcher-dropdown model-switcher-dropdown-inline dashboard-dropdown-surface" x-show="showModelSwitcher" x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 transform translate-y-1" x-transition:enter-end="opacity-100 transform translate-y-0" x-transition:leave="transition ease-in duration-100" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">
                         <div class="model-switcher-search">
@@ -476,7 +484,6 @@
                     </div>
                   </div>
                 </div>
-                <div class="terminal-path-label" x-show="terminalMode" x-text="terminalPromptPrefix"></div>
                 <template x-if="terminalMode && terminalCursorFocused">
                   <span class="terminal-block-cursor" :style="terminalCursorStyle" aria-hidden="true">█</span>
                 </template>

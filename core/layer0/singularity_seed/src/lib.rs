@@ -12,6 +12,7 @@ const MANIFEST_SIGNING_KEY: &str = "singularity-seed-manifest-signing-key-v1";
 const DRIFT_FAIL_CLOSED_THRESHOLD_PCT: f64 = 2.0;
 const MAX_DRIFT_OVERRIDES: usize = 64;
 const MAX_DRIFT_OVERRIDE_PCT: f64 = 100.0;
+const MAX_BLOB_ROOT_CHARS: usize = 512;
 
 pub const AUTOGENESIS_LOOP_ID: &str = "autogenesis_loop";
 pub const DUAL_BRAIN_LOOP_ID: &str = "dual_brain_loop";
@@ -223,6 +224,19 @@ fn normalize_cycle_request(request: CycleRequest) -> CycleRequest {
     CycleRequest { drift_overrides }
 }
 
+fn normalize_cycle_request_with_contract(
+    request: CycleRequest,
+    strict_contract: bool,
+) -> Result<CycleRequest, SeedError> {
+    let normalized = normalize_cycle_request(request.clone());
+    if strict_contract && normalized.drift_overrides.len() != request.drift_overrides.len() {
+        return Err(SeedError::InvalidRequest(
+            "drift_overrides_modified_under_strict_contract".to_string(),
+        ));
+    }
+    Ok(normalized)
+}
+
 fn manifest_signature(id: &str, hash: &str, version: u32) -> String {
     let payload = format!("{id}:{hash}:{version}:{MANIFEST_SIGNING_KEY}");
     sha256_hex(payload.as_bytes())
@@ -345,10 +359,31 @@ fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../..")
 }
 
+fn sanitize_blob_root_override(raw: &str) -> Option<PathBuf> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() || trimmed.chars().count() > MAX_BLOB_ROOT_CHARS {
+        return None;
+    }
+    if trimmed
+        .chars()
+        .any(|ch| ch == '\0' || ch == '\n' || ch == '\r')
+    {
+        return None;
+    }
+    let path = PathBuf::from(trimmed);
+    if path
+        .components()
+        .any(|component| matches!(component, std::path::Component::ParentDir))
+    {
+        return None;
+    }
+    Some(path)
+}
+
 fn blob_root() -> PathBuf {
     if let Ok(explicit) = std::env::var("PROTHEUS_SINGULARITY_BLOB_DIR") {
-        if !explicit.trim().is_empty() {
-            return PathBuf::from(explicit);
+        if let Some(safe) = sanitize_blob_root_override(&explicit) {
+            return safe;
         }
     }
     repo_root().join("client/runtime/systems/singularity_seed/blobs")
@@ -707,7 +742,7 @@ pub fn run_guarded_cycle_json(request_json: &str) -> Result<String, SeedError> {
         serde_json::from_str(request_json)
             .map_err(|err| SeedError::InvalidRequest(format!("request_parse_failed:{err}")))?
     };
-    let normalized_request = normalize_cycle_request(request);
+    let normalized_request = normalize_cycle_request_with_contract(request, true)?;
 
     let report = run_guarded_cycle(&normalized_request)?;
     serde_json::to_string(&report).map_err(|err| SeedError::SerializeFailed(err.to_string()))
@@ -833,5 +868,23 @@ mod tests {
         assert_eq!(normalized.drift_overrides.len(), 1);
         assert_eq!(normalized.drift_overrides[0].loop_id, RED_LEGION_LOOP_ID);
         assert_eq!(normalized.drift_overrides[0].drift_pct, 2.4);
+    }
+
+    #[test]
+    fn strict_cycle_request_contract_rejects_unknown_override() {
+        let request = CycleRequest {
+            drift_overrides: vec![DriftOverride {
+                loop_id: "unknown-loop".to_string(),
+                drift_pct: 1.0,
+            }],
+        };
+        let out = normalize_cycle_request_with_contract(request, true);
+        assert!(matches!(out, Err(SeedError::InvalidRequest(_))));
+    }
+
+    #[test]
+    fn blob_root_override_sanitizer_blocks_parent_traversal() {
+        assert!(sanitize_blob_root_override("../bad/path").is_none());
+        assert!(sanitize_blob_root_override("/tmp/singularity-seed").is_some());
     }
 }

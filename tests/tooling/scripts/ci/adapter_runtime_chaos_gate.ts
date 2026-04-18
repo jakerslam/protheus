@@ -24,6 +24,32 @@ type ScenarioRow = {
   detail: string;
 };
 
+type GraduationManifest = {
+  version: number;
+  required_hooks: string[];
+  required_scenarios: string[];
+  adapters: Array<{
+    id: string;
+    framework: string;
+    bridge_command: string;
+    tier?: string;
+  }>;
+};
+
+type AdapterGraduationResult = {
+  adapter: string;
+  graduated: boolean;
+  manifest_declared: boolean;
+  missing_scenarios: string[];
+  hook_pass_count: number;
+  hook_total: number;
+  hook_pass_ratio: number;
+  scenario_pass_count: number;
+  scenario_total: number;
+  scenario_pass_ratio: number;
+  hooks: Array<{ id: string; ok: boolean; detail: string }>;
+};
+
 const OPS_CARGO_BUILD_ARGS = ['build', '-q', '-p', 'protheus-ops-core', '--bin', 'protheus-ops'];
 const BRIDGE_MAX_BUFFER_BYTES = 64 * 1024 * 1024;
 
@@ -60,6 +86,10 @@ function parseArgs(argv: string[]) {
     strict: common.strict,
     outPath: cleanText(readFlag(argv, 'out') || common.out || '', 400),
     profile,
+    graduationManifestPath: cleanText(
+      readFlag(argv, 'graduation-manifest') || 'tests/tooling/config/adapter_graduation_manifest.json',
+      400,
+    ),
   };
 }
 
@@ -183,6 +213,127 @@ function chaosPayload(adapter: AdapterLane, scenarioId: string) {
   };
 }
 
+function loadGraduationManifest(root: string, relPath: string): GraduationManifest {
+  const abs = path.resolve(root, relPath);
+  const parsed = JSON.parse(fs.readFileSync(abs, 'utf8')) as GraduationManifest;
+  return parsed;
+}
+
+function hasScenarioPass(chaosRows: ScenarioRow[], adapterId: string, scenarioId: string): boolean {
+  return chaosRows.some((row) => row.adapter === adapterId && row.scenario === scenarioId && row.ok);
+}
+
+function buildGraduationResults(
+  manifest: GraduationManifest,
+  baselineRows: ScenarioRow[],
+  chaosRows: ScenarioRow[],
+): AdapterGraduationResult[] {
+  const manifestByAdapter = new Map(
+    (manifest.adapters || []).map((row) => [cleanText(row.id || '', 80), row]),
+  );
+  const requiredScenarios = Array.isArray(manifest.required_scenarios) ? manifest.required_scenarios : [];
+  const requiredHooks = Array.isArray(manifest.required_hooks) ? manifest.required_hooks : [];
+
+  return ADAPTERS.map((adapter) => {
+    const baselineRow = baselineRows.find((row) => row.adapter === adapter.id);
+    const declared = manifestByAdapter.has(adapter.id);
+    const scenarioPassCount = requiredScenarios.filter((id) => hasScenarioPass(chaosRows, adapter.id, id)).length;
+    const missingScenarios = requiredScenarios.filter((id) => !hasScenarioPass(chaosRows, adapter.id, id));
+    const receiptSchemaOk =
+      Boolean(baselineRow?.detail) &&
+      chaosRows
+        .filter((row) => row.adapter === adapter.id)
+        .every((row) => Boolean(row.expected_error) && Boolean(row.detail));
+    const allFailClosed = requiredScenarios.every((scenarioId) => {
+      const row = chaosRows.find((item) => item.adapter === adapter.id && item.scenario === scenarioId);
+      return Boolean(row?.ok) && cleanText(row?.detail || '', 80).startsWith('fail_closed:');
+    });
+
+    const hookChecks = requiredHooks.map((hookId) => {
+      if (hookId === 'health_check') {
+        return {
+          id: hookId,
+          ok: baselineRow?.ok === true,
+          detail: baselineRow?.ok === true ? 'baseline_ok' : cleanText(baselineRow?.detail || 'baseline_missing', 180),
+        };
+      }
+      if (hookId === 'startup_timeout_policy') {
+        const ok = hasScenarioPass(chaosRows, adapter.id, 'process_never_starts');
+        return { id: hookId, ok, detail: ok ? 'scenario_pass' : 'missing_or_failed:process_never_starts' };
+      }
+      if (hookId === 'request_timeout_policy') {
+        const ok = hasScenarioPass(chaosRows, adapter.id, 'starts_then_hangs');
+        return { id: hookId, ok, detail: ok ? 'scenario_pass' : 'missing_or_failed:starts_then_hangs' };
+      }
+      if (hookId === 'fail_closed_policy_hooks') {
+        return {
+          id: hookId,
+          ok: allFailClosed,
+          detail: allFailClosed ? 'all_required_scenarios_fail_closed' : 'fail_closed_coverage_incomplete',
+        };
+      }
+      if (hookId === 'receipt_schema_helpers') {
+        return {
+          id: hookId,
+          ok: receiptSchemaOk,
+          detail: receiptSchemaOk ? 'receipt_fields_present' : 'receipt_fields_missing',
+        };
+      }
+      if (hookId === 'circuit_breaker_behavior') {
+        const ok = hasScenarioPass(chaosRows, adapter.id, 'repeated_flapping');
+        return { id: hookId, ok, detail: ok ? 'scenario_pass' : 'missing_or_failed:repeated_flapping' };
+      }
+      if (hookId === 'quarantine_hooks') {
+        const ok = hasScenarioPass(chaosRows, adapter.id, 'repeated_flapping');
+        return { id: hookId, ok, detail: ok ? 'scenario_pass' : 'missing_or_failed:repeated_flapping' };
+      }
+      return {
+        id: hookId,
+        ok: false,
+        detail: 'unsupported_hook_id_in_manifest',
+      };
+    });
+
+    const hookPassCount = hookChecks.filter((row) => row.ok).length;
+    const hookTotal = hookChecks.length;
+    const scenarioTotal = requiredScenarios.length;
+    const graduated = declared && hookPassCount === hookTotal && scenarioPassCount === scenarioTotal;
+
+    return {
+      adapter: adapter.id,
+      graduated,
+      manifest_declared: declared,
+      missing_scenarios: missingScenarios,
+      hook_pass_count: hookPassCount,
+      hook_total: hookTotal,
+      hook_pass_ratio: hookTotal === 0 ? 0 : Number((hookPassCount / hookTotal).toFixed(4)),
+      scenario_pass_count: scenarioPassCount,
+      scenario_total: scenarioTotal,
+      scenario_pass_ratio: scenarioTotal === 0 ? 0 : Number((scenarioPassCount / scenarioTotal).toFixed(4)),
+      hooks: hookChecks,
+    };
+  });
+}
+
+function manifestConformanceViolations(manifest: GraduationManifest): string[] {
+  const violations: string[] = [];
+  const byId = new Map((manifest.adapters || []).map((row) => [cleanText(row.id || '', 80), row]));
+  for (const adapter of ADAPTERS) {
+    const declared = byId.get(adapter.id);
+    if (!declared) {
+      violations.push(`manifest_missing_adapter:${adapter.id}`);
+      continue;
+    }
+    if (cleanText(declared.framework || '', 80) !== adapter.framework) {
+      violations.push(`manifest_framework_mismatch:${adapter.id}`);
+    }
+    if (cleanText(declared.bridge_command || '', 120) !== adapter.bridgeCommand) {
+      violations.push(`manifest_bridge_command_mismatch:${adapter.id}`);
+    }
+  }
+  return violations;
+}
+
 export function run(argv: string[] = process.argv.slice(2)): number {
   const root = process.cwd();
   const args = parseArgs(argv);
@@ -193,6 +344,24 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       error: 'runtime_proof_profile_invalid',
       profile: cleanText(readFlag(argv, 'profile') || '', 40),
       allowed_profiles: ['rich', 'pure', 'tiny-max'],
+    };
+    return emitStructuredResult(payload, {
+      outPath: args.outPath,
+      strict: args.strict,
+      ok: false,
+    });
+  }
+
+  let graduationManifest: GraduationManifest;
+  try {
+    graduationManifest = loadGraduationManifest(root, args.graduationManifestPath);
+  } catch (error) {
+    const payload = {
+      ok: false,
+      type: 'adapter_runtime_chaos_gate',
+      error: 'adapter_graduation_manifest_unavailable',
+      detail: cleanText(error instanceof Error ? error.message : String(error), 500),
+      manifest_path: args.graduationManifestPath,
     };
     return emitStructuredResult(payload, {
       outPath: args.outPath,
@@ -279,18 +448,42 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   const baselinePassed = baselineRows.filter((row) => row.ok).length;
   const chaosPassed = chaosRows.filter((row) => row.ok).length;
   const allRows = baselineRows.concat(chaosRows);
-  const failures = allRows.filter((row) => !row.ok).map((row) => ({
-    id: `${row.adapter}:${row.scenario}`,
-    detail: row.detail,
-  }));
   const baselineTotal = baselineRows.length;
   const chaosTotal = chaosRows.length;
   const baselinePassRatio = baselineTotal === 0 ? 0 : baselinePassed / baselineTotal;
   const chaosFailClosedRatio = chaosTotal === 0 ? 0 : chaosPassed / chaosTotal;
+
+  const graduationResults = buildGraduationResults(graduationManifest, baselineRows, chaosRows);
+  const graduationPassed = graduationResults.filter((row) => row.graduated).length;
+  const graduationRatio = graduationResults.length === 0 ? 0 : graduationPassed / graduationResults.length;
+  const manifestViolations = manifestConformanceViolations(graduationManifest);
+
+  const failures = allRows
+    .filter((row) => !row.ok)
+    .map((row) => ({
+      id: `${row.adapter}:${row.scenario}`,
+      detail: row.detail,
+    }))
+    .concat(
+      graduationResults
+        .filter((row) => !row.graduated)
+        .map((row) => ({
+          id: `adapter_graduation_failed:${row.adapter}`,
+          detail: `missing_scenarios=${row.missing_scenarios.join(',') || 'none'};hook_pass=${row.hook_pass_count}/${row.hook_total};manifest_declared=${String(row.manifest_declared)}`,
+        })),
+    )
+    .concat(
+      manifestViolations.map((detail) => ({
+        id: 'adapter_graduation_manifest_violation',
+        detail,
+      })),
+    );
+
   const metrics = {
     adapter_baseline_pass_ratio: Number(baselinePassRatio.toFixed(4)),
     adapter_chaos_fail_closed_ratio: Number(chaosFailClosedRatio.toFixed(4)),
     adapter_chaos_scenarios_total: chaosTotal,
+    adapter_graduation_ratio: Number(graduationRatio.toFixed(4)),
   };
 
   const report = {
@@ -299,6 +492,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     profile: args.profile,
     generated_at: new Date().toISOString(),
     revision: currentRevision(root),
+    graduation_manifest_path: args.graduationManifestPath,
     summary: {
       adapters_total: ADAPTERS.length,
       baseline_total: baselineTotal,
@@ -306,6 +500,9 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       chaos_total: chaosTotal,
       chaos_fail_closed_passed: chaosPassed,
       chaos_fail_closed_ratio: Number(chaosFailClosedRatio.toFixed(4)),
+      graduation_passed: graduationPassed,
+      graduation_ratio: Number(graduationRatio.toFixed(4)),
+      manifest_violations: manifestViolations.length,
     },
     metrics,
     adapters: ADAPTERS.map((row) => ({
@@ -315,6 +512,13 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     })),
     baseline_results: baselineRows,
     chaos_results: chaosRows,
+    graduation_results: graduationResults,
+    graduation_policy: {
+      version: graduationManifest.version,
+      required_hooks: graduationManifest.required_hooks || [],
+      required_scenarios: graduationManifest.required_scenarios || [],
+      manifest_violations: manifestViolations,
+    },
     failures,
   };
 

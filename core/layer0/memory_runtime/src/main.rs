@@ -8,6 +8,8 @@ include!("main_parts/055-predictive-defrag.rs");
 include!("main_parts/060-run-daemon.rs");
 include!("main_parts/070-cli-entrypoint.rs");
 
+const MAX_MEMORY_RUNTIME_CLI_ARGS: usize = 64;
+
 fn assim120_strip_invisible_unicode(raw: &str) -> String {
     raw.chars()
         .filter(|ch| {
@@ -44,6 +46,39 @@ pub fn normalize_memory_runtime_cli_arg(raw: &str) -> String {
         .collect::<String>()
 }
 
+pub fn normalize_memory_runtime_cli_args_with_contract(
+    raw_args: &[String],
+    strict_contract: bool,
+) -> (Vec<String>, bool, &'static str) {
+    let normalized = raw_args
+        .iter()
+        .map(|arg| normalize_memory_runtime_cli_arg(arg))
+        .filter(|arg| !arg.is_empty())
+        .take(MAX_MEMORY_RUNTIME_CLI_ARGS)
+        .collect::<Vec<String>>();
+    if normalized.is_empty() {
+        return (normalized, false, "args_empty_after_normalization");
+    }
+    let truncated = raw_args.len() > MAX_MEMORY_RUNTIME_CLI_ARGS;
+    let traversal_like = normalized.iter().any(|arg| arg.contains(".."));
+    if strict_contract && traversal_like {
+        return (
+            normalized,
+            false,
+            "args_parent_traversal_blocked_under_strict_contract",
+        );
+    }
+    if strict_contract && truncated {
+        return (normalized, false, "args_truncated_under_strict_contract");
+    }
+    let reason = if truncated {
+        "args_truncated_non_strict_contract"
+    } else {
+        "args_contract_ok"
+    };
+    (normalized, true, reason)
+}
+
 pub fn normalize_memory_runtime_transport_mode(raw: &str) -> &'static str {
     match normalize_memory_runtime_cli_arg(raw)
         .to_ascii_lowercase()
@@ -75,5 +110,16 @@ mod assim120_runtime_main_tests {
             "trusted_env_proxy"
         );
         assert_eq!(normalize_memory_runtime_transport_mode("unknown"), "strict");
+    }
+
+    #[test]
+    fn strict_cli_arg_contract_blocks_parent_traversal_like_tokens() {
+        let raw = vec!["--root=../tmp".to_string()];
+        let (_normalized, ok, reason) = normalize_memory_runtime_cli_args_with_contract(&raw, true);
+        assert!(!ok);
+        assert_eq!(
+            reason,
+            "args_parent_traversal_blocked_under_strict_contract"
+        );
     }
 }

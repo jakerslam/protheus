@@ -1,6 +1,37 @@
 // Infring Workflows Page — Workflow builder + run history
 'use strict';
 
+var WORKFLOW_DEFAULT_STEP = { name: '', agent_name: '', mode: 'sequential', prompt: '{{input}}' };
+
+function workflowNormalizeStep(step) {
+  var source = step && typeof step === 'object' ? step : {};
+  var name = String(source.name || '').trim() || 'step';
+  var agentName = String(source.agent_name || '').trim();
+  var mode = String(source.mode || 'sequential').trim() || 'sequential';
+  var prompt = String(source.prompt || '{{input}}');
+  return {
+    name: name,
+    agent_name: agentName,
+    mode: mode,
+    prompt: prompt || '{{input}}'
+  };
+}
+
+function workflowNormalizeDraft(draft) {
+  var source = draft && typeof draft === 'object' ? draft : {};
+  var name = String(source.name || '').trim();
+  var description = String(source.description || '');
+  var steps = Array.isArray(source.steps) ? source.steps.map(workflowNormalizeStep) : [];
+  steps = steps.filter(function(step) { return step.agent_name && step.prompt; });
+  return { name: name, description: description, steps: steps };
+}
+
+function workflowFormatRunResult(payload) {
+  if (payload && typeof payload === 'object' && typeof payload.output === 'string') return payload.output;
+  try { return JSON.stringify(payload || {}, null, 2); } catch(_) {}
+  return String(payload || '');
+}
+
 function workflowsPage() {
   return {
     // -- Workflows state --
@@ -12,7 +43,7 @@ function workflowsPage() {
     running: false,
     loading: true,
     loadError: '',
-    newWf: { name: '', description: '', steps: [{ name: '', agent_name: '', mode: 'sequential', prompt: '{{input}}' }] },
+    newWf: { name: '', description: '', steps: [Object.assign({}, WORKFLOW_DEFAULT_STEP)] },
     editModal: null,
     editWf: { name: '', description: '', steps: [] },
 
@@ -32,14 +63,20 @@ function workflowsPage() {
     async loadData() { return this.loadWorkflows(); },
 
     async createWorkflow() {
-      var steps = this.newWf.steps.map(function(s) {
-        return { name: s.name || 'step', agent_name: s.agent_name, mode: s.mode, prompt: s.prompt || '{{input}}' };
-      });
+      var draft = workflowNormalizeDraft(this.newWf);
+      if (!draft.name) {
+        InfringToast.error('Workflow name is required');
+        return;
+      }
+      if (draft.steps.length === 0) {
+        InfringToast.error('Add at least one workflow step with an agent');
+        return;
+      }
       try {
-        var wfName = this.newWf.name;
-        await InfringAPI.post('/api/workflows', { name: wfName, description: this.newWf.description, steps: steps });
+        var wfName = draft.name;
+        await InfringAPI.post('/api/workflows', { name: draft.name, description: draft.description, steps: draft.steps });
         this.showCreateModal = false;
-        this.newWf = { name: '', description: '', steps: [{ name: '', agent_name: '', mode: 'sequential', prompt: '{{input}}' }] };
+        this.newWf = { name: '', description: '', steps: [Object.assign({}, WORKFLOW_DEFAULT_STEP)] };
         InfringToast.success('Workflow "' + wfName + '" created');
         await this.loadWorkflows();
       } catch(e) {
@@ -59,7 +96,7 @@ function workflowsPage() {
       this.runResult = '';
       try {
         var res = await InfringAPI.post('/api/workflows/' + this.runModal.id + '/run', { input: this.runInput });
-        this.runResult = res.output || JSON.stringify(res, null, 2);
+        this.runResult = workflowFormatRunResult(res);
         InfringToast.success('Workflow completed');
       } catch(e) {
         this.runResult = 'Error: ' + e.message;
@@ -79,14 +116,16 @@ function workflowsPage() {
     },
 
     async deleteWorkflow(wf) {
-      if (!confirm('Delete workflow "' + wf.name + '"? This cannot be undone.')) return;
-      try {
-        await InfringAPI.delete('/api/workflows/' + wf.id);
-        InfringToast.success('Workflow "' + wf.name + '" deleted');
-        await this.loadWorkflows();
-      } catch(e) {
-        InfringToast.error('Failed to delete workflow: ' + e.message);
-      }
+      var self = this;
+      InfringToast.confirm('Delete Workflow', 'Delete workflow "' + wf.name + '"? This cannot be undone.', async function() {
+        try {
+          await InfringAPI.delete('/api/workflows/' + wf.id);
+          InfringToast.success('Workflow "' + wf.name + '" deleted');
+          await self.loadWorkflows();
+        } catch(e) {
+          InfringToast.error('Failed to delete workflow: ' + e.message);
+        }
+      });
     },
 
     async showEditModal(wf) {
@@ -115,12 +154,18 @@ function workflowsPage() {
 
     async saveWorkflow() {
       if (!this.editModal) return;
-      var steps = this.editWf.steps.map(function(s) {
-        return { name: s.name || 'step', agent_name: s.agent_name, mode: s.mode, prompt: s.prompt || '{{input}}' };
-      });
+      var draft = workflowNormalizeDraft(this.editWf);
+      if (!draft.name) {
+        InfringToast.error('Workflow name is required');
+        return;
+      }
+      if (draft.steps.length === 0) {
+        InfringToast.error('Add at least one workflow step with an agent');
+        return;
+      }
       try {
-        var wfName = this.editWf.name;
-        await InfringAPI.put('/api/workflows/' + this.editModal.id, { name: wfName, description: this.editWf.description, steps: steps });
+        var wfName = draft.name;
+        await InfringAPI.put('/api/workflows/' + this.editModal.id, { name: draft.name, description: draft.description, steps: draft.steps });
         this.editModal = null;
         InfringToast.success('Workflow "' + wfName + '" updated');
         await this.loadWorkflows();

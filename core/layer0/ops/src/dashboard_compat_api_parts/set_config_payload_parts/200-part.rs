@@ -4,7 +4,28 @@ fn compat_api_response_with_nexus(
 ) -> CompatApiResponse {
     let runtime_web_tooling_contract =
         compat_runtime_web_tooling_contract_snapshot(clean_text(route_label, 180).as_str());
-    match crate::dashboard_tool_turn_loop::authorize_ingress_tool_call_with_nexus(route_label) {
+    let route_kind = compat_route_nexus_kind(route_label);
+    if route_kind == CompatRouteNexusKind::None {
+        if let Some(obj) = response.payload.as_object_mut() {
+            obj.insert(
+                "runtime_web_tooling_contract".to_string(),
+                runtime_web_tooling_contract,
+            );
+        }
+        return response;
+    }
+    let auth_result = match route_kind {
+        CompatRouteNexusKind::Tool => {
+            crate::dashboard_tool_turn_loop::authorize_ingress_tool_call_with_nexus(route_label)
+        }
+        CompatRouteNexusKind::Terminal => {
+            crate::dashboard_tool_turn_loop::authorize_ingress_terminal_command_with_nexus(
+                route_label,
+            )
+        }
+        CompatRouteNexusKind::None => Ok(None),
+    };
+    match auth_result {
         Ok(Some(meta)) => {
             if let Some(obj) = response.payload.as_object_mut() {
                 obj.insert("nexus_connection".to_string(), meta);
@@ -36,6 +57,24 @@ fn compat_api_response_with_nexus(
             }),
         },
     }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum CompatRouteNexusKind {
+    None,
+    Tool,
+    Terminal,
+}
+
+fn compat_route_nexus_kind(route_label: &str) -> CompatRouteNexusKind {
+    let lowered = clean_text(route_label, 180).to_ascii_lowercase();
+    if lowered.starts_with("terminal:") || lowered.contains("/terminal") {
+        return CompatRouteNexusKind::Terminal;
+    }
+    if lowered.starts_with("tool:") || lowered.contains("/tool") {
+        return CompatRouteNexusKind::Tool;
+    }
+    CompatRouteNexusKind::None
 }
 
 fn compat_runtime_web_tooling_auth_sources() -> Vec<String> {

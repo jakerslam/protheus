@@ -142,7 +142,7 @@
   .stat-card-lg .stat-value { font-size: 22px; }
   .card-grid { grid-template-columns: 1fr; }
   .overview-grid { grid-template-columns: 1fr; }
-  .input-area { padding: 8px 12px; }
+  .input-area { padding: 8px 12px 0; }
   .main-content { padding: 0; }
   .table-wrap { font-size: 10px; }
   .modal { margin: 8px; max-height: calc(100vh - 16px); }

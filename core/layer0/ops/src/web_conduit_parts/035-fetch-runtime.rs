@@ -1,39 +1,19 @@
 fn fetch_override_flag_enabled(value: &Value) -> bool {
-    value
-        .as_bool()
-        .or_else(|| value.as_i64().map(|n| n != 0))
-        .or_else(|| {
-            value.as_str().map(|raw| {
-                matches!(
-                    clean_text(raw, 12).to_ascii_lowercase().as_str(),
-                    "1" | "true" | "yes" | "y" | "on"
-                )
-            })
-        })
-        .unwrap_or(false)
+    runtime_web_truthy_flag(value)
 }
 
 fn fetch_meta_query_override(request: &Value) -> bool {
-    let direct_keys = [
-        "allow_meta_query_search",
-        "allowMetaQuerySearch",
-        "force_web_search",
-        "forceWebSearch",
-        "force_web_lookup",
-        "forceWebLookup",
-        "allow_meta_query_fetch",
-        "allowMetaQueryFetch",
-        "force_web_fetch",
-        "forceWebFetch",
-    ];
-    for key in direct_keys {
-        if let Some(value) = request.get(key) {
-            if fetch_override_flag_enabled(value) {
-                return true;
-            }
-        }
-    }
-    let nested_keys = [
+    let pointers = [
+        "/allow_meta_query_search",
+        "/allowMetaQuerySearch",
+        "/force_web_search",
+        "/forceWebSearch",
+        "/force_web_lookup",
+        "/forceWebLookup",
+        "/allow_meta_query_fetch",
+        "/allowMetaQueryFetch",
+        "/force_web_fetch",
+        "/forceWebFetch",
         "/search_policy/allow_meta_query_search",
         "/searchPolicy/allowMetaQuerySearch",
         "/search_policy/force_web_search",
@@ -45,14 +25,7 @@ fn fetch_meta_query_override(request: &Value) -> bool {
         "/fetch_policy/force_web_fetch",
         "/fetchPolicy/forceWebFetch",
     ];
-    for pointer in nested_keys {
-        if let Some(value) = request.pointer(pointer) {
-            if fetch_override_flag_enabled(value) {
-                return true;
-            }
-        }
-    }
-    false
+    runtime_web_request_flag(request, &pointers)
 }
 
 fn fetch_requested_url_looks_meta_diagnostic(raw_requested_url: &str) -> bool {
@@ -211,6 +184,24 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
             "cache_store_allowed": false,
             "cache_write_attempted": false,
             "cache_skip_reason": "meta_query_blocked",
+            "process_summary": runtime_web_process_summary(
+                "web_fetch",
+                "early_validation",
+                false,
+                &json!({
+                    "should_execute": false,
+                    "mode": "blocked",
+                    "reason": "meta_query_blocked",
+                    "source": "early_validation"
+                }),
+                &json!({
+                    "blocked": false,
+                    "reason": "not_evaluated"
+                }),
+                &json!([]),
+                "none",
+                Some("non_fetch_meta_query")
+            ),
             "summary": "Requested fetch URL appears to be conversational/tooling diagnostics rather than a valid web URL. Answer directly without running web fetch. To force fetch evaluation, set force_web_fetch=true or force_web_search=true.",
             "content": "",
             "override_hint": "force_web_fetch=true|force_web_search=true",
@@ -261,6 +252,24 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
             "cache_store_allowed": false,
             "cache_write_attempted": false,
             "cache_skip_reason": "unknown_fetch_provider",
+            "process_summary": runtime_web_process_summary(
+                "web_fetch",
+                "request_contract_blocked",
+                false,
+                &json!({
+                    "should_execute": false,
+                    "mode": "blocked",
+                    "reason": "unknown_fetch_provider",
+                    "source": "early_validation"
+                }),
+                &json!({
+                    "blocked": false,
+                    "reason": "not_evaluated"
+                }),
+                &json!([]),
+                "none",
+                Some("unknown_fetch_provider")
+            ),
             "requested_provider": unknown_provider,
             "fetch_provider_catalog": fetch_provider_catalog_snapshot(root, &policy),
             "receipt": receipt
@@ -329,12 +338,12 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
             "requested_url": raw_requested_url,
             "resolved_url": resolved_url,
             "citation_redirect_resolved": redirect_resolved,
-            "provider": selected_provider,
+            "provider": selected_provider.clone(),
             "provider_hint": provider_hint,
-            "provider_chain": fetch_provider_chain,
+            "provider_chain": fetch_provider_chain.clone(),
             "provider_resolution": provider_resolution,
             "provider_health": provider_health_snapshot(root, &fetch_provider_chain),
-            "tool_surface_status": tool_surface_status,
+            "tool_surface_status": tool_surface_status.clone(),
             "tool_surface_ready": tool_surface_ready,
             "tool_surface_blocking_reason": tool_surface_blocking_reason,
             "tool_execution_attempted": false,
@@ -407,12 +416,12 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
             "requested_url": raw_requested_url,
             "resolved_url": resolved_url,
             "citation_redirect_resolved": redirect_resolved,
-            "provider": selected_provider,
+            "provider": selected_provider.clone(),
             "provider_hint": provider_hint,
-            "provider_chain": fetch_provider_chain,
+            "provider_chain": fetch_provider_chain.clone(),
             "provider_resolution": provider_resolution,
             "provider_health": provider_health_snapshot(root, &fetch_provider_chain),
-            "tool_surface_status": tool_surface_status,
+            "tool_surface_status": tool_surface_status.clone(),
             "tool_surface_ready": tool_surface_ready,
             "tool_surface_blocking_reason": tool_surface_blocking_reason,
             "tool_execution_attempted": false,
@@ -698,36 +707,91 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
             );
         }
         let _ = append_jsonl(&receipts_path(root), &receipt);
-        return json!({
-            "ok": false,
-            "error": preflight_error,
-            "type": "web_conduit_fetch",
-            "requested_url": raw_requested_url,
-            "resolved_url": resolved_url,
-            "citation_redirect_resolved": redirect_resolved,
-            "provider": selected_provider,
-            "provider_hint": provider_hint,
-            "provider_chain": fetch_provider_chain,
-            "provider_resolution": provider_resolution,
-            "provider_health": provider_health_snapshot(root, &fetch_provider_chain),
-            "tool_surface_status": tool_surface_status,
-            "tool_surface_ready": tool_surface_ready,
-            "tool_surface_blocking_reason": tool_surface_blocking_reason,
-            "tool_execution_attempted": false,
-            "tool_execution_gate": tool_execution_gate,
-            "meta_query_blocked": false,
-            "cache_status": "skipped_validation",
-            "cache_store_allowed": false,
-            "cache_write_attempted": false,
-            "cache_skip_reason": cache_skip_reason,
-            "replay_policy": replay_policy,
-            "replay_bypass": replay_bypass,
-            "attempt_replay_guard": attempt_replay_guard,
-            "attempt_signature": fetch_attempt_signature,
-            "summary": "Web fetch execution was blocked by runtime tooling gate before provider calls were attempted.",
-            "content": "",
-            "receipt": receipt
-        });
+        let mut out = serde_json::Map::<String, Value>::new();
+        out.insert("ok".to_string(), Value::Bool(false));
+        out.insert("error".to_string(), Value::String(preflight_error.to_string()));
+        out.insert(
+            "type".to_string(),
+            Value::String("web_conduit_fetch".to_string()),
+        );
+        out.insert(
+            "requested_url".to_string(),
+            Value::String(raw_requested_url.clone()),
+        );
+        out.insert("resolved_url".to_string(), Value::String(resolved_url.clone()));
+        out.insert(
+            "citation_redirect_resolved".to_string(),
+            Value::Bool(redirect_resolved),
+        );
+        out.insert(
+            "provider".to_string(),
+            Value::String(selected_provider.clone()),
+        );
+        out.insert(
+            "provider_hint".to_string(),
+            Value::String(provider_hint.clone()),
+        );
+        out.insert("provider_chain".to_string(), json!(fetch_provider_chain.clone()));
+        out.insert("provider_resolution".to_string(), provider_resolution);
+        out.insert(
+            "provider_health".to_string(),
+            provider_health_snapshot(root, &fetch_provider_chain),
+        );
+        out.insert(
+            "tool_surface_status".to_string(),
+            Value::String(tool_surface_status.clone()),
+        );
+        out.insert(
+            "tool_surface_ready".to_string(),
+            Value::Bool(tool_surface_ready),
+        );
+        out.insert(
+            "tool_surface_blocking_reason".to_string(),
+            Value::String(tool_surface_blocking_reason.clone()),
+        );
+        out.insert("tool_execution_attempted".to_string(), Value::Bool(false));
+        out.insert("tool_execution_gate".to_string(), tool_execution_gate.clone());
+        out.insert("meta_query_blocked".to_string(), Value::Bool(false));
+        out.insert(
+            "cache_status".to_string(),
+            Value::String("skipped_validation".to_string()),
+        );
+        out.insert("cache_store_allowed".to_string(), Value::Bool(false));
+        out.insert("cache_write_attempted".to_string(), Value::Bool(false));
+        out.insert(
+            "cache_skip_reason".to_string(),
+            Value::String(cache_skip_reason.to_string()),
+        );
+        out.insert("replay_policy".to_string(), replay_policy.clone());
+        out.insert("replay_bypass".to_string(), replay_bypass.clone());
+        out.insert("attempt_replay_guard".to_string(), attempt_replay_guard.clone());
+        out.insert(
+            "attempt_signature".to_string(),
+            Value::String(fetch_attempt_signature.clone()),
+        );
+        out.insert(
+            "process_summary".to_string(),
+            runtime_web_process_summary(
+                "web_fetch",
+                "preflight_blocked",
+                false,
+                &tool_execution_gate,
+                &attempt_replay_guard,
+                &json!(fetch_provider_chain.clone()),
+                &selected_provider,
+                Some(preflight_error),
+            ),
+        );
+        out.insert(
+            "summary".to_string(),
+            Value::String(
+                "Web fetch execution was blocked by runtime tooling gate before provider calls were attempted."
+                    .to_string(),
+            ),
+        );
+        out.insert("content".to_string(), Value::String(String::new()));
+        out.insert("receipt".to_string(), receipt);
+        return Value::Object(out);
     }
     if attempt_replay_blocked {
         let mut receipt = build_receipt(
@@ -759,42 +823,103 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
             );
         }
         let _ = append_jsonl(&receipts_path(root), &receipt);
-        return json!({
-            "ok": false,
-            "error": "web_fetch_duplicate_attempt_suppressed",
-            "type": "web_conduit_fetch",
-            "requested_url": raw_requested_url,
-            "resolved_url": resolved_url,
-            "citation_redirect_resolved": redirect_resolved,
-            "provider": selected_provider,
-            "provider_hint": provider_hint,
-            "provider_chain": fetch_provider_chain,
-            "provider_resolution": provider_resolution,
-            "provider_health": provider_health_snapshot(root, &fetch_provider_chain),
-            "tool_surface_status": tool_surface_status,
-            "tool_surface_ready": tool_surface_ready,
-            "tool_surface_blocking_reason": tool_surface_blocking_reason,
-            "tool_execution_attempted": false,
-            "tool_execution_gate": tool_execution_gate,
-            "meta_query_blocked": false,
-            "cache_status": "skipped_validation",
-            "cache_store_allowed": false,
-            "cache_write_attempted": false,
-            "cache_skip_reason": "replay_suppressed",
-            "replay_policy": replay_policy,
-            "replay_bypass": replay_bypass,
-            "attempt_replay_guard": attempt_replay_guard,
-            "attempt_signature": fetch_attempt_signature,
-            "retry": {
+        let mut out = serde_json::Map::<String, Value>::new();
+        out.insert("ok".to_string(), Value::Bool(false));
+        out.insert(
+            "error".to_string(),
+            Value::String("web_fetch_duplicate_attempt_suppressed".to_string()),
+        );
+        out.insert(
+            "type".to_string(),
+            Value::String("web_conduit_fetch".to_string()),
+        );
+        out.insert(
+            "requested_url".to_string(),
+            Value::String(raw_requested_url.clone()),
+        );
+        out.insert("resolved_url".to_string(), Value::String(resolved_url.clone()));
+        out.insert(
+            "citation_redirect_resolved".to_string(),
+            Value::Bool(redirect_resolved),
+        );
+        out.insert(
+            "provider".to_string(),
+            Value::String(selected_provider.clone()),
+        );
+        out.insert(
+            "provider_hint".to_string(),
+            Value::String(provider_hint.clone()),
+        );
+        out.insert("provider_chain".to_string(), json!(fetch_provider_chain.clone()));
+        out.insert("provider_resolution".to_string(), provider_resolution);
+        out.insert(
+            "provider_health".to_string(),
+            provider_health_snapshot(root, &fetch_provider_chain),
+        );
+        out.insert(
+            "tool_surface_status".to_string(),
+            Value::String(tool_surface_status.clone()),
+        );
+        out.insert(
+            "tool_surface_ready".to_string(),
+            Value::Bool(tool_surface_ready),
+        );
+        out.insert(
+            "tool_surface_blocking_reason".to_string(),
+            Value::String(tool_surface_blocking_reason.clone()),
+        );
+        out.insert("tool_execution_attempted".to_string(), Value::Bool(false));
+        out.insert("tool_execution_gate".to_string(), tool_execution_gate.clone());
+        out.insert("meta_query_blocked".to_string(), Value::Bool(false));
+        out.insert(
+            "cache_status".to_string(),
+            Value::String("skipped_validation".to_string()),
+        );
+        out.insert("cache_store_allowed".to_string(), Value::Bool(false));
+        out.insert("cache_write_attempted".to_string(), Value::Bool(false));
+        out.insert(
+            "cache_skip_reason".to_string(),
+            Value::String("replay_suppressed".to_string()),
+        );
+        out.insert("replay_policy".to_string(), replay_policy.clone());
+        out.insert("replay_bypass".to_string(), replay_bypass.clone());
+        out.insert("attempt_replay_guard".to_string(), attempt_replay_guard.clone());
+        out.insert(
+            "attempt_signature".to_string(),
+            Value::String(fetch_attempt_signature.clone()),
+        );
+        out.insert(
+            "retry".to_string(),
+            json!({
                 "recommended": true,
                 "strategy": "change_query_or_provider",
                 "lane": replay_retry_lane,
                 "retry_after_seconds": replay_retry_after_seconds
-            },
-            "summary": "Repeated identical web fetch attempts were suppressed by replay guard. Adjust URL or request parameters before retrying.",
-            "content": "",
-            "receipt": receipt
-        });
+            }),
+        );
+        out.insert(
+            "process_summary".to_string(),
+            runtime_web_process_summary(
+                "web_fetch",
+                "replay_suppressed",
+                false,
+                &tool_execution_gate,
+                &attempt_replay_guard,
+                &json!(fetch_provider_chain.clone()),
+                &selected_provider,
+                Some("web_fetch_duplicate_attempt_suppressed"),
+            ),
+        );
+        out.insert(
+            "summary".to_string(),
+            Value::String(
+                "Repeated identical web fetch attempts were suppressed by replay guard. Adjust URL or request parameters before retrying."
+                    .to_string(),
+            ),
+        );
+        out.insert("content".to_string(), Value::String(String::new()));
+        out.insert("receipt".to_string(), receipt);
+        return Value::Object(out);
     }
 
     let fetched = fetch_with_curl_retry(
@@ -977,56 +1102,143 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
     } else {
         json!(error_value)
     };
+    let fetch_process_summary = runtime_web_process_summary(
+        "web_fetch",
+        "provider_fetch_result",
+        true,
+        &tool_execution_gate,
+        &attempt_replay_guard,
+        &json!(fetch_provider_chain.clone()),
+        &selected_provider,
+        fetch_error.as_str(),
+    );
     let fetched_ssrf_guard = fetched.get("ssrf_guard").cloned().unwrap_or(ssrf_guard);
-    let mut out = json!({
-        "ok": fetch_ok,
-        "type": "web_conduit_fetch",
-        "requested_url": raw_requested_url,
-        "resolved_url": resolved_url,
-        "final_url": final_url,
-        "citation_redirect_resolved": redirect_resolved,
-        "provider": selected_provider,
-        "provider_hint": provider_hint,
-        "provider_chain": fetch_provider_chain,
-        "provider_resolution": provider_resolution,
-        "tool_surface_status": tool_surface_status,
-        "tool_surface_ready": tool_surface_ready,
-        "tool_surface_blocking_reason": tool_surface_blocking_reason,
-        "tool_execution_gate": tool_execution_gate,
-        "replay_policy": replay_policy,
-        "replay_bypass": replay_bypass,
-        "attempt_replay_guard": attempt_replay_guard,
-        "attempt_signature": fetch_attempt_signature,
-        "extractor": extractor,
-        "status_code": status_code,
-        "content_type": if content_type.is_empty() { Value::String(String::new()) } else { Value::String(content_type) },
-        "extract_mode": extract_mode,
-        "title": title.unwrap_or_default(),
-        "summary": summary,
-        "content": if summary_only { Value::String(String::new()) } else { Value::String(content.clone()) },
-        "content_truncated": content_truncated || wrapped_truncated,
-        "raw_length": raw_length,
-        "wrapped_length": wrapped_length,
-        "external_content": {
-            "untrusted": true,
-            "source": "web_fetch",
-            "wrapped": content_is_textual
-        },
-        "cache_status": "miss",
-        "retry_attempts": fetched.get("retry_attempts").cloned().unwrap_or_else(|| json!(1)),
-        "retry_used": fetched.get("retry_used").cloned().unwrap_or_else(|| json!(false)),
-        "redirect_count": fetched.get("redirect_count").cloned().unwrap_or_else(|| json!(0)),
-        "user_agent": fetched.get("user_agent").cloned().unwrap_or_else(|| json!(DEFAULT_WEB_USER_AGENTS[0])),
-        "accept_header": fetched.get("accept_header").cloned().unwrap_or_else(|| json!(FETCH_MARKDOWN_ACCEPT_HEADER)),
-        "x_markdown_tokens": fetched.get("x_markdown_tokens").cloned().unwrap_or(Value::Null),
-        "response_hash": response_hash,
-        "artifact": artifact.clone().unwrap_or(Value::Null),
-        "policy_decision": policy_eval,
-        "ssrf_guard": fetched_ssrf_guard,
-        "receipt": receipt,
-        "epistemic_object": epistemic_object,
-        "error": fetch_error
+    let content_type_value = if content_type.is_empty() {
+        Value::String(String::new())
+    } else {
+        Value::String(content_type)
+    };
+    let content_value = if summary_only {
+        Value::String(String::new())
+    } else {
+        Value::String(content.clone())
+    };
+    let external_content = json!({
+        "untrusted": true,
+        "source": "web_fetch",
+        "wrapped": content_is_textual,
+        "provider": selected_provider.clone(),
+        "provider_chain": fetch_provider_chain.clone(),
+        "tool_surface_status": tool_surface_status.clone()
     });
+    let mut out_obj = serde_json::Map::<String, Value>::new();
+    out_obj.insert("ok".to_string(), Value::Bool(fetch_ok));
+    out_obj.insert(
+        "type".to_string(),
+        Value::String("web_conduit_fetch".to_string()),
+    );
+    out_obj.insert(
+        "requested_url".to_string(),
+        Value::String(raw_requested_url.clone()),
+    );
+    out_obj.insert(
+        "resolved_url".to_string(),
+        Value::String(resolved_url.clone()),
+    );
+    out_obj.insert("final_url".to_string(), Value::String(final_url.clone()));
+    out_obj.insert(
+        "citation_redirect_resolved".to_string(),
+        Value::Bool(redirect_resolved),
+    );
+    out_obj.insert(
+        "provider".to_string(),
+        Value::String(selected_provider.clone()),
+    );
+    out_obj.insert(
+        "provider_hint".to_string(),
+        Value::String(provider_hint.clone()),
+    );
+    out_obj.insert("provider_chain".to_string(), json!(fetch_provider_chain.clone()));
+    out_obj.insert("provider_resolution".to_string(), provider_resolution.clone());
+    out_obj.insert(
+        "tool_surface_status".to_string(),
+        Value::String(tool_surface_status.clone()),
+    );
+    out_obj.insert(
+        "tool_surface_ready".to_string(),
+        Value::Bool(tool_surface_ready),
+    );
+    out_obj.insert(
+        "tool_surface_blocking_reason".to_string(),
+        Value::String(tool_surface_blocking_reason.clone()),
+    );
+    out_obj.insert("tool_execution_gate".to_string(), tool_execution_gate.clone());
+    out_obj.insert("replay_policy".to_string(), replay_policy.clone());
+    out_obj.insert("replay_bypass".to_string(), replay_bypass.clone());
+    out_obj.insert("attempt_replay_guard".to_string(), attempt_replay_guard.clone());
+    out_obj.insert(
+        "attempt_signature".to_string(),
+        Value::String(fetch_attempt_signature.clone()),
+    );
+    out_obj.insert("extractor".to_string(), Value::String(extractor.clone()));
+    out_obj.insert("status_code".to_string(), json!(status_code));
+    out_obj.insert("content_type".to_string(), content_type_value);
+    out_obj.insert("extract_mode".to_string(), Value::String(extract_mode.clone()));
+    out_obj.insert(
+        "title".to_string(),
+        Value::String(title.unwrap_or_default()),
+    );
+    out_obj.insert("summary".to_string(), Value::String(summary.clone()));
+    let mut out = Value::Object(out_obj);
+    if let Some(obj) = out.as_object_mut() {
+        obj.insert("content".to_string(), content_value);
+        obj.insert(
+            "content_truncated".to_string(),
+            Value::Bool(content_truncated || wrapped_truncated),
+        );
+        obj.insert("raw_length".to_string(), json!(raw_length));
+        obj.insert("wrapped_length".to_string(), json!(wrapped_length));
+        obj.insert("external_content".to_string(), external_content);
+        obj.insert("process_summary".to_string(), fetch_process_summary);
+        obj.insert("cache_status".to_string(), json!("miss"));
+        obj.insert(
+            "retry_attempts".to_string(),
+            fetched.get("retry_attempts").cloned().unwrap_or_else(|| json!(1)),
+        );
+        obj.insert(
+            "retry_used".to_string(),
+            fetched.get("retry_used").cloned().unwrap_or_else(|| json!(false)),
+        );
+        obj.insert(
+            "redirect_count".to_string(),
+            fetched.get("redirect_count").cloned().unwrap_or_else(|| json!(0)),
+        );
+        obj.insert(
+            "user_agent".to_string(),
+            fetched
+                .get("user_agent")
+                .cloned()
+                .unwrap_or_else(|| json!(DEFAULT_WEB_USER_AGENTS[0])),
+        );
+        obj.insert(
+            "accept_header".to_string(),
+            fetched
+                .get("accept_header")
+                .cloned()
+                .unwrap_or_else(|| json!(FETCH_MARKDOWN_ACCEPT_HEADER)),
+        );
+        obj.insert(
+            "x_markdown_tokens".to_string(),
+            fetched.get("x_markdown_tokens").cloned().unwrap_or(Value::Null),
+        );
+        obj.insert("response_hash".to_string(), json!(response_hash));
+        obj.insert("artifact".to_string(), artifact.unwrap_or(Value::Null));
+        obj.insert("policy_decision".to_string(), policy_eval);
+        obj.insert("ssrf_guard".to_string(), fetched_ssrf_guard);
+        obj.insert("receipt".to_string(), receipt);
+        obj.insert("epistemic_object".to_string(), epistemic_object);
+        obj.insert("error".to_string(), fetch_error);
+    }
     if !fetch_ok {
         if let Some(obj) = out.as_object_mut() {
             let current_error = obj.get("error").and_then(Value::as_str).unwrap_or("");

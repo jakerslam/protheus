@@ -99,10 +99,7 @@ fn source_coverage_normalizes_hidden_and_control_characters() {
     let source = "foundation_contract_gate.js\u{200B}\nscale_envelope_baseline.js\t";
     let receipt = evaluate_source_hook_coverage(
         CHECK_ID_FOUNDATION_HOOKS,
-        &[
-            "foundation_contract_gate.js",
-            "scale_envelope_baseline.js",
-        ],
+        &["foundation_contract_gate.js", "scale_envelope_baseline.js"],
         source,
     );
     assert!(receipt.ok);
@@ -127,4 +124,15 @@ fn required_completeness_normalizes_duplicate_and_hidden_tokens() {
     assert!(receipt.ok);
     assert!(!receipt.fail_closed);
     assert!(receipt.missing_hooks.is_empty());
+}
+
+#[test]
+fn source_coverage_fail_closes_on_unknown_check_id() {
+    let receipt = evaluate_source_hook_coverage(
+        "",
+        &["foundation_contract_gate.js", "scale_envelope_baseline.js"],
+        "foundation_contract_gate.js scale_envelope_baseline.js",
+    );
+    assert!(!receipt.ok);
+    assert!(receipt.fail_closed);
 }

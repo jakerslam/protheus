@@ -159,8 +159,10 @@
 
 /* Chat input — always pinned at bottom, premium compose area */
 .input-area {
+  --chat-input-side-transition: 190ms var(--ease-smooth);
+  --chat-input-size-transition: 220ms var(--ease-smooth);
   flex-shrink: 0;
-  padding: 12px 24px 16px;
+  padding: 12px 24px 0;
   border-top: none;
   background: transparent;
   display: flex;
@@ -231,7 +233,12 @@
   line-height: 1.5;
   position: relative;
   z-index: 2;
-  transition: color 0.2s var(--ease-smooth), background 0.2s;
+  transition:
+    color 0.2s var(--ease-smooth),
+    background 0.2s,
+    padding var(--chat-input-side-transition),
+    min-height var(--chat-input-size-transition),
+    max-height var(--chat-input-size-transition);
 }
 
 .input-area textarea:focus {
@@ -252,6 +259,10 @@
   position: relative;
   isolation: isolate;
   z-index: 6;
+  transition:
+    gap var(--chat-input-side-transition),
+    padding var(--chat-input-side-transition),
+    margin var(--chat-input-side-transition);
 }
 
 /* Bottom fade locks to the composer row itself (follows input box, not suggestions parent). */
@@ -276,6 +287,14 @@
 .input-row > * {
   position: relative;
   z-index: 1;
+  transition:
+    transform var(--chat-input-side-transition),
+    margin var(--chat-input-side-transition),
+    width var(--chat-input-size-transition),
+    min-width var(--chat-input-size-transition),
+    max-width var(--chat-input-size-transition),
+    flex-basis var(--chat-input-size-transition),
+    opacity var(--chat-input-side-transition);
 }
 
 .composer-shell {
@@ -298,6 +317,11 @@
   gap: 8px;
   width: 100%;
   min-width: 0;
+  transition:
+    gap var(--chat-input-side-transition),
+    transform var(--chat-input-side-transition),
+    padding var(--chat-input-side-transition),
+    margin var(--chat-input-side-transition);
 }
 
 .composer-input-pill,
@@ -306,7 +330,15 @@
   border-radius: 22px;
   background: var(--surface);
   box-shadow: -6px 0 12px -14px rgba(0, 0, 0, 0.32), 6px 0 12px -14px rgba(0, 0, 0, 0.32), 0 10px 18px -18px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.2);
-  transition: box-shadow 0.2s var(--ease-smooth), filter 0.2s var(--ease-smooth);
+  transition:
+    box-shadow 0.2s var(--ease-smooth),
+    filter 0.2s var(--ease-smooth),
+    transform var(--chat-input-side-transition),
+    width var(--chat-input-size-transition),
+    min-width var(--chat-input-size-transition),
+    max-width var(--chat-input-size-transition),
+    flex-basis var(--chat-input-size-transition),
+    margin var(--chat-input-side-transition);
 }
 
 .composer-input-pill {
@@ -464,6 +496,13 @@
   z-index: 3;
   height: 100%;
   min-height: 100%;
+  transition:
+    transform var(--chat-input-side-transition),
+    width var(--chat-input-size-transition),
+    min-width var(--chat-input-size-transition),
+    max-width var(--chat-input-size-transition),
+    margin var(--chat-input-side-transition),
+    opacity var(--chat-input-side-transition);
 }
 
 .composer-send-voice-opt {
@@ -591,6 +630,12 @@
   display: flex;
   min-width: 0;
   height: 100%;
+  transition:
+    transform var(--chat-input-side-transition),
+    width var(--chat-input-size-transition),
+    min-width var(--chat-input-size-transition),
+    max-width var(--chat-input-size-transition),
+    opacity var(--chat-input-side-transition);
 }
 
 .input-box-column-selectors {
@@ -615,6 +660,13 @@
   align-items: center;
   justify-content: flex-end;
   gap: 2px;
+  transition:
+    transform var(--chat-input-side-transition),
+    width var(--chat-input-size-transition),
+    min-width var(--chat-input-size-transition),
+    max-width var(--chat-input-size-transition),
+    gap var(--chat-input-side-transition),
+    opacity var(--chat-input-side-transition);
 }
 
 .input-box-selector-label {
@@ -725,6 +777,12 @@
   bottom: 7px;
   transform: none;
   z-index: 4;
+  transition:
+    right var(--chat-input-side-transition),
+    left var(--chat-input-side-transition),
+    bottom var(--chat-input-side-transition),
+    transform var(--chat-input-side-transition),
+    opacity var(--chat-input-side-transition);
 }
 
 .composer-hamburger-icon {
@@ -734,6 +792,11 @@
 
 .composer-plus-wrap {
   position: absolute;
+  transition:
+    right var(--chat-input-side-transition),
+    left var(--chat-input-side-transition),
+    transform var(--chat-input-side-transition),
+    opacity var(--chat-input-side-transition);
 }
 
 .composer-shell.system-thread-active .composer-plus-wrap {
@@ -749,6 +812,9 @@
   max-width: min(90vw, 360px);
   overflow: visible;
   z-index: 13060;
+  transition:
+    transform var(--chat-input-side-transition),
+    opacity var(--chat-input-side-transition);
 }
 
 .composer-plus-menu.dashboard-dropdown-surface {

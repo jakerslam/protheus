@@ -10,6 +10,7 @@ pub struct VaultKey {
 }
 
 const MAX_SEED_CHARS: usize = 256;
+const VAULT_FINGERPRINT_DOMAIN: &str = "infring.hybrid.security-vault.v1";
 
 fn strip_invisible_unicode(raw: &str) -> String {
     raw.chars()
@@ -38,7 +39,21 @@ fn sanitize_seed(seed: &str) -> String {
         .chars()
         .filter(|ch| !ch.is_control() || *ch == '\n' || *ch == '\t')
         .collect::<String>();
-    let trimmed = cleaned.trim();
+    let mut collapsed = String::new();
+    let mut previous_was_whitespace = false;
+    for ch in cleaned.chars() {
+        if ch.is_whitespace() {
+            if previous_was_whitespace {
+                continue;
+            }
+            previous_was_whitespace = true;
+            collapsed.push(' ');
+            continue;
+        }
+        previous_was_whitespace = false;
+        collapsed.push(ch);
+    }
+    let trimmed = collapsed.trim();
     if trimmed.is_empty() {
         "vault-seed".to_string()
     } else {
@@ -46,11 +61,18 @@ fn sanitize_seed(seed: &str) -> String {
     }
 }
 
+fn next_version(current_version: u32) -> u32 {
+    current_version.saturating_add(1)
+}
+
 pub fn rotate_key(seed: &str, current_version: u32) -> VaultKey {
-    let version = current_version.saturating_add(1);
+    let version = next_version(current_version);
     let normalized_seed = sanitize_seed(seed);
     let mut h = Sha256::new();
+    h.update(VAULT_FINGERPRINT_DOMAIN.as_bytes());
+    h.update([0u8]);
     h.update(normalized_seed.as_bytes());
+    h.update([0u8]);
     h.update(version.to_le_bytes());
     let digest = format!("{:x}", h.finalize());
     VaultKey {
@@ -119,6 +141,13 @@ mod tests {
     fn seed_sanitization_strips_hidden_or_control_chars() {
         let a = rotate_key("vault-seed", 7);
         let b = rotate_key("vault\u{200B}-seed\u{0000}", 7);
+        assert_eq!(a.fingerprint, b.fingerprint);
+    }
+
+    #[test]
+    fn seed_sanitization_normalizes_whitespace_runs() {
+        let a = rotate_key("vault seed", 7);
+        let b = rotate_key("  vault\n\tseed   ", 7);
         assert_eq!(a.fingerprint, b.fingerprint);
     }
 }

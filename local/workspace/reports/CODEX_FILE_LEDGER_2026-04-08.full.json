@@ -15094,7 +15094,7 @@
       "order": 1371
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer1/observability/src/main.rs",
       "language": "rs",
       "loc": 130,
@@ -15105,7 +15105,7 @@
       "order": 1372
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer1/storage/src/lib.rs",
       "language": "rs",
       "loc": 130,
@@ -15116,7 +15116,7 @@
       "order": 1373
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/vault/src/main.rs",
       "language": "rs",
       "loc": 128,
@@ -15127,7 +15127,7 @@
       "order": 1374
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/pinnacle/src/blob.rs",
       "language": "rs",
       "loc": 122,
@@ -15138,7 +15138,7 @@
       "order": 1375
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/pinnacle/src/main.rs",
       "language": "rs",
       "loc": 119,
@@ -15149,7 +15149,7 @@
       "order": 1376
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer1/update/src/lib.rs",
       "language": "rs",
       "loc": 116,
@@ -15160,7 +15160,7 @@
       "order": 1377
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer1/ipc/src/lib.rs",
       "language": "rs",
       "loc": 114,
@@ -15171,7 +15171,7 @@
       "order": 1378
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/graph/src/main.rs",
       "language": "rs",
       "loc": 102,
@@ -15182,7 +15182,7 @@
       "order": 1379
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer_minus_one/exotic_wrapper/src/lib.rs",
       "language": "rs",
       "loc": 98,
@@ -15193,7 +15193,7 @@
       "order": 1380
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/red_legion/src/blob.rs",
       "language": "rs",
       "loc": 96,
@@ -15204,7 +15204,7 @@
       "order": 1381
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/foundation_hook_enforcer/tests/invariants.rs",
       "language": "rs",
       "loc": 95,
@@ -15215,7 +15215,7 @@
       "order": 1382
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/graph/src/blob.rs",
       "language": "rs",
       "loc": 95,
@@ -15226,7 +15226,7 @@
       "order": 1383
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/mobile/src/blob.rs",
       "language": "rs",
       "loc": 84,
@@ -15237,7 +15237,7 @@
       "order": 1384
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/red_legion/src/main.rs",
       "language": "rs",
       "loc": 84,
@@ -15248,7 +15248,7 @@
       "order": 1385
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer1/observability/src/blob.rs",
       "language": "rs",
       "loc": 79,
@@ -15259,7 +15259,7 @@
       "order": 1386
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/vault/src/blob.rs",
       "language": "rs",
       "loc": 78,
@@ -15270,7 +15270,7 @@
       "order": 1387
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/alloc.rs",
       "language": "rs",
       "loc": 75,
@@ -15281,7 +15281,7 @@
       "order": 1388
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/fluxlattice/src/lib.rs",
       "language": "rs",
       "loc": 74,
@@ -15292,7 +15292,7 @@
       "order": 1389
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/mobile/src/main.rs",
       "language": "rs",
       "loc": 73,
@@ -15303,7 +15303,7 @@
       "order": 1390
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/burn_oracle_budget_gate/tests/invariants.rs",
       "language": "rs",
       "loc": 71,
@@ -15325,7 +15325,7 @@
       "order": 1392
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/legacy_rust_sources/settle/settler.rs",
       "language": "rs",
       "loc": 63,
@@ -15336,7 +15336,7 @@
       "order": 1393
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/desktop/src/lib.rs",
       "language": "rs",
       "loc": 59,
@@ -15347,7 +15347,7 @@
       "order": 1394
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer3/os_extension_wrapper/src/lib.rs",
       "language": "rs",
       "loc": 54,
@@ -15358,7 +15358,7 @@
       "order": 1395
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer1/isolation/src/lib.rs",
       "language": "rs",
       "loc": 47,
@@ -15369,7 +15369,7 @@
       "order": 1396
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/fluxlattice/src/main.rs",
       "language": "rs",
       "loc": 44,
@@ -15380,7 +15380,7 @@
       "order": 1397
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/desktop/src/main.rs",
       "language": "rs",
       "loc": 37,
@@ -15391,7 +15391,7 @@
       "order": 1398
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/guard_registry_contract_consumer/src/lib.rs",
       "language": "rs",
       "loc": 15,
@@ -15402,7 +15402,7 @@
       "order": 1399
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "core/layer0/guard_registry_contract_consumer/tests/invariants.rs",
       "language": "rs",
       "loc": 1,
@@ -15468,7 +15468,7 @@
       "order": 1405
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/continuity/resurrection_protocol.ts",
       "language": "ts",
       "loc": 129,
@@ -15479,7 +15479,7 @@
       "order": 1406
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/compat/legacy_alias_adapter.ts",
       "language": "ts",
       "loc": 120,
@@ -15490,7 +15490,7 @@
       "order": 1407
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/continuity/session_continuity_vault.ts",
       "language": "ts",
       "loc": 107,
@@ -15501,7 +15501,7 @@
       "order": 1408
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/fractal/child_organ_runtime.ts",
       "language": "ts",
       "loc": 96,
@@ -15534,7 +15534,7 @@
       "order": 1411
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/continuity/resurrection_protocol/tests/resurrection_protocol.spec.ts",
       "language": "ts",
       "loc": 41,
@@ -15545,7 +15545,7 @@
       "order": 1412
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/continuity/session_continuity_vault/tests/session_continuity_vault.spec.ts",
       "language": "ts",
       "loc": 41,
@@ -15556,7 +15556,7 @@
       "order": 1413
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/fractal/child_organ_runtime/tests/child_organ_runtime.spec.ts",
       "language": "ts",
       "loc": 41,
@@ -15567,7 +15567,7 @@
       "order": 1414
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "adapters/economy/smart_contract_bridge.ts",
       "language": "ts",
       "loc": 39,
@@ -15578,7 +15578,7 @@
       "order": 1415
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/nursery/nursery_bootstrap.ts",
       "language": "ts",
       "loc": 37,
@@ -15589,7 +15589,7 @@
       "order": 1416
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/nursery/specialist_training.ts",
       "language": "ts",
       "loc": 37,
@@ -15600,7 +15600,7 @@
       "order": 1417
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/workflow/shannon_desktop_shell.ts",
       "language": "ts",
       "loc": 34,
@@ -15688,7 +15688,7 @@
       "order": 1425
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/actuation/disposable_infrastructure_organ.ts",
       "language": "ts",
       "loc": 29,
@@ -15699,7 +15699,7 @@
       "order": 1426
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/actuation/real_world_claws_bundle.ts",
       "language": "ts",
       "loc": 29,
@@ -15721,7 +15721,7 @@
       "order": 1428
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/actuation/universal_execution_primitive.ts",
       "language": "ts",
       "loc": 29,
@@ -15732,7 +15732,7 @@
       "order": 1429
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/autogenesis/trace_habit_autogenesis.ts",
       "language": "ts",
       "loc": 29,
@@ -15743,7 +15743,7 @@
       "order": 1430
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/autogenesis/trace_habit_loop.ts",
       "language": "ts",
       "loc": 29,
@@ -15754,7 +15754,7 @@
       "order": 1431
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/blockchain/sovereign_blockchain_bridge.ts",
       "language": "ts",
       "loc": 29,
@@ -15765,7 +15765,7 @@
       "order": 1432
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/budget/capital_allocation_organ.ts",
       "language": "ts",
       "loc": 29,
@@ -15776,7 +15776,7 @@
       "order": 1433
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/continuity/sovereign_resurrection_substrate.ts",
       "language": "ts",
       "loc": 29,
@@ -15787,7 +15787,7 @@
       "order": 1434
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/echo/value_anchor_renewal.ts",
       "language": "ts",
       "loc": 29,
@@ -15798,7 +15798,7 @@
       "order": 1435
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/execution/task_decomposition_primitive.ts",
       "language": "ts",
       "loc": 29,
@@ -15809,7 +15809,7 @@
       "order": 1436
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/finance/economic_entity_manager.ts",
       "language": "ts",
       "loc": 29,
@@ -15820,7 +15820,7 @@
       "order": 1437
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/forge/forge_organ.ts",
       "language": "ts",
       "loc": 29,
@@ -15831,7 +15831,7 @@
       "order": 1438
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/fractal/mini_core_instancer.ts",
       "language": "ts",
       "loc": 29,
@@ -15842,7 +15842,7 @@
       "order": 1439
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/fractal/morph_planner.ts",
       "language": "ts",
       "loc": 29,
@@ -15853,7 +15853,7 @@
       "order": 1440
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/fractal/organism_cycle.ts",
       "language": "ts",
       "loc": 29,
@@ -15864,7 +15864,7 @@
       "order": 1441
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/fractal/regime_organ.ts",
       "language": "ts",
       "loc": 29,
@@ -15875,7 +15875,7 @@
       "order": 1442
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/fractal/symbiotic_fusion_chamber.ts",
       "language": "ts",
       "loc": 29,
@@ -15886,7 +15886,7 @@
       "order": 1443
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/fractal/warden/complexity_warden_meta_organ.ts",
       "language": "ts",
       "loc": 29,
@@ -15908,7 +15908,7 @@
       "order": 1445
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/hardware/compression_transfer_plane.ts",
       "language": "ts",
       "loc": 29,
@@ -15919,7 +15919,7 @@
       "order": 1446
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/hardware/embodiment_layer.ts",
       "language": "ts",
       "loc": 29,
@@ -15930,7 +15930,7 @@
       "order": 1447
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/hardware/surface_budget_controller.ts",
       "language": "ts",
       "loc": 29,
@@ -15941,7 +15941,7 @@
       "order": 1448
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/helix/confirmed_malice_quarantine.ts",
       "language": "ts",
       "loc": 29,
@@ -15952,7 +15952,7 @@
       "order": 1449
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/helix/helix_admission_gate.ts",
       "language": "ts",
       "loc": 29,
@@ -15963,7 +15963,7 @@
       "order": 1450
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/hybrid/mobile/protheus_mobile_adapter.ts",
       "language": "ts",
       "loc": 29,
@@ -15974,7 +15974,7 @@
       "order": 1451
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/migration/post_migration_verification_report.ts",
       "language": "ts",
       "loc": 29,
@@ -15985,7 +15985,7 @@
       "order": 1452
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/migration/self_healing_migration_daemon.ts",
       "language": "ts",
       "loc": 29,
@@ -15996,7 +15996,7 @@
       "order": 1453
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/observability/metrics_exporter.ts",
       "language": "ts",
       "loc": 29,
@@ -16007,7 +16007,7 @@
       "order": 1454
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/observability/siem_bridge.ts",
       "language": "ts",
       "loc": 29,
@@ -16018,7 +16018,7 @@
       "order": 1455
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/observability/slo_alert_router.ts",
       "language": "ts",
       "loc": 29,
@@ -16029,7 +16029,7 @@
       "order": 1456
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/obsidian/obsidian_bridge.ts",
       "language": "ts",
       "loc": 29,
@@ -16051,7 +16051,7 @@
       "order": 1458
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/personas/shadow_cli.ts",
       "language": "ts",
       "loc": 29,
@@ -16128,7 +16128,7 @@
       "order": 1465
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/routing/route_execute.ts",
       "language": "ts",
       "loc": 29,
@@ -16139,7 +16139,7 @@
       "order": 1466
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/routing/route_task.ts",
       "language": "ts",
       "loc": 29,
@@ -16150,7 +16150,7 @@
       "order": 1467
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/science/experiment_scheduler.ts",
       "language": "ts",
       "loc": 29,
@@ -16161,7 +16161,7 @@
       "order": 1468
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/science/hypothesis_forge.ts",
       "language": "ts",
       "loc": 29,
@@ -16172,7 +16172,7 @@
       "order": 1469
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/science/meta_science_active_learning_loop.ts",
       "language": "ts",
       "loc": 29,
@@ -16183,7 +16183,7 @@
       "order": 1470
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/science/scientific_method_loop.ts",
       "language": "ts",
       "loc": 29,
@@ -16194,7 +16194,7 @@
       "order": 1471
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/science/scientific_mode_v4.ts",
       "language": "ts",
       "loc": 29,
@@ -16205,7 +16205,7 @@
       "order": 1472
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/self_audit/illusion_integrity_lane.ts",
       "language": "ts",
       "loc": 29,
@@ -16216,7 +16216,7 @@
       "order": 1473
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/soul/soul_continuity_adapter.ts",
       "language": "ts",
       "loc": 29,
@@ -16227,7 +16227,7 @@
       "order": 1474
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/soul/soul_print_manager.ts",
       "language": "ts",
       "loc": 29,
@@ -16238,7 +16238,7 @@
       "order": 1475
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/state/event_stream.ts",
       "language": "ts",
       "loc": 29,
@@ -16249,7 +16249,7 @@
       "order": 1476
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/storm/creator_optin_ledger.ts",
       "language": "ts",
       "loc": 29,
@@ -16260,7 +16260,7 @@
       "order": 1477
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/storm/storm_value_distribution.ts",
       "language": "ts",
       "loc": 29,
@@ -16271,7 +16271,7 @@
       "order": 1478
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/strategy/strategy_learner.ts",
       "language": "ts",
       "loc": 29,
@@ -16282,7 +16282,7 @@
       "order": 1479
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/symbiosis/deep_symbiosis_understanding_layer.ts",
       "language": "ts",
       "loc": 29,
@@ -16293,7 +16293,7 @@
       "order": 1480
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/symbiosis/pre_neuralink_interface.ts",
       "language": "ts",
       "loc": 29,
@@ -16315,7 +16315,7 @@
       "order": 1482
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/weaver/drift_aware_revenue_optimizer.ts",
       "language": "ts",
       "loc": 29,
@@ -16326,7 +16326,7 @@
       "order": 1483
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/workflow/client_relationship_manager.ts",
       "language": "ts",
       "loc": 29,
@@ -16337,7 +16337,7 @@
       "order": 1484
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/workflow/gated_account_creation_organ.ts",
       "language": "ts",
       "loc": 29,
@@ -16359,7 +16359,7 @@
       "order": 1486
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/workflow/payment_skills_bridge.ts",
       "language": "ts",
       "loc": 29,
@@ -16370,7 +16370,7 @@
       "order": 1487
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/workflow/universal_outreach_primitive.ts",
       "language": "ts",
       "loc": 29,
@@ -16381,7 +16381,7 @@
       "order": 1488
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/platform/api/donate_gpu.ts",
       "language": "ts",
       "loc": 28,
@@ -16447,7 +16447,7 @@
       "order": 1494
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "adapters/polyglot/semantic_kernel_dotnet_bridge.ts",
       "language": "ts",
       "loc": 22,
@@ -16491,7 +16491,7 @@
       "order": 1498
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/platform/export_cli.ts",
       "language": "ts",
       "loc": 18,
@@ -16502,7 +16502,7 @@
       "order": 1499
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/spine/contract_check.ts",
       "language": "ts",
       "loc": 13,
@@ -16513,7 +16513,7 @@
       "order": 1500
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/adaptive/core/layer_store.ts",
       "language": "ts",
       "loc": 8,
@@ -16524,7 +16524,7 @@
       "order": 1501
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/adaptive/habits/habit_store.ts",
       "language": "ts",
       "loc": 8,
@@ -16535,7 +16535,7 @@
       "order": 1502
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/adaptive/reflex/reflex_store.ts",
       "language": "ts",
       "loc": 8,
@@ -16546,7 +16546,7 @@
       "order": 1503
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/adaptive/sensory/eyes/catalog_store.ts",
       "language": "ts",
       "loc": 8,
@@ -16557,7 +16557,7 @@
       "order": 1504
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/adaptive/sensory/eyes/focus_trigger_store.ts",
       "language": "ts",
       "loc": 8,
@@ -16568,7 +16568,7 @@
       "order": 1505
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/adaptive/strategy/strategy_store.ts",
       "language": "ts",
       "loc": 6,
@@ -16579,7 +16579,7 @@
       "order": 1506
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/actuation/full_virtual_desktop_claw_lane.ts",
       "language": "ts",
       "loc": 3,
@@ -16590,7 +16590,7 @@
       "order": 1507
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/finance/agent_settlement_extension.ts",
       "language": "ts",
       "loc": 3,
@@ -16601,7 +16601,7 @@
       "order": 1508
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/hardware/opportunistic_offload_plane.ts",
       "language": "ts",
       "loc": 3,
@@ -16612,7 +16612,7 @@
       "order": 1509
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/helix/helix_controller.ts",
       "language": "ts",
       "loc": 3,
@@ -16623,7 +16623,7 @@
       "order": 1510
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/primitives/cognitive_control_primitive.ts",
       "language": "ts",
       "loc": 3,
@@ -16645,7 +16645,7 @@
       "order": 1512
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/primitives/explanation_primitive.ts",
       "language": "ts",
       "loc": 3,
@@ -16656,7 +16656,7 @@
       "order": 1513
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/primitives/interactive_desktop_session_primitive.ts",
       "language": "ts",
       "loc": 3,
@@ -16667,7 +16667,7 @@
       "order": 1514
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/primitives/iterative_repair_primitive.ts",
       "language": "ts",
       "loc": 3,
@@ -16678,7 +16678,7 @@
       "order": 1515
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/redteam/ant_colony_controller.ts",
       "language": "ts",
       "loc": 3,
@@ -16689,7 +16689,7 @@
       "order": 1516
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/symbiosis/neural_dormant_seed.ts",
       "language": "ts",
       "loc": 3,
@@ -16700,7 +16700,7 @@
       "order": 1517
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/workflow/account_creation_profile_extension.ts",
       "language": "ts",
       "loc": 3,
@@ -16744,7 +16744,7 @@
       "order": 1521
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/workflow/dspy_bridge.ts",
       "language": "ts",
       "loc": 3,
@@ -16755,7 +16755,7 @@
       "order": 1522
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/workflow/google_adk_bridge.ts",
       "language": "ts",
       "loc": 3,
@@ -16766,7 +16766,7 @@
       "order": 1523
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/workflow/haystack_bridge.ts",
       "language": "ts",
       "loc": 3,
@@ -16777,7 +16777,7 @@
       "order": 1524
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/workflow/llamaindex_bridge.ts",
       "language": "ts",
       "loc": 3,
@@ -16788,7 +16788,7 @@
       "order": 1525
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/workflow/mastra_bridge.ts",
       "language": "ts",
       "loc": 3,
@@ -16799,7 +16799,7 @@
       "order": 1526
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/workflow/metagpt_bridge.ts",
       "language": "ts",
       "loc": 3,
@@ -16810,7 +16810,7 @@
       "order": 1527
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/workflow/pydantic_ai_bridge.ts",
       "language": "ts",
       "loc": 3,
@@ -16821,7 +16821,7 @@
       "order": 1528
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/workflow/semantic_kernel_bridge.ts",
       "language": "ts",
       "loc": 3,
@@ -16832,7 +16832,7 @@
       "order": 1529
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/workflow/shannon_bridge.ts",
       "language": "ts",
       "loc": 3,
@@ -16843,7 +16843,7 @@
       "order": 1530
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/workflow/workflow_chain_bridge.ts",
       "language": "ts",
       "loc": 3,
@@ -16854,7 +16854,7 @@
       "order": 1531
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/workflow/workflow_graph_bridge.ts",
       "language": "ts",
       "loc": 3,
@@ -16898,7 +16898,7 @@
       "order": 1535
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "packages/lensmap/lensmap_cli.ts",
       "language": "ts",
       "loc": 169,
@@ -16909,7 +16909,7 @@
       "order": 1536
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "packages/protheus-edge/index.ts",
       "language": "ts",
       "loc": 145,
@@ -16920,7 +16920,7 @@
       "order": 1537
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "packages/protheus-npm/scripts/install.ts",
       "language": "ts",
       "loc": 145,
@@ -16953,7 +16953,7 @@
       "order": 1540
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "packages/protheus-core/index.ts",
       "language": "ts",
       "loc": 122,
@@ -16964,7 +16964,7 @@
       "order": 1541
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "packages/protheus-npm/bin/protheus.ts",
       "language": "ts",
       "loc": 95,
@@ -16975,7 +16975,7 @@
       "order": 1542
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "adapters/importers/generic_yaml_importer.ts",
       "language": "ts",
       "loc": 92,
@@ -16986,7 +16986,7 @@
       "order": 1543
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "adapters/importers/infring_importer.ts",
       "language": "ts",
       "loc": 66,
@@ -16997,7 +16997,7 @@
       "order": 1544
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "adapters/importers/workflow_graph_importer.ts",
       "language": "ts",
       "loc": 66,
@@ -17008,7 +17008,7 @@
       "order": 1545
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "adapters/importers/generic_json_importer.ts",
       "language": "ts",
       "loc": 65,
@@ -17019,7 +17019,7 @@
       "order": 1546
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "packages/protheus-core/core_profile_contract.ts",
       "language": "ts",
       "loc": 52,
@@ -17030,7 +17030,7 @@
       "order": 1547
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "packages/protheus-npm/scripts/smoke.ts",
       "language": "ts",
       "loc": 42,
@@ -17107,7 +17107,7 @@
       "order": 1554
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "adapters/cognition/skills/imap-smtp-email/scripts/imap.ts",
       "language": "ts",
       "loc": 9,
@@ -17118,7 +17118,7 @@
       "order": 1555
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "adapters/cognition/skills/imap-smtp-email/scripts/smtp.ts",
       "language": "ts",
       "loc": 9,
@@ -17162,7 +17162,7 @@
       "order": 1559
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "adapters/cognition/skills/moltstack/scripts/publish.ts",
       "language": "ts",
       "loc": 9,
@@ -17173,7 +17173,7 @@
       "order": 1560
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "adapters/cognition/skills/moltstack/scripts/quality-check.ts",
       "language": "ts",
       "loc": 9,
@@ -17184,7 +17184,7 @@
       "order": 1561
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "adapters/protocol/wasm_adapter_skeleton/src/lib.rs",
       "language": "rs",
       "loc": 24,
@@ -17272,7 +17272,7 @@
       "order": 1569
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/agent_ws_bridge.ts",
       "language": "ts",
       "loc": 378,
@@ -20011,7 +20011,7 @@
       "order": 1818
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/vendor/highlight.min.ts",
       "language": "ts",
       "loc": 1244,
@@ -20259,7 +20259,7 @@
       "order": 1840
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_dashboard.ts",
       "language": "ts",
       "loc": 489,
@@ -20821,7 +20821,7 @@
       "order": 1890
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/usage.ts",
       "language": "ts",
       "loc": 289,
@@ -20865,7 +20865,7 @@
       "order": 1894
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/logs.ts",
       "language": "ts",
       "loc": 263,
@@ -20931,7 +20931,7 @@
       "order": 1900
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/dashboard_asset_router.ts",
       "language": "ts",
       "loc": 244,
@@ -21094,7 +21094,7 @@
       "order": 1914
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/comms.ts",
       "language": "ts",
       "loc": 201,
@@ -21336,7 +21336,7 @@
       "order": 1936
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/hands.ts.parts/030-actions-and-sync.ts",
       "language": "ts",
       "loc": 155,
@@ -21380,7 +21380,7 @@
       "order": 1940
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/sessions.ts",
       "language": "ts",
       "loc": 147,
@@ -21512,7 +21512,7 @@
       "order": 1952
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/workflows.ts",
       "language": "ts",
       "loc": 132,
@@ -21710,7 +21710,7 @@
       "order": 1970
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/eyes.ts",
       "language": "ts",
       "loc": 114,
@@ -22106,7 +22106,7 @@
       "order": 2006
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/runtime.ts",
       "language": "ts",
       "loc": 77,
@@ -22153,7 +22153,7 @@
       "notes": "OPENCLAW-TOOLING-CHAT-003 deduped repeated phase updates for cleaner live tool streaming."
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/vendor/marked.min.ts",
       "language": "ts",
       "loc": 69,
@@ -22164,7 +22164,7 @@
       "order": 2011
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/approvals.ts",
       "language": "ts",
       "loc": 66,
@@ -22186,7 +22186,7 @@
       "order": 2013
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/180-map-navigation.part02.ts",
       "language": "ts",
       "loc": 63,
@@ -22626,7 +22626,7 @@
       "order": 2053
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/vendor/chart.umd.min.ts",
       "language": "ts",
       "loc": 20,
@@ -22681,7 +22681,7 @@
       "order": 2058
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/dashboard_sveltekit/src/lib/runtime.ts",
       "language": "ts",
       "loc": 15,
@@ -22824,7 +22824,7 @@
       "order": 2071
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/dashboard_sveltekit/vite.config.ts",
       "language": "ts",
       "loc": 9,
@@ -31536,7 +31536,7 @@
       "order": 2863
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/dashboard_sveltekit/src/app.d.ts",
       "language": "ts",
       "loc": 6,
@@ -31547,7 +31547,7 @@
       "order": 2864
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/dashboard_sveltekit/src/routes/+layout.ts",
       "language": "ts",
       "loc": 5,
@@ -31558,7 +31558,7 @@
       "order": 2865
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/vendor/alpine.min.ts",
       "language": "ts",
       "loc": 5,
@@ -31569,7 +31569,7 @@
       "order": 2866
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/sw.ts",
       "language": "ts",
       "loc": 3,
@@ -31580,7 +31580,7 @@
       "order": 2867
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/app.ts",
       "language": "ts",
       "loc": 1,
@@ -31591,7 +31591,7 @@
       "order": 2868
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/agents.ts",
       "language": "ts",
       "loc": 1,
@@ -31602,7 +31602,7 @@
       "order": 2869
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/chat.ts",
       "language": "ts",
       "loc": 1,
@@ -31613,7 +31613,7 @@
       "order": 2870
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/hands.ts",
       "language": "ts",
       "loc": 1,
@@ -31624,7 +31624,7 @@
       "order": 2871
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/settings.ts",
       "language": "ts",
       "loc": 1,
@@ -31635,7 +31635,7 @@
       "order": 2872
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/wizard.ts",
       "language": "ts",
       "loc": 1,
@@ -31646,7 +31646,7 @@
       "order": 2873
     },
     {
-      "status": "queued",
+      "status": "done",
       "file": "client/runtime/systems/ui/infring_static/js/pages/workflow-builder.ts",
       "language": "ts",
       "loc": 1,

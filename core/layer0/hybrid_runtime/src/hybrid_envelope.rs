@@ -8,6 +8,26 @@ fn normalize_completed_lanes(completed_lanes: usize) -> (usize, bool) {
     (normalized, normalized != completed_lanes)
 }
 
+fn evaluate_envelope_contract(
+    within_target: bool,
+    remaining_lanes: usize,
+    clamped_completed_lanes: bool,
+) -> (bool, bool, bool, &'static str) {
+    let should_warn = !within_target || remaining_lanes > 0;
+    let should_block = clamped_completed_lanes;
+    let strict_ok = !should_block;
+    let reason = if clamped_completed_lanes {
+        "completed_lanes_clamped"
+    } else if !within_target {
+        "outside_target_band"
+    } else if remaining_lanes > 0 {
+        "target_lanes_incomplete"
+    } else {
+        "envelope_contract_ok"
+    };
+    (strict_ok, should_warn, should_block, reason)
+}
+
 pub fn build_envelope(within_target: bool, completed_lanes: usize) -> serde_json::Value {
     let (safe_completed_lanes, clamped_completed_lanes) = normalize_completed_lanes(completed_lanes);
     let status = if safe_completed_lanes >= TARGET_READY_LANES && within_target {
@@ -25,9 +45,11 @@ pub fn build_envelope(within_target: bool, completed_lanes: usize) -> serde_json
         "continue_incremental_rust_cutovers"
     };
     let remaining_lanes = TARGET_READY_LANES.saturating_sub(safe_completed_lanes);
+    let (strict_ok, should_warn, should_block, contract_reason) =
+        evaluate_envelope_contract(within_target, remaining_lanes, clamped_completed_lanes);
 
     json!({
-        "ok": true,
+        "ok": strict_ok,
         "lane": "V5-RUST-HYB-010",
         "completed_lanes": safe_completed_lanes,
         "completed_lanes_clamped": clamped_completed_lanes,
@@ -36,6 +58,12 @@ pub fn build_envelope(within_target: bool, completed_lanes: usize) -> serde_json
         "within_target": within_target,
         "status": status,
         "action": action,
+        "contract": {
+            "strict_ok": strict_ok,
+            "reason": contract_reason,
+            "should_warn": should_warn,
+            "should_block": should_block
+        },
         "enforcement_mode": if within_target { "strict" } else { "degraded" },
         "guardrails": [
             "keep_ts_for_operator_surfaces",
@@ -71,5 +99,6 @@ mod tests {
             v.get("completed_lanes_clamped").and_then(|x| x.as_bool()),
             Some(true)
         );
+        assert_eq!(v.get("ok").and_then(|x| x.as_bool()), Some(false));
     }
 }

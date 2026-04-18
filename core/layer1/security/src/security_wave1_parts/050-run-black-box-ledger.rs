@@ -39,6 +39,15 @@ fn verify_black_box_export(export_path: &Path) -> Result<Value, String> {
             .get("entry_hash")
             .and_then(Value::as_str)
             .unwrap_or_default();
+        if seq == 0 {
+            return Err("offline_seq_invalid:seq=0".to_string());
+        }
+        if seq != last_seq + 1 {
+            return Err(format!("offline_seq_gap_or_reorder:seq={seq}:last_seq={last_seq}"));
+        }
+        if ts.is_empty() || actor.is_empty() || action.is_empty() || source.is_empty() {
+            return Err(format!("offline_required_field_missing:seq={seq}"));
+        }
         if stored_prev != prev_hash {
             return Err(format!("offline_prev_hash_mismatch:seq={seq}"));
         }
@@ -46,6 +55,9 @@ fn verify_black_box_export(export_path: &Path) -> Result<Value, String> {
             .get("ciphertext_digest")
             .and_then(Value::as_str)
             .unwrap_or_default();
+        if ciphertext_digest.is_empty() {
+            return Err(format!("offline_ciphertext_digest_missing:seq={seq}"));
+        }
         let calc_signature = sha256_hex(&format!(
             "{ts}|{actor}|{action}|{source}|{stored_prev}|{ciphertext_digest}"
         ));

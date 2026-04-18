@@ -37,7 +37,7 @@
             </div>
           </div>
           <div class="taskbar-reorder-item" data-taskbar-item="theme" :style="taskbarReorderItemStyle('right', 'theme')" draggable="true">
-            <div class="theme-switcher icon-pill-toggle" :data-mode="themeMode" :data-resolved="theme">
+            <div class="theme-switcher toggle-pill" :data-mode="themeMode" :data-resolved="theme">
               <button class="theme-opt" :class="{ active: themeMode === 'light' }" @click="setTheme('light')" title="Light" aria-label="Light theme">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <circle cx="12" cy="12" r="4"></circle>
@@ -73,7 +73,7 @@
                 </svg>
                 <span class="notif-badge" x-show="$store.app.unreadNotifications > 0" x-text="$store.app.unreadNotifications > 99 ? '99+' : $store.app.unreadNotifications"></span>
               </button>
-              <div class="notif-dropdown dashboard-dropdown-surface" :class="taskbarAnchoredDropdownClass($refs.taskbarNotifAnchor, 'bottom')" x-show="$store.app.notificationsOpen" x-transition:enter="transition ease-out duration-120" x-transition:enter-start="opacity-0 transform translate-y-1" x-transition:enter-end="opacity-100 transform translate-y-0">
+              <infring-taskbar-menu-shell class="notif-dropdown dashboard-dropdown-surface" :class="taskbarAnchoredDropdownClass($refs.taskbarNotifAnchor, 'bottom')" x-show="$store.app.notificationsOpen" x-transition:enter="transition ease-out duration-120" x-transition:enter-start="opacity-0 transform translate-y-1" x-transition:enter-end="opacity-100 transform translate-y-0">
                 <div class="notif-dropdown-head dashboard-dropdown-header">
                   <span>Notifications</span>
                   <button class="notif-clear-btn" @click="$store.app.clearNotifications()">Clear</button>
@@ -98,7 +98,7 @@
                     </div>
                   </template>
                 </div>
-              </div>
+              </infring-taskbar-menu-shell>
               <div class="notif-bubble" x-show="$store.app.notificationBubble" x-transition:enter="transition ease-out duration-160" x-transition:enter-start="opacity-0 transform translate-y-2" x-transition:enter-end="opacity-100 transform translate-y-0" x-transition:leave="transition ease-in duration-120" x-transition:leave-start="opacity-100 transform translate-y-0" x-transition:leave-end="opacity-0 transform translate-y-2">
                 <div class="notif-bubble-head">
                   <span class="notif-item-dot" :class="'type-' + (($store.app.notificationBubble && $store.app.notificationBubble.type) || 'info')"></span>
@@ -167,7 +167,7 @@
       x-transition:leave-end="opacity-0 transform -translate-y-2"
       @keydown.escape.window="$store.app.closeTaskbarSearch()"
     >
-      <div class="taskbar-search-popup dashboard-popup-surface dashboard-popup-surface--interactive" :class="{ 'is-active': !!$store.app.taskbarSearchOpen }" @click.outside="$store.app.closeTaskbarSearch()">
+      <infring-popup-window-shell class="taskbar-search-popup dashboard-popup-surface dashboard-popup-surface--interactive" :class="{ 'is-active': !!$store.app.taskbarSearchOpen }" @click.outside="$store.app.closeTaskbarSearch()">
         <span class="taskbar-search-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="11" cy="11" r="6"></circle>
@@ -184,7 +184,7 @@
           spellcheck="false"
           aria-label="Search"
         />
-      </div>
+      </infring-popup-window-shell>
     </div>
     <infring-popup-window-shell
       class="popup-window popup-window-manual drag-bar"

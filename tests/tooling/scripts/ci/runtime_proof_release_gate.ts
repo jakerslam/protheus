@@ -39,6 +39,9 @@ type ProfileGatePolicy = {
     meta_status_tool_leak_max: number;
     web_missing_tool_attempt_max: number;
     taxonomy_parse_error_max: number;
+    denied_actions_max: number;
+    pause_reason_events_max: number;
+    merkle_chain_continuity_failures_max: number;
   };
 };
 
@@ -112,6 +115,11 @@ function parseArgs(argv: string[]) {
       readFlag(argv, 'quality') || 'artifacts/web_tooling_context_soak_report_latest.json',
       400,
     ),
+    runtimeLaneStatePath: cleanText(
+      readFlag(argv, 'runtime-lane-state') ||
+        'local/state/infring_agent_surface/runtime_lane_state.json',
+      400,
+    ),
     tableOutPath: cleanText(
       readFlag(argv, 'table-out') || 'local/workspace/reports/RUNTIME_PROOF_RELEASE_GATE_CURRENT.md',
       400,
@@ -175,6 +183,9 @@ function parsePolicyYaml(raw: string): ParsedPolicy {
             meta_status_tool_leak_max: 0,
             web_missing_tool_attempt_max: 0,
             taxonomy_parse_error_max: 0,
+            denied_actions_max: 0,
+            pause_reason_events_max: 0,
+            merkle_chain_continuity_failures_max: 0,
           },
         };
       }
@@ -491,6 +502,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   const harness = readJson(harnessAbsolutePath);
   const adapterChaos = readJson(adapterChaosAbsolutePath);
   const qualityRaw = readJsonBestEffort(path.resolve(root, args.qualityPath));
+  const runtimeLaneStateRaw = readJsonBestEffort(path.resolve(root, args.runtimeLaneStatePath));
   const metrics = harness?.metrics || {};
   const adapterChaosMetrics = adapterChaos?.metrics || {};
   const adapterRatioInputs = (() => {
@@ -537,6 +549,16 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   const qualityTaxonomy = qualityRaw.payload?.taxonomy || { parse_error: 'taxonomy_missing' };
   const qualityParseError =
     !qualityRaw.ok || cleanText(qualityTaxonomy.parse_error || '', 120).length > 0 ? 1 : 0;
+  const runtimeLaneCounters = runtimeLaneStateRaw.payload?.release_gate_counters || {};
+  const runtimeLanePauseCounts = runtimeLaneCounters.pause_reason_counts || {};
+  const runtimeLanePauseReasonsTotal = Number(
+    runtimeLaneCounters.pause_reasons_total ||
+      Object.values(runtimeLanePauseCounts).reduce((sum: number, value: any) => {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) return sum;
+        return sum + numeric;
+      }, 0),
+  );
   const qualityMetrics = {
     quality_empty_final: Number(qualityTaxonomy.empty_final || 0),
     quality_deferred_final: Number(qualityTaxonomy.deferred_final || 0),
@@ -545,6 +567,11 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     quality_meta_status_tool_leak: Number(qualityTaxonomy.meta_status_tool_leak || 0),
     quality_web_missing_tool_attempt: Number(qualityTaxonomy.web_missing_tool_attempt || 0),
     quality_taxonomy_parse_error: qualityParseError,
+    quality_denied_actions: Number(runtimeLaneCounters.denied_actions_total || 0),
+    quality_pause_reason_events: Number(runtimeLanePauseReasonsTotal || 0),
+    quality_merkle_chain_continuity_failures: Number(
+      runtimeLaneCounters.merkle_chain_continuity_failures_total || 0,
+    ),
   } as Record<string, number>;
   const checks: GateCheck[] = [
     buildCheckGe(
@@ -652,6 +679,21 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       Number(qualityMetrics.quality_taxonomy_parse_error || 0),
       profilePolicy.quality_telemetry.taxonomy_parse_error_max,
     ),
+    buildCheckLe(
+      'quality_denied_actions_max',
+      Number(qualityMetrics.quality_denied_actions || 0),
+      profilePolicy.quality_telemetry.denied_actions_max,
+    ),
+    buildCheckLe(
+      'quality_pause_reason_events_max',
+      Number(qualityMetrics.quality_pause_reason_events || 0),
+      profilePolicy.quality_telemetry.pause_reason_events_max,
+    ),
+    buildCheckLe(
+      'quality_merkle_chain_continuity_failures_max',
+      Number(qualityMetrics.quality_merkle_chain_continuity_failures || 0),
+      profilePolicy.quality_telemetry.merkle_chain_continuity_failures_max,
+    ),
   ];
 
   const failures = checks.filter((row) => !row.ok).map((row) => ({
@@ -676,6 +718,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       proof_track_selected: selectedTrack,
       proof_track_synthetic_sample_points: syntheticSamplePoints,
       proof_track_empirical_sample_points: empiricalSamplePoints,
+      runtime_lane_state_path: args.runtimeLaneStatePath,
     },
   };
   writeJsonArtifact(args.metricsOutPath, metricsPayload);
@@ -692,6 +735,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       harness_path: args.harnessPath,
       adapter_chaos_path: args.adapterChaosPath,
       quality_path: args.qualityPath,
+      runtime_lane_state_path: args.runtimeLaneStatePath,
       proof_track: args.proofTrack,
       metrics_out: args.metricsOutPath,
       table_out: args.tableOutPath,

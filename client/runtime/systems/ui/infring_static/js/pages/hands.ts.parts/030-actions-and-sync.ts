@@ -7,7 +7,11 @@
                   ticks: {
                     color: textColor,
                     font: { size: 10 },
-                    callback: function(v) { return '$' + v.toLocaleString(); }
+                    callback: function(v) {
+                      var amount = Number(v);
+                      if (!Number.isFinite(amount)) amount = 0;
+                      return '$' + amount.toLocaleString();
+                    }
                   }
                 }
               }
@@ -19,13 +23,14 @@
       // ── Daily P&L Bar Chart ──
       if (d.daily_pnl && d.daily_pnl.length > 0) {
         var pnlCanvas = document.getElementById('traderPnlChart');
-        if (pnlCanvas) {
+        if (pnlCanvas && typeof Chart === 'function' && typeof pnlCanvas.getContext === 'function') {
           var pnlLabels = [];
           var pnlValues = [];
           var pnlColors = [];
           for (var j = 0; j < d.daily_pnl.length; j++) {
             pnlLabels.push(d.daily_pnl[j].date || '');
-            var pnlVal = parseFloat(d.daily_pnl[j].pnl) || 0;
+            var pnlRaw = Number(d.daily_pnl[j].pnl);
+            var pnlVal = Number.isFinite(pnlRaw) ? pnlRaw : 0;
             pnlValues.push(pnlVal);
             pnlColors.push(pnlVal >= 0 ? successColor : errorColor);
           }
@@ -55,7 +60,8 @@
                   padding: 10,
                   callbacks: {
                     label: function(ctx) {
-                      var v = ctx.parsed.y;
+                      var v = Number(ctx.parsed && ctx.parsed.y);
+                      if (!Number.isFinite(v)) v = 0;
                       return (v >= 0 ? '+$' : '-$') + Math.abs(v).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
                     }
                   }
@@ -72,7 +78,9 @@
                     color: textColor,
                     font: { size: 10 },
                     callback: function(v) {
-                      return (v >= 0 ? '+$' : '-$') + Math.abs(v).toLocaleString();
+                      var amount = Number(v);
+                      if (!Number.isFinite(amount)) amount = 0;
+                      return (amount >= 0 ? '+$' : '-$') + Math.abs(amount).toLocaleString();
                     }
                   }
                 }
@@ -85,14 +93,15 @@
       // ── Signal Radar Chart ──
       if (d.signal_radar) {
         var radarCanvas = document.getElementById('traderRadarChart');
-        if (radarCanvas) {
+        if (radarCanvas && typeof Chart === 'function' && typeof radarCanvas.getContext === 'function') {
           var radarLabels = [];
           var radarValues = [];
           var keys = ['technical', 'fundamental', 'sentiment', 'macro'];
           var displayLabels = ['Technical', 'Fundamental', 'Sentiment', 'Macro'];
           for (var k = 0; k < keys.length; k++) {
             radarLabels.push(displayLabels[k]);
-            radarValues.push(parseFloat(d.signal_radar[keys[k]]) || 0);
+            var radarValue = Number(d.signal_radar[keys[k]]);
+            radarValues.push(Number.isFinite(radarValue) ? radarValue : 0);
           }
 
           this._chartRadar = new Chart(radarCanvas.getContext('2d'), {
@@ -122,7 +131,11 @@
                   borderWidth: 1,
                   padding: 10,
                   callbacks: {
-                    label: function(ctx) { return ctx.parsed.r + '/100'; }
+                    label: function(ctx) {
+                      var amount = Number(ctx.parsed && ctx.parsed.r);
+                      if (!Number.isFinite(amount)) amount = 0;
+                      return amount + '/100';
+                    }
                   }
                 }
               },
@@ -152,4 +165,3 @@
     }
   };
 }
-

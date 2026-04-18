@@ -1,32 +1,16 @@
 #!/usr/bin/env node
 'use strict';
 
-const TARGET = '../../lib/llamaindex_bridge.ts';
+const { createCompatWorkflowExportBridge } = require('../../lib/compat_target_bridge.ts');
+const bridge = createCompatWorkflowExportBridge({
+  scriptDir: __dirname,
+  targetRelativePath: '../../lib/llamaindex_bridge.ts',
+  loadError: 'llamaindex_bridge_target_load_failed',
+  invalidError: 'llamaindex_bridge_target_invalid',
+  framework: 'llamaindex',
+  bridgePath: 'client/runtime/lib/llamaindex_bridge.ts',
+  bridgeTarget: 'adapters/runtime/llamaindex_bridge.ts'
+});
+bridge.exitIfMain(module);
 
-function loadTarget() {
-  try {
-    return require(TARGET);
-  } catch (error) {
-    return {
-      ok: false,
-      error: 'llamaindex_bridge_target_load_failed',
-      detail: String(error && error.message ? error.message : error || 'unknown_error'),
-    };
-  }
-}
-
-const target = loadTarget();
-const exported =
-  target && typeof target === 'object' && !Array.isArray(target)
-    ? target
-    : {
-        ok: false,
-        error: 'llamaindex_bridge_target_invalid',
-      };
-
-if (require.main === module && exported && exported.ok === false) {
-  process.stderr.write(JSON.stringify(exported) + '\n');
-  process.exit(1);
-}
-
-module.exports = exported;
+module.exports = bridge.exported;

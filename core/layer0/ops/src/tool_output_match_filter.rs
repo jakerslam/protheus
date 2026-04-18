@@ -45,7 +45,7 @@ const RAW_PAYLOAD_KEY_MARKERS: &[&str] = &[
 ];
 
 const NO_FINDINGS_USER_COPY: &str =
-    "The tool path ran, but this turn only produced low-signal or no-result output, so there are no source-backed findings yet. web_status: provider_low_signal error_code: web_tool_low_signal";
+    "The tool path ran, but this turn only produced low-signal or no-result output, so there are no source-backed findings yet and we don't have usable tool findings from this turn yet. web_status: provider_low_signal error_code: web_tool_low_signal";
 
 const UNSYNTHESIZED_WEB_MARKERS: &[&str] = &[
     "from web retrieval:",
@@ -66,6 +66,7 @@ const UNSYNTHESIZED_WEB_MARKERS: &[&str] = &[
     "error-lite@duckduckgo.com",
     "duckduckgo duckduckgo",
     "the search response came from",
+    "couldn't extract usable findings",
     "no relevant results found for that request yet",
     "couldn't produce source-backed findings in this turn",
     "don't have usable tool findings from this turn yet",
@@ -191,6 +192,18 @@ pub fn normalize_web_tooling_error_code(raw: &str) -> String {
     if lowered.is_empty() {
         return "web_tool_error".to_string();
     }
+    if lowered.contains("web_tool_surface_unavailable")
+        || lowered.contains("tool surface is unavailable")
+        || lowered.contains("surface_unavailable")
+    {
+        return "web_tool_surface_unavailable".to_string();
+    }
+    if lowered.contains("web_tool_surface_degraded")
+        || lowered.contains("tool surface is degraded")
+        || lowered.contains("surface_degraded")
+    {
+        return "web_tool_surface_degraded".to_string();
+    }
     if lowered.contains("not found")
         || lowered.contains("unknown tool")
         || lowered.contains("tool_not_found")
@@ -268,7 +281,13 @@ pub fn canonical_tool_status(
 ) -> String {
     let lowered_status = clean_text(raw_status, 120).to_ascii_lowercase();
     let error_clean = clean_text(error, 300);
-    let mut status = if lowered_status.contains("blocked")
+    let mut status = if lowered_status.contains("web_tool_surface_unavailable")
+        || lowered_status.contains("web_tool_surface_degraded")
+        || lowered_status.contains("surface_unavailable")
+        || lowered_status.contains("surface_degraded")
+    {
+        "error".to_string()
+    } else if lowered_status.contains("blocked")
         || lowered_status.contains("policy")
         || lowered_status.contains("denied")
     {
@@ -333,8 +352,18 @@ pub fn canonical_tool_execution_receipt(
 ) -> Value {
     let status = canonical_tool_status(raw_status, ok, error, findings_count, has_result_text);
     let cleaned_error = clean_text(error, 300);
+    let status_hint_error_code = normalize_web_tooling_error_code(raw_status);
     let error_code = if cleaned_error.is_empty() {
-        default_error_code_for_status(&status).to_string()
+        if status == "error"
+            && matches!(
+                status_hint_error_code.as_str(),
+                "web_tool_surface_unavailable" | "web_tool_surface_degraded"
+            )
+        {
+            status_hint_error_code
+        } else {
+            default_error_code_for_status(&status).to_string()
+        }
     } else {
         normalize_web_tooling_error_code(&cleaned_error)
     };
@@ -371,10 +400,23 @@ pub fn canonical_tooling_fallback_copy(
     } else if !normalized_error.starts_with("web_tool_") && normalized_error != "none" {
         normalized_error = normalize_web_tooling_error_code(&normalized_error);
     }
+    let detail = detail.map(|value| clean_text(value, 260)).unwrap_or_default();
+    if normalized_error == "web_tool_surface_unavailable"
+        || normalized_error == "web_tool_surface_degraded"
+    {
+        let mut out = if normalized_error == "web_tool_surface_unavailable" {
+            "I could not complete live web retrieval in this turn because the web tool surface is unavailable. Retry after restoring web tooling, or provide a source URL and I can continue with local analysis.".to_string()
+        } else {
+            "I could not complete live web retrieval in this turn because the web tool surface is degraded. Retry after restoring provider credentials/runtime, or provide a source URL and I can continue with local analysis.".to_string()
+        };
+        if !detail.is_empty() {
+            out.push_str(&format!(" detail: {detail}."));
+        }
+        return out;
+    }
     let mut out = format!(
         "Tool execution did not produce a usable final answer in this turn. web_status: {status}. error_code: {normalized_error}."
     );
-    let detail = detail.map(|value| clean_text(value, 260)).unwrap_or_default();
     if !detail.is_empty() {
         out.push_str(&format!(" detail: {detail}."));
     }
@@ -734,10 +776,90 @@ mod tests {
     }
 
     #[test]
+    fn canonical_tool_status_marks_surface_status_as_error() {
+        assert_eq!(
+            canonical_tool_status(
+                "web_tool_surface_unavailable",
+                None,
+                "",
+                0,
+                false
+            ),
+            "error"
+        );
+        assert_eq!(
+            canonical_tool_status("surface_degraded", None, "", 0, false),
+            "error"
+        );
+    }
+
+    #[test]
+    fn canonical_tool_execution_receipt_uses_surface_error_from_status_when_error_empty() {
+        let row = canonical_tool_execution_receipt(
+            "toolcall_surface_1",
+            "batch_query",
+            "web_tool_surface_degraded",
+            Some(false),
+            "",
+            0,
+            0,
+            0,
+            false,
+        );
+        assert_eq!(row.get("status").and_then(Value::as_str), Some("error"));
+        assert_eq!(
+            row.get("error_code").and_then(Value::as_str),
+            Some("web_tool_surface_degraded")
+        );
+    }
+
+    #[test]
     fn canonical_tooling_fallback_copy_includes_status_and_error_code() {
         let copy = canonical_tooling_fallback_copy("parse_failed", "web_tool_invalid_response", None);
         let lowered = copy.to_ascii_lowercase();
         assert!(lowered.contains("web_status: parse_failed"));
         assert!(lowered.contains("error_code: web_tool_invalid_response"));
+    }
+
+    #[test]
+    fn normalize_web_tooling_error_code_maps_surface_errors() {
+        assert_eq!(
+            normalize_web_tooling_error_code("web_search_tool_surface_unavailable"),
+            "web_tool_surface_unavailable"
+        );
+        assert_eq!(
+            normalize_web_tooling_error_code("tool surface is degraded"),
+            "web_tool_surface_degraded"
+        );
+    }
+
+    #[test]
+    fn canonical_tooling_fallback_copy_uses_surface_specific_copy() {
+        let unavailable =
+            canonical_tooling_fallback_copy("failed", "web_tool_surface_unavailable", None);
+        let degraded =
+            canonical_tooling_fallback_copy("failed", "web_tool_surface_degraded", None);
+        assert!(
+            unavailable
+                .to_ascii_lowercase()
+                .contains("web tool surface is unavailable"),
+            "{unavailable}"
+        );
+        assert!(
+            degraded
+                .to_ascii_lowercase()
+                .contains("web tool surface is degraded"),
+            "{degraded}"
+        );
+    }
+
+    #[test]
+    fn canonical_tooling_fallback_copy_normalizes_surface_alias_to_surface_copy() {
+        let copy = canonical_tooling_fallback_copy("failed", "surface_unavailable", None);
+        assert!(
+            copy.to_ascii_lowercase()
+                .contains("web tool surface is unavailable"),
+            "{copy}"
+        );
     }
 }

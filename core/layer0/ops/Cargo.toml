@@ -40,7 +40,7 @@ path = "src/main.rs"
 
 [[bin]]
 name = "infring-ops"
-path = "src/main.rs"
+path = "src/bin/infring-ops.rs"
 
 [[bin]]
 name = "personas_core"
@@ -52,7 +52,7 @@ path = "src/protheusd.rs"
 
 [[bin]]
 name = "infringd"
-path = "src/protheusd.rs"
+path = "src/bin/infringd.rs"
 
 [dependencies]
 foundation_hook_enforcer = { path = "../foundation_hook_enforcer" }

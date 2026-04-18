@@ -1,4 +1,25 @@
 
+fn dream_warden_resolve_runtime_path(
+    repo_root: &Path,
+    candidate: Option<&str>,
+    fallback: &str,
+) -> String {
+    let chosen = candidate.unwrap_or(fallback).trim();
+    let safe = if chosen.is_empty()
+        || chosen.contains('\0')
+        || chosen.contains('\n')
+        || chosen.contains('\r')
+        || chosen.contains("..")
+    {
+        fallback
+    } else {
+        chosen
+    };
+    resolve_runtime_path(repo_root, safe)
+        .to_string_lossy()
+        .to_string()
+}
+
 fn dream_warden_load_policy(repo_root: &Path, policy_path: &Path) -> Value {
     let raw = read_json_or(policy_path, json!({}));
     let mut policy = dream_warden_default_policy();
@@ -60,23 +81,12 @@ fn dream_warden_load_policy(repo_root: &Path, policy_path: &Path) -> Value {
             "symbiosis_latest_path",
             "gated_self_improvement_state_path",
         ] {
-            if let Some(v) = signals.get(key).and_then(Value::as_str) {
-                policy["signals"][key] = Value::String(
-                    resolve_runtime_path(repo_root, v)
-                        .to_string_lossy()
-                        .to_string(),
-                );
-            } else {
-                let fallback = policy["signals"][key]
-                    .as_str()
-                    .unwrap_or_default()
-                    .to_string();
-                policy["signals"][key] = Value::String(
-                    resolve_runtime_path(repo_root, &fallback)
-                        .to_string_lossy()
-                        .to_string(),
-                );
-            }
+            let fallback = policy["signals"][key].as_str().unwrap_or_default();
+            policy["signals"][key] = Value::String(dream_warden_resolve_runtime_path(
+                repo_root,
+                signals.get(key).and_then(Value::as_str),
+                fallback,
+            ));
         }
     }
     if let Some(outputs) = raw.get("outputs").and_then(Value::as_object) {
@@ -87,23 +97,12 @@ fn dream_warden_load_policy(repo_root: &Path, policy_path: &Path) -> Value {
             "patch_proposals_path",
             "ide_events_path",
         ] {
-            if let Some(v) = outputs.get(key).and_then(Value::as_str) {
-                policy["outputs"][key] = Value::String(
-                    resolve_runtime_path(repo_root, v)
-                        .to_string_lossy()
-                        .to_string(),
-                );
-            } else {
-                let fallback = policy["outputs"][key]
-                    .as_str()
-                    .unwrap_or_default()
-                    .to_string();
-                policy["outputs"][key] = Value::String(
-                    resolve_runtime_path(repo_root, &fallback)
-                        .to_string_lossy()
-                        .to_string(),
-                );
-            }
+            let fallback = policy["outputs"][key].as_str().unwrap_or_default();
+            policy["outputs"][key] = Value::String(dream_warden_resolve_runtime_path(
+                repo_root,
+                outputs.get(key).and_then(Value::as_str),
+                fallback,
+            ));
         }
     }
     policy

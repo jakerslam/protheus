@@ -2,11 +2,17 @@
 use std::collections::BTreeMap;
 
 const MAX_CAPABILITY_NAME_LEN: usize = 96;
+const MAX_CAPABILITIES: usize = 256;
 
 fn sanitize_capability_name(input: &str) -> String {
     input
         .chars()
-        .filter(|c| !matches!(*c, '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}'))
+        .filter(|c| {
+            !matches!(
+                *c,
+                '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}'
+            )
+        })
         .filter(|c| !c.is_control())
         .collect::<String>()
         .trim()
@@ -37,6 +43,9 @@ impl Sandbox {
             }
             let granted = cap.granted || by_name.get(&normalized).copied().unwrap_or(false);
             by_name.insert(normalized, granted);
+            if by_name.len() >= MAX_CAPABILITIES {
+                break;
+            }
         }
         Self {
             capabilities: by_name
@@ -46,31 +55,26 @@ impl Sandbox {
         }
     }
 
-    pub fn can_execute(&self, capability_name: &str) -> bool {
+    fn capability_state(&self, capability_name: &str) -> Option<bool> {
         let requested = sanitize_capability_name(capability_name);
         if requested.is_empty() {
-            return false;
+            return None;
         }
         self.capabilities
             .iter()
-            .any(|cap| cap.granted && sanitize_capability_name(cap.name.as_str()) == requested)
+            .find(|cap| cap.name == requested)
+            .map(|cap| cap.granted)
+    }
+
+    pub fn can_execute(&self, capability_name: &str) -> bool {
+        self.capability_state(capability_name).unwrap_or(false)
     }
 
     pub fn run_stub(&self, capability_name: &str) -> Result<(), &'static str> {
-        let requested = sanitize_capability_name(capability_name);
-        if requested.is_empty() {
-            return Err("capability_invalid");
-        }
-        if self.can_execute(capability_name) {
-            Ok(())
-        } else if self
-            .capabilities
-            .iter()
-            .any(|cap| sanitize_capability_name(cap.name.as_str()) == requested)
-        {
-            Err("capability_denied")
-        } else {
-            Err("capability_unknown")
+        match self.capability_state(capability_name) {
+            None => Err("capability_invalid"),
+            Some(true) => Ok(()),
+            Some(false) => Err("capability_denied"),
         }
     }
 }

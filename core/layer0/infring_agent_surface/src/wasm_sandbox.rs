@@ -90,6 +90,37 @@ pub fn evaluate_wasm_policy(
     WasmPolicyDecision::Allowed
 }
 
+pub fn evaluate_wasm_execution_boundary(
+    policy: &WasmSandboxPolicy,
+    module_id: &str,
+    fuel_used: u64,
+    elapsed_ms: u64,
+    requested_network: bool,
+) -> WasmPolicyDecision {
+    if !policy.enabled {
+        return WasmPolicyDecision::Allowed;
+    }
+    let normalized = module_id.trim().to_ascii_lowercase();
+    if normalized.is_empty() {
+        return WasmPolicyDecision::Blocked("wasm_module_id_invalid".to_string());
+    }
+    if requested_network && !policy.allow_network {
+        return WasmPolicyDecision::Blocked("wasm_network_denied".to_string());
+    }
+    if fuel_used > policy.max_fuel {
+        return WasmPolicyDecision::Blocked("wasm_fuel_budget_exceeded".to_string());
+    }
+    if elapsed_ms > policy.max_watchdog_ms {
+        return WasmPolicyDecision::Blocked("wasm_watchdog_budget_exceeded".to_string());
+    }
+    if !policy.allowed_modules.is_empty()
+        && !policy.allowed_modules.iter().any(|allowed| allowed == &normalized)
+    {
+        return WasmPolicyDecision::Blocked(format!("wasm_module_denied:{normalized}"));
+    }
+    WasmPolicyDecision::Allowed
+}
+
 pub fn wasm_policy_snapshot(policy: &WasmSandboxPolicy) -> Value {
     json!({
         "enabled": policy.enabled,
@@ -134,5 +165,36 @@ mod tests {
             decision,
             WasmPolicyDecision::Blocked("wasm_module_denied:unsafe.module".to_string())
         );
+    }
+
+    #[test]
+    fn wasm_boundary_blocks_fuel_overrun() {
+        let policy = WasmSandboxPolicy {
+            enabled: true,
+            max_fuel: 100,
+            max_watchdog_ms: 500,
+            allow_network: true,
+            allowed_modules: vec!["safe.module".to_string()],
+        };
+        let decision =
+            evaluate_wasm_execution_boundary(&policy, "safe.module", 101, 20, false);
+        assert_eq!(
+            decision,
+            WasmPolicyDecision::Blocked("wasm_fuel_budget_exceeded".to_string())
+        );
+    }
+
+    #[test]
+    fn wasm_boundary_allows_valid_execution_sample() {
+        let policy = WasmSandboxPolicy {
+            enabled: true,
+            max_fuel: 1000,
+            max_watchdog_ms: 500,
+            allow_network: false,
+            allowed_modules: vec!["safe.module".to_string()],
+        };
+        let decision =
+            evaluate_wasm_execution_boundary(&policy, "safe.module", 200, 30, false);
+        assert_eq!(decision, WasmPolicyDecision::Allowed);
     }
 }

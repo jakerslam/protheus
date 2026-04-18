@@ -109,7 +109,7 @@
             </div>
             <div class="nav-sub-item-controls">
               <div
-                class="nav-sub-sort-group nav-sub-sort-pill icon-pill-toggle"
+                class="nav-sub-sort-group nav-sub-sort-pill toggle-pill"
                 role="group"
                 aria-label="Sort conversations"
                 :data-mode="chatSidebarSortMode === 'topology' ? 'topology' : 'age'"
@@ -140,7 +140,8 @@
                   @blur="hideDashboardPopup('sidebar-utility:sort-conversations')"
                   aria-label="Sort by topology"
                 >
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h10"></path><path d="M5 12h14"></path><path d="M5 17h8"></path><path d="m16 5 3 2-3 2"></path><path d="m20 10 3 2-3 2"></path><path d="m14 15 3 2-3 2"></path></svg>
+                  <svg x-show="chatSidebarSortMode === 'topology'" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h10"></path><path d="M5 12h14"></path><path d="M5 17h8"></path><path d="m16 5 3 2-3 2"></path><path d="m20 10 3 2-3 2"></path><path d="m14 15 3 2-3 2"></path></svg>
+                  <svg x-show="chatSidebarSortMode !== 'topology'" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z"></path><circle cx="10" cy="11" r="1"></circle><circle cx="14" cy="11" r="1"></circle><circle cx="18" cy="11" r="1"></circle></svg>
                 </button>
               </div>
             <a

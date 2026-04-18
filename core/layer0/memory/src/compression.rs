@@ -8,11 +8,16 @@ pub struct CompressionReport {
     pub encoded_units: usize,
     pub estimated_encoded_bytes: usize,
     pub ratio: f64,
+    pub status: String,
+    pub should_warn: bool,
+    pub should_block: bool,
     pub sanitized: bool,
     pub truncated: bool,
 }
 
 const MAX_REPORT_INPUT_BYTES: usize = 128 * 1024;
+const COMPRESSION_RATIO_WARN_ABOVE: f64 = 2.0;
+const COMPRESSION_RATIO_BLOCK_ABOVE: f64 = 2.75;
 
 fn strip_invisible_unicode(raw: &str) -> String {
     raw.chars()
@@ -89,12 +94,24 @@ pub fn report_for(content: &str) -> CompressionReport {
     } else {
         (estimated as f64 / bytes.len() as f64).clamp(0.0, 64.0)
     };
+    let should_warn = ratio >= COMPRESSION_RATIO_WARN_ABOVE;
+    let should_block = ratio >= COMPRESSION_RATIO_BLOCK_ABOVE;
+    let status = if should_block {
+        "blocked"
+    } else if should_warn {
+        "warn"
+    } else {
+        "ok"
+    };
     CompressionReport {
         raw_input_bytes,
         input_bytes: bytes.len(),
         encoded_units: encoded.len(),
         estimated_encoded_bytes: estimated,
         ratio,
+        status: status.to_string(),
+        should_warn,
+        should_block,
         sanitized,
         truncated,
     }
@@ -117,5 +134,12 @@ mod tests {
         let out = report_for("a\u{200B}b");
         assert_eq!(out.input_bytes, 2);
         assert!(out.sanitized);
+    }
+
+    #[test]
+    fn report_blocks_pathological_ratio() {
+        let out = report_for("abcdef");
+        assert!(out.should_block);
+        assert_eq!(out.status, "blocked");
     }
 }

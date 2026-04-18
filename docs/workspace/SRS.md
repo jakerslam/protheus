@@ -15978,3 +15978,21 @@ Source summary:
   - `xtask/src/main.rs`
   - `tests/tooling/config/release_gates.yaml`
   - `tests/tooling/scripts/ci/runtime_proof_release_gate.ts`
+
+### 2026-04-18 Windows Install Reliability + Prebuilt Enforcement Addendum (V11-WINDOWS-INSTALL-RELIABILITY-001)
+
+- Intent:
+  - Ensure Windows PowerShell installation behaves deterministically in both prebuilt and source-fallback paths, and block release publication when required Windows prebuilts are missing.
+- Acceptance criteria:
+  - `install.ps1` emits explicit Windows preflight diagnostics before install (`cargo/rustc/msvc tools` availability + release asset reachability probes for required stems).
+  - `install.ps1` surfaces structured failure hints when binary install fails (asset probe status, attempted assets, source fallback reason, toolchain summary).
+  - Web fetch/search runtime paths avoid large nested `json!` return payload construction in gate-blocked/replay-blocked branches to reduce macro recursion risk under Windows source fallback builds.
+  - Release workflow builds and uploads Windows prebuilt artifacts (`infring-ops`, `infringd`, `conduit_daemon`, `infring-pure-workspace` + tiny-max alias assets), then hard-fails release when required Windows assets are absent.
+  - Release publication includes Windows artifacts plus SBOM/signature/SHA coverage for those assets.
+  - CI includes a Windows install smoke lane executing `install.ps1 -Repair -Full` on a clean Windows runner.
+- Regression evidence pointers:
+  - `.github/workflows/release.yml`
+  - `.github/workflows/alpha-smoke.yml`
+  - `install.ps1`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime.rs`
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration.rs`

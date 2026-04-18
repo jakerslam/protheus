@@ -61,14 +61,36 @@ pub fn normalize_recall_command_token(cmd: &str) -> String {
     sanitize_command_token(cmd)
 }
 
-pub fn map_memory_recall_command(cmd: &str) -> RecallCommand {
-    match normalize_recall_command_token(cmd).as_str() {
-        "get" | "get-node" => RecallCommand::GetNode,
-        "build-index" | "build" | "index-build" => RecallCommand::BuildIndex,
-        "verify-envelope" | "verify" => RecallCommand::VerifyEnvelope,
-        "probe" => RecallCommand::Probe,
-        _ => RecallCommand::QueryIndex,
+pub fn map_memory_recall_command_with_contract(
+    cmd: &str,
+    strict_contract: bool,
+) -> (RecallCommand, bool, &'static str) {
+    let normalized = normalize_recall_command_token(cmd);
+    let mapped = match normalized.as_str() {
+        "get" | "get-node" => Some(RecallCommand::GetNode),
+        "build-index" | "build" | "index-build" => Some(RecallCommand::BuildIndex),
+        "verify-envelope" | "verify" => Some(RecallCommand::VerifyEnvelope),
+        "probe" => Some(RecallCommand::Probe),
+        "query-index" | "query" => Some(RecallCommand::QueryIndex),
+        _ => None,
+    };
+    match mapped {
+        Some(command) => (command, true, "recognized"),
+        None if strict_contract => (
+            RecallCommand::QueryIndex,
+            false,
+            "unsupported_command_strict_contract",
+        ),
+        None => (
+            RecallCommand::QueryIndex,
+            true,
+            "unsupported_command_fallback_query_index",
+        ),
     }
+}
+
+pub fn map_memory_recall_command(cmd: &str) -> RecallCommand {
+    map_memory_recall_command_with_contract(cmd, false).0
 }
 
 #[cfg(test)]
@@ -119,6 +141,15 @@ mod tests {
             map_memory_recall_command(" \u{0000}\u{0008} "),
             RecallCommand::QueryIndex
         );
+    }
+
+    #[test]
+    fn strict_contract_rejects_unsupported_commands() {
+        let (command, allowed, reason) =
+            map_memory_recall_command_with_contract("unknown-op", true);
+        assert_eq!(command, RecallCommand::QueryIndex);
+        assert!(!allowed);
+        assert_eq!(reason, "unsupported_command_strict_contract");
     }
 
     #[test]

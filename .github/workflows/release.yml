@@ -23,7 +23,41 @@ permissions:
   id-token: write
 
 jobs:
+  windows-prebuilt:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build Windows prebuilt binaries
+        shell: pwsh
+        run: |
+          cargo build --release --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops
+          cargo build --release --manifest-path core/layer0/ops/Cargo.toml --bin infringd
+          cargo build --release -p conduit --bin conduit_daemon
+          cargo build --release --manifest-path client/pure-workspace/Cargo.toml --bin infring-pure-workspace
+          New-Item -ItemType Directory -Force -Path client/runtime/local/state/release/artifacts | Out-Null
+          Copy-Item -Force target/release/infring-ops.exe client/runtime/local/state/release/artifacts/infring-ops-x86_64-pc-windows-msvc.exe
+          Copy-Item -Force target/release/infringd.exe client/runtime/local/state/release/artifacts/infringd-x86_64-pc-windows-msvc.exe
+          Copy-Item -Force target/release/infringd.exe client/runtime/local/state/release/artifacts/infringd-tiny-max-x86_64-pc-windows-msvc.exe
+          Copy-Item -Force target/release/conduit_daemon.exe client/runtime/local/state/release/artifacts/conduit_daemon-x86_64-pc-windows-msvc.exe
+          Copy-Item -Force target/release/infring-pure-workspace.exe client/runtime/local/state/release/artifacts/infring-pure-workspace-x86_64-pc-windows-msvc.exe
+          Copy-Item -Force target/release/infring-pure-workspace.exe client/runtime/local/state/release/artifacts/infring-pure-workspace-tiny-max-x86_64-pc-windows-msvc.exe
+
+      - name: Upload Windows prebuilt artifact bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-windows-prebuilt
+          path: client/runtime/local/state/release/artifacts/*.exe
+          if-no-files-found: error
+
   release:
+    needs:
+      - windows-prebuilt
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -227,6 +261,32 @@ jobs:
             client/runtime/local/state/release/artifacts/infringd-x86_64-unknown-linux-musl
           npm pack --silent
 
+      - name: Download Windows prebuilt artifacts
+        if: steps.semver.outputs.release_ready == '1'
+        uses: actions/download-artifact@v4
+        with:
+          name: release-windows-prebuilt
+          path: client/runtime/local/state/release/artifacts
+
+      - name: Enforce Windows prebuilt artifact baseline
+        if: steps.semver.outputs.release_ready == '1'
+        run: |
+          set -euo pipefail
+          REQUIRED=(
+            "infring-ops-x86_64-pc-windows-msvc.exe"
+            "infringd-x86_64-pc-windows-msvc.exe"
+            "infringd-tiny-max-x86_64-pc-windows-msvc.exe"
+            "conduit_daemon-x86_64-pc-windows-msvc.exe"
+            "infring-pure-workspace-x86_64-pc-windows-msvc.exe"
+            "infring-pure-workspace-tiny-max-x86_64-pc-windows-msvc.exe"
+          )
+          for f in "${REQUIRED[@]}"; do
+            if [ ! -f "client/runtime/local/state/release/artifacts/$f" ]; then
+              echo "::error::missing required Windows prebuilt release asset: $f"
+              exit 1
+            fi
+          done
+
       - name: Enforce static infringd size gate (35 MB)
         if: steps.semver.outputs.release_ready == '1'
         id: size_gate
@@ -269,6 +329,10 @@ jobs:
           syft file:client/runtime/local/state/release/artifacts/infring-ops-x86_64-unknown-linux-gnu -o spdx-json=client/runtime/local/state/release/sbom/infring-ops.spdx.json
           syft file:client/runtime/local/state/release/artifacts/infringd-x86_64-unknown-linux-musl -o spdx-json=client/runtime/local/state/release/sbom/infringd.spdx.json
           syft file:client/runtime/local/state/release/artifacts/conduit_daemon-x86_64-unknown-linux-gnu -o spdx-json=client/runtime/local/state/release/sbom/conduit_daemon.spdx.json
+          syft file:client/runtime/local/state/release/artifacts/infring-ops-x86_64-pc-windows-msvc.exe -o spdx-json=client/runtime/local/state/release/sbom/infring-ops-windows.spdx.json
+          syft file:client/runtime/local/state/release/artifacts/infringd-x86_64-pc-windows-msvc.exe -o spdx-json=client/runtime/local/state/release/sbom/infringd-windows.spdx.json
+          syft file:client/runtime/local/state/release/artifacts/conduit_daemon-x86_64-pc-windows-msvc.exe -o spdx-json=client/runtime/local/state/release/sbom/conduit_daemon-windows.spdx.json
+          syft file:client/runtime/local/state/release/artifacts/infring-pure-workspace-x86_64-pc-windows-msvc.exe -o spdx-json=client/runtime/local/state/release/sbom/infring-pure-workspace-windows.spdx.json
           syft file:${PKG} -o spdx-json=client/runtime/local/state/release/sbom/infring-npm.spdx.json
 
       - name: Sign release artifacts
@@ -284,7 +348,24 @@ jobs:
             openssl genrsa -out /tmp/release_private.pem 4096
           fi
           openssl rsa -in /tmp/release_private.pem -pubout -out client/runtime/local/state/release/signatures/release_public.pem
-          for f in client/runtime/local/state/release/artifacts/infring-ops-x86_64-unknown-linux-gnu client/runtime/local/state/release/artifacts/infringd-x86_64-unknown-linux-musl client/runtime/local/state/release/artifacts/conduit_daemon-x86_64-unknown-linux-gnu client/runtime/local/state/release/sbom/infring-ops.spdx.json client/runtime/local/state/release/sbom/infringd.spdx.json client/runtime/local/state/release/sbom/conduit_daemon.spdx.json client/runtime/local/state/release/sbom/infring-npm.spdx.json; do
+          for f in \
+            client/runtime/local/state/release/artifacts/infring-ops-x86_64-unknown-linux-gnu \
+            client/runtime/local/state/release/artifacts/infringd-x86_64-unknown-linux-musl \
+            client/runtime/local/state/release/artifacts/conduit_daemon-x86_64-unknown-linux-gnu \
+            client/runtime/local/state/release/artifacts/infring-ops-x86_64-pc-windows-msvc.exe \
+            client/runtime/local/state/release/artifacts/infringd-x86_64-pc-windows-msvc.exe \
+            client/runtime/local/state/release/artifacts/conduit_daemon-x86_64-pc-windows-msvc.exe \
+            client/runtime/local/state/release/artifacts/infring-pure-workspace-x86_64-pc-windows-msvc.exe \
+            client/runtime/local/state/release/artifacts/infringd-tiny-max-x86_64-pc-windows-msvc.exe \
+            client/runtime/local/state/release/artifacts/infring-pure-workspace-tiny-max-x86_64-pc-windows-msvc.exe \
+            client/runtime/local/state/release/sbom/infring-ops.spdx.json \
+            client/runtime/local/state/release/sbom/infringd.spdx.json \
+            client/runtime/local/state/release/sbom/conduit_daemon.spdx.json \
+            client/runtime/local/state/release/sbom/infring-ops-windows.spdx.json \
+            client/runtime/local/state/release/sbom/infringd-windows.spdx.json \
+            client/runtime/local/state/release/sbom/conduit_daemon-windows.spdx.json \
+            client/runtime/local/state/release/sbom/infring-pure-workspace-windows.spdx.json \
+            client/runtime/local/state/release/sbom/infring-npm.spdx.json; do
             base=$(basename "$f")
             openssl dgst -sha256 -sign /tmp/release_private.pem -out "client/runtime/local/state/release/signatures/${base}.sig" "$f"
           done
@@ -356,17 +437,37 @@ jobs:
             client/runtime/local/state/release/artifacts/infring-ops-x86_64-unknown-linux-gnu \
             client/runtime/local/state/release/artifacts/infringd-x86_64-unknown-linux-musl \
             client/runtime/local/state/release/artifacts/conduit_daemon-x86_64-unknown-linux-gnu \
+            client/runtime/local/state/release/artifacts/infring-ops-x86_64-pc-windows-msvc.exe \
+            client/runtime/local/state/release/artifacts/infringd-x86_64-pc-windows-msvc.exe \
+            client/runtime/local/state/release/artifacts/infringd-tiny-max-x86_64-pc-windows-msvc.exe \
+            client/runtime/local/state/release/artifacts/conduit_daemon-x86_64-pc-windows-msvc.exe \
+            client/runtime/local/state/release/artifacts/infring-pure-workspace-x86_64-pc-windows-msvc.exe \
+            client/runtime/local/state/release/artifacts/infring-pure-workspace-tiny-max-x86_64-pc-windows-msvc.exe \
             *.tgz \
             client/runtime/local/state/release/sbom/infring-ops.spdx.json \
             client/runtime/local/state/release/sbom/infringd.spdx.json \
             client/runtime/local/state/release/sbom/conduit_daemon.spdx.json \
+            client/runtime/local/state/release/sbom/infring-ops-windows.spdx.json \
+            client/runtime/local/state/release/sbom/infringd-windows.spdx.json \
+            client/runtime/local/state/release/sbom/conduit_daemon-windows.spdx.json \
+            client/runtime/local/state/release/sbom/infring-pure-workspace-windows.spdx.json \
             client/runtime/local/state/release/sbom/infring-npm.spdx.json \
             client/runtime/local/state/release/signatures/infring-ops-x86_64-unknown-linux-gnu.sig \
             client/runtime/local/state/release/signatures/infringd-x86_64-unknown-linux-musl.sig \
             client/runtime/local/state/release/signatures/conduit_daemon-x86_64-unknown-linux-gnu.sig \
+            client/runtime/local/state/release/signatures/infring-ops-x86_64-pc-windows-msvc.exe.sig \
+            client/runtime/local/state/release/signatures/infringd-x86_64-pc-windows-msvc.exe.sig \
+            client/runtime/local/state/release/signatures/infringd-tiny-max-x86_64-pc-windows-msvc.exe.sig \
+            client/runtime/local/state/release/signatures/conduit_daemon-x86_64-pc-windows-msvc.exe.sig \
+            client/runtime/local/state/release/signatures/infring-pure-workspace-x86_64-pc-windows-msvc.exe.sig \
+            client/runtime/local/state/release/signatures/infring-pure-workspace-tiny-max-x86_64-pc-windows-msvc.exe.sig \
             client/runtime/local/state/release/signatures/infring-ops.spdx.json.sig \
             client/runtime/local/state/release/signatures/infringd.spdx.json.sig \
             client/runtime/local/state/release/signatures/conduit_daemon.spdx.json.sig \
+            client/runtime/local/state/release/signatures/infring-ops-windows.spdx.json.sig \
+            client/runtime/local/state/release/signatures/infringd-windows.spdx.json.sig \
+            client/runtime/local/state/release/signatures/conduit_daemon-windows.spdx.json.sig \
+            client/runtime/local/state/release/signatures/infring-pure-workspace-windows.spdx.json.sig \
             client/runtime/local/state/release/signatures/infring-npm.spdx.json.sig \
             client/runtime/local/state/release/signatures/release_public.pem \
             client/runtime/local/state/release/licensing/release_licensing_manifest.json \
@@ -417,17 +518,37 @@ jobs:
             client/runtime/local/state/release/artifacts/infring-ops-x86_64-unknown-linux-gnu
             client/runtime/local/state/release/artifacts/infringd-x86_64-unknown-linux-musl
             client/runtime/local/state/release/artifacts/conduit_daemon-x86_64-unknown-linux-gnu
+            client/runtime/local/state/release/artifacts/infring-ops-x86_64-pc-windows-msvc.exe
+            client/runtime/local/state/release/artifacts/infringd-x86_64-pc-windows-msvc.exe
+            client/runtime/local/state/release/artifacts/infringd-tiny-max-x86_64-pc-windows-msvc.exe
+            client/runtime/local/state/release/artifacts/conduit_daemon-x86_64-pc-windows-msvc.exe
+            client/runtime/local/state/release/artifacts/infring-pure-workspace-x86_64-pc-windows-msvc.exe
+            client/runtime/local/state/release/artifacts/infring-pure-workspace-tiny-max-x86_64-pc-windows-msvc.exe
             *.tgz
             client/runtime/local/state/release/sbom/infring-ops.spdx.json
             client/runtime/local/state/release/sbom/infringd.spdx.json
             client/runtime/local/state/release/sbom/conduit_daemon.spdx.json
+            client/runtime/local/state/release/sbom/infring-ops-windows.spdx.json
+            client/runtime/local/state/release/sbom/infringd-windows.spdx.json
+            client/runtime/local/state/release/sbom/conduit_daemon-windows.spdx.json
+            client/runtime/local/state/release/sbom/infring-pure-workspace-windows.spdx.json
             client/runtime/local/state/release/sbom/infring-npm.spdx.json
             client/runtime/local/state/release/signatures/infring-ops-x86_64-unknown-linux-gnu.sig
             client/runtime/local/state/release/signatures/infringd-x86_64-unknown-linux-musl.sig
             client/runtime/local/state/release/signatures/conduit_daemon-x86_64-unknown-linux-gnu.sig
+            client/runtime/local/state/release/signatures/infring-ops-x86_64-pc-windows-msvc.exe.sig
+            client/runtime/local/state/release/signatures/infringd-x86_64-pc-windows-msvc.exe.sig
+            client/runtime/local/state/release/signatures/infringd-tiny-max-x86_64-pc-windows-msvc.exe.sig
+            client/runtime/local/state/release/signatures/conduit_daemon-x86_64-pc-windows-msvc.exe.sig
+            client/runtime/local/state/release/signatures/infring-pure-workspace-x86_64-pc-windows-msvc.exe.sig
+            client/runtime/local/state/release/signatures/infring-pure-workspace-tiny-max-x86_64-pc-windows-msvc.exe.sig
             client/runtime/local/state/release/signatures/infring-ops.spdx.json.sig
             client/runtime/local/state/release/signatures/infringd.spdx.json.sig
             client/runtime/local/state/release/signatures/conduit_daemon.spdx.json.sig
+            client/runtime/local/state/release/signatures/infring-ops-windows.spdx.json.sig
+            client/runtime/local/state/release/signatures/infringd-windows.spdx.json.sig
+            client/runtime/local/state/release/signatures/conduit_daemon-windows.spdx.json.sig
+            client/runtime/local/state/release/signatures/infring-pure-workspace-windows.spdx.json.sig
             client/runtime/local/state/release/signatures/infring-npm.spdx.json.sig
             client/runtime/local/state/release/signatures/release_public.pem
             client/runtime/local/state/release/licensing/release_licensing_manifest.json

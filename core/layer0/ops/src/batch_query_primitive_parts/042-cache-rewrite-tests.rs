@@ -192,6 +192,21 @@ mod cache_rewrite_tests {
     }
 
     #[test]
+    fn framework_catalog_source_adjustment_penalizes_competitive_programming_dump() {
+        let candidate = Candidate {
+            source_kind: "web".to_string(),
+            title: "03-Tree List Leaves".to_string(),
+            locator: "https://example.com/tree-problem".to_string(),
+            snippet: "Given a tree, list leaves. Input Specification: ... Sample Input ... Sample Output ... #include <stdio.h> int main()".to_string(),
+            excerpt_hash: "competitive-dump".to_string(),
+            timestamp: None,
+            permissions: None,
+            status_code: 200,
+        };
+        assert!(framework_catalog_source_adjustment(&candidate) < -0.2);
+    }
+
+    #[test]
     fn rendered_search_payload_extracts_multiple_framework_candidates() {
         let payload = json!({
             "ok": true,

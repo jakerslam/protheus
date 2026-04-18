@@ -42,9 +42,17 @@ fn normalize_directive_id(v: &str) -> String {
     if chars.next() != Some('T') {
         return String::new();
     }
+    let mut digit_count = 0usize;
     let mut seen_underscore = false;
     for ch in text.chars().skip(1) {
+        if !seen_underscore && ch.is_ascii_digit() {
+            digit_count += 1;
+            continue;
+        }
         if ch == '_' {
+            if seen_underscore || digit_count == 0 {
+                return String::new();
+            }
             seen_underscore = true;
             continue;
         }
@@ -108,16 +116,28 @@ fn parse_active_yaml(path: &Path) -> Vec<ActiveDirectiveRow> {
     if let Some(prev) = cur.take() {
         rows.push(prev);
     }
+    let mut seen_ids = HashSet::<String>::new();
     rows.into_iter()
         .filter(|row| !row.id.is_empty())
-        .map(|mut row| {
+        .filter_map(|mut row| {
             if row.tier <= 0 {
                 row.tier = directive_tier_from_id(&row.id);
             }
             if row.status.is_empty() {
                 row.status = "active".to_string();
             }
-            row
+            if row.parent_directive_id == row.id {
+                row.parent_directive_id.clear();
+            }
+            if !row.parent_directive_id.is_empty()
+                && directive_tier_from_id(&row.parent_directive_id) >= row.tier
+            {
+                row.parent_directive_id.clear();
+            }
+            if !seen_ids.insert(row.id.clone()) {
+                return None;
+            }
+            Some(row)
         })
         .collect::<Vec<_>>()
 }

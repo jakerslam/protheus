@@ -93,6 +93,20 @@ mod openclaw_fetch_runtime_resolution_tests {
             Some("direct_http")
         );
         assert_eq!(
+            out.pointer("/allow_fallback").and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer("/tool_surface_status")
+                .and_then(Value::as_str),
+            Some("ready")
+        );
+        assert_eq!(
+            out.pointer("/tool_surface_ready")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
             out.pointer("/resolution_contract/prefer_runtime_providers")
                 .and_then(Value::as_bool),
             Some(false)
@@ -437,6 +451,20 @@ mod openclaw_fetch_runtime_resolution_tests {
         );
         assert_eq!(
             out.pointer("/runtime_provider_preferred")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/allow_fallback").and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer("/tool_surface_status")
+                .and_then(Value::as_str),
+            Some("ready")
+        );
+        assert_eq!(
+            out.pointer("/tool_surface_ready")
                 .and_then(Value::as_bool),
             Some(true)
         );

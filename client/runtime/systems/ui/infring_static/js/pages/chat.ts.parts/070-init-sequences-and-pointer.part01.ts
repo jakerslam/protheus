@@ -132,6 +132,11 @@
         this.promptSuggestions = [];
         return;
       }
+      if (!this.promptSuggestionsEnabled) {
+        this.promptSuggestions = [];
+        this.suggestionsLoading = false;
+        return;
+      }
       if (this.terminalMode || this.showFreshArchetypeTiles) {
         this.promptSuggestions = [];
         return;
