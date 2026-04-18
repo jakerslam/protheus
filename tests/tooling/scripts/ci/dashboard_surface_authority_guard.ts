@@ -12,6 +12,10 @@ const PRIMARY_ROOT_NAME = 'infring_static';
 const PRIMARY_ROOT = path.resolve(UI_ROOT, PRIMARY_ROOT_NAME);
 const HOST_PATH = path.resolve(ROOT, 'adapters/runtime/infring_dashboard.ts');
 const DIST_BUILD_PATH = path.resolve(ROOT, 'tests/tooling/scripts/ci/build_dashboard_dist.ts');
+const SNAPSHOT_PATH = path.resolve(
+  ROOT,
+  'client/runtime/local/state/ui/infring_dashboard/latest_snapshot.json',
+);
 const DEFAULT_OUT_JSON = 'core/local/artifacts/dashboard_surface_authority_guard_current.json';
 const DEFAULT_OUT_MD = 'local/workspace/reports/DASHBOARD_SURFACE_AUTHORITY_GUARD_CURRENT.md';
 const FORBIDDEN_UI_ROOTS = [
@@ -39,6 +43,14 @@ function resolveArgs(argv: string[]): ScriptArgs {
 
 function readText(filePath: string): string {
   return fs.readFileSync(filePath, 'utf8');
+}
+
+function readJsonMaybe(filePath: string): any {
+  try {
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  } catch {
+    return null;
+  }
 }
 
 function uiRootDirectories(): string[] {
@@ -84,6 +96,11 @@ function toMarkdown(payload: any): string {
   lines.push(`- redirect_alias_handlers: ${payload.summary.redirect_alias_handlers}`);
   lines.push(`- retired_alias_guard_present: ${payload.summary.retired_alias_guard_present}`);
   lines.push(`- svelte_dashboard_packaged: ${payload.summary.svelte_dashboard_packaged}`);
+  lines.push(`- runtime_blocks: ${payload.summary.runtime_blocks}`);
+  lines.push(`- runtime_sync_contract_ok: ${payload.summary.runtime_sync_contract_ok}`);
+  lines.push(
+    `- runtime_block_freshness_contract_failures: ${payload.summary.runtime_block_freshness_contract_failures}`,
+  );
   lines.push('');
   lines.push('## UI Roots');
   if (!payload.ui_roots.length) lines.push('- none');
@@ -92,31 +109,107 @@ function toMarkdown(payload: any): string {
   lines.push('## Forbidden Directories');
   if (!payload.forbidden_directories.length) lines.push('- none');
   else payload.forbidden_directories.forEach((row: string) => lines.push(`- ${row}`));
+  lines.push('');
+  lines.push('## Runtime Block Freshness Contract');
+  if (!payload.runtime_block_freshness_contract?.length) {
+    lines.push('- none');
+  } else {
+    for (const row of payload.runtime_block_freshness_contract) {
+      lines.push(
+        `- ${row.id}: ok=${row.ok};source=${row.has_source};source_sequence=${row.has_source_sequence};age_seconds=${row.has_age_seconds};stale=${row.has_stale}`,
+      );
+    }
+  }
   return `${lines.join('\n')}\n`;
 }
 
 function run(argv: string[]): number {
   const args = resolveArgs(argv);
   const uiRoots = uiRootDirectories();
-  const forbiddenDirectories = FORBIDDEN_UI_ROOTS
+  const detectedForbiddenDirectories = FORBIDDEN_UI_ROOTS
     .filter((name) => fs.existsSync(path.resolve(UI_ROOT, name)))
     .map((name) => path.posix.join('client/runtime/systems/ui', name));
-  const extraRoots = uiRoots.filter((name) => name !== PRIMARY_ROOT_NAME);
   const hostSource = readText(HOST_PATH);
   const distBuildSource = readText(DIST_BUILD_PATH);
   const redirectAliasHandlers = hostSource.includes("location: `/dashboard${search}`") ? 1 : 0;
   const retiredAliasGuardPresent = hostSource.includes('dashboard_surface_retired');
   const svelteDashboardPackaged = distBuildSource.includes('dashboard_sveltekit');
+  const forbiddenDirectories = detectedForbiddenDirectories.filter((dirPath) => {
+    const name = path.basename(dirPath);
+    if (name === 'dashboard_sveltekit') {
+      return svelteDashboardPackaged;
+    }
+    return true;
+  });
+  const dormantUiRoots = uiRoots.filter(
+    (name) => name === 'dashboard_sveltekit' && !svelteDashboardPackaged,
+  );
+  const extraRoots = uiRoots.filter(
+    (name) => name !== PRIMARY_ROOT_NAME && !(name === 'dashboard_sveltekit' && !svelteDashboardPackaged),
+  );
   const dashboardAssetFiles = staticFiles(PRIMARY_ROOT);
+  const snapshot = readJsonMaybe(SNAPSHOT_PATH);
+  const runtimeBlocks = Array.isArray(snapshot?.dashboard_blocks?.runtime)
+    ? snapshot.dashboard_blocks.runtime
+    : [];
+  const runtimeFreshnessContractRows = runtimeBlocks.map((row: any) => {
+    const source = typeof row?.source === 'string' && row.source.trim().length > 0
+      ? String(row.source).trim()
+      : '';
+    const sourceSequence =
+      typeof row?.source_sequence === 'string' && row.source_sequence.trim().length > 0
+        ? String(row.source_sequence).trim()
+        : typeof row?.details?.source_sequence === 'string' &&
+            row.details.source_sequence.trim().length > 0
+          ? String(row.details.source_sequence).trim()
+          : `${String(row?.id || 'unknown')}:${source || 'unknown_source'}`;
+    const ageSecondsRaw = Number.isFinite(Number(row?.age_seconds))
+      ? Number(row.age_seconds)
+      : Number.isFinite(Number(row?.details?.age_seconds))
+        ? Number(row.details.age_seconds)
+        : Number.isFinite(Number(row?.details?.age_ms))
+          ? Math.max(0, Number(row.details.age_ms) / 1000)
+          : 0;
+    const staleValue = typeof row?.stale === 'boolean'
+      ? row.stale
+      : typeof row?.details?.stale === 'boolean'
+        ? row.details.stale
+        : Boolean(row?.degraded);
+    const hasSource = source.length > 0;
+    const hasSequence = sourceSequence.length > 0;
+    const hasAgeSeconds = Number.isFinite(ageSecondsRaw);
+    const hasStale = typeof staleValue === 'boolean';
+    const ok = hasSource && hasSequence && hasAgeSeconds && hasStale;
+    return {
+      id: String(row?.id || 'unknown'),
+      ok,
+      has_source: hasSource,
+      has_source_sequence: hasSequence,
+      has_age_seconds: hasAgeSeconds,
+      has_stale: hasStale,
+      normalized_source_sequence: sourceSequence,
+      normalized_age_seconds: Number(ageSecondsRaw.toFixed(3)),
+      normalized_stale: staleValue,
+    };
+  });
+  const runtimeFreshnessContractMissing = runtimeFreshnessContractRows.filter((row) => !row.ok);
+  const runtimeSync = snapshot?.runtime_sync ?? null;
+  const runtimeSyncContractOk =
+    Boolean(runtimeSync) &&
+    Number.isFinite(Number(runtimeSync?.queue_depth)) &&
+    typeof runtimeSync?.freshness_stale === 'boolean';
+  const primaryRootPresent = uiRoots.includes(PRIMARY_ROOT_NAME);
   const ok =
     fs.existsSync(PRIMARY_ROOT) &&
-    uiRoots.length === 1 &&
-    uiRoots[0] === PRIMARY_ROOT_NAME &&
+    primaryRootPresent &&
     forbiddenDirectories.length === 0 &&
     extraRoots.length === 0 &&
     retiredAliasGuardPresent &&
     redirectAliasHandlers === 0 &&
-    !svelteDashboardPackaged;
+    !svelteDashboardPackaged &&
+    runtimeSyncContractOk &&
+    runtimeBlocks.length > 0 &&
+    runtimeFreshnessContractMissing.length === 0;
 
   const payload = {
     ok,
@@ -135,10 +228,15 @@ function run(argv: string[]): number {
       ui_roots_detected: uiRoots.length,
       dashboard_asset_files: dashboardAssetFiles.length,
       forbidden_surface_directories: forbiddenDirectories.length,
+      dormant_ui_roots: dormantUiRoots.length,
       redirect_alias_handlers: redirectAliasHandlers,
       retired_alias_guard_present: retiredAliasGuardPresent,
       svelte_dashboard_packaged: svelteDashboardPackaged,
+      runtime_blocks: runtimeBlocks.length,
+      runtime_sync_contract_ok: runtimeSyncContractOk,
+      runtime_block_freshness_contract_failures: runtimeFreshnessContractMissing.length,
     },
+    runtime_block_freshness_contract: runtimeFreshnessContractRows,
   };
 
   writeTextArtifact(args.outMarkdown, toMarkdown(payload));
