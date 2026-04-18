@@ -146,6 +146,44 @@ fn build_snapshot(root: &Path, flags: &Flags) -> Value {
         .pointer("/summary/stale")
         .and_then(Value::as_bool)
         .unwrap_or(runtime_freshness_stale_surfaces > 0);
+    let runtime_freshness_attention = runtime_freshness
+        .get("attention_status")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
+    let runtime_freshness_attention_next = runtime_freshness
+        .get("attention_next")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
+    let runtime_freshness_primary = if runtime_freshness_attention
+        .get("source")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .is_empty()
+    {
+        runtime_freshness_attention_next.clone()
+    } else {
+        runtime_freshness_attention.clone()
+    };
+    let runtime_freshness_source = clean_text(
+        runtime_freshness_primary
+            .get("source")
+            .and_then(Value::as_str)
+            .unwrap_or("runtime_sync.freshness"),
+        120,
+    );
+    let runtime_freshness_sequence = clean_text(
+        runtime_freshness_primary
+            .get("sequence")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        160,
+    );
+    let runtime_freshness_age_seconds =
+        (i64_from_value(runtime_freshness_primary.get("age_ms"), 0)).max(0) / 1000;
+    let runtime_freshness_primary_stale = runtime_freshness_primary
+        .get("stale")
+        .and_then(Value::as_bool)
+        .unwrap_or(runtime_freshness_stale);
     let runtime_backpressure_level = clean_text(
         runtime_summary
             .get("backpressure_level")
@@ -180,6 +218,16 @@ fn build_snapshot(root: &Path, flags: &Flags) -> Value {
         conduit_lifecycle_state.as_str(),
         "degraded" | "reconnecting" | "quarantined" | "failed_closed"
     );
+    let conduit_lifecycle_source = clean_text(
+        conduit_lifecycle
+            .get("source")
+            .and_then(Value::as_str)
+            .unwrap_or("agency_plane.conduit.lifecycle"),
+        120,
+    );
+    let conduit_lifecycle_sequence = crate::deterministic_receipt_hash(&conduit_lifecycle);
+    let conduit_lifecycle_age_seconds =
+        (i64_from_value(conduit_lifecycle.get("age_ms"), 0)).max(0) / 1000;
     let memory_entries = collect_memory_artifacts(root);
     let memory_seq = memory_entries.len() as i64;
     let queue_depth = i64_from_value(attention_runtime.get("queue_depth"), 0);
@@ -264,6 +312,26 @@ fn build_snapshot(root: &Path, flags: &Flags) -> Value {
         40,
     )
     .to_ascii_lowercase();
+    let web_tooling_runtime = web_tooling_summary
+        .get("runtime")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
+    let web_tooling_runtime_source = clean_text(
+        web_tooling_runtime
+            .get("source")
+            .and_then(Value::as_str)
+            .unwrap_or("web_tooling.runtime.status"),
+        120,
+    );
+    let web_tooling_runtime_sequence = crate::deterministic_receipt_hash(&web_tooling_runtime);
+    let web_tooling_runtime_age_seconds =
+        (i64_from_value(web_tooling_runtime.get("age_ms"), 0)).max(0) / 1000;
+    let web_tooling_runtime_stale = web_tooling_runtime
+        .get("stale")
+        .and_then(Value::as_bool)
+        .unwrap_or(
+            web_tooling_runtime_status == "degraded" || web_tooling_runtime_status == "blocked_auth",
+        );
     let web_tooling_degraded =
         web_tooling_runtime_status == "degraded" || web_tooling_runtime_status == "blocked_auth";
     let receipt_rows = collect_receipts(root);
@@ -275,6 +343,7 @@ fn build_snapshot(root: &Path, flags: &Flags) -> Value {
     let web_ops_blocked = i64_from_value(web_tooling_ops.get("tool_blocked"), 0);
     let web_ops_low_signal = i64_from_value(web_tooling_ops.get("low_signal"), 0);
     let web_ops_degraded = web_ops_no_response_rate > 0.05 || web_ops_blocked > 0 || web_ops_low_signal > 0;
+    let web_tooling_ops_sequence = crate::deterministic_receipt_hash(&web_tooling_ops);
     let runtime_stall_detected =
         runtime_freshness_stale || runtime_backpressure_degraded || web_tooling_degraded;
     let normal_cadence_ms = flags.refresh_ms.max(500);
@@ -299,10 +368,25 @@ fn build_snapshot(root: &Path, flags: &Flags) -> Value {
             "title": "Runtime Freshness",
             "state": if runtime_freshness_stale { "degraded" } else { "healthy" },
             "degraded": runtime_freshness_stale,
-            "source": "runtime_sync.freshness",
+            "source": runtime_freshness_source.clone(),
+            "source_sequence": if runtime_freshness_sequence.is_empty() {
+                crate::deterministic_receipt_hash(&runtime_freshness)
+            } else {
+                runtime_freshness_sequence.clone()
+            },
+            "age_seconds": runtime_freshness_age_seconds,
+            "stale": runtime_freshness_primary_stale,
             "details": {
                 "stale_surfaces": runtime_freshness_stale_surfaces,
-                "backpressure_level": runtime_backpressure_level.clone()
+                "backpressure_level": runtime_backpressure_level.clone(),
+                "source": runtime_freshness_source.clone(),
+                "source_sequence": if runtime_freshness_sequence.is_empty() {
+                    crate::deterministic_receipt_hash(&runtime_freshness)
+                } else {
+                    runtime_freshness_sequence.clone()
+                },
+                "age_seconds": runtime_freshness_age_seconds,
+                "stale": runtime_freshness_primary_stale
             }
         }),
         json!({
@@ -310,17 +394,33 @@ fn build_snapshot(root: &Path, flags: &Flags) -> Value {
             "title": "Conduit Lifecycle",
             "state": conduit_lifecycle_state.clone(),
             "degraded": conduit_lifecycle_degraded,
-            "source": "agency_plane.conduit.lifecycle",
-            "details": conduit_lifecycle.clone()
+            "source": conduit_lifecycle_source.clone(),
+            "source_sequence": conduit_lifecycle_sequence.clone(),
+            "age_seconds": conduit_lifecycle_age_seconds,
+            "stale": conduit_lifecycle_degraded,
+            "details": {
+                "source": conduit_lifecycle_source.clone(),
+                "source_sequence": conduit_lifecycle_sequence.clone(),
+                "age_seconds": conduit_lifecycle_age_seconds,
+                "stale": conduit_lifecycle_degraded,
+                "payload": conduit_lifecycle.clone()
+            }
         }),
         json!({
             "id": "web_tooling_runtime",
             "title": "Web Tooling Runtime",
             "state": if web_tooling_degraded { "degraded" } else { "healthy" },
             "degraded": web_tooling_degraded,
-            "source": "web_tooling.runtime.status",
+            "source": web_tooling_runtime_source.clone(),
+            "source_sequence": web_tooling_runtime_sequence.clone(),
+            "age_seconds": web_tooling_runtime_age_seconds,
+            "stale": web_tooling_runtime_stale,
             "details": {
-                "runtime_status": web_tooling_runtime_status.clone()
+                "runtime_status": web_tooling_runtime_status.clone(),
+                "source": web_tooling_runtime_source.clone(),
+                "source_sequence": web_tooling_runtime_sequence.clone(),
+                "age_seconds": web_tooling_runtime_age_seconds,
+                "stale": web_tooling_runtime_stale
             }
         }),
     ];
@@ -330,8 +430,93 @@ fn build_snapshot(root: &Path, flags: &Flags) -> Value {
         "state": if web_ops_degraded { "degraded" } else { "healthy" },
         "degraded": web_ops_degraded,
         "source": "receipts.recent.response_finalization.web_invariant",
-        "details": web_tooling_ops.clone()
+        "source_sequence": web_tooling_ops_sequence.clone(),
+        "age_seconds": 0,
+        "stale": web_ops_degraded,
+        "details": {
+            "source": "receipts.recent.response_finalization.web_invariant",
+            "source_sequence": web_tooling_ops_sequence.clone(),
+            "age_seconds": 0,
+            "stale": web_ops_degraded,
+            "ops": web_tooling_ops.clone()
+        }
     }));
+    for row in runtime_blocks.iter_mut() {
+        if let Some(obj) = row.as_object_mut() {
+            let source_value = clean_text(
+                obj.get("source")
+                    .and_then(Value::as_str)
+                    .unwrap_or("dashboard.runtime.unknown"),
+                120,
+            );
+            let id_value = clean_text(obj.get("id").and_then(Value::as_str).unwrap_or("unknown"), 80);
+            let mut source_sequence = clean_text(
+                obj.get("source_sequence").and_then(Value::as_str).unwrap_or(""),
+                160,
+            );
+            if source_sequence.is_empty() {
+                let sequence_seed = json!({
+                    "id": id_value,
+                    "source": source_value
+                });
+                source_sequence = crate::deterministic_receipt_hash(&sequence_seed);
+                obj.insert(
+                    "source_sequence".to_string(),
+                    Value::String(source_sequence.clone()),
+                );
+            }
+            let age_seconds_from_top = obj
+                .get("age_seconds")
+                .and_then(Value::as_i64)
+                .unwrap_or(-1);
+            let age_seconds = if age_seconds_from_top >= 0 {
+                age_seconds_from_top
+            } else {
+                let detail_age_seconds = obj
+                    .get("details")
+                    .and_then(|v| v.get("age_seconds"))
+                    .and_then(Value::as_i64)
+                    .unwrap_or(-1);
+                if detail_age_seconds >= 0 {
+                    detail_age_seconds
+                } else {
+                    (obj.get("details")
+                        .and_then(|v| v.get("age_ms"))
+                        .and_then(Value::as_i64)
+                        .unwrap_or(0)
+                        .max(0))
+                        / 1000
+                }
+            };
+            obj.insert("age_seconds".to_string(), json!(age_seconds.max(0)));
+            let stale_value = match obj.get("stale").and_then(Value::as_bool) {
+                Some(value) => value,
+                None => obj
+                    .get("details")
+                    .and_then(|v| v.get("stale"))
+                    .and_then(Value::as_bool)
+                    .unwrap_or_else(|| obj.get("degraded").and_then(Value::as_bool).unwrap_or(false)),
+            };
+            obj.insert("stale".to_string(), Value::Bool(stale_value));
+            if let Some(details_obj) = obj.get_mut("details").and_then(Value::as_object_mut) {
+                if !details_obj.contains_key("source") {
+                    details_obj.insert("source".to_string(), Value::String(source_value.clone()));
+                }
+                if !details_obj.contains_key("source_sequence") {
+                    details_obj.insert(
+                        "source_sequence".to_string(),
+                        Value::String(source_sequence.clone()),
+                    );
+                }
+                if !details_obj.contains_key("age_seconds") {
+                    details_obj.insert("age_seconds".to_string(), json!(age_seconds.max(0)));
+                }
+                if !details_obj.contains_key("stale") {
+                    details_obj.insert("stale".to_string(), Value::Bool(stale_value));
+                }
+            }
+        }
+    }
 
     let mut out = json!({
         "ok": true,

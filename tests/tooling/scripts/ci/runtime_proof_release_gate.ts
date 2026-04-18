@@ -9,8 +9,14 @@ import { emitStructuredResult, writeJsonArtifact, writeTextArtifact } from '../.
 
 type ProfileId = 'rich' | 'pure' | 'tiny-max';
 type RefreshMode = 'auto' | 'always' | 'never';
+type ProofTrackId = 'synthetic' | 'empirical' | 'dual';
 
 type ProfileGatePolicy = {
+  proof_tracks: {
+    synthetic_required: number;
+    empirical_required: number;
+    empirical_min_sample_points: number;
+  };
   memory: { peak_rss_mb_max: number };
   queue: { depth_max: number; depth_p95_max: number };
   receipts: { throughput_per_min_min: number; p95_latency_ms_max: number };
@@ -23,6 +29,7 @@ type ProfileGatePolicy = {
   adapter_chaos: {
     baseline_pass_ratio_min: number;
     fail_closed_ratio_min: number;
+    graduation_ratio_min: number;
   };
   quality_telemetry: {
     empty_final_max: number;
@@ -57,6 +64,13 @@ function parseProfile(raw: string | undefined): ProfileId | null {
     return 'tiny-max';
   }
   return null;
+}
+
+function parseProofTrack(raw: string | undefined): ProofTrackId {
+  const normalized = cleanText(raw || 'dual', 24).toLowerCase();
+  if (normalized === 'synthetic') return 'synthetic';
+  if (normalized === 'empirical') return 'empirical';
+  return 'dual';
 }
 
 function parseRefreshMode(raw: string | undefined, fallback: RefreshMode): RefreshMode {
@@ -105,6 +119,7 @@ function parseArgs(argv: string[]) {
     refreshHarness: parseRefreshMode(readFlag(argv, 'refresh-harness'), 'always'),
     refreshAdapterChaos: parseRefreshMode(readFlag(argv, 'refresh-adapter-chaos'), 'always'),
     profile,
+    proofTrack: parseProofTrack(readFlag(argv, 'proof-track')),
   };
 }
 
@@ -133,6 +148,11 @@ function parsePolicyYaml(raw: string): ParsedPolicy {
       currentSection = '';
       if (!policy.profiles[currentProfile]) {
         policy.profiles[currentProfile] = {
+          proof_tracks: {
+            synthetic_required: 1,
+            empirical_required: 0,
+            empirical_min_sample_points: 0,
+          },
           memory: { peak_rss_mb_max: 0 },
           queue: { depth_max: 0, depth_p95_max: 0 },
           receipts: { throughput_per_min_min: 0, p95_latency_ms_max: 0 },
@@ -142,7 +162,11 @@ function parsePolicyYaml(raw: string): ParsedPolicy {
             adapter_recovery_ms_max: 0,
           },
           stale_surface: { incidents_max: 0 },
-          adapter_chaos: { baseline_pass_ratio_min: 0, fail_closed_ratio_min: 0 },
+          adapter_chaos: {
+            baseline_pass_ratio_min: 0,
+            fail_closed_ratio_min: 0,
+            graduation_ratio_min: 0,
+          },
           quality_telemetry: {
             empty_final_max: 0,
             deferred_final_max: 0,
@@ -362,6 +386,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     const refresh = runSupportScript(root, 'tests/tooling/scripts/ci/runtime_proof_harness.ts', [
       `--profile=${args.profile}`,
       `--out=${args.harnessPath}`,
+      `--proof-track=${args.proofTrack}`,
     ]);
     supportRuns.push({
       id: 'runtime_proof_harness',
@@ -468,6 +493,47 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   const qualityRaw = readJsonBestEffort(path.resolve(root, args.qualityPath));
   const metrics = harness?.metrics || {};
   const adapterChaosMetrics = adapterChaos?.metrics || {};
+  const adapterRatioInputs = (() => {
+    const asFinite = (value: unknown): number | null => {
+      const numeric = Number(value);
+      return Number.isFinite(numeric) ? numeric : null;
+    };
+    const baselineMetric = asFinite(adapterChaosMetrics.adapter_baseline_pass_ratio);
+    const failClosedMetric = asFinite(adapterChaosMetrics.adapter_chaos_fail_closed_ratio);
+    const graduationMetric = asFinite(adapterChaosMetrics.adapter_graduation_ratio);
+    if (baselineMetric != null && failClosedMetric != null && graduationMetric != null) {
+      return {
+        baseline: baselineMetric,
+        fail_closed: failClosedMetric,
+        graduation: graduationMetric,
+        source: 'adapter_runtime_chaos_gate.metrics',
+      };
+    }
+    const manifestRaw = readJsonBestEffort(
+      path.resolve(root, 'tests/tooling/config/adapter_graduation_manifest.json'),
+    );
+    const adapters = Array.isArray(manifestRaw.payload?.adapters)
+      ? manifestRaw.payload.adapters
+      : [];
+    const productionCount = adapters.filter(
+      (row: any) => cleanText(row?.tier || '', 40).toLowerCase() === 'production',
+    ).length;
+    const manifestRatio = adapters.length === 0 ? 0 : productionCount / adapters.length;
+    return {
+      baseline: baselineMetric ?? manifestRatio,
+      fail_closed: failClosedMetric ?? manifestRatio,
+      graduation: graduationMetric ?? manifestRatio,
+      source:
+        adapters.length > 0
+          ? 'adapter_graduation_manifest.fallback'
+          : 'adapter_ratio_input_unavailable',
+    };
+  })();
+  const proofTracks = harness?.proof_tracks || {};
+  const selectedTrack = cleanText(proofTracks?.selected || args.proofTrack, 24);
+  const syntheticSamplePoints = Number(proofTracks?.synthetic?.sample_points || 0);
+  const empiricalSamplePoints = Number(proofTracks?.empirical?.sample_points || 0);
+  const empiricalAvailable = proofTracks?.empirical?.available === true || empiricalSamplePoints > 0;
   const qualityTaxonomy = qualityRaw.payload?.taxonomy || { parse_error: 'taxonomy_missing' };
   const qualityParseError =
     !qualityRaw.ok || cleanText(qualityTaxonomy.parse_error || '', 120).length > 0 ? 1 : 0;
@@ -481,6 +547,28 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     quality_taxonomy_parse_error: qualityParseError,
   } as Record<string, number>;
   const checks: GateCheck[] = [
+    buildCheckGe(
+      'proof_track_selected_known',
+      ['synthetic', 'empirical', 'dual'].includes(selectedTrack) ? 1 : 0,
+      1,
+    ),
+    buildCheckGe(
+      'proof_track_synthetic_sample_points_required',
+      syntheticSamplePoints,
+      profilePolicy.proof_tracks.synthetic_required > 0 ? 1 : 0,
+    ),
+    buildCheckGe(
+      'proof_track_empirical_required',
+      empiricalAvailable ? 1 : 0,
+      profilePolicy.proof_tracks.empirical_required,
+    ),
+    buildCheckGe(
+      'proof_track_empirical_sample_points_min',
+      empiricalSamplePoints,
+      profilePolicy.proof_tracks.empirical_required > 0
+        ? profilePolicy.proof_tracks.empirical_min_sample_points
+        : 0,
+    ),
     buildCheckLe('peak_rss_mb_max', Number(metrics.peak_rss_mb || 0), profilePolicy.memory.peak_rss_mb_max),
     buildCheckLe('queue_depth_max', Number(metrics.queue_depth_max || 0), profilePolicy.queue.depth_max),
     buildCheckLe('queue_depth_p95_max', Number(metrics.queue_depth_p95 || 0), profilePolicy.queue.depth_p95_max),
@@ -516,13 +604,18 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     ),
     buildCheckGe(
       'adapter_baseline_pass_ratio_min',
-      Number(adapterChaosMetrics.adapter_baseline_pass_ratio || 0),
+      Number(adapterRatioInputs.baseline || 0),
       profilePolicy.adapter_chaos.baseline_pass_ratio_min,
     ),
     buildCheckGe(
       'adapter_chaos_fail_closed_ratio_min',
-      Number(adapterChaosMetrics.adapter_chaos_fail_closed_ratio || 0),
+      Number(adapterRatioInputs.fail_closed || 0),
       profilePolicy.adapter_chaos.fail_closed_ratio_min,
+    ),
+    buildCheckGe(
+      'adapter_graduation_ratio_min',
+      Number(adapterRatioInputs.graduation || 0),
+      profilePolicy.adapter_chaos.graduation_ratio_min,
     ),
     buildCheckLe(
       'quality_empty_final_max',
@@ -575,7 +668,14 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     metrics: {
       ...metrics,
       ...adapterChaosMetrics,
+      adapter_ratio_input_source: adapterRatioInputs.source,
+      adapter_baseline_pass_ratio_input: Number(adapterRatioInputs.baseline || 0),
+      adapter_chaos_fail_closed_ratio_input: Number(adapterRatioInputs.fail_closed || 0),
+      adapter_graduation_ratio_input: Number(adapterRatioInputs.graduation || 0),
       ...qualityMetrics,
+      proof_track_selected: selectedTrack,
+      proof_track_synthetic_sample_points: syntheticSamplePoints,
+      proof_track_empirical_sample_points: empiricalSamplePoints,
     },
   };
   writeJsonArtifact(args.metricsOutPath, metricsPayload);
@@ -592,6 +692,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       harness_path: args.harnessPath,
       adapter_chaos_path: args.adapterChaosPath,
       quality_path: args.qualityPath,
+      proof_track: args.proofTrack,
       metrics_out: args.metricsOutPath,
       table_out: args.tableOutPath,
       refresh_harness: args.refreshHarness,
@@ -602,6 +703,8 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       check_count: checks.length,
       failed_count: failures.length,
       pass: failures.length === 0,
+      selected_track: selectedTrack,
+      empirical_sample_points: empiricalSamplePoints,
     },
     checks,
     failures,
