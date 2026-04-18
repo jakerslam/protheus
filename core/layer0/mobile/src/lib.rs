@@ -63,6 +63,10 @@ fn strip_invisible_unicode(raw: &str) -> String {
         .collect()
 }
 
+fn clamp_chars(raw: &str, max_len: usize) -> String {
+    raw.chars().take(max_len).collect()
+}
+
 fn sanitize_mobile_text(raw: &str, max_len: usize, allow_spaces: bool) -> String {
     let mut value: String = strip_invisible_unicode(raw)
         .chars()
@@ -74,8 +78,8 @@ fn sanitize_mobile_text(raw: &str, max_len: usize, allow_spaces: bool) -> String
         value.split_whitespace().collect::<String>()
     };
     value = value.trim().to_string();
-    if value.len() > max_len {
-        value.truncate(max_len);
+    if value.chars().count() > max_len {
+        value = clamp_chars(&value, max_len);
     }
     value
 }
@@ -119,6 +123,16 @@ fn default_request() -> MobileCycleRequest {
     }
 }
 
+fn any_subsystem_enabled(request: &MobileCycleRequest) -> bool {
+    request.run_swarm
+        || request.run_red_legion
+        || request.run_observability
+        || request.run_graph
+        || request.run_execution
+        || request.run_vault
+        || request.run_pinnacle
+}
+
 fn digest_report(report: &MobileCycleReport) -> String {
     let mut hasher = Sha256::new();
     hasher.update(report.cycle_id.as_bytes());
@@ -133,6 +147,9 @@ fn digest_report(report: &MobileCycleReport) -> String {
 pub fn run_mobile_cycle(request: Option<MobileCycleRequest>) -> Result<MobileCycleReport, String> {
     let profile = load_embedded_mobile_profile().map_err(|e| e.to_string())?;
     let request = normalize_mobile_request(request.unwrap_or_else(default_request), &profile);
+    if !any_subsystem_enabled(&request) {
+        return Err("no_subsystems_enabled".to_string());
+    }
 
     let capped_cycles = request.cycles;
     let mut subsystem_status = Vec::<String>::new();
@@ -181,7 +198,8 @@ pub fn run_mobile_cycle(request: Option<MobileCycleRequest>) -> Result<MobileCyc
             }
         })
         .to_string();
-        let merged = merge_delta(&left, &right).map_err(|e| format!("mobile_pinnacle_failed:{e}"))?;
+        let merged =
+            merge_delta(&left, &right).map_err(|e| format!("mobile_pinnacle_failed:{e}"))?;
         subsystem_status.push(format!("pinnacle:conflicts={}", merged.conflicts.len()));
         sovereignty_components.push(merged.sovereignty_index_pct);
     }
@@ -221,7 +239,8 @@ pub fn run_mobile_cycle(request: Option<MobileCycleRequest>) -> Result<MobileCyc
             ]
         })
         .to_string();
-        let receipt = run_graph_workflow(&graph_yaml).map_err(|e| format!("mobile_graph_failed:{e}"))?;
+        let receipt =
+            run_graph_workflow(&graph_yaml).map_err(|e| format!("mobile_graph_failed:{e}"))?;
         subsystem_status.push(format!("graph:steps={}", receipt.step_count));
         sovereignty_components.push(if receipt.cyclic { 45.0 } else { 90.0 });
     }
@@ -384,5 +403,22 @@ mod tests {
         .to_string();
         let out = run_mobile_cycle_json(&payload).expect("json");
         assert!(out.contains("json_cycle"));
+    }
+
+    #[test]
+    fn rejects_requests_with_no_enabled_subsystems() {
+        let req = MobileCycleRequest {
+            cycle_id: "none".to_string(),
+            cycles: 10,
+            run_swarm: false,
+            run_red_legion: false,
+            run_observability: false,
+            run_graph: false,
+            run_execution: false,
+            run_vault: false,
+            run_pinnacle: false,
+        };
+        let err = run_mobile_cycle(Some(req)).expect_err("should fail when no subsystems enabled");
+        assert_eq!(err, "no_subsystems_enabled");
     }
 }

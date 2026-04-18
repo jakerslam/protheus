@@ -67,14 +67,18 @@ fn strip_invisible_unicode(raw: &str) -> String {
         .collect()
 }
 
+fn clamp_chars(raw: &str, max_len: usize) -> String {
+    raw.chars().take(max_len).collect()
+}
+
 fn normalize_token(raw: &str, max_len: usize, fallback: &str) -> String {
     let mut normalized: String = strip_invisible_unicode(raw)
         .chars()
         .filter(|ch| !ch.is_control())
         .collect();
     normalized = normalized.trim().to_string();
-    if normalized.len() > max_len {
-        normalized.truncate(max_len);
+    if normalized.chars().count() > max_len {
+        normalized = clamp_chars(&normalized, max_len);
     }
     if normalized.is_empty() {
         fallback.to_string()
@@ -84,15 +88,21 @@ fn normalize_token(raw: &str, max_len: usize, fallback: &str) -> String {
 }
 
 fn normalize_id(raw: &str) -> String {
-    normalize_token(raw, MAX_NODE_ID_LEN, "unnamed_node")
+    let normalized = normalize_token(raw, MAX_NODE_ID_LEN, "unnamed_node");
+    let filtered: String = normalized
+        .chars()
+        .filter(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '_' | '-' | '.' | '/'))
+        .collect();
+    if filtered.is_empty() {
+        "unnamed_node".to_string()
+    } else {
+        filtered
+    }
 }
 
 fn normalize_workflow(mut workflow: GraphWorkflow) -> GraphWorkflow {
-    workflow.workflow_id = normalize_token(
-        &workflow.workflow_id,
-        MAX_WORKFLOW_ID_LEN,
-        "graph_workflow",
-    );
+    workflow.workflow_id =
+        normalize_token(&workflow.workflow_id, MAX_WORKFLOW_ID_LEN, "graph_workflow");
 
     let mut seen_nodes = BTreeSet::<String>::new();
     let mut normalized_nodes = Vec::<GraphNode>::new();
@@ -227,17 +237,27 @@ pub fn run_workflow(yaml: &str) -> Result<GraphReceipt, String> {
     let policy = load_embedded_graph_policy().map_err(|e| e.to_string())?;
     let workflow: GraphWorkflow =
         serde_yaml::from_str(yaml).map_err(|e| format!("workflow_parse_failed:{e}"))?;
-    let workflow = normalize_workflow(workflow);
+    let mut workflow = normalize_workflow(workflow);
 
     let mut warnings = Vec::<String>::new();
     if workflow.nodes.len() > policy.max_nodes {
         warnings.push("node_count_above_policy_cap".to_string());
+        workflow.nodes.truncate(policy.max_nodes);
     }
     if workflow.edges.len() > policy.max_edges {
         warnings.push("edge_count_above_policy_cap".to_string());
+        workflow.edges.truncate(policy.max_edges);
     }
+    let allowed_ids = workflow
+        .nodes
+        .iter()
+        .map(|n| n.id.clone())
+        .collect::<BTreeSet<_>>();
+    workflow
+        .edges
+        .retain(|edge| allowed_ids.contains(&edge.from) && allowed_ids.contains(&edge.to));
     if workflow.nodes.is_empty() {
-        warnings.push("workflow_nodes_empty_after_normalization".to_string());
+        return Err("workflow_nodes_empty_after_normalization".to_string());
     }
 
     let (ordered_nodes, cyclic) = topo_order(&workflow.nodes, &workflow.edges);

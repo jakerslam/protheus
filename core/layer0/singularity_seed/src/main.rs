@@ -11,6 +11,8 @@ use std::fs;
 const MAX_ARG_KEY_LEN: usize = 48;
 const MAX_ARG_VALUE_LEN: usize = 32 * 1024;
 const MAX_DRIFT_LOOP_ID_LEN: usize = 96;
+const MAX_DRIFT_OVERRIDES: usize = 128;
+const MAX_ABS_DRIFT_PCT: f64 = 100.0;
 
 fn strip_invisible_unicode(raw: &str) -> String {
     raw.chars()
@@ -29,8 +31,8 @@ fn sanitize_cli_value(raw: &str, max_len: usize) -> String {
         .filter(|ch| !ch.is_control())
         .collect();
     normalized = normalized.trim().to_string();
-    if normalized.len() > max_len {
-        normalized.truncate(max_len);
+    if normalized.chars().count() > max_len {
+        normalized = normalized.chars().take(max_len).collect();
     }
     normalized
 }
@@ -68,6 +70,11 @@ fn parse_request(args: &[String]) -> Result<CycleRequest, String> {
         return serde_json::from_str(&text).map_err(|err| format!("request_parse_failed:{err}"));
     }
     if let Some(v) = parse_arg(args, "--request-file") {
+        let metadata =
+            fs::metadata(v.as_str()).map_err(|err| format!("request_file_stat_failed:{err}"))?;
+        if metadata.len() > MAX_ARG_VALUE_LEN as u64 {
+            return Err("request_file_too_large".to_string());
+        }
         let text = fs::read_to_string(v.as_str())
             .map_err(|err| format!("request_file_read_failed:{err}"))?;
         if text.len() > MAX_ARG_VALUE_LEN {
@@ -80,6 +87,9 @@ fn parse_request(args: &[String]) -> Result<CycleRequest, String> {
     if let Some(v) = parse_arg(args, "--inject-drift") {
         let mut overrides_by_loop = BTreeMap::<String, DriftOverride>::new();
         for part in v.split(',') {
+            if overrides_by_loop.len() >= MAX_DRIFT_OVERRIDES {
+                return Err("too_many_drift_overrides".to_string());
+            }
             let trimmed = sanitize_cli_value(part, MAX_ARG_VALUE_LEN);
             if trimmed.is_empty() {
                 continue;
@@ -97,10 +107,10 @@ fn parse_request(args: &[String]) -> Result<CycleRequest, String> {
             if !drift_pct.is_finite() {
                 return Err("invalid_drift_value_non_finite".to_string());
             }
-            overrides_by_loop.insert(loop_id.clone(), DriftOverride {
-                loop_id,
-                drift_pct,
-            });
+            if drift_pct.abs() > MAX_ABS_DRIFT_PCT {
+                return Err("invalid_drift_value_out_of_bounds".to_string());
+            }
+            overrides_by_loop.insert(loop_id.clone(), DriftOverride { loop_id, drift_pct });
         }
         request.drift_overrides = overrides_by_loop.into_values().collect();
     }
@@ -118,9 +128,12 @@ fn usage() {
 
 fn main() {
     let args: Vec<String> = env::args().skip(1).collect();
-    let command = args.first().map(String::as_str).unwrap_or("demo");
+    let command = args
+        .first()
+        .map(|value| sanitize_cli_value(value, MAX_ARG_KEY_LEN).to_ascii_lowercase())
+        .unwrap_or_else(|| "demo".to_string());
 
-    match command {
+    match command.as_str() {
         "freeze" => match freeze_seed() {
             Ok(report) => println!(
                 "{}",

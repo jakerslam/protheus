@@ -67,14 +67,18 @@ fn strip_invisible_unicode(raw: &str) -> String {
         .collect()
 }
 
+fn clamp_chars(raw: &str, max_len: usize) -> String {
+    raw.chars().take(max_len).collect()
+}
+
 fn sanitize_crdt_token(raw: &str, max_len: usize) -> String {
     let mut value: String = strip_invisible_unicode(raw)
         .chars()
         .filter(|ch| !ch.is_control())
         .collect();
     value = value.trim().to_string();
-    if value.len() > max_len {
-        value.truncate(max_len);
+    if value.chars().count() > max_len {
+        value = clamp_chars(&value, max_len);
     }
     value
 }
@@ -460,5 +464,14 @@ mod tests {
         assert!(parsed.get("merged").is_some());
         let idx = get_sovereignty_index_ffi(left.as_ptr(), right.as_ptr());
         assert!(idx >= 0.0);
+    }
+
+    #[test]
+    fn merge_delta_handles_multibyte_node_ids() {
+        let emoji_node = "🚀".repeat(140);
+        let left = delta(&emoji_node, "x", 1, 1, true);
+        let right = delta("peer", "x", 2, 2, true);
+        let merged = merge_delta(&left, &right).expect("merge");
+        assert!(merged.merged.contains_key("x"));
     }
 }

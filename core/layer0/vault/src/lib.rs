@@ -114,6 +114,10 @@ fn has_value(v: &Option<String>) -> bool {
     v.as_ref().map(|s| !s.trim().is_empty()).unwrap_or(false)
 }
 
+fn error_json(err: &VaultError) -> String {
+    serde_json::json!({ "ok": false, "error": err.to_string() }).to_string()
+}
+
 fn auto_rotate_signal(
     policy: &EmbeddedVaultPolicy,
     request: &VaultOperationRequest,
@@ -180,11 +184,23 @@ pub fn evaluate_vault_policy(
     request: &VaultOperationRequest,
 ) -> VaultDecision {
     let runtime_envelope = load_embedded_vault_runtime_envelope().ok();
+    let operation_id = normalize_text(&request.operation_id, 160);
+    let key_id = normalize_text(&request.key_id, 160);
     let action = normalize_text(&request.action, 64).to_ascii_lowercase();
     let (rotate_due, rotate_reason) = auto_rotate_signal(policy, request);
     let mut should_rotate = rotate_due;
     let mut rule_results: Vec<RuleEvaluation> = Vec::new();
     let mut reasons: Vec<String> = Vec::new();
+
+    if operation_id.is_empty() || key_id.is_empty() {
+        reasons.push("vault.identity:operation_or_key_id_missing".to_string());
+        rule_results.push(RuleEvaluation {
+            rule_id: "vault.identity".to_string(),
+            passed: false,
+            fail_closed: true,
+            reason: "operation_or_key_id_missing".to_string(),
+        });
+    }
 
     for rule in &policy.rules {
         let (passed, reason) = match rule.id.as_str() {
@@ -326,8 +342,8 @@ pub fn evaluate_vault_policy(
     VaultDecision {
         policy_id: policy.policy_id.clone(),
         policy_digest: policy_digest(policy),
-        operation_id: normalize_text(&request.operation_id, 160),
-        key_id: normalize_text(&request.key_id, 160),
+        operation_id,
+        key_id,
         action,
         allowed,
         fail_closed,
@@ -379,11 +395,7 @@ pub extern "C" fn evaluate_vault_policy_ffi(request_json: *const c_char) -> *mut
     let payload =
         match c_str_to_string(request_json).and_then(|req| evaluate_vault_policy_json(&req)) {
             Ok(v) => v,
-            Err(err) => serde_json::json!({
-                "ok": false,
-                "error": err.to_string()
-            })
-            .to_string(),
+            Err(err) => error_json(&err),
         };
     into_c_string_ptr(payload)
 }
@@ -392,11 +404,7 @@ pub extern "C" fn evaluate_vault_policy_ffi(request_json: *const c_char) -> *mut
 pub extern "C" fn load_embedded_vault_policy_ffi() -> *mut c_char {
     let payload = match load_embedded_vault_policy_json() {
         Ok(v) => v,
-        Err(err) => serde_json::json!({
-            "ok": false,
-            "error": err.to_string()
-        })
-        .to_string(),
+        Err(err) => error_json(&err),
     };
     into_c_string_ptr(payload)
 }
@@ -420,11 +428,7 @@ use wasm_bindgen::prelude::*;
 pub fn evaluate_vault_policy_wasm(request_json: &str) -> String {
     match evaluate_vault_policy_json(request_json) {
         Ok(v) => v,
-        Err(err) => serde_json::json!({
-            "ok": false,
-            "error": err.to_string()
-        })
-        .to_string(),
+        Err(err) => error_json(&err),
     }
 }
 
@@ -433,11 +437,7 @@ pub fn evaluate_vault_policy_wasm(request_json: &str) -> String {
 pub fn load_embedded_vault_policy_wasm() -> String {
     match load_embedded_vault_policy_json() {
         Ok(v) => v,
-        Err(err) => serde_json::json!({
-            "ok": false,
-            "error": err.to_string()
-        })
-        .to_string(),
+        Err(err) => error_json(&err),
     }
 }
 

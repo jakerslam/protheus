@@ -2,7 +2,7 @@ use serde::Serialize;
 use std::collections::{BTreeSet, HashSet};
 use std::env;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 #[derive(Serialize, Clone)]
 struct Finding {
@@ -51,6 +51,7 @@ struct ScanOutput {
 }
 
 const MAX_ARG_VALUE_LEN: usize = 4096;
+const MAX_CSV_ENTRIES: usize = 256;
 
 fn strip_invisible_unicode(raw: &str) -> String {
     raw.chars()
@@ -69,8 +70,8 @@ fn sanitize_cli_value(raw: &str, max_len: usize) -> String {
         .filter(|ch| !ch.is_control())
         .collect();
     normalized = normalized.trim().to_string();
-    if normalized.len() > max_len {
-        normalized.truncate(max_len);
+    if normalized.chars().count() > max_len {
+        normalized = normalized.chars().take(max_len).collect();
     }
     normalized
 }
@@ -90,12 +91,25 @@ fn parse_arg(args: &[String], key: &str, fallback: &str) -> String {
 fn tokenize_csv(input: &str) -> Vec<String> {
     let mut deduped = BTreeSet::new();
     for entry in input.split(',') {
+        if deduped.len() >= MAX_CSV_ENTRIES {
+            break;
+        }
         let normalized = sanitize_cli_value(entry, 160);
         if !normalized.is_empty() {
             deduped.insert(normalized);
         }
     }
     deduped.into_iter().collect()
+}
+
+fn is_safe_relative_path(rel: &str) -> bool {
+    let path = Path::new(rel);
+    if path.is_absolute() {
+        return false;
+    }
+    !path
+        .components()
+        .any(|component| matches!(component, Component::ParentDir))
 }
 
 fn normalized_rel(root: &Path, path: &Path) -> String {
@@ -183,6 +197,15 @@ fn main() {
         println!("{}", payload);
         std::process::exit(2);
     }
+    if !root.is_dir() {
+        let payload = serde_json::json!({
+            "ok": false,
+            "error": "root_not_directory",
+            "root": root_raw
+        });
+        println!("{}", payload);
+        std::process::exit(2);
+    }
 
     let required_files = tokenize_csv(&required_files_arg);
     let suspicious_names: HashSet<String> = tokenize_csv(&suspicious_names_arg)
@@ -202,6 +225,20 @@ fn main() {
     let mut infring_mentions = 0usize;
 
     for rel in &required_files {
+        if !is_safe_relative_path(rel) {
+            findings.push(finding(
+                &format!("unsafe_required_file_path_{}", rel.replace('/', "_")),
+                "required_artifact",
+                "Required artifact path invalid",
+                "high",
+                "Required artifact path must be a safe relative path under root.",
+                Some(rel.clone()),
+                vec![format!("unsafe_path: {}", rel)],
+                false,
+                None,
+            ));
+            continue;
+        }
         let abs = root.join(rel);
         if !abs.exists() {
             missing_required += 1;
@@ -214,7 +251,10 @@ fn main() {
                 Some(rel.clone()),
                 vec![format!("missing: {}", rel)],
                 true,
-                Some(format!("Create {} with the current standard template.", rel)),
+                Some(format!(
+                    "Create {} with the current standard template.",
+                    rel
+                )),
             ));
         }
     }
@@ -237,7 +277,10 @@ fn main() {
                     Some(name.clone()),
                     vec![format!("root_entry: {}", name)],
                     false,
-                    Some(format!("Move {} to an internal scoped folder and document purpose.", name)),
+                    Some(format!(
+                        "Move {} to an internal scoped folder and document purpose.",
+                        name
+                    )),
                 ));
             }
             for marker in &personal_markers {
@@ -290,7 +333,12 @@ fn main() {
     if backlog_path.exists() {
         let text = safe_read(&backlog_path);
         let mut hit = 0usize;
-        for token in ["| todo |", "| doing |", "Status legend:\n- `todo`", "Status legend:\n- `doing`"] {
+        for token in [
+            "| todo |",
+            "| doing |",
+            "Status legend:\n- `todo`",
+            "Status legend:\n- `doing`",
+        ] {
             if text.contains(token) {
                 hit += 1;
             }
@@ -347,5 +395,9 @@ fn main() {
         },
     };
 
-    println!("{}", serde_json::to_string(&out).unwrap_or_else(|_| String::from("{\"ok\":false,\"error\":\"serialize_failed\"}")));
+    println!(
+        "{}",
+        serde_json::to_string(&out)
+            .unwrap_or_else(|_| String::from("{\"ok\":false,\"error\":\"serialize_failed\"}"))
+    );
 }
