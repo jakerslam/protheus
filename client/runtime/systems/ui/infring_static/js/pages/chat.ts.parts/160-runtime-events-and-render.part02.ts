@@ -31,6 +31,150 @@
       return this.messageOriginKind(msg) === 'human';
     },
 
+    messageStatReadNumberPath: function(source, path) {
+      if (!source || typeof source !== 'object') return 0;
+      var keyPath = String(path || '').trim();
+      if (!keyPath) return 0;
+      var target = source;
+      var parts = keyPath.split('.');
+      for (var i = 0; i < parts.length; i += 1) {
+        var key = String(parts[i] || '').trim();
+        if (!key || !target || typeof target !== 'object' || !Object.prototype.hasOwnProperty.call(target, key)) return 0;
+        target = target[key];
+      }
+      var numeric = Number(typeof target === 'string' ? target.replace(/,/g, '').trim() : target);
+      if (!Number.isFinite(numeric) || numeric <= 0) return 0;
+      return numeric;
+    },
+
+    messageStatReadNumberFromPaths: function(msg, paths) {
+      var row = msg && typeof msg === 'object' ? msg : {};
+      var probes = Array.isArray(paths) ? paths : [];
+      for (var i = 0; i < probes.length; i += 1) {
+        var numeric = this.messageStatReadNumberPath(row, probes[i]);
+        if (numeric > 0) return numeric;
+      }
+      return 0;
+    },
+
+    messageStatDurationFromMeta: function(msg) {
+      var meta = String(msg && msg.meta || '').trim();
+      if (!meta) return 0;
+      var minuteMatch = meta.match(/(?:^|\|)\s*([0-9]{1,3})\s*m\s*([0-9]{1,2})\s*s\s*(?:\||$)/i);
+      if (minuteMatch) {
+        var min = Number(minuteMatch[1] || 0);
+        var sec = Number(minuteMatch[2] || 0);
+        if (Number.isFinite(min) && Number.isFinite(sec) && (min > 0 || sec > 0)) return (min * 60000) + (sec * 1000);
+      }
+      var secondMatch = meta.match(/(?:^|\|)\s*([0-9]+(?:\.[0-9]+)?)\s*s\s*(?:\||$)/i);
+      if (secondMatch) {
+        var seconds = Number(secondMatch[1] || 0);
+        if (Number.isFinite(seconds) && seconds > 0) return Math.round(seconds * 1000);
+      }
+      var milliMatch = meta.match(/(?:^|\|)\s*([0-9]+(?:\.[0-9]+)?)\s*ms\s*(?:\||$)/i);
+      if (milliMatch) {
+        var millis = Number(milliMatch[1] || 0);
+        if (Number.isFinite(millis) && millis > 0) return Math.round(millis);
+      }
+      return 0;
+    },
+
+    messageStatResponseTimeMs: function(msg) {
+      if (!msg || typeof msg !== 'object') return 0;
+      var fromPayload = this.messageStatReadNumberFromPaths(msg, [
+        'duration_ms',
+        'elapsed_ms',
+        'response_ms',
+        'response_time_ms',
+        'responseTimeMs',
+        'latency_ms',
+        'latencyMs',
+        'turn_transaction.duration_ms',
+        'turn_transaction.elapsed_ms',
+        'turn_transaction.response_ms',
+        'turn_transaction.response_time_ms',
+        'turn_transaction.responseTimeMs',
+        'turn_transaction.metrics.duration_ms',
+        'response_finalization.duration_ms',
+        'response_finalization.elapsed_ms',
+        'response_finalization.response_ms',
+        'response_finalization.response_time_ms',
+        'response_workflow.duration_ms'
+      ]);
+      if (fromPayload > 0) return fromPayload;
+      return this.messageStatDurationFromMeta(msg);
+    },
+
+    messageStatResponseTimeText: function(msg) {
+      if (!msg || msg.thinking || msg.is_notice) return '';
+      if (typeof this.messageIsAgentOrigin === 'function' && !this.messageIsAgentOrigin(msg)) return '';
+      var durationMs = this.messageStatResponseTimeMs(msg);
+      if (!durationMs || durationMs <= 0) return '';
+      return typeof this.formatResponseDuration === 'function' ? this.formatResponseDuration(durationMs) : (Math.round(durationMs) + 'ms');
+    },
+
+    messageStatTokensFromMeta: function(msg) {
+      var meta = String(msg && msg.meta || '').trim();
+      if (!meta) return 0;
+      var tokenMatch = meta.match(/([0-9][0-9,]*)\s*in\s*\/\s*([0-9][0-9,]*)\s*out/i);
+      if (!tokenMatch) return 0;
+      var inTokens = Number(String(tokenMatch[1] || '0').replace(/,/g, ''));
+      var outTokens = Number(String(tokenMatch[2] || '0').replace(/,/g, ''));
+      if (!Number.isFinite(inTokens) || inTokens < 0) inTokens = 0;
+      if (!Number.isFinite(outTokens) || outTokens < 0) outTokens = 0;
+      return inTokens + outTokens;
+    },
+
+    messageStatBurnTotalTokens: function(msg) {
+      if (!msg || typeof msg !== 'object') return 0;
+      var total = this.messageStatReadNumberFromPaths(msg, [
+        'total_tokens',
+        'usage.total_tokens',
+        'token_usage.total_tokens',
+        'turn_transaction.total_tokens',
+        'turn_transaction.usage.total_tokens',
+        'turn_transaction.token_usage.total_tokens',
+        'response_finalization.total_tokens',
+        'response_finalization.usage.total_tokens',
+        'response_workflow.total_tokens'
+      ]);
+      if (total > 0) return total;
+      var inTokens = this.messageStatReadNumberFromPaths(msg, [
+        'input_tokens',
+        'usage.input_tokens',
+        'token_usage.input_tokens',
+        'turn_transaction.input_tokens',
+        'turn_transaction.usage.input_tokens',
+        'turn_transaction.token_usage.input_tokens',
+        'response_finalization.input_tokens',
+        'response_finalization.usage.input_tokens',
+        'response_workflow.input_tokens'
+      ]);
+      var outTokens = this.messageStatReadNumberFromPaths(msg, [
+        'output_tokens',
+        'usage.output_tokens',
+        'token_usage.output_tokens',
+        'turn_transaction.output_tokens',
+        'turn_transaction.usage.output_tokens',
+        'turn_transaction.token_usage.output_tokens',
+        'response_finalization.output_tokens',
+        'response_finalization.usage.output_tokens',
+        'response_workflow.output_tokens'
+      ]);
+      var combined = inTokens + outTokens;
+      if (combined > 0) return combined;
+      return this.messageStatTokensFromMeta(msg);
+    },
+
+    messageStatBurnLabelText: function(msg) {
+      if (!msg || msg.thinking || msg.is_notice) return '';
+      var total = this.messageStatBurnTotalTokens(msg);
+      if (!Number.isFinite(total) || total <= 0) return '';
+      if (total < 1000) return String(Math.round(total));
+      if (typeof this.formatTokenK === 'function') return this.formatTokenK(total);
+      return (Math.round((total / 1000) * 10) / 10).toFixed(1).replace(/\.0$/, '') + 'k';
+    },
+
     shouldReloadHistoryForFinalEventPayload: function(payload) {
       return !!(
         payload &&

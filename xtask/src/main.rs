@@ -56,7 +56,7 @@ fn print_usage() {
         "  cargo run -p xtask -- infring-new --template=single-agent|swarm|rag|voice --name=<project-name> [--out=<dir>] [--force=1|0]"
     );
     println!(
-        "  cargo run -p xtask -- infring-agent-run --name=<agent> --prompt=<text> [--provider=local-echo] [--pack=research,web-ops,lead-gen,social-signal,issue-ops] [--tool=web.search,web.fetch] [--lifespan=3600] [--schedule-interval=<seconds>] [--schedule-max-runs=<n>] [--permissions=<json|@file>] [--wasm-policy=<json|@file>] [--voice=<json|@file>] [--receipt-merkle=1|0] [--receipt-merkle-seed=<seed>] [--prev-receipt-root=<hash>]"
+        "  cargo run -p xtask -- infring-agent-run --name=<agent> --prompt=<text> [--provider=local-echo] [--pack=research,web-ops,lead-gen,social-signal,issue-ops] [--tool=web.search,web.fetch] [--lifespan=3600] [--schedule-interval=<seconds>] [--schedule-max-runs=<n>] [--permissions=<json|@file>] [--permissions-template=parent|admin|user] [--parent-permissions=<json|@file>] [--wasm-policy=<json|@file>] [--voice=<json|@file>] [--receipt-merkle=1|0] [--receipt-merkle-seed=<seed>] [--prev-receipt-root=<hash>]"
     );
 }
 
@@ -344,7 +344,27 @@ fn run_infring_agent_run(args: &[String]) -> Result<()> {
     let schedule_max_runs = parse_u32(flags.get("schedule-max-runs"));
     let packs = csv_tokens(flags.get("pack"));
     let tools = csv_tokens(flags.get("tool"));
-    let permissions_manifest = parse_json_flag(flags.get("permissions"))?;
+    let mut permissions_manifest = parse_json_flag(flags.get("permissions"))?;
+    let permissions_template = flags
+        .get("permissions-template")
+        .map(|value| value.trim().to_ascii_lowercase())
+        .filter(|value| !value.is_empty());
+    let parent_permissions_manifest = parse_json_flag(flags.get("parent-permissions"))?;
+    if permissions_template.is_some() || parent_permissions_manifest.is_some() {
+        let mut merged = permissions_manifest.unwrap_or_else(|| json!({}));
+        if !merged.is_object() {
+            merged = json!({});
+        }
+        if let Some(template) = &permissions_template {
+            if let Some(object) = merged.as_object_mut() {
+                object.insert("template".to_string(), json!(template));
+                if template == "parent" {
+                    object.insert("inherit_parent".to_string(), json!(true));
+                }
+            }
+        }
+        permissions_manifest = Some(merged);
+    }
     let wasm_sandbox = parse_json_flag(flags.get("wasm-policy"))?;
     let voice_session = parse_json_flag(flags.get("voice"))?;
     let receipt_merkle = if parse_bool(flags.get("receipt-merkle"), false) {
@@ -367,7 +387,8 @@ fn run_infring_agent_run(args: &[String]) -> Result<()> {
         capability_packs: packs,
         lifespan_seconds: Some(lifespan_seconds),
         metadata: json!({
-            "source": "xtask.infring-agent-run"
+            "source": "xtask.infring-agent-run",
+            "parent_permissions_manifest": parent_permissions_manifest
         }),
         permissions_manifest,
         wasm_sandbox,

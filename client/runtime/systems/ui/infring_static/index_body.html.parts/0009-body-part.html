@@ -116,11 +116,11 @@
               </div>
 
               <!-- Empty State -->
-              <div class="empty-state" x-show="!jobs.length">
+              <infring-chat-stream-shell class="empty-state" x-show="!jobs.length">
                 <h4>No scheduled jobs</h4>
                 <p class="hint">Create a cron job to run agents on a recurring schedule. Jobs are stored persistently and survive restarts.</p>
                 <button class="btn btn-primary mt-4" @click="showCreateForm = true">+ Create Scheduled Job</button>
-              </div>
+              </infring-chat-stream-shell>
             </div>
 
             <!-- Create Job Modal -->
@@ -225,10 +225,10 @@
                   </tbody>
                 </table>
               </div>
-              <div class="empty-state" x-show="!triggers.length">
+              <infring-chat-stream-shell class="empty-state" x-show="!triggers.length">
                 <h4>No event triggers</h4>
                 <p class="hint">Create event triggers on the <a href="#workflows" style="color:var(--accent)">Workflows page</a> to fire agents in response to system events.</p>
-              </div>
+              </infring-chat-stream-shell>
             </div>
           </div>
 
@@ -258,10 +258,10 @@
                   </tbody>
                 </table>
               </div>
-              <div class="empty-state" x-show="!history.length">
+              <infring-chat-stream-shell class="empty-state" x-show="!history.length">
                 <h4>No run history yet</h4>
                 <p class="hint">Run history will appear here after scheduled jobs or triggers execute.</p>
-              </div>
+              </infring-chat-stream-shell>
             </div>
           </div>
 

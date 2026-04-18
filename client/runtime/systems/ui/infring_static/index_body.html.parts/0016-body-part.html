@@ -21,10 +21,10 @@
                   <span class="text-xs" x-text="entry.detail"></span>
                 </div>
               </template>
-              <div class="empty-state" x-show="!filteredEntries.length" style="padding:20px">
+              <infring-chat-stream-shell class="empty-state" x-show="!filteredEntries.length" style="padding:20px">
                 <h4>No log entries yet</h4>
                 <p class="hint">Activity will appear here as agents run.</p>
-              </div>
+              </infring-chat-stream-shell>
             </div>
             </div>
           </div>
@@ -77,10 +77,10 @@
                 </tbody>
               </table>
             </div>
-            <div class="empty-state" x-show="!auditEntries.length">
+            <infring-chat-stream-shell class="empty-state" x-show="!auditEntries.length">
               <h4>No audit entries yet</h4>
               <p class="hint">Activity will appear here as agents operate.</p>
-            </div>
+            </infring-chat-stream-shell>
             </div>
           </div>
         </div>

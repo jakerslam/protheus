@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 const { spawnSync } = require('child_process');
+const { sanitizeBridgeArg } = require('../../../client/runtime/lib/runtime_system_entrypoint.ts');
 
 const pkgRoot = path.resolve(__dirname, '..');
 const workspaceRoot = path.resolve(pkgRoot, '..', '..');
@@ -18,6 +19,7 @@ function exeName() { return process.platform === 'win32' ? 'protheus-ops.exe' : 
 function targetBinaryPath() { return path.join(pkgRoot, 'vendor', exeName()); }
 function ensureDir(dirPath) { fs.mkdirSync(dirPath, { recursive: true }); }
 function chmodExec(filePath) { if (process.platform !== 'win32') fs.chmodSync(filePath, 0o755); }
+function sanitizeText(value, maxLen = 240) { return sanitizeBridgeArg(value, maxLen); }
 
 function platformTriple() {
   const archMap = { x64: 'x86_64', arm64: 'aarch64' };
@@ -135,6 +137,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  process.stderr.write('[protheus npm] install failed: ' + (err && err.message ? err.message : String(err)) + '\n');
+  process.stderr.write('[protheus npm] install failed: ' + sanitizeText(err && err.message ? err.message : err, 240) + '\n');
   process.exit(1);
 });

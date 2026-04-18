@@ -412,4 +412,87 @@ mod app_chat_regression_tests {
         );
     }
 
+    #[test]
+    fn app_chat_suppresses_competitive_programming_dump_from_web_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        write_chat_script(
+            root.path(),
+            &json!({
+                "queue": [
+                    {
+                        "response": "Tree Leaves problem statement. Given a tree, list all leaves in top-down left-to-right order. Input Specification: ... Sample Input ... Sample Output ... #include <stdio.h> int main() { return 0; }",
+                        "tools": [
+                            {
+                                "name": "batch_query",
+                                "status": "ok",
+                                "result": "Given a tree ... input specification ... sample output ..."
+                            }
+                        ]
+                    }
+                ],
+                "calls": []
+            }),
+        );
+        let lane = run_action(
+            root.path(),
+            "app.chat",
+            &json!({
+                "agent_id": "agent-regression-competitive-dump",
+                "input": "try doing a generic search \"top AI agent frameworks\""
+            }),
+        );
+        assert!(lane.ok);
+        let payload = lane.payload.unwrap_or_else(|| json!({}));
+        let response = app_chat_response_text(&payload).to_ascii_lowercase();
+        let outcome = app_chat_finalization_outcome(&payload);
+        assert!(response.contains("web_tool_context_mismatch"), "{response}");
+        assert_eq!(outcome, "suppressed_irrelevant_dump");
+    }
+
+    #[test]
+    fn app_chat_meta_diagnostic_prompt_does_not_force_web_fallback() {
+        let root = tempfile::tempdir().expect("tempdir");
+        write_chat_script(
+            root.path(),
+            &json!({
+                "queue": [
+                    {
+                        "response": "That was a test. I can explain what happened without running web tools.",
+                        "tools": []
+                    }
+                ],
+                "calls": []
+            }),
+        );
+        let lane = run_action(
+            root.path(),
+            "app.chat",
+            &json!({
+                "agent_id": "agent-regression-meta-diagnostic",
+                "input": "that was just a test"
+            }),
+        );
+        assert!(lane.ok);
+        let payload = lane.payload.unwrap_or_else(|| json!({}));
+        let tools = payload
+            .get("tools")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(
+            !tools.iter().any(|row| {
+                clean_text(
+                    row.get("name")
+                        .or_else(|| row.get("tool"))
+                        .and_then(Value::as_str)
+                        .unwrap_or(""),
+                    80,
+                )
+                .to_ascii_lowercase()
+                    == "batch_query"
+            }),
+            "{tools:?}"
+        );
+    }
+
 }

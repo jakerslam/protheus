@@ -363,12 +363,18 @@ fn handle_agent_scope_suggestions_command_config_routes(
                     .unwrap_or(""),
                 200,
             );
-            let preserve_default_name_for_self_named_models = selected_model_supports_self_naming(
-                root,
-                snapshot,
-                &selected_provider_hint,
-                &selected_model_hint,
-            );
+            let preserve_default_name_for_self_named_models = if should_seed_intro
+                && patch.get("name").is_none()
+            {
+                false
+            } else {
+                selected_model_supports_self_naming(
+                    root,
+                    snapshot,
+                    &selected_provider_hint,
+                    &selected_model_hint,
+                )
+            };
             let existing_name = clean_text(
                 existing
                     .as_ref()

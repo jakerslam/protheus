@@ -19,6 +19,7 @@ pub struct ManifestValidation {
 
 const MAX_EXPORTS: usize = 64;
 const MAX_TOKEN_CHARS: usize = 64;
+const ALLOWED_FALLBACKS: [&str; 3] = ["ts_adapter_lane", "rust_adapter_lane", "native_bridge_lane"];
 
 fn normalize_token(raw: &str) -> String {
     raw.trim()
@@ -74,8 +75,13 @@ pub fn validate_manifest_detailed(m: &AdapterManifest) -> ManifestValidation {
     if normalized.exports.is_empty() {
         errors.push("exports_missing".to_string());
     }
+    if m.exports.len() > MAX_EXPORTS {
+        errors.push("exports_count_exceeded".to_string());
+    }
     if normalized.fallback.is_empty() {
         errors.push("fallback_missing".to_string());
+    } else if !ALLOWED_FALLBACKS.contains(&normalized.fallback.as_str()) {
+        errors.push("fallback_unsupported".to_string());
     }
     ManifestValidation {
         ok: errors.is_empty(),
@@ -143,5 +149,18 @@ mod tests {
         assert_eq!(out.ok, false);
         assert!(out.errors.contains(&"adapter_prefix_invalid".to_string()));
         assert_eq!(out.normalized.exports, vec!["merge".to_string(), "query".to_string()]);
+    }
+
+    #[test]
+    fn manifest_validation_rejects_unknown_fallback() {
+        let m = AdapterManifest {
+            schema_version: "1.0".into(),
+            adapter: "protheus_wasm_bridge".into(),
+            exports: vec!["run".into()],
+            fallback: "custom_lane".into(),
+        };
+        let out = validate_manifest_detailed(&m);
+        assert!(!out.ok);
+        assert!(out.errors.contains(&"fallback_unsupported".to_string()));
     }
 }

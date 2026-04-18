@@ -10,6 +10,7 @@ export {};
 const fs = require('node:fs');
 const path = require('node:path');
 const { invokeTsModuleSync } = require('../../client/runtime/lib/in_process_ts_delegate.ts');
+const { sanitizeBridgeArg } = require('../../client/runtime/lib/runtime_system_entrypoint.ts');
 
 const ROOT = path.join(__dirname, '..', '..');
 const CORE_PACKAGE_DIR = __dirname;
@@ -19,13 +20,12 @@ const MAX_ARG_COUNT = 64;
 const MAX_ARG_LENGTH = 256;
 
 function sanitizeCliToken(value: unknown, fallback = '') {
-  const normalized = String(value == null ? fallback : value)
+  const normalized = sanitizeBridgeArg(value == null ? fallback : value, MAX_ARG_LENGTH)
     .replace(/[\u0000-\u001f\u007f]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
   if (!normalized) return String(fallback || '');
-  if (normalized.length <= MAX_ARG_LENGTH) return normalized;
-  return normalized.slice(0, MAX_ARG_LENGTH);
+  return normalized;
 }
 
 function sanitizeArgv(args: string[] = []) {

@@ -3,6 +3,7 @@ use sha2::{Digest, Sha256};
 
 const MAX_CHANNEL_LEN: usize = 120;
 const MAX_NONCE_LEN: usize = 160;
+const MAX_ALLOWED_CHANNELS: usize = 256;
 const MIN_TS_MILLIS: u64 = 1;
 const MAX_TS_MILLIS: u64 = 9_999_999_999_999;
 
@@ -49,8 +50,8 @@ fn sanitize_token(raw: &str, max_len: usize, lowercase: bool) -> String {
     if lowercase {
         value = value.to_ascii_lowercase();
     }
-    if value.len() > max_len {
-        value.truncate(max_len);
+    if value.chars().count() > max_len {
+        value = value.chars().take(max_len).collect();
     }
     value
 }
@@ -71,6 +72,10 @@ impl IpcPolicy {
         if self.max_payload_bytes == 0 {
             return Err(IpcError::InvalidPolicy);
         }
+        let allowed_channels = normalize_allowed_channels(&self.allowed_channels);
+        if allowed_channels.is_empty() || allowed_channels.len() > MAX_ALLOWED_CHANNELS {
+            return Err(IpcError::InvalidPolicy);
+        }
         if !(MIN_TS_MILLIS..=MAX_TS_MILLIS).contains(&envelope.ts_millis) {
             return Err(IpcError::InvalidTimestamp);
         }
@@ -82,7 +87,10 @@ impl IpcPolicy {
             return Err(IpcError::PayloadTooLarge);
         }
         let channel = sanitize_token(&envelope.channel, MAX_CHANNEL_LEN, true);
-        let channel_allowed = normalize_allowed_channels(&self.allowed_channels)
+        if channel.is_empty() {
+            return Err(IpcError::InvalidChannel);
+        }
+        let channel_allowed = allowed_channels
             .iter()
             .any(|ch| ch.as_str() == channel.as_str());
         if !channel_allowed {

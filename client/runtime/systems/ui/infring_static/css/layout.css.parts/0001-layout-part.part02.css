@@ -27,24 +27,14 @@
 .nav-sub-sort-group.nav-sub-sort-pill {
   --pill-opt-size: 24px;
   --pill-track-color: color-mix(in srgb, var(--text-muted) 76%, transparent);
-  position: relative;
-  display: inline-flex;
-  align-items: center;
   width: calc(var(--pill-opt-size) * 2);
   height: var(--pill-opt-size);
-  padding: 0;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .nav-sub-sort-group.nav-sub-sort-pill::before {
   width: var(--pill-opt-size);
-  height: var(--pill-opt-size);
-  top: 0;
-  left: 0;
-  background: var(--pill-track-color);
-  opacity: 0.55;
-  transform: translateX(0);
-  transition: transform 0.2s var(--ease-smooth), background var(--transition-fast);
+  height: 100%;
 }
 
 .nav-sub-sort-group.nav-sub-sort-pill[data-mode='topology']::before {
@@ -52,20 +42,7 @@
 }
 
 .nav-sub-sort-group.nav-sub-sort-pill .nav-sub-sort-btn {
-  width: var(--pill-opt-size);
-  height: var(--pill-opt-size);
   flex: 0 0 var(--pill-opt-size);
-  border-radius: 999px;
-  border: none;
-  background: transparent;
-  color: var(--text-dim);
-  position: relative;
-  z-index: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: color var(--transition-fast), background var(--transition-fast);
 }
 
 .nav-sub-sort-btn svg {

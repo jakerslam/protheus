@@ -251,10 +251,7 @@ fn policy_allows(request: &TypedOrchestrationRequest, capability: &Capability) -
         true
     } else {
         !matches!(request.policy_scope, PolicyScope::CrossBoundary)
-            && !matches!(
-                request.operation_kind,
-                OperationKind::Mutate | OperationKind::Assimilate
-            )
+            && !matches!(request.operation_kind, OperationKind::Assimilate)
     };
     (allows, "heuristic.policy_scope_and_mutability".to_string())
 }
@@ -293,7 +290,10 @@ fn transport_available(
                 | OperationKind::Compare
                 | OperationKind::InspectTooling
         );
-    (likely_transport, "heuristic.transport_hints_or_operation".to_string())
+    (
+        likely_transport,
+        "heuristic.transport_hints_or_operation".to_string(),
+    )
 }
 
 fn dedupe<T: Ord>(rows: &mut Vec<T>) {

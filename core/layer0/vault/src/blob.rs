@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
+use infring_types::{decode_normalized_blob_manifest, normalize_sha256_hash};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::fmt::{Display, Formatter};
-use infring_types::{
-    decode_normalized_blob_manifest, normalize_sha256_hash,
-};
 
 pub const VAULT_RUNTIME_BLOB_ID: &str = "vault_runtime_envelope";
 pub const VAULT_RUNTIME_BLOB: &[u8] = include_bytes!("blobs/vault_runtime_envelope.blob");
 pub const MANIFEST_BLOB: &[u8] = include_bytes!("blobs/manifest.blob");
 const MAX_BLOB_ID_LEN: usize = 128;
+const MAX_MANIFEST_ENTRIES: usize = 1024;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct VaultRuntimeEnvelope {
@@ -60,6 +59,16 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
 pub fn decode_manifest(bytes: &[u8]) -> Result<Vec<BlobManifest>, BlobError> {
     let rows = decode_normalized_blob_manifest(bytes, MAX_BLOB_ID_LEN)
         .map_err(BlobError::ManifestDecodeFailed)?;
+    if rows.is_empty() {
+        return Err(BlobError::ManifestDecodeFailed(
+            "manifest_empty".to_string(),
+        ));
+    }
+    if rows.len() > MAX_MANIFEST_ENTRIES {
+        return Err(BlobError::ManifestDecodeFailed(
+            "manifest_entry_count_exceeded".to_string(),
+        ));
+    }
     Ok(rows
         .into_iter()
         .map(|row| BlobManifest {
@@ -70,16 +79,12 @@ pub fn decode_manifest(bytes: &[u8]) -> Result<Vec<BlobManifest>, BlobError> {
         .collect())
 }
 
-
 pub fn unfold_blob<T: DeserializeOwned>(bytes: &[u8], expected_hash: &str) -> Result<T, BlobError> {
     let actual = sha256_hex(bytes);
     let expected = normalize_sha256_hash(expected_hash)
         .ok_or_else(|| BlobError::DecodeFailed("expected_hash_invalid".to_string()))?;
     if actual != expected {
-        return Err(BlobError::HashMismatch {
-            expected,
-            actual,
-        });
+        return Err(BlobError::HashMismatch { expected, actual });
     }
     serde_json::from_slice(bytes).map_err(|e| BlobError::DecodeFailed(e.to_string()))
 }
@@ -90,5 +95,19 @@ pub fn load_embedded_vault_runtime_envelope() -> Result<VaultRuntimeEnvelope, Bl
         .iter()
         .find(|v| v.id == VAULT_RUNTIME_BLOB_ID)
         .ok_or_else(|| BlobError::BlobNotFound(VAULT_RUNTIME_BLOB_ID.to_string()))?;
-    unfold_blob(VAULT_RUNTIME_BLOB, &entry.hash)
+    let envelope: VaultRuntimeEnvelope = unfold_blob(VAULT_RUNTIME_BLOB, &entry.hash)?;
+    if envelope.envelope_id.trim().is_empty() {
+        return Err(BlobError::DecodeFailed("envelope_id_invalid".to_string()));
+    }
+    if envelope.min_operator_quorum == 0 || envelope.min_operator_quorum > 32 {
+        return Err(BlobError::DecodeFailed(
+            "min_operator_quorum_invalid".to_string(),
+        ));
+    }
+    if envelope.max_key_age_hours == 0 {
+        return Err(BlobError::DecodeFailed(
+            "max_key_age_hours_invalid".to_string(),
+        ));
+    }
+    Ok(envelope)
 }

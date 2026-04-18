@@ -133,10 +133,6 @@
   min-height: 100%;
 }
 
-.chat-thread-loading {
-  visibility: hidden;
-}
-
 .chat-loading-overlay {
   position: absolute;
   inset: 0;

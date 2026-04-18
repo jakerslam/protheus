@@ -3,40 +3,23 @@
 // TypeScript compatibility shim only.
 // Layer ownership: surface/orchestration; this file is a thin CLI bridge.
 
-const TARGET = '../../../../surface/orchestration/scripts/meta_science_active_learning_loop.ts';
-
-function loadTarget() {
-  try {
-    return require(TARGET);
-  } catch (error) {
-    return {
-      ok: false,
-      error: 'meta_science_active_learning_loop_target_load_failed',
-      detail: String(error && error.message ? error.message : error || 'unknown_error')
-    };
-  }
-}
-
-const target = loadTarget();
-
-function run(args = process.argv.slice(2)) {
-  if (!target || target.ok === false) {
-    process.stderr.write(`${JSON.stringify(target || { ok: false, error: 'meta_science_active_learning_loop_target_unavailable' })}\n`);
-    return 1;
-  }
-  if (typeof target.run !== 'function') {
-    process.stderr.write(`${JSON.stringify({ ok: false, error: 'meta_science_active_learning_loop_target_missing_run' })}\n`);
-    return 1;
-  }
-  return target.run(Array.isArray(args) ? args : []);
-}
+const { createCompatTargetBridge } = require('../../lib/compat_target_bridge.ts');
+const bridge = createCompatTargetBridge({
+  scriptDir: __dirname,
+  targetRelativePath: '../../../../surface/orchestration/scripts/meta_science_active_learning_loop.ts',
+  loadError: 'meta_science_active_learning_loop_target_load_failed',
+  unavailableError: 'meta_science_active_learning_loop_target_unavailable',
+  missingRunError: 'meta_science_active_learning_loop_target_missing_run',
+  maxArgs: 64,
+  maxArgLen: 512
+});
 
 if (require.main === module) {
-  const code = run(process.argv.slice(2));
-  process.exit(Number.isFinite(Number(code)) ? Number(code) : 1);
+  bridge.runAsMain(process.argv.slice(2));
 }
 
 module.exports = {
-  ...(target && typeof target === 'object' ? target : {}),
-  run
+  ...(bridge.target && typeof bridge.target === 'object' ? bridge.target : {}),
+  run: bridge.run,
+  normalizeReceiptHash: bridge.normalizeReceiptHash
 };

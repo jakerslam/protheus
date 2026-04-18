@@ -9,10 +9,23 @@ const MAX_STATE_PATH_LEN: usize = 4_096;
 fn sanitize_text(input: &str, max_len: usize) -> String {
     input
         .chars()
-        .filter(|c| !matches!(*c, '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}'))
+        .filter(|c| {
+            !matches!(
+                *c,
+                '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}'
+            )
+        })
         .filter(|c| !c.is_control())
         .take(max_len)
         .collect()
+}
+
+fn with_receipt(mut payload: Value) -> Value {
+    let receipt_hash = protheus_ops_core::deterministic_receipt_hash(&payload);
+    if let Some(obj) = payload.as_object_mut() {
+        obj.insert("receipt_hash".to_string(), Value::String(receipt_hash));
+    }
+    payload
 }
 
 pub fn status_payload(root: &Path) -> Value {
@@ -24,39 +37,25 @@ pub fn status_payload(root: &Path) -> Value {
         MAX_STATE_PATH_LEN,
     );
     let ts = protheus_ops_core::now_iso();
-    let payload = json!({
+    with_receipt(json!({
         "ok": true,
         "type": "infring_desktop_status",
         "authority": "core/layer0/desktop",
         "dashboard_ready": dashboard_ready,
         "state_path": state_path,
         "ts": ts
-    });
-    let receipt_hash = protheus_ops_core::deterministic_receipt_hash(&payload);
-    json!({
-        "ok": true,
-        "type": "infring_desktop_status",
-        "authority": "core/layer0/desktop",
-        "dashboard_ready": dashboard_ready,
-        "state_path": sanitize_text(dashboard_state.to_string_lossy().as_ref(), MAX_STATE_PATH_LEN),
-        "ts": ts,
-        "receipt_hash": receipt_hash
-    })
+    }))
 }
 
 pub fn launch_payload(root: &Path) -> Value {
     let status = status_payload(root);
-    json!({
+    with_receipt(json!({
         "ok": true,
         "type": "infring_desktop_launch",
         "authority": "core/layer0/desktop",
         "status": status,
-        "hint": "launch_dashboard_via_infring_gateway",
-        "receipt_hash": protheus_ops_core::deterministic_receipt_hash(&json!({
-            "type": "infring_desktop_launch",
-            "state_path": status.get("state_path").cloned().unwrap_or(Value::Null)
-        }))
-    })
+        "hint": "launch_dashboard_via_infring_gateway"
+    }))
 }
 
 #[cfg(test)]

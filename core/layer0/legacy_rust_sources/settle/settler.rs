@@ -12,7 +12,12 @@ const MAX_MAPPED_BYTES: usize = 256 * 1024 * 1024;
 fn strip_invisible_unicode(input: &str) -> String {
     input
         .chars()
-        .filter(|c| !matches!(*c, '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}'))
+        .filter(|c| {
+            !matches!(
+                *c,
+                '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}'
+            )
+        })
         .filter(|c| !c.is_control() || *c == '\n' || *c == '\t')
         .collect()
 }
@@ -91,16 +96,20 @@ pub fn compile_runtime_image(req: &SettleRequest) -> SettleReceipt {
     let runtime_hash = normalize_runtime_hash(req.runtime_hash.as_str());
     let target = normalize_target(req.target.as_str());
     let module = normalize_module(req.module.as_deref());
+    let reexec_ready = runtime_hash != "unknown";
     let mut metadata = BTreeMap::new();
     metadata.insert("phase".into(), "compiled".into());
     metadata.insert("module".into(), module);
     metadata.insert("sanitized".into(), "true".into());
+    if !reexec_ready {
+        metadata.insert("validation".into(), "runtime_hash_missing".into());
+    }
 
     SettleReceipt {
         runtime_hash,
         target,
         mapped_bytes: MIN_MAPPED_BYTES,
-        reexec_ready: true,
+        reexec_ready,
         metadata,
     }
 }
@@ -149,5 +158,22 @@ mod tests {
         assert_eq!(receipt.metadata.get("module").unwrap(), "autonomy");
         assert_eq!(receipt.mapped_bytes, MAX_MAPPED_BYTES);
         assert!(health_check(&receipt));
+    }
+
+    #[test]
+    fn fail_closed_when_runtime_hash_is_missing() {
+        let req = SettleRequest {
+            runtime_hash: " \u{200B}\n ".into(),
+            target: "binary".into(),
+            module: None,
+        };
+        let receipt = compile_runtime_image(&req);
+        assert_eq!(receipt.runtime_hash, "unknown");
+        assert!(!receipt.reexec_ready);
+        assert_eq!(
+            receipt.metadata.get("validation").map(String::as_str),
+            Some("runtime_hash_missing")
+        );
+        assert!(!health_check(&receipt));
     }
 }

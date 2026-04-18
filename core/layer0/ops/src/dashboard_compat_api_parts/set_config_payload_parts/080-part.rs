@@ -671,6 +671,9 @@ fn response_is_no_findings_placeholder(text: &str) -> bool {
     {
         return false;
     }
+    if lowered.contains("http://") || lowered.contains("https://") {
+        return false;
+    }
     lowered.contains("no relevant results found for that request yet")
         || lowered.contains("couldn't produce source-backed findings in this turn")
         || lowered.contains("don't have usable tool findings from this turn yet")

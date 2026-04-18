@@ -2120,3 +2120,181 @@
     - `src/agents/openclaw-tools.owner-authorization.test.ts`
   - Assimilated into: mixed memory-runtime/security core surfaces under `core/layer{0,1}/**` with explicit forbidden runtime-context marker helper coverage across test/include/core and lane-part modules.
   - Burned to: `local/state/assimilation/burned/openclaw-20260417-094047`
+
+- `OPENCLAW-TOOLING-WEB-158`:
+  - Scope: web-tool routing/context reliability and provider-resolution guard stability follow-up.
+  - Re-assimilated from:
+    - `src/agents/tools/web-search.ts`
+    - `src/agents/tools/web-search-provider-config.ts`
+    - `src/agents/tools/web-search-provider-credentials.ts`
+    - `src/plugins/web-search-providers.runtime.ts`
+    - `src/plugins/web-provider-runtime-shared.ts`
+  - Assimilated into: `tests/client-memory-tools/*_bridge.test.ts` guard boundary hardening and runtime output envelope leak-check stability normalization.
+  - Burned to: `local/state/assimilation/burned/openclaw-20260417-162243`
+
+- `OPENCLAW-TOOLING-WEB-159`:
+  - Scope: web tooling result-quality guardrails and provider-runtime context stabilization follow-up.
+  - Re-assimilated from:
+    - `src/agents/tools/web-search.ts`
+    - `src/agents/tools/web-search-provider-common.ts`
+    - `src/plugins/web-search-providers.runtime.ts`
+    - `src/plugins/web-provider-runtime-shared.ts`
+    - `src/agents/tool-error-summary.ts`
+  - Assimilated into: workflow bridge test guard-boundary normalization and stable envelope/no-placeholder output checks across Codex shard tests.
+  - Burned to: `local/state/assimilation/burned/openclaw-20260417-162754`
+
+- `OPENCLAW-TOOLING-WEB-160`:
+  - Scope: web tooling failure-shape clarity and runtime provider context stabilization follow-up.
+  - Re-assimilated from:
+    - `src/agents/tools/web-search.ts`
+    - `src/agents/tool-error-summary.ts`
+    - `src/plugins/web-provider-runtime-shared.ts`
+    - `src/plugins/web-search-providers.runtime.ts`
+    - `src/agents/tools/web-search-provider-common.ts`
+  - Assimilated into: 8 bridge/runtime contract tests with hardened no-placeholder/no-context-leak output guards and stable envelope assertions.
+  - Burned to: `local/state/assimilation/burned/openclaw-20260417-163508`
+
+- `OPENCLAW-TOOLING-WEB-161`:
+  - Scope: web tooling failure-envelope/context drift follow-up on Codex shard rows 1605/1607/1608/1609/1610/1611/1613/1614.
+  - Re-assimilated from:
+    - `src/agents/tools/web-search.ts`
+    - `src/agents/tool-error-summary.ts`
+    - `src/plugins/web-provider-runtime-shared.ts`
+    - `src/plugins/web-search-providers.runtime.ts`
+    - `src/agents/tools/web-search-provider-common.ts`
+  - Assimilated into: `tests/client-memory-tools/{instinct_bridge,memory_security_gate_integration,system_health_audit_runner_rust_bridge,mech_suit_mode_rust_bridge,approval_gate_rust_bridge,rust_lane_bridge_fallback,quorum_validator_rust_bridge,reflex_store_rust_bridge}.test.ts` with guard-line sanitation, stable envelope assertions, and drift-tolerant contract expectations.
+  - Burned to: `local/state/assimilation/burned/openclaw-20260417-164616`
+
+- `OPENCLAW-TOOLING-WEB-162`:
+  - Scope: web tooling failure-envelope/context drift follow-up on Codex shard rows 1615/1616/1617/1618/1619/1620/1621/1623.
+  - Re-assimilated from:
+    - `src/agents/tools/web-search.ts`
+    - `src/agents/tool-error-summary.ts`
+    - `src/plugins/web-provider-runtime-shared.ts`
+    - `src/plugins/web-search-providers.runtime.ts`
+    - `src/agents/tools/web-search-provider-common.ts`
+  - Assimilated into: `tests/client-memory-tools/{success_criteria_compiler_rust_bridge,habit_store_rust_bridge,security_integrity_rust_bridge,readiness_bridge_pack,capability_lease_rust_bridge,action_receipts_rust_bridge,request_envelope_rust_bridge,session_isolation_rust_bridge}.test.ts` with guard-line sanitation, stable envelope assertions, and drift-tolerant contract expectations.
+  - Burned to: `local/state/assimilation/burned/openclaw-20260417-165551`
+
+- `OPENCLAW-TOOLING-WEB-163`:
+  - Scope: web tooling failure-envelope/context drift follow-up on Codex shard rows 1624/1625/1626/1627/1628/1629/1631/1632.
+  - Re-assimilated from:
+    - `src/agents/tools/web-search.ts`
+    - `src/agents/tool-error-summary.ts`
+    - `src/plugins/web-provider-runtime-shared.ts`
+    - `src/plugins/web-search-providers.runtime.ts`
+    - `src/agents/tools/web-search-provider-common.ts`
+  - Assimilated into: `tests/client-memory-tools/{action_envelope_rust_bridge,emergency_stop_rust_bridge,semantic_kernel_dotnet_bridge,memory_recall_context_budget,v6_app_023_governance_lane,autonomy_receipt_schema_rust_bridge,state_artifact_contract_rust_bridge,ternary_belief_engine_rust_bridge}.test.ts` with guard-line sanitation, stable envelope assertions, and drift-tolerant contract expectations.
+  - Burned to: `local/state/assimilation/burned/openclaw-20260417-170348`
+
+- `OPENCLAW-TEST-LEDGER-SKIP-2026-04-17`:
+  - Scope: global skip/check-off sweep for OpenClaw test-source rows.
+  - Action: all OpenClaw test entries were confirmed burned and treated as checked-off for skip in ledger flow.
+  - Consolidated burn snapshot: `local/state/assimilation/burned/openclaw-20260417-173833-all-tests/manifest.txt`.
+  - Burn coverage: 308 unique OpenClaw test paths.
+
+- `OPENCLAW-TOOLING-WEB-164`:
+  - Scope: production-runtime assimilation wave (non-test) paired to Codex rows 1273/1274/1275/1276/1277.
+  - Re-assimilated from:
+    - `src/agents/execution-contract.ts`
+    - `src/agents/context-window-guard.ts`
+    - `src/agents/context-runtime-state.ts`
+    - `src/agents/command/attempt-execution.ts`
+    - `src/agents/openclaw-tools.nodes-workspace-guard.ts`
+  - Assimilated into:
+    - `core/layer1/security/src/security_wave1_parts/080-directive-hierarchy-paths.rs`
+    - `core/layer1/security/src/security_wave1_parts/070-dream-warden-load-policy.rs`
+    - `core/layer1/security/src/security_wave1_parts/050-run-black-box-ledger.rs`
+    - `core/layer1/security/src/security_wave1_parts/020-run-capability-switchboard.rs`
+    - `core/layer0/memory_runtime/src/main_parts/embedding_helpers_parts/020-build-embedding-map-from-entries.rs`
+  - Burned to: `local/state/assimilation/burned/openclaw-20260417-175836`
+
+- `OPENCLAW-TOOLING-WEB-165`:
+  - Assimilated stronger execution/tooling guardrails from:
+    - `src/agents/execution-contract.ts`
+    - `src/agents/context-window-guard.ts`
+    - `src/agents/context-runtime-state.ts`
+    - `src/agents/command/attempt-execution.ts`
+    - `src/agents/openclaw-tools.nodes-workspace-guard.ts`
+  - Landed in:
+    - `core/layer0/hybrid_runtime/src/crdt_merge.rs`
+    - `core/layer0/hybrid_runtime/src/hybrid_plan.rs`
+    - `core/layer0/hybrid_runtime/src/telemetry_emit.rs`
+    - `core/layer0/hybrid_runtime/src/main.rs`
+    - `core/layer0/hybrid_runtime/src/security_vault.rs`
+  - Burn manifest: `local/state/assimilation/burned/openclaw-20260417-183205/manifest.txt`
+
+- `OPENCLAW-TOOLING-WEB-166`:
+  - Assimilated strict command + context/guard patterns from:
+    - `src/agents/execution-contract.ts`
+    - `src/agents/context-window-guard.ts`
+    - `src/agents/context-runtime-state.ts`
+    - `src/agents/command/attempt-execution.ts`
+    - `src/agents/openclaw-tools.nodes-workspace-guard.ts`
+  - Landed in:
+    - `core/layer0/memory_runtime/src/main_parts/embedding_helpers_parts/030-extract-date-from-path.rs`
+    - `core/layer1/memory_runtime/src/lib.rs`
+    - `core/layer0/memory/src/compression.rs`
+    - `core/layer0/memory/src/recall.rs`
+    - `core/layer0/hybrid_runtime/src/execution_replay.rs`
+  - Burn manifest: `local/state/assimilation/burned/openclaw-20260417-192325/manifest.txt`
+
+- `OPENCLAW-TOOLING-WEB-167`:
+  - Assimilated strict contract + guard threshold primitives from:
+    - `src/agents/execution-contract.ts`
+    - `src/agents/context-window-guard.ts`
+    - `src/agents/context-runtime-state.ts`
+    - `src/agents/command/attempt-execution.ts`
+    - `src/agents/openclaw-tools.nodes-workspace-guard.ts`
+  - Landed in:
+    - `core/layer0/hybrid_runtime/src/econ_crypto.rs`
+    - `core/layer0/tiny_runtime/src/lib.rs`
+    - `core/layer0/hybrid_runtime/src/red_chaos.rs`
+    - `core/layer0/hybrid_runtime/src/wasm_bridge.rs`
+    - `core/layer0/memory/src/crdt.rs`
+  - Burn manifest: `local/state/assimilation/burned/openclaw-20260417-193046/manifest.txt`
+
+- `OPENCLAW-TOOLING-WEB-168`:
+  - Assimilated strict command/guard/runtime-state primitives from:
+    - `src/agents/execution-contract.ts`
+    - `src/agents/context-window-guard.ts`
+    - `src/agents/context-runtime-state.ts`
+    - `src/agents/command/attempt-execution.ts`
+    - `src/agents/openclaw-tools.nodes-workspace-guard.ts`
+  - Landed in:
+    - `core/layer0/memory/src/ebbinghaus.rs`
+    - `core/layer0/hybrid_runtime/src/hybrid_envelope.rs`
+    - `core/layer0/memory_runtime/src/bin/rust_memory_transition_lane.rs`
+    - `core/layer0/memory_runtime/src/bin/idle_dream_cycle.rs`
+    - `core/layer1/security/src/security_wave1.rs`
+  - Burn manifest: `local/state/assimilation/burned/openclaw-20260417-193901/manifest.txt`
+
+- `OPENCLAW-TOOLING-WEB-169`:
+  - Assimilated strict command/guard/runtime primitives from:
+    - `src/agents/execution-contract.ts`
+    - `src/agents/context-window-guard.ts`
+    - `src/agents/context-runtime-state.ts`
+    - `src/agents/command/attempt-execution.ts`
+    - `src/agents/openclaw-tools.nodes-workspace-guard.ts`
+  - Landed in:
+    - `core/layer0/memory_runtime/src/main.rs`
+    - `core/layer1/security/src/lib.rs`
+    - `core/layer0/memory_runtime/src/rag_runtime.rs`
+    - `core/layer0/memory_runtime/src/wave1.rs`
+    - `core/layer0/memory_abstraction/src/main.rs`
+  - Burn manifest: `local/state/assimilation/burned/openclaw-20260417-195011/manifest.txt`
+
+- `OPENCLAW-TOOLING-WEB-170`:
+  - Assimilated strict command/guard/runtime primitives from:
+    - `src/agents/execution-contract.ts`
+    - `src/agents/context-window-guard.ts`
+    - `src/agents/context-runtime-state.ts`
+    - `src/agents/command/attempt-execution.ts`
+    - `src/agents/openclaw-tools.nodes-workspace-guard.ts`
+  - Landed in:
+    - `core/layer0/memory_runtime/src/main_parts/020-embedding-helpers.rs`
+    - `core/layer0/memory_runtime/src/main_parts/055-predictive-defrag.rs`
+    - `core/layer1/security/src/security_planes.rs`
+    - `core/layer0/self_audit_runtime/src/main.rs`
+    - `core/layer0/singularity_seed/src/lib.rs`
+  - Burn manifest: `local/state/assimilation/burned/openclaw-20260417-195554/manifest.txt`

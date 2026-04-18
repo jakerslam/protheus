@@ -369,13 +369,24 @@
     },
     "ops:dashboard:surface:guard": {
       "owner": "ops",
-      "description": "Authoritative dashboard surface guard.",
+      "description": "Authoritative dashboard surface + runtime freshness metadata guard.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
       "script": "ops:dashboard:surface:guard",
       "artifact_paths": [
         "core/local/artifacts/dashboard_surface_authority_guard_current.json",
         "local/workspace/reports/DASHBOARD_SURFACE_AUTHORITY_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:node-critical-path:inventory": {
+      "owner": "ops",
+      "description": "Node-critical operator path inventory and non-regression guard.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:node-critical-path:inventory",
+      "artifact_paths": [
+        "core/local/artifacts/node_critical_path_inventory_current.json",
+        "local/workspace/reports/NODE_CRITICAL_PATH_INVENTORY_CURRENT.md"
       ]
     },
     "ops:tech-debt:report": {

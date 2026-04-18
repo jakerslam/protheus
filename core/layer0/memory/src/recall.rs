@@ -2,11 +2,14 @@
 use crate::compression;
 use crate::sqlite_store::{self, MemoryRow};
 use serde::Serialize;
+use std::collections::BTreeSet;
 
 const MAX_QUERY_CHARS: usize = 256;
 const MAX_ID_CHARS: usize = 128;
 const MAX_HIT_CONTENT_CHARS: usize = 4000;
 const MAX_RECALL_LIMIT: u32 = 200;
+const MAX_TAG_CHARS: usize = 64;
+const MAX_TAG_COUNT: usize = 24;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct RecallHit {
@@ -69,6 +72,44 @@ fn marker_id(text: &str) -> String {
     format!("{hash:016x}")
 }
 
+fn sanitize_id_token(raw: &str) -> String {
+    sanitize_plain_text(raw, MAX_ID_CHARS)
+}
+
+fn normalize_tag_token(raw: &str) -> String {
+    sanitize_plain_text(raw, MAX_TAG_CHARS)
+        .chars()
+        .map(|ch| {
+            if ch.is_ascii_alphanumeric() || ch == '-' || ch == '_' {
+                ch.to_ascii_lowercase()
+            } else if ch.is_whitespace() {
+                '-'
+            } else {
+                '\0'
+            }
+        })
+        .filter(|ch| *ch != '\0')
+        .collect::<String>()
+        .trim_matches('-')
+        .chars()
+        .take(MAX_TAG_CHARS)
+        .collect::<String>()
+}
+
+fn normalize_tag_list(tags: &[String]) -> Vec<String> {
+    let mut deduped = BTreeSet::new();
+    for tag in tags {
+        let normalized = normalize_tag_token(tag);
+        if !normalized.is_empty() {
+            deduped.insert(normalized);
+        }
+        if deduped.len() >= MAX_TAG_COUNT {
+            break;
+        }
+    }
+    deduped.into_iter().collect::<Vec<String>>()
+}
+
 fn wrap_external_untrusted_content(raw: &str) -> (String, bool) {
     let body = sanitize_plain_text(raw, MAX_HIT_CONTENT_CHARS);
     let truncated = raw.chars().count() > body.chars().count();
@@ -89,10 +130,15 @@ fn wrap_external_untrusted_content(raw: &str) -> (String, bool) {
 fn to_hit(row: MemoryRow) -> RecallHit {
     let report = compression::report_for(&row.content);
     let (content, content_truncated) = wrap_external_untrusted_content(&row.content);
+    let safe_id = sanitize_id_token(&row.id);
     RecallHit {
-        id: row.id,
+        id: if safe_id.is_empty() {
+            format!("memory-{}", marker_id(&row.content))
+        } else {
+            safe_id
+        },
         content,
-        tags: row.tags,
+        tags: normalize_tag_list(&row.tags),
         retention_score: row.retention_score,
         compression_ratio: report.ratio,
         content_truncated,
@@ -108,9 +154,22 @@ fn to_hit(row: MemoryRow) -> RecallHit {
 pub fn recall_json(query: &str, limit: u32) -> String {
     let normalized_query = sanitize_plain_text(query, MAX_QUERY_CHARS);
     let safe_limit = limit.clamp(1, MAX_RECALL_LIMIT);
+    if normalized_query.is_empty() {
+        return serde_json::json!({
+            "ok": false,
+            "error": "recall_query_empty",
+            "query_contract": {
+                "accepted": false,
+                "reason": "empty_query_after_sanitization"
+            }
+        })
+        .to_string();
+    }
     match sqlite_store::recall(&normalized_query, safe_limit) {
         Ok(rows) => {
             let mut hits = rows.into_iter().map(to_hit).collect::<Vec<_>>();
+            let mut seen_ids = BTreeSet::new();
+            hits.retain(|hit| seen_ids.insert(hit.id.clone()));
             hits.sort_by(|a, b| {
                 b.retention_score
                     .partial_cmp(&a.retention_score)
@@ -122,6 +181,10 @@ pub fn recall_json(query: &str, limit: u32) -> String {
                 "ok": true,
                 "query": normalized_query,
                 "limit": safe_limit,
+                "query_contract": {
+                    "accepted": true,
+                    "reason": "query_sanitized_and_executed"
+                },
                 "hit_count": hits.len(),
                 "hits": hits
             })
@@ -138,6 +201,14 @@ pub fn recall_json(query: &str, limit: u32) -> String {
 
 pub fn get_json(id: &str) -> String {
     let safe_id = sanitize_plain_text(id, MAX_ID_CHARS);
+    if safe_id.is_empty() {
+        return serde_json::json!({
+            "ok": false,
+            "error": "invalid_id",
+            "reason": "empty_id_after_sanitization"
+        })
+        .to_string();
+    }
     match sqlite_store::get(&safe_id) {
         Ok(Some(row)) => serde_json::json!({
             "ok": true,

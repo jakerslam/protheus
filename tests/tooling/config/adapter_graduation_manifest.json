@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "required_hooks": [
+    "health_check",
+    "startup_timeout_policy",
+    "request_timeout_policy",
+    "fail_closed_policy_hooks",
+    "receipt_schema_helpers",
+    "circuit_breaker_behavior",
+    "quarantine_hooks"
+  ],
+  "required_scenarios": [
+    "process_never_starts",
+    "starts_then_hangs",
+    "invalid_schema_response",
+    "response_too_large",
+    "repeated_flapping"
+  ],
+  "adapters": [
+    {
+      "id": "langgraph",
+      "framework": "langgraph",
+      "bridge_command": "workflow_graph-bridge",
+      "tier": "production"
+    },
+    {
+      "id": "crewai",
+      "framework": "crewai",
+      "bridge_command": "crewai-bridge",
+      "tier": "production"
+    },
+    {
+      "id": "openai_agents",
+      "framework": "openai_agents",
+      "bridge_command": "pydantic-ai-bridge",
+      "tier": "production"
+    },
+    {
+      "id": "mastra",
+      "framework": "mastra",
+      "bridge_command": "mastra-bridge",
+      "tier": "production"
+    },
+    {
+      "id": "semantic_kernel",
+      "framework": "semantic_kernel",
+      "bridge_command": "semantic-kernel-bridge",
+      "tier": "production"
+    }
+  ]
+}

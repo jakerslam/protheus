@@ -16,13 +16,6 @@
   schedule();
 }
 
-function resolveBottomBufferPx(page) {
-  var raw = Number(page && page.scrollBottomBufferPx);
-  if (!Number.isFinite(raw) || raw < 0) raw = 64;
-  if (raw > 192) raw = 192;
-  return raw;
-}
-
 function resolveBottomFollowTolerancePx(page, overridePx) {
   var raw = Number(overridePx);
   if (!Number.isFinite(raw) || raw < 1) raw = Number(page && page.scrollBottomFollowTolerancePx);
@@ -140,17 +133,6 @@ function resolveLatestMessageScrollTop(page, el) {
   if (!host) return 0;
   var clientHeight = Math.max(0, Number(host.clientHeight || 0));
   var maxTop = Math.max(0, Number(host.scrollHeight || 0) - clientHeight);
-  var blocks = host.querySelectorAll('.chat-message-block[data-msg-idx], .chat-message-block');
-  if (!blocks || !blocks.length) return maxTop;
-  var bottom = 0;
-  for (var i = 0; i < blocks.length; i++) {
-    var block = blocks[i];
-    if (!block || block.offsetParent === null) continue;
-    var blockBottom = Number(block.offsetTop || 0) + Math.max(0, Number(block.offsetHeight || 0));
-    if (blockBottom > bottom) bottom = blockBottom;
-  }
-  if (!(bottom > 0)) return maxTop;
-  var bottomBuffer = resolveBottomBufferPx(page);
-  var targetTop = Math.max(0, Math.round((bottom + bottomBuffer) - clientHeight));
-  return targetTop > maxTop ? maxTop : targetTop;
+  void page;
+  return maxTop;
 }

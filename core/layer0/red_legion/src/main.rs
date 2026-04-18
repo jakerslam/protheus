@@ -29,8 +29,8 @@ fn sanitize_text(raw: &str, max_len: usize, lowercase: bool) -> String {
     if lowercase {
         text = text.to_ascii_lowercase();
     }
-    if text.len() > max_len {
-        text.truncate(max_len);
+    if text.chars().count() > max_len {
+        text = text.chars().take(max_len).collect();
     }
     text
 }
@@ -71,6 +71,11 @@ fn load_request(args: &[String]) -> Result<String, String> {
         return Ok(text);
     }
     if let Some(v) = parse_arg(args, "--request-file") {
+        let metadata =
+            fs::metadata(v.as_str()).map_err(|e| format!("request_file_stat_failed:{e}"))?;
+        if metadata.len() > MAX_REQUEST_BYTES as u64 {
+            return Err("request_file_too_large".to_string());
+        }
         let text =
             fs::read_to_string(v.as_str()).map_err(|e| format!("request_file_read_failed:{e}"))?;
         if text.len() > MAX_REQUEST_BYTES {
@@ -87,7 +92,10 @@ fn load_request(args: &[String]) -> Result<String, String> {
 fn normalize_request_payload(raw: &str) -> Result<String, String> {
     let mut request: ChaosGameRequest =
         serde_json::from_str(raw).map_err(|e| format!("request_parse_failed:{e}"))?;
-    request.mission_id = sanitize_text(&request.mission_id, MAX_MISSION_ID_LEN, true);
+    request.mission_id = sanitize_text(&request.mission_id, MAX_MISSION_ID_LEN, true)
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join("_");
     if request.mission_id.is_empty() {
         return Err("request_mission_id_invalid".to_string());
     }

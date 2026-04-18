@@ -3,6 +3,8 @@ include!("embedding_helpers_parts/015-runtime-index-entry-helpers.rs");
 include!("embedding_helpers_parts/020-build-embedding-map-from-entries.rs");
 include!("embedding_helpers_parts/030-extract-date-from-path.rs");
 
+const MAX_EMBEDDING_SOURCE_PATHS: usize = 512;
+
 fn assim121_strip_invisible_unicode(raw: &str) -> String {
     raw.chars()
         .filter(|ch| {
@@ -44,10 +46,47 @@ pub fn normalize_embedding_source_paths(raw_paths: &[String]) -> Vec<String> {
         .iter()
         .map(|path| normalize_embedding_ref_token(path))
         .filter(|path| !path.is_empty())
+        .take(MAX_EMBEDDING_SOURCE_PATHS)
         .collect::<Vec<String>>();
     paths.sort();
     paths.dedup();
     paths
+}
+
+pub fn normalize_embedding_source_paths_with_contract(
+    raw_paths: &[String],
+    strict_contract: bool,
+) -> (Vec<String>, bool, &'static str) {
+    let normalized = normalize_embedding_source_paths(raw_paths);
+    if normalized.is_empty() {
+        return (
+            normalized,
+            false,
+            "embedding_paths_empty_after_normalization",
+        );
+    }
+    let truncated = raw_paths.len() > MAX_EMBEDDING_SOURCE_PATHS;
+    let traversal_like = normalized.iter().any(|path| path.contains(".."));
+    if strict_contract && traversal_like {
+        return (
+            normalized,
+            false,
+            "embedding_paths_parent_traversal_blocked_under_strict_contract",
+        );
+    }
+    if strict_contract && truncated {
+        return (
+            normalized,
+            false,
+            "embedding_paths_truncated_under_strict_contract",
+        );
+    }
+    let reason = if truncated {
+        "embedding_paths_truncated_non_strict_contract"
+    } else {
+        "embedding_paths_contract_ok"
+    };
+    (normalized, true, reason)
 }
 
 #[cfg(test)]
@@ -72,6 +111,17 @@ mod assim121_embedding_helper_tests {
         assert_eq!(
             normalize_embedding_source_paths(&raw),
             vec!["src/a.rs".to_string(), "src/b.rs".to_string()]
+        );
+    }
+
+    #[test]
+    fn strict_embedding_contract_rejects_parent_traversal_like_paths() {
+        let raw = vec!["../secret.bin".to_string()];
+        let (_normalized, ok, reason) = normalize_embedding_source_paths_with_contract(&raw, true);
+        assert!(!ok);
+        assert_eq!(
+            reason,
+            "embedding_paths_parent_traversal_blocked_under_strict_contract"
         );
     }
 }

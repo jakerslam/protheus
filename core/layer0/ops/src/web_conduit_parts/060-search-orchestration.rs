@@ -7,22 +7,8 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
             .unwrap_or(""),
         600,
     );
-    if query.is_empty() {
-        let receipt = build_receipt(
-            "",
-            "deny",
-            None,
-            0,
-            "query_required",
-            Some("query_required"),
-        );
-        let _ = append_jsonl(&receipts_path(root), &receipt);
-        return json!({
-            "ok": false,
-            "error": "query_required",
-            "query": "",
-            "receipt": receipt
-        });
+    if let Some(early) = search_early_validation_response(root, request, &query) {
+        return early;
     }
     let (policy, _policy_path_value) = load_policy(root);
     let normalized_filters = normalized_search_filters(request);
@@ -44,6 +30,77 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
         40,
     )
     .to_ascii_lowercase();
+    let raw_freshness = clean_text(
+        request
+            .get("freshness")
+            .or_else(|| request.get("search_recency_filter"))
+            .or_else(|| request.get("searchRecencyFilter"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        60,
+    );
+    let raw_date_after = clean_text(
+        request
+            .get("date_after")
+            .or_else(|| request.get("dateAfter"))
+            .or_else(|| request.get("search_after_date"))
+            .or_else(|| request.get("searchAfterDate"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        40,
+    );
+    let raw_date_before = clean_text(
+        request
+            .get("date_before")
+            .or_else(|| request.get("dateBefore"))
+            .or_else(|| request.get("search_before_date"))
+            .or_else(|| request.get("searchBeforeDate"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        40,
+    );
+    if !raw_freshness.is_empty() && (!raw_date_after.is_empty() || !raw_date_before.is_empty()) {
+        let receipt = build_receipt(
+            "",
+            "deny",
+            None,
+            0,
+            "conflicting_time_filters",
+            Some("conflicting_time_filters"),
+        );
+        let _ = append_jsonl(&receipts_path(root), &receipt);
+        return json!({
+            "ok": false,
+            "error": "conflicting_time_filters",
+            "query": query,
+            "freshness": raw_freshness,
+            "date_after": raw_date_after,
+            "date_before": raw_date_before,
+            "summary": "freshness cannot be combined with date_after/date_before. Use either freshness or an explicit date range.",
+            "filters": normalized_filters.clone(),
+            "provider_hint": provider_hint.clone(),
+            "provider_catalog": provider_catalog_snapshot(root, &policy),
+            "process_summary": runtime_web_process_summary(
+                "web_search",
+                "request_contract_blocked",
+                false,
+                &json!({
+                    "should_execute": false,
+                    "mode": "blocked",
+                    "reason": "conflicting_time_filters",
+                    "source": "request_contract"
+                }),
+                &json!({
+                    "blocked": false,
+                    "reason": "not_evaluated"
+                }),
+                &json!([]),
+                "none",
+                Some("conflicting_time_filters")
+            ),
+            "receipt": receipt
+        });
+    }
     if let Some(unknown_provider) = validate_explicit_provider_hint(&provider_hint) {
         let receipt = build_receipt(
             "",
@@ -174,6 +231,340 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
     let mut skipped = Vec::<Value>::new();
     let mut provider_errors = Vec::<Value>::new();
     let mut last_payload = None::<Value>;
+    let tool_surface_status = provider_resolution
+        .get("tool_surface_status")
+        .or_else(|| provider_resolution.pointer("/tool_surface_health/status"))
+        .and_then(Value::as_str)
+        .unwrap_or("unavailable")
+        .to_string();
+    let tool_surface_ready = provider_resolution
+        .get("tool_surface_ready")
+        .or_else(|| {
+            provider_resolution.pointer("/tool_surface_health/selected_provider_ready")
+        })
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let tool_surface_blocking_reason = provider_resolution
+        .pointer("/tool_surface_health/blocking_reason")
+        .and_then(Value::as_str)
+        .unwrap_or("none")
+        .to_string();
+    let tool_execution_gate = provider_resolution
+        .get("tool_execution_gate")
+        .cloned()
+        .unwrap_or_else(|| {
+            runtime_web_execution_gate(
+                &tool_surface_status,
+                tool_surface_ready,
+                allow_fallback,
+                &tool_surface_blocking_reason,
+            )
+        });
+    let tool_execution_allowed = tool_execution_gate
+        .get("should_execute")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let search_attempt_signature = sha256_hex(&format!(
+        "{}|{}|{}|{}|{}|{}|{}",
+        scoped_query,
+        provider_chain.join(","),
+        top_k,
+        summary_only,
+        timeout_ms,
+        allow_fallback,
+        tool_surface_status
+    ));
+    let replay_policy =
+        runtime_web_replay_policy(&policy, request, &tool_surface_status, tool_surface_ready);
+    let replay_window = replay_policy
+        .get("window")
+        .and_then(Value::as_u64)
+        .unwrap_or(24)
+        .clamp(1, 200) as usize;
+    let replay_threshold = replay_policy
+        .get("block_threshold")
+        .and_then(Value::as_u64)
+        .unwrap_or(3)
+        .clamp(2, 200) as usize;
+    let replay_enabled = replay_policy
+        .get("enabled")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let replay_bypass = runtime_web_replay_bypass(&policy, request, human_approved);
+    let replay_bypassed = replay_bypass
+        .get("bypassed")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let replay_cooldown_base_seconds = replay_policy
+        .get("cooldown_base_seconds")
+        .and_then(Value::as_u64)
+        .unwrap_or(30);
+    let replay_cooldown_step_seconds = replay_policy
+        .get("cooldown_step_seconds")
+        .and_then(Value::as_u64)
+        .unwrap_or(15);
+    let replay_cooldown_max_seconds = replay_policy
+        .get("cooldown_max_seconds")
+        .and_then(Value::as_u64)
+        .unwrap_or(180);
+    let attempt_replay_guard =
+        if replay_enabled && !replay_bypassed {
+            recent_tool_attempt_replay_guard(
+                root,
+                &search_attempt_signature,
+                replay_window,
+                replay_threshold,
+                replay_cooldown_base_seconds,
+                replay_cooldown_step_seconds,
+                replay_cooldown_max_seconds,
+            )
+        } else if replay_bypassed {
+            runtime_web_replay_guard_passthrough(
+                "replay_guard_bypassed",
+                &search_attempt_signature,
+                replay_window,
+                replay_threshold,
+                replay_cooldown_base_seconds,
+                replay_cooldown_step_seconds,
+                replay_cooldown_max_seconds,
+                &replay_bypass,
+            )
+        } else {
+            runtime_web_replay_guard_passthrough(
+                "replay_policy_disabled",
+                &search_attempt_signature,
+                replay_window,
+                replay_threshold,
+                replay_cooldown_base_seconds,
+                replay_cooldown_step_seconds,
+                replay_cooldown_max_seconds,
+                &replay_bypass,
+            )
+        };
+    let attempt_replay_blocked = attempt_replay_guard
+        .get("blocked")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let replay_retry_after_seconds = attempt_replay_guard
+        .get("retry_after_seconds")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let replay_retry_lane = clean_text(
+        attempt_replay_guard
+            .get("retry_lane")
+            .and_then(Value::as_str)
+            .unwrap_or("change_query_or_provider"),
+        80,
+    );
+    if !tool_execution_allowed {
+        let preflight_error = if tool_surface_status == "unavailable" {
+            "web_search_tool_surface_unavailable"
+        } else if tool_surface_status == "degraded" {
+            "web_search_tool_surface_degraded"
+        } else {
+            "web_search_tool_execution_blocked"
+        };
+        let search_url = match selected_provider.as_str() {
+            "duckduckgo_lite" => lite_url.clone(),
+            "bing_rss" => web_search_bing_rss_url(&scoped_query),
+            _ => primary_url.clone(),
+        };
+        let mut receipt = build_receipt(
+            &search_url,
+            "deny",
+            None,
+            0,
+            "search_preflight_gate_blocked",
+            Some(preflight_error),
+        );
+        if let Some(receipt_obj) = receipt.as_object_mut() {
+            receipt_obj.insert(
+                "attempt_signature".to_string(),
+                Value::String(search_attempt_signature.clone()),
+            );
+            receipt_obj.insert(
+                "gate_mode".to_string(),
+                Value::String(
+                    tool_execution_gate
+                        .get("mode")
+                        .and_then(Value::as_str)
+                        .unwrap_or("blocked")
+                        .to_string(),
+                ),
+            );
+        }
+        let _ = append_jsonl(&receipts_path(root), &receipt);
+        let mut out = serde_json::Map::<String, Value>::new();
+        out.insert("ok".to_string(), Value::Bool(false));
+        out.insert("error".to_string(), Value::String(preflight_error.to_string()));
+        out.insert(
+            "summary".to_string(),
+            Value::String(
+                "Web search execution was blocked by runtime tooling gate before provider calls were attempted."
+                    .to_string(),
+            ),
+        );
+        out.insert("content".to_string(), Value::String(String::new()));
+        out.insert(
+            "type".to_string(),
+            Value::String("web_conduit_search".to_string()),
+        );
+        out.insert("query".to_string(), Value::String(query.clone()));
+        out.insert(
+            "effective_query".to_string(),
+            Value::String(scoped_query.clone()),
+        );
+        out.insert("allowed_domains".to_string(), json!(allowed_domains.clone()));
+        out.insert("exclude_subdomains".to_string(), json!(exclude_subdomains));
+        out.insert("top_k".to_string(), json!(top_k));
+        out.insert("count".to_string(), json!(top_k));
+        out.insert("timeout_ms".to_string(), json!(timeout_ms));
+        out.insert(
+            "provider_hint".to_string(),
+            Value::String(provider_hint.clone()),
+        );
+        out.insert("provider_chain".to_string(), json!(provider_chain.clone()));
+        out.insert("provider_resolution".to_string(), provider_resolution);
+        out.insert(
+            "tool_surface_status".to_string(),
+            Value::String(tool_surface_status.clone()),
+        );
+        out.insert("tool_surface_ready".to_string(), Value::Bool(tool_surface_ready));
+        out.insert(
+            "tool_surface_blocking_reason".to_string(),
+            Value::String(tool_surface_blocking_reason.clone()),
+        );
+        out.insert("tool_execution_gate".to_string(), tool_execution_gate.clone());
+        out.insert("replay_policy".to_string(), replay_policy.clone());
+        out.insert("replay_bypass".to_string(), replay_bypass.clone());
+        out.insert("attempt_replay_guard".to_string(), attempt_replay_guard.clone());
+        out.insert(
+            "attempt_signature".to_string(),
+            Value::String(search_attempt_signature.clone()),
+        );
+        out.insert(
+            "retry".to_string(),
+            json!({
+                "recommended": true,
+                "strategy": "change_query_or_provider",
+                "lane": replay_retry_lane,
+                "retry_after_seconds": replay_retry_after_seconds
+            }),
+        );
+        out.insert(
+            "process_summary".to_string(),
+            runtime_web_process_summary(
+                "web_search",
+                "preflight_blocked",
+                false,
+                &tool_execution_gate,
+                &attempt_replay_guard,
+                &json!(provider_chain.clone()),
+                &selected_provider,
+                Some(preflight_error),
+            ),
+        );
+        out.insert("receipt".to_string(), receipt);
+        return Value::Object(out);
+    }
+    if attempt_replay_blocked {
+        let search_url = match selected_provider.as_str() {
+            "duckduckgo_lite" => lite_url.clone(),
+            "bing_rss" => web_search_bing_rss_url(&scoped_query),
+            _ => primary_url.clone(),
+        };
+        let mut receipt = build_receipt(
+            &search_url,
+            "deny",
+            None,
+            0,
+            "search_replay_guard_blocked",
+            Some("web_search_duplicate_attempt_suppressed"),
+        );
+        if let Some(receipt_obj) = receipt.as_object_mut() {
+            receipt_obj.insert(
+                "attempt_signature".to_string(),
+                Value::String(search_attempt_signature.clone()),
+            );
+            receipt_obj.insert(
+                "gate_mode".to_string(),
+                Value::String(
+                    tool_execution_gate
+                        .get("mode")
+                        .and_then(Value::as_str)
+                        .unwrap_or("blocked")
+                        .to_string(),
+                ),
+            );
+        }
+        let _ = append_jsonl(&receipts_path(root), &receipt);
+        let mut out = serde_json::Map::<String, Value>::new();
+        out.insert("ok".to_string(), Value::Bool(false));
+        out.insert(
+            "error".to_string(),
+            Value::String("web_search_duplicate_attempt_suppressed".to_string()),
+        );
+        out.insert(
+            "summary".to_string(),
+            Value::String(
+                "Repeated identical web search attempts were suppressed by replay guard. Adjust the query or provider constraints before retrying."
+                    .to_string(),
+            ),
+        );
+        out.insert("content".to_string(), Value::String(String::new()));
+        out.insert(
+            "type".to_string(),
+            Value::String("web_conduit_search".to_string()),
+        );
+        out.insert("query".to_string(), Value::String(query.clone()));
+        out.insert(
+            "effective_query".to_string(),
+            Value::String(scoped_query.clone()),
+        );
+        out.insert("allowed_domains".to_string(), json!(allowed_domains.clone()));
+        out.insert("exclude_subdomains".to_string(), json!(exclude_subdomains));
+        out.insert("top_k".to_string(), json!(top_k));
+        out.insert("count".to_string(), json!(top_k));
+        out.insert("timeout_ms".to_string(), json!(timeout_ms));
+        out.insert(
+            "provider_hint".to_string(),
+            Value::String(provider_hint.clone()),
+        );
+        out.insert("provider_chain".to_string(), json!(provider_chain.clone()));
+        out.insert("provider_resolution".to_string(), provider_resolution);
+        out.insert(
+            "tool_surface_status".to_string(),
+            Value::String(tool_surface_status.clone()),
+        );
+        out.insert("tool_surface_ready".to_string(), Value::Bool(tool_surface_ready));
+        out.insert(
+            "tool_surface_blocking_reason".to_string(),
+            Value::String(tool_surface_blocking_reason.clone()),
+        );
+        out.insert("tool_execution_gate".to_string(), tool_execution_gate.clone());
+        out.insert("replay_policy".to_string(), replay_policy.clone());
+        out.insert("replay_bypass".to_string(), replay_bypass.clone());
+        out.insert("attempt_replay_guard".to_string(), attempt_replay_guard.clone());
+        out.insert(
+            "attempt_signature".to_string(),
+            Value::String(search_attempt_signature.clone()),
+        );
+        out.insert(
+            "process_summary".to_string(),
+            runtime_web_process_summary(
+                "web_search",
+                "replay_suppressed",
+                false,
+                &tool_execution_gate,
+                &attempt_replay_guard,
+                &json!(provider_chain.clone()),
+                &selected_provider,
+                Some("web_search_duplicate_attempt_suppressed"),
+            ),
+        );
+        out.insert("receipt".to_string(), receipt);
+        return Value::Object(out);
+    }
 
     for provider in &provider_chain {
         if let Some(open_until) = provider_circuit_open_until(root, provider, &policy) {
@@ -239,19 +630,20 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
                 }),
             ),
         };
-        if search_payload_usable(&candidate) {
+        if search_payload_usable_for_query(&candidate, &scoped_query) {
             record_provider_attempt(root, provider, true, "", &policy);
             executed_provider = provider.clone();
             selected = candidate;
             break;
         }
-        let reason = search_payload_error(&candidate);
+        let reason = search_payload_error_for_query(&candidate, &scoped_query);
         record_provider_attempt(root, provider, false, &reason, &policy);
         provider_errors.push(json!({
             "provider": provider,
             "error": reason,
             "challenge": payload_looks_like_search_challenge(&candidate),
             "low_signal": payload_looks_low_signal_search(&candidate),
+            "query_mismatch": search_payload_query_mismatch(&candidate, &scoped_query),
             "status_code": candidate.get("status_code").and_then(Value::as_i64).unwrap_or(0)
         }));
         last_payload = Some(candidate);
@@ -310,7 +702,55 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
         }
     }
     if !out.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+        let query_mismatch_only_failure = !provider_errors.is_empty()
+            && provider_errors.iter().all(|row| {
+                row.get("query_mismatch")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false)
+            });
         if let Some(obj) = out.as_object_mut() {
+            let current_error = obj.get("error").and_then(Value::as_str).unwrap_or("");
+            if current_error.is_empty() || current_error == "search_providers_exhausted" {
+                if query_mismatch_only_failure {
+                    obj.insert(
+                        "error".to_string(),
+                        Value::String("query_result_mismatch".to_string()),
+                    );
+                    obj.insert(
+                        "summary".to_string(),
+                        Value::String(
+                            "Search providers returned off-topic results for this query. Retry with narrower terms or explicit source URLs."
+                                .to_string(),
+                        ),
+                    );
+                } else if tool_surface_status == "unavailable" {
+                    obj.insert(
+                        "error".to_string(),
+                        Value::String("web_search_tool_surface_unavailable".to_string()),
+                    );
+                    obj.insert(
+                        "summary".to_string(),
+                        Value::String(
+                            "Web search tool surface is currently unavailable. Retry after provider runtime is restored."
+                                .to_string(),
+                        ),
+                    );
+                } else if tool_surface_status == "degraded"
+                    && (attempted.is_empty() || !tool_surface_ready)
+                {
+                    obj.insert(
+                        "error".to_string(),
+                        Value::String("web_search_tool_surface_degraded".to_string()),
+                    );
+                    obj.insert(
+                        "summary".to_string(),
+                        Value::String(
+                            "Web search tooling is degraded (provider readiness mismatch). Retry after credentials or provider runtime are repaired."
+                                .to_string(),
+                        ),
+                    );
+                }
+            }
             if obj
                 .get("summary")
                 .and_then(Value::as_str)
@@ -334,6 +774,22 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
     }
     let used_lite_fallback = final_selected_provider == "duckduckgo_lite";
     let used_bing_fallback = final_selected_provider == "bing_rss";
+    let tool_execution_attempted = !attempted.is_empty();
+    let final_error_code = out
+        .get("error")
+        .and_then(Value::as_str)
+        .map(|raw| clean_text(raw, 120));
+    let query_mismatch_only_failure = out
+        .get("ok")
+        .and_then(Value::as_bool)
+        .map(|ok| !ok)
+        .unwrap_or(true)
+        && !provider_errors.is_empty()
+        && provider_errors.iter().all(|row| {
+            row.get("query_mismatch")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+        });
     let challenge_like_failure = search_failure_is_challenge_like(&out, provider_errors.as_slice());
     if let Some(obj) = out.as_object_mut() {
         obj.insert(
@@ -363,9 +819,29 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
             "provider_resolution".to_string(),
             provider_resolution.clone(),
         );
+        obj.insert("tool_execution_gate".to_string(), tool_execution_gate.clone());
+        obj.insert("replay_policy".to_string(), replay_policy.clone());
+        obj.insert("replay_bypass".to_string(), replay_bypass.clone());
+        obj.insert(
+            "attempt_signature".to_string(),
+            Value::String(search_attempt_signature.clone()),
+        );
+        obj.insert(
+            "attempt_replay_guard".to_string(),
+            attempt_replay_guard.clone(),
+        );
         obj.insert(
             "provider_health".to_string(),
             provider_health_snapshot(root, &provider_chain),
+        );
+        obj.insert(
+            "tool_surface_status".to_string(),
+            Value::String(tool_surface_status.clone()),
+        );
+        obj.insert("tool_surface_ready".to_string(), json!(tool_surface_ready));
+        obj.insert(
+            "tool_surface_blocking_reason".to_string(),
+            Value::String(tool_surface_blocking_reason.clone()),
         );
         obj.insert(
             "search_lite_fallback".to_string(),
@@ -377,16 +853,76 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
         );
         obj.insert("provider_hint".to_string(), Value::String(provider_hint));
         obj.insert(
-            "cache_store_allowed".to_string(),
-            json!(!challenge_like_failure),
+            "process_summary".to_string(),
+            runtime_web_process_summary(
+                "web_search",
+                "provider_chain_result",
+                tool_execution_attempted,
+                &tool_execution_gate,
+                &attempt_replay_guard,
+                &json!(provider_chain.clone()),
+                &final_selected_provider,
+                final_error_code.as_deref()
+            ),
         );
-        if challenge_like_failure {
+        obj.insert(
+            "cache_store_allowed".to_string(),
+            json!(!(challenge_like_failure || query_mismatch_only_failure)),
+        );
+        if query_mismatch_only_failure {
+            obj.insert(
+                "cache_skip_reason".to_string(),
+                json!("query_result_mismatch"),
+            );
+        } else if challenge_like_failure {
             obj.insert(
                 "cache_skip_reason".to_string(),
                 json!("challenge_or_low_signal_response"),
             );
         }
         obj.insert("cache_status".to_string(), json!("miss"));
+        let summary_raw = clean_text(
+            obj.get("summary").and_then(Value::as_str).unwrap_or(""),
+            1_400,
+        );
+        let content_raw = clean_text(
+            obj.get("content").and_then(Value::as_str).unwrap_or(""),
+            120_000,
+        );
+        let summary_wrapped = if summary_raw.is_empty() {
+            String::new()
+        } else {
+            wrap_external_untrusted_content(&summary_raw, false, "Web Search")
+        };
+        let content_wrapped = if content_raw.is_empty() {
+            String::new()
+        } else {
+            wrap_external_untrusted_content(&content_raw, true, "Web Search")
+        };
+        obj.insert(
+            "summary_wrapped".to_string(),
+            Value::String(summary_wrapped),
+        );
+        obj.insert(
+            "content_wrapped".to_string(),
+            Value::String(content_wrapped),
+        );
+        obj.insert(
+            "external_content".to_string(),
+            json!({
+                "untrusted": true,
+                "source": "web_search",
+                "wrapped": true,
+                "provider_chain": provider_chain.clone(),
+                "tool_surface_status": tool_surface_status.clone(),
+                "query_alignment_checked": true,
+                "provider": if final_selected_provider.is_empty() {
+                    "none"
+                } else {
+                    final_selected_provider.as_str()
+                }
+            }),
+        );
     }
     let cache_status = if out.get("ok").and_then(Value::as_bool).unwrap_or(false) {
         "ok"
@@ -421,6 +957,17 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
         "search_provider_chain",
         error,
     );
+    let mut receipt = receipt;
+    if let Some(receipt_obj) = receipt.as_object_mut() {
+        receipt_obj.insert(
+            "attempt_signature".to_string(),
+            Value::String(search_attempt_signature),
+        );
+        receipt_obj.insert(
+            "provider".to_string(),
+            Value::String(final_selected_provider.clone()),
+        );
+    }
     let _ = append_jsonl(&receipts_path(root), &receipt);
     if let Some(obj) = out.as_object_mut() {
         obj.insert("receipt".to_string(), receipt);

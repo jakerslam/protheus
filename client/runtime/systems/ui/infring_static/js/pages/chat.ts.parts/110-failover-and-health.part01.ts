@@ -427,8 +427,7 @@
             if (isActiveChunk) {
               tokenHtmlActive +=
                 '<span class="typing-word-active" style="--typing-word-fade-ms:' +
-                String(Math.max(1, Math.round(nextDelay))) +
-                'ms">' +
+                '1000ms">' +
                 chunkHtml +
                 '</span>';
               tokenHtmlStable += chunkHtml;

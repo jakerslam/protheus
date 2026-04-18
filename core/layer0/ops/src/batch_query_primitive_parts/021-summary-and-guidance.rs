@@ -40,6 +40,30 @@ fn framework_summary_contains_low_signal_sources(text: &str) -> bool {
         || lowered.contains("support.microsoft.com")
 }
 
+fn summary_looks_like_competitive_programming_dump(text: &str) -> bool {
+    let lowered = clean_text(text, 1_200).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    let marker_hits = [
+        "given a tree",
+        "input specification",
+        "output specification",
+        "sample input",
+        "sample output",
+        "#include <stdio.h>",
+        "int main()",
+        "public class",
+        "translate the following java code",
+        "csdn.net",
+        "acm",
+    ]
+    .iter()
+    .filter(|marker| lowered.contains(**marker))
+    .count();
+    marker_hits >= 3
+}
+
 fn cached_evidence_domains(evidence_refs: &Value, max_domains: usize) -> Vec<String> {
     let mut out = Vec::<String>::new();
     let mut seen = HashSet::<String>::new();
@@ -169,6 +193,17 @@ fn rewrite_cached_batch_query_summary(
 ) -> String {
     let raw_summary = clean_text(raw_summary, 240);
     let raw_summary_lowered = clean_text(&raw_summary, 320).to_ascii_lowercase();
+    if summary_looks_like_competitive_programming_dump(&raw_summary) {
+        return no_results_summary_for_batch_query(
+            query,
+            source,
+            partial_failure_details,
+            Some(
+                "Web retrieval returned content that appears unrelated to the request intent (query_result_mismatch). Retry with a narrower query or one specific source URL."
+                    .to_string(),
+            ),
+        );
+    }
     if is_local_subject_comparison_query(query) {
         return local_subject_comparison_summary(query);
     }

@@ -1,5 +1,7 @@
 include!("../../legacy_rust_sources/self_audit/illusion_integrity_auditor.rs");
 
+const MAX_SELF_AUDIT_SUBJECT_CHARS: usize = 120;
+
 fn assim121_strip_invisible_unicode(raw: &str) -> String {
     raw.chars()
         .filter(|ch| {
@@ -29,8 +31,26 @@ pub fn normalize_self_audit_subject(raw: &str) -> String {
         .collect::<String>()
         .trim()
         .chars()
-        .take(120)
+        .take(MAX_SELF_AUDIT_SUBJECT_CHARS)
         .collect::<String>()
+}
+
+pub fn normalize_self_audit_subject_with_contract(
+    raw: &str,
+    strict_contract: bool,
+) -> (String, bool, &'static str) {
+    let normalized = normalize_self_audit_subject(raw);
+    if normalized.is_empty() {
+        return (normalized, false, "self_audit_subject_empty_after_normalization");
+    }
+    if strict_contract && (normalized.contains("..") || normalized.contains('\0')) {
+        return (
+            normalized,
+            false,
+            "self_audit_subject_invalid_under_strict_contract",
+        );
+    }
+    (normalized, true, "self_audit_subject_contract_ok")
 }
 
 pub fn classify_self_audit_error_kind(raw: &str) -> &'static str {
@@ -44,6 +64,13 @@ pub fn classify_self_audit_error_kind(raw: &str) -> &'static str {
     } else {
         "unknown"
     }
+}
+
+pub fn should_retry_self_audit_transport_error(raw: &str) -> bool {
+    let folded = normalize_self_audit_subject(raw).to_ascii_lowercase();
+    ["429", "timeout", "temporarily", "unavailable", "reset", "closed"]
+        .iter()
+        .any(|needle| folded.contains(needle))
 }
 
 #[cfg(test)]
@@ -64,5 +91,13 @@ mod assim121_self_audit_runtime_tests {
         assert_eq!(classify_self_audit_error_kind("permission denied"), "authorization");
         assert_eq!(classify_self_audit_error_kind("record not found"), "not_found");
         assert_eq!(classify_self_audit_error_kind("misc"), "unknown");
+    }
+
+    #[test]
+    fn self_audit_retry_classifier_detects_transient_transport_errors() {
+        assert!(should_retry_self_audit_transport_error(
+            "request timeout while upstream unavailable"
+        ));
+        assert!(!should_retry_self_audit_transport_error("authorization denied"));
     }
 }

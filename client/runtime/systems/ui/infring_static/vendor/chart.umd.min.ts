@@ -1,3 +1,4 @@
+(function(){try{var g=typeof globalThis!=="undefined"?globalThis:(typeof window!=="undefined"?window:{});if(!g.__infringVendorRegistry)g.__infringVendorRegistry={};if(!g.__infringVendorRegistry["chart.umd.min.ts"]){g.__infringVendorRegistry["chart.umd.min.ts"]={name:"chart.js",source:"local_vendor",loaded_at:new Date().toISOString()};}}catch(_){}})();
 /**
  * Skipped minification because the original files appears to be already minified.
  * Original file: /npm/chart.js@4.4.7/dist/chart.umd.js

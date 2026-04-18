@@ -14,6 +14,8 @@ const MIN_LAMBDA: f64 = 0.0001;
 const MAX_LAMBDA: f64 = 5.0;
 const MAX_AGE_DAYS: f64 = 3650.0;
 const MAX_REPETITIONS: u32 = 4096;
+const RETENTION_WARN_BELOW: f64 = 0.45;
+const RETENTION_BLOCK_BELOW: f64 = 0.20;
 
 fn sanitize_scalar(value: f64, fallback: f64) -> f64 {
     if value.is_finite() {
@@ -62,6 +64,13 @@ pub fn curve(age_days: f64, repetitions: u32, lambda: f64) -> RetentionCurve {
     }
 }
 
+pub fn evaluate_retention_guard(age_days: f64, repetitions: u32, lambda: f64) -> (f64, bool, bool) {
+    let score = retention_score(age_days, repetitions, lambda);
+    let should_warn = score < RETENTION_WARN_BELOW;
+    let should_block = score < RETENTION_BLOCK_BELOW;
+    (score, should_warn, should_block)
+}
+
 #[allow(dead_code)]
 pub fn should_retain(age_days: f64, repetitions: u32, lambda: f64, threshold: f64) -> bool {
     retention_score(age_days, repetitions, lambda) >= normalized_threshold(threshold)
@@ -97,5 +106,12 @@ mod tests {
         let score = retention_score(1.0, 1, 0.02);
         assert_eq!(should_retain(1.0, 1, 0.02, -10.0), score >= 0.0);
         assert_eq!(should_retain(1.0, 1, 0.02, 10.0), score >= 1.0);
+    }
+
+    #[test]
+    fn retention_guard_blocks_for_extremely_stale_items() {
+        let (_score, warn, block) = evaluate_retention_guard(3650.0, 1, 0.02);
+        assert!(warn);
+        assert!(block);
     }
 }

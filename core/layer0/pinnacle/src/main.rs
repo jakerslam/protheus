@@ -11,6 +11,7 @@ const MAX_PAYLOAD_BYTES: usize = 32 * 1024;
 const MAX_NODE_ID_LEN: usize = 96;
 const MAX_CHANGE_KEY_LEN: usize = 160;
 const MAX_STRING_VALUE_LEN: usize = 2 * 1024;
+const MAX_CHANGE_ENTRIES: usize = 1024;
 
 fn strip_invisible_unicode(raw: &str) -> String {
     raw.chars()
@@ -29,8 +30,8 @@ fn sanitize_token(raw: &str, max_len: usize) -> String {
         .filter(|ch| !ch.is_control())
         .collect();
     value = value.trim().to_string();
-    if value.len() > max_len {
-        value.truncate(max_len);
+    if value.chars().count() > max_len {
+        value = value.chars().take(max_len).collect();
     }
     value
 }
@@ -76,6 +77,10 @@ fn load_json_arg(
         return decode_payload(v);
     }
     if let Some(v) = parse_arg(args, file_key) {
+        let metadata = fs::metadata(v.as_str()).map_err(|e| format!("file_stat_failed:{e}"))?;
+        if metadata.len() > MAX_PAYLOAD_BYTES as u64 {
+            return Err(format!("payload_file_too_large:{file_key}"));
+        }
         let text = fs::read_to_string(v.as_str()).map_err(|e| format!("file_read_failed:{e}"))?;
         if text.len() > MAX_PAYLOAD_BYTES {
             return Err(format!("payload_file_too_large:{file_key}"));
@@ -96,8 +101,16 @@ fn sanitize_json_value(value: &mut Value) {
             }
         }
         Value::Object(map) => {
-            for entry in map.values_mut() {
-                sanitize_json_value(entry);
+            let drained: Vec<(String, Value)> =
+                map.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
+            map.clear();
+            for (raw_key, mut entry) in drained {
+                let key = sanitize_token(&raw_key, MAX_CHANGE_KEY_LEN);
+                if key.is_empty() {
+                    continue;
+                }
+                sanitize_json_value(&mut entry);
+                map.insert(key, entry);
             }
         }
         _ => {}
@@ -128,6 +141,9 @@ fn normalize_delta_json(raw: &str) -> Result<String, String> {
         .and_then(Value::as_object_mut)
         .ok_or_else(|| "payload_changes_missing".to_string())?;
     for (raw_key, value) in changes {
+        if normalized_changes.len() >= MAX_CHANGE_ENTRIES {
+            return Err("payload_changes_too_many_entries".to_string());
+        }
         let key = sanitize_token(raw_key, MAX_CHANGE_KEY_LEN);
         if key.is_empty() {
             continue;
@@ -206,7 +222,9 @@ fn main() {
                 (Ok(l), Ok(r)) => match (normalize_delta_json(&l), normalize_delta_json(&r)) {
                     (Ok(normalized_left), Ok(normalized_right)) => {
                         match get_sovereignty_index(&normalized_left, &normalized_right) {
-                            Ok(v) => println!("{}", serde_json::json!({ "sovereignty_index_pct": v })),
+                            Ok(v) => {
+                                println!("{}", serde_json::json!({ "sovereignty_index_pct": v }))
+                            }
                             Err(err) => {
                                 eprintln!("{}", serde_json::json!({ "ok": false, "error": err }));
                                 std::process::exit(1);

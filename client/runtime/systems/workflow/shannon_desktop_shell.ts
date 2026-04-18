@@ -4,24 +4,16 @@
 // TypeScript compatibility shim only.
 // Layer ownership: adapters/runtime::shannon-desktop-shell (authoritative workflow desktop bridge).
 
-const TARGET = '../../../../adapters/runtime/shannon_desktop_shell.ts';
+const { createCompatWorkflowExportBridge } = require('../../lib/compat_target_bridge.ts');
+const bridge = createCompatWorkflowExportBridge({
+  scriptDir: __dirname,
+  targetRelativePath: '../../../../adapters/runtime/shannon_desktop_shell.ts',
+  loadError: 'shannon_desktop_shell_target_load_failed',
+  invalidError: 'shannon_desktop_shell_target_invalid',
+  framework: 'shannon_desktop_shell',
+  bridgePath: 'client/runtime/systems/workflow/shannon_desktop_shell.ts',
+  bridgeTarget: 'adapters/runtime/shannon_desktop_shell.ts'
+});
+bridge.exitIfMain(module);
 
-function loadTarget() {
-  try {
-    return require(TARGET);
-  } catch (error) {
-    return {
-      ok: false,
-      error: 'shannon_desktop_shell_target_load_failed',
-      detail: String(error && error.message ? error.message : error || 'unknown_error')
-    };
-  }
-}
-
-const target = loadTarget();
-module.exports = target;
-
-if (require.main === module && target && target.ok === false) {
-  process.stderr.write(`${JSON.stringify(target)}\n`);
-  process.exit(1);
-}
+module.exports = bridge.exported;

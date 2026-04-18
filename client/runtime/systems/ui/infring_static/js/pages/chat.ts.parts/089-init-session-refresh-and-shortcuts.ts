@@ -1,6 +1,7 @@
       this.loadModelNoticeCache();
       this.loadModelUsageCache();
       this.loadInputHistoryCache();
+      this.loadPromptSuggestionsPreference();
 
       // Start tip cycle
       this.startTipCycle();

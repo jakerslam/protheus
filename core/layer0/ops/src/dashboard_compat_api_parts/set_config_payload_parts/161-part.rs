@@ -212,6 +212,8 @@ fn normalize_inline_tool_execution_input(
                 }
             }
         }
+        let allow_framework_catalog_hydration =
+            !matches!(normalized_name, "batch_query" | "batch-query");
         let raw_query = clean_text(
             normalized_input
                 .get("query")
@@ -249,10 +251,14 @@ fn normalize_inline_tool_execution_input(
                 .map(|rows| rows.is_empty())
                 .unwrap_or(true)
             {
-                if let Some(framework_payload) = framework_catalog_web_payload_from_query(&cleaned_query) {
-                    for key in ["query", "queries", "source", "aperture"] {
-                        if let Some(value) = framework_payload.get(key) {
-                            normalized_input[key] = value.clone();
+                if allow_framework_catalog_hydration {
+                    if let Some(framework_payload) =
+                        framework_catalog_web_payload_from_query(&cleaned_query)
+                    {
+                        for key in ["query", "queries", "source", "aperture"] {
+                            if let Some(value) = framework_payload.get(key) {
+                                normalized_input[key] = value.clone();
+                            }
                         }
                     }
                 }

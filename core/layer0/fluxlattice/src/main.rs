@@ -7,7 +7,12 @@ const MAX_TOKEN_LEN: usize = 64;
 fn sanitize_token(input: &str) -> String {
     input
         .chars()
-        .filter(|c| !matches!(*c, '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}'))
+        .filter(|c| {
+            !matches!(
+                *c,
+                '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}'
+            )
+        })
         .filter(|c| !c.is_control())
         .collect::<String>()
         .trim()
@@ -26,11 +31,25 @@ fn normalize_command(raw: &str) -> String {
     }
 }
 
+fn normalize_mode(raw: Option<&str>) -> String {
+    let mode = sanitize_token(raw.unwrap_or("dynamic"));
+    if mode.is_empty() {
+        "dynamic".to_string()
+    } else {
+        mode
+    }
+}
+
 fn print_json(map: &std::collections::BTreeMap<String, String>) {
     println!(
         "{}",
         serde_json::to_string(map).unwrap_or_else(|_| "{}".to_string())
     );
+}
+
+fn emit_state(mut state: fluxlattice::FluxState, command: &str) {
+    state.metadata.insert("command".into(), command.to_string());
+    print_json(&status_map(&state));
 }
 
 fn main() {
@@ -40,28 +59,20 @@ fn main() {
     let mut state = init_state("fluxlattice_core");
     match cmd.as_str() {
         "init" => {
-            state.metadata.insert("command".into(), "init".into());
-            let status = status_map(&state);
-            print_json(&status);
+            emit_state(state, "init");
         }
         "settle" => {
             state = settle(state, "binary");
-            state.metadata.insert("command".into(), "settle".into());
-            let status = status_map(&state);
-            print_json(&status);
+            emit_state(state, "settle");
         }
         "morph" => {
-            let mode = sanitize_token(args.get(2).map(|v| v.as_str()).unwrap_or("dynamic"));
+            let mode = normalize_mode(args.get(2).map(|v| v.as_str()));
             state = settle(state, "binary");
             state = morph(state, mode.as_str());
-            state.metadata.insert("command".into(), "morph".into());
-            let status = status_map(&state);
-            print_json(&status);
+            emit_state(state, "morph");
         }
         "status" => {
-            state.metadata.insert("command".into(), "status".into());
-            let status = status_map(&state);
-            print_json(&status);
+            emit_state(state, "status");
         }
         _ => {
             eprintln!(
@@ -69,7 +80,8 @@ fn main() {
                 serde_json::json!({
                     "ok": false,
                     "error": "unsupported_command",
-                    "command": cmd
+                    "command": cmd,
+                    "supported_commands": ["init", "settle", "morph", "status"]
                 })
             );
             std::process::exit(2);

@@ -48,10 +48,72 @@ impl Default for PermissionManifest {
 }
 
 pub fn permission_manifest_from_value(raw: Option<&Value>) -> PermissionManifest {
+    permission_manifest_from_value_with_inheritance(raw, None, None)
+}
+
+pub fn permission_template_manifest(
+    template: &str,
+    parent: Option<&PermissionManifest>,
+) -> PermissionManifest {
+    let normalized = template.trim().to_ascii_lowercase();
+    match normalized.as_str() {
+        "admin" => PermissionManifest {
+            project_scope: None,
+            grants: BTreeMap::from([("*".to_string(), PermissionTrit::Allow)]),
+        },
+        "user" => PermissionManifest {
+            project_scope: None,
+            grants: BTreeMap::from([
+                ("web.search".to_string(), PermissionTrit::Allow),
+                ("web.fetch".to_string(), PermissionTrit::Allow),
+                ("memory.read".to_string(), PermissionTrit::Allow),
+                ("memory.write".to_string(), PermissionTrit::Ask),
+                ("github.issue.create".to_string(), PermissionTrit::Ask),
+                ("voice.realtime".to_string(), PermissionTrit::Ask),
+            ]),
+        },
+        "parent" => parent.cloned().unwrap_or_default(),
+        _ => PermissionManifest::default(),
+    }
+}
+
+pub fn permission_manifest_from_value_with_inheritance(
+    raw: Option<&Value>,
+    template_override: Option<&str>,
+    parent: Option<&PermissionManifest>,
+) -> PermissionManifest {
     let mut out = PermissionManifest::default();
+    if let Some(template) = template_override {
+        out = permission_template_manifest(template, parent);
+    }
     let Some(value) = raw else {
         return out;
     };
+    let template_from_value = value
+        .get("template")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|template| !template.is_empty());
+    if template_from_value.is_some() || template_override.is_none() {
+        if let Some(template) = template_from_value {
+            out = permission_template_manifest(template, parent);
+        }
+    }
+    let inherit_parent = value
+        .get("inherit_parent")
+        .or_else(|| value.get("inheritParent"))
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    if inherit_parent {
+        if let Some(parent_manifest) = parent {
+            for (key, trit) in &parent_manifest.grants {
+                out.grants.entry(key.clone()).or_insert(*trit);
+            }
+            if out.project_scope.is_none() {
+                out.project_scope = parent_manifest.project_scope.clone();
+            }
+        }
+    }
     out.project_scope = value
         .get("project_scope")
         .and_then(Value::as_str)
@@ -142,6 +204,49 @@ mod tests {
         assert_eq!(
             permission_for(&manifest, "memory.read"),
             PermissionTrit::Ask
+        );
+    }
+
+    #[test]
+    fn permission_templates_support_parent_inheritance() {
+        let parent = permission_manifest_from_value(Some(&json!({
+            "grants": {
+                "memory.write": 1
+            }
+        })));
+        let manifest = permission_manifest_from_value_with_inheritance(
+            Some(&json!({
+                "template": "user",
+                "inherit_parent": true,
+                "grants": {
+                    "github.issue.create": 1
+                }
+            })),
+            None,
+            Some(&parent),
+        );
+        assert_eq!(permission_for(&manifest, "web.search"), PermissionTrit::Allow);
+        assert_eq!(permission_for(&manifest, "memory.write"), PermissionTrit::Ask);
+        assert_eq!(
+            permission_for(&manifest, "github.issue.create"),
+            PermissionTrit::Allow
+        );
+    }
+
+    #[test]
+    fn parent_template_clones_parent_grants() {
+        let parent = permission_manifest_from_value(Some(&json!({
+            "grants": {
+                "memory.read": 1,
+                "voice.realtime": 1
+            }
+        })));
+        let manifest =
+            permission_manifest_from_value_with_inheritance(None, Some("parent"), Some(&parent));
+        assert_eq!(permission_for(&manifest, "memory.read"), PermissionTrit::Allow);
+        assert_eq!(
+            permission_for(&manifest, "voice.realtime"),
+            PermissionTrit::Allow
         );
     }
 }

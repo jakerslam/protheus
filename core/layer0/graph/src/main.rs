@@ -28,8 +28,8 @@ fn sanitize_text(raw: &str, max_len: usize, lowercase: bool) -> String {
     if lowercase {
         text = text.to_ascii_lowercase();
     }
-    if text.len() > max_len {
-        text.truncate(max_len);
+    if text.chars().count() > max_len {
+        text = text.chars().take(max_len).collect();
     }
     text
 }
@@ -70,6 +70,11 @@ fn load_yaml(args: &[String]) -> Result<String, String> {
         return Ok(text);
     }
     if let Some(v) = parse_arg(args, "--yaml-file") {
+        let metadata =
+            fs::metadata(v.as_str()).map_err(|e| format!("yaml_file_stat_failed:{e}"))?;
+        if metadata.len() > MAX_YAML_BYTES as u64 {
+            return Err("yaml_file_payload_too_large".to_string());
+        }
         let text =
             fs::read_to_string(v.as_str()).map_err(|e| format!("yaml_file_read_failed:{e}"))?;
         if text.len() > MAX_YAML_BYTES {

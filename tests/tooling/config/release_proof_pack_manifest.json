@@ -1,18 +1,48 @@
 {
   "version": 1,
+  "artifact_groups": {
+    "runtime_proof": [
+      "core/local/artifacts/runtime_proof_verify_current.json",
+      "core/local/artifacts/runtime_proof_harness_current.json",
+      "core/local/artifacts/runtime_proof_release_gate_current.json",
+      "core/local/artifacts/runtime_proof_release_metrics_rich_current.json"
+    ],
+    "adapter_and_orchestration": [
+      "core/local/artifacts/adapter_runtime_chaos_gate_current.json",
+      "core/local/artifacts/layer2_lane_parity_guard_current.json",
+      "core/local/artifacts/layer2_receipt_replay_current.json"
+    ],
+    "release_governance": [
+      "core/local/artifacts/production_readiness_closure_gate_current.json",
+      "core/local/artifacts/runtime_trusted_core_report_current.json",
+      "core/local/artifacts/support_bundle_latest.json"
+    ],
+    "workload_and_quality": [
+      "artifacts/web_tooling_context_soak_report_latest.json",
+      "docs/client/reports/benchmark_matrix_run_latest.json",
+      "client/runtime/local/state/release/scorecard/release_scorecard.json"
+    ]
+  },
   "required_artifacts": [
     "core/local/artifacts/runtime_proof_verify_current.json",
+    "core/local/artifacts/runtime_proof_harness_current.json",
+    "core/local/artifacts/runtime_proof_release_gate_current.json",
     "core/local/artifacts/runtime_proof_release_metrics_rich_current.json",
+    "core/local/artifacts/adapter_runtime_chaos_gate_current.json",
     "core/local/artifacts/layer2_lane_parity_guard_current.json",
     "core/local/artifacts/layer2_receipt_replay_current.json",
-    "core/local/artifacts/runtime_boundedness_inspect_current.json",
-    "core/local/artifacts/runtime_trusted_core_report_current.json"
+    "core/local/artifacts/runtime_trusted_core_report_current.json",
+    "core/local/artifacts/production_readiness_closure_gate_current.json",
+    "core/local/artifacts/support_bundle_latest.json",
+    "artifacts/web_tooling_context_soak_report_latest.json",
+    "docs/client/reports/benchmark_matrix_run_latest.json",
+    "client/runtime/local/state/release/scorecard/release_scorecard.json"
   ],
   "optional_artifacts": [
     "local/workspace/reports/RUNTIME_PROOF_RELEASE_GATE_RICH_CURRENT.md",
     "local/workspace/reports/LAYER2_LANE_PARITY_GUARD_CURRENT.md",
     "local/workspace/reports/LAYER2_RECEIPT_REPLAY_CURRENT.md",
-    "local/workspace/reports/RUNTIME_BOUNDEDNESS_INSPECT_CURRENT.md",
-    "local/workspace/reports/RUNTIME_TRUSTED_CORE_REPORT_CURRENT.md"
+    "local/workspace/reports/RUNTIME_TRUSTED_CORE_REPORT_CURRENT.md",
+    "local/workspace/reports/RELEASE_SCORECARD_CURRENT.md"
   ]
 }

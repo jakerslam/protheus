@@ -26,6 +26,8 @@ function parseArgs(argv: string[]) {
     hardeningPath: 'core/local/artifacts/release_hardening_window_guard_current.json',
     ipcSoakPath: 'local/state/ops/ops_ipc_bridge_stability_soak/latest.json',
     drPath: 'local/state/ops/dr_gameday/latest.json',
+    benchmarkPath: 'docs/client/reports/benchmark_matrix_run_latest.json',
+    benchmarkBaselinePath: '',
     baselinePath: '',
     baselineTag: '',
     requireBaseline: false,
@@ -57,6 +59,8 @@ function parseArgs(argv: string[]) {
     else if (token.startsWith('--hardening=')) out.hardeningPath = cleanText(token.slice(12), 400);
     else if (token.startsWith('--ipc-soak=')) out.ipcSoakPath = cleanText(token.slice(11), 400);
     else if (token.startsWith('--dr=')) out.drPath = cleanText(token.slice(5), 400);
+    else if (token.startsWith('--benchmark=')) out.benchmarkPath = cleanText(token.slice(12), 400);
+    else if (token.startsWith('--benchmark-baseline=')) out.benchmarkBaselinePath = cleanText(token.slice(21), 400);
     else if (token.startsWith('--baseline=')) out.baselinePath = cleanText(token.slice(11), 400);
     else if (token.startsWith('--baseline-tag=')) out.baselineTag = cleanText(token.slice(15), 400);
     else if (token.startsWith('--require-baseline=')) {
@@ -130,6 +134,61 @@ function releaseChannel(raw: unknown): 'alpha' | 'beta' | 'stable' {
   return 'stable';
 }
 
+function findNumericByKey(input: any, key: string, depth = 0): number {
+  if (!input || depth > 6) return Number.NaN;
+  if (typeof input !== 'object') return Number.NaN;
+  if (Object.prototype.hasOwnProperty.call(input, key)) {
+    const value = Number((input as any)[key]);
+    if (Number.isFinite(value)) return value;
+  }
+  if (Array.isArray(input)) {
+    for (const row of input) {
+      const found = findNumericByKey(row, key, depth + 1);
+      if (Number.isFinite(found)) return found;
+    }
+    return Number.NaN;
+  }
+  for (const value of Object.values(input)) {
+    const found = findNumericByKey(value, key, depth + 1);
+    if (Number.isFinite(found)) return found;
+  }
+  return Number.NaN;
+}
+
+function firstFinite(values: number[], fallback = Number.NaN): number {
+  for (const value of values) {
+    if (Number.isFinite(value)) return value;
+  }
+  return fallback;
+}
+
+function benchmarkTrendBudgetGate(
+  id: string,
+  current: number,
+  baseline: number,
+  direction: 'higher_is_better' | 'lower_is_better',
+  maxRegressionPct: number,
+) {
+  if (!Number.isFinite(current) || !Number.isFinite(baseline) || baseline <= 0) {
+    return gateRow(id, true, 'optional:baseline_or_current_missing');
+  }
+  const budget = Math.max(0, maxRegressionPct);
+  if (direction === 'higher_is_better') {
+    const minAllowed = baseline * (1 - budget);
+    return gateRow(
+      id,
+      current >= minAllowed,
+      `current=${current};baseline=${baseline};min_allowed=${minAllowed};max_regression_pct=${budget}`,
+    );
+  }
+  const maxAllowed = baseline * (1 + budget);
+  return gateRow(
+    id,
+    current <= maxAllowed,
+    `current=${current};baseline=${baseline};max_allowed=${maxAllowed};max_regression_pct=${budget}`,
+  );
+}
+
 function buildReport(args = parseArgs(process.argv.slice(2))) {
   const normalizedArgs = { ...parseArgs([]), ...args };
   const root = path.resolve(normalizedArgs.rootPath || path.resolve(__dirname, '../../../..'));
@@ -147,6 +206,10 @@ function buildReport(args = parseArgs(process.argv.slice(2))) {
   const hardeningPath = resolveMaybe(root, normalizedArgs.hardeningPath);
   const ipcSoakPath = resolveMaybe(root, normalizedArgs.ipcSoakPath);
   const drPath = resolveMaybe(root, normalizedArgs.drPath);
+  const benchmarkPath = resolveMaybe(root, normalizedArgs.benchmarkPath);
+  const benchmarkBaselinePath = normalizedArgs.benchmarkBaselinePath
+    ? resolveMaybe(root, normalizedArgs.benchmarkBaselinePath)
+    : '';
   const baselinePath = normalizedArgs.baselinePath ? resolveMaybe(root, normalizedArgs.baselinePath) : '';
   const ipcSoakFallbackPath = path.join(root, 'artifacts', 'ops_ipc_bridge_stability_soak_report_latest.json');
 
@@ -163,6 +226,8 @@ function buildReport(args = parseArgs(process.argv.slice(2))) {
   const hardening = readJsonMaybe(hardeningPath) ?? {};
   const ipcSoak = readJsonFirst([ipcSoakPath, ipcSoakFallbackPath]) ?? {};
   const dr = readJsonMaybe(drPath) ?? {};
+  const benchmark = readJsonMaybe(benchmarkPath) ?? {};
+  const benchmarkBaseline = benchmarkBaselinePath ? readJsonMaybe(benchmarkBaselinePath) ?? {} : null;
   const baselineScorecard = baselinePath ? readJsonMaybe(baselinePath) ?? {} : null;
   const channel = releaseChannel(semver?.release_channel);
   const requireReleaseArtifacts = Boolean(normalizedArgs.requireReleaseArtifacts);
@@ -174,6 +239,7 @@ function buildReport(args = parseArgs(process.argv.slice(2))) {
   const canaryRequired = requireReleaseArtifacts && channel === 'stable';
   const canaryGateOk = canaryRequired ? canaryOk : true;
   const thresholds = closurePolicy?.numeric_thresholds ?? {};
+  const benchmarkBudgets = closurePolicy?.benchmark_regression_budgets ?? {};
   const ipcRows = Array.isArray(ipcSoak?.rows) ? ipcSoak.rows : [];
   const ipcSuccessRate =
     ipcRows.length === 0 ? 0 : ipcRows.filter((row: any) => row && row.ok === true).length / ipcRows.length;
@@ -225,6 +291,110 @@ function buildReport(args = parseArgs(process.argv.slice(2))) {
         ),
       ]
     : [];
+
+  const benchmarkProjectInfring = benchmark?.projects?.Infring ?? {};
+  const microkernelSharedOps = firstFinite([
+    safeNumber(benchmarkProjectInfring?.kernel_shared_workload_ops_per_sec, Number.NaN),
+    safeNumber(benchmark?.kernel_shared_workload_ops_per_sec, Number.NaN),
+    findNumericByKey(benchmark, 'kernel_shared_workload_ops_per_sec'),
+    safeNumber(benchmarkProjectInfring?.tasks_per_sec, Number.NaN),
+  ]);
+  const governedCommandPathOps = firstFinite([
+    safeNumber(benchmarkProjectInfring?.rich_end_to_end_command_path_ops_per_sec, Number.NaN),
+    safeNumber(benchmark?.rich_end_to_end_command_path_ops_per_sec, Number.NaN),
+    findNumericByKey(benchmark, 'rich_end_to_end_command_path_ops_per_sec'),
+  ]);
+  const readinessLatencyMs = firstFinite([
+    safeNumber(benchmarkProjectInfring?.rich_cold_start_total_ms, Number.NaN),
+    safeNumber(benchmarkProjectInfring?.cold_start_ms, Number.NaN),
+    safeNumber(benchmark?.cold_start_ms, Number.NaN),
+    findNumericByKey(benchmark, 'rich_cold_start_total_ms'),
+    findNumericByKey(benchmark, 'cold_start_ms'),
+  ]);
+  const userWorkloadLatencyMs = maxCommandLatencyMs;
+
+  const benchmarkClasses = {
+    microkernel_shared_workload: {
+      metric: 'kernel_shared_workload_ops_per_sec',
+      direction: 'higher_is_better',
+      value: Number.isFinite(microkernelSharedOps) ? microkernelSharedOps : null,
+      source_path: path.relative(root, benchmarkPath),
+    },
+    governed_command_path: {
+      metric: 'rich_end_to_end_command_path_ops_per_sec',
+      direction: 'higher_is_better',
+      value: Number.isFinite(governedCommandPathOps) ? governedCommandPathOps : null,
+      source_path: path.relative(root, benchmarkPath),
+    },
+    realistic_user_workload: {
+      metric: 'supported_command_latency_ms',
+      direction: 'lower_is_better',
+      value: Number.isFinite(userWorkloadLatencyMs) ? userWorkloadLatencyMs : null,
+      readiness_latency_ms: Number.isFinite(readinessLatencyMs) ? readinessLatencyMs : null,
+      source_path: path.relative(root, supportBundlePath),
+    },
+  };
+
+  const benchmarkBaselineClasses = benchmarkBaseline?.projects?.Infring
+    ? {
+        microkernel_shared_workload: safeNumber(
+          benchmarkBaseline?.projects?.Infring?.kernel_shared_workload_ops_per_sec,
+          Number.NaN,
+        ),
+        governed_command_path: safeNumber(
+          benchmarkBaseline?.projects?.Infring?.rich_end_to_end_command_path_ops_per_sec,
+          Number.NaN,
+        ),
+        readiness_latency_ms: firstFinite([
+          safeNumber(benchmarkBaseline?.projects?.Infring?.rich_cold_start_total_ms, Number.NaN),
+          safeNumber(benchmarkBaseline?.projects?.Infring?.cold_start_ms, Number.NaN),
+        ]),
+      }
+    : baselineScorecard?.benchmark_classes
+      ? {
+          microkernel_shared_workload: safeNumber(
+            baselineScorecard?.benchmark_classes?.microkernel_shared_workload?.value,
+            Number.NaN,
+          ),
+          governed_command_path: safeNumber(
+            baselineScorecard?.benchmark_classes?.governed_command_path?.value,
+            Number.NaN,
+          ),
+          readiness_latency_ms: safeNumber(
+            baselineScorecard?.benchmark_classes?.realistic_user_workload?.readiness_latency_ms,
+            Number.NaN,
+          ),
+        }
+      : {
+          microkernel_shared_workload: Number.NaN,
+          governed_command_path: Number.NaN,
+          readiness_latency_ms: Number.NaN,
+        };
+
+  const benchmarkTrendGates = [
+    benchmarkTrendBudgetGate(
+      'benchmark_microkernel_shared_workload_regression_budget',
+      microkernelSharedOps,
+      safeNumber(benchmarkBaselineClasses?.microkernel_shared_workload, Number.NaN),
+      'higher_is_better',
+      safeNumber(benchmarkBudgets?.microkernel_shared_workload_pct_max, 0.1),
+    ),
+    benchmarkTrendBudgetGate(
+      'benchmark_governed_command_path_regression_budget',
+      governedCommandPathOps,
+      safeNumber(benchmarkBaselineClasses?.governed_command_path, Number.NaN),
+      'higher_is_better',
+      safeNumber(benchmarkBudgets?.governed_command_path_pct_max, 0.1),
+    ),
+    benchmarkTrendBudgetGate(
+      'benchmark_readiness_latency_regression_budget',
+      readinessLatencyMs,
+      safeNumber(benchmarkBaselineClasses?.readiness_latency_ms, Number.NaN),
+      'lower_is_better',
+      safeNumber(benchmarkBudgets?.readiness_latency_pct_max, 0.1),
+    ),
+  ];
+
   const liveChecks = stateCompat?.checks ?? {};
   const liveRehearsalOk =
     liveChecks.live_taskgroup_rehearsal_verified === true &&
@@ -316,6 +486,21 @@ function buildReport(args = parseArgs(process.argv.slice(2))) {
       `value=${observedRpoHours};max=${safeNumber(thresholds.recovery_rpo_hours_max, 24)}`
     ),
     gateRow(
+      'benchmark_class_microkernel_shared_present',
+      Number.isFinite(microkernelSharedOps) && microkernelSharedOps > 0,
+      `value=${Number.isFinite(microkernelSharedOps) ? microkernelSharedOps : 'missing'}`
+    ),
+    gateRow(
+      'benchmark_class_governed_command_path_present',
+      Number.isFinite(governedCommandPathOps) && governedCommandPathOps > 0,
+      `value=${Number.isFinite(governedCommandPathOps) ? governedCommandPathOps : 'missing'}`
+    ),
+    gateRow(
+      'benchmark_class_user_workload_present',
+      Number.isFinite(userWorkloadLatencyMs) && userWorkloadLatencyMs > 0,
+      `value=${Number.isFinite(userWorkloadLatencyMs) ? userWorkloadLatencyMs : 'missing'}`
+    ),
+    gateRow(
       'support_bundle_incident_truth_package',
       !finalStage || supportBundle?.incident_truth_package?.ready === true,
       finalStage
@@ -335,6 +520,7 @@ function buildReport(args = parseArgs(process.argv.slice(2))) {
       baselinePath ? `path=${path.relative(root, baselinePath)};tag=${baselineTag}` : 'missing',
     ),
     ...trendGates,
+    ...benchmarkTrendGates,
   ];
   const overall = gates.every((row) => row.ok);
   const report = {
@@ -353,6 +539,15 @@ function buildReport(args = parseArgs(process.argv.slice(2))) {
       tag: baselineTag,
       version: cleanText(baselineScorecard?.version ?? '', 120),
     },
+    benchmark_baseline: {
+      path: benchmarkBaselinePath ? path.relative(root, benchmarkBaselinePath) : '',
+      available: Boolean(benchmarkBaseline && typeof benchmarkBaseline === 'object'),
+      regression_budgets: {
+        microkernel_shared_workload_pct_max: safeNumber(benchmarkBudgets?.microkernel_shared_workload_pct_max, 0.1),
+        governed_command_path_pct_max: safeNumber(benchmarkBudgets?.governed_command_path_pct_max, 0.1),
+        readiness_latency_pct_max: safeNumber(benchmarkBudgets?.readiness_latency_pct_max, 0.1),
+      },
+    },
     policy_thresholds: {
       ipc_success_rate_min: safeNumber(thresholds.ipc_success_rate_min, 0.95),
       receipt_completeness_rate_min: safeNumber(thresholds.receipt_completeness_rate_min, 1),
@@ -367,6 +562,24 @@ function buildReport(args = parseArgs(process.argv.slice(2))) {
       closure_command_latency_ms: closureCommandLatencyMs,
       observed_rto_minutes: observedRtoMinutes,
       observed_rpo_hours: observedRpoHours,
+    },
+    benchmark_classes: benchmarkClasses,
+    benchmark_trends: {
+      microkernel_shared_workload_delta_pct: Number.isFinite(microkernelSharedOps) &&
+        Number.isFinite(safeNumber(benchmarkBaselineClasses?.microkernel_shared_workload, Number.NaN)) &&
+        safeNumber(benchmarkBaselineClasses?.microkernel_shared_workload, Number.NaN) > 0
+        ? Number((((microkernelSharedOps / safeNumber(benchmarkBaselineClasses?.microkernel_shared_workload, 1)) - 1) * 100).toFixed(3))
+        : null,
+      governed_command_path_delta_pct: Number.isFinite(governedCommandPathOps) &&
+        Number.isFinite(safeNumber(benchmarkBaselineClasses?.governed_command_path, Number.NaN)) &&
+        safeNumber(benchmarkBaselineClasses?.governed_command_path, Number.NaN) > 0
+        ? Number((((governedCommandPathOps / safeNumber(benchmarkBaselineClasses?.governed_command_path, 1)) - 1) * 100).toFixed(3))
+        : null,
+      readiness_latency_delta_pct: Number.isFinite(readinessLatencyMs) &&
+        Number.isFinite(safeNumber(benchmarkBaselineClasses?.readiness_latency_ms, Number.NaN)) &&
+        safeNumber(benchmarkBaselineClasses?.readiness_latency_ms, Number.NaN) > 0
+        ? Number((((readinessLatencyMs / safeNumber(benchmarkBaselineClasses?.readiness_latency_ms, 1)) - 1) * 100).toFixed(3))
+        : null,
     },
     failed_gate_ids: gates.filter((row) => !row.ok).map((row) => row.id),
     gates,

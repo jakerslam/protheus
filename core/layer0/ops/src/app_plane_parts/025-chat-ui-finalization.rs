@@ -183,6 +183,38 @@ fn chat_ui_contains_role_preamble_prompt_dump(user_message: &str, response_text:
     !user_requested_prompting_context
 }
 
+fn chat_ui_contains_competitive_programming_dump(user_message: &str, response_text: &str) -> bool {
+    let lowered = clean(response_text, 16_000).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    let marker_hits = [
+        "given a tree",
+        "input specification",
+        "output specification",
+        "sample input",
+        "sample output",
+        "#include <stdio.h>",
+        "int main()",
+        "public class",
+        "translate the following java code",
+        "intelligent recommendation",
+        "smart recommendations",
+    ]
+    .iter()
+    .filter(|marker| lowered.contains(**marker))
+    .count();
+    if marker_hits < 3 {
+        return false;
+    }
+    let user_lowered = clean(user_message, 1_200).to_ascii_lowercase();
+    let user_requested_programming_translation = user_lowered.contains("translate")
+        || user_lowered.contains("java code")
+        || user_lowered.contains("python function")
+        || user_lowered.contains("programming problem");
+    !user_requested_programming_translation
+}
+
 fn chat_ui_tool_text_blob(row: &Value) -> String {
     let input_blob = row
         .get("input")
@@ -274,6 +306,57 @@ fn chat_ui_structured_block_evidence_codes(rows: &[Value]) -> Vec<String> {
         }
     }
     codes
+}
+
+fn chat_ui_detect_tool_surface_error_code(rows: &[Value]) -> Option<&'static str> {
+    let mut saw_degraded = false;
+    let mut saw_unavailable = false;
+    for row in rows {
+        let lowered = chat_ui_tool_text_blob(row).to_ascii_lowercase();
+        if lowered.contains("web_search_tool_surface_unavailable")
+            || lowered.contains("web_fetch_tool_surface_unavailable")
+            || lowered.contains("web_tool_surface_unavailable")
+        {
+            saw_unavailable = true;
+        }
+        if lowered.contains("web_search_tool_surface_degraded")
+            || lowered.contains("web_fetch_tool_surface_degraded")
+            || lowered.contains("web_tool_surface_degraded")
+        {
+            saw_degraded = true;
+        }
+    }
+    if saw_unavailable {
+        Some("web_tool_surface_unavailable")
+    } else if saw_degraded {
+        Some("web_tool_surface_degraded")
+    } else {
+        None
+    }
+}
+
+fn chat_ui_tool_surface_fail_closed_copy(error_code: &str) -> &'static str {
+    if error_code == "web_tool_surface_unavailable" {
+        "I could not complete live web retrieval in this turn because the web tool surface is unavailable. Retry after restoring web tooling, or provide a source URL and I can continue with local analysis."
+    } else {
+        "I could not complete live web retrieval in this turn because the web tool surface is degraded. Retry after restoring provider credentials/runtime, or provide a source URL and I can continue with local analysis."
+    }
+}
+
+fn chat_ui_tool_surface_classification(error_code: &str) -> &'static str {
+    if error_code == "web_tool_surface_unavailable" {
+        "tool_surface_unavailable"
+    } else {
+        "tool_surface_degraded"
+    }
+}
+
+fn chat_ui_tool_surface_forced_outcome(error_code: &str) -> &'static str {
+    if error_code == "web_tool_surface_unavailable" {
+        "forced_web_tool_surface_unavailable"
+    } else {
+        "forced_web_tool_surface_degraded"
+    }
 }
 
 fn chat_ui_contains_speculative_blocker_language(text: &str) -> bool {
@@ -384,8 +467,8 @@ fn chat_ui_looks_like_unrelated_programming_dump(user_message: &str, text: &str)
         "output specification:",
         "sample input:",
         "sample output:",
-        "智能推荐",
-        "猜你喜欢",
+        "csdn.net",
+        "acm",
         "page id",
         "convolution theorem",
         "laplace transform",
@@ -515,6 +598,12 @@ fn finalize_chat_ui_assistant_response(
     assistant_raw: &str,
     tools: &[Value],
 ) -> (String, String) {
+    if let Some(tool_surface_error) = chat_ui_detect_tool_surface_error_code(tools) {
+        return (
+            chat_ui_tool_surface_fail_closed_copy(tool_surface_error).to_string(),
+            "tool_surface_error_fail_closed".to_string(),
+        );
+    }
     let mut cleaned = clean(assistant_raw, 16_000);
     let mut outcome = "unchanged".to_string();
     if let Some((rewritten, rule_id)) =

@@ -86,6 +86,13 @@ fn register_needs_sanitization(key: &str, register: &Register) -> bool {
     }
 }
 
+fn should_take_incoming(existing: &Register, incoming: &Register) -> bool {
+    incoming.clock > existing.clock
+        || (incoming.clock == existing.clock
+            && (incoming.node > existing.node
+                || (incoming.node == existing.node && incoming.value > existing.value)))
+}
+
 pub fn merge_state(left: &CrdtState, right: &CrdtState) -> CrdtState {
     let mut out = CrdtState::new();
     for (key, existing) in left {
@@ -104,9 +111,7 @@ pub fn merge_state(left: &CrdtState, right: &CrdtState) -> CrdtState {
                 out.insert(normalized_key, incoming);
             }
             Some(existing) => {
-                let take_incoming = incoming.clock > existing.clock
-                    || (incoming.clock == existing.clock && incoming.node > existing.node);
-                if take_incoming {
+                if should_take_incoming(existing, &incoming) {
                     out.insert(normalized_key, incoming);
                 }
             }
@@ -253,5 +258,34 @@ mod tests {
         let register = merged.get("unsafe-key").expect("normalized key");
         assert!(register.value.len() <= MAX_REGISTER_VALUE_CHARS);
         assert_eq!(register.node, "node-unsafe");
+    }
+
+    #[test]
+    fn merge_uses_stable_tiebreak_for_equal_clock_and_node() {
+        let mut l = CrdtState::new();
+        l.insert(
+            "k".into(),
+            Register {
+                value: "alpha".into(),
+                clock: 3,
+                node: "n1".into(),
+            },
+        );
+        let mut r = CrdtState::new();
+        r.insert(
+            "k".into(),
+            Register {
+                value: "beta".into(),
+                clock: 3,
+                node: "n1".into(),
+            },
+        );
+        let merged_lr = merge_state(&l, &r);
+        let merged_rl = merge_state(&r, &l);
+        assert_eq!(merged_lr, merged_rl);
+        assert_eq!(
+            merged_lr.get("k").map(|v| v.value.clone()),
+            Some("beta".to_string())
+        );
     }
 }

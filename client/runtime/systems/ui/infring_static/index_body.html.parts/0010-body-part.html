@@ -227,10 +227,10 @@
                 </template>
               </tbody>
             </table>
-            <div x-show="!eyes.length" class="empty-state">
+            <infring-chat-stream-shell x-show="!eyes.length" class="empty-state">
               <h4>No eyes configured</h4>
               <p class="hint">Add your first eye using URL or API key above.</p>
-            </div>
+            </infring-chat-stream-shell>
           </div>
 
           </div>
@@ -302,7 +302,7 @@
                 </div>
               </template>
             </div>
-            <div class="empty-state" x-show="!skills.length">
+            <infring-chat-stream-shell class="empty-state" x-show="!skills.length">
               <div class="empty-state-icon">
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></svg>
               </div>
@@ -312,7 +312,7 @@
                 <button class="btn btn-primary" @click="tab = 'clawhub'; if (!clawhubBrowseResults.length) browseClawHub('trending')">Browse ClawHub</button>
                 <button class="btn btn-ghost" @click="tab = 'create'">Quick Start</button>
               </div>
-            </div>
+            </infring-chat-stream-shell>
           </div>
 
           <!-- TAB: ClawHub (Infring Ecosystem) -->
@@ -406,7 +406,7 @@
             </div>
 
             <!-- Empty search results -->
-            <div class="empty-state" x-show="clawhubSearch && !clawhubResults.length && !clawhubLoading && !clawhubError">
+            <infring-chat-stream-shell class="empty-state" x-show="clawhubSearch && !clawhubResults.length && !clawhubLoading && !clawhubError">
               <p>No plugins found for "<span x-text="clawhubSearch"></span>"</p>
               <p class="hint mt-1">Try a different search term or browse by category.</p>
               <button class="btn btn-ghost btn-sm mt-2" @click="clearSearch()">Back to browse</button>

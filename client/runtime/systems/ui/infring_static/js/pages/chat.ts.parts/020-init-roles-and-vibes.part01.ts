@@ -55,6 +55,8 @@
     tokenCount: 0,
     promptSuggestions: [],
     suggestionsLoading: false,
+    promptSuggestionsEnabled: true,
+    promptSuggestionsStorageKey: 'infring-chat-prompt-suggestions-enabled-v1',
     _suggestionFetchSeq: 0,
     _lastSuggestionsAt: 0,
     _lastSuggestionsAgentId: '',
@@ -153,7 +155,7 @@
     },
 
     get terminalCursorStyle() {
-      return '--terminal-cursor-ch:' + (this.terminalPromptChars + this.terminalCursorColumn) +
+      return '--terminal-cursor-ch:' + this.terminalCursorColumn +
         '; --terminal-cursor-row:' + this.terminalCursorRow + ';';
     },
 
@@ -222,6 +224,11 @@
       }
     },
 
+    get activeGitBranchMenuLabel() {
+      var label = String(this.activeGitBranchLabel || '').trim();
+      return label || 'main';
+    },
+
     normalizeBranchName: function(value) {
       var raw = String(value == null ? '' : value).trim();
       if (!raw) return '';
@@ -273,6 +280,8 @@
         this.closeGitTreeMenu();
         return;
       }
+      this.showAttachMenu = false;
+      this.showModelSwitcher = false;
       this.showGitTreeMenu = true;
       await this.refreshGitTreeMenu(true);
     },
@@ -342,7 +351,7 @@
     },
 
     composerPlaceholder: function(includeCommandHint) {
-      if (this.terminalMode) return '';
+      if (this.terminalMode) return this.terminalPromptPrefix;
       if (this.recording) return 'Recording... release to send';
       if (this.showFreshArchetypeTiles && this.isFreshInitComposerUnlocked()) {
         return this.freshInitOtherInputPlaceholder();

@@ -2,6 +2,91 @@
 // Includes Cost Dashboard with donut chart, bar chart, projections, and provider breakdown.
 'use strict';
 
+var USAGE_PROVIDER_RULES = [
+  { provider: 'Frontier Provider', tokens: ['claude', 'haiku', 'sonnet', 'opus'] },
+  { provider: 'Google', tokens: ['gemini', 'gemma'] },
+  { provider: 'OpenAI', tokens: ['gpt', 'o1', 'o3', 'o4'] },
+  { provider: 'Groq', tokens: ['llama', 'mixtral', 'groq'] },
+  { provider: 'DeepSeek', tokens: ['deepseek'] },
+  { provider: 'Mistral', tokens: ['mistral'] },
+  { provider: 'Cohere', tokens: ['command', 'cohere'] },
+  { provider: 'xAI', tokens: ['grok'] },
+  { provider: 'AI21', tokens: ['jamba'] },
+  { provider: 'Together', tokens: ['qwen'] }
+];
+
+function usageNumber(value) {
+  var parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 0;
+  return parsed;
+}
+
+function usageNormalizeSummary(payload) {
+  var source = payload && typeof payload === 'object' ? payload : {};
+  return {
+    total_input_tokens: usageNumber(source.total_input_tokens),
+    total_output_tokens: usageNumber(source.total_output_tokens),
+    total_cost_usd: usageNumber(source.total_cost_usd),
+    call_count: usageNumber(source.call_count),
+    total_tool_calls: usageNumber(source.total_tool_calls)
+  };
+}
+
+function usageNormalizeModelRows(rows) {
+  var source = Array.isArray(rows) ? rows : [];
+  return source.map(function(row) {
+    var item = row && typeof row === 'object' ? row : {};
+    return {
+      model: String(item.model || ''),
+      call_count: usageNumber(item.call_count),
+      total_input_tokens: usageNumber(item.total_input_tokens),
+      total_output_tokens: usageNumber(item.total_output_tokens),
+      total_cost_usd: usageNumber(item.total_cost_usd)
+    };
+  });
+}
+
+function usageNormalizeAgentRows(rows) {
+  var source = Array.isArray(rows) ? rows : [];
+  return source.map(function(row) {
+    var item = row && typeof row === 'object' ? row : {};
+    return {
+      agent_id: String(item.agent_id || ''),
+      agent_name: String(item.agent_name || ''),
+      call_count: usageNumber(item.call_count),
+      total_input_tokens: usageNumber(item.total_input_tokens),
+      total_output_tokens: usageNumber(item.total_output_tokens),
+      total_cost_usd: usageNumber(item.total_cost_usd),
+      total_tool_calls: usageNumber(item.total_tool_calls)
+    };
+  });
+}
+
+function usageNormalizeDailyCosts(rows) {
+  var source = Array.isArray(rows) ? rows : [];
+  return source.map(function(row) {
+    var item = row && typeof row === 'object' ? row : {};
+    return {
+      date: String(item.date || ''),
+      cost_usd: usageNumber(item.cost_usd),
+      tokens: usageNumber(item.tokens),
+      calls: usageNumber(item.calls)
+    };
+  });
+}
+
+function usageProviderFromModel(modelName) {
+  if (!modelName) return 'Unknown';
+  var lower = String(modelName).toLowerCase();
+  for (var i = 0; i < USAGE_PROVIDER_RULES.length; i++) {
+    var rule = USAGE_PROVIDER_RULES[i];
+    for (var j = 0; j < rule.tokens.length; j++) {
+      if (lower.indexOf(rule.tokens[j]) !== -1) return rule.provider;
+    }
+  }
+  return 'Other';
+}
+
 function analyticsPage() {
   return {
     tab: 'summary',
@@ -43,9 +128,9 @@ function analyticsPage() {
 
     async loadSummary() {
       try {
-        this.summary = await InfringAPI.get('/api/usage/summary');
+        this.summary = usageNormalizeSummary(await InfringAPI.get('/api/usage/summary'));
       } catch(e) {
-        this.summary = { total_input_tokens: 0, total_output_tokens: 0, total_cost_usd: 0, call_count: 0, total_tool_calls: 0 };
+        this.summary = usageNormalizeSummary({});
         throw e;
       }
     },
@@ -53,25 +138,25 @@ function analyticsPage() {
     async loadByModel() {
       try {
         var data = await InfringAPI.get('/api/usage/by-model');
-        this.byModel = data.models || [];
-      } catch(e) { this.byModel = []; }
+        this.byModel = usageNormalizeModelRows(data.models);
+      } catch(e) { this.byModel = usageNormalizeModelRows([]); }
     },
 
     async loadByAgent() {
       try {
         var data = await InfringAPI.get('/api/usage');
-        this.byAgent = data.agents || [];
-      } catch(e) { this.byAgent = []; }
+        this.byAgent = usageNormalizeAgentRows(data.agents);
+      } catch(e) { this.byAgent = usageNormalizeAgentRows([]); }
     },
 
     async loadDailyCosts() {
       try {
         var data = await InfringAPI.get('/api/usage/daily');
-        this.dailyCosts = data.days || [];
-        this.todayCost = data.today_cost_usd || 0;
-        this.firstEventDate = data.first_event_date || null;
+        this.dailyCosts = usageNormalizeDailyCosts(data.days);
+        this.todayCost = usageNumber(data.today_cost_usd);
+        this.firstEventDate = data.first_event_date ? String(data.first_event_date) : null;
       } catch(e) {
-        this.dailyCosts = [];
+        this.dailyCosts = usageNormalizeDailyCosts([]);
         this.todayCost = 0;
         this.firstEventDate = null;
       }
@@ -185,19 +270,7 @@ function analyticsPage() {
     },
 
     _extractProvider(modelName) {
-      if (!modelName) return 'Unknown';
-      var lower = modelName.toLowerCase();
-      if (lower.indexOf('claude') !== -1 || lower.indexOf('haiku') !== -1 || lower.indexOf('sonnet') !== -1 || lower.indexOf('opus') !== -1) return 'Frontier Provider';
-      if (lower.indexOf('gemini') !== -1 || lower.indexOf('gemma') !== -1) return 'Google';
-      if (lower.indexOf('gpt') !== -1 || lower.indexOf('o1') !== -1 || lower.indexOf('o3') !== -1 || lower.indexOf('o4') !== -1) return 'OpenAI';
-      if (lower.indexOf('llama') !== -1 || lower.indexOf('mixtral') !== -1 || lower.indexOf('groq') !== -1) return 'Groq';
-      if (lower.indexOf('deepseek') !== -1) return 'DeepSeek';
-      if (lower.indexOf('mistral') !== -1) return 'Mistral';
-      if (lower.indexOf('command') !== -1 || lower.indexOf('cohere') !== -1) return 'Cohere';
-      if (lower.indexOf('grok') !== -1) return 'xAI';
-      if (lower.indexOf('jamba') !== -1) return 'AI21';
-      if (lower.indexOf('qwen') !== -1) return 'Together';
-      return 'Other';
+      return usageProviderFromModel(modelName);
     },
 
     // ── Donut chart (stroke-dasharray on circles) ──

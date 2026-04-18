@@ -62,6 +62,16 @@ fn capability_switchboard_run_policy_root(
             "reason": "policy_root_script_missing"
         });
     }
+    let safe_scope = normalize_token(scope, 160);
+    let safe_target = normalize_token(target, 160);
+    let safe_source = normalize_token(source, 120);
+    if safe_scope.is_empty() || safe_target.is_empty() || safe_source.is_empty() {
+        return json!({
+            "ok": false,
+            "decision": "DENY",
+            "reason": "policy_root_invalid_scope_target_or_source"
+        });
+    }
 
     let node = std::env::var("PROTHEUS_NODE_BINARY")
         .ok()
@@ -70,10 +80,10 @@ fn capability_switchboard_run_policy_root(
     let mut args = vec![
         script_path.to_string_lossy().to_string(),
         "authorize".to_string(),
-        format!("--scope={}", clean_text(scope, 160)),
-        format!("--target={}", clean_text(target, 160)),
+        format!("--scope={safe_scope}"),
+        format!("--target={safe_target}"),
         format!("--approval-note={}", clean_text(approval_note, 360)),
-        format!("--source={}", clean_text(source, 120)),
+        format!("--source={safe_source}"),
     ];
     if let Some(token) = lease_token {
         let clean = clean_text(token, 260);
@@ -107,19 +117,21 @@ fn capability_switchboard_run_policy_root(
             "reason": "policy_root_invalid_payload"
         })
     });
+    let decision = payload
+        .get("decision")
+        .and_then(Value::as_str)
+        .unwrap_or("DENY")
+        .to_ascii_uppercase();
     let ok = output.status.success()
         && payload.get("ok").and_then(Value::as_bool).unwrap_or(false)
-        && payload
-            .get("decision")
-            .and_then(Value::as_str)
-            .unwrap_or("")
-            == "ALLOW";
+        && decision == "ALLOW";
     json!({
         "ok": ok,
-        "decision": payload.get("decision").cloned().unwrap_or(Value::String("DENY".to_string())),
+        "decision": decision,
         "raw": payload,
         "code": output.status.code().unwrap_or(1),
-        "stderr": clean_text(stderr, 320)
+        "stderr": clean_text(stderr, 320),
+        "stdout": clean_text(stdout, 320)
     })
 }
 

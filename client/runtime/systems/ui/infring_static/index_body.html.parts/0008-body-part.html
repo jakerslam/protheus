@@ -27,10 +27,10 @@
                 <button class="filter-pill" :class="{ active: filterStatus === 'approved' }" @click="filterStatus = 'approved'">Approved</button>
                 <button class="filter-pill" :class="{ active: filterStatus === 'rejected' }" @click="filterStatus = 'rejected'">Rejected</button>
               </div>
-              <div x-show="filtered.length === 0" class="empty-state">
+              <infring-chat-stream-shell x-show="filtered.length === 0" class="empty-state">
                 <h4>No approvals</h4>
                 <p class="hint">When agents request permission for sensitive actions, they'll appear here.</p>
-              </div>
+              </infring-chat-stream-shell>
               <div class="card-grid">
                 <template x-for="a in filtered" :key="a.id">
                   <div class="card approval-card" :class="{ approved: a.status === 'approved', rejected: a.status === 'rejected', expired: a.status === 'expired' }">
@@ -127,14 +127,14 @@
               </tbody>
             </table>
           </div>
-          <div class="empty-state" x-show="!workflows.length">
+          <infring-chat-stream-shell class="empty-state" x-show="!workflows.length">
             <div class="empty-state-icon">
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v12M18 9a9 9 0 0 1-9 9"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/></svg>
             </div>
             <h3>No workflows yet</h3>
             <p>Chain multiple agents into automated pipelines with branching, fan-out, and loops.</p>
             <button class="btn btn-primary" @click="showCreateModal = true">Create Workflow</button>
-          </div>
+          </infring-chat-stream-shell>
           </div>
           <!-- Create modal -->
           <template x-if="showCreateModal">

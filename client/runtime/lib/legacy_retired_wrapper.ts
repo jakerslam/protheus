@@ -116,6 +116,56 @@ function bindLegacyRetiredModule(filePath, currentModule, argv = process.argv.sl
   return mod;
 }
 
+function formatBridgeErrorDetail(error) {
+  return String((error && (error.message || error.code)) || error || 'unknown_error');
+}
+
+function loadBoundModuleFromRuntime(
+  runtime,
+  filePath,
+  currentModule,
+  missingBindError = 'legacy_retired_target_missing_bind',
+  loadFailedError = 'legacy_retired_target_load_failed'
+) {
+  try {
+    if (!runtime || typeof runtime.bindLegacyRetiredModule !== 'function') {
+      return { ok: false, error: String(missingBindError || 'legacy_retired_target_missing_bind') };
+    }
+    return runtime.bindLegacyRetiredModule(filePath, currentModule);
+  } catch (error) {
+    return {
+      ok: false,
+      error: String(loadFailedError || 'legacy_retired_target_load_failed'),
+      detail: formatBridgeErrorDetail(error)
+    };
+  }
+}
+
+function exitIfBoundModuleFailed(bound, currentModule) {
+  if (currentModule && require.main === currentModule && bound && bound.ok === false) {
+    process.stderr.write(`${JSON.stringify(bound)}\n`);
+    process.exit(1);
+  }
+}
+
+function bindLegacyRetiredModuleSafe(
+  filePath,
+  currentModule,
+  missingBindError = 'legacy_retired_target_missing_bind',
+  loadFailedError = 'legacy_retired_target_load_failed'
+) {
+  const runtime = module.exports;
+  const bound = loadBoundModuleFromRuntime(
+    runtime,
+    filePath,
+    currentModule,
+    missingBindError,
+    loadFailedError
+  );
+  exitIfBoundModuleFailed(bound, currentModule);
+  return bound;
+}
+
 function createCompatibilityBridgeModule(implPath) {
   const impl = require(implPath);
 
@@ -154,6 +204,9 @@ function bindCompatibilityBridgeModule(
 module.exports = {
   bindCompatibilityBridgeModule,
   bindLegacyRetiredModule,
+  bindLegacyRetiredModuleSafe,
+  exitIfBoundModuleFailed,
+  loadBoundModuleFromRuntime,
   createCompatibilityBridgeModule,
   createLegacyRetiredModuleForFile,
   createLegacyRetiredModule,

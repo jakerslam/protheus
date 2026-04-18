@@ -505,6 +505,16 @@ mod openclaw_search_runtime_resolution_tests {
             out.pointer("/allow_fallback").and_then(Value::as_bool),
             Some(false)
         );
+        assert_eq!(
+            out.pointer("/tool_surface_status")
+                .and_then(Value::as_str),
+            Some("ready")
+        );
+        assert_eq!(
+            out.pointer("/tool_surface_ready")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
     }
 
     #[test]
@@ -591,6 +601,19 @@ mod openclaw_search_runtime_resolution_tests {
             out.pointer("/providers_skipped/0/reason")
                 .and_then(Value::as_str),
             Some("circuit_open")
+        );
+        assert_eq!(
+            out.get("tool_surface_status").and_then(Value::as_str),
+            Some("ready")
+        );
+        assert_eq!(
+            out.get("tool_surface_ready").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.get("tool_surface_blocking_reason")
+                .and_then(Value::as_str),
+            Some("none")
         );
         assert!(out
             .get("providers_attempted")

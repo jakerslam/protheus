@@ -2,9 +2,14 @@
 use serde_json::{json, Value};
 
 const MAX_INPUT_BYTES: usize = 1024 * 1024;
+const MAX_TOP_LEVEL_KEYS: usize = 128;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn __infring_wasm_adapter_placeholder() {}
+
+fn encode_output(payload: Value) -> Result<String, String> {
+    serde_json::to_string(&payload).map_err(|e| format!("encode_failed:{e}"))
+}
 
 fn parse_input(input_json: &str) -> Result<Value, String> {
     if input_json.len() > MAX_INPUT_BYTES {
@@ -12,20 +17,22 @@ fn parse_input(input_json: &str) -> Result<Value, String> {
     }
     let parsed: Value =
         serde_json::from_str(input_json).map_err(|e| format!("invalid_input:{e}"))?;
-    if !parsed.is_object() {
+    let Some(map) = parsed.as_object() else {
         return Err("invalid_input_object_required".to_string());
+    };
+    if map.len() > MAX_TOP_LEVEL_KEYS {
+        return Err("input_too_many_keys".to_string());
     }
     Ok(parsed)
 }
 
 pub fn invoke(input_json: &str) -> Result<String, String> {
     let parsed = parse_input(input_json)?;
-    serde_json::to_string(&json!({
+    encode_output(json!({
         "ok": true,
         "type": "wasm_adapter_invoke",
         "echo": parsed
     }))
-    .map_err(|e| format!("encode_failed:{e}"))
 }
 
 pub fn health() -> String {
@@ -33,5 +40,6 @@ pub fn health() -> String {
 }
 
 pub fn capabilities() -> String {
-    json!(["invoke", "health", "capabilities"]).to_string()
+    encode_output(json!(["invoke", "health", "capabilities"]))
+        .unwrap_or_else(|_| "[\"invoke\",\"health\",\"capabilities\"]".to_string())
 }

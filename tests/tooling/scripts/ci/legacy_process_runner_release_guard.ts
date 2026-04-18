@@ -70,14 +70,22 @@ function buildReport() {
       ? Date.parse(`${today}T00:00:00Z`) >= Date.parse(`${deletionTargetDate}T00:00:00Z`)
       : false;
   const cutoffOverride = parseBool(process.env.INFRING_LEGACY_RUNNER_DELETION_BLOCKER, false);
+  const blockerEvidencePath = clean(
+    process.env.INFRING_LEGACY_RUNNER_BLOCKER_PATH || 'core/local/artifacts/release_blocker_rubric_current.json',
+    400,
+  );
 
   const runnerSource = readSource(runnerPath);
   const bridgeSource = readSource(bridgePath);
   const legacyHelperSource = readSource(legacyHelperPath);
   const processFallbackHelperSource = readSource(processFallbackHelperPath);
   const runtimeManifest = readSource(runtimeManifestPath);
+  const blockerEvidence = readSource(blockerEvidencePath);
   const legacyHelperExists = fs.existsSync(path.join(ROOT, legacyHelperPath));
   const processFallbackHelperExists = fs.existsSync(path.join(ROOT, processFallbackHelperPath));
+  const blockerEvidenceExists = fs.existsSync(path.join(ROOT, blockerEvidencePath));
+  const blockerEvidenceReferencesLegacyRunner =
+    blockerEvidence.includes('legacy_process_runner') || blockerEvidence.includes('ops_lane_process_fallback');
 
   const checks = [
     {
@@ -137,6 +145,15 @@ function buildReport() {
       ok: !deletionDeadlineReached || cutoffOverride || !processFallbackHelperExists,
       detail: `today=${today};target_date=${deletionTargetDate || 'missing'};exists=${String(processFallbackHelperExists)};override=${String(cutoffOverride)}`,
     },
+    {
+      id: 'legacy_runner_override_requires_blocker_evidence',
+      ok:
+        !deletionDeadlineReached ||
+        !cutoffOverride ||
+        ((!legacyHelperExists && !processFallbackHelperExists) ||
+          (blockerEvidenceExists && blockerEvidenceReferencesLegacyRunner)),
+      detail: `override=${String(cutoffOverride)};deadline_reached=${String(deletionDeadlineReached)};blocker_path=${blockerEvidencePath};blocker_exists=${String(blockerEvidenceExists)};legacy_ref=${String(blockerEvidenceReferencesLegacyRunner)}`,
+    },
   ];
 
   return {
@@ -147,6 +164,8 @@ function buildReport() {
     deletion_target_release: deletionTargetRelease || null,
     deletion_deadline_reached: deletionDeadlineReached,
     cutoff_override_active: cutoffOverride,
+    blocker_evidence_path: blockerEvidencePath,
+    blocker_evidence_exists: blockerEvidenceExists,
     checks,
     failed: checks.filter((row) => !row.ok).map((row) => row.id),
   };

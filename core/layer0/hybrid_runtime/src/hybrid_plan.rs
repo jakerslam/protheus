@@ -22,6 +22,8 @@ pub struct RootResolution {
     pub reason: String,
 }
 
+const MAX_REQUESTED_ROOT_CHARS: usize = 260;
+
 fn should_skip(path: &Path, ignore: &HashSet<&str>) -> bool {
     path.file_name()
         .and_then(|v| v.to_str())
@@ -126,13 +128,22 @@ pub fn resolve_root(input: Option<&str>) -> PathBuf {
 }
 
 pub fn resolve_root_with_status(input: Option<&str>) -> RootResolution {
-    let requested = input.unwrap_or("").trim().to_string();
+    let raw_requested = input.unwrap_or("").trim();
+    let requested = raw_requested.to_string();
     if requested.is_empty() {
         return RootResolution {
             requested,
             resolved: ".".to_string(),
             accepted: true,
             reason: "default_root".to_string(),
+        };
+    }
+    if requested.chars().count() > MAX_REQUESTED_ROOT_CHARS {
+        return RootResolution {
+            requested,
+            resolved: ".".to_string(),
+            accepted: false,
+            reason: "root_too_long".to_string(),
         };
     }
     if has_control_chars(&requested) {
@@ -145,12 +156,36 @@ pub fn resolve_root_with_status(input: Option<&str>) -> RootResolution {
     }
 
     let candidate = PathBuf::from(&requested);
+    if candidate.is_absolute() {
+        return RootResolution {
+            requested,
+            resolved: ".".to_string(),
+            accepted: false,
+            reason: "root_absolute_path_blocked".to_string(),
+        };
+    }
     if has_parent_component(&candidate) {
         return RootResolution {
             requested,
             resolved: ".".to_string(),
             accepted: false,
             reason: "root_parent_traversal_blocked".to_string(),
+        };
+    }
+    if !candidate.exists() {
+        return RootResolution {
+            requested,
+            resolved: ".".to_string(),
+            accepted: false,
+            reason: "root_not_found".to_string(),
+        };
+    }
+    if !candidate.is_dir() {
+        return RootResolution {
+            requested,
+            resolved: ".".to_string(),
+            accepted: false,
+            reason: "root_not_directory".to_string(),
         };
     }
 
@@ -189,5 +224,19 @@ mod tests {
         let out = resolve_root_with_status(Some("tmp/\u{0000}/x"));
         assert!(!out.accepted);
         assert_eq!(out.reason, "root_contains_control_chars");
+    }
+
+    #[test]
+    fn root_resolution_blocks_absolute_paths() {
+        let out = resolve_root_with_status(Some("/"));
+        assert!(!out.accepted);
+        assert_eq!(out.reason, "root_absolute_path_blocked");
+    }
+
+    #[test]
+    fn root_resolution_blocks_nonexistent_paths() {
+        let out = resolve_root_with_status(Some("definitely-missing-root-xyz"));
+        assert!(!out.accepted);
+        assert_eq!(out.reason, "root_not_found");
     }
 }

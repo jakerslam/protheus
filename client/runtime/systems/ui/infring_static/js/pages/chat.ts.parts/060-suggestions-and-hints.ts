@@ -330,6 +330,44 @@
       this.scheduleConversationPersist();
     },
 
+    loadPromptSuggestionsPreference() {
+      var key = String(this.promptSuggestionsStorageKey || '').trim();
+      if (!key) return;
+      try {
+        var raw = localStorage.getItem(key);
+        if (raw == null) return;
+        var normalized = String(raw).trim().toLowerCase();
+        this.promptSuggestionsEnabled = !(
+          normalized === '0' ||
+          normalized === 'false' ||
+          normalized === 'off' ||
+          normalized === 'no'
+        );
+      } catch (_) {}
+    },
+
+    persistPromptSuggestionsPreference() {
+      var key = String(this.promptSuggestionsStorageKey || '').trim();
+      if (!key) return;
+      try {
+        localStorage.setItem(key, this.promptSuggestionsEnabled ? '1' : '0');
+      } catch (_) {}
+    },
+
+    setPromptSuggestionsEnabled(enabled) {
+      this.promptSuggestionsEnabled = enabled !== false;
+      this.persistPromptSuggestionsPreference();
+      if (!this.promptSuggestionsEnabled) {
+        this.clearPromptSuggestions();
+        return;
+      }
+      this.refreshPromptSuggestions(true, 'toggle-enabled');
+    },
+
+    togglePromptSuggestionsEnabled() {
+      this.setPromptSuggestionsEnabled(!this.promptSuggestionsEnabled);
+    },
+
     clearPromptSuggestions() {
       this.promptSuggestions = [];
       this.suggestionsLoading = false;

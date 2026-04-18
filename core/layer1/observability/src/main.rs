@@ -13,6 +13,7 @@ const MAX_REQUEST_BYTES: usize = 32 * 1024;
 const MAX_SCENARIO_ID_LEN: usize = 96;
 const MAX_TRACE_ID_LEN: usize = 96;
 const MAX_TEXT_TOKEN_LEN: usize = 160;
+const MAX_EVENT_COUNT: usize = 512;
 
 fn strip_invisible_unicode(raw: &str) -> String {
     raw.chars()
@@ -31,8 +32,8 @@ fn sanitize_text_token(raw: &str, max_len: usize) -> String {
         .filter(|ch| !ch.is_control())
         .collect();
     token = token.trim().to_string();
-    if token.len() > max_len {
-        token.truncate(max_len);
+    if token.chars().count() > max_len {
+        token = token.chars().take(max_len).collect();
     }
     token
 }
@@ -70,6 +71,11 @@ fn load_request_json(args: &[String]) -> Result<String, String> {
         return Ok(text);
     }
     if let Some(v) = parse_arg(args, "--request-file") {
+        let metadata =
+            fs::metadata(v.as_str()).map_err(|err| format!("request_file_stat_failed:{err}"))?;
+        if metadata.len() > MAX_REQUEST_BYTES as u64 {
+            return Err("request_file_too_large".to_string());
+        }
         let text = fs::read_to_string(v.as_str())
             .map_err(|err| format!("request_file_read_failed:{err}"))?;
         if text.len() > MAX_REQUEST_BYTES {
@@ -99,6 +105,9 @@ fn normalize_request_json(raw_request: &str) -> Result<String, String> {
     if request.events.is_empty() {
         return Err("request_missing_events".to_string());
     }
+    if request.events.len() > MAX_EVENT_COUNT {
+        return Err("request_too_many_events".to_string());
+    }
     for event in &mut request.events {
         event.trace_id = sanitize_text_token(&event.trace_id, MAX_TRACE_ID_LEN);
         if event.trace_id.is_empty() {
@@ -108,6 +117,15 @@ fn normalize_request_json(raw_request: &str) -> Result<String, String> {
         event.operation = sanitize_text_token(&event.operation, MAX_TEXT_TOKEN_LEN);
         event.severity = sanitize_text_token(&event.severity, 16).to_ascii_lowercase();
         event.payload_digest = sanitize_text_token(&event.payload_digest, MAX_TEXT_TOKEN_LEN);
+        event.tags = event
+            .tags
+            .iter()
+            .map(|tag| sanitize_text_token(tag, 48).to_ascii_lowercase())
+            .filter(|tag| !tag.is_empty())
+            .collect();
+        if event.tags.is_empty() {
+            return Err("request_invalid_event_tags".to_string());
+        }
     }
     serde_json::to_string(&request).map_err(|err| format!("request_encode_failed:{err}"))
 }
@@ -154,9 +172,12 @@ fn usage() {
 
 fn main() {
     let args: Vec<String> = env::args().skip(1).collect();
-    let command = args.first().map(String::as_str).unwrap_or("demo");
+    let command = args
+        .first()
+        .map(|value| sanitize_text_token(value, 24).to_ascii_lowercase())
+        .unwrap_or_else(|| "demo".to_string());
 
-    match command {
+    match command.as_str() {
         "load-profile" => match load_embedded_observability_profile_json() {
             Ok(payload) => println!("{}", payload),
             Err(err) => {
@@ -169,16 +190,18 @@ fn main() {
         },
         "run-chaos" => match load_request_json(&args[1..]) {
             Ok(request_json) => match normalize_request_json(&request_json) {
-                Ok(normalized_request_json) => match run_chaos_resilience_json(&normalized_request_json) {
-                    Ok(payload) => println!("{}", payload),
-                    Err(err) => {
-                        eprintln!(
-                            "{}",
-                            serde_json::json!({ "ok": false, "error": err.to_string() })
-                        );
-                        std::process::exit(1);
+                Ok(normalized_request_json) => {
+                    match run_chaos_resilience_json(&normalized_request_json) {
+                        Ok(payload) => println!("{}", payload),
+                        Err(err) => {
+                            eprintln!(
+                                "{}",
+                                serde_json::json!({ "ok": false, "error": err.to_string() })
+                            );
+                            std::process::exit(1);
+                        }
                     }
-                },
+                }
                 Err(err) => {
                     eprintln!("{}", serde_json::json!({ "ok": false, "error": err }));
                     std::process::exit(1);

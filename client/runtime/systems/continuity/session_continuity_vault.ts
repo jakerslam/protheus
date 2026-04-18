@@ -3,8 +3,14 @@
 const crypto = require('node:crypto');
 const { createOpsLaneBridge } = require('../../lib/rust_lane_bridge.ts');
 
-const MUTATION_COMMANDS = new Set(['put', 'archive']);
+const MUTATION_COMMANDS = new Set(['put']);
 const ALLOWED_COMMANDS = new Set(['put', 'get', 'status']);
+const WRAPPER_TOKENS = new Set(['session-continuity-vault', 'session_continuity_vault']);
+const COMMAND_ALIAS = Object.freeze({
+  restore: 'get',
+  archive: 'put',
+  verify: 'status'
+});
 const MAX_ARGS = 64;
 const MAX_ARG_LEN = 512;
 
@@ -34,6 +40,18 @@ function normalizeReceiptHash(payload) {
   return crypto.createHash('sha256').update(stableStringify(clone)).digest('hex');
 }
 
+function withReceiptHash(payload) {
+  if (!payload || typeof payload !== 'object') {
+    return payload;
+  }
+  if (typeof payload.receipt_hash === 'string' && payload.receipt_hash.trim()) {
+    return payload;
+  }
+  return Object.assign({}, payload, {
+    receipt_hash: normalizeReceiptHash(payload)
+  });
+}
+
 function sanitizeArg(value) {
   return String(value == null ? '' : value)
     .replace(/[\u200B\u200C\u200D\u2060\uFEFF]/g, '')
@@ -50,50 +68,26 @@ function ensureMutationReceipt(result, command) {
   if (!MUTATION_COMMANDS.has(command)) {
     return result;
   }
-  if (typeof result.payload.receipt_hash === 'string') {
-    return result;
-  }
   return Object.assign({}, result, {
-    payload: Object.assign({}, result.payload, {
-      receipt_hash: normalizeReceiptHash(result.payload)
-    })
+    payload: withReceiptHash(result.payload)
   });
 }
 
 function normalizeArgs(args = []) {
-  const rows = Array.isArray(args)
+  const rows = (Array.isArray(args)
     ? args.map((v) => sanitizeArg(v)).filter(Boolean).slice(0, MAX_ARGS)
-    : [];
-  if (!rows.length) {
-    return ['status'];
+    : []);
+  while (rows.length && WRAPPER_TOKENS.has((rows[0] || '').toLowerCase())) {
+    rows.shift();
   }
-
-  let head = rows[0].toLowerCase();
+  if (!rows.length) return ['status'];
+  const head = (rows[0] || '').toLowerCase();
   const tail = rows.slice(1);
-
-  if (head === 'session-continuity-vault' || head === 'session_continuity_vault') {
-    head = (tail[0] || '').toLowerCase();
-    return normalizeArgs(tail);
-  }
-  if (!head) {
+  const mapped = COMMAND_ALIAS[head] || (ALLOWED_COMMANDS.has(head) ? head : 'status');
+  if (mapped === 'status') {
     return ['status'];
   }
-
-  if (head === 'restore') {
-    return ['get'].concat(tail);
-  }
-  if (head === 'archive') {
-    return ['put'].concat(tail);
-  }
-  if (head === 'verify') {
-    return ['status'].concat(tail);
-  }
-
-  if (!ALLOWED_COMMANDS.has(head)) {
-    return ['status'].concat(tail);
-  }
-
-  return [head].concat(tail);
+  return [mapped].concat(tail);
 }
 
 function run(args = process.argv.slice(2)) {
@@ -106,15 +100,21 @@ function run(args = process.argv.slice(2)) {
   if (out && out.stdout) process.stdout.write(out.stdout);
   if (out && out.stderr) process.stderr.write(out.stderr);
   if (out && out.payload && !out.stdout) {
-    process.stdout.write(`${JSON.stringify(out.payload)}\n`);
+    const payload =
+      out.payload && (out.payload.ok === true || MUTATION_COMMANDS.has(command))
+        ? withReceiptHash(out.payload)
+        : out.payload;
+    process.stdout.write(`${JSON.stringify(payload)}\n`);
   } else if (!out || (!out.stdout && !out.stderr)) {
+    const fallback = {
+      ok: false,
+      type: 'session_continuity_vault',
+      lane: bridge.lane,
+      error: 'bridge_no_output',
+      status: Number.isFinite(Number(out && out.status)) ? Number(out.status) : 1
+    };
     process.stdout.write(
-      `${JSON.stringify({
-        ok: false,
-        type: 'session_continuity_vault',
-        error: 'bridge_no_output',
-        status: Number.isFinite(Number(out && out.status)) ? Number(out.status) : 1
-      })}\n`
+      `${JSON.stringify(withReceiptHash(fallback))}\n`
     );
   }
   return out;

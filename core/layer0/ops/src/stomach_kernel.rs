@@ -94,7 +94,7 @@ fn authorize_stomach_command_with_nexus_inner(
             schema_ids: vec![schema.clone()],
             verbs: vec!["invoke".to_string()],
             required_verity: VerityClass::Standard,
-            trust_class: TrustClass::ClientIngressBoundary,
+            trust_class: TrustClass::InterModuleData,
             requested_ttl_ms: 30_000,
             template_id: None,
             template_version: None,

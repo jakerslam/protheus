@@ -3,43 +3,24 @@
 // TypeScript compatibility shim only.
 // Layer ownership: adapters/runtime (bridge) -> core/layer1/memory_runtime/adaptive (authoritative)
 
-const { loadAdaptiveMemoryModule } = require('../../../../../../adapters/runtime/adaptive_memory_bridge.ts');
-const MODULE_ID = 'catalog_store';
-
-function loadTarget() {
-  try {
-    return loadAdaptiveMemoryModule(MODULE_ID);
-  } catch (error) {
-    return {
-      ok: false,
-      error: `${MODULE_ID}_target_load_failed`,
-      detail: String(error && error.message ? error.message : error || 'unknown_error')
-    };
-  }
-}
-
-const target = loadTarget();
-
-function run(args = process.argv.slice(2)) {
-  if (!target || target.ok === false) {
-    process.stderr.write(`${JSON.stringify(target || { ok: false, error: `${MODULE_ID}_target_unavailable` })}\n`);
-    return 1;
-  }
-  if (typeof target.run !== 'function') {
-    process.stderr.write(`${JSON.stringify({ ok: false, error: `${MODULE_ID}_target_missing_run` })}\n`);
-    return 1;
-  }
-  return target.run(Array.isArray(args) ? args : []);
-}
+const { createAdaptiveMemoryEntrypoint } = require('../../../../lib/adaptive_memory_entrypoint.ts');
+const STORE_ID = 'catalog_store';
+const MAX_ARGS = 64;
+const MAX_ARG_LEN = 512;
+const entrypoint = createAdaptiveMemoryEntrypoint(STORE_ID, {
+  maxArgs: MAX_ARGS,
+  maxArgLen: MAX_ARG_LEN
+});
 
 if (require.main === module) {
-  const code = run(process.argv.slice(2));
-  process.exit(Number.isFinite(Number(code)) ? Number(code) : 1);
+  entrypoint.runAsMain(process.argv.slice(2));
 }
 
 module.exports = {
-  ...(target && typeof target === 'object' ? target : {}),
-  run
+  ...(entrypoint.target && typeof entrypoint.target === 'object' ? entrypoint.target : {}),
+  run: entrypoint.run,
+  storeId: STORE_ID,
+  normalizeReceiptHash: entrypoint.normalizeReceiptHash
 };
 
 export {};

@@ -3,6 +3,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { sanitizeBridgeArg } = require('../../client/runtime/lib/runtime_system_entrypoint.ts');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const STATE_DIR = path.join(ROOT, 'local', 'state', 'ops', 'lensmap');
@@ -10,14 +11,11 @@ const PRIVATE_DIR = path.join(ROOT, 'local', 'private-lenses');
 const MAX_ARG_LEN = 512;
 const MAX_NAME_LEN = 80;
 const MAX_HISTORY_BYTES = 64 * 1024;
+const MAX_HISTORY_FILE_BYTES = 4 * 1024 * 1024;
 
 function sanitizeArgToken(value, maxLen = MAX_ARG_LEN) {
-  return String(value == null ? '' : value)
-    .replace(/[\u200B\u200C\u200D\u2060\uFEFF]/g, '')
-    .replace(/[\r\n\t]+/g, ' ')
-    .replace(/[^\x20-\x7E]+/g, '')
-    .trim()
-    .slice(0, Math.max(1, Number(maxLen) || 1));
+  const max = Math.max(1, Number(maxLen) || 1);
+  return sanitizeBridgeArg(value, max);
 }
 
 function sanitizeName(value, fallback) {
@@ -179,8 +177,25 @@ function cmdExpose(name) {
 function cmdStatus() {
   const historyPath = path.join(STATE_DIR, 'history.jsonl');
   let total = 0;
-  if (fs.existsSync(historyPath)) total = fs.readFileSync(historyPath, 'utf8').split('\n').filter(Boolean).length;
-  emit({ ok: true, type: 'lensmap', action: 'status', ts: nowIso(), history_events: total, private_store: path.relative(ROOT, PRIVATE_DIR) }, 0);
+  let historyFileTruncated = false;
+  if (fs.existsSync(historyPath)) {
+    const stat = fs.statSync(historyPath);
+    if (Number(stat.size || 0) > MAX_HISTORY_FILE_BYTES) {
+      historyFileTruncated = true;
+      total = -1;
+    } else {
+      total = fs.readFileSync(historyPath, 'utf8').split('\n').filter(Boolean).length;
+    }
+  }
+  emit({
+    ok: true,
+    type: 'lensmap',
+    action: 'status',
+    ts: nowIso(),
+    history_events: total,
+    history_file_truncated: historyFileTruncated,
+    private_store: path.relative(ROOT, PRIVATE_DIR)
+  }, 0);
 }
 
 function main() {

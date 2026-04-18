@@ -2,44 +2,23 @@
 'use strict';
 export {};
 
-const path = require('path');
-const { spawnSync } = require('child_process');
+const { createCompatTargetBridge } = require('../lib/compat_target_bridge.ts');
 
-const ROOT = path.resolve(__dirname, '..');
-const TARGET = path.join(ROOT, 'systems', 'ops', 'open_platform_release_pack.js');
-const MAX_ARG_LEN = 512;
+const bridge = createCompatTargetBridge({
+  scriptDir: __dirname,
+  targetRelativePath: '../systems/ops/open_platform_release_pack.ts',
+  loadError: 'export_cli_target_load_failed',
+  unavailableError: 'export_cli_target_unavailable',
+  missingRunError: 'export_cli_target_missing_run',
+  maxArgLen: 512,
+  maxArgs: 64,
+});
 
-function sanitizeArg(value) {
-  return String(value == null ? '' : value)
-    .replace(/[\u200B\u200C\u200D\u2060\uFEFF]/g, '')
-    .replace(/[\r\n\t]+/g, ' ')
-    .replace(/[^\x20-\x7E]+/g, '')
-    .trim()
-    .slice(0, MAX_ARG_LEN);
+if (require.main === module) {
+  bridge.runAsMain(process.argv.slice(2));
 }
 
-function main(args = process.argv.slice(2)) {
-  const passthrough = Array.isArray(args) ? args.map((arg) => sanitizeArg(arg)).filter(Boolean) : [];
-  const proc = spawnSync(process.execPath, [TARGET].concat(passthrough), {
-    cwd: ROOT,
-    env: process.env,
-    stdio: 'inherit',
-  });
-
-  if (proc && proc.error) {
-    process.stderr.write(
-      `${JSON.stringify({
-        ok: false,
-        type: 'export_cli',
-        error: 'export_cli_spawn_failed',
-        detail: String(proc.error && proc.error.message ? proc.error.message : proc.error),
-        status: 1
-      })}\n`
-    );
-  }
-
-  const code = Number.isFinite(Number(proc && proc.status)) ? Number(proc.status) : 1;
-  process.exit(code);
-}
-
-main(process.argv.slice(2));
+module.exports = {
+  ...(bridge.target && typeof bridge.target === 'object' ? bridge.target : {}),
+  run: bridge.run,
+};

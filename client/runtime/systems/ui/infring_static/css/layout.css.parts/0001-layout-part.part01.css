@@ -77,8 +77,6 @@ body.dashboard-embedded-shell .main-content > div:not(.global-taskbar):not(.main
 
 .sidebar {
   position: fixed;
-  top: var(--shell-top-offset);
-  bottom: var(--shell-bottom-offset);
   left: 0;
   width: var(--sidebar-width);
   height: auto;
@@ -124,6 +122,17 @@ body.dashboard-embedded-shell .main-content > div:not(.global-taskbar):not(.main
   z-index: var(--sidebar-layer);
   --sidebar-edge-fade-size: 22px;
   --chat-sidebar-profile-row-height: 56px;
+}
+
+.sidebar:not(.chat-sidebar-dynamic) {
+  top: var(--shell-top-offset);
+  bottom: var(--shell-bottom-offset);
+}
+
+.sidebar.chat-sidebar-dynamic {
+  top: auto;
+  bottom: auto;
+  height: fit-content;
 }
 
 /* Top fade: blend sidebar into page background tone at the very top edge. */

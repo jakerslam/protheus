@@ -37,3 +37,31 @@ jobs:
 
       - name: Alpha readiness strict check
         run: cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops -- alpha-readiness run --strict=1 --run-gates=1
+
+  windows-install-smoke:
+    runs-on: windows-latest
+    timeout-minutes: 75
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install JS deps
+        run: npm ci
+
+      - name: Windows install.ps1 full repair smoke
+        shell: pwsh
+        run: |
+          Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+          $env:INFRING_VERSION = "v0.0.0-ci"
+          $env:INFRING_INSTALL_AUTO_RUSTUP = "0"
+          & "$PWD/install.ps1" -Repair -Full
+          & "$HOME\.infring\bin\infring.cmd" gateway status --auto-heal=0 --dashboard-open=0

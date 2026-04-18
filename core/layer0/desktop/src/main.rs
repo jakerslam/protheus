@@ -5,11 +5,17 @@ use std::env;
 use std::path::PathBuf;
 
 const MAX_COMMAND_LEN: usize = 64;
+const SUPPORTED_COMMANDS: [&str; 2] = ["status", "launch"];
 
 fn sanitize_command_token(input: &str) -> String {
     input
         .chars()
-        .filter(|c| !matches!(*c, '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}'))
+        .filter(|c| {
+            !matches!(
+                *c,
+                '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}'
+            )
+        })
         .filter(|c| !c.is_control())
         .collect::<String>()
         .trim()
@@ -24,6 +30,8 @@ fn normalize_command(input: &str) -> String {
         "" => "status".to_string(),
         "check" => "status".to_string(),
         "run" => "launch".to_string(),
+        "start" => "launch".to_string(),
+        "restart" => "launch".to_string(),
         other => other.to_string(),
     }
 }
@@ -33,6 +41,31 @@ fn print_json(value: &serde_json::Value) {
         "{}",
         serde_json::to_string_pretty(value).unwrap_or_else(|_| "{}".to_string())
     );
+}
+
+fn unknown_command_payload(command: &str) -> serde_json::Value {
+    let body = serde_json::json!({
+        "ok": false,
+        "type": "infring_desktop_unknown_command",
+        "error": "unknown_command",
+        "command": command,
+        "supported_commands": SUPPORTED_COMMANDS,
+    });
+    serde_json::json!({
+        "ok": false,
+        "type": "infring_desktop_unknown_command",
+        "error": "unknown_command",
+        "command": command,
+        "supported_commands": SUPPORTED_COMMANDS,
+        "receipt_hash": protheus_ops_core::deterministic_receipt_hash(&body)
+    })
+}
+
+fn print_help() {
+    println!("Usage:");
+    for command in SUPPORTED_COMMANDS {
+        println!("  infring-desktop {command}");
+    }
 }
 
 fn main() {
@@ -46,20 +79,10 @@ fn main() {
         "status" => infring_desktop::status_payload(&cwd),
         "launch" => infring_desktop::launch_payload(&cwd),
         "help" | "--help" | "-h" => {
-            println!("Usage:");
-            println!("  infring-desktop status");
-            println!("  infring-desktop launch");
+            print_help();
             return;
         }
-        _ => serde_json::json!({
-            "ok": false,
-            "error": "unknown_command",
-            "command": command,
-            "receipt_hash": protheus_ops_core::deterministic_receipt_hash(&serde_json::json!({
-                "type": "infring_desktop_unknown_command",
-                "command": command
-            }))
-        }),
+        _ => unknown_command_payload(command.as_str()),
     };
     print_json(&payload);
 }

@@ -376,6 +376,24 @@ fn search_query_is_meta_diagnostic(query: &str) -> bool {
     if web_intent_hits > 0 {
         return false;
     }
+    let research_intent_hits = [
+        "technique",
+        "techniques",
+        "mitigation",
+        "how to",
+        "best practice",
+        "best practices",
+        "guide",
+        "tutorial",
+        "methods",
+        "strategy",
+    ]
+    .iter()
+    .filter(|marker| lowered.contains(**marker))
+    .count();
+    if meta_hits == 1 && research_intent_hits > 0 {
+        return false;
+    }
     meta_hits >= 2 || signal_terms <= 7
 }
 

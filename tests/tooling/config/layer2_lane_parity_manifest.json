@@ -3,6 +3,7 @@
   "lanes": [
     {
       "id": "lane_task_submission",
+      "status": "complete",
       "requested_action": "task_submission",
       "expected_receipt_type": "layer2_task_submission_receipt",
       "runtime_path": "core/layer0/ops/src/workflow-executor",
@@ -18,6 +19,7 @@
     },
     {
       "id": "lane_queue_routing",
+      "status": "complete",
       "requested_action": "queue_routing",
       "expected_receipt_type": "layer2_queue_routing_receipt",
       "runtime_path": "core/layer0/ops/src/queue_sqlite_kernel",
@@ -33,6 +35,7 @@
     },
     {
       "id": "lane_adapter_invocation",
+      "status": "complete",
       "requested_action": "adapter_invocation_envelope",
       "expected_receipt_type": "layer2_adapter_invocation_receipt",
       "runtime_path": "core/layer0/ops/src/web_conduit",
@@ -48,6 +51,7 @@
     },
     {
       "id": "lane_failure_classification",
+      "status": "complete",
       "requested_action": "failure_classification",
       "expected_receipt_type": "layer2_failure_classification_receipt",
       "runtime_path": "core/layer0/ops/src/orchestration",
@@ -63,6 +67,7 @@
     },
     {
       "id": "lane_cancellation",
+      "status": "complete",
       "requested_action": "task_cancellation",
       "expected_receipt_type": "layer2_task_cancellation_receipt",
       "runtime_path": "core/layer0/ops/src/workflow-controller",
@@ -78,6 +83,7 @@
     },
     {
       "id": "lane_timeout",
+      "status": "complete",
       "requested_action": "task_timeout",
       "expected_receipt_type": "layer2_task_timeout_receipt",
       "runtime_path": "core/layer0/ops/src/workflow-executor",

@@ -4,6 +4,7 @@ use std::collections::BTreeSet;
 const MAX_VERSION_LEN: usize = 64;
 const MAX_CAPABILITY_LEN: usize = 64;
 const MAX_CAPABILITY_COUNT: usize = 128;
+const MAX_UPDATE_SIZE_HARD_CAP_BYTES: u64 = 1_000_000_000_000;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UpdatePackage {
@@ -46,8 +47,8 @@ fn sanitize_token(raw: &str, max_len: usize, lowercase: bool) -> String {
     if lowercase {
         token = token.to_ascii_lowercase();
     }
-    if token.len() > max_len {
-        token.truncate(max_len);
+    if token.chars().count() > max_len {
+        token = token.chars().take(max_len).collect();
     }
     token
 }
@@ -75,12 +76,16 @@ fn normalize_capabilities(values: &[String]) -> Vec<String> {
 impl UpdatePolicy {
     pub fn evaluate(&self, package: &UpdatePackage) -> UpdateDecision {
         let version = sanitize_token(&package.version, MAX_VERSION_LEN, false);
-        let required_capability = sanitize_token(&self.required_capability, MAX_CAPABILITY_LEN, true);
+        let required_capability =
+            sanitize_token(&self.required_capability, MAX_CAPABILITY_LEN, true);
         let capabilities = normalize_capabilities(&package.capabilities);
         let artifact_sha = sanitize_token(&package.artifact_sha256, 64, true);
 
         if self.max_size_bytes == 0 {
             return UpdateDecision::Rejected("policy_invalid_max_size".to_string());
+        }
+        if self.max_size_bytes > MAX_UPDATE_SIZE_HARD_CAP_BYTES {
+            return UpdateDecision::Rejected("policy_max_size_exceeds_hard_cap".to_string());
         }
         if required_capability.is_empty() {
             return UpdateDecision::Rejected("policy_invalid_required_capability".to_string());
@@ -96,6 +101,9 @@ impl UpdatePolicy {
         }
         if package.size_bytes > self.max_size_bytes {
             return UpdateDecision::Rejected("artifact_size_exceeds_policy".to_string());
+        }
+        if package.size_bytes > MAX_UPDATE_SIZE_HARD_CAP_BYTES {
+            return UpdateDecision::Rejected("artifact_size_exceeds_hard_cap".to_string());
         }
         if !valid_sha256(&artifact_sha) {
             return UpdateDecision::Rejected("artifact_sha256_invalid".to_string());

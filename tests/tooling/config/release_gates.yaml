@@ -1,6 +1,10 @@
 version: 1
 profiles:
   rich:
+    proof_tracks:
+      synthetic_required: 1
+      empirical_required: 1
+      empirical_min_sample_points: 12
     memory:
       peak_rss_mb_max: 1400
     queue:
@@ -18,6 +22,7 @@ profiles:
     adapter_chaos:
       baseline_pass_ratio_min: 1.0
       fail_closed_ratio_min: 1.0
+      graduation_ratio_min: 1.0
     quality_telemetry:
       empty_final_max: 0
       deferred_final_max: 0
@@ -26,7 +31,14 @@ profiles:
       meta_status_tool_leak_max: 0
       web_missing_tool_attempt_max: 0
       taxonomy_parse_error_max: 0
+      denied_actions_max: 0
+      pause_reason_events_max: 24
+      merkle_chain_continuity_failures_max: 0
   pure:
+    proof_tracks:
+      synthetic_required: 1
+      empirical_required: 0
+      empirical_min_sample_points: 0
     memory:
       peak_rss_mb_max: 1000
     queue:
@@ -44,6 +56,7 @@ profiles:
     adapter_chaos:
       baseline_pass_ratio_min: 1.0
       fail_closed_ratio_min: 1.0
+      graduation_ratio_min: 1.0
     quality_telemetry:
       empty_final_max: 0
       deferred_final_max: 0
@@ -52,7 +65,14 @@ profiles:
       meta_status_tool_leak_max: 0
       web_missing_tool_attempt_max: 0
       taxonomy_parse_error_max: 0
+      denied_actions_max: 0
+      pause_reason_events_max: 24
+      merkle_chain_continuity_failures_max: 0
   tiny-max:
+    proof_tracks:
+      synthetic_required: 1
+      empirical_required: 0
+      empirical_min_sample_points: 0
     memory:
       peak_rss_mb_max: 720
     queue:
@@ -70,6 +90,7 @@ profiles:
     adapter_chaos:
       baseline_pass_ratio_min: 1.0
       fail_closed_ratio_min: 1.0
+      graduation_ratio_min: 1.0
     quality_telemetry:
       empty_final_max: 0
       deferred_final_max: 0
@@ -78,3 +99,6 @@ profiles:
       meta_status_tool_leak_max: 0
       web_missing_tool_attempt_max: 0
       taxonomy_parse_error_max: 0
+      denied_actions_max: 0
+      pause_reason_events_max: 24
+      merkle_chain_continuity_failures_max: 0

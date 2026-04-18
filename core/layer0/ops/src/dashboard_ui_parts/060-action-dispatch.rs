@@ -35,27 +35,90 @@ fn runtime_sync_requested(input_lower: &str) -> bool {
                 || input_lower.contains("what changed")))
 }
 
+fn app_chat_has_explicit_web_intent(lowered: &str) -> bool {
+    lowered.contains("web search")
+        || lowered.contains("websearch")
+        || lowered.contains("search the web")
+        || lowered.contains("search online")
+        || lowered.contains("find information")
+        || lowered.contains("finding information")
+        || lowered.contains("look it up")
+        || lowered.contains("look this up")
+        || lowered.contains("search again")
+        || lowered.contains("best chili recipes")
+}
+
+fn app_chat_is_meta_diagnostic_request(lowered: &str) -> bool {
+    if lowered.is_empty() {
+        return false;
+    }
+    if app_chat_has_explicit_web_intent(lowered) {
+        return false;
+    }
+    if [
+        "that was just a test",
+        "that was a test",
+        "did you do the web request",
+        "did you try it",
+        "where did that come from",
+        "where the hell did that come from",
+        "you returned no result",
+        "you hallucinated",
+        "answer the question",
+    ]
+    .iter()
+    .any(|marker| lowered.contains(*marker))
+    {
+        return true;
+    }
+    let meta_hits = [
+        "what happened",
+        "workflow",
+        "tool call",
+        "web tooling",
+        "hallucination",
+        "hallucinated",
+        "training data",
+        "context issue",
+        "last response",
+        "previous response",
+        "system issue",
+    ]
+    .iter()
+    .filter(|marker| lowered.contains(**marker))
+    .count();
+    if meta_hits == 0 {
+        return false;
+    }
+    let signal_terms = lowered
+        .split_whitespace()
+        .filter(|token| token.len() >= 3)
+        .count();
+    meta_hits >= 2 || signal_terms <= 7
+}
+
 fn app_chat_requests_live_web(raw_input_lower: &str) -> bool {
     let lowered = clean_text(raw_input_lower, 2_000).to_ascii_lowercase();
     if lowered.is_empty() {
         return false;
     }
-    lowered.contains("web search")
-        || lowered.contains("websearch")
-        || lowered.contains("search the web")
-        || lowered.contains("search again")
-        || lowered.contains("find information")
-        || lowered.contains("finding information")
-        || lowered.contains("best chili recipes")
-        || ((lowered.contains("framework") || lowered.contains("frameworks"))
-            && (lowered.contains("current")
-                || lowered.contains("latest")
-                || lowered.contains("top")))
+    if app_chat_has_explicit_web_intent(&lowered) {
+        return true;
+    }
+    if app_chat_is_meta_diagnostic_request(&lowered) {
+        return false;
+    }
+    ((lowered.contains("framework") || lowered.contains("frameworks"))
+        && (lowered.contains("current")
+            || lowered.contains("latest")
+            || lowered.contains("top")
+            || lowered.contains("best")))
         || (lowered.contains("search")
             && (lowered.contains("latest")
                 || lowered.contains("current")
                 || lowered.contains("framework")
-                || lowered.contains("recipes")))
+                || lowered.contains("recipes")
+                || lowered.contains("update")))
 }
 
 fn app_chat_extract_web_query(raw_input: &str) -> String {
@@ -81,6 +144,127 @@ fn app_chat_extract_web_query(raw_input: &str) -> String {
         }
     }
     cleaned
+}
+
+fn app_chat_alignment_terms(text: &str, max_terms: usize) -> Vec<String> {
+    let mut out = Vec::<String>::new();
+    for token in clean_text(text, 2_000)
+        .to_ascii_lowercase()
+        .split(|ch: char| !ch.is_ascii_alphanumeric())
+    {
+        if token.len() < 3 {
+            continue;
+        }
+        if matches!(
+            token,
+            "the"
+                | "and"
+                | "for"
+                | "with"
+                | "this"
+                | "that"
+                | "from"
+                | "into"
+                | "what"
+                | "when"
+                | "where"
+                | "why"
+                | "how"
+                | "about"
+                | "just"
+                | "again"
+                | "please"
+                | "best"
+                | "top"
+                | "give"
+                | "show"
+                | "find"
+                | "search"
+                | "web"
+                | "results"
+                | "result"
+        ) {
+            continue;
+        }
+        if out.iter().any(|existing| existing == token) {
+            continue;
+        }
+        out.push(token.to_string());
+        if out.len() >= max_terms {
+            break;
+        }
+    }
+    out
+}
+
+fn app_chat_web_result_matches_query(query: &str, output: &str) -> bool {
+    let query_terms = app_chat_alignment_terms(query, 16);
+    if query_terms.len() < 2 {
+        return true;
+    }
+    let lowered = clean_text(output, 4_000).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    let matched = query_terms
+        .iter()
+        .filter(|term| lowered.contains(term.as_str()))
+        .count();
+    let required_hits = 2.min(query_terms.len());
+    if matched >= required_hits {
+        return true;
+    }
+    let ratio = (matched as f64) / (query_terms.len() as f64);
+    let ratio_floor = if query_terms.len() >= 6 { 0.40 } else { 0.34 };
+    ratio >= ratio_floor
+}
+
+fn app_chat_contains_irrelevant_dump(raw_input: &str, response: &str) -> bool {
+    let user_lowered = clean_text(raw_input, 1_200).to_ascii_lowercase();
+    let response_lowered = clean_text(response, 16_000).to_ascii_lowercase();
+    if response_lowered.is_empty() {
+        return false;
+    }
+
+    let role_preamble_hits = [
+        "i am an expert in the field",
+        "my role is to provide",
+        "the user has provided",
+        "my task is to refine",
+        "workflow metadata",
+        "the error: context collapse",
+    ]
+    .iter()
+    .filter(|marker| response_lowered.contains(**marker))
+    .count();
+    if role_preamble_hits >= 2
+        && !user_lowered.contains("system prompt")
+        && !user_lowered.contains("role prompt")
+        && !user_lowered.contains("prompt")
+    {
+        return true;
+    }
+
+    let competitive_dump_hits = [
+        "given a tree",
+        "input specification",
+        "output specification",
+        "sample input",
+        "sample output",
+        "#include <stdio.h>",
+        "int main()",
+        "public class",
+        "translate the following java code",
+        "intelligent recommendation",
+        "smart recommendations",
+    ]
+    .iter()
+    .filter(|marker| response_lowered.contains(**marker))
+    .count();
+    competitive_dump_hits >= 3
+        && !user_lowered.contains("translate")
+        && !user_lowered.contains("python function")
+        && !user_lowered.contains("java code")
 }
 
 fn app_chat_tool_name_is_web_search(name: &str) -> bool {
@@ -363,6 +547,16 @@ fn app_chat_rewrite_tooling_response(raw_input: &str, response: &str, tools: &[V
             "suppressed_context_leak_dump".to_string(),
         );
     }
+    if app_chat_contains_irrelevant_dump(raw_input, response) {
+        return (
+            crate::tool_output_match_filter::canonical_tooling_fallback_copy(
+                "parse_failed",
+                "web_tool_context_mismatch",
+                Some("irrelevant_response_dump"),
+            ),
+            "suppressed_irrelevant_dump".to_string(),
+        );
+    }
     let blocked = tools.iter().any(app_chat_tool_blocked_signal);
     let low_signal = tools.iter().any(|row| {
         let status = clean_text(row.get("status").and_then(Value::as_str).unwrap_or(""), 120)
@@ -374,6 +568,7 @@ fn app_chat_rewrite_tooling_response(raw_input: &str, response: &str, tools: &[V
     });
     let speculative = app_chat_speculative_blocker_copy(response);
     let deferred = app_chat_deferred_terminal_copy(response);
+    let query_aligned = app_chat_web_result_matches_query(raw_input, response);
     if blocked {
         let mut evidence = Vec::<String>::new();
         for row in tools {
@@ -400,6 +595,16 @@ fn app_chat_rewrite_tooling_response(raw_input: &str, response: &str, tools: &[V
                 Some(&evidence_text),
             ),
             "blocked_with_structured_evidence".to_string(),
+        );
+    }
+    if !blocked && !query_aligned {
+        return (
+            crate::tool_output_match_filter::canonical_tooling_fallback_copy(
+                "provider_low_signal",
+                "web_tool_low_signal",
+                Some("query_result_mismatch"),
+            ),
+            "suppressed_query_mismatch".to_string(),
         );
     }
     if low_signal && (speculative || deferred) {
@@ -806,15 +1011,16 @@ fn run_action(root: &Path, action: &str, payload: &Value) -> LaneResult {
                             .get("ok")
                             .and_then(Value::as_bool)
                             .unwrap_or(true);
-                    if fallback_ok {
-                        let summary = clean_text(
-                            fallback_payload
-                                .get("summary")
-                                .or_else(|| fallback_payload.get("response"))
-                                .and_then(Value::as_str)
-                                .unwrap_or(""),
-                            2_000,
-                        );
+                    let summary = clean_text(
+                        fallback_payload
+                            .get("summary")
+                            .or_else(|| fallback_payload.get("response"))
+                            .and_then(Value::as_str)
+                            .unwrap_or(""),
+                        2_000,
+                    );
+                    let query_aligned = app_chat_web_result_matches_query(&fallback_query, &summary);
+                    if fallback_ok && query_aligned {
                         let assistant = if summary.is_empty() {
                             format!("Web search ran for \"{fallback_query}\" and returned results.")
                         } else {
@@ -853,18 +1059,47 @@ fn run_action(root: &Path, action: &str, payload: &Value) -> LaneResult {
                             json!("forced_web_tool_attempt_success");
                         lane_payload["response_finalization"] = response_finalization;
                     } else {
-                        let assistant = "Web tooling execution failed before any search tool call was recorded (error_code: web_tool_not_invoked). Retry lane: run `batch_query` with a narrower query or one specific source URL.".to_string();
+                        let mismatch_only = fallback_ok && !query_aligned;
+                        let (assistant, error_code) = if mismatch_only {
+                            (
+                                crate::tool_output_match_filter::canonical_tooling_fallback_copy(
+                                    "provider_low_signal",
+                                    "web_tool_low_signal",
+                                    Some("query_result_mismatch"),
+                                ),
+                                "web_tool_low_signal",
+                            )
+                        } else {
+                            (
+                                "Web tooling execution failed before any search tool call was recorded (error_code: web_tool_not_invoked). Retry lane: run `batch_query` with a narrower query or one specific source URL.".to_string(),
+                                "web_tool_not_invoked",
+                            )
+                        };
+                        if mismatch_only {
+                            let mut tools = tools_now.clone();
+                            tools.push(json!({
+                                "name": "batch_query",
+                                "status": "low_signal",
+                                "ok": false,
+                                "query": fallback_query,
+                                "result": summary,
+                                "source": "web",
+                                "error": "web_tool_low_signal"
+                            }));
+                            lane_payload["tools"] = Value::Array(tools);
+                        }
                         lane_payload["response"] = json!(assistant.clone());
                         lane_payload["output"] = json!(assistant.clone());
                         if let Some(turn) = lane_payload.get_mut("turn").and_then(Value::as_object_mut) {
                             turn.insert("assistant".to_string(), json!(assistant.clone()));
                         }
-                        lane_payload["error"] = json!("web_tool_not_invoked");
+                        lane_payload["error"] = json!(error_code);
                         lane_payload["web_tooling_fallback"] = json!({
                             "applied": true,
                             "query": fallback_query,
-                            "status": "failed",
-                            "error_code": "web_tool_not_invoked",
+                            "status": if mismatch_only { "mismatch" } else { "failed" },
+                            "error_code": error_code,
+                            "query_aligned": query_aligned,
                             "lane_ok": fallback_lane.ok,
                             "lane_status": fallback_lane.status
                         });
@@ -876,9 +1111,9 @@ fn run_action(root: &Path, action: &str, payload: &Value) -> LaneResult {
                             response_finalization = json!({});
                         }
                         response_finalization["outcome"] =
-                            json!("forced_web_tool_not_invoked");
+                            json!(if mismatch_only { "forced_web_tool_low_signal" } else { "forced_web_tool_not_invoked" });
                         response_finalization["error_code"] =
-                            json!("web_tool_not_invoked");
+                            json!(error_code);
                         lane_payload["response_finalization"] = response_finalization;
                     }
                 }

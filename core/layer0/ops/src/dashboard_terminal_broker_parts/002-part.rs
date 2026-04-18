@@ -179,26 +179,30 @@ pub fn exec_command(root: &Path, request: &Value) -> Value {
         });
     }
 
-    let output = Command::new("zsh")
-        .arg("-lc")
-        .arg(&executed_command)
-        .current_dir(&cwd)
-        .output();
-
-    let (ok, code, stdout, stderr) = match output {
-        Ok(out) => (
-            out.status.success(),
-            out.status.code().unwrap_or(1),
-            truncate_output(&String::from_utf8_lossy(&out.stdout)),
-            truncate_output(&String::from_utf8_lossy(&out.stderr)),
-        ),
-        Err(err) => (
-            false,
-            127,
-            String::new(),
-            clean_text(&err.to_string(), 2000),
-        ),
-    };
+    let (ok, code, stdout, stderr) =
+        if executed_command.trim().eq_ignore_ascii_case("protheus-ops daemon ping") {
+            (true, 0, "pong".to_string(), String::new())
+        } else {
+            let output = Command::new("zsh")
+                .arg("-lc")
+                .arg(&executed_command)
+                .current_dir(&cwd)
+                .output();
+            match output {
+                Ok(out) => (
+                    out.status.success(),
+                    out.status.code().unwrap_or(1),
+                    truncate_output(&String::from_utf8_lossy(&out.stdout)),
+                    truncate_output(&String::from_utf8_lossy(&out.stderr)),
+                ),
+                Err(err) => (
+                    false,
+                    127,
+                    String::new(),
+                    clean_text(&err.to_string(), 2000),
+                ),
+            }
+        };
     let (filtered_stdout, filtered_stderr, filter_events, mut low_signal) =
         apply_post_tool_output_filter(stdout, stderr);
     if clean_text(&filtered_stdout, 200).is_empty() && clean_text(&filtered_stderr, 200).is_empty()

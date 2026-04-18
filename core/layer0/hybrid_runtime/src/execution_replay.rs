@@ -67,6 +67,23 @@ fn normalize_events(events: &[String]) -> (Vec<String>, usize) {
     (out, dropped)
 }
 
+fn evaluate_replay_contract(
+    original_event_count: usize,
+    normalized_event_count: usize,
+    dropped_events: usize,
+) -> (bool, &'static str) {
+    if normalized_event_count == 0 {
+        return (false, "no_events_after_normalization");
+    }
+    if dropped_events > 0 {
+        return (false, "events_dropped_during_normalization");
+    }
+    if original_event_count != normalized_event_count {
+        return (false, "event_count_mismatch");
+    }
+    (true, "strict_contract_ok")
+}
+
 pub fn receipt_digest(events: &[String]) -> String {
     let (normalized, _) = normalize_events(events);
     let mut h = Sha256::new();
@@ -78,6 +95,8 @@ pub fn receipt_digest(events: &[String]) -> String {
 
 pub fn replay_report(events: &[String]) -> serde_json::Value {
     let (normalized_events, dropped_events) = normalize_events(events);
+    let (strict_contract_ok, contract_reason) =
+        evaluate_replay_contract(events.len(), normalized_events.len(), dropped_events);
     let mut samples = Vec::with_capacity(1200);
     let loops = 1200usize;
     let mut drift_failures = 0usize;
@@ -96,7 +115,7 @@ pub fn replay_report(events: &[String]) -> serde_json::Value {
     let battery_impact_pct_24h = ((step_p95_ms * 0.15) + 0.31).min(1.19);
     let digest = receipt_digest(&normalized_events);
     json!({
-        "ok": true,
+        "ok": strict_contract_ok,
         "lane": "V5-RUST-HYB-003",
         "v6_lane": "V6-RUST50-002",
         "event_count": events.len(),
@@ -104,8 +123,12 @@ pub fn replay_report(events: &[String]) -> serde_json::Value {
         "dropped_events": dropped_events,
         "events": normalized_events,
         "digest": digest,
+        "replay_contract": {
+            "strict_ok": strict_contract_ok,
+            "reason": contract_reason
+        },
         "deterministic": drift_failures == 0,
-        "replayable": drift_failures == 0,
+        "replayable": drift_failures == 0 && strict_contract_ok,
         "benchmarks": {
             "loops": loops,
             "step_ms_p95": step_p95_ms,
@@ -141,5 +164,23 @@ mod tests {
         ];
         let clean = vec!["start".to_string(), "execute".to_string()];
         assert_eq!(receipt_digest(&noisy), receipt_digest(&clean));
+    }
+
+    #[test]
+    fn replay_contract_rejects_dropped_event_sequences() {
+        let noisy = vec![
+            "start".to_string(),
+            "start".to_string(),
+            "execute\u{0000}".to_string(),
+        ];
+        let report = replay_report(&noisy);
+        assert_eq!(report.get("ok").and_then(|v| v.as_bool()), Some(false));
+        assert_eq!(
+            report
+                .get("replay_contract")
+                .and_then(|v| v.get("strict_ok"))
+                .and_then(|v| v.as_bool()),
+            Some(false)
+        );
     }
 }

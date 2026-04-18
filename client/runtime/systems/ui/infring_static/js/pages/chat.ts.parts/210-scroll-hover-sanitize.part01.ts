@@ -325,6 +325,74 @@
       this.hoveredMessageDomId = domId;
     },
 
+    currentInputToggleMode() {
+      if (this.attachPickerSessionActive) return 'attach';
+      return this.recording ? 'voice' : 'send';
+    },
+
+    beginAttachPickerSession() {
+      if (typeof this.isSystemThreadActive === 'function' && this.isSystemThreadActive()) return;
+      if (this.terminalMode) this.toggleTerminalMode();
+      this.attachPickerRestoreMode = this.recording ? 'voice' : 'send';
+      this.attachPickerSessionActive = true;
+      this.showAttachMenu = false;
+      this.armAttachPickerFocusTracking();
+      var self = this;
+      this.$nextTick(function() {
+        var input = self.$refs && self.$refs.fileInput ? self.$refs.fileInput : null;
+        if (!input || typeof input.click !== 'function') {
+          self.endAttachPickerSession();
+          return;
+        }
+        try {
+          input.click();
+        } catch (_) {
+          self.endAttachPickerSession();
+        }
+      });
+    },
+
+    armAttachPickerFocusTracking() {
+      var self = this;
+      if (this._attachPickerFocusTimer) {
+        clearTimeout(this._attachPickerFocusTimer);
+        this._attachPickerFocusTimer = 0;
+      }
+      if (this._attachPickerFocusListener) {
+        window.removeEventListener('focus', this._attachPickerFocusListener);
+        this._attachPickerFocusListener = null;
+      }
+      this._attachPickerFocusListener = function() {
+        if (self._attachPickerFocusTimer) clearTimeout(self._attachPickerFocusTimer);
+        self._attachPickerFocusTimer = setTimeout(function() {
+          self._attachPickerFocusTimer = 0;
+          if (self.attachPickerSessionActive) self.endAttachPickerSession();
+        }, 180);
+      };
+      window.addEventListener('focus', this._attachPickerFocusListener, { once: true });
+    },
+
+    endAttachPickerSession() {
+      this.attachPickerSessionActive = false;
+      this.showAttachMenu = false;
+      if (this._attachPickerFocusTimer) {
+        clearTimeout(this._attachPickerFocusTimer);
+        this._attachPickerFocusTimer = 0;
+      }
+      if (this._attachPickerFocusListener) {
+        window.removeEventListener('focus', this._attachPickerFocusListener);
+        this._attachPickerFocusListener = null;
+      }
+    },
+
+    handleAttachInputChange(event) {
+      var input = event && event.target ? event.target : null;
+      var files = input && input.files ? input.files : null;
+      if (files && files.length) this.addFiles(files);
+      if (input) input.value = '';
+      this.endAttachPickerSession();
+    },
+
     addFiles(files) {
       var self = this;
       var acceptedMimeTypes = [
