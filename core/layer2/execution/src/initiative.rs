@@ -215,7 +215,7 @@ pub fn evaluate_importance(
 }
 
 fn importance_from_event(event: &Value, front_jump_threshold: f64) -> ImportanceDecision {
-    let input = ImportanceInput {
+    let mut input = ImportanceInput {
         criticality: metric_from_event(event, "criticality"),
         urgency: metric_from_event(event, "urgency"),
         impact: metric_from_event(event, "impact"),
@@ -224,6 +224,22 @@ fn importance_from_event(event: &Value, front_jump_threshold: f64) -> Importance
         core_floor: metric_from_event(event, "core_floor"),
         inherited_score: metric_from_event(event, "inherited_score"),
     };
+    let direct_score = metric_from_event(event, "score");
+    if direct_score.is_some()
+        && input.criticality.is_none()
+        && input.urgency.is_none()
+        && input.impact.is_none()
+        && input.user_relevance.is_none()
+        && input.confidence.is_none()
+    {
+        let score = direct_score.unwrap_or(0.0);
+        input.criticality = Some(score);
+        input.urgency = Some(score);
+        input.impact = Some(score);
+        input.user_relevance = Some(score);
+        input.confidence = Some(score);
+        input.inherited_score = None;
+    }
     evaluate_importance(&input, front_jump_threshold)
 }
 

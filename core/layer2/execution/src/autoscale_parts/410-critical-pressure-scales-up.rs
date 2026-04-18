@@ -4032,7 +4032,7 @@ mod tests {
             result: Some("stop_init_gate_readiness".to_string()),
             outcome: None,
         });
-        assert_eq!(explicit.reason, "gate manual");
+        assert_eq!(explicit.reason, "gate_manual");
 
         let no_progress_executed = compute_non_yield_reason(&NonYieldReasonInput {
             category: Some("no_progress".to_string()),
