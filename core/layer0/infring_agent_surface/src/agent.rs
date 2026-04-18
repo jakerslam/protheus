@@ -193,15 +193,15 @@ impl AgentContract {
         let mut chosen = None;
         for pack_id in &self.capability_packs {
             if let Some(interval) = catalog.default_interval_for_pack(pack_id) {
-                chosen = Some(interval);
-                break;
+                chosen = Some(chosen.map(|current: u64| current.min(interval)).unwrap_or(interval));
             }
         }
         if let Some(interval) = chosen {
+            let max_runs = catalog.default_max_runs_for_packs(&self.capability_packs);
             self.schedule = Some(SchedulePlan {
                 interval_seconds: interval,
                 jitter_seconds: 15,
-                max_runs: None,
+                max_runs,
             });
         }
         self

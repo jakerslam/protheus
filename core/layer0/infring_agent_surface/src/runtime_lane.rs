@@ -7,6 +7,7 @@ use crate::rbac_memory::{
     permission_manifest_snapshot, permission_for, PermissionTrit,
 };
 use crate::realtime_voice::{normalize_voice_session_request, voice_session_contract};
+use crate::scheduler::SchedulePlan;
 use crate::wasm_sandbox::{
     evaluate_wasm_policy, wasm_policy_from_value, wasm_policy_snapshot, WasmPolicyDecision,
 };
@@ -34,6 +35,10 @@ pub struct RuntimeLaneRequest {
     pub receipt_merkle: Option<Value>,
     #[serde(default)]
     pub previous_receipt_root: Option<String>,
+    #[serde(default)]
+    pub schedule_interval_seconds: Option<u64>,
+    #[serde(default)]
+    pub schedule_max_runs: Option<u32>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -87,9 +92,28 @@ pub fn run_runtime_lane_with_registry(
         voice_session,
         receipt_merkle,
         previous_receipt_root,
+        schedule_interval_seconds,
+        schedule_max_runs,
     } = request;
 
     let permissions = permission_manifest_from_value(permissions_manifest.as_ref());
+    let catalog = CapabilityPackCatalog::new();
+    let required_pack_permissions = catalog.required_permissions_for_packs(&capability_packs);
+    for permission in &required_pack_permissions {
+        let state = permission_for(&permissions, permission);
+        if state != PermissionTrit::Allow {
+            return Ok(runtime_lane_fail_closed(
+                "runtime_lane_pack_permission_denied",
+                json!({
+                    "permission": permission,
+                    "permission_state": permission_trit_code(state),
+                }),
+                &permissions,
+                wasm_sandbox.as_ref(),
+                voice_session.as_ref(),
+            ));
+        }
+    }
     if tools.iter().any(|tool| tool == "memory.read") && !memory_read_allowed(&permissions) {
         return Ok(runtime_lane_fail_closed(
             "runtime_lane_memory_read_denied",
@@ -146,7 +170,6 @@ pub fn run_runtime_lane_with_registry(
     }
 
     let merkle_options = merkle_receipt_options_from_value(receipt_merkle.as_ref());
-    let catalog = CapabilityPackCatalog::new();
     let mut builder = AgentBuilder::new(name)
         .initial_prompt(initial_prompt)
         .metadata(metadata.clone());
@@ -161,6 +184,13 @@ pub fn run_runtime_lane_with_registry(
     }
     if let Some(value) = lifespan_seconds {
         builder = builder.lifespan_seconds(value);
+    }
+    if schedule_interval_seconds.is_some() || schedule_max_runs.is_some() {
+        builder = builder.schedule(SchedulePlan {
+            interval_seconds: schedule_interval_seconds.unwrap_or(300),
+            jitter_seconds: 15,
+            max_runs: schedule_max_runs,
+        });
     }
     for tool in tools.clone() {
         builder = builder.tool(tool);
@@ -196,6 +226,8 @@ pub fn run_runtime_lane_with_registry(
             "tool_count": contract.resolved_tools(Some(&catalog)).len(),
             "tools": tools,
             "capability_packs": capability_packs,
+            "capability_profiles": catalog.autonomy_profiles_for_packs(&contract.capability_packs),
+            "required_permissions": required_pack_permissions,
             "schedule": contract.schedule,
             "lifespan_seconds": contract.lifespan_seconds,
             "permissions_manifest": permission_manifest_snapshot(&permissions),
@@ -310,7 +342,9 @@ mod tests {
             metadata: json!({"lane":"runtime"}),
             permissions_manifest: Some(json!({
                 "grants": {
-                    "voice.realtime": 1
+                    "voice.realtime": 1,
+                    "memory.read": 1,
+                    "web.search": 1
                 }
             })),
             wasm_sandbox: Some(json!({
@@ -328,6 +362,8 @@ mod tests {
                 "seed": "wave4"
             })),
             previous_receipt_root: Some("root0".to_string()),
+            schedule_interval_seconds: Some(120),
+            schedule_max_runs: Some(12),
         })
         .expect("runtime lane");
         assert!(response.ok);
@@ -369,6 +405,8 @@ mod tests {
             voice_session: None,
             receipt_merkle: None,
             previous_receipt_root: None,
+            schedule_interval_seconds: None,
+            schedule_max_runs: None,
         })
         .expect("runtime lane");
         assert!(!response.ok);
