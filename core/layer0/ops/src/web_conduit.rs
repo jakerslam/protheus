@@ -30,6 +30,7 @@ include!("web_conduit_parts/032-fetch-output-safety.rs");
 include!("web_conduit_parts/033-fetch-provider-selection.rs");
 include!("web_conduit_parts/035-fetch-runtime.rs");
 include!("web_conduit_parts/040-receipts-and-fetch-api.rs");
+include!("web_conduit_parts/041-tooling-inventory-and-policy.rs");
 include!("web_conduit_parts/050-search-providers.rs");
 include!("web_conduit_parts/060-search-orchestration.rs");
 include!("web_conduit_parts/061-search-provider-selection.rs");

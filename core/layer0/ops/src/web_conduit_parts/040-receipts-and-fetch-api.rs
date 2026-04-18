@@ -151,6 +151,20 @@ pub fn api_status(root: &Path) -> Value {
         .unwrap_or(Value::Null);
     let native_codex_web_search = native_codex_public_contract(root, &policy);
     let media_generation_action_contracts = media_generate_action_contracts();
+    let tool_effective_inventory =
+        runtime_web_tooling_effective_inventory(&runtime_web_tools_metadata, &tool_catalog);
+    let tool_policy_pipeline =
+        runtime_web_tooling_policy_pipeline(&runtime_web_tools_metadata, &tool_effective_inventory);
+    let tooling_process_summary = runtime_web_tooling_process_summary(
+        &runtime_web_tools_metadata,
+        &tool_effective_inventory,
+        &tool_policy_pipeline,
+    );
+    let tooling_decision_trace = runtime_web_tooling_decision_trace(
+        &runtime_web_tools_metadata,
+        &tool_effective_inventory,
+        &tool_policy_pipeline,
+    );
     json!({
         "ok": true,
         "enabled": policy.pointer("/web_conduit/enabled").and_then(Value::as_bool).unwrap_or(true),
@@ -171,6 +185,10 @@ pub fn api_status(root: &Path) -> Value {
         "public_artifact_contracts": public_artifact_contracts,
         "runtime_web_tools_state_path": runtime_web_tools_state_path(root).display().to_string(),
         "runtime_web_tools_metadata": runtime_web_tools_metadata,
+        "tool_effective_inventory": tool_effective_inventory,
+        "tool_policy_pipeline": tool_policy_pipeline,
+        "tooling_process_summary": tooling_process_summary,
+        "tooling_decision_trace": tooling_decision_trace,
         "native_codex_web_search": native_codex_web_search,
         "media_generation_action_contracts": media_generation_action_contracts,
         "tool_catalog": tool_catalog,
@@ -205,6 +223,20 @@ pub fn api_providers(root: &Path) -> Value {
         .unwrap_or(Value::Null);
     let native_codex_web_search = native_codex_public_contract(root, &policy);
     let media_generation_action_contracts = media_generate_action_contracts();
+    let tool_effective_inventory =
+        runtime_web_tooling_effective_inventory(&runtime_web_tools_metadata, &tool_catalog);
+    let tool_policy_pipeline =
+        runtime_web_tooling_policy_pipeline(&runtime_web_tools_metadata, &tool_effective_inventory);
+    let tooling_process_summary = runtime_web_tooling_process_summary(
+        &runtime_web_tools_metadata,
+        &tool_effective_inventory,
+        &tool_policy_pipeline,
+    );
+    let tooling_decision_trace = runtime_web_tooling_decision_trace(
+        &runtime_web_tools_metadata,
+        &tool_effective_inventory,
+        &tool_policy_pipeline,
+    );
     json!({
         "ok": true,
         "type": "web_conduit_providers",
@@ -221,6 +253,10 @@ pub fn api_providers(root: &Path) -> Value {
         "public_artifact_contracts": public_artifact_contracts,
         "runtime_web_tools_state_path": runtime_web_tools_state_path(root).display().to_string(),
         "runtime_web_tools_metadata": runtime_web_tools_metadata,
+        "tool_effective_inventory": tool_effective_inventory,
+        "tool_policy_pipeline": tool_policy_pipeline,
+        "tooling_process_summary": tooling_process_summary,
+        "tooling_decision_trace": tooling_decision_trace,
         "native_codex_web_search": native_codex_web_search,
         "media_generation_action_contracts": media_generation_action_contracts,
         "tool_catalog": tool_catalog,
