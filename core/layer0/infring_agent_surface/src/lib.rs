@@ -12,7 +12,10 @@ pub mod wasm_sandbox;
 pub mod merkle_receipt;
 
 pub use agent::{AgentBuildError, AgentBuilder, AgentContract, AgentExecutionContext, AgentRunResult};
-pub use capability_pack::{CapabilityPackCatalog, CapabilityPackSpec, ResearchCapabilityPack, WebOpsCapabilityPack};
+pub use capability_pack::{
+    CapabilityPackCatalog, CapabilityPackSpec, IssueOpsCapabilityPack, LeadGenCapabilityPack,
+    ResearchCapabilityPack, SocialSignalCapabilityPack, WebOpsCapabilityPack,
+};
 pub use infring_agent_derive::{infring_agent, infring_tool};
 pub use mcp::{mcp_handshake_receipt, McpBridge, McpServerConfig, McpTool};
 pub use provider::{
