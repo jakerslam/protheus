@@ -10,12 +10,20 @@ fn api_search_serper(
 ) -> Value {
     let requested_url = SERPER_SEARCH_URL.to_string();
     let (policy, _policy_path_value) = load_policy(root);
+    let credential_source = resolve_provider_credential_source_with_env(
+        &policy,
+        "serperdev",
+        WebProviderFamily::Search,
+        |key| std::env::var(key).ok(),
+    );
     let Some(api_key) = resolve_search_provider_credential(&policy, "serperdev") else {
         return json!({
             "ok": false,
             "error": "serper_api_key_missing",
             "requested_url": requested_url,
-            "provider": "serperdev"
+            "provider": "serperdev",
+            "credential_source": credential_source,
+            "docs": "https://docs.openclaw.ai/tools/web"
         });
     };
     let policy_eval = infring_layer1_security::evaluate_web_conduit_policy(
@@ -168,6 +176,7 @@ fn api_search_serper(
         "policy_decision": policy_eval,
         "receipt": receipt,
         "provider": "serperdev",
+        "credential_source": credential_source,
         "error": if fetch_ok {
             Value::Null
         } else if error_value.is_empty() {
@@ -264,7 +273,10 @@ fn search_payload_usable(payload: &Value) -> bool {
     if !payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
         return false;
     }
-    if payload_looks_like_search_challenge(payload) || payload_looks_low_signal_search(payload) {
+    if payload_looks_like_search_challenge(payload)
+        || payload_looks_low_signal_search(payload)
+        || search_payload_looks_competitive_programming_dump(payload)
+    {
         return false;
     }
     let summary = clean_text(
@@ -275,6 +287,38 @@ fn search_payload_usable(payload: &Value) -> bool {
         return false;
     }
     !search_summary_has_low_signal_marker(&summary)
+}
+
+fn search_payload_looks_competitive_programming_dump(payload: &Value) -> bool {
+    let summary = clean_text(
+        payload.get("summary").and_then(Value::as_str).unwrap_or(""),
+        2_400,
+    );
+    let content = clean_text(
+        payload.get("content").and_then(Value::as_str).unwrap_or(""),
+        3_200,
+    );
+    let combined = format!("{summary}\n{content}").to_ascii_lowercase();
+    if combined.trim().is_empty() {
+        return false;
+    }
+    let marker_hits = [
+        "given a tree",
+        "input specification",
+        "output specification",
+        "sample input",
+        "sample output",
+        "#include <stdio.h>",
+        "int main()",
+        "public class",
+        "translate the following java code",
+        "csdn.net",
+        "acm",
+    ]
+    .iter()
+    .filter(|marker| combined.contains(**marker))
+    .count();
+    marker_hits >= 3
 }
 
 fn search_query_is_meta_diagnostic(query: &str) -> bool {
@@ -288,6 +332,22 @@ fn search_query_is_meta_diagnostic(query: &str) -> bool {
     if explicit_search_intent {
         return false;
     }
+    if [
+        "that was just a test",
+        "that was a test",
+        "did you do the web request",
+        "did you try it",
+        "where did that come from",
+        "where the hell did that come from",
+        "you hallucinated",
+        "you returned no result",
+        "answer the question",
+    ]
+    .iter()
+    .any(|marker| lowered.contains(*marker))
+    {
+        return true;
+    }
     if lowered.contains("did you do the web request")
         || lowered.contains("did you try it")
         || lowered.contains("why did my last prompt")
@@ -298,52 +358,39 @@ fn search_query_is_meta_diagnostic(query: &str) -> bool {
     {
         return true;
     }
+    let signal_terms = lowered
+        .split(|ch: char| !ch.is_ascii_alphanumeric())
+        .filter(|token| token.len() >= 3)
+        .count();
     let meta_hits = ["what happened", "workflow", "tool call", "web tooling", "hallucination", "hallucinated", "training data", "context issue", "answer the question", "last response", "previous response"]
     .iter()
     .filter(|marker| lowered.contains(**marker))
     .count();
-    if meta_hits < 2 {
+    if meta_hits == 0 {
         return false;
     }
     let web_intent_hits = ["site:", "http://", "https://", "latest ", "top ", "best ", "news", "framework", "docs", "recipe", "weather", "price"]
     .iter()
     .filter(|marker| lowered.contains(**marker))
     .count();
-    web_intent_hits == 0
+    if web_intent_hits > 0 {
+        return false;
+    }
+    meta_hits >= 2 || signal_terms <= 7
 }
 
 fn search_override_flag_enabled(value: &Value) -> bool {
-    value
-        .as_bool()
-        .or_else(|| value.as_i64().map(|n| n != 0))
-        .or_else(|| {
-            value.as_str().map(|raw| {
-                matches!(
-                    clean_text(raw, 12).to_ascii_lowercase().as_str(),
-                    "1" | "true" | "yes" | "y" | "on"
-                )
-            })
-        })
-        .unwrap_or(false)
+    runtime_web_truthy_flag(value)
 }
 
 fn search_meta_query_override(request: &Value) -> bool {
-    let direct_keys = [
-        "allow_meta_query_search",
-        "allowMetaQuerySearch",
-        "force_web_search",
-        "forceWebSearch",
-        "force_web_lookup",
-        "forceWebLookup",
-    ];
-    for key in direct_keys {
-        if let Some(value) = request.get(key) {
-            if search_override_flag_enabled(value) {
-                return true;
-            }
-        }
-    }
-    let nested_keys = [
+    let pointers = [
+        "/allow_meta_query_search",
+        "/allowMetaQuerySearch",
+        "/force_web_search",
+        "/forceWebSearch",
+        "/force_web_lookup",
+        "/forceWebLookup",
         "/search_policy/allow_meta_query_search",
         "/searchPolicy/allowMetaQuerySearch",
         "/search_policy/force_web_search",
@@ -351,14 +398,7 @@ fn search_meta_query_override(request: &Value) -> bool {
         "/search_policy/force_web_lookup",
         "/searchPolicy/forceWebLookup",
     ];
-    for pointer in nested_keys {
-        if let Some(value) = request.pointer(pointer) {
-            if search_override_flag_enabled(value) {
-                return true;
-            }
-        }
-    }
-    false
+    runtime_web_request_flag(request, &pointers)
 }
 
 fn search_early_validation_payload(
@@ -373,6 +413,16 @@ fn search_early_validation_payload(
     override_hint: Option<&str>,
     receipt: Value,
 ) -> Value {
+    let early_gate = json!({
+        "should_execute": false,
+        "mode": "blocked",
+        "reason": validation_route,
+        "source": "early_validation"
+    });
+    let early_replay_guard = json!({
+        "blocked": false,
+        "reason": "not_evaluated"
+    });
     let mut out = json!({
         "ok": false,
         "error": error,
@@ -411,6 +461,16 @@ fn search_early_validation_payload(
             }
         },
         "provider_health": {"status": "not_evaluated", "providers": []},
+        "process_summary": runtime_web_process_summary(
+            "web_search",
+            validation_route,
+            false,
+            &early_gate,
+            &early_replay_guard,
+            &json!([]),
+            "none",
+            Some(error)
+        ),
         "receipt": receipt
     });
     if let Some(text) = summary {
@@ -583,6 +643,9 @@ fn search_payload_error(payload: &Value) -> String {
     }
     if payload_looks_like_search_challenge(payload) {
         return "anti_bot_challenge".to_string();
+    }
+    if search_payload_looks_competitive_programming_dump(payload) {
+        return "query_result_mismatch".to_string();
     }
     if payload_looks_low_signal_search(payload) {
         return "low_signal_search_payload".to_string();
