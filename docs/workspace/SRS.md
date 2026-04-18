@@ -15935,3 +15935,23 @@ Source summary:
   - `core/layer0/infring_agent_surface/src/lib.rs`
   - `core/layer0/infring_agent_surface/Cargo.toml`
   - `xtask/src/main.rs`
+
+### 2026-04-18 Wave 5 Persistent Autonomy Packs + Scheduler Controls Addendum (V11-ASSIMILATION-AUTONOMY-005)
+
+- Intent:
+  - Expand runtime-lane autonomy primitives with bounded capability-pack profiles, permission-aware pack admission, and explicit scheduler override controls.
+- Acceptance criteria:
+  - Capability pack catalog includes bounded autonomy packs: `lead-gen`, `social-signal`, and `issue-ops`.
+  - Capability pack specs include required permissions, autonomy profile class, and default max-run bounds where applicable.
+  - Runtime lane fail-closes when capability-pack required permissions are not explicitly allowed in the permission manifest.
+  - Runtime lane contract payload publishes `capability_profiles` and `required_permissions` for auditability.
+  - Scheduler entries support pause reason + resume semantics and explicit failed-run short backoff state (`mark_failed`).
+  - Runtime lane request supports explicit schedule overrides (`schedule_interval_seconds`, `schedule_max_runs`) for bounded campaign runs.
+  - `xtask infring-agent-run` supports new scheduler override flags (`--schedule-interval`, `--schedule-max-runs`).
+- Regression evidence pointers:
+  - `core/layer0/infring_agent_surface/src/capability_pack.rs`
+  - `core/layer0/infring_agent_surface/src/scheduler.rs`
+  - `core/layer0/infring_agent_surface/src/agent.rs`
+  - `core/layer0/infring_agent_surface/src/runtime_lane.rs`
+  - `core/layer0/infring_agent_surface/src/lib.rs`
+  - `xtask/src/main.rs`

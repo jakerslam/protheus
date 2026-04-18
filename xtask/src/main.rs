@@ -56,7 +56,7 @@ fn print_usage() {
         "  cargo run -p xtask -- infring-new --template=single-agent|swarm|rag|voice --name=<project-name> [--out=<dir>] [--force=1|0]"
     );
     println!(
-        "  cargo run -p xtask -- infring-agent-run --name=<agent> --prompt=<text> [--provider=local-echo] [--pack=research,web-ops] [--tool=web.search,web.fetch] [--lifespan=3600] [--permissions=<json|@file>] [--wasm-policy=<json|@file>] [--voice=<json|@file>] [--receipt-merkle=1|0] [--receipt-merkle-seed=<seed>] [--prev-receipt-root=<hash>]"
+        "  cargo run -p xtask -- infring-agent-run --name=<agent> --prompt=<text> [--provider=local-echo] [--pack=research,web-ops,lead-gen,social-signal,issue-ops] [--tool=web.search,web.fetch] [--lifespan=3600] [--schedule-interval=<seconds>] [--schedule-max-runs=<n>] [--permissions=<json|@file>] [--wasm-policy=<json|@file>] [--voice=<json|@file>] [--receipt-merkle=1|0] [--receipt-merkle-seed=<seed>] [--prev-receipt-root=<hash>]"
     );
 }
 
@@ -87,6 +87,10 @@ fn parse_bool(raw: Option<&String>, default: bool) -> bool {
 
 fn parse_u64(raw: Option<&String>, default: u64) -> u64 {
     raw.and_then(|v| v.parse::<u64>().ok()).unwrap_or(default)
+}
+
+fn parse_u32(raw: Option<&String>) -> Option<u32> {
+    raw.and_then(|v| v.parse::<u32>().ok())
 }
 
 fn resolve_workspace_root() -> Result<PathBuf> {
@@ -334,6 +338,10 @@ fn run_infring_agent_run(args: &[String]) -> Result<()> {
     let provider = flags.get("provider").cloned();
     let model = flags.get("model").cloned();
     let lifespan_seconds = parse_u64(flags.get("lifespan"), 3600);
+    let schedule_interval_seconds = flags
+        .get("schedule-interval")
+        .and_then(|value| value.parse::<u64>().ok());
+    let schedule_max_runs = parse_u32(flags.get("schedule-max-runs"));
     let packs = csv_tokens(flags.get("pack"));
     let tools = csv_tokens(flags.get("tool"));
     let permissions_manifest = parse_json_flag(flags.get("permissions"))?;
@@ -366,6 +374,8 @@ fn run_infring_agent_run(args: &[String]) -> Result<()> {
         voice_session,
         receipt_merkle,
         previous_receipt_root,
+        schedule_interval_seconds,
+        schedule_max_runs,
     })
     .map_err(|error| anyhow!("xtask_infring_agent_run_failed:{error}"))?;
 

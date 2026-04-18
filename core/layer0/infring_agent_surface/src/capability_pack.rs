@@ -7,6 +7,9 @@ pub struct CapabilityPackSpec {
     pub description: String,
     pub tools: Vec<String>,
     pub default_interval_seconds: u64,
+    pub default_max_runs: Option<u32>,
+    pub required_permissions: Vec<String>,
+    pub autonomy_profile: String,
 }
 
 pub trait StaticCapabilityPack {
@@ -15,6 +18,9 @@ pub trait StaticCapabilityPack {
 
 pub struct ResearchCapabilityPack;
 pub struct WebOpsCapabilityPack;
+pub struct LeadGenCapabilityPack;
+pub struct SocialSignalCapabilityPack;
+pub struct IssueOpsCapabilityPack;
 
 impl StaticCapabilityPack for ResearchCapabilityPack {
     fn spec() -> CapabilityPackSpec {
@@ -28,6 +34,9 @@ impl StaticCapabilityPack for ResearchCapabilityPack {
                 "summary.synthesize".to_string(),
             ],
             default_interval_seconds: 600,
+            default_max_runs: None,
+            required_permissions: vec!["memory.read".to_string(), "web.search".to_string()],
+            autonomy_profile: "continuous".to_string(),
         }
     }
 }
@@ -44,6 +53,81 @@ impl StaticCapabilityPack for WebOpsCapabilityPack {
                 "receipt.inspect".to_string(),
             ],
             default_interval_seconds: 300,
+            default_max_runs: None,
+            required_permissions: vec!["web.search".to_string(), "web.fetch".to_string()],
+            autonomy_profile: "continuous".to_string(),
+        }
+    }
+}
+
+impl StaticCapabilityPack for LeadGenCapabilityPack {
+    fn spec() -> CapabilityPackSpec {
+        CapabilityPackSpec {
+            id: "lead-gen".to_string(),
+            description: "Lead generation campaign flow with bounded outreach cadences".to_string(),
+            tools: vec![
+                "web.search".to_string(),
+                "web.fetch".to_string(),
+                "crm.lead_upsert".to_string(),
+                "message.compose".to_string(),
+                "memory.write".to_string(),
+            ],
+            default_interval_seconds: 900,
+            default_max_runs: Some(96),
+            required_permissions: vec![
+                "web.search".to_string(),
+                "memory.write".to_string(),
+                "outreach.send".to_string(),
+            ],
+            autonomy_profile: "campaign".to_string(),
+        }
+    }
+}
+
+impl StaticCapabilityPack for SocialSignalCapabilityPack {
+    fn spec() -> CapabilityPackSpec {
+        CapabilityPackSpec {
+            id: "social-signal".to_string(),
+            description: "Signal monitoring across public channels with summary rollups".to_string(),
+            tools: vec![
+                "web.search".to_string(),
+                "web.fetch".to_string(),
+                "social.monitor".to_string(),
+                "summary.synthesize".to_string(),
+                "memory.write".to_string(),
+            ],
+            default_interval_seconds: 420,
+            default_max_runs: None,
+            required_permissions: vec![
+                "web.search".to_string(),
+                "social.monitor".to_string(),
+                "memory.write".to_string(),
+            ],
+            autonomy_profile: "continuous".to_string(),
+        }
+    }
+}
+
+impl StaticCapabilityPack for IssueOpsCapabilityPack {
+    fn spec() -> CapabilityPackSpec {
+        CapabilityPackSpec {
+            id: "issue-ops".to_string(),
+            description: "Runtime issue escalation and GitHub report orchestration".to_string(),
+            tools: vec![
+                "tool.health_probe".to_string(),
+                "receipt.inspect".to_string(),
+                "github.issue.create".to_string(),
+                "memory.read".to_string(),
+                "memory.write".to_string(),
+            ],
+            default_interval_seconds: 300,
+            default_max_runs: Some(480),
+            required_permissions: vec![
+                "memory.read".to_string(),
+                "memory.write".to_string(),
+                "github.issue.create".to_string(),
+            ],
+            autonomy_profile: "incident".to_string(),
         }
     }
 }
@@ -58,6 +142,9 @@ impl CapabilityPackCatalog {
         let mut catalog = Self::default();
         catalog.register(ResearchCapabilityPack::spec());
         catalog.register(WebOpsCapabilityPack::spec());
+        catalog.register(LeadGenCapabilityPack::spec());
+        catalog.register(SocialSignalCapabilityPack::spec());
+        catalog.register(IssueOpsCapabilityPack::spec());
         catalog
     }
 
@@ -75,6 +162,49 @@ impl CapabilityPackCatalog {
 
     pub fn default_interval_for_pack(&self, id: &str) -> Option<u64> {
         self.get(id).map(|pack| pack.default_interval_seconds)
+    }
+
+    pub fn default_max_runs_for_packs(&self, pack_ids: &[String]) -> Option<u32> {
+        let mut chosen: Option<u32> = None;
+        for pack_id in pack_ids {
+            let Some(spec) = self.get(pack_id) else {
+                continue;
+            };
+            if let Some(limit) = spec.default_max_runs {
+                chosen = Some(chosen.map(|current| current.min(limit)).unwrap_or(limit));
+            }
+        }
+        chosen
+    }
+
+    pub fn required_permissions_for_packs(&self, pack_ids: &[String]) -> Vec<String> {
+        let mut out = BTreeSet::<String>::new();
+        for pack_id in pack_ids {
+            let Some(spec) = self.get(pack_id) else {
+                continue;
+            };
+            for permission in &spec.required_permissions {
+                let token = permission.trim().to_ascii_lowercase();
+                if !token.is_empty() {
+                    out.insert(token);
+                }
+            }
+        }
+        out.into_iter().collect()
+    }
+
+    pub fn autonomy_profiles_for_packs(&self, pack_ids: &[String]) -> Vec<String> {
+        let mut out = BTreeSet::<String>::new();
+        for pack_id in pack_ids {
+            let Some(spec) = self.get(pack_id) else {
+                continue;
+            };
+            let token = spec.autonomy_profile.trim().to_ascii_lowercase();
+            if !token.is_empty() {
+                out.insert(token);
+            }
+        }
+        out.into_iter().collect()
     }
 
     pub fn expand_tools(&self, pack_ids: &[String], explicit_tools: &[String]) -> Vec<String> {
@@ -96,3 +226,26 @@ impl CapabilityPackCatalog {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn catalog_registers_autonomy_packs() {
+        let catalog = CapabilityPackCatalog::new();
+        assert!(catalog.get("lead-gen").is_some());
+        assert!(catalog.get("social-signal").is_some());
+        assert!(catalog.get("issue-ops").is_some());
+    }
+
+    #[test]
+    fn catalog_collects_permissions_and_profiles_across_packs() {
+        let catalog = CapabilityPackCatalog::new();
+        let pack_ids = vec!["lead-gen".to_string(), "issue-ops".to_string()];
+        let permissions = catalog.required_permissions_for_packs(&pack_ids);
+        assert!(permissions.iter().any(|item| item == "github.issue.create"));
+        let profiles = catalog.autonomy_profiles_for_packs(&pack_ids);
+        assert!(profiles.iter().any(|item| item == "campaign"));
+        assert!(profiles.iter().any(|item| item == "incident"));
+    }
+}
