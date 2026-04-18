@@ -1,3 +1,4 @@
+(function(){try{var g=typeof globalThis!=="undefined"?globalThis:(typeof window!=="undefined"?window:{});if(!g.__infringVendorRegistry)g.__infringVendorRegistry={};if(!g.__infringVendorRegistry["marked.min.ts"]){g.__infringVendorRegistry["marked.min.ts"]={name:"marked",source:"local_vendor",loaded_at:new Date().toISOString()};}}catch(_){}})();
 /**
  * marked v15.0.12 - a markdown parser
  * Copyright (c) 2011-2025, Christopher Jeffrey. (MIT Licensed)

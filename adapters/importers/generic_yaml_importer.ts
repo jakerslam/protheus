@@ -1,96 +1,107 @@
 'use strict';
-const path = require('path');
-const { createDomainProxy } = require(path.resolve(process.cwd(), 'client/lib/legacy_conduit_proxy.ts'));
+const { createConduitImporter } = require('./generic_json_importer.ts');
 
 type AnyObj = Record<string, any>;
+const importer = createConduitImporter(
+  'generic_yaml',
+  'importer-generic-yaml',
+  'IMPORTER_GENERIC_YAML',
+);
 
-const runDomain = createDomainProxy(__dirname, 'IMPORTER_GENERIC_YAML', 'execution-yield-recovery');
-const MAX_PAYLOAD_BYTES = 1024 * 1024;
-
-function cleanText(v: unknown, maxLen = 260) {
-  return String(v == null ? '' : v).replace(/[\u200B\u200C\u200D\u2060\uFEFF]/g, '').replace(/\s+/g, ' ').trim().slice(0, maxLen);
+function cleanText(value: unknown, maxLen = 260) {
+  return String(value == null ? '' : value)
+    .replace(/[\u200B\u200C\u200D\u2060\uFEFF]/g, '')
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, maxLen);
 }
 
-function encodePayloadBase64(payload: unknown) {
-  try {
-    const serialized = JSON.stringify(payload == null ? {} : payload);
-    const bytes = Buffer.byteLength(serialized, 'utf8');
-    if (bytes > MAX_PAYLOAD_BYTES) return { ok: false, error: 'payload_too_large:' + bytes };
-    return { ok: true, encoded: Buffer.from(serialized, 'utf8').toString('base64') };
-  } catch (error) {
-    return { ok: false, error: cleanText(error && error.message ? error.message : error, 220) || 'payload_encode_failed' };
+function parseScalar(raw: string) {
+  const value = String(raw || '').trim();
+  if (!value) return '';
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  if (value === 'null') return null;
+  if (/^[+-]?\d+$/.test(value)) {
+    const parsedInt = Number(value);
+    if (Number.isSafeInteger(parsedInt)) return parsedInt;
   }
-}
-
-function runViaConduit(payloadBase64: string) {
-  const out = runDomain(['importer-generic-yaml', '--payload-base64=' + String(payloadBase64 || '')]);
-  if (out && out.ok === true && out.payload && typeof out.payload === 'object' && out.payload.ok === true && out.payload.payload && typeof out.payload.payload === 'object') {
-    return { ok: true, payload: out.payload.payload };
+  if (/^[+-]?\d+\.\d+$/.test(value)) {
+    const parsedFloat = Number.parseFloat(value);
+    if (Number.isFinite(parsedFloat)) return parsedFloat;
   }
-  return { ok: false, error: cleanText((out && out.error) || 'conduit_importer_unavailable', 260) };
-}
-
-function normalizeImportedPayload(payload: AnyObj) {
-  const entities = payload && typeof payload.entities === 'object' ? payload.entities : {};
-  return {
-    entities: {
-      agents: Array.isArray(entities.agents) ? entities.agents : [],
-      tasks: Array.isArray(entities.tasks) ? entities.tasks : [],
-      workflows: Array.isArray(entities.workflows) ? entities.workflows : [],
-      tools: Array.isArray(entities.tools) ? entities.tools : [],
-      records: Array.isArray(entities.records) ? entities.records : []
-    },
-    source_item_count: Number((payload && payload.source_item_count) || 0),
-    mapped_item_count: Number((payload && payload.mapped_item_count) || 0),
-    warnings: Array.isArray(payload && payload.warnings)
-      ? payload.warnings.map((v: unknown) => cleanText(v, 220)).filter(Boolean)
-      : []
-  };
+  if ((value.startsWith('{') && value.endsWith('}')) || (value.startsWith('[') && value.endsWith(']'))) {
+    try {
+      return JSON.parse(value);
+    } catch {
+      // scalar fallback below
+    }
+  }
+  return value.replace(/^['"]|['"]$/g, '');
 }
 
 function parseSimpleYaml(text: unknown) {
   const out: AnyObj = {};
-  String(text || '')
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line && !line.startsWith('#'))
-    .forEach((line) => {
-      const idx = line.indexOf(':');
-      if (idx <= 0) return;
-      const key = line.slice(0, idx).trim();
-      const raw = line.slice(idx + 1).trim();
-      if (!key) return;
-      if (raw === 'true' || raw === 'false') { out[key] = raw === 'true'; return; }
-      if (/^-?\d+(\.\d+)?$/.test(raw)) { out[key] = Number(raw); return; }
-      out[key] = raw.replace(/^['"]|['"]$/g, '');
-    });
+  const lines = String(text || '').split(/\r?\n/);
+  let currentArrayKey = '';
+
+  for (const rawLine of lines) {
+    const line = String(rawLine || '').replace(/\t/g, '  ').trim();
+    if (!line || line.startsWith('#')) continue;
+
+    if (currentArrayKey && /^-\s+/.test(line)) {
+      const itemValue = parseScalar(line.replace(/^-\s+/, ''));
+      if (!Array.isArray(out[currentArrayKey])) {
+        out[currentArrayKey] = [];
+      }
+      out[currentArrayKey].push(itemValue);
+      continue;
+    }
+
+    const keyOnly = line.match(/^([A-Za-z0-9_.-]+):\s*$/);
+    if (keyOnly) {
+      const arrayKey = cleanText(keyOnly[1], 120);
+      if (arrayKey) {
+        currentArrayKey = arrayKey;
+        if (!Array.isArray(out[currentArrayKey])) out[currentArrayKey] = [];
+      }
+      continue;
+    }
+
+    const idx = line.indexOf(':');
+    if (idx <= 0) continue;
+    const key = cleanText(line.slice(0, idx), 120);
+    const raw = line.slice(idx + 1).trim();
+    if (!key) continue;
+    out[key] = parseScalar(raw);
+    currentArrayKey = '';
+  }
+
   return out;
 }
 
-function importPayload(payload: unknown, context: AnyObj = {}) {
-  void context;
-  const encoded = encodePayloadBase64(payload);
-  if (!encoded.ok) {
-    return {
-      entities: { agents: [], tasks: [], workflows: [], tools: [], records: [] },
-      source_item_count: 0,
-      mapped_item_count: 0,
-      warnings: ['payload_encode_failed:' + cleanText(encoded.error || 'unknown', 220)]
-    };
+function normalizePayload(payload: unknown) {
+  if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+    return payload;
   }
-  const result = runViaConduit(encoded.encoded);
-  if (result.ok && result.payload) return normalizeImportedPayload(result.payload);
-  const err = cleanText(result.error || 'conduit_importer_unavailable', 220);
-  return {
-    entities: { agents: [], tasks: [], workflows: [], tools: [], records: [] },
-    source_item_count: 0,
-    mapped_item_count: 0,
-    warnings: ['conduit_importer_unavailable:' + err]
+  if (typeof payload === 'string') {
+    return parseSimpleYaml(payload);
+  }
+  return {};
+}
+
+function importPayload(payload: unknown, context: AnyObj = {}) {
+  const normalized = normalizePayload(payload);
+  const normalizedContext = {
+    ...(context && typeof context === 'object' && !Array.isArray(context) ? context : {}),
+    source_engine: 'generic_yaml',
   };
+  return importer.importPayload(normalized, normalizedContext);
 }
 
 module.exports = {
-  engine: 'generic_yaml',
+  engine: importer.engine,
   parseSimpleYaml,
-  importPayload
+  importPayload,
 };

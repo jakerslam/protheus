@@ -1,3 +1,29 @@
+const MAX_DATE_SCAN_PATH_CHARS: usize = 1024;
+
+fn sanitize_path_for_date_scan(path_value: &str) -> Option<String> {
+    let trimmed = path_value.trim();
+    if trimmed.is_empty() || trimmed.chars().count() > MAX_DATE_SCAN_PATH_CHARS {
+        return None;
+    }
+    if trimmed
+        .chars()
+        .any(|ch| ch == '\0' || ch == '\r' || ch == '\n')
+    {
+        return None;
+    }
+    if trimmed
+        .split(['/', '\\'])
+        .any(|segment| segment.trim() == "..")
+    {
+        return None;
+    }
+    Some(
+        trimmed
+            .chars()
+            .take(MAX_DATE_SCAN_PATH_CHARS)
+            .collect::<String>(),
+    )
+}
 
 fn is_leap_year(year: u32) -> bool {
     (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)
@@ -19,13 +45,18 @@ fn parse_ascii_u32(chars: &[char]) -> Option<u32> {
         if !ch.is_ascii_digit() {
             return None;
         }
-        value = value.checked_mul(10)?.checked_add((*ch as u32) - ('0' as u32))?;
+        value = value
+            .checked_mul(10)?
+            .checked_add((*ch as u32) - ('0' as u32))?;
     }
     Some(value)
 }
 
 fn extract_date_from_path(path_value: &str) -> String {
-    let chars = path_value.chars().collect::<Vec<char>>();
+    let Some(safe_path) = sanitize_path_for_date_scan(path_value) else {
+        return String::new();
+    };
+    let chars = safe_path.chars().collect::<Vec<char>>();
     if chars.len() < 10 {
         return String::new();
     }

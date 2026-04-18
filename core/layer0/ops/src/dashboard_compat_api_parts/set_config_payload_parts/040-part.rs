@@ -31,15 +31,34 @@ fn build_agent_roster(root: &Path, snapshot: &Value, include_terminated: bool) -
             all_ids.insert(id);
         }
     }
-    for key in collab.keys() {
+    for (key, row) in &collab {
         let id = clean_agent_id(key);
-        if !id.is_empty() {
+        if id.is_empty() {
+            continue;
+        }
+        if profiles.contains_key(&id)
+            || contracts.contains_key(&id)
+            || collab_runtime_active(Some(row))
+        {
             all_ids.insert(id);
         }
     }
-    for key in session_summaries.keys() {
+    for (key, row) in &session_summaries {
         let id = clean_agent_id(key);
-        if !id.is_empty() {
+        if id.is_empty() {
+            continue;
+        }
+        let has_session_activity = row
+            .get("message_count")
+            .and_then(Value::as_i64)
+            .unwrap_or(0)
+            > 0
+            || !clean_text(
+                row.get("updated_at").and_then(Value::as_str).unwrap_or(""),
+                80,
+            )
+            .is_empty();
+        if profiles.contains_key(&id) || contracts.contains_key(&id) || has_session_activity {
             all_ids.insert(id);
         }
     }

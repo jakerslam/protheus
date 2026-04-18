@@ -1,6 +1,37 @@
 // Infring Logs Page — Real-time log viewer (SSE streaming + polling fallback) + Audit Trail tab
 'use strict';
 
+var LOGS_MAX_ENTRIES = 500;
+var LOGS_POLL_INTERVAL_MS = 2000;
+
+function logsSafeTimestamp(value) {
+  var raw = String(value || '').trim();
+  if (!raw) return '';
+  var parsed = Date.parse(raw);
+  if (!Number.isFinite(parsed)) return '';
+  return new Date(parsed).toISOString();
+}
+
+function logsNormalizeEntry(entry) {
+  var row = entry && typeof entry === 'object' ? entry : {};
+  return {
+    seq: Number.isFinite(Number(row.seq)) ? Number(row.seq) : null,
+    timestamp: logsSafeTimestamp(row.timestamp) || new Date().toISOString(),
+    action: String(row.action || ''),
+    detail: String(row.detail || ''),
+    agent_id: String(row.agent_id || ''),
+    payload: row.payload
+  };
+}
+
+function logsEntryKey(entry) {
+  if (entry && entry.seq !== null) return 'seq:' + String(entry.seq);
+  var action = String(entry && entry.action || '');
+  var detail = String(entry && entry.detail || '');
+  var timestamp = String(entry && entry.timestamp || '');
+  return 'fallback:' + timestamp + '|' + action + '|' + detail;
+}
+
 function logsPage() {
   return {
     tab: 'live',
@@ -19,6 +50,7 @@ function logsPage() {
     streamConnected: false,
     streamConnecting: true,
     streamPaused: false,
+    _entryKeyIndex: Object.create(null),
 
     // -- Audit state --
     auditEntries: [],
@@ -27,6 +59,47 @@ function logsPage() {
     filterAction: '',
     auditLoading: false,
     auditLoadError: '',
+
+    resetEntryIndex: function() {
+      this._entryKeyIndex = Object.create(null);
+    },
+
+    ingestEntries: function(rows) {
+      this.entries = [];
+      this.resetEntryIndex();
+      var source = Array.isArray(rows) ? rows : [];
+      for (var i = 0; i < source.length; i++) this.ingestEntry(source[i], true);
+      this.entries.sort(function(a, b) {
+        if (a.seq !== null && b.seq !== null) return a.seq - b.seq;
+        return String(a.timestamp || '').localeCompare(String(b.timestamp || ''));
+      });
+      if (this.entries.length > LOGS_MAX_ENTRIES) {
+        this.entries = this.entries.slice(this.entries.length - LOGS_MAX_ENTRIES);
+      }
+    },
+
+    ingestEntry: function(raw, skipScroll) {
+      var entry = logsNormalizeEntry(raw);
+      var key = logsEntryKey(entry);
+      if (this._entryKeyIndex[key]) return false;
+      this._entryKeyIndex[key] = true;
+      this.entries.push(entry);
+      if (this.entries.length > LOGS_MAX_ENTRIES) {
+        var removed = this.entries.splice(0, this.entries.length - LOGS_MAX_ENTRIES);
+        for (var i = 0; i < removed.length; i++) {
+          delete this._entryKeyIndex[logsEntryKey(removed[i])];
+        }
+      }
+      if (!skipScroll && this.autoRefresh && !this.hovering) this.scrollToBottom();
+      return true;
+    },
+
+    scrollToBottom: function() {
+      this.$nextTick(function() {
+        var el = document.getElementById('log-container');
+        if (el) el.scrollTop = el.scrollHeight;
+      });
+    },
 
     startStreaming: function() {
       var self = this;
@@ -58,26 +131,7 @@ function logsPage() {
       this._eventSource.onmessage = function(event) {
         if (self.streamPaused) return;
         try {
-          var entry = JSON.parse(event.data);
-          // Avoid duplicate entries by checking seq
-          var dominated = false;
-          for (var i = 0; i < self.entries.length; i++) {
-            if (self.entries[i].seq === entry.seq) { dominated = true; break; }
-          }
-          if (!dominated) {
-            self.entries.push(entry);
-            // Cap at 500 entries (remove oldest)
-            if (self.entries.length > 500) {
-              self.entries.splice(0, self.entries.length - 500);
-            }
-            // Auto-scroll to bottom
-            if (self.autoRefresh && !self.hovering) {
-              self.$nextTick(function() {
-                var el = document.getElementById('log-container');
-                if (el) el.scrollTop = el.scrollHeight;
-              });
-            }
-          }
+          self.ingestEntry(JSON.parse(event.data), false);
         } catch(e) {
           // Ignore parse errors (heartbeat comments are not delivered to onmessage)
         }
@@ -105,20 +159,15 @@ function logsPage() {
         if (self.autoRefresh && !self.hovering && self.tab === 'live' && !self.streamPaused) {
           self.fetchLogs();
         }
-      }, 2000);
+      }, LOGS_POLL_INTERVAL_MS);
     },
 
     async fetchLogs() {
       if (this.loading) this.loadError = '';
       try {
         var data = await InfringAPI.get('/api/audit/recent?n=200');
-        this.entries = data.entries || [];
-        if (this.autoRefresh && !this.hovering) {
-          this.$nextTick(function() {
-            var el = document.getElementById('log-container');
-            if (el) el.scrollTop = el.scrollHeight;
-          });
-        }
+        this.ingestEntries(data.entries || []);
+        if (this.autoRefresh && !this.hovering) this.scrollToBottom();
         if (this.loading) this.loading = false;
       } catch(e) {
         if (this.loading) {
@@ -137,16 +186,13 @@ function logsPage() {
       this.streamPaused = !this.streamPaused;
       if (!this.streamPaused && this.streamConnected) {
         // Resume: scroll to bottom
-        var self = this;
-        this.$nextTick(function() {
-          var el = document.getElementById('log-container');
-          if (el) el.scrollTop = el.scrollHeight;
-        });
+        this.scrollToBottom();
       }
     },
 
     clearLogs: function() {
       this.entries = [];
+      this.resetEntryIndex();
     },
 
     classifyLevel: function(action) {
@@ -189,7 +235,8 @@ function logsPage() {
 
     exportLogs: function() {
       var lines = this.filteredEntries.map(function(e) {
-        return new Date(e.timestamp).toISOString() + ' [' + e.action + '] ' + (e.detail || '');
+        var stamp = logsSafeTimestamp(e.timestamp) || String(e.timestamp || '');
+        return stamp + ' [' + e.action + '] ' + (e.detail || '');
       });
       var blob = new Blob([lines.join('\n')], { type: 'text/plain' });
       var url = URL.createObjectURL(blob);
@@ -258,6 +305,7 @@ function logsPage() {
     destroy: function() {
       if (this._eventSource) { this._eventSource.close(); this._eventSource = null; }
       if (this._pollTimer) { clearInterval(this._pollTimer); this._pollTimer = null; }
+      this.resetEntryIndex();
     }
   };
 }

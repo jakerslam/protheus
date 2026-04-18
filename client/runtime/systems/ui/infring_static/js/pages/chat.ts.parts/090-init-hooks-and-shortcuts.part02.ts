@@ -124,6 +124,8 @@
       if (this.showModelSwitcher) { this.showModelSwitcher = false; return; }
       var self = this;
       var now = Date.now();
+      this.showAttachMenu = false;
+      this.closeGitTreeMenu();
       this.modelApiKeyStatus = '';
       var cached = self.sanitizeModelCatalogRows(self._modelCache || []);
       if (cached.length) {

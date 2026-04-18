@@ -792,4 +792,33 @@ mod quality_tests {
         assert!(lowered.contains("web retrieval"));
         assert!(!lowered.contains("no useful comparison findings"));
     }
+
+    #[test]
+    fn competitive_programming_dump_is_treated_as_query_mismatch_low_signal() {
+        let query = "top AI agentic frameworks";
+        let out = run_query_with_fixture(
+            json!({
+                query: {
+                    "ok": true,
+                    "summary": "Tree Leaves problem statement. Given a tree, list all leaves in top-down left-to-right order. Input Specification: ... Sample Input ... Sample Output ...",
+                    "content": "#include <stdio.h>\nint main(){return 0;}\nGiven a tree, list leaves.",
+                    "requested_url": "https://example.com/unrelated-tree-problem",
+                    "status_code": 200
+                }
+            }),
+            query,
+            "medium",
+        );
+        assert_eq!(out.get("status").and_then(Value::as_str), Some("no_results"));
+        assert_eq!(
+            out.get("error").and_then(Value::as_str),
+            Some("query_result_mismatch")
+        );
+        let lowered = summary_lowered(&out);
+        assert!(
+            lowered.contains("query_result_mismatch")
+                || lowered.contains("unrelated to the request intent"),
+            "{lowered}"
+        );
+    }
 }

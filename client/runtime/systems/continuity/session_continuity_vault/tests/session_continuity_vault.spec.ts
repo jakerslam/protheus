@@ -31,10 +31,18 @@ const withAliases = mod.normalizeArgs([
 ]);
 assert.deepStrictEqual(withAliases, ['get', '--session-id=alpha']);
 
+const nestedWrapper = mod.normalizeArgs([
+  'session-continuity-vault',
+  'session_continuity_vault',
+  'archive',
+  '--session-id=alpha'
+]);
+assert.deepStrictEqual(nestedWrapper, ['put', '--session-id=alpha']);
+
 const withStatus = mod.normalizeArgs([]);
 assert.deepStrictEqual(withStatus, ['status']);
 assert.deepStrictEqual(mod.normalizeArgs(['archive', '--session-id=alpha']), ['put', '--session-id=alpha']);
-assert.deepStrictEqual(mod.normalizeArgs(['\u200Bunknown', '--session-id=alpha']), ['status', '--session-id=alpha']);
+assert.deepStrictEqual(mod.normalizeArgs(['\u200Bunknown', '--session-id=alpha']), ['status']);
 
 const wrapped = mod.ensureMutationReceipt({ payload: { ok: true, type: 'session_continuity_vault_put' } }, 'put');
 assert.ok(typeof wrapped.payload.receipt_hash === 'string');

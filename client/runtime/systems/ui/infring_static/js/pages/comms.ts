@@ -1,6 +1,45 @@
 // Infring Comms Page — Agent topology & inter-agent communication feed
 'use strict';
 
+var COMMS_MAX_EVENTS = 200;
+var COMMS_SSE_RETRY_MS = 2000;
+
+function commsTimeAgo(value) {
+  if (!value) return '';
+  var parsed = Date.parse(String(value));
+  if (!Number.isFinite(parsed)) return '';
+  var secs = Math.floor((Date.now() - parsed) / 1000);
+  if (!Number.isFinite(secs) || secs < 0) secs = 0;
+  if (secs < 60) return secs + 's ago';
+  if (secs < 3600) return Math.floor(secs / 60) + 'm ago';
+  if (secs < 86400) return Math.floor(secs / 3600) + 'h ago';
+  return Math.floor(secs / 86400) + 'd ago';
+}
+
+function normalizeCommsEventEntry(payload) {
+  var source = payload && typeof payload === 'object' ? payload : {};
+  return {
+    id: String(source.id || source.event_id || ''),
+    kind: String(source.kind || 'unknown'),
+    from_agent_id: String(source.from_agent_id || source.from || ''),
+    to_agent_id: String(source.to_agent_id || source.to || ''),
+    message: String(source.message || ''),
+    title: String(source.title || ''),
+    timestamp: String(source.timestamp || source.ts || ''),
+    payload: source.payload
+  };
+}
+
+function commsEventKey(event) {
+  if (!event || typeof event !== 'object') return 'event:invalid';
+  if (event.id) return 'id:' + event.id;
+  var stamp = String(event.timestamp || '');
+  var kind = String(event.kind || '');
+  var from = String(event.from_agent_id || '');
+  var to = String(event.to_agent_id || '');
+  return 'fallback:' + stamp + '|' + kind + '|' + from + '|' + to;
+}
+
 function commsPage() {
   return {
     topology: { nodes: [], edges: [] },
@@ -18,6 +57,9 @@ function commsPage() {
     taskDesc: '',
     taskAssign: '',
     taskLoading: false,
+    _eventKeyIndex: Object.create(null),
+    _sseRetryTimer: null,
+    _topologyRefreshTimer: null,
 
     normalizeTopologyPayload(payload) {
       var source = payload && typeof payload === 'object' ? payload : {};
@@ -35,6 +77,32 @@ function commsPage() {
       if (Array.isArray(payload)) return payload.slice();
       var source = payload && typeof payload === 'object' ? payload : {};
       return Array.isArray(source.events) ? source.events.slice() : [];
+    },
+
+    replaceEvents(events) {
+      this.events = [];
+      this._eventKeyIndex = Object.create(null);
+      var rows = Array.isArray(events) ? events : [];
+      for (var i = 0; i < rows.length; i++) this.pushEvent(rows[i], true);
+      this.events.sort(function(a, b) {
+        return String(b.timestamp || '').localeCompare(String(a.timestamp || ''));
+      });
+      if (this.events.length > COMMS_MAX_EVENTS) this.events.length = COMMS_MAX_EVENTS;
+    },
+
+    pushEvent(rawEvent, skipTrim) {
+      var event = normalizeCommsEventEntry(rawEvent);
+      var key = commsEventKey(event);
+      if (this._eventKeyIndex[key]) return false;
+      this._eventKeyIndex[key] = true;
+      this.events.unshift(event);
+      if (!skipTrim && this.events.length > COMMS_MAX_EVENTS) {
+        var removed = this.events.splice(COMMS_MAX_EVENTS);
+        for (var i = 0; i < removed.length; i++) {
+          delete this._eventKeyIndex[commsEventKey(removed[i])];
+        }
+      }
+      return true;
     },
 
     isFairyNode(node) {
@@ -57,7 +125,7 @@ function commsPage() {
           InfringAPI.get('/api/comms/events?limit=200')
         ]);
         this.topology = this.normalizeTopologyPayload(results[0]);
-        this.events = this.normalizeEventsPayload(results[1]);
+        this.replaceEvents(this.normalizeEventsPayload(results[1]));
         this.startSSE();
       } catch(e) {
         this.loadError = e.message || 'Could not load comms data.';
@@ -75,13 +143,17 @@ function commsPage() {
         if (ev.data === 'ping') return;
         try {
           var event = JSON.parse(ev.data);
-          self.events.unshift(event);
-          if (self.events.length > 200) self.events.length = 200;
+          self.pushEvent(event);
           // Refresh topology on spawn/terminate events
           if (event.kind === 'agent_spawned' || event.kind === 'agent_terminated') {
-            self.refreshTopology();
+            self.scheduleTopologyRefresh();
           }
         } catch(e) { /* ignore parse errors */ }
+      };
+      this.sseSource.onerror = function() {
+        self.stopSSE();
+        if (self._sseRetryTimer) clearTimeout(self._sseRetryTimer);
+        self._sseRetryTimer = setTimeout(function() { self.startSSE(); }, COMMS_SSE_RETRY_MS);
       };
     },
 
@@ -90,6 +162,19 @@ function commsPage() {
         this.sseSource.close();
         this.sseSource = null;
       }
+      if (this._sseRetryTimer) {
+        clearTimeout(this._sseRetryTimer);
+        this._sseRetryTimer = null;
+      }
+    },
+
+    scheduleTopologyRefresh() {
+      var self = this;
+      if (this._topologyRefreshTimer) return;
+      this._topologyRefreshTimer = setTimeout(function() {
+        self._topologyRefreshTimer = null;
+        self.refreshTopology();
+      }, 200);
     },
 
     async refreshTopology() {
@@ -172,13 +257,7 @@ function commsPage() {
     },
 
     timeAgo(dateStr) {
-      if (!dateStr) return '';
-      var d = new Date(dateStr);
-      var secs = Math.floor((Date.now() - d.getTime()) / 1000);
-      if (secs < 60) return secs + 's ago';
-      if (secs < 3600) return Math.floor(secs / 60) + 'm ago';
-      if (secs < 86400) return Math.floor(secs / 3600) + 'h ago';
-      return Math.floor(secs / 86400) + 'd ago';
+      return commsTimeAgo(dateStr);
     },
 
     openSendModal() {
@@ -225,6 +304,14 @@ function commsPage() {
         InfringToast.error(e.message || 'Task failed');
       }
       this.taskLoading = false;
+    },
+
+    destroy() {
+      this.stopSSE();
+      if (this._topologyRefreshTimer) {
+        clearTimeout(this._topologyRefreshTimer);
+        this._topologyRefreshTimer = null;
+      }
     }
   };
 }

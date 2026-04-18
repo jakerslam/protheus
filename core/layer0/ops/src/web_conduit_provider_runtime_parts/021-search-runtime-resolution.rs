@@ -499,6 +499,26 @@ pub(crate) fn search_provider_resolution_snapshot(
         selection_scope,
         "request_provider_hint" | "policy_configured" | "runtime_metadata"
     );
+    let tool_surface_status = runtime
+        .pointer("/tool_surface_health/status")
+        .and_then(Value::as_str)
+        .unwrap_or("unavailable")
+        .to_string();
+    let tool_surface_ready = runtime
+        .pointer("/tool_surface_health/selected_provider_ready")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let tool_surface_blocking_reason = runtime
+        .pointer("/tool_surface_health/blocking_reason")
+        .and_then(Value::as_str)
+        .unwrap_or("none")
+        .to_string();
+    let tool_execution_gate = runtime_web_execution_gate(
+        &tool_surface_status,
+        tool_surface_ready,
+        allow_fallback,
+        &tool_surface_blocking_reason,
+    );
     if let Some(obj) = runtime.as_object_mut() {
         obj.insert(
             "requested_provider_hint".to_string(),
@@ -524,6 +544,13 @@ pub(crate) fn search_provider_resolution_snapshot(
             "openclaw_runtime_contract".to_string(),
             search_runtime_resolution_contract(),
         );
+        obj.insert("tool_surface_status".to_string(), json!(tool_surface_status));
+        obj.insert("tool_surface_ready".to_string(), json!(tool_surface_ready));
+        obj.insert(
+            "tool_surface_blocking_reason".to_string(),
+            json!(tool_surface_blocking_reason),
+        );
+        obj.insert("tool_execution_gate".to_string(), tool_execution_gate);
     }
     runtime
 }

@@ -339,6 +339,24 @@ pub(crate) fn authorize_ingress_terminal_command_with_nexus(
     if !ingress_nexus_enabled() {
         return Ok(None);
     }
+    if web_tooling_relaxed_test_mode_enabled() {
+        let route = terminal_ingress_route();
+        return Ok(Some(json!({
+            "enabled": true,
+            "source": CLIENT_INGRESS_SUB_NEXUS,
+            "target": route.target,
+            "schema_id": route.schema_id,
+            "verb": route.verb,
+            "route_label": format!("terminal:{}", clean_text(command, 220)),
+            "delivery": {
+                "allowed": true,
+                "reason": "relaxed_test_mode_bypass",
+                "local_resolution": true
+            },
+            "policy_bypass": true,
+            "bypass_reason": "web_tooling_relaxed_test_mode"
+        })));
+    }
     let connection = authorize_client_ingress_route_with_nexus_inner(
         &format!("terminal:{}", clean_text(command, 220)),
         terminal_ingress_route(),

@@ -229,9 +229,12 @@
       var self = this;
       if (this.isSystemThreadAgent && this.isSystemThreadAgent(this.currentAgent)) {
         this.terminalMode = true;
+        this.showAttachMenu = false;
         this.showSlashMenu = false;
         this.showModelPicker = false;
         this.showModelSwitcher = false;
+        if (typeof this.closeGitTreeMenu === 'function') this.closeGitTreeMenu();
+        else this.showGitTreeMenu = false;
         this.terminalCursorFocused = false;
         this.$nextTick(function() {
           var input = document.getElementById('msg-input');
@@ -240,12 +243,15 @@
         });
         return;
       }
-      this.terminalMode = !this.terminalMode;
-      this.resetInputHistoryNavigation('chat');
-      this.resetInputHistoryNavigation('terminal');
+      this.showAttachMenu = false;
       this.showSlashMenu = false;
       this.showModelPicker = false;
       this.showModelSwitcher = false;
+      if (typeof this.closeGitTreeMenu === 'function') this.closeGitTreeMenu();
+      else this.showGitTreeMenu = false;
+      this.terminalMode = !this.terminalMode;
+      this.resetInputHistoryNavigation('chat');
+      this.resetInputHistoryNavigation('terminal');
       this.terminalCursorFocused = false;
       if (!this.terminalMode) this.terminalSelectionStart = 0;
       if (this.terminalMode && !this.terminalCwd) {

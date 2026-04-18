@@ -3,6 +3,7 @@ use sha2::{Digest, Sha256};
 
 const MAX_LEDGER_LINES: usize = 512;
 const MAX_LEDGER_LINE_CHARS: usize = 256;
+const LEDGER_WARN_LINE_COUNT: usize = 256;
 
 pub fn checked_margin_bps(revenue_cents: i128, cost_cents: i128) -> Option<i64> {
     if revenue_cents <= 0 || cost_cents < 0 {
@@ -71,6 +72,28 @@ fn normalize_ledger_lines(lines: &[String]) -> (Vec<String>, usize, usize) {
     (normalized, dropped, truncated)
 }
 
+fn evaluate_ledger_contract(
+    normalized_count: usize,
+    dropped: usize,
+    truncated: usize,
+) -> (bool, bool, bool, &'static str) {
+    let should_warn = normalized_count > LEDGER_WARN_LINE_COUNT || truncated > 0;
+    let should_block = normalized_count == 0 || dropped > 0;
+    let strict_ok = !should_block;
+    let reason = if normalized_count == 0 {
+        "ledger_empty_after_normalization"
+    } else if dropped > 0 {
+        "ledger_lines_dropped"
+    } else if truncated > 0 {
+        "ledger_lines_truncated"
+    } else if normalized_count > LEDGER_WARN_LINE_COUNT {
+        "ledger_line_count_warn"
+    } else {
+        "ledger_contract_ok"
+    };
+    (strict_ok, should_warn, should_block, reason)
+}
+
 pub fn ledger_hash(lines: &[String]) -> String {
     let (normalized, _, _) = normalize_ledger_lines(lines);
     let mut h = Sha256::new();
@@ -94,14 +117,23 @@ pub fn sample_report() -> serde_json::Value {
     ];
     let hash = ledger_hash(&lines);
     let (normalized, dropped, truncated) = normalize_ledger_lines(&lines);
+    let (strict_ok, should_warn, should_block, contract_reason) =
+        evaluate_ledger_contract(normalized.len(), dropped, truncated);
+    let margin_ok = margin_bps.is_some();
 
     json!({
-        "ok": true,
+        "ok": strict_ok && margin_ok,
         "lane": "V5-RUST-HYB-006",
         "economics": {
             "revenue_cents": revenue,
             "cost_cents": cost,
             "margin_bps": margin_bps
+        },
+        "contract": {
+            "strict_ok": strict_ok,
+            "reason": contract_reason,
+            "should_warn": should_warn,
+            "should_block": should_block
         },
         "integrity": {
             "ledger_hash": hash,
@@ -133,5 +165,16 @@ mod tests {
         let a = vec!["rev:100".to_string(), "cost:10".to_string()];
         let b = vec!["rev:\u{200B}100".to_string(), "cost:10\u{0000}".to_string()];
         assert_eq!(ledger_hash(&a), ledger_hash(&b));
+    }
+
+    #[test]
+    fn contract_blocks_when_lines_are_dropped() {
+        let lines = vec!["x".to_string(); MAX_LEDGER_LINES + 1];
+        let (normalized, dropped, truncated) = normalize_ledger_lines(&lines);
+        let (strict_ok, _warn, block, reason) =
+            evaluate_ledger_contract(normalized.len(), dropped, truncated);
+        assert!(!strict_ok);
+        assert!(block);
+        assert_eq!(reason, "ledger_lines_dropped");
     }
 }

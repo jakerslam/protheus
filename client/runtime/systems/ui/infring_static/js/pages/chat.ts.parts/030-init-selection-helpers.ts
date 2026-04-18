@@ -222,6 +222,14 @@
       if (providerFallback === 'auto' || !providerFallback) return 'Auto';
       return providerFallback.length > 24 ? providerFallback.substring(0, 22) + '\u2026' : providerFallback;
     },
+
+    get menuModelLabel() {
+      var label = String(this.modelDisplayName || '').trim();
+      if (!label) label = 'Auto';
+      if (label.length > 7) return label.substring(0, 7) + '...';
+      return label;
+    },
+
     get switcherViewState() {
       var modelsRef = Array.isArray(this._modelCache) ? this._modelCache : [];
       var providerFilter = String(this.modelSwitcherProviderFilter || '').trim();

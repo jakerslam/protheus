@@ -15,7 +15,7 @@
                   </div>
                 </template>
               </div>
-              <div class="empty-state" x-show="!runtimeMetaRows().length"><p>No runtime telemetry available yet.</p></div>
+              <infring-chat-stream-shell class="empty-state" x-show="!runtimeMetaRows().length"><p>No runtime telemetry available yet.</p></infring-chat-stream-shell>
             </div>
             <div class="card mt-4">
               <div class="card-header">Token Breakdown</div>
@@ -46,7 +46,7 @@
                 </tbody>
               </table>
             </div>
-            <div class="empty-state" x-show="!byModel.length"><p>No model usage data yet.</p></div>
+            <infring-chat-stream-shell class="empty-state" x-show="!byModel.length"><p>No model usage data yet.</p></infring-chat-stream-shell>
           </div>
           <div x-show="tab === 'by-agent'">
             <div class="table-wrap mt-4" x-show="byAgent.length">
@@ -63,7 +63,7 @@
                 </tbody>
               </table>
             </div>
-            <div class="empty-state" x-show="!byAgent.length"><p>No agent usage data yet.</p></div>
+            <infring-chat-stream-shell class="empty-state" x-show="!byAgent.length"><p>No agent usage data yet.</p></infring-chat-stream-shell>
           </div>
 
           <!-- Costs Tab -->
@@ -283,15 +283,15 @@
                 </tbody>
               </table>
             </div>
-            <div class="empty-state" x-show="!filteredSessions.length && !searchFilter">
+            <infring-chat-stream-shell class="empty-state" x-show="!filteredSessions.length && !searchFilter">
               <div class="empty-state-icon">
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2-10 5 10 5 10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg>
               </div>
               <h3>No sessions yet</h3>
               <p>Sessions are created when you chat with agents. Start a conversation to see session history here.</p>
               <button class="btn btn-primary" @click="location.hash='agents'">Start Chatting</button>
-            </div>
-            <div class="empty-state" x-show="!filteredSessions.length && searchFilter"><p>No sessions match your filter.</p></div>
+            </infring-chat-stream-shell>
+            <infring-chat-stream-shell class="empty-state" x-show="!filteredSessions.length && searchFilter"><p>No sessions match your filter.</p></infring-chat-stream-shell>
             </div>
           </div>
 
@@ -352,11 +352,11 @@
                   </tbody>
                 </table>
               </div>
-              <div class="empty-state" x-show="!kvPairs.length">
+              <infring-chat-stream-shell class="empty-state" x-show="!kvPairs.length">
                 <h4>No keys stored</h4>
                 <p class="hint">This agent has no memory entries yet. Agents create memory entries automatically during conversations, or you can add them manually.</p>
                 <button class="btn btn-primary mt-4" @click="showAdd = true">+ Add First Key</button>
-              </div>
+              </infring-chat-stream-shell>
               <template x-if="showAdd">
                 <div class="modal-overlay" @click.self="showAdd = false" @keydown.escape.window="showAdd = false">
                   <div class="modal">
@@ -368,10 +368,10 @@
                 </div>
               </template>
             </div>
-            <div class="empty-state" x-show="!memAgentId && !memLoading">
+            <infring-chat-stream-shell class="empty-state" x-show="!memAgentId && !memLoading">
               <h4>Select an Agent</h4>
               <p class="hint">Choose an agent from the dropdown above to browse and edit its memory store.</p>
-            </div>
+            </infring-chat-stream-shell>
           </div>
         </div>
       </div>

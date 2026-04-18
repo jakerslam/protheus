@@ -473,6 +473,9 @@ tr:hover td { background: var(--surface2); }
   --chat-fade-size: 42px;
   --chat-input-overlay-height: 0px;
   --chat-input-bottom-reserve: 136px;
+  /* Keep net composer clearance equal to collapsed dock height.
+     app-layout may already reserve bottom shell space (taskbar bottom), so only apply the delta. */
+  --chat-input-bottom-offset: max(0px, calc((var(--bottom-dock-collapsed-height, 40px) - var(--shell-bottom-offset, 0px)) * 0.5));
   display: flex;
   flex-direction: column;
   flex: 1;

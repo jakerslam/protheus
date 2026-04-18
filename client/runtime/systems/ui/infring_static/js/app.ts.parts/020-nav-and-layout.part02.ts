@@ -71,6 +71,13 @@
       } catch(_) {}
       return 0.5;
     })(),
+    chatSidebarPlacementTopPx: (() => {
+      try {
+        var raw = Number(localStorage.getItem('infring-chat-sidebar-placement-top-px'));
+        if (Number.isFinite(raw)) return raw;
+      } catch(_) {}
+      return Number.NaN;
+    })(),
     chatSidebarWallLock: (() => {
       try {
         var raw = String(
@@ -85,7 +92,6 @@
     _chatSidebarMoveDurationMs: 280,
     _chatSidebarPointerActive: false,
     _chatSidebarPointerMoved: false,
-    _chatSidebarPointerFromPulltab: false,
     _chatSidebarPointerStartX: 0,
     _chatSidebarPointerStartY: 0,
     _chatSidebarPointerOriginLeft: 0,
@@ -96,8 +102,6 @@
     _chatSidebarPointerVelocity: 0,
     _chatSidebarPointerMoveHandler: null,
     _chatSidebarPointerUpHandler: null,
-    _chatSidebarDragHardBounds: null,
-    _chatSidebarSuppressedDraggables: [],
     _sidebarToggleSuppressUntil: 0,
     chatMapDragActive: false,
     chatMapDragLeft: 0,

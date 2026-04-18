@@ -29,8 +29,8 @@ fn sanitize_text_token(raw: &str, max_len: usize) -> String {
         .filter(|ch| !ch.is_control())
         .collect();
     token = token.trim().to_string();
-    if token.len() > max_len {
-        token.truncate(max_len);
+    if token.chars().count() > max_len {
+        token = token.chars().take(max_len).collect();
     }
     token
 }
@@ -68,6 +68,11 @@ fn load_request_json(args: &[String]) -> Result<String, String> {
         return Ok(text);
     }
     if let Some(v) = parse_arg(args, "--request-file") {
+        let metadata =
+            fs::metadata(v.as_str()).map_err(|err| format!("request_file_stat_failed:{err}"))?;
+        if metadata.len() > MAX_REQUEST_BYTES as u64 {
+            return Err("request_file_too_large".to_string());
+        }
         let text = fs::read_to_string(v.as_str())
             .map_err(|err| format!("request_file_read_failed:{err}"))?;
         if text.len() > MAX_REQUEST_BYTES {
@@ -109,6 +114,9 @@ fn normalize_request_json(raw: &str) -> Result<String, String> {
     if request.action.is_empty() {
         return Err("request_action_invalid".to_string());
     }
+    if !matches!(request.action.as_str(), "seal" | "unseal" | "rotate") {
+        return Err("request_action_unsupported".to_string());
+    }
     if request.operator_quorum == 0 || request.operator_quorum > 32 {
         return Err("request_operator_quorum_invalid".to_string());
     }
@@ -148,9 +156,12 @@ fn usage() {
 
 fn main() {
     let args: Vec<String> = env::args().skip(1).collect();
-    let command = args.first().map(String::as_str).unwrap_or("demo");
+    let command = args
+        .first()
+        .map(|value| sanitize_text_token(value, 24).to_ascii_lowercase())
+        .unwrap_or_else(|| "demo".to_string());
 
-    match command {
+    match command.as_str() {
         "load-policy" => match load_embedded_vault_policy_json() {
             Ok(payload) => println!("{}", payload),
             Err(err) => {
@@ -166,19 +177,21 @@ fn main() {
         },
         "evaluate" => match load_request_json(&args[1..]) {
             Ok(request_json) => match normalize_request_json(&request_json) {
-                Ok(normalized_request_json) => match evaluate_vault_policy_json(&normalized_request_json) {
-                    Ok(payload) => println!("{}", payload),
-                    Err(err) => {
-                        eprintln!(
-                            "{}",
-                            serde_json::json!({
-                                "ok": false,
-                                "error": err.to_string()
-                            })
-                        );
-                        std::process::exit(1);
+                Ok(normalized_request_json) => {
+                    match evaluate_vault_policy_json(&normalized_request_json) {
+                        Ok(payload) => println!("{}", payload),
+                        Err(err) => {
+                            eprintln!(
+                                "{}",
+                                serde_json::json!({
+                                    "ok": false,
+                                    "error": err.to_string()
+                                })
+                            );
+                            std::process::exit(1);
+                        }
                     }
-                },
+                }
                 Err(err) => {
                     eprintln!(
                         "{}",

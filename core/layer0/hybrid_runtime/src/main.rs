@@ -16,7 +16,46 @@ use std::time::Instant;
 
 fn parse_arg<'a>(args: &'a [String], key: &str) -> Option<&'a str> {
     let prefix = format!("--{}=", key);
-    args.iter().find_map(|arg| arg.strip_prefix(&prefix))
+    let flag = format!("--{key}");
+    for (idx, arg) in args.iter().enumerate() {
+        if let Some(value) = arg.strip_prefix(&prefix) {
+            return Some(value);
+        }
+        if arg == &flag {
+            if let Some(next) = args.get(idx + 1) {
+                if !next.starts_with("--") {
+                    return Some(next.as_str());
+                }
+            }
+        }
+    }
+    None
+}
+
+fn normalize_command_token(raw: &str) -> String {
+    let mut out = String::new();
+    let mut last_dash = false;
+    for ch in raw.trim().chars() {
+        if ch.is_control() {
+            continue;
+        }
+        let mapped = if ch.is_ascii_alphanumeric() {
+            ch.to_ascii_lowercase()
+        } else {
+            '-'
+        };
+        if mapped == '-' {
+            if last_dash {
+                continue;
+            }
+            last_dash = true;
+            out.push(mapped);
+            continue;
+        }
+        last_dash = false;
+        out.push(mapped);
+    }
+    out.trim_matches('-').to_string()
 }
 
 fn parse_bool(v: Option<&str>, fallback: bool) -> bool {
@@ -93,10 +132,16 @@ fn wrap_command_receipt(command: &str, payload: Value, started: Instant) -> Valu
 
 fn main() {
     let args: Vec<String> = env::args().skip(1).collect();
-    let cmd = args.get(0).map(String::as_str).unwrap_or("help");
+    let raw_cmd = args.first().map(String::as_str).unwrap_or("help");
+    let normalized_cmd = normalize_command_token(raw_cmd);
+    let cmd = if normalized_cmd.is_empty() {
+        "help".to_string()
+    } else {
+        normalized_cmd
+    };
     let started = Instant::now();
 
-    let payload = match cmd {
+    let payload = match cmd.as_str() {
         "help" | "--help" | "-h" => help(),
         "hybrid-plan" => {
             let root = hybrid_plan::resolve_root_with_status(parse_arg(&args, "root"));
@@ -143,9 +188,9 @@ fn main() {
             let completed = parse_usize(parse_arg(&args, "completed"), 9);
             hybrid_envelope::build_envelope(within_target, completed)
         }
-        other => json!({"ok": false, "error": "unknown_command", "command": other}),
+        _ => json!({"ok": false, "error": "unknown_command", "command": raw_cmd, "normalized_command": cmd}),
     };
-    let out = wrap_command_receipt(cmd, payload, started);
+    let out = wrap_command_receipt(&cmd, payload, started);
 
     print_json(&out);
 }

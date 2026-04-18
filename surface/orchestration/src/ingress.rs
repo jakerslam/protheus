@@ -121,7 +121,7 @@ fn resolve_request_surface(request_surface: RequestSurface, payload: &Value) -> 
 
 fn adapt_surface_request(
     surface: RequestSurface,
-    legacy_intent: &str,
+    _legacy_intent: &str,
     payload: &Value,
 ) -> Option<SurfaceAdapterOutput> {
     if matches!(surface, RequestSurface::Legacy) {
@@ -160,7 +160,7 @@ fn adapt_surface_request(
     let explicit_mutability =
         read_string(obj, &["mutability", "write_mode"]).and_then(parse_mutability);
 
-    let mut tokens = parser::tokenize(legacy_intent);
+    let mut tokens = Vec::new();
     for value in adapter_token_strings(surface, obj) {
         tokens.extend(parser::tokenize(&value));
     }

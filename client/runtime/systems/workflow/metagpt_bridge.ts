@@ -1,32 +1,16 @@
 #!/usr/bin/env node
 'use strict';
 
-const TARGET = '../../lib/metagpt_bridge.ts';
+const { createCompatWorkflowExportBridge } = require('../../lib/compat_target_bridge.ts');
+const bridge = createCompatWorkflowExportBridge({
+  scriptDir: __dirname,
+  targetRelativePath: '../../lib/metagpt_bridge.ts',
+  loadError: 'metagpt_bridge_target_load_failed',
+  invalidError: 'metagpt_bridge_target_invalid',
+  framework: 'metagpt',
+  bridgePath: 'client/runtime/lib/metagpt_bridge.ts',
+  bridgeTarget: 'adapters/runtime/metagpt_bridge.ts'
+});
+bridge.exitIfMain(module);
 
-function loadTarget() {
-  try {
-    return require(TARGET);
-  } catch (error) {
-    return {
-      ok: false,
-      error: 'metagpt_bridge_target_load_failed',
-      detail: String(error && error.message ? error.message : error || 'unknown_error'),
-    };
-  }
-}
-
-const target = loadTarget();
-const exported =
-  target && typeof target === 'object' && !Array.isArray(target)
-    ? target
-    : {
-        ok: false,
-        error: 'metagpt_bridge_target_invalid',
-      };
-
-if (require.main === module && exported && exported.ok === false) {
-  process.stderr.write(JSON.stringify(exported) + '\n');
-  process.exit(1);
-}
-
-module.exports = exported;
+module.exports = bridge.exported;

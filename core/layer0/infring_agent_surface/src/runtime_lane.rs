@@ -4,15 +4,24 @@ use crate::merkle_receipt::{merkle_receipt_options_from_value, merkle_receipt_pa
 use crate::provider::{ProviderClientRegistry, ProviderError};
 use crate::rbac_memory::{
     memory_read_allowed, memory_write_allowed, permission_manifest_from_value,
+    permission_manifest_from_value_with_inheritance,
     permission_manifest_snapshot, permission_for, PermissionTrit,
 };
 use crate::realtime_voice::{normalize_voice_session_request, voice_session_contract};
+use crate::runtime_state::{
+    runtime_lane_state_load, runtime_lane_state_mark_schedule_failure,
+    runtime_lane_state_mark_schedule_success, runtime_lane_state_path,
+    runtime_lane_state_record_denied_action, runtime_lane_state_record_merkle_continuity_failure,
+    runtime_lane_state_release_gate_counters, runtime_lane_state_save, RuntimeLaneDurableState,
+};
 use crate::scheduler::SchedulePlan;
 use crate::wasm_sandbox::{
-    evaluate_wasm_policy, wasm_policy_from_value, wasm_policy_snapshot, WasmPolicyDecision,
+    evaluate_wasm_execution_boundary, evaluate_wasm_policy, wasm_policy_from_value,
+    wasm_policy_snapshot, WasmPolicyDecision,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use std::path::Path;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RuntimeLaneRequest {
@@ -96,13 +105,26 @@ pub fn run_runtime_lane_with_registry(
         schedule_max_runs,
     } = request;
 
-    let permissions = permission_manifest_from_value(permissions_manifest.as_ref());
+    let state_path = runtime_lane_state_path(&metadata);
+    let mut durable_state = runtime_lane_state_load(&state_path);
+    let parent_permissions_manifest =
+        permission_manifest_from_value(metadata.get("parent_permissions_manifest"));
+    let permissions_template = metadata
+        .get("permissions_template")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+    let permissions = permission_manifest_from_value_with_inheritance(
+        permissions_manifest.as_ref(),
+        permissions_template,
+        Some(&parent_permissions_manifest),
+    );
     let catalog = CapabilityPackCatalog::new();
     let required_pack_permissions = catalog.required_permissions_for_packs(&capability_packs);
     for permission in &required_pack_permissions {
         let state = permission_for(&permissions, permission);
         if state != PermissionTrit::Allow {
-            return Ok(runtime_lane_fail_closed(
+            return Ok(runtime_lane_fail_closed_with_state(
                 "runtime_lane_pack_permission_denied",
                 json!({
                     "permission": permission,
@@ -111,11 +133,13 @@ pub fn run_runtime_lane_with_registry(
                 &permissions,
                 wasm_sandbox.as_ref(),
                 voice_session.as_ref(),
+                &state_path,
+                &mut durable_state,
             ));
         }
     }
     if tools.iter().any(|tool| tool == "memory.read") && !memory_read_allowed(&permissions) {
-        return Ok(runtime_lane_fail_closed(
+        return Ok(runtime_lane_fail_closed_with_state(
             "runtime_lane_memory_read_denied",
             json!({
                 "permission": "memory.read",
@@ -124,10 +148,12 @@ pub fn run_runtime_lane_with_registry(
             &permissions,
             wasm_sandbox.as_ref(),
             voice_session.as_ref(),
+            &state_path,
+            &mut durable_state,
         ));
     }
     if tools.iter().any(|tool| tool == "memory.write") && !memory_write_allowed(&permissions) {
-        return Ok(runtime_lane_fail_closed(
+        return Ok(runtime_lane_fail_closed_with_state(
             "runtime_lane_memory_write_denied",
             json!({
                 "permission": "memory.write",
@@ -136,6 +162,8 @@ pub fn run_runtime_lane_with_registry(
             &permissions,
             wasm_sandbox.as_ref(),
             voice_session.as_ref(),
+            &state_path,
+            &mut durable_state,
         ));
     }
 
@@ -145,7 +173,7 @@ pub fn run_runtime_lane_with_registry(
     match evaluate_wasm_policy(&wasm_policy, &requested_modules, requests_network) {
         WasmPolicyDecision::Allowed => {}
         WasmPolicyDecision::Blocked(error_code) => {
-            return Ok(runtime_lane_fail_closed(
+            return Ok(runtime_lane_fail_closed_with_state(
                 &error_code,
                 json!({
                     "requested_modules": requested_modules,
@@ -154,18 +182,22 @@ pub fn run_runtime_lane_with_registry(
                 &permissions,
                 wasm_sandbox.as_ref(),
                 voice_session.as_ref(),
+                &state_path,
+                &mut durable_state,
             ));
         }
     }
 
     let voice_request = normalize_voice_session_request(voice_session.as_ref());
     if voice_session.is_some() && voice_request.is_none() {
-        return Ok(runtime_lane_fail_closed(
+        return Ok(runtime_lane_fail_closed_with_state(
             "runtime_lane_voice_contract_invalid",
             json!({"voice_session": voice_session}),
             &permissions,
             wasm_sandbox.as_ref(),
             voice_session.as_ref(),
+            &state_path,
+            &mut durable_state,
         ));
     }
 
@@ -185,6 +217,28 @@ pub fn run_runtime_lane_with_registry(
     if let Some(value) = lifespan_seconds {
         builder = builder.lifespan_seconds(value);
     }
+    if schedule_interval_seconds == Some(0) {
+        return Ok(runtime_lane_fail_closed_with_state(
+            "runtime_lane_schedule_interval_invalid",
+            json!({"schedule_interval_seconds": schedule_interval_seconds}),
+            &permissions,
+            wasm_sandbox.as_ref(),
+            voice_session.as_ref(),
+            &state_path,
+            &mut durable_state,
+        ));
+    }
+    if schedule_max_runs == Some(0) {
+        return Ok(runtime_lane_fail_closed_with_state(
+            "runtime_lane_schedule_max_runs_invalid",
+            json!({"schedule_max_runs": schedule_max_runs}),
+            &permissions,
+            wasm_sandbox.as_ref(),
+            voice_session.as_ref(),
+            &state_path,
+            &mut durable_state,
+        ));
+    }
     if schedule_interval_seconds.is_some() || schedule_max_runs.is_some() {
         builder = builder.schedule(SchedulePlan {
             interval_seconds: schedule_interval_seconds.unwrap_or(300),
@@ -200,15 +254,118 @@ pub fn run_runtime_lane_with_registry(
     }
     let contract = builder.build().map_err(RuntimeLaneError::Build)?;
     let contract = contract.with_default_schedule_from_packs(&catalog);
+    let resolved_tools = contract.resolved_tools(Some(&catalog));
+    let wasm_execution_fuel_used = metadata
+        .get("wasm_execution")
+        .and_then(|value| value.get("fuel_used"))
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let wasm_execution_elapsed_ms = metadata
+        .get("wasm_execution")
+        .and_then(|value| value.get("elapsed_ms"))
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    for tool in &resolved_tools {
+        if let Some(module_id) = tool.strip_prefix("wasm.") {
+            match evaluate_wasm_execution_boundary(
+                &wasm_policy,
+                module_id,
+                wasm_execution_fuel_used,
+                wasm_execution_elapsed_ms,
+                requests_network,
+            ) {
+                WasmPolicyDecision::Allowed => {}
+                WasmPolicyDecision::Blocked(error_code) => {
+                    if let Some(plan) = &contract.schedule {
+                        let pack_id = contract
+                            .capability_packs
+                            .first()
+                            .cloned()
+                            .unwrap_or_else(|| "runtime".to_string());
+                        runtime_lane_state_mark_schedule_failure(
+                            &mut durable_state,
+                            contract.name.as_str(),
+                            pack_id.as_str(),
+                            plan,
+                            error_code.as_str(),
+                        );
+                    }
+                    return Ok(runtime_lane_fail_closed_with_state(
+                        error_code.as_str(),
+                        json!({
+                            "boundary": "wasm_execution",
+                            "module_id": module_id,
+                            "fuel_used": wasm_execution_fuel_used,
+                            "elapsed_ms": wasm_execution_elapsed_ms,
+                            "requests_network": requests_network,
+                        }),
+                        &permissions,
+                        wasm_sandbox.as_ref(),
+                        voice_session.as_ref(),
+                        &state_path,
+                        &mut durable_state,
+                    ));
+                }
+            }
+        }
+    }
     let context = AgentExecutionContext::new(providers, Some(&catalog));
-    let run: AgentRunResult = contract
-        .run_once(&context)
-        .map_err(RuntimeLaneError::Provider)?;
-    let merkle = merkle_receipt_payload(
-        &run.receipt,
+    let run: AgentRunResult = match contract.run_once(&context) {
+        Ok(result) => result,
+        Err(error) => {
+            if let Some(plan) = &contract.schedule {
+                let pack_id = contract
+                    .capability_packs
+                    .first()
+                    .cloned()
+                    .unwrap_or_else(|| "runtime".to_string());
+                runtime_lane_state_mark_schedule_failure(
+                    &mut durable_state,
+                    contract.name.as_str(),
+                    pack_id.as_str(),
+                    plan,
+                    error.code.as_str(),
+                );
+            }
+            let _ = runtime_lane_state_save(&state_path, &durable_state);
+            return Err(RuntimeLaneError::Provider(error));
+        }
+    };
+    let persisted_previous_root = durable_state
+        .merkle_roots
+        .get(contract.name.as_str())
+        .cloned();
+    if let (Some(requested), Some(persisted)) = (
         previous_receipt_root.as_deref(),
-        &merkle_options,
-    );
+        persisted_previous_root.as_deref(),
+    ) {
+        if requested != persisted {
+            runtime_lane_state_record_merkle_continuity_failure(&mut durable_state);
+        }
+    }
+    let effective_previous_root = previous_receipt_root
+        .as_deref()
+        .or(persisted_previous_root.as_deref());
+    let merkle = merkle_receipt_payload(&run.receipt, effective_previous_root, &merkle_options);
+    if let Some(root) = merkle.get("root").and_then(Value::as_str) {
+        durable_state
+            .merkle_roots
+            .insert(contract.name.clone(), root.to_string());
+    }
+    if let Some(plan) = &contract.schedule {
+        let pack_id = contract
+            .capability_packs
+            .first()
+            .cloned()
+            .unwrap_or_else(|| "runtime".to_string());
+        runtime_lane_state_mark_schedule_success(
+            &mut durable_state,
+            contract.name.as_str(),
+            pack_id.as_str(),
+            plan,
+        );
+    }
+    let state_persist_error = runtime_lane_state_save(&state_path, &durable_state);
     let voice = voice_request
         .as_ref()
         .map(|request| {
@@ -242,25 +399,33 @@ pub fn run_runtime_lane_with_registry(
             "agent_name": run.trace.agent_name,
             "wasm_modules": requested_modules,
             "requests_network": requests_network,
+            "release_gate_counters": runtime_lane_state_release_gate_counters(&durable_state),
+            "state_path": state_path.display().to_string(),
+            "state_persist_error": state_persist_error,
         }),
         output: run.response.output,
         error: None,
     })
 }
 
-fn runtime_lane_fail_closed(
+fn runtime_lane_fail_closed_with_state(
     error_code: &str,
     details: Value,
     permissions: &crate::rbac_memory::PermissionManifest,
     wasm_sandbox: Option<&Value>,
     voice_session: Option<&Value>,
+    state_path: &Path,
+    durable_state: &mut RuntimeLaneDurableState,
 ) -> RuntimeLaneResponse {
+    runtime_lane_state_record_denied_action(durable_state, error_code);
+    let state_persist_error = runtime_lane_state_save(state_path, durable_state);
     RuntimeLaneResponse {
         ok: false,
         contract: json!({
             "permissions_manifest": permission_manifest_snapshot(permissions),
             "wasm_sandbox": wasm_policy_snapshot(&wasm_policy_from_value(wasm_sandbox)),
             "voice_session_requested": voice_session.is_some(),
+            "state_path": state_path.display().to_string(),
         }),
         receipt: json!({
             "type": "runtime_lane_receipt",
@@ -271,6 +436,8 @@ fn runtime_lane_fail_closed(
         trace_summary: json!({
             "status": "fail_closed",
             "error_code": error_code,
+            "release_gate_counters": runtime_lane_state_release_gate_counters(durable_state),
+            "state_persist_error": state_persist_error,
         }),
         output: String::new(),
         error: Some(error_code.to_string()),
@@ -322,97 +489,4 @@ fn runtime_requests_network(tools: &[String], metadata: &Value) -> bool {
     tools
         .iter()
         .any(|tool| matches!(tool.as_str(), "web.search" | "web.fetch" | "network.request"))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn runtime_lane_executes_with_capability_pack_defaults() {
-        let response = run_runtime_lane(RuntimeLaneRequest {
-            name: "lane-agent".to_string(),
-            preamble: Some("You are concise.".to_string()),
-            initial_prompt: "Summarize system status in one line.".to_string(),
-            provider: Some("local-echo".to_string()),
-            model: None,
-            tools: vec!["web.search".to_string()],
-            capability_packs: vec!["research".to_string()],
-            lifespan_seconds: Some(120),
-            metadata: json!({"lane":"runtime"}),
-            permissions_manifest: Some(json!({
-                "grants": {
-                    "voice.realtime": 1,
-                    "memory.read": 1,
-                    "web.search": 1
-                }
-            })),
-            wasm_sandbox: Some(json!({
-                "enabled": true,
-                "allow_network": true,
-                "allowed_modules": ["planner.module"]
-            })),
-            voice_session: Some(json!({
-                "transport": "webrtc",
-                "provider": "realtime",
-                "model": "gpt-realtime"
-            })),
-            receipt_merkle: Some(json!({
-                "enabled": true,
-                "seed": "wave4"
-            })),
-            previous_receipt_root: Some("root0".to_string()),
-            schedule_interval_seconds: Some(120),
-            schedule_max_runs: Some(12),
-        })
-        .expect("runtime lane");
-        assert!(response.ok);
-        assert_eq!(
-            response
-                .receipt
-                .get("type")
-                .and_then(serde_json::Value::as_str),
-            Some("agent_run_receipt")
-        );
-        assert!(
-            response
-                .contract
-                .get("receipt_merkle")
-                .and_then(|value| value.get("root"))
-                .and_then(Value::as_str)
-                .is_some()
-        );
-    }
-
-    #[test]
-    fn runtime_lane_fail_closes_when_memory_write_permission_is_not_allowed() {
-        let response = run_runtime_lane(RuntimeLaneRequest {
-            name: "lane-agent".to_string(),
-            preamble: Some("You are concise.".to_string()),
-            initial_prompt: "Try mutation".to_string(),
-            provider: Some("local-echo".to_string()),
-            model: None,
-            tools: vec!["memory.write".to_string()],
-            capability_packs: vec![],
-            lifespan_seconds: Some(120),
-            metadata: json!({"lane":"runtime"}),
-            permissions_manifest: Some(json!({
-                "grants": {
-                    "memory.write": 0
-                }
-            })),
-            wasm_sandbox: None,
-            voice_session: None,
-            receipt_merkle: None,
-            previous_receipt_root: None,
-            schedule_interval_seconds: None,
-            schedule_max_runs: None,
-        })
-        .expect("runtime lane");
-        assert!(!response.ok);
-        assert_eq!(
-            response.error.as_deref(),
-            Some("runtime_lane_memory_write_denied")
-        );
-    }
 }

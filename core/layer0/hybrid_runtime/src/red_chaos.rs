@@ -3,6 +3,7 @@ use std::time::Instant;
 
 const MIN_SIM_CYCLES: u32 = 1;
 const MAX_SIM_CYCLES: u32 = 2_000_000;
+const CHAOS_WARN_CYCLE_THRESHOLD: u32 = 500_000;
 
 fn lcg_next(state: u64) -> u64 {
     state.wrapping_mul(6364136223846793005).wrapping_add(1)
@@ -11,6 +12,29 @@ fn lcg_next(state: u64) -> u64 {
 fn normalize_cycles(requested: u32) -> (u32, bool) {
     let normalized = requested.clamp(MIN_SIM_CYCLES, MAX_SIM_CYCLES);
     (normalized, normalized != requested)
+}
+
+fn evaluate_chaos_contract(
+    requested_cycles: u32,
+    effective_cycles: u32,
+    cycles_clamped: bool,
+    throughput_ops_sec: f64,
+) -> (bool, bool, bool, &'static str) {
+    let should_warn = cycles_clamped || effective_cycles >= CHAOS_WARN_CYCLE_THRESHOLD;
+    let should_block = !throughput_ops_sec.is_finite() || throughput_ops_sec <= 0.0;
+    let strict_ok = !should_block;
+    let reason = if should_block {
+        "chaos_throughput_invalid"
+    } else if cycles_clamped && requested_cycles > MAX_SIM_CYCLES {
+        "chaos_cycles_exceeded_hard_max"
+    } else if cycles_clamped {
+        "chaos_cycles_clamped"
+    } else if effective_cycles >= CHAOS_WARN_CYCLE_THRESHOLD {
+        "chaos_high_cycle_warn"
+    } else {
+        "chaos_contract_ok"
+    };
+    (strict_ok, should_warn, should_block, reason)
 }
 
 pub fn run_simulation(cycles: u32, seed: u64) -> (u32, u64) {
@@ -43,14 +67,22 @@ pub fn sample_report(cycles: u32) -> serde_json::Value {
     } else {
         anomalies as f64 / effective_cycles as f64
     };
+    let (strict_ok, should_warn, should_block, contract_reason) =
+        evaluate_chaos_contract(cycles, effective_cycles, clamped_cycles, throughput);
 
     json!({
-        "ok": true,
+        "ok": strict_ok,
         "lane": "V5-RUST-HYB-007",
         "v6_lane": "V6-RUST50-005",
         "requested_cycles": cycles,
         "effective_cycles": effective_cycles,
         "cycles_clamped": clamped_cycles,
+        "contract": {
+            "strict_ok": strict_ok,
+            "reason": contract_reason,
+            "should_warn": should_warn,
+            "should_block": should_block
+        },
         "anomalies": anomalies,
         "anomaly_rate": anomaly_rate,
         "checksum": checksum,
@@ -89,5 +121,16 @@ mod tests {
             Some(MAX_SIM_CYCLES as u64)
         );
         assert_eq!(high.get("cycles_clamped").and_then(|x| x.as_bool()), Some(true));
+    }
+
+    #[test]
+    fn contract_warns_when_clamped() {
+        let high = sample_report(u32::MAX);
+        assert_eq!(
+            high.get("contract")
+                .and_then(|v| v.get("should_warn"))
+                .and_then(|v| v.as_bool()),
+            Some(true)
+        );
     }
 }

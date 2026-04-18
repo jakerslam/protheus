@@ -62,8 +62,8 @@ fn sanitize_token(raw: &str, max_len: usize, fallback: &str, lowercase: bool) ->
     if lowercase {
         value = value.to_ascii_lowercase();
     }
-    if value.len() > max_len {
-        value.truncate(max_len);
+    if value.chars().count() > max_len {
+        value = value.chars().take(max_len).collect();
     }
     if value.is_empty() {
         fallback.to_string()
@@ -89,7 +89,19 @@ fn domain_tag(domain: &ExoticDomain) -> &'static str {
 pub fn wrap_exotic_signal(env: &ExoticEnvelope, capability_class: &str) -> Layer0Envelope {
     let adapter_id = sanitize_token(&env.adapter_id, MAX_ID_LEN, "unknown_adapter", false);
     let signal_type = sanitize_token(&env.signal_type, MAX_ID_LEN, "unknown_signal", true);
-    let payload_ref = sanitize_token(&env.payload_ref, MAX_PAYLOAD_REF_LEN, "blob://unknown", false);
+    let payload_ref = {
+        let normalized = sanitize_token(
+            &env.payload_ref,
+            MAX_PAYLOAD_REF_LEN,
+            "blob://unknown",
+            false,
+        );
+        if normalized.starts_with("blob://") {
+            normalized
+        } else {
+            "blob://unknown".to_string()
+        }
+    };
     let capability_class = sanitize_token(capability_class, MAX_CLASS_LEN, "exotic.unknown", true);
     let ts_ms = normalize_timestamp(env.ts_ms);
 

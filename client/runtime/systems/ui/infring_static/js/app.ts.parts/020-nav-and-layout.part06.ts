@@ -277,6 +277,16 @@
       return this.chatSidebarClampLeft(minLeft + ((maxLeft - minLeft) * ratio));
     },
     chatSidebarResolvedTopFromRatio() {
+      var topPx = Number(this.chatSidebarPlacementTopPx);
+      if (!Number.isFinite(topPx)) {
+        try {
+          var rawTop = Number(localStorage.getItem('infring-chat-sidebar-placement-top-px'));
+          if (Number.isFinite(rawTop)) topPx = rawTop;
+        } catch(_) {}
+      }
+      if (Number.isFinite(topPx)) {
+        return this.chatSidebarClampTop(topPx);
+      }
       var bounds = this.chatOverlayVerticalBounds();
       var height = this.readChatSidebarHeight();
       var minTop = Number(bounds.minTop || 0);
@@ -309,27 +319,6 @@
       try {
         localStorage.setItem('infring-chat-sidebar-placement-anchor', this.chatSidebarPlacementAnchorId);
       } catch(_) {}
-    },
-    suspendChatSidebarNativeDraggableNodes() {
-      this._chatSidebarSuppressedDraggables = [];
-      var root = this.readChatSidebarElement();
-      if (!root || typeof root.querySelectorAll !== 'function') return;
-      var nodes = root.querySelectorAll('[draggable="true"]');
-      for (var i = 0; i < nodes.length; i += 1) {
-        var node = nodes[i];
-        if (!node || typeof node.getAttribute !== 'function' || typeof node.setAttribute !== 'function') continue;
-        this._chatSidebarSuppressedDraggables.push({ node: node, value: String(node.getAttribute('draggable') || '') });
-        try { node.setAttribute('draggable', 'false'); } catch(_) {}
-      }
-    },
-    restoreChatSidebarNativeDraggableNodes() {
-      var list = Array.isArray(this._chatSidebarSuppressedDraggables) ? this._chatSidebarSuppressedDraggables : [];
-      for (var i = 0; i < list.length; i += 1) {
-        var row = list[i];
-        if (!row || !row.node || typeof row.node.setAttribute !== 'function') continue;
-        try { row.node.setAttribute('draggable', row.value || 'true'); } catch(_) {}
-      }
-      this._chatSidebarSuppressedDraggables = [];
     },
     readChatMapWidth() {
       var lockedWall = this.chatMapWallLockNormalized();

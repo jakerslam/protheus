@@ -3,19 +3,16 @@
 // TypeScript compatibility shim only.
 // Layer ownership: adapters/runtime::agent-ws-bridge (dashboard websocket surface adapter).
 
-const path = require('node:path');
+const {
+  createCompatModuleExportBridge
+} = require('../../lib/compat_target_bridge.ts');
 
-const TARGET = path.resolve(__dirname, '../../../../adapters/runtime/agent_ws_bridge.ts');
+const bridge = createCompatModuleExportBridge({
+  scriptDir: __dirname,
+  targetRelativePath: '../../../../adapters/runtime/agent_ws_bridge.ts',
+  loadError: 'agent_ws_bridge_load_failed',
+  invalidError: 'agent_ws_bridge_invalid'
+});
 
-function loadAgentWsBridge() {
-  try {
-    return require(TARGET);
-  } catch (error) {
-    const message = String(error && error.message ? error.message : error || 'unknown');
-    const err = new Error('agent_ws_bridge_load_failed: ' + message);
-    err.code = 'agent_ws_bridge_load_failed';
-    throw err;
-  }
-}
-
-module.exports = loadAgentWsBridge();
+bridge.exitIfMain(module);
+module.exports = bridge.exported;

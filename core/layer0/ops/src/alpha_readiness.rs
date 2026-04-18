@@ -170,11 +170,16 @@ fn check_web_tooling_health(root: &Path) -> Value {
         .get("policy_ready")
         .and_then(Value::as_bool)
         .unwrap_or(false);
+    let strict_auth_required = report
+        .get("strict_auth_required")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
     json!({
         "id": "web_tooling_health",
-        "ok": auth_present && policy_ready,
+        "ok": policy_ready && (!strict_auth_required || auth_present),
         "auth_present": auth_present,
         "policy_ready": policy_ready,
+        "strict_auth_required": strict_auth_required,
         "errors": report.get("errors").cloned().unwrap_or_else(|| json!([]))
     })
 }

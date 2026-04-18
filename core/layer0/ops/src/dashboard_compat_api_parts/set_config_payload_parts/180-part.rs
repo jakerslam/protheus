@@ -276,6 +276,15 @@ fn inline_tool_calls_allowed_for_user_message(message: &str) -> bool {
     if message_explicitly_disallows_tool_calls(&cleaned) {
         return false;
     }
+    let lowered = cleaned.to_ascii_lowercase();
+    let is_explicit_slash_tool_turn = lowered.starts_with("/file")
+        || lowered.starts_with("/search")
+        || lowered.starts_with("/browse")
+        || lowered.starts_with("/batch")
+        || lowered.starts_with("/tool");
+    if is_explicit_slash_tool_turn {
+        return true;
+    }
     if message_requests_local_file_mutation(&cleaned) {
         return true;
     }
@@ -283,7 +292,6 @@ fn inline_tool_calls_allowed_for_user_message(message: &str) -> bool {
     if !chat_workflow_tool_hints_for_message(&cleaned).is_empty() {
         return requires_information_search;
     }
-    let lowered = cleaned.to_ascii_lowercase();
     let asks_file_read = lowered.contains("read file")
         || lowered.contains("open file")
         || lowered.contains("show file")

@@ -110,6 +110,10 @@
       var maxTop = Number(bounds.maxBottom || 0) - height;
       if (!Number.isFinite(maxTop) || maxTop < minTop) maxTop = minTop;
       var top = this.chatSidebarClampTop(topRaw);
+      this.chatSidebarPlacementTopPx = top;
+      try {
+        localStorage.setItem('infring-chat-sidebar-placement-top-px', String(top));
+      } catch(_) {}
       var ratio = maxTop > minTop ? (top - minTop) / (maxTop - minTop) : 0.5;
       ratio = Math.max(0, Math.min(1, ratio));
       this.chatSidebarPlacementY = ratio;
@@ -209,13 +213,13 @@
 
     startChatSidebarPointerDrag(ev) {
       if (!ev || this.page !== 'chat') return;
+      if (this._chatSidebarPointerActive) return;
       var button = Number(ev.button);
       if (Number.isFinite(button) && button !== 0) return;
       var target = ev && ev.target ? ev.target : null;
       if (this.shouldIgnoreChatSidebarDragTarget(target)) return;
       this._chatSidebarPointerActive = true;
       this._chatSidebarPointerMoved = false;
-      this._chatSidebarPointerFromPulltab = Boolean(target && typeof target.closest === 'function' && target.closest('.sidebar-pulltab'));
       this._chatSidebarPointerStartX = Number(ev.clientX || 0);
       this._chatSidebarPointerStartY = Number(ev.clientY || 0);
       this._chatSidebarPointerOriginLeft = this.chatSidebarResolvedLeft();
@@ -226,8 +230,12 @@
       this._chatSidebarPointerVelocity = 0;
       this.chatSidebarDragLeft = this._chatSidebarPointerOriginLeft;
       this.chatSidebarDragTop = this._chatSidebarPointerOriginTop;
-      this._chatSidebarDragHardBounds = null;
       this.bindChatSidebarPointerListeners();
+      try {
+        if (ev.currentTarget && typeof ev.currentTarget.setPointerCapture === 'function' && Number.isFinite(ev.pointerId)) {
+          ev.currentTarget.setPointerCapture(ev.pointerId);
+        }
+      } catch(_) {}
     },
 
     handleChatSidebarPointerMove(ev) {
@@ -252,16 +260,12 @@
         this._chatSidebarPointerMoved = true;
         this.chatSidebarDragActive = true;
         this.hideDashboardPopupBySource('sidebar');
-        if (!this._chatSidebarPointerFromPulltab) {
-          this.suspendChatSidebarNativeDraggableNodes();
-        }
-        this._chatSidebarDragHardBounds = this.chatSidebarHardBounds();
       }
       var dragDx = nextX - Number(this._chatSidebarPointerStartX || 0);
       var dragDy = nextY - Number(this._chatSidebarPointerStartY || 0);
       var candidateLeft = Number(this._chatSidebarPointerOriginLeft || 0) + dragDx;
       var candidateTop = Number(this._chatSidebarPointerOriginTop || 0) + dragDy;
-      var hardBounds = this._chatSidebarDragHardBounds || this.chatSidebarHardBounds();
+      var hardBounds = this.chatSidebarHardBounds();
       var lockedWall = this.chatSidebarWallLockNormalized();
       if (lockedWall) {
         var unlockDistance = this.dragSurfaceDistanceFromWall(hardBounds, candidateLeft, candidateTop, lockedWall);
@@ -307,40 +311,29 @@
       if (!this._chatSidebarPointerActive) return;
       this._chatSidebarPointerActive = false;
       this.unbindChatSidebarPointerListeners();
-      this.restoreChatSidebarNativeDraggableNodes();
       if (!this._chatSidebarPointerMoved) {
         this.chatSidebarDragActive = false;
         this._chatSidebarDragRowsCache = null;
-        this._chatSidebarPointerFromPulltab = false;
-        this._chatSidebarDragHardBounds = null;
         return;
       }
       this._chatSidebarPointerMoved = false;
-      var hardBounds = this._chatSidebarDragHardBounds || this.chatSidebarHardBounds();
+      var hardBounds = this.chatSidebarHardBounds();
       var lockedWall = this.chatSidebarWallLockNormalized();
       var final;
       if (lockedWall) {
         final = this.dragSurfaceApplyWallLock(hardBounds, this.chatSidebarDragLeft, this.chatSidebarDragTop, lockedWall);
-        this.chatSidebarPlacementAnchorId = '';
-        try { localStorage.removeItem('infring-chat-sidebar-placement-anchor'); } catch(_) {}
       } else {
-        var clamped = this.dragSurfaceClampWithBounds(hardBounds, this.chatSidebarDragLeft, this.chatSidebarDragTop);
-        var snapId = this.chatSidebarNearestSnapId(clamped.left, clamped.top);
-        var snap = this.chatSidebarAnchorForSnapId(snapId);
-        final = this.dragSurfaceClampWithBounds(hardBounds, snap.left, snap.top);
-        this.chatSidebarPersistSnapId(snapId);
+        final = this.dragSurfaceClampWithBounds(hardBounds, this.chatSidebarDragLeft, this.chatSidebarDragTop);
       }
+      this.chatSidebarPlacementAnchorId = '';
+      try { localStorage.removeItem('infring-chat-sidebar-placement-anchor'); } catch(_) {}
       this.chatSidebarDragLeft = final.left;
       this.chatSidebarDragTop = final.top;
       this.chatSidebarPersistPlacementFromLeft(this.chatSidebarDragLeft);
       this.chatSidebarPersistPlacementFromTop(this.chatSidebarDragTop);
       this.chatSidebarDragActive = false;
       this._chatSidebarDragRowsCache = null;
-      if (this._chatSidebarPointerFromPulltab) {
-        this._sidebarToggleSuppressUntil = Date.now() + 260;
-      }
-      this._chatSidebarPointerFromPulltab = false;
-      this._chatSidebarDragHardBounds = null;
+      this._sidebarToggleSuppressUntil = Date.now() + 260;
     },
 
     shouldSuppressSidebarToggle() {

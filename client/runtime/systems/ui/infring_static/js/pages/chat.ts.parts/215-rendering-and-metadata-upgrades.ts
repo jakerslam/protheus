@@ -223,6 +223,16 @@
       return out;
     },
 
+    isThinkingShimmerText: function(msg) {
+      if (!msg || !msg.thinking) return false;
+      var status = typeof this.thinkingStatusText === 'function'
+        ? String(this.thinkingStatusText(msg) || '').trim()
+        : String(msg.thinking_status || msg.status_text || '').trim();
+      if (!status) return true;
+      if (typeof this.isThinkingPlaceholderText === 'function' && this.isThinkingPlaceholderText(status)) return true;
+      return true;
+    },
+
     thinkingPhaseText: function(msg) {
       if (!msg || !msg.thinking) return '';
       var primary = typeof this.thinkingStatusText === 'function'

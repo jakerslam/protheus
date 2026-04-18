@@ -1,11 +1,26 @@
 #!/usr/bin/env tsx
 
 import { createHash } from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
 import { cleanText, parseStrictOutArgs, readFlag } from '../../lib/cli.ts';
 import { currentRevision } from '../../lib/git.ts';
 import { emitStructuredResult, writeJsonArtifact } from '../../lib/result.ts';
 
 type ProfileId = 'rich' | 'pure' | 'tiny-max';
+type ProofTrackId = 'synthetic' | 'empirical' | 'dual';
+type MetricKey =
+  | 'peak_rss_mb'
+  | 'queue_depth_max'
+  | 'queue_depth_p95'
+  | 'receipt_throughput_per_min'
+  | 'receipt_p95_latency_ms'
+  | 'conduit_recovery_ms'
+  | 'adapter_restart_count'
+  | 'adapter_recovery_ms'
+  | 'recovery_time_ms'
+  | 'stale_surface_incidents';
+type MetricRecord = Record<MetricKey, number>;
 
 type ProfilePreset = {
   rss_base: number;
@@ -29,8 +44,36 @@ type ScenarioResult = {
   id: string;
   name: string;
   ok: boolean;
-  metrics: Record<string, number>;
+  metrics: Partial<MetricRecord>;
 };
+
+type EmpiricalSourceRow = {
+  id: string;
+  path: string;
+  loaded: boolean;
+  sample_points: number;
+  detail: string;
+};
+
+type EmpiricalTrack = {
+  metrics: MetricRecord;
+  sample_points: number;
+  provided_keys: MetricKey[];
+  sources: EmpiricalSourceRow[];
+};
+
+const METRIC_KEYS: MetricKey[] = [
+  'peak_rss_mb',
+  'queue_depth_max',
+  'queue_depth_p95',
+  'receipt_throughput_per_min',
+  'receipt_p95_latency_ms',
+  'conduit_recovery_ms',
+  'adapter_restart_count',
+  'adapter_recovery_ms',
+  'recovery_time_ms',
+  'stale_surface_incidents',
+];
 
 const PROFILE_PRESETS: Record<ProfileId, ProfilePreset> = {
   rich: {
@@ -86,9 +129,26 @@ const QUEUE_POLICY_TARGETS: Record<ProfileId, QueuePolicyTarget> = {
   },
 };
 
+const EMPIRICAL_ARTIFACT_PATHS = {
+  soak: 'local/state/ops/ops_ipc_bridge_stability_soak/latest.json',
+  dashboard: 'client/runtime/local/state/ui/infring_dashboard/latest_snapshot.json',
+  supportBundle: 'core/local/artifacts/support_bundle_latest.json',
+  boundedness: 'core/local/artifacts/runtime_boundedness_inspect_current.json',
+  adapterChaos: 'core/local/artifacts/adapter_runtime_chaos_gate_current.json',
+};
+
 function round(value: number, digits = 3): number {
   const factor = 10 ** digits;
   return Math.round(value * factor) / factor;
+}
+
+function safeNumber(value: unknown, fallback = 0): number {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : fallback;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }
 
 function stableUnit(seed: string): number {
@@ -109,6 +169,33 @@ function percentile(values: number[], q: number): number {
   return sorted[idx];
 }
 
+function emptyMetrics(): MetricRecord {
+  return {
+    peak_rss_mb: 0,
+    queue_depth_max: 0,
+    queue_depth_p95: 0,
+    receipt_throughput_per_min: 0,
+    receipt_p95_latency_ms: 0,
+    conduit_recovery_ms: 0,
+    adapter_restart_count: 0,
+    adapter_recovery_ms: 0,
+    recovery_time_ms: 0,
+    stale_surface_incidents: 0,
+  };
+}
+
+function normalizeMetrics(raw: Partial<MetricRecord> | null | undefined): MetricRecord {
+  const out = emptyMetrics();
+  for (const key of METRIC_KEYS) {
+    out[key] = safeNumber(raw?.[key], 0);
+  }
+  out.recovery_time_ms = round(Math.max(out.conduit_recovery_ms, out.adapter_recovery_ms));
+  if (out.queue_depth_p95 <= 0 && out.queue_depth_max > 0) {
+    out.queue_depth_p95 = round(out.queue_depth_max * 0.95);
+  }
+  return out;
+}
+
 function parseProfile(raw: string | undefined): ProfileId | null {
   const normalized = cleanText(raw || 'rich', 32).toLowerCase();
   if (normalized === 'rich') return 'rich';
@@ -117,6 +204,13 @@ function parseProfile(raw: string | undefined): ProfileId | null {
     return 'tiny-max';
   }
   return null;
+}
+
+function parseProofTrack(raw: string | undefined): ProofTrackId {
+  const normalized = cleanText(raw || 'dual', 24).toLowerCase();
+  if (normalized === 'synthetic') return 'synthetic';
+  if (normalized === 'empirical') return 'empirical';
+  return 'dual';
 }
 
 function parseArgs(argv: string[]) {
@@ -133,6 +227,7 @@ function parseArgs(argv: string[]) {
     ),
     profile,
     seed: cleanText(readFlag(argv, 'seed') || 'runtime-proof-v1', 120),
+    proofTrack: parseProofTrack(readFlag(argv, 'proof-track')),
   };
 }
 
@@ -265,21 +360,216 @@ function buildScenarios(profile: ProfileId, seed: string): ScenarioResult[] {
   ];
 }
 
-function summarizeMetrics(scenarios: ScenarioResult[]) {
-  const metrics = Object.assign({}, ...scenarios.map((row) => row.metrics));
-  const recoveryTimeMs = Math.max(Number(metrics.conduit_recovery_ms || 0), Number(metrics.adapter_recovery_ms || 0));
+function summarizeMetrics(scenarios: ScenarioResult[]): MetricRecord {
+  const merged = Object.assign({}, ...scenarios.map((row) => row.metrics));
+  return normalizeMetrics(merged);
+}
+
+function readJsonBestEffort(filePath: string): { ok: boolean; payload: any; detail: string } {
+  try {
+    return {
+      ok: true,
+      payload: JSON.parse(fs.readFileSync(filePath, 'utf8')),
+      detail: 'loaded',
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      payload: null,
+      detail: cleanText((error as Error)?.message || 'artifact_unavailable', 220),
+    };
+  }
+}
+
+function extractEmpiricalTrack(root: string): EmpiricalTrack {
+  const metrics = emptyMetrics();
+  const provided = new Set<MetricKey>();
+  const sources: EmpiricalSourceRow[] = [];
+  let samplePoints = 0;
+
+  const soakPath = path.resolve(root, EMPIRICAL_ARTIFACT_PATHS.soak);
+  const soak = readJsonBestEffort(soakPath);
+  if (soak.ok) {
+    const rows = Array.isArray(soak.payload?.rows) ? soak.payload.rows : [];
+    const durations = rows
+      .map((row: any) => safeNumber(row?.duration_ms, 0))
+      .filter((value) => value > 0);
+    const okRows = rows.filter((row: any) => row?.ok === true);
+    samplePoints += rows.length;
+    if (durations.length > 0) {
+      const durationTotalMs = durations.reduce((sum, value) => sum + value, 0);
+      const durationMinutes = Math.max(1 / 60, durationTotalMs / 60000);
+      metrics.receipt_throughput_per_min = round(okRows.length / durationMinutes);
+      metrics.receipt_p95_latency_ms = round(percentile(durations, 0.95));
+      metrics.conduit_recovery_ms = round(Math.max(...durations));
+      provided.add('receipt_throughput_per_min');
+      provided.add('receipt_p95_latency_ms');
+      provided.add('conduit_recovery_ms');
+    }
+    const daemonPids = Array.isArray(soak.payload?.daemon_pids_seen) ? soak.payload.daemon_pids_seen : [];
+    if (daemonPids.length > 0) {
+      metrics.adapter_restart_count = Math.max(0, new Set(daemonPids).size - 1);
+      provided.add('adapter_restart_count');
+    }
+    sources.push({
+      id: 'ops_ipc_bridge_stability_soak',
+      path: EMPIRICAL_ARTIFACT_PATHS.soak,
+      loaded: true,
+      sample_points: rows.length,
+      detail: `rows=${rows.length}`,
+    });
+  } else {
+    sources.push({
+      id: 'ops_ipc_bridge_stability_soak',
+      path: EMPIRICAL_ARTIFACT_PATHS.soak,
+      loaded: false,
+      sample_points: 0,
+      detail: soak.detail,
+    });
+  }
+
+  const dashboardPath = path.resolve(root, EMPIRICAL_ARTIFACT_PATHS.dashboard);
+  const dashboard = readJsonBestEffort(dashboardPath);
+  if (dashboard.ok) {
+    const backpressure = dashboard.payload?.attention_queue?.backpressure || {};
+    const maxQueueDepth = safeNumber(backpressure?.max_queue_depth, 0);
+    const queueUtilization = clamp(safeNumber(backpressure?.queue_utilization, 0), 0, 1);
+    if (maxQueueDepth > 0) {
+      const inferredDepth = queueUtilization > 0 ? maxQueueDepth * queueUtilization : maxQueueDepth;
+      metrics.queue_depth_max = round(inferredDepth);
+      metrics.queue_depth_p95 = round(inferredDepth * 0.95);
+      provided.add('queue_depth_max');
+      provided.add('queue_depth_p95');
+    }
+    const apmChecks = dashboard.payload?.apm?.checks || {};
+    const staleIncidents = Object.values(apmChecks).filter((row: any) => row?.stale === true).length;
+    metrics.stale_surface_incidents = staleIncidents;
+    provided.add('stale_surface_incidents');
+
+    const apmMetrics = Array.isArray(dashboard.payload?.apm?.metrics) ? dashboard.payload.apm.metrics : [];
+    const p95Metric = apmMetrics.find((row: any) => cleanText(row?.name || '', 80) === 'receipt_latency_p95_ms');
+    const p95Value = safeNumber(p95Metric?.value, 0);
+    if (p95Value > 0) {
+      metrics.receipt_p95_latency_ms = round(p95Value);
+      provided.add('receipt_p95_latency_ms');
+    }
+
+    samplePoints += 1;
+    sources.push({
+      id: 'dashboard_snapshot',
+      path: EMPIRICAL_ARTIFACT_PATHS.dashboard,
+      loaded: true,
+      sample_points: 1,
+      detail: 'snapshot_loaded',
+    });
+  } else {
+    sources.push({
+      id: 'dashboard_snapshot',
+      path: EMPIRICAL_ARTIFACT_PATHS.dashboard,
+      loaded: false,
+      sample_points: 0,
+      detail: dashboard.detail,
+    });
+  }
+
+  const supportBundlePath = path.resolve(root, EMPIRICAL_ARTIFACT_PATHS.supportBundle);
+  const supportBundle = readJsonBestEffort(supportBundlePath);
+  if (supportBundle.ok) {
+    const supportedLatency = safeNumber(supportBundle.payload?.metrics?.supported_command_latency_ms, 0);
+    const maxLatency = safeNumber(supportBundle.payload?.metrics?.max_command_latency_ms, 0);
+    if (!provided.has('receipt_p95_latency_ms') && supportedLatency > 0) {
+      metrics.receipt_p95_latency_ms = round(supportedLatency);
+      provided.add('receipt_p95_latency_ms');
+    }
+    if (maxLatency > 0) {
+      metrics.adapter_recovery_ms = round(maxLatency);
+      provided.add('adapter_recovery_ms');
+    }
+    samplePoints += 1;
+    sources.push({
+      id: 'support_bundle',
+      path: EMPIRICAL_ARTIFACT_PATHS.supportBundle,
+      loaded: true,
+      sample_points: 1,
+      detail: 'metrics_loaded',
+    });
+  } else {
+    sources.push({
+      id: 'support_bundle',
+      path: EMPIRICAL_ARTIFACT_PATHS.supportBundle,
+      loaded: false,
+      sample_points: 0,
+      detail: supportBundle.detail,
+    });
+  }
+
+  const boundednessPath = path.resolve(root, EMPIRICAL_ARTIFACT_PATHS.boundedness);
+  const boundedness = readJsonBestEffort(boundednessPath);
+  if (boundedness.ok) {
+    const boundedMetrics = boundedness.payload?.metrics || boundedness.payload || {};
+    const peakRss = safeNumber(boundedMetrics?.peak_rss_mb, 0);
+    if (peakRss > 0) {
+      metrics.peak_rss_mb = round(peakRss);
+      provided.add('peak_rss_mb');
+    }
+    sources.push({
+      id: 'runtime_boundedness_inspect',
+      path: EMPIRICAL_ARTIFACT_PATHS.boundedness,
+      loaded: true,
+      sample_points: 1,
+      detail: 'metrics_loaded',
+    });
+    samplePoints += 1;
+  } else {
+    sources.push({
+      id: 'runtime_boundedness_inspect',
+      path: EMPIRICAL_ARTIFACT_PATHS.boundedness,
+      loaded: false,
+      sample_points: 0,
+      detail: boundedness.detail,
+    });
+  }
+
+  const adapterChaosPath = path.resolve(root, EMPIRICAL_ARTIFACT_PATHS.adapterChaos);
+  const adapterChaos = readJsonBestEffort(adapterChaosPath);
+  if (adapterChaos.ok) {
+    const adaptersTotal = safeNumber(adapterChaos.payload?.summary?.adapters_total, 0);
+    sources.push({
+      id: 'adapter_runtime_chaos',
+      path: EMPIRICAL_ARTIFACT_PATHS.adapterChaos,
+      loaded: true,
+      sample_points: adaptersTotal > 0 ? adaptersTotal : 1,
+      detail: `adapters=${adaptersTotal}`,
+    });
+    samplePoints += adaptersTotal > 0 ? adaptersTotal : 1;
+  } else {
+    sources.push({
+      id: 'adapter_runtime_chaos',
+      path: EMPIRICAL_ARTIFACT_PATHS.adapterChaos,
+      loaded: false,
+      sample_points: 0,
+      detail: adapterChaos.detail,
+    });
+  }
+
+  metrics.recovery_time_ms = round(Math.max(metrics.conduit_recovery_ms, metrics.adapter_recovery_ms));
+  const normalized = normalizeMetrics(metrics);
   return {
-    peak_rss_mb: Number(metrics.peak_rss_mb || 0),
-    queue_depth_max: Number(metrics.queue_depth_max || 0),
-    queue_depth_p95: Number(metrics.queue_depth_p95 || 0),
-    receipt_throughput_per_min: Number(metrics.receipt_throughput_per_min || 0),
-    receipt_p95_latency_ms: Number(metrics.receipt_p95_latency_ms || 0),
-    conduit_recovery_ms: Number(metrics.conduit_recovery_ms || 0),
-    adapter_restart_count: Number(metrics.adapter_restart_count || 0),
-    adapter_recovery_ms: Number(metrics.adapter_recovery_ms || 0),
-    recovery_time_ms: round(recoveryTimeMs),
-    stale_surface_incidents: Number(metrics.stale_surface_incidents || 0),
+    metrics: normalized,
+    sample_points: samplePoints,
+    provided_keys: Array.from(provided),
+    sources,
   };
+}
+
+function mergeDualTrackMetrics(synthetic: MetricRecord, empirical: EmpiricalTrack): MetricRecord {
+  const out = emptyMetrics();
+  const provided = new Set<MetricKey>(empirical.provided_keys);
+  for (const key of METRIC_KEYS) {
+    out[key] = provided.has(key) ? empirical.metrics[key] : synthetic[key];
+  }
+  out.recovery_time_ms = round(Math.max(out.conduit_recovery_ms, out.adapter_recovery_ms));
+  return out;
 }
 
 function deterministicChecksum(payload: unknown): string {
@@ -305,22 +595,54 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   }
 
   const scenarios = buildScenarios(args.profile, args.seed);
-  const metrics = summarizeMetrics(scenarios);
+  const syntheticMetrics = summarizeMetrics(scenarios);
+  const empiricalTrack = extractEmpiricalTrack(root);
+  const effectiveMetrics =
+    args.proofTrack === 'synthetic'
+      ? syntheticMetrics
+      : args.proofTrack === 'empirical'
+        ? empiricalTrack.metrics
+        : mergeDualTrackMetrics(syntheticMetrics, empiricalTrack);
+
   const failures = scenarios.filter((row) => !row.ok).map((row) => ({
     id: row.id,
     detail: `${row.name} failed`,
   }));
+  if (args.proofTrack === 'empirical' && empiricalTrack.sample_points <= 0) {
+    failures.push({
+      id: 'empirical_proof_track_missing',
+      detail: 'proof_track=empirical requires live empirical evidence sample points',
+    });
+  }
+
   const deterministicPayload = {
     profile: args.profile,
+    proof_track: args.proofTrack,
     seed: args.seed,
     scenarios,
-    metrics,
+    synthetic_metrics: syntheticMetrics,
+    empirical_metrics: empiricalTrack.metrics,
+    effective_metrics: effectiveMetrics,
+    empirical_sources: empiricalTrack.sources,
   };
   const metricsPayload = {
     ok: failures.length === 0,
     type: 'runtime_proof_metrics',
     profile: args.profile,
-    metrics,
+    proof_track: args.proofTrack,
+    metrics: effectiveMetrics,
+    proof_tracks: {
+      selected: args.proofTrack,
+      synthetic: {
+        sample_points: scenarios.length,
+        metrics: syntheticMetrics,
+      },
+      empirical: {
+        sample_points: empiricalTrack.sample_points,
+        metrics: empiricalTrack.metrics,
+        provided_keys: empiricalTrack.provided_keys,
+      },
+    },
   };
   writeJsonArtifact(args.metricsOutPath, metricsPayload);
 
@@ -332,14 +654,32 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     revision: currentRevision(root),
     inputs: {
       seed: args.seed,
+      proof_track: args.proofTrack,
       metrics_out: args.metricsOutPath,
     },
     summary: {
       scenario_count: scenarios.length,
       failed_scenarios: failures.length,
       pass: failures.length === 0,
+      proof_track: args.proofTrack,
+      empirical_sample_points: empiricalTrack.sample_points,
     },
-    metrics,
+    metrics: effectiveMetrics,
+    proof_tracks: {
+      selected: args.proofTrack,
+      synthetic: {
+        available: true,
+        sample_points: scenarios.length,
+        metrics: syntheticMetrics,
+      },
+      empirical: {
+        available: empiricalTrack.sample_points > 0,
+        sample_points: empiricalTrack.sample_points,
+        metrics: empiricalTrack.metrics,
+        provided_keys: empiricalTrack.provided_keys,
+        sources: empiricalTrack.sources,
+      },
+    },
     scenarios,
     deterministic_checksum: deterministicChecksum(deterministicPayload),
     failures,

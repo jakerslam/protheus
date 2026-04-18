@@ -1,15 +1,18 @@
-
 fn build_embedding_map_from_entries(
     entries: &[IndexEntry],
     dims: usize,
 ) -> HashMap<String, Vec<f32>> {
     let mut out = HashMap::new();
     for entry in entries {
+        let node_id = clean_text(&entry.node_id, 260);
+        if node_id.is_empty() || out.contains_key(&node_id) {
+            continue;
+        }
         let vector = build_entry_embedding(entry, dims);
         if vector.is_empty() {
             continue;
         }
-        out.insert(entry.node_id.clone(), vector);
+        out.insert(node_id, vector);
     }
     out
 }

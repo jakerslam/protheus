@@ -21,6 +21,9 @@ pub const TINY_PROFILE: TinyRuntimeProfile = TinyRuntimeProfile {
     supports_receipt_batching: true,
 };
 
+pub const CONTEXT_WINDOW_HARD_MIN_TOKENS: u32 = 16_000;
+pub const CONTEXT_WINDOW_WARN_BELOW_TOKENS: u32 = 32_000;
+
 pub fn tiny_profile() -> TinyRuntimeProfile {
     TINY_PROFILE
 }
@@ -39,6 +42,10 @@ pub fn normalized_capacity_score(mem_kib: u32, hands: u16) -> u16 {
     ((mem_cap + hand_cap) / 2) as u16
 }
 
+pub fn bounded_lifespan_turns(requested_turns: u16) -> u16 {
+    requested_turns.clamp(1, 1024)
+}
+
 pub fn bounded_channel_retry_attempts(requested_attempts: u16) -> u16 {
     requested_attempts.clamp(1, 8)
 }
@@ -55,6 +62,12 @@ pub fn normalized_proxy_mode(enabled: bool, trusted_env_proxy: bool) -> u8 {
     } else {
         1
     }
+}
+
+pub fn evaluate_context_window_guard(tokens: u32) -> (bool, bool) {
+    let should_warn = tokens > 0 && tokens < CONTEXT_WINDOW_WARN_BELOW_TOKENS;
+    let should_block = tokens > 0 && tokens < CONTEXT_WINDOW_HARD_MIN_TOKENS;
+    (should_warn, should_block)
 }
 
 #[cfg(test)]
@@ -97,5 +110,22 @@ mod tests {
         assert_eq!(normalized_proxy_mode(false, false), 0);
         assert_eq!(normalized_proxy_mode(true, false), 1);
         assert_eq!(normalized_proxy_mode(true, true), 2);
+    }
+
+    #[test]
+    fn context_window_guard_warns_and_blocks_below_hard_min() {
+        let (warn, block) = evaluate_context_window_guard(12_000);
+        assert!(warn);
+        assert!(block);
+        let (warn2, block2) = evaluate_context_window_guard(40_000);
+        assert!(!warn2);
+        assert!(!block2);
+    }
+
+    #[test]
+    fn lifespan_turns_are_bounded() {
+        assert_eq!(bounded_lifespan_turns(0), 1);
+        assert_eq!(bounded_lifespan_turns(44), 44);
+        assert_eq!(bounded_lifespan_turns(u16::MAX), 1024);
     }
 }

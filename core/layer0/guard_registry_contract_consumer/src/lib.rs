@@ -20,7 +20,12 @@ pub struct GuardRegistryContract {
 fn sanitize_token(input: &str, max_len: usize) -> String {
     input
         .chars()
-        .filter(|c| !matches!(*c, '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}'))
+        .filter(|c| {
+            !matches!(
+                *c,
+                '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}'
+            )
+        })
         .filter(|c| !c.is_control())
         .collect::<String>()
         .trim()
@@ -46,25 +51,37 @@ pub fn normalize_capability_list(items: &[String]) -> Vec<String> {
     out
 }
 
+fn normalize_entry(entry: &GuardRegistryEntry) -> Option<GuardRegistryEntry> {
+    let guard_id = sanitize_token(entry.guard_id.as_str(), MAX_GUARD_ID_LEN);
+    if guard_id.is_empty() {
+        return None;
+    }
+    Some(GuardRegistryEntry {
+        guard_id,
+        active: entry.active,
+        capabilities: normalize_capability_list(&entry.capabilities),
+    })
+}
+
 pub fn normalize_guard_registry(entries: Vec<GuardRegistryEntry>) -> GuardRegistryContract {
     let mut merged: BTreeMap<String, GuardRegistryEntry> = BTreeMap::new();
     for entry in entries {
-        let guard_id = sanitize_token(entry.guard_id.as_str(), MAX_GUARD_ID_LEN);
-        if guard_id.is_empty() {
+        let Some(entry) = normalize_entry(&entry) else {
             continue;
-        }
-        let normalized_caps = normalize_capability_list(&entry.capabilities);
-        let slot = merged.entry(guard_id.clone()).or_insert_with(|| GuardRegistryEntry {
-            guard_id: guard_id.clone(),
-            active: false,
-            capabilities: Vec::new(),
-        });
+        };
+        let slot = merged
+            .entry(entry.guard_id.clone())
+            .or_insert_with(|| GuardRegistryEntry {
+                guard_id: entry.guard_id.clone(),
+                active: false,
+                capabilities: Vec::new(),
+            });
         slot.active = slot.active || entry.active;
         let combined = slot
             .capabilities
             .iter()
             .cloned()
-            .chain(normalized_caps.into_iter())
+            .chain(entry.capabilities.into_iter())
             .collect::<Vec<_>>();
         slot.capabilities = normalize_capability_list(&combined);
     }
@@ -74,13 +91,16 @@ pub fn normalize_guard_registry(entries: Vec<GuardRegistryEntry>) -> GuardRegist
 }
 
 pub fn effective_guard_ids(contract: &GuardRegistryContract) -> Vec<String> {
-    contract
-        .entries
-        .iter()
-        .filter(|entry| entry.active)
-        .map(|entry| sanitize_token(entry.guard_id.as_str(), MAX_GUARD_ID_LEN))
-        .filter(|entry| !entry.is_empty())
-        .collect()
+    let mut out = BTreeSet::new();
+    for entry in &contract.entries {
+        let Some(normalized) = normalize_entry(entry) else {
+            continue;
+        };
+        if normalized.active {
+            out.insert(normalized.guard_id);
+        }
+    }
+    out.into_iter().collect()
 }
 
 pub fn is_capability_allowed(
@@ -94,28 +114,21 @@ pub fn is_capability_allowed(
         return false;
     }
     contract.entries.iter().any(|entry| {
-        entry.active
-            && sanitize_token(entry.guard_id.as_str(), MAX_GUARD_ID_LEN) == normalized_guard
-            && entry
+        let Some(normalized_entry) = normalize_entry(entry) else {
+            return false;
+        };
+        normalized_entry.active
+            && normalized_entry.guard_id == normalized_guard
+            && normalized_entry
                 .capabilities
                 .iter()
-                .any(|cap| sanitize_token(cap, MAX_CAPABILITY_LEN) == normalized_capability)
+                .any(|cap| cap == &normalized_capability)
     })
-}
-
-pub fn add(left: u64, right: u64) -> u64 {
-    left.saturating_add(right)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
 
     #[test]
     fn guard_registry_normalization_merges_duplicates() {
@@ -132,8 +145,33 @@ mod tests {
             },
         ]);
         assert_eq!(contract.entries.len(), 1);
-        assert_eq!(effective_guard_ids(&contract), vec!["guard.alpha".to_string()]);
+        assert_eq!(
+            effective_guard_ids(&contract),
+            vec!["guard.alpha".to_string()]
+        );
         assert!(is_capability_allowed(&contract, "guard.alpha", "net.read"));
         assert!(is_capability_allowed(&contract, "guard.alpha", "fs.write"));
+    }
+
+    #[test]
+    fn effective_guard_ids_are_unique_even_when_contract_is_not_pre_normalized() {
+        let contract = GuardRegistryContract {
+            entries: vec![
+                GuardRegistryEntry {
+                    guard_id: " guard.alpha ".to_string(),
+                    active: true,
+                    capabilities: vec!["net.read".to_string()],
+                },
+                GuardRegistryEntry {
+                    guard_id: "GUARD.ALPHA".to_string(),
+                    active: true,
+                    capabilities: vec!["fs.write".to_string()],
+                },
+            ],
+        };
+        assert_eq!(
+            effective_guard_ids(&contract),
+            vec!["guard.alpha".to_string()]
+        );
     }
 }

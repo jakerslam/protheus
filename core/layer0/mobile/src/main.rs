@@ -14,7 +14,12 @@ const MAX_COMMAND_LEN: usize = 64;
 fn strip_invisible_unicode(input: &str) -> String {
     input
         .chars()
-        .filter(|c| !matches!(*c, '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}'))
+        .filter(|c| {
+            !matches!(
+                *c,
+                '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}'
+            )
+        })
         .filter(|c| !c.is_control() || *c == '\n' || *c == '\t')
         .collect()
 }
@@ -81,6 +86,11 @@ fn load_request(args: &[String]) -> Result<String, String> {
         let path = sanitize_text(v.as_str(), MAX_PATH_LEN);
         if path.is_empty() {
             return Err("request_file_path_empty".to_string());
+        }
+        let metadata =
+            fs::metadata(path.as_str()).map_err(|e| format!("request_file_stat_failed:{e}"))?;
+        if metadata.len() > MAX_REQUEST_BYTES as u64 {
+            return Err("request_too_large".to_string());
         }
         let bytes = fs::read(path.as_str()).map_err(|e| format!("request_file_read_failed:{e}"))?;
         if bytes.len() > MAX_REQUEST_BYTES {

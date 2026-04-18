@@ -8,6 +8,7 @@ import { run as runReleaseGate } from './runtime_proof_release_gate.ts';
 import { run as runAdapterChaosGate } from './adapter_runtime_chaos_gate.ts';
 
 type ProfileId = 'rich' | 'pure' | 'tiny-max';
+type ProofTrackId = 'synthetic' | 'empirical' | 'dual';
 
 function parseProfile(raw: string | undefined): ProfileId | null {
   const normalized = cleanText(raw || 'rich', 32).toLowerCase();
@@ -19,6 +20,13 @@ function parseProfile(raw: string | undefined): ProfileId | null {
   return null;
 }
 
+function parseProofTrack(raw: string | undefined): ProofTrackId {
+  const normalized = cleanText(raw || 'dual', 24).toLowerCase();
+  if (normalized === 'synthetic') return 'synthetic';
+  if (normalized === 'empirical') return 'empirical';
+  return 'dual';
+}
+
 function parseArgs(argv: string[]) {
   const common = parseStrictOutArgs(argv, {
     out: 'core/local/artifacts/runtime_proof_verify_current.json',
@@ -28,6 +36,7 @@ function parseArgs(argv: string[]) {
     strict: common.strict,
     outPath: cleanText(readFlag(argv, 'out') || common.out || '', 400),
     profile,
+    proofTrack: parseProofTrack(readFlag(argv, 'proof-track')),
   };
 }
 
@@ -59,6 +68,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   const harnessExit = runHarness([
     '--strict=1',
     `--profile=${args.profile}`,
+    `--proof-track=${args.proofTrack}`,
     `--out=${harnessOut}`,
     `--metrics-out=${harnessMetricsOut}`,
   ]);
@@ -70,6 +80,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   const gateExit = runReleaseGate([
     '--strict=1',
     `--profile=${args.profile}`,
+    `--proof-track=${args.proofTrack}`,
     `--harness=${harnessOut}`,
     `--adapter-chaos=${adapterChaosOut}`,
     '--policy=tests/tooling/config/release_gates.yaml',
@@ -87,6 +98,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     revision: currentRevision(root),
     summary: {
       pass: ok,
+      proof_track: args.proofTrack,
       harness_exit: harnessExit,
       release_gate_exit: gateExit,
       adapter_runtime_chaos_exit: adapterChaosExit,

@@ -94,6 +94,13 @@ fn normalize_cell(cell: &CrdtCell) -> CrdtCell {
     }
 }
 
+fn should_take_incoming(existing: &CrdtCell, incoming: &CrdtCell) -> bool {
+    incoming.clock > existing.clock
+        || (incoming.clock == existing.clock
+            && (incoming.node > existing.node
+                || (incoming.node == existing.node && incoming.value > existing.value)))
+}
+
 pub fn merge(left: &CrdtMap, right: &CrdtMap) -> CrdtMap {
     let mut out: CrdtMap = BTreeMap::new();
     for (key, cell) in left {
@@ -111,9 +118,7 @@ pub fn merge(left: &CrdtMap, right: &CrdtMap) -> CrdtMap {
                 out.insert(normalized_key, incoming);
             }
             Some(existing) => {
-                let take_incoming = incoming.clock > existing.clock
-                    || (incoming.clock == existing.clock && incoming.node > existing.node);
-                if take_incoming {
+                if should_take_incoming(existing, &incoming) {
                     out.insert(normalized_key, incoming);
                 }
             }
@@ -165,5 +170,31 @@ mod tests {
         let cell = merged.get("bad-key").expect("normalized key exists");
         assert_eq!(cell.node, "node-unsafe");
         assert_eq!(cell.value, "payload");
+    }
+
+    #[test]
+    fn merge_uses_value_tiebreak_when_clock_and_node_match() {
+        let mut a = CrdtMap::new();
+        a.insert(
+            "topic".into(),
+            CrdtCell {
+                value: "alpha".into(),
+                clock: 3,
+                node: "n1".into(),
+            },
+        );
+        let mut b = CrdtMap::new();
+        b.insert(
+            "topic".into(),
+            CrdtCell {
+                value: "beta".into(),
+                clock: 3,
+                node: "n1".into(),
+            },
+        );
+        let merged_ab = merge(&a, &b);
+        let merged_ba = merge(&b, &a);
+        assert_eq!(merged_ab, merged_ba);
+        assert_eq!(merged_ab.get("topic").map(|v| v.value.as_str()), Some("beta"));
     }
 }

@@ -44,6 +44,18 @@
       return 0;
     },
 
+    normalizeDrawerPermissionKey(raw) {
+      var key = String(raw == null ? '' : raw).trim().toLowerCase();
+      if (!key) return '';
+      key = key.replace(/\s+/g, '.');
+      key = key.replace(/[^a-z0-9._:-]/g, '');
+      key = key.replace(/\.{2,}/g, '.');
+      key = key.replace(/^\.+|\.+$/g, '');
+      if (key.length > 128) key = key.slice(0, 128);
+      if (key.indexOf('.') <= 0) return '';
+      return key;
+    },
+
     resolveDrawerPermissionsManifest() {
       var row = this.agentDrawer && typeof this.agentDrawer === 'object' ? this.agentDrawer : {};
       var contract = row.contract && typeof row.contract === 'object' ? row.contract : {};
@@ -61,31 +73,41 @@
         category_defaults: {},
         grants: {}
       };
+      var grantCount = 0;
+      var maxGrantCount = 2048;
       for (var ci = 0; ci < catalog.length; ci += 1) {
         var category = String((catalog[ci] && catalog[ci].category) || '').trim().toLowerCase();
         if (!category) continue;
         out.category_defaults[category] = this.normalizeDrawerPermissionValue(defaultsSource[category]);
       }
       Object.keys(grantsSource || {}).forEach(function(key) {
-        var permissionKey = String(key || '').trim();
-        if (!permissionKey) return;
+        if (grantCount >= maxGrantCount) return;
+        var permissionKey = this.normalizeDrawerPermissionKey(key);
+        if (!permissionKey || Object.prototype.hasOwnProperty.call(out.grants, permissionKey)) return;
         out.grants[permissionKey] = this.normalizeDrawerPermissionValue(grantsSource[key]);
+        grantCount += 1;
       }, this);
       Object.keys(source || {}).forEach(function(key) {
-        var permissionKey = String(key || '').trim();
-        if (permissionKey.indexOf('.') <= 0 || Object.prototype.hasOwnProperty.call(out.grants, permissionKey)) return;
+        if (grantCount >= maxGrantCount) return;
+        var permissionKey = this.normalizeDrawerPermissionKey(key);
+        if (!permissionKey || Object.prototype.hasOwnProperty.call(out.grants, permissionKey)) return;
         out.grants[permissionKey] = this.normalizeDrawerPermissionValue(source[key]);
+        grantCount += 1;
       }, this);
       for (var i = 0; i < catalog.length; i += 1) {
+        if (grantCount >= maxGrantCount) break;
         var section = catalog[i] || {};
         var permissions = Array.isArray(section.permissions) ? section.permissions : [];
         for (var j = 0; j < permissions.length; j += 1) {
-          var key = String((permissions[j] && permissions[j].key) || '').trim();
+          if (grantCount >= maxGrantCount) break;
+          var key = this.normalizeDrawerPermissionKey((permissions[j] && permissions[j].key) || '');
           if (!key || Object.prototype.hasOwnProperty.call(out.grants, key)) continue;
           out.grants[key] = 0;
+          grantCount += 1;
         }
       }
-      out.grants['web.search.basic'] = out.grants['web.search.basic'] < 0 ? 0 : 1;
+      var webSearchKey = this.normalizeDrawerPermissionKey('web.search.basic');
+      out.grants[webSearchKey] = out.grants[webSearchKey] < 0 ? 0 : 1;
       return out;
     },
 
@@ -99,13 +121,13 @@
     },
 
     drawerPermissionLabelForKey(permissionKey) {
-      var key = String(permissionKey || '').trim();
+      var key = this.normalizeDrawerPermissionKey(permissionKey);
       if (!key) return '';
       var rows = Array.isArray(this.freshInitPermissionCatalog) ? this.freshInitPermissionCatalog : [];
       for (var i = 0; i < rows.length; i += 1) {
         var perms = Array.isArray(rows[i] && rows[i].permissions) ? rows[i].permissions : [];
         for (var j = 0; j < perms.length; j += 1) {
-          if (String((perms[j] && perms[j].key) || '').trim() === key) {
+          if (this.normalizeDrawerPermissionKey((perms[j] && perms[j].key) || '') === key) {
             return String((perms[j] && perms[j].label) || key).trim() || key;
           }
         }
@@ -129,8 +151,9 @@
       var keys = Object.keys(grants || {}).sort(function(left, right) {
         return String(left || '').localeCompare(String(right || ''));
       });
+      var seenByCategory = {};
       for (var k = 0; k < keys.length; k += 1) {
-        var key = String(keys[k] || '').trim();
+        var key = this.normalizeDrawerPermissionKey(keys[k]);
         if (!key) continue;
         var category = key.split('.')[0] || 'other';
         if (!byCategory[category]) {
@@ -141,6 +164,9 @@
           };
           out.push(byCategory[category]);
         }
+        if (!seenByCategory[category]) seenByCategory[category] = {};
+        if (seenByCategory[category][key]) continue;
+        seenByCategory[category][key] = true;
         byCategory[category].permissions.push({ key: key, label: this.drawerPermissionLabelForKey(key) });
       }
       return out.filter(function(section) {
@@ -149,7 +175,7 @@
     },
 
     drawerPermissionState(permissionKey) {
-      var key = String(permissionKey || '').trim();
+      var key = this.normalizeDrawerPermissionKey(permissionKey);
       if (!key) return 0;
       var manifest = this.resolveDrawerPermissionsManifest();
       var grants = manifest && manifest.grants && typeof manifest.grants === 'object' ? manifest.grants : {};
@@ -212,7 +238,7 @@
     },
 
     setDrawerPermissionState(permissionKey, nextValue) {
-      var key = String(permissionKey || '').trim();
+      var key = this.normalizeDrawerPermissionKey(permissionKey);
       if (!key) return;
       var manifest = this.ensureDrawerPermissionsManifest();
       manifest.grants[key] = this.normalizeDrawerPermissionValue(nextValue);
@@ -229,7 +255,7 @@
         if (String((rows[i] && rows[i].category) || '').trim().toLowerCase() !== category) continue;
         var perms = Array.isArray(rows[i].permissions) ? rows[i].permissions : [];
         for (var j = 0; j < perms.length; j += 1) {
-          var key = String((perms[j] && perms[j].key) || '').trim();
+          var key = this.normalizeDrawerPermissionKey((perms[j] && perms[j].key) || '');
           if (!key) continue;
           manifest.grants[key] = this.normalizeDrawerPermissionValue(nextValue);
         }
@@ -243,7 +269,7 @@
     },
 
     setDrawerPermissionChecked(permissionKey, checked) {
-      var key = String(permissionKey || '').trim();
+      var key = this.normalizeDrawerPermissionKey(permissionKey);
       if (!key) return;
       var current = this.drawerPermissionState(key);
       this.setDrawerPermissionState(key, checked ? (current < 0 ? 0 : current) : -1);

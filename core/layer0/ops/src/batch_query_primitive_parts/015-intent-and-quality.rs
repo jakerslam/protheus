@@ -153,9 +153,36 @@ fn looks_like_framework_overview_text(text: &str) -> bool {
         || lowered.contains("orchestration")
 }
 
+fn looks_like_competitive_programming_dump(text: &str) -> bool {
+    let lowered = clean_text(text, 2_400).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    let marker_hits = [
+        "given a tree",
+        "input specification",
+        "output specification",
+        "sample input",
+        "sample output",
+        "#include <stdio.h>",
+        "int main()",
+        "public class",
+        "translate the following java code",
+        "csdn.net",
+        "acm",
+    ]
+    .iter()
+    .filter(|marker| lowered.contains(**marker))
+    .count();
+    marker_hits >= 3
+}
+
 fn candidate_needs_link_fetch(query: &str, candidate: &Candidate) -> bool {
     let snippet = clean_text(&candidate.snippet, 1_600);
     if snippet.is_empty() {
+        return true;
+    }
+    if looks_like_competitive_programming_dump(&format!("{} {}", candidate.title, snippet)) {
         return true;
     }
     if is_framework_catalog_intent(query) {
@@ -215,6 +242,9 @@ fn framework_catalog_source_adjustment(candidate: &Candidate) -> f64 {
     let domain = candidate_domain_hint(candidate).to_ascii_lowercase();
     let combined = format!("{} {} {}", candidate.title, candidate.snippet, candidate.locator);
     let combined_lowered = combined.to_ascii_lowercase();
+    if looks_like_competitive_programming_dump(&combined) {
+        return -0.45;
+    }
     if domain.contains("reddit.com") || domain.contains("zhihu.com") || domain.contains("quora.com")
     {
         return -0.28;

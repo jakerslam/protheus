@@ -4,15 +4,12 @@
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const { sanitizeBridgeArg } = require('../../../client/runtime/lib/runtime_system_entrypoint.ts');
 const MAX_ARG_LEN = 512;
 
 function sanitizeArgToken(value, maxLen = MAX_ARG_LEN) {
-  return String(value == null ? '' : value)
-    .replace(/[\u200B\u200C\u200D\u2060\uFEFF]/g, '')
-    .replace(/[\r\n\t]+/g, ' ')
-    .replace(/[^\x20-\x7E]+/g, '')
-    .trim()
-    .slice(0, Math.max(1, Number(maxLen) || 1));
+  const max = Math.max(1, Number(maxLen) || 1);
+  return sanitizeBridgeArg(value, max);
 }
 
 function isFile(filePath) {

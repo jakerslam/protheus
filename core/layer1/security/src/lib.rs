@@ -33,6 +33,42 @@ pub fn security_conduit_mode_is_trusted(raw: &str) -> bool {
     )
 }
 
+pub fn resolve_security_conduit_mode_with_contract(
+    raw: &str,
+    strict_contract: bool,
+) -> (String, bool, &'static str) {
+    let normalized = normalize_security_conduit_mode(raw);
+    if normalized.is_empty() {
+        return (
+            "strict".to_string(),
+            false,
+            "conduit_mode_empty_after_normalization",
+        );
+    }
+    let is_known = matches!(
+        normalized.as_str(),
+        "strict" | "trusted_env_proxy" | "trusted" | "env_proxy"
+    );
+    if !is_known && strict_contract {
+        return (
+            "strict".to_string(),
+            false,
+            "conduit_mode_unknown_under_strict_contract",
+        );
+    }
+    let resolved = if is_known {
+        normalized
+    } else {
+        "strict".to_string()
+    };
+    let reason = if is_known {
+        "conduit_mode_contract_ok"
+    } else {
+        "conduit_mode_fallback_to_strict_non_strict_contract"
+    };
+    (resolved, true, reason)
+}
+
 pub fn is_cross_origin_redirect_header_safe(header: &str) -> bool {
     matches!(
         header.trim().to_ascii_lowercase().as_str(),
@@ -67,5 +103,14 @@ mod assim120_security_lib_tests {
     fn redirect_header_safety_filter_matches_policy() {
         assert!(is_cross_origin_redirect_header_safe("Accept"));
         assert!(!is_cross_origin_redirect_header_safe("Authorization"));
+    }
+
+    #[test]
+    fn strict_conduit_contract_rejects_unknown_mode() {
+        let (mode, ok, reason) =
+            resolve_security_conduit_mode_with_contract("custom-forward-proxy", true);
+        assert_eq!(mode, "strict");
+        assert!(!ok);
+        assert_eq!(reason, "conduit_mode_unknown_under_strict_contract");
     }
 }

@@ -30,6 +30,18 @@
   align-items: stretch;
 }
 
+.composer-plus-menu-item,
+.composer-plus-inline-controls,
+.composer-plus-inline-controls .input-box-selector-row {
+  transition:
+    transform 180ms var(--ease-smooth),
+    opacity 180ms var(--ease-smooth),
+    margin 180ms var(--ease-smooth),
+    padding 180ms var(--ease-smooth),
+    gap 180ms var(--ease-smooth);
+  transform-origin: top right;
+}
+
 .composer-plus-menu-item + .composer-plus-menu-item {
   border-top: 1px solid var(--border);
 }
@@ -69,7 +81,7 @@
   border-bottom: none;
   padding-top: 10px;
   padding-bottom: 10px;
-  order: 90;
+  order: -30;
 }
 
 .composer-plus-menu-context-row .context-ring-inline-label {
@@ -77,6 +89,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: var(--text);
 }
 
 .composer-plus-menu-context-row .context-ring {
@@ -117,6 +130,14 @@
   align-items: stretch;
   justify-content: flex-start;
   border-top: 1px solid var(--dashboard-preview-surface-border);
+  order: -20;
+}
+
+.composer-plus-menu-item-suggestions {
+  order: 30;
+}
+
+.composer-plus-menu-item-terminal {
   order: 40;
 }
 
@@ -151,6 +172,29 @@
   color: var(--text);
   font-family: var(--font-sans);
   pointer-events: auto;
+}
+
+.composer-plus-state-pill {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 18px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, currentColor 45%, var(--border) 55%);
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  color: var(--text);
+  font-size: 10px;
+  line-height: 1;
+  font-family: var(--font-mono);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.composer-plus-state-pill-model {
+  margin-left: auto;
+  margin-right: 0;
 }
 
 .composer-plus-inline-controls .input-box-selector-trigger {
@@ -378,9 +422,15 @@
   background: transparent;
   color: #95ff63;
   font-family: var(--font-mono);
-  padding: 12px 52px 12px calc((var(--terminal-prefix-ch, 22) * 1ch) + 12px);
+  padding: 12px 52px 12px 14px;
   caret-color: transparent;
   caret-shape: block;
+}
+
+.input-area.terminal-mode textarea::placeholder,
+.input-area textarea.terminal-textarea::placeholder {
+  color: color-mix(in srgb, #95ff63 48%, transparent);
+  opacity: 1;
 }
 
 .input-area.terminal-mode .composer-actions-right {

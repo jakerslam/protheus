@@ -2,6 +2,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::time::Instant;
 
+const TELEMETRY_VALUE_HARD_MAX: f64 = 1_000_000.0;
+const LATENCY_WARN_ABOVE_MS: f64 = 8_000.0;
+const LATENCY_BLOCK_ABOVE_MS: f64 = 20_000.0;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Metric {
     pub name: String,
@@ -63,15 +67,32 @@ fn percentile(values: &[f64], pct: f64) -> f64 {
     sorted[idx]
 }
 
+fn evaluate_latency_guard(latency_p95_ms: f64, latency_p99_ms: f64) -> serde_json::Value {
+    let warn = latency_p95_ms >= LATENCY_WARN_ABOVE_MS || latency_p99_ms >= LATENCY_WARN_ABOVE_MS;
+    let block =
+        latency_p95_ms >= LATENCY_BLOCK_ABOVE_MS || latency_p99_ms >= LATENCY_BLOCK_ABOVE_MS;
+    json!({
+        "warn_above_ms": LATENCY_WARN_ABOVE_MS,
+        "block_above_ms": LATENCY_BLOCK_ABOVE_MS,
+        "should_warn": warn,
+        "should_block": block
+    })
+}
+
 pub fn aggregate(metrics: &[Metric]) -> serde_json::Value {
     let mut latencies = Vec::new();
     let mut errors = 0usize;
     let mut total = 0usize;
     let mut ignored_non_finite = 0usize;
+    let mut ignored_out_of_range = 0usize;
     for m in metrics {
         total += 1;
         if !m.value.is_finite() {
             ignored_non_finite += 1;
+            continue;
+        }
+        if m.value.abs() > TELEMETRY_VALUE_HARD_MAX {
+            ignored_out_of_range += 1;
             continue;
         }
         let name = normalize_metric_name(&m.name);
@@ -82,7 +103,9 @@ pub fn aggregate(metrics: &[Metric]) -> serde_json::Value {
             errors += 1;
         }
     }
-    let processed = total.saturating_sub(ignored_non_finite);
+    let processed = total
+        .saturating_sub(ignored_non_finite)
+        .saturating_sub(ignored_out_of_range);
     let p95 = percentile(&latencies, 0.95);
     let p99 = percentile(&latencies, 0.99);
     let error_rate = if processed == 0 {
@@ -90,8 +113,15 @@ pub fn aggregate(metrics: &[Metric]) -> serde_json::Value {
     } else {
         errors as f64 / processed as f64
     };
+    let latency_guard = evaluate_latency_guard(p95, p99);
+    let latency_blocked = latency_guard
+        .get("should_block")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
     let status = if processed == 0 {
         "empty"
+    } else if latency_blocked {
+        "blocked"
     } else if error_rate > 0.0 {
         "degraded"
     } else {
@@ -101,8 +131,10 @@ pub fn aggregate(metrics: &[Metric]) -> serde_json::Value {
         "sample_count": total,
         "processed_sample_count": processed,
         "ignored_non_finite": ignored_non_finite,
+        "ignored_out_of_range": ignored_out_of_range,
         "latency_p95_ms": p95,
         "latency_p99_ms": p99,
+        "latency_guard": latency_guard,
         "error_rate": error_rate,
         "status": status
     })
@@ -197,5 +229,25 @@ mod tests {
             out.get("status").and_then(|v| v.as_str()),
             Some("degraded")
         );
+    }
+
+    #[test]
+    fn aggregate_ignores_out_of_range_values() {
+        let data = vec![
+            Metric {
+                name: "latency_ms".into(),
+                value: 2_000_000.0,
+            },
+            Metric {
+                name: "latency_ms".into(),
+                value: 15.0,
+            },
+        ];
+        let out = aggregate(&data);
+        assert_eq!(
+            out.get("ignored_out_of_range").and_then(|v| v.as_u64()),
+            Some(1)
+        );
+        assert_eq!(out.get("status").and_then(|v| v.as_str()), Some("ok"));
     }
 }

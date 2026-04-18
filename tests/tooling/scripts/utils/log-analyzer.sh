@@ -7,7 +7,7 @@
 # Analyzes log files for common patterns, errors, and trends.
 # Useful for post-incident analysis and routine log auditing.
 #
-# Usage: ./scripts/utils/log-analyzer.sh [OPTIONS] <log-file>
+# Usage: ./tests/tooling/scripts/utils/log-analyzer.sh [OPTIONS] <log-file>
 #
 # Options:
 #   --errors-only      Show only error-level entries
