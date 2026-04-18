@@ -91,7 +91,7 @@ Status legend:
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V11-EVAL-001 | in_progress | Receipt-first workflow troubleshooting spine: stage trace capture, rolling last-10 exchange window, failure/user-report snapshots, async eval queue, and durable issue outbox retry | Web-tooling and synthesis failures were hard to diagnose because stage-level runtime truth could be lost between turns and issue-reporting depended on immediate pipeline success. | Dashboard action bus now persists per-turn troubleshooting traces and process summaries for `app.chat`, automatically snapshots failures, enqueues async eval jobs, and exposes explicit actions for state/eval/outbox/report flows in [`core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval.rs) and [`core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch.rs). State artifacts are now written under `client/runtime/local/state/ui/infring_dashboard/troubleshooting/` (`recent_workflows`, `latest_snapshot`, `snapshot_history`, `eval_queue`, `latest_eval_report`, `eval_reports`, `issue_outbox`), with user-report submissions routed through authoritative GitHub issue creation and automatic outbox fallback when auth/pipeline fail closed. Successful issue submission now clears active troubleshooting context to prevent stale replay loops while preserving receipted history. Regression proof target for this row: `cargo test -p protheus-ops-core --lib dashboard_github_issue_create_contract_surface -- --nocapture`, targeted new dashboard troubleshooting route tests, and `node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/architecture_boundary_audit.ts`. | 10 | 0/1/2 |
+| V11-EVAL-001 | in_progress | Receipt-first workflow troubleshooting spine: stage trace capture, rolling last-10 exchange window, failure/user-report snapshots, async eval queue, and durable issue outbox retry | Web-tooling and synthesis failures were hard to diagnose because stage-level runtime truth could be lost between turns and issue-reporting depended on immediate pipeline success. | Dashboard action bus now persists per-turn troubleshooting traces and process summaries for `app.chat`, automatically snapshots failures, enqueues async eval jobs, and exposes explicit actions for state/eval/outbox/report flows in [`core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval.rs) and [`core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch.rs). State artifacts are now written under `client/runtime/local/state/ui/infring_dashboard/troubleshooting/` (`recent_workflows`, `latest_snapshot`, `snapshot_history`, `eval_queue`, `latest_eval_report`, `eval_reports`, `issue_outbox`), with user-report submissions routed through authoritative GitHub issue creation and automatic outbox fallback when auth/pipeline fail closed. Eval jobs now carry an explicit eval-model contract and default to strong model `gpt-5.4` unless payload override is supplied. Successful issue submission now clears active troubleshooting context and outbox state to prevent stale replay loops while preserving receipted history. Regression proof target for this row: `cargo test -p protheus-ops-core --lib dashboard_github_issue_create_contract_surface -- --nocapture`, `cargo test -p protheus-ops-core --lib dashboard_troubleshooting_report_message_queues_outbox_and_emits_eval_report -- --nocapture`, `cargo test -p protheus-ops-core --lib dashboard_troubleshooting_report_message_success_clears_active_context_and_outbox -- --nocapture`, `cargo test -p protheus-ops-core --lib dashboard_troubleshooting_eval_model_override_flows_to_eval_report -- --nocapture`, and `node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/architecture_boundary_audit.ts`. | 10 | 0/1/2 |
 
 ## Assimilation Authority Runtime Intake (2026-04-08)
 
@@ -15955,3 +15955,26 @@ Source summary:
   - `core/layer0/infring_agent_surface/src/runtime_lane.rs`
   - `core/layer0/infring_agent_surface/src/lib.rs`
   - `xtask/src/main.rs`
+
+### 2026-04-18 Wave 6 Runtime Durability + Permission Templates + Release Counters Addendum (V11-ASSIMILATION-HARDENING-006)
+
+- Intent:
+  - Close operational polish gaps for runtime-lane governance by adding durable state persistence, permission-template inheritance, execution-boundary wasm enforcement, integration edge-case coverage, and release-gate counter wiring.
+- Acceptance criteria:
+  - Runtime lane persists scheduler entries + merkle roots in durable state (`local/state/infring_agent_surface/runtime_lane_state.json` by default, overrideable via metadata/env).
+  - Runtime lane emits release-gate counters (`denied_actions_total`, `pause_reasons_total`, `pause_reason_counts`, `merkle_chain_continuity_failures_total`) in `trace_summary`.
+  - Permission manifests support templates (`admin`, `user`, `parent`) and inheritance from parent manifests.
+  - `xtask infring-agent-run` supports permission-template ergonomics (`--permissions-template`, `--parent-permissions`).
+  - WASM policy is enforced at execution boundary (`evaluate_wasm_execution_boundary`) with fuel/watchdog/module/network checks.
+  - Runtime-lane integration tests cover capability-pack permission deny/ask and schedule override edge cases (`interval=0`, `max_runs=0`).
+  - Release-gate policy + script include quality telemetry counters for denied actions, pause reasons, and merkle continuity failures.
+- Regression evidence pointers:
+  - `core/layer0/infring_agent_surface/src/runtime_state.rs`
+  - `core/layer0/infring_agent_surface/src/runtime_lane.rs`
+  - `core/layer0/infring_agent_surface/src/rbac_memory.rs`
+  - `core/layer0/infring_agent_surface/src/wasm_sandbox.rs`
+  - `core/layer0/infring_agent_surface/src/runtime_lane_integration_tests.rs`
+  - `core/layer0/infring_agent_surface/src/lib.rs`
+  - `xtask/src/main.rs`
+  - `tests/tooling/config/release_gates.yaml`
+  - `tests/tooling/scripts/ci/runtime_proof_release_gate.ts`

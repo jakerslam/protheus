@@ -596,6 +596,173 @@ mod tests {
     }
 
     #[test]
+    fn dashboard_troubleshooting_report_message_queues_outbox_and_emits_eval_report() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.report_message",
+            &json!({
+                "source":"dashboard_report_popup",
+                "session_id":"session-a",
+                "message_id":"msg-a",
+                "note":"web search failed",
+                "__github_issue_mock_auth_missing": true
+            }),
+        );
+        assert!(lane.ok);
+        let payload = lane.payload.unwrap_or_else(|| json!({}));
+        assert_eq!(
+            payload.get("type").and_then(Value::as_str),
+            Some("dashboard_troubleshooting_report")
+        );
+        assert_eq!(payload.get("submitted").and_then(Value::as_bool), Some(false));
+        assert_eq!(payload.get("queued").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            payload
+                .pointer("/eval_drain/processed_count")
+                .and_then(Value::as_i64),
+            Some(1)
+        );
+        assert_eq!(
+            payload
+                .pointer("/eval_drain/reports/0/eval/model")
+                .and_then(Value::as_str),
+            Some("gpt-5.4")
+        );
+        assert_eq!(
+            payload
+                .pointer("/eval_drain/reports/0/eval/model_strength")
+                .and_then(Value::as_str),
+            Some("strong")
+        );
+
+        let state = run_action(root.path(), "dashboard.troubleshooting.state", &json!({"limit":10}));
+        assert!(state.ok);
+        let state_payload = state.payload.unwrap_or_else(|| json!({}));
+        assert_eq!(
+            state_payload
+                .pointer("/issue_outbox/depth")
+                .and_then(Value::as_i64),
+            Some(1)
+        );
+        assert_eq!(
+            state_payload
+                .pointer("/eval_queue/depth")
+                .and_then(Value::as_i64),
+            Some(0)
+        );
+        assert_eq!(
+            state_payload
+                .pointer("/latest_eval_report/eval/model")
+                .and_then(Value::as_str),
+            Some("gpt-5.4")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_report_message_success_clears_active_context_and_outbox() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let first = run_action(
+            root.path(),
+            "dashboard.troubleshooting.report_message",
+            &json!({
+                "source":"dashboard_report_popup",
+                "session_id":"session-b",
+                "message_id":"msg-b-1",
+                "__github_issue_mock_auth_missing": true
+            }),
+        );
+        assert!(first.ok);
+        let initial_state =
+            run_action(root.path(), "dashboard.troubleshooting.state", &json!({"limit":10}));
+        let initial_payload = initial_state.payload.unwrap_or_else(|| json!({}));
+        assert_eq!(
+            initial_payload
+                .pointer("/issue_outbox/depth")
+                .and_then(Value::as_i64),
+            Some(1)
+        );
+
+        let second = run_action(
+            root.path(),
+            "dashboard.troubleshooting.report_message",
+            &json!({
+                "source":"dashboard_report_popup",
+                "session_id":"session-b",
+                "message_id":"msg-b-2",
+                "__github_issue_mock_token":"test-token",
+                "__github_issue_mock_status":201,
+                "__github_issue_mock_body":{
+                    "number":41,
+                    "html_url":"https://github.com/protheuslabs/InfRing/issues/41",
+                    "url":"https://api.github.com/repos/protheuslabs/InfRing/issues/41"
+                }
+            }),
+        );
+        assert!(second.ok);
+        let second_payload = second.payload.unwrap_or_else(|| json!({}));
+        assert_eq!(second_payload.get("submitted").and_then(Value::as_bool), Some(true));
+        assert_eq!(second_payload.get("queued").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            second_payload
+                .pointer("/issue/number")
+                .and_then(Value::as_i64),
+            Some(41)
+        );
+
+        let final_state =
+            run_action(root.path(), "dashboard.troubleshooting.state", &json!({"limit":10}));
+        assert!(final_state.ok);
+        let final_payload = final_state.payload.unwrap_or_else(|| json!({}));
+        assert_eq!(
+            final_payload.pointer("/recent/count").and_then(Value::as_i64),
+            Some(0)
+        );
+        assert_eq!(
+            final_payload
+                .pointer("/eval_queue/depth")
+                .and_then(Value::as_i64),
+            Some(0)
+        );
+        assert_eq!(
+            final_payload
+                .pointer("/issue_outbox/depth")
+                .and_then(Value::as_i64),
+            Some(0)
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_eval_model_override_flows_to_eval_report() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.report_message",
+            &json!({
+                "source":"dashboard_report_popup",
+                "session_id":"session-c",
+                "message_id":"msg-c",
+                "eval_model":"gpt-5.4-mini",
+                "__github_issue_mock_auth_missing": true
+            }),
+        );
+        assert!(lane.ok);
+        let payload = lane.payload.unwrap_or_else(|| json!({}));
+        assert_eq!(
+            payload
+                .pointer("/eval_drain/reports/0/eval/model")
+                .and_then(Value::as_str),
+            Some("gpt-5.4-mini")
+        );
+        assert_eq!(
+            payload
+                .pointer("/eval_drain/reports/0/eval/model_source")
+                .and_then(Value::as_str),
+            Some("payload")
+        );
+    }
+
+    #[test]
     fn request_query_param_extracts_since_hash() {
         let path = "/api/dashboard/snapshot?since=abc123&x=1";
         assert_eq!(request_path_only(path), "/api/dashboard/snapshot");
@@ -603,5 +770,111 @@ mod tests {
             request_query_param(path, "since").as_deref(),
             Some("abc123")
         );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_synthetic_failure_sample_bundle_shape() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane_payload = json!({
+            "response": "I could not complete the requested web retrieval due to tool surface unavailability.",
+            "tools": [],
+            "response_finalization": {
+                "outcome": "tool_surface_error_fail_closed",
+                "tool_transaction": {
+                    "classification": "tool_not_invoked",
+                    "status": "failed"
+                },
+                "web_invariant": {
+                    "classification": "tool_not_invoked"
+                },
+                "hard_guard": {
+                    "applied": true
+                }
+            },
+            "error": "web_tool_not_invoked"
+        });
+
+        let capture = dashboard_troubleshooting_capture_chat_exchange(
+            root.path(),
+            "probe-spark8",
+            "try searching for the top agentic frameworks",
+            &lane_payload,
+            false,
+            true,
+        );
+        assert_eq!(
+            capture.get("failure_detected").and_then(Value::as_bool),
+            Some(true)
+        );
+
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.report_message",
+            &json!({
+                "source":"dashboard_report_popup",
+                "session_id":"sess-synth-1",
+                "message_id":"msg-synth-1",
+                "note":"synthetic failure for troubleshooting harness verification",
+                "__github_issue_mock_auth_missing": true
+            }),
+        );
+        assert!(lane.ok);
+        let lane_payload = lane.payload.unwrap_or_else(|| json!({}));
+        assert_eq!(
+            lane_payload.get("queued").and_then(Value::as_bool),
+            Some(true)
+        );
+
+        let recent = read_json_file(&root.path().join(DASHBOARD_TROUBLESHOOTING_RECENT_REL))
+            .unwrap_or_else(|| json!({}));
+        let latest_snapshot =
+            read_json_file(&root.path().join(DASHBOARD_TROUBLESHOOTING_SNAPSHOT_LATEST_REL))
+                .unwrap_or_else(|| json!({}));
+        let latest_eval =
+            read_json_file(&root.path().join(DASHBOARD_TROUBLESHOOTING_EVAL_LATEST_REL))
+                .unwrap_or_else(|| json!({}));
+        let outbox = read_json_file(&root.path().join(DASHBOARD_TROUBLESHOOTING_ISSUE_OUTBOX_REL))
+            .unwrap_or_else(|| json!({}));
+
+        assert_eq!(
+            recent.get("type").and_then(Value::as_str),
+            Some("dashboard_troubleshooting_recent_workflows")
+        );
+        assert_eq!(
+            latest_snapshot.get("type").and_then(Value::as_str),
+            Some("dashboard_troubleshooting_snapshot")
+        );
+        assert_eq!(
+            latest_eval.get("type").and_then(Value::as_str),
+            Some("dashboard_workflow_eval_report")
+        );
+        assert_eq!(
+            latest_eval.pointer("/eval/model").and_then(Value::as_str),
+            Some("gpt-5.4")
+        );
+        assert_eq!(
+            outbox.get("type").and_then(Value::as_str),
+            Some("dashboard_troubleshooting_issue_outbox")
+        );
+        assert_eq!(
+            outbox.pointer("/items/0/issue_request/source").and_then(Value::as_str),
+            Some("dashboard_report_popup")
+        );
+
+        let sample_bundle = json!({
+            "sample_kind": "synthetic_troubleshooting_failure_bundle",
+            "files": {
+                "recent_workflows": recent,
+                "latest_snapshot": latest_snapshot,
+                "latest_eval_report": latest_eval,
+                "issue_outbox": outbox
+            }
+        });
+        println!("=== SYNTHETIC_TROUBLESHOOTING_SAMPLE_BEGIN ===");
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&sample_bundle).expect("sample json")
+        );
+        println!("=== SYNTHETIC_TROUBLESHOOTING_SAMPLE_END ===");
     }
 }

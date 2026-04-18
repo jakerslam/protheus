@@ -223,7 +223,7 @@ fn search_provider_config_section<'a>(policy: &'a Value, provider: &str) -> Opti
     policy.pointer(&format!("/web_conduit/search_provider_config/{provider}"))
 }
 
-fn resolve_provider_credential_source_with_env<F>(
+pub(crate) fn resolve_provider_credential_source_with_env<F>(
     policy: &Value,
     provider: &str,
     family: WebProviderFamily,

@@ -15,6 +15,7 @@ const DASHBOARD_TROUBLESHOOTING_ISSUE_OUTBOX_REL: &str =
 const DASHBOARD_TROUBLESHOOTING_MAX_RECENT: usize = 10;
 const DASHBOARD_TROUBLESHOOTING_MAX_QUEUE: usize = 500;
 const DASHBOARD_TROUBLESHOOTING_MAX_OUTBOX: usize = 300;
+const DASHBOARD_TROUBLESHOOTING_DEFAULT_EVAL_MODEL: &str = "gpt-5.4";
 
 fn dashboard_troubleshooting_read_items(path: &Path, key: &str) -> Vec<Value> {
     read_json_file(path)
@@ -210,8 +211,23 @@ fn dashboard_troubleshooting_capture_snapshot(root: &Path, trigger: &str, metada
     snapshot
 }
 
-fn dashboard_troubleshooting_enqueue_eval(root: &Path, snapshot: &Value, reason: &str) -> Value {
+fn dashboard_troubleshooting_enqueue_eval(
+    root: &Path,
+    snapshot: &Value,
+    reason: &str,
+    eval_model_hint: Option<&str>,
+) -> Value {
     let mut queue = dashboard_troubleshooting_read_eval_queue(root);
+    let (eval_model, eval_model_source) = if let Some(raw) = eval_model_hint {
+        let cleaned = clean_text(raw, 120);
+        if cleaned.is_empty() {
+            dashboard_troubleshooting_resolve_eval_model(None)
+        } else {
+            (cleaned, "payload".to_string())
+        }
+    } else {
+        dashboard_troubleshooting_resolve_eval_model(None)
+    };
     let item = json!({
         "id": format!(
             "evalq_{}",
@@ -225,7 +241,9 @@ fn dashboard_troubleshooting_enqueue_eval(root: &Path, snapshot: &Value, reason:
         "status": "queued",
         "reason": clean_text(reason, 60),
         "created_at": now_iso(),
-        "snapshot": snapshot.clone()
+        "snapshot": snapshot.clone(),
+        "eval_model": eval_model,
+        "eval_model_source": eval_model_source
     });
     queue.push(item.clone());
     if queue.len() > DASHBOARD_TROUBLESHOOTING_MAX_QUEUE {
@@ -261,6 +279,10 @@ fn dashboard_troubleshooting_eval_recommendations(
     if top_error.contains("low_signal") || top_classification == "low_signal" {
         out.push("narrow query and retry once with explicit source/provider preference before final synthesis".to_string());
     }
+    if top_error.contains("query_result_mismatch") {
+        out.push("treat retrieval as mismatched-to-intent and force fail-closed copy; do not surface raw dump content".to_string());
+        out.push("apply query/result alignment scoring before accepting fallback web summaries".to_string());
+    }
     if top_error.contains("policy") || top_classification == "policy_blocked" {
         out.push("surface policy-block reason directly and avoid hidden retries; request approval/elevation path".to_string());
     }
@@ -273,7 +295,36 @@ fn dashboard_troubleshooting_eval_recommendations(
     out
 }
 
-fn dashboard_troubleshooting_generate_eval_report(snapshot: &Value, source: &str) -> Value {
+fn dashboard_troubleshooting_eval_model_strength(model: &str) -> &'static str {
+    let lowered = clean_text(model, 120).to_ascii_lowercase();
+    if lowered.starts_with("gpt-5") || lowered.starts_with("o3") || lowered.starts_with("o4") {
+        "strong"
+    } else {
+        "custom"
+    }
+}
+
+fn dashboard_troubleshooting_resolve_eval_model(payload: Option<&Value>) -> (String, String) {
+    if let Some(args) = payload {
+        for key in ["eval_model", "evalModel", "llm_model", "llmModel", "model"] {
+            let candidate = clean_text(args.get(key).and_then(Value::as_str).unwrap_or(""), 120);
+            if !candidate.is_empty() {
+                return (candidate, "payload".to_string());
+            }
+        }
+    }
+    (
+        DASHBOARD_TROUBLESHOOTING_DEFAULT_EVAL_MODEL.to_string(),
+        "default_strong".to_string(),
+    )
+}
+
+fn dashboard_troubleshooting_generate_eval_report(
+    snapshot: &Value,
+    source: &str,
+    eval_model: &str,
+    eval_model_source: &str,
+) -> Value {
     let entries = snapshot
         .get("entries")
         .and_then(Value::as_array)
@@ -332,6 +383,7 @@ fn dashboard_troubleshooting_generate_eval_report(snapshot: &Value, source: &str
             "Detected {failure_count} failing exchanges; top_error={top_error}; top_classification={top_class}."
         )
     };
+    let model = clean_text(eval_model, 120);
     let mut report = json!({
         "ok": true,
         "type": "dashboard_workflow_eval_report",
@@ -349,6 +401,14 @@ fn dashboard_troubleshooting_generate_eval_report(snapshot: &Value, source: &str
         "generated_at": now_iso(),
         "severity": severity,
         "failure_count": failure_count,
+        "eval": {
+            "engine": "troubleshooting_eval_v1",
+            "model": model,
+            "model_source": clean_text(eval_model_source, 80),
+            "model_strength": dashboard_troubleshooting_eval_model_strength(eval_model),
+            "strong_default_model": DASHBOARD_TROUBLESHOOTING_DEFAULT_EVAL_MODEL,
+            "llm_required": true
+        },
         "summary": summary,
         "error_histogram": error_hist,
         "classification_histogram": class_hist,
@@ -376,7 +436,25 @@ fn dashboard_troubleshooting_eval_drain_internal(
                 .cloned()
                 .or_else(|| read_json_file(&root.join(DASHBOARD_TROUBLESHOOTING_SNAPSHOT_LATEST_REL)))
                 .unwrap_or_else(|| json!({}));
-            let report = dashboard_troubleshooting_generate_eval_report(&snapshot, source);
+            let queue_eval_model =
+                clean_text(row.get("eval_model").and_then(Value::as_str).unwrap_or(""), 120);
+            let queue_eval_model_source = clean_text(
+                row.get("eval_model_source")
+                    .and_then(Value::as_str)
+                    .unwrap_or("queue_item"),
+                80,
+            );
+            let (eval_model, eval_model_source) = if queue_eval_model.is_empty() {
+                dashboard_troubleshooting_resolve_eval_model(None)
+            } else {
+                (queue_eval_model, queue_eval_model_source)
+            };
+            let report = dashboard_troubleshooting_generate_eval_report(
+                &snapshot,
+                source,
+                &eval_model,
+                &eval_model_source,
+            );
             append_jsonl(
                 &root.join(DASHBOARD_TROUBLESHOOTING_EVAL_HISTORY_REL),
                 &report,
@@ -400,6 +478,7 @@ fn dashboard_troubleshooting_eval_drain_internal(
 fn dashboard_troubleshooting_clear_active_context(root: &Path, reason: &str) {
     dashboard_troubleshooting_write_recent_entries(root, &[]);
     dashboard_troubleshooting_write_eval_queue(root, &[]);
+    dashboard_troubleshooting_write_issue_outbox(root, &[]);
     let mut marker = json!({
         "ok": true,
         "type": "dashboard_troubleshooting_clear_marker",
@@ -445,6 +524,13 @@ fn dashboard_troubleshooting_issue_request_from_report(
         eval_report.get("summary").and_then(Value::as_str).unwrap_or(""),
         1600,
     );
+    let eval_model = clean_text(
+        eval_report
+            .pointer("/eval/model")
+            .and_then(Value::as_str)
+            .unwrap_or(DASHBOARD_TROUBLESHOOTING_DEFAULT_EVAL_MODEL),
+        120,
+    );
     let recent_summaries = snapshot
         .get("entries")
         .and_then(Value::as_array)
@@ -469,7 +555,7 @@ fn dashboard_troubleshooting_issue_request_from_report(
         3000,
     );
     let body = format!(
-        "source: {source}\nsnapshot_id: {snapshot_id}\neval_report_id: {report_id}\n\nsummary:\n{eval_summary}\n\nrecent_process_summaries:\n{recent_summaries}\n\nuser_note:\n{user_note}"
+        "source: {source}\nsnapshot_id: {snapshot_id}\neval_report_id: {report_id}\neval_model: {eval_model}\n\nsummary:\n{eval_summary}\n\nrecent_process_summaries:\n{recent_summaries}\n\nuser_note:\n{user_note}"
     );
     let mut request = json!({
         "title": title_hint,
@@ -487,6 +573,16 @@ fn dashboard_troubleshooting_issue_request_from_report(
             let repo_clean = clean_text(repo, 120);
             if !repo_clean.is_empty() {
                 obj.insert("repo".to_string(), json!(repo_clean));
+            }
+        }
+        for key in [
+            "__github_issue_mock_auth_missing",
+            "__github_issue_mock_token",
+            "__github_issue_mock_status",
+            "__github_issue_mock_body",
+        ] {
+            if let Some(value) = payload.get(key) {
+                obj.insert(key.to_string(), value.clone());
             }
         }
     }
@@ -679,7 +775,13 @@ fn dashboard_troubleshooting_capture_chat_exchange(
                 "input_preview": clean_text(raw_input, 220)
             }),
         );
-        queue_item = dashboard_troubleshooting_enqueue_eval(root, &snapshot, "auto_failure");
+        let (eval_model, _) = dashboard_troubleshooting_resolve_eval_model(None);
+        queue_item = dashboard_troubleshooting_enqueue_eval(
+            root,
+            &snapshot,
+            "auto_failure",
+            Some(&eval_model),
+        );
         eval_drain = dashboard_troubleshooting_eval_drain_internal(root, 1, "auto_failure");
     }
 
@@ -801,6 +903,7 @@ fn dashboard_troubleshooting_outbox_flush_lane(root: &Path, payload: &Value) -> 
 }
 
 fn dashboard_troubleshooting_report_message_lane(root: &Path, payload: &Value) -> LaneResult {
+    let (eval_model, _) = dashboard_troubleshooting_resolve_eval_model(Some(payload));
     let snapshot = dashboard_troubleshooting_capture_snapshot(
         root,
         "user_report",
@@ -810,7 +913,12 @@ fn dashboard_troubleshooting_report_message_lane(root: &Path, payload: &Value) -
             "message_id": clean_text(payload.get("message_id").or_else(|| payload.get("messageId")).and_then(Value::as_str).unwrap_or(""), 160)
         }),
     );
-    let queue_item = dashboard_troubleshooting_enqueue_eval(root, &snapshot, "user_report");
+    let queue_item = dashboard_troubleshooting_enqueue_eval(
+        root,
+        &snapshot,
+        "user_report",
+        Some(&eval_model),
+    );
     let eval_drain = dashboard_troubleshooting_eval_drain_internal(root, 1, "user_report");
     let eval_report = eval_drain
         .get("reports")
