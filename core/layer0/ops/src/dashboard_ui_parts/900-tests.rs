@@ -877,4 +877,105 @@ mod tests {
         );
         println!("=== SYNTHETIC_TROUBLESHOOTING_SAMPLE_END ===");
     }
+
+    #[test]
+    fn dashboard_troubleshooting_synthetic_hallucination_bundle_shape() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane_payload = json!({
+            "response": "Given a tree, you are supposed to list all the leaves in the order of top down and left to right.",
+            "tools": [
+                {
+                    "name": "web_search",
+                    "status": "error",
+                    "error": "query_result_mismatch",
+                    "query": "top agentic frameworks"
+                }
+            ],
+            "response_finalization": {
+                "outcome": "classification_guard_low_signal_fail_closed",
+                "tool_transaction": {
+                    "classification": "low_signal",
+                    "status": "degraded"
+                },
+                "web_invariant": {
+                    "classification": "low_signal"
+                },
+                "hard_guard": {
+                    "applied": true
+                }
+            },
+            "error": "query_result_mismatch"
+        });
+
+        let capture = dashboard_troubleshooting_capture_chat_exchange(
+            root.path(),
+            "probe-spark8",
+            "find top agentic frameworks and summarize",
+            &lane_payload,
+            false,
+            true,
+        );
+        assert_eq!(
+            capture.get("failure_detected").and_then(Value::as_bool),
+            Some(true)
+        );
+
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.report_message",
+            &json!({
+                "source":"dashboard_report_popup",
+                "session_id":"sess-synth-2",
+                "message_id":"msg-synth-2",
+                "note":"synthetic hallucination style dump for troubleshooting harness verification",
+                "__github_issue_mock_auth_missing": true
+            }),
+        );
+        assert!(lane.ok);
+        let payload = lane.payload.unwrap_or_else(|| json!({}));
+        assert_eq!(payload.get("queued").and_then(Value::as_bool), Some(true));
+
+        let latest_eval =
+            read_json_file(&root.path().join(DASHBOARD_TROUBLESHOOTING_EVAL_LATEST_REL))
+                .unwrap_or_else(|| json!({}));
+        assert_eq!(
+            latest_eval.pointer("/eval/model").and_then(Value::as_str),
+            Some("gpt-5.4")
+        );
+        let recommendations = latest_eval
+            .get("recommendations")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        let recommendation_text = recommendations
+            .iter()
+            .filter_map(Value::as_str)
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(recommendation_text.contains("mismatched-to-intent"));
+        assert!(recommendation_text.contains("alignment scoring"));
+
+        let recent = read_json_file(&root.path().join(DASHBOARD_TROUBLESHOOTING_RECENT_REL))
+            .unwrap_or_else(|| json!({}));
+        let snapshot =
+            read_json_file(&root.path().join(DASHBOARD_TROUBLESHOOTING_SNAPSHOT_LATEST_REL))
+                .unwrap_or_else(|| json!({}));
+        let outbox = read_json_file(&root.path().join(DASHBOARD_TROUBLESHOOTING_ISSUE_OUTBOX_REL))
+            .unwrap_or_else(|| json!({}));
+        let sample_bundle = json!({
+            "sample_kind": "synthetic_troubleshooting_hallucination_bundle",
+            "files": {
+                "recent_workflows": recent,
+                "latest_snapshot": snapshot,
+                "latest_eval_report": latest_eval,
+                "issue_outbox": outbox
+            }
+        });
+        println!("=== SYNTHETIC_HALLUCINATION_SAMPLE_BEGIN ===");
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&sample_bundle).expect("hallucination sample json")
+        );
+        println!("=== SYNTHETIC_HALLUCINATION_SAMPLE_END ===");
+    }
 }
