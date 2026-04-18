@@ -181,6 +181,14 @@ pub fn evaluate_burn_oracle_budget_gate(
         ),
         OracleStatus::Available {
             remaining_burn_units,
+        } if remaining_burn_units == 0 => BurnOracleBudgetDecision::denied(
+            "oracle_budget_empty",
+            request.requested_burn_units,
+            request.max_allowed_burn_units,
+            Some(remaining_burn_units),
+        ),
+        OracleStatus::Available {
+            remaining_burn_units,
         } if request.requested_burn_units > remaining_burn_units => {
             BurnOracleBudgetDecision::denied(
                 "oracle_budget_exceeded",
@@ -214,5 +222,18 @@ mod tests {
         });
         assert!(!decision.ok);
         assert_eq!(decision.code, "budget_policy_invalid");
+    }
+
+    #[test]
+    fn empty_oracle_budget_fails_closed_with_specific_code() {
+        let decision = evaluate_burn_oracle_budget_gate(BurnOracleBudgetRequest {
+            requested_burn_units: 5,
+            max_allowed_burn_units: 10,
+            oracle_status: OracleStatus::Available {
+                remaining_burn_units: 0,
+            },
+        });
+        assert!(!decision.ok);
+        assert_eq!(decision.code, "oracle_budget_empty");
     }
 }

@@ -35,7 +35,7 @@ impl LayerTopology {
         }
     }
 
-    pub fn highest_enabled_layer(&self) -> Option<KernelLayer> {
+    pub const fn highest_enabled_layer(&self) -> Option<KernelLayer> {
         if self.layer3 {
             Some(KernelLayer::Layer3)
         } else if self.layer2 {
@@ -49,6 +49,14 @@ impl LayerTopology {
         } else {
             None
         }
+    }
+
+    pub const fn enabled_layer_count(&self) -> u8 {
+        (self.layer_minus_one as u8)
+            + (self.layer0 as u8)
+            + (self.layer1 as u8)
+            + (self.layer2 as u8)
+            + (self.layer3 as u8)
     }
 
     pub const fn is_monotonic(&self) -> bool {
@@ -74,7 +82,7 @@ impl LayerTopology {
     pub const fn integrity_state(&self) -> &'static str {
         if self.should_fail_closed() {
             "topology_invalid_non_monotonic"
-        } else if self.highest_enabled_layer().is_none() {
+        } else if self.enabled_layer_count() == 0 {
             "topology_empty"
         } else {
             "topology_consistent"
@@ -239,5 +247,18 @@ mod tests {
         } else {
             assert_eq!(highest, None);
         }
+    }
+
+    #[test]
+    fn non_monotonic_topology_fails_closed() {
+        let topology = LayerTopology {
+            layer_minus_one: false,
+            layer0: false,
+            layer1: true,
+            layer2: false,
+            layer3: false,
+        };
+        assert!(topology.should_fail_closed());
+        assert_eq!(topology.integrity_state(), "topology_invalid_non_monotonic");
     }
 }

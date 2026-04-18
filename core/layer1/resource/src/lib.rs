@@ -97,6 +97,14 @@ pub fn select_inference_backend(
     profile: HardwareProfile,
     backend_override: Option<BackendOverride>,
 ) -> BackendSelectionReceipt {
+    let invalid_profile_input = profile.total_memory_bytes == 0 || profile.cpu_cores == 0;
+    if invalid_profile_input {
+        return BackendSelectionReceipt {
+            backend: InferenceBackend::Edge,
+            constrained_hardware: true,
+            reason: "invalid_hardware_profile_fail_closed",
+        };
+    }
     let normalized_profile = normalize_hardware_profile(profile);
     let constrained = is_constrained_hardware(normalized_profile);
     if let Some(requested) = backend_override {
@@ -221,5 +229,18 @@ mod tests {
         assert_eq!(receipt.backend, InferenceBackend::Edge);
         assert!(!receipt.constrained_hardware);
         assert_eq!(receipt.reason, "override_force_edge");
+    }
+
+    #[test]
+    fn invalid_profile_input_fails_closed_to_edge() {
+        let profile = HardwareProfile {
+            total_memory_bytes: 0,
+            cpu_cores: 0,
+            has_mmu: true,
+        };
+        let receipt = select_inference_backend(profile, Some(BackendOverride::ForcePrimary));
+        assert_eq!(receipt.backend, InferenceBackend::Edge);
+        assert!(receipt.constrained_hardware);
+        assert_eq!(receipt.reason, "invalid_hardware_profile_fail_closed");
     }
 }
