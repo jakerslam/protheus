@@ -1,3 +1,113 @@
+fn fetch_override_flag_enabled(value: &Value) -> bool {
+    value
+        .as_bool()
+        .or_else(|| value.as_i64().map(|n| n != 0))
+        .or_else(|| {
+            value.as_str().map(|raw| {
+                matches!(
+                    clean_text(raw, 12).to_ascii_lowercase().as_str(),
+                    "1" | "true" | "yes" | "y" | "on"
+                )
+            })
+        })
+        .unwrap_or(false)
+}
+
+fn fetch_meta_query_override(request: &Value) -> bool {
+    let direct_keys = [
+        "allow_meta_query_search",
+        "allowMetaQuerySearch",
+        "force_web_search",
+        "forceWebSearch",
+        "force_web_lookup",
+        "forceWebLookup",
+        "allow_meta_query_fetch",
+        "allowMetaQueryFetch",
+        "force_web_fetch",
+        "forceWebFetch",
+    ];
+    for key in direct_keys {
+        if let Some(value) = request.get(key) {
+            if fetch_override_flag_enabled(value) {
+                return true;
+            }
+        }
+    }
+    let nested_keys = [
+        "/search_policy/allow_meta_query_search",
+        "/searchPolicy/allowMetaQuerySearch",
+        "/search_policy/force_web_search",
+        "/searchPolicy/forceWebSearch",
+        "/search_policy/force_web_lookup",
+        "/searchPolicy/forceWebLookup",
+        "/fetch_policy/allow_meta_query_fetch",
+        "/fetchPolicy/allowMetaQueryFetch",
+        "/fetch_policy/force_web_fetch",
+        "/fetchPolicy/forceWebFetch",
+    ];
+    for pointer in nested_keys {
+        if let Some(value) = request.pointer(pointer) {
+            if fetch_override_flag_enabled(value) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+fn fetch_requested_url_looks_meta_diagnostic(raw_requested_url: &str) -> bool {
+    let lowered = clean_text(raw_requested_url, 600).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    if lowered.starts_with("http://")
+        || lowered.starts_with("https://")
+        || lowered.starts_with("www.")
+        || lowered.contains("://")
+    {
+        return false;
+    }
+    if !lowered.contains(' ') && !lowered.contains('?') {
+        return false;
+    }
+    if [
+        "that was just a test",
+        "that was a test",
+        "did you do the web request",
+        "did you try it",
+        "where did that come from",
+        "why did my last prompt",
+        "you returned no result",
+    ]
+    .iter()
+    .any(|marker| lowered.contains(*marker))
+    {
+        return true;
+    }
+    let meta_hits = [
+        "what happened",
+        "workflow",
+        "tool call",
+        "web tooling",
+        "hallucination",
+        "hallucinated",
+        "training data",
+        "context issue",
+        "last response",
+        "previous response",
+    ]
+    .iter()
+    .filter(|marker| lowered.contains(**marker))
+    .count();
+    let urlish_hits = [
+        ".com", ".org", ".net", ".io", "site:", "docs", "api.", "www.", "http", "https",
+    ]
+    .iter()
+    .filter(|marker| lowered.contains(**marker))
+    .count();
+    meta_hits >= 2 && urlish_hits == 0
+}
+
 fn execute_fetch_request(root: &Path, request: &Value) -> Value {
     let raw_requested_url = clean_text(
         request
@@ -55,6 +165,58 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
         40,
     )
     .to_ascii_lowercase();
+    if !fetch_meta_query_override(request)
+        && fetch_requested_url_looks_meta_diagnostic(&raw_requested_url)
+    {
+        let receipt = build_receipt(
+            &raw_requested_url,
+            "deny",
+            None,
+            0,
+            "non_fetch_meta_query",
+            Some("meta_diagnostic_url_input"),
+        );
+        let _ = append_jsonl(&receipts_path(root), &receipt);
+        return json!({
+            "ok": false,
+            "error": "non_fetch_meta_query",
+            "type": "web_conduit_fetch",
+            "requested_url": raw_requested_url,
+            "resolved_url": "",
+            "citation_redirect_resolved": false,
+            "provider": "none",
+            "provider_hint": provider_hint,
+            "provider_chain": [],
+            "provider_resolution": {
+                "status": "not_evaluated",
+                "reason": "meta_query_blocked",
+                "source": "early_validation",
+                "tool_surface_health": {
+                    "status": "not_evaluated",
+                    "selected_provider_ready": false,
+                    "blocking_reason": "early_validation"
+                }
+            },
+            "tool_surface_status": "not_evaluated",
+            "tool_surface_ready": false,
+            "tool_surface_blocking_reason": "early_validation",
+            "tool_execution_attempted": false,
+            "tool_execution_gate": {
+                "should_execute": false,
+                "reason": "meta_query_blocked",
+                "source": "early_validation"
+            },
+            "meta_query_blocked": true,
+            "cache_status": "blocked_meta_query",
+            "cache_store_allowed": false,
+            "cache_write_attempted": false,
+            "cache_skip_reason": "meta_query_blocked",
+            "summary": "Requested fetch URL appears to be conversational/tooling diagnostics rather than a valid web URL. Answer directly without running web fetch. To force fetch evaluation, set force_web_fetch=true or force_web_search=true.",
+            "content": "",
+            "override_hint": "force_web_fetch=true|force_web_search=true",
+            "receipt": receipt
+        });
+    }
     if let Some(unknown_provider) = validate_explicit_fetch_provider_hint(&provider_hint) {
         let receipt = build_receipt(
             &raw_requested_url,
@@ -68,7 +230,37 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
         return json!({
             "ok": false,
             "error": "unknown_fetch_provider",
+            "type": "web_conduit_fetch",
             "requested_url": raw_requested_url,
+            "resolved_url": "",
+            "citation_redirect_resolved": false,
+            "provider": "none",
+            "provider_hint": provider_hint,
+            "provider_chain": [],
+            "provider_resolution": {
+                "status": "not_evaluated",
+                "reason": "unknown_fetch_provider",
+                "source": "early_validation",
+                "tool_surface_health": {
+                    "status": "not_evaluated",
+                    "selected_provider_ready": false,
+                    "blocking_reason": "early_validation"
+                }
+            },
+            "tool_surface_status": "not_evaluated",
+            "tool_surface_ready": false,
+            "tool_surface_blocking_reason": "early_validation",
+            "tool_execution_attempted": false,
+            "tool_execution_gate": {
+                "should_execute": false,
+                "reason": "unknown_fetch_provider",
+                "source": "early_validation"
+            },
+            "meta_query_blocked": false,
+            "cache_status": "skipped_validation",
+            "cache_store_allowed": false,
+            "cache_write_attempted": false,
+            "cache_skip_reason": "unknown_fetch_provider",
             "requested_provider": unknown_provider,
             "fetch_provider_catalog": fetch_provider_catalog_snapshot(root, &policy),
             "receipt": receipt
@@ -76,6 +268,24 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
     }
     let (provider_resolution, fetch_provider_chain, selected_provider) =
         resolved_fetch_provider_selection(root, &policy, request, &provider_hint);
+    let tool_surface_status = provider_resolution
+        .get("tool_surface_status")
+        .or_else(|| provider_resolution.pointer("/tool_surface_health/status"))
+        .and_then(Value::as_str)
+        .unwrap_or("unavailable")
+        .to_string();
+    let tool_surface_ready = provider_resolution
+        .get("tool_surface_ready")
+        .or_else(|| {
+            provider_resolution.pointer("/tool_surface_health/selected_provider_ready")
+        })
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let tool_surface_blocking_reason = provider_resolution
+        .pointer("/tool_surface_health/blocking_reason")
+        .and_then(Value::as_str)
+        .unwrap_or("none")
+        .to_string();
     let allow_rfc2544_benchmark_range = request
         .pointer("/ssrf_policy/allow_rfc2544_benchmark_range")
         .or_else(|| request.pointer("/ssrfPolicy/allowRfc2544BenchmarkRange"))
@@ -115,6 +325,7 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
         return json!({
             "ok": false,
             "error": error,
+            "type": "web_conduit_fetch",
             "requested_url": raw_requested_url,
             "resolved_url": resolved_url,
             "citation_redirect_resolved": redirect_resolved,
@@ -122,6 +333,21 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
             "provider_hint": provider_hint,
             "provider_chain": fetch_provider_chain,
             "provider_resolution": provider_resolution,
+            "provider_health": provider_health_snapshot(root, &fetch_provider_chain),
+            "tool_surface_status": tool_surface_status,
+            "tool_surface_ready": tool_surface_ready,
+            "tool_surface_blocking_reason": tool_surface_blocking_reason,
+            "tool_execution_attempted": false,
+            "tool_execution_gate": {
+                "should_execute": false,
+                "reason": "ssrf_blocked",
+                "source": "preflight"
+            },
+            "meta_query_blocked": false,
+            "cache_status": "skipped_validation",
+            "cache_store_allowed": false,
+            "cache_write_attempted": false,
+            "cache_skip_reason": "ssrf_blocked",
             "ssrf_guard": ssrf_guard,
             "receipt": receipt
         });
@@ -160,22 +386,24 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
         } else {
             None
         };
+        let cache_skip_reason = if approval.is_some() {
+            "approval_required"
+        } else {
+            "policy_denied"
+        };
         let receipt = build_receipt(
             &raw_requested_url,
             "deny",
             None,
             0,
             &reason,
-            Some(if approval.is_some() {
-                "approval_required"
-            } else {
-                "policy_denied"
-            }),
+            Some(cache_skip_reason),
         );
         let _ = append_jsonl(&receipts_path(root), &receipt);
         return json!({
             "ok": false,
             "error": "web_conduit_policy_denied",
+            "type": "web_conduit_fetch",
             "requested_url": raw_requested_url,
             "resolved_url": resolved_url,
             "citation_redirect_resolved": redirect_resolved,
@@ -183,6 +411,21 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
             "provider_hint": provider_hint,
             "provider_chain": fetch_provider_chain,
             "provider_resolution": provider_resolution,
+            "provider_health": provider_health_snapshot(root, &fetch_provider_chain),
+            "tool_surface_status": tool_surface_status,
+            "tool_surface_ready": tool_surface_ready,
+            "tool_surface_blocking_reason": tool_surface_blocking_reason,
+            "tool_execution_attempted": false,
+            "tool_execution_gate": {
+                "should_execute": false,
+                "reason": "policy_denied",
+                "source": "preflight"
+            },
+            "meta_query_blocked": false,
+            "cache_status": "skipped_validation",
+            "cache_store_allowed": false,
+            "cache_write_attempted": false,
+            "cache_skip_reason": cache_skip_reason,
             "policy_decision": policy_eval,
             "receipt": receipt,
             "approval_required": approval.is_some(),
@@ -251,6 +494,117 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
         summary_only,
         &fetch_provider_chain,
     );
+    let tool_execution_gate = provider_resolution
+        .get("tool_execution_gate")
+        .cloned()
+        .unwrap_or_else(|| {
+            let allow_fallback = provider_resolution
+                .get("allow_fallback")
+                .and_then(Value::as_bool)
+                .unwrap_or(true);
+            runtime_web_execution_gate(
+                &tool_surface_status,
+                tool_surface_ready,
+                allow_fallback,
+                &tool_surface_blocking_reason,
+            )
+        });
+    let tool_execution_allowed = tool_execution_gate
+        .get("should_execute")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let fetch_attempt_signature = sha256_hex(&format!(
+        "{}|{}|{}|{}|{}|{}|{}|{}",
+        raw_requested_url,
+        resolved_url,
+        extract_mode,
+        max_chars,
+        summary_only,
+        timeout_ms,
+        fetch_provider_chain.join(","),
+        tool_surface_status
+    ));
+    let replay_policy =
+        runtime_web_replay_policy(&policy, request, &tool_surface_status, tool_surface_ready);
+    let replay_window = replay_policy
+        .get("window")
+        .and_then(Value::as_u64)
+        .unwrap_or(24)
+        .clamp(1, 200) as usize;
+    let replay_threshold = replay_policy
+        .get("block_threshold")
+        .and_then(Value::as_u64)
+        .unwrap_or(3)
+        .clamp(2, 200) as usize;
+    let replay_enabled = replay_policy
+        .get("enabled")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let replay_bypass = runtime_web_replay_bypass(&policy, request, effective_human_approved);
+    let replay_bypassed = replay_bypass
+        .get("bypassed")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let replay_cooldown_base_seconds = replay_policy
+        .get("cooldown_base_seconds")
+        .and_then(Value::as_u64)
+        .unwrap_or(30);
+    let replay_cooldown_step_seconds = replay_policy
+        .get("cooldown_step_seconds")
+        .and_then(Value::as_u64)
+        .unwrap_or(15);
+    let replay_cooldown_max_seconds = replay_policy
+        .get("cooldown_max_seconds")
+        .and_then(Value::as_u64)
+        .unwrap_or(180);
+    let attempt_replay_guard = if replay_enabled && !replay_bypassed {
+        recent_tool_attempt_replay_guard(
+            root,
+            &fetch_attempt_signature,
+            replay_window,
+            replay_threshold,
+            replay_cooldown_base_seconds,
+            replay_cooldown_step_seconds,
+            replay_cooldown_max_seconds,
+        )
+    } else if replay_bypassed {
+        runtime_web_replay_guard_passthrough(
+            "replay_guard_bypassed",
+            &fetch_attempt_signature,
+            replay_window,
+            replay_threshold,
+            replay_cooldown_base_seconds,
+            replay_cooldown_step_seconds,
+            replay_cooldown_max_seconds,
+            &replay_bypass,
+        )
+    } else {
+        runtime_web_replay_guard_passthrough(
+            "replay_policy_disabled",
+            &fetch_attempt_signature,
+            replay_window,
+            replay_threshold,
+            replay_cooldown_base_seconds,
+            replay_cooldown_step_seconds,
+            replay_cooldown_max_seconds,
+            &replay_bypass,
+        )
+    };
+    let attempt_replay_blocked = attempt_replay_guard
+        .get("blocked")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let replay_retry_after_seconds = attempt_replay_guard
+        .get("retry_after_seconds")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let replay_retry_lane = clean_text(
+        attempt_replay_guard
+            .get("retry_lane")
+            .and_then(Value::as_str)
+            .unwrap_or("change_query_or_provider"),
+        80,
+    );
     if let Some(mut cached) = load_fetch_cache(root, &fetch_cache_key) {
         if let Some(obj) = cached.as_object_mut() {
             obj.insert(
@@ -277,8 +631,170 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
                 "provider_health".to_string(),
                 provider_health_snapshot(root, &fetch_provider_chain),
             );
+            obj.insert(
+                "tool_surface_status".to_string(),
+                Value::String(tool_surface_status.clone()),
+            );
+            obj.insert("tool_surface_ready".to_string(), json!(tool_surface_ready));
+            obj.insert(
+                "tool_surface_blocking_reason".to_string(),
+                Value::String(tool_surface_blocking_reason.clone()),
+            );
+            obj.insert("tool_execution_gate".to_string(), tool_execution_gate.clone());
+            obj.insert("replay_policy".to_string(), replay_policy.clone());
+            obj.insert("replay_bypass".to_string(), replay_bypass.clone());
+            obj.insert(
+                "attempt_signature".to_string(),
+                Value::String(fetch_attempt_signature.clone()),
+            );
+            obj.insert(
+                "attempt_replay_guard".to_string(),
+                attempt_replay_guard.clone(),
+            );
         }
         return cached;
+    }
+    if !tool_execution_allowed {
+        let preflight_error = if tool_surface_status == "unavailable" {
+            "web_fetch_tool_surface_unavailable"
+        } else if tool_surface_status == "degraded" {
+            "web_fetch_tool_surface_degraded"
+        } else {
+            "web_fetch_tool_execution_blocked"
+        };
+        let cache_skip_reason = if preflight_error == "web_fetch_tool_surface_unavailable" {
+            "tool_surface_unavailable"
+        } else if preflight_error == "web_fetch_tool_surface_degraded" {
+            "tool_surface_degraded"
+        } else {
+            "tool_execution_blocked"
+        };
+        let mut receipt = build_receipt(
+            &raw_requested_url,
+            "deny",
+            None,
+            0,
+            "fetch_preflight_gate_blocked",
+            Some(preflight_error),
+        );
+        if let Some(receipt_obj) = receipt.as_object_mut() {
+            receipt_obj.insert(
+                "attempt_signature".to_string(),
+                Value::String(fetch_attempt_signature.clone()),
+            );
+            receipt_obj.insert(
+                "provider".to_string(),
+                Value::String(selected_provider.clone()),
+            );
+            receipt_obj.insert(
+                "gate_mode".to_string(),
+                Value::String(
+                    tool_execution_gate
+                        .get("mode")
+                        .and_then(Value::as_str)
+                        .unwrap_or("blocked")
+                        .to_string(),
+                ),
+            );
+        }
+        let _ = append_jsonl(&receipts_path(root), &receipt);
+        return json!({
+            "ok": false,
+            "error": preflight_error,
+            "type": "web_conduit_fetch",
+            "requested_url": raw_requested_url,
+            "resolved_url": resolved_url,
+            "citation_redirect_resolved": redirect_resolved,
+            "provider": selected_provider,
+            "provider_hint": provider_hint,
+            "provider_chain": fetch_provider_chain,
+            "provider_resolution": provider_resolution,
+            "provider_health": provider_health_snapshot(root, &fetch_provider_chain),
+            "tool_surface_status": tool_surface_status,
+            "tool_surface_ready": tool_surface_ready,
+            "tool_surface_blocking_reason": tool_surface_blocking_reason,
+            "tool_execution_attempted": false,
+            "tool_execution_gate": tool_execution_gate,
+            "meta_query_blocked": false,
+            "cache_status": "skipped_validation",
+            "cache_store_allowed": false,
+            "cache_write_attempted": false,
+            "cache_skip_reason": cache_skip_reason,
+            "replay_policy": replay_policy,
+            "replay_bypass": replay_bypass,
+            "attempt_replay_guard": attempt_replay_guard,
+            "attempt_signature": fetch_attempt_signature,
+            "summary": "Web fetch execution was blocked by runtime tooling gate before provider calls were attempted.",
+            "content": "",
+            "receipt": receipt
+        });
+    }
+    if attempt_replay_blocked {
+        let mut receipt = build_receipt(
+            &raw_requested_url,
+            "deny",
+            None,
+            0,
+            "fetch_replay_guard_blocked",
+            Some("web_fetch_duplicate_attempt_suppressed"),
+        );
+        if let Some(receipt_obj) = receipt.as_object_mut() {
+            receipt_obj.insert(
+                "attempt_signature".to_string(),
+                Value::String(fetch_attempt_signature.clone()),
+            );
+            receipt_obj.insert(
+                "provider".to_string(),
+                Value::String(selected_provider.clone()),
+            );
+            receipt_obj.insert(
+                "gate_mode".to_string(),
+                Value::String(
+                    tool_execution_gate
+                        .get("mode")
+                        .and_then(Value::as_str)
+                        .unwrap_or("blocked")
+                        .to_string(),
+                ),
+            );
+        }
+        let _ = append_jsonl(&receipts_path(root), &receipt);
+        return json!({
+            "ok": false,
+            "error": "web_fetch_duplicate_attempt_suppressed",
+            "type": "web_conduit_fetch",
+            "requested_url": raw_requested_url,
+            "resolved_url": resolved_url,
+            "citation_redirect_resolved": redirect_resolved,
+            "provider": selected_provider,
+            "provider_hint": provider_hint,
+            "provider_chain": fetch_provider_chain,
+            "provider_resolution": provider_resolution,
+            "provider_health": provider_health_snapshot(root, &fetch_provider_chain),
+            "tool_surface_status": tool_surface_status,
+            "tool_surface_ready": tool_surface_ready,
+            "tool_surface_blocking_reason": tool_surface_blocking_reason,
+            "tool_execution_attempted": false,
+            "tool_execution_gate": tool_execution_gate,
+            "meta_query_blocked": false,
+            "cache_status": "skipped_validation",
+            "cache_store_allowed": false,
+            "cache_write_attempted": false,
+            "cache_skip_reason": "replay_suppressed",
+            "replay_policy": replay_policy,
+            "replay_bypass": replay_bypass,
+            "attempt_replay_guard": attempt_replay_guard,
+            "attempt_signature": fetch_attempt_signature,
+            "retry": {
+                "recommended": true,
+                "strategy": "change_query_or_provider",
+                "lane": replay_retry_lane,
+                "retry_after_seconds": replay_retry_after_seconds
+            },
+            "summary": "Repeated identical web fetch attempts were suppressed by replay guard. Adjust URL or request parameters before retrying.",
+            "content": "",
+            "receipt": receipt
+        });
     }
 
     let fetched = fetch_with_curl_retry(
@@ -406,6 +922,17 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
             Some(error_value.as_str())
         },
     );
+    let mut receipt = receipt;
+    if let Some(receipt_obj) = receipt.as_object_mut() {
+        receipt_obj.insert(
+            "attempt_signature".to_string(),
+            Value::String(fetch_attempt_signature.clone()),
+        );
+        receipt_obj.insert(
+            "provider".to_string(),
+            Value::String(selected_provider.clone()),
+        );
+    }
     let _ = append_jsonl(&receipts_path(root), &receipt);
     let epistemic_object = json!({
         "kind": "web_document",
@@ -440,7 +967,13 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
     let fetch_error = if fetch_ok {
         Value::Null
     } else if error_value.is_empty() {
-        json!("web_conduit_fetch_failed")
+        if tool_surface_status == "unavailable" {
+            json!("web_fetch_tool_surface_unavailable")
+        } else if tool_surface_status == "degraded" && !tool_surface_ready {
+            json!("web_fetch_tool_surface_degraded")
+        } else {
+            json!("web_conduit_fetch_failed")
+        }
     } else {
         json!(error_value)
     };
@@ -456,6 +989,14 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
         "provider_hint": provider_hint,
         "provider_chain": fetch_provider_chain,
         "provider_resolution": provider_resolution,
+        "tool_surface_status": tool_surface_status,
+        "tool_surface_ready": tool_surface_ready,
+        "tool_surface_blocking_reason": tool_surface_blocking_reason,
+        "tool_execution_gate": tool_execution_gate,
+        "replay_policy": replay_policy,
+        "replay_bypass": replay_bypass,
+        "attempt_replay_guard": attempt_replay_guard,
+        "attempt_signature": fetch_attempt_signature,
         "extractor": extractor,
         "status_code": status_code,
         "content_type": if content_type.is_empty() { Value::String(String::new()) } else { Value::String(content_type) },
@@ -486,6 +1027,28 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
         "epistemic_object": epistemic_object,
         "error": fetch_error
     });
+    if !fetch_ok {
+        if let Some(obj) = out.as_object_mut() {
+            let current_error = obj.get("error").and_then(Value::as_str).unwrap_or("");
+            if current_error == "web_fetch_tool_surface_unavailable" {
+                obj.insert(
+                    "summary".to_string(),
+                    Value::String(
+                        "Web fetch tool surface is currently unavailable. Retry after provider runtime is restored."
+                            .to_string(),
+                    ),
+                );
+            } else if current_error == "web_fetch_tool_surface_degraded" {
+                obj.insert(
+                    "summary".to_string(),
+                    Value::String(
+                        "Web fetch tooling is degraded (provider readiness mismatch). Retry after credentials or provider runtime are repaired."
+                            .to_string(),
+                    ),
+                );
+            }
+        }
+    }
     let cache_status = if fetch_ok { "ok" } else { "error" };
     if cache_ttl_minutes > 0 {
         if let Some(obj) = out.as_object_mut() {

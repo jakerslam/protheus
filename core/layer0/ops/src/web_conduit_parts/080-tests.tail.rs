@@ -92,6 +92,293 @@ fn challenge_like_failure_detector_rejects_mixed_error_causes() {
 }
 
 #[test]
+fn meta_query_detector_flags_workflow_diagnostic_prompt() {
+    assert!(search_query_is_meta_diagnostic(
+        "was this a bad web request or training data hallucination again"
+    ));
+}
+
+#[test]
+fn meta_query_detector_allows_normal_research_prompt() {
+    assert!(!search_query_is_meta_diagnostic(
+        "top ai agent frameworks official docs"
+    ));
+}
+
+#[test]
+fn meta_query_detector_allows_single_meta_term_research_query() {
+    assert!(!search_query_is_meta_diagnostic(
+        "hallucination mitigation techniques for llm responses"
+    ));
+}
+
+#[test]
+fn meta_query_detector_allows_explicit_search_intent_with_meta_phrase() {
+    assert!(!search_query_is_meta_diagnostic(
+        "did you try it? search for current top ai agent frameworks"
+    ));
+}
+
+#[test]
+fn meta_query_detector_does_not_treat_topic_noun_as_search_intent() {
+    assert!(search_query_is_meta_diagnostic(
+        "why did my last prompt about agent frameworks hallucination fail"
+    ));
+}
+
+#[test]
+fn meta_query_detector_flags_short_conversational_test_prompt() {
+    assert!(search_query_is_meta_diagnostic("that was just a test"));
+}
+
+#[test]
+fn search_early_validation_blocks_meta_query() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let out = api_search(
+        tmp.path(),
+        &json!({
+            "query": "did you do the web request or was that a hallucination"
+        }),
+    );
+    assert_eq!(
+        out.get("error").and_then(Value::as_str),
+        Some("non_search_meta_query")
+    );
+    assert_eq!(
+        out.get("meta_query_blocked").and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        out.get("type").and_then(Value::as_str),
+        Some("web_conduit_search")
+    );
+    assert_eq!(out.get("provider").and_then(Value::as_str), Some("none"));
+    assert_eq!(
+        out.get("cache_status").and_then(Value::as_str),
+        Some("blocked_meta_query")
+    );
+    assert_eq!(
+        out.get("cache_store_allowed").and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        out.get("cache_skip_reason").and_then(Value::as_str),
+        Some("meta_query_blocked")
+    );
+    assert_eq!(
+        out.get("cache_write_attempted").and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(out.get("provider_hint").and_then(Value::as_str), Some("auto"));
+    assert_eq!(
+        out.get("override_hint").and_then(Value::as_str),
+        Some("force_web_search=true|force_web_lookup=true")
+    );
+    assert_eq!(
+        out.get("tool_execution_attempted").and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        out.get("tool_execution_skipped_reason")
+            .and_then(Value::as_str),
+        Some("meta_query_blocked")
+    );
+    assert_eq!(
+        out.get("validation_route").and_then(Value::as_str),
+        Some("meta_query_blocked")
+    );
+    assert_eq!(
+        out.get("providers_attempted")
+            .and_then(Value::as_array)
+            .map(|rows| rows.len()),
+        Some(0)
+    );
+    assert_eq!(
+        out.pointer("/tool_execution_gate/should_execute")
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        out.pointer("/tool_execution_gate/reason")
+            .and_then(Value::as_str),
+        Some("meta_query_blocked")
+    );
+    assert_eq!(
+        out.get("provider_chain")
+            .and_then(Value::as_array)
+            .map(|rows| rows.len()),
+        Some(0)
+    );
+    assert_eq!(
+        out.pointer("/provider_resolution/reason")
+            .and_then(Value::as_str),
+        Some("meta_query_blocked")
+    );
+    assert_eq!(
+        out.pointer("/provider_resolution/tool_surface_health/status")
+            .and_then(Value::as_str),
+        Some("not_evaluated")
+    );
+    assert_eq!(
+        out.pointer("/provider_health/status")
+            .and_then(Value::as_str),
+        Some("not_evaluated")
+    );
+    assert_eq!(
+        out.get("tool_surface_status").and_then(Value::as_str),
+        Some("not_evaluated")
+    );
+    assert_eq!(
+        out.get("tool_surface_ready").and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(out.get("provider_hint").and_then(Value::as_str), Some("auto"));
+}
+
+#[test]
+fn search_early_validation_blocks_conversational_test_prompt() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let out = api_search(tmp.path(), &json!({"query": "that was just a test"}));
+    assert_eq!(
+        out.get("error").and_then(Value::as_str),
+        Some("non_search_meta_query")
+    );
+    assert_eq!(
+        out.get("meta_query_blocked").and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        out.get("cache_skip_reason").and_then(Value::as_str),
+        Some("meta_query_blocked")
+    );
+    assert_eq!(
+        out.get("tool_execution_attempted").and_then(Value::as_bool),
+        Some(false)
+    );
+}
+
+#[test]
+fn search_early_validation_empty_query_marks_skipped_execution() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let out = api_search(tmp.path(), &json!({"query": ""}));
+    assert_eq!(out.get("error").and_then(Value::as_str), Some("query_required"));
+    assert_eq!(
+        out.get("cache_status").and_then(Value::as_str),
+        Some("skipped_validation")
+    );
+    assert_eq!(
+        out.get("cache_store_allowed").and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        out.get("cache_skip_reason").and_then(Value::as_str),
+        Some("query_required")
+    );
+    assert_eq!(
+        out.get("cache_write_attempted").and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        out.get("tool_execution_attempted").and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        out.get("tool_execution_skipped_reason")
+            .and_then(Value::as_str),
+        Some("query_required")
+    );
+    assert_eq!(
+        out.get("providers_attempted")
+            .and_then(Value::as_array)
+            .map(|rows| rows.len()),
+        Some(0)
+    );
+    assert_eq!(
+        out.pointer("/tool_execution_gate/reason")
+            .and_then(Value::as_str),
+        Some("query_required")
+    );
+    assert_eq!(
+        out.pointer("/provider_resolution/reason")
+            .and_then(Value::as_str),
+        Some("query_required")
+    );
+    assert_eq!(
+        out.pointer("/provider_resolution/tool_surface_health/status")
+            .and_then(Value::as_str),
+        Some("not_evaluated")
+    );
+    assert_eq!(
+        out.pointer("/provider_health/status")
+            .and_then(Value::as_str),
+        Some("not_evaluated")
+    );
+    assert_eq!(
+        out.get("tool_surface_status").and_then(Value::as_str),
+        Some("not_evaluated")
+    );
+    assert_eq!(
+        out.get("tool_surface_ready").and_then(Value::as_bool),
+        Some(false)
+    );
+}
+
+#[test]
+fn search_early_validation_allows_meta_query_when_override_enabled() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let out = search_early_validation_response(
+        tmp.path(),
+        &json!({"allow_meta_query_search": true}),
+        "did you do the web request or was that a hallucination",
+    );
+    assert!(out.is_none());
+}
+
+#[test]
+fn search_early_validation_allows_meta_query_when_force_web_search_enabled() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let out = search_early_validation_response(
+        tmp.path(),
+        &json!({"force_web_search": true}),
+        "did you do the web request or was that a hallucination",
+    );
+    assert!(out.is_none());
+}
+
+#[test]
+fn search_early_validation_allows_meta_query_when_force_web_search_string_enabled() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let out = search_early_validation_response(
+        tmp.path(),
+        &json!({"forceWebSearch": "true"}),
+        "did you do the web request or was that a hallucination",
+    );
+    assert!(out.is_none());
+}
+
+#[test]
+fn search_early_validation_allows_meta_query_when_force_web_lookup_enabled() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let out = search_early_validation_response(
+        tmp.path(),
+        &json!({"force_web_lookup": 1}),
+        "did you do the web request or was that a hallucination",
+    );
+    assert!(out.is_none());
+}
+
+#[test]
+fn search_early_validation_allows_meta_query_when_nested_force_lookup_enabled() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let out = search_early_validation_response(
+        tmp.path(),
+        &json!({"searchPolicy": {"forceWebLookup": "yes"}}),
+        "did you do the web request or was that a hallucination",
+    );
+    assert!(out.is_none());
+}
+
+#[test]
 fn search_uses_cached_response_when_available() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let request = json!({
