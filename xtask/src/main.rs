@@ -1,4 +1,8 @@
 use anyhow::{anyhow, bail, Context, Result};
+use infring_agent_surface::{
+    default_template_dir, run_runtime_lane, scaffold_template, RuntimeLaneRequest, TemplateKind,
+    TemplateScaffoldOptions,
+};
 use nursery_runtime::{
     build_specialist_training_plan, containment_permissions_from_value, seed_manifest_from_value,
 };
@@ -24,6 +28,8 @@ fn main() -> Result<()> {
         "infring-detach-bootstrap" => run_infring_detach_bootstrap(&args),
         "verify-infring-detach" => run_verify_infring_detach(&args),
         "emit-nursery-plan" => run_emit_nursery_plan(&args),
+        "infring-new" => run_infring_new(&args),
+        "infring-agent-run" => run_infring_agent_run(&args),
         "help" | "--help" | "-h" => {
             print_usage();
             Ok(())
@@ -45,6 +51,12 @@ fn print_usage() {
     );
     println!(
         "  cargo run -p xtask -- emit-nursery-plan --seed=<seed_manifest.json> --permissions=<permissions.json> --out=<plan.json>"
+    );
+    println!(
+        "  cargo run -p xtask -- infring-new --template=single-agent|swarm|rag|voice --name=<project-name> [--out=<dir>] [--force=1|0]"
+    );
+    println!(
+        "  cargo run -p xtask -- infring-agent-run --name=<agent> --prompt=<text> [--provider=local-echo] [--pack=research,web-ops] [--tool=web.search,web.fetch] [--lifespan=3600]"
     );
 }
 
@@ -261,6 +273,101 @@ fn run_emit_nursery_plan(args: &[String]) -> Result<()> {
         .expect("encode")
     );
     Ok(())
+}
+
+fn run_infring_new(args: &[String]) -> Result<()> {
+    let flags = parse_flag_map(args);
+    let template_raw = flags
+        .get("template")
+        .map(|value| value.as_str())
+        .unwrap_or("single-agent");
+    let template = TemplateKind::parse(template_raw)
+        .ok_or_else(|| anyhow!("xtask_invalid_template:{template_raw}"))?;
+    let name = flags
+        .get("name")
+        .cloned()
+        .unwrap_or_else(|| "infring-agent-app".to_string());
+    let root = resolve_workspace_root()?;
+    let out = flags
+        .get("out")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| default_template_dir(&root));
+    let force = parse_bool(flags.get("force"), false);
+
+    let result = scaffold_template(
+        template,
+        &TemplateScaffoldOptions {
+            name: name.clone(),
+            out_dir: out.clone(),
+            force,
+        },
+    )
+    .with_context(|| format!("xtask_infring_new_failed:name={name}:out={}", out.display()))?;
+
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&json!({
+            "ok": true,
+            "template": result.template,
+            "root": result.root,
+            "created_files": result.created_files,
+            "name": name,
+            "out_dir": out.display().to_string(),
+            "force": force,
+        }))
+        .expect("encode")
+    );
+    Ok(())
+}
+
+fn run_infring_agent_run(args: &[String]) -> Result<()> {
+    let flags = parse_flag_map(args);
+    let name = flags
+        .get("name")
+        .cloned()
+        .unwrap_or_else(|| "infring-agent".to_string());
+    let prompt = flags
+        .get("prompt")
+        .cloned()
+        .ok_or_else(|| anyhow!("xtask_missing_prompt"))?;
+    let preamble = flags.get("preamble").cloned();
+    let provider = flags.get("provider").cloned();
+    let model = flags.get("model").cloned();
+    let lifespan_seconds = parse_u64(flags.get("lifespan"), 3600);
+    let packs = csv_tokens(flags.get("pack"));
+    let tools = csv_tokens(flags.get("tool"));
+
+    let response = run_runtime_lane(RuntimeLaneRequest {
+        name,
+        preamble,
+        initial_prompt: prompt,
+        provider,
+        model,
+        tools,
+        capability_packs: packs,
+        lifespan_seconds: Some(lifespan_seconds),
+        metadata: json!({
+            "source": "xtask.infring-agent-run"
+        }),
+    })
+    .map_err(|error| anyhow!("xtask_infring_agent_run_failed:{error}"))?;
+
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&response).expect("encode runtime lane")
+    );
+    Ok(())
+}
+
+fn csv_tokens(raw: Option<&String>) -> Vec<String> {
+    raw.map(|value| {
+        value
+            .split(',')
+            .map(|token| token.trim().to_string())
+            .filter(|token| !token.is_empty())
+            .collect::<Vec<_>>()
+    })
+    .unwrap_or_default()
 }
 
 fn read_json_file(path: &Path) -> Result<Value> {
