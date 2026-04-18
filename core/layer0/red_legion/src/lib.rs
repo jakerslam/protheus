@@ -80,10 +80,14 @@ fn sanitize_token(raw: &str, max_len: usize) -> String {
         .join("_")
         .trim()
         .to_ascii_lowercase();
-    if token.len() > max_len {
-        token.truncate(max_len);
+    if token.chars().count() > max_len {
+        token = token.chars().take(max_len).collect();
     }
     token
+}
+
+fn error_json(error: &str) -> String {
+    serde_json::json!({ "ok": false, "error": error }).to_string()
 }
 
 fn normalize_request(request: &ChaosGameRequest) -> Result<ChaosGameRequest, String> {
@@ -222,6 +226,12 @@ fn receipt_digest(receipt: &ChaosGameReceipt) -> String {
 pub fn run_chaos_game(request: &ChaosGameRequest) -> Result<ChaosGameReceipt, String> {
     let request = normalize_request(request)?;
     let doctrine = load_embedded_red_legion_doctrine().map_err(|e| e.to_string())?;
+    if doctrine.max_drift_pct < 0.0
+        || doctrine.max_telemetry_overhead_ms <= 0.0
+        || doctrine.max_battery_pct_24h <= 0.0
+    {
+        return Err("doctrine_invalid_limits".to_string());
+    }
     let scenario = ChaosScenarioRequest {
         scenario_id: request.mission_id.clone(),
         events: synthesize_events(&request),
@@ -265,7 +275,7 @@ pub fn run_chaos_game_json(request_json: &str) -> Result<String, String> {
 #[no_mangle]
 pub extern "C" fn run_chaos_game_ffi(request_json_ptr: *const c_char) -> *mut c_char {
     let payload = if request_json_ptr.is_null() {
-        serde_json::json!({ "ok": false, "error": "request_parse_failed:null_request" }).to_string()
+        error_json("request_parse_failed:null_request")
     } else {
         let request_json = unsafe { CStr::from_ptr(request_json_ptr) }
             .to_str()
@@ -273,7 +283,7 @@ pub extern "C" fn run_chaos_game_ffi(request_json_ptr: *const c_char) -> *mut c_
             .to_string();
         match run_chaos_game_json(&request_json) {
             Ok(v) => v,
-            Err(err) => serde_json::json!({ "ok": false, "error": err }).to_string(),
+            Err(err) => error_json(&err),
         }
     };
     CString::new(payload)
@@ -295,7 +305,7 @@ pub extern "C" fn red_legion_free(ptr: *mut c_char) {
 pub fn run_chaos_game_wasm(request_json: &str) -> String {
     match run_chaos_game_json(request_json) {
         Ok(v) => v,
-        Err(err) => serde_json::json!({ "ok": false, "error": err }).to_string(),
+        Err(err) => error_json(&err),
     }
 }
 

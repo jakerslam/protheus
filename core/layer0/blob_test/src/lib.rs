@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
+use infring_types::{
+    compute_blob_manifest_signature, decode_signed_bincode_blob_manifest_with_adapter,
+    normalize_blob_id as normalize_blob_id_shared,
+};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use snap::raw::{Decoder, Encoder};
 use std::fmt::{Display, Formatter};
-use infring_types::{
-    compute_blob_manifest_signature, decode_signed_bincode_blob_manifest_with_adapter,
-    normalize_blob_id as normalize_blob_id_shared,
-};
 
 pub const MANIFEST: &[u8] = include_bytes!("manifest.blob");
 pub const MOCK_MEMORY_STATE_BLOB: &[u8] = include_bytes!("blobs/mock_memory_state.blob");
@@ -247,9 +247,8 @@ pub fn unfold_blob(blob_id: &str, expected_hash: &str) -> Result<Vec<u8>, BlobEr
         });
     }
 
-    let blob_bytes =
-        blob_bytes_by_id(&normalized_blob_id)
-            .ok_or_else(|| BlobError::UnknownBlob(normalized_blob_id.clone()))?;
+    let blob_bytes = blob_bytes_by_id(&normalized_blob_id)
+        .ok_or_else(|| BlobError::UnknownBlob(normalized_blob_id.clone()))?;
     let actual_hash = sha256_hex(blob_bytes);
     if !actual_hash.eq_ignore_ascii_case(&entry.hash) {
         return Err(BlobError::HashMismatch {
@@ -386,6 +385,10 @@ pub fn build_demo_bundle() -> Result<DemoBundle, BlobError> {
 }
 
 fn verify_manifest_entry(entry: &BlobManifest) -> Result<(), BlobError> {
+    let canonical_id = normalize_blob_id(&entry.id);
+    if canonical_id.is_empty() || canonical_id != entry.id {
+        return Err(BlobError::InvalidBlobId);
+    }
     let actual = entry
         .signature
         .as_ref()
@@ -456,5 +459,19 @@ mod tests {
         let decoded: MockMemoryState = unfold_blob_typed(&memory_entry.id, &memory_entry.hash)
             .expect("typed unfold should succeed");
         assert_eq!(decoded, sample_memory_state());
+    }
+
+    #[test]
+    fn verify_manifest_entry_rejects_noncanonical_blob_id() {
+        let entry = BlobManifest {
+            id: " bad id ".to_string(),
+            hash: "abc123".to_string(),
+            version: BLOB_VERSION,
+            signature: Some("sig".to_string()),
+        };
+        assert!(matches!(
+            verify_manifest_entry(&entry),
+            Err(BlobError::InvalidBlobId)
+        ));
     }
 }

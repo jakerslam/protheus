@@ -39,8 +39,8 @@ fn normalize_hook(raw: &str) -> Option<String> {
         .filter(|ch| !ch.is_control())
         .collect();
     normalized = normalized.trim().to_ascii_lowercase();
-    if normalized.len() > MAX_HOOK_TOKEN_LEN {
-        normalized.truncate(MAX_HOOK_TOKEN_LEN);
+    if normalized.chars().count() > MAX_HOOK_TOKEN_LEN {
+        normalized = normalized.chars().take(MAX_HOOK_TOKEN_LEN).collect();
     }
     if normalized.is_empty() {
         return None;
@@ -127,14 +127,20 @@ pub fn evaluate_source_hook_coverage(
         .filter(|hook| !observed_hooks.contains(*hook))
         .cloned()
         .collect::<Vec<_>>();
-    let fail_closed = required_hooks.is_empty() || normalized_source.trim().is_empty();
-    let ok = !fail_closed && missing_hooks.is_empty();
     let check_id = normalize_hook(check_id).unwrap_or_else(|| "unknown_check".to_string());
+    let fail_closed = required_hooks.is_empty()
+        || normalized_source.trim().is_empty()
+        || check_id == "unknown_check";
+    let ok = !fail_closed && missing_hooks.is_empty();
     let evidence = vec![
         format!("required_count={}", required_hooks.len()),
         format!("observed_count={}", observed_hooks.len()),
         format!("missing_count={}", missing_hooks.len()),
-        format!("source_nonempty={}", i32::from(!normalized_source.trim().is_empty())),
+        format!("check_id_known={}", i32::from(check_id != "unknown_check")),
+        format!(
+            "source_nonempty={}",
+            i32::from(!normalized_source.trim().is_empty())
+        ),
         format!("required={}", required_hooks.join(",")),
         format!("observed={}", observed_hooks.join(",")),
         format!("missing={}", missing_hooks.join(",")),
@@ -179,14 +185,16 @@ pub fn evaluate_required_hook_completeness(
         .filter(|hook| !required_hooks.contains(*hook))
         .cloned()
         .collect::<Vec<_>>();
-    let fail_closed = required_hooks.is_empty() || mandatory_hooks.is_empty();
-    let ok = !fail_closed && missing_hooks.is_empty();
     let check_id = normalize_hook(check_id).unwrap_or_else(|| "unknown_check".to_string());
+    let fail_closed =
+        required_hooks.is_empty() || mandatory_hooks.is_empty() || check_id == "unknown_check";
+    let ok = !fail_closed && missing_hooks.is_empty();
     let evidence = vec![
         format!("required_count={}", required_hooks.len()),
         format!("mandatory_count={}", mandatory_hooks.len()),
         format!("observed_count={}", observed_hooks.len()),
         format!("missing_count={}", missing_hooks.len()),
+        format!("check_id_known={}", i32::from(check_id != "unknown_check")),
         format!("required={}", required_hooks.join(",")),
         format!("mandatory={}", mandatory_hooks.join(",")),
         format!("observed={}", observed_hooks.join(",")),
@@ -277,5 +285,12 @@ mod tests {
             evaluate_required_hook_completeness(CHECK_ID_MERGE_GUARD_HOOK_COVERAGE, &["hook"], &[]);
         assert!(!no_mandatory.ok);
         assert!(no_mandatory.fail_closed);
+    }
+
+    #[test]
+    fn unknown_check_id_is_fail_closed() {
+        let receipt = evaluate_source_hook_coverage("", &["hook_a"], "hook_a");
+        assert!(!receipt.ok);
+        assert!(receipt.fail_closed);
     }
 }

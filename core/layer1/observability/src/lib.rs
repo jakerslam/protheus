@@ -141,6 +141,18 @@ fn digest_lines(lines: &[String]) -> String {
     hex::encode(hasher.finalize())
 }
 
+fn capped_events(profile: &EmbeddedObservabilityProfile, events: &[TraceEvent]) -> Vec<TraceEvent> {
+    events
+        .iter()
+        .take(profile.stream_policy.max_events_per_window.max(1) as usize)
+        .cloned()
+        .collect()
+}
+
+fn error_json(err: &ObservabilityError) -> String {
+    serde_json::json!({ "ok": false, "error": err.to_string() }).to_string()
+}
+
 fn channel_triggered(channel: &str, events: &[TraceEvent]) -> bool {
     events.iter().any(|event| {
         event.tags.iter().any(|tag| {
@@ -201,10 +213,6 @@ fn continuity_component(events: &[TraceEvent], window_ms: u32) -> f64 {
         }
     }
 
-    if total_pairs == 0 {
-        return 100.0;
-    }
-
     let monotonic_ratio = monotonic_ok as f64 / total_pairs as f64;
     let gap_penalty = gap_penalties as f64 / total_pairs as f64;
     let score = (monotonic_ratio * 100.0) - (gap_penalty * 35.0);
@@ -239,8 +247,7 @@ pub fn evaluate_trace_window(
     profile: &EmbeddedObservabilityProfile,
     events: &[TraceEvent],
 ) -> TraceWindowReport {
-    let max_events = profile.stream_policy.max_events_per_window as usize;
-    let accepted: Vec<TraceEvent> = events.iter().take(max_events).cloned().collect();
+    let accepted = capped_events(profile, events);
     let dropped_events = events.len().saturating_sub(accepted.len());
 
     let high_severity_events = accepted
@@ -299,11 +306,7 @@ pub fn compute_sovereignty_index(
     inject_fault_every: u32,
     enforce_fail_closed: bool,
 ) -> SovereigntyIndex {
-    let accepted_events: Vec<TraceEvent> = events
-        .iter()
-        .take(profile.stream_policy.max_events_per_window as usize)
-        .cloned()
-        .collect();
+    let accepted_events = capped_events(profile, events);
 
     let integrity_component_pct = if accepted_events.is_empty() {
         100.0
@@ -331,8 +334,7 @@ pub fn compute_sovereignty_index(
         / 100.0
         - ((chaos_penalty_pct * weights.chaos_penalty_pct as f64) / 100.0);
 
-    let mut score_pct = weighted_score.clamp(0.0, 100.0);
-    score_pct = round3(score_pct);
+    let score_pct = round3(weighted_score.clamp(0.0, 100.0));
 
     let mut reasons: Vec<String> = Vec::new();
     if integrity_component_pct < 70.0 {
@@ -386,6 +388,11 @@ pub fn compute_sovereignty_index(
 pub fn run_chaos_resilience(
     request: &ChaosScenarioRequest,
 ) -> Result<ChaosResilienceReport, ObservabilityError> {
+    if request.events.is_empty() {
+        return Err(ObservabilityError::InvalidRequest(
+            "events_required".to_string(),
+        ));
+    }
     let profile = load_embedded_observability_profile()?;
     let runtime_envelope = load_embedded_observability_runtime_envelope().ok();
 
@@ -398,12 +405,7 @@ pub fn run_chaos_resilience(
         request.enforce_fail_closed,
     );
 
-    let accepted_events: Vec<TraceEvent> = request
-        .events
-        .iter()
-        .take(profile.stream_policy.max_events_per_window as usize)
-        .cloned()
-        .collect();
+    let accepted_events = capped_events(&profile, &request.events);
 
     let hooks_fired = profile
         .chaos_hooks
@@ -491,7 +493,6 @@ fn c_str_to_string(ptr: *const c_char) -> Result<String, ObservabilityError> {
             "null_pointer".to_string(),
         ));
     }
-    // SAFETY: caller owns pointer and guarantees NUL-terminated string.
     let s = unsafe { CStr::from_ptr(ptr) }
         .to_str()
         .map_err(|_| ObservabilityError::InvalidRequest("invalid_utf8".to_string()))?;
@@ -514,7 +515,7 @@ pub extern "C" fn run_chaos_resilience_ffi(request_json: *const c_char) -> *mut 
     let payload =
         match c_str_to_string(request_json).and_then(|req| run_chaos_resilience_json(&req)) {
             Ok(v) => v,
-            Err(err) => serde_json::json!({ "ok": false, "error": err.to_string() }).to_string(),
+            Err(err) => error_json(&err),
         };
     into_c_string_ptr(payload)
 }
@@ -523,7 +524,7 @@ pub extern "C" fn run_chaos_resilience_ffi(request_json: *const c_char) -> *mut 
 pub extern "C" fn load_embedded_observability_profile_ffi() -> *mut c_char {
     let payload = match load_embedded_observability_profile_json() {
         Ok(v) => v,
-        Err(err) => serde_json::json!({ "ok": false, "error": err.to_string() }).to_string(),
+        Err(err) => error_json(&err),
     };
     into_c_string_ptr(payload)
 }
@@ -533,7 +534,6 @@ pub extern "C" fn observability_free(ptr: *mut c_char) {
     if ptr.is_null() {
         return;
     }
-    // SAFETY: pointer originated from CString::into_raw in this crate.
     unsafe {
         let _ = CString::from_raw(ptr);
     }
@@ -547,7 +547,7 @@ use wasm_bindgen::prelude::*;
 pub fn run_chaos_resilience_wasm(request_json: &str) -> String {
     match run_chaos_resilience_json(request_json) {
         Ok(v) => v,
-        Err(err) => serde_json::json!({ "ok": false, "error": err.to_string() }).to_string(),
+        Err(err) => error_json(&err),
     }
 }
 
@@ -556,7 +556,7 @@ pub fn run_chaos_resilience_wasm(request_json: &str) -> String {
 pub fn load_embedded_observability_profile_wasm() -> String {
     match load_embedded_observability_profile_json() {
         Ok(v) => v,
-        Err(err) => serde_json::json!({ "ok": false, "error": err.to_string() }).to_string(),
+        Err(err) => error_json(&err),
     }
 }
 

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 pub const INFRING_DETACH_CONTRACT_ID_INFRING_TYPES: &str = "V6-INFRING-DETACH-001.6";
 
@@ -11,6 +11,7 @@ const MAX_PROVIDER_TOKEN_LEN: usize = 64;
 const MAX_MODEL_TOKEN_LEN: usize = 128;
 const MAX_METADATA_KEY_LEN: usize = 64;
 const MAX_METADATA_VALUE_LEN: usize = 512;
+const MAX_TOOL_ID_LEN: usize = 64;
 
 pub fn strip_invisible_unicode(raw: &str) -> String {
     raw.chars()
@@ -29,7 +30,7 @@ fn is_valid_manifest_token(raw: &str, max_len: usize, allow_spaces: bool) -> boo
         .filter(|ch| !ch.is_control())
         .collect();
     let normalized = normalized.trim();
-    if normalized.is_empty() || normalized.len() > max_len {
+    if normalized.is_empty() || normalized.chars().count() > max_len {
         return false;
     }
     if !allow_spaces && normalized.chars().any(char::is_whitespace) {
@@ -37,7 +38,6 @@ fn is_valid_manifest_token(raw: &str, max_len: usize, allow_spaces: bool) -> boo
     }
     true
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct NormalizedBlobManifestEntry {
@@ -336,6 +336,9 @@ pub struct AgentManifest {
 
 impl AgentManifest {
     pub fn validate(&self) -> Result<(), String> {
+        if self.created_at.trim().is_empty() {
+            return Err("agent_manifest_missing_created_at".to_string());
+        }
         if !is_valid_manifest_token(&self.agent_id, MAX_AGENT_ID_LEN, false) {
             return Err("agent_manifest_invalid_agent_id".to_string());
         }
@@ -349,8 +352,11 @@ impl AgentManifest {
             &self.routing.default_model.provider,
             MAX_PROVIDER_TOKEN_LEN,
             false,
-        ) || !is_valid_manifest_token(&self.routing.default_model.model, MAX_MODEL_TOKEN_LEN, false)
-        {
+        ) || !is_valid_manifest_token(
+            &self.routing.default_model.model,
+            MAX_MODEL_TOKEN_LEN,
+            false,
+        ) {
             return Err("agent_manifest_invalid_default_model".to_string());
         }
         for model in &self.models {
@@ -383,6 +389,21 @@ impl AgentManifest {
             }
             if !is_valid_manifest_token(value, MAX_METADATA_VALUE_LEN, true) {
                 return Err("agent_manifest_invalid_metadata_value".to_string());
+            }
+        }
+        let mut seen_labels = BTreeSet::<String>::new();
+        for label in &self.labels {
+            let normalized = label.as_str().to_ascii_lowercase();
+            if !seen_labels.insert(normalized) {
+                return Err("agent_manifest_duplicate_label".to_string());
+            }
+        }
+        for (tool_id, tool_cfg) in &self.tools {
+            if !is_valid_manifest_token(tool_id, MAX_TOOL_ID_LEN, false) {
+                return Err("agent_manifest_invalid_tool_id".to_string());
+            }
+            if tool_cfg.timeout_seconds == 0 {
+                return Err("agent_manifest_invalid_tool_timeout".to_string());
             }
         }
         if self.quota.max_context_tokens == 0 {

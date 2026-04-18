@@ -7,7 +7,7 @@ use blob_test::{
 };
 use std::env;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 const MAX_CMD_LEN: usize = 48;
 const MAX_BLOB_ID_LEN: usize = 128;
@@ -33,10 +33,27 @@ fn sanitize_cli_token(raw: &str, max_len: usize, lowercase: bool) -> String {
     if lowercase {
         value = value.to_ascii_lowercase();
     }
-    if value.len() > max_len {
-        value.truncate(max_len);
+    if value.chars().count() > max_len {
+        value = value.chars().take(max_len).collect();
     }
     value
+}
+
+fn is_safe_relative_blob_path(path: &str) -> bool {
+    let candidate = Path::new(path);
+    if candidate.is_absolute() {
+        return false;
+    }
+    if !path.starts_with("src/") {
+        return false;
+    }
+    !candidate
+        .components()
+        .any(|component| matches!(component, Component::ParentDir))
+}
+
+fn is_sha256_hex(raw: &str) -> bool {
+    raw.len() == 64 && raw.chars().all(|ch| ch.is_ascii_hexdigit())
 }
 
 fn usage() {
@@ -70,7 +87,7 @@ fn run() -> Result<(), BlobError> {
             }
             let blob_id = sanitize_cli_token(&args[1], MAX_BLOB_ID_LEN, false);
             let expected_hash = sanitize_cli_token(&args[2], MAX_HASH_LEN, true);
-            if blob_id.is_empty() || expected_hash.is_empty() {
+            if blob_id.is_empty() || expected_hash.is_empty() || !is_sha256_hex(&expected_hash) {
                 return Err(BlobError::InvalidBlobId);
             }
             unfold_and_print(&blob_id, &expected_hash)?;
@@ -93,6 +110,11 @@ fn pack_demo_assets() -> Result<(), BlobError> {
     for blob in &bundle.blobs {
         let rel_path =
             demo_blob_path(&blob.id).ok_or_else(|| BlobError::UnknownBlob(blob.id.clone()))?;
+        if !is_safe_relative_blob_path(rel_path) {
+            return Err(BlobError::CompressFailed(
+                "unsafe_blob_output_path".to_string(),
+            ));
+        }
         let abs_path = crate_root().join(rel_path);
         write_bytes(&abs_path, &blob.compressed_bytes).map_err(|e| {
             BlobError::CompressFailed(format!("write {} failed: {e}", abs_path.display()))
