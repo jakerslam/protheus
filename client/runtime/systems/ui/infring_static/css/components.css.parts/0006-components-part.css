@@ -57,6 +57,7 @@
 
 /* Message controls/stats row (hover-revealed) */
 .message-stats-row {
+  --message-meta-icon-size: 13px;
   display: flex;
   align-items: center;
   gap: 6px;

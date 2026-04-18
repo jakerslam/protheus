@@ -43,6 +43,32 @@
   opacity: 0.9;
 }
 
+.message-stat-burn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.message-meta-icon {
+  width: var(--message-meta-icon-size, 13px);
+  height: var(--message-meta-icon-size, 13px);
+  flex: 0 0 var(--message-meta-icon-size, 13px);
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.message-stat-burn-icon {
+  background: #ff8a3d;
+  -webkit-mask-image: url('/icons/vecteezy_fire-icon-simple-vector-perfect-illustration_13821331.svg');
+  mask-image: url('/icons/vecteezy_fire-icon-simple-vector-perfect-illustration_13821331.svg');
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+
 /* Voice recording */
 .btn-recording {
   background: rgba(239, 68, 68, 0.15) !important;
@@ -196,6 +222,24 @@ mark.search-highlight {
 /* Markdown in messages */
 .message-bubble.markdown-body {
   font-family: var(--font-sans);
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.message-bubble.markdown-body h1,
+.message-bubble.markdown-body h2,
+.message-bubble.markdown-body h3,
+.message-bubble.markdown-body h4,
+.message-bubble.markdown-body h5,
+.message-bubble.markdown-body h6,
+.message-bubble.markdown-body p,
+.message-bubble.markdown-body li,
+.message-bubble.markdown-body blockquote {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .message-bubble.markdown-body strong {
@@ -231,6 +275,8 @@ mark.search-highlight {
   border-radius: var(--radius-md);
   padding: 14px;
   overflow-x: auto;
+  overflow-wrap: normal;
+  word-break: normal;
   margin: 8px 0;
   position: relative;
 }
@@ -331,6 +377,29 @@ mark.search-highlight {
 .message-bubble.markdown-body .chat-table-wrap table {
   margin: 0;
   min-width: 460px;
+}
+
+/* Math content (KaTeX/MathJax): keep overflow local to the message body. */
+.message-bubble.markdown-body .katex-display,
+.message-bubble.markdown-body .MathJax_Display,
+.message-bubble.markdown-body mjx-container[jax="CHTML"][display="true"] {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  margin: 0.6em 0;
+  -webkit-overflow-scrolling: touch;
+}
+
+.message-bubble.markdown-body .katex-display > .katex,
+.message-bubble.markdown-body .MathJax_Display > span,
+.message-bubble.markdown-body mjx-container[jax="CHTML"][display="true"] > * {
+  min-width: max-content;
+}
+
+.message-bubble.markdown-body .katex,
+.message-bubble.markdown-body mjx-container[jax="CHTML"]:not([display="true"]) {
+  max-width: 100%;
 }
 
 .message-bubble.markdown-body thead th {

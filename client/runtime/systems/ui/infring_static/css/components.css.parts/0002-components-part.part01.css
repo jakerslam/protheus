@@ -58,8 +58,9 @@
 .messages {
   flex: 1;
   overflow-y: auto;
-  padding: 18px 24px 4rem;
-  padding-bottom: 4rem;
+  overflow-x: hidden;
+  overflow-x: clip;
+  padding: 18px 24px calc(var(--chat-input-bottom-reserve, 136px) + 8px);
   padding-right: 24px;
   position: relative;
   background: var(--bg);
@@ -128,26 +129,20 @@
 }
 
 .chat-wrapper::after {
-  content: '';
+  content: none;
+}
+
+.chat-wrapper > .input-area {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
-  height: var(--chat-fade-size);
+  z-index: 12;
   pointer-events: none;
-  z-index: 11;
-  background: linear-gradient(
-    to top,
-    color-mix(in srgb, var(--bg) 99%, transparent) 0%,
-    color-mix(in srgb, var(--bg) 86%, transparent) 34%,
-    color-mix(in srgb, var(--bg) 54%, transparent) 68%,
-    transparent 100%
-  );
 }
 
-.chat-wrapper > .input-area {
-  position: relative;
-  z-index: 12;
+.chat-wrapper > .input-area .chat-input-lane {
+  pointer-events: auto;
 }
 
 .chat-wrapper > .input-area::before {

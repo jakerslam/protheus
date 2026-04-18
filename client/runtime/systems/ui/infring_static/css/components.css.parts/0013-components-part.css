@@ -120,11 +120,13 @@ body[data-theme='dark'] .message.terminal .message-bubble {
   box-shadow: 0 0 0 0.6px rgba(114, 255, 92, 0.16) inset, 0 0 16px rgba(114, 255, 92, 0.3), 0 0 3px rgba(114, 255, 92, 0.22);
 }
 
-body[data-theme='dark'] .input-area.terminal-mode .composer-shell {
+body[data-theme='dark'] .input-area.terminal-mode .composer-input-pill,
+body[data-theme='dark'] .input-area.terminal-mode .composer-controls-pill {
   box-shadow: -6px 0 12px -14px rgba(0, 0, 0, 0.42), 6px 0 12px -14px rgba(0, 0, 0, 0.42), 0 10px 18px -18px rgba(0, 0, 0, 0.66), 0 2px 6px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(149, 255, 99, 0.24) inset, 0 0 14px rgba(114, 255, 92, 0.28);
 }
 
-body[data-theme='dark'] .input-area.terminal-mode .composer-shell:focus-within {
+body[data-theme='dark'] .input-area.terminal-mode .composer-shell:focus-within .composer-input-pill,
+body[data-theme='dark'] .input-area.terminal-mode .composer-shell:focus-within .composer-controls-pill {
   box-shadow: -6px 0 12px -14px rgba(0, 0, 0, 0.46), 6px 0 12px -14px rgba(0, 0, 0, 0.46), 0 10px 18px -18px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.34), 0 0 0 2px rgba(149, 255, 99, 0.36), 0 0 0 1px rgba(149, 255, 99, 0.28) inset, 0 0 18px rgba(114, 255, 92, 0.34);
 }
 

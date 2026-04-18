@@ -66,6 +66,66 @@
       this._chatResizeObserver.observe(host);
     },
 
+    refreshChatInputOverlayMetrics() {
+      var host = this.$el || null;
+      if (!host || typeof host.querySelector !== 'function' || !host.style) return;
+      var inputArea = host.querySelector('.input-area');
+      if (!inputArea || inputArea.offsetParent === null) {
+        host.style.setProperty('--chat-input-overlay-height', '0px');
+        host.style.setProperty('--chat-input-bottom-reserve', '136px');
+        return;
+      }
+      var lane = inputArea.querySelector('.chat-input-lane');
+      var areaRect = typeof inputArea.getBoundingClientRect === 'function' ? inputArea.getBoundingClientRect() : null;
+      var laneRect = lane && typeof lane.getBoundingClientRect === 'function' ? lane.getBoundingClientRect() : null;
+      var measured = Math.max(
+        Number(areaRect && areaRect.height ? areaRect.height : 0),
+        Number(laneRect && laneRect.height ? laneRect.height : 0)
+      );
+      if (!Number.isFinite(measured) || measured < 0) measured = 0;
+      var overlayHeight = Math.ceil(measured);
+      var reserve = overlayHeight > 0 ? (overlayHeight + 20) : 136;
+      host.style.setProperty('--chat-input-overlay-height', overlayHeight + 'px');
+      host.style.setProperty('--chat-input-bottom-reserve', reserve + 'px');
+    },
+
+    teardownChatInputOverlayObserver() {
+      if (this._chatInputOverlayObserver && typeof this._chatInputOverlayObserver.disconnect === 'function') {
+        try { this._chatInputOverlayObserver.disconnect(); } catch(_) {}
+      }
+      this._chatInputOverlayObserver = null;
+      if (this._chatInputOverlayResizeHandler) {
+        try { window.removeEventListener('resize', this._chatInputOverlayResizeHandler); } catch(_) {}
+      }
+      this._chatInputOverlayResizeHandler = null;
+    },
+
+    installChatInputOverlayObserver() {
+      this.teardownChatInputOverlayObserver();
+      var host = this.$el || null;
+      if (!host || typeof host.querySelector !== 'function') return;
+      var inputArea = host.querySelector('.input-area');
+      this.refreshChatInputOverlayMetrics();
+      if (!inputArea) return;
+      var self = this;
+      if (typeof ResizeObserver === 'function') {
+        this._chatInputOverlayObserver = new ResizeObserver(function() {
+          self.refreshChatInputOverlayMetrics();
+        });
+        try { this._chatInputOverlayObserver.observe(inputArea); } catch(_) {}
+        var lane = inputArea.querySelector('.chat-input-lane');
+        if (lane) {
+          try { this._chatInputOverlayObserver.observe(lane); } catch(_) {}
+        }
+      }
+      this._chatInputOverlayResizeHandler = function() {
+        self.refreshChatInputOverlayMetrics();
+      };
+      try { window.addEventListener('resize', this._chatInputOverlayResizeHandler, { passive: true }); } catch(_) {
+        window.addEventListener('resize', this._chatInputOverlayResizeHandler);
+      }
+    },
+
     async refreshPromptSuggestions(force, hint) {
       var agent = this.currentAgent;
       if (!agent || !agent.id) {
