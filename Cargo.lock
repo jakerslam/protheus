@@ -1082,6 +1082,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "infring-agent-derive"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "infring-agent-surface"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "hex",
+ "infring-agent-derive",
+ "serde",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
 name = "infring-assimilation-core-v1"
 version = "0.1.0"
 dependencies = [
@@ -3515,6 +3536,7 @@ name = "xtask"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "infring-agent-surface",
  "nursery_runtime",
  "serde_json",
 ]
