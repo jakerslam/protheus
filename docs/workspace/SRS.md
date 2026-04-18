@@ -15898,3 +15898,19 @@ Source summary:
   - `core/layer0/swarm/src/handoff_contract.rs`
   - `core/layer0/swarm/src/a2a_v1.rs`
   - `cargo test --manifest-path core/layer0/swarm/Cargo.toml`
+
+### 2026-04-18 Wave 3 Graph + Checkpoint + HITL Runtime Addendum (V11-ASSIMILATION-GRAPH-003)
+
+- Intent:
+  - Add deterministic graph-execution primitives with durable checkpointing and HITL pause/resume semantics in execution authority paths.
+- Acceptance criteria:
+  - Execution core exposes graph workflow contracts (`GraphWorkflowDefinition`, `GraphNode`, `GraphEdge`) with deterministic route selection for sequential, branch, loop-check, parallel-fanout, and terminal nodes.
+  - Runtime execution supports HITL gates (`HitlDecision`) that fail-closed to `paused` with stable pause reasons when approvals are missing.
+  - Checkpoint contract is first-class (`GraphCheckpoint`, `GraphCheckpointStore`) with in-memory implementation and stable event digests.
+  - Graph execution emits deterministic receipts (`GraphExecutionReceipt`) and JSON entrypoint (`run_graph_workflow_json`).
+  - Regression tests cover HITL pause, HITL approved completion, and deterministic loop routing.
+- Regression evidence pointers:
+  - `core/layer2/execution/src/graph_runtime.rs`
+  - `core/layer2/execution/src/graph_runtime_tests.rs`
+  - `core/layer2/execution/src/lib.rs`
+  - `cargo test --manifest-path core/layer2/execution/Cargo.toml`
