@@ -1406,6 +1406,17 @@ fn run_action(root: &Path, action: &str, payload: &Value) -> LaneResult {
                 .or_else(|| lane_payload.pointer("/turn/assistant").and_then(Value::as_str))
                 .unwrap_or("");
             let forced_ok = lane.ok || !final_response.trim().is_empty();
+            let troubleshooting = dashboard_troubleshooting_capture_chat_exchange(
+                root,
+                &agent_id,
+                &raw_input,
+                &lane_payload,
+                forced_ok,
+                requires_live_web,
+            );
+            if let Some(obj) = lane_payload.as_object_mut() {
+                obj.insert("troubleshooting".to_string(), troubleshooting);
+            }
             LaneResult {
                 ok: forced_ok,
                 status: if forced_ok { 0 } else { lane.status },
@@ -1670,6 +1681,16 @@ fn run_action(root: &Path, action: &str, payload: &Value) -> LaneResult {
                     )),
                 },
             }
+        }
+        "dashboard.troubleshooting.state" => dashboard_troubleshooting_state_lane(root, payload),
+        "dashboard.troubleshooting.eval.drain" => {
+            dashboard_troubleshooting_eval_drain_lane(root, payload)
+        }
+        "dashboard.troubleshooting.outbox.flush" => {
+            dashboard_troubleshooting_outbox_flush_lane(root, payload)
+        }
+        "dashboard.troubleshooting.report_message" => {
+            dashboard_troubleshooting_report_message_lane(root, payload)
         }
         "dashboard.terminal.session.create" => {
             let result = dashboard_terminal_broker::create_session(root, payload);
