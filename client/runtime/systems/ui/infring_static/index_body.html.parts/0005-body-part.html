@@ -1,48 +1,3 @@
-                  type="button"
-                  class="chat-branch-indicator chat-branch-indicator-btn overlay-shared-surface"
-                  :title="'Active branch: ' + activeGitBranchLabel"
-                  :aria-expanded="showGitTreeMenu ? 'true' : 'false'"
-                  @click="toggleGitTreeMenu()"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <circle cx="6" cy="6" r="3"></circle>
-                    <circle cx="18" cy="18" r="3"></circle>
-                    <path d="M6 9v6a6 6 0 0 0 6 6h3"></path>
-                    <path d="M18 15V9"></path>
-                  </svg>
-                  <span class="chat-branch-label" x-text="activeGitBranchLabel"></span>
-                  <svg class="chat-branch-caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" :class="{ 'open': showGitTreeMenu }" aria-hidden="true">
-                    <path d="M6 9l6 6 6-6"></path>
-                  </svg>
-                </button>
-                <div class="chat-branch-menu dashboard-dropdown-surface" x-show="showGitTreeMenu" x-cloak @click.outside="closeGitTreeMenu()">
-                  <div class="chat-branch-menu-head">Switch Git Tree</div>
-                  <div class="chat-branch-menu-status" x-show="gitTreeMenuLoading">Loading trees…</div>
-                  <div class="chat-branch-menu-status chat-branch-menu-error" x-show="!gitTreeMenuLoading && gitTreeMenuError" x-text="gitTreeMenuError"></div>
-                  <div class="chat-branch-menu-list" x-show="!gitTreeMenuLoading && !gitTreeMenuError">
-                    <template x-for="row in gitTreeMenuItems" :key="row.branch">
-                      <button
-                        type="button"
-                        class="chat-branch-menu-item"
-                        :class="{ 'active': row.current }"
-                        :disabled="gitTreeSwitching || row.current"
-                        @click="switchAgentGitTree(row.branch)"
-                      >
-                        <span class="chat-branch-menu-item-name" x-text="row.branch"></span>
-                        <span class="chat-branch-menu-item-meta" x-text="row.main ? 'main' : (row.in_use_by_agents > 0 ? (row.in_use_by_agents + ' agents') : 'branch')"></span>
-                      </button>
-                    </template>
-                  </div>
-                  <button type="button" class="chat-branch-menu-create" :disabled="gitTreeSwitching" @click="createAndCheckoutGitBranch()">
-                    Create and checkout new branch
-                  </button>
-                </div>
-              </div>
-              <div class="context-ring dashboard-preview-trigger dashboard-preview-wrap" :data-tooltip="contextRingTooltip" tabindex="0">
-                <svg viewBox="0 0 36 36" aria-hidden="true">
-                  <circle class="context-ring-track" cx="18" cy="18" r="14" pathLength="100"></circle>
-                  <circle class="context-ring-progress" cx="18" cy="18" r="14" pathLength="100" :style="contextRingProgressStyle"></circle>
-                </svg>
               </div>
             </div>
             <div class="chat-archived-banner chat-archived-banner-bottom-center" x-show="currentAgent && isCurrentAgentArchived && isCurrentAgentArchived()">
@@ -87,7 +42,7 @@
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
                     <span class="session-count-badge" x-show="sessions.length > 1" x-text="sessions.length"></span>
                   </button>
-                  <div class="session-dropdown dashboard-dropdown-surface" x-show="sessionsOpen" @click.outside="sessionsOpen = false" x-transition>
+                  <infring-taskbar-menu-shell class="session-dropdown dashboard-dropdown-surface" x-show="sessionsOpen" @click.outside="sessionsOpen = false" x-transition>
                     <div class="session-dropdown-header dashboard-dropdown-header">
                       <span class="text-xs font-bold">Sessions</span>
                       <button class="btn btn-ghost btn-sm" @click="createSession()" style="padding:2px 6px;font-size:11px">+ New</button>
@@ -102,7 +57,7 @@
                       </div>
                     </template>
                     <div class="text-xs text-dim" style="padding:8px 12px;text-align:center" x-show="!sessions.length">No sessions</div>
-                  </div>
+                  </infring-taskbar-menu-shell>
                 </div>
                 <button class="btn btn-ghost btn-sm" @click="toggleSearch()" title="Search messages (Ctrl+G)">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
@@ -362,7 +317,7 @@
                           <button class="message-stat-btn" x-show="messageCanForkFromMeta(msg)" @click="forkMessageFromMeta(msg, idx, filteredMessages)" title="Fork to a new agent" aria-label="Fork to a new agent"><svg class="message-stat-icon message-stat-icon-fork" width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M5 5.372v.878c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75v-.878a2.25 2.25 0 1 1 1.5 0v.878a2.25 2.25 0 0 1-2.25 2.25h-1.5v2.128a2.251 2.251 0 1 1-1.5 0V8.5h-1.5A2.25 2.25 0 0 1 3.5 6.25v-.878a2.25 2.25 0 1 1 1.5 0ZM5 3.25a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Zm6.75.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm-3 8.75a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Z"/></svg></button>
                           <span class="message-stat-time" x-text="messageTs(msg)" x-show="messageMetaVisible(msg, idx, filteredMessages) && messageTs(msg)"></span>
                           <span class="message-stat-meta" x-text="messageStatResponseTimeText(msg)" x-show="messageMetaVisible(msg, idx, filteredMessages) && messageStatResponseTimeText(msg)"></span>
-                          <span class="message-stat-burn" x-show="messageMetaVisible(msg, idx, filteredMessages) && messageStatBurnLabelText(msg)"><span class="message-stat-burn-icon" aria-hidden="true">&#128293;</span><span x-text="messageStatBurnLabelText(msg)"></span></span>
+                          <span class="message-stat-burn" x-show="messageMetaVisible(msg, idx, filteredMessages) && messageStatBurnLabelText(msg)"><span class="message-meta-icon message-stat-burn-icon" aria-hidden="true"></span><span x-text="messageStatBurnLabelText(msg)"></span></span>
                         </div>
                         </div>
                       </infring-chat-stream-shell>
@@ -374,21 +329,21 @@
                 </div>
               </template>
               <template x-if="currentAgent && !sessionLoading && (!filteredMessages || filteredMessages.length === 0) && !showFreshArchetypeTiles">
-                <div class="empty-state">
+                <infring-chat-stream-shell class="empty-state">
                   <h4 x-text="searchQuery && searchQuery.trim() ? 'No matches' : 'No messages yet'"></h4>
                   <p class="hint" x-text="searchQuery && searchQuery.trim() ? 'Try a different search term.' : 'Start chatting or initialize this agent.'"></p>
                   <div style="display:flex;align-items:center;justify-content:center;gap:8px">
                     <button class="btn btn-ghost btn-sm" @click="if (searchQuery && searchQuery.trim()) { searchQuery = ''; } else { ensureFreshInitThread(currentAgent); }" x-text="searchQuery && searchQuery.trim() ? 'Clear search' : 'Initialize agent'"></button>
                     <button class="btn btn-primary btn-sm" @click="focusChatComposerFromInit('')" x-show="!(searchQuery && searchQuery.trim())">Start chat</button>
                   </div>
-                </div>
+                </infring-chat-stream-shell>
               </template>
 
               <!-- Drop zone overlay -->
-              <div x-show="dragOver" style="position:absolute;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:var(--surface);opacity:0.92;border:2px dashed var(--accent);border-radius:8px;pointer-events:none">
+              <infring-chat-stream-shell x-show="dragOver" style="position:absolute;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:var(--surface);opacity:0.92;border:2px dashed var(--accent);border-radius:8px;pointer-events:none">
                 <span style="font-size:16px;color:var(--accent);font-weight:600">Drop files here</span>
-              </div>
-              <aside class="chat-workspace-panel overlay-shared-surface" x-show="isWorkspacePanelOpen()" x-transition.opacity @click.outside="closeWorkspacePanel()">
+              </infring-chat-stream-shell>
+              <infring-popup-window-shell class="chat-workspace-panel overlay-shared-surface" x-show="isWorkspacePanelOpen()" x-transition.opacity @click.outside="closeWorkspacePanel()">
                 <div class="chat-workspace-panel-head">
                   <div>
                     <div class="chat-workspace-panel-title">Workspace</div>
@@ -426,7 +381,7 @@
                     </div>
                   </div>
                 </div>
-              </aside>
+              </infring-popup-window-shell>
             </div>
             <infring-chat-map-shell class="chat-map" x-show="currentAgent && filteredMessages && filteredMessages.length > 0" :style="chatMapContainerStyle()" :hasmessages="!!(currentAgent && filteredMessages && filteredMessages.length > 0)" :dragging="!!chatMapDragActive" aria-label="Message map">
               <div class="chat-map-surface drag-bar overlay-shared-surface" :class="{ 'is-container-dragging': !!chatMapDragActive }" @pointerdown.capture="startChatMapPointerDrag($event)" @mousedown.capture="startChatMapPointerDrag($event)">

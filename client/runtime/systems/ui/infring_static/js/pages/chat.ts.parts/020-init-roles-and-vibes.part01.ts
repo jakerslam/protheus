@@ -83,6 +83,8 @@
     _chatResizeBlurTimer: 0,
     _chatResizeObserver: null,
     _chatResizeLastWidth: 0,
+    _chatInputOverlayObserver: null,
+    _chatInputOverlayResizeHandler: null,
     _progressCache: {},
     _freshInitThreadShownFor: '',
     _releaseCheckInFlight: false,
@@ -199,6 +201,11 @@
         this.contextUsagePercent + '% full\n' +
         ' ' + this.formatTokenK(this.contextApproxTokens) + ' / ' + this.formatTokenK(this.contextWindow) + ' tokens used\n\n' +
         ' Infring dynamically prunes its context';
+    },
+
+    get contextRingCompactLabel() {
+      return 'Context: ' + this.contextUsagePercent + '%, ' +
+        this.formatTokenK(this.contextApproxTokens) + '/' + this.formatTokenK(this.contextWindow);
     },
 
     get activeGitBranchLabel() {

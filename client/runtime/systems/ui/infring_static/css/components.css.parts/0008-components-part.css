@@ -222,7 +222,7 @@
   color: var(--text);
   border: none;
   border-radius: 0;
-  padding: 12px 98px 12px 46px;
+  padding: 12px 52px 12px 14px;
   font-family: var(--font-sans);
   font-size: 14px;
   resize: none;
@@ -279,16 +279,53 @@
 }
 
 .composer-shell {
+  --composer-shell-min-height: 46px;
+  --composer-toggle-pill-size: var(--composer-shell-min-height);
+  --composer-input-toggle-width: calc((var(--composer-shell-min-height) * 3) - 30px);
+  --composer-input-toggle-gap: 0px;
   position: relative;
   width: 100%;
   display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: var(--composer-shell-min-height);
+  transition: filter 0.2s var(--ease-smooth);
+}
+
+.composer-main-row {
+  display: flex;
   align-items: flex-end;
-  min-height: 46px;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+.composer-input-pill,
+.composer-controls-pill {
   border: none;
   border-radius: 22px;
   background: var(--surface);
   box-shadow: -6px 0 12px -14px rgba(0, 0, 0, 0.32), 6px 0 12px -14px rgba(0, 0, 0, 0.32), 0 10px 18px -18px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.2);
   transition: box-shadow 0.2s var(--ease-smooth), filter 0.2s var(--ease-smooth);
+}
+
+.composer-input-pill {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: flex-end;
+  min-height: var(--composer-shell-min-height);
+}
+
+.composer-controls-pill {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+  align-self: flex-end;
+  height: var(--composer-shell-min-height);
 }
 
 /* Keep decorative composer text non-copyable (model labels, path chrome, etc).
@@ -308,8 +345,13 @@
 }
 
 .composer-shell:focus-within {
+  /* Keep ancestor filter off so nested backdrop-filter menus render reliably. */
+  filter: none;
+}
+
+.composer-shell:focus-within .composer-input-pill,
+.composer-shell:focus-within .composer-controls-pill {
   box-shadow: -6px 0 12px -14px rgba(0, 0, 0, 0.36), 6px 0 12px -14px rgba(0, 0, 0, 0.36), 0 10px 18px -18px rgba(0, 0, 0, 0.58), 0 2px 6px rgba(0, 0, 0, 0.24), 0 0 0 3px var(--accent-glow);
-  filter: saturate(1.06);
 }
 
 /* macOS/WebKit compositor guard:
@@ -411,13 +453,228 @@
 }
 
 .composer-actions-right {
-  position: absolute;
-  right: 8px;
-  bottom: 7px;
+  --composer-action-icon-ratio: 0.31;
+  --composer-action-stop-icon-ratio: 0.33;
+  --composer-action-recording-dot-ratio: 0.235;
+  position: relative;
   display: flex;
-  align-items: center;
-  gap: 2px;
+  align-items: stretch;
+  justify-content: flex-end;
+  gap: 0;
   z-index: 3;
+  height: 100%;
+  min-height: 100%;
+}
+
+.composer-send-voice-opt {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  height: 100%;
+  aspect-ratio: 1 / 1;
+  flex: 0 0 auto;
+  cursor: pointer;
+  color: var(--text-dim);
+  border: none;
+  border-radius: 999px;
+  box-shadow: none;
+  transition: color var(--transition-fast), opacity var(--transition-fast), background var(--transition-fast);
+}
+
+.composer-send-voice-opt.active {
+  border: none;
+  background: transparent;
+  color: var(--text);
+  box-shadow: none;
+}
+
+.composer-send-voice-opt svg {
+  display: block;
+  width: calc(100% * var(--composer-action-icon-ratio));
+  height: calc(100% * var(--composer-action-icon-ratio));
+  min-width: 16px;
+  min-height: 16px;
+}
+
+.composer-send-voice-opt-stop svg {
+  width: calc(100% * var(--composer-action-stop-icon-ratio));
+  height: calc(100% * var(--composer-action-stop-icon-ratio));
+}
+
+.composer-send-voice-opt .recording-dot {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: clamp(10px, calc(var(--input-toggle-circle-size, 46px) * 0.22), 13px);
+  height: clamp(10px, calc(var(--input-toggle-circle-size, 46px) * 0.22), 13px);
+  flex: 0 0 clamp(10px, calc(var(--input-toggle-circle-size, 46px) * 0.22), 13px);
+  border-radius: 999px;
+  background: #e23737;
+  box-shadow: none;
+}
+
+.composer-send-voice-opt .recording-dot::after {
+  content: none;
+  pointer-events: none;
+}
+
+.composer-send-voice-opt-voice.btn-recording .recording-dot {
+  width: clamp(10px, calc(var(--input-toggle-circle-size, 46px) * 0.22), 13px);
+  height: clamp(10px, calc(var(--input-toggle-circle-size, 46px) * 0.22), 13px);
+  flex: 0 0 clamp(10px, calc(var(--input-toggle-circle-size, 46px) * 0.22), 13px);
+  background: #e23737;
+  box-shadow: none;
+  animation: recording-dot-blink 0.9s steps(1, end) infinite;
+}
+
+.composer-send-voice-opt-voice.btn-recording .recording-dot::after {
+  content: none;
+  animation: none;
+}
+
+@keyframes recording-dot-blink {
+  0%, 49% {
+    opacity: 1;
+  }
+  50%, 100% {
+    opacity: 0.28;
+  }
+}
+
+.composer-send-voice-opt.btn-recording {
+  color: var(--text) !important;
+}
+
+.composer-send-voice-opt-voice.btn-recording {
+  background: transparent !important;
+  border: none;
+  box-shadow: none;
+  animation: none;
+}
+
+.composer-send-voice-opt.composer-send-voice-opt-stop {
+  border-color: color-mix(in srgb, var(--error) 68%, transparent);
+  border-top-color: color-mix(in srgb, var(--error) 68%, transparent);
+  border-bottom-color: color-mix(in srgb, var(--error) 90%, #000 10%);
+  border-right-color: color-mix(in srgb, var(--error) 90%, #000 10%);
+  background: color-mix(in srgb, var(--error-subtle) 80%, transparent);
+  color: var(--error);
+  box-shadow: var(--shadow-sm);
+}
+
+.composer-send-voice-opt-stop {
+  color: var(--error);
+}
+
+.composer-send-voice-opt:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.composer-actions-right > .btn-send,
+.composer-actions-right > .btn-stop {
+  width: auto;
+  height: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 999px;
+}
+
+.composer-actions-right > .btn-send svg,
+.composer-actions-right > .btn-stop svg {
+  width: calc(100% * var(--composer-action-icon-ratio));
+  height: calc(100% * var(--composer-action-icon-ratio));
+}
+
+.input-box-column {
+  display: flex;
+  min-width: 0;
+  height: 100%;
+}
+
+.input-box-column-selectors {
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-end;
+  max-width: min(52vw, 260px);
+}
+
+.input-box-column-voice,
+.input-box-column-submit {
+  align-items: center;
+  justify-content: center;
+}
+
+.input-box-selector-row {
+  display: flex;
+  flex: 1 1 50%;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+}
+
+.input-box-selector-label {
+  min-width: 0;
+  max-width: 160px;
+  line-height: 1;
+}
+
+.input-box-selector-control {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  justify-content: flex-end;
+}
+
+.input-box-selector-activator {
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0;
+}
+
+.input-box-selector-activator:focus-visible {
+  outline: none;
+}
+
+.input-box-selector-trigger {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  min-height: 20px;
+  border-radius: 6px;
+  padding: 0;
+}
+
+.input-box-selector-trigger,
+.input-box-selector-trigger:hover,
+.input-box-selector-trigger:focus-visible,
+.input-box-selector-trigger:active,
+.input-box-selector-trigger.active {
+  background: transparent !important;
+}
+
+.input-box-selector-trigger svg {
+  width: 12px;
+  height: 12px;
+}
+
+.composer-git-btn {
+  font-family: var(--font-mono);
 }
 
 .model-inline-label {
@@ -437,10 +694,17 @@
   pointer-events: none;
 }
 
+.model-inline-label.model-inline-label-action {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
 .model-inline-label + .model-switcher-inline {
   margin-left: -1px;
 }
 
+.input-box-selector-activator:hover .model-inline-label,
+.input-box-selector-activator:focus-visible .model-inline-label,
 .composer-actions-right:has(.composer-model-btn:hover) .model-inline-label,
 .composer-actions-right:has(.composer-model-btn:focus-visible) .model-inline-label,
 .composer-actions-right:has(.composer-model-btn.active) .model-inline-label {
@@ -455,9 +719,17 @@
 
 .composer-icon-left {
   position: absolute;
-  left: 8px;
+  left: auto;
+  right: 8px;
+  top: auto;
   bottom: 7px;
-  z-index: 3;
+  transform: none;
+  z-index: 4;
+}
+
+.composer-hamburger-icon {
+  width: 24px;
+  height: 24px;
 }
 
 .composer-plus-wrap {
@@ -470,18 +742,45 @@
 
 .composer-plus-menu {
   position: absolute;
-  left: 0;
+  left: auto;
+  right: 0;
   bottom: calc(100% + 8px);
   min-width: 220px;
   max-width: min(90vw, 360px);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--surface) 96%, transparent);
-  box-shadow: var(--shadow-md);
-  backdrop-filter: blur(10px) saturate(1.08);
-  -webkit-backdrop-filter: blur(10px) saturate(1.08);
-  overflow: hidden;
-  z-index: 12010;
+  overflow: visible;
+  z-index: 13060;
+}
+
+.composer-plus-menu.dashboard-dropdown-surface {
+  --dashboard-dropdown-position: absolute;
+  position: absolute;
+  right: 0;
+  left: auto;
+  bottom: calc(100% + 8px);
+  overflow: visible;
+}
+
+/* Composer dropdown surfaces should resolve directly from shared overlay tokens,
+   even when mounted inside input/composer wrappers. */
+.composer-plus-menu.dashboard-dropdown-surface,
+.composer-plus-menu .chat-branch-menu.dashboard-dropdown-surface,
+.composer-plus-menu .model-switcher-dropdown.dashboard-dropdown-surface {
+  --dashboard-preview-surface-border: var(--overlay-shared-surface-border, var(--overlay-surface-border, color-mix(in srgb, #fff 24%, transparent)));
+  --dashboard-preview-surface-background: color-mix(
+    in srgb,
+    var(--overlay-shared-surface-background, var(--overlay-surface-background, transparent)) 68%,
+    var(--surface) 32%
+  );
+  --dashboard-preview-surface-shadow: var(--overlay-shared-surface-shadow, var(--overlay-surface-shadow, -6px 0 12px -14px rgba(0, 0, 0, 0.32), 6px 0 12px -14px rgba(0, 0, 0, 0.32), 0 10px 18px -18px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.2)));
+  --dashboard-preview-surface-blur: var(--overlay-shared-surface-blur, var(--overlay-surface-blur, 6px));
+  --dashboard-preview-surface-saturate: var(--overlay-shared-surface-saturate, var(--overlay-surface-saturate, 1.05));
+  --dashboard-preview-surface-brightness: var(--overlay-shared-surface-brightness, var(--overlay-surface-brightness, 1));
+  --dashboard-preview-surface-contrast: var(--overlay-shared-surface-contrast, var(--overlay-surface-contrast, 1));
+  --dashboard-preview-surface-distortion: var(--overlay-shared-surface-distortion, var(--overlay-surface-distortion, url(#infring-overlay-glass-pass)));
+  --dashboard-preview-surface-specular: var(--overlay-shared-surface-specular, var(--overlay-surface-specular, none));
+  --dashboard-preview-surface-specular-opacity: var(--overlay-shared-surface-specular-opacity, var(--overlay-surface-specular-opacity, 0));
+  --dashboard-preview-surface-caustic: var(--overlay-shared-surface-caustic, var(--overlay-surface-caustic, none));
+  --dashboard-preview-surface-caustic-opacity: var(--overlay-shared-surface-caustic-opacity, var(--overlay-surface-caustic-opacity, 0));
 }
 
 .composer-plus-menu-item {
