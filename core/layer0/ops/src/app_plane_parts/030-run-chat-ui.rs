@@ -346,7 +346,23 @@ fn run_chat_ui(root: &Path, parsed: &crate::ParsedArgs, strict: bool, action: &s
     let mut forced_web_fallback = json!({
         "applied": false
     });
-    if requires_live_web && chat_ui_web_search_call_count(&tools) == 0 {
+    let detected_tool_surface_error = chat_ui_detect_tool_surface_error_code(&tools)
+        .map(ToString::to_string);
+    if requires_live_web && detected_tool_surface_error.is_some() {
+        let error_code = detected_tool_surface_error
+            .clone()
+            .unwrap_or_else(|| "web_tool_surface_degraded".to_string());
+        let fail_closed = chat_ui_tool_surface_fail_closed_copy(&error_code).to_string();
+        assistant_raw = clean(&fail_closed, 16_000);
+        forced_web_outcome = chat_ui_tool_surface_forced_outcome(&error_code).to_string();
+        forced_web_error_code = error_code.clone();
+        forced_web_fallback = json!({
+            "applied": true,
+            "reason": "detected_tool_surface_error",
+            "fallback_status": "surface_error",
+            "error": error_code
+        });
+    } else if requires_live_web && chat_ui_web_search_call_count(&tools) == 0 {
         let fallback_query = chat_ui_extract_web_query(&message);
         let fallback = {
             #[cfg(test)]
@@ -377,15 +393,16 @@ fn run_chat_ui(root: &Path, parsed: &crate::ParsedArgs, strict: bool, action: &s
             }
         };
         let fallback_ok = fallback.get("ok").and_then(Value::as_bool).unwrap_or(false);
-        if fallback_ok {
-            let summary = clean(
-                fallback
-                    .get("summary")
-                    .or_else(|| fallback.get("response"))
-                    .and_then(Value::as_str)
-                    .unwrap_or(""),
-                2_000,
-            );
+        let summary = clean(
+            fallback
+                .get("summary")
+                .or_else(|| fallback.get("response"))
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            2_000,
+        );
+        let query_aligned = chat_ui_web_result_matches_query(&fallback_query, &summary);
+        if fallback_ok && query_aligned {
             let assistant = if summary.is_empty() {
                 format!("Web search ran for \"{fallback_query}\" and returned results.")
             } else {
@@ -409,15 +426,46 @@ fn run_chat_ui(root: &Path, parsed: &crate::ParsedArgs, strict: bool, action: &s
                 "source": "batch_query"
             });
         } else {
-            let fail_closed = "Web tooling execution failed before any search tool call was recorded (error_code: web_tool_not_invoked). Retry lane: run `batch_query` with a narrower query or one specific source URL.".to_string();
+            let mismatch_only = fallback_ok && !query_aligned;
+            let (fail_closed, error_code) = if mismatch_only {
+                (
+                    crate::tool_output_match_filter::canonical_tooling_fallback_copy(
+                        "provider_low_signal",
+                        "web_tool_low_signal",
+                        Some("query_result_mismatch"),
+                    ),
+                    "web_tool_low_signal",
+                )
+            } else {
+                (
+                    "Web tooling execution failed before any search tool call was recorded (error_code: web_tool_not_invoked). Retry lane: run `batch_query` with a narrower query or one specific source URL.".to_string(),
+                    "web_tool_not_invoked",
+                )
+            };
+            if mismatch_only {
+                tools.push(json!({
+                    "name": "batch_query",
+                    "status": "low_signal",
+                    "ok": false,
+                    "source": "web",
+                    "query": fallback_query,
+                    "result": summary,
+                    "error": "web_tool_low_signal"
+                }));
+            }
             assistant_raw = clean(&fail_closed, 16_000);
-            forced_web_outcome = "forced_web_tool_not_invoked".to_string();
-            forced_web_error_code = "web_tool_not_invoked".to_string();
+            forced_web_outcome = if mismatch_only {
+                "forced_web_tool_low_signal".to_string()
+            } else {
+                "forced_web_tool_not_invoked".to_string()
+            };
+            forced_web_error_code = error_code.to_string();
             forced_web_fallback = json!({
                 "applied": true,
                 "query": fallback_query,
-                "status": "failed",
-                "error_code": "web_tool_not_invoked"
+                "status": if mismatch_only { "mismatch" } else { "failed" },
+                "query_aligned": query_aligned,
+                "error_code": error_code
             });
         }
     }
@@ -432,20 +480,16 @@ fn run_chat_ui(root: &Path, parsed: &crate::ParsedArgs, strict: bool, action: &s
     let mut hard_guard = json!({
         "applied": false
     });
+    let web_search_calls = chat_ui_web_search_call_count(&tools) as i64;
     if assistant.trim().is_empty()
         || crate::tool_output_match_filter::matches_ack_placeholder(&assistant)
         || crate::tool_output_match_filter::contains_forbidden_runtime_context_markers(&assistant)
     {
-        let fallback_status = if requires_live_web && chat_ui_web_search_call_count(&tools) == 0 {
-            "tool_not_invoked"
-        } else {
-            "parse_failed"
-        };
-        let fallback_error_code = if fallback_status == "tool_not_invoked" {
-            "web_tool_not_invoked"
-        } else {
-            "web_tool_invalid_response"
-        };
+        let (fallback_status, fallback_error_code) = chat_ui_fallback_status_error_for_diagnostics(
+            &tool_diagnostics,
+            requires_live_web,
+            web_search_calls,
+        );
         assistant = crate::tool_output_match_filter::canonical_tooling_fallback_copy(
             fallback_status,
             fallback_error_code,
@@ -460,46 +504,189 @@ fn run_chat_ui(root: &Path, parsed: &crate::ParsedArgs, strict: bool, action: &s
             forced_web_error_code = fallback_error_code.to_string();
         }
     }
-    let web_search_calls = chat_ui_web_search_call_count(&tools) as i64;
-    let blocked_signal = tools.iter().any(|row| {
-        let status = clean(
-            row.get("status").and_then(Value::as_str).unwrap_or(""),
-            80,
-        )
-        .to_ascii_lowercase();
-        let error = clean(
-            row.get("error").and_then(Value::as_str).unwrap_or(""),
-            160,
-        )
-        .to_ascii_lowercase();
-        status.contains("blocked")
-            || error.contains("blocked")
-            || error.contains("denied")
-            || error.contains("policy")
-            || error.contains("nexus")
-    });
-    let low_signal = tools.iter().any(|row| {
-        let status = clean(
-            row.get("status").and_then(Value::as_str).unwrap_or(""),
-            80,
-        )
-        .to_ascii_lowercase();
-        status.contains("low_signal")
-            || status.contains("low-signal")
-            || status.contains("no_results")
-            || status.contains("no_result")
-    });
-    let web_classification = if requires_live_web && web_search_calls == 0 {
-        "tool_not_invoked"
-    } else if blocked_signal {
-        "policy_blocked"
-    } else if low_signal {
-        "low_signal"
-    } else if requires_live_web {
-        "healthy"
+    let blocked_calls = tool_diagnostics
+        .get("blocked_calls")
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+    let blocked_error_calls = tool_diagnostics
+        .pointer("/error_codes/web_tool_policy_blocked")
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+    let blocked_receipt_calls = chat_ui_receipt_status_count(&tool_diagnostics, "blocked");
+    let not_found_error_calls = tool_diagnostics
+        .pointer("/error_codes/web_tool_not_found")
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+    let not_found_receipt_calls = chat_ui_receipt_status_count(&tool_diagnostics, "not_found");
+    let low_signal_calls = tool_diagnostics
+        .get("low_signal_calls")
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+    let no_result_calls = tool_diagnostics
+        .get("no_result_calls")
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+    let low_signal_error_calls = tool_diagnostics
+        .pointer("/error_codes/web_tool_low_signal")
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+    let low_signal_receipt_calls = chat_ui_receipt_status_count(&tool_diagnostics, "low_signal");
+    let surface_unavailable_calls = tool_diagnostics
+        .get("surface_unavailable_calls")
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+    let surface_degraded_calls = tool_diagnostics
+        .get("surface_degraded_calls")
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+    let blocked_signal = blocked_calls > 0 || blocked_error_calls > 0 || blocked_receipt_calls > 0;
+    let not_found_signal = not_found_error_calls > 0 || not_found_receipt_calls > 0;
+    let forced_surface_error_hint = if matches!(
+        forced_web_error_code.as_str(),
+        "web_tool_surface_unavailable" | "web_tool_surface_degraded"
+    ) {
+        Some(forced_web_error_code.clone())
     } else {
-        "not_required"
+        None
     };
+    let finalization_inferred_surface_error = if response_finalization_outcome
+        == "tool_surface_error_fail_closed"
+    {
+        detected_tool_surface_error
+            .clone()
+            .or_else(|| forced_surface_error_hint.clone())
+            .or_else(|| Some("web_tool_surface_degraded".to_string()))
+    } else {
+        None
+    };
+    let tool_surface_error_code = detected_tool_surface_error
+        .clone()
+        .or_else(|| forced_surface_error_hint.clone())
+        .or(finalization_inferred_surface_error)
+        .or_else(|| {
+            if surface_unavailable_calls > 0 {
+                Some("web_tool_surface_unavailable".to_string())
+            } else if surface_degraded_calls > 0 {
+                Some("web_tool_surface_degraded".to_string())
+            } else {
+                None
+            }
+        });
+    let low_signal = low_signal_calls > 0
+        || no_result_calls > 0
+        || low_signal_error_calls > 0
+        || low_signal_receipt_calls > 0;
+    let mut web_classification = if let Some(surface_error) = tool_surface_error_code.as_deref() {
+        chat_ui_tool_surface_classification(surface_error).to_string()
+    } else if requires_live_web && web_search_calls == 0 {
+        "tool_not_invoked".to_string()
+    } else if blocked_signal {
+        "policy_blocked".to_string()
+    } else if not_found_signal {
+        "tool_not_found".to_string()
+    } else if low_signal {
+        "low_signal".to_string()
+    } else if requires_live_web {
+        "healthy".to_string()
+    } else {
+        "not_required".to_string()
+    };
+    let expected_web_classification = chat_ui_expected_classification_from_diagnostics(
+        &tool_diagnostics,
+        requires_live_web,
+        web_search_calls,
+    );
+    let classification_consistent = web_classification == expected_web_classification;
+    let selected_classification_error_code =
+        chat_ui_error_code_for_classification(&web_classification).to_string();
+    let expected_classification_error_code =
+        chat_ui_error_code_for_classification(expected_web_classification).to_string();
+    let mut classification_active_error_code = if classification_consistent {
+        selected_classification_error_code.clone()
+    } else {
+        expected_classification_error_code.clone()
+    };
+    let mut classification_guard = json!({
+        "applied": !classification_consistent,
+        "selected": web_classification.clone(),
+        "expected": expected_web_classification,
+        "consistent": classification_consistent,
+        "mode": if classification_consistent { "none" } else { "override" },
+        "selected_error_code": if selected_classification_error_code.is_empty() { Value::Null } else { json!(selected_classification_error_code) },
+        "expected_error_code": if expected_classification_error_code.is_empty() { Value::Null } else { json!(expected_classification_error_code) },
+        "active_error_code": Value::Null,
+        "retry_recommended": false,
+        "retry_strategy": "none",
+        "retry_lane": "none",
+        "not_invoked_fail_closed": false,
+        "fail_closed": false,
+        "fail_closed_class": null
+    });
+    if let Some(guard) = classification_guard.as_object_mut() {
+        if !classification_active_error_code.is_empty() {
+            guard.insert(
+                "active_error_code".to_string(),
+                json!(classification_active_error_code),
+            );
+        }
+    }
+    if !classification_consistent {
+        web_classification = expected_web_classification.to_string();
+    }
+    let assistant_placeholder_like = assistant.trim().is_empty()
+        || crate::tool_output_match_filter::matches_ack_placeholder(&assistant)
+        || crate::tool_output_match_filter::contains_forbidden_runtime_context_markers(&assistant);
+    let assistant_context_mismatch = !chat_ui_response_matches_previous_message(&message, &assistant)
+        || chat_ui_contains_kernel_patch_thread_dump(&message, &assistant)
+        || chat_ui_contains_role_preamble_prompt_dump(&message, &assistant)
+        || chat_ui_contains_competitive_programming_dump(&message, &assistant);
+    let classification_findings_available = chat_ui_tools_have_valid_findings(&tools);
+    let classification_should_fail_close = requires_live_web
+        && matches!(
+            web_classification.as_str(),
+            "tool_not_invoked"
+                | "policy_blocked"
+                | "tool_not_found"
+                | "low_signal"
+        )
+        && (assistant_placeholder_like
+            || !classification_findings_available
+            || assistant_context_mismatch);
+    if classification_should_fail_close {
+        let fallback_status = chat_ui_fallback_status_for_classification(&web_classification);
+        let fallback_error_code = chat_ui_error_code_for_classification(&web_classification);
+        if !fallback_error_code.is_empty() {
+            assistant = crate::tool_output_match_filter::canonical_tooling_fallback_copy(
+                fallback_status,
+                fallback_error_code,
+                None,
+            );
+            hard_guard = json!({
+                "applied": true,
+                "status": fallback_status,
+                "error_code": fallback_error_code,
+                "classification": web_classification,
+                "source": "classification_guard"
+            });
+            if forced_web_error_code.is_empty() {
+                forced_web_error_code = fallback_error_code.to_string();
+            }
+            classification_active_error_code = fallback_error_code.to_string();
+            if let Some(guard) = classification_guard.as_object_mut() {
+                guard.insert("applied".to_string(), json!(true));
+                guard.insert("mode".to_string(), json!("fail_close"));
+                guard.insert("fail_closed".to_string(), json!(true));
+                guard.insert("fail_closed_class".to_string(), json!(web_classification));
+                guard.insert(
+                    "active_error_code".to_string(),
+                    json!(classification_active_error_code),
+                );
+                if web_classification == "tool_not_invoked" {
+                    guard.insert("not_invoked_fail_closed".to_string(), json!(true));
+                }
+            }
+        }
+    }
     let mut final_outcome = if forced_web_outcome.is_empty() {
         response_finalization_outcome.clone()
     } else {
@@ -509,9 +696,109 @@ fn run_chat_ui(root: &Path, parsed: &crate::ParsedArgs, strict: bool, action: &s
         .get("applied")
         .and_then(Value::as_bool)
         .unwrap_or(false);
-    if hard_guard_applied {
-        final_outcome = "hard_guard_fallback".to_string();
+    let hard_guard_source = hard_guard.get("source").and_then(Value::as_str).unwrap_or("");
+    if hard_guard_source == "classification_guard" {
+        let classification_error_code = chat_ui_error_code_for_classification(&web_classification);
+        if !classification_error_code.is_empty() {
+            forced_web_error_code = classification_error_code.to_string();
+            classification_active_error_code = classification_error_code.to_string();
+            if let Some(guard) = classification_guard.as_object_mut() {
+                guard.insert(
+                    "active_error_code".to_string(),
+                    json!(classification_active_error_code),
+                );
+            }
+        }
     }
+    let retry_loop_risk = tool_diagnostics
+        .get("loop_risk")
+        .cloned()
+        .unwrap_or_else(|| chat_ui_retry_loop_risk_from_diagnostics(&tool_diagnostics));
+    let (base_guard_retry_recommended, base_guard_retry_strategy, base_guard_retry_lane) =
+        chat_ui_retry_profile_for_guard(&classification_active_error_code, &web_classification);
+    let (guard_retry_recommended, guard_retry_strategy, guard_retry_lane) =
+        chat_ui_apply_loop_risk_to_retry(
+            base_guard_retry_recommended,
+            base_guard_retry_strategy,
+            base_guard_retry_lane,
+            &retry_loop_risk,
+        );
+    let retry_suppressed_by_loop_risk = base_guard_retry_recommended && !guard_retry_recommended;
+    let mut guard_retry_plan = chat_ui_retry_plan_for_guard(
+        guard_retry_recommended,
+        guard_retry_strategy,
+        guard_retry_lane,
+    );
+    if let Some(plan) = guard_retry_plan.as_object_mut() {
+        plan.insert("loop_risk".to_string(), retry_loop_risk.clone());
+        plan.insert(
+            "suppressed_by_loop_risk".to_string(),
+            json!(retry_suppressed_by_loop_risk),
+        );
+    }
+    if let Some(guard) = classification_guard.as_object_mut() {
+        guard.insert(
+            "retry_recommended".to_string(),
+            json!(guard_retry_recommended),
+        );
+        guard.insert("retry_strategy".to_string(), json!(guard_retry_strategy));
+        guard.insert("retry_lane".to_string(), json!(guard_retry_lane));
+        guard.insert("retry_plan".to_string(), guard_retry_plan.clone());
+        guard.insert(
+            "retry_suppressed_by_loop_risk".to_string(),
+            json!(retry_suppressed_by_loop_risk),
+        );
+        guard.insert("retry_loop_risk".to_string(), retry_loop_risk.clone());
+    }
+    if hard_guard_applied {
+        final_outcome = if hard_guard_source == "classification_guard" {
+            let guard_class = clean(
+                hard_guard
+                    .get("classification")
+                    .and_then(Value::as_str)
+                    .unwrap_or("unknown"),
+                80,
+            )
+            .replace('-', "_");
+            if guard_class == "tool_not_invoked" {
+                "classification_guard_not_invoked_fail_closed".to_string()
+            } else {
+                format!("classification_guard_{guard_class}_fail_closed")
+            }
+        } else {
+            "hard_guard_fallback".to_string()
+        };
+    }
+    if !classification_consistent && !hard_guard_applied {
+        final_outcome = "classification_guard_overrode".to_string();
+    }
+    if final_outcome == "tool_surface_error_fail_closed" {
+        final_outcome = chat_ui_tool_surface_forced_outcome(
+            tool_surface_error_code
+                .as_deref()
+                .unwrap_or("web_tool_surface_degraded"),
+        )
+        .to_string();
+    }
+    if forced_web_error_code.is_empty() {
+        if let Some(surface_error) = tool_surface_error_code.as_deref() {
+            forced_web_error_code = surface_error.to_string();
+        }
+    }
+    if forced_web_error_code.is_empty() {
+        let classification_error_code = chat_ui_error_code_for_classification(&web_classification);
+        if !classification_error_code.is_empty() {
+            forced_web_error_code = classification_error_code.to_string();
+        }
+    }
+    let response_tool_surface_error_code = if matches!(
+        forced_web_error_code.as_str(),
+        "web_tool_surface_unavailable" | "web_tool_surface_degraded"
+    ) {
+        Some(forced_web_error_code.clone())
+    } else {
+        tool_surface_error_code.clone()
+    };
     let trace_id = format!(
         "trace_{}",
         &sha256_hex_str(&format!(
@@ -534,11 +821,14 @@ fn run_chat_ui(root: &Path, parsed: &crate::ParsedArgs, strict: bool, action: &s
     if requires_live_web && !discovered_tools.iter().any(|tool| tool == "batch_query") {
         discovered_tools.push("batch_query".to_string());
     }
-    let transaction_complete =
-        (!requires_live_web || matches!(web_classification, "healthy")) && !hard_guard_applied;
+    let transaction_complete = (!requires_live_web || web_classification == "healthy")
+        && !hard_guard_applied;
     let transaction_status = if transaction_complete {
         "complete"
-    } else if matches!(web_classification, "low_signal") {
+    } else if matches!(
+        web_classification.as_str(),
+        "low_signal" | "tool_surface_degraded"
+    ) {
         "degraded"
     } else {
         "failed"
@@ -572,7 +862,13 @@ fn run_chat_ui(root: &Path, parsed: &crate::ParsedArgs, strict: bool, action: &s
             "intent": transaction_intent,
             "status": transaction_status,
             "complete": transaction_complete,
-            "classification": web_classification,
+            "classification": web_classification.clone(),
+            "retry": {
+                "recommended": guard_retry_recommended,
+                "strategy": guard_retry_strategy,
+                "lane": guard_retry_lane,
+                "plan": guard_retry_plan.clone()
+            },
             "closed_at": crate::now_iso()
         }
     });
@@ -610,6 +906,7 @@ fn run_chat_ui(root: &Path, parsed: &crate::ParsedArgs, strict: bool, action: &s
             "applied": true,
             "outcome": final_outcome,
             "rewrite_outcome": rewrite_outcome,
+            "tool_surface_error_code": response_tool_surface_error_code,
             "final_ack_only": crate::tool_output_match_filter::matches_ack_placeholder(&assistant),
             "findings_available": chat_ui_tools_have_valid_findings(&tools),
             "tool_receipt_summary": receipt_summary,
@@ -618,10 +915,19 @@ fn run_chat_ui(root: &Path, parsed: &crate::ParsedArgs, strict: bool, action: &s
                 "intent": transaction_intent,
                 "status": transaction_status,
                 "complete": transaction_complete,
-                "classification": web_classification,
+                "classification": web_classification.clone(),
+                "retry": {
+                    "recommended": guard_retry_recommended,
+                    "strategy": guard_retry_strategy,
+                    "lane": guard_retry_lane,
+                    "plan": guard_retry_plan,
+                    "suppressed_by_loop_risk": retry_suppressed_by_loop_risk,
+                    "loop_risk": retry_loop_risk
+                },
                 "closed_at": crate::now_iso()
             },
             "hard_guard": hard_guard,
+            "classification_guard": classification_guard,
             "tool_diagnostics": tool_diagnostics,
             "tool_gate": tool_gate,
             "capability_discovery": {
@@ -641,6 +947,7 @@ fn run_chat_ui(root: &Path, parsed: &crate::ParsedArgs, strict: bool, action: &s
                 "tool_attempted": web_search_calls > 0,
                 "web_search_calls": web_search_calls,
                 "classification": web_classification,
+                "tool_surface_error_code": response_tool_surface_error_code,
                 "diagnostic": "forced_live_web_invariant_from_app_plane_chat_ui"
             }
         },
@@ -900,6 +1207,68 @@ fn chat_ui_tool_gate_system_prompt(raw_input: &str) -> String {
     )
 }
 
+fn chat_ui_has_explicit_web_intent(lowered: &str) -> bool {
+    lowered.contains("web search")
+        || lowered.contains("websearch")
+        || lowered.contains("search the web")
+        || lowered.contains("search online")
+        || lowered.contains("find information")
+        || lowered.contains("finding information")
+        || lowered.contains("look it up")
+        || lowered.contains("look this up")
+        || lowered.contains("search again")
+        || lowered.contains("best chili recipes")
+}
+
+fn chat_ui_is_meta_diagnostic_request(lowered: &str) -> bool {
+    if lowered.is_empty() {
+        return false;
+    }
+    if chat_ui_has_explicit_web_intent(lowered) {
+        return false;
+    }
+    if [
+        "that was just a test",
+        "that was a test",
+        "did you do the web request",
+        "did you try it",
+        "where did that come from",
+        "where the hell did that come from",
+        "you returned no result",
+        "you hallucinated",
+        "answer the question",
+    ]
+    .iter()
+    .any(|marker| lowered.contains(*marker))
+    {
+        return true;
+    }
+    let meta_hits = [
+        "what happened",
+        "workflow",
+        "tool call",
+        "web tooling",
+        "hallucination",
+        "hallucinated",
+        "training data",
+        "context issue",
+        "last response",
+        "previous response",
+        "system issue",
+    ]
+    .iter()
+    .filter(|marker| lowered.contains(**marker))
+    .count();
+    if meta_hits == 0 {
+        return false;
+    }
+    let signal_terms = lowered
+        .split_whitespace()
+        .filter(|token| token.len() >= 3)
+        .count();
+    meta_hits >= 2 || signal_terms <= 7
+}
+
 fn chat_ui_requests_live_web(raw_input: &str) -> bool {
     if chat_ui_turn_is_meta_control_message(raw_input) {
         return false;
@@ -911,22 +1280,23 @@ fn chat_ui_requests_live_web(raw_input: &str) -> bool {
     if lowered.is_empty() {
         return false;
     }
-    lowered.contains("web search")
-        || lowered.contains("websearch")
-        || lowered.contains("search the web")
-        || lowered.contains("search again")
-        || lowered.contains("find information")
-        || lowered.contains("finding information")
-        || lowered.contains("best chili recipes")
-        || ((lowered.contains("framework") || lowered.contains("frameworks"))
-            && (lowered.contains("current")
-                || lowered.contains("latest")
-                || lowered.contains("top")))
+    if chat_ui_has_explicit_web_intent(&lowered) {
+        return true;
+    }
+    if chat_ui_is_meta_diagnostic_request(&lowered) {
+        return false;
+    }
+    ((lowered.contains("framework") || lowered.contains("frameworks"))
+        && (lowered.contains("current")
+            || lowered.contains("latest")
+            || lowered.contains("top")
+            || lowered.contains("best")))
         || (lowered.contains("search")
             && (lowered.contains("latest")
                 || lowered.contains("current")
                 || lowered.contains("framework")
-                || lowered.contains("recipes")))
+                || lowered.contains("recipes")
+                || lowered.contains("update")))
 }
 
 fn chat_ui_extract_web_query(raw_input: &str) -> String {
@@ -952,6 +1322,79 @@ fn chat_ui_extract_web_query(raw_input: &str) -> String {
         }
     }
     cleaned
+}
+
+fn chat_ui_query_alignment_terms(text: &str, max_terms: usize) -> Vec<String> {
+    let mut out = Vec::<String>::new();
+    for token in clean(text, 2_000)
+        .to_ascii_lowercase()
+        .split(|ch: char| !ch.is_ascii_alphanumeric())
+    {
+        if token.len() < 3 {
+            continue;
+        }
+        if matches!(
+            token,
+            "the"
+                | "and"
+                | "for"
+                | "with"
+                | "this"
+                | "that"
+                | "from"
+                | "into"
+                | "what"
+                | "when"
+                | "where"
+                | "why"
+                | "how"
+                | "about"
+                | "just"
+                | "again"
+                | "please"
+                | "best"
+                | "top"
+                | "give"
+                | "show"
+                | "find"
+                | "search"
+                | "web"
+                | "results"
+                | "result"
+        ) {
+            continue;
+        }
+        if out.iter().any(|existing| existing == token) {
+            continue;
+        }
+        out.push(token.to_string());
+        if out.len() >= max_terms {
+            break;
+        }
+    }
+    out
+}
+
+fn chat_ui_web_result_matches_query(query: &str, output: &str) -> bool {
+    let query_terms = chat_ui_query_alignment_terms(query, 16);
+    if query_terms.len() < 2 {
+        return true;
+    }
+    let lowered = clean(output, 4_000).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    let matched = query_terms
+        .iter()
+        .filter(|term| lowered.contains(term.as_str()))
+        .count();
+    let required_hits = 2.min(query_terms.len());
+    if matched >= required_hits {
+        return true;
+    }
+    let ratio = (matched as f64) / (query_terms.len() as f64);
+    let ratio_floor = if query_terms.len() >= 6 { 0.40 } else { 0.34 };
+    ratio >= ratio_floor
 }
 
 fn chat_ui_tool_name_is_web_search(name: &str) -> bool {
@@ -1034,7 +1477,28 @@ fn chat_ui_semantic_receipt_summary(
         .get("silent_failure_calls")
         .and_then(Value::as_i64)
         .unwrap_or(0);
-    let status = if requires_live_web && total_calls <= 0 {
+    let surface_unavailable_calls = diagnostics
+        .get("surface_unavailable_calls")
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+    let surface_degraded_calls = diagnostics
+        .get("surface_degraded_calls")
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+    let error_codes = diagnostics
+        .get("error_codes")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    let has_surface_unavailable =
+        surface_unavailable_calls > 0 || error_codes.contains_key("web_tool_surface_unavailable");
+    let has_surface_degraded =
+        surface_degraded_calls > 0 || error_codes.contains_key("web_tool_surface_degraded");
+    let status = if requires_live_web && has_surface_unavailable {
+        "failed"
+    } else if requires_live_web && has_surface_degraded {
+        "degraded"
+    } else if requires_live_web && total_calls <= 0 {
         "failed"
     } else if failed_calls == 0 && silent_failure_calls == 0 {
         "complete"
@@ -1050,7 +1514,7 @@ fn chat_ui_semantic_receipt_summary(
     };
     clean(
         &format!(
-            "Tool transaction {} for intent \"{}\": total={} success={} failed={} blocked={} not_found={} low_signal={} silent_failure={}.",
+            "Tool transaction {} for intent \"{}\": total={} success={} failed={} blocked={} not_found={} low_signal={} surface_unavailable={} surface_degraded={} silent_failure={}.",
             status,
             intent,
             total_calls,
@@ -1059,6 +1523,8 @@ fn chat_ui_semantic_receipt_summary(
             blocked_calls,
             not_found_calls,
             low_signal_calls,
+            surface_unavailable_calls,
+            surface_degraded_calls,
             silent_failure_calls
         ),
         600,
@@ -1231,6 +1697,298 @@ mod chat_ui_direct_path_tests {
     }
 
     #[test]
+    fn chat_ui_finalization_fail_closes_when_tool_surface_is_unavailable() {
+        let (assistant, outcome) = finalize_chat_ui_assistant_response(
+            "search current top agent frameworks",
+            "I'll get you an update on the current best AI agent frameworks.",
+            &[json!({
+                "name": "batch_query",
+                "status": "error",
+                "error": "web_search_tool_surface_unavailable"
+            })],
+        );
+        assert_eq!(outcome, "tool_surface_error_fail_closed");
+        let lowered = assistant.to_ascii_lowercase();
+        assert!(
+            lowered.contains("web tool surface is unavailable"),
+            "{assistant}"
+        );
+    }
+
+    #[test]
+    fn direct_run_chat_ui_surfaces_tool_surface_unavailable_error_and_classification() {
+        let root = tempfile::tempdir().expect("tempdir");
+        write_chat_script(
+            root.path(),
+            &json!({
+                "queue": [
+                    {
+                        "response": "working on it",
+                        "tools": [
+                            {
+                                "name": "batch_query",
+                                "status": "error",
+                                "error": "web_search_tool_surface_unavailable"
+                            }
+                        ]
+                    }
+                ]
+            }),
+        );
+
+        let parsed = crate::parse_args(&[
+            "run".to_string(),
+            "--app=chat-ui".to_string(),
+            "--session-id=surface-unavailable".to_string(),
+            "--message=try searching for current top agent frameworks".to_string(),
+            "--strict=1".to_string(),
+        ]);
+        let payload = run_chat_ui(root.path(), &parsed, true, "run");
+        assert_eq!(payload.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            payload.get("error").and_then(Value::as_str),
+            Some("web_tool_surface_unavailable")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/tool_transaction/classification")
+                .and_then(Value::as_str),
+            Some("tool_surface_unavailable")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/tool_transaction/status")
+                .and_then(Value::as_str),
+            Some("failed")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/outcome")
+                .and_then(Value::as_str),
+            Some("forced_web_tool_surface_unavailable")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/fail_closed")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            payload
+                .pointer("/web_tooling_fallback/reason")
+                .and_then(Value::as_str),
+            Some("detected_tool_surface_error")
+        );
+        let assistant = payload
+            .pointer("/turn/assistant")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        assert!(
+            assistant
+                .to_ascii_lowercase()
+                .contains("web tool surface is unavailable"),
+            "{assistant}"
+        );
+    }
+
+    #[test]
+    fn chat_ui_finalization_fail_closes_when_tool_surface_is_degraded() {
+        let (assistant, outcome) = finalize_chat_ui_assistant_response(
+            "search current top agent frameworks",
+            "let me check that quickly",
+            &[json!({
+                "name": "batch_query",
+                "status": "error",
+                "error": "web_search_tool_surface_degraded"
+            })],
+        );
+        assert_eq!(outcome, "tool_surface_error_fail_closed");
+        let lowered = assistant.to_ascii_lowercase();
+        assert!(lowered.contains("web tool surface is degraded"), "{assistant}");
+    }
+
+    #[test]
+    fn direct_run_chat_ui_surfaces_tool_surface_degraded_error_and_classification() {
+        let root = tempfile::tempdir().expect("tempdir");
+        write_chat_script(
+            root.path(),
+            &json!({
+                "queue": [
+                    {
+                        "response": "working on it",
+                        "tools": [
+                            {
+                                "name": "batch_query",
+                                "status": "error",
+                                "error": "web_search_tool_surface_degraded"
+                            }
+                        ]
+                    }
+                ]
+            }),
+        );
+
+        let parsed = crate::parse_args(&[
+            "run".to_string(),
+            "--app=chat-ui".to_string(),
+            "--session-id=surface-degraded".to_string(),
+            "--message=try searching for current top agent frameworks".to_string(),
+            "--strict=1".to_string(),
+        ]);
+        let payload = run_chat_ui(root.path(), &parsed, true, "run");
+        assert_eq!(payload.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            payload.get("error").and_then(Value::as_str),
+            Some("web_tool_surface_degraded")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/tool_transaction/classification")
+                .and_then(Value::as_str),
+            Some("tool_surface_degraded")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/tool_transaction/status")
+                .and_then(Value::as_str),
+            Some("degraded")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/outcome")
+                .and_then(Value::as_str),
+            Some("forced_web_tool_surface_degraded")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/fail_closed")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/tool_transaction/retry/recommended")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/tool_transaction/retry/strategy")
+                .and_then(Value::as_str),
+            Some("retry_with_backoff")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/tool_transaction/retry/plan/auto")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/tool_transaction/retry/plan/attempts")
+                .and_then(Value::as_i64),
+            Some(2)
+        );
+        assert_eq!(
+            payload
+                .pointer("/web_tooling_fallback/reason")
+                .and_then(Value::as_str),
+            Some("detected_tool_surface_error")
+        );
+        let assistant = payload
+            .pointer("/turn/assistant")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        assert!(
+            assistant
+                .to_ascii_lowercase()
+                .contains("web tool surface is degraded"),
+            "{assistant}"
+        );
+    }
+
+    #[test]
+    fn chat_ui_tool_surface_detector_prioritizes_unavailable_over_degraded() {
+        let code = chat_ui_detect_tool_surface_error_code(&[
+            json!({
+                "name": "batch_query",
+                "status": "error",
+                "error": "web_search_tool_surface_degraded"
+            }),
+            json!({
+                "name": "batch_query",
+                "status": "error",
+                "error": "web_search_tool_surface_unavailable"
+            }),
+        ]);
+        assert_eq!(code, Some("web_tool_surface_unavailable"));
+    }
+
+    #[test]
+    fn direct_run_chat_ui_mixed_surface_signals_report_unavailable_canonically() {
+        let root = tempfile::tempdir().expect("tempdir");
+        write_chat_script(
+            root.path(),
+            &json!({
+                "queue": [
+                    {
+                        "response": "working on it",
+                        "tools": [
+                            {
+                                "name": "batch_query",
+                                "status": "error",
+                                "error": "web_search_tool_surface_degraded"
+                            },
+                            {
+                                "name": "batch_query",
+                                "status": "error",
+                                "error": "web_fetch_tool_surface_unavailable"
+                            }
+                        ]
+                    }
+                ]
+            }),
+        );
+        let parsed = crate::parse_args(&[
+            "run".to_string(),
+            "--app=chat-ui".to_string(),
+            "--session-id=surface-mixed-priority".to_string(),
+            "--message=try searching for current top agent frameworks".to_string(),
+            "--strict=1".to_string(),
+        ]);
+        let payload = run_chat_ui(root.path(), &parsed, true, "run");
+        assert_eq!(payload.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            payload.get("error").and_then(Value::as_str),
+            Some("web_tool_surface_unavailable")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/tool_surface_error_code")
+                .and_then(Value::as_str),
+            Some("web_tool_surface_unavailable")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/web_invariant/tool_surface_error_code")
+                .and_then(Value::as_str),
+            Some("web_tool_surface_unavailable")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/tool_transaction/classification")
+                .and_then(Value::as_str),
+            Some("tool_surface_unavailable")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/outcome")
+                .and_then(Value::as_str),
+            Some("forced_web_tool_surface_unavailable")
+        );
+    }
+
+    #[test]
     fn chat_ui_tool_diagnostics_emits_explicit_execution_receipts() {
         let diagnostics = chat_ui_tool_diagnostics(&[
             json!({"name":"batch_query","status":"ok","ok":true,"result":"found docs"}),
@@ -1274,6 +2032,887 @@ mod chat_ui_direct_path_tests {
     }
 
     #[test]
+    fn chat_ui_tool_diagnostics_preserves_surface_error_code_from_status_only_rows() {
+        let diagnostics = chat_ui_tool_diagnostics(&[json!({
+            "name": "batch_query",
+            "status": "web_tool_surface_degraded",
+            "ok": false,
+            "error": ""
+        })]);
+        assert_eq!(
+            diagnostics
+                .pointer("/error_codes/web_tool_surface_degraded")
+                .and_then(Value::as_i64),
+            Some(1)
+        );
+        let receipts = diagnostics
+            .get("execution_receipts")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(receipts.iter().any(|row| {
+            row.get("error_code").and_then(Value::as_str)
+                == Some("web_tool_surface_degraded")
+        }));
+    }
+
+    #[test]
+    fn chat_ui_tool_diagnostics_preserves_surface_error_code_from_result_only_rows() {
+        let diagnostics = chat_ui_tool_diagnostics(&[json!({
+            "name": "batch_query",
+            "status": "error",
+            "ok": false,
+            "error": "",
+            "result": "provider failed: web_fetch_tool_surface_unavailable"
+        })]);
+        assert_eq!(
+            diagnostics
+                .pointer("/error_codes/web_tool_surface_unavailable")
+                .and_then(Value::as_i64),
+            Some(1)
+        );
+        let receipts = diagnostics
+            .get("execution_receipts")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(receipts.iter().any(|row| {
+            row.get("error_code").and_then(Value::as_str)
+                == Some("web_tool_surface_unavailable")
+                && row.get("status").and_then(Value::as_str) == Some("error")
+        }));
+        assert_eq!(
+            diagnostics
+                .get("surface_unavailable_calls")
+                .and_then(Value::as_i64),
+            Some(1)
+        );
+    }
+
+    #[test]
+    fn chat_ui_tool_diagnostics_counts_surface_classes_separately() {
+        let diagnostics = chat_ui_tool_diagnostics(&[
+            json!({
+                "name": "batch_query",
+                "status": "web_tool_surface_unavailable",
+                "ok": false
+            }),
+            json!({
+                "name": "batch_query",
+                "status": "web_tool_surface_degraded",
+                "ok": false
+            }),
+        ]);
+        assert_eq!(
+            diagnostics
+                .get("surface_unavailable_calls")
+                .and_then(Value::as_i64),
+            Some(1)
+        );
+        assert_eq!(
+            diagnostics
+                .get("surface_degraded_calls")
+                .and_then(Value::as_i64),
+            Some(1)
+        );
+    }
+
+    #[test]
+    fn chat_ui_tool_diagnostics_treats_policy_denied_status_as_blocked() {
+        let diagnostics = chat_ui_tool_diagnostics(&[json!({
+            "name": "batch_query",
+            "status": "policy_denied",
+            "ok": false
+        })]);
+        assert_eq!(
+            diagnostics
+                .get("blocked_calls")
+                .and_then(Value::as_i64),
+            Some(1)
+        );
+        assert_eq!(
+            diagnostics
+                .pointer("/error_codes/web_tool_policy_blocked")
+                .and_then(Value::as_i64),
+            Some(1)
+        );
+        let receipts = diagnostics
+            .get("execution_receipts")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(receipts.iter().any(|row| {
+            row.get("status").and_then(Value::as_str) == Some("blocked")
+                && row.get("error_code").and_then(Value::as_str) == Some("web_tool_policy_blocked")
+        }));
+    }
+
+    #[test]
+    fn direct_run_chat_ui_classifies_policy_denied_status_as_policy_blocked() {
+        let root = tempfile::tempdir().expect("tempdir");
+        write_chat_script(
+            root.path(),
+            &json!({
+                "queue": [
+                    {
+                        "response": "working on it",
+                        "tools": [
+                            {
+                                "name": "batch_query",
+                                "status": "policy_denied",
+                                "ok": false
+                            }
+                        ]
+                    }
+                ]
+            }),
+        );
+        let parsed = crate::parse_args(&[
+            "run".to_string(),
+            "--app=chat-ui".to_string(),
+            "--session-id=policy-denied-classification".to_string(),
+            "--message=search for current top agent frameworks".to_string(),
+            "--strict=1".to_string(),
+        ]);
+        let payload = run_chat_ui(root.path(), &parsed, true, "run");
+        assert_eq!(payload.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/tool_transaction/classification")
+                .and_then(Value::as_str),
+            Some("policy_blocked")
+        );
+        assert_eq!(
+            payload.get("error").and_then(Value::as_str),
+            Some("web_tool_policy_blocked")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/tool_diagnostics/blocked_calls")
+                .and_then(Value::as_i64),
+            Some(1)
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/tool_diagnostics/error_codes/web_tool_policy_blocked")
+                .and_then(Value::as_i64),
+            Some(1)
+        );
+    }
+
+    #[test]
+    fn chat_ui_tool_diagnostics_treats_provider_low_signal_status_as_low_signal() {
+        let diagnostics = chat_ui_tool_diagnostics(&[json!({
+            "name": "batch_query",
+            "status": "provider_low_signal",
+            "ok": false
+        })]);
+        assert_eq!(
+            diagnostics
+                .get("low_signal_calls")
+                .and_then(Value::as_i64),
+            Some(1)
+        );
+        assert_eq!(
+            diagnostics
+                .pointer("/error_codes/web_tool_low_signal")
+                .and_then(Value::as_i64),
+            Some(1)
+        );
+        let receipts = diagnostics
+            .get("execution_receipts")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(receipts.iter().any(|row| {
+            row.get("status").and_then(Value::as_str) == Some("low_signal")
+                && row.get("error_code").and_then(Value::as_str) == Some("web_tool_low_signal")
+        }));
+    }
+
+    #[test]
+    fn direct_run_chat_ui_classifies_provider_low_signal_status_as_low_signal() {
+        let root = tempfile::tempdir().expect("tempdir");
+        write_chat_script(
+            root.path(),
+            &json!({
+                "queue": [
+                    {
+                        "response": "working on it",
+                        "tools": [
+                            {
+                                "name": "batch_query",
+                                "status": "provider_low_signal",
+                                "ok": false
+                            }
+                        ]
+                    }
+                ]
+            }),
+        );
+        let parsed = crate::parse_args(&[
+            "run".to_string(),
+            "--app=chat-ui".to_string(),
+            "--session-id=provider-low-signal-classification".to_string(),
+            "--message=search for current top agent frameworks".to_string(),
+            "--strict=1".to_string(),
+        ]);
+        let payload = run_chat_ui(root.path(), &parsed, true, "run");
+        assert_eq!(payload.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/tool_transaction/classification")
+                .and_then(Value::as_str),
+            Some("low_signal")
+        );
+        assert_eq!(
+            payload.get("error").and_then(Value::as_str),
+            Some("web_tool_low_signal")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/tool_transaction/status")
+                .and_then(Value::as_str),
+            Some("degraded")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/tool_diagnostics/low_signal_calls")
+                .and_then(Value::as_i64),
+            Some(1)
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/tool_diagnostics/error_codes/web_tool_low_signal")
+                .and_then(Value::as_i64),
+            Some(1)
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/consistent")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+    }
+
+    #[test]
+    fn chat_ui_tool_diagnostics_treats_unknown_tool_not_found_result_as_not_found() {
+        let diagnostics = chat_ui_tool_diagnostics(&[json!({
+            "name": "batch_query",
+            "status": "unknown",
+            "ok": false,
+            "result": "tool not found: batch_query is unavailable"
+        })]);
+        assert_eq!(
+            diagnostics
+                .get("not_found_calls")
+                .and_then(Value::as_i64),
+            Some(1)
+        );
+        assert_eq!(
+            diagnostics
+                .pointer("/error_codes/web_tool_not_found")
+                .and_then(Value::as_i64),
+            Some(1)
+        );
+        let receipts = diagnostics
+            .get("execution_receipts")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(receipts.iter().any(|row| {
+            row.get("status").and_then(Value::as_str) == Some("not_found")
+                && row.get("error_code").and_then(Value::as_str) == Some("web_tool_not_found")
+        }));
+    }
+
+    #[test]
+    fn direct_run_chat_ui_classifies_unknown_tool_not_found_result_as_tool_not_found() {
+        let root = tempfile::tempdir().expect("tempdir");
+        write_chat_script(
+            root.path(),
+            &json!({
+                "queue": [
+                    {
+                        "response": "working on it",
+                        "tools": [
+                            {
+                                "name": "batch_query",
+                                "status": "unknown",
+                                "ok": false,
+                                "result": "tool not found: batch_query is unavailable"
+                            }
+                        ]
+                    }
+                ]
+            }),
+        );
+        let parsed = crate::parse_args(&[
+            "run".to_string(),
+            "--app=chat-ui".to_string(),
+            "--session-id=unknown-not-found-classification".to_string(),
+            "--message=search for current top agent frameworks".to_string(),
+            "--strict=1".to_string(),
+        ]);
+        let payload = run_chat_ui(root.path(), &parsed, true, "run");
+        assert_eq!(payload.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/tool_transaction/classification")
+                .and_then(Value::as_str),
+            Some("tool_not_found")
+        );
+        assert_eq!(
+            payload.get("error").and_then(Value::as_str),
+            Some("web_tool_not_found")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/tool_transaction/status")
+                .and_then(Value::as_str),
+            Some("failed")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/tool_diagnostics/not_found_calls")
+                .and_then(Value::as_i64),
+            Some(1)
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/tool_diagnostics/error_codes/web_tool_not_found")
+                .and_then(Value::as_i64),
+            Some(1)
+        );
+    }
+
+    #[test]
+    fn direct_run_chat_ui_not_invoked_without_findings_fail_closes_via_classification_guard() {
+        let root = tempfile::tempdir().expect("tempdir");
+        write_chat_script(
+            root.path(),
+            &json!({
+                "queue": [
+                    {
+                        "response": "analysis pending",
+                        "tools": [
+                            {
+                                "name": "parse_workspace",
+                                "status": "ok",
+                                "ok": true,
+                                "result": ""
+                            }
+                        ]
+                    }
+                ]
+            }),
+        );
+        let parsed = crate::parse_args(&[
+            "run".to_string(),
+            "--app=chat-ui".to_string(),
+            "--session-id=classification-guard-not-invoked".to_string(),
+            "--message=search for current top agent frameworks".to_string(),
+            "--strict=1".to_string(),
+        ]);
+        let payload = run_chat_ui(root.path(), &parsed, true, "run");
+        assert_eq!(payload.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            payload
+                .get("error")
+                .and_then(Value::as_str),
+            Some("web_tool_not_invoked")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/outcome")
+                .and_then(Value::as_str),
+            Some("classification_guard_not_invoked_fail_closed")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/tool_transaction/classification")
+                .and_then(Value::as_str),
+            Some("tool_not_invoked")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/hard_guard/source")
+                .and_then(Value::as_str),
+            Some("classification_guard")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/not_invoked_fail_closed")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/fail_closed")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/applied")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/fail_closed_class")
+                .and_then(Value::as_str),
+            Some("tool_not_invoked")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/mode")
+                .and_then(Value::as_str),
+            Some("fail_close")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/active_error_code")
+                .and_then(Value::as_str),
+            Some("web_tool_not_invoked")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/retry_recommended")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/retry_strategy")
+                .and_then(Value::as_str),
+            Some("rerun_with_tool_call")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/retry_lane")
+                .and_then(Value::as_str),
+            Some("immediate")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/retry_plan/auto")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/retry_plan/attempts")
+                .and_then(Value::as_i64),
+            Some(1)
+        );
+        assert!(
+            payload
+                .pointer("/turn/assistant")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_ascii_lowercase()
+                .contains("before any search tool call was recorded")
+        );
+    }
+
+    #[test]
+    fn direct_run_chat_ui_low_signal_without_findings_fail_closes_via_classification_guard() {
+        let root = tempfile::tempdir().expect("tempdir");
+        write_chat_script(
+            root.path(),
+            &json!({
+                "queue": [
+                    {
+                        "response": "analysis pending",
+                        "tools": [
+                            {
+                                "name": "batch_query",
+                                "status": "provider_low_signal",
+                                "ok": false,
+                                "result": ""
+                            }
+                        ]
+                    }
+                ]
+            }),
+        );
+        let parsed = crate::parse_args(&[
+            "run".to_string(),
+            "--app=chat-ui".to_string(),
+            "--session-id=classification-guard-low-signal".to_string(),
+            "--message=search for current top agent frameworks".to_string(),
+            "--strict=1".to_string(),
+        ]);
+        let payload = run_chat_ui(root.path(), &parsed, true, "run");
+        assert_eq!(payload.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            payload.get("error").and_then(Value::as_str),
+            Some("web_tool_low_signal")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/outcome")
+                .and_then(Value::as_str),
+            Some("classification_guard_low_signal_fail_closed")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/hard_guard/source")
+                .and_then(Value::as_str),
+            Some("classification_guard")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/hard_guard/status")
+                .and_then(Value::as_str),
+            Some("provider_low_signal")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/fail_closed")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/applied")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/fail_closed_class")
+                .and_then(Value::as_str),
+            Some("low_signal")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/mode")
+                .and_then(Value::as_str),
+            Some("fail_close")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/active_error_code")
+                .and_then(Value::as_str),
+            Some("web_tool_low_signal")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/retry_recommended")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/retry_strategy")
+                .and_then(Value::as_str),
+            Some("narrow_query")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/retry_lane")
+                .and_then(Value::as_str),
+            Some("immediate")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/retry_plan/auto")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/retry_plan/attempts")
+                .and_then(Value::as_i64),
+            Some(1)
+        );
+    }
+
+    #[test]
+    fn direct_run_chat_ui_healthy_with_findings_does_not_apply_classification_guard() {
+        let root = tempfile::tempdir().expect("tempdir");
+        write_chat_script(
+            root.path(),
+            &json!({
+                "queue": [
+                    {
+                        "response": "Here are current top agentic AI frameworks.",
+                        "tools": [
+                            {
+                                "name": "batch_query",
+                                "status": "ok",
+                                "ok": true,
+                                "result": "LangGraph docs captured; OpenAI Agents SDK docs captured"
+                            }
+                        ]
+                    }
+                ]
+            }),
+        );
+        let parsed = crate::parse_args(&[
+            "run".to_string(),
+            "--app=chat-ui".to_string(),
+            "--session-id=classification-guard-healthy".to_string(),
+            "--message=search for current top agent frameworks".to_string(),
+            "--strict=1".to_string(),
+        ]);
+        let payload = run_chat_ui(root.path(), &parsed, true, "run");
+        assert_eq!(payload.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/tool_transaction/classification")
+                .and_then(Value::as_str),
+            Some("healthy")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/applied")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/fail_closed")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/mode")
+                .and_then(Value::as_str),
+            Some("none")
+        );
+        assert_eq!(
+            payload.pointer("/response_finalization/classification_guard/active_error_code"),
+            Some(&Value::Null)
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/retry_recommended")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/retry_strategy")
+                .and_then(Value::as_str),
+            Some("none")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/retry_lane")
+                .and_then(Value::as_str),
+            Some("none")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/retry_plan/attempts")
+                .and_then(Value::as_i64),
+            Some(0)
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/tool_transaction/complete")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(payload.get("error"), None);
+    }
+
+    #[test]
+    fn direct_run_chat_ui_placeholder_with_policy_blocked_uses_policy_guard_fallback() {
+        let root = tempfile::tempdir().expect("tempdir");
+        write_chat_script(
+            root.path(),
+            &json!({
+                "queue": [
+                    {
+                        "response": "I'll get you an update on the current best AI agent frameworks.",
+                        "tools": [
+                            {
+                                "name": "batch_query",
+                                "status": "policy_denied",
+                                "ok": false
+                            }
+                        ]
+                    }
+                ]
+            }),
+        );
+        let parsed = crate::parse_args(&[
+            "run".to_string(),
+            "--app=chat-ui".to_string(),
+            "--session-id=placeholder-policy-blocked".to_string(),
+            "--message=search for current top agent frameworks".to_string(),
+            "--strict=1".to_string(),
+        ]);
+        let payload = run_chat_ui(root.path(), &parsed, true, "run");
+        assert_eq!(payload.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            payload.get("error").and_then(Value::as_str),
+            Some("web_tool_policy_blocked")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/hard_guard/status")
+                .and_then(Value::as_str),
+            Some("policy_blocked")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/hard_guard/error_code")
+                .and_then(Value::as_str),
+            Some("web_tool_policy_blocked")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/outcome")
+                .and_then(Value::as_str),
+            Some("classification_guard_policy_blocked_fail_closed")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/applied")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/fail_closed")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/fail_closed_class")
+                .and_then(Value::as_str),
+            Some("policy_blocked")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/active_error_code")
+                .and_then(Value::as_str),
+            Some("web_tool_policy_blocked")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/retry_recommended")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/retry_strategy")
+                .and_then(Value::as_str),
+            Some("operator_policy_action")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/retry_lane")
+                .and_then(Value::as_str),
+            Some("blocked")
+        );
+    }
+
+    #[test]
+    fn direct_run_chat_ui_not_found_without_findings_fail_closes_via_classification_guard() {
+        let root = tempfile::tempdir().expect("tempdir");
+        write_chat_script(
+            root.path(),
+            &json!({
+                "queue": [
+                    {
+                        "response": "analysis pending",
+                        "tools": [
+                            {
+                                "name": "batch_query",
+                                "status": "unknown",
+                                "ok": false,
+                                "result": "tool not found: batch_query is unavailable"
+                            }
+                        ]
+                    }
+                ]
+            }),
+        );
+        let parsed = crate::parse_args(&[
+            "run".to_string(),
+            "--app=chat-ui".to_string(),
+            "--session-id=classification-guard-tool-not-found".to_string(),
+            "--message=search for current top agent frameworks".to_string(),
+            "--strict=1".to_string(),
+        ]);
+        let payload = run_chat_ui(root.path(), &parsed, true, "run");
+        assert_eq!(payload.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            payload.get("error").and_then(Value::as_str),
+            Some("web_tool_not_found")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/outcome")
+                .and_then(Value::as_str),
+            Some("classification_guard_tool_not_found_fail_closed")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/hard_guard/source")
+                .and_then(Value::as_str),
+            Some("classification_guard")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/hard_guard/status")
+                .and_then(Value::as_str),
+            Some("failed")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/applied")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/fail_closed")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/fail_closed_class")
+                .and_then(Value::as_str),
+            Some("tool_not_found")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/active_error_code")
+                .and_then(Value::as_str),
+            Some("web_tool_not_found")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/retry_recommended")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/retry_strategy")
+                .and_then(Value::as_str),
+            Some("adjust_tool_selection")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/classification_guard/retry_lane")
+                .and_then(Value::as_str),
+            Some("blocked")
+        );
+    }
+
+    #[test]
     fn chat_ui_receipt_summary_marks_missing_required_web_calls_as_failed() {
         let summary = chat_ui_semantic_receipt_summary(
             &json!({
@@ -1295,6 +2934,60 @@ mod chat_ui_direct_path_tests {
     }
 
     #[test]
+    fn chat_ui_receipt_summary_marks_surface_degraded_as_degraded() {
+        let summary = chat_ui_semantic_receipt_summary(
+            &json!({
+                "total_calls": 1,
+                "successful_calls": 0,
+                "failed_calls": 1,
+                "blocked_calls": 0,
+                "not_found_calls": 0,
+                "low_signal_calls": 0,
+                "silent_failure_calls": 0,
+                "error_codes": {
+                    "web_tool_surface_degraded": 1
+                }
+            }),
+            true,
+            "latest agent frameworks",
+        );
+        assert!(
+            summary.to_ascii_lowercase().contains("tool transaction degraded"),
+            "{summary}"
+        );
+    }
+
+    #[test]
+    fn chat_ui_receipt_summary_marks_surface_unavailable_as_failed() {
+        let summary = chat_ui_semantic_receipt_summary(
+            &json!({
+                "total_calls": 1,
+                "successful_calls": 0,
+                "failed_calls": 1,
+                "blocked_calls": 0,
+                "not_found_calls": 0,
+                "low_signal_calls": 0,
+                "silent_failure_calls": 0,
+                "error_codes": {
+                    "web_tool_surface_unavailable": 1
+                }
+            }),
+            true,
+            "latest agent frameworks",
+        );
+        assert!(
+            summary.to_ascii_lowercase().contains("tool transaction failed"),
+            "{summary}"
+        );
+        assert!(
+            summary
+                .to_ascii_lowercase()
+                .contains("surface_unavailable=1"),
+            "{summary}"
+        );
+    }
+
+    #[test]
     fn chat_ui_placeholder_rewrite_returns_canonical_error_copy() {
         let (rewritten, outcome) = rewrite_chat_ui_placeholder_with_tool_diagnostics(
             "Web search completed.",
@@ -1309,6 +3002,47 @@ mod chat_ui_direct_path_tests {
         let lowered = rewritten.to_ascii_lowercase();
         assert!(lowered.contains("web_status: auth_missing"), "{rewritten}");
         assert!(lowered.contains("error_code: web_tool_auth_missing"), "{rewritten}");
+    }
+
+    #[test]
+    fn chat_ui_placeholder_rewrite_prioritizes_surface_unavailable_copy() {
+        let (rewritten, outcome) = rewrite_chat_ui_placeholder_with_tool_diagnostics(
+            "Web search completed.",
+            &json!({
+                "total_calls": 1,
+                "error_codes": {
+                    "web_tool_surface_unavailable": 1,
+                    "web_tool_error": 1
+                }
+            }),
+        );
+        assert_eq!(outcome, "placeholder_replaced_surface_unavailable");
+        assert!(
+            rewritten
+                .to_ascii_lowercase()
+                .contains("web tool surface is unavailable"),
+            "{rewritten}"
+        );
+    }
+
+    #[test]
+    fn chat_ui_placeholder_rewrite_prioritizes_surface_degraded_copy() {
+        let (rewritten, outcome) = rewrite_chat_ui_placeholder_with_tool_diagnostics(
+            "Web search completed.",
+            &json!({
+                "total_calls": 1,
+                "error_codes": {
+                    "web_tool_surface_degraded": 1
+                }
+            }),
+        );
+        assert_eq!(outcome, "placeholder_replaced_surface_degraded");
+        assert!(
+            rewritten
+                .to_ascii_lowercase()
+                .contains("web tool surface is degraded"),
+            "{rewritten}"
+        );
     }
 
     #[test]
@@ -1420,6 +3154,480 @@ fn tool_findings_count(row: &Value) -> usize {
     0
 }
 
+fn chat_ui_surface_error_code_hint_from_row(row: &Value) -> Option<String> {
+    let mut saw_degraded = false;
+    let mut saw_unavailable = false;
+    for candidate in [
+        clean(row.get("status").and_then(Value::as_str).unwrap_or(""), 240),
+        clean(row.get("error").and_then(Value::as_str).unwrap_or(""), 240),
+        clean(row.get("result").and_then(Value::as_str).unwrap_or(""), 1_200),
+        chat_ui_tool_text_blob(row),
+    ] {
+        let code = crate::tool_output_match_filter::normalize_web_tooling_error_code(&candidate);
+        if code == "web_tool_surface_unavailable" {
+            saw_unavailable = true;
+        } else if code == "web_tool_surface_degraded" {
+            saw_degraded = true;
+        }
+    }
+    if saw_unavailable {
+        Some("web_tool_surface_unavailable".to_string())
+    } else if saw_degraded {
+        Some("web_tool_surface_degraded".to_string())
+    } else {
+        None
+    }
+}
+
+fn chat_ui_policy_blocked_hint_from_row(row: &Value) -> bool {
+    for candidate in [
+        clean(row.get("status").and_then(Value::as_str).unwrap_or(""), 240),
+        clean(row.get("error").and_then(Value::as_str).unwrap_or(""), 240),
+        clean(row.get("result").and_then(Value::as_str).unwrap_or(""), 1_200),
+        chat_ui_tool_text_blob(row),
+    ] {
+        let code = crate::tool_output_match_filter::normalize_web_tooling_error_code(&candidate);
+        if code == "web_tool_policy_blocked" {
+            return true;
+        }
+    }
+    false
+}
+
+fn chat_ui_low_signal_hint_from_row(row: &Value) -> bool {
+    for candidate in [
+        clean(row.get("status").and_then(Value::as_str).unwrap_or(""), 240),
+        clean(row.get("error").and_then(Value::as_str).unwrap_or(""), 240),
+        clean(row.get("result").and_then(Value::as_str).unwrap_or(""), 1_200),
+        chat_ui_tool_text_blob(row),
+    ] {
+        let code = crate::tool_output_match_filter::normalize_web_tooling_error_code(&candidate);
+        if code == "web_tool_low_signal" {
+            return true;
+        }
+    }
+    false
+}
+
+fn chat_ui_not_found_hint_from_row(row: &Value) -> bool {
+    for candidate in [
+        clean(row.get("status").and_then(Value::as_str).unwrap_or(""), 240),
+        clean(row.get("error").and_then(Value::as_str).unwrap_or(""), 240),
+        clean(row.get("result").and_then(Value::as_str).unwrap_or(""), 1_200),
+        chat_ui_tool_text_blob(row),
+    ] {
+        let code = crate::tool_output_match_filter::normalize_web_tooling_error_code(&candidate);
+        if code == "web_tool_not_found" {
+            return true;
+        }
+    }
+    false
+}
+
+fn chat_ui_receipt_status_count(diagnostics: &Value, status: &str) -> i64 {
+    diagnostics
+        .get("execution_receipts")
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter()
+                .filter(|row| {
+                    clean(row.get("status").and_then(Value::as_str).unwrap_or(""), 64)
+                        .eq_ignore_ascii_case(status)
+                })
+                .count() as i64
+        })
+        .unwrap_or(0)
+}
+
+fn chat_ui_receipt_has_error_code(diagnostics: &Value, error_code: &str) -> bool {
+    diagnostics
+        .get("execution_receipts")
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter().any(|row| {
+                clean(row.get("error_code").and_then(Value::as_str).unwrap_or(""), 128)
+                    .eq_ignore_ascii_case(error_code)
+            })
+        })
+        .unwrap_or(false)
+}
+
+fn chat_ui_expected_classification_from_diagnostics(
+    diagnostics: &Value,
+    requires_live_web: bool,
+    web_search_calls: i64,
+) -> &'static str {
+    let error_codes = diagnostics
+        .get("error_codes")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    let has_surface_unavailable = error_codes.contains_key("web_tool_surface_unavailable")
+        || chat_ui_receipt_has_error_code(diagnostics, "web_tool_surface_unavailable");
+    if has_surface_unavailable {
+        return "tool_surface_unavailable";
+    }
+    let has_surface_degraded = error_codes.contains_key("web_tool_surface_degraded")
+        || chat_ui_receipt_has_error_code(diagnostics, "web_tool_surface_degraded");
+    if has_surface_degraded {
+        return "tool_surface_degraded";
+    }
+    if requires_live_web && web_search_calls == 0 {
+        return "tool_not_invoked";
+    }
+    let blocked_signal = error_codes.contains_key("web_tool_policy_blocked")
+        || chat_ui_receipt_status_count(diagnostics, "blocked") > 0;
+    if blocked_signal {
+        return "policy_blocked";
+    }
+    let not_found_signal = error_codes.contains_key("web_tool_not_found")
+        || chat_ui_receipt_status_count(diagnostics, "not_found") > 0;
+    if not_found_signal {
+        return "tool_not_found";
+    }
+    let loop_risk_signal = diagnostics
+        .pointer("/loop_risk/detected")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    if loop_risk_signal {
+        return "low_signal";
+    }
+    let low_signal_signal = error_codes.contains_key("web_tool_low_signal")
+        || chat_ui_receipt_status_count(diagnostics, "low_signal") > 0
+        || diagnostics
+            .get("no_result_calls")
+            .and_then(Value::as_i64)
+            .unwrap_or(0)
+            > 0;
+    if low_signal_signal {
+        return "low_signal";
+    }
+    if requires_live_web {
+        "healthy"
+    } else {
+        "not_required"
+    }
+}
+
+fn chat_ui_fallback_status_error_for_diagnostics(
+    diagnostics: &Value,
+    requires_live_web: bool,
+    web_search_calls: i64,
+) -> (&'static str, &'static str) {
+    match chat_ui_expected_classification_from_diagnostics(
+        diagnostics,
+        requires_live_web,
+        web_search_calls,
+    ) {
+        "tool_surface_unavailable" => ("failed", "web_tool_surface_unavailable"),
+        "tool_surface_degraded" => ("failed", "web_tool_surface_degraded"),
+        "tool_not_invoked" => ("tool_not_invoked", "web_tool_not_invoked"),
+        "policy_blocked" => ("policy_blocked", "web_tool_policy_blocked"),
+        "tool_not_found" => ("failed", "web_tool_not_found"),
+        "low_signal" => ("provider_low_signal", "web_tool_low_signal"),
+        _ => ("parse_failed", "web_tool_invalid_response"),
+    }
+}
+
+fn chat_ui_error_code_for_classification(classification: &str) -> &'static str {
+    match classification {
+        "tool_surface_unavailable" => "web_tool_surface_unavailable",
+        "tool_surface_degraded" => "web_tool_surface_degraded",
+        "tool_not_invoked" => "web_tool_not_invoked",
+        "policy_blocked" => "web_tool_policy_blocked",
+        "tool_not_found" => "web_tool_not_found",
+        "low_signal" => "web_tool_low_signal",
+        _ => "",
+    }
+}
+
+fn chat_ui_fallback_status_for_classification(classification: &str) -> &'static str {
+    match classification {
+        "tool_surface_unavailable" | "tool_surface_degraded" => "failed",
+        "tool_not_invoked" => "tool_not_invoked",
+        "policy_blocked" => "policy_blocked",
+        "tool_not_found" => "failed",
+        "low_signal" => "provider_low_signal",
+        _ => "parse_failed",
+    }
+}
+
+fn chat_ui_retry_loop_risk_from_diagnostics(diagnostics: &Value) -> Value {
+    let receipts = diagnostics
+        .get("execution_receipts")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let receipt_count = receipts.len() as i64;
+    if receipt_count == 0 {
+        return json!({
+            "detected": false,
+            "severity": "none",
+            "receipt_count": 0,
+            "max_duplicate_signature_count": 0,
+            "max_consecutive_signature_streak": 0,
+            "dominant_signature": Value::Null,
+            "source": "execution_receipts"
+        });
+    }
+
+    let mut signatures = Vec::<String>::new();
+    for row in &receipts {
+        let status = clean(row.get("status").and_then(Value::as_str).unwrap_or(""), 120)
+            .to_ascii_lowercase();
+        let error_code = clean(row.get("error_code").and_then(Value::as_str).unwrap_or(""), 120)
+            .to_ascii_lowercase();
+        let signature = if status.is_empty() && error_code.is_empty() {
+            "unknown".to_string()
+        } else if error_code.is_empty() {
+            status
+        } else {
+            format!("{status}|{error_code}")
+        };
+        signatures.push(signature);
+    }
+
+    let mut max_duplicate_signature_count = 0_i64;
+    let mut dominant_signature = String::new();
+    for signature in &signatures {
+        let duplicate_count = signatures.iter().filter(|candidate| *candidate == signature).count() as i64;
+        if duplicate_count > max_duplicate_signature_count {
+            max_duplicate_signature_count = duplicate_count;
+            dominant_signature = signature.clone();
+        }
+    }
+
+    let mut max_consecutive_signature_streak = 0_i64;
+    let mut streak = 0_i64;
+    let mut last_signature = String::new();
+    for signature in &signatures {
+        if *signature == last_signature {
+            streak += 1;
+        } else {
+            streak = 1;
+            last_signature = signature.clone();
+        }
+        if streak > max_consecutive_signature_streak {
+            max_consecutive_signature_streak = streak;
+        }
+    }
+
+    let detected = receipt_count >= 3
+        && (max_duplicate_signature_count >= 3 || max_consecutive_signature_streak >= 2);
+    let severity = if receipt_count >= 4
+        && (max_duplicate_signature_count >= 4 || max_consecutive_signature_streak >= 3)
+    {
+        "high"
+    } else if detected {
+        "medium"
+    } else {
+        "none"
+    };
+    json!({
+        "detected": detected,
+        "severity": severity,
+        "receipt_count": receipt_count,
+        "max_duplicate_signature_count": max_duplicate_signature_count,
+        "max_consecutive_signature_streak": max_consecutive_signature_streak,
+        "dominant_signature": if dominant_signature.is_empty() { Value::Null } else { json!(dominant_signature) },
+        "source": "execution_receipts"
+    })
+}
+
+fn chat_ui_apply_loop_risk_to_retry(
+    retry_recommended: bool,
+    retry_strategy: &'static str,
+    retry_lane: &'static str,
+    loop_risk: &Value,
+) -> (bool, &'static str, &'static str) {
+    let loop_risk_detected = loop_risk
+        .get("detected")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    if loop_risk_detected && retry_recommended {
+        return (false, "halt_on_loop_risk", "manual_intervention");
+    }
+    (retry_recommended, retry_strategy, retry_lane)
+}
+
+fn chat_ui_retry_profile_for_guard(error_code: &str, classification: &str) -> (bool, &'static str, &'static str) {
+    let code = clean(error_code, 120).to_ascii_lowercase();
+    let class = clean(classification, 80).to_ascii_lowercase();
+    if code == "web_tool_low_signal" || class == "low_signal" {
+        return (true, "narrow_query", "immediate");
+    }
+    if code == "web_tool_not_invoked" || class == "tool_not_invoked" {
+        return (true, "rerun_with_tool_call", "immediate");
+    }
+    if code == "web_tool_timeout" || code == "web_tool_http_429" || code == "web_tool_surface_degraded"
+    {
+        return (true, "retry_with_backoff", "delayed");
+    }
+    if code == "web_tool_policy_blocked" || class == "policy_blocked" {
+        return (false, "operator_policy_action", "blocked");
+    }
+    if code == "web_tool_auth_missing" {
+        return (false, "provide_auth", "blocked");
+    }
+    if code == "web_tool_surface_unavailable" {
+        return (false, "restore_tool_surface", "blocked");
+    }
+    if code == "web_tool_not_found" || class == "tool_not_found" {
+        return (false, "adjust_tool_selection", "blocked");
+    }
+    (false, "none", "none")
+}
+
+fn chat_ui_retry_plan_for_guard(
+    retry_recommended: bool,
+    retry_strategy: &str,
+    retry_lane: &str,
+) -> Value {
+    if !retry_recommended {
+        return json!({
+            "auto": false,
+            "attempts": 0,
+            "min_delay_ms": 0,
+            "max_delay_ms": 0,
+            "jitter": 0.0
+        });
+    }
+    match (retry_strategy, retry_lane) {
+        ("retry_with_backoff", "delayed") => json!({
+            "auto": true,
+            "attempts": 2,
+            "min_delay_ms": 400,
+            "max_delay_ms": 30000,
+            "jitter": 0.1
+        }),
+        ("rerun_with_tool_call", "immediate") => json!({
+            "auto": true,
+            "attempts": 1,
+            "min_delay_ms": 0,
+            "max_delay_ms": 0,
+            "jitter": 0.0
+        }),
+        ("narrow_query", "immediate") => json!({
+            "auto": false,
+            "attempts": 1,
+            "min_delay_ms": 0,
+            "max_delay_ms": 0,
+            "jitter": 0.0
+        }),
+        _ => json!({
+            "auto": false,
+            "attempts": 1,
+            "min_delay_ms": 0,
+            "max_delay_ms": 0,
+            "jitter": 0.0
+        }),
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn chat_ui_retry_loop_risk_detects_repeated_receipts_and_suppresses_retry() {
+    let loop_risk = chat_ui_retry_loop_risk_from_diagnostics(&json!({
+        "execution_receipts": [
+            {"status": "low_signal", "error_code": "web_tool_low_signal"},
+            {"status": "low_signal", "error_code": "web_tool_low_signal"},
+            {"status": "low_signal", "error_code": "web_tool_low_signal"}
+        ]
+    }));
+    assert_eq!(
+        loop_risk.get("detected").and_then(Value::as_bool),
+        Some(true),
+        "{loop_risk}"
+    );
+    assert_eq!(
+        loop_risk
+            .get("max_duplicate_signature_count")
+            .and_then(Value::as_i64),
+        Some(3),
+        "{loop_risk}"
+    );
+    let (recommended, strategy, lane) = chat_ui_apply_loop_risk_to_retry(
+        true,
+        "narrow_query",
+        "immediate",
+        &loop_risk,
+    );
+    assert!(!recommended, "retry should be suppressed when loop-risk is detected");
+    assert_eq!(strategy, "halt_on_loop_risk");
+    assert_eq!(lane, "manual_intervention");
+}
+
+#[cfg(test)]
+#[test]
+fn chat_ui_retry_loop_risk_keeps_retry_when_receipts_are_diverse() {
+    let loop_risk = chat_ui_retry_loop_risk_from_diagnostics(&json!({
+        "execution_receipts": [
+            {"status": "ok", "error_code": ""},
+            {"status": "error", "error_code": "web_tool_timeout"},
+            {"status": "ok", "error_code": ""}
+        ]
+    }));
+    assert_eq!(
+        loop_risk.get("detected").and_then(Value::as_bool),
+        Some(false),
+        "{loop_risk}"
+    );
+    let (recommended, strategy, lane) = chat_ui_apply_loop_risk_to_retry(
+        true,
+        "retry_with_backoff",
+        "delayed",
+        &loop_risk,
+    );
+    assert!(recommended, "retry should remain available when no loop-risk is detected");
+    assert_eq!(strategy, "retry_with_backoff");
+    assert_eq!(lane, "delayed");
+}
+
+#[cfg(test)]
+#[test]
+fn chat_ui_expected_classification_uses_loop_risk_signal() {
+    let classification = chat_ui_expected_classification_from_diagnostics(
+        &json!({
+            "total_calls": 3,
+            "execution_receipts": [
+                {"status": "low_signal", "error_code": "web_tool_low_signal"},
+                {"status": "low_signal", "error_code": "web_tool_low_signal"},
+                {"status": "low_signal", "error_code": "web_tool_low_signal"}
+            ],
+            "loop_risk": {
+                "detected": true
+            }
+        }),
+        true,
+        3,
+    );
+    assert_eq!(classification, "low_signal");
+}
+
+#[cfg(test)]
+#[test]
+fn chat_ui_tool_diagnostics_publishes_loop_risk() {
+    let diagnostics = chat_ui_tool_diagnostics(&[
+        json!({"tool": "batch_query", "status": "low_signal", "error": "web_tool_low_signal"}),
+        json!({"tool": "batch_query", "status": "low_signal", "error": "web_tool_low_signal"}),
+        json!({"tool": "batch_query", "status": "low_signal", "error": "web_tool_low_signal"}),
+    ]);
+    assert_eq!(
+        diagnostics
+            .pointer("/loop_risk/detected")
+            .and_then(Value::as_bool),
+        Some(true),
+        "{diagnostics}"
+    );
+    assert_eq!(
+        diagnostics
+            .pointer("/loop_risk/max_duplicate_signature_count")
+            .and_then(Value::as_i64),
+        Some(3),
+        "{diagnostics}"
+    );
+}
+
 fn chat_ui_tool_diagnostics(tools: &[Value]) -> Value {
     let mut search_calls = 0_i64;
     let mut fetch_calls = 0_i64;
@@ -1430,6 +3638,8 @@ fn chat_ui_tool_diagnostics(tools: &[Value]) -> Value {
     let mut not_found_calls = 0_i64;
     let mut low_signal_calls = 0_i64;
     let mut silent_failure_calls = 0_i64;
+    let mut surface_unavailable_calls = 0_i64;
+    let mut surface_degraded_calls = 0_i64;
     let mut error_codes = serde_json::Map::<String, Value>::new();
     let mut execution_receipts = Vec::<Value>::new();
 
@@ -1484,23 +3694,62 @@ fn chat_ui_tool_diagnostics(tools: &[Value]) -> Value {
             "toolcall_{}",
             &sha256_hex_str(&format!("{}:{}:{}", idx, tool_name, raw_status))[..12]
         );
-        let status = crate::tool_output_match_filter::canonical_tool_status(
+        let mut status = crate::tool_output_match_filter::canonical_tool_status(
             &raw_status,
             ok,
             &error,
             findings,
             !result.is_empty(),
         );
+        let surface_error_code_hint = chat_ui_surface_error_code_hint_from_row(row);
+        if surface_error_code_hint.is_some() && status != "ok" {
+            status = "error".to_string();
+        }
+        let status_hint_error_code =
+            crate::tool_output_match_filter::normalize_web_tooling_error_code(&raw_status);
+        let prioritized_surface_error_code = if matches!(
+            status_hint_error_code.as_str(),
+            "web_tool_surface_unavailable" | "web_tool_surface_degraded"
+        ) {
+            Some(status_hint_error_code.clone())
+        } else {
+            surface_error_code_hint.clone()
+        };
+        let policy_blocked_hint = chat_ui_policy_blocked_hint_from_row(row);
+        let low_signal_hint = chat_ui_low_signal_hint_from_row(row);
+        let not_found_hint = chat_ui_not_found_hint_from_row(row);
+        if prioritized_surface_error_code.is_none() && status != "ok" {
+            if policy_blocked_hint {
+                status = "blocked".to_string();
+            } else if not_found_hint {
+                status = "not_found".to_string();
+            } else if low_signal_hint {
+                status = "low_signal".to_string();
+            }
+        }
         let error_code = if error.is_empty() {
-            match status.as_str() {
-                "blocked" => "web_tool_policy_blocked".to_string(),
-                "not_found" => "web_tool_not_found".to_string(),
-                "low_signal" => "web_tool_low_signal".to_string(),
-                "unknown" => "web_tool_silent_failure".to_string(),
-                _ => "web_tool_error".to_string(),
+            if status == "error"
+                && prioritized_surface_error_code.is_some()
+            {
+                prioritized_surface_error_code
+                    .clone()
+                    .unwrap_or_else(|| "web_tool_error".to_string())
+            } else {
+                match status.as_str() {
+                    "blocked" => "web_tool_policy_blocked".to_string(),
+                    "not_found" => "web_tool_not_found".to_string(),
+                    "low_signal" => "web_tool_low_signal".to_string(),
+                    "unknown" => "web_tool_silent_failure".to_string(),
+                    _ => "web_tool_error".to_string(),
+                }
             }
         } else {
-            crate::tool_output_match_filter::normalize_web_tooling_error_code(&error)
+            let normalized = crate::tool_output_match_filter::normalize_web_tooling_error_code(&error);
+            if normalized == "web_tool_error" {
+                prioritized_surface_error_code.unwrap_or(normalized)
+            } else {
+                normalized
+            }
         };
 
         match status.as_str() {
@@ -1533,9 +3782,20 @@ fn chat_ui_tool_diagnostics(tools: &[Value]) -> Value {
             "low_signal" => {
                 low_signal_calls += 1;
                 no_result_calls += 1;
+                let next = error_codes
+                    .get(&error_code)
+                    .and_then(Value::as_i64)
+                    .unwrap_or(0)
+                    .saturating_add(1);
+                error_codes.insert(error_code.clone(), Value::from(next));
             }
             "error" => {
                 failed_calls += 1;
+                if error_code == "web_tool_surface_unavailable" {
+                    surface_unavailable_calls += 1;
+                } else if error_code == "web_tool_surface_degraded" {
+                    surface_degraded_calls += 1;
+                }
                 let next = error_codes
                     .get(&error_code)
                     .and_then(Value::as_i64)
@@ -1555,7 +3815,7 @@ fn chat_ui_tool_diagnostics(tools: &[Value]) -> Value {
                 error_codes.insert(code, Value::from(next));
             }
         }
-        execution_receipts.push(crate::tool_output_match_filter::canonical_tool_execution_receipt(
+        let mut execution_receipt = crate::tool_output_match_filter::canonical_tool_execution_receipt(
             &call_id,
             &tool_name,
             &status,
@@ -1565,7 +3825,12 @@ fn chat_ui_tool_diagnostics(tools: &[Value]) -> Value {
             duration_ms,
             tokens_used,
             !result.is_empty(),
-        ));
+        );
+        if let Some(obj) = execution_receipt.as_object_mut() {
+            obj.insert("status".to_string(), json!(status));
+            obj.insert("error_code".to_string(), json!(error_code));
+        }
+        execution_receipts.push(execution_receipt);
     }
 
     let total_calls = tools.len() as i64;
@@ -1574,7 +3839,7 @@ fn chat_ui_tool_diagnostics(tools: &[Value]) -> Value {
     } else {
         0.0
     };
-    json!({
+    let mut diagnostics = json!({
         "total_calls": total_calls,
         "search_calls": search_calls,
         "fetch_calls": fetch_calls,
@@ -1585,10 +3850,17 @@ fn chat_ui_tool_diagnostics(tools: &[Value]) -> Value {
         "not_found_calls": not_found_calls,
         "low_signal_calls": low_signal_calls,
         "silent_failure_calls": silent_failure_calls,
+        "surface_unavailable_calls": surface_unavailable_calls,
+        "surface_degraded_calls": surface_degraded_calls,
         "error_ratio": error_ratio,
         "error_codes": Value::Object(error_codes),
         "execution_receipts": execution_receipts
-    })
+    });
+    let loop_risk = chat_ui_retry_loop_risk_from_diagnostics(&diagnostics);
+    if let Some(obj) = diagnostics.as_object_mut() {
+        obj.insert("loop_risk".to_string(), loop_risk);
+    }
+    diagnostics
 }
 
 fn rewrite_chat_ui_placeholder_with_tool_diagnostics(
@@ -1609,12 +3881,26 @@ fn rewrite_chat_ui_placeholder_with_tool_diagnostics(
         .get("total_calls")
         .and_then(Value::as_i64)
         .unwrap_or(0);
+    let has_surface_unavailable = errors.contains_key("web_tool_surface_unavailable");
+    let has_surface_degraded = errors.contains_key("web_tool_surface_degraded");
     let has_auth_missing = errors.contains_key("web_tool_auth_missing");
     let has_policy_blocked = errors.contains_key("web_tool_policy_blocked");
     let has_invalid_response = errors.contains_key("web_tool_invalid_response");
     let has_not_found = errors.contains_key("web_tool_not_found");
     let has_silent_failure = errors.contains_key("web_tool_silent_failure");
 
+    if has_surface_unavailable {
+        return (
+            chat_ui_tool_surface_fail_closed_copy("web_tool_surface_unavailable").to_string(),
+            "placeholder_replaced_surface_unavailable".to_string(),
+        );
+    }
+    if has_surface_degraded {
+        return (
+            chat_ui_tool_surface_fail_closed_copy("web_tool_surface_degraded").to_string(),
+            "placeholder_replaced_surface_degraded".to_string(),
+        );
+    }
     if has_auth_missing {
         return (
             crate::tool_output_match_filter::canonical_tooling_fallback_copy(
