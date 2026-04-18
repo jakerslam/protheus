@@ -58,14 +58,7 @@
         // Ctrl+F opens file picker from chat compose.
         if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && key === 'f' && self.currentAgent) {
           e.preventDefault();
-          if (self.terminalMode) {
-            self.toggleTerminalMode();
-          }
-          self.showAttachMenu = true;
-          self.$nextTick(function() {
-            var input = self.$refs && self.$refs.fileInput ? self.$refs.fileInput : null;
-            if (input && typeof input.click === 'function') input.click();
-          });
+          self.beginAttachPickerSession();
           return;
         }
         // Ctrl+G for chat search
@@ -94,6 +87,7 @@
           self._agentTrailListenTimer = 0;
         }
         self.teardownChatResizeBlurObserver();
+        self.teardownChatInputOverlayObserver();
         self.stopAgentTrailLoop(true);
         if (self._chatFocusSessionRefreshHandler) {
           window.removeEventListener('focus', self._chatFocusSessionRefreshHandler);
@@ -104,4 +98,3 @@
           self._chatVisibilitySessionRefreshHandler = null;
         }
       });
-

@@ -200,11 +200,11 @@
           <div class="chat-reflection-overlay" aria-hidden="true"></div>
           <div class="chat-grid-overlay" aria-hidden="true"></div>
           <template x-if="!currentAgent && !($store.app.agentsLoading || !$store.app.agentsHydrated)">
-            <div class="empty-state">
+            <infring-chat-stream-shell class="empty-state">
               <h4>No agent selected</h4>
               <p class="hint">Create or select an agent to start chatting.</p>
               <button class="btn btn-primary btn-sm" @click="navigate('agents')">Open agents</button>
-            </div>
+            </infring-chat-stream-shell>
           </template>
           <template x-if="!currentAgent && ($store.app.agentsLoading || !$store.app.agentsHydrated)">
             <div class="chat-loading-overlay">
@@ -434,7 +434,7 @@
                             <button class="message-stat-btn" x-show="messageCanForkFromMeta(msg)" @click="forkMessageFromMeta(msg, idx, messages)" title="Fork to a new agent" aria-label="Fork to a new agent"><svg class="message-stat-icon message-stat-icon-fork" width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M5 5.372v.878c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75v-.878a2.25 2.25 0 1 1 1.5 0v.878a2.25 2.25 0 0 1-2.25 2.25h-1.5v2.128a2.251 2.251 0 1 1-1.5 0V8.5h-1.5A2.25 2.25 0 0 1 3.5 6.25v-.878a2.25 2.25 0 1 1 1.5 0ZM5 3.25a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Zm6.75.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm-3 8.75a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Z"/></svg></button>
                             <span class="message-stat-time" x-text="messageTs(msg)" x-show="messageMetaVisible(msg, idx, messages) && messageTs(msg)"></span>
                             <span class="message-stat-meta" x-text="messageStatResponseTimeText(msg)" x-show="messageMetaVisible(msg, idx, messages) && messageStatResponseTimeText(msg)"></span>
-                            <span class="message-stat-burn" x-show="messageMetaVisible(msg, idx, messages) && messageStatBurnLabelText(msg)"><span class="message-stat-burn-icon" aria-hidden="true">&#128293;</span><span x-text="messageStatBurnLabelText(msg)"></span></span>
+                            <span class="message-stat-burn" x-show="messageMetaVisible(msg, idx, messages) && messageStatBurnLabelText(msg)"><span class="message-meta-icon message-stat-burn-icon" aria-hidden="true"></span><span x-text="messageStatBurnLabelText(msg)"></span></span>
                           </div>
                         </div>
                       </infring-chat-stream-shell>
@@ -458,19 +458,19 @@
                   </div>
                 </template>
                 <template x-if="currentAgent && !sessionLoading && (!messages || messages.length === 0) && !showFreshArchetypeTiles">
-                  <div class="empty-state">
+                  <infring-chat-stream-shell class="empty-state">
                     <h4>No messages yet</h4>
                     <p class="hint">Start chatting or initialize this agent.</p>
                     <div style="display:flex;align-items:center;justify-content:center;gap:8px">
                       <button class="btn btn-ghost btn-sm" @click="ensureFreshInitThread(currentAgent)">Initialize agent</button>
                       <button class="btn btn-primary btn-sm" @click="focusChatComposerFromInit('')">Start chat</button>
                     </div>
-                  </div>
+                  </infring-chat-stream-shell>
                 </template>
-                <aside class="chat-workspace-panel overlay-shared-surface" x-show="isWorkspacePanelOpen()" x-transition.opacity @click.outside="closeWorkspacePanel()">
+                <infring-popup-window-shell class="chat-workspace-panel overlay-shared-surface" x-show="isWorkspacePanelOpen()" x-transition.opacity @click.outside="closeWorkspacePanel()">
                   <div class="chat-workspace-panel-head"><div><div class="chat-workspace-panel-title">Workspace</div><div class="chat-workspace-panel-subtitle" x-text="workspacePanelPayload() ? (workspacePanelPayload().actor + (workspacePanelPayload().timestamp ? (' · ' + workspacePanelPayload().timestamp) : '')) : ''"></div></div><button type="button" class="message-stat-btn" @click="closeWorkspacePanel()" title="Close workspace">✕</button></div>
                   <div class="chat-workspace-panel-body" x-show="workspacePanelPayload()"><div class="chat-workspace-panel-section" x-show="workspacePanelPayload() && workspacePanelPayload().preview"><div class="chat-workspace-panel-label">Summary</div><div class="chat-workspace-panel-text" x-text="workspacePanelPayload().preview"></div></div></div>
-                </aside>
+                </infring-popup-window-shell>
                 <div class="chat-init-panel" :class="{ 'chat-init-panel-launching': freshInitLaunching }" x-show="showFreshArchetypeTiles && freshInitRevealMenu">
                   <div class="chat-archetype-title">Initialize Agent</div>
                   <div class="chat-archetype-subtitle">Pick role and lifespan, then launch. Optional tuning lives under advanced setup.</div>

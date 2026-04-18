@@ -66,9 +66,9 @@
 
 .message-stats-row .message-stat-btn > svg,
 .message-stats-row .message-stat-btn .message-stat-icon {
-  width: 13px;
-  height: 13px;
-  flex: 0 0 13px;
+  width: var(--message-meta-icon-size, 13px);
+  height: var(--message-meta-icon-size, 13px);
+  flex: 0 0 var(--message-meta-icon-size, 13px);
 }
 
 .thinking-inline-subtext {

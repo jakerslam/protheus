@@ -12,11 +12,27 @@
         } else {
           self.clearPromptSuggestions();
         }
+        self.$nextTick(function() {
+          self.installChatInputOverlayObserver();
+          self.refreshChatInputOverlayMetrics();
+        });
       });
 
       this.$watch('messages.length', function() {
         self.$nextTick(function() {
           self.scrollToBottom({ force: false });
+        });
+      });
+
+      this.$watch('terminalMode', function() {
+        self.$nextTick(function() {
+          self.refreshChatInputOverlayMetrics();
+        });
+      });
+
+      this.$watch('attachments.length', function() {
+        self.$nextTick(function() {
+          self.refreshChatInputOverlayMetrics();
         });
       });
 
@@ -186,6 +202,8 @@
         self.installChatMapWheelLock();
         self.scheduleMessageRenderWindowUpdate();
         self.installChatResizeBlurObserver();
+        self.installChatInputOverlayObserver();
+        self.refreshChatInputOverlayMetrics();
       });
 
       InfringAPI.get('/api/status').then(function(status) {
@@ -208,6 +226,7 @@
     },
 
     toggleTerminalMode() {
+      var self = this;
       if (this.isSystemThreadAgent && this.isSystemThreadAgent(this.currentAgent)) {
         this.terminalMode = true;
         this.showSlashMenu = false;
@@ -217,6 +236,7 @@
         this.$nextTick(function() {
           var input = document.getElementById('msg-input');
           if (input) input.focus();
+          self.refreshChatInputOverlayMetrics();
         });
         return;
       }
@@ -242,7 +262,6 @@
         }
         this.attachments = [];
       }
-      var self = this;
       this.$nextTick(function() {
         var input = document.getElementById('msg-input');
         if (input) {
@@ -253,6 +272,7 @@
           }
         }
         self.scheduleConversationPersist();
+        self.refreshChatInputOverlayMetrics();
       });
     },
 
