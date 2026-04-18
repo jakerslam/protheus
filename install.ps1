@@ -101,6 +101,20 @@ if ($TmpDir) {
 
 $script:SourceFallbackDir = $null
 $script:SourceFallbackTmp = $null
+$script:LastBinaryInstallFailure = $null
+$script:LastBinaryInstallFailureReason = ""
+$script:WindowsInstallPreflight = $null
+
+function Installer-TruthyFlag([string]$RawValue, [bool]$DefaultValue = $false) {
+  if ([string]::IsNullOrWhiteSpace($RawValue)) {
+    return $DefaultValue
+  }
+  return @("1", "true", "yes", "on") -contains $RawValue.ToLower()
+}
+
+function Install-AutoRustupEnabled {
+  return Installer-TruthyFlag $env:INFRING_INSTALL_AUTO_RUSTUP $true
+}
 
 function Resolve-Arch {
   $archRaw = if ($env:PROCESSOR_ARCHITECTURE) { $env:PROCESSOR_ARCHITECTURE } else { [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString() }
@@ -356,6 +370,225 @@ function Resolve-AssetCompatibleVersionForTriple([string]$Triple, [string[]]$Ste
   return $null
 }
 
+function Resolve-ReleaseByTag([string]$VersionTag) {
+  if ([string]::IsNullOrWhiteSpace($VersionTag)) {
+    return $null
+  }
+  $releases = Get-ReleasesFromApi
+  if ($releases.Count -eq 0) {
+    return $null
+  }
+  $normalized = [string]$VersionTag
+  foreach ($release in $releases) {
+    if (-not $release) { continue }
+    $tag = [string]$release.tag_name
+    if ([string]::IsNullOrWhiteSpace($tag)) { continue }
+    if ($tag -eq $normalized -or $tag.TrimStart("v") -eq $normalized.TrimStart("v")) {
+      return $release
+    }
+  }
+  return $null
+}
+
+function Probe-ReleaseAssetReachability([string]$VersionTag, [string]$AssetName) {
+  $url = "$BaseUrl/$VersionTag/$AssetName"
+  try {
+    Invoke-WebRequest -Uri $url -Method Head -UseBasicParsing -TimeoutSec 20 | Out-Null
+    return @{
+      reachable = $true
+      status = "head_ok"
+      url = $url
+    }
+  } catch {
+    try {
+      Invoke-WebRequest -Uri $url -Method Get -Headers @{ Range = "bytes=0-0" } -UseBasicParsing -TimeoutSec 20 | Out-Null
+      return @{
+        reachable = $true
+        status = "range_get_ok"
+        url = $url
+      }
+    } catch {
+      $status = "request_failed"
+      try {
+        $status = [string][int]$_.Exception.Response.StatusCode.value__
+      } catch {
+      }
+      return @{
+        reachable = $false
+        status = $status
+        url = $url
+      }
+    }
+  }
+}
+
+function Resolve-ReleaseAssetProbe([string]$VersionTag, [string]$Triple, [string]$Stem) {
+  $release = Resolve-ReleaseByTag $VersionTag
+  $candidates = Get-BinaryAssetCandidates $Triple $Stem
+  if (-not $release) {
+    return @{
+      stem = $Stem
+      version = $VersionTag
+      selected_asset = ""
+      asset_found = $false
+      reachable = $false
+      reachability_status = "release_metadata_unavailable"
+      candidates = $candidates
+    }
+  }
+  $assetNames = @()
+  if ($release.assets -is [System.Array]) {
+    $assetNames = @($release.assets | ForEach-Object { [string]$_.name })
+  }
+  $selected = ""
+  foreach ($candidate in $candidates) {
+    if ($assetNames -contains $candidate) {
+      $selected = $candidate
+      break
+    }
+  }
+  if ([string]::IsNullOrWhiteSpace($selected)) {
+    return @{
+      stem = $Stem
+      version = $VersionTag
+      selected_asset = ""
+      asset_found = $false
+      reachable = $false
+      reachability_status = "asset_not_listed_in_release"
+      candidates = $candidates
+    }
+  }
+  $reachability = Probe-ReleaseAssetReachability $VersionTag $selected
+  return @{
+    stem = $Stem
+    version = $VersionTag
+    selected_asset = $selected
+    asset_found = $true
+    reachable = [bool]$reachability.reachable
+    reachability_status = [string]$reachability.status
+    reachability_url = [string]$reachability.url
+    candidates = $candidates
+  }
+}
+
+function Get-WindowsBuildToolSummary {
+  $cargoCmd = Get-Command cargo -ErrorAction SilentlyContinue
+  $rustcCmd = Get-Command rustc -ErrorAction SilentlyContinue
+  $clCmd = Get-Command cl.exe -ErrorAction SilentlyContinue
+  $vswhereCmd = Get-Command vswhere.exe -ErrorAction SilentlyContinue
+  $vsInstallDetected = $false
+  if ($vswhereCmd) {
+    try {
+      $vsPath = & $vswhereCmd.Source -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+      if (-not [string]::IsNullOrWhiteSpace([string]$vsPath)) {
+        $vsInstallDetected = $true
+      }
+    } catch {
+    }
+  }
+  return @{
+    cargo_present = [bool]$cargoCmd
+    rustc_present = [bool]$rustcCmd
+    cl_present = [bool]$clCmd
+    vs_install_detected = [bool]$vsInstallDetected
+    msvc_tools_present = [bool]$clCmd -or [bool]$vsInstallDetected
+  }
+}
+
+function Invoke-WindowsInstallerPreflight([string]$VersionTag, [string]$Triple, [string[]]$RequiredStems) {
+  if (-not $HostIsWindows) {
+    return
+  }
+  $dedupedStems = @($RequiredStems | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | Select-Object -Unique)
+  if ($dedupedStems.Count -eq 0) {
+    return
+  }
+  $toolchain = Get-WindowsBuildToolSummary
+  $assetProbes = @()
+  foreach ($stem in $dedupedStems) {
+    $assetProbes += Resolve-ReleaseAssetProbe $VersionTag $Triple $stem
+  }
+  $script:WindowsInstallPreflight = @{
+    version = $VersionTag
+    triple = $Triple
+    required_stems = $dedupedStems
+    toolchain = $toolchain
+    assets = $assetProbes
+  }
+  Write-Host ("[infring install] preflight windows toolchain: cargo={0}; rustc={1}; msvc_tools={2}" -f `
+      ([string]$toolchain.cargo_present).ToLower(), `
+      ([string]$toolchain.rustc_present).ToLower(), `
+      ([string]$toolchain.msvc_tools_present).ToLower())
+  foreach ($probe in $assetProbes) {
+    if ([bool]$probe.asset_found) {
+      Write-Host ("[infring install] preflight asset probe ({0}): found {1}; reachable={2} ({3})" -f `
+          [string]$probe.stem, `
+          [string]$probe.selected_asset, `
+          ([string][bool]$probe.reachable).ToLower(), `
+          [string]$probe.reachability_status)
+    } else {
+      Write-Host ("[infring install] preflight asset probe ({0}): missing prebuilt in release metadata ({1})" -f `
+          [string]$probe.stem, `
+          [string]$probe.reachability_status)
+    }
+  }
+  $assetGaps = @($assetProbes | Where-Object {
+      (-not [bool]$_.asset_found) -or
+      (([bool]$_.asset_found) -and (-not [bool]$_.reachable))
+    })
+  $autoRustup = Install-AutoRustupEnabled
+  if ($assetGaps.Count -gt 0 -and (-not [bool]$toolchain.cargo_present) -and (-not $autoRustup)) {
+    if ($RequestedVersion -eq "latest") {
+      Write-Host "[infring install] preflight warning: current latest tag has Windows asset gaps and source fallback prerequisites are limited; installer will still try compatible-tag fallback before failing."
+      return
+    }
+    $gapSummary = ($assetGaps | ForEach-Object { [string]$_.stem }) -join ", "
+    throw "Windows installer preflight failed: prebuilt asset gaps detected for [$gapSummary], Cargo is unavailable, and auto Rust bootstrap is disabled (INFRING_INSTALL_AUTO_RUSTUP=0). Install Rust + MSVC build tools or publish missing Windows release assets."
+  }
+  if ($assetGaps.Count -gt 0 -and (-not [bool]$toolchain.msvc_tools_present)) {
+    Write-Host "[infring install] preflight warning: MSVC build tools were not detected; source fallback may fail if Windows prebuilt assets are unavailable."
+  }
+}
+
+function Format-BinaryInstallFailureHint([string]$Stem, [string]$Triple, [string]$VersionTag) {
+  $parts = New-Object System.Collections.Generic.List[string]
+  $failure = $script:LastBinaryInstallFailure
+  if ($failure -and ([string]$failure.stem -eq [string]$Stem)) {
+    if ($failure.asset_probe) {
+      $assetProbe = $failure.asset_probe
+      if ([bool]$assetProbe.asset_found) {
+        $parts.Add(("asset_probe={0};reachable={1};status={2}" -f `
+            [string]$assetProbe.selected_asset, `
+            ([string][bool]$assetProbe.reachable).ToLower(), `
+            [string]$assetProbe.reachability_status))
+      } else {
+        $parts.Add(("asset_probe=missing;status={0}" -f [string]$assetProbe.reachability_status))
+      }
+    }
+    $attemptedAssets = @($failure.attempted_assets)
+    if ($attemptedAssets.Count -gt 0) {
+      $parts.Add(("attempted_assets={0}" -f ($attemptedAssets -join ",")))
+    }
+    $parts.Add(("source_fallback_attempted={0}" -f ([string][bool]$failure.source_fallback_attempted).ToLower()))
+    if (-not [string]::IsNullOrWhiteSpace([string]$failure.source_fallback_reason)) {
+      $parts.Add(("source_fallback_reason={0}" -f [string]$failure.source_fallback_reason))
+    }
+  }
+  if ($HostIsWindows -and $script:WindowsInstallPreflight) {
+    $toolchain = $script:WindowsInstallPreflight.toolchain
+    if ($toolchain) {
+      $parts.Add(("toolchain:cargo={0};rustc={1};msvc_tools={2}" -f `
+          ([string][bool]$toolchain.cargo_present).ToLower(), `
+          ([string][bool]$toolchain.rustc_present).ToLower(), `
+          ([string][bool]$toolchain.msvc_tools_present).ToLower()))
+    }
+  }
+  if ($parts.Count -eq 0) {
+    return "No additional diagnostics captured."
+  }
+  return ($parts -join " | ")
+}
+
 function Download-Asset($Version, $Asset, $OutPath) {
   $url = "$BaseUrl/$Version/$Asset"
   try {
@@ -384,15 +617,14 @@ function Install-Binary($Version, $Triple, $Stem, $OutPath) {
     if (Get-Command cargo -ErrorAction SilentlyContinue) {
       return $true
     }
+    $script:LastBinaryInstallFailureReason = "cargo_missing"
     if (-not $HostIsWindows) {
+      $script:LastBinaryInstallFailureReason = "cargo_missing_non_windows_source_fallback_unavailable"
       return $false
     }
-    $autoRustup = if ($env:INFRING_INSTALL_AUTO_RUSTUP) {
-      @("1", "true", "yes", "on") -contains $env:INFRING_INSTALL_AUTO_RUSTUP.ToLower()
-    } else {
-      $true
-    }
+    $autoRustup = Install-AutoRustupEnabled
     if (-not $autoRustup) {
+      $script:LastBinaryInstallFailureReason = "cargo_missing_auto_rustup_disabled"
       return $false
     }
     Write-Host "[infring install] prebuilt binary not available; attempting Rust toolchain bootstrap for source fallback"
@@ -401,6 +633,7 @@ function Install-Binary($Version, $Triple, $Stem, $OutPath) {
       Invoke-WebRequest -Uri "https://win.rustup.rs/x86_64" -OutFile $rustupExe -UseBasicParsing | Out-Null
       $proc = Start-Process -FilePath $rustupExe -ArgumentList "-y --profile minimal --default-toolchain stable" -Wait -PassThru
       if ($proc.ExitCode -ne 0) {
+        $script:LastBinaryInstallFailureReason = "rustup_bootstrap_failed"
         return $false
       }
       $cargoBin = Join-Path $HOME ".cargo\bin"
@@ -409,8 +642,13 @@ function Install-Binary($Version, $Triple, $Stem, $OutPath) {
           $env:Path = "$cargoBin;$env:Path"
         }
       }
-      return [bool](Get-Command cargo -ErrorAction SilentlyContinue)
+      $cargoPresent = [bool](Get-Command cargo -ErrorAction SilentlyContinue)
+      if (-not $cargoPresent) {
+        $script:LastBinaryInstallFailureReason = "cargo_still_missing_after_rustup"
+      }
+      return $cargoPresent
     } catch {
+      $script:LastBinaryInstallFailureReason = "rustup_bootstrap_transport_error"
       return $false
     }
   }
@@ -468,27 +706,41 @@ function Install-Binary($Version, $Triple, $Stem, $OutPath) {
       }
     }
 
+    $script:LastBinaryInstallFailureReason = "source_repo_unavailable"
     return $null
   }
 
   function Install-BinaryFromSourceFallback([string]$VersionTag, [string]$StemName, [string]$OutBinaryPath) {
     $binName = Resolve-SourceBinName $StemName
-    if (-not $binName) { return $false }
+    if (-not $binName) {
+      $script:LastBinaryInstallFailureReason = "unsupported_stem_for_source_fallback"
+      return $false
+    }
 
     $repoDir = Prepare-SourceFallbackRepo $VersionTag
-    if (-not $repoDir) { return $false }
+    if (-not $repoDir) {
+      if ([string]::IsNullOrWhiteSpace($script:LastBinaryInstallFailureReason)) {
+        $script:LastBinaryInstallFailureReason = "source_repo_prepare_failed"
+      }
+      return $false
+    }
 
     $manifest = Join-Path $repoDir "core/layer0/ops/Cargo.toml"
     try {
       cargo build --release --manifest-path $manifest --bin $binName | Out-Null
     } catch {
+      $script:LastBinaryInstallFailureReason = "cargo_build_failed"
       return $false
     }
 
     $built = Join-Path $repoDir "target/release/$binName.exe"
-    if (-not (Test-Path $built)) { return $false }
+    if (-not (Test-Path $built)) {
+      $script:LastBinaryInstallFailureReason = "source_build_output_missing"
+      return $false
+    }
     Copy-Item -Force $built $OutBinaryPath
     Write-Host "[infring install] built $binName from source fallback"
+    $script:LastBinaryInstallFailureReason = ""
     return $true
   }
 
@@ -496,33 +748,50 @@ function Install-Binary($Version, $Triple, $Stem, $OutPath) {
   Remove-Item $tmp.FullName -Force
   New-Item -ItemType Directory -Path $tmp.FullName | Out-Null
 
+  $assetProbe = Resolve-ReleaseAssetProbe $Version $Triple $Stem
+  $attemptedAssets = New-Object System.Collections.Generic.List[string]
   $raw = Join-Path $tmp.FullName "$Stem.exe"
-  if (Download-Asset $Version "$Stem-$Triple.exe" $raw) {
-    Move-Item -Force $raw $OutPath
-    return $true
+  $assetCandidates = Get-BinaryAssetCandidates $Triple $Stem
+  foreach ($assetName in $assetCandidates) {
+    $attemptedAssets.Add([string]$assetName)
+    if (Download-Asset $Version $assetName $raw) {
+      Move-Item -Force $raw $OutPath
+      $script:LastBinaryInstallFailure = @{
+        stem = $Stem
+        triple = $Triple
+        version = $Version
+        attempted_assets = @($attemptedAssets)
+        source_fallback_attempted = $false
+        source_fallback_reason = ""
+        asset_probe = $assetProbe
+      }
+      return $true
+    }
   }
 
-  if (Download-Asset $Version "$Stem-$Triple" $raw) {
-    Move-Item -Force $raw $OutPath
-    return $true
+  $script:LastBinaryInstallFailureReason = ""
+  $sourceFallbackVersions = @([string]$Version)
+  $fallbackOk = Install-BinaryFromSourceFallback $Version $Stem $OutPath
+  if (
+    (-not $fallbackOk) -and
+    ($RequestedVersion -eq "latest") -and
+    ($Version -ne "main")
+  ) {
+    Write-Host "[infring install] source fallback for release $Version failed ($script:LastBinaryInstallFailureReason); retrying from main branch"
+    $sourceFallbackVersions += "main"
+    $fallbackOk = Install-BinaryFromSourceFallback "main" $Stem $OutPath
   }
-
-  if (Download-Asset $Version "$Stem-$Triple.bin" $raw) {
-    Move-Item -Force $raw $OutPath
-    return $true
+  $script:LastBinaryInstallFailure = @{
+    stem = $Stem
+    triple = $Triple
+    version = $Version
+    attempted_assets = @($attemptedAssets)
+    source_fallback_attempted = $true
+    source_fallback_versions = @($sourceFallbackVersions)
+    source_fallback_reason = [string]$script:LastBinaryInstallFailureReason
+    asset_probe = $assetProbe
   }
-
-  if (Download-Asset $Version "$Stem.exe" $raw) {
-    Move-Item -Force $raw $OutPath
-    return $true
-  }
-
-  if (Download-Asset $Version "$Stem" $raw) {
-    Move-Item -Force $raw $OutPath
-    return $true
-  }
-
-  return (Install-BinaryFromSourceFallback $Version $Stem $OutPath)
+  return $fallbackOk
 }
 
 function Install-ClientBundle($Version, $Triple, $OutDir) {
@@ -723,6 +992,20 @@ $infringdBin = Join-Path $InstallDir "infringd.exe"
 $daemonBin = Join-Path $InstallDir "conduit_daemon.exe"
 $preferredDaemonTriple = if ($HostIsLinux -and $arch -eq "x86_64") { "x86_64-unknown-linux-musl" } else { $triple }
 
+if ($HostIsWindows) {
+  $requiredWindowsStems = @("infringd", "conduit_daemon")
+  if ($InstallPure) {
+    $requiredWindowsStems += "infring-pure-workspace"
+    if ($InstallTinyMax) {
+      $requiredWindowsStems += "infring-pure-workspace-tiny-max"
+      $requiredWindowsStems += "infringd-tiny-max"
+    }
+  } else {
+    $requiredWindowsStems += "infring-ops"
+  }
+  Invoke-WindowsInstallerPreflight -VersionTag $version -Triple $triple -RequiredStems $requiredWindowsStems
+}
+
 if ($InstallPure) {
   if ($RequestedVersion -eq "latest") {
     $compatiblePure = Resolve-AssetCompatibleVersionForTriple $triple @("infring-pure-workspace")
@@ -739,7 +1022,8 @@ if ($InstallPure) {
     $pureInstalled = Install-Binary $version $triple "infring-pure-workspace" $pureBin
   }
   if (-not $pureInstalled) {
-    throw "Failed to install pure workspace binary for $triple ($requestedVersion). No compatible prebuilt asset was found and source fallback did not complete. Install Rust toolchain + C++ build tools, then retry with -Repair -Full."
+    $failureHint = Format-BinaryInstallFailureHint -Stem "infring-pure-workspace" -Triple $triple -VersionTag $version
+    throw "Failed to install pure workspace binary for $triple ($requestedVersion). No compatible prebuilt asset was found and source fallback did not complete. Diagnostic: $failureHint Install Rust toolchain + C++ build tools, then retry with -Repair -Full."
   }
   if ($InstallTinyMax) {
     Write-Host "[infring install] tiny-max pure mode selected: Rust-only tiny profile installed"
@@ -755,7 +1039,8 @@ if ($InstallPure) {
     }
   }
   if (-not (Install-Binary $version $triple "infring-ops" $opsBin)) {
-    throw "Failed to install core ops runtime for $triple ($requestedVersion). Prebuilt asset download failed and source fallback did not complete. Install Rust toolchain + C++ build tools, then retry with -Repair -Full."
+    $failureHint = Format-BinaryInstallFailureHint -Stem "infring-ops" -Triple $triple -VersionTag $version
+    throw "Failed to install core ops runtime for $triple ($requestedVersion). Prebuilt asset download failed and source fallback did not complete. Diagnostic: $failureHint Install Rust toolchain + C++ build tools, then retry with -Repair -Full."
   }
 }
 
