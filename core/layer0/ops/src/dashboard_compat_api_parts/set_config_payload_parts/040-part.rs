@@ -368,7 +368,12 @@ fn build_agent_roster(root: &Path, snapshot: &Value, include_terminated: bool) -
     });
     rows
 }
-fn archive_all_visible_agents(root: &Path, snapshot: &Value, reason: &str) -> Value {
+fn archive_all_visible_agents(
+    root: &Path,
+    snapshot: &Value,
+    reason: &str,
+    include_permanent: bool,
+) -> Value {
     let archive_reason = {
         let cleaned = clean_text(reason, 120);
         if cleaned.is_empty() {
@@ -380,6 +385,7 @@ fn archive_all_visible_agents(root: &Path, snapshot: &Value, reason: &str) -> Va
     let mut archived_agent_ids = Vec::<String>::new();
     let mut failed_agent_ids = Vec::<String>::new();
     let mut skipped_agent_ids = Vec::<String>::new();
+    let mut skipped_permanent_agent_ids = Vec::<String>::new();
     for row in build_agent_roster(root, snapshot, false) {
         let agent_id = clean_agent_id(row.get("id").and_then(Value::as_str).unwrap_or(""));
         if agent_id.is_empty() {
@@ -387,6 +393,16 @@ fn archive_all_visible_agents(root: &Path, snapshot: &Value, reason: &str) -> Va
         }
         if agent_id.eq_ignore_ascii_case("system") {
             skipped_agent_ids.push(agent_id);
+            continue;
+        }
+        let is_permanent = row
+            .get("contract")
+            .and_then(|contract| contract.get("lifespan"))
+            .and_then(Value::as_str)
+            .map(|lifespan| lifespan.trim().eq_ignore_ascii_case("permanent"))
+            .unwrap_or(false);
+        if is_permanent && !include_permanent {
+            skipped_permanent_agent_ids.push(agent_id);
             continue;
         }
         let _ = update_profile_patch(
@@ -417,11 +433,13 @@ fn archive_all_visible_agents(root: &Path, snapshot: &Value, reason: &str) -> Va
         "ok": failed_agent_ids.is_empty(),
         "type": "dashboard_agent_archive_all",
         "reason": archive_reason,
+        "include_permanent": include_permanent,
         "attempted": attempted,
         "archived_count": archived_agent_ids.len(),
         "archived_agent_ids": archived_agent_ids,
         "failed_agent_ids": failed_agent_ids,
-        "skipped_agent_ids": skipped_agent_ids
+        "skipped_agent_ids": skipped_agent_ids,
+        "skipped_permanent_agent_ids": skipped_permanent_agent_ids
     })
 }
 

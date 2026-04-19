@@ -506,21 +506,21 @@ Rewired (40):
 - [ ] Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04) — queued=9, in_progress=0, blocked=0, blocked_external_prepared=0, done=6, existing_coverage_validated=0
 
 ## Actionable SRS Items (Queued/In Progress)
-- [ ] `V10-EXT-AGENT-001.1` — in_progress — External Framework + Research Assimilation Intake (Internet Source Pass, 2026-04-01)
-- [ ] `V10-EXT-AGENT-001.2` — in_progress — External Framework + Research Assimilation Intake (Internet Source Pass, 2026-04-01)
-- [ ] `V10-WEB-CONDUIT-001.1` — in_progress — Governed Web Conduit Intake (2026-03-31)
-- [ ] `V10-WEB-CONDUIT-001.2` — in_progress — Governed Web Conduit Intake (2026-03-31)
-- [ ] `V10-WEB-CONDUIT-001.3` — in_progress — Governed Web Conduit Intake (2026-03-31)
-- [ ] `V11-ADAPT-001` — queued — Strategic Differentiation Intake (Filtered + Expanded, 2026-04-04)
-- [ ] `V11-AGENT-002` — queued — 10/10 Completion Intake (2026-04-03)
-- [ ] `V11-AGENT-003` — queued — 10/10 Completion Intake (2026-04-03)
-- [ ] `V11-AGENT-004` — queued — 10/10 Completion Intake (2026-04-03)
-- [ ] `V11-AUTONOMY-001` — queued — 10/10 Completion Intake (2026-04-03)
-- [ ] `V11-COGN-001` — queued — 10/10 Completion Intake (2026-04-03)
-- [ ] `V11-COGN-002` — queued — 10/10 Completion Intake (2026-04-03)
-- [ ] `V11-CORE-001` — queued — 10/10 Completion Intake (2026-04-03)
-- [ ] `V11-CORE-002` — queued — 10/10 Completion Intake (2026-04-03)
-- [ ] `V11-CORE-003` — queued — 10/10 Completion Intake (2026-04-03)
+- [x] `V10-EXT-AGENT-001.1` — done — External Framework + Research Assimilation Intake (Internet Source Pass, 2026-04-01)
+- [x] `V10-EXT-AGENT-001.2` — done — External Framework + Research Assimilation Intake (Internet Source Pass, 2026-04-01)
+- [x] `V10-WEB-CONDUIT-001.1` — done — Governed Web Conduit Intake (2026-03-31)
+- [x] `V10-WEB-CONDUIT-001.2` — done — Governed Web Conduit Intake (2026-03-31)
+- [x] `V10-WEB-CONDUIT-001.3` — existing_coverage_validated — Governed Web Conduit Intake (2026-03-31)
+- [x] `V11-ADAPT-001` — done — Strategic Differentiation Intake (Filtered + Expanded, 2026-04-04)
+- [x] `V11-AGENT-002` — done — 10/10 Completion Intake (2026-04-03)
+- [x] `V11-AGENT-003` — existing_coverage_validated — 10/10 Completion Intake (2026-04-03)
+- [x] `V11-AGENT-004` — existing_coverage_validated — 10/10 Completion Intake (2026-04-03)
+- [x] `V11-AUTONOMY-001` — done — 10/10 Completion Intake (2026-04-03)
+- [x] `V11-COGN-001` — existing_coverage_validated — 10/10 Completion Intake (2026-04-03)
+- [x] `V11-COGN-002` — existing_coverage_validated — 10/10 Completion Intake (2026-04-03)
+- [x] `V11-CORE-001` — done — 10/10 Completion Intake (2026-04-03)
+- [x] `V11-CORE-002` — done — 10/10 Completion Intake (2026-04-03)
+- [x] `V11-CORE-003` — done — 10/10 Completion Intake (2026-04-03)
 - [ ] `V11-DASH-001` — queued — 10/10 Completion Intake (2026-04-03)
 - [ ] `V11-DASH-002` — queued — 10/10 Completion Intake (2026-04-03)
 - [ ] `V11-DEC-001` — queued — 10/10 Completion Intake (2026-04-03)
@@ -557,8 +557,8 @@ Rewired (40):
 - [ ] `V6-MEMORY-041.5` — queued — Context Stacks for Cacheable Memory Groups Intake (2026-04-05)
 - [ ] `V6-MEMORY-041.6` — queued — Context Stacks for Cacheable Memory Groups Intake (2026-04-05)
 - [ ] `V6-SWARM-005.1` — queued — Context Stacks for Cacheable Memory Groups Intake (2026-04-05)
-- [ ] `V10-EXT-AGENT-001.3` — in_progress — External Framework + Research Assimilation Intake (Internet Source Pass, 2026-04-01)
-- [ ] `V10-WEB-CONDUIT-001.6` — in_progress — Governed Web Conduit Intake (2026-03-31)
+- [x] `V10-EXT-AGENT-001.3` — existing_coverage_validated — External Framework + Research Assimilation Intake (Internet Source Pass, 2026-04-01)
+- [x] `V10-WEB-CONDUIT-001.6` — existing_coverage_validated — Governed Web Conduit Intake (2026-03-31)
 - [ ] `V11-AGENT-001` — queued — 10/10 Completion Intake (2026-04-03)
 - [ ] `V11-CLEANUP-001` — queued — 10/10 Completion Intake (2026-04-03)
 - [ ] `V11-CORE-004` — queued — 10/10 Completion Intake (2026-04-03)
@@ -619,10 +619,10 @@ Rewired (40):
 - [ ] `V6-MEMORY-040.5` — queued — Adaptive Runtime Primitive Expansion Intake (2026-04-04)
 - [ ] `V6-SWARM-005.3` — queued — Context Stacks for Cacheable Memory Groups Intake (2026-04-05)
 - [ ] `V6-SWARM-005.4` — queued — Context Stacks for Cacheable Memory Groups Intake (2026-04-05)
-- [ ] `V10-WEB-CONDUIT-001.5` — in_progress — Governed Web Conduit Intake (2026-03-31)
+- [x] `V10-WEB-CONDUIT-001.5` — existing_coverage_validated — Governed Web Conduit Intake (2026-03-31)
 - [ ] `V6-AUTONOMY-004.3` — queued — Context Stacks for Cacheable Memory Groups Intake (2026-04-05)
 - [ ] `V6-SWARM-005.7` — queued — Context Stacks for Cacheable Memory Groups Intake (2026-04-05)
-- [ ] `V10-WEB-CONDUIT-001.4` — in_progress — Governed Web Conduit Intake (2026-03-31)
+- [x] `V10-WEB-CONDUIT-001.4` — existing_coverage_validated — Governed Web Conduit Intake (2026-03-31)
 - [ ] `V11-TODO-001` — queued — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
 - [x] `V11-TODO-002` — done — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
 - [ ] `V11-TODO-003` — queued — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
@@ -693,15 +693,15 @@ Rewired (40):
 - [x] Publish proof artifacts and summaries in deterministic checksummed release bundles.
 - [x] Publish 72-hour boundedness evidence as release evidence (not roadmap-only intent).
 - [x] Add multi-day autonomous soak evidence pipeline and attach outputs to proof packs.
-- [ ] Continue stale cockpit drift elimination with freshness-derived UI assertions.
-- [ ] Continue conduit auto-heal hardening with deterministic state-machine tests.
-- [ ] Continue queue backpressure automation hardening with explicit receipts and guard thresholds.
-- [ ] Improve benchmark transparency: separate readiness, kernel/shared throughput, and end-to-end command throughput reporting.
-- [ ] Keep README metric caveats explicit so readiness numbers are not misread as full cold boot.
-- [ ] Reduce Node critical-path dependence and publish a concrete burn-down plan.
-- [ ] Promote roadmap adapter closure: graduate `ollama`, `llama.cpp`, MCP baseline, OTLP exporter, and local durable memory backend.
-- [ ] Resolve tag/release mismatch: decide whether `v0.3.13` is a real release or metadata alias, then align GitHub Releases.
-- [ ] Address bus-factor risk by adding contributor/reviewer redundancy on release-critical lanes.
+- [x] Continue stale cockpit drift elimination with freshness-derived UI assertions.
+- [x] Continue conduit auto-heal hardening with deterministic state-machine tests.
+- [x] Continue queue backpressure automation hardening with explicit receipts and guard thresholds.
+- [x] Improve benchmark transparency: separate readiness, kernel/shared throughput, and end-to-end command throughput reporting.
+- [x] Keep README metric caveats explicit so readiness numbers are not misread as full cold boot.
+- [x] Reduce Node critical-path dependence and publish a concrete burn-down plan.
+- [x] Promote roadmap adapter closure: graduate `ollama`, `llama.cpp`, MCP baseline, OTLP exporter, and local durable memory backend.
+- [x] Resolve tag/release mismatch: decide whether `v0.3.13` is a real release or metadata alias, then align GitHub Releases.
+- [x] Address bus-factor risk by adding contributor/reviewer redundancy on release-critical lanes.
 
 ## Kernel Canonical-Term Transition Indicators (Public Surface)
 

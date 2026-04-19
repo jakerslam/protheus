@@ -28,6 +28,7 @@ const CORE_COMPLETION_COMMANDS: &[&str] = &[
     "dream",
     "compact",
     "proactive_daemon",
+    "kairos",
     "speculate",
     "setup",
     "help",

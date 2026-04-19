@@ -20,7 +20,12 @@ mod tests {
             .cloned()
             .unwrap_or_default();
         assert_eq!(first.get("synopsis").and_then(Value::as_str), Some("help"));
+        assert_eq!(first.get("command").and_then(Value::as_str), Some("help"));
         assert_eq!(first.get("tier").and_then(Value::as_str), Some("tier1"));
+        assert_eq!(
+            first.get("availability").and_then(Value::as_str),
+            Some("core_native")
+        );
     }
 
     #[test]
@@ -46,7 +51,7 @@ mod tests {
         );
         assert_eq!(
             row.get("script_rel").and_then(Value::as_str),
-            Some("client/runtime/systems/tools/assimilate.ts")
+            Some("client/runtime/systems/tools/assimilation_cli_bridge.ts")
         );
     }
 
@@ -68,8 +73,25 @@ mod tests {
             summary
                 .get("duplicates")
                 .and_then(Value::as_array)
+            .map(|rows| rows.is_empty()),
+            Some(true)
+        );
+        assert_eq!(
+            summary
+                .get("alias_collisions")
+                .and_then(Value::as_array)
                 .map(|rows| rows.is_empty()),
             Some(true)
         );
+    }
+
+    #[test]
+    fn command_aliases_resolve_collision_safe() {
+        assert_eq!(
+            canonical_command_name("dashboard-ui").as_deref(),
+            Some("dashboard")
+        );
+        assert_eq!(canonical_command_name("kairos").as_deref(), Some("proactive_daemon"));
+        assert!(canonical_command_name("not_a_real_command").is_none());
     }
 }
