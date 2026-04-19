@@ -285,6 +285,16 @@ describe('conduit primitive wrapper contract', () => {
     expect(source.includes('toolchain:cargo=')).toBe(true);
     expect(source.includes('auto_bootstrap:auto_rustup=')).toBe(true);
     expect(source.includes('auto_bootstrap:direct_msvc=')).toBe(true);
+    expect(source.includes('cargo_missing')).toBe(true);
+    expect(source.includes('cargo_missing_auto_rustup_disabled')).toBe(true);
+    expect(source.includes('rustup_bootstrap_failed')).toBe(true);
+    expect(source.includes('source_repo_unavailable')).toBe(true);
+    expect(source.includes('msvc_tools_missing_auto_bootstrap_disabled')).toBe(true);
+    expect(source.includes('msvc_bootstrap_winget_unavailable')).toBe(true);
+    expect(source.includes('msvc_bootstrap_direct_disabled')).toBe(true);
+    expect(source.includes('msvc_tools_still_missing_after_bootstrap')).toBe(true);
+    expect(source.includes('source_build_output_missing')).toBe(true);
+    expect(source.includes('asset_archive_extract_failed')).toBe(true);
     expect(
       /if \(\$Force\)\s*\{[\s\S]*\$InstallRepair\s*=\s*\$true[\s\S]*if \(-not \$Minimal\)\s*\{[\s\S]*\$InstallFull\s*=\s*\$true/.test(
         source,
