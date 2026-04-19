@@ -72,7 +72,7 @@
       "planned_batch_date": "2026-06-15"
     },
     {
-      "path": "client/runtime/systems/ui/infring_static/css/layout.css.parts/0002-layout-part.part01.css",
+      "path": "client/runtime/systems/ui/infring_static/css/layout.css.parts/0002-sidebar-agent-avatar-and-status.part01.css",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
       "expires": "2026-06-15",
