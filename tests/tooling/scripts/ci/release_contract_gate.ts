@@ -204,10 +204,19 @@ function windowsAndDocsCheck(): Check {
     installPs.includes('protheus-ops.exe') &&
     installPs.includes('infringd.cmd') &&
     installPs.includes('Install-AllowNoMsvcSourceFallback') &&
+    installPs.includes('INFRING_INSTALL_ALLOW_NO_MSVC_SOURCE_FALLBACK') &&
+    installPs.includes('INFRING_ALLOW_NO_MSVC_SOURCE_FALLBACK') &&
     installPs.includes('Install-AllowCompatibleReleaseFallback') &&
     installPs.includes('Install-AllowPinnedVersionCompatibleFallback') &&
     installPs.includes('INFRING_ALLOW_COMPATIBLE_RELEASE_FALLBACK') &&
     installPs.includes('INFRING_ALLOW_PINNED_VERSION_COMPATIBLE_FALLBACK') &&
+    installPs.includes('INFRING_INSTALL_AUTO_RUSTUP') &&
+    installPs.includes('INFRING_AUTO_RUSTUP') &&
+    installPs.includes('INFRING_INSTALL_AUTO_MSVC') &&
+    installPs.includes('INFRING_AUTO_MSVC_BOOTSTRAP') &&
+    installPs.includes('INFRING_AUTO_MSVC') &&
+    installPs.includes('INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP') &&
+    installPs.includes('INFRING_ALLOW_DIRECT_MSVC_BOOTSTRAP') &&
     installPs.includes('INFRING_INSTALL_ALLOW_MAIN_LAST_RESORT_SOURCE_FALLBACK') &&
     installPs.includes('INFRING_ALLOW_MAIN_LAST_RESORT_SOURCE_FALLBACK') &&
     installPs.includes('Install-AllowDirectMsvcBootstrapEnabled') &&
