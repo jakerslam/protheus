@@ -3,6 +3,42 @@ mod tests {
     use super::*;
     use chrono::{Duration, Utc};
     use std::fs;
+    use std::path::Path;
+
+    fn dashboard_assert_bool_pointer(payload: &Value, pointer: &str, expected: bool) {
+        assert_eq!(
+            payload.pointer(pointer).and_then(Value::as_bool),
+            Some(expected),
+            "expected {pointer} to be {expected}"
+        );
+    }
+
+    fn dashboard_assert_bool_keys_with_prefix(
+        payload: &Value,
+        prefix: &str,
+        keys: &[&str],
+        expected: bool,
+    ) {
+        for key in keys {
+            dashboard_assert_bool_pointer(payload, &format!("{prefix}/{key}"), expected);
+        }
+    }
+
+    fn dashboard_write_troubleshooting_recent_entries(root: &Path, entries: Vec<Value>) {
+        let recent_path = root.join(DASHBOARD_TROUBLESHOOTING_RECENT_REL);
+        if let Some(parent) = recent_path.parent() {
+            fs::create_dir_all(parent).expect("mkdir troubleshooting");
+        }
+        fs::write(
+            &recent_path,
+            serde_json::to_string_pretty(&json!({
+                "type": "dashboard_troubleshooting_recent_workflows",
+                "entries": entries
+            }))
+            .expect("json"),
+        )
+        .expect("write");
+    }
 
     #[test]
     fn parse_flags_defaults() {
@@ -6685,7 +6721,10 @@ fn dashboard_troubleshooting_summary_exposes_lane_health_and_recovery_hints() {
             .and_then(Value::as_bool),
         Some(false)
     );
-    for key in [
+    dashboard_assert_bool_keys_with_prefix(
+        &payload,
+        "/recent/checks",
+        &[
         "tooling_response_gate_score_consistent",
         "tooling_response_gate_score_band_consistent",
         "tooling_response_gate_score_band_known",
@@ -6720,15 +6759,9 @@ fn dashboard_troubleshooting_summary_exposes_lane_health_and_recovery_hints() {
         "tooling_response_gate_signature_consistent",
         "tooling_response_gate_blocker_flags_consistent",
         "tooling_response_gate_contract_consistent",
-    ] {
-        assert_eq!(
-            payload
-                .pointer(&format!("/recent/checks/{key}"))
-                .and_then(Value::as_bool),
-            Some(true),
-            "expected /recent/checks/{key} to be true"
-        );
-    }
+        ],
+        true,
+    );
     assert_eq!(
         payload
             .pointer("/recent/tooling_contract/contract_version")
@@ -6905,12 +6938,6 @@ fn dashboard_troubleshooting_summary_exposes_lane_health_and_recovery_hints() {
     );
     assert_eq!(
         payload
-            .pointer("/recent/tooling_contract/response_gate/score_consistent")
-            .and_then(Value::as_bool),
-        Some(true)
-    );
-    assert_eq!(
-        payload
             .pointer("/recent/tooling_contract/response_gate/score_band")
             .and_then(Value::as_str),
         Some("weak")
@@ -6920,18 +6947,6 @@ fn dashboard_troubleshooting_summary_exposes_lane_health_and_recovery_hints() {
             .pointer("/recent/tooling_contract/response_gate/expected_score_band")
             .and_then(Value::as_str),
         Some("weak")
-    );
-    assert_eq!(
-        payload
-            .pointer("/recent/tooling_contract/response_gate/score_band_consistent")
-            .and_then(Value::as_bool),
-        Some(true)
-    );
-    assert_eq!(
-        payload
-            .pointer("/recent/tooling_contract/response_gate/score_band_known")
-            .and_then(Value::as_bool),
-        Some(true)
     );
     assert_eq!(
         payload
@@ -6947,12 +6962,6 @@ fn dashboard_troubleshooting_summary_exposes_lane_health_and_recovery_hints() {
     );
     assert_eq!(
         payload
-            .pointer("/recent/tooling_contract/response_gate/score_vector_consistent")
-            .and_then(Value::as_bool),
-        Some(true)
-    );
-    assert_eq!(
-        payload
             .pointer("/recent/tooling_contract/response_gate/score_band_vector_key")
             .and_then(Value::as_str),
         Some("band=weak;score=0.3000")
@@ -6965,33 +6974,24 @@ fn dashboard_troubleshooting_summary_exposes_lane_health_and_recovery_hints() {
     );
     assert_eq!(
         payload
-            .pointer("/recent/tooling_contract/response_gate/score_band_vector_consistent")
-            .and_then(Value::as_bool),
-        Some(true)
-    );
-    assert_eq!(
-        payload
             .pointer("/recent/tooling_contract/response_gate/expected_severity_from_score_band")
             .and_then(Value::as_str),
         Some("blocked")
     );
-    assert_eq!(
-        payload
-            .pointer("/recent/tooling_contract/response_gate/score_band_severity_consistent")
-            .and_then(Value::as_bool),
-        Some(true)
-    );
-    assert_eq!(
-        payload
-            .pointer("/recent/tooling_contract/response_gate/score_band_severity_bucket_consistent")
-            .and_then(Value::as_bool),
-        Some(true)
-    );
-    assert_eq!(
-        payload
-            .pointer("/recent/tooling_contract/response_gate/score_band_severity_bucket_known")
-            .and_then(Value::as_bool),
-        Some(true)
+    dashboard_assert_bool_keys_with_prefix(
+        &payload,
+        "/recent/tooling_contract/response_gate",
+        &[
+            "score_consistent",
+            "score_band_consistent",
+            "score_band_known",
+            "score_vector_consistent",
+            "score_band_vector_consistent",
+            "score_band_severity_consistent",
+            "score_band_severity_bucket_consistent",
+            "score_band_severity_bucket_known",
+        ],
+        true,
     );
     assert_eq!(
         payload
@@ -7401,5 +7401,123 @@ fn dashboard_troubleshooting_summary_exposes_lane_health_and_recovery_hints() {
         hints.iter().any(|row| row.contains("High severity cluster")),
         "expected high severity recovery hint in {:?}",
         hints
+    );
+}
+
+#[test]
+fn dashboard_troubleshooting_response_gate_contract_matrix_ready_degraded_blocked() {
+    let run_case = |entries: Vec<Value>| -> Value {
+        let root = tempfile::tempdir().expect("tempdir");
+        dashboard_write_troubleshooting_recent_entries(root.path(), entries);
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary",
+            &json!({ "limit": 10 }),
+        );
+        assert!(lane.ok);
+        lane.payload.unwrap_or_else(|| json!({}))
+    };
+
+    let ready_payload = run_case(vec![json!({
+        "lane_ok": true,
+        "stale": false,
+        "loop_detection": {"level": "none"},
+        "workflow": {
+            "classification": "response_synthesized",
+            "error_code": "",
+            "transaction_status": "completed",
+            "completion_signal": "final_response",
+            "output_text": "Done and validated."
+        }
+    })]);
+    assert_eq!(
+        ready_payload
+            .pointer("/recent/tooling_contract/response_gate/ready")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        ready_payload
+            .pointer("/recent/tooling_contract/response_gate/severity")
+            .and_then(Value::as_str),
+        Some("ready")
+    );
+    assert_eq!(
+        ready_payload
+            .pointer("/recent/tooling_contract/response_gate/score")
+            .and_then(Value::as_f64),
+        Some(1.0)
+    );
+
+    let degraded_payload = run_case(vec![json!({
+        "lane_ok": false,
+        "stale": false,
+        "loop_detection": {"level": "none"},
+        "workflow": {
+            "classification": "tool_surface_degraded",
+            "error_code": "web_tool_surface_degraded",
+            "transaction_status": "failed",
+            "output_text": "tool failure but contract still coherent"
+        }
+    })]);
+    assert_eq!(
+        degraded_payload
+            .pointer("/recent/tooling_contract/response_gate/ready")
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        degraded_payload
+            .pointer("/recent/tooling_contract/response_gate/severity")
+            .and_then(Value::as_str),
+        Some("degraded")
+    );
+    assert_eq!(
+        degraded_payload
+            .pointer("/recent/tooling_contract/response_gate/score")
+            .and_then(Value::as_f64),
+        Some(0.65)
+    );
+    assert_eq!(
+        degraded_payload
+            .pointer("/recent/tooling_contract/response_gate/score_band")
+            .and_then(Value::as_str),
+        Some("watch")
+    );
+
+    let blocked_payload = run_case(vec![json!({
+        "lane_ok": false,
+        "stale": false,
+        "loop_detection": {"level": "none"},
+        "workflow": {
+            "classification": "response_synthesized_tool_surface_degraded",
+            "error_code": "web_tool_surface_degraded",
+            "transaction_status": "completed",
+            "output_text": ""
+        }
+    })]);
+    assert_eq!(
+        blocked_payload
+            .pointer("/recent/tooling_contract/response_gate/ready")
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        blocked_payload
+            .pointer("/recent/tooling_contract/response_gate/severity")
+            .and_then(Value::as_str),
+        Some("blocked")
+    );
+    assert_eq!(
+        blocked_payload
+            .pointer("/recent/tooling_contract/response_gate/score")
+            .and_then(Value::as_f64),
+        Some(0.3)
+    );
+    assert_eq!(
+        blocked_payload
+            .pointer("/recent/tooling_contract/response_gate/score_band")
+            .and_then(Value::as_str),
+        Some("weak")
     );
 }

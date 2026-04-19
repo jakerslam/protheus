@@ -241,6 +241,7 @@ fn dashboard_troubleshooting_recent_recovery_hints(
 }
 
 include!("006-response-gate-checks.rs");
+include!("007-response-gate-contract.rs");
 
 fn dashboard_troubleshooting_recent_health_checks(
     lane_health: &Value,
@@ -528,76 +529,32 @@ fn dashboard_troubleshooting_recent_tooling_contract(rows: &[Value]) -> Value {
         && answer_contract_ok
         && llm_reliability_not_low
         && !watchdog_triggered;
-    let response_gate_score = {
-        let mut score = 1.0_f64;
-        if !final_response_contract_ok {
-            score -= 0.35;
-        }
-        if !answer_contract_ok {
-            score -= 0.35;
-        }
-        if !llm_reliability_not_low {
-            score -= 0.20;
-        }
-        if watchdog_triggered {
-            score -= 0.10;
-        }
-        (score.clamp(0.0, 1.0) * 10_000.0).round() / 10_000.0
-    };
-    let response_gate_expected_score = {
-        let mut score = 1.0_f64;
-        if !final_response_contract_ok {
-            score -= 0.35;
-        }
-        if !answer_contract_ok {
-            score -= 0.35;
-        }
-        if !llm_reliability_not_low {
-            score -= 0.20;
-        }
-        if watchdog_triggered {
-            score -= 0.10;
-        }
-        (score.clamp(0.0, 1.0) * 10_000.0).round() / 10_000.0
-    };
+    let response_gate_score = dashboard_response_gate_score_from_flags(
+        final_response_contract_ok,
+        answer_contract_ok,
+        llm_reliability_not_low,
+        watchdog_triggered,
+    );
+    let response_gate_expected_score = dashboard_response_gate_score_from_flags(
+        final_response_contract_ok,
+        answer_contract_ok,
+        llm_reliability_not_low,
+        watchdog_triggered,
+    );
     let response_gate_score_consistent =
         (response_gate_score - response_gate_expected_score).abs() <= 0.0001;
-    let response_gate_severity = if response_gate_ready {
-        "ready"
-    } else if response_gate_score >= 0.6 {
-        "degraded"
-    } else {
-        "blocked"
-    };
-    let response_gate_expected_severity = if response_gate_ready {
-        "ready"
-    } else if response_gate_score >= 0.6 {
-        "degraded"
-    } else {
-        "blocked"
-    };
-    let response_gate_score_band = if response_gate_ready {
-        "ready"
-    } else if response_gate_score >= 0.75 {
-        "strong"
-    } else if response_gate_score >= 0.5 {
-        "watch"
-    } else if response_gate_score >= 0.25 {
-        "weak"
-    } else {
-        "critical"
-    };
-    let response_gate_expected_score_band = if response_gate_expected_severity == "ready" {
-        "ready"
-    } else if response_gate_expected_score >= 0.75 {
-        "strong"
-    } else if response_gate_expected_score >= 0.5 {
-        "watch"
-    } else if response_gate_expected_score >= 0.25 {
-        "weak"
-    } else {
-        "critical"
-    };
+    let response_gate_severity =
+        dashboard_response_gate_severity_from_state(response_gate_ready, response_gate_score);
+    let response_gate_expected_severity = dashboard_response_gate_severity_from_state(
+        response_gate_ready,
+        response_gate_score,
+    );
+    let response_gate_score_band =
+        dashboard_response_gate_score_band_from_state(response_gate_ready, response_gate_score);
+    let response_gate_expected_score_band = dashboard_response_gate_score_band_from_state(
+        response_gate_expected_severity == "ready",
+        response_gate_expected_score,
+    );
     let response_gate_score_band_consistent =
         response_gate_score_band == response_gate_expected_score_band;
     let response_gate_score_band_known = matches!(
@@ -643,24 +600,18 @@ fn dashboard_troubleshooting_recent_tooling_contract(rows: &[Value]) -> Value {
             response_gate_severity,
             response_gate_score_band,
         );
-    let response_gate_blockers = [
-        (!final_response_contract_ok, "final_response_contract"),
-        (!answer_contract_ok, "answer_contract"),
-        (!llm_reliability_not_low, "llm_reliability"),
-        (watchdog_triggered, "watchdog"),
-    ]
-    .iter()
-    .filter_map(|(failed, label)| if *failed { Some((*label).to_string()) } else { None })
-    .collect::<Vec<_>>();
-    let response_gate_expected_blockers = [
-        (!final_response_contract_ok, "final_response_contract"),
-        (!answer_contract_ok, "answer_contract"),
-        (!llm_reliability_not_low, "llm_reliability"),
-        (watchdog_triggered, "watchdog"),
-    ]
-    .iter()
-    .filter_map(|(failed, label)| if *failed { Some((*label).to_string()) } else { None })
-    .collect::<Vec<_>>();
+    let response_gate_blockers = dashboard_response_gate_blockers_from_flags(
+        final_response_contract_ok,
+        answer_contract_ok,
+        llm_reliability_not_low,
+        watchdog_triggered,
+    );
+    let response_gate_expected_blockers = dashboard_response_gate_blockers_from_flags(
+        final_response_contract_ok,
+        answer_contract_ok,
+        llm_reliability_not_low,
+        watchdog_triggered,
+    );
     let response_gate_blocker_set_consistent = response_gate_blockers == response_gate_expected_blockers;
     let response_gate_blocker_set_key = if response_gate_blockers.is_empty() {
         "none".to_string()
