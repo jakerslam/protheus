@@ -87,6 +87,7 @@ function installerContractCheck(): Check {
 
 function windowsAndDocsCheck(): Check {
   const installPs = read('install.ps1');
+  const opsLib = read('core/layer0/ops/src/lib.rs');
   const readme = read('README.md');
   const gettingStarted = read('docs/client/GETTING_STARTED.md');
   const manualHelp = read('docs/workspace/manuals/infring_manual_help_tab.md');
@@ -103,6 +104,7 @@ function windowsAndDocsCheck(): Check {
     installPs.includes('Install-AllowDirectMsvcBootstrapEnabled') &&
     installPs.includes('INFRING_INSTALL_REPAIR') &&
     installPs.includes('INFRING_INSTALL_FULL') &&
+    opsLib.includes('#![recursion_limit = "16384"]') &&
     installPs.includes(directBootstrapperUrl) &&
     installPs.includes(windowsReadmeInstallCommand) &&
     /& \$tmp(?:\s+-Repair)?\s+-Full/.test(readme) &&
