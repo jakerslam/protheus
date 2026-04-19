@@ -102,11 +102,17 @@ function windowsAndDocsCheck(): Check {
     readme.includes('Remove-Item $tmp -Force -ErrorAction SilentlyContinue') &&
     readme.includes(windowsBuildToolsCommand) &&
     readme.includes(directBootstrapperUrl) &&
+    readme.includes('$env:INFRING_INSTALL_AUTO_MSVC = "0"') &&
+    readme.includes('$env:INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP = "0"') &&
+    readme.includes('$env:INFRING_INSTALL_AUTO_RUSTUP = "0"') &&
     readme.includes('INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP') &&
     /& \$tmp(?:\s+-Repair)?\s+-Full/.test(gettingStarted) &&
     gettingStarted.includes('install.ps1 -OutFile $tmp -ErrorAction Stop') &&
     gettingStarted.includes('Remove-Item $tmp -Force -ErrorAction SilentlyContinue') &&
     gettingStarted.includes(windowsBuildToolsCommand) &&
+    gettingStarted.includes('$env:INFRING_INSTALL_AUTO_MSVC = "0"') &&
+    gettingStarted.includes('$env:INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP = "0"') &&
+    gettingStarted.includes('$env:INFRING_INSTALL_AUTO_RUSTUP = "0"') &&
     gettingStarted.includes('INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP') &&
     gettingStarted.includes('infring --help');
   return {
