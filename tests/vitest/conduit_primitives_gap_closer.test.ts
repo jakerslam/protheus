@@ -356,6 +356,7 @@ describe('conduit primitive wrapper contract', () => {
     expect(source.includes('attempted_assets=')).toBe(true);
     expect(source.includes('source_fallback_attempted=')).toBe(true);
     expect(source.includes('source_fallback_reason=')).toBe(true);
+    expect(source.includes('preflight_no_reachable_prebuilt_with_missing_msvc=')).toBe(true);
     expect(source.includes('source_fallback_plan=')).toBe(true);
     expect(source.includes('toolchain:cargo=')).toBe(true);
     expect(source.includes('auto_bootstrap:auto_rustup=')).toBe(true);
@@ -364,6 +365,7 @@ describe('conduit primitive wrapper contract', () => {
     expect(source.includes('cargo_missing_auto_rustup_disabled')).toBe(true);
     expect(source.includes('rustup_bootstrap_failed')).toBe(true);
     expect(source.includes('source_repo_unavailable')).toBe(true);
+    expect(source.includes('msvc_tools_missing_no_reachable_prebuilt_asset')).toBe(true);
     expect(source.includes('msvc_tools_missing_auto_bootstrap_disabled')).toBe(true);
     expect(source.includes('msvc_bootstrap_winget_unavailable')).toBe(true);
     expect(source.includes('msvc_bootstrap_direct_disabled')).toBe(true);
