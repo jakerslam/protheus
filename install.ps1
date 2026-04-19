@@ -146,6 +146,19 @@ function Install-AllowDirectMsvcBootstrapEnabled {
   return $true
 }
 
+function Install-AllowNoMsvcSourceFallback {
+  if (-not [string]::IsNullOrWhiteSpace([string]$env:INFRING_INSTALL_ALLOW_NO_MSVC_SOURCE_FALLBACK)) {
+    return Installer-TruthyFlag $env:INFRING_INSTALL_ALLOW_NO_MSVC_SOURCE_FALLBACK $true
+  }
+  if (-not [string]::IsNullOrWhiteSpace([string]$env:INFRING_ALLOW_NO_MSVC_SOURCE_FALLBACK)) {
+    return Installer-TruthyFlag $env:INFRING_ALLOW_NO_MSVC_SOURCE_FALLBACK $true
+  }
+  if (-not [string]::IsNullOrWhiteSpace([string]$env:INFRING_ALLOW_NO_MSVC)) {
+    return Installer-TruthyFlag $env:INFRING_ALLOW_NO_MSVC $true
+  }
+  return $true
+}
+
 function Install-AllowCompatibleReleaseFallback {
   if (-not [string]::IsNullOrWhiteSpace([string]$env:INFRING_INSTALL_ALLOW_COMPATIBLE_RELEASE_FALLBACK)) {
     return Installer-TruthyFlag $env:INFRING_INSTALL_ALLOW_COMPATIBLE_RELEASE_FALLBACK $true
@@ -718,6 +731,10 @@ function Invoke-WindowsInstallerPreflight([string]$VersionTag, [string]$Triple, 
           [string]$probe.reachability_status)
     }
   }
+  Write-Host ("[infring install] preflight policy: allow_no_msvc_source_fallback={0}; compatible_release_fallback={1}; pinned_version_compatible_fallback={2}" -f `
+      ([string][bool](Install-AllowNoMsvcSourceFallback)).ToLower(), `
+      ([string][bool](Install-AllowCompatibleReleaseFallback)).ToLower(), `
+      ([string][bool](Install-AllowPinnedVersionCompatibleFallback)).ToLower())
   $assetGaps = @($assetProbes | Where-Object {
       (-not [bool]$_.asset_found) -or
       (([bool]$_.asset_found) -and (-not [bool]$_.reachable))
@@ -819,6 +836,10 @@ function Format-BinaryInstallFailureHint([string]$Stem, [string]$Triple, [string
         ([string][bool](Install-AutoMsvcBootstrapEnabled)).ToLower()))
     $parts.Add(("auto_bootstrap:direct_msvc={0}" -f `
         ([string][bool](Install-AllowDirectMsvcBootstrapEnabled)).ToLower()))
+    $parts.Add(("install_policy:allow_no_msvc_source_fallback={0};compatible_release_fallback={1};pinned_version_compatible_fallback={2}" -f `
+        ([string][bool](Install-AllowNoMsvcSourceFallback)).ToLower(), `
+        ([string][bool](Install-AllowCompatibleReleaseFallback)).ToLower(), `
+        ([string][bool](Install-AllowPinnedVersionCompatibleFallback)).ToLower()))
   }
   if ($parts.Count -eq 0) {
     return "No additional diagnostics captured."
@@ -1236,18 +1257,7 @@ function Install-Binary($Version, $Triple, $Stem, $OutPath) {
     }
   }
 
-  $allowNoMsvcSourceFallback = Installer-TruthyFlag $env:INFRING_INSTALL_ALLOW_NO_MSVC_SOURCE_FALLBACK $true
-  if (
-    [string]::IsNullOrWhiteSpace([string]$env:INFRING_INSTALL_ALLOW_NO_MSVC_SOURCE_FALLBACK) -and
-    (-not [string]::IsNullOrWhiteSpace([string]$env:INFRING_ALLOW_NO_MSVC_SOURCE_FALLBACK))
-  ) {
-    $allowNoMsvcSourceFallback = Installer-TruthyFlag $env:INFRING_ALLOW_NO_MSVC_SOURCE_FALLBACK $true
-  } elseif (
-    [string]::IsNullOrWhiteSpace([string]$env:INFRING_INSTALL_ALLOW_NO_MSVC_SOURCE_FALLBACK) -and
-    (-not [string]::IsNullOrWhiteSpace([string]$env:INFRING_ALLOW_NO_MSVC))
-  ) {
-    $allowNoMsvcSourceFallback = Installer-TruthyFlag $env:INFRING_ALLOW_NO_MSVC $true
-  }
+  $allowNoMsvcSourceFallback = Install-AllowNoMsvcSourceFallback
   if (
     $HostIsWindows -and
     $script:WindowsInstallPreflight -and
