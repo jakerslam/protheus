@@ -274,6 +274,11 @@ describe('conduit primitive wrapper contract', () => {
     ).toBe(true);
     expect(
       source.includes(
+        '[infring install] preflight note: auto MSVC bootstrap is disabled (set INFRING_INSTALL_AUTO_MSVC=1 to enable automatic Build Tools install attempts).',
+      ),
+    ).toBe(true);
+    expect(
+      source.includes(
         '[infring install] preflight warning: tar was not detected; archive prebuilt extraction and some source fallback paths may fail.',
       ),
     ).toBe(true);
