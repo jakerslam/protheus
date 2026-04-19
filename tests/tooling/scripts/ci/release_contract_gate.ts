@@ -175,6 +175,7 @@ function windowsAndDocsCheck(): Check {
     'source_fallback_reason=',
     'preflight_no_reachable_prebuilt_with_missing_msvc=',
     'source_fallback_plan=',
+    'auto_msvc_bootstrap_enabled=',
     'main_last_resort_fallback=',
     'toolchain:cargo=',
     'auto_bootstrap:auto_rustup=',
