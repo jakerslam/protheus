@@ -4,7 +4,7 @@
 const { parseArgs, parseJson, invokeOrchestration } = require('./core_bridge.ts');
 const { statusCounts } = require('./taskgroup.ts');
 
-function partialCountFromGroup(group) {
+function fallbackPartialCountFromGroup(group) {
   const agents = Array.isArray(group && group.agents) ? group.agents : [];
   let total = 0;
   for (const agent of agents) {
@@ -20,7 +20,7 @@ function partialCountFromGroup(group) {
   return total;
 }
 
-function completionSummary(taskGroup) {
+function fallbackCompletionSummary(taskGroup) {
   const counts = statusCounts(taskGroup || {});
   const terminalTotal = counts.done + counts.failed + counts.timeout;
   const complete = counts.total > 0 && terminalTotal === counts.total;
@@ -32,14 +32,25 @@ function completionSummary(taskGroup) {
     timeout_count: counts.timeout,
     pending_count: counts.pending,
     running_count: counts.running,
-    partial_count: partialCountFromGroup(taskGroup),
+    partial_count: fallbackPartialCountFromGroup(taskGroup),
     total_count: counts.total,
     complete,
     counts,
   };
 }
 
-function buildCompletionNotification(summary, taskGroup) {
+function completionSummary(taskGroup) {
+  const out = invokeOrchestration('completion.summarize', {
+    task_group: taskGroup && typeof taskGroup === 'object' ? taskGroup : {},
+    include_notification: false,
+  });
+  if (out && out.ok && out.summary && typeof out.summary === 'object') {
+    return out.summary;
+  }
+  return fallbackCompletionSummary(taskGroup);
+}
+
+function fallbackBuildCompletionNotification(summary, taskGroup) {
   return {
     type: 'orchestration_completion_notification',
     task_group_id: summary.task_group_id,
@@ -52,6 +63,17 @@ function buildCompletionNotification(summary, taskGroup) {
     total_count: summary.total_count,
     generated_at: new Date().toISOString(),
   };
+}
+
+function buildCompletionNotification(summary, taskGroup) {
+  const out = invokeOrchestration('completion.summarize', {
+    task_group: taskGroup && typeof taskGroup === 'object' ? taskGroup : {},
+    include_notification: true,
+  });
+  if (out && out.ok && out.notification && typeof out.notification === 'object') {
+    return out.notification;
+  }
+  return fallbackBuildCompletionNotification(summary, taskGroup);
 }
 
 function ensureAndSummarize(taskGroupId, options = {}) {

@@ -5,31 +5,31 @@ use infring_task_fabric_core_v1::{
 use serde_json::json;
 
 #[derive(Debug, Clone)]
-pub struct GeneratedTaskGraph {
+pub struct MaintenanceTaskGraph {
     pub tasks: Vec<Task>,
     pub dependencies: Vec<DependencyEdge>,
 }
 
-pub fn claim_bundle_to_task_graph(
+pub fn build_task_graph_from_claim_bundle(
     claim_bundle: &ClaimBundle,
     scope_id: &str,
     now_ms: u64,
-) -> GeneratedTaskGraph {
+) -> MaintenanceTaskGraph {
     let root_task_id = format!("maintenance-root-{}", claim_bundle.claim_bundle_id);
-    let mut tasks = vec![new_task(
-        root_task_id.as_str(),
-        "governed self-maintenance cycle",
+    let mut tasks = vec![new_task(NewTaskParams {
+        id: root_task_id.as_str(),
+        title: "governed self-maintenance cycle",
         scope_id,
         now_ms,
-        None,
-        vec!["self_maintenance".to_string(), "root".to_string()],
-        Vec::new(),
-        Vec::new(),
-        json!({
+        parent_id: None,
+        tags: vec!["self_maintenance".to_string(), "root".to_string()],
+        blockers: Vec::new(),
+        related_links: Vec::new(),
+        metadata: json!({
             "owner":"system",
             "claim_bundle_id": claim_bundle.claim_bundle_id,
         }),
-    )];
+    })];
     let mut dependencies = Vec::<DependencyEdge>::new();
 
     for claim in &claim_bundle.claims {
@@ -65,65 +65,67 @@ pub fn claim_bundle_to_task_graph(
             }),
         }];
 
-        tasks.push(new_task(
-            task_id.as_str(),
-            claim.text.as_str(),
+        tasks.push(new_task(NewTaskParams {
+            id: task_id.as_str(),
+            title: claim.text.as_str(),
             scope_id,
             now_ms,
-            Some(root_task_id.clone()),
-            vec![
+            parent_id: Some(root_task_id.clone()),
+            tags: vec![
                 "self_maintenance".to_string(),
                 "claim".to_string(),
                 remediation_tag(claim.remediation_class),
             ],
             blockers,
             related_links,
-            json!({
+            metadata: json!({
                 "owner":"system",
                 "claim_id": claim.claim_id,
                 "claim_type": format!("{:?}", claim.claim_type).to_ascii_lowercase(),
             }),
-        ));
+        }));
         dependencies.push(DependencyEdge {
             task_id,
             depends_on_task_id: root_task_id.clone(),
         });
     }
 
-    GeneratedTaskGraph {
+    MaintenanceTaskGraph {
         tasks,
         dependencies,
     }
 }
 
-fn new_task(
-    id: &str,
-    title: &str,
-    scope_id: &str,
+struct NewTaskParams<'a> {
+    id: &'a str,
+    title: &'a str,
+    scope_id: &'a str,
     now_ms: u64,
     parent_id: Option<String>,
     tags: Vec<String>,
     blockers: Vec<Blocker>,
     related_links: Vec<RelatedLink>,
     metadata: serde_json::Value,
-) -> Task {
+}
+
+fn new_task(params: NewTaskParams<'_>) -> Task {
     Task {
-        id: id.to_string(),
-        title: title.to_string(),
+        id: params.id.to_string(),
+        title: params.title.to_string(),
         lifecycle_status: LifecycleStatus::Pending,
-        parent_id,
+        parent_id: params.parent_id,
         priority: 90,
         owner: Some("system".to_string()),
         assignee: None,
         progress_pct: Some(0),
-        tags,
+        tags: params.tags,
         linked_receipts: Vec::new(),
-        metadata,
-        scope_id: scope_id.to_string(),
-        blockers,
-        related_links,
-        created_at: now_ms,
-        updated_at: now_ms,
+        metadata: params.metadata,
+        scope_id: params.scope_id.to_string(),
+        blockers: params.blockers,
+        related_links: params.related_links,
+        created_at: params.now_ms,
+        updated_at: params.now_ms,
         started_at: None,
         completed_at: None,
         last_heartbeat_at: None,

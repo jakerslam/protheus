@@ -64,6 +64,24 @@ fn invoke(root: &Path, op: &str, payload: &Value) -> Value {
             let agent_id = get_string_any(payload, &["agent_id", "agentId"]);
             classify_findings_by_scope(&findings, &scope, &agent_id)
         }
+        "scope.normalize" => {
+            let scope = payload
+                .get("scope")
+                .cloned()
+                .unwrap_or_else(|| payload.clone());
+            normalize_scope(&scope, 0)
+        }
+        "scope.finding_in_scope" => {
+            let finding = payload
+                .get("finding")
+                .cloned()
+                .unwrap_or(Value::Object(Map::new()));
+            let scope = payload
+                .get("scope")
+                .cloned()
+                .unwrap_or(Value::Object(Map::new()));
+            finding_in_scope(&finding, &scope)
+        }
         "scratchpad.path" => {
             let task_id = get_string_any(payload, &["task_id", "taskId"]);
             let root_dir = payload_root_dir(payload);
@@ -198,6 +216,48 @@ fn invoke(root: &Path, op: &str, payload: &Value) -> Value {
                 }),
             }
         }
+        "taskgroup.generate_id" => {
+            let task_type = get_string_any(payload, &["task_type", "taskType"]);
+            let now_ms = get_i64_any(payload, &["now_ms", "nowMs"], Utc::now().timestamp_millis());
+            let nonce = get_string_any(payload, &["nonce"]);
+            let task_group_id = generate_task_group_id(
+                if task_type.is_empty() {
+                    "task"
+                } else {
+                    &task_type
+                },
+                now_ms,
+                &nonce,
+            );
+            json!({
+                "ok": true,
+                "type": "orchestration_taskgroup_generate_id",
+                "task_group_id": task_group_id
+            })
+        }
+        "taskgroup.status_counts" => {
+            let task_group = payload
+                .get("task_group")
+                .cloned()
+                .unwrap_or_else(|| payload.clone());
+            json!({
+                "ok": true,
+                "type": "orchestration_taskgroup_status_counts",
+                "counts": status_counts(&task_group)
+            })
+        }
+        "taskgroup.derive_status" => {
+            let task_group = payload
+                .get("task_group")
+                .cloned()
+                .unwrap_or_else(|| payload.clone());
+            json!({
+                "ok": true,
+                "type": "orchestration_taskgroup_derive_status",
+                "status": derive_group_status(&task_group),
+                "counts": status_counts(&task_group)
+            })
+        }
         "taskgroup.ensure" => {
             let root_dir = payload_root_dir(payload);
             ensure_task_group(root, payload, root_dir.as_deref())
@@ -250,6 +310,29 @@ fn invoke(root: &Path, op: &str, payload: &Value) -> Value {
             let root_dir = payload_root_dir(payload);
             track_batch_completion(root, &task_group_id, &updates, root_dir.as_deref())
         }
+        "completion.summarize" => {
+            let task_group = payload
+                .get("task_group")
+                .cloned()
+                .unwrap_or_else(|| payload.clone());
+            let summary = completion_summary(&task_group);
+            let include_notification = payload
+                .get("include_notification")
+                .and_then(Value::as_bool)
+                .unwrap_or(true);
+            let complete = summary.get("complete").and_then(Value::as_bool) == Some(true);
+            json!({
+                "ok": true,
+                "type": "orchestration_completion_summarize",
+                "task_group": task_group,
+                "summary": summary,
+                "notification": if include_notification && complete {
+                    build_completion_notification(&summary, &task_group)
+                } else {
+                    Value::Null
+                }
+            })
+        }
         "partial.normalize_decision" => {
             let decision = get_string_any(payload, &["decision"]);
             let has_partial_results = payload
@@ -263,6 +346,20 @@ fn invoke(root: &Path, op: &str, payload: &Value) -> Value {
             })
         }
         "partial.fetch" => retrieve_partial_results(root, payload),
+        "partial.from_session_history" => {
+            let history = payload
+                .get("session_history")
+                .or_else(|| payload.get("sessionHistory"))
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default();
+            from_session_history(&history)
+        }
+        "partial.latest_checkpoint" => {
+            let task_id = get_string_any(payload, &["task_id", "taskId"]);
+            let root_dir = payload_root_dir(payload);
+            latest_checkpoint_from_scratchpad(root, &task_id, root_dir.as_deref())
+        }
         "coordinator.partition" => {
             let items = payload
                 .get("items")

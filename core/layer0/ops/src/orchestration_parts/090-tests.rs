@@ -130,4 +130,204 @@ mod orchestration_regression_tests {
             .expect_err("corrupt scratchpad should fail closed");
         assert!(err.contains("scratchpad_parse_failed"));
     }
+
+    #[test]
+    fn invoke_exposes_thin_client_helper_ops() {
+        let root = tempfile::tempdir().expect("tempdir");
+
+        let generated = invoke(
+            root.path(),
+            "taskgroup.generate_id",
+            &json!({
+                "task_type": "audit",
+                "now_ms": 1711929600000i64,
+                "nonce": "abc123"
+            }),
+        );
+        assert_eq!(generated.get("ok").and_then(Value::as_bool), Some(true));
+        let task_group_id = generated
+            .get("task_group_id")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        assert!(task_group_id.starts_with("audit-"));
+        assert!(task_group_id.ends_with("-abc123"));
+
+        let counts = invoke(
+            root.path(),
+            "taskgroup.status_counts",
+            &json!({
+                "task_group": {
+                    "agents": [
+                        { "status": "done" },
+                        { "status": "timeout" },
+                        { "status": "pending" }
+                    ]
+                }
+            }),
+        );
+        assert_eq!(counts.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            counts
+                .pointer("/counts/done")
+                .and_then(Value::as_i64)
+                .unwrap_or_default(),
+            1
+        );
+        assert_eq!(
+            counts
+                .pointer("/counts/timeout")
+                .and_then(Value::as_i64)
+                .unwrap_or_default(),
+            1
+        );
+        assert_eq!(
+            counts
+                .pointer("/counts/pending")
+                .and_then(Value::as_i64)
+                .unwrap_or_default(),
+            1
+        );
+
+        let derived = invoke(
+            root.path(),
+            "taskgroup.derive_status",
+            &json!({
+                "task_group": {
+                    "agents": [
+                        { "status": "done" },
+                        { "status": "timeout" },
+                        { "status": "pending" }
+                    ]
+                }
+            }),
+        );
+        assert_eq!(derived.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(derived.get("status").and_then(Value::as_str), Some("running"));
+
+        let summarized = invoke(
+            root.path(),
+            "completion.summarize",
+            &json!({
+                "task_group": {
+                    "task_group_id": task_group_id,
+                    "status": "done",
+                    "coordinator_session": "session-1",
+                    "agents": [
+                        { "status": "done", "details": { "partial_results_count": 1 } },
+                        { "status": "failed", "details": {} }
+                    ]
+                },
+                "include_notification": true
+            }),
+        );
+        assert_eq!(summarized.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            summarized
+                .pointer("/summary/complete")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            summarized
+                .pointer("/summary/partial_count")
+                .and_then(Value::as_i64),
+            Some(1)
+        );
+        assert_ne!(summarized.get("notification"), Some(&Value::Null));
+
+        let normalized_scope = invoke(
+            root.path(),
+            "scope.normalize",
+            &json!({
+                "scope": {
+                    "scope_id": "scope-sec",
+                    "series": ["v6-sec"],
+                    "paths": ["core/layer0/ops/*"]
+                }
+            }),
+        );
+        assert_eq!(normalized_scope.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            normalized_scope
+                .pointer("/scope/series/0")
+                .and_then(Value::as_str),
+            Some("V6-SEC")
+        );
+
+        let in_scope = invoke(
+            root.path(),
+            "scope.finding_in_scope",
+            &json!({
+                "finding": {
+                    "item_id": "V6-SEC-001",
+                    "location": "core/layer0/ops/src/orchestration_parts/080-invoke.rs:1"
+                },
+                "scope": {
+                    "scope_id": "scope-sec",
+                    "series": ["V6-SEC"],
+                    "paths": ["core/layer0/ops/*"]
+                }
+            }),
+        );
+        assert_eq!(in_scope.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(in_scope.get("in_scope").and_then(Value::as_bool), Some(true));
+
+        let from_history = invoke(
+            root.path(),
+            "partial.from_session_history",
+            &json!({
+                "session_history": [{
+                    "session_id": "session-1",
+                    "items_completed": 2,
+                    "partial_results": [{ "item_id": "REQ-2", "severity": "medium" }]
+                }]
+            }),
+        );
+        assert_eq!(from_history.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            from_history.get("source").and_then(Value::as_str),
+            Some("session_history")
+        );
+        assert_eq!(
+            from_history
+                .get("findings_sofar")
+                .and_then(Value::as_array)
+                .map(|rows| rows.len()),
+            Some(1)
+        );
+
+        let scratchpad_root = root.path().join("scratchpad-store");
+        let scratchpad_root_string = scratchpad_root.display().to_string();
+        let appended = append_checkpoint(
+            root.path(),
+            "task-1",
+            &json!({
+                "processed_count": 3,
+                "partial_results": [{ "item_id": "REQ-3", "severity": "high" }]
+            }),
+            Some(scratchpad_root_string.as_str()),
+        );
+        assert_eq!(appended.get("ok").and_then(Value::as_bool), Some(true));
+
+        let from_checkpoint = invoke(
+            root.path(),
+            "partial.latest_checkpoint",
+            &json!({
+                "task_id": "task-1",
+                "root_dir": scratchpad_root_string
+            }),
+        );
+        assert_eq!(from_checkpoint.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            from_checkpoint.get("source").and_then(Value::as_str),
+            Some("checkpoint")
+        );
+        assert_eq!(
+            from_checkpoint
+                .get("findings_sofar")
+                .and_then(Value::as_array)
+                .map(|rows| rows.len()),
+            Some(1)
+        );
+    }
 }

@@ -8,7 +8,9 @@ use crate::self_maintenance::escalation::{
     build_escalation_request, requires_high_risk_escalation,
 };
 use crate::self_maintenance::observer;
-use crate::self_maintenance::task_generator::{claim_bundle_to_task_graph, GeneratedTaskGraph};
+use crate::self_maintenance::task_graph_builder::{
+    build_task_graph_from_claim_bundle, MaintenanceTaskGraph,
+};
 use infring_layer1_memory::{
     Classification, EphemeralMemoryHeap, TrustState, VerityEphemeralPolicy,
 };
@@ -27,7 +29,7 @@ pub struct GovernedSelfMaintenanceSupervisor {
     actor_id: String,
     receipts: Vec<SupervisorReceipt>,
     task_fabric: TaskFabric,
-    task_fabric_verity: DenyHighRiskVerityGate,
+    task_fabric_verity_gate: DenyHighRiskVerityGate,
     tool_broker: ToolBroker,
     evidence_extractor: EvidenceExtractor,
     evidence_store: EvidenceStore,
@@ -60,9 +62,9 @@ impl GovernedSelfMaintenanceSupervisor {
             actor_id: "orchestration:self_maintenance".to_string(),
             receipts: Vec::new(),
             task_fabric: TaskFabric::new(scope_id),
-            task_fabric_verity: DenyHighRiskVerityGate,
+            task_fabric_verity_gate: DenyHighRiskVerityGate,
             tool_broker: ToolBroker::default(),
-            evidence_extractor: EvidenceExtractor::default(),
+            evidence_extractor: EvidenceExtractor,
             evidence_store: EvidenceStore::default(),
             verifier: StructuredVerifier,
             ephemeral_heap: heap,
@@ -94,7 +96,8 @@ impl GovernedSelfMaintenanceSupervisor {
             now_ms,
         );
 
-        let generated = claim_bundle_to_task_graph(&claim_bundle, self.scope_id.as_str(), now_ms);
+        let generated =
+            build_task_graph_from_claim_bundle(&claim_bundle, self.scope_id.as_str(), now_ms);
         let generated_task_ids = generated
             .tasks
             .iter()
@@ -152,7 +155,7 @@ impl GovernedSelfMaintenanceSupervisor {
 
     fn submit_tasks_to_task_fabric(
         &mut self,
-        generated: &GeneratedTaskGraph,
+        generated: &MaintenanceTaskGraph,
         now_ms: u64,
     ) -> Result<(), String> {
         let proof_root = generated
@@ -171,9 +174,11 @@ impl GovernedSelfMaintenanceSupervisor {
                 mutation_kind: MutationKind::CreateTask,
                 payload: json!({"task_id": task.id}),
             };
-            let _ =
-                self.task_fabric
-                    .submit_task(task.clone(), envelope, &self.task_fabric_verity)?;
+            let _ = self.task_fabric.submit_task(
+                task.clone(),
+                envelope,
+                &self.task_fabric_verity_gate,
+            )?;
             self.push_receipt(
                 SupervisorReceiptStage::TaskCreation,
                 "task_fabric_task_created",
@@ -204,7 +209,7 @@ impl GovernedSelfMaintenanceSupervisor {
             let _ = self.task_fabric.add_dependency(
                 edge.clone(),
                 envelope,
-                &self.task_fabric_verity,
+                &self.task_fabric_verity_gate,
             )?;
         }
         Ok(())

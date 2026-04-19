@@ -7,7 +7,7 @@ pub mod contracts;
 pub mod escalation;
 pub mod executor;
 pub mod observer;
-pub mod task_generator;
+pub mod task_graph_builder;
 
 pub use contracts::{
     Claim, ClaimBundle, ConfidenceVector, EscalationRequest, EvidenceCard, ObservationInputs,

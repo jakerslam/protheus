@@ -137,7 +137,7 @@ fn tool_fallback_actions(
         ResourceKind::Workspace => "paste_workspace_context",
         _ => "ask_for_source_material",
     };
-    let mut out = vec![fallback_action(
+    let mut actions = vec![fallback_action(
         "inspect_tool_capabilities",
         "Check available tools",
         "inspect the governed tool surface before retrying",
@@ -147,7 +147,7 @@ fn tool_fallback_actions(
         Some((ToolReasonCode::InvalidArgs, ToolBackendClass::AgentRuntime))
             if is_swarm_agent_bridge_tool(tool_context) =>
         {
-            out.push(fallback_action(
+            actions.push(fallback_action(
                 "inspect_agent_bootstrap_contract",
                 "Inspect agent bootstrap contract",
                 "agent-runtime orchestration args are invalid, so reload the sessions_bootstrap or sessions_state contract before retrying the bridge call",
@@ -155,7 +155,7 @@ fn tool_fallback_actions(
             ));
         }
         Some((ToolReasonCode::AuthRequired, ToolBackendClass::RetrievalPlane)) => {
-            out.push(fallback_action(
+            actions.push(fallback_action(
                 "configure_provider_access",
                 "Configure provider access",
                 "retrieval tooling is blocked on provider auth health, so re-auth or switch to a configured provider",
@@ -164,14 +164,14 @@ fn tool_fallback_actions(
         }
         Some((ToolReasonCode::DaemonUnavailable, ToolBackendClass::AgentRuntime)) => {
             if is_swarm_agent_bridge_tool(tool_context) {
-                out.push(fallback_action(
+                actions.push(fallback_action(
                     "inspect_swarm_runtime_status",
                     "Inspect swarm runtime status",
                     "agent orchestration is down at the runtime layer, so query swarm runtime status before retrying message or handoff routes",
                     tool_context,
                 ));
             } else {
-                out.push(fallback_action(
+                actions.push(fallback_action(
                     "retry_after_runtime_recovery",
                     "Retry after runtime recovery",
                     "agent runtime health is down, so wait for the daemon to recover before rerunning the tool path",
@@ -181,14 +181,14 @@ fn tool_fallback_actions(
         }
         Some((ToolReasonCode::WebsocketUnavailable, ToolBackendClass::AgentRuntime)) => {
             if is_swarm_agent_bridge_tool(tool_context) {
-                out.push(fallback_action(
+                actions.push(fallback_action(
                     "inspect_swarm_runtime_status",
                     "Inspect swarm runtime status",
                     "agent messaging is blocked on websocket health, so restore bridge connectivity before retrying the swarm route",
                     tool_context,
                 ));
             } else {
-                out.push(fallback_action(
+                actions.push(fallback_action(
                     "retry_after_ws_reconnect",
                     "Retry after websocket recovery",
                     "the runtime is up but the websocket bridge is unavailable, so retry after WS health returns",
@@ -199,7 +199,7 @@ fn tool_fallback_actions(
         Some((ToolReasonCode::TransportUnavailable, ToolBackendClass::AgentRuntime))
             if is_swarm_agent_bridge_tool(tool_context) =>
         {
-            out.push(fallback_action(
+            actions.push(fallback_action(
                 "inspect_swarm_runtime_status",
                 "Inspect swarm runtime status",
                 "agent orchestration transport is unavailable, so verify resident IPC health before retrying the bridge request",
@@ -207,7 +207,7 @@ fn tool_fallback_actions(
             ));
         }
         Some((ToolReasonCode::TransportUnavailable, ToolBackendClass::WorkspaceFs)) => {
-            out.push(fallback_action(
+            actions.push(fallback_action(
                 "provide_exact_workspace_path",
                 "Provide exact workspace path",
                 "workspace inspection is unavailable, so fall back to explicit file paths or pasted file contents",
@@ -215,7 +215,7 @@ fn tool_fallback_actions(
             ));
         }
         Some((ToolReasonCode::BackendDegraded, ToolBackendClass::GovernedTerminal)) => {
-            out.push(fallback_action(
+            actions.push(fallback_action(
                 "prefer_non_terminal_path",
                 "Prefer non-terminal path",
                 "terminal execution is degraded, so use read-only routes or explicit source context until resident IPC is healthy",
@@ -226,7 +226,7 @@ fn tool_fallback_actions(
         | Some((ToolReasonCode::PolicyDenied, _))
             if is_swarm_agent_bridge_tool(tool_context) =>
         {
-            out.push(fallback_action(
+            actions.push(fallback_action(
                 "verify_lineage_scope",
                 "Verify lineage scope",
                 "agent orchestration policy denied the request, so confirm the sender and target stay within allowed parent/child or sibling lineage",
@@ -235,7 +235,7 @@ fn tool_fallback_actions(
         }
         Some((ToolReasonCode::CallerNotAuthorized, _))
         | Some((ToolReasonCode::PolicyDenied, _)) => {
-            out.push(fallback_action(
+            actions.push(fallback_action(
                 "use_authorized_route",
                 "Use authorized route",
                 "this tool request is blocked by policy or caller class, so reroute through an allowed governed path",
@@ -243,7 +243,7 @@ fn tool_fallback_actions(
             ));
         }
         _ => {
-            out.push(fallback_action(
+            actions.push(fallback_action(
                 "narrow_tool_request",
                 "Retry with narrower input",
                 "reduce ambiguity in the tool payload or query before retrying",
@@ -251,13 +251,13 @@ fn tool_fallback_actions(
             ));
         }
     }
-    out.push(fallback_action(
+    actions.push(fallback_action(
         direct_context_kind,
         "Provide direct source context",
         "fallback to explicit files, paths, or pasted content when governed tools are blocked or unavailable",
         tool_context,
     ));
-    out
+    actions
 }
 
 #[cfg(test)]

@@ -54,11 +54,10 @@ fn runtime_quality_signals(plan: &OrchestrationPlan) -> RuntimeQualitySignals {
         .chain(plan.alternative_plans.iter())
         .collect::<Vec<_>>();
     let candidate_count = candidates.len() as u32;
-    let selected_plan_degraded = matches!(
-        plan.selected_plan.variant,
-        PlanVariant::DegradedFallback
-    ) || !plan.selected_plan.degradation.is_empty()
-        || matches!(plan.execution_state.plan_status, PlanStatus::Degraded);
+    let selected_plan_degraded =
+        matches!(plan.selected_plan.variant, PlanVariant::DegradedFallback)
+            || !plan.selected_plan.degradation.is_empty()
+            || matches!(plan.execution_state.plan_status, PlanStatus::Degraded);
     let selected_plan_requires_clarification =
         plan.needs_clarification || plan.selected_plan.requires_clarification;
     let heuristic_probe_source_count = plan

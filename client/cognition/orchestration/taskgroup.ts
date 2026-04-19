@@ -18,11 +18,23 @@ const AGENT_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{1,127}$/;
 const ALLOWED_AGENT_STATUSES = new Set(['pending', 'running', 'done', 'failed', 'timeout']);
 const TERMINAL_AGENT_STATUSES = new Set(['done', 'failed', 'timeout']);
 
-function generateTaskGroupId(taskType = 'task', options = {}) {
+function fallbackGenerateTaskGroupId(taskType = 'task', options = {}) {
   const nowMs = Number.isFinite(Number(options.now_ms)) ? Number(options.now_ms) : Date.now();
   const nonce = String(options.nonce || '').trim().toLowerCase() || nonceToken(6);
   const id = `${slug(taskType, 'task')}-${timestampToken(nowMs)}-${slug(nonce, nonceToken(6))}`;
   return id.slice(0, 127);
+}
+
+function generateTaskGroupId(taskType = 'task', options = {}) {
+  const out = invokeOrchestration('taskgroup.generate_id', {
+    task_type: String(taskType || '').trim() || 'task',
+    now_ms: Number.isFinite(Number(options.now_ms)) ? Number(options.now_ms) : Date.now(),
+    nonce: String(options.nonce || '').trim(),
+  });
+  if (out && out.ok && out.task_group_id) {
+    return String(out.task_group_id).trim().toLowerCase();
+  }
+  return fallbackGenerateTaskGroupId(taskType, options);
 }
 
 function taskGroupPath(taskGroupId, options = {}) {
@@ -34,7 +46,7 @@ function taskGroupPath(taskGroupId, options = {}) {
   return path.join(rootDir, `${id}.json`);
 }
 
-function statusCounts(group) {
+function fallbackStatusCounts(group) {
   const counts = {
     pending: 0,
     running: 0,
@@ -53,8 +65,18 @@ function statusCounts(group) {
   return counts;
 }
 
-function deriveGroupStatus(group) {
-  const counts = statusCounts(group);
+function statusCounts(group) {
+  const out = invokeOrchestration('taskgroup.status_counts', {
+    task_group: group && typeof group === 'object' ? group : {},
+  });
+  if (out && out.ok && out.counts && typeof out.counts === 'object') {
+    return out.counts;
+  }
+  return fallbackStatusCounts(group);
+}
+
+function fallbackDeriveGroupStatus(group) {
+  const counts = fallbackStatusCounts(group);
   if (counts.total === 0 || counts.pending === counts.total) return 'pending';
   if (counts.running > 0 || counts.pending > 0) return 'running';
   if (counts.failed > 0 && counts.done === 0 && counts.timeout === 0) return 'failed';
@@ -62,6 +84,16 @@ function deriveGroupStatus(group) {
   if (counts.done === counts.total) return 'done';
   if (counts.done + counts.failed + counts.timeout === counts.total) return 'completed';
   return 'running';
+}
+
+function deriveGroupStatus(group) {
+  const out = invokeOrchestration('taskgroup.derive_status', {
+    task_group: group && typeof group === 'object' ? group : {},
+  });
+  if (out && out.ok && out.status) {
+    return String(out.status).trim().toLowerCase() || 'pending';
+  }
+  return fallbackDeriveGroupStatus(group);
 }
 
 function normalizeTaskGroupResponse(out, fallbackType) {

@@ -7,34 +7,23 @@ const SCOPE_ID_FALLBACK_PREFIX = 'scope';
 const SCOPE_ID_PATTERN = /^[a-z0-9][a-z0-9._:-]{1,95}$/;
 
 function normalizeScope(scope, index = 0) {
-  const out = invokeOrchestration('scope.detect_overlaps', {
-    scopes: [scope && typeof scope === 'object' ? scope : {}],
+  const out = invokeOrchestration('scope.normalize', {
+    scope: scope && typeof scope === 'object' ? scope : {},
   });
 
-  if (!out || !out.ok) {
+  if (!out || out.ok !== true || !out.scope || typeof out.scope !== 'object') {
     return {
       ok: false,
       reason_code: String(out && out.reason_code ? out.reason_code : 'scope_invalid'),
       scope_id: String(
-        (scope && (scope.scope_id || scope.scopeId)) || `${SCOPE_ID_FALLBACK_PREFIX}-${index + 1}`
-      ).toLowerCase(),
-    };
-  }
-
-  const normalized = Array.isArray(out.normalized_scopes) ? out.normalized_scopes[0] : null;
-  if (!normalized || typeof normalized !== 'object') {
-    return {
-      ok: false,
-      reason_code: 'scope_invalid',
-      scope_id: String(
-        (scope && (scope.scope_id || scope.scopeId)) || `${SCOPE_ID_FALLBACK_PREFIX}-${index + 1}`
+        (out && out.scope_id) || (scope && (scope.scope_id || scope.scopeId)) || `${SCOPE_ID_FALLBACK_PREFIX}-${index + 1}`
       ).toLowerCase(),
     };
   }
 
   return {
     ok: true,
-    scope: normalized,
+    scope: out.scope,
   };
 }
 
@@ -60,6 +49,29 @@ function detectScopeOverlaps(scopes = []) {
 }
 
 function findingInScope(finding, scope) {
+  const out = invokeOrchestration('scope.finding_in_scope', {
+    finding: finding && typeof finding === 'object' ? finding : {},
+    scope: scope && typeof scope === 'object' ? scope : {},
+  });
+  if (out && typeof out.ok === 'boolean') {
+    if (!out.ok) {
+      return {
+        ok: false,
+        reason_code: out.reason_code ? String(out.reason_code) : 'scope_classification_failed',
+        in_scope: false,
+        scope_id: out.scope_id || (scope && scope.scope_id ? scope.scope_id : null),
+      };
+    }
+    return {
+      ok: true,
+      reason_code: out.reason_code ? String(out.reason_code) : (out.in_scope ? 'finding_in_scope' : 'finding_out_of_scope'),
+      in_scope: Boolean(out.in_scope),
+      scope_id: out.scope_id || (scope && scope.scope_id ? scope.scope_id : null),
+      matches_series: Boolean(out.matches_series),
+      matches_paths: Boolean(out.matches_paths),
+    };
+  }
+
   const classified = classifyFindingsByScope([finding], scope, '');
   if (!classified.ok) {
     return {
