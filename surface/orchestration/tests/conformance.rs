@@ -559,9 +559,10 @@ fn non_legacy_surface_adapter_fallback_uses_heuristics_and_stays_clarification_f
     assert!(package.classification.surface_adapter_fallback);
     assert!(package.selected_plan.capability_probes.iter().any(|row| {
         row.capability == infring_orchestration_surface_v1::contracts::Capability::ExecuteTool
-            && row.probe_sources.iter().any(|source| {
-                source == "heuristic.tool_hints_or_resource_kind"
-            })
+            && row
+                .probe_sources
+                .iter()
+                .any(|source| source == "heuristic.tool_hints_or_resource_kind")
     }));
     assert!(!package.selected_plan.capability_probes.iter().any(|row| {
         row.capability == infring_orchestration_surface_v1::contracts::Capability::ExecuteTool
@@ -695,7 +696,7 @@ fn adapted_tool_request_rejects_payload_tool_probe_shortcut() {
                 }
             }),
         },
-        4_329_1,
+        43_291,
     );
 
     assert!(package
@@ -1842,7 +1843,8 @@ fn runtime_quality_telemetry_metrics_stay_within_thresholds() {
             );
         }
 
-        if package.classification.surface_adapter_used || package.classification.surface_adapter_fallback
+        if package.classification.surface_adapter_used
+            || package.classification.surface_adapter_fallback
         {
             non_legacy_total += 1;
             if package.runtime_quality.surface_adapter_fallback {
@@ -2057,78 +2059,86 @@ fn adapted_probe_authority_matrix_executes_50_real_cases() {
         capability: Capability,
         missing_field: &str,
     ) -> TypedOrchestrationRequest {
-        let (request_kind, operation_kind, resource_kind, mutability, policy_scope, targets, refs, tool_hints) =
-            match capability {
-                Capability::ExecuteTool => (
-                    RequestKind::Direct,
-                    OperationKind::Search,
-                    ResourceKind::Web,
-                    Mutability::ReadOnly,
-                    PolicyScope::WebOnly,
-                    vec![TargetDescriptor::Url {
-                        value: "https://example.com/releases".to_string(),
-                    }],
-                    vec!["https://example.com/releases".to_string()],
-                    vec!["web_search".to_string()],
-                ),
-                Capability::VerifyClaim => (
-                    RequestKind::Comparative,
-                    OperationKind::Compare,
-                    ResourceKind::Mixed,
-                    Mutability::ReadOnly,
-                    PolicyScope::Default,
-                    vec![
-                        TargetDescriptor::WorkspacePath {
-                            value: "README.md".to_string(),
-                        },
-                        TargetDescriptor::Url {
-                            value: "https://example.com/reference".to_string(),
-                        },
-                    ],
-                    vec![
-                        "README.md".to_string(),
-                        "https://example.com/reference".to_string(),
-                    ],
-                    vec![],
-                ),
-                Capability::MutateTask => (
-                    RequestKind::Direct,
-                    OperationKind::Mutate,
-                    ResourceKind::TaskGraph,
-                    Mutability::Mutation,
-                    PolicyScope::CoreProposal,
-                    vec![TargetDescriptor::TaskId {
-                        value: "task-42".to_string(),
-                    }],
-                    vec!["task-42".to_string()],
-                    vec![],
-                ),
-                Capability::PlanAssimilation => (
-                    RequestKind::Workflow,
-                    OperationKind::Assimilate,
-                    ResourceKind::Workspace,
-                    Mutability::Mutation,
-                    PolicyScope::CoreProposal,
-                    vec![TargetDescriptor::WorkspacePath {
+        let (
+            request_kind,
+            operation_kind,
+            resource_kind,
+            mutability,
+            policy_scope,
+            targets,
+            refs,
+            tool_hints,
+        ) = match capability {
+            Capability::ExecuteTool => (
+                RequestKind::Direct,
+                OperationKind::Search,
+                ResourceKind::Web,
+                Mutability::ReadOnly,
+                PolicyScope::WebOnly,
+                vec![TargetDescriptor::Url {
+                    value: "https://example.com/releases".to_string(),
+                }],
+                vec!["https://example.com/releases".to_string()],
+                vec!["web_search".to_string()],
+            ),
+            Capability::VerifyClaim => (
+                RequestKind::Comparative,
+                OperationKind::Compare,
+                ResourceKind::Mixed,
+                Mutability::ReadOnly,
+                PolicyScope::Default,
+                vec![
+                    TargetDescriptor::WorkspacePath {
                         value: "README.md".to_string(),
-                    }],
-                    vec!["README.md".to_string()],
-                    vec![],
-                ),
-                Capability::ReadMemory => (
-                    RequestKind::Direct,
-                    OperationKind::Read,
-                    ResourceKind::Memory,
-                    Mutability::ReadOnly,
-                    PolicyScope::Default,
-                    vec![TargetDescriptor::MemoryRef {
-                        scope: "session".to_string(),
-                        object_id: None,
-                    }],
-                    vec!["memory:session".to_string()],
-                    vec![],
-                ),
-            };
+                    },
+                    TargetDescriptor::Url {
+                        value: "https://example.com/reference".to_string(),
+                    },
+                ],
+                vec![
+                    "README.md".to_string(),
+                    "https://example.com/reference".to_string(),
+                ],
+                vec![],
+            ),
+            Capability::MutateTask => (
+                RequestKind::Direct,
+                OperationKind::Mutate,
+                ResourceKind::TaskGraph,
+                Mutability::Mutation,
+                PolicyScope::CoreProposal,
+                vec![TargetDescriptor::TaskId {
+                    value: "task-42".to_string(),
+                }],
+                vec!["task-42".to_string()],
+                vec![],
+            ),
+            Capability::PlanAssimilation => (
+                RequestKind::Workflow,
+                OperationKind::Assimilate,
+                ResourceKind::Workspace,
+                Mutability::Mutation,
+                PolicyScope::CoreProposal,
+                vec![TargetDescriptor::WorkspacePath {
+                    value: "README.md".to_string(),
+                }],
+                vec!["README.md".to_string()],
+                vec![],
+            ),
+            Capability::ReadMemory => (
+                RequestKind::Direct,
+                OperationKind::Read,
+                ResourceKind::Memory,
+                Mutability::ReadOnly,
+                PolicyScope::Default,
+                vec![TargetDescriptor::MemoryRef {
+                    scope: "session".to_string(),
+                    object_id: None,
+                }],
+                vec!["memory:session".to_string()],
+                vec![],
+            ),
+        };
 
         TypedOrchestrationRequest {
             session_id: format!("matrix-{surface:?}-{capability:?}-{missing_field}")
@@ -2269,7 +2279,8 @@ fn adapted_probe_authority_matrix_executes_50_real_cases() {
     let mut executed_cases = 0usize;
     for surface in strict_surfaces {
         for case in &matrix {
-            let request = adapted_typed_request(surface, case.capability.clone(), case.missing_field);
+            let request =
+                adapted_typed_request(surface, case.capability.clone(), case.missing_field);
             let probe = infring_orchestration_surface_v1::planner::preconditions::probe_capability(
                 &request,
                 &case.capability,
@@ -2286,7 +2297,10 @@ fn adapted_probe_authority_matrix_executes_50_real_cases() {
                 case.missing_field
             );
             assert!(
-                probe.probe_sources.iter().any(|source| source == &expected_source),
+                probe
+                    .probe_sources
+                    .iter()
+                    .any(|source| source == &expected_source),
                 "missing strict probe source for surface={surface:?} capability={:?} field={}",
                 case.capability,
                 case.missing_field
@@ -2302,22 +2316,22 @@ fn adapted_probe_authority_matrix_executes_50_real_cases() {
         }
     }
 
-    let legacy_tool_probe = infring_orchestration_surface_v1::planner::preconditions::probe_capability(
-        &legacy_tool_request_without_probe_envelope(),
-        &Capability::ExecuteTool,
-    );
-    assert!(
-        !legacy_tool_probe
-            .blocked_on
-            .contains(&Precondition::ToolAvailable)
-    );
+    let legacy_tool_probe =
+        infring_orchestration_surface_v1::planner::preconditions::probe_capability(
+            &legacy_tool_request_without_probe_envelope(),
+            &Capability::ExecuteTool,
+        );
+    assert!(!legacy_tool_probe
+        .blocked_on
+        .contains(&Precondition::ToolAvailable));
     assert!(legacy_tool_probe
         .probe_sources
         .iter()
         .any(|source| source.starts_with("heuristic.")));
-    assert!(!legacy_tool_probe.probe_sources.iter().any(|source| {
-        source.starts_with("probe.required_for_typed_surface.execute_tool.")
-    }));
+    assert!(!legacy_tool_probe
+        .probe_sources
+        .iter()
+        .any(|source| { source.starts_with("probe.required_for_typed_surface.execute_tool.") }));
     executed_cases += 1;
 
     let legacy_assimilation_probe =
@@ -2332,10 +2346,16 @@ fn adapted_probe_authority_matrix_executes_50_real_cases() {
         .probe_sources
         .iter()
         .any(|source| source == "heuristic.policy_scope_and_mutability"));
-    assert!(!legacy_assimilation_probe.probe_sources.iter().any(|source| {
-        source.starts_with("probe.required_for_typed_surface.plan_assimilation.")
-    }));
+    assert!(!legacy_assimilation_probe
+        .probe_sources
+        .iter()
+        .any(|source| {
+            source.starts_with("probe.required_for_typed_surface.plan_assimilation.")
+        }));
     executed_cases += 1;
 
-    assert_eq!(executed_cases, 50, "probe authority matrix must execute 50 cases");
+    assert_eq!(
+        executed_cases, 50,
+        "probe authority matrix must execute 50 cases"
+    );
 }

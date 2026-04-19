@@ -10,7 +10,7 @@ use crate::contracts::{
 use serde_json::{Map, Value};
 
 #[derive(Debug, Clone, PartialEq)]
-struct SurfaceAdapterOutput {
+struct SurfaceAdaptedRequest {
     request_kind: Option<RequestKind>,
     operation_kind: Option<OperationKind>,
     resource_kind: Option<ResourceKind>,
@@ -34,45 +34,55 @@ pub fn normalize_request(input: OrchestrationRequest) -> ParseResult {
     let legacy_operation_candidates = parser::operation_candidates(&tokens, &payload);
     let legacy_resource_candidates =
         parser::resource_candidates(&tokens, &payload, &target_descriptors);
-    let adapted = adapt_surface_request(surface, &legacy_intent, &payload);
-    let operation_candidates = adapted
+    let surface_adapted_request = adapt_surface_request(surface, &legacy_intent, &payload);
+    let operation_candidates = surface_adapted_request
         .as_ref()
-        .and_then(|row| row.operation_kind.clone().map(|value| vec![value]))
+        .and_then(|adapted_request| {
+            adapted_request
+                .operation_kind
+                .clone()
+                .map(|value| vec![value])
+        })
         .unwrap_or_else(|| legacy_operation_candidates.clone());
-    let resource_candidates = adapted
+    let resource_candidates = surface_adapted_request
         .as_ref()
-        .and_then(|row| row.resource_kind.clone().map(|value| vec![value]))
+        .and_then(|adapted_request| {
+            adapted_request
+                .resource_kind
+                .clone()
+                .map(|value| vec![value])
+        })
         .unwrap_or_else(|| legacy_resource_candidates.clone());
-    let operation_kind = adapted
+    let operation_kind = surface_adapted_request
         .as_ref()
-        .and_then(|row| row.operation_kind.clone())
+        .and_then(|adapted_request| adapted_request.operation_kind.clone())
         .unwrap_or_else(|| classifier::select_operation_kind(&legacy_operation_candidates));
-    let target_descriptors = adapted
+    let target_descriptors = surface_adapted_request
         .as_ref()
-        .map(|row| row.target_descriptors.clone())
+        .map(|adapted_request| adapted_request.target_descriptors.clone())
         .unwrap_or(target_descriptors);
-    let resource_kind = adapted
+    let resource_kind = surface_adapted_request
         .as_ref()
-        .and_then(|row| row.resource_kind.clone())
+        .and_then(|adapted_request| adapted_request.resource_kind.clone())
         .unwrap_or_else(|| classifier::select_resource_kind(&resource_candidates));
-    let mutability = adapted
+    let mutability = surface_adapted_request
         .as_ref()
-        .and_then(|row| row.mutability.clone())
+        .and_then(|adapted_request| adapted_request.mutability.clone())
         .unwrap_or_else(|| parser::infer_mutability(&operation_kind));
-    let request_kind = adapted
+    let request_kind = surface_adapted_request
         .as_ref()
-        .and_then(|row| row.request_kind.clone())
+        .and_then(|adapted_request| adapted_request.request_kind.clone())
         .unwrap_or_else(|| classifier::infer_request_kind(&operation_candidates, &operation_kind));
     let target_refs = parser::extract_target_refs(&target_descriptors);
-    let tool_hints = adapted
+    let tool_hints = surface_adapted_request
         .as_ref()
-        .map(|row| row.tool_hints.clone())
+        .map(|adapted_request| adapted_request.tool_hints.clone())
         .unwrap_or_else(|| parser::extract_tool_hints(&payload, &operation_kind));
     let policy_scope = classifier::infer_policy_scope(&resource_kind, &mutability);
     let user_constraints = parser::extract_user_constraints(&payload);
-    let adapter_reasons = adapted
+    let adapter_reasons = surface_adapted_request
         .as_ref()
-        .map(|row| row.reasons.clone())
+        .map(|adapted_request| adapted_request.reasons.clone())
         .unwrap_or_default();
     let core_probe_envelope = extract_core_probe_envelope(&payload, surface);
 
@@ -81,7 +91,7 @@ pub fn normalize_request(input: OrchestrationRequest) -> ParseResult {
             session_id,
             surface,
             legacy_intent,
-            adapted: adapted.is_some(),
+            adapted: surface_adapted_request.is_some(),
             payload,
             request_kind,
             operation_kind,
@@ -123,7 +133,7 @@ fn adapt_surface_request(
     surface: RequestSurface,
     _legacy_intent: &str,
     payload: &Value,
-) -> Option<SurfaceAdapterOutput> {
+) -> Option<SurfaceAdaptedRequest> {
     if matches!(surface, RequestSurface::Legacy) {
         return None;
     }
@@ -183,7 +193,7 @@ fn adapt_surface_request(
         return None;
     }
 
-    Some(SurfaceAdapterOutput {
+    Some(SurfaceAdaptedRequest {
         request_kind: explicit_request_kind,
         operation_kind,
         resource_kind,

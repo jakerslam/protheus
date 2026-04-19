@@ -5,10 +5,10 @@ use serde_json::json;
 use sha2::{Digest, Sha256};
 
 pub fn collect_evidence_cards(inputs: &ObservationInputs, now_ms: u64) -> Vec<EvidenceCard> {
-    let mut out = Vec::<EvidenceCard>::new();
+    let mut evidence_cards = Vec::<EvidenceCard>::new();
 
     for audit in &inputs.architecture_audits {
-        out.push(EvidenceCard {
+        evidence_cards.push(EvidenceCard {
             evidence_id: stable_id("architecture_audit", audit.audit_id.as_str(), now_ms),
             source_kind: EvidenceSourceKind::ArchitectureAudit,
             source_ref: audit.source_ref.clone(),
@@ -28,7 +28,7 @@ pub fn collect_evidence_cards(inputs: &ObservationInputs, now_ms: u64) -> Vec<Ev
     }
 
     for violation in &inputs.dependency_violations {
-        out.push(EvidenceCard {
+        evidence_cards.push(EvidenceCard {
             evidence_id: stable_id(
                 "dependency_violation",
                 violation.violation_id.as_str(),
@@ -51,7 +51,7 @@ pub fn collect_evidence_cards(inputs: &ObservationInputs, now_ms: u64) -> Vec<Ev
     }
 
     if !inputs.task_fabric_signals.stale_tasks.is_empty() {
-        out.push(EvidenceCard {
+        evidence_cards.push(EvidenceCard {
             evidence_id: stable_id(
                 "task_fabric_stale",
                 &inputs.task_fabric_signals.stale_tasks.join(","),
@@ -77,7 +77,7 @@ pub fn collect_evidence_cards(inputs: &ObservationInputs, now_ms: u64) -> Vec<Ev
     }
 
     if !inputs.task_fabric_signals.blocked_tasks.is_empty() {
-        out.push(EvidenceCard {
+        evidence_cards.push(EvidenceCard {
             evidence_id: stable_id(
                 "task_fabric_blocked",
                 &inputs.task_fabric_signals.blocked_tasks.join(","),
@@ -103,7 +103,7 @@ pub fn collect_evidence_cards(inputs: &ObservationInputs, now_ms: u64) -> Vec<Ev
     }
 
     for report in &inputs.ci_reports {
-        out.push(EvidenceCard {
+        evidence_cards.push(EvidenceCard {
             evidence_id: stable_id("ci_report", report.report_id.as_str(), now_ms),
             source_kind: EvidenceSourceKind::CiReport,
             source_ref: report.source_ref.clone(),
@@ -124,7 +124,7 @@ pub fn collect_evidence_cards(inputs: &ObservationInputs, now_ms: u64) -> Vec<Ev
 
     for metric in &inputs.health_metrics {
         let over_threshold = metric.observed > metric.threshold;
-        out.push(EvidenceCard {
+        evidence_cards.push(EvidenceCard {
             evidence_id: stable_id("health_metric", metric.metric_name.as_str(), now_ms),
             source_kind: EvidenceSourceKind::HealthMetric,
             source_ref: metric.source_ref.clone(),
@@ -160,7 +160,7 @@ pub fn collect_evidence_cards(inputs: &ObservationInputs, now_ms: u64) -> Vec<Ev
         } else {
             pressure.used_bytes as f64 / pressure.limit_bytes as f64
         };
-        out.push(EvidenceCard {
+        evidence_cards.push(EvidenceCard {
             evidence_id: stable_id("memory_pressure", pressure.scope.as_str(), now_ms),
             source_kind: EvidenceSourceKind::MemoryPressure,
             source_ref: format!("memory:{}", pressure.scope),
@@ -184,7 +184,7 @@ pub fn collect_evidence_cards(inputs: &ObservationInputs, now_ms: u64) -> Vec<Ev
     }
 
     for orphan in &inputs.orphaned_objects {
-        out.push(EvidenceCard {
+        evidence_cards.push(EvidenceCard {
             evidence_id: stable_id("orphaned_object", orphan.object_id.as_str(), now_ms),
             source_kind: EvidenceSourceKind::OrphanedObject,
             source_ref: orphan.source_ref.clone(),
@@ -202,7 +202,7 @@ pub fn collect_evidence_cards(inputs: &ObservationInputs, now_ms: u64) -> Vec<Ev
         });
     }
 
-    out
+    evidence_cards
 }
 
 fn stable_id(prefix: &str, value: &str, now_ms: u64) -> String {

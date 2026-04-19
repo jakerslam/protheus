@@ -204,8 +204,7 @@ fn build_candidate_for_variant(
                     | Precondition::PolicyAllows
             )
         })
-        || matches!(variant, PlanVariant::ClarificationFirst)
-            && (!blocked_on.is_empty() || classification.needs_clarification);
+        || matches!(variant, PlanVariant::ClarificationFirst) && !blocked_on.is_empty();
     let contracts = steps
         .iter()
         .map(|row| row.target_contract.clone())

@@ -6,7 +6,7 @@ pub mod planner;
 pub mod posture;
 pub mod progress;
 pub mod recovery;
-pub mod request_classification;
+pub mod request_classifier;
 pub mod result_packaging;
 pub mod self_maintenance;
 pub mod sequencing;
@@ -25,7 +25,7 @@ const DEFAULT_SLEEP_CYCLE_IDLE_GAP_MS: u64 = 8 * 60 * 60 * 1000;
 
 #[derive(Debug)]
 pub struct OrchestrationSurfaceRuntime {
-    transient: TransientContextStore,
+    transient_context_store: TransientContextStore,
     last_activity_ms: Option<u64>,
     sleep_cycle_idle_gap_ms: u64,
 }
@@ -33,7 +33,7 @@ pub struct OrchestrationSurfaceRuntime {
 impl Default for OrchestrationSurfaceRuntime {
     fn default() -> Self {
         Self {
-            transient: TransientContextStore::default(),
+            transient_context_store: TransientContextStore::default(),
             last_activity_ms: None,
             sleep_cycle_idle_gap_ms: DEFAULT_SLEEP_CYCLE_IDLE_GAP_MS,
         }
@@ -62,7 +62,9 @@ impl OrchestrationSurfaceRuntime {
             return;
         }
         let cycle_id = format!("auto_idle_gap_{idle_gap}");
-        let _ = self.transient.run_sleep_cycle_cleanup(cycle_id.as_str());
+        let _ = self
+            .transient_context_store
+            .run_sleep_cycle_cleanup(cycle_id.as_str());
     }
 
     pub fn orchestrate(
@@ -73,8 +75,8 @@ impl OrchestrationSurfaceRuntime {
         self.maybe_run_sleep_cycle_cleanup(now_ms);
         let normalized = ingress::normalize_request(request);
         let typed_request = normalized.typed_request.clone();
-        let classification = request_classification::classify_request(&normalized);
-        if let Err(err) = self.transient.upsert(
+        let classification = request_classifier::classify_request(&normalized);
+        if let Err(err) = self.transient_context_store.upsert(
             typed_request.session_id.as_str(),
             transient_summary(&typed_request),
             now_ms,
@@ -152,7 +154,7 @@ impl OrchestrationSurfaceRuntime {
             };
         }
         let execution_observation = self
-            .transient
+            .transient_context_store
             .execution_observation(typed_request.session_id.as_str())
             .cloned();
 
@@ -204,34 +206,35 @@ impl OrchestrationSurfaceRuntime {
     }
 
     pub fn sweep_transient(&mut self, now_ms: u64) -> usize {
-        self.transient.sweep_expired(now_ms)
+        self.transient_context_store.sweep_expired(now_ms)
     }
 
     pub fn transient_entry_count(&self) -> usize {
-        self.transient.len()
+        self.transient_context_store.len()
     }
 
     pub fn transient_ephemeral_count(&self) -> usize {
-        self.transient.active_ephemeral_count()
+        self.transient_context_store.active_ephemeral_count()
     }
 
     pub fn begin_transient_restart(&mut self) {
-        self.transient.begin_restart();
+        self.transient_context_store.begin_restart();
     }
 
     pub fn sweep_transient_before_resume(&mut self) -> Result<usize, String> {
-        self.transient.sweep_stale_before_resume()
+        self.transient_context_store.sweep_stale_before_resume()
     }
 
     pub fn resume_transient_after_restart(&mut self) -> Result<(), String> {
-        self.transient.resume_after_restart()
+        self.transient_context_store.resume_after_restart()
     }
 
     pub fn run_transient_sleep_cycle_cleanup(
         &mut self,
         sleep_cycle_id: &str,
     ) -> Result<TransientSleepCleanupReport, String> {
-        self.transient.run_sleep_cycle_cleanup(sleep_cycle_id)
+        self.transient_context_store
+            .run_sleep_cycle_cleanup(sleep_cycle_id)
     }
 
     pub fn apply_execution_observation_update(
@@ -242,7 +245,7 @@ impl OrchestrationSurfaceRuntime {
         if session_id.is_empty() {
             return;
         }
-        let _ = self.transient.upsert_execution_observation(
+        let _ = self.transient_context_store.upsert_execution_observation(
             session_id.as_str(),
             update.observation,
             runtime_now_ms(),
@@ -261,7 +264,9 @@ impl OrchestrationSurfaceRuntime {
     }
 
     pub fn clear_execution_observation(&mut self, session_id: &str) {
-        let _ = self.transient.clear_execution_observation(session_id);
+        let _ = self
+            .transient_context_store
+            .clear_execution_observation(session_id);
     }
 }
 
