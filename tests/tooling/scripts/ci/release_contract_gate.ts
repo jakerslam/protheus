@@ -102,6 +102,8 @@ function windowsAndDocsCheck(): Check {
   const executionPolicyBypassForce = 'Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force';
   const rerunReadmeInstallHint = 'rerun the README Windows install command: $ReadmeWindowsInstallCommand';
   const readmeCommandBanner = '[infring install] README Windows install command: $ReadmeWindowsInstallCommand';
+  const preflightToolchainBanner =
+    '[infring install] preflight windows toolchain: cargo={0}; rustc={1}; msvc_tools={2}; tar={3}; winget={4}';
   const failureHintRequiredTokens = [
     'asset_probe=',
     'attempted_assets=',
@@ -125,6 +127,7 @@ function windowsAndDocsCheck(): Check {
     installPsForceRepairShim &&
     installPs.includes(rerunReadmeInstallHint) &&
     installPs.includes(readmeCommandBanner) &&
+    installPs.includes(preflightToolchainBanner) &&
     hasFailureHintTokenCoverage &&
     opsLib.includes('#![recursion_limit = "16384"]') &&
     installPs.includes(directBootstrapperUrl) &&

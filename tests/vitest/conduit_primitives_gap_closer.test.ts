@@ -233,6 +233,11 @@ describe('conduit primitive wrapper contract', () => {
     expect(source.includes('[infring install] README Windows install command: $ReadmeWindowsInstallCommand')).toBe(
       true,
     );
+    expect(
+      source.includes(
+        '[infring install] preflight windows toolchain: cargo={0}; rustc={1}; msvc_tools={2}; tar={3}; winget={4}',
+      ),
+    ).toBe(true);
     expect(source.includes('asset_probe=')).toBe(true);
     expect(source.includes('attempted_assets=')).toBe(true);
     expect(source.includes('source_fallback_attempted=')).toBe(true);
