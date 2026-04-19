@@ -17,6 +17,7 @@ $DefaultApi = "https://api.github.com/repos/$RepoOwner/$RepoName/releases/latest
 $DefaultReleasesApi = "https://api.github.com/repos/$RepoOwner/$RepoName/releases?per_page=30"
 $DefaultLatestUrl = "https://github.com/$RepoOwner/$RepoName/releases/latest"
 $DefaultBase = "https://github.com/$RepoOwner/$RepoName/releases/download"
+$ReadmeWindowsInstallCommand = 'Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force; $tmp = Join-Path $env:TEMP "infring-install.ps1"; irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 -OutFile $tmp -ErrorAction Stop; & $tmp -Repair -Full; Remove-Item $tmp -Force -ErrorAction SilentlyContinue'
 
 $InstallDir = if ($InstallDir) {
   $InstallDir
@@ -570,6 +571,10 @@ function Format-BinaryInstallFailureHint([string]$Stem, [string]$Triple, [string
       $parts.Add(("attempted_assets={0}" -f ($attemptedAssets -join ",")))
     }
     $parts.Add(("source_fallback_attempted={0}" -f ([string][bool]$failure.source_fallback_attempted).ToLower()))
+    $sourceFallbackVersions = @($failure.source_fallback_versions)
+    if ($sourceFallbackVersions.Count -gt 0) {
+      $parts.Add(("source_fallback_versions={0}" -f ($sourceFallbackVersions -join ",")))
+    }
     if (-not [string]::IsNullOrWhiteSpace([string]$failure.source_fallback_reason)) {
       $parts.Add(("source_fallback_reason={0}" -f [string]$failure.source_fallback_reason))
     }
@@ -727,9 +732,13 @@ function Install-Binary($Version, $Triple, $Stem, $OutPath) {
 
     $manifest = Join-Path $repoDir "core/layer0/ops/Cargo.toml"
     try {
-      cargo build --release --manifest-path $manifest --bin $binName | Out-Null
+      & cargo build --release --manifest-path $manifest --bin $binName | Out-Null
     } catch {
       $script:LastBinaryInstallFailureReason = "cargo_build_failed"
+      return $false
+    }
+    if ($LASTEXITCODE -ne 0) {
+      $script:LastBinaryInstallFailureReason = "cargo_build_failed_exit_$LASTEXITCODE"
       return $false
     }
 
@@ -769,17 +778,70 @@ function Install-Binary($Version, $Triple, $Stem, $OutPath) {
     }
   }
 
-  $script:LastBinaryInstallFailureReason = ""
-  $sourceFallbackVersions = @([string]$Version)
-  $fallbackOk = Install-BinaryFromSourceFallback $Version $Stem $OutPath
+  $allowNoMsvcSourceFallback = Installer-TruthyFlag $env:INFRING_INSTALL_ALLOW_NO_MSVC_SOURCE_FALLBACK $false
   if (
-    (-not $fallbackOk) -and
-    ($RequestedVersion -eq "latest") -and
-    ($Version -ne "main")
+    $HostIsWindows -and
+    $script:WindowsInstallPreflight -and
+    (-not [bool]$script:WindowsInstallPreflight.toolchain.msvc_tools_present) -and
+    (-not $allowNoMsvcSourceFallback) -and
+    (
+      (-not [bool]$assetProbe.asset_found) -or
+      (([bool]$assetProbe.asset_found) -and (-not [bool]$assetProbe.reachable))
+    )
   ) {
-    Write-Host "[infring install] source fallback for release $Version failed ($script:LastBinaryInstallFailureReason); retrying from main branch"
-    $sourceFallbackVersions += "main"
-    $fallbackOk = Install-BinaryFromSourceFallback "main" $Stem $OutPath
+    $script:LastBinaryInstallFailureReason = "msvc_tools_missing_no_reachable_prebuilt_asset"
+    $script:LastBinaryInstallFailure = @{
+      stem = $Stem
+      triple = $Triple
+      version = $Version
+      attempted_assets = @($attemptedAssets)
+      source_fallback_attempted = $false
+      source_fallback_versions = @()
+      source_fallback_reason = [string]$script:LastBinaryInstallFailureReason
+      asset_probe = $assetProbe
+    }
+    return $false
+  }
+
+  $script:LastBinaryInstallFailureReason = ""
+  $sourceFallbackVersions = @()
+  $sourceFallbackPlan = New-Object System.Collections.Generic.List[string]
+  $preferMainSourceFallback = (
+    ($RequestedVersion -eq "latest") -and
+    ($Version -ne "main") -and
+    $assetProbe -and
+    (-not [bool]$assetProbe.asset_found)
+  )
+  if ($preferMainSourceFallback) {
+    $sourceFallbackPlan.Add("main") | Out-Null
+    $sourceFallbackPlan.Add([string]$Version) | Out-Null
+  } else {
+    $sourceFallbackPlan.Add([string]$Version) | Out-Null
+    if (
+      ($RequestedVersion -eq "latest") -and
+      ($Version -ne "main")
+    ) {
+      $sourceFallbackPlan.Add("main") | Out-Null
+    }
+  }
+  $fallbackOk = $false
+  foreach ($sourceFallbackVersion in $sourceFallbackPlan) {
+    $sourceFallbackVersions += [string]$sourceFallbackVersion
+    if (
+      $preferMainSourceFallback -and
+      ($sourceFallbackVersion -eq "main")
+    ) {
+      Write-Host "[infring install] source fallback using main first (missing prebuilt asset metadata for $Stem on $Triple)"
+    } elseif (
+      ($sourceFallbackVersion -eq "main") -and
+      ($sourceFallbackVersions.Count -gt 1)
+    ) {
+      Write-Host "[infring install] source fallback for release $Version failed ($script:LastBinaryInstallFailureReason); retrying from main branch"
+    }
+    $fallbackOk = Install-BinaryFromSourceFallback $sourceFallbackVersion $Stem $OutPath
+    if ($fallbackOk) {
+      break
+    }
   }
   $script:LastBinaryInstallFailure = @{
     stem = $Stem
@@ -979,8 +1041,8 @@ $triple = if ($HostIsWindows) {
 } else {
   throw "Unsupported OS for installer"
 }
-$version = Resolve-Version
-$requestedVersion = $version
+  $version = Resolve-Version
+$resolvedVersionLabel = $version
 
 Write-Host "[infring install] version: $version"
 Write-Host "[infring install] platform: $triple"
@@ -1004,14 +1066,26 @@ if ($HostIsWindows) {
     $requiredWindowsStems += "infring-ops"
   }
   Invoke-WindowsInstallerPreflight -VersionTag $version -Triple $triple -RequiredStems $requiredWindowsStems
+  if ($RequestedVersion -eq "latest") {
+    $compatibleWindows = Resolve-AssetCompatibleVersionForTriple $triple $requiredWindowsStems
+    if ($compatibleWindows -and ($compatibleWindows -ne $version)) {
+      Write-Host "[infring install] latest release $version is missing one or more required Windows prebuilts for $triple; using compatible release $compatibleWindows"
+      $version = $compatibleWindows
+      $resolvedVersionLabel = $compatibleWindows
+      Invoke-WindowsInstallerPreflight -VersionTag $version -Triple $triple -RequiredStems $requiredWindowsStems
+    } elseif (-not $compatibleWindows) {
+      Write-Host "[infring install] no compatible Windows prebuilt release found for required stems; source fallback remains a backup path only."
+    }
+  }
 }
 
 if ($InstallPure) {
-  if ($RequestedVersion -eq "latest") {
+  if (($RequestedVersion -eq "latest") -and (-not $HostIsWindows)) {
     $compatiblePure = Resolve-AssetCompatibleVersionForTriple $triple @("infring-pure-workspace")
     if ($compatiblePure -and ($compatiblePure -ne $version)) {
       Write-Host "[infring install] latest release $version does not publish pure prebuilt assets for $triple; using compatible release $compatiblePure"
       $version = $compatiblePure
+      $resolvedVersionLabel = $compatiblePure
     }
   }
   $pureInstalled = $false
@@ -1023,7 +1097,7 @@ if ($InstallPure) {
   }
   if (-not $pureInstalled) {
     $failureHint = Format-BinaryInstallFailureHint -Stem "infring-pure-workspace" -Triple $triple -VersionTag $version
-    throw "Failed to install pure workspace binary for $triple ($requestedVersion). No compatible prebuilt asset was found and source fallback did not complete. Diagnostic: $failureHint Install Rust toolchain + C++ build tools, then retry with -Repair -Full."
+    throw "Failed to install pure workspace binary for $triple ($resolvedVersionLabel). No compatible prebuilt asset was found and source fallback did not complete. Diagnostic: $failureHint Install Rust toolchain + C++ build tools, then rerun the README Windows install command: $ReadmeWindowsInstallCommand"
   }
   if ($InstallTinyMax) {
     Write-Host "[infring install] tiny-max pure mode selected: Rust-only tiny profile installed"
@@ -1031,16 +1105,17 @@ if ($InstallPure) {
     Write-Host "[infring install] pure mode selected: Rust-only client installed"
   }
 } else {
-  if ($RequestedVersion -eq "latest") {
+  if (($RequestedVersion -eq "latest") -and (-not $HostIsWindows)) {
     $compatibleOps = Resolve-AssetCompatibleVersionForTriple $triple @("infring-ops")
     if ($compatibleOps -and ($compatibleOps -ne $version)) {
       Write-Host "[infring install] latest release $version does not publish core ops runtime prebuilt assets for $triple; using compatible release $compatibleOps"
       $version = $compatibleOps
+      $resolvedVersionLabel = $compatibleOps
     }
   }
   if (-not (Install-Binary $version $triple "infring-ops" $opsBin)) {
     $failureHint = Format-BinaryInstallFailureHint -Stem "infring-ops" -Triple $triple -VersionTag $version
-    throw "Failed to install core ops runtime for $triple ($requestedVersion). Prebuilt asset download failed and source fallback did not complete. Diagnostic: $failureHint Install Rust toolchain + C++ build tools, then retry with -Repair -Full."
+    throw "Failed to install core ops runtime for $triple ($resolvedVersionLabel). Prebuilt asset download failed and source fallback did not complete. Diagnostic: $failureHint Install Rust toolchain + C++ build tools, then rerun the README Windows install command: $ReadmeWindowsInstallCommand"
   }
 }
 
@@ -1555,6 +1630,6 @@ Write-Host "[infring install] quickstart: infring gateway"
 Write-Host "[infring install] stop: infring gateway stop"
 Write-Host "[infring install] if command isn't found immediately, run: $InstallDir\\infring.cmd --help"
 Write-Host "[infring install] if `Remove-Item` prints nothing, that's expected success behavior in PowerShell."
-Write-Host "[infring install] if script execution is restricted, relaunch PowerShell with process-only bypass: Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force"
+Write-Host "[infring install] README Windows install command: $ReadmeWindowsInstallCommand"
 
 Invoke-SourceFallbackCleanup

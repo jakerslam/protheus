@@ -1,4 +1,5 @@
-#![recursion_limit = "512"]
+#![recursion_limit = "2048"]
+// Layer ownership: core/layer0/ops
 
 // Auto-segmented for file-size policy: implementation moved to adjacent .inc source.
 // Keep module path stable while decomposing into <=500 LoC Rust source wrappers.
