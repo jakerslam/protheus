@@ -92,8 +92,11 @@ function windowsAndDocsCheck(): Check {
   const ok =
     installPs.includes('protheus-ops.exe') &&
     installPs.includes('infringd.cmd') &&
+    installPs.includes('Install-AllowDirectMsvcBootstrapEnabled') &&
+    installPs.includes('https://aka.ms/vs/17/release/vs_BuildTools.exe') &&
     /& \$tmp(?:\s+-Repair)?\s+-Full/.test(readme) &&
     readme.includes('install.ps1 -OutFile $tmp') &&
+    readme.includes('INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP') &&
     gettingStarted.includes('install.ps1') &&
     gettingStarted.includes('infring --help');
   return {
