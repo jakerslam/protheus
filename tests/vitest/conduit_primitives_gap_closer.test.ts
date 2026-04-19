@@ -254,6 +254,31 @@ describe('conduit primitive wrapper contract', () => {
     ).toBe(true);
     expect(
       source.includes(
+        '[infring install] preflight warning: MSVC build tools were not detected; source fallback may fail if Windows prebuilt assets are unavailable.',
+      ),
+    ).toBe(true);
+    expect(
+      source.includes(
+        '[infring install] preflight note: auto MSVC bootstrap is enabled (INFRING_INSTALL_AUTO_MSVC=1 default); installer will attempt winget bootstrap first and direct bootstrapper fallback if needed.',
+      ),
+    ).toBe(true);
+    expect(
+      source.includes(
+        '[infring install] preflight note: winget is unavailable; installer will attempt direct Build Tools bootstrapper download during source fallback.',
+      ),
+    ).toBe(true);
+    expect(
+      source.includes(
+        '[infring install] preflight warning: winget is unavailable and direct bootstrap fallback is disabled; install Build Tools manually.',
+      ),
+    ).toBe(true);
+    expect(
+      source.includes(
+        '[infring install] preflight warning: tar was not detected; archive prebuilt extraction and some source fallback paths may fail.',
+      ),
+    ).toBe(true);
+    expect(
+      source.includes(
         '[infring install] no compatible Windows prebuilt release found for required stems; source fallback remains a backup path only.',
       ),
     ).toBe(true);
