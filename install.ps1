@@ -764,6 +764,12 @@ function Format-BinaryInstallFailureHint([string]$Stem, [string]$Triple, [string
     if (-not [string]::IsNullOrWhiteSpace([string]$failure.source_fallback_reason)) {
       $parts.Add(("source_fallback_reason={0}" -f [string]$failure.source_fallback_reason))
     }
+    if ($null -ne $failure.preflight_no_reachable_prebuilt_with_missing_msvc) {
+      $parts.Add(
+        ("preflight_no_reachable_prebuilt_with_missing_msvc={0}" -f `
+            ([string][bool]$failure.preflight_no_reachable_prebuilt_with_missing_msvc).ToLower())
+      )
+    }
     $sourceFallbackPlan = @($failure.source_fallback_plan)
     if ($sourceFallbackPlan.Count -gt 0) {
       $parts.Add(("source_fallback_plan={0}" -f ($sourceFallbackPlan -join ",")))
@@ -1182,6 +1188,7 @@ function Install-Binary($Version, $Triple, $Stem, $OutPath) {
 
   $assetProbe = Resolve-ReleaseAssetProbe $Version $Triple $Stem
   $attemptedAssets = New-Object System.Collections.Generic.List[string]
+  $noReachablePrebuiltWithMissingMsvc = $false
   $raw = Join-Path $tmp.FullName "$Stem.download"
   $assetCandidates = Get-BinaryAssetCandidates $Triple $Stem
   foreach ($assetName in $assetCandidates) {
@@ -1198,6 +1205,7 @@ function Install-Binary($Version, $Triple, $Stem, $OutPath) {
           source_fallback_reason = ""
           auto_msvc_bootstrap_enabled = [bool](Install-AutoMsvcBootstrapEnabled)
           main_last_resort_fallback = $null
+          preflight_no_reachable_prebuilt_with_missing_msvc = [bool]$noReachablePrebuiltWithMissingMsvc
           asset_probe = $assetProbe
         }
         return $true
@@ -1234,7 +1242,25 @@ function Install-Binary($Version, $Triple, $Stem, $OutPath) {
       (([bool]$assetProbe.asset_found) -and (-not [bool]$assetProbe.reachable))
     )
   ) {
+    $noReachablePrebuiltWithMissingMsvc = $true
     if (-not $allowNoMsvcSourceFallback) {
+      if (-not (Install-AutoMsvcBootstrapEnabled)) {
+        $script:LastBinaryInstallFailureReason = "msvc_tools_missing_no_reachable_prebuilt_asset"
+        $script:LastBinaryInstallFailure = @{
+          stem = $Stem
+          triple = $Triple
+          version = $Version
+          attempted_assets = @($attemptedAssets)
+          source_fallback_attempted = $false
+          source_fallback_plan = @()
+          source_fallback_reason = [string]$script:LastBinaryInstallFailureReason
+          auto_msvc_bootstrap_enabled = [bool](Install-AutoMsvcBootstrapEnabled)
+          main_last_resort_fallback = $null
+          preflight_no_reachable_prebuilt_with_missing_msvc = $true
+          asset_probe = $assetProbe
+        }
+        return $false
+      }
       Write-Host "[infring install] preflight note: no reachable Windows prebuilt + MSVC tools missing; forcing best-effort source fallback despite INFRING_INSTALL_ALLOW_NO_MSVC_SOURCE_FALLBACK=0"
     } else {
       Write-Host "[infring install] preflight note: no reachable Windows prebuilt and MSVC tools missing; attempting best-effort source fallback"
@@ -1313,6 +1339,7 @@ function Install-Binary($Version, $Triple, $Stem, $OutPath) {
     source_fallback_reason = [string]$script:LastBinaryInstallFailureReason
     auto_msvc_bootstrap_enabled = [bool](Install-AutoMsvcBootstrapEnabled)
     main_last_resort_fallback = [bool]$allowMainLastResortFallback
+    preflight_no_reachable_prebuilt_with_missing_msvc = [bool]$noReachablePrebuiltWithMissingMsvc
     asset_probe = $assetProbe
   }
   return $fallbackOk
