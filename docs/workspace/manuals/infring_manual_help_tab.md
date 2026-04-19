@@ -20,7 +20,7 @@ _Operator-facing guide for the Help tab_
 Infring is a local, deterministic, receipt-first automation and orchestration runtime.
 
 In practical terms, that means:
-- **Core truth lives in the Rust core.** Critical policy, receipts, execution, and safety decisions are authoritative in core lanes.
+- **Kernel truth lives in the Rust kernel.** Critical policy, receipts, execution, and safety decisions are authoritative in kernel lanes. (`Core` remains a compatibility alias for legacy wording.)
 - **The orchestration layer coordinates work.** It shapes requests, plans work, handles clarification, and packages results.
 - **The client/dashboard is a presentation surface.** It is there to help you operate the system, not to be the source of truth.
 - **Operations are evidence-backed.** Important actions and outcomes are designed to be traceable.
@@ -342,10 +342,10 @@ infring rag
 
 Infring’s safety model is one of its defining traits.
 
-### Core rules
+### Kernel rules
 - Safety authority stays deterministic and fail-closed.
 - AI/probabilistic logic is not the root of correctness.
-- Core truth lives in the authoritative core.
+- Kernel truth lives in the authoritative kernel.
 - Boundary crossing is explicit and governed.
 - Unsupported or unadmitted actions should stop or degrade safely.
 

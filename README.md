@@ -7,15 +7,27 @@
 InfRing is a deterministic, receipt-first autonomous runtime built on a three-plane metakernel.  
 It is designed for verifiable execution, fail-closed safety, and reproducible operator workflows.
 
-Core authority is Rust-first (`core/**`).  
+Kernel authority is Rust-first (`core/**`).  
 Orchestration coordination lives in `surface/orchestration/**` (non-canonical, contract-driven).  
-Client/runtime surfaces remain thin presentation wrappers around policy-governed core lanes.
+Client/runtime surfaces remain thin presentation wrappers around policy-governed kernel lanes.
+
+## Terminology Transition (Public Canonical Term)
+
+- Canonical public term: **Kernel**
+- Compatibility alias: **Core** (legacy term for the same authoritative Rust surface)
+- Canonical repository path remains `core/**` during compatibility transition.
+- Transition indicators:
+  - [x] Public/operator docs use `Kernel` as the canonical authority term.
+  - [x] Boundary docs mark `Core` as a compatibility alias (not a separate authority).
+  - [ ] Tooling command IDs and guard names expose `kernel`-first aliases.
+  - [ ] Artifact/config naming migrates from `core_*` to `kernel_*` with compatibility mapping.
+  - [ ] Release policy publishes a final alias removal target version/date.
 
 ## Why InfRing
 
 - Deterministic execution with evidence-backed receipts.
 - Fail-closed safety and policy enforcement by default.
-- Rust-authoritative core with explicit thin-client boundaries.
+- Rust-authoritative kernel with explicit thin-client boundaries.
 - Multi-profile runtime strategy: rich, pure, and tiny-max.
 - Operator-first CLI and gateway operator surface (presentation + orchestration ingress).
 
@@ -29,7 +41,7 @@ Client/runtime surfaces remain thin presentation wrappers around policy-governed
 
 Runtime split inside cognition:
 
-- Authoritative Core: `core/**`
+- Authoritative Kernel (compat alias: Core): `core/**`
 - Orchestration Surface: `surface/orchestration/**`
 - Presentation Client: `client/**`
 
@@ -45,7 +57,7 @@ What is true in this repository today:
 - Gateway health endpoint is `http://127.0.0.1:4173/healthz`.
 - Gateway persistence is enabled by default (auto-restart + reboot supervision unless disabled).
 - Pure profiles (`--pure`, `--tiny-max`) are Rust-only and intentionally do not expose the rich `gateway` UI surface.
-- Full command surface still requires Node.js 22+; Node-free fallback remains available for core operations.
+- Full command surface still requires Node.js 22+; Node-free fallback remains available for kernel operations.
 - Production release channels are resident-IPC authoritative: process transport fallbacks are blocked (`process_transport_forbidden_in_production` / `process_fallback_forbidden_in_production`).
 - Release-closure evidence now includes topology diagnostics, live stateful upgrade/rollback rehearsal, recovery rehearsal, numeric release scorecards, and support-bundle export.
 - Runtime proof now supports dual-track evidence (`synthetic` canary + `empirical` live artifact track) with profile-scoped empirical sample budgets and required source/metric completeness enforced in release gating.

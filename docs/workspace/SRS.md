@@ -18075,7 +18075,7 @@ Source summary:
   - `package.json`
   - `docs/workspace/client_naming_policy.md`
 
-### 2026-04-19 Orchestration + Core Naming Policy Automation Guards
+### 2026-04-19 Orchestration + Kernel Naming Policy Automation Guards
 
 - Intent:
   - Enforce naming conventions for orchestration and backend core surfaces in CI so policy is continuously enforced and not documentation-only.
@@ -18094,3 +18094,94 @@ Source summary:
   - `.github/workflows/ci.yml`
   - `docs/workspace/orchestration_naming_policy.md`
   - `docs/workspace/core_naming_policy.md`
+
+## Incident Operations Governance Intake (2026-04-19)
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V11-GOV-INC-001 | in_progress | Incident operations governance contract: severity taxonomy + ownership map + escalation SLA + rollback/closure artifacts + process heading enforcement | Incident responses had strong local practices but no single enforced contract spanning hard gates, policy templates, and process documentation, which can cause inconsistent escalation and closure quality. | Added canonical policy config in [`client/runtime/config/incident_operations_governance_policy.json`](/Users/jay/.openclaw/workspace/client/runtime/config/incident_operations_governance_policy.json), policy reference doc in [`docs/workspace/policy/incident_operations_governance_policy.md`](/Users/jay/.openclaw/workspace/docs/workspace/policy/incident_operations_governance_policy.md), and process runbook in [`docs/workspace/process/incident_response_workflow.md`](/Users/jay/.openclaw/workspace/docs/workspace/process/incident_response_workflow.md). Added strict gate [`tests/tooling/scripts/ci/incident_operations_governance_gate.ts`](/Users/jay/.openclaw/workspace/tests/tooling/scripts/ci/incident_operations_governance_gate.ts), command wiring in [`package.json`](/Users/jay/.openclaw/workspace/package.json), tooling registry entry in [`tests/tooling/config/tooling_gate_registry.json`](/Users/jay/.openclaw/workspace/tests/tooling/config/tooling_gate_registry.json), and verify profile coverage in [`tests/tooling/config/verify_profiles.json`](/Users/jay/.openclaw/workspace/tests/tooling/config/verify_profiles.json). | 9 | 0/1/2 |
+
+### 2026-04-19 Incident Operations Governance Contract
+
+- Intent:
+  - Enforce incident-response reliability as a three-layer contract:
+    1. Hard gate for non-negotiable severity/ownership/SLA/rollback/closure requirements.
+    2. Policy contract for communication/checklist/reporting/script-output conventions.
+    3. Process contract requiring deterministic lifecycle headings in the runbook.
+- Acceptance criteria:
+  - `ops:incident-governance:gate` fails closed if required severity levels, role ownership, SLA shape/order, rollback criteria, closure artifacts, or process headings are missing.
+  - `ops:incident-governance:gate` is registered and available in `fast`, `boundary`, and `release` verify profiles.
+  - Policy and process docs are canonicalized and linked to one machine-readable policy file.
+- Regression evidence pointers:
+  - `tests/tooling/scripts/ci/incident_operations_governance_gate.ts`
+  - `client/runtime/config/incident_operations_governance_policy.json`
+  - `docs/workspace/policy/incident_operations_governance_policy.md`
+  - `docs/workspace/process/incident_response_workflow.md`
+  - `tests/tooling/config/tooling_gate_registry.json`
+  - `tests/tooling/config/verify_profiles.json`
+  - `package.json`
+
+### 2026-04-19 Incident Governance Hardening Addendum
+
+- Intent:
+  - Harden governance from baseline policy checks to operationally enforceable contracts with owner identity quality, temporary waiver controls, and schema-level post-incident artifact validation.
+- Delivered upgrades:
+  - Added owner roster contract and placeholder-owner rejection in [`client/runtime/config/incident_owner_roster.json`](/Users/jay/.openclaw/workspace/client/runtime/config/incident_owner_roster.json) and [`tests/tooling/scripts/ci/incident_operations_governance_gate.ts`](/Users/jay/.openclaw/workspace/tests/tooling/scripts/ci/incident_operations_governance_gate.ts).
+  - Added waiver mechanism with expiry and scoped check overrides in [`client/runtime/config/incident_operations_governance_waivers.json`](/Users/jay/.openclaw/workspace/client/runtime/config/incident_operations_governance_waivers.json) and gate runtime.
+  - Added post-incident artifact schema contract in [`client/runtime/config/post_incident_artifact_schema.json`](/Users/jay/.openclaw/workspace/client/runtime/config/post_incident_artifact_schema.json).
+  - Added fixture-driven regression suite in [`tests/client-memory-tools/incident_operations_governance_gate.test.ts`](/Users/jay/.openclaw/workspace/tests/client-memory-tools/incident_operations_governance_gate.test.ts) with pass/fail/waiver fixture sets under [`tests/fixtures/incident_governance`](/Users/jay/.openclaw/workspace/tests/fixtures/incident_governance).
+  - Added dedicated CI job `incident-governance` in [`.github/workflows/ci.yml`](/Users/jay/.openclaw/workspace/.github/workflows/ci.yml).
+- Acceptance criteria:
+  - Governance gate fails for placeholder owners and expired active waivers.
+  - Governance gate passes when a valid, unexpired waiver scopes a failing check.
+  - Required post-incident artifacts are schema-validated (field map + type validation), not list-checked only.
+  - CI exposes a standalone `incident-governance` check path in addition to profile inclusion.
+- Regression evidence pointers:
+  - `tests/tooling/scripts/ci/incident_operations_governance_gate.ts`
+  - `tests/client-memory-tools/incident_operations_governance_gate.test.ts`
+  - `tests/fixtures/incident_governance/pass`
+  - `tests/fixtures/incident_governance/fail_placeholder_owner`
+  - `tests/fixtures/incident_governance/fail_expired_waiver`
+  - `tests/fixtures/incident_governance/pass_with_waiver`
+  - `.github/workflows/ci.yml`
+
+### 2026-04-19 Release Proof-Pack Closure Hardening
+
+- Intent:
+  - Convert proof-pack completeness from advisory reporting into an explicit release-closure contract enforced by RC rehearsal and release verdict gates.
+- Acceptance criteria:
+  - `ops:release:proof-pack` fails closed when `required_missing > 0`.
+  - `ops:release:proof-pack` fails closed when any configured category required-completeness threshold is missed.
+  - RC rehearsal generates Layer 2 parity, Layer 2 receipt replay, and trusted-core artifacts every cycle.
+  - RC rehearsal requires `ops:release:proof-pack` success for candidate readiness.
+  - Release verdict enforces proof-pack health (`required_missing == 0` and category-threshold failures == 0) as a first-class release check.
+  - Production readiness closure policy explicitly includes parity/replay/trusted-core/proof-pack scripts and artifacts in required release lanes.
+- Regression evidence pointers:
+  - `tests/tooling/scripts/ci/release_proof_pack_assemble.ts`
+  - `tests/tooling/config/release_proof_pack_manifest.json`
+  - `tests/tooling/scripts/ci/release_candidate_dress_rehearsal.ts`
+  - `tests/tooling/scripts/ci/release_verdict_gate.ts`
+  - `client/runtime/config/production_readiness_closure_policy.json`
+
+### 2026-04-19 Runtime Proof Multi-Profile Closure + Evidence Bundling
+
+- Intent:
+  - Enforce release-time runtime-proof closure across `rich`, `pure`, and `tiny-max` with mandatory dual-track proof, nonzero empirical coverage, deterministic checksums, and explicit boundedness/soak evidence artifacts.
+- Acceptance criteria:
+  - `ops:runtime-proof:verify` runs all three profiles in one invocation and fails closed if any profile fails harness, release gate, adapter-chaos gate, or empirical sample-point requirements.
+  - Runtime proof verification emits deterministic evidence artifacts:
+    - `core/local/artifacts/runtime_boundedness_72h_evidence_current.json`
+    - `core/local/artifacts/runtime_multi_day_soak_evidence_current.json`
+    - `core/local/artifacts/release_proof_checksums_current.json`
+  - RC rehearsal includes `ops:runtime-proof:verify` as a required step before proof-pack closure.
+  - Release policy/verdict enforce runtime-proof multi-profile closure and dual-track empirical readiness as release-blocking conditions.
+  - Release proof-pack manifest requires runtime proof artifacts for `rich`, `pure`, and `tiny-max` plus boundedness/soak/checksum evidence.
+  - Release workflow includes runtime-proof verification before RC rehearsal and publishes proof evidence/checksum artifacts in release bundle checksums + release files.
+- Regression evidence pointers:
+  - `tests/tooling/scripts/ci/runtime_proof_verify.ts`
+  - `tests/tooling/scripts/ci/release_candidate_dress_rehearsal.ts`
+  - `tests/tooling/scripts/ci/release_verdict_gate.ts`
+  - `tests/tooling/config/tooling_gate_registry.json`
+  - `tests/tooling/config/release_proof_pack_manifest.json`
+  - `client/runtime/config/production_readiness_closure_policy.json`
+  - `.github/workflows/release.yml`
