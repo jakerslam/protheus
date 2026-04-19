@@ -10,7 +10,7 @@ path = "src/lib.rs"
 
 [[bin]]
 name = "protheus-pure-workspace"
-path = "src/main.rs"
+path = "src/bin/protheus-pure-workspace.rs"
 
 [[bin]]
 name = "infring-pure-workspace"
