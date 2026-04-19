@@ -230,6 +230,14 @@ describe('conduit primitive wrapper contract', () => {
     expect(source.includes('rerun the README Windows install command: $ReadmeWindowsInstallCommand')).toBe(
       true,
     );
+    expect(source.includes('asset_probe=')).toBe(true);
+    expect(source.includes('attempted_assets=')).toBe(true);
+    expect(source.includes('source_fallback_attempted=')).toBe(true);
+    expect(source.includes('source_fallback_reason=')).toBe(true);
+    expect(source.includes('source_fallback_plan=')).toBe(true);
+    expect(source.includes('toolchain:cargo=')).toBe(true);
+    expect(source.includes('auto_bootstrap:auto_rustup=')).toBe(true);
+    expect(source.includes('auto_bootstrap:direct_msvc=')).toBe(true);
     expect(
       /if \(\$Force\)\s*\{[\s\S]*\$InstallRepair\s*=\s*\$true[\s\S]*if \(-not \$Minimal\)\s*\{[\s\S]*\$InstallFull\s*=\s*\$true/.test(
         source,
