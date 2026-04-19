@@ -121,6 +121,12 @@ function windowsAndDocsCheck(): Check {
     '[infring install] preflight warning: winget is unavailable and direct bootstrap fallback is disabled; install Build Tools manually.';
   const preflightTarMissingWarning =
     '[infring install] preflight warning: tar was not detected; archive prebuilt extraction and some source fallback paths may fail.';
+  const preflightLatestAssetGapWarning =
+    '[infring install] preflight warning: current latest tag has Windows asset gaps and source fallback prerequisites are limited; installer will still try compatible-tag fallback before failing.';
+  const preflightCargoAutoRustupNote =
+    '[infring install] preflight note: Cargo missing but auto Rust bootstrap is enabled; installer will attempt toolchain bootstrap during source fallback.';
+  const preflightCargoAutoRustupDisabledThrow =
+    'Windows installer preflight failed: prebuilt asset gaps detected for [$gapSummary], Cargo is unavailable, and auto Rust bootstrap is disabled (INFRING_INSTALL_AUTO_RUSTUP=0 or INFRING_AUTO_RUSTUP=0). Install Rust + MSVC build tools or publish missing Windows release assets.';
   const noCompatiblePrebuiltBanner =
     '[infring install] no compatible Windows prebuilt release found for required stems; source fallback remains a backup path only.';
   const autoMsvcEnabledBanner =
@@ -177,6 +183,9 @@ function windowsAndDocsCheck(): Check {
     installPs.includes(preflightWingetUnavailableDirectEnabledNote) &&
     installPs.includes(preflightWingetUnavailableDirectDisabledWarning) &&
     installPs.includes(preflightTarMissingWarning) &&
+    installPs.includes(preflightLatestAssetGapWarning) &&
+    installPs.includes(preflightCargoAutoRustupNote) &&
+    installPs.includes(preflightCargoAutoRustupDisabledThrow) &&
     installPs.includes(noCompatiblePrebuiltBanner) &&
     installPs.includes(autoMsvcEnabledBanner) &&
     installPs.includes(autoMsvcDisabledBanner) &&

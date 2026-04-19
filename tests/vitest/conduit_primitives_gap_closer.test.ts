@@ -279,6 +279,21 @@ describe('conduit primitive wrapper contract', () => {
     ).toBe(true);
     expect(
       source.includes(
+        '[infring install] preflight warning: current latest tag has Windows asset gaps and source fallback prerequisites are limited; installer will still try compatible-tag fallback before failing.',
+      ),
+    ).toBe(true);
+    expect(
+      source.includes(
+        '[infring install] preflight note: Cargo missing but auto Rust bootstrap is enabled; installer will attempt toolchain bootstrap during source fallback.',
+      ),
+    ).toBe(true);
+    expect(
+      source.includes(
+        'Windows installer preflight failed: prebuilt asset gaps detected for [$gapSummary], Cargo is unavailable, and auto Rust bootstrap is disabled (INFRING_INSTALL_AUTO_RUSTUP=0 or INFRING_AUTO_RUSTUP=0). Install Rust + MSVC build tools or publish missing Windows release assets.',
+      ),
+    ).toBe(true);
+    expect(
+      source.includes(
         '[infring install] no compatible Windows prebuilt release found for required stems; source fallback remains a backup path only.',
       ),
     ).toBe(true);
