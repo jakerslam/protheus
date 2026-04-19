@@ -180,7 +180,7 @@ function app() {
   return {
     page: 'agents',
     themeMode: localStorage.getItem('infring-theme-mode') || 'system',
-    overlayGlassTemplate: 'fogged-glass',
+    overlayGlassTemplate: 'simple-glass',
     theme: (() => {
       var mode = localStorage.getItem('infring-theme-mode') || 'system';
       if (mode === 'system') return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';

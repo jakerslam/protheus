@@ -389,6 +389,17 @@
         "local/workspace/reports/NODE_CRITICAL_PATH_INVENTORY_CURRENT.md"
       ]
     },
+    "ops:agent-surface:status:guard": {
+      "owner": "ops",
+      "description": "Agent surface support-level/status manifest guard.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:agent-surface:status:guard",
+      "artifact_paths": [
+        "core/local/artifacts/agent_surface_status_guard_current.json",
+        "local/workspace/reports/AGENT_SURFACE_STATUS_GUARD_CURRENT.md"
+      ]
+    },
     "ops:tech-debt:report": {
       "owner": "ops",
       "description": "Consolidated tech debt report.",

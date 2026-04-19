@@ -1,8 +1,13 @@
-    _messageToolRows: function(msg) {
+    resolveMessageToolRows: function(msg) {
       if (!msg || !Array.isArray(msg.tools)) return [];
       return msg.tools.filter(function(tool) {
         return !!tool && String(tool.name || '').toLowerCase() !== 'thought_process';
       });
+    },
+
+    // Backward-compat shim for legacy callers during naming migration.
+    _messageToolRows: function(msg) {
+      return this.resolveMessageToolRows(msg);
     },
 
     _collectSourceCandidatesFromValue: function(value, out, seen, depth) {
@@ -162,7 +167,7 @@
     },
 
     messageToolTraceSummary: function(msg) {
-      var rows = this._messageToolRows(msg);
+      var rows = this.resolveMessageToolRows(msg);
       var summary = {
         visible: false,
         running: false,
@@ -205,7 +210,7 @@
     },
 
     messageToolTraceRows: function(msg) {
-      var rows = this._messageToolRows(msg);
+      var rows = this.resolveMessageToolRows(msg);
       var out = [];
       for (var i = 0; i < rows.length && out.length < 6; i += 1) {
         var tool = rows[i] || {};

@@ -111,21 +111,7 @@
 }
 
 .chat-wrapper::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  height: var(--chat-fade-size);
-  pointer-events: none;
-  z-index: 11;
-  background: linear-gradient(
-    to bottom,
-    color-mix(in srgb, var(--bg) 99%, transparent) 0%,
-    color-mix(in srgb, var(--bg) 86%, transparent) 34%,
-    color-mix(in srgb, var(--bg) 54%, transparent) 68%,
-    transparent 100%
-  );
+  content: none;
 }
 
 .chat-wrapper::after {

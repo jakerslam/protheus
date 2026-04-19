@@ -375,6 +375,8 @@
         active: false,
         ready: false,
         side: 'top',
+        inline_away: 'right',
+        block_away: 'bottom',
         left: 0,
         top: 0,
         compact: false,
@@ -396,6 +398,8 @@
         active: true,
         ready: left > 0 && top > 0,
         side: this.bottomDockOpenSide(),
+        inline_away: 'center',
+        block_away: 'center',
         left: left,
         top: top,
         compact: false,
@@ -410,13 +414,19 @@
       var left = Math.round(Number(popup.left || 0));
       var top = Math.round(Number(popup.top || 0));
       var side = String(popup.side || 'bottom').trim().toLowerCase();
+      var inlineAway = String(popup.inline_away || 'right').trim().toLowerCase();
+      var blockAway = String(popup.block_away || 'bottom').trim().toLowerCase();
       if (side !== 'top' && side !== 'left' && side !== 'right') side = 'bottom';
+      if (inlineAway !== 'left' && inlineAway !== 'right') inlineAway = 'center';
+      if (blockAway !== 'top' && blockAway !== 'bottom') blockAway = 'center';
       if (!popup.active || !title) return this.dashboardPopupOrigin();
       return this.dashboardPopupOrigin({
         source: String(popup.source || 'ui').trim(),
         active: true,
         ready: left > 0 && top > 0,
         side: side,
+        inline_away: inlineAway,
+        block_away: blockAway,
         left: left,
         top: top,
         compact: false,
@@ -449,6 +459,12 @@
         'is-side-bottom': popup.side === 'bottom',
         'is-side-left': popup.side === 'left',
         'is-side-right': popup.side === 'right',
+        'is-inline-away-left': popup.inline_away === 'left',
+        'is-inline-away-right': popup.inline_away === 'right',
+        'is-inline-away-center': popup.inline_away !== 'left' && popup.inline_away !== 'right',
+        'is-block-away-top': popup.block_away === 'top',
+        'is-block-away-bottom': popup.block_away === 'bottom',
+        'is-block-away-center': popup.block_away !== 'top' && popup.block_away !== 'bottom',
         'is-unread': !!popup.unread
       };
     },

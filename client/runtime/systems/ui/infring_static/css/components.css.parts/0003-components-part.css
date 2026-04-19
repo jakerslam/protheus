@@ -214,54 +214,75 @@
 }
 
 .chat-thread-profile {
+  --chat-thread-profile-surface-border: var(--overlay-magnified-surface-border);
+  --chat-thread-profile-surface-background: var(--overlay-magnified-surface-background);
+  --chat-thread-profile-surface-shadow: var(--overlay-magnified-surface-shell-shadow);
+  --chat-thread-profile-surface-filter:
+    var(--overlay-magnified-surface-distortion)
+    blur(var(--overlay-magnified-surface-blur))
+    saturate(var(--overlay-magnified-surface-saturate))
+    brightness(var(--overlay-magnified-surface-brightness))
+    contrast(var(--overlay-magnified-surface-contrast));
+  --chat-thread-profile-magnified-lens-size: var(--overlay-magnified-surface-lens-size, 50%);
+  --chat-thread-profile-magnified-lens-scale: var(--overlay-magnified-surface-lens-scale, 2);
+  --chat-thread-profile-magnified-lens-opacity: var(--overlay-magnified-surface-lens-opacity, 0.34);
+  --chat-thread-profile-magnified-lens-filter:
+    var(--overlay-magnified-surface-distortion)
+    blur(var(--overlay-magnified-surface-blur))
+    saturate(calc(var(--overlay-magnified-surface-saturate) + var(--overlay-magnified-surface-lens-saturate-boost, 0.08)))
+    brightness(calc(var(--overlay-magnified-surface-brightness) + var(--overlay-magnified-surface-lens-brightness-boost, 0.06)))
+    contrast(calc(var(--overlay-magnified-surface-contrast) + var(--overlay-magnified-surface-lens-contrast-boost, 0.08)));
   position: relative;
   z-index: 7;
   isolation: isolate;
   width: auto;
   box-sizing: border-box;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 10px 24px 8px;
-  background-color: var(--bg);
-  background-image: linear-gradient(
-    to bottom,
-    color-mix(in srgb, var(--bg) 100%, transparent) 0%,
-    color-mix(in srgb, var(--bg) 80%, transparent) 100%
-  );
-  border-bottom-left-radius: 14px;
-  border-bottom-right-radius: 14px;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 8px 12px;
+  margin-top: 1rem;
+  background: var(--chat-thread-profile-surface-background);
+  border-radius: 14px;
   overflow: hidden;
-  border: none;
-  box-shadow: var(--shadow-xs);
-  backdrop-filter: blur(12px) saturate(1.06);
-  -webkit-backdrop-filter: blur(12px) saturate(1.06);
+  border: 1px solid var(--chat-thread-profile-surface-border);
+  box-shadow: var(--chat-thread-profile-surface-shadow);
+  backdrop-filter: var(--chat-thread-profile-surface-filter);
+  -webkit-backdrop-filter: var(--chat-thread-profile-surface-filter);
   cursor: pointer;
   transition: transform 0.16s var(--ease-smooth);
 }
 
-body:not([data-theme='dark']) .chat-thread-profile {
-  background-color: rgba(245, 244, 242, 1);
-  background-image: linear-gradient(
-    to bottom,
-    rgba(245, 244, 242, 1) 0%,
-    rgba(245, 244, 242, 0.8) 100%
-  );
-}
-
-body[data-theme='dark'] .chat-thread-profile {
-  background-color: rgba(8, 7, 6, 1);
-  background-image: linear-gradient(
-    to bottom,
-    rgba(8, 7, 6, 1) 0%,
-    rgba(8, 7, 6, 0.8) 100%
-  );
-}
-
 .chat-thread-profile::after {
   content: none;
+}
+
+.chat-thread-profile::before {
+  content: '';
+  position: absolute;
+  width: var(--chat-thread-profile-magnified-lens-size);
+  height: var(--chat-thread-profile-magnified-lens-size);
+  left: calc((100% - var(--chat-thread-profile-magnified-lens-size)) / 2);
+  top: calc((100% - var(--chat-thread-profile-magnified-lens-size)) / 2);
+  border-radius: inherit;
+  transform: scale(var(--chat-thread-profile-magnified-lens-scale));
+  transform-origin: center center;
+  backdrop-filter: var(--chat-thread-profile-magnified-lens-filter);
+  -webkit-backdrop-filter: var(--chat-thread-profile-magnified-lens-filter);
+  opacity: var(--chat-thread-profile-magnified-lens-opacity);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.chat-thread-profile {
+  border-radius: 999px;
+}
+
+.chat-thread-profile > * {
+  position: relative;
+  z-index: 1;
 }
 
 .chat-thread-topline {
@@ -302,6 +323,30 @@ body[data-theme='dark'] .chat-thread-profile {
   transform: none;
 }
 
+.chat-thread-profile-info-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  max-width: min(72vw, 520px);
+  padding: 7px 11px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* Match drag-bar feel: light mode emphasizes elevation, dark mode emphasizes border. */
+body:not([data-theme='dark']) .chat-thread-profile {
+  border-color: transparent;
+  box-shadow: var(--chat-thread-profile-surface-shadow);
+}
+
+body[data-theme='dark'] .chat-thread-profile {
+  border-color: var(--chat-thread-profile-surface-border);
+  box-shadow: var(--chat-thread-profile-surface-shadow);
+}
+
 .chat-agent-drawer-backdrop {
   position: fixed;
   top: 46px;
@@ -325,14 +370,11 @@ body[data-theme='dark'] .chat-thread-profile {
 
 .chat-agent-drawer.overlay-shared-surface {
   position: fixed;
-  top: 46px;
-  right: 0;
-  bottom: 0;
-  width: min(360px, 94vw);
-  border-top: none;
-  border-right: none;
-  border-bottom: none;
-  border-radius: 0;
+  top: calc(46px + 8px);
+  right: 8px;
+  bottom: 8px;
+  width: min(360px, calc(94vw - 16px));
+  border-radius: var(--overlay-shared-surface-radius, var(--overlay-surface-radius, 18px));
   overflow: hidden;
 }
 
@@ -374,14 +416,71 @@ body[data-theme='dark'] .chat-thread-profile {
 }
 
 .chat-agent-identity {
-  border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
-  background: color-mix(in srgb, var(--surface) 76%, transparent);
+  --chat-agent-identity-surface-border: var(--overlay-magnified-surface-border);
+  --chat-agent-identity-surface-background: var(--overlay-magnified-surface-background);
+  --chat-agent-identity-surface-shadow: var(--overlay-magnified-surface-shell-shadow);
+  --chat-agent-identity-surface-filter:
+    var(--overlay-magnified-surface-distortion)
+    blur(var(--overlay-magnified-surface-blur))
+    saturate(var(--overlay-magnified-surface-saturate))
+    brightness(var(--overlay-magnified-surface-brightness))
+    contrast(var(--overlay-magnified-surface-contrast));
+  --chat-agent-identity-magnified-lens-size: var(--overlay-magnified-surface-lens-size, 50%);
+  --chat-agent-identity-magnified-lens-scale: var(--overlay-magnified-surface-lens-scale, 2);
+  --chat-agent-identity-magnified-lens-opacity: var(--overlay-magnified-surface-lens-opacity, 0.34);
+  --chat-agent-identity-magnified-lens-filter:
+    var(--overlay-magnified-surface-distortion)
+    blur(var(--overlay-magnified-surface-blur))
+    saturate(calc(var(--overlay-magnified-surface-saturate) + var(--overlay-magnified-surface-lens-saturate-boost, 0.08)))
+    brightness(calc(var(--overlay-magnified-surface-brightness) + var(--overlay-magnified-surface-lens-brightness-boost, 0.06)))
+    contrast(calc(var(--overlay-magnified-surface-contrast) + var(--overlay-magnified-surface-lens-contrast-boost, 0.08)));
+  border: 1px solid var(--chat-agent-identity-surface-border);
+  background: var(--chat-agent-identity-surface-background);
   border-radius: 10px;
   padding: 10px;
   margin-bottom: 10px;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  box-shadow: var(--chat-agent-identity-surface-shadow);
+  backdrop-filter: var(--chat-agent-identity-surface-filter);
+  -webkit-backdrop-filter: var(--chat-agent-identity-surface-filter);
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.chat-agent-identity::before {
+  content: '';
+  position: absolute;
+  width: var(--chat-agent-identity-magnified-lens-size);
+  height: var(--chat-agent-identity-magnified-lens-size);
+  left: calc((100% - var(--chat-agent-identity-magnified-lens-size)) / 2);
+  top: calc((100% - var(--chat-agent-identity-magnified-lens-size)) / 2);
+  border-radius: inherit;
+  transform: scale(var(--chat-agent-identity-magnified-lens-scale));
+  transform-origin: center center;
+  backdrop-filter: var(--chat-agent-identity-magnified-lens-filter);
+  -webkit-backdrop-filter: var(--chat-agent-identity-magnified-lens-filter);
+  opacity: var(--chat-agent-identity-magnified-lens-opacity);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.chat-agent-identity > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Match drag-bar feel: light mode emphasizes elevation, dark mode emphasizes border. */
+body:not([data-theme='dark']) .chat-agent-identity {
+  border-color: transparent;
+  box-shadow: var(--chat-agent-identity-surface-shadow);
+}
+
+body[data-theme='dark'] .chat-agent-identity {
+  border-color: var(--chat-agent-identity-surface-border);
+  box-shadow: var(--chat-agent-identity-surface-shadow);
 }
 
 .chat-agent-identity-avatar-wrap {

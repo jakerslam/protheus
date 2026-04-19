@@ -92,8 +92,13 @@
       this.saveSessionNoticeMemory(scopeKey, memory);
     },
 
-    estimateTokensFromText(text) {
+    estimateTokenCountFromText(text) {
       return Math.max(0, Math.round(String(text || '').length / 4));
+    },
+
+    // Backward-compat shim for legacy callers during naming migration.
+    estimateTokensFromText(text) {
+      return this.estimateTokenCountFromText(text);
     },
 
     shouldConvertLargePasteToAttachment(rawText) {
@@ -129,7 +134,7 @@
       var rows = Array.isArray(this.messages) ? this.messages : [];
       var total = 0;
       for (var i = 0; i < rows.length; i++) {
-        total += this.estimateTokensFromText(rows[i] && rows[i].text ? rows[i].text : '');
+        total += this.estimateTokenCountFromText(rows[i] && rows[i].text ? rows[i].text : '');
       }
       this.contextApproxTokens = total;
       this.refreshContextPressure();
@@ -294,7 +299,7 @@
         var result = await InfringAPI.post('/api/route/auto', {
           agent_id: this.currentAgent.id,
           message: text,
-          token_count: this.estimateTokensFromText(text),
+          token_count: this.estimateTokenCountFromText(text),
           has_vision: hasVision,
           attachments: files,
         });

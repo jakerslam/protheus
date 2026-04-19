@@ -13,6 +13,9 @@ fn dashboard_troubleshooting_eval_recommendations(
         out.push("treat retrieval as mismatched-to-intent and force fail-closed copy; do not surface raw dump content".to_string());
         out.push("apply query/result alignment scoring before accepting fallback web summaries".to_string());
     }
+    if top_error.contains("query_shape") || top_error.contains("payload_dump") {
+        out.push("block malformed query blobs earlier and request concise user intent before rerunning web tooling".to_string());
+    }
     if top_error.contains("policy") || top_classification == "policy_blocked" {
         out.push("surface policy-block reason directly and avoid hidden retries; request approval/elevation path".to_string());
     }
@@ -60,9 +63,25 @@ fn dashboard_troubleshooting_generate_eval_report(
     let mut error_counts = HashMap::<String, i64>::new();
     let mut class_counts = HashMap::<String, i64>::new();
     let mut failure_count = 0i64;
+    let mut stale_count = 0i64;
+    let mut web_required_without_calls_count = 0i64;
     for row in &entries {
         if dashboard_troubleshooting_exchange_failed(row) {
             failure_count += 1;
+        }
+        if row.get("stale").and_then(Value::as_bool).unwrap_or(false) {
+            stale_count += 1;
+        }
+        let requires_live_web = row
+            .pointer("/workflow/requires_live_web")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let tool_calls = row
+            .pointer("/workflow/tool_calls")
+            .and_then(Value::as_i64)
+            .unwrap_or(0);
+        if requires_live_web && tool_calls <= 0 {
+            web_required_without_calls_count += 1;
         }
         let error_code = clean_text(
             row.pointer("/workflow/error_code")
@@ -128,6 +147,8 @@ fn dashboard_troubleshooting_generate_eval_report(
         "generated_at": now_iso(),
         "severity": severity,
         "failure_count": failure_count,
+        "stale_count": stale_count,
+        "web_required_without_calls_count": web_required_without_calls_count,
         "eval": {
             "engine": "troubleshooting_eval_v1",
             "model": model,
@@ -137,6 +158,11 @@ fn dashboard_troubleshooting_generate_eval_report(
             "llm_required": true
         },
         "summary": summary,
+        "exchange_health": {
+            "total_entries": entries.len(),
+            "stale_ratio": if entries.is_empty() { 0.0 } else { (stale_count as f64) / (entries.len() as f64) },
+            "web_required_without_calls_ratio": if entries.is_empty() { 0.0 } else { (web_required_without_calls_count as f64) / (entries.len() as f64) }
+        },
         "error_histogram": error_hist,
         "classification_histogram": class_hist,
         "recommendations": dashboard_troubleshooting_eval_recommendations(top_error, top_class)

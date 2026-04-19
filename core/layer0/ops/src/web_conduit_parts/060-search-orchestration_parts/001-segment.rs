@@ -1,3 +1,218 @@
+fn search_query_shape_error_code(query: &str) -> &'static str {
+    let lowered = clean_text(query, 1_200).to_ascii_lowercase();
+    let trimmed = lowered.trim();
+    if trimmed.is_empty() {
+        return "query_required";
+    }
+    if trimmed.contains("<html")
+        || trimmed.contains("</html>")
+        || trimmed.contains("<body")
+        || trimmed.contains("sample input:")
+        || trimmed.contains("sample output:")
+    {
+        return "query_payload_dump_detected";
+    }
+    if (trimmed.starts_with('{') && trimmed.contains(':'))
+        || (trimmed.starts_with('[') && trimmed.contains('{'))
+        || trimmed.starts_with("\"query\"")
+    {
+        return "query_payload_dump_detected";
+    }
+    if lowered.contains("```")
+        || lowered.contains("diff --git")
+        || lowered.contains("[patch v")
+        || lowered.contains("input specification")
+        || lowered.contains("sample output")
+        || lowered.contains("you are an expert")
+    {
+        return "query_payload_dump_detected";
+    }
+    if (trimmed.starts_with("http://") || trimmed.starts_with("https://"))
+        && !trimmed.chars().any(|ch| ch.is_whitespace())
+    {
+        return "query_prefers_fetch_url";
+    }
+    let line_count = lowered.lines().count();
+    if line_count > 8 || lowered.len() > 520 {
+        return "query_shape_invalid";
+    }
+    let mut total_terms = 0usize;
+    let mut unique = Vec::<&str>::new();
+    for token in lowered.split(|ch: char| !ch.is_ascii_alphanumeric()) {
+        let trimmed = token.trim();
+        if trimmed.len() < 2 {
+            continue;
+        }
+        total_terms += 1;
+        if !unique.iter().any(|existing| *existing == trimmed) {
+            unique.push(trimmed);
+        }
+    }
+    if total_terms >= 7 && unique.len() <= 1 {
+        return "query_shape_invalid";
+    }
+    let url_count = trimmed.match_indices("http://").count() + trimmed.match_indices("https://").count();
+    if url_count > 1 {
+        return "query_shape_invalid";
+    }
+    "none"
+}
+
+fn search_query_shape_invalid(query: &str) -> bool {
+    search_query_shape_error_code(query) != "none"
+}
+
+fn search_query_shape_category(reason: &str) -> &'static str {
+    match reason {
+        "query_required" => "missing_input",
+        "query_payload_dump_detected" => "payload_dump",
+        "query_prefers_fetch_url" => "prefers_fetch",
+        "query_shape_invalid" => "invalid_shape",
+        _ => "none",
+    }
+}
+
+fn search_query_shape_recommended_action(reason: &str) -> &'static str {
+    match reason {
+        "query_required" => "provide a concise search query describing what to find",
+        "query_payload_dump_detected" => {
+            "replace pasted logs/pages with a short web intent and 2-8 focused keywords"
+        }
+        "query_prefers_fetch_url" => {
+            "input is a direct URL; use web fetch action for page retrieval instead of search"
+        }
+        "query_shape_invalid" => {
+            "rewrite query as one concise sentence (recommended <= 300 chars)"
+        }
+        _ => "none",
+    }
+}
+
+fn search_query_shape_route_hint(reason: &str) -> &'static str {
+    if reason == "query_prefers_fetch_url" {
+        "web_fetch"
+    } else {
+        "web_search"
+    }
+}
+
+fn search_query_shape_contract(
+    query: &str,
+    reason: &str,
+    override_used: bool,
+    override_source: &str,
+) -> Value {
+    json!({
+        "blocked": reason != "none" && !override_used,
+        "error": reason,
+        "category": search_query_shape_category(reason),
+        "recommended_action": search_query_shape_recommended_action(reason),
+        "route_hint": search_query_shape_route_hint(reason),
+        "override_used": override_used,
+        "override_source": override_source,
+        "stats": search_query_shape_stats(query)
+    })
+}
+
+fn search_truthy_value(value: &Value) -> bool {
+    value.as_bool().unwrap_or_else(|| {
+        value
+            .as_str()
+            .map(|raw| {
+                let lowered = clean_text(raw, 24).to_ascii_lowercase();
+                matches!(lowered.as_str(), "1" | "true" | "yes" | "on")
+            })
+            .or_else(|| value.as_i64().map(|raw| raw != 0))
+            .unwrap_or(false)
+    })
+}
+
+fn search_query_shape_override(policy: &Value, request: &Value) -> bool {
+    for key in [
+        "/allow_query_blob_search",
+        "/allowQueryBlobSearch",
+        "/allow_query_shape_override",
+        "/allowQueryShapeOverride",
+        "/force_query_shape_override",
+        "/forceQueryShapeOverride",
+    ] {
+        if let Some(value) = request.pointer(key) {
+            if search_truthy_value(value) {
+                return true;
+            }
+        }
+    }
+    for key in [
+        "/web_conduit/search_policy/allow_query_blob_search",
+        "/web_conduit/search_policy/allowQueryBlobSearch",
+        "/web_conduit/search_policy/allow_query_shape_override",
+        "/web_conduit/search_policy/allowQueryShapeOverride",
+        "/web_conduit/search_policy/force_query_shape_override",
+        "/web_conduit/search_policy/forceQueryShapeOverride",
+    ] {
+        if let Some(value) = policy.pointer(key) {
+            if search_truthy_value(value) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+fn search_query_shape_override_source(policy: &Value, request: &Value) -> &'static str {
+    for key in [
+        "/allow_query_blob_search",
+        "/allowQueryBlobSearch",
+        "/allow_query_shape_override",
+        "/allowQueryShapeOverride",
+        "/force_query_shape_override",
+        "/forceQueryShapeOverride",
+    ] {
+        if let Some(value) = request.pointer(key) {
+            if search_truthy_value(value) {
+                return "request";
+            }
+        }
+    }
+    for key in [
+        "/web_conduit/search_policy/allow_query_blob_search",
+        "/web_conduit/search_policy/allowQueryBlobSearch",
+        "/web_conduit/search_policy/allow_query_shape_override",
+        "/web_conduit/search_policy/allowQueryShapeOverride",
+        "/web_conduit/search_policy/force_query_shape_override",
+        "/web_conduit/search_policy/forceQueryShapeOverride",
+    ] {
+        if let Some(value) = policy.pointer(key) {
+            if search_truthy_value(value) {
+                return "policy";
+            }
+        }
+    }
+    "none"
+}
+
+fn search_query_shape_stats(query: &str) -> Value {
+    let cleaned = clean_text(query, 1_200).to_ascii_lowercase();
+    let mut total_terms = 0usize;
+    let mut unique = Vec::<String>::new();
+    for token in cleaned.split(|ch: char| !ch.is_ascii_alphanumeric()) {
+        let trimmed = token.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        total_terms += 1;
+        if !unique.iter().any(|existing| existing == trimmed) {
+            unique.push(trimmed.to_string());
+        }
+    }
+    json!({
+        "line_count": cleaned.lines().count(),
+        "char_count": cleaned.len(),
+        "total_terms": total_terms,
+        "unique_terms": unique.len(),
+    })
+}
+
 pub fn api_search(root: &Path, request: &Value) -> Value {
     let query = clean_text(
         request
@@ -7,18 +222,6 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
             .unwrap_or(""),
         600,
     );
-    if let Some(early) = search_early_validation_response(root, request, &query) {
-        return early;
-    }
-    let (policy, _policy_path_value) = load_policy(root);
-    let normalized_filters = normalized_search_filters(request);
-    let allowed_domains =
-        normalize_allowed_domains(request.get("allowed_domains").unwrap_or(&Value::Null));
-    let exclude_subdomains = request
-        .get("exclude_subdomains")
-        .or_else(|| request.get("exact_domain_only"))
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
     let provider_hint = clean_text(
         request
             .get("provider")
@@ -30,6 +233,73 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
         40,
     )
     .to_ascii_lowercase();
+    let (policy, _policy_path_value) = load_policy(root);
+    let query_shape_override = search_query_shape_override(&policy, request);
+    let query_shape_override_source = search_query_shape_override_source(&policy, request);
+    let query_shape_error = search_query_shape_error_code(&query);
+    if query_shape_error != "none" && !query_shape_override {
+        let reason = query_shape_error;
+        let receipt = build_receipt("", "deny", None, 0, reason, Some(reason));
+        let _ = append_jsonl(&receipts_path(root), &receipt);
+        let summary = if reason == "query_payload_dump_detected" {
+            "Query looks like pasted output/log content instead of a concise web request. Submit a short intent-focused query."
+        } else if reason == "query_prefers_fetch_url" {
+            "Query is a direct URL. Use web fetch for this input instead of web search."
+        } else {
+            "Query shape is invalid for web search. Submit concise query text with clear keywords."
+        };
+        let mut out = search_early_validation_payload(
+            reason,
+            &query,
+            Some(summary),
+            &provider_hint,
+            "skipped_validation",
+            reason,
+            reason,
+            false,
+            Some("submit concise query text (recommended <= 300 chars)"),
+            receipt,
+        );
+        if let Some(obj) = out.as_object_mut() {
+            obj.insert("query_shape_blocked".to_string(), json!(true));
+            obj.insert("query_shape_error".to_string(), json!(reason));
+            obj.insert("query_shape_stats".to_string(), search_query_shape_stats(&query));
+            obj.insert("query_shape_override_allowed".to_string(), json!(false));
+            obj.insert("query_shape_override_used".to_string(), json!(false));
+            obj.insert(
+                "query_shape_override_source".to_string(),
+                json!(query_shape_override_source),
+            );
+            obj.insert(
+                "query_shape_category".to_string(),
+                json!(search_query_shape_category(reason)),
+            );
+            obj.insert(
+                "query_shape_recommended_action".to_string(),
+                json!(search_query_shape_recommended_action(reason)),
+            );
+            obj.insert(
+                "query_shape_route_hint".to_string(),
+                json!(search_query_shape_route_hint(reason)),
+            );
+            obj.insert(
+                "query_shape".to_string(),
+                search_query_shape_contract(&query, reason, false, query_shape_override_source),
+            );
+        }
+        return out;
+    }
+    if let Some(early) = search_early_validation_response(root, request, &query) {
+        return early;
+    }
+    let normalized_filters = normalized_search_filters(request);
+    let allowed_domains =
+        normalize_allowed_domains(request.get("allowed_domains").unwrap_or(&Value::Null));
+    let exclude_subdomains = request
+        .get("exclude_subdomains")
+        .or_else(|| request.get("exact_domain_only"))
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
     let raw_freshness = clean_text(
         request
             .get("freshness")
@@ -213,6 +483,43 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
             obj.insert(
                 "provider_resolution".to_string(),
                 provider_resolution.clone(),
+            );
+            obj.insert(
+                "query_shape_override_used".to_string(),
+                json!(query_shape_override),
+            );
+            obj.insert(
+                "query_shape_override_source".to_string(),
+                json!(query_shape_override_source),
+            );
+            obj.insert(
+                "query_shape_stats".to_string(),
+                search_query_shape_stats(&query),
+            );
+            obj.insert(
+                "query_shape_error".to_string(),
+                json!(query_shape_error),
+            );
+            obj.insert(
+                "query_shape_category".to_string(),
+                json!(search_query_shape_category(query_shape_error)),
+            );
+            obj.insert(
+                "query_shape_recommended_action".to_string(),
+                json!(search_query_shape_recommended_action(query_shape_error)),
+            );
+            obj.insert(
+                "query_shape_route_hint".to_string(),
+                json!(search_query_shape_route_hint(query_shape_error)),
+            );
+            obj.insert(
+                "query_shape".to_string(),
+                search_query_shape_contract(
+                    &query,
+                    query_shape_error,
+                    query_shape_override,
+                    query_shape_override_source,
+                ),
             );
             obj.insert(
                 "provider_health".to_string(),
@@ -852,6 +1159,40 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
             json!(used_bing_fallback),
         );
         obj.insert("provider_hint".to_string(), Value::String(provider_hint));
+        obj.insert(
+            "query_shape_override_used".to_string(),
+            json!(query_shape_override),
+        );
+        obj.insert(
+            "query_shape_override_source".to_string(),
+            json!(query_shape_override_source),
+        );
+        obj.insert(
+            "query_shape_stats".to_string(),
+            search_query_shape_stats(&query),
+        );
+        obj.insert("query_shape_error".to_string(), json!(query_shape_error));
+        obj.insert(
+            "query_shape_category".to_string(),
+            json!(search_query_shape_category(query_shape_error)),
+        );
+        obj.insert(
+            "query_shape_recommended_action".to_string(),
+            json!(search_query_shape_recommended_action(query_shape_error)),
+        );
+        obj.insert(
+            "query_shape_route_hint".to_string(),
+            json!(search_query_shape_route_hint(query_shape_error)),
+        );
+        obj.insert(
+            "query_shape".to_string(),
+            search_query_shape_contract(
+                &query,
+                query_shape_error,
+                query_shape_override,
+                query_shape_override_source,
+            ),
+        );
         obj.insert(
             "process_summary".to_string(),
             runtime_web_process_summary(

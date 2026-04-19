@@ -375,7 +375,7 @@
       var label = typeof this.messageActorLabel === 'function'
         ? String(this.messageActorLabel(row) || '').trim()
         : String(row.role || 'Message').trim();
-      var stamp = typeof this.messageTs === 'function' ? String(this.messageTs(row) || '').trim() : '';
+      var stamp = typeof this.messageTimestampLabel === 'function' ? String(this.messageTimestampLabel(row) || '').trim() : '';
       if (label) parts.push('**' + label + '**');
       if (stamp) parts.push('_' + stamp + '_');
 

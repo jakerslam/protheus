@@ -173,7 +173,7 @@
         node = node.parentElement;
       }
       if (!node || typeof node.closest !== 'function') return false;
-      if (node.closest('.sidebar-pulltab')) return false;
+      if (node.closest('.sidebar-pulltab')) return true;
       return Boolean(
         node.closest(
           'input,textarea,select,[contenteditable="true"],button,a,[role="button"],.nav-item,.nav-agent-row,[data-agent-id]'

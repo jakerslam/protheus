@@ -171,7 +171,7 @@
       }
     },
 
-    runSlashAliases: function() {
+    executeSlashAliases: function() {
       this.loadSlashAliases();
       this.messages.push({
         id: ++msgId,
@@ -185,7 +185,12 @@
       this.scrollToBottom();
     },
 
-    runSlashAliasCommand: function(cmdArgs) {
+    // Backward-compat shim for legacy callers during naming migration.
+    runSlashAliases: function() {
+      this.executeSlashAliases();
+    },
+
+    executeSlashAliasCommand: function(cmdArgs) {
       var aliasTokens = String(cmdArgs || '').trim().split(/\s+/).filter(Boolean);
       if (aliasTokens.length < 2) {
         this.messages.push({
@@ -228,6 +233,11 @@
         ts: Date.now()
       });
       this.scrollToBottom();
+    },
+
+    // Backward-compat shim for legacy callers during naming migration.
+    runSlashAliasCommand: function(cmdArgs) {
+      this.executeSlashAliasCommand(cmdArgs);
     },
 
     runSlashOptimizeWorkers: async function() {

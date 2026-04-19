@@ -303,7 +303,9 @@
   }
 }
 
-.thinking-shimmer-text {
+.thinking-shimmer-text,
+.message-bubble.message-bubble-thinking .thinking-inline-text > em,
+.message-bubble.message-bubble-thinking .thinking-inline-subtext {
   display: inline-block;
   --thinking-shimmer-base: rgba(108, 118, 132, 0.98);
   --thinking-shimmer-soft: rgba(255, 255, 255, 0.72);
@@ -330,7 +332,9 @@
   will-change: background-position;
 }
 
-body[data-theme='dark'] .thinking-shimmer-text {
+body[data-theme='dark'] .thinking-shimmer-text,
+body[data-theme='dark'] .message-bubble.message-bubble-thinking .thinking-inline-text > em,
+body[data-theme='dark'] .message-bubble.message-bubble-thinking .thinking-inline-subtext {
   --thinking-shimmer-base: rgba(173, 184, 198, 0.92);
   --thinking-shimmer-soft: rgba(255, 255, 255, 0.74);
   --thinking-shimmer-peak: rgba(255, 255, 255, 1);
@@ -343,7 +347,9 @@ body[data-theme='dark'] .thinking-shimmer-text {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .thinking-shimmer-text {
+  .thinking-shimmer-text,
+  .message-bubble.message-bubble-thinking .thinking-inline-text > em,
+  .message-bubble.message-bubble-thinking .thinking-inline-subtext {
     animation: none;
     background-position: 0 0;
   }

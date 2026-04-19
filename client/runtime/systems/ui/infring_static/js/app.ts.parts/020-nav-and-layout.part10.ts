@@ -175,6 +175,8 @@
         left: 0,
         top: 0,
         side: 'bottom',
+        inline_away: 'right',
+        block_away: 'bottom',
         compact: false
       };
     },
@@ -317,17 +319,24 @@
       return nearest === 'top' ? 'bottom' : 'top';
     },
 
+    dashboardPopupAxisAwareSideAway(rect, fallbackSide) {
+      var fallback = this.normalizeDashboardPopupSide('', fallbackSide || 'bottom');
+      if (fallback === 'left' || fallback === 'right') {
+        return this.dashboardPopupHorizontalAwayFromNearestWall(rect, fallback);
+      }
+      return this.dashboardPopupVerticalAwayFromNearestWall(rect, fallback);
+    },
+
     taskbarAnchoredDropdownClass(anchorNode, fallbackSide) {
       var fallback = this.normalizeDashboardPopupSide('', fallbackSide || 'bottom');
       var side = fallback;
       var inlineAway = 'right';
       var blockAway = 'bottom';
       if (anchorNode && typeof anchorNode.getBoundingClientRect === 'function') {
-        var wallRect = this.dashboardPopupWallRectForNode(anchorNode);
-        var sideRect = wallRect || anchorNode.getBoundingClientRect();
-        side = this.dashboardPopupSideAwayFromNearestWall(sideRect, fallback);
-        inlineAway = this.dashboardPopupHorizontalAwayFromNearestWall(sideRect, 'right');
-        blockAway = this.dashboardPopupVerticalAwayFromNearestWall(sideRect, 'bottom');
+        var anchorRect = anchorNode.getBoundingClientRect();
+        side = this.dashboardPopupAxisAwareSideAway(anchorRect, fallback);
+        inlineAway = this.dashboardPopupHorizontalAwayFromNearestWall(anchorRect, 'right');
+        blockAway = this.dashboardPopupVerticalAwayFromNearestWall(anchorRect, 'bottom');
       }
       return {
         'taskbar-anchored-dropdown': true,
@@ -353,28 +362,41 @@
         }
       }
       if (!node || typeof node.getBoundingClientRect !== 'function') {
-        return { left: 0, top: 0, side: preferredSide };
+        return { left: 0, top: 0, side: preferredSide, inline_away: 'right', block_away: 'bottom' };
       }
       var rect = node.getBoundingClientRect();
-      var wallRect = this.dashboardPopupWallRectForNode(node);
-      var side = this.dashboardPopupSideAwayFromNearestWall(wallRect || rect, preferredSide);
-      var width = Number(rect.width || 0);
-      var height = Number(rect.height || 0);
-      var left = Math.round(Number(rect.left || 0) + (width / 2));
+      var side = this.dashboardPopupAxisAwareSideAway(rect, preferredSide);
+      var inlineAway = this.dashboardPopupHorizontalAwayFromNearestWall(rect, 'right');
+      var blockAway = this.dashboardPopupVerticalAwayFromNearestWall(rect, 'bottom');
+      var left = Math.round(Number(rect.left || 0));
       var top = Math.round(Number(rect.bottom || 0));
       if (side === 'top') {
+        left = inlineAway === 'left'
+          ? Math.round(Number(rect.right || 0))
+          : Math.round(Number(rect.left || 0));
         top = Math.round(Number(rect.top || 0));
+      } else if (side === 'bottom') {
+        left = inlineAway === 'left'
+          ? Math.round(Number(rect.right || 0))
+          : Math.round(Number(rect.left || 0));
+        top = Math.round(Number(rect.bottom || 0));
       } else if (side === 'left') {
         left = Math.round(Number(rect.left || 0));
-        top = Math.round(Number(rect.top || 0) + (height / 2));
+        top = blockAway === 'top'
+          ? Math.round(Number(rect.bottom || 0))
+          : Math.round(Number(rect.top || 0));
       } else if (side === 'right') {
         left = Math.round(Number(rect.right || 0));
-        top = Math.round(Number(rect.top || 0) + (height / 2));
+        top = blockAway === 'top'
+          ? Math.round(Number(rect.bottom || 0))
+          : Math.round(Number(rect.top || 0));
       }
       return {
         left: left,
         top: top,
-        side: side
+        side: side,
+        inline_away: inlineAway === 'left' ? 'left' : 'right',
+        block_away: blockAway === 'top' ? 'top' : 'bottom'
       };
     },
 
@@ -411,6 +433,8 @@
         left: anchor.left,
         top: anchor.top,
         side: anchor.side,
+        inline_away: anchor.inline_away === 'left' ? 'left' : 'right',
+        block_away: anchor.block_away === 'top' ? 'top' : 'bottom',
         compact: false
       };
     },

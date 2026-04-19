@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
+// SRS evidence anchor: V10-DASH-004.24
 const fs = require('node:fs');
 const path = require('node:path');
 const esbuild = require('esbuild');
@@ -645,7 +646,17 @@ function loadIslandSource(root, spec) {
 async function buildDashboardSvelteIslands(options = {}, root = repoRoot(__dirname)) {
   const minify = options && options.minify !== false;
   const builtIslands = [];
+  const skippedIslands = [];
   for (const spec of ISLAND_SPECS) {
+    const sourceModulePath = path.resolve(root, spec.sourcePath);
+    if (!fs.existsSync(sourceModulePath)) {
+      skippedIslands.push({
+        id: spec.id,
+        source_module: path.relative(root, sourceModulePath).replace(/\\/g, '/'),
+        reason: 'source_module_missing',
+      });
+      continue;
+    }
     const source = loadIslandSource(root, spec);
     const outFile = path.resolve(root, source.bundle_path);
     fs.mkdirSync(path.dirname(outFile), { recursive: true });
@@ -683,12 +694,17 @@ async function buildDashboardSvelteIslands(options = {}, root = repoRoot(__dirna
       out_bytes: fs.statSync(outFile).size,
     });
   }
+  if (builtIslands.length === 0) {
+    throw new Error('dashboard_svelte_islands_none_built');
+  }
 
   return {
     ok: true,
     type: 'dashboard_svelte_islands_build',
     islands: builtIslands,
     island_count: builtIslands.length,
+    skipped_islands: skippedIslands,
+    skipped_count: skippedIslands.length,
     chat_bubble_tag: builtIslands.find((item) => item.id === 'chat_bubble')?.tag || 'infring-chat-bubble-render',
     minify: Boolean(minify),
   };

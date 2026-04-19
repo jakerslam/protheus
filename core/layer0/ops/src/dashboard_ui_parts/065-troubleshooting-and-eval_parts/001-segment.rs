@@ -185,6 +185,35 @@ fn dashboard_troubleshooting_enqueue_eval(
     eval_model_hint: Option<&str>,
 ) -> Value {
     let mut queue = dashboard_troubleshooting_read_eval_queue(root);
+    let reason_clean = clean_text(reason, 60);
+    let snapshot_id = clean_text(
+        snapshot
+            .get("snapshot_id")
+            .and_then(Value::as_str)
+            .unwrap_or("unknown"),
+        120,
+    );
+    if let Some(existing) = queue.iter().find(|row| {
+        clean_text(row.get("status").and_then(Value::as_str).unwrap_or(""), 40)
+            .to_ascii_lowercase()
+            == "queued"
+            && clean_text(
+                row.get("reason").and_then(Value::as_str).unwrap_or(""),
+                60,
+            ) == reason_clean
+            && clean_text(
+                row.pointer("/snapshot/snapshot_id")
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                120,
+            ) == snapshot_id
+    }) {
+        let mut deduped = existing.clone();
+        if let Some(obj) = deduped.as_object_mut() {
+            obj.insert("deduped".to_string(), json!(true));
+        }
+        return deduped;
+    }
     let (eval_model, eval_model_source) = if let Some(raw) = eval_model_hint {
         let cleaned = clean_text(raw, 120);
         if cleaned.is_empty() {
@@ -195,6 +224,11 @@ fn dashboard_troubleshooting_enqueue_eval(
     } else {
         dashboard_troubleshooting_resolve_eval_model(None)
     };
+    let queue_priority = match reason_clean.as_str() {
+        "user_report" => 100,
+        "auto_failure" => 80,
+        _ => 50,
+    };
     let item = json!({
         "id": format!(
             "evalq_{}",
@@ -202,17 +236,23 @@ fn dashboard_troubleshooting_enqueue_eval(
                 "{}:{}:{}",
                 now_iso(),
                 snapshot.get("snapshot_id").and_then(Value::as_str).unwrap_or("unknown"),
-                clean_text(reason, 60)
+                reason_clean
             ))[..12]
         ),
         "status": "queued",
-        "reason": clean_text(reason, 60),
+        "reason": reason_clean,
+        "priority": queue_priority,
         "created_at": now_iso(),
         "snapshot": snapshot.clone(),
         "eval_model": eval_model,
         "eval_model_source": eval_model_source
     });
     queue.push(item.clone());
+    queue.sort_by(|a, b| {
+        let ap = a.get("priority").and_then(Value::as_i64).unwrap_or(0);
+        let bp = b.get("priority").and_then(Value::as_i64).unwrap_or(0);
+        bp.cmp(&ap)
+    });
     if queue.len() > DASHBOARD_TROUBLESHOOTING_MAX_QUEUE {
         let keep_from = queue.len() - DASHBOARD_TROUBLESHOOTING_MAX_QUEUE;
         queue = queue.split_off(keep_from);

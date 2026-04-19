@@ -86,8 +86,11 @@
     },
     overlayGlassTemplateNormalized(modeRaw) {
       var mode = String(modeRaw || '').trim().toLowerCase();
+      if (mode === 'simple-glass') return 'simple-glass';
+      if (mode === 'fogged-glass') return 'fogged-glass';
+      if (mode === 'magnified-glass') return 'magnified-glass';
       if (mode === 'liquid-glass') return 'fogged-glass';
-      return 'fogged-glass';
+      return 'simple-glass';
     },
     applyOverlayGlassTemplate(modeRaw, persistRaw) {
       var mode = this.overlayGlassTemplateNormalized(modeRaw);

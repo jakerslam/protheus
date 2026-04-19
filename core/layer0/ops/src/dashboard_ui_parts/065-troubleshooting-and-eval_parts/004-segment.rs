@@ -6,7 +6,17 @@ fn dashboard_troubleshooting_capture_chat_exchange(
     lane_ok: bool,
     requires_live_web: bool,
 ) -> Value {
-    let previous_summary = dashboard_troubleshooting_latest_process_summary(root);
+    let mut entries = dashboard_troubleshooting_read_recent_entries(root);
+    let previous_summary = entries
+        .last()
+        .and_then(|row| row.pointer("/process_summary/current").and_then(Value::as_str))
+        .map(|raw| clean_text(raw, 360))
+        .unwrap_or_default();
+    let prior_sequence = entries
+        .last()
+        .and_then(|row| row.get("source_sequence"))
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
     let tools = lane_payload
         .get("tools")
         .and_then(Value::as_array)
@@ -47,6 +57,23 @@ fn dashboard_troubleshooting_capture_chat_exchange(
         .pointer("/response_finalization/hard_guard/applied")
         .and_then(Value::as_bool)
         .unwrap_or(false);
+    let source_sequence = lane_payload
+        .pointer("/response_finalization/source_sequence")
+        .or_else(|| lane_payload.pointer("/runtime_block/source_sequence"))
+        .and_then(Value::as_i64)
+        .unwrap_or(prior_sequence + 1)
+        .max(1);
+    let age_seconds = lane_payload
+        .pointer("/response_finalization/age_seconds")
+        .or_else(|| lane_payload.pointer("/runtime_block/age_seconds"))
+        .and_then(Value::as_f64)
+        .unwrap_or(0.0)
+        .max(0.0);
+    let stale = lane_payload
+        .pointer("/response_finalization/stale")
+        .or_else(|| lane_payload.pointer("/runtime_block/stale"))
+        .and_then(Value::as_bool)
+        .unwrap_or(age_seconds >= 15.0);
     let assistant = clean_text(
         lane_payload
             .get("response")
@@ -57,8 +84,8 @@ fn dashboard_troubleshooting_capture_chat_exchange(
         8000,
     );
     let stage_receipts = vec![
-        json!({"stage":"route","status":"ok","result":{"route":route}}),
-        json!({"stage":"analysis","status":"ok","result":{"requires_live_web":requires_live_web}}),
+        json!({"stage":"route","status":"ok","result":{"route":route, "source_sequence": source_sequence, "age_seconds": age_seconds, "stale": stale}}),
+        json!({"stage":"analysis","status":"ok","result":{"requires_live_web":requires_live_web, "source_sequence": source_sequence, "age_seconds": age_seconds, "stale": stale}}),
         json!({"stage":"tool_selection","status":"ok","result":{"tool_calls":tool_calls}}),
         json!({
             "stage":"tool_execution",
@@ -92,15 +119,25 @@ fn dashboard_troubleshooting_capture_chat_exchange(
         "input": clean_text(raw_input, 4000),
         "assistant": assistant,
         "lane_ok": lane_ok,
+        "source_sequence": source_sequence,
+        "age_seconds": age_seconds,
+        "stale": stale,
         "workflow": {
             "requires_live_web": requires_live_web,
             "tool_calls": tool_calls,
             "classification": classification,
             "transaction_status": transaction_status,
             "hard_guard_applied": hard_guard_applied,
-            "error_code": error_code
+            "error_code": error_code,
+            "source_sequence": source_sequence,
+            "age_seconds": age_seconds,
+            "stale": stale
         },
         "stage_receipts": stage_receipts,
+        "workflow_gate_trace": lane_payload
+            .pointer("/response_workflow/gates")
+            .cloned()
+            .unwrap_or_else(|| json!({})),
         "tool_receipts": dashboard_troubleshooting_compact_tool_receipts(&tools),
         "process_summary": {
             "previous": previous_summary,
@@ -118,7 +155,6 @@ fn dashboard_troubleshooting_capture_chat_exchange(
     });
     exchange["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&exchange));
 
-    let mut entries = dashboard_troubleshooting_read_recent_entries(root);
     entries.push(exchange.clone());
     if entries.len() > DASHBOARD_TROUBLESHOOTING_MAX_RECENT {
         let keep_from = entries.len() - DASHBOARD_TROUBLESHOOTING_MAX_RECENT;
@@ -169,12 +205,77 @@ fn dashboard_troubleshooting_state_lane(root: &Path, payload: &Value) -> LaneRes
         let keep_from = entries.len() - limit;
         entries = entries.split_off(keep_from);
     }
+    let failure_count_recent = entries
+        .iter()
+        .filter(|row| dashboard_troubleshooting_exchange_failed(row))
+        .count();
+    let web_required_without_calls_count = entries
+        .iter()
+        .filter(|row| {
+            row.pointer("/workflow/requires_live_web")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+                && row
+                    .pointer("/workflow/tool_calls")
+                    .and_then(Value::as_i64)
+                    .unwrap_or(0)
+                    <= 0
+        })
+        .count();
+    let last_error_code = entries
+        .last()
+        .and_then(|row| row.pointer("/workflow/error_code").and_then(Value::as_str))
+        .map(|raw| clean_text(raw, 120))
+        .unwrap_or_default();
+    let stale_count = entries
+        .iter()
+        .filter(|row| row.get("stale").and_then(Value::as_bool).unwrap_or(false))
+        .count();
+    let max_source_sequence = entries
+        .iter()
+        .filter_map(|row| row.get("source_sequence").and_then(Value::as_i64))
+        .max()
+        .unwrap_or(0);
     let eval_queue = dashboard_troubleshooting_read_eval_queue(root);
     let outbox = dashboard_troubleshooting_read_issue_outbox(root);
+    let now_epoch = dashboard_troubleshooting_now_epoch_seconds();
+    let outbox_ready_count = outbox
+        .iter()
+        .filter(|row| {
+            row.get("next_retry_after_epoch_s")
+                .and_then(Value::as_i64)
+                .unwrap_or(0)
+                <= now_epoch
+        })
+        .count();
+    let outbox_cooldown_blocked = outbox
+        .iter()
+        .filter(|row| {
+            row.get("next_retry_after_epoch_s")
+                .and_then(Value::as_i64)
+                .unwrap_or(0)
+                > now_epoch
+        })
+        .count();
+    let outbox_next_retry_epoch = outbox
+        .iter()
+        .filter_map(|row| row.get("next_retry_after_epoch_s").and_then(Value::as_i64))
+        .filter(|epoch| *epoch > now_epoch)
+        .min()
+        .unwrap_or(0);
     let latest_snapshot = read_json_file(&root.join(DASHBOARD_TROUBLESHOOTING_SNAPSHOT_LATEST_REL))
         .unwrap_or_else(|| json!({}));
     let latest_eval = read_json_file(&root.join(DASHBOARD_TROUBLESHOOTING_EVAL_LATEST_REL))
         .unwrap_or_else(|| json!({}));
+    let deadletter_all = dashboard_troubleshooting_read_deadletter_all(root);
+    let deadletter = if deadletter_all.len() > limit {
+        deadletter_all[deadletter_all.len().saturating_sub(limit)..].to_vec()
+    } else {
+        deadletter_all.clone()
+    };
+    let deadletter_depth = deadletter_all.len();
+    let deadletter_reason_histogram = dashboard_troubleshooting_reason_histogram(&deadletter_all);
+    let outbox_error_histogram = dashboard_troubleshooting_outbox_reason_histogram(&outbox);
     LaneResult {
         ok: true,
         status: 0,
@@ -184,6 +285,11 @@ fn dashboard_troubleshooting_state_lane(root: &Path, payload: &Value) -> LaneRes
             "type": "dashboard_troubleshooting_state",
             "recent": {
                 "count": entries.len(),
+                "failure_count": failure_count_recent,
+                "web_required_without_calls_count": web_required_without_calls_count,
+                "last_error_code": last_error_code,
+                "stale_count": stale_count,
+                "max_source_sequence": max_source_sequence,
                 "entries": entries
             },
             "latest_snapshot": latest_snapshot,
@@ -194,7 +300,16 @@ fn dashboard_troubleshooting_state_lane(root: &Path, payload: &Value) -> LaneRes
             },
             "issue_outbox": {
                 "depth": outbox.len(),
+                "ready_count": outbox_ready_count,
+                "cooldown_blocked_count": outbox_cooldown_blocked,
+                "next_retry_after_epoch_s": outbox_next_retry_epoch,
+                "error_histogram": outbox_error_histogram,
                 "items": outbox.into_iter().take(limit).collect::<Vec<_>>()
+            },
+            "issue_deadletter": {
+                "depth": deadletter_depth,
+                "reason_histogram": deadletter_reason_histogram,
+                "items": deadletter
             }
         })),
     }

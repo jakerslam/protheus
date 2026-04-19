@@ -13,9 +13,32 @@
   --bottom-dock-icon-rotation-deg: 0deg;
   --bottom-dock-transform-origin: center bottom;
   --bottom-dock-radius: var(--drag-bar-radius, var(--bottom-dock-radius-override, var(--overlay-shared-surface-radius, var(--overlay-surface-radius, 16px))));
-  --bottom-dock-surface-distortion: var(--overlay-shared-surface-distortion, var(--overlay-surface-distortion, url(#infring-overlay-glass-pass)));
-  --bottom-dock-surface-specular: var(--overlay-shared-surface-specular, var(--overlay-surface-specular, none));
-  --bottom-dock-surface-specular-opacity: var(--overlay-shared-surface-specular-opacity, var(--overlay-surface-specular-opacity, 0));
+  --bottom-dock-surface-border: var(--overlay-magnified-surface-border);
+  --bottom-dock-surface-background: var(--overlay-magnified-surface-background);
+  --bottom-dock-surface-shadow: var(--overlay-magnified-surface-shell-shadow);
+  --bottom-dock-surface-distortion: var(--overlay-magnified-surface-distortion);
+  --bottom-dock-surface-specular: var(--overlay-magnified-surface-specular);
+  --bottom-dock-surface-specular-opacity: var(--overlay-magnified-surface-specular-opacity);
+  --bottom-dock-surface-rim-shadow: var(--drag-bar-rim-shadow, var(--overlay-magnified-surface-rim-shadow));
+  --bottom-dock-surface-blur: var(--overlay-magnified-surface-blur);
+  --bottom-dock-surface-saturate: var(--overlay-magnified-surface-saturate);
+  --bottom-dock-surface-brightness: var(--overlay-magnified-surface-brightness);
+  --bottom-dock-surface-contrast: var(--overlay-magnified-surface-contrast);
+  --bottom-dock-magnified-lens-size: var(--overlay-magnified-surface-lens-size, 50%);
+  --bottom-dock-magnified-lens-scale: var(--overlay-magnified-surface-lens-scale, 2);
+  --bottom-dock-magnified-lens-opacity: var(--overlay-magnified-surface-lens-opacity, 0.34);
+  --bottom-dock-magnified-lens-filter:
+    var(--bottom-dock-surface-distortion)
+    blur(var(--bottom-dock-surface-blur))
+    saturate(calc(var(--bottom-dock-surface-saturate) + var(--overlay-magnified-surface-lens-saturate-boost, 0.08)))
+    brightness(calc(var(--bottom-dock-surface-brightness) + var(--overlay-magnified-surface-lens-brightness-boost, 0.06)))
+    contrast(calc(var(--bottom-dock-surface-contrast) + var(--overlay-magnified-surface-lens-contrast-boost, 0.08)));
+  --bottom-dock-surface-filter:
+    var(--bottom-dock-surface-distortion)
+    blur(var(--bottom-dock-surface-blur))
+    saturate(var(--bottom-dock-surface-saturate))
+    brightness(var(--bottom-dock-surface-brightness))
+    contrast(var(--bottom-dock-surface-contrast));
   --bottom-dock-scale: 0.95;
   --bottom-dock-expanded-scale: 1.54;
   position: fixed;
@@ -34,24 +57,14 @@
   border-radius: var(--bottom-dock-radius);
   border-width: 1px;
   border-style: solid;
-  border-top-color: var(--drag-bar-border-top-color, var(--drag-bar-border, var(--overlay-surface-border, color-mix(in srgb, #fff 24%, transparent))));
-  border-right-color: var(--drag-bar-border-right-color, var(--drag-bar-border, var(--overlay-surface-border, color-mix(in srgb, #fff 24%, transparent))));
-  border-bottom-color: var(--drag-bar-border-bottom-color, var(--drag-bar-border, var(--overlay-surface-border, color-mix(in srgb, #fff 24%, transparent))));
-  border-left-color: var(--drag-bar-border-left-color, var(--drag-bar-border, var(--overlay-surface-border, color-mix(in srgb, #fff 24%, transparent))));
-  background: var(--drag-bar-background, var(--overlay-surface-background, transparent));
-  box-shadow: var(--drag-bar-shadow, var(--overlay-surface-shadow, -6px 0 12px -14px rgba(0, 0, 0, 0.32), 6px 0 12px -14px rgba(0, 0, 0, 0.32), 0 10px 18px -18px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.2)));
-  backdrop-filter:
-    var(--bottom-dock-surface-distortion)
-    blur(1.5px)
-    saturate(var(--overlay-surface-saturate, 1.05))
-    brightness(var(--overlay-surface-brightness, 1))
-    contrast(var(--overlay-surface-contrast, 1));
-  -webkit-backdrop-filter:
-    var(--bottom-dock-surface-distortion)
-    blur(1.5px)
-    saturate(var(--overlay-surface-saturate, 1.05))
-    brightness(var(--overlay-surface-brightness, 1))
-    contrast(var(--overlay-surface-contrast, 1));
+  border-top-color: var(--drag-bar-border-top-color, var(--drag-bar-border, var(--bottom-dock-surface-border, color-mix(in srgb, #fff 24%, transparent))));
+  border-right-color: var(--drag-bar-border-right-color, var(--drag-bar-border, var(--bottom-dock-surface-border, color-mix(in srgb, #fff 24%, transparent))));
+  border-bottom-color: var(--drag-bar-border-bottom-color, var(--drag-bar-border, var(--bottom-dock-surface-border, color-mix(in srgb, #fff 24%, transparent))));
+  border-left-color: var(--drag-bar-border-left-color, var(--drag-bar-border, var(--bottom-dock-surface-border, color-mix(in srgb, #fff 24%, transparent))));
+  background: var(--drag-bar-background, var(--bottom-dock-surface-background, transparent));
+  box-shadow: var(--drag-bar-shadow, var(--bottom-dock-surface-shadow, -6px 0 12px -14px rgba(0, 0, 0, 0.32), 6px 0 12px -14px rgba(0, 0, 0, 0.32), 0 10px 18px -18px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.2))), var(--bottom-dock-surface-rim-shadow);
+  backdrop-filter: var(--bottom-dock-surface-filter);
+  -webkit-backdrop-filter: var(--bottom-dock-surface-filter);
   overflow: visible;
   opacity: 0.6;
   isolation: isolate;
@@ -91,10 +104,6 @@
   --bottom-dock-transform-origin: center center;
 }
 
-body[data-theme='dark'] .bottom-dock {
-  background: transparent;
-}
-
 .bottom-dock::before {
   content: '';
   position: absolute;
@@ -103,6 +112,23 @@ body[data-theme='dark'] .bottom-dock {
   background: var(--bottom-dock-surface-specular);
   opacity: var(--bottom-dock-surface-specular-opacity);
   mix-blend-mode: screen;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.bottom-dock::after {
+  content: '';
+  position: absolute;
+  width: var(--bottom-dock-magnified-lens-size);
+  height: var(--bottom-dock-magnified-lens-size);
+  left: calc((100% - var(--bottom-dock-magnified-lens-size)) / 2);
+  top: calc((100% - var(--bottom-dock-magnified-lens-size)) / 2);
+  border-radius: inherit;
+  transform: scale(var(--bottom-dock-magnified-lens-scale));
+  transform-origin: center center;
+  backdrop-filter: var(--bottom-dock-magnified-lens-filter);
+  -webkit-backdrop-filter: var(--bottom-dock-magnified-lens-filter);
+  opacity: var(--bottom-dock-magnified-lens-opacity);
   pointer-events: none;
   z-index: 0;
 }
@@ -131,7 +157,7 @@ body[data-theme='dark'] .bottom-dock {
   --bottom-dock-glass-alpha: var(--bottom-dock-expanded-glass-alpha);
   --bottom-dock-scale: 1.54;
   opacity: 1;
-  box-shadow: var(--overlay-surface-shadow, -6px 0 12px -14px rgba(0, 0, 0, 0.32), 6px 0 12px -14px rgba(0, 0, 0, 0.32), 0 10px 18px -18px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.2));
+  box-shadow: var(--bottom-dock-surface-shadow, -6px 0 12px -14px rgba(0, 0, 0, 0.32), 6px 0 12px -14px rgba(0, 0, 0, 0.32), 0 10px 18px -18px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.2)), var(--bottom-dock-surface-rim-shadow);
 }
 
 .bottom-dock:hover .dock-tile,

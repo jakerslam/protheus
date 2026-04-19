@@ -242,7 +242,7 @@
       step();
     },
 
-    _typingDelayForToken: function(baseDelay, emittedToken, fullText, emittedIndex) {
+    _resolveTypingDelayForToken: function(baseDelay, emittedToken, fullText, emittedIndex) {
       var base = Number(baseDelay || 1);
       if (!Number.isFinite(base) || base < 0) base = 1;
       var token = String(emittedToken || '');
@@ -255,6 +255,11 @@
         return base * 2;
       }
       return base;
+    },
+
+    // Backward-compat shim for legacy callers during naming migration.
+    _typingDelayForToken: function(baseDelay, emittedToken, fullText, emittedIndex) {
+      return this._resolveTypingDelayForToken(baseDelay, emittedToken, fullText, emittedIndex);
     },
 
     _resolveTypingWordCadenceMs: function(fallbackDelayMs) {
@@ -410,8 +415,8 @@
           emitted += 1;
           liveMessage.text = String(liveMessage.text || '') + token;
           var tokenEndIndex = Number(segment.index || 0) + Math.max(0, token.length - 1);
-          var nextDelay = typeof self._typingDelayForToken === 'function'
-            ? self._typingDelayForToken(cadenceMs, token, targetText, tokenEndIndex)
+          var nextDelay = typeof self._resolveTypingDelayForToken === 'function'
+            ? self._resolveTypingDelayForToken(cadenceMs, token, targetText, tokenEndIndex)
             : cadenceMs;
           if (!Number.isFinite(nextDelay) || nextDelay <= 0) nextDelay = cadenceMs;
           nextDelay = Math.max(1, Math.min(2000, nextDelay));
