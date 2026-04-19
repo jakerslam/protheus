@@ -89,18 +89,24 @@ function windowsAndDocsCheck(): Check {
   const installPs = read('install.ps1');
   const readme = read('README.md');
   const gettingStarted = read('docs/client/GETTING_STARTED.md');
+  const windowsBuildToolsCommand =
+    'winget install --id Microsoft.VisualStudio.2022.BuildTools -e --override "--quiet --wait --norestart --add Microsoft.VisualStudio.Workload.VCTools"';
+  const directBootstrapperUrl = 'https://aka.ms/vs/17/release/vs_BuildTools.exe';
   const ok =
     installPs.includes('protheus-ops.exe') &&
     installPs.includes('infringd.cmd') &&
     installPs.includes('Install-AllowDirectMsvcBootstrapEnabled') &&
-    installPs.includes('https://aka.ms/vs/17/release/vs_BuildTools.exe') &&
+    installPs.includes(directBootstrapperUrl) &&
     /& \$tmp(?:\s+-Repair)?\s+-Full/.test(readme) &&
     readme.includes('install.ps1 -OutFile $tmp -ErrorAction Stop') &&
     readme.includes('Remove-Item $tmp -Force -ErrorAction SilentlyContinue') &&
+    readme.includes(windowsBuildToolsCommand) &&
+    readme.includes(directBootstrapperUrl) &&
     readme.includes('INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP') &&
     /& \$tmp(?:\s+-Repair)?\s+-Full/.test(gettingStarted) &&
     gettingStarted.includes('install.ps1 -OutFile $tmp -ErrorAction Stop') &&
     gettingStarted.includes('Remove-Item $tmp -Force -ErrorAction SilentlyContinue') &&
+    gettingStarted.includes(windowsBuildToolsCommand) &&
     gettingStarted.includes('INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP') &&
     gettingStarted.includes('infring --help');
   return {
