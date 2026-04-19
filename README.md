@@ -132,6 +132,7 @@ winget install --id Microsoft.VisualStudio.2022.BuildTools -e --override "--quie
 ```
 
 The installer now attempts MSVC Build Tools bootstrap automatically during source fallback when missing (`INFRING_INSTALL_AUTO_MSVC=1` by default; legacy aliases `INFRING_AUTO_MSVC` and `INFRING_AUTO_MSVC_BOOTSTRAP` are also honored; set to `0` to disable).
+When `winget` is unavailable or fails, installer fallback now also tries the direct Visual Studio bootstrapper (`https://aka.ms/vs/17/release/vs_BuildTools.exe`) unless `INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP=0`.
 Installer diagnostics now also report `winget` availability and auto-bootstrap policy in failure hints to speed remote triage.
 Source fallback now also performs target-directory binary discovery when exact binary naming differs, reducing false `source_build_output_missing` failures.
 
@@ -139,6 +140,7 @@ For locked-down environments, you can explicitly disable auto-bootstrap and rely
 
 ```powershell
 $env:INFRING_INSTALL_AUTO_MSVC = "0"
+$env:INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP = "0"
 $env:INFRING_INSTALL_AUTO_RUSTUP = "0"
 ```
 

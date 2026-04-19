@@ -420,6 +420,7 @@ Acceptance criteria:
 | V11-MASS-SAFE-002 | queued | Manifest- and asset-gated install success in source and dist modes | Incomplete source snapshots can pass partial checks and create hidden breakages. | Installer rejects incomplete runtime in both modes using `install_runtime_manifest_v1.txt` reachability and required surface validation. | 10 | 0/1/2 |
 | V11-MASS-SAFE-003 | queued | Conservative non-interactive startup defaults and explicit opt-in | Automatic UI/Node actions can violate unattended or CI expectations. | `010-bool-env.rs` and `protheus_setup_wizard.ts` keep non-interactive sessions from auto-opening dashboards; optional surfaces remain opt-in by mode. | 8 | 1/2 |
 | V11-MASS-SAFE-004 | queued | Stale root-path prevention via workspace override contract | Residual `.infring` and legacy-root fallbacks can misdirect services across installs. | All startup/service resolution honors `INFRING_WORKSPACE_ROOT` / `PROTHEUS_WORKSPACE_ROOT`, with tests to catch drift to unrelated homes. | 9 | 0/1/2 |
+| V11-WIN-INSTALL-002 | in_progress | Windows installer direct MSVC bootstrap fallback when `winget` is unavailable | Windows source fallback still dead-ends when required prebuilt assets are missing and `winget` is not present, even with auto-bootstrap enabled. | Added a secondary Build Tools bootstrap lane in [`install.ps1`](/Users/jay/.openclaw/workspace/install.ps1) that attempts direct Visual Studio bootstrapper download (`aka.ms/vs_BuildTools.exe`) after `winget` miss/failure, exposed policy toggle `INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP`, and updated Windows install guidance in [`README.md`](/Users/jay/.openclaw/workspace/README.md). | 10 | 0/1/2 |
 | V11-MASS-SAFE-005 | queued | Mode contract documentation and runtime enforcement | Users need explicit expectations for pure/tiny-max/full capability limits. | `README`, `docs/client/GETTING_STARTED.md`, and runtime mode checks in `010-bool-env.rs` enforce and document feature availability per mode. | 8 | 0/1/2 |
 | V11-MASS-REC-001 | queued | `infring recover` path for deterministic restart and revalidation | Recovery currently depends on manual multi-step troubleshooting. | Recovery command flow (`gateway stop`, artifact cleanup, restart, doctor, dashboard health) runs in a single documented, tested path in `bin/infring`/`010-bool-env.rs`. | 9 | 0/1/2 |
 | V11-MASS-REC-002 | queued | Common fault precheck mapping with immediate remediation actions | Incidents repeat because operators map symptoms to actions manually. | `020-evaluate-dispatch-security.rs`, `protheusctl_routes.rs`, `RUNBOOK-001-incident-response.md` provide explicit precheck→action mappings for dashboard and runtime faults. | 9 | 0/1/2 |
@@ -18056,3 +18057,40 @@ Source summary:
   - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
   - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
   - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 Client Naming Policy Automation Guard
+
+- Intent:
+  - Enforce client naming conventions in CI so naming hygiene is continuously enforced instead of policy-only guidance.
+- Acceptance criteria:
+  - Add a configurable client naming guard script that audits tracked client paths against deterministic segment/stem rules and banned generic code stems.
+  - Publish naming policy configuration under `client/runtime/config/client_naming_policy.json`.
+  - Register gate as `ops:client-naming:guard` in tooling registry and wire into `fast` + `release` verify profiles.
+  - Expose stable artifacts (`json` + `markdown`) for auditability.
+- Regression evidence pointers:
+  - `tests/tooling/scripts/ci/client_naming_policy_guard.ts`
+  - `client/runtime/config/client_naming_policy.json`
+  - `tests/tooling/config/tooling_gate_registry.json`
+  - `tests/tooling/config/verify_profiles.json`
+  - `package.json`
+  - `docs/workspace/client_naming_policy.md`
+
+### 2026-04-19 Orchestration + Core Naming Policy Automation Guards
+
+- Intent:
+  - Enforce naming conventions for orchestration and backend core surfaces in CI so policy is continuously enforced and not documentation-only.
+- Acceptance criteria:
+  - Add configurable naming policy configs for orchestration and core scopes.
+  - Reuse the existing naming guard runtime with policy-specific commands for orchestration and core.
+  - Register both new gates in tooling registry and wire into `fast` + `release` verify profiles.
+  - Enforce both guards in `.github/workflows/ci.yml` baseline policy contract step with artifact upload coverage.
+  - Publish scope/rule/operator docs for orchestration and core naming policies.
+- Regression evidence pointers:
+  - `client/runtime/config/orchestration_naming_policy.json`
+  - `client/runtime/config/core_naming_policy.json`
+  - `package.json`
+  - `tests/tooling/config/tooling_gate_registry.json`
+  - `tests/tooling/config/verify_profiles.json`
+  - `.github/workflows/ci.yml`
+  - `docs/workspace/orchestration_naming_policy.md`
+  - `docs/workspace/core_naming_policy.md`
