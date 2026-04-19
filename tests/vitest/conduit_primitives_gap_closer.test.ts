@@ -238,6 +238,20 @@ describe('conduit primitive wrapper contract', () => {
         '[infring install] preflight windows toolchain: cargo={0}; rustc={1}; msvc_tools={2}; tar={3}; winget={4}',
       ),
     ).toBe(true);
+    expect(source.includes('[infring install] preflight triple candidates: {0}')).toBe(true);
+    expect(
+      source.includes('[infring install] preflight asset probe ({0}): found {1}; reachable={2} ({3})'),
+    ).toBe(true);
+    expect(
+      source.includes(
+        '[infring install] preflight asset probe ({0}): missing prebuilt in release metadata ({1})',
+      ),
+    ).toBe(true);
+    expect(
+      source.includes(
+        '[infring install] preflight note: using compatible Windows triple asset variant {0} for requested {1}',
+      ),
+    ).toBe(true);
     expect(
       source.includes(
         '[infring install] no compatible Windows prebuilt release found for required stems; source fallback remains a backup path only.',
