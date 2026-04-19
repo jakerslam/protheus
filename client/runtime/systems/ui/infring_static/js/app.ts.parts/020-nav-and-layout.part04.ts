@@ -28,7 +28,50 @@
       } catch(_) {}
     },
 
+    syncDragWallCapHostNode(node, wallRaw) {
+      if (!node || !node.classList) return;
+      var wall = this.dragSurfaceNormalizeWall(wallRaw);
+      node.classList.add('drag-wall-cap-host');
+      node.classList.remove('wall-lock-left', 'wall-lock-right', 'wall-lock-top', 'wall-lock-bottom');
+      if (wall) node.classList.add('wall-lock-' + wall);
+      var capA = null;
+      var capB = null;
+      var kids = node.children || [];
+      for (var i = 0; i < kids.length; i += 1) {
+        var child = kids[i];
+        if (!child || !child.classList) continue;
+        if (child.classList.contains('drag-bar-wall-cap--a')) capA = child;
+        if (child.classList.contains('drag-bar-wall-cap--b')) capB = child;
+      }
+      if (!capA) {
+        capA = document.createElement('span');
+        capA.className = 'drag-bar-wall-cap drag-bar-wall-cap--a';
+        capA.setAttribute('aria-hidden', 'true');
+        node.appendChild(capA);
+      }
+      if (!capB) {
+        capB = document.createElement('span');
+        capB.className = 'drag-bar-wall-cap drag-bar-wall-cap--b';
+        capB.setAttribute('aria-hidden', 'true');
+        node.appendChild(capB);
+      }
+    },
+
+    syncDragWallCaps() {
+      if (typeof document === 'undefined') return;
+      var sidebarNode = null;
+      var chatMapSurfaceNode = null;
+      var dockNode = null;
+      try { sidebarNode = document.querySelector('.sidebar.drag-bar'); } catch(_) {}
+      try { chatMapSurfaceNode = document.querySelector('.chat-map .chat-map-surface.drag-bar'); } catch(_) {}
+      try { dockNode = document.querySelector('.bottom-dock.drag-bar'); } catch(_) {}
+      this.syncDragWallCapHostNode(sidebarNode, this.page === 'chat' ? this.chatSidebarWallLockNormalized() : '');
+      this.syncDragWallCapHostNode(chatMapSurfaceNode, this.chatMapPlacementEnabled() ? this.chatMapWallLockNormalized() : '');
+      this.syncDragWallCapHostNode(dockNode, this.bottomDockWallLockNormalized());
+    },
+
     bottomDockContainerStyle() {
+      this.syncDragWallCaps();
       var lockWall = this.bottomDockWallLockNormalized();
       var activeSnapId = this.bottomDockContainerDragActive
         ? this.bottomDockNearestSnapId(this.bottomDockContainerDragX, this.bottomDockContainerDragY)

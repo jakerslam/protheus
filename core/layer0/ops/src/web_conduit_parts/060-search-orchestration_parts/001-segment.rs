@@ -1,5 +1,28 @@
+fn search_strip_invisible_unicode(raw: &str) -> String {
+    raw.chars()
+        .filter(|ch| {
+            !matches!(
+                *ch,
+                '\u{200B}'..='\u{200F}'
+                    | '\u{202A}'..='\u{202E}'
+                    | '\u{2060}'..='\u{2064}'
+                    | '\u{206A}'..='\u{206F}'
+                    | '\u{FEFF}'
+                    | '\u{E0000}'..='\u{E007F}'
+            )
+        })
+        .collect()
+}
+
+fn search_invisible_unicode_removed_count(raw: &str) -> usize {
+    let stripped = search_strip_invisible_unicode(raw);
+    raw.chars().count().saturating_sub(stripped.chars().count())
+}
+
 fn normalize_search_query_url_candidate(raw: &str) -> String {
-    let mut out = clean_text(raw, 2_200).trim().to_string();
+    let mut out = search_strip_invisible_unicode(&clean_text(raw, 2_200))
+        .trim()
+        .to_string();
     if out.starts_with('<') && out.ends_with('>') && out.len() > 2 {
         out = out[1..out.len() - 1].trim().to_string();
     }
@@ -77,6 +100,31 @@ fn search_extract_inline_http_url(raw: &str) -> Option<String> {
     None
 }
 
+fn search_query_repetition_ratio(raw: &str) -> f64 {
+    let lowered = clean_text(raw, 1_200).to_ascii_lowercase();
+    let mut tokens = Vec::<String>::new();
+    for token in lowered.split(|ch: char| !ch.is_ascii_alphanumeric()) {
+        let trimmed = token.trim();
+        if trimmed.len() >= 2 {
+            tokens.push(trimmed.to_string());
+        }
+    }
+    if tokens.len() < 6 {
+        return 0.0;
+    }
+    let mut counts = std::collections::BTreeMap::<String, usize>::new();
+    for token in tokens {
+        let current = counts.get(&token).copied().unwrap_or(0);
+        counts.insert(token, current.saturating_add(1));
+    }
+    let total = counts.values().sum::<usize>();
+    if total == 0 {
+        return 0.0;
+    }
+    let max_count = counts.values().copied().max().unwrap_or(0);
+    (max_count as f64) / (total as f64)
+}
+
 fn search_query_fetch_url_candidate_with_kind(query: &str) -> Option<(String, &'static str)> {
     let cleaned = clean_text(query, 2_200);
     let trimmed = cleaned.trim();
@@ -130,7 +178,7 @@ fn search_query_fetch_url_candidate_kind(query: &str) -> &'static str {
 }
 
 fn search_query_shape_error_code(query: &str) -> &'static str {
-    let lowered = clean_text(query, 1_200).to_ascii_lowercase();
+    let lowered = search_strip_invisible_unicode(&clean_text(query, 1_200)).to_ascii_lowercase();
     let trimmed = lowered.trim();
     if trimmed.is_empty() {
         return "query_required";
@@ -180,6 +228,10 @@ fn search_query_shape_error_code(query: &str) -> &'static str {
     if total_terms >= 7 && unique.len() <= 1 {
         return "query_shape_invalid";
     }
+    let repetition_ratio = search_query_repetition_ratio(trimmed);
+    if total_terms >= 8 && repetition_ratio >= 0.65 {
+        return "query_shape_repetitive_loop";
+    }
     let url_count = trimmed.match_indices("http://").count() + trimmed.match_indices("https://").count();
     if url_count > 1 {
         return "query_shape_invalid";
@@ -196,6 +248,7 @@ fn search_query_shape_category(reason: &str) -> &'static str {
         "query_required" => "missing_input",
         "query_payload_dump_detected" => "payload_dump",
         "query_prefers_fetch_url" => "prefers_fetch",
+        "query_shape_repetitive_loop" => "repetition_loop",
         "query_shape_invalid" => "invalid_shape",
         _ => "none",
     }
@@ -209,6 +262,9 @@ fn search_query_shape_recommended_action(reason: &str) -> &'static str {
         }
         "query_prefers_fetch_url" => {
             "input is a direct URL; use web fetch action for page retrieval instead of search"
+        }
+        "query_shape_repetitive_loop" => {
+            "query appears repetitive; replace repeated terms with 2-8 specific keywords"
         }
         "query_shape_invalid" => {
             "rewrite query as one concise sentence (recommended <= 300 chars)"
@@ -238,6 +294,8 @@ fn search_retry_strategy_for_error(error: &str) -> &'static str {
         "use_supported_provider_or_auto"
     } else if error == "unsupported_search_filter" {
         "remove_unsupported_filter"
+    } else if error == "query_shape_repetitive_loop" {
+        "rewrite_without_repetition"
     } else {
         "rewrite_query_shape"
     }
@@ -258,6 +316,7 @@ fn search_retry_reason_for_error(error: &str) -> &'static str {
         || error == "conflicting_time_filters"
         || error == "unknown_search_provider"
         || error == "unsupported_search_filter"
+        || error == "query_shape_repetitive_loop"
     {
         error
     } else {
@@ -492,6 +551,29 @@ fn search_retry_next_action_after_seconds_for_error(error: &str, retry_after_sec
     }
 }
 
+fn search_retry_next_action_kind_for_error(error: &str, retry_after_seconds: i64) -> &'static str {
+    if !search_retry_can_execute_without_human_for_error(error) {
+        "manual_gate"
+    } else if search_retry_next_action_after_seconds_for_error(error, retry_after_seconds) > 0 {
+        "deferred_retry"
+    } else {
+        "execute_now"
+    }
+}
+
+fn search_retry_window_class_for_error(error: &str, retry_after_seconds: i64) -> &'static str {
+    let wait_seconds = search_retry_next_action_after_seconds_for_error(error, retry_after_seconds);
+    if wait_seconds <= 0 {
+        "immediate"
+    } else if wait_seconds <= 60 {
+        "short"
+    } else if wait_seconds <= 900 {
+        "medium"
+    } else {
+        "long"
+    }
+}
+
 fn search_retry_readiness_state_for_error(error: &str, retry_after_seconds: i64) -> &'static str {
     if !search_retry_can_execute_without_human_for_error(error) {
         "manual_gate_pending"
@@ -500,6 +582,170 @@ fn search_retry_readiness_state_for_error(error: &str, retry_after_seconds: i64)
     } else {
         "ready_now"
     }
+}
+
+fn search_retry_readiness_reason_for_error(error: &str, retry_after_seconds: i64) -> &'static str {
+    match search_retry_next_action_kind_for_error(error, retry_after_seconds) {
+        "manual_gate" => search_retry_manual_gate_reason_for_error(error),
+        "deferred_retry" => {
+            if retry_after_seconds.max(0) > 0 {
+                "retry_after_pending"
+            } else {
+                "deferred_retry_pending"
+            }
+        }
+        _ => "none",
+    }
+}
+
+fn search_retry_automation_safe_for_error(error: &str) -> bool {
+    search_retry_auto_retry_allowed_for_error(error)
+        && search_retry_can_execute_without_human_for_error(error)
+}
+
+fn search_retry_decision_route_hint_for_error(error: &str, retry_after_seconds: i64) -> &'static str {
+    match search_retry_next_action_kind_for_error(error, retry_after_seconds) {
+        "manual_gate" => "manual_review_lane",
+        "deferred_retry" => "deferred_retry_lane",
+        _ => "auto_execute_lane",
+    }
+}
+
+fn search_retry_decision_urgency_tier_for_error(error: &str, retry_after_seconds: i64) -> &'static str {
+    if !search_retry_automation_safe_for_error(error) {
+        return "manual";
+    }
+    match search_retry_window_class_for_error(error, retry_after_seconds) {
+        "immediate" => "high",
+        "short" => "medium",
+        "medium" => "low",
+        _ => "deferred",
+    }
+}
+
+fn search_retry_decision_retry_budget_class_for_error(
+    error: &str,
+    retry_after_seconds: i64,
+) -> &'static str {
+    if !search_retry_automation_safe_for_error(error) {
+        return "manual_only";
+    }
+    match search_retry_window_class_for_error(error, retry_after_seconds) {
+        "immediate" => "single_attempt",
+        "short" => "bounded_backoff_short",
+        "medium" => "bounded_backoff_medium",
+        _ => "bounded_backoff_long",
+    }
+}
+
+fn search_retry_decision_lane_token_for_error(error: &str, retry_after_seconds: i64) -> String {
+    let route_hint = search_retry_decision_route_hint_for_error(error, retry_after_seconds);
+    let urgency_tier = search_retry_decision_urgency_tier_for_error(error, retry_after_seconds);
+    format!("{}::{}", route_hint, urgency_tier)
+}
+
+fn search_retry_decision_dispatch_mode_for_error(
+    error: &str,
+    retry_after_seconds: i64,
+) -> &'static str {
+    match search_retry_next_action_kind_for_error(error, retry_after_seconds) {
+        "manual_gate" => "manual_review",
+        "deferred_retry" => "scheduled_retry",
+        _ => "immediate_execute",
+    }
+}
+
+fn search_retry_decision_manual_ack_required_for_error(
+    error: &str,
+    retry_after_seconds: i64,
+) -> bool {
+    !search_retry_automation_safe_for_error(error)
+        || search_retry_next_action_kind_for_error(error, retry_after_seconds) == "manual_gate"
+}
+
+fn search_retry_decision_execution_guard_for_error(
+    error: &str,
+    retry_after_seconds: i64,
+) -> &'static str {
+    if search_retry_decision_manual_ack_required_for_error(error, retry_after_seconds) {
+        "manual_gate_guard"
+    } else if search_retry_next_action_kind_for_error(error, retry_after_seconds) == "deferred_retry" {
+        "retry_window_guard"
+    } else {
+        "none"
+    }
+}
+
+fn search_retry_decision_followup_required_for_error(
+    error: &str,
+    retry_after_seconds: i64,
+) -> bool {
+    search_retry_next_action_kind_for_error(error, retry_after_seconds) != "execute_now"
+}
+
+fn search_retry_decision_vector_key_for_error(error: &str, retry_after_seconds: i64) -> String {
+    let next_action_after_seconds =
+        search_retry_next_action_after_seconds_for_error(error, retry_after_seconds).max(0);
+    let next_action_kind = search_retry_next_action_kind_for_error(error, retry_after_seconds);
+    let retry_window_class = search_retry_window_class_for_error(error, retry_after_seconds);
+    let readiness_state = search_retry_readiness_state_for_error(error, retry_after_seconds);
+    let readiness_reason = search_retry_readiness_reason_for_error(error, retry_after_seconds);
+    let automation_safe = if search_retry_automation_safe_for_error(error) {
+        "1"
+    } else {
+        "0"
+    };
+    format!(
+        "{}|{}|{}|{}|{}|{}",
+        next_action_kind,
+        retry_window_class,
+        readiness_state,
+        readiness_reason,
+        automation_safe,
+        next_action_after_seconds
+    )
+}
+
+fn search_retry_decision_vector_for_error(error: &str, retry_after_seconds: i64) -> Value {
+    let next_action_after_seconds =
+        search_retry_next_action_after_seconds_for_error(error, retry_after_seconds).max(0);
+    let next_action_kind = search_retry_next_action_kind_for_error(error, retry_after_seconds);
+    let retry_window_class = search_retry_window_class_for_error(error, retry_after_seconds);
+    let readiness_state = search_retry_readiness_state_for_error(error, retry_after_seconds);
+    let readiness_reason = search_retry_readiness_reason_for_error(error, retry_after_seconds);
+    let automation_safe = search_retry_automation_safe_for_error(error);
+    let route_hint = search_retry_decision_route_hint_for_error(error, retry_after_seconds);
+    let urgency_tier = search_retry_decision_urgency_tier_for_error(error, retry_after_seconds);
+    let retry_budget_class =
+        search_retry_decision_retry_budget_class_for_error(error, retry_after_seconds);
+    let lane_token = search_retry_decision_lane_token_for_error(error, retry_after_seconds);
+    let dispatch_mode = search_retry_decision_dispatch_mode_for_error(error, retry_after_seconds);
+    let manual_ack_required =
+        search_retry_decision_manual_ack_required_for_error(error, retry_after_seconds);
+    let execution_guard =
+        search_retry_decision_execution_guard_for_error(error, retry_after_seconds);
+    let followup_required =
+        search_retry_decision_followup_required_for_error(error, retry_after_seconds);
+    let decision_vector_key =
+        search_retry_decision_vector_key_for_error(error, retry_after_seconds);
+    json!({
+        "next_action_after_seconds": next_action_after_seconds,
+        "next_action_kind": next_action_kind,
+        "retry_window_class": retry_window_class,
+        "readiness_state": readiness_state,
+        "readiness_reason": readiness_reason,
+        "automation_safe": automation_safe,
+        "route_hint": route_hint,
+        "urgency_tier": urgency_tier,
+        "retry_budget_class": retry_budget_class,
+        "lane_token": lane_token,
+        "dispatch_mode": dispatch_mode,
+        "manual_ack_required": manual_ack_required,
+        "execution_guard": execution_guard,
+        "followup_required": followup_required,
+        "decision_vector_version": "v1",
+        "decision_vector_key": decision_vector_key
+    })
 }
 
 fn search_retry_envelope_for_error(error: &str) -> Value {
@@ -511,12 +757,124 @@ fn search_retry_envelope_for_error(error: &str) -> Value {
     )
 }
 
+fn search_parse_nonnegative_i64(value: Option<&Value>) -> i64 {
+    let Some(value) = value else {
+        return 0;
+    };
+    if let Some(raw) = value.as_i64() {
+        return raw.max(0);
+    }
+    if let Some(raw) = value.as_u64() {
+        return raw.min(i64::MAX as u64) as i64;
+    }
+    if let Some(raw) = value.as_f64() {
+        if raw.is_finite() {
+            return raw.floor().max(0.0).min(i64::MAX as f64) as i64;
+        }
+    }
+    if let Some(raw) = value.as_str() {
+        let trimmed = clean_text(raw, 32);
+        if !trimmed.is_empty()
+            && let Ok(parsed) = trimmed.parse::<i64>()
+        {
+            return parsed.max(0);
+        }
+    }
+    0
+}
+
+const SEARCH_RETRY_AFTER_SECONDS_MAX: i64 = 86_400;
+
+fn search_retry_after_seconds_from_value(value: Option<&Value>) -> i64 {
+    let raw = search_parse_nonnegative_i64(value);
+    if raw <= 0 {
+        return 0;
+    }
+    let now_epoch_seconds = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_secs().min(i64::MAX as u64) as i64)
+        .unwrap_or(0);
+    let normalized = if now_epoch_seconds > 0 && raw > now_epoch_seconds {
+        raw.saturating_sub(now_epoch_seconds)
+    } else {
+        raw
+    };
+    normalized.clamp(0, SEARCH_RETRY_AFTER_SECONDS_MAX)
+}
+
 fn search_retry_envelope_runtime(
     strategy: &str,
     reason: &str,
     lane: &str,
     retry_after_seconds: i64,
 ) -> Value {
+    let decision_vector = search_retry_decision_vector_for_error(reason, retry_after_seconds);
+    let next_action_after_seconds = decision_vector
+        .get("next_action_after_seconds")
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+    let next_action_kind = decision_vector
+        .get("next_action_kind")
+        .and_then(Value::as_str)
+        .unwrap_or("execute_now");
+    let retry_window_class = decision_vector
+        .get("retry_window_class")
+        .and_then(Value::as_str)
+        .unwrap_or("immediate");
+    let readiness_state = decision_vector
+        .get("readiness_state")
+        .and_then(Value::as_str)
+        .unwrap_or("ready_now");
+    let readiness_reason = decision_vector
+        .get("readiness_reason")
+        .and_then(Value::as_str)
+        .unwrap_or("none");
+    let automation_safe = decision_vector
+        .get("automation_safe")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let decision_vector_key = decision_vector
+        .get("decision_vector_key")
+        .and_then(Value::as_str)
+        .unwrap_or("none")
+        .to_string();
+    let decision_route_hint = decision_vector
+        .get("route_hint")
+        .and_then(Value::as_str)
+        .unwrap_or("auto_execute_lane");
+    let decision_urgency_tier = decision_vector
+        .get("urgency_tier")
+        .and_then(Value::as_str)
+        .unwrap_or("deferred");
+    let decision_retry_budget_class = decision_vector
+        .get("retry_budget_class")
+        .and_then(Value::as_str)
+        .unwrap_or("manual_only");
+    let decision_lane_token = decision_vector
+        .get("lane_token")
+        .and_then(Value::as_str)
+        .unwrap_or("auto_execute_lane::deferred")
+        .to_string();
+    let decision_dispatch_mode = decision_vector
+        .get("dispatch_mode")
+        .and_then(Value::as_str)
+        .unwrap_or("immediate_execute");
+    let decision_manual_ack_required = decision_vector
+        .get("manual_ack_required")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let decision_execution_guard = decision_vector
+        .get("execution_guard")
+        .and_then(Value::as_str)
+        .unwrap_or("none");
+    let decision_followup_required = decision_vector
+        .get("followup_required")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let decision_vector_version = decision_vector
+        .get("decision_vector_version")
+        .and_then(Value::as_str)
+        .unwrap_or("v1");
     json!({
         "recommended": true,
         "retryable": true,
@@ -541,8 +899,23 @@ fn search_retry_envelope_runtime(
         "can_execute_without_human": search_retry_can_execute_without_human_for_error(reason),
         "execution_window": search_retry_execution_window_for_error(reason, retry_after_seconds),
         "manual_gate_timeout_seconds": search_retry_manual_gate_timeout_seconds_for_error(reason),
-        "next_action_after_seconds": search_retry_next_action_after_seconds_for_error(reason, retry_after_seconds),
-        "readiness_state": search_retry_readiness_state_for_error(reason, retry_after_seconds),
+        "next_action_after_seconds": next_action_after_seconds,
+        "next_action_kind": next_action_kind,
+        "retry_window_class": retry_window_class,
+        "readiness_state": readiness_state,
+        "readiness_reason": readiness_reason,
+        "automation_safe": automation_safe,
+        "decision_route_hint": decision_route_hint,
+        "decision_urgency_tier": decision_urgency_tier,
+        "decision_retry_budget_class": decision_retry_budget_class,
+        "decision_lane_token": decision_lane_token,
+        "decision_dispatch_mode": decision_dispatch_mode,
+        "decision_manual_ack_required": decision_manual_ack_required,
+        "decision_execution_guard": decision_execution_guard,
+        "decision_followup_required": decision_followup_required,
+        "decision_vector_version": decision_vector_version,
+        "decision_vector_key": decision_vector_key,
+        "decision_vector": decision_vector,
         "contract_version": "v1",
         "retry_after_seconds": retry_after_seconds.max(0)
     })
@@ -571,8 +944,13 @@ fn search_query_shape_contract(
     override_used: bool,
     override_source: &str,
 ) -> Value {
-    let fetch_url_candidate = search_query_fetch_url_candidate(query).unwrap_or_default();
-    let fetch_url_candidate_kind = search_query_fetch_url_candidate_kind(query);
+    let cleaned = clean_text(query, 2_200);
+    let stripped = search_strip_invisible_unicode(&cleaned);
+    let invisible_unicode_removed_count =
+        cleaned.chars().count().saturating_sub(stripped.chars().count()) as i64;
+    let invisible_unicode_stripped = invisible_unicode_removed_count > 0;
+    let fetch_url_candidate = search_query_fetch_url_candidate(&stripped).unwrap_or_default();
+    let fetch_url_candidate_kind = search_query_fetch_url_candidate_kind(&stripped);
     json!({
         "blocked": reason != "none" && !override_used,
         "error": reason,
@@ -582,9 +960,11 @@ fn search_query_shape_contract(
         "suggested_next_action": search_query_shape_suggested_next_action(query, reason),
         "fetch_url_candidate": fetch_url_candidate,
         "fetch_url_candidate_kind": fetch_url_candidate_kind,
+        "invisible_unicode_stripped": invisible_unicode_stripped,
+        "invisible_unicode_removed_count": invisible_unicode_removed_count,
         "override_used": override_used,
         "override_source": override_source,
-        "stats": search_query_shape_stats(query)
+        "stats": search_query_shape_stats(&stripped)
     })
 }
 
@@ -669,6 +1049,7 @@ fn search_query_shape_stats(query: &str) -> Value {
     let cleaned = clean_text(query, 1_200).to_ascii_lowercase();
     let mut total_terms = 0usize;
     let mut unique = Vec::<String>::new();
+    let mut term_counts = std::collections::BTreeMap::<String, usize>::new();
     for token in cleaned.split(|ch: char| !ch.is_ascii_alphanumeric()) {
         let trimmed = token.trim();
         if trimmed.is_empty() {
@@ -678,7 +1059,19 @@ fn search_query_shape_stats(query: &str) -> Value {
         if !unique.iter().any(|existing| existing == trimmed) {
             unique.push(trimmed.to_string());
         }
+        let current = term_counts.get(trimmed).copied().unwrap_or(0);
+        term_counts.insert(trimmed.to_string(), current.saturating_add(1));
     }
+    let (dominant_term, dominant_term_count) = term_counts
+        .iter()
+        .max_by_key(|(_, count)| **count)
+        .map(|(term, count)| (term.clone(), *count))
+        .unwrap_or_else(|| (String::new(), 0usize));
+    let repetition_ratio = if total_terms == 0 {
+        0.0
+    } else {
+        (dominant_term_count as f64) / (total_terms as f64)
+    };
     let fetch_url_candidate = search_query_fetch_url_candidate(query).unwrap_or_default();
     let fetch_url_candidate_kind = search_query_fetch_url_candidate_kind(query);
     json!({
@@ -686,6 +1079,9 @@ fn search_query_shape_stats(query: &str) -> Value {
         "char_count": cleaned.len(),
         "total_terms": total_terms,
         "unique_terms": unique.len(),
+        "repetition_ratio": repetition_ratio,
+        "dominant_term": dominant_term,
+        "dominant_term_count": dominant_term_count,
         "url_candidate_detected": !fetch_url_candidate.is_empty(),
         "url_candidate": fetch_url_candidate,
         "url_candidate_kind": fetch_url_candidate_kind,
@@ -1295,7 +1691,11 @@ fn search_query_and_source(request: &Value) -> (String, &'static str) {
 }
 
 pub fn api_search(root: &Path, request: &Value) -> Value {
-    let (query, query_source) = search_query_and_source(request);
+    let (query_raw, query_source) = search_query_and_source(request);
+    let query = search_strip_invisible_unicode(&clean_text(&query_raw, 600));
+    let _query_invisible_unicode_removed_count =
+        search_invisible_unicode_removed_count(&query_raw);
+    let _query_invisible_unicode_stripped = _query_invisible_unicode_removed_count > 0;
     let query_source_kind = search_query_source_kind(query_source);
     let query_source_confidence = search_query_source_confidence(query_source_kind);
     let query_source_recovery_mode = search_query_source_recovery_mode(query_source);
@@ -1988,10 +2388,9 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
         .get("blocked")
         .and_then(Value::as_bool)
         .unwrap_or(false);
-    let replay_retry_after_seconds = attempt_replay_guard
-        .get("retry_after_seconds")
-        .and_then(Value::as_u64)
-        .unwrap_or(0);
+    let replay_retry_after_seconds = attempt_replay_guard.get("retry_after_seconds");
+    let replay_retry_after_seconds =
+        search_retry_after_seconds_from_value(replay_retry_after_seconds) as u64;
     let replay_retry_lane = clean_text(
         attempt_replay_guard
             .get("retry_lane")

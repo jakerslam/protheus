@@ -17034,3 +17034,249 @@ Source summary:
   - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
   - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
   - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+
+### 2026-04-19 Retry Action-Kind + Readiness-Reason Contract Alignment Addendum (V11-WORKFLOW-RELIABILITY-049)
+
+- Intent:
+  - Add deterministic execution intent semantics by projecting `next_action_kind` and `readiness_reason` across retry envelopes and troubleshooting pressure contracts.
+- Acceptance criteria:
+  - Search retry envelopes include deterministic `next_action_kind` + `readiness_reason` aligned to existing next-action/readiness timing fields.
+  - Fetch retry envelopes include deterministic `next_action_kind` + `readiness_reason` aligned to existing next-action/readiness timing fields.
+  - Outbox-state pressure payload includes top-level `queue_pressure_next_action_kind` + `queue_pressure_readiness_reason`.
+  - Summary outbox-health pressure payload includes top-level `queue_pressure_next_action_kind` + `queue_pressure_readiness_reason`.
+  - Outbox-state and summary pressure contract objects include `next_action_kind` + `readiness_reason` with parity against top-level fields.
+  - Troubleshooting dispatch routes include outbox + summary aliases for top-level and contract-level action-kind/readiness-reason projections.
+  - Regression coverage asserts retry action-kind/readiness-reason semantics and pressure parity + alias routing.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+
+### 2026-04-19 Retry Window-Class + Automation-Safety Contract Alignment Addendum (V11-WORKFLOW-RELIABILITY-050)
+
+- Intent:
+  - Strengthen automation routing by exposing deterministic wait-window classing and automation safety flags in retry envelopes and troubleshooting pressure contracts.
+- Acceptance criteria:
+  - Search retry envelopes include deterministic `retry_window_class` + `automation_safe` aligned to existing next-action and readiness semantics.
+  - Fetch retry envelopes include deterministic `retry_window_class` + `automation_safe` aligned to existing next-action and readiness semantics.
+  - Outbox-state pressure payload includes top-level `queue_pressure_retry_window_class` + `queue_pressure_automation_safe`.
+  - Summary outbox-health pressure payload includes top-level `queue_pressure_retry_window_class` + `queue_pressure_automation_safe`.
+  - Outbox-state and summary pressure contract objects include `retry_window_class` + `automation_safe` with parity to top-level fields.
+  - Troubleshooting dispatch routes include outbox + summary aliases for top-level and contract-level retry-window-class/automation-safe projections.
+  - Regression coverage asserts retry window/automation semantics and pressure parity + alias routing.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+
+### 2026-04-19 Retry/Pressure Decision-Vector Packing + Alias Routing Addendum (V11-WORKFLOW-RELIABILITY-051)
+
+- Intent:
+  - Reduce consumer field-join complexity by publishing a canonical `decision_vector` object across retry envelopes and dashboard pressure contracts.
+- Acceptance criteria:
+  - Search retry envelopes include `decision_vector` containing next-action/readiness/automation fields with scalar parity.
+  - Fetch retry envelopes include `decision_vector` containing next-action/readiness/automation fields with scalar parity.
+  - Outbox-state pressure payload includes top-level `queue_pressure_decision_vector`.
+  - Summary outbox-health pressure payload includes top-level `queue_pressure_decision_vector`.
+  - Outbox-state and summary pressure contract objects include `decision_vector` with parity to top-level vector fields.
+  - Troubleshooting dispatch routes include outbox + summary aliases for top-level and contract-level `decision_vector` projections.
+  - Regression coverage asserts retry decision-vector parity and pressure decision-vector parity + alias routing.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+
+### 2026-04-19 Decision-Vector Identity-Key Contracts + Routing Addendum (V11-WORKFLOW-RELIABILITY-052)
+
+- Intent:
+  - Make retry/pressure decisions correlation-safe by introducing deterministic `decision_vector_key` identities on retry envelopes and queue-pressure contracts.
+- Acceptance criteria:
+  - Search retry envelopes expose top-level `decision_vector_key` and nested `/decision_vector/decision_vector_key` with parity.
+  - Fetch retry envelopes expose top-level `decision_vector_key` and nested `/decision_vector/decision_vector_key` with parity.
+  - Outbox-state pressure payload exposes top-level `queue_pressure_decision_vector_key`.
+  - Summary outbox-health pressure payload exposes top-level `queue_pressure_decision_vector_key`.
+  - Outbox-state and summary queue-pressure contracts expose both `decision_vector_key` and `/decision_vector/decision_vector_key` with parity to top-level payload fields.
+  - Troubleshooting dispatch routes include outbox + summary aliases for top-level and contract-level decision-vector-key projections.
+  - Regression coverage asserts retry decision-vector-key parity and pressure decision-vector-key parity + alias routing.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+
+### 2026-04-19 Decision-Vector Route/Urgency/Version Projection Addendum (V11-WORKFLOW-RELIABILITY-053)
+
+- Intent:
+  - Improve operator and eval consumption by adding deterministic route/urgency/version semantics to retry and queue-pressure decision vectors, with top-level projections and route aliases.
+- Acceptance criteria:
+  - Search retry envelopes include `decision_route_hint`, `decision_urgency_tier`, and `decision_vector_version` with parity to nested `decision_vector`.
+  - Fetch retry envelopes include `decision_route_hint`, `decision_urgency_tier`, and `decision_vector_version` with parity to nested `decision_vector`.
+  - Outbox-state pressure payload includes `queue_pressure_decision_route_hint`, `queue_pressure_decision_urgency_tier`, and `queue_pressure_decision_vector_version`.
+  - Summary outbox-health pressure payload includes `queue_pressure_decision_route_hint`, `queue_pressure_decision_urgency_tier`, and `queue_pressure_decision_vector_version`.
+  - Outbox-state and summary pressure contract objects include `decision_route_hint`, `decision_urgency_tier`, and `decision_vector_version` with parity to top-level payload fields.
+  - Troubleshooting dispatch routes include outbox + summary aliases for top-level and contract-level route/urgency/version projections.
+  - Regression coverage asserts retry parity and pressure parity + alias routing for route/urgency/version semantics.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+
+### 2026-04-19 Decision-Retry-Budget + Lane-Token Projection Addendum (V11-WORKFLOW-RELIABILITY-054)
+
+- Intent:
+  - Improve scheduler/eval routing by projecting deterministic retry budget class and lane token semantics across retry decision vectors and queue-pressure contracts.
+- Acceptance criteria:
+  - Search retry envelopes expose `decision_retry_budget_class` + `decision_lane_token` with parity to nested `decision_vector`.
+  - Fetch retry envelopes expose `decision_retry_budget_class` + `decision_lane_token` with parity to nested `decision_vector`.
+  - Outbox-state pressure payload exposes `queue_pressure_decision_retry_budget_class` + `queue_pressure_decision_lane_token`.
+  - Summary outbox-health pressure payload exposes `queue_pressure_decision_retry_budget_class` + `queue_pressure_decision_lane_token`.
+  - Outbox-state and summary pressure contracts expose `decision_retry_budget_class` + `decision_lane_token` with parity to top-level queue fields.
+  - Troubleshooting dispatch routes include outbox + summary aliases for top-level and contract-level retry-budget/lane-token projections.
+  - Regression coverage asserts retry parity and pressure parity + alias routing for retry-budget/lane-token semantics.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+
+### 2026-04-19 Decision-Dispatch-Mode + Manual-Ack Projection Addendum (V11-WORKFLOW-RELIABILITY-055)
+
+- Intent:
+  - Improve workflow handoff clarity by projecting deterministic dispatch mode and manual-ack requirements across retry and queue-pressure decision vectors.
+- Acceptance criteria:
+  - Search retry envelopes expose `decision_dispatch_mode` + `decision_manual_ack_required` with parity to nested `decision_vector`.
+  - Fetch retry envelopes expose `decision_dispatch_mode` + `decision_manual_ack_required` with parity to nested `decision_vector`.
+  - Outbox-state pressure payload exposes `queue_pressure_decision_dispatch_mode` + `queue_pressure_decision_manual_ack_required`.
+  - Summary outbox-health pressure payload exposes `queue_pressure_decision_dispatch_mode` + `queue_pressure_decision_manual_ack_required`.
+  - Outbox-state and summary pressure contracts expose `decision_dispatch_mode` + `decision_manual_ack_required` with parity to top-level queue fields.
+  - Troubleshooting dispatch routes include outbox + summary aliases for top-level and contract-level dispatch-mode/manual-ack projections.
+  - Regression coverage asserts retry parity and pressure parity + alias routing for dispatch-mode/manual-ack semantics.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+
+### 2026-04-19 Decision-Execution-Guard + Followup Projection Addendum (V11-WORKFLOW-RELIABILITY-056)
+
+- Intent:
+  - Improve automation containment and operator sequencing by projecting deterministic execution-guard and followup-required semantics across retry envelopes and dashboard pressure contracts.
+- Acceptance criteria:
+  - Search retry envelopes expose `decision_execution_guard` + `decision_followup_required` with parity to nested `decision_vector`.
+  - Fetch retry envelopes expose `decision_execution_guard` + `decision_followup_required` with parity to nested `decision_vector`.
+  - Outbox-state pressure payload exposes `queue_pressure_decision_execution_guard` + `queue_pressure_decision_followup_required`.
+  - Summary outbox-health pressure payload exposes `queue_pressure_decision_execution_guard` + `queue_pressure_decision_followup_required`.
+  - Outbox-state and summary pressure contracts expose `decision_execution_guard` + `decision_followup_required` with parity to top-level queue fields and nested `decision_vector`.
+  - Troubleshooting dispatch routes include outbox + summary aliases for top-level and contract-level execution-guard/followup projections.
+  - Regression coverage asserts retry parity and pressure parity + alias routing for execution-guard/followup semantics.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files)
+
+- Intent:
+  - Assimilate high-value web-tooling and workflow reliability patterns from OpenClaw and Codex-source ledgers into authoritative runtime contracts without adding client authority.
+- Assimilated source files:
+  - OpenClaw: `web-tools.ts`, `web-search-providers.runtime.ts`, `web-search-provider-config.ts`, `web-fetch-visibility.ts`, `web-search-provider-credentials.ts`
+  - Codex(Cline ledger): `ClineAgent.ts`, `messageTranslator.ts`, `useStateSubscriber.ts`, `TaskContext.tsx`, `useScrollableList.ts`
+- Acceptance criteria:
+  - Search/fetch shape normalization strips invisible unicode and publishes stripping metadata in shape contracts.
+  - Troubleshooting capture emits deterministic workflow signal/signature metadata and dedupes repeated identical exchange signatures into repeat counters.
+  - Troubleshooting state lane exposes window metadata contracts for recent and outbox panes.
+  - Regression coverage asserts unicode-strip shape fields, capture dedupe behavior, and state window contracts.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/004-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round B
+
+- Intent:
+  - Assimilate tool-stream dedupe, completion-signal, retry/backoff, cache-key normalization, and credential-source observability patterns into core web-tooling and troubleshooting lanes.
+- Assimilated source files:
+  - OpenClaw: `web-search.ts`, `web-fetch.ts`, `web-shared.ts`, `web-search-credential-presence.ts`, `web-provider-types.ts`
+  - Codex(Cline ledger): `retry.ts`, `tool-call-processor.ts`, `context-window-utils.ts`, `useStateSubscriber.ts`, `TaskContext.tsx`
+- Acceptance criteria:
+  - Search shape validation fails repetitive loop prompts with stable error code `query_shape_repetitive_loop` and rewrite guidance.
+  - Fetch early-validation envelopes expose deterministic `requested_url_cache_key` for normalized URL dedupe/diagnostics.
+  - Troubleshooting exchange traces publish completion metadata (`completion_signal`, `completion_signal_reason`).
+  - Troubleshooting exchange traces publish tool-call dedupe metadata (`tool_call_keys`, `tool_call_unique_count`, `tool_call_duplicate_count`).
+  - Troubleshooting exchange traces publish retry/auth hints (`retry_after_hint_seconds`, `credential_resolution_source`).
+  - Regression coverage asserts repetitive-loop query detection and fetch early-validation cache-key projection.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/004-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round C
+
+- Intent:
+  - Assimilate loop-detection, retry-policy coercion, and context-risk patterns into core web tooling and troubleshooting authority lanes.
+- Assimilated source files:
+  - OpenClaw: `tool-error-summary.ts`, `tool-loop-detection.ts`, `tool-policy-match.ts`, `retry-policy.ts`, `parse-finite-number.ts`
+  - Codex(Cline ledger): `retry.ts`, `tool-call-processor.ts`, `ContextManager.ts`, `FileContextTracker.ts`, `ModelContextTracker.ts`
+- Acceptance criteria:
+  - Search/fetch replay retry-after parsing accepts nonnegative numeric values from string/int/float inputs without negative drift.
+  - Search query-shape stats expose dominant repetition telemetry (`repetition_ratio`, `dominant_term`, `dominant_term_count`).
+  - Troubleshooting capture computes deterministic loop detection (`detected`, `level`, `detector`, `count`, `message`) from repeated failing exchange signatures.
+  - Troubleshooting state lane projects current recent loop detection summary in `/recent/loop_detection`.
+  - Regression coverage asserts numeric retry-after coercion, repetition telemetry stats, and troubleshooting loop detection propagation.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/004-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round D
+
+- Intent:
+  - Assimilate retry-after canonicalization and scroll-window/loop-recovery contracts into authoritative web tooling + troubleshooting lanes.
+- Assimilated source files:
+  - OpenClaw: `reliability_turn_loop_gauntlet.ts`, `nightly_turn_loop_analytics.ts`, `100-context-window-and-budget.ts`, `trace_habit_loop.ts`, `gated_self_improvement_loop.ts`
+  - Codex(Cline ledger): `useScrollableList.ts`, `useStateSubscriber.ts`, `TaskContext.tsx`, `retry.ts`, `context-window-utils.ts`
+- Acceptance criteria:
+  - Search/fetch replay retry-after parsing treats unix-epoch inputs as epoch timestamps, converts to delta-seconds, and clamps to bounded max (24h).
+  - Search/fetch replay retry-after parsing keeps nonnegative string/int/float coercion compatibility.
+  - Troubleshooting state lane supports `offset_from_latest` paging for recent entries and `outbox_offset_from_latest` paging for issue outbox entries.
+  - Troubleshooting window contracts include visible range metadata and bidirectional indicators (`show_top_indicator`, `show_bottom_indicator`).
+  - Troubleshooting loop detection projects `lane`, `recovery_hint`, and `restart_workflow` signals for repeated failing workflow signatures.
+  - Regression coverage asserts epoch normalization/clamp behavior and state paging/loop-detection projection semantics.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/004-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`

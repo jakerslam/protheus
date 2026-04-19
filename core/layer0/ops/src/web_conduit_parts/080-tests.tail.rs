@@ -350,6 +350,27 @@ fn search_query_shape_error_flags_direct_url_as_fetch_preferred() {
 }
 
 #[test]
+fn search_query_shape_contract_reports_invisible_unicode_stripping() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let out = api_search(
+        tmp.path(),
+        &json!({"query":"https://exa\u{200B}mple.com/docs"}),
+    );
+    assert_eq!(
+        out.pointer("/query_shape/invisible_unicode_stripped")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        out.pointer("/query_shape/invisible_unicode_removed_count")
+            .and_then(Value::as_i64)
+            .unwrap_or(0)
+            >= 1,
+        true
+    );
+}
+
+#[test]
 fn search_early_validation_blocks_direct_url_query_with_fetch_route_hint() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let out = api_search(tmp.path(), &json!({"query":"https://example.com/docs"}));
@@ -501,6 +522,27 @@ fn fetch_url_shape_error_flags_whitespace_url() {
     assert_eq!(
         fetch_url_shape_error_code("https://example.com/some path"),
         "fetch_url_shape_invalid"
+    );
+}
+
+#[test]
+fn fetch_url_shape_contract_reports_invisible_unicode_stripping() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let out = execute_fetch_request(
+        tmp.path(),
+        &json!({"requested_url":"ftp://exa\u{200B}mple.com"}),
+    );
+    assert_eq!(
+        out.pointer("/fetch_url_shape/invisible_unicode_stripped")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        out.pointer("/fetch_url_shape/invisible_unicode_removed_count")
+            .and_then(Value::as_i64)
+            .unwrap_or(0)
+            >= 1,
+        true
     );
 }
 
@@ -2005,8 +2047,160 @@ fn search_retry_envelope_helper_supports_unsupported_filter_contract() {
         Some(1800)
     );
     assert_eq!(
+        retry.get("next_action_kind").and_then(Value::as_str),
+        Some("manual_gate")
+    );
+    assert_eq!(
+        retry.get("retry_window_class").and_then(Value::as_str),
+        Some("long")
+    );
+    assert_eq!(
         retry.get("readiness_state").and_then(Value::as_str),
         Some("manual_gate_pending")
+    );
+    assert_eq!(
+        retry.get("readiness_reason").and_then(Value::as_str),
+        Some("input_adjustment_required")
+    );
+    assert_eq!(
+        retry.get("automation_safe").and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        retry
+            .pointer("/decision_vector/next_action_after_seconds")
+            .and_then(Value::as_i64),
+        retry.get("next_action_after_seconds").and_then(Value::as_i64)
+    );
+    assert_eq!(
+        retry
+            .pointer("/decision_vector/next_action_kind")
+            .and_then(Value::as_str),
+        retry.get("next_action_kind").and_then(Value::as_str)
+    );
+    assert_eq!(
+        retry
+            .pointer("/decision_vector/readiness_reason")
+            .and_then(Value::as_str),
+        retry.get("readiness_reason").and_then(Value::as_str)
+    );
+    assert_eq!(
+        retry
+            .pointer("/decision_vector/automation_safe")
+            .and_then(Value::as_bool),
+        retry.get("automation_safe").and_then(Value::as_bool)
+    );
+    assert_eq!(
+        retry
+            .pointer("/decision_vector/decision_vector_key")
+            .and_then(Value::as_str),
+        retry.get("decision_vector_key").and_then(Value::as_str)
+    );
+    assert_eq!(
+        retry.get("decision_vector_key").and_then(Value::as_str),
+        Some("manual_gate|long|manual_gate_pending|input_adjustment_required|0|1800")
+    );
+    assert_eq!(
+        retry.get("decision_route_hint").and_then(Value::as_str),
+        Some("manual_review_lane")
+    );
+    assert_eq!(
+        retry.get("decision_urgency_tier").and_then(Value::as_str),
+        Some("manual")
+    );
+    assert_eq!(
+        retry
+            .get("decision_retry_budget_class")
+            .and_then(Value::as_str),
+        Some("manual_only")
+    );
+    assert_eq!(
+        retry.get("decision_lane_token").and_then(Value::as_str),
+        Some("manual_review_lane::manual")
+    );
+    assert_eq!(
+        retry.get("decision_dispatch_mode").and_then(Value::as_str),
+        Some("manual_review")
+    );
+    assert_eq!(
+        retry
+            .get("decision_manual_ack_required")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        retry.get("decision_execution_guard").and_then(Value::as_str),
+        Some("manual_gate_guard")
+    );
+    assert_eq!(
+        retry
+            .get("decision_followup_required")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        retry.get("decision_vector_version").and_then(Value::as_str),
+        Some("v1")
+    );
+    assert_eq!(
+        retry
+            .pointer("/decision_vector/route_hint")
+            .and_then(Value::as_str),
+        retry.get("decision_route_hint").and_then(Value::as_str)
+    );
+    assert_eq!(
+        retry
+            .pointer("/decision_vector/urgency_tier")
+            .and_then(Value::as_str),
+        retry.get("decision_urgency_tier").and_then(Value::as_str)
+    );
+    assert_eq!(
+        retry
+            .pointer("/decision_vector/retry_budget_class")
+            .and_then(Value::as_str),
+        retry
+            .get("decision_retry_budget_class")
+            .and_then(Value::as_str)
+    );
+    assert_eq!(
+        retry
+            .pointer("/decision_vector/lane_token")
+            .and_then(Value::as_str),
+        retry.get("decision_lane_token").and_then(Value::as_str)
+    );
+    assert_eq!(
+        retry
+            .pointer("/decision_vector/dispatch_mode")
+            .and_then(Value::as_str),
+        retry.get("decision_dispatch_mode").and_then(Value::as_str)
+    );
+    assert_eq!(
+        retry
+            .pointer("/decision_vector/manual_ack_required")
+            .and_then(Value::as_bool),
+        retry
+            .get("decision_manual_ack_required")
+            .and_then(Value::as_bool)
+    );
+    assert_eq!(
+        retry
+            .pointer("/decision_vector/execution_guard")
+            .and_then(Value::as_str),
+        retry.get("decision_execution_guard").and_then(Value::as_str)
+    );
+    assert_eq!(
+        retry
+            .pointer("/decision_vector/followup_required")
+            .and_then(Value::as_bool),
+        retry
+            .get("decision_followup_required")
+            .and_then(Value::as_bool)
+    );
+    assert_eq!(
+        retry
+            .pointer("/decision_vector/decision_vector_version")
+            .and_then(Value::as_str),
+        retry.get("decision_vector_version").and_then(Value::as_str)
     );
     assert_eq!(retry.get("retryable").and_then(Value::as_bool), Some(true));
     assert_eq!(retry.get("idempotent").and_then(Value::as_bool), Some(true));
@@ -2110,8 +2304,160 @@ fn fetch_retry_envelope_runtime_helper_pins_contract_and_reason() {
         Some(15)
     );
     assert_eq!(
+        retry.get("next_action_kind").and_then(Value::as_str),
+        Some("deferred_retry")
+    );
+    assert_eq!(
+        retry.get("retry_window_class").and_then(Value::as_str),
+        Some("short")
+    );
+    assert_eq!(
         retry.get("readiness_state").and_then(Value::as_str),
         Some("deferred_retry_pending")
+    );
+    assert_eq!(
+        retry.get("readiness_reason").and_then(Value::as_str),
+        Some("retry_after_pending")
+    );
+    assert_eq!(
+        retry.get("automation_safe").and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        retry
+            .pointer("/decision_vector/next_action_after_seconds")
+            .and_then(Value::as_i64),
+        retry.get("next_action_after_seconds").and_then(Value::as_i64)
+    );
+    assert_eq!(
+        retry
+            .pointer("/decision_vector/next_action_kind")
+            .and_then(Value::as_str),
+        retry.get("next_action_kind").and_then(Value::as_str)
+    );
+    assert_eq!(
+        retry
+            .pointer("/decision_vector/readiness_reason")
+            .and_then(Value::as_str),
+        retry.get("readiness_reason").and_then(Value::as_str)
+    );
+    assert_eq!(
+        retry
+            .pointer("/decision_vector/automation_safe")
+            .and_then(Value::as_bool),
+        retry.get("automation_safe").and_then(Value::as_bool)
+    );
+    assert_eq!(
+        retry
+            .pointer("/decision_vector/decision_vector_key")
+            .and_then(Value::as_str),
+        retry.get("decision_vector_key").and_then(Value::as_str)
+    );
+    assert_eq!(
+        retry.get("decision_vector_key").and_then(Value::as_str),
+        Some("deferred_retry|short|deferred_retry_pending|retry_after_pending|1|15")
+    );
+    assert_eq!(
+        retry.get("decision_route_hint").and_then(Value::as_str),
+        Some("deferred_retry_lane")
+    );
+    assert_eq!(
+        retry.get("decision_urgency_tier").and_then(Value::as_str),
+        Some("medium")
+    );
+    assert_eq!(
+        retry
+            .get("decision_retry_budget_class")
+            .and_then(Value::as_str),
+        Some("bounded_backoff_short")
+    );
+    assert_eq!(
+        retry.get("decision_lane_token").and_then(Value::as_str),
+        Some("deferred_retry_lane::medium")
+    );
+    assert_eq!(
+        retry.get("decision_dispatch_mode").and_then(Value::as_str),
+        Some("scheduled_retry")
+    );
+    assert_eq!(
+        retry
+            .get("decision_manual_ack_required")
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        retry.get("decision_execution_guard").and_then(Value::as_str),
+        Some("retry_window_guard")
+    );
+    assert_eq!(
+        retry
+            .get("decision_followup_required")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        retry.get("decision_vector_version").and_then(Value::as_str),
+        Some("v1")
+    );
+    assert_eq!(
+        retry
+            .pointer("/decision_vector/route_hint")
+            .and_then(Value::as_str),
+        retry.get("decision_route_hint").and_then(Value::as_str)
+    );
+    assert_eq!(
+        retry
+            .pointer("/decision_vector/urgency_tier")
+            .and_then(Value::as_str),
+        retry.get("decision_urgency_tier").and_then(Value::as_str)
+    );
+    assert_eq!(
+        retry
+            .pointer("/decision_vector/retry_budget_class")
+            .and_then(Value::as_str),
+        retry
+            .get("decision_retry_budget_class")
+            .and_then(Value::as_str)
+    );
+    assert_eq!(
+        retry
+            .pointer("/decision_vector/lane_token")
+            .and_then(Value::as_str),
+        retry.get("decision_lane_token").and_then(Value::as_str)
+    );
+    assert_eq!(
+        retry
+            .pointer("/decision_vector/dispatch_mode")
+            .and_then(Value::as_str),
+        retry.get("decision_dispatch_mode").and_then(Value::as_str)
+    );
+    assert_eq!(
+        retry
+            .pointer("/decision_vector/manual_ack_required")
+            .and_then(Value::as_bool),
+        retry
+            .get("decision_manual_ack_required")
+            .and_then(Value::as_bool)
+    );
+    assert_eq!(
+        retry
+            .pointer("/decision_vector/execution_guard")
+            .and_then(Value::as_str),
+        retry.get("decision_execution_guard").and_then(Value::as_str)
+    );
+    assert_eq!(
+        retry
+            .pointer("/decision_vector/followup_required")
+            .and_then(Value::as_bool),
+        retry
+            .get("decision_followup_required")
+            .and_then(Value::as_bool)
+    );
+    assert_eq!(
+        retry
+            .pointer("/decision_vector/decision_vector_version")
+            .and_then(Value::as_str),
+        retry.get("decision_vector_version").and_then(Value::as_str)
     );
     assert_eq!(
         retry.get("retry_after_seconds").and_then(Value::as_i64),
@@ -2124,4 +2470,94 @@ fn fetch_retry_envelope_runtime_helper_pins_contract_and_reason() {
         Some("execution")
     );
     assert_eq!(retry.get("lane").and_then(Value::as_str), Some("web_fetch"));
+}
+
+#[test]
+fn search_query_shape_error_flags_repetitive_loop_prompt() {
+    assert_eq!(
+        search_query_shape_error_code("next round next round next round next round next round"),
+        "query_shape_repetitive_loop"
+    );
+}
+
+#[test]
+fn fetch_early_validation_contract_includes_requested_url_cache_key() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let out = api_fetch(tmp.path(), &json!({"url": "  FTP://Example.com/Doc  "}));
+    assert_eq!(
+        out.pointer("/requested_url_cache_key").and_then(Value::as_str),
+        Some("ftp://example.com/doc")
+    );
+}
+
+#[test]
+fn search_parse_nonnegative_i64_accepts_numeric_string() {
+    assert_eq!(
+        search_parse_nonnegative_i64(Some(&json!("42"))),
+        42
+    );
+    assert_eq!(
+        search_parse_nonnegative_i64(Some(&json!("-8"))),
+        0
+    );
+}
+
+#[test]
+fn fetch_parse_nonnegative_i64_accepts_numeric_string() {
+    assert_eq!(
+        fetch_parse_nonnegative_i64(Some(&json!("15"))),
+        15
+    );
+    assert_eq!(
+        fetch_parse_nonnegative_i64(Some(&json!("-3"))),
+        0
+    );
+}
+
+#[test]
+fn search_retry_after_seconds_from_value_normalizes_epoch_and_clamps() {
+    let now_epoch_seconds = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_secs().min(i64::MAX as u64) as i64)
+        .unwrap_or(0);
+    let retry_epoch_seconds = now_epoch_seconds.saturating_add(45);
+    let normalized = search_retry_after_seconds_from_value(Some(&json!(retry_epoch_seconds)));
+    assert!(normalized <= 45);
+    assert!(normalized >= 0);
+
+    let large_epoch_seconds = now_epoch_seconds.saturating_add(999_999);
+    let clamped = search_retry_after_seconds_from_value(Some(&json!(large_epoch_seconds)));
+    assert_eq!(clamped, 86_400);
+}
+
+#[test]
+fn fetch_retry_after_seconds_from_value_normalizes_epoch_and_clamps() {
+    let now_epoch_seconds = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_secs().min(i64::MAX as u64) as i64)
+        .unwrap_or(0);
+    let retry_epoch_seconds = now_epoch_seconds.saturating_add(30);
+    let normalized = fetch_retry_after_seconds_from_value(Some(&json!(retry_epoch_seconds)));
+    assert!(normalized <= 30);
+    assert!(normalized >= 0);
+
+    let large_epoch_seconds = now_epoch_seconds.saturating_add(999_999);
+    let clamped = fetch_retry_after_seconds_from_value(Some(&json!(large_epoch_seconds)));
+    assert_eq!(clamped, 86_400);
+}
+
+#[test]
+fn search_query_shape_stats_reports_repetition_fields() {
+    let stats = search_query_shape_stats("next round next round next round now");
+    assert!(
+        stats
+            .get("repetition_ratio")
+            .and_then(Value::as_f64)
+            .unwrap_or(0.0)
+            > 0.5
+    );
+    assert_eq!(
+        stats.get("dominant_term").and_then(Value::as_str),
+        Some("next")
+    );
 }
