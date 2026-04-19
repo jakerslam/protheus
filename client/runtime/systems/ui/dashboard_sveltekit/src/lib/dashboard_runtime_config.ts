@@ -19,7 +19,7 @@ export interface DashboardRuntimePublicConfig {
   featureFlags: Record<string, boolean>;
 }
 
-type RuntimeEnv = Record<string, string | undefined>;
+type DashboardRuntimeEnvironment = Record<string, string | undefined>;
 
 const DEFAULT_SNAPSHOT_POLL_MS = 3_000;
 const DEFAULT_STREAM_RECONNECT_MS = 1_500;
@@ -54,14 +54,14 @@ function normalizeBaseUrl(rawValue: unknown, fallback: string): string {
   }
 }
 
-function inferApiBaseFromLocation(): string {
+function inferDashboardApiBaseFromLocation(): string {
   if (!browser) return 'http://127.0.0.1:8200';
   const locationOrigin = String(window.location.origin || '').trim();
   if (!locationOrigin) return 'http://127.0.0.1:8200';
   return locationOrigin.replace(/\/+$/, '');
 }
 
-function inferWsBase(apiBaseUrl: string): string {
+function inferDashboardWsBase(apiBaseUrl: string): string {
   try {
     const parsed = new URL(apiBaseUrl);
     parsed.protocol = parsed.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -71,7 +71,7 @@ function inferWsBase(apiBaseUrl: string): string {
   }
 }
 
-function parseFeatureFlagCsvList(rawValue: unknown): Record<string, boolean> {
+function parseDashboardFeatureFlagCsvList(rawValue: unknown): Record<string, boolean> {
   const out: Record<string, boolean> = {};
   const raw = String(rawValue ?? '').trim();
   if (!raw) return out;
@@ -83,8 +83,8 @@ function parseFeatureFlagCsvList(rawValue: unknown): Record<string, boolean> {
   return out;
 }
 
-function readRuntimeEnv(): RuntimeEnv {
-  const out: RuntimeEnv = {};
+function readDashboardRuntimeEnvironment(): DashboardRuntimeEnvironment {
+  const out: DashboardRuntimeEnvironment = {};
   const metaEnv =
     typeof import.meta !== 'undefined' &&
     (import.meta as unknown as { env?: Record<string, unknown> }).env &&
@@ -120,10 +120,12 @@ function readRuntimeEnv(): RuntimeEnv {
   return out;
 }
 
-export function buildRuntimeConfig(env: RuntimeEnv = readRuntimeEnv()): DashboardRuntimeConfig {
-  const inferredApiBase = inferApiBaseFromLocation();
+export function buildDashboardRuntimeConfig(
+  env: DashboardRuntimeEnvironment = readDashboardRuntimeEnvironment()
+): DashboardRuntimeConfig {
+  const inferredApiBase = inferDashboardApiBaseFromLocation();
   const apiBaseUrl = normalizeBaseUrl(env.VITE_INFRING_API_BASE_URL, inferredApiBase);
-  const wsBaseUrl = normalizeBaseUrl(env.VITE_INFRING_WS_BASE_URL, inferWsBase(apiBaseUrl));
+  const wsBaseUrl = normalizeBaseUrl(env.VITE_INFRING_WS_BASE_URL, inferDashboardWsBase(apiBaseUrl));
   return {
     apiBaseUrl,
     wsBaseUrl,
@@ -136,11 +138,13 @@ export function buildRuntimeConfig(env: RuntimeEnv = readRuntimeEnv()): Dashboar
       60_000
     ),
     telemetryEnabled: normalizeBoolean(env.VITE_INFRING_TELEMETRY_ENABLED, true),
-    featureFlags: parseFeatureFlagCsvList(env.VITE_INFRING_FEATURE_FLAGS)
+    featureFlags: parseDashboardFeatureFlagCsvList(env.VITE_INFRING_FEATURE_FLAGS)
   };
 }
 
-export function toPublicRuntimeConfig(config: DashboardRuntimeConfig): DashboardRuntimePublicConfig {
+export function toPublicDashboardRuntimeConfig(
+  config: DashboardRuntimeConfig
+): DashboardRuntimePublicConfig {
   return {
     apiBaseUrl: config.apiBaseUrl,
     wsBaseUrl: config.wsBaseUrl,
@@ -152,6 +156,13 @@ export function toPublicRuntimeConfig(config: DashboardRuntimeConfig): Dashboard
 }
 
 // Backward-compat shim for legacy callers during naming migration.
-export function pickPublicRuntimeConfig(config: DashboardRuntimeConfig): DashboardRuntimePublicConfig {
-  return toPublicRuntimeConfig(config);
+export function pickPublicDashboardRuntimeConfig(
+  config: DashboardRuntimeConfig
+): DashboardRuntimePublicConfig {
+  return toPublicDashboardRuntimeConfig(config);
 }
+
+// Backward-compat aliases.
+export const buildRuntimeConfig = buildDashboardRuntimeConfig;
+export const toPublicRuntimeConfig = toPublicDashboardRuntimeConfig;
+export const pickPublicRuntimeConfig = pickPublicDashboardRuntimeConfig;

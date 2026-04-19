@@ -6,8 +6,8 @@ const path = require('path');
 const WebSocket = require('ws');
 
 const ROOT = path.resolve(__dirname, '..', '..');
-const { createAgentWsBridge } = require(
-  path.resolve(ROOT, 'client/runtime/systems/ui/agent_ws_bridge.ts')
+const { createAgentWsBridge: createDashboardAgentWsBridge } = require(
+  path.resolve(ROOT, 'client/runtime/systems/ui/dashboard_agent_ws_bridge.ts')
 );
 
 function completionPayload() {
@@ -343,7 +343,7 @@ async function runScenario(payloadFactory, messageText) {
     }
     return { ok: false, status: 404, json: async () => ({ error: 'not_found' }) };
   };
-  const bridge = createAgentWsBridge({
+  const bridge = createDashboardAgentWsBridge({
     flags,
     cleanText: (value, max) => String(value == null ? '' : value).trim().slice(0, max || 200),
     fetchBackend,

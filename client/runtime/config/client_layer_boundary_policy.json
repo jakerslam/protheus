@@ -92,7 +92,7 @@
     "client/runtime/systems/symbiosis/neural_dormant_seed.ts",
     "client/runtime/systems/symbiosis/pre_neuralink_interface.ts",
     "client/runtime/systems/ui/dashboard_sveltekit/src/app.d.ts",
-    "client/runtime/systems/ui/dashboard_sveltekit/src/lib/runtime.ts",
+    "client/runtime/systems/ui/dashboard_sveltekit/src/lib/dashboard_runtime_config.ts",
     "client/runtime/systems/ui/dashboard_sveltekit/src/routes/+layout.ts",
     "client/runtime/systems/ui/dashboard_sveltekit/vite.config.ts",
     "client/runtime/systems/weaver/drift_aware_revenue_optimizer.ts",
