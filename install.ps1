@@ -319,14 +319,33 @@ function Get-ReleasesFromApi {
   }
 }
 
+function Get-BinaryStemAliases([string]$Stem) {
+  switch ($Stem) {
+    "infring-ops" { return @("infring-ops", "protheus-ops") }
+    "infringd" { return @("infringd", "protheusd") }
+    "infringd-tiny-max" { return @("infringd-tiny-max", "protheusd-tiny-max", "infringd", "protheusd") }
+    "infring-pure-workspace" { return @("infring-pure-workspace", "protheus-pure-workspace") }
+    "infring-pure-workspace-tiny-max" { return @("infring-pure-workspace-tiny-max", "protheus-pure-workspace-tiny-max", "infring-pure-workspace", "protheus-pure-workspace") }
+    default { return @($Stem) }
+  }
+}
+
 function Get-BinaryAssetCandidates([string]$Triple, [string]$Stem) {
-  return @(
-    "$Stem-$Triple.exe",
-    "$Stem-$Triple",
-    "$Stem-$Triple.bin",
-    "$Stem.exe",
-    "$Stem"
-  )
+  $variants = New-Object System.Collections.Generic.List[string]
+  foreach ($alias in (Get-BinaryStemAliases $Stem)) {
+    foreach ($candidate in @(
+      "$alias-$Triple.exe",
+      "$alias-$Triple",
+      "$alias-$Triple.bin",
+      "$alias.exe",
+      "$alias"
+    )) {
+      if (-not $variants.Contains([string]$candidate)) {
+        $variants.Add([string]$candidate) | Out-Null
+      }
+    }
+  }
+  return @($variants)
 }
 
 function Release-HasAnyAsset([object]$Release, [string[]]$AssetCandidates) {
@@ -1055,13 +1074,12 @@ $daemonBin = Join-Path $InstallDir "conduit_daemon.exe"
 $preferredDaemonTriple = if ($HostIsLinux -and $arch -eq "x86_64") { "x86_64-unknown-linux-musl" } else { $triple }
 
 if ($HostIsWindows) {
-  $requiredWindowsStems = @("infringd", "conduit_daemon")
+  # Required stems are only install-critical binaries.
+  # Daemon binaries are optional at install time (installer can run in spine mode),
+  # so they must not block compatible-tag selection on Windows.
+  $requiredWindowsStems = @()
   if ($InstallPure) {
     $requiredWindowsStems += "infring-pure-workspace"
-    if ($InstallTinyMax) {
-      $requiredWindowsStems += "infring-pure-workspace-tiny-max"
-      $requiredWindowsStems += "infringd-tiny-max"
-    }
   } else {
     $requiredWindowsStems += "infring-ops"
   }

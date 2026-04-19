@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "allowed_support_levels": [
+    "public_stable",
+    "experimental_opt_in",
+    "internal_only"
+  ],
+  "required_readme_markers": [
+    "Experimental lanes (explicit opt-in): `assimilate`",
+    "broader assimilation surfaces remain experimental."
+  ],
+  "runtime_lane_state": {
+    "path": "local/state/infring_agent_surface/runtime_lane_state.json",
+    "required_counter_keys": [
+      "denied_actions_total",
+      "pause_reasons_total",
+      "pause_reason_counts",
+      "merkle_chain_continuity_failures_total"
+    ]
+  },
+  "surfaces": [
+    {
+      "id": "infring_agent_surface_runtime_lane",
+      "path": "core/layer0/infring_agent_surface/src/runtime_lane.rs",
+      "support_level": "experimental_opt_in",
+      "release_required": false
+    },
+    {
+      "id": "infring_agent_surface_runtime_state",
+      "path": "core/layer0/infring_agent_surface/src/runtime_state.rs",
+      "support_level": "experimental_opt_in",
+      "release_required": false
+    },
+    {
+      "id": "infring_agent_surface_scheduler",
+      "path": "core/layer0/infring_agent_surface/src/scheduler.rs",
+      "support_level": "experimental_opt_in",
+      "release_required": false
+    },
+    {
+      "id": "infring_agent_surface_capability_pack",
+      "path": "core/layer0/infring_agent_surface/src/capability_pack.rs",
+      "support_level": "experimental_opt_in",
+      "release_required": false
+    },
+    {
+      "id": "infring_agent_derive_macro",
+      "path": "core/layer0/infring_agent_derive/src/lib.rs",
+      "support_level": "experimental_opt_in",
+      "release_required": false
+    },
+    {
+      "id": "infring_agent_surface_state_contract",
+      "path": "local/state/infring_agent_surface/runtime_lane_state.json",
+      "support_level": "public_stable",
+      "release_required": true
+    }
+  ]
+}

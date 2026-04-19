@@ -207,7 +207,7 @@
       if (this.isPlaceholderModelRef(storeOverride)) storeOverride = '';
       if (this.isPlaceholderModelRef(suggestionRef)) suggestionRef = '';
       if (selected.toLowerCase() === 'auto') {
-        var resolved = this.compactModelLabel(runtime);
+        var resolved = this.truncateModelLabel(runtime);
         var autoLabel = resolved ? ('Auto: ' + resolved) : 'Auto';
         return autoLabel.length > 24 ? autoLabel.substring(0, 22) + '\u2026' : autoLabel;
       }
@@ -215,7 +215,7 @@
       var activeId = String((active && active.id) || '').trim();
       var candidates = [selected, runtime, modelOverride, storeSelected, storeRuntime, storeOverride, suggestionRef, activeId];
       for (var ci = 0; ci < candidates.length; ci += 1) {
-        var compactCandidate = this.compactModelLabel(candidates[ci]);
+        var compactCandidate = this.truncateModelLabel(candidates[ci]);
         if (!compactCandidate) continue;
         return compactCandidate.length > 24 ? compactCandidate.substring(0, 22) + '\u2026' : compactCandidate;
       }
@@ -424,7 +424,7 @@
       if (!provider) return model;
       return model + ' · ' + provider;
     },
-    compactModelLabel: function(value) {
+    truncateModelLabel: function(value) {
       var raw = this.normalizeQualifiedModelRef(value, '', this._modelCache || []);
       if (!raw || this.isPlaceholderModelRef(raw)) return '';
       var compact = raw;
@@ -437,6 +437,11 @@
       compact = String(compact || '').trim();
       if (!compact || this.isPlaceholderModelRef(compact)) return '';
       return compact.replace(/-\d{8}$/, '');
+    },
+
+    // Backward-compat shim for legacy callers during naming migration.
+    compactModelLabel: function(value) {
+      return this.truncateModelLabel(value);
     },
     sanitizeModelCatalogRows: function(rows) {
       var list = Array.isArray(rows) ? rows : [];

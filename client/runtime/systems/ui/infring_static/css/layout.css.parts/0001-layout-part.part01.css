@@ -63,6 +63,15 @@ body.dashboard-embedded-shell .main-content > div:not(.global-taskbar):not(.main
   --drag-bar-border-right-color: var(--drag-bar-border);
   --drag-bar-border-bottom-color: var(--drag-bar-border);
   --drag-bar-border-left-color: var(--drag-bar-border);
+  --drag-bar-rim-shadow:
+    inset 0 calc(-1 * var(--drag-bar-bottom-rim-width, var(--overlay-shared-surface-bottom-rim-width, var(--overlay-surface-bottom-rim-width)))) 0 var(--drag-bar-bottom-rim-color, var(--overlay-shared-surface-bottom-rim-color, var(--overlay-surface-bottom-rim-color))),
+    inset 0 calc(-1 * var(--drag-bar-bottom-rim-width, var(--overlay-shared-surface-bottom-rim-width, var(--overlay-surface-bottom-rim-width)))) var(--drag-bar-bottom-rim-blur, var(--overlay-shared-surface-bottom-rim-blur, var(--overlay-surface-bottom-rim-blur))) calc(-1 * var(--drag-bar-bottom-rim-blur, var(--overlay-shared-surface-bottom-rim-blur, var(--overlay-surface-bottom-rim-blur)))) var(--drag-bar-bottom-rim-glow, var(--overlay-shared-surface-bottom-rim-glow, var(--overlay-surface-bottom-rim-glow)));
+  --drag-bar-filter:
+    var(--drag-bar-distortion)
+    blur(var(--drag-bar-blur, var(--overlay-shared-surface-blur, var(--overlay-surface-blur, 6px))))
+    saturate(var(--drag-bar-saturate, var(--overlay-shared-surface-saturate, var(--overlay-surface-saturate, 1.05))))
+    brightness(var(--drag-bar-brightness, var(--overlay-shared-surface-brightness, var(--overlay-surface-brightness, 1))))
+    contrast(var(--drag-bar-contrast, var(--overlay-shared-surface-contrast, var(--overlay-surface-contrast, 1))));
   --drag-bar-border-transition-duration: 0ms;
   --drag-bar-border-transition-delay: 0ms;
   --drag-bar-cursor-idle: grab;
@@ -92,19 +101,9 @@ body.dashboard-embedded-shell .main-content > div:not(.global-taskbar):not(.main
   border-bottom-color: var(--drag-bar-border-bottom-color, var(--sidebar-surface-border));
   border-left-color: var(--drag-bar-border-left-color, var(--sidebar-surface-border));
   border-radius: var(--sidebar-surface-radius);
-  box-shadow: var(--sidebar-surface-shadow);
-  backdrop-filter:
-    var(--drag-bar-distortion)
-    blur(var(--drag-bar-blur, var(--overlay-shared-surface-blur, var(--overlay-surface-blur, 6px))))
-    saturate(var(--drag-bar-saturate, var(--overlay-shared-surface-saturate, var(--overlay-surface-saturate, 1.05))))
-    brightness(var(--drag-bar-brightness, var(--overlay-shared-surface-brightness, var(--overlay-surface-brightness, 1))))
-    contrast(var(--drag-bar-contrast, var(--overlay-shared-surface-contrast, var(--overlay-surface-contrast, 1))));
-  -webkit-backdrop-filter:
-    var(--drag-bar-distortion)
-    blur(var(--drag-bar-blur, var(--overlay-shared-surface-blur, var(--overlay-surface-blur, 6px))))
-    saturate(var(--drag-bar-saturate, var(--overlay-shared-surface-saturate, var(--overlay-surface-saturate, 1.05))))
-    brightness(var(--drag-bar-brightness, var(--overlay-shared-surface-brightness, var(--overlay-surface-brightness, 1))))
-    contrast(var(--drag-bar-contrast, var(--overlay-shared-surface-contrast, var(--overlay-surface-contrast, 1))));
+  box-shadow: var(--sidebar-surface-shadow), var(--drag-bar-rim-shadow, var(--overlay-shared-surface-rim-shadow, var(--overlay-surface-rim-shadow)));
+  backdrop-filter: var(--drag-bar-filter, var(--overlay-shared-surface-filter, var(--overlay-surface-filter-soft)));
+  -webkit-backdrop-filter: var(--drag-bar-filter, var(--overlay-shared-surface-filter, var(--overlay-surface-filter-soft)));
   background-clip: padding-box;
   display: flex;
   flex-direction: column;
@@ -353,8 +352,9 @@ body.dashboard-embedded-shell .main-content > div:not(.global-taskbar):not(.main
   border-top-color: color-mix(in srgb, #fff 38%, transparent);
   border-bottom-color: color-mix(in srgb, #000 16%, transparent);
   border-right-color: color-mix(in srgb, #000 16%, transparent);
-  backdrop-filter: blur(8px) saturate(1.08);
-  -webkit-backdrop-filter: blur(8px) saturate(1.08);
+  box-shadow: var(--overlay-surface-rim-shadow);
+  backdrop-filter: var(--overlay-surface-filter-medium);
+  -webkit-backdrop-filter: var(--overlay-surface-filter-medium);
 }
 
 /* Navigation */
@@ -395,9 +395,9 @@ body.dashboard-embedded-shell .main-content > div:not(.global-taskbar):not(.main
   pointer-events: none;
   user-select: none;
   z-index: 35;
-  box-shadow: var(--shadow-xs);
-  backdrop-filter: blur(6px) saturate(1.04);
-  -webkit-backdrop-filter: blur(6px) saturate(1.04);
+  box-shadow: var(--shadow-xs), var(--overlay-surface-rim-shadow);
+  backdrop-filter: var(--overlay-surface-filter-soft);
+  -webkit-backdrop-filter: var(--overlay-surface-filter-soft);
 }
 
 button.sidebar-scroll-indicator {

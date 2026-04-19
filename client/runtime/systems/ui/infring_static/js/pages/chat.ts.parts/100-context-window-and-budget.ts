@@ -172,16 +172,16 @@
               self.contextWindow = Math.round(resolvedContextWindow);
               self.refreshContextPressure();
             }
-            self.touchModelUsage(requestedModel || '');
-            self.touchModelUsage(self.currentAgent.model_name || '');
-            self.touchModelUsage(self.currentAgent.runtime_model || '');
+            self.recordModelUsageTimestamp(requestedModel || '');
+            self.recordModelUsageTimestamp(self.currentAgent.model_name || '');
+            self.recordModelUsageTimestamp(self.currentAgent.runtime_model || '');
             if (self.currentAgent.model_provider && self.currentAgent.model_name) {
-              self.touchModelUsage(
+              self.recordModelUsageTimestamp(
                 self.currentAgent.model_provider + '/' + self.currentAgent.model_name
               );
             }
             if (self.currentAgent.model_provider && self.currentAgent.runtime_model) {
-              self.touchModelUsage(
+              self.recordModelUsageTimestamp(
                 self.currentAgent.model_provider + '/' + self.currentAgent.runtime_model
               );
             }
@@ -204,7 +204,7 @@
         return;
       }
       if (model.id === this.currentAgent.model_name) {
-        this.touchModelUsage(model.id || '');
+        this.recordModelUsageTimestamp(model.id || '');
         this.showModelSwitcher = false;
         return;
       }
@@ -253,7 +253,7 @@
       return model;
     },
 
-    modelIdVariantSet: function(values) {
+    collectModelIdVariants: function(values) {
       var set = {};
       var add = function(value) {
         var raw = String(value || '').trim();
@@ -271,6 +271,11 @@
         add(values);
       }
       return set;
+    },
+
+    // Backward-compat shim for legacy callers during naming migration.
+    modelIdVariantSet: function(values) {
+      return this.collectModelIdVariants(values);
     },
 
     extractRecoverableBackendFailure: function(text) {
@@ -313,13 +318,13 @@
 
     collectFailoverModelCandidates: async function() {
       var self = this;
-      var activeSet = this.modelIdVariantSet(this.activeModelCandidateIds());
+      var activeSet = this.collectModelIdVariants(this.activeModelCandidateIds());
       var out = [];
       var seen = {};
       var push = function(id) {
         var modelId = String(id || '').trim();
         if (!modelId || modelId.toLowerCase() === 'auto') return;
-        var variants = self.modelIdVariantSet(modelId);
+        var variants = self.collectModelIdVariants(modelId);
         var keys = Object.keys(variants);
         for (var i = 0; i < keys.length; i++) {
           if (activeSet[keys[i]]) return;
@@ -345,8 +350,8 @@
       sorted.sort(function(a, b) {
         var aId = String((a && a.id) || '').trim();
         var bId = String((b && b.id) || '').trim();
-        var aUsage = self.modelUsageTs(aId);
-        var bUsage = self.modelUsageTs(bId);
+        var aUsage = self.modelUsageTimestamp(aId);
+        var bUsage = self.modelUsageTimestamp(bId);
         if (bUsage !== aUsage) return bUsage - aUsage;
         var aProvider = String((a && a.provider) || '').toLowerCase();
         var bProvider = String((b && b.provider) || '').toLowerCase();

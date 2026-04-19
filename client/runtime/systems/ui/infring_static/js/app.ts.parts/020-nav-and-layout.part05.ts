@@ -366,12 +366,7 @@
     },
 
     dragSurfaceRadiusByWall(wallRaw) {
-      var wall = String(wallRaw || '').trim().toLowerCase();
       var r = 'var(--overlay-shared-surface-radius, var(--overlay-surface-radius, 18px))';
-      if (wall === 'left') return '0 ' + r + ' ' + r + ' 0';
-      if (wall === 'right') return r + ' 0 0 ' + r;
-      if (wall === 'top') return '0 0 ' + r + ' ' + r;
-      if (wall === 'bottom') return r + ' ' + r + ' 0 0';
       return r;
     },
 

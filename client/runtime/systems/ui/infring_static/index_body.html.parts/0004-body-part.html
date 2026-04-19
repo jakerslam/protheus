@@ -257,7 +257,7 @@
               <div class="composer-shell" :class="{ 'composer-shell-disabled': isFreshInitComposerLocked(), 'system-thread-active': isSystemThreadActive() }">
                 <div class="composer-main-row">
                 <div class="composer-menu-pill composer-shared-input-pill" x-show="!isSystemThreadActive()">
-                <div class="composer-plus-wrap composer-icon-left" @click.outside="showAttachMenu = false">
+                <div class="composer-plus-wrap composer-icon-left" :class="taskbarAnchoredDropdownClass($el, 'bottom')" @click.outside="showAttachMenu = false">
                   <button class="composer-icon-btn composer-hamburger-btn" @click="showAttachMenu = !showAttachMenu" title="Add files and more (Ctrl+F)" aria-label="Add files and more" :aria-expanded="showAttachMenu ? 'true' : 'false'">
                     <svg class="composer-hamburger-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
                   </button>
@@ -307,7 +307,7 @@
                     </button>
                     <div class="input-box-column input-box-column-selectors composer-plus-inline-controls" x-show="(showAttachMenu || showGitTreeMenu || showModelSwitcher) && currentAgent && !terminalMode">
                       <div class="input-box-selector-row" x-show="activeGitBranchMenuLabel && (showAttachMenu || showGitTreeMenu)">
-                        <div class="chat-branch-picker model-switcher-inline input-box-selector-control" @keydown.escape.prevent.stop="closeGitTreeMenu()" @click.outside="closeGitTreeMenu()">
+                        <div class="chat-branch-picker model-switcher-inline input-box-selector-control" :class="taskbarAnchoredDropdownClass($el, 'top')" @keydown.escape.prevent.stop="closeGitTreeMenu()" @click.outside="closeGitTreeMenu()">
                           <button
                             type="button"
                             class="input-box-selector-activator composer-plus-menu-entry"
@@ -351,7 +351,7 @@
                         </div>
                       </div>
                       <div class="input-box-selector-row" x-show="showAttachMenu || showModelSwitcher">
-                        <div class="model-switcher-inline input-box-selector-control" x-show="currentAgent && !terminalMode" style="position:relative" @click.outside="showModelSwitcher = false" @keydown.escape.window="showModelSwitcher = false">
+                        <div class="model-switcher-inline input-box-selector-control" :class="taskbarAnchoredDropdownClass($el, 'top')" x-show="currentAgent && !terminalMode" style="position:relative" @click.outside="showModelSwitcher = false" @keydown.escape.window="showModelSwitcher = false">
                       <button type="button" class="input-box-selector-activator composer-plus-menu-entry" :aria-expanded="showModelSwitcher ? 'true' : 'false'" @click="toggleModelSwitcher()" :title="'Active model: ' + modelDisplayName">
                         <span class="composer-icon-btn composer-model-btn input-box-selector-trigger" :class="{ 'active': showModelSwitcher }" aria-hidden="true">
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>

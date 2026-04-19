@@ -2632,38 +2632,6 @@
       "planned_batch_date": "2026-04-23"
     },
     {
-      "path": "core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/001-run_action_family_app.rs",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-04-23",
-      "task_id": "TD-SIZE-OPS-L0",
-      "planned_batch_date": "2026-04-23"
-    },
-    {
-      "path": "core/layer0/ops/src/protheusctl_routes_parts/010-command-routing_parts/003-resolve_core_shortcuts_family_ops1.rs",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-04-23",
-      "task_id": "TD-SIZE-OPS-L0",
-      "planned_batch_date": "2026-04-23"
-    },
-    {
-      "path": "core/layer0/ops/src/protheusctl_routes_parts/010-command-routing_parts/004-resolve_core_shortcuts_family_ops2.rs",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-04-23",
-      "task_id": "TD-SIZE-OPS-L0",
-      "planned_batch_date": "2026-04-23"
-    },
-    {
-      "path": "core/layer0/ops/src/protheusctl_routes_parts/010-command-routing_parts/005-resolve_core_shortcuts_family_ops3.rs",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-04-23",
-      "task_id": "TD-SIZE-OPS-L0",
-      "planned_batch_date": "2026-04-23"
-    },
-    {
       "path": "core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
@@ -2673,6 +2641,22 @@
     },
     {
       "path": "core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-04-23",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-04-23"
+    },
+    {
+      "path": "core/layer0/ops/src/protheusctl_routes_parts/010-command-routing_parts/004-resolve_core_shortcuts_family_ops2_fn_parts/001-resolve_core_shortcuts_family_ops2_group_1.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-04-23",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-04-23"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/001-run_action_family_app_arm_parts/002-run_action_family_app_arm_002.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
       "expires": "2026-04-23",

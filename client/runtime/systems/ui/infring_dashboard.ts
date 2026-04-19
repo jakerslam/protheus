@@ -16,11 +16,11 @@ const bridge = createCompatModuleExportBridge({
 });
 const mod = bridge.exported;
 
-function stderrLine(message) {
+function writeErrorLine(message) {
   process.stderr.write(String(message || '') + '\n');
 }
 
-function cleanStderrMessage(errorLike) {
+function sanitizeErrorMessageForStderr(errorLike) {
   if (mod && mod.ok === false) return JSON.stringify(mod);
   const raw = String(errorLike && errorLike.message ? errorLike.message : errorLike || 'unknown_error');
   if (mod && typeof mod.cleanText === 'function') return mod.cleanText(raw, 280);
@@ -29,25 +29,25 @@ function cleanStderrMessage(errorLike) {
 
 if (require.main === module) {
   if (mod && mod.ok === false) {
-    stderrLine(cleanStderrMessage(mod));
+    writeErrorLine(sanitizeErrorMessageForStderr(mod));
     process.exitCode = 1;
   } else {
-  process.on('uncaughtException', (error) => {
-    if (mod.isTransientSocketError && mod.isTransientSocketError(error)) {
-      stderrLine(cleanStderrMessage(`dashboard_host_socket:${error.code || 'unknown'}`));
-      return;
-    }
-    stderrLine(cleanStderrMessage(error));
-    process.exitCode = 1;
-  });
-  Promise.resolve(mod.run(process.argv.slice(2)))
-    .then((exitCode) => {
-      if (typeof exitCode === 'number') process.exitCode = exitCode;
-    })
-    .catch((error) => {
-      stderrLine(cleanStderrMessage(error));
+    process.on('uncaughtException', (error) => {
+      if (mod.isTransientSocketError && mod.isTransientSocketError(error)) {
+        writeErrorLine(sanitizeErrorMessageForStderr(`dashboard_host_socket:${error.code || 'unknown'}`));
+        return;
+      }
+      writeErrorLine(sanitizeErrorMessageForStderr(error));
       process.exitCode = 1;
     });
+    Promise.resolve(mod.run(process.argv.slice(2)))
+      .then((exitCode) => {
+        if (typeof exitCode === 'number') process.exitCode = exitCode;
+      })
+      .catch((error) => {
+        writeErrorLine(sanitizeErrorMessageForStderr(error));
+        process.exitCode = 1;
+      });
   }
 }
 

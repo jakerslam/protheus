@@ -301,23 +301,41 @@
   justify-content: center;
   flex-shrink: 0;
   transition: all 0.2s var(--ease-spring);
-  box-shadow: var(--shadow-sm), var(--shadow-accent);
-  backdrop-filter: blur(10px) saturate(1.08);
-  -webkit-backdrop-filter: blur(10px) saturate(1.08);
+  box-shadow: var(--shadow-sm), var(--shadow-accent), var(--overlay-surface-rim-shadow);
+  backdrop-filter: var(--overlay-surface-filter-strong);
+  -webkit-backdrop-filter: var(--overlay-surface-filter-strong);
 }
-.btn-send:hover { background: var(--accent-dim); transform: scale(1.05); box-shadow: var(--shadow-md), var(--shadow-accent); }
+.btn-send:hover { background: var(--accent-dim); transform: scale(1.05); box-shadow: var(--shadow-md), var(--shadow-accent), var(--overlay-surface-rim-shadow); }
 .btn-send:active { transform: scale(0.92); }
 .btn-send:disabled { opacity: 0.3; cursor: not-allowed; transform: none; box-shadow: none; }
 
 .btn-send-terminal {
-  background: #95ff63;
+  background: transparent;
   border-color: #95ff63;
-  color: #031003;
-  box-shadow: 0 0 0 1px rgba(149, 255, 99, 0.35) inset, 0 0 14px rgba(149, 255, 99, 0.22);
+  border-top-color: #95ff63;
+  border-bottom-color: #95ff63;
+  border-right-color: #95ff63;
+  color: color-mix(in srgb, #95ff63 42%, transparent);
+  box-shadow: 0 0 0 1px rgba(149, 255, 99, 0.18) inset;
 }
 
 .btn-send-terminal:hover {
-  background: #aaff79;
+  background: transparent;
+}
+
+.btn-send-terminal:not(:disabled) {
+  color: #95ff63;
+  box-shadow: 0 0 0 1px rgba(149, 255, 99, 0.32) inset, 0 0 12px rgba(149, 255, 99, 0.16);
+}
+
+.btn-send-terminal:disabled {
+  opacity: 1;
+  border-color: color-mix(in srgb, #95ff63 56%, transparent);
+  border-top-color: color-mix(in srgb, #95ff63 56%, transparent);
+  border-bottom-color: color-mix(in srgb, #95ff63 56%, transparent);
+  border-right-color: color-mix(in srgb, #95ff63 56%, transparent);
+  color: color-mix(in srgb, #95ff63 38%, transparent);
+  box-shadow: 0 0 0 1px rgba(149, 255, 99, 0.12) inset;
 }
 
 /* Stop button variant during streaming */
@@ -337,8 +355,9 @@
   justify-content: center;
   flex-shrink: 0;
   transition: all 0.2s var(--ease-spring);
-  backdrop-filter: blur(10px) saturate(1.08);
-  -webkit-backdrop-filter: blur(10px) saturate(1.08);
+  box-shadow: var(--overlay-surface-rim-shadow);
+  backdrop-filter: var(--overlay-surface-filter-strong);
+  -webkit-backdrop-filter: var(--overlay-surface-filter-strong);
 }
 .btn-stop:hover { background: var(--error); color: #fff; transform: scale(1.05); }
 .btn-stop:active { transform: scale(0.92); }
@@ -352,13 +371,13 @@
 .stat-card,
 .stat-card-lg,
 .health-indicator {
-  backdrop-filter: blur(10px) saturate(1.08);
-  -webkit-backdrop-filter: blur(10px) saturate(1.08);
+  backdrop-filter: var(--overlay-surface-filter-strong);
+  -webkit-backdrop-filter: var(--overlay-surface-filter-strong);
   border-width: 1.5px !important;
   border-top-color: color-mix(in srgb, #000 16%, transparent) !important;
   border-left-color: color-mix(in srgb, #000 16%, transparent) !important;
-  border-bottom-color: color-mix(in srgb, #fff 38%, transparent) !important;
-  border-right-color: color-mix(in srgb, #fff 38%, transparent) !important;
+  border-bottom-color: var(--overlay-surface-bottom-rim-color) !important;
+  border-right-color: var(--overlay-surface-bottom-rim-color) !important;
 }
 
 .chat-scroll-down {
@@ -378,9 +397,9 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: var(--shadow-sm);
-  backdrop-filter: blur(10px) saturate(1.08);
-  -webkit-backdrop-filter: blur(10px) saturate(1.08);
+  box-shadow: var(--shadow-sm), var(--overlay-surface-rim-shadow);
+  backdrop-filter: var(--overlay-surface-filter-strong);
+  -webkit-backdrop-filter: var(--overlay-surface-filter-strong);
   transition: transform 0.15s var(--ease-smooth), background 0.15s var(--ease-smooth), opacity 0.15s var(--ease-smooth);
   z-index: 13050;
   pointer-events: auto;
@@ -503,8 +522,11 @@
   position: absolute;
   --dashboard-dropdown-position: absolute;
   --dashboard-preview-surface-radius: 12px;
-  right: 0;
-  bottom: calc(100% + 8px);
+  left: var(--taskbar-overlay-left, auto);
+  right: var(--taskbar-overlay-right, 0);
+  top: var(--taskbar-overlay-top, auto);
+  bottom: var(--taskbar-overlay-bottom, calc(100% + 8px));
+  transform: var(--taskbar-overlay-transform, none);
   width: min(86vw, 300px);
   max-height: min(58vh, 360px);
   padding: 0;

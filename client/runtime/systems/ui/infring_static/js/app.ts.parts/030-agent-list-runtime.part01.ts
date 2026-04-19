@@ -241,7 +241,7 @@
       var self = this;
       this._bootSplashStartedAt = Date.now();
       this.bootSplashVisible = true;
-      this.applyOverlayGlassTemplate('fogged-glass', true);
+      this.applyOverlayGlassTemplate('simple-glass', true);
       if (typeof this.resetBootProgress === 'function') this.resetBootProgress();
       if (typeof this.setBootProgressEvent === 'function') this.setBootProgressEvent('splash_visible');
       if (typeof this.hideDashboardPopupBySource === 'function') this.hideDashboardPopupBySource('sidebar');

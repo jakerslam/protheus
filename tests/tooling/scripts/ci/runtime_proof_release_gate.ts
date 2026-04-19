@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 
-import { spawnSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { cleanText, parseStrictOutArgs, readFlag } from '../../lib/cli.ts';
@@ -57,6 +57,35 @@ type GateCheck = {
   threshold: number;
   ok: boolean;
   detail: string;
+};
+
+type SupportRun = {
+  id: string;
+  script: string;
+  refresh_mode: RefreshMode;
+  refreshed: boolean;
+  reason: string;
+  status: number;
+  detail: string;
+};
+
+const EMPIRICAL_REQUIRED_SOURCE_IDS_BY_PROFILE: Record<ProfileId, string[]> = {
+  rich: ['runtime_boundedness_inspect', 'ops_ipc_bridge_stability_soak', 'dashboard_snapshot'],
+  pure: ['runtime_boundedness_inspect', 'ops_ipc_bridge_stability_soak', 'support_bundle'],
+  'tiny-max': ['runtime_boundedness_inspect', 'ops_ipc_bridge_stability_soak', 'support_bundle'],
+};
+
+const EMPIRICAL_REQUIRED_METRIC_KEYS_BY_PROFILE: Record<ProfileId, string[]> = {
+  rich: [
+    'peak_rss_mb',
+    'queue_depth_max',
+    'queue_depth_p95',
+    'receipt_throughput_per_min',
+    'receipt_p95_latency_ms',
+    'conduit_recovery_ms',
+  ],
+  pure: ['peak_rss_mb', 'receipt_throughput_per_min', 'receipt_p95_latency_ms', 'conduit_recovery_ms'],
+  'tiny-max': ['peak_rss_mb', 'receipt_throughput_per_min', 'receipt_p95_latency_ms', 'conduit_recovery_ms'],
 };
 
 function parseProfile(raw: string | undefined): ProfileId | null {
@@ -298,25 +327,40 @@ function shouldRefreshArtifact(
 function runSupportScript(root: string, scriptPath: string, args: string[]): { status: number; output: any; detail: string } {
   const entrypoint = path.resolve(root, 'client/runtime/lib/ts_entrypoint.ts');
   const script = path.resolve(root, scriptPath);
-  const proc = spawnSync('node', [entrypoint, script, ...args], {
-    cwd: root,
-    encoding: 'utf8',
-    maxBuffer: 64 * 1024 * 1024,
-  });
-  const output = parseLastJsonLine(String(proc.stdout || ''));
-  const status = proc.status ?? 1;
-  const detail = cleanText(
-    output?.error ||
-      proc.error?.message ||
-      String(proc.stderr || '').slice(0, 280) ||
-      `status=${status}`,
-    320,
-  );
-  return {
-    status,
-    output,
-    detail,
-  };
+  try {
+    const stdout = execFileSync('node', [entrypoint, script, ...args], {
+      cwd: root,
+      encoding: 'utf8',
+      maxBuffer: 64 * 1024 * 1024,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    const output = parseLastJsonLine(String(stdout || ''));
+    return {
+      status: 0,
+      output,
+      detail: cleanText(output?.error || 'ok', 320),
+    };
+  } catch (error) {
+    const err = error as {
+      status?: number;
+      stdout?: string | Buffer;
+      stderr?: string | Buffer;
+      message?: string;
+    };
+    const stdout = String(err.stdout || '');
+    const stderr = String(err.stderr || '');
+    const output = parseLastJsonLine(stdout);
+    const status = Number.isFinite(err.status) ? Number(err.status) : 1;
+    const detail = cleanText(
+      output?.error || err.message || stderr.slice(0, 280) || `status=${status}`,
+      320,
+    );
+    return {
+      status,
+      output,
+      detail,
+    };
+  }
 }
 
 function buildCheckLe(id: string, actual: number, threshold: number): GateCheck {
@@ -338,6 +382,20 @@ function buildCheckGe(id: string, actual: number, threshold: number): GateCheck 
     threshold,
     ok: actual >= threshold,
     detail: `${id}: actual=${actual} threshold>=${threshold}`,
+  };
+}
+
+function buildRequiredCompletenessCheck(id: string, required: boolean, missing: string[]): GateCheck {
+  const actual = missing.length === 0 ? 1 : 0;
+  const threshold = required ? 1 : 0;
+  const missingDetail = missing.length > 0 ? ` missing=${missing.join(',')}` : '';
+  return {
+    id,
+    comparator: '>=',
+    actual,
+    threshold,
+    ok: actual >= threshold,
+    detail: `${id}: actual=${actual} threshold>=${threshold}${missingDetail}`,
   };
 }
 
@@ -382,15 +440,23 @@ export function run(argv: string[] = process.argv.slice(2)): number {
 
   const harnessAbsolutePath = path.resolve(root, args.harnessPath);
   const adapterChaosAbsolutePath = path.resolve(root, args.adapterChaosPath);
-  const supportRuns: Array<{
-    id: string;
-    script: string;
-    refresh_mode: RefreshMode;
-    refreshed: boolean;
-    reason: string;
-    status: number;
-    detail: string;
-  }> = [];
+  if (args.strict && (args.refreshHarness === 'never' || args.refreshAdapterChaos === 'never')) {
+    const payload = {
+      ok: false,
+      type: 'runtime_proof_release_gate',
+      error: 'runtime_proof_refresh_mode_never_forbidden',
+      detail: 'strict mode requires refresh-harness and refresh-adapter-chaos to be auto or always',
+      profile: args.profile,
+      refresh_harness: args.refreshHarness,
+      refresh_adapter_chaos: args.refreshAdapterChaos,
+    };
+    return emitStructuredResult(payload, {
+      outPath: args.outPath,
+      strict: args.strict,
+      ok: false,
+    });
+  }
+  const supportRuns: SupportRun[] = [];
 
   const harnessRefreshPlan = shouldRefreshArtifact(harnessAbsolutePath, args.refreshHarness, revision);
   if (harnessRefreshPlan.refresh) {
@@ -480,6 +546,28 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       detail: 'reused_existing_artifact',
     });
   }
+  const reusedSupportRuns = supportRuns.filter((row) => !row.refreshed);
+  if (args.strict && reusedSupportRuns.length > 0) {
+    const payload = {
+      ok: false,
+      type: 'runtime_proof_release_gate',
+      error: 'runtime_proof_support_artifact_reused',
+      detail: 'strict mode requires fresh support artifacts generated in this invocation',
+      profile: args.profile,
+      reused_support_runs: reusedSupportRuns.map((row) => ({
+        id: row.id,
+        script: row.script,
+        refresh_mode: row.refresh_mode,
+        reason: row.reason,
+        detail: row.detail,
+      })),
+    };
+    return emitStructuredResult(payload, {
+      outPath: args.outPath,
+      strict: args.strict,
+      ok: false,
+    });
+  }
 
   const policyRaw = fs.readFileSync(path.resolve(root, args.policyPath), 'utf8');
   const policy = parsePolicyYaml(policyRaw);
@@ -505,47 +593,97 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   const runtimeLaneStateRaw = readJsonBestEffort(path.resolve(root, args.runtimeLaneStatePath));
   const metrics = harness?.metrics || {};
   const adapterChaosMetrics = adapterChaos?.metrics || {};
+  if (adapterChaos?.ok === false) {
+    const payload = {
+      ok: false,
+      type: 'runtime_proof_release_gate',
+      error: 'adapter_runtime_chaos_gate_not_ok',
+      detail: cleanText(
+        String(
+          adapterChaos?.error || adapterChaos?.summary?.error || 'adapter_runtime_chaos_gate_reported_not_ok',
+        ),
+        320,
+      ),
+      profile: args.profile,
+      adapter_chaos_path: args.adapterChaosPath,
+    };
+    return emitStructuredResult(payload, {
+      outPath: args.outPath,
+      strict: args.strict,
+      ok: false,
+    });
+  }
   const adapterRatioInputs = (() => {
     const asFinite = (value: unknown): number | null => {
       const numeric = Number(value);
       return Number.isFinite(numeric) ? numeric : null;
     };
-    const baselineMetric = asFinite(adapterChaosMetrics.adapter_baseline_pass_ratio);
-    const failClosedMetric = asFinite(adapterChaosMetrics.adapter_chaos_fail_closed_ratio);
-    const graduationMetric = asFinite(adapterChaosMetrics.adapter_graduation_ratio);
-    if (baselineMetric != null && failClosedMetric != null && graduationMetric != null) {
-      return {
-        baseline: baselineMetric,
-        fail_closed: failClosedMetric,
-        graduation: graduationMetric,
-        source: 'adapter_runtime_chaos_gate.metrics',
-      };
-    }
-    const manifestRaw = readJsonBestEffort(
-      path.resolve(root, 'tests/tooling/config/adapter_graduation_manifest.json'),
-    );
-    const adapters = Array.isArray(manifestRaw.payload?.adapters)
-      ? manifestRaw.payload.adapters
-      : [];
-    const productionCount = adapters.filter(
-      (row: any) => cleanText(row?.tier || '', 40).toLowerCase() === 'production',
-    ).length;
-    const manifestRatio = adapters.length === 0 ? 0 : productionCount / adapters.length;
+    const baseline = asFinite(adapterChaosMetrics.adapter_baseline_pass_ratio);
+    const failClosed = asFinite(adapterChaosMetrics.adapter_chaos_fail_closed_ratio);
+    const graduation = asFinite(adapterChaosMetrics.adapter_graduation_ratio);
+    const missing_fields = [
+      ...(baseline == null ? ['adapter_baseline_pass_ratio'] : []),
+      ...(failClosed == null ? ['adapter_chaos_fail_closed_ratio'] : []),
+      ...(graduation == null ? ['adapter_graduation_ratio'] : []),
+    ];
     return {
-      baseline: baselineMetric ?? manifestRatio,
-      fail_closed: failClosedMetric ?? manifestRatio,
-      graduation: graduationMetric ?? manifestRatio,
-      source:
-        adapters.length > 0
-          ? 'adapter_graduation_manifest.fallback'
-          : 'adapter_ratio_input_unavailable',
+      ok: missing_fields.length === 0,
+      baseline: baseline ?? 0,
+      fail_closed: failClosed ?? 0,
+      graduation: graduation ?? 0,
+      source: 'adapter_runtime_chaos_gate.metrics',
+      missing_fields,
     };
   })();
+  if (!adapterRatioInputs.ok) {
+    const payload = {
+      ok: false,
+      type: 'runtime_proof_release_gate',
+      error: 'adapter_runtime_chaos_ratio_inputs_missing',
+      detail:
+        'adapter ratio metrics must be emitted by adapter_runtime_chaos_gate; manifest fallback is disabled',
+      profile: args.profile,
+      adapter_chaos_path: args.adapterChaosPath,
+      adapter_ratio_input_source: adapterRatioInputs.source,
+      missing_fields: adapterRatioInputs.missing_fields,
+    };
+    return emitStructuredResult(payload, {
+      outPath: args.outPath,
+      strict: args.strict,
+      ok: false,
+    });
+  }
   const proofTracks = harness?.proof_tracks || {};
+  const empiricalTrack = proofTracks?.empirical || {};
+  const empiricalRequired = profilePolicy.proof_tracks.empirical_required > 0;
+  const empiricalProvidedKeys = new Set(
+    (Array.isArray(empiricalTrack?.provided_keys) ? empiricalTrack.provided_keys : [])
+      .map((key: unknown) => cleanText(String(key || ''), 80))
+      .filter(Boolean),
+  );
+  const empiricalSources = Array.isArray(empiricalTrack?.sources) ? empiricalTrack.sources : [];
+  const loadedEmpiricalSourceIds = new Set(
+    empiricalSources
+      .filter((row: any) => row?.loaded === true && Number(row?.sample_points || 0) > 0)
+      .map((row: any) => cleanText(String(row?.id || ''), 80))
+      .filter(Boolean),
+  );
+  const requiredEmpiricalSourceIds = EMPIRICAL_REQUIRED_SOURCE_IDS_BY_PROFILE[args.profile];
+  const missingEmpiricalSourceIds = requiredEmpiricalSourceIds.filter(
+    (id) => !loadedEmpiricalSourceIds.has(id),
+  );
+  const requiredEmpiricalProvidedKeys = EMPIRICAL_REQUIRED_METRIC_KEYS_BY_PROFILE[args.profile];
+  const missingEmpiricalProvidedKeys = requiredEmpiricalProvidedKeys.filter(
+    (key) => !empiricalProvidedKeys.has(key),
+  );
+  const requiredEmpiricalPositiveMetricKeys = requiredEmpiricalProvidedKeys;
+  const nonPositiveEmpiricalMetricKeys = requiredEmpiricalPositiveMetricKeys.filter(
+    (key) => Number(empiricalTrack?.metrics?.[key] || 0) <= 0,
+  );
   const selectedTrack = cleanText(proofTracks?.selected || args.proofTrack, 24);
   const syntheticSamplePoints = Number(proofTracks?.synthetic?.sample_points || 0);
-  const empiricalSamplePoints = Number(proofTracks?.empirical?.sample_points || 0);
-  const empiricalAvailable = proofTracks?.empirical?.available === true || empiricalSamplePoints > 0;
+  const empiricalSamplePoints = Number(empiricalTrack?.sample_points || 0);
+  const empiricalAvailable = empiricalTrack?.available === true || empiricalSamplePoints > 0;
   const qualityTaxonomy = qualityRaw.payload?.taxonomy || { parse_error: 'taxonomy_missing' };
   const qualityParseError =
     !qualityRaw.ok || cleanText(qualityTaxonomy.parse_error || '', 120).length > 0 ? 1 : 0;
@@ -590,11 +728,29 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       profilePolicy.proof_tracks.empirical_required,
     ),
     buildCheckGe(
+      'proof_track_empirical_selected_when_required',
+      selectedTrack === 'empirical' || selectedTrack === 'dual' ? 1 : 0,
+      empiricalRequired ? 1 : 0,
+    ),
+    buildCheckGe(
       'proof_track_empirical_sample_points_min',
       empiricalSamplePoints,
-      profilePolicy.proof_tracks.empirical_required > 0
-        ? profilePolicy.proof_tracks.empirical_min_sample_points
-        : 0,
+      empiricalRequired ? profilePolicy.proof_tracks.empirical_min_sample_points : 0,
+    ),
+    buildRequiredCompletenessCheck(
+      'proof_track_empirical_required_sources_loaded',
+      empiricalRequired,
+      missingEmpiricalSourceIds,
+    ),
+    buildRequiredCompletenessCheck(
+      'proof_track_empirical_required_metrics_present',
+      empiricalRequired,
+      missingEmpiricalProvidedKeys,
+    ),
+    buildRequiredCompletenessCheck(
+      'proof_track_empirical_required_positive_metrics',
+      empiricalRequired,
+      nonPositiveEmpiricalMetricKeys,
     ),
     buildCheckLe('peak_rss_mb_max', Number(metrics.peak_rss_mb || 0), profilePolicy.memory.peak_rss_mb_max),
     buildCheckLe('queue_depth_max', Number(metrics.queue_depth_max || 0), profilePolicy.queue.depth_max),
@@ -718,6 +874,9 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       proof_track_selected: selectedTrack,
       proof_track_synthetic_sample_points: syntheticSamplePoints,
       proof_track_empirical_sample_points: empiricalSamplePoints,
+      proof_track_empirical_required_sources_missing: missingEmpiricalSourceIds,
+      proof_track_empirical_required_metrics_missing: missingEmpiricalProvidedKeys,
+      proof_track_empirical_required_positive_metrics_missing: nonPositiveEmpiricalMetricKeys,
       runtime_lane_state_path: args.runtimeLaneStatePath,
     },
   };
@@ -749,6 +908,9 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       pass: failures.length === 0,
       selected_track: selectedTrack,
       empirical_sample_points: empiricalSamplePoints,
+      support_runs_total: supportRuns.length,
+      support_runs_refreshed: supportRuns.filter((row) => row.refreshed).length,
+      support_runs_reused: supportRuns.filter((row) => !row.refreshed).length,
     },
     checks,
     failures,

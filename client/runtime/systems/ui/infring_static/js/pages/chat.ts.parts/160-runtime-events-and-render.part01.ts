@@ -263,7 +263,7 @@
     },
 
     // Format timestamp for display
-    formatTime: function(ts) {
+    formatClockTime: function(ts) {
       if (!ts) return '';
       var d = new Date(ts);
       if (Number.isNaN(d.getTime())) return '';
@@ -272,6 +272,11 @@
       var ampm = h >= 12 ? 'PM' : 'AM';
       h = h % 12 || 12;
       return h + ':' + (m < 10 ? '0' : '') + m + ' ' + ampm;
+    },
+
+    // Backward-compat shim for legacy callers during naming migration.
+    formatTime: function(ts) {
+      return this.formatClockTime(ts);
     },
 
     isSameDay: function(a, b) {
@@ -284,18 +289,23 @@
     },
 
     // UI-safe timestamp formatter for templates
-    messageTs: function(msg) {
+    messageTimestampLabel: function(msg) {
       if (!msg || !msg.ts) return '';
       var ts = new Date(msg.ts);
       if (Number.isNaN(ts.getTime())) return '';
       var now = new Date();
-      if (this.isSameDay(ts, now)) return this.formatTime(ts);
+      if (this.isSameDay(ts, now)) return this.formatClockTime(ts);
       var yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
       if (this.isSameDay(ts, yesterday)) {
-        return 'Yesterday at ' + this.formatTime(ts);
+        return 'Yesterday at ' + this.formatClockTime(ts);
       }
       var dateText = ts.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-      return dateText + ' at ' + this.formatTime(ts);
+      return dateText + ' at ' + this.formatClockTime(ts);
+    },
+
+    // Backward-compat shim for legacy callers during naming migration.
+    messageTs: function(msg) {
+      return this.messageTimestampLabel(msg);
     },
 
     parseProgressFromText: function(text) {

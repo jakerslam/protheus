@@ -209,13 +209,13 @@
         await this.loadSessions(this.currentAgent.id);
         // Reconnect WebSocket for new session
         this._wsAgent = null;
-        this.connectWs(this.currentAgent.id);
+        this.connectChatWebSocket(this.currentAgent.id);
       } catch(e) {
         if (typeof InfringToast !== 'undefined') InfringToast.error('Failed to switch session');
       }
     },
 
-    connectWs(agentId) {
+    connectChatWebSocket(agentId) {
       var targetAgentId = String(agentId || '').trim();
       if (!targetAgentId) return;
       if (this._wsAgent === targetAgentId && InfringAPI.isWsConnected()) return;
@@ -311,7 +311,7 @@
         onMessage: function(data) {
           var dataAgentId = data && data.agent_id ? data.agent_id : '';
           if (!isLiveConnection(dataAgentId)) return;
-          self.handleWsMessage(data);
+          self.handleChatWebSocketMessage(data);
         },
         onReconnect: function() {
           if (!isLiveConnection('')) return;
@@ -360,6 +360,11 @@
           }
         }
       });
+    },
+
+    // Backward-compat shim for legacy callers during naming migration.
+    connectWs(agentId) {
+      this.connectChatWebSocket(agentId);
     },
 
     formatInactiveReason: function(reason) {
@@ -479,6 +484,12 @@
       try { Alpine.store('app').refreshAgents(); } catch(_) {}
     },
 
+    // Preferred naming for websocket event entrypoint.
+    handleChatWebSocketMessage(data) {
+      this.handleWsMessage(data);
+    },
+
+    // Backward-compat websocket event entrypoint.
     handleWsMessage(data) {
       var eventAgentId = String(data && data.agent_id ? data.agent_id : '').trim();
       var activeWsAgentId = String(this._wsAgent || '').trim();
