@@ -67,6 +67,25 @@ Get-Command infring -ErrorAction SilentlyContinue
 infring gateway
 ```
 
+If a release has no Windows prebuilt binary for your architecture, installer fallback may require local source build prerequisites:
+
+```powershell
+winget install --id Git.Git -e
+winget install --id Rustlang.Rustup -e
+winget install --id Microsoft.VisualStudio.2022.BuildTools -e --override "--quiet --wait --norestart --add Microsoft.VisualStudio.Workload.VCTools"
+```
+
+When `winget` is unavailable or fails, the installer falls back to the direct Visual Studio bootstrapper:
+`https://aka.ms/vs/17/release/vs_BuildTools.exe`
+
+For locked-down environments, disable auto bootstrap lanes explicitly:
+
+```powershell
+$env:INFRING_INSTALL_AUTO_MSVC = "0"
+$env:INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP = "0"
+$env:INFRING_INSTALL_AUTO_RUSTUP = "0"
+```
+
 ### Verify the CLI
 ```bash
 infring --help
