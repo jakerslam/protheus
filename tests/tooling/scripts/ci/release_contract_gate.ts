@@ -92,11 +92,14 @@ function windowsAndDocsCheck(): Check {
   const windowsBuildToolsCommand =
     'winget install --id Microsoft.VisualStudio.2022.BuildTools -e --override "--quiet --wait --norestart --add Microsoft.VisualStudio.Workload.VCTools"';
   const directBootstrapperUrl = 'https://aka.ms/vs/17/release/vs_BuildTools.exe';
+  const windowsReadmeInstallCommand =
+    'Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force; $tmp = Join-Path $env:TEMP "infring-install.ps1"; irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 -OutFile $tmp -ErrorAction Stop; & $tmp -Repair -Full; Remove-Item $tmp -Force -ErrorAction SilentlyContinue';
   const ok =
     installPs.includes('protheus-ops.exe') &&
     installPs.includes('infringd.cmd') &&
     installPs.includes('Install-AllowDirectMsvcBootstrapEnabled') &&
     installPs.includes(directBootstrapperUrl) &&
+    installPs.includes(windowsReadmeInstallCommand) &&
     /& \$tmp(?:\s+-Repair)?\s+-Full/.test(readme) &&
     readme.includes('install.ps1 -OutFile $tmp -ErrorAction Stop') &&
     readme.includes('Remove-Item $tmp -Force -ErrorAction SilentlyContinue') &&
