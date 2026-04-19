@@ -513,6 +513,7 @@ jobs:
           draft: false
           prerelease: ${{ steps.semver.outputs.release_channel != 'stable' }}
           generate_release_notes: true
+          fail_on_unmatched_files: true
           body_path: client/runtime/local/state/release/CHANGELOG.auto.md
           files: |
             client/runtime/local/state/release/artifacts/infring-ops-x86_64-unknown-linux-gnu
