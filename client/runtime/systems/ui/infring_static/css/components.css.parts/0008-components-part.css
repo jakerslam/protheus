@@ -324,8 +324,7 @@
     margin var(--chat-input-side-transition);
 }
 
-.composer-input-pill,
-.composer-controls-pill {
+.composer-shared-input-pill {
   border: none;
   border-radius: 22px;
   background: var(--surface);
@@ -348,6 +347,19 @@
   display: flex;
   align-items: flex-end;
   min-height: var(--composer-shell-min-height);
+}
+
+.composer-menu-pill {
+  position: relative;
+  flex: 0 0 var(--composer-shell-min-height);
+  width: var(--composer-shell-min-height);
+  min-width: var(--composer-shell-min-height);
+  max-width: var(--composer-shell-min-height);
+  height: var(--composer-shell-min-height);
+  min-height: var(--composer-shell-min-height);
+  max-height: var(--composer-shell-min-height);
+  align-self: flex-end;
+  overflow: visible;
 }
 
 .composer-controls-pill {
@@ -381,8 +393,7 @@
   filter: none;
 }
 
-.composer-shell:focus-within .composer-input-pill,
-.composer-shell:focus-within .composer-controls-pill {
+.composer-shell:focus-within .composer-shared-input-pill {
   box-shadow: -6px 0 12px -14px rgba(0, 0, 0, 0.36), 6px 0 12px -14px rgba(0, 0, 0, 0.36), 0 10px 18px -18px rgba(0, 0, 0, 0.58), 0 2px 6px rgba(0, 0, 0, 0.24), 0 0 0 3px var(--accent-glow);
 }
 
@@ -783,6 +794,14 @@
     bottom var(--chat-input-side-transition),
     transform var(--chat-input-side-transition),
     opacity var(--chat-input-side-transition);
+}
+
+.composer-menu-pill .composer-plus-wrap.composer-icon-left {
+  right: auto;
+  bottom: auto;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
 }
 
 .composer-hamburger-icon {
