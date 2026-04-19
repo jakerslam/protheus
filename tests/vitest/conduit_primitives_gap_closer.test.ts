@@ -299,6 +299,21 @@ describe('conduit primitive wrapper contract', () => {
     ).toBe(true);
     expect(
       source.includes(
+        'Failed to install pure workspace binary for $triple ($resolvedVersionLabel). No compatible prebuilt asset was found and source fallback did not complete. Diagnostic: $failureHint',
+      ),
+    ).toBe(true);
+    expect(
+      source.includes(
+        'Failed to install core ops runtime for $triple ($resolvedVersionLabel). Prebuilt asset download failed and source fallback did not complete. Diagnostic: $failureHint',
+      ),
+    ).toBe(true);
+    expect(
+      source.includes(
+        'Install Rust toolchain + C++ build tools, then rerun the README Windows install command: $ReadmeWindowsInstallCommand $windowsToolsHint',
+      ),
+    ).toBe(true);
+    expect(
+      source.includes(
         '[infring install] no compatible Windows prebuilt release found for required stems; source fallback remains a backup path only.',
       ),
     ).toBe(true);
