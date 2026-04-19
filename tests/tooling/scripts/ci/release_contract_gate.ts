@@ -93,6 +93,7 @@ function windowsAndDocsCheck(): Check {
   const windowsBuildToolsCommand =
     'winget install --id Microsoft.VisualStudio.2022.BuildTools -e --override "--quiet --wait --norestart --add Microsoft.VisualStudio.Workload.VCTools"';
   const directBootstrapperUrl = 'https://aka.ms/vs/17/release/vs_BuildTools.exe';
+  const directGatewayFallbackCommand = '$HOME\\.infring\\bin\\infring.cmd gateway';
   const windowsReadmeInstallCommand =
     'Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force; $tmp = Join-Path $env:TEMP "infring-install.ps1"; irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 -OutFile $tmp -ErrorAction Stop; & $tmp -Repair -Full; Remove-Item $tmp -Force -ErrorAction SilentlyContinue';
   const ok =
@@ -109,6 +110,7 @@ function windowsAndDocsCheck(): Check {
     readme.includes('$env:INFRING_INSTALL_AUTO_MSVC = "0"') &&
     readme.includes('$env:INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP = "0"') &&
     readme.includes('$env:INFRING_INSTALL_AUTO_RUSTUP = "0"') &&
+    readme.includes(directGatewayFallbackCommand) &&
     readme.includes('INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP') &&
     /& \$tmp(?:\s+-Repair)?\s+-Full/.test(gettingStarted) &&
     gettingStarted.includes('install.ps1 -OutFile $tmp -ErrorAction Stop') &&
@@ -117,6 +119,7 @@ function windowsAndDocsCheck(): Check {
     gettingStarted.includes('$env:INFRING_INSTALL_AUTO_MSVC = "0"') &&
     gettingStarted.includes('$env:INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP = "0"') &&
     gettingStarted.includes('$env:INFRING_INSTALL_AUTO_RUSTUP = "0"') &&
+    gettingStarted.includes(directGatewayFallbackCommand) &&
     gettingStarted.includes('INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP') &&
     gettingStarted.includes('infring --help') &&
     manualHelp.includes('install.ps1 -OutFile $tmp -ErrorAction Stop') &&
@@ -126,6 +129,7 @@ function windowsAndDocsCheck(): Check {
     manualHelp.includes('$env:INFRING_INSTALL_AUTO_MSVC = "0"') &&
     manualHelp.includes('$env:INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP = "0"') &&
     manualHelp.includes('$env:INFRING_INSTALL_AUTO_RUSTUP = "0"') &&
+    manualHelp.includes(directGatewayFallbackCommand) &&
     manualHelp.includes('INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP') &&
     /& \$tmp(?:\s+-Repair)?\s+-Full/.test(manualHelp);
   return {
