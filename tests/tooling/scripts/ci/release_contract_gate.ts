@@ -104,6 +104,13 @@ function windowsAndDocsCheck(): Check {
   const readmeCommandBanner = '[infring install] README Windows install command: $ReadmeWindowsInstallCommand';
   const preflightToolchainBanner =
     '[infring install] preflight windows toolchain: cargo={0}; rustc={1}; msvc_tools={2}; tar={3}; winget={4}';
+  const preflightTripleCandidatesBanner = '[infring install] preflight triple candidates: {0}';
+  const preflightAssetFoundProbeBanner =
+    '[infring install] preflight asset probe ({0}): found {1}; reachable={2} ({3})';
+  const preflightAssetMissingProbeBanner =
+    '[infring install] preflight asset probe ({0}): missing prebuilt in release metadata ({1})';
+  const preflightCompatibleTripleNoteBanner =
+    '[infring install] preflight note: using compatible Windows triple asset variant {0} for requested {1}';
   const noCompatiblePrebuiltBanner =
     '[infring install] no compatible Windows prebuilt release found for required stems; source fallback remains a backup path only.';
   const autoMsvcEnabledBanner =
@@ -134,6 +141,10 @@ function windowsAndDocsCheck(): Check {
     installPs.includes(rerunReadmeInstallHint) &&
     installPs.includes(readmeCommandBanner) &&
     installPs.includes(preflightToolchainBanner) &&
+    installPs.includes(preflightTripleCandidatesBanner) &&
+    installPs.includes(preflightAssetFoundProbeBanner) &&
+    installPs.includes(preflightAssetMissingProbeBanner) &&
+    installPs.includes(preflightCompatibleTripleNoteBanner) &&
     installPs.includes(noCompatiblePrebuiltBanner) &&
     installPs.includes(autoMsvcEnabledBanner) &&
     installPs.includes(autoMsvcDisabledBanner) &&
