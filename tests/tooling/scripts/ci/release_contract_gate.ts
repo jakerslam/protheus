@@ -206,6 +206,10 @@ function windowsAndDocsCheck(): Check {
     installPs.includes('Install-AllowNoMsvcSourceFallback') &&
     installPs.includes('Install-AllowCompatibleReleaseFallback') &&
     installPs.includes('Install-AllowPinnedVersionCompatibleFallback') &&
+    installPs.includes('INFRING_ALLOW_COMPATIBLE_RELEASE_FALLBACK') &&
+    installPs.includes('INFRING_ALLOW_PINNED_VERSION_COMPATIBLE_FALLBACK') &&
+    installPs.includes('INFRING_INSTALL_ALLOW_MAIN_LAST_RESORT_SOURCE_FALLBACK') &&
+    installPs.includes('INFRING_ALLOW_MAIN_LAST_RESORT_SOURCE_FALLBACK') &&
     installPs.includes('Install-AllowDirectMsvcBootstrapEnabled') &&
     installPs.includes('INFRING_INSTALL_REPAIR') &&
     installPs.includes('INFRING_INSTALL_FULL') &&
