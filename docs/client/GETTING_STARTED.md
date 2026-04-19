@@ -18,10 +18,10 @@ If PATH has not refreshed in the same shell, run directly: `~/.infring/bin/infri
 # Use process-scoped bypass so locked-down execution policies do not block install.
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
 $tmp = Join-Path $env:TEMP "infring-install.ps1"
-irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 -OutFile $tmp
+irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 -OutFile $tmp -ErrorAction Stop
 & $tmp -Repair -Full
 # Remove-Item is silent on success in PowerShell.
-Remove-Item $tmp -Force
+Remove-Item $tmp -Force -ErrorAction SilentlyContinue
 # Confirm command resolution in this shell; if unresolved, use direct-path fallback below.
 Get-Command infring -ErrorAction SilentlyContinue
 infring gateway
@@ -35,7 +35,13 @@ If a release has no Windows prebuilt binary for your architecture, the installer
 winget install --id Git.Git -e
 winget install --id Rustlang.Rustup -e
 # Optional but often required for MSVC source builds:
-winget install --id Microsoft.VisualStudio.2022.BuildTools -e
+winget install --id Microsoft.VisualStudio.2022.BuildTools -e --override "--quiet --wait --norestart --add Microsoft.VisualStudio.Workload.VCTools"
+```
+
+When `winget` is unavailable or fails, the installer now attempts a direct Build Tools bootstrapper fallback by default. Disable that path only in locked-down environments:
+
+```powershell
+$env:INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP = "0"
 ```
 
 ### Optional: Python Wrapper (`pipx`)
