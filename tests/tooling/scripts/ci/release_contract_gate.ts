@@ -145,6 +145,8 @@ function windowsAndDocsCheck(): Check {
     'Install Rust toolchain + C++ build tools, then rerun the README Windows install command: $ReadmeWindowsInstallCommand $windowsToolsHint';
   const noCompatiblePrebuiltBanner =
     '[infring install] no compatible Windows prebuilt release found for required stems; source fallback remains a backup path only.';
+  const compatibleReleaseFallbackDisabledBanner =
+    '[infring install] compatible Windows release fallback is disabled (set INFRING_INSTALL_ALLOW_COMPATIBLE_RELEASE_FALLBACK=1 to enable alternate-tag prebuilt scanning).';
   const pinnedCompatibleReleaseFallbackBanner =
     '[infring install] pinned release $version is missing one or more required Windows prebuilts for $triple; using compatible release $compatibleWindows (disable with INFRING_INSTALL_ALLOW_PINNED_VERSION_COMPATIBLE_FALLBACK=0)';
   const pinnedCompatibleFallbackDisabledNote =
@@ -221,6 +223,7 @@ function windowsAndDocsCheck(): Check {
     installPs.includes(coreInstallFailureThrowPrefix) &&
     installPs.includes(windowsFailureRemediationSentence) &&
     installPs.includes(noCompatiblePrebuiltBanner) &&
+    installPs.includes(compatibleReleaseFallbackDisabledBanner) &&
     installPs.includes(pinnedCompatibleReleaseFallbackBanner) &&
     installPs.includes(pinnedCompatibleFallbackDisabledNote) &&
     installPs.includes(autoMsvcEnabledBanner) &&

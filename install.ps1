@@ -1605,6 +1605,7 @@ if ($HostIsWindows) {
     $requiredWindowsStems += "infring-ops"
   }
   Invoke-WindowsInstallerPreflight -VersionTag $version -Triple $triple -RequiredStems $requiredWindowsStems
+  $allowCompatibleWindowsFallback = Install-AllowCompatibleReleaseFallback
   $allowPinnedCompatibleWindowsFallback = Install-AllowPinnedVersionCompatibleFallback
   $preflightWindowsAssetGaps = @()
   if ($script:WindowsInstallPreflight -and $script:WindowsInstallPreflight.assets) {
@@ -1621,18 +1622,29 @@ if ($HostIsWindows) {
     Write-Host "[infring install] pinned Windows compatible-release fallback is disabled; set INFRING_INSTALL_ALLOW_PINNED_VERSION_COMPATIBLE_FALLBACK=1 to allow compatible prebuilt selection when pinned tag assets are unavailable."
   }
   if (($RequestedVersion -eq "latest") -or $allowPinnedCompatibleWindowsFallback) {
-    $compatibleWindows = Resolve-AssetCompatibleVersionForTriple $triple $requiredWindowsStems
-    if ($compatibleWindows -and ($compatibleWindows -ne $version)) {
-      if ($RequestedVersion -eq "latest") {
-        Write-Host "[infring install] latest release $version is missing one or more required Windows prebuilts for $triple; using compatible release $compatibleWindows"
-      } else {
-        Write-Host "[infring install] pinned release $version is missing one or more required Windows prebuilts for $triple; using compatible release $compatibleWindows (disable with INFRING_INSTALL_ALLOW_PINNED_VERSION_COMPATIBLE_FALLBACK=0)"
+    if (-not $allowCompatibleWindowsFallback) {
+      Write-Host "[infring install] compatible Windows release fallback is disabled (set INFRING_INSTALL_ALLOW_COMPATIBLE_RELEASE_FALLBACK=1 to enable alternate-tag prebuilt scanning)."
+    } else {
+      $compatibleWindows = Resolve-AssetCompatibleVersionForTriple $triple $requiredWindowsStems
+      if ($compatibleWindows -and ($compatibleWindows -ne $version)) {
+        if ($RequestedVersion -eq "latest") {
+          Write-Host "[infring install] latest release $version is missing one or more required Windows prebuilts for $triple; using compatible release $compatibleWindows"
+        } else {
+          Write-Host "[infring install] pinned release $version is missing one or more required Windows prebuilts for $triple; using compatible release $compatibleWindows (disable with INFRING_INSTALL_ALLOW_PINNED_VERSION_COMPATIBLE_FALLBACK=0)"
+        }
+        $version = $compatibleWindows
+        $resolvedVersionLabel = $compatibleWindows
+        Invoke-WindowsInstallerPreflight -VersionTag $version -Triple $triple -RequiredStems $requiredWindowsStems
+      } elseif (-not $compatibleWindows) {
+        Write-Host "[infring install] no compatible Windows prebuilt release found for required stems; source fallback remains a backup path only."
+        if (Install-AutoMsvcBootstrapEnabled) {
+          Write-Host "[infring install] auto MSVC bootstrap is enabled; installer will attempt Build Tools install during source fallback if needed."
+        } else {
+          Write-Host "[infring install] auto MSVC bootstrap is disabled; enable with INFRING_INSTALL_AUTO_MSVC=1 for best-effort source fallback repair."
+        }
       }
-      $version = $compatibleWindows
-      $resolvedVersionLabel = $compatibleWindows
-      Invoke-WindowsInstallerPreflight -VersionTag $version -Triple $triple -RequiredStems $requiredWindowsStems
-    } elseif (-not $compatibleWindows) {
-      Write-Host "[infring install] no compatible Windows prebuilt release found for required stems; source fallback remains a backup path only."
+    }
+    if (-not $allowCompatibleWindowsFallback) {
       if (Install-AutoMsvcBootstrapEnabled) {
         Write-Host "[infring install] auto MSVC bootstrap is enabled; installer will attempt Build Tools install during source fallback if needed."
       } else {
