@@ -69,6 +69,15 @@ infring gateway
 
 If PATH has not refreshed in the same shell, run directly: `$HOME\.infring\bin\infring.cmd gateway`.
 
+If script execution is still restricted in your environment, use a no-file fallback:
+
+```powershell
+$env:INFRING_INSTALL_REPAIR = "1"
+$env:INFRING_INSTALL_FULL = "1"
+irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 | iex
+infring gateway
+```
+
 If a release has no Windows prebuilt binary for your architecture, installer fallback may require local source build prerequisites:
 
 ```powershell
