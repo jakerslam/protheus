@@ -118,6 +118,7 @@ function windowsAndDocsCheck(): Check {
     readme.includes('$env:INFRING_INSTALL_REPAIR = "1"') &&
     readme.includes('$env:INFRING_INSTALL_FULL = "1"') &&
     readme.includes(noFileFallbackIex) &&
+    !readme.includes('| iex -Full') &&
     readme.includes(directGatewayFallbackCommand) &&
     readme.includes('INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP') &&
     /& \$tmp(?:\s+-Repair)?\s+-Full/.test(gettingStarted) &&
@@ -130,6 +131,7 @@ function windowsAndDocsCheck(): Check {
     gettingStarted.includes('$env:INFRING_INSTALL_REPAIR = "1"') &&
     gettingStarted.includes('$env:INFRING_INSTALL_FULL = "1"') &&
     gettingStarted.includes(noFileFallbackIex) &&
+    !gettingStarted.includes('| iex -Full') &&
     gettingStarted.includes(directGatewayFallbackCommand) &&
     gettingStarted.includes('INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP') &&
     gettingStarted.includes('infring --help') &&
@@ -143,6 +145,7 @@ function windowsAndDocsCheck(): Check {
     manualHelp.includes('$env:INFRING_INSTALL_REPAIR = "1"') &&
     manualHelp.includes('$env:INFRING_INSTALL_FULL = "1"') &&
     manualHelp.includes(noFileFallbackIex) &&
+    !manualHelp.includes('| iex -Full') &&
     manualHelp.includes(directGatewayFallbackCommand) &&
     manualHelp.includes('INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP') &&
     /& \$tmp(?:\s+-Repair)?\s+-Full/.test(manualHelp);
