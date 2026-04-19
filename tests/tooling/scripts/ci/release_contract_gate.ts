@@ -91,6 +91,9 @@ function windowsAndDocsCheck(): Check {
   const readme = read('README.md');
   const gettingStarted = read('docs/client/GETTING_STARTED.md');
   const manualHelp = read('docs/workspace/manuals/infring_manual_help_tab.md');
+  const installPsForceRepairShim = /if \(\$Force\)\s*\{[\s\S]*\$InstallRepair\s*=\s*\$true[\s\S]*if \(-not \$Minimal\)\s*\{[\s\S]*\$InstallFull\s*=\s*\$true/.test(
+    installPs,
+  );
   const windowsBuildToolsCommand =
     'winget install --id Microsoft.VisualStudio.2022.BuildTools -e --override "--quiet --wait --norestart --add Microsoft.VisualStudio.Workload.VCTools"';
   const directBootstrapperUrl = 'https://aka.ms/vs/17/release/vs_BuildTools.exe';
@@ -104,6 +107,8 @@ function windowsAndDocsCheck(): Check {
     installPs.includes('Install-AllowDirectMsvcBootstrapEnabled') &&
     installPs.includes('INFRING_INSTALL_REPAIR') &&
     installPs.includes('INFRING_INSTALL_FULL') &&
+    installPs.includes('Compatibility shim for operators accustomed to `-Force`.') &&
+    installPsForceRepairShim &&
     opsLib.includes('#![recursion_limit = "16384"]') &&
     installPs.includes(directBootstrapperUrl) &&
     installPs.includes(windowsReadmeInstallCommand) &&
