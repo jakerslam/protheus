@@ -41,7 +41,9 @@ winget install --id Microsoft.VisualStudio.2022.BuildTools -e --override "--quie
 When `winget` is unavailable or fails, the installer now attempts a direct Build Tools bootstrapper fallback by default. Disable that path only in locked-down environments:
 
 ```powershell
+$env:INFRING_INSTALL_AUTO_MSVC = "0"
 $env:INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP = "0"
+$env:INFRING_INSTALL_AUTO_RUSTUP = "0"
 ```
 
 ### Optional: Python Wrapper (`pipx`)
