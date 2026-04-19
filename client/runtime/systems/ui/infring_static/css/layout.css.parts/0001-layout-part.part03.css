@@ -24,6 +24,10 @@
   --bottom-dock-surface-saturate: var(--overlay-magnified-surface-saturate);
   --bottom-dock-surface-brightness: var(--overlay-magnified-surface-brightness);
   --bottom-dock-surface-contrast: var(--overlay-magnified-surface-contrast);
+  --drag-bar-border-override: var(--bottom-dock-surface-border);
+  --drag-bar-background-override: var(--bottom-dock-surface-background);
+  --drag-bar-shadow-override: var(--bottom-dock-surface-shadow);
+  --drag-bar-rim-shadow: var(--overlay-magnified-surface-rim-shadow);
   --bottom-dock-magnified-lens-size: var(--overlay-magnified-surface-lens-size, 50%);
   --bottom-dock-magnified-lens-scale: var(--overlay-magnified-surface-lens-scale, 2);
   --bottom-dock-magnified-lens-opacity: var(--overlay-magnified-surface-lens-opacity, 0.34);

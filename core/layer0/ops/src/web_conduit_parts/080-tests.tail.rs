@@ -365,6 +365,16 @@ fn search_early_validation_blocks_direct_url_query_with_fetch_route_hint() {
         out.pointer("/query_shape/route_hint").and_then(Value::as_str),
         Some("web_fetch")
     );
+    assert_eq!(
+        out.pointer("/suggested_next_action/action")
+            .and_then(Value::as_str),
+        Some("web_conduit_fetch")
+    );
+    assert_eq!(
+        out.pointer("/suggested_next_action/payload/requested_url")
+            .and_then(Value::as_str),
+        Some("https://example.com/docs")
+    );
 }
 
 #[test]
@@ -547,6 +557,22 @@ fn fetch_shape_block_response_carries_override_source_and_stats() {
         out.get("fetch_url_shape_category").and_then(Value::as_str),
         Some("invalid_scheme")
     );
+    assert_eq!(
+        out.pointer("/retry/strategy").and_then(Value::as_str),
+        Some("provide_http_or_https_scheme")
+    );
+    assert_eq!(
+        out.pointer("/retry/reason").and_then(Value::as_str),
+        Some("fetch_url_invalid_scheme")
+    );
+    assert_eq!(
+        out.pointer("/retry/contract_version").and_then(Value::as_str),
+        Some("v1")
+    );
+    assert_eq!(
+        out.pointer("/retry/lane").and_then(Value::as_str),
+        Some("web_fetch")
+    );
     assert!(
         out.get("fetch_url_shape_recommended_action")
             .and_then(Value::as_str)
@@ -604,6 +630,11 @@ fn fetch_normalization_strips_trailing_punctuation_before_provider_validation() 
     assert_eq!(
         out.pointer("/fetch_url_shape/route_hint").and_then(Value::as_str),
         Some("web_fetch")
+    );
+    assert_eq!(
+        out.pointer("/fetch_url_shape/normalization_changed")
+            .and_then(Value::as_bool),
+        Some(true)
     );
 }
 
@@ -719,4 +750,1378 @@ fn search_uses_cached_response_when_available() {
         Some("cached search summary")
     );
     assert_eq!(out.get("cache_status").and_then(Value::as_str), Some("hit"));
+}
+
+#[test]
+fn search_query_shape_error_flags_markdown_link_as_fetch_intent() {
+    assert_eq!(
+        search_query_shape_error_code("[official docs](https://example.com/agents)"),
+        "query_prefers_fetch_url"
+    );
+}
+
+#[test]
+fn search_query_shape_suggested_next_action_extracts_markdown_link_url() {
+    let action = search_query_shape_suggested_next_action(
+        "[official docs](https://example.com/agents?x=1)",
+        "query_prefers_fetch_url",
+    );
+    assert_eq!(
+        action.pointer("/action").and_then(Value::as_str),
+        Some("web_conduit_fetch")
+    );
+    assert_eq!(
+        action
+            .pointer("/payload/requested_url")
+            .and_then(Value::as_str),
+        Some("https://example.com/agents?x=1")
+    );
+}
+
+#[test]
+fn api_search_blocks_markdown_link_query_with_fetch_route_hint() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let out = api_search(
+        tmp.path(),
+        &json!({
+            "query": "[OpenAI docs](https://platform.openai.com/docs)"
+        }),
+    );
+    assert_eq!(
+        out.get("query_shape_error").and_then(Value::as_str),
+        Some("query_prefers_fetch_url")
+    );
+    assert_eq!(
+        out.get("query_shape_route_hint").and_then(Value::as_str),
+        Some("web_fetch")
+    );
+    assert_eq!(
+        out.pointer("/suggested_next_action/payload/requested_url")
+            .and_then(Value::as_str),
+        Some("https://platform.openai.com/docs")
+    );
+    assert_eq!(
+        out.pointer("/retry/strategy").and_then(Value::as_str),
+        Some("use_web_fetch_route")
+    );
+    assert_eq!(
+        out.pointer("/retry/reason").and_then(Value::as_str),
+        Some("query_prefers_fetch_url")
+    );
+    assert_eq!(
+        out.pointer("/retry/contract_version").and_then(Value::as_str),
+        Some("v1")
+    );
+    assert_eq!(
+        out.pointer("/retry/lane").and_then(Value::as_str),
+        Some("web_fetch")
+    );
+}
+
+#[test]
+fn search_query_shape_extracts_wrapped_url_candidate() {
+    let action = search_query_shape_suggested_next_action(
+        "\"<https://example.com/research?q=agent&amp;mode=1>,\"",
+        "query_prefers_fetch_url",
+    );
+    assert_eq!(
+        action
+            .pointer("/payload/requested_url")
+            .and_then(Value::as_str),
+        Some("https://example.com/research?q=agent&mode=1")
+    );
+}
+
+#[test]
+fn search_query_shape_supports_www_candidate() {
+    let out = api_search(
+        tempfile::tempdir().expect("tempdir").path(),
+        &json!({
+            "query": "www.example.com/docs"
+        }),
+    );
+    assert_eq!(
+        out.get("query_shape_error").and_then(Value::as_str),
+        Some("query_prefers_fetch_url")
+    );
+    assert_eq!(
+        out.pointer("/query_shape/fetch_url_candidate")
+            .and_then(Value::as_str),
+        Some("https://www.example.com/docs")
+    );
+}
+
+#[test]
+fn fetch_request_uses_query_url_when_url_field_missing() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let out = execute_fetch_request(
+        tmp.path(),
+        &json!({
+            "query": "[read this](https://example.com/path?from=query)",
+            "provider": "definitely-not-a-fetch-provider"
+        }),
+    );
+    assert_eq!(
+        out.get("error").and_then(Value::as_str),
+        Some("unknown_fetch_provider")
+    );
+    assert_eq!(
+        out.get("requested_url").and_then(Value::as_str),
+        Some("https://example.com/path?from=query")
+    );
+    assert_eq!(
+        out.get("requested_url_source").and_then(Value::as_str),
+        Some("query")
+    );
+}
+
+#[test]
+fn search_query_shape_supports_bare_domain_candidates() {
+    assert_eq!(
+        search_query_shape_error_code("example.com/research/agents"),
+        "query_prefers_fetch_url"
+    );
+    let out = api_search(
+        tempfile::tempdir().expect("tempdir").path(),
+        &json!({
+            "query": "example.com/research/agents"
+        }),
+    );
+    assert_eq!(
+        out.pointer("/query_shape/fetch_url_candidate_kind")
+            .and_then(Value::as_str),
+        Some("bare_domain")
+    );
+    assert_eq!(
+        out.pointer("/query_shape/fetch_url_candidate")
+            .and_then(Value::as_str),
+        Some("https://example.com/research/agents")
+    );
+}
+
+#[test]
+fn search_query_shape_supports_protocol_relative_candidates() {
+    let out = api_search(
+        tempfile::tempdir().expect("tempdir").path(),
+        &json!({
+            "query": "//example.com/protocol-relative"
+        }),
+    );
+    assert_eq!(
+        out.get("query_shape_error").and_then(Value::as_str),
+        Some("query_prefers_fetch_url")
+    );
+    assert_eq!(
+        out.get("query_shape_fetch_url_candidate")
+            .and_then(Value::as_str),
+        Some("https://example.com/protocol-relative")
+    );
+    assert_eq!(
+        out.get("query_shape_fetch_url_candidate_kind")
+            .and_then(Value::as_str),
+        Some("protocol_relative")
+    );
+}
+
+#[test]
+fn fetch_normalizes_bare_domain_in_url_field() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let out = execute_fetch_request(
+        tmp.path(),
+        &json!({
+            "url": "example.com/path?a=1",
+            "provider": "definitely-not-a-fetch-provider"
+        }),
+    );
+    assert_eq!(
+        out.get("error").and_then(Value::as_str),
+        Some("unknown_fetch_provider")
+    );
+    assert_eq!(
+        out.get("requested_url").and_then(Value::as_str),
+        Some("https://example.com/path?a=1")
+    );
+}
+
+#[test]
+fn fetch_request_uses_target_url_fallback_when_url_missing() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let out = execute_fetch_request(
+        tmp.path(),
+        &json!({
+            "target_url": "example.com/from-target",
+            "provider": "definitely-not-a-fetch-provider"
+        }),
+    );
+    assert_eq!(
+        out.get("error").and_then(Value::as_str),
+        Some("unknown_fetch_provider")
+    );
+    assert_eq!(
+        out.get("requested_url").and_then(Value::as_str),
+        Some("https://example.com/from-target")
+    );
+    assert_eq!(
+        out.get("requested_url_source").and_then(Value::as_str),
+        Some("target_url")
+    );
+}
+
+#[test]
+fn search_query_shape_exposes_top_level_candidate_metadata() {
+    let out = api_search(
+        tempfile::tempdir().expect("tempdir").path(),
+        &json!({
+            "query": "example.com/insights"
+        }),
+    );
+    assert_eq!(
+        out.get("query_shape_fetch_url_candidate")
+            .and_then(Value::as_str),
+        Some("https://example.com/insights")
+    );
+    assert_eq!(
+        out.get("query_shape_fetch_url_candidate_kind")
+            .and_then(Value::as_str),
+        Some("bare_domain")
+    );
+    assert_eq!(out.get("query_source").and_then(Value::as_str), Some("query"));
+}
+
+#[test]
+fn fetch_request_uses_uri_field_and_reports_source() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let out = execute_fetch_request(
+        tmp.path(),
+        &json!({
+            "uri": "example.com/via-uri",
+            "provider": "definitely-not-a-fetch-provider"
+        }),
+    );
+    assert_eq!(
+        out.get("requested_url").and_then(Value::as_str),
+        Some("https://example.com/via-uri")
+    );
+    assert_eq!(
+        out.get("requested_url_source").and_then(Value::as_str),
+        Some("uri")
+    );
+}
+
+#[test]
+fn search_query_allows_payload_query_source() {
+    let out = api_search(
+        tempfile::tempdir().expect("tempdir").path(),
+        &json!({
+            "payload": {
+                "query": "example.com/payload-source"
+            }
+        }),
+    );
+    assert_eq!(out.get("query_source").and_then(Value::as_str), Some("payload.query"));
+    assert_eq!(
+        out.get("query_shape_fetch_url_candidate")
+            .and_then(Value::as_str),
+        Some("https://example.com/payload-source")
+    );
+}
+
+#[test]
+fn fetch_request_uses_payload_target_url_and_reports_source() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let out = execute_fetch_request(
+        tmp.path(),
+        &json!({
+            "payload": {
+                "targetUrl": "example.com/via-payload-target-url"
+            },
+            "provider": "definitely-not-a-fetch-provider"
+        }),
+    );
+    assert_eq!(
+        out.get("requested_url").and_then(Value::as_str),
+        Some("https://example.com/via-payload-target-url")
+    );
+    assert_eq!(
+        out.get("requested_url_source").and_then(Value::as_str),
+        Some("payload.targetUrl")
+    );
+}
+
+#[test]
+fn search_query_source_supports_object_query_array_rows() {
+    let out = api_search(
+        tempfile::tempdir().expect("tempdir").path(),
+        &json!({
+            "queries": [
+                {"query": "example.com/object-query-array"}
+            ]
+        }),
+    );
+    assert_eq!(
+        out.get("query_source").and_then(Value::as_str),
+        Some("queries[0].query")
+    );
+    assert_eq!(
+        out.get("query_source_kind").and_then(Value::as_str),
+        Some("array_field")
+    );
+    assert_eq!(
+        out.get("query_shape_fetch_url_candidate")
+            .and_then(Value::as_str),
+        Some("https://example.com/object-query-array")
+    );
+}
+
+#[test]
+fn search_query_source_supports_payload_object_query_array_rows() {
+    let out = api_search(
+        tempfile::tempdir().expect("tempdir").path(),
+        &json!({
+            "payload": {
+                "search_queries": [
+                    {"q": "example.com/payload-object-array"}
+                ]
+            }
+        }),
+    );
+    assert_eq!(
+        out.get("query_source").and_then(Value::as_str),
+        Some("payload.search_queries[0].q")
+    );
+    assert_eq!(
+        out.get("query_source_kind").and_then(Value::as_str),
+        Some("payload_array_field")
+    );
+    assert_eq!(
+        out.get("query_shape_fetch_url_candidate")
+            .and_then(Value::as_str),
+        Some("https://example.com/payload-object-array")
+    );
+}
+
+#[test]
+fn fetch_request_uses_payload_query_url_fallback_and_kind() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let out = execute_fetch_request(
+        tmp.path(),
+        &json!({
+            "payload": {
+                "query": "Please fetch https://example.com/from-payload-query"
+            },
+            "provider": "definitely-not-a-fetch-provider"
+        }),
+    );
+    assert_eq!(
+        out.get("requested_url").and_then(Value::as_str),
+        Some("https://example.com/from-payload-query")
+    );
+    assert_eq!(
+        out.get("requested_url_source").and_then(Value::as_str),
+        Some("payload.query")
+    );
+    assert_eq!(
+        out.get("requested_url_source_kind").and_then(Value::as_str),
+        Some("payload_query_fallback")
+    );
+}
+
+#[test]
+fn fetch_request_uses_request_url_and_kind() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let out = execute_fetch_request(
+        tmp.path(),
+        &json!({
+            "request": {
+                "url": "example.com/from-request-object"
+            },
+            "provider": "definitely-not-a-fetch-provider"
+        }),
+    );
+    assert_eq!(
+        out.get("requested_url").and_then(Value::as_str),
+        Some("https://example.com/from-request-object")
+    );
+    assert_eq!(
+        out.get("requested_url_source").and_then(Value::as_str),
+        Some("request.url")
+    );
+    assert_eq!(
+        out.get("requested_url_source_kind").and_then(Value::as_str),
+        Some("request_field")
+    );
+}
+
+#[test]
+fn search_query_source_supports_payload_request_query_alias() {
+    let out = api_search(
+        tempfile::tempdir().expect("tempdir").path(),
+        &json!({
+            "payload": {
+                "request": {
+                    "query": "example.com/payload-request-query-source"
+                }
+            }
+        }),
+    );
+    assert_eq!(
+        out.get("query_source").and_then(Value::as_str),
+        Some("payload.request.query")
+    );
+    assert_eq!(
+        out.get("query_source_kind").and_then(Value::as_str),
+        Some("request_field")
+    );
+    assert_eq!(
+        out.get("query_shape_fetch_url_candidate")
+            .and_then(Value::as_str),
+        Some("https://example.com/payload-request-query-source")
+    );
+}
+
+#[test]
+fn fetch_request_uses_request_query_fallback_and_kind() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let out = execute_fetch_request(
+        tmp.path(),
+        &json!({
+            "request": {
+                "query": "Please fetch https://example.com/from-request-query"
+            },
+            "provider": "definitely-not-a-fetch-provider"
+        }),
+    );
+    assert_eq!(
+        out.get("requested_url").and_then(Value::as_str),
+        Some("https://example.com/from-request-query")
+    );
+    assert_eq!(
+        out.get("requested_url_source").and_then(Value::as_str),
+        Some("request.query")
+    );
+    assert_eq!(
+        out.get("requested_url_source_kind").and_then(Value::as_str),
+        Some("request_query_fallback")
+    );
+}
+
+#[test]
+fn fetch_request_uses_payload_request_query_fallback_and_kind() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let out = execute_fetch_request(
+        tmp.path(),
+        &json!({
+            "payload": {
+                "request": {
+                    "q": "https://example.com/from-payload-request-q"
+                }
+            },
+            "provider": "definitely-not-a-fetch-provider"
+        }),
+    );
+    assert_eq!(
+        out.get("requested_url").and_then(Value::as_str),
+        Some("https://example.com/from-payload-request-q")
+    );
+    assert_eq!(
+        out.get("requested_url_source").and_then(Value::as_str),
+        Some("payload.request.q")
+    );
+    assert_eq!(
+        out.get("requested_url_source_kind").and_then(Value::as_str),
+        Some("request_query_fallback")
+    );
+}
+
+#[test]
+fn search_early_validation_exposes_query_source_confidence() {
+    let out = api_search(
+        tempfile::tempdir().expect("tempdir").path(),
+        &json!({
+            "query": "that was just a test"
+        }),
+    );
+    assert_eq!(
+        out.get("query_source_confidence").and_then(Value::as_str),
+        Some("high")
+    );
+}
+
+#[test]
+fn search_query_source_supports_payload_request_array_row() {
+    let out = api_search(
+        tempfile::tempdir().expect("tempdir").path(),
+        &json!({
+            "payload": {
+                "request": {
+                    "queries": [
+                        {"q": "example.com/payload-request-array-source"}
+                    ]
+                }
+            }
+        }),
+    );
+    assert_eq!(
+        out.get("query_source").and_then(Value::as_str),
+        Some("payload.request.queries[0].q")
+    );
+    assert_eq!(
+        out.get("query_source_kind").and_then(Value::as_str),
+        Some("request_array_field")
+    );
+    assert_eq!(
+        out.get("query_source_confidence").and_then(Value::as_str),
+        Some("medium")
+    );
+}
+
+#[test]
+fn fetch_request_uses_payload_urls_object_array_and_kind() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let out = execute_fetch_request(
+        tmp.path(),
+        &json!({
+            "payload": {
+                "urls": [
+                    {"url": "https://example.com/from-payload-urls-object-array"}
+                ]
+            },
+            "provider": "definitely-not-a-fetch-provider"
+        }),
+    );
+    assert_eq!(
+        out.get("requested_url").and_then(Value::as_str),
+        Some("https://example.com/from-payload-urls-object-array")
+    );
+    assert_eq!(
+        out.get("requested_url_source").and_then(Value::as_str),
+        Some("payload.urls[0].url")
+    );
+    assert_eq!(
+        out.get("requested_url_source_kind").and_then(Value::as_str),
+        Some("payload_array_field")
+    );
+    assert_eq!(
+        out.get("requested_url_source_confidence")
+            .and_then(Value::as_str),
+        Some("medium")
+    );
+}
+
+#[test]
+fn fetch_request_query_fallback_exposes_high_source_confidence() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let out = execute_fetch_request(
+        tmp.path(),
+        &json!({
+            "request": {
+                "query": "Please fetch https://example.com/request-fallback-confidence"
+            },
+            "provider": "definitely-not-a-fetch-provider"
+        }),
+    );
+    assert_eq!(
+        out.get("requested_url_source_kind").and_then(Value::as_str),
+        Some("request_query_fallback")
+    );
+    assert_eq!(
+        out.get("requested_url_source_confidence")
+            .and_then(Value::as_str),
+        Some("high")
+    );
+}
+
+#[test]
+fn search_meta_query_early_response_includes_query_source_kind() {
+    let out = api_search(
+        tempfile::tempdir().expect("tempdir").path(),
+        &json!({
+            "query": "that was just a test"
+        }),
+    );
+    assert_eq!(
+        out.get("error").and_then(Value::as_str),
+        Some("non_search_meta_query")
+    );
+    assert_eq!(
+        out.get("query_source").and_then(Value::as_str),
+        Some("query")
+    );
+    assert_eq!(
+        out.get("query_source_kind").and_then(Value::as_str),
+        Some("direct_field")
+    );
+    assert_eq!(
+        out.get("query_shape_route_hint").and_then(Value::as_str),
+        Some("web_search")
+    );
+    assert_eq!(
+        out.pointer("/retry/strategy").and_then(Value::as_str),
+        Some("answer_directly_without_web_search")
+    );
+    assert_eq!(
+        out.pointer("/retry/reason").and_then(Value::as_str),
+        Some("non_search_meta_query")
+    );
+    assert_eq!(
+        out.pointer("/retry/contract_version").and_then(Value::as_str),
+        Some("v1")
+    );
+    assert_eq!(
+        out.pointer("/retry/lane").and_then(Value::as_str),
+        Some("web_search")
+    );
+}
+
+#[test]
+fn search_query_source_supports_request_object_alias() {
+    let out = api_search(
+        tempfile::tempdir().expect("tempdir").path(),
+        &json!({
+            "request": {
+                "query": "example.com/request-object-source"
+            }
+        }),
+    );
+    assert_eq!(
+        out.get("query_source").and_then(Value::as_str),
+        Some("request.query")
+    );
+    assert_eq!(
+        out.get("query_source_kind").and_then(Value::as_str),
+        Some("direct_field")
+    );
+    assert_eq!(
+        out.get("query_shape_fetch_url_candidate")
+            .and_then(Value::as_str),
+        Some("https://example.com/request-object-source")
+    );
+}
+
+#[test]
+fn fetch_request_uses_payload_urls_array_and_kind() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let out = execute_fetch_request(
+        tmp.path(),
+        &json!({
+            "payload": {
+                "urls": ["https://example.com/from-payload-urls-array"]
+            },
+            "provider": "definitely-not-a-fetch-provider"
+        }),
+    );
+    assert_eq!(
+        out.get("requested_url").and_then(Value::as_str),
+        Some("https://example.com/from-payload-urls-array")
+    );
+    assert_eq!(
+        out.get("requested_url_source").and_then(Value::as_str),
+        Some("payload.urls[0]")
+    );
+    assert_eq!(
+        out.get("requested_url_source_kind").and_then(Value::as_str),
+        Some("payload_array_field")
+    );
+}
+
+#[test]
+fn fetch_request_uses_payload_request_urls_array_and_kind() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let out = execute_fetch_request(
+        tmp.path(),
+        &json!({
+            "payload": {
+                "request": {
+                    "urls": ["https://example.com/from-payload-request-urls-array"]
+                }
+            },
+            "provider": "definitely-not-a-fetch-provider"
+        }),
+    );
+    assert_eq!(
+        out.get("requested_url").and_then(Value::as_str),
+        Some("https://example.com/from-payload-request-urls-array")
+    );
+    assert_eq!(
+        out.get("requested_url_source").and_then(Value::as_str),
+        Some("payload.request.urls[0]")
+    );
+    assert_eq!(
+        out.get("requested_url_source_kind").and_then(Value::as_str),
+        Some("request_array_field")
+    );
+}
+
+#[test]
+fn fetch_request_uses_request_data_message_text_fallback_and_source() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let out = execute_fetch_request(
+        tmp.path(),
+        &json!({
+            "request": {
+                "data": {
+                    "message": "please fetch https://example.com/from-request-data-message"
+                }
+            },
+            "provider": "definitely-not-a-fetch-provider"
+        }),
+    );
+    assert_eq!(
+        out.get("requested_url").and_then(Value::as_str),
+        Some("https://example.com/from-request-data-message")
+    );
+    assert_eq!(
+        out.get("requested_url_source").and_then(Value::as_str),
+        Some("request.data.message")
+    );
+    assert_eq!(
+        out.get("requested_url_source_kind").and_then(Value::as_str),
+        Some("request_field")
+    );
+}
+
+#[test]
+fn fetch_request_uses_payload_request_data_prompt_text_fallback_and_source() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let out = execute_fetch_request(
+        tmp.path(),
+        &json!({
+            "payload": {
+                "request": {
+                    "data": {
+                        "prompt": "Open https://example.com/from-payload-request-data-prompt"
+                    }
+                }
+            },
+            "provider": "definitely-not-a-fetch-provider"
+        }),
+    );
+    assert_eq!(
+        out.get("requested_url").and_then(Value::as_str),
+        Some("https://example.com/from-payload-request-data-prompt")
+    );
+    assert_eq!(
+        out.get("requested_url_source").and_then(Value::as_str),
+        Some("payload.request.data.prompt")
+    );
+    assert_eq!(
+        out.get("requested_url_source_kind").and_then(Value::as_str),
+        Some("request_field")
+    );
+}
+
+#[test]
+fn search_conflicting_time_filters_response_includes_query_shape_contract() {
+    let out = api_search(
+        tempfile::tempdir().expect("tempdir").path(),
+        &json!({
+            "query": "example.com/conflicting-time-filters",
+            "freshness": "week",
+            "date_after": "2026-04-10"
+        }),
+    );
+    assert_eq!(
+        out.get("error").and_then(Value::as_str),
+        Some("conflicting_time_filters")
+    );
+    assert_eq!(
+        out.get("query_shape_route_hint").and_then(Value::as_str),
+        Some("web_fetch")
+    );
+    assert_eq!(
+        out.get("query_shape_fetch_url_candidate")
+            .and_then(Value::as_str),
+        Some("https://example.com/conflicting-time-filters")
+    );
+    assert_eq!(
+        out.pointer("/query_shape/route_hint").and_then(Value::as_str),
+        Some("web_fetch")
+    );
+    assert_eq!(
+        out.pointer("/suggested_next_action/action")
+            .and_then(Value::as_str),
+        Some("web_conduit_fetch")
+    );
+    assert_eq!(
+        out.get("tool_execution_attempted").and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        out.pointer("/tool_execution_gate/reason")
+            .and_then(Value::as_str),
+        Some("conflicting_time_filters")
+    );
+    assert_eq!(
+        out.get("meta_query_blocked").and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        out.get("cache_status").and_then(Value::as_str),
+        Some("skipped_validation")
+    );
+    assert_eq!(
+        out.pointer("/retry/strategy").and_then(Value::as_str),
+        Some("remove_conflicting_time_filters")
+    );
+    assert_eq!(
+        out.pointer("/retry/reason").and_then(Value::as_str),
+        Some("conflicting_time_filters")
+    );
+    assert_eq!(
+        out.pointer("/retry/contract_version").and_then(Value::as_str),
+        Some("v1")
+    );
+    assert_eq!(
+        out.pointer("/retry/contract_family").and_then(Value::as_str),
+        Some("web_retry_contract_v1")
+    );
+    assert_eq!(
+        out.pointer("/retry/recovery_mode").and_then(Value::as_str),
+        Some("adjust_filters")
+    );
+    assert_eq!(
+        out.pointer("/retry/priority").and_then(Value::as_str),
+        Some("medium")
+    );
+    assert_eq!(
+        out.pointer("/retry/operator_action_hint")
+            .and_then(Value::as_str),
+        Some("remove_freshness_or_date_range_conflict")
+    );
+    assert_eq!(
+        out.pointer("/retry/operator_owner").and_then(Value::as_str),
+        Some("user")
+    );
+    assert_eq!(
+        out.pointer("/retry/diagnostic_code").and_then(Value::as_str),
+        Some("search_retry_conflicting_time_filters")
+    );
+    assert_eq!(
+        out.pointer("/retry/blocking_kind").and_then(Value::as_str),
+        Some("input_adjustment_required")
+    );
+    assert_eq!(
+        out.pointer("/retry/auto_retry_allowed")
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        out.pointer("/retry/retryable").and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        out.pointer("/retry/idempotent").and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        out.pointer("/retry/category").and_then(Value::as_str),
+        Some("validation")
+    );
+    assert_eq!(
+        out.pointer("/retry/lane").and_then(Value::as_str),
+        Some("web_search")
+    );
+}
+
+#[test]
+fn fetch_request_uses_request_body_data_text_fallback_and_source() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let out = execute_fetch_request(
+        tmp.path(),
+        &json!({
+            "request": {
+                "body": {
+                    "data": {
+                        "text": "fetch https://example.com/from-request-body-data-text"
+                    }
+                }
+            },
+            "provider": "definitely-not-a-fetch-provider"
+        }),
+    );
+    assert_eq!(
+        out.get("requested_url").and_then(Value::as_str),
+        Some("https://example.com/from-request-body-data-text")
+    );
+    assert_eq!(
+        out.get("requested_url_source").and_then(Value::as_str),
+        Some("request.body.data.text")
+    );
+}
+
+#[test]
+fn fetch_request_uses_payload_request_body_data_question_fallback_and_source() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let out = execute_fetch_request(
+        tmp.path(),
+        &json!({
+            "payload": {
+                "request": {
+                    "body": {
+                        "data": {
+                            "question": "can you open https://example.com/from-payload-request-body-data-question"
+                        }
+                    }
+                }
+            },
+            "provider": "definitely-not-a-fetch-provider"
+        }),
+    );
+    assert_eq!(
+        out.get("requested_url").and_then(Value::as_str),
+        Some("https://example.com/from-payload-request-body-data-question")
+    );
+    assert_eq!(
+        out.get("requested_url_source").and_then(Value::as_str),
+        Some("payload.request.body.data.question")
+    );
+}
+
+#[test]
+fn search_unknown_provider_fail_closed_includes_retry_strategy() {
+    let out = api_search(
+        tempfile::tempdir().expect("tempdir").path(),
+        &json!({
+            "query": "agent frameworks docs",
+            "provider": "definitely-not-a-provider"
+        }),
+    );
+    assert_eq!(
+        out.get("error").and_then(Value::as_str),
+        Some("unknown_search_provider")
+    );
+    assert_eq!(
+        out.pointer("/retry/recommended").and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        out.pointer("/retry/strategy").and_then(Value::as_str),
+        Some("use_supported_provider_or_auto")
+    );
+    assert_eq!(
+        out.pointer("/retry/reason").and_then(Value::as_str),
+        Some("unknown_search_provider")
+    );
+    assert_eq!(
+        out.pointer("/retry/contract_version").and_then(Value::as_str),
+        Some("v1")
+    );
+    assert_eq!(
+        out.pointer("/retry/contract_family").and_then(Value::as_str),
+        Some("web_retry_contract_v1")
+    );
+    assert_eq!(
+        out.pointer("/retry/recovery_mode").and_then(Value::as_str),
+        Some("switch_provider")
+    );
+    assert_eq!(
+        out.pointer("/retry/priority").and_then(Value::as_str),
+        Some("medium")
+    );
+    assert_eq!(
+        out.pointer("/retry/operator_action_hint")
+            .and_then(Value::as_str),
+        Some("set_provider_auto_or_supported_provider")
+    );
+    assert_eq!(
+        out.pointer("/retry/operator_owner").and_then(Value::as_str),
+        Some("operator")
+    );
+    assert_eq!(
+        out.pointer("/retry/diagnostic_code").and_then(Value::as_str),
+        Some("search_retry_unknown_search_provider")
+    );
+    assert_eq!(
+        out.pointer("/retry/blocking_kind").and_then(Value::as_str),
+        Some("provider_configuration_required")
+    );
+    assert_eq!(
+        out.pointer("/retry/auto_retry_allowed")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        out.pointer("/retry/retryable").and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        out.pointer("/retry/idempotent").and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        out.pointer("/retry/category").and_then(Value::as_str),
+        Some("validation")
+    );
+    assert_eq!(
+        out.pointer("/retry/lane").and_then(Value::as_str),
+        Some("web_search")
+    );
+}
+
+#[test]
+fn search_conflicting_time_filters_includes_retry_strategy() {
+    let out = api_search(
+        tempfile::tempdir().expect("tempdir").path(),
+        &json!({
+            "query": "agent frameworks",
+            "freshness": "week",
+            "date_before": "2026-04-10"
+        }),
+    );
+    assert_eq!(
+        out.get("error").and_then(Value::as_str),
+        Some("conflicting_time_filters")
+    );
+    assert_eq!(
+        out.pointer("/retry/strategy").and_then(Value::as_str),
+        Some("remove_conflicting_time_filters")
+    );
+    assert_eq!(
+        out.pointer("/retry/reason").and_then(Value::as_str),
+        Some("conflicting_time_filters")
+    );
+    assert_eq!(
+        out.pointer("/retry/contract_version").and_then(Value::as_str),
+        Some("v1")
+    );
+    assert_eq!(
+        out.pointer("/retry/contract_family").and_then(Value::as_str),
+        Some("web_retry_contract_v1")
+    );
+    assert_eq!(
+        out.pointer("/retry/recovery_mode").and_then(Value::as_str),
+        Some("adjust_filters")
+    );
+    assert_eq!(
+        out.pointer("/retry/priority").and_then(Value::as_str),
+        Some("medium")
+    );
+    assert_eq!(
+        out.pointer("/retry/operator_action_hint")
+            .and_then(Value::as_str),
+        Some("remove_freshness_or_date_range_conflict")
+    );
+    assert_eq!(
+        out.pointer("/retry/operator_owner").and_then(Value::as_str),
+        Some("user")
+    );
+    assert_eq!(
+        out.pointer("/retry/diagnostic_code").and_then(Value::as_str),
+        Some("search_retry_conflicting_time_filters")
+    );
+    assert_eq!(
+        out.pointer("/retry/blocking_kind").and_then(Value::as_str),
+        Some("input_adjustment_required")
+    );
+    assert_eq!(
+        out.pointer("/retry/auto_retry_allowed")
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        out.pointer("/retry/retryable").and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        out.pointer("/retry/idempotent").and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        out.pointer("/retry/category").and_then(Value::as_str),
+        Some("validation")
+    );
+    assert_eq!(
+        out.pointer("/retry/lane").and_then(Value::as_str),
+        Some("web_search")
+    );
+}
+
+#[test]
+fn fetch_unknown_provider_fail_closed_includes_retry_strategy() {
+    let out = execute_fetch_request(
+        tempfile::tempdir().expect("tempdir").path(),
+        &json!({
+            "url": "https://example.com",
+            "provider": "definitely-not-fetch-provider"
+        }),
+    );
+    assert_eq!(
+        out.get("error").and_then(Value::as_str),
+        Some("unknown_fetch_provider")
+    );
+    assert_eq!(
+        out.pointer("/retry/recommended").and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        out.pointer("/retry/strategy").and_then(Value::as_str),
+        Some("use_supported_provider_or_auto")
+    );
+    assert_eq!(
+        out.pointer("/retry/reason").and_then(Value::as_str),
+        Some("unknown_fetch_provider")
+    );
+    assert_eq!(
+        out.pointer("/retry/contract_version").and_then(Value::as_str),
+        Some("v1")
+    );
+    assert_eq!(
+        out.pointer("/retry/contract_family").and_then(Value::as_str),
+        Some("web_retry_contract_v1")
+    );
+    assert_eq!(
+        out.pointer("/retry/recovery_mode").and_then(Value::as_str),
+        Some("switch_provider")
+    );
+    assert_eq!(
+        out.pointer("/retry/priority").and_then(Value::as_str),
+        Some("medium")
+    );
+    assert_eq!(
+        out.pointer("/retry/operator_action_hint")
+            .and_then(Value::as_str),
+        Some("set_fetch_provider_auto_or_supported_provider")
+    );
+    assert_eq!(
+        out.pointer("/retry/operator_owner").and_then(Value::as_str),
+        Some("operator")
+    );
+    assert_eq!(
+        out.pointer("/retry/diagnostic_code").and_then(Value::as_str),
+        Some("fetch_retry_unknown_fetch_provider")
+    );
+    assert_eq!(
+        out.pointer("/retry/blocking_kind").and_then(Value::as_str),
+        Some("provider_configuration_required")
+    );
+    assert_eq!(
+        out.pointer("/retry/auto_retry_allowed")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        out.pointer("/retry/retryable").and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        out.pointer("/retry/idempotent").and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        out.pointer("/retry/category").and_then(Value::as_str),
+        Some("validation")
+    );
+    assert_eq!(
+        out.pointer("/retry/lane").and_then(Value::as_str),
+        Some("web_fetch")
+    );
+}
+
+#[test]
+fn search_retry_envelope_helper_supports_unsupported_filter_contract() {
+    let retry = search_retry_envelope_for_error("unsupported_search_filter");
+    assert_eq!(
+        retry.get("strategy").and_then(Value::as_str),
+        Some("remove_unsupported_filter")
+    );
+    assert_eq!(
+        retry.get("reason").and_then(Value::as_str),
+        Some("unsupported_search_filter")
+    );
+    assert_eq!(
+        retry.get("contract_version").and_then(Value::as_str),
+        Some("v1")
+    );
+    assert_eq!(
+        retry.get("contract_family").and_then(Value::as_str),
+        Some("web_retry_contract_v1")
+    );
+    assert_eq!(
+        retry.get("recovery_mode").and_then(Value::as_str),
+        Some("adjust_filters")
+    );
+    assert_eq!(
+        retry.get("priority").and_then(Value::as_str),
+        Some("medium")
+    );
+    assert_eq!(
+        retry.get("operator_action_hint").and_then(Value::as_str),
+        Some("remove_or_replace_unsupported_filter")
+    );
+    assert_eq!(
+        retry.get("operator_owner").and_then(Value::as_str),
+        Some("user")
+    );
+    assert_eq!(
+        retry.get("diagnostic_code").and_then(Value::as_str),
+        Some("search_retry_unsupported_search_filter")
+    );
+    assert_eq!(
+        retry.get("blocking_kind").and_then(Value::as_str),
+        Some("input_adjustment_required")
+    );
+    assert_eq!(
+        retry.get("auto_retry_allowed").and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        retry.get("escalation_lane").and_then(Value::as_str),
+        Some("user_input")
+    );
+    assert_eq!(
+        retry
+            .get("requires_manual_confirmation")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        retry.get("execution_policy").and_then(Value::as_str),
+        Some("manual_gate_required")
+    );
+    assert_eq!(
+        retry.get("manual_gate_reason").and_then(Value::as_str),
+        Some("input_adjustment_required")
+    );
+    assert_eq!(
+        retry.get("requeue_strategy").and_then(Value::as_str),
+        Some("manual")
+    );
+    assert_eq!(
+        retry.get("can_execute_without_human").and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        retry.get("execution_window").and_then(Value::as_str),
+        Some("after_manual_gate")
+    );
+    assert_eq!(
+        retry
+            .get("manual_gate_timeout_seconds")
+            .and_then(Value::as_i64),
+        Some(1800)
+    );
+    assert_eq!(
+        retry.get("next_action_after_seconds").and_then(Value::as_i64),
+        Some(1800)
+    );
+    assert_eq!(
+        retry.get("readiness_state").and_then(Value::as_str),
+        Some("manual_gate_pending")
+    );
+    assert_eq!(retry.get("retryable").and_then(Value::as_bool), Some(true));
+    assert_eq!(retry.get("idempotent").and_then(Value::as_bool), Some(true));
+    assert_eq!(
+        retry.get("category").and_then(Value::as_str),
+        Some("validation")
+    );
+    assert_eq!(retry.get("lane").and_then(Value::as_str), Some("web_search"));
+}
+
+#[test]
+fn fetch_retry_envelope_runtime_helper_pins_contract_and_reason() {
+    let retry = fetch_retry_envelope_runtime(
+        "change_query_or_provider",
+        "web_fetch_duplicate_attempt_suppressed",
+        "web_fetch",
+        15,
+    );
+    assert_eq!(
+        retry.get("strategy").and_then(Value::as_str),
+        Some("change_query_or_provider")
+    );
+    assert_eq!(
+        retry.get("reason").and_then(Value::as_str),
+        Some("web_fetch_duplicate_attempt_suppressed")
+    );
+    assert_eq!(
+        retry.get("contract_version").and_then(Value::as_str),
+        Some("v1")
+    );
+    assert_eq!(
+        retry.get("contract_family").and_then(Value::as_str),
+        Some("web_retry_contract_v1")
+    );
+    assert_eq!(
+        retry.get("recovery_mode").and_then(Value::as_str),
+        Some("adjust_query_or_provider")
+    );
+    assert_eq!(
+        retry.get("priority").and_then(Value::as_str),
+        Some("medium")
+    );
+    assert_eq!(
+        retry.get("operator_action_hint").and_then(Value::as_str),
+        Some("adjust_query_or_wait_for_retry_window")
+    );
+    assert_eq!(
+        retry.get("operator_owner").and_then(Value::as_str),
+        Some("system_operator")
+    );
+    assert_eq!(
+        retry.get("diagnostic_code").and_then(Value::as_str),
+        Some("fetch_retry_duplicate_attempt_suppressed")
+    );
+    assert_eq!(
+        retry.get("blocking_kind").and_then(Value::as_str),
+        Some("cooldown_required")
+    );
+    assert_eq!(
+        retry.get("auto_retry_allowed").and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        retry.get("escalation_lane").and_then(Value::as_str),
+        Some("automation")
+    );
+    assert_eq!(
+        retry
+            .get("requires_manual_confirmation")
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        retry.get("execution_policy").and_then(Value::as_str),
+        Some("deferred_auto_retry")
+    );
+    assert_eq!(
+        retry.get("manual_gate_reason").and_then(Value::as_str),
+        Some("none")
+    );
+    assert_eq!(
+        retry.get("requeue_strategy").and_then(Value::as_str),
+        Some("deferred")
+    );
+    assert_eq!(
+        retry.get("can_execute_without_human").and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        retry.get("execution_window").and_then(Value::as_str),
+        Some("after_retry_after")
+    );
+    assert_eq!(
+        retry
+            .get("manual_gate_timeout_seconds")
+            .and_then(Value::as_i64),
+        Some(0)
+    );
+    assert_eq!(
+        retry.get("next_action_after_seconds").and_then(Value::as_i64),
+        Some(15)
+    );
+    assert_eq!(
+        retry.get("readiness_state").and_then(Value::as_str),
+        Some("deferred_retry_pending")
+    );
+    assert_eq!(
+        retry.get("retry_after_seconds").and_then(Value::as_i64),
+        Some(15)
+    );
+    assert_eq!(retry.get("retryable").and_then(Value::as_bool), Some(true));
+    assert_eq!(retry.get("idempotent").and_then(Value::as_bool), Some(true));
+    assert_eq!(
+        retry.get("category").and_then(Value::as_str),
+        Some("execution")
+    );
+    assert_eq!(retry.get("lane").and_then(Value::as_str), Some("web_fetch"));
 }

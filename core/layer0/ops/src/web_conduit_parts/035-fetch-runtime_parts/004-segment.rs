@@ -74,6 +74,10 @@ fn fetch_early_validation_payload(
     out_obj.insert("cache_write_attempted".to_string(), json!(false));
     out_obj.insert("cache_skip_reason".to_string(), json!(cache_skip_reason));
     out_obj.insert(
+        "retry".to_string(),
+        fetch_retry_envelope_for_validation(error, validation_route),
+    );
+    out_obj.insert(
         "process_summary".to_string(),
         runtime_web_process_summary(
             "web_fetch",
@@ -103,6 +107,309 @@ fn fetch_early_validation_payload(
     }
     out_obj.insert("receipt".to_string(), receipt);
     Value::Object(out_obj)
+}
+
+fn fetch_retry_envelope_for_validation(error: &str, validation_route: &str) -> Value {
+    let strategy = if error == "non_fetch_meta_query" || validation_route == "meta_query_blocked" {
+        "answer_directly_without_web_fetch"
+    } else if error == "unknown_fetch_provider" {
+        "use_supported_provider_or_auto"
+    } else if error == "fetch_url_required" {
+        "provide_valid_http_or_https_url"
+    } else if error == "fetch_url_invalid_scheme" {
+        "provide_http_or_https_scheme"
+    } else if error == "fetch_url_payload_dump_detected" || error == "fetch_url_shape_invalid" {
+        "rewrite_fetch_input_as_url"
+    } else {
+        "adjust_request_and_retry"
+    };
+    fetch_retry_envelope_runtime(
+        strategy,
+        if error.is_empty() { validation_route } else { error },
+        "web_fetch",
+        0,
+    )
+}
+
+fn fetch_retry_category_for_reason(reason: &str) -> &'static str {
+    if reason == "fetch_url_required" || reason == "fetch_url_invalid_scheme" {
+        "input_contract"
+    } else if reason == "non_fetch_meta_query" {
+        "intent_contract"
+    } else if reason == "unknown_fetch_provider" {
+        "provider_contract"
+    } else if reason == "ssrf_blocked" || reason == "policy_denied" {
+        "security_policy"
+    } else if reason == "web_fetch_duplicate_attempt_suppressed" {
+        "replay_guard"
+    } else if reason.starts_with("web_fetch_tool_surface_") {
+        "tool_surface"
+    } else {
+        "request_contract"
+    }
+}
+
+fn fetch_retry_recovery_mode_for_reason(reason: &str) -> &'static str {
+    if reason == "fetch_url_required" || reason == "fetch_url_invalid_scheme" {
+        "fix_url_input"
+    } else if reason == "non_fetch_meta_query" {
+        "answer_directly"
+    } else if reason == "unknown_fetch_provider" {
+        "switch_provider"
+    } else if reason == "ssrf_blocked" || reason == "policy_denied" {
+        "change_target_or_policy"
+    } else if reason == "web_fetch_duplicate_attempt_suppressed" {
+        "adjust_query_or_provider"
+    } else if reason.starts_with("web_fetch_tool_surface_") {
+        "restore_tool_surface"
+    } else {
+        "adjust_request"
+    }
+}
+
+fn fetch_retry_priority_for_reason(reason: &str) -> &'static str {
+    if reason == "fetch_url_required"
+        || reason == "fetch_url_invalid_scheme"
+        || reason == "ssrf_blocked"
+        || reason == "policy_denied"
+        || reason.starts_with("web_fetch_tool_surface_")
+    {
+        "high"
+    } else if reason == "non_fetch_meta_query" {
+        "low"
+    } else {
+        "medium"
+    }
+}
+
+fn fetch_retry_operator_action_hint_for_reason(reason: &str) -> &'static str {
+    if reason == "fetch_url_required" {
+        "provide_valid_http_or_https_url"
+    } else if reason == "fetch_url_invalid_scheme" {
+        "use_http_or_https_scheme"
+    } else if reason == "non_fetch_meta_query" {
+        "answer_without_web_fetch_or_set_force_web_fetch"
+    } else if reason == "unknown_fetch_provider" {
+        "set_fetch_provider_auto_or_supported_provider"
+    } else if reason == "ssrf_blocked" {
+        "use_public_non_local_target"
+    } else if reason == "policy_denied" {
+        "adjust_policy_or_target_and_retry"
+    } else if reason == "web_fetch_duplicate_attempt_suppressed" {
+        "adjust_query_or_wait_for_retry_window"
+    } else if reason.starts_with("web_fetch_tool_surface_") {
+        "restore_web_tool_surface_and_retry"
+    } else {
+        "adjust_fetch_request_and_retry"
+    }
+}
+
+fn fetch_retry_operator_owner_for_reason(reason: &str) -> &'static str {
+    if reason == "fetch_url_required"
+        || reason == "fetch_url_invalid_scheme"
+        || reason == "non_fetch_meta_query"
+    {
+        "user"
+    } else if reason == "unknown_fetch_provider" {
+        "operator"
+    } else if reason == "ssrf_blocked" || reason == "policy_denied" {
+        "security_operator"
+    } else if reason == "web_fetch_duplicate_attempt_suppressed"
+        || reason.starts_with("web_fetch_tool_surface_")
+    {
+        "system_operator"
+    } else {
+        "operator"
+    }
+}
+
+fn fetch_retry_diagnostic_code_for_reason(reason: &str) -> &'static str {
+    if reason == "fetch_url_required" {
+        "fetch_retry_fetch_url_required"
+    } else if reason == "fetch_url_invalid_scheme" {
+        "fetch_retry_fetch_url_invalid_scheme"
+    } else if reason == "non_fetch_meta_query" {
+        "fetch_retry_non_fetch_meta_query"
+    } else if reason == "unknown_fetch_provider" {
+        "fetch_retry_unknown_fetch_provider"
+    } else if reason == "ssrf_blocked" {
+        "fetch_retry_ssrf_blocked"
+    } else if reason == "policy_denied" {
+        "fetch_retry_policy_denied"
+    } else if reason == "web_fetch_duplicate_attempt_suppressed" {
+        "fetch_retry_duplicate_attempt_suppressed"
+    } else if reason.starts_with("web_fetch_tool_surface_") {
+        "fetch_retry_tool_surface"
+    } else {
+        "fetch_retry_request_contract_adjustment_required"
+    }
+}
+
+fn fetch_retry_blocking_kind_for_reason(reason: &str) -> &'static str {
+    if reason == "fetch_url_required" || reason == "fetch_url_invalid_scheme" {
+        "input_adjustment_required"
+    } else if reason == "non_fetch_meta_query" {
+        "direct_answer_required"
+    } else if reason == "unknown_fetch_provider" {
+        "provider_configuration_required"
+    } else if reason == "ssrf_blocked" || reason == "policy_denied" {
+        "policy_or_target_change_required"
+    } else if reason == "web_fetch_duplicate_attempt_suppressed" {
+        "cooldown_required"
+    } else if reason.starts_with("web_fetch_tool_surface_") {
+        "tool_surface_restore_required"
+    } else {
+        "none"
+    }
+}
+
+fn fetch_retry_auto_retry_allowed_for_reason(reason: &str) -> bool {
+    matches!(
+        fetch_retry_blocking_kind_for_reason(reason),
+        "provider_configuration_required" | "cooldown_required" | "none"
+    )
+}
+
+fn fetch_retry_escalation_lane_for_reason(reason: &str) -> &'static str {
+    match fetch_retry_blocking_kind_for_reason(reason) {
+        "input_adjustment_required" | "direct_answer_required" => "user_input",
+        "provider_configuration_required" => "operations",
+        "policy_or_target_change_required" => "security",
+        "cooldown_required" => "automation",
+        "tool_surface_restore_required" => "platform",
+        _ => "none",
+    }
+}
+
+fn fetch_retry_requires_manual_confirmation_for_reason(reason: &str) -> bool {
+    matches!(
+        fetch_retry_blocking_kind_for_reason(reason),
+        "input_adjustment_required"
+            | "direct_answer_required"
+            | "provider_configuration_required"
+            | "policy_or_target_change_required"
+            | "tool_surface_restore_required"
+    )
+}
+
+fn fetch_retry_execution_policy_for_reason(reason: &str) -> &'static str {
+    let blocking_kind = fetch_retry_blocking_kind_for_reason(reason);
+    if fetch_retry_requires_manual_confirmation_for_reason(reason) {
+        "manual_gate_required"
+    } else if blocking_kind == "cooldown_required" {
+        "deferred_auto_retry"
+    } else if fetch_retry_auto_retry_allowed_for_reason(reason) {
+        "auto_retry"
+    } else {
+        "manual_gate_required"
+    }
+}
+
+fn fetch_retry_manual_gate_reason_for_reason(reason: &str) -> &'static str {
+    match fetch_retry_blocking_kind_for_reason(reason) {
+        "input_adjustment_required" => "input_adjustment_required",
+        "direct_answer_required" => "direct_answer_required",
+        "provider_configuration_required" => "provider_configuration_required",
+        "policy_or_target_change_required" => "policy_or_target_change_required",
+        "tool_surface_restore_required" => "tool_surface_restore_required",
+        _ => "none",
+    }
+}
+
+fn fetch_retry_requeue_strategy_for_reason(reason: &str) -> &'static str {
+    match fetch_retry_execution_policy_for_reason(reason) {
+        "auto_retry" => "immediate",
+        "deferred_auto_retry" => "deferred",
+        _ => "manual",
+    }
+}
+
+fn fetch_retry_can_execute_without_human_for_reason(reason: &str) -> bool {
+    matches!(
+        fetch_retry_execution_policy_for_reason(reason),
+        "auto_retry" | "deferred_auto_retry"
+    )
+}
+
+fn fetch_retry_execution_window_for_reason(reason: &str, retry_after_seconds: i64) -> &'static str {
+    match fetch_retry_requeue_strategy_for_reason(reason) {
+        "immediate" => "now",
+        "deferred" => {
+            if retry_after_seconds.max(0) > 0 {
+                "after_retry_after"
+            } else {
+                "deferred"
+            }
+        }
+        _ => "after_manual_gate",
+    }
+}
+
+fn fetch_retry_manual_gate_timeout_seconds_for_reason(reason: &str) -> i64 {
+    match fetch_retry_manual_gate_reason_for_reason(reason) {
+        "input_adjustment_required" => 1800,
+        "direct_answer_required" => 900,
+        "provider_configuration_required" => 3600,
+        "policy_or_target_change_required" => 2400,
+        "tool_surface_restore_required" => 1200,
+        _ => 0,
+    }
+}
+
+fn fetch_retry_next_action_after_seconds_for_reason(reason: &str, retry_after_seconds: i64) -> i64 {
+    match fetch_retry_execution_window_for_reason(reason, retry_after_seconds) {
+        "now" => 0,
+        "after_retry_after" => retry_after_seconds.max(0),
+        "deferred" => 60,
+        _ => fetch_retry_manual_gate_timeout_seconds_for_reason(reason),
+    }
+}
+
+fn fetch_retry_readiness_state_for_reason(reason: &str, retry_after_seconds: i64) -> &'static str {
+    if !fetch_retry_can_execute_without_human_for_reason(reason) {
+        "manual_gate_pending"
+    } else if fetch_retry_next_action_after_seconds_for_reason(reason, retry_after_seconds) > 0 {
+        "deferred_retry_pending"
+    } else {
+        "ready_now"
+    }
+}
+
+fn fetch_retry_envelope_runtime(
+    strategy: &str,
+    reason: &str,
+    lane: &str,
+    retry_after_seconds: i64,
+) -> Value {
+    json!({
+        "recommended": true,
+        "retryable": true,
+        "idempotent": true,
+        "contract_family": "web_retry_contract_v1",
+        "strategy": strategy,
+        "reason": reason,
+        "category": fetch_retry_category_for_reason(reason),
+        "recovery_mode": fetch_retry_recovery_mode_for_reason(reason),
+        "priority": fetch_retry_priority_for_reason(reason),
+        "operator_action_hint": fetch_retry_operator_action_hint_for_reason(reason),
+        "operator_owner": fetch_retry_operator_owner_for_reason(reason),
+        "diagnostic_code": fetch_retry_diagnostic_code_for_reason(reason),
+        "blocking_kind": fetch_retry_blocking_kind_for_reason(reason),
+        "auto_retry_allowed": fetch_retry_auto_retry_allowed_for_reason(reason),
+        "escalation_lane": fetch_retry_escalation_lane_for_reason(reason),
+        "requires_manual_confirmation": fetch_retry_requires_manual_confirmation_for_reason(reason),
+        "execution_policy": fetch_retry_execution_policy_for_reason(reason),
+        "manual_gate_reason": fetch_retry_manual_gate_reason_for_reason(reason),
+        "requeue_strategy": fetch_retry_requeue_strategy_for_reason(reason),
+        "can_execute_without_human": fetch_retry_can_execute_without_human_for_reason(reason),
+        "execution_window": fetch_retry_execution_window_for_reason(reason, retry_after_seconds),
+        "manual_gate_timeout_seconds": fetch_retry_manual_gate_timeout_seconds_for_reason(reason),
+        "next_action_after_seconds": fetch_retry_next_action_after_seconds_for_reason(reason, retry_after_seconds),
+        "readiness_state": fetch_retry_readiness_state_for_reason(reason, retry_after_seconds),
+        "lane": lane,
+        "contract_version": "v1",
+        "retry_after_seconds": retry_after_seconds.max(0)
+    })
 }
 
 fn fetch_truthy_value(value: &Value) -> bool {
@@ -221,28 +528,30 @@ fn fetch_url_shape_error_code(raw_requested_url: &str) -> &'static str {
 
 fn normalize_fetch_requested_url_input(raw_requested_url: &str) -> String {
     let mut out = clean_text(raw_requested_url, 2_400).trim().to_string();
-    if out.starts_with('<') && out.ends_with('>') && out.len() > 2 {
-        out = out[1..out.len() - 1].trim().to_string();
-    }
-    if ((out.starts_with('"') && out.ends_with('"'))
-        || (out.starts_with('\'') && out.ends_with('\''))
-        || (out.starts_with('`') && out.ends_with('`')))
-        && out.len() > 1
-    {
-        out = out[1..out.len() - 1].trim().to_string();
-    }
-    if out.starts_with('[') && out.contains("](") && out.ends_with(')') {
-        if let Some(start) = out.find("](") {
-            let candidate = out[start + 2..out.len() - 1].trim().to_string();
-            if !candidate.is_empty() {
-                out = candidate;
+    for _ in 0..3 {
+        if out.starts_with('<') && out.ends_with('>') && out.len() > 2 {
+            out = out[1..out.len() - 1].trim().to_string();
+        }
+        if ((out.starts_with('"') && out.ends_with('"'))
+            || (out.starts_with('\'') && out.ends_with('\''))
+            || (out.starts_with('`') && out.ends_with('`')))
+            && out.len() > 1
+        {
+            out = out[1..out.len() - 1].trim().to_string();
+        }
+        if out.starts_with('[') && out.contains("](") && out.ends_with(')') {
+            if let Some(start) = out.find("](") {
+                let candidate = out[start + 2..out.len() - 1].trim().to_string();
+                if !candidate.is_empty() {
+                    out = candidate;
+                }
             }
         }
-    }
-    if out.starts_with('(') && out.ends_with(')') && out.len() > 2 {
-        let candidate = out[1..out.len() - 1].trim().to_string();
-        if candidate.starts_with("http://") || candidate.starts_with("https://") {
-            out = candidate;
+        if out.starts_with('(') && out.ends_with(')') && out.len() > 2 {
+            let candidate = out[1..out.len() - 1].trim().to_string();
+            if candidate.starts_with("http://") || candidate.starts_with("https://") {
+                out = candidate;
+            }
         }
     }
     out = out.replace("&amp;", "&");
@@ -257,7 +566,71 @@ fn normalize_fetch_requested_url_input(raw_requested_url: &str) -> String {
     {
         out.pop();
     }
+    if out.starts_with("//") && out.len() > 2 {
+        out = format!("https:{}", out);
+    }
+    let lowered = out.to_ascii_lowercase();
+    if !lowered.starts_with("http://")
+        && !lowered.starts_with("https://")
+        && fetch_url_looks_like_bare_domain(&out)
+    {
+        out = format!("https://{}", out);
+    }
     clean_text(&out, 2_200)
+}
+
+fn fetch_url_looks_like_bare_domain(raw: &str) -> bool {
+    let candidate = clean_text(raw, 2_200).trim().to_ascii_lowercase();
+    if candidate.is_empty() || candidate.contains(char::is_whitespace) {
+        return false;
+    }
+    if candidate.starts_with("http://") || candidate.starts_with("https://") {
+        return false;
+    }
+    let host = candidate
+        .split('/')
+        .next()
+        .unwrap_or("")
+        .split('?')
+        .next()
+        .unwrap_or("")
+        .split('#')
+        .next()
+        .unwrap_or("");
+    if host.is_empty() || !host.contains('.') {
+        return false;
+    }
+    let labels = host.split('.').collect::<Vec<_>>();
+    if labels.len() < 2 {
+        return false;
+    }
+    let tld = labels.last().copied().unwrap_or("");
+    if tld.len() < 2 || !tld.chars().all(|ch| ch.is_ascii_alphabetic()) {
+        return false;
+    }
+    labels.iter().all(|label| {
+        !label.is_empty()
+            && label.chars().all(|ch| ch.is_ascii_alphanumeric() || ch == '-')
+            && !label.starts_with('-')
+            && !label.ends_with('-')
+    })
+}
+
+fn fetch_url_candidate_from_text(raw: &str) -> Option<String> {
+    let trimmed = clean_text(raw, 2_200).trim().to_string();
+    if trimmed.is_empty() {
+        return None;
+    }
+    let normalized = normalize_fetch_requested_url_input(&trimmed);
+    if (normalized.starts_with("http://") || normalized.starts_with("https://"))
+        && !normalized.contains(char::is_whitespace)
+    {
+        return Some(normalized);
+    }
+    if normalized.starts_with("www.") && !normalized.contains(char::is_whitespace) {
+        return Some(format!("https://{}", normalized));
+    }
+    None
 }
 
 fn fetch_url_shape_category(reason: &str) -> &'static str {
@@ -301,12 +674,16 @@ fn fetch_url_shape_contract(
     override_used: bool,
     override_source: &str,
 ) -> Value {
+    let input_trimmed = clean_text(requested_url_input, 2_400).trim().to_string();
+    let normalized_changed = input_trimmed != normalized_requested_url;
     json!({
         "blocked": reason != "none" && !override_used,
         "error": reason,
         "category": fetch_url_shape_category(reason),
         "recommended_action": fetch_url_shape_recommended_action(reason),
         "route_hint": fetch_url_shape_route_hint(reason),
+        "normalized_requested_url": normalized_requested_url,
+        "normalization_changed": normalized_changed,
         "override_used": override_used,
         "override_source": override_source,
         "stats": fetch_url_shape_stats(normalized_requested_url),
@@ -328,22 +705,558 @@ fn fetch_url_shape_stats(raw_requested_url: &str) -> Value {
             unique.push(trimmed.to_string());
         }
     }
+    let host_candidate = lowered
+        .split("://")
+        .nth(1)
+        .unwrap_or(&lowered)
+        .split('/')
+        .next()
+        .unwrap_or("")
+        .to_string();
     json!({
         "line_count": lowered.lines().count(),
         "char_count": lowered.len(),
         "total_terms": total_terms,
         "unique_terms": unique.len(),
+        "host_candidate": host_candidate,
+        "path_present": lowered.contains('/'),
     })
 }
 
+fn fetch_url_source_and_input(request: &Value) -> (String, &'static str) {
+    for (key, source) in [
+        ("requested_url", "requested_url"),
+        ("url", "url"),
+        ("target", "target"),
+        ("link", "link"),
+        ("requestedUrl", "requestedUrl"),
+        ("targetUrl", "targetUrl"),
+        ("sourceUrl", "sourceUrl"),
+        ("target_url", "target_url"),
+        ("href", "href"),
+        ("uri", "uri"),
+    ] {
+        let candidate = clean_text(
+            request.get(key).and_then(Value::as_str).unwrap_or(""),
+            2200,
+        );
+        if !candidate.trim().is_empty() {
+            return (candidate, source);
+        }
+    }
+    for (pointer, source) in [
+        ("/request/requested_url", "request.requested_url"),
+        ("/request/url", "request.url"),
+        ("/request/target", "request.target"),
+        ("/request/link", "request.link"),
+        ("/request/data/requested_url", "request.data.requested_url"),
+        ("/request/data/url", "request.data.url"),
+        ("/request/data/target", "request.data.target"),
+        ("/request/data/link", "request.data.link"),
+        ("/request/body/requested_url", "request.body.requested_url"),
+        ("/request/body/url", "request.body.url"),
+        ("/request/body/target", "request.body.target"),
+        ("/request/body/link", "request.body.link"),
+        ("/request/requestedUrl", "request.requestedUrl"),
+        ("/request/targetUrl", "request.targetUrl"),
+        ("/request/sourceUrl", "request.sourceUrl"),
+        ("/request/data/requestedUrl", "request.data.requestedUrl"),
+        ("/request/data/targetUrl", "request.data.targetUrl"),
+        ("/request/data/sourceUrl", "request.data.sourceUrl"),
+        ("/request/body/requestedUrl", "request.body.requestedUrl"),
+        ("/request/body/targetUrl", "request.body.targetUrl"),
+        ("/request/body/sourceUrl", "request.body.sourceUrl"),
+        ("/request/target_url", "request.target_url"),
+        ("/request/href", "request.href"),
+        ("/request/uri", "request.uri"),
+        ("/request/data/target_url", "request.data.target_url"),
+        ("/request/data/href", "request.data.href"),
+        ("/request/data/uri", "request.data.uri"),
+        ("/request/body/target_url", "request.body.target_url"),
+        ("/request/body/href", "request.body.href"),
+        ("/request/body/uri", "request.body.uri"),
+    ] {
+        let candidate = clean_text(request.pointer(pointer).and_then(Value::as_str).unwrap_or(""), 2200);
+        if !candidate.trim().is_empty() {
+            return (candidate, source);
+        }
+    }
+    for (pointer, source) in [
+        ("/request/query", "request.query"),
+        ("/request/q", "request.q"),
+        ("/request/search_query", "request.search_query"),
+        ("/request/searchQuery", "request.searchQuery"),
+        ("/request/data/query", "request.data.query"),
+        ("/request/data/q", "request.data.q"),
+        ("/request/data/search_query", "request.data.search_query"),
+        ("/request/data/searchQuery", "request.data.searchQuery"),
+        ("/request/body/query", "request.body.query"),
+        ("/request/body/q", "request.body.q"),
+        ("/request/body/search_query", "request.body.search_query"),
+        ("/request/body/searchQuery", "request.body.searchQuery"),
+    ] {
+        let candidate = clean_text(request.pointer(pointer).and_then(Value::as_str).unwrap_or(""), 2200);
+        if let Some(url_candidate) = fetch_url_candidate_from_text(&candidate) {
+            return (url_candidate, source);
+        }
+    }
+    for (pointer, source) in [
+        ("/payload/requested_url", "payload.requested_url"),
+        ("/payload/url", "payload.url"),
+        ("/payload/target", "payload.target"),
+        ("/payload/link", "payload.link"),
+        ("/payload/data/requested_url", "payload.data.requested_url"),
+        ("/payload/data/url", "payload.data.url"),
+        ("/payload/data/target", "payload.data.target"),
+        ("/payload/data/link", "payload.data.link"),
+        ("/payload/body/requested_url", "payload.body.requested_url"),
+        ("/payload/body/url", "payload.body.url"),
+        ("/payload/body/target", "payload.body.target"),
+        ("/payload/body/link", "payload.body.link"),
+        ("/payload/requestedUrl", "payload.requestedUrl"),
+        ("/payload/targetUrl", "payload.targetUrl"),
+        ("/payload/sourceUrl", "payload.sourceUrl"),
+        ("/payload/data/requestedUrl", "payload.data.requestedUrl"),
+        ("/payload/data/targetUrl", "payload.data.targetUrl"),
+        ("/payload/data/sourceUrl", "payload.data.sourceUrl"),
+        ("/payload/body/requestedUrl", "payload.body.requestedUrl"),
+        ("/payload/body/targetUrl", "payload.body.targetUrl"),
+        ("/payload/body/sourceUrl", "payload.body.sourceUrl"),
+        ("/payload/target_url", "payload.target_url"),
+        ("/payload/href", "payload.href"),
+        ("/payload/uri", "payload.uri"),
+        ("/payload/data/target_url", "payload.data.target_url"),
+        ("/payload/data/href", "payload.data.href"),
+        ("/payload/data/uri", "payload.data.uri"),
+        ("/payload/body/target_url", "payload.body.target_url"),
+        ("/payload/body/href", "payload.body.href"),
+        ("/payload/body/uri", "payload.body.uri"),
+    ] {
+        let candidate = clean_text(request.pointer(pointer).and_then(Value::as_str).unwrap_or(""), 2200);
+        if !candidate.trim().is_empty() {
+            return (candidate, source);
+        }
+    }
+    for (pointer, source) in [
+        ("/payload/request/requested_url", "payload.request.requested_url"),
+        ("/payload/request/url", "payload.request.url"),
+        ("/payload/request/target", "payload.request.target"),
+        ("/payload/request/link", "payload.request.link"),
+        (
+            "/payload/request/data/requested_url",
+            "payload.request.data.requested_url",
+        ),
+        ("/payload/request/data/url", "payload.request.data.url"),
+        ("/payload/request/data/target", "payload.request.data.target"),
+        ("/payload/request/data/link", "payload.request.data.link"),
+        ("/payload/request/body/requested_url", "payload.request.body.requested_url"),
+        ("/payload/request/body/url", "payload.request.body.url"),
+        ("/payload/request/body/target", "payload.request.body.target"),
+        ("/payload/request/body/link", "payload.request.body.link"),
+        ("/payload/request/requestedUrl", "payload.request.requestedUrl"),
+        ("/payload/request/targetUrl", "payload.request.targetUrl"),
+        ("/payload/request/sourceUrl", "payload.request.sourceUrl"),
+        (
+            "/payload/request/data/requestedUrl",
+            "payload.request.data.requestedUrl",
+        ),
+        (
+            "/payload/request/data/targetUrl",
+            "payload.request.data.targetUrl",
+        ),
+        (
+            "/payload/request/data/sourceUrl",
+            "payload.request.data.sourceUrl",
+        ),
+        ("/payload/request/body/requestedUrl", "payload.request.body.requestedUrl"),
+        ("/payload/request/body/targetUrl", "payload.request.body.targetUrl"),
+        ("/payload/request/body/sourceUrl", "payload.request.body.sourceUrl"),
+        ("/payload/request/target_url", "payload.request.target_url"),
+        ("/payload/request/href", "payload.request.href"),
+        ("/payload/request/uri", "payload.request.uri"),
+        (
+            "/payload/request/data/target_url",
+            "payload.request.data.target_url",
+        ),
+        ("/payload/request/data/href", "payload.request.data.href"),
+        ("/payload/request/data/uri", "payload.request.data.uri"),
+        ("/payload/request/body/target_url", "payload.request.body.target_url"),
+        ("/payload/request/body/href", "payload.request.body.href"),
+        ("/payload/request/body/uri", "payload.request.body.uri"),
+    ] {
+        let candidate = clean_text(request.pointer(pointer).and_then(Value::as_str).unwrap_or(""), 2200);
+        if !candidate.trim().is_empty() {
+            return (candidate, source);
+        }
+    }
+    for (pointer, source) in [
+        ("/payload/request/query", "payload.request.query"),
+        ("/payload/request/q", "payload.request.q"),
+        ("/payload/request/search_query", "payload.request.search_query"),
+        ("/payload/request/searchQuery", "payload.request.searchQuery"),
+        ("/payload/request/data/query", "payload.request.data.query"),
+        ("/payload/request/data/q", "payload.request.data.q"),
+        (
+            "/payload/request/data/search_query",
+            "payload.request.data.search_query",
+        ),
+        (
+            "/payload/request/data/searchQuery",
+            "payload.request.data.searchQuery",
+        ),
+        ("/payload/request/body/query", "payload.request.body.query"),
+        ("/payload/request/body/q", "payload.request.body.q"),
+        ("/payload/request/body/search_query", "payload.request.body.search_query"),
+        ("/payload/request/body/searchQuery", "payload.request.body.searchQuery"),
+    ] {
+        let candidate = clean_text(request.pointer(pointer).and_then(Value::as_str).unwrap_or(""), 2200);
+        if let Some(url_candidate) = fetch_url_candidate_from_text(&candidate) {
+            return (url_candidate, source);
+        }
+    }
+    for (pointer, source) in [
+        ("/payload/query", "payload.query"),
+        ("/payload/q", "payload.q"),
+        ("/payload/search_query", "payload.search_query"),
+        ("/payload/searchQuery", "payload.searchQuery"),
+        ("/payload/data/query", "payload.data.query"),
+        ("/payload/data/q", "payload.data.q"),
+        ("/payload/data/search_query", "payload.data.search_query"),
+        ("/payload/data/searchQuery", "payload.data.searchQuery"),
+        ("/payload/body/query", "payload.body.query"),
+        ("/payload/body/q", "payload.body.q"),
+        ("/payload/body/search_query", "payload.body.search_query"),
+        ("/payload/body/searchQuery", "payload.body.searchQuery"),
+    ] {
+        let candidate = clean_text(request.pointer(pointer).and_then(Value::as_str).unwrap_or(""), 2200);
+        if let Some(url_candidate) = fetch_url_candidate_from_text(&candidate) {
+            return (url_candidate, source);
+        }
+    }
+    for (pointer, source) in [
+        ("/urls/0", "urls[0]"),
+        ("/request/urls/0", "request.urls[0]"),
+        ("/request/data/urls/0", "request.data.urls[0]"),
+        ("/payload/urls/0", "payload.urls[0]"),
+        ("/payload/data/urls/0", "payload.data.urls[0]"),
+        ("/payload/request/urls/0", "payload.request.urls[0]"),
+        ("/payload/request/data/urls/0", "payload.request.data.urls[0]"),
+        ("/request/body/urls/0", "request.body.urls[0]"),
+        ("/payload/body/urls/0", "payload.body.urls[0]"),
+        ("/payload/request/body/urls/0", "payload.request.body.urls[0]"),
+    ] {
+        let candidate = clean_text(request.pointer(pointer).and_then(Value::as_str).unwrap_or(""), 2200);
+        if let Some(url_candidate) = fetch_url_candidate_from_text(&candidate) {
+            return (url_candidate, source);
+        }
+    }
+    for (pointer, source_prefix) in [
+        ("/urls/0", "urls[0]"),
+        ("/request/urls/0", "request.urls[0]"),
+        ("/request/data/urls/0", "request.data.urls[0]"),
+        ("/payload/urls/0", "payload.urls[0]"),
+        ("/payload/data/urls/0", "payload.data.urls[0]"),
+        ("/payload/request/urls/0", "payload.request.urls[0]"),
+        ("/payload/request/data/urls/0", "payload.request.data.urls[0]"),
+        ("/request/body/urls/0", "request.body.urls[0]"),
+        ("/payload/body/urls/0", "payload.body.urls[0]"),
+        ("/payload/request/body/urls/0", "payload.request.body.urls[0]"),
+    ] {
+        for (field, source_suffix) in [
+            ("url", ".url"),
+            ("href", ".href"),
+            ("uri", ".uri"),
+            ("link", ".link"),
+            ("target", ".target"),
+        ] {
+            let pointer_with_field = format!("{}/{}", pointer, field);
+            let candidate = clean_text(
+                request.pointer(&pointer_with_field).and_then(Value::as_str).unwrap_or(""),
+                2200,
+            );
+            if let Some(url_candidate) = fetch_url_candidate_from_text(&candidate) {
+                let source_name = match (source_prefix, source_suffix) {
+                    ("urls[0]", ".url") => "urls[0].url",
+                    ("urls[0]", ".href") => "urls[0].href",
+                    ("urls[0]", ".uri") => "urls[0].uri",
+                    ("urls[0]", ".link") => "urls[0].link",
+                    ("urls[0]", ".target") => "urls[0].target",
+                    ("request.urls[0]", ".url") => "request.urls[0].url",
+                    ("request.urls[0]", ".href") => "request.urls[0].href",
+                    ("request.urls[0]", ".uri") => "request.urls[0].uri",
+                    ("request.urls[0]", ".link") => "request.urls[0].link",
+                    ("request.urls[0]", ".target") => "request.urls[0].target",
+                    ("request.data.urls[0]", ".url") => "request.data.urls[0].url",
+                    ("request.data.urls[0]", ".href") => "request.data.urls[0].href",
+                    ("request.data.urls[0]", ".uri") => "request.data.urls[0].uri",
+                    ("request.data.urls[0]", ".link") => "request.data.urls[0].link",
+                    ("request.data.urls[0]", ".target") => "request.data.urls[0].target",
+                    ("payload.urls[0]", ".url") => "payload.urls[0].url",
+                    ("payload.urls[0]", ".href") => "payload.urls[0].href",
+                    ("payload.urls[0]", ".uri") => "payload.urls[0].uri",
+                    ("payload.urls[0]", ".link") => "payload.urls[0].link",
+                    ("payload.urls[0]", ".target") => "payload.urls[0].target",
+                    ("payload.data.urls[0]", ".url") => "payload.data.urls[0].url",
+                    ("payload.data.urls[0]", ".href") => "payload.data.urls[0].href",
+                    ("payload.data.urls[0]", ".uri") => "payload.data.urls[0].uri",
+                    ("payload.data.urls[0]", ".link") => "payload.data.urls[0].link",
+                    ("payload.data.urls[0]", ".target") => "payload.data.urls[0].target",
+                    ("payload.request.urls[0]", ".url") => "payload.request.urls[0].url",
+                    ("payload.request.urls[0]", ".href") => "payload.request.urls[0].href",
+                    ("payload.request.urls[0]", ".uri") => "payload.request.urls[0].uri",
+                    ("payload.request.urls[0]", ".link") => "payload.request.urls[0].link",
+                    ("payload.request.urls[0]", ".target") => "payload.request.urls[0].target",
+                    ("payload.request.data.urls[0]", ".url") => "payload.request.data.urls[0].url",
+                    ("payload.request.data.urls[0]", ".href") => "payload.request.data.urls[0].href",
+                    ("payload.request.data.urls[0]", ".uri") => "payload.request.data.urls[0].uri",
+                    ("payload.request.data.urls[0]", ".link") => "payload.request.data.urls[0].link",
+                    ("payload.request.data.urls[0]", ".target") => "payload.request.data.urls[0].target",
+                    ("request.body.urls[0]", ".url") => "request.body.urls[0].url",
+                    ("request.body.urls[0]", ".href") => "request.body.urls[0].href",
+                    ("request.body.urls[0]", ".uri") => "request.body.urls[0].uri",
+                    ("request.body.urls[0]", ".link") => "request.body.urls[0].link",
+                    ("request.body.urls[0]", ".target") => "request.body.urls[0].target",
+                    ("payload.body.urls[0]", ".url") => "payload.body.urls[0].url",
+                    ("payload.body.urls[0]", ".href") => "payload.body.urls[0].href",
+                    ("payload.body.urls[0]", ".uri") => "payload.body.urls[0].uri",
+                    ("payload.body.urls[0]", ".link") => "payload.body.urls[0].link",
+                    ("payload.body.urls[0]", ".target") => "payload.body.urls[0].target",
+                    ("payload.request.body.urls[0]", ".url") => "payload.request.body.urls[0].url",
+                    ("payload.request.body.urls[0]", ".href") => "payload.request.body.urls[0].href",
+                    ("payload.request.body.urls[0]", ".uri") => "payload.request.body.urls[0].uri",
+                    ("payload.request.body.urls[0]", ".link") => "payload.request.body.urls[0].link",
+                    ("payload.request.body.urls[0]", ".target") => "payload.request.body.urls[0].target",
+                    _ => "none",
+                };
+                if source_name != "none" {
+                    return (url_candidate, source_name);
+                }
+            }
+        }
+    }
+    for (key, source) in [("query", "query"), ("q", "q")] {
+        let candidate = clean_text(
+            request.get(key).and_then(Value::as_str).unwrap_or(""),
+            2200,
+        );
+        if let Some(url_candidate) = fetch_url_candidate_from_text(&candidate) {
+            return (url_candidate, source);
+        }
+    }
+    for (key, source) in [
+        ("message", "message"),
+        ("text", "text"),
+        ("input", "input"),
+        ("prompt", "prompt"),
+        ("question", "question"),
+    ] {
+        let candidate = clean_text(
+            request.get(key).and_then(Value::as_str).unwrap_or(""),
+            2200,
+        );
+        if let Some(url_candidate) = fetch_url_candidate_from_text(&candidate) {
+            return (url_candidate, source);
+        }
+    }
+    for (pointer, source) in [
+        ("/request/message", "request.message"),
+        ("/request/text", "request.text"),
+        ("/request/input", "request.input"),
+        ("/request/prompt", "request.prompt"),
+        ("/request/question", "request.question"),
+        ("/request/data/message", "request.data.message"),
+        ("/request/data/text", "request.data.text"),
+        ("/request/data/input", "request.data.input"),
+        ("/request/data/prompt", "request.data.prompt"),
+        ("/request/data/question", "request.data.question"),
+        ("/request/body/data/message", "request.body.data.message"),
+        ("/request/body/data/text", "request.body.data.text"),
+        ("/request/body/data/input", "request.body.data.input"),
+        ("/request/body/data/prompt", "request.body.data.prompt"),
+        ("/request/body/data/question", "request.body.data.question"),
+        ("/payload/message", "payload.message"),
+        ("/payload/text", "payload.text"),
+        ("/payload/input", "payload.input"),
+        ("/payload/prompt", "payload.prompt"),
+        ("/payload/question", "payload.question"),
+        ("/payload/data/message", "payload.data.message"),
+        ("/payload/data/text", "payload.data.text"),
+        ("/payload/data/input", "payload.data.input"),
+        ("/payload/data/prompt", "payload.data.prompt"),
+        ("/payload/data/question", "payload.data.question"),
+        ("/payload/body/data/message", "payload.body.data.message"),
+        ("/payload/body/data/text", "payload.body.data.text"),
+        ("/payload/body/data/input", "payload.body.data.input"),
+        ("/payload/body/data/prompt", "payload.body.data.prompt"),
+        ("/payload/body/data/question", "payload.body.data.question"),
+        ("/payload/request/message", "payload.request.message"),
+        ("/payload/request/text", "payload.request.text"),
+        ("/payload/request/input", "payload.request.input"),
+        ("/payload/request/prompt", "payload.request.prompt"),
+        ("/payload/request/question", "payload.request.question"),
+        ("/payload/request/data/message", "payload.request.data.message"),
+        ("/payload/request/data/text", "payload.request.data.text"),
+        ("/payload/request/data/input", "payload.request.data.input"),
+        ("/payload/request/data/prompt", "payload.request.data.prompt"),
+        ("/payload/request/data/question", "payload.request.data.question"),
+        (
+            "/payload/request/body/data/message",
+            "payload.request.body.data.message",
+        ),
+        (
+            "/payload/request/body/data/text",
+            "payload.request.body.data.text",
+        ),
+        (
+            "/payload/request/body/data/input",
+            "payload.request.body.data.input",
+        ),
+        (
+            "/payload/request/body/data/prompt",
+            "payload.request.body.data.prompt",
+        ),
+        (
+            "/payload/request/body/data/question",
+            "payload.request.body.data.question",
+        ),
+    ] {
+        let candidate = clean_text(
+            request.pointer(pointer).and_then(Value::as_str).unwrap_or(""),
+            2200,
+        );
+        if let Some(url_candidate) = fetch_url_candidate_from_text(&candidate) {
+            return (url_candidate, source);
+        }
+    }
+    (String::new(), "none")
+}
+
+fn fetch_url_source_kind(source: &str) -> &'static str {
+    if source == "none" {
+        "none"
+    } else if source.starts_with("payload.request.") && (source.ends_with("[0]") || source.contains("[0].")) {
+        "request_array_field"
+    } else if source.starts_with("request.") && (source.ends_with("[0]") || source.contains("[0].")) {
+        "request_array_field"
+    } else if source == "request.query"
+        || source == "request.q"
+        || source == "request.search_query"
+        || source == "request.searchQuery"
+        || source == "payload.request.query"
+        || source == "payload.request.q"
+        || source == "payload.request.search_query"
+        || source == "payload.request.searchQuery"
+    {
+        "request_query_fallback"
+    } else if source.starts_with("payload.") && (source.ends_with("[0]") || source.contains("[0].")) {
+        "payload_array_field"
+    } else if source.ends_with("[0]") || source.contains("[0].") {
+        "array_field"
+    } else if source == "query" || source == "q" {
+        "query_fallback"
+    } else if source == "message"
+        || source == "text"
+        || source == "input"
+        || source == "prompt"
+        || source == "question"
+    {
+        "query_fallback"
+    } else if source == "request.message"
+        || source == "request.text"
+        || source == "request.input"
+        || source == "request.prompt"
+        || source == "request.question"
+        || source == "payload.request.message"
+        || source == "payload.request.text"
+        || source == "payload.request.input"
+        || source == "payload.request.prompt"
+        || source == "payload.request.question"
+    {
+        "request_query_fallback"
+    } else if source == "payload.query"
+        || source == "payload.q"
+        || source == "payload.search_query"
+        || source == "payload.searchQuery"
+        || source == "payload.message"
+        || source == "payload.text"
+        || source == "payload.input"
+        || source == "payload.prompt"
+        || source == "payload.question"
+    {
+        "payload_query_fallback"
+    } else if source.starts_with("request.") || source.starts_with("payload.request.") {
+        "request_field"
+    } else if source.starts_with("payload.") {
+        "payload_field"
+    } else {
+        "direct_field"
+    }
+}
+
+fn fetch_url_source_lineage(source: &str, source_kind: &str, source_confidence: &str) -> Value {
+    let normalized_source = clean_text(source, 200);
+    let source_lane = if normalized_source.starts_with("payload.request.") {
+        "payload_request"
+    } else if normalized_source.starts_with("request.") {
+        "request"
+    } else if normalized_source.starts_with("payload.") {
+        "payload"
+    } else if normalized_source == "none" {
+        "none"
+    } else {
+        "direct"
+    };
+    let path_depth = if normalized_source.is_empty() || normalized_source == "none" {
+        0usize
+    } else {
+        normalized_source.split('.').count()
+    };
+    json!({
+        "source": normalized_source,
+        "kind": source_kind,
+        "confidence": source_confidence,
+        "lane": source_lane,
+        "is_request_wrapped": source_lane == "request" || source_lane == "payload_request",
+        "is_payload_wrapped": source_lane == "payload" || source_lane == "payload_request",
+        "is_array_source": source.contains('['),
+        "path_depth": path_depth
+    })
+}
+
+fn fetch_url_source_recovery_mode(source: &str) -> &'static str {
+    if source == "none" {
+        "none"
+    } else if source.starts_with("requested_url")
+        || source.starts_with("url")
+        || source.starts_with("target")
+        || source.starts_with("link")
+        || source.starts_with("href")
+        || source.starts_with("uri")
+    {
+        "direct"
+    } else {
+        "derived"
+    }
+}
+
+fn fetch_url_source_confidence(source_kind: &str) -> &'static str {
+    match source_kind {
+        "none" => "none",
+        "array_field" | "payload_array_field" | "request_array_field" => "medium",
+        _ => "high",
+    }
+}
+
 fn execute_fetch_request(root: &Path, request: &Value) -> Value {
-    let requested_url_input = clean_text(
-        request
-            .get("requested_url")
-            .or_else(|| request.get("url"))
-            .and_then(Value::as_str)
-            .unwrap_or(""),
-        2200,
+    let (requested_url_input, requested_url_source) = fetch_url_source_and_input(request);
+    let requested_url_source_kind = fetch_url_source_kind(requested_url_source);
+    let requested_url_source_confidence = fetch_url_source_confidence(requested_url_source_kind);
+    let requested_url_source_recovery_mode =
+        fetch_url_source_recovery_mode(requested_url_source);
+    let requested_url_source_lineage = fetch_url_source_lineage(
+        requested_url_source,
+        requested_url_source_kind,
+        requested_url_source_confidence,
     );
     let raw_requested_url = normalize_fetch_requested_url_input(&requested_url_input);
     let summary_only = request
@@ -459,6 +1372,26 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
                 Value::String(requested_url_input.clone()),
             );
             obj.insert(
+                "requested_url_source".to_string(),
+                Value::String(requested_url_source.to_string()),
+            );
+            obj.insert(
+                "requested_url_source_kind".to_string(),
+                Value::String(requested_url_source_kind.to_string()),
+            );
+            obj.insert(
+                "requested_url_source_confidence".to_string(),
+                Value::String(requested_url_source_confidence.to_string()),
+            );
+            obj.insert(
+                "requested_url_source_recovery_mode".to_string(),
+                Value::String(requested_url_source_recovery_mode.to_string()),
+            );
+            obj.insert(
+                "requested_url_source_lineage".to_string(),
+                requested_url_source_lineage.clone(),
+            );
+            obj.insert(
                 "fetch_url_shape".to_string(),
                 fetch_url_shape_contract(
                     &requested_url_input,
@@ -467,6 +1400,15 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
                     false,
                     fetch_url_override_source,
                 ),
+            );
+            obj.insert(
+                "retry".to_string(),
+                json!({
+                    "recommended": true,
+                    "strategy": "provide_valid_http_or_https_url",
+                    "lane": "web_fetch",
+                    "retry_after_seconds": 0
+                }),
             );
         }
         return out;
@@ -502,6 +1444,26 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
                 Value::String(requested_url_input.clone()),
             );
             obj.insert(
+                "requested_url_source".to_string(),
+                Value::String(requested_url_source.to_string()),
+            );
+            obj.insert(
+                "requested_url_source_kind".to_string(),
+                Value::String(requested_url_source_kind.to_string()),
+            );
+            obj.insert(
+                "requested_url_source_confidence".to_string(),
+                Value::String(requested_url_source_confidence.to_string()),
+            );
+            obj.insert(
+                "requested_url_source_recovery_mode".to_string(),
+                Value::String(requested_url_source_recovery_mode.to_string()),
+            );
+            obj.insert(
+                "requested_url_source_lineage".to_string(),
+                requested_url_source_lineage.clone(),
+            );
+            obj.insert(
                 "fetch_url_shape".to_string(),
                 fetch_url_shape_contract(
                     &requested_url_input,
@@ -510,6 +1472,15 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
                     fetch_url_override_used,
                     fetch_url_override_source,
                 ),
+            );
+            obj.insert(
+                "retry".to_string(),
+                json!({
+                    "recommended": true,
+                    "strategy": "answer_directly_or_set_force_web_fetch",
+                    "lane": "web_fetch",
+                    "retry_after_seconds": 0
+                }),
             );
         }
         return out;
@@ -543,6 +1514,26 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
                 Value::String(requested_url_input.clone()),
             );
             obj.insert(
+                "requested_url_source".to_string(),
+                Value::String(requested_url_source.to_string()),
+            );
+            obj.insert(
+                "requested_url_source_kind".to_string(),
+                Value::String(requested_url_source_kind.to_string()),
+            );
+            obj.insert(
+                "requested_url_source_confidence".to_string(),
+                Value::String(requested_url_source_confidence.to_string()),
+            );
+            obj.insert(
+                "requested_url_source_recovery_mode".to_string(),
+                Value::String(requested_url_source_recovery_mode.to_string()),
+            );
+            obj.insert(
+                "requested_url_source_lineage".to_string(),
+                requested_url_source_lineage.clone(),
+            );
+            obj.insert(
                 "fetch_url_shape".to_string(),
                 fetch_url_shape_contract(
                     &requested_url_input,
@@ -551,6 +1542,15 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
                     fetch_url_override_used,
                     fetch_url_override_source,
                 ),
+            );
+            obj.insert(
+                "retry".to_string(),
+                json!({
+                    "recommended": true,
+                    "strategy": "use_supported_provider_or_auto",
+                    "lane": "web_fetch",
+                    "retry_after_seconds": 0
+                }),
             );
         }
         return out;
@@ -616,6 +1616,12 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
             "error": error,
             "type": "web_conduit_fetch",
             "requested_url": raw_requested_url,
+            "requested_url_input": requested_url_input,
+            "requested_url_source": requested_url_source,
+            "requested_url_source_kind": requested_url_source_kind,
+            "requested_url_source_confidence": requested_url_source_confidence,
+            "requested_url_source_recovery_mode": requested_url_source_recovery_mode,
+            "requested_url_source_lineage": requested_url_source_lineage,
             "resolved_url": resolved_url,
             "citation_redirect_resolved": redirect_resolved,
             "provider": selected_provider.clone(),
@@ -623,9 +1629,24 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
             "provider_chain": fetch_provider_chain.clone(),
             "provider_resolution": provider_resolution,
             "provider_health": provider_health_snapshot(root, &fetch_provider_chain),
+            "fetch_provider_catalog": fetch_provider_catalog_snapshot(root, &policy),
             "tool_surface_status": tool_surface_status.clone(),
             "tool_surface_ready": tool_surface_ready,
             "tool_surface_blocking_reason": tool_surface_blocking_reason,
+            "fetch_url_shape_stats": fetch_url_shape_stats(&raw_requested_url),
+            "fetch_url_shape_error": fetch_url_shape_error,
+            "fetch_url_shape_category": fetch_url_shape_category(fetch_url_shape_error),
+            "fetch_url_shape_recommended_action": fetch_url_shape_recommended_action(fetch_url_shape_error),
+            "fetch_url_shape_route_hint": fetch_url_shape_route_hint(fetch_url_shape_error),
+            "fetch_url_shape_override_used": fetch_url_override_used,
+            "fetch_url_shape_override_source": fetch_url_override_source,
+            "fetch_url_shape": fetch_url_shape_contract(
+                &requested_url_input,
+                &raw_requested_url,
+                fetch_url_shape_error,
+                fetch_url_override_used,
+                fetch_url_override_source
+            ),
             "tool_execution_attempted": false,
             "tool_execution_gate": {
                 "should_execute": false,
@@ -637,6 +1658,12 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
             "cache_store_allowed": false,
             "cache_write_attempted": false,
             "cache_skip_reason": "ssrf_blocked",
+            "retry": fetch_retry_envelope_runtime(
+                "use_public_http_or_https_target",
+                "ssrf_blocked",
+                "web_fetch",
+                0
+            ),
             "ssrf_guard": ssrf_guard,
             "receipt": receipt
         });
@@ -694,6 +1721,12 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
             "error": "web_conduit_policy_denied",
             "type": "web_conduit_fetch",
             "requested_url": raw_requested_url,
+            "requested_url_input": requested_url_input,
+            "requested_url_source": requested_url_source,
+            "requested_url_source_kind": requested_url_source_kind,
+            "requested_url_source_confidence": requested_url_source_confidence,
+            "requested_url_source_recovery_mode": requested_url_source_recovery_mode,
+            "requested_url_source_lineage": requested_url_source_lineage,
             "resolved_url": resolved_url,
             "citation_redirect_resolved": redirect_resolved,
             "provider": selected_provider.clone(),
@@ -701,9 +1734,24 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
             "provider_chain": fetch_provider_chain.clone(),
             "provider_resolution": provider_resolution,
             "provider_health": provider_health_snapshot(root, &fetch_provider_chain),
+            "fetch_provider_catalog": fetch_provider_catalog_snapshot(root, &policy),
             "tool_surface_status": tool_surface_status.clone(),
             "tool_surface_ready": tool_surface_ready,
             "tool_surface_blocking_reason": tool_surface_blocking_reason,
+            "fetch_url_shape_stats": fetch_url_shape_stats(&raw_requested_url),
+            "fetch_url_shape_error": fetch_url_shape_error,
+            "fetch_url_shape_category": fetch_url_shape_category(fetch_url_shape_error),
+            "fetch_url_shape_recommended_action": fetch_url_shape_recommended_action(fetch_url_shape_error),
+            "fetch_url_shape_route_hint": fetch_url_shape_route_hint(fetch_url_shape_error),
+            "fetch_url_shape_override_used": fetch_url_override_used,
+            "fetch_url_shape_override_source": fetch_url_override_source,
+            "fetch_url_shape": fetch_url_shape_contract(
+                &requested_url_input,
+                &raw_requested_url,
+                fetch_url_shape_error,
+                fetch_url_override_used,
+                fetch_url_override_source
+            ),
             "tool_execution_attempted": false,
             "tool_execution_gate": {
                 "should_execute": false,
@@ -715,6 +1763,16 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
             "cache_store_allowed": false,
             "cache_write_attempted": false,
             "cache_skip_reason": cache_skip_reason,
+            "retry": fetch_retry_envelope_runtime(
+                if reason == "human_approval_required_for_sensitive_domain" {
+                    "approve_and_retry"
+                } else {
+                    "adjust_policy_or_target"
+                },
+                &reason,
+                "web_fetch",
+                0
+            ),
             "policy_decision": policy_eval,
             "receipt": receipt,
             "approval_required": approval.is_some(),
@@ -949,6 +2007,26 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
                 Value::String(requested_url_input.clone()),
             );
             obj.insert(
+                "requested_url_source".to_string(),
+                Value::String(requested_url_source.to_string()),
+            );
+            obj.insert(
+                "requested_url_source_kind".to_string(),
+                Value::String(requested_url_source_kind.to_string()),
+            );
+            obj.insert(
+                "requested_url_source_confidence".to_string(),
+                Value::String(requested_url_source_confidence.to_string()),
+            );
+            obj.insert(
+                "requested_url_source_recovery_mode".to_string(),
+                Value::String(requested_url_source_recovery_mode.to_string()),
+            );
+            obj.insert(
+                "requested_url_source_lineage".to_string(),
+                requested_url_source_lineage.clone(),
+            );
+            obj.insert(
                 "fetch_url_shape".to_string(),
                 fetch_url_shape_contract(
                     &requested_url_input,
@@ -1053,11 +2131,77 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
             "provider_hint".to_string(),
             Value::String(provider_hint.clone()),
         );
+        out.insert(
+            "requested_url_input".to_string(),
+            Value::String(requested_url_input.clone()),
+        );
+        out.insert(
+            "requested_url_source".to_string(),
+            Value::String(requested_url_source.to_string()),
+        );
+        out.insert(
+            "requested_url_source_kind".to_string(),
+            Value::String(requested_url_source_kind.to_string()),
+        );
+        out.insert(
+            "requested_url_source_confidence".to_string(),
+            Value::String(requested_url_source_confidence.to_string()),
+        );
+        out.insert(
+            "requested_url_source_recovery_mode".to_string(),
+            Value::String(requested_url_source_recovery_mode.to_string()),
+        );
+        out.insert(
+            "requested_url_source_lineage".to_string(),
+            requested_url_source_lineage.clone(),
+        );
+        out.insert(
+            "fetch_url_shape_stats".to_string(),
+            fetch_url_shape_stats(&raw_requested_url),
+        );
+        out.insert(
+            "fetch_url_shape_error".to_string(),
+            json!(fetch_url_shape_error),
+        );
+        out.insert(
+            "fetch_url_shape_category".to_string(),
+            json!(fetch_url_shape_category(fetch_url_shape_error)),
+        );
+        out.insert(
+            "fetch_url_shape_recommended_action".to_string(),
+            json!(fetch_url_shape_recommended_action(fetch_url_shape_error)),
+        );
+        out.insert(
+            "fetch_url_shape_route_hint".to_string(),
+            json!(fetch_url_shape_route_hint(fetch_url_shape_error)),
+        );
+        out.insert(
+            "fetch_url_shape_override_used".to_string(),
+            json!(fetch_url_override_used),
+        );
+        out.insert(
+            "fetch_url_shape_override_source".to_string(),
+            json!(fetch_url_override_source),
+        );
+        out.insert(
+            "fetch_url_shape".to_string(),
+            fetch_url_shape_contract(
+                &requested_url_input,
+                &raw_requested_url,
+                fetch_url_shape_error,
+                fetch_url_override_used,
+                fetch_url_override_source,
+            ),
+        );
         out.insert("provider_chain".to_string(), json!(fetch_provider_chain.clone()));
         out.insert("provider_resolution".to_string(), provider_resolution);
         out.insert(
             "provider_health".to_string(),
             provider_health_snapshot(root, &fetch_provider_chain),
+        );
+        out.insert(
+            "fetch_provider_catalog".to_string(),
+            fetch_provider_catalog_snapshot(root, &policy),
         );
         out.insert(
             "tool_surface_status".to_string(),
@@ -1083,6 +2227,21 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
         out.insert(
             "cache_skip_reason".to_string(),
             Value::String(cache_skip_reason.to_string()),
+        );
+        out.insert(
+            "retry".to_string(),
+            fetch_retry_envelope_runtime(
+                if preflight_error == "web_fetch_tool_surface_unavailable" {
+                    "restore_tool_surface_or_use_supported_provider"
+                } else if preflight_error == "web_fetch_tool_surface_degraded" {
+                    "stabilize_provider_runtime_and_retry"
+                } else {
+                    "resolve_tool_execution_gate"
+                },
+                preflight_error,
+                "web_fetch",
+                0,
+            ),
         );
         out.insert("replay_policy".to_string(), replay_policy.clone());
         out.insert("replay_bypass".to_string(), replay_bypass.clone());
@@ -1172,11 +2331,77 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
             "provider_hint".to_string(),
             Value::String(provider_hint.clone()),
         );
+        out.insert(
+            "requested_url_input".to_string(),
+            Value::String(requested_url_input.clone()),
+        );
+        out.insert(
+            "requested_url_source".to_string(),
+            Value::String(requested_url_source.to_string()),
+        );
+        out.insert(
+            "requested_url_source_kind".to_string(),
+            Value::String(requested_url_source_kind.to_string()),
+        );
+        out.insert(
+            "requested_url_source_confidence".to_string(),
+            Value::String(requested_url_source_confidence.to_string()),
+        );
+        out.insert(
+            "requested_url_source_recovery_mode".to_string(),
+            Value::String(requested_url_source_recovery_mode.to_string()),
+        );
+        out.insert(
+            "requested_url_source_lineage".to_string(),
+            requested_url_source_lineage.clone(),
+        );
+        out.insert(
+            "fetch_url_shape_stats".to_string(),
+            fetch_url_shape_stats(&raw_requested_url),
+        );
+        out.insert(
+            "fetch_url_shape_error".to_string(),
+            json!(fetch_url_shape_error),
+        );
+        out.insert(
+            "fetch_url_shape_category".to_string(),
+            json!(fetch_url_shape_category(fetch_url_shape_error)),
+        );
+        out.insert(
+            "fetch_url_shape_recommended_action".to_string(),
+            json!(fetch_url_shape_recommended_action(fetch_url_shape_error)),
+        );
+        out.insert(
+            "fetch_url_shape_route_hint".to_string(),
+            json!(fetch_url_shape_route_hint(fetch_url_shape_error)),
+        );
+        out.insert(
+            "fetch_url_shape_override_used".to_string(),
+            json!(fetch_url_override_used),
+        );
+        out.insert(
+            "fetch_url_shape_override_source".to_string(),
+            json!(fetch_url_override_source),
+        );
+        out.insert(
+            "fetch_url_shape".to_string(),
+            fetch_url_shape_contract(
+                &requested_url_input,
+                &raw_requested_url,
+                fetch_url_shape_error,
+                fetch_url_override_used,
+                fetch_url_override_source,
+            ),
+        );
         out.insert("provider_chain".to_string(), json!(fetch_provider_chain.clone()));
         out.insert("provider_resolution".to_string(), provider_resolution);
         out.insert(
             "provider_health".to_string(),
             provider_health_snapshot(root, &fetch_provider_chain),
+        );
+        out.insert(
+            "fetch_provider_catalog".to_string(),
+            fetch_provider_catalog_snapshot(root, &policy),
         );
         out.insert(
             "tool_surface_status".to_string(),
@@ -1212,12 +2437,12 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
         );
         out.insert(
             "retry".to_string(),
-            json!({
-                "recommended": true,
-                "strategy": "change_query_or_provider",
-                "lane": replay_retry_lane,
-                "retry_after_seconds": replay_retry_after_seconds
-            }),
+            fetch_retry_envelope_runtime(
+                "change_query_or_provider",
+                "web_fetch_duplicate_attempt_suppressed",
+                &replay_retry_lane,
+                replay_retry_after_seconds,
+            ),
         );
         out.insert(
             "process_summary".to_string(),
@@ -1466,6 +2691,26 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
     out_obj.insert(
         "requested_url_input".to_string(),
         Value::String(requested_url_input.clone()),
+    );
+    out_obj.insert(
+        "requested_url_source".to_string(),
+        Value::String(requested_url_source.to_string()),
+    );
+    out_obj.insert(
+        "requested_url_source_kind".to_string(),
+        Value::String(requested_url_source_kind.to_string()),
+    );
+    out_obj.insert(
+        "requested_url_source_confidence".to_string(),
+        Value::String(requested_url_source_confidence.to_string()),
+    );
+    out_obj.insert(
+        "requested_url_source_recovery_mode".to_string(),
+        Value::String(requested_url_source_recovery_mode.to_string()),
+    );
+    out_obj.insert(
+        "requested_url_source_lineage".to_string(),
+        requested_url_source_lineage,
     );
     out_obj.insert(
         "resolved_url".to_string(),

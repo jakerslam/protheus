@@ -964,6 +964,780 @@ mod tests {
             .and_then(Value::as_i64)
             .unwrap_or(0);
         assert_eq!(before_depth, after_depth);
+        assert!(
+            preview_payload
+                .pointer("/error_histogram")
+                .and_then(Value::as_array)
+                .is_some()
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_state_lane_reports_depth_and_histogram() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let report = run_action(
+            root.path(),
+            "dashboard.troubleshooting.report_message",
+            &json!({
+                "source":"dashboard_report_popup",
+                "session_id":"session-outbox-state",
+                "message_id":"msg-outbox-state",
+                "__github_issue_mock_auth_missing": true
+            }),
+        );
+        assert!(report.ok);
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.state",
+            &json!({"limit": 10}),
+        );
+        assert!(lane.ok);
+        let payload = lane.payload.unwrap_or_else(|| json!({}));
+        assert_eq!(
+            payload.get("type").and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+        assert_eq!(payload.get("depth").and_then(Value::as_i64), Some(1));
+        assert!(
+            payload
+                .pointer("/error_histogram")
+                .and_then(Value::as_array)
+                .is_some()
+        );
+        assert_eq!(
+            payload
+                .pointer("/queue_pressure_contract/version")
+                .and_then(Value::as_str),
+            Some("v1")
+        );
+        assert!(
+            payload
+                .pointer("/queue_pressure_contract/snapshot_epoch_s")
+                .and_then(Value::as_i64)
+                .unwrap_or(0)
+                > 0
+        );
+        assert_eq!(
+            payload
+                .pointer("/queue_pressure_contract/family")
+                .and_then(Value::as_str),
+            Some("dashboard_queue_pressure_contract_v1")
+        );
+        assert_eq!(
+            payload
+                .pointer("/queue_pressure_contract/producer")
+                .and_then(Value::as_str),
+            Some("dashboard.troubleshooting")
+        );
+        assert_eq!(
+            payload
+                .get("queue_pressure_contract_family")
+                .and_then(Value::as_str),
+            Some("dashboard_queue_pressure_contract_v1")
+        );
+        assert_eq!(
+            payload
+                .pointer("/queue_pressure_contract/priority")
+                .and_then(Value::as_str),
+            payload
+                .get("queue_pressure_priority")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queue_pressure_contract/action_hint")
+                .and_then(Value::as_str),
+            payload
+                .get("queue_pressure_action_hint")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queue_pressure_contract/escalation_lane")
+                .and_then(Value::as_str),
+            payload
+                .get("queue_pressure_escalation_lane")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queue_pressure_contract/runbook_id")
+                .and_then(Value::as_str),
+            payload
+                .get("queue_pressure_runbook_id")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queue_pressure_contract/escalation_owner")
+                .and_then(Value::as_str),
+            payload
+                .get("queue_pressure_escalation_owner")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queue_pressure_contract/deadline_epoch_s")
+                .and_then(Value::as_i64),
+            payload
+                .get("queue_pressure_deadline_epoch_s")
+                .and_then(Value::as_i64)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queue_pressure_contract/breach_reason")
+                .and_then(Value::as_str),
+            payload
+                .get("queue_pressure_breach_reason")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queue_pressure_contract/blocking_kind")
+                .and_then(Value::as_str),
+            payload
+                .get("queue_pressure_blocking_kind")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queue_pressure_contract/auto_retry_allowed")
+                .and_then(Value::as_bool),
+            payload
+                .get("queue_pressure_auto_retry_allowed")
+                .and_then(Value::as_bool)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queue_pressure_contract/execution_policy")
+                .and_then(Value::as_str),
+            payload
+                .get("queue_pressure_execution_policy")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queue_pressure_contract/manual_gate_required")
+                .and_then(Value::as_bool),
+            payload
+                .get("queue_pressure_manual_gate_required")
+                .and_then(Value::as_bool)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queue_pressure_contract/manual_gate_reason")
+                .and_then(Value::as_str),
+            payload
+                .get("queue_pressure_manual_gate_reason")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queue_pressure_contract/requeue_strategy")
+                .and_then(Value::as_str),
+            payload
+                .get("queue_pressure_requeue_strategy")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queue_pressure_contract/can_execute_without_human")
+                .and_then(Value::as_bool),
+            payload
+                .get("queue_pressure_can_execute_without_human")
+                .and_then(Value::as_bool)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queue_pressure_contract/execution_window")
+                .and_then(Value::as_str),
+            payload
+                .get("queue_pressure_execution_window")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queue_pressure_contract/manual_gate_timeout_seconds")
+                .and_then(Value::as_i64),
+            payload
+                .get("queue_pressure_manual_gate_timeout_seconds")
+                .and_then(Value::as_i64)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queue_pressure_contract/next_action_after_seconds")
+                .and_then(Value::as_i64),
+            payload
+                .get("queue_pressure_next_action_after_seconds")
+                .and_then(Value::as_i64)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queue_pressure_contract/readiness_state")
+                .and_then(Value::as_str),
+            payload
+                .get("queue_pressure_readiness_state")
+                .and_then(Value::as_str)
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_lane_reports_recommendations_and_queue_depths() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane_payload = json!({
+            "response": "tooling failed",
+            "tools": [],
+            "response_finalization": {
+                "tool_transaction": {
+                    "classification": "tool_not_invoked",
+                    "status": "failed"
+                },
+                "hard_guard": {"applied": true}
+            },
+            "error": "web_tool_not_invoked"
+        });
+        let _capture = dashboard_troubleshooting_capture_chat_exchange(
+            root.path(),
+            "probe-spark8",
+            "find agent frameworks",
+            &lane_payload,
+            false,
+            true,
+        );
+        let summary = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary",
+            &json!({"limit": 10}),
+        );
+        assert!(summary.ok);
+        let payload = summary.payload.unwrap_or_else(|| json!({}));
+        assert_eq!(
+            payload.get("type").and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+        assert!(
+            payload
+                .pointer("/recent/failure_count")
+                .and_then(Value::as_i64)
+                .unwrap_or(0)
+                >= 1
+        );
+        assert!(
+            payload
+                .pointer("/recommendations")
+                .and_then(Value::as_array)
+                .map(|rows| !rows.is_empty())
+                .unwrap_or(false)
+        );
+        let overview = run_action(
+            root.path(),
+            "dashboard.troubleshooting.overview",
+            &json!({"limit": 10}),
+        );
+        assert!(overview.ok);
+        let overview_payload = overview.payload.unwrap_or_else(|| json!({}));
+        assert_eq!(
+            payload.pointer("/queues/outbox_depth").and_then(Value::as_i64),
+            overview_payload.pointer("/queues/outbox_depth").and_then(Value::as_i64)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/version")
+                .and_then(Value::as_str),
+            Some("v1")
+        );
+        assert!(
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/snapshot_epoch_s")
+                .and_then(Value::as_i64)
+                .unwrap_or(0)
+                > 0
+        );
+        assert_eq!(
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/family")
+                .and_then(Value::as_str),
+            Some("dashboard_queue_pressure_contract_v1")
+        );
+        assert_eq!(
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/producer")
+                .and_then(Value::as_str),
+            Some("dashboard.troubleshooting")
+        );
+        assert_eq!(
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_contract_family")
+                .and_then(Value::as_str),
+            Some("dashboard_queue_pressure_contract_v1")
+        );
+        assert_eq!(
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/priority")
+                .and_then(Value::as_str),
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_priority")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/action_hint")
+                .and_then(Value::as_str),
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_action_hint")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/escalation_lane")
+                .and_then(Value::as_str),
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_escalation_lane")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/runbook_id")
+                .and_then(Value::as_str),
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_runbook_id")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/escalation_owner")
+                .and_then(Value::as_str),
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_escalation_owner")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/deadline_epoch_s")
+                .and_then(Value::as_i64),
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_deadline_epoch_s")
+                .and_then(Value::as_i64)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/breach_reason")
+                .and_then(Value::as_str),
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_breach_reason")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/blocking_kind")
+                .and_then(Value::as_str),
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_blocking_kind")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/auto_retry_allowed")
+                .and_then(Value::as_bool),
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_auto_retry_allowed")
+                .and_then(Value::as_bool)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/execution_policy")
+                .and_then(Value::as_str),
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_execution_policy")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/manual_gate_required")
+                .and_then(Value::as_bool),
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_manual_gate_required")
+                .and_then(Value::as_bool)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/manual_gate_reason")
+                .and_then(Value::as_str),
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_manual_gate_reason")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/requeue_strategy")
+                .and_then(Value::as_str),
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_requeue_strategy")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/can_execute_without_human")
+                .and_then(Value::as_bool),
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_can_execute_without_human")
+                .and_then(Value::as_bool)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/execution_window")
+                .and_then(Value::as_str),
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_execution_window")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/manual_gate_timeout_seconds")
+                .and_then(Value::as_i64),
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_manual_gate_timeout_seconds")
+                .and_then(Value::as_i64)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/next_action_after_seconds")
+                .and_then(Value::as_i64),
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_next_action_after_seconds")
+                .and_then(Value::as_i64)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/readiness_state")
+                .and_then(Value::as_str),
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_readiness_state")
+                .and_then(Value::as_str)
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_pressure_contract_object_aliases_route_with_parity() {
+        let root = tempfile::tempdir().expect("tempdir");
+
+        let outbox_base = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.state",
+            &json!({"limit": 10}),
+        );
+        let outbox_alias = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.contract_object",
+            &json!({"limit": 10}),
+        );
+        assert!(outbox_base.ok);
+        assert!(outbox_alias.ok);
+        let outbox_base_payload = outbox_base.payload.unwrap_or_else(|| json!({}));
+        let outbox_alias_payload = outbox_alias.payload.unwrap_or_else(|| json!({}));
+        assert_eq!(
+            outbox_base_payload
+                .pointer("/queue_pressure_contract/version")
+                .and_then(Value::as_str),
+            outbox_alias_payload
+                .pointer("/queue_pressure_contract/version")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            outbox_base_payload
+                .pointer("/queue_pressure_contract/snapshot_epoch_s")
+                .and_then(Value::as_i64),
+            outbox_alias_payload
+                .pointer("/queue_pressure_contract/snapshot_epoch_s")
+                .and_then(Value::as_i64)
+        );
+        assert_eq!(
+            outbox_base_payload
+                .pointer("/queue_pressure_contract/family")
+                .and_then(Value::as_str),
+            outbox_alias_payload
+                .pointer("/queue_pressure_contract/family")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            outbox_base_payload
+                .pointer("/queue_pressure_contract/priority")
+                .and_then(Value::as_str),
+            outbox_alias_payload
+                .pointer("/queue_pressure_contract/priority")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            outbox_base_payload
+                .pointer("/queue_pressure_contract/action_hint")
+                .and_then(Value::as_str),
+            outbox_alias_payload
+                .pointer("/queue_pressure_contract/action_hint")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            outbox_base_payload
+                .pointer("/queue_pressure_contract/escalation_lane")
+                .and_then(Value::as_str),
+            outbox_alias_payload
+                .pointer("/queue_pressure_contract/escalation_lane")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            outbox_base_payload
+                .pointer("/queue_pressure_contract/runbook_id")
+                .and_then(Value::as_str),
+            outbox_alias_payload
+                .pointer("/queue_pressure_contract/runbook_id")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            outbox_base_payload
+                .pointer("/queue_pressure_contract/deadline_epoch_s")
+                .and_then(Value::as_i64),
+            outbox_alias_payload
+                .pointer("/queue_pressure_contract/deadline_epoch_s")
+                .and_then(Value::as_i64)
+        );
+        assert_eq!(
+            outbox_base_payload
+                .pointer("/queue_pressure_contract/breach_reason")
+                .and_then(Value::as_str),
+            outbox_alias_payload
+                .pointer("/queue_pressure_contract/breach_reason")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            outbox_base_payload
+                .pointer("/queue_pressure_contract/blocking_kind")
+                .and_then(Value::as_str),
+            outbox_alias_payload
+                .pointer("/queue_pressure_contract/blocking_kind")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            outbox_base_payload
+                .pointer("/queue_pressure_contract/auto_retry_allowed")
+                .and_then(Value::as_bool),
+            outbox_alias_payload
+                .pointer("/queue_pressure_contract/auto_retry_allowed")
+                .and_then(Value::as_bool)
+        );
+        assert_eq!(
+            outbox_base_payload
+                .pointer("/queue_pressure_contract/execution_policy")
+                .and_then(Value::as_str),
+            outbox_alias_payload
+                .pointer("/queue_pressure_contract/execution_policy")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            outbox_base_payload
+                .pointer("/queue_pressure_contract/manual_gate_required")
+                .and_then(Value::as_bool),
+            outbox_alias_payload
+                .pointer("/queue_pressure_contract/manual_gate_required")
+                .and_then(Value::as_bool)
+        );
+        assert_eq!(
+            outbox_base_payload
+                .pointer("/queue_pressure_contract/manual_gate_reason")
+                .and_then(Value::as_str),
+            outbox_alias_payload
+                .pointer("/queue_pressure_contract/manual_gate_reason")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            outbox_base_payload
+                .pointer("/queue_pressure_contract/requeue_strategy")
+                .and_then(Value::as_str),
+            outbox_alias_payload
+                .pointer("/queue_pressure_contract/requeue_strategy")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            outbox_base_payload
+                .pointer("/queue_pressure_contract/can_execute_without_human")
+                .and_then(Value::as_bool),
+            outbox_alias_payload
+                .pointer("/queue_pressure_contract/can_execute_without_human")
+                .and_then(Value::as_bool)
+        );
+        assert_eq!(
+            outbox_base_payload
+                .pointer("/queue_pressure_contract/execution_window")
+                .and_then(Value::as_str),
+            outbox_alias_payload
+                .pointer("/queue_pressure_contract/execution_window")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            outbox_base_payload
+                .pointer("/queue_pressure_contract/manual_gate_timeout_seconds")
+                .and_then(Value::as_i64),
+            outbox_alias_payload
+                .pointer("/queue_pressure_contract/manual_gate_timeout_seconds")
+                .and_then(Value::as_i64)
+        );
+
+        let summary_base = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary",
+            &json!({"limit": 10}),
+        );
+        let summary_alias = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.contract_object",
+            &json!({"limit": 10}),
+        );
+        assert!(summary_base.ok);
+        assert!(summary_alias.ok);
+        let summary_base_payload = summary_base.payload.unwrap_or_else(|| json!({}));
+        let summary_alias_payload = summary_alias.payload.unwrap_or_else(|| json!({}));
+        assert_eq!(
+            summary_base_payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/version")
+                .and_then(Value::as_str),
+            summary_alias_payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/version")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            summary_base_payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/snapshot_epoch_s")
+                .and_then(Value::as_i64),
+            summary_alias_payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/snapshot_epoch_s")
+                .and_then(Value::as_i64)
+        );
+        assert_eq!(
+            summary_base_payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/family")
+                .and_then(Value::as_str),
+            summary_alias_payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/family")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            summary_base_payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/priority")
+                .and_then(Value::as_str),
+            summary_alias_payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/priority")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            summary_base_payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/action_hint")
+                .and_then(Value::as_str),
+            summary_alias_payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/action_hint")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            summary_base_payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/escalation_lane")
+                .and_then(Value::as_str),
+            summary_alias_payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/escalation_lane")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            summary_base_payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/runbook_id")
+                .and_then(Value::as_str),
+            summary_alias_payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/runbook_id")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            summary_base_payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/deadline_epoch_s")
+                .and_then(Value::as_i64),
+            summary_alias_payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/deadline_epoch_s")
+                .and_then(Value::as_i64)
+        );
+        assert_eq!(
+            summary_base_payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/breach_reason")
+                .and_then(Value::as_str),
+            summary_alias_payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/breach_reason")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            summary_base_payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/blocking_kind")
+                .and_then(Value::as_str),
+            summary_alias_payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/blocking_kind")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            summary_base_payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/auto_retry_allowed")
+                .and_then(Value::as_bool),
+            summary_alias_payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/auto_retry_allowed")
+                .and_then(Value::as_bool)
+        );
+        assert_eq!(
+            summary_base_payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/execution_policy")
+                .and_then(Value::as_str),
+            summary_alias_payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/execution_policy")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            summary_base_payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/manual_gate_required")
+                .and_then(Value::as_bool),
+            summary_alias_payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/manual_gate_required")
+                .and_then(Value::as_bool)
+        );
+        assert_eq!(
+            summary_base_payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/manual_gate_reason")
+                .and_then(Value::as_str),
+            summary_alias_payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/manual_gate_reason")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            summary_base_payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/requeue_strategy")
+                .and_then(Value::as_str),
+            summary_alias_payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/requeue_strategy")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            summary_base_payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/can_execute_without_human")
+                .and_then(Value::as_bool),
+            summary_alias_payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/can_execute_without_human")
+                .and_then(Value::as_bool)
+        );
+        assert_eq!(
+            summary_base_payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/execution_window")
+                .and_then(Value::as_str),
+            summary_alias_payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/execution_window")
+                .and_then(Value::as_str)
+        );
+        assert_eq!(
+            summary_base_payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/manual_gate_timeout_seconds")
+                .and_then(Value::as_i64),
+            summary_alias_payload
+                .pointer("/queues/outbox_health/queue_pressure_contract/manual_gate_timeout_seconds")
+                .and_then(Value::as_i64)
+        );
     }
 
     #[test]
@@ -1232,6 +2006,50 @@ mod tests {
     }
 
     #[test]
+    fn dashboard_troubleshooting_deadletter_inspect_alias_matches_state_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let report = run_action(
+            root.path(),
+            "dashboard.troubleshooting.report_message",
+            &json!({
+                "source":"dashboard_report_popup",
+                "session_id":"session-deadletter-alias",
+                "message_id":"msg-deadletter-alias",
+                "__github_issue_mock_auth_missing": true
+            }),
+        );
+        assert!(report.ok);
+        let _ = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.flush",
+            &json!({"max_items": 1, "force": true, "max_attempts": 1}),
+        );
+        let _ = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.flush",
+            &json!({"max_items": 1, "force": true, "max_attempts": 1}),
+        );
+        let state = run_action(
+            root.path(),
+            "dashboard.troubleshooting.deadletter.state",
+            &json!({"limit": 10}),
+        );
+        let inspect = run_action(
+            root.path(),
+            "dashboard.troubleshooting.deadletter.inspect",
+            &json!({"limit": 10}),
+        );
+        assert!(state.ok);
+        assert!(inspect.ok);
+        let state_payload = state.payload.unwrap_or_else(|| json!({}));
+        let inspect_payload = inspect.payload.unwrap_or_else(|| json!({}));
+        assert_eq!(
+            state_payload.get("depth").and_then(Value::as_i64),
+            inspect_payload.get("depth").and_then(Value::as_i64)
+        );
+    }
+
+    #[test]
     fn request_query_param_extracts_since_hash() {
         let path = "/api/dashboard/snapshot?since=abc123&x=1";
         assert_eq!(request_path_only(path), "/api/dashboard/snapshot");
@@ -1446,5 +2264,2609 @@ mod tests {
             serde_json::to_string_pretty(&sample_bundle).expect("hallucination sample json")
         );
         println!("=== SYNTHETIC_HALLUCINATION_SAMPLE_END ===");
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_supports_classification_filters() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let recent_path = root.path().join(DASHBOARD_TROUBLESHOOTING_RECENT_REL);
+        if let Some(parent) = recent_path.parent() {
+            fs::create_dir_all(parent).expect("mkdir troubleshooting");
+        }
+        fs::write(
+            &recent_path,
+            serde_json::to_string_pretty(&json!({
+                "type": "dashboard_troubleshooting_recent_workflows",
+                "entries": [
+                    {
+                        "stale": false,
+                        "workflow": {
+                            "classification": "tool_surface_degraded",
+                            "error_code": "web_tool_surface_degraded"
+                        }
+                    },
+                    {
+                        "stale": true,
+                        "workflow": {
+                            "classification": "tool_not_found",
+                            "error_code": "web_tool_not_found"
+                        }
+                    }
+                ]
+            }))
+            .expect("json"),
+        )
+        .expect("write");
+
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary",
+            &json!({
+                "classification_filter": ["tool_not_found"]
+            }),
+        );
+        assert!(lane.ok);
+        let payload = lane.payload.unwrap_or_else(|| json!({}));
+        assert_eq!(
+            payload.pointer("/filters/applied").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            payload.pointer("/recent/entry_count").and_then(Value::as_u64),
+            Some(1)
+        );
+        assert_eq!(
+            payload
+                .pointer("/recent/total_entry_count")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            payload
+                .pointer("/recent/classification_histogram/0/classification")
+                .and_then(Value::as_str),
+            Some("tool_not_found")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_filtered_alias_matches_summary_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let recent_path = root.path().join(DASHBOARD_TROUBLESHOOTING_RECENT_REL);
+        if let Some(parent) = recent_path.parent() {
+            fs::create_dir_all(parent).expect("mkdir troubleshooting");
+        }
+        fs::write(
+            &recent_path,
+            serde_json::to_string_pretty(&json!({
+                "type": "dashboard_troubleshooting_recent_workflows",
+                "entries": [
+                    {
+                        "stale": false,
+                        "workflow": {
+                            "classification": "tool_not_found",
+                            "error_code": "web_tool_not_found"
+                        }
+                    },
+                    {
+                        "stale": false,
+                        "workflow": {
+                            "classification": "low_signal",
+                            "error_code": "web_tool_low_signal"
+                        }
+                    }
+                ]
+            }))
+            .expect("json"),
+        )
+        .expect("write");
+
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.filtered",
+            &json!({
+                "error_filter": ["web_tool_not_found"]
+            }),
+        );
+        assert!(lane.ok);
+        let payload = lane.payload.unwrap_or_else(|| json!({}));
+        assert_eq!(
+            payload.get("type").and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+        assert_eq!(
+            payload.pointer("/filters/applied").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            payload.pointer("/recent/entry_count").and_then(Value::as_u64),
+            Some(1)
+        );
+        assert_eq!(
+            payload
+                .pointer("/recent/error_histogram/0/error")
+                .and_then(Value::as_str),
+            Some("web_tool_not_found")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_supports_wildcard_filters_and_top_cluster() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let recent_path = root.path().join(DASHBOARD_TROUBLESHOOTING_RECENT_REL);
+        if let Some(parent) = recent_path.parent() {
+            fs::create_dir_all(parent).expect("mkdir troubleshooting");
+        }
+        fs::write(
+            &recent_path,
+            serde_json::to_string_pretty(&json!({
+                "type": "dashboard_troubleshooting_recent_workflows",
+                "entries": [
+                    {
+                        "stale": false,
+                        "workflow": {
+                            "classification": "tool_surface_degraded",
+                            "error_code": "web_tool_surface_degraded"
+                        }
+                    },
+                    {
+                        "stale": false,
+                        "workflow": {
+                            "classification": "tool_surface_degraded",
+                            "error_code": "web_tool_surface_unavailable"
+                        }
+                    }
+                ]
+            }))
+            .expect("json"),
+        )
+        .expect("write");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary",
+            &json!({
+                "classification_filter": ["tool_surface_*"]
+            }),
+        );
+        assert!(lane.ok);
+        let payload = lane.payload.unwrap_or_else(|| json!({}));
+        assert_eq!(
+            payload.pointer("/recent/entry_count").and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            payload
+                .pointer("/top_failure_cluster/top_classification")
+                .and_then(Value::as_str),
+            Some("tool_surface_degraded")
+        );
+        assert_eq!(
+            payload
+                .pointer("/top_failure_cluster/top_classification_count")
+                .and_then(Value::as_i64),
+            Some(2)
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_reports_no_match_on_filtered_empty_result() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let recent_path = root.path().join(DASHBOARD_TROUBLESHOOTING_RECENT_REL);
+        if let Some(parent) = recent_path.parent() {
+            fs::create_dir_all(parent).expect("mkdir troubleshooting");
+        }
+        fs::write(
+            &recent_path,
+            serde_json::to_string_pretty(&json!({
+                "type": "dashboard_troubleshooting_recent_workflows",
+                "entries": [
+                    {
+                        "stale": false,
+                        "workflow": {
+                            "classification": "tool_not_found",
+                            "error_code": "web_tool_not_found"
+                        }
+                    }
+                ]
+            }))
+            .expect("json"),
+        )
+        .expect("write");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary",
+            &json!({
+                "error_filter": ["web_tool_surface_*"]
+            }),
+        );
+        assert!(lane.ok);
+        let payload = lane.payload.unwrap_or_else(|| json!({}));
+        assert_eq!(
+            payload.pointer("/recent/entry_count").and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            payload.pointer("/filters/no_match").and_then(Value::as_bool),
+            Some(true)
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_by_error_alias_routes_to_summary() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.by_error",
+            &json!({
+                "error_filter": ["web_tool_not_found"]
+            }),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_state_reports_age_and_max_attempts() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let outbox_path = root.path().join(DASHBOARD_TROUBLESHOOTING_ISSUE_OUTBOX_REL);
+        if let Some(parent) = outbox_path.parent() {
+            fs::create_dir_all(parent).expect("mkdir outbox");
+        }
+        let now_epoch = dashboard_troubleshooting_now_epoch_seconds();
+        fs::write(
+            &outbox_path,
+            serde_json::to_string_pretty(&json!({
+                "type": "dashboard_troubleshooting_issue_outbox",
+                "items": [
+                    {
+                        "id": "a",
+                        "attempts": 2,
+                        "queued_at_epoch_s": now_epoch - 120,
+                        "next_retry_after_epoch_s": now_epoch - 5
+                    },
+                    {
+                        "id": "b",
+                        "attempts": 5,
+                        "queued_at_epoch_s": now_epoch - 60,
+                        "next_retry_after_epoch_s": now_epoch + 60
+                    }
+                ]
+            }))
+            .expect("json"),
+        )
+        .expect("write");
+
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.state",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        let payload = lane.payload.unwrap_or_else(|| json!({}));
+        assert_eq!(
+            payload.get("max_attempts_observed").and_then(Value::as_i64),
+            Some(5)
+        );
+        assert!(
+            payload
+                .get("oldest_age_seconds")
+                .and_then(Value::as_i64)
+                .unwrap_or(0)
+                >= 120
+        );
+        assert_eq!(
+            payload.get("ready_ratio").and_then(Value::as_f64),
+            Some(0.5)
+        );
+        assert_eq!(
+            payload.get("blocked_ratio").and_then(Value::as_f64),
+            Some(0.5)
+        );
+        assert_eq!(
+            payload.get("oldest_item_id").and_then(Value::as_str),
+            Some("a")
+        );
+        assert_eq!(
+            payload.get("next_retry_item_id").and_then(Value::as_str),
+            Some("b")
+        );
+        assert_eq!(
+            payload
+                .get("retry_due_within_900s_count")
+                .and_then(Value::as_u64),
+            Some(1)
+        );
+        assert_eq!(payload.get("stale_count").and_then(Value::as_u64), Some(0));
+        assert_eq!(payload.get("stale_ratio").and_then(Value::as_f64), Some(0.0));
+        assert_eq!(payload.get("fresh_count").and_then(Value::as_u64), Some(2));
+        assert_eq!(payload.get("fresh_ratio").and_then(Value::as_f64), Some(1.0));
+        assert_eq!(payload.get("aging_count").and_then(Value::as_u64), Some(0));
+        assert_eq!(payload.get("aging_ratio").and_then(Value::as_f64), Some(0.0));
+        assert_eq!(
+            payload.get("queue_action_hint").and_then(Value::as_str),
+            Some("increase_flush_frequency_and_monitor_auth")
+        );
+        assert_eq!(
+            payload
+                .get("queue_pressure_escalation_required")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            payload
+                .get("queue_pressure_escalation_reason")
+                .and_then(Value::as_str),
+            Some("none")
+        );
+        assert_eq!(
+            payload
+                .get("queue_pressure_runbook_id")
+                .and_then(Value::as_str),
+            Some("runbook.troubleshooting.queue_pressure.medium")
+        );
+        assert_eq!(
+            payload
+                .get("queue_pressure_escalation_owner")
+                .and_then(Value::as_str),
+            Some("runtime_owner")
+        );
+        assert_eq!(
+            payload
+                .get("queue_pressure_sla_minutes")
+                .and_then(Value::as_i64),
+            Some(15)
+        );
+        assert_eq!(
+            payload
+                .get("queue_pressure_escalation_lane")
+                .and_then(Value::as_str),
+            Some("dashboard.troubleshooting.eval.drain")
+        );
+        assert!(
+            payload
+                .get("queue_pressure_deadline_epoch_s")
+                .and_then(Value::as_i64)
+                .unwrap_or(0)
+                >= now_epoch
+        );
+        assert!(
+            payload
+                .get("queue_pressure_deadline_remaining_seconds")
+                .and_then(Value::as_i64)
+                .unwrap_or(0)
+                > 0
+        );
+        assert_eq!(
+            payload
+                .get("queue_pressure_breach")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            payload
+                .get("queue_pressure_breach_reason")
+                .and_then(Value::as_str),
+            Some("none")
+        );
+        assert_eq!(
+            payload
+                .get("queue_pressure_breach_detected_at_epoch_s")
+                .and_then(Value::as_i64),
+            Some(0)
+        );
+        assert_eq!(
+            payload
+                .get("queue_pressure_contract_version")
+                .and_then(Value::as_str),
+            Some("v1")
+        );
+        assert!(
+            payload
+                .get("queue_pressure_snapshot_epoch_s")
+                .and_then(Value::as_i64)
+                .unwrap_or(0)
+                >= now_epoch
+        );
+        assert_eq!(
+            payload.get("health_reason").and_then(Value::as_str),
+            Some("ready_ratio>=0.40_with_some_cooldown_pressure")
+        );
+        assert_eq!(
+            payload.pointer("/items/0/source_sequence").and_then(Value::as_i64),
+            Some(1)
+        );
+        assert_eq!(
+            payload.pointer("/items/0/stale").and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            payload.pointer("/items/0/freshness_tier").and_then(Value::as_str),
+            Some("fresh")
+        );
+        assert_eq!(
+            payload.pointer("/items/0/source").and_then(Value::as_str),
+            Some("issue_outbox")
+        );
+        assert!(
+            payload
+                .pointer("/items/0/age_seconds")
+                .and_then(Value::as_i64)
+                .unwrap_or(0)
+                >= 60
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_health_alias_routes_to_state_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.health",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_overview_alias_routes_to_state_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.overview",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_queue_alias_routes_to_state_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.queue",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_freshness_alias_routes_to_state_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.freshness",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_health_metrics_alias_routes_to_state_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.health.metrics",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_priority_alias_routes_to_state_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.priority",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_lane_alias_routes_to_state_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.lane",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_priority_alias_routes_to_summary_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.priority",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_lane_alias_routes_to_summary_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.lane",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_escalation_alias_routes_to_state_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.escalation",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_escalation_alias_routes_to_summary_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.escalation",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_runbook_alias_routes_to_state_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.runbook",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_runbook_alias_routes_to_summary_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.runbook",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_sla_alias_routes_to_state_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.sla",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_sla_alias_routes_to_summary_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.sla",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_escalation_lane_alias_routes_to_state_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.escalation_lane",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_escalation_lane_alias_routes_to_summary_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.escalation_lane",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_deadline_alias_routes_to_state_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.deadline",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_deadline_remaining_alias_routes_to_state_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.deadline_remaining",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_breach_alias_routes_to_state_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.breach",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_breach_detected_alias_routes_to_state_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.breach_detected",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_deadline_alias_routes_to_summary_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.deadline",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_deadline_remaining_alias_routes_to_summary_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.deadline_remaining",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_breach_alias_routes_to_summary_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.breach",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_breach_detected_alias_routes_to_summary_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.breach_detected",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_reason_alias_routes_to_state_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.reason",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_reason_alias_routes_to_summary_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.reason",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_breach_reason_alias_routes_to_state_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.breach_reason",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_breach_reason_alias_routes_to_summary_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.breach_reason",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_blocking_kind_alias_routes_to_state_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.blocking_kind",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_blocking_kind_alias_routes_to_summary_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.blocking_kind",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_auto_retry_allowed_alias_routes_to_state_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.auto_retry_allowed",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_auto_retry_allowed_alias_routes_to_summary_lane()
+    {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.auto_retry_allowed",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_execution_policy_alias_routes_to_state_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.execution_policy",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_execution_policy_alias_routes_to_summary_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.execution_policy",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_manual_gate_required_alias_routes_to_state_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.manual_gate_required",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_manual_gate_required_alias_routes_to_summary_lane(
+    ) {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.manual_gate_required",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_manual_gate_reason_alias_routes_to_state_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.manual_gate_reason",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_manual_gate_reason_alias_routes_to_summary_lane(
+    ) {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.manual_gate_reason",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_requeue_strategy_alias_routes_to_state_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.requeue_strategy",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_requeue_strategy_alias_routes_to_summary_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.requeue_strategy",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_can_execute_without_human_alias_routes_to_state_lane(
+    ) {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.can_execute_without_human",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_can_execute_without_human_alias_routes_to_summary_lane(
+    ) {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.can_execute_without_human",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_execution_window_alias_routes_to_state_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.execution_window",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_execution_window_alias_routes_to_summary_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.execution_window",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_manual_gate_timeout_alias_routes_to_state_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.manual_gate_timeout",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_manual_gate_timeout_alias_routes_to_summary_lane(
+    ) {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.manual_gate_timeout",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_next_action_after_seconds_alias_routes_to_state_lane(
+    ) {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.next_action_after_seconds",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_next_action_after_seconds_alias_routes_to_summary_lane(
+    ) {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.next_action_after_seconds",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_readiness_state_alias_routes_to_state_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.readiness_state",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_readiness_state_alias_routes_to_summary_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.readiness_state",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_contract_alias_routes_to_state_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.contract",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_contract_alias_routes_to_summary_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.contract",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_contract_version_alias_routes_to_state_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.contract_version",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_contract_version_alias_routes_to_summary_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.contract_version",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_contract_family_alias_routes_to_state_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.contract_family",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_contract_family_alias_routes_to_summary_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.contract_family",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_contract_priority_alias_routes_to_state_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.contract_priority",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_contract_priority_alias_routes_to_summary_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.contract_priority",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_contract_action_hint_alias_routes_to_state_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.contract_action_hint",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_contract_action_hint_alias_routes_to_summary_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.contract_action_hint",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_contract_escalation_lane_alias_routes_to_state_lane(
+    ) {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.contract_escalation_lane",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_contract_escalation_lane_alias_routes_to_summary_lane(
+    ) {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.contract_escalation_lane",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_contract_runbook_alias_routes_to_state_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.contract_runbook",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_contract_runbook_alias_routes_to_summary_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.contract_runbook",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_contract_owner_alias_routes_to_state_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.contract_owner",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_contract_owner_alias_routes_to_summary_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.contract_owner",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_contract_blocking_kind_alias_routes_to_state_lane(
+    ) {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.contract_blocking_kind",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_contract_blocking_kind_alias_routes_to_summary_lane(
+    ) {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.contract_blocking_kind",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_contract_auto_retry_allowed_alias_routes_to_state_lane(
+    ) {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.contract_auto_retry_allowed",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_contract_auto_retry_allowed_alias_routes_to_summary_lane(
+    ) {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.contract_auto_retry_allowed",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_contract_execution_policy_alias_routes_to_state_lane(
+    ) {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.contract_execution_policy",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_contract_execution_policy_alias_routes_to_summary_lane(
+    ) {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.contract_execution_policy",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_contract_manual_gate_required_alias_routes_to_state_lane(
+    ) {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.contract_manual_gate_required",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_contract_manual_gate_required_alias_routes_to_summary_lane(
+    ) {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.contract_manual_gate_required",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_contract_manual_gate_reason_alias_routes_to_state_lane(
+    ) {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.contract_manual_gate_reason",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_contract_manual_gate_reason_alias_routes_to_summary_lane(
+    ) {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.contract_manual_gate_reason",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_contract_requeue_strategy_alias_routes_to_state_lane(
+    ) {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.contract_requeue_strategy",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_contract_requeue_strategy_alias_routes_to_summary_lane(
+    ) {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.contract_requeue_strategy",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_contract_can_execute_without_human_alias_routes_to_state_lane(
+    ) {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.contract_can_execute_without_human",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_contract_can_execute_without_human_alias_routes_to_summary_lane(
+    ) {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.contract_can_execute_without_human",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_contract_execution_window_alias_routes_to_state_lane(
+    ) {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.contract_execution_window",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_contract_execution_window_alias_routes_to_summary_lane(
+    ) {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.contract_execution_window",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_contract_manual_gate_timeout_alias_routes_to_state_lane(
+    ) {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.contract_manual_gate_timeout",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_contract_manual_gate_timeout_alias_routes_to_summary_lane(
+    ) {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.contract_manual_gate_timeout",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_contract_next_action_after_seconds_alias_routes_to_state_lane(
+    ) {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.contract_next_action_after_seconds",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_contract_next_action_after_seconds_alias_routes_to_summary_lane(
+    ) {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.contract_next_action_after_seconds",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_contract_readiness_state_alias_routes_to_state_lane(
+    ) {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.contract_readiness_state",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_contract_readiness_state_alias_routes_to_summary_lane(
+    ) {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.contract_readiness_state",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_contract_deadline_alias_routes_to_state_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.contract_deadline",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_contract_deadline_alias_routes_to_summary_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.contract_deadline",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_contract_breach_reason_alias_routes_to_state_lane(
+    ) {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.contract_breach_reason",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_contract_breach_reason_alias_routes_to_summary_lane(
+    ) {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.contract_breach_reason",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_outbox_pressure_snapshot_alias_routes_to_state_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.outbox.pressure.snapshot",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_outbox_state")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_pressure_snapshot_alias_routes_to_summary_lane() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.pressure.snapshot",
+            &json!({}),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_outbox_health_reports_pressure_deadline_and_breach() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let now_epoch = dashboard_troubleshooting_now_epoch_seconds();
+        let outbox_path = root.path().join(DASHBOARD_TROUBLESHOOTING_ISSUE_OUTBOX_REL);
+        if let Some(parent) = outbox_path.parent() {
+            fs::create_dir_all(parent).expect("mkdir outbox");
+        }
+        fs::write(
+            &outbox_path,
+            serde_json::to_string_pretty(&json!({
+                "type": "dashboard_troubleshooting_issue_outbox",
+                "items": [
+                    {
+                        "id": "blocked-stale-item",
+                        "attempts": 6,
+                        "queued_at_epoch_s": now_epoch - 4_200,
+                        "next_retry_after_epoch_s": now_epoch + 600,
+                        "error_bucket": "github_issue_auth_missing"
+                    }
+                ]
+            }))
+            .expect("json"),
+        )
+        .expect("write");
+
+        let lane = run_action(root.path(), "dashboard.troubleshooting.summary", &json!({}));
+        assert!(lane.ok);
+        let payload = lane.payload.unwrap_or_else(|| json!({}));
+        assert_eq!(
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_tier")
+                .and_then(Value::as_str),
+            Some("high")
+        );
+        assert!(
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_deadline_epoch_s")
+                .and_then(Value::as_i64)
+                .unwrap_or(0)
+                >= now_epoch
+        );
+        assert!(
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_deadline_remaining_seconds")
+                .and_then(Value::as_i64)
+                .unwrap_or(0)
+                > 0
+        );
+        assert_eq!(
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_breach")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_breach_reason")
+                .and_then(Value::as_str),
+            Some("outbox_oldest_age_seconds>1800")
+        );
+        assert!(
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_breach_detected_at_epoch_s")
+                .and_then(Value::as_i64)
+                .unwrap_or(0)
+                >= now_epoch
+        );
+        assert_eq!(
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_contract_version")
+                .and_then(Value::as_str),
+            Some("v1")
+        );
+        assert!(
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_snapshot_epoch_s")
+                .and_then(Value::as_i64)
+                .unwrap_or(0)
+                >= now_epoch
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_window_filter_excludes_old_entries() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let recent_path = root.path().join(DASHBOARD_TROUBLESHOOTING_RECENT_REL);
+        if let Some(parent) = recent_path.parent() {
+            fs::create_dir_all(parent).expect("mkdir troubleshooting");
+        }
+        let now_epoch = dashboard_troubleshooting_now_epoch_seconds();
+        fs::write(
+            &recent_path,
+            serde_json::to_string_pretty(&json!({
+                "type": "dashboard_troubleshooting_recent_workflows",
+                "entries": [
+                    {
+                        "captured_at_epoch_s": now_epoch - 40,
+                        "workflow": {
+                            "classification": "low_signal",
+                            "error_code": "web_tool_low_signal"
+                        }
+                    },
+                    {
+                        "captured_at_epoch_s": now_epoch - 400,
+                        "workflow": {
+                            "classification": "tool_not_found",
+                            "error_code": "web_tool_not_found"
+                        }
+                    }
+                ]
+            }))
+            .expect("json"),
+        )
+        .expect("write");
+
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.window",
+            &json!({
+                "window_seconds": 120
+            }),
+        );
+        assert!(lane.ok);
+        let payload = lane.payload.unwrap_or_else(|| json!({}));
+        assert_eq!(
+            payload.pointer("/window/applied").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            payload.pointer("/recent/entry_count").and_then(Value::as_u64),
+            Some(1)
+        );
+        assert_eq!(
+            payload.pointer("/recent/failure_rate").and_then(Value::as_f64),
+            Some(1.0)
+        );
+        assert_eq!(
+            payload
+                .pointer("/top_failure_cluster/severity_tier")
+                .and_then(Value::as_str),
+            Some("high")
+        );
+        assert_eq!(
+            payload
+                .pointer("/queues/outbox_health/health_tier")
+                .and_then(Value::as_str),
+            Some("empty")
+        );
+        assert_eq!(
+            payload
+                .pointer("/queues/outbox_health/stale_count")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queues/outbox_health/stale_ratio")
+                .and_then(Value::as_f64),
+            Some(0.0)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queues/outbox_health/fresh_count")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queues/outbox_health/fresh_ratio")
+                .and_then(Value::as_f64),
+            Some(0.0)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queues/outbox_health/aging_count")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queues/outbox_health/aging_ratio")
+                .and_then(Value::as_f64),
+            Some(0.0)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queues/outbox_health/health_reason")
+                .and_then(Value::as_str),
+            Some("outbox_empty")
+        );
+        assert_eq!(
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_deadline_epoch_s")
+                .and_then(Value::as_i64),
+            Some(0)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_deadline_remaining_seconds")
+                .and_then(Value::as_i64),
+            Some(0)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_breach")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_breach_reason")
+                .and_then(Value::as_str),
+            Some("none")
+        );
+        assert_eq!(
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_breach_detected_at_epoch_s")
+                .and_then(Value::as_i64),
+            Some(0)
+        );
+        assert_eq!(
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_contract_version")
+                .and_then(Value::as_str),
+            Some("v1")
+        );
+        assert!(
+            payload
+                .pointer("/queues/outbox_health/queue_pressure_snapshot_epoch_s")
+                .and_then(Value::as_i64)
+                .unwrap_or(0)
+                >= now_epoch
+        );
+        assert_eq!(
+            payload
+                .pointer("/recent/classification_histogram/0/classification")
+                .and_then(Value::as_str),
+            Some("low_signal")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_recent_alias_routes_to_summary() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.recent",
+            &json!({
+                "window_seconds": 3600
+            }),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_metrics_alias_routes_to_summary() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.metrics",
+            &json!({
+                "window_seconds": 300
+            }),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_health_alias_routes_to_summary() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.health",
+            &json!({
+                "window_seconds": 300
+            }),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_queue_health_alias_routes_to_summary() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.queue_health",
+            &json!({
+                "window_seconds": 300
+            }),
+        );
+        assert!(lane.ok);
+        assert_eq!(
+            lane.payload
+                .unwrap_or_else(|| json!({}))
+                .get("type")
+                .and_then(Value::as_str),
+            Some("dashboard_troubleshooting_summary")
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_accepts_comma_separated_error_filter() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let recent_path = root.path().join(DASHBOARD_TROUBLESHOOTING_RECENT_REL);
+        if let Some(parent) = recent_path.parent() {
+            fs::create_dir_all(parent).expect("mkdir troubleshooting");
+        }
+        fs::write(
+            &recent_path,
+            serde_json::to_string_pretty(&json!({
+                "type": "dashboard_troubleshooting_recent_workflows",
+                "entries": [
+                    {
+                        "workflow": {
+                            "classification": "tool_not_found",
+                            "error_code": "web_tool_not_found"
+                        }
+                    },
+                    {
+                        "workflow": {
+                            "classification": "low_signal",
+                            "error_code": "web_tool_low_signal"
+                        }
+                    }
+                ]
+            }))
+            .expect("json"),
+        )
+        .expect("write");
+
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary",
+            &json!({
+                "error_filter": "web_tool_not_found,web_tool_low_signal"
+            }),
+        );
+        assert!(lane.ok);
+        let payload = lane.payload.unwrap_or_else(|| json!({}));
+        assert_eq!(
+            payload.pointer("/recent/entry_count").and_then(Value::as_u64),
+            Some(2)
+        );
+    }
+
+    #[test]
+    fn dashboard_troubleshooting_summary_by_time_accepts_minutes_and_reports_filtered_out_count() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let recent_path = root.path().join(DASHBOARD_TROUBLESHOOTING_RECENT_REL);
+        if let Some(parent) = recent_path.parent() {
+            fs::create_dir_all(parent).expect("mkdir troubleshooting");
+        }
+        let now_epoch = dashboard_troubleshooting_now_epoch_seconds();
+        fs::write(
+            &recent_path,
+            serde_json::to_string_pretty(&json!({
+                "type": "dashboard_troubleshooting_recent_workflows",
+                "entries": [
+                    {
+                        "captured_at_epoch_s": now_epoch - 30,
+                        "workflow": {
+                            "classification": "low_signal",
+                            "error_code": "web_tool_low_signal"
+                        }
+                    },
+                    {
+                        "captured_at_epoch_s": now_epoch - 900,
+                        "workflow": {
+                            "classification": "tool_not_found",
+                            "error_code": "web_tool_not_found"
+                        }
+                    }
+                ]
+            }))
+            .expect("json"),
+        )
+        .expect("write");
+        let lane = run_action(
+            root.path(),
+            "dashboard.troubleshooting.summary.by_time",
+            &json!({
+                "window_minutes": 2
+            }),
+        );
+        assert!(lane.ok);
+        let payload = lane.payload.unwrap_or_else(|| json!({}));
+        assert_eq!(
+            payload.pointer("/window/applied").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            payload
+                .pointer("/window/filtered_out_count")
+                .and_then(Value::as_u64),
+            Some(1)
+        );
+        assert_eq!(
+            payload.pointer("/window/window_seconds").and_then(Value::as_i64),
+            Some(120)
+        );
     }
 }
