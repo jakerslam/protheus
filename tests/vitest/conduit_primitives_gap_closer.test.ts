@@ -223,6 +223,9 @@ describe('conduit primitive wrapper contract', () => {
     expect(source.includes('normalized user PATH entries')).toBe(true);
     expect(source.includes('Invoke-SourceFallbackCleanup')).toBe(true);
     expect(source.includes('scheduled background cleanup of source fallback temp dir')).toBe(true);
+    expect(source.includes('Install-AllowDirectMsvcBootstrapEnabled')).toBe(true);
+    expect(source.includes('INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP')).toBe(true);
+    expect(source.includes('aka.ms/vs/17/release/vs_BuildTools.exe')).toBe(true);
   });
 
   test('README Windows installer path supports flags without iex parameter binding traps', () => {
