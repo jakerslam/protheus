@@ -674,3 +674,40 @@ Rewired (40):
 - npm run -s ops:srs:top200:regression
 - npm run -s test:ops:srs-contract-runtime-evidence
 - ./verify.sh
+
+## Release Hardening Intake (ChatGPT Feedback, 2026-04-19)
+
+- [x] Make proof-pack completeness an explicit release criterion for the next version cut.
+- [x] Require proof-pack summary to report `required_missing: 0` before publish.
+- [x] Add hard release gate: block release when proof-pack `required_missing > 0`.
+- [x] Fail release when proof-pack category completeness is below required thresholds.
+- [x] Close Layer 2 execution lane parity as an explicit release-blocking item.
+- [x] Close Layer 2 receipt replay as an explicit release-blocking item.
+- [x] Close trusted-core reporting as an explicit release-blocking item.
+- [x] Generate `core/local/artifacts/layer2_lane_parity_guard_current.json` in release-candidate flow.
+- [x] Generate `core/local/artifacts/layer2_receipt_replay_current.json` in release-candidate flow.
+- [x] Generate `core/local/artifacts/runtime_trusted_core_report_current.json` in release-candidate flow.
+- [x] Keep dual-track runtime proof mandatory in release gating (`synthetic` + `empirical` where configured).
+- [x] Expand empirical proof requirements beyond `rich` (scheduled empirical lanes for `pure` and `tiny-max`).
+- [x] Enforce nonzero empirical sample-point minimums per profile in gates.
+- [x] Publish proof artifacts and summaries in deterministic checksummed release bundles.
+- [x] Publish 72-hour boundedness evidence as release evidence (not roadmap-only intent).
+- [x] Add multi-day autonomous soak evidence pipeline and attach outputs to proof packs.
+- [ ] Continue stale cockpit drift elimination with freshness-derived UI assertions.
+- [ ] Continue conduit auto-heal hardening with deterministic state-machine tests.
+- [ ] Continue queue backpressure automation hardening with explicit receipts and guard thresholds.
+- [ ] Improve benchmark transparency: separate readiness, kernel/shared throughput, and end-to-end command throughput reporting.
+- [ ] Keep README metric caveats explicit so readiness numbers are not misread as full cold boot.
+- [ ] Reduce Node critical-path dependence and publish a concrete burn-down plan.
+- [ ] Promote roadmap adapter closure: graduate `ollama`, `llama.cpp`, MCP baseline, OTLP exporter, and local durable memory backend.
+- [ ] Resolve tag/release mismatch: decide whether `v0.3.13` is a real release or metadata alias, then align GitHub Releases.
+- [ ] Address bus-factor risk by adding contributor/reviewer redundancy on release-critical lanes.
+
+## Kernel Canonical-Term Transition Indicators (Public Surface)
+
+- [x] Canonical public authority term set to `Kernel` in top-level public docs.
+- [x] Public/operator docs declare `Core` as compatibility alias, not a separate authority plane.
+- [x] Ownership policy terminology switched to `Kernel (compat alias: Core)` while preserving `core/**` path authority.
+- [ ] Add `kernel`-first command alias for naming guard (`ops:kernel-naming:guard`) while keeping `ops:core-naming:guard` for compatibility.
+- [ ] Migrate naming policy artifact/config labels from `core_*` to `kernel_*` with compatibility mapping.
+- [ ] Publish alias-removal target version/date in release checklist and release policy docs.
