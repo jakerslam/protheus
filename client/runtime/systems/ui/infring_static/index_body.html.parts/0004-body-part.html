@@ -256,8 +256,8 @@
               <input type="file" x-ref="fileInput" multiple accept="image/*,.txt,.pdf,.md,.json,.csv,.mp3,.wav,.ogg,.webm,.m4a,.flac" @change="handleAttachInputChange($event)" style="display:none">
               <div class="composer-shell" :class="{ 'composer-shell-disabled': isFreshInitComposerLocked(), 'system-thread-active': isSystemThreadActive() }">
                 <div class="composer-main-row">
-                <div class="composer-input-pill">
-                <div class="composer-plus-wrap composer-icon-left" x-show="!isSystemThreadActive()" @click.outside="showAttachMenu = false">
+                <div class="composer-menu-pill composer-shared-input-pill" x-show="!isSystemThreadActive()">
+                <div class="composer-plus-wrap composer-icon-left" @click.outside="showAttachMenu = false">
                   <button class="composer-icon-btn composer-hamburger-btn" @click="showAttachMenu = !showAttachMenu" title="Add files and more (Ctrl+F)" aria-label="Add files and more" :aria-expanded="showAttachMenu ? 'true' : 'false'">
                     <svg class="composer-hamburger-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
                   </button>
@@ -484,6 +484,8 @@
                     </div>
                   </div>
                 </div>
+                </div>
+                <div class="composer-input-pill composer-shared-input-pill">
                 <template x-if="terminalMode && terminalCursorFocused">
                   <span class="terminal-block-cursor" :style="terminalCursorStyle" aria-hidden="true">█</span>
                 </template>
@@ -505,7 +507,7 @@
                   @input="$el.style.height='auto';$el.style.height=Math.min($el.scrollHeight,150)+'px'; if(terminalMode){updateTerminalCursor($event)}; refreshChatInputOverlayMetrics()"
                 ></textarea>
                 </div>
-                <div class="composer-controls-pill">
+                <div class="composer-controls-pill composer-shared-input-pill">
                 <div class="composer-actions-right">
                   <template x-if="terminalMode">
                     <button class="btn-send btn-send-terminal" @click="sendMessage()" :disabled="showFreshArchetypeTiles ? (!freshInitAwaitingOtherPrompt || !inputText.trim()) : !inputText.trim()" title="Run command">
