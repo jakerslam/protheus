@@ -53,7 +53,12 @@ When `winget` is unavailable or fails, the installer now attempts a direct Build
 $env:INFRING_INSTALL_AUTO_MSVC = "0"
 $env:INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP = "0"
 $env:INFRING_INSTALL_AUTO_RUSTUP = "0"
+$env:INFRING_INSTALL_ALLOW_COMPATIBLE_RELEASE_FALLBACK = "0"
+$env:INFRING_INSTALL_ALLOW_PINNED_VERSION_COMPATIBLE_FALLBACK = "0"
 ```
+
+For pinned installs with missing Windows prebuilts, opt in to compatible-release prebuilt fallback with:
+`$env:INFRING_INSTALL_ALLOW_PINNED_VERSION_COMPATIBLE_FALLBACK = "1"`.
 
 ### Optional: Python Wrapper (`pipx`)
 
