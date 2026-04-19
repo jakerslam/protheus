@@ -131,9 +131,22 @@ function windowsAndDocsCheck(): Check {
     'auto_bootstrap:auto_rustup=',
     'auto_bootstrap:direct_msvc=',
   ];
+  const failureReasonTaxonomyTokens = [
+    'cargo_missing',
+    'cargo_missing_auto_rustup_disabled',
+    'rustup_bootstrap_failed',
+    'source_repo_unavailable',
+    'msvc_tools_missing_auto_bootstrap_disabled',
+    'msvc_bootstrap_winget_unavailable',
+    'msvc_bootstrap_direct_disabled',
+    'msvc_tools_still_missing_after_bootstrap',
+    'source_build_output_missing',
+    'asset_archive_extract_failed',
+  ];
   const windowsReadmeInstallCommand =
     'Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force; $tmp = Join-Path $env:TEMP "infring-install.ps1"; irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 -OutFile $tmp -ErrorAction Stop; & $tmp -Repair -Full; Remove-Item $tmp -Force -ErrorAction SilentlyContinue';
   const hasFailureHintTokenCoverage = failureHintRequiredTokens.every((token) => installPs.includes(token));
+  const hasFailureReasonTaxonomyCoverage = failureReasonTaxonomyTokens.every((token) => installPs.includes(token));
   const ok =
     installPs.includes('protheus-ops.exe') &&
     installPs.includes('infringd.cmd') &&
@@ -155,6 +168,7 @@ function windowsAndDocsCheck(): Check {
     installPs.includes(windowsBuildToolsHintWinget) &&
     installPs.includes(windowsBuildToolsHintNoWinget) &&
     hasFailureHintTokenCoverage &&
+    hasFailureReasonTaxonomyCoverage &&
     opsLib.includes('#![recursion_limit = "16384"]') &&
     installPs.includes(directBootstrapperUrl) &&
     installPs.includes(windowsReadmeInstallCommand) &&
