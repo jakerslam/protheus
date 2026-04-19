@@ -180,10 +180,8 @@ function windowsAndDocsCheck(): Check {
     'toolchain:cargo={0};rustc={1};msvc_tools={2};tar={3};winget={4}',
     'auto_bootstrap:auto_rustup={0};auto_msvc={1}',
     'auto_msvc=',
-    'auto_bootstrap:direct_msvc=',
-    'install_policy:allow_no_msvc_source_fallback=',
-    'compatible_release_fallback=',
-    'pinned_version_compatible_fallback=',
+    'auto_bootstrap:direct_msvc={0}',
+    'install_policy:allow_no_msvc_source_fallback={0};compatible_release_fallback={1};pinned_version_compatible_fallback={2}',
   ];
   const failureReasonTaxonomyTokens = [
     'cargo_missing',
