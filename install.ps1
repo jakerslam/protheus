@@ -105,6 +105,8 @@ $script:SourceFallbackTmp = $null
 $script:LastBinaryInstallFailure = $null
 $script:LastBinaryInstallFailureReason = ""
 $script:WindowsInstallPreflight = $null
+$script:WindowsMsvcBootstrapAttempted = $false
+$script:WindowsMsvcBootstrapSucceeded = $false
 
 function Installer-TruthyFlag([string]$RawValue, [bool]$DefaultValue = $false) {
   if ([string]::IsNullOrWhiteSpace($RawValue)) {
@@ -312,6 +314,38 @@ function Invoke-SourceFallbackCleanup {
   }
 
   Remove-Item -Force -Recurse $cleanupRoot
+}
+
+function Remove-StaleWindowsCommandShims {
+  param(
+    [string]$ShimInstallDir
+  )
+
+  if (-not $HostIsWindows) {
+    return
+  }
+  if ([string]::IsNullOrWhiteSpace($ShimInstallDir)) {
+    return
+  }
+  if (-not (Test-Path $ShimInstallDir)) {
+    return
+  }
+
+  $shimTargets = @(
+    "infring.ps1",
+    "infringctl.ps1",
+    "infringd.ps1",
+    "protheus.ps1",
+    "protheusctl.ps1",
+    "protheusd.ps1"
+  )
+  foreach ($shimTarget in $shimTargets) {
+    $shimPath = Join-Path $ShimInstallDir $shimTarget
+    if (Test-Path $shimPath) {
+      Remove-Item -Force $shimPath
+      Write-Host "[infring install] repair removed stale shim: $shimPath"
+    }
+  }
 }
 
 function Resolve-Version {
@@ -975,12 +1009,23 @@ function Install-Binary($Version, $Triple, $Stem, $OutPath) {
       }
       $toolchain = Get-WindowsBuildToolSummary
       if ([bool]$toolchain.msvc_tools_present) {
+        $script:WindowsMsvcBootstrapSucceeded = $true
         return $true
       }
       if (-not (Install-AutoMsvcBootstrapEnabled)) {
         $script:LastBinaryInstallFailureReason = "msvc_tools_missing_auto_bootstrap_disabled"
         return $false
       }
+      if ($script:WindowsMsvcBootstrapAttempted) {
+        $toolchainAfterPriorAttempt = Get-WindowsBuildToolSummary
+        if ([bool]$toolchainAfterPriorAttempt.msvc_tools_present) {
+          $script:WindowsMsvcBootstrapSucceeded = $true
+          return $true
+        }
+        $script:LastBinaryInstallFailureReason = "msvc_tools_still_missing_after_bootstrap"
+        return $false
+      }
+      $script:WindowsMsvcBootstrapAttempted = $true
       $bootstrapped = $false
       $wingetCmd = Get-Command winget -ErrorAction SilentlyContinue
       if ($wingetCmd) {
@@ -1035,13 +1080,16 @@ function Install-Binary($Version, $Triple, $Stem, $OutPath) {
         $script:LastBinaryInstallFailureReason = "msvc_bootstrap_direct_disabled"
       }
       if (-not $bootstrapped) {
+        $script:WindowsMsvcBootstrapSucceeded = $false
         return $false
       }
       $postBootstrapToolchain = Get-WindowsBuildToolSummary
       if (-not [bool]$postBootstrapToolchain.msvc_tools_present) {
+        $script:WindowsMsvcBootstrapSucceeded = $false
         $script:LastBinaryInstallFailureReason = "msvc_tools_still_missing_after_bootstrap"
         return $false
       }
+      $script:WindowsMsvcBootstrapSucceeded = $true
       Write-Host "[infring install] MSVC Build Tools detected after bootstrap"
       return $true
     }
@@ -1654,6 +1702,10 @@ if ($HostIsWindows) {
   }
 }
 
+if ($InstallRepair -and $HostIsWindows) {
+  Remove-StaleWindowsCommandShims -ShimInstallDir $InstallDir
+}
+
 if ($InstallPure) {
   if (($RequestedVersion -eq "latest") -and (-not $HostIsWindows)) {
     $compatiblePure = Resolve-AssetCompatibleVersionForTriple $triple @("infring-pure-workspace")
@@ -1755,6 +1807,12 @@ goto :_search_up_loop
 
 $gatewayDispatchTemplate = @'
 :_dispatch
+if /I "%~1"=="recover" (
+  shift
+  call :_recover_dispatch %*
+  set "_recover_rc=!ERRORLEVEL!"
+  exit /b !_recover_rc!
+)
 if /I "%~1"=="gateway" (
   shift
   call :_gateway_dispatch %*
@@ -1764,6 +1822,46 @@ if /I "%~1"=="gateway" (
 call __ENTRY__ __ENTRY_ARGS__ %*
 set "_cmd_rc=!ERRORLEVEL!"
 exit /b !_cmd_rc!
+
+:_recover_usage
+echo Usage: infring recover [--dashboard-host=127.0.0.1] [--dashboard-port=4173] [--wait-max=90]
+exit /b 0
+
+:_recover_dispatch
+set "_recover_host=127.0.0.1"
+set "_recover_port=4173"
+set "_recover_wait=90"
+:_recover_parse
+if "%~1"=="" goto :_recover_run
+if /I "%~1"=="--help" goto :_recover_usage
+if /I "%~1"=="-h" goto :_recover_usage
+if /I "%~1"=="help" goto :_recover_usage
+for /f "tokens=1,* delims==" %%A in ("%~1") do (
+  if /I "%%~A"=="--dashboard-host" set "_recover_host=%%~B"
+  if /I "%%~A"=="--dashboard-port" set "_recover_port=%%~B"
+  if /I "%%~A"=="--wait-max" set "_recover_wait=%%~B"
+)
+shift
+goto :_recover_parse
+
+:_recover_run
+echo [infring recover] stopping runtime
+call :_gateway_dispatch stop --dashboard-host=!_recover_host! --dashboard-port=!_recover_port! --dashboard-open=0 >nul 2>&1
+echo [infring recover] starting runtime
+call :_gateway_dispatch start --dashboard-host=!_recover_host! --dashboard-port=!_recover_port! --dashboard-open=0
+if not "!ERRORLEVEL!"=="0" (
+  echo [infring recover] gateway start failed 1>&2
+  exit /b 1
+)
+echo [infring recover] checking runtime status
+call :_gateway_dispatch status --dashboard-host=!_recover_host! --dashboard-port=!_recover_port! --dashboard-open=0 >nul 2>&1
+call "%~dp0infringctl.cmd" verify-install --json >nul 2>&1
+if not "!ERRORLEVEL!"=="0" (
+  echo [infring recover] verify-install failed 1>&2
+  exit /b 1
+)
+echo [infring recover] complete
+exit /b 0
 
 :_gateway_usage
 echo Usage: infring gateway [start^|stop^|restart^|status^|attach^|subscribe^|tick^|diagnostics] [flags]
@@ -2061,7 +2159,7 @@ param(
 )
 $target = Join-Path $PSScriptRoot "__TARGET__"
 if (-not (Test-Path $target)) {
-  throw "Missing command wrapper: $target"
+  throw "Missing command wrapper: $target. Run install.ps1 with -Repair -Full to rebuild wrappers."
 }
 __DEPRECATION__
 & $target @CommandArgs
