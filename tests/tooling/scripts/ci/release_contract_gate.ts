@@ -151,6 +151,11 @@ function windowsAndDocsCheck(): Check {
     '[infring install] pinned release $version is missing one or more required Windows prebuilts for $triple; using compatible release $compatibleWindows (disable with INFRING_INSTALL_ALLOW_PINNED_VERSION_COMPATIBLE_FALLBACK=0)';
   const pinnedCompatibleFallbackDisabledNote =
     '[infring install] pinned Windows compatible-release fallback is disabled; set INFRING_INSTALL_ALLOW_PINNED_VERSION_COMPATIBLE_FALLBACK=1 to allow compatible prebuilt selection when pinned tag assets are unavailable.';
+  const sourceFallbackPolicyBanner =
+    '[infring install] source fallback policy: main_last_resort_fallback={0}';
+  const sourceFallbackAppendMainRetryBanner =
+    '[infring install] source fallback for {0} failed ({1}); appending main as last-resort source retry';
+  const sourceFallbackPlanBanner = '[infring install] source fallback plan: {0}';
   const autoMsvcEnabledBanner =
     '[infring install] auto MSVC bootstrap is enabled; installer will attempt Build Tools install during source fallback if needed.';
   const autoMsvcDisabledBanner =
@@ -166,10 +171,13 @@ function windowsAndDocsCheck(): Check {
     'source_fallback_reason=',
     'preflight_no_reachable_prebuilt_with_missing_msvc=',
     'source_fallback_plan=',
+    'main_last_resort_fallback=',
     'toolchain:cargo=',
     'auto_bootstrap:auto_rustup=',
     'auto_bootstrap:direct_msvc=',
     'install_policy:allow_no_msvc_source_fallback=',
+    'compatible_release_fallback=',
+    'pinned_version_compatible_fallback=',
   ];
   const failureReasonTaxonomyTokens = [
     'cargo_missing',
@@ -226,6 +234,9 @@ function windowsAndDocsCheck(): Check {
     installPs.includes(compatibleReleaseFallbackDisabledBanner) &&
     installPs.includes(pinnedCompatibleReleaseFallbackBanner) &&
     installPs.includes(pinnedCompatibleFallbackDisabledNote) &&
+    installPs.includes(sourceFallbackPolicyBanner) &&
+    installPs.includes(sourceFallbackAppendMainRetryBanner) &&
+    installPs.includes(sourceFallbackPlanBanner) &&
     installPs.includes(autoMsvcEnabledBanner) &&
     installPs.includes(autoMsvcDisabledBanner) &&
     installPs.includes(windowsBuildToolsHintWinget) &&
