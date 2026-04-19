@@ -40,8 +40,9 @@ The guard applies to:
 
 - [x] Public docs use `Kernel` as the canonical authority term.
 - [x] This policy declares `Core` as compatibility alias only.
-- [ ] Primary guard command renamed to `ops:kernel-naming:guard` (keep `ops:core-naming:guard` compatibility alias).
+- [x] Primary guard command renamed to `ops:kernel-naming:guard` (keep `ops:core-naming:guard` compatibility alias).
 - [ ] Policy/artifact filenames migrated from `core_naming_*` to `kernel_naming_*` with compatibility mirrors.
+- [x] Alias retirement target published in release terminology policy (`v0.5.0` / `2026-07-15`).
 
 ## Artifacts
 

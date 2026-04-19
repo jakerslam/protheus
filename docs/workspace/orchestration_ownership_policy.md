@@ -4,6 +4,11 @@
 
 Define a hard operating split between `core/`, `surface/orchestration/`, and `client/` so placement decisions are predictable and enforceable.
 
+## Transition Status
+
+Documentation now defines `surface/orchestration/` as the Cognition Control Plane.
+Internal naming and placement cleanup is an incremental transition: existing `orchestration` path/module names remain valid compatibility surfaces until the internal migration closes.
+
 ## Boundary Axiom
 
 Core decides what is true and allowed.  
@@ -34,21 +39,23 @@ Own canonical truth, permission, and enforcement even if orchestration and clien
 
 If orchestration vanished and a typed request hit conduit directly, would this still be required for correctness and safety?
 
-## Orchestration
+## Control Plane (Orchestration Surface)
 
 ### Mission
 
-Coordinate workflow without becoming authority on truth.
+Coordinate workflow decomposition and execution flow without becoming authority on truth.
 
-### Orchestration Owns
+### Control Plane Owns
 
-- Request normalization and task decomposition.
-- Candidate plan generation and dependency tracking.
-- Sequencing, clarification, retry, and escalation coordination.
+- Request/task decomposition.
+- Workflow coordination.
+- Workflow sequencing.
+- Recovery orchestration (including clarification, retry, escalation, and fallback handling).
 - Lane/adaptor selection recommendations.
-- Progress tracking and result packaging.
+- Result shaping and packaging for downstream consumers.
+- Among other things in non-canonical control-plane coordination.
 
-### Orchestration Must Not Own
+### Control Plane Must Not Own
 
 - Canonical state truth.
 - Policy truth and hard safety enforcement.
@@ -56,7 +63,7 @@ Coordinate workflow without becoming authority on truth.
 
 ### Placement Test
 
-Is this deciding workflow flow (what should run next) rather than deciding truth or permission?
+Is this deciding control-plane flow (what should run next) rather than deciding truth or permission?
 
 ## Client
 
@@ -81,15 +88,40 @@ Render outputs, collect input, and manage presentation-local UX state.
 
 If this UI were replaced with another shell, would this logic still be needed?
 
+## Gateways (compat alias: Adapters)
+
+### Mission
+
+Enforce controlled external-system boundaries without becoming authority on truth.
+
+### Gateways Own
+
+- External protocol/runtime bridging (SDK/API/tool/provider boundaries).
+- Contract-normalized request/response envelopes for external systems.
+- Fail-closed boundary behavior for unavailable/invalid external dependencies.
+- Replaceable integration adapters behind stable gateway contracts.
+
+### Gateways Must Not Own
+
+- Canonical policy truth.
+- Canonical queue/scheduler/execution admission truth.
+- Authoritative receipt decision logic.
+
+### Placement Test
+
+If this code were removed, would core safety/truth still be intact while only external connectivity is reduced?
+
 ## Move Guidance
 
 Move logic into `surface/orchestration/` when it does non-canonical coordination:
 
-- Task decomposition.
-- Multi-step workflow planning.
-- Clarification and retry/escalation decisions.
+- Decomposition.
+- Coordination.
+- Sequencing.
+- Recovery.
+- Result shaping/packaging.
 - Dependency graph workflow management.
-- Non-authoritative result packaging.
+- Non-authoritative result shaping/packaging.
 
 Keep logic in `core/` when it is authoritative kernel logic:
 
@@ -106,5 +138,6 @@ For each function/file:
 1. Is it authoritative truth or enforcement? -> `core/`
 2. Is it workflow coordination? -> `surface/orchestration/`
 3. Is it presentation/input UX? -> `client/`
+4. Is it external boundary integration/bridge logic? -> `adapters/` (Gateway layer)
 
 If code appears to satisfy multiple categories, split responsibilities.
