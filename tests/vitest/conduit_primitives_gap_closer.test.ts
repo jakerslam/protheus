@@ -267,6 +267,16 @@ describe('conduit primitive wrapper contract', () => {
         '[infring install] auto MSVC bootstrap is disabled; enable with INFRING_INSTALL_AUTO_MSVC=1 for best-effort source fallback repair.',
       ),
     ).toBe(true);
+    expect(
+      source.includes(
+        'Install Visual Studio Build Tools (MSVC+C++) via winget: winget install --id Microsoft.VisualStudio.2022.BuildTools -e --override ""--quiet --wait --norestart --add Microsoft.VisualStudio.Workload.VCTools""',
+      ),
+    ).toBe(true);
+    expect(
+      source.includes(
+        'fallback (no winget): `$vs = Join-Path `$env:TEMP ""vs_BuildTools.exe""; irm https://aka.ms/vs/17/release/vs_BuildTools.exe -OutFile `$vs; Start-Process -FilePath `$vs -ArgumentList ""--quiet --wait --norestart --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"" -Wait',
+      ),
+    ).toBe(true);
     expect(source.includes('asset_probe=')).toBe(true);
     expect(source.includes('attempted_assets=')).toBe(true);
     expect(source.includes('source_fallback_attempted=')).toBe(true);
