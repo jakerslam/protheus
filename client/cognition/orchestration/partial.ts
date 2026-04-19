@@ -31,12 +31,10 @@ function retrievePartialResults(input = {}) {
 }
 
 function extractPartialFromSessionEntry(entry) {
-  const out = retrievePartialResults({
-    task_id: 'partial-extract-probe',
+  const out = invokeOrchestration('partial.from_session_history', {
     session_history: [entry],
-    decision: 'continue',
   });
-  if (!out.ok || out.source !== 'session_history' || !Array.isArray(out.findings_sofar)) {
+  if (!out || !out.ok || out.source !== 'session_history' || !Array.isArray(out.findings_sofar)) {
     return null;
   }
   return {
@@ -48,12 +46,10 @@ function extractPartialFromSessionEntry(entry) {
 }
 
 function fromSessionHistory(history = []) {
-  const out = retrievePartialResults({
-    task_id: 'partial-session-history-probe',
+  const out = invokeOrchestration('partial.from_session_history', {
     session_history: Array.isArray(history) ? history : [],
-    decision: 'continue',
   });
-  if (out.ok && out.source === 'session_history') {
+  if (out && out.ok && out.source === 'session_history') {
     return {
       ok: true,
       type: 'orchestration_partial_from_session_history',
@@ -72,12 +68,11 @@ function fromSessionHistory(history = []) {
 }
 
 function latestCheckpointFromScratchpad(taskId, options = {}) {
-  const out = retrievePartialResults({
+  const out = invokeOrchestration('partial.latest_checkpoint', {
     task_id: String(taskId || '').trim(),
-    session_history: [],
     root_dir: options.rootDir || options.root_dir || undefined,
   });
-  if (!out.ok || out.source !== 'checkpoint') {
+  if (!out || !out.ok || out.source !== 'checkpoint') {
     return {
       ok: false,
       type: 'orchestration_partial_checkpoint_fallback',

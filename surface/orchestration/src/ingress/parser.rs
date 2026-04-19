@@ -11,7 +11,7 @@ pub fn tokenize(intent: &str) -> Vec<String> {
 }
 
 pub fn operation_candidates(tokens: &[String], payload: &Value) -> Vec<OperationKind> {
-    let mut out = Vec::new();
+    let mut candidates = Vec::new();
     let has_any = |needles: &[&str]| {
         needles
             .iter()
@@ -20,22 +20,22 @@ pub fn operation_candidates(tokens: &[String], payload: &Value) -> Vec<Operation
     let payload_has = |key: &str| payload.get(key).is_some();
 
     if has_any(&["search", "query", "lookup", "find"]) || payload_has("query") {
-        out.push(OperationKind::Search);
+        candidates.push(OperationKind::Search);
     }
     if has_any(&["fetch", "download", "retrieve", "crawl"]) || payload_has("url") {
-        out.push(OperationKind::Fetch);
+        candidates.push(OperationKind::Fetch);
     }
     if has_any(&["compare", "vs", "versus"]) {
-        out.push(OperationKind::Compare);
+        candidates.push(OperationKind::Compare);
     }
     if has_any(&["tool", "tools", "route", "runtime", "bridge", "command"]) || payload_has("tool") {
-        out.push(OperationKind::InspectTooling);
+        candidates.push(OperationKind::InspectTooling);
     }
     if has_any(&["assimilate", "assimilation", "ingest", "import"]) {
-        out.push(OperationKind::Assimilate);
+        candidates.push(OperationKind::Assimilate);
     }
     if has_any(&["task", "tasks", "plan", "backlog", "proposal"]) {
-        out.push(OperationKind::Plan);
+        candidates.push(OperationKind::Plan);
     }
     if has_any(&[
         "update",
@@ -46,14 +46,14 @@ pub fn operation_candidates(tokens: &[String], payload: &Value) -> Vec<Operation
         "implement",
         "mutate",
     ]) {
-        out.push(OperationKind::Mutate);
+        candidates.push(OperationKind::Mutate);
     }
-    if out.is_empty()
+    if candidates.is_empty()
         && (has_any(&["read", "status", "show", "inspect", "does", "why"]) || payload_has("target"))
     {
-        out.push(OperationKind::Read);
+        candidates.push(OperationKind::Read);
     }
-    out
+    candidates
 }
 
 pub fn resource_candidates(
@@ -61,7 +61,7 @@ pub fn resource_candidates(
     payload: &Value,
     target_descriptors: &[TargetDescriptor],
 ) -> Vec<ResourceKind> {
-    let mut out = Vec::new();
+    let mut candidates = Vec::new();
     let has_any = |needles: &[&str]| {
         needles
             .iter()
@@ -70,31 +70,31 @@ pub fn resource_candidates(
     let payload_has_any = |keys: &[&str]| keys.iter().any(|key| payload.get(key).is_some());
 
     if has_any(&["web", "url", "http", "https", "site"]) || payload_has_any(&["url", "urls"]) {
-        out.push(ResourceKind::Web);
+        candidates.push(ResourceKind::Web);
     }
     if has_any(&["file", "files", "workspace", "path", "paths", "repo"])
         || payload_has_any(&["path", "paths"])
     {
-        out.push(ResourceKind::Workspace);
+        candidates.push(ResourceKind::Workspace);
     }
     if has_any(&["tool", "tools", "runtime", "bridge", "command"])
         || payload_has_any(&["tool", "tool_name"])
     {
-        out.push(ResourceKind::Tooling);
+        candidates.push(ResourceKind::Tooling);
     }
     if has_any(&["task", "tasks", "workflow", "backlog"]) || payload_has_any(&["target", "targets"])
     {
-        out.push(ResourceKind::TaskGraph);
+        candidates.push(ResourceKind::TaskGraph);
     }
     if has_any(&["memory", "context", "history", "status"]) {
-        out.push(ResourceKind::Memory);
+        candidates.push(ResourceKind::Memory);
     }
     match infer_resource_from_descriptors(target_descriptors) {
-        Some(ResourceKind::Mixed) => out.push(ResourceKind::Mixed),
-        Some(kind) if !out.contains(&kind) => out.push(kind),
+        Some(ResourceKind::Mixed) => candidates.push(ResourceKind::Mixed),
+        Some(kind) if !candidates.contains(&kind) => candidates.push(kind),
         _ => {}
     }
-    out
+    candidates
 }
 
 pub fn extract_target_descriptors(payload: &Value) -> Vec<TargetDescriptor> {

@@ -6,7 +6,7 @@ use infring_orchestration_surface_v1::self_maintenance::contracts::{
 };
 use infring_orchestration_surface_v1::self_maintenance::executor::GovernedSelfMaintenanceSupervisor;
 use infring_orchestration_surface_v1::self_maintenance::observer::collect_evidence_cards;
-use infring_orchestration_surface_v1::self_maintenance::task_generator::claim_bundle_to_task_graph;
+use infring_orchestration_surface_v1::self_maintenance::task_graph_builder::build_task_graph_from_claim_bundle;
 use infring_task_fabric_core_v1::LifecycleStatus;
 
 fn base_inputs() -> ObservationInputs {
@@ -63,7 +63,7 @@ fn claims_produce_task_fabric_tasks() {
     inputs.task_fabric_signals.stale_tasks = vec!["task-a".to_string(), "task-b".to_string()];
     let evidence = collect_evidence_cards(&inputs, 3_000);
     let bundle = evidence_to_claim_bundle("task-auto-2", &evidence);
-    let generated = claim_bundle_to_task_graph(&bundle, "self_maintenance", 3_000);
+    let generated = build_task_graph_from_claim_bundle(&bundle, "self_maintenance", 3_000);
     assert!(!generated.tasks.is_empty());
     assert!(generated
         .tasks
@@ -84,7 +84,7 @@ fn safe_apply_executes_allowed_fixes() {
         GovernedSelfMaintenanceSupervisor::new(SupervisorMode::ApplySafe, "self_maintenance");
     let out = supervisor.run_cycle(inputs, 4_000).expect("run");
     assert!(!out.worker_outputs.is_empty());
-    assert!(out.worker_outputs[0].produced_evidence_ids.len() >= 1);
+    assert!(!out.worker_outputs[0].produced_evidence_ids.is_empty());
     assert!(out
         .receipts
         .iter()
