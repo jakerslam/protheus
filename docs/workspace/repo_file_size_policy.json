@@ -12,9 +12,49 @@
     "core_rust": 500,
     "other_rust": 1000
   },
-  "exception_count_ceiling": 188,
-  "generated_at": "2026-03-27T02:13:14.058Z",
+  "exception_count_ceiling": 336,
+  "generated_at": "2026-04-18T23:15:29.127Z",
   "exceptions": [
+    {
+      "path": "client/runtime/systems/ui/infring_static/css/components.css.parts/0005-components-part.part01.css",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-UI-CLASSIC",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/css/components.css.parts/0006-components-part.css",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-UI-CLASSIC",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/css/components.css.parts/0008-components-part.css",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-UI-CLASSIC",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/css/components.css.parts/0009-components-part.css",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-UI-CLASSIC",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/css/components.css.parts/0012-components-part.part03.css",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-UI-CLASSIC",
+      "planned_batch_date": "2026-06-15"
+    },
     {
       "path": "client/runtime/systems/ui/infring_static/css/components.css.parts/0018-components-part.css",
       "owner": "jay",
@@ -22,6 +62,78 @@
       "expires": "2026-05-15",
       "task_id": "TD-SIZE-UI-CLASSIC",
       "planned_batch_date": "2026-05-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/css/layout.css.parts/0001-layout-part.part01.css",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-UI-CLASSIC",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/css/layout.css.parts/0002-layout-part.part01.css",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-UI-CLASSIC",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/index_body.html.parts/0003-body-part.html",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-UI-CLASSIC",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/index_body.html.parts/0004-body-part.html",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-UI-CLASSIC",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/js/app.ts.parts/020-nav-and-layout.part02.ts",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-UI-CLASSIC",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/js/app.ts.parts/020-nav-and-layout.part05.ts",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-UI-CLASSIC",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/js/app.ts.parts/020-nav-and-layout.part06.ts",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-UI-CLASSIC",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/js/app.ts.parts/020-nav-and-layout.part07.ts",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-UI-CLASSIC",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/js/app.ts.parts/020-nav-and-layout.part10.ts",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-UI-CLASSIC",
+      "planned_batch_date": "2026-06-15"
     },
     {
       "path": "client/runtime/systems/ui/infring_static/js/app.ts.parts/030-agent-list-runtime.part01.ts",
@@ -40,12 +152,116 @@
       "planned_batch_date": "2026-05-15"
     },
     {
+      "path": "client/runtime/systems/ui/infring_static/js/pages/agents.ts.parts/010-state-and-load.ts",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-UI-CLASSIC",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/020-init-roles-and-vibes.part01.ts",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-UI-CLASSIC",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/030-init-selection-helpers.ts",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15",
+      "task_id": "TD-SIZE-UI-CLASSIC",
+      "planned_batch_date": "2026-05-15"
+    },
+    {
       "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/040-models-and-cache.part01.ts",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
       "expires": "2026-05-15",
       "task_id": "TD-SIZE-UI-CLASSIC",
       "planned_batch_date": "2026-05-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/040-models-and-cache.part02.ts",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15",
+      "task_id": "TD-SIZE-UI-CLASSIC",
+      "planned_batch_date": "2026-05-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/050-conversation-cache.ts",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15",
+      "task_id": "TD-SIZE-UI-CLASSIC",
+      "planned_batch_date": "2026-05-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/070-init-sequences-and-pointer.part01.ts",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-UI-CLASSIC",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/110-failover-and-health.part01.ts",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-UI-CLASSIC",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/130-render-window-and-session.part01.ts",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15",
+      "task_id": "TD-SIZE-UI-CLASSIC",
+      "planned_batch_date": "2026-05-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/140-session-and-ws.part01.ts",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15",
+      "task_id": "TD-SIZE-UI-CLASSIC",
+      "planned_batch_date": "2026-05-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/150-ws-stream-handlers.ts",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-UI-CLASSIC",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/190-drawer-and-queue.zz-part02.ts",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15",
+      "task_id": "TD-SIZE-UI-CLASSIC",
+      "planned_batch_date": "2026-05-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/210-scroll-hover-sanitize.part01.ts",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-UI-CLASSIC",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/memory_abstraction/src/main_parts/010-now-iso.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-MEMORY-L0",
+      "planned_batch_date": "2026-06-15"
     },
     {
       "path": "core/layer0/memory_runtime/src/db.rs",
@@ -56,6 +272,38 @@
       "planned_batch_date": "2026-04-23"
     },
     {
+      "path": "core/layer0/memory_runtime/src/main_parts/040-query-index-payload.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-MEMORY-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/memory_runtime/src/main_parts/050-run-query-index.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-MEMORY-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/memory_runtime/src/rag_runtime_parts/020-ingest-payload.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-MEMORY-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/memory_runtime/src/rag_runtime_parts/030-byterover-upgrade-payload.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-MEMORY-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
       "path": "core/layer0/memory_runtime/src/transition_lane.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
@@ -64,12 +312,44 @@
       "planned_batch_date": "2026-04-23"
     },
     {
+      "path": "core/layer0/memory_runtime/src/wave1_parts/030-auto-recall-filed-payload.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-MEMORY-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
       "path": "core/layer0/memory/src/blob.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
       "expires": "2026-04-23",
       "task_id": "TD-SIZE-MEMORY-L0",
       "planned_batch_date": "2026-04-23"
+    },
+    {
+      "path": "core/layer0/memory/src/sqlite_store.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-MEMORY-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/ab_lane_eval.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/action_receipts_kernel.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
     },
     {
       "path": "core/layer0/ops/src/action_receipts_kernel.rs",
@@ -88,6 +368,30 @@
       "planned_batch_date": "2026-04-23"
     },
     {
+      "path": "core/layer0/ops/src/alpha_readiness.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/app_plane_parts/025-chat-ui-finalization.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/app_plane_parts/030-run-chat-ui.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
       "path": "core/layer0/ops/src/approval_gate_kernel.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
@@ -104,12 +408,36 @@
       "planned_batch_date": "2026-04-23"
     },
     {
+      "path": "core/layer0/ops/src/audit_log_export.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
       "path": "core/layer0/ops/src/autonomy_controller_parts/010-prelude-and-state.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
       "expires": "2026-04-23",
       "task_id": "TD-SIZE-OPS-L0",
       "planned_batch_date": "2026-04-23"
+    },
+    {
+      "path": "core/layer0/ops/src/autonomy_controller_parts/030-ephemeral-and-trunk.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/autonomy_controller_parts/050-proactive-daemon-dream-speculation.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
     },
     {
       "path": "core/layer0/ops/src/autonomy_controller_parts/050-proactive-daemon-dream-speculation.rs",
@@ -120,12 +448,36 @@
       "planned_batch_date": "2026-04-23"
     },
     {
+      "path": "core/layer0/ops/src/autonomy_controller_parts/052-autoreason.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
       "path": "core/layer0/ops/src/autonomy_receipt_schema_kernel.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
       "expires": "2026-04-23",
       "task_id": "TD-SIZE-OPS-L0",
       "planned_batch_date": "2026-04-23"
+    },
+    {
+      "path": "core/layer0/ops/src/autotest_controller_parts/040-is-spine-hot_parts/001-part.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/autotest_controller_parts/040-is-spine-hot.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
     },
     {
       "path": "core/layer0/ops/src/autotest_controller_parts/040-is-spine-hot.rs",
@@ -152,12 +504,36 @@
       "planned_batch_date": "2026-04-23"
     },
     {
+      "path": "core/layer0/ops/src/batch_query_primitive_parts/010-core.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
       "path": "core/layer0/ops/src/batch_query_primitive_parts/010-core.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
       "expires": "2026-04-23",
       "task_id": "TD-SIZE-OPS-L0",
       "planned_batch_date": "2026-04-23"
+    },
+    {
+      "path": "core/layer0/ops/src/batch_query_primitive_parts/020-pipeline_parts/002-part.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/batch_query_primitive_parts/020-pipeline.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
     },
     {
       "path": "core/layer0/ops/src/batch_query_primitive_parts/020-pipeline.rs",
@@ -176,12 +552,44 @@
       "planned_batch_date": "2026-04-23"
     },
     {
+      "path": "core/layer0/ops/src/batch_query_primitive_parts/041-quality-tests.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-04-23"
+    },
+    {
+      "path": "core/layer0/ops/src/benchmark_matrix_parts/010-usage.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/benchmark_matrix_parts/040-run-impl.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
       "path": "core/layer0/ops/src/binary_blob_runtime_run.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
       "expires": "2026-04-23",
       "task_id": "TD-SIZE-OPS-L0",
       "planned_batch_date": "2026-04-23"
+    },
+    {
+      "path": "core/layer0/ops/src/binary_blob_runtime.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
     },
     {
       "path": "core/layer0/ops/src/binary_blob_runtime.rs",
@@ -200,6 +608,22 @@
       "planned_batch_date": "2026-04-23"
     },
     {
+      "path": "core/layer0/ops/src/camel_bridge_parts/001-part.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/camel_bridge.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
       "path": "core/layer0/ops/src/camel_bridge.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
@@ -208,12 +632,28 @@
       "planned_batch_date": "2026-04-23"
     },
     {
+      "path": "core/layer0/ops/src/collab_plane_parts/050-run-continuity.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
       "path": "core/layer0/ops/src/collector_content_kernel.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
       "expires": "2026-04-23",
       "task_id": "TD-SIZE-OPS-L0",
       "planned_batch_date": "2026-04-23"
+    },
+    {
+      "path": "core/layer0/ops/src/collector_runtime_kernel.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
     },
     {
       "path": "core/layer0/ops/src/collector_runtime_kernel.rs",
@@ -232,6 +672,30 @@
       "planned_batch_date": "2026-04-23"
     },
     {
+      "path": "core/layer0/ops/src/contract_check_parts/020-check-rust-source-of-truth-contract.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/contract_lane_utils.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/conversation_eye_collector_kernel.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
       "path": "core/layer0/ops/src/conversation_eye_collector_kernel.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
@@ -246,6 +710,14 @@
       "expires": "2026-04-23",
       "task_id": "TD-SIZE-OPS-L0",
       "planned_batch_date": "2026-04-23"
+    },
+    {
+      "path": "core/layer0/ops/src/daemon_control_parts/020-dashboard-health-ok.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
     },
     {
       "path": "core/layer0/ops/src/daemon_control_parts/030-start-dashboard-with-config.rs",
@@ -272,12 +744,36 @@
       "planned_batch_date": "2026-04-23"
     },
     {
+      "path": "core/layer0/ops/src/dashboard_agent_state_sessions_parts/002-part.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
       "path": "core/layer0/ops/src/dashboard_agent_state_sessions_parts/002-part.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
       "expires": "2026-04-23",
       "task_id": "TD-SIZE-OPS-L0",
       "planned_batch_date": "2026-04-23"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_channel_catalog.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_channels.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
     },
     {
       "path": "core/layer0/ops/src/dashboard_compat_api_channels.rs",
@@ -296,6 +792,22 @@
       "planned_batch_date": "2026-04-23"
     },
     {
+      "path": "core/layer0/ops/src/dashboard_compat_api_comms.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_hands.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
       "path": "core/layer0/ops/src/dashboard_compat_api_hands.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
@@ -310,6 +822,14 @@
       "expires": "2026-04-23",
       "task_id": "TD-SIZE-OPS-L0",
       "planned_batch_date": "2026-04-23"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/020-usage-from-state.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
     },
     {
       "path": "core/layer0/ops/src/dashboard_compat_api_parts/020-usage-from-state.rs",
@@ -336,12 +856,28 @@
       "planned_batch_date": "2026-04-23"
     },
     {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/020-agent-create-without-name-returns-non-generic-id.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
       "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/020-agent-create-without-name-returns-non-generic-id.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
       "expires": "2026-04-23",
       "task_id": "TD-SIZE-OPS-L0",
       "planned_batch_date": "2026-04-23"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/040-terminated-agent-endpoints-round-trip.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
     },
     {
       "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/060-context-telemetry-and-auto-compact.rs",
@@ -352,12 +888,204 @@
       "planned_batch_date": "2026-04-23"
     },
     {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/020-part.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/030-part.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/040-part.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/040-part.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-04-23"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/045-part.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-04-23"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/050-part.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
       "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/110-agent-capability-gauntlet.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
       "expires": "2026-04-23",
       "task_id": "TD-SIZE-OPS-L0",
       "planned_batch_date": "2026-04-23"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/040-part.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/070-part.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/070-part.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-04-23"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/080-part.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/090-part.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/130-part.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/140-part.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-04-23"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/150-part.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-04-23"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/160-part.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-04-23"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/161-part.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/170-part.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/agent_scope_full_parts/030-message-routing-and-context.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/agent_scope_full_parts/046-turn-workflow-library.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/agent_scope_full_parts/047-turn-workflow-synthesis.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/agent_scope_full_parts/050-message-finalization-and-payload.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-05-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-04-23"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/late_b.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_reference_parity.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
     },
     {
       "path": "core/layer0/ops/src/dashboard_compat_api_reference_parity.rs",
@@ -376,12 +1104,28 @@
       "planned_batch_date": "2026-04-23"
     },
     {
+      "path": "core/layer0/ops/src/dashboard_compat_api_sidebar_ops_parts/010-state-helpers.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
       "path": "core/layer0/ops/src/dashboard_compat_api_sidebar_ops_parts/010-state-helpers.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
       "expires": "2026-04-23",
       "task_id": "TD-SIZE-OPS-L0",
       "planned_batch_date": "2026-04-23"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_sidebar_ops_parts/020-cron-and-trigger-store.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
     },
     {
       "path": "core/layer0/ops/src/dashboard_compat_api_sidebar_ops_parts/030-sidebar-route-handler.rs",
@@ -408,6 +1152,14 @@
       "planned_batch_date": "2026-04-23"
     },
     {
+      "path": "core/layer0/ops/src/dashboard_model_catalog.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
       "path": "core/layer0/ops/src/dashboard_model_catalog.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
@@ -416,12 +1168,28 @@
       "planned_batch_date": "2026-04-23"
     },
     {
+      "path": "core/layer0/ops/src/dashboard_provider_runtime_parts/010-state-and-registry.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
       "path": "core/layer0/ops/src/dashboard_provider_runtime_parts/010-state-and-registry.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
       "expires": "2026-04-23",
       "task_id": "TD-SIZE-OPS-L0",
       "planned_batch_date": "2026-04-23"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_provider_runtime_parts/020-provider-http-interop.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
     },
     {
       "path": "core/layer0/ops/src/dashboard_provider_runtime_parts/020-provider-http-interop.rs",
@@ -440,12 +1208,36 @@
       "planned_batch_date": "2026-04-23"
     },
     {
+      "path": "core/layer0/ops/src/dashboard_provider_runtime_parts/030-model-discovery-and-mutations.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
       "path": "core/layer0/ops/src/dashboard_provider_runtime_parts/030-model-discovery-and-mutations.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
       "expires": "2026-04-23",
       "task_id": "TD-SIZE-OPS-L0",
       "planned_batch_date": "2026-04-23"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_sidebar_view_model.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_skills_marketplace.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
     },
     {
       "path": "core/layer0/ops/src/dashboard_skills_marketplace.rs",
@@ -472,6 +1264,38 @@
       "planned_batch_date": "2026-04-23"
     },
     {
+      "path": "core/layer0/ops/src/dashboard_ui_parts/020-git-authority-lane.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_ui_parts/030-file-discovery.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_ui_parts/040-runtime-sync.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_ui_parts/050-snapshot-builder.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
       "path": "core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
@@ -480,12 +1304,52 @@
       "planned_batch_date": "2026-04-23"
     },
     {
+      "path": "core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_ui_parts/900-tests.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
       "path": "core/layer0/ops/src/dify_bridge.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
       "expires": "2026-04-23",
       "task_id": "TD-SIZE-OPS-L0",
       "planned_batch_date": "2026-04-23"
+    },
+    {
+      "path": "core/layer0/ops/src/directive_kernel_parts/010-state-root.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/directive_kernel_parts/020-payload-contains-authorization-bearer.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/directive_kernel_parts/050-env-guard.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
     },
     {
       "path": "core/layer0/ops/src/directive_kernel_run.rs",
@@ -502,6 +1366,22 @@
       "expires": "2026-04-23",
       "task_id": "TD-SIZE-OPS-L0",
       "planned_batch_date": "2026-04-23"
+    },
+    {
+      "path": "core/layer0/ops/src/duality_seed_parts/040-op-dispatch_parts/001-part.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/duality_seed_parts/040-op-dispatch.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
     },
     {
       "path": "core/layer0/ops/src/duality_seed_parts/040-op-dispatch.rs",
@@ -528,12 +1408,36 @@
       "planned_batch_date": "2026-04-23"
     },
     {
+      "path": "core/layer0/ops/src/eval_plane.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
       "path": "core/layer0/ops/src/eval_plane.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
       "expires": "2026-04-23",
       "task_id": "TD-SIZE-OPS-L0",
       "planned_batch_date": "2026-04-23"
+    },
+    {
+      "path": "core/layer0/ops/src/f100_readiness_program_parts/010-usage.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/f100_reliability_certification.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
     },
     {
       "path": "core/layer0/ops/src/f100_reliability_certification.rs",
@@ -544,12 +1448,44 @@
       "planned_batch_date": "2026-04-23"
     },
     {
+      "path": "core/layer0/ops/src/finance_plane_parts/010-usage.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/flow_plane_parts/020-playground-and-marketplace.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/framework_adapter_contract.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
       "path": "core/layer0/ops/src/gateway_supervisor.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
       "expires": "2026-04-23",
       "task_id": "TD-SIZE-OPS-L0",
       "planned_batch_date": "2026-04-23"
+    },
+    {
+      "path": "core/layer0/ops/src/github_repo_collector_kernel.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
     },
     {
       "path": "core/layer0/ops/src/github_repo_collector_kernel.rs",
@@ -560,12 +1496,28 @@
       "planned_batch_date": "2026-04-23"
     },
     {
+      "path": "core/layer0/ops/src/government_plane.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
       "path": "core/layer0/ops/src/government_plane.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
       "expires": "2026-04-23",
       "task_id": "TD-SIZE-OPS-L0",
       "planned_batch_date": "2026-04-23"
+    },
+    {
+      "path": "core/layer0/ops/src/healthcare_plane.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
     },
     {
       "path": "core/layer0/ops/src/healthcare_plane.rs",
@@ -632,6 +1584,14 @@
       "planned_batch_date": "2026-04-23"
     },
     {
+      "path": "core/layer0/ops/src/metakernel_parts/050-run-execution-profiles.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
       "path": "core/layer0/ops/src/metakernel_parts/057-digital-dna-foundation.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
@@ -696,6 +1656,14 @@
       "planned_batch_date": "2026-04-23"
     },
     {
+      "path": "core/layer0/ops/src/network_protocol.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
       "path": "core/layer0/ops/src/nexus_plane.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
@@ -704,12 +1672,36 @@
       "planned_batch_date": "2026-04-23"
     },
     {
+      "path": "core/layer0/ops/src/observability_plane_parts/030-run-incident.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/observability_plane_parts/040-run-acp-provenance.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
       "path": "core/layer0/ops/src/ops_domain_conduit_runner_kernel.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
       "expires": "2026-04-23",
       "task_id": "TD-SIZE-OPS-L0",
       "planned_batch_date": "2026-04-23"
+    },
+    {
+      "path": "core/layer0/ops/src/organism_layer_phase1.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
     },
     {
       "path": "core/layer0/ops/src/outcome_fitness_kernel.rs",
@@ -728,12 +1720,28 @@
       "planned_batch_date": "2026-04-23"
     },
     {
+      "path": "core/layer0/ops/src/persist_plane.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
       "path": "core/layer0/ops/src/persist_plane.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
       "expires": "2026-04-23",
       "task_id": "TD-SIZE-OPS-L0",
       "planned_batch_date": "2026-04-23"
+    },
+    {
+      "path": "core/layer0/ops/src/persona_ambient.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
     },
     {
       "path": "core/layer0/ops/src/persona_ambient.rs",
@@ -758,6 +1766,14 @@
       "expires": "2026-04-23",
       "task_id": "TD-SIZE-OPS-L0",
       "planned_batch_date": "2026-04-23"
+    },
+    {
+      "path": "core/layer0/ops/src/protheusctl_parts/020-evaluate-dispatch-security.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
     },
     {
       "path": "core/layer0/ops/src/protheusctl_parts/020-evaluate-dispatch-security.rs",
@@ -792,6 +1808,22 @@
       "planned_batch_date": "2026-04-23"
     },
     {
+      "path": "core/layer0/ops/src/protheusctl_tests_parts/010-env-guard.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/queue_sqlite_kernel.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
       "path": "core/layer0/ops/src/queue_sqlite_kernel.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
@@ -808,12 +1840,28 @@
       "planned_batch_date": "2026-04-23"
     },
     {
+      "path": "core/layer0/ops/src/request_envelope_kernel.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
       "path": "core/layer0/ops/src/runtime_systems_parts/020-dashboard-runtime-authority-from-payload.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
       "expires": "2026-04-23",
       "task_id": "TD-SIZE-OPS-L0",
       "planned_batch_date": "2026-04-23"
+    },
+    {
+      "path": "core/layer0/ops/src/runtime_systems_parts/030-dashboard-contract-guard-from-payload.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
     },
     {
       "path": "core/layer0/ops/src/runtime_systems_parts/030-dashboard-contract-guard-from-payload.rs",
@@ -846,6 +1894,22 @@
       "expires": "2026-04-23",
       "task_id": "TD-SIZE-OPS-L0",
       "planned_batch_date": "2026-04-23"
+    },
+    {
+      "path": "core/layer0/ops/src/rust_hotpath_inventory_kernel.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/scale_readiness.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
     },
     {
       "path": "core/layer0/ops/src/scale_readiness.rs",
@@ -888,6 +1952,14 @@
       "planned_batch_date": "2026-04-23"
     },
     {
+      "path": "core/layer0/ops/src/skills_plane_parts/030-run-chain-validate.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
       "path": "core/layer0/ops/src/skills_plane_parts/080-run.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
@@ -912,6 +1984,22 @@
       "planned_batch_date": "2026-04-23"
     },
     {
+      "path": "core/layer0/ops/src/state_kernel.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/stock_market_collector_kernel.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
       "path": "core/layer0/ops/src/stock_market_collector_kernel.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
@@ -926,6 +2014,14 @@
       "expires": "2026-04-23",
       "task_id": "TD-SIZE-OPS-L0",
       "planned_batch_date": "2026-04-23"
+    },
+    {
+      "path": "core/layer0/ops/src/strategy_campaign_scheduler_kernel.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
     },
     {
       "path": "core/layer0/ops/src/strategy_campaign_scheduler_kernel.rs",
@@ -950,6 +2046,14 @@
       "expires": "2026-04-23",
       "task_id": "TD-SIZE-OPS-L0",
       "planned_batch_date": "2026-04-23"
+    },
+    {
+      "path": "core/layer0/ops/src/success_criteria_kernel_parts/030-evaluate-row.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
     },
     {
       "path": "core/layer0/ops/src/swarm_runtime_parts/030-compact-context-value.rs",
@@ -984,6 +2088,30 @@
       "planned_batch_date": "2026-04-23"
     },
     {
+      "path": "core/layer0/ops/src/tool_output_match_filter.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/upgrade_lane_kernel.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/v8_kernel.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
       "path": "core/layer0/ops/src/v8_kernel.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
@@ -1000,12 +2128,116 @@
       "planned_batch_date": "2026-04-23"
     },
     {
+      "path": "core/layer0/ops/src/vbrowser_plane_parts/040-run.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
       "path": "core/layer0/ops/src/vbrowser_plane_parts/040-run.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
       "expires": "2026-04-23",
       "task_id": "TD-SIZE-OPS-L0",
       "planned_batch_date": "2026-04-23"
+    },
+    {
+      "path": "core/layer0/ops/src/web_conduit_parts/035-fetch-runtime.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/web_conduit_parts/041-tooling-inventory-and-policy.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/web_conduit_parts/050-search-providers.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/web_conduit_parts/060-search-orchestration.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/web_conduit_parts/080-tests.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/web_conduit_parts/095-openclaw-search-tool-tests.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/web_conduit_parts/096-openclaw-fetch-runtime-resolution-tests.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/web_conduit_parts/105-openclaw-search-runtime-resolution-tests.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/web_conduit_provider_runtime_parts/010-provider-chain-and-health.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/web_conduit_provider_runtime_parts/021-search-runtime-resolution.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/workflow_graph_bridge.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-OPS-L0",
+      "planned_batch_date": "2026-06-15"
     },
     {
       "path": "core/layer0/ops/src/workflow_graph_bridge.rs",
@@ -1040,12 +2272,36 @@
       "planned_batch_date": "2026-04-23"
     },
     {
+      "path": "core/layer1/infring_types/src/lib.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-CORE-L0-MISC",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
       "path": "core/layer1/observability/src/lib.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
       "expires": "2026-04-23",
       "task_id": "TD-SIZE-SECURITY-L1",
       "planned_batch_date": "2026-04-23"
+    },
+    {
+      "path": "core/layer1/security/src/lib_parts/040-run-capability-lease.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-SECURITY-L1",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer1/security/src/security_planes_parts/020-run-guard.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-SECURITY-L1",
+      "planned_batch_date": "2026-06-15"
     },
     {
       "path": "core/layer1/security/src/security_planes_parts/020-run-guard.rs",
@@ -1056,6 +2312,30 @@
       "planned_batch_date": "2026-04-23"
     },
     {
+      "path": "core/layer1/security/src/security_wave1_parts/020-run-capability-switchboard.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-SECURITY-L1",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer1/security/src/security_wave1_parts/050-run-black-box-ledger.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-SECURITY-L1",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer1/security/src/security_wave1_parts/080-directive-hierarchy-paths.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-SECURITY-L1",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
       "path": "core/layer2/autonomy/src/ethical_reasoning.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
@@ -1064,12 +2344,36 @@
       "planned_batch_date": "2026-04-23"
     },
     {
+      "path": "core/layer2/autonomy/src/multi_agent_debate.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-EXEC-L2",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
       "path": "core/layer2/autonomy/src/multi_agent_debate.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
       "expires": "2026-04-23",
       "task_id": "TD-SIZE-EXEC-L2",
       "planned_batch_date": "2026-04-23"
+    },
+    {
+      "path": "core/layer2/autonomy/src/simulation_parts/020-run-autonomy-simulation.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-EXEC-L2",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer2/conduit/src/lib_parts/command_dispatch_parts/020-register-extension-runtime.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-EXEC-L2",
+      "planned_batch_date": "2026-06-15"
     },
     {
       "path": "core/layer2/conduit/src/lib_parts/command_dispatch_parts/020-register-extension-runtime.rs",
@@ -1086,6 +2390,38 @@
       "expires": "2026-04-23",
       "task_id": "TD-SIZE-EXEC-L2",
       "planned_batch_date": "2026-04-23"
+    },
+    {
+      "path": "core/layer2/execution/src/autoscale_parts/140-compute-plan.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-EXEC-L2",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer2/execution/src/autoscale_parts/270-compute-recent-directive-pulse-cooldown-count.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-EXEC-L2",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer2/execution/src/autoscale_parts/310-compute-objective-id-for-execution.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-EXEC-L2",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer2/execution/src/autoscale_parts/330-compute-non-yield-category.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-EXEC-L2",
+      "planned_batch_date": "2026-06-15"
     },
     {
       "path": "core/layer2/execution/src/autoscale_parts/400-run-autoscale-json.rs",
@@ -1112,6 +2448,30 @@
       "planned_batch_date": "2026-04-23"
     },
     {
+      "path": "core/layer2/execution/src/graph_runtime.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-EXEC-L2",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer2/execution/src/importers.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-EXEC-L2",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer2/execution/src/inversion_parts/160-compute-trim-library.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-EXEC-L2",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
       "path": "core/layer2/execution/src/inversion_parts/210-run-inversion-json.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
@@ -1136,6 +2496,14 @@
       "planned_batch_date": "2026-04-23"
     },
     {
+      "path": "core/layer2/memory/src/context_topology.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-EXEC-L2",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
       "path": "core/layer2/memory/src/heap_interface.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
@@ -1152,12 +2520,36 @@
       "planned_batch_date": "2026-04-23"
     },
     {
+      "path": "core/layer2/ops/src/autophagy_auto_approval.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-EXEC-L2",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
       "path": "core/layer2/ops/src/autophagy_auto_approval.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
       "expires": "2026-04-23",
       "task_id": "TD-SIZE-EXEC-L2",
       "planned_batch_date": "2026-04-23"
+    },
+    {
+      "path": "core/layer2/ops/src/command_center_session_parts/001-part.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-EXEC-L2",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer2/ops/src/command_center_session.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-EXEC-L2",
+      "planned_batch_date": "2026-06-15"
     },
     {
       "path": "core/layer2/ops/src/command_center_session.rs",
@@ -1174,6 +2566,14 @@
       "expires": "2026-04-23",
       "task_id": "TD-SIZE-EXEC-L2",
       "planned_batch_date": "2026-04-23"
+    },
+    {
+      "path": "core/layer2/ops/src/nexus_internal_comms_parts/040-run.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-EXEC-L2",
+      "planned_batch_date": "2026-06-15"
     },
     {
       "path": "core/layer2/ops/src/nexus_internal_comms_parts/040-run.rs",
@@ -1208,6 +2608,14 @@
       "planned_batch_date": "2026-04-23"
     },
     {
+      "path": "core/layer2/ops/src/srs_contract_runtime.combined.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-EXEC-L2",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
       "path": "core/layer2/ops/src/srs_contract_runtime.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
@@ -1224,106 +2632,50 @@
       "planned_batch_date": "2026-04-23"
     },
     {
-      "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/030-init-selection-helpers.ts",
+      "path": "core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/001-run_action_family_app.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-05-15",
-      "task_id": "TD-SIZE-UI-CLASSIC",
-      "planned_batch_date": "2026-05-15"
-    },
-    {
-      "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/050-conversation-cache.ts",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-05-15",
-      "task_id": "TD-SIZE-UI-CLASSIC",
-      "planned_batch_date": "2026-05-15"
-    },
-    {
-      "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/130-render-window-and-session.part01.ts",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-05-15",
-      "task_id": "TD-SIZE-UI-CLASSIC",
-      "planned_batch_date": "2026-05-15"
-    },
-    {
-      "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/140-session-and-ws.part01.ts",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-05-15",
-      "task_id": "TD-SIZE-UI-CLASSIC",
-      "planned_batch_date": "2026-05-15"
-    },
-    {
-      "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/190-drawer-and-queue.zz-part02.ts",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-05-15",
-      "task_id": "TD-SIZE-UI-CLASSIC",
-      "planned_batch_date": "2026-05-15"
-    },
-    {
-      "path": "core/layer0/ops/src/batch_query_primitive_parts/041-quality-tests.rs",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-05-15",
+      "expires": "2026-04-23",
       "task_id": "TD-SIZE-OPS-L0",
       "planned_batch_date": "2026-04-23"
     },
     {
-      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/040-part.rs",
+      "path": "core/layer0/ops/src/protheusctl_routes_parts/010-command-routing_parts/003-resolve_core_shortcuts_family_ops1.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-05-15",
+      "expires": "2026-04-23",
       "task_id": "TD-SIZE-OPS-L0",
       "planned_batch_date": "2026-04-23"
     },
     {
-      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/045-part.rs",
+      "path": "core/layer0/ops/src/protheusctl_routes_parts/010-command-routing_parts/004-resolve_core_shortcuts_family_ops2.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-05-15",
+      "expires": "2026-04-23",
       "task_id": "TD-SIZE-OPS-L0",
       "planned_batch_date": "2026-04-23"
     },
     {
-      "path": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/070-part.rs",
+      "path": "core/layer0/ops/src/protheusctl_routes_parts/010-command-routing_parts/005-resolve_core_shortcuts_family_ops3.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-05-15",
+      "expires": "2026-04-23",
       "task_id": "TD-SIZE-OPS-L0",
       "planned_batch_date": "2026-04-23"
     },
     {
-      "path": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/140-part.rs",
+      "path": "core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-05-15",
+      "expires": "2026-04-23",
       "task_id": "TD-SIZE-OPS-L0",
       "planned_batch_date": "2026-04-23"
     },
     {
-      "path": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/150-part.rs",
+      "path": "core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-05-15",
-      "task_id": "TD-SIZE-OPS-L0",
-      "planned_batch_date": "2026-04-23"
-    },
-    {
-      "path": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/160-part.rs",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-05-15",
-      "task_id": "TD-SIZE-OPS-L0",
-      "planned_batch_date": "2026-04-23"
-    },
-    {
-      "path": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/agent_scope_full_parts/050-message-finalization-and-payload.rs",
-      "owner": "jay",
-      "reason": "legacy oversize debt; scheduled decomposition batch",
-      "expires": "2026-05-15",
+      "expires": "2026-04-23",
       "task_id": "TD-SIZE-OPS-L0",
       "planned_batch_date": "2026-04-23"
     }

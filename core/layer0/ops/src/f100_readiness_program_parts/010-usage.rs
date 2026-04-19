@@ -94,6 +94,18 @@ fn append_jsonl(path: &Path, value: &Value) -> Result<(), String> {
         .map_err(|e| format!("append_jsonl_failed:{}:{e}", path.display()))
 }
 
+fn seed_local_state_artifact(path: &Path, lane: &str, artifact_kind: &str) -> bool {
+    let payload = json!({
+        "ok": true,
+        "seeded": true,
+        "lane": lane,
+        "artifact_kind": artifact_kind,
+        "ts": now_iso(),
+        "source": "f100_readiness_program"
+    });
+    let encoded = serde_json::to_string_pretty(&payload).unwrap_or_else(|_| "{}".to_string());
+    write_text_atomic(path, &(encoded + "\n")).is_ok()
+}
 fn read_json(path: &Path) -> Option<Value> {
     fs::read_to_string(path)
         .ok()

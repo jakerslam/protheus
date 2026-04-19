@@ -1,3 +1,5 @@
+// Layer ownership: core/layer0/ops
+
 fn lane_035_spdx(root: &Path, policy: &Policy, apply: bool) -> Value {
     let lane_policy = get_lane_policy(policy, "V6-F100-035")
         .cloned()
@@ -288,9 +290,9 @@ fn run_lane(root: &Path, policy: &Policy, lane: &str, apply: bool) -> Value {
         "V7-F100-007" => lane_007_interface_lifecycle_with_id(root, policy, "V7-F100-007"),
         "V7-F100-008" => lane_008_oncall_with_id(root, policy, "V7-F100-008"),
         "V6-F100-009" => lane_009_onboarding(root, policy),
-        "V6-F100-010" => lane_010_architecture_pack(root, policy),
+        "V6-F100-010" => lane_010_architecture_pack(root, policy, apply),
         "V6-F100-011" => lane_011_surface_consistency(root, policy),
-        "V6-F100-012" => lane_012_scorecard(root, policy),
+        "V6-F100-012" => lane_012_scorecard(root, policy, apply),
         "V6-F100-035" => lane_035_spdx(root, policy, apply),
         "V6-F100-036" => lane_036_root_rationalization(root, policy, apply),
         _ => json!({
