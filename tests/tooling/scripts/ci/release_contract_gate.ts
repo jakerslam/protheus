@@ -111,6 +111,9 @@ function windowsAndDocsCheck(): Check {
     readme.includes('$env:INFRING_INSTALL_AUTO_MSVC = "0"') &&
     readme.includes('$env:INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP = "0"') &&
     readme.includes('$env:INFRING_INSTALL_AUTO_RUSTUP = "0"') &&
+    readme.includes('$env:INFRING_INSTALL_REPAIR = "1"') &&
+    readme.includes('$env:INFRING_INSTALL_FULL = "1"') &&
+    readme.includes(noFileFallbackIex) &&
     readme.includes(directGatewayFallbackCommand) &&
     readme.includes('INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP') &&
     /& \$tmp(?:\s+-Repair)?\s+-Full/.test(gettingStarted) &&
